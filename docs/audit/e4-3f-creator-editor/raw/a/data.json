@@ -1,0 +1,541 @@
+{
+ "barEmpty-390": {
+  "text": "필수 8개 남음 · 캐릭터명 채우러 가기 임시저장 공개되지 않고 이 브라우저에만 보관 캐릭터 만들기",
+  "btns": [
+   {
+    "t": "필수 8개 남음 · 캐릭터명 채우러 가기",
+    "disabled": false
+   },
+   {
+    "t": "임시저장공개되지 않고 이 브라우저에만 보관",
+    "disabled": false
+   },
+   {
+    "t": "캐릭터 만들기",
+    "disabled": true
+   }
+  ],
+  "h": 109
+ },
+ "barValid-390": {
+  "text": "저장하면 ‘공개’로 등록돼요 임시저장 마지막 임시저장: 10. 13. 오전 07:07 캐릭터 만들기",
+  "btns": [
+   {
+    "t": "임시저장마지막 임시저장: 10. 13. 오전 07:07",
+    "disabled": false
+   },
+   {
+    "t": "캐릭터 만들기",
+    "disabled": false
+   }
+  ],
+  "h": 93
+ },
+ "barValid-768": {
+  "text": "저장하면 ‘공개’로 등록돼요 임시저장 마지막 임시저장: 10. 13. 오전 07:08 캐릭터 만들기",
+  "btns": [
+   {
+    "t": "임시저장마지막 임시저장: 10. 13. 오전 07:08",
+    "disabled": false
+   },
+   {
+    "t": "캐릭터 만들기",
+    "disabled": false
+   }
+  ],
+  "h": 69
+ },
+ "barEmpty-1440": {
+  "text": "필수 8개 남음 · 캐릭터명 채우러 가기 임시저장 공개되지 않고 이 브라우저에만 보관 캐릭터 만들기",
+  "btns": [
+   {
+    "t": "필수 8개 남음 · 캐릭터명 채우러 가기",
+    "disabled": false
+   },
+   {
+    "t": "임시저장공개되지 않고 이 브라우저에만 보관",
+    "disabled": false
+   },
+   {
+    "t": "캐릭터 만들기",
+    "disabled": true
+   }
+  ],
+  "h": 69
+ },
+ "barValid-1440": {
+  "text": "저장하면 ‘공개’로 등록돼요 임시저장 마지막 임시저장: 10. 13. 오전 07:08 캐릭터 만들기",
+  "btns": [
+   {
+    "t": "임시저장마지막 임시저장: 10. 13. 오전 07:08",
+    "disabled": false
+   },
+   {
+    "t": "캐릭터 만들기",
+    "disabled": false
+   }
+  ],
+  "h": 69
+ },
+ "matrix": {
+  "360-empty": {
+   "hOverflow": false,
+   "clipped": 0,
+   "barOverlapsNav": false,
+   "small": 0,
+   "docH": 6040,
+   "barH": 109
+  },
+  "360-valid12000": {
+   "hOverflow": false,
+   "clipped": 0,
+   "barOverlapsNav": false,
+   "small": 0,
+   "docH": 7058,
+   "barH": 93
+  },
+  "390-empty": {
+   "hOverflow": false,
+   "clipped": 0,
+   "barOverlapsNav": false,
+   "small": 0,
+   "docH": 5841,
+   "barH": 109
+  },
+  "390-valid12000": {
+   "hOverflow": false,
+   "clipped": 0,
+   "barOverlapsNav": false,
+   "small": 0,
+   "docH": 6920,
+   "barH": 93
+  },
+  "576-empty": {
+   "hOverflow": false,
+   "clipped": 0,
+   "barOverlapsNav": false,
+   "small": 0,
+   "docH": 5839,
+   "barH": 109
+  },
+  "576-valid12000": {
+   "hOverflow": false,
+   "clipped": 0,
+   "barOverlapsNav": false,
+   "small": 0,
+   "docH": 7015,
+   "barH": 93
+  },
+  "640-empty": {
+   "hOverflow": false,
+   "clipped": 0,
+   "barOverlapsNav": false,
+   "small": 0,
+   "docH": 5730,
+   "barH": 69
+  },
+  "640-valid12000": {
+   "hOverflow": false,
+   "clipped": 0,
+   "barOverlapsNav": false,
+   "small": 0,
+   "docH": 6346,
+   "barH": 69
+  },
+  "768-empty": {
+   "hOverflow": false,
+   "clipped": 0,
+   "barOverlapsNav": false,
+   "small": 0,
+   "docH": 5401,
+   "barH": 69
+  },
+  "768-valid12000": {
+   "hOverflow": false,
+   "clipped": 0,
+   "barOverlapsNav": false,
+   "small": 0,
+   "docH": 6110,
+   "barH": 69
+  },
+  "1024-empty": {
+   "hOverflow": false,
+   "clipped": 0,
+   "barOverlapsNav": false,
+   "small": 0,
+   "docH": 5158,
+   "barH": 69
+  },
+  "1024-valid12000": {
+   "hOverflow": false,
+   "clipped": 0,
+   "barOverlapsNav": false,
+   "small": 0,
+   "docH": 5914,
+   "barH": 69
+  },
+  "1440-empty": {
+   "hOverflow": false,
+   "clipped": 0,
+   "barOverlapsNav": false,
+   "small": 0,
+   "docH": 5023,
+   "barH": 69
+  },
+  "1440-valid12000": {
+   "hOverflow": false,
+   "clipped": 0,
+   "barOverlapsNav": false,
+   "small": 0,
+   "docH": 5961,
+   "barH": 69
+  }
+ },
+ "save-12000": {
+  "saves": 1,
+  "err": [],
+  "total": [],
+  "scrollY": 0,
+  "provider": 0,
+  "focus": {
+   "tag": "BODY",
+   "id": "",
+   "top": 0,
+   "vh": 844
+  },
+  "inlineAlerts": [
+   "404: This page could not be found."
+  ]
+ },
+ "save-12001": {
+  "saves": 0,
+  "err": [
+   "세계관/배경 + 캐릭터 설정 + 기본 말투는 합쳐서 12,000자 이하여야 합니다."
+  ],
+  "total": [
+   "12,001 / 12,000자"
+  ],
+  "scrollY": 1133,
+  "barH": 117,
+  "provider": 0,
+  "focus": {
+   "tag": "DIV",
+   "id": "nptb_-ai_total",
+   "top": 184,
+   "vh": 844
+  },
+  "inlineAlerts": [
+   "1자 초과 · 줄여야 저장돼요",
+   "세계관/배경 + 캐릭터 설정 + 기본 말투는 합쳐서 12,000자 이하여야 합니다.",
+   ""
+  ]
+ },
+ "a11y-names": {
+  "visible": 11,
+  "labelled": 11,
+  "unlabelled": []
+ },
+ "tabs-at-scroll-2600": {
+  "top": 110,
+  "bottom": 164,
+  "scrollY": 2600
+ },
+ "after-tab-click": {
+  "scrollY": 104,
+  "docH": 3176
+ },
+ "missing-bar-390": {
+  "text": "필수 3개 남음 · 캐릭터명 채우러 가기 임시저장 마지막 임시저장: 10. 13. 오전 07:08 캐릭터 만들기",
+  "btns": [
+   {
+    "t": "필수 3개 남음 · 캐릭터명 채우러 가기",
+    "disabled": false
+   },
+   {
+    "t": "임시저장마지막 임시저장: 10. 13. 오전 07:08",
+    "disabled": false
+   },
+   {
+    "t": "캐릭터 만들기",
+    "disabled": true
+   }
+  ],
+  "h": 109
+ },
+ "missing-btn-disabled-390": true,
+ "missing-bar-1440": {
+  "text": "필수 3개 남음 · 캐릭터명 채우러 가기 임시저장 마지막 임시저장: 10. 13. 오전 07:08 캐릭터 만들기",
+  "btns": [
+   {
+    "t": "필수 3개 남음 · 캐릭터명 채우러 가기",
+    "disabled": false
+   },
+   {
+    "t": "임시저장마지막 임시저장: 10. 13. 오전 07:08",
+    "disabled": false
+   },
+   {
+    "t": "캐릭터 만들기",
+    "disabled": true
+   }
+  ],
+  "h": 69
+ },
+ "missing-btn-disabled-1440": true,
+ "long-active": {
+  "active": "TEXTAREA:성격, 말투 특징, 외모, 배경, 관계, 습관, 가치관 ",
+  "covered": false,
+  "scrollY": 1628
+ },
+ "keyboard-open": {
+  "active": "TEXTAREA:성격, 말투 특징, 외모, 배경, 관계, 습관, 가치관 ",
+  "activeBottom": 501,
+  "barTop": 415,
+  "covered": true,
+  "barH": 93,
+  "vh": 508
+ },
+ "keyboard-short-field-focus": {
+  "top": 167,
+  "bottom": 217,
+  "barTop": 399,
+  "hiddenBehindBar": false,
+  "vh": 508
+ },
+ "tabs-390": {
+  "preview": {
+   "scrollY": 0,
+   "docH": 2378
+  },
+  "widget": {
+   "scrollY": 0,
+   "docH": 3931
+  },
+  "publish": {
+   "scrollY": 0,
+   "docH": 3176
+  },
+  "create": {
+   "scrollY": 0,
+   "docH": 6920
+  }
+ },
+ "tabs-768": {
+  "preview": {
+   "scrollY": 0,
+   "docH": 1990
+  },
+  "widget": {
+   "scrollY": 0,
+   "docH": 3158
+  },
+  "publish": {
+   "scrollY": 0,
+   "docH": 2657
+  },
+  "create": {
+   "scrollY": 0,
+   "docH": 6110
+  }
+ },
+ "tabs-1440": {
+  "preview": {
+   "scrollY": 0,
+   "docH": 1867
+  },
+  "widget": {
+   "scrollY": 0,
+   "docH": 2872
+  },
+  "publish": {
+   "scrollY": 0,
+   "docH": 2339
+  },
+  "create": {
+   "scrollY": 0,
+   "docH": 5961
+  }
+ },
+ "rep-390": {
+  "before": [
+   "대표",
+   "대표 1 · 해제",
+   "대표 · 공개",
+   "대표로 지정",
+   "대표로 지정",
+   "대표로 지정",
+   "대표로 지정",
+   "대표로 지정"
+  ],
+  "after": [
+   "대표",
+   "대표 1 · 해제",
+   "대표 · 공개",
+   "대표 2 · 해제",
+   "대표 · 공개",
+   "대표로 지정",
+   "대표로 지정",
+   "대표로 지정",
+   "대표로 지정"
+  ]
+ },
+ "rep-1440": {
+  "before": [
+   "대표",
+   "대표 1 · 해제",
+   "대표 · 공개",
+   "대표로 지정",
+   "대표로 지정",
+   "대표로 지정",
+   "대표로 지정",
+   "대표로 지정"
+  ],
+  "after": [
+   "대표",
+   "대표 1 · 해제",
+   "대표 · 공개",
+   "대표 2 · 해제",
+   "대표 · 공개",
+   "대표로 지정",
+   "대표로 지정",
+   "대표로 지정",
+   "대표로 지정"
+  ]
+ },
+ "edit-full": {
+  "name": "세라핀 에르하르트",
+  "title": "캐릭터 수정",
+  "bar": {
+   "text": "필수 1개 남음 · 장르 1개 이상 채우러 가기 임시저장 공개되지 않고 이 브라우저에만 보관 변경사항 저장",
+   "btns": [
+    {
+     "t": "필수 1개 남음 · 장르 1개 이상 채우러 가기",
+     "disabled": false
+    },
+    {
+     "t": "임시저장공개되지 않고 이 브라우저에만 보관",
+     "disabled": false
+    },
+    {
+     "t": "변경사항 저장",
+     "disabled": true
+    }
+   ],
+   "h": 109
+  },
+  "hOverflow": false
+ },
+ "edit-long": {
+  "name": "아주 긴 이름을 가진 캐릭터의 이름이 한 줄을 넘어가는 경우를 확인하기",
+  "title": "캐릭터 수정",
+  "bar": {
+   "text": "필수 1개 남음 · 장르 1개 이상 채우러 가기 임시저장 공개되지 않고 이 브라우저에만 보관 변경사항 저장",
+   "btns": [
+    {
+     "t": "필수 1개 남음 · 장르 1개 이상 채우러 가기",
+     "disabled": false
+    },
+    {
+     "t": "임시저장공개되지 않고 이 브라우저에만 보관",
+     "disabled": false
+    },
+    {
+     "t": "변경사항 저장",
+     "disabled": true
+    }
+   ],
+   "h": 109
+  },
+  "hOverflow": false
+ },
+ "edit-noimg": {
+  "name": "이미지 없는 캐릭터",
+  "title": "캐릭터 수정",
+  "bar": {
+   "text": "필수 2개 남음 · 감정 에셋 이미지 1장 채우러 가기 임시저장 공개되지 않고 이 브라우저에만 보관 변경사항 저장",
+   "btns": [
+    {
+     "t": "필수 2개 남음 · 감정 에셋 이미지 1장 채우러 가기",
+     "disabled": false
+    },
+    {
+     "t": "임시저장공개되지 않고 이 브라우저에만 보관",
+     "disabled": false
+    },
+    {
+     "t": "변경사항 저장",
+     "disabled": true
+    }
+   ],
+   "h": 109
+  },
+  "hOverflow": false
+ },
+ "edit-other": {
+  "name": "",
+  "title": "캐릭터 수정",
+  "bar": {
+   "text": "임시저장 공개되지 않고 이 브라우저에만 보관 변경사항 저장",
+   "btns": [
+    {
+     "t": "임시저장공개되지 않고 이 브라우저에만 보관",
+     "disabled": false
+    },
+    {
+     "t": "변경사항 저장",
+     "disabled": true
+    }
+   ],
+   "h": 77
+  },
+  "hOverflow": false
+ },
+ "edit-minor": {
+  "title": "성인인증이 필요합니다",
+  "err": "성인인증이 필요합니다",
+  "bar": null,
+  "hOverflow": false
+ },
+ "draft-bar-after": {
+  "text": "필수 7개 남음 · 한 줄 소개 채우러 가기 저장됨 ✓ 캐릭터 만들기",
+  "btns": [
+   {
+    "t": "필수 7개 남음 · 한 줄 소개 채우러 가기",
+    "disabled": false
+   },
+   {
+    "t": "저장됨 ✓",
+    "disabled": false
+   },
+   {
+    "t": "캐릭터 만들기",
+    "disabled": true
+   }
+  ],
+  "h": 109
+ },
+ "draft-restored-name": "임시저장 검증 이름",
+ "submit-name-empty": {
+  "bar": {
+   "text": "캐릭터 이름(또는 시뮬레이션명)을 입력해 주세요. 필수 1개 남음 · 캐릭터명 채우러 가기 임시저장 마지막 임시저장: 10. 13. 오전 07:10 캐릭터 만들기",
+   "btns": [
+    {
+     "t": "필수 1개 남음 · 캐릭터명 채우러 가기",
+     "disabled": false
+    },
+    {
+     "t": "임시저장마지막 임시저장: 10. 13. 오전 07:10",
+     "disabled": false
+    },
+    {
+     "t": "캐릭터 만들기",
+     "disabled": false
+    }
+   ],
+   "h": 129
+  },
+  "scrollY": 695,
+  "active": "INPUT:예: 리카르트 발크리드"
+ },
+ "providerPostsTotal": 0
+}
