@@ -12,7 +12,24 @@ import {
 } from "@/components/SidebarNavIcons";
 import StudioButton from "@/components/studio/StudioButton";
 import StudioEmptyState from "@/components/studio/StudioEmptyState";
+import {
+  StudioLibraryOverview,
+  StudioLibraryResultBar,
+  StudioLibraryToolbar,
+  StudioLoadMore,
+  StudioNoMatches,
+} from "@/components/studio/StudioLibraryTools";
 import type { KeywordLorebookListItem } from "@/lib/keywordLorebooks";
+import {
+  EMPTY_STUDIO_FILTER,
+  STUDIO_LIBRARY_PAGE_SIZE,
+  STUDIO_LIBRARY_TOOLS_MIN,
+  filterStudioWorks,
+  isStudioFilterActive,
+  matchesLibraryQuery,
+  summarizeStudioWorks,
+  type StudioLibraryFilter,
+} from "@/lib/studioLibraryView";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 import type { WorldListItem } from "@/lib/worlds";
 
@@ -181,10 +198,30 @@ function CreationsPanel({
   simulations: MyCharacterRow[];
   blurNsfw: boolean;
 }) {
-  const creations = [...characters, ...simulations].sort((a, b) => {
-    const createdAtOrder = b.created_at.localeCompare(a.created_at);
-    return createdAtOrder || b.id - a.id;
-  });
+  const creations = useMemo(
+    () =>
+      [...characters, ...simulations].sort((a, b) => {
+        const createdAtOrder = b.created_at.localeCompare(a.created_at);
+        return createdAtOrder || b.id - a.id;
+      }),
+    [characters, simulations],
+  );
+  const [filter, setFilter] = useState<StudioLibraryFilter>(EMPTY_STUDIO_FILTER);
+  const [visibleCount, setVisibleCount] = useState(STUDIO_LIBRARY_PAGE_SIZE);
+  const showTools = creations.length >= STUDIO_LIBRARY_TOOLS_MIN;
+  const summary = useMemo(() => summarizeStudioWorks(creations), [creations]);
+  const matched = useMemo(
+    () => (showTools ? filterStudioWorks(creations, filter) : creations),
+    [creations, filter, showTools],
+  );
+  const shown = showTools ? matched.slice(0, visibleCount) : matched;
+  const filtered = showTools && isStudioFilterActive(filter);
+
+  const changeFilter = useCallback((next: StudioLibraryFilter) => {
+    setFilter(next);
+    setVisibleCount(STUDIO_LIBRARY_PAGE_SIZE);
+  }, []);
+  const resetFilter = useCallback(() => changeFilter(EMPTY_STUDIO_FILTER), [changeFilter]);
 
   return (
     <section>
@@ -201,26 +238,119 @@ function CreationsPanel({
           cta="캐릭터·시뮬레이션 만들기"
         />
       ) : (
-        <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-0 sm:grid-cols-3 lg:grid-cols-5">
-          {creations.map((creation) => {
-            const isSimulation = creation.content_kind === "simulation";
-            return (
-              <MyCharacterCard
-                key={creation.id}
-                c={creation}
-                blurNsfw={blurNsfw}
-                editHref={`/create?edit=${creation.id}`}
-                contentLabel={isSimulation ? "시뮬레이션" : "캐릭터"}
+        <>
+          {showTools ? (
+            <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+              <StudioLibraryOverview summary={summary} filter={filter} onChange={changeFilter} />
+              <StudioLibraryToolbar
+                filter={filter}
+                onChange={changeFilter}
+                placeholder="작품 이름 검색"
+                showStatus
               />
-            );
-          })}
-        </div>
+            </div>
+          ) : null}
+          {showTools ? (
+            <div className="mt-2">
+              <StudioLibraryResultBar
+                shown={shown.length}
+                matched={matched.length}
+                total={creations.length}
+                filtered={filtered}
+                onReset={resetFilter}
+              />
+            </div>
+          ) : null}
+          {matched.length === 0 ? (
+            <StudioNoMatches onReset={resetFilter} />
+          ) : (
+            <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-0 sm:grid-cols-3 lg:grid-cols-5">
+              {shown.map((creation) => {
+                const isSimulation = creation.content_kind === "simulation";
+                return (
+                  <MyCharacterCard
+                    key={creation.id}
+                    c={creation}
+                    blurNsfw={blurNsfw}
+                    editHref={`/create?edit=${creation.id}`}
+                    contentLabel={isSimulation ? "시뮬레이션" : "캐릭터"}
+                  />
+                );
+              })}
+            </div>
+          )}
+          {showTools ? (
+            <StudioLoadMore
+              remaining={matched.length - shown.length}
+              onClick={() => setVisibleCount((n) => n + STUDIO_LIBRARY_PAGE_SIZE)}
+            />
+          ) : null}
+        </>
       )}
     </section>
   );
 }
 
+function useQueryList<T extends { name: string }>(items: T[]) {
+  const [query, setQueryState] = useState("");
+  const [visibleCount, setVisibleCount] = useState(STUDIO_LIBRARY_PAGE_SIZE);
+  const showTools = items.length >= STUDIO_LIBRARY_TOOLS_MIN;
+  const matched = useMemo(
+    () => (showTools ? items.filter((item) => matchesLibraryQuery(item.name, query)) : items),
+    [items, query, showTools],
+  );
+  const shown = showTools ? matched.slice(0, visibleCount) : matched;
+  const setQuery = useCallback((next: string) => {
+    setQueryState(next);
+    setVisibleCount(STUDIO_LIBRARY_PAGE_SIZE);
+  }, []);
+  return {
+    query,
+    setQuery,
+    showTools,
+    matched,
+    shown,
+    filtered: showTools && query.trim() !== "",
+    showMore: () => setVisibleCount((n) => n + STUDIO_LIBRARY_PAGE_SIZE),
+  };
+}
+
+function QueryTools({
+  list,
+  placeholder,
+  total,
+}: {
+  list: ReturnType<typeof useQueryList>;
+  placeholder: string;
+  total: number;
+}) {
+  if (!list.showTools) return null;
+  return (
+    <div className="mt-4">
+      <StudioLibraryToolbar
+        filter={{ ...EMPTY_STUDIO_FILTER, query: list.query }}
+        onChange={(next) => list.setQuery(next.query)}
+        placeholder={placeholder}
+        showStatus={false}
+      />
+      <div className="mt-2">
+        <StudioLibraryResultBar
+          shown={list.shown.length}
+          matched={list.matched.length}
+          total={total}
+          filtered={list.filtered}
+          onReset={() => list.setQuery("")}
+        />
+      </div>
+    </div>
+  );
+}
+
 function WorldsPanel({ worlds }: { worlds: WorldListItem[] }) {
+  const list = useQueryList(worlds);
+  const owned = worlds.filter((w) => w.libraryKind !== "borrowed" && w.libraryKind !== "legacy_borrowed").length;
+  const borrowed = worlds.filter((w) => w.libraryKind === "borrowed" || w.libraryKind === "legacy_borrowed").length;
+  const ended = worlds.filter((w) => w.libraryKind === "borrowed" && w.shareAvailable === false).length;
   return (
     <section>
       <h2 className="sr-only">내 제작 세계관</h2>
@@ -237,14 +367,30 @@ function WorldsPanel({ worlds }: { worlds: WorldListItem[] }) {
           cta="세계관 제작하기"
         />
       ) : (
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {worlds.map((world) => (
-            <WorldCard
-              key={world.borrowId ? `borrow-${world.borrowId}` : `world-${world.id}`}
-              world={world}
-            />
-          ))}
-        </div>
+        <>
+          {list.showTools ? (
+            <p className="mt-3 text-xs text-zinc-400" data-testid="studio-world-summary">
+              내 세계관 {owned} · 빌린 세계관 {borrowed}
+              {ended > 0 ? ` · 공유 종료 ${ended}` : ""}
+            </p>
+          ) : null}
+          <QueryTools list={list} placeholder="세계관 이름 검색" total={worlds.length} />
+          {list.matched.length === 0 ? (
+            <StudioNoMatches onReset={() => list.setQuery("")} />
+          ) : (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {list.shown.map((world) => (
+                <WorldCard
+                  key={world.borrowId ? `borrow-${world.borrowId}` : `world-${world.id}`}
+                  world={world}
+                />
+              ))}
+            </div>
+          )}
+          {list.showTools ? (
+            <StudioLoadMore remaining={list.matched.length - list.shown.length} onClick={list.showMore} />
+          ) : null}
+        </>
       )}
     </section>
   );
@@ -525,6 +671,7 @@ function formatLibraryDate(raw: string): string {
 }
 
 function LorebooksPanel({ lorebooks }: { lorebooks: KeywordLorebookListItem[] }) {
+  const list = useQueryList(lorebooks);
   return (
     <section>
       <h2 className="sr-only">내 로어북</h2>
@@ -540,50 +687,60 @@ function LorebooksPanel({ lorebooks }: { lorebooks: KeywordLorebookListItem[] })
           cta="로어북 제작하기"
         />
       ) : (
-        <ul className="mt-5 grid gap-3 lg:grid-cols-2">
-          {lorebooks.map((lb) => {
-            const updated = formatLibraryDate(lb.updatedAt);
-            return (
-              <li key={lb.id} className="min-w-0">
-                <Link
-                  href={`/lorebook/${lb.id}/edit`}
-                  className={cn(
-                    studioSurface.card,
-                    "flex h-full min-h-14 items-center justify-between gap-3 px-4 py-3.5 transition hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40",
-                  )}
-                  data-testid="studio-lorebook-item"
-                >
-                  <div className="min-w-0">
-                    <p className="line-clamp-2 break-words font-semibold leading-snug text-zinc-50 [overflow-wrap:anywhere]">
-                      {lb.name}
-                    </p>
-                    {lb.summary ? (
-                      <p className={cn(studioType.caption, "mt-0.5 line-clamp-2 break-words")}>{lb.summary}</p>
-                    ) : (
-                      <p className={cn(studioType.caption, "mt-0.5 text-zinc-500")}>설명 없음</p>
-                    )}
-                    <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-400">
-                      <span
-                        className={cn(
-                          "inline-flex min-h-6 items-center rounded-md px-2 py-0.5 font-semibold ring-1 ring-inset",
-                          lb.entryCount === 0
-                            ? "bg-amber-500/10 text-amber-200 ring-amber-400/30"
-                            : "bg-white/[0.04] text-zinc-200 ring-white/10",
+        <>
+          <QueryTools list={list} placeholder="로어북 이름 검색" total={lorebooks.length} />
+          {list.matched.length === 0 ? (
+            <StudioNoMatches onReset={() => list.setQuery("")} />
+          ) : (
+            <ul className="mt-4 grid gap-3 lg:grid-cols-2">
+              {list.shown.map((lb) => {
+                const updated = formatLibraryDate(lb.updatedAt);
+                return (
+                  <li key={lb.id} className="min-w-0">
+                    <Link
+                      href={`/lorebook/${lb.id}/edit`}
+                      className={cn(
+                        studioSurface.card,
+                        "flex h-full min-h-14 items-center justify-between gap-3 px-4 py-3.5 transition hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40",
+                      )}
+                      data-testid="studio-lorebook-item"
+                    >
+                      <div className="min-w-0">
+                        <p className="line-clamp-2 break-words font-semibold leading-snug text-zinc-50 [overflow-wrap:anywhere]">
+                          {lb.name}
+                        </p>
+                        {lb.summary ? (
+                          <p className={cn(studioType.caption, "mt-0.5 line-clamp-2 break-words")}>{lb.summary}</p>
+                        ) : (
+                          <p className={cn(studioType.caption, "mt-0.5 text-zinc-500")}>설명 없음</p>
                         )}
-                      >
-                        {lb.entryCount === 0 ? "항목 없음" : `${lb.entryCount}개 항목`}
+                        <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-400">
+                          <span
+                            className={cn(
+                              "inline-flex min-h-6 items-center rounded-md px-2 py-0.5 font-semibold ring-1 ring-inset",
+                              lb.entryCount === 0
+                                ? "bg-amber-500/10 text-amber-200 ring-amber-400/30"
+                                : "bg-white/[0.04] text-zinc-200 ring-white/10",
+                            )}
+                          >
+                            {lb.entryCount === 0 ? "항목 없음" : `${lb.entryCount}개 항목`}
+                          </span>
+                          {updated ? <span>수정 {updated}</span> : null}
+                        </p>
+                      </div>
+                      <span className="shrink-0 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-zinc-200">
+                        수정
                       </span>
-                      {updated ? <span>수정 {updated}</span> : null}
-                    </p>
-                  </div>
-                  <span className="shrink-0 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-zinc-200">
-                    수정
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {list.showTools ? (
+            <StudioLoadMore remaining={list.matched.length - list.shown.length} onClick={list.showMore} />
+          ) : null}
+        </>
       )}
     </section>
   );
