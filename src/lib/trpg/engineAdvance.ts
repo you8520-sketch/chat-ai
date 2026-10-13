@@ -155,6 +155,7 @@ import {
   type MechanicsRoundDeps,
 } from "./mechanicsRound";
 import { mergeMechanicsOwnedDelta } from "./mechanicsMerge";
+import { regenerateOutputInvertsCommittedCanon } from "./regenerateCanon";
 import { acceptEncountersEnded, governedEncounters } from "./encounterStrikes";
 import { evaluateThreatShadow, formatThreatShadowLog, threatShadowHasSignal } from "./threatShadow";
 import { loadEndedEncounterIds, loadMechanicsResolution, markMechanicsApplied } from "./mechanicsStore";
@@ -1721,10 +1722,26 @@ function commitPendingGmResult(
       }
       stage = "gm_persist";
       clearGmNarrationDraft(db, opts.roundId);
+      const existingGm = db
+        .prepare(`SELECT narration FROM trpg_gm_messages WHERE round_id=?`)
+        .get(opts.roundId) as { narration: string } | undefined;
+      const canon = opts.regenerate
+        ? regenerateOutputInvertsCommittedCanon({
+            delta: parsed.delta,
+            location: parsed.location ?? undefined,
+            sheets,
+            ledger: currentLedger,
+          })
+        : { invert: false, reasons: [] };
+      if (canon.invert) {
+        console.info("[TRPG][gm] regenerate_canon_preserved", { reasons: canon.reasons });
+      }
+      const narrationToStore =
+        canon.invert && existingGm?.narration ? existingGm.narration : parsed.narration;
       db.prepare(
         `INSERT INTO trpg_gm_messages (round_id, narration, structured_json) VALUES (?,?,?)
          ON CONFLICT(round_id) DO UPDATE SET narration=excluded.narration, structured_json=excluded.structured_json`
-      ).run(opts.roundId, parsed.narration, JSON.stringify(parsed));
+      ).run(opts.roundId, narrationToStore, JSON.stringify(parsed));
       if (opts.regenerate) return;
       if (persistMechanics) {
         persistSheets(db, nextSheets);
