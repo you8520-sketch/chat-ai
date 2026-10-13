@@ -356,6 +356,45 @@ export function clearStaleCreatorScopeCarryoverForChat(
   );
 }
 
+export function resolveOfficialAdminLorebookAttachmentIds(
+  db: Database.Database,
+  creatorId: number,
+  requestedIds: readonly number[],
+  retainedAttachedIds: readonly number[] = []
+): { ok: true; ids: number[] } | { ok: false; error: string; status: number } {
+  if (retainedAttachedIds.length === 0) {
+    return { ok: true, ids: [...requestedIds] };
+  }
+  const uniqueRetained = normalizeCreatorLorebookIds(retainedAttachedIds);
+  const placeholders = uniqueRetained.map(() => "?").join(",");
+  const rows = db
+    .prepare(
+      `SELECT id, creator_id FROM keyword_lorebooks
+       WHERE id IN (${placeholders})
+         AND COALESCE(scope, ?) = ?`
+    )
+    .all(...uniqueRetained, LOREBOOK_SCOPE_CREATOR, LOREBOOK_SCOPE_CREATOR) as Array<{
+    id: number;
+    creator_id: number;
+  }>;
+  const ownerById = new Map(rows.map((row) => [row.id, row.creator_id]));
+  const foreignRetained = uniqueRetained.filter((id) => {
+    const ownerId = ownerById.get(id);
+    return ownerId != null && ownerId !== creatorId;
+  });
+  const foreignSet = new Set(foreignRetained);
+  const requestedForeign = requestedIds.filter((id) => foreignSet.has(id));
+  if (requestedForeign.length > 0 && requestedForeign.length !== foreignRetained.length) {
+    return {
+      ok: false,
+      error: "공유 로어북 연결은 유지해야 합니다.",
+      status: 400,
+    };
+  }
+  const requestedOwned = requestedIds.filter((id) => !foreignSet.has(id));
+  return { ok: true, ids: [...foreignRetained, ...requestedOwned] };
+}
+
 export function validateCreatorLorebookAttachmentIds(
   db: Database.Database,
   creatorId: number,

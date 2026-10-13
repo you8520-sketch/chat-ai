@@ -133,6 +133,7 @@ import {
   normalizeCreatorLorebookIds,
   listCharacterCreatorLorebookAttachmentIds,
   replaceCharacterCreatorLorebookAttachments,
+  resolveOfficialAdminLorebookAttachmentIds,
   validateCreatorLorebookAttachmentIds,
 } from "@/lib/creatorLorebook";
 
@@ -626,7 +627,17 @@ export function parseCharacterFormBody(
     sourceWorldShareId = existingCharacter.sourceWorldShareId;
   }
 
-  const lorebookIds = normalizeCreatorLorebookIds(b.lorebook_ids ?? b.lorebookIds);
+  const requestedLorebookIds = normalizeCreatorLorebookIds(b.lorebook_ids ?? b.lorebookIds);
+  const resolvedLorebooks = resolveOfficialAdminLorebookAttachmentIds(
+    db,
+    user.id,
+    requestedLorebookIds,
+    options?.retainedLorebookIds
+  );
+  if (!resolvedLorebooks.ok) {
+    return { ok: false, error: resolvedLorebooks.error, status: resolvedLorebooks.status };
+  }
+  const lorebookIds = resolvedLorebooks.ids;
   const lorebookValidation = validateCreatorLorebookAttachmentIds(
     db,
     user.id,
@@ -1531,7 +1542,10 @@ export async function updateCharacterPublicProfileFromForm(
     .prepare(
       `SELECT id, creator_id, official, share_slug, visibility, moderation_status, moderation_note,
               images, nsfw, name, greeting, creator_comment, tags, participant_min_age, adult_status,
-              creator_name,
+              creator_name, COALESCE(status_widget_json, '') AS status_widget_json,
+              COALESCE(simulation_reuse_allowed, 0) AS simulation_reuse_allowed,
+              COALESCE(simulation_nsfw_allowed, 0) AS simulation_nsfw_allowed,
+              COALESCE(trpg_reuse_allowed, 0) AS trpg_reuse_allowed,
               COALESCE(content_kind, 'character') AS content_kind,
               COALESCE(simulation_cast, '') AS simulation_cast,
               COALESCE(simulation_visual_subjects_json, '') AS simulation_visual_subjects_json,
@@ -1549,6 +1563,10 @@ export async function updateCharacterPublicProfileFromForm(
         moderation_note: string | null;
         images: string | null;
         creator_name: string;
+        status_widget_json: string;
+        simulation_reuse_allowed: number;
+        simulation_nsfw_allowed: number;
+        trpg_reuse_allowed: number;
         nsfw: number | null;
         name: string;
         greeting: string;
@@ -1675,9 +1693,11 @@ export async function updateCharacterPublicProfileFromForm(
     tags: Array.isArray(b.tags) ? b.tags.map(String) : row.tags ?? "",
   });
   if (!listingBlock.ok) return listingBlock;
+  const keepRuntimeWidget = officialAdmin;
   const rawWidget = b.status_widget_json ?? b.status_widget;
-  const parsedWidget =
-    typeof rawWidget === "string"
+  const parsedWidget = keepRuntimeWidget
+    ? null
+    : typeof rawWidget === "string"
       ? parseStatusWidgetJson(rawWidget)
       : rawWidget && typeof rawWidget === "object"
         ? parseStatusWidgetJson(JSON.stringify(rawWidget))
@@ -1686,8 +1706,14 @@ export async function updateCharacterPublicProfileFromForm(
     const budgetCheck = validateCharacterStatusWidgetContextBudget(parsedWidget);
     if (!budgetCheck.ok) return { ok: false as const, error: budgetCheck.error, status: 400 };
   }
-  const statusWidgetJson = parsedWidget ? serializeStatusWidget(parsedWidget) : "";
-  const parsedTriggers = validateStatusWidgetTriggerInputs(b.status_widget_triggers);
+  const statusWidgetJson = keepRuntimeWidget
+    ? row.status_widget_json
+    : parsedWidget
+      ? serializeStatusWidget(parsedWidget)
+      : "";
+  const parsedTriggers = keepRuntimeWidget
+    ? { ok: true as const, triggers: [] }
+    : validateStatusWidgetTriggerInputs(b.status_widget_triggers);
   if (!parsedTriggers.ok) {
     return { ok: false as const, error: parsedTriggers.error, status: 400 };
   }
@@ -1737,16 +1763,18 @@ export async function updateCharacterPublicProfileFromForm(
     String(b.creator_comment ?? b.creatorComment ?? "").trim().slice(0, CREATOR_COMMENT_LIMIT),
     officialAdmin ? row.creator_name : user.nickname,
     statusWidgetJson,
-    0,
-    0,
-    b.trpg_reuse_allowed === true ? 1 : 0,
+    keepRuntimeWidget ? row.simulation_reuse_allowed : 0,
+    keepRuntimeWidget ? row.simulation_nsfw_allowed : 0,
+    keepRuntimeWidget ? row.trpg_reuse_allowed : b.trpg_reuse_allowed === true ? 1 : 0,
     participantMinAge,
     adultStatus,
     visualSubjectsJson,
     ...publicDossierSqlValues(publicDossier.data),
     characterId
   );
-  saveCharacterStatusWidgetTriggers(db, characterId, parsedTriggers.triggers);
+  if (!keepRuntimeWidget) {
+    saveCharacterStatusWidgetTriggers(db, characterId, parsedTriggers.triggers);
+  }
 
   if (moderationStatus === "rejected") {
     notifyCharacterReviewResult(db, {

@@ -36,7 +36,14 @@ import {
   canAdminManageOfficialCharacter,
   listOfficialCharactersForAdmin,
   resolveOfficialCharacterEditorAccess,
+  resolveOfficialSupplyAssetOwnerId,
 } from "@/lib/officialAdminAccess";
+import { DEFAULT_STATUS_WIDGET } from "@/lib/statusWidget/defaultTemplate";
+import { serializeStatusWidget } from "@/lib/statusWidget/serialize";
+import {
+  listCharacterStatusWidgetTriggers,
+  saveCharacterStatusWidgetTriggers,
+} from "@/lib/statusWidgetTriggers";
 import { publishOfficialSupplyCharacter } from "@/lib/officialSupply/publish";
 import {
   OFFICIAL_OWNER_TRANSFER_ENV,
@@ -495,6 +502,134 @@ describe("admin-owned official supply character management (#1589)", () => {
       if (!denied.ok) assert.equal(denied.status, 400);
     }
     assert.deepEqual(listCharacterCreatorLorebookAttachmentIds(getDb(), s.characterId), s.lorebookIds);
+  });
+
+  it("official-admin PUT rejects dropping one shared lorebook and preserves all when the list is omitted", async () => {
+    const s = seed();
+    transfer(s);
+    const luciusBefore = listCharacterCreatorLorebookAttachmentIds(getDb(), s.luciusId);
+    const lorebooksBefore = dump("keyword_lorebooks", "id");
+
+    const droppedOne = await updateCharacterFromForm(
+      s.adminSession,
+      s.characterId,
+      fullForm(s, { lorebook_ids: s.lorebookIds.slice(1) }),
+      OFFICIAL_ADMIN_OPTIONS(s.adminSession)
+    );
+    assert.equal(droppedOne.ok, false);
+    if (!droppedOne.ok) {
+      assert.equal(droppedOne.status, 400);
+      assert.match(droppedOne.error, /공유 로어북/);
+    }
+    assert.deepEqual(listCharacterCreatorLorebookAttachmentIds(getDb(), s.characterId), s.lorebookIds);
+
+    const omitted = await updateCharacterFromForm(
+      s.adminSession,
+      s.characterId,
+      fullForm(s, { lorebook_ids: [] }),
+      OFFICIAL_ADMIN_OPTIONS(s.adminSession)
+    );
+    assert.equal(omitted.ok, true, omitted.ok ? "" : `${omitted.status}: ${omitted.error}`);
+    assert.deepEqual(listCharacterCreatorLorebookAttachmentIds(getDb(), s.characterId), s.lorebookIds);
+    assert.equal(
+      resolveOfficialSupplyAssetOwnerId(getDb(), editorRow(s.characterId), s.lorebookIds),
+      s.studioId
+    );
+    assert.deepEqual(listCharacterCreatorLorebookAttachmentIds(getDb(), s.luciusId), luciusBefore);
+    assert.equal(dump("keyword_lorebooks", "id"), lorebooksBefore);
+  });
+
+  it("official-admin blur-only PATCH keeps a nonempty status widget, triggers and unused public fields", async () => {
+    const s = seed();
+    transfer(s);
+    const widgetJson = serializeStatusWidget({
+      version: 1,
+      name: "북부 상태창",
+      htmlTemplate: "<div>{{place}}</div>",
+      placement: "bottom",
+      fields: [{ id: "place", label: "장소", instruction: "현재 장소" }],
+    });
+    getDb()
+      .prepare(
+        `UPDATE characters
+         SET status_widget_json=?, creator_comment=?, simulation_reuse_allowed=1,
+             simulation_nsfw_allowed=1, trpg_reuse_allowed=1
+         WHERE id=?`
+      )
+      .run(widgetJson, "기존 제작자 코멘트", s.characterId);
+    saveCharacterStatusWidgetTriggers(getDb(), s.characterId, [
+      {
+        trigger_id: "place_changed",
+        status_key: "place",
+        operator: "==",
+        value: "북부",
+        fire_once: true,
+        event_key: "north_arrived",
+        effect_text: "북부에 도착했다. 서약을 다시 확인한다.",
+        character_knowledge: "revealed_on_trigger",
+        is_enabled: true,
+      },
+    ]);
+    const before = row(s.characterId);
+    const unusedHash = JSON.stringify({
+      status_widget_json: before.status_widget_json,
+      creator_name: before.creator_name,
+      visibility: before.visibility,
+      moderation_status: before.moderation_status,
+      nsfw: before.nsfw,
+      participant_min_age: before.participant_min_age,
+      official: before.official,
+      share_slug: before.share_slug,
+      creator_comment: before.creator_comment,
+      simulation_reuse_allowed: before.simulation_reuse_allowed,
+      simulation_nsfw_allowed: before.simulation_nsfw_allowed,
+      trpg_reuse_allowed: before.trpg_reuse_allowed,
+    });
+    const triggersBefore = JSON.stringify(listCharacterStatusWidgetTriggers(getDb(), s.characterId));
+
+    const result = await updateCharacterPublicProfileFromForm(
+      s.adminSession,
+      s.characterId,
+      {
+        scope: "public_profile",
+        tagline: "한줄",
+        description: "설명",
+        genres: ["로맨스 판타지"],
+        tags: ["북부대공", "새태그"],
+        assets: rep14().map((asset, index) => ({ ...asset, viewerBlur: index === 2 })),
+        visibility: "public",
+        nsfw: false,
+        creator_comment: "기존 제작자 코멘트",
+        status_widget_json: serializeStatusWidget(DEFAULT_STATUS_WIDGET),
+        status_widget_triggers: [],
+      },
+      OFFICIAL_ADMIN_OPTIONS(s.adminSession)
+    );
+    assert.equal(result.ok, true, result.ok ? "" : `${result.status}: ${result.error}`);
+
+    const after = row(s.characterId);
+    assert.equal(after.status_widget_json, widgetJson);
+    assert.equal(
+      JSON.stringify({
+        status_widget_json: after.status_widget_json,
+        creator_name: after.creator_name,
+        visibility: after.visibility,
+        moderation_status: after.moderation_status,
+        nsfw: after.nsfw,
+        participant_min_age: after.participant_min_age,
+        official: after.official,
+        share_slug: after.share_slug,
+        creator_comment: after.creator_comment,
+        simulation_reuse_allowed: after.simulation_reuse_allowed,
+        simulation_nsfw_allowed: after.simulation_nsfw_allowed,
+        trpg_reuse_allowed: after.trpg_reuse_allowed,
+      }),
+      unusedHash
+    );
+    assert.equal(JSON.stringify(listCharacterStatusWidgetTriggers(getDb(), s.characterId)), triggersBefore);
+    const assets = parseAssets(after.assets as string);
+    assert.equal(assets[2]!.viewerBlur, true);
+    assert.deepEqual(JSON.parse(after.tags as string), ["북부대공", "새태그"]);
   });
 
   it("an ordinary creator still cannot attach someone else's lorebook", async () => {

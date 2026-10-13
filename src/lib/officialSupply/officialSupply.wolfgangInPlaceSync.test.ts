@@ -9,6 +9,7 @@ import { installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/li
 import {
   buildCanonPlanJsonForSave,
   buildCompiledCreatorDescriptionForSave,
+  updateCharacterFromForm,
   type SessionUser,
 } from "@/lib/characterFormSave";
 import { buildAndSaveCharacterChunks, loadCharacterChunks } from "@/lib/characterChunks";
@@ -823,6 +824,51 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
         delete process.env[OFFICIAL_OWNER_TRANSFER_ENV];
       }
     }
+
+    it("official-admin PUT that omits shared lorebooks still keeps them so dry-run stays open", async () => {
+      const seed = seedProductionShapedWolfgang();
+      const adminId = insertAdmin();
+      transferToAdmin(seed.characterId, adminId);
+      const stored = characterRow(seed.characterId);
+      const siblingBefore = characterRow(seed.siblingId);
+      const saved = await updateCharacterFromForm(
+        { ...ADMIN, id: adminId },
+        seed.characterId,
+        {
+          name: stored.name,
+          gender: stored.gender || "male",
+          tagline: stored.tagline,
+          description: stored.description,
+          greeting: stored.greeting,
+          system_prompt: stored.system_prompt,
+          world: stored.world,
+          genres: JSON.parse(String(stored.genres)),
+          tags: "북부대공",
+          speech_personality: "냉정하다",
+          speech_traits: "짧게 말한다",
+          speech_examples: "\"...가라.\"",
+          speech_forbidden: "",
+          comments_enabled: true,
+          assets: JSON.parse(String(stored.assets)),
+          visibility: "private",
+          lorebook_ids: [],
+        },
+        {
+          actor: "official_admin",
+          adminUser: { ...ADMIN, id: adminId },
+          preserveListingState: true,
+          preserveAdultFlags: true,
+          skipFollowerNotify: true,
+        }
+      );
+      assert.equal(saved.ok, true, saved.ok ? "" : `${saved.status}: ${saved.error}`);
+      assert.deepEqual(listCharacterCreatorLorebookAttachmentIds(getDb(), seed.characterId), seed.lorebookIds);
+      const preview = await dryRun(seed.characterId, adminId);
+      assert.equal(preview.applied, false);
+      assert.ok(Array.isArray(preview.lorebookPlan));
+      assert.equal(preview.lorebookPlan.length, 8);
+      assert.deepEqual(characterRow(seed.siblingId), siblingBefore);
+    });
 
     it("dry-run reports the same manuscript transition and apply reuses the studio lorebooks without duplicates", async () => {
       const seed = seedProductionShapedWolfgang();
