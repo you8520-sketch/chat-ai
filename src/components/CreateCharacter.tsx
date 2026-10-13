@@ -1536,7 +1536,7 @@ export default function CreateCharacter({
               aria-controls={`${fieldUid}-panel-${id}`}
               onClick={() => selectTab(id)}
               className={cn(
-                "flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-1 text-sm font-semibold transition sm:px-2",
+                "relative flex min-h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-1 text-[13px] font-semibold transition min-[576px]:text-sm sm:px-2",
                 pageTab === id ? studioSurface.tabActive : studioSurface.tabIdle,
               )}
             >
@@ -1545,7 +1545,7 @@ export default function CreateCharacter({
               </span>
               <span>{tabLabel}</span>
               {missing > 0 ? (
-                <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-amber-300 px-1.5 text-[11px] font-bold leading-5 text-zinc-950">
+                <span className="absolute -right-0.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-300 px-1 text-[11px] font-bold leading-none text-zinc-950 shadow-sm shadow-black/40 min-[576px]:static min-[576px]:shadow-none">
                   {missing}
                   <span className="sr-only">개 필수 항목 남음</span>
                 </span>
@@ -3013,7 +3013,7 @@ export default function CreateCharacter({
             필수 {missingRequirements.length}개 남음 ·{" "}
             <span className="font-semibold text-amber-200">{missingRequirements[0].label}</span> 채우러 가기
           </button>
-        ) : !loading && !editLoading && !editLoadError ? (
+        ) : !loading && !editLoading && !editLoadError && !error ? (
           <p className="text-xs text-zinc-400">
             {isEditMode ? "변경사항은 저장 즉시 반영돼요" : VISIBILITY_SAVE_NOTE[form.visibility]}
           </p>
