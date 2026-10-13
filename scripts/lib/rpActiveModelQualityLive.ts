@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 
 import {
   MAIN_RP_MODEL_IDS,
+  MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
   selectedAIProvider,
   type SelectedAI,
@@ -66,13 +67,11 @@ export const RP_ACTIVE_MODEL_QUALITY_LIVE_FLAG = "RP_ACTIVE_MODEL_QUALITY_LIVE";
 export const RP_ACTIVE_MODEL_QUALITY_LIVE_TIMEOUT_MS = 120_000;
 
 /**
- * Current active Main-RP picker is the only model owner.
- * Monthly memory-quality evidence uses two bounded cases across every active
- * user-selectable model. A future picker expansion beyond this hard call cap
- * fails before any provider request rather than silently skipping models.
+ * Frozen 4-model paid-quality roster. User picker growth must not expand
+ * this probe. The hard call cap still fail-closes if a later edit exceeds it.
  */
 export const RP_ACTIVE_MODEL_QUALITY_MODEL_IDS: readonly SelectedAI[] =
-  MAIN_RP_MODEL_IDS;
+  MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS;
 export const RP_ACTIVE_MODEL_QUALITY_EXCLUDED = Object.freeze([] as const);
 export const RP_ACTIVE_MODEL_QUALITY_DEFAULT_CASE_IDS = [
   "memory_current_state_priority",

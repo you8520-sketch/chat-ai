@@ -139,6 +139,24 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
     pricingVersion: 1,
     publishedAt: "2026-09-28T00:00:00.000Z",
   },
+  /**
+   * OpenRouter Standard intro list (Google Vertex / AI Studio).
+   * After 2026-11-30 the listed Standard rate becomes $4 / $20 / cache $0.20.
+   * publishedModelPricing remains the code-static baseline; modelPricingTracker
+   * is OBSERVE_ONLY and does not auto-apply. Bump this row before the intro
+   * ends so the 55% target margin is not inverted.
+   */
+  "gemini-4-argon": {
+    modelId: "gemini-4-argon",
+    commercialPricingOwner: "target_margin",
+    billingReferenceInputUsdPerMillion: 2,
+    billingReferenceOutputUsdPerMillion: 10,
+    billingReferenceCacheReadUsdPerMillion: 0.1,
+    targetMargin: 0.55,
+    minimumMarginFloor: 0.5,
+    pricingVersion: 1,
+    publishedAt: "2026-10-13T00:00:00.000Z",
+  },
   "qwen-3-8-max": {
     modelId: "qwen-3-8-max",
     billingReferenceInputUsdPerMillion: 1.4,

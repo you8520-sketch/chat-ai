@@ -521,7 +521,10 @@ export async function runHarborAbDryRun(opts?: {
   const chunks = harborCharacterChunks();
 
   const assemblies: HarborAbAssembly[] = [];
-  for (const model of MAIN_RP_USER_SELECTABLE_OPTIONS) {
+  const harborModels = MAIN_RP_USER_SELECTABLE_OPTIONS.filter((option) =>
+    (AB_LIVE_MODEL_IDS as readonly string[]).includes(option.id)
+  );
+  for (const model of harborModels) {
     for (const probe of AB_PROBES) {
       const shared = {
         charName: AB_CHARACTER_NAME,

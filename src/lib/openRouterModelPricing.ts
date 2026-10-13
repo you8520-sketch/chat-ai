@@ -251,6 +251,21 @@ const GEMINI_37_38_FLASH_GOOGLE_AI_STUDIO_FALLBACK_RATES: OpenRouterModelRates =
   explicitCacheInjection: false,
 };
 
+/**
+ * OpenRouter Standard intro fallback for Gemini 4 Argon.
+ * Provider-reported USD remains authoritative when present.
+ * After 2026-11-30 the listed Standard rate becomes $4 / $20 / cache $0.20.
+ */
+const GEMINI_4_ARGON_STANDARD_FALLBACK_RATES: OpenRouterModelRates = {
+  family: "google",
+  label: "OpenRouter · Google Standard intro fallback",
+  inputUsdPerM: 2,
+  outputUsdPerM: 10,
+  cacheReadUsdPerM: 0.1,
+  cacheWriteMultiplier: 1,
+  explicitCacheInjection: false,
+};
+
 /** Qwen3.7 Max — OpenRouter list (prompt cache supported) */
 const QWEN_37_MAX_RATES: OpenRouterModelRates = {
   family: "unknown",
@@ -416,6 +431,9 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
   }
   if (id === "google/gemini-3.7-flash" || id === "google/gemini-3.8-flash") {
     return GEMINI_37_38_FLASH_GOOGLE_AI_STUDIO_FALLBACK_RATES;
+  }
+  if (id === "google/gemini-4-argon" || id === "gemini-4-argon") {
+    return GEMINI_4_ARGON_STANDARD_FALLBACK_RATES;
   }
   if (id.includes("gemini-2.5-flash")) return GEMINI_25_FLASH_RATES;
   if (id.includes("gemini-3.6-flash")) return GEMINI_36_FLASH_RATES;

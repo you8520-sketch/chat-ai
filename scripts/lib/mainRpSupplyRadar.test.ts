@@ -124,10 +124,11 @@ function routedEndpoint(modelId: string): SupplyEndpointEvidence {
 test("active Main RP supply identities are derived exhaustively from canonical registry",()=>{
   const ids=listMainRpSupplyIdentities();
   assert.deepEqual(ids.map(x=>x.internalModelId),MAIN_RP_MODEL_IDS);
-  assert.equal(ids.length,4);
+  assert.equal(ids.length,MAIN_RP_MODEL_IDS.length);
   assert.equal(ids.find(x=>x.internalModelId==="deepseek-v4.1-flash")?.openRouterSlug,"deepseek/deepseek-v4.1-flash");
   assert.equal(ids.find(x=>x.internalModelId==="gemini-3.8-flash")?.openRouterSlug,"google/gemini-3.8-flash");
   assert.equal(ids.find(x=>x.internalModelId==="gpt-6.1-sol")?.openRouterSlug,"openai/gpt-6.1-sol");
+  assert.equal(ids.find(x=>x.internalModelId==="gemini-4-argon")?.openRouterSlug,"google/gemini-4-argon");
 });
 
 test("credential resolver prefers dedicated radar key and never fabricates a key",()=>{

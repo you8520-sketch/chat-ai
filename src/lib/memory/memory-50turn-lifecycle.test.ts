@@ -290,6 +290,7 @@ describe("50-turn memory lifecycle (provider-free)", () => {
         "gemini-3.8-flash",
         "gpt-6.1-sol",
         "claude-opus-5.5",
+        "gemini-4-argon",
       ]
     );
 

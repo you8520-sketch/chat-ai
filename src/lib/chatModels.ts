@@ -173,6 +173,12 @@ export const GEMINI_38_FLASH_MODEL = "gemini-3.8-flash";
 /** OpenRouter — Gemini 3.8 Flash. */
 export const OPENROUTER_GEMINI_38_FLASH_MODEL = "google/gemini-3.8-flash";
 
+/** Provider-neutral stored/Main-RP id for Gemini 4 Argon. */
+export const GEMINI_4_ARGON_MODEL = "gemini-4-argon";
+
+/** OpenRouter — Gemini 4 Argon (Standard). */
+export const OPENROUTER_GEMINI_4_ARGON_MODEL = "google/gemini-4-argon";
+
 /** OpenRouter — Gemini 2.0 Flash (legacy 백그라운드 비전 상수 — asset vision default는 Qwen3.8 Flash) */
 export const OPENROUTER_GEMINI_20_FLASH_MODEL = "google/gemini-2.0-flash-001";
 
@@ -227,6 +233,7 @@ export const GEMINI_31_PRO_PREVIEW_DISPLAY_NAME = "Gemini 3.1 Pro Preview";
 
 export const GEMINI_37_FLASH_DISPLAY_NAME = "Gemini 3.7 Flash";
 export const GEMINI_38_FLASH_DISPLAY_NAME = "Gemini 3.8 Flash";
+export const GEMINI_4_ARGON_DISPLAY_NAME = "Gemini 4 Argon";
 
 /** @deprecated 기존 영수증 표시 호환용 */
 export const GEMINI_25_PRO_DISPLAY_NAME = "Gemini 2.5 Pro";
@@ -247,7 +254,8 @@ export type SelectedAIOptionMeta = {
 /**
  * CANONICAL Main RP picker — ONE source of truth.
  *
- * DeepSeek V4.1 Flash / Gemini 3.8 Flash / GPT-6.1 Sol / Claude Opus 5.5.
+ * DeepSeek V4.1 Flash / Gemini 3.8 Flash / GPT-6.1 Sol / Claude Opus 5.5 /
+ * Gemini 4 Argon.
  * Gemini 3.1 Pro Preview and Gemini 3.7 Flash are retired from user Main RP.
  * Their constants remain for historical receipts, legacy normalization, and
  * non-Main-RP Gemini family helpers. Gemini 3.1 Flash-Lite stays a background
@@ -283,6 +291,13 @@ export const MAIN_RP_USER_SELECTABLE_OPTIONS = [
     tier: "pro",
     hint: "Anthropic",
   },
+  {
+    id: GEMINI_4_ARGON_MODEL,
+    label: GEMINI_4_ARGON_DISPLAY_NAME,
+    provider: "openrouter",
+    tier: "pro",
+    hint: "Google AI Studio · Standard",
+  },
 ] as const satisfies readonly SelectedAIOptionMeta[];
 
 /** SelectedAI is exactly the canonical Main RP literal union — never widened to string. */
@@ -292,6 +307,19 @@ export type SelectedAITier = (typeof MAIN_RP_USER_SELECTABLE_OPTIONS)[number]["t
 /** Derived from the canonical picker — no manual duplicate list. */
 export const MAIN_RP_MODEL_IDS: readonly SelectedAI[] =
   MAIN_RP_USER_SELECTABLE_OPTIONS.map((option) => option.id);
+
+/**
+ * Frozen paid-quality / PRECALL allowlist.
+ * The user picker may grow; this roster stays the approved 4-model
+ * A-scope set so adding a selectable model does not expand sealed
+ * 12-call / 4-call verification.
+ */
+export const MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS = [
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+  GEMINI_38_FLASH_MODEL,
+  CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
+  CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+] as const satisfies readonly SelectedAI[];
 
 /** True only for canonical Main RP models. */
 export function isMainRpModel(modelId: string): boolean {
@@ -393,6 +421,15 @@ export function isCheaperInferenceGemini37FlashModel(modelId: string): boolean {
 
 export function isCheaperInferenceGemini38FlashModel(modelId: string): boolean {
   return modelId.trim().toLowerCase() === GEMINI_38_FLASH_MODEL;
+}
+
+export function isGemini4ArgonModel(modelId: string): boolean {
+  const id = modelId.trim().toLowerCase();
+  return (
+    id === GEMINI_4_ARGON_MODEL ||
+    id === OPENROUTER_GEMINI_4_ARGON_MODEL ||
+    id.includes("gemini-4-argon")
+  );
 }
 
 export function isCheaperInferenceDeepSeekV4ProModel(
@@ -540,7 +577,8 @@ export function isGeminiChatOpenRouterModel(modelId: string): boolean {
   return (
     isGemini36FlashModel(modelId) ||
     isGeminiFlashOpenRouterModel(modelId) ||
-    isGeminiProOpenRouterModel(modelId)
+    isGeminiProOpenRouterModel(modelId) ||
+    isGemini4ArgonModel(modelId)
   );
 }
 
@@ -743,6 +781,9 @@ export function selectedAILabel(id: string): string {
   }
   if (id === GEMINI_38_FLASH_MODEL || id.toLowerCase().includes("gemini-3.8-flash")) {
     return GEMINI_38_FLASH_DISPLAY_NAME;
+  }
+  if (id === GEMINI_4_ARGON_MODEL || id.toLowerCase().includes("gemini-4-argon")) {
+    return GEMINI_4_ARGON_DISPLAY_NAME;
   }
   if (id === OPENROUTER_GLM_52_MODEL || isGlmModel(id)) {
     return GLM_52_DISPLAY_NAME;

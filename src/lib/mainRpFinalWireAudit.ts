@@ -284,6 +284,7 @@ function caseSpecs(): CaseSpec[] {
   const gemini31 = "gemini-3.1-pro-preview" as SelectedAI;
   const gemini37 = "gemini-3.7-flash" as SelectedAI;
   const gemini38 = "gemini-3.8-flash" as SelectedAI;
+  const gemini4 = "gemini-4-argon" as SelectedAI;
   const sol = CHEAPER_INFERENCE_GPT_61_SOL_MODEL;
   const opus = "claude-opus-5.5" as SelectedAI;
   const rich = {
@@ -375,6 +376,7 @@ function caseSpecs(): CaseSpec[] {
     },
     { id: "g37-interactive-normal-rich", model: gemini37, ...rich },
     { id: "g38-interactive-normal-rich", model: gemini38, ...rich },
+    { id: "g4-interactive-normal-rich", model: gemini4, ...rich },
     { id: "sol-interactive-normal-rich", model: sol, ...rich },
     {
       id: "opus-interactive-long-history",

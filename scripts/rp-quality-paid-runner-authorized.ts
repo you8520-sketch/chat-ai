@@ -13,7 +13,7 @@ import {
   precallUnexpectedEgressAttempts,
 } from "./lib/rpQualityPrecallEgressGuard";
 import {
-  MAIN_RP_MODEL_IDS,
+  MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
   type SelectedAI,
 } from "@/lib/chatModels";
 import {
@@ -46,7 +46,7 @@ const authorization: PaidRunnerAuthorizationInput = {
   expectedProductionSha: readArg("--expected-production-sha") ?? "",
   expectedIdentityHash: readArg("--expected-identity-hash") ?? "",
   experimentSecret: process.env[RP_QUALITY_PAID_EXPERIMENT_SECRET_ENV] ?? null,
-  allowlist: [...MAIN_RP_MODEL_IDS] as SelectedAI[],
+  allowlist: [...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS] as SelectedAI[],
   plannedCalls: RP_QUALITY_PRECALL_PLANNED_CALLS,
 };
 

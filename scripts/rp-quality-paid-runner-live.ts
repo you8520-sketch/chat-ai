@@ -7,7 +7,7 @@
  * RAILWAY_GIT_COMMIT_SHA + experiment secret/keys + approved hashes +
  * journal/artifact paths. There is no --sealed-pack-file path.
  */
-import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
+import { MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS } from "@/lib/chatModels";
 import { RP_QUALITY_PRECALL_PLANNED_CALLS } from "@/lib/rpQualityPrecall";
 import {
   RP_QUALITY_PAID_EXPERIMENT_SECRET_ENV,
@@ -108,7 +108,7 @@ async function main(): Promise<void> {
     expectedProductionSha: readArg("--expected-production-sha") ?? "",
     expectedIdentityHash: readArg("--expected-identity-hash") ?? "",
     experimentSecret: process.env[RP_QUALITY_PAID_EXPERIMENT_SECRET_ENV] ?? null,
-    allowlist: [...MAIN_RP_MODEL_IDS],
+    allowlist: [...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS],
     plannedCalls: RP_QUALITY_PRECALL_PLANNED_CALLS,
     ...(executionScope ? { executionScope } : {}),
   };
@@ -151,7 +151,7 @@ async function main(): Promise<void> {
   const report = await dispatchPaidRunnerLive({
     acceptPaidExecution,
     liveExecuteEnabled,
-    modelsCanonical: livePaidRunnerUsesCanonicalModels(MAIN_RP_MODEL_IDS),
+    modelsCanonical: livePaidRunnerUsesCanonicalModels(MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS),
     authorization,
     manifest,
     sealedCalls,

@@ -6,7 +6,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 
 import {
-  MAIN_RP_MODEL_IDS,
+  MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
   selectedAIProvider,
   type SelectedAI,
 } from "@/lib/chatModels";
@@ -67,7 +67,7 @@ function sealedCalls(): PaidRunnerSealedCall[] {
   const calls: PaidRunnerSealedCall[] = [];
   let order = 1;
   for (const fixtureId of RP_QUALITY_PRECALL_FIXTURE_IDS) {
-    for (const canonicalId of MAIN_RP_MODEL_IDS) {
+    for (const canonicalId of MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS) {
       const provider = expectedPaidRunnerProvider(canonicalId);
       const wireModel = resolveMainRpPrimaryWireModelId(canonicalId);
       const body = { model: wireModel, stream: true, messages: [{ role: "user", content: "hi" }] };
@@ -128,7 +128,7 @@ function auth(manifest: PaidRunnerPublicManifest, extra: Partial<PaidRunnerAutho
     expectedProductionSha: manifest.productionDeploySha,
     expectedIdentityHash: manifest.identityHash,
     experimentSecret: SECRET,
-    allowlist: [...MAIN_RP_MODEL_IDS],
+    allowlist: [...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS],
     plannedCalls: 12,
     ...extra,
   };
@@ -518,7 +518,7 @@ describe("rp quality paid runner prepare and mock execution", () => {
     assert.equal(snapshot.models.length, 4);
     assert.deepEqual(snapshot.fixtures, RP_QUALITY_PRECALL_FIXTURE_IDS);
     assert.equal(snapshot.plannedCalls, 12);
-    assertCurrentMainRpPaidAllowlist(MAIN_RP_MODEL_IDS);
+    assertCurrentMainRpPaidAllowlist(MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS);
     assert.equal(selectedAIProvider("gemini-3.8-flash"), "openrouter");
     assert.equal(selectedAIProvider("deepseek-v4.1-flash"), "cheaperinference");
     assert.equal(selectedAIProvider("gpt-6.1-sol"), "cheaperinference");

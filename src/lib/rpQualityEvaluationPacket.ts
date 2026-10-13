@@ -12,7 +12,10 @@ import {
   visibleAssistantDisplayCharCount,
   visibleAssistantDisplayText,
 } from "@/lib/chatDisplayLength";
-import { MAIN_RP_USER_SELECTABLE_OPTIONS } from "@/lib/chatModels";
+import {
+  MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
+  MAIN_RP_USER_SELECTABLE_OPTIONS,
+} from "@/lib/chatModels";
 import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
 import {
   classifyVisibleLength,
@@ -106,10 +109,14 @@ export type RpAdultQualityOverlayId = (typeof RP_ADULT_QUALITY_OVERLAY)[number];
 export type RpQualityTurnKind = "manual" | "auto" | "regen";
 export type RpQualityContentMode = "SAFE" | "19+";
 
-/** Benchmark model set is the live Main RP picker. No second included/excluded list. */
-export const RP_QUALITY_BENCHMARK_MODELS = MAIN_RP_USER_SELECTABLE_OPTIONS.map(
-  (option) => option.label
-);
+/** Benchmark labels for the frozen 4-model paid-quality / PRECALL roster. */
+export const RP_QUALITY_BENCHMARK_MODELS = MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.map((id) => {
+  const option = MAIN_RP_USER_SELECTABLE_OPTIONS.find((row) => row.id === id);
+  if (!option) {
+    throw new Error(`Quality benchmark model missing from picker: ${id}`);
+  }
+  return option.label;
+});
 
 export type RpQualityAuthoringMatrix = Record<UserAuthoringLevel, UserAuthoringCapabilities>;
 

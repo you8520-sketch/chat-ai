@@ -173,7 +173,11 @@ describe("Main RP final-wire audit", () => {
       assert.equal(entry.wire.roles.at(-1), "user", entry.id);
       if (entry.transport === "openrouter") {
         assert.equal(entry.wire.providerOnly, "google-ai-studio", entry.id);
-        assert.equal(entry.wire.serviceTier, "flex", entry.id);
+        assert.equal(
+          entry.wire.serviceTier,
+          entry.selectedModelId === "gemini-4-argon" ? "default" : "flex",
+          entry.id
+        );
         assert.equal(entry.wire.sessionIdPresent, true, entry.id);
         assert.ok(entry.wire.model.startsWith("google/"), entry.id);
         assert.equal(entry.wire.reasoningEffort, null, entry.id);

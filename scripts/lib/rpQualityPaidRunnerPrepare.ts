@@ -4,7 +4,7 @@
  */
 import { createHash } from "node:crypto";
 
-import { MAIN_RP_MODEL_IDS, type SelectedAI } from "@/lib/chatModels";
+import { MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS, type SelectedAI } from "@/lib/chatModels";
 import { toPublicPersonaDescription } from "@/lib/personaSecretLegacyMarkers";
 import { getPublishedPricing } from "@/lib/publishedModelPricing";
 import {
@@ -182,7 +182,9 @@ export function readPaidRunnerExperimentKeyPresence(
   };
 }
 
-export function publishedPlanningRateSnapshot(canonicalId: (typeof MAIN_RP_MODEL_IDS)[number]) {
+export function publishedPlanningRateSnapshot(
+  canonicalId: (typeof MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS)[number]
+) {
   const pricing = getPublishedPricing(canonicalId);
   return {
     canonicalId,
@@ -226,7 +228,7 @@ export function decidePaidRunnerPreapproval(input: {
     !input.sealOk ||
     input.callCount !== RP_QUALITY_PRECALL_PLANNED_CALLS ||
     input.fixtureCount !== RP_QUALITY_PRECALL_FIXTURE_IDS.length ||
-    input.modelCount !== MAIN_RP_MODEL_IDS.length ||
+    input.modelCount !== MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.length ||
     !input.modelsMatchRegistry
   ) {
     reasons.push("manifest_or_registry_mismatch");
@@ -301,8 +303,8 @@ export function buildPaidRunnerPreapprovalProjection(input: {
     fixtureCount: fixtures.size,
     modelCount: uniqueModels.length,
     modelsMatchRegistry:
-      uniqueModels.length === MAIN_RP_MODEL_IDS.length &&
-      MAIN_RP_MODEL_IDS.every((id) => uniqueModels.includes(id)),
+      uniqueModels.length === MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.length &&
+      MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.every((id) => uniqueModels.includes(id)),
     approvalStatus: input.pack.manifest.approvalStatus,
     rawSourceLeak: input.rawSourceLeak,
     secretLeak: input.secretLeak,
@@ -329,7 +331,9 @@ export function buildPaidRunnerPreapprovalProjection(input: {
         "Token/section counts are planning metadata. Execution integrity is the request-body and final-wire fingerprints; later paid execution must reassemble through preparePaidRunnerPack and rematch those fingerprints.",
     },
     costPlanning: input.costPlanning,
-    publishedRates: MAIN_RP_MODEL_IDS.map((id) => publishedPlanningRateSnapshot(id)),
+    publishedRates: MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.map((id) =>
+      publishedPlanningRateSnapshot(id)
+    ),
     keyPresence: input.keyPresence,
     decision,
     approvalStatus: "NOT_APPROVED",

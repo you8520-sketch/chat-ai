@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { describe, it } from "node:test";
 
-import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
+import { MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS } from "@/lib/chatModels";
 import {
   RP_QUALITY_PRECALL_FIXTURE_IDS,
   RP_QUALITY_PRECALL_PLANNED_CALLS,
@@ -65,7 +65,7 @@ describe("rp quality paid runner sealed prepare", () => {
     const fixtures = new Set(pack.manifest.calls.map((call) => call.fixtureId));
     const models = new Set(pack.manifest.calls.map((call) => call.canonicalId));
     assert.deepEqual([...fixtures], [...RP_QUALITY_PRECALL_FIXTURE_IDS]);
-    assert.deepEqual([...models], [...MAIN_RP_MODEL_IDS]);
+    assert.deepEqual([...models], [...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS]);
     for (const call of pack.sealedCalls) {
       assert.equal("max_tokens" in call.requestBody, false);
       assert.equal(call.requestBodyFingerprint.length, 64);
@@ -92,7 +92,7 @@ describe("rp quality paid runner sealed prepare", () => {
         expectedProductionSha: MAIN_SHA,
         expectedIdentityHash: pack.manifest.identityHash,
         experimentSecret: "rpq-paid-prepare-secret-0000000001",
-        allowlist: [...MAIN_RP_MODEL_IDS],
+        allowlist: [...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS],
         plannedCalls: 12,
       },
       transport: createMockPaidRunnerTransport(),

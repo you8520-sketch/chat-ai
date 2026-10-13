@@ -12,6 +12,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
   GEMINI_38_FLASH_MODEL,
+  GEMINI_4_ARGON_MODEL,
   MAIN_RP_MODEL_IDS,
 } from "@/lib/chatModels";
 import { HISTORY_TOKEN_BUDGET, resolveMaxPayloadInputTokens } from "@/lib/contextTrack";
@@ -36,6 +37,7 @@ const MODELS = [
   { id: GEMINI_38_FLASH_MODEL, provider: "openrouter" as const },
   { id: CHEAPER_INFERENCE_GPT_61_SOL_MODEL, provider: "cheaperinference" as const },
   { id: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL, provider: "cheaperinference" as const },
+  { id: GEMINI_4_ARGON_MODEL, provider: "openrouter" as const },
 ];
 
 const SPEECH_PERSONALITY = "문장은 짧고 결론이 먼저다. 감정을 형용사로 풀지 않고 다음 행동으로 말한다.";

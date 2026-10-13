@@ -116,7 +116,7 @@ describe("admin runtime-settings GET", () => {
       };
     };
     assert.equal(body.mutationSupported, false);
-    assert.equal(body.mainRp.models.length, 4);
+    assert.equal(body.mainRp.models.length, 5);
     assert.equal(body.credentials.openRouterApiKeyConfigured, true);
     assert.equal(body.credentials.cheaperInferenceApiKeyConfigured, true);
     const raw = JSON.stringify(body);
