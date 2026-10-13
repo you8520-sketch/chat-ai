@@ -27,7 +27,11 @@ export type ParsedTrpgGmOutput = {
   diagnostics?: TrpgGmParseDiagnostics;
 };
 
-export type TrpgGmParseDiagnostics = { questsAddRejected: number; questCriteriaRejected?: number };
+export type TrpgGmParseDiagnostics = {
+  questsAddRejected: number;
+  questCriteriaRejected?: number;
+  npcsRejected?: number;
+};
 
 function emptyDelta(): TrpgStateDelta {
   return { players: [] };
@@ -55,6 +59,33 @@ function questLine(item: unknown): string | null {
   const tail = clipTrpgChars(desc, TRPG_LEDGER_ITEM_MAX_CHARS);
   const joined = tail ? `${head}: ${tail}` : head;
   return Array.from(joined).length <= TRPG_LEDGER_ITEM_MAX_CHARS ? joined : head;
+}
+
+/**
+ * NPC adds and removes arrive as plain strings or as `{name, ...}` objects (the real GM emits `{name, description}`).
+ * The ledger stores one name string per NPC (`npcs_json: string[]`) and compares names exactly, so an object is
+ * reduced to its name. Its other fields are never stored: the ledger is injected into AI-companion prompts, and a
+ * GM-authored description can hold facts the players have not discovered. Items with no usable name are counted.
+ */
+function npcName(item: unknown): string | null {
+  if (typeof item === "string") return item.trim() ? item : null;
+  if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+  const { name } = item as Record<string, unknown>;
+  if (typeof name !== "string") return null;
+  return clipTrpgChars(name, TRPG_LEDGER_ITEM_MAX_CHARS) || null;
+}
+
+function npcNameList(raw: unknown): { items: string[] | undefined; rejected: number } {
+  if (raw == null) return { items: undefined, rejected: 0 };
+  if (!Array.isArray(raw)) return { items: undefined, rejected: 1 };
+  const items: string[] = [];
+  let rejected = 0;
+  for (const entry of raw) {
+    const name = npcName(entry);
+    if (name == null) rejected += 1;
+    else items.push(name);
+  }
+  return { items: items.length ? items : undefined, rejected };
 }
 
 type QuestAdds = {
@@ -134,7 +165,14 @@ function asDelta(raw: unknown, diagnostics?: TrpgGmParseDiagnostics): TrpgStateD
     if (criteriaRejected > 0) diagnostics.questCriteriaRejected = criteriaRejected;
   }
   if (questCriteria.length) delta.questCriteria = questCriteria;
-  const npcsAdd = stringList(src.npcsAdd) ?? stringList(src.npcs);
+  const primaryNpcs = npcNameList(src.npcsAdd);
+  const aliasNpcs = primaryNpcs.items ? null : npcNameList(src.npcs);
+  const npcsAdd = primaryNpcs.items ?? aliasNpcs?.items;
+  const npcsRemoveList = npcNameList(src.npcsRemove);
+  if (diagnostics) {
+    const npcsRejected = primaryNpcs.rejected + (aliasNpcs?.rejected ?? 0) + npcsRemoveList.rejected;
+    if (npcsRejected > 0) diagnostics.npcsRejected = npcsRejected;
+  }
   const flagsAdd = stringList(src.flagsAdd) ?? stringList(src.flags) ?? stringList(src.world_flags);
   if (questsAdd) delta.questsAdd = questsAdd;
   if (npcsAdd) delta.npcsAdd = npcsAdd;
@@ -142,7 +180,7 @@ function asDelta(raw: unknown, diagnostics?: TrpgGmParseDiagnostics): TrpgStateD
   const questsRemove = stringList(src.questsRemove);
   const questsClaimDone = stringList(src.questsClaimDone);
   if (questsClaimDone) delta.questsClaimDone = questsClaimDone;
-  const npcsRemove = stringList(src.npcsRemove);
+  const npcsRemove = npcsRemoveList.items;
   const flagsRemove = stringList(src.flagsRemove);
   if (questsRemove) delta.questsRemove = questsRemove;
   if (npcsRemove) delta.npcsRemove = npcsRemove;
@@ -188,7 +226,7 @@ export function parseTrpgGmOutput(raw: string): ParsedTrpgGmOutput {
       location,
       campaignFinished,
       nextRoundContext,
-      ...(diagnostics.questsAddRejected > 0 || diagnostics.questCriteriaRejected ? { diagnostics } : {}),
+      ...(diagnostics.questsAddRejected > 0 || diagnostics.questCriteriaRejected || diagnostics.npcsRejected ? { diagnostics } : {}),
     };
   }
 
