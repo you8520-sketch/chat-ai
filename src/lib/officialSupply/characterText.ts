@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { characterAdultTextBlob, findAdultTermsInText } from "@/lib/characterAdultText";
 import { AI_LEARNING_LIMIT } from "@/lib/characterFormLimits";
 import { sanitizeCharacterGenres } from "@/lib/characterGenres";
+import { buildCompiledCreatorDescriptionForSave } from "@/lib/characterFormSave";
 import { composeExampleDialog } from "@/lib/speechCreatorFields";
 import { characterSettingSourceOverflowChars } from "@/utils/characterParser";
 import { ADULT_SCENE_MIN_AGE, validateNsfwParticipantAgeContract } from "@/lib/participantMinAge";
@@ -264,31 +265,39 @@ export function evaluateOfficialStagedSaveLength(
   }
   const overflow = officialRpSettingOverflowChars(draft, appearanceBlock);
   if (overflow > 0) {
-    return qaResult(
-      [],
-      [
-        {
-          code: "rp_setting_truncated",
-          message: `RP setting source exceeds its injection cap by ${overflow} chars; the tail (speech block) would be cut silently`,
-        },
-      ]
-    );
+    return qaResult([
+      {
+        code: "rp_setting_truncated",
+        message: `RP setting source exceeds its injection cap by ${overflow} chars; core settings would be cut before reaching the model`,
+      },
+    ]);
   }
   return qaResult([]);
 }
 
-/** Chars the RP setting parser would silently drop from this draft once saved. */
+/**
+ * Chars the RP wire would drop from this draft once saved. Mirrors the canonical save:
+ * world + system_prompt compile into the runtime canon, the speech fields compose the
+ * example dialog, and `characterSettingSourceOverflowChars` applies the injection cap.
+ */
 export function officialRpSettingOverflowChars(
   draft: OfficialCharacterDraft,
   appearanceBlock: string
 ): number {
   const form = buildOfficialCharacterFormBody({ draft, appearanceBlock, assets: [] });
+  const { safeRuntimeCanon } = buildCompiledCreatorDescriptionForSave({
+    description: "",
+    world: String(form.world ?? ""),
+    systemPrompt: String(form.system_prompt ?? ""),
+    statusWidgetJson: "",
+    statusWidgetTriggers: [],
+  });
   return characterSettingSourceOverflowChars({
     characterId: "official-qa",
     characterName: draft.name,
     gender: draft.gender,
-    world: draft.sections.worldAndSituation,
-    systemPrompt: String(form.system_prompt ?? ""),
+    world: "",
+    systemPrompt: safeRuntimeCanon,
     exampleDialog: composeExampleDialog({
       speech_personality: draft.speech.personality,
       speech_traits: draft.speech.traits,

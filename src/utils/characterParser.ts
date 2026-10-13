@@ -1,3 +1,4 @@
+import { CHARACTER_SETTING_SOURCE_LIMIT } from "@/lib/characterFormLimits";
 import { estimateTokens } from "@/lib/tokenEstimate";
 import { hasAppearanceTraits } from "@/lib/visualAnchor";
 import {
@@ -234,8 +235,11 @@ function sectionToChunk(
   };
 }
 
-/** RP에 주입되는 설정 원문(이름·성별·세계관·system_prompt·예시대화) 상한. 초과분은 끝에서 잘린다. */
-export const CHARACTER_SETTING_SOURCE_CHAR_CAP = 10_000;
+/**
+ * RP에 주입되는 설정 원문(이름·성별·세계관·system_prompt·예시대화) 상한.
+ * 저장 한도(characterFormLimits)로 통과한 모든 입력이 잘리지 않도록 정본 한도에서 파생한다.
+ */
+export const CHARACTER_SETTING_SOURCE_CHAR_CAP = CHARACTER_SETTING_SOURCE_LIMIT;
 
 function joinCharacterSettingSource(input: CharacterSettingInput): string {
   const { systemPrompt, world = "", exampleDialog = "", characterName, gender } = input;
@@ -266,9 +270,14 @@ export function buildCombinedCharacterSettingSource(input: CharacterSettingInput
   return joinCharacterSettingSource(input).slice(0, CHARACTER_SETTING_SOURCE_CHAR_CAP).trim();
 }
 
+/** 상한을 적용하기 전 설정 원문 길이. */
+export function joinedCharacterSettingSourceLength(input: CharacterSettingInput): number {
+  return joinCharacterSettingSource(input).length;
+}
+
 /** `buildCombinedCharacterSettingSource`가 조용히 잘라 내는 글자 수. 0이면 손실 없음. */
 export function characterSettingSourceOverflowChars(input: CharacterSettingInput): number {
-  return Math.max(0, joinCharacterSettingSource(input).length - CHARACTER_SETTING_SOURCE_CHAR_CAP);
+  return Math.max(0, joinedCharacterSettingSourceLength(input) - CHARACTER_SETTING_SOURCE_CHAR_CAP);
 }
 
 function buildFullSettingChunk(characterId: string, combined: string): CharacterChunk {
@@ -284,7 +293,7 @@ function buildFullSettingChunk(characterId: string, combined: string): Character
   };
 }
 
-/** 10,000자 설정 — 섹션 분할 후 importance 분류 (코어/RAG 분리) */
+/** 설정 원문 — 섹션 분할 후 importance 분류 (코어/RAG 분리) */
 export function parseCharacterSetting(input: CharacterSettingInput): CharacterChunk[] {
   const combined = buildCombinedCharacterSettingSource(input);
   if (!combined) return [];

@@ -10,4 +10,25 @@ export const SPEECH_EXAMPLES_LIMIT = 500;
 export const SPEECH_FORBIDDEN_LIMIT = 500;
 export const SPEECH_CONTEXTUAL_LIMIT = 500;
 export const GREETING_LIMIT = 2000;
+
+/**
+ * Platform text the RP setting source adds around creator fields: [이름]/[정체성],
+ * [예시 대화], the SPEECH CONSISTENCY block, the speech metadata headers and the contextual
+ * register block (rendered twice: readable list + JSON). `characterSettingSourceCap.test`
+ * pins this against the worst-case speech fixture (8 registers x 6 example lines).
+ */
+export const CHARACTER_SETTING_WRAPPER_RESERVE = 2800;
+
+/**
+ * Largest RP setting source (name + gender + world/system_prompt + speech block) that any
+ * save accepted by the limits above can produce. The 12,000 save budget covers world,
+ * system_prompt and speech personality/traits only; speech examples, forbidden and
+ * contextual registers are budgeted separately and the wrapper text is added on top.
+ */
+export const CHARACTER_SETTING_SOURCE_LIMIT =
+  AI_LEARNING_LIMIT +
+  SPEECH_EXAMPLES_LIMIT +
+  SPEECH_FORBIDDEN_LIMIT +
+  SPEECH_CONTEXTUAL_LIMIT +
+  CHARACTER_SETTING_WRAPPER_RESERVE;
 export const TAGLINE_LIMIT = 50;
