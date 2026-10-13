@@ -1,0 +1,44 @@
+import Module from "module";
+const originalLoad = (Module as unknown as { _load: typeof Module._load })._load;
+(Module as unknown as { _load: typeof Module._load })._load = function (request: string, parent: NodeModule, isMain: boolean) {
+  if (request === "server-only") return {};
+  return originalLoad(request, parent, isMain);
+} as typeof Module._load;
+import { writeFileSync } from "node:fs";
+import { after, before, it } from "node:test";
+import { getDb } from "@/lib/db";
+import { installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/lib/test/isolatedTestDatabase";
+import { copyForkEpisodicMemoryFacts } from "./memory-fork-snapshot";
+import { evaluateEpisodicFactEvidence, loadEpisodicEvidenceSources, readVerifiedEvidence } from "./memory-episodic-evidence";
+
+const U = 940002, C = 940003, A = 940101, B = 940102;
+before(() => installIsolatedTestDatabase());
+after(() => uninstallIsolatedTestDatabase());
+it("fork provenance", () => {
+  const db = getDb();
+  db.prepare(`INSERT INTO users (id,email,nickname,pw_hash) VALUES (?,?,?,?)`).run(U, "f@t.local", "렌", "x");
+  db.prepare(`INSERT INTO characters (id,name) VALUES (?,?)`).run(C, "라이크");
+  for (const id of [A, B]) db.prepare(`INSERT INTO chats (id,user_id,character_id,mode) VALUES (?,?,?,'safe')`).run(id, U, C);
+  const ins = (chat: number, role: string, text: string, uid?: number) =>
+    Number(db.prepare(`INSERT INTO messages (chat_id,role,content,model,user_message_id,generation_status) VALUES (?,?,?,?,?,?)`).run(chat, role, text, role === "user" ? "user" : "t", uid ?? null, "completed").lastInsertRowid);
+  const aU = ins(A, "user", "미안, 우리 그만 헤어지자.");
+  const aA = ins(A, "assistant", "라이크는 말없이 시선을 떨궜다.", aU);
+  const bU = ins(B, "user", "미안, 우리 그만 헤어지자.");
+  const bA = ins(B, "assistant", "라이크는 말없이 시선을 떨궜다.", bU);
+  const meta = { extraction: "shared_initial_per_turn", assistant_message_id: aA, memory_evidence_type: "explicit_user_statement",
+    evidence: { role: "user", message_id: aU, quote: "미안, 우리 그만 헤어지자.", authority: "USER_EXPLICIT", match: "normalized_exact" } };
+  db.prepare(`INSERT INTO episodic_memory_facts (chat_id,character_id,user_id,source_turn,source_user_message_id,category,subject,attribute,value,importance,fact_text,metadata) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .run(A, C, U, 1, aU, "relationship", "ren_user", "relationship_end", "breakup", "important", "렌은 이별을 통보했다.", JSON.stringify(meta));
+  const copied = copyForkEpisodicMemoryFacts(db, { sourceChatId: A, newChatId: B, forkTurnCount: 1, parentResetAfterMessageId: null,
+    messageIdMap: new Map([[aU, bU], [aA, bA]]) });
+  const row = db.prepare(`SELECT source_user_message_id, metadata FROM episodic_memory_facts WHERE chat_id=?`).get(B) as { source_user_message_id: number; metadata: string };
+  const md = JSON.parse(row.metadata);
+  const ev = readVerifiedEvidence(row.metadata);
+  const sources = loadEpisodicEvidenceSources(db, B, { userMessageId: bU, assistantMessageId: bA });
+  const reverify = evaluateEpisodicFactEvidence({ category: "relationship", subject: "ren_user", attribute: "relationship_end", value: "breakup", importance: "important", fact_text: "x", evidence_type: "explicit_user_statement", evidence: { source_role: "user", source_quote: ev!.quote } } as never, sources);
+  const result = { copied, parent: { userMsg: aU, assistantMsg: aA }, fork: { userMsg: bU, assistantMsg: bA },
+    forkRow: { source_user_message_id: row.source_user_message_id, "metadata.assistant_message_id": md.assistant_message_id, "metadata.evidence.message_id": md.evidence.message_id },
+    evidenceMessageBelongsToForkChat: (db.prepare(`SELECT chat_id FROM messages WHERE id=?`).get(md.evidence.message_id) as { chat_id: number } | undefined)?.chat_id === B,
+    readVerifiedEvidenceStillAccepts: ev != null, quoteReverifiesAgainstForkMessage: reverify };
+  writeFileSync("/opt/cursor/artifacts/fork-evidence-id-probe.json", JSON.stringify(result, null, 2));
+});
