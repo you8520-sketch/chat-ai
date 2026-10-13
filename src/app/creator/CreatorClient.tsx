@@ -539,12 +539,14 @@ export default function CreatorClient({
           {wide ? (
             <>
               <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-start gap-5">
-                {summary}
+                <div className="min-w-0 space-y-5">
+                  {summary}
+                  {nextCard}
+                </div>
                 {ladder}
               </div>
               <div className="grid grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-start gap-5">
                 <div className="min-w-0 space-y-5">
-                  {nextCard}
                   {shareChart}
                   {earningsList}
                 </div>
