@@ -256,26 +256,25 @@ export function updateMemoryRecordById(
     | { id: number; summary: string; summary_kind?: string | null; scope_payload?: string | null }
     | undefined;
   if (!row) return null;
-  // User edits become main_canon content. The sealed scope_payload carries the same main_canon text, so it is
-  // replaced in the same write; other scopes and branch state stay untouched.
+  // The edit replaces the text of the scope the user saw. branch_canon / preference records keep their scope
+  // (branch lifecycle, closed-branch exclusion and sibling scopes stay intact); promotion to main is the explicit
+  // "본편으로 반영" action. Every other kind keeps the existing "user edits become main_canon content" behavior.
+  const previousKind = normalizeSummaryScope(row.summary_kind);
+  const keepsScope = previousKind === "branch_canon" || previousKind === "preference";
+  const nextKind: MemorySummaryScope = keepsScope ? previousKind : "main_canon";
   const payload = parseScopePayload(row.scope_payload);
   let scopePayload = row.scope_payload ?? null;
   if (payload) {
     const scopes = { ...payload.scopes };
-    const previousKind = normalizeSummaryScope(row.summary_kind);
-    if (
-      previousKind !== "main_canon" &&
-      previousKind !== "empty_ooc" &&
-      scopes[previousKind]?.trim() === row.summary.trim()
-    ) {
+    if (!keepsScope && previousKind !== "empty_ooc" && scopes[previousKind]?.trim() === row.summary.trim()) {
       delete scopes[previousKind];
     }
-    scopes.main_canon = text.trim();
+    scopes[nextKind] = text.trim();
     scopePayload = encodeScopePayload({ ...payload, scopes });
   }
   db.prepare(
-    `UPDATE chat_turn_summaries SET summary=?, summary_kind='main_canon', scope_payload=?, user_edited=1, updated_at=datetime('now') WHERE id=?`
-  ).run(text, scopePayload, recordId);
+    `UPDATE chat_turn_summaries SET summary=?, summary_kind=?, scope_payload=?, user_edited=1, updated_at=datetime('now') WHERE id=?`
+  ).run(text, nextKind, scopePayload, recordId);
 
   refreshGlobalMemoryMirrorFromRecords(chatId);
 

@@ -24,6 +24,7 @@ import {
 import { buildContext } from "@/services/contextBuilder";
 import { MEMORY_CAPACITY_FIXED } from "./memory-capacity-shared";
 import { getOrCreateChatMemory } from "./memory-db";
+import { rollbackBranchControlMutationsForDeletedUserMessage } from "./memory-branch-control";
 import { copyForkTurnSummaries } from "./memory-fork-snapshot";
 import { resolveGlobalCurrentMemory } from "./memory-lorebook-resolve";
 import { buildMemoryContextForChat } from "./memory-manager";
@@ -31,8 +32,12 @@ import { buildMediumTermMemoryBlock } from "./memory-medium-term";
 import { type ScopePayloadV1 } from "./memory-summary-scope";
 import { upsertSummaryRowCore } from "./memory-summary-persist";
 import {
+  adoptBranchToMainCanon,
+  closeActiveBranchCanon,
   listMemoryRecordsForChat,
+  promoteRecordsToBranchCanon,
   rebuildLorebookFromRecords,
+  reopenClosedBranchCanon,
   updateMemoryRecordById,
 } from "./memory-turn-summary";
 
@@ -49,6 +54,7 @@ const EDIT_2 = "EDIT_TWO_두 번째 수정: 옥상 약속은 취소되었고 대
 const NONCANON = "NONCANON_가정 장면: 만약 그날 비가 왔다면 어땠을까 하는 농담 섞인 상상 대화";
 const PREFERENCE = "PREFERENCE_사용자는 느린 호흡의 장면 전개와 짧은 대사를 선호한다고 직접 말했다";
 const BRANCH = "BRANCH_CANON_활성 분기: 두 사람은 별도의 여행 분기에서 해변에 도착했고 모래성을 쌓기 시작했다";
+const MAIN_M = "MAIN_M_본편 사건: 주인공은 도서관에서 오래된 지도를 발견했고 비밀 통로의 위치를 알아냈다" + FILL;
 const OTHER_TURN = "OTHER_TURN_MEMORY_다른 구간 기억: 주인공은 도서관에서 오래된 지도를 발견했고 비밀 통로를 찾았다";
 
 function cleanup(): void {
@@ -82,7 +88,7 @@ function seedSealedRow(opts: {
   turnStart: number;
   turnEnd: number;
   summary: string;
-  summaryKind?: "main_canon" | "noncanon" | "branch_canon";
+  summaryKind?: "main_canon" | "noncanon" | "branch_canon" | "preference";
   scopes: ScopePayloadV1["scopes"];
   userEdited?: boolean;
   branchId?: string | null;
@@ -397,5 +403,239 @@ describe("USER-EDITED MEMORY FINAL WIRE", () => {
     const wire = await finalWire(FORK_CHAT);
     assert.ok(wire.currentMemorySection.includes(EDIT_1));
     assert.equal(wire.currentMemorySection.includes(OLD_MAIN), false);
+  });
+});
+
+function payloadOf(id: number): ScopePayloadV1 {
+  const row = getDb().prepare("SELECT scope_payload FROM chat_turn_summaries WHERE id=?").get(id) as {
+    scope_payload: string;
+  };
+  return JSON.parse(row.scope_payload) as ScopePayloadV1;
+}
+
+function columnsOf(id: number) {
+  return getDb()
+    .prepare(
+      "SELECT summary, summary_kind, branch_id, branch_status, user_edited FROM chat_turn_summaries WHERE id=?"
+    )
+    .get(id) as {
+    summary: string;
+    summary_kind: string;
+    branch_id: string | null;
+    branch_status: string | null;
+    user_edited: number;
+  };
+}
+
+function seedBranch(
+  scopes: ScopePayloadV1["scopes"],
+  status: "active" | "closed",
+  summary = BRANCH
+): number {
+  seedSealedRow({
+    turnStart: 11,
+    turnEnd: 15,
+    summary: OTHER_TURN,
+    scopes: { main_canon: OTHER_TURN },
+  });
+  return seedSealedRow({
+    turnStart: 1,
+    turnEnd: 5,
+    summary,
+    summaryKind: "branch_canon",
+    scopes,
+    branchId: "br-1",
+    branchStatus: status,
+  });
+}
+
+describe("BRANCH / PREFERENCE PRIMARY RECORD EDIT KEEPS ITS SCOPE", () => {
+  beforeEach(seedChat);
+
+  it("active branch_canon primary: edit replaces the branch text in place and keeps the branch lifecycle", async () => {
+    const id = seedBranch({ branch_canon: BRANCH }, "active");
+    seedSealedRow({
+      turnStart: 21,
+      turnEnd: 25,
+      summary: MAIN_M,
+      scopes: { main_canon: MAIN_M },
+    });
+    const view = updateMemoryRecordById(CHAT, id, EDIT_1);
+    assert.ok(view);
+    assert.equal(view.summary, EDIT_1);
+    assert.equal(view.summaryKind, "branch_canon");
+    assert.equal(view.branchStatus, "active");
+    assert.equal(view.branchId, "br-1");
+    assert.equal(view.userEdited, true);
+
+    const cols = columnsOf(id);
+    assert.equal(cols.summary, EDIT_1);
+    assert.equal(cols.summary_kind, "branch_canon");
+    assert.equal(cols.branch_id, "br-1");
+    assert.equal(cols.branch_status, "active");
+    assert.deepEqual(payloadOf(id).scopes, { branch_canon: EDIT_1 });
+
+    let wire = await finalWire(CHAT);
+    assert.ok(wire.currentMemorySection.includes(EDIT_1));
+    assert.equal(wire.currentMemorySection.includes(BRANCH), false);
+    assert.ok(wire.currentMemorySection.includes(OTHER_TURN));
+    assert.ok(wire.currentMemorySection.includes(MAIN_M));
+
+    assert.equal(closeActiveBranchCanon(CHAT), 1);
+    assert.equal(columnsOf(id).branch_status, "closed");
+    wire = await finalWire(CHAT);
+    assert.equal(wire.currentMemorySection.includes(EDIT_1), false, "closed branch edit stays out of main wire");
+    assert.ok(wire.currentMemorySection.includes(OTHER_TURN));
+
+    const reopened = reopenClosedBranchCanon({ chatId: CHAT, recordId: id, source: "ui_reopen" });
+    assert.equal(reopened.ok, true);
+    assert.equal(columnsOf(id).branch_status, "active");
+    wire = await finalWire(CHAT);
+    assert.ok(wire.currentMemorySection.includes(EDIT_1));
+    assert.equal(wire.currentMemorySection.includes(BRANCH), false);
+  });
+
+  it("active branch_canon primary that also carries main_canon: main_canon is preserved", async () => {
+    const id = seedBranch({ main_canon: MAIN_M, branch_canon: BRANCH }, "active");
+    assert.ok(updateMemoryRecordById(CHAT, id, EDIT_1));
+    assert.deepEqual(payloadOf(id).scopes, { main_canon: MAIN_M, branch_canon: EDIT_1 });
+    assert.equal(columnsOf(id).summary_kind, "branch_canon");
+    const wire = await finalWire(CHAT);
+    assert.ok(wire.currentMemorySection.includes(MAIN_M));
+    assert.ok(wire.currentMemorySection.includes(EDIT_1));
+    assert.equal(wire.currentMemorySection.includes(BRANCH), false);
+  });
+
+  it("active branch_canon primary that also carries preference: preference is preserved", async () => {
+    const id = seedBranch({ branch_canon: BRANCH, preference: PREFERENCE }, "active");
+    assert.ok(updateMemoryRecordById(CHAT, id, EDIT_1));
+    assert.deepEqual(payloadOf(id).scopes, { branch_canon: EDIT_1, preference: PREFERENCE });
+    const wire = await finalWire(CHAT);
+    assert.ok(wire.currentMemorySection.includes(EDIT_1));
+    assert.ok(wire.currentMemorySection.includes(PREFERENCE));
+    assert.equal(wire.currentMemorySection.includes(BRANCH), false);
+  });
+
+  it("closed branch_canon primary: edit stays closed and out of the wire until the branch is reopened", async () => {
+    const id = seedBranch({ main_canon: MAIN_M, branch_canon: BRANCH }, "closed");
+    assert.ok(updateMemoryRecordById(CHAT, id, EDIT_1));
+    const cols = columnsOf(id);
+    assert.equal(cols.summary_kind, "branch_canon");
+    assert.equal(cols.branch_status, "closed");
+    assert.equal(recordOf(CHAT, id).branchStatus, "closed");
+    assert.deepEqual(payloadOf(id).scopes, { main_canon: MAIN_M, branch_canon: EDIT_1 });
+
+    let wire = await finalWire(CHAT);
+    assert.ok(wire.currentMemorySection.includes(MAIN_M));
+    assert.equal(wire.currentMemorySection.includes(EDIT_1), false);
+    assert.equal(wire.currentMemorySection.includes(BRANCH), false);
+    assert.ok(wire.currentMemorySection.includes(OTHER_TURN));
+
+    assert.equal(reopenClosedBranchCanon({ chatId: CHAT, recordId: id, source: "ui_reopen" }).ok, true);
+    wire = await finalWire(CHAT);
+    assert.ok(wire.currentMemorySection.includes(EDIT_1));
+    assert.ok(wire.currentMemorySection.includes(MAIN_M));
+    assert.equal(wire.currentMemorySection.includes(BRANCH), false);
+  });
+
+  it("preference primary: edit replaces the preference text in place; main_canon is preserved", async () => {
+    seedSealedRow({
+      turnStart: 11,
+      turnEnd: 15,
+      summary: OTHER_TURN,
+      scopes: { main_canon: OTHER_TURN },
+    });
+    const pureId = seedSealedRow({
+      turnStart: 1,
+      turnEnd: 5,
+      summary: PREFERENCE,
+      summaryKind: "preference",
+      scopes: { preference: PREFERENCE },
+    });
+    const mixedId = seedSealedRow({
+      turnStart: 6,
+      turnEnd: 10,
+      summary: PREFERENCE,
+      summaryKind: "preference",
+      scopes: { main_canon: MAIN_M, preference: PREFERENCE },
+    });
+    assert.ok(updateMemoryRecordById(CHAT, pureId, EDIT_1));
+    assert.ok(updateMemoryRecordById(CHAT, mixedId, EDIT_2));
+    assert.equal(columnsOf(pureId).summary_kind, "preference");
+    assert.equal(columnsOf(mixedId).summary_kind, "preference");
+    assert.equal(recordOf(CHAT, pureId).summaryKind, "preference");
+    assert.deepEqual(payloadOf(pureId).scopes, { preference: EDIT_1 });
+    assert.deepEqual(payloadOf(mixedId).scopes, { main_canon: MAIN_M, preference: EDIT_2 });
+
+    const wire = await finalWire(CHAT);
+    for (const kept of [EDIT_1, EDIT_2, MAIN_M, OTHER_TURN]) {
+      assert.ok(wire.currentMemorySection.includes(kept));
+    }
+    assert.equal(wire.currentMemorySection.includes(PREFERENCE), false);
+  });
+
+  it("edit keeps the branch mutation stack; an unrelated deleted message does not roll the edited row back", () => {
+    seedSealedRow({
+      turnStart: 11,
+      turnEnd: 15,
+      summary: OTHER_TURN,
+      scopes: { main_canon: OTHER_TURN },
+    });
+    const id = seedSealedRow({
+      turnStart: 1,
+      turnEnd: 5,
+      summary: NONCANON,
+      summaryKind: "noncanon",
+      scopes: { noncanon: NONCANON },
+    });
+    promoteRecordsToBranchCanon({
+      chatId: CHAT,
+      recordIds: [id],
+      branchId: "br-9",
+      promotedBy: "user_continue",
+      control: { source: "user_turn", sourceUserMessageId: 77, sourceTurn: 3, sourceBatchStart: 1 },
+    });
+    const stackBefore = payloadOf(id).branchControlMutations;
+    assert.equal(stackBefore?.length, 1);
+
+    assert.ok(updateMemoryRecordById(CHAT, id, EDIT_1));
+    assert.deepEqual(payloadOf(id).branchControlMutations, stackBefore);
+    assert.equal(columnsOf(id).summary_kind, "branch_canon");
+    assert.equal(columnsOf(id).branch_status, "active");
+
+    assert.equal(rollbackBranchControlMutationsForDeletedUserMessage(CHAT, 999), 0);
+    assert.equal(columnsOf(id).summary, EDIT_1);
+    assert.equal(recordOf(CHAT, id).scopes.branch_canon, EDIT_1);
+  });
+
+  it("adopting an edited branch record to main keeps the edited text on screen and on the wire", async () => {
+    const id = seedBranch({ branch_canon: BRANCH }, "active");
+    assert.ok(updateMemoryRecordById(CHAT, id, EDIT_1));
+    assert.equal(adoptBranchToMainCanon({ chatId: CHAT, recordId: id, promotedBy: "user_ui" }), true);
+    assert.equal(recordOf(CHAT, id).summary, EDIT_1);
+    assert.equal(recordOf(CHAT, id).summaryKind, "main_canon");
+    const wire = await finalWire(CHAT);
+    assert.ok(wire.currentMemorySection.includes(EDIT_1));
+    assert.equal(wire.currentMemorySection.includes(BRANCH), false);
+  });
+
+  it("fork copy of an edited branch record keeps kind, branch state and edited text", () => {
+    const id = seedBranch({ main_canon: MAIN_M, branch_canon: BRANCH }, "active");
+    assert.ok(updateMemoryRecordById(CHAT, id, EDIT_1));
+    getDb()
+      .prepare(`INSERT INTO chats (id, user_id, character_id, mode) VALUES (?,?,?,'safe')`)
+      .run(FORK_CHAT, USER, CHAR);
+    copyForkTurnSummaries(getDb(), {
+      sourceChatId: CHAT,
+      newChatId: FORK_CHAT,
+      forkTurnCount: 20,
+      forkMessageId: 1_000_000,
+      messageIdMap: new Map(),
+    });
+    const forked = listMemoryRecordsForChat(FORK_CHAT).find((r) => r.turnStart === 1)!;
+    assert.equal(forked.summaryKind, "branch_canon");
+    assert.equal(forked.branchStatus, "active");
+    assert.equal(forked.scopes.branch_canon, EDIT_1);
+    assert.equal(forked.scopes.main_canon, MAIN_M);
   });
 });
