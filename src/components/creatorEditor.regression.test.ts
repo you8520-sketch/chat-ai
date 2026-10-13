@@ -182,7 +182,21 @@ describe("creator editor: required summary", () => {
       onToggleExpanded: () => {},
     });
     assert.equal(countElements(tree, "button"), 0);
-    assert.match(textOf(tree), /필수 항목을 모두 채웠어요/);
+    assert.match(textOf(tree), /필수 항목은 모두 입력했어요/);
+  });
+
+  it("does not promise the form can be saved once required items are filled", () => {
+    const tree = RequirementSummary({
+      entries: entries.map((entry) => ({ ...entry, done: true })),
+      onJump: () => {},
+      expanded: false,
+      onToggleExpanded: () => {},
+    });
+    const text = textOf(tree);
+    assert.doesNotMatch(text, /저장할 수 있/);
+    assert.doesNotMatch(text, /저장 가능/);
+    assert.match(text, /저장 전 분량과 다른 조건도 확인/);
+    assert.doesNotMatch(parts, /이제 저장할 수 있습니다/);
   });
 });
 

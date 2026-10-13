@@ -171,7 +171,7 @@ export function RequirementSummary<K extends string>({
       >
         <span aria-hidden>✓</span>
         <span>
-          필수 항목을 모두 채웠어요. 이제 저장할 수 있습니다.
+          필수 항목은 모두 입력했어요. 저장 전 분량과 다른 조건도 확인해 주세요.
           <span className="sr-only">
             {" "}
             {doneCount}/{entries.length}
