@@ -28,7 +28,7 @@ export function ScopedNotice({
       ref={ref}
       role={error ? "alert" : "status"}
       className={cn(
-        "rounded-xl border px-3 py-2.5 text-sm leading-relaxed",
+        "scroll-mb-24 scroll-mt-32 rounded-xl border px-3 py-2.5 text-sm leading-relaxed",
         error
           ? "border-rose-500/30 bg-rose-500/10 text-rose-200"
           : "border-violet-400/30 bg-violet-500/10 text-violet-100",
