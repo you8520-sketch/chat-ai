@@ -265,6 +265,8 @@ export type BibleAdultSection = {
 export type OfficialCharacterBible = {
   /** New official characters use the compact RP prompt standard; absent = legacy pilot source. */
   promptStandard?: "compact_rp_v1";
+  /** Legacy-standard manuscripts that still use the shared world + per-character currentSituation split. */
+  usesSharedWorld?: true;
   identity: {
     name: string;
     gender: string;
@@ -324,6 +326,8 @@ export type OfficialCharacterBible = {
     tags: string[];
     /** GPT-authored public-page body. When present, compiler uses it as draft.description. */
     detailedDescription?: string;
+    /** GPT-authored creator comment. When present, compiler uses it as draft.creatorComment. */
+    creatorComment?: string;
   };
   npcs: OfficialSupportingNpc[];
   nsfw: boolean;
@@ -484,6 +488,7 @@ export const CHARACTER_VOICE_SCHEMA: Record<string, unknown> = {
         description: { type: "string" },
         tags: { type: "array", items: { type: "string" } },
         detailedDescription: { type: "string" },
+        creatorComment: { type: "string" },
       },
     },
     npcs: {
@@ -1115,6 +1120,7 @@ export function compileOfficialDraftFromBible(
   const id = bible.identity;
   const task = "bible_compile";
   const compactRpV1 = bible.promptStandard === "compact_rp_v1";
+  const sharedWorldSplit = compactRpV1 || bible.usesSharedWorld === true;
 
   const tagline = bible.publicProfile.tagline.trim();
   if (!tagline || tagline.length > 50) {
@@ -1268,14 +1274,14 @@ export function compileOfficialDraftFromBible(
     tags: bible.publicProfile.tags,
     audience: keys.audience,
     sections: {
-      worldAndSituation: compactRpV1
+      worldAndSituation: sharedWorldSplit
         ? projectOfficialSharedWorld(requireCompactWorldBible(keys, task))
         : joinParagraphs([
             bible.situation.worldContext,
             bible.situation.personalSituation,
             bible.situation.userEntry,
           ]),
-      ...(compactRpV1
+      ...(sharedWorldSplit
         ? {
             currentSituation: composeOfficialCurrentSituation({
               personalSituation: bible.situation.personalSituation,
@@ -1297,5 +1303,8 @@ export function compileOfficialDraftFromBible(
     hook: compactRpV1 ? { ...keys.hook, rpHook: effectiveRpHook } : keys.hook,
     secrets: compactRpV1 ? [...bible.secrets] : [...bible.secrets, ...hiddenRels],
     adult: adult as OfficialCharacterDraft["adult"],
+    ...(bible.publicProfile.creatorComment?.trim()
+      ? { creatorComment: bible.publicProfile.creatorComment.trim() }
+      : {}),
   };
 }

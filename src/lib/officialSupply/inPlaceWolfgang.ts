@@ -40,6 +40,7 @@ const TEXT_LOCK_COVERED_DRAFT_KEYS: ReadonlySet<string> = new Set([
   "supportingNpcs",
   "secrets",
   "adult",
+  "creatorComment",
 ]);
 
 const SUPPLY_IDENTITY_DRAFT_KEYS: ReadonlySet<string> = new Set(["draftKey", "styleKey"]);

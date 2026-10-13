@@ -206,6 +206,8 @@ export type OfficialCharacterDraft = {
   /** Hidden canon as short key phrases (true identity, secret lineage, future events). Never shared across characters. */
   secrets: string[];
   adult: OfficialAdultProfile;
+  /** GPT-authored creator comment (simple p/b/br HTML). Absent means the play-guide template is composed. */
+  creatorComment?: string;
 };
 
 export type OfficialWorldLorebookEntry = {

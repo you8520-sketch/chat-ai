@@ -11,7 +11,7 @@ import { canonicalAssetModerationFields } from "@/lib/officialSupply/moderation"
 import { loadOfficialPilotWorldBible } from "@/lib/officialSupply/compiledOfficialSource";
 import { attachOfficialCharacterLorebooks } from "@/lib/officialSupply/lorebookAttach";
 import type { CastRelationship } from "@/lib/officialSupply/castRelationships";
-import { ensureOfficialSharedWorldLibraryRow } from "@/lib/officialSupply/officialSharedWorld";
+import { ensureOfficialSharedWorldLibraryRow, officialDraftUsesSharedWorld } from "@/lib/officialSupply/officialSharedWorld";
 import type { OfficialWorldLorebookEntry } from "@/lib/officialSupply/types";
 import { evaluateSharedLorebook } from "@/lib/officialSupply/worldQa";
 import type { OfficialWorldBible } from "@/lib/officialSupply/bible";
@@ -120,7 +120,7 @@ export async function stageOfficialCharacterPrivately(input: {
   try {
     const lorebookIds = ensureWorldLorebooks(store, record.worldKey, stagingUser, entries);
     const sharedWorld =
-      record.draft.promptStandard === "compact_rp_v1"
+      officialDraftUsesSharedWorld(record.draft)
         ? ensureOfficialSharedWorldLibraryRow({
             db: store.database,
             creatorId: stagingUser.id,

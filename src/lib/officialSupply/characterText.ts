@@ -27,7 +27,7 @@ export const SUPPORTING_NPC_LINE_HARD_MAX = 240;
  */
 export const OFFICIAL_TEXT_LENGTH_BANDS = {
   total: [6000, 8000],
-  worldAndSituation: [1500, 2300],
+  worldAndSituation: [1500, 3000],
   characterCore: [2500, 3500],
   relationshipsAndDrives: [700, 1000],
   speech: [500, 900],
@@ -201,6 +201,7 @@ export function computeTextLockHash(draft: OfficialCharacterDraft): string {
     supportingNpcs: draft.supportingNpcs,
     secrets: draft.secrets,
     adult: draft.adult,
+    creatorComment: draft.creatorComment,
   });
   return crypto.createHash("sha256").update(canonical).digest("hex");
 }
