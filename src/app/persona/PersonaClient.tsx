@@ -58,6 +58,8 @@ import {
   EditingBadge,
   EditorActionBar,
   ScopedNotice,
+  SectionPanes,
+  useWideLayout,
   type PageNotice,
 } from "@/components/studio/PersonaPageParts";
 import {
@@ -131,6 +133,7 @@ export default function PersonaClient({
     null
   );
   const [busy, setBusy] = useState(false);
+  const wide = useWideLayout();
   const widgetBaselineRef = useRef("");
   const personaEditorRef = useRef<HTMLDivElement>(null);
   const noteEditorRef = useRef<HTMLDivElement>(null);
@@ -320,19 +323,19 @@ export default function PersonaClient({
 
   useEffect(() => {
     if (!creating && editingId == null) return;
-    personaEditorRef.current?.scrollIntoView({ block: "start" });
+    personaEditorRef.current?.scrollIntoView({ block: wide ? "nearest" : "start" });
     personaEditorRef.current?.focus({ preventScroll: true });
   }, [creating, editingId]);
 
   useEffect(() => {
     if (!noteCreating && noteEditingId == null) return;
-    noteEditorRef.current?.scrollIntoView({ block: "start" });
+    noteEditorRef.current?.scrollIntoView({ block: wide ? "nearest" : "start" });
     noteEditorRef.current?.focus({ preventScroll: true });
   }, [noteCreating, noteEditingId]);
 
   useEffect(() => {
     if (!widgetCreating && widgetEditingId == null) return;
-    widgetEditorRef.current?.scrollIntoView({ block: "start" });
+    widgetEditorRef.current?.scrollIntoView({ block: wide ? "nearest" : "start" });
     widgetEditorRef.current?.focus({ preventScroll: true });
   }, [widgetCreating, widgetEditingId]);
 
@@ -855,7 +858,7 @@ export default function PersonaClient({
       tabIndex={-1}
       role="group"
       aria-labelledby={`${formIds}-persona-title`}
-      className={editorShellClass(!creating)}
+      className={editorShellClass(!creating && !wide)}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 id={`${formIds}-persona-title`} className={studioType.sectionTitle}>
@@ -1065,7 +1068,7 @@ export default function PersonaClient({
       tabIndex={-1}
       role="group"
       aria-labelledby={`${formIds}-note-title`}
-      className={editorShellClass(!noteCreating)}
+      className={editorShellClass(!noteCreating && !wide)}
     >
       <h3 id={`${formIds}-note-title`} className={studioType.sectionTitle}>
         {noteCreating ? "새 유저 노트 만들기" : `‘${noteSavedForEdit?.title || "유저 노트"}’ 수정 중`}
@@ -1114,7 +1117,7 @@ export default function PersonaClient({
       tabIndex={-1}
       role="group"
       aria-labelledby={`${formIds}-widget-title`}
-      className={editorShellClass(!widgetCreating)}
+      className={editorShellClass(!widgetCreating && !wide)}
     >
       <h3 id={`${formIds}-widget-title`} className={studioType.sectionTitle}>
         {widgetCreating
@@ -1196,49 +1199,8 @@ export default function PersonaClient({
     </div>
   ) : null;
 
-  const rowButtonClass = "min-w-[4.5rem]";
-  const dangerButtonClass =
-    "min-w-[4.5rem] border-rose-500/30 text-rose-300 hover:bg-rose-500/10 disabled:hover:bg-transparent";
-
-  return (
-    <div className="mx-auto mt-6 max-w-2xl space-y-6">
-      <div>
-        <h1 className={studioType.heading}>페르소나·노트 제작</h1>
-        <p className={`mt-1 ${studioType.body}`}>
-          원하는 만큼 페르소나를 만들고 채팅방 상단에서 선택해 사용합니다.
-        </p>
-      </div>
-
-      <section id="personas" className={cn(studioSurface.sectionAccent, "scroll-mt-4")}>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className={studioType.sectionTitle}>
-              내 페르소나 ({personas.length} / {USER_PERSONA_MAX_COUNT})
-            </h2>
-            <p className={cn(studioType.helper, "mt-0.5")}>
-              채팅에서 내가 연기하는 인물입니다 · 최대 {USER_PERSONA_MAX_COUNT.toLocaleString()}개 ·
-              기본+비밀 합계 최대 {PERSONA_CONTENT_MAX.toLocaleString()}자
-            </p>
-          </div>
-          <StudioButton
-            size="sm"
-            onClick={startCreate}
-            disabled={busy || creating || personas.length >= USER_PERSONA_MAX_COUNT}
-          >
-            + 새 페르소나
-          </StudioButton>
-        </div>
-
-        <ScopedNotice
-          notice={headerNotice(
-            "persona",
-            personaFormOpen,
-            personas.map((item) => item.id)
-          )}
-          revealOnChange
-        />
-
-        {creating ? personaEditor : null}
+  const personaList = (
+    <>
 
         {personas.length === 0 ? (
           <p className="rounded-xl border border-dashed border-white/15 bg-[#0e1120] px-4 py-6 text-center text-sm text-zinc-400">
@@ -1336,7 +1298,7 @@ export default function PersonaClient({
                   className="mt-3"
                   revealOnChange
                 />
-                {isEditing ? <div className="mt-3">{personaEditor}</div> : null}
+                {isEditing && !wide ? <div className="mt-3">{personaEditor}</div> : null}
               </li>
             );
           })}
@@ -1346,32 +1308,11 @@ export default function PersonaClient({
             페르소나는 최소 1개가 필요해서 지금은 삭제할 수 없어요. 새로 만든 뒤 삭제할 수 있어요.
           </p>
         ) : null}
-      </section>
+    </>
+  );
 
-      <section id="user-note-presets" className={cn(studioSurface.sectionAccent, "scroll-mt-4")}>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className={studioType.sectionTitle}>유저 노트 보관함 ({notePresets.length})</h2>
-            <p className={cn(studioType.helper, "mt-0.5")}>
-              AI가 매 턴 기억할 중요 기억을 저장해 두고 채팅에서 불러와 씁니다 · 현재 요금제 최대{" "}
-              {focusMaxChars.toLocaleString()}자
-            </p>
-          </div>
-          <StudioButton size="sm" onClick={startNoteCreate} disabled={busy || noteCreating}>
-            + 새 노트
-          </StudioButton>
-        </div>
-
-        <ScopedNotice
-          notice={headerNotice(
-            "note",
-            noteFormOpen,
-            notePresets.map((item) => item.id)
-          )}
-          revealOnChange
-        />
-
-        {noteCreating ? noteEditor : null}
+  const noteList = (
+    <>
 
         <ul className="space-y-3">
           {notePresets.map((preset) => {
@@ -1437,7 +1378,7 @@ export default function PersonaClient({
                   className="mt-3"
                   revealOnChange
                 />
-                {isEditing ? <div className="mt-3">{noteEditor}</div> : null}
+                {isEditing && !wide ? <div className="mt-3">{noteEditor}</div> : null}
               </li>
             );
           })}
@@ -1447,41 +1388,11 @@ export default function PersonaClient({
             </li>
           )}
         </ul>
-      </section>
+    </>
+  );
 
-      <section
-        id="status-widget-presets"
-        className={cn(studioSurface.sectionAccent, "scroll-mt-4")}
-      >
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className={studioType.sectionTitle}>
-              상태창 보관함 ({statusWidgetPresets.length})
-            </h2>
-            <p className={cn(studioType.helper, "mt-0.5")}>
-              디자인과 상태값으로 만들거나, 직접 제작에서 HTML·JSX를 작성합니다
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <StudioButton size="sm" variant="secondary" href={STATUS_WIDGET_SHARED_DESIGN_HREF}>
-              {STATUS_WIDGET_SHARED_DESIGN_LABEL}
-            </StudioButton>
-            <StudioButton size="sm" onClick={startWidgetCreate} disabled={busy || widgetCreating}>
-              + 새 상태창
-            </StudioButton>
-          </div>
-        </div>
-
-        <ScopedNotice
-          notice={headerNotice(
-            "widget",
-            widgetFormOpen,
-            statusWidgetPresets.map((item) => item.id)
-          )}
-          revealOnChange
-        />
-
-        {widgetCreating ? widgetEditor : null}
+  const widgetList = (
+    <>
 
         <ul className="space-y-3">
           {statusWidgetPresets.map((preset) => {
@@ -1557,7 +1468,7 @@ export default function PersonaClient({
                   className="mt-3"
                   revealOnChange
                 />
-                {isEditing ? <div className="mt-3">{widgetEditor}</div> : null}
+                {isEditing && !wide ? <div className="mt-3">{widgetEditor}</div> : null}
               </li>
             );
           })}
@@ -1568,6 +1479,168 @@ export default function PersonaClient({
           )}
         </ul>
 
+    </>
+  );
+
+  const guideCards = [
+    {
+      href: "#personas",
+      title: "페르소나",
+      count: `${personas.length}개`,
+      description: "채팅에서 내가 연기하는 인물입니다. 이름·성별·공개 설명을 담아요.",
+    },
+    {
+      href: "#user-note-presets",
+      title: "유저 노트",
+      count: `${notePresets.length}개`,
+      description: `AI가 매 턴 기억할 중요 기억입니다. 현재 요금제 최대 ${focusMaxChars.toLocaleString()}자.`,
+    },
+    {
+      href: "#status-widget-presets",
+      title: "상태창",
+      count: `${statusWidgetPresets.length}개`,
+      description: "채팅 화면에 보이는 상태 카드입니다. 페르소나마다 하나를 골라 써요.",
+    },
+  ];
+
+  const rowButtonClass = "min-w-[4.5rem]";
+  const dangerButtonClass =
+    "min-w-[4.5rem] border-rose-500/30 text-rose-300 hover:bg-rose-500/10 disabled:hover:bg-transparent";
+
+  return (
+    <div className="mx-auto mt-6 max-w-2xl space-y-6 lg:max-w-5xl">
+      <div>
+        <h1 className={studioType.heading}>페르소나·노트 제작</h1>
+        <p className={`mt-1 ${studioType.body}`}>
+          원하는 만큼 페르소나를 만들고 채팅방 상단에서 선택해 사용합니다.
+        </p>
+      </div>
+
+      <nav aria-label="이 화면의 구성" className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        {guideCards.map((card) => (
+          <a
+            key={card.href}
+            href={card.href}
+            className="group rounded-xl border border-white/10 bg-[#131626] px-4 py-3 transition hover:border-violet-400/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70"
+          >
+            <span className="flex items-baseline justify-between gap-2">
+              <span className="text-sm font-semibold text-zinc-50">{card.title}</span>
+              <span className="text-xs tabular-nums text-violet-300">{card.count}</span>
+            </span>
+            <span className={cn(studioType.helper, "mt-1 block")}>{card.description}</span>
+          </a>
+        ))}
+      </nav>
+
+      <section id="personas" className={cn(studioSurface.sectionAccent, "scroll-mt-28 lg:scroll-mt-20")}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className={studioType.sectionTitle}>
+              내 페르소나 ({personas.length} / {USER_PERSONA_MAX_COUNT})
+            </h2>
+            <p className={cn(studioType.helper, "mt-0.5")}>
+              채팅에서 내가 연기하는 인물입니다 · 최대 {USER_PERSONA_MAX_COUNT.toLocaleString()}개 ·
+              기본+비밀 합계 최대 {PERSONA_CONTENT_MAX.toLocaleString()}자
+            </p>
+          </div>
+          <StudioButton
+            size="sm"
+            onClick={startCreate}
+            disabled={busy || creating || personas.length >= USER_PERSONA_MAX_COUNT}
+          >
+            + 새 페르소나
+          </StudioButton>
+        </div>
+
+        <ScopedNotice
+          notice={headerNotice(
+            "persona",
+            personaFormOpen,
+            personas.map((item) => item.id)
+          )}
+          revealOnChange
+        />
+
+        <SectionPanes
+          wide={wide}
+          list={personaList}
+          editor={personaEditor}
+          creating={creating}
+          placeholder="왼쪽 목록에서 ‘수정’을 누르거나 ‘+ 새 페르소나’로 시작하세요. 편집 내용은 이 영역에 열립니다."
+        />
+      </section>
+
+      <section id="user-note-presets" className={cn(studioSurface.sectionAccent, "scroll-mt-28 lg:scroll-mt-20")}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className={studioType.sectionTitle}>유저 노트 보관함 ({notePresets.length})</h2>
+            <p className={cn(studioType.helper, "mt-0.5")}>
+              AI가 매 턴 기억할 중요 기억을 저장해 두고 채팅에서 불러와 씁니다 · 현재 요금제 최대{" "}
+              {focusMaxChars.toLocaleString()}자
+            </p>
+          </div>
+          <StudioButton size="sm" onClick={startNoteCreate} disabled={busy || noteCreating}>
+            + 새 노트
+          </StudioButton>
+        </div>
+
+        <ScopedNotice
+          notice={headerNotice(
+            "note",
+            noteFormOpen,
+            notePresets.map((item) => item.id)
+          )}
+          revealOnChange
+        />
+
+        <SectionPanes
+          wide={wide}
+          list={noteList}
+          editor={noteEditor}
+          creating={noteCreating}
+          placeholder="왼쪽 목록에서 ‘수정’을 누르거나 ‘+ 새 노트’로 시작하세요. 편집 내용은 이 영역에 열립니다."
+        />
+      </section>
+
+      <section
+        id="status-widget-presets"
+        className={cn(studioSurface.sectionAccent, "scroll-mt-28 lg:scroll-mt-20")}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className={studioType.sectionTitle}>
+              상태창 보관함 ({statusWidgetPresets.length})
+            </h2>
+            <p className={cn(studioType.helper, "mt-0.5")}>
+              디자인과 상태값으로 만들거나, 직접 제작에서 HTML·JSX를 작성합니다
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <StudioButton size="sm" variant="secondary" href={STATUS_WIDGET_SHARED_DESIGN_HREF}>
+              {STATUS_WIDGET_SHARED_DESIGN_LABEL}
+            </StudioButton>
+            <StudioButton size="sm" onClick={startWidgetCreate} disabled={busy || widgetCreating}>
+              + 새 상태창
+            </StudioButton>
+          </div>
+        </div>
+
+        <ScopedNotice
+          notice={headerNotice(
+            "widget",
+            widgetFormOpen,
+            statusWidgetPresets.map((item) => item.id)
+          )}
+          revealOnChange
+        />
+
+        <SectionPanes
+          wide={wide}
+          list={widgetList}
+          editor={widgetEditor}
+          creating={widgetCreating}
+          placeholder="왼쪽 목록에서 ‘수정’을 누르거나 ‘+ 새 상태창’으로 시작하세요. 편집 내용은 이 영역에 열립니다."
+        />
         {widgetShare && (
           <div className="space-y-2">
             <ShareLinkBox path={widgetShare.path} label="위젯 적용 링크 (열어서 내 위젯에 추가)" />

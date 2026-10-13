@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 import StudioButton from "@/components/studio/StudioButton";
 import { cn, studioType } from "@/lib/studioDesign";
 
@@ -88,6 +88,63 @@ export function EditorActionBar({
         <StudioButton type="button" variant="secondary" onClick={onCancel}>
           취소
         </StudioButton>
+      </div>
+    </div>
+  );
+}
+
+const WIDE_QUERY = "(min-width: 1024px)";
+
+function subscribeWide(onChange: () => void) {
+  const query = window.matchMedia(WIDE_QUERY);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+/** True from the lg breakpoint up. Server and first paint use the stacked mobile flow. */
+export function useWideLayout(): boolean {
+  return useSyncExternalStore(
+    subscribeWide,
+    () => window.matchMedia(WIDE_QUERY).matches,
+    () => false,
+  );
+}
+
+/**
+ * List + editor body of one section. Stacked: the create form sits above the list and the edit
+ * form opens inside the row (the list renders it). Wide: the list stays on the left and the form
+ * lives in a sticky pane on the right.
+ */
+export function SectionPanes({
+  wide,
+  list,
+  editor,
+  creating,
+  placeholder,
+}: {
+  wide: boolean;
+  list: ReactNode;
+  editor: ReactNode;
+  creating: boolean;
+  placeholder: string;
+}) {
+  if (!wide) {
+    return (
+      <>
+        {creating ? editor : null}
+        {list}
+      </>
+    );
+  }
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] items-start gap-5">
+      <div className="min-w-0 space-y-3">{list}</div>
+      <div className="sticky top-24 max-h-[calc(100vh-7rem)] min-w-0 overflow-y-auto rounded-xl">
+        {editor ?? (
+          <p className="rounded-xl border border-dashed border-white/15 bg-[#0e1120] px-4 py-10 text-center text-sm leading-relaxed text-zinc-400">
+            {placeholder}
+          </p>
+        )}
       </div>
     </div>
   );
