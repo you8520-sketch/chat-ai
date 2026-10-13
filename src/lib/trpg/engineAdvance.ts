@@ -54,9 +54,12 @@ import {
   clipTrpgChars,
   countQuestAddsOverCap,
   loadCampaignLedger,
+  loadStoredGoalsJson,
   persistAcceptedRoundLocationIfAbsent,
   persistCampaignLedger,
+  settleLedgerForCommit,
 } from "./campaignLedger";
+import { goalClaimSource } from "./goalClaimProvenance";
 import { resolveTrpgRoll, rollServerD20 } from "./dice";
 import { assertCanStart } from "./engineCreate";
 import { callTrpgBot, callTrpgGm, type TrpgGmStreamCallbacks } from "./gmCall";
@@ -74,6 +77,7 @@ import {
   npcsWithImages,
 } from "./scenarioNpcAssets";
 import { loadCampaignScenarioAssets, loadScenarioTemplate } from "./scenarioTemplates";
+import { summarizeGoalTransition, type TrpgGoalRoundFacts } from "./campaignGoals";
 import {
   applyCampaignStoryProgress,
   applyLocalSceneProgressToContext,
@@ -1555,6 +1559,7 @@ function commitPendingGmResult(
   const sheets = loadSheetSnapshots(db, campaign.id);
   const mechanics = loadMechanicsResolution(db, opts.roundId);
   const currentLedger = loadCampaignLedger(db, campaign.id);
+  const loadedGoalsJson = loadStoredGoalsJson(db, campaign.id);
   const campaignContext = loadCampaignContext(db, campaign.id);
   const openRoutes = campaignContext?.localSceneProgress.openRoutes ?? [];
   const lockedSubs = db
@@ -1629,16 +1634,53 @@ function commitPendingGmResult(
     : (opts.postGmOngoingSeeds ?? []);
   let postGmOngoingResult = { candidates: 0, promoted: 0, deduped: 0 };
   let stage: TrpgFailureStage = "ledger_apply";
-  const questsDroppedAtCap = countQuestAddsOverCap(currentLedger, boundLocation.delta);
-  if (questsDroppedAtCap > 0) {
-    console.info("[TRPG][gm] quest_add_capped", { dropped: questsDroppedAtCap, max: TRPG_LEDGER_QUEST_MAX });
-  }
-  const ledger = applyCampaignLedger(currentLedger, {
+  const humanSeatIds = new Set(
+    loadParticipants(db, campaign.id)
+      .filter((participant) => participant.kind === "human")
+      .map((participant) => participant.id)
+  );
+  const endLocationBySeat = new Map(
+    (persistMechanics ? nextSheets : sheets).map((sheet) => [sheet.participantId, sheet.location])
+  );
+  const goalFacts: TrpgGoalRoundFacts = {
+    round: roundNumber,
+    seats: sheets.map((sheet) => ({
+      participantId: sheet.participantId,
+      human: humanSeatIds.has(sheet.participantId),
+      startLocation: sheet.location,
+      endLocation: endLocationBySeat.get(sheet.participantId) ?? sheet.location,
+    })),
+    authoredEncounterIds: governedEncounters(campaignContext).map((encounter) => encounter.id),
+    endedEncounterIds: loadEndedEncounterIds(db, campaign.id, roundNumber),
+    acceptedEncounterIds: encounterEnding.accepted,
+  };
+  const ledgerDelta = {
     ...boundLocation.delta,
     location: boundLocation.location || scenario.startLocation,
     nextRoundContext: boundLocation.nextRoundContext,
     campaignFinished: parsed.campaignFinished,
-  });
+  };
+  const goalContext = {
+    round: roundNumber,
+    facts: goalFacts,
+    claimSource: provenanceId ? goalClaimSource(provenanceId, parsed.narration) : undefined,
+  };
+  const questsDroppedAtCap = countQuestAddsOverCap(currentLedger, ledgerDelta, goalContext);
+  if (questsDroppedAtCap > 0) {
+    console.info("[TRPG][gm] quest_add_capped", { dropped: questsDroppedAtCap, max: TRPG_LEDGER_QUEST_MAX });
+  }
+  const ledger = applyCampaignLedger(currentLedger, ledgerDelta, goalContext);
+  const goalTransition = summarizeGoalTransition(currentLedger.goals, ledger.goals, roundNumber);
+  if (goalTransition.created || goalTransition.completed.length || goalTransition.retired) {
+    console.info("[TRPG][goal] lifecycle", {
+      round: roundNumber,
+      ...goalTransition,
+      criteriaProposed: parsed.delta.questCriteria?.length ?? 0,
+    });
+  }
+  if (opts.opening && goalTransition.activeAfter === 0) {
+    console.warn("[TRPG][goal] missing_after_opening", { round: roundNumber });
+  }
   // Deterministic progression floor (accepted routine traversal + GM omission).
   // Canonical owner: localSceneProgress. The server authors no new fiction — it
   // only promotes an already-accepted canonical route label when unambiguous.
@@ -1697,7 +1739,14 @@ function commitPendingGmResult(
            VALUES (?,?,?,?)`
         ).run(campaign.id, opts.roundId, `delta:${opts.roundId}`, JSON.stringify(committedDelta));
       }
-      persistCampaignLedger(db, campaign.id, roundNumber, ledger);
+      const settled = settleLedgerForCommit(
+        db,
+        campaign.id,
+        { ledger: currentLedger, goalsJson: loadedGoalsJson },
+        (stored) => applyCampaignLedger(stored, ledgerDelta, goalContext),
+        ledger
+      );
+      persistCampaignLedger(db, campaign.id, roundNumber, settled.ledger, settled.expectedGoalsJson);
       persistAcceptedRoundLocationIfAbsent(
         db,
         opts.roundId,
@@ -1732,7 +1781,7 @@ function commitPendingGmResult(
       }
       clearPendingGmResult(db, opts.roundId);
       stage = "round_complete";
-    })();
+    }).immediate();
     if (encounterEnding.accepted.length || encounterEnding.rejected.length) {
       console.info("[trpg-encounter-ended]", {
         proposed: endedProposals?.length ?? 0,

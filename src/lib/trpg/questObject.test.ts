@@ -145,8 +145,8 @@ describe("quest add normalization at the GM parser (#1541 PR-1)", () => {
 });
 
 describe("GM delta contract wording (#1541 PR-1)", () => {
-  it("states the supported quest string shape once, and no injected owner still names the retired <<<DELTA>>> wire", () => {
-    assert.equal((TRPG_GM_SYSTEM.match(/questsAdd items are plain strings/g) ?? []).length, 1);
+  it("names the quest shape in one place, and no injected owner still names the retired <<<DELTA>>> wire", () => {
+    assert.equal((TRPG_GM_SYSTEM.match(/questsAdd items are player-visible goals/g) ?? []).length, 1);
     const injected = [
       TRPG_GM_SYSTEM,
       serializeCampaignDirectorInstructions(true),
@@ -173,12 +173,6 @@ function setup(db: Database.Database) {
     content: "항구도시에서 사건을 쫓는다.",
     visibility: "public",
     startLocation: "마레노 부두",
-    scenarioPlan: {
-      startingSituation: "항구에 도착한다",
-      centralConflict: "사라진 어선",
-      goal: "등대의 비밀을 밝힌다",
-      endingConditions: ["비밀을 밝힌다"],
-    },
   });
   const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1, templateId });
   saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });

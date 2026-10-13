@@ -26,6 +26,9 @@ import {
 } from "./store";
 import { purgeUnstartedSoloDrafts } from "./engineDelete";
 import { loadCampaignContext } from "./campaignContext";
+import { hasPendingClaim, publicGoals, type TrpgPublicGoal } from "./campaignGoals";
+import { claimMatchesCommittedMessage } from "./goalClaimProvenance";
+import { loadCampaignLedger } from "./campaignLedger";
 import { parseResolutionOrder, sortByResolutionOrder } from "./initiative";
 import {
   deriveAdjudicatedParticipantIds,
@@ -461,6 +464,7 @@ export function loadTrpgSnapshot(
       viewerUserId
     ),
     storyPhase: loadCampaignContext(db, campaignId)?.storyPhase,
+    goals: loadViewerGoals(db, campaignId, campaign.host_user_id === viewerUserId),
     gmFailureHint:
       campaign.host_user_id === viewerUserId && phase === "ERROR_RECOVERY"
         ? sanitizeTrpgFailureHint(parseTrpgStartFailureJson(round?.error_json))
@@ -527,6 +531,17 @@ export function loadTrpgSnapshot(
     }),
     showRecoveryHint: phase === "ACTION_INPUT" && (round?.round_number ?? 0) <= 2,
   };
+}
+
+/** The host also learns which proposals are still answerable; nobody else is told anything extra. */
+function loadViewerGoals(db: Database.Database, campaignId: number, viewerIsHost: boolean): TrpgPublicGoal[] {
+  const goals = loadCampaignLedger(db, campaignId).goals;
+  const view = publicGoals(goals);
+  if (!viewerIsHost) return view;
+  const answerable = new Set(
+    goals.filter((goal) => hasPendingClaim(goal) && claimMatchesCommittedMessage(db, campaignId, goal)).map((goal) => goal.id)
+  );
+  return view.map((goal) => (goal.claimed && answerable.has(goal.id) ? { ...goal, confirmable: true } : goal));
 }
 
 function resolveCanRerollRoundNumber(

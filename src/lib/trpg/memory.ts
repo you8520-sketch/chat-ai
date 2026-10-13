@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { resolveTrpgCanonicalAttempt } from "./canonicalAttempt";
+import { goalMemoryLines } from "./campaignGoals";
 import { clipTrpgChars, loadCampaignLedger, type TrpgCampaignLedger } from "./campaignLedger";
 import { loadSheetSnapshots } from "./engineSheets";
 import { inventoryUnits } from "./inventory";
@@ -39,6 +40,8 @@ export type TrpgStructuredCampaignMemory = {
     stats?: Record<string, number>;
   }>;
   quests: string[];
+  /** Goal state `quests` cannot carry: recently completed goals and GM claims the server has not confirmed. */
+  goalLines?: string[];
   npcs: string[];
   worldFlags: string[];
 };
@@ -145,6 +148,7 @@ export function buildTrpgMemoryPromptBlock(opts: {
       : "",
     sheets,
     opts.structured.quests.length ? `quests: ${opts.structured.quests.join("; ")}` : "",
+    ...(opts.structured.goalLines ?? []),
     opts.structured.npcs.length ? `npcs: ${opts.structured.npcs.join("; ")}` : "",
     opts.structured.worldFlags.length ? `flags: ${opts.structured.worldFlags.join("; ")}` : "",
     sealed ? `[SEALED CAMPAIGN SUMMARY]\n${sealed}` : "",
@@ -211,6 +215,7 @@ export function buildTrpgBotMemoryBlock(opts: {
     opts.ledger.nextRoundContext.trim() ? `[NEXT DECISION]\n${opts.ledger.nextRoundContext.trim()}` : "",
     sheets,
     opts.ledger.quests.length ? `quests: ${opts.ledger.quests.join("; ")}` : "",
+    ...goalMemoryLines(opts.ledger.goals),
     opts.ledger.npcs.length ? `npcs: ${opts.ledger.npcs.join("; ")}` : "",
     opts.ledger.worldFlags.length ? `flags: ${opts.ledger.worldFlags.join("; ")}` : "",
   ]
@@ -365,6 +370,7 @@ export function buildCampaignMemoryPrompt(
       nextRoundContext: ledger.nextRoundContext,
       sheets,
       quests: ledger.quests,
+      goalLines: goalMemoryLines(ledger.goals),
       npcs: ledger.npcs,
       worldFlags: ledger.worldFlags,
     },

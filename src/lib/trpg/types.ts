@@ -31,6 +31,11 @@ export const TRPG_LEDGER_QUEST_MAX = 12;
 export const TRPG_LEDGER_NPC_MAX = 16;
 export const TRPG_LEDGER_FLAG_MAX = 24;
 export const TRPG_LEDGER_ITEM_MAX_CHARS = 80;
+
+/** Server-checkable goal completion criteria. Anything else is a narrative goal the server cannot confirm. */
+export type TrpgGoalCriterion =
+  | { type: "reach_location"; place: string }
+  | { type: "end_encounter"; encounterId: string };
 /** Same target as Cheaper Inference DeepSeek V4 Pro RP (`CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_GROSS_MARGIN`). */
 export const TRPG_GM_GROSS_MARGIN = 0.65;
 /** Bot-seat Pro call — same 65% as RP Pro. Not Flash. */
@@ -195,6 +200,10 @@ export type TrpgStateDelta = {
   campaignFinished?: boolean;
   questsAdd?: string[];
   questsRemove?: string[];
+  /** Exact titles of active goals the GM says are resolved. A claim, never a server-confirmed completion. */
+  questsClaimDone?: string[];
+  /** Typed completion criteria the GM proposed for entries of `questsAdd`, keyed by the stored title. */
+  questCriteria?: Array<{ title: string; criterion: TrpgGoalCriterion }>;
   npcsAdd?: string[];
   npcsRemove?: string[];
   flagsAdd?: string[];
