@@ -124,6 +124,28 @@ test.describe("TRPG goal HUD — production browser", () => {
     });
   }
 
+  test("mobile390: a taller tool rail pushes the pinned bar down instead of covering it", async ({ page }) => {
+    await page.setViewportSize(VIEWPORTS.mobile390);
+    await openLab(page, "action-examples");
+    await page.evaluate(() => window.scrollTo(0, 900));
+    await expect
+      .poll(async () => {
+        const geometry = await hudGeometry(page);
+        return geometry.barTop - geometry.railBottom;
+      })
+      .toBeGreaterThanOrEqual(0);
+
+    await page.addStyleTag({ content: "aside[aria-label='캠페인 도구']{padding-bottom:48px !important}" });
+    await expect
+      .poll(async () => {
+        const geometry = await hudGeometry(page);
+        return geometry.barTop - geometry.railBottom;
+      }, "the bar follows the rail's real bottom edge")
+      .toBeGreaterThanOrEqual(0);
+    const grown = await hudGeometry(page);
+    expect(grown.railBottom).toBeGreaterThan(200);
+  });
+
   test("pc: the bar keeps its size and position through the whole live reveal", async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.pc);
     await page.goto("/trpg/scroll-follow-lab?scenario=bot1");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
 import type { TrpgPublicGoal } from "@/lib/trpg/campaignGoals";
 import { goalHudView, nextShownGoals, type TrpgGoalHudBadge, type TrpgGoalHudItem } from "./goalHudView";
 
@@ -20,6 +20,37 @@ function placePanelUnderBar(panel: HTMLElement, bar: HTMLElement) {
   panel.style.left = `${rect.left}px`;
   panel.style.width = `${rect.width}px`;
   panel.style.maxHeight = `${Math.max(120, Math.min(PANEL_MAX_PX, window.innerHeight - top - PANEL_VIEWPORT_MARGIN_PX))}px`;
+}
+
+/**
+ * Bottom edge in px of an element that is fixed above the page, or 0 while it is not shown. The mobile tool rail
+ * is that element: the pinned bar sits under its real bottom edge instead of a guess at its height.
+ */
+export function useFixedBottomEdgePx(ref: RefObject<HTMLElement | null>): number {
+  const [bottom, setBottom] = useState(0);
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const measure = () => {
+      const rect = element.getBoundingClientRect();
+      setBottom(rect.height > 0 ? Math.round(rect.bottom) : 0);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element, { box: "border-box" });
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [ref]);
+  return bottom;
+}
+
+const PINNED_BAR_GAP_PX = 4;
+
+export function pinnedBarStyle(railBottomPx: number): CSSProperties | undefined {
+  return railBottomPx > 0 ? { top: railBottomPx + PINNED_BAR_GAP_PX } : undefined;
 }
 
 function badgeClass(badge: TrpgGoalHudBadge): string {
@@ -66,10 +97,12 @@ export function TrpgGoalHud({
   goals,
   hold,
   stickyClassName,
+  stickyStyle,
 }: {
   goals: readonly TrpgPublicGoal[] | undefined;
   hold: boolean;
   stickyClassName: string;
+  stickyStyle?: CSSProperties;
 }) {
   const [shown, setShown] = useState(goals);
   const [open, setOpen] = useState(false);
@@ -152,6 +185,7 @@ export function TrpgGoalHud({
       data-trpg-goal-hud
       data-trpg-goal-hud-open={open ? "true" : "false"}
       data-trpg-goal-hud-held={hold ? "true" : "false"}
+      style={stickyStyle}
       className={`${open ? "z-[70]" : "z-30"} ${stickyClassName}`}
     >
       <div ref={barRef}>
