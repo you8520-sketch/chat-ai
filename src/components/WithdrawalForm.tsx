@@ -179,7 +179,7 @@ export default function WithdrawalForm({
     <section
       id="creator-withdraw"
       aria-labelledby={`${uid}-title`}
-      className={cn(studioSurface.card, "scroll-mt-24 p-4 sm:p-5")}
+      className={cn(studioSurface.card, "scroll-mt-32 p-4 sm:p-5")}
     >
       <h2 id={`${uid}-title`} className={studioType.sectionTitle}>
         CP → 현금 출금 신청

@@ -89,6 +89,7 @@ export function CreatorSummary({
   totalSpentOnChars,
   statsClassName,
   className,
+  children,
 }: {
   tier: CreatorDashboard["tier"];
   creatorPoints: number;
@@ -96,6 +97,7 @@ export function CreatorSummary({
   totalSpentOnChars: number;
   statsClassName?: string;
   className?: string;
+  children?: ReactNode;
 }) {
   const rewardPct = Math.round(tier.rewardRate * 100);
   const belowThreshold = tier.rewardRate <= 0;
@@ -121,11 +123,12 @@ export function CreatorSummary({
           ? "지금은 CP가 적립되지 않아요. 아래 조건을 채우면 적립이 시작돼요."
           : `내 캐릭터 이용 포인트 소비량의 ${rewardPct}%가 크리에이터 포인트(CP)로 적립돼요.`}
       </p>
-      <dl className={cn("mt-4 grid gap-3 sm:grid-cols-3", statsClassName)}>
-        <SummaryStat label="보유 CP" value={fmt(creatorPoints)} unit="CP" emphasis />
+      <dl className={cn("mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3", statsClassName)}>
+        <SummaryStat label="보유 CP" value={fmt(creatorPoints)} unit="CP" emphasis className="col-span-2 sm:col-span-1" />
         <SummaryStat label="누적 적립" value={fmt(totalReward)} unit="CP" />
         <SummaryStat label="캐릭터 이용 소비" value={fmt(totalSpentOnChars)} unit="P" />
       </dl>
+      {children}
     </section>
   );
 }
@@ -135,17 +138,20 @@ function SummaryStat({
   value,
   unit,
   emphasis,
+  className,
 }: {
   label: string;
   value: string;
   unit: string;
   emphasis?: boolean;
+  className?: string;
 }) {
   return (
     <div
       className={cn(
         "min-w-0 rounded-xl border px-3 py-2.5",
         emphasis ? "border-violet-400/30 bg-violet-500/[0.08]" : "border-white/[0.08] bg-[#0e1120]/70",
+        className,
       )}
     >
       <dt className="text-[13px] text-zinc-400">{label}</dt>

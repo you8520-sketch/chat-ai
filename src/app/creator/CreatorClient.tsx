@@ -242,7 +242,7 @@ export default function CreatorClient({
           <div className="min-w-0">
             <h1 className={cn(studioType.heading, "text-xl")}>크리에이터</h1>
             <p className={cn(studioType.body, "mt-1")}>
-              내 캐릭터의 이용 포인트 소비량이 등급별 비율({sproutPct}% · {basePct}% · {proPct}%)로 CP가 됩니다.
+              내 캐릭터 수익과 CP를 확인하고 교환·출금해요.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -254,7 +254,6 @@ export default function CreatorClient({
             </StudioButton>
           </div>
         </div>
-        <UnitLegend />
       </header>
 
       <div role="tablist" aria-label="크리에이터 메뉴" className={studioSurface.tabList}>
@@ -469,7 +468,9 @@ export default function CreatorClient({
             creatorPoints={data.creatorPoints}
             totalReward={data.totalReward}
             totalSpentOnChars={data.totalSpentOnChars}
-          />
+          >
+            <UnitLegend className="mt-3 border-t border-white/10 pt-3" />
+          </CreatorSummary>
 
           <NextActions actions={nextActions.slice(0, 1)} onTarget={goTo} />
 

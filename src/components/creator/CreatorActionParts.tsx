@@ -72,7 +72,7 @@ export function ExchangeCard({
     <section
       id="creator-exchange"
       aria-labelledby="creator-exchange-title"
-      className={cn(studioSurface.card, "scroll-mt-24 p-4 sm:p-5")}
+      className={cn(studioSurface.card, "scroll-mt-32 p-4 sm:p-5")}
     >
       <h2 id="creator-exchange-title" className={studioType.sectionTitle}>
         CP → 유료 포인트 교환
