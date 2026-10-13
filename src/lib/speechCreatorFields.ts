@@ -39,7 +39,7 @@ export function speechContextualCharCount(
 }
 
 /**
- * AI 학습 10k 합산에 포함되는 말투 글자 수.
+ * AI 학습 합산(AI_LEARNING_LIMIT)에 포함되는 말투 글자 수.
  * 대사 예시·상황별 말투·금지 말투는 제외(필드별 별도 한도).
  */
 export function speechCreatorCharCount(input: SpeechCreatorInput): number {

@@ -3,6 +3,7 @@ import type Database from "better-sqlite3";
 import { parseGenresJson } from "@/lib/characterGenres";
 import type { OfficialWorldBible, WorldFaction } from "@/lib/officialSupply/bible";
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
+import type { OfficialCharacterDraft } from "@/lib/officialSupply/types";
 import {
   WORLD_CONTENT_LIMIT,
   WORLD_NAME_LIMIT,
@@ -21,6 +22,8 @@ import {
  * and `resolveWorldSelectionForUser` share the same owner.
  */
 export const OFFICIAL_SHARED_WORLD_LIBRARY_NAME = "에테르노스 제국";
+
+const USER_BINDING_MARKER = /당신|유저|플레이어/u;
 
 const HIDDEN_KNOWLEDGE_MARKERS = [
   /황제는 이미 거동이/u,
@@ -52,10 +55,16 @@ export function officialSharedWorldLibrarySummary(bible: OfficialWorldBible): st
   return compactText(bible.centralPremise || bible.premise).slice(0, WORLD_SUMMARY_LIMIT);
 }
 
-const WORLD_PROJECTION_MIN_CHARS = 1500;
-const WORLD_PROJECTION_MAX_CHARS = 2300;
+const WORLD_PROJECTION_MIN_CHARS = 2000;
+const WORLD_PROJECTION_MAX_CHARS = 3000;
 const SOCIETY_FIELD_KEYS = ["계급", "결혼/가족", "법"] as const;
-type FactionProjectionField = "purpose" | "publicView" | "relations";
+const FACTION_FIELD_LABELS = {
+  purpose: "목적",
+  leadership: "지도부",
+  relations: "대외 관계",
+  publicView: "세간의 평가",
+} as const;
+type FactionProjectionField = keyof typeof FACTION_FIELD_LABELS;
 
 type SharedWorldRenderOptions = {
   factionFields: readonly FactionProjectionField[];
@@ -77,12 +86,14 @@ function labeledClause(label: string, value: string): string {
 function renderFaction(faction: WorldFaction, fields: readonly FactionProjectionField[]): string {
   const name = compactText(faction.name);
   if (!name) return "";
-  const parts = [asClause(name)];
-  for (const field of fields) {
-    const clause = asClause(faction[field] ?? "");
-    if (clause) parts.push(clause);
-  }
-  return parts.join(" ");
+  const parts = fields
+    .map((field) => labeledClause(FACTION_FIELD_LABELS[field], faction[field] ?? ""))
+    .filter(Boolean);
+  return parts.length > 0 ? `${name} — ${parts.join(" ")}` : asClause(name);
+}
+
+function stripTrailingParenthetical(value: string): string {
+  return compactText(value).replace(/\s*\([^)]*\)\s*$/u, "");
 }
 
 function selectedSocietyKeys(society: OfficialWorldBible["society"]): string[] {
@@ -98,7 +109,7 @@ function renderOfficialSharedWorld(bible: OfficialWorldBible, options: SharedWor
   const name = officialSharedWorldLibraryName(bible);
   const identity = [
     `${name}은 ${compactText(bible.genre)} 세계다.`,
-    `${compactText(bible.era)}의 무대이며, ${compactText(bible.techLevel)} 위에서 ${compactText(bible.societyForm)}이 공존한다.`,
+    `${stripTrailingParenthetical(bible.era)}의 무대이며, ${compactText(bible.techLevel)} 위에서 ${compactText(bible.societyForm)}이 공존한다.`,
     `주요 지역은 ${compactText(bible.regions)}이다.`,
   ].join(" ");
 
@@ -107,7 +118,12 @@ function renderOfficialSharedWorld(bible: OfficialWorldBible, options: SharedWor
     .filter(Boolean)
     .slice(0, options.commonCount);
 
-  const crisis = [asClause(bible.situation.biggestEvent), ...commonFacts].filter(Boolean).join(" ");
+  const timeline = (bible.history ?? [])
+    .map((entry) => asClause(`${compactText(entry.event)}: ${compactText(entry.impact)}`))
+    .filter((clause) => clause.length > 1);
+  const crisis = [timeline.length > 0 ? `사건의 순서. ${timeline.join(" ")}` : "", ...commonFacts]
+    .filter(Boolean)
+    .join(" ");
 
   const factions = (bible.factions ?? [])
     .map((faction) => renderFaction(faction, options.factionFields))
@@ -115,6 +131,8 @@ function renderOfficialSharedWorld(bible: OfficialWorldBible, options: SharedWor
     .join(" ");
 
   const magic = [
+    labeledClause("에테르를 다루는 법", bible.powerSystem.acquisition),
+    labeledClause("등급", bible.powerSystem.ranks),
     labeledClause("에테르 사용", bible.powerSystem.limits),
     labeledClause("대가", bible.powerSystem.costs),
     labeledClause("사회적 영향", bible.powerSystem.socialImpact),
@@ -128,6 +146,12 @@ function renderOfficialSharedWorld(bible: OfficialWorldBible, options: SharedWor
     .filter(Boolean)
     .join(" ");
 
+  const customs = (bible.culture ?? [])
+    .map((item) => stripTrailingParenthetical(item.name))
+    .filter(Boolean)
+    .join(", ");
+  const culture = customs ? `사교 문화: ${asClause(customs)}` : "";
+
   const macro = [
     asClause(bible.situation.upcomingChange),
     labeledClause("이득을 보는 쪽", bible.situation.beneficiaries),
@@ -136,17 +160,7 @@ function renderOfficialSharedWorld(bible: OfficialWorldBible, options: SharedWor
     .filter(Boolean)
     .join(" ");
 
-  const entry = [
-    asClause(bible.userEntry.note),
-    labeledClause(
-      "가능한 입장",
-      bible.userEntry.allowedRoles.map((role) => compactText(role)).filter(Boolean).join(" / ")
-    ),
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  return joinParagraphs([identity, crisis, factions, magic, society, macro, entry]);
+  return joinParagraphs([identity, crisis, factions, magic, [society, culture].filter(Boolean).join(" "), macro]);
 }
 
 /**
@@ -158,10 +172,10 @@ function renderOfficialSharedWorld(bible: OfficialWorldBible, options: SharedWor
  */
 export function projectOfficialSharedWorld(bible: OfficialWorldBible): string {
   const attempts: SharedWorldRenderOptions[] = [
-    { factionFields: ["purpose", "publicView", "relations"], commonCount: Number.POSITIVE_INFINITY },
-    { factionFields: ["purpose", "publicView"], commonCount: Number.POSITIVE_INFINITY },
+    { factionFields: ["purpose", "leadership", "relations", "publicView"], commonCount: Number.POSITIVE_INFINITY },
+    { factionFields: ["purpose", "leadership", "publicView"], commonCount: Number.POSITIVE_INFINITY },
+    { factionFields: ["purpose", "leadership", "publicView"], commonCount: 3 },
     { factionFields: ["purpose", "publicView"], commonCount: 3 },
-    { factionFields: ["purpose"], commonCount: 3 },
     { factionFields: ["purpose"], commonCount: 2 },
   ];
   let projected = renderOfficialSharedWorld(bible, attempts[0]!);
@@ -200,6 +214,12 @@ export function assertOfficialSharedWorldProjection(text: string): void {
       "official shared world projection lost Ethernos identity"
     );
   }
+  if (USER_BINDING_MARKER.test(body)) {
+    throw new OfficialSupplyGateError(
+      "official_world_projection_user_binding",
+      "official shared world projection addresses or binds the user; entry guidance belongs to the character situation"
+    );
+  }
   for (const marker of HIDDEN_KNOWLEDGE_MARKERS) {
     if (marker.test(body)) {
       throw new OfficialSupplyGateError(
@@ -225,6 +245,13 @@ export type OfficialSharedWorldLibraryRow = {
   created: boolean;
   updated: boolean;
 };
+
+/** A draft attaches to the shared World Library row iff its manuscript splits world and currentSituation. */
+export function officialDraftUsesSharedWorld(
+  draft: Pick<OfficialCharacterDraft, "promptStandard" | "sections">
+): boolean {
+  return draft.promptStandard === "compact_rp_v1" || Boolean(draft.sections.currentSituation?.trim());
+}
 
 export function findOfficialSharedWorldLibraryRow(
   db: Database.Database,

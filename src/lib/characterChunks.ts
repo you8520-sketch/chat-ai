@@ -4,7 +4,7 @@ import {
   parseCharacterSetting,
   serializeCharacterChunks,
 } from "@/utils/characterParser";
-import type { CharacterChunk } from "@/types";
+import type { CharacterChunk, CharacterSettingInput } from "@/types";
 import type { CharacterGender } from "@/lib/characterGender";
 import {
   hashKoreanChunks,
@@ -92,16 +92,20 @@ function resolveSafeRuntimeCanon(row: CharacterSettingRow): string {
   );
 }
 
-function parseFreshCharacterChunks(row: CharacterSettingRow): CharacterChunk[] {
-  const safeRuntimeCanon = resolveSafeRuntimeCanon(row);
-  return parseCharacterSetting({
+/** The exact RP setting source input derived from a stored row (what the chat wire parses). */
+export function characterSettingInputForRow(row: CharacterSettingRow): CharacterSettingInput {
+  return {
     characterId: String(row.id),
-    systemPrompt: safeRuntimeCanon,
+    systemPrompt: resolveSafeRuntimeCanon(row),
     world: "",
     exampleDialog: resolveExampleDialogForPrompt(row.example_dialog, row.name),
     characterName: row.name,
     gender: (row.gender as CharacterGender) ?? "other",
-  });
+  };
+}
+
+function parseFreshCharacterChunks(row: CharacterSettingRow): CharacterChunk[] {
+  return parseCharacterSetting(characterSettingInputForRow(row));
 }
 
 /** English layer omits speech chunks — merge them back from Korean source. */

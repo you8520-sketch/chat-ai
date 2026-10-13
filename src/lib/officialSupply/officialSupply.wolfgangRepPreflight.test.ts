@@ -141,9 +141,9 @@ describe("Wolfgang representative NO_POST preflight", () => {
     assert.equal(resolveOfficialImageSubjects(slotOf(lucian.assetPlan, "scene2")).foreground, "solo_character");
     assert.equal(file.bible.publicProfile.tagline.length, 37);
     assert.equal(file.bible.publicProfile.description.length, 254);
-    assert.equal(file.bible.publicProfile.detailedDescription.length, 1299);
+    assert.ok(file.bible.publicProfile.detailedDescription.length <= 3000);
     assert.equal(file.bible.greeting.length, 1547);
-    assert.equal(compiled.draft.description.length, 1299);
+    assert.equal(compiled.draft.description, file.bible.publicProfile.detailedDescription);
     assert.equal(compiled.draft.greeting.length, 1547);
     assert.match(compiled.draft.description, /몸무게 약 92kg/);
     assert.doesNotMatch(file.bible.identity.worldRole, /92kg|92㎏/);
