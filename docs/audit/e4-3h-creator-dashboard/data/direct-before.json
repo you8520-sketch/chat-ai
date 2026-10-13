@@ -1,0 +1,149 @@
+{
+ "values": {
+  "newbie": {
+   "apiForbidden": true,
+   "zeroCpShown": true,
+   "belowThresholdShown": true
+  },
+  "below": {
+   "cp": true,
+   "totalReward": true,
+   "spent": true,
+   "rate": true,
+   "apiCp": 0,
+   "apiRate": 0,
+   "pendingShown": null,
+   "blockedShown": null
+  },
+  "sprout": {
+   "cp": true,
+   "totalReward": true,
+   "spent": true,
+   "rate": true,
+   "apiCp": 1250.5,
+   "apiRate": 0.04,
+   "pendingShown": null,
+   "blockedShown": null
+  },
+  "standard": {
+   "cp": true,
+   "totalReward": true,
+   "spent": true,
+   "rate": true,
+   "apiCp": 45000,
+   "apiRate": 0.08,
+   "pendingShown": null,
+   "blockedShown": null
+  },
+  "pro": {
+   "cp": true,
+   "totalReward": true,
+   "spent": true,
+   "rate": true,
+   "apiCp": 3250000.5,
+   "apiRate": 0.12,
+   "pendingShown": null,
+   "blockedShown": null
+  },
+  "blocked": {
+   "cp": true,
+   "totalReward": true,
+   "spent": true,
+   "rate": true,
+   "apiCp": 12000,
+   "apiRate": 0.08,
+   "pendingShown": null,
+   "blockedShown": true
+  },
+  "pending": {
+   "cp": true,
+   "totalReward": true,
+   "spent": true,
+   "rate": true,
+   "apiCp": 80000,
+   "apiRate": 0.08,
+   "pendingShown": true,
+   "blockedShown": null
+  }
+ },
+ "shareTotals": {
+  "day": {
+   "total": 27000,
+   "totalShown": true,
+   "topPercentShown": true,
+   "pressed": null
+  },
+  "week": {
+   "total": 232440,
+   "totalShown": true,
+   "topPercentShown": true,
+   "pressed": null
+  },
+  "month": {
+   "total": 635880,
+   "totalShown": true,
+   "topPercentShown": true,
+   "pressed": null
+  }
+ },
+ "privacy": {
+  "otherCpInHtml": false,
+  "otherEmailInHtml": false,
+  "apiHasOtherCp": false,
+  "residentInPayload": false,
+  "ownAccountNumberInOwnPayload": true,
+  "accountShownMaskedOnScreen": true
+ },
+ "a11y": {
+  "roles": {
+   "tablist": 0,
+   "tabs": 0,
+   "selected": [],
+   "tabpanel": 0,
+   "pressedButtons": 1,
+   "labelledInputs": 1,
+   "totalInputs": 6,
+   "liveRegions": 0
+  }
+ },
+ "alerts": {
+  "exchange-insufficient": {
+   "alertText": [
+    ""
+   ],
+   "buttonTexts": [
+    "전액",
+    "유료P 교환"
+   ],
+   "inputKept": "1000"
+  },
+  "exchange-network": {
+   "alertText": [
+    ""
+   ],
+   "buttonTexts": [
+    "전액",
+    "교환 중…"
+   ],
+   "inputKept": "1000"
+  },
+  "withdraw-server-error": {
+   "alertText": [
+    ""
+   ],
+   "keptCp": "40000",
+   "keptAccount": "000000000000",
+   "posts": 1
+  }
+ },
+ "nav": {
+  "studioLinks": 0,
+  "profileLinks": 0,
+  "publicProfileOtherViewer": {
+   "url": "/creator/11",
+   "bodyHasCp": false
+  }
+ },
+ "anchors": {},
+ "providerPosts": []
+}

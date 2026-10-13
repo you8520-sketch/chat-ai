@@ -1,0 +1,389 @@
+{
+ "full-390-standard": {
+  "vw": 390,
+  "vh": 844,
+  "scrollY": 0,
+  "docH": 3306,
+  "hOverflow": false,
+  "mobileNavTop": 791,
+  "smallTargets": [
+   {
+    "l": "",
+    "w": 13,
+    "h": 13
+   },
+   {
+    "l": "하루",
+    "w": 44,
+    "h": 28
+   },
+   {
+    "l": "일주일",
+    "w": 54,
+    "h": 28
+   },
+   {
+    "l": "한달",
+    "w": 44,
+    "h": 28
+   }
+  ],
+  "smallTargetCount": 4,
+  "clipped": [],
+  "controls": {
+   "visible": 5,
+   "named": 0,
+   "unnamed": [
+    "최대 45,000",
+    "최소 30,000 · 보유 45,",
+    "예: 카카오뱅크",
+    "- 없이 입력",
+    "000000-0000000"
+   ]
+  },
+  "tinyTextCount": 24
+ },
+ "full-768-standard": {
+  "vw": 768,
+  "vh": 1024,
+  "scrollY": 0,
+  "docH": 2796,
+  "hOverflow": false,
+  "mobileNavTop": null,
+  "smallTargets": [
+   {
+    "l": "",
+    "w": 13,
+    "h": 13
+   },
+   {
+    "l": "하루",
+    "w": 44,
+    "h": 28
+   },
+   {
+    "l": "일주일",
+    "w": 54,
+    "h": 28
+   },
+   {
+    "l": "한달",
+    "w": 44,
+    "h": 28
+   }
+  ],
+  "smallTargetCount": 4,
+  "clipped": [],
+  "controls": {
+   "visible": 5,
+   "named": 0,
+   "unnamed": [
+    "최대 45,000",
+    "최소 30,000 · 보유 45,",
+    "예: 카카오뱅크",
+    "- 없이 입력",
+    "000000-0000000"
+   ]
+  },
+  "tinyTextCount": 24
+ },
+ "full-1440-standard": {
+  "vw": 1440,
+  "vh": 900,
+  "scrollY": 0,
+  "docH": 2672,
+  "hOverflow": false,
+  "mobileNavTop": null,
+  "smallTargets": [
+   {
+    "l": "",
+    "w": 13,
+    "h": 13
+   },
+   {
+    "l": "하루",
+    "w": 44,
+    "h": 28
+   },
+   {
+    "l": "일주일",
+    "w": 54,
+    "h": 28
+   },
+   {
+    "l": "한달",
+    "w": 44,
+    "h": 28
+   }
+  ],
+  "smallTargetCount": 4,
+  "clipped": [],
+  "controls": {
+   "visible": 5,
+   "named": 0,
+   "unnamed": [
+    "최대 45,000",
+    "최소 30,000 · 보유 45,",
+    "예: 카카오뱅크",
+    "- 없이 입력",
+    "000000-0000000"
+   ]
+  },
+  "tinyTextCount": 24
+ },
+ "full-390-pro": {
+  "vw": 711,
+  "vh": 1539,
+  "scrollY": 0,
+  "docH": 3573,
+  "hOverflow": false,
+  "mobileNavTop": null,
+  "smallTargets": [
+   {
+    "l": "",
+    "w": 13,
+    "h": 13
+   },
+   {
+    "l": "하루",
+    "w": 44,
+    "h": 28
+   },
+   {
+    "l": "일주일",
+    "w": 54,
+    "h": 28
+   },
+   {
+    "l": "한달",
+    "w": 44,
+    "h": 28
+   }
+  ],
+  "smallTargetCount": 4,
+  "clipped": [],
+  "controls": {
+   "visible": 5,
+   "named": 0,
+   "unnamed": [
+    "최대 3,250,000.5",
+    "최소 30,000 · 보유 3,2",
+    "예: 카카오뱅크",
+    "- 없이 입력",
+    "000000-0000000"
+   ]
+  },
+  "tinyTextCount": 30
+ },
+ "full-1440-pro": {
+  "vw": 1440,
+  "vh": 900,
+  "scrollY": 0,
+  "docH": 3145,
+  "hOverflow": false,
+  "mobileNavTop": null,
+  "smallTargets": [
+   {
+    "l": "",
+    "w": 13,
+    "h": 13
+   },
+   {
+    "l": "하루",
+    "w": 44,
+    "h": 28
+   },
+   {
+    "l": "일주일",
+    "w": 54,
+    "h": 28
+   },
+   {
+    "l": "한달",
+    "w": 44,
+    "h": 28
+   }
+  ],
+  "smallTargetCount": 4,
+  "clipped": [],
+  "controls": {
+   "visible": 5,
+   "named": 0,
+   "unnamed": [
+    "최대 3,250,000.5",
+    "최소 30,000 · 보유 3,2",
+    "예: 카카오뱅크",
+    "- 없이 입력",
+    "000000-0000000"
+   ]
+  },
+  "tinyTextCount": 30
+ },
+ "inactive-390": {
+  "vw": 390,
+  "vh": 844,
+  "scrollY": 0,
+  "docH": 2553,
+  "hOverflow": false,
+  "mobileNavTop": 791,
+  "smallTargets": [
+   {
+    "l": "제작 스튜디오",
+    "w": 69,
+    "h": 15
+   },
+   {
+    "l": "성인인증 하러 가기",
+    "w": 279,
+    "h": 30
+   },
+   {
+    "l": "",
+    "w": 13,
+    "h": 13
+   },
+   {
+    "l": "하루",
+    "w": 44,
+    "h": 28
+   },
+   {
+    "l": "일주일",
+    "w": 54,
+    "h": 28
+   },
+   {
+    "l": "한달",
+    "w": 44,
+    "h": 28
+   }
+  ],
+  "smallTargetCount": 6,
+  "clipped": [],
+  "controls": {
+   "visible": 5,
+   "named": 0,
+   "unnamed": [
+    "최대 0",
+    "최소 30,000 · 보유 0CP",
+    "예: 카카오뱅크",
+    "- 없이 입력",
+    "000000-0000000"
+   ]
+  },
+  "tinyTextCount": 9
+ },
+ "inactive-1440": {
+  "vw": 1440,
+  "vh": 900,
+  "scrollY": 0,
+  "docH": 2010,
+  "hOverflow": false,
+  "mobileNavTop": null,
+  "smallTargets": [
+   {
+    "l": "제작 스튜디오",
+    "w": 69,
+    "h": 15
+   },
+   {
+    "l": "성인인증 하러 가기",
+    "w": 86,
+    "h": 14
+   },
+   {
+    "l": "",
+    "w": 13,
+    "h": 13
+   },
+   {
+    "l": "하루",
+    "w": 44,
+    "h": 28
+   },
+   {
+    "l": "일주일",
+    "w": 54,
+    "h": 28
+   },
+   {
+    "l": "한달",
+    "w": 44,
+    "h": 28
+   }
+  ],
+  "smallTargetCount": 6,
+  "clipped": [],
+  "controls": {
+   "visible": 5,
+   "named": 0,
+   "unnamed": [
+    "최대 0",
+    "최소 30,000 · 보유 0CP",
+    "예: 카카오뱅크",
+    "- 없이 입력",
+    "000000-0000000"
+   ]
+  },
+  "tinyTextCount": 9
+ },
+ "keyboard-exchange": {
+  "active": "INPUT",
+  "activeInView": true,
+  "vh": 400,
+  "btns": [
+   {
+    "t": "유료P 교환",
+    "top": 179,
+    "bottom": 223,
+    "inView": true
+   },
+   {
+    "t": "출금 신청",
+    "top": 797,
+    "bottom": 833,
+    "inView": false
+   }
+  ]
+ },
+ "keyboard-withdraw": {
+  "active": "INPUT",
+  "activeInView": true,
+  "vh": 400,
+  "btns": [
+   {
+    "t": "유료P 교환",
+    "top": -269,
+    "bottom": -225,
+    "inView": false
+   },
+   {
+    "t": "출금 신청",
+    "top": 349,
+    "bottom": 385,
+    "inView": true
+   }
+  ]
+ },
+ "keyboard-profile": {
+  "active": "TEXTAREA",
+  "activeInView": true,
+  "vh": 400,
+  "btns": [
+   {
+    "t": "저장",
+    "top": 16,
+    "bottom": 60,
+    "inView": true
+   },
+   {
+    "t": "공지 등록",
+    "top": 635,
+    "bottom": 679,
+    "inView": false
+   }
+  ]
+ },
+ "clickFallbacks": [],
+ "providerPosts": []
+}

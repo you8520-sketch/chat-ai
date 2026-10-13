@@ -1,0 +1,170 @@
+{
+ "values": {
+  "newbie": {
+   "apiForbidden": true,
+   "zeroCpShown": true,
+   "belowThresholdShown": true
+  },
+  "below": {
+   "cp": true,
+   "totalReward": true,
+   "spent": true,
+   "rate": true,
+   "apiCp": 0,
+   "apiRate": 0,
+   "pendingShown": null,
+   "blockedShown": null
+  },
+  "sprout": {
+   "cp": true,
+   "totalReward": true,
+   "spent": true,
+   "rate": true,
+   "apiCp": 1250.5,
+   "apiRate": 0.04,
+   "pendingShown": null,
+   "blockedShown": null
+  },
+  "standard": {
+   "cp": true,
+   "totalReward": true,
+   "spent": true,
+   "rate": true,
+   "apiCp": 45000,
+   "apiRate": 0.08,
+   "pendingShown": null,
+   "blockedShown": null
+  },
+  "pro": {
+   "cp": true,
+   "totalReward": true,
+   "spent": true,
+   "rate": true,
+   "apiCp": 3250000.5,
+   "apiRate": 0.12,
+   "pendingShown": null,
+   "blockedShown": null
+  },
+  "blocked": {
+   "cp": true,
+   "totalReward": true,
+   "spent": true,
+   "rate": true,
+   "apiCp": 12000,
+   "apiRate": 0.08,
+   "pendingShown": null,
+   "blockedShown": true
+  },
+  "pending": {
+   "cp": true,
+   "totalReward": true,
+   "spent": true,
+   "rate": true,
+   "apiCp": 80000,
+   "apiRate": 0.08,
+   "pendingShown": true,
+   "blockedShown": null
+  }
+ },
+ "shareTotals": {
+  "day": {
+   "total": 27000,
+   "totalShown": true,
+   "topPercentShown": true,
+   "pressed": "하루"
+  },
+  "week": {
+   "total": 232440,
+   "totalShown": true,
+   "topPercentShown": true,
+   "pressed": "일주일"
+  },
+  "month": {
+   "total": 635880,
+   "totalShown": true,
+   "topPercentShown": true,
+   "pressed": "한달"
+  }
+ },
+ "privacy": {
+  "otherCpInHtml": false,
+  "otherEmailInHtml": false,
+  "apiHasOtherCp": false,
+  "residentInPayload": false,
+  "ownAccountNumberInOwnPayload": true,
+  "accountShownMaskedOnScreen": true
+ },
+ "a11y": {
+  "roles": {
+   "tablist": 1,
+   "tabs": 3,
+   "selected": [
+    "대시보드"
+   ],
+   "tabpanel": 1,
+   "pressedButtons": 8,
+   "labelledInputs": 6,
+   "totalInputs": 6,
+   "liveRegions": 2
+  },
+  "arrowRight": {
+   "focus": "소개/공지",
+   "selected": "소개/공지"
+  },
+  "end": {
+   "focus": "댓글·알림",
+   "selected": "댓글·알림"
+  }
+ },
+ "alerts": {
+  "exchange-insufficient": {
+   "alertText": [
+    "크리에이터 포인트가 부족합니다.",
+    ""
+   ],
+   "buttonTexts": [
+    "전액",
+    "유료P 교환"
+   ],
+   "inputKept": "1000"
+  },
+  "exchange-network": {
+   "alertText": [
+    "네트워크 오류로 교환 결과를 확인하지 못했어요. 입력한 값은 그대로 두었습니다. 보유 CP를 확인한 뒤 다시 시도해 주세요.",
+    ""
+   ],
+   "buttonTexts": [
+    "전액",
+    "유료P 교환"
+   ],
+   "inputKept": "1000"
+  },
+  "withdraw-server-error": {
+   "alertText": [
+    "보유 CP가 부족합니다.",
+    ""
+   ],
+   "keptCp": "40000",
+   "keptAccount": "000000000000",
+   "posts": 1
+  }
+ },
+ "nav": {
+  "studioLinks": 1,
+  "profileLinks": 1,
+  "studioUrl": "/studio",
+  "publicProfileOtherViewer": {
+   "url": "/creator/11",
+   "bodyHasCp": false
+  }
+ },
+ "anchors": {
+  "nextAction": {
+   "scrollY": 1477,
+   "exchangeTop": -160,
+   "withdrawTop": 128,
+   "vh": 844
+  }
+ },
+ "providerPosts": []
+}

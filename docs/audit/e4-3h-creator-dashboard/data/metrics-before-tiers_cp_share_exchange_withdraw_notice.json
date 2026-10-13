@@ -1,0 +1,112 @@
+{
+ "exchange-ok": {
+  "posts": 1,
+  "bodies": [
+   "{\"amount\":1000}"
+  ],
+  "inputValue": "",
+  "dialogs": [
+   {
+    "type": "confirm",
+    "message": "크리에이터 포인트 1,000CP를 유료 포인트 1,000P로 1:1 교환할까요?"
+   }
+  ],
+  "buttonText": [
+   "전액",
+   "유료P 교환"
+  ]
+ },
+ "exchange-insufficient": {
+  "posts": 1,
+  "bodies": [
+   "{\"amount\":999999}"
+  ],
+  "inputValue": "999999",
+  "dialogs": [
+   {
+    "type": "confirm",
+    "message": "크리에이터 포인트 999,999CP를 유료 포인트 999,999P로 1:1 교환할까요?"
+   }
+  ],
+  "buttonText": [
+   "전액",
+   "유료P 교환"
+  ]
+ },
+ "exchange-network": {
+  "posts": 1,
+  "bodies": [
+   "{\"amount\":1000}"
+  ],
+  "inputValue": "1000",
+  "dialogs": [
+   {
+    "type": "confirm",
+    "message": "크리에이터 포인트 1,000CP를 유료 포인트 1,000P로 1:1 교환할까요?"
+   }
+  ],
+  "buttonText": [
+   "전액",
+   "교환 중…"
+  ]
+ },
+ "exchange-slow": {
+  "posts": 1,
+  "bodies": [
+   "{\"amount\":1000}"
+  ],
+  "inputValue": "",
+  "dialogs": [
+   {
+    "type": "confirm",
+    "message": "크리에이터 포인트 1,000CP를 유료 포인트 1,000P로 1:1 교환할까요?"
+   }
+  ],
+  "buttonText": [
+   "전액",
+   "유료P 교환"
+  ]
+ },
+ "withdraw-submit": {
+  "posts": 1,
+  "dialogs": [
+   {
+    "type": "confirm",
+    "message": "출금을 신청할까요?\n\n신청 CP: 40,000CP\n원천징수 세금 (3.3%): -1,320CP\n플랫폼 수수료 (16.7%): -6,680CP\n실수령 예정: ₩32,000\n\n예금주: 박가상 (본인인증 실명)\n은행: 가"
+   }
+  ],
+  "body": "{\"amount\":40000,\"bankName\":\"가상은행\",\"accountNumber\":\"000000000000\",\"residentNumber\":\"900101-1234567\",\"taxConsent\":true}"
+ },
+ "withdraw-network": {
+  "keptCp": "40000",
+  "keptBank": "가상은행",
+  "buttons": [
+   "전액",
+   "신청 중…"
+  ]
+ },
+ "notice-flow": {
+  "calls": [
+   {
+    "m": "POST",
+    "b": "{\"title\":\"정기 점검 안내\",\"content\":\"이번 주 금요일 새벽에 점검이 있습니다.\"}"
+   },
+   {
+    "m": "DELETE",
+    "b": "{\"id\":1}"
+   }
+  ],
+  "dialogs": [
+   {
+    "type": "confirm",
+    "message": "이 공지를 삭제할까요?"
+   }
+  ]
+ },
+ "clickFallbacks": [
+  "share-390-day",
+  "share-390-week",
+  "share-390-month"
+ ],
+ "providerPosts": []
+}
