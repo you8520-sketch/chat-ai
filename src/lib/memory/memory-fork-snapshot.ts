@@ -6,6 +6,7 @@ import { buildNumericIdempotencyKey } from "@/lib/rpNumericState/persistence";
 import type { NumericStateSourceKind } from "@/lib/rpNumericState/types";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
 import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
+import { readVerifiedEvidence, rebindVerifiedEvidenceToChat } from "./memory-episodic-evidence";
 import { isMemoryFeatureEnabled } from "./memory-feature";
 import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
 import { newBatchEndForStart } from "./memory-summary-range";
@@ -414,6 +415,18 @@ export function copyForkEpisodicMemoryFacts(
         const remapped = opts.messageIdMap.get(assistantId);
         if (remapped != null) parsed.assistant_message_id = remapped;
         else delete parsed.assistant_message_id;
+      }
+      const verified = readVerifiedEvidence(row.metadata);
+      if (verified) {
+        const childMessageId = opts.messageIdMap.get(verified.message_id);
+        const rebound =
+          childMessageId == null
+            ? null
+            : rebindVerifiedEvidenceToChat(db, opts.newChatId, verified, childMessageId);
+        // A verified row injects only its quote; without a provable child source it must not be copied
+        // (dropping evidence instead would make it a legacy row that injects the unverified fact_text).
+        if (!rebound) continue;
+        parsed.evidence = { ...(parsed.evidence as Record<string, unknown>), message_id: rebound.message_id };
       }
       metadata = JSON.stringify(parsed);
     } catch {

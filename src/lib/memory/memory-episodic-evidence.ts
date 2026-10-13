@@ -118,6 +118,25 @@ export function loadEpisodicEvidenceSources(
   };
 }
 
+/**
+ * Re-binds already-verified evidence to the child chat's own copy of the source message.
+ * Returns null unless that message exists in `chatId` with the same role and still contains the quote.
+ */
+export function rebindVerifiedEvidenceToChat(
+  db: Database.Database,
+  chatId: number,
+  evidence: EpisodicVerifiedEvidence,
+  childMessageId: number
+): EpisodicVerifiedEvidence | null {
+  const sources = loadEpisodicEvidenceSources(db, chatId, {
+    userMessageId: evidence.role === "user" ? childMessageId : null,
+    assistantMessageId: evidence.role === "assistant" ? childMessageId : 0,
+  });
+  const source = evidence.role === "user" ? sources.user : sources.assistant;
+  if (!source || !source.text.includes(normalizeEvidenceSpan(evidence.quote))) return null;
+  return { ...evidence, message_id: source.id };
+}
+
 const AUTHORITIES: ReadonlySet<string> = new Set<EpisodicEvidenceAuthority>([
   "USER_EXPLICIT",
   "CHARACTER_CLAIM",
