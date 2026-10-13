@@ -288,9 +288,42 @@ Official QA: `evaluateOfficialStagedSaveLength` returns the blocking error `rp_s
 Token / cost / cache / derived chunks:
 
 - Per-turn input of the character setting block (`estimateTokens`): Lucian 9412 -> 10460 (+1048); Wolfgang 8805 -> 12207 (+3402). The growth is the shared world (+582 / +1,545 characters) and Wolfgang's `currentSituation`; no section was dropped. Provider prices were not queried; multiply by the active model's input price.
-- Cap effect on other characters: only characters whose joined source exceeded 10,000 characters change (they now keep the tail they previously lost); everything shorter is byte-identical. `scripts/audit-character-setting-truncation.ts` (read-only) counts them. The local dev DB has 0 such rows (max 3,428); **the production count could not be measured from this environment** and needs one read-only run on a production export (FOLLOW-UP).
+- Cap effect on other characters: only characters whose joined source exceeded 10,000 characters change (they now keep the tail they previously lost); everything shorter is byte-identical. The production count is measured in section 4.1.
 - Cache: the setting block is part of the stable per-character prefix; it changes once when a character is saved and stays byte-stable afterwards.
 - Derived chunks: `characterChunks.parseFreshCharacterChunks` is built from the same `characterSettingInputForRow` input, so a re-parsed chunk set includes the tail that used to be cut; stored derived chunks and translation layers are not rewritten (no migration or backfill was added).
+
+### 4.1 Production read-only audit (aggregate only)
+
+Run on 2026-10-13 inside the production `chat-ai` container (deployed SHA `96a12cc6`, which is `origin/main` HEAD; the audit script was not in the deployed image). The PR's changed non-test `.ts` files were overlaid into a throwaway `/tmp` copy of `/app` (the same overlay pattern as `scripts/railway-precall-final-wire.sh`; `characterChunks.ts`, `characterFormLimits.ts`, `speechCreatorFields.ts`, `characterParser.ts` and `officialSupply/*` are identical between the PR base and production `main`, so the overlay equals "main plus this PR"). `/data/app.db` was opened with `better-sqlite3` `readonly: true`. No deploy, no DB write, no provider call; ids, names and text are not printed.
+
+| | all | official | general |
+|---|---|---|---|
+| characters | 46 | 1 | 45 |
+| joined RP source over legacy 10,000 | 3 | 0 | 3 |
+| over the new cap 16,300 | 0 | 0 | 0 |
+| lost characters at legacy cap (total / max) | 1,856 / 850 | 0 / 0 | 1,856 / 850 |
+| lost characters at 16,300 | 0 | 0 | 0 |
+| max joined length | 10,850 | 8,279 | 10,850 |
+
+Length distribution (all): <=5,000: 32, <=8,000: 5, <=10,000: 6, <=12,000: 3, nothing above 12,000.
+
+Extra input tokens per turn, only for the 3 affected characters (tail they previously lost, `estimateTokens`): total 1,671, mean 557, p50 671, p90 765, max 765. The other 43 characters are byte-identical.
+
+Estimated added cost per turn per affected character (published reference input price; cache-read price where a discount is published):
+
+| Main RP model | uncached mean | uncached max | cache-read mean | per 1,000 turns (uncached mean) |
+|---|---|---|---|---|
+| deepseek-v4.1-flash | $0.000167 | $0.000230 | $0.0000033 | $0.167 |
+| gemini-3.8-flash | $0.000209 | $0.000287 | $0.000209 | $0.209 |
+| gpt-6.1-sol | $0.001114 | $0.001530 | $0.0000557 | $1.114 |
+| claude-opus-5.5 | $0.001560 | $0.002142 | $0.001560 | $1.560 |
+
+Boundaries (read from the live owners, nothing changed):
+
+- Billing and margin: user billing (`points.ts`) is untouched by this PR. The extra input is at most 765 tokens per turn for 3 of 46 characters (less than $0.0022 per turn even on the most expensive model), so there is no billing-structure change.
+- Cache: the setting block sits in the stable per-character prefix (`cacheCharacter`); it changes once when the character is re-parsed or saved and then stays byte-stable. Models without a published cache-read discount pay the uncached figure above on the added tokens only.
+- History budget: `historyBudget` (`resolveHistoryTokenBudget`) is independent of the system block size. The system budget is 28,000 tokens; +765 tokens is under 3% of it. The history-shrinking loop in `contextBuilder` only runs when the total payload exceeds `maxPayload`, which a +765 token delta does not plausibly trigger for these characters (max joined length 10,850 characters).
+- Caveat: the 3 affected rows only start receiving the tail when their chunks are re-parsed from the row (`parseFreshCharacterChunks`); stored derived chunks are not rewritten by this PR.
 
 ## 5. Final RP prompt comparison
 
@@ -331,7 +364,7 @@ The rows are local dev-DB copies rendered by the real character page and creator
 STOP (needs a user/GPT decision, nothing applied):
 
 - New Text Lock for Wolfgang's new manuscript and any production sync of #50/#51 (world snapshot, `world_id`, intro, comment).
-- Cap change is global: it affects any production character above 10,000 characters of RP setting; confirm with the read-only audit on production data.
+- Cap change is global; the production audit (section 4.1) found 3 affected general characters, 0 above 16,300, max +765 input tokens per turn. No decision is blocked on it.
 
 FOLLOW-UP (out of scope, not started):
 
