@@ -1,0 +1,157 @@
+{
+ "regular-adult1-390": {
+  "sw": {
+   "pressed": null,
+   "checked": "true",
+   "disabled": true,
+   "text": "켜짐"
+  },
+  "lockedNotes": [
+   "현재는 관리자 베타 테스트 계정에서만 세이프티 필터를 끌 수 있어요."
+  ],
+  "adminLinks": 0,
+  "patches": 0
+ },
+ "regular-adult1-click-attempt": {
+  "sw": {
+   "pressed": null,
+   "checked": "true",
+   "disabled": true,
+   "text": "켜짐"
+  },
+  "patches": 0
+ },
+ "regular-adult1-1440": {
+  "sw": {
+   "pressed": null,
+   "checked": "true",
+   "disabled": true,
+   "text": "켜짐"
+  },
+  "lockedNotes": [
+   "현재는 관리자 베타 테스트 계정에서만 세이프티 필터를 끌 수 있어요."
+  ],
+  "adminLinks": 0,
+  "patches": 0
+ },
+ "regular-adult0-390": {
+  "sw": {
+   "pressed": null,
+   "checked": "true",
+   "disabled": true,
+   "text": "켜짐"
+  },
+  "lockedNotes": [
+   "현재는 관리자 베타 테스트 계정에서만 세이프티 필터를 끌 수 있어요."
+  ],
+  "adminLinks": 0,
+  "patches": 0
+ },
+ "regular-adult0-click-attempt": {
+  "sw": {
+   "pressed": null,
+   "checked": "true",
+   "disabled": true,
+   "text": "켜짐"
+  },
+  "patches": 0
+ },
+ "regular-adult0-1440": {
+  "sw": {
+   "pressed": null,
+   "checked": "true",
+   "disabled": true,
+   "text": "켜짐"
+  },
+  "lockedNotes": [
+   "현재는 관리자 베타 테스트 계정에서만 세이프티 필터를 끌 수 있어요."
+  ],
+  "adminLinks": 0,
+  "patches": 0
+ },
+ "admin-filter-on-390": {
+  "sw": {
+   "pressed": null,
+   "checked": "true",
+   "disabled": false,
+   "text": "켜짐"
+  },
+  "lockedNotes": [],
+  "adminLinks": 13,
+  "patches": 0
+ },
+ "admin-filter-on-1440": {
+  "sw": {
+   "pressed": null,
+   "checked": "true",
+   "disabled": false,
+   "text": "켜짐"
+  },
+  "lockedNotes": [],
+  "adminLinks": 13,
+  "patches": 0
+ },
+ "admin-filter-off-390": {
+  "sw": {
+   "pressed": null,
+   "checked": "false",
+   "disabled": false,
+   "text": "꺼짐"
+  },
+  "lockedNotes": [],
+  "adminLinks": 13,
+  "patches": 0
+ },
+ "admin-filter-off-1440": {
+  "sw": {
+   "pressed": null,
+   "checked": "false",
+   "disabled": false,
+   "text": "꺼짐"
+  },
+  "lockedNotes": [],
+  "adminLinks": 13,
+  "patches": 0
+ },
+ "admin-toggle": {
+  "before": {
+   "pressed": null,
+   "checked": "true",
+   "disabled": false,
+   "text": "켜짐"
+  },
+  "off": {
+   "pressed": null,
+   "checked": "false",
+   "disabled": false,
+   "text": "꺼짐"
+  },
+  "offCall": [
+   {
+    "m": "PATCH",
+    "p": "/api/settings",
+    "body": "{\"nsfw_on\":1}"
+   }
+  ],
+  "afterReload": {
+   "pressed": null,
+   "checked": "false",
+   "disabled": false,
+   "text": "꺼짐"
+  },
+  "restored": {
+   "pressed": null,
+   "checked": "true",
+   "disabled": false,
+   "text": "켜짐"
+  },
+  "restoreCall": [
+   {
+    "m": "PATCH",
+    "p": "/api/settings",
+    "body": "{\"nsfw_on\":0}"
+   }
+  ],
+  "providerPosts": 0
+ }
+}
