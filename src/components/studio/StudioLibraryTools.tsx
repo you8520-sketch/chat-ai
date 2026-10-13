@@ -91,7 +91,7 @@ export function StudioLibraryToolbar({
   showStatus: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-2 sm:flex-row" data-testid="studio-library-toolbar">
+    <div className="flex flex-col gap-2 sm:flex-row lg:flex-col" data-testid="studio-library-toolbar">
       <input
         type="search"
         inputMode="search"
@@ -107,7 +107,7 @@ export function StudioLibraryToolbar({
           value={filter.status}
           onChange={(e) => onChange({ ...filter, status: e.target.value as StudioStatusFilter })}
           aria-label="상태로 거르기"
-          className={cn(studioSelectClass, "min-h-11 sm:w-56")}
+          className={cn(studioSelectClass, "min-h-11 sm:w-56 lg:w-full")}
         >
           <option value="all">전체 상태</option>
           <optgroup label="공개 범위">
