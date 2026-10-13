@@ -12,6 +12,9 @@ import {
 } from "react";
 import Link from "next/link";
 import { AppSectionCard } from "@/components/AppPageShell";
+import type { TrpgGoalClaimDecision } from "@/lib/trpg/goalConfirm";
+import { goalClaimItems } from "./goalClaimView";
+import { TrpgGoalClaimCard } from "./TrpgGoalClaimCard";
 import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
 import { actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
 import {
@@ -346,6 +349,7 @@ export default function TrpgCampaignRoom({
   onRetryBots,
   onRetryGm,
   onReroll,
+  onAnswerGoalClaim,
   onTitleSaved,
   onBillingModeChange,
   labPresentationSeed = null,
@@ -384,6 +388,7 @@ export default function TrpgCampaignRoom({
   onRetryBots: () => void;
   onRetryGm: () => void;
   onReroll: (roundNumber: number) => void;
+  onAnswerGoalClaim?: (goalId: string, claimedRound: number, decision: TrpgGoalClaimDecision) => void;
   onTitleSaved: (title: string) => void;
   onBillingModeChange?: (mode: TrpgCampaignSnapshot["billingMode"]) => void;
   /** Dev scroll-follow lab only — seeds cinematic presentation without provider calls. */
@@ -2261,6 +2266,14 @@ export default function TrpgCampaignRoom({
 
           {snap.myDraft?.locked && waitingOthers && waitKind !== "wait_humans" ? (
             <p className="text-sm text-zinc-400">제출했습니다. 다른 플레이어를 기다립니다.</p>
+          ) : null}
+
+          {onAnswerGoalClaim ? (
+            <TrpgGoalClaimCard
+              items={goalClaimItems(snap.goals, snap.viewerIsHost)}
+              busy={busy}
+              onAnswer={(item, decision) => onAnswerGoalClaim(item.goalId, item.claimedRound, decision)}
+            />
           ) : null}
 
           {snap.botRetryRequired && snap.viewerIsHost ? (
