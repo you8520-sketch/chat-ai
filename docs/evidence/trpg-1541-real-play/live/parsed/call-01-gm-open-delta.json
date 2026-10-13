@@ -1,0 +1,16 @@
+{
+  "delta": {
+    "players": [],
+    "location": "마레노 부두",
+    "nextRoundContext": "부두에는 해오라기호 실종으로 인한 긴장이 최고조에 달해 있으며 선원 조합, 세관, 외딴 등대가 각기 다른 단서의 갈래를 쥐고 있다.",
+    "storyPhase": "INTRO",
+    "threadsAdd": [
+      "해오라기호 실종 사건 조사"
+    ],
+    "endingConditionId": ""
+  },
+  "location": "마레노 부두",
+  "campaignFinished": false,
+  "diagnostics": null,
+  "narrationChars": 2061
+}

@@ -1,0 +1,20 @@
+[
+  {
+    "url": "https://api.cheaperinference.com/v1/chat/completions",
+    "method": "POST",
+    "blocked": false,
+    "status": 200
+  },
+  {
+    "url": "https://api.cheaperinference.com/v1/chat/completions",
+    "method": "POST",
+    "blocked": false,
+    "status": 200
+  },
+  {
+    "url": "https://api.cheaperinference.com/v1/chat/completions",
+    "method": "POST",
+    "blocked": false,
+    "status": 200
+  }
+]

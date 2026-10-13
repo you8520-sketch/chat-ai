@@ -1,0 +1,15 @@
+{
+  "goal": {
+    "id": "goal-2-1",
+    "title": "세관 심부름꾼 추적: 뒷골목 석조 창고에서 철제 서류함을 회수한다",
+    "status": "active",
+    "source": "gm",
+    "createdRound": 2,
+    "claimedRound": 4,
+    "claimSource": {
+      "generationId": "12fcf1b4e041979e977ec0a9",
+      "narrationDigest": "dee3ba855ee79a46267d02d7da113c03"
+    }
+  },
+  "outcome": "confirmed"
+}

@@ -1,0 +1,62 @@
+{
+  "delta": {
+    "players": [
+      {
+        "participantId": 1,
+        "hp": 40,
+        "conditions": [],
+        "inventoryAdd": [
+          "민우의 놋쇠 회중시계"
+        ],
+        "inventoryRemove": [],
+        "location": "마레노 부두"
+      },
+      {
+        "participantId": 2,
+        "hp": 40,
+        "conditions": [],
+        "inventoryAdd": [
+          "세관 황동 열쇠"
+        ],
+        "inventoryRemove": [],
+        "location": "마레노 부두"
+      },
+      {
+        "participantId": 3,
+        "hp": 40,
+        "conditions": [],
+        "inventoryAdd": [],
+        "inventoryRemove": [],
+        "location": "마레노 부두"
+      },
+      {
+        "participantId": 4,
+        "hp": 40,
+        "conditions": [],
+        "inventoryAdd": [],
+        "inventoryRemove": [],
+        "location": "마레노 부두"
+      }
+    ],
+    "location": "마레노 부두",
+    "nextRoundContext": "심부름꾼이 숨어든 석조 폐창고 급습, 소각이 진행 중인 세관 청사 2층 잠입, 또는 신호 공백의 진실을 쥔 곶 끝 등대 조사 중 택일해야 하는 상황.",
+    "questsAdd": [
+      "세관 심부름꾼 추적: 뒷골목 석조 창고에서 철제 서류함을 회수한다",
+      "등대 신호의 공백 조사: 곶 끝 등대에서 사흘 전 새벽의 목격 증언을 확보한다"
+    ],
+    "flagsAdd": [
+      "세관장_강도현_연루_단서_확보",
+      "심부름꾼_도주_창고_파악"
+    ],
+    "storyPhase": "DEVELOPMENT",
+    "threadsAdd": [
+      "세관 창고의 비밀 서류함 회수",
+      "등대지기 오 노인의 신호 조작 의혹"
+    ],
+    "endingConditionId": ""
+  },
+  "location": "마레노 부두",
+  "campaignFinished": false,
+  "diagnostics": null,
+  "narrationChars": 5031
+}

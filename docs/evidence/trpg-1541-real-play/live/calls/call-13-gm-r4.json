@@ -1,0 +1,108 @@
+{
+  "seq": 13,
+  "role": "gm",
+  "label": "r4",
+  "round": 4,
+  "systemChars": 10026,
+  "userChars": 23745,
+  "systemSha256": "b329d0a1b30b48f1e50e1a1f77a97d58ae09d838ca8fcc0ded8118f8f003b6a0",
+  "userSha256": "53015341f28c107a0dcb7d62e762a710427c6ee25355fec9bc4dc1e1eed2c59c",
+  "worstCaseKrwThisCall": 81.8,
+  "usage": {
+    "modelId": "gemini-3.8-flash",
+    "inputTokens": 15567,
+    "outputTokens": 3494
+  },
+  "cost": {
+    "usd": 0.0161055375,
+    "krw": 23.353029375,
+    "source": "catalog_price_x_usage"
+  },
+  "finishReason": "stop",
+  "responseChars": 5933,
+  "requestBodyWithoutMessages": {
+    "model": "gemini-3.8-flash",
+    "stream": true,
+    "temperature": 0.7,
+    "max_tokens": 16384,
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "trpg_gm_output",
+        "strict": true,
+        "schema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "narration",
+            "delta"
+          ],
+          "properties": {
+            "narration": {
+              "type": "string"
+            },
+            "delta": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "players": {
+                  "type": "array"
+                },
+                "location": {
+                  "type": "string"
+                },
+                "next_round_context": {
+                  "type": "string"
+                },
+                "campaign_finished": {
+                  "type": "boolean"
+                },
+                "questsAdd": {
+                  "type": "array"
+                },
+                "questsRemove": {
+                  "type": "array"
+                },
+                "questsClaimDone": {
+                  "type": "array"
+                },
+                "npcsAdd": {
+                  "type": "array"
+                },
+                "npcsRemove": {
+                  "type": "array"
+                },
+                "flagsAdd": {
+                  "type": "array"
+                },
+                "flagsRemove": {
+                  "type": "array"
+                },
+                "localScene": {
+                  "type": "object"
+                },
+                "storyPhase": {
+                  "type": "string"
+                },
+                "threadsAdd": {
+                  "type": "array"
+                },
+                "threadsResolve": {
+                  "type": "array"
+                },
+                "endingConditionId": {
+                  "type": "string"
+                },
+                "encountersEnded": {
+                  "type": "array"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "reasoning_effort": "low"
+  },
+  "elapsedMs": 37632
+}

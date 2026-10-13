@@ -1,0 +1,52 @@
+{
+  "delta": {
+    "players": [
+      {
+        "participantId": 1,
+        "hp": 40,
+        "conditions": [],
+        "inventoryAdd": [
+          "그을린 장부 조각"
+        ],
+        "inventoryRemove": [],
+        "location": "마레노 부두"
+      },
+      {
+        "participantId": 2,
+        "hp": 40,
+        "conditions": [],
+        "inventoryAdd": [],
+        "inventoryRemove": [],
+        "location": "마레노 부두"
+      },
+      {
+        "participantId": 3,
+        "hp": 40,
+        "conditions": [],
+        "inventoryAdd": [],
+        "inventoryRemove": [],
+        "location": "마레노 부두"
+      },
+      {
+        "participantId": 4,
+        "hp": 40,
+        "conditions": [],
+        "inventoryAdd": [],
+        "inventoryRemove": [],
+        "location": "마레노 부두"
+      }
+    ],
+    "location": "마레노 부두",
+    "nextRoundContext": "조합 회관 진입은 차단되었으나 세관의 소각 현장, 뒷골목으로 도주하는 심부름꾼, 그리고 신호가 불안정한 곶 끝 등대로의 경로가 열려 있다.",
+    "storyPhase": "INTRO",
+    "threadsAdd": [
+      "세관 심부름꾼 추적",
+      "등대 신호의 공백 조사"
+    ],
+    "endingConditionId": ""
+  },
+  "location": "마레노 부두",
+  "campaignFinished": false,
+  "diagnostics": null,
+  "narrationChars": 4187
+}

@@ -1,0 +1,894 @@
+{
+  "note": "stubbed model calls, deterministic fallback seal summary; checks carried-forward state only",
+  "rows": [
+    {
+      "round": 1,
+      "goalsStored": 1,
+      "active": 1,
+      "completed": 0,
+      "npcs": 2,
+      "flags": 2,
+      "hudActive": 1,
+      "hudDone": 0
+    },
+    {
+      "round": 2,
+      "goalsStored": 1,
+      "active": 1,
+      "completed": 0,
+      "npcs": 3,
+      "flags": 3,
+      "hudActive": 1,
+      "hudDone": 0
+    },
+    {
+      "round": 3,
+      "goalsStored": 1,
+      "active": 1,
+      "completed": 0,
+      "npcs": 4,
+      "flags": 4,
+      "hudActive": 1,
+      "hudDone": 0
+    },
+    {
+      "round": 4,
+      "goalsStored": 1,
+      "active": 0,
+      "completed": 1,
+      "npcs": 5,
+      "flags": 5,
+      "hudActive": 0,
+      "hudDone": 1
+    },
+    {
+      "round": 5,
+      "goalsStored": 1,
+      "active": 0,
+      "completed": 1,
+      "npcs": 6,
+      "flags": 6,
+      "hudActive": 0,
+      "hudDone": 1
+    },
+    {
+      "round": 6,
+      "goalsStored": 1,
+      "active": 0,
+      "completed": 1,
+      "npcs": 7,
+      "flags": 7,
+      "hudActive": 0,
+      "hudDone": 1
+    },
+    {
+      "round": 7,
+      "goalsStored": 2,
+      "active": 1,
+      "completed": 1,
+      "npcs": 8,
+      "flags": 8,
+      "hudActive": 1,
+      "hudDone": 1
+    },
+    {
+      "round": 8,
+      "goalsStored": 2,
+      "active": 1,
+      "completed": 1,
+      "npcs": 9,
+      "flags": 9,
+      "hudActive": 1,
+      "hudDone": 1
+    },
+    {
+      "round": 9,
+      "goalsStored": 2,
+      "active": 1,
+      "completed": 1,
+      "npcs": 10,
+      "flags": 10,
+      "hudActive": 1,
+      "hudDone": 1
+    },
+    {
+      "round": 10,
+      "goalsStored": 2,
+      "active": 0,
+      "completed": 2,
+      "npcs": 11,
+      "flags": 11,
+      "hudActive": 0,
+      "hudDone": 2
+    },
+    {
+      "round": 11,
+      "goalsStored": 2,
+      "active": 0,
+      "completed": 2,
+      "npcs": 12,
+      "flags": 12,
+      "hudActive": 0,
+      "hudDone": 2
+    },
+    {
+      "round": 12,
+      "goalsStored": 2,
+      "active": 0,
+      "completed": 2,
+      "npcs": 13,
+      "flags": 13,
+      "hudActive": 0,
+      "hudDone": 2
+    },
+    {
+      "round": 13,
+      "goalsStored": 3,
+      "active": 1,
+      "completed": 2,
+      "npcs": 14,
+      "flags": 14,
+      "hudActive": 1,
+      "hudDone": 2
+    },
+    {
+      "round": 14,
+      "goalsStored": 3,
+      "active": 1,
+      "completed": 2,
+      "npcs": 15,
+      "flags": 15,
+      "hudActive": 1,
+      "hudDone": 2
+    },
+    {
+      "round": 15,
+      "goalsStored": 3,
+      "active": 1,
+      "completed": 2,
+      "npcs": 16,
+      "flags": 16,
+      "hudActive": 1,
+      "hudDone": 2
+    },
+    {
+      "round": 16,
+      "goalsStored": 3,
+      "active": 0,
+      "completed": 3,
+      "npcs": 16,
+      "flags": 17,
+      "hudActive": 0,
+      "hudDone": 3
+    },
+    {
+      "round": 17,
+      "goalsStored": 3,
+      "active": 0,
+      "completed": 3,
+      "npcs": 16,
+      "flags": 18,
+      "hudActive": 0,
+      "hudDone": 3
+    },
+    {
+      "round": 18,
+      "goalsStored": 3,
+      "active": 0,
+      "completed": 3,
+      "npcs": 16,
+      "flags": 19,
+      "hudActive": 0,
+      "hudDone": 3
+    },
+    {
+      "round": 19,
+      "goalsStored": 4,
+      "active": 1,
+      "completed": 3,
+      "npcs": 16,
+      "flags": 20,
+      "hudActive": 1,
+      "hudDone": 3
+    },
+    {
+      "round": 20,
+      "goalsStored": 4,
+      "active": 1,
+      "completed": 3,
+      "npcs": 16,
+      "flags": 21,
+      "hudActive": 1,
+      "hudDone": 3
+    },
+    {
+      "round": 21,
+      "goalsStored": 4,
+      "active": 1,
+      "completed": 3,
+      "npcs": 16,
+      "flags": 22,
+      "hudActive": 1,
+      "hudDone": 3
+    },
+    {
+      "round": 22,
+      "goalsStored": 4,
+      "active": 0,
+      "completed": 4,
+      "npcs": 16,
+      "flags": 23,
+      "hudActive": 0,
+      "hudDone": 3
+    },
+    {
+      "round": 23,
+      "goalsStored": 4,
+      "active": 0,
+      "completed": 4,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 0,
+      "hudDone": 3
+    },
+    {
+      "round": 24,
+      "goalsStored": 4,
+      "active": 0,
+      "completed": 4,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 0,
+      "hudDone": 3
+    },
+    {
+      "round": 25,
+      "goalsStored": 5,
+      "active": 1,
+      "completed": 4,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 1,
+      "hudDone": 3
+    },
+    {
+      "round": 26,
+      "goalsStored": 5,
+      "active": 1,
+      "completed": 4,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 1,
+      "hudDone": 3
+    },
+    {
+      "round": 27,
+      "goalsStored": 5,
+      "active": 1,
+      "completed": 4,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 1,
+      "hudDone": 3
+    },
+    {
+      "round": 28,
+      "goalsStored": 5,
+      "active": 0,
+      "completed": 5,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 0,
+      "hudDone": 3
+    },
+    {
+      "round": 29,
+      "goalsStored": 5,
+      "active": 0,
+      "completed": 5,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 0,
+      "hudDone": 3
+    },
+    {
+      "round": 30,
+      "goalsStored": 5,
+      "active": 0,
+      "completed": 5,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 0,
+      "hudDone": 3
+    },
+    {
+      "round": 31,
+      "goalsStored": 6,
+      "active": 1,
+      "completed": 5,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 1,
+      "hudDone": 3
+    },
+    {
+      "round": 32,
+      "goalsStored": 6,
+      "active": 1,
+      "completed": 5,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 1,
+      "hudDone": 3
+    },
+    {
+      "round": 33,
+      "goalsStored": 6,
+      "active": 1,
+      "completed": 5,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 1,
+      "hudDone": 3
+    },
+    {
+      "round": 34,
+      "goalsStored": 6,
+      "active": 0,
+      "completed": 6,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 0,
+      "hudDone": 3
+    },
+    {
+      "round": 35,
+      "goalsStored": 6,
+      "active": 0,
+      "completed": 6,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 0,
+      "hudDone": 3
+    },
+    {
+      "round": 36,
+      "goalsStored": 6,
+      "active": 0,
+      "completed": 6,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 0,
+      "hudDone": 3
+    },
+    {
+      "round": 37,
+      "goalsStored": 7,
+      "active": 1,
+      "completed": 6,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 1,
+      "hudDone": 3
+    },
+    {
+      "round": 38,
+      "goalsStored": 7,
+      "active": 1,
+      "completed": 6,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 1,
+      "hudDone": 3
+    },
+    {
+      "round": 39,
+      "goalsStored": 7,
+      "active": 1,
+      "completed": 6,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 1,
+      "hudDone": 3
+    },
+    {
+      "round": 40,
+      "goalsStored": 7,
+      "active": 0,
+      "completed": 7,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 0,
+      "hudDone": 3
+    },
+    {
+      "round": 41,
+      "goalsStored": 7,
+      "active": 0,
+      "completed": 7,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 0,
+      "hudDone": 3
+    },
+    {
+      "round": 42,
+      "goalsStored": 7,
+      "active": 0,
+      "completed": 7,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 0,
+      "hudDone": 3
+    },
+    {
+      "round": 43,
+      "goalsStored": 8,
+      "active": 1,
+      "completed": 7,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 1,
+      "hudDone": 3
+    },
+    {
+      "round": 44,
+      "goalsStored": 8,
+      "active": 1,
+      "completed": 7,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 1,
+      "hudDone": 3
+    },
+    {
+      "round": 45,
+      "goalsStored": 8,
+      "active": 1,
+      "completed": 7,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 1,
+      "hudDone": 3
+    },
+    {
+      "round": 46,
+      "goalsStored": 8,
+      "active": 0,
+      "completed": 8,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 0,
+      "hudDone": 3
+    },
+    {
+      "round": 47,
+      "goalsStored": 8,
+      "active": 0,
+      "completed": 8,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 0,
+      "hudDone": 3
+    },
+    {
+      "round": 48,
+      "goalsStored": 8,
+      "active": 0,
+      "completed": 8,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 0,
+      "hudDone": 3
+    },
+    {
+      "round": 49,
+      "goalsStored": 9,
+      "active": 1,
+      "completed": 8,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 1,
+      "hudDone": 3
+    },
+    {
+      "round": 50,
+      "goalsStored": 9,
+      "active": 1,
+      "completed": 8,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 1,
+      "hudDone": 3
+    },
+    {
+      "round": 51,
+      "goalsStored": 9,
+      "active": 1,
+      "completed": 8,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 1,
+      "hudDone": 3
+    },
+    {
+      "round": 52,
+      "goalsStored": 9,
+      "active": 0,
+      "completed": 9,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 0,
+      "hudDone": 3
+    },
+    {
+      "round": 53,
+      "goalsStored": 9,
+      "active": 0,
+      "completed": 9,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 0,
+      "hudDone": 3
+    },
+    {
+      "round": 54,
+      "goalsStored": 9,
+      "active": 0,
+      "completed": 9,
+      "npcs": 16,
+      "flags": 24,
+      "hudActive": 0,
+      "hudDone": 3
+    }
+  ],
+  "probes": [
+    {
+      "round": 10,
+      "wireChars": 6050,
+      "sealedChars": 645,
+      "recentRawRounds": [
+        7,
+        8,
+        9
+      ],
+      "present": {
+        "MARK1": true,
+        "MARK5": true,
+        "MARK20": false,
+        "NPC2": true,
+        "NPC40": false,
+        "FLAG2": true,
+        "FLAG30": false,
+        "목표1": true,
+        "목표7": true,
+        "목표49": false
+      }
+    },
+    {
+      "round": 20,
+      "wireChars": 7246,
+      "sealedChars": 1690,
+      "recentRawRounds": [
+        17,
+        18,
+        19
+      ],
+      "present": {
+        "MARK1": true,
+        "MARK5": true,
+        "MARK20": false,
+        "NPC2": true,
+        "NPC40": false,
+        "FLAG2": true,
+        "FLAG30": false,
+        "목표1": true,
+        "목표7": true,
+        "목표49": false
+      }
+    },
+    {
+      "round": 30,
+      "wireChars": 8078,
+      "sealedChars": 2501,
+      "recentRawRounds": [
+        27,
+        28,
+        29
+      ],
+      "present": {
+        "MARK1": true,
+        "MARK5": true,
+        "MARK20": true,
+        "NPC2": true,
+        "NPC40": false,
+        "FLAG2": true,
+        "FLAG30": false,
+        "목표1": false,
+        "목표7": false,
+        "목표49": false
+      }
+    },
+    {
+      "round": 40,
+      "wireChars": 8091,
+      "sealedChars": 2501,
+      "recentRawRounds": [
+        37,
+        38,
+        39
+      ],
+      "present": {
+        "MARK1": true,
+        "MARK5": true,
+        "MARK20": true,
+        "NPC2": true,
+        "NPC40": false,
+        "FLAG2": true,
+        "FLAG30": false,
+        "목표1": false,
+        "목표7": false,
+        "목표49": false
+      }
+    },
+    {
+      "round": 50,
+      "wireChars": 8091,
+      "sealedChars": 2501,
+      "recentRawRounds": [
+        47,
+        48,
+        49
+      ],
+      "present": {
+        "MARK1": true,
+        "MARK5": true,
+        "MARK20": true,
+        "NPC2": true,
+        "NPC40": false,
+        "FLAG2": true,
+        "FLAG30": false,
+        "목표1": false,
+        "목표7": false,
+        "목표49": true
+      }
+    },
+    {
+      "round": 54,
+      "wireChars": 8078,
+      "sealedChars": 2501,
+      "recentRawRounds": [
+        51,
+        52,
+        53
+      ],
+      "present": {
+        "MARK1": true,
+        "MARK5": true,
+        "MARK20": true,
+        "NPC2": true,
+        "NPC40": false,
+        "FLAG2": true,
+        "FLAG30": false,
+        "목표1": false,
+        "목표7": false,
+        "목표49": true
+      }
+    }
+  ],
+  "finalLedger": {
+    "location": "마레노 부두",
+    "nextRoundContext": "ctx54",
+    "quests": [],
+    "goals": [
+      {
+        "id": "goal-1-1",
+        "title": "목표1",
+        "status": "completed",
+        "source": "gm",
+        "createdRound": 1,
+        "claimedRound": 4,
+        "claimSource": {
+          "generationId": "917f28753c7a9b9409f4ab99",
+          "narrationDigest": "873b36ffb304dc34c78ee278f92d9e4b"
+        },
+        "closedRound": 4,
+        "evidence": {
+          "kind": "host_confirmed",
+          "round": 4,
+          "participantId": 1
+        }
+      },
+      {
+        "id": "goal-7-1",
+        "title": "목표7",
+        "status": "completed",
+        "source": "gm",
+        "createdRound": 7,
+        "claimedRound": 10,
+        "claimSource": {
+          "generationId": "a336a9d44366540bcdd35ae0",
+          "narrationDigest": "843d0914f098314e176a4750a6bbce4b"
+        },
+        "closedRound": 10,
+        "evidence": {
+          "kind": "host_confirmed",
+          "round": 10,
+          "participantId": 1
+        }
+      },
+      {
+        "id": "goal-13-1",
+        "title": "목표13",
+        "status": "completed",
+        "source": "gm",
+        "createdRound": 13,
+        "claimedRound": 16,
+        "claimSource": {
+          "generationId": "4b8134a2f21b6311b358f673",
+          "narrationDigest": "92f4c31d802e1bb4fb153f0c02689715"
+        },
+        "closedRound": 16,
+        "evidence": {
+          "kind": "host_confirmed",
+          "round": 16,
+          "participantId": 1
+        }
+      },
+      {
+        "id": "goal-19-1",
+        "title": "목표19",
+        "status": "completed",
+        "source": "gm",
+        "createdRound": 19,
+        "claimedRound": 22,
+        "claimSource": {
+          "generationId": "50e4bf83478795bcf284ce56",
+          "narrationDigest": "b0efdbca1843a22bf8c9aba37b3cc27a"
+        },
+        "closedRound": 22,
+        "evidence": {
+          "kind": "host_confirmed",
+          "round": 22,
+          "participantId": 1
+        }
+      },
+      {
+        "id": "goal-25-1",
+        "title": "목표25",
+        "status": "completed",
+        "source": "gm",
+        "createdRound": 25,
+        "claimedRound": 28,
+        "claimSource": {
+          "generationId": "93358893fe06b3726c6fee83",
+          "narrationDigest": "df3da60fa8bcd78c3028ae143af836a4"
+        },
+        "closedRound": 28,
+        "evidence": {
+          "kind": "host_confirmed",
+          "round": 28,
+          "participantId": 1
+        }
+      },
+      {
+        "id": "goal-31-1",
+        "title": "목표31",
+        "status": "completed",
+        "source": "gm",
+        "createdRound": 31,
+        "claimedRound": 34,
+        "claimSource": {
+          "generationId": "0200ae6fd9d2bdb68dac7b43",
+          "narrationDigest": "7e3dc858b150af32b74db4bcbdc06546"
+        },
+        "closedRound": 34,
+        "evidence": {
+          "kind": "host_confirmed",
+          "round": 34,
+          "participantId": 1
+        }
+      },
+      {
+        "id": "goal-37-1",
+        "title": "목표37",
+        "status": "completed",
+        "source": "gm",
+        "createdRound": 37,
+        "claimedRound": 40,
+        "claimSource": {
+          "generationId": "d12ad585d7ea8452fca1753e",
+          "narrationDigest": "7c8f15d8bcd077d0668883865368c02b"
+        },
+        "closedRound": 40,
+        "evidence": {
+          "kind": "host_confirmed",
+          "round": 40,
+          "participantId": 1
+        }
+      },
+      {
+        "id": "goal-43-1",
+        "title": "목표43",
+        "status": "completed",
+        "source": "gm",
+        "createdRound": 43,
+        "claimedRound": 46,
+        "claimSource": {
+          "generationId": "5fcf9c197f00fbacca192c27",
+          "narrationDigest": "a0ecf13a10c50b713050087e03e6fd8b"
+        },
+        "closedRound": 46,
+        "evidence": {
+          "kind": "host_confirmed",
+          "round": 46,
+          "participantId": 1
+        }
+      },
+      {
+        "id": "goal-49-1",
+        "title": "목표49",
+        "status": "completed",
+        "source": "gm",
+        "createdRound": 49,
+        "claimedRound": 52,
+        "claimSource": {
+          "generationId": "c1c3fc3ebfde290d09971c73",
+          "narrationDigest": "b9a400840b75170972499af0c99a7a9b"
+        },
+        "closedRound": 52,
+        "evidence": {
+          "kind": "host_confirmed",
+          "round": 52,
+          "participantId": 1
+        }
+      }
+    ],
+    "npcs": [
+      "NPC0",
+      "NPC1",
+      "NPC2",
+      "NPC3",
+      "NPC4",
+      "NPC5",
+      "NPC6",
+      "NPC7",
+      "NPC8",
+      "NPC9",
+      "NPC10",
+      "NPC11",
+      "NPC12",
+      "NPC13",
+      "NPC14",
+      "NPC15"
+    ],
+    "worldFlags": [
+      "FLAG0",
+      "FLAG1",
+      "FLAG2",
+      "FLAG3",
+      "FLAG4",
+      "FLAG5",
+      "FLAG6",
+      "FLAG7",
+      "FLAG8",
+      "FLAG9",
+      "FLAG10",
+      "FLAG11",
+      "FLAG12",
+      "FLAG13",
+      "FLAG14",
+      "FLAG15",
+      "FLAG16",
+      "FLAG17",
+      "FLAG18",
+      "FLAG19",
+      "FLAG20",
+      "FLAG21",
+      "FLAG22",
+      "FLAG23"
+    ]
+  },
+  "sealedSummaryAtR54": "\nR0 (행동 없음) → MARK0 장면 0. GM: 무엇을 하겠는가? R1 렌:행동 1: 부두를 살핀다. · 현:행동 1: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK1 장면 1. GM: 무엇을 하겠는가? R2 렌:행동 2: 부두를 살핀다. · 현:행동 2: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK2 장면 2. GM: 무엇을 하겠는가? R3 렌:행동 3: 부두를 살핀다. · 현:행동 3: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK3 장면 3. GM: 무엇을 하겠는가? R4 렌:행동 4: 부두를 살핀다. · 현:행동 4: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK4 장면 4. GM: 무엇을 하겠는가? R5 렌:행동 5: 부두를 살핀다. · 현:행동 5: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK5 장면 5. GM: 무엇을 하겠는가? R6 렌:행동 6: 부두를 살핀다. · 현:행동 6: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK6 장면 6. GM: 무엇을 하겠는가? R7 렌:행동 7: 부두를 살핀다. · 현:행동 7: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK7 장면 7. GM: 무엇을 하겠는가? R8 렌:행동 8: 부두를 살핀다. · 현:행동 8: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK8 장면 8. GM: 무엇을 하겠는가? R9 렌:행동 9: 부두를 살핀다. · 현:행동 9: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK9 장면 9. GM: 무엇을 하겠는가? R10 렌:행동 10: 부두를 살핀다. · 현:행동 10: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK10 장면 10. GM: 무엇을 하겠는가? R11 렌:행동 11: 부두를 살핀다. · 현:행동 11: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK11 장면 11. GM: 무엇을 하겠는가? R12 렌:행동 12: 부두를 살핀다. · 현:행동 12: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK12 장면 12. GM: 무엇을 하겠는가? R13 렌:행동 13: 부두를 살핀다. · 현:행동 13: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK13 장면 13. GM: 무엇을 하겠는가? R14 렌:행동 14: 부두를 살핀다. · 현:행동 14: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK14 장면 14. GM: 무엇을 하겠는가? R15 렌:행동 15: 부두를 살핀다. · 현:행동 15: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK15 장면 15. GM: 무엇을 하겠는가? R16 렌:행동 16: 부두를 살핀다. · 현:행동 16: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK16 장면 16. GM: 무엇을 하겠는가? R17 렌:행동 17: 부두를 살핀다. · 현:행동 17: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK17 장면 17. GM: 무엇을 하겠는가? R18 렌:행동 18: 부두를 살핀다. · 현:행동 18: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK18 장면 18. GM: 무엇을 하겠는가? R19 렌:행동 19: 부두를 살핀다. · 현:행동 19: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK19 장면 19. GM: 무엇을 하겠는가? R20 렌:행동 20: 부두를 살핀다. · 현:행동 20: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK20 장면 20. GM: 무엇을 하겠는가? R21 렌:행동 21: 부두를 살핀다. · 현:행동 21: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK21 장면 21. GM: 무엇을 하겠는가? R22 렌:행동 22: 부두를 살핀다. · 현:행동 22: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK22 장면 22. GM: 무엇을 하겠는가? R23 렌:행동 23: 부두를 살핀다. · 현:행동 23: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주변을 살핀다. → MARK23 장면 23. GM: 무엇을 하겠는가? R24 렌:행동 24: 부두를 살핀다. · 현:행동 24: 주변 사람에게 말을 건다. · 서하:주변을 살핀다. · 도윤:주",
+  "structuredStateBlockAtR54": "[TRPG STRUCTURED STATE — authoritative; do not contradict HP/items/location/flags]\nround=53\nlocation=마레노 부두\n[NEXT DECISION]\nctx53\n- 렌: HP 40/40 stats=cha:7,con:8,dex:8,int:7,str:8,wis:7\n- 현: HP 40/40 stats=cha:7,con:8,dex:8,int:7,str:8,wis:7\n- 서하: HP 40/40 stats=cha:7,con:8,dex:8,int:7,str:8,wis:7\n- 도윤: HP 40/40 stats=cha:7,con:8,dex:8,int:7,str:8,wis:7\ngoals_done: 목표37; 목표43; 목표49\nnpcs: NPC0; NPC1; NPC2; NPC3; NPC4; NPC5; NPC6; NPC7; NPC8; NPC9; NPC10; NPC11; NPC12; NPC13; NPC14; NPC15\nflags: FLAG0; FLAG1; FLAG2; FLAG3; FLAG4; FLAG5; FLAG6; FLAG7; FLAG8; FLAG9; FLAG10; FLAG11; FLAG12; FLAG13; FLAG14; FLAG15; FLAG16; FLAG17; FLAG18; FLAG19; FLAG20; FLAG21; FLAG22; FLAG23\n[SEALED"
+}

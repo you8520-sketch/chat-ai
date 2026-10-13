@@ -1,0 +1,32 @@
+{
+  "seq": 2,
+  "role": "bot",
+  "label": "r1",
+  "round": 1,
+  "systemChars": 3181,
+  "userChars": 3205,
+  "systemSha256": "f187c36d09a6a31cc68619ccd8dd16049d96ccb41602cad91614a5cc37177739",
+  "userSha256": "74fbc1fe72f70541ee943fe20152af012405e2d9ff0b3ff9a3bb8c3bed773638",
+  "worstCaseKrwThisCall": 19,
+  "usage": {
+    "modelId": "gemini-3.8-flash",
+    "inputTokens": 2592,
+    "outputTokens": 427,
+    "upstreamCostUsd": 0.002311
+  },
+  "cost": {
+    "usd": 0.002311,
+    "krw": 3.35095,
+    "source": "provider_reported"
+  },
+  "finishReason": null,
+  "responseChars": 654,
+  "requestBodyWithoutMessages": {
+    "model": "gemini-3.8-flash",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 4096,
+    "reasoning_effort": "low"
+  },
+  "elapsedMs": 7947
+}

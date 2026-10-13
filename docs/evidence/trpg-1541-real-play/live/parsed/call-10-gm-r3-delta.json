@@ -1,0 +1,62 @@
+{
+  "delta": {
+    "players": [
+      {
+        "participantId": 1,
+        "hp": 40,
+        "conditions": [],
+        "inventoryAdd": [],
+        "inventoryRemove": [],
+        "location": "석조 폐창고 입구"
+      },
+      {
+        "participantId": 2,
+        "hp": 40,
+        "conditions": [],
+        "inventoryAdd": [
+          "세관 밀수 원본 장부",
+          "강도현의 친필 격침 지시서"
+        ],
+        "inventoryRemove": [
+          "세관 황동 열쇠"
+        ],
+        "location": "석조 폐창고 내부"
+      },
+      {
+        "participantId": 3,
+        "hp": 40,
+        "conditions": [],
+        "inventoryAdd": [],
+        "inventoryRemove": [],
+        "location": "석조 폐창고 내부"
+      },
+      {
+        "participantId": 4,
+        "hp": 40,
+        "conditions": [],
+        "inventoryAdd": [],
+        "inventoryRemove": [],
+        "location": "석조 폐창고 내부"
+      }
+    ],
+    "location": "부두 뒷골목 석조 폐창고",
+    "nextRoundContext": "심부름꾼을 제압하고 철제 서류함에서 밀수 원본 장부와 강도현의 격침 지시서를 확보했으나, 창고 입구에 세관 경비병들이 들이닥쳐 렌과 대치 중이다. 뒤편 채광창은 곶 끝 등대로 이어지는 절벽길과 연결되어 있다.",
+    "storyPhase": "CLIMAX",
+    "threadsAdd": [
+      "강도현의 도주 저지 및 체포",
+      "등대지기 오 노인의 증언 확보"
+    ],
+    "threadsResolve": [
+      "세관 심부름꾼 추적",
+      "세관 창고의 비밀 서류함 회수"
+    ],
+    "encountersEnded": [
+      "세관 심부름꾼 추적"
+    ],
+    "endingConditionId": ""
+  },
+  "location": "부두 뒷골목 석조 폐창고",
+  "campaignFinished": false,
+  "diagnostics": null,
+  "narrationChars": 4986
+}

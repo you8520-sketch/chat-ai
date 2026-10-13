@@ -1,0 +1,69 @@
+{
+  "delta": {
+    "players": [
+      {
+        "participantId": 1,
+        "hp": 40,
+        "conditions": [],
+        "inventoryAdd": [],
+        "inventoryRemove": [],
+        "location": "곶 끝의 낡은 등대"
+      },
+      {
+        "participantId": 2,
+        "hp": 40,
+        "conditions": [],
+        "inventoryAdd": [],
+        "inventoryRemove": [],
+        "location": "곶 끝의 낡은 등대"
+      },
+      {
+        "participantId": 3,
+        "hp": 40,
+        "conditions": [],
+        "inventoryAdd": [],
+        "inventoryRemove": [],
+        "location": "곶 끝의 낡은 등대"
+      },
+      {
+        "participantId": 4,
+        "hp": 40,
+        "conditions": [],
+        "inventoryAdd": [],
+        "inventoryRemove": [],
+        "location": "곶 끝의 낡은 등대"
+      }
+    ],
+    "location": "곶 끝의 낡은 등대",
+    "nextRoundContext": "등대 마당에서 세관장 강도현 일행과 정면 대치 중이며, 등대 안에서는 오 노인이 문을 잠그고 농성하고 있다.",
+    "questsAdd": [
+      "강도현 체포 및 오 노인의 증언 확보: 도주를 저지하고 진실을 밝혀낸다"
+    ],
+    "flagsAdd": [
+      "세관장_강도현_현장_대치",
+      "비밀_도주선_확인",
+      "등대지기_오노인_자백_청취"
+    ],
+    "questsClaimDone": [
+      "세관 심부름꾼 추적: 뒷골목 석조 창고에서 철제 서류함을 회수한다"
+    ],
+    "questsRemove": [
+      "세관 심부름꾼 추적: 뒷골목 석조 창고에서 철제 서류함을 회수한다"
+    ],
+    "storyPhase": "CLIMAX",
+    "threadsAdd": [
+      "강도현의 도주선 탈환 및 차단"
+    ],
+    "threadsResolve": [
+      "등대 신호의 공백 조사"
+    ],
+    "encountersEnded": [
+      "석조 창고 탈출전"
+    ],
+    "endingConditionId": ""
+  },
+  "location": "곶 끝의 낡은 등대",
+  "campaignFinished": false,
+  "diagnostics": null,
+  "narrationChars": 4115
+}
