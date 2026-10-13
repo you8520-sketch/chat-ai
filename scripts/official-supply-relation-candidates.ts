@@ -92,8 +92,9 @@ function siblingSketches(candidates: CandidateBrief[], key: string): string[] {
     .map(({ brief: b }) => `${b.name}(${b.age}세 ${b.gender}, ${b.occupation}, ${b.archetype}, ${b.relationshipTrope})`);
 }
 
-function estimate(): { expectedUsd: number; upperBoundUsd: number } {
-  const { world, candidates } = loadInputs();
+function estimate(only: string[] = []): { expectedUsd: number; upperBoundUsd: number } {
+  const { world, candidates: allCandidates } = loadInputs();
+  const candidates = only.length ? allCandidates.filter((c) => only.includes(c.key)) : allCandidates;
   let inputTokens = 0;
   let maxOutput = 0;
   for (const { brief } of candidates) {
@@ -101,7 +102,7 @@ function estimate(): { expectedUsd: number; upperBoundUsd: number } {
       brief,
       worldName: world.name,
       worldContext: worldContextForBrief(world, brief),
-      siblingSketches: siblingSketches(candidates, "none"),
+      siblingSketches: siblingSketches(allCandidates, "none"),
     });
     const recapAllowance = 1200 + 600;
     inputTokens +=
@@ -145,7 +146,7 @@ async function run(maxUsd: number, only: string[]): Promise<void> {
   if (process.env.OFFICIAL_PILOT_LIVE !== "1") {
     throw new Error("OFFICIAL_PILOT_LIVE=1 is required for paid text calls");
   }
-  const { upperBoundUsd } = estimate();
+  const { upperBoundUsd } = estimate(only);
   if (upperBoundUsd > maxUsd) {
     throw new Error(`worst-case bound $${upperBoundUsd.toFixed(3)} exceeds --max-usd ${maxUsd}; ask for approval first`);
   }
@@ -261,7 +262,8 @@ async function main(): Promise<void> {
     await run(maxUsdArg ? Number(maxUsdArg.split("=")[1]) : 0.6, onlyArg ? onlyArg.split("=")[1].split(",") : []);
     return;
   }
-  estimate();
+  const onlyArg = args.find((a) => a.startsWith("--only="));
+  estimate(onlyArg ? onlyArg.split("=")[1].split(",") : []);
 }
 
 main().catch((error) => {

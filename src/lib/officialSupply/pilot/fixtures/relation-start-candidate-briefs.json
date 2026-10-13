@@ -1,7 +1,7 @@
 {
   "version": 1,
   "worldKey": "pilot-rf-erendel",
-  "note": "Three candidate briefs, one per user-relation start type. Used only to author evidence for the relation-start bible contract; nothing here is staged, locked or published.",
+  "note": "Round 1: three briefs, one per user-relation start type (all document/ledger-style hooks). Round 2: one non-document replacement sample for ROLE_BOUND inside existing Aethernos canon (northern wall, beast front). Used only to author evidence for the relation-start bible contract; nothing here is staged, locked or published.",
   "candidates": [
     {
       "key": "relation-start-free",
@@ -21,7 +21,10 @@
         "adultCandidate": false,
         "speechDirection": "기본 존댓말. 문장은 건조하고 정확하며, 흥미가 생기면 질문이 늘어난다.",
         "audience": "all",
-        "userRelation": { "type": "free", "fixed": "" }
+        "userRelation": {
+          "type": "free",
+          "fixed": ""
+        }
       }
     },
     {
@@ -69,6 +72,31 @@
         "userRelation": {
           "type": "relationship_bound",
           "fixed": "유저와 이졸데는 황실 의무 결속령으로 약혼이 공시된 사이이며, 두 사람은 공식 석상에서만 두 번 만났다."
+        }
+      }
+    },
+    {
+      "key": "relation-start-role-bound-field",
+      "round": 2,
+      "brief": {
+        "slot": 104,
+        "name": "브리타 크란츠",
+        "gender": "female",
+        "age": 31,
+        "archetype": "무너진 외벽 구간을 몸으로 막는 수병 분대장",
+        "relationshipTrope": "발이 묶인 호송 용병과 최전선 분대장",
+        "occupation": "발켄하임 흑철 요새 외벽 수병 분대장",
+        "faction": "발켄하임 철혈 연맹 (북부 군벌 및 방벽 수비대)",
+        "socialPosition": "평민 출신으로 전공으로 분대장에 오른 야전 장교",
+        "personalityCore": "말수가 적고 몸이 먼저 움직이며, 병사를 숫자로 세는 계산을 가장 싫어한다",
+        "visualSilhouette": "단단한 어깨, 서리가 낀 철갑 어깨보호대, 짧게 자른 회갈색 머리, 동상 자국이 남은 손등",
+        "rpHook": "혹한기 마수 대침공이 사흘 앞인데 흑철 요새 외벽 한 구간이 무너졌고 보급 길이 눈보라로 끊겼다. 브리타는 병력도 자재도 모자란 채 그 구간을 사수할 방법을 찾는 중이고, 눈보라에 길이 막혀 요새에 발이 묶인 보급 호송 용병이 막 도착했다.",
+        "adultCandidate": false,
+        "speechDirection": "기본 존댓말이지만 현장에서는 짧은 단문으로 끊어 말한다. 추위와 피로가 쌓일수록 말수가 더 줄어든다.",
+        "audience": "all",
+        "userRelation": {
+          "type": "role_bound",
+          "fixed": "유저는 보급 상단이 고용한 호송 용병이며, 눈보라로 길이 끊겨 흑철 요새에 발이 묶였다."
         }
       }
     }

@@ -184,7 +184,7 @@ async function main(): Promise<void> {
   }
 
   fs.mkdirSync(REVIEW_DIR, { recursive: true });
-  fs.writeFileSync(MANUSCRIPT_FILE, `${manuscripts.join("\n")}\n`, "utf8");
+  fs.writeFileSync(MANUSCRIPT_FILE, `${manuscripts.join("\n").trimEnd()}\n`, "utf8");
 
   const pct = (value: number | null): string => (value == null ? "-" : `${Math.round(value * 100)}%`);
   const tableRows = rows.map(
@@ -199,8 +199,8 @@ async function main(): Promise<void> {
     "## Cost record (paid author calls)",
     "",
     `- Model gpt-6-luna: ${calls} physical calls in ${runs.length} runs recorded in the fixture, billed $${costUsd.toFixed(4)} (about ${Math.round(costUsd * KRW_PER_USD)} KRW at ${KRW_PER_USD} KRW/USD).`,
-    "- Not in the fixture ledger: the first 9-call generation (billed $0.0075, overwritten by the next run, whose prompts predate the final edits) and one aborted run that stopped on a voice-call shape error. Conservative grand total is below $0.06 (under 90 KRW).",
-    "- Pre-run estimate: expected 57 KRW, worst case 431 KRW (3 attempts x 3 candidates x 3 calls), below the 1,000 KRW approval line.",
+    `- Not in the fixture ledger: the first 9-call generation (billed $0.0075, overwritten by the next run, whose prompts predate the final edits) and one aborted run that stopped on a voice-call shape error. Grand total is about $${(costUsd + 0.0075).toFixed(3)} (about ${Math.round((costUsd + 0.0075) * KRW_PER_USD)} KRW) plus the aborted run, far below the 1,000 KRW approval line.`,
+    "- Pre-run estimates: round 1 expected 57 KRW / worst case 431 KRW (3 candidates); round 2 expected 19 KRW / worst case 144 KRW (1 candidate). Both below the 1,000 KRW approval line.",
     "",
     "## Measured per candidate",
     "",
@@ -211,6 +211,26 @@ async function main(): Promise<void> {
     "Manuscript tokens count the public intro, greeting, speech and every compiled section. The final prompt is the production `buildContext` system prompt after the form-save path (appearance block excluded; it is the later image-lock owner).",
     "",
     "Full texts: `relation-start-v2-manuscripts.md`.",
+    "",
+    "## Round 1 evaluation (GPT, PR #1607 review at f141fc16; kept unchanged)",
+    "",
+    "Qualitative GPT scores of the first three raw candidates (not an RP output test, not market performance). Cursor assigns no score.",
+    "",
+    "| candidate | score /100 | confirmed | remaining problem |",
+    "| --- | ---: | --- | --- |",
+    "| 세레스 (FREE) | 75 | forces no relationship; own goal and cost are concrete | actions lean on ledger/seal comparison; the entry line gives a free user an unneeded prior state |",
+    "| 이졸데 (RELATIONSHIP_BOUND) | 72 | separates 'engagement announced / met twice' from real trust, affection and ending | grain-tax figures dominate the first scene; example lines resemble 세레스 |",
+    "| 카시안 (ROLE_BOUND) | 73 | fixes only the contracted-mercenary role and keeps gender/feeling/action open | ledger/leak/culprit hunt again; voice differs only by trade metaphors |",
+    "",
+    "Finding: the repetition came mostly from the round-1 briefs, which all chose a document/ledger investigation hook. Round 1 proves the three start types are delivered technically, not that the author produces varied events.",
+    "",
+    "## Round 2: one non-document sample (ROLE_BOUND)",
+    "",
+    "`relation-start-role-bound-field` (브리타 크란츠) replaces only the hook type: a physical crisis inside existing Aethernos canon (northern black-iron wall, beast front, cold-season invasion, cut-off supply) instead of ledgers. No author-prompt sentence was added; the same generate/QA/wire path ran. Round-1 files and scores above are preserved.",
+    "",
+    "- Cost: 18 physical calls in two runs ($0.0152, about 23 KRW); estimate before the run was 19 KRW expected, 144 KRW worst case.",
+    "- Retries (3 + 3 attempts) were caused by: speech band (232/243 chars < 250), the existing adult-term substring check matching across a word boundary (`자지`), one run omitting habits/situation, and the V2 `bible_common_directive` rule rejecting `기억한다` in a character's own sentence. The last one was a defect of this PR: the standalone `기억(해야|한다|하라)` alternative was removed (the `이전 대화를 기억` form stays) with a regression test. The accepted sample passes the narrower rule.",
+    "- Raw finding: the author restated the fixed role verbatim inside `userEntry`, so it appeared twice in the final prompt and three times in the public intro. Compile now drops a verbatim restatement of `fixedFacts` from the user-entry scene (`userEntryWithoutFixedRestatement`; identity for FREE/legacy and for entries that do not restate it).",
     "",
     "## Author prompt tokens (one-time authoring cost, not RP runtime)",
     "",
@@ -235,10 +255,12 @@ async function main(): Promise<void> {
     "",
     "- No production DB write, no re-publish of existing characters, no Text Lock replacement (the Lucian #50 and Wolfgang #51 Text Lock hashes are asserted unchanged), no auto-publish, no follower notification. #1589 (ownership, lorebook, asset storage, CP) is out of scope.",
     "- Author model reliability: roughly 11 of 17 workflow attempts needed a retry. The only run whose reasons were logged (the last role_bound run) failed on the model omitting whole sections (habits/situation, or `publicProfile`) and on the existing adult-term substring check matching ordinary words (`음부` across a word boundary, `보지` in `보지 않은`); earlier runs did not log reasons, so a V2-contract contribution to the other retries is not ruled out. The generator now logs QA reasons per attempt. Reducing the retry rate is a FOLLOW-UP (candidate: per-call missing-section repair; detector word-boundary fix), not part of this PR.",
-    "- GPT review of the three raw manuscripts is the next gate. Cursor assigns no literary score.",
+    "- Not verified here: natural speech. The final wire of the FREE and RELATIONSHIP_BOUND round-1 candidates carries `register_by_context: 구어체 -> 반말` while their authored examples and base register are polite (the global derived-speech owner from #1595). Passing tests does not prove natural dialogue; that owner is a separate fix.",
+    "- Open from the round-1 review (not changed here): the FREE candidate's entry line assigns an unneeded prior state ('신분이나 목적을 아직 밝히지 않은 채'); a persona-first wording is a minimal later edit.",
+    "- GPT review of the raw manuscripts is the next gate. Cursor assigns no literary score.",
     "",
   ].join("\n");
-  fs.writeFileSync(PACKET_FILE, packet, "utf8");
+  fs.writeFileSync(PACKET_FILE, `${packet.trimEnd()}\n`, "utf8");
   console.log(JSON.stringify({ packet: path.relative(process.cwd(), PACKET_FILE), manuscripts: path.relative(process.cwd(), MANUSCRIPT_FILE), rows }, null, 2));
 }
 

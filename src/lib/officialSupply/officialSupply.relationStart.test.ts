@@ -29,9 +29,11 @@ import {
 import { buildRelationStartWire } from "@/lib/officialSupply/relationStartWire";
 import {
   coerceUserRelationPlan,
+  InvalidUserRelationPlanError,
   evaluateUserRelationStart,
   findForcedRelationOutcome,
   OFFICIAL_USER_RELATION_TYPES,
+  userEntryWithoutFixedRestatement,
 } from "@/lib/officialSupply/userRelationStart";
 import { installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/lib/test/isolatedTestDatabase";
 import { estimateTokens } from "@/lib/tokenEstimate";
@@ -44,12 +46,16 @@ const squash = (text: string): string => text.replace(/\s+/g, "");
 const occurrences = (text: string, needle: string): number => text.split(needle).length - 1;
 const withoutEndStop = (text: string): string => text.trim().replace(/[.!?。！？]+$/u, "");
 
+/** Round 1: one candidate per type (first GPT evaluation is kept in the review packet). Round 2: one non-document replacement sample. */
+const ROUND_ONE_KEYS = ["relation-start-free", "relation-start-role-bound", "relation-start-relationship-bound"] as const;
+const ROUND_TWO_KEY = "relation-start-role-bound-field";
+
 function candidates(): RelationStartCandidate[] {
   return loadRelationStartCandidates();
 }
 
 function candidateOf(type: (typeof OFFICIAL_USER_RELATION_TYPES)[number]): RelationStartCandidate {
-  const found = candidates().find((c) => c.bible.userRelationship.type === type);
+  const found = candidates().find((c) => ROUND_ONE_KEYS.includes(c.key as (typeof ROUND_ONE_KEYS)[number]) && c.bible.userRelationship.type === type);
   assert.ok(found, `generated candidate for ${type}`);
   return found;
 }
@@ -68,12 +74,13 @@ function withoutV2(bible: OfficialCharacterBible): OfficialCharacterBible {
 }
 
 describe("official bible V2: three start types", () => {
-  it("has one generated candidate per type, all passing bible and Text Lock QA", () => {
+  it("has one round-1 candidate per type plus the round-2 sample, all passing bible and Text Lock QA", () => {
     const list = candidates();
     assert.deepEqual(
-      list.map((c) => c.bible.userRelationship.type).sort(),
+      list.filter((c) => ROUND_ONE_KEYS.includes(c.key as (typeof ROUND_ONE_KEYS)[number])).map((c) => c.bible.userRelationship.type).sort(),
       [...OFFICIAL_USER_RELATION_TYPES].sort()
     );
+    assert.ok(list.some((c) => c.key === ROUND_TWO_KEY), "round-2 non-document sample is committed");
     for (const candidate of list) {
       assert.deepEqual(validateCharacterBible(candidate.bible, { adultExpected: false }).errors, [], `${candidate.key} bible`);
       assert.deepEqual(
@@ -122,6 +129,22 @@ describe("official bible V2: three start types", () => {
     assert.match(relationBound, /신뢰·호감·애정·화해의 결론이 아니다/);
   });
 
+  it("a verbatim restatement of fixedFacts in the user-entry scene is dropped; other entries and legacy bibles are unchanged", () => {
+    const fixed = "유저는 보급 상단이 고용한 호송 용병이며, 눈보라로 길이 끊겨 흑철 요새에 발이 묶였다.";
+    const entry = `${fixed} 브리타는 호송대의 짐을 확인한다. 그녀는 피난 경로를 가리킨다.`;
+    assert.equal(userEntryWithoutFixedRestatement(entry, fixed), "브리타는 호송대의 짐을 확인한다. 그녀는 피난 경로를 가리킨다.");
+    assert.equal(userEntryWithoutFixedRestatement(entry, ""), entry);
+    assert.equal(userEntryWithoutFixedRestatement(entry, undefined), entry);
+    assert.equal(userEntryWithoutFixedRestatement("브리타는 짐을 확인한다.", fixed), "브리타는 짐을 확인한다.");
+    assert.equal(userEntryWithoutFixedRestatement(fixed, fixed), fixed, "never empties the scene");
+    const field = candidates().find((c) => c.key === ROUND_TWO_KEY);
+    assert.ok(field);
+    assert.ok(field.bible.situation.userEntry.includes(field.bible.userRelationship.fixedFacts ?? "\u0000"), "the raw author text restates the fixed fact");
+    const draft = compileRelationStartDraft(field);
+    const whole = [draft.sections.currentSituation ?? "", draft.sections.relationshipsAndDrives].join("\n");
+    assert.equal(occurrences(squash(whole), squash(field.bible.userRelationship.fixedFacts ?? "")), 1, "the compiled setting carries it once");
+  });
+
   it("every type carries the character's own goal, move and cost, independent of the user", () => {
     for (const candidate of candidates()) {
       const drive = candidate.bible.rpEngine.selfDrive;
@@ -163,6 +186,16 @@ describe("official bible V2: deterministic QA catches violations (negative contr
     assert.ok(empty.includes("bible_user_rel_decides_missing"));
   });
 
+  it("rejects an explicit invalid start type at the input boundary instead of demoting it to FREE", () => {
+    assert.equal(coerceUserRelationPlan(undefined).type, "free");
+    assert.equal(coerceUserRelationPlan(null).type, "free");
+    assert.equal(coerceUserRelationPlan({}).type, "free");
+    assert.deepEqual(coerceUserRelationPlan({ type: "role_bound", fixed: "유저는 호송 용병이다." }), { type: "role_bound", fixed: "유저는 호송 용병이다." });
+    for (const bad of [{ type: "relationship-bound", fixed: "x" }, { fixed: "약혼이 공시됐다." }, { type: 3 }, "role_bound", ["free"]]) {
+      assert.throws(() => coerceUserRelationPlan(bad), InvalidUserRelationPlanError, JSON.stringify(bad));
+    }
+  });
+
   it("rejects forced affection, surrender and fixed-turn progression", () => {
     for (const text of ["두 사람은 결국 서로를 사랑하게 된다.", "반드시 마음을 열게 된다.", "3턴 후 굴복하게 된다.", "매 턴 속마음을 말한다."]) {
       assert.ok(findForcedRelationOutcome([text]), text);
@@ -202,6 +235,10 @@ describe("official bible V2: deterministic QA catches violations (negative contr
     assert.ok(codesOf(withDrive(null)).includes("bible_self_drive_missing"), "a typed bible must carry selfDrive");
     assert.ok(codesOf(withDrive({ goal: "짧다" })).includes("bible_self_drive_thin"));
     assert.ok(codesOf(withDrive({ ownMove: "당신이 찾아오면 곧바로 도와줄 방법을 스스로 정한다" })).includes("bible_self_drive_user_dependent"));
+    const remembers = { ...base, rpEngine: { ...base.rpEngine, mediumConflict: "그녀는 사라진 동료의 마지막 말을 끝내 기억한다. 그 말이 판단을 흔든다." } };
+    assert.deepEqual(codesOf(remembers), [], "a character remembering a person is not a shared memory directive");
+    const memoryDirective = { ...base, rpEngine: { ...base.rpEngine, mediumConflict: "이전 대화를 기억하고 그에 맞춰 답한다." } };
+    assert.ok(codesOf(memoryDirective).includes("bible_common_directive"));
     const directive = { ...base, rpEngine: { ...base.rpEngine, mediumConflict: "응답 분량은 항상 1500자 이상으로 유지하고 매 턴 내면 서술을 넣는다." } };
     assert.ok(codesOf(directive).includes("bible_common_directive"));
   });
@@ -306,9 +343,11 @@ describe("official bible V2: save and final RP wire carry the start type once, w
     `);
   });
 
-  for (const type of OFFICIAL_USER_RELATION_TYPES) {
-    it(`${type}: fixed facts, user choices and self drive reach the final system prompt exactly once`, async () => {
-      const candidate = candidateOf(type);
+  for (const key of [...ROUND_ONE_KEYS, ROUND_TWO_KEY]) {
+    it(`${key}: fixed facts, user choices and self drive reach the final system prompt exactly once`, async () => {
+      const candidate = candidates().find((c) => c.key === key);
+      assert.ok(candidate, key);
+      const type = candidate.bible.userRelationship.type ?? "free";
       const wire = await buildRelationStartWire(candidate);
       assert.equal(wire.settingOverflowChars, 0, "RP setting source has no overflow");
       const prompt = squash(wire.systemPrompt);

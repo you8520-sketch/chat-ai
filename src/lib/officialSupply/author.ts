@@ -82,7 +82,7 @@ import { coerceMarketFitBrief } from "@/lib/officialSupply/marketFit";
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import {
   coerceUserRelationPlan,
-  FREE_USER_RELATION_PLAN,
+  InvalidUserRelationPlanError,
   type OfficialUserRelationPlan,
   type OfficialUserRelationType,
 } from "@/lib/officialSupply/userRelationStart";
@@ -620,7 +620,7 @@ function coercePortfolioBriefs(
       speechDirection: typeof brief.speechDirection === "string" ? brief.speechDirection : "",
       audience,
       marketFit: coerceMarketFitBrief(brief.marketFit),
-      ...(brief.userRelation != null ? { userRelation: coerceUserRelationPlan(brief.userRelation) } : {}),
+      ...(brief.userRelation != null ? { userRelation: gateUserRelationPlan(brief.userRelation, task) } : {}),
     };
   });
 }
@@ -1005,6 +1005,43 @@ async function repairVoiceNpcRelations(input: {
   };
 }
 
+function gateUserRelationPlan(raw: unknown, task: string): OfficialUserRelationPlan {
+  try {
+    return coerceUserRelationPlan(raw);
+  } catch (error) {
+    if (error instanceof InvalidUserRelationPlanError) {
+      throw new OfficialSupplyGateError("author_user_relation_invalid", `${task}: ${error.message}`);
+    }
+    throw error;
+  }
+}
+
+/**
+ * One plan per character: the part1 brief owns it, and a voice/bonds plan that disagrees
+ * stops the run instead of letting the three stages author different start types.
+ */
+function canonicalUserRelationPlan(input: {
+  part1: { brief: { userRelation?: OfficialUserRelationPlan } };
+  voice: { userRelation?: OfficialUserRelationPlan };
+  bonds: { userRelation?: OfficialUserRelationPlan };
+}): OfficialUserRelationPlan {
+  const canonical = gateUserRelationPlan(input.part1.brief.userRelation, "character_bible_1");
+  for (const [task, stage] of [
+    ["character_bible_voice", input.voice],
+    ["character_bible_bonds", input.bonds],
+  ] as const) {
+    if (stage.userRelation === undefined) continue;
+    const plan = gateUserRelationPlan(stage.userRelation, task);
+    if (plan.type !== canonical.type || plan.fixed !== canonical.fixed) {
+      throw new OfficialSupplyGateError(
+        "author_user_relation_mismatch",
+        `${task}: userRelation (${plan.type}) differs from the part1 brief plan (${canonical.type})`
+      );
+    }
+  }
+  return canonical;
+}
+
 export async function generateOfficialCharacterBible(input: {
   transport: OfficialAuthorTransport;
   part1: CharacterBible1Input;
@@ -1018,7 +1055,7 @@ export async function generateOfficialCharacterBible(input: {
   completions: [OfficialAuthorRawCompletion, OfficialAuthorRawCompletion, OfficialAuthorRawCompletion];
   npcRelationRepairs: OfficialAuthorRawCompletion[];
 }> {
-  const userRelation: OfficialUserRelationPlan = input.part1.brief.userRelation ?? FREE_USER_RELATION_PLAN;
+  const userRelation = canonicalUserRelationPlan(input);
   const first = await input.transport.completeJson({
     task: "character_bible_1",
     system: buildCharacterBible1System(),
@@ -1034,7 +1071,7 @@ export async function generateOfficialCharacterBible(input: {
   const second = await input.transport.completeJson({
     task: "character_bible_voice",
     system: buildCharacterVoiceSystem(),
-    user: buildCharacterVoiceUser({ ...input.voice, userRelation: input.voice.userRelation ?? userRelation, part1Recap: input.voice.part1Recap ?? recap }),
+    user: buildCharacterVoiceUser({ ...input.voice, userRelation, part1Recap: input.voice.part1Recap ?? recap }),
     schemaName: "official_character_bible_voice",
     schema: CHARACTER_VOICE_SCHEMA,
     modelId: input.modelId,
@@ -1063,7 +1100,7 @@ export async function generateOfficialCharacterBible(input: {
   const third = await input.transport.completeJson({
     task: "character_bible_bonds",
     system: buildCharacterBondsSystem(),
-    user: buildCharacterBondsUser({ ...input.bonds, userRelation: input.bonds.userRelation ?? userRelation, part1Recap: input.bonds.part1Recap ?? recap }),
+    user: buildCharacterBondsUser({ ...input.bonds, userRelation, part1Recap: input.bonds.part1Recap ?? recap }),
     schemaName: "official_character_bible_bonds",
     schema: CHARACTER_BONDS_SCHEMA,
     modelId: input.modelId,
@@ -1074,7 +1111,7 @@ export async function generateOfficialCharacterBible(input: {
   }
 
   const bible = assembleOfficialCharacterBible(half1, voiceHalf, bondsHalf, {
-    userRelationType: (input.bonds.userRelation ?? userRelation).type,
+    userRelationType: userRelation.type,
   });
   return {
     bible: { ...bible, promptStandard: "compact_rp_v1" },

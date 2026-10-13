@@ -604,6 +604,75 @@ describe("official author adapter", () => {
     }
   });
 
+  it("one canonical start-type plan: invalid or disagreeing plans stop before any provider call", async () => {
+    const PLAN = { type: "role_bound" as const, fixed: "유저는 보급 상단이 고용한 호송 용병이다." };
+    const run = async (override: (args: ReturnType<typeof generationArgs>) => unknown) => {
+      const { transport, tasks } = recordingTransport({});
+      const args = generationArgs(transport);
+      await assert.rejects(
+        () => generateOfficialCharacterBible(override(args) as ReturnType<typeof generationArgs>),
+        (error: unknown) => error instanceof OfficialSupplyGateError
+      );
+      assert.deepEqual(tasks, [], "no paid call is made");
+    };
+    const codeOf = async (override: (args: ReturnType<typeof generationArgs>) => unknown): Promise<string> => {
+      const args = override(generationArgs(fakeTransport({}))) as ReturnType<typeof generationArgs>;
+      try {
+        await generateOfficialCharacterBible(args);
+      } catch (error) {
+        return error instanceof OfficialSupplyGateError ? error.code : String(error);
+      }
+      return "no error";
+    };
+    const withPart1 = (userRelation: unknown) => (a: ReturnType<typeof generationArgs>) => ({
+      ...a,
+      part1: { ...a.part1, brief: { ...a.part1.brief, userRelation } },
+    });
+    await run(withPart1({ type: "relationship-bound", fixed: "x" }));
+    assert.equal(await codeOf(withPart1({ type: "relationship-bound", fixed: "x" })), "author_user_relation_invalid");
+    assert.equal(await codeOf(withPart1({ fixed: "약혼이 공시됐다." })), "author_user_relation_invalid");
+    assert.equal(
+      await codeOf((a) => ({ ...withPart1(PLAN)(a), voice: { ...a.voice, userRelation: { type: "free", fixed: "" } } })),
+      "author_user_relation_mismatch"
+    );
+    assert.equal(
+      await codeOf((a) => ({ ...withPart1(PLAN)(a), bonds: { ...a.bonds, userRelation: { type: "relationship_bound", fixed: PLAN.fixed } } })),
+      "author_user_relation_mismatch"
+    );
+    assert.equal(
+      await codeOf((a) => ({ ...withPart1(undefined)(a), bonds: { ...a.bonds, userRelation: PLAN } })),
+      "author_user_relation_mismatch",
+      "a typed bonds plan cannot override a part1 brief that is FREE"
+    );
+  });
+
+  it("one canonical start-type plan: part1, voice and bonds prompts and the assembled bible consume the same plan", async () => {
+    const PLAN = { type: "role_bound" as const, fixed: "유저는 보급 상단이 고용한 호송 용병이다." };
+    const [voice, bonds] = splitHalf2(fakeHalf2({ nsfw: false }));
+    const responses: Record<string, unknown> = { character_bible_1: fakeHalf1(), character_bible_voice: voice, character_bible_bonds: bonds };
+    const users: Record<string, string> = {};
+    const transport: OfficialAuthorTransport = {
+      label: "fake-capture",
+      async completeJson(input) {
+        users[input.task] = input.user;
+        return fakeCompletion(JSON.stringify(responses[input.task]));
+      },
+    };
+    const args = generationArgs(transport);
+    const { bible } = await generateOfficialCharacterBible({
+      ...args,
+      part1: { ...args.part1, brief: { ...args.part1.brief, userRelation: PLAN } },
+    });
+    for (const task of ["character_bible_1", "character_bible_voice", "character_bible_bonds"]) {
+      assert.match(users[task], /유저 관계 시작 유형: role_bound/, task);
+      assert.ok(users[task].includes(PLAN.fixed), `${task} carries the same fixed hint`);
+    }
+    assert.equal(bible.userRelationship.type, "role_bound");
+    const free = await generateOfficialCharacterBible(generationArgs(transport));
+    assert.equal(free.bible.userRelationship.type, "free");
+    assert.match(users.character_bible_voice, /유저 관계 시작 유형: free/);
+  });
+
   it("billed Voice shape rejection counts Part1 and Voice once and never starts Bonds", async () => {
     const report = createAuthorCostReport();
     const [, bonds] = splitHalf2(fakeHalf2({ nsfw: false }));

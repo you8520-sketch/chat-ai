@@ -11,6 +11,7 @@ import {
 } from "@/lib/officialSupply/publicProfileText";
 import {
   compileUserRelationPrinciple,
+  userEntryWithoutFixedRestatement,
   evaluateUserRelationStart,
   type OfficialUserRelationStart,
 } from "@/lib/officialSupply/userRelationStart";
@@ -803,7 +804,7 @@ export function evaluateVoiceStructureContract(
  * Speech fields are excluded: sentence length/tempo are the character's voice.
  */
 const COMMON_DIRECTIVE_RE =
-  /분량|글자\s*수|\d+\s*자\s*이상|문단\s*(?:수|구성|나눔)|출력\s*(?:형식|분량|길이)|응답\s*(?:형식|분량|길이)|웹소설\s*문체|묘사\s*비중|(?:이전|지난)\s*대화를\s*(?:기억|참조)|기억(?:해야|한다|하라)|자동(?:으로)?\s*(?:진행|이어)|알아서\s*(?:진행|이어)|매\s*턴|턴마다|속마음을\s*(?:매|항상|늘)/u;
+  /분량|글자\s*수|\d+\s*자\s*이상|문단\s*(?:수|구성|나눔)|출력\s*(?:형식|분량|길이)|응답\s*(?:형식|분량|길이)|웹소설\s*문체|묘사\s*비중|(?:이전|지난)\s*대화를\s*(?:기억|참조)|자동(?:으로)?\s*(?:진행|이어)|알아서\s*(?:진행|이어)|매\s*턴|턴마다|속마음을\s*(?:매|항상|늘)/u;
 
 function commonDirectiveTexts(bible: OfficialCharacterBible): { field: string; text: string }[] {
   const rel = bible.userRelationship;
@@ -1262,6 +1263,10 @@ export function compileOfficialDraftFromBible(
   ]);
 
   const relationshipPrinciple = compileUserRelationPrinciple(bible.userRelationship);
+  const situation = {
+    ...bible.situation,
+    userEntry: userEntryWithoutFixedRestatement(bible.situation.userEntry, bible.userRelationship.fixedFacts),
+  };
   const selfDrive = bible.rpEngine.selfDrive;
   const selfDriveText = selfDrive
     ? `자기 추진 — 목표: ${cleanSentence(selfDrive.goal)} / 스스로 택하는 행동: ${cleanSentence(selfDrive.ownMove)} / 막힘·대가: ${cleanSentence(selfDrive.setback)}`
@@ -1347,7 +1352,7 @@ export function compileOfficialDraftFromBible(
       appearance: bible.appearance,
       personality: bible.personality,
       abilities: bible.abilities,
-      situation: bible.situation,
+      situation,
       userRole: bible.userRelationship.userRole,
       personaFlexible: compactRpV1,
       fixedRelation:
@@ -1368,13 +1373,13 @@ export function compileOfficialDraftFromBible(
         : joinParagraphs([
             bible.situation.worldContext,
             bible.situation.personalSituation,
-            bible.situation.userEntry,
+            situation.userEntry,
           ]),
       ...(sharedWorldSplit
         ? {
             currentSituation: composeOfficialCurrentSituation({
               personalSituation: bible.situation.personalSituation,
-              userEntry: bible.situation.userEntry,
+              userEntry: situation.userEntry,
             }),
           }
         : {}),

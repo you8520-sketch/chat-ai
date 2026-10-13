@@ -40,11 +40,31 @@ export function isOfficialUserRelationType(value: unknown): value is OfficialUse
   return typeof value === "string" && (OFFICIAL_USER_RELATION_TYPES as readonly string[]).includes(value);
 }
 
-/** Model/manifest JSON -> plan. Anything unreadable is FREE; FREE never carries fixed text. */
+export class InvalidUserRelationPlanError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidUserRelationPlanError";
+  }
+}
+
+/**
+ * Model/manifest JSON -> plan. Absent input (legacy briefs) is FREE. An explicit plan
+ * must name a valid `type`; an unknown or missing type is rejected instead of being
+ * silently demoted to FREE. FREE never carries fixed text.
+ */
 export function coerceUserRelationPlan(raw: unknown): OfficialUserRelationPlan {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return FREE_USER_RELATION_PLAN;
+  if (raw == null) return FREE_USER_RELATION_PLAN;
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    throw new InvalidUserRelationPlanError("userRelation must be an object with a valid type");
+  }
   const record = raw as Record<string, unknown>;
-  if (!isOfficialUserRelationType(record.type) || record.type === "free") return FREE_USER_RELATION_PLAN;
+  if (Object.keys(record).length === 0) return FREE_USER_RELATION_PLAN;
+  if (!isOfficialUserRelationType(record.type)) {
+    throw new InvalidUserRelationPlanError(
+      `userRelation.type must be one of ${OFFICIAL_USER_RELATION_TYPES.join("|")} (got ${JSON.stringify(record.type ?? null)})`
+    );
+  }
+  if (record.type === "free") return FREE_USER_RELATION_PLAN;
   const fixed = typeof record.fixed === "string" ? record.fixed.trim().slice(0, USER_RELATION_PLAN_FIXED_MAX) : "";
   return { type: record.type, fixed };
 }
@@ -70,6 +90,25 @@ export function compileUserRelationPrinciple(rel: OfficialUserRelationStart): st
     `${type === "role_bound" ? "고정 배경" : "고정 관계"}: ${fixed}`,
     decides ? `유저가 정하는 것: ${decides}` : "",
   ].filter(Boolean);
+}
+
+/**
+ * `fixedFacts` owns the fixed relation/role. When the authored user-entry scene restates
+ * that sentence verbatim, the restatement is dropped at compile time so the setting and
+ * the public intro carry it once. Entries that do not repeat it (and every legacy/FREE
+ * bible, which has no fixedFacts) come back unchanged.
+ */
+export function userEntryWithoutFixedRestatement(userEntry: string, fixedFacts: string | undefined): string {
+  const fixed = squashForMatch(fixedFacts ?? "");
+  if (!fixed) return userEntry;
+  const kept = userEntry
+    .split(/(?<=[.!?。！？])\s+/u)
+    .filter((sentence) => !squashForMatch(sentence).includes(fixed));
+  return kept.length === 0 ? userEntry : kept.join(" ");
+}
+
+function squashForMatch(text: string): string {
+  return text.replace(/\s+/g, "").replace(/[.!?。！？]+$/u, "");
 }
 
 const TYPE_RULES: Record<OfficialUserRelationType, string> = {
