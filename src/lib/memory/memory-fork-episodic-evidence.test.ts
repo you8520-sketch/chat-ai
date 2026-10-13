@@ -396,6 +396,59 @@ describe("fork keeps episodic evidence bound to the child chat's own messages", 
     assert.equal(JSON.parse(rows[1]!.metadata).assistant_message_id, map.get(turn.assistantId));
   });
 
+  it("fails closed when the child-message lookup throws: no verified row keeps the parent's evidence id", () => {
+    const parent = newChat();
+    const breakup = addTurn(parent, BREAKUP.quote, "라이크는 말없이 시선을 떨궜다.");
+    const claim = addTurn(parent, "시장에 다녀왔어.", `"${SISTER_CLAIM.quote}"`);
+    remember(parent, breakup, BREAKUP);
+    remember(parent, claim, SISTER_CLAIM);
+    getDb()
+      .prepare(
+        `INSERT INTO episodic_memory_facts
+          (chat_id, character_id, user_id, source_turn, source_user_message_id, category, subject, attribute, value, importance, fact_text, metadata)
+         VALUES (?, ?, ?, 1, ?, 'item', '레온', 'legacy', 'v', 'important', '레거시 사실', ?)`
+      )
+      .run(parent, CHAR, USER, breakup.userId, JSON.stringify({ assistant_message_id: breakup.assistantId }));
+    const child = newChat();
+    const map = forkMessages(parent, child);
+
+    const realDb = getDb();
+    const lookupFails = new Proxy(realDb, {
+      get(target, prop, receiver) {
+        if (prop === "prepare") {
+          return (sql: string) => {
+            if (/FROM messages/i.test(sql)) throw new Error("simulated child message lookup failure");
+            return target.prepare(sql);
+          };
+        }
+        const value = Reflect.get(target, prop, receiver);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+    const copied = copyForkEpisodicMemoryFacts(lookupFails, {
+      sourceChatId: parent,
+      newChatId: child,
+      forkTurnCount: 200,
+      parentResetAfterMessageId: null,
+      messageIdMap: map,
+    });
+
+    const rows = factRows(child);
+    const parentIds = new Set([breakup.userId, claim.assistantId]);
+    assert.equal(
+      rows.some((row) => {
+        const evidence = readVerifiedEvidence(row.metadata);
+        return evidence != null && parentIds.has(evidence.message_id);
+      }),
+      false,
+      "no copied row may carry a parent evidence.message_id"
+    );
+    assert.equal(rows.filter((row) => readVerifiedEvidence(row.metadata) != null).length, 0);
+    assert.equal(copied, 1, "only the legacy row is copied");
+    assert.equal(rows[0]!.fact_text, "레거시 사실");
+    assert.equal(factRows(parent).length, 3, "parent rows are untouched");
+  });
+
   it("regen/delete invalidation still reaches the child's rows through the remapped assistant id", () => {
     const parent = newChat();
     const turn = addTurn(parent, BREAKUP.quote, "라이크는 말없이 시선을 떨궜다.");
