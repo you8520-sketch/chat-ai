@@ -1,6 +1,6 @@
 import Module from "module";
 
-delete process.env.DISABLE_DERIVED_CACHE_WORKER;
+process.env.DISABLE_DERIVED_CACHE_WORKER = "0";
 
 const originalLoad = Module._load;
 Module._load = function (request, parent, isMain) {
@@ -121,7 +121,7 @@ describe("derived cache wakeup scheduler", { concurrency: 1 }, () => {
   afterEach(() => {
     mock.timers.reset();
     __testOnly_resetDerivedCacheWakeupState();
-    delete process.env.DISABLE_DERIVED_CACHE_WORKER;
+    process.env.DISABLE_DERIVED_CACHE_WORKER = "0";
     delete process.env.TRPG_SANDBOX_DIRECTOR_ENABLED;
   });
 

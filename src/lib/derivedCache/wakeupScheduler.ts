@@ -4,6 +4,7 @@ import { getDb } from "@/lib/db";
 import {
   drainDerivedCacheJobs,
   getDerivedCacheNextWakeDelayMs,
+  isDerivedCacheWorkerDisabled,
 } from "@/lib/derivedCache/jobs";
 
 let wakeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -14,10 +15,6 @@ let defaultMaxJobs = 3;
 type DrainExecutor = (maxJobs: number) => Promise<number>;
 let drainExecutor: DrainExecutor = drainDerivedCacheJobs;
 let onWakeTimerFireForTests: (() => void) | null = null;
-
-export function isDerivedCacheWorkerDisabled(): boolean {
-  return process.env.DISABLE_DERIVED_CACHE_WORKER === "1";
-}
 
 function logSchedulerDrainFailure(err: unknown): void {
   console.warn(
@@ -117,7 +114,9 @@ export function requestDerivedCacheWake(maxJobs = defaultMaxJobs): void {
 /** Start durable queue wakeup after HTTP listen — non-blocking for server ready. */
 export function startDerivedCacheWakeup(): void {
   if (isDerivedCacheWorkerDisabled()) {
-    console.log("[server] derived cache worker disabled (DISABLE_DERIVED_CACHE_WORKER=1)");
+    console.log(
+      "[server] derived cache worker disabled (non-production default; set DISABLE_DERIVED_CACHE_WORKER=0 to run it)"
+    );
     return;
   }
   console.log("[derivedCache] wakeup scheduler started");

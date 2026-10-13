@@ -318,11 +318,24 @@ export function completeDerivedCacheJob(
 }
 
 /**
+ * Single owner of worker enablement. Production keeps the automatic worker unless
+ * `DISABLE_DERIVED_CACHE_WORKER=1`. Any other environment (dev server, tests) is off
+ * unless a developer opts in with `DISABLE_DERIVED_CACHE_WORKER=0`, so restarting a dev
+ * server never drains a stored queue against a paid provider by accident.
+ */
+export function isDerivedCacheWorkerDisabled(): boolean {
+  const flag = process.env.DISABLE_DERIVED_CACHE_WORKER;
+  if (flag === "1") return true;
+  if (flag === "0") return false;
+  return process.env.NODE_ENV !== "production";
+}
+
+/**
  * Request an earlier derived-cache drain via the canonical wakeup scheduler.
  * Durability owner is SQLite queue; this only schedules execution.
  */
 export function kickDerivedCacheWorker(maxJobs = 3): void {
-  if (process.env.DISABLE_DERIVED_CACHE_WORKER === "1") return;
+  if (isDerivedCacheWorkerDisabled()) return;
   void import("@/lib/derivedCache/wakeupScheduler")
     .then(({ requestDerivedCacheWake }) => {
       requestDerivedCacheWake(maxJobs);
