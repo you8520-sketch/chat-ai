@@ -1,6 +1,6 @@
 /**
- * Public #1466 preapproval fingerprints (plus the #1587 successor baseline
- * below) only. No request bodies, no secrets.
+ * Public #1466 preapproval fingerprints (plus the #1587 and #1602/#1595
+ * successor baselines below) only. No request bodies, no secrets.
  * Live deployed reseal must rematch identity / body / wire / provider / canon /
  * uncapped fields. Manifest fingerprint rotation after a deploy SHA change is
  * expected and is not body drift.
@@ -212,6 +212,77 @@ const PUBLISHED_1587_PACING_CALL_FINGERPRINTS: Readonly<
   },
 };
 
+/**
+ * Latest canonical baseline. Two intentional, separately merged input changes
+ * moved every call after #1587 (identity, provider, wire model, canon mode and
+ * the absent `max_tokens` are all unchanged):
+ * - #1602 removed the false cold-start Scene Momentum block from the DeepSeek
+ *   user message (orders 1, 5, 9).
+ * - #1595 raised the RP setting source cap so the previously cut tail of the
+ *   character's dialogue examples and SPEECH CONSISTENCY block reaches the
+ *   Gemini / GPT / Opus system prompt (orders 2-4, 6-8, 10-12).
+ * Pinned from the deployed read-only reseal at this SHA. #1466 / #1587 stay as
+ * historical evidence; the live dispatch gate compares against this seal only.
+ * `manifestFingerprint` is the A_relationship_emotion-scoped manifest.
+ */
+export const PUBLISHED_1602_1595_PRODUCTION_SHA =
+  "b7159ec6fe2aeea78c75d1bdb5256adac32d93eb" as const;
+export const PUBLISHED_1602_1595_A_SCOPE_MANIFEST_FINGERPRINT =
+  "5d8546b748763c3da9acb8d4b596b22097f2f09c2ee0340b5ee609f387eafd6e" as const;
+
+const PUBLISHED_1602_1595_CALL_FINGERPRINTS: Readonly<
+  Record<number, { requestBodyFingerprint: string; finalWireFingerprint: string }>
+> = {
+  1: {
+    requestBodyFingerprint: "12afebe9eb9ca1040ceefdfa5e05e4c544b2b9d75cbf136a7857f140651395ed",
+    finalWireFingerprint: "b6f940eb15a3829e2b4cf87e20f505ec5bfa4280c6ab3f41403b845483196a64",
+  },
+  2: {
+    requestBodyFingerprint: "689df88f5677221748ca322a5b32158326a7e993e5a698947021306fcc950632",
+    finalWireFingerprint: "68e8e7702572ceb7390fbfbcbabc6eb2f5db8a1e548d4b542abbe11ec494151a",
+  },
+  3: {
+    requestBodyFingerprint: "3ab97dc5102d0518d63b7719f5475a8520349a0c00d313b6e57bb5bff6491dde",
+    finalWireFingerprint: "5184d8b32811ed4146259ee687a58a0e5e45b2a15ad557d79203d0a269a7cba7",
+  },
+  4: {
+    requestBodyFingerprint: "962e2d5213730f6ecbd14033a0bd4ba96ab677ef98d8e0f0af83213aab98e67a",
+    finalWireFingerprint: "fedb433182517415041001037c87dd98e54f715afce102be22eae7649d679a00",
+  },
+  5: {
+    requestBodyFingerprint: "d862e6e6bcffbe464475f4f34498d790aaebf234d02dee897375e029902885de",
+    finalWireFingerprint: "69a48e8dea9e463dbb6b05238978b3bdb184ef9fc2d783d91e44bb7539fa1615",
+  },
+  6: {
+    requestBodyFingerprint: "78416b7e1f4422e14042f823723eb8bc9390147778186835210ce0c3d2499274",
+    finalWireFingerprint: "d0656ed0c7f5844f432836d6604522ede39f807cb274877a6bdbe6b837b91413",
+  },
+  7: {
+    requestBodyFingerprint: "503e29430cab982f06c2aef06489b887ccc50b3cc40ca80f37cb63b72d0a46a6",
+    finalWireFingerprint: "247425e6e20050956d045d4f1b34eec4dbd3f7df781e366ed9c912d0e9dce1ad",
+  },
+  8: {
+    requestBodyFingerprint: "617f7f6507b1301117aa435a9be12dae82978d5c0e9d751d2c4e1f067489ffa5",
+    finalWireFingerprint: "71186b8312af50a40791a5c47965e711569974e07d4338aa36daf4d2a754fa45",
+  },
+  9: {
+    requestBodyFingerprint: "1eb718368070b3f6edd28e64168cf044e0afb0fa01982f0fc0e0dc81cb4c7d00",
+    finalWireFingerprint: "aecba24718190be5ec8df373f3c432952d0b894ccc5d85595933e361ad3b65a8",
+  },
+  10: {
+    requestBodyFingerprint: "529b023dfffed987e5fa54ec274c148b71b58cb387633e4f6adf6ffca2037fb8",
+    finalWireFingerprint: "d94bb5d57849d47e43bfc539572e8e3c8634f408e7ccb4964ade5c9d945057eb",
+  },
+  11: {
+    requestBodyFingerprint: "a263dd1c71f0b148bbe6672aca96636beef92186a8305c68851b7fb48a65b3e8",
+    finalWireFingerprint: "dbd1f34e54707b7dd1390643d769b7432407bfc4024d5406c8cb4e43446e5edd",
+  },
+  12: {
+    requestBodyFingerprint: "5430cf48b9ab6dffbb37d935482ffeb80674b78ef7c92526d1a6f29d7c9fad7d",
+    finalWireFingerprint: "119edb8991129b64a631864d5db8389689d2bbd1c140d9ae1b2c0dc5133efc78",
+  },
+};
+
 export type Published1466ComparableCall = {
   requestOrder: number;
   fixtureId: string;
@@ -272,6 +343,20 @@ export function published1587ComparableSeal(): Published1466ComparableSeal {
     calls: PUBLISHED_1466_CALLS.map((call) => ({
       ...call,
       ...PUBLISHED_1587_PACING_CALL_FINGERPRINTS[call.requestOrder],
+    })),
+  };
+}
+
+export function publishedCanonicalComparableSeal(): Published1466ComparableSeal {
+  return {
+    mainSha: PUBLISHED_1602_1595_PRODUCTION_SHA,
+    productionDeploySha: PUBLISHED_1602_1595_PRODUCTION_SHA,
+    identityHash: PUBLISHED_1466_IDENTITY_HASH,
+    identityHashes: { ...PUBLISHED_1466_IDENTITY_HASHES },
+    manifestFingerprint: PUBLISHED_1602_1595_A_SCOPE_MANIFEST_FINGERPRINT,
+    calls: PUBLISHED_1466_CALLS.map((call) => ({
+      ...call,
+      ...PUBLISHED_1602_1595_CALL_FINGERPRINTS[call.requestOrder],
     })),
   };
 }
@@ -380,6 +465,7 @@ export function compareToPublished1466Seal(
   return comparePaidRunnerPublicSeal(current, published1466ComparableSeal());
 }
 
+/** Historical #1466 -> #1587 chain, kept for evidence tests. Not the live gate. */
 export function compareToPublishedPaidRunnerSeals(
   current: Published1466ComparableSeal
 ): Published1466CompareResult {
@@ -387,4 +473,11 @@ export function compareToPublishedPaidRunnerSeals(
   if (vs1466.verdict !== "BODY_DRIFT") return vs1466;
   if (current.executionScope !== PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE) return vs1466;
   return comparePaidRunnerPublicSeal(current, published1587ComparableSeal());
+}
+
+/** The single live approval baseline: the latest canonical seal only. */
+export function compareToCanonicalPaidRunnerSeal(
+  current: Published1466ComparableSeal
+): Published1466CompareResult {
+  return comparePaidRunnerPublicSeal(current, publishedCanonicalComparableSeal());
 }

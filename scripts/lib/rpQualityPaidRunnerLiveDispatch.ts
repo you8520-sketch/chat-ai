@@ -28,7 +28,7 @@ import {
 import type { PaidRunnerReconcileKeys } from "@/lib/rpQualityPaidRunnerReconciliation";
 import {
   comparePaidRunnerPublicSeal,
-  compareToPublishedPaidRunnerSeals,
+  compareToCanonicalPaidRunnerSeal,
   paidRunnerPublicSealFromManifest,
   type Published1466ComparableSeal,
 } from "./rpQualityPaidRunnerPublished1466Seal";
@@ -55,7 +55,7 @@ export type PaidRunnerLiveDispatchReport = {
   historicalPlanningNotBudget: true;
   productionKeyFallbackForbidden: true;
   runtimeShaObserved: boolean;
-  sealCompareVerdict: ReturnType<typeof compareToPublishedPaidRunnerSeals>["verdict"] | null;
+  sealCompareVerdict: ReturnType<typeof compareToCanonicalPaidRunnerSeal>["verdict"] | null;
   executionOwner: typeof PAID_RUNNER_LIVE_EXECUTION_OWNER;
   providerInternalRetry: {
     clientPostRetry: 0;
@@ -283,7 +283,7 @@ export async function dispatchPaidRunnerLive(
   const currentSeal = paidRunnerPublicSealFromManifest(input.manifest);
   const compare = input.sealBaseline
     ? comparePaidRunnerPublicSeal(currentSeal, input.sealBaseline)
-    : compareToPublishedPaidRunnerSeals(currentSeal);
+    : compareToCanonicalPaidRunnerSeal(currentSeal);
   switch (compare.verdict) {
     case "MATCH":
     case "EXPECTED_DEPLOY_SHA_ROTATION":

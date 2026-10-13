@@ -31,11 +31,15 @@ import {
 } from "../../scripts/lib/rpQualityPaidRunnerInProcessPack";
 import {
   PUBLISHED_1587_A_SCOPE_MANIFEST_FINGERPRINT,
+  PUBLISHED_1602_1595_A_SCOPE_MANIFEST_FINGERPRINT,
+  PUBLISHED_1602_1595_PRODUCTION_SHA,
+  compareToCanonicalPaidRunnerSeal,
   compareToPublished1466Seal,
   compareToPublishedPaidRunnerSeals,
   paidRunnerPublicSealFromManifest,
   published1466ComparableSeal,
   published1587ComparableSeal,
+  publishedCanonicalComparableSeal,
   type Published1466ComparableSeal,
 } from "../../scripts/lib/rpQualityPaidRunnerPublished1466Seal";
 
@@ -401,6 +405,130 @@ describe("rp quality paid runner live dispatch boundary", () => {
       compareToPublishedPaidRunnerSeals({
         ...seal1587,
         identityHashes: { ...seal1587.identityHashes, worldSha256: "dd".repeat(32) },
+      }).verdict,
+      "BODY_DRIFT"
+    );
+  });
+
+  it("canonical seal: #1602/#1595 input changes are the only approved delta, everything else is drift", () => {
+    const base1466 = published1466ComparableSeal();
+    const base1587 = published1587ComparableSeal();
+    const canonical = publishedCanonicalComparableSeal();
+    assert.equal(canonical.productionDeploySha, "b7159ec6fe2aeea78c75d1bdb5256adac32d93eb");
+    assert.equal(canonical.productionDeploySha, PUBLISHED_1602_1595_PRODUCTION_SHA);
+    assert.equal(canonical.calls.length, 12);
+    assert.equal(canonical.identityHash, base1466.identityHash);
+    assert.deepEqual(canonical.identityHashes, base1466.identityHashes);
+
+    for (const [index, call] of canonical.calls.entries()) {
+      const old = base1466.calls[index]!;
+      assert.equal(call.requestOrder, old.requestOrder);
+      assert.equal(call.fixtureId, old.fixtureId);
+      assert.equal(call.canonicalId, old.canonicalId);
+      assert.equal(call.provider, old.provider);
+      assert.equal(call.wireModel, old.wireModel);
+      assert.equal(call.effectiveCanonMode, old.effectiveCanonMode);
+      assert.equal(call.maxTokensPresent, false);
+      assert.notEqual(call.requestBodyFingerprint, base1587.calls[index]!.requestBodyFingerprint, `order ${call.requestOrder}`);
+      assert.notEqual(call.finalWireFingerprint, base1587.calls[index]!.finalWireFingerprint, `order ${call.requestOrder}`);
+    }
+    assert.deepEqual(
+      canonical.calls.filter((call) => call.canonicalId === "deepseek-v4.1-flash").map((call) => call.requestOrder),
+      [1, 5, 9]
+    );
+
+    const draft = {
+      version: 1 as const,
+      mainSha: canonical.productionDeploySha,
+      productionDeploySha: canonical.productionDeploySha,
+      characterId: 18,
+      personaName: "렌",
+      identityHash: canonical.identityHash,
+      calls: canonical.calls,
+    };
+    assert.equal(
+      paidRunnerManifestFingerprint({ ...draft, executionScope: "A_relationship_emotion" } as never),
+      PUBLISHED_1602_1595_A_SCOPE_MANIFEST_FINGERPRINT
+    );
+    assert.equal(canonical.manifestFingerprint, PUBLISHED_1602_1595_A_SCOPE_MANIFEST_FINGERPRINT);
+
+    const scoped: Published1466ComparableSeal = { ...canonical, executionScope: "A_relationship_emotion" };
+    assert.equal(compareToCanonicalPaidRunnerSeal(scoped).verdict, "MATCH");
+    assert.equal(compareToCanonicalPaidRunnerSeal(canonical).verdict, "MATCH");
+
+    const laterDeploy = compareToCanonicalPaidRunnerSeal({
+      ...scoped,
+      productionDeploySha: MAIN_SHA,
+      mainSha: MAIN_SHA,
+      manifestFingerprint: "ee".repeat(32),
+    });
+    assert.equal(laterDeploy.verdict, "EXPECTED_DEPLOY_SHA_ROTATION");
+    assert.equal(laterDeploy.bodyDrift, false);
+    assert.equal(
+      compareToCanonicalPaidRunnerSeal({ ...scoped, manifestFingerprint: "ee".repeat(32) }).verdict,
+      "UNEXPECTED_FINGERPRINT_ROTATION"
+    );
+
+    assert.equal(
+      compareToCanonicalPaidRunnerSeal({ ...base1587, executionScope: "A_relationship_emotion" }).verdict,
+      "BODY_DRIFT"
+    );
+    assert.equal(
+      compareToCanonicalPaidRunnerSeal({ ...base1466, executionScope: "A_relationship_emotion" }).verdict,
+      "BODY_DRIFT"
+    );
+    assert.equal(compareToCanonicalPaidRunnerSeal(base1466).verdict, "BODY_DRIFT");
+    assert.equal(compareToPublished1466Seal(scoped).verdict, "BODY_DRIFT");
+    assert.equal(compareToPublishedPaidRunnerSeals(scoped).verdict, "BODY_DRIFT");
+
+    const mixed: Published1466ComparableSeal = {
+      ...scoped,
+      calls: scoped.calls.map((call, index) => (call.fixtureId[0] === "C" ? base1587.calls[index]! : call)),
+    };
+    assert.equal(compareToCanonicalPaidRunnerSeal(mixed).verdict, "BODY_DRIFT");
+
+    const tamper = (
+      order: number,
+      patch: Partial<Published1466ComparableSeal["calls"][number]>
+    ): Published1466ComparableSeal => ({
+      ...scoped,
+      calls: scoped.calls.map((call) => (call.requestOrder === order ? { ...call, ...patch } : call)),
+    });
+    const flipLastChar = (value: string) => `${value.slice(0, -1)}${value.endsWith("0") ? "1" : "0"}`;
+    for (const call of scoped.calls) {
+      assert.equal(
+        compareToCanonicalPaidRunnerSeal(
+          tamper(call.requestOrder, { requestBodyFingerprint: flipLastChar(call.requestBodyFingerprint) })
+        ).verdict,
+        "BODY_DRIFT",
+        `body order ${call.requestOrder}`
+      );
+      assert.equal(
+        compareToCanonicalPaidRunnerSeal(
+          tamper(call.requestOrder, { finalWireFingerprint: flipLastChar(call.finalWireFingerprint) })
+        ).verdict,
+        "BODY_DRIFT",
+        `wire order ${call.requestOrder}`
+      );
+    }
+    assert.equal(compareToCanonicalPaidRunnerSeal(tamper(2, { provider: "cheaperinference" })).verdict, "BODY_DRIFT");
+    assert.equal(compareToCanonicalPaidRunnerSeal(tamper(3, { wireModel: "gpt-other" })).verdict, "BODY_DRIFT");
+    assert.equal(compareToCanonicalPaidRunnerSeal(tamper(4, { canonicalId: "gpt-6.1-sol" })).verdict, "BODY_DRIFT");
+    assert.equal(compareToCanonicalPaidRunnerSeal(tamper(1, { effectiveCanonMode: "FULL_LEGACY" })).verdict, "BODY_DRIFT");
+    assert.equal(compareToCanonicalPaidRunnerSeal(tamper(1, { maxTokensPresent: true })).verdict, "BODY_DRIFT");
+    assert.equal(compareToCanonicalPaidRunnerSeal(tamper(6, { fixtureId: "A_relationship_emotion" })).verdict, "BODY_DRIFT");
+    assert.equal(
+      compareToCanonicalPaidRunnerSeal({ ...scoped, calls: scoped.calls.slice(0, 4) }).verdict,
+      "BODY_DRIFT"
+    );
+    assert.equal(
+      compareToCanonicalPaidRunnerSeal({ ...scoped, identityHash: "dd".repeat(32) }).verdict,
+      "BODY_DRIFT"
+    );
+    assert.equal(
+      compareToCanonicalPaidRunnerSeal({
+        ...scoped,
+        identityHashes: { ...scoped.identityHashes, settingChunksSha256: "dd".repeat(32) },
       }).verdict,
       "BODY_DRIFT"
     );
