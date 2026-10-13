@@ -929,7 +929,11 @@ export default function PersonaClient({
                 draftGender === value ? studioSurface.choiceActive : studioSurface.choiceIdle
               )}
             >
-              {draftGender === value ? "✓ " : ""}
+              {draftGender === value ? (
+                <span aria-hidden="true" className="mr-1">
+                  ✓
+                </span>
+              ) : null}
               {GENDER_LABELS[value]}
             </button>
           ))}
