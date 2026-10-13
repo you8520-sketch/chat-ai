@@ -5,7 +5,7 @@ Evidence only. No application code lives on this branch.
 | Item | SHA |
 | --- | --- |
 | BEFORE (base of both candidates) | `d981d1c0a3aa1e2f8b4264df9b3dba847d6aeb8e` |
-| Candidate A `cursor/creator-editor-e4-3f-cand-a-78cc` equivalent (old A head, not selected) | `ac243b0c9276ca2c22281aa573a8ffb1e25ed92a` |
+| Candidate A (earlier head of `cursor/creator-editor-e4-3f-78cc`, not selected) | `ac243b0c9276ca2c22281aa573a8ffb1e25ed92a` |
 | Candidate B selected, previous PR head (`cursor/creator-editor-e4-3f-cand-b-78cc`) | `d2262e17f27cc1be2d022ad55b37e432c0644ae2` |
 | Final PR head `cursor/creator-editor-e4-3f-78cc` (B + completion-copy fix) | `708ed27ad2b758eff4573b567ca1351383e704f3` |
 
