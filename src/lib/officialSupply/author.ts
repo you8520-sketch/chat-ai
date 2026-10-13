@@ -80,6 +80,12 @@ import {
 import { isOfficialImageSubjects } from "@/lib/officialSupply/imageSubjects";
 import { coerceMarketFitBrief } from "@/lib/officialSupply/marketFit";
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
+import {
+  coerceUserRelationPlan,
+  FREE_USER_RELATION_PLAN,
+  type OfficialUserRelationPlan,
+  type OfficialUserRelationType,
+} from "@/lib/officialSupply/userRelationStart";
 import { validateStyleProposal } from "@/lib/officialSupply/style";
 import {
   OFFICIAL_BACKGROUND_EXTRAS,
@@ -614,6 +620,7 @@ function coercePortfolioBriefs(
       speechDirection: typeof brief.speechDirection === "string" ? brief.speechDirection : "",
       audience,
       marketFit: coerceMarketFitBrief(brief.marketFit),
+      ...(brief.userRelation != null ? { userRelation: coerceUserRelationPlan(brief.userRelation) } : {}),
     };
   });
 }
@@ -1011,10 +1018,11 @@ export async function generateOfficialCharacterBible(input: {
   completions: [OfficialAuthorRawCompletion, OfficialAuthorRawCompletion, OfficialAuthorRawCompletion];
   npcRelationRepairs: OfficialAuthorRawCompletion[];
 }> {
+  const userRelation: OfficialUserRelationPlan = input.part1.brief.userRelation ?? FREE_USER_RELATION_PLAN;
   const first = await input.transport.completeJson({
     task: "character_bible_1",
     system: buildCharacterBible1System(),
-    user: buildCharacterBible1User(input.part1),
+    user: buildCharacterBible1User({ ...input.part1, brief: { ...input.part1.brief, userRelation } }),
     schemaName: "official_character_bible_1",
     schema: CHARACTER_BIBLE_1_SCHEMA,
     modelId: input.modelId,
@@ -1026,7 +1034,7 @@ export async function generateOfficialCharacterBible(input: {
   const second = await input.transport.completeJson({
     task: "character_bible_voice",
     system: buildCharacterVoiceSystem(),
-    user: buildCharacterVoiceUser({ ...input.voice, part1Recap: input.voice.part1Recap ?? recap }),
+    user: buildCharacterVoiceUser({ ...input.voice, userRelation: input.voice.userRelation ?? userRelation, part1Recap: input.voice.part1Recap ?? recap }),
     schemaName: "official_character_bible_voice",
     schema: CHARACTER_VOICE_SCHEMA,
     modelId: input.modelId,
@@ -1055,7 +1063,7 @@ export async function generateOfficialCharacterBible(input: {
   const third = await input.transport.completeJson({
     task: "character_bible_bonds",
     system: buildCharacterBondsSystem(),
-    user: buildCharacterBondsUser({ ...input.bonds, part1Recap: input.bonds.part1Recap ?? recap }),
+    user: buildCharacterBondsUser({ ...input.bonds, userRelation: input.bonds.userRelation ?? userRelation, part1Recap: input.bonds.part1Recap ?? recap }),
     schemaName: "official_character_bible_bonds",
     schema: CHARACTER_BONDS_SCHEMA,
     modelId: input.modelId,
@@ -1065,7 +1073,9 @@ export async function generateOfficialCharacterBible(input: {
     throw new OfficialSupplyGateError("author_shape_invalid", "character_bible_bonds: object required");
   }
 
-  const bible = assembleOfficialCharacterBible(half1, voiceHalf, bondsHalf);
+  const bible = assembleOfficialCharacterBible(half1, voiceHalf, bondsHalf, {
+    userRelationType: (input.bonds.userRelation ?? userRelation).type,
+  });
   return {
     bible: { ...bible, promptStandard: "compact_rp_v1" },
     completions: [first, second, third],
@@ -1076,13 +1086,21 @@ export async function generateOfficialCharacterBible(input: {
 function buildPart1Recap(half1: Record<string, unknown>): string {
   const identity = isRecord(half1.identity) ? half1.identity : {};
   const personality = isRecord(half1.personality) ? half1.personality : {};
+  const values = isRecord(half1.values) ? half1.values : {};
+  const situation = isRecord(half1.situation) ? half1.situation : {};
+  const desires = strArray(values.desires).join(" / ");
   return [
     typeof identity === "object" ? String(identity.name ?? "") : "",
     isRecord(personality) ? String(personality.behavioral ?? "").slice(0, 400) : "",
+    desires ? `욕망: ${desires}` : "",
+    typeof half1.contradiction === "string" && half1.contradiction ? `모순: ${half1.contradiction.slice(0, 160)}` : "",
+    typeof situation.personalSituation === "string" && situation.personalSituation
+      ? `현재 상황: ${situation.personalSituation.slice(0, 220)}`
+      : "",
   ]
     .filter(Boolean)
     .join("\n")
-    .slice(0, 800);
+    .slice(0, 1200);
 }
 
 function strArray(value: unknown): string[] {
@@ -1213,7 +1231,8 @@ export async function reviseOfficialAdultProfile(input: {
 export function assembleOfficialCharacterBible(
   half1: Record<string, unknown>,
   voiceHalf: Record<string, unknown>,
-  bondsHalf: Record<string, unknown>
+  bondsHalf: Record<string, unknown>,
+  opts: { userRelationType?: OfficialUserRelationType } = {}
 ): OfficialCharacterBible {
   const task = "character_bible_1";
   const voiceTask = "character_bible_voice";
@@ -1228,6 +1247,7 @@ export function assembleOfficialCharacterBible(
   const speech = isRecord(voiceHalf.speech) ? voiceHalf.speech : {};
   const userRelationship = isRecord(bondsHalf.userRelationship) ? bondsHalf.userRelationship : {};
   const rpEngine = isRecord(bondsHalf.rpEngine) ? bondsHalf.rpEngine : {};
+  const selfDrive = isRecord(rpEngine.selfDrive) ? rpEngine.selfDrive : {};
   const publicProfile = isRecord(voiceHalf.publicProfile) ? voiceHalf.publicProfile : {};
   const adultSection = isRecord(bondsHalf.adultSection) ? bondsHalf.adultSection : null;
   const nsfw = voiceHalf.nsfw === true || bondsHalf.nsfw === true;
@@ -1319,6 +1339,13 @@ export function assembleOfficialCharacterBible(
     },
     behaviorRules: strArray(voiceHalf.behaviorRules),
     userRelationship: {
+      ...(opts.userRelationType
+        ? {
+            type: opts.userRelationType,
+            fixedFacts: opts.userRelationType === "free" ? "" : String(userRelationship.fixedFacts ?? "").trim(),
+            userDecides: opts.userRelationType === "free" ? "" : String(userRelationship.userDecides ?? "").trim(),
+          }
+        : {}),
       initialView: String(userRelationship.initialView ?? ""),
       userRole: String(userRelationship.userRole ?? ""),
       startingPoint: String(userRelationship.startingPoint ?? ""),
@@ -1338,6 +1365,15 @@ export function assembleOfficialCharacterBible(
       repeatable: strArray(rpEngine.repeatable),
       mediumConflict: String(rpEngine.mediumConflict ?? ""),
       longTermChange: String(rpEngine.longTermChange ?? ""),
+      ...(opts.userRelationType
+        ? {
+            selfDrive: {
+              goal: String(selfDrive.goal ?? "").trim(),
+              ownMove: String(selfDrive.ownMove ?? "").trim(),
+              setback: String(selfDrive.setback ?? "").trim(),
+            },
+          }
+        : {}),
     },
     greeting: typeof voiceHalf.greeting === "string" ? voiceHalf.greeting : "",
     publicProfile: {

@@ -238,7 +238,7 @@ function fakeHalf2(opts: { nsfw?: boolean; npcCount?: 0 | 1 | 3 | 4; age?: numbe
       initialView: "경계 대상",
       userRole: "황궁 출입이 허가된 협력자",
       startingPoint: "경계 70, 이해관계 30",
-      progression: ["경계", "이해관계", "개인적 신뢰", "충성 맹세"],
+      progression: ["협력하면 조사 범위를 함께 넓힌다", "거짓이 드러나면 거리를 두고 의심한다", "위기에서 몸으로 막아 주면 신뢰가 쌓인다"],
     },
     otherRelationships: [{ target: "마법사 리안", public: "협력 관계", privateOpinion: "믿음직하다", hidden: "" }],
     secrets: ["북부 전선 패전의 생존자"],
@@ -247,6 +247,11 @@ function fakeHalf2(opts: { nsfw?: boolean; npcCount?: 0 | 1 | 3 | 4; age?: numbe
       repeatable: ["새벽 연무 동행", "순찰 보고", "검 손질", "식사"],
       mediumConflict: "원로원의 기사단 해체 압력",
       longTermChange: "주군과의 신뢰가 깊어지며 충성의 의미가 바뀐다",
+      selfDrive: {
+        goal: "해체 위기의 기사단을 지킬 증거를 스스로 모은다",
+        ownMove: "비번 날 원로원 서고의 보급 기록을 직접 대조한다",
+        setback: "기록 조작이 드러나면 부하들이 대신 징계를 받는다",
+      },
     },
     greeting: CONTRACT_GREETING,
     publicProfile: {

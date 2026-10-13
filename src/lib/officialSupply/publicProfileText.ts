@@ -131,9 +131,23 @@ export type OfficialPublicIntroInput = {
   userRole: string;
   /** compact_rp_v1: prior user-character relationship comes from the user persona/dialogue, not the card. */
   personaFlexible?: boolean;
+  /** ROLE_BOUND / RELATIONSHIP_BOUND start: the fixed facts, so the auto intro does not claim the persona decides everything. */
+  fixedRelation?: string;
   /** GPT-authored public-page body. When present, skip auto-composition. */
   detailedDescription?: string;
 };
+
+/** Setting text says "유저"; the public page addresses the reader as 당신. */
+function addressUserAsPlayer(text: string): string {
+  return text
+    .replace(/유저(?:는|은)/g, "당신은")
+    .replace(/유저(?:가|이)/g, "당신이")
+    .replace(/유저를/g, "당신을")
+    .replace(/유저와/g, "당신과")
+    .replace(/유저의/g, "당신의")
+    .replace(/유저에게/g, "당신에게")
+    .replace(/유저/g, "당신");
+}
 
 function clipPhrase(text: string, maxChars: number): string {
   const phrase = completePhrase(text);
@@ -192,8 +206,12 @@ export function composeOfficialPublicDescription(input: OfficialPublicIntroInput
     .join(" / ");
   const publicBackground =
     firstSentence(input.situation.personalSituation, 140) || firstSentence(id.worldRole, 90);
-  const userRole = firstSentence(input.userRole, 80);
-  const relationLine = input.personaFlexible
+  const fixedRelationForPublic = input.fixedRelation?.trim() ? addressUserAsPlayer(input.fixedRelation) : "";
+  const userRole = fixedRelationForPublic ? "" : firstSentence(input.userRole, 80);
+  const fixedRelation = input.fixedRelation?.trim() ? clipPhrase(addressUserAsPlayer(input.fixedRelation), 110) : "";
+  const relationLine = fixedRelation
+    ? `고정된 설정: ${fixedRelation}. 이 설정이 어떤 신뢰·감정으로 이어질지는 실제 선택에 따라 달라진다.`
+    : input.personaFlexible
     ? "기존 관계는 페르소나 설정을 따르며, 현재 사건에서의 신뢰·협력·갈등은 실제 선택에 따라 달라진다."
     : input.relationshipTrope
       ? `가능한 관계: ${input.relationshipTrope}.`
@@ -393,8 +411,11 @@ function draftPlayGuideParts(draft: OfficialCharacterDraft): {
     choices.length > 0
       ? `${choices.join(" · ")} 같은 태도로 이 장면을 이어 갈 수 있습니다.`
       : "페르소나에 정한 태도 그대로 이 장면을 이어 가면 됩니다.";
-  const relation =
-    draft.promptStandard === "compact_rp_v1"
+  const fixedStart =
+    pickPrefixed(rel, "고정 배경") || pickPrefixed(rel, "고정 관계");
+  const relation = fixedStart
+    ? `고정된 설정: ${clipPhrase(fixedStart, 80)}. 감정과 결론은 실제 선택에 따라 달라집니다.`
+    : draft.promptStandard === "compact_rp_v1"
       ? "페르소나에 설정한 기존 관계를 우선합니다. 현재 사건에서의 협력·신뢰·갈등은 실제 대화와 선택에 따라 달라집니다."
       : [draft.hook.relationshipTrope, clipPhrase(userRole, 36)].filter(nonEmpty).join(" · ");
   return {
