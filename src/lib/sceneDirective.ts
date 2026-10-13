@@ -234,8 +234,32 @@ const QUIET_INTIMACY_TERMS = [
   "손 ",
 ];
 const CLIMAX_TERMS = ["결전", "최종", "붕괴", "배신", "대형 위기", "보스"];
-const DANGER_TERMS = ["공격", "폭발", "붕괴", "배신", "납치", "전투", "함정", "추락", "경보", "습격", "위험"];
+const DANGER_EVENT_TERMS = ["공격", "폭발", "붕괴", "배신", "납치", "전투", "함정", "추락", "경보", "습격"];
+/** Abstract state words ("위험과 긴장 속에") describe background, not an event: present turn only. */
+const DANGER_CONDITION_TERMS = ["위험"];
+const DANGER_TERMS = [...DANGER_EVENT_TERMS, ...DANGER_CONDITION_TERMS];
 const RELATIONSHIP_TERMS = ["연인", "고백", "질투", "미안", "괜찮", "걱정", "친구", "관계"];
+
+/**
+ * Operation / danger / climax words that the text itself marks as already over
+ * ("임무가 끝난 밤", "끝난 작전") are history, not a present scene signal.
+ */
+const CONCLUDED_EVENT_TERM_PATTERN = [...new Set([...OPERATION_TERMS, ...DANGER_TERMS, ...CLIMAX_TERMS])].join("|");
+const CONCLUSION_AFTER_TERM =
+  "(?:이|가|은|는|도|을|를)?\\s*(?:끝(?:난|나고|났|나서|나자)|마(?:친|치고|쳤|치자)|마무리(?:된|됐|되고)|종료(?:된|됐|되고)|완료(?:된|됐)|해결(?:된|됐)|이후|후(?=[\\s,.에]))";
+const CONCLUSION_BEFORE_TERM = "(?:끝난|마친|종료된|완료된|해결된|지난)\\s+";
+const CONCLUDED_EVENT_SPAN = new RegExp(
+  `(?:${CONCLUDED_EVENT_TERM_PATTERN})${CONCLUSION_AFTER_TERM}|${CONCLUSION_BEFORE_TERM}(?:${CONCLUDED_EVENT_TERM_PATTERN})`,
+  "g"
+);
+
+function stripConcludedEventSpans(text: string): string {
+  return text.replace(CONCLUDED_EVENT_SPAN, " ");
+}
+
+function stripDangerConditionTerms(text: string): string {
+  return DANGER_CONDITION_TERMS.reduce((acc, term) => acc.split(term).join(" "), text);
+}
 const DAILY_TERMS = ["식사", "잠", "집", "휴식", "회복", "정비"];
 const NPC_GROUND_TERMS = ["NPC", "동료", "상관", "담당", "방문객", "손님", "병사", "경비", "의사", "점원"];
 const COMEDY_BLOCK_TERMS = ["사망", "중상", "즉사", "대형 위기", "습격", "경보", "납치", "붕괴"];
@@ -530,18 +554,32 @@ export function resolveSceneKind(text: string): SceneKind {
   return "neutral";
 }
 
+function joinSceneSignal(
+  input: {
+    recentMessages?: ChatMsg[];
+    currentUserMessage?: string | null;
+    triggeredEventText?: string | null;
+  },
+  scopeHistoryConditionTerms: boolean
+): string {
+  const history = compactText(input.recentMessages);
+  return stripConcludedEventSpans(
+    [
+      scopeHistoryConditionTerms ? stripDangerConditionTerms(history) : history,
+      input.currentUserMessage ?? "",
+      input.triggeredEventText ?? "",
+    ]
+      .filter(Boolean)
+      .join("\n")
+  );
+}
+
 export function buildSceneSignalText(input: {
   recentMessages?: ChatMsg[];
   currentUserMessage?: string | null;
   triggeredEventText?: string | null;
 }): string {
-  return [
-    compactText(input.recentMessages),
-    input.currentUserMessage ?? "",
-    input.triggeredEventText ?? "",
-  ]
-    .filter(Boolean)
-    .join("\n");
+  return joinSceneSignal(input, true);
 }
 
 export function buildGroundingText(input: {
@@ -560,9 +598,8 @@ export function selectSceneIntensity(input: {
   triggeredEventText?: string | null;
   recentStagnation?: boolean;
 }): 0 | 1 | 2 | 3 | 4 | 5 {
-  const text = buildSceneSignalText(input);
-  const kind = resolveSceneKind(text);
-  const recentHighIntensity = countMatches(text, DANGER_TERMS) >= 2;
+  const kind = resolveSceneKind(buildSceneSignalText(input));
+  const recentHighIntensity = countMatches(joinSceneSignal(input, false), DANGER_TERMS) >= 2;
 
   if (recentHighIntensity) return input.recentStagnation ? 1 : 0;
   if (kind === "rest") return input.recentStagnation ? 1 : 0;
