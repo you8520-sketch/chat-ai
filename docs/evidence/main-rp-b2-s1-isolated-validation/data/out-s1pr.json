@@ -1,0 +1,2743 @@
+{
+ "arm": "s1pr",
+ "hasS1": true,
+ "A_guards16": [
+  {
+   "persona": "persona",
+   "window": 1,
+   "chars": 121,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "persona",
+   "window": 6,
+   "chars": 95,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "persona",
+   "window": 11,
+   "chars": 50,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "persona",
+   "window": 16,
+   "chars": 45,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "persona",
+   "window": 21,
+   "chars": 86,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "persona",
+   "window": 26,
+   "chars": 54,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "persona",
+   "window": 31,
+   "chars": 38,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "persona",
+   "window": 36,
+   "chars": 83,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "persona",
+   "window": 41,
+   "chars": 45,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "persona",
+   "window": 46,
+   "chars": 59,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "persona",
+   "window": 51,
+   "chars": 45,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "persona",
+   "window": 56,
+   "chars": 37,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "persona",
+   "window": 61,
+   "chars": 65,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "persona",
+   "window": 66,
+   "chars": 44,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "persona",
+   "window": 71,
+   "chars": 43,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "persona",
+   "window": 76,
+   "chars": 45,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "no_persona",
+   "window": 1,
+   "chars": 121,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "no_persona",
+   "window": 6,
+   "chars": 95,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "no_persona",
+   "window": 11,
+   "chars": 50,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "no_persona",
+   "window": 16,
+   "chars": 45,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "no_persona",
+   "window": 21,
+   "chars": 86,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "no_persona",
+   "window": 26,
+   "chars": 54,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "no_persona",
+   "window": 31,
+   "chars": 38,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "no_persona",
+   "window": 36,
+   "chars": 83,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "no_persona",
+   "window": 41,
+   "chars": 45,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "no_persona",
+   "window": 46,
+   "chars": 59,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "no_persona",
+   "window": 51,
+   "chars": 45,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "no_persona",
+   "window": 56,
+   "chars": 37,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "no_persona",
+   "window": 61,
+   "chars": 65,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "no_persona",
+   "window": 66,
+   "chars": 44,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "no_persona",
+   "window": 71,
+   "chars": 43,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  },
+  {
+   "persona": "no_persona",
+   "window": 76,
+   "chars": 45,
+   "validateOk": true,
+   "validateReason": null,
+   "grounded": true,
+   "diagnose": null,
+   "sequencingOnlyCause": false
+  }
+ ],
+ "B_cases104": [
+  {
+   "id": "mentor-persona|short",
+   "family": "mentor-persona",
+   "variant": "short",
+   "window": 1,
+   "chars": 26,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "mentor-persona|long",
+   "family": "mentor-persona",
+   "variant": "long",
+   "window": 1,
+   "chars": 77,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-persona-2|short",
+   "family": "mentor-persona-2",
+   "variant": "short",
+   "window": 1,
+   "chars": 26,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "mentor-persona-2|long",
+   "family": "mentor-persona-2",
+   "variant": "long",
+   "window": 1,
+   "chars": 77,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-persona|short",
+   "family": "lover-persona",
+   "variant": "short",
+   "window": 1,
+   "chars": 20,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "lover-persona|long",
+   "family": "lover-persona",
+   "variant": "long",
+   "window": 1,
+   "chars": 71,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-persona-2|short",
+   "family": "lover-persona-2",
+   "variant": "short",
+   "window": 1,
+   "chars": 17,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "lover-persona-2|long",
+   "family": "lover-persona-2",
+   "variant": "long",
+   "window": 1,
+   "chars": 68,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-nouser|short",
+   "family": "mentor-nouser",
+   "variant": "short",
+   "window": 1,
+   "chars": 24,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "mentor-nouser|long",
+   "family": "mentor-nouser",
+   "variant": "long",
+   "window": 1,
+   "chars": 75,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "friend-persona|short",
+   "family": "friend-persona",
+   "variant": "short",
+   "window": 1,
+   "chars": 21,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "friend-persona|long",
+   "family": "friend-persona",
+   "variant": "long",
+   "window": 1,
+   "chars": 72,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "mentor-family|short",
+   "family": "mentor-family",
+   "variant": "short",
+   "window": 1,
+   "chars": 26,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "mentor-family|long",
+   "family": "mentor-family",
+   "variant": "long",
+   "window": 1,
+   "chars": 77,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "lover-hardcue-no-iHu|short",
+   "family": "lover-hardcue-no-iHu",
+   "variant": "short",
+   "window": 1,
+   "chars": 21,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "lover-hardcue-no-iHu|long",
+   "family": "lover-hardcue-no-iHu",
+   "variant": "long",
+   "window": 1,
+   "chars": 72,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "lover-그날|short",
+   "family": "lover-그날",
+   "variant": "short",
+   "window": 1,
+   "chars": 22,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "lover-그날|long",
+   "family": "lover-그날",
+   "variant": "long",
+   "window": 1,
+   "chars": 73,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "mentor-noiHu|short",
+   "family": "mentor-noiHu",
+   "variant": "short",
+   "window": 1,
+   "chars": 23,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "mentor-noiHu|long",
+   "family": "mentor-noiHu",
+   "variant": "long",
+   "window": 1,
+   "chars": 74,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-noiHu|short",
+   "family": "lover-noiHu",
+   "variant": "short",
+   "window": 1,
+   "chars": 17,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "lover-noiHu|long",
+   "family": "lover-noiHu",
+   "variant": "long",
+   "window": 1,
+   "chars": 68,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "scene-sequencing-ok|short",
+   "family": "scene-sequencing-ok",
+   "variant": "short",
+   "window": 1,
+   "chars": 19,
+   "legit": true,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "scene-sequencing-ok|long",
+   "family": "scene-sequencing-ok",
+   "variant": "long",
+   "window": 1,
+   "chars": 70,
+   "legit": true,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "user-promise-ok|short",
+   "family": "user-promise-ok",
+   "variant": "short",
+   "window": 1,
+   "chars": 53,
+   "legit": true,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "user-promise-ok|long",
+   "family": "user-promise-ok",
+   "variant": "long",
+   "window": 1,
+   "chars": 104,
+   "legit": true,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-persona|short",
+   "family": "mentor-persona",
+   "variant": "short",
+   "window": 11,
+   "chars": 26,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "mentor-persona|long",
+   "family": "mentor-persona",
+   "variant": "long",
+   "window": 11,
+   "chars": 77,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-persona-2|short",
+   "family": "mentor-persona-2",
+   "variant": "short",
+   "window": 11,
+   "chars": 26,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "mentor-persona-2|long",
+   "family": "mentor-persona-2",
+   "variant": "long",
+   "window": 11,
+   "chars": 77,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-persona|short",
+   "family": "lover-persona",
+   "variant": "short",
+   "window": 11,
+   "chars": 20,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "lover-persona|long",
+   "family": "lover-persona",
+   "variant": "long",
+   "window": 11,
+   "chars": 71,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-persona-2|short",
+   "family": "lover-persona-2",
+   "variant": "short",
+   "window": 11,
+   "chars": 17,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "lover-persona-2|long",
+   "family": "lover-persona-2",
+   "variant": "long",
+   "window": 11,
+   "chars": 68,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-nouser|short",
+   "family": "mentor-nouser",
+   "variant": "short",
+   "window": 11,
+   "chars": 24,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "mentor-nouser|long",
+   "family": "mentor-nouser",
+   "variant": "long",
+   "window": 11,
+   "chars": 75,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "friend-persona|short",
+   "family": "friend-persona",
+   "variant": "short",
+   "window": 11,
+   "chars": 21,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "friend-persona|long",
+   "family": "friend-persona",
+   "variant": "long",
+   "window": 11,
+   "chars": 72,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "mentor-family|short",
+   "family": "mentor-family",
+   "variant": "short",
+   "window": 11,
+   "chars": 26,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "mentor-family|long",
+   "family": "mentor-family",
+   "variant": "long",
+   "window": 11,
+   "chars": 77,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "lover-hardcue-no-iHu|short",
+   "family": "lover-hardcue-no-iHu",
+   "variant": "short",
+   "window": 11,
+   "chars": 21,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "lover-hardcue-no-iHu|long",
+   "family": "lover-hardcue-no-iHu",
+   "variant": "long",
+   "window": 11,
+   "chars": 72,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "lover-그날|short",
+   "family": "lover-그날",
+   "variant": "short",
+   "window": 11,
+   "chars": 22,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "lover-그날|long",
+   "family": "lover-그날",
+   "variant": "long",
+   "window": 11,
+   "chars": 73,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "mentor-noiHu|short",
+   "family": "mentor-noiHu",
+   "variant": "short",
+   "window": 11,
+   "chars": 23,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "mentor-noiHu|long",
+   "family": "mentor-noiHu",
+   "variant": "long",
+   "window": 11,
+   "chars": 74,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-noiHu|short",
+   "family": "lover-noiHu",
+   "variant": "short",
+   "window": 11,
+   "chars": 17,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "lover-noiHu|long",
+   "family": "lover-noiHu",
+   "variant": "long",
+   "window": 11,
+   "chars": 68,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "scene-sequencing-ok|short",
+   "family": "scene-sequencing-ok",
+   "variant": "short",
+   "window": 11,
+   "chars": 19,
+   "legit": true,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "scene-sequencing-ok|long",
+   "family": "scene-sequencing-ok",
+   "variant": "long",
+   "window": 11,
+   "chars": 70,
+   "legit": true,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "user-promise-ok|short",
+   "family": "user-promise-ok",
+   "variant": "short",
+   "window": 11,
+   "chars": 53,
+   "legit": true,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "user-promise-ok|long",
+   "family": "user-promise-ok",
+   "variant": "long",
+   "window": 11,
+   "chars": 104,
+   "legit": true,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-persona|short",
+   "family": "mentor-persona",
+   "variant": "short",
+   "window": 21,
+   "chars": 26,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "mentor-persona|long",
+   "family": "mentor-persona",
+   "variant": "long",
+   "window": 21,
+   "chars": 77,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-persona-2|short",
+   "family": "mentor-persona-2",
+   "variant": "short",
+   "window": 21,
+   "chars": 26,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "mentor-persona-2|long",
+   "family": "mentor-persona-2",
+   "variant": "long",
+   "window": 21,
+   "chars": 77,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-persona|short",
+   "family": "lover-persona",
+   "variant": "short",
+   "window": 21,
+   "chars": 20,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "lover-persona|long",
+   "family": "lover-persona",
+   "variant": "long",
+   "window": 21,
+   "chars": 71,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-persona-2|short",
+   "family": "lover-persona-2",
+   "variant": "short",
+   "window": 21,
+   "chars": 17,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "lover-persona-2|long",
+   "family": "lover-persona-2",
+   "variant": "long",
+   "window": 21,
+   "chars": 68,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-nouser|short",
+   "family": "mentor-nouser",
+   "variant": "short",
+   "window": 21,
+   "chars": 24,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "mentor-nouser|long",
+   "family": "mentor-nouser",
+   "variant": "long",
+   "window": 21,
+   "chars": 75,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "friend-persona|short",
+   "family": "friend-persona",
+   "variant": "short",
+   "window": 21,
+   "chars": 21,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "friend-persona|long",
+   "family": "friend-persona",
+   "variant": "long",
+   "window": 21,
+   "chars": 72,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "mentor-family|short",
+   "family": "mentor-family",
+   "variant": "short",
+   "window": 21,
+   "chars": 26,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "mentor-family|long",
+   "family": "mentor-family",
+   "variant": "long",
+   "window": 21,
+   "chars": 77,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "lover-hardcue-no-iHu|short",
+   "family": "lover-hardcue-no-iHu",
+   "variant": "short",
+   "window": 21,
+   "chars": 21,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "lover-hardcue-no-iHu|long",
+   "family": "lover-hardcue-no-iHu",
+   "variant": "long",
+   "window": 21,
+   "chars": 72,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "lover-그날|short",
+   "family": "lover-그날",
+   "variant": "short",
+   "window": 21,
+   "chars": 22,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "lover-그날|long",
+   "family": "lover-그날",
+   "variant": "long",
+   "window": 21,
+   "chars": 73,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "mentor-noiHu|short",
+   "family": "mentor-noiHu",
+   "variant": "short",
+   "window": 21,
+   "chars": 23,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "mentor-noiHu|long",
+   "family": "mentor-noiHu",
+   "variant": "long",
+   "window": 21,
+   "chars": 74,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-noiHu|short",
+   "family": "lover-noiHu",
+   "variant": "short",
+   "window": 21,
+   "chars": 17,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "lover-noiHu|long",
+   "family": "lover-noiHu",
+   "variant": "long",
+   "window": 21,
+   "chars": 68,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "scene-sequencing-ok|short",
+   "family": "scene-sequencing-ok",
+   "variant": "short",
+   "window": 21,
+   "chars": 19,
+   "legit": true,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "scene-sequencing-ok|long",
+   "family": "scene-sequencing-ok",
+   "variant": "long",
+   "window": 21,
+   "chars": 70,
+   "legit": true,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "user-promise-ok|short",
+   "family": "user-promise-ok",
+   "variant": "short",
+   "window": 21,
+   "chars": 53,
+   "legit": true,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "user-promise-ok|long",
+   "family": "user-promise-ok",
+   "variant": "long",
+   "window": 21,
+   "chars": 104,
+   "legit": true,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-persona|short",
+   "family": "mentor-persona",
+   "variant": "short",
+   "window": 36,
+   "chars": 26,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "mentor-persona|long",
+   "family": "mentor-persona",
+   "variant": "long",
+   "window": 36,
+   "chars": 77,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-persona-2|short",
+   "family": "mentor-persona-2",
+   "variant": "short",
+   "window": 36,
+   "chars": 26,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "mentor-persona-2|long",
+   "family": "mentor-persona-2",
+   "variant": "long",
+   "window": 36,
+   "chars": 77,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-persona|short",
+   "family": "lover-persona",
+   "variant": "short",
+   "window": 36,
+   "chars": 20,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "lover-persona|long",
+   "family": "lover-persona",
+   "variant": "long",
+   "window": 36,
+   "chars": 71,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-persona-2|short",
+   "family": "lover-persona-2",
+   "variant": "short",
+   "window": 36,
+   "chars": 17,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "lover-persona-2|long",
+   "family": "lover-persona-2",
+   "variant": "long",
+   "window": 36,
+   "chars": 68,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-nouser|short",
+   "family": "mentor-nouser",
+   "variant": "short",
+   "window": 36,
+   "chars": 24,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "mentor-nouser|long",
+   "family": "mentor-nouser",
+   "variant": "long",
+   "window": 36,
+   "chars": 75,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "friend-persona|short",
+   "family": "friend-persona",
+   "variant": "short",
+   "window": 36,
+   "chars": 21,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "friend-persona|long",
+   "family": "friend-persona",
+   "variant": "long",
+   "window": 36,
+   "chars": 72,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "mentor-family|short",
+   "family": "mentor-family",
+   "variant": "short",
+   "window": 36,
+   "chars": 26,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "mentor-family|long",
+   "family": "mentor-family",
+   "variant": "long",
+   "window": 36,
+   "chars": 77,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "lover-hardcue-no-iHu|short",
+   "family": "lover-hardcue-no-iHu",
+   "variant": "short",
+   "window": 36,
+   "chars": 21,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "lover-hardcue-no-iHu|long",
+   "family": "lover-hardcue-no-iHu",
+   "variant": "long",
+   "window": 36,
+   "chars": 72,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "lover-그날|short",
+   "family": "lover-그날",
+   "variant": "short",
+   "window": 36,
+   "chars": 22,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "lover-그날|long",
+   "family": "lover-그날",
+   "variant": "long",
+   "window": 36,
+   "chars": 73,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "mentor-noiHu|short",
+   "family": "mentor-noiHu",
+   "variant": "short",
+   "window": 36,
+   "chars": 23,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "mentor-noiHu|long",
+   "family": "mentor-noiHu",
+   "variant": "long",
+   "window": 36,
+   "chars": 74,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-noiHu|short",
+   "family": "lover-noiHu",
+   "variant": "short",
+   "window": 36,
+   "chars": 17,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "lover-noiHu|long",
+   "family": "lover-noiHu",
+   "variant": "long",
+   "window": 36,
+   "chars": 68,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "scene-sequencing-ok|short",
+   "family": "scene-sequencing-ok",
+   "variant": "short",
+   "window": 36,
+   "chars": 19,
+   "legit": true,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "scene-sequencing-ok|long",
+   "family": "scene-sequencing-ok",
+   "variant": "long",
+   "window": 36,
+   "chars": 70,
+   "legit": true,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "user-promise-ok|short",
+   "family": "user-promise-ok",
+   "variant": "short",
+   "window": 36,
+   "chars": 53,
+   "legit": true,
+   "grounded": false,
+   "diagnose": "sparse_unanchored",
+   "outcome": "blocked(no_seal,frontier_stalls)"
+  },
+  {
+   "id": "user-promise-ok|long",
+   "family": "user-promise-ok",
+   "variant": "long",
+   "window": 36,
+   "chars": 104,
+   "legit": true,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-persona|xlong",
+   "family": "mentor-persona",
+   "variant": "xlong",
+   "window": 1,
+   "chars": 112,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-persona-2|xlong",
+   "family": "mentor-persona-2",
+   "variant": "xlong",
+   "window": 1,
+   "chars": 112,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-persona|xlong",
+   "family": "lover-persona",
+   "variant": "xlong",
+   "window": 1,
+   "chars": 106,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-persona-2|xlong",
+   "family": "lover-persona-2",
+   "variant": "xlong",
+   "window": 1,
+   "chars": 103,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-nouser|xlong",
+   "family": "mentor-nouser",
+   "variant": "xlong",
+   "window": 1,
+   "chars": 110,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "friend-persona|xlong",
+   "family": "friend-persona",
+   "variant": "xlong",
+   "window": 1,
+   "chars": 107,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "mentor-family|xlong",
+   "family": "mentor-family",
+   "variant": "xlong",
+   "window": 1,
+   "chars": 112,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "lover-hardcue-no-iHu|xlong",
+   "family": "lover-hardcue-no-iHu",
+   "variant": "xlong",
+   "window": 1,
+   "chars": 107,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "lover-그날|xlong",
+   "family": "lover-그날",
+   "variant": "xlong",
+   "window": 1,
+   "chars": 108,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "mentor-noiHu|xlong",
+   "family": "mentor-noiHu",
+   "variant": "xlong",
+   "window": 1,
+   "chars": 109,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-noiHu|xlong",
+   "family": "lover-noiHu",
+   "variant": "xlong",
+   "window": 1,
+   "chars": 103,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "scene-sequencing-ok|xlong",
+   "family": "scene-sequencing-ok",
+   "variant": "xlong",
+   "window": 1,
+   "chars": 105,
+   "legit": true,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "user-promise-ok|xlong",
+   "family": "user-promise-ok",
+   "variant": "xlong",
+   "window": 1,
+   "chars": 139,
+   "legit": true,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-persona|xlong",
+   "family": "mentor-persona",
+   "variant": "xlong",
+   "window": 11,
+   "chars": 112,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-persona-2|xlong",
+   "family": "mentor-persona-2",
+   "variant": "xlong",
+   "window": 11,
+   "chars": 112,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-persona|xlong",
+   "family": "lover-persona",
+   "variant": "xlong",
+   "window": 11,
+   "chars": 106,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-persona-2|xlong",
+   "family": "lover-persona-2",
+   "variant": "xlong",
+   "window": 11,
+   "chars": 103,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-nouser|xlong",
+   "family": "mentor-nouser",
+   "variant": "xlong",
+   "window": 11,
+   "chars": 110,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "friend-persona|xlong",
+   "family": "friend-persona",
+   "variant": "xlong",
+   "window": 11,
+   "chars": 107,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "mentor-family|xlong",
+   "family": "mentor-family",
+   "variant": "xlong",
+   "window": 11,
+   "chars": 112,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "lover-hardcue-no-iHu|xlong",
+   "family": "lover-hardcue-no-iHu",
+   "variant": "xlong",
+   "window": 11,
+   "chars": 107,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "lover-그날|xlong",
+   "family": "lover-그날",
+   "variant": "xlong",
+   "window": 11,
+   "chars": 108,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "mentor-noiHu|xlong",
+   "family": "mentor-noiHu",
+   "variant": "xlong",
+   "window": 11,
+   "chars": 109,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-noiHu|xlong",
+   "family": "lover-noiHu",
+   "variant": "xlong",
+   "window": 11,
+   "chars": 103,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "scene-sequencing-ok|xlong",
+   "family": "scene-sequencing-ok",
+   "variant": "xlong",
+   "window": 11,
+   "chars": 105,
+   "legit": true,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "user-promise-ok|xlong",
+   "family": "user-promise-ok",
+   "variant": "xlong",
+   "window": 11,
+   "chars": 139,
+   "legit": true,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-persona|xlong",
+   "family": "mentor-persona",
+   "variant": "xlong",
+   "window": 21,
+   "chars": 112,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-persona-2|xlong",
+   "family": "mentor-persona-2",
+   "variant": "xlong",
+   "window": 21,
+   "chars": 112,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-persona|xlong",
+   "family": "lover-persona",
+   "variant": "xlong",
+   "window": 21,
+   "chars": 106,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-persona-2|xlong",
+   "family": "lover-persona-2",
+   "variant": "xlong",
+   "window": 21,
+   "chars": 103,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-nouser|xlong",
+   "family": "mentor-nouser",
+   "variant": "xlong",
+   "window": 21,
+   "chars": 110,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "friend-persona|xlong",
+   "family": "friend-persona",
+   "variant": "xlong",
+   "window": 21,
+   "chars": 107,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "mentor-family|xlong",
+   "family": "mentor-family",
+   "variant": "xlong",
+   "window": 21,
+   "chars": 112,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "lover-hardcue-no-iHu|xlong",
+   "family": "lover-hardcue-no-iHu",
+   "variant": "xlong",
+   "window": 21,
+   "chars": 107,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "lover-그날|xlong",
+   "family": "lover-그날",
+   "variant": "xlong",
+   "window": 21,
+   "chars": 108,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "mentor-noiHu|xlong",
+   "family": "mentor-noiHu",
+   "variant": "xlong",
+   "window": 21,
+   "chars": 109,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-noiHu|xlong",
+   "family": "lover-noiHu",
+   "variant": "xlong",
+   "window": 21,
+   "chars": 103,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "scene-sequencing-ok|xlong",
+   "family": "scene-sequencing-ok",
+   "variant": "xlong",
+   "window": 21,
+   "chars": 105,
+   "legit": true,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "user-promise-ok|xlong",
+   "family": "user-promise-ok",
+   "variant": "xlong",
+   "window": 21,
+   "chars": 139,
+   "legit": true,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-persona|xlong",
+   "family": "mentor-persona",
+   "variant": "xlong",
+   "window": 36,
+   "chars": 112,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-persona-2|xlong",
+   "family": "mentor-persona-2",
+   "variant": "xlong",
+   "window": 36,
+   "chars": 112,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-persona|xlong",
+   "family": "lover-persona",
+   "variant": "xlong",
+   "window": 36,
+   "chars": 106,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-persona-2|xlong",
+   "family": "lover-persona-2",
+   "variant": "xlong",
+   "window": 36,
+   "chars": 103,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "mentor-nouser|xlong",
+   "family": "mentor-nouser",
+   "variant": "xlong",
+   "window": 36,
+   "chars": 110,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "friend-persona|xlong",
+   "family": "friend-persona",
+   "variant": "xlong",
+   "window": 36,
+   "chars": 107,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "mentor-family|xlong",
+   "family": "mentor-family",
+   "variant": "xlong",
+   "window": 36,
+   "chars": 112,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "lover-hardcue-no-iHu|xlong",
+   "family": "lover-hardcue-no-iHu",
+   "variant": "xlong",
+   "window": 36,
+   "chars": 107,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "lover-그날|xlong",
+   "family": "lover-그날",
+   "variant": "xlong",
+   "window": 36,
+   "chars": 108,
+   "legit": false,
+   "grounded": false,
+   "diagnose": "unsupported_user_linked_history",
+   "outcome": "unverified_seal(S1)"
+  },
+  {
+   "id": "mentor-noiHu|xlong",
+   "family": "mentor-noiHu",
+   "variant": "xlong",
+   "window": 36,
+   "chars": 109,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "lover-noiHu|xlong",
+   "family": "lover-noiHu",
+   "variant": "xlong",
+   "window": 36,
+   "chars": 103,
+   "legit": false,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "scene-sequencing-ok|xlong",
+   "family": "scene-sequencing-ok",
+   "variant": "xlong",
+   "window": 36,
+   "chars": 105,
+   "legit": true,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  },
+  {
+   "id": "user-promise-ok|xlong",
+   "family": "user-promise-ok",
+   "variant": "xlong",
+   "window": 36,
+   "chars": 139,
+   "legit": true,
+   "grounded": true,
+   "diagnose": null,
+   "outcome": "normal_seal(established_past)"
+  }
+ ],
+ "C_seal16_persona": {
+  "rounds": 16,
+  "frontier": 80,
+  "summarized_turn_count": 80,
+  "total_luna_calls": 16,
+  "normal": 16,
+  "unverified": 0,
+  "unsealed": 0,
+  "stalledAt": null,
+  "perWindow": [
+   {
+    "window": 1,
+    "sealed": true,
+    "label": "normal",
+    "chars": 121,
+    "luna_calls": 1
+   },
+   {
+    "window": 6,
+    "sealed": true,
+    "label": "normal",
+    "chars": 95,
+    "luna_calls": 1
+   },
+   {
+    "window": 11,
+    "sealed": true,
+    "label": "normal",
+    "chars": 50,
+    "luna_calls": 1
+   },
+   {
+    "window": 16,
+    "sealed": true,
+    "label": "normal",
+    "chars": 45,
+    "luna_calls": 1
+   },
+   {
+    "window": 21,
+    "sealed": true,
+    "label": "normal",
+    "chars": 86,
+    "luna_calls": 1
+   },
+   {
+    "window": 26,
+    "sealed": true,
+    "label": "normal",
+    "chars": 54,
+    "luna_calls": 1
+   },
+   {
+    "window": 31,
+    "sealed": true,
+    "label": "normal",
+    "chars": 38,
+    "luna_calls": 1
+   },
+   {
+    "window": 36,
+    "sealed": true,
+    "label": "normal",
+    "chars": 83,
+    "luna_calls": 1
+   },
+   {
+    "window": 41,
+    "sealed": true,
+    "label": "normal",
+    "chars": 45,
+    "luna_calls": 1
+   },
+   {
+    "window": 46,
+    "sealed": true,
+    "label": "normal",
+    "chars": 59,
+    "luna_calls": 1
+   },
+   {
+    "window": 51,
+    "sealed": true,
+    "label": "normal",
+    "chars": 45,
+    "luna_calls": 1
+   },
+   {
+    "window": 56,
+    "sealed": true,
+    "label": "normal",
+    "chars": 37,
+    "luna_calls": 1
+   },
+   {
+    "window": 61,
+    "sealed": true,
+    "label": "normal",
+    "chars": 65,
+    "luna_calls": 1
+   },
+   {
+    "window": 66,
+    "sealed": true,
+    "label": "normal",
+    "chars": 44,
+    "luna_calls": 1
+   },
+   {
+    "window": 71,
+    "sealed": true,
+    "label": "normal",
+    "chars": 43,
+    "luna_calls": 1
+   },
+   {
+    "window": 76,
+    "sealed": true,
+    "label": "normal",
+    "chars": 45,
+    "luna_calls": 1
+   }
+  ]
+ },
+ "C_seal16_nopersona": {
+  "rounds": 16,
+  "frontier": 80,
+  "summarized_turn_count": 80,
+  "total_luna_calls": 16,
+  "normal": 16,
+  "unverified": 0,
+  "unsealed": 0,
+  "stalledAt": null,
+  "perWindow": [
+   {
+    "window": 1,
+    "sealed": true,
+    "label": "normal",
+    "chars": 121,
+    "luna_calls": 1
+   },
+   {
+    "window": 6,
+    "sealed": true,
+    "label": "normal",
+    "chars": 95,
+    "luna_calls": 1
+   },
+   {
+    "window": 11,
+    "sealed": true,
+    "label": "normal",
+    "chars": 50,
+    "luna_calls": 1
+   },
+   {
+    "window": 16,
+    "sealed": true,
+    "label": "normal",
+    "chars": 45,
+    "luna_calls": 1
+   },
+   {
+    "window": 21,
+    "sealed": true,
+    "label": "normal",
+    "chars": 86,
+    "luna_calls": 1
+   },
+   {
+    "window": 26,
+    "sealed": true,
+    "label": "normal",
+    "chars": 54,
+    "luna_calls": 1
+   },
+   {
+    "window": 31,
+    "sealed": true,
+    "label": "normal",
+    "chars": 38,
+    "luna_calls": 1
+   },
+   {
+    "window": 36,
+    "sealed": true,
+    "label": "normal",
+    "chars": 83,
+    "luna_calls": 1
+   },
+   {
+    "window": 41,
+    "sealed": true,
+    "label": "normal",
+    "chars": 45,
+    "luna_calls": 1
+   },
+   {
+    "window": 46,
+    "sealed": true,
+    "label": "normal",
+    "chars": 59,
+    "luna_calls": 1
+   },
+   {
+    "window": 51,
+    "sealed": true,
+    "label": "normal",
+    "chars": 45,
+    "luna_calls": 1
+   },
+   {
+    "window": 56,
+    "sealed": true,
+    "label": "normal",
+    "chars": 37,
+    "luna_calls": 1
+   },
+   {
+    "window": 61,
+    "sealed": true,
+    "label": "normal",
+    "chars": 65,
+    "luna_calls": 1
+   },
+   {
+    "window": 66,
+    "sealed": true,
+    "label": "normal",
+    "chars": 44,
+    "luna_calls": 1
+   },
+   {
+    "window": 71,
+    "sealed": true,
+    "label": "normal",
+    "chars": 43,
+    "luna_calls": 1
+   },
+   {
+    "window": 76,
+    "sealed": true,
+    "label": "normal",
+    "chars": 45,
+    "luna_calls": 1
+   }
+  ]
+ },
+ "D_wire_T30_persona": {
+  "sealedWindows": 6,
+  "frontier": 30,
+  "stalledAt": null,
+  "wrapperPresent": true,
+  "events": {
+   "sword_promise_user": "established_past(LONG_TERM_MEMORY)",
+   "emotion_shy_1": "established_past(LONG_TERM_MEMORY)",
+   "romance_proposal": "established_past(LONG_TERM_MEMORY)",
+   "romance_acceptance_interpretive": "established_past(LONG_TERM_MEMORY)",
+   "sword_cancel_user": "established_past(LONG_TERM_MEMORY)",
+   "npc_seorin_action": "established_past(LONG_TERM_MEMORY)",
+   "sister_claim_character": "established_past(LONG_TERM_MEMORY)",
+   "coffee_action": "established_past(LONG_TERM_MEMORY)"
+  },
+  "chars": {
+   "current_memory": 583,
+   "medium": 0,
+   "unverified_section": 0,
+   "ltm_region": 721,
+   "system_prompt": 7393
+  },
+  "estimatedSystemTokens": 6654,
+  "rawHistory": {
+   "messages": 8,
+   "chars": 106,
+   "pool": 4
+  },
+  "totalWireChars": 7499,
+  "lunaCalls": 6,
+  "unverifiedBlockCount": 0,
+  "unverifiedSectionPreview": "",
+  "unverifiedInsideWrapper": false
+ },
+ "D_wire_T50_persona": {
+  "sealedWindows": 10,
+  "frontier": 50,
+  "stalledAt": null,
+  "wrapperPresent": true,
+  "events": {
+   "sword_promise_user": "established_past(LONG_TERM_MEMORY)",
+   "emotion_shy_1": "established_past(LONG_TERM_MEMORY)",
+   "romance_proposal": "established_past(LONG_TERM_MEMORY)",
+   "romance_acceptance_interpretive": "established_past(LONG_TERM_MEMORY)",
+   "sword_cancel_user": "established_past(LONG_TERM_MEMORY)",
+   "npc_seorin_action": "established_past(LONG_TERM_MEMORY)",
+   "sister_claim_character": "established_past(LONG_TERM_MEMORY)",
+   "coffee_action": "established_past(LONG_TERM_MEMORY)",
+   "walk_together": "established_past(LONG_TERM_MEMORY)",
+   "breakup_user": "established_past(LONG_TERM_MEMORY)"
+  },
+  "chars": {
+   "current_memory": 852,
+   "medium": 0,
+   "unverified_section": 0,
+   "ltm_region": 990,
+   "system_prompt": 7662
+  },
+  "estimatedSystemTokens": 6896,
+  "rawHistory": {
+   "messages": 8,
+   "chars": 108,
+   "pool": 4
+  },
+  "totalWireChars": 7770,
+  "lunaCalls": 10,
+  "unverifiedBlockCount": 0,
+  "unverifiedSectionPreview": "",
+  "unverifiedInsideWrapper": false
+ },
+ "D_wire_T80_persona": {
+  "sealedWindows": 16,
+  "frontier": 80,
+  "stalledAt": null,
+  "wrapperPresent": true,
+  "events": {
+   "sword_promise_user": "established_past(LONG_TERM_MEMORY)",
+   "emotion_shy_1": "established_past(LONG_TERM_MEMORY)",
+   "romance_proposal": "established_past(LONG_TERM_MEMORY)",
+   "romance_acceptance_interpretive": "established_past(LONG_TERM_MEMORY)",
+   "sword_cancel_user": "established_past(LONG_TERM_MEMORY)",
+   "npc_seorin_action": "established_past(LONG_TERM_MEMORY)",
+   "sister_claim_character": "established_past(LONG_TERM_MEMORY)",
+   "coffee_action": "established_past(LONG_TERM_MEMORY)",
+   "walk_together": "established_past(LONG_TERM_MEMORY)",
+   "breakup_user": "established_past(LONG_TERM_MEMORY)"
+  },
+  "chars": {
+   "current_memory": 1197,
+   "medium": 0,
+   "unverified_section": 0,
+   "ltm_region": 1335,
+   "system_prompt": 8007
+  },
+  "estimatedSystemTokens": 7207,
+  "rawHistory": {
+   "messages": 8,
+   "chars": 108,
+   "pool": 4
+  },
+  "totalWireChars": 8115,
+  "lunaCalls": 16,
+  "unverifiedBlockCount": 0,
+  "unverifiedSectionPreview": "",
+  "unverifiedInsideWrapper": false
+ },
+ "D_wire_T30_nopersona": {
+  "sealedWindows": 6,
+  "frontier": 30,
+  "stalledAt": null,
+  "wrapperPresent": true,
+  "events": {
+   "sword_promise_user": "established_past(LONG_TERM_MEMORY)",
+   "emotion_shy_1": "established_past(LONG_TERM_MEMORY)",
+   "romance_proposal": "established_past(LONG_TERM_MEMORY)",
+   "romance_acceptance_interpretive": "established_past(LONG_TERM_MEMORY)",
+   "sword_cancel_user": "established_past(LONG_TERM_MEMORY)",
+   "npc_seorin_action": "established_past(LONG_TERM_MEMORY)",
+   "sister_claim_character": "established_past(LONG_TERM_MEMORY)",
+   "coffee_action": "established_past(LONG_TERM_MEMORY)"
+  },
+  "chars": {
+   "current_memory": 583,
+   "medium": 0,
+   "unverified_section": 0,
+   "ltm_region": 721,
+   "system_prompt": 7393
+  },
+  "estimatedSystemTokens": 6654,
+  "rawHistory": {
+   "messages": 8,
+   "chars": 106,
+   "pool": 4
+  },
+  "totalWireChars": 7499,
+  "lunaCalls": 6,
+  "unverifiedBlockCount": 0,
+  "unverifiedSectionPreview": "",
+  "unverifiedInsideWrapper": false
+ },
+ "D_wire_T50_nopersona": {
+  "sealedWindows": 10,
+  "frontier": 50,
+  "stalledAt": null,
+  "wrapperPresent": true,
+  "events": {
+   "sword_promise_user": "established_past(LONG_TERM_MEMORY)",
+   "emotion_shy_1": "established_past(LONG_TERM_MEMORY)",
+   "romance_proposal": "established_past(LONG_TERM_MEMORY)",
+   "romance_acceptance_interpretive": "established_past(LONG_TERM_MEMORY)",
+   "sword_cancel_user": "established_past(LONG_TERM_MEMORY)",
+   "npc_seorin_action": "established_past(LONG_TERM_MEMORY)",
+   "sister_claim_character": "established_past(LONG_TERM_MEMORY)",
+   "coffee_action": "established_past(LONG_TERM_MEMORY)",
+   "walk_together": "established_past(LONG_TERM_MEMORY)",
+   "breakup_user": "established_past(LONG_TERM_MEMORY)"
+  },
+  "chars": {
+   "current_memory": 852,
+   "medium": 0,
+   "unverified_section": 0,
+   "ltm_region": 990,
+   "system_prompt": 7662
+  },
+  "estimatedSystemTokens": 6896,
+  "rawHistory": {
+   "messages": 8,
+   "chars": 108,
+   "pool": 4
+  },
+  "totalWireChars": 7770,
+  "lunaCalls": 10,
+  "unverifiedBlockCount": 0,
+  "unverifiedSectionPreview": "",
+  "unverifiedInsideWrapper": false
+ },
+ "D_wire_T80_nopersona": {
+  "sealedWindows": 16,
+  "frontier": 80,
+  "stalledAt": null,
+  "wrapperPresent": true,
+  "events": {
+   "sword_promise_user": "established_past(LONG_TERM_MEMORY)",
+   "emotion_shy_1": "established_past(LONG_TERM_MEMORY)",
+   "romance_proposal": "established_past(LONG_TERM_MEMORY)",
+   "romance_acceptance_interpretive": "established_past(LONG_TERM_MEMORY)",
+   "sword_cancel_user": "established_past(LONG_TERM_MEMORY)",
+   "npc_seorin_action": "established_past(LONG_TERM_MEMORY)",
+   "sister_claim_character": "established_past(LONG_TERM_MEMORY)",
+   "coffee_action": "established_past(LONG_TERM_MEMORY)",
+   "walk_together": "established_past(LONG_TERM_MEMORY)",
+   "breakup_user": "established_past(LONG_TERM_MEMORY)"
+  },
+  "chars": {
+   "current_memory": 1197,
+   "medium": 0,
+   "unverified_section": 0,
+   "ltm_region": 1335,
+   "system_prompt": 8007
+  },
+  "estimatedSystemTokens": 7207,
+  "rawHistory": {
+   "messages": 8,
+   "chars": 108,
+   "pool": 4
+  },
+  "totalWireChars": 8115,
+  "lunaCalls": 16,
+  "unverifiedBlockCount": 0,
+  "unverifiedSectionPreview": "",
+  "unverifiedInsideWrapper": false
+ },
+ "E_nonbypass": {
+  "grounding_only_x3": {
+   "sealed": true,
+   "luna_calls": 3,
+   "record": {
+    "label": "unverified_summary",
+    "kind": "main_canon",
+    "chars": 72
+   },
+   "lastError": "SUMMARY_NOT_GROUNDED"
+  },
+  "grounding_variants_x3": {
+   "sealed": true,
+   "luna_calls": 3,
+   "record": {
+    "label": "unverified_summary",
+    "kind": "main_canon",
+    "chars": 72
+   },
+   "lastError": "SUMMARY_NOT_GROUNDED"
+  },
+  "grounding_then_provider_error": {
+   "sealed": false,
+   "luna_calls": 3,
+   "record": null,
+   "lastError": "provider 503"
+  },
+  "grounding_then_timeout": {
+   "sealed": false,
+   "luna_calls": 3,
+   "record": null,
+   "lastError": "ETIMEDOUT"
+  },
+  "provider_error_x3": {
+   "sealed": false,
+   "luna_calls": 3,
+   "record": null,
+   "lastError": "provider 503"
+  },
+  "timeout_x3": {
+   "sealed": false,
+   "luna_calls": 3,
+   "record": null,
+   "lastError": "ETIMEDOUT"
+  },
+  "empty_x3": {
+   "sealed": false,
+   "luna_calls": 3,
+   "record": null,
+   "lastError": "SUMMARY_INVALID:SUMMARY_EMPTY"
+  },
+  "grounding_then_empty": {
+   "sealed": false,
+   "luna_calls": 3,
+   "record": null,
+   "lastError": "SUMMARY_NOT_GROUNDED"
+  },
+  "grounding_then_echo": {
+   "sealed": false,
+   "luna_calls": 3,
+   "record": null,
+   "lastError": "SUMMARY_INVALID:SUMMARY_INVALID"
+  },
+  "echo_x3": {
+   "sealed": false,
+   "luna_calls": 3,
+   "record": null,
+   "lastError": "SUMMARY_INVALID:SUMMARY_INVALID"
+  },
+  "ooc_marker_x3": {
+   "sealed": false,
+   "luna_calls": 3,
+   "record": null,
+   "lastError": "SUMMARY_INVALID:SUMMARY_INVALID"
+  },
+  "too_short_invalid_x3": {
+   "sealed": false,
+   "luna_calls": 3,
+   "record": null,
+   "lastError": "SUMMARY_INVALID:SUMMARY_INVALID"
+  },
+  "sparse_unanchored_x3": {
+   "sealed": false,
+   "luna_calls": 3,
+   "record": null,
+   "lastError": "SUMMARY_NOT_GROUNDED"
+  },
+  "grounding_then_invalid_short": {
+   "sealed": false,
+   "luna_calls": 3,
+   "record": null,
+   "lastError": "SUMMARY_INVALID:SUMMARY_INVALID"
+  },
+  "stale_epoch_bump_during_summary": {
+   "sealed": false,
+   "luna_calls": 3,
+   "record": null,
+   "lastError": "SUMMARY_NOT_GROUNDED"
+  },
+  "source_reset_boundary_during_summary": {
+   "sealed": false,
+   "luna_calls": 3,
+   "record": null,
+   "lastError": "SUMMARY_NOT_GROUNDED"
+  },
+  "branch_window_IF_turn": {
+   "sealed": false,
+   "luna_calls": 3,
+   "record": null,
+   "lastError": "SUMMARY_NOT_GROUNDED"
+  },
+  "preference_window": {
+   "sealed": false,
+   "luna_calls": 3,
+   "record": null,
+   "lastError": "SUMMARY_NOT_GROUNDED"
+  },
+  "plain_ooc_turn_in_window": {
+   "sealed": true,
+   "luna_calls": 3,
+   "record": {
+    "label": "unverified_summary",
+    "kind": "main_canon",
+    "chars": 72
+   },
+   "lastError": "SUMMARY_NOT_GROUNDED"
+  },
+  "main_adopt_window": {
+   "sealed": false,
+   "luna_calls": 3,
+   "record": null,
+   "lastError": "SUMMARY_NOT_GROUNDED"
+  },
+  "incomplete_window_4_turns": {
+   "sealed": false,
+   "luna_calls": 0,
+   "record": null
+  },
+  "flag_omitted": {
+   "sealed": false,
+   "luna_calls": 3,
+   "record": null
+  },
+  "regen_ungrounded_over_normal_row": {
+   "regenReturned": false,
+   "labelBefore": "normal",
+   "labelAfter": "normal",
+   "textUnchanged": true
+  }
+ },
+ "F1_compaction": {
+  "rounds": 30,
+  "frontier": 150,
+  "records": 30,
+  "labeledRows": 8,
+  "unverifiedCandidateWindows": 8,
+  "compactionCalls": 1,
+  "compactInputContainsUnverified": 0,
+  "globalProjectionKind": "global_compact",
+  "globalTextChars": 3076,
+  "globalContainsUnverified": 0,
+  "storedRecentSummaryContainsUnverified": 0,
+  "mediumChars": 7560,
+  "mediumContainsUnverified": 0,
+  "unverifiedBlockCount": 8,
+  "unverifiedBlockContainsAllLabeledProbes": 8,
+  "probesTotal": 8,
+  "episodicFactRows": 0,
+  "memoryMetaChanged": null
+ },
+ "F2_wire150": {
+  "projectionKind": "global_compact",
+  "wrapperPresent": true,
+  "labeledRows": 8,
+  "probesInsideWrapper": 0,
+  "probesInUnverifiedSection": 4,
+  "probesInRawOwnedRegion": 4,
+  "probesTotal": 8,
+  "chars": {
+   "current_memory": 3147,
+   "medium": 0,
+   "unverified": 504,
+   "ltm_region": 3285
+  },
+  "estimatedSystemTokens": 9417,
+  "rawHistory": {
+   "messages": 8,
+   "chars": 108,
+   "pool": 4
+  },
+  "excludeTurnStartGte": 67
+ },
+ "F3_edit_delete": {
+  "labelAfterEdit": "normal",
+  "userEditedFlag": true,
+  "editedTextInGlobalRebuild": true,
+  "editedTextInUnverifiedBlock": false,
+  "deletedRowInUnverifiedBlock": false,
+  "deletedRowInGlobalRebuild": false,
+  "markedInactive": true
+ },
+ "F4_variant_reconcile": {
+  "attempted": true,
+  "inactivated": 1,
+  "labeledRowsRemaining": 6,
+  "mirrorChars": 10013,
+  "mirrorContainsUnverified": 0
+ },
+ "F5_fork_regen": {
+  "labelsBeforeFork": [
+   {
+    "start": 1,
+    "label": "unverified_summary"
+   },
+   {
+    "start": 6,
+    "label": "normal"
+   }
+  ],
+  "copiedRows": 2,
+  "forkLabels": [
+   {
+    "start": 1,
+    "label": "unverified_summary"
+   },
+   {
+    "start": 6,
+    "label": "normal"
+   }
+  ],
+  "forkLorebookContainsUnverified": false,
+  "forkLorebookChars": 103,
+  "regenUngroundedReturned": false,
+  "labelAfterUngroundedRegen": "unverified_summary",
+  "regenGroundedReturned": true,
+  "labelAfterGroundedRegen": "normal",
+  "textAfterGroundedRegen": "렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주"
+ },
+ "F6_fork_route_sql_has_label_filter": true
+}

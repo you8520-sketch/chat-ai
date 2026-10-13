@@ -1,0 +1,8 @@
+#!/bin/bash
+# usage: run.sh <arm> <worktree> [only]
+arm=$1; wt=$2; only=$3
+cd /tmp/wt-$wt
+S1_ARM=$arm S1_OUT=/tmp/s1/out-$arm.json S1_ONLY=$only \
+S1_FIXTURE=/workspace/src/lib/memory/fixtures/rolling-summary-seal-stall.real-luna.json \
+S1_CASES=/tmp/wt-ev/docs/evidence/main-rp-b2-core-provenance-contract-audit/data/false-past-cases.json \
+node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test src/lib/memory/s1-isolated.test.ts

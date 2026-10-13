@@ -1,0 +1,625 @@
+TAP version 13
+# [database] runtime diagnostics {
+#   nodeEnv: '',
+#   nextPhase: '',
+#   cwd: '/tmp/wt-s1ctl',
+#   dataDir: '/tmp/wt-s1ctl/data',
+#   databasePath: '/tmp/wt-s1ctl/data/app.db',
+#   dataDirExists: true,
+#   dataDirIsMounted: false,
+#   productionRuntime: false
+# }
+# [memory-feature] ENABLED — memory prompt + background jobs active
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 79,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 1)'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 79,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 1)'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 79,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 1)'
+# }
+# [memory] 5턴 기억 기록 chat=930601 turns=1-5 (79ch → lorebook 0/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=930601 turns=6-10 (480ch → lorebook 488/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 11, next_end: 15 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 79,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 3)'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 79,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 3)'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 79,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 3)'
+# }
+# [memory] 5턴 기억 기록 chat=930601 turns=11-15 (79ch → lorebook 488/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=930601 turns=16-20 (480ch → lorebook 979/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 21, next_end: 25 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 79,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 5)'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 79,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 5)'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 79,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 5)'
+# }
+# [memory] 5턴 기억 기록 chat=930601 turns=21-25 (79ch → lorebook 979/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 26, next_end: 30 }
+# [memory] 5턴 기억 기록 chat=930601 turns=26-30 (480ch → lorebook 1470/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 31, next_end: 35 }
+# [memory] 5턴 기억 기록 chat=930601 turns=31-35 (480ch → lorebook 1961/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 36, next_end: 40 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 79,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 8)'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 79,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 8)'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 79,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 8)'
+# }
+# [memory] 5턴 기억 기록 chat=930601 turns=36-40 (79ch → lorebook 1961/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 41, next_end: 45 }
+# [memory] 5턴 기억 기록 chat=930601 turns=41-45 (480ch → lorebook 2452/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 46, next_end: 50 }
+# [memory] 5턴 기억 기록 chat=930601 turns=46-50 (484ch → lorebook 2947/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 51, next_end: 55 }
+# [memory] 5턴 기억 기록 chat=930601 turns=51-55 (484ch → lorebook 3442/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 56, next_end: 60 }
+# [memory] 5턴 기억 기록 chat=930601 turns=56-60 (484ch → lorebook 3937/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 61, next_end: 65 }
+# [memory] 5턴 기억 기록 chat=930601 turns=61-65 (484ch → lorebook 4432/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 66, next_end: 70 }
+# [memory] 5턴 기억 기록 chat=930601 turns=66-70 (484ch → lorebook 4927/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 71, next_end: 75 }
+# [memory] 5턴 기억 기록 chat=930601 turns=71-75 (484ch → lorebook 5422/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 76, next_end: 80 }
+# [memory] 5턴 기억 기록 chat=930601 turns=76-80 (484ch → lorebook 5917/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 81, next_end: 85 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 80,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 17)'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 80,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 17)'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 80,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 17)'
+# }
+# [memory] 5턴 기억 기록 chat=930601 turns=81-85 (80ch → lorebook 5917/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 86, next_end: 90 }
+# [memory] 5턴 기억 기록 chat=930601 turns=86-90 (484ch → lorebook 6412/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 91, next_end: 95 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 80,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 19)'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 80,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 19)'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 80,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 19)'
+# }
+# [memory] 5턴 기억 기록 chat=930601 turns=91-95 (80ch → lorebook 6412/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 96, next_end: 100 }
+# [memory] 5턴 기억 기록 chat=930601 turns=96-100 (484ch → lorebook 6908/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 101, next_end: 105 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 80,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 21)'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 80,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 21)'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 80,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 21)'
+# }
+# [memory] 5턴 기억 기록 chat=930601 turns=101-105 (80ch → lorebook 6908/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 106, next_end: 110 }
+# [memory] 5턴 기억 기록 chat=930601 turns=106-110 (484ch → lorebook 7405/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 111, next_end: 115 }
+# [memory] 5턴 기억 기록 chat=930601 turns=111-115 (484ch → lorebook 7902/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 116, next_end: 120 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 80,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 24)'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 80,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 24)'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 80,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 24)'
+# }
+# [memory] 5턴 기억 기록 chat=930601 turns=116-120 (80ch → lorebook 7902/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 121, next_end: 125 }
+# [memory] 5턴 기억 기록 chat=930601 turns=121-125 (484ch → lorebook 8399/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 126, next_end: 130 }
+# [memory] 5턴 기억 기록 chat=930601 turns=126-130 (484ch → lorebook 8896/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 131, next_end: 135 }
+# [memory] 5턴 기억 기록 chat=930601 turns=131-135 (484ch → lorebook 9393/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 136, next_end: 140 }
+# [memory] 5턴 기억 기록 chat=930601 turns=136-140 (484ch → lorebook 9890/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 141, next_end: 145 }
+# [memory] lorebook_compact {
+#   compression_complete: true,
+#   inputChars: 10387,
+#   outputChars: 2580,
+#   maxChars: 10000,
+#   targetChars: 10000
+# }
+# GLOBAL_COMPACT_EXECUTION {
+#   trigger: 'post_seal',
+#   mode: 'full_rebuild',
+#   committed: true,
+#   coveredThroughBefore: null,
+#   coveredThroughAfter: 145,
+#   compactInputChars: 10387,
+#   compactInputTokensEstimate: 9443,
+#   invalidReason: undefined
+# }
+# [memory] 5턴 기억 기록 chat=930601 turns=141-145 (484ch → lorebook 2579/10000ch compact=full_rebuild reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 146, next_end: 150 }
+# [memory] lorebook_compact {
+#   compression_complete: true,
+#   inputChars: 3076,
+#   outputChars: 3076,
+#   maxChars: 10000,
+#   targetChars: 10000
+# }
+# GLOBAL_COMPACT_EXECUTION {
+#   trigger: 'post_seal',
+#   mode: 'incremental_append',
+#   committed: true,
+#   coveredThroughBefore: 145,
+#   coveredThroughAfter: 150,
+#   compactInputChars: 3076,
+#   compactInputTokensEstimate: 2797,
+#   invalidReason: undefined
+# }
+# [memory] 5턴 기억 기록 chat=930601 turns=146-150 (484ch → lorebook 3076/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 151, next_end: 155 }
+# [memory] SUMMARY_BATCH_INCOMPLETE {
+#   chatId: 930601,
+#   batchStart: 151,
+#   have: 0,
+#   need: 5,
+#   playableCount: 150
+# }
+# [prompt-dedup-audit] {
+#   system_total_tokens: 9417,
+#   cache_rules_tokens: 3443,
+#   character_settings_tokens: 1170,
+#   dynamic_block_tokens: 4802,
+#   tracked_section_count: 9
+# }
+# [OpenRouter cache split] {
+#   cacheRulesTokens: 3443,
+#   characterTokens: 1170,
+#   dynamicTokens: 4802,
+#   dynamicLoreUserPrefixTokens: 1,
+#   cacheableTotal: 4613,
+#   cacheBreakpoints: 2,
+#   historyCacheTailExclude: 3
+# }
+# [DeepSeek context structure] {
+#   tags: {
+#     PERSONA: false,
+#     WORLD_LORE: false,
+#     LONG_TERM_MEMORY: true,
+#     CHAT_HISTORY: true
+#   },
+#   bottomReminderBeforeCurrentTurn: false,
+#   historyTurns: 8,
+#   chatHistoryPreview: '<CHAT_HISTORY>\\n' +
+#     'User: 오늘의 잡담 67\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 67번째 장작을 쌓았다.\\n' +
+#     '\\n' +
+#     'User: 오늘의 잡담 68\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 68번째 장작을 쌓았다.\\n' +
+#     '\\n' +
+#     'User: 오늘의 잡담 69\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 69번째 장작을 쌓았다.\\n' +
+#     '\\n' +
+#     'User: 오늘의 잡담 70\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 70번째 장작을',
+#   currentTurnPreview: '[CURRENT USER INPUT]\\n' +
+#     "The following is the user's completed input and the newest state of the scene.\\n" +
+#     'Current turn runtime'
+# }
+# [memory] reconcile after variant switch chat=930601 sourceTurn=107 inactivated=1 summarized=10
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] 5턴 기억 기록 chat=930601 turns=1-5 (72ch → lorebook 0/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=930601 turns=6-10 (95ch → lorebook 103/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 930601, batchStart: 11, have: 0, need: 5, playableCount: 10 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_NOT_GROUNDED' }
+# [memory] rolling summary rejected; retrying {
+#   chars: 121,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 121,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 121,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_NOT_GROUNDED' }
+# Subtest: S1 isolated validation arm=s1ctl
+    # Subtest: A. guards on the 16 real Luna windows (persona / no persona) + rejection reason
+    ok 1 - A. guards on the 16 real Luna windows (persona / no persona) + rejection reason
+      ---
+      duration_ms: 0.499993
+      ...
+    # Subtest: B. 104 counterexamples: guard verdict + S1 seal outcome class
+    ok 2 - B. 104 counterexamples: guard verdict + S1 seal outcome class
+      ---
+      duration_ms: 0.108198
+      ...
+    # Subtest: C. 16-window seal pipeline (persona), allowUnverified=true
+    ok 3 - C. 16-window seal pipeline (persona), allowUnverified=true
+      ---
+      duration_ms: 0.109843
+      ...
+    # Subtest: C. 16-window seal pipeline (no persona), allowUnverified=true
+    ok 4 - C. 16-window seal pipeline (no persona), allowUnverified=true
+      ---
+      duration_ms: 0.048537
+      ...
+    # Subtest: D. final wire T30 (persona)
+    ok 5 - D. final wire T30 (persona)
+      ---
+      duration_ms: 0.102799
+      ...
+    # Subtest: D. final wire T50 (persona)
+    ok 6 - D. final wire T50 (persona)
+      ---
+      duration_ms: 0.044087
+      ...
+    # Subtest: D. final wire T80 (persona)
+    ok 7 - D. final wire T80 (persona)
+      ---
+      duration_ms: 0.076862
+      ...
+    # Subtest: D. final wire T30 (no persona)
+    ok 8 - D. final wire T30 (no persona)
+      ---
+      duration_ms: 0.083597
+      ...
+    # Subtest: D. final wire T50 (no persona)
+    ok 9 - D. final wire T50 (no persona)
+      ---
+      duration_ms: 0.154772
+      ...
+    # Subtest: D. final wire T80 (no persona)
+    ok 10 - D. final wire T80 (no persona)
+      ---
+      duration_ms: 0.091882
+      ...
+    1..10
+ok 1 - S1 isolated validation arm=s1ctl
+  ---
+  duration_ms: 1.883323
+  type: 'suite'
+  ...
+# Subtest: S1 non-bypass matrix arm=s1ctl
+    # Subtest: E. grounding_only_x3
+    ok 1 - E. grounding_only_x3
+      ---
+      duration_ms: 0.170846
+      ...
+    # Subtest: E. grounding_variants_x3
+    ok 2 - E. grounding_variants_x3
+      ---
+      duration_ms: 0.035797
+      ...
+    # Subtest: E. grounding_then_provider_error
+    ok 3 - E. grounding_then_provider_error
+      ---
+      duration_ms: 0.0269
+      ...
+    # Subtest: E. grounding_then_timeout
+    ok 4 - E. grounding_then_timeout
+      ---
+      duration_ms: 0.025259
+      ...
+    # Subtest: E. provider_error_x3
+    ok 5 - E. provider_error_x3
+      ---
+      duration_ms: 0.023191
+      ...
+    # Subtest: E. timeout_x3
+    ok 6 - E. timeout_x3
+      ---
+      duration_ms: 0.023851
+      ...
+    # Subtest: E. empty_x3
+    ok 7 - E. empty_x3
+      ---
+      duration_ms: 0.029325
+      ...
+    # Subtest: E. grounding_then_empty
+    ok 8 - E. grounding_then_empty
+      ---
+      duration_ms: 0.025374
+      ...
+    # Subtest: E. grounding_then_echo
+    ok 9 - E. grounding_then_echo
+      ---
+      duration_ms: 0.022663
+      ...
+    # Subtest: E. echo_x3
+    ok 10 - E. echo_x3
+      ---
+      duration_ms: 0.023728
+      ...
+    # Subtest: E. ooc_marker_x3
+    ok 11 - E. ooc_marker_x3
+      ---
+      duration_ms: 0.024044
+      ...
+    # Subtest: E. too_short_invalid_x3
+    ok 12 - E. too_short_invalid_x3
+      ---
+      duration_ms: 0.024191
+      ...
+    # Subtest: E. sparse_unanchored_x3
+    ok 13 - E. sparse_unanchored_x3
+      ---
+      duration_ms: 0.02172
+      ...
+    # Subtest: E. grounding_then_invalid_short
+    ok 14 - E. grounding_then_invalid_short
+      ---
+      duration_ms: 0.022418
+      ...
+    # Subtest: E. stale_epoch_bump_during_summary
+    ok 15 - E. stale_epoch_bump_during_summary
+      ---
+      duration_ms: 0.040472
+      ...
+    # Subtest: E. source_reset_boundary_during_summary
+    ok 16 - E. source_reset_boundary_during_summary
+      ---
+      duration_ms: 0.024787
+      ...
+    # Subtest: E. branch_window_IF_turn
+    ok 17 - E. branch_window_IF_turn
+      ---
+      duration_ms: 0.023393
+      ...
+    # Subtest: E. preference_window
+    ok 18 - E. preference_window
+      ---
+      duration_ms: 0.023404
+      ...
+    # Subtest: E. plain_ooc_turn_in_window
+    ok 19 - E. plain_ooc_turn_in_window
+      ---
+      duration_ms: 0.022855
+      ...
+    # Subtest: E. main_adopt_window
+    ok 20 - E. main_adopt_window
+      ---
+      duration_ms: 0.02223
+      ...
+    # Subtest: E. incomplete window (4 turns) never calls the summarizer
+    ok 21 - E. incomplete window (4 turns) never calls the summarizer
+      ---
+      duration_ms: 0.083761
+      ...
+    # Subtest: E. default (flag omitted) never seals unverified; regen never seals unverified
+    ok 22 - E. default (flag omitted) never seals unverified; regen never seals unverified
+      ---
+      duration_ms: 2.609465
+      ...
+    1..22
+ok 2 - S1 non-bypass matrix arm=s1ctl
+  ---
+  duration_ms: 3.592624
+  type: 'suite'
+  ...
+# Subtest: S1 lifecycle (fork / regen / edit / delete / variant reconcile / compaction) arm=s1ctl
+    # Subtest: F1. compaction / Global / Medium / stored mirror never contain unverified text
+    ok 1 - F1. compaction / Global / Medium / stored mirror never contain unverified text
+      ---
+      duration_ms: 1475.083822
+      ...
+    # Subtest: F2. wire at 150 turns (compacted Global): unverified stays outside the established-past wrapper
+    ok 2 - F2. wire at 150 turns (compacted Global): unverified stays outside the established-past wrapper
+      ---
+      duration_ms: 223.088143
+      ...
+    # Subtest: F3. user edit clears the label; delete drops the row from the unverified block
+    ok 3 - F3. user edit clears the label; delete drops the row from the unverified block
+      ---
+      duration_ms: 12.835555
+      ...
+    # Subtest: F4. variant-switch reconcile rewrites the Global mirror without unverified text
+    ok 4 - F4. variant-switch reconcile rewrites the Global mirror without unverified text
+      ---
+      duration_ms: 13.67899
+      ...
+    # Subtest: F5. fork copies the label and a regen of a labeled row clears it only on a grounded result
+    ok 5 - F5. fork copies the label and a regen of a labeled row clears it only on a grounded result
+      ---
+      duration_ms: 226.313147
+      ...
+    # Subtest: F6. fork route evidence SQL excludes unverified summaries (route query replica)
+    ok 6 - F6. fork route evidence SQL excludes unverified summaries (route query replica)
+      ---
+      duration_ms: 0.195732
+      ...
+    1..6
+ok 3 - S1 lifecycle (fork / regen / edit / delete / variant reconcile / compaction) arm=s1ctl
+  ---
+  duration_ms: 1951.541866
+  type: 'suite'
+  ...
+# [exchangeRate] refreshed {
+#   mode: 'daily_kst',
+#   dateKey: '2026-10-13',
+#   usdToKrw: 1333.744079,
+#   effectiveKrwPerUsd: 1360.41896058
+# }
+1..3
+# tests 38
+# suites 3
+# pass 38
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3414.91211
