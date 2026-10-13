@@ -4,7 +4,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, beforeEach, describe, it } from "node:test";
 
-import { characterSettingInputForRow, type CharacterSettingRow } from "@/lib/characterChunks";
+import {
+  characterSettingInputForRow,
+  loadCharacterChunksForPromptReadOnly,
+  type CharacterSettingRow,
+} from "@/lib/characterChunks";
 import { createCharacterFromForm, type SessionUser } from "@/lib/characterFormSave";
 import { getDb } from "@/lib/db";
 import {
@@ -33,10 +37,10 @@ import {
 import type { OfficialCharacterDraft } from "@/lib/officialSupply/types";
 import { createSiteManagedStudioAccount } from "@/lib/siteManagedAccounts";
 import { installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/lib/test/isolatedTestDatabase";
-import {
-  buildCombinedCharacterSettingSource,
-  characterSettingSourceOverflowChars,
-} from "@/utils/characterParser";
+import { characterSettingSourceOverflowChars } from "@/utils/characterParser";
+import { buildPrivateSpeechControlBlock, parseCreatorDescriptionCompiled } from "@/lib/creatorDescriptionTriggerCompiler";
+import { buildContext } from "@/services/contextBuilder";
+import { CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL } from "@/lib/chatModels";
 
 const PILOT_DIR = path.join(process.cwd(), "src/lib/officialSupply/pilot");
 const SHARED_WORLD_KEYS = ["pilot-rf-03", "pilot-rf-02"] as const;
@@ -76,6 +80,11 @@ function pilotFile(key: string): PilotFile {
 function worldBible(): OfficialWorldBible {
   return readJson<{ bible: OfficialWorldBible }>(path.join(PILOT_DIR, "world-bible.json")).bible;
 }
+
+const squash = (text: string): string => text.replace(/\s+/g, "");
+
+/** Mirrors the sentence boundary of `compileCreatorDescriptionTriggers`, which may route a fragment to the private speech block. */
+const COMPILER_SENTENCE_BOUNDARY = /(?<=[.!?。！？다요])\s+/;
 
 function occurrences(text: string, needle: string): number {
   return text.split(needle).length - 1;
@@ -266,6 +275,8 @@ describe("official shared world: save and final RP wire are lossless", () => {
         world_id: number | null;
         system_prompt: string;
         creator_comment: string | null;
+        speech_personality: string | null;
+        speech_traits: string | null;
       };
       assert.equal(row.world_id, shared.worldId);
       assert.equal(row.world, source.draft.sections.worldAndSituation);
@@ -273,18 +284,52 @@ describe("official shared world: save and final RP wire are lossless", () => {
 
       const input = characterSettingInputForRow(row);
       assert.equal(characterSettingSourceOverflowChars(input), 0);
-      const combined = buildCombinedCharacterSettingSource({ ...input, world: row.world });
-      const probes = [
-        source.draft.sections.worldAndSituation.slice(-60),
-        (source.draft.sections.currentSituation ?? "").slice(-40),
-        source.draft.sections.characterCore.slice(-60),
-        source.draft.sections.relationshipsAndDrives.slice(-60),
-      ];
-      const squash = (text: string): string => text.replace(/\s+/g, "");
-      for (const probe of probes) {
-        assert.ok(squash(combined).includes(squash(probe)), `${key}: tail "${probe.trim().slice(0, 20)}" reached the RP wire`);
+
+      const { chunks } = loadCharacterChunksForPromptReadOnly(row, "기록관", "기록관");
+      const built = buildContext({
+        charName: source.draft.name,
+        chunks,
+        userNickname: "기록관",
+        speechPersonality: row.speech_personality ?? "",
+        speechTraits: row.speech_traits ?? "",
+        systemPrompt: row.system_prompt,
+        world: row.world,
+        exampleDialog: row.example_dialog ?? "",
+        privateSpeechControlBlock: buildPrivateSpeechControlBlock(
+          parseCreatorDescriptionCompiled(row.creator_compiled_description_json)
+        ),
+        shortTermHistory: [],
+        currentUserMessage: "상황을 알려 줘.",
+        nsfw: false,
+        gender: source.draft.gender,
+        provider: "cheaperinference",
+        modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+        completedTurns: 0,
+      });
+      const wire = squash(built.systemPrompt);
+      const draft = source.draft;
+
+      for (const [label, text] of [
+        ["world", draft.sections.worldAndSituation],
+        ["currentSituation", draft.sections.currentSituation ?? ""],
+      ] as const) {
+        assert.equal(occurrences(wire, squash(text)), 1, `${key}: ${label} is injected exactly once`);
       }
-      assert.equal(occurrences(combined, "[세계관]"), 1, "the world is injected once");
+      for (const [label, text] of [
+        ["characterCore", draft.sections.characterCore],
+        ["relationshipsAndDrives", draft.sections.relationshipsAndDrives],
+        ["speech examples", draft.speech.examples],
+        ["speech forbidden", draft.speech.forbidden],
+      ] as const) {
+        const missing = text
+          .split(/\n/)
+          .flatMap((line) => line.split(COMPILER_SENTENCE_BOUNDARY))
+          .filter((piece) => piece.trim() && !wire.includes(squash(piece)));
+        assert.deepEqual(missing, [], `${key}: ${label} reached the final system prompt`);
+      }
+      for (const secret of draft.secrets) {
+        assert.ok(wire.includes(squash(secret).slice(0, 24)), `${key}: secret reached the final system prompt`);
+      }
     });
   }
 });

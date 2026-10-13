@@ -294,7 +294,11 @@ Token / cost / cache / derived chunks:
 
 ## 5. Final RP prompt comparison
 
-`officialSupply.worldIntroCanon.test.ts` saves both manuscripts through `createCharacterFromForm`, rebuilds the wire from the stored row, and asserts: stored `characters.world` equals the compiled and World Library bodies; `world_id` equals the single shared row (the second character reuses it); overflow is 0; the tail of world, `currentSituation`, `characterCore` and `relationshipsAndDrives` all reach the combined source (whitespace-insensitive, because the wire re-splits sentences into lines); `[세계관]` appears once.
+`officialSupply.worldIntroCanon.test.ts` saves both manuscripts through `createCharacterFromForm`, then feeds the stored row unchanged through `characterSettingInputForRow` -> `loadCharacterChunksForPromptReadOnly` (chunks) -> `contextBuilder.buildContext` (with the row's speech fields and the row's private speech control block, as `nextTurnAssemblyPreparation` does). No input is rebuilt by the test. It asserts on the final system prompt: world and `currentSituation` each appear exactly once (the world rides inside the compiled canon under `<WORLD_LORE>`; no second world injection), every sentence of `characterCore` and `relationshipsAndDrives`, all speech examples (`[예시 대사]`), the forbidden list (`dialogue_avoid`) and both secrets are present. A negative control (dropping chunks) fails the test.
+
+Observed in the real wire, pre-existing and not changed here (compiler/speech-derivation owners, global):
+- `compileCreatorDescriptionTriggers` splits at "...다 " and routes any fragment containing `평소에는` to the private speech block, so Lucian's "성격·행동: 평소에는 ... 말보다" sits in `[PRIVATE SPEECH CONTROL]` and the remainder stays in the canon. Nothing is dropped, but the personality sentence is split.
+- `speech.traits` is condensed into `register_by_context` lines cut with "..." at about 72 characters, and the derived label `구어체 -> 반말` contradicts the manuscript's default 존댓말 (`default_register: 존댓말` is also emitted). This is the speech-derivation FOLLOW-UP below.
 
 `world_id=null` for Wolfgang: before, `staging.ts` and `inPlaceSync.ts` attached the World Library row only for `promptStandard === "compact_rp_v1"`, so Wolfgang kept `world_id=null`. They now use `officialDraftUsesSharedWorld(draft)`. The in-place sync still STOPs on Text Lock mismatch; this PR does not apply anything to production.
 
