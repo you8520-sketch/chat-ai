@@ -1423,6 +1423,9 @@ async function runGmForRound(
     if (parsed.diagnostics?.questsAddRejected) {
       console.info("[TRPG][gm] quest_add_rejected", { count: parsed.diagnostics.questsAddRejected });
     }
+    if (parsed.diagnostics?.npcsRejected) {
+      console.info("[TRPG][gm] npc_rejected", { count: parsed.diagnostics.npcsRejected });
+    }
     stage = "asset_tagging";
     const usedNpcKeys = collectUsedNpcKeys(loadCampaignGmNarrations(db, opts.campaignId, opts.regenerate ? opts.roundId : undefined));
     const npcImageKeys = new Set(npcsWithImages(scenarioNpcs).map((npc) => npc.npcKey));
