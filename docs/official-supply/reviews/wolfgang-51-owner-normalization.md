@@ -24,28 +24,48 @@
   - `creditChatRoomImageCreatorReward`에 캐릭터 단위 `official=1` 제외를 추가했다. 기존에는 계정 단위 `site_managed`만 막아서, 공식 캐릭터가 일반 계정 소유가 되면 이미지 생성당 15 CP가 새는 구멍이 있었다.
   - `deleteUserCharacter`는 `official_supply_characters`와 연결된 캐릭터를 삭제하지 않는다. 이전 후 관리자가 `내 캐릭터`에서 #51을 삭제할 수 있게 되는 새 위험을 막는다.
 
+## 관리 경로 유지 (#1589 최종 정상화)
+
+이전만 하면 #51이 공식 관리 경로에서 빠지던 문제를 같은 소유자 모듈 안에서 고쳤다. 새 판별 시스템, 새 권한 모델, 새 게시 API, 로어북 복제는 없다.
+
+### Canonical owner map
+
+- 공식 관리 대상 판별: `src/lib/officialAdminAccess.ts` (`isOfficialManagedCharacterRow`, `canAdminManageOfficialCharacter`, `listOfficialCharactersForAdmin`). 추가된 조건은 한 가지다. `official=0`, `official_supply_characters.staged_character_id` 연결이 정확히 1개이고 `stage=staged_private`, 소유자가 관리자 계정. "관리자라는 이유만으로" 일반 캐릭터를 관리하지 않는다.
+- 공급 연결 조회: 같은 모듈의 `isOfficialSupplyLinkedCharacter` / `notOfficialSupplyLinkedSql`. `deleteCharacter`의 인라인 쿼리도 이것으로 합쳤다.
+- 동기화: `src/lib/officialSupply/inPlaceSync.ts`. 캐릭터 소유자(관리자)와 스튜디오·월드·로어북 소유자(부착 로어북의 단일 사이트 관리 소유자)를 분리한다. 섞여 있으면 `owner_not_site_managed`로 중단한다.
+- 공개: `src/lib/officialSupply/publish.ts`. 소유자 게이트가 사이트 관리 계정 또는 관리자 계정을 허용한다. 공급 기록과 stage 검사는 그대로다.
+- 편집 저장: `src/lib/characterFormSave.ts` (PUT/PATCH), `src/app/api/characters/[id]/route.ts`. `official_admin`은 `preserveListingState`, `preserveAdultFlags`, `skipFollowerNotify`를 쓴다.
+- 로어북 부착 검증: `src/lib/creatorLorebook.ts`. 관리자 편집 경로에서만 "이미 부착된 로어북 유지"를 허용하고, 그 외 타인 소유 로어북은 계속 거절한다. 읽기 전용 요약은 `listAttachedCreatorLorebookSummaries`.
+- 일반 크리에이터 보상: `creatorPoints`(등급 집계, 채팅 적립), `imageGenerationEconomics`, `trpg/creatorRewards`. 세 곳 모두 공급 연결 `official=0` 행을 제외한다.
+
 ## REMOVED
 
-- 없음. 삭제하거나 대체한 코드는 없다.
+- 이전 후 공식 목록·동기화·공개가 닫히던 동작(구 REGRESSION RISK 2).
+- 이전 후 편집기에서 로어북 저장이 거절되던 동작(구 REGRESSION RISK 1).
+- 공급 연결 비공개 `official=0` 캐릭터가 일반 크리에이터 `characterCount`·등급·채팅/이미지/TRPG 적립에 들어가던 동작.
+- 삭제된 파일은 없다.
 
-## PRESERVED (테스트와 운영 사본 증거로 확인)
+## PRESERVED (테스트로 확인)
 
-- #51 승인 원고, Text Lock, 이미지 14장, `images`, Appearance, `visibility=private`, `official=0`, `creator_name`, `updated_at`.
-- 로어북 8개(2~9)와 부착 순서, 공급 행, 공급 에셋 행, #50, 나머지 캐릭터, 월드, 행 수.
-- 최종 RP 프롬프트(`buildContext` system prompt)와 로어북 주입 블록이 이전 전후로 바이트 단위로 같다.
-- 알림, 팔로워 알림, 새 캐릭터 생성, 공개 변경은 없다.
+- #51 승인 원고, Text Lock, 이미지 14장과 순서·URL, Appearance, `visibility=private`, `official=0`, `creator_name`, `nsfw`, 공급 행.
+- 공유 로어북 2~9의 내용·ID·소유자(108)와 #50 부착. #50의 제작자, 로어북, 공개 상태.
+- 관리자의 일반 캐릭터 #10/#13/#15의 등급·CP·출금 자격. 관리자 계정은 `site_managed=0` 그대로.
+- 일반 사용자의 PUT/PATCH 권한, Text Lock, 성인 권한 검사.
+- #1595/#1607 원고와 바이블.
 
 ## REGRESSION RISKS
 
-1. 로어북 2~9는 계속 108 소유다. 런타임 주입은 `character_id` 부착만 보므로 채팅에는 영향이 없다. 단, 일반 편집기에서 관리자가 #51을 저장하면 `validateCreatorLorebookAttachmentIds`가 거절한다. 테스트가 이 알려진 한계를 고정해 둔다. 후속 선택지는 (a) #51 전용 복제 로어북, (b) #50까지 이전(공개 캐릭터의 제작자 링크가 바뀌므로 별도 승인)이다.
-2. #51은 `/admin/official-characters` 목록(공식 또는 사이트 관리 소유만 노출)에서 빠진다. 기존 공식 관리 게이트(`canAdminManageOfficialCharacter`, `inPlaceSync`, `publish`의 `owner_not_site_managed`)는 #51에 대해 닫힌 채로 실패한다. 이전 후 #51 Text Lock 재동기화나 공식 공개는 불가하다. 공개는 이번 범위에서 금지이고, 닫힌 게이트는 108 기준 로어북 매핑에서 중복 로어북이 생기는 것도 막아 준다. 소유 모델 재설계는 별도 후속이다.
-3. CP: 비공개 #51은 소유자 본인만 쓸 수 있으므로 자기 소비는 `creator_id === consumer`로 적립 0이다. `official=1`은 채팅 적립 0, TRPG 0, 이미지 0이다. 운영 사본에서 관리자 등급은 `sprout 4%`, 공개 캐릭터 3개, `totalChats` 21 그대로이고 `characterCount`만 4에서 5로 늘어난다. CP 잔액과 출금 이력은 변하지 않는다.
-4. 관리자 `내 캐릭터`·스튜디오에 #51이 비공개로 보인다(의도). 공개 제작자 페이지는 `listableWhere`로 비공개를 숨긴다.
-5. `character_clicks`(108, #51, 6회), 월드 #7, `official_supply_world_lorebooks`는 108에 남는다. 해롭지 않다.
-6. 되돌리기: 전용 되돌리기 함수는 없다(대상은 항상 관리자). 적용 전 새 `VACUUM INTO` 백업을 만들고, 필요하면 관리자가 `UPDATE characters SET creator_id=108 WHERE id=51 AND creator_id=1` 한 줄로 복구한다. 이 컬럼 외에는 바뀐 것이 없다.
+1. 로어북 2~9는 계속 108 소유다. 런타임 주입은 `character_id` 부착만 본다. 편집기는 8개를 읽기 전용으로 보여 주고, 저장 시 기존 8개만 유지한다. 새 로어북 추가·교체·타인 로어북 부착은 거절한다. #50 공유 로어북의 복제·이전·수정은 없다.
+2. `publish`는 최종 승인 때 `notifyFollowersOfNewCharacter`를 호출하며 제작자는 관리자 계정이 된다(관리자 계정 팔로워에게 알림). 이번에는 실행하지 않았다. 최종 승인 전에 팔로워 알림 정책을 확인해야 한다.
+3. 편집기 PATCH는 기본 상태창 값을 쓴다(런타임상 빈 값과 같음).
+4. 공개된 관리자 소유 `official=1` 행은 PATCH도 `official_admin`으로 편집 가능하다(PUT과 같은 기준).
+5. CP: `characterCount`는 이전 전후로 같다(공급 연결 비공개 행은 집계 제외). CP 잔액과 출금 이력은 변하지 않는다.
+6. `character_clicks`(108, #51, 6회), 월드 #7, `official_supply_world_lorebooks`는 108에 남는다. 해롭지 않다.
+7. 되돌리기: 전용 되돌리기 함수는 없다(대상은 항상 관리자). 적용 전 새 `VACUUM INTO` 백업을 만들고, 필요하면 `UPDATE characters SET creator_id=108 WHERE id=51 AND creator_id=1` 한 줄로 복구한다. 이 컬럼 외에는 바뀐 것이 없다.
 
 ## PROOF
 
+- 신규 `officialSupply.adminOwnedManagement.test.ts` 11개와 `wolfgangInPlaceSync` 이전 후 2개는 수정 전 코드에서 실패하고(`/opt/cursor/artifacts/before-fix-tests.log`) 수정 후 통과한다.
 - 단위/통합 테스트 `src/lib/officialSupply/officialSupply.ownerTransfer.test.ts` 12개 통과. 이미지 CP 제외를 일시 제거하면 9번 테스트가 실패하는 것을 확인했다.
 - 기존 관련 테스트 39개(`officialStudioFoundation`, `chatImageGenerationPersistence`, `wolfgangInPlaceSync`, `creatorPointsRewardSpend`) 통과.
 - 운영 사본(읽기 전용 직렬화본의 로컬 복사) 실행 로그: dry-run `changedFields=["creator_id"]` (108 → 1), #50 거부 `transfer_requires_private_unlisted`, dry-run 무쓰기, 플래그 없는 apply 거부 `apply_disabled`, apply 후 접근 `admin=true, studio108=false, anon=false`, 프롬프트 sha 동일, 나머지 전부 UNCHANGED, 2회차 dry-run `changedFields=[]`.
