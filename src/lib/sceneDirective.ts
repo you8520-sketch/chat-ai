@@ -2,6 +2,7 @@ import type { ChatMsg } from "@/lib/ai";
 import { AUTO_PROGRESSION_SCENE_USER_CONTROL } from "@/lib/autoProgressionRules";
 import type { SceneProgressionHistoryEntry } from "@/lib/sceneProgressionState";
 import type { ContentKind } from "@/lib/simulationMode";
+import { extractOocSnippets } from "@/lib/userImpersonationPolicy";
 
 export type SceneDirectiveMode = "interactive" | "auto_progression";
 
@@ -218,7 +219,7 @@ export function renderSceneEngineRule(motionDecision: SceneMotionDecision): stri
 const AUTO_PROGRESSION_ENSEMBLE_SCENE_RULE =
   "다인물: 전개는 현재 중심 인물 하나에 고정되지 않는다. 여러 AI 캐릭터·NPC의 대화·판단·갈등·협력·적대·세계 사건을 함께 진행할 수 있다.";
 
-const OPERATION_TERMS = ["작전", "임무", "침투", "추적", "협상", "함정", "구출", "제한시간", "전투"];
+export const SCENE_OPERATION_TERMS = ["작전", "임무", "침투", "추적", "협상", "함정", "구출", "제한시간", "전투"];
 const INVESTIGATION_TERMS = ["조사", "단서", "기록", "소문", "흔적", "보고서", "메시지"];
 const REST_TERMS = ["휴식", "식사", "잠", "치료", "회복", "데이트", "연인", "키스", "집"];
 const QUIET_INTIMACY_TERMS = [
@@ -236,6 +237,36 @@ const QUIET_INTIMACY_TERMS = [
 const CLIMAX_TERMS = ["결전", "최종", "붕괴", "배신", "대형 위기", "보스"];
 const DANGER_TERMS = ["공격", "폭발", "붕괴", "배신", "납치", "전투", "함정", "추락", "경보", "습격", "위험"];
 const RELATIONSHIP_TERMS = ["연인", "고백", "질투", "미안", "괜찮", "걱정", "친구", "관계"];
+
+/**
+ * Operation / danger / climax words that their own message marks as already over
+ * ("임무가 끝난 밤", "끝난 작전") are history, not a present scene signal.
+ * Applied per message so words from neighbouring messages never combine.
+ */
+const CONCLUDED_EVENT_TERM_PATTERN = [...new Set([...SCENE_OPERATION_TERMS, ...DANGER_TERMS, ...CLIMAX_TERMS])].join("|");
+const CONCLUSION_AFTER_TERM =
+  "(?:이|가|은|는|도|을|를)?[^\\S\\n]*(?:끝(?:난|나고|났|나서|나자)|마(?:친|치고|쳤|치자)|마무리(?:된|됐|되고)|종료(?:된|됐|되고)|완료(?:된|됐)|해결(?:된|됐)|이후|후(?=[\\s,.에]))";
+const CONCLUSION_BEFORE_TERM = "(?:끝난|마친|종료된|완료된|해결된|지난)[^\\S\\n]+";
+const CONCLUDED_EVENT_SPAN = new RegExp(
+  `(?:${CONCLUDED_EVENT_TERM_PATTERN})${CONCLUSION_AFTER_TERM}|${CONCLUSION_BEFORE_TERM}(?:${CONCLUDED_EVENT_TERM_PATTERN})`,
+  "g"
+);
+
+function stripConcludedEventSpans(text: string): string {
+  return text.replace(CONCLUDED_EVENT_SPAN, " ");
+}
+
+/**
+ * User OOC that restarts the scene: a scene/place/time shift or "from here, the scene
+ * continues". Bare "지금부터/이제부터/여기서부터" are style or pacing adverbs and do not count.
+ */
+const OOC_SCENE_TRANSITION =
+  /(?:장면|장소|시간)\s*(?:전환|이동|경과|점프|시작)|다음\s*장면|(?:여기서|지금|이제)부터\s*장면\s*(?:을\s*)?(?:계속|시작|이어)/;
+
+function declaresSceneTransition(userMessage: string | null | undefined): boolean {
+  return extractOocSnippets(userMessage ?? "").some((snippet) => OOC_SCENE_TRANSITION.test(snippet));
+}
+
 const DAILY_TERMS = ["식사", "잠", "집", "휴식", "회복", "정비"];
 const NPC_GROUND_TERMS = ["NPC", "동료", "상관", "담당", "방문객", "손님", "병사", "경비", "의사", "점원"];
 const COMEDY_BLOCK_TERMS = ["사망", "중상", "즉사", "대형 위기", "습격", "경보", "납치", "붕괴"];
@@ -514,7 +545,7 @@ export function resolveSceneMotionDecision(input: {
 export function resolveSceneKind(text: string): SceneKind {
   if (includesAny(text, CLIMAX_TERMS)) return "climax";
   // Danger/operation terms only count from scene signal text (caller must isolate).
-  if (includesAny(text, OPERATION_TERMS) || includesAny(text, DANGER_TERMS)) {
+  if (includesAny(text, SCENE_OPERATION_TERMS) || includesAny(text, DANGER_TERMS)) {
     // Prefer climax already handled; treat active danger as operation for boosts.
     if (includesAny(text, ["결전", "보스", "대형 위기"])) return "climax";
     return "operation";
@@ -530,17 +561,23 @@ export function resolveSceneKind(text: string): SceneKind {
   return "neutral";
 }
 
+/**
+ * Present turn (user message, trigger) outranks history. An explicit OOC scene
+ * transition drops history entirely; otherwise the last 8 messages still count,
+ * so a live danger announced just before the user's reply stays in the signal.
+ */
 export function buildSceneSignalText(input: {
   recentMessages?: ChatMsg[];
   currentUserMessage?: string | null;
   triggeredEventText?: string | null;
 }): string {
-  return [
-    compactText(input.recentMessages),
-    input.currentUserMessage ?? "",
-    input.triggeredEventText ?? "",
-  ]
+  const history = declaresSceneTransition(input.currentUserMessage)
+    ? []
+    : (input.recentMessages ?? []).slice(-8).map((message) => message.content);
+  return [...history, input.currentUserMessage ?? "", input.triggeredEventText ?? ""]
+    .map((text) => text.trim())
     .filter(Boolean)
+    .map(stripConcludedEventSpans)
     .join("\n");
 }
 

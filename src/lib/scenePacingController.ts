@@ -22,6 +22,7 @@ import {
   renderSceneMotionBody,
   resolveSceneCastFocus,
   resolveSceneKind,
+  SCENE_OPERATION_TERMS,
   type SceneCastMode,
   type SceneDirective,
   type SceneDirectiveInput,
@@ -193,22 +194,7 @@ const EXPLORATION_TERMS = [
   "농도",
 ];
 
-const OPERATION_TERMS = [
-  "작전",
-  "임무",
-  "침투",
-  "추적",
-  "협상",
-  "함정",
-  "구출",
-  "제한시간",
-  "전투",
-  "공격",
-  "습격",
-  "경보",
-  "도주",
-  "사격",
-];
+const PACING_OPERATION_TERMS = [...SCENE_OPERATION_TERMS, "공격", "습격", "경보", "도주", "사격"];
 
 const DANGER_NOW_TERMS = [
   "공격",
@@ -268,10 +254,10 @@ export function resolveScenePacingMode(input: {
 
   const text = input.sceneSignalText;
   // Active danger / operation / hard trigger can outrank quiet dyad.
-  if (input.immediateDanger || includesAny(text, OPERATION_TERMS)) {
+  if (input.immediateDanger || includesAny(text, PACING_OPERATION_TERMS)) {
     return "OPERATION";
   }
-  if (input.triggerActive && includesAny(text, [...OPERATION_TERMS, ...DANGER_NOW_TERMS])) {
+  if (input.triggerActive && includesAny(text, [...PACING_OPERATION_TERMS, ...DANGER_NOW_TERMS])) {
     return "OPERATION";
   }
 
