@@ -9,8 +9,12 @@ export const RAW_HISTORY_COMPLETE_EXCHANGES = 4;
 
 export const ROLLING_SUMMARY_TARGET_CHARS = 450;
 export const ROLLING_SUMMARY_MAX_CHARS = 600;
-/** 유효 기록·절단 시 하한(짧은 요약 허용, 패딩 강제 없음) */
+/** 사용자 수정 기록·절단 시 하한. 자동 봉인 요약의 유효성 하한이 아니다. */
 export const ROLLING_SUMMARY_MIN_CHARS = 80;
+/** 자동 봉인 요약이 한 사건 문장으로 성립하는 최소 길이. 이 미만 요약은 원본 앵커 검증을 통과해야 한다. */
+export const ROLLING_SUMMARY_EVENT_MIN_CHARS = 12;
+/** 80자 미만 요약이 원본 대화와 공유해야 하는 서로 다른 내용 토큰 수. */
+export const ROLLING_SUMMARY_SHORT_ANCHOR_MIN_TOKENS = 2;
 
 /** User-edited / manual memory record clamp cap. */
 export const MEMORY_RECORD_MAX_CHARS = 800;

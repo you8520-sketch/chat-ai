@@ -2,7 +2,12 @@
  * Summary integrity — contiguous batches from explicit stored spans.
  * Never trust summarized_turn_count alone.
  */
-import { ROLLING_SUMMARY_INTERVAL, ROLLING_SUMMARY_MIN_CHARS } from "./memory-constants";
+import {
+  ROLLING_SUMMARY_EVENT_MIN_CHARS,
+  ROLLING_SUMMARY_INTERVAL,
+  ROLLING_SUMMARY_MIN_CHARS,
+  ROLLING_SUMMARY_SHORT_ANCHOR_MIN_TOKENS,
+} from "./memory-constants";
 import { isFallbackMemoryRecordSummary } from "./memory-summary-clamp";
 import {
   assistantSuppliesUnsupportedSharedHistoryDetail,
@@ -325,6 +330,26 @@ function splitDialogueSources(dialogue: string): { user: string; assistant: stri
   return { user: users.join("\n"), assistant: assistants.join("\n") };
 }
 
+/**
+ * A sparse (<ROLLING_SUMMARY_MIN_CHARS) summary is only a record of the window when it
+ * shares content with it. Participant names and generic stopwords do not count.
+ */
+function isShortSummaryAnchoredInDialogue(
+  summary: string,
+  dialogue: string,
+  userPersona?: string | null,
+  charName?: string | null
+): boolean {
+  const participantNames = [resolvePersonaName(userPersona), charName]
+    .filter((name): name is string => Boolean(name?.trim()))
+    .map((name) => normalizeClaimToken(name.trim()));
+  const sourceText = dialogue.toLowerCase();
+  const anchored = significantClaimTokens(summary).filter(
+    (token) => !participantNames.includes(token) && sourceText.includes(token)
+  );
+  return anchored.length >= ROLLING_SUMMARY_SHORT_ANCHOR_MIN_TOKENS;
+}
+
 /** Conservative source check for known certainty inflation before DB persistence. */
 export function isRollingSummaryGroundedInDialogue(
   summary: string,
@@ -333,6 +358,12 @@ export function isRollingSummaryGroundedInDialogue(
   charName?: string | null
 ): boolean {
   if (isLikelySummaryInstructionEcho(summary)) return false;
+  if (
+    summary.length < ROLLING_SUMMARY_MIN_CHARS &&
+    !isShortSummaryAnchoredInDialogue(summary, dialogue, userPersona, charName)
+  ) {
+    return false;
+  }
 
   const source = splitDialogueSources(dialogue);
   if (summaryInventsUnsupportedUserRelationship(summary, source, userPersona, charName)) {
@@ -392,11 +423,7 @@ export function validateSummaryNarrative(
   if (isFallbackMemoryRecordSummary(t)) return { ok: false, reason: "SUMMARY_INVALID" };
   if (isLikelySummaryInstructionEcho(t)) return { ok: false, reason: "SUMMARY_INVALID" };
 
-  const minChars =
-    scope === "preference" || scope === "noncanon" || scope === "branch_canon"
-      ? 12
-      : ROLLING_SUMMARY_MIN_CHARS;
-  if (t.length < minChars) return { ok: false, reason: "SUMMARY_INVALID" };
+  if (t.length < ROLLING_SUMMARY_EVENT_MIN_CHARS) return { ok: false, reason: "SUMMARY_INVALID" };
   if (/^(null|undefined|n\/a|none|empty)$/i.test(t)) {
     return { ok: false, reason: "SUMMARY_INVALID" };
   }

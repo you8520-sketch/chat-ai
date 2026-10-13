@@ -144,29 +144,6 @@ afterEach(() => {
 describe("stale rolling summary — production-equivalent race", () => {
   it("A: turn delete invalidates generation; stale rolling persist rejected", async () => {
     seedTenTurns();
-    persistValidatedSummaryBatch({
-      chatId: CHAT,
-      userId: USER,
-      characterId: CHAR,
-      tier: "free",
-      turnStart: 1,
-      assistantMessageId: null,
-      summary: VALID_SUMMARY,
-      summaryKind: "main_canon",
-      scopePayload: {
-        v: 1,
-        scopes: { main_canon: VALID_SUMMARY },
-        branchId: null,
-        branchStatus: null,
-        promotedBy: null,
-        promotedAt: null,
-      },
-      branchId: null,
-      branchStatus: null,
-      promotedBy: null,
-      promotedAt: null,
-      playableTurnCount: 10,
-    });
 
     let llmEntered = false;
     let releaseLlm!: () => void;
