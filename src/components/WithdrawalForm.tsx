@@ -85,6 +85,14 @@ export default function WithdrawalForm({
     amountNum >= WITHDRAWAL_MIN_CP &&
     amountNum <= creatorPoints;
 
+  const missingFields = [
+    !(amountNum >= WITHDRAWAL_MIN_CP && amountNum <= creatorPoints) && "출금 CP",
+    !bankName.trim() && "은행명",
+    !accountNumber.trim() && "계좌번호",
+    !isValidResidentNumber(residentNumber) && "주민등록번호",
+    !taxConsent && "수집·이용 동의",
+  ].filter((label): label is string => Boolean(label));
+
   function onResidentChange(raw: string) {
     setResidentNumber(formatResidentNumberDisplay(raw));
   }
@@ -290,7 +298,7 @@ export default function WithdrawalForm({
           checked={taxConsent}
           onChange={(e) => setTaxConsent(e.target.checked)}
           disabled={formDisabled}
-          className="mt-0.5 h-5 w-5 shrink-0 accent-violet-500"
+          className="mt-0.5 h-6 w-6 shrink-0 accent-violet-500"
         />
         <span>
           원천징수 신고 목적의 주민등록번호 수집 및 이용에 동의합니다{" "}
@@ -325,23 +333,30 @@ export default function WithdrawalForm({
         </div>
       )}
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        <StudioButton
-          type="button"
-          variant="secondary"
-          disabled={formDisabled || creatorPoints < WITHDRAWAL_MIN_CP}
-          onClick={() =>
-            setRequestedCp(String(Math.max(WITHDRAWAL_MIN_CP, Math.floor(creatorPoints))))
-          }
-        >
-          전액
-        </StudioButton>
-        <StudioButton type="button" disabled={!canSubmit} onClick={submit}>
-          {busy ? "신청 중…" : "출금 신청"}
-        </StudioButton>
+      <div
+        data-testid="withdraw-action-bar"
+        className="sticky bottom-[calc(var(--mobile-nav-offset,0px)+var(--keyboard-inset,0px))] z-10 -mx-4 mt-3 space-y-2 border-t border-white/10 bg-[#0b0d14]/95 px-4 py-3 backdrop-blur-md sm:-mx-5 sm:px-5"
+      >
+        {!formDisabled && missingFields.length > 0 ? (
+          <p className={studioType.caption}>신청하려면 확인이 필요해요: {missingFields.join(" · ")}</p>
+        ) : null}
+        <div className="flex flex-wrap gap-2">
+          <StudioButton
+            type="button"
+            variant="secondary"
+            disabled={formDisabled || creatorPoints < WITHDRAWAL_MIN_CP}
+            onClick={() =>
+              setRequestedCp(String(Math.max(WITHDRAWAL_MIN_CP, Math.floor(creatorPoints))))
+            }
+          >
+            전액
+          </StudioButton>
+          <StudioButton type="button" disabled={!canSubmit} onClick={submit}>
+            {busy ? "신청 중…" : "출금 신청"}
+          </StudioButton>
+        </div>
+        <ScopedNotice notice={error ? { kind: "error", text: error } : null} />
       </div>
-
-      <ScopedNotice notice={error ? { kind: "error", text: error } : null} className="mt-3" />
 
       <p className={cn(studioType.caption, "mt-3")}>
         세금 {taxPct}% 포함 총 {totalPct}%가 공제된 금액이 입금됩니다. (실수령 {100 - totalPct}%)
