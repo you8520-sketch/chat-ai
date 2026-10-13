@@ -234,8 +234,10 @@ function sectionToChunk(
   };
 }
 
-/** RP에 넣을 설정 원문 (이름·성별·세계관·system_prompt·예시대화) */
-export function buildCombinedCharacterSettingSource(input: CharacterSettingInput): string {
+/** RP에 주입되는 설정 원문(이름·성별·세계관·system_prompt·예시대화) 상한. 초과분은 끝에서 잘린다. */
+export const CHARACTER_SETTING_SOURCE_CHAR_CAP = 10_000;
+
+function joinCharacterSettingSource(input: CharacterSettingInput): string {
   const { systemPrompt, world = "", exampleDialog = "", characterName, gender } = input;
 
   const parts: string[] = [];
@@ -256,7 +258,17 @@ export function buildCombinedCharacterSettingSource(input: CharacterSettingInput
   if (systemPrompt.trim()) parts.push(systemPrompt.trim());
   if (exampleDialog.trim()) parts.push(`[예시 대화]\n${exampleDialog.trim()}`);
 
-  return parts.join("\n\n").slice(0, 10_000).trim();
+  return parts.join("\n\n");
+}
+
+/** RP에 넣을 설정 원문 (이름·성별·세계관·system_prompt·예시대화) */
+export function buildCombinedCharacterSettingSource(input: CharacterSettingInput): string {
+  return joinCharacterSettingSource(input).slice(0, CHARACTER_SETTING_SOURCE_CHAR_CAP).trim();
+}
+
+/** `buildCombinedCharacterSettingSource`가 조용히 잘라 내는 글자 수. 0이면 손실 없음. */
+export function characterSettingSourceOverflowChars(input: CharacterSettingInput): number {
+  return Math.max(0, joinCharacterSettingSource(input).length - CHARACTER_SETTING_SOURCE_CHAR_CAP);
 }
 
 function buildFullSettingChunk(characterId: string, combined: string): CharacterChunk {

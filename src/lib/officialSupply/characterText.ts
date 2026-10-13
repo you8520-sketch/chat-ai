@@ -2,6 +2,8 @@ import crypto from "crypto";
 import { characterAdultTextBlob, findAdultTermsInText } from "@/lib/characterAdultText";
 import { AI_LEARNING_LIMIT } from "@/lib/characterFormLimits";
 import { sanitizeCharacterGenres } from "@/lib/characterGenres";
+import { composeExampleDialog } from "@/lib/speechCreatorFields";
+import { characterSettingSourceOverflowChars } from "@/utils/characterParser";
 import { ADULT_SCENE_MIN_AGE, validateNsfwParticipantAgeContract } from "@/lib/participantMinAge";
 import { composeOfficialCreatorComment } from "@/lib/officialSupply/publicProfileText";
 import {
@@ -260,7 +262,40 @@ export function evaluateOfficialStagedSaveLength(
       },
     ]);
   }
+  const overflow = officialRpSettingOverflowChars(draft, appearanceBlock);
+  if (overflow > 0) {
+    return qaResult(
+      [],
+      [
+        {
+          code: "rp_setting_truncated",
+          message: `RP setting source exceeds its injection cap by ${overflow} chars; the tail (speech block) would be cut silently`,
+        },
+      ]
+    );
+  }
   return qaResult([]);
+}
+
+/** Chars the RP setting parser would silently drop from this draft once saved. */
+export function officialRpSettingOverflowChars(
+  draft: OfficialCharacterDraft,
+  appearanceBlock: string
+): number {
+  const form = buildOfficialCharacterFormBody({ draft, appearanceBlock, assets: [] });
+  return characterSettingSourceOverflowChars({
+    characterId: "official-qa",
+    characterName: draft.name,
+    gender: draft.gender,
+    world: draft.sections.worldAndSituation,
+    systemPrompt: String(form.system_prompt ?? ""),
+    exampleDialog: composeExampleDialog({
+      speech_personality: draft.speech.personality,
+      speech_traits: draft.speech.traits,
+      speech_examples: draft.speech.examples,
+      speech_forbidden: draft.speech.forbidden,
+    }),
+  });
 }
 
 export function evaluateSupportingNpcs(draft: OfficialCharacterDraft): QaResult {
