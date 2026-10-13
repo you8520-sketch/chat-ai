@@ -1,233 +1,63 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { useState } from "react";
+import { useState, type KeyboardEvent } from "react";
 import WithdrawalForm from "@/components/WithdrawalForm";
 import CommentsEnabledToggle from "@/components/CommentsEnabledToggle";
 import CreatorNotificationPrefs from "@/components/CreatorNotificationPrefs";
 import {
-  CREATOR_PRO_MIN_CHARACTERS,
-  CREATOR_PRO_MIN_TOTAL_CHATS,
+  CharacterEarningShareChart,
+  CreatorSummary,
+  RecentEarningsList,
+  TierLadder,
+  UnitLegend,
+} from "@/components/creator/CreatorDashboardParts";
+import { ExchangeCard, NextActions } from "@/components/creator/CreatorActionParts";
+import { ScopedNotice, type PageNotice } from "@/components/studio/PersonaPageParts";
+import {
+  CREATOR_NOTICE_CONTENT_MAX,
+  CREATOR_NOTICE_TITLE_MAX,
   CREATOR_REWARD_RATE,
   CREATOR_REWARD_RATE_PRO,
   CREATOR_REWARD_RATE_SPROUT,
-  CREATOR_SPROUT_MIN_CHARACTERS,
-  CREATOR_STANDARD_MIN_CHARACTERS,
-  CREATOR_STANDARD_MIN_TOTAL_CHATS,
-  CREATOR_TIER_LABELS,
-  CREATOR_NOTICE_CONTENT_MAX,
-  CREATOR_NOTICE_TITLE_MAX,
   type CreatorDashboard,
   type CreatorEarningPeriod,
 } from "@/lib/creatorShared";
+import { allTierConditions, creatorNextActions, type CreatorNextAction } from "@/lib/creatorDashboardView";
 import { formatPoints } from "@/lib/billingDisplay";
 import { CREATOR_PROFILE_HTML_MAX, sanitizeCreatorHtml } from "@/lib/creatorProfileHtml";
-import { getCharacterRepresentativeImageUrl } from "@/lib/characterAssets";
 import StudioButton from "@/components/studio/StudioButton";
 import { cn, studioInputClass, studioSurface, studioType } from "@/lib/studioDesign";
 
-function CharacterListAvatar({
-  name,
-  emoji,
-  hue,
-  assets,
-  images,
+const fmt = formatPoints;
+
+type TabId = "dashboard" | "profile" | "comments";
+const TABS: ReadonlyArray<readonly [TabId, string]> = [
+  ["dashboard", "대시보드"],
+  ["profile", "소개/공지"],
+  ["comments", "댓글·알림"],
+];
+
+const JUMP_LINKS = [
+  ["creator-exchange", "교환"],
+  ["creator-withdraw", "출금"],
+  ["creator-share", "캐릭터별 비중"],
+  ["creator-earnings", "적립 내역"],
+] as const;
+
+const tabDomId = (id: TabId) => `creator-tab-${id}`;
+const panelDomId = (id: TabId) => `creator-panel-${id}`;
+
+export default function CreatorClient({
+  initial,
+  creatorId,
 }: {
-  name: string;
-  emoji: string;
-  hue: number;
-  assets: string;
-  images: string;
+  initial: CreatorDashboard;
+  creatorId: number;
 }) {
-  const thumb = getCharacterRepresentativeImageUrl(assets, images);
-  return (
-    <span
-      className="flex h-10 w-10 shrink-0 overflow-hidden rounded-lg"
-      style={{ background: `hsl(${hue} 60% 22%)` }}
-    >
-      {thumb ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={thumb} alt={name} className="h-full w-full object-cover object-top" />
-      ) : (
-        <span className="flex h-full w-full items-center justify-center text-xl">{emoji}</span>
-      )}
-    </span>
-  );
-}
-
-function fmt(n: number) {
-  return formatPoints(n);
-}
-
-type TierConditionRow = {
-  key: string;
-  label: string;
-  ratePct: number;
-  condition: string;
-  current?: string;
-  met: boolean;
-  isCurrent: boolean;
-};
-
-function allTierConditions(
-  t: CreatorDashboard["tier"],
-  sproutPct: number,
-  basePct: number,
-  proPct: number
-): TierConditionRow[] {
-  const sproutMet = t.characterCount >= CREATOR_SPROUT_MIN_CHARACTERS;
-  const standardMet =
-    t.publicCharacterCount >= CREATOR_STANDARD_MIN_CHARACTERS &&
-    t.totalChats >= CREATOR_STANDARD_MIN_TOTAL_CHATS;
-  // 월간 소비 및 3개월 유지 여부는 서버에서 판정하고, 안내 문구에는 "기타 조건"으로만 노출한다.
-  const proMet = t.tierLevel === "pro";
-
-  return [
-    {
-      key: "sprout",
-      label: "새싹 크리에이터",
-      ratePct: sproutPct,
-      condition: `캐릭터 ${CREATOR_SPROUT_MIN_CHARACTERS}개 이상 제작`,
-      current: `현재 ${t.characterCount}개`,
-      met: sproutMet,
-      isCurrent: t.tierLevel === "sprout" && sproutMet,
-    },
-    {
-      key: "standard",
-      label: "일반 크리에이터",
-      ratePct: basePct,
-      condition: `캐릭터 ${CREATOR_STANDARD_MIN_CHARACTERS}개 이상 공개유지 · 통합 대화 ${CREATOR_STANDARD_MIN_TOTAL_CHATS.toLocaleString()}회+`,
-      current: `현재 공개 ${t.publicCharacterCount}개 · ${t.totalChats.toLocaleString()}회`,
-      met: standardMet,
-      isCurrent: t.tierLevel === "standard",
-    },
-    {
-      key: "pro",
-      label: "프로",
-      ratePct: proPct,
-      condition: `공개 캐릭터 ${CREATOR_PRO_MIN_CHARACTERS}개 이상 · 총 대화 수 ${CREATOR_PRO_MIN_TOTAL_CHATS.toLocaleString()}회 이상 · 기타 조건 충족 시 자동 등업`,
-      current: `현재 공개 ${t.publicCharacterCount}개 · 총 대화 수 ${t.totalChats.toLocaleString()}회`,
-      met: proMet,
-      isCurrent: t.tierLevel === "pro",
-    },
-  ];
-}
-
-const EARNING_PERIOD_LABELS: Record<CreatorEarningPeriod, string> = {
-  day: "하루",
-  week: "일주일",
-  month: "한달",
-};
-
-function CharacterEarningShareChart({
-  rows,
-  period,
-  selectedId,
-  onPeriodChange,
-  onSelect,
-}: {
-  rows: CreatorDashboard["characterEarningShares"][CreatorEarningPeriod];
-  period: CreatorEarningPeriod;
-  selectedId: number | null;
-  onPeriodChange: (period: CreatorEarningPeriod) => void;
-  onSelect: (id: number) => void;
-}) {
-  const totalReward = rows.reduce((sum, row) => sum + Number(row.period_reward ?? 0), 0);
-  const activeRow = rows.find((row) => row.id === selectedId) ?? rows.find((row) => row.period_reward > 0);
-
-  return (
-    <section className={cn(studioSurface.card, "p-5")}>
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className={studioType.sectionTitle}>캐릭터별 적립비중</h2>
-          <p className={cn(studioType.caption, "mt-1")}>
-            선택 기간 합계 {fmt(totalReward)}CP
-          </p>
-        </div>
-        <div className="flex rounded-xl border border-white/10 bg-[#090b14]/70 p-1">
-          {(Object.keys(EARNING_PERIOD_LABELS) as CreatorEarningPeriod[]).map((id) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => onPeriodChange(id)}
-              className={cn(
-                "rounded-lg px-3 py-1.5 text-xs font-semibold transition",
-                period === id ? "bg-violet-500 text-white" : "text-zinc-400 hover:text-zinc-100",
-              )}
-            >
-              {EARNING_PERIOD_LABELS[id]}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {rows.length === 0 ? (
-        <p className={studioType.body}>아직 제작한 캐릭터가 없습니다.</p>
-      ) : (
-        <div className="space-y-2">
-          {rows.map((row) => {
-            const percent = totalReward > 0 ? Math.round(row.share_ratio * 1000) / 10 : 0;
-            const barWidth = `${Math.max(0, Math.min(100, percent))}%`;
-            const selected = selectedId === row.id;
-
-            return (
-              <button
-                key={row.id}
-                type="button"
-                onClick={() => onSelect(row.id)}
-                title={`${row.name} · ${fmt(row.period_reward)}CP · ${percent}%`}
-                className={cn(
-                  "group grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-xl border px-3 py-2 text-left transition",
-                  selected
-                    ? "border-violet-300/40 bg-violet-500/[0.08]"
-                    : "border-white/[0.06] bg-[#0e1120]/70 hover:border-white/15 hover:bg-white/[0.04]",
-                )}
-              >
-                <span className="flex w-20 items-center gap-2 sm:w-28">
-                  <CharacterListAvatar
-                    name={row.name}
-                    emoji={row.emoji}
-                    hue={row.hue}
-                    assets={row.assets}
-                    images={row.images}
-                  />
-                  <span className="truncate text-xs font-semibold text-zinc-200">{row.name}</span>
-                </span>
-                <span className="relative h-8 overflow-hidden rounded-lg border border-white/[0.06] bg-black/30">
-                  <span
-                    className="absolute inset-y-0 left-0 rounded-lg bg-gradient-to-r from-violet-500 to-fuchsia-400"
-                    style={{ width: barWidth }}
-                  />
-                  <span
-                    className={cn(
-                      "absolute inset-0 flex items-center justify-end px-2 text-[11px] font-semibold text-white transition-opacity",
-                      selected ? "opacity-100" : "opacity-0 group-hover:opacity-100",
-                    )}
-                  >
-                    {fmt(row.period_reward)}CP · {percent}%
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {activeRow && (
-        <p className="mt-3 text-xs text-zinc-400">
-          {activeRow.name}: <span className="font-semibold text-violet-200">{fmt(activeRow.period_reward)}CP</span>{" "}
-          적립 · 이용 {fmt(activeRow.period_spent)}P
-        </p>
-      )}
-    </section>
-  );
-}
-
-export default function CreatorClient({ initial }: { initial: CreatorDashboard }) {
   const router = useRouter();
   const [data, setData] = useState(initial);
-  const [tab, setTab] = useState<"dashboard" | "profile" | "comments">("dashboard");
+  const [tab, setTab] = useState<TabId>("dashboard");
   const [earningPeriod, setEarningPeriod] = useState<CreatorEarningPeriod>("week");
   const [selectedEarningCharacterId, setSelectedEarningCharacterId] = useState<number | null>(null);
   const [profileHtml, setProfileHtml] = useState(initial.creatorProfileHtml);
@@ -237,86 +67,107 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
   const [noticeSaving, setNoticeSaving] = useState(false);
   const [exchangeAmount, setExchangeAmount] = useState("");
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState("");
-  const [error, setError] = useState("");
+  const [exchangeNotice, setExchangeNotice] = useState<PageNotice | null>(null);
+  const [profileNotice, setProfileNotice] = useState<PageNotice | null>(null);
+  const [noticeBoardNotice, setNoticeBoardNotice] = useState<PageNotice | null>(null);
   const [withdrawMsg, setWithdrawMsg] = useState("");
 
   async function refresh() {
-    const res = await fetch("/api/creator");
-    const json = await res.json();
-    if (res.ok) setData(json.dashboard);
+    try {
+      const res = await fetch("/api/creator");
+      const json = await res.json();
+      if (res.ok) setData(json.dashboard);
+    } catch {
+      // 새로고침 실패는 화면의 기존 값을 유지한다.
+    }
   }
 
   async function saveProfileContent() {
     if (profileHtml.length > CREATOR_PROFILE_HTML_MAX) {
-      setError(`크리에이터 소개는 ${CREATOR_PROFILE_HTML_MAX.toLocaleString()}자 이하여야 합니다.`);
+      setProfileNotice({
+        kind: "error",
+        text: `크리에이터 소개는 ${CREATOR_PROFILE_HTML_MAX.toLocaleString()}자 이하여야 합니다.`,
+      });
       return;
     }
     setProfileSaving(true);
-    setError("");
-    setMsg("");
-    const res = await fetch("/api/creator", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        creator_profile_html: profileHtml,
-      }),
-    });
-    setProfileSaving(false);
-    const json = await res.json();
-    if (!res.ok) {
-      setError(json.error || "소개/공지 저장에 실패했습니다.");
-      return;
+    setProfileNotice(null);
+    try {
+      const res = await fetch("/api/creator", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          creator_profile_html: profileHtml,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setProfileNotice({ kind: "error", text: json.error || "소개/공지 저장에 실패했습니다." });
+        return;
+      }
+      setProfileHtml(json.creator_profile_html ?? "");
+      setProfileNotice({ kind: "ok", text: "크리에이터 소개를 저장했습니다." });
+      await refresh();
+      router.refresh();
+    } catch {
+      setProfileNotice({ kind: "error", text: "네트워크 오류로 저장하지 못했어요. 입력한 내용은 그대로 두었습니다." });
+    } finally {
+      setProfileSaving(false);
     }
-    setProfileHtml(json.creator_profile_html ?? "");
-    setMsg("크리에이터 소개를 저장했습니다.");
-    await refresh();
-    router.refresh();
   }
 
   async function createNotice() {
     setNoticeSaving(true);
-    setError("");
-    setMsg("");
-    const res = await fetch("/api/creator/notices", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: noticeTitle, content: noticeContent }),
-    });
-    setNoticeSaving(false);
-    const json = await res.json();
-    if (!res.ok) {
-      setError(json.error || "공지 저장에 실패했습니다.");
-      return;
+    setNoticeBoardNotice(null);
+    try {
+      const res = await fetch("/api/creator/notices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: noticeTitle, content: noticeContent }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setNoticeBoardNotice({ kind: "error", text: json.error || "공지 저장에 실패했습니다." });
+        return;
+      }
+      setNoticeTitle("");
+      setNoticeContent("");
+      setNoticeBoardNotice({ kind: "ok", text: "공지를 등록했습니다." });
+      await refresh();
+      router.refresh();
+    } catch {
+      setNoticeBoardNotice({ kind: "error", text: "네트워크 오류로 공지를 등록하지 못했어요. 입력한 내용은 그대로 두었습니다." });
+    } finally {
+      setNoticeSaving(false);
     }
-    setNoticeTitle("");
-    setNoticeContent("");
-    setMsg("공지를 등록했습니다.");
-    await refresh();
-    router.refresh();
   }
 
   async function deleteNotice(id: number) {
     if (!confirm("이 공지를 삭제할까요?")) return;
-    const res = await fetch("/api/creator/notices", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      setError(json.error || "공지 삭제에 실패했습니다.");
-      return;
+    setNoticeBoardNotice(null);
+    try {
+      const res = await fetch("/api/creator/notices", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setNoticeBoardNotice({ kind: "error", text: json.error || "공지 삭제에 실패했습니다." });
+        return;
+      }
+      setNoticeBoardNotice({ kind: "ok", text: "공지를 삭제했습니다." });
+      await refresh();
+      router.refresh();
+    } catch {
+      setNoticeBoardNotice({ kind: "error", text: "네트워크 오류로 공지를 삭제하지 못했어요. 잠시 뒤 다시 시도해 주세요." });
     }
-    setMsg("공지를 삭제했습니다.");
-    await refresh();
-    router.refresh();
   }
 
   async function exchange() {
     const amount = Number(exchangeAmount);
     if (!amount || amount <= 0) {
-      setError("교환할 CP를 입력하세요.");
+      setExchangeNotice({ kind: "error", text: "교환할 CP를 입력하세요." });
       return;
     }
     if (
@@ -327,70 +178,170 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
       return;
     }
     setBusy(true);
-    setError("");
-    setMsg("");
-    const res = await fetch("/api/creator", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount }),
-    });
-    setBusy(false);
-    const json = await res.json();
-    if (!res.ok) {
-      setError(json.error || "교환에 실패했습니다.");
-      return;
+    setExchangeNotice(null);
+    try {
+      const res = await fetch("/api/creator", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setExchangeNotice({ kind: "error", text: json.error || "교환에 실패했습니다." });
+        return;
+      }
+      setExchangeNotice({ kind: "ok", text: `유료 포인트 ${fmt(json.exchanged)}P가 지급되었습니다.` });
+      setExchangeAmount("");
+      await refresh();
+      router.refresh();
+    } catch {
+      setExchangeNotice({
+        kind: "error",
+        text: "네트워크 오류로 교환 결과를 확인하지 못했어요. 입력한 값은 그대로 두었습니다. 보유 CP를 확인한 뒤 다시 시도해 주세요.",
+      });
+      await refresh();
+    } finally {
+      setBusy(false);
     }
-    setMsg(`유료 포인트 ${fmt(json.exchanged)}P가 지급되었습니다.`);
-    setExchangeAmount("");
-    await refresh();
-    router.refresh();
   }
 
-  const rewardPct = Math.round(data.tier.rewardRate * 100);
+  function jumpTo(id: string) {
+    const el = document.getElementById(id);
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+  }
+
+  function goTo(target: NonNullable<CreatorNextAction["target"]>) {
+    if (target === "profile") {
+      setTab("profile");
+      return;
+    }
+    jumpTo(target === "exchange" ? "creator-exchange" : "creator-withdraw");
+  }
+
+  function onTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    const last = TABS.length - 1;
+    const next =
+      event.key === "ArrowRight"
+        ? (index + 1) % TABS.length
+        : event.key === "ArrowLeft"
+          ? (index - 1 + TABS.length) % TABS.length
+          : event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? last
+              : null;
+    if (next === null) return;
+    event.preventDefault();
+    const [id] = TABS[next];
+    setTab(id);
+    document.getElementById(tabDomId(id))?.focus();
+  }
+
   const sproutPct = Math.round(CREATOR_REWARD_RATE_SPROUT * 100);
   const basePct = Math.round(CREATOR_REWARD_RATE * 100);
   const proPct = Math.round(CREATOR_REWARD_RATE_PRO * 100);
-  const tier = data.tier.tierLevel;
-  const tierLabel = CREATOR_TIER_LABELS[tier];
   const tierRows = allTierConditions(data.tier, sproutPct, basePct, proPct);
+  const nextActions = creatorNextActions(data);
   const profilePreviewHtml = sanitizeCreatorHtml(profileHtml);
+  const profileDirty = profileHtml !== data.creatorProfileHtml;
+  const belowThreshold = data.tier.rewardRate <= 0;
+
+  const summary = (
+    <CreatorSummary
+      tier={data.tier}
+      creatorPoints={data.creatorPoints}
+      totalReward={data.totalReward}
+      totalSpentOnChars={data.totalSpentOnChars}
+    >
+      <UnitLegend className="mt-3 border-t border-white/10 pt-3" />
+    </CreatorSummary>
+  );
+  const ladder = <TierLadder rows={tierRows} />;
+  const nextCard = <NextActions actions={nextActions} onTarget={goTo} />;
+  const exchangeCard = (
+    <ExchangeCard
+      creatorPoints={data.creatorPoints}
+      amount={exchangeAmount}
+      busy={busy}
+      notice={exchangeNotice}
+      onAmountChange={setExchangeAmount}
+      onFillAll={() => setExchangeAmount(String(data.creatorPoints))}
+      onSubmit={exchange}
+    />
+  );
+  const withdrawCard = (
+    <div className="space-y-3">
+      <WithdrawalForm
+        creatorPoints={data.creatorPoints}
+        hasPendingWithdrawal={data.hasPendingWithdrawal}
+        recentWithdrawals={data.recentWithdrawals}
+        withdrawal={data.withdrawal}
+        onSuccess={(message) => {
+          setWithdrawMsg(message);
+          router.refresh();
+        }}
+        onError={() => setWithdrawMsg("")}
+        onRefresh={refresh}
+      />
+      <ScopedNotice notice={withdrawMsg ? { kind: "ok", text: withdrawMsg } : null} />
+    </div>
+  );
+  const shareChart = (
+    <div id="creator-share" className="scroll-mt-32">
+      <CharacterEarningShareChart
+        rows={data.characterEarningShares[earningPeriod]}
+        period={earningPeriod}
+        selectedId={selectedEarningCharacterId}
+        onPeriodChange={(nextPeriod) => {
+          setEarningPeriod(nextPeriod);
+          setSelectedEarningCharacterId(null);
+        }}
+        onSelect={setSelectedEarningCharacterId}
+      />
+    </div>
+  );
+  const earningsList = (
+    <div id="creator-earnings" className="scroll-mt-32">
+      <RecentEarningsList rows={data.recentEarnings} />
+    </div>
+  );
 
   return (
-    <div className="mx-auto mt-6 max-w-3xl space-y-6">
-      <div>
-        <h1 className={cn(studioType.heading, "text-xl")}>크리에이터</h1>
-        <p className={cn(studioType.body, "mt-1")}>
-          내 캐릭터 이용 포인트 소비량의 <strong className="text-zinc-50">{rewardPct}%</strong>가
-          크리에이터 포인트(CP)로 적립됩니다.{" "}
-          <span className="text-zinc-400">
-            (새싹 {sproutPct}% · 일반 {basePct}% · 프로 {proPct}%)
-          </span>
-        </p>
-        {data.characters.length === 0 && (
-          <p className={cn(studioType.helper, "mt-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2")}>
-            아직 제작한 캐릭터가 없습니다.{" "}
-            <Link href="/studio" className="font-semibold text-violet-300 hover:text-violet-200">
+    <div className="mx-auto mt-6 max-w-6xl space-y-5">
+      <header className="space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className={cn(studioType.heading, "text-xl")}>크리에이터</h1>
+            <p className={cn(studioType.body, "mt-1")}>
+              내 캐릭터 수익과 CP를 확인하고 교환·출금해요.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <StudioButton href={`/creator/${creatorId}`} variant="secondary" size="sm">
+              내 제작자 페이지
+            </StudioButton>
+            <StudioButton href="/studio" variant="secondary" size="sm">
               제작 스튜디오
-            </Link>
-            에서 캐릭터를 만들고 공개하면 수익·등급 조건이 집계됩니다.
-          </p>
-        )}
-      </div>
+            </StudioButton>
+          </div>
+        </div>
+      </header>
 
-      <div className={studioSurface.tabList}>
-        {(
-          [
-            ["dashboard", "대시보드"],
-            ["profile", "소개/공지"],
-            ["comments", "댓글·알림"],
-          ] as const
-        ).map(([id, label]) => (
+      <div role="tablist" aria-label="크리에이터 메뉴" className={studioSurface.tabList}>
+        {TABS.map(([id, label], index) => (
           <button
             key={id}
+            id={tabDomId(id)}
             type="button"
+            role="tab"
+            aria-selected={tab === id}
+            aria-controls={panelDomId(id)}
+            tabIndex={tab === id ? 0 : -1}
             onClick={() => setTab(id)}
+            onKeyDown={(e) => onTabKeyDown(e, index)}
             className={cn(
-              "flex-1 rounded-lg py-2 text-sm font-semibold transition",
+              "min-h-11 flex-1 rounded-lg px-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60",
               tab === id ? studioSurface.tabActive : studioSurface.tabIdle,
             )}
           >
@@ -399,44 +350,41 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
         ))}
       </div>
 
-
       {tab === "profile" ? (
-        <section className={cn(studioSurface.card, "p-5")}>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className={studioType.sectionTitle}>크리에이터 소개 · 공지</h2>
-              <p className={cn(studioType.caption, "mt-1")}>
-                소개는 프로필 상단에, 공지는 제작자 페이지의 공지 게시판에 노출됩니다.
-              </p>
-            </div>
-            <StudioButton type="button" onClick={saveProfileContent} disabled={profileSaving}>
-              {profileSaving ? "저장 중..." : "저장"}
-            </StudioButton>
-          </div>
+        <div
+          role="tabpanel"
+          id={panelDomId("profile")}
+          aria-labelledby={tabDomId("profile")}
+          className="space-y-5 lg:grid lg:grid-cols-2 lg:items-start lg:gap-5 lg:space-y-0"
+        >
+          <section className={cn(studioSurface.card, "p-4 sm:p-5")}>
+            <h2 className={studioType.sectionTitle}>크리에이터 소개</h2>
+            <p className={cn(studioType.caption, "mt-1")}>
+              소개는 내 제작자 페이지 상단에 노출돼요. HTML을 쓸 수 있고, 안전하지 않은 태그는 저장 시 제거돼요.
+            </p>
+            <div className="mt-4 space-y-4">
+              <div>
+                <label htmlFor="creator-profile-html" className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium text-zinc-300">소개 내용</span>
+                  <span className="text-xs text-zinc-400">HTML 사용 가능</span>
+                </label>
+                <textarea
+                  id="creator-profile-html"
+                  className={cn(studioInputClass, "mt-2 min-h-48 font-mono text-xs")}
+                  value={profileHtml}
+                  maxLength={CREATOR_PROFILE_HTML_MAX}
+                  onChange={(e) => setProfileHtml(e.target.value.slice(0, CREATOR_PROFILE_HTML_MAX))}
+                  placeholder="<h2>안녕하세요!</h2><p>제 캐릭터 세계관과 제작 방향을 소개해보세요.</p>"
+                />
+                <p className={cn(studioType.counter, "mt-1 text-right")}>
+                  {profileHtml.length.toLocaleString()} / {CREATOR_PROFILE_HTML_MAX.toLocaleString()}자
+                </p>
+              </div>
 
-          <div className="mt-5 space-y-5">
-            <label className="block">
-              <span className="flex items-center justify-between gap-3">
-                <span className="text-xs font-semibold text-zinc-300">크리에이터 소개</span>
-                <span className="text-[10px] text-zinc-500">HTML 사용 가능</span>
-              </span>
-              <textarea
-                className={cn(studioInputClass, "mt-2 min-h-48 font-mono text-xs")}
-                value={profileHtml}
-                maxLength={CREATOR_PROFILE_HTML_MAX}
-                onChange={(e) => setProfileHtml(e.target.value.slice(0, CREATOR_PROFILE_HTML_MAX))}
-                placeholder="<h2>안녕하세요!</h2><p>제 캐릭터 세계관과 제작 방향을 소개해보세요.</p>"
-              />
-              <span className="mt-1 block text-right text-[10px] text-zinc-500">
-                {profileHtml.length.toLocaleString()} / {CREATOR_PROFILE_HTML_MAX.toLocaleString()}자
-              </span>
-            </label>
-
-            <div className="rounded-2xl border border-white/[0.08] bg-[#090b14]/70 p-4">
-              <p className="text-xs font-semibold text-zinc-400">미리보기</p>
-              <div className="mt-3">
-                <div className="rounded-xl border border-violet-400/15 bg-violet-500/[0.06] p-4">
-                  <p className="mb-2 text-xs font-bold text-violet-200">소개</p>
+              <div className="rounded-xl border border-white/[0.08] bg-[#090b14]/70 p-4">
+                <p className="text-sm font-semibold text-zinc-300">미리보기</p>
+                <div className="mt-3 rounded-xl border border-violet-400/15 bg-violet-500/[0.06] p-4">
+                  <p className="mb-2 text-sm font-semibold text-violet-200">소개</p>
                   {profilePreviewHtml ? (
                     <div
                       className="creator-comment-html text-sm leading-6 text-zinc-200"
@@ -448,84 +396,110 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
                 </div>
               </div>
             </div>
-
-            <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.045] p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-bold text-amber-100">공지 게시판</p>
-                  <p className={cn(studioType.caption, "mt-1")}>
-                    새 공지를 제목과 본문으로 등록합니다. HTML 입력칸이 아닙니다.
-                  </p>
-                </div>
-                <StudioButton type="button" size="sm" onClick={createNotice} disabled={noticeSaving}>
-                  {noticeSaving ? "등록 중..." : "공지 등록"}
+            <div
+              data-testid="creator-profile-save-bar"
+              className="sticky bottom-[calc(var(--mobile-nav-offset,0px)+var(--keyboard-inset,0px))] z-10 -mx-4 mt-4 space-y-2 border-t border-white/10 bg-[#0b0d14]/95 px-4 py-3 backdrop-blur-md sm:-mx-5 sm:px-5"
+            >
+              <ScopedNotice notice={profileNotice} />
+              <div className="flex flex-wrap items-center gap-3">
+                <StudioButton type="button" onClick={saveProfileContent} disabled={profileSaving || !profileDirty}>
+                  {profileSaving ? "저장 중…" : "저장"}
                 </StudioButton>
-              </div>
-              <div className="mt-4 space-y-3">
-                <label className="block">
-                  <span className="text-xs font-semibold text-zinc-300">제목</span>
-                  <input
-                    className={cn(studioInputClass, "mt-2")}
-                    maxLength={CREATOR_NOTICE_TITLE_MAX}
-                    value={noticeTitle}
-                    onChange={(e) => setNoticeTitle(e.target.value.slice(0, CREATOR_NOTICE_TITLE_MAX))}
-                    placeholder="공지 제목"
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-xs font-semibold text-zinc-300">내용</span>
-                  <textarea
-                    className={cn(studioInputClass, "mt-2 min-h-32")}
-                    maxLength={CREATOR_NOTICE_CONTENT_MAX}
-                    value={noticeContent}
-                    onChange={(e) =>
-                      setNoticeContent(e.target.value.slice(0, CREATOR_NOTICE_CONTENT_MAX))
-                    }
-                    placeholder="업데이트 일정, 캐릭터 공개 안내 등을 적어주세요."
-                  />
-                  <span className="mt-1 block text-right text-[10px] text-zinc-500">
-                    {noticeContent.length.toLocaleString()} / {CREATOR_NOTICE_CONTENT_MAX.toLocaleString()}자
-                  </span>
-                </label>
-              </div>
-
-              <div className="mt-5 space-y-2">
-                {data.creatorNotices.length === 0 ? (
-                  <p className={studioType.caption}>등록된 공지가 없습니다.</p>
-                ) : (
-                  data.creatorNotices.map((notice) => (
-                    <article
-                      key={notice.id}
-                      className="rounded-xl border border-white/[0.08] bg-[#0e1120]/70 p-3"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-zinc-100">{notice.title}</p>
-                          <p className="mt-0.5 text-[10px] text-zinc-500">
-                            {notice.created_at.slice(0, 16)}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => deleteNotice(notice.id)}
-                          className="shrink-0 rounded-md border border-white/10 px-2 py-1 text-[10px] font-semibold text-zinc-400 hover:bg-white/5 hover:text-rose-300"
-                        >
-                          삭제
-                        </button>
-                      </div>
-                      <p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-zinc-300">
-                        {notice.content}
-                      </p>
-                    </article>
-                  ))
-                )}
+                <span className={studioType.caption}>
+                  {profileDirty ? "저장하지 않은 변경사항이 있어요." : "변경사항이 없어요."}
+                </span>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+
+          <section className={cn(studioSurface.card, "p-4 sm:p-5")}>
+            <h2 className={studioType.sectionTitle}>공지 게시판</h2>
+            <p className={cn(studioType.caption, "mt-1")}>
+              제목과 본문으로 공지를 등록하면 제작자 페이지의 공지 게시판에 노출돼요. 이 칸은 HTML 입력칸이 아니에요.
+            </p>
+            <div className="mt-4 space-y-3">
+              <div>
+                <label htmlFor="creator-notice-title" className={studioType.label}>
+                  제목
+                </label>
+                <input
+                  id="creator-notice-title"
+                  className={studioInputClass}
+                  maxLength={CREATOR_NOTICE_TITLE_MAX}
+                  value={noticeTitle}
+                  onChange={(e) => setNoticeTitle(e.target.value.slice(0, CREATOR_NOTICE_TITLE_MAX))}
+                  placeholder="공지 제목"
+                />
+              </div>
+              <div>
+                <label htmlFor="creator-notice-content" className={studioType.label}>
+                  내용
+                </label>
+                <textarea
+                  id="creator-notice-content"
+                  className={cn(studioInputClass, "min-h-32")}
+                  maxLength={CREATOR_NOTICE_CONTENT_MAX}
+                  value={noticeContent}
+                  onChange={(e) => setNoticeContent(e.target.value.slice(0, CREATOR_NOTICE_CONTENT_MAX))}
+                  placeholder="업데이트 일정, 캐릭터 공개 안내 등을 적어주세요."
+                />
+                <p className={cn(studioType.counter, "mt-1 text-right")}>
+                  {noticeContent.length.toLocaleString()} / {CREATOR_NOTICE_CONTENT_MAX.toLocaleString()}자
+                </p>
+              </div>
+              <StudioButton type="button" onClick={createNotice} disabled={noticeSaving}>
+                {noticeSaving ? "등록 중…" : "공지 등록"}
+              </StudioButton>
+              <ScopedNotice notice={noticeBoardNotice} />
+            </div>
+
+            <h3 className="mt-6 text-sm font-semibold text-zinc-200">
+              등록된 공지 <span className="text-zinc-400">{data.creatorNotices.length}개</span>
+            </h3>
+            <ul className="mt-2 space-y-2">
+              {data.creatorNotices.length === 0 ? (
+                <li className={studioType.caption}>등록된 공지가 없습니다.</li>
+              ) : (
+                data.creatorNotices.map((notice) => (
+                  <li
+                    key={notice.id}
+                    className="rounded-xl border border-white/[0.08] bg-[#0e1120]/70 p-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="break-keep text-sm font-semibold text-zinc-100 [overflow-wrap:anywhere]">
+                          {notice.title}
+                        </p>
+                        <p className="mt-0.5 text-xs text-zinc-400">{notice.created_at.slice(0, 16)}</p>
+                      </div>
+                      <StudioButton
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        aria-label={`공지 삭제: ${notice.title}`}
+                        onClick={() => deleteNotice(notice.id)}
+                        className="shrink-0 text-rose-200"
+                      >
+                        삭제
+                      </StudioButton>
+                    </div>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-300 [overflow-wrap:anywhere]">
+                      {notice.content}
+                    </p>
+                  </li>
+                ))
+              )}
+            </ul>
+          </section>
+        </div>
       ) : tab === "comments" ? (
-        <div className="space-y-4">
-          <section className={cn(studioSurface.card, "p-5")}>
+        <div
+          role="tabpanel"
+          id={panelDomId("comments")}
+          aria-labelledby={tabDomId("comments")}
+          className="space-y-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-5 lg:space-y-0"
+        >
+          <section className={cn(studioSurface.card, "p-4 sm:p-5")}>
             <h2 className={studioType.sectionTitle}>댓글 설정</h2>
             <p className={cn(studioType.caption, "mt-1")}>
               크리에이터 프로필과 내 캐릭터 페이지의 댓글 기본값입니다. OFF면 다른 사용자는 댓글을
@@ -540,7 +514,7 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
               />
             </div>
           </section>
-          <section className={cn(studioSurface.card, "p-5")}>
+          <section className={cn(studioSurface.card, "p-4 sm:p-5")}>
             <h2 className={studioType.sectionTitle}>알림 받기</h2>
             <p className={cn(studioType.caption, "mt-1")}>
               좋아요·댓글이 달렸을 때 알림함으로 받을지 선택합니다. OFF해도 좋아요·댓글 기능 자체는
@@ -555,158 +529,44 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
           </section>
         </div>
       ) : (
-        <>
-      <section className={cn(studioSurface.card, "p-4")}>
-        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">적립 등급</p>
-        <p className="mt-0.5 text-lg font-semibold text-zinc-50">
-          {data.tier.rewardRate > 0 ? (
-            <>
-              {tierLabel} 크리에이터 ·{" "}
-              <span className="text-violet-300">{rewardPct}%</span>
-            </>
-          ) : (
-            <>
-              등급 조건 미달 · <span className="text-violet-300">0%</span>
-            </>
-          )}
-        </p>
-        <div className="mt-4 space-y-2">
-          <p className="text-[11px] font-semibold text-zinc-300">등급업 조건</p>
-          <ul className="space-y-2">
-            {tierRows.map((row) => (
-              <li
-                key={row.key}
-                className={`rounded-xl border px-3 py-2.5 ${
-                  row.isCurrent
-                    ? "border-white/20 bg-white/[0.06]"
-                    : "border-white/[0.06] bg-[#0e1120]/60"
-                }`}
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-semibold text-zinc-50">
-                    {row.label} · {row.ratePct}%
-                  </span>
-                  {row.isCurrent && (
-                    <span className="rounded bg-violet-500/25 px-1.5 py-0.5 text-[10px] font-semibold text-violet-200">
-                      현재
-                    </span>
-                  )}
-                  {row.met && !row.isCurrent && (
-                    <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-300">
-                      조건 충족
-                    </span>
-                  )}
-                </div>
-                <p className={cn(studioType.caption, "mt-1")}>{row.condition}</p>
-                {row.current && (
-                  <p className="mt-0.5 text-[11px] text-zinc-500">{row.current}</p>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      <section className="grid gap-3 sm:grid-cols-3">
-        <StatCard label="보유 CP" value={`${fmt(data.creatorPoints)}CP`} />
-        <StatCard label="누적 적립" value={`${fmt(data.totalReward)}CP`} />
-        <StatCard label="캐릭터 이용 소비" value={`${fmt(data.totalSpentOnChars)}P`} />
-      </section>
-
-      <section className={cn(studioSurface.card, "p-5")}>
-        <h2 className={studioType.sectionTitle}>CP → 유료 포인트 교환</h2>
-        <p className={cn(studioType.caption, "mt-1")}>1CP = 1P (유료 포인트) · 동일 가치로 교환</p>
-        <div className="mt-3 flex flex-wrap items-end gap-2">
-          <div className="min-w-[140px] flex-1">
-            <label className={studioType.label}>교환 CP</label>
-            <input
-              type="number"
-              min={0.1}
-              step={0.1}
-              value={exchangeAmount}
-              onChange={(e) => setExchangeAmount(e.target.value)}
-              placeholder={`최대 ${fmt(data.creatorPoints)}`}
-              className={studioInputClass}
-            />
+        <div
+          role="tabpanel"
+          id={panelDomId("dashboard")}
+          aria-labelledby={tabDomId("dashboard")}
+          className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start"
+        >
+          <div className="min-w-0 space-y-5 lg:col-start-1 lg:row-start-1">
+            {summary}
+            {nextCard}
+            <nav aria-label="대시보드 바로가기" className="grid grid-cols-2 gap-2 lg:hidden">
+              {JUMP_LINKS.map(([id, label]) => (
+                <StudioButton key={id} type="button" variant="secondary" size="sm" onClick={() => jumpTo(id)}>
+                  {label}
+                </StudioButton>
+              ))}
+            </nav>
           </div>
-          <StudioButton
-            type="button"
-            variant="secondary"
-            size="sm"
-            disabled={busy || data.creatorPoints <= 0}
-            onClick={() => setExchangeAmount(String(data.creatorPoints))}
+          <div
+            className={cn(
+              "min-w-0",
+              belowThreshold ? "order-2" : "order-4",
+              "lg:order-none lg:col-start-2 lg:row-start-1",
+            )}
           >
-            전액
-          </StudioButton>
-          <StudioButton type="button" disabled={busy} onClick={exchange}>
-            {busy ? "교환 중…" : "유료P 교환"}
-          </StudioButton>
+            {ladder}
+          </div>
+          <div className="order-3 min-w-0 space-y-5 lg:col-span-2 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start lg:gap-5 lg:space-y-0">
+            <div className="min-w-0 space-y-5">
+              {shareChart}
+              {earningsList}
+            </div>
+            <div className="min-w-0 space-y-5">
+              {exchangeCard}
+              {withdrawCard}
+            </div>
+          </div>
         </div>
-        {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
-        {msg && <p className="mt-2 text-sm text-violet-300">{msg}</p>}
-      </section>
-
-      <WithdrawalForm
-        creatorPoints={data.creatorPoints}
-        hasPendingWithdrawal={data.hasPendingWithdrawal}
-        recentWithdrawals={data.recentWithdrawals}
-        withdrawal={data.withdrawal}
-        onSuccess={(message) => {
-          setWithdrawMsg(message);
-          router.refresh();
-        }}
-        onError={() => setWithdrawMsg("")}
-        onRefresh={refresh}
-      />
-      {withdrawMsg && <p className="text-sm text-violet-300">{withdrawMsg}</p>}
-
-      <CharacterEarningShareChart
-        rows={data.characterEarningShares[earningPeriod]}
-        period={earningPeriod}
-        selectedId={selectedEarningCharacterId}
-        onPeriodChange={(nextPeriod) => {
-          setEarningPeriod(nextPeriod);
-          setSelectedEarningCharacterId(null);
-        }}
-        onSelect={setSelectedEarningCharacterId}
-      />
-
-      <section className={cn(studioSurface.card, "p-5")}>
-        <h2 className={cn(studioType.sectionTitle, "mb-3")}>최근 적립 내역</h2>
-        {data.recentEarnings.length === 0 ? (
-          <p className={studioType.body}>아직 적립 내역이 없습니다.</p>
-        ) : (
-          <ul className="max-h-64 space-y-1 overflow-y-auto text-xs">
-            {data.recentEarnings.map((e) => (
-              <li
-                key={e.id}
-                className={`flex justify-between gap-2 rounded-lg px-2 py-1.5 ${
-                  e.reversed ? "text-zinc-500 line-through" : "text-zinc-200"
-                }`}
-              >
-                <span className="truncate">
-                  {e.character_name} · 소비 {fmt(e.points_spent)}P
-                </span>
-                <span className="shrink-0 font-semibold text-violet-300">
-                  +{fmt(e.reward_amount)}CP
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-        </>
       )}
-    </div>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className={cn(studioSurface.card, "p-4")}>
-      <p className="text-[11px] text-zinc-400">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-zinc-50">{value}</p>
     </div>
   );
 }

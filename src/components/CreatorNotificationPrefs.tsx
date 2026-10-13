@@ -59,7 +59,11 @@ export default function CreatorNotificationPrefs({
         label="댓글 알림"
         description="누군가 내 프로필·캐릭터에 댓글을 남기면 알림을 받습니다."
       />
-      {error && <p className="text-xs text-rose-400">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-rose-300">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
