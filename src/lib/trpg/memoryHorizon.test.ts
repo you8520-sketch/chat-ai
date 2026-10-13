@@ -5,6 +5,7 @@ import { buildTrpgBotActionUserBlock } from "./botActions";
 import { TRPG_BOT_INTENT_OPEN } from "./botActionParse";
 import { TRPG_GM_SYSTEM } from "./gmPrompt";
 import {
+  buildTrpgBotRecentContinuity,
   buildTrpgMemoryPromptBlock,
   buildTrpgSealUserBlock,
   roundsDueForSeal,
@@ -340,6 +341,48 @@ describe("TRPG long-horizon memory invariants", () => {
     assert.match(user, /MY LONG-TERM MEMORIES/);
     assert.match(user, /RECENT CONTINUITY/);
     assert.match(user, /PREVIOUS GM SCENE/);
+  });
+
+  it("keeps the latest scene's outcome and closing aside in the bot input when older rounds fill the budget", () => {
+    const round = (roundNumber: number, gmNarration: string) => ({
+      roundNumber,
+      actions: [
+        { actorName: "렌", text: `렌은 ${roundNumber}라운드에 길게 살피며 주변의 낌새를 하나하나 확인하려 했다`.repeat(2) },
+        { actorName: "서하", text: `서하는 ${roundNumber}라운드에 기록을 대조하며 단서의 앞뒤를 맞춰 보려 했다`.repeat(2) },
+        { actorName: "도윤", text: `도윤은 ${roundNumber}라운드에 앞장서서 길을 열려 했다`.repeat(2) },
+      ],
+      gmNarration,
+    });
+    const latest = [
+      "안개 낀 골목 어귀의 분위기가 길게 이어졌다. ".repeat(60),
+      "서류함 안에서 원본 장부와 격침 지시서가 나왔고 서하가 방수 주머니에 챙겼다. ",
+      "채광창 너머로 등대로 이어지는 절벽길이 보였다. ".repeat(4),
+      "GM: 원본 장부와 격침 지시서는 확보되었으나 경비병이 문 앞까지 닥쳤다. 일행은 어디로 갈 것인가?",
+    ].join("");
+    const rounds = [
+      round(0, "오프닝 장면이다. ".repeat(80)),
+      round(1, "첫 조사 장면이다. ".repeat(80)),
+      round(2, "추적 장면이다. ".repeat(80)),
+      round(3, latest),
+    ];
+    const continuity = buildBotCompactContinuity(rounds, latest);
+    const recent = buildTrpgBotRecentContinuity(rounds);
+    const user = buildTrpgBotActionUserBlock({
+      characterName: "도윤",
+      description: "갑판장",
+      greeting: "가자",
+      systemPrompt: "직선적",
+      previousGmNarration: continuity.previousScene,
+      recentContinuity: recent,
+      compactContinuity: continuity.compact,
+      campaignMemory: "[CAMPAIGN STATE]",
+      humanActions: [{ playerName: "렌", text: "창고 안으로 물러난다." }],
+    });
+    const scene = user.slice(user.indexOf("[PREVIOUS GM SCENE]"), user.indexOf("[HUMAN ACTIONS"));
+    assert.match(scene, /^\[PREVIOUS GM SCENE\]\n안개 낀 골목 어귀/);
+    assert.match(scene, /원본 장부와 격침 지시서는 확보되었으나/);
+    assert.match(scene, /일행은 어디로 갈 것인가\?/);
+    assert.ok(Array.from(scene).length < 1200);
   });
 
   it("adds chapter arc memory only for recalled older chapters", () => {
