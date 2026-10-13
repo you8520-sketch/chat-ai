@@ -98,7 +98,6 @@ function maxFilledBody(fill: Fill, registers: Registers = "single") {
 
 function rowFromAcceptedBody(body: ReturnType<typeof maxFilledBody>): CharacterSettingRow {
   const parsed = parseCharacterFormBody(body, ADULT);
-  assert.equal(parsed.ok, true, parsed.ok ? "" : parsed.error);
   if (!parsed.ok) throw new Error(parsed.error);
   const data = parsed.data;
   const compiled = buildCompiledCreatorDescriptionForSave(data);

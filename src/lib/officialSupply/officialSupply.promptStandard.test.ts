@@ -156,7 +156,7 @@ describe("official character prompt standard v1", () => {
 
   it("keeps compact public relationship copy persona-flexible", () => {
     const { draft } = compileLucian();
-    assert.match(draft.description, /기존 관계는 페르소나 설정을 따르며/);
+    assert.match(draft.description, /기존 관계는 페르소나 설정을 따른다/);
     assert.doesNotMatch(draft.description, /가능한 관계: 공범자이자 아슬아슬한 유혹자/);
     assert.doesNotMatch(draft.tagline, /손목을 잡고/);
   });
@@ -405,13 +405,13 @@ describe("official character prompt standard v1", () => {
     assert.match(file.bible.greeting, /증권거래소 지하 금고/);
     assert.equal(file.bible.greeting, draft.greeting);
     assert.match(creatorComment, /추천 플레이 방향/);
-    assert.match(creatorComment, /하나의 도입 상황/);
+    assert.doesNotMatch(creatorComment, /하나의 도입 상황|이런 식으로 시작해 보세요/);
     assert.doesNotMatch(file.bible.situation.userEntry, /오늘 처음 만난|낯선 사람|처음 보는 당신|연인으로 시작한다|이미 연인/);
     assert.doesNotMatch(file.bible.greeting, /오늘 처음 만난|낯선 사람|처음 보는 당신|연인으로|약혼자/);
     assert.match(draft.sections.relationshipsAndDrives, /정해진 호감 수치처럼 관계를 자동 진행하지 않는다/);
     assert.match(draft.sections.relationshipsAndDrives, /어떤 관계도 자동으로 확정되지 않는다/);
     assert.match(draft.sections.relationshipsAndDrives, /가족·동료·연인·상관 등 기존 관계가 있다면 그 관계의 신뢰와 갈등을 유지/);
-    assert.match(draft.description, /기존 관계는 페르소나 설정을 따르며/);
+    assert.match(draft.description, /기존 관계는 페르소나 설정을 따른다/);
   });
 
   it("keeps the stored compact draft identical to the live compiler output", () => {
@@ -449,7 +449,7 @@ describe("official character prompt standard v1", () => {
     assert.match(draft.greeting, /따라오셔도 되고, 여기서 갈라서도 됩니다/);
     assert.doesNotMatch(draft.greeting, /당신을 믿어서가 아니라/);
     assert.match(draft.greeting, /다른 손은 코트 안쪽 장부 근처에 머물러 있었다/);
-    assert.match(draft.description, /같은 탈출구 앞에 있다/);
+    assert.match(draft.description, /같은 탈출구 앞에 선다/);
     assert.match(systemPrompt, /도주에 협력할지, 거리를 둘지, 갈라설지는 유저가 정한다/);
   });
 

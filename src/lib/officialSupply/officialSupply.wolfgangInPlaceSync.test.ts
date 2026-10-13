@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { after, before, beforeEach, describe, it } from "node:test";
 
@@ -45,6 +46,8 @@ const ADMIN: SessionUser = {
 const SUPPLY_KEY = WOLFGANG_IN_PLACE_TARGET.supplyDraftKey;
 const SOURCE_KEY = WOLFGANG_IN_PLACE_TARGET.sourceDraftKey;
 const FIXTURE_DIR = path.join(process.cwd(), "src/lib/officialSupply/pilot/fixtures");
+const PILOT_SOURCE_DIR = path.join(process.cwd(), "src/lib/officialSupply/pilot");
+const APPROVED_SOURCE_FIXTURE = path.join(FIXTURE_DIR, "pilot-rf-02-approved-c91ba66a.source.json");
 const BEFORE_RP = path.join(process.cwd(), "docs/official-supply/reviews/pilot-rf-02-before-rp.txt");
 
 function previousLockDraft(): OfficialCharacterDraft {
@@ -59,9 +62,30 @@ function firstSentence(text: string): string {
   return text.split(/(?<=[.!?。])\s+/)[0] ?? text;
 }
 
+/**
+ * The pinned approved Text Lock (c91ba66a…) belongs to the manuscript approved before the
+ * shared-world migration. The live `pilot-rf-02` source has moved on and needs a new approved
+ * Text Lock, so the sync mechanics are exercised against the frozen approved source.
+ */
+function installFrozenApprovedPilotDir(): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wolfgang-approved-pilot-"));
+  fs.cpSync(PILOT_SOURCE_DIR, dir, { recursive: true, filter: (src) => !src.includes(`${path.sep}fixtures`) });
+  fs.copyFileSync(APPROVED_SOURCE_FIXTURE, path.join(dir, "characters", `${SOURCE_KEY}.json`));
+  process.env.OFFICIAL_SUPPLY_PILOT_DIR = dir;
+  return dir;
+}
+
 describe("Wolfgang #51 approved manuscript in-place sync", () => {
-  before(() => installIsolatedTestDatabase());
-  after(() => uninstallIsolatedTestDatabase());
+  let frozenPilotDir = "";
+  before(() => {
+    frozenPilotDir = installFrozenApprovedPilotDir();
+    installIsolatedTestDatabase();
+  });
+  after(() => {
+    uninstallIsolatedTestDatabase();
+    delete process.env.OFFICIAL_SUPPLY_PILOT_DIR;
+    fs.rmSync(frozenPilotDir, { recursive: true, force: true });
+  });
   beforeEach(() => {
     const db = getDb();
     new OfficialSupplyStore(db);

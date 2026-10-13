@@ -172,9 +172,8 @@ describe("official detailed intro + creator comment", () => {
       assert.deepEqual(qa.errors, [], `${file.draftKey}: ${JSON.stringify(qa.errors)}`);
       assert.match(comment, /지금 상황/);
       assert.match(comment, /추천 플레이 방향/);
-      assert.match(comment, /이런 식으로 시작해 보세요/);
       assert.match(comment, /가능한 관계/);
-      assert.match(comment, /하나의 도입 상황에서 시작/);
+      assert.doesNotMatch(comment, /하나의 도입 상황|이런 식으로 시작해 보세요|런타임|프롬프트/);
       assert.doesNotMatch(comment, /\[캐릭터 설정\]/);
       assert.doesNotMatch(comment, /(신뢰|호감|경계).{0,8}(낮음|높음|미정)/);
       assert.doesNotMatch(comment, /첫 장면에서는 목적 한 가지만|반응을 보세요|따라 누구와/);
@@ -340,18 +339,24 @@ describe("Wolfgang GPT-authored public copy", () => {
     const draft = compileOfficialDraftFromBible(file.bible, compileKeys(file));
     assert.equal(file.bible.publicProfile.tagline, copy.tagline);
     assert.equal(file.bible.publicProfile.description, copy.pitch);
-    assert.equal(file.bible.publicProfile.detailedDescription, copy.detailedDescription);
     assert.equal(file.bible.greeting, copy.greeting);
     assert.equal(file.bible.situation.personalSituation, copy.personalSituation);
     assert.equal(file.bible.situation.userEntry, copy.userEntry);
     assert.equal(file.bible.rpEngine.immediateHook, copy.immediateHook);
     assert.equal(file.bible.rpEngine.mediumConflict, copy.mediumConflict);
-    assert.equal(draft.description, copy.detailedDescription);
+    assert.equal(draft.description, file.bible.publicProfile.detailedDescription);
+    assert.notEqual(draft.description, copy.detailedDescription, "the public intro moved to the shared-world standard");
     assert.equal(draft.greeting, copy.greeting);
     assert.equal(draft.tagline, copy.tagline);
     assert.notEqual(draft.description, file.bible.publicProfile.description);
     assert.equal(copy.tagline.length, 37);
     assert.equal(copy.detailedDescription.length, 1299);
+    assert.equal(
+      readJson<PilotChar>(path.join(PILOT_DIR, "fixtures", "pilot-rf-02-approved-c91ba66a.source.json")).bible
+        .publicProfile.detailedDescription,
+      copy.detailedDescription,
+      "the GPT candidate document is the previously approved copy"
+    );
     assert.equal(copy.greeting.length, 1547);
     assert.ok(copy.greeting.length <= 2000);
     assert.deepEqual(evaluateOfficialPublicDescription(draft.description, draft.name).errors, []);
@@ -389,17 +394,16 @@ describe("Wolfgang GPT-authored public copy", () => {
     assert.equal(portfolio?.relationshipTrope, file.brief.relationshipTrope);
     assert.equal(file.draft.hook.rpHook, file.brief.rpHook);
     assert.equal(file.draft.hook.relationshipTrope, file.brief.relationshipTrope);
+    assert.equal(draft.promptStandard, undefined);
     assert.equal(draft.hook.rpHook, file.brief.rpHook);
     assert.equal(draft.hook.relationshipTrope, file.brief.relationshipTrope);
-    assert.match(comment, /금지 마석 사건과 연결된 당신의 처형 명령서/);
-    assert.match(comment, /의심 속에서도 처형을 막는 보호자, 선택에 따라 깊어지는 신뢰/);
-    assert.match(comment, /당신은 위조 처형 명령서의 진위를 확인할 수 있다/);
-    assert.doesNotMatch(comment, /자신의 방식으로 확인할 수 있다/);
+    assert.equal(comment, file.bible.publicProfile.creatorComment);
+    assert.match(comment, /당신을 처형하라는 명령서에 자신의 인장이 찍힌 것을 발견한 북부대공/);
+    assert.doesNotMatch(comment, /자신의 방식으로 확인할 수 있다|하나의 도입 상황|이런 식으로 시작해 보세요/);
     assert.doesNotMatch(comment, /진위를 자신의<\/p>/);
     assert.doesNotMatch(comment, /압송해 심문/);
     assert.doesNotMatch(comment, /정략적 혐오에서 맹목적 충성으로/);
     assert.deepEqual(officialPlayStartChoices(draft), ["기록을 조사할지", "명령을 공개할지", "봉인을 지킬지"]);
-    assert.match(comment, /기록을 조사할지 · 명령을 공개할지 · 봉인을 지킬지/);
     assert.doesNotMatch(file.bible.userRelationship.initialView, /유죄라고 단정한다|이미 유죄/);
     assert.equal(canonicalPrimaryTrope(file.brief.relationshipTrope), "보호자");
     assert.equal(canonicalPrimaryTrope(portfolio!.relationshipTrope), "보호자");
