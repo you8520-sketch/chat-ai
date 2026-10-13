@@ -1,0 +1,46 @@
+{
+ "id": "FX36",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"라이크는 연속해서 장작을 쌓았고, 렌이 미안하다며 헤어지자고 하자 말없이 시선을 떨굼. 이별 제안에 대한 라이크의 감정과 수락 여부는 드러나지 않음.\",\"items\":[{\"actor\":\"user\",\"kind\":\"event\",\"turn\":40,\"sourceRole\":\"user\",\"quote\":\"미안, 우리 그만 헤어지자.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":40,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 말없이 시선을 떨궜다.\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 1991,
+  "outputTokens": 156,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1989,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000063,
+  "upstreamCostUsd": 0.000063,
+  "debugRawUsage": {
+   "completion_tokens": 156,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1991,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1989
+   },
+   "total_tokens": 2147,
+   "cost": 0.000063,
+   "cost_details": {
+    "upstream_inference_cost": 0.000063
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "2ca6768a-0ba8-43dd-ab1e-a91a0c566c29"
+ },
+ "billedUsd": 0.000063,
+ "ms": 3446,
+ "systemChars": 3460,
+ "userChars": 622
+}

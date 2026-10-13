@@ -1,0 +1,46 @@
+{
+ "id": "N04_char_backstory",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"모닥불 곁에서 렌이 라이크에게 생각을 묻자, 라이크는 처음으로 어린 시절 변방 검사였던 스승에게 검을 배웠다고 털어놓음. 스승은 칼을 뽑지 않을 때를 먼저 가르쳤고, 라이크는 어릴 적 그 가르침을 싫어했음. 렌이 스승을 잃었는지 묻자 라이크는 어릴 때 스승을 잃었으며, 경위와 마지막 말은 지금은 이야기하고 싶지 않다고 경계를 세움. 렌은 더 묻지 않겠다고 했고, 라이크는 고마워하며 스승을 지키지 못했다는 생각이 오래 남았지만 가르침은 사라지지 않았다고 밝힘. 렌이 그 가르침을 지금도 지킨다고 말하자 라이크는 장담할 수는 없어도 잊지 않았다고 답함. 렌의 조용한 경청으로 라이크의 굳은 어깨가 풀리고 두 사람 사이의 침묵도 덜 차가워짐.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"이런 이야긴 처음 하는군.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"claim\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"무슨 일이 있었는지, 마지막에 어떤 말을 들었는지… 지금은 자세히 말하고 싶지 않다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"알겠어. 말하고 싶지 않은 건 묻지 않을게.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"claim\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"그분을 지키지 못했다는 생각은 오래 남았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"그래도 잊지는 않았어.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"네가 조용히 들어준 것만으로 충분하다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 2842,
+  "outputTokens": 520,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 2840,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000187,
+  "upstreamCostUsd": 0.000187,
+  "debugRawUsage": {
+   "completion_tokens": 520,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2842,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 2840
+   },
+   "total_tokens": 3362,
+   "cost": 0.000187,
+   "cost_details": {
+    "upstream_inference_cost": 0.000187
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "d2c3fd99-036c-4b13-8c81-bb2815195047"
+ },
+ "billedUsd": 0.000187,
+ "ms": 5959,
+ "systemChars": 3460,
+ "userChars": 1899
+}

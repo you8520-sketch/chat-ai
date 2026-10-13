@@ -1,0 +1,46 @@
+{
+ "id": "FX76",
+ "arm": "F",
+ "rep": 1,
+ "text": "라이크는 렌의 잡담에 응답하며 76번째부터 80번째까지 장작을 쌓음.",
+ "usage": {
+  "inputTokens": 1550,
+  "outputTokens": 31,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1548,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.00002,
+  "upstreamCostUsd": 0.00002,
+  "debugRawUsage": {
+   "completion_tokens": 31,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1550,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1548
+   },
+   "total_tokens": 1581,
+   "cost": 0.00002,
+   "cost_details": {
+    "upstream_inference_cost": 0.00002
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "3d62eb64-c616-4242-bbdc-9c7ccde42214"
+ },
+ "billedUsd": 0.00002,
+ "ms": 1882,
+ "systemChars": 2503,
+ "userChars": 584
+}

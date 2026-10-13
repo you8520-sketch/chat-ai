@@ -1,0 +1,46 @@
+{
+ "id": "N15_gift",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"렌이 낡은 검집을 라이크에게 건네자, 라이크는 감사하며 받아들고 마음에 들지 않는다면 쓰지 않아도 된다는 말에도 거절하지 않음. 길에서 검집 크기를 시험해 검이 무리 없이 들어가는 것을 확인하고, 허리에 고정해 뽑고 넣는 동작까지 점검함. 라이크는 검집을 버리거나 바꿀 생각이 없음을 보였고, 렌이 앞으로도 잘 부탁한다고 하자 “나도 잘 부탁한다”고 응답함. 함께 길을 걷는 관계가 조심스럽게 이어짐.\",\"items\":[{\"actor\":\"user\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"user\",\"quote\":\"네 검에 맞을 것 같아서 가져왔어. 새것은 아니지만, 괜찮다면 써.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"“……고맙다. 쓸 수 있겠어.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"날은 무리 없이 안쪽으로 들어갔다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"그것을 버리거나 바꿀 마음이 없다는 건 분명했다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"앞으로도 잘 부탁해, 라이크.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"“나도 잘 부탁한다.”\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 3093,
+  "outputTokens": 410,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 3091,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000153,
+  "upstreamCostUsd": 0.000153,
+  "debugRawUsage": {
+   "completion_tokens": 410,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 3093,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 3091
+   },
+   "total_tokens": 3503,
+   "cost": 0.000153,
+   "cost_details": {
+    "upstream_inference_cost": 0.000153
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "b54a9439-6980-4bf0-aabb-b3ecd4f5179a"
+ },
+ "billedUsd": 0.000153,
+ "ms": 4064,
+ "systemChars": 3460,
+ "userChars": 2284
+}

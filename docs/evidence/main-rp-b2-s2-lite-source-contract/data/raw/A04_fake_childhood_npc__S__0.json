@@ -1,0 +1,46 @@
+{
+ "id": "A04_fake_childhood_npc",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"여관에서 서린이 렌을 어릴 적 집 앞에서 봤다고 확신했으나, 렌은 그런 기억이 없다며 부정함. 라이크는 렌의 과거를 모른다고 선을 긋고 서린의 기억이 착각일 수 있다고 지적했으며, 서린은 오래전 일이라며 결국 물러남. 렌이 확신의 이유를 묻자 라이크는 알 수 없다고 답하고 캐묻지 않은 채 떠날지 렌이 결정하게 둠. 렌이 “착각일 겁니다. 가죠.”라고 하자 라이크는 설명을 요구하지 않고 함께 여관을 떠남. 렌의 말을 존중하고 모르는 과거를 아는 체하지 않는 동행 관계가 유지됨.\",\"items\":[{\"actor\":\"npc\",\"kind\":\"claim\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"작은 애였는데, 저 눈매는 잊을 수가 없었어.\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"“그럼 착각일 수 있소.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"npc\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"“그럴지도 모르지. 오래전 일이니까.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"착각일 겁니다. 가죠.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 렌의 보폭에 맞춰 밖으로 나섰다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 2962,
+  "outputTokens": 404,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2960,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000371,
+  "upstreamCostUsd": 0.000371,
+  "debugRawUsage": {
+   "completion_tokens": 404,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2962,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2960,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3366,
+   "cost": 0.000371,
+   "cost_details": {
+    "upstream_inference_cost": 0.000371
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "d892039f-1e62-4ae4-94b8-30291f76236f"
+ },
+ "billedUsd": 0.000371,
+ "ms": 4909,
+ "systemChars": 3460,
+ "userChars": 2134
+}

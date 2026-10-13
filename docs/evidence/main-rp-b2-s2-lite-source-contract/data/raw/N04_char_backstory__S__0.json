@@ -1,0 +1,46 @@
+{
+ "id": "N04_char_backstory",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"렌이 말없이 불을 바라보던 라이크에게 무슨 생각을 하는지 묻자, 라이크는 처음으로 어린 시절 변방 검사인 스승에게 검을 배웠다고 털어놓음. 스승은 검을 뽑지 않을 때를 먼저 배우라 가르쳤고, 라이크는 그 가르침을 싫어했으나 스승은 그가 어릴 때 사망함. 라이크가 죽음의 경위와 마지막 말을 더 말하고 싶지 않다고 하자 렌은 묻지 않겠다고 존중함. 이에 라이크는 고마움을 표하고, 스승을 지키지 못했다는 생각은 남았지만 가르침을 잊지 않았다고 밝힘. 렌의 조용한 경청에 라이크의 굳은 태도가 누그러지고, 그 밤 두 사람 사이의 침묵도 덜 차가워짐.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"이런 이야긴 처음 하는군.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"claim\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"스승은 변방을 떠돌던 검사였다.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"claim\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"그래. 내가 어렸을 때였다.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"말하고 싶지 않은 건 묻지 않을게.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"claim\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"그분을 지키지 못했다는 생각은 오래 남았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"네가 조용히 들어준 것만으로 충분하다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 2842,
+  "outputTokens": 459,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2840,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.00038,
+  "upstreamCostUsd": 0.00038,
+  "debugRawUsage": {
+   "completion_tokens": 459,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2842,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2840,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3301,
+   "cost": 0.00038,
+   "cost_details": {
+    "upstream_inference_cost": 0.00038
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "8c1a402b-6db3-41b3-9013-fefaed957e72"
+ },
+ "billedUsd": 0.00038,
+ "ms": 5443,
+ "systemChars": 3460,
+ "userChars": 1899
+}

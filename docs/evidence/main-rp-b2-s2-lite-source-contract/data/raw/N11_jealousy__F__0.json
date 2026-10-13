@@ -1,0 +1,46 @@
+{
+ "id": "N11_jealousy",
+ "arm": "F",
+ "rep": 0,
+ "text": "여관에서 서린은 렌에게 스튜를 넉넉히 주고 꿀차까지 따로 챙겨 주며 호의를 보임. 라이크는 이를 말없이 지켜보다 표정이 굳고, 렌을 재촉해 여관을 나선 뒤 차를 지나치게 믿지 말라며 마을의 안전을 경계함. 렌이 서린의 친절이 불편한지 묻자 부인하면서도 칼집을 움켜쥐고, 먹고 마시는 것을 조심하라고 당부함. 렌이 다음엔 라이크의 잔도 챙기라 하자 그는 거절하고 “네 잔은 네가 마셔. 내 건 내가 고른다.”고 선을 그음. 다만 렌과 나란히 걷도록 속도를 늦추고 따라오는지 돌아보는 등, 퉁명스러운 태도 속에 질투를 의식한 듯한 반응과 배려를 보임.",
+ "usage": {
+  "inputTokens": 2474,
+  "outputTokens": 226,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2472,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000274,
+  "upstreamCostUsd": 0.000274,
+  "debugRawUsage": {
+   "completion_tokens": 226,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2474,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2472,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2700,
+   "cost": 0.000274,
+   "cost_details": {
+    "upstream_inference_cost": 0.000274
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "1c14ec42-03ee-45f6-8e82-ea7b63b46a11"
+ },
+ "billedUsd": 0.000274,
+ "ms": 4116,
+ "systemChars": 2503,
+ "userChars": 1936
+}

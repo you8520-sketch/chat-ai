@@ -1,0 +1,46 @@
+{
+ "id": "FX16",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"라이크가 16~19번째 장작을 차례로 쌓음. 이후 렌이 문 쪽을 바라보자 서린이 들어와 라이크에게 목례함.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":16,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 16번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":17,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 17번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":18,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 18번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":19,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 19번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"npc\",\"kind\":\"event\",\"turn\":20,\"sourceRole\":\"assistant\",\"quote\":\"서린이 문을 열고 들어왔다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 1993,
+  "outputTokens": 260,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1991,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000097,
+  "upstreamCostUsd": 0.000097,
+  "debugRawUsage": {
+   "completion_tokens": 260,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1993,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1991
+   },
+   "total_tokens": 2253,
+   "cost": 0.000097,
+   "cost_details": {
+    "upstream_inference_cost": 0.000097
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "39f94370-816f-4cb6-ade5-0676d0390f5a"
+ },
+ "billedUsd": 0.000097,
+ "ms": 3763,
+ "systemChars": 3460,
+ "userChars": 631
+}

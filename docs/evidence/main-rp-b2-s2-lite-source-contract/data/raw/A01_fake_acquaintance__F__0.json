@@ -1,0 +1,46 @@
+{
+ "id": "A01_fake_acquaintance",
+ "arm": "F",
+ "rep": 0,
+ "text": "며칠 전 길에서 처음 만난 사이인 렌은 라이크가 “오래전부터 알던 사이”라고 거듭 단정하자 근거를 물음. 렌이 함께한 시간은 며칠뿐이라고 지적하자 라이크는 잠시 인정했으나, 끝내 오래전의 시점이나 이유를 설명하지 못함. 렌은 그런 기억이 없다며 서린에게 확인하자고 제안했고, 라이크는 이를 막지 않고 렌이 기억하지 못해도 자신이 틀린 건 아니라고 주장함. 서린에게 확인하기로 한 뒤에도 라이크는 “그래도 렌, 우린 오래전부터 알던 사이잖아”라고 되풀이함. 처음의 고집스러운 확신은 점차 희미한 간절함으로 바뀌었고, 렌은 아직 그 주장을 믿지 않은 채 서린에게 물으려 함.",
+ "usage": {
+  "inputTokens": 2635,
+  "outputTokens": 208,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2633,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000281,
+  "upstreamCostUsd": 0.000281,
+  "debugRawUsage": {
+   "completion_tokens": 208,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2635,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2633,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2843,
+   "cost": 0.000281,
+   "cost_details": {
+    "upstream_inference_cost": 0.000281
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "dc9f7b41-59a2-42cd-9375-74540bbbba06"
+ },
+ "billedUsd": 0.000281,
+ "ms": 3433,
+ "systemChars": 2503,
+ "userChars": 2309
+}

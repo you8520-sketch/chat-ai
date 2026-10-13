@@ -1,0 +1,46 @@
+{
+ "id": "N13_journey_sequence",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"며칠 전부터 함께 걷기 시작한 렌과 라이크는 식량과 횃불 심지, 낡은 칼집 끈을 사러 시장에 감. 렌이 말린 고기와 빵을 고르고 끈과 심지를 챙기는 동안 라이크는 값을 치르고 짐을 들었으며, 렌이 자루를 고쳐 멘 뒤에도 바꿔 들 수 있다고 제안함. 렌은 돌아오는 길에 자루를 맡기고 여관에서 서린에게 저녁을 묻자고 했고, 라이크는 렌이 먼저 말하라고 함. 여관에 도착해 렌이 남은 저녁을 묻자 서린이 수프를 데워 주기로 했으며, 라이크는 식량을 카운터 옆에 내려놓음.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"며칠 전부터 함께 걷기 시작한 두 사람 사이엔 아직 긴 설명보다 이런 확인이 편했다.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"짐은 바꿔 들 수 있다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"좋아, 잠깐 맡아 줘. 여관에 가면 서린한테 저녁도 물어보자.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"네가 먼저 말해.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"npc\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"남은 수프는 있어. 데워 줄게.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2954,
+  "outputTokens": 423,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2952,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000377,
+  "upstreamCostUsd": 0.000377,
+  "debugRawUsage": {
+   "completion_tokens": 423,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2954,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2952,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3377,
+   "cost": 0.000377,
+   "cost_details": {
+    "upstream_inference_cost": 0.000377
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "f1e01e0f-64bc-4907-a155-ea5c1bf4862c"
+ },
+ "billedUsd": 0.000377,
+ "ms": 7158,
+ "systemChars": 3460,
+ "userChars": 2030
+}

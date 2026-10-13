@@ -1,0 +1,46 @@
+{
+ "id": "N14_night_watch",
+ "arm": "F",
+ "rep": 0,
+ "text": "변방의 무너진 망루에서 밤샘 경계 중 렌이 졸자, 라이크는 말없이 담요를 덮어 주고 밤새 홀로 경계를 섬. 새벽에 담요를 알아본 렌이 고맙다며 돌려주자 라이크는 “다음엔 잠들지 마”라고 했고, 렌은 혼자 밤을 샌 라이크도 지적함. 라이크는 “둘 다 깨어 있으면 좋지”라고 답하며 렌이 따라오도록 걸음을 늦춤. 렌이 다음번엔 번갈아 쉬자고 제안했으나 라이크는 “상황을 봐서”라고만 답함. 담요를 든 채 함께 여관으로 향했으며, 라이크는 밤의 일을 더 말하지 않으려는 듯 태연한 태도를 유지함.",
+ "usage": {
+  "inputTokens": 2355,
+  "outputTokens": 198,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2353,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000255,
+  "upstreamCostUsd": 0.000255,
+  "debugRawUsage": {
+   "completion_tokens": 198,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2355,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2353,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2553,
+   "cost": 0.000255,
+   "cost_details": {
+    "upstream_inference_cost": 0.000255
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "3daabd00-c1e9-4b4f-b198-d0c47ccf9f16"
+ },
+ "billedUsd": 0.000255,
+ "ms": 3427,
+ "systemChars": 2503,
+ "userChars": 1792
+}

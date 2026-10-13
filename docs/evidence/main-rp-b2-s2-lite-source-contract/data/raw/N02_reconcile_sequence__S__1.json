@@ -1,0 +1,46 @@
+{
+ "id": "N02_reconcile_sequence",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"렌이 전날 라이크의 말을 끊고 화낸 일을 사과하자, 라이크는 사과를 외면하지 않았지만 아직 일을 정리 중이라며 즉시 괜찮아질 필요는 없다고 밝힘. 렌은 기다리겠다고 한 뒤 재촉하지 않고, 서로 말을 듣지 못한 일을 반복하지 않겠다고 약속함. 둘은 아침 식사 후 북쪽 길로 가기로 정하고 함께 여관을 떠남. 라이크도 “그럼 나도 네 말을 듣지.”라며 상호 경청을 약속했고, 사과를 받아들였지만 아직 완전히 잊지는 않았다고 밝힘. 서로의 속도에 맞춰 나란히 걷기 시작하며 긴장이 누그러짐.\",\"items\":[{\"actor\":\"user\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"user\",\"quote\":\"어제는 내가 심했어.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"들었어.\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"어제처럼 네 말을 끊지 않을게.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"그럼 나도 네 말을 듣지.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"그래도 사과는 받아들였어.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"historical\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"이번엔 나란히 걷자.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 3018,
+  "outputTokens": 406,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 3016,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000151,
+  "upstreamCostUsd": 0.000151,
+  "debugRawUsage": {
+   "completion_tokens": 406,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 3018,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 3016
+   },
+   "total_tokens": 3424,
+   "cost": 0.000151,
+   "cost_details": {
+    "upstream_inference_cost": 0.000151
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "7b53f6ac-bdc8-4261-8242-fae063eb4e15"
+ },
+ "billedUsd": 0.000151,
+ "ms": 4634,
+ "systemChars": 3460,
+ "userChars": 2159
+}

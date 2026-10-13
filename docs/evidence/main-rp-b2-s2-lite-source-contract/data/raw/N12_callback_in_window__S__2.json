@@ -1,0 +1,46 @@
+{
+ "id": "N12_callback_in_window",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"방 두 개 중 하나만 멀쩡해 렌이 라이크와 한 방을 쓰기로 하자, 라이크는 열쇠를 렌에게 양보하고 자신은 잠들지 않아도 된다며 경계를 택함. 렌이 밤새 문지기 할 필요 없다고 했지만 라이크는 필요 여부는 자신이 정한다고 선을 그었고, 함께한 지 얼마 안 된 사이임이 드러남. 렌의 질문에 라이크는 두려움과 분노에 휘둘리면 지키려던 것까지 해칠 수 있다고 설명함. 흔들리지 않느냐는 물음에는 자신도 흔들리지만 멈춰 겨누는 대상을 확인한다고 답함. 새벽에 길을 떠나기로 했으며, 라이크는 렌이 방에 올라갈 때까지 문가를 지킴.\",\"items\":[{\"actor\":\"user\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"user\",\"quote\":\"둘이 한 방 써도 상관없어.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 잠시 열쇠를 내려다보다 렌 쪽으로 밀었다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"겁이나 분노가 생기는 건 막을 수 없다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"흔들릴 때마다 멈추고, 내가 무엇을 겨누는지 확인할 뿐이다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"잠은 자라, 렌. 새벽에 길을 나선다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2957,
+  "outputTokens": 430,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2955,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000379,
+  "upstreamCostUsd": 0.000379,
+  "debugRawUsage": {
+   "completion_tokens": 430,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2957,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2955,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3387,
+   "cost": 0.000379,
+   "cost_details": {
+    "upstream_inference_cost": 0.000379
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "3b9105e8-507b-400f-9314-d74f0b202bf9"
+ },
+ "billedUsd": 0.000379,
+ "ms": 4979,
+ "systemChars": 3460,
+ "userChars": 2043
+}

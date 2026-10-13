@@ -1,0 +1,46 @@
+{
+ "id": "FX51",
+ "arm": "F",
+ "rep": 0,
+ "text": "렌의 잡담에 라이크가 51번째부터 55번째까지 장작을 쌓음. 관계나 상태 변화 없음.",
+ "usage": {
+  "inputTokens": 1550,
+  "outputTokens": 33,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 1548,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000136,
+  "upstreamCostUsd": 0.000136,
+  "debugRawUsage": {
+   "completion_tokens": 33,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1550,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 1548,
+    "cached_tokens": 0
+   },
+   "total_tokens": 1583,
+   "cost": 0.000136,
+   "cost_details": {
+    "upstream_inference_cost": 0.000136
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "e6b28207-1bc3-4c21-bcb3-aac6aec034d2"
+ },
+ "billedUsd": 0.000136,
+ "ms": 2324,
+ "systemChars": 2503,
+ "userChars": 584
+}

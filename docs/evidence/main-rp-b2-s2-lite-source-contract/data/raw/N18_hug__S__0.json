@@ -1,0 +1,46 @@
+{
+ "id": "N18_hug",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"여관 문이 거칠게 닫히자 렌이 놀라 숨이 짧아지고 가슴이 진정되지 않음. 라이크는 캐묻지 않고 곁에 머물며 천천히 숨 쉬라고 했고, 렌이 함께 있어 달라 하자 조심스레 등을 감싸 안음. 렌은 처음엔 놀랐으나 품이 편하다며 호흡을 가다듬었고, 라이크는 안도하며 움직이지 않고 곁을 지킴. 렌이 진정되어 놓아도 된다고 하자 라이크는 상태를 확인한 뒤 안아 주던 팔을 거두고 어깨를 두드렸으며, 렌에게 물을 권함.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"“숨부터 천천히 쉬어.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"마침내 어색하게 렌의 등을 감싸 안았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"네 품이 생각보다 편하네.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"더는 붙잡고 있지 않아도 돼.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 2765,
+  "outputTokens": 334,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2763,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000333,
+  "upstreamCostUsd": 0.000333,
+  "debugRawUsage": {
+   "completion_tokens": 334,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2765,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2763,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3099,
+   "cost": 0.000333,
+   "cost_details": {
+    "upstream_inference_cost": 0.000333
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "8b3a8a1c-feea-4fca-83e2-3fd9ba29ef98"
+ },
+ "billedUsd": 0.000333,
+ "ms": 5361,
+ "systemChars": 3460,
+ "userChars": 1787
+}

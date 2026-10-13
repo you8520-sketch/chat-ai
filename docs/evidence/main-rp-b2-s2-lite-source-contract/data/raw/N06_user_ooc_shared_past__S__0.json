@@ -1,0 +1,46 @@
+{
+ "id": "N06_user_ooc_shared_past",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"3년 전 같은 용병단에서 일하고 이후 소식이 끊겼던 렌과 라이크가 변방 마을 여관에서 재회함. 렌이 안부를 묻자 라이크는 호위와 괴물 사냥을 하며 지냈다고 답했고, 연락할 방법이 없었다고 설명함. 렌은 재회만으로 충분한지는 앞으로 보자며 함께 술을 마시자고 했고, 어색함이 누그러진 라이크도 응함. 렌이 서로 이야기를 나누고 다음 행선지를 같이 정하자고 제안하자 라이크는 동의하고, 내일 의뢰를 살펴 함께할지 정하자고 제안함.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"“살아 있었군.”\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"“연락할 방법이 없었어.”\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"“지금은 한잔하자.”\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"“다시 만났으니 이번엔 어디로 갈지 같이 정하자.”\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"“내일 의뢰를 살펴보면 돼. 네가 괜찮다면, 같이.”\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 3127,
+  "outputTokens": 388,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 3125,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.00038,
+  "upstreamCostUsd": 0.00038,
+  "debugRawUsage": {
+   "completion_tokens": 388,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 3127,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 3125,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3515,
+   "cost": 0.00038,
+   "cost_details": {
+    "upstream_inference_cost": 0.00038
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "8e79a37d-06a0-4b1d-a75b-53534aca39bb"
+ },
+ "billedUsd": 0.00038,
+ "ms": 5023,
+ "systemChars": 3460,
+ "userChars": 2329
+}

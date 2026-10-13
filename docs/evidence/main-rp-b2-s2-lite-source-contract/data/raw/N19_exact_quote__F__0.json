@@ -1,0 +1,46 @@
+{
+ "id": "N19_exact_quote",
+ "arm": "F",
+ "rep": 0,
+ "text": "며칠 전부터 함께 길을 걷기 시작한 렌과 라이크는 변방 마을 여관에서 마지막 방을 얻음. 서린이 짐승 소문을 들어 북쪽 길을 경고했지만, 일거리를 위해 그 길로 가겠다는 렌은 자신의 몫은 감당할 수 있다고 밝힘. 라이크는 무턱대고 위험에 뛰어드는 것과 감당하는 것은 다르다며 우려했으나, 렌의 결정을 막지는 않음. 새벽에 렌이 북쪽으로 향하려 하자 라이크는 “가겠다면 나도 간다”고 동행을 택했고, 이유를 묻는 렌에게 “네가 돌아올 곳은 내가 지킨다”고 약속함. 오래된 인연이나 약속은 없지만, 라이크가 렌의 귀환을 지키겠다고 선언하며 관계에 무게가 더해짐.",
+ "usage": {
+  "inputTokens": 2506,
+  "outputTokens": 209,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2504,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000271,
+  "upstreamCostUsd": 0.000271,
+  "debugRawUsage": {
+   "completion_tokens": 209,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2506,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2504,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2715,
+   "cost": 0.000271,
+   "cost_details": {
+    "upstream_inference_cost": 0.000271
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "dd340bce-60a7-4ae2-98d0-5d5e0f8e1d7d"
+ },
+ "billedUsd": 0.000271,
+ "ms": 4040,
+ "systemChars": 2503,
+ "userChars": 2039
+}

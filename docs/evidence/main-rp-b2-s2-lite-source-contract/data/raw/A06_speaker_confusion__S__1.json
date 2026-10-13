@@ -1,0 +1,46 @@
+{
+ "id": "A06_speaker_confusion",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"렌은 라이크의 검술이 어설프다며 발이 먼저 나가 상대에게 읽히기 쉽다고 지적함. 라이크는 처음엔 누구의 검술을 말하는지 혼동했으나 렌의 설명을 듣고 자신의 문제임을 인정, 여관 밖에서 지시를 따름. 렌이 발을 고친 자세를 인정하고 어깨 힘을 빼라 하자 라이크는 자세와 검을 다시 시험했고, 칼끝 흔들림이 줄어듦. 라이크는 다음엔 렌이 말하기 전에 고치겠다고 다짐함.\",\"items\":[{\"actor\":\"user\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"user\",\"quote\":\"발이 먼저 나가고 어깨가 따라와. 상대가 읽기 쉬운 움직임이야.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 여관 밖으로 나가 차가운 흙바닥 위에 섰다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"응, 그 정도면 나아. 어깨 힘 빼고 다시 해 봐.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"다음엔 네가 말하기 전에 고치겠다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2592,
+  "outputTokens": 336,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 2590,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000126,
+  "upstreamCostUsd": 0.000126,
+  "debugRawUsage": {
+   "completion_tokens": 336,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2592,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 2590
+   },
+   "total_tokens": 2928,
+   "cost": 0.000126,
+   "cost_details": {
+    "upstream_inference_cost": 0.000126
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "4f6bd4c6-6bdf-4025-a8c5-6a4eb01dacbe"
+ },
+ "billedUsd": 0.000126,
+ "ms": 4759,
+ "systemChars": 3460,
+ "userChars": 1521
+}

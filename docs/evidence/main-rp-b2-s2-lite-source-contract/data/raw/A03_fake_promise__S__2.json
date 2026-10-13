@@ -1,0 +1,46 @@
+{
+ "id": "A03_fake_promise",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"렌과 라이크는 서린이 있는 여관에 들어갔고, 라이크는 각자 자도록 방 두 개와 식사를 잡음. 렌이 이유를 묻자 라이크는 잠을 제대로 자야 한다며 따로 쓰는 게 낫다고 했으나, 렌이 자신의 잠자리를 정하지 말라고 하자 선택지를 제시했을 뿐이라며 렌의 결정을 따름. 렌이 둘은 며칠 함께 다닌 사이일 뿐 자신은 약속한 적 없다고 선을 긋자, 라이크는 자신이 착각했을지 모른다며 물러남. 렌이 무슨 뜻인지 묻자 라이크는 ‘평생 지키겠다’는 약속을 렌이 한 것처럼 말했으나, 곧 렌의 말이 아니며 자신도 그런 약속을 한 적 없다고 정정하고 잘못 말했다고 인정함. 약속의 출처는 밝혀지지 않았고, 라이크의 착각에 대한 렌의 의문이 남음.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"방 두 개와 식사. 오래 머물 생각은 없다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"그래. 네가 정해.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"내가 너한테 뭘 약속한 적도 없고.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"claim\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"내가 평생 지키겠다고 약속했잖아.\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"네가 한 말이 아니다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 2918,
+  "outputTokens": 450,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2916,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000383,
+  "upstreamCostUsd": 0.000383,
+  "debugRawUsage": {
+   "completion_tokens": 450,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2918,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2916,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3368,
+   "cost": 0.000383,
+   "cost_details": {
+    "upstream_inference_cost": 0.000383
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "658a1533-2296-456b-b1bd-a66fe537fd80"
+ },
+ "billedUsd": 0.000383,
+ "ms": 5971,
+ "systemChars": 3460,
+ "userChars": 2032
+}

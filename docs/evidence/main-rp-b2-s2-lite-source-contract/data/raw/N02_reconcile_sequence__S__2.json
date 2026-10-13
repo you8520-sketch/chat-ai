@@ -1,0 +1,46 @@
+{
+ "id": "N02_reconcile_sequence",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"전날 다툼에서 렌이 라이크의 말을 끊고 화냈던 일을 사과하자, 라이크는 사과를 듣고 아침을 함께 먹자고 함. 렌은 변명하지 않고 라이크가 정리될 때까지 기다리겠다고 했고, 라이크는 아직 어제 일을 정리 중이라며 성급한 화해를 유보했으나 사과를 외면하지 않음. 렌이 괜찮다고 재촉하지 않고 식사 후 길을 정하자고 하자 라이크는 북쪽 길을 제안했고, 둘은 함께 가기로 함. 렌은 앞으로 말을 끊지 않고 필요한 것을 묻겠다고 약속했고, 라이크도 렌의 말을 듣겠다고 응답함. 여관을 떠나 나란히 걸으며 라이크는 아직 완전히 잊지는 않았지만 사과를 받아들였다고 명확히 밝혔고, 두 사람은 어색한 침묵에서 함께 길을 살피는 관계로 나아감.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"“들었어.”\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"user\",\"quote\":\"“네가 괜찮아질 때까지 기다릴게.”\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"북쪽 길로 가면 해 지기 전에 고갯마루에 닿을 수 있어.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"“그럼 나도 네 말을 듣지.”\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"“그래도 사과는 받아들였어.”\",\"relationshipState\":\"accepted\",\"eventStatus\":\"historical\"}]}",
+ "usage": {
+  "inputTokens": 3018,
+  "outputTokens": 451,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 3016,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000391,
+  "upstreamCostUsd": 0.000391,
+  "debugRawUsage": {
+   "completion_tokens": 451,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 3018,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 3016,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3469,
+   "cost": 0.000391,
+   "cost_details": {
+    "upstream_inference_cost": 0.000391
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "28a5063b-05d3-4a96-8434-507ffc1a663c"
+ },
+ "billedUsd": 0.000391,
+ "ms": 5198,
+ "systemChars": 3460,
+ "userChars": 2159
+}

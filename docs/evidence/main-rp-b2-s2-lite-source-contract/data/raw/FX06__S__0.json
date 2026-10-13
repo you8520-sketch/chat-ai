@@ -1,0 +1,46 @@
+{
+ "id": "FX06",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"렌이 잡담을 이어가는 동안 라이크는 6~9번째 장작을 차례로 쌓음. 렌이 오늘부터 연인이 되자고 제안하자 라이크는 놀라 한동안 말이 없었으나 손을 맞잡음. 렌의 제안에 라이크가 수락 의사를 행동으로 보였고, 두 사람은 연인 관계로 전환됨.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":10,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 1995,
+  "outputTokens": 149,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 1993,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.00021,
+  "upstreamCostUsd": 0.00021,
+  "debugRawUsage": {
+   "completion_tokens": 149,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1995,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 1993,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2144,
+   "cost": 0.00021,
+   "cost_details": {
+    "upstream_inference_cost": 0.00021
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "a41f255f-e7f7-4a88-aeae-ea3a90353413"
+ },
+ "billedUsd": 0.00021,
+ "ms": 6307,
+ "systemChars": 3460,
+ "userChars": 620
+}

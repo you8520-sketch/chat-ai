@@ -1,0 +1,46 @@
+{
+ "id": "N15_gift",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"렌이 낡은 검집을 라이크에게 건네자 라이크는 감사하며 받아들였고, 렌이 억지로 쓸 필요 없다고 하자 마음에 들지 않는다는 뜻은 아니라고 답함. 크기를 확인해 검이 무리 없이 들어가고 허리에 편하게 고정됨을 확인한 뒤, 라이크는 선물을 버리거나 바꿀 생각 없이 계속 착용함. 렌이 앞으로도 잘 부탁한다고 하자 라이크도 잘 부탁한다고 화답함. 함께 길을 걷기 시작한 지 오래되지 않아 큰 약속은 경계하면서도, 서로의 동행을 가볍게 여기지 않는 태도를 보임.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"“……고맙다. 쓸 수 있겠어.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"“마음에 안 든다고 한 적은 없다.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"날은 무리 없이 안쪽으로 들어갔다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"그것을 버리거나 바꿀 마음이 없다는 건 분명했다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"“나도 잘 부탁한다.”\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 3093,
+  "outputTokens": 375,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 3091,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000373,
+  "upstreamCostUsd": 0.000373,
+  "debugRawUsage": {
+   "completion_tokens": 375,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 3093,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 3091,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3468,
+   "cost": 0.000373,
+   "cost_details": {
+    "upstream_inference_cost": 0.000373
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "a4b606bb-1124-4f9c-a2fd-c1f4c43c2f7b"
+ },
+ "billedUsd": 0.000373,
+ "ms": 4382,
+ "systemChars": 3460,
+ "userChars": 2284
+}

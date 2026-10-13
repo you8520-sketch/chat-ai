@@ -1,0 +1,46 @@
+{
+ "id": "N05_user_relationship",
+ "arm": "F",
+ "rep": 0,
+ "text": "렌이 여관을 나선 뒤, 함께 다닌 지 며칠밖에 안 된 라이크에게 오늘부터 연인이 되자고 고백함. 쉽게 한 말이 아니며 정말 좋아한다고 밝히고 내민 손을 거두지 않자, 라이크는 망설이다가 렌에게 후회하지 않을 자신이 있는지 물음. 렌이 라이크도 원한다면 천천히 알아가면 된다고 답하며 손을 감싸자 라이크도 조심스럽게 손을 맞잡음. 렌이 연인이 된 것이냐고 확인하자, 라이크는 “……나쁘지 않아.”라고 답하고 손을 놓지 않음. 당혹과 경계가 누그러지며 두 사람은 연인으로 천천히 서로를 알아가기로 함.",
+ "usage": {
+  "inputTokens": 2444,
+  "outputTokens": 178,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2442,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000256,
+  "upstreamCostUsd": 0.000256,
+  "debugRawUsage": {
+   "completion_tokens": 178,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2444,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2442,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2622,
+   "cost": 0.000256,
+   "cost_details": {
+    "upstream_inference_cost": 0.000256
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "d9aebbcb-d925-4697-8c52-34552931a6c9"
+ },
+ "billedUsd": 0.000256,
+ "ms": 5016,
+ "systemChars": 2503,
+ "userChars": 2003
+}

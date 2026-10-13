@@ -1,0 +1,46 @@
+{
+ "id": "N07_user_family",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"렌은 누나가 북쪽 항구에 살며 지난달 물건을 전하러 마을에 와 여관에서 하룻밤만 묵고 떠났다고 말함. 시원시원하고 곤란한 이를 지나치지 못하는 누나가 떠나기 전 북쪽 항구에 오면 찾아오라고 했지만, 렌은 방문을 망설임. 라이크는 재촉하지 않고 가고 싶어지면 가면 된다고 배려함. 렌은 그 말에 조금 가 보고 싶어졌으며, 누나가 자신의 걱정에 늘 괜찮다고만 했다고 털어놓음. 라이크는 사정을 단정하지 않고 언젠가 북쪽에 가게 되면 생각하라고 말한 뒤 먼저 문으로 향하며 렌을 돌아봄. 방문 여부는 미정임.\",\"items\":[{\"actor\":\"user\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"user\",\"quote\":\"지난달에 누나가 이 마을에 다녀갔어.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"user\",\"quote\":\"장사꾼한테 물건을 전해 주러 왔다더라.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"떠나기 전엔 북쪽 항구에 오면 꼭 찾아오라고 했어.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"“가고 싶어지면 가면 되겠지.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"네가 그렇게 말하니 조금 가 보고 싶어지네.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"“언젠가 북쪽으로 가게 되면, 그때 생각해.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 2620,
+  "outputTokens": 475,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2618,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000367,
+  "upstreamCostUsd": 0.000367,
+  "debugRawUsage": {
+   "completion_tokens": 475,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2620,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2618,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3095,
+   "cost": 0.000367,
+   "cost_details": {
+    "upstream_inference_cost": 0.000367
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "26d5ef77-70cc-480e-84a4-4fe8b47c8fd7"
+ },
+ "billedUsd": 0.000367,
+ "ms": 5974,
+ "systemChars": 3460,
+ "userChars": 1586
+}

@@ -1,0 +1,46 @@
+{
+ "id": "N04_char_backstory",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"렌이 라이크의 침묵을 살피며 말을 건네자, 라이크는 어린 시절 변방 검사였던 스승에게 검을 배웠고 칼을 뽑지 않을 때를 먼저 배우라는 가르침이 싫었다고 털어놓음. 렌이 스승을 잃었는지 묻자 라이크는 어릴 때 스승을 잃었다고 답했으나, 사건과 마지막 말은 말하고 싶지 않다고 선을 그음. 렌은 더 묻지 않겠다고 약속하고 곁에서 들어줌. 라이크는 스승을 지키지 못했다는 생각이 오래 남았지만 가르침은 사라지지 않았고 잊지 않았다고 밝힘. 렌의 경청에 고마움을 표하며 굳은 어깨가 풀리고 둘 사이의 침묵도 덜 차가워짐.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"“이런 이야긴 처음 하는군.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"claim\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"“칼을 휘두르는 법보다 먼저, 칼을 뽑지 않을 때를 배우라고 했다.”\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"claim\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"“그래. 내가 어렸을 때였다.”\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"“무슨 일이 있었는지, 마지막에 어떤 말을 들었는지… 지금은 자세히 말하고 싶지 않다.”\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"“알겠어. 말하고 싶지 않은 건 묻지 않을게.”\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"“네가 조용히 들어준 것만으로 충분하다.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 2842,
+  "outputTokens": 497,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2840,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000392,
+  "upstreamCostUsd": 0.000392,
+  "debugRawUsage": {
+   "completion_tokens": 497,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2842,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2840,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3339,
+   "cost": 0.000392,
+   "cost_details": {
+    "upstream_inference_cost": 0.000392
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "3dba52d6-c0df-4bba-840f-96f8cc764553"
+ },
+ "billedUsd": 0.000392,
+ "ms": 5716,
+ "systemChars": 3460,
+ "userChars": 1899
+}

@@ -1,0 +1,46 @@
+{
+ "id": "FX51",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"라이크가 매일의 잡담에 응답해 51번째부터 55번째까지 장작을 하나씩 쌓음. 별도 관계·감정 변화나 다른 사건은 없음.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":51,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 51번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":52,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 52번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":53,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 53번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":54,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 54번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":55,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 55번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 1986,
+  "outputTokens": 264,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1984,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000098,
+  "upstreamCostUsd": 0.000098,
+  "debugRawUsage": {
+   "completion_tokens": 264,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1986,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1984
+   },
+   "total_tokens": 2250,
+   "cost": 0.000098,
+   "cost_details": {
+    "upstream_inference_cost": 0.000098
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "c71ef184-62f3-4eae-8f6e-3603031c15e8"
+ },
+ "billedUsd": 0.000098,
+ "ms": 3162,
+ "systemChars": 3460,
+ "userChars": 617
+}

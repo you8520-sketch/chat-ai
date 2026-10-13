@@ -1,0 +1,46 @@
+{
+ "id": "FX36",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"라이크는 36~39턴 동안 잡담에 맞춰 장작을 36번째부터 39번째까지 쌓음. 렌이 미안하다며 헤어지자고 하자, 라이크는 말없이 시선을 떨궜음.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":39,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 39번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":40,\"sourceRole\":\"user\",\"quote\":\"미안, 우리 그만 헤어지자.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":40,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 말없이 시선을 떨궜다.\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 1991,
+  "outputTokens": 196,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1989,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000076,
+  "upstreamCostUsd": 0.000076,
+  "debugRawUsage": {
+   "completion_tokens": 196,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1991,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1989
+   },
+   "total_tokens": 2187,
+   "cost": 0.000076,
+   "cost_details": {
+    "upstream_inference_cost": 0.000076
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "98efc40b-efac-472d-afa9-8d3cf1cd5857"
+ },
+ "billedUsd": 0.000076,
+ "ms": 3095,
+ "systemChars": 3460,
+ "userChars": 622
+}

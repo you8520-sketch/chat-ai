@@ -1,0 +1,46 @@
+{
+ "id": "FX41",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"라이크가 장작을 쌓아 41번째에서 45번째까지 늘림. 다른 사건이나 관계 변화는 없음.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":41,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 41번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":42,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 42번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":43,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 43번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":44,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 44번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":45,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 45번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 1986,
+  "outputTokens": 250,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 1984,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000242,
+  "upstreamCostUsd": 0.000242,
+  "debugRawUsage": {
+   "completion_tokens": 250,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1986,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 1984,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2236,
+   "cost": 0.000242,
+   "cost_details": {
+    "upstream_inference_cost": 0.000242
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "6b51c571-f074-4eb5-97ac-1b9872e1cb3c"
+ },
+ "billedUsd": 0.000242,
+ "ms": 4460,
+ "systemChars": 3460,
+ "userChars": 617
+}

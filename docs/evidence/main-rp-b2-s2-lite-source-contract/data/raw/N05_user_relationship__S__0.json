@@ -1,0 +1,46 @@
+{
+ "id": "N05_user_relationship",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"렌이 여관 밖에서 라이크에게 오늘부터 연인이 되자고 고백하자, 라이크는 갑작스럽다며 당황했으나 거절하지 않음. 렌은 쉽게 한 말이 아니라고 밝히고 손을 내민 채 답을 기다렸고, 라이크는 후회하지 않을지 물음. 렌이 서로 천천히 알아가자며 손을 감싸자 라이크는 망설이다 손을 맞잡음. 렌이 연인이 된 것이냐고 확인하자 라이크는 “……나쁘지 않아.”라고 답하고 손을 놓지 않음. 연인 관계를 명시적으로 확정하진 않았으나, 라이크의 경계와 당혹이 누그러지고 관계를 받아들이는 방향으로 변함.\",\"items\":[{\"actor\":\"user\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"user\",\"quote\":\"우리 오늘부터 연인하자.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"……갑자기군.\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"후회하지 않을 자신은 있나?\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"너도 원한다면, 천천히 알아가면 돼.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"……나쁘지 않아.\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 2880,
+  "outputTokens": 377,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2878,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000356,
+  "upstreamCostUsd": 0.000356,
+  "debugRawUsage": {
+   "completion_tokens": 377,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2880,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2878,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3257,
+   "cost": 0.000356,
+   "cost_details": {
+    "upstream_inference_cost": 0.000356
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "fba08c6e-59e9-4265-9866-8fcca8c48f03"
+ },
+ "billedUsd": 0.000356,
+ "ms": 5082,
+ "systemChars": 3460,
+ "userChars": 2036
+}

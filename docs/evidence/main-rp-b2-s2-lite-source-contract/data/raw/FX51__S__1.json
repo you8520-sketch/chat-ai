@@ -1,0 +1,46 @@
+{
+ "id": "FX51",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"レン과의 잡담에 응해 라이크가 51~55번째 장작을 차례로 쌓음.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":55,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 55번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 1986,
+  "outputTokens": 80,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1984,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000039,
+  "upstreamCostUsd": 0.000039,
+  "debugRawUsage": {
+   "completion_tokens": 80,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1986,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1984
+   },
+   "total_tokens": 2066,
+   "cost": 0.000039,
+   "cost_details": {
+    "upstream_inference_cost": 0.000039
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "4300c4ac-6276-4ac4-955f-c8c4326e0030"
+ },
+ "billedUsd": 0.000039,
+ "ms": 2178,
+ "systemChars": 3460,
+ "userChars": 617
+}

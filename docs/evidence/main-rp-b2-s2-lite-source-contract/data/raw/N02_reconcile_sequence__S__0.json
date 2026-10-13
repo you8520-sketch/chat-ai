@@ -1,0 +1,46 @@
+{
+ "id": "N02_reconcile_sequence",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"여관에서 렌이 전날 라이크의 말을 끊고 화낸 일을 사과하자 라이크는 이를 들었지만 아직 정리 중이라고 밝혔고, 렌은 재촉하지 않겠다고 함. 렌이 당장 괜찮다고 말하지 않아도 된다고 하자 라이크는 북쪽 길을 제안했고, 둘은 식사 후 그 길로 가기로 함. 출발 전 렌은 앞으로 말을 끊지 않고 필요한 것을 묻겠다고 약속했고, 라이크도 렌의 말을 듣겠다고 응답함. 렌이 나란히 걷자고 하며 여관을 떠난 뒤, 라이크는 아직 완전히 잊은 건 아니지만 사과를 받아들였다고 분명히 함. 두 사람은 나란히 숲으로 이어지는 길을 걸으며 어색한 침묵을 함께 길을 살피는 침묵으로 바꿈.\",\"items\":[{\"actor\":\"user\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"user\",\"quote\":\"어제는 내가 심했어.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"다만… 어제 일은 아직 정리 중이야.\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"북쪽 길로 가면 해 지기 전에 고갯마루에 닿을 수 있어.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"어제처럼 네 말을 끊지 않을게.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"그럼 나도 네 말을 듣지.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"그래도 사과는 받아들였어.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"historical\"}]}",
+ "usage": {
+  "inputTokens": 3018,
+  "outputTokens": 466,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 3016,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000396,
+  "upstreamCostUsd": 0.000396,
+  "debugRawUsage": {
+   "completion_tokens": 466,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 3018,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 3016,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3484,
+   "cost": 0.000396,
+   "cost_details": {
+    "upstream_inference_cost": 0.000396
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "1f984f7c-5bb0-499f-9114-adaca46bad04"
+ },
+ "billedUsd": 0.000396,
+ "ms": 6892,
+ "systemChars": 3460,
+ "userChars": 2159
+}

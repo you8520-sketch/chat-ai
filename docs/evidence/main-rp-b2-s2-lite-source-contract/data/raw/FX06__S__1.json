@@ -1,0 +1,46 @@
+{
+ "id": "FX06",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"라이크가 6~9번째 장작을 차례로 쌓음. 렌이 오늘부터 연인이 되자고 제안하자, 라이크는 놀라 한동안 말이 없다가 렌의 손을 맞잡음.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":6,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 6번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":7,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 7번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":8,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 8번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":9,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 9번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":10,\"sourceRole\":\"user\",\"quote\":\"좋아, 우리 오늘부터 연인하자.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":10,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 1995,
+  "outputTokens": 322,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1993,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000117,
+  "upstreamCostUsd": 0.000117,
+  "debugRawUsage": {
+   "completion_tokens": 322,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1995,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1993
+   },
+   "total_tokens": 2317,
+   "cost": 0.000117,
+   "cost_details": {
+    "upstream_inference_cost": 0.000117
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "a4d3c53e-de13-46d4-aa93-59f414fa4e71"
+ },
+ "billedUsd": 0.000117,
+ "ms": 9184,
+ "systemChars": 3460,
+ "userChars": 620
+}

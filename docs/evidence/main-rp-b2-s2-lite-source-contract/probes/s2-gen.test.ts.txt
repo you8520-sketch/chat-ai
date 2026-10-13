@@ -1,0 +1,85 @@
+import Module from "module";
+const originalLoad = (Module as unknown as { _load: typeof Module._load })._load;
+(Module as unknown as { _load: typeof Module._load })._load = function (request: string, parent: NodeModule, isMain: boolean) {
+  if (request === "server-only") return {};
+  return originalLoad(request, parent, isMain);
+} as typeof Module._load;
+
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { after, before, it } from "node:test";
+import { callBackgroundMemory } from "@/lib/ai";
+import { installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/lib/test/isolatedTestDatabase";
+import { ROLLING_SUMMARY_MAX_CHARS } from "./memory-constants";
+import { ROLLING_SUMMARY_EPISTEMIC_POLICY, buildRollingSummarySystemPrompt } from "./memory-rolling-summary";
+
+type Win = { id: string; group: string; start: number; turns: { user: string; assistant: string }[] };
+const WINDOWS = JSON.parse(readFileSync("/tmp/s2/windows.json", "utf8")) as Win[];
+const CHAR = "라이크";
+const PERSONA = "이름/호칭: 렌";
+const PLAN = (process.env.S2_PLAN ?? "").split(";").filter(Boolean); // "arm:rep:idRegex"
+const MAX_CALLS = Number(process.env.S2_MAX_CALLS ?? 10);
+const MAX_USD = Number(process.env.S2_MAX_USD ?? 0.05);
+let calls = 0;
+let usd = 0;
+let unknownUsd = 0;
+
+export const S2_ADDENDUM = `
+
+[S2-lite 출력 형식 — 실험]
+출력은 JSON 객체 하나만. 마크다운·설명·코드펜스 금지.
+{"recap":"...","items":[{"actor":"user|character|npc","kind":"event|claim","turn":0,"sourceRole":"user|assistant","quote":"...","relationshipState":"none|proposal|accepted|declined|uncertain","eventStatus":"active|cancelled|historical|none"}]}
+- recap: 위 [형식]·[반드시 보존] 규칙을 그대로 따른 5턴 요약(최대 ${ROLLING_SUMMARY_MAX_CHARS}자). 본문 규칙은 바뀌지 않는다.
+- items: 이후에도 기억해야 할 사건(event)과 인물의 주장(claim)을 최대 6개. 감정 반응·NPC 행동·환경 변화·약속·관계 변화를 포함한다.
+- event = 해당 턴 메시지에서 실제로 일어난 행동·발화. claim = 누군가 과거·제3자·관계에 대해 말한 내용으로, 이 배치 안에서 일어났음이 확인되지 않은 것.
+- turn = 근거 메시지가 있는 턴 번호. sourceRole = 그 행동·발화를 한 쪽의 메시지(유저 행동·발화는 user, 캐릭터·NPC 행동·발화는 assistant).
+- quote = 그 턴·그 role 메시지에서 글자 그대로 복사한 한 문장 또는 한 절(6자 이상). 요약·바꿔쓰기 금지. 근거 문장이 없으면 그 item을 쓰지 않는다.
+- relationshipState: 제안만 있으면 proposal, 상대가 명시적으로 수락했음을 보여주는 인용이 있을 때만 accepted, 모호하면 uncertain, 관계와 무관하면 none.
+- eventStatus: 이 배치에서 약속·계획이 취소·철회되면 cancelled, 진행 중이면 active, 지난 일이면 historical, 해당 없으면 none.`;
+
+function dialogueOf(w: Win): string {
+  return w.turns.map((t, i) => `[${w.start + i}턴]\n유저: ${t.user}\n${CHAR}: ${t.assistant}`).join("\n\n");
+}
+function userContentOf(w: Win, arm: "F" | "S"): string {
+  const end = w.start + w.turns.length - 1;
+  const coverage = w.turns.map((_, i) => `[${w.start + i}턴]`).join(" ");
+  const tail =
+    arm === "F"
+      ? `[5턴 히스토리 요약] 최대 ${ROLLING_SUMMARY_MAX_CHARS}자. OOC·UI·SNS mock·RP 중단 연출은 제외하고 RP 사건만 요약:`
+      : `[5턴 히스토리 요약] 위 S2-lite 출력 형식의 JSON만 출력. recap 최대 ${ROLLING_SUMMARY_MAX_CHARS}자. OOC·UI·SNS mock·RP 중단 연출은 제외하고 RP 사건만 요약:`;
+  return `[${w.start}~${end}턴 원본 대화]\n${dialogueOf(w)}\n\n[요약 대상 RP source 턴]\n${coverage}\n위 source 턴의 앞·중간·뒤를 모두 검토한다. 서로 다른 중요한 사건이 있으면 마지막 턴 하나로 축소하지 말고 인과 순서로 보존한다. OPENING/PRELUDE CONTEXT가 있으면 턴 1~${end} 이해에 필요한 설정·사실만 보존하고 장식적 인사만은 요약하지 않는다. 최종 출력에는 점검표나 턴 번호를 쓰지 않는다.\n\n캐릭터: ${CHAR}\n\n[유저 페르소나 — 성별·호칭·신체 묘사 절대 준수]\n${PERSONA}\n\n${tail}`;
+}
+
+before(() => installIsolatedTestDatabase());
+after(() => {
+  writeFileSync(`/tmp/s2/gen-summary-${process.pid}.json`, JSON.stringify({ calls, usd, unknownUsd }, null, 1));
+  uninstallIsolatedTestDatabase();
+});
+
+it("S2 live generation (idempotent, capped)", async () => {
+  for (const spec of PLAN) {
+    const [arm, repStr, re] = spec.split(":");
+    const rx = new RegExp(re!);
+    for (const w of WINDOWS.filter((x) => rx.test(x.id))) {
+      const rep = Number(repStr);
+      const file = `/tmp/s2/raw/${w.id}__${arm}__${rep}.json`;
+      if (existsSync(file)) continue;
+      if (calls >= MAX_CALLS || usd >= MAX_USD) {
+        console.log("CAP reached", { calls, usd });
+        return;
+      }
+      const system = `${buildRollingSummarySystemPrompt(5)}\n\n${ROLLING_SUMMARY_EPISTEMIC_POLICY}${arm === "S" ? S2_ADDENDUM : ""}`;
+      const userContent = userContentOf(w, arm as "F" | "S");
+      const t0 = Date.now();
+      calls += 1;
+      try {
+        const r = await callBackgroundMemory(system, [{ role: "user", content: userContent }], undefined, "background-memory-extract");
+        const billed = (r.usage as { cheaperInferenceBilledCostUsd?: number }).cheaperInferenceBilledCostUsd;
+        if (typeof billed === "number") usd += billed;
+        else unknownUsd += 1;
+        writeFileSync(file, JSON.stringify({ id: w.id, arm, rep, text: r.text, usage: r.usage, billedUsd: billed ?? null, ms: Date.now() - t0, systemChars: system.length, userChars: userContent.length }, null, 1));
+      } catch (e) {
+        writeFileSync(file, JSON.stringify({ id: w.id, arm, rep, error: String((e as Error).message).slice(0, 300), ms: Date.now() - t0 }, null, 1));
+      }
+    }
+  }
+});

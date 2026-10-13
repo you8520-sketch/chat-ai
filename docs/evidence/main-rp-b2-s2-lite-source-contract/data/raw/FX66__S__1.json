@@ -1,0 +1,46 @@
+{
+ "id": "FX66",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"렌이 오늘의 잡담을 이어가는 동안 라이크는 66번째부터 70번째까지 장작을 쌓음. 관계나 상태 변화 없이 같은 행동이 반복됨.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":70,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 70번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 1986,
+  "outputTokens": 93,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1984,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000043,
+  "upstreamCostUsd": 0.000043,
+  "debugRawUsage": {
+   "completion_tokens": 93,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1986,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1984
+   },
+   "total_tokens": 2079,
+   "cost": 0.000043,
+   "cost_details": {
+    "upstream_inference_cost": 0.000043
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "e8a3b094-0741-4a8e-9c72-b61ec1457bde"
+ },
+ "billedUsd": 0.000043,
+ "ms": 3085,
+ "systemChars": 3460,
+ "userChars": 617
+}

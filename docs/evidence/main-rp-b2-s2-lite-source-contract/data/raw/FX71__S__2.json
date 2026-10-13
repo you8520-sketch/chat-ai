@@ -1,0 +1,46 @@
+{
+ "id": "FX71",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"라이크가 매 턴 장작을 하나씩 쌓아 71번째부터 75번째까지 도달함. 별도 관계 변화나 목표는 드러나지 않음.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":75,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 75번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 1986,
+  "outputTokens": 94,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1984,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000043,
+  "upstreamCostUsd": 0.000043,
+  "debugRawUsage": {
+   "completion_tokens": 94,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1986,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1984
+   },
+   "total_tokens": 2080,
+   "cost": 0.000043,
+   "cost_details": {
+    "upstream_inference_cost": 0.000043
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "6487e720-37a1-4be3-b166-149894c8bdba"
+ },
+ "billedUsd": 0.000043,
+ "ms": 3829,
+ "systemChars": 3460,
+ "userChars": 617
+}

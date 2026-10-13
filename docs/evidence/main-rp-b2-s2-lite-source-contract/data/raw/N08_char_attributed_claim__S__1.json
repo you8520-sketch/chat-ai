@@ -1,0 +1,46 @@
+{
+ "id": "N08_char_attributed_claim",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"라이크는 서린에게서 렌의 누나가 마을에서 렌을 찾았다는 말을 들었다고 전함. 렌은 처음 듣는 소식에 놀라 이름과 생김새를 물었으나, 라이크는 서린이 아까 그렇게 말했다는 것 외엔 모른다고 밝힘. 렌이 그 말을 믿느냐고 묻자 라이크는 서린이 말했다는 사실만 믿으며 진위는 확인 전까지 단정하지 말라고 함. 렌은 함께 여관에 들어가 서린에게 직접 확인하자고 요청했고, 라이크는 동의해 렌이 먼저 문을 열도록 비켜서며 서린의 말만 확인하자고 함.\",\"items\":[{\"actor\":\"character\",\"kind\":\"claim\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"서린이 그러는데 네 누나가 이 마을에서 널 찾았대.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"서린이 그렇게 말했다는 건 믿어. 그게 사실인지는 몰라.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"같이 들어가서 서린에게 다시 물어봐 줘. 내가 직접 들을게.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"그래. 네가 직접 들어.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2644,
+  "outputTokens": 350,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 2642,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000131,
+  "upstreamCostUsd": 0.000131,
+  "debugRawUsage": {
+   "completion_tokens": 350,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2644,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 2642
+   },
+   "total_tokens": 2994,
+   "cost": 0.000131,
+   "cost_details": {
+    "upstream_inference_cost": 0.000131
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "5197cdaa-ab38-4b2c-8fe4-6af2e6dc52a1"
+ },
+ "billedUsd": 0.000131,
+ "ms": 4131,
+ "systemChars": 3460,
+ "userChars": 1618
+}
