@@ -131,6 +131,7 @@ export function settleChatImageGenerationResult(
         creatorId: input.creatorReward.creatorId,
         consumerUserId: input.userId,
         source: input.creatorReward.source,
+        characterId: input.characterId,
       });
     }
 

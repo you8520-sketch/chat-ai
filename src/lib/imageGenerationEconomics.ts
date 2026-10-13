@@ -13,10 +13,17 @@ export function creditChatRoomImageCreatorReward(
     creatorId: number | null | undefined;
     consumerUserId: number;
     source: "character" | "trpg_scenario";
+    characterId?: number | null;
   }
 ): number {
   if (!opts.creatorId || opts.creatorId === opts.consumerUserId) return 0;
   if (!isCreatorMonetizationEligible(opts.creatorId)) return 0;
+  if (opts.source === "character" && opts.characterId != null) {
+    const character = db
+      .prepare("SELECT official FROM characters WHERE id=?")
+      .get(opts.characterId) as { official: number } | undefined;
+    if (character?.official === 1) return 0;
+  }
   if (resolveCreatorRewardRate(opts.creatorId) <= 0) return 0;
 
   const inserted = db
