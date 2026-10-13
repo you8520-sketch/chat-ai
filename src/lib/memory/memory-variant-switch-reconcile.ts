@@ -27,6 +27,7 @@ import {
   lorebookTextFromScopes,
   normalizeSummaryScope,
   parseScopePayload,
+  resolveSummaryRowScopes,
   scopesInjectedIntoPrompt,
   type BranchStatus,
   type MemorySummaryScope,
@@ -85,12 +86,7 @@ function rowToView(r: MemoryRecordRow): MemoryRecordView {
   const turnEnd = turnStart + ROLLING_SUMMARY_INTERVAL - 1;
   const summaryKind = normalizeSummaryScope(r.summary_kind);
   const payload = parseScopePayload(r.scope_payload);
-  const scopes: Partial<Record<MemorySummaryScope, string>> = {
-    ...(payload?.scopes ?? {}),
-  };
-  if (!scopes[summaryKind] && r.summary?.trim() && summaryKind !== "empty_ooc") {
-    scopes[summaryKind] = r.summary.trim();
-  }
+  const scopes = resolveSummaryRowScopes(r, payload);
   const branchStatus =
     (r.branch_status as BranchStatus | null) ||
     payload?.branchStatus ||

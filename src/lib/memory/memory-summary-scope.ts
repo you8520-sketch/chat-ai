@@ -130,6 +130,25 @@ export function parseScopePayload(raw: string | null | undefined): ScopePayloadV
   }
 }
 
+/**
+ * Scopes of a stored summary row. A user edit replaces the record's main_canon text in `summary`, so for a
+ * user-edited main_canon row `summary` wins over an older `scope_payload.scopes.main_canon` written before the edit.
+ */
+export function resolveSummaryRowScopes(
+  row: { summary: string | null; summary_kind?: string | null; user_edited?: number | null },
+  payload: ScopePayloadV1 | null
+): Partial<Record<MemorySummaryScope, string>> {
+  const summaryKind = normalizeSummaryScope(row.summary_kind);
+  const summary = row.summary?.trim() ?? "";
+  const scopes: Partial<Record<MemorySummaryScope, string>> = { ...(payload?.scopes ?? {}) };
+  if (summary && summaryKind !== "empty_ooc") {
+    if (!scopes[summaryKind] || (row.user_edited === 1 && summaryKind === "main_canon")) {
+      scopes[summaryKind] = summary;
+    }
+  }
+  return scopes;
+}
+
 export function encodeScopePayload(payload: ScopePayloadV1): string {
   return JSON.stringify(payload);
 }
