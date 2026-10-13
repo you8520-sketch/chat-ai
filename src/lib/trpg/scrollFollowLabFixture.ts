@@ -326,6 +326,11 @@ export function buildScrollFollowLabSnapshot(opts?: {
         ? [labBotSheet(SCROLL_FOLLOW_LAB_BOT1_ID, "Bot1"), labBotSheet(SCROLL_FOLLOW_LAB_BOT2_ID, "Bot2")]
         : []),
     ],
+    goals: [
+      { id: "lab-g1", title: "해오라기호가 사라진 이유를 밝힌다", status: "active", claimed: false },
+      { id: "lab-g2", title: "원로 선원이 숨기는 이야기를 듣는다", status: "active", claimed: true, claimedRound: 1 },
+      { id: "lab-g3", title: "항구 입구의 검문소를 통과한다", status: "completed", claimed: false, basis: "server" },
+    ],
     myDraft: { body: "", actionType: "free", selectedStat: null, locked: !actionInput },
     currentRolls: actionInput ? [] : current.rolls,
     resolutionOrder,
