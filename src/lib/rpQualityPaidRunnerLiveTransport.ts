@@ -24,7 +24,7 @@ import {
   type PaidRunnerTransport,
   type PaidRunnerTransportResult,
 } from "@/lib/rpQualityPaidRunner";
-import { MAIN_RP_MODEL_IDS, type SelectedAI } from "@/lib/chatModels";
+import { MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS, type SelectedAI } from "@/lib/chatModels";
 
 export const RP_QUALITY_PAID_OPENROUTER_KEY_ENV = "RP_QUALITY_PAID_OPENROUTER_KEY";
 export const RP_QUALITY_PAID_CHEAPERINFERENCE_KEY_ENV = "RP_QUALITY_PAID_CHEAPERINFERENCE_KEY";
@@ -292,5 +292,5 @@ export function paidRunnerLiveExecuteEnabled(env: NodeJS.ProcessEnv = process.en
 }
 
 export function livePaidRunnerUsesCanonicalModels(ids: readonly SelectedAI[]): boolean {
-  return JSON.stringify([...ids]) === JSON.stringify([...MAIN_RP_MODEL_IDS]);
+  return JSON.stringify([...ids]) === JSON.stringify([...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS]);
 }

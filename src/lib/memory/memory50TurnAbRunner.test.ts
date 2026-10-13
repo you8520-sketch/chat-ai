@@ -242,10 +242,10 @@ describe("50-turn memory A/B runner preflight (provider-free)", () => {
     assert.equal(MEMORY_CAPACITY_FIXED, 10000);
     assert.equal(ARCHIVE_CAPACITY_FIXED, 3000);
     assert.equal(AB_EXPERIMENT_SCOPE, "summary_only");
-    assert.deepEqual(
-      MAIN_RP_USER_SELECTABLE_OPTIONS.map((option) => option.id),
-      [...AB_LIVE_MODEL_IDS]
-    );
+    assert.deepEqual(MAIN_RP_USER_SELECTABLE_OPTIONS.map((option) => option.id), [
+      ...AB_LIVE_MODEL_IDS,
+      "gemini-4-argon",
+    ]);
 
     const result = await runHarborAbDryRun();
     assert.equal(result.status, "READY", result.abortReason ?? "not ready");

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it, mock } from "node:test";
 
-import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
+import { MAIN_RP_MODEL_IDS, MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS } from "@/lib/chatModels";
 import { CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL } from "@/lib/cheaperInferenceConfig";
 import {
   OPENROUTER_CHAT_COMPLETIONS_URL,
@@ -67,32 +67,40 @@ const KEYS = {
 };
 const noWait = async () => undefined;
 
+function sealedCallFor(
+  canonicalId: (typeof MAIN_RP_MODEL_IDS)[number],
+  order: number,
+  fixtureId: (typeof RP_QUALITY_PRECALL_FIXTURE_IDS)[number] = RP_QUALITY_PRECALL_FIXTURE_IDS[0]
+): PaidRunnerSealedCall {
+  const provider = expectedPaidRunnerProvider(canonicalId);
+  const wireModel = resolveMainRpPrimaryWireModelId(canonicalId);
+  const body = { model: wireModel, stream: true, messages: [{ role: "user", content: "hi" }] };
+  return {
+    requestOrder: order,
+    fixtureId,
+    canonicalId,
+    provider,
+    wireModel,
+    endpointKind: provider,
+    endpoint: provider === "openrouter"
+      ? OPENROUTER_CHAT_COMPLETIONS_URL
+      : CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
+    finalWireFingerprint: `${"aa".repeat(32)}${order.toString(16).padStart(2, "0")}`.slice(0, 64),
+    requestBodyFingerprint: paidRunnerRequestBodyFingerprint(body),
+    effectiveCanonMode: "FULL_LEGACY",
+    authoringLevel: "NORMAL",
+    contentMode: "SAFE",
+    maxTokensPresent: false,
+    requestBody: body,
+  };
+}
+
 function pack() {
   const calls: PaidRunnerSealedCall[] = [];
   let order = 1;
   for (const fixtureId of RP_QUALITY_PRECALL_FIXTURE_IDS) {
-    for (const canonicalId of MAIN_RP_MODEL_IDS) {
-      const provider = expectedPaidRunnerProvider(canonicalId);
-      const wireModel = resolveMainRpPrimaryWireModelId(canonicalId);
-      const body = { model: wireModel, stream: true, messages: [{ role: "user", content: "hi" }] };
-      calls.push({
-        requestOrder: order,
-        fixtureId,
-        canonicalId,
-        provider,
-        wireModel,
-        endpointKind: provider,
-        endpoint: provider === "openrouter"
-          ? OPENROUTER_CHAT_COMPLETIONS_URL
-          : CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
-        finalWireFingerprint: `${"aa".repeat(32)}${order.toString(16).padStart(2, "0")}`.slice(0, 64),
-        requestBodyFingerprint: paidRunnerRequestBodyFingerprint(body),
-        effectiveCanonMode: "FULL_LEGACY",
-        authoringLevel: "NORMAL",
-        contentMode: "SAFE",
-        maxTokensPresent: false,
-        requestBody: body,
-      });
+    for (const canonicalId of MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS) {
+      calls.push(sealedCallFor(canonicalId, order, fixtureId));
       order += 1;
     }
   }
@@ -116,7 +124,7 @@ function auth(manifest: PaidRunnerPublicManifest, extra: Partial<PaidRunnerAutho
     expectedProductionSha: manifest.productionDeploySha,
     expectedIdentityHash: manifest.identityHash,
     experimentSecret: SECRET,
-    allowlist: [...MAIN_RP_MODEL_IDS],
+    allowlist: [...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS],
     plannedCalls: 12,
     ...extra,
   };
@@ -285,8 +293,9 @@ function createScenarioFetch(options?: {
 
 describe("rp quality paid runner live transport integration", () => {
   it("keeps the current Main RP 4-model registry", () => {
-    assert.equal(livePaidRunnerUsesCanonicalModels(MAIN_RP_MODEL_IDS), true);
-    assert.deepEqual([...MAIN_RP_MODEL_IDS], [
+    assert.equal(livePaidRunnerUsesCanonicalModels(MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS), true);
+    assert.equal(livePaidRunnerUsesCanonicalModels(MAIN_RP_MODEL_IDS), false);
+    assert.deepEqual([...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS], [
       "deepseek-v4.1-flash",
       "gemini-3.8-flash",
       "gpt-6.1-sol",
@@ -1777,9 +1786,8 @@ describe("rp quality paid runner interrupted streams and Opus/Sol timeout", () =
     });
   }
 
-  function callFor(canonicalId: string) {
-    const { sealedCalls } = pack();
-    return sealedCalls.find((call) => call.canonicalId === canonicalId)!;
+  function callFor(canonicalId: (typeof MAIN_RP_MODEL_IDS)[number]) {
+    return sealedCallFor(canonicalId, 1);
   }
 
   async function postInterrupted(

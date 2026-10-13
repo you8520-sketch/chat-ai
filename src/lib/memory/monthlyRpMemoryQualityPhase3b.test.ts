@@ -7,7 +7,6 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 
-import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
 import {
   MONTHLY_RP_MEMORY_QUALITY_PHASE3A_PLAN_EVIDENCE,
   MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE,
@@ -24,7 +23,14 @@ const COMPLETION_ATTEMPT_IDS = [
   "phase3b_gemini_completion_t50_2026-10-11",
 ] as const;
 
-const EXPECTED_CASE_IDS = MAIN_RP_MODEL_IDS.flatMap((modelId) => [
+const ARCHIVED_PHASE3B_MODEL_IDS = [
+  "deepseek-v4.1-flash",
+  "gemini-3.8-flash",
+  "gpt-6.1-sol",
+  "claude-opus-5.5",
+] as const;
+
+const EXPECTED_CASE_IDS = ARCHIVED_PHASE3B_MODEL_IDS.flatMap((modelId) => [
   `phase3b_t6_${modelId}`,
   `phase3b_t50_${modelId}`,
 ]);

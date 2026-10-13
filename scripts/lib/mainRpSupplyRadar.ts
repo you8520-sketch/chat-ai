@@ -81,6 +81,7 @@ const OPENROUTER_SLUG_ADAPTER: Record<SelectedAI, string> = {
   "gemini-3.1-pro-preview": "google/gemini-3.1-pro-preview",
   "gemini-3.7-flash": "google/gemini-3.7-flash",
   "gemini-3.8-flash": "google/gemini-3.8-flash",
+  "gemini-4-argon": "google/gemini-4-argon",
   "gpt-6.1-sol": "openai/gpt-6.1-sol",
   "claude-opus-5.5": "anthropic/claude-opus-5.5",
 };

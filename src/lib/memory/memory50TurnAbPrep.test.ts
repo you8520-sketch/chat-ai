@@ -76,10 +76,10 @@ describe("50-turn memory A/B preflight (provider-free)", () => {
     );
     assert.equal(new Set(AB_SCRIPT.map((turn) => turn.user)).size, 50);
     assert.equal(AB_PROBES.length, AB_CALL_PLAN.probes);
-    assert.deepEqual(
-      MAIN_RP_USER_SELECTABLE_OPTIONS.map((option) => option.id),
-      [...LIVE_MODEL_IDS]
-    );
+    assert.deepEqual(MAIN_RP_USER_SELECTABLE_OPTIONS.map((option) => option.id), [
+      ...LIVE_MODEL_IDS,
+      "gemini-4-argon",
+    ]);
     for (const modelId of LIVE_MODEL_IDS) {
       assert.equal(isMainModelRelationshipSelfExtractModel(modelId), false, modelId);
     }
