@@ -15,6 +15,7 @@ import { AppSectionCard } from "@/components/AppPageShell";
 import type { TrpgGoalClaimDecision } from "@/lib/trpg/goalConfirm";
 import { goalClaimItems } from "./goalClaimView";
 import { TrpgGoalClaimCard } from "./TrpgGoalClaimCard";
+import { TrpgGoalHud, pinnedBarStyle, useFixedBottomEdgePx } from "./TrpgGoalHud";
 import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
 import { actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
 import {
@@ -321,6 +322,9 @@ function openSceneImage(opts: {
   );
 }
 
+const GOAL_HUD_STICKY_CLASS =
+  "sticky mt-3 top-[calc(var(--site-header-height,4rem)+5.5rem)] min-[576px]:top-[calc(var(--site-header-height,44px)+0.5rem)]";
+
 export default function TrpgCampaignRoom({
   snap,
   starting,
@@ -405,6 +409,8 @@ export default function TrpgCampaignRoom({
   );
   const [toast, setToast] = useState("");
   const quoteSelectContainerRef = useRef<HTMLDivElement>(null);
+  const mobileRailRef = useRef<HTMLElement>(null);
+  const mobileRailBottomPx = useFixedBottomEdgePx(mobileRailRef);
   const bottomRef = useRef<HTMLDivElement>(null);
   const narrationStartRef = useRef<HTMLDivElement | null>(null);
   const narrationEndRef = useRef<HTMLSpanElement | null>(null);
@@ -2037,6 +2043,7 @@ export default function TrpgCampaignRoom({
       data-trpg-declaration-growth-observer-attached={declarationGrowthObserverAttached ? "true" : "false"}
     >
       <aside
+        ref={mobileRailRef}
         className="fixed left-3 right-3 top-[calc(var(--site-header-height,4rem)+0.5rem)] z-[60] rounded-2xl border border-white/10 bg-[#101010]/95 p-2 shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur min-[576px]:hidden"
         aria-label="캠페인 도구"
       >
@@ -2079,6 +2086,15 @@ export default function TrpgCampaignRoom({
             ) : null}
           </div>
         </header>
+
+        {visibleSceneRows.length > 0 && snap.goals !== undefined ? (
+          <TrpgGoalHud
+            goals={snap.goals}
+            hold={holdCurrentRound || liveFollowTailSpacerActive}
+            stickyClassName={GOAL_HUD_STICKY_CLASS}
+            stickyStyle={pinnedBarStyle(mobileRailBottomPx)}
+          />
+        ) : null}
 
         {snap.viewerIsHost && snap.billingMode === "split_even" && onBillingModeChange ? (
           <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
