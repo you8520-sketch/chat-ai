@@ -336,6 +336,23 @@ const AFFORDANCE_NOUNS = [
   "필터", "저격총", "권총", "마체테", "상자", "바늘", "레몬",
 ] as const;
 
+const HANGUL_SYLLABLE = /[\uAC00-\uD7A3]/;
+
+/**
+ * Single-syllable nouns (물, 차) also occur inside unrelated words (인물, 조차);
+ * they only count when not attached to a preceding Hangul syllable.
+ */
+function mentionsAffordanceNoun(text: string, noun: string): boolean {
+  if ([...noun].length > 1) return text.includes(noun);
+  let from = 0;
+  for (;;) {
+    const at = text.indexOf(noun, from);
+    if (at < 0) return false;
+    if (at === 0 || !HANGUL_SYLLABLE.test(text[at - 1]!)) return true;
+    from = at + 1;
+  }
+}
+
 /**
  * AVAILABLE AFFORDANCES: concrete objects/physical givens already present in the scene
  * (from recent history + current cue's offered object). Bounded to
@@ -349,7 +366,7 @@ function extractAffordances(
   const texts = [...recent.map((m) => m.content), currentUserMessage];
   for (const noun of AFFORDANCE_NOUNS) {
     if (found.length >= SCENE_MOMENTUM_AFFORDANCES_MAX) break;
-    if (texts.some((t) => t.includes(noun)) && !found.includes(noun)) {
+    if (texts.some((t) => mentionsAffordanceNoun(t, noun)) && !found.includes(noun)) {
       found.push(noun);
     }
   }

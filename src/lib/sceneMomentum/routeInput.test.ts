@@ -18,6 +18,7 @@ import {
   OPENROUTER_GEMINI_25_PRO_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
 } from "@/lib/chatModels";
+import { buildSceneMomentumBlock } from "@/lib/sceneMomentum/extractor";
 import { SCENE_MOMENTUM_HEADER } from "@/lib/sceneMomentum/types";
 import {
   buildSceneMomentumInputFromRoute,
@@ -215,6 +216,46 @@ describe("Scene Momentum route wiring — buildSceneMomentumInputFromRoute (A, G
     assert.ok(momentumSection.length > 0);
     assert.ok(!momentumSection.includes("마더"));
     assert.ok(!momentumSection.includes("나타난다"));
+  });
+
+  it("K. creator opening greeting is not recent-scene evidence (cold start)", () => {
+    const greeting =
+      "새로 발령받은 직원이 웃음을 터뜨렸다. 처음 보는 사람조차 긴장을 풀었다. 로비는 소란스러웠다.";
+    const history = [
+      { role: "user" as const, content: OPENING_TURN_USER },
+      { role: "assistant" as const, content: greeting },
+    ];
+    const cue = "밤이 되었다. 다른 인물은 없다. 렌은 창가에서 불빛만 본다.";
+    const input = buildSceneMomentumInputFromRoute({
+      shortTermHistory: history,
+      currentUserMessage: cue,
+      normalizedMemoryMeta: null,
+    });
+    assert.equal(input.openingGreeting, greeting);
+    assert.deepEqual(input.recentHistory, []);
+    const result = buildSceneMomentumBlock(input);
+    assert.equal(result.fields.whatIsHappening, null);
+    assert.equal(result.fields.relationshipState, null);
+    assert.deepEqual(result.fields.availableAffordances, []);
+    assert.equal(result.block, null);
+  });
+
+  it("L. real turns after the opening pair still drive the momentum block", () => {
+    const history = [
+      { role: "user" as const, content: OPENING_TURN_USER },
+      { role: "assistant" as const, content: "준서의 자취방. 그가 문을 열었다." },
+      { role: "user" as const, content: "물 마셔." },
+      { role: "assistant" as const, content: "마셨어. 별거 아니야." },
+    ];
+    const input = buildSceneMomentumInputFromRoute({
+      shortTermHistory: history,
+      currentUserMessage: "쉬자.",
+      normalizedMemoryMeta: null,
+    });
+    assert.equal(input.recentHistory.length, 2);
+    const result = buildSceneMomentumBlock(input);
+    assert.ok(result.block);
+    assert.ok(result.fields.availableAffordances.includes("물"));
   });
 
   it("J. regeneration uses original scene cue rather than regenerate meta-wrapper text", () => {

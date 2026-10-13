@@ -184,6 +184,27 @@ describe("Scene Momentum — extractor determinism (A-H)", () => {
     assert.ok(!r.block!.includes(MODERN_CURRENT_CUE.slice(0, 24)));
   });
 
+  it("affordance nouns match standalone words, not Hangul compounds", () => {
+    const compounds = buildSceneMomentumBlock({
+      recentHistory: [],
+      currentUserMessage: "다른 인물은 없다. 처음 보는 사람조차 조용했다.",
+      currentLocation: null,
+      promises: [],
+      openingGreeting: null,
+    });
+    assert.deepEqual(compounds.fields.availableAffordances, []);
+    assert.equal(compounds.block, null);
+
+    const standalone = buildSceneMomentumBlock({
+      recentHistory: [],
+      currentUserMessage: "물 마셔. 차를 따랐다.",
+      currentLocation: null,
+      promises: [],
+      openingGreeting: null,
+    });
+    assert.deepEqual(standalone.fields.availableAffordances, ["물", "차"]);
+  });
+
   it("F. dormant greeting hook excluded", () => {
     const greetingWithHook =
       "준서의 자취방. 그가 물을 따른다. 다음에 마더가 나타난다."; // dormant hook embedded
