@@ -1,0 +1,103 @@
+{
+  "posts": 4,
+  "krw": 95.3563771875,
+  "calls": [
+    {
+      "label": "c1-r4-after",
+      "source": "call-13-gm-r4",
+      "variant": "after",
+      "systemSha256": "4a0650637592faa2b6cb79ebf14ea36ee16a61b0a32aa3e81eff13aaf126fae0",
+      "userSha256": "53015341f28c107a0dcb7d62e762a710427c6ee25355fec9bc4dc1e1eed2c59c",
+      "systemChars": 10416,
+      "userChars": 23745,
+      "worstCaseKrw": 82.1,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 15649,
+        "outputTokens": 5177
+      },
+      "cost": {
+        "usd": 0.020247825,
+        "krw": 29.35934625,
+        "source": "catalog_price_x_usage"
+      },
+      "finishReason": "stop",
+      "responseChars": 8380,
+      "narrationChars": 7083,
+      "elapsedMs": 56936
+    },
+    {
+      "label": "c2-r4-before",
+      "source": "call-13-gm-r4",
+      "variant": "before",
+      "systemSha256": "b329d0a1b30b48f1e50e1a1f77a97d58ae09d838ca8fcc0ded8118f8f003b6a0",
+      "userSha256": "53015341f28c107a0dcb7d62e762a710427c6ee25355fec9bc4dc1e1eed2c59c",
+      "systemChars": 10026,
+      "userChars": 23745,
+      "worstCaseKrw": 81.8,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 15567,
+        "outputTokens": 4497
+      },
+      "cost": {
+        "usd": 0.01855035,
+        "krw": 26.8980075,
+        "source": "catalog_price_x_usage"
+      },
+      "finishReason": "stop",
+      "responseChars": 7311,
+      "narrationChars": 6012,
+      "elapsedMs": 56710
+    },
+    {
+      "label": "c3v2-r4-after",
+      "source": "call-13-gm-r4",
+      "variant": "after",
+      "systemSha256": "b2a1b314b673245d8fc962a412425fdab1a2f2a5a87d55076b6338aaed2ce3b9",
+      "userSha256": "53015341f28c107a0dcb7d62e762a710427c6ee25355fec9bc4dc1e1eed2c59c",
+      "systemChars": 10426,
+      "userChars": 23745,
+      "worstCaseKrw": 82.1,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 15650,
+        "outputTokens": 2435
+      },
+      "cost": {
+        "usd": 0.0135646875,
+        "krw": 19.668796875,
+        "source": "catalog_price_x_usage"
+      },
+      "finishReason": "stop",
+      "responseChars": 4216,
+      "narrationChars": 2463,
+      "elapsedMs": 25435
+    },
+    {
+      "label": "c4v2-r4-after",
+      "source": "call-13-gm-r4",
+      "variant": "after",
+      "systemSha256": "b2a1b314b673245d8fc962a412425fdab1a2f2a5a87d55076b6338aaed2ce3b9",
+      "userSha256": "53015341f28c107a0dcb7d62e762a710427c6ee25355fec9bc4dc1e1eed2c59c",
+      "systemChars": 10426,
+      "userChars": 23745,
+      "worstCaseKrw": 82.1,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 15650,
+        "outputTokens": 4829,
+        "cacheReadTokens": 13675
+      },
+      "cost": {
+        "usd": 0.01340015625,
+        "krw": 19.4302265625,
+        "source": "catalog_price_x_usage"
+      },
+      "finishReason": "stop",
+      "responseChars": 7860,
+      "narrationChars": 5960,
+      "elapsedMs": 56782
+    }
+  ]
+}

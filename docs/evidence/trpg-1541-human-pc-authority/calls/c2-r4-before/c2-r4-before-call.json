@@ -1,0 +1,24 @@
+{
+  "label": "c2-r4-before",
+  "source": "call-13-gm-r4",
+  "variant": "before",
+  "systemSha256": "b329d0a1b30b48f1e50e1a1f77a97d58ae09d838ca8fcc0ded8118f8f003b6a0",
+  "userSha256": "53015341f28c107a0dcb7d62e762a710427c6ee25355fec9bc4dc1e1eed2c59c",
+  "systemChars": 10026,
+  "userChars": 23745,
+  "worstCaseKrw": 81.8,
+  "usage": {
+    "modelId": "gemini-3.8-flash",
+    "inputTokens": 15567,
+    "outputTokens": 4497
+  },
+  "cost": {
+    "usd": 0.01855035,
+    "krw": 26.8980075,
+    "source": "catalog_price_x_usage"
+  },
+  "finishReason": "stop",
+  "responseChars": 7311,
+  "narrationChars": 6012,
+  "elapsedMs": 56710
+}
