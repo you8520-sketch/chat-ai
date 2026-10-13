@@ -26,7 +26,7 @@ export default function ChatRoomAdultModeToggle({
 
   return (
     <div
-      className="flex h-7 shrink-0 items-center gap-1 rounded-md border border-white/10 bg-[#1a1a1a] px-1.5"
+      className="flex h-8 shrink-0 items-center gap-1 rounded-md border border-white/10 bg-[#1a1a1a] px-1.5 min-[576px]:h-7"
       title={title}
     >
       <span className="text-[11px] font-semibold text-zinc-400">{CHAT_ADULT_MODE_LABEL}</span>
@@ -36,7 +36,7 @@ export default function ChatRoomAdultModeToggle({
         disabled={busy}
         aria-pressed={enabled}
         aria-label={title}
-        className={`relative h-4 w-7 shrink-0 rounded-full transition-colors disabled:opacity-40 ${
+        className={`relative h-4 w-7 shrink-0 rounded-full transition-colors before:absolute before:-inset-x-1 before:-inset-y-2.5 before:content-[''] disabled:opacity-40 ${
           enabled ? "bg-violet-500" : "bg-zinc-700"
         }`}
       >

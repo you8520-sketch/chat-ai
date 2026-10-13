@@ -22,7 +22,7 @@ import {
 } from "./ChatToolbarIcons";
 
 const toolbarBtn =
-  "flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-white/[0.08] hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-30";
+  "flex h-10 w-10 items-center justify-center rounded-lg text-zinc-400 min-[576px]:h-8 min-[576px]:w-8 transition hover:bg-white/[0.08] hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-30";
 
 type ConfirmKind = "regenerate" | "delete";
 

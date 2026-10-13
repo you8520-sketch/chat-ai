@@ -99,7 +99,7 @@ describe("chat-room adult mode (handoff) preference", () => {
     assert.doesNotMatch(chatClient, /nsfwMode\s*=\s*isAdult\s*&&\s*userNsfwOn/);
     assert.match(
       chatClient,
-      /<\/select>\s*<ChatRoomAdultModeToggle/s
+      /<\/select>\s*(?:<\/label>\s*)?<ChatRoomAdultModeToggle/s
     );
     assert.equal((chatClient.match(/<ChatRoomAdultModeToggle/g) ?? []).length, 1);
 
