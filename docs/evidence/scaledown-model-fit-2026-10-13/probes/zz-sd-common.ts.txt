@@ -1,0 +1,219 @@
+import Module from "module";
+
+const originalLoad = (Module as unknown as { _load: typeof Module._load })._load;
+(Module as unknown as { _load: typeof Module._load })._load = function (
+  request: string,
+  parent: NodeModule,
+  isMain: boolean
+) {
+  if (request === "server-only") return {};
+  return originalLoad(request, parent, isMain);
+} as typeof Module._load;
+
+import { mkdirSync, writeFileSync, appendFileSync } from "node:fs";
+import k1591 from "./zz-sd-k1591.json";
+import {
+  ASSISTANT_BY_TURN,
+  CHAR_NAME,
+  PERSONA,
+  PERSONA_NAME,
+  USER_BY_TURN,
+  assistantText,
+  userText,
+} from "./zz-sd-g8-fixture";
+
+export const OUT = process.env.SD_OUT ?? "/tmp/sd-out";
+export const FX = 1700;
+mkdirSync(OUT, { recursive: true });
+mkdirSync(`${OUT}/raw`, { recursive: true });
+
+export const SD_OR_KEY = process.env.OPENROUTER_JEV_BENCHMARK_API_KEY?.trim() ?? "";
+
+export type TapRecord = {
+  seq: number;
+  tag: string;
+  url: string;
+  startedAt: string;
+  ms: number;
+  status: number | null;
+  requestBody: unknown;
+  responseText: string;
+  error: string | null;
+};
+
+let currentTag = "untagged";
+let seq = 0;
+const tapped: TapRecord[] = [];
+let tapFile: string | null = null;
+
+export function setTag(tag: string) {
+  currentTag = tag;
+}
+export function setTapFile(path: string) {
+  tapFile = path;
+}
+export function tapRecords() {
+  return tapped;
+}
+
+const AI_HOSTS = ["openrouter.ai", "cheaperinference.com"];
+const realFetch = globalThis.fetch.bind(globalThis);
+globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+  const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+  if (!AI_HOSTS.some((h) => url.includes(h))) return realFetch(input, init);
+  const started = performance.now();
+  const startedAt = new Date().toISOString();
+  let requestBody: unknown = null;
+  try {
+    requestBody = typeof init?.body === "string" ? JSON.parse(init.body) : null;
+  } catch {
+    requestBody = String(init?.body ?? "");
+  }
+  if (
+    process.env.SD_FLATTEN === "1" &&
+    url.includes("/alpha/decisions") &&
+    requestBody &&
+    typeof requestBody === "object" &&
+    (requestBody as { model?: string }).model === "scaledown/classify-1" &&
+    typeof (requestBody as { state?: unknown }).state === "object"
+  ) {
+    const body = requestBody as { state: unknown };
+    body.state = { text: JSON.stringify(body.state) };
+    init = { ...init, body: JSON.stringify(body) };
+  }
+  try {
+    const res = await realFetch(input, init);
+    const clone = res.clone();
+    const text = await clone.text();
+    const rec: TapRecord = {
+      seq: ++seq,
+      tag: currentTag,
+      url,
+      startedAt,
+      ms: Math.round((performance.now() - started) * 10) / 10,
+      status: res.status,
+      requestBody,
+      responseText: text,
+      error: null,
+    };
+    tapped.push(rec);
+    if (tapFile) appendFileSync(tapFile, JSON.stringify(rec) + "\n");
+    return res;
+  } catch (e) {
+    const rec: TapRecord = {
+      seq: ++seq,
+      tag: currentTag,
+      url,
+      startedAt,
+      ms: Math.round((performance.now() - started) * 10) / 10,
+      status: null,
+      requestBody,
+      responseText: "",
+      error: (e as Error).message,
+    };
+    tapped.push(rec);
+    if (tapFile) appendFileSync(tapFile, JSON.stringify(rec) + "\n");
+    throw e;
+  }
+}) as typeof fetch;
+
+export function writeJson(name: string, data: unknown) {
+  writeFileSync(`${OUT}/${name}`, JSON.stringify(data, null, 2));
+}
+
+export type Turn = { user: string; assistant: string };
+export type SourceTurn = {
+  fixture: "G8" | "K1591";
+  turn: number;
+  userMsgId: number;
+  assistantMsgId: number;
+  user: string;
+  assistant: string;
+};
+
+const K = k1591 as unknown as {
+  charName: string;
+  userName: string;
+  windows: { turnStart: number; turnEnd: number; turns: Turn[]; lunaOutput: string }[];
+};
+
+export function g8Turn(turn: number): SourceTurn {
+  return {
+    fixture: "G8",
+    turn,
+    userMsgId: turn * 2,
+    assistantMsgId: turn * 2 + 1,
+    user: userText(turn),
+    assistant: assistantText(turn),
+  };
+}
+
+export function k1591Turn(turn: number): SourceTurn {
+  for (const w of K.windows) {
+    if (turn >= w.turnStart && turn <= w.turnEnd) {
+      const t = w.turns[turn - w.turnStart]!;
+      return {
+        fixture: "K1591",
+        turn,
+        userMsgId: 1000 + turn * 2,
+        assistantMsgId: 1001 + turn * 2,
+        user: t.user,
+        assistant: t.assistant,
+      };
+    }
+  }
+  throw new Error(`k1591 turn ${turn} missing`);
+}
+
+export function k1591Window(start: number) {
+  const w = K.windows.find((x) => x.turnStart === start);
+  if (!w) throw new Error(`k1591 window ${start} missing`);
+  return w;
+}
+
+export function g8Window(start: number, end: number): { turn: number; user: string; assistant: string }[] {
+  const out = [];
+  for (let t = start; t <= end; t++) out.push({ turn: t, user: userText(t), assistant: assistantText(t) });
+  return out;
+}
+
+export { CHAR_NAME, PERSONA, PERSONA_NAME, USER_BY_TURN, ASSISTANT_BY_TURN };
+export const CHAR = CHAR_NAME;
+export const USER_NAME = PERSONA_NAME;
+
+export type Segment = { msgId: number; role: "user" | "assistant"; bodyStart: number; bodyEnd: number; body: string };
+
+export function buildBlocks(turns: SourceTurn[]): { text: string; segments: Segment[] } {
+  let text = "";
+  const segments: Segment[] = [];
+  for (const t of turns) {
+    for (const part of [
+      { id: t.userMsgId, role: "user" as const, who: USER_NAME, body: t.user },
+      { id: t.assistantMsgId, role: "assistant" as const, who: CHAR, body: t.assistant },
+    ]) {
+      if (text) text += "\n\n";
+      text += `[msg ${part.id} · ${part.role} · ${part.who}]\n`;
+      const bodyStart = text.length;
+      text += part.body;
+      segments.push({ msgId: part.id, role: part.role, bodyStart, bodyEnd: text.length, body: part.body });
+    }
+  }
+  return { text, segments };
+}
+
+export function resolveSpan(segments: Segment[], start: number, end: number) {
+  const hit = segments.find((s) => start >= s.bodyStart && start < s.bodyEnd);
+  if (!hit) return { msgId: null, role: null, crossesBoundary: false, inHeader: true };
+  return { msgId: hit.msgId, role: hit.role, crossesBoundary: end > hit.bodyEnd, inHeader: false };
+}
+
+export function parseCostUsd(responseText: string): { costUsd: number | null; promptTokens: number | null; completionTokens: number | null } {
+  try {
+    const j = JSON.parse(responseText);
+    const u = j.usage ?? {};
+    const cost = typeof u.cost === "number" ? u.cost : null;
+    return { costUsd: cost, promptTokens: u.prompt_tokens ?? u.input_tokens ?? null, completionTokens: u.completion_tokens ?? u.output_tokens ?? null };
+  } catch {
+    return { costUsd: null, promptTokens: null, completionTokens: null };
+  }
+}

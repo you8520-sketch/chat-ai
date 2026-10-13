@@ -1,0 +1,81 @@
+/**
+ * Gate 8 fixture (scratch harness only; never committed to src/).
+ * Synthetic 80-turn chat. Event turns carry short natural prose; all other turns are filler
+ * (same filler style as the Gate 2/7 fixture so Luna seals are comparable).
+ */
+export const CHAR_NAME = "라이크";
+export const PERSONA_NAME = "렌";
+export const PERSONA = "이름/호칭: 렌\n성격: 조용함";
+export const NAMES = { charName: CHAR_NAME, userName: PERSONA_NAME };
+export const TOTAL_TURNS = 80;
+
+export const USER_BY_TURN: Record<number, string> = {
+  1: "안녕, 라이크. 오늘도 장작 쌓고 있었어?",
+  2: "네 검, 날이 많이 무뎌졌더라. 내일까지 내가 숫돌로 갈아다 줄게. 약속이야.",
+  6: "다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.",
+  10: "라이크, 나랑 사귀어 줄래?",
+  15: "그 약속은 취소할게. 검은 내가 직접 갈게.",
+  24: "너 예전에 나를 평생 지켜 주겠다고 했잖아.",
+};
+
+export const ASSISTANT_BY_TURN: Record<number, string> = {
+  1: '라이크는 도끼를 내려놓고 고개를 끄덕였다. "응. 해가 지기 전에 끝내야 하니까."',
+  2: '라이크는 허리춤의 검을 잠시 내려다보다가 고개를 끄덕였다. "그래, 부탁할게. 내일까지만 갈아다 주면 돼. 기다릴게." 그의 입가에 작은 미소가 스쳤다.',
+  6: '라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. "렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야." 그는 도끼 자루를 손가락으로 가볍게 두드렸다.',
+  10: '라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. "지금은 대답 못 해. 시간이 필요해." 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.',
+  15: '라이크는 아쉬운 듯 어깨를 으쓱했다. "알겠어. 네 검이니까."',
+  24: '라이크는 고개를 갸웃했다. "내가 그런 말을 했었나? 기억나지 않는데."',
+};
+
+export const EVENT_TURNS = [2, 6, 10, 15, 24] as const;
+
+export function userText(turn: number): string {
+  return USER_BY_TURN[turn] ?? `오늘의 잡담 ${turn}`;
+}
+export function assistantText(turn: number): string {
+  return ASSISTANT_BY_TURN[turn] ?? `라이크는 ${turn}번째 장작을 쌓았다.`;
+}
+
+export const SCENES: Record<string, string> = {
+  P1_open_promises:
+    '렌은 라이크 곁에 앉아 모닥불을 바라본다. "라이크, 지금까지 우리 사이에 오간 약속들이 뭐가 있었는지 하나씩 말해줄래? 내가 까먹은 게 있을지도 몰라."',
+  P2_relationship_state:
+    '렌은 라이크의 눈을 마주 본다. "우리 지금은 어떤 사이야? 내가 예전에 너한테 뭘 물어봤었고, 네가 뭐라고 했었는지도 말해줘."',
+  P3_cancelled_promise: '렌은 라이크를 바라본다. "내가 검 갈아다 주겠다던 건 어떻게 됐지?"',
+  P4_false_lifelong:
+    '렌은 모닥불을 바라보다 말을 꺼낸다. "네가 예전에 나를 평생 지켜 주겠다고 했던 말, 지금도 유효해?"',
+};
+
+/** Ground truth at T81, derived only from the exact raw messages above. */
+export const GROUND_TRUTH = [
+  {
+    id: "E1",
+    event: "유효한 캐릭터 약속",
+    truth:
+      "T6: 라이크(assistant 발화)가 렌에게 '다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야'라고 약속. 이후 취소/이행/만료 기록 없음 → 진행 중.",
+    source: { turn: 6, role: "assistant", speaker: "라이크", target: "렌" },
+  },
+  {
+    id: "E2",
+    event: "제안됐으나 수락되지 않은 관계",
+    truth:
+      "T10: 렌(user)이 '나랑 사귀어 줄래?'라고 제안. 라이크는 '지금은 대답 못 해. 시간이 필요해.'라고 답함 → 수락 아님, 보류. 이후 해결 없음 → 연인 아님.",
+    source: { turn: 10, role: "user→assistant", speaker: "렌→라이크", target: "관계" },
+  },
+  {
+    id: "E3",
+    event: "성립 후 취소된 약속",
+    truth:
+      "T2: 렌(user)이 '내일까지 검을 갈아다 줄게. 약속이야.' 라이크가 '그래, 부탁할게… 기다릴게.'로 수락 → 성립. T15: 렌이 '그 약속은 취소할게. 검은 내가 직접 갈게.' 라이크 '알겠어. 네 검이니까.' → 취소됨(최신 상태).",
+    source: { turn: "2→15", role: "user,assistant", speaker: "렌→라이크", target: "검" },
+  },
+  {
+    id: "E4",
+    event: "AI가 만든 거짓 평생 약속",
+    truth:
+      "원본 메시지에 라이크가 평생 지키겠다고 말한 적 없음. T24: 렌(user)이 '너 예전에 나를 평생 지켜 주겠다고 했잖아.'라고 주장했고 라이크는 '내가 그런 말을 했었나? 기억나지 않는데.'라고 답함. legacy ledger '라이크가 렌을 평생 지키겠다고 약속함'은 출처 메시지 없음.",
+    source: { turn: 24, role: "user claim; assistant denies", speaker: "렌 주장 / 라이크 부인", target: "-" },
+  },
+] as const;
+
+export const LEGACY_FABRICATED_PROMISE = "라이크가 렌을 평생 지키겠다고 약속함";

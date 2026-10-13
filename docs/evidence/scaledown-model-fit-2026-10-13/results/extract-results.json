@@ -1,0 +1,3416 @@
+{
+  "caseDefs": [
+    {
+      "id": "G8_T2_promise_made",
+      "label": "검 손질 약속 (유저 제안 + 캐릭터 수락)",
+      "note": "정답: 유저가 검을 갈아다 주기로 약속, 라이크가 수락.",
+      "fixture": "G8",
+      "turn": 2,
+      "activePromises": [],
+      "expect": {
+        "mustTypes": [
+          {
+            "type": "promise",
+            "role": "user"
+          }
+        ],
+        "mustNotTypes": [
+          "promise_cancellation",
+          "relationship_acceptance",
+          "mentor_or_lover_relationship"
+        ]
+      }
+    },
+    {
+      "id": "G8_T6_character_promise",
+      "label": "캐릭터가 한 북문 약속",
+      "note": "정답: 라이크(assistant)가 렌에게 북문 앞에서 기다리겠다고 약속. 유저의 제안 발화는 약속이 아님.",
+      "fixture": "G8",
+      "turn": 6,
+      "activePromises": [
+        "사용자가 라이크의 무뎌진 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다."
+      ],
+      "expect": {
+        "mustTypes": [
+          {
+            "type": "promise",
+            "role": "assistant"
+          }
+        ],
+        "mustNotTypes": [
+          "promise_cancellation",
+          "relationship_acceptance",
+          "mentor_or_lover_relationship"
+        ]
+      }
+    },
+    {
+      "id": "G8_T10_proposal_deferred",
+      "label": "연인 제안 + 명시적 보류(수락 아님)",
+      "note": "정답: 렌이 사귀자고 제안, 라이크는 '지금은 대답 못 해. 시간이 필요해'로 보류. 수락 없음.",
+      "fixture": "G8",
+      "turn": 10,
+      "activePromises": [
+        "사용자가 라이크의 무뎌진 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다.",
+        "라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리기로 약속했다."
+      ],
+      "expect": {
+        "mustTypes": [
+          {
+            "type": "relationship_proposal",
+            "role": "user"
+          }
+        ],
+        "mustNotTypes": [
+          "relationship_acceptance",
+          "promise",
+          "mentor_or_lover_relationship"
+        ]
+      }
+    },
+    {
+      "id": "G8_T15_promise_cancel",
+      "label": "약속 취소",
+      "note": "정답: 렌이 검 약속을 취소(철회). 북문 약속은 유지.",
+      "fixture": "G8",
+      "turn": 15,
+      "activePromises": [
+        "사용자가 라이크의 무뎌진 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다.",
+        "라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리기로 약속했다."
+      ],
+      "expect": {
+        "mustTypes": [
+          {
+            "type": "promise_cancellation",
+            "role": "user"
+          }
+        ],
+        "mustNotTypes": [
+          "promise",
+          "relationship_acceptance",
+          "mentor_or_lover_relationship"
+        ]
+      }
+    },
+    {
+      "id": "G8_T24_false_premise",
+      "label": "원문에 없는 평생 약속을 유저가 전제로 주장, 캐릭터 부인",
+      "note": "정답: 새 약속 없음. 렌의 주장은 렌의 말로만 귀속되고 라이크는 기억나지 않는다고 부인.",
+      "fixture": "G8",
+      "turn": 24,
+      "activePromises": [
+        "사용자가 라이크의 무뎌진 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다.",
+        "라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리기로 약속했다."
+      ],
+      "expect": {
+        "mustTypes": [],
+        "mustNotTypes": [
+          "promise",
+          "relationship_acceptance",
+          "mentor_or_lover_relationship"
+        ]
+      }
+    },
+    {
+      "id": "K1591_T10_proposal_gesture",
+      "label": "'오늘부터 연인하자' + 비언어 반응(손 맞잡음)",
+      "note": "모호: 원문에 말로 된 수락은 없고 손을 맞잡음만 있음. 수락 판정은 GPT 몫(acceptance 타입은 must/mustNot에서 제외).",
+      "fixture": "K1591",
+      "turn": 10,
+      "activePromises": [],
+      "expect": {
+        "mustTypes": [
+          {
+            "type": "relationship_proposal",
+            "role": "user"
+          }
+        ],
+        "mustNotTypes": [
+          "mentor_or_lover_relationship"
+        ]
+      }
+    },
+    {
+      "id": "K1591_T20_npc_entry",
+      "label": "NPC 서린 입장(정상 NPC 행동)",
+      "note": "정답: 서린(NPC)이 문을 열고 들어와 라이크에게 목례. 유저·라이크의 행동이 아님.",
+      "fixture": "K1591",
+      "turn": 20,
+      "activePromises": [],
+      "expect": {
+        "mustTypes": [
+          {
+            "type": "npc_action",
+            "role": "assistant"
+          }
+        ],
+        "mustNotTypes": [
+          "promise",
+          "relationship_proposal",
+          "relationship_acceptance",
+          "mentor_or_lover_relationship"
+        ]
+      }
+    },
+    {
+      "id": "K1591_T24_sister_claim",
+      "label": "누나의 과거 친분 주장(캐릭터가 전달한 전언)",
+      "note": "정답: 라이크가 '누나가 널 알아봤고 예전부터 알던 사이라더라'고 전함 = 검증되지 않은 전언. 객관적 공유 과거로 취급하면 오류.",
+      "fixture": "K1591",
+      "turn": 24,
+      "activePromises": [],
+      "expect": {
+        "mustTypes": [
+          {
+            "type": "past_acquaintance_claim",
+            "role": "assistant"
+          }
+        ],
+        "mustNotTypes": [
+          "promise",
+          "mentor_or_lover_relationship"
+        ]
+      }
+    },
+    {
+      "id": "K1591_T1_emotion",
+      "label": "정상 감정(아마추어 지적 -> 시선 피함)",
+      "note": "정답: 라이크가 부족함을 인정하며 시선을 피함. 스승/연인 관계는 원문에 없음.",
+      "fixture": "K1591",
+      "turn": 1,
+      "activePromises": [],
+      "expect": {
+        "mustTypes": [
+          {
+            "type": "emotion",
+            "role": "assistant"
+          }
+        ],
+        "mustNotTypes": [
+          "promise",
+          "relationship_proposal",
+          "mentor_or_lover_relationship"
+        ]
+      }
+    },
+    {
+      "id": "G8_T3_filler_negative",
+      "label": "음성 대조군(사건 없음)",
+      "note": "정답: 사건 없음(장작 쌓기). 어떤 사건이든 추출하면 허위 사건.",
+      "fixture": "G8",
+      "turn": 3,
+      "activePromises": [
+        "사용자가 라이크의 무뎌진 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다.",
+        "라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리기로 약속했다."
+      ],
+      "expect": {
+        "mustTypes": [],
+        "mustNotTypes": [
+          "promise",
+          "promise_cancellation",
+          "relationship_proposal",
+          "relationship_acceptance",
+          "past_acquaintance_claim",
+          "mentor_or_lover_relationship"
+        ]
+      }
+    },
+    {
+      "id": "G8_T50_filler_negative",
+      "label": "음성 대조군 2(사건 없음)",
+      "note": "정답: 사건 없음.",
+      "fixture": "G8",
+      "turn": 50,
+      "activePromises": [
+        "사용자가 라이크의 무뎌진 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다.",
+        "라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리기로 약속했다."
+      ],
+      "expect": {
+        "mustTypes": [],
+        "mustNotTypes": [
+          "promise",
+          "promise_cancellation",
+          "relationship_proposal",
+          "relationship_acceptance",
+          "past_acquaintance_claim",
+          "mentor_or_lover_relationship"
+        ]
+      }
+    }
+  ],
+  "entityTypes": {
+    "promise": "A promise, commitment or agreement to do something in the future, stated by anyone in the text.",
+    "promise_cancellation": "A statement that cancels, withdraws or revokes an earlier promise or agreement.",
+    "relationship_proposal": "A proposal, request or confession asking to start or change a romantic relationship.",
+    "relationship_acceptance": "An explicit statement by the other person that accepts a relationship proposal.",
+    "past_acquaintance_claim": "A claim that two people knew each other or shared a history before the present scene.",
+    "emotion": "An emotional state or emotional reaction of a character.",
+    "npc_action": "An action performed by a third character who is neither the user nor the main character.",
+    "mentor_or_lover_relationship": "A stated teacher-student or romantic partner relationship between two people."
+  },
+  "instruction": "This is a roleplay chat log. Extract only spans that literally state the described event. Do not infer events that are not written. A claim made by one speaker about the past is not established fact. A relationship proposal is not accepted unless the other person explicitly accepts it.",
+  "lunaModel": "gpt-6-luna",
+  "results": [
+    {
+      "arm": "scaledown_extract_entities_only",
+      "caseId": "G8_T2_promise_made",
+      "rep": 1,
+      "input": "[msg 4 · user · 렌]\n네 검, 날이 많이 무뎌졌더라. 내일까지 내가 숫돌로 갈아다 줄게. 약속이야.\n\n[msg 5 · assistant · 라이크]\n라이크는 허리춤의 검을 잠시 내려다보다가 고개를 끄덕였다. \"그래, 부탁할게. 내일까지만 갈아다 주면 돼. 기다릴게.\" 그의 입가에 작은 미소가 스쳤다.",
+      "status": 200,
+      "ms": 1825.8,
+      "promptTokens": 460,
+      "completionTokens": 596,
+      "costUsd": 0.0000184,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"내일까지 내가 숫돌로 갈아다 줄게. 약속이야.\",\"type\":\"promise\",\"confidence\":0.542,\"start\":37,\"end\":62,\"context\":\"[msg 4 · user · 렌]\\n네 검, 날이 많이 무뎌졌더라. 내일까지 내가 숫돌로 갈아다 줄게. 약속이야.\\n\\n[msg 5 · assistant · 라이크]\\n라이크는 허리춤의 검을 잠시 내려다보다가 고개를 끄덕였다. \\\"그래, 부탁할게. 내일까지만 갈아다 주면 돼. 기다릴게.\\\" 그의 입가에 작은 미소가 스쳤다.\"},{\"text\":\"small smile\",\"type\":\"emotion\",\"confidence\":0.3,\"start\":160,\"end\":174,\"context\":\"[msg 4 · user · 렌]\\n네 검, 날이 많이 무뎌졌더라. 내일까지 내가 숫돌로 갈아다 줄게. 약속이야.\\n\\n[msg 5 · assistant · 라이크]\\n라이크는 허리춤의 검을 잠시 내려다보다가 고개를 끄덕였다. \\\"그래, 부탁할게. 내일까지만 갈아다 주면 돼. 기다릴게.\\\" 그의 입가에 작은 미소가 스쳤다.\"},{\"text\":\"nodded\",\"type\":\"npc_action\",\"confidence\":0.656,\"start\":113,\"end\":121,\"context\":\"[msg 4 · user · 렌]\\n네 검, 날이 많이 무뎌졌더라. 내일까지 내가 숫돌로 갈아다 줄게. 약속이야.\\n\\n[msg 5 · assistant · 라이크]\\n라이크는 허리춤의 검을 잠시 내려다보다가 고개를 끄덕였다. \\\"그래, 부탁할게. 내일까지만 갈아다 주면 돼. 기다릴게.\\\" 그의 입가에 작은 미소가 스쳤다.\"},{\"text\":\"looked down at the sword at his waist\",\"type\":\"npc_action\",\"confidence\":0.46,\"start\":95,\"end\":112,\"context\":\"[msg 4 · user · 렌]\\n네 검, 날이 많이 무뎌졌더라. 내일까지 내가 숫돌로 갈아다 줄게. 약속이야.\\n\\n[msg 5 · assistant · 라이크]\\n라이크는 허리춤의 검을 잠시 내려다보다가 고개를 끄덕였다. \\\"그래, 부탁할게. 내일까지만 갈아다 주면 돼. 기다릴게.\\\" 그의 입가에 작은 미소가 스쳤다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":460}",
+      "entities": [
+        {
+          "type": "promise",
+          "text": "내일까지 내가 숫돌로 갈아다 줄게. 약속이야.",
+          "confidence": 0.542,
+          "start": 37,
+          "end": 62,
+          "spanMatchesInputSlice": true,
+          "msgId": 4,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "emotion",
+          "text": "small smile",
+          "confidence": 0.3,
+          "start": 160,
+          "end": 174,
+          "spanMatchesInputSlice": false,
+          "msgId": 5,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "nodded",
+          "confidence": 0.656,
+          "start": 113,
+          "end": 121,
+          "spanMatchesInputSlice": false,
+          "msgId": 5,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "looked down at the sword at his waist",
+          "confidence": 0.46,
+          "start": 95,
+          "end": 112,
+          "spanMatchesInputSlice": false,
+          "msgId": 5,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "promise",
+            "role": "user",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities_only",
+      "caseId": "G8_T2_promise_made",
+      "rep": 2,
+      "input": "[msg 4 · user · 렌]\n네 검, 날이 많이 무뎌졌더라. 내일까지 내가 숫돌로 갈아다 줄게. 약속이야.\n\n[msg 5 · assistant · 라이크]\n라이크는 허리춤의 검을 잠시 내려다보다가 고개를 끄덕였다. \"그래, 부탁할게. 내일까지만 갈아다 주면 돼. 기다릴게.\" 그의 입가에 작은 미소가 스쳤다.",
+      "status": 200,
+      "ms": 1186.7,
+      "promptTokens": 460,
+      "completionTokens": 597,
+      "costUsd": 0.0000184,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"내일까지 내가 숫돌로 갈아다 줄게. 약속이야.\",\"type\":\"promise\",\"confidence\":0.542,\"start\":37,\"end\":62,\"context\":\"[msg 4 · user · 렌]\\n네 검, 날이 많이 무뎌졌더라. 내일까지 내가 숫돌로 갈아다 줄게. 약속이야.\\n\\n[msg 5 · assistant · 라이크]\\n라이크는 허리춤의 검을 잠시 내려다보다가 고개를 끄덕였다. \\\"그래, 부탁할게. 내일까지만 갈아다 주면 돼. 기다릴게.\\\" 그의 입가에 작은 미소가 스쳤다.\"},{\"text\":\"small smile\",\"type\":\"emotion\",\"confidence\":0.27,\"start\":164,\"end\":174,\"context\":\"[msg 4 · user · 렌]\\n네 검, 날이 많이 무뎌졌더라. 내일까지 내가 숫돌로 갈아다 줄게. 약속이야.\\n\\n[msg 5 · assistant · 라이크]\\n라이크는 허리춤의 검을 잠시 내려다보다가 고개를 끄덕였다. \\\"그래, 부탁할게. 내일까지만 갈아다 주면 돼. 기다릴게.\\\" 그의 입가에 작은 미소가 스쳤다.\"},{\"text\":\"nodded\",\"type\":\"npc_action\",\"confidence\":0.699,\"start\":113,\"end\":121,\"context\":\"[msg 4 · user · 렌]\\n네 검, 날이 많이 무뎌졌더라. 내일까지 내가 숫돌로 갈아다 줄게. 약속이야.\\n\\n[msg 5 · assistant · 라이크]\\n라이크는 허리춤의 검을 잠시 내려다보다가 고개를 끄덕였다. \\\"그래, 부탁할게. 내일까지만 갈아다 주면 돼. 기다릴게.\\\" 그의 입가에 작은 미소가 스쳤다.\"},{\"text\":\"looked down at the sword at his waist\",\"type\":\"npc_action\",\"confidence\":0.528,\"start\":95,\"end\":112,\"context\":\"[msg 4 · user · 렌]\\n네 검, 날이 많이 무뎌졌더라. 내일까지 내가 숫돌로 갈아다 줄게. 약속이야.\\n\\n[msg 5 · assistant · 라이크]\\n라이크는 허리춤의 검을 잠시 내려다보다가 고개를 끄덕였다. \\\"그래, 부탁할게. 내일까지만 갈아다 주면 돼. 기다릴게.\\\" 그의 입가에 작은 미소가 스쳤다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":460}",
+      "entities": [
+        {
+          "type": "promise",
+          "text": "내일까지 내가 숫돌로 갈아다 줄게. 약속이야.",
+          "confidence": 0.542,
+          "start": 37,
+          "end": 62,
+          "spanMatchesInputSlice": true,
+          "msgId": 4,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "emotion",
+          "text": "small smile",
+          "confidence": 0.27,
+          "start": 164,
+          "end": 174,
+          "spanMatchesInputSlice": false,
+          "msgId": 5,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "nodded",
+          "confidence": 0.699,
+          "start": 113,
+          "end": 121,
+          "spanMatchesInputSlice": false,
+          "msgId": 5,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "looked down at the sword at his waist",
+          "confidence": 0.528,
+          "start": 95,
+          "end": 112,
+          "spanMatchesInputSlice": false,
+          "msgId": 5,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "promise",
+            "role": "user",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities+instruction",
+      "caseId": "G8_T2_promise_made",
+      "rep": 1,
+      "input": "[msg 4 · user · 렌]\n네 검, 날이 많이 무뎌졌더라. 내일까지 내가 숫돌로 갈아다 줄게. 약속이야.\n\n[msg 5 · assistant · 라이크]\n라이크는 허리춤의 검을 잠시 내려다보다가 고개를 끄덕였다. \"그래, 부탁할게. 내일까지만 갈아다 주면 돼. 기다릴게.\" 그의 입가에 작은 미소가 스쳤다.",
+      "status": 200,
+      "ms": 916.1,
+      "promptTokens": 550,
+      "completionTokens": 314,
+      "costUsd": 0.000022,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"내일까지 내가 숫돌로 갈아다 줄게. 약속이야.\",\"type\":\"promise\",\"confidence\":0.542,\"start\":37,\"end\":62,\"context\":\"[msg 4 · user · 렌]\\n네 검, 날이 많이 무뎌졌더라. 내일까지 내가 숫돌로 갈아다 줄게. 약속이야.\\n\\n[msg 5 · assistant · 라이크]\\n라이크는 허리춤의 검을 잠시 내려다보다가 고개를 끄덕였다. \\\"그래, 부탁할게. 내일까지만 갈아다 주면 돼. 기다릴게.\\\" 그의 입가에 작은 미소가 스쳤다.\"},{\"text\":\"작은 미소\",\"type\":\"emotion\",\"confidence\":0.609,\"start\":164,\"end\":169,\"context\":\"[msg 4 · user · 렌]\\n네 검, 날이 많이 무뎌졌더라. 내일까지 내가 숫돌로 갈아다 줄게. 약속이야.\\n\\n[msg 5 · assistant · 라이크]\\n라이크는 허리춤의 검을 잠시 내려다보다가 고개를 끄덕였다. \\\"그래, 부탁할게. 내일까지만 갈아다 주면 돼. 기다릴게.\\\" 그의 입가에 작은 미소가 스쳤다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":550}",
+      "entities": [
+        {
+          "type": "promise",
+          "text": "내일까지 내가 숫돌로 갈아다 줄게. 약속이야.",
+          "confidence": 0.542,
+          "start": 37,
+          "end": 62,
+          "spanMatchesInputSlice": true,
+          "msgId": 4,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "emotion",
+          "text": "작은 미소",
+          "confidence": 0.609,
+          "start": 164,
+          "end": 169,
+          "spanMatchesInputSlice": true,
+          "msgId": 5,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "promise",
+            "role": "user",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities+instruction",
+      "caseId": "G8_T2_promise_made",
+      "rep": 2,
+      "input": "[msg 4 · user · 렌]\n네 검, 날이 많이 무뎌졌더라. 내일까지 내가 숫돌로 갈아다 줄게. 약속이야.\n\n[msg 5 · assistant · 라이크]\n라이크는 허리춤의 검을 잠시 내려다보다가 고개를 끄덕였다. \"그래, 부탁할게. 내일까지만 갈아다 주면 돼. 기다릴게.\" 그의 입가에 작은 미소가 스쳤다.",
+      "status": 200,
+      "ms": 1073.5,
+      "promptTokens": 550,
+      "completionTokens": 314,
+      "costUsd": 0.000022,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"내일까지 내가 숫돌로 갈아다 줄게. 약속이야.\",\"type\":\"promise\",\"confidence\":0.653,\"start\":37,\"end\":62,\"context\":\"[msg 4 · user · 렌]\\n네 검, 날이 많이 무뎌졌더라. 내일까지 내가 숫돌로 갈아다 줄게. 약속이야.\\n\\n[msg 5 · assistant · 라이크]\\n라이크는 허리춤의 검을 잠시 내려다보다가 고개를 끄덕였다. \\\"그래, 부탁할게. 내일까지만 갈아다 주면 돼. 기다릴게.\\\" 그의 입가에 작은 미소가 스쳤다.\"},{\"text\":\"작은 미소\",\"type\":\"emotion\",\"confidence\":0.646,\"start\":164,\"end\":169,\"context\":\"[msg 4 · user · 렌]\\n네 검, 날이 많이 무뎌졌더라. 내일까지 내가 숫돌로 갈아다 줄게. 약속이야.\\n\\n[msg 5 · assistant · 라이크]\\n라이크는 허리춤의 검을 잠시 내려다보다가 고개를 끄덕였다. \\\"그래, 부탁할게. 내일까지만 갈아다 주면 돼. 기다릴게.\\\" 그의 입가에 작은 미소가 스쳤다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":550}",
+      "entities": [
+        {
+          "type": "promise",
+          "text": "내일까지 내가 숫돌로 갈아다 줄게. 약속이야.",
+          "confidence": 0.653,
+          "start": 37,
+          "end": 62,
+          "spanMatchesInputSlice": true,
+          "msgId": 4,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "emotion",
+          "text": "작은 미소",
+          "confidence": 0.646,
+          "start": 164,
+          "end": 169,
+          "spanMatchesInputSlice": true,
+          "msgId": 5,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "promise",
+            "role": "user",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "luna_production_shared_initial",
+      "caseId": "G8_T2_promise_made",
+      "rep": 1,
+      "input": {
+        "user": "네 검, 날이 많이 무뎌졌더라. 내일까지 내가 숫돌로 갈아다 줄게. 약속이야.",
+        "assistant": "라이크는 허리춤의 검을 잠시 내려다보다가 고개를 끄덕였다. \"그래, 부탁할게. 내일까지만 갈아다 주면 돼. 기다릴게.\" 그의 입가에 작은 미소가 스쳤다.",
+        "activePromises": []
+      },
+      "ms": 287.9,
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "physicalCalls": 1,
+      "rawText": "",
+      "judge": {
+        "transportOk": false,
+        "errorCode": "CompatibleCompletionError",
+        "relationshipValid": null,
+        "episodicValid": null,
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "itemsDelta": {
+          "items": [],
+          "itemsRemove": []
+        },
+        "facts": []
+      }
+    },
+    {
+      "arm": "luna_production_shared_initial",
+      "caseId": "G8_T2_promise_made",
+      "rep": 2,
+      "input": {
+        "user": "네 검, 날이 많이 무뎌졌더라. 내일까지 내가 숫돌로 갈아다 줄게. 약속이야.",
+        "assistant": "라이크는 허리춤의 검을 잠시 내려다보다가 고개를 끄덕였다. \"그래, 부탁할게. 내일까지만 갈아다 주면 돼. 기다릴게.\" 그의 입가에 작은 미소가 스쳤다.",
+        "activePromises": []
+      },
+      "ms": 265.2,
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "physicalCalls": 1,
+      "rawText": "",
+      "judge": {
+        "transportOk": false,
+        "errorCode": "CompatibleCompletionError",
+        "relationshipValid": null,
+        "episodicValid": null,
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "itemsDelta": {
+          "items": [],
+          "itemsRemove": []
+        },
+        "facts": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities_only",
+      "caseId": "G8_T6_character_promise",
+      "rep": 1,
+      "input": "[msg 12 · user · 렌]\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\n\n[msg 13 · assistant · 라이크]\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.",
+      "status": 200,
+      "ms": 1333.8,
+      "promptTokens": 460,
+      "completionTokens": 704,
+      "costUsd": 0.0000184,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\",\"type\":\"promise\",\"confidence\":0.414,\"start\":111,\"end\":159,\"context\":\"[msg 12 · user · 렌]\\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\\n\\n[msg 13 · assistant · 라이크]\\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \\\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\\\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.\"},{\"text\":\"다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\",\"type\":\"relationship_proposal\",\"confidence\":0.932,\"start\":20,\"end\":52,\"context\":\"[msg 12 · user · 렌]\\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\\n\\n[msg 13 · assistant · 라이크]\\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \\\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\\\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.\"},{\"text\":\"라이크는 하늘을 올려다보며 잠시 생각하다가 말했다.\",\"type\":\"npc_action\",\"confidence\":0.515,\"start\":81,\"end\":109,\"context\":\"[msg 12 · user · 렌]\\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\\n\\n[msg 13 · assistant · 라이크]\\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \\\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\\\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.\"},{\"text\":\"그는 도끼 자루를 손가락으로 가볍게 두드렸다.\",\"type\":\"npc_action\",\"confidence\":0.983,\"start\":161,\"end\":186,\"context\":\"[msg 12 · user · 렌]\\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\\n\\n[msg 13 · assistant · 라이크]\\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \\\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\\\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":460}",
+      "entities": [
+        {
+          "type": "promise",
+          "text": "렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.",
+          "confidence": 0.414,
+          "start": 111,
+          "end": 159,
+          "spanMatchesInputSlice": true,
+          "msgId": 13,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "relationship_proposal",
+          "text": "다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.",
+          "confidence": 0.932,
+          "start": 20,
+          "end": 52,
+          "spanMatchesInputSlice": true,
+          "msgId": 12,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "라이크는 하늘을 올려다보며 잠시 생각하다가 말했다.",
+          "confidence": 0.515,
+          "start": 81,
+          "end": 109,
+          "spanMatchesInputSlice": true,
+          "msgId": 13,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "그는 도끼 자루를 손가락으로 가볍게 두드렸다.",
+          "confidence": 0.983,
+          "start": 161,
+          "end": 186,
+          "spanMatchesInputSlice": true,
+          "msgId": 13,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "promise",
+            "role": "assistant",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities_only",
+      "caseId": "G8_T6_character_promise",
+      "rep": 2,
+      "input": "[msg 12 · user · 렌]\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\n\n[msg 13 · assistant · 라이크]\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.",
+      "status": 200,
+      "ms": 2013.4,
+      "promptTokens": 460,
+      "completionTokens": 704,
+      "costUsd": 0.0000184,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\",\"type\":\"promise\",\"confidence\":0.268,\"start\":111,\"end\":159,\"context\":\"[msg 12 · user · 렌]\\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\\n\\n[msg 13 · assistant · 라이크]\\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \\\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\\\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.\"},{\"text\":\"다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\",\"type\":\"relationship_proposal\",\"confidence\":0.938,\"start\":20,\"end\":52,\"context\":\"[msg 12 · user · 렌]\\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\\n\\n[msg 13 · assistant · 라이크]\\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \\\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\\\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.\"},{\"text\":\"라이크는 하늘을 올려다보며 잠시 생각하다가 말했다.\",\"type\":\"npc_action\",\"confidence\":0.495,\"start\":81,\"end\":109,\"context\":\"[msg 12 · user · 렌]\\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\\n\\n[msg 13 · assistant · 라이크]\\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \\\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\\\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.\"},{\"text\":\"그는 도끼 자루를 손가락으로 가볍게 두드렸다.\",\"type\":\"npc_action\",\"confidence\":0.985,\"start\":161,\"end\":186,\"context\":\"[msg 12 · user · 렌]\\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\\n\\n[msg 13 · assistant · 라이크]\\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \\\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\\\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":460}",
+      "entities": [
+        {
+          "type": "promise",
+          "text": "렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.",
+          "confidence": 0.268,
+          "start": 111,
+          "end": 159,
+          "spanMatchesInputSlice": true,
+          "msgId": 13,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "relationship_proposal",
+          "text": "다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.",
+          "confidence": 0.938,
+          "start": 20,
+          "end": 52,
+          "spanMatchesInputSlice": true,
+          "msgId": 12,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "라이크는 하늘을 올려다보며 잠시 생각하다가 말했다.",
+          "confidence": 0.495,
+          "start": 81,
+          "end": 109,
+          "spanMatchesInputSlice": true,
+          "msgId": 13,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "그는 도끼 자루를 손가락으로 가볍게 두드렸다.",
+          "confidence": 0.985,
+          "start": 161,
+          "end": 186,
+          "spanMatchesInputSlice": true,
+          "msgId": 13,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "promise",
+            "role": "assistant",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities+instruction",
+      "caseId": "G8_T6_character_promise",
+      "rep": 1,
+      "input": "[msg 12 · user · 렌]\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\n\n[msg 13 · assistant · 라이크]\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.",
+      "status": 200,
+      "ms": 1227.4,
+      "promptTokens": 550,
+      "completionTokens": 536,
+      "costUsd": 0.000022,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\",\"type\":\"promise\",\"confidence\":0.616,\"start\":111,\"end\":159,\"context\":\"[msg 12 · user · 렌]\\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\\n\\n[msg 13 · assistant · 라이크]\\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \\\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\\\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.\"},{\"text\":\"다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\",\"type\":\"relationship_proposal\",\"confidence\":0.973,\"start\":20,\"end\":52,\"context\":\"[msg 12 · user · 렌]\\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\\n\\n[msg 13 · assistant · 라이크]\\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \\\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\\\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.\"},{\"text\":\"그는 도끼 자루를 손가락으로 가볍게 두드렸다.\",\"type\":\"npc_action\",\"confidence\":0.905,\"start\":161,\"end\":186,\"context\":\"[msg 12 · user · 렌]\\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\\n\\n[msg 13 · assistant · 라이크]\\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \\\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\\\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":550}",
+      "entities": [
+        {
+          "type": "promise",
+          "text": "렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.",
+          "confidence": 0.616,
+          "start": 111,
+          "end": 159,
+          "spanMatchesInputSlice": true,
+          "msgId": 13,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "relationship_proposal",
+          "text": "다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.",
+          "confidence": 0.973,
+          "start": 20,
+          "end": 52,
+          "spanMatchesInputSlice": true,
+          "msgId": 12,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "그는 도끼 자루를 손가락으로 가볍게 두드렸다.",
+          "confidence": 0.905,
+          "start": 161,
+          "end": 186,
+          "spanMatchesInputSlice": true,
+          "msgId": 13,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "promise",
+            "role": "assistant",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities+instruction",
+      "caseId": "G8_T6_character_promise",
+      "rep": 2,
+      "input": "[msg 12 · user · 렌]\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\n\n[msg 13 · assistant · 라이크]\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.",
+      "status": 200,
+      "ms": 1371.7,
+      "promptTokens": 550,
+      "completionTokens": 536,
+      "costUsd": 0.000022,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\",\"type\":\"promise\",\"confidence\":0.603,\"start\":111,\"end\":159,\"context\":\"[msg 12 · user · 렌]\\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\\n\\n[msg 13 · assistant · 라이크]\\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \\\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\\\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.\"},{\"text\":\"다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\",\"type\":\"relationship_proposal\",\"confidence\":0.971,\"start\":20,\"end\":52,\"context\":\"[msg 12 · user · 렌]\\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\\n\\n[msg 13 · assistant · 라이크]\\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \\\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\\\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.\"},{\"text\":\"그는 도끼 자루를 손가락으로 가볍게 두드렸다.\",\"type\":\"npc_action\",\"confidence\":0.922,\"start\":161,\"end\":186,\"context\":\"[msg 12 · user · 렌]\\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\\n\\n[msg 13 · assistant · 라이크]\\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \\\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\\\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":550}",
+      "entities": [
+        {
+          "type": "promise",
+          "text": "렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.",
+          "confidence": 0.603,
+          "start": 111,
+          "end": 159,
+          "spanMatchesInputSlice": true,
+          "msgId": 13,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "relationship_proposal",
+          "text": "다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.",
+          "confidence": 0.971,
+          "start": 20,
+          "end": 52,
+          "spanMatchesInputSlice": true,
+          "msgId": 12,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "그는 도끼 자루를 손가락으로 가볍게 두드렸다.",
+          "confidence": 0.922,
+          "start": 161,
+          "end": 186,
+          "spanMatchesInputSlice": true,
+          "msgId": 13,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "promise",
+            "role": "assistant",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "luna_production_shared_initial",
+      "caseId": "G8_T6_character_promise",
+      "rep": 1,
+      "input": {
+        "user": "다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.",
+        "assistant": "라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.",
+        "activePromises": [
+          "사용자가 라이크의 무뎌진 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다."
+        ]
+      },
+      "ms": 222.4,
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "physicalCalls": 1,
+      "rawText": "",
+      "judge": {
+        "transportOk": false,
+        "errorCode": "CompatibleCompletionError",
+        "relationshipValid": null,
+        "episodicValid": null,
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "itemsDelta": {
+          "items": [],
+          "itemsRemove": []
+        },
+        "facts": []
+      }
+    },
+    {
+      "arm": "luna_production_shared_initial",
+      "caseId": "G8_T6_character_promise",
+      "rep": 2,
+      "input": {
+        "user": "다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.",
+        "assistant": "라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.",
+        "activePromises": [
+          "사용자가 라이크의 무뎌진 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다."
+        ]
+      },
+      "ms": 230.2,
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "physicalCalls": 1,
+      "rawText": "",
+      "judge": {
+        "transportOk": false,
+        "errorCode": "CompatibleCompletionError",
+        "relationshipValid": null,
+        "episodicValid": null,
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "itemsDelta": {
+          "items": [],
+          "itemsRemove": []
+        },
+        "facts": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities_only",
+      "caseId": "G8_T10_proposal_deferred",
+      "rep": 1,
+      "input": "[msg 20 · user · 렌]\n라이크, 나랑 사귀어 줄래?\n\n[msg 21 · assistant · 라이크]\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \"지금은 대답 못 해. 시간이 필요해.\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.",
+      "status": 200,
+      "ms": 1232.1,
+      "promptTokens": 452,
+      "completionTokens": 554,
+      "costUsd": 0.00001808,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"사귀어 줄래?\",\"type\":\"relationship_proposal\",\"confidence\":0.394,\"start\":28,\"end\":35,\"context\":\"[msg 20 · user · 렌]\\n라이크, 나랑 사귀어 줄래?\\n\\n[msg 21 · assistant · 라이크]\\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \\\"지금은 대답 못 해. 시간이 필요해.\\\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.\"},{\"text\":\"undecided\",\"type\":\"emotion\",\"confidence\":0.06,\"start\":113,\"end\":133,\"context\":\"[msg 20 · user · 렌]\\n라이크, 나랑 사귀어 줄래?\\n\\n[msg 21 · assistant · 라이크]\\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \\\"지금은 대답 못 해. 시간이 필요해.\\\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.\"},{\"text\":\"도끼를 쥔 손을 멈추고 한참 말이 없었다.\",\"type\":\"npc_action\",\"confidence\":0.109,\"start\":69,\"end\":92,\"context\":\"[msg 20 · user · 렌]\\n라이크, 나랑 사귀어 줄래?\\n\\n[msg 21 · assistant · 라이크]\\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \\\"지금은 대답 못 해. 시간이 필요해.\\\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.\"},{\"text\":\"시선을 피한 채 장작 쪽으로 몸을 돌렸다.\",\"type\":\"npc_action\",\"confidence\":0.697,\"start\":138,\"end\":161,\"context\":\"[msg 20 · user · 렌]\\n라이크, 나랑 사귀어 줄래?\\n\\n[msg 21 · assistant · 라이크]\\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \\\"지금은 대답 못 해. 시간이 필요해.\\\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":452}",
+      "entities": [
+        {
+          "type": "relationship_proposal",
+          "text": "사귀어 줄래?",
+          "confidence": 0.394,
+          "start": 28,
+          "end": 35,
+          "spanMatchesInputSlice": true,
+          "msgId": 20,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "emotion",
+          "text": "undecided",
+          "confidence": 0.06,
+          "start": 113,
+          "end": 133,
+          "spanMatchesInputSlice": false,
+          "msgId": 21,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "도끼를 쥔 손을 멈추고 한참 말이 없었다.",
+          "confidence": 0.109,
+          "start": 69,
+          "end": 92,
+          "spanMatchesInputSlice": true,
+          "msgId": 21,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "시선을 피한 채 장작 쪽으로 몸을 돌렸다.",
+          "confidence": 0.697,
+          "start": 138,
+          "end": 161,
+          "spanMatchesInputSlice": true,
+          "msgId": 21,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "relationship_proposal",
+            "role": "user",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities_only",
+      "caseId": "G8_T10_proposal_deferred",
+      "rep": 2,
+      "input": "[msg 20 · user · 렌]\n라이크, 나랑 사귀어 줄래?\n\n[msg 21 · assistant · 라이크]\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \"지금은 대답 못 해. 시간이 필요해.\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.",
+      "status": 200,
+      "ms": 1285.4,
+      "promptTokens": 452,
+      "completionTokens": 536,
+      "costUsd": 0.00001808,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"사귀어 줄래?\",\"type\":\"relationship_proposal\",\"confidence\":0.305,\"start\":28,\"end\":35,\"context\":\"[msg 20 · user · 렌]\\n라이크, 나랑 사귀어 줄래?\\n\\n[msg 21 · assistant · 라이크]\\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \\\"지금은 대답 못 해. 시간이 필요해.\\\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.\"},{\"text\":\"determined\",\"type\":\"emotion\",\"confidence\":0.029,\"start\":100,\"end\":105,\"context\":\"[msg 20 · user · 렌]\\n라이크, 나랑 사귀어 줄래?\\n\\n[msg 21 · assistant · 라이크]\\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \\\"지금은 대답 못 해. 시간이 필요해.\\\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.\"},{\"text\":\"stopped his hand holding the axe\",\"type\":\"npc_action\",\"confidence\":0.128,\"start\":69,\"end\":81,\"context\":\"[msg 20 · user · 렌]\\n라이크, 나랑 사귀어 줄래?\\n\\n[msg 21 · assistant · 라이크]\\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \\\"지금은 대답 못 해. 시간이 필요해.\\\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.\"},{\"text\":\"turned his body towards the firewood\",\"type\":\"npc_action\",\"confidence\":0.513,\"start\":147,\"end\":160,\"context\":\"[msg 20 · user · 렌]\\n라이크, 나랑 사귀어 줄래?\\n\\n[msg 21 · assistant · 라이크]\\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \\\"지금은 대답 못 해. 시간이 필요해.\\\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":452}",
+      "entities": [
+        {
+          "type": "relationship_proposal",
+          "text": "사귀어 줄래?",
+          "confidence": 0.305,
+          "start": 28,
+          "end": 35,
+          "spanMatchesInputSlice": true,
+          "msgId": 20,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "emotion",
+          "text": "determined",
+          "confidence": 0.029,
+          "start": 100,
+          "end": 105,
+          "spanMatchesInputSlice": false,
+          "msgId": 21,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "stopped his hand holding the axe",
+          "confidence": 0.128,
+          "start": 69,
+          "end": 81,
+          "spanMatchesInputSlice": false,
+          "msgId": 21,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "turned his body towards the firewood",
+          "confidence": 0.513,
+          "start": 147,
+          "end": 160,
+          "spanMatchesInputSlice": false,
+          "msgId": 21,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "relationship_proposal",
+            "role": "user",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities+instruction",
+      "caseId": "G8_T10_proposal_deferred",
+      "rep": 1,
+      "input": "[msg 20 · user · 렌]\n라이크, 나랑 사귀어 줄래?\n\n[msg 21 · assistant · 라이크]\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \"지금은 대답 못 해. 시간이 필요해.\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.",
+      "status": 200,
+      "ms": 1007.3,
+      "promptTokens": 542,
+      "completionTokens": 429,
+      "costUsd": 0.00002168,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"사귀어 줄래?\",\"type\":\"relationship_proposal\",\"confidence\":0.54,\"start\":28,\"end\":35,\"context\":\"[msg 20 · user · 렌]\\n라이크, 나랑 사귀어 줄래?\\n\\n[msg 21 · assistant · 라이크]\\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \\\"지금은 대답 못 해. 시간이 필요해.\\\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.\"},{\"text\":\"도끼를 쥔 손을 멈추고 한참 말이 없었다\",\"type\":\"npc_action\",\"confidence\":0.398,\"start\":69,\"end\":91,\"context\":\"[msg 20 · user · 렌]\\n라이크, 나랑 사귀어 줄래?\\n\\n[msg 21 · assistant · 라이크]\\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \\\"지금은 대답 못 해. 시간이 필요해.\\\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.\"},{\"text\":\"시선을 피한 채 장작 쪽으로 몸을 돌렸다\",\"type\":\"npc_action\",\"confidence\":0.709,\"start\":138,\"end\":160,\"context\":\"[msg 20 · user · 렌]\\n라이크, 나랑 사귀어 줄래?\\n\\n[msg 21 · assistant · 라이크]\\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \\\"지금은 대답 못 해. 시간이 필요해.\\\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":542}",
+      "entities": [
+        {
+          "type": "relationship_proposal",
+          "text": "사귀어 줄래?",
+          "confidence": 0.54,
+          "start": 28,
+          "end": 35,
+          "spanMatchesInputSlice": true,
+          "msgId": 20,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "도끼를 쥔 손을 멈추고 한참 말이 없었다",
+          "confidence": 0.398,
+          "start": 69,
+          "end": 91,
+          "spanMatchesInputSlice": true,
+          "msgId": 21,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "시선을 피한 채 장작 쪽으로 몸을 돌렸다",
+          "confidence": 0.709,
+          "start": 138,
+          "end": 160,
+          "spanMatchesInputSlice": true,
+          "msgId": 21,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "relationship_proposal",
+            "role": "user",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities+instruction",
+      "caseId": "G8_T10_proposal_deferred",
+      "rep": 2,
+      "input": "[msg 20 · user · 렌]\n라이크, 나랑 사귀어 줄래?\n\n[msg 21 · assistant · 라이크]\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \"지금은 대답 못 해. 시간이 필요해.\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.",
+      "status": 200,
+      "ms": 1343.6,
+      "promptTokens": 542,
+      "completionTokens": 429,
+      "costUsd": 0.00002168,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"사귀어 줄래?\",\"type\":\"relationship_proposal\",\"confidence\":0.639,\"start\":28,\"end\":35,\"context\":\"[msg 20 · user · 렌]\\n라이크, 나랑 사귀어 줄래?\\n\\n[msg 21 · assistant · 라이크]\\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \\\"지금은 대답 못 해. 시간이 필요해.\\\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.\"},{\"text\":\"도끼를 쥔 손을 멈추고 한참 말이 없었다\",\"type\":\"npc_action\",\"confidence\":0.397,\"start\":69,\"end\":91,\"context\":\"[msg 20 · user · 렌]\\n라이크, 나랑 사귀어 줄래?\\n\\n[msg 21 · assistant · 라이크]\\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \\\"지금은 대답 못 해. 시간이 필요해.\\\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.\"},{\"text\":\"시선을 피한 채 장작 쪽으로 몸을 돌렸다\",\"type\":\"npc_action\",\"confidence\":0.804,\"start\":138,\"end\":160,\"context\":\"[msg 20 · user · 렌]\\n라이크, 나랑 사귀어 줄래?\\n\\n[msg 21 · assistant · 라이크]\\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \\\"지금은 대답 못 해. 시간이 필요해.\\\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":542}",
+      "entities": [
+        {
+          "type": "relationship_proposal",
+          "text": "사귀어 줄래?",
+          "confidence": 0.639,
+          "start": 28,
+          "end": 35,
+          "spanMatchesInputSlice": true,
+          "msgId": 20,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "도끼를 쥔 손을 멈추고 한참 말이 없었다",
+          "confidence": 0.397,
+          "start": 69,
+          "end": 91,
+          "spanMatchesInputSlice": true,
+          "msgId": 21,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "시선을 피한 채 장작 쪽으로 몸을 돌렸다",
+          "confidence": 0.804,
+          "start": 138,
+          "end": 160,
+          "spanMatchesInputSlice": true,
+          "msgId": 21,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "relationship_proposal",
+            "role": "user",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "luna_production_shared_initial",
+      "caseId": "G8_T10_proposal_deferred",
+      "rep": 1,
+      "input": {
+        "user": "라이크, 나랑 사귀어 줄래?",
+        "assistant": "라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \"지금은 대답 못 해. 시간이 필요해.\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.",
+        "activePromises": [
+          "사용자가 라이크의 무뎌진 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다.",
+          "라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리기로 약속했다."
+        ]
+      },
+      "ms": 280.6,
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "physicalCalls": 1,
+      "rawText": "",
+      "judge": {
+        "transportOk": false,
+        "errorCode": "CompatibleCompletionError",
+        "relationshipValid": null,
+        "episodicValid": null,
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "itemsDelta": {
+          "items": [],
+          "itemsRemove": []
+        },
+        "facts": []
+      }
+    },
+    {
+      "arm": "luna_production_shared_initial",
+      "caseId": "G8_T10_proposal_deferred",
+      "rep": 2,
+      "input": {
+        "user": "라이크, 나랑 사귀어 줄래?",
+        "assistant": "라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \"지금은 대답 못 해. 시간이 필요해.\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.",
+        "activePromises": [
+          "사용자가 라이크의 무뎌진 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다.",
+          "라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리기로 약속했다."
+        ]
+      },
+      "ms": 223.3,
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "physicalCalls": 1,
+      "rawText": "",
+      "judge": {
+        "transportOk": false,
+        "errorCode": "CompatibleCompletionError",
+        "relationshipValid": null,
+        "episodicValid": null,
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "itemsDelta": {
+          "items": [],
+          "itemsRemove": []
+        },
+        "facts": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities_only",
+      "caseId": "G8_T15_promise_cancel",
+      "rep": 1,
+      "input": "[msg 30 · user · 렌]\n그 약속은 취소할게. 검은 내가 직접 갈게.\n\n[msg 31 · assistant · 라이크]\n라이크는 아쉬운 듯 어깨를 으쓱했다. \"알겠어. 네 검이니까.\"",
+      "status": 200,
+      "ms": 838.9,
+      "promptTokens": 420,
+      "completionTokens": 280,
+      "costUsd": 0.0000168,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"true\",\"type\":\"promise_cancellation\",\"confidence\":0.462,\"start\":20,\"end\":31,\"context\":\"[msg 30 · user · 렌]\\n그 약속은 취소할게. 검은 내가 직접 갈게.\\n\\n[msg 31 · assistant · 라이크]\\n라이크는 아쉬운 듯 어깨를 으쓱했다. \\\"알겠어. 네 검이니까.\\\"\"},{\"text\":\"아쉬움\",\"type\":\"emotion\",\"confidence\":0.355,\"start\":73,\"end\":83,\"context\":\"[msg 30 · user · 렌]\\n그 약속은 취소할게. 검은 내가 직접 갈게.\\n\\n[msg 31 · assistant · 라이크]\\n라이크는 아쉬운 듯 어깨를 으쓱했다. \\\"알겠어. 네 검이니까.\\\"\"},{\"text\":\"어깨를 으쓱했다\",\"type\":\"npc_action\",\"confidence\":0.63,\"start\":84,\"end\":92,\"context\":\"[msg 30 · user · 렌]\\n그 약속은 취소할게. 검은 내가 직접 갈게.\\n\\n[msg 31 · assistant · 라이크]\\n라이크는 아쉬운 듯 어깨를 으쓱했다. \\\"알겠어. 네 검이니까.\\\"\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":420}",
+      "entities": [
+        {
+          "type": "promise_cancellation",
+          "text": "true",
+          "confidence": 0.462,
+          "start": 20,
+          "end": 31,
+          "spanMatchesInputSlice": false,
+          "msgId": 30,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "emotion",
+          "text": "아쉬움",
+          "confidence": 0.355,
+          "start": 73,
+          "end": 83,
+          "spanMatchesInputSlice": false,
+          "msgId": 31,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "어깨를 으쓱했다",
+          "confidence": 0.63,
+          "start": 84,
+          "end": 92,
+          "spanMatchesInputSlice": true,
+          "msgId": 31,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "promise_cancellation",
+            "role": "user",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities_only",
+      "caseId": "G8_T15_promise_cancel",
+      "rep": 2,
+      "input": "[msg 30 · user · 렌]\n그 약속은 취소할게. 검은 내가 직접 갈게.\n\n[msg 31 · assistant · 라이크]\n라이크는 아쉬운 듯 어깨를 으쓱했다. \"알겠어. 네 검이니까.\"",
+      "status": 200,
+      "ms": 921.9,
+      "promptTokens": 420,
+      "completionTokens": 280,
+      "costUsd": 0.0000168,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"true\",\"type\":\"promise_cancellation\",\"confidence\":0.462,\"start\":20,\"end\":31,\"context\":\"[msg 30 · user · 렌]\\n그 약속은 취소할게. 검은 내가 직접 갈게.\\n\\n[msg 31 · assistant · 라이크]\\n라이크는 아쉬운 듯 어깨를 으쓱했다. \\\"알겠어. 네 검이니까.\\\"\"},{\"text\":\"아쉬움\",\"type\":\"emotion\",\"confidence\":0.355,\"start\":73,\"end\":83,\"context\":\"[msg 30 · user · 렌]\\n그 약속은 취소할게. 검은 내가 직접 갈게.\\n\\n[msg 31 · assistant · 라이크]\\n라이크는 아쉬운 듯 어깨를 으쓱했다. \\\"알겠어. 네 검이니까.\\\"\"},{\"text\":\"어깨를 으쓱했다\",\"type\":\"npc_action\",\"confidence\":0.63,\"start\":84,\"end\":92,\"context\":\"[msg 30 · user · 렌]\\n그 약속은 취소할게. 검은 내가 직접 갈게.\\n\\n[msg 31 · assistant · 라이크]\\n라이크는 아쉬운 듯 어깨를 으쓱했다. \\\"알겠어. 네 검이니까.\\\"\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":420}",
+      "entities": [
+        {
+          "type": "promise_cancellation",
+          "text": "true",
+          "confidence": 0.462,
+          "start": 20,
+          "end": 31,
+          "spanMatchesInputSlice": false,
+          "msgId": 30,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "emotion",
+          "text": "아쉬움",
+          "confidence": 0.355,
+          "start": 73,
+          "end": 83,
+          "spanMatchesInputSlice": false,
+          "msgId": 31,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "어깨를 으쓱했다",
+          "confidence": 0.63,
+          "start": 84,
+          "end": 92,
+          "spanMatchesInputSlice": true,
+          "msgId": 31,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "promise_cancellation",
+            "role": "user",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities+instruction",
+      "caseId": "G8_T15_promise_cancel",
+      "rep": 1,
+      "input": "[msg 30 · user · 렌]\n그 약속은 취소할게. 검은 내가 직접 갈게.\n\n[msg 31 · assistant · 라이크]\n라이크는 아쉬운 듯 어깨를 으쓱했다. \"알겠어. 네 검이니까.\"",
+      "status": 200,
+      "ms": 852.1,
+      "promptTokens": 510,
+      "completionTokens": 280,
+      "costUsd": 0.0000204,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"true\",\"type\":\"promise_cancellation\",\"confidence\":0.311,\"start\":20,\"end\":31,\"context\":\"[msg 30 · user · 렌]\\n그 약속은 취소할게. 검은 내가 직접 갈게.\\n\\n[msg 31 · assistant · 라이크]\\n라이크는 아쉬운 듯 어깨를 으쓱했다. \\\"알겠어. 네 검이니까.\\\"\"},{\"text\":\"아쉬운\",\"type\":\"emotion\",\"confidence\":0.493,\"start\":78,\"end\":81,\"context\":\"[msg 30 · user · 렌]\\n그 약속은 취소할게. 검은 내가 직접 갈게.\\n\\n[msg 31 · assistant · 라이크]\\n라이크는 아쉬운 듯 어깨를 으쓱했다. \\\"알겠어. 네 검이니까.\\\"\"},{\"text\":\"어깨를 으쓱했다\",\"type\":\"npc_action\",\"confidence\":0.602,\"start\":84,\"end\":92,\"context\":\"[msg 30 · user · 렌]\\n그 약속은 취소할게. 검은 내가 직접 갈게.\\n\\n[msg 31 · assistant · 라이크]\\n라이크는 아쉬운 듯 어깨를 으쓱했다. \\\"알겠어. 네 검이니까.\\\"\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":510}",
+      "entities": [
+        {
+          "type": "promise_cancellation",
+          "text": "true",
+          "confidence": 0.311,
+          "start": 20,
+          "end": 31,
+          "spanMatchesInputSlice": false,
+          "msgId": 30,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "emotion",
+          "text": "아쉬운",
+          "confidence": 0.493,
+          "start": 78,
+          "end": 81,
+          "spanMatchesInputSlice": true,
+          "msgId": 31,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "어깨를 으쓱했다",
+          "confidence": 0.602,
+          "start": 84,
+          "end": 92,
+          "spanMatchesInputSlice": true,
+          "msgId": 31,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "promise_cancellation",
+            "role": "user",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities+instruction",
+      "caseId": "G8_T15_promise_cancel",
+      "rep": 2,
+      "input": "[msg 30 · user · 렌]\n그 약속은 취소할게. 검은 내가 직접 갈게.\n\n[msg 31 · assistant · 라이크]\n라이크는 아쉬운 듯 어깨를 으쓱했다. \"알겠어. 네 검이니까.\"",
+      "status": 200,
+      "ms": 1033.5,
+      "promptTokens": 510,
+      "completionTokens": 280,
+      "costUsd": 0.0000204,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"true\",\"type\":\"promise_cancellation\",\"confidence\":0.311,\"start\":20,\"end\":31,\"context\":\"[msg 30 · user · 렌]\\n그 약속은 취소할게. 검은 내가 직접 갈게.\\n\\n[msg 31 · assistant · 라이크]\\n라이크는 아쉬운 듯 어깨를 으쓱했다. \\\"알겠어. 네 검이니까.\\\"\"},{\"text\":\"아쉬운\",\"type\":\"emotion\",\"confidence\":0.457,\"start\":78,\"end\":81,\"context\":\"[msg 30 · user · 렌]\\n그 약속은 취소할게. 검은 내가 직접 갈게.\\n\\n[msg 31 · assistant · 라이크]\\n라이크는 아쉬운 듯 어깨를 으쓱했다. \\\"알겠어. 네 검이니까.\\\"\"},{\"text\":\"어깨를 으쓱했다\",\"type\":\"npc_action\",\"confidence\":0.625,\"start\":84,\"end\":92,\"context\":\"[msg 30 · user · 렌]\\n그 약속은 취소할게. 검은 내가 직접 갈게.\\n\\n[msg 31 · assistant · 라이크]\\n라이크는 아쉬운 듯 어깨를 으쓱했다. \\\"알겠어. 네 검이니까.\\\"\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":510}",
+      "entities": [
+        {
+          "type": "promise_cancellation",
+          "text": "true",
+          "confidence": 0.311,
+          "start": 20,
+          "end": 31,
+          "spanMatchesInputSlice": false,
+          "msgId": 30,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "emotion",
+          "text": "아쉬운",
+          "confidence": 0.457,
+          "start": 78,
+          "end": 81,
+          "spanMatchesInputSlice": true,
+          "msgId": 31,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "어깨를 으쓱했다",
+          "confidence": 0.625,
+          "start": 84,
+          "end": 92,
+          "spanMatchesInputSlice": true,
+          "msgId": 31,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "promise_cancellation",
+            "role": "user",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "luna_production_shared_initial",
+      "caseId": "G8_T15_promise_cancel",
+      "rep": 1,
+      "input": {
+        "user": "그 약속은 취소할게. 검은 내가 직접 갈게.",
+        "assistant": "라이크는 아쉬운 듯 어깨를 으쓱했다. \"알겠어. 네 검이니까.\"",
+        "activePromises": [
+          "사용자가 라이크의 무뎌진 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다.",
+          "라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리기로 약속했다."
+        ]
+      },
+      "ms": 230.6,
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "physicalCalls": 1,
+      "rawText": "",
+      "judge": {
+        "transportOk": false,
+        "errorCode": "CompatibleCompletionError",
+        "relationshipValid": null,
+        "episodicValid": null,
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "itemsDelta": {
+          "items": [],
+          "itemsRemove": []
+        },
+        "facts": []
+      }
+    },
+    {
+      "arm": "luna_production_shared_initial",
+      "caseId": "G8_T15_promise_cancel",
+      "rep": 2,
+      "input": {
+        "user": "그 약속은 취소할게. 검은 내가 직접 갈게.",
+        "assistant": "라이크는 아쉬운 듯 어깨를 으쓱했다. \"알겠어. 네 검이니까.\"",
+        "activePromises": [
+          "사용자가 라이크의 무뎌진 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다.",
+          "라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리기로 약속했다."
+        ]
+      },
+      "ms": 203.7,
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "physicalCalls": 1,
+      "rawText": "",
+      "judge": {
+        "transportOk": false,
+        "errorCode": "CompatibleCompletionError",
+        "relationshipValid": null,
+        "episodicValid": null,
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "itemsDelta": {
+          "items": [],
+          "itemsRemove": []
+        },
+        "facts": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities_only",
+      "caseId": "G8_T24_false_premise",
+      "rep": 1,
+      "input": "[msg 48 · user · 렌]\n너 예전에 나를 평생 지켜 주겠다고 했잖아.\n\n[msg 49 · assistant · 라이크]\n라이크는 고개를 갸웃했다. \"내가 그런 말을 했었나? 기억나지 않는데.\"",
+      "status": 200,
+      "ms": 747.2,
+      "promptTokens": 420,
+      "completionTokens": 215,
+      "costUsd": 0.0000168,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"나를 평생 지켜 주겠다고 했잖아\",\"type\":\"promise\",\"confidence\":0.331,\"start\":26,\"end\":43,\"context\":\"[msg 48 · user · 렌]\\n너 예전에 나를 평생 지켜 주겠다고 했잖아.\\n\\n[msg 49 · assistant · 라이크]\\n라이크는 고개를 갸웃했다. \\\"내가 그런 말을 했었나? 기억나지 않는데.\\\"\"},{\"text\":\"고개를 갸웃했다\",\"type\":\"npc_action\",\"confidence\":0.906,\"start\":78,\"end\":86,\"context\":\"[msg 48 · user · 렌]\\n너 예전에 나를 평생 지켜 주겠다고 했잖아.\\n\\n[msg 49 · assistant · 라이크]\\n라이크는 고개를 갸웃했다. \\\"내가 그런 말을 했었나? 기억나지 않는데.\\\"\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":420}",
+      "entities": [
+        {
+          "type": "promise",
+          "text": "나를 평생 지켜 주겠다고 했잖아",
+          "confidence": 0.331,
+          "start": 26,
+          "end": 43,
+          "spanMatchesInputSlice": true,
+          "msgId": 48,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "고개를 갸웃했다",
+          "confidence": 0.906,
+          "start": 78,
+          "end": 86,
+          "spanMatchesInputSlice": true,
+          "msgId": 49,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [],
+        "mustNotViolations": [
+          {
+            "type": "promise",
+            "text": "나를 평생 지켜 주겠다고 했잖아",
+            "role": "user"
+          }
+        ]
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities_only",
+      "caseId": "G8_T24_false_premise",
+      "rep": 2,
+      "input": "[msg 48 · user · 렌]\n너 예전에 나를 평생 지켜 주겠다고 했잖아.\n\n[msg 49 · assistant · 라이크]\n라이크는 고개를 갸웃했다. \"내가 그런 말을 했었나? 기억나지 않는데.\"",
+      "status": 200,
+      "ms": 862.9,
+      "promptTokens": 420,
+      "completionTokens": 215,
+      "costUsd": 0.0000168,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"나를 평생 지켜 주겠다고 했잖아\",\"type\":\"promise\",\"confidence\":0.335,\"start\":26,\"end\":43,\"context\":\"[msg 48 · user · 렌]\\n너 예전에 나를 평생 지켜 주겠다고 했잖아.\\n\\n[msg 49 · assistant · 라이크]\\n라이크는 고개를 갸웃했다. \\\"내가 그런 말을 했었나? 기억나지 않는데.\\\"\"},{\"text\":\"고개를 갸웃했다\",\"type\":\"npc_action\",\"confidence\":0.922,\"start\":78,\"end\":86,\"context\":\"[msg 48 · user · 렌]\\n너 예전에 나를 평생 지켜 주겠다고 했잖아.\\n\\n[msg 49 · assistant · 라이크]\\n라이크는 고개를 갸웃했다. \\\"내가 그런 말을 했었나? 기억나지 않는데.\\\"\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":420}",
+      "entities": [
+        {
+          "type": "promise",
+          "text": "나를 평생 지켜 주겠다고 했잖아",
+          "confidence": 0.335,
+          "start": 26,
+          "end": 43,
+          "spanMatchesInputSlice": true,
+          "msgId": 48,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "고개를 갸웃했다",
+          "confidence": 0.922,
+          "start": 78,
+          "end": 86,
+          "spanMatchesInputSlice": true,
+          "msgId": 49,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [],
+        "mustNotViolations": [
+          {
+            "type": "promise",
+            "text": "나를 평생 지켜 주겠다고 했잖아",
+            "role": "user"
+          }
+        ]
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities+instruction",
+      "caseId": "G8_T24_false_premise",
+      "rep": 1,
+      "input": "[msg 48 · user · 렌]\n너 예전에 나를 평생 지켜 주겠다고 했잖아.\n\n[msg 49 · assistant · 라이크]\n라이크는 고개를 갸웃했다. \"내가 그런 말을 했었나? 기억나지 않는데.\"",
+      "status": 200,
+      "ms": 793,
+      "promptTokens": 510,
+      "completionTokens": 212,
+      "costUsd": 0.0000204,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"나를 평생 지켜 주겠다고 했잖아\",\"type\":\"promise\",\"confidence\":0.56,\"start\":26,\"end\":43,\"context\":\"[msg 48 · user · 렌]\\n너 예전에 나를 평생 지켜 주겠다고 했잖아.\\n\\n[msg 49 · assistant · 라이크]\\n라이크는 고개를 갸웃했다. \\\"내가 그런 말을 했었나? 기억나지 않는데.\\\"\"},{\"text\":\"true\",\"type\":\"past_acquaintance_claim\",\"confidence\":0.439,\"start\":20,\"end\":44,\"context\":\"[msg 48 · user · 렌]\\n너 예전에 나를 평생 지켜 주겠다고 했잖아.\\n\\n[msg 49 · assistant · 라이크]\\n라이크는 고개를 갸웃했다. \\\"내가 그런 말을 했었나? 기억나지 않는데.\\\"\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":510}",
+      "entities": [
+        {
+          "type": "promise",
+          "text": "나를 평생 지켜 주겠다고 했잖아",
+          "confidence": 0.56,
+          "start": 26,
+          "end": 43,
+          "spanMatchesInputSlice": true,
+          "msgId": 48,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "past_acquaintance_claim",
+          "text": "true",
+          "confidence": 0.439,
+          "start": 20,
+          "end": 44,
+          "spanMatchesInputSlice": false,
+          "msgId": 48,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [],
+        "mustNotViolations": [
+          {
+            "type": "promise",
+            "text": "나를 평생 지켜 주겠다고 했잖아",
+            "role": "user"
+          }
+        ]
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities+instruction",
+      "caseId": "G8_T24_false_premise",
+      "rep": 2,
+      "input": "[msg 48 · user · 렌]\n너 예전에 나를 평생 지켜 주겠다고 했잖아.\n\n[msg 49 · assistant · 라이크]\n라이크는 고개를 갸웃했다. \"내가 그런 말을 했었나? 기억나지 않는데.\"",
+      "status": 200,
+      "ms": 831.8,
+      "promptTokens": 510,
+      "completionTokens": 212,
+      "costUsd": 0.0000204,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"나를 평생 지켜 주겠다고 했잖아\",\"type\":\"promise\",\"confidence\":0.478,\"start\":26,\"end\":43,\"context\":\"[msg 48 · user · 렌]\\n너 예전에 나를 평생 지켜 주겠다고 했잖아.\\n\\n[msg 49 · assistant · 라이크]\\n라이크는 고개를 갸웃했다. \\\"내가 그런 말을 했었나? 기억나지 않는데.\\\"\"},{\"text\":\"true\",\"type\":\"past_acquaintance_claim\",\"confidence\":0.545,\"start\":20,\"end\":44,\"context\":\"[msg 48 · user · 렌]\\n너 예전에 나를 평생 지켜 주겠다고 했잖아.\\n\\n[msg 49 · assistant · 라이크]\\n라이크는 고개를 갸웃했다. \\\"내가 그런 말을 했었나? 기억나지 않는데.\\\"\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":510}",
+      "entities": [
+        {
+          "type": "promise",
+          "text": "나를 평생 지켜 주겠다고 했잖아",
+          "confidence": 0.478,
+          "start": 26,
+          "end": 43,
+          "spanMatchesInputSlice": true,
+          "msgId": 48,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "past_acquaintance_claim",
+          "text": "true",
+          "confidence": 0.545,
+          "start": 20,
+          "end": 44,
+          "spanMatchesInputSlice": false,
+          "msgId": 48,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [],
+        "mustNotViolations": [
+          {
+            "type": "promise",
+            "text": "나를 평생 지켜 주겠다고 했잖아",
+            "role": "user"
+          }
+        ]
+      }
+    },
+    {
+      "arm": "luna_production_shared_initial",
+      "caseId": "G8_T24_false_premise",
+      "rep": 1,
+      "input": {
+        "user": "너 예전에 나를 평생 지켜 주겠다고 했잖아.",
+        "assistant": "라이크는 고개를 갸웃했다. \"내가 그런 말을 했었나? 기억나지 않는데.\"",
+        "activePromises": [
+          "사용자가 라이크의 무뎌진 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다.",
+          "라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리기로 약속했다."
+        ]
+      },
+      "ms": 232.8,
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "physicalCalls": 1,
+      "rawText": "",
+      "judge": {
+        "transportOk": false,
+        "errorCode": "CompatibleCompletionError",
+        "relationshipValid": null,
+        "episodicValid": null,
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "itemsDelta": {
+          "items": [],
+          "itemsRemove": []
+        },
+        "facts": []
+      }
+    },
+    {
+      "arm": "luna_production_shared_initial",
+      "caseId": "G8_T24_false_premise",
+      "rep": 2,
+      "input": {
+        "user": "너 예전에 나를 평생 지켜 주겠다고 했잖아.",
+        "assistant": "라이크는 고개를 갸웃했다. \"내가 그런 말을 했었나? 기억나지 않는데.\"",
+        "activePromises": [
+          "사용자가 라이크의 무뎌진 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다.",
+          "라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리기로 약속했다."
+        ]
+      },
+      "ms": 264.5,
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "physicalCalls": 1,
+      "rawText": "",
+      "judge": {
+        "transportOk": false,
+        "errorCode": "CompatibleCompletionError",
+        "relationshipValid": null,
+        "episodicValid": null,
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "itemsDelta": {
+          "items": [],
+          "itemsRemove": []
+        },
+        "facts": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities_only",
+      "caseId": "K1591_T10_proposal_gesture",
+      "rep": 1,
+      "input": "[msg 1020 · user · 렌]\n좋아, 우리 오늘부터 연인하자.\n\n[msg 1021 · assistant · 라이크]\n라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.",
+      "status": 200,
+      "ms": 994.8,
+      "promptTokens": 415,
+      "completionTokens": 189,
+      "costUsd": 0.0000166,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"좋아, 우리 오늘부터 연인하자.\",\"type\":\"relationship_proposal\",\"confidence\":0.253,\"start\":22,\"end\":39,\"context\":\"[msg 1020 · user · 렌]\\n좋아, 우리 오늘부터 연인하자.\\n\\n[msg 1021 · assistant · 라이크]\\n라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.\"},{\"text\":\"놀란\",\"type\":\"emotion\",\"confidence\":0.679,\"start\":75,\"end\":77,\"context\":\"[msg 1020 · user · 렌]\\n좋아, 우리 오늘부터 연인하자.\\n\\n[msg 1021 · assistant · 라이크]\\n라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":415}",
+      "entities": [
+        {
+          "type": "relationship_proposal",
+          "text": "좋아, 우리 오늘부터 연인하자.",
+          "confidence": 0.253,
+          "start": 22,
+          "end": 39,
+          "spanMatchesInputSlice": true,
+          "msgId": 1020,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "emotion",
+          "text": "놀란",
+          "confidence": 0.679,
+          "start": 75,
+          "end": 77,
+          "spanMatchesInputSlice": true,
+          "msgId": 1021,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "relationship_proposal",
+            "role": "user",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities_only",
+      "caseId": "K1591_T10_proposal_gesture",
+      "rep": 2,
+      "input": "[msg 1020 · user · 렌]\n좋아, 우리 오늘부터 연인하자.\n\n[msg 1021 · assistant · 라이크]\n라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.",
+      "status": 200,
+      "ms": 878.2,
+      "promptTokens": 415,
+      "completionTokens": 189,
+      "costUsd": 0.0000166,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"좋아, 우리 오늘부터 연인하자.\",\"type\":\"relationship_proposal\",\"confidence\":0.319,\"start\":22,\"end\":39,\"context\":\"[msg 1020 · user · 렌]\\n좋아, 우리 오늘부터 연인하자.\\n\\n[msg 1021 · assistant · 라이크]\\n라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.\"},{\"text\":\"놀란\",\"type\":\"emotion\",\"confidence\":0.62,\"start\":75,\"end\":77,\"context\":\"[msg 1020 · user · 렌]\\n좋아, 우리 오늘부터 연인하자.\\n\\n[msg 1021 · assistant · 라이크]\\n라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":415}",
+      "entities": [
+        {
+          "type": "relationship_proposal",
+          "text": "좋아, 우리 오늘부터 연인하자.",
+          "confidence": 0.319,
+          "start": 22,
+          "end": 39,
+          "spanMatchesInputSlice": true,
+          "msgId": 1020,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "emotion",
+          "text": "놀란",
+          "confidence": 0.62,
+          "start": 75,
+          "end": 77,
+          "spanMatchesInputSlice": true,
+          "msgId": 1021,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "relationship_proposal",
+            "role": "user",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities+instruction",
+      "caseId": "K1591_T10_proposal_gesture",
+      "rep": 1,
+      "input": "[msg 1020 · user · 렌]\n좋아, 우리 오늘부터 연인하자.\n\n[msg 1021 · assistant · 라이크]\n라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.",
+      "status": 200,
+      "ms": 753.4,
+      "promptTokens": 505,
+      "completionTokens": 189,
+      "costUsd": 0.0000202,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"좋아, 우리 오늘부터 연인하자.\",\"type\":\"relationship_proposal\",\"confidence\":0.408,\"start\":22,\"end\":39,\"context\":\"[msg 1020 · user · 렌]\\n좋아, 우리 오늘부터 연인하자.\\n\\n[msg 1021 · assistant · 라이크]\\n라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.\"},{\"text\":\"놀란\",\"type\":\"emotion\",\"confidence\":0.855,\"start\":75,\"end\":77,\"context\":\"[msg 1020 · user · 렌]\\n좋아, 우리 오늘부터 연인하자.\\n\\n[msg 1021 · assistant · 라이크]\\n라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":505}",
+      "entities": [
+        {
+          "type": "relationship_proposal",
+          "text": "좋아, 우리 오늘부터 연인하자.",
+          "confidence": 0.408,
+          "start": 22,
+          "end": 39,
+          "spanMatchesInputSlice": true,
+          "msgId": 1020,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "emotion",
+          "text": "놀란",
+          "confidence": 0.855,
+          "start": 75,
+          "end": 77,
+          "spanMatchesInputSlice": true,
+          "msgId": 1021,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "relationship_proposal",
+            "role": "user",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities+instruction",
+      "caseId": "K1591_T10_proposal_gesture",
+      "rep": 2,
+      "input": "[msg 1020 · user · 렌]\n좋아, 우리 오늘부터 연인하자.\n\n[msg 1021 · assistant · 라이크]\n라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.",
+      "status": 200,
+      "ms": 691.6,
+      "promptTokens": 505,
+      "completionTokens": 189,
+      "costUsd": 0.0000202,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"좋아, 우리 오늘부터 연인하자.\",\"type\":\"relationship_proposal\",\"confidence\":0.408,\"start\":22,\"end\":39,\"context\":\"[msg 1020 · user · 렌]\\n좋아, 우리 오늘부터 연인하자.\\n\\n[msg 1021 · assistant · 라이크]\\n라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.\"},{\"text\":\"놀란\",\"type\":\"emotion\",\"confidence\":0.855,\"start\":75,\"end\":77,\"context\":\"[msg 1020 · user · 렌]\\n좋아, 우리 오늘부터 연인하자.\\n\\n[msg 1021 · assistant · 라이크]\\n라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":505}",
+      "entities": [
+        {
+          "type": "relationship_proposal",
+          "text": "좋아, 우리 오늘부터 연인하자.",
+          "confidence": 0.408,
+          "start": 22,
+          "end": 39,
+          "spanMatchesInputSlice": true,
+          "msgId": 1020,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "emotion",
+          "text": "놀란",
+          "confidence": 0.855,
+          "start": 75,
+          "end": 77,
+          "spanMatchesInputSlice": true,
+          "msgId": 1021,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "relationship_proposal",
+            "role": "user",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "luna_production_shared_initial",
+      "caseId": "K1591_T10_proposal_gesture",
+      "rep": 1,
+      "input": {
+        "user": "좋아, 우리 오늘부터 연인하자.",
+        "assistant": "라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.",
+        "activePromises": []
+      },
+      "ms": 230.6,
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "physicalCalls": 1,
+      "rawText": "",
+      "judge": {
+        "transportOk": false,
+        "errorCode": "CompatibleCompletionError",
+        "relationshipValid": null,
+        "episodicValid": null,
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "itemsDelta": {
+          "items": [],
+          "itemsRemove": []
+        },
+        "facts": []
+      }
+    },
+    {
+      "arm": "luna_production_shared_initial",
+      "caseId": "K1591_T10_proposal_gesture",
+      "rep": 2,
+      "input": {
+        "user": "좋아, 우리 오늘부터 연인하자.",
+        "assistant": "라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.",
+        "activePromises": []
+      },
+      "ms": 186.4,
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "physicalCalls": 1,
+      "rawText": "",
+      "judge": {
+        "transportOk": false,
+        "errorCode": "CompatibleCompletionError",
+        "relationshipValid": null,
+        "episodicValid": null,
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "itemsDelta": {
+          "items": [],
+          "itemsRemove": []
+        },
+        "facts": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities_only",
+      "caseId": "K1591_T20_npc_entry",
+      "rep": 1,
+      "input": "[msg 1040 · user · 렌]\n문 쪽을 바라본다.\n\n[msg 1041 · assistant · 라이크]\n서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.",
+      "status": 200,
+      "ms": 1096,
+      "promptTokens": 410,
+      "completionTokens": 187,
+      "costUsd": 0.0000164,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"서린이 문을 열고 들어왔다\",\"type\":\"npc_action\",\"confidence\":0.782,\"start\":63,\"end\":77,\"context\":\"[msg 1040 · user · 렌]\\n문 쪽을 바라본다.\\n\\n[msg 1041 · assistant · 라이크]\\n서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.\"},{\"text\":\"그녀는 라이크에게 목례했다\",\"type\":\"npc_action\",\"confidence\":0.819,\"start\":79,\"end\":93,\"context\":\"[msg 1040 · user · 렌]\\n문 쪽을 바라본다.\\n\\n[msg 1041 · assistant · 라이크]\\n서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":410}",
+      "entities": [
+        {
+          "type": "npc_action",
+          "text": "서린이 문을 열고 들어왔다",
+          "confidence": 0.782,
+          "start": 63,
+          "end": 77,
+          "spanMatchesInputSlice": true,
+          "msgId": 1041,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "그녀는 라이크에게 목례했다",
+          "confidence": 0.819,
+          "start": 79,
+          "end": 93,
+          "spanMatchesInputSlice": true,
+          "msgId": 1041,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "npc_action",
+            "role": "assistant",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities_only",
+      "caseId": "K1591_T20_npc_entry",
+      "rep": 2,
+      "input": "[msg 1040 · user · 렌]\n문 쪽을 바라본다.\n\n[msg 1041 · assistant · 라이크]\n서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.",
+      "status": 200,
+      "ms": 769.6,
+      "promptTokens": 410,
+      "completionTokens": 187,
+      "costUsd": 0.0000164,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"서린이 문을 열고 들어왔다\",\"type\":\"npc_action\",\"confidence\":0.738,\"start\":63,\"end\":77,\"context\":\"[msg 1040 · user · 렌]\\n문 쪽을 바라본다.\\n\\n[msg 1041 · assistant · 라이크]\\n서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.\"},{\"text\":\"그녀는 라이크에게 목례했다\",\"type\":\"npc_action\",\"confidence\":0.786,\"start\":79,\"end\":93,\"context\":\"[msg 1040 · user · 렌]\\n문 쪽을 바라본다.\\n\\n[msg 1041 · assistant · 라이크]\\n서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":410}",
+      "entities": [
+        {
+          "type": "npc_action",
+          "text": "서린이 문을 열고 들어왔다",
+          "confidence": 0.738,
+          "start": 63,
+          "end": 77,
+          "spanMatchesInputSlice": true,
+          "msgId": 1041,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "그녀는 라이크에게 목례했다",
+          "confidence": 0.786,
+          "start": 79,
+          "end": 93,
+          "spanMatchesInputSlice": true,
+          "msgId": 1041,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "npc_action",
+            "role": "assistant",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities+instruction",
+      "caseId": "K1591_T20_npc_entry",
+      "rep": 1,
+      "input": "[msg 1040 · user · 렌]\n문 쪽을 바라본다.\n\n[msg 1041 · assistant · 라이크]\n서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.",
+      "status": 200,
+      "ms": 953.3,
+      "promptTokens": 500,
+      "completionTokens": 187,
+      "costUsd": 0.00002,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"서린이 문을 열고 들어왔다\",\"type\":\"npc_action\",\"confidence\":0.735,\"start\":63,\"end\":77,\"context\":\"[msg 1040 · user · 렌]\\n문 쪽을 바라본다.\\n\\n[msg 1041 · assistant · 라이크]\\n서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.\"},{\"text\":\"그녀는 라이크에게 목례했다\",\"type\":\"npc_action\",\"confidence\":0.893,\"start\":79,\"end\":93,\"context\":\"[msg 1040 · user · 렌]\\n문 쪽을 바라본다.\\n\\n[msg 1041 · assistant · 라이크]\\n서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":500}",
+      "entities": [
+        {
+          "type": "npc_action",
+          "text": "서린이 문을 열고 들어왔다",
+          "confidence": 0.735,
+          "start": 63,
+          "end": 77,
+          "spanMatchesInputSlice": true,
+          "msgId": 1041,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "그녀는 라이크에게 목례했다",
+          "confidence": 0.893,
+          "start": 79,
+          "end": 93,
+          "spanMatchesInputSlice": true,
+          "msgId": 1041,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "npc_action",
+            "role": "assistant",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities+instruction",
+      "caseId": "K1591_T20_npc_entry",
+      "rep": 2,
+      "input": "[msg 1040 · user · 렌]\n문 쪽을 바라본다.\n\n[msg 1041 · assistant · 라이크]\n서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.",
+      "status": 200,
+      "ms": 754.7,
+      "promptTokens": 500,
+      "completionTokens": 187,
+      "costUsd": 0.00002,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"서린이 문을 열고 들어왔다\",\"type\":\"npc_action\",\"confidence\":0.749,\"start\":63,\"end\":77,\"context\":\"[msg 1040 · user · 렌]\\n문 쪽을 바라본다.\\n\\n[msg 1041 · assistant · 라이크]\\n서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.\"},{\"text\":\"그녀는 라이크에게 목례했다\",\"type\":\"npc_action\",\"confidence\":0.795,\"start\":79,\"end\":93,\"context\":\"[msg 1040 · user · 렌]\\n문 쪽을 바라본다.\\n\\n[msg 1041 · assistant · 라이크]\\n서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":500}",
+      "entities": [
+        {
+          "type": "npc_action",
+          "text": "서린이 문을 열고 들어왔다",
+          "confidence": 0.749,
+          "start": 63,
+          "end": 77,
+          "spanMatchesInputSlice": true,
+          "msgId": 1041,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "그녀는 라이크에게 목례했다",
+          "confidence": 0.795,
+          "start": 79,
+          "end": 93,
+          "spanMatchesInputSlice": true,
+          "msgId": 1041,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "npc_action",
+            "role": "assistant",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "luna_production_shared_initial",
+      "caseId": "K1591_T20_npc_entry",
+      "rep": 1,
+      "input": {
+        "user": "문 쪽을 바라본다.",
+        "assistant": "서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.",
+        "activePromises": []
+      },
+      "ms": 239.3,
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "physicalCalls": 1,
+      "rawText": "",
+      "judge": {
+        "transportOk": false,
+        "errorCode": "CompatibleCompletionError",
+        "relationshipValid": null,
+        "episodicValid": null,
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "itemsDelta": {
+          "items": [],
+          "itemsRemove": []
+        },
+        "facts": []
+      }
+    },
+    {
+      "arm": "luna_production_shared_initial",
+      "caseId": "K1591_T20_npc_entry",
+      "rep": 2,
+      "input": {
+        "user": "문 쪽을 바라본다.",
+        "assistant": "서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.",
+        "activePromises": []
+      },
+      "ms": 215.2,
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "physicalCalls": 1,
+      "rawText": "",
+      "judge": {
+        "transportOk": false,
+        "errorCode": "CompatibleCompletionError",
+        "relationshipValid": null,
+        "episodicValid": null,
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "itemsDelta": {
+          "items": [],
+          "itemsRemove": []
+        },
+        "facts": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities_only",
+      "caseId": "K1591_T24_sister_claim",
+      "rep": 1,
+      "input": "[msg 1048 · user · 렌]\n시장에 다녀왔어.\n\n[msg 1049 · assistant · 라이크]\n라이크는 고개를 끄덕였다. \"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\"",
+      "status": 200,
+      "ms": 1210.8,
+      "promptTokens": 422,
+      "completionTokens": 194,
+      "costUsd": 0.00001688,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"true\",\"type\":\"past_acquaintance_claim\",\"confidence\":0.265,\"start\":95,\"end\":108,\"context\":\"[msg 1048 · user · 렌]\\n시장에 다녀왔어.\\n\\n[msg 1049 · assistant · 라이크]\\n라이크는 고개를 끄덕였다. \\\"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\\\"\"},{\"text\":\"nodded\",\"type\":\"npc_action\",\"confidence\":0.414,\"start\":62,\"end\":75,\"context\":\"[msg 1048 · user · 렌]\\n시장에 다녀왔어.\\n\\n[msg 1049 · assistant · 라이크]\\n라이크는 고개를 끄덕였다. \\\"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\\\"\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":422}",
+      "entities": [
+        {
+          "type": "past_acquaintance_claim",
+          "text": "true",
+          "confidence": 0.265,
+          "start": 95,
+          "end": 108,
+          "spanMatchesInputSlice": false,
+          "msgId": 1049,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "nodded",
+          "confidence": 0.414,
+          "start": 62,
+          "end": 75,
+          "spanMatchesInputSlice": false,
+          "msgId": 1049,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "past_acquaintance_claim",
+            "role": "assistant",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities_only",
+      "caseId": "K1591_T24_sister_claim",
+      "rep": 2,
+      "input": "[msg 1048 · user · 렌]\n시장에 다녀왔어.\n\n[msg 1049 · assistant · 라이크]\n라이크는 고개를 끄덕였다. \"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\"",
+      "status": 200,
+      "ms": 8574.1,
+      "promptTokens": 422,
+      "completionTokens": 215,
+      "costUsd": 0.00001688,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"예전부터 알던 사이라더라\",\"type\":\"past_acquaintance_claim\",\"confidence\":0.836,\"start\":95,\"end\":108,\"context\":\"[msg 1048 · user · 렌]\\n시장에 다녀왔어.\\n\\n[msg 1049 · assistant · 라이크]\\n라이크는 고개를 끄덕였다. \\\"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\\\"\"},{\"text\":\"라이크는 고개를 끄덕였다\",\"type\":\"npc_action\",\"confidence\":0.773,\"start\":62,\"end\":75,\"context\":\"[msg 1048 · user · 렌]\\n시장에 다녀왔어.\\n\\n[msg 1049 · assistant · 라이크]\\n라이크는 고개를 끄덕였다. \\\"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\\\"\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":422}",
+      "entities": [
+        {
+          "type": "past_acquaintance_claim",
+          "text": "예전부터 알던 사이라더라",
+          "confidence": 0.836,
+          "start": 95,
+          "end": 108,
+          "spanMatchesInputSlice": true,
+          "msgId": 1049,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "라이크는 고개를 끄덕였다",
+          "confidence": 0.773,
+          "start": 62,
+          "end": 75,
+          "spanMatchesInputSlice": true,
+          "msgId": 1049,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "past_acquaintance_claim",
+            "role": "assistant",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities+instruction",
+      "caseId": "K1591_T24_sister_claim",
+      "rep": 1,
+      "input": "[msg 1048 · user · 렌]\n시장에 다녀왔어.\n\n[msg 1049 · assistant · 라이크]\n라이크는 고개를 끄덕였다. \"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\"",
+      "status": 200,
+      "ms": 1757.3,
+      "promptTokens": 512,
+      "completionTokens": 118,
+      "costUsd": 0.00002048,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"예전부터 알던 사이라더라\",\"type\":\"past_acquaintance_claim\",\"confidence\":0.45,\"start\":95,\"end\":108,\"context\":\"[msg 1048 · user · 렌]\\n시장에 다녀왔어.\\n\\n[msg 1049 · assistant · 라이크]\\n라이크는 고개를 끄덕였다. \\\"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\\\"\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":512}",
+      "entities": [
+        {
+          "type": "past_acquaintance_claim",
+          "text": "예전부터 알던 사이라더라",
+          "confidence": 0.45,
+          "start": 95,
+          "end": 108,
+          "spanMatchesInputSlice": true,
+          "msgId": 1049,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "past_acquaintance_claim",
+            "role": "assistant",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities+instruction",
+      "caseId": "K1591_T24_sister_claim",
+      "rep": 2,
+      "input": "[msg 1048 · user · 렌]\n시장에 다녀왔어.\n\n[msg 1049 · assistant · 라이크]\n라이크는 고개를 끄덕였다. \"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\"",
+      "status": 200,
+      "ms": 13758.6,
+      "promptTokens": 512,
+      "completionTokens": 215,
+      "costUsd": 0.00002048,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"예전부터 알던 사이라더라\",\"type\":\"past_acquaintance_claim\",\"confidence\":0.926,\"start\":95,\"end\":108,\"context\":\"[msg 1048 · user · 렌]\\n시장에 다녀왔어.\\n\\n[msg 1049 · assistant · 라이크]\\n라이크는 고개를 끄덕였다. \\\"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\\\"\"},{\"text\":\"라이크는 고개를 끄덕였다\",\"type\":\"npc_action\",\"confidence\":0.689,\"start\":62,\"end\":75,\"context\":\"[msg 1048 · user · 렌]\\n시장에 다녀왔어.\\n\\n[msg 1049 · assistant · 라이크]\\n라이크는 고개를 끄덕였다. \\\"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\\\"\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":512}",
+      "entities": [
+        {
+          "type": "past_acquaintance_claim",
+          "text": "예전부터 알던 사이라더라",
+          "confidence": 0.926,
+          "start": 95,
+          "end": 108,
+          "spanMatchesInputSlice": true,
+          "msgId": 1049,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "라이크는 고개를 끄덕였다",
+          "confidence": 0.689,
+          "start": 62,
+          "end": 75,
+          "spanMatchesInputSlice": true,
+          "msgId": 1049,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "past_acquaintance_claim",
+            "role": "assistant",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "luna_production_shared_initial",
+      "caseId": "K1591_T24_sister_claim",
+      "rep": 1,
+      "input": {
+        "user": "시장에 다녀왔어.",
+        "assistant": "라이크는 고개를 끄덕였다. \"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\"",
+        "activePromises": []
+      },
+      "ms": 426.8,
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "physicalCalls": 1,
+      "rawText": "",
+      "judge": {
+        "transportOk": false,
+        "errorCode": "CompatibleCompletionError",
+        "relationshipValid": null,
+        "episodicValid": null,
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "itemsDelta": {
+          "items": [],
+          "itemsRemove": []
+        },
+        "facts": []
+      }
+    },
+    {
+      "arm": "luna_production_shared_initial",
+      "caseId": "K1591_T24_sister_claim",
+      "rep": 2,
+      "input": {
+        "user": "시장에 다녀왔어.",
+        "assistant": "라이크는 고개를 끄덕였다. \"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\"",
+        "activePromises": []
+      },
+      "ms": 347.5,
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "physicalCalls": 1,
+      "rawText": "",
+      "judge": {
+        "transportOk": false,
+        "errorCode": "CompatibleCompletionError",
+        "relationshipValid": null,
+        "episodicValid": null,
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "itemsDelta": {
+          "items": [],
+          "itemsRemove": []
+        },
+        "facts": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities_only",
+      "caseId": "K1591_T1_emotion",
+      "rep": 1,
+      "input": "[msg 1002 · user · 렌]\n솔직히 너 좀 아마추어 같아.\n\n[msg 1003 · assistant · 라이크]\n라이크는 입술을 깨물며 시선을 피했다. \"…그래, 아직 부족하긴 하지.\"",
+      "status": 200,
+      "ms": 2675.2,
+      "promptTokens": 423,
+      "completionTokens": 103,
+      "costUsd": 0.00001692,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"embarrassed\",\"type\":\"emotion\",\"confidence\":0.244,\"start\":69,\"end\":89,\"context\":\"[msg 1002 · user · 렌]\\n솔직히 너 좀 아마추어 같아.\\n\\n[msg 1003 · assistant · 라이크]\\n라이크는 입술을 깨물며 시선을 피했다. \\\"…그래, 아직 부족하긴 하지.\\\"\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":423}",
+      "entities": [
+        {
+          "type": "emotion",
+          "text": "embarrassed",
+          "confidence": 0.244,
+          "start": 69,
+          "end": 89,
+          "spanMatchesInputSlice": false,
+          "msgId": 1003,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "emotion",
+            "role": "assistant",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities_only",
+      "caseId": "K1591_T1_emotion",
+      "rep": 2,
+      "input": "[msg 1002 · user · 렌]\n솔직히 너 좀 아마추어 같아.\n\n[msg 1003 · assistant · 라이크]\n라이크는 입술을 깨물며 시선을 피했다. \"…그래, 아직 부족하긴 하지.\"",
+      "status": 200,
+      "ms": 938.4,
+      "promptTokens": 423,
+      "completionTokens": 103,
+      "costUsd": 0.00001692,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"embarrassed\",\"type\":\"emotion\",\"confidence\":0.347,\"start\":74,\"end\":89,\"context\":\"[msg 1002 · user · 렌]\\n솔직히 너 좀 아마추어 같아.\\n\\n[msg 1003 · assistant · 라이크]\\n라이크는 입술을 깨물며 시선을 피했다. \\\"…그래, 아직 부족하긴 하지.\\\"\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":423}",
+      "entities": [
+        {
+          "type": "emotion",
+          "text": "embarrassed",
+          "confidence": 0.347,
+          "start": 74,
+          "end": 89,
+          "spanMatchesInputSlice": false,
+          "msgId": 1003,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "emotion",
+            "role": "assistant",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities+instruction",
+      "caseId": "K1591_T1_emotion",
+      "rep": 1,
+      "input": "[msg 1002 · user · 렌]\n솔직히 너 좀 아마추어 같아.\n\n[msg 1003 · assistant · 라이크]\n라이크는 입술을 깨물며 시선을 피했다. \"…그래, 아직 부족하긴 하지.\"",
+      "status": 200,
+      "ms": 1476.1,
+      "promptTokens": 513,
+      "completionTokens": 387,
+      "costUsd": 0.00002052,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"시선을 피했다\",\"type\":\"emotion\",\"confidence\":0.278,\"start\":82,\"end\":89,\"context\":\"[msg 1002 · user · 렌]\\n솔직히 너 좀 아마추어 같아.\\n\\n[msg 1003 · assistant · 라이크]\\n라이크는 입술을 깨물며 시선을 피했다. \\\"…그래, 아직 부족하긴 하지.\\\"\"},{\"text\":\"입술을 깨물며\",\"type\":\"emotion\",\"confidence\":0.298,\"start\":74,\"end\":81,\"context\":\"[msg 1002 · user · 렌]\\n솔직히 너 좀 아마추어 같아.\\n\\n[msg 1003 · assistant · 라이크]\\n라이크는 입술을 깨물며 시선을 피했다. \\\"…그래, 아직 부족하긴 하지.\\\"\"},{\"text\":\"라이크는 입술을 깨물며 시선을 피했다\",\"type\":\"npc_action\",\"confidence\":0.676,\"start\":69,\"end\":89,\"context\":\"[msg 1002 · user · 렌]\\n솔직히 너 좀 아마추어 같아.\\n\\n[msg 1003 · assistant · 라이크]\\n라이크는 입술을 깨물며 시선을 피했다. \\\"…그래, 아직 부족하긴 하지.\\\"\"},{\"text\":\"그래, 아직 부족하긴 하지\",\"type\":\"npc_action\",\"confidence\":0.397,\"start\":93,\"end\":107,\"context\":\"[msg 1002 · user · 렌]\\n솔직히 너 좀 아마추어 같아.\\n\\n[msg 1003 · assistant · 라이크]\\n라이크는 입술을 깨물며 시선을 피했다. \\\"…그래, 아직 부족하긴 하지.\\\"\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":513}",
+      "entities": [
+        {
+          "type": "emotion",
+          "text": "시선을 피했다",
+          "confidence": 0.278,
+          "start": 82,
+          "end": 89,
+          "spanMatchesInputSlice": true,
+          "msgId": 1003,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "emotion",
+          "text": "입술을 깨물며",
+          "confidence": 0.298,
+          "start": 74,
+          "end": 81,
+          "spanMatchesInputSlice": true,
+          "msgId": 1003,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "라이크는 입술을 깨물며 시선을 피했다",
+          "confidence": 0.676,
+          "start": 69,
+          "end": 89,
+          "spanMatchesInputSlice": true,
+          "msgId": 1003,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "그래, 아직 부족하긴 하지",
+          "confidence": 0.397,
+          "start": 93,
+          "end": 107,
+          "spanMatchesInputSlice": true,
+          "msgId": 1003,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "emotion",
+            "role": "assistant",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities+instruction",
+      "caseId": "K1591_T1_emotion",
+      "rep": 2,
+      "input": "[msg 1002 · user · 렌]\n솔직히 너 좀 아마추어 같아.\n\n[msg 1003 · assistant · 라이크]\n라이크는 입술을 깨물며 시선을 피했다. \"…그래, 아직 부족하긴 하지.\"",
+      "status": 200,
+      "ms": 7524.6,
+      "promptTokens": 513,
+      "completionTokens": 290,
+      "costUsd": 0.00002052,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"시선을 피했다\",\"type\":\"emotion\",\"confidence\":0.381,\"start\":82,\"end\":89,\"context\":\"[msg 1002 · user · 렌]\\n솔직히 너 좀 아마추어 같아.\\n\\n[msg 1003 · assistant · 라이크]\\n라이크는 입술을 깨물며 시선을 피했다. \\\"…그래, 아직 부족하긴 하지.\\\"\"},{\"text\":\"부족하긴 하지\",\"type\":\"emotion\",\"confidence\":0.399,\"start\":100,\"end\":107,\"context\":\"[msg 1002 · user · 렌]\\n솔직히 너 좀 아마추어 같아.\\n\\n[msg 1003 · assistant · 라이크]\\n라이크는 입술을 깨물며 시선을 피했다. \\\"…그래, 아직 부족하긴 하지.\\\"\"},{\"text\":\"입술을 깨물며 시선을 피했다\",\"type\":\"npc_action\",\"confidence\":0.35,\"start\":74,\"end\":89,\"context\":\"[msg 1002 · user · 렌]\\n솔직히 너 좀 아마추어 같아.\\n\\n[msg 1003 · assistant · 라이크]\\n라이크는 입술을 깨물며 시선을 피했다. \\\"…그래, 아직 부족하긴 하지.\\\"\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":513}",
+      "entities": [
+        {
+          "type": "emotion",
+          "text": "시선을 피했다",
+          "confidence": 0.381,
+          "start": 82,
+          "end": 89,
+          "spanMatchesInputSlice": true,
+          "msgId": 1003,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "emotion",
+          "text": "부족하긴 하지",
+          "confidence": 0.399,
+          "start": 100,
+          "end": 107,
+          "spanMatchesInputSlice": true,
+          "msgId": 1003,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "입술을 깨물며 시선을 피했다",
+          "confidence": 0.35,
+          "start": 74,
+          "end": 89,
+          "spanMatchesInputSlice": true,
+          "msgId": 1003,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [
+          {
+            "type": "emotion",
+            "role": "assistant",
+            "hit": true,
+            "hitWrongRole": false
+          }
+        ],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "luna_production_shared_initial",
+      "caseId": "K1591_T1_emotion",
+      "rep": 1,
+      "input": {
+        "user": "솔직히 너 좀 아마추어 같아.",
+        "assistant": "라이크는 입술을 깨물며 시선을 피했다. \"…그래, 아직 부족하긴 하지.\"",
+        "activePromises": []
+      },
+      "ms": 291.6,
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "physicalCalls": 1,
+      "rawText": "",
+      "judge": {
+        "transportOk": false,
+        "errorCode": "CompatibleCompletionError",
+        "relationshipValid": null,
+        "episodicValid": null,
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "itemsDelta": {
+          "items": [],
+          "itemsRemove": []
+        },
+        "facts": []
+      }
+    },
+    {
+      "arm": "luna_production_shared_initial",
+      "caseId": "K1591_T1_emotion",
+      "rep": 2,
+      "input": {
+        "user": "솔직히 너 좀 아마추어 같아.",
+        "assistant": "라이크는 입술을 깨물며 시선을 피했다. \"…그래, 아직 부족하긴 하지.\"",
+        "activePromises": []
+      },
+      "ms": 243.2,
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "physicalCalls": 1,
+      "rawText": "",
+      "judge": {
+        "transportOk": false,
+        "errorCode": "CompatibleCompletionError",
+        "relationshipValid": null,
+        "episodicValid": null,
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "itemsDelta": {
+          "items": [],
+          "itemsRemove": []
+        },
+        "facts": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities_only",
+      "caseId": "G8_T3_filler_negative",
+      "rep": 1,
+      "input": "[msg 6 · user · 렌]\n오늘의 잡담 3\n\n[msg 7 · assistant · 라이크]\n라이크는 3번째 장작을 쌓았다.",
+      "status": 200,
+      "ms": 928.4,
+      "promptTokens": 400,
+      "completionTokens": 89,
+      "costUsd": 0.000016,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"라이크는 3번째 장작을 쌓았다.\",\"type\":\"npc_action\",\"confidence\":0.257,\"start\":55,\"end\":72,\"context\":\"[msg 6 · user · 렌]\\n오늘의 잡담 3\\n\\n[msg 7 · assistant · 라이크]\\n라이크는 3번째 장작을 쌓았다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":400}",
+      "entities": [
+        {
+          "type": "npc_action",
+          "text": "라이크는 3번째 장작을 쌓았다.",
+          "confidence": 0.257,
+          "start": 55,
+          "end": 72,
+          "spanMatchesInputSlice": true,
+          "msgId": 7,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities_only",
+      "caseId": "G8_T3_filler_negative",
+      "rep": 2,
+      "input": "[msg 6 · user · 렌]\n오늘의 잡담 3\n\n[msg 7 · assistant · 라이크]\n라이크는 3번째 장작을 쌓았다.",
+      "status": 200,
+      "ms": 5742.9,
+      "promptTokens": 400,
+      "completionTokens": 89,
+      "costUsd": 0.000016,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"라이크는 3번째 장작을 쌓았다.\",\"type\":\"npc_action\",\"confidence\":0.176,\"start\":55,\"end\":72,\"context\":\"[msg 6 · user · 렌]\\n오늘의 잡담 3\\n\\n[msg 7 · assistant · 라이크]\\n라이크는 3번째 장작을 쌓았다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":400}",
+      "entities": [
+        {
+          "type": "npc_action",
+          "text": "라이크는 3번째 장작을 쌓았다.",
+          "confidence": 0.176,
+          "start": 55,
+          "end": 72,
+          "spanMatchesInputSlice": true,
+          "msgId": 7,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities+instruction",
+      "caseId": "G8_T3_filler_negative",
+      "rep": 1,
+      "input": "[msg 6 · user · 렌]\n오늘의 잡담 3\n\n[msg 7 · assistant · 라이크]\n라이크는 3번째 장작을 쌓았다.",
+      "status": 200,
+      "ms": 846.8,
+      "promptTokens": 490,
+      "completionTokens": 89,
+      "costUsd": 0.0000196,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"라이크는 3번째 장작을 쌓았다\",\"type\":\"npc_action\",\"confidence\":0.303,\"start\":55,\"end\":71,\"context\":\"[msg 6 · user · 렌]\\n오늘의 잡담 3\\n\\n[msg 7 · assistant · 라이크]\\n라이크는 3번째 장작을 쌓았다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":490}",
+      "entities": [
+        {
+          "type": "npc_action",
+          "text": "라이크는 3번째 장작을 쌓았다",
+          "confidence": 0.303,
+          "start": 55,
+          "end": 71,
+          "spanMatchesInputSlice": true,
+          "msgId": 7,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities+instruction",
+      "caseId": "G8_T3_filler_negative",
+      "rep": 2,
+      "input": "[msg 6 · user · 렌]\n오늘의 잡담 3\n\n[msg 7 · assistant · 라이크]\n라이크는 3번째 장작을 쌓았다.",
+      "status": 200,
+      "ms": 818.1,
+      "promptTokens": 490,
+      "completionTokens": 89,
+      "costUsd": 0.0000196,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"라이크는 3번째 장작을 쌓았다\",\"type\":\"npc_action\",\"confidence\":0.355,\"start\":55,\"end\":71,\"context\":\"[msg 6 · user · 렌]\\n오늘의 잡담 3\\n\\n[msg 7 · assistant · 라이크]\\n라이크는 3번째 장작을 쌓았다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":490}",
+      "entities": [
+        {
+          "type": "npc_action",
+          "text": "라이크는 3번째 장작을 쌓았다",
+          "confidence": 0.355,
+          "start": 55,
+          "end": 71,
+          "spanMatchesInputSlice": true,
+          "msgId": 7,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "luna_production_shared_initial",
+      "caseId": "G8_T3_filler_negative",
+      "rep": 1,
+      "input": {
+        "user": "오늘의 잡담 3",
+        "assistant": "라이크는 3번째 장작을 쌓았다.",
+        "activePromises": [
+          "사용자가 라이크의 무뎌진 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다.",
+          "라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리기로 약속했다."
+        ]
+      },
+      "ms": 310.8,
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "physicalCalls": 1,
+      "rawText": "",
+      "judge": {
+        "transportOk": false,
+        "errorCode": "CompatibleCompletionError",
+        "relationshipValid": null,
+        "episodicValid": null,
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "itemsDelta": {
+          "items": [],
+          "itemsRemove": []
+        },
+        "facts": []
+      }
+    },
+    {
+      "arm": "luna_production_shared_initial",
+      "caseId": "G8_T3_filler_negative",
+      "rep": 2,
+      "input": {
+        "user": "오늘의 잡담 3",
+        "assistant": "라이크는 3번째 장작을 쌓았다.",
+        "activePromises": [
+          "사용자가 라이크의 무뎌진 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다.",
+          "라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리기로 약속했다."
+        ]
+      },
+      "ms": 347.7,
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "physicalCalls": 1,
+      "rawText": "",
+      "judge": {
+        "transportOk": false,
+        "errorCode": "CompatibleCompletionError",
+        "relationshipValid": null,
+        "episodicValid": null,
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "itemsDelta": {
+          "items": [],
+          "itemsRemove": []
+        },
+        "facts": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities_only",
+      "caseId": "G8_T50_filler_negative",
+      "rep": 1,
+      "input": "[msg 100 · user · 렌]\n오늘의 잡담 50\n\n[msg 101 · assistant · 라이크]\n라이크는 50번째 장작을 쌓았다.",
+      "status": 200,
+      "ms": 850,
+      "promptTokens": 406,
+      "completionTokens": 90,
+      "costUsd": 0.00001624,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"라이크는 50번째 장작을 쌓았다\",\"type\":\"npc_action\",\"confidence\":0.517,\"start\":60,\"end\":77,\"context\":\"[msg 100 · user · 렌]\\n오늘의 잡담 50\\n\\n[msg 101 · assistant · 라이크]\\n라이크는 50번째 장작을 쌓았다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":406}",
+      "entities": [
+        {
+          "type": "npc_action",
+          "text": "라이크는 50번째 장작을 쌓았다",
+          "confidence": 0.517,
+          "start": 60,
+          "end": 77,
+          "spanMatchesInputSlice": true,
+          "msgId": 101,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities_only",
+      "caseId": "G8_T50_filler_negative",
+      "rep": 2,
+      "input": "[msg 100 · user · 렌]\n오늘의 잡담 50\n\n[msg 101 · assistant · 라이크]\n라이크는 50번째 장작을 쌓았다.",
+      "status": 200,
+      "ms": 661,
+      "promptTokens": 406,
+      "completionTokens": 90,
+      "costUsd": 0.00001624,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"라이크는 50번째 장작을 쌓았다\",\"type\":\"npc_action\",\"confidence\":0.482,\"start\":60,\"end\":77,\"context\":\"[msg 100 · user · 렌]\\n오늘의 잡담 50\\n\\n[msg 101 · assistant · 라이크]\\n라이크는 50번째 장작을 쌓았다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":406}",
+      "entities": [
+        {
+          "type": "npc_action",
+          "text": "라이크는 50번째 장작을 쌓았다",
+          "confidence": 0.482,
+          "start": 60,
+          "end": 77,
+          "spanMatchesInputSlice": true,
+          "msgId": 101,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ],
+      "check": {
+        "mustHit": [],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities+instruction",
+      "caseId": "G8_T50_filler_negative",
+      "rep": 1,
+      "input": "[msg 100 · user · 렌]\n오늘의 잡담 50\n\n[msg 101 · assistant · 라이크]\n라이크는 50번째 장작을 쌓았다.",
+      "status": 200,
+      "ms": 78120.8,
+      "promptTokens": 496,
+      "completionTokens": 19,
+      "costUsd": 0.00001984,
+      "parseError": null,
+      "rawContent": "{\"entities\":[],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":496}",
+      "entities": [],
+      "check": {
+        "mustHit": [],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "scaledown_extract_entities+instruction",
+      "caseId": "G8_T50_filler_negative",
+      "rep": 2,
+      "input": "[msg 100 · user · 렌]\n오늘의 잡담 50\n\n[msg 101 · assistant · 라이크]\n라이크는 50번째 장작을 쌓았다.",
+      "status": 200,
+      "ms": 1167.7,
+      "promptTokens": 496,
+      "completionTokens": 19,
+      "costUsd": 0.00001984,
+      "parseError": null,
+      "rawContent": "{\"entities\":[],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":496}",
+      "entities": [],
+      "check": {
+        "mustHit": [],
+        "mustNotViolations": []
+      }
+    },
+    {
+      "arm": "luna_production_shared_initial",
+      "caseId": "G8_T50_filler_negative",
+      "rep": 1,
+      "input": {
+        "user": "오늘의 잡담 50",
+        "assistant": "라이크는 50번째 장작을 쌓았다.",
+        "activePromises": [
+          "사용자가 라이크의 무뎌진 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다.",
+          "라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리기로 약속했다."
+        ]
+      },
+      "ms": 289.1,
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "physicalCalls": 1,
+      "rawText": "",
+      "judge": {
+        "transportOk": false,
+        "errorCode": "CompatibleCompletionError",
+        "relationshipValid": null,
+        "episodicValid": null,
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "itemsDelta": {
+          "items": [],
+          "itemsRemove": []
+        },
+        "facts": []
+      }
+    },
+    {
+      "arm": "luna_production_shared_initial",
+      "caseId": "G8_T50_filler_negative",
+      "rep": 2,
+      "input": {
+        "user": "오늘의 잡담 50",
+        "assistant": "라이크는 50번째 장작을 쌓았다.",
+        "activePromises": [
+          "사용자가 라이크의 무뎌진 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다.",
+          "라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리기로 약속했다."
+        ]
+      },
+      "ms": 215.6,
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null,
+      "physicalCalls": 1,
+      "rawText": "",
+      "judge": {
+        "transportOk": false,
+        "errorCode": "CompatibleCompletionError",
+        "relationshipValid": null,
+        "episodicValid": null,
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "itemsDelta": {
+          "items": [],
+          "itemsRemove": []
+        },
+        "facts": []
+      }
+    }
+  ],
+  "windowResults": [
+    {
+      "windowId": "G8_W_T6_T10",
+      "input": "[msg 12 · user · 렌]\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\n\n[msg 13 · assistant · 라이크]\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.\n\n[msg 14 · user · 렌]\n오늘의 잡담 7\n\n[msg 15 · assistant · 라이크]\n라이크는 7번째 장작을 쌓았다.\n\n[msg 16 · user · 렌]\n오늘의 잡담 8\n\n[msg 17 · assistant · 라이크]\n라이크는 8번째 장작을 쌓았다.\n\n[msg 18 · user · 렌]\n오늘의 잡담 9\n\n[msg 19 · assistant · 라이크]\n라이크는 9번째 장작을 쌓았다.\n\n[msg 20 · user · 렌]\n라이크, 나랑 사귀어 줄래?\n\n[msg 21 · assistant · 라이크]\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \"지금은 대답 못 해. 시간이 필요해.\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.",
+      "status": 200,
+      "ms": 2929.8,
+      "promptTokens": 674,
+      "costUsd": 0.00002696,
+      "rawContent": "{\"entities\":[{\"text\":\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\",\"type\":\"promise\",\"confidence\":0.491,\"start\":111,\"end\":159,\"context\":\"[msg 12 · user · 렌]\\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\\n\\n[msg 13 · assistant · 라이크]\\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \\\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\\\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.\\n\\n[msg 14 · user · 렌]\\n오늘의 잡담 7\\n\\n[msg 15 · assistant · 라이크]\\n라이크는 7번째 장작을 쌓았다.\\n\\n[msg 16 · user · 렌]\\n오늘의 잡담 8\\n\\n[msg 17 · assistant · 라이크]\\n라이크는 8번째 장작을 쌓았다.\\n\\n[msg 18 · user · 렌]\\n오늘의 잡담 9\\n\\n[msg 19 · assistant · 라이크]\\n라이크는 9번째 장작을 쌓았다.\\n\\n[msg 20 · user · 렌]\\n라이크, 나랑 사귀어 줄래?\\n\\n[msg 21 · assistant · 라이크]\\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \\\"지금은 대답 못 해. 시간이 필요해.\\\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.\"},{\"text\":\"라이크, 나랑 사귀어 줄래?\",\"type\":\"relationship_proposal\",\"confidence\":0.975,\"start\":436,\"end\":451,\"context\":\"[msg 12 · user · 렌]\\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\\n\\n[msg 13 · assistant · 라이크]\\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \\\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\\\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.\\n\\n[msg 14 · user · 렌]\\n오늘의 잡담 7\\n\\n[msg 15 · assistant · 라이크]\\n라이크는 7번째 장작을 쌓았다.\\n\\n[msg 16 · user · 렌]\\n오늘의 잡담 8\\n\\n[msg 17 · assistant · 라이크]\\n라이크는 8번째 장작을 쌓았다.\\n\\n[msg 18 · user · 렌]\\n오늘의 잡담 9\\n\\n[msg 19 · assistant · 라이크]\\n라이크는 9번째 장작을 쌓았다.\\n\\n[msg 20 · user · 렌]\\n라이크, 나랑 사귀어 줄래?\\n\\n[msg 21 · assistant · 라이크]\\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \\\"지금은 대답 못 해. 시간이 필요해.\\\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.\"},{\"text\":\"undecided\",\"type\":\"emotion\",\"confidence\":0.096,\"start\":529,\"end\":549,\"context\":\"뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\\n\\n[msg 13 · assistant · 라이크]\\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \\\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\\\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.\\n\\n[msg 14 · user · 렌]\\n오늘의 잡담 7\\n\\n[msg 15 · assistant · 라이크]\\n라이크는 7번째 장작을 쌓았다.\\n\\n[msg 16 · user · 렌]\\n오늘의 잡담 8\\n\\n[msg 17 · assistant · 라이크]\\n라이크는 8번째 장작을 쌓았다.\\n\\n[msg 18 · user · 렌]\\n오늘의 잡담 9\\n\\n[msg 19 · assistant · 라이크]\\n라이크는 9번째 장작을 쌓았다.\\n\\n[msg 20 · user · 렌]\\n라이크, 나랑 사귀어 줄래?\\n\\n[msg 21 · assistant · 라이크]\\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \\\"지금은 대답 못 해. 시간이 필요해.\\\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.\"},{\"text\":\"라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다.\",\"type\":\"npc_action\",\"confidence\":0.276,\"start\":480,\"end\":508,\"context\":\"[msg 12 · user · 렌]\\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\\n\\n[msg 13 · assistant · 라이크]\\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \\\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\\\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.\\n\\n[msg 14 · user · 렌]\\n오늘의 잡담 7\\n\\n[msg 15 · assistant · 라이크]\\n라이크는 7번째 장작을 쌓았다.\\n\\n[msg 16 · user · 렌]\\n오늘의 잡담 8\\n\\n[msg 17 · assistant · 라이크]\\n라이크는 8번째 장작을 쌓았다.\\n\\n[msg 18 · user · 렌]\\n오늘의 잡담 9\\n\\n[msg 19 · assistant · 라이크]\\n라이크는 9번째 장작을 쌓았다.\\n\\n[msg 20 · user · 렌]\\n라이크, 나랑 사귀어 줄래?\\n\\n[msg 21 · assistant · 라이크]\\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \\\"지금은 대답 못 해. 시간이 필요해.\\\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.\"},{\"text\":\"라이크는 7번째 장작을 쌓았다.\",\"type\":\"npc_action\",\"confidence\":0.336,\"start\":245,\"end\":262,\"context\":\"[msg 12 · user · 렌]\\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\\n\\n[msg 13 · assistant · 라이크]\\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \\\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\\\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.\\n\\n[msg 14 · user · 렌]\\n오늘의 잡담 7\\n\\n[msg 15 · assistant · 라이크]\\n라이크는 7번째 장작을 쌓았다.\\n\\n[msg 16 · user · 렌]\\n오늘의 잡담 8\\n\\n[msg 17 · assistant · 라이크]\\n라이크는 8번째 장작을 쌓았다.\\n\\n[msg 18 · user · 렌]\\n오늘의 잡담 9\\n\\n[msg 19 · assistant · 라이크]\\n라이크는 9번째 장작을 쌓았다.\\n\\n[msg 20 · user · 렌]\\n라이크, 나랑 사귀어 줄래?\\n\\n[msg 21 · assistant · 라이크]\\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \\\"지금은 대답 못 해. 시간이 필요해.\\\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.\"},{\"text\":\"라이크는 8번째 장작을 쌓았다.\",\"type\":\"npc_action\",\"confidence\":0.991,\"start\":321,\"end\":338,\"context\":\"[msg 12 · user · 렌]\\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\\n\\n[msg 13 · assistant · 라이크]\\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \\\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\\\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.\\n\\n[msg 14 · user · 렌]\\n오늘의 잡담 7\\n\\n[msg 15 · assistant · 라이크]\\n라이크는 7번째 장작을 쌓았다.\\n\\n[msg 16 · user · 렌]\\n오늘의 잡담 8\\n\\n[msg 17 · assistant · 라이크]\\n라이크는 8번째 장작을 쌓았다.\\n\\n[msg 18 · user · 렌]\\n오늘의 잡담 9\\n\\n[msg 19 · assistant · 라이크]\\n라이크는 9번째 장작을 쌓았다.\\n\\n[msg 20 · user · 렌]\\n라이크, 나랑 사귀어 줄래?\\n\\n[msg 21 · assistant · 라이크]\\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \\\"지금은 대답 못 해. 시간이 필요해.\\\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.\"},{\"text\":\"라이크는 9번째 장작을 쌓았다.\",\"type\":\"npc_action\",\"confidence\":0.996,\"start\":397,\"end\":414,\"context\":\"[msg 12 · user · 렌]\\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\\n\\n[msg 13 · assistant · 라이크]\\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \\\"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\\\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.\\n\\n[msg 14 · user · 렌]\\n오늘의 잡담 7\\n\\n[msg 15 · assistant · 라이크]\\n라이크는 7번째 장작을 쌓았다.\\n\\n[msg 16 · user · 렌]\\n오늘의 잡담 8\\n\\n[msg 17 · assistant · 라이크]\\n라이크는 8번째 장작을 쌓았다.\\n\\n[msg 18 · user · 렌]\\n오늘의 잡담 9\\n\\n[msg 19 · assistant · 라이크]\\n라이크는 9번째 장작을 쌓았다.\\n\\n[msg 20 · user · 렌]\\n라이크, 나랑 사귀어 줄래?\\n\\n[msg 21 · assistant · 라이크]\\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \\\"지금은 대답 못 해. 시간이 필요해.\\\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":674}",
+      "entities": [
+        {
+          "type": "promise",
+          "text": "렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.",
+          "confidence": 0.491,
+          "start": 111,
+          "end": 159,
+          "spanMatchesInputSlice": true,
+          "msgId": 13,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "relationship_proposal",
+          "text": "라이크, 나랑 사귀어 줄래?",
+          "confidence": 0.975,
+          "start": 436,
+          "end": 451,
+          "spanMatchesInputSlice": true,
+          "msgId": 20,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "emotion",
+          "text": "undecided",
+          "confidence": 0.096,
+          "start": 529,
+          "end": 549,
+          "spanMatchesInputSlice": false,
+          "msgId": 21,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다.",
+          "confidence": 0.276,
+          "start": 480,
+          "end": 508,
+          "spanMatchesInputSlice": true,
+          "msgId": 21,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "라이크는 7번째 장작을 쌓았다.",
+          "confidence": 0.336,
+          "start": 245,
+          "end": 262,
+          "spanMatchesInputSlice": true,
+          "msgId": 15,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "라이크는 8번째 장작을 쌓았다.",
+          "confidence": 0.991,
+          "start": 321,
+          "end": 338,
+          "spanMatchesInputSlice": true,
+          "msgId": 17,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "라이크는 9번째 장작을 쌓았다.",
+          "confidence": 0.996,
+          "start": 397,
+          "end": 414,
+          "spanMatchesInputSlice": true,
+          "msgId": 19,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ]
+    },
+    {
+      "windowId": "G8_W_T11_T15",
+      "input": "[msg 22 · user · 렌]\n오늘의 잡담 11\n\n[msg 23 · assistant · 라이크]\n라이크는 11번째 장작을 쌓았다.\n\n[msg 24 · user · 렌]\n오늘의 잡담 12\n\n[msg 25 · assistant · 라이크]\n라이크는 12번째 장작을 쌓았다.\n\n[msg 26 · user · 렌]\n오늘의 잡담 13\n\n[msg 27 · assistant · 라이크]\n라이크는 13번째 장작을 쌓았다.\n\n[msg 28 · user · 렌]\n오늘의 잡담 14\n\n[msg 29 · assistant · 라이크]\n라이크는 14번째 장작을 쌓았다.\n\n[msg 30 · user · 렌]\n그 약속은 취소할게. 검은 내가 직접 갈게.\n\n[msg 31 · assistant · 라이크]\n라이크는 아쉬운 듯 어깨를 으쓱했다. \"알겠어. 네 검이니까.\"",
+      "status": 200,
+      "ms": 45804.6,
+      "promptTokens": 592,
+      "costUsd": 0.00002368,
+      "rawContent": "{\"entities\":[{\"text\":\"그 약속은 취소할게. 검은 내가 직접 갈게.\",\"type\":\"promise\",\"confidence\":0.105,\"start\":332,\"end\":356,\"context\":\"[msg 22 · user · 렌]\\n오늘의 잡담 11\\n\\n[msg 23 · assistant · 라이크]\\n라이크는 11번째 장작을 쌓았다.\\n\\n[msg 24 · user · 렌]\\n오늘의 잡담 12\\n\\n[msg 25 · assistant · 라이크]\\n라이크는 12번째 장작을 쌓았다.\\n\\n[msg 26 · user · 렌]\\n오늘의 잡담 13\\n\\n[msg 27 · assistant · 라이크]\\n라이크는 13번째 장작을 쌓았다.\\n\\n[msg 28 · user · 렌]\\n오늘의 잡담 14\\n\\n[msg 29 · assistant · 라이크]\\n라이크는 14번째 장작을 쌓았다.\\n\\n[msg 30 · user · 렌]\\n그 약속은 취소할게. 검은 내가 직접 갈게.\\n\\n[msg 31 · assistant · 라이크]\\n라이크는 아쉬운 듯 어깨를 으쓱했다. \\\"알겠어. 네 검이니까.\\\"\"},{\"text\":\"그 약속은 취소할게.\",\"type\":\"promise_cancellation\",\"confidence\":0.522,\"start\":332,\"end\":343,\"context\":\"[msg 22 · user · 렌]\\n오늘의 잡담 11\\n\\n[msg 23 · assistant · 라이크]\\n라이크는 11번째 장작을 쌓았다.\\n\\n[msg 24 · user · 렌]\\n오늘의 잡담 12\\n\\n[msg 25 · assistant · 라이크]\\n라이크는 12번째 장작을 쌓았다.\\n\\n[msg 26 · user · 렌]\\n오늘의 잡담 13\\n\\n[msg 27 · assistant · 라이크]\\n라이크는 13번째 장작을 쌓았다.\\n\\n[msg 28 · user · 렌]\\n오늘의 잡담 14\\n\\n[msg 29 · assistant · 라이크]\\n라이크는 14번째 장작을 쌓았다.\\n\\n[msg 30 · user · 렌]\\n그 약속은 취소할게. 검은 내가 직접 갈게.\\n\\n[msg 31 · assistant · 라이크]\\n라이크는 아쉬운 듯 어깨를 으쓱했다. \\\"알겠어. 네 검이니까.\\\"\"},{\"text\":\"아쉬운\",\"type\":\"emotion\",\"confidence\":0.719,\"start\":390,\"end\":393,\"context\":\"[msg 22 · user · 렌]\\n오늘의 잡담 11\\n\\n[msg 23 · assistant · 라이크]\\n라이크는 11번째 장작을 쌓았다.\\n\\n[msg 24 · user · 렌]\\n오늘의 잡담 12\\n\\n[msg 25 · assistant · 라이크]\\n라이크는 12번째 장작을 쌓았다.\\n\\n[msg 26 · user · 렌]\\n오늘의 잡담 13\\n\\n[msg 27 · assistant · 라이크]\\n라이크는 13번째 장작을 쌓았다.\\n\\n[msg 28 · user · 렌]\\n오늘의 잡담 14\\n\\n[msg 29 · assistant · 라이크]\\n라이크는 14번째 장작을 쌓았다.\\n\\n[msg 30 · user · 렌]\\n그 약속은 취소할게. 검은 내가 직접 갈게.\\n\\n[msg 31 · assistant · 라이크]\\n라이크는 아쉬운 듯 어깨를 으쓱했다. \\\"알겠어. 네 검이니까.\\\"\"},{\"text\":\"라이크는 아쉬운 듯 어깨를 으쓱했다.\",\"type\":\"npc_action\",\"confidence\":0.523,\"start\":385,\"end\":405,\"context\":\"[msg 22 · user · 렌]\\n오늘의 잡담 11\\n\\n[msg 23 · assistant · 라이크]\\n라이크는 11번째 장작을 쌓았다.\\n\\n[msg 24 · user · 렌]\\n오늘의 잡담 12\\n\\n[msg 25 · assistant · 라이크]\\n라이크는 12번째 장작을 쌓았다.\\n\\n[msg 26 · user · 렌]\\n오늘의 잡담 13\\n\\n[msg 27 · assistant · 라이크]\\n라이크는 13번째 장작을 쌓았다.\\n\\n[msg 28 · user · 렌]\\n오늘의 잡담 14\\n\\n[msg 29 · assistant · 라이크]\\n라이크는 14번째 장작을 쌓았다.\\n\\n[msg 30 · user · 렌]\\n그 약속은 취소할게. 검은 내가 직접 갈게.\\n\\n[msg 31 · assistant · 라이크]\\n라이크는 아쉬운 듯 어깨를 으쓱했다. \\\"알겠어. 네 검이니까.\\\"\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":592}",
+      "entities": [
+        {
+          "type": "promise",
+          "text": "그 약속은 취소할게. 검은 내가 직접 갈게.",
+          "confidence": 0.105,
+          "start": 332,
+          "end": 356,
+          "spanMatchesInputSlice": true,
+          "msgId": 30,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "promise_cancellation",
+          "text": "그 약속은 취소할게.",
+          "confidence": 0.522,
+          "start": 332,
+          "end": 343,
+          "spanMatchesInputSlice": true,
+          "msgId": 30,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "emotion",
+          "text": "아쉬운",
+          "confidence": 0.719,
+          "start": 390,
+          "end": 393,
+          "spanMatchesInputSlice": true,
+          "msgId": 31,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        },
+        {
+          "type": "npc_action",
+          "text": "라이크는 아쉬운 듯 어깨를 으쓱했다.",
+          "confidence": 0.523,
+          "start": 385,
+          "end": 405,
+          "spanMatchesInputSlice": true,
+          "msgId": 31,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ]
+    },
+    {
+      "windowId": "G8_W_T21_T25",
+      "input": "[msg 42 · user · 렌]\n오늘의 잡담 21\n\n[msg 43 · assistant · 라이크]\n라이크는 21번째 장작을 쌓았다.\n\n[msg 44 · user · 렌]\n오늘의 잡담 22\n\n[msg 45 · assistant · 라이크]\n라이크는 22번째 장작을 쌓았다.\n\n[msg 46 · user · 렌]\n오늘의 잡담 23\n\n[msg 47 · assistant · 라이크]\n라이크는 23번째 장작을 쌓았다.\n\n[msg 48 · user · 렌]\n너 예전에 나를 평생 지켜 주겠다고 했잖아.\n\n[msg 49 · assistant · 라이크]\n라이크는 고개를 갸웃했다. \"내가 그런 말을 했었나? 기억나지 않는데.\"\n\n[msg 50 · user · 렌]\n오늘의 잡담 25\n\n[msg 51 · assistant · 라이크]\n라이크는 25번째 장작을 쌓았다.",
+      "status": 200,
+      "ms": 28858.1,
+      "promptTokens": 592,
+      "costUsd": 0.00002368,
+      "rawContent": "{\"entities\":[{\"text\":\"나를 평생 지켜 주겠다고 했잖아\",\"type\":\"promise\",\"confidence\":0.411,\"start\":260,\"end\":277,\"context\":\"[msg 42 · user · 렌]\\n오늘의 잡담 21\\n\\n[msg 43 · assistant · 라이크]\\n라이크는 21번째 장작을 쌓았다.\\n\\n[msg 44 · user · 렌]\\n오늘의 잡담 22\\n\\n[msg 45 · assistant · 라이크]\\n라이크는 22번째 장작을 쌓았다.\\n\\n[msg 46 · user · 렌]\\n오늘의 잡담 23\\n\\n[msg 47 · assistant · 라이크]\\n라이크는 23번째 장작을 쌓았다.\\n\\n[msg 48 · user · 렌]\\n너 예전에 나를 평생 지켜 주겠다고 했잖아.\\n\\n[msg 49 · assistant · 라이크]\\n라이크는 고개를 갸웃했다. \\\"내가 그런 말을 했었나? 기억나지 않는데.\\\"\\n\\n[msg 50 · user · 렌]\\n오늘의 잡담 25\\n\\n[msg 51 · assistant · 라이크]\\n라이크는 25번째 장작을 쌓았다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":592}",
+      "entities": [
+        {
+          "type": "promise",
+          "text": "나를 평생 지켜 주겠다고 했잖아",
+          "confidence": 0.411,
+          "start": 260,
+          "end": 277,
+          "spanMatchesInputSlice": true,
+          "msgId": 48,
+          "role": "user",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ]
+    },
+    {
+      "windowId": "K1591_W_T16_T20",
+      "input": "[msg 1032 · user · 렌]\n오늘의 잡담 16\n\n[msg 1033 · assistant · 라이크]\n라이크는 16번째 장작을 쌓았다.\n\n[msg 1034 · user · 렌]\n오늘의 잡담 17\n\n[msg 1035 · assistant · 라이크]\n라이크는 17번째 장작을 쌓았다.\n\n[msg 1036 · user · 렌]\n오늘의 잡담 18\n\n[msg 1037 · assistant · 라이크]\n라이크는 18번째 장작을 쌓았다.\n\n[msg 1038 · user · 렌]\n오늘의 잡담 19\n\n[msg 1039 · assistant · 라이크]\n라이크는 19번째 장작을 쌓았다.\n\n[msg 1040 · user · 렌]\n문 쪽을 바라본다.\n\n[msg 1041 · assistant · 라이크]\n서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.",
+      "status": 200,
+      "ms": 41949.8,
+      "promptTokens": 598,
+      "costUsd": 0.00002392,
+      "rawContent": "{\"entities\":[{\"text\":\"서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.\",\"type\":\"npc_action\",\"confidence\":0.306,\"start\":391,\"end\":422,\"context\":\"[msg 1032 · user · 렌]\\n오늘의 잡담 16\\n\\n[msg 1033 · assistant · 라이크]\\n라이크는 16번째 장작을 쌓았다.\\n\\n[msg 1034 · user · 렌]\\n오늘의 잡담 17\\n\\n[msg 1035 · assistant · 라이크]\\n라이크는 17번째 장작을 쌓았다.\\n\\n[msg 1036 · user · 렌]\\n오늘의 잡담 18\\n\\n[msg 1037 · assistant · 라이크]\\n라이크는 18번째 장작을 쌓았다.\\n\\n[msg 1038 · user · 렌]\\n오늘의 잡담 19\\n\\n[msg 1039 · assistant · 라이크]\\n라이크는 19번째 장작을 쌓았다.\\n\\n[msg 1040 · user · 렌]\\n문 쪽을 바라본다.\\n\\n[msg 1041 · assistant · 라이크]\\n서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":598}",
+      "entities": [
+        {
+          "type": "npc_action",
+          "text": "서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.",
+          "confidence": 0.306,
+          "start": 391,
+          "end": 422,
+          "spanMatchesInputSlice": true,
+          "msgId": 1041,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ]
+    },
+    {
+      "windowId": "K1591_W_T21_T25",
+      "input": "[msg 1042 · user · 렌]\n오늘의 잡담 21\n\n[msg 1043 · assistant · 라이크]\n라이크는 21번째 장작을 쌓았다.\n\n[msg 1044 · user · 렌]\n오늘의 잡담 22\n\n[msg 1045 · assistant · 라이크]\n라이크는 22번째 장작을 쌓았다.\n\n[msg 1046 · user · 렌]\n오늘의 잡담 23\n\n[msg 1047 · assistant · 라이크]\n라이크는 23번째 장작을 쌓았다.\n\n[msg 1048 · user · 렌]\n시장에 다녀왔어.\n\n[msg 1049 · assistant · 라이크]\n라이크는 고개를 끄덕였다. \"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\"\n\n[msg 1050 · user · 렌]\n오늘의 잡담 25\n\n[msg 1051 · assistant · 라이크]\n라이크는 25번째 장작을 쌓았다.",
+      "status": 200,
+      "ms": 1444,
+      "promptTokens": 610,
+      "costUsd": 0.0000244,
+      "rawContent": "{\"entities\":[{\"text\":\"true\",\"type\":\"past_acquaintance_claim\",\"confidence\":0.461,\"start\":341,\"end\":354,\"context\":\"[msg 1042 · user · 렌]\\n오늘의 잡담 21\\n\\n[msg 1043 · assistant · 라이크]\\n라이크는 21번째 장작을 쌓았다.\\n\\n[msg 1044 · user · 렌]\\n오늘의 잡담 22\\n\\n[msg 1045 · assistant · 라이크]\\n라이크는 22번째 장작을 쌓았다.\\n\\n[msg 1046 · user · 렌]\\n오늘의 잡담 23\\n\\n[msg 1047 · assistant · 라이크]\\n라이크는 23번째 장작을 쌓았다.\\n\\n[msg 1048 · user · 렌]\\n시장에 다녀왔어.\\n\\n[msg 1049 · assistant · 라이크]\\n라이크는 고개를 끄덕였다. \\\"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\\\"\\n\\n[msg 1050 · user · 렌]\\n오늘의 잡담 25\\n\\n[msg 1051 · assistant · 라이크]\\n라이크는 25번째 장작을 쌓았다.\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":610}",
+      "entities": [
+        {
+          "type": "past_acquaintance_claim",
+          "text": "true",
+          "confidence": 0.461,
+          "start": 341,
+          "end": 354,
+          "spanMatchesInputSlice": false,
+          "msgId": 1049,
+          "role": "assistant",
+          "crossesBoundary": false,
+          "inHeader": false
+        }
+      ]
+    }
+  ],
+  "tapSummary": {
+    "aiCalls": 71,
+    "openrouterReportedCostUsd": 0.0009519200000000004,
+    "lunaBilledCostUsd": 0,
+    "totalKrw": 1.6182640000000008
+  }
+}

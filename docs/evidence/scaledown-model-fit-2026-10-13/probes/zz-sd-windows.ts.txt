@@ -1,0 +1,171 @@
+import {
+  OUT,
+  SD_OR_KEY,
+  buildBlocks,
+  parseCostUsd,
+  resolveSpan,
+  setTag,
+  setTapFile,
+  tapRecords,
+  writeJson,
+  FX,
+  type SourceTurn,
+} from "./zz-sd-common";
+import sources from "../docs/evidence/scaledown-model-fit-2026-10-13/data/fixture-b2-luna-summary-sources-27windows.json";
+import sealA from "../docs/evidence/scaledown-model-fit-2026-10-13/data/baseline-luna-summary-seal-A.json";
+import {
+  ROLLING_SUMMARY_EPISTEMIC_POLICY,
+  buildRollingSummarySystemPrompt,
+} from "@/lib/memory/memory-rolling-summary";
+import { isRollingSummaryGroundedInDialogue, validateSummaryNarrative } from "@/lib/memory/memory-summary-integrity";
+
+const DO_B = process.env.SD_W_B !== "0";
+const DO_C = process.env.SD_W_C !== "0";
+const C_REPS = Number(process.env.SD_C_REPS ?? "2");
+const ONLY = process.env.SD_W_ONLY ? process.env.SD_W_ONLY.split(",") : null;
+
+const CHAR = "라이크";
+const USER = "렌";
+
+type Win = { kind: string; spec: string; turns: { user: string; assistant: string }[] };
+const WINDOWS = sources as unknown as Record<string, Win>;
+const SEAL = sealA as unknown as Record<string, { promptUserContent: string; persisted: string; attempts: { usd: number }[] }>;
+
+const ENTITY_TYPES = {
+  promise: "A promise, commitment or agreement to do something in the future, stated by anyone in the text.",
+  promise_cancellation: "A statement that cancels, withdraws or revokes an earlier promise or agreement.",
+  relationship_proposal: "A proposal, request or confession asking to start or change a romantic relationship.",
+  relationship_acceptance: "An explicit statement by the other person that accepts a relationship proposal.",
+  past_acquaintance_claim: "A claim that two people knew each other or shared a history before the present scene.",
+  emotion: "An emotional state or emotional reaction of a character.",
+  npc_action: "An action performed by a third character who is neither the user nor the main character.",
+  mentor_or_lover_relationship: "A stated teacher-student or romantic partner relationship between two people.",
+};
+
+async function post(body: unknown) {
+  const started = performance.now();
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${SD_OR_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const raw = await res.text();
+  const ms = Math.round((performance.now() - started) * 10) / 10;
+  let parsed: any = null;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    /* recorded as null */
+  }
+  return { status: res.status, ms, raw, parsed, ...parseCostUsd(raw) };
+}
+
+function toSourceTurns(w: Win): SourceTurn[] {
+  return w.turns.map((t, i) => ({
+    fixture: "G8" as const,
+    turn: i + 1,
+    userMsgId: (i + 1) * 2,
+    assistantMsgId: (i + 1) * 2 + 1,
+    user: t.user,
+    assistant: t.assistant,
+  }));
+}
+
+function splitPrompt(p: string) {
+  const startMarker = "원본 대화]\n";
+  const s = p.indexOf(startMarker) + startMarker.length;
+  const e = p.indexOf("\n\n[요약 대상 RP source 턴]");
+  return { dialogue: p.slice(s, e), prelude: p.slice(0, p.indexOf("[1~5턴 원본 대화]")).trim() };
+}
+
+async function main() {
+  if (!SD_OR_KEY) throw new Error("OPENROUTER_JEV_BENCHMARK_API_KEY required");
+  setTapFile(`${OUT}/raw/windows.jsonl`);
+  const ids = Object.keys(WINDOWS).filter((k) => !ONLY || ONLY.includes(k));
+  const out: Record<string, unknown> = { entityTypes: ENTITY_TYPES, windowIds: ids };
+
+  if (DO_B) {
+    const bres: any[] = [];
+    for (const id of ids) {
+      const w = WINDOWS[id]!;
+      const { text, segments } = buildBlocks(toSourceTurns(w));
+      setTag(`W_B_${id}`);
+      const r = await post({
+        model: "scaledown/extract",
+        messages: [{ role: "user", content: text }],
+        provider: { zdr: true, data_collection: "deny", options: { scaledown: { entities: ENTITY_TYPES } } },
+      });
+      let content: any = null;
+      let parseError: string | null = null;
+      try {
+        content = JSON.parse(r.parsed?.choices?.[0]?.message?.content ?? "null");
+      } catch (e) {
+        parseError = (e as Error).message;
+      }
+      const entities = (content?.entities ?? []).map((e: any) => {
+        const exact = typeof e.start === "number" && typeof e.end === "number" ? text.slice(e.start, e.end) === e.text : false;
+        const where = typeof e.start === "number" && typeof e.end === "number" ? resolveSpan(segments, e.start, e.end) : { msgId: null, role: null, crossesBoundary: false, inHeader: false };
+        const inAnyBody = segments.some((s) => s.body.includes(e.text));
+        return { type: e.type, text: e.text, confidence: e.confidence, start: e.start, end: e.end, spanMatchesInputSlice: exact, textExistsInSomeMessage: inAnyBody, msgId: where.msgId, role: where.role, crossesBoundary: where.crossesBoundary };
+      });
+      bres.push({ windowId: id, kind: w.kind, spec: w.spec, input: text, status: r.status, ms: r.ms, promptTokens: r.promptTokens, costUsd: r.costUsd, parseError, rawContent: r.parsed?.choices?.[0]?.message?.content ?? null, entities });
+    }
+    out.extractWindows = bres;
+  }
+
+  if (DO_C) {
+    const cres: any[] = [];
+    const system = `${buildRollingSummarySystemPrompt(5)}\n\n${ROLLING_SUMMARY_EPISTEMIC_POLICY}`;
+    for (const id of ids) {
+      const w = WINDOWS[id]!;
+      const seal = SEAL[id];
+      if (!seal) continue;
+      const { dialogue, prelude } = splitPrompt(seal.promptUserContent);
+      const arms: { name: string; messages: { role: string; content: string }[] }[] = [
+        { name: "sd_summarize_production_prompt", messages: [{ role: "system", content: system }, { role: "user", content: seal.promptUserContent }] },
+        { name: "sd_summarize_bare", messages: [{ role: "user", content: `${prelude}\n\n${dialogue}`.trim() }] },
+      ];
+      for (const arm of arms) {
+        const reps = arm.name === "sd_summarize_production_prompt" ? C_REPS : 1;
+        for (let rep = 1; rep <= reps; rep++) {
+          setTag(`W_C_${arm.name}_${id}_rep${rep}`);
+          const r = await post({ model: "scaledown/summarize", messages: arm.messages, provider: { zdr: true, data_collection: "deny" } });
+          const text: string = r.parsed?.choices?.[0]?.message?.content ?? "";
+          const narrative = text ? validateSummaryNarrative(text, "main_canon") : { ok: false as const, reason: "empty" };
+          const grounded = text ? isRollingSummaryGroundedInDialogue(text, dialogue, USER, CHAR) : false;
+          cres.push({
+            windowId: id,
+            kind: w.kind,
+            spec: w.spec,
+            arm: arm.name,
+            rep,
+            status: r.status,
+            ms: r.ms,
+            promptTokens: r.promptTokens,
+            completionTokens: r.completionTokens,
+            costUsd: r.costUsd,
+            summary: text,
+            chars: text.length,
+            productionNarrativeOk: narrative.ok,
+            productionNarrativeReason: narrative.ok ? null : (narrative as any).reason,
+            productionGroundedOk: grounded,
+            lunaRecordedSummary: seal.persisted,
+            lunaRecordedChars: seal.persisted.length,
+            lunaRecordedUsd: seal.attempts.reduce((s, a) => s + a.usd, 0),
+          });
+        }
+      }
+    }
+    out.summarizeWindows = cres;
+  }
+
+  const usd = tapRecords().reduce((s, r) => s + (parseCostUsd(r.responseText).costUsd ?? 0), 0);
+  out.tapSummary = { aiCalls: tapRecords().length, openrouterReportedCostUsd: usd, totalKrw: usd * FX };
+  writeJson(`windows-results${process.env.SD_W_SUFFIX ?? ""}.json`, out);
+  console.log("W_DONE", JSON.stringify(out.tapSummary));
+}
+
+main().catch((e) => {
+  console.error("W_FAIL", e);
+  process.exit(1);
+});
