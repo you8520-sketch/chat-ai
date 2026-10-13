@@ -1199,6 +1199,10 @@ export default function PersonaClient({
     </div>
   ) : null;
 
+  const rowButtonClass = "min-w-[4.5rem]";
+  const dangerButtonClass =
+    "min-w-[4.5rem] border-rose-500/30 text-rose-300 hover:bg-rose-500/10 disabled:hover:bg-transparent";
+
   const personaList = (
     <>
 
@@ -1502,10 +1506,6 @@ export default function PersonaClient({
       description: "채팅 화면에 보이는 상태 카드입니다. 페르소나마다 하나를 골라 써요.",
     },
   ];
-
-  const rowButtonClass = "min-w-[4.5rem]";
-  const dangerButtonClass =
-    "min-w-[4.5rem] border-rose-500/30 text-rose-300 hover:bg-rose-500/10 disabled:hover:bg-transparent";
 
   return (
     <div className="mx-auto mt-6 max-w-2xl space-y-6 lg:max-w-5xl">
