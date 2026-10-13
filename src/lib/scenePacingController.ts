@@ -710,20 +710,21 @@ export function resolveCommunicationDemand(input: {
     (input.knownSupportingCastNames ?? []).some((n) =>
       Boolean(n && joined.includes(n))
     ) || input.decision.npcActionEligible;
-  const activeRemoteInRecent = includesAny(recent, [
-    "무전",
-    "수신",
-    "송신",
-    "교신",
-    "들리나",
-    "응답하라",
-  ]);
   const userDemandsComm = includesAny(current, COMM_USER_DEMAND_TERMS);
+  const lastUserTurn = [...(input.recentMessages ?? [])]
+    .reverse()
+    .find((m) => m.role === "user");
+  const userDirectedCommLastTurn = includesAny(
+    lastUserTurn?.content ?? "",
+    COMM_USER_DEMAND_TERMS
+  );
   const operation = input.decision.pacingMode === "OPERATION";
 
-  // Keyword + ≥1 corroborating signal → HIGH.
-  // Past mention alone in calm dyad (no corroboration) stays NORMAL.
-  if (operation || groundedSpeaker || activeRemoteInRecent || userDemandsComm) {
+  // The keyword hit is one piece of evidence. HIGH needs a corroborating signal
+  // that is not the keyword itself: operation, grounded speaker, or a user
+  // demand for comm (this turn or the last real user turn). A radio merely
+  // present in the greeting or past turns stays NORMAL.
+  if (operation || groundedSpeaker || userDemandsComm || userDirectedCommLastTurn) {
     return "HIGH";
   }
   return "NORMAL";
