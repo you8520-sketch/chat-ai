@@ -131,7 +131,9 @@ import {
 } from "@/lib/participantMinAge";
 import {
   normalizeCreatorLorebookIds,
+  listCharacterCreatorLorebookAttachmentIds,
   replaceCharacterCreatorLorebookAttachments,
+  resolveOfficialAdminLorebookAttachmentIds,
   validateCreatorLorebookAttachmentIds,
 } from "@/lib/creatorLorebook";
 
@@ -304,7 +306,11 @@ function finalizeAssetsForSave(
   assets: CharacterAsset[],
   rawAssets: unknown,
   userId: number,
-  context: { nsfw: boolean; visibility: CharacterVisibility; characterId?: number | null }
+  context: {
+    nsfw: boolean;
+    visibility: CharacterVisibility;
+    characterId?: number | null;
+  }
 ): { ok: true; assets: CharacterAsset[] } | { ok: false; error: string; status: 400 } {
   const rawList = Array.isArray(rawAssets) ? rawAssets : [];
   const selectionError = representativeSelectionError(rawList);
@@ -441,6 +447,8 @@ export function parseCharacterFormBody(
       worldId: number | null;
       sourceWorldShareId: number | null;
     };
+    /** Official admin re-save: shared lorebooks already attached to the character stay valid. */
+    retainedLorebookIds?: readonly number[];
   }
 ): { ok: true; data: ParsedCharacterForm } | { ok: false; error: string; status: number } {
   try {
@@ -619,8 +627,23 @@ export function parseCharacterFormBody(
     sourceWorldShareId = existingCharacter.sourceWorldShareId;
   }
 
-  const lorebookIds = normalizeCreatorLorebookIds(b.lorebook_ids ?? b.lorebookIds);
-  const lorebookValidation = validateCreatorLorebookAttachmentIds(db, user.id, lorebookIds);
+  const requestedLorebookIds = normalizeCreatorLorebookIds(b.lorebook_ids ?? b.lorebookIds);
+  const resolvedLorebooks = resolveOfficialAdminLorebookAttachmentIds(
+    db,
+    user.id,
+    requestedLorebookIds,
+    options?.retainedLorebookIds
+  );
+  if (!resolvedLorebooks.ok) {
+    return { ok: false, error: resolvedLorebooks.error, status: resolvedLorebooks.status };
+  }
+  const lorebookIds = resolvedLorebooks.ids;
+  const lorebookValidation = validateCreatorLorebookAttachmentIds(
+    db,
+    user.id,
+    lorebookIds,
+    options?.retainedLorebookIds
+  );
   if (!lorebookValidation.ok) {
     return { ok: false, error: lorebookValidation.error, status: lorebookValidation.status };
   }
@@ -1275,6 +1298,9 @@ export async function updateCharacterFromForm(
       worldId: row.world_id,
       sourceWorldShareId: row.source_world_share_id,
     },
+    ...(officialAdmin
+      ? { retainedLorebookIds: listCharacterCreatorLorebookAttachmentIds(db, characterId) }
+      : {}),
   });
   if (!parsed.ok) return parsed;
 
@@ -1504,7 +1530,8 @@ export async function updateCharacterFromForm(
 export async function updateCharacterPublicProfileFromForm(
   user: SessionUser,
   characterId: number,
-  b: Record<string, unknown>
+  b: Record<string, unknown>,
+  options?: CharacterFormSaveOptions
 ) {
   if (!canUseCreatorTools(user)) {
     return { ok: false as const, error: "캐릭터 수정은 성인인증 완료 후 가능합니다.", status: 403 };
@@ -1515,6 +1542,10 @@ export async function updateCharacterPublicProfileFromForm(
     .prepare(
       `SELECT id, creator_id, official, share_slug, visibility, moderation_status, moderation_note,
               images, nsfw, name, greeting, creator_comment, tags, participant_min_age, adult_status,
+              creator_name, COALESCE(status_widget_json, '') AS status_widget_json,
+              COALESCE(simulation_reuse_allowed, 0) AS simulation_reuse_allowed,
+              COALESCE(simulation_nsfw_allowed, 0) AS simulation_nsfw_allowed,
+              COALESCE(trpg_reuse_allowed, 0) AS trpg_reuse_allowed,
               COALESCE(content_kind, 'character') AS content_kind,
               COALESCE(simulation_cast, '') AS simulation_cast,
               COALESCE(simulation_visual_subjects_json, '') AS simulation_visual_subjects_json,
@@ -1531,6 +1562,11 @@ export async function updateCharacterPublicProfileFromForm(
         moderation_status: ModerationStatus;
         moderation_note: string | null;
         images: string | null;
+        creator_name: string;
+        status_widget_json: string;
+        simulation_reuse_allowed: number;
+        simulation_nsfw_allowed: number;
+        trpg_reuse_allowed: number;
         nsfw: number | null;
         name: string;
         greeting: string;
@@ -1553,8 +1589,12 @@ export async function updateCharacterPublicProfileFromForm(
   if (row.creator_id !== user.id) {
     return { ok: false as const, error: "본인 캐릭터만 수정할 수 있습니다.", status: 403 };
   }
-  if (row.official === 1) {
-    return { ok: false as const, error: "공식 캐릭터는 수정할 수 없습니다.", status: 403 };
+  const officialAdmin =
+    options?.actor === "official_admin" && isOfficialAdminActor(options.adminUser);
+  if (row.official === 1 || options?.actor === "official_admin") {
+    if (!officialAdmin || !canAdminManageOfficialCharacter(options?.adminUser, row)) {
+      return { ok: false as const, error: "공식 캐릭터는 수정할 수 없습니다.", status: 403 };
+    }
   }
 
   const publicDossier = hasPublicDossierInput(b)
@@ -1609,9 +1649,10 @@ export async function updateCharacterPublicProfileFromForm(
     visualSubjectsJson = preparedVisual.json;
   }
 
-  const nsfw = !!b.nsfw;
+  const preserveAdult = officialAdmin && options?.preserveAdultFlags === true;
+  const nsfw = preserveAdult ? row.nsfw === 1 : !!b.nsfw;
   const participantMinAgeResult = resolveParticipantMinAgeForSave({
-    bodyValue: b.participant_min_age ?? b.participantMinAge,
+    bodyValue: preserveAdult ? row.participant_min_age : b.participant_min_age ?? b.participantMinAge,
     existingValue: row.participant_min_age,
     requireStructuredAge: false,
   });
@@ -1652,9 +1693,11 @@ export async function updateCharacterPublicProfileFromForm(
     tags: Array.isArray(b.tags) ? b.tags.map(String) : row.tags ?? "",
   });
   if (!listingBlock.ok) return listingBlock;
+  const keepRuntimeWidget = officialAdmin;
   const rawWidget = b.status_widget_json ?? b.status_widget;
-  const parsedWidget =
-    typeof rawWidget === "string"
+  const parsedWidget = keepRuntimeWidget
+    ? null
+    : typeof rawWidget === "string"
       ? parseStatusWidgetJson(rawWidget)
       : rawWidget && typeof rawWidget === "object"
         ? parseStatusWidgetJson(JSON.stringify(rawWidget))
@@ -1663,23 +1706,33 @@ export async function updateCharacterPublicProfileFromForm(
     const budgetCheck = validateCharacterStatusWidgetContextBudget(parsedWidget);
     if (!budgetCheck.ok) return { ok: false as const, error: budgetCheck.error, status: 400 };
   }
-  const statusWidgetJson = parsedWidget ? serializeStatusWidget(parsedWidget) : "";
-  const parsedTriggers = validateStatusWidgetTriggerInputs(b.status_widget_triggers);
+  const statusWidgetJson = keepRuntimeWidget
+    ? row.status_widget_json
+    : parsedWidget
+      ? serializeStatusWidget(parsedWidget)
+      : "";
+  const parsedTriggers = keepRuntimeWidget
+    ? { ok: true as const, triggers: [] }
+    : validateStatusWidgetTriggerInputs(b.status_widget_triggers);
   if (!parsedTriggers.ok) {
     return { ok: false as const, error: parsedTriggers.error, status: 400 };
   }
-  const { finalVisibility, moderationStatus, moderationNote, shareSlug } =
-    resolveVisibilityModeration(
-      { requestedVisibility, nsfw, assets },
-      {
-        share_slug: row.share_slug,
-        visibility: row.visibility,
-        moderation_status: row.moderation_status,
-        moderation_note: row.moderation_note,
-        images: row.images,
-        nsfw: row.nsfw,
-      }
-    );
+  const moderated = resolveVisibilityModeration(
+    { requestedVisibility, nsfw, assets },
+    {
+      share_slug: row.share_slug,
+      visibility: row.visibility,
+      moderation_status: row.moderation_status,
+      moderation_note: row.moderation_note,
+      images: row.images,
+      nsfw: row.nsfw,
+    }
+  );
+  const keepListing = officialAdmin && options?.preserveListingState === true;
+  const finalVisibility = keepListing ? row.visibility : moderated.finalVisibility;
+  const moderationStatus = keepListing ? row.moderation_status : moderated.moderationStatus;
+  const moderationNote = keepListing ? row.moderation_note ?? "" : moderated.moderationNote;
+  const shareSlug = keepListing ? row.share_slug : moderated.shareSlug;
 
   db.prepare(
     `UPDATE characters SET
@@ -1708,18 +1761,20 @@ export async function updateCharacterPublicProfileFromForm(
     shareSlug,
     b.comments_enabled === false ? 0 : 1,
     String(b.creator_comment ?? b.creatorComment ?? "").trim().slice(0, CREATOR_COMMENT_LIMIT),
-    user.nickname,
+    officialAdmin ? row.creator_name : user.nickname,
     statusWidgetJson,
-    0,
-    0,
-    b.trpg_reuse_allowed === true ? 1 : 0,
+    keepRuntimeWidget ? row.simulation_reuse_allowed : 0,
+    keepRuntimeWidget ? row.simulation_nsfw_allowed : 0,
+    keepRuntimeWidget ? row.trpg_reuse_allowed : b.trpg_reuse_allowed === true ? 1 : 0,
     participantMinAge,
     adultStatus,
     visualSubjectsJson,
     ...publicDossierSqlValues(publicDossier.data),
     characterId
   );
-  saveCharacterStatusWidgetTriggers(db, characterId, parsedTriggers.triggers);
+  if (!keepRuntimeWidget) {
+    saveCharacterStatusWidgetTriggers(db, characterId, parsedTriggers.triggers);
+  }
 
   if (moderationStatus === "rejected") {
     notifyCharacterReviewResult(db, {

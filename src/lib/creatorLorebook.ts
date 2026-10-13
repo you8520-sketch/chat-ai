@@ -356,10 +356,50 @@ export function clearStaleCreatorScopeCarryoverForChat(
   );
 }
 
+export function resolveOfficialAdminLorebookAttachmentIds(
+  db: Database.Database,
+  creatorId: number,
+  requestedIds: readonly number[],
+  retainedAttachedIds: readonly number[] = []
+): { ok: true; ids: number[] } | { ok: false; error: string; status: number } {
+  if (retainedAttachedIds.length === 0) {
+    return { ok: true, ids: [...requestedIds] };
+  }
+  const uniqueRetained = normalizeCreatorLorebookIds(retainedAttachedIds);
+  const placeholders = uniqueRetained.map(() => "?").join(",");
+  const rows = db
+    .prepare(
+      `SELECT id, creator_id FROM keyword_lorebooks
+       WHERE id IN (${placeholders})
+         AND COALESCE(scope, ?) = ?`
+    )
+    .all(...uniqueRetained, LOREBOOK_SCOPE_CREATOR, LOREBOOK_SCOPE_CREATOR) as Array<{
+    id: number;
+    creator_id: number;
+  }>;
+  const ownerById = new Map(rows.map((row) => [row.id, row.creator_id]));
+  const foreignRetained = uniqueRetained.filter((id) => {
+    const ownerId = ownerById.get(id);
+    return ownerId != null && ownerId !== creatorId;
+  });
+  const foreignSet = new Set(foreignRetained);
+  const requestedForeign = requestedIds.filter((id) => foreignSet.has(id));
+  if (requestedForeign.length > 0 && requestedForeign.length !== foreignRetained.length) {
+    return {
+      ok: false,
+      error: "공유 로어북 연결은 유지해야 합니다.",
+      status: 400,
+    };
+  }
+  const requestedOwned = requestedIds.filter((id) => !foreignSet.has(id));
+  return { ok: true, ids: [...foreignRetained, ...requestedOwned] };
+}
+
 export function validateCreatorLorebookAttachmentIds(
   db: Database.Database,
   creatorId: number,
-  lorebookIds: readonly number[]
+  lorebookIds: readonly number[],
+  retainedAttachedIds: readonly number[] = []
 ): { ok: true } | { ok: false; error: string; status: number } {
   if (lorebookIds.length > CHARACTER_CREATOR_LOREBOOK_ATTACH_LIMIT) {
     return {
@@ -370,17 +410,21 @@ export function validateCreatorLorebookAttachmentIds(
   }
   if (lorebookIds.length === 0) return { ok: true };
 
+  const retained = new Set(retainedAttachedIds);
   const placeholders = lorebookIds.map(() => "?").join(",");
   const rows = db
     .prepare(
-      `SELECT id FROM keyword_lorebooks
+      `SELECT id, creator_id FROM keyword_lorebooks
        WHERE id IN (${placeholders})
-         AND creator_id = ?
          AND COALESCE(scope, ?) = ?`
     )
-    .all(...lorebookIds, creatorId, LOREBOOK_SCOPE_CREATOR, LOREBOOK_SCOPE_CREATOR) as Array<{ id: number }>;
+    .all(...lorebookIds, LOREBOOK_SCOPE_CREATOR, LOREBOOK_SCOPE_CREATOR) as Array<{
+    id: number;
+    creator_id: number;
+  }>;
 
-  if (rows.length !== lorebookIds.length) {
+  const attachable = rows.filter((row) => row.creator_id === creatorId || retained.has(row.id));
+  if (attachable.length !== lorebookIds.length) {
     return {
       ok: false,
       error: "연결할 수 없는 로어북 ID가 포함되어 있습니다.",
@@ -403,6 +447,58 @@ export function listCharacterCreatorLorebookAttachmentIds(
     )
     .all(characterId) as Array<{ lorebook_id: number }>;
   return rows.map((row) => row.lorebook_id);
+}
+
+export type AttachedCreatorLorebookSummary = {
+  id: number;
+  name: string;
+  summary: string;
+  keywords: string[];
+  entryCount: number;
+  ownerId: number;
+  linked: true;
+  /** True when the viewer does not own the lorebook: it can stay attached but not be edited here. */
+  readOnly: boolean;
+};
+
+export function listAttachedCreatorLorebookSummaries(
+  db: Database.Database,
+  characterId: number,
+  viewerId: number
+): AttachedCreatorLorebookSummary[] {
+  const ids = listCharacterCreatorLorebookAttachmentIds(db, characterId);
+  if (ids.length === 0) return [];
+  const placeholders = ids.map(() => "?").join(",");
+  const rows = db
+    .prepare(
+      `SELECT id, creator_id, name, summary, entries_json FROM keyword_lorebooks
+       WHERE id IN (${placeholders})`
+    )
+    .all(...ids) as Array<{
+    id: number;
+    creator_id: number;
+    name: string;
+    summary: string;
+    entries_json: string;
+  }>;
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  return ids.flatMap((id) => {
+    const row = byId.get(id);
+    if (!row) return [];
+    const entries = parseStoredLorebookEntries(row.entries_json);
+    return [
+      {
+        id: row.id,
+        name: row.name,
+        summary: row.summary,
+        keywords: Array.from(new Set(entries.flatMap((entry) => entry.keywords))),
+        entryCount: entries.length,
+        ownerId: row.creator_id,
+        linked: true as const,
+        readOnly: row.creator_id !== viewerId,
+      },
+    ];
+  });
 }
 
 export function replaceCharacterCreatorLorebookAttachments(

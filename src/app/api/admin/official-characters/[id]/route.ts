@@ -5,7 +5,10 @@ import {
   updateOfficialDisplayCreatorNameAsAdmin,
 } from "@/lib/officialAdminAccess";
 import { getDb } from "@/lib/db";
-import { listCharacterCreatorLorebookAttachmentIds } from "@/lib/creatorLorebook";
+import {
+  listAttachedCreatorLorebookSummaries,
+  listCharacterCreatorLorebookAttachmentIds,
+} from "@/lib/creatorLorebook";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -52,6 +55,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     character: {
       ...row,
       lorebook_ids: listCharacterCreatorLorebookAttachmentIds(getDb(), row.id),
+      lorebooks: listAttachedCreatorLorebookSummaries(getDb(), row.id, Number(admin.id)),
     },
   });
 }

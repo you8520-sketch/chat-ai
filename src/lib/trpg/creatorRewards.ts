@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { roundCreatorAmount } from "@/lib/creatorShared";
 import { isCreatorMonetizationEligible } from "@/lib/creatorMonetization";
+import { notOfficialSupplyLinkedSql } from "@/lib/officialAdminAccess";
 import { TRPG_CHARACTER_ROYALTY_RATE, TRPG_CREATOR_REWARD_CAP_RATE } from "./types";
 
 export type TrpgCharacterRoyaltyInput = {
@@ -114,7 +115,9 @@ export function loadTrpgCharacterRoyaltyTargets(
   return (
     db
       .prepare(
-        `SELECT c.id AS characterId, c.creator_id AS creatorId, COALESCE(c.official, 0) AS official
+        `SELECT c.id AS characterId, c.creator_id AS creatorId,
+                CASE WHEN COALESCE(c.official, 0) = 1 OR NOT (${notOfficialSupplyLinkedSql(db, "c")})
+                     THEN 1 ELSE 0 END AS official
          FROM trpg_participants p
          JOIN characters c ON c.id = p.character_id
          WHERE p.campaign_id=? AND p.character_id IS NOT NULL`

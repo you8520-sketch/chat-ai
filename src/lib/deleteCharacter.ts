@@ -1,5 +1,6 @@
 import { deleteCharacterCreatorLorebookAttachments } from "@/lib/creatorLorebook";
 import { getDb } from "@/lib/db";
+import { isOfficialSupplyLinkedCharacter } from "@/lib/officialAdminAccess";
 import { deleteEpisodicFactEmbeddingsForCharacterChats } from "@/lib/memory/memory-episodic-semantic-index";
 
 export type DeleteCharacterResult =
@@ -26,6 +27,10 @@ export function deleteUserCharacter(
   }
   if (row.official === 1) {
     return { ok: false, error: "공식 캐릭터는 삭제할 수 없습니다.", status: 403 };
+  }
+
+  if (isOfficialSupplyLinkedCharacter(db, characterId)) {
+    return { ok: false, error: "공식 공급 기록과 연결된 캐릭터는 삭제할 수 없습니다.", status: 403 };
   }
 
   const chatSub = "SELECT id FROM chats WHERE character_id=?";

@@ -58,7 +58,10 @@ import {
   savedShareWorldLibraryRef,
   worldLibraryRef,
 } from "@/lib/worlds";
-import { CHARACTER_CREATOR_LOREBOOK_ATTACH_LIMIT } from "@/lib/creatorLorebook";
+import {
+  CHARACTER_CREATOR_LOREBOOK_ATTACH_LIMIT,
+  type AttachedCreatorLorebookSummary,
+} from "@/lib/creatorLorebook";
 import type { KeywordLorebookListItem } from "@/lib/keywordLorebooks";
 import GenrePicker from "@/components/GenrePicker";
 import ToggleSwitch from "@/components/ToggleSwitch";
@@ -224,6 +227,8 @@ type ImportCharacter = {
   thumbnail: string | null;
 };
 
+type SharedAttachedLorebook = AttachedCreatorLorebookSummary;
+
 type SelectedImport = {
   characterId: number;
   name: string;
@@ -320,6 +325,7 @@ export default function CreateCharacter({
     KeywordLorebookListItem[]
   >([]);
   const [selectedLorebookIds, setSelectedLorebookIds] = useState<number[]>([]);
+  const [sharedAttachedLorebooks, setSharedAttachedLorebooks] = useState<SharedAttachedLorebook[]>([]);
   const [lorebooksLoading, setLorebooksLoading] = useState(true);
   const [editLoading, setEditLoading] = useState(isEditMode);
   const [editLoadError, setEditLoadError] = useState("");
@@ -391,7 +397,9 @@ export default function CreateCharacter({
       gender: input.gender,
       world_id: selectedWorldRef.startsWith("world:") ? selectedWorldRef.slice(6) : "",
       world_borrow_id: selectedWorldRef.startsWith("borrow:") ? selectedWorldRef.slice(7) : "",
-      lorebook_ids: selectedLorebookIds,
+      lorebook_ids: Array.from(
+        new Set([...sharedAttachedLorebooks.map((item) => item.id), ...selectedLorebookIds])
+      ),
       narration_style_instructions: input.narration_style_instructions,
     });
   }
@@ -1053,12 +1061,17 @@ export default function CreateCharacter({
         );
         setWorldSourceKind((data.world_source_kind as CharacterWorldSourceKind | undefined) ?? null);
         setWorldDetach(false);
+        const sharedReadOnly = Array.isArray(data.attached_lorebooks)
+          ? (data.attached_lorebooks as SharedAttachedLorebook[]).filter((item) => item.readOnly)
+          : [];
+        setSharedAttachedLorebooks(sharedReadOnly);
+        const loadedLorebookIds = Array.isArray(data.lorebook_ids)
+          ? data.lorebook_ids.map(Number).filter((id: number) => Number.isFinite(id) && id > 0)
+          : data.lorebook_id != null && data.lorebook_id !== ""
+            ? [Number(data.lorebook_id)]
+            : [];
         setSelectedLorebookIds(
-          Array.isArray(data.lorebook_ids)
-            ? data.lorebook_ids.map(Number).filter((id: number) => Number.isFinite(id) && id > 0)
-            : data.lorebook_id != null && data.lorebook_id !== ""
-              ? [Number(data.lorebook_id)]
-              : []
+          Array.from(new Set([...sharedReadOnly.map((item) => item.id), ...loadedLorebookIds]))
         );
         editPromptBaselineRef.current = JSON.stringify({
           name: String(data.name ?? "").trim(),
@@ -1415,7 +1428,9 @@ export default function CreateCharacter({
       world_detach: worldDetach && selectedWorldRef === "",
       world_id: worldSelection.worldId,
       world_borrow_id: worldSelection.borrowId,
-      lorebook_ids: selectedLorebookIds,
+      lorebook_ids: Array.from(
+        new Set([...sharedAttachedLorebooks.map((item) => item.id), ...selectedLorebookIds])
+      ),
     };
     const canUseFastEditSave = promptUnchangedForEdit;
 
@@ -2165,9 +2180,36 @@ export default function CreateCharacter({
                     )}
                   </div>
                   <div className="max-h-56 space-y-2 overflow-y-auto rounded-xl border border-white/10 bg-[#161922] p-3">
+                    {sharedAttachedLorebooks.map((lb) => (
+                      <div
+                        key={`shared-${lb.id}`}
+                        data-testid={`shared-lorebook-${lb.id}`}
+                        className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-zinc-100"
+                      >
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked
+                          disabled
+                          readOnly
+                          aria-disabled
+                        />
+                        <span className="min-w-0">
+                          <span className="font-medium">
+                            #{lb.id} {lb.name}
+                          </span>
+                          <span className="ml-2 rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-zinc-300">
+                            공유 · 읽기 전용 · 연결됨
+                          </span>
+                          <span className="block text-xs text-zinc-400">
+                            키워드 {lb.keywords.join(", ") || "없음"} · 항목 {lb.entryCount}개
+                          </span>
+                        </span>
+                      </div>
+                    ))}
                     {lorebooksLoading ? (
                       <p className="text-xs text-zinc-400">불러오는 중...</p>
-                    ) : savedLorebooks.length === 0 ? (
+                    ) : savedLorebooks.length === 0 && sharedAttachedLorebooks.length === 0 ? (
                       <p className="text-xs text-zinc-400">등록된 로어북이 없습니다.</p>
                     ) : (
                       savedLorebooks.map((lb) => {

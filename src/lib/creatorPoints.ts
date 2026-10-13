@@ -28,6 +28,7 @@ import { getWithdrawalEligibility, personNamesMatch } from "./withdrawalEligibil
 import { listCreatorNotices } from "./creatorNotices";
 import { syncProTierStatus } from "./creatorProTier";
 import { isCreatorMonetizationEligible } from "./creatorMonetization";
+import { isOfficialSupplyLinkedCharacter, notOfficialSupplyLinkedSql } from "./officialAdminAccess";
 
 export {
   CREATOR_PRO_MIN_CHARACTERS,
@@ -146,7 +147,7 @@ export function getCreatorTierInfo(creatorId: number): CreatorTierInfo {
                 ) THEN 1 ELSE 0 END
               )), 0) AS total_chats
        FROM characters
-       WHERE creator_id = ? AND official = 0`
+       WHERE creator_id = ? AND official = 0 AND ${notOfficialSupplyLinkedSql(db, "characters")}`
     )
     .get(creatorId) as { character_count: number; total_chats: number };
 
@@ -154,7 +155,8 @@ export function getCreatorTierInfo(creatorId: number): CreatorTierInfo {
     .prepare(
       `SELECT COUNT(*) AS public_character_count
        FROM characters
-       WHERE creator_id = ? AND official = 0 AND ${LISTABLE_USER_CHAR}`
+       WHERE creator_id = ? AND official = 0 AND ${LISTABLE_USER_CHAR}
+         AND ${notOfficialSupplyLinkedSql(db, "characters")}`
     )
     .get(creatorId) as { public_character_count: number };
 
@@ -447,6 +449,7 @@ export function maybeCreditCreatorReward(opts: {
   // Character-level official listing flag — independent of account eligibility.
   if (opts.official === 1) return 0;
   if (opts.creatorId === opts.consumerUserId) return 0;
+  if (isOfficialSupplyLinkedCharacter(getDb(), opts.characterId)) return 0;
 
   const rate = resolveCreatorRewardRate(opts.creatorId);
   const reward = roundAmount(spent * rate);

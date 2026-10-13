@@ -1,4 +1,5 @@
 import { listableWhere } from "@/lib/characterVisibility";
+import { isOfficialAdminUserId } from "@/lib/officialAdminAccess";
 import { OfficialSupplyGateError, type OfficialSupplyStore } from "@/lib/officialSupply/store";
 import { isSiteManagedUser } from "@/lib/siteManagedAccounts";
 import { notifyFollowersOfNewCharacter } from "@/lib/userNotifications";
@@ -77,7 +78,8 @@ function isAlreadyPublished(row: PublishCharacterRow): boolean {
  *
  * Prerequisites:
  * - supply stage is `staged_private` (or already `published` for idempotent retry)
- * - staged character row exists and is owned by a site-managed studio account
+ * - staged character row exists and is owned by a site-managed studio account, or by an admin
+ *   account (post owner-transfer); the supply link above is what authorizes the character
  * - representative assets present; no hard-moderation reject
  *
  * Transition (single transaction):
@@ -135,10 +137,13 @@ export function publishOfficialSupplyCharacter(input: {
   if (!row) {
     throw new OfficialSupplyGateError("character_missing", `character ${characterId} not found`);
   }
-  if (!row.creator_id || !isSiteManagedUser(row.creator_id)) {
+  if (
+    !row.creator_id ||
+    !(isSiteManagedUser(row.creator_id) || isOfficialAdminUserId(db, row.creator_id))
+  ) {
     throw new OfficialSupplyGateError(
       "owner_not_site_managed",
-      `character ${characterId} owner is not a site-managed studio`
+      `character ${characterId} owner is neither a site-managed studio nor the admin owner of a staged supply character`
     );
   }
 
