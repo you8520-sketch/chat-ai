@@ -5,9 +5,11 @@
  * uncapped fields. Manifest fingerprint rotation after a deploy SHA change is
  * expected and is not body drift.
  */
-import type {
-  PaidRunnerIdentityHashes,
-  PaidRunnerPublicManifest,
+import {
+  PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE,
+  type PaidRunnerExecutionScope,
+  type PaidRunnerIdentityHashes,
+  type PaidRunnerPublicManifest,
 } from "@/lib/rpQualityPaidRunner";
 
 export const PUBLISHED_1466_PRODUCTION_SHA =
@@ -228,6 +230,7 @@ export type Published1466ComparableSeal = {
   identityHash: string;
   identityHashes: PaidRunnerIdentityHashes;
   manifestFingerprint: string;
+  executionScope?: PaidRunnerExecutionScope;
   calls: readonly Published1466ComparableCall[];
 };
 
@@ -282,6 +285,7 @@ export function paidRunnerPublicSealFromManifest(
     identityHash: manifest.identityHash,
     identityHashes: { ...manifest.identityHashes },
     manifestFingerprint: manifest.manifestFingerprint,
+    ...(manifest.executionScope ? { executionScope: manifest.executionScope } : {}),
     calls: manifest.calls.map((call) => ({
       requestOrder: call.requestOrder,
       fixtureId: call.fixtureId,
@@ -381,5 +385,6 @@ export function compareToPublishedPaidRunnerSeals(
 ): Published1466CompareResult {
   const vs1466 = compareToPublished1466Seal(current);
   if (vs1466.verdict !== "BODY_DRIFT") return vs1466;
+  if (current.executionScope !== PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE) return vs1466;
   return comparePaidRunnerPublicSeal(current, published1587ComparableSeal());
 }

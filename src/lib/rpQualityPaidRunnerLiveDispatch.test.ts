@@ -269,7 +269,11 @@ describe("rp quality paid runner live dispatch boundary", () => {
     );
     assert.equal(base1466.calls[0]?.finalWireFingerprint.slice(0, 8), "d86943df");
 
-    const seal1587 = published1587ComparableSeal();
+    const baseline1587 = published1587ComparableSeal();
+    const seal1587: Published1466ComparableSeal = {
+      ...baseline1587,
+      executionScope: "A_relationship_emotion",
+    };
     const changedOrders = seal1587.calls
       .filter((call, index) => {
         const old = base1466.calls[index]!;
@@ -316,6 +320,11 @@ describe("rp quality paid runner live dispatch boundary", () => {
 
     assert.equal(compareToPublishedPaidRunnerSeals(base1466).verdict, "MATCH");
     assert.equal(compareToPublished1466Seal(seal1587).verdict, "BODY_DRIFT");
+    assert.equal(compareToPublishedPaidRunnerSeals(baseline1587).verdict, "BODY_DRIFT");
+    assert.equal(
+      compareToPublishedPaidRunnerSeals({ ...baseline1587, productionDeploySha: MAIN_SHA, mainSha: MAIN_SHA }).verdict,
+      "BODY_DRIFT"
+    );
     const approved = compareToPublishedPaidRunnerSeals(seal1587);
     assert.equal(approved.verdict, "MATCH");
     assert.equal(approved.bodyDrift, false);
@@ -327,6 +336,19 @@ describe("rp quality paid runner live dispatch boundary", () => {
       manifestFingerprint: "ee".repeat(32),
     });
     assert.equal(laterDeploy.verdict, "EXPECTED_DEPLOY_SHA_ROTATION");
+    assert.equal(
+      compareToPublishedPaidRunnerSeals({
+        ...baseline1587,
+        productionDeploySha: MAIN_SHA,
+        mainSha: MAIN_SHA,
+        manifestFingerprint: "ee".repeat(32),
+      }).verdict,
+      "BODY_DRIFT"
+    );
+    assert.equal(
+      compareToPublished1466Seal({ ...base1466, executionScope: "A_relationship_emotion" }).verdict,
+      "MATCH"
+    );
     assert.equal(
       compareToPublishedPaidRunnerSeals({ ...seal1587, manifestFingerprint: "ee".repeat(32) }).verdict,
       "UNEXPECTED_FINGERPRINT_ROTATION"
