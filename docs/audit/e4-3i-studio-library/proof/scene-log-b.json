@@ -1,0 +1,155 @@
+{
+ "01-studio-390-full": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "02-studio-768-full": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "03-studio-1440-full": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "04-matrix-360-top": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "04-matrix-576-top": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "04-matrix-640-top": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "04-matrix-1024-top": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "05-empty-0works-390": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "05b-empty-0works-1440": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "05c-one-work-390": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "06-many-120-390-top": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "06b-many-120-1440-top": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "06c-twenty-390-top": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "07-states-390": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "08-longtitle-noimage-390": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "09-edit-delete-390": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "10-delete-confirm-390": {
+  "cancelNoDelete": true,
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "10b-delete-confirm-1440": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "10c-delete-failed-390": {
+  "dialogStillOpen": true,
+  "errorInsideDialog": true,
+  "errorOnPage": true,
+  "calls": 1,
+  "providerPosts": 0
+ },
+ "10d-delete-doubleclick": {
+  "deleteCalls": 1,
+  "calls": 1,
+  "providerPosts": 0
+ },
+ "11-worlds-390-full": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "11b-worlds-1440-full": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "11c-worlds-768-full": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "12-world-share-ended-390": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "12b-world-borrowed-vs-owned-390": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "13-world-share-link-390": {
+  "hOverflow": false,
+  "shareCalls": 1,
+  "calls": 1,
+  "providerPosts": 0
+ },
+ "13b-world-share-link-1440": {
+  "calls": 1,
+  "providerPosts": 0
+ },
+ "13c-world-remove-click-390": {
+  "confirmDialog": true,
+  "deleteCallsAfterClick": 0,
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "14-lorebooks-390-full": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "14b-lorebooks-1440-full": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "14c-lorebooks-empty-390": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "14d-worlds-empty-390": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "15-adult-blur-on-360": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "15b-adult-blur-off-360": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "16-narrow-360-card-overlap": {
+  "calls": 0,
+  "providerPosts": 0
+ },
+ "17-noperm-390": {
+  "calls": 0,
+  "providerPosts": 0
+ }
+}

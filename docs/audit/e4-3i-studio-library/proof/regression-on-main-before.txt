@@ -1,0 +1,18 @@
+    ok 1 - keeps the delete API, edit path and permanent-deletion notice
+    not ok 2 - blocks duplicate delete requests while one is in flight
+    not ok 3 - shows a delete failure inside the dialog instead of behind its backdrop
+    not ok 4 - uses 44px touch targets and no longer floats the buttons over the card image
+    not ok 5 - renders the status block outside the shared CharacterCard so badges cannot cover its text
+not ok 1 - studio work card actions
+    not ok 1 - asks for confirmation before removing a library world and keeps the existing endpoints
+    not ok 2 - never offers new creation from a share-ended borrowed world
+    ok 3 - keeps world context query params on both creation links
+    not ok 4 - guards share creation against double submits and wraps long links
+not ok 2 - studio world management
+    not ok 1 - shows name, description, item count and edit link without truncating to one line
+not ok 3 - studio lorebook list
+    ok 1 - keeps the three canonical tabs and URL aliases
+ok 4 - studio tab contract
+# tests 11
+# pass 3
+# fail 8

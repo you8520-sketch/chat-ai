@@ -1,0 +1,1163 @@
+{
+ "label": "b",
+ "base": "http://localhost:3412",
+ "creations": {
+  "empty@360": {
+   "cards": 0,
+   "docH": 1077,
+   "hOverflow": false,
+   "edit": null,
+   "del": null,
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 0,
+   "firstCardH": 0
+  },
+  "empty@390": {
+   "cards": 0,
+   "docH": 1077,
+   "hOverflow": false,
+   "edit": null,
+   "del": null,
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 0,
+   "firstCardH": 0
+  },
+  "empty@576": {
+   "cards": 0,
+   "docH": 1032,
+   "hOverflow": false,
+   "edit": null,
+   "del": null,
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 0,
+   "firstCardH": 0
+  },
+  "empty@640": {
+   "cards": 0,
+   "docH": 913,
+   "hOverflow": false,
+   "edit": null,
+   "del": null,
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 0,
+   "firstCardH": 0
+  },
+  "empty@768": {
+   "cards": 0,
+   "docH": 1024,
+   "hOverflow": false,
+   "edit": null,
+   "del": null,
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 0,
+   "firstCardH": 0
+  },
+  "empty@1024": {
+   "cards": 0,
+   "docH": 807,
+   "hOverflow": false,
+   "edit": null,
+   "del": null,
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 0,
+   "firstCardH": 0
+  },
+  "empty@1440": {
+   "cards": 0,
+   "docH": 900,
+   "hOverflow": false,
+   "edit": null,
+   "del": null,
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 0,
+   "firstCardH": 0
+  },
+  "one@360": {
+   "cards": 1,
+   "docH": 1227,
+   "hOverflow": false,
+   "edit": [
+    82,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 2,
+   "firstCardH": 475
+  },
+  "one@390": {
+   "cards": 1,
+   "docH": 1219,
+   "hOverflow": false,
+   "edit": [
+    97,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 2,
+   "firstCardH": 467.5
+  },
+  "one@576": {
+   "cards": 1,
+   "docH": 1183,
+   "hOverflow": false,
+   "edit": [
+    82.5,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 2,
+   "firstCardH": 475.8
+  },
+  "one@640": {
+   "cards": 1,
+   "docH": 1061,
+   "hOverflow": false,
+   "edit": [
+    51.7,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 1,
+   "firstCardH": 429.5
+  },
+  "one@768": {
+   "cards": 1,
+   "docH": 1084,
+   "hOverflow": false,
+   "edit": [
+    94.3,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 2,
+   "firstCardH": 493.5
+  },
+  "one@1024": {
+   "cards": 1,
+   "docH": 995,
+   "hOverflow": false,
+   "edit": [
+    78.2,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 2,
+   "firstCardH": 469.3
+  },
+  "one@1440": {
+   "cards": 1,
+   "docH": 1027,
+   "hOverflow": false,
+   "edit": [
+    132.4,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 2,
+   "firstCardH": 520.6
+  },
+  "mixed@360": {
+   "cards": 10,
+   "docH": 3723,
+   "hOverflow": false,
+   "edit": [
+    82,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [
+    {
+     "card": 3,
+     "clipped": true,
+     "fontSize": 12.5
+    },
+    {
+     "card": 4,
+     "clipped": false,
+     "fontSize": 12.5
+    },
+    {
+     "card": 5,
+     "clipped": true,
+     "fontSize": 12.5
+    }
+   ],
+   "smallTargets": 13,
+   "firstCardH": 475
+  },
+  "mixed@390": {
+   "cards": 10,
+   "docH": 3736,
+   "hOverflow": false,
+   "edit": [
+    97,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [
+    {
+     "card": 3,
+     "clipped": false,
+     "fontSize": 12.5
+    },
+    {
+     "card": 4,
+     "clipped": false,
+     "fontSize": 12.5
+    },
+    {
+     "card": 5,
+     "clipped": false,
+     "fontSize": 12.5
+    }
+   ],
+   "smallTargets": 13,
+   "firstCardH": 497.5
+  },
+  "mixed@576": {
+   "cards": 10,
+   "docH": 3682,
+   "hOverflow": false,
+   "edit": [
+    82.5,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [
+    {
+     "card": 3,
+     "clipped": true,
+     "fontSize": 12.5
+    },
+    {
+     "card": 4,
+     "clipped": false,
+     "fontSize": 12.5
+    },
+    {
+     "card": 5,
+     "clipped": true,
+     "fontSize": 12.5
+    }
+   ],
+   "smallTargets": 13,
+   "firstCardH": 475.8
+  },
+  "mixed@640": {
+   "cards": 10,
+   "docH": 2868,
+   "hOverflow": false,
+   "edit": [
+    51.7,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [
+    {
+     "card": 3,
+     "clipped": true,
+     "fontSize": 12.5
+    },
+    {
+     "card": 4,
+     "clipped": true,
+     "fontSize": 12.5
+    },
+    {
+     "card": 5,
+     "clipped": true,
+     "fontSize": 12.5
+    }
+   ],
+   "smallTargets": 10,
+   "firstCardH": 459.5
+  },
+  "mixed@768": {
+   "cards": 10,
+   "docH": 2977,
+   "hOverflow": false,
+   "edit": [
+    94.3,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [
+    {
+     "card": 3,
+     "clipped": true,
+     "fontSize": 12.5
+    },
+    {
+     "card": 4,
+     "clipped": false,
+     "fontSize": 12.5
+    },
+    {
+     "card": 5,
+     "clipped": true,
+     "fontSize": 12.5
+    }
+   ],
+   "smallTargets": 13,
+   "firstCardH": 493.5
+  },
+  "mixed@1024": {
+   "cards": 10,
+   "docH": 1898,
+   "hOverflow": false,
+   "edit": [
+    78.2,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [
+    {
+     "card": 3,
+     "clipped": true,
+     "fontSize": 12.5
+    },
+    {
+     "card": 4,
+     "clipped": false,
+     "fontSize": 12.5
+    },
+    {
+     "card": 5,
+     "clipped": true,
+     "fontSize": 12.5
+    }
+   ],
+   "smallTargets": 13,
+   "firstCardH": 695.3
+  },
+  "mixed@1440": {
+   "cards": 10,
+   "docH": 1961,
+   "hOverflow": false,
+   "edit": [
+    132.4,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [
+    {
+     "card": 3,
+     "clipped": false,
+     "fontSize": 12.5
+    },
+    {
+     "card": 4,
+     "clipped": false,
+     "fontSize": 12.5
+    },
+    {
+     "card": 5,
+     "clipped": false,
+     "fontSize": 12.5
+    }
+   ],
+   "smallTargets": 17,
+   "firstCardH": 727.1
+  },
+  "twenty@360": {
+   "cards": 20,
+   "docH": 6303,
+   "hOverflow": false,
+   "edit": [
+    82,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 20,
+   "firstCardH": 524
+  },
+  "twenty@390": {
+   "cards": 20,
+   "docH": 6420,
+   "hOverflow": false,
+   "edit": [
+    97,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 20,
+   "firstCardH": 546.5
+  },
+  "twenty@576": {
+   "cards": 20,
+   "docH": 6265,
+   "hOverflow": false,
+   "edit": [
+    82.5,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 20,
+   "firstCardH": 524.8
+  },
+  "twenty@640": {
+   "cards": 20,
+   "docH": 4626,
+   "hOverflow": false,
+   "edit": [
+    51.7,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 20,
+   "firstCardH": 528
+  },
+  "twenty@768": {
+   "cards": 20,
+   "docH": 4749,
+   "hOverflow": false,
+   "edit": [
+    94.3,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 20,
+   "firstCardH": 542.5
+  },
+  "twenty@1024": {
+   "cards": 20,
+   "docH": 3000,
+   "hOverflow": false,
+   "edit": [
+    78.2,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 20,
+   "firstCardH": 518.3
+  },
+  "twenty@1440": {
+   "cards": 20,
+   "docH": 3108,
+   "hOverflow": false,
+   "edit": [
+    132.4,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 21,
+   "firstCardH": 569.6
+  },
+  "many@360": {
+   "cards": 24,
+   "docH": 7211,
+   "hOverflow": false,
+   "edit": [
+    82,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 46,
+   "firstCardH": 475
+  },
+  "many@390": {
+   "cards": 24,
+   "docH": 7352,
+   "hOverflow": false,
+   "edit": [
+    97,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 46,
+   "firstCardH": 497.5
+  },
+  "many@576": {
+   "cards": 24,
+   "docH": 7175,
+   "hOverflow": false,
+   "edit": [
+    82.5,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 46,
+   "firstCardH": 475.8
+  },
+  "many@640": {
+   "cards": 24,
+   "docH": 5061,
+   "hOverflow": false,
+   "edit": [
+    51.7,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 24,
+   "firstCardH": 459.5
+  },
+  "many@768": {
+   "cards": 24,
+   "docH": 5201,
+   "hOverflow": false,
+   "edit": [
+    94.3,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 46,
+   "firstCardH": 493.5
+  },
+  "many@1024": {
+   "cards": 24,
+   "docH": 3477,
+   "hOverflow": false,
+   "edit": [
+    78.2,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 46,
+   "firstCardH": 518.3
+  },
+  "many@1440": {
+   "cards": 24,
+   "docH": 3704,
+   "hOverflow": false,
+   "edit": [
+    132.4,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 46,
+   "firstCardH": 569.6
+  },
+  "adultOn@360": {
+   "cards": 3,
+   "docH": 1702,
+   "hOverflow": false,
+   "edit": [
+    82,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 4,
+   "firstCardH": 475
+  },
+  "adultOn@390": {
+   "cards": 3,
+   "docH": 1717,
+   "hOverflow": false,
+   "edit": [
+    97,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 5,
+   "firstCardH": 497.5
+  },
+  "adultOn@576": {
+   "cards": 3,
+   "docH": 1658,
+   "hOverflow": false,
+   "edit": [
+    82.5,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 4,
+   "firstCardH": 475.8
+  },
+  "adultOn@640": {
+   "cards": 3,
+   "docH": 1092,
+   "hOverflow": false,
+   "edit": [
+    51.7,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 3,
+   "firstCardH": 459.5
+  },
+  "adultOn@768": {
+   "cards": 3,
+   "docH": 1084,
+   "hOverflow": false,
+   "edit": [
+    94.3,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 5,
+   "firstCardH": 493.5
+  },
+  "adultOn@1024": {
+   "cards": 3,
+   "docH": 995,
+   "hOverflow": false,
+   "edit": [
+    78.2,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 4,
+   "firstCardH": 469.3
+  },
+  "adultOn@1440": {
+   "cards": 3,
+   "docH": 1027,
+   "hOverflow": false,
+   "edit": [
+    132.4,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 6,
+   "firstCardH": 520.6
+  },
+  "adultOff@360": {
+   "cards": 3,
+   "docH": 1702,
+   "hOverflow": false,
+   "edit": [
+    82,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 4,
+   "firstCardH": 475
+  },
+  "adultOff@390": {
+   "cards": 3,
+   "docH": 1717,
+   "hOverflow": false,
+   "edit": [
+    97,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 5,
+   "firstCardH": 497.5
+  },
+  "adultOff@576": {
+   "cards": 3,
+   "docH": 1658,
+   "hOverflow": false,
+   "edit": [
+    82.5,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 4,
+   "firstCardH": 475.8
+  },
+  "adultOff@640": {
+   "cards": 3,
+   "docH": 1092,
+   "hOverflow": false,
+   "edit": [
+    51.7,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 3,
+   "firstCardH": 459.5
+  },
+  "adultOff@768": {
+   "cards": 3,
+   "docH": 1084,
+   "hOverflow": false,
+   "edit": [
+    94.3,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 5,
+   "firstCardH": 493.5
+  },
+  "adultOff@1024": {
+   "cards": 3,
+   "docH": 995,
+   "hOverflow": false,
+   "edit": [
+    78.2,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 4,
+   "firstCardH": 469.3
+  },
+  "adultOff@1440": {
+   "cards": 3,
+   "docH": 1027,
+   "hOverflow": false,
+   "edit": [
+    132.4,
+    44
+   ],
+   "del": [
+    50,
+    44
+   ],
+   "overlapCount": 0,
+   "overlapSample": [],
+   "noteClipped": [],
+   "smallTargets": 6,
+   "firstCardH": 520.6
+  }
+ },
+ "worlds": {
+  "empty@360": {
+   "vw": 360,
+   "docH": 1096,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  },
+  "empty@390": {
+   "vw": 390,
+   "docH": 1075,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  },
+  "empty@768": {
+   "vw": 768,
+   "docH": 1024,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  },
+  "empty@1440": {
+   "vw": 1440,
+   "docH": 900,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  },
+  "mixed@360": {
+   "vw": 360,
+   "docH": 2863,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  },
+  "mixed@390": {
+   "vw": 390,
+   "docH": 2769,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  },
+  "mixed@768": {
+   "vw": 768,
+   "docH": 2141,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  },
+  "mixed@1440": {
+   "vw": 1440,
+   "docH": 1523,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  },
+  "many@360": {
+   "vw": 360,
+   "docH": 5642,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  },
+  "many@390": {
+   "vw": 390,
+   "docH": 5621,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  },
+  "many@768": {
+   "vw": 768,
+   "docH": 3377,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  },
+  "many@1440": {
+   "vw": 1440,
+   "docH": 2238,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  }
+ },
+ "lorebooks": {
+  "empty@360": {
+   "vw": 360,
+   "docH": 1033,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  },
+  "empty@390": {
+   "vw": 390,
+   "docH": 1033,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  },
+  "empty@768": {
+   "vw": 768,
+   "docH": 1024,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  },
+  "empty@1440": {
+   "vw": 1440,
+   "docH": 900,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  },
+  "mixed@360": {
+   "vw": 360,
+   "docH": 1252,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  },
+  "mixed@390": {
+   "vw": 390,
+   "docH": 1252,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  },
+  "mixed@768": {
+   "vw": 768,
+   "docH": 1091,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  },
+  "mixed@1440": {
+   "vw": 1440,
+   "docH": 900,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  },
+  "many@360": {
+   "vw": 360,
+   "docH": 3713,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  },
+  "many@390": {
+   "vw": 390,
+   "docH": 3713,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  },
+  "many@768": {
+   "vw": 768,
+   "docH": 3552,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  },
+  "many@1440": {
+   "vw": 1440,
+   "docH": 2062,
+   "hOverflow": false,
+   "belowMin40": [],
+   "belowMin40Count": 0,
+   "clipped": []
+  }
+ },
+ "access": {
+  "guestUrl": "/login?redirect=/studio",
+  "nopermText": "1\n세이프티\nON\n2,000P\n홈\n신작\n랭킹\nTRPG\n검색\n북마크/팔로잉\n성인인증이 필요합니다\n\n제작 메뉴는 성인인증을 완료한 회원만 이용할 수",
+  "nopermHasTablist": false,
+  "alias:world": "세계관 7",
+  "alias:lore": "로어북 4",
+  "alias:simulations": "캐릭터 10",
+  "alias:bogus": "캐릭터 10"
+ }
+}

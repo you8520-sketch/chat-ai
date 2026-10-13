@@ -1,0 +1,41 @@
+{
+ "b01-overview-mixed-390": {},
+ "b02-overview-mixed-1440": {},
+ "b03-search-390": {
+  "before": 24,
+  "after": 10,
+  "count": "조건에 맞는 10개 중 10개 표시 · 전체 120개"
+ },
+ "b04-attention-1440": {
+  "after": 22,
+  "count": "조건에 맞는 22개 중 22개 표시 · 전체 120개"
+ },
+ "b05-no-results-390": {
+  "after": 6,
+  "noMatch": 1
+ },
+ "b06-many-initial-1440": {
+  "initial": 24,
+  "afterMore": 48,
+  "docH0": 3704,
+  "docH1": 6658
+ },
+ "b07-many-390-top": {
+  "cards": 24,
+  "docH": 7352
+ },
+ "b08-status-select-390": {
+  "after": 2
+ },
+ "b09-worlds-many-390": {
+  "before": 24
+ },
+ "b10-worlds-search-1440": {
+  "after": 10
+ },
+ "b11-lorebooks-many-390": {
+  "items": 24
+ },
+ "b12-lorebooks-mixed-1440": {},
+ "b13-worlds-mixed-1440": {}
+}
