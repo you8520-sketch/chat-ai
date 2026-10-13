@@ -6,6 +6,7 @@ import { buildNumericIdempotencyKey } from "@/lib/rpNumericState/persistence";
 import type { NumericStateSourceKind } from "@/lib/rpNumericState/types";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
 import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
+import { readVerifiedEvidence, rebindVerifiedEvidenceToChat } from "./memory-episodic-evidence";
 import { isMemoryFeatureEnabled } from "./memory-feature";
 import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
 import { newBatchEndForStart } from "./memory-summary-range";
@@ -349,6 +350,37 @@ export function copyForkTurnSummaries(
   return copied;
 }
 
+/**
+ * Legacy rows and malformed evidence keep their metadata as is. A row with verified evidence is returned only
+ * with `evidence.message_id` bound to a child message that proves the quote; anything else, including a failed
+ * lookup, returns null so the caller does not copy a row that still points at the parent chat.
+ */
+function rebindForkEvidenceMetadata(
+  db: Database.Database,
+  newChatId: number,
+  originalMetadata: string | null,
+  remappedMetadata: string,
+  messageIdMap: ReadonlyMap<number, number>
+): string | null {
+  const verified = readVerifiedEvidence(originalMetadata);
+  if (!verified) return remappedMetadata;
+  try {
+    const childMessageId = messageIdMap.get(verified.message_id);
+    if (childMessageId == null) return null;
+    const rebound = rebindVerifiedEvidenceToChat(db, newChatId, verified, childMessageId);
+    if (!rebound) return null;
+    const parsed = JSON.parse(remappedMetadata) as Record<string, unknown>;
+    parsed.evidence = { ...(parsed.evidence as Record<string, unknown>), message_id: rebound.message_id };
+    return JSON.stringify(parsed);
+  } catch (error) {
+    console.warn("[memory] fork episodic evidence rebind failed; row not copied", {
+      new_chat_id: newChatId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}
+
 /** 분기 시점 이전 구조화 에피소드 사실만 새 채팅으로 복사 */
 export function copyForkEpisodicMemoryFacts(
   db: Database.Database,
@@ -419,6 +451,10 @@ export function copyForkEpisodicMemoryFacts(
     } catch {
       metadata = row.metadata || "{}";
     }
+
+    const forkedMetadata = rebindForkEvidenceMetadata(db, opts.newChatId, row.metadata, metadata, opts.messageIdMap);
+    if (forkedMetadata == null) continue;
+    metadata = forkedMetadata;
 
     ins.run(
       opts.newChatId,
