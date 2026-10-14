@@ -1,0 +1,113 @@
+import Module from "module";
+const o = (Module as any)._load;
+(Module as any)._load = function (r: string, p: any, m: any) {
+  if (r === "server-only") return {};
+  return o(r, p, m);
+};
+import { readFileSync, writeFileSync } from "node:fs";
+import { callBackgroundMemory } from "@/lib/ai";
+
+const fx = JSON.parse(readFileSync("/tmp/real-luna.json", "utf8"));
+const SYSTEM = `역할: 이미 작성된 한국어 RP 요약이, 함께 준 이 구간 원본만을 근거로 맞는지 사건 단위로 판정한다. 새 사건을 만들지 않는다. 다른 구간, 세계관, 일반 상식은 근거가 아니다.
+
+판정 단위는 요약 안의 사건 절이다. verdict는 다음 중 하나만 쓴다.
+- supported: 그 사건이 이 구간 원문에서 실제로 일어났다.
+- character_claim: 캐릭터나 조연이 그렇게 말했거나 전했지만, 사실로 확정되지는 않았다.
+- not_established: 제안, 신체 접촉, 암시, 취소의 언급은 있으나 관계나 약속의 성립·수락이 명시되지 않았다.
+- absent: 이 구간 원문에 없다.
+- undecidable: 원문만으로 어느 쪽인지 정할 수 없다.
+
+source_quote는 원문에 실제로 있는 연속 구절만 적는다. 없으면 빈 문자열이다. source_turn은 그 구절의 턴 번호이거나 null이다.
+
+corrected_summary는 원문에 없는 단정과, 명시되지 않은 관계·약속 성립만 빼거나 주장으로 고친다. 원문으로 뒷받침되는 감정, NPC 행동, 장면 순서는 유지한다. 새 사건을 추가하지 않는다.
+
+JSON만 출력한다.
+{"claims":[{"text":"","verdict":"","source_turn":null,"source_quote":"","why":""}],"corrected_summary":""}`;
+
+function dialogue(start: number): string {
+  const w = fx.windows.find((x: any) => x.turnStart === start);
+  return w.turns
+    .map((t: any, i: number) => `[${start + i}턴]\n유저: ${t.user}\n라이크: ${t.assistant}`)
+    .join("\n\n");
+}
+function luna(start: number): string {
+  return fx.windows.find((x: any) => x.turnStart === start).lunaOutput;
+}
+
+const cases: { id: string; window: number; summary: string }[] = [
+  { id: "luna-w1", window: 1, summary: luna(1) },
+  { id: "luna-w6", window: 6, summary: luna(6) },
+  { id: "luna-w11", window: 11, summary: luna(11) },
+  { id: "luna-w16", window: 16, summary: luna(16) },
+  { id: "luna-w21", window: 21, summary: luna(21) },
+  { id: "luna-w36", window: 36, summary: luna(36) },
+  { id: "mentor-noiHu-w1", window: 1, summary: "라이크는 렌의 스승이 되어 검술을 가르침." },
+  { id: "lover-noiHu-w1", window: 1, summary: "라이크와 렌은 연인 사이가 됨." },
+  { id: "scene-seq-w1", window: 1, summary: "이후 라이크는 장작을 차례로 쌓음." },
+  { id: "promise-w1", window: 1, summary: "렌이 내일까지 검을 갈아 주겠다고 약속하자 라이크는 고개를 끄덕임. 이후 라이크는 장작을 쌓음." },
+  { id: "mentor-이후-w1", window: 1, summary: "이후 라이크는 렌의 스승이 되어 검술을 가르침." },
+  { id: "promise-w11", window: 11, summary: "렌이 내일까지 검을 갈아 주겠다고 약속하자 라이크는 고개를 끄덕임. 이후 라이크는 장작을 쌓음." },
+  { id: "confirm-claim-w21", window: 21, summary: "이후 렌이 시장에 다녀왔다고 하자 누나가 렌과 예전부터 아는 사이였음을 확인함." },
+  { id: "lover-long-w1", window: 1, summary: "라이크와 렌은 연인 사이가 됨. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감." },
+];
+
+function parseJson(text: string): any {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const raw = (fenced?.[1] ?? text).trim();
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start < 0 || end < start) throw new Error("no json");
+  return JSON.parse(raw.slice(start, end + 1));
+}
+
+async function one(c: (typeof cases)[number]) {
+  const user = `[구간 원본]\n${dialogue(c.window)}\n\n[기존 요약]\n${c.summary}`;
+  const started = Date.now();
+  const res = await callBackgroundMemory(SYSTEM, [{ role: "user", content: user }], undefined, "semantic-verify-probe", {
+    modelId: "gemini-3.8-flash",
+    temperature: 0,
+    maxTokens: 900,
+  });
+  const usage = res.usage as any;
+  let parsed: any = null;
+  let parseError: string | null = null;
+  try { parsed = parseJson(res.text); } catch (e) { parseError = String((e as Error).message); }
+  return {
+    id: c.id,
+    window: c.window,
+    summary: c.summary,
+    dialogue: dialogue(c.window),
+    ms: Date.now() - started,
+    model: "gemini-3.8-flash",
+    usage: {
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      billed: usage.cheaperInferenceBilledCostUsd ?? null,
+      upstream: usage.upstreamCostUsd ?? null,
+      finishReason: usage.finishReason ?? null,
+      responseModelId: usage.responseModelId ?? null,
+      providerRequestId: usage.providerRequestId ?? null,
+    },
+    rawText: res.text,
+    parsed,
+    parseError,
+  };
+}
+
+async function main() {
+const out: any[] = [];
+for (const c of cases) {
+  try {
+    const row = await one(c);
+    out.push(row);
+    console.log("OK", c.id, row.usage.inputTokens, row.usage.outputTokens, row.usage.billed, row.parseError);
+  } catch (e) {
+    out.push({ id: c.id, window: c.window, summary: c.summary, error: String((e as Error).message) });
+    console.log("ERR", c.id, String((e as Error).message).slice(0, 200));
+  }
+}
+writeFileSync("/tmp/sem/results.json", JSON.stringify(out, null, 1));
+const billed = out.reduce((s, r) => s + (r.usage?.billed || 0), 0);
+console.log("CALLS", out.length, "BILLED_USD", billed);
+}
+main();
