@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
+import { creditPointsWithIds, getPointBalanceOnDb } from "@/lib/points";
 import { emptyCampaignLedger, loadCampaignLedger } from "./campaignLedger";
 import { EVEN_STATS, createTrpgCampaign, joinTrpgCampaign, saveTrpgSheet, writeSheet } from "./engineCreate";
 import {
@@ -12,6 +13,8 @@ import {
 } from "./engineAdvance";
 import { loadSheetSnapshots } from "./engineSheets";
 import { loadTrpgSnapshot } from "./engineSnapshot";
+import { loadGmNarrationDraft } from "./gmNarrationDraft";
+import { loadBillableRerollUsage, loadRerollUsageEntries } from "./roundUsage";
 import { inventoryUnits } from "./inventory";
 import { buildCampaignMemoryPrompt } from "./memory";
 import { regenerateOutputInvertsCommittedCanon } from "./regenerateCanon";
@@ -107,6 +110,52 @@ describe("regenerateOutputInvertsCommittedCanon", () => {
     assert.ok(result.reasons.includes("hp"));
     assert.ok(result.reasons.includes("sheet_location"));
     assert.ok(result.reasons.includes("campaign_location"));
+  });
+
+  it("a campaign ending, a new encounter ending, or a local-scene move is invert", () => {
+    const finished = regenerateOutputInvertsCommittedCanon({
+      delta: { players: [] },
+      sheets: [hyun],
+      ledger,
+      campaignFinished: true,
+    });
+    assert.ok(finished.reasons.includes("campaign_finished"));
+    const ended = regenerateOutputInvertsCommittedCanon({
+      delta: { players: [], encountersEnded: ["enc_hunter"] },
+      sheets: [hyun],
+      ledger,
+      endedEncounterIds: [],
+    });
+    assert.ok(ended.reasons.includes("encounter_end"));
+    const restated = regenerateOutputInvertsCommittedCanon({
+      delta: { players: [], encountersEnded: ["enc_hunter"] },
+      sheets: [hyun],
+      ledger,
+      endedEncounterIds: ["enc_hunter"],
+    });
+    assert.equal(restated.invert, false);
+  });
+
+  it("restating the committed quest claim is not invert; a new claim is", () => {
+    const committedDelta = {
+      questsAdd: ["다음 조사"],
+      questsRemove: ["서류함 회수"],
+      questsClaimDone: ["서류함 회수"],
+    };
+    const restated = regenerateOutputInvertsCommittedCanon({
+      delta: committedDelta,
+      sheets: [hyun],
+      ledger,
+      committedDelta,
+    });
+    assert.equal(restated.invert, false);
+    const fresh = regenerateOutputInvertsCommittedCanon({
+      delta: { questsClaimDone: ["다른 목표"] },
+      sheets: [hyun],
+      ledger,
+      committedDelta,
+    });
+    assert.ok(fresh.reasons.includes("quest_claim"));
   });
 });
 
@@ -241,18 +290,45 @@ describe("regenerate keeps committed facts in the published scene", () => {
     assert.deepEqual(itemsOf(db, campaignId)["현"], [LEDGER]);
     assert.equal(loadTrpgSnapshot(db, campaignId, 1)?.currentNarration, committed);
 
-    await regenerateTrpgNarration(db, { campaignId, userId: 1, deps });
+    const committedId = (
+      db.prepare(`SELECT gm_committed_generation_id FROM trpg_rounds WHERE campaign_id=? AND round_number=1`).get(campaignId) as {
+        gm_committed_generation_id: string;
+      }
+    ).gm_committed_generation_id;
+    const beforeMessage = db
+      .prepare(
+        `SELECT narration, structured_json FROM trpg_gm_messages WHERE round_id=(SELECT id FROM trpg_rounds WHERE campaign_id=? AND round_number=1)`
+      )
+      .get(campaignId) as { narration: string; structured_json: string };
+    await assert.rejects(
+      () => regenerateTrpgNarration(db, { campaignId, userId: 1, deps }),
+      /확정된 결과와 맞지 않아/
+    );
     assert.deepEqual(itemsOf(db, campaignId)["현"], [LEDGER]);
     assert.deepEqual(itemsOf(db, campaignId)["서하"], []);
     assert.equal(loadTrpgSnapshot(db, campaignId, 1)?.currentNarration, committed);
-    const raw = JSON.parse(
-      (db.prepare(`SELECT structured_json FROM trpg_gm_messages WHERE round_id=(SELECT MAX(id) FROM trpg_gm_messages)`).get() as {
-        structured_json: string;
-      }).structured_json
-    ) as { delta: { players: Array<{ participantId: number; inventoryAdd?: string[] }> } };
-    assert.ok(
+    assert.equal(loadTrpgSnapshot(db, campaignId, 1)?.gmNarrationDraft, null);
+    const afterMessage = db
+      .prepare(
+        `SELECT narration, structured_json FROM trpg_gm_messages WHERE round_id=(SELECT id FROM trpg_rounds WHERE campaign_id=? AND round_number=1)`
+      )
+      .get(campaignId) as { narration: string; structured_json: string };
+    assert.equal(afterMessage.narration, beforeMessage.narration);
+    assert.equal(afterMessage.structured_json, beforeMessage.structured_json);
+    const raw = JSON.parse(afterMessage.structured_json) as {
+      delta: { players: Array<{ participantId: number; inventoryAdd?: string[] }> };
+    };
+    assert.equal(
       raw.delta.players.some((row) => row.participantId === seohaId && (row.inventoryAdd ?? []).includes(LEDGER)),
-      "the unapplied model JSON is still stored"
+      false
+    );
+    assert.equal(
+      (
+        db.prepare(`SELECT gm_committed_generation_id FROM trpg_rounds WHERE campaign_id=? AND round_number=1`).get(campaignId) as {
+          gm_committed_generation_id: string;
+        }
+      ).gm_committed_generation_id,
+      committedId
     );
 
     await play(db, campaignId, deps);
@@ -268,7 +344,7 @@ describe("regenerate keeps committed facts in the published scene", () => {
     const db = new Database(":memory:");
     const { campaignId, ids, hyunId } = party(db);
     const rewritten = "현이 장부를 품에 넣고 창고 문을 돌아본다. GM: 무엇을 하겠는가?";
-    const { deps } = scripted([
+    const { deps, captured } = scripted([
       wire("오프닝. GM: 무엇을 하겠는가?", ids),
       wire("현이 철제 서류함을 열고 세관 밀수 원본 장부를 챙겼다. GM: 무엇을 하겠는가?", ids, {
         [hyunId]: { inventoryAdd: [LEDGER] },
@@ -278,9 +354,117 @@ describe("regenerate keeps committed facts in the published scene", () => {
     await startTrpgCampaign(db, { campaignId, userId: 1, deps });
     await play(db, campaignId, deps);
     await regenerateTrpgNarration(db, { campaignId, userId: 1, deps });
+    const regenPrompt = captured.gm.at(-1) ?? "";
+    assert.match(regenPrompt, /COMMITTED SCENE/);
+    assert.match(regenPrompt, /COMMITTED RESULT — immutable/);
+    assert.match(regenPrompt, new RegExp(LEDGER));
+    assert.match(regenPrompt, /REWRITE — binding/);
+    assert.doesNotMatch(regenPrompt, /Write a different scene/);
+    assert.doesNotMatch(regenPrompt, /\[ROUND EXECUTION — binding\]/);
     assert.equal(loadTrpgSnapshot(db, campaignId, 1)?.currentNarration, rewritten);
     assert.deepEqual(itemsOf(db, campaignId)["현"], [LEDGER]);
     assert.equal(loadCampaignLedger(db, campaignId).location, "마레노 부두");
+    const stored = db
+      .prepare(
+        `SELECT narration, structured_json FROM trpg_gm_messages WHERE round_id=(SELECT id FROM trpg_rounds WHERE campaign_id=? AND round_number=1)`
+      )
+      .get(campaignId) as { narration: string; structured_json: string };
+    assert.equal(stored.narration, rewritten);
+    assert.equal(JSON.parse(stored.structured_json).narration, rewritten);
+    db.close();
+  });
+
+  it("publishes a prose contradiction when the structured delta still restates the holder", async () => {
+    const db = new Database(":memory:");
+    const { campaignId, ids, hyunId } = party(db);
+    const proseOnly = "서하가 장부를 낚아채 품에 넣었다. GM: 무엇을 하겠는가?";
+    const { deps } = scripted([
+      wire("오프닝. GM: 무엇을 하겠는가?", ids),
+      wire("현이 철제 서류함을 열고 세관 밀수 원본 장부를 챙겼다. GM: 무엇을 하겠는가?", ids, {
+        [hyunId]: { inventoryAdd: [LEDGER] },
+      }),
+      wire(proseOnly, ids, { [hyunId]: { inventoryAdd: [LEDGER] } }),
+    ]);
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    await play(db, campaignId, deps);
+    await regenerateTrpgNarration(db, { campaignId, userId: 1, deps });
+    assert.equal(loadTrpgSnapshot(db, campaignId, 1)?.currentNarration, proseOnly);
+    assert.deepEqual(itemsOf(db, campaignId)["현"], [LEDGER]);
+    db.close();
+  });
+
+  it("charges a published rewrite and does not charge a rejected one", async () => {
+    const db = new Database(":memory:");
+    const { campaignId, ids, hyunId, seohaId } = party(db);
+    creditPointsWithIds(db, 1, 50_000, "PAID", "regen-billing-host");
+    creditPointsWithIds(db, 2, 50_000, "PAID", "regen-billing-hyun");
+    const usage = { modelId: "deepseek-v4-pro", inputTokens: 2000, outputTokens: 600 };
+    const rewritten = "현이 장부를 품에 넣고 창고 문을 돌아본다. GM: 무엇을 하겠는가?";
+    let call = 0;
+    let draftDuringReject: string | null = null;
+    let snapshotDuringReject: ReturnType<typeof loadTrpgSnapshot> = null;
+    const deps: TrpgEngineDeps = {
+      skipBilling: false,
+      rollD20: () => 15,
+      rollDie: () => 4,
+      botCall: async () => ({ text: "조용히 주변을 살핀다." }),
+      gmCall: async (req) => {
+        call += 1;
+        if (call === 1) return { text: wire("오프닝. GM: 무엇을 하겠는가?", ids), usage };
+        if (call === 2) {
+          return {
+            text: wire("현이 철제 서류함을 열고 세관 밀수 원본 장부를 챙겼다. GM: 무엇을 하겠는가?", ids, {
+              [hyunId]: { inventoryAdd: [LEDGER] },
+            }),
+            usage,
+          };
+        }
+        if (call === 3) return { text: wire(rewritten, ids, { [hyunId]: { inventoryAdd: [LEDGER] } }), usage };
+        const streamed = "서하가 장부를 가져갔다.";
+        req.stream?.onNarrationChunk?.(streamed);
+        const roundId = (
+          db.prepare(`SELECT id FROM trpg_rounds WHERE campaign_id=? AND round_number=1`).get(campaignId) as { id: number }
+        ).id;
+        draftDuringReject = loadGmNarrationDraft(db, roundId)?.text ?? null;
+        snapshotDuringReject = loadTrpgSnapshot(db, campaignId, 1);
+        return {
+          text: wire("서하가 장부를 가져갔다. GM: 무엇을 하겠는가?", ids, { [seohaId]: { inventoryAdd: [LEDGER] } }),
+          usage,
+        };
+      },
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    await play(db, campaignId, deps);
+    const beforeRewrite = getPointBalanceOnDb(db, 1).total;
+    await regenerateTrpgNarration(db, { campaignId, userId: 1, deps });
+    const afterRewrite = getPointBalanceOnDb(db, 1).total;
+    assert.ok(beforeRewrite > afterRewrite);
+    assert.equal(loadTrpgSnapshot(db, campaignId, 1)?.currentNarration, rewritten);
+    const roundId = (
+      db.prepare(`SELECT id, gm_committed_generation_id FROM trpg_rounds WHERE campaign_id=? AND round_number=1`).get(campaignId) as {
+        id: number;
+        gm_committed_generation_id: string;
+      }
+    ).id;
+    await assert.rejects(() => regenerateTrpgNarration(db, { campaignId, userId: 1, deps }), /확정된 결과와 맞지 않아/);
+    assert.equal(getPointBalanceOnDb(db, 1).total, afterRewrite);
+    assert.equal(loadTrpgSnapshot(db, campaignId, 1)?.currentNarration, rewritten);
+    assert.equal(loadTrpgSnapshot(db, campaignId, 1)?.gmNarrationDraft, null);
+    assert.equal(loadTrpgSnapshot(db, campaignId, 1)?.narrationRerolling, false);
+    assert.equal(snapshotDuringReject?.round.phase, "ACTION_INPUT");
+    assert.equal(snapshotDuringReject?.gmNarrationDraft, null);
+    assert.equal(snapshotDuringReject?.narrationRerolling, true);
+    assert.match(draftDuringReject ?? "", /서하가 장부를 가져갔다/);
+    assert.equal(loadGmNarrationDraft(db, roundId), null);
+    const committed = (
+      db.prepare(`SELECT gm_committed_generation_id FROM trpg_rounds WHERE id=?`).get(roundId) as {
+        gm_committed_generation_id: string;
+      }
+    ).gm_committed_generation_id;
+    const rerollUsage = loadRerollUsageEntries(db, roundId);
+    assert.equal(rerollUsage.length, 1);
+    assert.notEqual(rerollUsage[0]?.generationId, committed);
+    assert.equal(loadBillableRerollUsage(db, roundId, committed).length, 0);
     db.close();
   });
 });

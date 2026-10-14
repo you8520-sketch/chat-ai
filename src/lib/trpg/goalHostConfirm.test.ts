@@ -329,6 +329,41 @@ describe("host confirmation: declining keeps the goal and a later claim is a new
 });
 
 describe("host confirmation: a reroll that changes the GM's message invalidates the old claim", () => {
+  it("a rejected reroll keeps the committed message and the claim confirmable", async () => {
+    const db = new Database(":memory:");
+    const { campaignId, everyone } = await claimedParty(db);
+    const round = db.prepare(`SELECT id, gm_committed_generation_id FROM trpg_rounds WHERE campaign_id=? AND round_number=1`).get(campaignId) as {
+      id: number;
+      gm_committed_generation_id: string;
+    };
+    const before = db.prepare(`SELECT narration, structured_json FROM trpg_gm_messages WHERE round_id=?`).get(round.id) as {
+      narration: string;
+      structured_json: string;
+    };
+    assert.equal(loadTrpgSnapshot(db, campaignId, 1)!.goals!.find((item) => item.title === TITLE)!.confirmable, true);
+    await assert.rejects(
+      () =>
+        regenerateTrpgNarration(db, {
+          campaignId,
+          userId: 1,
+          deps: gm([() => plainText(everyone, { flagsAdd: ["재생성이 만든 새 깃발"] }, "다른 장면이다. GM: 무엇을 하겠는가?")]),
+        }),
+      /확정된 결과와 맞지 않아/
+    );
+    const afterRound = db.prepare(`SELECT gm_committed_generation_id FROM trpg_rounds WHERE id=?`).get(round.id) as {
+      gm_committed_generation_id: string;
+    };
+    const after = db.prepare(`SELECT narration, structured_json FROM trpg_gm_messages WHERE round_id=?`).get(round.id) as {
+      narration: string;
+      structured_json: string;
+    };
+    assert.equal(afterRound.gm_committed_generation_id, round.gm_committed_generation_id);
+    assert.equal(after.narration, before.narration);
+    assert.equal(after.structured_json, before.structured_json);
+    assert.equal(loadTrpgSnapshot(db, campaignId, 1)!.goals!.find((item) => item.title === TITLE)!.confirmable, true);
+    db.close();
+  });
+
   it("a reroll without the claim: the proposal can no longer be confirmed; declining and a fresh claim still work", async () => {
     const db = new Database(":memory:");
     const { campaignId, everyone } = await claimedParty(db);

@@ -535,11 +535,15 @@ describe("Slice 1a threat shadow — commit hook (engine, no provider call)", ()
         .get(campaignId) as { hp: number };
       assert.equal(after.hp, startHp - 5, "GM_LEGACY HP application is intentionally unchanged in Slice 1a");
 
-      await regenerateTrpgNarration(db, {
-        campaignId,
-        userId: 1,
-        deps: { skipBilling: true, gmCall: async () => ({ text: dropText(row.id, 1) }) },
-      });
+      await assert.rejects(
+        () =>
+          regenerateTrpgNarration(db, {
+            campaignId,
+            userId: 1,
+            deps: { skipBilling: true, gmCall: async () => ({ text: dropText(row.id, 1) }) },
+          }),
+        /확정된 결과와 맞지 않아/
+      );
       assert.equal(shadowLines(info).length, 1, "regeneration must not evaluate or log the shadow");
       const afterRegen = db
         .prepare(`SELECT hp FROM trpg_character_sheets WHERE campaign_id=?`)

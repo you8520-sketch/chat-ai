@@ -129,7 +129,7 @@ describe("TRPG local scene progress commit boundary", () => {
     db.close();
   });
 
-  it("C3 regen updates narration only — local scene follows existing regen owner (no state commit)", async () => {
+  it("C3 a regen that moves the local scene is rejected and leaves the scene and narration", async () => {
     const db = memoryDb();
     let gmCalls = 0;
     const deps: TrpgEngineDeps = {
@@ -161,10 +161,23 @@ describe("TRPG local scene progress commit boundary", () => {
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     const beforeRegen = loadCampaignContext(db, campaignId)?.localSceneProgress;
     assert.deepEqual(beforeRegen?.openRoutes, ["환풍구"]);
-    await regenerateTrpgNarration(db, { campaignId, userId: 1, deps });
+    const beforeNarration = (
+      db.prepare(`SELECT narration FROM trpg_gm_messages WHERE round_id=(SELECT id FROM trpg_rounds WHERE campaign_id=? AND round_number=1)`).get(campaignId) as {
+        narration: string;
+      }
+    ).narration;
+    await assert.rejects(
+      () => regenerateTrpgNarration(db, { campaignId, userId: 1, deps }),
+      /확정된 결과와 맞지 않아/
+    );
     const afterRegen = loadCampaignContext(db, campaignId)?.localSceneProgress;
-    assert.deepEqual(afterRegen?.openRoutes, ["환풍구"]);
-    assert.notEqual(afterRegen?.objective, "완전히 다른 장면");
+    assert.deepEqual(afterRegen, beforeRegen);
+    const afterNarration = (
+      db.prepare(`SELECT narration FROM trpg_gm_messages WHERE round_id=(SELECT id FROM trpg_rounds WHERE campaign_id=? AND round_number=1)`).get(campaignId) as {
+        narration: string;
+      }
+    ).narration;
+    assert.equal(afterNarration, beforeNarration);
     db.close();
   });
 

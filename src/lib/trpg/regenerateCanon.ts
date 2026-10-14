@@ -1,5 +1,7 @@
 import { inventoryUnits } from "./inventory";
+import { hasLocalSceneProgressDelta } from "./localSceneProgress";
 import type { TrpgCampaignLedger } from "./campaignLedger";
+import type { TrpgStoryPhase } from "./scenarioPlan";
 import type { TrpgSheetSnapshot, TrpgStateDelta } from "./types";
 
 export const REGEN_CANON_INVERT_REASONS = [
@@ -12,10 +14,16 @@ export const REGEN_CANON_INVERT_REASONS = [
   "campaign_location",
   "quest_add",
   "quest_remove",
+  "quest_claim",
   "npc_add",
   "npc_remove",
   "flag_add",
   "flag_remove",
+  "campaign_finished",
+  "encounter_end",
+  "story_thread",
+  "story_phase",
+  "local_scene",
 ] as const;
 
 export type RegenCanonInvertReason = (typeof REGEN_CANON_INVERT_REASONS)[number];
@@ -53,20 +61,47 @@ function hasName(list: readonly string[], name: string): boolean {
   return list.includes(name);
 }
 
+function committedNames(
+  delta: TrpgStateDelta | undefined,
+  key: "questsAdd" | "questsRemove" | "questsClaimDone"
+): Set<string> {
+  return new Set((delta?.[key] ?? []).map((name) => name.trim()).filter(Boolean));
+}
+
+/** A regenerate whose structured result would replace the committed outcome. */
+export class UnadoptedTrpgRegenerateError extends Error {
+  readonly reasons: readonly RegenCanonInvertReason[];
+
+  constructor(reasons: readonly RegenCanonInvertReason[]) {
+    super("재생성한 장면이 이미 확정된 결과와 맞지 않아 적용하지 않았습니다.");
+    this.name = "UnadoptedTrpgRegenerateError";
+    this.reasons = reasons;
+  }
+}
+
 /**
- * Rewrite-only regenerate may change prose. A structured delta that would change
- * committed inventory, HP, location, quests, NPCs or flags inverts those facts.
- * Restating an already-held item or an already-recorded ledger entry is not invert.
+ * Expression rewrite may restate committed facts. A structured delta that would
+ * change inventory, HP, location, quests, NPCs, flags, or story/encounter outcome
+ * is unadoptable. Omitted fields are not changes. A quest add, remove, or
+ * completion claim already present on the committed message is a restatement.
+ * Prose that contradicts those facts without a structured change is outside this gate.
  */
 export function regenerateOutputInvertsCommittedCanon(opts: {
   delta: TrpgStateDelta;
   location?: string;
   sheets: readonly TrpgSheetSnapshot[];
   ledger: TrpgCampaignLedger;
+  committedDelta?: TrpgStateDelta;
+  campaignFinished?: boolean;
+  endedEncounterIds?: readonly string[];
+  storyPhase?: TrpgStoryPhase;
 }): RegenCanonInvertResult {
   const reasons = new Set<RegenCanonInvertReason>();
   const holders = holdersByItem(opts.sheets);
   const sheetsById = new Map(opts.sheets.map((sheet) => [sheet.participantId, sheet]));
+  const committedAdds = committedNames(opts.committedDelta, "questsAdd");
+  const committedRemoves = committedNames(opts.committedDelta, "questsRemove");
+  const committedClaims = committedNames(opts.committedDelta, "questsClaimDone");
 
   for (const patch of opts.delta.players ?? []) {
     const sheet = sheetsById.get(patch.participantId);
@@ -92,10 +127,16 @@ export function regenerateOutputInvertsCommittedCanon(opts: {
   if (campaignLocation && campaignLocation !== opts.ledger.location) reasons.add("campaign_location");
 
   for (const title of opts.delta.questsAdd ?? []) {
-    if (title && !hasName(opts.ledger.quests, title)) reasons.add("quest_add");
+    const trimmed = title.trim();
+    if (trimmed && !hasName(opts.ledger.quests, trimmed) && !committedAdds.has(trimmed)) reasons.add("quest_add");
   }
   for (const title of opts.delta.questsRemove ?? []) {
-    if (title && hasName(opts.ledger.quests, title)) reasons.add("quest_remove");
+    const trimmed = title.trim();
+    if (trimmed && hasName(opts.ledger.quests, trimmed) && !committedRemoves.has(trimmed)) reasons.add("quest_remove");
+  }
+  for (const title of opts.delta.questsClaimDone ?? []) {
+    const trimmed = title.trim();
+    if (trimmed && !committedClaims.has(trimmed)) reasons.add("quest_claim");
   }
   for (const name of opts.delta.npcsAdd ?? []) {
     if (name && !hasName(opts.ledger.npcs, name)) reasons.add("npc_add");
@@ -109,6 +150,19 @@ export function regenerateOutputInvertsCommittedCanon(opts: {
   for (const flag of opts.delta.flagsRemove ?? []) {
     if (flag && hasName(opts.ledger.worldFlags, flag)) reasons.add("flag_remove");
   }
+
+  if (opts.campaignFinished === true) reasons.add("campaign_finished");
+  const ended = new Set(opts.endedEncounterIds ?? []);
+  for (const id of opts.delta.encountersEnded ?? []) {
+    if (id && !ended.has(id)) reasons.add("encounter_end");
+  }
+  if ((opts.delta.threadsAdd ?? []).some((thread) => thread.trim()) || (opts.delta.threadsResolve ?? []).some((thread) => thread.trim())) {
+    reasons.add("story_thread");
+  }
+  if (opts.storyPhase && opts.delta.storyPhase && opts.delta.storyPhase !== opts.storyPhase) {
+    reasons.add("story_phase");
+  }
+  if (hasLocalSceneProgressDelta(opts.delta.localScene)) reasons.add("local_scene");
 
   return { invert: reasons.size > 0, reasons: [...reasons] };
 }

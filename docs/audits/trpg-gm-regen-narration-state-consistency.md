@@ -11,7 +11,7 @@
 - 주사위·잠긴 행동은 `loadMechanicsResolution`만 읽고 다시 굴리지 않는다
 - 과금은 원래 라운드와 별도로 `billRerollGenerationExactlyOnce`
 
-Owner는 `commitPendingGmResult` 하나다. 프롬프트 문장 추가, LLM 검사, 정규식 서술 수정, 새 delta 재적용, 병렬 리롤 시스템은 쓰지 않았다.
+채택 여부는 `regenerateOutputInvertsCommittedCanon`이 맡고, 저장과 실패는 기존 `commitPendingGmResult` / 리롤 실패 owner를 탄다. 재생성 유저 블록의 REGENERATE 지시는 그 재작성 계약으로 교체했다. 공통 GM 시스템 프롬프트 뒤에 예외 문장을 덧붙이지 않았다. LLM 검사, 정규식 서술 수정, 새 delta 재적용, 병렬 리롤 시스템은 쓰지 않았다.
 
 ## 2. 수정 전 실패
 
@@ -25,15 +25,14 @@ Owner는 `commitPendingGmResult` 하나다. 프롬프트 문장 추가, LLM 검�
 
 같은 실행 경로의 위치·목표 테스트(`acceptedLocationSnapshot`, `unauthorizedLocationPersist`, `goalLifecycle`)도 새 JSON을 저장하고 상태는 유지한다. 공개 서술이 확정 사실을 뒤집는 것은 그 저장 방식의 결과다.
 
-## 3. 수정
+## 3. 수정 (B+A)
 
-`regenerateOutputInvertsCommittedCanon`이 새 delta가 확정 시트·원장을 뒤집는지 본다. 뒤집으면 `trpg_gm_messages.narration`은 이전 장면을 유지한다. 시트·원장은 이전과 같이 재적용하지 않는다. `structured_json`은 모델 원문 기록으로 남긴다.
+재생성 유저 블록의 REGENERATE owner는 확정 장면과 확정 결과를 원본으로 한 표현 재작성이다. 같은 라운드를 새 사건으로 판정하지 않는다. 공통 GM 시스템 프롬프트는 그대로 두고, 재생성 호출에서는 라운드 실행·스토리 델타 계약을 그 재작성 지시로 교체한다.
 
-뒤집힘으로 보는 것: 다른 좌석에 이미 있는 아이템 지급, 아직 있는 아이템 제거, 새로운 아이템, HP·상태이상·좌석/캠페인 위치 변경, 없는 목표/NPC/플래그 추가, 있는 목표/NPC/플래그 제거.
-뒤집힘이 아닌 것: 같은 좌석에 이미 있는 아이템을 다시 적기, 이미 있는 목표/NPC/플래그/위치를 다시 적기.
+채택된 재작성만 `narration`과 `structured_json`을 함께 갱신한다. 구조화 결과가 확정된 소지품·HP·위치·목표·NPC·플래그·엔딩·인카운터 종료·스토리 진행을 바꾸면 `UnadoptedTrpgRegenerateError`로 실패한다. 이미 커밋된 메시지의 목표 추가·제거·완료 제안과 같은 값은 재서술로 본다. 실패는 기존 리롤 실패 owner를 탄다. 포인트는 차감하지 않고, 사용량 기록은 남긴다. 직전 리롤이 과금된 뒤 다음 리롤이 시작되면 기존 owner가 `gm_reroll_usage_json`을 비운 다음 그 호출의 사용량만 남긴다. 자동 재시도는 없다.
 
-서술만 바꾸고 delta는 맞는 리롤은 그대로 공개한다.
+리롤 lease는 `gm_committed_generation_id`를 지우지 않는다. 성공한 재작성만 그 값을 새 generation으로 바꾼다. 실패와, 커밋 전에 끊긴 stale reroll은 이전 narration, structured_json, committed generation을 유지한다. 커밋된 id가 현재 lease와 다르더라도 그 id의 리롤 사용량이 있으면 기존 복구 과금 경로가 그 generation을 한 번 정산한다.
 
 ## 4. 한계
 
-서술만 서하를 말하고 delta는 현을 가리키면 구조화 검사로는 잡지 못한다. 정규식·추가 LLM 호출은 쓰지 않았다. 뒤집힌 리롤도 과금은 되며, 사용자는 이전 장면을 본다.
+서술만 모순이고 delta가 확정 사실을 다시 적거나 비워 두면 구조화 검사는 통과한다. 그 경우는 재작성 프롬프트가 막는 범위이고, 정규식이나 추가 LLM 검사로는 거절하지 않는다. 성공한 재생성의 과금은 유지한다.

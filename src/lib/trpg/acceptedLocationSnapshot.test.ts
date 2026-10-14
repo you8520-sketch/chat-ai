@@ -284,12 +284,16 @@ describe("TRPG #1481 accepted round location snapshot", () => {
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     const round = latestGmRound(db, campaignId);
     const before = loadAcceptedRoundLocation(db, round.id);
-    await regenerateTrpgNarration(db, { campaignId, userId: 1, deps });
+    await assert.rejects(
+      () => regenerateTrpgNarration(db, { campaignId, userId: 1, deps }),
+      /확정된 결과와 맞지 않아/
+    );
     const gm = db
-      .prepare(`SELECT structured_json FROM trpg_gm_messages WHERE round_id=?`)
-      .get(round.id) as { structured_json: string };
-    const rawGm = JSON.parse(gm.structured_json) as { location?: string; delta?: { location?: string } };
-    assert.equal(rawGm.location ?? rawGm.delta?.location, TAVERN);
+      .prepare(`SELECT narration, structured_json FROM trpg_gm_messages WHERE round_id=?`)
+      .get(round.id) as { narration: string; structured_json: string };
+    const rawGm = JSON.parse(gm.structured_json) as { narration?: string; location?: string; delta?: { location?: string } };
+    assert.equal(rawGm.location ?? rawGm.delta?.location, DOCK);
+    assert.match(gm.narration, /달이 남았다/);
     assert.equal(loadAcceptedRoundLocation(db, round.id), before);
     assert.equal(loadAcceptedRoundLocation(db, round.id), DOCK);
     assert.equal(sourceFor(db, campaignId, 1, round.n).scene?.location, DOCK);
