@@ -24,6 +24,7 @@ export const REGEN_CANON_INVERT_REASONS = [
   "story_thread",
   "story_phase",
   "local_scene",
+  "same_narration",
 ] as const;
 
 export type RegenCanonInvertReason = (typeof REGEN_CANON_INVERT_REASONS)[number];
@@ -85,6 +86,7 @@ export class UnadoptedTrpgRegenerateError extends Error {
  * is unadoptable. Omitted fields are not changes. A quest add, remove, or
  * completion claim already present on the committed message is a restatement.
  * Prose that contradicts those facts without a structured change is outside this gate.
+ * A rewrite whose narration is the committed narration after trim() is not a new scene.
  */
 export function regenerateOutputInvertsCommittedCanon(opts: {
   delta: TrpgStateDelta;
@@ -92,6 +94,8 @@ export function regenerateOutputInvertsCommittedCanon(opts: {
   sheets: readonly TrpgSheetSnapshot[];
   ledger: TrpgCampaignLedger;
   committedDelta?: TrpgStateDelta;
+  narration?: string;
+  committedNarration?: string;
   campaignFinished?: boolean;
   endedEncounterIds?: readonly string[];
   storyPhase?: TrpgStoryPhase;
@@ -163,6 +167,13 @@ export function regenerateOutputInvertsCommittedCanon(opts: {
     reasons.add("story_phase");
   }
   if (hasLocalSceneProgressDelta(opts.delta.localScene)) reasons.add("local_scene");
+  if (
+    typeof opts.narration === "string" &&
+    typeof opts.committedNarration === "string" &&
+    opts.narration.trim() === opts.committedNarration.trim()
+  ) {
+    reasons.add("same_narration");
+  }
 
   return { invert: reasons.size > 0, reasons: [...reasons] };
 }

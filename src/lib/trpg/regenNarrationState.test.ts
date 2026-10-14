@@ -157,6 +157,26 @@ describe("regenerateOutputInvertsCommittedCanon", () => {
     });
     assert.ok(fresh.reasons.includes("quest_claim"));
   });
+
+  it("treats the same narration after trim as unadopted, and a different sentence as adoptable", () => {
+    const scene = "현이 장부를 품에 넣었다. GM: 무엇을 하겠는가?";
+    const same = regenerateOutputInvertsCommittedCanon({
+      delta: { players: [{ participantId: 2, hp: 40, location: "마레노 부두" }] },
+      sheets: [hyun],
+      ledger,
+      narration: `  ${scene}  `,
+      committedNarration: scene,
+    });
+    assert.deepEqual(same.reasons, ["same_narration"]);
+    const rewritten = regenerateOutputInvertsCommittedCanon({
+      delta: { players: [{ participantId: 2, hp: 40, location: "마레노 부두" }] },
+      sheets: [hyun],
+      ledger,
+      narration: "현이 장부를 품에 넣고 창고 문을 돌아본다. GM: 무엇을 하겠는가?",
+      committedNarration: scene,
+    });
+    assert.equal(rewritten.invert, false);
+  });
 });
 
 function players(ids: number[], extra: Record<number, Record<string, unknown>> = {}) {
@@ -465,6 +485,64 @@ describe("regenerate keeps committed facts in the published scene", () => {
     assert.equal(rerollUsage.length, 1);
     assert.notEqual(rerollUsage[0]?.generationId, committed);
     assert.equal(loadBillableRerollUsage(db, roundId, committed).length, 0);
+    db.close();
+  });
+
+  it("does not charge a reroll that repeats the committed narration", async () => {
+    const db = new Database(":memory:");
+    const { campaignId, ids, hyunId } = party(db);
+    creditPointsWithIds(db, 1, 50_000, "PAID", "same-narration-host");
+    creditPointsWithIds(db, 2, 50_000, "PAID", "same-narration-hyun");
+    const usage = { modelId: "deepseek-v4-pro", inputTokens: 2000, outputTokens: 600 };
+    const scene = "현이 철제 서류함을 열고 세관 밀수 원본 장부를 챙겼다. GM: 무엇을 하겠는가?";
+    let call = 0;
+    const deps: TrpgEngineDeps = {
+      skipBilling: false,
+      rollD20: () => 15,
+      rollDie: () => 4,
+      botCall: async () => ({ text: "조용히 주변을 살핀다." }),
+      gmCall: async () => {
+        call += 1;
+        if (call === 1) return { text: wire("오프닝. GM: 무엇을 하겠는가?", ids), usage };
+        if (call === 2) return { text: wire(scene, ids, { [hyunId]: { inventoryAdd: [LEDGER] } }), usage };
+        return { text: wire(`  ${scene}  `, ids), usage };
+      },
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    await play(db, campaignId, deps);
+    const roundId = (
+      db.prepare(`SELECT id FROM trpg_rounds WHERE campaign_id=? AND round_number=1`).get(campaignId) as { id: number }
+    ).id;
+    const before = db.prepare(`SELECT narration, structured_json FROM trpg_gm_messages WHERE round_id=?`).get(roundId) as {
+      narration: string;
+      structured_json: string;
+    };
+    const committedBefore = (
+      db.prepare(`SELECT gm_committed_generation_id FROM trpg_rounds WHERE id=?`).get(roundId) as {
+        gm_committed_generation_id: string;
+      }
+    ).gm_committed_generation_id;
+    const balanceBefore = getPointBalanceOnDb(db, 1).total;
+    await assert.rejects(() => regenerateTrpgNarration(db, { campaignId, userId: 1, deps }), /확정된 결과와 맞지 않아/);
+    const after = db.prepare(`SELECT narration, structured_json FROM trpg_gm_messages WHERE round_id=?`).get(roundId) as {
+      narration: string;
+      structured_json: string;
+    };
+    const committedAfter = (
+      db.prepare(`SELECT gm_committed_generation_id FROM trpg_rounds WHERE id=?`).get(roundId) as {
+        gm_committed_generation_id: string;
+      }
+    ).gm_committed_generation_id;
+    assert.equal(getPointBalanceOnDb(db, 1).total, balanceBefore);
+    assert.equal(after.narration, before.narration);
+    assert.equal(after.narration, scene);
+    assert.equal(after.structured_json, before.structured_json);
+    assert.equal(committedAfter, committedBefore);
+    assert.deepEqual(itemsOf(db, campaignId)["현"], [LEDGER]);
+    const rerollUsage = loadRerollUsageEntries(db, roundId);
+    assert.equal(rerollUsage.length, 1);
+    assert.notEqual(rerollUsage[0]?.generationId, committedAfter);
+    assert.equal(loadBillableRerollUsage(db, roundId, committedAfter).length, 0);
     db.close();
   });
 });

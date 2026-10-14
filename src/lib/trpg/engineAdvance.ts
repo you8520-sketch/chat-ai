@@ -1749,8 +1749,8 @@ function commitPendingGmResult(
   };
   if (opts.regenerate) {
     const storedStructured = db
-      .prepare(`SELECT structured_json FROM trpg_gm_messages WHERE round_id=?`)
-      .get(opts.roundId) as { structured_json: string | null } | undefined;
+      .prepare(`SELECT narration, structured_json FROM trpg_gm_messages WHERE round_id=?`)
+      .get(opts.roundId) as { narration: string | null; structured_json: string | null } | undefined;
     let committedDelta: ParsedTrpgGmOutput["delta"] | undefined;
     if (storedStructured?.structured_json) {
       try {
@@ -1766,6 +1766,8 @@ function commitPendingGmResult(
       sheets,
       ledger: currentLedger,
       committedDelta,
+      narration: parsed.narration,
+      committedNarration: storedStructured?.narration ?? undefined,
       campaignFinished: parsed.campaignFinished === true,
       endedEncounterIds: loadEndedEncounterIds(db, campaign.id, roundNumber),
       storyPhase: campaignContext?.storyPhase,
