@@ -1,0 +1,395 @@
+{
+  "ranAt": "2026-10-14T09:41:28.154Z",
+  "mainSha": "ac67801c5a3c0c2e25a8e5ae69dc68ba5a60add2",
+  "status": "PARTIAL",
+  "discoveredModels": 20,
+  "changedCandidates": [
+    "scaledown/classify-1",
+    "nace-ai/drex-v2.0",
+    "microsoft/microsoft-decision-1",
+    "nace-ai/drex-v1.5",
+    "cloudflare/clef-omni",
+    "upstage/solar-decide-flash",
+    "perplexity/pplx-decider-v1.1-27b",
+    "openai/gpt-6-luna-decisions",
+    "liquid/d1",
+    "cloudflare/clef-flash",
+    "cloudflare/clef",
+    "togethercomputer/tev1-4b-experimental",
+    "inception/mercury-decide",
+    "inception/mercury-decide:free",
+    "upstage/solar-decide",
+    "respan/span-01",
+    "respan/span-01-lite",
+    "respan/span-01-lite:free",
+    "jaredpalmer/kev-4b"
+  ],
+  "benchmarkedCandidates": [
+    "scaledown/classify-1",
+    "nace-ai/drex-v2.0",
+    "microsoft/microsoft-decision-1"
+  ],
+  "deferredCandidates": [
+    "nace-ai/drex-v1.5",
+    "cloudflare/clef-omni",
+    "upstage/solar-decide-flash",
+    "perplexity/pplx-decider-v1.1-27b",
+    "openai/gpt-6-luna-decisions",
+    "liquid/d1",
+    "cloudflare/clef-flash",
+    "cloudflare/clef",
+    "togethercomputer/tev1-4b-experimental",
+    "inception/mercury-decide",
+    "inception/mercury-decide:free",
+    "upstage/solar-decide",
+    "respan/span-01",
+    "respan/span-01-lite",
+    "respan/span-01-lite:free",
+    "jaredpalmer/kev-4b"
+  ],
+  "providerCalls": 172,
+  "baseline": {
+    "model": "typesafe/jev-1.13",
+    "total": 43,
+    "correct": 34,
+    "accuracy": 0.7906976744186046,
+    "criticalMisses": 2,
+    "malformed": 0,
+    "failures": 0,
+    "inputTokens": 26999,
+    "outputTokens": 2410,
+    "reportedCostUsd": 0.0011339579999999998,
+    "latencyMs": {
+      "p50": 150,
+      "p95": 298.7,
+      "max": 926.4
+    },
+    "bySuite": [
+      {
+        "suite": "authorial_habit",
+        "total": 24,
+        "correct": 20,
+        "accuracy": 0.8333333333333334,
+        "criticalMisses": 2,
+        "malformed": 0,
+        "failures": 0
+      },
+      {
+        "suite": "completion_integrity",
+        "total": 9,
+        "correct": 6,
+        "accuracy": 0.6666666666666666,
+        "criticalMisses": 0,
+        "malformed": 0,
+        "failures": 0
+      },
+      {
+        "suite": "scene_boundary",
+        "total": 10,
+        "correct": 8,
+        "accuracy": 0.8,
+        "criticalMisses": 0,
+        "malformed": 0,
+        "failures": 0
+      }
+    ]
+  },
+  "evaluations": [
+    {
+      "model": "scaledown/classify-1",
+      "fingerprint": "bfd7eacd3c1d310e030adec6bf47cbab516110cd98e5591e51cf676078a8b74d",
+      "globalReplacementCandidate": false,
+      "suiteCandidates": [],
+      "summary": {
+        "model": "scaledown/classify-1",
+        "total": 43,
+        "correct": 0,
+        "accuracy": 0,
+        "criticalMisses": 16,
+        "malformed": 43,
+        "failures": 43,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "reportedCostUsd": null,
+        "latencyMs": {
+          "p50": null,
+          "p95": null,
+          "max": null
+        },
+        "bySuite": [
+          {
+            "suite": "authorial_habit",
+            "total": 24,
+            "correct": 0,
+            "accuracy": 0,
+            "criticalMisses": 8,
+            "malformed": 24,
+            "failures": 24
+          },
+          {
+            "suite": "completion_integrity",
+            "total": 9,
+            "correct": 0,
+            "accuracy": 0,
+            "criticalMisses": 3,
+            "malformed": 9,
+            "failures": 9
+          },
+          {
+            "suite": "scene_boundary",
+            "total": 10,
+            "correct": 0,
+            "accuracy": 0,
+            "criticalMisses": 5,
+            "malformed": 10,
+            "failures": 10
+          }
+        ]
+      },
+      "baseline": {
+        "model": "typesafe/jev-1.13",
+        "total": 43,
+        "correct": 34,
+        "accuracy": 0.7906976744186046,
+        "criticalMisses": 2,
+        "malformed": 0,
+        "failures": 0,
+        "inputTokens": 26999,
+        "outputTokens": 2410,
+        "reportedCostUsd": 0.0011339579999999998,
+        "latencyMs": {
+          "p50": 150,
+          "p95": 298.7,
+          "max": 926.4
+        },
+        "bySuite": [
+          {
+            "suite": "authorial_habit",
+            "total": 24,
+            "correct": 20,
+            "accuracy": 0.8333333333333334,
+            "criticalMisses": 2,
+            "malformed": 0,
+            "failures": 0
+          },
+          {
+            "suite": "completion_integrity",
+            "total": 9,
+            "correct": 6,
+            "accuracy": 0.6666666666666666,
+            "criticalMisses": 0,
+            "malformed": 0,
+            "failures": 0
+          },
+          {
+            "suite": "scene_boundary",
+            "total": 10,
+            "correct": 8,
+            "accuracy": 0.8,
+            "criticalMisses": 0,
+            "malformed": 0,
+            "failures": 0
+          }
+        ]
+      }
+    },
+    {
+      "model": "nace-ai/drex-v2.0",
+      "fingerprint": "4c608bc020cc3a73e45e307e57b786704bf9c5531484e5f925b8886034140aac",
+      "globalReplacementCandidate": false,
+      "suiteCandidates": [],
+      "summary": {
+        "model": "nace-ai/drex-v2.0",
+        "total": 43,
+        "correct": 27,
+        "accuracy": 0.627906976744186,
+        "criticalMisses": 2,
+        "malformed": 0,
+        "failures": 0,
+        "inputTokens": 11569,
+        "outputTokens": 3358,
+        "reportedCostUsd": 0.0006941400000000002,
+        "latencyMs": {
+          "p50": 217.6,
+          "p95": 302,
+          "max": 908.6
+        },
+        "bySuite": [
+          {
+            "suite": "authorial_habit",
+            "total": 24,
+            "correct": 15,
+            "accuracy": 0.625,
+            "criticalMisses": 0,
+            "malformed": 0,
+            "failures": 0
+          },
+          {
+            "suite": "completion_integrity",
+            "total": 9,
+            "correct": 6,
+            "accuracy": 0.6666666666666666,
+            "criticalMisses": 0,
+            "malformed": 0,
+            "failures": 0
+          },
+          {
+            "suite": "scene_boundary",
+            "total": 10,
+            "correct": 6,
+            "accuracy": 0.6,
+            "criticalMisses": 2,
+            "malformed": 0,
+            "failures": 0
+          }
+        ]
+      },
+      "baseline": {
+        "model": "typesafe/jev-1.13",
+        "total": 43,
+        "correct": 34,
+        "accuracy": 0.7906976744186046,
+        "criticalMisses": 2,
+        "malformed": 0,
+        "failures": 0,
+        "inputTokens": 26999,
+        "outputTokens": 2410,
+        "reportedCostUsd": 0.0011339579999999998,
+        "latencyMs": {
+          "p50": 150,
+          "p95": 298.7,
+          "max": 926.4
+        },
+        "bySuite": [
+          {
+            "suite": "authorial_habit",
+            "total": 24,
+            "correct": 20,
+            "accuracy": 0.8333333333333334,
+            "criticalMisses": 2,
+            "malformed": 0,
+            "failures": 0
+          },
+          {
+            "suite": "completion_integrity",
+            "total": 9,
+            "correct": 6,
+            "accuracy": 0.6666666666666666,
+            "criticalMisses": 0,
+            "malformed": 0,
+            "failures": 0
+          },
+          {
+            "suite": "scene_boundary",
+            "total": 10,
+            "correct": 8,
+            "accuracy": 0.8,
+            "criticalMisses": 0,
+            "malformed": 0,
+            "failures": 0
+          }
+        ]
+      }
+    },
+    {
+      "model": "microsoft/microsoft-decision-1",
+      "fingerprint": "a82400d5ebfaca8c8c34672917886e3fceffaed7ed0a246d59e401df70415c5b",
+      "globalReplacementCandidate": false,
+      "suiteCandidates": [],
+      "summary": {
+        "model": "microsoft/microsoft-decision-1",
+        "total": 43,
+        "correct": 29,
+        "accuracy": 0.6744186046511628,
+        "criticalMisses": 2,
+        "malformed": 0,
+        "failures": 0,
+        "inputTokens": 11336,
+        "outputTokens": 43,
+        "reportedCostUsd": 0.000476112,
+        "latencyMs": {
+          "p50": 261.8,
+          "p95": 378.9,
+          "max": 977.2
+        },
+        "bySuite": [
+          {
+            "suite": "authorial_habit",
+            "total": 24,
+            "correct": 16,
+            "accuracy": 0.6666666666666666,
+            "criticalMisses": 1,
+            "malformed": 0,
+            "failures": 0
+          },
+          {
+            "suite": "completion_integrity",
+            "total": 9,
+            "correct": 6,
+            "accuracy": 0.6666666666666666,
+            "criticalMisses": 0,
+            "malformed": 0,
+            "failures": 0
+          },
+          {
+            "suite": "scene_boundary",
+            "total": 10,
+            "correct": 7,
+            "accuracy": 0.7,
+            "criticalMisses": 1,
+            "malformed": 0,
+            "failures": 0
+          }
+        ]
+      },
+      "baseline": {
+        "model": "typesafe/jev-1.13",
+        "total": 43,
+        "correct": 34,
+        "accuracy": 0.7906976744186046,
+        "criticalMisses": 2,
+        "malformed": 0,
+        "failures": 0,
+        "inputTokens": 26999,
+        "outputTokens": 2410,
+        "reportedCostUsd": 0.0011339579999999998,
+        "latencyMs": {
+          "p50": 150,
+          "p95": 298.7,
+          "max": 926.4
+        },
+        "bySuite": [
+          {
+            "suite": "authorial_habit",
+            "total": 24,
+            "correct": 20,
+            "accuracy": 0.8333333333333334,
+            "criticalMisses": 2,
+            "malformed": 0,
+            "failures": 0
+          },
+          {
+            "suite": "completion_integrity",
+            "total": 9,
+            "correct": 6,
+            "accuracy": 0.6666666666666666,
+            "criticalMisses": 0,
+            "malformed": 0,
+            "failures": 0
+          },
+          {
+            "suite": "scene_boundary",
+            "total": 10,
+            "correct": 8,
+            "accuracy": 0.8,
+            "criticalMisses": 0,
+            "malformed": 0,
+            "failures": 0
+          }
+        ]
+      }
+    }
+  ],
+  "notes": [],
+  "githubRunUrl": "https://github.com/you8520-sketch/chat-ai/actions/runs/38544056492"
+}

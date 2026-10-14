@@ -1,0 +1,722 @@
+{
+  "version": 1,
+  "models": {
+    "scaledown/classify-1": {
+      "lastObservedFingerprint": "bfd7eacd3c1d310e030adec6bf47cbab516110cd98e5591e51cf676078a8b74d",
+      "lastBenchmarkedFingerprint": "bfd7eacd3c1d310e030adec6bf47cbab516110cd98e5591e51cf676078a8b74d",
+      "lastSeenAt": "2026-10-14T09:41:28.154Z",
+      "lastBenchmarkedAt": "2026-10-14T09:41:28.154Z",
+      "lastSummary": {
+        "model": "scaledown/classify-1",
+        "total": 43,
+        "correct": 0,
+        "accuracy": 0,
+        "criticalMisses": 16,
+        "malformed": 43,
+        "failures": 43,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "reportedCostUsd": null,
+        "latencyMs": {
+          "p50": null,
+          "p95": null,
+          "max": null
+        },
+        "bySuite": [
+          {
+            "suite": "authorial_habit",
+            "total": 24,
+            "correct": 0,
+            "accuracy": 0,
+            "criticalMisses": 8,
+            "malformed": 24,
+            "failures": 24
+          },
+          {
+            "suite": "completion_integrity",
+            "total": 9,
+            "correct": 0,
+            "accuracy": 0,
+            "criticalMisses": 3,
+            "malformed": 9,
+            "failures": 9
+          },
+          {
+            "suite": "scene_boundary",
+            "total": 10,
+            "correct": 0,
+            "accuracy": 0,
+            "criticalMisses": 5,
+            "malformed": 10,
+            "failures": 10
+          }
+        ]
+      }
+    },
+    "nace-ai/drex-v2.0": {
+      "lastObservedFingerprint": "4c608bc020cc3a73e45e307e57b786704bf9c5531484e5f925b8886034140aac",
+      "lastBenchmarkedFingerprint": "4c608bc020cc3a73e45e307e57b786704bf9c5531484e5f925b8886034140aac",
+      "lastSeenAt": "2026-10-14T09:41:28.154Z",
+      "lastBenchmarkedAt": "2026-10-14T09:41:28.154Z",
+      "lastSummary": {
+        "model": "nace-ai/drex-v2.0",
+        "total": 43,
+        "correct": 27,
+        "accuracy": 0.627906976744186,
+        "criticalMisses": 2,
+        "malformed": 0,
+        "failures": 0,
+        "inputTokens": 11569,
+        "outputTokens": 3358,
+        "reportedCostUsd": 0.0006941400000000002,
+        "latencyMs": {
+          "p50": 217.6,
+          "p95": 302,
+          "max": 908.6
+        },
+        "bySuite": [
+          {
+            "suite": "authorial_habit",
+            "total": 24,
+            "correct": 15,
+            "accuracy": 0.625,
+            "criticalMisses": 0,
+            "malformed": 0,
+            "failures": 0
+          },
+          {
+            "suite": "completion_integrity",
+            "total": 9,
+            "correct": 6,
+            "accuracy": 0.6666666666666666,
+            "criticalMisses": 0,
+            "malformed": 0,
+            "failures": 0
+          },
+          {
+            "suite": "scene_boundary",
+            "total": 10,
+            "correct": 6,
+            "accuracy": 0.6,
+            "criticalMisses": 2,
+            "malformed": 0,
+            "failures": 0
+          }
+        ]
+      }
+    },
+    "microsoft/microsoft-decision-1": {
+      "lastObservedFingerprint": "a82400d5ebfaca8c8c34672917886e3fceffaed7ed0a246d59e401df70415c5b",
+      "lastBenchmarkedFingerprint": "a82400d5ebfaca8c8c34672917886e3fceffaed7ed0a246d59e401df70415c5b",
+      "lastSeenAt": "2026-10-14T09:41:28.154Z",
+      "lastBenchmarkedAt": "2026-10-14T09:41:28.154Z",
+      "lastSummary": {
+        "model": "microsoft/microsoft-decision-1",
+        "total": 43,
+        "correct": 29,
+        "accuracy": 0.6744186046511628,
+        "criticalMisses": 2,
+        "malformed": 0,
+        "failures": 0,
+        "inputTokens": 11336,
+        "outputTokens": 43,
+        "reportedCostUsd": 0.000476112,
+        "latencyMs": {
+          "p50": 261.8,
+          "p95": 378.9,
+          "max": 977.2
+        },
+        "bySuite": [
+          {
+            "suite": "authorial_habit",
+            "total": 24,
+            "correct": 16,
+            "accuracy": 0.6666666666666666,
+            "criticalMisses": 1,
+            "malformed": 0,
+            "failures": 0
+          },
+          {
+            "suite": "completion_integrity",
+            "total": 9,
+            "correct": 6,
+            "accuracy": 0.6666666666666666,
+            "criticalMisses": 0,
+            "malformed": 0,
+            "failures": 0
+          },
+          {
+            "suite": "scene_boundary",
+            "total": 10,
+            "correct": 7,
+            "accuracy": 0.7,
+            "criticalMisses": 1,
+            "malformed": 0,
+            "failures": 0
+          }
+        ]
+      }
+    },
+    "nace-ai/drex-v1.5": {
+      "lastObservedFingerprint": "3f7dab79cfc5fbead25bc0eac1e09f874b543af33bb3979b3f66125c7d119b62",
+      "lastBenchmarkedFingerprint": null,
+      "lastSeenAt": "2026-10-14T09:41:28.154Z",
+      "lastBenchmarkedAt": null,
+      "lastSummary": null
+    },
+    "cloudflare/clef-omni": {
+      "lastObservedFingerprint": "e98f5ffaba37da50756e2c5d0ce338443b61dd6467c0bafe8d1bf53876f312ce",
+      "lastBenchmarkedFingerprint": null,
+      "lastSeenAt": "2026-10-14T09:41:28.154Z",
+      "lastBenchmarkedAt": null,
+      "lastSummary": null
+    },
+    "upstage/solar-decide-flash": {
+      "lastObservedFingerprint": "1a92d915d770a9d4f81dcb98caa43c236eeb51a93c312a1757f6225b65a002f0",
+      "lastBenchmarkedFingerprint": null,
+      "lastSeenAt": "2026-10-14T09:41:28.154Z",
+      "lastBenchmarkedAt": null,
+      "lastSummary": null
+    },
+    "perplexity/pplx-decider-v1.1-27b": {
+      "lastObservedFingerprint": "28f2ef57538b60b040f87e2db0d2910812692b8e73fdc6f013041edd91eada57",
+      "lastBenchmarkedFingerprint": null,
+      "lastSeenAt": "2026-10-14T09:41:28.154Z",
+      "lastBenchmarkedAt": null,
+      "lastSummary": null
+    },
+    "openai/gpt-6-luna-decisions": {
+      "lastObservedFingerprint": "a12715b4a58facd6f74c269f748757e7144ec8ecce2379e86a9ecd0e3e2154b5",
+      "lastBenchmarkedFingerprint": null,
+      "lastSeenAt": "2026-10-14T09:41:28.154Z",
+      "lastBenchmarkedAt": null,
+      "lastSummary": null
+    },
+    "liquid/d1": {
+      "lastObservedFingerprint": "0685e4cb5b8f01c302b9a310f239dd2b149701ea00276aad28b5b456ef12652f",
+      "lastBenchmarkedFingerprint": null,
+      "lastSeenAt": "2026-10-14T09:41:28.154Z",
+      "lastBenchmarkedAt": null,
+      "lastSummary": null
+    },
+    "cloudflare/clef-flash": {
+      "lastObservedFingerprint": "6f24eaba3b8183ec36edbe5540bbee64d38bfd2c5b47efdaa0fef8217651833d",
+      "lastBenchmarkedFingerprint": null,
+      "lastSeenAt": "2026-10-14T09:41:28.154Z",
+      "lastBenchmarkedAt": null,
+      "lastSummary": null
+    },
+    "cloudflare/clef": {
+      "lastObservedFingerprint": "f394ca62dd20046ab8cf9226d45604a24c5af35da97e3acf69885d6b1ec96d92",
+      "lastBenchmarkedFingerprint": null,
+      "lastSeenAt": "2026-10-14T09:41:28.154Z",
+      "lastBenchmarkedAt": null,
+      "lastSummary": null
+    },
+    "togethercomputer/tev1-4b-experimental": {
+      "lastObservedFingerprint": "3e5feda2330a8450fcabd488b8349d53c56aa90c9fdf72fc3f0c329dc5194818",
+      "lastBenchmarkedFingerprint": null,
+      "lastSeenAt": "2026-10-14T09:41:28.154Z",
+      "lastBenchmarkedAt": null,
+      "lastSummary": null
+    },
+    "inception/mercury-decide": {
+      "lastObservedFingerprint": "442f2b8b70b6a936a1f11b130af8f5d97b50c9b0ca47a3775c84caafb15b0a60",
+      "lastBenchmarkedFingerprint": null,
+      "lastSeenAt": "2026-10-14T09:41:28.154Z",
+      "lastBenchmarkedAt": null,
+      "lastSummary": null
+    },
+    "inception/mercury-decide:free": {
+      "lastObservedFingerprint": "6829756d8387aa014aaad7621fd0322d87ab8815fbaa50322b57264280ae0516",
+      "lastBenchmarkedFingerprint": null,
+      "lastSeenAt": "2026-10-14T09:41:28.154Z",
+      "lastBenchmarkedAt": null,
+      "lastSummary": null
+    },
+    "upstage/solar-decide": {
+      "lastObservedFingerprint": "22d1009b99be47d24b47c616f779d6817cfd9d27c2eeff1cab4cb376dc4762a4",
+      "lastBenchmarkedFingerprint": null,
+      "lastSeenAt": "2026-10-14T09:41:28.154Z",
+      "lastBenchmarkedAt": null,
+      "lastSummary": null
+    },
+    "respan/span-01": {
+      "lastObservedFingerprint": "2ad8f2a6615891ae09408ed545a18889c6eff8d3b42f9fe28d6cdd9845d8b0a7",
+      "lastBenchmarkedFingerprint": null,
+      "lastSeenAt": "2026-10-14T09:41:28.154Z",
+      "lastBenchmarkedAt": null,
+      "lastSummary": null
+    },
+    "respan/span-01-lite": {
+      "lastObservedFingerprint": "24fd317ddc8166a36475799fabe6e0fed15de259b540dbd88e1be96d797f827a",
+      "lastBenchmarkedFingerprint": null,
+      "lastSeenAt": "2026-10-14T09:41:28.154Z",
+      "lastBenchmarkedAt": null,
+      "lastSummary": null
+    },
+    "respan/span-01-lite:free": {
+      "lastObservedFingerprint": "06b0dd789f015488d46d8e9c9097b6592df8a5bd73c553038066780ef4283a72",
+      "lastBenchmarkedFingerprint": null,
+      "lastSeenAt": "2026-10-14T09:41:28.154Z",
+      "lastBenchmarkedAt": null,
+      "lastSummary": null
+    },
+    "jaredpalmer/kev-4b": {
+      "lastObservedFingerprint": "4c08189d763e4d0bf4b6505b206d691debbaf2b660f218df06ef89937c4cf74c",
+      "lastBenchmarkedFingerprint": null,
+      "lastSeenAt": "2026-10-14T09:41:28.154Z",
+      "lastBenchmarkedAt": null,
+      "lastSummary": null
+    },
+    "typesafe/jev-1.13": {
+      "lastObservedFingerprint": "e94fc5b85184d7a7dedb9ecf0d10e43b492a09ec100e3cd6ab68e8c3e3b214ea",
+      "lastBenchmarkedFingerprint": "e94fc5b85184d7a7dedb9ecf0d10e43b492a09ec100e3cd6ab68e8c3e3b214ea",
+      "lastSeenAt": "2026-10-14T09:41:28.154Z",
+      "lastBenchmarkedAt": "2026-10-14T09:41:28.154Z",
+      "lastSummary": {
+        "model": "typesafe/jev-1.13",
+        "total": 43,
+        "correct": 34,
+        "accuracy": 0.7906976744186046,
+        "criticalMisses": 2,
+        "malformed": 0,
+        "failures": 0,
+        "inputTokens": 26999,
+        "outputTokens": 2410,
+        "reportedCostUsd": 0.0011339579999999998,
+        "latencyMs": {
+          "p50": 150,
+          "p95": 298.7,
+          "max": 926.4
+        },
+        "bySuite": [
+          {
+            "suite": "authorial_habit",
+            "total": 24,
+            "correct": 20,
+            "accuracy": 0.8333333333333334,
+            "criticalMisses": 2,
+            "malformed": 0,
+            "failures": 0
+          },
+          {
+            "suite": "completion_integrity",
+            "total": 9,
+            "correct": 6,
+            "accuracy": 0.6666666666666666,
+            "criticalMisses": 0,
+            "malformed": 0,
+            "failures": 0
+          },
+          {
+            "suite": "scene_boundary",
+            "total": 10,
+            "correct": 8,
+            "accuracy": 0.8,
+            "criticalMisses": 0,
+            "malformed": 0,
+            "failures": 0
+          }
+        ]
+      }
+    }
+  },
+  "runs": [
+    {
+      "ranAt": "2026-10-14T09:41:28.154Z",
+      "mainSha": "ac67801c5a3c0c2e25a8e5ae69dc68ba5a60add2",
+      "status": "PARTIAL",
+      "discoveredModels": 20,
+      "changedCandidates": [
+        "scaledown/classify-1",
+        "nace-ai/drex-v2.0",
+        "microsoft/microsoft-decision-1",
+        "nace-ai/drex-v1.5",
+        "cloudflare/clef-omni",
+        "upstage/solar-decide-flash",
+        "perplexity/pplx-decider-v1.1-27b",
+        "openai/gpt-6-luna-decisions",
+        "liquid/d1",
+        "cloudflare/clef-flash",
+        "cloudflare/clef",
+        "togethercomputer/tev1-4b-experimental",
+        "inception/mercury-decide",
+        "inception/mercury-decide:free",
+        "upstage/solar-decide",
+        "respan/span-01",
+        "respan/span-01-lite",
+        "respan/span-01-lite:free",
+        "jaredpalmer/kev-4b"
+      ],
+      "benchmarkedCandidates": [
+        "scaledown/classify-1",
+        "nace-ai/drex-v2.0",
+        "microsoft/microsoft-decision-1"
+      ],
+      "deferredCandidates": [
+        "nace-ai/drex-v1.5",
+        "cloudflare/clef-omni",
+        "upstage/solar-decide-flash",
+        "perplexity/pplx-decider-v1.1-27b",
+        "openai/gpt-6-luna-decisions",
+        "liquid/d1",
+        "cloudflare/clef-flash",
+        "cloudflare/clef",
+        "togethercomputer/tev1-4b-experimental",
+        "inception/mercury-decide",
+        "inception/mercury-decide:free",
+        "upstage/solar-decide",
+        "respan/span-01",
+        "respan/span-01-lite",
+        "respan/span-01-lite:free",
+        "jaredpalmer/kev-4b"
+      ],
+      "providerCalls": 172,
+      "baseline": {
+        "model": "typesafe/jev-1.13",
+        "total": 43,
+        "correct": 34,
+        "accuracy": 0.7906976744186046,
+        "criticalMisses": 2,
+        "malformed": 0,
+        "failures": 0,
+        "inputTokens": 26999,
+        "outputTokens": 2410,
+        "reportedCostUsd": 0.0011339579999999998,
+        "latencyMs": {
+          "p50": 150,
+          "p95": 298.7,
+          "max": 926.4
+        },
+        "bySuite": [
+          {
+            "suite": "authorial_habit",
+            "total": 24,
+            "correct": 20,
+            "accuracy": 0.8333333333333334,
+            "criticalMisses": 2,
+            "malformed": 0,
+            "failures": 0
+          },
+          {
+            "suite": "completion_integrity",
+            "total": 9,
+            "correct": 6,
+            "accuracy": 0.6666666666666666,
+            "criticalMisses": 0,
+            "malformed": 0,
+            "failures": 0
+          },
+          {
+            "suite": "scene_boundary",
+            "total": 10,
+            "correct": 8,
+            "accuracy": 0.8,
+            "criticalMisses": 0,
+            "malformed": 0,
+            "failures": 0
+          }
+        ]
+      },
+      "evaluations": [
+        {
+          "model": "scaledown/classify-1",
+          "fingerprint": "bfd7eacd3c1d310e030adec6bf47cbab516110cd98e5591e51cf676078a8b74d",
+          "globalReplacementCandidate": false,
+          "suiteCandidates": [],
+          "summary": {
+            "model": "scaledown/classify-1",
+            "total": 43,
+            "correct": 0,
+            "accuracy": 0,
+            "criticalMisses": 16,
+            "malformed": 43,
+            "failures": 43,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "reportedCostUsd": null,
+            "latencyMs": {
+              "p50": null,
+              "p95": null,
+              "max": null
+            },
+            "bySuite": [
+              {
+                "suite": "authorial_habit",
+                "total": 24,
+                "correct": 0,
+                "accuracy": 0,
+                "criticalMisses": 8,
+                "malformed": 24,
+                "failures": 24
+              },
+              {
+                "suite": "completion_integrity",
+                "total": 9,
+                "correct": 0,
+                "accuracy": 0,
+                "criticalMisses": 3,
+                "malformed": 9,
+                "failures": 9
+              },
+              {
+                "suite": "scene_boundary",
+                "total": 10,
+                "correct": 0,
+                "accuracy": 0,
+                "criticalMisses": 5,
+                "malformed": 10,
+                "failures": 10
+              }
+            ]
+          },
+          "baseline": {
+            "model": "typesafe/jev-1.13",
+            "total": 43,
+            "correct": 34,
+            "accuracy": 0.7906976744186046,
+            "criticalMisses": 2,
+            "malformed": 0,
+            "failures": 0,
+            "inputTokens": 26999,
+            "outputTokens": 2410,
+            "reportedCostUsd": 0.0011339579999999998,
+            "latencyMs": {
+              "p50": 150,
+              "p95": 298.7,
+              "max": 926.4
+            },
+            "bySuite": [
+              {
+                "suite": "authorial_habit",
+                "total": 24,
+                "correct": 20,
+                "accuracy": 0.8333333333333334,
+                "criticalMisses": 2,
+                "malformed": 0,
+                "failures": 0
+              },
+              {
+                "suite": "completion_integrity",
+                "total": 9,
+                "correct": 6,
+                "accuracy": 0.6666666666666666,
+                "criticalMisses": 0,
+                "malformed": 0,
+                "failures": 0
+              },
+              {
+                "suite": "scene_boundary",
+                "total": 10,
+                "correct": 8,
+                "accuracy": 0.8,
+                "criticalMisses": 0,
+                "malformed": 0,
+                "failures": 0
+              }
+            ]
+          }
+        },
+        {
+          "model": "nace-ai/drex-v2.0",
+          "fingerprint": "4c608bc020cc3a73e45e307e57b786704bf9c5531484e5f925b8886034140aac",
+          "globalReplacementCandidate": false,
+          "suiteCandidates": [],
+          "summary": {
+            "model": "nace-ai/drex-v2.0",
+            "total": 43,
+            "correct": 27,
+            "accuracy": 0.627906976744186,
+            "criticalMisses": 2,
+            "malformed": 0,
+            "failures": 0,
+            "inputTokens": 11569,
+            "outputTokens": 3358,
+            "reportedCostUsd": 0.0006941400000000002,
+            "latencyMs": {
+              "p50": 217.6,
+              "p95": 302,
+              "max": 908.6
+            },
+            "bySuite": [
+              {
+                "suite": "authorial_habit",
+                "total": 24,
+                "correct": 15,
+                "accuracy": 0.625,
+                "criticalMisses": 0,
+                "malformed": 0,
+                "failures": 0
+              },
+              {
+                "suite": "completion_integrity",
+                "total": 9,
+                "correct": 6,
+                "accuracy": 0.6666666666666666,
+                "criticalMisses": 0,
+                "malformed": 0,
+                "failures": 0
+              },
+              {
+                "suite": "scene_boundary",
+                "total": 10,
+                "correct": 6,
+                "accuracy": 0.6,
+                "criticalMisses": 2,
+                "malformed": 0,
+                "failures": 0
+              }
+            ]
+          },
+          "baseline": {
+            "model": "typesafe/jev-1.13",
+            "total": 43,
+            "correct": 34,
+            "accuracy": 0.7906976744186046,
+            "criticalMisses": 2,
+            "malformed": 0,
+            "failures": 0,
+            "inputTokens": 26999,
+            "outputTokens": 2410,
+            "reportedCostUsd": 0.0011339579999999998,
+            "latencyMs": {
+              "p50": 150,
+              "p95": 298.7,
+              "max": 926.4
+            },
+            "bySuite": [
+              {
+                "suite": "authorial_habit",
+                "total": 24,
+                "correct": 20,
+                "accuracy": 0.8333333333333334,
+                "criticalMisses": 2,
+                "malformed": 0,
+                "failures": 0
+              },
+              {
+                "suite": "completion_integrity",
+                "total": 9,
+                "correct": 6,
+                "accuracy": 0.6666666666666666,
+                "criticalMisses": 0,
+                "malformed": 0,
+                "failures": 0
+              },
+              {
+                "suite": "scene_boundary",
+                "total": 10,
+                "correct": 8,
+                "accuracy": 0.8,
+                "criticalMisses": 0,
+                "malformed": 0,
+                "failures": 0
+              }
+            ]
+          }
+        },
+        {
+          "model": "microsoft/microsoft-decision-1",
+          "fingerprint": "a82400d5ebfaca8c8c34672917886e3fceffaed7ed0a246d59e401df70415c5b",
+          "globalReplacementCandidate": false,
+          "suiteCandidates": [],
+          "summary": {
+            "model": "microsoft/microsoft-decision-1",
+            "total": 43,
+            "correct": 29,
+            "accuracy": 0.6744186046511628,
+            "criticalMisses": 2,
+            "malformed": 0,
+            "failures": 0,
+            "inputTokens": 11336,
+            "outputTokens": 43,
+            "reportedCostUsd": 0.000476112,
+            "latencyMs": {
+              "p50": 261.8,
+              "p95": 378.9,
+              "max": 977.2
+            },
+            "bySuite": [
+              {
+                "suite": "authorial_habit",
+                "total": 24,
+                "correct": 16,
+                "accuracy": 0.6666666666666666,
+                "criticalMisses": 1,
+                "malformed": 0,
+                "failures": 0
+              },
+              {
+                "suite": "completion_integrity",
+                "total": 9,
+                "correct": 6,
+                "accuracy": 0.6666666666666666,
+                "criticalMisses": 0,
+                "malformed": 0,
+                "failures": 0
+              },
+              {
+                "suite": "scene_boundary",
+                "total": 10,
+                "correct": 7,
+                "accuracy": 0.7,
+                "criticalMisses": 1,
+                "malformed": 0,
+                "failures": 0
+              }
+            ]
+          },
+          "baseline": {
+            "model": "typesafe/jev-1.13",
+            "total": 43,
+            "correct": 34,
+            "accuracy": 0.7906976744186046,
+            "criticalMisses": 2,
+            "malformed": 0,
+            "failures": 0,
+            "inputTokens": 26999,
+            "outputTokens": 2410,
+            "reportedCostUsd": 0.0011339579999999998,
+            "latencyMs": {
+              "p50": 150,
+              "p95": 298.7,
+              "max": 926.4
+            },
+            "bySuite": [
+              {
+                "suite": "authorial_habit",
+                "total": 24,
+                "correct": 20,
+                "accuracy": 0.8333333333333334,
+                "criticalMisses": 2,
+                "malformed": 0,
+                "failures": 0
+              },
+              {
+                "suite": "completion_integrity",
+                "total": 9,
+                "correct": 6,
+                "accuracy": 0.6666666666666666,
+                "criticalMisses": 0,
+                "malformed": 0,
+                "failures": 0
+              },
+              {
+                "suite": "scene_boundary",
+                "total": 10,
+                "correct": 8,
+                "accuracy": 0.8,
+                "criticalMisses": 0,
+                "malformed": 0,
+                "failures": 0
+              }
+            ]
+          }
+        }
+      ],
+      "notes": [],
+      "githubRunUrl": "https://github.com/you8520-sketch/chat-ai/actions/runs/38544056492"
+    }
+  ]
+}
