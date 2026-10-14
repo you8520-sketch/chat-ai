@@ -242,7 +242,7 @@ describe("REC-07 rolling summary handoff wording", () => {
 
 describe("REC-08 episodic extraction handoff semantics", () => {
   it("allows generic completed scene_event without dominance inference", () => {
-    assert.match(EPISODIC_FACTS_EXTRACT_INSTRUCTIONS, /a_led_b_followed/);
+    assert.match(EPISODIC_FACTS_EXTRACT_INSTRUCTIONS, /explicit_scene_event = a concrete observable action\/event/);
     assert.match(EPISODIC_FACTS_EXTRACT_INSTRUCTIONS, /dominance/);
     assert.match(EPISODIC_FACTS_EXTRACT_INSTRUCTIONS, /Do NOT infer persistent personality/);
   });

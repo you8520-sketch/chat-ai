@@ -1,0 +1,71 @@
+{
+ "label": "before",
+ "case": {
+  "id": "CTL_char_claim",
+  "user": "시장에 다녀왔어.",
+  "assistant": "라이크는 고개를 끄덕였다. \"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\""
+ },
+ "rep": 6,
+ "model": "gpt-6-luna",
+ "ok": true,
+ "usage": {
+  "inputTokens": 2280,
+  "outputTokens": 127,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2278,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000226,
+  "upstreamCostUsd": 0.000226,
+  "debugRawUsage": {
+   "completion_tokens": 127,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2280,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2278,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2407,
+   "cost": 0.000226,
+   "cost_details": {
+    "upstream_inference_cost": 0.000226
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "600c0a89-1952-4f24-a4d9-561474a36129"
+ },
+ "billed": 0.000226,
+ "episodicPresent": true,
+ "episodicValid": true,
+ "verdicts": [
+  {
+   "fact": {
+    "category": "relationship",
+    "subject": "laik_user",
+    "attribute": "prior_familiarity_claim",
+    "value": "market_acquaintance",
+    "importance": "normal",
+    "fact_text": "라이크는 자신의 누나가 유저를 예전부터 알고 지냈다고 전했다.",
+    "evidence_type": "explicit_character_claim",
+    "evidence": {
+     "source_role": "assistant",
+     "source_quote": "누나가 시장에서 널 알아봤대."
+    }
+   },
+   "accepted": true,
+   "reason": null,
+   "injected": "[캐릭터 발언(미확정 주장)] “누나가 시장에서 널 알아봤대.”"
+  }
+ ],
+ "text": "{\"relationship\":{\"items\":[],\"itemsRemove\":[],\"promisesAdd\":[],\"promisesRemove\":[]},\"episodic\":{\"extracted_facts\":[{\"category\":\"relationship\",\"subject\":\"laik_user\",\"attribute\":\"prior_familiarity_claim\",\"value\":\"market_acquaintance\",\"importance\":\"normal\",\"fact_text\":\"라이크는 자신의 누나가 유저를 예전부터 알고 지냈다고 전했다.\",\"evidence_type\":\"explicit_character_claim\",\"evidence\":{\"source_role\":\"assistant\",\"source_quote\":\"누나가 시장에서 널 알아봤대.\"}}]}}"
+}

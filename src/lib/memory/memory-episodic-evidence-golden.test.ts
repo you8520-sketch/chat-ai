@@ -85,6 +85,7 @@ function f(
 const NEUTRAL_ASSISTANT = "에녹은 잠시 말없이 서 있었다.";
 const NEUTRAL_USER = "그래, 계속 이야기해 줘.";
 
+// The evidence gate verifies quote existence and role, not that the described event is true.
 const BONA_FIDE: Golden[] = [
   {
     id: "U1 coffee preference",
@@ -127,12 +128,12 @@ const BONA_FIDE: Golden[] = [
     fact: f("preference", "user", "scene_boundary", "no_shouting", "critical", "사용자는 큰 소리로 다투는 장면을 싫어한다고 명시했다.", "explicit_user_statement", "user", "큰 소리로 다투는 장면은 싫어."),
   },
   {
-    id: "U6 user consent to relationship",
-    kind: "user_statement",
+    id: "U6 user relationship proposal event",
+    kind: "user_event",
     importance: "critical",
     userText: "좋아, 우리 오늘부터 연인하자.",
     assistantText: NEUTRAL_ASSISTANT,
-    fact: f("relationship", "enoch_user", "relationship_status", "lovers", "critical", "에녹과 유저는 서로 연인이 되기로 명시적으로 합의했다.", "explicit_scene_event", "user", "좋아, 우리 오늘부터 연인하자."),
+    fact: f("relationship", "user", "relationship_proposal", "proposed", "critical", "유저는 에녹에게 연인이 되자고 제안했다.", "explicit_scene_event", "user", "좋아, 우리 오늘부터 연인하자."),
   },
   {
     id: "U7 user action",

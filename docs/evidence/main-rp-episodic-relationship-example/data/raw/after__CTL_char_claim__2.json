@@ -1,0 +1,53 @@
+{
+ "label": "after",
+ "case": {
+  "id": "CTL_char_claim",
+  "user": "시장에 다녀왔어.",
+  "assistant": "라이크는 고개를 끄덕였다. \"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\""
+ },
+ "rep": 2,
+ "model": "gpt-6-luna",
+ "ok": true,
+ "usage": {
+  "inputTokens": 2345,
+  "outputTokens": 40,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 2265,
+  "cacheWriteTokens": 77,
+  "standardInputTokens": 3,
+  "cheaperInferenceBilledCostUsd": 0.000034,
+  "upstreamCostUsd": 0.000034,
+  "debugRawUsage": {
+   "prompt_tokens": 2345,
+   "completion_tokens": 40,
+   "total_tokens": 2385,
+   "prompt_tokens_details": {
+    "cached_tokens": 2265,
+    "cache_write_tokens": 77,
+    "audio_tokens": 0
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 0,
+    "audio_tokens": 0,
+    "accepted_prediction_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "cost": 0.000034,
+   "cost_details": {
+    "upstream_inference_cost": 0.000034
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "4cad661d-c329-4332-ae7d-38fa49dc7263"
+ },
+ "billed": 0.000034,
+ "episodicPresent": true,
+ "episodicValid": true,
+ "verdicts": [],
+ "text": "{\"relationship\":{\"items\":[],\"itemsRemove\":[],\"promisesAdd\":[],\"promisesRemove\":[]},\"episodic\":{\"extracted_facts\":[]}}"
+}

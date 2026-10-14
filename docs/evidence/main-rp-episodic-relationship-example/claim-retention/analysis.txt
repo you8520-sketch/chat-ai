@@ -1,0 +1,72 @@
+== CTL_char_claim
+  main  n=24 {'any_row': 18, 'claim_row': 18, 'claim_in_wire': 18} transport_fail 0
+  pr    n=24 {'any_row': 10, 'claim_row': 10, 'claim_in_wire': 10} transport_fail 0
+  cand  n=24 {'any_row': 19, 'claim_row': 19, 'claim_in_wire': 19, 'user_row': 1} transport_fail 0
+== FX06_proposal_only
+  main  n=16 {'any_row': 16, 'lovers': 16, 'agreement_gloss': 5, 'proposal_row': 11, 'user_row': 16, 'enoch_leak': 9} transport_fail 0
+  pr    n=16 {'any_row': 16, 'proposal_row': 16, 'user_row': 16} transport_fail 0
+  cand  n=16 {'any_row': 16, 'proposal_row': 16, 'accepted_row': 1, 'scene_row': 1, 'user_row': 16} transport_fail 0
+== CTL_explicit_accept
+  main  n=16 {'any_row': 16, 'lovers': 16, 'agreement_gloss': 16, 'user_row': 16} transport_fail 0
+  pr    n=16 {'any_row': 16, 'proposal_row': 16, 'accepted_row': 4, 'scene_row': 4, 'user_row': 16} transport_fail 0
+  cand  n=16 {'any_row': 16, 'proposal_row': 16, 'accepted_row': 5, 'scene_row': 5, 'user_row': 16} transport_fail 0
+== CTL_emotion_npc
+  main  n=12 {'any_row': 1, 'scene_row': 1} transport_fail 0
+  pr    n=12 {'any_row': 1, 'scene_row': 1, 'user_row': 1} transport_fail 0
+  cand  n=12 {'any_row': 1, 'scene_row': 1} transport_fail 0
+== CTL_scene_lead
+  main  n=12 {} transport_fail 0
+  pr    n=12 {} transport_fail 0
+  cand  n=12 {} transport_fail 0
+== CTL_user_promise
+  main  n=6 {} transport_fail 0
+  pr    n=6 {} transport_fail 0
+  cand  n=6 {} transport_fail 0
+== CTL_door
+  main  n=12 {'any_row': 12, 'claim_row': 1, 'claim_in_wire': 1, 'scene_row': 11, 'user_row': 1, 'enoch_leak': 12} transport_fail 0
+  pr    n=12 {'any_row': 12, 'scene_row': 12, 'enoch_leak': 12} transport_fail 0
+  cand  n=12 {'any_row': 12, 'claim_row': 1, 'claim_in_wire': 1, 'scene_row': 11, 'user_row': 3, 'enoch_leak': 12} transport_fail 0
+== CTL_reconcile
+  main  n=12 {} transport_fail 0
+  pr    n=12 {'any_row': 1, 'user_row': 1} transport_fail 0
+  cand  n=12 {} transport_fail 0
+== CTL_disclosure
+  main  n=12 {'any_row': 12, 'user_row': 12} transport_fail 0
+  pr    n=12 {'any_row': 12, 'user_row': 12} transport_fail 0
+  cand  n=12 {'any_row': 12, 'user_row': 12} transport_fail 0
+== CTL_shared_past_direct
+  main  n=12 {'any_row': 12, 'claim_row': 12, 'claim_in_wire': 12} transport_fail 0
+  pr    n=12 {'any_row': 12, 'claim_row': 12, 'claim_in_wire': 12} transport_fail 0
+  cand  n=12 {'any_row': 10, 'claim_row': 10, 'claim_in_wire': 10} transport_fail 0
+== CTL_direction
+  main  n=48 {'any_row': 7, 'claim_row': 7, 'claim_in_wire': 7} transport_fail 0
+  pr    n=48 {'any_row': 7, 'claim_row': 6, 'claim_in_wire': 6, 'scene_row': 1} transport_fail 0
+  cand  n=48 {'any_row': 4, 'claim_row': 3, 'claim_in_wire': 3, 'scene_row': 1} transport_fail 0
+== CTL_lead_follow
+  main  n=12 {} transport_fail 0
+  pr    n=12 {} transport_fail 0
+  cand  n=12 {} transport_fail 0
+CTL_char_claim claim_row main 18 / 24 vs pr 10 / 24 p= 0.0392
+CTL_char_claim claim_row cand 19 / 24 vs pr 10 / 24 p= 0.0171
+CTL_char_claim claim_row main 18 / 24 vs cand 19 / 24 p= 1.0
+CTL_scene_lead scene_row main 0 / 12 vs pr 0 / 12 p= 1.0
+CTL_scene_lead scene_row cand 0 / 12 vs pr 0 / 12 p= 1.0
+CTL_scene_lead scene_row main 0 / 12 vs cand 0 / 12 p= 1.0
+CTL_explicit_accept accepted_row main 0 / 16 vs pr 4 / 16 p= 0.1012
+CTL_explicit_accept accepted_row cand 5 / 16 vs pr 4 / 16 p= 1.0
+CTL_explicit_accept accepted_row main 0 / 16 vs cand 5 / 16 p= 0.0434
+CTL_emotion_npc any_row main 1 / 12 vs pr 1 / 12 p= 1.0
+CTL_emotion_npc any_row cand 1 / 12 vs pr 1 / 12 p= 1.0
+CTL_emotion_npc any_row main 1 / 12 vs cand 1 / 12 p= 1.0
+CTL_door any_row main 12 / 12 vs pr 12 / 12 p= 1.0
+CTL_door any_row cand 12 / 12 vs pr 12 / 12 p= 1.0
+CTL_door any_row main 12 / 12 vs cand 12 / 12 p= 1.0
+CTL_reconcile any_row main 0 / 12 vs pr 1 / 12 p= 1.0
+CTL_reconcile any_row cand 0 / 12 vs pr 1 / 12 p= 1.0
+CTL_reconcile any_row main 0 / 12 vs cand 0 / 12 p= 1.0
+CTL_disclosure any_row main 12 / 12 vs pr 12 / 12 p= 1.0
+CTL_disclosure any_row cand 12 / 12 vs pr 12 / 12 p= 1.0
+CTL_disclosure any_row main 12 / 12 vs cand 12 / 12 p= 1.0
+main calls 194 in 442702 out 18741 usd 0.01134 in/call 2282.0 out/call 96.6
+pr calls 194 in 454778 out 19311 usd 0.01115 in/call 2344.2 out/call 99.5
+cand calls 194 in 453882 out 18323 usd 0.01165 in/call 2339.6 out/call 94.4

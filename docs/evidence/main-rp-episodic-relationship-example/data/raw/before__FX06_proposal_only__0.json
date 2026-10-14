@@ -1,0 +1,89 @@
+{
+ "label": "before",
+ "case": {
+  "id": "FX06_proposal_only",
+  "user": "좋아, 우리 오늘부터 연인하자.",
+  "assistant": "라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다."
+ },
+ "rep": 0,
+ "model": "gpt-6-luna",
+ "ok": true,
+ "usage": {
+  "inputTokens": 2270,
+  "outputTokens": 194,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2268,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000247,
+  "upstreamCostUsd": 0.000247,
+  "debugRawUsage": {
+   "completion_tokens": 194,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2270,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2268,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2464,
+   "cost": 0.000247,
+   "cost_details": {
+    "upstream_inference_cost": 0.000247
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "004725c8-7e00-4b4e-a368-8472802eff4e"
+ },
+ "billed": 0.000247,
+ "episodicPresent": true,
+ "episodicValid": true,
+ "verdicts": [
+  {
+   "fact": {
+    "category": "relationship",
+    "subject": "like_user",
+    "attribute": "relationship_status",
+    "value": "lovers",
+    "importance": "important",
+    "fact_text": "사용자는 라이크와 오늘부터 연인이 되자고 제안했다.",
+    "evidence_type": "explicit_user_statement",
+    "evidence": {
+     "source_role": "user",
+     "source_quote": "좋아, 우리 오늘부터 연인하자."
+    }
+   },
+   "accepted": true,
+   "reason": null,
+   "injected": "[유저가 직접 쓴 원문] “좋아, 우리 오늘부터 연인하자.”"
+  },
+  {
+   "fact": {
+    "category": "relationship",
+    "subject": "like_user",
+    "attribute": "scene_event",
+    "value": "held_hands",
+    "importance": "normal",
+    "fact_text": "라이크는 사용자의 손을 맞잡았다.",
+    "evidence_type": "explicit_scene_event",
+    "evidence": {
+     "source_role": "assistant",
+     "source_quote": "라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다."
+    }
+   },
+   "accepted": false,
+   "reason": "assistant_evidence_cannot_authorize_user_action",
+   "injected": null
+  }
+ ],
+ "text": "{\"relationship\":{\"items\":[],\"itemsRemove\":[],\"promisesAdd\":[],\"promisesRemove\":[]},\"episodic\":{\"extracted_facts\":[{\"category\":\"relationship\",\"subject\":\"like_user\",\"attribute\":\"relationship_status\",\"value\":\"lovers\",\"importance\":\"important\",\"fact_text\":\"사용자는 라이크와 오늘부터 연인이 되자고 제안했다.\",\"evidence_type\":\"explicit_user_statement\",\"evidence\":{\"source_role\":\"user\",\"source_quote\":\"좋아, 우리 오늘부터 연인하자.\"}},{\"category\":\"relationship\",\"subject\":\"like_user\",\"attribute\":\"scene_event\",\"value\":\"held_hands\",\"importance\":\"normal\",\"fact_text\":\"라이크는 사용자의 손을 맞잡았다.\",\"evidence_type\":\"explicit_scene_event\",\"evidence\":{\"source_role\":\"assistant\",\"source_quote\":\"라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.\"}}]}}"
+}

@@ -1,0 +1,71 @@
+{
+ "label": "varB",
+ "case": {
+  "id": "CTL_explicit_accept",
+  "user": "좋아, 우리 오늘부터 연인하자.",
+  "assistant": "라이크는 한참 말이 없다가 입꼬리를 올렸다. \"그래. 오늘부터 연인이다.\""
+ },
+ "rep": 0,
+ "model": "gpt-6-luna",
+ "ok": true,
+ "usage": {
+  "inputTokens": 2267,
+  "outputTokens": 116,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2265,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000221,
+  "upstreamCostUsd": 0.000221,
+  "debugRawUsage": {
+   "completion_tokens": 116,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2267,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2265,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2383,
+   "cost": 0.000221,
+   "cost_details": {
+    "upstream_inference_cost": 0.000221
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "40452d74-65d9-4f7f-aa42-8b4869a5c041"
+ },
+ "billed": 0.000221,
+ "episodicPresent": true,
+ "episodicValid": true,
+ "verdicts": [
+  {
+   "fact": {
+    "category": "relationship",
+    "subject": "user_like",
+    "attribute": "relationship_status",
+    "value": "lovers",
+    "importance": "important",
+    "fact_text": "유저와 라이크는 오늘부터 연인이 되기로 합의했다.",
+    "evidence_type": "explicit_user_statement",
+    "evidence": {
+     "source_role": "user",
+     "source_quote": "좋아, 우리 오늘부터 연인하자."
+    }
+   },
+   "accepted": true,
+   "reason": null,
+   "injected": "[유저가 직접 쓴 원문] “좋아, 우리 오늘부터 연인하자.”"
+  }
+ ],
+ "text": "{\"relationship\":{\"items\":[],\"itemsRemove\":[],\"promisesAdd\":[],\"promisesRemove\":[]},\"episodic\":{\"extracted_facts\":[{\"category\":\"relationship\",\"subject\":\"user_like\",\"attribute\":\"relationship_status\",\"value\":\"lovers\",\"importance\":\"important\",\"fact_text\":\"유저와 라이크는 오늘부터 연인이 되기로 합의했다.\",\"evidence_type\":\"explicit_user_statement\",\"evidence\":{\"source_role\":\"user\",\"source_quote\":\"좋아, 우리 오늘부터 연인하자.\"}}]}}"
+}
