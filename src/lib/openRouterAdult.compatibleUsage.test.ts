@@ -343,6 +343,7 @@ function assembleSyntheticCacheSplit(input: {
       { role: "user", content: input.user },
     ],
     ...sceneServerControls,
+    modelId: "deepseek-v4.1-flash",
   });
   return { assembled, semantic };
 }

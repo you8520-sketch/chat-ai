@@ -296,19 +296,19 @@ describe("rp quality paid runner preapproval evidence", () => {
     }
 
     assert.equal(matched.manifest.identityHash, "ce23d16dac7e90ce792ada3c8a4c8cab572b40979307a8d81ea2c1449bdd1937");
-    assert.equal(matched.manifest.manifestFingerprint, "36851212bec66c0f6944b1afc5781ab8dd22ac5068708a99495fc3a61c6b3266");
+    assert.equal(matched.manifest.manifestFingerprint, "56a19d9ec7de09615ad35cfbccc924af00fc8ded6e28733271b1f859e270c238");
     assert.deepEqual(
       matched.manifest.calls.map((call) => call.requestBodyFingerprint),
       [
-        "c529fbd4d1539a11b02f9d04f5fb671dee71fe0047ff298e7f19fb5c98b833e3",
+        "7a717bc5aaf7e397858c6a1875f351763f55feadc69320d729c68a908c2ade04",
         "64305e5f85a72d8f15c5ddf5c4b1aa294a0eeb23145d95454a62909835ed563a",
         "eed6055734f105bfd66833793a8891b022d4dea07b11498f0ae2ab70090277d4",
         "2b4b1b2219a89dcaa75f9117e562d56945c2014e6b091ce8ac41df53f15d5b7b",
-        "d6ce53505b8cf8ef13a3347957c05932fe906cc622b01aac2bd14cfb8fd33e09",
+        "8fa666c2aeb0f40b5147fc3be2b7a15cac92edaae0cb22c2874d5bc374e6ca16",
         "592bd5bd2e2e4f4215b65bc2096033f700d073ff8cb425d9793ffc6f637c437e",
         "c2585878c439bef76caca1c9f6d231f890067d33227c1ed20e7237a9ccbe298d",
         "a93dfdc97ca06d979f937d918d86ef09a68db6eea4af334877bd059b41618910",
-        "bca1a9b1ad50d11e9ea91fa6588216e9795441b3ce5099c2b9ada70f2ce6ec9f",
+        "fcb7187775e96c1ebd41afe724f4a6b7eb2969ec054550888adfbc4cd76ac58f",
         "059ab44b829be403cdd874bbd182d3473b19d8c2bb3e3ad7aa212737dbdfe221",
         "91129a3ea401f2cd8e34b0036e9f508c2780e5714e7b5213111058938b8a55b4",
         "7a2a48ab7c337fc4008a94be7f32116c392bf78b6f59696e067e2d91197fd0b5",
