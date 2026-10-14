@@ -41,7 +41,7 @@ export default async function MyCharactersPage() {
           cta="캐릭터 제작하기"
         />
       ) : (
-        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-0 sm:grid-cols-3 lg:grid-cols-5">
           {chars.map((c) => (
             <MyCharacterCard key={c.id} c={c} blurNsfw={blurNsfw} />
           ))}
