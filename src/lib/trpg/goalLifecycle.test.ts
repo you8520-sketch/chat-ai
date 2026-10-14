@@ -555,7 +555,10 @@ describe("goal lifecycle: retry, regeneration and duplicate commit", () => {
     await play(db, campaignId, deps, "곶 끝의 등대로 이동한다.");
     const before = { goals: goalsOf(db, campaignId), json: storedGoalsJson(db, campaignId) };
     assert.equal(byTitle(db, campaignId, REACH_GOAL)!.status, "completed");
-    await regenerateTrpgNarration(db, { campaignId, userId: 1, deps });
+    await assert.rejects(
+      () => regenerateTrpgNarration(db, { campaignId, userId: 1, deps }),
+      /확정된 결과와 맞지 않아/
+    );
     assert.deepEqual(goalsOf(db, campaignId), before.goals);
     assert.equal(storedGoalsJson(db, campaignId), before.json);
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });

@@ -293,7 +293,10 @@ describe("movement authority: real engine path (#1541)", () => {
     const before = snapshotOf();
     assert.equal(before.ledger.location, "마레노 어시장");
     assert.equal(before.sheet, "마레노 어시장");
-    await regenerateTrpgNarration(db, { campaignId, userId: 1, deps });
+    await assert.rejects(
+      () => regenerateTrpgNarration(db, { campaignId, userId: 1, deps }),
+      /확정된 결과와 맞지 않아/
+    );
     assert.deepEqual(snapshotOf(), before);
     db.close();
   });

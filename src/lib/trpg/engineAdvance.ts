@@ -95,7 +95,7 @@ import {
   serializeLocalSceneStateForGm,
 } from "./localSceneProgress";
 import { assertGmCompletionCanCommit, assessGmCompletionIntegrity, completionIntegrityStatusLabel } from "./gmCompletionIntegrity";
-import { buildTrpgGmUserBlock, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_SYSTEM, type ParsedTrpgGmOutput } from "./gmPrompt";
+import { buildTrpgGmUserBlock, formatTrpgRegenerateCommittedFacts, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_SYSTEM, type ParsedTrpgGmOutput } from "./gmPrompt";
 import { serializeTrpgScenarioPlanForGm } from "./scenarioPlan";
 import { parseScenarioNpcs, type TrpgScenarioNpc } from "./scenarioTypes";
 import { ensureCampaignDirectorContext } from "./sandboxDirector";
@@ -130,6 +130,7 @@ import {
   resolveGmLeaseState,
   StaleGmGenerationOwnerError,
   tryClaimLegacyErrorRecoverySalvage,
+  tryAbortUncommittedRerollLease,
   tryClaimStaleGmRecovery,
   tryPersistGmRoundFailure,
   tryRevertStaleRerollGeneration,
@@ -148,6 +149,7 @@ import { allRequiredHumanActionsLocked } from "./roundLock";
 import { anchorTrpgProcessTimer, ensureTrpgProcessStage } from "./processTimer";
 import { tryAcquireGmLock, tryBeginGmGeneration, tryBeginNarrationReroll, type TrpgActorReady } from "./roundLock";
 import { loadSheetSnapshots, persistSheets } from "./engineSheets";
+import { inventoryUnits } from "./inventory";
 import {
   applyMechanicsOnCommit,
   completeRoundMechanics,
@@ -155,6 +157,7 @@ import {
   type MechanicsRoundDeps,
 } from "./mechanicsRound";
 import { mergeMechanicsOwnedDelta } from "./mechanicsMerge";
+import { regenerateOutputInvertsCommittedCanon, UnadoptedTrpgRegenerateError } from "./regenerateCanon";
 import { acceptEncountersEnded, governedEncounters } from "./encounterStrikes";
 import { evaluateThreatShadow, formatThreatShadowLog, threatShadowHasSignal } from "./threatShadow";
 import { loadEndedEncounterIds, loadMechanicsResolution, markMechanicsApplied } from "./mechanicsStore";
@@ -397,7 +400,7 @@ export async function regenerateTrpgNarration(
     throw new Error("이미 장면을 다시 쓰고 있습니다.");
   }
   ensureTrpgProcessStage(db, target.id, "reroll");
-  beginGmGenerationLease(db, target.id, rid);
+  beginGmGenerationLease(db, target.id, rid, { preserveCommittedGenerationId: true });
   try {
     await runGmForRound(db, {
       campaignId: campaign.id,
@@ -620,6 +623,17 @@ async function reconcileStaleGmGenerationIfNeeded(
       const recoveryId = newRequestId();
       try {
         if (isRerollGmGeneration(db, round.id)) {
+          // A preserved prior scene has a committed id that this lease did not
+          // produce, so it has no reroll usage to bill. A committed reroll whose
+          // lease moved to recovery still has usage under the committed id.
+          const preservedPriorScene =
+            provenanceGenerationId !== leaseOwnerId &&
+            !isRerollGenerationBilled(db, round.id, provenanceGenerationId) &&
+            loadBillableRerollUsage(db, round.id, provenanceGenerationId).length === 0;
+          if (preservedPriorScene) {
+            tryAbortUncommittedRerollLease(db, round.id, leaseOwnerId);
+            return { round: loadLatestRound(db, opts.campaignId) ?? round, reclaimed: true };
+          }
           if (
             !tryClaimStaleGmRecovery(
               db,
@@ -1336,12 +1350,33 @@ async function runGmForRound(
   const localSceneProgress = campaignContext?.localSceneProgress;
   const localSceneBlock = localSceneProgress ? serializeLocalSceneStateForGm(localSceneProgress) : "";
   const localSceneDeltaContract = serializeLocalSceneDeltaContract();
+  const committedNarration = opts.regenerate
+    ? ((
+        db.prepare(`SELECT narration FROM trpg_gm_messages WHERE round_id=?`).get(opts.roundId) as
+          | { narration: string }
+          | undefined
+      )?.narration ?? "")
+    : "";
+  const committedFacts = opts.regenerate
+    ? formatTrpgRegenerateCommittedFacts({
+        sheets: sheets.map((sheet) => ({
+          name: sheet.name,
+          hp: sheet.hp,
+          location: sheet.location,
+          conditions: sheet.conditions,
+          inventory: inventoryUnits(sheet.inventory),
+        })),
+        ledger: loadCampaignLedger(db, opts.campaignId),
+      })
+    : "";
   const user = buildTrpgGmUserBlock({
     worldBrief: campaign.world_brief,
     gmSecret: campaign.gm_secret ?? "",
     memoryBlock: memory,
     opening: opts.opening,
     regenerate: opts.regenerate === true,
+    committedNarration,
+    committedFacts,
     playerPersonas,
     sheetCanon,
     genres: loadCampaignGenres(db, campaign),
@@ -1712,6 +1747,37 @@ function commitPendingGmResult(
     );
     return { ...(gmLocalSceneDelta ?? {}), sceneTransitionTo: fallback };
   };
+  if (opts.regenerate) {
+    const storedStructured = db
+      .prepare(`SELECT narration, structured_json FROM trpg_gm_messages WHERE round_id=?`)
+      .get(opts.roundId) as { narration: string | null; structured_json: string | null } | undefined;
+    let committedDelta: ParsedTrpgGmOutput["delta"] | undefined;
+    if (storedStructured?.structured_json) {
+      try {
+        const stored = JSON.parse(storedStructured.structured_json) as { delta?: ParsedTrpgGmOutput["delta"] };
+        if (stored.delta?.players) committedDelta = stored.delta;
+      } catch {
+        committedDelta = undefined;
+      }
+    }
+    const canon = regenerateOutputInvertsCommittedCanon({
+      delta: parsed.delta,
+      location: parsed.location ?? undefined,
+      sheets,
+      ledger: currentLedger,
+      committedDelta,
+      narration: parsed.narration,
+      committedNarration: storedStructured?.narration ?? undefined,
+      campaignFinished: parsed.campaignFinished === true,
+      endedEncounterIds: loadEndedEncounterIds(db, campaign.id, roundNumber),
+      storyPhase: campaignContext?.storyPhase,
+    });
+    if (canon.invert) {
+      stage = "gm_persist";
+      console.info("[TRPG][gm] regenerate_unadopted", { reasons: canon.reasons });
+      throw new UnadoptedTrpgRegenerateError(canon.reasons);
+    }
+  }
   try {
     db.transaction(() => {
       if (leaseOwnerId && provenanceId) {

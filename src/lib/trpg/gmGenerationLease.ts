@@ -149,12 +149,18 @@ export function logStaleOwnerDiscard(
   );
 }
 
-export function beginGmGenerationLease(db: Database.Database, roundId: number, requestId: string): void {
+export function beginGmGenerationLease(
+  db: Database.Database,
+  roundId: number,
+  requestId: string,
+  opts?: { preserveCommittedGenerationId?: boolean }
+): void {
+  const clearCommitted = opts?.preserveCommittedGenerationId ? "" : "gm_committed_generation_id = NULL,";
   db.prepare(
     `UPDATE trpg_rounds
      SET gm_generation_started_at = datetime('now'),
          gm_generation_heartbeat_at = datetime('now'),
-         gm_committed_generation_id = NULL,
+         ${clearCommitted}
          gm_reroll_billed_generation_id = NULL,
          updated_at = datetime('now')
      WHERE id = ?
@@ -509,7 +515,11 @@ export function markGmGenerationCommitted(
            updated_at = datetime('now')
        WHERE id = ?
          AND gm_generation_id = ?
-         AND (gm_committed_generation_id IS NULL OR gm_committed_generation_id = ?)`
+         AND (
+           gm_committed_generation_id IS NULL
+           OR gm_committed_generation_id = ?
+           OR process_stage = 'reroll'
+         )`
     )
     .run(provenanceGenerationId, roundId, leaseOwnerId, provenanceGenerationId);
   return info.changes === 1;
@@ -614,6 +624,50 @@ export function isRerollGmGeneration(db: Database.Database, roundId: number): bo
   return row?.process_stage === "reroll";
 }
 
+/**
+ * Stale narration reroll that never replaced the committed generation.
+ * The prior provenance stays so goal-claim matching still sees the published scene.
+ */
+export function tryAbortUncommittedRerollLease(
+  db: Database.Database,
+  roundId: number,
+  staleOwnerId: string
+): boolean {
+  const errorJson = JSON.stringify({
+    class: "B",
+    error: "Narration reroll lease expired before commit (old scene and provenance preserved)",
+    kind: "gm_generation_orphan_reclaimed",
+    model: TRPG_GM_MODEL,
+    elapsedMs: null,
+    trueOffRequested: true,
+    httpStatus: null,
+    reasoningTokens: "unavailable",
+  });
+  const info = db
+    .prepare(
+      `UPDATE trpg_rounds
+       SET phase = 'ROUND_COMPLETE',
+           lock_holder_request_id = NULL,
+           gm_generation_id = NULL,
+           gm_generation_started_at = NULL,
+           gm_generation_heartbeat_at = NULL,
+           pending_gm_result_json = NULL,
+           gm_narration_draft_json = NULL,
+           error_json = COALESCE(error_json, ?),
+           updated_at = datetime('now')
+       WHERE id = ?
+         AND gm_generation_id = ?
+         AND process_stage = 'reroll'
+         AND phase IN ${GM_ACTIVE_PHASE_SQL}
+         AND ${staleAtWriteSql()}
+         AND gm_committed_generation_id IS NOT NULL
+         AND gm_committed_generation_id != gm_generation_id
+         AND pending_gm_result_json IS NULL`
+    )
+    .run(errorJson, roundId, staleOwnerId);
+  return info.changes === 1;
+}
+
 /** CAS revert stale narration reroll; preserves old GM message. */
 export function tryRevertStaleRerollGeneration(
   db: Database.Database,
@@ -640,6 +694,7 @@ export function tryRevertStaleRerollGeneration(
            gm_generation_started_at = NULL,
            gm_generation_heartbeat_at = NULL,
            pending_gm_result_json = NULL,
+           gm_narration_draft_json = NULL,
            error_json = COALESCE(error_json, ?),
            updated_at = datetime('now')
        WHERE id = ?

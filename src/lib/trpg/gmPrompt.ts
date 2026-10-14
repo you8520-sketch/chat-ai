@@ -395,12 +395,47 @@ export function formatTrpgActionCheckWire(opts: {
   return `check_required d20=${opts.d20} total=${opts.finalScore} DC=${opts.dc} tier=${opts.tier} stat=${label}${valueBit}`;
 }
 
+export function formatTrpgRegenerateCommittedFacts(opts: {
+  sheets: readonly {
+    name: string;
+    hp: number;
+    location: string;
+    conditions: readonly string[];
+    inventory: readonly string[];
+  }[];
+  ledger: {
+    location: string;
+    quests: readonly string[];
+    npcs: readonly string[];
+    worldFlags: readonly string[];
+  };
+}): string {
+  const seats = opts.sheets
+    .map((sheet) => {
+      const items = sheet.inventory.length > 0 ? sheet.inventory.join(", ") : "(none)";
+      const conditions = sheet.conditions.length > 0 ? sheet.conditions.join(", ") : "(none)";
+      return `- ${sheet.name}: HP ${sheet.hp}, location ${sheet.location || "(none)"}, conditions ${conditions}, items ${items}`;
+    })
+    .join("\n");
+  return [
+    seats,
+    `campaign location: ${opts.ledger.location || "(none)"}`,
+    `quests: ${opts.ledger.quests.join(", ") || "(none)"}`,
+    `npcs: ${opts.ledger.npcs.join(", ") || "(none)"}`,
+    `flags: ${opts.ledger.worldFlags.join(", ") || "(none)"}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 export function buildTrpgGmUserBlock(opts: {
   worldBrief: string;
   gmSecret?: string;
   memoryBlock: string;
   opening: boolean;
   regenerate?: boolean;
+  committedNarration?: string;
+  committedFacts?: string;
   playerPersonas?: string;
   sheetCanon?: string;
   genres?: readonly string[];
@@ -451,11 +486,18 @@ export function buildTrpgGmUserBlock(opts: {
             const actorKind = a.participantKind ?? "human";
             const actionLabel =
               actorKind === "human" ? TRPG_GM_LABEL_HUMAN_ACTION : TRPG_GM_LABEL_AI_ATTEMPT;
-            const lines = [
-              `[ACTION participantId=${a.participantId} name=${a.name} actorKind=${actorKind} density=${density}]`,
-              `[CHECK ${checkWire}]`,
-              `${actionLabel}\n${canonical}`,
-            ];
+            const lines = opts.regenerate
+              ? [
+                  `[RESOLVED ACTION participantId=${a.participantId} name=${a.name} actorKind=${actorKind}]`,
+                  `[CHECK already resolved d20=${a.d20 ?? "none"} tier=${a.tier ?? "none"}]`,
+                  `${actionLabel}\n${canonical}`,
+                  "This locked action already happened. Do not replace it or give the human PC a new choice.",
+                ]
+              : [
+                  `[ACTION participantId=${a.participantId} name=${a.name} actorKind=${actorKind} density=${density}]`,
+                  `[CHECK ${checkWire}]`,
+                  `${actionLabel}\n${canonical}`,
+                ];
             return lines.join("\n");
           })
           .join("\n\n");
@@ -473,18 +515,35 @@ export function buildTrpgGmUserBlock(opts: {
     "Return JSON with narration and delta per system OUTPUT contract.",
     narrationBudget,
   ].join("\n");
+  const rewriteExecution = [
+    "[REWRITE — binding]",
+    "This call rewrites the committed scene. It does not resolve a new round.",
+    "Keep the locked actions, dice, and committed result: HP, item holders, conditions, locations, quests, NPCs, and flags.",
+    "Do not invent a new event or a new voluntary action, route, or spoken line for the human PC.",
+    "Return JSON narration and delta. delta must not change the committed result. Leave change lists empty or restate only facts that are already true. Do not finish the campaign, end an encounter, move the local scene, or resolve a quest.",
+    narrationBudget,
+  ].join("\n");
+  const regenerateHead = [
+    "[REGENERATE — rewrite the committed scene in different words. The resolved outcome stays. Do not adjudicate this round again.]",
+    opts.committedNarration?.trim()
+      ? `[COMMITTED SCENE — source. Change the wording only.]\n${opts.committedNarration.trim()}`
+      : "",
+    opts.committedFacts?.trim() ? `[COMMITTED RESULT — immutable]\n${opts.committedFacts.trim()}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 
   return [
     opts.regenerate
-      ? "[REGENERATE — same locked actions and dice. Write a different scene. Keep CHARACTER SHEETS canon. Use 이름: \"대사\" for speech.]"
+      ? regenerateHead
       : opts.opening
         ? `[OPENING SCENE — describe the start${openingGoalClause} and ask what they do. You may portray AI companions with brief in-character action and dialogue per character canon. Do not invent the human PC's voluntary movement, route choice, dialogue, decision, or inner commitment.]`
         : "[RESOLVE THIS ROUND]",
     opts.worldBrief.trim() ? `[WORLD]\n${opts.worldBrief.trim()}` : "",
-    opts.scenarioPlanBlock?.trim() ?? "",
-    opts.storyDirectorBlock?.trim() ?? "",
-    opts.localSceneBlock?.trim() ?? "",
-    opts.localSceneDeltaContract?.trim() ?? "",
+    opts.regenerate ? "" : (opts.scenarioPlanBlock?.trim() ?? ""),
+    opts.regenerate ? "" : (opts.storyDirectorBlock?.trim() ?? ""),
+    opts.regenerate ? "" : (opts.localSceneBlock?.trim() ?? ""),
+    opts.regenerate ? "" : (opts.localSceneDeltaContract?.trim() ?? ""),
     formatTrpgGenreToneLine(opts.genres ?? []),
     sheets,
     secret
@@ -501,7 +560,7 @@ export function buildTrpgGmUserBlock(opts: {
     opts.mechanicsPacket?.trim() ?? "",
     opts.characterAssetCatalog?.trim() ?? "",
     opts.scenarioAssetPrompt?.trim() ?? "",
-    roundExecution,
+    opts.regenerate ? rewriteExecution : roundExecution,
   ]
     .filter(Boolean)
     .join("\n\n");

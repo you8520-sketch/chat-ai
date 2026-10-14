@@ -792,7 +792,10 @@ describe("TRPG #1462 unauthorized location persist", () => {
     submitTrpgAction(db, { campaignId, userId: 1, body: MOON });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     assert.equal(loadCampaignLedger(db, campaignId).location, DOCK);
-    await regenerateTrpgNarration(db, { campaignId, userId: 1, deps });
+    await assert.rejects(
+      () => regenerateTrpgNarration(db, { campaignId, userId: 1, deps }),
+      /확정된 결과와 맞지 않아/
+    );
     assert.equal(loadCampaignLedger(db, campaignId).location, DOCK);
     assert.equal(loadSheetSnapshots(db, campaignId)[0]?.location, DOCK);
     db.close();

@@ -223,7 +223,10 @@ describe("encounter authority: real engine path", () => {
     const roundId = roundIdByNumber(db, seat.campaignId, 2);
     const before = JSON.stringify(loadMechanicsResolution(db, roundId)!.threatStrikes);
     const hpBefore = hpOf(db, seat.hostId);
-    await regenerateTrpgNarration(db, { campaignId: seat.campaignId, userId: 1, deps });
+    await assert.rejects(
+      () => regenerateTrpgNarration(db, { campaignId: seat.campaignId, userId: 1, deps }),
+      /확정된 결과와 맞지 않아/
+    );
     assert.equal(hpOf(db, seat.hostId), hpBefore);
     assert.equal(JSON.stringify(loadMechanicsResolution(db, roundId)!.threatStrikes), before);
     assert.deepEqual(loadThreatStrikeCounts(db, seat.campaignId, 0), { enc_hunter: 1 });
@@ -980,8 +983,11 @@ describe("encounter authority: regeneration and pure ending rules", () => {
     const deps = scriptedGm(seat, [{}, {}, { ended: ["enc_hunter"] }, {}]);
     await startTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps });
     await playRound(db, seat, deps, "문을 두드린다.");
-    await regenerateTrpgNarration(db, { campaignId: seat.campaignId, userId: 1, deps });
-    assert.deepEqual(ended(db, seat), [], "a regenerated GM result proposing an ending is not committed state");
+    await assert.rejects(
+      () => regenerateTrpgNarration(db, { campaignId: seat.campaignId, userId: 1, deps }),
+      /확정된 결과와 맞지 않아/
+    );
+    assert.deepEqual(ended(db, seat), [], "a rejected regenerate does not commit an ending");
     const hp = hpOf(db, seat.hostId);
     const deps2 = scriptedGm(seat, [{ ended: ["enc_hunter"] }, { ended: [] }]);
     await playRound(db, seat, deps2, "벽을 살핀다.");

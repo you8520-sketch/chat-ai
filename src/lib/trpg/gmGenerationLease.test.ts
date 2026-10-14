@@ -429,6 +429,41 @@ describe("GM generation lease and fencing", () => {
     db.close();
   });
 
+  it("11b stale reroll keeps a prior committed generation instead of billing it", async () => {
+    const db = memoryDb();
+    db.prepare(`INSERT INTO users (id, email, nickname, points) VALUES (1,'a@t','host',5000)`).run();
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      gmCall: async () => {
+        throw new Error("provider must not be called");
+      },
+    };
+    const campaignId = Number(
+      db.prepare(`INSERT INTO trpg_campaigns (host_user_id, title, status) VALUES (1,'t','ROUND_COMPLETE')`).run()
+        .lastInsertRowid
+    );
+    const { roundId } = seedStuckGmRound(db, {
+      campaignId,
+      heartbeatAgeSec: 500,
+      gmMessage: true,
+      committedGenerationId: "prior-scene",
+      processStage: "reroll",
+    });
+    const snap = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(snap.round.phase, "ROUND_COMPLETE");
+    const row = db
+      .prepare(`SELECT gm_committed_generation_id, gm_generation_id, gm_reroll_billed_generation_id FROM trpg_rounds WHERE id=?`)
+      .get(roundId) as {
+      gm_committed_generation_id: string | null;
+      gm_generation_id: string | null;
+      gm_reroll_billed_generation_id: string | null;
+    };
+    assert.equal(row.gm_committed_generation_id, "prior-scene");
+    assert.equal(row.gm_generation_id, null);
+    assert.equal(row.gm_reroll_billed_generation_id, null);
+    db.close();
+  });
+
   it("11 stale reroll with current commit finishes reroll without provider", async () => {
     const db = memoryDb();
     db.prepare(`INSERT INTO users (id, email, nickname, points) VALUES (1,'a@t','host',5000)`).run();
