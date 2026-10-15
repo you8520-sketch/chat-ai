@@ -1,0 +1,81 @@
+{
+  "budget": {
+    "production_owner": "이번 응답은 한국어 3,200~4,200자 범위의 하나의 밀도 있는 장면으로 전개한다. 현재 상호작용을 요약하거나 성급히 닫지 말고, 관찰·행동·대사·감각·심리가 서로 다음 변화를 일으키도록 충분히 전개한다.",
+    "candidate_owner": "이번 응답은 한국어 3,200~4,200자 범위의 하나의 밀도 있는 장면으로 완성한다. 직전 장면과 현재 입력에서 이미 성립한 상황의 바로 다음 변화에서 시작해, 캐릭터의 새 판단·행동이 상대와 환경의 새 반응·결과를 만들고 그 결과가 다시 다음 변화를 낳도록 충분히 전개한다.",
+    "production_tokens": 105,
+    "candidate_tokens": 140,
+    "owner_token_delta": 35,
+    "candidate_new_negative_count": 0,
+    "new_section_count": 0
+  },
+  "cells": [
+    {
+      "cell_id": "Gemini_G5_A",
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "user_tail_sha256": "c2829f3e9bad018eb12261750fde550c7f88d15e6b3351994354c302caedc95a",
+      "system_token_estimate": 5912,
+      "total_instruction_token_estimate": 6397,
+      "owner_token_delta": 0
+    },
+    {
+      "cell_id": "Gemini_G5_B",
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "user_tail_sha256": "0ea34e279ca46810f1aa790ad96a5df9cf63f5013bbec6833ea9882124a67c7e",
+      "system_token_estimate": 5912,
+      "total_instruction_token_estimate": 6432,
+      "owner_token_delta": 35
+    },
+    {
+      "cell_id": "Gemini_G6T1_A",
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "user_tail_sha256": "5da99c515e0dcc6c86854f65c595c0dcf038578670b154deb8bc35ea44631443",
+      "system_token_estimate": 5912,
+      "total_instruction_token_estimate": 6453,
+      "owner_token_delta": 0
+    },
+    {
+      "cell_id": "Gemini_G6T1_B",
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "user_tail_sha256": "d58a0bf5eb84cf4d7733aed7a226b91c8c650e377e3b99d1fc5977e2404f11a3",
+      "system_token_estimate": 5912,
+      "total_instruction_token_estimate": 6489,
+      "owner_token_delta": 35
+    },
+    {
+      "cell_id": "Gemini_G3_A",
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "user_tail_sha256": "2adaefdf29d0184cc4e5575815b3865fbc8c28a39f1ccc085ef05dd21306998b",
+      "system_token_estimate": 5912,
+      "total_instruction_token_estimate": 6454,
+      "owner_token_delta": 0
+    },
+    {
+      "cell_id": "Gemini_G3_B",
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "user_tail_sha256": "ab2d64638decc970f25e41e83b373aac34968fc11d58b66b17d5156c3ef73f20",
+      "system_token_estimate": 5912,
+      "total_instruction_token_estimate": 6489,
+      "owner_token_delta": 35
+    }
+  ],
+  "instruction_token_deltas": [
+    {
+      "fixture": "G5",
+      "A": 6397,
+      "B": 6432,
+      "delta": 35
+    },
+    {
+      "fixture": "G6T1",
+      "A": 6453,
+      "B": 6489,
+      "delta": 36
+    },
+    {
+      "fixture": "G3",
+      "A": 6454,
+      "B": 6489,
+      "delta": 35
+    }
+  ]
+}
