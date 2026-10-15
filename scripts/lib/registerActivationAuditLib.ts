@@ -107,7 +107,7 @@ function probeParser(label: string, body: string): ParserProbe {
     isSpeechSection,
     extractedPairs,
     metadataPreview: meta.split("\n").slice(0, 12).join("\n"),
-    parseOk: isSpeechSection && (extractedPairs.length > 0 || /default_register:/.test(meta)),
+    parseOk: isSpeechSection && (extractedPairs.length > 0 || /style_notes/.test(meta)),
     parseNotes: notes,
   };
 }

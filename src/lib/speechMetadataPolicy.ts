@@ -41,37 +41,6 @@ export function isSpeechMetadataSection(
   return false;
 }
 
-const CANONICAL_REGISTER_LABELS = [
-  "다나까체",
-  "해요체",
-  "하십시오체",
-  "합니다체",
-  "하오체",
-  "반말",
-  "존댓말",
-  "반존대",
-  "구어체",
-] as const;
-
-function isRegisterMentionNegated(text: string, label: string): boolean {
-  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return (
-    new RegExp(
-      `${escaped}(?:을|를|은|이)?\\s*(?:안\\s*|아니|금지|하지\\s*않|쓰지\\s*않|하지\\s*말|쓰지\\s*말)`
-    ).test(text) || new RegExp(`(?:금지|쓰지\\s*않|하지\\s*않|하지\\s*말).{0,12}${escaped}`).test(text)
-  );
-}
-
-function collectNonNegatedRegisterLabels(text: string): string[] {
-  const found: string[] = [];
-  for (const label of CANONICAL_REGISTER_LABELS) {
-    if (!text.includes(label)) continue;
-    if (isRegisterMentionNegated(text, label)) continue;
-    found.push(label);
-  }
-  return found;
-}
-
 function preserveStyleText(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
@@ -85,7 +54,7 @@ const MAX_CONTEXT_REGISTER_PAIRS = 8;
 const MAX_DIALOGUE_EXAMPLES = 6;
 const MAX_EXAMPLE_DISPLAY_LENGTH = 100;
 const BOILERPLATE_LINE_RE =
-  /SPEECH CONSISTENCY|Dialogue style is learned|Dialogue examples are the strongest/i;
+  /^#{1,6}\s|SPEECH CONSISTENCY|Dialogue style is learned|Dialogue examples are the strongest/i;
 const EXAMPLE_HEADER_RE = /^예시[:：]?/i;
 /** 원문 따옴표 모양(" “” 「」)을 그대로 보존한다 — 예시 대사 줄 자체는 변형하지 않는다. */
 const QUOTED_EXAMPLE_PATTERNS: RegExp[] = [
@@ -157,7 +126,6 @@ export function formatSpeechSectionAsMetadata(title: string, body: string): stri
   const classified = classifyMetadataLines(body, examples.consumed);
   const pairs = classified.filter((l): l is Extract<MetadataLine, { kind: "pair" }> => l.kind === "pair");
   const notes = classified.filter((l): l is Extract<MetadataLine, { kind: "residual" }> => l.kind === "residual");
-  const registerLabels = collectNonNegatedRegisterLabels(body);
 
   const lines: string[] = [
     "[말투 — GENERATION METADATA · NEVER NARRATE]",
@@ -169,8 +137,6 @@ export function formatSpeechSectionAsMetadata(title: string, body: string): stri
     for (const { context, style } of pairs) {
       lines.push(`- ${context} → ${style}`);
     }
-  } else if (registerLabels.length === 1) {
-    lines.push("", `default_register: ${registerLabels[0]}`);
   }
 
   if (notes.length > 0) {

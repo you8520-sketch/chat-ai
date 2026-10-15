@@ -67,24 +67,26 @@ describe("speechMetadataPolicy", () => {
     assert.ok(!out.includes("…") || out.includes("공식 심문"));
   });
 
-  it("does not pick a single default_register when formal and informal both appear", () => {
-    const body =
+  it("never adds an inferred default_register; creator sentences are carried verbatim", () => {
+    const mixed =
       "존댓말은 예의라기보다 심문의 틀로 쓰고, 부하나 오랜 동료에게는 군더더기 없는 반말이 섞인다.";
-    const out = formatSpeechSectionAsMetadata("[말투 — 성격]", body);
-    assert.doesNotMatch(out, /default_register:\s*반말/);
-    assert.doesNotMatch(out, /default_register:\s*존댓말/);
-    assert.match(out, /심문의 틀/);
-    assert.match(out, /반말이 섞인다/);
+    const negated = "평소에는 낮고 단정한 존댓말이다. 반말은 하지 않는다.";
+    const cases = [
+      mixed,
+      negated,
+      "부하에게만 반말을 쓴다.",
+      "공식 심문에서는 존댓말을 사용한다.",
+      "항상 존댓말만 쓴다.",
+      "항상 반말만 쓴다.",
+    ];
+    for (const body of cases) {
+      const out = formatSpeechSectionAsMetadata("[말투 — 성격]", body);
+      assert.doesNotMatch(out, /default_register/);
+      for (const sentence of body.split(/(?<=[.])\s+/)) assert.ok(out.includes(sentence), sentence);
+      assert.equal(out.match(/반말/g)?.length, body.match(/반말/g)?.length, body);
+    }
   });
 
-  it("does not treat a negated banmal mention as the default register", () => {
-    const out = formatSpeechSectionAsMetadata(
-      "[말투 — 성격]",
-      "평소에는 낮고 단정한 존댓말이다. 반말은 하지 않는다."
-    );
-    assert.match(out, /default_register:\s*존댓말/);
-    assert.doesNotMatch(out, /default_register:\s*반말/);
-  });
   it("keeps the residual sentence next to context:style pairs instead of dropping it", () => {
     const out = formatSpeechSectionAsMetadata(
       "[말투 — 특징]",

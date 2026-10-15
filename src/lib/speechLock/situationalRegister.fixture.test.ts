@@ -147,7 +147,7 @@ describe("situational register owner fixture", () => {
     assert.match(traitsMeta, /공식 심문·작전 중에는 딱딱한 존댓말/);
     assert.match(traitsMeta, /부하와 오래된 동료에게는 짧은 반말/);
     assert.doesNotMatch(traitsMeta, /구어체 → 반말\s*$/m);
-    assert.doesNotMatch(personalityMeta, /default_register:\s*반말/);
+    assert.doesNotMatch(personalityMeta, /default_register/);
     assert.match(exampleDialog, /공식 심문·작전 중에는 딱딱한 존댓말/);
     assert.match(exampleDialog, /부하와 오래된 동료에게는 짧은 반말/);
     assert.match(wire, /공식 심문·작전 중에는 딱딱한 존댓말/);
