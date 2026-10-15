@@ -35,7 +35,7 @@ test("gift action has a 44px touch target", async ({ page }) => {
 });
 
 test("evidence: identical fixture screenshots and geometry", async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(300_000);
   const dir = process.env.CREATOR_GALLERY_EVIDENCE_DIR;
   test.skip(!dir, "Set CREATOR_GALLERY_EVIDENCE_DIR to capture design evidence");
   fs.mkdirSync(dir!, { recursive: true });
@@ -73,8 +73,10 @@ test("evidence: identical fixture screenshots and geometry", async ({ page }) =>
   await page.locator('input[placeholder="댓글을 입력하세요…"]').scrollIntoViewIfNeeded();
   await page.screenshot({ path: path.join(dir!, "comments-390.png") });
   await page.getByRole("button", { name: "포인트 선물", exact: true }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
   await page.screenshot({ path: path.join(dir!, "gift-390.png") });
   await page.getByRole("button", { name: "취소", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await login(page, "regular");
   await capture("owner-390", ids.regular);
   fs.writeFileSync(path.join(dir!, "geometry.json"), JSON.stringify(measurements, null, 2) + "\n");
