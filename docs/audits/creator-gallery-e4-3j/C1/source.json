@@ -1,10 +1,12 @@
 {
-  "source_sha": "315c6cba7decea24b082e3da8d2a6ee73146377d",
+  "source_sha": "f183afbc5aa8a0e65be309dbd34d9e8cdb232921",
+  "fixture_source_sha": "f183afbc5aa8a0e65be309dbd34d9e8cdb232921",
+  "capture_script_source_sha": "f183afbc5aa8a0e65be309dbd34d9e8cdb232921",
   "files": {
     "src/app/creator/[id]/page.tsx": "04c11ed9cbd846999f7a140c31db7657a05f6df3a53c0c7d77053661946f121a",
-    "src/app/creator/[id]/creator-gallery.css": "dde457d75deb86f280a6fd182a5d3189d0b15d526e5eb7559ee8b1acfbd59ad7",
     "src/components/CreatorGiftPanel.tsx": "9df672c6572fc370949c89ba16f39d005c303850e1ca75be2e0af630790d8d2e",
     "src/components/ProfileCommentSection.tsx": "f50cb1c3687cabd26ee749dbd312052244347a315a2a9b8b5d56219e898461b2",
-    "tests/ui/helpers/creatorGalleryFixture.ts": "52088c35e2922c3f81290f127468f72522b1c52a8c1c37a1853f50e16aaf604e"
+    "src/app/creator/[id]/creator-gallery.css": "dde457d75deb86f280a6fd182a5d3189d0b15d526e5eb7559ee8b1acfbd59ad7",
+    "tests/ui/helpers/creatorGalleryFixture.ts": "816a927a3fad3fb46db519aa0cbd360300bca3462e31af44411d46af30fb6781"
   }
 }

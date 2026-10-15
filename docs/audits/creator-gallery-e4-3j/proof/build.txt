@@ -14,9 +14,9 @@ jsx sandbox runtime -> /workspace/chat-ai/public/jsx-sandbox/runtime.js
 [exchangeRate] fetch failed — using last known or fallback fetch failed
    Generating static pages (0/121) ...
 [exchangeRate] fetch failed — using last known or fallback fetch failed
-   Generating static pages (30/121) 
-   Generating static pages (60/121) 
-   Generating static pages (90/121) 
+   Generating static pages (30/121)
+   Generating static pages (60/121)
+   Generating static pages (90/121)
  ✓ Generating static pages (121/121)
    Finalizing page optimization ...
    Collecting build traces ...

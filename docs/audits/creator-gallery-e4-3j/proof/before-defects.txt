@@ -1,12 +1,13 @@
 
-Running 2 tests using 1 worker
+Running 3 tests using 1 worker
 
-(node:4894) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(node:56849) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-  ✘  1 [chromium] › tests/ui/creator-gallery.spec.ts:29:5 › gift action has a 44px touch target (5.4s)
-(node:5162) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+  ✘  1 [chromium] › tests/ui/creator-gallery.spec.ts:29:5 › gift action has a 44px touch target (3.6s)
+(node:57010) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
-  ✘  2 [chromium] › tests/ui/creator-gallery.spec.ts:160:5 › community follows works; private, moderated and disabled states remain intact (12.8s)
+  ✓  2 [chromium] › tests/ui/creator-gallery.spec.ts:37:5 › evidence: identical fixture screenshots and geometry (36.8s)
+  ✘  3 [chromium] › tests/ui/creator-gallery.spec.ts:162:5 › community follows works; private, moderated and disabled states remain intact (5.6s)
 
 
   1) [chromium] › tests/ui/creator-gallery.spec.ts:29:5 › gift action has a 44px touch target ──────
@@ -23,7 +24,7 @@ Running 2 tests using 1 worker
       35 | });
       36 |
       37 | test("evidence: identical fixture screenshots and geometry", async ({ page }) => {
-        at /workspace/chat-ai/tests/ui/creator-gallery.spec.ts:34:18
+        at /workspace/work/creator-gallery/visual-worktree/tests/ui/creator-gallery.spec.ts:34:18
 
     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
     test-results/creator-gallery-gift-action-has-a-44px-touch-target-chromium/test-failed-1.png
@@ -39,7 +40,7 @@ Running 2 tests using 1 worker
 
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
-  2) [chromium] › tests/ui/creator-gallery.spec.ts:160:5 › community follows works; private, moderated and disabled states remain intact 
+  2) [chromium] › tests/ui/creator-gallery.spec.ts:162:5 › community follows works; private, moderated and disabled states remain intact
 
     Error: expect(received).toBeLessThanOrEqual(expected)
 
@@ -53,8 +54,8 @@ Running 2 tests using 1 worker
       26 |   expect(overflow.body).toBeLessThanOrEqual(overflow.viewport + 1);
       27 | }
       28 |
-        at noOverflow (/workspace/chat-ai/tests/ui/creator-gallery.spec.ts:25:29)
-        at /workspace/chat-ai/tests/ui/creator-gallery.spec.ts:172:3
+        at noOverflow (/workspace/work/creator-gallery/visual-worktree/tests/ui/creator-gallery.spec.ts:25:29)
+        at /workspace/work/creator-gallery/visual-worktree/tests/ui/creator-gallery.spec.ts:174:3
 
     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
     test-results/creator-gallery-community--c6447-sabled-states-remain-intact-chromium/test-failed-1.png
@@ -72,4 +73,5 @@ Running 2 tests using 1 worker
 
   2 failed
     [chromium] › tests/ui/creator-gallery.spec.ts:29:5 › gift action has a 44px touch target ───────
-    [chromium] › tests/ui/creator-gallery.spec.ts:160:5 › community follows works; private, moderated and disabled states remain intact 
+    [chromium] › tests/ui/creator-gallery.spec.ts:162:5 › community follows works; private, moderated and disabled states remain intact
+  1 passed (55.1s)

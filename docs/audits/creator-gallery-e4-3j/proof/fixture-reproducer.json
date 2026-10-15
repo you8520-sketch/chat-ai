@@ -1,8 +1,12 @@
 {
-  "reproducer_fixture_sha256": "6a22a2c2d84388536313ea683f30f85b81cd42867c952943756b0b13e99679f6",
-  "captured_wallet": {
+  "fixture_source_sha": "f183afbc5aa8a0e65be309dbd34d9e8cdb232921",
+  "fixture_sha256": "816a927a3fad3fb46db519aa0cbd360300bca3462e31af44411d46af30fb6781",
+  "same_capture_fixture_for_all_variants": true,
+  "wallet": {
     "paid": 1000,
     "free": 0
   },
-  "note": "Capture-time helper hashes remain in BEFORE/C1/C2 source.json. The final reproducer now seeds the same captured wallet explicitly, including on a fresh DB. Production-mode functional checks: 12 passed on a fresh isolated database."
+  "regular_gallery_unique_titles": 8,
+  "regular_gallery_distinct_images": 8,
+  "production_mode_functional_tests_passed": 12
 }

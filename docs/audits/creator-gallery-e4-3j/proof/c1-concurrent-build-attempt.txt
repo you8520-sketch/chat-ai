@@ -20,7 +20,7 @@ Running 13 tests using 1 worker
   ✓  13 [chromium] › tests/ui/creator-gallery.spec.ts:186:5 › gift dialog stays usable during small-height resize and returns focus (6.2s)
 
 
-  1) [chromium] › tests/ui/creator-gallery.spec.ts:37:5 › evidence: identical fixture screenshots and geometry 
+  1) [chromium] › tests/ui/creator-gallery.spec.ts:37:5 › evidence: identical fixture screenshots and geometry
 
     Test timeout of 180000ms exceeded.
 
@@ -53,5 +53,5 @@ Running 13 tests using 1 worker
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
   1 failed
-    [chromium] › tests/ui/creator-gallery.spec.ts:37:5 › evidence: identical fixture screenshots and geometry 
+    [chromium] › tests/ui/creator-gallery.spec.ts:37:5 › evidence: identical fixture screenshots and geometry
   12 passed (5.4m)
