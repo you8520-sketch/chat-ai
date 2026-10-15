@@ -1819,8 +1819,10 @@ function commitPendingGmResult(
       sheets.map((sheet) => sheet.participantId)
     );
   }
-  if (!opts.opening && !opts.regenerate && loadExplorationState(db, campaign.id)) {
-    dropUnpricedExplorationMoves(parsed, explorationCommit?.results ?? [], currentLedger.location);
+  if (!opts.regenerate && loadExplorationState(db, campaign.id)) {
+    if (!opts.opening) {
+      dropUnpricedExplorationMoves(parsed, explorationCommit?.results ?? [], currentLedger.location);
+    }
     const ownedFlags = [
       ...currentLedger.worldFlags,
       ...(explorationCommit?.results.flatMap((result) => result.flags) ?? []),

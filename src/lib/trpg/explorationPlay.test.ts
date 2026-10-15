@@ -932,4 +932,144 @@ describe("exploration play", () => {
     assert.equal(flags.includes("문_열림"), false);
     db.close();
   });
+
+  describe("opening GM flags", () => {
+    const SERVER_FLAGS = [EXPLORATION_ALARM_FLAG, EXPLORATION_CLUE_FLAG, EXPLORATION_PASSAGE_FLAG];
+
+    function explorationCampaign(db: Database.Database): { campaignId: number; hostId: number } {
+      const templateId = insertScenarioTemplate(db, 7, {
+        title: "오프닝 플래그",
+        summary: "오프닝도 서버 플래그를 지킨다",
+        content: "오프닝 GM이 서버 사실을 앞서 적는다.",
+        visibility: "public",
+        startLocation: EXPLORATION_ENTRANCE,
+        scenarioPlan: PLAN,
+      });
+      const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "현이", viewerUserId: 1, templateId });
+      saveTrpgSheet(db, { campaignId, userId: 1, name: "현이", stats: EVEN_STATS });
+      const hostId = (db.prepare(`SELECT id FROM trpg_participants WHERE campaign_id=? AND user_id=1`).get(campaignId) as { id: number }).id;
+      return { campaignId, hostId };
+    }
+
+    function openingWire(location: string, extra: Record<string, unknown>): string {
+      return buildTrpgGmStructuredWireText("현관에 선다. GM: 무엇을 하겠는가.", {
+        players: [],
+        location,
+        next_round_context: "다음",
+        campaign_finished: false,
+        ...extra,
+      });
+    }
+
+    it("drops server-owned flags the opening GM writes before the server granted them, and keeps world facts", async () => {
+      const db = memoryDb();
+      const { campaignId, hostId } = explorationCampaign(db);
+      const deps: TrpgEngineDeps = {
+        skipBilling: true,
+        rollD20: () => 16,
+        gmCall: async () => ({
+          text: openingWire(EXPLORATION_ENTRANCE, {
+            flagsAdd: [...SERVER_FLAGS, "문_열림"],
+            flagsRemove: [EXPLORATION_ALARM_FLAG],
+            npcsAdd: ["문지기"],
+            questsAdd: ["출구를 찾는다"],
+          }),
+        }),
+      };
+      await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+      const ledger = loadCampaignLedger(db, campaignId);
+      assert.deepEqual(ledger.worldFlags, ["문_열림"], ledger.worldFlags.join(" | "));
+      assert.ok(ledger.npcs.includes("문지기"));
+      assert.ok(ledger.quests.includes("출구를 찾는다"));
+      assert.equal(ledger.location, EXPLORATION_ENTRANCE);
+      assert.equal(locationOf(db, hostId), EXPLORATION_ENTRANCE);
+      const state = loadExplorationState(db, campaignId);
+      assert.equal(state?.alarmFlagged, false);
+      assert.equal(state?.risk, 0);
+      db.close();
+    });
+
+    it("keeps a real server alarm after an opening that tried to pre-write it", async () => {
+      const db = memoryDb();
+      const { campaignId, hostId } = explorationCampaign(db);
+      const deps: TrpgEngineDeps = {
+        skipBilling: true,
+        rollD20: () => 16,
+        gmCall: async ({ user }) => ({
+          text: openingWire(loadCampaignLedger(db, campaignId).location || EXPLORATION_ENTRANCE, {
+            flagsAdd: user.includes("[OPENING SCENE") ? [EXPLORATION_ALARM_FLAG] : [],
+          }),
+        }),
+      };
+      await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+      assert.equal(loadExplorationState(db, campaignId)?.alarmFlagged, false);
+      assert.equal(loadExplorationState(db, campaignId)?.risk, 0);
+      assert.equal(loadCampaignLedger(db, campaignId).worldFlags.includes(EXPLORATION_ALARM_FLAG), false);
+      const play = async (commands: Array<{ op: "move"; roomId: string } | { op: "search"; depth: "normal" | "careful" }>) => {
+        submitTrpgAction(db, { campaignId, userId: 1, body: "", explorationCommands: commands });
+        await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+      };
+      for (let guard = 0; guard < 12 && locationOf(db, hostId) !== EXPLORATION_ARCHIVE_ROOM; guard += 1) {
+        const state = loadExplorationState(db, campaignId)!;
+        const path = stepsToward(state, locationOf(db, hostId), EXPLORATION_ARCHIVE_ROOM, new Set([EXPLORATION_EXIT_ROOM])).slice(0, 3);
+        if (!path.length) {
+          await play([{ op: "search", depth: "normal" }]);
+          continue;
+        }
+        await play(path.map((roomId) => ({ op: "move", roomId })));
+      }
+      assert.equal(locationOf(db, hostId), EXPLORATION_ARCHIVE_ROOM);
+      for (let guard = 0; guard < 8 && !loadExplorationState(db, campaignId)?.alarmFlagged; guard += 1) {
+        await play([{ op: "search", depth: "normal" }]);
+      }
+      assert.equal(loadExplorationState(db, campaignId)?.alarmFlagged, true);
+      assert.ok(loadCampaignLedger(db, campaignId).worldFlags.includes(EXPLORATION_ALARM_FLAG));
+      db.close();
+    });
+
+    it("applies the same filter when the opening is retried after a GM failure", async () => {
+      const db = memoryDb();
+      const { campaignId } = explorationCampaign(db);
+      let calls = 0;
+      const deps: TrpgEngineDeps = {
+        skipBilling: true,
+        rollD20: () => 16,
+        gmCall: async () => {
+          calls += 1;
+          if (calls === 1) throw new Error("provider down");
+          return { text: openingWire(EXPLORATION_ENTRANCE, { flagsAdd: [EXPLORATION_ALARM_FLAG, "문_열림"] }) };
+        },
+      };
+      await assert.rejects(() => startTrpgCampaign(db, { campaignId, userId: 1, deps }));
+      assert.deepEqual(loadCampaignLedger(db, campaignId).worldFlags, []);
+      await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+      assert.deepEqual(loadCampaignLedger(db, campaignId).worldFlags, ["문_열림"]);
+      assert.equal(loadExplorationState(db, campaignId)?.alarmFlagged, false);
+      assert.equal(loadExplorationState(db, campaignId)?.risk, 0);
+      db.close();
+    });
+
+    it("leaves a campaign without a map untouched", async () => {
+      const db = memoryDb();
+      const templateId = insertScenarioTemplate(db, 7, {
+        title: "일반 오프닝",
+        summary: "지도 없는 장면",
+        content: "그냥 이야기만 한다.",
+        visibility: "public",
+        startLocation: "복도",
+        scenarioPlan: { startingSituation: "복도에 선다", centralConflict: "문", goal: "문을 연다", endingConditions: ["문을 연다"] },
+      });
+      const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "현이", viewerUserId: 1, templateId });
+      saveTrpgSheet(db, { campaignId, userId: 1, name: "현이", stats: EVEN_STATS });
+      const deps: TrpgEngineDeps = {
+        skipBilling: true,
+        rollD20: () => 16,
+        gmCall: async () => ({ text: openingWire("복도", { flagsAdd: [EXPLORATION_ALARM_FLAG, "복도의 등"] }) }),
+      };
+      await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+      assert.deepEqual(loadCampaignLedger(db, campaignId).worldFlags, [EXPLORATION_ALARM_FLAG, "복도의 등"]);
+      assert.equal(loadExplorationState(db, campaignId), null);
+      db.close();
+    });
+  });
 });
