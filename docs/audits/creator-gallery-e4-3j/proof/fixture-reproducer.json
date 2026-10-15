@@ -1,0 +1,8 @@
+{
+  "reproducer_fixture_sha256": "6a22a2c2d84388536313ea683f30f85b81cd42867c952943756b0b13e99679f6",
+  "captured_wallet": {
+    "paid": 1000,
+    "free": 0
+  },
+  "note": "Capture-time helper hashes remain in BEFORE/C1/C2 source.json. The final reproducer now seeds the same captured wallet explicitly, including on a fresh DB. Production-mode functional checks: 12 passed on a fresh isolated database."
+}

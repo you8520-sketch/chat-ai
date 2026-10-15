@@ -32,6 +32,7 @@ export function seedCreatorGalleryFixture(dataDir: string) {
         db.prepare("DELETE FROM characters WHERE creator_id=?").run(id);
         db.prepare("DELETE FROM sessions WHERE user_id=?").run(id);
         db.prepare("DELETE FROM point_logs WHERE user_id=?").run(id);
+        db.prepare("DELETE FROM point_transactions WHERE user_id=?").run(id);
         db.prepare("DELETE FROM users WHERE id=?").run(id);
         const nickname = kind === "long" ? `달의서재_${"아주긴제작자이름LongName".repeat(7)}`
           : kind === "official" ? "하브 스토리 스튜디오" : kind === "partner" ? "은유의 정원" : "달의 서재";
@@ -51,6 +52,10 @@ export function seedCreatorGalleryFixture(dataDir: string) {
         db.prepare("INSERT INTO sessions (token,user_id,expires_at) VALUES (?,?,'2099-01-01 00:00:00')")
           .run(`gallery-fixture-${kind}`, id);
         db.prepare("INSERT INTO point_logs (user_id,delta,reason) VALUES (?,-500,'isolated-gallery-fixture')").run(id);
+        // Match the captured wallet on fresh DBs as well as reused ones.
+        db.prepare(`INSERT INTO point_transactions
+          (user_id,point_type,remaining_amount,expires_at,created_at,source)
+          VALUES (?,'PAID',1000,'2099-01-01 00:00:00','2026-01-01 00:00:00','isolated-gallery-fixture')`).run(id);
         const count = kind === "partner" ? 26 : kind === "empty" ? 0 : kind === "single" ? 1 : 8;
         for (let n = 0; n < count; n++) {
           db.prepare(`INSERT INTO characters (id,creator_id,creator_name,name,tagline,genre,tags,
