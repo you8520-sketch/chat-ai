@@ -11,6 +11,8 @@ type Props = {
   cancelLabel?: string;
   danger?: boolean;
   confirmDisabled?: boolean;
+  /** Opt-in 44px action buttons for flows that move money/points. */
+  touchTargets?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -23,6 +25,7 @@ export default function ConfirmDialog({
   cancelLabel = "취소",
   danger = false,
   confirmDisabled = false,
+  touchTargets = false,
   onConfirm,
   onCancel,
 }: Props) {
@@ -70,7 +73,9 @@ export default function ConfirmDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-lg bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-300 hover:bg-white/10"
+            className={`rounded-lg bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-300 hover:bg-white/10 ${
+              touchTargets ? "min-h-11 min-w-20" : ""
+            }`}
           >
             {cancelLabel}
           </button>
@@ -80,6 +85,8 @@ export default function ConfirmDialog({
             disabled={confirmDisabled}
             onClick={onConfirm}
             className={`rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 ${
+              touchTargets ? "min-h-11 min-w-20 " : ""
+            }${
               danger
                 ? "bg-rose-600 hover:bg-rose-500"
                 : "bg-violet-600 hover:bg-violet-500"

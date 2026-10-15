@@ -1,154 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import AttendanceBanner from "@/components/AttendanceBanner";
-import ChargeCancelButton from "@/components/ChargeCancelButton";
-import {
-  canShowChargeCancelButton,
-  type PointUsageLog,
-  USAGE_PAGE_SIZE,
-  CHARGE_PAGE_SIZE,
-} from "@/lib/pointUsageLog";
+import StatusNotice from "@/components/StatusNotice";
+import { type PointUsageLog } from "@/lib/pointUsageLog";
 import { POINT_USAGE_HASH } from "@/lib/pointUi";
-import {
-  FREE_POINTS_VALID_YEARS,
-  POINT_CHARGE_PACKAGES,
-  pointChargePackageTotalPoints,
-} from "@/lib/plans";
-import { ATTENDANCE_POINTS_VALID_DAYS } from "@/lib/attendanceConstants";
+import { POINT_CHARGE_PACKAGES, pointChargePackageTotalPoints } from "@/lib/plans";
 import {
   PORTONE_REVIEWER_TEST_CONFIRMED_MESSAGE,
   runPortOnePointCharge,
 } from "@/lib/portoneBrowser";
-import {
-  estimateGiftBreakdown,
-  MIN_POINT_GIFT_AMOUNT,
-  POINT_GIFT_FEE_RATE_FREE,
-  POINT_GIFT_FEE_RATE_PAID,
-  resolveGiftMutationKey,
-  type GiftMutationIntent,
-} from "@/lib/pointGiftsShared";
-import { cn, studioInputClass, studioSurface, studioType } from "@/lib/studioDesign";
+import { cn, studioSurface, studioType } from "@/lib/studioDesign";
+import PointBalanceSummary from "./PointBalanceSummary";
+import PointGiftForm from "./PointGiftForm";
+import PointHistory from "./PointHistory";
 
 export type { PointUsageLog };
 
-type HistoryTab = "usage" | "paid" | "free";
-
-type CreditPageState = {
-  logs: PointUsageLog[];
-  page: number;
-  total: number;
-  totalPages: number;
-  loading: boolean;
-};
-
-function CreditPagination({
-  page,
-  totalPages,
-  loading,
-  onPage,
-}: {
-  page: number;
-  totalPages: number;
-  loading: boolean;
-  onPage: (page: number) => void;
-}) {
-  if (totalPages <= 1) return null;
-  return (
-    <div className="mt-3 flex items-center justify-center gap-2">
-      <button
-        type="button"
-        disabled={page <= 1 || loading}
-        onClick={() => onPage(page - 1)}
-        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition hover:border-violet-500/40 hover:text-white disabled:opacity-40"
-      >
-        이전
-      </button>
-      <span className="text-xs tabular-nums text-zinc-400">
-        {page} / {totalPages}
-      </span>
-      <button
-        type="button"
-        disabled={page >= totalPages || loading}
-        onClick={() => onPage(page + 1)}
-        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition hover:border-violet-500/40 hover:text-white disabled:opacity-40"
-      >
-        다음
-      </button>
-    </div>
-  );
-}
-
-function formatLogTimestamp(iso: string): string {
-  const d = new Date(iso.includes("T") ? iso : `${iso}Z`);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" });
-}
-
-function formatLogReason(reason: string, createdAt: string) {
-  const timestamp = (
-    <span className="mt-0.5 block text-[11px] tabular-nums text-zinc-400">{formatLogTimestamp(createdAt)}</span>
-  );
-  const withModel = reason.match(/^대화 · (.+?) \((.+)\)$/);
-  if (withModel) {
-    return (
-      <span className="min-w-0 text-zinc-300">
-        대화 · <span className="font-semibold text-violet-300">{withModel[1]}</span>
-        <span className="mt-0.5 block text-xs text-zinc-400">{withModel[2]}</span>
-        {timestamp}
-      </span>
-    );
-  }
-  return (
-    <span className="min-w-0 text-zinc-300">
-      {reason}
-      {timestamp}
-    </span>
-  );
-}
-
-function PointLogList({
-  logs,
-  onToast,
-  onRefresh,
-}: {
-  logs: PointUsageLog[];
-  onToast: (text: string) => void;
-  onRefresh: () => void;
-}) {
-  if (logs.length === 0) {
-    return <p className="p-4 text-sm text-zinc-400">내역이 없습니다.</p>;
-  }
-
-  return (
-    <>
-      {logs.map((l) => (
-        <div key={l.id ?? `${l.created_at}-${l.reason}`} className="flex items-start justify-between gap-3 p-3 text-sm">
-          {formatLogReason(l.reason, l.created_at)}
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            <span className={l.delta >= 0 ? "font-semibold tabular-nums text-violet-300" : "font-semibold tabular-nums text-rose-400"}>
-              {l.delta >= 0 ? "+" : ""}
-              {l.delta.toLocaleString()}P
-            </span>
-            {canShowChargeCancelButton(l) && (
-              <ChargeCancelButton
-                pointLogId={l.id ?? 0}
-                cancelled={!!l.charge_cancelled}
-                state={l.charge_cancel_state}
-                disabled={!l.can_cancel_charge}
-                blockReason={l.charge_cancel_block_reason}
-                onToast={onToast}
-                onCancelled={onRefresh}
-              />
-            )}
-          </div>
-        </div>
-      ))}
-    </>
-  );
-}
+type Note = { tone: "success" | "error"; text: string };
 
 export default function PointsClient({
   points,
@@ -201,119 +72,31 @@ export default function PointsClient({
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState("");
-  const [msg, setMsg] = useState("");
-  const [error, setError] = useState("");
-  const [giftNickname, setGiftNickname] = useState("");
-  const [giftAmount, setGiftAmount] = useState("");
-  /** Mutation-intent key: stable across double-click/retry of the same submit. */
-  const giftMutationKeyRef = useRef<GiftMutationIntent | null>(null);
-  const [historyTab, setHistoryTab] = useState<HistoryTab>("usage");
-  const [usageLogs, setUsageLogs] = useState(initialUsageLogs);
-  const [usagePage, setUsagePage] = useState(initialUsagePage);
-  const [usageTotal, setUsageTotal] = useState(initialUsageTotal);
-  const [usageTotalPages, setUsageTotalPages] = useState(initialUsageTotalPages);
-  const [usageLoading, setUsageLoading] = useState(false);
-  const [paid, setPaid] = useState<CreditPageState>({
-    logs: initialPaidLogs,
-    page: initialPaidPage,
-    total: initialPaidTotal,
-    totalPages: initialPaidTotalPages,
-    loading: false,
-  });
-  const [free, setFree] = useState<CreditPageState>({
-    logs: initialFreeLogs,
-    page: initialFreePage,
-    total: initialFreeTotal,
-    totalPages: initialFreeTotalPages,
-    loading: false,
-  });
+  const [returnNote, setReturnNote] = useState<Note | null>(null);
+  const [chargeNote, setChargeNote] = useState<Note | null>(null);
 
-  useEffect(() => {
-    setUsageLogs(initialUsageLogs);
-    setUsagePage(initialUsagePage);
-    setUsageTotal(initialUsageTotal);
-    setUsageTotalPages(initialUsageTotalPages);
-  }, [initialUsageLogs, initialUsagePage, initialUsageTotal, initialUsageTotalPages]);
+  const usage = useMemo(
+    () => ({ logs: initialUsageLogs, page: initialUsagePage, total: initialUsageTotal, totalPages: initialUsageTotalPages }),
+    [initialUsageLogs, initialUsagePage, initialUsageTotal, initialUsageTotalPages],
+  );
+  const paid = useMemo(
+    () => ({ logs: initialPaidLogs, page: initialPaidPage, total: initialPaidTotal, totalPages: initialPaidTotalPages }),
+    [initialPaidLogs, initialPaidPage, initialPaidTotal, initialPaidTotalPages],
+  );
+  const free = useMemo(
+    () => ({ logs: initialFreeLogs, page: initialFreePage, total: initialFreeTotal, totalPages: initialFreeTotalPages }),
+    [initialFreeLogs, initialFreePage, initialFreeTotal, initialFreeTotalPages],
+  );
 
-  useEffect(() => {
-    setPaid((prev) => ({
-      ...prev,
-      logs: initialPaidLogs,
-      page: initialPaidPage,
-      total: initialPaidTotal,
-      totalPages: initialPaidTotalPages,
-    }));
-  }, [initialPaidLogs, initialPaidPage, initialPaidTotal, initialPaidTotalPages]);
-
-  useEffect(() => {
-    setFree((prev) => ({
-      ...prev,
-      logs: initialFreeLogs,
-      page: initialFreePage,
-      total: initialFreeTotal,
-      totalPages: initialFreeTotalPages,
-    }));
-  }, [initialFreeLogs, initialFreePage, initialFreeTotal, initialFreeTotalPages]);
-
-  const loadUsagePage = useCallback(async (page: number) => {
-    setUsageLoading(true);
-    try {
-      const res = await fetch(`/api/points/logs?type=usage&page=${page}`);
-      if (!res.ok) return;
-      const data = (await res.json()) as {
-        logs: PointUsageLog[];
-        page: number;
-        total: number;
-        totalPages: number;
-      };
-      setUsageLogs(data.logs);
-      setUsagePage(data.page);
-      setUsageTotal(data.total);
-      setUsageTotalPages(data.totalPages);
-    } finally {
-      setUsageLoading(false);
-    }
-  }, []);
-
-  const loadCreditPage = useCallback(async (kind: "paid" | "free", page: number) => {
-    const setState = kind === "paid" ? setPaid : setFree;
-    setState((prev) => ({ ...prev, loading: true }));
-    try {
-      const res = await fetch(`/api/points/logs?type=${kind}&page=${page}`);
-      if (!res.ok) return;
-      const data = (await res.json()) as {
-        logs: PointUsageLog[];
-        page: number;
-        total: number;
-        totalPages: number;
-      };
-      setState({
-        logs: data.logs,
-        page: data.page,
-        total: data.total,
-        totalPages: data.totalPages,
-        loading: false,
-      });
-    } finally {
-      setState((prev) => ({ ...prev, loading: false }));
-    }
-  }, []);
-
-  const giftPreview = (() => {
-    const n = Number(giftAmount);
-    if (!Number.isFinite(n) || n <= 0) return null;
-    const giftableFree = giftableFreePoints ?? freePoints;
-    return estimateGiftBreakdown(n, giftableFree, paidPoints);
-  })();
-  const feePctPaid = Math.round(POINT_GIFT_FEE_RATE_PAID * 100);
-  const feePctFree = Math.round(POINT_GIFT_FEE_RATE_FREE * 100);
+  const giftableFree = giftableFreePoints ?? Math.max(0, Math.round((freePoints - attendanceFreePoints) * 10) / 10);
+  const checkoutOpen = paymentsEnabled && portoneEnabled;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (window.location.search.includes("reviewerTest=1")) {
-      setMsg(PORTONE_REVIEWER_TEST_CONFIRMED_MESSAGE);
+      setReturnNote({ tone: "success", text: PORTONE_REVIEWER_TEST_CONFIRMED_MESSAGE });
     } else if (window.location.search.includes("charged=1")) {
-      setMsg("포인트 충전이 완료되었습니다.");
+      setReturnNote({ tone: "success", text: "포인트 충전이 완료되었습니다." });
     }
     if (window.location.hash !== `#${POINT_USAGE_HASH}`) return;
     const el = document.getElementById(POINT_USAGE_HASH);
@@ -327,8 +110,7 @@ export default function PointsClient({
     const pkg = POINT_CHARGE_PACKAGES.find((p) => p.id === packageId)!;
     const totalPoints = pkg.paidPoints + pkg.bonusPoints;
     setLoading(packageId);
-    setError("");
-    setMsg("");
+    setChargeNote(null);
     try {
       const charged = await runPortOnePointCharge(packageId, {
         customerEmail: userEmail || undefined,
@@ -339,14 +121,15 @@ export default function PointsClient({
       }
       const testConfirmed =
         charged.completed.checkoutKind === "reviewer_kg_test" || charged.completed.credited === false;
-      setMsg(
-        testConfirmed
+      setChargeNote({
+        tone: "success",
+        text: testConfirmed
           ? PORTONE_REVIEWER_TEST_CONFIRMED_MESSAGE
-          : `포인트 ${totalPoints.toLocaleString()}P 충전이 완료되었습니다.`
-      );
+          : `포인트 ${totalPoints.toLocaleString()}P 충전이 완료되었습니다.`,
+      });
       router.refresh();
     } catch (e) {
-      setError((e as Error).message || "결제에 실패했습니다.");
+      setChargeNote({ tone: "error", text: (e as Error).message || "결제에 실패했습니다." });
     } finally {
       setLoading("");
     }
@@ -354,310 +137,125 @@ export default function PointsClient({
 
   function charge(packageId: string) {
     if (!portoneEnabled) {
-      setError("PortOne 결제 설정이 완료되지 않아 포인트를 충전할 수 없습니다.");
+      setChargeNote({ tone: "error", text: "PortOne 결제 설정이 완료되지 않아 포인트를 충전할 수 없습니다." });
       return;
     }
     return void chargePortOne(packageId);
   }
 
-  async function sendGift() {
-    const amount = Number(giftAmount);
-    if (!giftNickname.trim()) {
-      setError("받는 사람 닉네임을 입력해 주세요.");
-      return;
-    }
-    if (!Number.isFinite(amount) || amount < MIN_POINT_GIFT_AMOUNT) {
-      setError(`최소 선물 금액은 ${MIN_POINT_GIFT_AMOUNT}P입니다.`);
-      return;
-    }
-    if (points < amount) {
-      setError("포인트가 부족합니다.");
-      return;
-    }
-
-    const giftableFree = giftableFreePoints ?? freePoints;
-    const preview = estimateGiftBreakdown(amount, giftableFree, paidPoints);
-    if (
-      !confirm(
-        `${giftNickname.trim()}님에게 포인트를 선물할까요?\n\n차감: ${preview.gross.toLocaleString()}P\n` +
-          `(유료 ${preview.paidGross.toLocaleString()}P·수수료 ${feePctPaid}% / 무료 ${preview.freeGross.toLocaleString()}P·수수료 ${feePctFree}%)\n` +
-          `수수료 합계: ${preview.fee.toLocaleString()}P\n상대 수령: ${preview.net.toLocaleString()}P\n\n※ 실제 차감은 만료 임박·무료 우선이며, 출석 포인트는 선물할 수 없습니다.`
-      )
-    ) {
-      return;
-    }
-
-    setLoading("gift");
-    setError("");
-    setMsg("");
-    const generateKey =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? () => crypto.randomUUID()
-        : () => `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
-    const intent = resolveGiftMutationKey(
-      giftMutationKeyRef.current,
-      `nick:${giftNickname.trim().toLowerCase()}`,
-      amount,
-      generateKey
-    );
-    giftMutationKeyRef.current = intent;
-    const clientMutationId = intent.key;
-    const res = await fetch("/api/points/gift", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recipientNickname: giftNickname.trim(), amount, clientMutationId }),
-    });
-    setLoading("");
-    const data = await res.json();
-    if (res.ok) {
-      giftMutationKeyRef.current = null;
-      setMsg(
-        `${data.recipientNickname}님에게 ${data.net.toLocaleString()}P를 선물했습니다. (차감 ${data.gross.toLocaleString()}P, 수수료 ${data.fee.toLocaleString()}P)`
-      );
-      setGiftNickname("");
-      setGiftAmount("");
-      router.refresh();
-    } else {
-      setError(data.error || "선물에 실패했습니다.");
-    }
-  }
-
   return (
-    <div className="mx-auto mt-4 max-w-3xl">
-      <AttendanceBanner loggedIn initialCheckedIn={initialCheckedIn} initialStreak={initialAttendanceStreak} />
+    <div className="mx-auto mt-4 w-full min-w-0 max-w-3xl space-y-6 pb-8">
+      <AttendanceBanner
+        loggedIn
+        initialCheckedIn={initialCheckedIn}
+        initialStreak={initialAttendanceStreak}
+        onClaimed={() => router.refresh()}
+      />
 
-      {msg && <p className={`mt-4 ${studioSurface.banner} text-sm text-violet-300`}>{msg}</p>}
-      {error && <p className="mt-4 rounded-xl border border-rose-500/20 bg-rose-600/10 p-3 text-sm text-rose-300">{error}</p>}
+      {returnNote && <StatusNotice tone={returnNote.tone} testId="points-return-notice">{returnNote.text}</StatusNotice>}
 
-      <h2 className={`mt-8 ${studioType.sectionTitle}`}>포인트 상품</h2>
-      <p className={`mt-1 ${studioType.caption}`}>
-        결제 금액과 동일한 <b className="text-zinc-300">유료 포인트</b>가 지급됩니다 (₩10,000 = 10,000P). 보너스는{" "}
-        <b className="text-violet-300">무료 포인트</b>로 별도 적립됩니다. 유료·충전 보너스 무료 포인트는 지급일로부터{" "}
-        {FREE_POINTS_VALID_YEARS}년, 출석 포인트는 {ATTENDANCE_POINTS_VALID_DAYS}일 유효합니다.{" "}
-        <Link href="/refund" className="text-violet-400 underline-offset-2 hover:underline">
-          결제 및 환불 정책
-        </Link>
-        에서 상품·유효기간·결제 취소 조건을 확인할 수 있습니다.
-      </p>
-      <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5">
-        {POINT_CHARGE_PACKAGES.map((p) => {
-          const totalPoints = pointChargePackageTotalPoints(p);
-          const cardClass = `p-4 text-left ${studioSurface.card}`;
-          const body = (
-            <>
-              <p className="text-lg font-semibold tabular-nums text-zinc-50">{totalPoints.toLocaleString()}P</p>
-              <p className={`mt-0.5 ${studioType.caption}`}>
-                유료 {p.paidPoints.toLocaleString()}P
-                {p.bonusPoints > 0 && (
-                  <>
-                    {" "}
-                    + 무료 <span className="text-violet-300">{p.bonusPoints.toLocaleString()}P</span>
-                  </>
-                )}
-              </p>
-              {p.bonusTag && <p className={`${studioType.caption} font-semibold text-violet-300`}>{p.bonusTag}</p>}
-              <p className={`mt-2 ${studioType.body} text-zinc-400`}>₩{p.price.toLocaleString()}</p>
-            </>
-          );
-          if (paymentsEnabled && portoneEnabled) {
-            return (
-              <button
-                key={p.id}
-                onClick={() => charge(p.id)}
-                disabled={Boolean(loading)}
-                className={`${cardClass} transition hover:border-violet-500/40 disabled:opacity-50`}
-              >
-                {body}
-              </button>
-            );
-          }
-          return (
-            <article key={p.id} className={cardClass}>
-              {body}
-            </article>
-          );
-        })}
-      </div>
-      {paymentsEnabled && portoneEnabled && (
-        <p className={`mt-2 ${studioType.caption} text-zinc-600`}>
-          ※ PortOne V2 결제창으로 충전하며, 서버 결제 검증 완료 후 포인트가 지급됩니다.
-        </p>
-      )}
-      {paymentsEnabled && !portoneEnabled && (
-        <div className={`mt-4 p-5 ${studioSurface.card}`}>
-          <p className={studioType.sectionTitle}>포인트 충전 준비 중</p>
-          <p className={`mt-2 ${studioType.body}`}>
-            결제 설정이 완료되지 않아 현재 포인트 충전을 사용할 수 없습니다.
+      <PointBalanceSummary total={points} paid={paidPoints} free={giftableFree} attendance={attendanceFreePoints} />
+
+      <section aria-labelledby="points-products-title" data-testid="points-products" className={studioSurface.section}>
+        <div>
+          <h2 id="points-products-title" className={studioType.sectionTitle}>
+            포인트 상품
+          </h2>
+          <p className={cn(studioType.helper, "mt-1")}>
+            결제 금액만큼 <b className="text-zinc-200">유료 포인트</b>가 지급되고, 보너스는 <b className="text-violet-300">무료 포인트</b>로 따로
+            적립돼요.{" "}
+            <Link href="/refund" className="text-violet-300 underline-offset-2 hover:underline">
+              결제 및 환불 정책
+            </Link>
+            에서 상품·유효기간·결제 취소 조건을 확인할 수 있어요.
           </p>
         </div>
-      )}
 
-      <h2 className={`mt-8 ${studioType.sectionTitle}`}>포인트 선물</h2>
-      <div className={`mt-3 p-5 ${studioSurface.card}`}>
-        <p className={studioType.body}>
-          입력한 금액이 그대로 차감됩니다. 수수료는 유료{" "}
-          <b className="text-violet-300">{feePctPaid}%</b> · 무료{" "}
-          <b className="text-violet-300">{feePctFree}%</b>이며, 받는 사람은 수수료를 제외한 금액을 받습니다.
-          출석 포인트는 선물할 수 없습니다.
-        </p>
-        <p className={`mt-1 ${studioType.caption}`}>
-          보유 합계: <b className="text-zinc-50">{points.toLocaleString()}P</b> (유료{" "}
-          {paidPoints.toLocaleString()}P · 무료 {freePoints.toLocaleString()}P) · 최소 {MIN_POINT_GIFT_AMOUNT}P
-        </p>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <label className="block">
-            <span className={studioType.label}>받는 사람 닉네임</span>
-            <input
-              type="text"
-              value={giftNickname}
-              onChange={(e) => setGiftNickname(e.target.value)}
-              placeholder="정확한 닉네임 입력"
-              className={cn(studioInputClass, "mt-1")}
-            />
-          </label>
-          <label className="block">
-            <span className={studioType.label}>선물 금액 (차감액)</span>
-            <input
-              type="number"
-              min={MIN_POINT_GIFT_AMOUNT}
-              step={1}
-              value={giftAmount}
-              onChange={(e) => setGiftAmount(e.target.value)}
-              placeholder={`최소 ${MIN_POINT_GIFT_AMOUNT}P`}
-              className={cn(studioInputClass, "mt-1")}
-            />
-          </label>
-        </div>
-        {giftPreview && (
-          <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-zinc-300">
-            <p>
-              차감 <b className="tabular-nums text-zinc-50">{giftPreview.gross.toLocaleString()}P</b>
-              <span className="mx-2 text-zinc-600">→</span>
-              수수료 <b className="tabular-nums text-rose-300">{giftPreview.fee.toLocaleString()}P</b>
-              <span className="mx-2 text-zinc-600">→</span>
-              상대 수령 <b className="tabular-nums text-violet-300">{giftPreview.net.toLocaleString()}P</b>
-            </p>
-            <p className="mt-1 text-xs text-zinc-400">
-              예상 차감 구성: 유료 {giftPreview.paidGross.toLocaleString()}P · 무료{" "}
-              {giftPreview.freeGross.toLocaleString()}P (만료 임박 우선)
+        {!checkoutOpen && (
+          <div data-testid="points-checkout-closed" className="rounded-xl border border-amber-300/25 bg-amber-400/[0.06] px-4 py-3">
+            <p className="text-sm font-semibold text-amber-100">포인트 충전 준비 중</p>
+            <p className={cn(studioType.helper, "mt-0.5")}>
+              결제 설정이 완료되지 않아 현재 포인트 충전을 사용할 수 없습니다. 상품 구성만 확인할 수 있어요.
             </p>
           </div>
         )}
-        <button
-          onClick={sendGift}
-          disabled={loading === "gift"}
-          className="mt-4 w-full rounded-xl bg-violet-600 py-3 font-bold text-white hover:bg-violet-500 disabled:opacity-50"
-        >
-          {loading === "gift" ? "처리 중…" : "포인트 선물하기"}
-        </button>
-      </div>
 
-      <div id={POINT_USAGE_HASH} className="mt-8 scroll-mt-28">
-        <h2 className={studioType.sectionTitle}>포인트 내역</h2>
-        <div
-          className={cn(studioSurface.tabList, "mt-3")}
-          role="tablist"
-          aria-label="포인트 내역 탭"
-        >
-          {(
-            [
-              ["usage", "사용 내역"],
-              ["paid", "유료 충전"],
-              ["free", "무료 적립·출석"],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={historyTab === id}
-              onClick={() => setHistoryTab(id)}
-              className={cn(
-                "flex-1 rounded-lg py-2 text-sm font-semibold transition",
-                historyTab === id ? studioSurface.tabActive : studioSurface.tabIdle,
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <ul className="space-y-2.5">
+          {POINT_CHARGE_PACKAGES.map((p) => {
+            const totalPoints = pointChargePackageTotalPoints(p);
+            const busy = loading === p.id;
+            const body = (
+              <>
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="text-xs font-medium text-zinc-400">결제 금액</span>
+                  <span className="text-xl font-semibold tabular-nums leading-tight text-zinc-50">₩{p.price.toLocaleString()}</span>
+                  <span className="mt-1 text-[13px] leading-snug text-zinc-400">
+                    유료 {p.paidPoints.toLocaleString()}P
+                    {p.bonusPoints > 0 ? (
+                      <>
+                        {" + "}
+                        <span className="font-medium text-violet-300">무료 보너스 {p.bonusPoints.toLocaleString()}P</span>
+                      </>
+                    ) : (
+                      <span className="text-zinc-500"> · 보너스 없음</span>
+                    )}
+                  </span>
+                </span>
+                <span className="flex shrink-0 flex-col items-end text-right">
+                  {p.bonusTag && (
+                    <span className="mb-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-xs font-semibold text-violet-200">{p.bonusTag}</span>
+                  )}
+                  <span className="text-xs font-medium text-zinc-400">지급 합계</span>
+                  <span className="text-lg font-semibold tabular-nums leading-tight text-zinc-50">{totalPoints.toLocaleString()}P</span>
+                  {checkoutOpen && (
+                    <span className="mt-1 text-xs font-semibold text-violet-300">{busy ? "결제창 여는 중…" : "충전하기 ›"}</span>
+                  )}
+                </span>
+              </>
+            );
+            const rowClass = "flex min-h-[5.5rem] w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-[#0e1120] px-4 py-3 text-left";
+            if (paymentsEnabled && portoneEnabled) {
+              return (
+                <li key={p.id} data-testid={`charge-row-${p.id}`}>
+                  <button
+                    onClick={() => charge(p.id)}
+                    disabled={Boolean(loading)}
+                    aria-busy={busy}
+                    className={cn(rowClass, "transition hover:border-violet-500/50 hover:bg-violet-500/[0.06] disabled:opacity-60")}
+                  >
+                    {body}
+                  </button>
+                </li>
+              );
+            }
+            return (
+              <li key={p.id} data-testid={`charge-row-${p.id}`}>
+                <article key={p.id} className={rowClass}>
+                  {body}
+                </article>
+              </li>
+            );
+          })}
+        </ul>
 
-        {historyTab === "usage" && usageTotal > 0 && (
-          <p className={`mt-2 ${studioType.caption}`}>
-            최근 {Math.min(usageTotal, 100).toLocaleString()}건 · {USAGE_PAGE_SIZE}건씩 표시
-          </p>
+        {checkoutOpen && (
+          <p className={studioType.helper}>PortOne 결제창으로 충전하며, 서버 결제 검증이 끝난 뒤에 포인트가 지급돼요.</p>
         )}
-        {historyTab === "paid" && paid.total > 0 && (
-          <p className={`mt-2 ${studioType.caption}`}>
-            최근 {Math.min(paid.total, 100).toLocaleString()}건 · {CHARGE_PAGE_SIZE}건씩 · 결제 충전·선물 수령
-          </p>
+        {chargeNote && (
+          <StatusNotice tone={chargeNote.tone} testId="points-charge-notice">
+            {chargeNote.text}
+          </StatusNotice>
         )}
-        {historyTab === "free" && free.total > 0 && (
-          <p className={`mt-2 ${studioType.caption}`}>
-            최근 {Math.min(free.total, 100).toLocaleString()}건 · {CHARGE_PAGE_SIZE}건씩 · 출석({ATTENDANCE_POINTS_VALID_DAYS}일)·이벤트/충전 보너스({FREE_POINTS_VALID_YEARS}년)
-          </p>
-        )}
+      </section>
 
-        <div
-          className={`mt-3 divide-y divide-white/5 ${studioSurface.card}`}
-          role="tabpanel"
-        >
-          {historyTab === "usage" ? (
-            usageLoading ? (
-              <p className="p-4 text-sm text-zinc-400">불러오는 중…</p>
-            ) : (
-              <PointLogList
-                logs={usageLogs}
-                onToast={(text) => setMsg(text)}
-                onRefresh={() => router.refresh()}
-              />
-            )
-          ) : historyTab === "paid" ? (
-            paid.loading ? (
-              <p className="p-4 text-sm text-zinc-400">불러오는 중…</p>
-            ) : (
-              <PointLogList
-                logs={paid.logs}
-                onToast={(text) => setMsg(text)}
-                onRefresh={() => router.refresh()}
-              />
-            )
-          ) : free.loading ? (
-            <p className="p-4 text-sm text-zinc-400">불러오는 중…</p>
-          ) : (
-            <PointLogList
-              logs={free.logs}
-              onToast={(text) => setMsg(text)}
-              onRefresh={() => router.refresh()}
-            />
-          )}
-        </div>
+      <PointGiftForm
+        paidPoints={paidPoints}
+        giftableFreePoints={giftableFree}
+        attendanceFreePoints={attendanceFreePoints}
+        onGifted={() => router.refresh()}
+      />
 
-        {historyTab === "usage" && (
-          <CreditPagination
-            page={usagePage}
-            totalPages={usageTotalPages}
-            loading={usageLoading}
-            onPage={(page) => void loadUsagePage(page)}
-          />
-        )}
-        {historyTab === "paid" && (
-          <CreditPagination
-            page={paid.page}
-            totalPages={paid.totalPages}
-            loading={paid.loading}
-            onPage={(page) => void loadCreditPage("paid", page)}
-          />
-        )}
-        {historyTab === "free" && (
-          <CreditPagination
-            page={free.page}
-            totalPages={free.totalPages}
-            loading={free.loading}
-            onPage={(page) => void loadCreditPage("free", page)}
-          />
-        )}
-      </div>
+      <PointHistory usage={usage} paid={paid} free={free} anchorId={POINT_USAGE_HASH} onRefresh={() => router.refresh()} />
     </div>
   );
 }
