@@ -2,28 +2,22 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
-import AdultContentBadge from "@/components/AdultContentBadge";
-import CharacterCard, { type CharacterRow, CHARACTER_THUMB_ASPECT } from "@/components/CharacterCard";
+import CharacterCard, { type CharacterRow } from "@/components/CharacterCard";
 import UserPreferenceControls from "@/components/UserPreferenceControls";
 import StudioButton from "@/components/studio/StudioButton";
 import { CHARACTER_GENRES, genreFilterSql, type CharacterGenre } from "@/lib/characterGenres";
-import { characterRevealAttrs } from "@/lib/characterReveal";
-import { readPublicDossier } from "@/lib/characterPublicDossier";
 import { listableWhere } from "@/lib/characterVisibility";
 import { buildHomeListFilter, fetchNewestCharacters } from "@/lib/homeSections";
-import { characterCardHref } from "@/lib/chatLinks";
 import {
   fetchCharacterRanking,
   parseRankingPeriod,
-  RANKING_PERIODS,
   rankingEmptyMessage,
-  rankingPeriodDesc,
   type RankedCharacter,
 } from "@/lib/characterRanking";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 import { canAccessAdultContent, shouldHideAdultListings } from "@/lib/adultVerification";
 import { decorateCharactersWithCreatorTiers } from "@/lib/creatorTierBadges";
-import { getCharacterRepresentativeImageUrl } from "@/lib/characterAssets";
+import { RankingList, RankingPeriodNav } from "./RankingView";
 
 export const dynamic = "force-dynamic";
 
@@ -191,8 +185,8 @@ export default async function TabPage({
       <h1 className={studioType.heading}>{title}</h1>
       {tab === "ranking" && (
         <>
-          <p className={cn(studioType.helper, "mt-2")}>{rankingPeriodDesc(rankingPeriod)}</p>
-          <div className="mt-5">
+          <RankingPeriodNav period={rankingPeriod} />
+          <div className="mt-5 border-t border-white/10 pt-4">
             <UserPreferenceControls
               isAdult={!!user?.is_adult}
               canDisableSafetyFilter={canAccessAdultContent(user)}
@@ -201,17 +195,6 @@ export default async function TabPage({
               loggedIn={loggedIn}
               variant="homeRow"
             />
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {RANKING_PERIODS.map((period) => (
-              <ChipLink
-                key={period.id}
-                href={`/tab/ranking?p=${period.id}`}
-                active={rankingPeriod === period.id}
-              >
-                {period.label}
-              </ChipLink>
-            ))}
           </div>
         </>
       )}
@@ -230,85 +213,7 @@ export default async function TabPage({
       )}
       {tab === "ranking" ? (
         rankedChars.length > 0 ? (
-          <ol className="mt-6 space-y-2">
-            {rankedChars.map((c, i) => {
-              const thumb = getCharacterRepresentativeImageUrl(c.assets, c.images);
-              const hidden = c.nsfw === 1 && blurNsfw;
-              const href = characterCardHref({
-                characterId: c.id,
-                nsfw: c.nsfw === 1,
-                blurNsfw,
-                loggedIn,
-              });
-              return (
-                <li
-                  key={c.id}
-                  {...characterRevealAttrs({
-                    id: c.id,
-                    name: c.name,
-                    genre: c.genre?.trim() || "",
-                    tagline: c.tagline,
-                    href,
-                    hidden,
-                    hasThumb: Boolean(thumb),
-                    dossier: readPublicDossier(c),
-                  })}
-                >
-                  <Link
-                    href={href}
-                    className={cn(
-                      studioSurface.card,
-                      "flex items-center gap-4 p-3 transition hover:border-white/20",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "w-8 shrink-0 text-center text-lg font-semibold tabular-nums",
-                        i < 3 ? "text-violet-300" : "text-zinc-500",
-                      )}
-                    >
-                      {i + 1}
-                    </span>
-                    <div
-                      className={`relative ${CHARACTER_THUMB_ASPECT} w-14 shrink-0 overflow-hidden rounded-lg`}
-                      style={{ background: `hsl(${c.hue} 60% 20%)` }}
-                    >
-                      {thumb ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={thumb}
-                          alt=""
-                          className={`h-full w-full object-cover object-top ${hidden ? "blur-md" : ""}`}
-                        />
-                      ) : (
-                        <span className="flex h-full w-full items-center justify-center text-2xl">
-                          {c.emoji}
-                        </span>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-semibold text-zinc-50">
-                      {c.name}
-                      {c.nsfw === 1 && (
-                        <AdultContentBadge className="ml-2 align-middle" />
-                      )}
-                      </p>
-                      <p className={cn(studioType.caption, "truncate")}>
-                        {hidden
-                          ? loggedIn
-                            ? "성인인증 후 확인할 수 있습니다."
-                            : "로그인 후 성인인증이 필요합니다."
-                          : c.tagline}
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-sm tabular-nums text-zinc-400">
-                      💬 {c.period_chats.toLocaleString()}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ol>
+          <RankingList ranked={rankedChars} period={rankingPeriod} blurNsfw={blurNsfw} loggedIn={loggedIn} />
         ) : (
           <EmptyPanel
             className="mt-6"

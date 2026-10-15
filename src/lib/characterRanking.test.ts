@@ -6,6 +6,7 @@ import {
   parseRankingPeriod,
   RANKING_PERIODS,
   rankingEmptyMessage,
+  rankingMetric,
   rankingPeriodDesc,
   type RankingPeriod,
 } from "@/lib/characterRanking";
@@ -158,6 +159,19 @@ describe("ranking aggregation and visibility are unchanged", () => {
     getDb().prepare(`DELETE FROM characters`).run();
     for (const { id } of RANKING_PERIODS) {
       assert.deepEqual(names(id), [], id);
+    }
+  });
+});
+
+describe("rankingMetric", () => {
+  it("labels all-time as cumulative turns and every window as chat starts", () => {
+    assert.deepEqual(rankingMetric("all"), { label: "누적 대화", unit: "턴", basis: "누적 대화 턴 수 기준" });
+    for (const { id, window } of RANKING_PERIODS) {
+      if (id === "all") continue;
+      const metric = rankingMetric(id);
+      assert.equal(metric.label, "대화 시작", id);
+      assert.equal(metric.unit, "회", id);
+      assert.ok(metric.basis.includes(window), `${id}: ${metric.basis}`);
     }
   });
 });

@@ -1,5 +1,8 @@
 export const SEARCH_QUERY_MAX = 40;
 
+/** Catalog search returns at most this many rows (SQL LIMIT); there is no COUNT query. */
+export const SEARCH_RESULT_LIMIT = 60;
+
 /** 통합 검색어 정규화 (태그·캐릭터명·제작자명) */
 export function sanitizeSearchQuery(raw: string): string {
   return raw.trim().slice(0, SEARCH_QUERY_MAX).replace(/["\\%_]/g, "");
@@ -59,7 +62,7 @@ export function buildCharacterSearchSql(filter: CharacterSearchFilters) {
       ORDER BY
         (CASE WHEN name LIKE ? THEN 0 WHEN creator_name LIKE ? THEN 1 ELSE 2 END) ASC,
         likes DESC, id DESC
-      LIMIT 60
+      LIMIT ${SEARCH_RESULT_LIMIT}
     `,
     filterParams: filter.audiencePref === "female" || filter.audiencePref === "male" ? [filter.audiencePref] : [],
   };

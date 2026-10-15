@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import {
   SEARCH_QUERY_MAX,
+  SEARCH_RESULT_LIMIT,
   buildCharacterSearchSql,
   isValidSearchQuery,
   normalizeCatalogSearchQuery,
@@ -116,6 +117,20 @@ describe("catalog search results", () => {
     assert.deepEqual(searchNames(db, "없는검색어", false), []);
     assert.deepEqual(searchNames(db, "   ", false), []);
     db.close();
+  });
+});
+
+describe("catalog search result limit", () => {
+  it("caps results at the displayed limit so the page can say it is truncated", () => {
+    assert.equal(SEARCH_RESULT_LIMIT, 60);
+    const db = createCatalog();
+    const insert = db.prepare(
+      `INSERT INTO characters (name, tags, creator_id, creator_name, visibility, moderation_status, official, nsfw)
+       VALUES (?, ?, 9, '제작자', 'public', 'approved', 0, 0)`
+    );
+    for (let i = 0; i < SEARCH_RESULT_LIMIT + 5; i++) insert.run(`대량${i}`, JSON.stringify(["대량태그"]));
+    assert.equal(searchNames(db, "대량태그", false).length, SEARCH_RESULT_LIMIT);
+    assert.match(buildCharacterSearchSql({ blurNsfw: false }).sql, new RegExp(`LIMIT ${SEARCH_RESULT_LIMIT}\\b`));
   });
 });
 
