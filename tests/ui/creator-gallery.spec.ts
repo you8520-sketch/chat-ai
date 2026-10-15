@@ -165,6 +165,11 @@ test("community follows works; private, moderated and disabled states remain int
   await page.reload();
   await expect(page.getByText("비공개 fixture 댓글", { exact: true })).toBeVisible();
   await expect(page.getByText("검수 중", { exact: true })).toBeVisible();
+  const positions = await page.evaluate(() => ({
+    worksBottom: document.querySelector("#creator-works")!.getBoundingClientRect().bottom,
+    communityTop: document.querySelector(".creator-gallery__community")!.getBoundingClientRect().top,
+  }));
+  expect(positions.communityTop).toBeGreaterThanOrEqual(positions.worksBottom);
   const input = page.getByPlaceholder("댓글을 입력하세요…");
   await page.setViewportSize({ width: 360, height: 420 });
   await input.fill("전송하지 않는 입력 확인");
@@ -186,9 +191,14 @@ test("gift dialog stays usable during small-height resize and returns focus", as
   await trigger.click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
+  const buttonHeights = await dialog.getByRole("button").evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height));
+  expect(Math.min(...buttonHeights)).toBeGreaterThanOrEqual(44);
   await page.setViewportSize({ width: 360, height: 360 });
   await dialog.getByRole("button", { name: "취소", exact: true }).scrollIntoViewIfNeeded();
   await noOverflow(page);
+  const bounds = await dialog.boundingBox();
+  expect(bounds!.y).toBeGreaterThanOrEqual(0);
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(360);
   await dialog.getByRole("button", { name: "취소", exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(trigger).toBeFocused();

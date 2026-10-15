@@ -254,7 +254,7 @@ export default function CreatorGiftPanel({
                       type="button"
                       disabled={loading || totalPoints < v}
                       onClick={() => setAmount(String(v))}
-                      className="rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 text-xs font-semibold text-gray-300 hover:border-violet-500/40 hover:text-white disabled:opacity-40"
+                      className="min-h-11 min-w-11 rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 text-xs font-semibold text-gray-300 hover:border-violet-500/40 hover:text-white disabled:opacity-40"
                     >
                       {v.toLocaleString()}P
                     </button>
@@ -271,7 +271,7 @@ export default function CreatorGiftPanel({
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder={`최소 ${MIN_POINT_GIFT_AMOUNT}P`}
                     disabled={loading}
-                    className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500/50 disabled:opacity-50"
+                    className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-base text-white outline-none focus:border-violet-500/50 disabled:opacity-50 sm:text-sm"
                   />
                 </label>
 
@@ -305,7 +305,7 @@ export default function CreatorGiftPanel({
                     type="button"
                     onClick={closeModal}
                     disabled={loading}
-                    className="rounded-lg bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-300 hover:bg-white/10 disabled:opacity-50"
+                    className="min-h-11 rounded-lg bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-300 hover:bg-white/10 disabled:opacity-50"
                   >
                     {success ? "닫기" : "취소"}
                   </button>
@@ -313,7 +313,7 @@ export default function CreatorGiftPanel({
                     type="button"
                     onClick={sendGift}
                     disabled={loading || totalPoints < MIN_POINT_GIFT_AMOUNT}
-                    className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+                    className="min-h-11 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
                   >
                     {loading ? "처리 중…" : "선물하기"}
                   </button>
@@ -326,7 +326,7 @@ export default function CreatorGiftPanel({
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="rounded-lg bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-300 hover:bg-white/10"
+                  className="min-h-11 rounded-lg bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-300 hover:bg-white/10"
                 >
                   닫기
                 </button>
