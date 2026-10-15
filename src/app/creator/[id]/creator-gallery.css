@@ -102,34 +102,3 @@
 @media (prefers-reduced-motion: reduce) {
   .creator-gallery__action { transition: none; }
 }
-
-/* C2 comparison: the information structure stays identical to C1. */
-.creator-gallery__identity {
-  position: relative;
-  padding-top: 1.5rem;
-}
-
-.creator-gallery__identity::before {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 2.5rem;
-  height: 2px;
-  background: #a78bfa;
-  content: "";
-}
-
-.creator-gallery__eyebrow {
-  color: #c4b5fd;
-  letter-spacing: 0.12em;
-}
-
-.creator-gallery__identity h1 {
-  font-size: 2.25rem;
-  font-weight: 500;
-  letter-spacing: -0.055em;
-}
-
-@media (min-width: 640px) {
-  .creator-gallery__identity h1 { font-size: 3rem; }
-}
