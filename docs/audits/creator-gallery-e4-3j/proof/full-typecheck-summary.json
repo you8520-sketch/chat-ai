@@ -1,0 +1,7 @@
+{
+  "baseline_errors": 2164,
+  "final_errors": 2164,
+  "added_diagnostic_locations_and_codes": [],
+  "removed_diagnostic_locations_and_codes": [],
+  "note": "One existing characterAssets.test.ts diagnostic prints union members in a different order; location, code, meaning and source are unchanged."
+}
