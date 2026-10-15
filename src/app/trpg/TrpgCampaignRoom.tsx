@@ -2360,13 +2360,22 @@ export default function TrpgCampaignRoom({
               style={{ height: `${Math.round(TRPG_LIVE_FOLLOW_TAIL_SPACER_RATIO * 100)}vh` }}
             />
           ) : null}
-          <TrpgExplorationPanel
-            exploration={snap.exploration}
-            queue={explorationQueue}
-            locked={snap.myDraft?.locked === true}
-            onQueue={onQueueExploration}
-            onRemove={onRemoveExploration}
-          />
+          <div
+            data-trpg-exploration-anchor
+            className="w-full"
+            style={{
+              scrollMarginBottom: trpgCommandDockScrollMarginBottom(dockOcclusion),
+              paddingBottom: trpgCommandDockScrollMarginBottom(dockOcclusion),
+            }}
+          >
+            <TrpgExplorationPanel
+              exploration={snap.exploration}
+              queue={explorationQueue}
+              locked={snap.myDraft?.locked === true}
+              onQueue={onQueueExploration}
+              onRemove={onRemoveExploration}
+            />
+          </div>
           <div
             ref={bottomRef}
             aria-hidden="true"
