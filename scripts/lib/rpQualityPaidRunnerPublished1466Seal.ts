@@ -286,16 +286,9 @@ const PUBLISHED_1602_1595_CALL_FINGERPRINTS: Readonly<
 };
 
 /**
- * Live canonical baseline. Two approved deltas after #1612, pinned from the
- * deployed read-only reseal at this SHA (Railway SUCCESS + container):
- * - #1616 replaced only the DeepSeek V4.1 Flash `[이번 응답 대화]` axis line
- *   (orders 1, 5, 9 body/wire). Gemini / Sol / Opus stay on the #1612 pins.
- * - CASE B identity: `characters.setting_chunks` now equals the post-#1595
- *   fresh parse (`5bc7fcea…`). Creator source fields are unchanged; the paid
- *   runner already assembled from that fresh parse, so the 9 non-DeepSeek
- *   fingerprints do not move.
- * #1466 / #1587 / #1612 stay as historical evidence; the live dispatch gate
- * compares against this seal only. `manifestFingerprint` is A-scope.
+ * Historical #1618 seal for the #1616 DeepSeek-only axis line (GPT REVERT).
+ * CASE B identity (`5bc7fcea…`) is retained by the live gate below.
+ * Not the live gate. `manifestFingerprint` is A-scope.
  */
 export const PUBLISHED_1616_PRODUCTION_SHA =
   "ac67801c5a3c0c2e25a8e5ae69dc68ba5a60add2" as const;
@@ -326,6 +319,18 @@ const PUBLISHED_1616_CALL_FINGERPRINTS: Readonly<
     finalWireFingerprint: "ec88aa8c62cf1213b50ca8b2358a708aaf3fb149c320d0a720b47faaf7e82be4",
   },
 };
+
+/**
+ * Live canonical after reverting #1616. DeepSeek 1/5/9 body/wire were measured
+ * on production identity `9b89bf89…` / `settingChunksSha256 5bc7fcea…` at SHA
+ * `034b9521` and match the #1612 DeepSeek pins. Gemini / Sol / Opus 9
+ * fingerprints are unchanged from #1618. #1466 / #1587 / #1612 / #1618 stay
+ * historical. `manifestFingerprint` is A-scope.
+ */
+export const PUBLISHED_1616_REVERT_PRODUCTION_SHA =
+  "034b95211fed168d291aa3593198ff5c6bf5feae" as const;
+export const PUBLISHED_1616_REVERT_A_SCOPE_MANIFEST_FINGERPRINT =
+  "87c36a4cdb79add40faa041711480238f9a50be254323f36eb16531b0eedbf64" as const;
 
 export type Published1466ComparableCall = {
   requestOrder: number;
@@ -406,7 +411,8 @@ export function published1612ComparableSeal(): Published1466ComparableSeal {
   };
 }
 
-export function publishedCanonicalComparableSeal(): Published1466ComparableSeal {
+/** Historical #1618 / #1616 failed-candidate seal. Not the live gate. */
+export function published1616ComparableSeal(): Published1466ComparableSeal {
   return {
     mainSha: PUBLISHED_1616_PRODUCTION_SHA,
     productionDeploySha: PUBLISHED_1616_PRODUCTION_SHA,
@@ -416,6 +422,20 @@ export function publishedCanonicalComparableSeal(): Published1466ComparableSeal 
     calls: PUBLISHED_1466_CALLS.map((call) => ({
       ...call,
       ...PUBLISHED_1616_CALL_FINGERPRINTS[call.requestOrder],
+    })),
+  };
+}
+
+export function publishedCanonicalComparableSeal(): Published1466ComparableSeal {
+  return {
+    mainSha: PUBLISHED_1616_REVERT_PRODUCTION_SHA,
+    productionDeploySha: PUBLISHED_1616_REVERT_PRODUCTION_SHA,
+    identityHash: PUBLISHED_1616_IDENTITY_HASH,
+    identityHashes: { ...PUBLISHED_1616_IDENTITY_HASHES },
+    manifestFingerprint: PUBLISHED_1616_REVERT_A_SCOPE_MANIFEST_FINGERPRINT,
+    calls: PUBLISHED_1466_CALLS.map((call) => ({
+      ...call,
+      ...PUBLISHED_1602_1595_CALL_FINGERPRINTS[call.requestOrder],
     })),
   };
 }

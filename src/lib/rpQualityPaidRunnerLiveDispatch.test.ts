@@ -42,6 +42,8 @@ import {
   PUBLISHED_1616_IDENTITY_HASH,
   PUBLISHED_1616_IDENTITY_HASHES,
   PUBLISHED_1616_PRODUCTION_SHA,
+  PUBLISHED_1616_REVERT_A_SCOPE_MANIFEST_FINGERPRINT,
+  PUBLISHED_1616_REVERT_PRODUCTION_SHA,
   compareToCanonicalPaidRunnerSeal,
   compareToPublished1466Seal,
   compareToPublishedPaidRunnerSeals,
@@ -49,6 +51,7 @@ import {
   published1466ComparableSeal,
   published1587ComparableSeal,
   published1612ComparableSeal,
+  published1616ComparableSeal,
   publishedCanonicalComparableSeal,
   type Published1466ComparableSeal,
 } from "../../scripts/lib/rpQualityPaidRunnerPublished1466Seal";
@@ -420,13 +423,16 @@ describe("rp quality paid runner live dispatch boundary", () => {
     );
   });
 
-  it("canonical seal: #1616 DeepSeek + CASE B identity are the only approved delta vs #1612", () => {
+  it("canonical seal: CASE B identity is the only approved delta vs #1612 after #1616 revert", () => {
     const base1466 = published1466ComparableSeal();
     const base1587 = published1587ComparableSeal();
     const base1612 = published1612ComparableSeal();
+    const failed1616 = published1616ComparableSeal();
     const canonical = publishedCanonicalComparableSeal();
-    assert.equal(canonical.productionDeploySha, "ac67801c5a3c0c2e25a8e5ae69dc68ba5a60add2");
-    assert.equal(canonical.productionDeploySha, PUBLISHED_1616_PRODUCTION_SHA);
+    assert.equal(canonical.productionDeploySha, "034b95211fed168d291aa3593198ff5c6bf5feae");
+    assert.equal(canonical.productionDeploySha, PUBLISHED_1616_REVERT_PRODUCTION_SHA);
+    assert.equal(failed1616.productionDeploySha, PUBLISHED_1616_PRODUCTION_SHA);
+    assert.equal(failed1616.manifestFingerprint, PUBLISHED_1616_A_SCOPE_MANIFEST_FINGERPRINT);
     assert.equal(base1612.productionDeploySha, PUBLISHED_1612_PRODUCTION_SHA);
     assert.equal(base1612.manifestFingerprint, PUBLISHED_1612_A_SCOPE_MANIFEST_FINGERPRINT);
     assert.equal(canonical.calls.length, 12);
@@ -453,9 +459,10 @@ describe("rp quality paid runner live dispatch boundary", () => {
     assert.notEqual(canonical.identityHash, base1466.identityHash);
     assert.notEqual(canonical.identityHash, base1612.identityHash);
 
-    const changedOrders: number[] = [];
+    const restoredDeepSeekOrders: number[] = [];
     for (const [index, call] of canonical.calls.entries()) {
       const old = base1612.calls[index]!;
+      const failed = failed1616.calls[index]!;
       assert.equal(call.requestOrder, old.requestOrder);
       assert.equal(call.fixtureId, old.fixtureId);
       assert.equal(call.canonicalId, old.canonicalId);
@@ -465,18 +472,18 @@ describe("rp quality paid runner live dispatch boundary", () => {
       assert.equal(call.maxTokensPresent, false);
       assert.notEqual(call.requestBodyFingerprint, base1587.calls[index]!.requestBodyFingerprint, `order ${call.requestOrder}`);
       assert.notEqual(call.finalWireFingerprint, base1587.calls[index]!.finalWireFingerprint, `order ${call.requestOrder}`);
-      const bodyChanged = call.requestBodyFingerprint !== old.requestBodyFingerprint;
-      const wireChanged = call.finalWireFingerprint !== old.finalWireFingerprint;
+      assert.equal(call.requestBodyFingerprint, old.requestBodyFingerprint, `restored body ${call.requestOrder}`);
+      assert.equal(call.finalWireFingerprint, old.finalWireFingerprint, `restored wire ${call.requestOrder}`);
       if (call.canonicalId === "deepseek-v4.1-flash") {
-        assert.equal(bodyChanged, true, `deepseek body ${call.requestOrder}`);
-        assert.equal(wireChanged, true, `deepseek wire ${call.requestOrder}`);
-        changedOrders.push(call.requestOrder);
+        assert.notEqual(call.requestBodyFingerprint, failed.requestBodyFingerprint, `deepseek left #1616 body ${call.requestOrder}`);
+        assert.notEqual(call.finalWireFingerprint, failed.finalWireFingerprint, `deepseek left #1616 wire ${call.requestOrder}`);
+        restoredDeepSeekOrders.push(call.requestOrder);
       } else {
-        assert.equal(bodyChanged, false, `non-deepseek body ${call.requestOrder}`);
-        assert.equal(wireChanged, false, `non-deepseek wire ${call.requestOrder}`);
+        assert.equal(call.requestBodyFingerprint, failed.requestBodyFingerprint, `non-deepseek body ${call.requestOrder}`);
+        assert.equal(call.finalWireFingerprint, failed.finalWireFingerprint, `non-deepseek wire ${call.requestOrder}`);
       }
     }
-    assert.deepEqual(changedOrders, [1, 5, 9]);
+    assert.deepEqual(restoredDeepSeekOrders, [1, 5, 9]);
 
     const draft = {
       version: 1 as const,
@@ -489,9 +496,9 @@ describe("rp quality paid runner live dispatch boundary", () => {
     };
     assert.equal(
       paidRunnerManifestFingerprint({ ...draft, executionScope: "A_relationship_emotion" } as never),
-      PUBLISHED_1616_A_SCOPE_MANIFEST_FINGERPRINT
+      PUBLISHED_1616_REVERT_A_SCOPE_MANIFEST_FINGERPRINT
     );
-    assert.equal(canonical.manifestFingerprint, PUBLISHED_1616_A_SCOPE_MANIFEST_FINGERPRINT);
+    assert.equal(canonical.manifestFingerprint, PUBLISHED_1616_REVERT_A_SCOPE_MANIFEST_FINGERPRINT);
 
     const scoped: Published1466ComparableSeal = { ...canonical, executionScope: "A_relationship_emotion" };
     assert.equal(compareToCanonicalPaidRunnerSeal(scoped).verdict, "MATCH");
@@ -524,6 +531,11 @@ describe("rp quality paid runner live dispatch boundary", () => {
     );
     assert.equal(compareToCanonicalPaidRunnerSeal(base1466).verdict, "BODY_DRIFT");
     assert.equal(compareToCanonicalPaidRunnerSeal(base1612).verdict, "BODY_DRIFT");
+    assert.equal(compareToCanonicalPaidRunnerSeal(failed1616).verdict, "BODY_DRIFT");
+    assert.equal(
+      compareToCanonicalPaidRunnerSeal({ ...failed1616, executionScope: "A_relationship_emotion" }).verdict,
+      "BODY_DRIFT"
+    );
     assert.equal(compareToPublished1466Seal(scoped).verdict, "BODY_DRIFT");
     assert.equal(compareToPublishedPaidRunnerSeals(scoped).verdict, "BODY_DRIFT");
 

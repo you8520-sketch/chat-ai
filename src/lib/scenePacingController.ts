@@ -33,7 +33,6 @@ import {
 } from "@/lib/sceneDirective";
 import { SCENE_FLOW_BLOCK } from "@/lib/generationProcessBeatFlow";
 import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "@/lib/responseLength";
-import { isCheaperInferenceDeepSeekV41FlashModel } from "@/lib/chatModels";
 
 export type ScenePacingArm = "A" | "P" | "Q" | "R" | "T" | "U" | "V";
 
@@ -784,25 +783,14 @@ export function resolveTerminalDialogueBudget(input: {
   };
 }
 
-const TERMINAL_DIALOGUE_AXIS_LINE =
-  "유저가 반응할 질문·제안·요구는 하나의 중심축으로 모으고, [B]의 새 직접 발화·중대한 선택은 유저에게 남긴다.";
-
-/** Replaces TERMINAL_DIALOGUE_AXIS_LINE for DeepSeek V4.1 Flash only (same slot, no extra owner). */
-const DEEPSEEK_V41_FLASH_TERMINAL_DIALOGUE_AXIS_LINE =
-  "유저가 반응할 질문·제안·요구는 하나의 중심축으로 모으되 이미 던진 것은 되풀이하지 않고, 유저가 조용히 머무르면 새 질문으로 반응을 요구하지 않는다. " +
-  "같은 화자의 이어지는 말은 한 블록으로 묶고, 남는 분량은 AI의 행동·내면·감각·관계 변화로 전개하며, [B]의 새 직접 발화·중대한 선택은 유저에게 남긴다.";
-
 /** D3 terminal wording — ceiling only; no fixed 1–3 preferred line. */
 export function renderTerminalDialogueBudgetOwner(
-  maxBlocks: Exclude<DialogueBudget, null>,
-  modelId?: string | null
+  maxBlocks: Exclude<DialogueBudget, null>
 ): string {
   return (
     `${TERMINAL_DIALOGUE_BUDGET_MARKER}\n` +
     `AI 측 직접 발화는 필요한 만큼 사용하되 최대 ${maxBlocks}개 블록으로 구성한다.\n` +
-    (modelId && isCheaperInferenceDeepSeekV41FlashModel(modelId)
-      ? DEEPSEEK_V41_FLASH_TERMINAL_DIALOGUE_AXIS_LINE
-      : TERMINAL_DIALOGUE_AXIS_LINE)
+    `유저가 반응할 질문·제안·요구는 하나의 중심축으로 모으고, [B]의 새 직접 발화·중대한 선택은 유저에게 남긴다.`
   );
 }
 
@@ -887,7 +875,6 @@ export function appendTerminalDialogueBudgetToUserTurn(input: {
   decision: ScenePacingDecision;
   /** When omitted, D2 fixed max-4 owner is used (Arm U). */
   budget?: TerminalDialogueBudgetResolution | null;
-  modelId?: string | null;
 }): {
   userContent: string;
   appended: boolean;
@@ -936,7 +923,7 @@ export function appendTerminalDialogueBudgetToUserTurn(input: {
   }
   const owner =
     input.budget != null
-      ? renderTerminalDialogueBudgetOwner(budget.maxBlocks, input.modelId)
+      ? renderTerminalDialogueBudgetOwner(budget.maxBlocks)
       : TERMINAL_DIALOGUE_BUDGET_OWNER;
   return {
     userContent: appendBeforeTerminalLengthOwner(input.userContent, owner),
@@ -1035,7 +1022,6 @@ export function applyScenePacingArmToMessages(input: {
     knownSupportingCastNames?: string[] | null;
     party?: boolean | null;
     contentKind?: ContentKind | null;
-    modelId?: string | null;
   } | null;
 }): {
   messages: Array<{ role: string; content: string }>;
@@ -1174,7 +1160,6 @@ export function applyScenePacingArmToMessages(input: {
         userContent: m.content,
         decision: input.decision,
         budget: input.arm === "V" ? dialogueBudget : undefined,
-        modelId: budgetInput?.modelId,
       });
       m.content = appended.userContent;
       terminalDialogueBudgetAppended = appended.appended;
@@ -1264,8 +1249,6 @@ export function applyProductionServerControlsToMessages(input: {
   canonicalSceneDirective?: SceneDirective | null;
   /** Skip [SCENE PACING] when SceneDirective block is the motion owner (auto/sim/party). */
   skipMotionCue?: boolean;
-  /** Wire model id — selects the terminal dialogue wording variant only. */
-  modelId?: string | null;
 }): {
   messages: Array<{ role: string; content: string }>;
   decision: ScenePacingDecision;
@@ -1294,7 +1277,6 @@ export function applyProductionServerControlsToMessages(input: {
       knownSupportingCastNames: input.knownSupportingCastNames ?? undefined,
       party: input.party ?? undefined,
       contentKind: input.contentKind ?? undefined,
-      modelId: input.modelId ?? undefined,
     },
   });
   return {
