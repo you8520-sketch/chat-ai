@@ -93,6 +93,36 @@ export function loadRelationshipMetaBeforeSnapshotCore(
   return parseRelationshipMetaBeforeSnapshot(row?.memory_relationship_before_json ?? null, names);
 }
 
+function loadLastRemainingRelationshipMetaAfterCore(
+  db: Database.Database,
+  chatId: number,
+  names: HonorificNames
+): MemoryMeta | null {
+  const row = db
+    .prepare(
+      `SELECT content, model, usage, alternates, active_variant
+       FROM messages
+       WHERE chat_id=? AND role='assistant'
+       ORDER BY id DESC
+       LIMIT 1`
+    )
+    .get(chatId) as
+    | {
+        content: string;
+        model: string;
+        usage: string | null;
+        alternates: string | null;
+        active_variant: number | null;
+      }
+    | undefined;
+  if (!row) return null;
+  const { variants, activeVariant } = normalizeMessageVariants(row);
+  const parsed = parseRelationshipMetaObjectSnapshot(
+    variants[activeVariant]?.relationshipMetaAfter
+  );
+  return parsed ? normalizeMemoryMeta(parsed, names) : null;
+}
+
 function persistRelationshipMetaBeforeSnapshotCore(
   db: Database.Database,
   chatId: number,
@@ -227,15 +257,11 @@ export function clearChatRelationshipMeta(chatId: number): void {
 /**
  * Roll back relationship-meta entries added by a deleted turn.
  *
- * The deleted turn's user+assistant text is no longer in the transcript, so any
- * promise/item/thought/honorific that was extracted *from that turn* should not
- * survive. We cannot perfectly reconstruct "which turn added X" from the merged
- * projection, so we re-derive from remaining messages: load all surviving turns,
- * re-run extraction is too expensive — instead we remove entries whose text no
- * longer appears in any surviving message.
- *
- * Conservative: only removes entries that are exact substring matches of the
- * deleted turn's text and are absent from all other turns.
+ * Provenance order:
+ * 1. The deleted assistant's `memory_relationship_before_json`.
+ * 2. The last remaining assistant variant's `relationshipMetaAfter`.
+ * 3. Conservative substring fallback. Paraphrased leftovers that match neither
+ *    surviving nor deleted RAW stay put — unknown old rows are not guessed away.
  */
 export function rollbackRelationshipMetaForDeletedTurnCore(
   db: Database.Database,
@@ -254,6 +280,16 @@ export function rollbackRelationshipMetaForDeletedTurnCore(
   if (before) {
     saveChatRelationshipMetaCore(db, opts.chatId, before);
     return before;
+  }
+
+  const remainingAfter = loadLastRemainingRelationshipMetaAfterCore(
+    db,
+    opts.chatId,
+    opts.names
+  );
+  if (remainingAfter) {
+    saveChatRelationshipMetaCore(db, opts.chatId, remainingAfter);
+    return remainingAfter;
   }
 
   const rows = db
