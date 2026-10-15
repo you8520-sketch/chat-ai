@@ -1,6 +1,6 @@
 /**
- * Public #1466 preapproval fingerprints (plus the #1587 and #1602/#1595
- * successor baselines below) only. No request bodies, no secrets.
+ * Public #1466 preapproval fingerprints (plus the #1587, #1612 / #1602+#1595,
+ * and #1616 successor baselines below) only. No request bodies, no secrets.
  * Live deployed reseal must rematch identity / body / wire / provider / canon /
  * uncapped fields. Manifest fingerprint rotation after a deploy SHA change is
  * expected and is not body drift.
@@ -213,22 +213,24 @@ const PUBLISHED_1587_PACING_CALL_FINGERPRINTS: Readonly<
 };
 
 /**
- * Latest canonical baseline. Two intentional, separately merged input changes
- * moved every call after #1587 (identity, provider, wire model, canon mode and
- * the absent `max_tokens` are all unchanged):
+ * Historical #1612 baseline (#1602+#1595). Two intentional, separately merged
+ * input changes moved every call after #1587 (identity, provider, wire model,
+ * canon mode and the absent `max_tokens` were all unchanged):
  * - #1602 removed the false cold-start Scene Momentum block from the DeepSeek
  *   user message (orders 1, 5, 9).
  * - #1595 raised the RP setting source cap so the previously cut tail of the
  *   character's dialogue examples and SPEECH CONSISTENCY block reaches the
  *   Gemini / GPT / Opus system prompt (orders 2-4, 6-8, 10-12).
- * Pinned from the deployed read-only reseal at this SHA. #1466 / #1587 stay as
- * historical evidence; the live dispatch gate compares against this seal only.
+ * Kept as evidence. The live dispatch gate no longer compares against this seal.
  * `manifestFingerprint` is the A_relationship_emotion-scoped manifest.
  */
 export const PUBLISHED_1602_1595_PRODUCTION_SHA =
   "b7159ec6fe2aeea78c75d1bdb5256adac32d93eb" as const;
+export const PUBLISHED_1612_PRODUCTION_SHA = PUBLISHED_1602_1595_PRODUCTION_SHA;
 export const PUBLISHED_1602_1595_A_SCOPE_MANIFEST_FINGERPRINT =
   "5d8546b748763c3da9acb8d4b596b22097f2f09c2ee0340b5ee609f387eafd6e" as const;
+export const PUBLISHED_1612_A_SCOPE_MANIFEST_FINGERPRINT =
+  PUBLISHED_1602_1595_A_SCOPE_MANIFEST_FINGERPRINT;
 
 const PUBLISHED_1602_1595_CALL_FINGERPRINTS: Readonly<
   Record<number, { requestBodyFingerprint: string; finalWireFingerprint: string }>
@@ -280,6 +282,48 @@ const PUBLISHED_1602_1595_CALL_FINGERPRINTS: Readonly<
   12: {
     requestBodyFingerprint: "5430cf48b9ab6dffbb37d935482ffeb80674b78ef7c92526d1a6f29d7c9fad7d",
     finalWireFingerprint: "119edb8991129b64a631864d5db8389689d2bbd1c140d9ae1b2c0dc5133efc78",
+  },
+};
+
+/**
+ * Live canonical baseline. Two approved deltas after #1612, pinned from the
+ * deployed read-only reseal at this SHA (Railway SUCCESS + container):
+ * - #1616 replaced only the DeepSeek V4.1 Flash `[이번 응답 대화]` axis line
+ *   (orders 1, 5, 9 body/wire). Gemini / Sol / Opus stay on the #1612 pins.
+ * - CASE B identity: `characters.setting_chunks` now equals the post-#1595
+ *   fresh parse (`5bc7fcea…`). Creator source fields are unchanged; the paid
+ *   runner already assembled from that fresh parse, so the 9 non-DeepSeek
+ *   fingerprints do not move.
+ * #1466 / #1587 / #1612 stay as historical evidence; the live dispatch gate
+ * compares against this seal only. `manifestFingerprint` is A-scope.
+ */
+export const PUBLISHED_1616_PRODUCTION_SHA =
+  "ac67801c5a3c0c2e25a8e5ae69dc68ba5a60add2" as const;
+export const PUBLISHED_1616_IDENTITY_HASH =
+  "9b89bf89c2f13130346de56eb150370b0930b44b3771bcf366edd8a6153cf53b" as const;
+export const PUBLISHED_1616_A_SCOPE_MANIFEST_FINGERPRINT =
+  "598a9b24561f77d560347ff1fc147fe4a48a26d3c7cb448198a84364b36d3b60" as const;
+
+export const PUBLISHED_1616_IDENTITY_HASHES: PaidRunnerIdentityHashes = {
+  ...PUBLISHED_1466_IDENTITY_HASHES,
+  settingChunksSha256: "5bc7fcea4a29129190a89622414c60c849de7b1a4e48b70d0abcf31fd906e2a3",
+};
+
+const PUBLISHED_1616_CALL_FINGERPRINTS: Readonly<
+  Record<number, { requestBodyFingerprint: string; finalWireFingerprint: string }>
+> = {
+  ...PUBLISHED_1602_1595_CALL_FINGERPRINTS,
+  1: {
+    requestBodyFingerprint: "31c28b26c28aa1231eb58c5d48e0b6cce3aff431aa11465c6eceb2b349d28652",
+    finalWireFingerprint: "2ce069568468ab34b4b336d3ccb2d180bf3e4c34a8bae5d2e7db27b7ac71e8ae",
+  },
+  5: {
+    requestBodyFingerprint: "766aa40b8ce0922968ce9266d46501d1a416eaf37988eb937640848d0cd28e9b",
+    finalWireFingerprint: "9d1aee8f5764e065c605e32f81764c4dc335f0d7323bdac90228979a0f24a997",
+  },
+  9: {
+    requestBodyFingerprint: "409f700cbb24a527f828c7a6158911c5176dcb89ecfeb734a1eceea615626878",
+    finalWireFingerprint: "ec88aa8c62cf1213b50ca8b2358a708aaf3fb149c320d0a720b47faaf7e82be4",
   },
 };
 
@@ -347,7 +391,8 @@ export function published1587ComparableSeal(): Published1466ComparableSeal {
   };
 }
 
-export function publishedCanonicalComparableSeal(): Published1466ComparableSeal {
+/** Historical #1612 / #1602+#1595 seal. Not the live gate. */
+export function published1612ComparableSeal(): Published1466ComparableSeal {
   return {
     mainSha: PUBLISHED_1602_1595_PRODUCTION_SHA,
     productionDeploySha: PUBLISHED_1602_1595_PRODUCTION_SHA,
@@ -357,6 +402,20 @@ export function publishedCanonicalComparableSeal(): Published1466ComparableSeal 
     calls: PUBLISHED_1466_CALLS.map((call) => ({
       ...call,
       ...PUBLISHED_1602_1595_CALL_FINGERPRINTS[call.requestOrder],
+    })),
+  };
+}
+
+export function publishedCanonicalComparableSeal(): Published1466ComparableSeal {
+  return {
+    mainSha: PUBLISHED_1616_PRODUCTION_SHA,
+    productionDeploySha: PUBLISHED_1616_PRODUCTION_SHA,
+    identityHash: PUBLISHED_1616_IDENTITY_HASH,
+    identityHashes: { ...PUBLISHED_1616_IDENTITY_HASHES },
+    manifestFingerprint: PUBLISHED_1616_A_SCOPE_MANIFEST_FINGERPRINT,
+    calls: PUBLISHED_1466_CALLS.map((call) => ({
+      ...call,
+      ...PUBLISHED_1616_CALL_FINGERPRINTS[call.requestOrder],
     })),
   };
 }

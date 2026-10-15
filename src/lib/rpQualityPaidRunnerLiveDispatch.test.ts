@@ -6,7 +6,10 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { describe, it } from "node:test";
 
-import { MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS } from "@/lib/chatModels";
+import {
+  MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
+  MAIN_RP_USER_SELECTABLE_OPTIONS,
+} from "@/lib/chatModels";
 import {
   createMemoryPaidRunnerArtifactStore,
 } from "@/lib/rpQualityPaidRunnerArtifacts";
@@ -14,6 +17,7 @@ import {
   createMemoryPaidRunnerJournalStore,
   createMockPaidRunnerTransport,
   evaluatePaidRunnerAuthorizationPrerequisites,
+  paidRunnerIdentityHash,
   paidRunnerManifestFingerprint,
   type PaidRunnerAuthorizationInput,
   type PaidRunnerPublicManifest,
@@ -30,15 +34,21 @@ import {
   resolveCanonicalProductionDbPath,
 } from "../../scripts/lib/rpQualityPaidRunnerInProcessPack";
 import {
+  PUBLISHED_1466_IDENTITY_HASHES,
   PUBLISHED_1587_A_SCOPE_MANIFEST_FINGERPRINT,
-  PUBLISHED_1602_1595_A_SCOPE_MANIFEST_FINGERPRINT,
-  PUBLISHED_1602_1595_PRODUCTION_SHA,
+  PUBLISHED_1612_A_SCOPE_MANIFEST_FINGERPRINT,
+  PUBLISHED_1612_PRODUCTION_SHA,
+  PUBLISHED_1616_A_SCOPE_MANIFEST_FINGERPRINT,
+  PUBLISHED_1616_IDENTITY_HASH,
+  PUBLISHED_1616_IDENTITY_HASHES,
+  PUBLISHED_1616_PRODUCTION_SHA,
   compareToCanonicalPaidRunnerSeal,
   compareToPublished1466Seal,
   compareToPublishedPaidRunnerSeals,
   paidRunnerPublicSealFromManifest,
   published1466ComparableSeal,
   published1587ComparableSeal,
+  published1612ComparableSeal,
   publishedCanonicalComparableSeal,
   type Published1466ComparableSeal,
 } from "../../scripts/lib/rpQualityPaidRunnerPublished1466Seal";
@@ -410,18 +420,42 @@ describe("rp quality paid runner live dispatch boundary", () => {
     );
   });
 
-  it("canonical seal: #1602/#1595 input changes are the only approved delta, everything else is drift", () => {
+  it("canonical seal: #1616 DeepSeek + CASE B identity are the only approved delta vs #1612", () => {
     const base1466 = published1466ComparableSeal();
     const base1587 = published1587ComparableSeal();
+    const base1612 = published1612ComparableSeal();
     const canonical = publishedCanonicalComparableSeal();
-    assert.equal(canonical.productionDeploySha, "b7159ec6fe2aeea78c75d1bdb5256adac32d93eb");
-    assert.equal(canonical.productionDeploySha, PUBLISHED_1602_1595_PRODUCTION_SHA);
+    assert.equal(canonical.productionDeploySha, "ac67801c5a3c0c2e25a8e5ae69dc68ba5a60add2");
+    assert.equal(canonical.productionDeploySha, PUBLISHED_1616_PRODUCTION_SHA);
+    assert.equal(base1612.productionDeploySha, PUBLISHED_1612_PRODUCTION_SHA);
+    assert.equal(base1612.manifestFingerprint, PUBLISHED_1612_A_SCOPE_MANIFEST_FINGERPRINT);
     assert.equal(canonical.calls.length, 12);
-    assert.equal(canonical.identityHash, base1466.identityHash);
-    assert.deepEqual(canonical.identityHashes, base1466.identityHashes);
+    assert.equal(MAIN_RP_USER_SELECTABLE_OPTIONS.length, 5);
+    assert.deepEqual(
+      MAIN_RP_USER_SELECTABLE_OPTIONS.map((option) => option.id),
+      ["deepseek-v4.1-flash", "gemini-3.8-flash", "gpt-6.1-sol", "claude-opus-5.5", "gemini-4-argon"]
+    );
+    assert.deepEqual([...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS], [
+      "deepseek-v4.1-flash",
+      "gemini-3.8-flash",
+      "gpt-6.1-sol",
+      "claude-opus-5.5",
+    ]);
 
+    assert.equal(canonical.identityHashes.greetingSha256, PUBLISHED_1466_IDENTITY_HASHES.greetingSha256);
+    assert.equal(canonical.identityHashes.systemPromptSha256, PUBLISHED_1466_IDENTITY_HASHES.systemPromptSha256);
+    assert.equal(canonical.identityHashes.worldSha256, PUBLISHED_1466_IDENTITY_HASHES.worldSha256);
+    assert.equal(canonical.identityHashes.personaPublicSha256, PUBLISHED_1466_IDENTITY_HASHES.personaPublicSha256);
+    assert.notEqual(canonical.identityHashes.settingChunksSha256, base1612.identityHashes.settingChunksSha256);
+    assert.deepEqual(canonical.identityHashes, PUBLISHED_1616_IDENTITY_HASHES);
+    assert.equal(canonical.identityHash, PUBLISHED_1616_IDENTITY_HASH);
+    assert.equal(paidRunnerIdentityHash(PUBLISHED_1616_IDENTITY_HASHES), PUBLISHED_1616_IDENTITY_HASH);
+    assert.notEqual(canonical.identityHash, base1466.identityHash);
+    assert.notEqual(canonical.identityHash, base1612.identityHash);
+
+    const changedOrders: number[] = [];
     for (const [index, call] of canonical.calls.entries()) {
-      const old = base1466.calls[index]!;
+      const old = base1612.calls[index]!;
       assert.equal(call.requestOrder, old.requestOrder);
       assert.equal(call.fixtureId, old.fixtureId);
       assert.equal(call.canonicalId, old.canonicalId);
@@ -431,11 +465,18 @@ describe("rp quality paid runner live dispatch boundary", () => {
       assert.equal(call.maxTokensPresent, false);
       assert.notEqual(call.requestBodyFingerprint, base1587.calls[index]!.requestBodyFingerprint, `order ${call.requestOrder}`);
       assert.notEqual(call.finalWireFingerprint, base1587.calls[index]!.finalWireFingerprint, `order ${call.requestOrder}`);
+      const bodyChanged = call.requestBodyFingerprint !== old.requestBodyFingerprint;
+      const wireChanged = call.finalWireFingerprint !== old.finalWireFingerprint;
+      if (call.canonicalId === "deepseek-v4.1-flash") {
+        assert.equal(bodyChanged, true, `deepseek body ${call.requestOrder}`);
+        assert.equal(wireChanged, true, `deepseek wire ${call.requestOrder}`);
+        changedOrders.push(call.requestOrder);
+      } else {
+        assert.equal(bodyChanged, false, `non-deepseek body ${call.requestOrder}`);
+        assert.equal(wireChanged, false, `non-deepseek wire ${call.requestOrder}`);
+      }
     }
-    assert.deepEqual(
-      canonical.calls.filter((call) => call.canonicalId === "deepseek-v4.1-flash").map((call) => call.requestOrder),
-      [1, 5, 9]
-    );
+    assert.deepEqual(changedOrders, [1, 5, 9]);
 
     const draft = {
       version: 1 as const,
@@ -448,9 +489,9 @@ describe("rp quality paid runner live dispatch boundary", () => {
     };
     assert.equal(
       paidRunnerManifestFingerprint({ ...draft, executionScope: "A_relationship_emotion" } as never),
-      PUBLISHED_1602_1595_A_SCOPE_MANIFEST_FINGERPRINT
+      PUBLISHED_1616_A_SCOPE_MANIFEST_FINGERPRINT
     );
-    assert.equal(canonical.manifestFingerprint, PUBLISHED_1602_1595_A_SCOPE_MANIFEST_FINGERPRINT);
+    assert.equal(canonical.manifestFingerprint, PUBLISHED_1616_A_SCOPE_MANIFEST_FINGERPRINT);
 
     const scoped: Published1466ComparableSeal = { ...canonical, executionScope: "A_relationship_emotion" };
     assert.equal(compareToCanonicalPaidRunnerSeal(scoped).verdict, "MATCH");
@@ -470,6 +511,10 @@ describe("rp quality paid runner live dispatch boundary", () => {
     );
 
     assert.equal(
+      compareToCanonicalPaidRunnerSeal({ ...base1612, executionScope: "A_relationship_emotion" }).verdict,
+      "BODY_DRIFT"
+    );
+    assert.equal(
       compareToCanonicalPaidRunnerSeal({ ...base1587, executionScope: "A_relationship_emotion" }).verdict,
       "BODY_DRIFT"
     );
@@ -478,6 +523,7 @@ describe("rp quality paid runner live dispatch boundary", () => {
       "BODY_DRIFT"
     );
     assert.equal(compareToCanonicalPaidRunnerSeal(base1466).verdict, "BODY_DRIFT");
+    assert.equal(compareToCanonicalPaidRunnerSeal(base1612).verdict, "BODY_DRIFT");
     assert.equal(compareToPublished1466Seal(scoped).verdict, "BODY_DRIFT");
     assert.equal(compareToPublishedPaidRunnerSeals(scoped).verdict, "BODY_DRIFT");
 
@@ -529,6 +575,13 @@ describe("rp quality paid runner live dispatch boundary", () => {
       compareToCanonicalPaidRunnerSeal({
         ...scoped,
         identityHashes: { ...scoped.identityHashes, settingChunksSha256: "dd".repeat(32) },
+      }).verdict,
+      "BODY_DRIFT"
+    );
+    assert.equal(
+      compareToCanonicalPaidRunnerSeal({
+        ...scoped,
+        identityHashes: { ...scoped.identityHashes, settingChunksSha256: base1612.identityHashes.settingChunksSha256 },
       }).verdict,
       "BODY_DRIFT"
     );
