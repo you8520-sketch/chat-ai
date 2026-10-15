@@ -194,6 +194,46 @@ function diffRelationshipLedger(before: MemoryMeta, after: MemoryMeta): Relation
   return change;
 }
 
+/** item name -> persons currently holding it (gift lines `A→B` hold for B). */
+function possessionHoldersOutside(
+  items: string[],
+  excludedLines: Set<string>
+): Map<string, Set<string>> {
+  const holders = new Map<string, Set<string>>();
+  for (const line of items) {
+    if (excludedLines.has(line)) continue;
+    const parsed = parsePossessionEntry(line);
+    if (!parsed) continue;
+    const holder = parsed.person.includes("→")
+      ? parsed.person.split("→").pop()!.trim()
+      : parsed.person;
+    for (const item of parsed.items) {
+      const name = item.trim();
+      holders.set(name, new Set([...(holders.get(name) ?? []), holder]));
+    }
+  }
+  return holders;
+}
+
+/**
+ * A previous owner line is restored only for items nobody else legitimately
+ * holds now; a later transfer to another person wins over the old ownership.
+ */
+function restorablePossessionLine(
+  before: string,
+  laterHolders: Map<string, Set<string>>
+): string | null {
+  const parsed = parsePossessionEntry(before);
+  if (!parsed || parsed.person.includes("→")) return before;
+  const remaining = parsed.items.filter((item) => {
+    const holders = laterHolders.get(item.trim());
+    return !holders || [...holders].every((holder) => holder === parsed.person);
+  });
+  if (remaining.length === 0) return null;
+  if (remaining.length === parsed.items.length) return before;
+  return `${parsed.person}: ${remaining.join(", ")}`;
+}
+
 /**
  * Three-way revert of one turn's net change onto the current ledger.
  * An entry is reverted only while the current ledger still holds exactly the
@@ -221,16 +261,27 @@ function revertRelationshipLedgerChange(
 
   let items = current.items;
   const itemIndex = indexPossessionLines(current.items);
+  const stateFor = (entry: RelationshipLedgerChange["items"][number]) =>
+    singleState(itemIndex.get(possessionKey((entry.before ?? entry.after)!)));
+  // Lines this revert drops or replaces do not count as a later owner.
+  const revertedLines = new Set<string>();
   for (const entry of change.items) {
-    const key = possessionKey((entry.before ?? entry.after)!);
-    const state = singleState(itemIndex.get(key));
+    const state = stateFor(entry);
+    if (state && state !== "ambiguous" && state === entry.after) revertedLines.add(state);
+  }
+  const laterHolders = possessionHoldersOutside(current.items, revertedLines);
+  for (const entry of change.items) {
+    const state = stateFor(entry);
     if (state === "ambiguous" || state !== entry.after) continue;
-    if (state && entry.before) {
-      items = items.map((line) => (line === state ? entry.before! : line));
+    const restored = entry.before
+      ? restorablePossessionLine(entry.before, laterHolders)
+      : null;
+    if (state && restored) {
+      items = items.map((line) => (line === state ? restored : line));
     } else if (state) {
       items = items.filter((line) => line !== state);
-    } else if (entry.before) {
-      items = [...items, entry.before];
+    } else if (restored) {
+      items = [...items, restored];
     }
   }
 

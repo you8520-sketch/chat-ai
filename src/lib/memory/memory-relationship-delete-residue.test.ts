@@ -632,6 +632,39 @@ describe("relationship ledger last-turn delete residue", () => {
     assert.deepEqual(promises(), [LATER_PROMISE.text]);
   });
 
+  for (const [label, toB, bToC] of [
+    ["owner lines", "Tester: 청동열쇠", "서연: 청동열쇠"],
+    ["gift lines", "TestChar→Tester: 청동열쇠", "Tester→서연: 청동열쇠"],
+  ] as const) {
+    it(`keeps a single current owner when a later writer moved the item on (${label})`, () => {
+      insertTurn({
+        userId: 1,
+        assistantId: 2,
+        userText: "열쇠는 네가 가져",
+        assistantText: "청동열쇠는 내가 보관할게.",
+      });
+      applyDelta(2, 1, { items: ["TestChar: 청동열쇠"] });
+      insertTurn({
+        userId: 3,
+        assistantId: 4,
+        userText: "열쇠를 줘",
+        assistantText: "청동열쇠를 건네주었다.",
+      });
+      applyDelta(4, 3, { items: [toB] });
+      applyUnscopedDelta({ items: [bToC] }, 1);
+      applyUnscopedDelta({ items: ["민수: 은색 지갑"] }, 1);
+      const beforeDelete = items().filter((line) => line.includes("청동열쇠"));
+      assert.equal(beforeDelete.length, 1);
+
+      deleteLastTurn(3, 4);
+      const holders = items().filter((line) => line.includes("청동열쇠"));
+      assert.equal(holders.length, 1);
+      assert.equal(holders[0]?.startsWith("TestChar"), false);
+      assert.equal(items().some((line) => line.startsWith("TestChar: ")), false);
+      assert.ok(items().some((line) => line.includes("은색 지갑")));
+    });
+  }
+
   it("does not remove a promise that a later writer cancelled and re-added with a new deadline", () => {
     insertTurn({
       userId: 1,
