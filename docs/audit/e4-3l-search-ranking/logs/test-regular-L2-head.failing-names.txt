@@ -1,0 +1,431 @@
+0.5 positive control: Discovery=1 + valid DIRECT_STATEMENT userAction → transfer applied
+0. kill switch: Boundary=1 + Discovery=0 → 0 transfers/evidence/knowledge writes
+10. ensemble: transfer updates DB but prompt facts stay redacted
+18. trigger + reconvergence due → no duplicate reconverge event
+1984 chars cold start uses min(char cap, margin) when API cost is below char cap
+1b: sole-closed reopen rolls back when fail after branch ops
+1. CONFIRMED sender → receiver CONFIRMED
+1: declaration active + cinematic=true → ACTIVE_DECLARATION_END wins
+2. SUSPECTED sender → receiver max SUSPECTED
+3. stored DB selectedAI deepseek-v4-flash is retired → remaps to default Main RP model
+3. UNKNOWN sender → transfer rejected, receiver unchanged
+4. client-specified factSnapshot / resultingState rejected
+4. DeepSeek V4 Flash is no longer a Main RP UI option
+5. explicit Flash background still outbounds 0731; default PRIMARY is Luna
+5. receiver in other chat → rejected
+6. background status Flash labels stay Flash; default PRIMARY is Luna
+6. DIRECT_STATEMENT with ABSENT receiver → rejected
+7. compile failure on same source → re-save retries, secrets + rules created
+7. DIRECT_STATEMENT with DEAF receiver → rejected
+7. HTML/background Flash call outbounds Luna; billing matches routing model
+8. assistant prose alone → transfer 0
+8. character-save KO→EN translation uses Luna PRIMARY and Gemini Flash-Lite fallback
+8. persona delete → PERSONA investigation target/attempt/result removed; other scopes kept
+9. retry → transfer/evidence/knowledge duplicate 0
+A1-A3/main/B1-B2 → B1+B2 only
+A8 new fork chat row starts with empty memory and current_summary
+admin finance actual cost — dynamic discovery and attribution
+adopts a completed schema with settlement table without rerunning migrations
+/api/chat Muse acceptance client/DB usage split
+A. plain 독촉장 → target + read → no identity match → debt NOT CONFIRMED
+appearanceCompiler
+apply moves manuscript, draft_json and Text Lock together and preserves everything else
+assistant material prose edit
+assistant-only canon-adopted source identity
+auditStatusWidgetPromptDuplicates
+AUTO owner / wrapper / assembled prompt SHA unchanged
+auto progression prompt contains No False Shared Memory rule
+auto progression uses AI-focal co-narration owner (not novel)
+B1/empty_ooc/B2 → B1+B2 promoted; empty_ooc untouched
+B1/preference/B2 → B1+B2 promoted; preference untouched
+B2_1 noncanon continue promotes latest contiguous group to branch_canon
+B2_7 only latest contiguous noncanon segment selected for promotion
+B2/B6 two simultaneous boundary requests coalesce to one seal
+B4 seal succeeds => summarizedThrough advances to 5 at turn 6 boundary
+B. active registry models with zero usage are listed as zero-use, not hidden or carded
+billingLiveOwnerReadinessAudit — owner map
+bills reasoning tokens together with output tokens
+bills reasoning tokens together with output tokens
+blocker-A: auto-reopen provenance rolls back on source turn delete
+blocker-D: resume → close keeps final closed; delete close then resume restores
+blocker-E: resume → main adopt closes A; adopt delete restores active via resume
+BMARK17 owner map and subsets present
+boundary includes knowledge precedence (Scenario Meta lowest)
+Boundary OFF permits an empty explicit secret on create
+Boundary OFF rejects a changed secret without writing normal fields
+Boundary OFF rejects changed secret before creating a persona
+B. self-owned 독촉장 → target + read → identity match → debt CONFIRMED
+budgets the watchdog above physics plus the full overlay lifecycle
+buildContext — English character settings
+buildContext — Qwen OpenRouter prose rules
+buildContinueNarrativeCommand
+builds dbUsageRecord with museAcceptance and clientUsageRecord without it
+buildStatusWidgetEditorPreviewValues
+C10 BEGIN IMMEDIATE path used
+C1-7 fork insert omits current_summary parameter
+C1-R1 already-current V8 remote DB reaches convergence without migrate callback
+C2-like — physical current_summary absent runtime matrix
+C5 FORK_MEMORY_INIT: memory_archived_turns only (no current_summary mirror)
+C6 FORK_CHAT_INSERT: memory absent → new row PASS
+cache unreported → partial
+calls the bot seat before the GM and keeps them as two Pro turns
+cannot map an upload filename to nsfw ownership from storage metadata
+caps at char rate when margin exceeds char cap and API cost is below char cap
+caps OOC RECENT CHAT HISTORY at 8k tokens and routes older context to memory
+character detail and chat stay closed for legacy mock and reviewer-like rows
+character reveal ownership
+charges inputP/tok + optional 0.5P/1k (≥10k) + outputP/tok
+charges inputP/tok + optional 0.5P/1k (≥10k) + outputP/tok
+chases one rendered line in a bounded episode and then settles
+chat hydration source returns public rows with zero secret bytes
+chats.current_summary C1 — deploy convergence reachability
+chats.current_summary C1 — runtime owner retirement
+chats.current_summary C2 fresh schema
+chats.current_summary C2 remote V8 lifecycle
+chats.current_summary C2 V8 physical retirement invariant
+chats.current_summary owner audit — post-C1 behavior
+chats legacy memory fallback audit — fork bootstrap
+chats.memory M1 drop-compat fork INSERT correction
+chats.memory M2 fresh schema
+chats.memory M2 → M1 rollback matrix (synthetic)
+chats.memory M2 remote V7 lifecycle
+chats.memory M2 V7 physical retirement invariant
+CheaperInference Claude Opus 5 billing
+CheaperInference Gemini 3.1 Pro Preview billing
+CI fetch body keeps thinking disabled and does not add Claude prefill
+CI Opus history cache_control is a single block and survives a second overlay
+CM-F2 normal create and fork insert on fresh M2 DB
+CM-V7-1 requires chats exists and memory absent
+CM-V7-4 V6 present carrier → V7 migrate
+CM-V7-5 V6 absent carrier → V8 adopt
+CM-V7-6 V7 marker + recreated memory column repaired
+CNC scene-scoped lifecycle (T1 → T2 → T3)
+coalesces rapid layout growth in the same canonical chase owner
+compacts the four rounds before the latest scene without dumping full RAW
+computeHtmlFlashOnlyTurnBilling
+contextBuilder regenerate
+copies a warm world artifact once and never again on refresh or next round
+cores do not own nested BEGIN when outer transaction wraps them
+C. pure prose two-turn — no investigationActions → S3 CONFIRMED
+creates a campaign from a public TRPG world
+creates share slug and borrows as read-only library reference
+creator tools stay split from adult view
+credits FREE points and notifies recipient
+CS-A6 fork insert uses physical DEFAULT empty current_summary
+C'. same-turn pure prose — presentation + investigation without body actions
+CS-F2 normal create and fork insert on fresh C2 DB
+CS-V8-1 requires chats exists and current_summary absent
+CS-V8-4 V7 present carrier → V8 migrate
+CS-V8-5 V7 absent carrier → V8 adopt
+CS-V8-6 V8 marker + recreated current_summary column repaired
+current-turn OOC delegation prompt parity
+current-turn OOC delegation route-equivalent parity
+custom server boot import boundary
+DECLARATION_SCROLL_TARGET and growth observer use different refs
+deepseekV41EvidenceCorrection — regression gates
+DeepSeek V4 Flash 0731 canonicalization
+DeepSeek V4 Flash retirement from Main RP
+DeepSeek V4 Pro 0813 canonicalization
+DeepSeek V4 Pro bills all input through the dual-rate simple point formula
+DeepSeek V4 Pro dual-rate simple point billing
+DeepSeek V4 Pro P0 deterministic primary payload audit
+default template widget block includes 현재목표 and 속마음 instructions
+delegated wrapper keeps original OOC and is not the auto/ooc wrapper
+derives input and output rates from list USD prices, exchange rate, and 60% margin
+dice presentation session
+does not call flash 0731 when Sandbox Director is disabled
+does not change input generation order and keeps bot \#2 seeing bot \#1
+does not let provider-reported cost change the user charge
+does not restore delayed force-scroll or a global ResizeObserver
+D. SERVER_SCENE_EVENT DOCUMENT_PRESENTED → registered=0, target=0
+dual-source partial response preserves valid source without fallback
+E1 normal facts insert
+E3 regen A=[fact1] → B=[fact2] final = fact2 only
+E4 regen A=[fact1] → B=[] final = none
+E5 duplicate finalize (same request_id) no extra delete/insert
+E: active C + unrelated B → B promotion 0; C only in LTM
+edits assistant-only turn without misattributing to prior user turn
+encounter authority: regeneration and pure ending rules
+ensureHtmlVisualCardBlock adds section spacing for crammed 추구미 OOC HTML
+episodic abstract psychological inference recall guard
+E. USER_MESSAGE_DETERMINISTIC DOCUMENT_PRESENTED → target=1
+exact model allowlist — retired RP models, Muse and OpenRouter slugs excluded
+existing structured opt-in owner / assembled prompt SHA unchanged
+failure chain — ensureCampaignDirectorContext persists null plan without artifact
+F: closed A + B1/B2 + bare 계속 → B only; A stays closed
+first turn uses min(char cap, actual-cost margin 45%)
+flash user block includes memory, setting, history sections
+FOLLOWING + ACTIVE_DECLARATION_GROWTH autoFollows via declaration growth observer
+FORK_CREATE: insertForkChatRow on column-absent production DB
+FORK_INIT: initializeForkChatMemory on column-absent production DB
+fork INSERT placeholder count matches argument ordering
+formats global status and notices
+full billing fields can remain while museAcceptance is absent
+F. unrelated document presentation → investigation 0 for debt secret
+G10-SD1 Scene Pacing Controller API=0
+G37 matches base main live billing snapshot
+G37 P0 Pass 2 — build artifact parity guard (fail-closed)
+gate ON → Legacy becomes PROSE_STYLE_SECTION_V2 for canonical 3 (retired excluded)
+gate ON + VNext DeepSeek CI → VNEXT_V2
+G: B1/B2/B3 all promoted with same branch_id
+G. duplicate presentation is idempotent (one target row)
+Gemini31 >200k reachability is UNKNOWN without hard provider cap
+Gemini explain breakdown uses one margin owner without a surcharge field
+general chat target-chase regression
+generation-scoped async provenance
+genre SCENE MODE strip for candidate
+getEpisodicMemoryForPrompt
+GET /uploads serves a synthetic file without a session and keeps public cache
+golden planned and legacy Published fixtures
+grantFreePointsByAdmin
+H: continue delete rolls back only selected promote group
+H. cross-chat isolation — target in chat A invisible to chat B
+home, newest, ranking, and search omit NSFW unless admin filter is OFF
+htmlVisualCardFlash
+identity: same rows/proof stay matched; section edits fail closed
+ignores cache and upstream cost; bills reasoning with output
+includes solo setup, solo waiting, and started campaigns in recent
+injects bilingual dialogue blocks when creator sets [BILINGUAL: zh+ko]
+injects Korean output language rule when useEnglishCharacterPrompt is true
+injects mandatory divergence block into dynamic system prompt
+injects unified OUTPUT LANG and foreign-mixing rule for OpenRouter Korean-only
+injects unified prose style XML bundle for Qwen3.7 Max
+in-place Lucian sync updates the same id, attaches 8+4 lorebooks, and does not notify
+interactive user control prompt
+invalidates sealed summary and reseals with new source prose
+I. observer isolation — investigating character only receives knowledge
+is removed from selection and the default model
+issue 1367 official admin + in-place Lucian sync
+J2. D2 canary ON + thin -> momentum IS injected (positive gate)
+J. kill switch / canary off -> no momentum (exact current CONTROL behavior)
+J. wrong action type on document target → rejected / result 0
+keeps a one-shot sandbox blueprint when the flag is on and replay adds no provider call
+keeps current Gemini / DeepSeek global selections
+keeps Flash suggestion true OFF instead of the RP adapter that strips reasoning_effort
+keeps GM/plan/NPC secrets out of the suggestion model input
+keeps one latest chat per character and one entry per campaign
+keeps sprout 5% plus three character 5% without hitting the cap
+keeps the live cue hashes and isolates the \#1288 candidate to one character-block clause
+keeps three cache blocks and the pre-fix flat system bytes
+kill switch / canary off -> Momentum OFF + MODEL_POLICY_OFF (rollback exact)
+Kimi K3 retired from selection
+last_compressed_at V6 physical retirement invariant
+last_compressed_at V6 remote lifecycle
+latest fact wins for the same category subject attribute
+LC-V6-10 V4 direct → V6 drops last_compressed_at
+LC-V6-11 V3 direct → V6 convergence
+LC-V6-12 V2 legacy stack direct → V6 convergence
+LC-V6-13 fresh V6 remote DB: no-op migrations + invariant + marker
+LC-V6-1 V6 requires chat_memories exists and last_compressed_at absent
+LC-V6-6 V5 present carrier → V6 migrate drops column
+LC-V6-7 V5 absent carrier → V6 adopt without migrate
+LC-V6-8 V6 recreated NULL carrier → repair drop
+LC-V6-9 V6 recreated NON_NULL carrier → repair drop
+L — delegated: allowDialogue / allowMajorActions matrix preserved
+LEGACY-FAIL-A reproduced as FIXED: A/main/B/main/C → C only
+legacy stored deepseek-v4-flash is retired → remaps to default Main RP model
+Legacy V2 contains Shared Core and not removed immersive filler line
+lets the owner use their own world even when TRPG is off
+lets the second companion see the first companion's action
+liveBillingCutoverReadiness — migration delta @1530
+liveBillingCutoverReadiness — reachability
+live CHAT OOC wrapper keeps RAW-resolved delegation in buildContext
+loads mixed activity from the database in last-activity order
+long output with API cost below char cap uses margin path
+LTM re-summary eligibility after rewind (API=0)
+M1/M2/M5: LTM suppresses rejected D; prior batch preserved; LLM=0
+Main RP final-wire audit
+malformed cache evidence → partial
+malicious systemPrompt stays in character data; TRPG_GM_SYSTEM enforces trust boundary
+MANUAL owner / wrapper / assembled prompt SHA unchanged
+maps legacy kimi slugs to the current default
+maps stored Muse selections to DeepSeek and keeps OpenRouter fallback valid
+maps turns to 6-turn batch starts
+margin charge uses actual API cost, not normalized cache-hit cost
+marks deepseek and gemini pro as deepseek parser
+marks only accessible public cards and the real hero frame
+material user source edit invalidates sealed summary and allows reseal
+M — autoContinue keeps broad B co-narration + meaning-preserving continuation
+MEMORY_5PLUS4_ENABLED production references are 0
+MEMORY_COLUMN_ABSENT_CREATION: insertForkChatRow PASS
+MEMORY_COLUMN_PRESENT_CREATION: omit memory → DEFAULT empty
+memoryRelationshipTask generation-scoped regeneration
+memoryRelationshipTask lifecycle + async coverage
+missing provider usage bills Luna public fallback rates not legacy 1/6 snapshot
+mixed-A: turn6~10 main + turn11 explicit IF resume keeps both scopes
+mixed-C: middle resume splits 6~8 main and 9~10 branch
+Muse Spark 1.1 exact 60% token-margin billing
+MUST FIX A after: sync refreshes compiled runtime canon, secrets, chunks, and derived fingerprint
+MUST FIX live after: predecessor mapping + compact appearance sync in place without rewriting v4
+name/image-only public update preserves legacy marker bytes in DB raw description
+never injects novel mode rules even if novelModeEnabled flag is passed
+never issues an upward programmatic correction
+never sends museAcceptance even for full billing receipt
+normalizes stored and env aliases to 0813 before provider requests
+older facts are injected when old enough
+OLD_REMOTE_V1_DB_UPGRADE_PASS: turso-v1 production DB without settlement receives schema on bootstrap
+omitted normal update preserves an existing secret without recompiling it
+OOC category card keeps assembled input near 20k token target, not full dump
+OpenRouter Gemini 3.6 Flash dual-rate simple point billing
+OpenRouter headers use configured referer and canonical title by default
+OpenRouter input token surcharge
+Opus 5 is canonical-selectable and USER_SELECTABLE (no hidden flag)
+Opus billing — no first-turn flat
+Opus billing with actual-cost margin
+Opus cost blend
+Opus cost blend formula
+P0 — current-turn role binding / user agency (common standard owner)
+P0 persona secret single authority
+P12 SERVER_ONLY_THROWS_AFTER_RESTORE: plain server-only throws again after boundary
+P1-B seal-time narrow noncanon promotion
+P2B-10 V4 clean carrier → V5 migrate drops column
+P2B-11 V4 absent carrier → V5 adopt without migrate
+P2B-12 V4 dirty carrier → fold + DROP preserves legacy in recent_summary
+P2B-13 V3 direct → V5 fold + drop
+P2B-14 V2 legacy stack direct → V5 convergence
+P2B-15 V5 recreated clean carrier → repair drop
+P2B-16 V5 recreated dirty carrier → fold + drop preserves content
+P2B-17 fresh V5 remote DB: no-op migrations + invariant + marker
+P2B-1 V5 requires chat_memories exists and pinned_facts absent
+PARALYSIS_DRAFT_CORRECT and split chips
+payload: document type alone must not emit debtor_identity_match
+pending reservation before SSE done exposes read-only poll state
+persona secret owner contracts
+Phase 1 scope is separate from full reachable inventory
+Phase2 branch/noncanon contract B2_1-B2_10
+Phase B0 — episodic reconciliation (E1-E8)
+Phase B1-A — persistence commit (C1-C10)
+Phase B1-C — atomic finalize (NC1-NC47)
+Phase B1-D2 FINAL HARDENING
+picker still excludes V4.1
+pinned_facts Phase 2B physical retirement invariant
+pinned_facts Phase 2B remote lifecycle
+post-fix build artifacts pass fail-closed guard after npm run build
+PR \#174 follow-up — save / delete / provenance
+PREDEPLOY_REGEN: legacy slices without settlement do not block regen B published charge
+pre-ready mount marks declaration-visible AI seen while consuming early human
+preserves DeepSeek legacy true-off when explicitly passed to TRPG adapters
+preserves psychological resolution, negation, and recovery events at save and recall
+preview no longer collapses to the 5P minimum
+production fork INSERT omits memory and current_summary columns (16 placeholders)
+project audit — no [CORE IDENTITY] prompt injection
+prompt build authority=discovery produces zero DB row delta
+promptDedupeMetrics
+PR-S3 home live investigation path
+PR-S4D controlled knowledge transfer
+Published billing regen — predeploy legacy + regen
+Published billing regen — successful owner integration
+publishedUserChargeBuildArtifactGuard — semantic owner discovery
+Q3 — shared attempt is terminal before process loss and blocks stale requeue
+Q4b — original-turn ineligibility is terminal and later GET-equivalent cannot call
+quest objects through the real engine path (\#1541 PR-1)
+Qwen 3.7 billing
+R1 — old skipped marker → provider-backed regenerate restores gen-scoped lifecycle
+R2 — old gen0 ledger preserved; regen gets gen1 succeeded marker
+R3 — old failed marker cleared; provider-backed regen succeeds for gen1
+ranking prefers critical over important over normal
+reconstructs the CheaperInference DeepSeek wire body without a provider call
+recovery turn final charge unchanged by inflated token count (char cap wins)
+refuses a private world that is not the viewer
+regenerating the same delegated user turn keeps current-turn delegation
+regeneration neither adds nor removes an ending
+regeneration of an accepted round does not duplicate the object quest or change the ledger
+registerPresentedDocumentTarget keeps document action access contract
+rejects a scenario whose world, prose, secrets, and NPCs exceed 10,000 characters
+remaps Muse → DeepSeek and queues retired notice once
+REMOTE_CURRENT_MARKER_WITH_MISSING_SETTLEMENT_TABLE_CAN_SKIP_UPGRADE: false
+remote schema bootstrap
+REMOTE_SCHEMA_REAPPLY_SAFE: second bootstrap is idempotent
+renders 지문 and 대사 as separate lines in the room list
+reports overlapping widget and firewall instructions reduced after dedupe
+requires enabled + user allowlist + exact canonical model
+requires npm run build output and exactly one semantic published owner with complete return
+resolveBatchStartTurnForTurnNumber
+resolveOpenRouterOpusTurnCharge picks blend when actual exceeds 0.142 char cap
+resolveStatusWidgetParserMode
+resolveTrpgMountSeenKeys
+retired Muse Spark 1.1 compatibility
+route.ts references runHomeDiscoveryTurn (home wiring)
+rp quality paid runner preapproval evidence
+runs migration only once after recording the schema version
+S1: A CONFIRMED, B UNKNOWN before and after B prompt build + reload simulation
+S1 current marker + memory_relationship_task_json missing runs migrate once then current
+S2 current marker + memory_relationship_task_json present skips migrate
+S3 adoption requires memory_relationship_task_json column
+SAFE_REST_PREVIEW_EXACT — HP 24/25 is +1 on eligibility and apply
+safety filter live listing and route access
+same-snapshot Opus vs Gemini diagnostic
+sceneDirective
+scene directive guidance prefers observation or question over fabricated prior dialogue
+sceneDirectiveV2 trigger
+Scene Momentum P2 — wiring invariants (model policy, kill switch, canary)
+Scene Momentum — wiring gating (I, J)
+scene policy benchmark preparation BMARK1-BMARK17
+scrolls the room down to the suggestion list when examples appear
+seal-path blockers: atomicity / sole-closed e2e / single-active
+second turn matches same rules as first
+serializeVariantsForClient — Muse acceptance never exposed
+sharedNovelProseV2Policy
+sharedNovelProseV2 styles + resolver
+short output blends API cost with char cap
+short-refs auto progression without embedding full novel body
+shows a stable 30%-to-0% market-price range
+single memory policy owner
+single-source V4 503 is terminal after one physical attempt
+skip and payments-off do not open adult view for any non-admin persona
+skips the sandbox model call and does not wait on a director promise when the flag is off
+src/components/BillingReceiptTooltip.test.ts
+src/lib/chatGreetingContext.test.ts
+src/lib/chatMessagePagination.bookmark.test.ts
+src/lib/partnerTier.test.ts
+stale VISUAL rule: recompile disables; same evidence yields 0 discovery
+starts without plan when no valid artifact exists (cold sandbox)
+starts world-only GM when no artifact exists
+status episodic source-of-truth and evidence boundaries
+status-OFF deferred shared owner — suggested replies read path
+stays still while the rendered target does not grow
+stored Flash selections resolve to the default Main RP model
+SUCCESSFUL_REGEN_A49_B197: bootstrap A settle 49 → regen B settle 197
+summary barrier B1-B7
+sumOpenRouterStageOutputTokens — recovery turns
+T13 — succeeded + zero physical rows stays partial at family level
+T3 — standalone 레드 safeword resets consent and blocks handoff
+target bridge module stays secret-blind
+trims C5 trailing English self-critique suffix only
+trimTrailingVisibleSelfCritique
+TRPG campaign loop
+TRPG campaign memory
+TRPG creator point split
+TRPG declaration scroll ownership
+TRPG GM AI party character context
+TRPG initiative resolution order
+TRPG lobby re-enter CTA
+TRPG P0-5 / P1 recovery UX + threat
+TRPG production model routing (PR-A)
+TRPG reply suggestions
+TRPG sandbox Blueprint prompt contract
+TRPG sandbox director and plan security
+TRPG scenarios and catalog
+TRPG start failure classification
+turnBillableUsageProductionTelemetry — not_comparable
+UA3 auto turn still allows auto owner
+UA8 auto wrapper preserves co-narration semantics
+UA — user agency runtime gates
+unified recent activity
+usageReportingEvidence — BASE vs HEAD live billing parity
+user message edit
+userSelectedAI helpers
+uses 0813 as the default selected DeepSeek model
+uses (API cost + char cap)/2 when API cost exceeds char cap
+uses BACKGROUND_CREATIVE_HTML_MODEL with HTML전용모델 label and margin-based billing
+uses compiled appearance only, falling back to raw
+uses instruction text in layout preview
+uses shared target-chase motion and preserves both production reveal speeds
+uses the configured dual-rate token prices (45% target margin)
+uses the configured dual-rate token prices (65% target margin)
+v4 legacy marker + structurally current V5 schema adopts v5 without migrate
+v5 marker + valid full current invariant → migration skipped
+verifies explicit-user provenance against the actual RAW user message
+waiver with meaningful text charges minimum 50P
+Wolfgang \#51 approved manuscript in-place sync
+worldShares

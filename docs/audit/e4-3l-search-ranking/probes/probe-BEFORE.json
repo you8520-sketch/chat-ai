@@ -1,0 +1,671 @@
+{
+ "label": "before",
+ "base": "http://localhost:3500",
+ "sync": [
+  {
+   "name": "initial",
+   "url": "/search?q=새벽",
+   "input": "새벽",
+   "match": true
+  },
+  {
+   "name": "popular-tag-click",
+   "url": "/search?q=다정",
+   "input": "새벽",
+   "match": false
+  },
+  {
+   "name": "back",
+   "url": "/search?q=새벽",
+   "input": "새벽",
+   "match": true
+  },
+  {
+   "name": "forward",
+   "url": "/search?q=다정",
+   "input": "새벽",
+   "match": false
+  },
+  {
+   "name": "genre-click",
+   "url": "/search?q=다정&g=로맨스+판타지",
+   "input": "새벽",
+   "match": false
+  },
+  {
+   "name": "back-after-genre",
+   "url": "/search?q=다정",
+   "input": "새벽",
+   "match": false
+  },
+  {
+   "name": "draft-then-tag",
+   "url": "/search?q=강호",
+   "input": "임시로 입력 중",
+   "match": false
+  }
+ ],
+ "input": {
+  "typed45Length": 40,
+  "afterSubmit45": {
+   "urlQLength": 40,
+   "inputLength": 40
+  },
+  "specialChars": {
+   "urlQ": "abcde",
+   "input": "a%b_c\"d\\e"
+  },
+  "whitespaceOnlyNavigates": false,
+  "hangulInsert": "새벽 도서관",
+  "clearButton": {
+   "present": false
+  },
+  "submitSize": {
+   "w": 52,
+   "h": 36
+  },
+  "inputSize": {
+   "w": 298,
+   "h": 46
+  },
+  "resizeKeepsInput": true
+ },
+ "permissions": [
+  {
+   "kind": "search",
+   "viewer": "guest",
+   "q": "새벽",
+   "g": "",
+   "rendered": 21,
+   "expected": 21,
+   "sameIdsSameOrder": true,
+   "hiddenLeak": []
+  },
+  {
+   "kind": "search",
+   "viewer": "guest",
+   "q": "판타지",
+   "g": "",
+   "rendered": 60,
+   "expected": 60,
+   "sameIdsSameOrder": true,
+   "hiddenLeak": []
+  },
+  {
+   "kind": "search",
+   "viewer": "guest",
+   "q": "",
+   "g": "무협",
+   "rendered": 12,
+   "expected": 12,
+   "sameIdsSameOrder": true,
+   "hiddenLeak": []
+  },
+  {
+   "kind": "search",
+   "viewer": "guest",
+   "q": "새벽",
+   "g": "로맨스",
+   "rendered": 3,
+   "expected": 3,
+   "sameIdsSameOrder": true,
+   "hiddenLeak": []
+  },
+  {
+   "kind": "ranking",
+   "viewer": "guest",
+   "period": "all",
+   "rendered": 50,
+   "expected": 50,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "ranking",
+   "viewer": "guest",
+   "period": "realtime",
+   "rendered": 11,
+   "expected": 11,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "ranking",
+   "viewer": "guest",
+   "period": "daily",
+   "rendered": 18,
+   "expected": 18,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "ranking",
+   "viewer": "guest",
+   "period": "weekly",
+   "rendered": 20,
+   "expected": 20,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "ranking",
+   "viewer": "guest",
+   "period": "monthly",
+   "rendered": 20,
+   "expected": 20,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "search",
+   "viewer": "safe",
+   "q": "새벽",
+   "g": "",
+   "rendered": 21,
+   "expected": 21,
+   "sameIdsSameOrder": true,
+   "hiddenLeak": []
+  },
+  {
+   "kind": "search",
+   "viewer": "safe",
+   "q": "판타지",
+   "g": "",
+   "rendered": 60,
+   "expected": 60,
+   "sameIdsSameOrder": true,
+   "hiddenLeak": []
+  },
+  {
+   "kind": "search",
+   "viewer": "safe",
+   "q": "",
+   "g": "무협",
+   "rendered": 12,
+   "expected": 12,
+   "sameIdsSameOrder": true,
+   "hiddenLeak": []
+  },
+  {
+   "kind": "search",
+   "viewer": "safe",
+   "q": "새벽",
+   "g": "로맨스",
+   "rendered": 3,
+   "expected": 3,
+   "sameIdsSameOrder": true,
+   "hiddenLeak": []
+  },
+  {
+   "kind": "ranking",
+   "viewer": "safe",
+   "period": "all",
+   "rendered": 50,
+   "expected": 50,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "ranking",
+   "viewer": "safe",
+   "period": "realtime",
+   "rendered": 11,
+   "expected": 11,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "ranking",
+   "viewer": "safe",
+   "period": "daily",
+   "rendered": 18,
+   "expected": 18,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "ranking",
+   "viewer": "safe",
+   "period": "weekly",
+   "rendered": 20,
+   "expected": 20,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "ranking",
+   "viewer": "safe",
+   "period": "monthly",
+   "rendered": 20,
+   "expected": 20,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "search",
+   "viewer": "admin",
+   "q": "새벽",
+   "g": "",
+   "rendered": 23,
+   "expected": 23,
+   "sameIdsSameOrder": true,
+   "hiddenLeak": []
+  },
+  {
+   "kind": "search",
+   "viewer": "admin",
+   "q": "판타지",
+   "g": "",
+   "rendered": 60,
+   "expected": 60,
+   "sameIdsSameOrder": true,
+   "hiddenLeak": []
+  },
+  {
+   "kind": "search",
+   "viewer": "admin",
+   "q": "",
+   "g": "무협",
+   "rendered": 13,
+   "expected": 13,
+   "sameIdsSameOrder": true,
+   "hiddenLeak": []
+  },
+  {
+   "kind": "search",
+   "viewer": "admin",
+   "q": "새벽",
+   "g": "로맨스",
+   "rendered": 4,
+   "expected": 4,
+   "sameIdsSameOrder": true,
+   "hiddenLeak": []
+  },
+  {
+   "kind": "ranking",
+   "viewer": "admin",
+   "period": "all",
+   "rendered": 50,
+   "expected": 50,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "ranking",
+   "viewer": "admin",
+   "period": "realtime",
+   "rendered": 11,
+   "expected": 11,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "ranking",
+   "viewer": "admin",
+   "period": "daily",
+   "rendered": 18,
+   "expected": 18,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "ranking",
+   "viewer": "admin",
+   "period": "weekly",
+   "rendered": 20,
+   "expected": 20,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "ranking",
+   "viewer": "admin",
+   "period": "monthly",
+   "rendered": 20,
+   "expected": 20,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "search",
+   "viewer": "adminSafe",
+   "q": "새벽",
+   "g": "",
+   "rendered": 21,
+   "expected": 21,
+   "sameIdsSameOrder": true,
+   "hiddenLeak": []
+  },
+  {
+   "kind": "search",
+   "viewer": "adminSafe",
+   "q": "판타지",
+   "g": "",
+   "rendered": 60,
+   "expected": 60,
+   "sameIdsSameOrder": true,
+   "hiddenLeak": []
+  },
+  {
+   "kind": "search",
+   "viewer": "adminSafe",
+   "q": "",
+   "g": "무협",
+   "rendered": 12,
+   "expected": 12,
+   "sameIdsSameOrder": true,
+   "hiddenLeak": []
+  },
+  {
+   "kind": "search",
+   "viewer": "adminSafe",
+   "q": "새벽",
+   "g": "로맨스",
+   "rendered": 3,
+   "expected": 3,
+   "sameIdsSameOrder": true,
+   "hiddenLeak": []
+  },
+  {
+   "kind": "ranking",
+   "viewer": "adminSafe",
+   "period": "all",
+   "rendered": 50,
+   "expected": 50,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "ranking",
+   "viewer": "adminSafe",
+   "period": "realtime",
+   "rendered": 11,
+   "expected": 11,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "ranking",
+   "viewer": "adminSafe",
+   "period": "daily",
+   "rendered": 18,
+   "expected": 18,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "ranking",
+   "viewer": "adminSafe",
+   "period": "weekly",
+   "rendered": 20,
+   "expected": 20,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "ranking",
+   "viewer": "adminSafe",
+   "period": "monthly",
+   "rendered": 20,
+   "expected": 20,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "search",
+   "viewer": "maleViewer",
+   "q": "새벽",
+   "g": "",
+   "rendered": 20,
+   "expected": 20,
+   "sameIdsSameOrder": true,
+   "hiddenLeak": []
+  },
+  {
+   "kind": "search",
+   "viewer": "maleViewer",
+   "q": "판타지",
+   "g": "",
+   "rendered": 60,
+   "expected": 60,
+   "sameIdsSameOrder": true,
+   "hiddenLeak": []
+  },
+  {
+   "kind": "search",
+   "viewer": "maleViewer",
+   "q": "",
+   "g": "무협",
+   "rendered": 12,
+   "expected": 12,
+   "sameIdsSameOrder": true,
+   "hiddenLeak": []
+  },
+  {
+   "kind": "search",
+   "viewer": "maleViewer",
+   "q": "새벽",
+   "g": "로맨스",
+   "rendered": 2,
+   "expected": 2,
+   "sameIdsSameOrder": true,
+   "hiddenLeak": []
+  },
+  {
+   "kind": "ranking",
+   "viewer": "maleViewer",
+   "period": "all",
+   "rendered": 50,
+   "expected": 50,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "ranking",
+   "viewer": "maleViewer",
+   "period": "realtime",
+   "rendered": 11,
+   "expected": 11,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "ranking",
+   "viewer": "maleViewer",
+   "period": "daily",
+   "rendered": 18,
+   "expected": 18,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "ranking",
+   "viewer": "maleViewer",
+   "period": "weekly",
+   "rendered": 20,
+   "expected": 20,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  },
+  {
+   "kind": "ranking",
+   "viewer": "maleViewer",
+   "period": "monthly",
+   "rendered": 20,
+   "expected": 20,
+   "sameIdsSameOrder": true,
+   "numbersMatchSql": true,
+   "hiddenLeak": [],
+   "cappedAt50": true
+  }
+ ],
+ "permissionsSummary": {
+  "total": 45,
+  "failing": 0
+ },
+ "periodSwitch": [
+  {
+   "id": "realtime",
+   "url": "/tab/ranking?p=realtime",
+   "ariaCurrent": null,
+   "activeBold": true,
+   "mentions": [
+    "6시간"
+   ],
+   "metricUnits": []
+  },
+  {
+   "id": "daily",
+   "url": "/tab/ranking?p=daily",
+   "ariaCurrent": null,
+   "activeBold": true,
+   "mentions": [
+    "24시간"
+   ],
+   "metricUnits": []
+  },
+  {
+   "id": "weekly",
+   "url": "/tab/ranking?p=weekly",
+   "ariaCurrent": null,
+   "activeBold": true,
+   "mentions": [
+    "7일"
+   ],
+   "metricUnits": []
+  },
+  {
+   "id": "monthly",
+   "url": "/tab/ranking?p=monthly",
+   "ariaCurrent": null,
+   "activeBold": true,
+   "mentions": [
+    "30일"
+   ],
+   "metricUnits": []
+  },
+  {
+   "id": "all",
+   "url": "/tab/ranking?p=all",
+   "ariaCurrent": null,
+   "activeBold": true,
+   "mentions": [
+    "누적 대화 턴"
+   ],
+   "metricUnits": []
+  }
+ ],
+ "periodBack": "/tab/ranking?p=monthly",
+ "cardRoundTrip": {
+  "href": "/character/1658",
+  "landed": "/character/1658",
+  "backUrl": "/search?q=새벽&g=로맨스",
+  "backInput": "새벽",
+  "backFilterShown": true
+ },
+ "rankRoundTrip": {
+  "href": "/character/1763",
+  "landed": "/character/1763",
+  "backUrl": "/tab/ranking?p=weekly"
+ },
+ "keyboard": {
+  "search": {
+   "stops": 22,
+   "covered": 0,
+   "noVisibleFocusPage": 0,
+   "noVisibleFocusCard": 0,
+   "firstTexts": [
+    "하브 홈",
+    "알림 1건",
+    "세이프티 필터",
+    "보유 포인트 2,000P — 사용",
+    "홈",
+    "신작",
+    "랭킹",
+    "TRPG",
+    "검색",
+    "북마크/팔로잉",
+    "",
+    "검색",
+    "전체",
+    "로맨스"
+   ]
+  },
+  "ranking": {
+   "stops": 18,
+   "covered": 0,
+   "noVisibleFocusPage": 0,
+   "noVisibleFocusCard": 0,
+   "firstTexts": [
+    "하브 홈",
+    "알림 1건",
+    "로그인",
+    "홈",
+    "신작",
+    "랭킹",
+    "TRPG",
+    "검색",
+    "북마크/팔로잉",
+    "전체",
+    "여성향",
+    "남성향",
+    "로그인 후 저장",
+    "전체"
+   ]
+  }
+ },
+ "reducedMotion": {
+  "property": "color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to, opacity, box-shadow, transform, translate, scale, rotate, filter, -webkit-backdrop-filter, backdrop-filter, display, content-visibility, overlay, pointer-events",
+  "duration": "0.15s",
+  "effective": false
+ },
+ "errors": []
+}
