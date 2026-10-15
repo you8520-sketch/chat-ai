@@ -677,6 +677,32 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
     assert.equal(derivedJobCount(seed.siblingId), 0);
   });
 
+  it("attaches the existing shared World Library without rewriting content used by the sibling", async () => {
+    const seed = seedProductionShapedWolfgang();
+    const adminId = insertAdmin();
+    const drifted = "운영에 이미 있는 공유 월드 본문. 볼프강 반영이 이 내용을 바꾸면 안 된다.";
+    getDb().prepare("UPDATE worlds SET content=? WHERE id=?").run(drifted, seed.sharedWorldId);
+    const siblingBefore = characterRow(seed.siblingId);
+
+    const preview = await dryRun(seed.characterId, adminId);
+    assert.ok(preview.changedFields.includes("world_id"));
+    assert.ok(!preview.changedFields.includes("lorebook"));
+    assert.deepEqual(
+      preview.lorebookPlan.map((item) => item.action),
+      Array(8).fill("skip_identical")
+    );
+
+    const result = await apply(seed.characterId, adminId);
+    assert.equal(result.applied, true);
+    assert.equal(characterRow(seed.characterId).world_id, seed.sharedWorldId);
+    const worldAfter = getDb()
+      .prepare("SELECT content, summary FROM worlds WHERE id=?")
+      .get(seed.sharedWorldId) as { content: string; summary: string };
+    assert.equal(worldAfter.content, drifted);
+    assert.equal(worldAfter.summary, seed.sharedWorldSummary);
+    assert.deepEqual(characterRow(seed.siblingId), siblingBefore);
+  });
+
   it("keeps the 2 approved secrets and no removed secret in prompt, canon and chunks", async () => {
     const seed = seedProductionShapedWolfgang();
     const adminId = insertAdmin();

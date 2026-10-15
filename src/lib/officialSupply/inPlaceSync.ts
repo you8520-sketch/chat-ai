@@ -56,8 +56,7 @@ import {
 import { composeOfficialCreatorComment } from "@/lib/officialSupply/publicProfileText";
 import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
 import {
-  ensureOfficialSharedWorldLibraryRow,
-  findOfficialSharedWorldLibraryRow,
+  attachOfficialSharedWorldLibraryRow,
   officialDraftUsesSharedWorld,
 } from "@/lib/officialSupply/officialSharedWorld";
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
@@ -870,7 +869,12 @@ function inspectTarget(input: {
     world: source.draft.sections.worldAndSituation,
     worldId:
       officialDraftUsesSharedWorld(source.draft)
-        ? findOfficialSharedWorldLibraryRow(db, owner.id)?.id ?? null
+        ? attachOfficialSharedWorldLibraryRow({
+            db,
+            creatorId: owner.id,
+            bible: source.worldBible,
+            createIfMissing: false,
+          }).worldId
         : row.world_id,
     creatorComment: composeOfficialCreatorComment(source.draft),
     exampleDialog: composeExampleDialog({
@@ -1032,10 +1036,11 @@ function applyGuardedCanonicalFields(input: {
 
     const nextWorldId =
       officialDraftUsesSharedWorld(source.draft)
-        ? ensureOfficialSharedWorldLibraryRow({
+        ? attachOfficialSharedWorldLibraryRow({
             db: input.db,
             creatorId: owner.id,
             bible: source.worldBible,
+            createIfMissing: true,
           }).worldId
         : row.world_id;
     const updated = input.db
