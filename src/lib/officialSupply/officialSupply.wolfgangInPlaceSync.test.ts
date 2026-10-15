@@ -34,6 +34,12 @@ import {
 } from "@/lib/officialSupply/inPlaceSync";
 import { WOLFGANG_IN_PLACE_TARGET } from "@/lib/officialSupply/inPlaceWolfgang";
 import {
+  DERIVED_BANMAL_BAN,
+  DERIVED_INTRA_TURN_SWITCH_BAN,
+  DERIVED_NOBLE_CASUAL_BAN,
+  DERIVED_SAME_ADDRESSEE_SWITCH_BAN,
+} from "@/lib/speechLock/deriveProfile";
+import {
   OFFICIAL_OWNER_TRANSFER_ENV,
   transferOfficialCharacterOwnerToAdmin,
 } from "@/lib/officialSupply/ownerTransfer";
@@ -322,6 +328,13 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
     return copy;
   }
 
+  /**
+   * `speech_profile` is derived from the manuscript speech fields inside the same chunk rebuild
+   * (`buildAndSaveCharacterChunks` -> `persistSpeechProfile`), so it moves with the manuscript.
+   * Its content is asserted against the frozen approved source below instead of being ignored.
+   */
+  const SYNC_DERIVED_COLUMNS = ["speech_profile"] as const;
+
   const SYNC_WRITTEN_COLUMNS = [
     "tagline",
     "description",
@@ -342,6 +355,25 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
     "prompt_translation_hash",
     "updated_at",
   ] as const;
+
+  type StoredSpeechProfile = {
+    dialogue_examples: string[];
+    creator_personality?: string;
+    creator_speech_traits?: string;
+    forbidden_speech_patterns: string[];
+  };
+
+  function speechProfileOf(row: Record<string, unknown>): StoredSpeechProfile {
+    return JSON.parse(row.speech_profile as string) as StoredSpeechProfile;
+  }
+
+  function approvedFixtureSpeech(): { examples: string; forbidden: string; frequentPhrases: string[] } {
+    return (
+      JSON.parse(fs.readFileSync(APPROVED_SOURCE_FIXTURE, "utf8")) as {
+        bible: { speech: { examples: string; forbidden: string; frequentPhrases: string[] } };
+      }
+    ).bible.speech;
+  }
 
   function supplyRow() {
     return getDb()
@@ -508,10 +540,46 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
     }
 
     assert.deepEqual(
-      rowWithout(after, SYNC_WRITTEN_COLUMNS),
-      rowWithout(before, SYNC_WRITTEN_COLUMNS),
-      "only manuscript-owned columns may change"
+      rowWithout(after, [...SYNC_WRITTEN_COLUMNS, ...SYNC_DERIVED_COLUMNS]),
+      rowWithout(before, [...SYNC_WRITTEN_COLUMNS, ...SYNC_DERIVED_COLUMNS]),
+      "only manuscript-owned and manuscript-derived columns may change"
     );
+
+    const approvedSpeech = approvedFixtureSpeech();
+    const profileBefore = speechProfileOf(before);
+    const profileAfter = speechProfileOf(after);
+    assert.deepEqual(profileBefore.dialogue_examples, ["구버전 예시대사"]);
+    assert.notEqual(after.speech_profile, before.speech_profile, "the profile must be re-derived from the approved manuscript");
+
+    const approvedExamples = [...approvedSpeech.examples.matchAll(/“([^”]+)”/gu)].map((match) => match[1]!.trim());
+    assert.equal(approvedExamples.length, 4);
+    assert.deepEqual(profileAfter.dialogue_examples, approvedExamples, "saved examples must be exactly the approved source examples");
+    assert.ok(!profileAfter.dialogue_examples.includes("구버전 예시대사"), "the stale pre-change example must not survive");
+
+    assert.equal(profileAfter.creator_personality, src.draft.speech.personality);
+    assert.equal(profileAfter.creator_speech_traits, src.draft.speech.traits);
+    for (const phrase of approvedSpeech.frequentPhrases) {
+      assert.ok(profileAfter.creator_speech_traits?.includes(phrase), `frequent phrase kept: ${phrase}`);
+    }
+
+    const forbiddenPieces = approvedSpeech.forbidden
+      .split(/,\s*/u)
+      .map((piece) => piece.trim().replace(/\.$/u, ""))
+      .filter(Boolean);
+    assert.ok(forbiddenPieces.length >= 5);
+    for (const piece of forbiddenPieces) {
+      assert.ok(
+        profileAfter.forbidden_speech_patterns.some((entry) => entry.includes(piece)),
+        `explicit forbidden meaning kept: ${piece}`
+      );
+    }
+    for (const blanket of [DERIVED_BANMAL_BAN, DERIVED_INTRA_TURN_SWITCH_BAN, DERIVED_NOBLE_CASUAL_BAN]) {
+      assert.ok(
+        !profileAfter.forbidden_speech_patterns.includes(blanket),
+        `situational register (formal interrogation, casual to subordinates) must not gain a blanket ban: ${blanket}`
+      );
+    }
+    assert.ok(profileAfter.forbidden_speech_patterns.includes(DERIVED_SAME_ADDRESSEE_SWITCH_BAN));
     assert.equal(after.id, seed.characterId);
     assert.equal(after.official, 0);
     assert.equal(after.visibility, "private");
