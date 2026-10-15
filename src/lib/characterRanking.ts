@@ -19,6 +19,18 @@ export const RANKING_PERIODS: { id: RankingPeriod; label: string; desc: string; 
   { id: "monthly", label: "월간", desc: "최근 30일", window: "최근 30일" },
 ];
 
+/**
+ * Display copy for `period_chats`. The same column holds different quantities:
+ * `all` is cumulative chat turns (total_turns); every other period counts chats started in its window.
+ */
+export function rankingMetric(period: RankingPeriod): { label: string; unit: string; basis: string } {
+  if (period === "all") {
+    return { label: "누적 대화", unit: "턴", basis: "누적 대화 턴 수 기준" };
+  }
+  const window = RANKING_PERIODS.find((p) => p.id === period)?.window ?? "";
+  return { label: "대화 시작", unit: "회", basis: `${window} 동안 대화가 시작된 횟수 기준` };
+}
+
 export type RankedCharacter = CharacterRow & { period_chats: number };
 
 export function parseRankingPeriod(raw: string | undefined): RankingPeriod {

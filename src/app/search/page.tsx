@@ -1,11 +1,20 @@
-import Link from "next/link";
 import { AppPageShell } from "@/components/AppPageShell";
 import CharacterCard, { type CharacterRow } from "@/components/CharacterCard";
 import TagSearchBar from "@/components/TagSearchBar";
+import ChipRail from "./ChipRail";
+import {
+  ActiveFilters,
+  FilterLabel,
+  GenreChip,
+  SearchEmpty,
+  SearchGuide,
+  SearchResultsSummary,
+  TagChip,
+  searchHref,
+} from "./SearchParts";
 import { shouldHideAdultListings } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { cn, studioType } from "@/lib/studioDesign";
 import { listableWhere } from "@/lib/characterVisibility";
 import { decorateCharactersWithCreatorTiers } from "@/lib/creatorTierBadges";
 import {
@@ -18,6 +27,7 @@ import {
   buildCharacterSearchSql,
   isValidSearchQuery,
   normalizeCatalogSearchQuery,
+  SEARCH_RESULT_LIMIT,
   searchSqlLikePattern,
 } from "@/lib/tagSearch";
 
@@ -61,14 +71,6 @@ const MATCH_LABEL = {
   creator: "제작자",
   tag: "태그",
 } as const;
-
-function searchHref(opts: { q?: string; g?: string }): string {
-  const params = new URLSearchParams();
-  if (opts.q) params.set("q", opts.q);
-  if (opts.g) params.set("g", opts.g);
-  const qs = params.toString();
-  return qs ? `/search?${qs}` : "/search";
-}
 
 export default async function SearchPage({
   searchParams,
@@ -117,7 +119,7 @@ export default async function SearchPage({
             ORDER BY
               (CASE WHEN name LIKE ? THEN 0 WHEN creator_name LIKE ? THEN 1 ELSE 2 END) ASC,
               likes DESC, id DESC
-            LIMIT 60
+            LIMIT ${SEARCH_RESULT_LIMIT}
           `
           )
           .all(like, like, like, ...fparams, ...genreClause.params, like, like) as CharacterRow[]
@@ -138,7 +140,7 @@ export default async function SearchPage({
           `SELECT * FROM characters
            WHERE ${genreClause.sql} AND ${listableWhere()} ${filter}
            ORDER BY likes DESC, id DESC
-           LIMIT 60`
+           LIMIT ${SEARCH_RESULT_LIMIT}`
         )
         .all(...genreClause.params, ...fparams) as CharacterRow[]
     );
@@ -154,112 +156,67 @@ export default async function SearchPage({
   return (
     <AppPageShell
       title="검색"
-      description="캐릭터명 · 제작자명 · 태그 · 장르로 작품을 찾아보세요."
+      description="캐릭터명 · 제작자명 · 태그로 찾고, 장르로 좁혀 보세요."
       className="mt-6"
     >
-      <div className="max-w-xl">
+      <div className="max-w-2xl">
         <TagSearchBar defaultQuery={query} genre={genre} />
       </div>
 
+      <div className="mt-4">
+        <ActiveFilters query={hasQuery ? query : ""} genre={genre} />
+      </div>
+
       <div className="mt-5">
-        <p className={cn(studioType.caption, "mb-2 font-semibold")}>장르 카테고리</p>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href={searchHref({ q: query || undefined })}
-            className={`rounded-full border px-3 py-1.5 text-sm transition ${
-              !genre
-                ? "border-violet-500/40 bg-violet-600 text-white"
-                : "border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-zinc-50"
-            }`}
-          >
+        <FilterLabel>장르 카테고리</FilterLabel>
+        <ChipRail label="장르 카테고리">
+          <GenreChip href={searchHref({ q: query || undefined })} active={!genre}>
             전체
-          </Link>
+          </GenreChip>
           {CHARACTER_GENRES.map((g) => (
-            <Link
-              key={g}
-              href={searchHref({ q: query || undefined, g })}
-              className={`rounded-full border px-3 py-1.5 text-sm transition ${
-                genre === g
-                  ? "border-violet-500/40 bg-violet-600 text-white"
-                  : "border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-zinc-50"
-              }`}
-            >
+            <GenreChip key={g} href={searchHref({ q: query || undefined, g })} active={genre === g}>
               {g}
-            </Link>
+            </GenreChip>
           ))}
-        </div>
+        </ChipRail>
       </div>
 
       {popularTags.length > 0 && (
-        <div className="mt-5">
-          <p className={cn(studioType.caption, "mb-2 font-semibold")}>인기 태그</p>
-          <div className="flex flex-wrap gap-2">
+        <div className="mt-4">
+          <FilterLabel>인기 태그</FilterLabel>
+          <ChipRail label="인기 태그">
             {popularTags.map((tag) => (
-              <Link
-                key={tag}
-                href={searchHref({ q: tag, g: genre ?? undefined })}
-                className={`rounded-full border px-3 py-1 text-sm transition ${
-                  query === tag
-                    ? "border-violet-500/40 bg-violet-600 text-white"
-                    : "border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-zinc-50"
-                }`}
-              >
-                #{tag}
-              </Link>
+              <TagChip key={tag} href={searchHref({ q: tag, g: genre ?? undefined })} active={query === tag}>
+                {tag}
+              </TagChip>
             ))}
-          </div>
+          </ChipRail>
         </div>
       )}
 
       {showingResults ? (
-        <>
-          <p className={cn(studioType.body, "mt-6")}>
-            {hasQuery ? (
-              <>
-                <span className="font-semibold text-violet-300">「{query}」</span>
-                {genre ? (
-                  <>
-                    {" "}
-                    · <span className="font-semibold text-violet-300">{genre}</span>
-                  </>
-                ) : null}{" "}
-                검색 결과{" "}
-              </>
-            ) : (
-              <>
-                <span className="font-semibold text-violet-300">{genre}</span> 장르{" "}
-              </>
-            )}
-            <span className="text-zinc-50">{chars.length}</span>건
-          </p>
+        <section className="mt-7 border-t border-white/10 pt-5" aria-label="검색 결과">
+          <SearchResultsSummary query={hasQuery ? query : ""} genre={genre} count={chars.length} limit={SEARCH_RESULT_LIMIT} />
           {chars.length > 0 ? (
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-5">
               {chars.map((c) => {
                 const kind = hasQuery ? matchKind(c, query) : null;
                 return (
-                  <div key={c.id} className="relative">
-                    {kind && (
-                      <span className="absolute right-2 top-2 z-10 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-violet-200">
-                        {MATCH_LABEL[kind]}
-                      </span>
-                    )}
+                  <div key={c.id} className="min-w-0">
                     <CharacterCard c={c} blurNsfw={blurNsfw} loggedIn={loggedIn} />
+                    {kind && (
+                      <p className="mt-1.5 px-0.5 text-xs font-medium text-violet-300/90">{MATCH_LABEL[kind]} 일치</p>
+                    )}
                   </div>
                 );
               })}
             </div>
           ) : (
-            <p className="mt-10 text-center text-zinc-400">
-              {hasQuery
-                ? `「${query}」에 해당하는 결과가 없습니다.`
-                : `「${genre}」 장르에 해당하는 캐릭터가 없습니다.`}
-            </p>
+            <SearchEmpty query={hasQuery ? query : ""} genre={genre} />
           )}
-        </>
+        </section>
       ) : (
-        <p className="mt-10 text-center text-sm text-zinc-400">
-          검색어를 입력하거나 위 장르·인기 태그를 눌러보세요.
-        </p>
+        <SearchGuide />
       )}
     </AppPageShell>
   );
