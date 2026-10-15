@@ -2,6 +2,7 @@ import type { CharacterAsset } from "@/lib/characterAssets";
 import type { TrpgPublicAiCharacterAssets } from "./aiCharacterContext";
 import type { TrpgPublicScenarioNpcImage } from "./scenarioNpcAssets";
 import type { TrpgActionType } from "./actionTypes";
+import type { PublicExploration } from "./explorationPublic";
 import type { TrpgPublicGoal } from "./campaignGoals";
 import type { TrpgResolutionOrderEntry } from "./initiative";
 import type { TrpgParticipantAdjudicationOutcome } from "./roundAdjudication";
@@ -175,6 +176,8 @@ export type TrpgCampaignSnapshot = {
   /** Server-authoritative safe-rest eligibility. UI must not re-parse the scene. */
   safeRest?: TrpgSafeRestSnapshot;
   showRecoveryHint?: boolean;
+  /** Fogged exploration projection. Null when this campaign has no map. */
+  exploration?: PublicExploration | null;
 };
 
 export type TrpgSafeRestBlockedReason =

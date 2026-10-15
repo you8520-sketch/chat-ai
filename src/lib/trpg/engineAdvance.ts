@@ -59,6 +59,15 @@ import {
   persistCampaignLedger,
   settleLedgerForCommit,
 } from "./campaignLedger";
+import {
+  explorationPromptForRound,
+  ensureExplorationMap,
+  planExplorationCommit,
+  prepareLockedExploration,
+  readExplorationCommands,
+  saveExplorationState,
+  type ExplorationCommitAdjustment,
+} from "./explorationStore";
 import { goalClaimSource } from "./goalClaimProvenance";
 import { resolveTrpgRoll, rollServerD20 } from "./dice";
 import { assertCanStart } from "./engineCreate";
@@ -298,6 +307,11 @@ export async function startTrpgCampaign(
   } catch (error) {
     console.warn("[trpg-director] context failed; continuing with existing GM", error);
   }
+  try {
+    ensureExplorationMap(db, opts.campaignId);
+  } catch (error) {
+    console.warn("[trpg-exploration] map failed; continuing without a map", error);
+  }
   const latest = loadLatestRound(db, opts.campaignId);
   const rid = newRequestId();
   let roundId: number;
@@ -459,6 +473,7 @@ export function submitTrpgAction(
     selectedStat?: string | null;
     idempotencyKey?: string | null;
     inputOrigin?: TrpgInputOrigin | null;
+    explorationCommands?: unknown;
   }
 ): void {
   const parts = loadParticipants(db, opts.campaignId);
@@ -469,21 +484,48 @@ export function submitTrpgAction(
   if (!round || round.phase !== "ACTION_INPUT") {
     throw new Error("지금은 행동을 제출할 수 없습니다.");
   }
+  const commands = readExplorationCommands(opts.explorationCommands);
   const text = opts.body.replace(/\s+/g, " ").trim();
-  if (!text) throw new Error("행동을 입력하세요.");
+  if (!text && commands.length === 0) throw new Error("행동을 입력하세요.");
   if (Array.from(text).length > TRPG_ACTION_MAX_CHARS) throw new Error("행동이 너무 깁니다.");
   const actionType = opts.actionType && isTrpgActionType(opts.actionType) ? opts.actionType : "free";
-  upsertLockedAction(
-    db,
-    round.id,
-    me.id,
-    text,
-    actionType,
-    opts.selectedStat ?? null,
-    "human",
-    opts.idempotencyKey,
-    parseTrpgInputOrigin(opts.inputOrigin)
-  );
+  const origin = parseTrpgInputOrigin(opts.inputOrigin);
+  if (commands.length > 0) {
+    db.transaction(() => {
+      const prepared = prepareLockedExploration(db, {
+        campaignId: opts.campaignId,
+        roundId: round.id,
+        participantId: me.id,
+        commands,
+        freeText: text,
+      });
+      if (Array.from(prepared.body).length > TRPG_ACTION_MAX_CHARS) throw new Error("행동이 너무 깁니다.");
+      upsertLockedAction(
+        db,
+        round.id,
+        me.id,
+        prepared.body,
+        prepared.actionType,
+        opts.selectedStat ?? null,
+        "human",
+        opts.idempotencyKey,
+        origin
+      );
+      saveExplorationState(db, opts.campaignId, prepared.state);
+    })();
+  } else {
+    upsertLockedAction(
+      db,
+      round.id,
+      me.id,
+      text,
+      actionType,
+      opts.selectedStat ?? null,
+      "human",
+      opts.idempotencyKey,
+      origin
+    );
+  }
   const humanActors = actorsForRound(db, parts, round.id).filter((a) => a.kind === "human");
   if (allRequiredHumanActionsLocked(humanActors)) {
     anchorTrpgProcessTimer(db, round.id);
@@ -1393,6 +1435,18 @@ async function runGmForRound(
     localSceneDeltaContract,
     resolutionOrderBlock: formatResolutionOrderBlock(resolutionOrder),
     mechanicsPacket: mechanics?.packet ?? "",
+    explorationBlock: opts.regenerate
+      ? ""
+      : explorationPromptForRound(db, {
+          campaignId: opts.campaignId,
+          roundId: opts.roundId,
+          opening: opts.opening,
+          actors: actions.map((action) => ({
+            participantId: action.participantId,
+            name: action.name,
+            tier: action.tier,
+          })),
+        }),
     actions,
   });
   const gmCall = opts.deps?.gmCall ?? callTrpgGm;
@@ -1571,6 +1625,49 @@ function observeThreatShadow(build: () => string | null): void {
   }
 }
 
+function ensureDeltaPlayer(
+  delta: ParsedTrpgGmOutput["delta"],
+  participantId: number
+): ParsedTrpgGmOutput["delta"]["players"][number] {
+  const existing = delta.players.find((row) => row.participantId === participantId);
+  if (existing) return existing;
+  const created: ParsedTrpgGmOutput["delta"]["players"][number] = { participantId };
+  delta.players.push(created);
+  return created;
+}
+
+function applyExplorationToParsed(
+  parsed: ParsedTrpgGmOutput,
+  adjustment: ExplorationCommitAdjustment,
+  sheetIds: readonly number[]
+): void {
+  if (adjustment.openingLocation) {
+    parsed.location = adjustment.openingLocation;
+    parsed.delta.location = adjustment.openingLocation;
+    for (const participantId of sheetIds) {
+      ensureDeltaPlayer(parsed.delta, participantId).location = adjustment.openingLocation;
+    }
+  }
+  const flags = new Set(parsed.delta.flagsAdd ?? []);
+  for (const result of adjustment.results) {
+    const patch = ensureDeltaPlayer(parsed.delta, result.participantId);
+    if (result.location) patch.location = result.location;
+    if (result.items.length) {
+      const have = new Set(patch.inventoryAdd ?? []);
+      for (const item of result.items) {
+        if (have.has(item)) continue;
+        patch.inventoryAdd = [...(patch.inventoryAdd ?? []), item];
+        have.add(item);
+      }
+    }
+    for (const flag of result.flags) {
+      if (flags.has(flag)) continue;
+      parsed.delta.flagsAdd = [...(parsed.delta.flagsAdd ?? []), flag];
+      flags.add(flag);
+    }
+  }
+}
+
 function commitPendingGmResult(
   db: Database.Database,
   opts: {
@@ -1615,6 +1712,26 @@ function commitPendingGmResult(
     source: string | null;
     tier: string | null;
   }>;
+  const explorationCommit = opts.regenerate
+    ? null
+    : planExplorationCommit(db, {
+        campaignId: campaign.id,
+        roundId: opts.roundId,
+        opening: opts.opening,
+        actors: lockedSubs.map((sub) => ({
+          participantId: sub.participantId,
+          name: "",
+          tier: sub.tier,
+        })),
+        sheetIds: sheets.map((sheet) => sheet.participantId),
+      });
+  if (explorationCommit) {
+    applyExplorationToParsed(
+      parsed,
+      explorationCommit,
+      sheets.map((sheet) => sheet.participantId)
+    );
+  }
   const proposedFromPlayers =
     (parsed.delta.players ?? []).map((patch) => patch.location?.trim() ?? "").find(Boolean) ?? "";
   const boundLocation = bindGmLocationToSubmittedMovement({
@@ -1843,6 +1960,7 @@ function commitPendingGmResult(
         }
         persistCampaignContext(db, ctx);
       }
+      if (explorationCommit) saveExplorationState(db, campaign.id, explorationCommit.state);
       setRoundPhase(db, opts.roundId, "APPLYING_STATE");
       if (!opts.opening) {
         stage = "billing";

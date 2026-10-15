@@ -285,6 +285,7 @@ export function ensureTrpgTables(db: Database.Database): void {
     );
   `);
   addColumn("trpg_campaign_context", "local_scene_progress_json", "TEXT");
+  addColumn("trpg_campaign_context", "exploration_json", "TEXT");
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS trpg_world_blueprint_artifacts (
