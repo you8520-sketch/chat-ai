@@ -11,6 +11,7 @@ import {
   EXPLORATION_HIDDEN_EDGE,
   EXPLORATION_ITEM_NAME,
   EXPLORATION_LOOP_ROOM,
+  EXPLORATION_PASSAGE_FLAG,
   displayExplorationAp,
   emptyExplorationState,
   explorationCanEscape,
@@ -265,9 +266,32 @@ describe("exploration map generation", () => {
     assert.match(remember, /override earlier narration/);
     assert.match(remember, /현이 is in 기록실\. They did not move this round\./);
     assert.match(remember, /도윤 is in 현관홀\. They did not move this round\./);
+    assert.match(remember, /Alarm is already on\. The exit latch condition is already met\./);
     assert.match(remember, /Nobody has reached 출구\. Escape is not a fact\./);
+    assert.doesNotMatch(remember, /can open/);
+    assert.doesNotMatch(remember, /경보를 울려/);
     assert.doesNotMatch(remember, /현이 started in/);
     assert.doesNotMatch(remember, /moved .*출구/);
+    const shut = formatExplorationGmBlock({
+      opening: false,
+      seats: [{ name: "현이", start: EXPLORATION_ENTRANCE, end: EXPLORATION_ENTRANCE }],
+      resultLines: [],
+      alarm: false,
+      risk: 0,
+      flags: [],
+    });
+    assert.match(shut, /Alarm is off\. The exit latch is still shut\./);
+    assert.doesNotMatch(shut, /already met/);
+    const arrived = formatExplorationGmBlock({
+      opening: false,
+      seats: [{ name: "현이", start: "북쪽복도", end: EXPLORATION_EXIT_ROOM }],
+      resultLines: ["현이: moved 북쪽복도 → 출구."],
+      alarm: true,
+      risk: 7,
+      flags: [EXPLORATION_ALARM_FLAG],
+    });
+    assert.match(arrived, /Only the people listed in 출구 are there\./);
+    assert.doesNotMatch(arrived, /Nobody has reached 출구/);
     const moved = formatExplorationGmBlock({
       opening: false,
       seats: [{ name: "현이", start: EXPLORATION_ENTRANCE, end: "중앙홀" }],
@@ -292,11 +316,15 @@ describe("exploration map generation", () => {
     assert.match(brief, /Action points left this turn: 3/);
     assert.doesNotMatch(brief, /순환로/);
     assert.deepEqual(
+      filterExplorationFlagsAdd([EXPLORATION_ALARM_FLAG, EXPLORATION_CLUE_FLAG, "문_열림"], []),
+      ["문_열림"]
+    );
+    assert.deepEqual(
       filterExplorationFlagsAdd(
-        ["경보_활성화됨", "단서_출구빗장_확인", "문_열림", EXPLORATION_ALARM_FLAG],
+        ["경보_활성화됨", "서고 단서: 낙서", EXPLORATION_ALARM_FLAG, EXPLORATION_PASSAGE_FLAG],
         [EXPLORATION_ALARM_FLAG, EXPLORATION_CLUE_FLAG]
       ),
-      ["문_열림", EXPLORATION_ALARM_FLAG]
+      ["경보_활성화됨", "서고 단서: 낙서", EXPLORATION_ALARM_FLAG]
     );
   });
 });

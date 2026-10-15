@@ -14,12 +14,14 @@ import { loadExplorationState } from "./explorationStore";
 import {
   EXPLORATION_ALARM_FLAG,
   EXPLORATION_ALARM_ROOM,
+  EXPLORATION_PASSAGE_FLAG,
   EXPLORATION_ARCHIVE_ROOM,
   EXPLORATION_CLUE_FLAG,
   EXPLORATION_CLUE_TEXT,
   EXPLORATION_ENTRANCE,
   EXPLORATION_EXIT_ROOM,
   EXPLORATION_ITEM_NAME,
+  EXPLORATION_LOOP_ROOM,
   EXPLORATION_STORE_ROOM,
   type ExplorationState,
 } from "./explorationMap";
@@ -85,14 +87,14 @@ function neighbors(state: ExplorationState, roomId: string): string[] {
   return out;
 }
 
-function stepsToward(state: ExplorationState, from: string, goal: string): string[] {
+function stepsToward(state: ExplorationState, from: string, goal: string, blocked: ReadonlySet<string> = new Set()): string[] {
   const previous = new Map<string, string | null>([[from, null]]);
   const queue = [from];
   while (queue.length) {
     const current = queue.shift()!;
     if (current === goal) break;
     for (const next of neighbors(state, current)) {
-      if (previous.has(next)) continue;
+      if (blocked.has(next) || previous.has(next)) continue;
       previous.set(next, current);
       queue.push(next);
     }
@@ -161,6 +163,7 @@ describe("exploration play", () => {
             location: place,
             next_round_context: "다음",
             campaign_finished: false,
+            flagsAdd: moving ? [] : [EXPLORATION_ALARM_FLAG, "복도의 등"],
           }),
         };
       },
@@ -175,6 +178,7 @@ describe("exploration play", () => {
     submitTrpgAction(db, { campaignId, userId: 1, body: "문을 살핀다." });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     assert.equal(prompts.some((prompt) => prompt.includes("[EXPLORATION")), false);
+    assert.deepEqual(loadCampaignLedger(db, campaignId).worldFlags, [EXPLORATION_ALARM_FLAG, "복도의 등"]);
     const hostId = (
       db.prepare(`SELECT id FROM trpg_participants WHERE campaign_id=? AND user_id=1`).get(campaignId) as { id: number }
     ).id;
@@ -472,22 +476,13 @@ describe("exploration play", () => {
     };
     await startTrpgCampaign(db, { campaignId, userId: 1, deps });
     const seeded = loadExplorationState(db, campaignId)!;
-    const fork = neighbors(seeded, EXPLORATION_ENTRANCE)[0];
+    const fork = neighbors(seeded, EXPLORATION_ENTRANCE).find((roomId) => roomId !== EXPLORATION_EXIT_ROOM);
     assert.ok(fork);
     assert.throws(
       () => submitTrpgAction(db, { campaignId, userId: 1, body: "", explorationCommands: [{ op: "move", roomId: "없는방" }] }),
       /연결되지 않은 곳으로는 이동할 수 없습니다/
     );
-    const longWalk: string[] = [];
-    let cursor = EXPLORATION_ENTRANCE;
-    const seen = new Set<string>([cursor]);
-    for (let step = 0; step < 4; step += 1) {
-      const next = neighbors(seeded, cursor).find((roomId) => !seen.has(roomId));
-      assert.ok(next, "a four-step walk should exist");
-      longWalk.push(next);
-      seen.add(next);
-      cursor = next;
-    }
+    const longWalk = [fork, EXPLORATION_ENTRANCE, fork, EXPLORATION_ENTRANCE];
     assert.throws(
       () =>
         submitTrpgAction(db, {
@@ -732,7 +727,7 @@ describe("exploration play", () => {
               location: EXPLORATION_EXIT_ROOM,
               next_round_context: "다음",
               campaign_finished: false,
-              flagsAdd: ["경보_활성화됨", "단서_출구빗장_확인"],
+              flagsAdd: ["경보_활성화됨", "서고 단서: 낙서", EXPLORATION_PASSAGE_FLAG],
             }),
           };
         }
@@ -776,15 +771,18 @@ describe("exploration play", () => {
     assert.match(remember, /현이 is in 기록실\. They did not move this round\./);
     assert.match(remember, /도윤 is in 현관홀\. They did not move this round\./);
     assert.match(remember, /서하 is in 현관홀\. They did not move this round\./);
+    assert.match(remember, /Alarm is already on\. The exit latch condition is already met\./);
     assert.match(remember, /Nobody has reached 출구\. Escape is not a fact\./);
+    assert.doesNotMatch(remember, /can open/);
     assert.doesNotMatch(remember, /현이 started in .* and is now in 출구/);
     assert.equal(locationOf(db, hostId), EXPLORATION_ARCHIVE_ROOM);
     assert.equal(locationOf(db, human2), EXPLORATION_ENTRANCE);
     assert.equal(locationOf(db, ai[0]!), EXPLORATION_ENTRANCE);
     assert.equal(locationOf(db, ai[1]!), EXPLORATION_ENTRANCE);
     const flags = loadCampaignLedger(db, campaignId).worldFlags;
-    assert.equal(flags.includes("경보_활성화됨"), false);
-    assert.equal(flags.includes("단서_출구빗장_확인"), false);
+    assert.ok(flags.includes("경보_활성화됨"));
+    assert.ok(flags.includes("서고 단서: 낙서"));
+    assert.equal(flags.includes(EXPLORATION_PASSAGE_FLAG), false);
     assert.ok(flags.includes(EXPLORATION_CLUE_FLAG));
     assert.ok(flags.includes(EXPLORATION_ALARM_FLAG));
     const companion = botPrompts.filter((prompt) => prompt.includes("[EXPLORATION — your current map facts"));
@@ -792,6 +790,64 @@ describe("exploration play", () => {
     assert.match(companion.at(-1) ?? "", /You are in 현관홀/);
     assert.match(companion.at(-1) ?? "", /Open passages:/);
     assert.match(companion.at(-1) ?? "", /Action points left this turn:/);
+    db.close();
+  });
+
+  it("rejects ungranted exploration flags and keeps a server passage reveal", async () => {
+    const db = memoryDb();
+    const templateId = insertScenarioTemplate(db, 7, {
+      title: "플래그 정본",
+      summary: "서버만 확정",
+      content: "GM 플래그를 거른다.",
+      visibility: "public",
+      startLocation: EXPLORATION_ENTRANCE,
+      scenarioPlan: PLAN,
+    });
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "현이", viewerUserId: 1, templateId });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "현이", stats: EVEN_STATS });
+    const hostId = (db.prepare(`SELECT id FROM trpg_participants WHERE campaign_id=? AND user_id=1`).get(campaignId) as { id: number }).id;
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 16,
+      gmCall: async ({ user }) => ({
+        text: buildTrpgGmStructuredWireText("서버가 정한 사실만 남긴다. GM: 무엇을 하겠는가.", {
+          players: [],
+          location: loadCampaignLedger(db, campaignId).location || EXPLORATION_ENTRANCE,
+          next_round_context: "다음",
+          campaign_finished: false,
+          flagsAdd: user.includes("[OPENING SCENE")
+            ? []
+            : [EXPLORATION_ALARM_FLAG, EXPLORATION_CLUE_FLAG, "문_열림"],
+        }),
+      }),
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    submitTrpgAction(db, { campaignId, userId: 1, body: "자리를 지킨다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.deepEqual(loadCampaignLedger(db, campaignId).worldFlags, ["문_열림"]);
+    assert.equal(loadExplorationState(db, campaignId)?.alarmFlagged, false);
+    assert.equal(loadExplorationState(db, campaignId)?.risk, 0);
+    const play = async (commands: Array<{ op: "move"; roomId: string } | { op: "search"; depth: "normal" | "careful" }>) => {
+      submitTrpgAction(db, { campaignId, userId: 1, body: "", explorationCommands: commands });
+      await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    };
+    for (let guard = 0; guard < 12 && locationOf(db, hostId) !== EXPLORATION_LOOP_ROOM; guard += 1) {
+      const state = loadExplorationState(db, campaignId)!;
+      const blocked = state.alarmFlagged ? new Set<string>() : new Set([EXPLORATION_EXIT_ROOM]);
+      const path = stepsToward(state, locationOf(db, hostId), EXPLORATION_LOOP_ROOM, blocked).slice(0, 3);
+      if (!path.length) {
+        await play([{ op: "search", depth: "normal" }]);
+        continue;
+      }
+      await play(path.map((roomId) => ({ op: "move", roomId })));
+    }
+    assert.equal(locationOf(db, hostId), EXPLORATION_LOOP_ROOM);
+    await play([{ op: "search", depth: "careful" }]);
+    const revealed = loadCampaignLedger(db, campaignId).worldFlags;
+    assert.ok(revealed.includes(EXPLORATION_PASSAGE_FLAG), revealed.join(" | "));
+    assert.equal(revealed.includes(EXPLORATION_CLUE_FLAG), false);
+    assert.equal(revealed.includes(EXPLORATION_ALARM_FLAG), loadExplorationState(db, campaignId)?.alarmFlagged === true);
+    assert.ok(revealed.includes("문_열림"));
     db.close();
   });
 });

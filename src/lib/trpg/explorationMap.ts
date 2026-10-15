@@ -720,19 +720,27 @@ export function formatExplorationGmBlock(opts: {
     opts.opening ? `The party begins in ${EXPLORATION_ENTRANCE}. At least two passages leave this room.` : "",
     ...positions,
     ...opts.resultLines,
-    atExit
-      ? `Someone is at ${EXPLORATION_EXIT_ROOM} only if listed above.`
-      : `Nobody has reached ${EXPLORATION_EXIT_ROOM}. Escape is not a fact.`,
-    opts.alarm
-      ? "The exit latch can open, but nobody travels there unless listed above."
-      : "The exit latch is still shut.",
+    explorationLatchFact(opts.alarm, atExit),
     "Describe the rooms they occupy. Visible passages may be atmosphere. Do not walk anyone down a passage they did not take.",
     opts.flags.length
-      ? `Server flags already include: ${opts.flags.join("; ")}. Do not add a second flag for the same clue, alarm, or passage.`
-      : "No exploration flags yet. Do not add a second flag for a clue, alarm, or passage the server already owns.",
+      ? `Server flags already include: ${opts.flags.join("; ")}. Only the server confirms ${EXPLORATION_ALARM_FLAG}, ${EXPLORATION_CLUE_FLAG}, and ${EXPLORATION_PASSAGE_FLAG}. Other world facts may still be recorded.`
+      : `No exploration flags yet. Only the server confirms ${EXPLORATION_ALARM_FLAG}, ${EXPLORATION_CLUE_FLAG}, and ${EXPLORATION_PASSAGE_FLAG}. Other world facts may still be recorded.`,
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+function explorationLatchFact(alarm: boolean, atExit: boolean): string {
+  if (alarm && atExit) {
+    return `Alarm is already on. The exit latch condition is already met. Only the people listed in ${EXPLORATION_EXIT_ROOM} are there.`;
+  }
+  if (alarm) {
+    return `Alarm is already on. The exit latch condition is already met. Nobody has reached ${EXPLORATION_EXIT_ROOM}. Escape is not a fact.`;
+  }
+  if (atExit) {
+    return `Alarm is off. The exit latch is still shut. A listed seat in ${EXPLORATION_EXIT_ROOM} is not an opened escape.`;
+  }
+  return `Alarm is off. The exit latch is still shut. Nobody has reached ${EXPLORATION_EXIT_ROOM}.`;
 }
 
 export function formatExplorationBotBrief(opts: {
@@ -759,20 +767,16 @@ export function formatExplorationBotBrief(opts: {
     .join("\n");
 }
 
-const EXPLORATION_OWNED_FLAGS = [EXPLORATION_ALARM_FLAG, EXPLORATION_CLUE_FLAG, EXPLORATION_PASSAGE_FLAG] as const;
+const EXPLORATION_SERVER_FLAGS = new Set<string>([
+  EXPLORATION_ALARM_FLAG,
+  EXPLORATION_CLUE_FLAG,
+  EXPLORATION_PASSAGE_FLAG,
+]);
 
-export function filterExplorationFlagsAdd(proposed: readonly string[], owned: readonly string[]): string[] {
-  const ownedSet = new Set(owned);
-  const hasAlarm = ownedSet.has(EXPLORATION_ALARM_FLAG);
-  const hasClue = ownedSet.has(EXPLORATION_CLUE_FLAG);
-  const hasPassage = ownedSet.has(EXPLORATION_PASSAGE_FLAG);
-  return proposed.filter((flag) => {
-    if ((EXPLORATION_OWNED_FLAGS as readonly string[]).includes(flag)) return true;
-    if (hasAlarm && (flag.includes("경보") || flag.includes(EXPLORATION_ALARM_FLAG))) return false;
-    if (hasClue && (flag.includes("단서") || flag.includes("빗장"))) return false;
-    if (hasPassage && flag.includes("통로")) return false;
-    return true;
-  });
+/** Exact exploration flags stay only when the server already recorded them or grants them this round. */
+export function filterExplorationFlagsAdd(proposed: readonly string[], serverFlags: readonly string[]): string[] {
+  const granted = new Set(serverFlags);
+  return proposed.filter((flag) => !EXPLORATION_SERVER_FLAGS.has(flag) || granted.has(flag));
 }
 
 export function projectPublicExploration(opts: {
