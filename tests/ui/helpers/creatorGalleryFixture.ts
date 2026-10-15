@@ -23,6 +23,7 @@ export function seedCreatorGalleryFixture(dataDir: string) {
     "primary/b7-black-gold-uniform.webp", "primary/b3-blue-window-full.webp",
     "primary/b5-red-dress-female.webp", "primary/b17-sword-flowers.webp",
     "holdout/b6-black-gold-smirk.webp", "holdout/b11-purple-armor.webp",
+    "holdout/b14-red-eyes-profile.webp", "holdout/b10-moon-scene.webp",
   ].map((p) => `/official-supply/style-seeds/romance-fantasy-cluster-b-v1/${p}`);
   try {
     db.transaction(() => {
@@ -58,11 +59,13 @@ export function seedCreatorGalleryFixture(dataDir: string) {
           VALUES (?,'PAID',1000,'2099-01-01 00:00:00','2026-01-01 00:00:00','isolated-gallery-fixture')`).run(id);
         const count = kind === "partner" ? 26 : kind === "empty" ? 0 : kind === "single" ? 1 : 8;
         for (let n = 0; n < count; n++) {
+          const title = ["달빛 아래의 약속", "겨울의 도서관", "정원에 남긴 편지", "검은 별의 기사",
+            "기억의 온도", "새벽을 걷는 사람", "나의 작은 우주", "비가 그친 오후"][n % 8];
           db.prepare(`INSERT INTO characters (id,creator_id,creator_name,name,tagline,genre,tags,
             official,nsfw,likes,visibility,moderation_status,images,created_at)
             VALUES (?,?,?,?,?,'로맨스 판타지','["서사","느린관계"]',?,?,?,'public','approved',?,?)`)
             .run(id * 100 + n, id, nickname, n === 0 && kind === "long" ? "아주긴작품제목LongTitle".repeat(12) :
-              ["달빛 아래의 약속", "겨울의 도서관", "정원에 남긴 편지", "검은 별의 기사", "기억의 온도", "새벽을 걷는 사람"][n % 6],
+              `${title}${n >= 8 ? ` · ${Math.floor(n / 8) + 1}장` : ""}`,
               "서로 다른 계절을 지나, 당신에게 닿는 이야기.", kind === "official" ? 1 : 0,
               n === 1 ? 1 : 0, 1000 - n * 10, JSON.stringify([portraits[n % portraits.length]]),
               `2026-09-${String(28 - (n % 25)).padStart(2, "0")} 12:00:00`);
