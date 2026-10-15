@@ -178,6 +178,8 @@ import { processElapsedSecFromStartedAt } from "@/lib/trpg/processTimer";
 import TrpgCampaignTitle from "./TrpgCampaignTitle";
 import TrpgCampaignRail from "./TrpgCampaignRail";
 import TrpgCommandDock from "./TrpgCommandDock";
+import TrpgExplorationPanel from "./TrpgExplorationPanel";
+import type { ExplorationCommand } from "@/lib/trpg/explorationPublic";
 import TrpgDiceOverlay, { type TrpgDiceOverlayPlaybackState } from "./TrpgDiceOverlay";
 import TrpgRollResultLane from "./TrpgRollResultLane";
 import TrpgNamedProse, { TrpgGmTalk, quoteSelectStyle } from "./TrpgNamedProse";
@@ -349,6 +351,9 @@ export default function TrpgCampaignRoom({
   onPickSuggestion,
   onSendAction,
   onSendParty,
+  explorationQueue = [],
+  onQueueExploration,
+  onRemoveExploration,
   onSetInventoryEquipped,
   onRetryBots,
   onRetryGm,
@@ -388,6 +393,9 @@ export default function TrpgCampaignRoom({
   onPickSuggestion: (suggestion: TrpgReplySuggestion) => void;
   onSendAction: () => void;
   onSendParty: () => void;
+  explorationQueue?: readonly ExplorationCommand[];
+  onQueueExploration?: (command: ExplorationCommand) => void;
+  onRemoveExploration?: (index: number) => void;
   onSetInventoryEquipped?: (entryId: string, equipped: boolean, slot?: TrpgEquipmentSlot | null) => void;
   onRetryBots: () => void;
   onRetryGm: () => void;
@@ -2353,6 +2361,22 @@ export default function TrpgCampaignRoom({
             />
           ) : null}
           <div
+            data-trpg-exploration-anchor
+            className="w-full"
+            style={{
+              scrollMarginBottom: trpgCommandDockScrollMarginBottom(dockOcclusion),
+              paddingBottom: trpgCommandDockScrollMarginBottom(dockOcclusion),
+            }}
+          >
+            <TrpgExplorationPanel
+              exploration={snap.exploration}
+              queue={explorationQueue}
+              locked={snap.myDraft?.locked === true}
+              onQueue={onQueueExploration}
+              onRemove={onRemoveExploration}
+            />
+          </div>
+          <div
             ref={bottomRef}
             aria-hidden="true"
             data-trpg-bottom-tail
@@ -2361,6 +2385,7 @@ export default function TrpgCampaignRoom({
           />
         </div>
         <TrpgCommandDock
+          explorationSendReady={explorationQueue.length > 0 && snap.myDraft?.locked !== true}
           snap={snap}
           actionType={actionType}
           actionBody={actionBody}

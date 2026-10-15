@@ -18,6 +18,7 @@ export async function POST(req: Request, ctx: RouteCtx) {
       selectedStat?: unknown;
       idempotencyKey?: unknown;
       inputOrigin?: unknown;
+      explorationCommands?: unknown;
     };
     submitTrpgAction(gate.db, {
       campaignId: id,
@@ -27,6 +28,7 @@ export async function POST(req: Request, ctx: RouteCtx) {
       selectedStat: typeof body.selectedStat === "string" ? body.selectedStat : null,
       idempotencyKey: typeof body.idempotencyKey === "string" ? body.idempotencyKey : null,
       inputOrigin: parseTrpgInputOrigin(body.inputOrigin),
+      explorationCommands: body.explorationCommands,
     });
     const campaign = loadTrpgSnapshot(gate.db, id, gate.user.id);
     if (!campaign) throw new Error("캠페인을 찾을 수 없습니다.");

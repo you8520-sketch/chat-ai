@@ -29,6 +29,7 @@ import { loadCampaignContext } from "./campaignContext";
 import { hasPendingClaim, publicGoals, type TrpgPublicGoal } from "./campaignGoals";
 import { claimMatchesCommittedMessage } from "./goalClaimProvenance";
 import { loadCampaignLedger } from "./campaignLedger";
+import { projectExplorationForViewer } from "./explorationStore";
 import { parseResolutionOrder, sortByResolutionOrder } from "./initiative";
 import {
   deriveAdjudicatedParticipantIds,
@@ -530,6 +531,12 @@ export function loadTrpgSnapshot(
       });
     }),
     showRecoveryHint: phase === "ACTION_INPUT" && (round?.round_number ?? 0) <= 2,
+    exploration: projectExplorationForViewer(db, {
+      campaignId,
+      viewerParticipantId: viewer?.id ?? null,
+      viewerLocation: sheets.find((card) => card.isSelf)?.sheet.location ?? "",
+      roundNumber: round?.round_number ?? 0,
+    }),
   };
 }
 

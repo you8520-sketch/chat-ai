@@ -33,6 +33,7 @@ import {
 import { trpgStartBlockedReason } from "@/lib/trpg/lobbyReady";
 import { trpgReadyLabel } from "@/lib/trpg/readyLabel";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
+import type { ExplorationCommand } from "@/lib/trpg/explorationPublic";
 import { trpgBillingModeLabel } from "@/lib/trpg/labels";
 import { trpgRoomGenerating } from "@/lib/trpg/roomClientState";
 import { trpgRoomAttrs } from "@/lib/trpgResumeTransition";
@@ -117,6 +118,10 @@ export default function TrpgRoomClient({
       )?.body
     )
   );
+  const [explorationQueue, setExplorationQueue] = useState<ExplorationCommand[]>([]);
+  useEffect(() => {
+    setExplorationQueue([]);
+  }, [snap.round.number, snap.myDraft?.locked]);
   const [suggestions, setSuggestions] = useState<TrpgReplySuggestion[]>([]);
   const [suggestionsBusy, setSuggestionsBusy] = useState(false);
   const [suggestionsError, setSuggestionsError] = useState("");
@@ -415,6 +420,7 @@ export default function TrpgRoomClient({
       actionType,
       inputOrigin,
       selectedStat,
+      ...(explorationQueue.length ? { explorationCommands: explorationQueue } : {}),
     });
     if (ok) clearUserInputDraft(trpgActionDraftKey(campaignId, roundNumber));
   }
@@ -736,6 +742,11 @@ export default function TrpgRoomClient({
             setInputOrigin(filled.inputOrigin);
           }}
           onSendAction={() => void sendAction()}
+          explorationQueue={explorationQueue}
+          onQueueExploration={(command) => setExplorationQueue((current) => [...current, command])}
+          onRemoveExploration={(index) =>
+            setExplorationQueue((current) => current.filter((_, item) => item !== index))
+          }
           onSendParty={() => void sendParty()}
           onSetInventoryEquipped={(entryId, equipped, slot) =>
             void run(`/api/trpg/campaigns/${snap.id}/inventory`, {

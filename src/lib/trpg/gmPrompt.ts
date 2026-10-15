@@ -447,6 +447,7 @@ export function buildTrpgGmUserBlock(opts: {
   storyDirectorBlock?: string;
   localSceneBlock?: string;
   localSceneDeltaContract?: string;
+  explorationBlock?: string;
   resolutionOrderBlock?: string;
   mechanicsPacket?: string;
   actions: Array<{
@@ -556,6 +557,7 @@ export function buildTrpgGmUserBlock(opts: {
     opts.aiPartyCharacterContext?.trim() ?? "",
     opts.memoryBlock,
     opts.resolutionOrderBlock?.trim() ?? "",
+    opts.regenerate ? "" : (opts.explorationBlock?.trim() ?? ""),
     actionBlock,
     opts.mechanicsPacket?.trim() ?? "",
     opts.characterAssetCatalog?.trim() ?? "",

@@ -36,6 +36,7 @@ export type TrpgBotActionContext = {
   speakIndex?: number;
   speakCount?: number;
   relationshipBrief?: string;
+  explorationBrief?: string;
 };
 
 export type TrpgBotSpeakOrder = { id: number; name: string };
@@ -167,6 +168,7 @@ export function buildTrpgBotActionUserBlock(ctx: TrpgBotActionContext): string {
       ? `[PARTY RELATIONSHIPS — how you know the human and other PCs]\n${ctx.relationshipBrief.trim()}`
       : "",
     ctx.campaignMemory.trim(),
+    ctx.explorationBrief?.trim() ?? "",
     ctx.longTermMemories?.trim() ? `[MY LONG-TERM MEMORIES]\n${ctx.longTermMemories.trim()}` : "",
     recent
       ? `[RECENT CONTINUITY — who just did what; not full GM dumps]\n${recent}`

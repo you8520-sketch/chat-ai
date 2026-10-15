@@ -114,6 +114,8 @@ export type TrpgScenarioPlan = {
   provenance?: TrpgScenarioPlanProvenance | null;
   /** Typed, author-approved threats. Omitted when the scenario defines none. */
   encounters?: TrpgScenarioEncounter[];
+  /** Opt-in seeded exploration map. Absent on every existing scenario. */
+  exploration?: boolean;
 };
 
 export type TrpgScenarioPlanLintIssue = {
@@ -346,6 +348,7 @@ export function parseTrpgScenarioPlan(raw: unknown): TrpgScenarioPlan | null {
   };
   const encounters = parseScenarioEncounters(row.encounters);
   if (encounters.length) plan.encounters = encounters;
+  if (row.exploration === true) plan.exploration = true;
   return isTrpgScenarioPlanEmpty(plan) ? null : plan;
 }
 
@@ -366,7 +369,8 @@ export function isTrpgScenarioPlanEmpty(plan: TrpgScenarioPlan | null | undefine
     plan.endingCandidates.length ||
     plan.factionChanges.length ||
     plan.gmDirection ||
-    plan.encounters?.length
+    plan.encounters?.length ||
+    plan.exploration === true
   );
 }
 

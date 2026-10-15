@@ -430,6 +430,7 @@ function ActionMode({
   onRetrySuggestions,
   onPickSuggestion,
   onSendAction,
+  explorationSendReady = false,
   suggestionsRegionId,
   suggestionsRegionRef,
 }: {
@@ -454,6 +455,7 @@ function ActionMode({
   onRetrySuggestions: () => void;
   onPickSuggestion: (suggestion: TrpgReplySuggestion) => void;
   onSendAction: () => void;
+  explorationSendReady?: boolean;
 }) {
   const viewerId = snap.viewerParticipantId;
   const effectLabels = (snap.ongoingEffects ?? [])
@@ -623,7 +625,7 @@ function ActionMode({
         </button>
         <button
           type="button"
-          disabled={busy || !actionInputVisible || !actionBody.trim()}
+          disabled={busy || !actionInputVisible || (!actionBody.trim() && !explorationSendReady)}
           onClick={onSendAction}
           className="inline-flex min-h-11 items-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
         >
@@ -716,6 +718,7 @@ export default function TrpgCommandDock({
   onPickSuggestion,
   onSendAction,
   onSendParty,
+  explorationSendReady = false,
   onSetInventoryEquipped,
   onOcclusionChange,
   sheetJsxCompiled = null,
@@ -744,6 +747,7 @@ export default function TrpgCommandDock({
   onPickSuggestion: (suggestion: TrpgReplySuggestion) => void;
   onSendAction: () => void;
   onSendParty: () => void;
+  explorationSendReady?: boolean;
   onSetInventoryEquipped?: (entryId: string, equipped: boolean, slot?: TrpgEquipmentSlot | null) => void;
   onOcclusionChange: (occlusion: TrpgCommandDockOcclusion) => void;
   /** Site-owned sheet compiled by the server through the shared JSX compiler; null → native. */
@@ -1076,6 +1080,7 @@ export default function TrpgCommandDock({
                     onRetrySuggestions={onRetrySuggestions}
                     onPickSuggestion={onPickSuggestion}
                     onSendAction={onSendAction}
+                    explorationSendReady={explorationSendReady}
                     suggestionsRegionId={suggestionsRegionId}
                     suggestionsRegionRef={suggestionsRegionRef}
                   />
