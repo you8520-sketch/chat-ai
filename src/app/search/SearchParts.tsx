@@ -135,7 +135,7 @@ export function SearchResultsSummary({
         </p>
       ) : null}
       {capped ? (
-        <p className={cn(studioType.helper, "mt-1")}>결과가 많아 일부만 보여요. 검색어를 더 구체적으로 쓰거나 장르·태그로 좁혀 보세요.</p>
+        <p className={cn(studioType.helper, "mt-1")}>검색 결과는 최대 60개까지만 표시돼요. 검색어를 더 구체적으로 쓰거나 장르·태그로 좁혀 보세요.</p>
       ) : null}
     </div>
   );
