@@ -1,0 +1,1937 @@
+{
+ "full-page-off-360": {
+  "vw": 360,
+  "docH": 3681,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 36.8,
+   "h": 72
+  }
+ },
+ "full-page-off-390": {
+  "vw": 390,
+  "docH": 3585,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 41.1,
+   "h": 72
+  }
+ },
+ "full-page-off-768": {
+  "vw": 768,
+  "docH": 3228,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 449,
+    "h": 36.1
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 61.6,
+   "h": 72
+  }
+ },
+ "full-page-off-1440": {
+  "vw": 1440,
+  "docH": 3062,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 96.8,
+   "h": 72
+  }
+ },
+ "att-0-pending-360": {
+  "vw": 360,
+  "docH": 3681,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 36.8,
+   "h": 72
+  },
+  "cells": [
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   }
+  ]
+ },
+ "att-3-pending-360": {
+  "vw": 360,
+  "docH": 3681,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 36.8,
+   "h": 72
+  },
+  "cells": [
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   }
+  ]
+ },
+ "att-4-done-360": {
+  "vw": 360,
+  "docH": 3702,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 36.8,
+   "h": 72
+  },
+  "cells": [
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   }
+  ]
+ },
+ "att-6-pending-360": {
+  "vw": 360,
+  "docH": 3681,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 36.8,
+   "h": 72
+  },
+  "cells": [
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   }
+  ]
+ },
+ "att-7-done-360": {
+  "vw": 360,
+  "docH": 3702,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 36.8,
+   "h": 72
+  },
+  "cells": [
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 37,
+    "h": 72,
+    "fs": "12px"
+   }
+  ]
+ },
+ "att-0-pending-390": {
+  "vw": 390,
+  "docH": 3585,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 41.1,
+   "h": 72
+  },
+  "cells": [
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   }
+  ]
+ },
+ "att-3-pending-390": {
+  "vw": 390,
+  "docH": 3585,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 41.1,
+   "h": 72
+  },
+  "cells": [
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   }
+  ]
+ },
+ "att-4-done-390": {
+  "vw": 390,
+  "docH": 3585,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 41.1,
+   "h": 72
+  },
+  "cells": [
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   }
+  ]
+ },
+ "att-6-pending-390": {
+  "vw": 390,
+  "docH": 3585,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 41.1,
+   "h": 72
+  },
+  "cells": [
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   }
+  ]
+ },
+ "att-7-done-390": {
+  "vw": 390,
+  "docH": 3585,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 41.1,
+   "h": 72
+  },
+  "cells": [
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 41,
+    "h": 72,
+    "fs": "12px"
+   }
+  ]
+ },
+ "att-3-pending-768": {
+  "vw": 768,
+  "docH": 3228,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 449,
+    "h": 36.1
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 61.6,
+   "h": 72
+  },
+  "cells": [
+   {
+    "w": 62,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 62,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 62,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 62,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 62,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 62,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 62,
+    "h": 72,
+    "fs": "12px"
+   }
+  ]
+ },
+ "att-4-done-768": {
+  "vw": 768,
+  "docH": 3228,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 449,
+    "h": 36.1
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 61.6,
+   "h": 72
+  },
+  "cells": [
+   {
+    "w": 62,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 62,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 62,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 62,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 62,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 62,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 62,
+    "h": 72,
+    "fs": "12px"
+   }
+  ]
+ },
+ "att-3-pending-1440": {
+  "vw": 1440,
+  "docH": 3062,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 96.8,
+   "h": 72
+  },
+  "cells": [
+   {
+    "w": 97,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 97,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 97,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 97,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 97,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 97,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 97,
+    "h": 72,
+    "fs": "12px"
+   }
+  ]
+ },
+ "att-4-done-1440": {
+  "vw": 1440,
+  "docH": 3062,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 96.8,
+   "h": 72
+  },
+  "cells": [
+   {
+    "w": 97,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 97,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 97,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 97,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 97,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 97,
+    "h": 72,
+    "fs": "12px"
+   },
+   {
+    "w": 97,
+    "h": 72,
+    "fs": "12px"
+   }
+  ]
+ },
+ "att-claim-success-360": {
+  "message": {
+   "top": 199,
+   "bottom": 262,
+   "vh": 800,
+   "inViewport": true
+  },
+  "before": {
+   "points": 483750,
+   "logs": 89,
+   "gifts": 0
+  },
+  "after": {
+   "points": 484150,
+   "logs": 90,
+   "gifts": 0
+  },
+  "posts": 1,
+  "rows": {
+   "rows": 4,
+   "recentAttendanceLogs": 1
+  }
+ },
+ "att-claim-loading-360": {},
+ "att-claim-fail-360": {
+  "role": "alert",
+  "color": "oklch(0.892 0.058 10.001)"
+ },
+ "att-claim-success-390": {
+  "message": {
+   "top": 199,
+   "bottom": 241,
+   "vh": 844,
+   "inViewport": true
+  },
+  "before": {
+   "points": 484150,
+   "logs": 90,
+   "gifts": 0
+  },
+  "after": {
+   "points": 484550,
+   "logs": 91,
+   "gifts": 0
+  },
+  "posts": 1,
+  "rows": {
+   "rows": 4,
+   "recentAttendanceLogs": 2
+  }
+ },
+ "att-claim-loading-390": {},
+ "att-claim-fail-390": {
+  "role": "alert",
+  "color": "oklch(0.892 0.058 10.001)"
+ },
+ "att-claim-network-390": {
+  "btnText": "출석 체크 · +400P"
+ },
+ "att-duplicate-server-390": {
+  "before": {
+   "rows": 3,
+   "state": {
+    "points": 484550,
+    "logs": 91,
+    "gifts": 0
+   }
+  },
+  "after": {
+   "rows": 4,
+   "state": {
+    "points": 484950,
+    "logs": 92,
+    "gifts": 0
+   }
+  },
+  "resp": [
+   {
+    "alreadyClaimed": false,
+    "reward": 400,
+    "streak": 4
+   },
+   {
+    "alreadyClaimed": true,
+    "reward": 0,
+    "streak": 4
+   },
+   {
+    "alreadyClaimed": true,
+    "reward": 0,
+    "streak": 4
+   }
+  ]
+ },
+ "products-off-360": {
+  "closedNotice": true,
+  "clickableRows": 0
+ },
+ "products-on-360": {
+  "closedNotice": false,
+  "buttons": 5
+ },
+ "products-off-390": {
+  "closedNotice": true,
+  "clickableRows": 0
+ },
+ "products-on-390": {
+  "closedNotice": false,
+  "buttons": 5
+ },
+ "products-off-768": {
+  "closedNotice": true,
+  "clickableRows": 0
+ },
+ "products-on-768": {
+  "closedNotice": false,
+  "buttons": 5
+ },
+ "products-off-1440": {
+  "closedNotice": true,
+  "clickableRows": 0
+ },
+ "products-on-1440": {
+  "closedNotice": false,
+  "buttons": 5
+ },
+ "products-reviewer-off-390": {
+  "closedNotice": true,
+  "buttons": 0
+ },
+ "products-reviewer-on-390": {
+  "closedNotice": false,
+  "buttons": 5
+ },
+ "products-on-click-390": {
+  "text": "결제 금액만큼 유료 포인트가 지급되고, 보너스는 무료 포인트로 따로 적립돼요. 결제 및 환불 정책에서 상품·유효기간·결제 취소 조건을 확인할 수",
+  "inViewport": true,
+  "posts": [
+   "/api/payments/portone/prepare"
+  ],
+  "external": []
+ },
+ "gift-empty-390": {
+  "vw": 390,
+  "docH": 2576,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 41.1,
+   "h": 72
+  }
+ },
+ "gift-filled-390": {},
+ "gift-empty-768": {
+  "vw": 768,
+  "docH": 2335,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 449,
+    "h": 36.1
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 61.6,
+   "h": 72
+  }
+ },
+ "gift-filled-768": {},
+ "gift-empty-1440": {
+  "vw": 1440,
+  "docH": 2229,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 96.8,
+   "h": 72
+  }
+ },
+ "gift-filled-1440": {},
+ "gift-confirm-390": {
+  "dialog": {
+   "text": "포인트를 선물할까요?\n\n받는사람님에게 선물해요.\n\n내 포인트에서 차감\n-1,000P\n수수료\n유료 10% · 무료 20%\n-200P\n상대 수령액\n800P\n차감 구성: 유료 0P · 무료 1,000P (만료 임박 우선)\n\n실제 차감은 만료 임박·무료 우선이며, 출석 포인트는 선물할 수 없습니다.\n\n취소\n선물하기",
+   "btns": [
+    {
+     "t": "취소",
+     "h": 44,
+     "w": 80
+    },
+    {
+     "t": "선물하기",
+     "h": 44,
+     "w": 80
+    }
+   ]
+  },
+  "nativeDialogs": [],
+  "posts": 0,
+  "state": {
+   "before": {
+    "points": 10000,
+    "logs": 3,
+    "gifts": 0
+   },
+   "after": {
+    "points": 10000,
+    "logs": 3,
+    "gifts": 0
+   }
+  }
+ },
+ "gift-confirm-cancel-keeps-input-390": {
+  "nick": "받는사람",
+  "amt": "1000",
+  "posts": 0
+ },
+ "gift-error-notfound-390": {
+  "btnText": "포인트 선물하기",
+  "btnDisabled": false,
+  "nick": "없는닉네임",
+  "amt": "100",
+  "before": {
+   "points": 10000,
+   "logs": 3,
+   "gifts": 0
+  },
+  "after": {
+   "points": 10000,
+   "logs": 3,
+   "gifts": 0
+  },
+  "nativeDialogs": 0
+ },
+ "gift-error-over-limit-390": {
+  "btnText": "포인트 선물하기",
+  "btnDisabled": false,
+  "nick": "받는사람",
+  "amt": "99999",
+  "before": {
+   "points": 10000,
+   "logs": 3,
+   "gifts": 0
+  },
+  "after": {
+   "points": 10000,
+   "logs": 3,
+   "gifts": 0
+  },
+  "nativeDialogs": 0
+ },
+ "gift-error-min-390": {
+  "btnText": "포인트 선물하기",
+  "btnDisabled": false,
+  "nick": "받는사람",
+  "amt": "5",
+  "before": {
+   "points": 10000,
+   "logs": 3,
+   "gifts": 0
+  },
+  "after": {
+   "points": 10000,
+   "logs": 3,
+   "gifts": 0
+  },
+  "nativeDialogs": 0
+ },
+ "gift-error-no-nick-390": {
+  "btnText": "포인트 선물하기",
+  "btnDisabled": false,
+  "nick": "",
+  "amt": "100",
+  "before": {
+   "points": 10000,
+   "logs": 3,
+   "gifts": 0
+  },
+  "after": {
+   "points": 10000,
+   "logs": 3,
+   "gifts": 0
+  },
+  "nativeDialogs": 0
+ },
+ "gift-error-attendance-only-390": {
+  "btnText": "포인트 선물하기",
+  "btnDisabled": false,
+  "nick": "받는사람",
+  "amt": "500",
+  "before": {
+   "points": 3000,
+   "logs": 1,
+   "gifts": 0
+  },
+  "after": {
+   "points": 3000,
+   "logs": 1,
+   "gifts": 0
+  },
+  "nativeDialogs": 0
+ },
+ "gift-error-reviewer-390": {
+  "btnText": "포인트 선물하기",
+  "btnDisabled": false,
+  "nick": "받는사람",
+  "amt": "100",
+  "before": {
+   "points": 2000,
+   "logs": 1,
+   "gifts": 0
+  },
+  "after": {
+   "points": 2000,
+   "logs": 1,
+   "gifts": 0
+  },
+  "nativeDialogs": 0
+ },
+ "gift-error-server-fail-390": {
+  "btnText": "포인트 선물하기",
+  "btnDisabled": false,
+  "nick": "받는사람",
+  "amt": "100",
+  "before": {
+   "points": 10000,
+   "logs": 3,
+   "gifts": 0
+  },
+  "after": {
+   "points": 10000,
+   "logs": 3,
+   "gifts": 0
+  },
+  "nativeDialogs": 0
+ },
+ "gift-error-network-390": {
+  "btnText": "포인트 선물하기",
+  "btnDisabled": false,
+  "nick": "받는사람",
+  "amt": "100",
+  "before": {
+   "points": 10000,
+   "logs": 3,
+   "gifts": 0
+  },
+  "after": {
+   "points": 10000,
+   "logs": 3,
+   "gifts": 0
+  },
+  "nativeDialogs": 0
+ },
+ "gift-success-390": {
+  "message": {
+   "top": 273,
+   "vh": 844,
+   "scrollY": 1765,
+   "inViewport": true
+  },
+  "before": {
+   "points": 10000,
+   "logs": 3,
+   "gifts": 0
+  },
+  "after": {
+   "points": 9900,
+   "logs": 4,
+   "gifts": 1
+  },
+  "posts": 1
+ },
+ "gift-double-submit-390": {
+  "hasDialog": true,
+  "posts": 1,
+  "before": {
+   "points": 9900,
+   "logs": 4,
+   "gifts": 1
+  },
+  "after": {
+   "points": 9800,
+   "logs": 5,
+   "gifts": 2
+  }
+ },
+ "history-usage-360": {
+  "vw": 360,
+  "docH": 3681,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 36.8,
+   "h": 72
+  }
+ },
+ "history-usage-390": {
+  "vw": 390,
+  "docH": 3585,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 41.1,
+   "h": 72
+  }
+ },
+ "history-usage-768": {
+  "vw": 768,
+  "docH": 3228,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 449,
+    "h": 36.1
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 61.6,
+   "h": 72
+  }
+ },
+ "history-usage-1440": {
+  "vw": 1440,
+  "docH": 3062,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 96.8,
+   "h": 72
+  }
+ },
+ "history-paid-390": {
+  "vw": 390,
+  "docH": 5460,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 41.1,
+   "h": 72
+  }
+ },
+ "history-free-390": {},
+ "history-paid-1440": {
+  "vw": 1440,
+  "docH": 4724,
+  "hOverflow": false,
+  "smallTargets": 18,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   },
+   {
+    "tag": "BUTTON",
+    "text": "결제 취소",
+    "w": 85,
+    "h": 36
+   },
+   {
+    "tag": "BUTTON",
+    "text": "결제 취소",
+    "w": 85,
+    "h": 36
+   },
+   {
+    "tag": "BUTTON",
+    "text": "결제 취소",
+    "w": 85,
+    "h": 36
+   },
+   {
+    "tag": "BUTTON",
+    "text": "결제 취소",
+    "w": 85,
+    "h": 36
+   },
+   {
+    "tag": "BUTTON",
+    "text": "결제 취소",
+    "w": 85,
+    "h": 36
+   },
+   {
+    "tag": "BUTTON",
+    "text": "결제 취소",
+    "w": 85,
+    "h": 36
+   },
+   {
+    "tag": "BUTTON",
+    "text": "결제 취소",
+    "w": 85,
+    "h": 36
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 96.8,
+   "h": 72
+  }
+ },
+ "history-free-1440": {},
+ "history-paid-page2-390": {
+  "txt": "포인트 충전 50,000P (₩50,000)\n\n26. 10. 15. 오후 9:43\n\n+50,000P\n결제 취소\n\n포인트 충전 10,000P (₩"
+ },
+ "history-empty-usage-390": {
+  "panel": "아직 포인트를 사용한 내역이 없어요."
+ },
+ "history-empty-paid-390": {
+  "panel": "아직 결제 충전 내역이 없어요."
+ },
+ "history-empty-free-390": {
+  "panel": "아직 무료 적립·출석 내역이 없어요."
+ },
+ "history-loading-390": {
+  "panel": "포인트 충전 50,000P (₩50,000)\n\n26. 10. 15. 오후"
+ },
+ "history-failed-390": {
+  "panel": "포인트 충전 50,000P (₩50,000)\n\n26. 10. 15. 오후 9:43\n\n+50,000P\n결제 취소\n\n포인트 충전 10,000P (₩10,000)\n\n26. 10. 15."
+ },
+ "history-cancel-ok-390": {
+  "note": {
+   "text": "결제 금액만큼 유료 포인트가 지급되고, 보너스는 무료 포인트로 따로 적립돼요. 결제 및 환불 정책에서 상품·유효기간·결제 취소 조건을 확인할 수",
+   "inViewport": false
+  },
+  "posts": []
+ },
+ "history-cancel-fail-390": {
+  "note": {
+   "text": "결제 금액만큼 유료 포인트가 지급되고, 보너스는 무료 포인트로 따로 적립돼요. 결제 및 환불 정책에서 상품·유효기간·결제 취소 조건을 확인할 수",
+   "inViewport": false
+  },
+  "posts": []
+ },
+ "history-cancel-pending-390": {
+  "note": {
+   "text": "결제 금액만큼 유료 포인트가 지급되고, 보너스는 무료 포인트로 따로 적립돼요. 결제 및 환불 정책에서 상품·유효기간·결제 취소 조건을 확인할 수",
+   "inViewport": false
+  },
+  "posts": []
+ },
+ "balance-empty-390": {
+  "vw": 390,
+  "docH": 2555,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 41.1,
+   "h": 72
+  }
+ },
+ "balance-new-390": {
+  "vw": 390,
+  "docH": 2555,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 41.1,
+   "h": 72
+  }
+ },
+ "balance-low-390": {
+  "vw": 390,
+  "docH": 2580,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 41.1,
+   "h": 72
+  }
+ },
+ "balance-big-390": {
+  "vw": 390,
+  "docH": 2601,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 41.1,
+   "h": 72
+  }
+ },
+ "balance-big-360": {
+  "vw": 360,
+  "docH": 2637,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 36.8,
+   "h": 72
+  }
+ },
+ "resize-keeps-input": {
+  "seq": [
+   {
+    "w": 768,
+    "nick": "받는사람닉네임",
+    "amt": "1234"
+   },
+   {
+    "w": 360,
+    "nick": "받는사람닉네임",
+    "amt": "1234"
+   },
+   {
+    "w": 1440,
+    "nick": "받는사람닉네임",
+    "amt": "1234"
+   },
+   {
+    "w": 390,
+    "nick": "받는사람닉네임",
+    "amt": "1234"
+   }
+  ]
+ },
+ "keyboard-open-390": {
+  "inputVisible": true,
+  "vh": 440,
+  "btnTop": 529,
+  "inputMode": "numeric",
+  "type": "text"
+ },
+ "keyboard-order-390": {
+  "order": [
+   {
+    "tag": "A",
+    "label": "하브 홈",
+    "role": null,
+    "h": 36,
+    "outline": "1px"
+   },
+   {
+    "tag": "BUTTON",
+    "label": "알림 1건",
+    "role": null,
+    "h": 36,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "보유 포인트 484,950P — 사용 내역 보기",
+    "role": null,
+    "h": 36,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "홈",
+    "role": null,
+    "h": 44,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "신작",
+    "role": null,
+    "h": 44,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "랭킹",
+    "role": null,
+    "h": 44,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "TRPG",
+    "role": null,
+    "h": 44,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "검색",
+    "role": null,
+    "h": 44,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "북마크/팔로잉",
+    "role": null,
+    "h": 44,
+    "outline": "1px"
+   },
+   {
+    "tag": "BUTTON",
+    "label": "출석 체크 · +400P",
+    "role": null,
+    "h": 48,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "결제 및 환불 정책",
+    "role": null,
+    "h": 15,
+    "outline": "1px"
+   },
+   {
+    "tag": "INPUT",
+    "label": "정확한 닉네임 입력",
+    "role": null,
+    "h": 48,
+    "outline": "shadow"
+   },
+   {
+    "tag": "INPUT",
+    "label": "최소 10P",
+    "role": null,
+    "h": 48,
+    "outline": "shadow"
+   },
+   {
+    "tag": "BUTTON",
+    "label": "포인트 선물하기",
+    "role": null,
+    "h": 48,
+    "outline": "1px"
+   },
+   {
+    "tag": "BUTTON",
+    "label": "사용 내역",
+    "role": "tab",
+    "h": 44,
+    "outline": "1px"
+   },
+   {
+    "tag": "BUTTON",
+    "label": "다음",
+    "role": null,
+    "h": 44,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "이용약관",
+    "role": null,
+    "h": 18,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "개인정보처리방침",
+    "role": null,
+    "h": 18,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "결제 및 환불 정책",
+    "role": null,
+    "h": 18,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "홈",
+    "role": null,
+    "h": 44,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "대화",
+    "role": null,
+    "h": 44,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "제작",
+    "role": null,
+    "h": 44,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "설정",
+    "role": null,
+    "h": 44,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "하브 홈",
+    "role": null,
+    "h": 36,
+    "outline": "1px"
+   },
+   {
+    "tag": "BUTTON",
+    "label": "알림 1건",
+    "role": null,
+    "h": 36,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "보유 포인트 484,950P — 사용 내역 보기",
+    "role": null,
+    "h": 36,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "홈",
+    "role": null,
+    "h": 44,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "신작",
+    "role": null,
+    "h": 44,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "랭킹",
+    "role": null,
+    "h": 44,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "TRPG",
+    "role": null,
+    "h": 44,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "검색",
+    "role": null,
+    "h": 44,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "북마크/팔로잉",
+    "role": null,
+    "h": 44,
+    "outline": "1px"
+   },
+   {
+    "tag": "BUTTON",
+    "label": "출석 체크 · +400P",
+    "role": null,
+    "h": 48,
+    "outline": "1px"
+   },
+   {
+    "tag": "A",
+    "label": "결제 및 환불 정책",
+    "role": null,
+    "h": 15,
+    "outline": "1px"
+   },
+   {
+    "tag": "INPUT",
+    "label": "정확한 닉네임 입력",
+    "role": null,
+    "h": 48,
+    "outline": "shadow"
+   },
+   {
+    "tag": "INPUT",
+    "label": "최소 10P",
+    "role": null,
+    "h": 48,
+    "outline": "shadow"
+   },
+   {
+    "tag": "BUTTON",
+    "label": "포인트 선물하기",
+    "role": null,
+    "h": 48,
+    "outline": "1px"
+   },
+   {
+    "tag": "BUTTON",
+    "label": "사용 내역",
+    "role": "tab",
+    "h": 44,
+    "outline": "1px"
+   },
+   {
+    "tag": "BUTTON",
+    "label": "다음",
+    "role": null,
+    "h": 44,
+    "outline": "1px"
+   }
+  ]
+ },
+ "tabs-arrow-keys-390": {
+  "focus": "유료 충전",
+  "selected": "유료 충전"
+ }
+}

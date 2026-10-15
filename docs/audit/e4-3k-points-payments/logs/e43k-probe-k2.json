@@ -1,0 +1,287 @@
+{
+ "label": "k2",
+ "base": "http://localhost:3440",
+ "layout": {
+  "360": {
+   "vw": 360,
+   "docH": 3681,
+   "hOverflow": false,
+   "smallTargets": 1,
+   "smallSample": [
+    {
+     "tag": "A",
+     "text": "결제 및 환불 정책",
+     "w": 86,
+     "h": 15
+    }
+   ],
+   "tinyText": 0,
+   "tinySample": [],
+   "outOfViewport": [],
+   "cellSize": {
+    "w": 36.8,
+    "h": 72
+   },
+   "text": {
+    "hasBalanceSummary": true,
+    "hasClosedNotice": true,
+    "h1": "출석 체크"
+   }
+  },
+  "390": {
+   "vw": 390,
+   "docH": 3585,
+   "hOverflow": false,
+   "smallTargets": 1,
+   "smallSample": [
+    {
+     "tag": "A",
+     "text": "결제 및 환불 정책",
+     "w": 86,
+     "h": 15
+    }
+   ],
+   "tinyText": 0,
+   "tinySample": [],
+   "outOfViewport": [],
+   "cellSize": {
+    "w": 41.1,
+    "h": 72
+   },
+   "text": {
+    "hasBalanceSummary": true,
+    "hasClosedNotice": true,
+    "h1": "출석 체크"
+   }
+  },
+  "768": {
+   "vw": 768,
+   "docH": 3228,
+   "hOverflow": false,
+   "smallTargets": 1,
+   "smallSample": [
+    {
+     "tag": "A",
+     "text": "결제 및 환불 정책",
+     "w": 449,
+     "h": 36.1
+    }
+   ],
+   "tinyText": 0,
+   "tinySample": [],
+   "outOfViewport": [],
+   "cellSize": {
+    "w": 61.6,
+    "h": 72
+   },
+   "text": {
+    "hasBalanceSummary": true,
+    "hasClosedNotice": true,
+    "h1": "출석 체크"
+   }
+  },
+  "1440": {
+   "vw": 1440,
+   "docH": 3062,
+   "hOverflow": false,
+   "smallTargets": 1,
+   "smallSample": [
+    {
+     "tag": "A",
+     "text": "결제 및 환불 정책",
+     "w": 86,
+     "h": 15
+    }
+   ],
+   "tinyText": 0,
+   "tinySample": [],
+   "outOfViewport": [],
+   "cellSize": {
+    "w": 96.8,
+    "h": 72
+   },
+   "text": {
+    "hasBalanceSummary": true,
+    "hasClosedNotice": true,
+    "h1": "출석 체크"
+   }
+  }
+ },
+ "consoleErrorsOnLoad": [],
+ "gift": {
+  "dialogs": [],
+  "posts": 0,
+  "stateBefore": {
+   "points": 10000,
+   "logs": 3,
+   "gifts": 0
+  },
+  "stateAfter": {
+   "points": 10000,
+   "logs": 3,
+   "gifts": 0
+  },
+  "messagePosition": null
+ },
+ "giftNetwork": {
+  "buttonText": "포인트 선물하기",
+  "disabled": false
+ },
+ "history": {
+  "cancelButtons": [
+   {
+    "text": "결제 취소",
+    "w": 85,
+    "h": 44,
+    "fs": "14px"
+   },
+   {
+    "text": "결제 취소",
+    "w": 85,
+    "h": 44,
+    "fs": "14px"
+   },
+   {
+    "text": "결제 취소",
+    "w": 85,
+    "h": 44,
+    "fs": "14px"
+   },
+   {
+    "text": "결제 취소",
+    "w": 85,
+    "h": 44,
+    "fs": "14px"
+   },
+   {
+    "text": "결제 취소",
+    "w": 85,
+    "h": 44,
+    "fs": "14px"
+   },
+   {
+    "text": "결제 취소",
+    "w": 85,
+    "h": 44,
+    "fs": "14px"
+   },
+   {
+    "text": "결제 취소",
+    "w": 85,
+    "h": 44,
+    "fs": "14px"
+   },
+   {
+    "text": "결제 취소",
+    "w": 85,
+    "h": 44,
+    "fs": "14px"
+   },
+   {
+    "text": "결제 취소",
+    "w": 85,
+    "h": 44,
+    "fs": "14px"
+   },
+   {
+    "text": "결제 취소",
+    "w": 85,
+    "h": 44,
+    "fs": "14px"
+   },
+   {
+    "text": "결제 취소",
+    "w": 85,
+    "h": 44,
+    "fs": "14px"
+   },
+   {
+    "text": "결제 취소",
+    "w": 85,
+    "h": 44,
+    "fs": "14px"
+   },
+   {
+    "text": "취소 마무리",
+    "w": 97,
+    "h": 44,
+    "fs": "14px"
+   },
+   {
+    "text": "결제 취소",
+    "w": 85,
+    "h": 44,
+    "fs": "14px"
+   },
+   {
+    "text": "결제 취소",
+    "w": 85,
+    "h": 44,
+    "fs": "14px"
+   },
+   {
+    "text": "결제 취소",
+    "w": 85,
+    "h": 44,
+    "fs": "14px"
+   }
+  ],
+  "tabHeight": 44,
+  "pagination": [
+   {
+    "text": "이전",
+    "h": 44,
+    "w": 80
+   },
+   {
+    "text": "다음",
+    "h": 44,
+    "w": 80
+   }
+  ],
+  "firstRowDate": "26. 10. 10. 오후 10:32"
+ },
+ "historyFail": {
+  "panelText": "포인트 충전 50,000P (₩50,000)\n\n26. 10. 15. 오후 9:42\n\n+50,000P\n결제 취소\n\n포인트 충전 10,000P (₩10,000)\n\n26. 10. 15. 오후 10:22\n\n+10,000P\n",
+  "anyErrorText": false
+ },
+ "attendance": {
+  "rowsBefore": {
+   "rows": 3,
+   "recentAttendanceLogs": 0
+  },
+  "rowsAfter": {
+   "rows": 4,
+   "recentAttendanceLogs": 1
+  },
+  "posts": 1,
+  "buttonText": "오늘 출석 완료"
+ },
+ "attendanceFail": {
+  "color": "oklch(0.892 0.058 10.001)",
+  "fs": "14px",
+  "role": "alert"
+ },
+ "longRows360": {
+  "vw": 360,
+  "docH": 3681,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallSample": [
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 36.8,
+   "h": 72
+  }
+ },
+ "external": null
+}

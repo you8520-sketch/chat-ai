@@ -1,0 +1,5 @@
+# tests 13320
+# suites 2559
+# pass 13027
+# fail 292
+# skipped 1

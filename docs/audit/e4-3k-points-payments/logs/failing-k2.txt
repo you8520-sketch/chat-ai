@@ -1,0 +1,138 @@
+admin finance actual cost — dynamic discovery and attribution
+/api/chat Muse acceptance client/DB usage split
+appearanceCompiler
+assistant material prose edit
+assistant-only canon-adopted source identity
+auditStatusWidgetPromptDuplicates
+billingLiveOwnerReadinessAudit — owner map
+buildContext — English character settings
+buildContext — Qwen OpenRouter prose rules
+buildContinueNarrativeCommand
+buildStatusWidgetEditorPreviewValues
+C2-like — physical current_summary absent runtime matrix
+chats.current_summary C1 — deploy convergence reachability
+chats.current_summary C1 — runtime owner retirement
+chats.current_summary C2 fresh schema
+chats.current_summary C2 remote V8 lifecycle
+chats.current_summary C2 V8 physical retirement invariant
+chats.current_summary owner audit — post-C1 behavior
+chats legacy memory fallback audit — fork bootstrap
+chats.memory M1 drop-compat fork INSERT correction
+chats.memory M2 fresh schema
+chats.memory M2 → M1 rollback matrix (synthetic)
+chats.memory M2 remote V7 lifecycle
+chats.memory M2 V7 physical retirement invariant
+CheaperInference Claude Opus 5 billing
+CheaperInference Gemini 3.1 Pro Preview billing
+CNC scene-scoped lifecycle (T1 → T2 → T3)
+computeHtmlFlashOnlyTurnBilling
+contextBuilder regenerate
+current-turn OOC delegation prompt parity
+current-turn OOC delegation route-equivalent parity
+custom server boot import boundary
+deepseekV41EvidenceCorrection — regression gates
+DeepSeek V4 Flash 0731 canonicalization
+DeepSeek V4 Flash retirement from Main RP
+DeepSeek V4 Pro 0813 canonicalization
+DeepSeek V4 Pro dual-rate simple point billing
+DeepSeek V4 Pro P0 deterministic primary payload audit
+dice presentation session
+dual-source partial response preserves valid source without fallback
+encounter authority: regeneration and pure ending rules
+episodic abstract psychological inference recall guard
+G10-SD1 Scene Pacing Controller API=0
+general chat target-chase regression
+generation-scoped async provenance
+getEpisodicMemoryForPrompt
+GPT-5.6 Luna billing
+GPT-5.6 Terra proportional billing
+grantFreePointsByAdmin
+htmlVisualCardFlash
+interactive user control prompt
+issue 1367 official admin + in-place Lucian sync
+Kimi K3 retired from selection
+last_compressed_at V6 physical retirement invariant
+last_compressed_at V6 remote lifecycle
+liveBillingCutoverReadiness — migration delta @1530
+liveBillingCutoverReadiness — reachability
+memoryRelationshipTask generation-scoped regeneration
+memoryRelationshipTask lifecycle + async coverage
+Muse Spark 1.1 exact 60% token-margin billing
+OpenRouter Gemini 3.6 Flash dual-rate simple point billing
+OpenRouter headers use configured referer and canonical title by default
+OpenRouter input token surcharge
+Opus billing — no first-turn flat
+Opus billing with actual-cost margin
+Opus cost blend
+Opus cost blend formula
+owner persona editor access
+P0 — current-turn role binding / user agency (common standard owner)
+P1-B seal-time narrow noncanon promotion
+Persona Secret design verification — synthetic integration
+persona secret owner contracts
+Phase2 branch/noncanon contract B2_1-B2_10
+Phase B0 — episodic reconciliation (E1-E8)
+Phase B1-A — persistence commit (C1-C10)
+Phase B1-C — atomic finalize (NC1-NC47)
+Phase B1-D2 FINAL HARDENING
+pinned_facts Phase 2B physical retirement invariant
+pinned_facts Phase 2B remote lifecycle
+PR \#174 follow-up — save / delete / provenance
+project audit — no [CORE IDENTITY] prompt injection
+promptDedupeMetrics
+PR-S1 persona secret discovery core
+PR-S3 home live investigation path
+PR-S4C persona knowledge prompt isolation
+PR-S4D controlled knowledge transfer
+Published billing regen — predeploy legacy + regen
+Published billing regen — successful owner integration
+quest objects through the real engine path (\#1541 PR-1)
+Qwen 3.7 billing
+reasoning models use pure token billing at target margins
+remote schema bootstrap
+resolveBatchStartTurnForTurnNumber
+resolveStatusWidgetParserMode
+resolveTrpgMountSeenKeys
+retired Muse Spark 1.1 compatibility
+safety filter live listing and route access
+same-snapshot Opus vs Gemini diagnostic
+sceneDirective
+sceneDirectiveV2 trigger
+Scene Momentum P2 — wiring invariants (model policy, kill switch, canary)
+Scene Momentum — wiring gating (I, J)
+scene policy benchmark preparation BMARK1-BMARK17
+seal-path blockers: atomicity / sole-closed e2e / single-active
+serializeVariantsForClient — Muse acceptance never exposed
+sharedNovelProseV2Policy
+sharedNovelProseV2 styles + resolver
+single memory policy owner
+single-source V4 503 is terminal after one physical attempt
+src/components/BillingReceiptTooltip.test.ts
+src/lib/chatGreetingContext.test.ts
+src/lib/chatMessagePagination.bookmark.test.ts
+src/lib/partnerTier.test.ts
+status episodic source-of-truth and evidence boundaries
+status-OFF deferred shared owner — suggested replies read path
+summary barrier B1-B7
+sumOpenRouterStageOutputTokens — recovery turns
+trimTrailingVisibleSelfCritique
+TRPG campaign loop
+TRPG campaign memory
+TRPG creator point split
+TRPG declaration scroll ownership
+TRPG GM AI party character context
+TRPG initiative resolution order
+TRPG lobby re-enter CTA
+TRPG P0-5 / P1 recovery UX + threat
+TRPG production model routing (PR-A)
+TRPG reply suggestions
+TRPG sandbox Blueprint prompt contract
+TRPG sandbox director and plan security
+TRPG scenarios and catalog
+TRPG start failure classification
+turnBillableUsageProductionTelemetry — not_comparable
+UA — user agency runtime gates
+usageReportingEvidence — BASE vs HEAD live billing parity
+user message edit
+userSelectedAI helpers
+world borrow ownership foundation

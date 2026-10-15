@@ -1,0 +1,698 @@
+{
+ "label": "before",
+ "base": "http://localhost:3420",
+ "layout": {
+  "360": {
+   "vw": 360,
+   "docH": 2682,
+   "hOverflow": true,
+   "smallTargets": 7,
+   "smallSample": [
+    {
+     "tag": "BUTTON",
+     "text": "출석 체크",
+     "w": 91,
+     "h": 40
+    },
+    {
+     "tag": "A",
+     "text": "결제 및 환불 정책",
+     "w": 86,
+     "h": 15
+    },
+    {
+     "tag": "BUTTON",
+     "text": "사용 내역",
+     "w": 250,
+     "h": 36
+    },
+    {
+     "tag": "BUTTON",
+     "text": "유료 충전",
+     "w": 250,
+     "h": 36
+    },
+    {
+     "tag": "BUTTON",
+     "text": "무료 적립·출석",
+     "w": 250,
+     "h": 36
+    },
+    {
+     "tag": "BUTTON",
+     "text": "이전",
+     "w": 46,
+     "h": 30
+    },
+    {
+     "tag": "BUTTON",
+     "text": "다음",
+     "w": 46,
+     "h": 30
+    }
+   ],
+   "tinyText": 38,
+   "tinySample": [
+    {
+     "fs": 10,
+     "text": "1"
+    },
+    {
+     "fs": 10,
+     "text": "일차"
+    },
+    {
+     "fs": 10,
+     "text": "250"
+    },
+    {
+     "fs": 10,
+     "text": "P"
+    },
+    {
+     "fs": 10,
+     "text": "2"
+    }
+   ],
+   "outOfViewport": [
+    {
+     "tag": "DIV",
+     "cls": "mx-auto mt-4 max-w-3xl",
+     "right": 784
+    },
+    {
+     "tag": "DIV",
+     "cls": "mt-2 rounded-2xl bg-gradient-to-r from-a",
+     "right": 784
+    },
+    {
+     "tag": "H1",
+     "cls": "text-2xl font-black text-white",
+     "right": 760
+    },
+    {
+     "tag": "P",
+     "cls": "mt-1 text-sm text-gray-300",
+     "right": 760
+    },
+    {
+     "tag": "DIV",
+     "cls": "mt-5 grid grid-cols-7 gap-1.5 sm:gap-2",
+     "right": 760
+    },
+    {
+     "tag": "DIV",
+     "cls": "rounded-xl border px-1 py-2 text-center ",
+     "right": 448.8
+    }
+   ],
+   "cellSize": null,
+   "text": {
+    "hasBalanceSummary": false,
+    "hasClosedNotice": false,
+    "h1": "매일 출석하고 무료 포인트 받기"
+   }
+  },
+  "390": {
+   "vw": 390,
+   "docH": 2682,
+   "hOverflow": true,
+   "smallTargets": 7,
+   "smallSample": [
+    {
+     "tag": "BUTTON",
+     "text": "출석 체크",
+     "w": 91,
+     "h": 40
+    },
+    {
+     "tag": "A",
+     "text": "결제 및 환불 정책",
+     "w": 86,
+     "h": 15
+    },
+    {
+     "tag": "BUTTON",
+     "text": "사용 내역",
+     "w": 250,
+     "h": 36
+    },
+    {
+     "tag": "BUTTON",
+     "text": "유료 충전",
+     "w": 250,
+     "h": 36
+    },
+    {
+     "tag": "BUTTON",
+     "text": "무료 적립·출석",
+     "w": 250,
+     "h": 36
+    },
+    {
+     "tag": "BUTTON",
+     "text": "이전",
+     "w": 46,
+     "h": 30
+    },
+    {
+     "tag": "BUTTON",
+     "text": "다음",
+     "w": 46,
+     "h": 30
+    }
+   ],
+   "tinyText": 38,
+   "tinySample": [
+    {
+     "fs": 10,
+     "text": "1"
+    },
+    {
+     "fs": 10,
+     "text": "일차"
+    },
+    {
+     "fs": 10,
+     "text": "250"
+    },
+    {
+     "fs": 10,
+     "text": "P"
+    },
+    {
+     "fs": 10,
+     "text": "2"
+    }
+   ],
+   "outOfViewport": [
+    {
+     "tag": "DIV",
+     "cls": "mx-auto mt-4 max-w-3xl",
+     "right": 784
+    },
+    {
+     "tag": "DIV",
+     "cls": "mt-2 rounded-2xl bg-gradient-to-r from-a",
+     "right": 784
+    },
+    {
+     "tag": "H1",
+     "cls": "text-2xl font-black text-white",
+     "right": 760
+    },
+    {
+     "tag": "P",
+     "cls": "mt-1 text-sm text-gray-300",
+     "right": 760
+    },
+    {
+     "tag": "DIV",
+     "cls": "mt-5 grid grid-cols-7 gap-1.5 sm:gap-2",
+     "right": 760
+    },
+    {
+     "tag": "DIV",
+     "cls": "rounded-xl border px-1 py-2 text-center ",
+     "right": 448.8
+    }
+   ],
+   "cellSize": null,
+   "text": {
+    "hasBalanceSummary": false,
+    "hasClosedNotice": false,
+    "h1": "매일 출석하고 무료 포인트 받기"
+   }
+  },
+  "768": {
+   "vw": 768,
+   "docH": 2258,
+   "hOverflow": true,
+   "smallTargets": 7,
+   "smallSample": [
+    {
+     "tag": "BUTTON",
+     "text": "출석 체크",
+     "w": 91,
+     "h": 40
+    },
+    {
+     "tag": "A",
+     "text": "결제 및 환불 정책",
+     "w": 86,
+     "h": 15
+    },
+    {
+     "tag": "BUTTON",
+     "text": "사용 내역",
+     "w": 250,
+     "h": 36
+    },
+    {
+     "tag": "BUTTON",
+     "text": "유료 충전",
+     "w": 250,
+     "h": 36
+    },
+    {
+     "tag": "BUTTON",
+     "text": "무료 적립·출석",
+     "w": 250,
+     "h": 36
+    },
+    {
+     "tag": "BUTTON",
+     "text": "이전",
+     "w": 46,
+     "h": 30
+    },
+    {
+     "tag": "BUTTON",
+     "text": "다음",
+     "w": 46,
+     "h": 30
+    }
+   ],
+   "tinyText": 31,
+   "tinySample": [
+    {
+     "fs": 11,
+     "text": "1"
+    },
+    {
+     "fs": 11,
+     "text": "일차"
+    },
+    {
+     "fs": 10,
+     "text": "+250P"
+    },
+    {
+     "fs": 11,
+     "text": "2"
+    },
+    {
+     "fs": 11,
+     "text": "일차"
+    }
+   ],
+   "outOfViewport": [
+    {
+     "tag": "DIV",
+     "cls": "mx-auto mt-4 max-w-3xl",
+     "right": 984
+    },
+    {
+     "tag": "DIV",
+     "cls": "mt-2 rounded-2xl bg-gradient-to-r from-a",
+     "right": 984
+    },
+    {
+     "tag": "H1",
+     "cls": "text-2xl font-black text-white",
+     "right": 960
+    },
+    {
+     "tag": "P",
+     "cls": "mt-1 text-sm text-gray-300",
+     "right": 960
+    },
+    {
+     "tag": "DIV",
+     "cls": "mt-5 grid grid-cols-7 gap-1.5 sm:gap-2",
+     "right": 960
+    },
+    {
+     "tag": "DIV",
+     "cls": "rounded-xl border px-1 py-2 text-center ",
+     "right": 856
+    }
+   ],
+   "cellSize": null,
+   "text": {
+    "hasBalanceSummary": false,
+    "hasClosedNotice": false,
+    "h1": "매일 출석하고 무료 포인트 받기"
+   }
+  },
+  "1440": {
+   "vw": 1440,
+   "docH": 2173,
+   "hOverflow": false,
+   "smallTargets": 7,
+   "smallSample": [
+    {
+     "tag": "BUTTON",
+     "text": "출석 체크",
+     "w": 91,
+     "h": 40
+    },
+    {
+     "tag": "A",
+     "text": "결제 및 환불 정책",
+     "w": 86,
+     "h": 15
+    },
+    {
+     "tag": "BUTTON",
+     "text": "사용 내역",
+     "w": 250,
+     "h": 36
+    },
+    {
+     "tag": "BUTTON",
+     "text": "유료 충전",
+     "w": 250,
+     "h": 36
+    },
+    {
+     "tag": "BUTTON",
+     "text": "무료 적립·출석",
+     "w": 250,
+     "h": 36
+    },
+    {
+     "tag": "BUTTON",
+     "text": "이전",
+     "w": 46,
+     "h": 30
+    },
+    {
+     "tag": "BUTTON",
+     "text": "다음",
+     "w": 46,
+     "h": 30
+    }
+   ],
+   "tinyText": 31,
+   "tinySample": [
+    {
+     "fs": 11,
+     "text": "1"
+    },
+    {
+     "fs": 11,
+     "text": "일차"
+    },
+    {
+     "fs": 10,
+     "text": "+250P"
+    },
+    {
+     "fs": 11,
+     "text": "2"
+    },
+    {
+     "fs": 11,
+     "text": "일차"
+    }
+   ],
+   "outOfViewport": [],
+   "cellSize": null,
+   "text": {
+    "hasBalanceSummary": false,
+    "hasClosedNotice": false,
+    "h1": "매일 출석하고 무료 포인트 받기"
+   }
+  }
+ },
+ "consoleErrorsOnLoad": [],
+ "gift": {
+  "dialogs": [
+   {
+    "type": "confirm",
+    "message": "받는사람님에게 포인트를 선물할까요?\n\n차감: 100P\n(유료 0P·수수료 10% / 무료 100P·수수료 20%)\n수수료 합계: 20P\n상대 수령: 80P\n\n※ 실제 차감은 만료 임박·무료 우선이며, 출석 포인트는 선물할 수 없습니다."
+   }
+  ],
+  "posts": 1,
+  "stateBefore": {
+   "points": 10000,
+   "logs": 3,
+   "gifts": 0
+  },
+  "stateAfter": {
+   "points": 9900,
+   "logs": 4,
+   "gifts": 1
+  },
+  "messagePosition": {
+   "top": -762,
+   "bottom": -688,
+   "vh": 844,
+   "scrollY": 1262,
+   "inViewport": false
+  }
+ },
+ "giftNetwork": {
+  "buttonText": "처리 중…",
+  "disabled": true
+ },
+ "history": {
+  "cancelButtons": [
+   {
+    "text": "결제취소",
+    "w": 54,
+    "h": 20.3,
+    "fs": "10px"
+   },
+   {
+    "text": "결제취소",
+    "w": 54,
+    "h": 20.3,
+    "fs": "10px"
+   },
+   {
+    "text": "결제취소",
+    "w": 54,
+    "h": 20.3,
+    "fs": "10px"
+   },
+   {
+    "text": "결제취소",
+    "w": 54,
+    "h": 20.3,
+    "fs": "10px"
+   },
+   {
+    "text": "결제취소",
+    "w": 54,
+    "h": 20.3,
+    "fs": "10px"
+   },
+   {
+    "text": "결제취소",
+    "w": 54,
+    "h": 20.3,
+    "fs": "10px"
+   },
+   {
+    "text": "결제취소",
+    "w": 54,
+    "h": 20.3,
+    "fs": "10px"
+   },
+   {
+    "text": "결제취소",
+    "w": 54,
+    "h": 20.3,
+    "fs": "10px"
+   },
+   {
+    "text": "결제취소",
+    "w": 54,
+    "h": 20.3,
+    "fs": "10px"
+   },
+   {
+    "text": "결제취소",
+    "w": 54,
+    "h": 20.3,
+    "fs": "10px"
+   },
+   {
+    "text": "결제취소",
+    "w": 54,
+    "h": 20.3,
+    "fs": "10px"
+   },
+   {
+    "text": "결제취소",
+    "w": 54,
+    "h": 20.3,
+    "fs": "10px"
+   },
+   {
+    "text": "취소마무리",
+    "w": 63,
+    "h": 20.3,
+    "fs": "10px"
+   },
+   {
+    "text": "환불상태 확인",
+    "w": 74,
+    "h": 20.3,
+    "fs": "10px"
+   },
+   {
+    "text": "결제취소",
+    "w": 54,
+    "h": 20.3,
+    "fs": "10px"
+   },
+   {
+    "text": "결제취소",
+    "w": 54,
+    "h": 20.3,
+    "fs": "10px"
+   },
+   {
+    "text": "결제취소",
+    "w": 54,
+    "h": 20.3,
+    "fs": "10px"
+   }
+  ],
+  "tabHeight": 36,
+  "pagination": [
+   {
+    "text": "이전",
+    "h": 30,
+    "w": 46
+   },
+   {
+    "text": "다음",
+    "h": 30,
+    "w": 46
+   }
+  ],
+  "firstRowDate": "26. 10. 10. 오후 9:49"
+ },
+ "historyFail": {
+  "panelText": "포인트 충전 50,000P (₩50,000)\n26. 10. 15. 오후 8:59\n+50,000P\n결제취소\n포인트 충전 10,000P (₩10,000)\n26. 10. 15. 오후 9:39\n+10,000P\n결제취소\n포인",
+  "anyErrorText": false
+ },
+ "attendance": {
+  "rowsBefore": {
+   "rows": 3,
+   "recentAttendanceLogs": 0
+  },
+  "rowsAfter": {
+   "rows": 4,
+   "recentAttendanceLogs": 1
+  },
+  "posts": 1,
+  "buttonText": "오늘 출석 완료 ✓"
+ },
+ "attendanceFail": {
+  "color": "oklch(0.705 0.015 286.067)",
+  "fs": "12px",
+  "role": null
+ },
+ "longRows360": {
+  "vw": 360,
+  "docH": 2682,
+  "hOverflow": true,
+  "smallTargets": 7,
+  "smallSample": [
+   {
+    "tag": "BUTTON",
+    "text": "출석 체크",
+    "w": 91,
+    "h": 40
+   },
+   {
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   },
+   {
+    "tag": "BUTTON",
+    "text": "사용 내역",
+    "w": 250,
+    "h": 36
+   },
+   {
+    "tag": "BUTTON",
+    "text": "유료 충전",
+    "w": 250,
+    "h": 36
+   },
+   {
+    "tag": "BUTTON",
+    "text": "무료 적립·출석",
+    "w": 250,
+    "h": 36
+   },
+   {
+    "tag": "BUTTON",
+    "text": "이전",
+    "w": 46,
+    "h": 30
+   },
+   {
+    "tag": "BUTTON",
+    "text": "다음",
+    "w": 46,
+    "h": 30
+   }
+  ],
+  "tinyText": 38,
+  "tinySample": [
+   {
+    "fs": 10,
+    "text": "1"
+   },
+   {
+    "fs": 10,
+    "text": "일차"
+   },
+   {
+    "fs": 10,
+    "text": "250"
+   },
+   {
+    "fs": 10,
+    "text": "P"
+   },
+   {
+    "fs": 10,
+    "text": "2"
+   }
+  ],
+  "outOfViewport": [
+   {
+    "tag": "DIV",
+    "cls": "mx-auto mt-4 max-w-3xl",
+    "right": 784
+   },
+   {
+    "tag": "DIV",
+    "cls": "mt-2 rounded-2xl bg-gradient-to-r from-a",
+    "right": 784
+   },
+   {
+    "tag": "H1",
+    "cls": "text-2xl font-black text-white",
+    "right": 760
+   },
+   {
+    "tag": "P",
+    "cls": "mt-1 text-sm text-gray-300",
+    "right": 760
+   },
+   {
+    "tag": "DIV",
+    "cls": "mt-5 grid grid-cols-7 gap-1.5 sm:gap-2",
+    "right": 760
+   },
+   {
+    "tag": "DIV",
+    "cls": "rounded-xl border px-1 py-2 text-center ",
+    "right": 448.8
+   }
+  ],
+  "cellSize": null
+ },
+ "external": null
+}
