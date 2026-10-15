@@ -1,4 +1,5 @@
 import Link from "next/link";
+import "./creator-gallery.css";
 import { notFound } from "next/navigation";
 import CharacterCard, { type CharacterRow } from "@/components/CharacterCard";
 import CommentsEnabledToggle from "@/components/CommentsEnabledToggle";
@@ -107,31 +108,42 @@ export default async function CreatorProfilePage({
       ? getCommentWriteBlockedMessage(db, user.id, { isOwner })
       : "댓글을 작성할 수 없습니다.";
 
+  // This is a display partition of the existing popularity query, not a curated selection.
+  const popularWorks = characters.slice(0, 2);
+  const moreWorks = characters.slice(2);
+  const latestNotice = creatorNotices[0];
+  const previousNotices = creatorNotices.slice(1);
+
   return (
-    <div className="mx-auto mt-8 max-w-4xl px-4">
-      <div className={cn(studioSurface.card, "p-6")}>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-              {siteManaged ? "공식 스튜디오" : "크리에이터"}
-            </p>
-            <h1 className="mt-1 flex flex-wrap items-center gap-2 text-2xl font-semibold text-zinc-50">
-              @{creator.nickname}
-              {siteManaged ? <OfficialStudioBadge size="md" /> : null}
-              {!siteManaged && creatorIsPartner ? <OfficialCreatorBadge size="md" /> : null}
+    <div className="creator-gallery mx-auto w-full max-w-5xl py-6 sm:py-10">
+      <header className="creator-gallery__identity">
+        <div className="flex min-w-0 flex-1 flex-col items-start">
+          <p className="creator-gallery__eyebrow text-xs font-medium tracking-wider text-zinc-400">
+            {siteManaged ? "공식 스튜디오" : "크리에이터"}
+          </p>
+          <div className="mt-3 flex w-full min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+            <h1 className="min-w-0 text-3xl font-semibold leading-tight tracking-tight text-zinc-50 [overflow-wrap:anywhere] sm:text-4xl">
+              <span className="font-normal text-violet-300/60">@</span>{creator.nickname}
             </h1>
-            <p className={cn(studioType.body, "mt-2")}>
-              캐릭터 {Number(charCount.c).toLocaleString()}개
-            </p>
-            {isOwner && !siteManaged && (
-              <Link
-                href="/creator"
-                className="mt-3 inline-block text-xs text-violet-400 hover:underline"
-              >
-                크리에이터 대시보드 →
-              </Link>
-            )}
+            {siteManaged ? <OfficialStudioBadge size="md" /> : null}
+            {!siteManaged && creatorIsPartner ? <OfficialCreatorBadge size="md" /> : null}
           </div>
+          <p className={cn(studioType.caption, "mt-3")}>
+            제작 캐릭터 <span className="tabular-nums text-zinc-200">{Number(charCount.c).toLocaleString()}</span>개
+          </p>
+          {creator.creator_profile_html && (
+            <div
+              className="creator-comment-html creator-gallery__html mt-5 max-w-2xl text-sm leading-7 text-zinc-300"
+              dangerouslySetInnerHTML={{ __html: creator.creator_profile_html }}
+            />
+          )}
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {isOwner && !siteManaged && (
+            <Link href="/creator" className="creator-gallery__action">
+              크리에이터 대시보드 <span aria-hidden>↗</span>
+            </Link>
+          )}
           {!isOwner && !siteManaged && (
             <CreatorGiftPanel
               recipientId={creatorId}
@@ -141,93 +153,126 @@ export default async function CreatorProfilePage({
               giftableFreePoints={giftable?.giftableFree}
               loggedIn={!!user}
               loginRedirect={`/creator/${creatorId}`}
+              buttonClassName="creator-gallery__action"
             />
           )}
         </div>
-      </div>
+      </header>
 
+      {(latestNotice || creator.creator_notice_html) && (
+        <section id="creator-notices" aria-labelledby="creator-notices-title" className="creator-gallery__notices mt-8">
+          <h2 id="creator-notices-title" className={cn(studioType.sectionTitle, "mb-4")}>
+            제작자 공지
+          </h2>
+          {latestNotice ? (
+            <>
+              <details className="creator-gallery__notice" open={latestNotice.content.length <= 280}>
+                <summary>
+                  <span className="creator-gallery__notice-meta">
+                    <span className="text-xs font-medium text-violet-300">최근 소식</span>
+                    <time dateTime={latestNotice.created_at.replace(" ", "T") + "Z"} className={studioType.counter}>
+                      {latestNotice.created_at.slice(0, 10).replaceAll("-", ".")}
+                    </time>
+                  </span>
+                  <h3 className="mt-2 text-base font-semibold leading-6 text-zinc-100">{latestNotice.title}</h3>
+                  {latestNotice.content.length > 280 && (
+                    <span className="creator-gallery__notice-preview mt-2 block text-sm leading-7 text-zinc-300">
+                      {latestNotice.content.slice(0, 160)}…
+                    </span>
+                  )}
+                  <span className="creator-gallery__disclosure-label mt-2 inline-flex min-h-11 items-center text-xs text-zinc-400">
+                    <span className="creator-gallery__when-closed">공지 전문 읽기 ＋</span>
+                    <span className="creator-gallery__when-open">접기 −</span>
+                  </span>
+                </summary>
+                <p className="whitespace-pre-wrap pb-2 text-sm leading-7 text-zinc-300">{latestNotice.content}</p>
+              </details>
+              {previousNotices.length > 0 && (
+                <details className="creator-gallery__archive mt-3">
+                  <summary className="creator-gallery__action w-fit">이전 공지 {previousNotices.length}개</summary>
+                  <div className="mt-2 divide-y divide-white/10">
+                    {previousNotices.map((notice) => (
+                      <details key={notice.id} className="creator-gallery__notice py-3">
+                        <summary className="flex min-h-11 flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                          <h3 className="text-sm font-medium text-zinc-200">{notice.title}</h3>
+                          <time dateTime={notice.created_at.replace(" ", "T") + "Z"} className={studioType.counter}>
+                            {notice.created_at.slice(0, 10).replaceAll("-", ".")}
+                          </time>
+                        </summary>
+                        <p className="mt-2 whitespace-pre-wrap pb-2 text-sm leading-7 text-zinc-300">{notice.content}</p>
+                      </details>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </>
+          ) : (
+            <div
+              className="creator-comment-html creator-gallery__html text-sm leading-7 text-zinc-300"
+              dangerouslySetInnerHTML={{ __html: creator.creator_notice_html }}
+            />
+          )}
+        </section>
+      )}
 
-      {(creator.creator_profile_html || creator.creator_notice_html || creatorNotices.length > 0) && (
-        <section className="mt-4 grid gap-4 md:grid-cols-[1.5fr_1fr]">
-          {creator.creator_profile_html && (
-            <div className={cn(studioSurface.card, "overflow-hidden p-5")}>
-              <div className="mb-3 flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-violet-300 shadow-[0_0_14px_rgba(167,139,250,0.8)]" />
-                <h2 className={studioType.sectionTitle}>크리에이터 소개</h2>
+      <section id="creator-works" aria-labelledby="creator-works-title" className="mt-10 sm:mt-12">
+        <div className="mb-5 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="creator-works-title" className="text-xl font-semibold tracking-tight text-zinc-50">인기 작품</h2>
+          {characters.length > 0 && <p className={studioType.caption}>공개 작품 · 좋아요순</p>}
+        </div>
+        {popularWorks.length > 0 ? (
+          <>
+            <div className="grid max-w-xl grid-cols-2 gap-3 sm:gap-5">
+              {popularWorks.map((c) => (
+                <CharacterCard key={c.id} c={c} blurNsfw={blurNsfw} loggedIn={loggedIn} />
+              ))}
+            </div>
+            {moreWorks.length > 0 && (
+              <div className="mt-9 sm:mt-10">
+                <h3 className={studioType.sectionTitle}>더 둘러보기</h3>
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 xl:grid-cols-4">
+                  {moreWorks.map((c) => (
+                    <CharacterCard key={c.id} c={c} blurNsfw={blurNsfw} loggedIn={loggedIn} />
+                  ))}
+                </div>
               </div>
-              <div
-                className="creator-comment-html text-sm leading-7 text-zinc-200"
-                dangerouslySetInnerHTML={{ __html: creator.creator_profile_html }}
+            )}
+          </>
+        ) : (
+          <div className="border-y border-white/10 py-10">
+            <p className={studioType.body}>아직 공개된 작품이 없습니다.</p>
+            <p className={cn(studioType.caption, "mt-2")}>새로운 이야기가 이곳에 채워질 예정입니다.</p>
+          </div>
+        )}
+      </section>
+
+      {(isOwner || showComments) && (
+        <section aria-label="제작자와 이야기 나누기" className="creator-gallery__community mt-12 border-t border-white/10 pt-7">
+          <h2 className={studioType.sectionTitle}>이야기 나누기</h2>
+          {isOwner && (
+            <div className={cn(studioSurface.cardMuted, "mt-4 p-4")}>
+              <CommentsEnabledToggle
+                scope="creator"
+                initialEnabled={creator.creator_comments_enabled !== 0}
+                label="크리에이터 댓글 허용"
+                description="OFF 시 다른 사용자는 내 프로필 댓글을 보거나 작성할 수 없습니다."
               />
             </div>
           )}
-
-          {(creatorNotices.length > 0 || creator.creator_notice_html) && (
-            <div className={cn(studioSurface.card, "overflow-hidden border-amber-300/20 bg-amber-300/[0.045] p-5")}>
-              <div className="mb-3 flex items-center gap-2">
-                <span className="rounded-full bg-amber-300/15 px-2 py-0.5 text-[11px] font-black text-amber-100">
-                  NOTICE
-                </span>
-                <h2 className={studioType.sectionTitle}>공지 게시판</h2>
-              </div>
-              {creatorNotices.length > 0 ? (
-                <div className="space-y-3">
-                  {creatorNotices.map((notice) => (
-                    <article key={notice.id} className="rounded-xl border border-white/[0.08] bg-[#0e1120]/65 p-3">
-                      <p className="text-sm font-semibold text-amber-50">{notice.title}</p>
-                      <p className="mt-0.5 text-[10px] text-zinc-500">{notice.created_at.slice(0, 16)}</p>
-                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-200">{notice.content}</p>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <div
-                  className="creator-comment-html text-sm leading-7 text-zinc-200"
-                  dangerouslySetInnerHTML={{ __html: creator.creator_notice_html }}
-                />
-              )}
-            </div>
+          {showComments && (
+            <ProfileCommentSection
+              targetType="creator"
+              targetId={creatorId}
+              comments={comments}
+              loggedIn={!!user}
+              canWrite={canWriteComment}
+              isOwner={isOwner}
+              ownerUserId={creatorId}
+              currentUserId={user?.id}
+              writeBlockedMessage={commentWriteBlockedMessage}
+            />
           )}
         </section>
-      )}
-
-      {isOwner && (
-        <div className={cn(studioSurface.card, "mt-4 p-5")}>
-          <p className={studioType.sectionTitle}>댓글 설정</p>
-          <div className="mt-3">
-            <CommentsEnabledToggle
-              scope="creator"
-              initialEnabled={creator.creator_comments_enabled !== 0}
-              label="크리에이터 댓글 허용"
-              description="OFF 시 다른 사용자는 내 프로필 댓글을 보거나 작성할 수 없습니다."
-            />
-          </div>
-        </div>
-      )}
-
-      {characters.length > 0 && (
-        <section className="mt-8">
-          <h2 className={studioType.sectionTitle}>공개 캐릭터</h2>
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {characters.map((c) => (
-              <CharacterCard key={c.id} c={c} blurNsfw={blurNsfw} loggedIn={loggedIn} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {showComments && (
-        <ProfileCommentSection
-          targetType="creator"
-          targetId={creatorId}
-          comments={comments}
-          loggedIn={!!user}
-          canWrite={canWriteComment}
-          isOwner={isOwner}
-          ownerUserId={creatorId}
-          currentUserId={user?.id}
-          writeBlockedMessage={commentWriteBlockedMessage}
-        />
       )}
     </div>
   );

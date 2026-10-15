@@ -94,7 +94,7 @@ export default function ProfileCommentSection({
   const publicCount = comments.filter((c) => !c.is_private && !c.is_blinded).length;
 
   return (
-    <div className="mt-6 rounded-2xl border border-white/5 bg-[#131626] p-5">
+    <div className="mt-6 min-w-0 rounded-2xl border border-white/5 bg-[#131626] p-5 [overflow-wrap:anywhere]">
       <p className="text-xs font-bold text-zinc-400">
         댓글 {isOwner ? comments.length : publicCount}
         {isOwner && comments.some((c) => c.is_private) && (
@@ -183,12 +183,12 @@ export default function ProfileCommentSection({
                 }
               }}
               placeholder="댓글을 입력하세요…"
-              className="flex-1 rounded-lg bg-[#0e1120] px-3 py-2 text-sm text-white outline-none focus:ring-1 focus:ring-violet-500 placeholder:text-zinc-400"
+              className="min-h-11 min-w-0 flex-1 rounded-lg bg-[#0e1120] px-3 py-2 text-sm text-white outline-none focus:ring-1 focus:ring-violet-500 placeholder:text-zinc-400"
             />
             <button
               onClick={submit}
               disabled={busy || !text.trim()}
-              className="rounded-lg bg-violet-600 px-4 text-sm font-semibold text-white disabled:opacity-40"
+              className="min-h-11 shrink-0 rounded-lg bg-violet-600 px-4 text-sm font-semibold text-white disabled:opacity-40"
             >
               등록
             </button>
