@@ -1,8 +1,7 @@
 /**
- * DeepSeek V4.1 Flash terminal dialogue wording — API=0 regression.
- * The model-specific variant must replace the existing second line of the
- * single `[이번 응답 대화]` owner, never add a second owner, never touch the
- * numeric ceiling / classifier, and never change any other model's wire.
+ * DeepSeek V4.1 Flash terminal dialogue wording — API=0 regression after #1616 revert.
+ * The common `[이번 응답 대화]` second line is the only owner text. There is no
+ * DeepSeek-only axis line, extra owner, numeric-ceiling change, or classifier change.
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -25,7 +24,11 @@ import type { ChatMsg } from "@/lib/ai";
 const DEEPSEEK = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
 const BASE_AXIS_LINE =
   "유저가 반응할 질문·제안·요구는 하나의 중심축으로 모으고, [B]의 새 직접 발화·중대한 선택은 유저에게 남긴다.";
-const B_OWNERSHIP = "[B]의 새 직접 발화·중대한 선택은 유저에게 남긴다";
+const REVERTED_AXIS_FRAGMENTS = [
+  "되풀이하지 않고",
+  "같은 화자의 이어지는 말은 한 블록으로 묶고",
+  "행동·내면·감각·관계 변화",
+] as const;
 
 function wire(userText: string) {
   return [
@@ -94,7 +97,7 @@ const SCENES: Scene[] = [
   },
 ];
 
-function apply(scene: Scene, modelId: string | undefined) {
+function apply(scene: Scene) {
   return applyProductionServerControlsToMessages({
     messages: wire(scene.userText),
     mode: scene.mode ?? "interactive",
@@ -107,7 +110,6 @@ function apply(scene: Scene, modelId: string | undefined) {
     chatId: "t",
     currentTurn: 3,
     skipMotionCue: scene.mode === "auto_progression",
-    modelId,
   });
 }
 
@@ -119,100 +121,63 @@ function count(text: string, needle: string): number {
   return text.split(needle).length - 1;
 }
 
-describe("DeepSeek V4.1 Flash terminal dialogue wording", () => {
-  it("renders the base line byte-identically unless the model is DeepSeek V4.1 Flash", () => {
-    const base = renderTerminalDialogueBudgetOwner(6);
-    assert.ok(base.endsWith(BASE_AXIS_LINE));
-    const others = [
-      undefined,
-      null,
-      "",
-      "google/gemini-3.8-flash",
-      "gemini-3.8-flash",
-      "gpt-6.1-sol",
-      "claude-opus-5.5",
-      "deepseek-v4-pro",
-      "deepseek-v4-flash",
-      "deepseek/deepseek-v4-pro-0813",
-      ...MAIN_RP_USER_SELECTABLE_OPTIONS.map((o) => o.id).filter((id) => id !== DEEPSEEK),
-    ];
-    for (const id of others) {
-      assert.equal(renderTerminalDialogueBudgetOwner(6, id), base, String(id));
-    }
-  });
-
-  it("replaces only the second line, keeps the ceiling line and [B] ownership", () => {
+describe("DeepSeek V4.1 Flash terminal dialogue wording (reverted)", () => {
+  it("renders the common axis line for every ceiling; #1616 fragments stay gone", () => {
     for (const max of [4, 5, 6] as const) {
-      const base = renderTerminalDialogueBudgetOwner(max);
-      const ds = renderTerminalDialogueBudgetOwner(max, DEEPSEEK);
-      const [baseMarker, baseCeiling] = base.split("\n");
-      const dsLines = ds.split("\n");
-      assert.equal(dsLines[0], baseMarker);
-      assert.equal(dsLines[1], baseCeiling);
-      assert.equal(dsLines.length, 3);
-      assert.notEqual(dsLines[2], BASE_AXIS_LINE);
-      assert.ok(dsLines[2]!.includes(B_OWNERSHIP));
-      assert.ok(dsLines[2]!.includes("하나의 중심축"));
-      assert.ok(dsLines[2]!.includes("되풀이하지 않고"));
-      assert.ok(dsLines[2]!.includes("같은 화자의 이어지는 말은 한 블록으로 묶고"));
-      assert.ok(dsLines[2]!.includes("행동·내면·감각·관계 변화"));
-      assert.ok(dsLines[1]!.includes(`최대 ${max}개 블록`));
-      assert.doesNotMatch(ds, /1~3|%|퍼센트|최대 [123]개/);
-      assert.equal(count(ds, TERMINAL_DIALOGUE_BUDGET_MARKER), 1);
+      const owner = renderTerminalDialogueBudgetOwner(max);
+      const lines = owner.split("\n");
+      assert.equal(lines[0], TERMINAL_DIALOGUE_BUDGET_MARKER);
+      assert.equal(lines[1], `AI 측 직접 발화는 필요한 만큼 사용하되 최대 ${max}개 블록으로 구성한다.`);
+      assert.equal(lines[2], BASE_AXIS_LINE);
+      assert.equal(lines.length, 3);
+      for (const fragment of REVERTED_AXIS_FRAGMENTS) {
+        assert.doesNotMatch(owner, new RegExp(fragment));
+      }
+      assert.doesNotMatch(owner, /1~3|%|퍼센트|최대 [123]개/);
+      assert.equal(count(owner, TERMINAL_DIALOGUE_BUDGET_MARKER), 1);
     }
   });
 
   for (const scene of SCENES) {
-    it(`${scene.name}: DeepSeek differs from base only in the axis line; ceiling/classifier unchanged`, () => {
-      const base = apply(scene, "google/gemini-3.8-flash");
-      const ds = apply(scene, DEEPSEEK);
-      assert.equal(
-        JSON.stringify(ds.dialogueBudget),
-        JSON.stringify(base.dialogueBudget),
-        "numeric ceiling / classifier must not depend on model"
-      );
-      assert.equal(ds.terminalDialogueBudgetAppended, scene.expectBudget);
-      const sysBase = base.messages.find((m) => m.role === "system")!.content;
-      const sysDs = ds.messages.find((m) => m.role === "system")!.content;
-      assert.equal(sysDs, sysBase, "system prompt must not change");
-
-      const userBase = lastUser(base);
-      const userDs = lastUser(ds);
-      assert.equal(count(userDs, USER_TAIL_LENGTH_OWNER_SENTENCE), 1);
-      assert.ok(userDs.trimEnd().endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE));
-
+    it(`${scene.name}: DeepSeek wire uses the common owner; ceiling/classifier unchanged`, () => {
+      const applied = apply(scene);
+      const user = lastUser(applied);
+      assert.equal(applied.terminalDialogueBudgetAppended, scene.expectBudget);
+      assert.equal(count(user, USER_TAIL_LENGTH_OWNER_SENTENCE), 1);
+      assert.ok(user.trimEnd().endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE));
+      for (const fragment of REVERTED_AXIS_FRAGMENTS) {
+        assert.equal(count(user, fragment), 0);
+      }
       if (!scene.expectBudget) {
-        assert.equal(userDs, userBase);
-        assert.equal(count(userDs, TERMINAL_DIALOGUE_BUDGET_MARKER), 0);
-        assert.doesNotMatch(userDs, /되풀이하지 않고/);
+        assert.equal(count(user, TERMINAL_DIALOGUE_BUDGET_MARKER), 0);
         return;
       }
-      assert.equal(count(userDs, TERMINAL_DIALOGUE_BUDGET_MARKER), 1);
-      assert.equal(count(userDs, B_OWNERSHIP), 1);
-      assert.equal(count(userDs, "하나의 중심축"), 1);
-      assert.equal(userDs.replace(renderTerminalDialogueBudgetOwner(base.dialogueBudget!.maxBlocks!, DEEPSEEK), "X"),
-        userBase.replace(renderTerminalDialogueBudgetOwner(base.dialogueBudget!.maxBlocks!), "X"));
+      assert.equal(count(user, TERMINAL_DIALOGUE_BUDGET_MARKER), 1);
+      assert.equal(count(user, BASE_AXIS_LINE), 1);
       assert.ok(
-        userDs.indexOf(TERMINAL_DIALOGUE_BUDGET_MARKER) <
-          userDs.indexOf(USER_TAIL_LENGTH_OWNER_SENTENCE)
+        user.indexOf(TERMINAL_DIALOGUE_BUDGET_MARKER) <
+          user.indexOf(USER_TAIL_LENGTH_OWNER_SENTENCE)
       );
+      const budget = applied.dialogueBudget;
+      assert.ok(budget?.maxBlocks);
+      assert.ok(user.includes(renderTerminalDialogueBudgetOwner(budget.maxBlocks)));
     });
   }
 
   it("keeps legitimately needed dialogue: ceiling still 'as needed', radio keeps 6, no new numeric cap", () => {
-    const radio = apply(SCENES[2]!, DEEPSEEK);
+    const radio = apply(SCENES[2]!);
     assert.equal(radio.dialogueBudget?.maxBlocks, 6);
     assert.equal(radio.dialogueBudget?.communicationDemand, "HIGH");
     assert.match(lastUser(radio), /필요한 만큼 사용하되 최대 6개 블록/);
-    const ended = apply(SCENES[3]!, DEEPSEEK);
+    const ended = apply(SCENES[3]!);
     assert.equal(ended.dialogueBudget?.maxBlocks, 4);
-    const conversation = apply(SCENES[1]!, DEEPSEEK);
+    const conversation = apply(SCENES[1]!);
     assert.match(lastUser(conversation), /필요한 만큼 사용하되 최대 \d개 블록/);
   });
 
   it("applying controls twice does not duplicate the owner (regen/continuation re-entry)", () => {
     const scene = SCENES[0]!;
-    const first = apply(scene, DEEPSEEK);
+    const first = apply(scene);
     const second = applyProductionServerControlsToMessages({
       messages: first.messages,
       mode: "interactive",
@@ -224,13 +189,12 @@ describe("DeepSeek V4.1 Flash terminal dialogue wording", () => {
       adultModeEnabled: true,
       chatId: "t",
       currentTurn: 3,
-      modelId: DEEPSEEK,
     });
     assert.equal(lastUser(second), lastUser(first));
     assert.equal(count(lastUser(second), TERMINAL_DIALOGUE_BUDGET_MARKER), 1);
   });
 
-  it("assemblePrimaryRpRequest: only DeepSeek V4.1 Flash final input changes, including regen overrides", () => {
+  it("assemblePrimaryRpRequest: DeepSeek V4.1 Flash uses the common axis line like every other picker model", () => {
     const scene = SCENES[0]!;
     const history = [
       { role: "assistant" as const, content: "밤의 숙소는 조용했다." },
@@ -264,17 +228,20 @@ describe("DeepSeek V4.1 Flash terminal dialogue wording", () => {
       });
     const flat = (r: ReturnType<typeof build>) => JSON.stringify(r.messages);
     for (const regen of [false, true]) {
-      const ds = build(DEEPSEEK, regen);
-      const dsFlat = flat(ds);
+      const dsFlat = flat(build(DEEPSEEK, regen));
       assert.equal(count(dsFlat, TERMINAL_DIALOGUE_BUDGET_MARKER), 1);
-      assert.match(dsFlat, /되풀이하지 않고/);
+      assert.ok(dsFlat.includes(BASE_AXIS_LINE));
+      for (const fragment of REVERTED_AXIS_FRAGMENTS) {
+        assert.equal(count(dsFlat, fragment), 0);
+      }
       for (const option of MAIN_RP_USER_SELECTABLE_OPTIONS) {
         if (option.id === DEEPSEEK) continue;
-        const other = build(option.id, regen);
-        const otherFlat = flat(other);
+        const otherFlat = flat(build(option.id, regen));
         assert.equal(count(otherFlat, TERMINAL_DIALOGUE_BUDGET_MARKER), 1, option.id);
-        assert.doesNotMatch(otherFlat, /되풀이하지 않고/, option.id);
         assert.ok(otherFlat.includes(BASE_AXIS_LINE), option.id);
+        for (const fragment of REVERTED_AXIS_FRAGMENTS) {
+          assert.equal(count(otherFlat, fragment), 0, option.id);
+        }
       }
     }
   });
