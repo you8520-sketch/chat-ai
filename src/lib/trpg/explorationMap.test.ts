@@ -20,6 +20,7 @@ import {
   explorationMapHasCycle,
   explorationRoomsReachable,
   filterExplorationFlagsAdd,
+  filterExplorationFlagsRemove,
   formatExplorationBotBrief,
   formatExplorationGmBlock,
   generateExplorationMap,
@@ -325,6 +326,16 @@ describe("exploration map generation", () => {
         [EXPLORATION_ALARM_FLAG, EXPLORATION_CLUE_FLAG]
       ),
       ["경보_활성화됨", "서고 단서: 낙서", EXPLORATION_ALARM_FLAG]
+    );
+    assert.deepEqual(
+      filterExplorationFlagsRemove([
+        EXPLORATION_ALARM_FLAG,
+        EXPLORATION_CLUE_FLAG,
+        EXPLORATION_PASSAGE_FLAG,
+        "문_열림",
+        "서고 단서: 낙서",
+      ]),
+      ["문_열림", "서고 단서: 낙서"]
     );
   });
 });

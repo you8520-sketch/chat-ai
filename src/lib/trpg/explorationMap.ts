@@ -779,6 +779,11 @@ export function filterExplorationFlagsAdd(proposed: readonly string[], serverFla
   return proposed.filter((flag) => !EXPLORATION_SERVER_FLAGS.has(flag) || granted.has(flag));
 }
 
+/** GM cannot drop exact server-owned exploration flags. Other world facts still leave. */
+export function filterExplorationFlagsRemove(proposed: readonly string[]): string[] {
+  return proposed.filter((flag) => !EXPLORATION_SERVER_FLAGS.has(flag));
+}
+
 export function projectPublicExploration(opts: {
   state: ExplorationState;
   viewerParticipantId: number | null;

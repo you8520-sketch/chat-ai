@@ -63,6 +63,7 @@ import {
   displayExplorationAp,
   explorationCommandsFromMovementBody,
   filterExplorationFlagsAdd,
+  filterExplorationFlagsRemove,
   formatExplorationBotBrief,
   visibleExplorationNeighbors,
 } from "./explorationMap";
@@ -1828,6 +1829,11 @@ function commitPendingGmResult(
       const kept = filterExplorationFlagsAdd(parsed.delta.flagsAdd, ownedFlags);
       if (kept.length) parsed.delta.flagsAdd = kept;
       else delete parsed.delta.flagsAdd;
+    }
+    if (parsed.delta.flagsRemove?.length) {
+      const kept = filterExplorationFlagsRemove(parsed.delta.flagsRemove);
+      if (kept.length) parsed.delta.flagsRemove = kept;
+      else delete parsed.delta.flagsRemove;
     }
   }
   const proposedFromPlayers =

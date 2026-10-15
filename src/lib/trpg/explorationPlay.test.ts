@@ -153,18 +153,23 @@ describe("exploration play", () => {
       gmCall: async ({ user }) => {
         prompts.push(user);
         const moving = user.includes("창고로 이동한다");
-        const place = moving ? "창고" : "복도";
+        const stripping = user.includes("등을 끈다");
+        const place = moving || stripping ? "창고" : "복도";
         const hostId = (
           db.prepare(`SELECT id FROM trpg_participants WHERE campaign_id=? AND user_id=1`).get(campaignId) as { id: number }
         ).id;
         return {
-          text: buildTrpgGmStructuredWireText(moving ? "복도를 나와 창고에 선다. GM: 무엇을 하겠는가." : "복도의 등이 깜빡인다. GM: 무엇을 하겠는가.", {
-            players: moving ? [{ participantId: hostId, location: place }] : [],
-            location: place,
-            next_round_context: "다음",
-            campaign_finished: false,
-            flagsAdd: moving ? [] : [EXPLORATION_ALARM_FLAG, "복도의 등"],
-          }),
+          text: buildTrpgGmStructuredWireText(
+            stripping ? "창고의 등을 끈다. GM: 무엇을 하겠는가." : moving ? "복도를 나와 창고에 선다. GM: 무엇을 하겠는가." : "복도의 등이 깜빡인다. GM: 무엇을 하겠는가.",
+            {
+              players: moving || stripping ? [{ participantId: hostId, location: place }] : [],
+              location: place,
+              next_round_context: "다음",
+              campaign_finished: false,
+              flagsAdd: moving || stripping ? [] : [EXPLORATION_ALARM_FLAG, "복도의 등"],
+              flagsRemove: stripping ? [EXPLORATION_ALARM_FLAG, "복도의 등"] : [],
+            }
+          ),
         };
       },
     };
@@ -186,6 +191,10 @@ describe("exploration play", () => {
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     assert.equal(locationOf(db, hostId), "창고");
     assert.equal(loadCampaignLedger(db, campaignId).location, "창고");
+    assert.equal(loadExplorationState(db, campaignId), null);
+    submitTrpgAction(db, { campaignId, userId: 1, body: "등을 끈다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.deepEqual(loadCampaignLedger(db, campaignId).worldFlags, []);
     assert.equal(loadExplorationState(db, campaignId), null);
     db.close();
   });
@@ -848,6 +857,79 @@ describe("exploration play", () => {
     assert.equal(revealed.includes(EXPLORATION_CLUE_FLAG), false);
     assert.equal(revealed.includes(EXPLORATION_ALARM_FLAG), loadExplorationState(db, campaignId)?.alarmFlagged === true);
     assert.ok(revealed.includes("문_열림"));
+    db.close();
+  });
+
+  it("keeps granted exploration flags when GM removes them and still drops a world flag", async () => {
+    const db = memoryDb();
+    const templateId = insertScenarioTemplate(db, 7, {
+      title: "플래그 제거",
+      summary: "서버 플래그는 남긴다",
+      content: "GM이 지우려 한다.",
+      visibility: "public",
+      startLocation: EXPLORATION_ENTRANCE,
+      scenarioPlan: PLAN,
+    });
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "현이", viewerUserId: 1, templateId });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "현이", stats: EVEN_STATS });
+    const hostId = (db.prepare(`SELECT id FROM trpg_participants WHERE campaign_id=? AND user_id=1`).get(campaignId) as { id: number }).id;
+    let strip = false;
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 16,
+      gmCall: async ({ user }) => ({
+        text: buildTrpgGmStructuredWireText("서버가 정한 사실만 남긴다. GM: 무엇을 하겠는가.", {
+          players: [],
+          location: loadCampaignLedger(db, campaignId).location || EXPLORATION_ENTRANCE,
+          next_round_context: "다음",
+          campaign_finished: false,
+          flagsAdd: user.includes("[OPENING SCENE") || strip ? [] : ["문_열림"],
+          flagsRemove: strip
+            ? [EXPLORATION_ALARM_FLAG, EXPLORATION_CLUE_FLAG, EXPLORATION_PASSAGE_FLAG, "문_열림"]
+            : [],
+        }),
+      }),
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const play = async (commands: Array<{ op: "move"; roomId: string } | { op: "search"; depth: "normal" | "careful" }>) => {
+      submitTrpgAction(db, { campaignId, userId: 1, body: "", explorationCommands: commands });
+      await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    };
+    submitTrpgAction(db, { campaignId, userId: 1, body: "자리를 지킨다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.deepEqual(loadCampaignLedger(db, campaignId).worldFlags, ["문_열림"]);
+    const walkTo = async (goal: string) => {
+      for (let guard = 0; guard < 12 && locationOf(db, hostId) !== goal; guard += 1) {
+        const state = loadExplorationState(db, campaignId)!;
+        const blocked = state.alarmFlagged ? new Set<string>() : new Set([EXPLORATION_EXIT_ROOM]);
+        const path = stepsToward(state, locationOf(db, hostId), goal, blocked).slice(0, 3);
+        if (!path.length) {
+          await play([{ op: "search", depth: "normal" }]);
+          continue;
+        }
+        await play(path.map((roomId) => ({ op: "move", roomId })));
+      }
+      assert.equal(locationOf(db, hostId), goal);
+    };
+    await walkTo(EXPLORATION_ARCHIVE_ROOM);
+    await play([{ op: "search", depth: "normal" }]);
+    assert.ok(loadCampaignLedger(db, campaignId).worldFlags.includes(EXPLORATION_CLUE_FLAG));
+    for (let guard = 0; guard < 8 && !loadExplorationState(db, campaignId)?.alarmFlagged; guard += 1) {
+      await play([{ op: "search", depth: "normal" }]);
+    }
+    assert.equal(loadExplorationState(db, campaignId)?.alarmFlagged, true);
+    assert.ok(loadCampaignLedger(db, campaignId).worldFlags.includes(EXPLORATION_ALARM_FLAG));
+    await walkTo(EXPLORATION_LOOP_ROOM);
+    await play([{ op: "search", depth: "careful" }]);
+    assert.ok(loadCampaignLedger(db, campaignId).worldFlags.includes(EXPLORATION_PASSAGE_FLAG));
+    strip = true;
+    submitTrpgAction(db, { campaignId, userId: 1, body: "자리를 지킨다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const flags = loadCampaignLedger(db, campaignId).worldFlags;
+    assert.ok(flags.includes(EXPLORATION_ALARM_FLAG), flags.join(" | "));
+    assert.ok(flags.includes(EXPLORATION_CLUE_FLAG), flags.join(" | "));
+    assert.ok(flags.includes(EXPLORATION_PASSAGE_FLAG), flags.join(" | "));
+    assert.equal(flags.includes("문_열림"), false);
     db.close();
   });
 });
