@@ -158,8 +158,9 @@ describe("OpenScale DeepSeek V4.1 Flash isolated RP pilot", () => {
     assert.ok(
       MAIN_RP_USER_SELECTABLE_OPTIONS.every((option) => option.provider !== ("openscale" as string))
     );
-    assert.ok(
-      MAIN_RP_USER_SELECTABLE_OPTIONS.some((option) => option.id === "deepseek-v4.1-flash")
+    assert.equal(
+      MAIN_RP_USER_SELECTABLE_OPTIONS.some((option) => option.id === "deepseek-v4.1-flash"),
+      false
     );
   });
 

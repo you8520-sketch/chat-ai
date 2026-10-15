@@ -23,7 +23,7 @@ import path from "node:path";
 import {
   MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
   selectedAIProvider,
-  type SelectedAI,
+  type MainRpQualityBenchmarkModelId,
 } from "@/lib/chatModels";
 import { CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL } from "@/lib/cheaperInferenceConfig";
 import {
@@ -123,7 +123,7 @@ export type PaidRunnerIdentityHashes = {
 export type PaidRunnerPublicCall = {
   requestOrder: number;
   fixtureId: RpQualityPrecallFixtureId;
-  canonicalId: SelectedAI;
+  canonicalId: MainRpQualityBenchmarkModelId;
   provider: "openrouter" | "cheaperinference";
   wireModel: string;
   endpointKind: "openrouter" | "cheaperinference";
@@ -165,7 +165,7 @@ export type PaidRunnerAuthorizationInput = {
   expectedProductionSha: string;
   expectedIdentityHash: string;
   experimentSecret: string | null | undefined;
-  allowlist: readonly SelectedAI[];
+  allowlist: readonly MainRpQualityBenchmarkModelId[];
   plannedCalls: number;
   executionScope?: PaidRunnerExecutionScope;
 };
@@ -185,7 +185,7 @@ export type PaidRunnerJournalStatus =
 export type PaidRunnerJournalEntry = {
   requestOrder: number;
   fixtureId: RpQualityPrecallFixtureId;
-  canonicalId: SelectedAI;
+  canonicalId: MainRpQualityBenchmarkModelId;
   finalWireFingerprint: string;
   requestBodyFingerprint: string;
   status: PaidRunnerJournalStatus;
@@ -216,7 +216,7 @@ export type PaidRunnerJournal = {
 
 export type PaidRunnerUsageEvidence = {
   fixtureId: RpQualityPrecallFixtureId;
-  canonicalId: SelectedAI;
+  canonicalId: MainRpQualityBenchmarkModelId;
   provider: "openrouter" | "cheaperinference";
   wireModel: string;
   providerRequestId: string | null;
@@ -279,7 +279,7 @@ export type PaidRunnerTransport = {
   post(input: {
     endpoint: string;
     body: Record<string, unknown>;
-    canonicalId: SelectedAI;
+    canonicalId: MainRpQualityBenchmarkModelId;
     provider: "openrouter" | "cheaperinference";
   }): Promise<PaidRunnerTransportResult>;
 };
@@ -296,7 +296,7 @@ export type PaidRunnerPublicResult = {
 
 export type PaidRunnerPrivateResult = {
   requestOrder: number;
-  reveal: { canonicalId: SelectedAI; provider: string; wireModel: string };
+  reveal: { canonicalId: MainRpQualityBenchmarkModelId; provider: string; wireModel: string };
   packet: RpQualityOutputPacket;
   usage: PaidRunnerUsageEvidence;
 };
@@ -451,7 +451,7 @@ export function verifyPaidRunnerDispatchSeal(input: {
     return { ok: false, reason: "SEAL_VALIDATION_FAILED" };
   }
 
-  const expectedPairs: Array<{ fixtureId: RpQualityPrecallFixtureId; canonicalId: SelectedAI }> = [];
+  const expectedPairs: Array<{ fixtureId: RpQualityPrecallFixtureId; canonicalId: MainRpQualityBenchmarkModelId }> = [];
   for (const fixtureId of RP_QUALITY_PRECALL_FIXTURE_IDS) {
     for (const canonicalId of MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS) {
       expectedPairs.push({ fixtureId, canonicalId });
@@ -530,7 +530,7 @@ export function assertCurrentMainRpPaidAllowlist(allowlist: readonly string[]): 
   }
 }
 
-export function expectedPaidRunnerProvider(canonicalId: SelectedAI): "openrouter" | "cheaperinference" {
+export function expectedPaidRunnerProvider(canonicalId: MainRpQualityBenchmarkModelId): "openrouter" | "cheaperinference" {
   const provider = selectedAIProvider(canonicalId);
   if (provider !== "openrouter" && provider !== "cheaperinference") {
     throw new Error("PAID_RUNNER_UNSUPPORTED_PROVIDER");
@@ -538,7 +538,7 @@ export function expectedPaidRunnerProvider(canonicalId: SelectedAI): "openrouter
   return provider;
 }
 
-export function expectedPaidRunnerWireModel(canonicalId: SelectedAI): string {
+export function expectedPaidRunnerWireModel(canonicalId: MainRpQualityBenchmarkModelId): string {
   return resolveMainRpPrimaryWireModelId(canonicalId);
 }
 

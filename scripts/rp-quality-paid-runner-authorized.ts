@@ -14,7 +14,7 @@ import {
 } from "./lib/rpQualityPrecallEgressGuard";
 import {
   MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
-  type SelectedAI,
+  type MainRpQualityBenchmarkModelId,
 } from "@/lib/chatModels";
 import {
   RP_QUALITY_PRECALL_PLANNED_CALLS,
@@ -46,7 +46,7 @@ const authorization: PaidRunnerAuthorizationInput = {
   expectedProductionSha: readArg("--expected-production-sha") ?? "",
   expectedIdentityHash: readArg("--expected-identity-hash") ?? "",
   experimentSecret: process.env[RP_QUALITY_PAID_EXPERIMENT_SECRET_ENV] ?? null,
-  allowlist: [...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS] as SelectedAI[],
+  allowlist: [...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS] as MainRpQualityBenchmarkModelId[],
   plannedCalls: RP_QUALITY_PRECALL_PLANNED_CALLS,
 };
 

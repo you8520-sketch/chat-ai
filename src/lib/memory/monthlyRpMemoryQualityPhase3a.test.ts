@@ -48,7 +48,6 @@ import { estimateTokens } from "@/lib/tokenEstimate";
 import type { buildContext as BuildContextFn } from "@/services/contextBuilder";
 
 const EXPECTED_MODELS = [
-  "deepseek-v4.1-flash",
   "gemini-3.8-flash",
   "gpt-6.1-sol",
   "claude-opus-5.5",

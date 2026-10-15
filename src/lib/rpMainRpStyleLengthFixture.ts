@@ -9,7 +9,7 @@
 import {
   MAIN_RP_MODEL_IDS,
   isMainRpModel,
-  type SelectedAI,
+  type MainRpQualityBenchmarkModelId,
 } from "@/lib/chatModels";
 import {
   RP_QUALITY_PRECALL_FIXTURE_IDS,
@@ -98,7 +98,7 @@ export type MainRpStyleLengthIdentityInput = {
 
 export type MainRpStyleLengthPublicCall = {
   fixtureId: RpQualityPrecallFixtureId;
-  canonicalId: SelectedAI;
+  canonicalId: MainRpQualityBenchmarkModelId;
   provider: "openrouter" | "cheaperinference";
   wireModel: string;
   finalWireFingerprint: string;
@@ -132,7 +132,7 @@ export type MainRpStyleLengthPublicManifest = {
   identityHashes: PaidRunnerIdentityHashes;
   combinedIdentityHash: string;
   fixtureIds: typeof RP_QUALITY_PRECALL_FIXTURE_IDS;
-  models: readonly SelectedAI[];
+  models: readonly MainRpQualityBenchmarkModelId[];
   calls: readonly MainRpStyleLengthPublicCall[];
   sealedRequestCount: number;
   sourceKind: "railway-production-readonly-in-process-v1";

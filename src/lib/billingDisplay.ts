@@ -2,7 +2,6 @@ import {
   billingModelId,
   resolveSelectedAI,
   selectedAILabel,
-  type SelectedAI,
 } from "./chatModels";
 import { openRouterRawCostKrw } from "@/lib/billingRawCost";
 import {
@@ -123,7 +122,7 @@ export function billingModelDisplayName(selectedAI: string): string {
 export function stealthReceiptModelFields(selectedAI: string): {
   model: string;
   modelLabel: string;
-  selectedAI: SelectedAI;
+  selectedAI: string;
 } {
   const resolved = resolveSelectedAI(selectedAI);
   return {

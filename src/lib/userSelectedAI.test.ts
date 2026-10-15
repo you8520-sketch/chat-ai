@@ -6,16 +6,13 @@ import {
   ensureUserSelectedAI,
   globalModelChangedNotice,
   globalModelIntroNotice,
-  globalModelRetiredRemapNotice,
   globalModelStatusLabel,
   parseAiModelUxJson,
   serializeAiModelUxJson,
 } from "@/lib/userSelectedAI";
 import {
-  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-  DEFAULT_SELECTED_AI,
+  GEMINI_38_FLASH_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_25_PRO_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
@@ -41,18 +38,17 @@ function memoryDb() {
 describe("userSelectedAI helpers", () => {
   it("formats global status and notices", () => {
     assert.equal(
-      globalModelStatusLabel(OPENROUTER_MUSE_SPARK_11_MODEL),
+      globalModelStatusLabel(OPENROUTER_MUSE_SPARK_11_MODEL as never),
       "Muse Spark 1.1 · 모든 채팅에 적용"
     );
     assert.match(
-      globalModelIntroNotice(OPENROUTER_MUSE_SPARK_11_MODEL),
+      globalModelIntroNotice(OPENROUTER_MUSE_SPARK_11_MODEL as never),
       /모든 채팅에 공통으로 적용/
     );
     assert.match(
-      globalModelChangedNotice(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL),
+      globalModelChangedNotice(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL as never),
       /Gemini 3\.1 Pro Preview로 변경했습니다/
     );
-    assert.match(globalModelRetiredRemapNotice(), /제공이 종료되어.*DeepSeek V4 Pro/);
   });
 
   it("round-trips ux json including retiredRemapNoticePending", () => {
@@ -69,71 +65,63 @@ describe("userSelectedAI helpers", () => {
     assert.equal(parsed.changeNoticePending, true);
   });
 
-  it("empty selected_ai → DeepSeek and does not resurrect chats.gemini_model", () => {
+  it("empty selected_ai stays unselected and does not resurrect chats.gemini_model", () => {
     const db = memoryDb();
     db.prepare("INSERT INTO users (id) VALUES (1)").run();
     db.prepare("INSERT INTO chats (id, user_id, gemini_model) VALUES (1, 1, ?)").run(
       OPENROUTER_DEEPSEEK_V4_PRO_MODEL
     );
     const r = ensureUserSelectedAI(db, 1);
-    assert.equal(r.selectedAI, DEFAULT_SELECTED_AI);
-    assert.equal(r.seeded, true);
+    assert.equal(r.selectedAI, null);
+    assert.equal(r.seeded, false);
     assert.equal(r.remappedFromRetired, false);
     const stored = db.prepare("SELECT selected_ai FROM users WHERE id=1").get() as {
       selected_ai: string;
     };
-    assert.equal(stored.selected_ai, DEFAULT_SELECTED_AI);
+    assert.equal(stored.selected_ai, "");
     db.close();
   });
 
-  it("legacy stored deepseek-v4-flash is retired → remaps to default Main RP model", () => {
+  it("legacy stored deepseek-v4-flash is not rewritten", () => {
     const db = memoryDb();
     db.prepare("INSERT INTO users (id, selected_ai) VALUES (1, ?)").run(
       "deepseek-v4-flash"
     );
     const r = ensureUserSelectedAI(db, 1);
-    assert.equal(r.selectedAI, DEFAULT_SELECTED_AI);
-    assert.equal(r.selectedAI, "deepseek-v4-pro-0813");
-    assert.equal(r.remappedFromRetired, true);
+    assert.equal(r.selectedAI, null);
+    assert.equal(r.remappedFromRetired, false);
     const stored = db.prepare("SELECT selected_ai FROM users WHERE id=1").get() as {
       selected_ai: string;
     };
-    assert.equal(stored.selected_ai, "deepseek-v4-pro-0813");
+    assert.equal(stored.selected_ai, "deepseek-v4-flash");
     db.close();
   });
 
-  it("keeps current Gemini / DeepSeek global selections", () => {
+  it("keeps current live Gemini 3.8 global selections", () => {
     const db = memoryDb();
     db.prepare("INSERT INTO users (id, selected_ai) VALUES (1, ?)").run(
-      CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL
+      GEMINI_38_FLASH_MODEL
     );
-    assert.equal(
-      ensureUserSelectedAI(db, 1).selectedAI,
-      CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL
-    );
-    db.prepare("UPDATE users SET selected_ai=? WHERE id=1").run(
-      CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
-    );
-    assert.equal(
-      ensureUserSelectedAI(db, 1).selectedAI,
-      CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
-    );
+    assert.equal(ensureUserSelectedAI(db, 1).selectedAI, GEMINI_38_FLASH_MODEL);
     db.close();
   });
 
-  it("remaps Muse → DeepSeek and queues retired notice once", () => {
+  it("does not remap Muse or emit a retired auto-migration notice", () => {
     const db = memoryDb();
     db.prepare("INSERT INTO users (id, selected_ai) VALUES (1, ?)").run(
       OPENROUTER_MUSE_SPARK_11_MODEL
     );
     const r = ensureUserSelectedAI(db, 1);
-    assert.equal(r.selectedAI, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
-    assert.equal(r.remappedFromRetired, true);
+    assert.equal(r.selectedAI, null);
+    assert.equal(r.remappedFromRetired, false);
     const notice1 = consumeSelectedAiEntryNotice(db, 1);
-    assert.equal(notice1.kind, "retired");
-    assert.match(notice1.notice ?? "", /제공이 종료되어/);
-    const notice2 = consumeSelectedAiEntryNotice(db, 1);
-    assert.equal(notice2.notice, null);
+    assert.equal(notice1.kind, null);
+    assert.equal(notice1.notice, null);
+    assert.equal(notice1.selectedAI, null);
+    const stored = db.prepare("SELECT selected_ai FROM users WHERE id=1").get() as {
+      selected_ai: string;
+    };
+    assert.equal(stored.selected_ai, OPENROUTER_MUSE_SPARK_11_MODEL);
     db.close();
   });
 

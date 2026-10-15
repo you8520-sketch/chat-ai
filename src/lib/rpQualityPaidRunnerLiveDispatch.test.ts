@@ -436,10 +436,10 @@ describe("rp quality paid runner live dispatch boundary", () => {
     assert.equal(base1612.productionDeploySha, PUBLISHED_1612_PRODUCTION_SHA);
     assert.equal(base1612.manifestFingerprint, PUBLISHED_1612_A_SCOPE_MANIFEST_FINGERPRINT);
     assert.equal(canonical.calls.length, 12);
-    assert.equal(MAIN_RP_USER_SELECTABLE_OPTIONS.length, 5);
+    assert.equal(MAIN_RP_USER_SELECTABLE_OPTIONS.length, 4);
     assert.deepEqual(
       MAIN_RP_USER_SELECTABLE_OPTIONS.map((option) => option.id),
-      ["deepseek-v4.1-flash", "gemini-3.8-flash", "gpt-6.1-sol", "claude-opus-5.5", "gemini-4-argon"]
+      ["gemini-3.8-flash", "gpt-6.1-sol", "claude-opus-5.5", "gemini-4-argon"]
     );
     assert.deepEqual([...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS], [
       "deepseek-v4.1-flash",

@@ -38,22 +38,21 @@ import {
 const REPO_ROOT = resolve(process.cwd());
 
 describe("Main RP canonical 4-model registry", () => {
-  it("picker count=5 and paid-quality roster stays 4", () => {
-    assert.equal(MAIN_RP_MODEL_IDS.length, 5);
-    assert.equal(MAIN_RP_USER_SELECTABLE_OPTIONS.length, 5);
-    assert.equal(SELECTED_AI_OPTIONS.length, 5);
-    assert.equal(USER_SELECTABLE_AI_OPTIONS.length, 5);
-    assert.equal(userSelectableAIOptionsForUser(false).length, 5);
-    assert.equal(userSelectableAIOptionsForUser(true).length, 5);
+  it("picker count=4 live models and paid-quality roster stays 4 historical", () => {
+    assert.equal(MAIN_RP_MODEL_IDS.length, 4);
+    assert.equal(MAIN_RP_USER_SELECTABLE_OPTIONS.length, 4);
+    assert.equal(SELECTED_AI_OPTIONS.length, 4);
+    assert.equal(USER_SELECTABLE_AI_OPTIONS.length, 4);
+    assert.equal(userSelectableAIOptionsForUser(false).length, 4);
+    assert.equal(userSelectableAIOptionsForUser(true).length, 4);
     assert.equal(MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.length, 4);
   });
 
-  it("canonical picker ids include Gemini 4 Argon and the frozen quality 4", () => {
+  it("canonical picker ids are the four live models; frozen quality 4 keeps DeepSeek historical", () => {
     assert.deepEqual(
       [...MAIN_RP_MODEL_IDS].sort(),
       [
         CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-        CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
         GEMINI_38_FLASH_MODEL,
         GEMINI_4_ARGON_MODEL,
         CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
@@ -80,6 +79,7 @@ describe("Main RP canonical 4-model registry", () => {
       CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
       CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
       CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
       CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
       CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
@@ -128,8 +128,11 @@ describe("Main RP canonical 4-model registry", () => {
   });
 
   it("SELECTED_AI is the exact canonical literal union (not widened to string)", () => {
-    const typed: SelectedAI = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
+    const typed: SelectedAI = GEMINI_38_FLASH_MODEL;
     assert.ok(typeof typed === "string");
+    // @ts-expect-error — DeepSeek V4.1 Flash retired from the user picker union.
+    const _v41Rejected: SelectedAI = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
+    void _v41Rejected;
     assert.deepEqual(
       [...MAIN_RP_MODEL_IDS],
       MAIN_RP_USER_SELECTABLE_OPTIONS.map((o) => o.id)
@@ -175,6 +178,7 @@ describe("Main RP canonical 4-model registry", () => {
       CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
       CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
       CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
       OPENROUTER_GEMINI_36_FLASH_MODEL,
       CLAUDE_OPUS_MODEL,

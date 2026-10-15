@@ -246,30 +246,23 @@ export type SelectedAIOptionMeta = {
   provider: "openrouter" | "openai" | "cheaperinference";
   tier: "pro";
   hint: string;
-  /** 기본 추천 배지 */
+  /** Historical site-promo style badge only — not a recommended/default mark */
   badge?: string;
-  recommended?: boolean;
 };
 
 /**
  * CANONICAL Main RP picker — ONE source of truth.
  *
- * DeepSeek V4.1 Flash / Gemini 3.8 Flash / GPT-6.1 Sol / Claude Opus 5.5 /
- * Gemini 4 Argon.
- * Gemini 3.1 Pro Preview and Gemini 3.7 Flash are retired from user Main RP.
- * Their constants remain for historical receipts, legacy normalization, and
- * non-Main-RP Gemini family helpers. Gemini 3.1 Flash-Lite stays a background
- * reader and is not this picker.
+ * Gemini 3.8 Flash / GPT-6.1 Sol / Claude Opus 5.5 / Gemini 4 Argon.
+ * DeepSeek V4.1 Flash is retired from new user Main RP selection. Its constants
+ * remain for historical receipts, quality-benchmark seals, legacy
+ * normalization, and family helpers. Gemini 3.1 Pro Preview and Gemini 3.7
+ * Flash stay retired from this picker. Gemini 3.1 Flash-Lite stays a
+ * background reader and is not this picker.
+ *
+ * First array order is display-only. No option is a default or recommendation.
  */
 export const MAIN_RP_USER_SELECTABLE_OPTIONS = [
-  {
-    id: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
-    label: DEEPSEEK_V41_FLASH_DISPLAY_NAME,
-    provider: "cheaperinference",
-    tier: "pro",
-    hint: "",
-    recommended: true,
-  },
   {
     id: GEMINI_38_FLASH_MODEL,
     label: GEMINI_38_FLASH_DISPLAY_NAME,
@@ -310,16 +303,18 @@ export const MAIN_RP_MODEL_IDS: readonly SelectedAI[] =
 
 /**
  * Frozen paid-quality / PRECALL allowlist.
- * The user picker may grow; this roster stays the approved 4-model
- * A-scope set so adding a selectable model does not expand sealed
- * 12-call / 4-call verification.
+ * Historical A-scope roster, including retired DeepSeek V4.1 Flash.
+ * Not the user picker and not a generation default.
  */
 export const MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS = [
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   GEMINI_38_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
   CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-] as const satisfies readonly SelectedAI[];
+] as const;
+
+export type MainRpQualityBenchmarkModelId =
+  (typeof MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS)[number];
 
 /** True only for canonical Main RP models. */
 export function isMainRpModel(modelId: string): boolean {
@@ -329,9 +324,11 @@ export function isMainRpModel(modelId: string): boolean {
 /** @deprecated use MAIN_RP_USER_SELECTABLE_OPTIONS — registry kept for tests/historical imports */
 export const SELECTED_AI_OPTIONS = MAIN_RP_USER_SELECTABLE_OPTIONS;
 
-/** 신규·미선택 사용자 기본값 — CheaperInference DeepSeek V4.1 Flash */
-export const DEFAULT_SELECTED_AI: SelectedAI =
-  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
+/**
+ * Historical alias target for retired Main RP ids in resolveSelectedAI /
+ * receipts. Not a user default and not a picker recommendation.
+ */
+export const DEFAULT_SELECTED_AI = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
 
 /** Main RP picker — canonical registry only. */
 export const USER_SELECTABLE_AI_OPTIONS = MAIN_RP_USER_SELECTABLE_OPTIONS;
@@ -345,6 +342,13 @@ export function userSelectableAIOptionsForUser(
 
 export function isUserSelectableAI(modelId: string, _isAdmin: boolean): boolean {
   return MAIN_RP_MODEL_IDS.includes(modelId.trim().toLowerCase() as SelectedAI);
+}
+
+/** Live picker id only — empty, retired, and historical aliases return null. */
+export function resolveUserSelectableMainRpAI(value: unknown): SelectedAI | null {
+  if (typeof value !== "string") return null;
+  const id = value.trim();
+  return isValidSelectedAI(id) ? id : null;
 }
 
 export function coerceUserSelectableAI(id: SelectedAI): SelectedAI {
@@ -487,9 +491,12 @@ export function isCheaperInferenceModel(modelId: string): boolean {
 }
 
 export function selectedAIProvider(
-  selected: SelectedAI
+  selected: string
 ): SelectedAIOptionMeta["provider"] {
-  return selectedAIOptionMeta(selected)?.provider ?? "cheaperinference";
+  const live = selectedAIOptionMeta(selected)?.provider;
+  if (live) return live;
+  if (isCheaperInferenceDeepSeekV41FlashModel(selected)) return "cheaperinference";
+  return "cheaperinference";
 }
 
 /** selectedAI가 OpenRouter 라우팅 대상인지 */
@@ -638,7 +645,7 @@ export function isOpenRouterSharedProseModel(modelId: string): boolean {
 
 const VALID = new Set<string>(SELECTED_AI_OPTIONS.map((o) => o.id));
 
-const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
+const LEGACY_TO_SELECTED: Record<string, string> = {
   /** Gemini 2.5/3.6 제거 — 기존 채팅·선택값은 기본 모델로 이전 */
   "gemini-2.5-pro": DEFAULT_SELECTED_AI,
   "gemini-2.5-flash": DEFAULT_SELECTED_AI,
@@ -715,8 +722,8 @@ export function isValidSelectedAI(v: unknown): v is SelectedAI {
   return typeof v === "string" && VALID.has(v);
 }
 
-export function resolveSelectedAI(value: unknown, fallback?: string): SelectedAI {
-  let resolved: SelectedAI;
+export function resolveSelectedAI(value: unknown, fallback?: string): string {
+  let resolved: string;
   if (isValidSelectedAI(value)) resolved = value;
   else if (typeof value === "string" && LEGACY_TO_SELECTED[value]) resolved = LEGACY_TO_SELECTED[value];
   else if (typeof value === "string" && isKimiModel(value)) resolved = DEFAULT_SELECTED_AI;
@@ -724,7 +731,7 @@ export function resolveSelectedAI(value: unknown, fallback?: string): SelectedAI
   else if (typeof fallback === "string" && LEGACY_TO_SELECTED[fallback]) resolved = LEGACY_TO_SELECTED[fallback];
   else if (typeof fallback === "string" && isKimiModel(fallback)) resolved = DEFAULT_SELECTED_AI;
   else resolved = DEFAULT_SELECTED_AI;
-  return coerceUserSelectableAI(resolved);
+  return isValidSelectedAI(resolved) ? coerceUserSelectableAI(resolved) : resolved;
 }
 
 /** UI·영수증 표시용 — retired 모델도 historical receipt 라벨 유지 */
@@ -740,6 +747,9 @@ export function selectedAILabel(id: string): string {
   }
   if (isCheaperInferenceDeepSeekV4FlashModel(id)) {
     return DEEPSEEK_V4_FLASH_DISPLAY_NAME;
+  }
+  if (isCheaperInferenceDeepSeekV41FlashModel(id)) {
+    return DEEPSEEK_V41_FLASH_DISPLAY_NAME;
   }
   const opt = SELECTED_AI_OPTIONS.find((o) => o.id === id);
   if (opt) return opt.label;
@@ -799,8 +809,30 @@ export function selectedAIOptionMeta(id: string): (typeof SELECTED_AI_OPTIONS)[n
   return SELECTED_AI_OPTIONS.find((o) => o.id === id);
 }
 
+/** Historical quality-roster meta — picker row when live, DeepSeek V4.1 otherwise. */
+export function mainRpQualityBenchmarkOption(
+  id: MainRpQualityBenchmarkModelId
+): {
+  id: MainRpQualityBenchmarkModelId;
+  label: string;
+  provider: SelectedAIOptionMeta["provider"];
+} {
+  const live = selectedAIOptionMeta(id);
+  if (live) {
+    return { id, label: live.label, provider: live.provider };
+  }
+  if (id === CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL) {
+    return {
+      id,
+      label: DEEPSEEK_V41_FLASH_DISPLAY_NAME,
+      provider: "cheaperinference",
+    };
+  }
+  throw new Error(`Quality benchmark model missing historical meta: ${id}`);
+}
+
 /** OpenRouter model slug — selectedAI와 동일 */
-export function billingModelId(selected: SelectedAI): string {
+export function billingModelId(selected: string): string {
   return selected;
 }
 

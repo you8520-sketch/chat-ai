@@ -286,7 +286,6 @@ describe("50-turn memory lifecycle (provider-free)", () => {
     assert.deepEqual(
       MAIN_RP_USER_SELECTABLE_OPTIONS.map((option) => option.id),
       [
-        "deepseek-v4.1-flash",
         "gemini-3.8-flash",
         "gpt-6.1-sol",
         "claude-opus-5.5",
