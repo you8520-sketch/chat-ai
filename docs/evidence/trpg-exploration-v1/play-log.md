@@ -40,7 +40,7 @@ flags: 단서: 출구 빗장은 경보 후에만 풀린다; 위험 고조
 
 ## 화면
 
-미리보기 경로 `/trpg/exploration-v1-preview`가 서버 투영(`projectPublicExploration`)을 실제 `TrpgExplorationPanel`로 그린다. 폭 390과 1440.
+아래 이미지는 제품 라우트에서 제거하기 전의 미리보기 페이지(`/trpg/exploration-v1-preview`) 증거다. 그 페이지는 고정 시드의 방 이름과 단서·물자 표시를 공개 경로로 그렸으므로 실서비스 라우트에서 뺐다. 게임방 화면이 아니다. 폭 390과 1440.
 
 - `390-collapsed.png` `1440-collapsed.png` 접힌 지도
 - `390-unexplored.png` `1440-unexplored.png` 미탐색 갈림

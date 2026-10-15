@@ -2,8 +2,10 @@
  * Seeded exploration graph. Pure: no database, no client import.
  * The client renders PublicExploration only. This module holds hidden events.
  */
+import { declaredMovementGoals, describeMovementGoal } from "./movementDeclaration";
 import {
   EXPLORATION_AP_PER_ROUND,
+  EXPLORATION_COMMAND_LIMIT,
   type ExplorationCommand,
   type PublicExploration,
   type PublicExplorationMarker,
@@ -304,6 +306,45 @@ export function explorationMapHasCycle(map: ExplorationMap, includeHidden: boole
   return false;
 }
 
+function openNeighbors(map: ExplorationMap, roomId: string): string[] {
+  const next: string[] = [];
+  for (const edge of openEdges(map, [])) {
+    if (edge.from === roomId) next.push(edge.to);
+    else if (edge.to === roomId) next.push(edge.from);
+  }
+  return next;
+}
+
+/**
+ * The exit latch opens only after the alarm. The clue is not required.
+ * Alarm can be raised by ordinary moves and searches, so a connected map
+ * is not escapable unless that sequence can still reach the exit.
+ */
+export function explorationCanEscape(map: ExplorationMap): boolean {
+  const seen = new Set<string>();
+  const queue: Array<{ room: string; risk: number; alarm: boolean }> = [
+    { room: EXPLORATION_ENTRANCE, risk: 0, alarm: false },
+  ];
+  while (queue.length) {
+    const node = queue.shift()!;
+    const key = `${node.room}:${node.risk}:${node.alarm ? 1 : 0}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (node.room === EXPLORATION_EXIT_ROOM && node.alarm) return true;
+    if (!node.alarm) {
+      const risk = Math.min(EXPLORATION_RISK_ALARM, node.risk + 1);
+      queue.push({ room: node.room, risk, alarm: risk >= EXPLORATION_RISK_ALARM });
+    }
+    for (const next of openNeighbors(map, node.room)) {
+      if (next === EXPLORATION_EXIT_ROOM && !node.alarm) continue;
+      let risk = Math.min(EXPLORATION_RISK_ALARM, node.risk + 1);
+      if (next === EXPLORATION_ALARM_ROOM) risk = Math.min(EXPLORATION_RISK_ALARM, risk + 2);
+      queue.push({ room: next, risk, alarm: node.alarm || risk >= EXPLORATION_RISK_ALARM });
+    }
+  }
+  return false;
+}
+
 function assertPlayable(map: ExplorationMap): void {
   if (map.rooms.length < 7 || map.rooms.length > 9) throw new Error("탐험 지도 방 수가 범위를 벗어났습니다.");
   if (!explorationRoomsReachable(map, false)) throw new Error("탐험 지도가 연결되지 않았습니다.");
@@ -312,6 +353,19 @@ function assertPlayable(map: ExplorationMap): void {
   if (!entrance || roomDegree(map, entrance.id, false) < 2) throw new Error("시작 방에 갈림이 없습니다.");
   const forks = map.rooms.filter((room) => roomDegree(map, room.id, false) >= 3);
   if (forks.length < 2) throw new Error("탐험 지도의 갈림길이 부족합니다.");
+  if (!explorationCanEscape(map)) throw new Error("탐험 지도에서 탈출할 수 없습니다.");
+}
+
+/** Movement goals in free text, priced later by the same command owner as a map click. */
+export function explorationCommandsFromMovementBody(map: ExplorationMap, body: string): ExplorationCommand[] {
+  const commands: ExplorationCommand[] = [];
+  for (const goal of declaredMovementGoals(body)) {
+    const place = describeMovementGoal(goal).place;
+    if (!place) continue;
+    commands.push({ op: "move", roomId: canonicalRoomId(map, place) ?? place });
+  }
+  if (commands.length > EXPLORATION_COMMAND_LIMIT) throw new Error("한 번에 너무 많은 탐험 명령입니다.");
+  return commands;
 }
 
 export function generateExplorationMap(seed: string): ExplorationMap {
@@ -474,6 +528,9 @@ export function priceExplorationCommands(opts: {
       const kind = dest ? moveClass(opts.state.map, roomId, dest, opts.state.revealedEdgeIds) : "unknown";
       if (kind === "hidden") throw new Error("아직 발견하지 못한 통로입니다.");
       if (kind !== "ok" || !dest) throw new Error("연결되지 않은 곳으로는 이동할 수 없습니다.");
+      if (dest === EXPLORATION_EXIT_ROOM && !opts.state.alarmFlagged) {
+        throw new Error("출구 빗장은 경보가 울린 뒤에만 풀립니다.");
+      }
       roomId = dest;
     }
     spent += cost;
@@ -507,7 +564,7 @@ export function settleExplorationActor(opts: {
   name: string;
   tier: string | null;
 }): { state: ExplorationState; result: ExplorationActorResult } {
-  const failed = opts.pending.commands.some((command) => command.op === "search") && tierFailed(opts.tier);
+  const tierFailsSearch = tierFailed(opts.tier);
   const key = `${opts.pending.roundId}:${opts.pending.participantId}`;
   if (opts.state.appliedKeys.includes(key)) {
     return {
@@ -534,30 +591,35 @@ export function settleExplorationActor(opts: {
   const result: ExplorationActorResult = {
     participantId: opts.pending.participantId,
     name: opts.name,
-    failed,
+    failed: false,
     location: null,
     items: [],
     flags: [],
     lines: [],
   };
-  if (failed) {
-    const riskDelta = 1;
-    state = raiseRisk(state, riskDelta, result.flags);
-    result.lines.push(
-      `${opts.name}: the search failed. They stay in ${opts.pending.fromRoomId}. Nothing was found. Risk +${riskDelta}.`
-    );
-    return { state, result };
-  }
   let roomId = opts.pending.fromRoomId;
   const visited = [...state.visitedRoomIds];
   let riskDelta = 0;
   const moved: string[] = [];
+  let searchFailed = false;
   for (const command of opts.pending.commands) {
+    if (command.op === "search" && tierFailsSearch) {
+      searchFailed = true;
+      riskDelta += 1;
+      result.lines.push(
+        `${opts.name}: the search failed. They stay in ${roomId}. Nothing was found. Risk +1.`
+      );
+      break;
+    }
     if (command.op === "move") {
       const dest = canonicalRoomId(state.map, command.roomId);
       const kind = dest ? moveClass(state.map, roomId, dest, state.revealedEdgeIds) : "unknown";
       if (kind !== "ok" || !dest) {
         result.lines.push(`${opts.name}: the prepared move could not be applied.`);
+        break;
+      }
+      if (dest === EXPLORATION_EXIT_ROOM && !state.alarmFlagged) {
+        result.lines.push(`${opts.name}: the exit latch is still shut. They stay in ${roomId}.`);
         break;
       }
       roomId = dest;
@@ -598,6 +660,7 @@ export function settleExplorationActor(opts: {
       result.lines.push(`${opts.name}: searched ${roomId} (${command.depth}). The server had nothing new hidden there.`);
     }
   }
+  result.failed = searchFailed;
   if (moved.length) {
     result.location = roomId;
     result.lines.unshift(`${opts.name}: moved ${opts.pending.fromRoomId} → ${moved.join(" → ")}.`);

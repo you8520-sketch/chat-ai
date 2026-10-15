@@ -2,14 +2,18 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   EXPLORATION_ALARM_FLAG,
+  EXPLORATION_ALARM_ROOM,
   EXPLORATION_ARCHIVE_ROOM,
   EXPLORATION_CLUE_TEXT,
   EXPLORATION_ENTRANCE,
+  EXPLORATION_EXIT_ROOM,
   EXPLORATION_HIDDEN_EDGE,
   EXPLORATION_ITEM_NAME,
   EXPLORATION_LOOP_ROOM,
   displayExplorationAp,
   emptyExplorationState,
+  explorationCanEscape,
+  explorationCommandsFromMovementBody,
   explorationLayoutIndex,
   explorationMapHasCycle,
   explorationRoomsReachable,
@@ -157,5 +161,85 @@ describe("exploration map generation", () => {
     assert.equal(failed.state.risk, 1);
     assert.equal(displayExplorationAp(failed.state, 7, 1), 1);
     assert.equal(failed.result.lines.some((line) => line.includes("search failed")), true);
+  });
+
+  it("keeps an earlier move when a later search in the same submission fails", () => {
+    const state = emptyExplorationState("move-then-search");
+    const fork = state.map.edges.find(
+      (edge) => !edge.hidden && (edge.from === EXPLORATION_ENTRANCE || edge.to === EXPLORATION_ENTRANCE)
+    );
+    assert.ok(fork);
+    const dest = fork.from === EXPLORATION_ENTRANCE ? fork.to : fork.from;
+    const spent = spendExplorationAp({
+      state,
+      participantId: 7,
+      roundNumber: 1,
+      roundId: 31,
+      fromRoomId: EXPLORATION_ENTRANCE,
+      commands: [
+        { op: "move", roomId: dest },
+        { op: "search", depth: "normal" },
+      ],
+    });
+    const failed = settleExplorationActor({
+      state: spent,
+      pending: spent.pending[0]!,
+      name: "현이",
+      tier: "FAILURE",
+    });
+    assert.equal(failed.result.location, dest);
+    assert.equal(failed.result.failed, true);
+    assert.equal(failed.state.revealedEventIds.length, 0);
+    assert.equal(failed.state.visitedRoomIds.includes(dest), true);
+    assert.equal(failed.state.risk, 2);
+    assert.equal(displayExplorationAp(failed.state, 7, 1), 1);
+  });
+
+  it("keeps the exit shut until the alarm, and every layout can still be escaped without the clue", () => {
+    for (let layout = 0; layout < 3; layout += 1) {
+      let seed = "";
+      for (let i = 0; i < 80 && !seed; i += 1) {
+        const candidate = `latch-${layout}-${i}`;
+        if (explorationLayoutIndex(candidate) === layout) seed = candidate;
+      }
+      assert.ok(seed, `layout ${layout} needs a seed`);
+      const state = emptyExplorationState(seed);
+      assert.equal(explorationCanEscape(state.map), true);
+      const exitEdge = state.map.edges.find(
+        (edge) => !edge.hidden && (edge.from === EXPLORATION_EXIT_ROOM || edge.to === EXPLORATION_EXIT_ROOM)
+      );
+      assert.ok(exitEdge);
+      const beside = exitEdge.from === EXPLORATION_EXIT_ROOM ? exitEdge.to : exitEdge.from;
+      assert.throws(
+        () =>
+          priceExplorationCommands({
+            state,
+            fromRoomId: EXPLORATION_ENTRANCE,
+            commands: [{ op: "move", roomId: EXPLORATION_EXIT_ROOM }],
+            apRemaining: 3,
+          }),
+        /연결되지 않은 곳으로는 이동할 수 없습니다/
+      );
+      assert.throws(
+        () =>
+          priceExplorationCommands({
+            state: { ...state, revealedEventIds: ["event-clue"] },
+            fromRoomId: beside,
+            commands: [{ op: "move", roomId: EXPLORATION_EXIT_ROOM }],
+            apRemaining: 3,
+          }),
+        /출구 빗장은 경보가 울린 뒤에만 풀립니다/
+      );
+      const opened = priceExplorationCommands({
+        state: { ...state, alarmFlagged: true, revealedEventIds: [] },
+        fromRoomId: beside,
+        commands: [{ op: "move", roomId: EXPLORATION_EXIT_ROOM }],
+        apRemaining: 3,
+      });
+      assert.equal(opened.spent, 1);
+      assert.equal(state.map.rooms.some((room) => room.id === EXPLORATION_ALARM_ROOM), true);
+    }
+    const declared = explorationCommandsFromMovementBody(emptyExplorationState("declare").map, "출구로 이동한다. 벽을 살핀다.");
+    assert.deepEqual(declared, [{ op: "move", roomId: EXPLORATION_EXIT_ROOM }]);
   });
 });

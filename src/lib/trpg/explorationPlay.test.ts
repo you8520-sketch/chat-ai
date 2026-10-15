@@ -116,6 +116,19 @@ function wire(narration: string, location: string): string {
   });
 }
 
+function wirePlayers(
+  narration: string,
+  location: string,
+  players: Array<{ participantId: number; location: string }>
+): string {
+  return buildTrpgGmStructuredWireText(narration, {
+    players,
+    location,
+    next_round_context: "다음",
+    campaign_finished: false,
+  });
+}
+
 describe("exploration play", () => {
   it("keeps the exploration flag on a parsed plan and does not map a campaign without it", async () => {
     assert.equal(parseTrpgScenarioPlan({ ...PLAN })?.exploration, true);
@@ -137,7 +150,19 @@ describe("exploration play", () => {
       rollD20: () => 15,
       gmCall: async ({ user }) => {
         prompts.push(user);
-        return { text: wire("복도의 등이 깜빡인다. GM: 무엇을 하겠는가.", "복도") };
+        const moving = user.includes("창고로 이동한다");
+        const place = moving ? "창고" : "복도";
+        const hostId = (
+          db.prepare(`SELECT id FROM trpg_participants WHERE campaign_id=? AND user_id=1`).get(campaignId) as { id: number }
+        ).id;
+        return {
+          text: buildTrpgGmStructuredWireText(moving ? "복도를 나와 창고에 선다. GM: 무엇을 하겠는가." : "복도의 등이 깜빡인다. GM: 무엇을 하겠는가.", {
+            players: moving ? [{ participantId: hostId, location: place }] : [],
+            location: place,
+            next_round_context: "다음",
+            campaign_finished: false,
+          }),
+        };
       },
     };
     await startTrpgCampaign(db, { campaignId, userId: 1, deps });
@@ -150,6 +175,14 @@ describe("exploration play", () => {
     submitTrpgAction(db, { campaignId, userId: 1, body: "문을 살핀다." });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     assert.equal(prompts.some((prompt) => prompt.includes("[EXPLORATION")), false);
+    const hostId = (
+      db.prepare(`SELECT id FROM trpg_participants WHERE campaign_id=? AND user_id=1`).get(campaignId) as { id: number }
+    ).id;
+    submitTrpgAction(db, { campaignId, userId: 1, body: "창고로 이동한다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(locationOf(db, hostId), "창고");
+    assert.equal(loadCampaignLedger(db, campaignId).location, "창고");
+    assert.equal(loadExplorationState(db, campaignId), null);
     db.close();
   });
 
@@ -493,6 +526,155 @@ describe("exploration play", () => {
     const snap = loadTrpgSnapshot(db, campaignId, 1);
     assert.equal(snap?.exploration?.ap, 3);
     assert.equal(itemQty(db, hostId, EXPLORATION_ITEM_NAME), 0);
+    db.close();
+  });
+
+  it("prices free-text movement for a human and an AI companion on the same map rules", async () => {
+    const db = memoryDb();
+    const templateId = insertScenarioTemplate(db, 7, {
+      title: "자유 이동",
+      summary: "지도 규칙",
+      content: "현관에서 갈림을 고른다.",
+      visibility: "public",
+      startLocation: EXPLORATION_ENTRANCE,
+      scenarioPlan: PLAN,
+    });
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "현이", viewerUserId: 1, templateId });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "현이", stats: EVEN_STATS });
+    const hostId = (db.prepare(`SELECT id FROM trpg_participants WHERE campaign_id=? AND user_id=1`).get(campaignId) as { id: number }).id;
+    const botId = insertParticipant(db, {
+      campaignId,
+      slotIndex: 2,
+      kind: "ai_character",
+      userId: null,
+      characterId: null,
+      displayName: "서하",
+    });
+    writeSheet(db, campaignId, botId, "서하", EVEN_STATS, EXPLORATION_ENTRANCE);
+    let botLine = "제자리에 서서 상황을 살핀다.";
+    let gmCalls = 0;
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 16,
+      rollDie: () => 2,
+      botCall: async () => ({ text: botLine }),
+      gmCall: async () => {
+        gmCalls += 1;
+        return {
+          text: wirePlayers("GM이 둘을 출구에 놓으려 한다. GM: 무엇을 하겠는가.", EXPLORATION_EXIT_ROOM, [
+            { participantId: hostId, location: EXPLORATION_EXIT_ROOM },
+            { participantId: botId, location: EXPLORATION_EXIT_ROOM },
+          ]),
+        };
+      },
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const callsAfterOpening = gmCalls;
+    assert.throws(
+      () => submitTrpgAction(db, { campaignId, userId: 1, body: "출구로 이동한다." }),
+      /연결되지 않은 곳으로는 이동할 수 없습니다/
+    );
+    assert.equal(gmCalls, callsAfterOpening);
+    assert.equal(locationOf(db, hostId), EXPLORATION_ENTRANCE);
+    assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
+    assert.equal(loadCampaignLedger(db, campaignId).location, EXPLORATION_ENTRANCE);
+    const untouched = loadExplorationState(db, campaignId)!;
+    assert.deepEqual(untouched.visitedRoomIds, [EXPLORATION_ENTRANCE]);
+    assert.equal(untouched.pending.length, 0);
+    assert.equal(untouched.apRemaining[String(hostId)], undefined);
+    const fork = neighbors(untouched, EXPLORATION_ENTRANCE)[0];
+    assert.ok(fork);
+    botLine = "출구로 이동한다.";
+    submitTrpgAction(db, { campaignId, userId: 1, body: `${fork}로 이동한다.` });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(locationOf(db, hostId), fork);
+    assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
+    assert.equal(loadCampaignLedger(db, campaignId).location, EXPLORATION_ENTRANCE);
+    const afterBypass = loadExplorationState(db, campaignId)!;
+    assert.equal(afterBypass.visitedRoomIds.includes(fork), true);
+    assert.equal(afterBypass.visitedRoomIds.includes(EXPLORATION_EXIT_ROOM), false);
+    assert.equal(afterBypass.apRemaining[String(hostId)], 2);
+    assert.equal(afterBypass.apRemaining[String(botId)], undefined);
+    const lockedBot = (
+      db
+        .prepare(
+          `SELECT body FROM trpg_action_submissions WHERE participant_id=? ORDER BY id DESC LIMIT 1`
+        )
+        .get(botId) as { body: string }
+    ).body;
+    assert.equal(lockedBot.includes(EXPLORATION_EXIT_ROOM), false);
+    botLine = `${fork}로 이동한다.`;
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고르며 주변을 살핀다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(locationOf(db, botId), fork);
+    assert.equal(locationOf(db, hostId), fork);
+    const botMoved = loadExplorationState(db, campaignId)!;
+    assert.equal(botMoved.apRemaining[String(botId)], 2);
+    assert.equal(loadCampaignLedger(db, campaignId).location, EXPLORATION_ENTRANCE);
+    db.close();
+  });
+
+  it("opens the exit only after the alarm and does not require the clue", async () => {
+    const db = memoryDb();
+    const templateId = insertScenarioTemplate(db, 7, {
+      title: "출구 빗장",
+      summary: "경보 후 탈출",
+      content: "경보 없이 출구로 가지 않는다.",
+      visibility: "public",
+      startLocation: EXPLORATION_ENTRANCE,
+      scenarioPlan: {
+        startingSituation: "현관에 선다",
+        centralConflict: "빗장을 푼다",
+        goal: "출구에 도착한다",
+        endingConditions: ["출구에 도착한다"],
+        exploration: true,
+      },
+    });
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "현이", viewerUserId: 1, templateId });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "현이", stats: EVEN_STATS });
+    const hostId = (db.prepare(`SELECT id FROM trpg_participants WHERE campaign_id=? AND user_id=1`).get(campaignId) as { id: number }).id;
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 16,
+      gmCall: async () => ({
+        text: wire("서버가 정한 자리만 서술한다. GM: 무엇을 하겠는가.", loadCampaignLedger(db, campaignId).location || EXPLORATION_ENTRANCE),
+      }),
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const play = async (commands: Array<{ op: "move"; roomId: string } | { op: "search"; depth: "normal" }>) => {
+      submitTrpgAction(db, { campaignId, userId: 1, body: "", explorationCommands: commands });
+      await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    };
+    for (let guard = 0; guard < 6 && locationOf(db, hostId) !== EXPLORATION_EXIT_ROOM; guard += 1) {
+      const here = locationOf(db, hostId);
+      const path = stepsToward(loadExplorationState(db, campaignId)!, here, EXPLORATION_EXIT_ROOM);
+      const approach = path.slice(0, -1).slice(0, 3);
+      if (!approach.length) break;
+      await play(approach.map((roomId) => ({ op: "move", roomId })));
+    }
+    const beside = locationOf(db, hostId);
+    assert.notEqual(beside, EXPLORATION_EXIT_ROOM);
+    assert.ok(neighbors(loadExplorationState(db, campaignId)!, beside).includes(EXPLORATION_EXIT_ROOM));
+    assert.throws(
+      () =>
+        submitTrpgAction(db, {
+          campaignId,
+          userId: 1,
+          body: "",
+          explorationCommands: [{ op: "move", roomId: EXPLORATION_EXIT_ROOM }],
+        }),
+      /출구 빗장은 경보가 울린 뒤에만 풀립니다/
+    );
+    assert.equal(locationOf(db, hostId), beside);
+    assert.equal(loadExplorationState(db, campaignId)?.pending.length, 0);
+    for (let guard = 0; guard < 8 && !loadExplorationState(db, campaignId)?.alarmFlagged; guard += 1) {
+      await play([{ op: "search", depth: "normal" }]);
+    }
+    assert.equal(loadExplorationState(db, campaignId)?.alarmFlagged, true);
+    assert.equal(loadCampaignLedger(db, campaignId).worldFlags.includes(EXPLORATION_CLUE_FLAG), false);
+    await play([{ op: "move", roomId: EXPLORATION_EXIT_ROOM }]);
+    assert.equal(locationOf(db, hostId), EXPLORATION_EXIT_ROOM);
+    assert.equal(loadCampaignLedger(db, campaignId).worldFlags.includes(EXPLORATION_CLUE_FLAG), false);
     db.close();
   });
 });

@@ -59,9 +59,11 @@ import {
   persistCampaignLedger,
   settleLedgerForCommit,
 } from "./campaignLedger";
+import { explorationCommandsFromMovementBody } from "./explorationMap";
 import {
   explorationPromptForRound,
   ensureExplorationMap,
+  loadExplorationState,
   planExplorationCommit,
   prepareLockedExploration,
   readExplorationCommands,
@@ -490,13 +492,16 @@ export function submitTrpgAction(
   if (Array.from(text).length > TRPG_ACTION_MAX_CHARS) throw new Error("행동이 너무 깁니다.");
   const actionType = opts.actionType && isTrpgActionType(opts.actionType) ? opts.actionType : "free";
   const origin = parseTrpgInputOrigin(opts.inputOrigin);
-  if (commands.length > 0) {
+  const mapped = loadExplorationState(db, opts.campaignId);
+  const pricedCommands =
+    commands.length > 0 ? commands : mapped ? explorationCommandsFromMovementBody(mapped.map, text) : [];
+  if (pricedCommands.length > 0) {
     db.transaction(() => {
       const prepared = prepareLockedExploration(db, {
         campaignId: opts.campaignId,
         roundId: round.id,
         participantId: me.id,
-        commands,
+        commands: pricedCommands,
         freeText: text,
       });
       if (Array.from(prepared.body).length > TRPG_ACTION_MAX_CHARS) throw new Error("행동이 너무 깁니다.");
@@ -1213,7 +1218,32 @@ async function generateBotActions(
       text,
       `${bot.display_name}은 상황을 살피며 한 발 다가선다.`
     );
-    upsertLockedAction(db, opts.roundId, bot.id, body, parseTrpgBotAction(body).actionType, null, "bot_model");
+    const mapped = loadExplorationState(db, opts.campaign.id);
+    const declared = mapped ? explorationCommandsFromMovementBody(mapped.map, body) : [];
+    let spoken = body;
+    if (declared.length > 0) {
+      try {
+        spoken = db.transaction(() => {
+          const prepared = prepareLockedExploration(db, {
+            campaignId: opts.campaign.id,
+            roundId: opts.roundId,
+            participantId: bot.id,
+            commands: declared,
+            freeText: body,
+          });
+          if (Array.from(prepared.body).length > TRPG_ACTION_MAX_CHARS) throw new Error("행동이 너무 깁니다.");
+          upsertLockedAction(db, opts.roundId, bot.id, prepared.body, prepared.actionType, null, "bot_model");
+          saveExplorationState(db, opts.campaign.id, prepared.state);
+          return prepared.body;
+        })();
+      } catch (error) {
+        if (!explorationMoveWasRejected(error)) throw error;
+        spoken = `${bot.display_name}은 제자리에 서서 상황을 살핀다.`;
+        upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
+      }
+    } else {
+      upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model");
+    }
     adjudicateSubmissionForParticipant(db, {
       campaignId: opts.campaign.id,
       roundId: opts.roundId,
@@ -1223,7 +1253,7 @@ async function generateBotActions(
     });
     appendRoundUsage(db, opts.roundId, tagBotRoundUsage(usage ?? TRPG_BOT_USAGE_FALLBACK));
     refreshBotGenerationHeartbeat(db, opts.roundId, opts.requestId);
-    earlier.push({ name: bot.display_name, text: body });
+    earlier.push({ name: bot.display_name, text: spoken });
   }
 }
 
@@ -1636,6 +1666,43 @@ function ensureDeltaPlayer(
   return created;
 }
 
+function explorationMoveWasRejected(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : "";
+  return (
+    message.includes("행동력") ||
+    message.includes("연결되지 않은") ||
+    message.includes("통로") ||
+    message.includes("지도와 맞지") ||
+    message.includes("탐험 지도가 없습니다") ||
+    message.includes("빗장") ||
+    message.includes("탐험 명령") ||
+    message.includes("너무 깁")
+  );
+}
+
+function dropUnpricedExplorationMoves(
+  parsed: ParsedTrpgGmOutput,
+  results: ExplorationCommitAdjustment["results"],
+  currentLocation: string
+): void {
+  const allowed = new Map<number, string>();
+  for (const result of results) {
+    const place = result.location?.trim();
+    if (place) allowed.set(result.participantId, place);
+  }
+  for (const patch of parsed.delta.players) {
+    if (typeof patch.location !== "string") continue;
+    if (patch.location.trim() === allowed.get(patch.participantId)) continue;
+    delete patch.location;
+  }
+  const proposed = (parsed.location || parsed.delta.location || "").trim();
+  const current = currentLocation.trim();
+  if (!proposed || proposed === current) return;
+  if ([...allowed.values()].includes(proposed)) return;
+  parsed.location = current;
+  parsed.delta.location = current;
+}
+
 function applyExplorationToParsed(
   parsed: ParsedTrpgGmOutput,
   adjustment: ExplorationCommitAdjustment,
@@ -1731,6 +1798,9 @@ function commitPendingGmResult(
       explorationCommit,
       sheets.map((sheet) => sheet.participantId)
     );
+  }
+  if (!opts.opening && !opts.regenerate && loadExplorationState(db, campaign.id)) {
+    dropUnpricedExplorationMoves(parsed, explorationCommit?.results ?? [], currentLedger.location);
   }
   const proposedFromPlayers =
     (parsed.delta.players ?? []).map((patch) => patch.location?.trim() ?? "").find(Boolean) ?? "";
