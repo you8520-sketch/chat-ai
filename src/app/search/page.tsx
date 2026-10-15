@@ -159,43 +159,47 @@ export default async function SearchPage({
       description="캐릭터명 · 제작자명 · 태그로 찾고, 장르로 좁혀 보세요."
       className="mt-6"
     >
-      <div className="max-w-2xl">
-        <TagSearchBar defaultQuery={query} genre={genre} />
-      </div>
+      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-3 sm:p-5">
+        <div className="max-w-2xl">
+          <TagSearchBar defaultQuery={query} genre={genre} />
+        </div>
 
-      <div className="mt-4">
-        <ActiveFilters query={hasQuery ? query : ""} genre={genre} />
-      </div>
+        {hasQuery || genre ? (
+          <div className="mt-3">
+            <ActiveFilters query={hasQuery ? query : ""} genre={genre} />
+          </div>
+        ) : null}
 
-      <div className="mt-5">
-        <FilterLabel>장르 카테고리</FilterLabel>
-        <ChipRail label="장르 카테고리">
-          <GenreChip href={searchHref({ q: query || undefined })} active={!genre}>
-            전체
-          </GenreChip>
-          {CHARACTER_GENRES.map((g) => (
-            <GenreChip key={g} href={searchHref({ q: query || undefined, g })} active={genre === g}>
-              {g}
-            </GenreChip>
-          ))}
-        </ChipRail>
-      </div>
-
-      {popularTags.length > 0 && (
         <div className="mt-4">
-          <FilterLabel>인기 태그</FilterLabel>
-          <ChipRail label="인기 태그">
-            {popularTags.map((tag) => (
-              <TagChip key={tag} href={searchHref({ q: tag, g: genre ?? undefined })} active={query === tag}>
-                {tag}
-              </TagChip>
+          <FilterLabel>장르 카테고리</FilterLabel>
+          <ChipRail label="장르 카테고리">
+            <GenreChip href={searchHref({ q: query || undefined })} active={!genre}>
+              전체
+            </GenreChip>
+            {CHARACTER_GENRES.map((g) => (
+              <GenreChip key={g} href={searchHref({ q: query || undefined, g })} active={genre === g}>
+                {g}
+              </GenreChip>
             ))}
           </ChipRail>
         </div>
-      )}
+
+        {popularTags.length > 0 && (
+          <div className="mt-3">
+            <FilterLabel>인기 태그</FilterLabel>
+            <ChipRail label="인기 태그">
+              {popularTags.map((tag) => (
+                <TagChip key={tag} href={searchHref({ q: tag, g: genre ?? undefined })} active={query === tag}>
+                  {tag}
+                </TagChip>
+              ))}
+            </ChipRail>
+          </div>
+        )}
+      </div>
 
       {showingResults ? (
-        <section className="mt-7 border-t border-white/10 pt-5" aria-label="검색 결과">
+        <section className="mt-7" aria-label="검색 결과">
           <SearchResultsSummary query={hasQuery ? query : ""} genre={genre} count={chars.length} limit={SEARCH_RESULT_LIMIT} />
           {chars.length > 0 ? (
             <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-5">
@@ -205,7 +209,9 @@ export default async function SearchPage({
                   <div key={c.id} className="min-w-0">
                     <CharacterCard c={c} blurNsfw={blurNsfw} loggedIn={loggedIn} />
                     {kind && (
-                      <p className="mt-1.5 px-0.5 text-xs font-medium text-violet-300/90">{MATCH_LABEL[kind]} 일치</p>
+                      <p className="mt-2 inline-flex rounded-md bg-violet-500/10 px-1.5 py-0.5 text-xs font-medium text-violet-200">
+                        {MATCH_LABEL[kind]} 일치
+                      </p>
                     )}
                   </div>
                 );

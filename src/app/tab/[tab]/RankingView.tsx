@@ -40,7 +40,7 @@ export function RankingPeriodNav({ period }: { period: RankingPeriod }) {
           );
         })}
       </nav>
-      <div className={cn(studioSurface.card, "mt-3 px-4 py-3")} data-testid="ranking-basis">
+      <div className="mt-4 border-l-2 border-violet-400/50 py-0.5 pl-3" data-testid="ranking-basis">
         <p className="text-sm font-semibold text-zinc-100">
           <span className="text-violet-300">{label} 랭킹</span> · {metric.basis}
         </p>
@@ -101,7 +101,7 @@ function RankRow({
 
   return (
     <li
-      className={cn(index === TOP_COUNT && "mt-4")}
+      className={cn(top && "mb-2.5", index === TOP_COUNT && "mt-5")}
       data-rank={rank}
       {...characterRevealAttrs({
         id: c.id,
@@ -117,15 +117,17 @@ function RankRow({
       <Link
         href={href}
         className={cn(
-          studioSurface.card,
-          "flex items-center gap-2.5 p-3 transition hover:border-white/20 motion-reduce:transition-none sm:gap-4 sm:p-4",
+          "flex items-center gap-2.5 transition motion-reduce:transition-none sm:gap-4",
           "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300",
+          top
+            ? cn(studioSurface.card, "border-violet-300/20 bg-gradient-to-r from-violet-500/[0.09] to-[#131626] p-3 hover:border-violet-300/35 sm:p-4")
+            : "rounded-xl border-b border-white/[0.07] px-1 py-3 hover:bg-white/[0.03] sm:px-2",
         )}
       >
         <span
           className={cn(
             "w-8 shrink-0 text-center font-semibold tabular-nums sm:w-10",
-            top ? "text-3xl text-violet-200" : "text-xl text-zinc-400",
+            top ? "text-4xl text-violet-200" : "text-lg text-zinc-500",
           )}
         >
           {rank}
@@ -134,7 +136,7 @@ function RankRow({
           className={cn(
             "relative shrink-0 overflow-hidden rounded-lg",
             CHARACTER_THUMB_ASPECT,
-            top ? "w-24 sm:w-28" : "w-[4.5rem] sm:w-20",
+            top ? "w-24 ring-1 ring-violet-300/25 sm:w-28" : "w-[4.5rem] sm:w-20",
           )}
           style={{ background: `hsl(${c.hue} 60% 20%)` }}
         >
@@ -177,7 +179,7 @@ function RankRow({
           <p className="mt-1.5 flex items-baseline gap-1.5 text-sm text-zinc-300" data-testid="ranking-metric">
             <span className="text-xs text-zinc-400">{metric.label}</span>
             <span>
-              <span className="font-semibold tabular-nums text-zinc-50">{c.period_chats.toLocaleString()}</span>
+              <span className={cn("font-semibold tabular-nums text-zinc-50", top && "text-base")}>{c.period_chats.toLocaleString()}</span>
               <span className="text-xs text-zinc-400">{metric.unit}</span>
             </span>
           </p>
@@ -199,7 +201,7 @@ export function RankingList({
   loggedIn: boolean;
 }) {
   return (
-    <ol className="mt-5 flex list-none flex-col gap-2.5" aria-label={`${RANKING_PERIODS.find((p) => p.id === period)?.label ?? ""} 랭킹`}>
+    <ol className="mt-5 flex list-none flex-col" aria-label={`${RANKING_PERIODS.find((p) => p.id === period)?.label ?? ""} 랭킹`}>
       {ranked.map((c, i) => (
         <RankRow key={c.id} c={c} index={i} period={period} blurNsfw={blurNsfw} loggedIn={loggedIn} />
       ))}

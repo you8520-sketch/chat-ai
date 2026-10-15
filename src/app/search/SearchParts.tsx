@@ -33,8 +33,8 @@ export function GenreChip({ href, active, children }: { href: string; active: bo
         CHIP_BASE,
         "rounded-xl border",
         active
-          ? "border-violet-400/60 bg-violet-600 text-white"
-          : "border-white/10 bg-[#161922] text-zinc-300 hover:border-white/20 hover:text-zinc-50",
+          ? "border-violet-400/50 bg-violet-500/25 text-violet-50"
+          : "border-transparent bg-white/[0.05] text-zinc-300 hover:bg-white/[0.09] hover:text-zinc-50",
       )}
     >
       {active && <CheckIcon />}
@@ -57,7 +57,7 @@ export function TagChip({ href, active, children }: { href: string; active: bool
       )}
     >
       {active && <CheckIcon />}
-      <span aria-hidden="true" className="text-zinc-500">
+      <span aria-hidden="true" className="text-violet-300/60">
         #
       </span>
       {children}
@@ -66,7 +66,7 @@ export function TagChip({ href, active, children }: { href: string; active: bool
 }
 
 export function FilterLabel({ children }: { children: ReactNode }) {
-  return <p className={cn(studioType.caption, "mb-2 font-semibold text-zinc-300")}>{children}</p>;
+  return <p className="mb-2 text-xs font-semibold tracking-wide text-zinc-400">{children}</p>;
 }
 
 const REMOVE_CHIP =
@@ -121,31 +121,19 @@ export function SearchResultsSummary({
   const capped = count >= limit;
   return (
     <div data-testid="search-summary" role="status">
-      <p className={studioType.body}>
-        {query ? (
-          <>
-            <span className="break-all font-semibold text-violet-300">「{query}」</span>
-            {genre ? (
-              <>
-                {" "}
-                · <span className="font-semibold text-violet-300">{genre}</span>
-              </>
-            ) : null}{" "}
-            검색 결과{" "}
-          </>
-        ) : (
-          <>
-            <span className="font-semibold text-violet-300">{genre}</span> 장르{" "}
-          </>
-        )}
-        {capped ? (
-          <span className="text-zinc-50">최대 {limit}개 표시</span>
-        ) : (
-          <>
-            <span className="text-zinc-50">{count}</span>건
-          </>
-        )}
-      </p>
+      <h2 className="flex flex-wrap items-baseline gap-x-2 text-lg font-semibold text-zinc-50">
+        검색 결과
+        <span className="text-sm font-medium tabular-nums text-violet-300">
+          {capped ? `최대 ${limit}개 표시` : `${count}건`}
+        </span>
+      </h2>
+      {query || genre ? (
+        <p className={cn(studioType.caption, "mt-1 break-all")}>
+          {query ? <>「{query}」</> : null}
+          {query && genre ? " · " : null}
+          {genre ? <>{genre} 장르</> : null}
+        </p>
+      ) : null}
       {capped ? (
         <p className={cn(studioType.helper, "mt-1")}>결과가 많아 일부만 보여요. 검색어를 더 구체적으로 쓰거나 장르·태그로 좁혀 보세요.</p>
       ) : null}
