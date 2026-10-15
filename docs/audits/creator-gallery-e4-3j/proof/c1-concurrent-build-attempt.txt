@@ -1,0 +1,57 @@
+
+Running 13 tests using 1 worker
+
+(node:18531) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests/ui/creator-gallery.spec.ts:29:5 › gift action has a 44px touch target (9.7s)
+  ✘   2 [chromium] › tests/ui/creator-gallery.spec.ts:37:5 › evidence: identical fixture screenshots and geometry (3.0m)
+(node:20223) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   3 [chromium] › tests/ui/creator-gallery.spec.ts:84:7 › long names, HTML and notices stay inside 360px (4.6s)
+  ✓   4 [chromium] › tests/ui/creator-gallery.spec.ts:84:7 › long names, HTML and notices stay inside 390px (4.0s)
+  ✓   5 [chromium] › tests/ui/creator-gallery.spec.ts:84:7 › long names, HTML and notices stay inside 768px (4.2s)
+  ✓   6 [chromium] › tests/ui/creator-gallery.spec.ts:84:7 › long names, HTML and notices stay inside 1440px (4.8s)
+  ✓   7 [chromium] › tests/ui/creator-gallery.spec.ts:97:5 › popular works partition the existing ordered list without duplicates or private/pending rows (9.6s)
+  ✓   8 [chromium] › tests/ui/creator-gallery.spec.ts:111:5 › notice priority, archive and legacy HTML stay accessible (13.7s)
+  ✓   9 [chromium] › tests/ui/creator-gallery.spec.ts:123:5 › empty and single-work states have no empty notice area or repeated gallery (5.1s)
+  ✓  10 [chromium] › tests/ui/creator-gallery.spec.ts:133:5 › official and partner identities preserve gift and dashboard eligibility (16.8s)
+  ✓  11 [chromium] › tests/ui/creator-gallery.spec.ts:147:5 › adult blur and destination stay owned by the shared card (15.6s)
+  ✓  12 [chromium] › tests/ui/creator-gallery.spec.ts:160:5 › community follows works; private, moderated and disabled states remain intact (15.9s)
+  ✓  13 [chromium] › tests/ui/creator-gallery.spec.ts:186:5 › gift dialog stays usable during small-height resize and returns focus (6.2s)
+
+
+  1) [chromium] › tests/ui/creator-gallery.spec.ts:37:5 › evidence: identical fixture screenshots and geometry
+
+    Test timeout of 180000ms exceeded.
+
+    Error: locator.click: Test timeout of 180000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: '취소', exact: true })
+
+
+      75 |   await page.getByRole("button", { name: "포인트 선물", exact: true }).click();
+      76 |   await page.screenshot({ path: path.join(dir!, "gift-390.png") });
+    > 77 |   await page.getByRole("button", { name: "취소", exact: true }).click();
+         |                                                               ^
+      78 |   await login(page, "regular");
+      79 |   await capture("owner-390", ids.regular);
+      80 |   fs.writeFileSync(path.join(dir!, "geometry.json"), JSON.stringify(measurements, null, 2) + "\n");
+        at /workspace/chat-ai/tests/ui/creator-gallery.spec.ts:77:63
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/creator-gallery-evidence-i-e6a06-re-screenshots-and-geometry-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/creator-gallery-evidence-i-e6a06-re-screenshots-and-geometry-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/creator-gallery-evidence-i-e6a06-re-screenshots-and-geometry-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/creator-gallery-evidence-i-e6a06-re-screenshots-and-geometry-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › tests/ui/creator-gallery.spec.ts:37:5 › evidence: identical fixture screenshots and geometry
+  12 passed (5.4m)

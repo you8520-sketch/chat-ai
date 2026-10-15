@@ -1,0 +1,20 @@
+
+Running 13 tests using 1 worker
+
+(node:55044) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests/ui/creator-gallery.spec.ts:29:5 › gift action has a 44px touch target (2.8s)
+  ✓   2 [chromium] › tests/ui/creator-gallery.spec.ts:37:5 › evidence: identical fixture screenshots and geometry (53.9s)
+  ✓   3 [chromium] › tests/ui/creator-gallery.spec.ts:86:7 › long names, HTML and notices stay inside 360px (17.7s)
+  ✓   4 [chromium] › tests/ui/creator-gallery.spec.ts:86:7 › long names, HTML and notices stay inside 390px (5.6s)
+  ✓   5 [chromium] › tests/ui/creator-gallery.spec.ts:86:7 › long names, HTML and notices stay inside 768px (4.5s)
+  ✓   6 [chromium] › tests/ui/creator-gallery.spec.ts:86:7 › long names, HTML and notices stay inside 1440px (4.8s)
+  ✓   7 [chromium] › tests/ui/creator-gallery.spec.ts:99:5 › popular works partition the existing ordered list without duplicates or private/pending rows (11.2s)
+  ✓   8 [chromium] › tests/ui/creator-gallery.spec.ts:113:5 › notice priority, archive and legacy HTML stay accessible (6.5s)
+  ✓   9 [chromium] › tests/ui/creator-gallery.spec.ts:125:5 › empty and single-work states have no empty notice area or repeated gallery (3.6s)
+  ✓  10 [chromium] › tests/ui/creator-gallery.spec.ts:135:5 › official and partner identities preserve gift and dashboard eligibility (7.8s)
+  ✓  11 [chromium] › tests/ui/creator-gallery.spec.ts:149:5 › adult blur and destination stay owned by the shared card (12.5s)
+  ✓  12 [chromium] › tests/ui/creator-gallery.spec.ts:162:5 › community follows works; private, moderated and disabled states remain intact (10.1s)
+  ✓  13 [chromium] › tests/ui/creator-gallery.spec.ts:188:5 › gift dialog stays usable during small-height resize and returns focus (3.2s)
+
+  13 passed (2.5m)

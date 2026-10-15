@@ -1,0 +1,12 @@
+{
+  "fixture_source_sha": "f183afbc5aa8a0e65be309dbd34d9e8cdb232921",
+  "fixture_sha256": "816a927a3fad3fb46db519aa0cbd360300bca3462e31af44411d46af30fb6781",
+  "same_capture_fixture_for_all_variants": true,
+  "wallet": {
+    "paid": 1000,
+    "free": 0
+  },
+  "regular_gallery_unique_titles": 8,
+  "regular_gallery_distinct_images": 8,
+  "production_mode_functional_tests_passed": 12
+}

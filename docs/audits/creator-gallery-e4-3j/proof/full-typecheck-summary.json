@@ -1,0 +1,8 @@
+{
+  "baseline_errors": 2164,
+  "final_errors": 2164,
+  "added_diagnostic_locations_and_codes": [],
+  "removed_diagnostic_locations_and_codes": [],
+  "final_exit_code": 2,
+  "note": "Unchanged test-only diagnostic locations/codes. One union type may print members in a different order."
+}

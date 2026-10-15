@@ -1,0 +1,8 @@
+
+> hav-chat@0.1.0 lint
+> npm run typecheck:app
+
+
+> hav-chat@0.1.0 typecheck:app
+> tsc -p tsconfig.app.json --noEmit --pretty false
+

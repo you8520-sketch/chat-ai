@@ -1,0 +1,104 @@
+[
+  {
+    "name": "regular-360",
+    "width": 360,
+    "scrollWidth": 345,
+    "clientWidth": 360,
+    "workCards": 8,
+    "giftButtonHeight": 44
+  },
+  {
+    "name": "regular-390",
+    "width": 390,
+    "scrollWidth": 375,
+    "clientWidth": 390,
+    "workCards": 8,
+    "giftButtonHeight": 44
+  },
+  {
+    "name": "regular-768",
+    "width": 768,
+    "scrollWidth": 753,
+    "clientWidth": 768,
+    "workCards": 8,
+    "giftButtonHeight": 44
+  },
+  {
+    "name": "regular-1440",
+    "width": 1440,
+    "scrollWidth": 1425,
+    "clientWidth": 1440,
+    "workCards": 8,
+    "giftButtonHeight": 44
+  },
+  {
+    "name": "long-390",
+    "width": 390,
+    "scrollWidth": 375,
+    "clientWidth": 390,
+    "workCards": 8,
+    "giftButtonHeight": 44
+  },
+  {
+    "name": "long-1440",
+    "width": 1440,
+    "scrollWidth": 1425,
+    "clientWidth": 1440,
+    "workCards": 8,
+    "giftButtonHeight": 44
+  },
+  {
+    "name": "empty-390",
+    "width": 390,
+    "scrollWidth": 375,
+    "clientWidth": 390,
+    "workCards": 0,
+    "giftButtonHeight": 44
+  },
+  {
+    "name": "single-390",
+    "width": 390,
+    "scrollWidth": 375,
+    "clientWidth": 390,
+    "workCards": 1,
+    "giftButtonHeight": 44
+  },
+  {
+    "name": "official-390",
+    "width": 390,
+    "scrollWidth": 375,
+    "clientWidth": 390,
+    "workCards": 8
+  },
+  {
+    "name": "partner-1440",
+    "width": 1440,
+    "scrollWidth": 1425,
+    "clientWidth": 1440,
+    "workCards": 24,
+    "giftButtonHeight": 44
+  },
+  {
+    "name": "legacy-390",
+    "width": 390,
+    "scrollWidth": 375,
+    "clientWidth": 390,
+    "workCards": 8,
+    "giftButtonHeight": 44
+  },
+  {
+    "name": "community-390",
+    "width": 390,
+    "scrollWidth": 375,
+    "clientWidth": 390,
+    "workCards": 8,
+    "giftButtonHeight": 44
+  },
+  {
+    "name": "owner-390",
+    "width": 390,
+    "scrollWidth": 375,
+    "clientWidth": 390,
+    "workCards": 8
+  }
+]
