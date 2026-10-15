@@ -76,68 +76,87 @@ function preserveStyleText(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
-function extractContextRegisterPairs(body: string): { context: string; style: string }[] {
-  const pairs: { context: string; style: string }[] = [];
-  for (const raw of body.split(/\n/)) {
-    const line = raw.trim();
-    if (!line || /^예시[:：]?/i.test(line)) continue;
-    const m = line.match(CONTEXT_REGISTER_LINE_RE);
-    if (!m?.[1] || !m[2]) continue;
-    const context = m[1].replace(/^\*+|\*+$/g, "").trim();
-    if (context.length < 2) continue;
-    const style = preserveStyleText(m[2]);
-    if (!style) continue;
-    pairs.push({ context, style });
-  }
-  return pairs.slice(0, 8);
+/** Curly quotes → ASCII. Single owner shared by speech extraction, anchors, validator and Muse boundary. */
+export function normalizeSmartQuotes(text: string): string {
+  return text.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
 }
 
-function extractDialogueExamples(body: string): string[] {
-  const examples: string[] = [];
+const MAX_CONTEXT_REGISTER_PAIRS = 8;
+const MAX_DIALOGUE_EXAMPLES = 6;
+const MAX_EXAMPLE_DISPLAY_LENGTH = 100;
+const BOILERPLATE_LINE_RE =
+  /SPEECH CONSISTENCY|Dialogue style is learned|Dialogue examples are the strongest/i;
+const EXAMPLE_HEADER_RE = /^예시[:：]?/i;
+/** 원문 따옴표 모양(" “” 「」)을 그대로 보존한다 — 예시 대사 줄 자체는 변형하지 않는다. */
+const QUOTED_EXAMPLE_PATTERNS: RegExp[] = [
+  /(["“])([^"“”\n]{2,160})(["”])/g,
+  /(「)([^」\n]{2,160})(」)/g,
+];
+
+type MetadataLine =
+  | { kind: "pair"; context: string; style: string }
+  | { kind: "residual"; text: string };
+
+type ExtractedExamples = {
+  display: string[];
+  /** 전문이 display에 그대로 실린 인용문 — 잔여 문장에서 제거해도 내용이 사라지지 않는다. */
+  consumed: Set<string>;
+};
+
+function extractDialogueExamples(body: string): ExtractedExamples {
+  const display: string[] = [];
+  const consumed = new Set<string>();
   const seen = new Set<string>();
-  for (const m of body.matchAll(/"([^"\n]{2,160})"/g)) {
-    const q = m[1]?.trim();
-    if (!q || seen.has(q)) continue;
-    seen.add(q);
-    examples.push(`"${q.length > 100 ? `${q.slice(0, 97)}…` : q}"`);
-    if (examples.length >= 6) break;
+  for (const re of QUOTED_EXAMPLE_PATTERNS) {
+    for (const m of body.matchAll(re)) {
+      if (display.length >= MAX_DIALOGUE_EXAMPLES) break;
+      const [, open = "", inner = "", close = ""] = m;
+      const q = inner.trim();
+      if (!q || seen.has(q)) continue;
+      seen.add(q);
+      const truncated = q.length > MAX_EXAMPLE_DISPLAY_LENGTH;
+      if (!truncated) consumed.add(m[0]);
+      display.push(`${open}${truncated ? `${q.slice(0, MAX_EXAMPLE_DISPLAY_LENGTH - 3)}…` : q}${close}`);
+    }
   }
-  for (const m of body.matchAll(/「([^」\n]{2,160})」/g)) {
-    const q = m[1]?.trim();
-    if (!q || seen.has(q)) continue;
-    seen.add(q);
-    examples.push(`「${q.length > 100 ? `${q.slice(0, 97)}…` : q}」`);
-    if (examples.length >= 6) break;
-  }
-  return examples;
+  return { display, consumed };
 }
 
-function extractStyleNotes(body: string, pairs: { context: string; style: string }[]): string[] {
-  const notes: string[] = [];
+/**
+ * 줄 단위 분류 — 조건:말투 쌍은 register_by_context로, 나머지는 문장 그대로 잔여 지시문으로 보존한다.
+ * 쌍 상한(8)을 넘은 줄도 버리지 않고 잔여로 남긴다.
+ */
+function classifyMetadataLines(body: string, consumedExamples: Set<string>): MetadataLine[] {
+  const lines: MetadataLine[] = [];
+  let pairCount = 0;
   for (const raw of body.split(/\n/)) {
     const line = raw.trim();
-    if (!line || CONTEXT_REGISTER_LINE_RE.test(line)) continue;
-    if (/^예시[:：]?/i.test(line)) continue;
-    if (
-      /SPEECH CONSISTENCY|Dialogue style is learned|Dialogue examples are the strongest/i.test(
-        line
-      )
-    ) {
+    if (!line || BOILERPLATE_LINE_RE.test(line)) continue;
+    const m = EXAMPLE_HEADER_RE.test(line) ? null : line.match(CONTEXT_REGISTER_LINE_RE);
+    const context = m?.[1]?.replace(/^\*+|\*+$/g, "").trim() ?? "";
+    const style = m?.[2] ? preserveStyleText(m[2]) : "";
+    if (context.length >= 2 && style && pairCount < MAX_CONTEXT_REGISTER_PAIRS) {
+      pairCount += 1;
+      lines.push({ kind: "pair", context, style });
       continue;
     }
-    if (/^[\-*•]\s/.test(line) && line.length >= 8) {
-      notes.push(line.replace(/^[\-*•]\s+/, "").trim());
-    }
+    let residual = line;
+    for (const quoted of consumedExamples) residual = residual.split(quoted).join(" ");
+    residual = preserveStyleText(
+      residual.replace(/^[\-*•]\s+/, "").replace(EXAMPLE_HEADER_RE, "").replace(/^[\s,.·:：]+|[\s,]+$/g, "")
+    );
+    if (residual.length >= 2) lines.push({ kind: "residual", text: residual });
   }
-  return notes.slice(0, 8);
+  return lines;
 }
 
 /** Natural-language speech section → structured generation metadata (not narratable prose). */
 export function formatSpeechSectionAsMetadata(title: string, body: string): string {
   void title;
-  const pairs = extractContextRegisterPairs(body);
   const examples = extractDialogueExamples(body);
-  const notes = extractStyleNotes(body, pairs);
+  const classified = classifyMetadataLines(body, examples.consumed);
+  const pairs = classified.filter((l): l is Extract<MetadataLine, { kind: "pair" }> => l.kind === "pair");
+  const notes = classified.filter((l): l is Extract<MetadataLine, { kind: "residual" }> => l.kind === "residual");
   const registerLabels = collectNonNegatedRegisterLabels(body);
 
   const lines: string[] = [
@@ -156,20 +175,12 @@ export function formatSpeechSectionAsMetadata(title: string, body: string): stri
 
   if (notes.length > 0) {
     lines.push("", "style_notes (do not narrate — dialogue only):");
-    for (const n of notes) lines.push(`- ${n}`);
+    for (const n of notes) lines.push(`- ${n.text}`);
   }
 
-  if (examples.length > 0) {
+  if (examples.display.length > 0) {
     lines.push("", "dialogue_examples (style anchors — do not quote labels in narration):");
-    for (const ex of examples) lines.push(`- ${ex}`);
-  }
-
-  if (pairs.length === 0) {
-    const compact = preserveStyleText(body);
-    if (compact) {
-      lines.push("", "creator_notes (metadata — never narrate):");
-      lines.push(`- ${compact}`);
-    }
+    for (const ex of examples.display) lines.push(`- ${ex}`);
   }
 
   return lines.join("\n");

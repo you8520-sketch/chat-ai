@@ -6,10 +6,12 @@ import {
   isHistoricalEra,
   requiresFormalSpeech,
 } from "./patterns";
+import { normalizeSmartQuotes } from "@/lib/speechMetadataPolicy";
 
 const DIALOGUE_EXTRACT = /"([^"]{2,200})"/g;
 
-export function extractCharacterDialogue(text: string, charName: string): string[] {
+export function extractCharacterDialogue(rawText: string, charName: string): string[] {
+  const text = normalizeSmartQuotes(rawText);
   const lines: string[] = [];
   let m: RegExpExecArray | null;
   const re = new RegExp(DIALOGUE_EXTRACT.source, "g");
@@ -97,31 +99,6 @@ function testModernSlangInHistorical(dialogue: string, profile: SpeechProfile): 
   ];
 }
 
-function testEndingAnchorDrift(dialogue: string, profile: SpeechProfile): SpeechViolation[] {
-  const anchors = profile.ending_anchors?.filter(Boolean) ?? [];
-  if (anchors.length === 0 || profile.dialogue_examples.length === 0) return [];
-
-  const cleaned = dialogue.replace(/^["「『]|["」』]$/g, "").replace(/[.!?…\s]+$/g, "").trim();
-  if (cleaned.length < 2) return [];
-
-  const matches = anchors.some(
-    (anchor) =>
-      cleaned.endsWith(anchor) ||
-      cleaned.includes(anchor) ||
-      anchor.length >= 2 && cleaned.slice(-anchor.length) === anchor
-  );
-  if (matches) return [];
-
-  return [
-    {
-      type: "ending_drift",
-      matched: [cleaned.slice(-6) || cleaned.slice(0, 20)],
-      excerpt: dialogue.slice(0, 100),
-      severity: "fail",
-    },
-  ];
-}
-
 function testCustomForbidden(dialogue: string, profile: SpeechProfile): SpeechViolation[] {
   const out: SpeechViolation[] = [];
   for (const label of profile.forbidden_speech_patterns) {
@@ -154,7 +131,6 @@ export function validateSpeechLock(text: string, profile: SpeechProfile): Speech
     violations.push(...testFormalityDrift(line, profile));
     violations.push(...testClassDrift(line, profile));
     violations.push(...testModernSlangInHistorical(line, profile));
-    violations.push(...testEndingAnchorDrift(line, profile));
     violations.push(...testCustomForbidden(line, profile));
   }
 

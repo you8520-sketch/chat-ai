@@ -13,6 +13,7 @@
 import {
   formatSpeechSectionAsMetadata,
   isSpeechMetadataSection,
+  normalizeSmartQuotes,
 } from "@/lib/speechMetadataPolicy";
 import { parseCharacterSettingIntoSections } from "@/lib/characterSettingSections";
 import { extractCharacterDialogueLines, extractEndingAnchors } from "@/lib/speechCreatorFields";
@@ -29,10 +30,6 @@ const DIALOGUE_EXAMPLES_HEADER_RE = /dialogue_examples\s*[:\(].*/i;
 
 const QUOTED_EXAMPLE_RE = /[""""""「『]([^""""""」』\n]{2,})[""""""」』]/g;
 const GENERATION_METADATA_HEADER_RE = /\[말투\s*[—\-·]\s*GENERATION\s+METADATA[^\]]*\]/i;
-
-function normalizeSmartQuotes(text: string): string {
-  return text.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
-}
 
 const SENTENCE_ENDING_RE =
   /(?:습니다|십시오|하세요|합니다|이오|하오|하옵|하구|하네|하군|하리|하리오|구나|구려|니까|니오|소|오|요|다|네|지|죠|군요|래요|어요|가요|까요|습니까)$/;

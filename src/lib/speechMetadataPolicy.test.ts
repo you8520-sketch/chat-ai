@@ -11,6 +11,7 @@ import { describe, it, before } from "node:test";
 import {
   formatSpeechSectionAsMetadata,
   isSpeechMetadataSection,
+  normalizeSmartQuotes,
   SPEECH_METADATA_INVISIBLE_RULE,
 } from "@/lib/speechMetadataPolicy";
 
@@ -83,5 +84,55 @@ describe("speechMetadataPolicy", () => {
     );
     assert.match(out, /default_register:\s*존댓말/);
     assert.doesNotMatch(out, /default_register:\s*반말/);
+  });
+  it("keeps the residual sentence next to context:style pairs instead of dropping it", () => {
+    const out = formatSpeechSectionAsMetadata(
+      "[말투 — 특징]",
+      "공적: 존댓말을 쓴다.\n화가 나면 말수가 줄고 상대의 직함을 정확히 부른다."
+    );
+    assert.match(out, /register_by_context:\n- 공적 → 존댓말을 쓴다\./);
+    assert.match(out, /style_notes[^\n]*\n- 화가 나면 말수가 줄고 상대의 직함을 정확히 부른다\./);
+  });
+
+  it("keeps pairs, plain sentences and bullets together without repeating the original", () => {
+    const body = [
+      "평소: 낮고 건조한 존댓말",
+      "전투 중: 명령형 반말",
+      "말끝을 흐리지 않는다.",
+      "- 상대가 거짓말을 하면 호칭만 정확히 부른다.",
+      '예시: "상황 보고."',
+    ].join("\n");
+    const out = formatSpeechSectionAsMetadata("[말투 — 특징]", body);
+    assert.match(out, /- 평소 → 낮고 건조한 존댓말/);
+    assert.match(out, /- 전투 중 → 명령형 반말/);
+    assert.match(out, /- 말끝을 흐리지 않는다\./);
+    assert.match(out, /- 상대가 거짓말을 하면 호칭만 정확히 부른다\./);
+    assert.match(out, /dialogue_examples[^\n]*\n- "상황 보고\."/);
+    assert.equal(out.match(/낮고 건조한 존댓말/g)?.length, 1);
+    assert.equal(out.match(/상황 보고/g)?.length, 1);
+    assert.doesNotMatch(out, /creator_notes/);
+  });
+
+  it("keeps whole prose when there are no pairs, once", () => {
+    const body = "존댓말은 예의라기보다 심문의 틀로 쓴다. 화가 나도 목소리를 높이지 않는다.";
+    const out = formatSpeechSectionAsMetadata("[말투 — 성격]", body);
+    assert.equal(out.match(/심문의 틀/g)?.length, 1);
+    assert.match(out, /목소리를 높이지 않는다/);
+    assert.doesNotMatch(out, /creator_notes/);
+  });
+
+  it("does not drop pair lines beyond the pair cap", () => {
+    const body = Array.from({ length: 10 }, (_, i) => `상대${i + 1}: 말투${i + 1}를 쓴다`).join("\n");
+    const out = formatSpeechSectionAsMetadata("[말투 — 특징]", body);
+    for (let i = 1; i <= 10; i += 1) assert.match(out, new RegExp(`말투${i}를 쓴다`));
+  });
+
+  it("extracts curly-quoted examples like straight-quoted ones and keeps the original glyphs", () => {
+    const straight = formatSpeechSectionAsMetadata("[말투]", '평소: 존댓말\n예시: "기록하겠습니다."');
+    const curly = formatSpeechSectionAsMetadata("[말투]", "평소: 존댓말\n예시: “기록하겠습니다.”");
+    assert.match(straight, /dialogue_examples[^\n]*\n- "기록하겠습니다\."/);
+    assert.match(curly, /dialogue_examples[^\n]*\n- “기록하겠습니다\.”/);
+    assert.equal(normalizeSmartQuotes(curly), straight);
+    assert.equal(normalizeSmartQuotes("“a” ‘b’"), "\"a\" 'b'");
   });
 });

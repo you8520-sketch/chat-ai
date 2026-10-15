@@ -42,8 +42,10 @@ export type SpeechProfile = {
   creator_personality?: string;
   /** 제작자 입력 — 말투 특징 */
   creator_speech_traits?: string;
-  /** 예시 대사에서 추출한 종결 어미 앵커 */
+  /** 예시 대사에서 추출한 대표 종결 어미 — 허용 어미 전체 목록이 아니며 validator 판정에 쓰지 않는다 */
   ending_anchors?: string[];
+  /** 제작자 입력 사이의 모순(삭제하지 않고 표면화) — 예: 항상 존댓말 선언 vs 반말 예시 */
+  register_conflicts?: string[];
   /** Human-readable lock summary for prompts */
   lockSummary: string;
 };
@@ -54,7 +56,6 @@ export type SpeechViolationType =
   | "modern_slang"
   | "formality_drift"
   | "class_drift"
-  | "ending_drift"
   | "narration_register_lexicon";
 
 export type SpeechViolation = {
