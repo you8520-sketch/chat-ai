@@ -167,17 +167,17 @@ test("community follows works; private, moderated and disabled states remain int
   await page.reload();
   await expect(page.getByText("비공개 fixture 댓글", { exact: true })).toBeVisible();
   await expect(page.getByText("검수 중", { exact: true })).toBeVisible();
-  const positions = await page.evaluate(() => ({
-    worksBottom: document.querySelector("#creator-works")!.getBoundingClientRect().bottom,
-    communityTop: document.querySelector(".creator-gallery__community")!.getBoundingClientRect().top,
-  }));
-  expect(positions.communityTop).toBeGreaterThanOrEqual(positions.worksBottom);
   const input = page.getByPlaceholder("댓글을 입력하세요…");
   await page.setViewportSize({ width: 360, height: 420 });
   await input.fill("전송하지 않는 입력 확인");
   await input.scrollIntoViewIfNeeded();
   await noOverflow(page);
   expect(await input.evaluate((el) => el.getBoundingClientRect().width)).toBeGreaterThan(100);
+  const positions = await page.evaluate(() => ({
+    worksBottom: document.querySelector("#creator-works")!.getBoundingClientRect().bottom,
+    communityTop: document.querySelector(".creator-gallery__community")!.getBoundingClientRect().top,
+  }));
+  expect(positions.communityTop).toBeGreaterThanOrEqual(positions.worksBottom);
   await page.goto(`/creator/${ids.disabled}`);
   await expect(page.getByPlaceholder("댓글을 입력하세요…")).toHaveCount(0);
   await login(page, "disabled");
