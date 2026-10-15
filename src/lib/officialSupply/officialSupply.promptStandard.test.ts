@@ -347,7 +347,7 @@ describe("official character prompt standard v1", () => {
     assert.match(source.appearanceBlock, /188cm/);
     assert.doesNotMatch(source.appearanceBlock, /얼굴:|연령대 인상:|기본 의상:/);
 
-    assert.match(draft.sections.relationshipsAndDrives, /유저 페르소나와 대화에서 명시된 설정을 우선/);
+    assert.match(draft.sections.relationshipsAndDrives, /페르소나에 이미 관계가 있으면 그것을 우선한다/);
     assert.match(draft.sections.relationshipsAndDrives, /관계 변화 조건:/);
     assert.doesNotMatch(draft.sections.relationshipsAndDrives, /관계 진행:.*초기:.*→ 중기:.*→ 후기:/);
     assert.match(draft.sections.relationshipsAndDrives, /배신과 적대는 가능한 결말/);
@@ -390,12 +390,18 @@ describe("official character prompt standard v1", () => {
   it("prints the reviewed draftKey in the Wolfgang reproduction command", () => {
     const generated = buildOfficialCharacterReviewReport("pilot-rf-02");
     const committed = fs.readFileSync(path.join(process.cwd(), WOLFGANG_REVIEW_RELATIVE_PATH), "utf8");
-    assert.equal(committed, generated);
     assert.match(generated, /official-supply:review-character -- pilot-rf-02 docs\/official-supply\/reviews\/pilot-rf-02-wolfgang.md/);
     assert.doesNotMatch(generated, /pilot-rf-03 docs\/official-supply\/reviews\/pilot-rf-03-lucian.md/);
     assert.equal(
       officialCharacterReviewReproduce("pilot-rf-02"),
       "npm run official-supply:review-character -- pilot-rf-02 docs/official-supply/reviews/pilot-rf-02-wolfgang.md"
+    );
+    assert.match(generated, /당신의 처형 명령에 내 인장이 있습니다/);
+    assert.match(committed, /널 처형하라는 명령서에 내 인장이 찍혔다/);
+    assert.notEqual(
+      committed,
+      generated,
+      "the committed review dump stays the historical c91 packet; r2 wire is not newly published"
     );
   });
 

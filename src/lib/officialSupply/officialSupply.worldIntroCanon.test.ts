@@ -161,8 +161,9 @@ describe("official shared world: manuscripts keep what was not meant to change",
     }
   });
 
-  it("Wolfgang differs from the previously approved manuscript only in world, situation, intro and comment", () => {
+  it("Wolfgang r2 keeps identity, core, secrets and appearance-era fields from the c91 manuscript", () => {
     const approved = readJson<PilotFile>(path.join(PILOT_DIR, "fixtures", "pilot-rf-02-approved-c91ba66a.source.json"));
+    const r2 = readJson<PilotFile>(path.join(PILOT_DIR, "fixtures", "pilot-rf-02-approved-59985461.source.json"));
     const now = loadCompiledOfficialCharacterSource("pilot-rf-02").draft;
     const before = compileOfficialDraftFromBible(approved.bible, {
       draftKey: approved.draftKey,
@@ -173,19 +174,20 @@ describe("official shared world: manuscripts keep what was not meant to change",
       genres: now.genres,
       audience: now.audience,
     });
-    assert.equal(before.promptStandard, undefined);
-    assert.equal(now.promptStandard, undefined);
-    for (const field of ["name", "tagline", "greeting", "gender", "age", "genres", "speech", "supportingNpcs", "secrets", "adult"] as const) {
+    assert.equal(computeTextLockHash(now), "599854610891ee4e09224d1bec863501227157584b66068f0e1cab5e0e1ca89c");
+    assert.deepEqual(now.secrets, before.secrets);
+    assert.equal(now.sections.characterCore, before.sections.characterCore);
+    assert.equal(now.sections.extraCanon, before.sections.extraCanon);
+    for (const field of ["name", "gender", "age", "genres", "supportingNpcs"] as const) {
       assert.deepEqual(now[field], before[field], `Wolfgang ${field} changed`);
     }
-    assert.equal(now.sections.characterCore, before.sections.characterCore);
-    assert.equal(now.sections.relationshipsAndDrives, before.sections.relationshipsAndDrives);
-    assert.equal(now.sections.extraCanon, before.sections.extraCanon);
-    assert.notEqual(now.sections.worldAndSituation, before.sections.worldAndSituation);
+    assert.deepEqual(r2.bible.identity, approved.bible.identity);
+    assert.notEqual(now.tagline, before.tagline);
+    assert.notEqual(now.greeting, before.greeting);
     assert.notEqual(now.description, before.description);
-    assert.equal(before.creatorComment, undefined);
+    assert.notEqual(now.speech.personality, before.speech.personality);
     assert.ok(now.creatorComment);
-    assert.notEqual(computeTextLockHash(now), computeTextLockHash(before), "a new Text Lock is required for the new manuscript");
+    assert.notEqual(computeTextLockHash(now), computeTextLockHash(before));
   });
 
   it("Wolfgang's old world and incident text is still present in the split surfaces", () => {
@@ -198,7 +200,7 @@ describe("official shared world: manuscripts keep what was not meant to change",
     }
     assert.match(situation, /금지 마석/);
     assert.match(situation, /서명과 인장/);
-    assert.match(situation, /유저의 성별·신분·직업·과거 관계는 페르소나에 따라 자유롭다/);
+    assert.match(now.sections.relationshipsAndDrives ?? "", /성별·신분·직업/);
   });
 });
 

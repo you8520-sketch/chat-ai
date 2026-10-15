@@ -26,13 +26,20 @@ import {
   computeAppearanceLockHash,
   renderAppearanceBlock,
 } from "@/lib/officialSupply/appearance";
-import { computeTextLockHash } from "@/lib/officialSupply/characterText";
+import { compileOfficialDraftFromBible } from "@/lib/officialSupply/bible";
+import {
+  composeOfficialSystemPrompt,
+  computeTextLockHash,
+  officialRpSettingOverflowChars,
+} from "@/lib/officialSupply/characterText";
 import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
+import type { OfficialCharacterBible } from "@/lib/officialSupply/bible";
 import {
   OFFICIAL_IN_PLACE_APPLY_ENV,
   syncOfficialCharacterInPlace,
 } from "@/lib/officialSupply/inPlaceSync";
 import { WOLFGANG_IN_PLACE_TARGET } from "@/lib/officialSupply/inPlaceWolfgang";
+import { ensureOfficialSharedWorldLibraryRow } from "@/lib/officialSupply/officialSharedWorld";
 import {
   DERIVED_BANMAL_BAN,
   DERIVED_INTRA_TURN_SWITCH_BAN,
@@ -58,15 +65,30 @@ const SUPPLY_KEY = WOLFGANG_IN_PLACE_TARGET.supplyDraftKey;
 const SOURCE_KEY = WOLFGANG_IN_PLACE_TARGET.sourceDraftKey;
 const FIXTURE_DIR = path.join(process.cwd(), "src/lib/officialSupply/pilot/fixtures");
 const PILOT_SOURCE_DIR = path.join(process.cwd(), "src/lib/officialSupply/pilot");
-const APPROVED_SOURCE_FIXTURE = path.join(FIXTURE_DIR, "pilot-rf-02-approved-c91ba66a.source.json");
-const BEFORE_RP = path.join(process.cwd(), "docs/official-supply/reviews/pilot-rf-02-before-rp.txt");
+const PREVIOUS_SOURCE_FIXTURE = path.join(FIXTURE_DIR, "pilot-rf-02-approved-c91ba66a.source.json");
+const APPROVED_SOURCE_FIXTURE = path.join(FIXTURE_DIR, "pilot-rf-02-approved-59985461.source.json");
 
 function previousLockDraft(): OfficialCharacterDraft {
-  return (
-    JSON.parse(fs.readFileSync(path.join(FIXTURE_DIR, "pilot-rf-02-approved-text-lock-draft.json"), "utf8")) as {
-      draft: OfficialCharacterDraft;
-    }
-  ).draft;
+  const file = JSON.parse(fs.readFileSync(PREVIOUS_SOURCE_FIXTURE, "utf8")) as {
+    draftKey: string;
+    bible: OfficialCharacterBible;
+  };
+  const src = loadCompiledOfficialCharacterSource(SOURCE_KEY);
+  const compiled = compileOfficialDraftFromBible(file.bible, {
+    draftKey: file.draftKey,
+    worldKey: src.worldKey,
+    styleKey: src.draft.styleKey,
+    worldName: src.worldBible.name,
+    worldBible: src.worldBible,
+    hook: src.draft.hook,
+    genres: src.draft.genres,
+    audience: src.draft.audience,
+  });
+  return {
+    ...compiled,
+    draftKey: SUPPLY_KEY,
+    styleKey: "romance_fantasy_v4",
+  };
 }
 
 function firstSentence(text: string): string {
@@ -74,9 +96,8 @@ function firstSentence(text: string): string {
 }
 
 /**
- * The pinned approved Text Lock (c91ba66a…) belongs to the manuscript approved before the
- * shared-world migration. The live `pilot-rf-02` source has moved on and needs a new approved
- * Text Lock, so the sync mechanics are exercised against the frozen approved source.
+ * Live `pilot-rf-02` is the user-approved r2 manuscript. Sync mechanics still run against a
+ * frozen copy of that approved source so the test does not depend on later live edits.
  */
 function installFrozenApprovedPilotDir(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wolfgang-approved-pilot-"));
@@ -111,6 +132,7 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
       DELETE FROM official_supply_characters;
       DELETE FROM official_supply_batches;
       DELETE FROM characters;
+      DELETE FROM worlds;
       DELETE FROM users WHERE email LIKE '%@site-managed.invalid' OR email LIKE '%@test.local';
     `);
   });
@@ -150,6 +172,9 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
     siblingId: number;
     lorebookIds: number[];
     oldSystemPrompt: string;
+    sharedWorldId: number;
+    sharedWorldContent: string;
+    sharedWorldSummary: string;
   };
 
   function seedProductionShapedWolfgang(opts?: { appearanceRaw?: string }): Seed {
@@ -160,7 +185,12 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
       nickname: "로맨스 공식 스튜디오",
       email: "wolfgang-owner@site-managed.invalid",
     });
-    const oldSystemPrompt = fs.readFileSync(BEFORE_RP, "utf8").trimEnd();
+    const sharedWorld = ensureOfficialSharedWorldLibraryRow({
+      db,
+      creatorId: studio.id,
+      bible: src.worldBible,
+    });
+    const oldSystemPrompt = composeOfficialSystemPrompt(old, src.appearanceBlock);
     const fullLock = opts?.appearanceRaw ?? renderAppearanceBlock(src.appearanceLock);
     const assets = wolfgangAssets();
     const info = db
@@ -284,6 +314,7 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
       )
       .run(studio.id);
     const siblingId = Number(sibling.lastInsertRowid);
+    db.prepare("UPDATE characters SET world_id=? WHERE id=?").run(sharedWorld.worldId, siblingId);
     replaceCharacterCreatorLorebookAttachments(db, siblingId, lorebookIds);
 
     db.prepare(
@@ -315,7 +346,16 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
         computeAppearanceLockHash(src.appearanceLock)
       );
     }
-    return { characterId, ownerId: studio.id, siblingId, lorebookIds, oldSystemPrompt };
+    return {
+      characterId,
+      ownerId: studio.id,
+      siblingId,
+      lorebookIds,
+      oldSystemPrompt,
+      sharedWorldId: sharedWorld.worldId,
+      sharedWorldContent: sharedWorld.content,
+      sharedWorldSummary: sharedWorld.summary,
+    };
   }
 
   function characterRow(id: number) {
@@ -341,6 +381,7 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
     "greeting",
     "system_prompt",
     "world",
+    "world_id",
     "creator_comment",
     "example_dialog",
     "tags",
@@ -452,10 +493,11 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
       ),
       "identity_same_full_lock"
     );
-    assert.equal(old.secrets.length, 8);
+    assert.equal(old.secrets.length, 2);
     assert.equal(src.draft.secrets.length, 2);
-    assert.equal(removedSecrets().length, 6);
-    assert.equal(src.systemPrompt.length, 5445);
+    assert.deepEqual(src.draft.secrets, old.secrets);
+    assert.equal(removedSecrets().length, 0);
+    assert.equal(src.systemPrompt.length, 6566);
   });
 
   it("dry-run reports the old to approved transition without writing", async () => {
@@ -472,7 +514,15 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
     assert.equal(preview.sameCharacterId, true);
     assert.equal(preview.createdNewCharacter, false);
     assert.equal(preview.notifiedFollowers, false);
-    assert.deepEqual(preview.changedFields, ["system_prompt", "supply_text_lock"]);
+    assert.deepEqual(preview.changedFields, [
+      "tagline",
+      "description",
+      "greeting",
+      "system_prompt",
+      "world",
+      "world_id",
+      "supply_text_lock",
+    ]);
     assert.equal(preview.preflightSnapshot.supplyDraftKey, SUPPLY_KEY);
     assert.equal(preview.preflightSnapshot.supplyTextLockHash, WOLFGANG_IN_PLACE_TARGET.previousTextLockHash);
     assert.equal(preview.preflightSnapshot.targetTextLockHash, WOLFGANG_IN_PLACE_TARGET.approvedTextLockHash);
@@ -510,10 +560,22 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
     assert.equal(result.sameCharacterId, true);
     assert.equal(result.createdNewCharacter, false);
     assert.equal(result.notifiedFollowers, false);
+    assert.equal(before.world_id, null);
+    assert.equal(result.after.worldId, seed.sharedWorldId);
 
     const after = characterRow(seed.characterId);
+    assert.equal(after.world_id, seed.sharedWorldId);
+    const worldAfter = getDb()
+      .prepare("SELECT id, content, summary FROM worlds WHERE id=?")
+      .get(seed.sharedWorldId) as { id: number; content: string; summary: string };
+    assert.equal(worldAfter.content, seed.sharedWorldContent);
+    assert.equal(worldAfter.summary, seed.sharedWorldSummary);
+    assert.equal(
+      (getDb().prepare("SELECT COUNT(*) AS n FROM worlds WHERE creator_id=?").get(seed.ownerId) as { n: number }).n,
+      1
+    );
     assert.equal(after.system_prompt, src.systemPrompt);
-    assert.equal((after.system_prompt as string).length, 5445);
+    assert.equal((after.system_prompt as string).length, 6566);
     assert.notEqual(after.system_prompt, seed.oldSystemPrompt);
 
     const supply = supplyRow();
@@ -552,7 +614,7 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
     assert.notEqual(after.speech_profile, before.speech_profile, "the profile must be re-derived from the approved manuscript");
 
     const approvedExamples = [...approvedSpeech.examples.matchAll(/“([^”]+)”/gu)].map((match) => match[1]!.trim());
-    assert.equal(approvedExamples.length, 4);
+    assert.equal(approvedExamples.length, 5);
     assert.deepEqual(profileAfter.dialogue_examples, approvedExamples, "saved examples must be exactly the approved source examples");
     assert.ok(!profileAfter.dialogue_examples.includes("구버전 예시대사"), "the stale pre-change example must not survive");
 
@@ -580,6 +642,11 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
       );
     }
     assert.ok(profileAfter.forbidden_speech_patterns.includes(DERIVED_SAME_ADDRESSEE_SWITCH_BAN));
+    assert.equal(officialRpSettingOverflowChars(src.draft, src.appearanceBlock), 0);
+    assert.ok(!("default_register" in profileAfter));
+    assert.doesNotMatch(String(after.system_prompt ?? ""), /default_register/);
+    assert.doesNotMatch(String(after.example_dialog ?? ""), /default_register/);
+    assert.doesNotMatch(String(after.speech_profile ?? ""), /default_register/);
     assert.equal(after.id, seed.characterId);
     assert.equal(after.official, 0);
     assert.equal(after.visibility, "private");
@@ -615,10 +682,8 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
     const adminId = insertAdmin();
     const src = source();
     const removed = removedSecrets();
-    assert.ok(
-      removed.every((secret) => seed.oldSystemPrompt.includes(secret)),
-      "the old production prompt carries every removed secret"
-    );
+    assert.deepEqual(removed, []);
+    assert.deepEqual(src.draft.secrets, previousLockDraft().secrets);
 
     await apply(seed.characterId, adminId);
 
