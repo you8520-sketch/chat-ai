@@ -93,20 +93,48 @@ export function loadRelationshipMetaBeforeSnapshotCore(
   return parseRelationshipMetaBeforeSnapshot(row?.memory_relationship_before_json ?? null, names);
 }
 
-function loadLastRemainingRelationshipMetaAfterCore(
+function parseRelationshipMetaDeltaSnapshot(value: unknown): RelationshipMetaDelta | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = value as {
+    items?: unknown;
+    promisesAdd?: unknown;
+  };
+  const items = Array.isArray(raw.items)
+    ? raw.items.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    : [];
+  const promisesAdd = Array.isArray(raw.promisesAdd)
+    ? raw.promisesAdd.flatMap((entry) => {
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+        const text = (entry as { text?: unknown }).text;
+        if (typeof text !== "string" || !text.trim()) return [];
+        const deadline = (entry as { deadline?: unknown }).deadline;
+        return [
+          {
+            text: text.trim(),
+            ...(typeof deadline === "string" && deadline.trim()
+              ? { deadline: deadline.trim() }
+              : {}),
+          },
+        ];
+      })
+    : [];
+  const delta: RelationshipMetaDelta = { items, promisesAdd };
+  return hasRelationshipDelta(delta) ? delta : null;
+}
+
+export function loadDeletedTurnRelationshipProvenanceCore(
   db: Database.Database,
   chatId: number,
+  assistantMessageId: number,
   names: HonorificNames
-): MemoryMeta | null {
+): { delta: RelationshipMetaDelta | null; after: MemoryMeta | null } {
   const row = db
     .prepare(
       `SELECT content, model, usage, alternates, active_variant
        FROM messages
-       WHERE chat_id=? AND role='assistant'
-       ORDER BY id DESC
-       LIMIT 1`
+       WHERE id=? AND chat_id=? AND role='assistant'`
     )
-    .get(chatId) as
+    .get(assistantMessageId, chatId) as
     | {
         content: string;
         model: string;
@@ -115,12 +143,40 @@ function loadLastRemainingRelationshipMetaAfterCore(
         active_variant: number | null;
       }
     | undefined;
-  if (!row) return null;
+  if (!row) return { delta: null, after: null };
   const { variants, activeVariant } = normalizeMessageVariants(row);
-  const parsed = parseRelationshipMetaObjectSnapshot(
-    variants[activeVariant]?.relationshipMetaAfter
-  );
-  return parsed ? normalizeMemoryMeta(parsed, names) : null;
+  const active = variants[activeVariant];
+  const afterParsed = parseRelationshipMetaObjectSnapshot(active?.relationshipMetaAfter);
+  return {
+    delta: parseRelationshipMetaDeltaSnapshot(active?.relationshipMetaDelta),
+    after: afterParsed ? normalizeMemoryMeta(afterParsed, names) : null,
+  };
+}
+
+function committedRelationshipAddsBetween(
+  before: MemoryMeta,
+  after: MemoryMeta
+): RelationshipMetaDelta {
+  const beforeItems = new Set(before.items);
+  const beforePromises = new Set(before.promises.map((promise) => promise.text));
+  return {
+    items: after.items.filter((item) => !beforeItems.has(item)),
+    promisesAdd: after.promises.filter((promise) => !beforePromises.has(promise.text)),
+  };
+}
+
+function subtractCommittedRelationshipAdds(
+  meta: MemoryMeta,
+  delta: RelationshipMetaDelta
+): MemoryMeta {
+  let next = meta;
+  for (const item of delta.items ?? []) {
+    next = removeRelationshipMetaItem(next, "items", item);
+  }
+  for (const promise of delta.promisesAdd ?? []) {
+    next = removeRelationshipMetaItem(next, "promises", promise.text);
+  }
+  return next;
 }
 
 function persistRelationshipMetaBeforeSnapshotCore(
@@ -154,6 +210,11 @@ function persistRelationshipMetaAfterSnapshotForGenerationCore(
     assistantMessageId: number;
     generationScope: AssistantGenerationScope;
     meta: MemoryMeta;
+    /**
+     * Undefined leaves any existing committed delta untouched.
+     * Null clears it. A delta records only adds since the before snapshot.
+     */
+    delta?: RelationshipMetaDelta | null;
   }
 ): void {
   const row = db
@@ -187,10 +248,18 @@ function persistRelationshipMetaAfterSnapshotForGenerationCore(
     return;
   }
 
-  variants[activeVariant] = {
+  const nextVariant = {
     ...active,
     relationshipMetaAfter: opts.meta,
   };
+  if (opts.delta !== undefined) {
+    if (opts.delta && hasRelationshipDelta(opts.delta)) {
+      nextVariant.relationshipMetaDelta = opts.delta;
+    } else {
+      delete nextVariant.relationshipMetaDelta;
+    }
+  }
+  variants[activeVariant] = nextVariant;
   db.prepare(
     "UPDATE messages SET alternates=? WHERE id=? AND chat_id=? AND role='assistant'"
   ).run(JSON.stringify(variants), opts.assistantMessageId, opts.chatId);
@@ -258,8 +327,12 @@ export function clearChatRelationshipMeta(chatId: number): void {
  * Roll back relationship-meta entries added by a deleted turn.
  *
  * Provenance order:
- * 1. The deleted assistant's `memory_relationship_before_json`.
- * 2. The last remaining assistant variant's `relationshipMetaAfter`.
+ * 1. The deleted assistant's `memory_relationship_before_json`, only when the
+ *    current ledger still matches that turn's after snapshot. A later edit is
+ *    drift, same as variant switch `external_drift_preserved`.
+ * 2. Adds recorded on that generation's `relationshipMetaDelta`.
+ *    A surviving `relationshipMetaAfter` is not a worldline proof: user edits
+ *    and other writers can change the ledger without rewriting it.
  * 3. Conservative substring fallback. Paraphrased leftovers that match neither
  *    surviving nor deleted RAW stay put — unknown old rows are not guessed away.
  */
@@ -271,6 +344,8 @@ export function rollbackRelationshipMetaForDeletedTurnCore(
     deletedUserText: string;
     deletedAssistantText: string;
     relationshipMetaBeforeJson?: string | null;
+    relationshipMetaDelta?: RelationshipMetaDelta | null;
+    relationshipMetaAfter?: MemoryMeta | null;
   }
 ): MemoryMeta {
   const before = parseRelationshipMetaBeforeSnapshot(
@@ -278,18 +353,24 @@ export function rollbackRelationshipMetaForDeletedTurnCore(
     opts.names
   );
   if (before) {
-    saveChatRelationshipMetaCore(db, opts.chatId, before);
-    return before;
+    const current = loadChatRelationshipMetaCore(db, opts.chatId, opts.names);
+    const after = opts.relationshipMetaAfter
+      ? normalizeMemoryMeta(opts.relationshipMetaAfter, opts.names)
+      : null;
+    if (!after || JSON.stringify(current) === JSON.stringify(after)) {
+      saveChatRelationshipMetaCore(db, opts.chatId, before);
+      return before;
+    }
   }
 
-  const remainingAfter = loadLastRemainingRelationshipMetaAfterCore(
-    db,
-    opts.chatId,
-    opts.names
-  );
-  if (remainingAfter) {
-    saveChatRelationshipMetaCore(db, opts.chatId, remainingAfter);
-    return remainingAfter;
+  const committedDelta = parseRelationshipMetaDeltaSnapshot(opts.relationshipMetaDelta);
+  if (committedDelta) {
+    const meta = loadChatRelationshipMetaCore(db, opts.chatId, opts.names);
+    const next = subtractCommittedRelationshipAdds(meta, committedDelta);
+    if (JSON.stringify(next) !== JSON.stringify(meta)) {
+      saveChatRelationshipMetaCore(db, opts.chatId, next);
+    }
+    return next;
   }
 
   const rows = db
@@ -366,6 +447,8 @@ export function rollbackRelationshipMetaForDeletedTurn(opts: {
   deletedUserText: string;
   deletedAssistantText: string;
   relationshipMetaBeforeJson?: string | null;
+  relationshipMetaDelta?: RelationshipMetaDelta | null;
+  relationshipMetaAfter?: MemoryMeta | null;
 }): MemoryMeta {
   return rollbackRelationshipMetaForDeletedTurnCore(getDb(), opts);
 }
@@ -465,11 +548,15 @@ export function applyRelationshipDeltaToChat(opts: {
     }
     saveChatRelationshipMetaCore(db, opts.chatId, merged);
     if (assistantMessageId != null && opts.generationScope) {
+      const baseline =
+        loadRelationshipMetaBeforeSnapshotCore(db, assistantMessageId, opts.names) ??
+        prevNormalized;
       persistRelationshipMetaAfterSnapshotForGenerationCore(db, {
         chatId: opts.chatId,
         assistantMessageId,
         generationScope: opts.generationScope,
         meta: merged,
+        delta: committedRelationshipAddsBetween(baseline, merged),
       });
     }
     return { meta: merged, accepted: true };

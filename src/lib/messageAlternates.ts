@@ -1,7 +1,7 @@
 import type { Usage } from "@/lib/chatUsage";
 import { serializeUsageForPublicClient } from "@/lib/billingReceiptAccess";
 import type { ParsedStatusWidgetTurnValues } from "@/lib/statusWidget/types";
-import type { MemoryMeta } from "@/lib/chatMemory";
+import type { MemoryMeta, RelationshipMetaDelta } from "@/lib/chatMemory";
 
 export type MessageVariant = {
   content: string;
@@ -16,6 +16,12 @@ export type MessageVariant = {
   sourceMessageId?: number | null;
   /** Internal-only canonical relationship projection after this generation. Never serialize to clients. */
   relationshipMetaAfter?: MemoryMeta | null;
+  /**
+   * Internal-only adds committed by this generation since its before snapshot.
+   * Never serialize to clients. Absence is not proof the generation added nothing
+   * on rows written before this field existed.
+   */
+  relationshipMetaDelta?: RelationshipMetaDelta | null;
 };
 
 export function parseMessageVariants(raw: string | null | undefined): MessageVariant[] {
@@ -115,6 +121,7 @@ export function serializeVariantsForClient(
   const clientVariants = variants.map((v) => {
     const clientVariant = { ...v };
     delete clientVariant.relationshipMetaAfter;
+    delete clientVariant.relationshipMetaDelta;
     return {
       ...clientVariant,
       usage: v.usage

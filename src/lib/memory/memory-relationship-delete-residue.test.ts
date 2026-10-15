@@ -26,8 +26,10 @@ import {
   mergeRelationshipMetaAfterRegenerate,
   reprojectRelationshipMetaForVariantSwitchCore,
 } from "@/lib/memory/memory-relationship-meta";
+import { reconcileDerivedMemoryAfterUserMessageEditCore } from "@/lib/memory/memory-reconcile";
 import { getOrCreateChatMemory } from "@/lib/memory/memory-db";
 import { getMemorySourceBoundary } from "@/lib/memory/memory-source-boundary";
+import { resolveMemorySourceTurnIdentityCore } from "@/lib/memory/memory-turn-loader";
 import { normalizeMessageVariants } from "@/lib/messageAlternates";
 
 const CHAT_ID = 883101;
@@ -45,6 +47,11 @@ const PARAPHRASE_PROMISE = {
 const OTHER_TURN_PROMISE = {
   text: "서재의 청동열쇠를 계속 보관한다.",
 };
+const LATER_PROMISE = {
+  text: "서고의 청동열쇠는 내일까지 그 자리에 둔다.",
+  deadline: "내일",
+};
+const LATER_ITEM = "Tester: 청동열쇠";
 
 function cleanup(): void {
   const db = getDb();
@@ -116,6 +123,21 @@ function clearBeforeJson(assistantMessageId: number): void {
     .run(assistantMessageId);
 }
 
+function stripCommittedDelta(assistantMessageId: number): void {
+  const db = getDb();
+  const row = db
+    .prepare("SELECT alternates FROM messages WHERE id=?")
+    .get(assistantMessageId) as { alternates: string | null } | undefined;
+  if (!row?.alternates) return;
+  const parsed = JSON.parse(row.alternates) as Array<Record<string, unknown>>;
+  if (!Array.isArray(parsed)) return;
+  for (const variant of parsed) delete variant.relationshipMetaDelta;
+  db.prepare("UPDATE messages SET alternates=? WHERE id=?").run(
+    JSON.stringify(parsed),
+    assistantMessageId
+  );
+}
+
 function deleteLastTurn(userMessageId: number, assistantMessageId: number) {
   return executeLastTurnDeleteTransaction(getDb(), {
     chatId: CHAT_ID,
@@ -129,6 +151,49 @@ function deleteLastTurn(userMessageId: number, assistantMessageId: number) {
 
 function promises(): string[] {
   return loadChatRelationshipMeta(CHAT_ID, NAMES).promises.map((row) => row.text);
+}
+
+function items(): string[] {
+  return loadChatRelationshipMeta(CHAT_ID, NAMES).items;
+}
+
+/** Projection writer that does not refresh any assistant variant snapshot. */
+function applyUnscopedDelta(
+  delta: Parameters<typeof applyRelationshipDeltaToChat>[0]["delta"],
+  sourceUserMessageId: number
+) {
+  return applyRelationshipDeltaToChat({
+    chatId: CHAT_ID,
+    names: NAMES,
+    delta,
+    sourceUserMessageId,
+    boundarySnapshot: getMemorySourceBoundary(CHAT_ID),
+  });
+}
+
+function editUserSource(userMessageId: number, nextText: string): void {
+  const db = getDb();
+  const previousUserText = (
+    db.prepare("SELECT content FROM messages WHERE id=?").get(userMessageId) as {
+      content: string;
+    }
+  ).content;
+  const identity = resolveMemorySourceTurnIdentityCore(db, CHAT_ID, userMessageId);
+  if (!identity) throw new Error("missing memory turn identity");
+  db.transaction(() => {
+    db.prepare("UPDATE messages SET content=? WHERE id=?").run(nextText, userMessageId);
+    reconcileDerivedMemoryAfterUserMessageEditCore(db, {
+      chatId: CHAT_ID,
+      userId: USER_ID,
+      characterId: CHAR_ID,
+      tier: "free",
+      memoryCapacity: 10_000,
+      memoryTurnNumber: identity.memoryTurnNumber,
+      sourceUserMessageId: identity.sourceUserMessageId,
+      sourceAssistantMessageId: identity.sourceAssistantMessageId,
+      previousUserText,
+    });
+  }).immediate();
 }
 
 before(() => installIsolatedTestDatabase());
@@ -173,7 +238,7 @@ describe("relationship ledger last-turn delete residue", () => {
     assert.deepEqual(promises(), [KEPT_PROMISE.text]);
   });
 
-  it("C drops a paraphrased leftover when before is missing but remaining after exists", () => {
+  it("C drops a paraphrased leftover from the deleted turn's committed delta when before is missing", () => {
     insertTurn({
       userId: 1,
       assistantId: 2,
@@ -401,5 +466,135 @@ describe("relationship ledger last-turn delete residue", () => {
       forked.promises.map((row) => row.text),
       [KEPT_PROMISE.text]
     );
+  });
+
+  it("does not resurrect a promise removed by a canonical user-source edit", () => {
+    insertTurn({
+      userId: 1,
+      assistantId: 2,
+      userText: KEPT_PROMISE.text,
+      assistantText: "그 말은 들었다.",
+    });
+    applyDelta(2, 1, { promisesAdd: [KEPT_PROMISE] });
+    insertTurn({
+      userId: 3,
+      assistantId: 4,
+      userText: "그냥 걷자",
+      assistantText: "말은 더 보태지 않았다.",
+    });
+    const zero = applyDelta(4, 3, {});
+    assert.equal(zero.accepted, true);
+    assert.equal(
+      (
+        getDb()
+          .prepare("SELECT memory_relationship_before_json AS v FROM messages WHERE id=4")
+          .get() as { v: string | null }
+      ).v,
+      null
+    );
+
+    editUserSource(1, "그 약속은 없던 일로 하자.");
+    assert.equal(promises().includes(KEPT_PROMISE.text), false);
+
+    deleteLastTurn(3, 4);
+    assert.equal(promises().includes(KEPT_PROMISE.text), false);
+  });
+
+  it("keeps a later canonical promise and item when the last turn is deleted", () => {
+    insertTurn({
+      userId: 1,
+      assistantId: 2,
+      userText: "북문에서 만나자",
+      assistantText: "내일 밤 북문에서 만나기로 했다.",
+    });
+    applyDelta(2, 1, { promisesAdd: [KEPT_PROMISE] });
+    insertTurn({
+      userId: 3,
+      assistantId: 4,
+      userText: "잠깐 옥상에 가자",
+      assistantText: "비가 그치면 표본을 보러 가자고 했다.",
+    });
+    applyDelta(4, 3, { promisesAdd: [PARAPHRASE_PROMISE] });
+    const added = applyUnscopedDelta(
+      { promisesAdd: [LATER_PROMISE], items: [LATER_ITEM] },
+      1
+    );
+    assert.equal(added.accepted, true);
+    assert.equal(promises().includes(LATER_PROMISE.text), true);
+    assert.equal(items().includes(LATER_ITEM), true);
+
+    deleteLastTurn(3, 4);
+    assert.equal(promises().includes(LATER_PROMISE.text), true);
+    assert.equal(items().includes(LATER_ITEM), true);
+    assert.equal(promises().includes(KEPT_PROMISE.text), true);
+    assert.equal(promises().includes(PARAPHRASE_PROMISE.text), false);
+  });
+
+  it("does not attribute a pre-turn ledger change to the deleted zero-delta turn", () => {
+    insertTurn({
+      userId: 1,
+      assistantId: 2,
+      userText: "북문에서 만나자",
+      assistantText: "내일 밤 북문에서 만나기로 했다.",
+    });
+    applyDelta(2, 1, { promisesAdd: [KEPT_PROMISE] });
+    const added = applyUnscopedDelta(
+      { promisesAdd: [LATER_PROMISE], items: [LATER_ITEM] },
+      1
+    );
+    assert.equal(added.accepted, true);
+    insertTurn({
+      userId: 3,
+      assistantId: 4,
+      userText: "그냥 걷자",
+      assistantText: "말은 더 보태지 않았다.",
+    });
+    applyDelta(4, 3, {});
+    const remaining = normalizeMessageVariants(
+      getDb()
+        .prepare(
+          "SELECT content, model, usage, alternates, active_variant FROM messages WHERE id=2"
+        )
+        .get() as {
+        content: string;
+        model: string;
+        usage: string | null;
+        alternates: string | null;
+        active_variant: number | null;
+      }
+    );
+    const after = remaining.variants[remaining.activeVariant]?.relationshipMetaAfter;
+    assert.equal(
+      after?.promises.some((row) => row.text === LATER_PROMISE.text),
+      false
+    );
+    assert.equal(after?.items.includes(LATER_ITEM), false);
+
+    deleteLastTurn(3, 4);
+    assert.equal(promises().includes(LATER_PROMISE.text), true);
+    assert.equal(items().includes(LATER_ITEM), true);
+    assert.equal(promises().includes(KEPT_PROMISE.text), true);
+  });
+
+  it("does not replace the ledger from a surviving after snapshot that has no committed delta", () => {
+    insertTurn({
+      userId: 1,
+      assistantId: 2,
+      userText: "북문에서 만나자",
+      assistantText: "내일 밤 북문에서 만나기로 했다.",
+    });
+    applyDelta(2, 1, { promisesAdd: [KEPT_PROMISE] });
+    insertTurn({
+      userId: 3,
+      assistantId: 4,
+      userText: "잠깐 옥상에 가자",
+      assistantText: "비가 그치면 표본을 보러 가자고 했다.",
+    });
+    applyDelta(4, 3, { promisesAdd: [PARAPHRASE_PROMISE] });
+    clearBeforeJson(4);
+    stripCommittedDelta(4);
+
+    deleteLastTurn(3, 4);
+    assert.deepEqual(promises().sort(), [KEPT_PROMISE.text, PARAPHRASE_PROMISE.text].sort());
   });
 });
