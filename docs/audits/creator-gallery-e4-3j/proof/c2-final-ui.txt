@@ -1,0 +1,10 @@
+
+Running 3 tests using 1 worker
+
+(node:14921) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › tests/ui/creator-gallery.spec.ts:37:5 › evidence: identical fixture screenshots and geometry (1.2m)
+  ✓  2 [chromium] › tests/ui/creator-gallery.spec.ts:160:5 › community follows works; private, moderated and disabled states remain intact (15.3s)
+  ✓  3 [chromium] › tests/ui/creator-gallery.spec.ts:186:5 › gift dialog stays usable during small-height resize and returns focus (4.9s)
+
+  3 passed (1.6m)
