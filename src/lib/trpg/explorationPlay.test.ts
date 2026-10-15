@@ -248,7 +248,8 @@ describe("exploration play", () => {
     assert.equal(openingWire.includes(EXPLORATION_CLUE_TEXT), false);
     assert.equal(openingWire.includes(EXPLORATION_ITEM_NAME), false);
     assert.match(gmPrompts[0] ?? "", /\[EXPLORATION/);
-    assert.match(gmPrompts[0] ?? "", /Do not invent a clue/);
+    assert.match(gmPrompts[0] ?? "", /Do not invent another clue/);
+    assert.match(gmPrompts[0] ?? "", /현이 is in 현관홀/);
 
     const log: string[] = [];
     const submitBoth = (left: { commands?: unknown; body?: string }, right: { commands?: unknown; body?: string }) => {
@@ -675,6 +676,122 @@ describe("exploration play", () => {
     await play([{ op: "move", roomId: EXPLORATION_EXIT_ROOM }]);
     assert.equal(locationOf(db, hostId), EXPLORATION_EXIT_ROOM);
     assert.equal(loadCampaignLedger(db, campaignId).worldFlags.includes(EXPLORATION_CLUE_FLAG), false);
+    db.close();
+  });
+
+  it("keeps a remember-round GM wire on server seats and drops invented exit travel", async () => {
+    const db = memoryDb();
+    const templateId = insertScenarioTemplate(db, 7, {
+      title: "기억 라운드",
+      summary: "단서 확인",
+      content: "찾은 문서를 나눈다.",
+      visibility: "public",
+      startLocation: EXPLORATION_ENTRANCE,
+      scenarioPlan: PLAN,
+    });
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "현이", viewerUserId: 1, templateId });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "현이", stats: EVEN_STATS });
+    const invite = (db.prepare(`SELECT invite_code FROM trpg_campaigns WHERE id=?`).get(campaignId) as { invite_code: string }).invite_code;
+    joinTrpgCampaign(db, { code: invite, userId: 2, nickname: "도윤" });
+    saveTrpgSheet(db, { campaignId, userId: 2, name: "도윤", stats: EVEN_STATS });
+    const hostId = (db.prepare(`SELECT id FROM trpg_participants WHERE campaign_id=? AND user_id=1`).get(campaignId) as { id: number }).id;
+    const human2 = (db.prepare(`SELECT id FROM trpg_participants WHERE campaign_id=? AND user_id=2`).get(campaignId) as { id: number }).id;
+    const ai: number[] = [];
+    for (const [slot, name] of [[2, "서하"], [3, "도윤봇"]] as const) {
+      const id = insertParticipant(db, {
+        campaignId,
+        slotIndex: slot,
+        kind: "ai_character",
+        userId: null,
+        characterId: null,
+        displayName: name,
+      });
+      writeSheet(db, campaignId, id, name, EVEN_STATS, EXPLORATION_ENTRANCE);
+      ai.push(id);
+    }
+    const gmPrompts: string[] = [];
+    const botPrompts: string[] = [];
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 16,
+      botCall: async (_system, user) => {
+        botPrompts.push(user);
+        return { text: "제자리에 서서 문서를 확인한다." };
+      },
+      gmCall: async ({ user }) => {
+        gmPrompts.push(user);
+        if (user.includes("문서를 동료에게 보여준다")) {
+          return {
+            text: buildTrpgGmStructuredWireText("일행은 출구 앞에서 잔해를 치운다. GM: 무엇을 하겠는가.", {
+              players: [
+                { participantId: hostId, location: EXPLORATION_EXIT_ROOM },
+                { participantId: human2, location: EXPLORATION_EXIT_ROOM },
+                { participantId: ai[0]!, location: EXPLORATION_EXIT_ROOM },
+                { participantId: ai[1]!, location: EXPLORATION_EXIT_ROOM },
+              ],
+              location: EXPLORATION_EXIT_ROOM,
+              next_round_context: "다음",
+              campaign_finished: false,
+              flagsAdd: ["경보_활성화됨", "단서_출구빗장_확인"],
+            }),
+          };
+        }
+        return {
+          text: wire("서버가 확정한 자리만 잇는다. GM: 무엇을 하겠는가.", loadCampaignLedger(db, campaignId).location || EXPLORATION_ENTRANCE),
+        };
+      },
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const submitBoth = (left: { commands?: unknown; body?: string }, right: { commands?: unknown; body?: string }) => {
+      submitTrpgAction(db, { campaignId, userId: 1, body: left.body ?? "", explorationCommands: left.commands });
+      submitTrpgAction(db, { campaignId, userId: 2, body: right.body ?? "", explorationCommands: right.commands });
+    };
+    const play = async () => {
+      await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    };
+    for (let guard = 0; guard < 4 && locationOf(db, hostId) !== EXPLORATION_ARCHIVE_ROOM; guard += 1) {
+      const path = stepsToward(loadExplorationState(db, campaignId)!, locationOf(db, hostId), EXPLORATION_ARCHIVE_ROOM).slice(0, 3);
+      assert.ok(path.length, "archive is reachable");
+      submitBoth({ commands: path.map((roomId) => ({ op: "move" as const, roomId })) }, { body: "자리를 지킨다." });
+      await play();
+    }
+    assert.equal(locationOf(db, hostId), EXPLORATION_ARCHIVE_ROOM);
+    submitBoth({ commands: [{ op: "search", depth: "normal" }] }, { body: "자리를 지킨다." });
+    await play();
+    assert.ok(loadCampaignLedger(db, campaignId).worldFlags.includes(EXPLORATION_CLUE_FLAG));
+    for (let guard = 0; guard < 8 && !loadExplorationState(db, campaignId)?.alarmFlagged; guard += 1) {
+      submitBoth({ body: "문서를 다시 읽는다." }, { commands: [{ op: "search", depth: "normal" }] });
+      await play();
+    }
+    assert.equal(loadExplorationState(db, campaignId)?.alarmFlagged, true);
+    assert.equal(locationOf(db, hostId), EXPLORATION_ARCHIVE_ROOM);
+    assert.equal(locationOf(db, human2), EXPLORATION_ENTRANCE);
+    assert.equal(locationOf(db, ai[0]!), EXPLORATION_ENTRANCE);
+    assert.equal(locationOf(db, ai[1]!), EXPLORATION_ENTRANCE);
+    const beforeRemember = gmPrompts.length;
+    submitBoth({ body: "문서를 동료에게 보여준다." }, { body: "현이가 찾은 문장을 확인한다." });
+    await play();
+    const remember = gmPrompts[beforeRemember] ?? "";
+    assert.match(remember, /override earlier narration/);
+    assert.match(remember, /현이 is in 기록실\. They did not move this round\./);
+    assert.match(remember, /도윤 is in 현관홀\. They did not move this round\./);
+    assert.match(remember, /서하 is in 현관홀\. They did not move this round\./);
+    assert.match(remember, /Nobody has reached 출구\. Escape is not a fact\./);
+    assert.doesNotMatch(remember, /현이 started in .* and is now in 출구/);
+    assert.equal(locationOf(db, hostId), EXPLORATION_ARCHIVE_ROOM);
+    assert.equal(locationOf(db, human2), EXPLORATION_ENTRANCE);
+    assert.equal(locationOf(db, ai[0]!), EXPLORATION_ENTRANCE);
+    assert.equal(locationOf(db, ai[1]!), EXPLORATION_ENTRANCE);
+    const flags = loadCampaignLedger(db, campaignId).worldFlags;
+    assert.equal(flags.includes("경보_활성화됨"), false);
+    assert.equal(flags.includes("단서_출구빗장_확인"), false);
+    assert.ok(flags.includes(EXPLORATION_CLUE_FLAG));
+    assert.ok(flags.includes(EXPLORATION_ALARM_FLAG));
+    const companion = botPrompts.filter((prompt) => prompt.includes("[EXPLORATION — your current map facts"));
+    assert.ok(companion.length >= 2);
+    assert.match(companion.at(-1) ?? "", /You are in 현관홀/);
+    assert.match(companion.at(-1) ?? "", /Open passages:/);
+    assert.match(companion.at(-1) ?? "", /Action points left this turn:/);
     db.close();
   });
 });

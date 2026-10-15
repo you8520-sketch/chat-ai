@@ -59,7 +59,13 @@ import {
   persistCampaignLedger,
   settleLedgerForCommit,
 } from "./campaignLedger";
-import { explorationCommandsFromMovementBody } from "./explorationMap";
+import {
+  displayExplorationAp,
+  explorationCommandsFromMovementBody,
+  filterExplorationFlagsAdd,
+  formatExplorationBotBrief,
+  visibleExplorationNeighbors,
+} from "./explorationMap";
 import {
   explorationPromptForRound,
   ensureExplorationMap,
@@ -1186,6 +1192,9 @@ async function generateBotActions(
       historicalRecalledChars: 0,
       botRecalled: botHorizon.botCount,
     });
+    const sheets = loadSheetSnapshots(db, opts.campaign.id);
+    const mapped = loadExplorationState(db, opts.campaign.id);
+    const self = sheets.find((sheet) => sheet.participantId === bot.id);
     const user = buildTrpgBotActionUserBlock({
       characterName: bot.display_name,
       gender,
@@ -1198,13 +1207,23 @@ async function generateBotActions(
       recentContinuity,
       campaignMemory: buildTrpgBotMemoryBlock({
         ledger: loadCampaignLedger(db, opts.campaign.id),
-        sheets: loadSheetSnapshots(db, opts.campaign.id).map((s) => ({
+        sheets: sheets.map((s) => ({
           name: s.name,
           hp: s.hp,
           maxHp: s.maxHp,
           conditions: s.conditions,
         })),
       }),
+      explorationBrief:
+        mapped && self
+          ? formatExplorationBotBrief({
+              roomId: self.location,
+              neighbors: visibleExplorationNeighbors(mapped, self.location),
+              ap: displayExplorationAp(mapped, bot.id, roundNumber),
+              alarm: mapped.alarmFlagged,
+              party: sheets.map((sheet) => ({ name: sheet.name, location: sheet.location })),
+            })
+          : "",
       longTermMemories: botHorizon.botMemories,
       compactContinuity: continuity.compact,
       humanActions: humans.map((h) => ({ playerName: h.name, text: h.body })),
@@ -1218,8 +1237,8 @@ async function generateBotActions(
       text,
       `${bot.display_name}은 상황을 살피며 한 발 다가선다.`
     );
-    const mapped = loadExplorationState(db, opts.campaign.id);
-    const declared = mapped ? explorationCommandsFromMovementBody(mapped.map, body) : [];
+    const latestMap = loadExplorationState(db, opts.campaign.id);
+    const declared = latestMap ? explorationCommandsFromMovementBody(latestMap.map, body) : [];
     let spoken = body;
     if (declared.length > 0) {
       try {
@@ -1801,6 +1820,15 @@ function commitPendingGmResult(
   }
   if (!opts.opening && !opts.regenerate && loadExplorationState(db, campaign.id)) {
     dropUnpricedExplorationMoves(parsed, explorationCommit?.results ?? [], currentLedger.location);
+    const ownedFlags = [
+      ...currentLedger.worldFlags,
+      ...(explorationCommit?.results.flatMap((result) => result.flags) ?? []),
+    ];
+    if (parsed.delta.flagsAdd?.length) {
+      const kept = filterExplorationFlagsAdd(parsed.delta.flagsAdd, ownedFlags);
+      if (kept.length) parsed.delta.flagsAdd = kept;
+      else delete parsed.delta.flagsAdd;
+    }
   }
   const proposedFromPlayers =
     (parsed.delta.players ?? []).map((patch) => patch.location?.trim() ?? "").find(Boolean) ?? "";

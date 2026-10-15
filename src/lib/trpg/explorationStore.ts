@@ -5,12 +5,13 @@
  */
 import { randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
+import { loadCampaignLedger } from "./campaignLedger";
 import { loadCampaignContext, resolvedCampaignPlan } from "./campaignContext";
 import {
   EXPLORATION_ENTRANCE,
   composeExplorationSentences,
   emptyExplorationState,
-  openingExplorationLines,
+  formatExplorationGmBlock,
   parseExplorationState,
   projectPublicExploration,
   settleExplorationActor,
@@ -133,6 +134,21 @@ export function planExplorationCommit(
   return { openingLocation: null, results, state: current };
 }
 
+function loadExplorationSeats(
+  db: Database.Database,
+  campaignId: number
+): Array<{ participantId: number; name: string; location: string }> {
+  return db
+    .prepare(
+      `SELECT p.id AS participantId, s.name, s.location
+       FROM trpg_character_sheets s
+       JOIN trpg_participants p ON p.id = s.participant_id
+       WHERE s.campaign_id=?
+       ORDER BY p.slot_index ASC`
+    )
+    .all(campaignId) as Array<{ participantId: number; name: string; location: string }>;
+}
+
 export function explorationPromptForRound(
   db: Database.Database,
   opts: {
@@ -144,22 +160,41 @@ export function explorationPromptForRound(
 ): string {
   const state = loadExplorationState(db, opts.campaignId);
   if (!state) return "";
-  const lines = opts.opening
-    ? openingExplorationLines()
-    : (
-        planExplorationCommit(db, {
-          campaignId: opts.campaignId,
-          roundId: opts.roundId,
-          opening: false,
-          actors: opts.actors,
-          sheetIds: [],
-        })?.results.flatMap((result) => result.lines) ?? []
-      );
-  if (!lines.length) return "";
-  return [
-    "[EXPLORATION — server resolved this round. Narrate these facts. Do not invent another clue, item, or secret passage.]",
-    ...lines,
-  ].join("\n");
+  const commit = opts.opening
+    ? null
+    : planExplorationCommit(db, {
+        campaignId: opts.campaignId,
+        roundId: opts.roundId,
+        opening: false,
+        actors: opts.actors,
+        sheetIds: [],
+      });
+  const endById = new Map(
+    (commit?.results ?? [])
+      .filter((result) => result.location)
+      .map((result) => [result.participantId, result.location as string])
+  );
+  const seats = loadExplorationSeats(db, opts.campaignId).map((seat) => {
+    const start = opts.opening ? EXPLORATION_ENTRANCE : seat.location.trim() || EXPLORATION_ENTRANCE;
+    return {
+      name: seat.name,
+      start,
+      end: opts.opening ? EXPLORATION_ENTRANCE : (endById.get(seat.participantId) ?? start),
+    };
+  });
+  return formatExplorationGmBlock({
+    opening: opts.opening,
+    seats,
+    resultLines: commit?.results.flatMap((result) => result.lines) ?? [],
+    alarm: commit?.state.alarmFlagged ?? state.alarmFlagged,
+    risk: commit?.state.risk ?? state.risk,
+    flags: [
+      ...new Set([
+        ...loadCampaignLedger(db, opts.campaignId).worldFlags,
+        ...(commit?.results.flatMap((result) => result.flags) ?? []),
+      ]),
+    ],
+  });
 }
 
 export function projectExplorationForViewer(

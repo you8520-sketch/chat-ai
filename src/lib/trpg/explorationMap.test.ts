@@ -4,6 +4,7 @@ import {
   EXPLORATION_ALARM_FLAG,
   EXPLORATION_ALARM_ROOM,
   EXPLORATION_ARCHIVE_ROOM,
+  EXPLORATION_CLUE_FLAG,
   EXPLORATION_CLUE_TEXT,
   EXPLORATION_ENTRANCE,
   EXPLORATION_EXIT_ROOM,
@@ -17,12 +18,16 @@ import {
   explorationLayoutIndex,
   explorationMapHasCycle,
   explorationRoomsReachable,
+  filterExplorationFlagsAdd,
+  formatExplorationBotBrief,
+  formatExplorationGmBlock,
   generateExplorationMap,
   priceExplorationCommands,
   projectPublicExploration,
   roomDegree,
   settleExplorationActor,
   spendExplorationAp,
+  visibleExplorationNeighbors,
 } from "./explorationMap";
 import { explorationQueueCost, parseExplorationCommands } from "./explorationPublic";
 
@@ -241,5 +246,57 @@ describe("exploration map generation", () => {
     }
     const declared = explorationCommandsFromMovementBody(emptyExplorationState("declare").map, "출구로 이동한다. 벽을 살핀다.");
     assert.deepEqual(declared, [{ op: "move", roomId: EXPLORATION_EXIT_ROOM }]);
+  });
+
+  it("keeps remember-round positions as fact and does not treat an unattempted exit as happened", () => {
+    const remember = formatExplorationGmBlock({
+      opening: false,
+      seats: [
+        { name: "현이", start: EXPLORATION_ARCHIVE_ROOM, end: EXPLORATION_ARCHIVE_ROOM },
+        { name: "도윤", start: EXPLORATION_ENTRANCE, end: EXPLORATION_ENTRANCE },
+        { name: "서하", start: EXPLORATION_ENTRANCE, end: EXPLORATION_ENTRANCE },
+        { name: "도윤봇", start: EXPLORATION_ENTRANCE, end: EXPLORATION_ENTRANCE },
+      ],
+      resultLines: [],
+      alarm: true,
+      risk: 6,
+      flags: [EXPLORATION_CLUE_FLAG, EXPLORATION_ALARM_FLAG],
+    });
+    assert.match(remember, /override earlier narration/);
+    assert.match(remember, /현이 is in 기록실\. They did not move this round\./);
+    assert.match(remember, /도윤 is in 현관홀\. They did not move this round\./);
+    assert.match(remember, /Nobody has reached 출구\. Escape is not a fact\./);
+    assert.doesNotMatch(remember, /현이 started in/);
+    assert.doesNotMatch(remember, /moved .*출구/);
+    const moved = formatExplorationGmBlock({
+      opening: false,
+      seats: [{ name: "현이", start: EXPLORATION_ENTRANCE, end: "중앙홀" }],
+      resultLines: ["현이: moved 현관홀 → 중앙홀."],
+      alarm: false,
+      risk: 1,
+      flags: [],
+    });
+    assert.match(moved, /현이 started in 현관홀 and is now in 중앙홀\./);
+    assert.match(moved, /현이: moved 현관홀 → 중앙홀\./);
+    assert.match(moved, /Nobody has reached 출구/);
+    const state = emptyExplorationState("bot-brief");
+    const brief = formatExplorationBotBrief({
+      roomId: EXPLORATION_ENTRANCE,
+      neighbors: visibleExplorationNeighbors(state, EXPLORATION_ENTRANCE),
+      ap: 3,
+      alarm: false,
+      party: [{ name: "서하", location: EXPLORATION_ENTRANCE }],
+    });
+    assert.match(brief, /You are in 현관홀/);
+    assert.match(brief, /Open passages:/);
+    assert.match(brief, /Action points left this turn: 3/);
+    assert.doesNotMatch(brief, /순환로/);
+    assert.deepEqual(
+      filterExplorationFlagsAdd(
+        ["경보_활성화됨", "단서_출구빗장_확인", "문_열림", EXPLORATION_ALARM_FLAG],
+        [EXPLORATION_ALARM_FLAG, EXPLORATION_CLUE_FLAG]
+      ),
+      ["문_열림", EXPLORATION_ALARM_FLAG]
+    );
   });
 });

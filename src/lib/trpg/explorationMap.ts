@@ -681,11 +681,98 @@ function raiseRisk(state: ExplorationState, delta: number, flags: string[]): Exp
   return { ...state, risk };
 }
 
-export function openingExplorationLines(): string[] {
+export const EXPLORATION_GM_HEADER =
+  "[EXPLORATION — server positions and this-round results. These override earlier narration. Narrate only these positions as fact. Do not invent another clue, item, secret passage, or a new human PC move, line, or decision.]";
+
+export type ExplorationSeatFact = {
+  name: string;
+  start: string;
+  end: string;
+};
+
+export function visibleExplorationNeighbors(state: ExplorationState, roomId: string): string[] {
+  const next: string[] = [];
+  for (const edge of openEdges(state.map, state.revealedEdgeIds)) {
+    if (edge.from === roomId) next.push(edge.to);
+    else if (edge.to === roomId) next.push(edge.from);
+  }
+  return next;
+}
+
+export function formatExplorationGmBlock(opts: {
+  opening: boolean;
+  seats: readonly ExplorationSeatFact[];
+  resultLines: readonly string[];
+  alarm: boolean;
+  risk: number;
+  flags: readonly string[];
+}): string {
+  const positions = opts.seats.map((seat) => {
+    const start = seat.start.trim() || EXPLORATION_ENTRANCE;
+    const end = seat.end.trim() || start;
+    if (start === end) return `${seat.name} is in ${end}. They did not move this round.`;
+    return `${seat.name} started in ${start} and is now in ${end}.`;
+  });
+  const atExit = opts.seats.some((seat) => (seat.end.trim() || seat.start.trim()) === EXPLORATION_EXIT_ROOM);
   return [
-    `The party begins in ${EXPLORATION_ENTRANCE}. At least two passages leave this room.`,
-    "Do not move a human PC on your own. Do not invent a clue, item, or secret passage.",
-  ];
+    EXPLORATION_GM_HEADER,
+    `Risk ${opts.risk}. Alarm: ${opts.alarm ? "yes" : "no"}.`,
+    opts.opening ? `The party begins in ${EXPLORATION_ENTRANCE}. At least two passages leave this room.` : "",
+    ...positions,
+    ...opts.resultLines,
+    atExit
+      ? `Someone is at ${EXPLORATION_EXIT_ROOM} only if listed above.`
+      : `Nobody has reached ${EXPLORATION_EXIT_ROOM}. Escape is not a fact.`,
+    opts.alarm
+      ? "The exit latch can open, but nobody travels there unless listed above."
+      : "The exit latch is still shut.",
+    "Describe the rooms they occupy. Visible passages may be atmosphere. Do not walk anyone down a passage they did not take.",
+    opts.flags.length
+      ? `Server flags already include: ${opts.flags.join("; ")}. Do not add a second flag for the same clue, alarm, or passage.`
+      : "No exploration flags yet. Do not add a second flag for a clue, alarm, or passage the server already owns.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export function formatExplorationBotBrief(opts: {
+  roomId: string;
+  neighbors: readonly string[];
+  ap: number;
+  alarm: boolean;
+  party: readonly { name: string; location: string }[];
+}): string {
+  const party = opts.party
+    .map((seat) => `${seat.name} ${seat.location.trim() || EXPLORATION_ENTRANCE}`)
+    .join("; ");
+  return [
+    "[EXPLORATION — your current map facts. Move only through listed passages.]",
+    `You are in ${opts.roomId.trim() || EXPLORATION_ENTRANCE}.`,
+    party ? `Party positions: ${party}.` : "",
+    `Open passages: ${opts.neighbors.join(", ") || "(none)"}.`,
+    `Action points left this turn: ${opts.ap}. Move costs 1, search 1, careful search 2.`,
+    opts.alarm
+      ? `Alarm is on. The exit latch can open if you reach ${EXPLORATION_EXIT_ROOM} through listed passages.`
+      : "Alarm is off. The exit latch is still shut.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+const EXPLORATION_OWNED_FLAGS = [EXPLORATION_ALARM_FLAG, EXPLORATION_CLUE_FLAG, EXPLORATION_PASSAGE_FLAG] as const;
+
+export function filterExplorationFlagsAdd(proposed: readonly string[], owned: readonly string[]): string[] {
+  const ownedSet = new Set(owned);
+  const hasAlarm = ownedSet.has(EXPLORATION_ALARM_FLAG);
+  const hasClue = ownedSet.has(EXPLORATION_CLUE_FLAG);
+  const hasPassage = ownedSet.has(EXPLORATION_PASSAGE_FLAG);
+  return proposed.filter((flag) => {
+    if ((EXPLORATION_OWNED_FLAGS as readonly string[]).includes(flag)) return true;
+    if (hasAlarm && (flag.includes("경보") || flag.includes(EXPLORATION_ALARM_FLAG))) return false;
+    if (hasClue && (flag.includes("단서") || flag.includes("빗장"))) return false;
+    if (hasPassage && flag.includes("통로")) return false;
+    return true;
+  });
 }
 
 export function projectPublicExploration(opts: {
