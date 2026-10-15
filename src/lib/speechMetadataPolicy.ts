@@ -54,7 +54,7 @@ const MAX_CONTEXT_REGISTER_PAIRS = 8;
 const MAX_DIALOGUE_EXAMPLES = 6;
 const MAX_EXAMPLE_DISPLAY_LENGTH = 100;
 const BOILERPLATE_LINE_RE =
-  /^#{1,6}\s|SPEECH CONSISTENCY|Dialogue style is learned|Dialogue examples are the strongest/i;
+  /SPEECH CONSISTENCY|Dialogue style is learned|Dialogue examples are the strongest/i;
 const EXAMPLE_HEADER_RE = /^예시[:：]?/i;
 /** 원문 따옴표 모양(" “” 「」)을 그대로 보존한다 — 예시 대사 줄 자체는 변형하지 않는다. */
 const QUOTED_EXAMPLE_PATTERNS: RegExp[] = [

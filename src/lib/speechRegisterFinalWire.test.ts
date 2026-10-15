@@ -58,7 +58,13 @@ function occurrences(haystack: string, needle: string): number {
   return haystack.split(needle).length - 1;
 }
 
-const SINGLE_SCOPE_CASES: { name: string; field: "speech_traits" | "speech_personality"; text: string }[] = [
+const SINGLE_SCOPE_CASES: {
+  name: string;
+  field: "speech_traits" | "speech_personality";
+  text: string;
+  /** 지침 본문이 `context → style` 쌍으로 바뀌는 입력은 쌍 안의 지침 본문을 확인한다. */
+  kept?: string;
+}[] = [
   { name: "부하에게만 반말", field: "speech_traits", text: "부하에게만 반말을 쓴다." },
   { name: "공식 심문에서만 존댓말", field: "speech_traits", text: "공식 심문에서는 존댓말을 사용한다." },
   { name: "부하에게만 반말 (성격 필드)", field: "speech_personality", text: "부하에게만 반말을 쓴다." },
@@ -74,14 +80,26 @@ const SINGLE_SCOPE_CASES: { name: string; field: "speech_traits" | "speech_perso
   },
   { name: "항상 존댓말", field: "speech_traits", text: "항상 존댓말만 쓴다." },
   { name: "항상 반말", field: "speech_traits", text: "항상 반말만 쓴다." },
+  {
+    name: "제목 줄에 든 지침",
+    field: "speech_traits",
+    text: "# 말투: 항상 존댓말만 쓴다.",
+    kept: "항상 존댓말만 쓴다.",
+  },
+  {
+    name: "제목 줄에 든 조건부 지침",
+    field: "speech_traits",
+    text: "## 공적 말투: 심문에서는 존댓말을 쓴다.",
+    kept: "심문에서는 존댓말을 쓴다.",
+  },
 ];
 
 describe("speech register — saved example_dialog → final wire", () => {
-  for (const { name, field, text } of SINGLE_SCOPE_CASES) {
+  for (const { name, field, text, kept = text } of SINGLE_SCOPE_CASES) {
     it(`${name}: original condition and wording reach the wire once, with no inferred global default`, () => {
       const { saved, wire } = finalWire(creator({ [field]: text }));
-      assert.equal(occurrences(saved, text), 1, "saved example_dialog keeps the creator sentence once");
-      assert.equal(occurrences(wire, text), 1, "final wire keeps the creator sentence once");
+      assert.equal(occurrences(saved, kept), 1, "saved example_dialog keeps the creator sentence once");
+      assert.equal(occurrences(wire, kept), 1, "final wire keeps the creator sentence once");
       assert.doesNotMatch(saved, /default_register/);
       assert.doesNotMatch(wire, /default_register/);
     });
