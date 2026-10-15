@@ -53,13 +53,25 @@ function normalizeDialogueLine(line: string): string {
     .trim();
 }
 
-/** 캐릭터 대사 줄만 추출 (유저: 줄 제외) */
+const SPEECH_METADATA_LINE_RE =
+  /^(?:register_by_context|default_register|style_notes|dialogue_examples|creator_notes|Apply only when writing)\b/i;
+const SPEECH_CONSISTENCY_LINE_RE =
+  /Dialogue examples are the strongest|Do not infer unrelated|When examples conflict|Character canon, personality/;
+
+/** 캐릭터 대사 줄만 추출 (유저: 줄 · 메타데이터 · JSON 제외) */
 export function extractCharacterDialogueLines(text: string): string[] {
   const lines = text.split(/\n+/).map((l) => l.trim()).filter(Boolean);
   const out: string[] = [];
 
   for (const raw of lines) {
     if (/^[\s\-*]*(?:유저|user|나|당신)\s*[:：]/i.test(raw)) continue;
+    if (SPEECH_METADATA_LINE_RE.test(raw)) continue;
+    if (SPEECH_CONSISTENCY_LINE_RE.test(raw)) continue;
+    if (/^-\s+.+\s+→\s+/.test(raw)) continue;
+    if (/^(?:\d+\.\s|-\s*(?:적용 조건|말투|예시|우선도):)/.test(raw)) continue;
+    if (/상황별 말투 레지스터|상황별 말투가 적용되지 않으면|유저의 대사나 행동을 대신 작성하지/.test(raw)) continue;
+    if (/^\[상황별 말투 데이터\]/.test(raw)) continue;
+    if (/^[\[{]/.test(raw) && /[\]}]$/.test(raw)) continue;
 
     const line = normalizeDialogueLine(raw);
     if (line.length < 2) continue;
@@ -78,26 +90,21 @@ export function extractCharacterDialogueLines(text: string): string[] {
   return [...new Set(out)].slice(0, 24);
 }
 
-/** 예시 대사에서 종결 어미 패턴 추출 — AI가 복사할 앵커 */
+/** 예시 대사에서 종결 어미 패턴 추출 — 정규식 어미만. 잘린 꼬리 글자는 앵커가 아니다. */
 export function extractEndingAnchors(lines: string[]): string[] {
   const endings = new Set<string>();
   const endingRe =
-    /(?:습니다|십시오|하세요|합니다|이오|하오|하옵|하구|하네|하군|하리|하리오|구나|구려|니까|니오|소|오|요|다|네|지|죠|군요|래요|어요|가요|까요|습니까)$/;
+    /(?:습니다|십시오|하세요|합니다|이오|하오|하옵|하구|하네|하군|하리|하리오|구나|구려|니까|니오|군요|래요|어요|가요|까요|습니까)$/;
 
   for (const line of lines) {
     const cleaned = line.replace(/^["「『]|["」』]$/g, "").replace(/[.!?…]+$/g, "").trim();
     if (!cleaned) continue;
 
     const m = cleaned.match(endingRe);
-    if (m) endings.add(m[0]);
-
-    if (cleaned.length >= 3) {
-      const tail3 = cleaned.slice(-3);
-      if (/[가-힣]/.test(tail3)) endings.add(tail3);
-    }
+    if (m?.[0] && m[0].length >= 2) endings.add(m[0]);
   }
 
-  return [...endings].filter((e) => e.length >= 1).slice(0, 10);
+  return [...endings].slice(0, 10);
 }
 
 function parseForbiddenLines(text: string | undefined): string[] {

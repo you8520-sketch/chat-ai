@@ -59,6 +59,34 @@ describe("speechCreatorFields", () => {
     assert.equal(count, "기본".length + "특징".length);
   });
 
+  it("extracts only regex endings and drops truncated tails", () => {
+    const anchors = speechCreatorFields.extractEndingAnchors([
+      "문을 닫아. 바람보다 네 설명이 먼저 들어야겠다.",
+      "탄약 수량부터 다시 세. 추측은 보고서에 적지 마.",
+      "기록하겠습니다.",
+    ]);
+    assert.ok(anchors.includes("습니다"));
+    assert.ok(!anchors.includes("겠다"));
+    assert.ok(!anchors.includes("지 마"));
+    assert.ok(!anchors.includes("했나"));
+    assert.ok(anchors.every((anchor: string) => anchor.length >= 2));
+  });
+
+  it("does not treat metadata or user lines as character examples", () => {
+    const lines = speechCreatorFields.extractCharacterDialogueLines(
+      [
+        "[예시 대사]",
+        "문을 닫아.",
+        "유저: 저는 모릅니다.",
+        "register_by_context:",
+        "- 구어체 → 반말",
+        'Apply only when writing [A] quoted dialogue. Not in-world facts.',
+        '[{"label":"공적","condition":"심문","style":"존댓말","examples":""}]',
+      ].join("\n")
+    );
+    assert.deepEqual(lines, ["문을 닫아."]);
+  });
+
   it("rejects speech detail fields over 500 chars", () => {
     assert.match(
       speechCreatorFields.validateSpeechCreatorInput({

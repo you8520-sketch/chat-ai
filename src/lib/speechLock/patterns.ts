@@ -92,9 +92,20 @@ export function requiresFormalSpeech(
   formality: SpeechFormality,
   socialClass: SocialClass
 ): boolean {
-  if (formality === "formal" || formality === "archaic_formal") return true;
-  if (formality === "informal") return false;
-  return socialClass === "royalty" || socialClass === "nobility" || socialClass === "clergy";
+  void socialClass;
+  switch (formality) {
+    case "formal":
+    case "archaic_formal":
+      return true;
+    case "informal":
+    case "semi_formal":
+      return false;
+    default: {
+      const _exhaustive: never = formality;
+      void _exhaustive;
+      return false;
+    }
+  }
 }
 
 /** Fantasy/historical noble — Gemini Flash needs extra anchoring */
