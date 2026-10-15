@@ -1,0 +1,800 @@
+{
+  "model": "gpt-6-luna",
+  "calls": 6,
+  "billedUsd": 0.001967,
+  "billedKrw": 2.7,
+  "stateChars": 3177,
+  "narrativeChars": 663,
+  "stateFlags": {
+    "promise": true,
+    "cancel": true,
+    "proposal": true,
+    "handhold": true,
+    "falseStart": false,
+    "falseJoint": false,
+    "breakup": true,
+    "seorinBow": true,
+    "amateur": true,
+    "lip": true,
+    "sister": true,
+    "mentor": false,
+    "lifelong": false
+  },
+  "narrativeFlags": {
+    "promise": false,
+    "cancel": false,
+    "proposal": false,
+    "handhold": true,
+    "falseStart": false,
+    "falseJoint": false,
+    "breakup": false,
+    "seorinBow": true,
+    "amateur": false,
+    "lip": true,
+    "sister": true,
+    "mentor": false,
+    "lifelong": false
+  },
+  "promiseStillOpen": true,
+  "withdrawals": [
+    {
+      "id": "w32",
+      "op": "withdraw_utterance",
+      "kind": "user_utterance",
+      "turn": 15,
+      "role": "user",
+      "quote": "그 약속은 취소할게. 검은 내가 직접 갈게.",
+      "targetId": "e5",
+      "status": "not_auto_closed"
+    }
+  ],
+  "wire": "[T1] user user_utterance open: 솔직히 너 좀 아마추어 같아.\n[T1] assistant assistant_scene open: 라이크는 입술을 깨물며 시선을 피했다. \"…그래, 아직 부족하긴 하지.\"\n[T2] user user_utterance open: 내일까지 검을 갈아다 줄게. 약속이야.\n[T2] assistant assistant_scene open: 라이크는 고개를 끄덕이며 작게 웃었다.\n[T3] user user_utterance open: 오늘의 잡담 3\n[T3] assistant assistant_scene open: 라이크는 3번째 장작을 쌓았다.\n[T4] user user_utterance open: 오늘의 잡담 4\n[T4] assistant assistant_scene open: 라이크는 4번째 장작을 쌓았다.\n[T5] user user_utterance open: 오늘의 잡담 5\n[T5] assistant assistant_scene open: 라이크는 5번째 장작을 쌓았다.\n[T6] user user_utterance open: 오늘의 잡담 6\n[T6] assistant assistant_scene open: 라이크는 6번째 장작을 쌓았다.\n[T7] user user_utterance open: 오늘의 잡담 7\n[T7] assistant assistant_scene open: 라이크는 7번째 장작을 쌓았다.\n[T8] user user_utterance open: 오늘의 잡담 8\n[T8] assistant assistant_scene open: 라이크는 8번째 장작을 쌓았다.\n[T9] user user_utterance open: 오늘의 잡담 9\n[T9] assistant assistant_scene open: 라이크는 9번째 장작을 쌓았다.\n[T10] user user_utterance open: 좋아, 우리 오늘부터 연인하자.\n[T10] assistant assistant_scene open: 라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.\n[T11] user user_utterance open: 오늘의 잡담 11\n[T11] assistant assistant_scene open: 라이크는 11번째 장작을 쌓았다.\n[T12] user user_utterance open: 오늘의 잡담 12\n[T12] assistant assistant_scene open: 라이크는 12번째 장작을 쌓았다.\n[T13] user user_utterance open: 오늘의 잡담 13\n[T13] assistant assistant_scene open: 라이크는 13번째 장작을 쌓았다.\n[T14] user user_utterance open: 오늘의 잡담 14\n[T14] assistant assistant_scene open: 라이크는 14번째 장작을 쌓았다.\n[T15] user user_utterance open: 그 약속은 취소할게. 검은 내가 직접 갈게.\n[T15] user user_utterance not_auto_closed -> e5: 그 약속은 취소할게. 검은 내가 직접 갈게.\n[T15] assistant assistant_scene open: 라이크는 아쉬운 듯 어깨를 으쓱했다.\n[T16] user user_utterance open: 오늘의 잡담 16\n[T16] assistant assistant_scene open: 라이크는 16번째 장작을 쌓았다.\n[T17] user user_utterance open: 오늘의 잡담 17\n[T17] assistant assistant_scene open: 라이크는 17번째 장작을 쌓았다.\n[T18] user user_utterance open: 오늘의 잡담 18\n[T18] assistant assistant_scene open: 라이크는 18번째 장작을 쌓았다.\n[T19] user user_utterance open: 오늘의 잡담 19\n[T19] assistant assistant_scene open: 라이크는 19번째 장작을 쌓았다.\n[T20] user user_utterance open: 문 쪽을 바라본다.\n[T20] assistant assistant_scene open: 서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.\n[T21] user user_utterance open: 오늘의 잡담 21\n[T21] assistant assistant_scene open: 라이크는 21번째 장작을 쌓았다.\n[T22] user user_utterance open: 오늘의 잡담 22\n[T22] assistant assistant_scene open: 라이크는 22번째 장작을 쌓았다.\n[T23] user user_utterance open: 오늘의 잡담 23\n[T23] assistant assistant_scene open: 라이크는 23번째 장작을 쌓았다.\n[T24] user user_utterance open: 시장에 다녀왔어.\n[T24] assistant assistant_scene open: 라이크는 고개를 끄덕였다.\n[T24] assistant character_claim open: 누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\n[T25] user user_utterance open: 오늘의 잡담 25\n[T25] assistant assistant_scene open: 라이크는 25번째 장작을 쌓았다.\n[T36] user user_utterance open: 오늘의 잡담 36\n[T36] assistant assistant_scene open: 라이크는 36번째 장작을 쌓았다.\n[T37] user user_utterance open: 오늘의 잡담 37\n[T37] assistant assistant_scene open: 라이크는 37번째 장작을 쌓았다.\n[T38] user user_utterance open: 오늘의 잡담 38\n[T38] assistant assistant_scene open: 라이크는 38번째 장작을 쌓았다.\n[T39] user user_utterance open: 오늘의 잡담 39\n[T39] assistant assistant_scene open: 라이크는 39번째 장작을 쌓았다.\n[T40] user user_utterance open: 미안, 우리 그만 헤어지자.\n[T40] assistant assistant_scene open: 라이크는 말없이 시선을 떨궜다.",
+  "narratives": "라이크는 유저의 말에 입술을 깨물고 시선을 피하며 아직 부족하다고 인정했다. 유저는 내일까지 검을 갈아다 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃었다. 이후 라이크는 장작을 차례로 쌓아 세 번째, 네 번째, 다섯 번째 장작에 이르렀다.\n6~9턴 동안 라이크는 매 턴 하나씩 장작을 쌓았다. 10턴에 유저가 오늘부터 연인이 되자고 하자 라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.\n11~14턴 동안 유저는 매번 오늘의 잡담을 이어갔고, 라이크는 차례로 11번째부터 14번째 장작까지 쌓았다. 15턴에서 유저는 검을 갈아주겠다는 약속을 취소하고 직접 갈겠다고 말했다. 라이크는 아쉬운 듯 어깨를 으쓱했다.\n16~19턴 동안 라이크는 매번 한 개씩 장작을 쌓아 19번째 장작까지 쌓았다. 20턴에는 유저가 문 쪽을 바라보았고, 서린이 문을 열고 들어와 라이크에게 목례했다.\n21~23턴과 25턴에 유저는 잡담을 이어갔고, 라이크는 차례로 21번째부터 23번째까지, 그리고 25번째 장작을 쌓았다. 24턴에는 유저가 시장에 다녀왔다고 했고, 라이크는 고개를 끄덕이며 누나가 시장에서 유저를 알아봤고 예전부터 알던 사이라고 말했다.\n라이크는 36턴부터 39턴까지 매번 해당 회차의 장작을 쌓았다. 40턴에 유저가 미안하다며 헤어지자고 하자 라이크는 말없이 시선을 떨궜다.",
+  "rows": [
+    {
+      "window": "1-5",
+      "usage": {
+        "completion_tokens": 694,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": 0,
+          "audio_tokens": 0,
+          "reasoning_tokens": 257,
+          "rejected_prediction_tokens": 0
+        },
+        "prompt_tokens": 398,
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "total_tokens": 1092,
+        "cost": 0.000251,
+        "cost_details": {
+          "upstream_inference_cost": 0.000251
+        }
+      },
+      "cost": 0.000251,
+      "providerId": "chatcmpl-cjpfedtwd5jjzoelflksznfnel6rwy5qfjfv2x63iqbguf3lgcha",
+      "parseError": null,
+      "narrative": "라이크는 유저의 말에 입술을 깨물고 시선을 피하며 아직 부족하다고 인정했다. 유저는 내일까지 검을 갈아다 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃었다. 이후 라이크는 장작을 차례로 쌓아 세 번째, 네 번째, 다섯 번째 장작에 이르렀다.",
+      "raw": "{\"narrative\":\"라이크는 유저의 말에 입술을 깨물고 시선을 피하며 아직 부족하다고 인정했다. 유저는 내일까지 검을 갈아다 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃었다. 이후 라이크는 장작을 차례로 쌓아 세 번째, 네 번째, 다섯 번째 장작에 이르렀다.\",\"ops\":[{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":1,\"role\":\"user\",\"quote\":\"솔직히 너 좀 아마추어 같아.\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":1,\"role\":\"assistant\",\"quote\":\"라이크는 입술을 깨물며 시선을 피했다. \\\"…그래, 아직 부족하긴 하지.\\\"\"},{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":2,\"role\":\"user\",\"quote\":\"내일까지 검을 갈아다 줄게. 약속이야.\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":2,\"role\":\"assistant\",\"quote\":\"라이크는 고개를 끄덕이며 작게 웃었다.\"},{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":3,\"role\":\"user\",\"quote\":\"오늘의 잡담 3\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":3,\"role\":\"assistant\",\"quote\":\"라이크는 3번째 장작을 쌓았다.\"},{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":4,\"role\":\"user\",\"quote\":\"오늘의 잡담 4\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":4,\"role\":\"assistant\",\"quote\":\"라이크는 4번째 장작을 쌓았다.\"},{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":5,\"role\":\"user\",\"quote\":\"오늘의 잡담 5\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":5,\"role\":\"assistant\",\"quote\":\"라이크는 5번째 장작을 쌓았다.\"}]}",
+      "accepted": [
+        {
+          "id": "e3",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 1,
+          "role": "user",
+          "quote": "솔직히 너 좀 아마추어 같아.",
+          "status": "open"
+        },
+        {
+          "id": "e4",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 1,
+          "role": "assistant",
+          "quote": "라이크는 입술을 깨물며 시선을 피했다. \"…그래, 아직 부족하긴 하지.\"",
+          "status": "open"
+        },
+        {
+          "id": "e5",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 2,
+          "role": "user",
+          "quote": "내일까지 검을 갈아다 줄게. 약속이야.",
+          "status": "open"
+        },
+        {
+          "id": "e6",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 2,
+          "role": "assistant",
+          "quote": "라이크는 고개를 끄덕이며 작게 웃었다.",
+          "status": "open"
+        },
+        {
+          "id": "e7",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 3,
+          "role": "user",
+          "quote": "오늘의 잡담 3",
+          "status": "open"
+        },
+        {
+          "id": "e8",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 3,
+          "role": "assistant",
+          "quote": "라이크는 3번째 장작을 쌓았다.",
+          "status": "open"
+        },
+        {
+          "id": "e9",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 4,
+          "role": "user",
+          "quote": "오늘의 잡담 4",
+          "status": "open"
+        },
+        {
+          "id": "e10",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 4,
+          "role": "assistant",
+          "quote": "라이크는 4번째 장작을 쌓았다.",
+          "status": "open"
+        },
+        {
+          "id": "e11",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 5,
+          "role": "user",
+          "quote": "오늘의 잡담 5",
+          "status": "open"
+        },
+        {
+          "id": "e12",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 5,
+          "role": "assistant",
+          "quote": "라이크는 5번째 장작을 쌓았다.",
+          "status": "open"
+        }
+      ],
+      "rejected": []
+    },
+    {
+      "window": "6-10",
+      "usage": {
+        "completion_tokens": 541,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": 0,
+          "audio_tokens": 0,
+          "reasoning_tokens": 155,
+          "rejected_prediction_tokens": 0
+        },
+        "prompt_tokens": 760,
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "total_tokens": 1301,
+        "cost": 0.000225,
+        "cost_details": {
+          "upstream_inference_cost": 0.000225
+        }
+      },
+      "cost": 0.000225,
+      "providerId": "chatcmpl-idjai365r56a56tgkk3gtjwwefmw3whtusxjjyplthffj44mizrq",
+      "parseError": null,
+      "narrative": "6~9턴 동안 라이크는 매 턴 하나씩 장작을 쌓았다. 10턴에 유저가 오늘부터 연인이 되자고 하자 라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.",
+      "raw": "{\"narrative\":\"6~9턴 동안 라이크는 매 턴 하나씩 장작을 쌓았다. 10턴에 유저가 오늘부터 연인이 되자고 하자 라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.\",\"ops\":[{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":6,\"role\":\"user\",\"quote\":\"오늘의 잡담 6\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":6,\"role\":\"assistant\",\"quote\":\"라이크는 6번째 장작을 쌓았다.\"},{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":7,\"role\":\"user\",\"quote\":\"오늘의 잡담 7\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":7,\"role\":\"assistant\",\"quote\":\"라이크는 7번째 장작을 쌓았다.\"},{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":8,\"role\":\"user\",\"quote\":\"오늘의 잡담 8\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":8,\"role\":\"assistant\",\"quote\":\"라이크는 8번째 장작을 쌓았다.\"},{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":9,\"role\":\"user\",\"quote\":\"오늘의 잡담 9\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":9,\"role\":\"assistant\",\"quote\":\"라이크는 9번째 장작을 쌓았다.\"},{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":10,\"role\":\"user\",\"quote\":\"좋아, 우리 오늘부터 연인하자.\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":10,\"role\":\"assistant\",\"quote\":\"라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.\"}]}",
+      "accepted": [
+        {
+          "id": "e13",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 6,
+          "role": "user",
+          "quote": "오늘의 잡담 6",
+          "status": "open"
+        },
+        {
+          "id": "e14",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 6,
+          "role": "assistant",
+          "quote": "라이크는 6번째 장작을 쌓았다.",
+          "status": "open"
+        },
+        {
+          "id": "e15",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 7,
+          "role": "user",
+          "quote": "오늘의 잡담 7",
+          "status": "open"
+        },
+        {
+          "id": "e16",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 7,
+          "role": "assistant",
+          "quote": "라이크는 7번째 장작을 쌓았다.",
+          "status": "open"
+        },
+        {
+          "id": "e17",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 8,
+          "role": "user",
+          "quote": "오늘의 잡담 8",
+          "status": "open"
+        },
+        {
+          "id": "e18",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 8,
+          "role": "assistant",
+          "quote": "라이크는 8번째 장작을 쌓았다.",
+          "status": "open"
+        },
+        {
+          "id": "e19",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 9,
+          "role": "user",
+          "quote": "오늘의 잡담 9",
+          "status": "open"
+        },
+        {
+          "id": "e20",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 9,
+          "role": "assistant",
+          "quote": "라이크는 9번째 장작을 쌓았다.",
+          "status": "open"
+        },
+        {
+          "id": "e21",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 10,
+          "role": "user",
+          "quote": "좋아, 우리 오늘부터 연인하자.",
+          "status": "open"
+        },
+        {
+          "id": "e22",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 10,
+          "role": "assistant",
+          "quote": "라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.",
+          "status": "open"
+        }
+      ],
+      "rejected": []
+    },
+    {
+      "window": "11-15",
+      "usage": {
+        "completion_tokens": 670,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": 0,
+          "audio_tokens": 0,
+          "reasoning_tokens": 210,
+          "rejected_prediction_tokens": 0
+        },
+        "prompt_tokens": 1124,
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cache_write_tokens": 1122,
+          "cached_tokens": 0
+        },
+        "total_tokens": 1794,
+        "cost": 0.000309,
+        "cost_details": {
+          "upstream_inference_cost": 0.000309
+        }
+      },
+      "cost": 0.000309,
+      "providerId": "chatcmpl-dg5pe5a2uzto4dl5ewnaivu2w4oenmikqtcpehcj4t4k75hhrdiq",
+      "parseError": null,
+      "narrative": "11~14턴 동안 유저는 매번 오늘의 잡담을 이어갔고, 라이크는 차례로 11번째부터 14번째 장작까지 쌓았다. 15턴에서 유저는 검을 갈아주겠다는 약속을 취소하고 직접 갈겠다고 말했다. 라이크는 아쉬운 듯 어깨를 으쓱했다.",
+      "raw": "{\"narrative\":\"11~14턴 동안 유저는 매번 오늘의 잡담을 이어갔고, 라이크는 차례로 11번째부터 14번째 장작까지 쌓았다. 15턴에서 유저는 검을 갈아주겠다는 약속을 취소하고 직접 갈겠다고 말했다. 라이크는 아쉬운 듯 어깨를 으쓱했다.\",\"ops\":[{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":11,\"role\":\"user\",\"quote\":\"오늘의 잡담 11\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":11,\"role\":\"assistant\",\"quote\":\"라이크는 11번째 장작을 쌓았다.\"},{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":12,\"role\":\"user\",\"quote\":\"오늘의 잡담 12\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":12,\"role\":\"assistant\",\"quote\":\"라이크는 12번째 장작을 쌓았다.\"},{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":13,\"role\":\"user\",\"quote\":\"오늘의 잡담 13\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":13,\"role\":\"assistant\",\"quote\":\"라이크는 13번째 장작을 쌓았다.\"},{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":14,\"role\":\"user\",\"quote\":\"오늘의 잡담 14\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":14,\"role\":\"assistant\",\"quote\":\"라이크는 14번째 장작을 쌓았다.\"},{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":15,\"role\":\"user\",\"quote\":\"그 약속은 취소할게. 검은 내가 직접 갈게.\"},{\"op\":\"withdraw\",\"kind\":\"user_utterance\",\"turn\":15,\"role\":\"user\",\"quote\":\"그 약속은 취소할게. 검은 내가 직접 갈게.\",\"targetId\":\"e5\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":15,\"role\":\"assistant\",\"quote\":\"라이크는 아쉬운 듯 어깨를 으쓱했다.\"}]}",
+      "accepted": [
+        {
+          "id": "e23",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 11,
+          "role": "user",
+          "quote": "오늘의 잡담 11",
+          "status": "open"
+        },
+        {
+          "id": "e24",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 11,
+          "role": "assistant",
+          "quote": "라이크는 11번째 장작을 쌓았다.",
+          "status": "open"
+        },
+        {
+          "id": "e25",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 12,
+          "role": "user",
+          "quote": "오늘의 잡담 12",
+          "status": "open"
+        },
+        {
+          "id": "e26",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 12,
+          "role": "assistant",
+          "quote": "라이크는 12번째 장작을 쌓았다.",
+          "status": "open"
+        },
+        {
+          "id": "e27",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 13,
+          "role": "user",
+          "quote": "오늘의 잡담 13",
+          "status": "open"
+        },
+        {
+          "id": "e28",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 13,
+          "role": "assistant",
+          "quote": "라이크는 13번째 장작을 쌓았다.",
+          "status": "open"
+        },
+        {
+          "id": "e29",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 14,
+          "role": "user",
+          "quote": "오늘의 잡담 14",
+          "status": "open"
+        },
+        {
+          "id": "e30",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 14,
+          "role": "assistant",
+          "quote": "라이크는 14번째 장작을 쌓았다.",
+          "status": "open"
+        },
+        {
+          "id": "e31",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 15,
+          "role": "user",
+          "quote": "그 약속은 취소할게. 검은 내가 직접 갈게.",
+          "status": "open"
+        },
+        {
+          "id": "w32",
+          "op": "withdraw_utterance",
+          "kind": "user_utterance",
+          "turn": 15,
+          "role": "user",
+          "quote": "그 약속은 취소할게. 검은 내가 직접 갈게.",
+          "targetId": "e5",
+          "status": "not_auto_closed"
+        },
+        {
+          "id": "e33",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 15,
+          "role": "assistant",
+          "quote": "라이크는 아쉬운 듯 어깨를 으쓱했다.",
+          "status": "open"
+        }
+      ],
+      "rejected": []
+    },
+    {
+      "window": "16-20",
+      "usage": {
+        "completion_tokens": 606,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": 0,
+          "audio_tokens": 0,
+          "reasoning_tokens": 217,
+          "rejected_prediction_tokens": 0
+        },
+        "prompt_tokens": 1481,
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cache_write_tokens": 1479,
+          "cached_tokens": 0
+        },
+        "total_tokens": 2087,
+        "cost": 0.000317,
+        "cost_details": {
+          "upstream_inference_cost": 0.000317
+        }
+      },
+      "cost": 0.000317,
+      "providerId": "chatcmpl-3y65p76iojprbokchzx7litzlzshrhjt7ncikejsmpymx3zkuuqa",
+      "parseError": null,
+      "narrative": "16~19턴 동안 라이크는 매번 한 개씩 장작을 쌓아 19번째 장작까지 쌓았다. 20턴에는 유저가 문 쪽을 바라보았고, 서린이 문을 열고 들어와 라이크에게 목례했다.",
+      "raw": "{\"narrative\":\"16~19턴 동안 라이크는 매번 한 개씩 장작을 쌓아 19번째 장작까지 쌓았다. 20턴에는 유저가 문 쪽을 바라보았고, 서린이 문을 열고 들어와 라이크에게 목례했다.\",\"ops\":[{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":16,\"role\":\"user\",\"quote\":\"오늘의 잡담 16\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":16,\"role\":\"assistant\",\"quote\":\"라이크는 16번째 장작을 쌓았다.\"},{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":17,\"role\":\"user\",\"quote\":\"오늘의 잡담 17\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":17,\"role\":\"assistant\",\"quote\":\"라이크는 17번째 장작을 쌓았다.\"},{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":18,\"role\":\"user\",\"quote\":\"오늘의 잡담 18\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":18,\"role\":\"assistant\",\"quote\":\"라이크는 18번째 장작을 쌓았다.\"},{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":19,\"role\":\"user\",\"quote\":\"오늘의 잡담 19\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":19,\"role\":\"assistant\",\"quote\":\"라이크는 19번째 장작을 쌓았다.\"},{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":20,\"role\":\"user\",\"quote\":\"문 쪽을 바라본다.\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":20,\"role\":\"assistant\",\"quote\":\"서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.\"}]}",
+      "accepted": [
+        {
+          "id": "e34",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 16,
+          "role": "user",
+          "quote": "오늘의 잡담 16",
+          "status": "open"
+        },
+        {
+          "id": "e35",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 16,
+          "role": "assistant",
+          "quote": "라이크는 16번째 장작을 쌓았다.",
+          "status": "open"
+        },
+        {
+          "id": "e36",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 17,
+          "role": "user",
+          "quote": "오늘의 잡담 17",
+          "status": "open"
+        },
+        {
+          "id": "e37",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 17,
+          "role": "assistant",
+          "quote": "라이크는 17번째 장작을 쌓았다.",
+          "status": "open"
+        },
+        {
+          "id": "e38",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 18,
+          "role": "user",
+          "quote": "오늘의 잡담 18",
+          "status": "open"
+        },
+        {
+          "id": "e39",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 18,
+          "role": "assistant",
+          "quote": "라이크는 18번째 장작을 쌓았다.",
+          "status": "open"
+        },
+        {
+          "id": "e40",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 19,
+          "role": "user",
+          "quote": "오늘의 잡담 19",
+          "status": "open"
+        },
+        {
+          "id": "e41",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 19,
+          "role": "assistant",
+          "quote": "라이크는 19번째 장작을 쌓았다.",
+          "status": "open"
+        },
+        {
+          "id": "e42",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 20,
+          "role": "user",
+          "quote": "문 쪽을 바라본다.",
+          "status": "open"
+        },
+        {
+          "id": "e43",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 20,
+          "role": "assistant",
+          "quote": "서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.",
+          "status": "open"
+        }
+      ],
+      "rejected": []
+    },
+    {
+      "window": "21-25",
+      "usage": {
+        "prompt_tokens": 1851,
+        "completion_tokens": 873,
+        "total_tokens": 2724,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 1848,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 418,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        },
+        "cost": 0.000434,
+        "cost_details": {
+          "upstream_inference_cost": 0.000434
+        }
+      },
+      "cost": 0.000434,
+      "providerId": "chatcmpl-EZ8XNCj5zcZB2r40KnWGV02SCZD0J",
+      "parseError": null,
+      "narrative": "21~23턴과 25턴에 유저는 잡담을 이어갔고, 라이크는 차례로 21번째부터 23번째까지, 그리고 25번째 장작을 쌓았다. 24턴에는 유저가 시장에 다녀왔다고 했고, 라이크는 고개를 끄덕이며 누나가 시장에서 유저를 알아봤고 예전부터 알던 사이라고 말했다.",
+      "raw": "{\"narrative\":\"21~23턴과 25턴에 유저는 잡담을 이어갔고, 라이크는 차례로 21번째부터 23번째까지, 그리고 25번째 장작을 쌓았다. 24턴에는 유저가 시장에 다녀왔다고 했고, 라이크는 고개를 끄덕이며 누나가 시장에서 유저를 알아봤고 예전부터 알던 사이라고 말했다.\",\"ops\":[{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":21,\"role\":\"user\",\"quote\":\"오늘의 잡담 21\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":21,\"role\":\"assistant\",\"quote\":\"라이크는 21번째 장작을 쌓았다.\"},{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":22,\"role\":\"user\",\"quote\":\"오늘의 잡담 22\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":22,\"role\":\"assistant\",\"quote\":\"라이크는 22번째 장작을 쌓았다.\"},{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":23,\"role\":\"user\",\"quote\":\"오늘의 잡담 23\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":23,\"role\":\"assistant\",\"quote\":\"라이크는 23번째 장작을 쌓았다.\"},{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":24,\"role\":\"user\",\"quote\":\"시장에 다녀왔어.\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":24,\"role\":\"assistant\",\"quote\":\"라이크는 고개를 끄덕였다.\"},{\"op\":\"add\",\"kind\":\"character_claim\",\"turn\":24,\"role\":\"assistant\",\"quote\":\"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\"},{\"op\":\"add\",\"kind\":\"user_utterance\",\"turn\":25,\"role\":\"user\",\"quote\":\"오늘의 잡담 25\"},{\"op\":\"add\",\"kind\":\"assistant_scene\",\"turn\":25,\"role\":\"assistant\",\"quote\":\"라이크는 25번째 장작을 쌓았다.\"}]}",
+      "accepted": [
+        {
+          "id": "e44",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 21,
+          "role": "user",
+          "quote": "오늘의 잡담 21",
+          "status": "open"
+        },
+        {
+          "id": "e45",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 21,
+          "role": "assistant",
+          "quote": "라이크는 21번째 장작을 쌓았다.",
+          "status": "open"
+        },
+        {
+          "id": "e46",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 22,
+          "role": "user",
+          "quote": "오늘의 잡담 22",
+          "status": "open"
+        },
+        {
+          "id": "e47",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 22,
+          "role": "assistant",
+          "quote": "라이크는 22번째 장작을 쌓았다.",
+          "status": "open"
+        },
+        {
+          "id": "e48",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 23,
+          "role": "user",
+          "quote": "오늘의 잡담 23",
+          "status": "open"
+        },
+        {
+          "id": "e49",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 23,
+          "role": "assistant",
+          "quote": "라이크는 23번째 장작을 쌓았다.",
+          "status": "open"
+        },
+        {
+          "id": "e50",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 24,
+          "role": "user",
+          "quote": "시장에 다녀왔어.",
+          "status": "open"
+        },
+        {
+          "id": "e51",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 24,
+          "role": "assistant",
+          "quote": "라이크는 고개를 끄덕였다.",
+          "status": "open"
+        },
+        {
+          "id": "e52",
+          "op": "add",
+          "kind": "character_claim",
+          "turn": 24,
+          "role": "assistant",
+          "quote": "누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.",
+          "status": "open"
+        },
+        {
+          "id": "e53",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 25,
+          "role": "user",
+          "quote": "오늘의 잡담 25",
+          "status": "open"
+        },
+        {
+          "id": "e54",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 25,
+          "role": "assistant",
+          "quote": "라이크는 25번째 장작을 쌓았다.",
+          "status": "open"
+        }
+      ],
+      "rejected": []
+    },
+    {
+      "window": "36-40",
+      "usage": {
+        "prompt_tokens": 2229,
+        "completion_tokens": 770,
+        "total_tokens": 2999,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 2226,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 335,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        },
+        "cost": 0.000431,
+        "cost_details": {
+          "upstream_inference_cost": 0.000431
+        }
+      },
+      "cost": 0.000431,
+      "providerId": "chatcmpl-EZ8XZv1OFKMP0wlj0dDQNIG6sNIYK",
+      "parseError": null,
+      "narrative": "라이크는 36턴부터 39턴까지 매번 해당 회차의 장작을 쌓았다. 40턴에 유저가 미안하다며 헤어지자고 하자 라이크는 말없이 시선을 떨궜다.",
+      "raw": "{\"narrative\":\"라이크는 36턴부터 39턴까지 매번 해당 회차의 장작을 쌓았다. 40턴에 유저가 미안하다며 헤어지자고 하자 라이크는 말없이 시선을 떨궜다.\",\"ops\":[{\"op\":\"add\",\"id\":\"e55\",\"kind\":\"user_utterance\",\"turn\":36,\"role\":\"user\",\"quote\":\"오늘의 잡담 36\"},{\"op\":\"add\",\"id\":\"e56\",\"kind\":\"assistant_scene\",\"turn\":36,\"role\":\"assistant\",\"quote\":\"라이크는 36번째 장작을 쌓았다.\"},{\"op\":\"add\",\"id\":\"e57\",\"kind\":\"user_utterance\",\"turn\":37,\"role\":\"user\",\"quote\":\"오늘의 잡담 37\"},{\"op\":\"add\",\"id\":\"e58\",\"kind\":\"assistant_scene\",\"turn\":37,\"role\":\"assistant\",\"quote\":\"라이크는 37번째 장작을 쌓았다.\"},{\"op\":\"add\",\"id\":\"e59\",\"kind\":\"user_utterance\",\"turn\":38,\"role\":\"user\",\"quote\":\"오늘의 잡담 38\"},{\"op\":\"add\",\"id\":\"e60\",\"kind\":\"assistant_scene\",\"turn\":38,\"role\":\"assistant\",\"quote\":\"라이크는 38번째 장작을 쌓았다.\"},{\"op\":\"add\",\"id\":\"e61\",\"kind\":\"user_utterance\",\"turn\":39,\"role\":\"user\",\"quote\":\"오늘의 잡담 39\"},{\"op\":\"add\",\"id\":\"e62\",\"kind\":\"assistant_scene\",\"turn\":39,\"role\":\"assistant\",\"quote\":\"라이크는 39번째 장작을 쌓았다.\"},{\"op\":\"add\",\"id\":\"e63\",\"kind\":\"user_utterance\",\"turn\":40,\"role\":\"user\",\"quote\":\"미안, 우리 그만 헤어지자.\"},{\"op\":\"add\",\"id\":\"e64\",\"kind\":\"assistant_scene\",\"turn\":40,\"role\":\"assistant\",\"quote\":\"라이크는 말없이 시선을 떨궜다.\"}]}",
+      "accepted": [
+        {
+          "id": "e55",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 36,
+          "role": "user",
+          "quote": "오늘의 잡담 36",
+          "status": "open"
+        },
+        {
+          "id": "e56",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 36,
+          "role": "assistant",
+          "quote": "라이크는 36번째 장작을 쌓았다.",
+          "status": "open"
+        },
+        {
+          "id": "e57",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 37,
+          "role": "user",
+          "quote": "오늘의 잡담 37",
+          "status": "open"
+        },
+        {
+          "id": "e58",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 37,
+          "role": "assistant",
+          "quote": "라이크는 37번째 장작을 쌓았다.",
+          "status": "open"
+        },
+        {
+          "id": "e59",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 38,
+          "role": "user",
+          "quote": "오늘의 잡담 38",
+          "status": "open"
+        },
+        {
+          "id": "e60",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 38,
+          "role": "assistant",
+          "quote": "라이크는 38번째 장작을 쌓았다.",
+          "status": "open"
+        },
+        {
+          "id": "e61",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 39,
+          "role": "user",
+          "quote": "오늘의 잡담 39",
+          "status": "open"
+        },
+        {
+          "id": "e62",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 39,
+          "role": "assistant",
+          "quote": "라이크는 39번째 장작을 쌓았다.",
+          "status": "open"
+        },
+        {
+          "id": "e63",
+          "op": "add",
+          "kind": "user_utterance",
+          "turn": 40,
+          "role": "user",
+          "quote": "미안, 우리 그만 헤어지자.",
+          "status": "open"
+        },
+        {
+          "id": "e64",
+          "op": "add",
+          "kind": "assistant_scene",
+          "turn": 40,
+          "role": "assistant",
+          "quote": "라이크는 말없이 시선을 떨궜다.",
+          "status": "open"
+        }
+      ],
+      "rejected": []
+    }
+  ]
+}
