@@ -123,7 +123,7 @@ function clearBeforeJson(assistantMessageId: number): void {
     .run(assistantMessageId);
 }
 
-function stripCommittedDelta(assistantMessageId: number): void {
+function stripStoredChange(assistantMessageId: number): void {
   const db = getDb();
   const row = db
     .prepare("SELECT alternates FROM messages WHERE id=?")
@@ -131,7 +131,7 @@ function stripCommittedDelta(assistantMessageId: number): void {
   if (!row?.alternates) return;
   const parsed = JSON.parse(row.alternates) as Array<Record<string, unknown>>;
   if (!Array.isArray(parsed)) return;
-  for (const variant of parsed) delete variant.relationshipMetaDelta;
+  for (const variant of parsed) delete variant.relationshipMetaChange;
   db.prepare("UPDATE messages SET alternates=? WHERE id=?").run(
     JSON.stringify(parsed),
     assistantMessageId
@@ -238,7 +238,7 @@ describe("relationship ledger last-turn delete residue", () => {
     assert.deepEqual(promises(), [KEPT_PROMISE.text]);
   });
 
-  it("C drops a paraphrased leftover from the deleted turn's committed delta when before is missing", () => {
+  it("C drops a paraphrased leftover from the deleted turn's stored change when before is missing", () => {
     insertTurn({
       userId: 1,
       assistantId: 2,
@@ -576,7 +576,192 @@ describe("relationship ledger last-turn delete residue", () => {
     assert.equal(promises().includes(KEPT_PROMISE.text), true);
   });
 
-  it("does not replace the ledger from a surviving after snapshot that has no committed delta", () => {
+  it("restores a promise cancelled by the deleted turn and keeps a later unrelated promise", () => {
+    insertTurn({
+      userId: 1,
+      assistantId: 2,
+      userText: "북문에서 만나자",
+      assistantText: "내일 밤 북문에서 만나기로 했다.",
+    });
+    applyDelta(2, 1, { promisesAdd: [KEPT_PROMISE] });
+    insertTurn({
+      userId: 3,
+      assistantId: 4,
+      userText: "그 약속은 취소하자",
+      assistantText: "북문 약속은 없던 일로 하자고 했다.",
+    });
+    const cancelled = applyDelta(4, 3, { promisesRemove: [KEPT_PROMISE.text] });
+    assert.equal(cancelled.accepted, true);
+    assert.deepEqual(promises(), []);
+    const later = applyUnscopedDelta({ promisesAdd: [LATER_PROMISE] }, 1);
+    assert.equal(later.accepted, true);
+    assert.deepEqual(promises(), [LATER_PROMISE.text]);
+
+    deleteLastTurn(3, 4);
+    assert.deepEqual(promises().sort(), [KEPT_PROMISE.text, LATER_PROMISE.text].sort());
+  });
+
+  it("restores the previous owner after a transfer and keeps unrelated ledger changes", () => {
+    const previousOwner = "TestChar: 청동열쇠";
+    const newOwner = "Tester: 청동열쇠";
+    insertTurn({
+      userId: 1,
+      assistantId: 2,
+      userText: "열쇠는 네가 가져",
+      assistantText: "청동열쇠는 내가 보관할게.",
+    });
+    applyDelta(2, 1, { items: [previousOwner] });
+    insertTurn({
+      userId: 3,
+      assistantId: 4,
+      userText: "열쇠를 줘",
+      assistantText: "청동열쇠를 건네주었다.",
+    });
+    applyDelta(4, 3, { items: [newOwner] });
+    assert.deepEqual(items(), [newOwner]);
+    const unrelated = applyUnscopedDelta(
+      { items: ["서연: 은색 지갑"], promisesAdd: [LATER_PROMISE] },
+      1
+    );
+    assert.equal(unrelated.accepted, true);
+
+    deleteLastTurn(3, 4);
+    assert.equal(items().includes(previousOwner), true);
+    assert.equal(items().includes(newOwner), false);
+    assert.equal(items().includes("서연: 은색 지갑"), true);
+    assert.deepEqual(promises(), [LATER_PROMISE.text]);
+  });
+
+  it("does not remove a promise that a later writer cancelled and re-added with a new deadline", () => {
+    insertTurn({
+      userId: 1,
+      assistantId: 2,
+      userText: "북문에서 만나자",
+      assistantText: "내일 밤 북문에서 만나기로 했다.",
+    });
+    applyDelta(2, 1, { promisesAdd: [KEPT_PROMISE] });
+    insertTurn({
+      userId: 3,
+      assistantId: 4,
+      userText: "옥상에 가자",
+      assistantText: "비가 그치면 표본을 보러 가자고 했다.",
+    });
+    applyDelta(4, 3, { promisesAdd: [PARAPHRASE_PROMISE] });
+    applyUnscopedDelta({ promisesRemove: [PARAPHRASE_PROMISE.text] }, 1);
+    assert.equal(promises().includes(PARAPHRASE_PROMISE.text), false);
+    applyUnscopedDelta(
+      { promisesAdd: [{ text: PARAPHRASE_PROMISE.text, deadline: "내일 아침" }] },
+      1
+    );
+
+    deleteLastTurn(3, 4);
+    const kept = loadChatRelationshipMeta(CHAT_ID, NAMES).promises;
+    assert.deepEqual(
+      kept.map((row) => [row.text, row.deadline ?? null]).sort(),
+      [
+        [KEPT_PROMISE.text, KEPT_PROMISE.deadline],
+        [PARAPHRASE_PROMISE.text, "내일 아침"],
+      ].sort()
+    );
+  });
+
+  it("does not resurrect a promise that a later writer cancelled after the deleted turn added it", () => {
+    insertTurn({
+      userId: 1,
+      assistantId: 2,
+      userText: "북문에서 만나자",
+      assistantText: "내일 밤 북문에서 만나기로 했다.",
+    });
+    applyDelta(2, 1, { promisesAdd: [KEPT_PROMISE] });
+    insertTurn({
+      userId: 3,
+      assistantId: 4,
+      userText: "옥상에 가자",
+      assistantText: "비가 그치면 표본을 보러 가자고 했다.",
+    });
+    applyDelta(4, 3, { promisesAdd: [PARAPHRASE_PROMISE] });
+    applyUnscopedDelta({ promisesRemove: [PARAPHRASE_PROMISE.text] }, 1);
+    applyUnscopedDelta({ promisesAdd: [LATER_PROMISE] }, 1);
+
+    deleteLastTurn(3, 4);
+    assert.deepEqual(promises().sort(), [KEPT_PROMISE.text, LATER_PROMISE.text].sort());
+  });
+
+  it("derives the cancel from before and after snapshots when no change was stored", () => {
+    insertTurn({
+      userId: 1,
+      assistantId: 2,
+      userText: "북문에서 만나자",
+      assistantText: "내일 밤 북문에서 만나기로 했다.",
+    });
+    applyDelta(2, 1, { promisesAdd: [KEPT_PROMISE] });
+    insertTurn({
+      userId: 3,
+      assistantId: 4,
+      userText: "그 약속은 취소하자",
+      assistantText: "북문 약속은 없던 일로 하자고 했다.",
+    });
+    applyDelta(4, 3, { promisesRemove: [KEPT_PROMISE.text] });
+    stripStoredChange(4);
+    applyUnscopedDelta({ promisesAdd: [LATER_PROMISE] }, 1);
+
+    deleteLastTurn(3, 4);
+    assert.deepEqual(promises().sort(), [KEPT_PROMISE.text, LATER_PROMISE.text].sort());
+  });
+
+  it("keeps a same-person possession line that a later writer replaced", () => {
+    insertTurn({
+      userId: 1,
+      assistantId: 2,
+      userText: "열쇠를 챙겨",
+      assistantText: "청동열쇠를 챙겼다.",
+    });
+    applyDelta(2, 1, { items: ["TestChar: 청동열쇠"] });
+    insertTurn({
+      userId: 3,
+      assistantId: 4,
+      userText: "지갑도 챙겨",
+      assistantText: "은색 지갑도 챙겼다.",
+    });
+    applyDelta(4, 3, { items: ["TestChar: 청동열쇠, 은색 지갑"] });
+    applyUnscopedDelta({ items: ["TestChar: 청동열쇠, 낡은 지도"] }, 1);
+    assert.deepEqual(items(), ["TestChar: 청동열쇠, 낡은 지도"]);
+
+    deleteLastTurn(3, 4);
+    assert.deepEqual(items(), ["TestChar: 청동열쇠, 낡은 지도"]);
+  });
+
+  it("restores consecutive deletes in order without losing the surviving promise", () => {
+    insertTurn({
+      userId: 1,
+      assistantId: 2,
+      userText: "북문에서 만나자",
+      assistantText: "내일 밤 북문에서 만나기로 했다.",
+    });
+    applyDelta(2, 1, { promisesAdd: [KEPT_PROMISE] });
+    insertTurn({
+      userId: 3,
+      assistantId: 4,
+      userText: "그 약속은 취소하자",
+      assistantText: "북문 약속은 없던 일로 하자고 했다.",
+    });
+    applyDelta(4, 3, { promisesRemove: [KEPT_PROMISE.text] });
+    insertTurn({
+      userId: 5,
+      assistantId: 6,
+      userText: "옥상에 가자",
+      assistantText: "비가 그치면 표본을 보러 가자고 했다.",
+    });
+    applyDelta(6, 5, { promisesAdd: [PARAPHRASE_PROMISE] });
+    applyUnscopedDelta({ promisesAdd: [LATER_PROMISE] }, 1);
+
+    deleteLastTurn(5, 6);
+    assert.deepEqual(promises().sort(), [LATER_PROMISE.text].sort());
+    deleteLastTurn(3, 4);
+    assert.deepEqual(promises().sort(), [KEPT_PROMISE.text, LATER_PROMISE.text].sort());
+  });
+
+  it("does not replace the ledger from a surviving after snapshot that has no stored change", () => {
     insertTurn({
       userId: 1,
       assistantId: 2,
@@ -592,7 +777,7 @@ describe("relationship ledger last-turn delete residue", () => {
     });
     applyDelta(4, 3, { promisesAdd: [PARAPHRASE_PROMISE] });
     clearBeforeJson(4);
-    stripCommittedDelta(4);
+    stripStoredChange(4);
 
     deleteLastTurn(3, 4);
     assert.deepEqual(promises().sort(), [KEPT_PROMISE.text, PARAPHRASE_PROMISE.text].sort());

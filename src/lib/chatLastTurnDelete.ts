@@ -183,7 +183,7 @@ export function executeLastTurnDeleteTransaction(
         deletedUserText,
         deletedAssistantText,
         relationshipMetaBeforeJson,
-        relationshipMetaDelta: deletedTurnProvenance?.delta ?? null,
+        relationshipMetaChange: deletedTurnProvenance?.change ?? null,
         relationshipMetaAfter: deletedTurnProvenance?.after ?? null,
       });
     }

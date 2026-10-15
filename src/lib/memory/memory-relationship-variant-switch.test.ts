@@ -245,7 +245,10 @@ describe("relationship memory parity on canonical variant switch", () => {
         generationSequence: 0,
         requestId: "req-a",
         relationshipMetaAfter: meta(["Tester: secret-internal-memory"]),
-        relationshipMetaDelta: { items: ["Tester: secret-internal-memory"] },
+        relationshipMetaChange: {
+          promises: [],
+          items: [{ before: null, after: "Tester: secret-internal-memory" }],
+        },
       },
     ] satisfies MessageVariant[];
 
@@ -255,7 +258,7 @@ describe("relationship memory parity on canonical variant switch", () => {
       false
     );
     assert.equal(
-      Object.prototype.hasOwnProperty.call(serialized.variants[0], "relationshipMetaDelta"),
+      Object.prototype.hasOwnProperty.call(serialized.variants[0], "relationshipMetaChange"),
       false
     );
 

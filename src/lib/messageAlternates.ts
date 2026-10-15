@@ -1,7 +1,17 @@
 import type { Usage } from "@/lib/chatUsage";
 import { serializeUsageForPublicClient } from "@/lib/billingReceiptAccess";
 import type { ParsedStatusWidgetTurnValues } from "@/lib/statusWidget/types";
-import type { MemoryMeta, RelationshipMetaDelta } from "@/lib/chatMemory";
+import type { MemoryMeta, MemoryPromise } from "@/lib/chatMemory";
+
+/**
+ * Per-key ledger transitions committed by one generation. `before`/`after` are
+ * the entry states at the pre-turn and post-turn snapshots (null = absent).
+ * Promises are keyed by text, possession lines by person.
+ */
+export type RelationshipLedgerChange = {
+  promises: Array<{ before: MemoryPromise | null; after: MemoryPromise | null }>;
+  items: Array<{ before: string | null; after: string | null }>;
+};
 
 export type MessageVariant = {
   content: string;
@@ -17,11 +27,11 @@ export type MessageVariant = {
   /** Internal-only canonical relationship projection after this generation. Never serialize to clients. */
   relationshipMetaAfter?: MemoryMeta | null;
   /**
-   * Internal-only adds committed by this generation since its before snapshot.
-   * Never serialize to clients. Absence is not proof the generation added nothing
-   * on rows written before this field existed.
+   * Internal-only net ledger transitions of this generation (adds, removals,
+   * replacements). Never serialize to clients. Absence is not proof the
+   * generation changed nothing on rows written before this field existed.
    */
-  relationshipMetaDelta?: RelationshipMetaDelta | null;
+  relationshipMetaChange?: RelationshipLedgerChange | null;
 };
 
 export function parseMessageVariants(raw: string | null | undefined): MessageVariant[] {
@@ -121,7 +131,7 @@ export function serializeVariantsForClient(
   const clientVariants = variants.map((v) => {
     const clientVariant = { ...v };
     delete clientVariant.relationshipMetaAfter;
-    delete clientVariant.relationshipMetaDelta;
+    delete clientVariant.relationshipMetaChange;
     return {
       ...clientVariant,
       usage: v.usage
