@@ -206,11 +206,11 @@ describe("Main RP user-select policy after DeepSeek retirement", () => {
 
   it("chat API and UI require an explicit live selection before paid generation", () => {
     const routeSrc = readFileSync(resolve(REPO_ROOT, "src/app/api/chat/route.ts"), "utf8");
-    const selectedAiIdx = routeSrc.indexOf("getUserChatSelectedAI(");
-    const requiredIdx = routeSrc.indexOf("MODEL_SELECTION_REQUIRED");
-    const createIdx = routeSrc.indexOf("createChatSession(");
-    const leaseIdx = routeSrc.indexOf("acquireMainRpGenerationLease(");
-    const geminiMirrorIdx = routeSrc.indexOf("UPDATE chats SET gemini_model=?");
+    const selectedAiIdx = routeSrc.indexOf("const selectedAI = getUserChatSelectedAI(");
+    const requiredIdx = routeSrc.indexOf("MODEL_SELECTION_REQUIRED_CODE", selectedAiIdx);
+    const createIdx = routeSrc.indexOf("createChatSession(", selectedAiIdx);
+    const leaseIdx = routeSrc.indexOf("acquireMainRpGenerationLease(", selectedAiIdx);
+    const geminiMirrorIdx = routeSrc.indexOf("UPDATE chats SET gemini_model=?", selectedAiIdx);
     assert.ok(selectedAiIdx >= 0);
     assert.ok(requiredIdx > selectedAiIdx);
     assert.ok(createIdx > requiredIdx);

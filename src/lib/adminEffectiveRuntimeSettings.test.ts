@@ -10,6 +10,7 @@ import {
   MAIN_RP_USER_SELECTABLE_OPTIONS,
   OPENROUTER_GEMINI_31_PRO_MODEL,
   OPENROUTER_GEMINI_37_FLASH_MODEL,
+  isUserSelectableAI,
   resolveSelectedAI,
   selectedAIProvider,
 } from "@/lib/chatModels";
@@ -205,7 +206,7 @@ describe("effective runtime settings projection", () => {
     assert.ok(ids.includes(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL));
     for (const row of projection.historical.retiredObservableModelIds) {
       assert.equal(row.resolvesToCurrent, resolveSelectedAI(row.modelId));
-      assert.ok(active.has(row.resolvesToCurrent), row.modelId);
+      assert.equal(isUserSelectableAI(row.modelId, false), false, row.modelId);
     }
   });
 
