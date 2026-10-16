@@ -28,7 +28,7 @@ export default function LorebookManageClient() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6 sm:py-8">
+    <div className="mx-auto max-w-2xl py-6 sm:py-8">
       <StudioBackLink href="/studio?tab=lorebooks">← 제작 · 로어북</StudioBackLink>
       <h1 className={`${studioType.heading} mt-4`}>내 로어북</h1>
       <p className={`${studioType.helper} mt-2`}>

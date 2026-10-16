@@ -340,7 +340,7 @@ function HeaderNsfwToggle({
       </span>
       <span
         aria-hidden
-        className={`relative h-5 w-8 shrink-0 rounded-full transition-colors sm:w-9 ${
+        className={`relative h-5 w-8 shrink-0 rounded-full transition-colors max-[399px]:hidden sm:w-9 ${
           safetyFilterOn ? "bg-violet-500" : "bg-zinc-700"
         } ${canDisable ? "" : "opacity-40"}`}
       >

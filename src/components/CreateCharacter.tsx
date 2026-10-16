@@ -1506,7 +1506,7 @@ export default function CreateCharacter({
         : "캐릭터 만들기";
 
   return (
-    <div className="mx-auto mt-4 max-w-6xl px-4 pb-36 sm:pb-32">
+    <div className="mx-auto mt-4 max-w-6xl pb-36 sm:pb-32">
       <div ref={titleBlockRef}>
         <StudioBackLink href="/studio">← 제작 메뉴</StudioBackLink>
         <h1 className={cn(studioType.heading, "mt-3 text-xl sm:text-2xl")}>
