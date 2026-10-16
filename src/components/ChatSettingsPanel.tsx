@@ -79,12 +79,18 @@ type MemoryRecordItem = {
   userEdited: boolean;
   charCount: number;
   isFallbackSummary?: boolean;
+  /** 직접 기억이 있을 때만: 이 기록이 다음 프롬프트에 직접 기억과 함께 전달되는지 */
+  deliveredAfterManualGlobal?: boolean;
+  /** 직접 기억이 있을 때만: 직접 수정 시점에 이미 존재해 직접 기억에 반영된 기록인지 */
+  coveredByManualGlobal?: boolean;
 };
 
 type MemoryData = {
   characterId?: number;
   ledgerEvents?: RelationshipLedgerEvent[];
   manualGlobalMemory?: boolean;
+  manualGlobalCoveredThroughTurn?: number | null;
+  manualGlobalDeliveredRecordCount?: number;
   longTerm: string;
   lorebook: string;
   recentSummary: string;
@@ -1204,6 +1210,10 @@ function MemorySection({
   const [savingRecordId, setSavingRecordId] = useState<number | null>(null);
   const [regeneratingRecordId, setRegeneratingRecordId] = useState<number | null>(null);
   const [savingLorebook, setSavingLorebook] = useState(false);
+  const [releasingManual, setReleasingManual] = useState(false);
+  const [lorebookNotice, setLorebookNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(
+    null
+  );
   const [actionMsg, setActionMsg] = useState("");
   const [lorebookEditing, setLorebookEditing] = useState(false);
   const lorebookTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1241,6 +1251,10 @@ function MemorySection({
     if (!lorebookEditing) return;
     fitTextareaToContent(lorebookTextareaRef.current, { minPx: 192 });
   }, [lorebookEditing, lorebookDraft]);
+
+  useEffect(() => {
+    setLorebookNotice(null);
+  }, [chatId]);
 
   const editingRecordDraft =
     editingRecordId != null ? (recordDrafts[editingRecordId] ?? "") : "";
@@ -1290,36 +1304,84 @@ function MemorySection({
     }
   }
 
-  async function saveLorebook() {
-    if (chatId == null) return;
-    setSavingLorebook(true);
-    setActionMsg("");
+  async function patchLorebook(lorebook: string): Promise<void> {
+    const res = await fetch("/api/chat/memory", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chatId, action: "updateLorebook", lorebook }),
+    });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error ?? "저장 실패");
+  }
+
+  /** 저장은 이미 성공한 뒤 호출 — 다시 불러오기가 실패해도 저장 결과를 화면에 반영한다. */
+  async function reloadMemoryPanelAfterSave(savedText: string): Promise<void> {
     try {
-      const res = await fetch("/api/chat/memory", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chatId, action: "updateLorebook", lorebook: lorebookDraft }),
+      const res = await fetch(`/api/chat/memory?chatId=${chatId}`, {
+        signal: AbortSignal.timeout(MEMORY_FETCH_TIMEOUT_MS),
       });
-      const j = await res.json();
-      if (!res.ok) throw new Error(j.error ?? "저장 실패");
-      const saved = j.lorebook ?? j.recentSummary ?? lorebookDraft;
-      setLorebookDraft(saved);
+      const next = await res.json();
+      if (!res.ok || next.error) throw new Error(next.error);
+      onDataChange(next as MemoryData);
+    } catch {
       onDataChange((prev) =>
         prev
           ? {
               ...prev,
-              lorebook: saved,
-              recentSummary: saved,
-              longTermChars: j.usedChars ?? prev.longTermChars,
+              lorebook: savedText,
+              recentSummary: savedText,
+              manualGlobalMemory: savedText.trim() !== "",
             }
           : prev
       );
-      setActionMsg("장기기억 수정이 저장되었습니다.");
-      setLorebookEditing(false);
+    }
+  }
+
+  async function saveLorebook() {
+    if (chatId == null) return;
+    const releasing = lorebookDraft.trim() === "";
+    setSavingLorebook(true);
+    setActionMsg("");
+    setLorebookNotice(null);
+    try {
+      await patchLorebook(lorebookDraft);
+      await reloadMemoryPanelAfterSave(lorebookDraft);
+      setLorebookNotice({
+        tone: "ok",
+        text: releasing
+          ? "직접 기억을 비웠습니다. 5턴 기록으로 자동 기억을 다시 만듭니다."
+          : "저장했습니다. 대화가 이어져도 이 내용이 그대로 유지됩니다.",
+      });
     } catch (e) {
-      setActionMsg((e as Error).message);
+      setLorebookNotice({ tone: "error", text: `저장 실패: ${(e as Error).message}` });
     } finally {
       setSavingLorebook(false);
+    }
+  }
+
+  async function releaseManualLorebook() {
+    if (chatId == null) return;
+    if (
+      !window.confirm(
+        "직접 수정한 장기기억을 삭제하고 자동 기억으로 되돌릴까요?\n5턴 기록은 그대로 남고, 장기기억은 5턴 기록을 바탕으로 다시 자동 생성됩니다."
+      )
+    ) {
+      return;
+    }
+    setReleasingManual(true);
+    setActionMsg("");
+    setLorebookNotice(null);
+    try {
+      await patchLorebook("");
+      await reloadMemoryPanelAfterSave("");
+      setLorebookNotice({
+        tone: "ok",
+        text: "자동 기억으로 되돌렸습니다. 이후 5턴 기록이 쌓일 때마다 장기기억이 자동으로 갱신됩니다.",
+      });
+    } catch (e) {
+      setLorebookNotice({ tone: "error", text: `되돌리기 실패: ${(e as Error).message}` });
+    } finally {
+      setReleasingManual(false);
     }
   }
 
@@ -1565,10 +1627,50 @@ function MemorySection({
         </div>
       </div>
 
-      {data.manualGlobalMemory && (
-        <p className="text-[10px] leading-relaxed text-amber-300/80">
-          직접 수정한 장기기억은 이후 새 {ROLLING_SUMMARY_INTERVAL}턴 기록이 쌓여 자동 정리될 때 다시 만들어질 수 있습니다.
-          꼭 유지할 내용은 약속·소지품처럼 &apos;현재 상태&apos;에도 남아 있는지 확인해 주세요.
+      {lorebookNotice && (
+        <p
+          role="status"
+          data-testid="lorebook-notice"
+          className={`rounded-md border px-2 py-1.5 text-[10px] leading-relaxed ${
+            lorebookNotice.tone === "ok"
+              ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-300"
+              : "border-rose-500/40 bg-rose-500/5 text-rose-300"
+          }`}
+        >
+          {lorebookNotice.text}
+        </p>
+      )}
+
+      {data.manualGlobalMemory ? (
+        <div
+          data-testid="manual-global-status"
+          className="space-y-1.5 rounded-lg border border-emerald-500/20 bg-emerald-950/10 p-2.5 text-[10px] leading-relaxed text-zinc-400"
+        >
+          <p className="text-emerald-300/90">
+            직접 수정한 장기기억은 삭제하거나 다시 수정하기 전까지 대화가 이어져도 그대로 유지됩니다.
+          </p>
+          <p>
+            {(data.manualGlobalDeliveredRecordCount ?? 0) > 0
+              ? `수정 이후 자동으로 쌓인 ${ROLLING_SUMMARY_INTERVAL}턴 기록 ${data.manualGlobalDeliveredRecordCount}개가 이 장기기억과 함께 AI에 전달됩니다. '5턴 기록' 탭에서 확인할 수 있습니다.`
+              : `수정 이후 새 ${ROLLING_SUMMARY_INTERVAL}턴 기록이 쌓이면 이 장기기억과 함께 AI에 전달됩니다.`}
+          </p>
+          <p>
+            되돌리면 5턴 기록을 바탕으로 장기기억이 다시 자동 생성되고, 이후 {ROLLING_SUMMARY_INTERVAL}턴마다 자동으로 갱신됩니다. 5턴 기록은 지워지지 않습니다.
+          </p>
+          <div className="flex justify-end pt-0.5">
+            <button
+              type="button"
+              onClick={() => void releaseManualLorebook()}
+              disabled={releasingManual || savingLorebook || lorebookEditing}
+              className="rounded-lg border border-rose-500/30 px-3 py-1 text-[11px] text-rose-300/90 hover:bg-rose-500/10 disabled:opacity-40"
+            >
+              {releasingManual ? "되돌리는 중…" : "자동 기억으로 되돌리기"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-[10px] leading-relaxed text-zinc-500">
+          자동으로 만들어진 장기기억입니다. 직접 수정해 저장하면 그 내용이 대화가 이어져도 유지되고, 새 {ROLLING_SUMMARY_INTERVAL}턴 기록은 함께 AI에 전달됩니다.
         </p>
       )}
       </>
@@ -1584,6 +1686,11 @@ function MemorySection({
       {sealPending && (
         <p className="text-[10px] text-violet-400/80">
           {data.totalTurns}턴까지 진행됨 — 비어 있는 [{ROLLING_SUMMARY_INTERVAL}턴] 기록을 자동 생성합니다…
+        </p>
+      )}
+      {data.manualGlobalMemory && (
+        <p className="text-[10px] leading-relaxed text-emerald-300/80" data-testid="records-manual-note">
+          직접 기억이 있어 자동 장기기억 대신 직접 기억이 사용됩니다. 새로 쌓이는 {ROLLING_SUMMARY_INTERVAL}턴 기록은 계속 저장되고, 직접 수정 이후 기록만 AI에 함께 전달됩니다.
         </p>
       )}
       <div className="rounded-lg border border-violet-500/20 bg-violet-950/10 p-2.5">
@@ -1657,6 +1764,15 @@ function MemorySection({
                       )}
                     </span>
                   </div>
+                  {r.deliveredAfterManualGlobal ? (
+                    <p className="mb-1 text-[9px] text-sky-300/90">
+                      직접 수정 이후 기록 · 직접 기억과 함께 AI에 전달됨
+                    </p>
+                  ) : r.coveredByManualGlobal ? (
+                    <p className="mb-1 text-[9px] text-zinc-500">
+                      직접 수정 이전 기록 · 직접 기억에 반영됨 (다시 전달하지 않음)
+                    </p>
+                  ) : null}
                   {isEditing ? (
                     <textarea
                       ref={editingRecordId === r.id ? recordTextareaRef : undefined}

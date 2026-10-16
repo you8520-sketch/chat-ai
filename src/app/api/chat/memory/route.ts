@@ -19,7 +19,12 @@ import {
   scheduleMemoryPanelBackfill,
   syncAndCompressMemoryFromChat,
 } from "@/lib/memory/memory-backfill";
-import { resolveLorebookFromRecordsSync } from "@/lib/memory/memory-lorebook-resolve";
+import { resolveGlobalCurrentMemory } from "@/lib/memory/memory-lorebook-resolve";
+import { isManualGlobalActive } from "@/lib/memory/memory-global-checkpoint";
+import {
+  MEDIUM_TERM_BLOCK_COUNT,
+  buildMediumTermMemoryBlockForProjection,
+} from "@/lib/memory/memory-medium-term";
 import { resolveMemoryBudgetFromCapacity } from "@/lib/memory/memory-capacity-shared";
 import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
 import {
@@ -166,11 +171,26 @@ export async function GET(req: Request) {
   }
   const snapshot = getMemorySnapshot(chatId, user.id, chat.character_id, tier, memoryCapacity);
   const lorebookBudget = resolveMemoryBudgetFromCapacity(memoryCapacity).lorebook;
-  const displayLorebook =
-    resolveLorebookFromRecordsSync(chatId, lorebookBudget, {
-      storedRecentSummary: memRow.recent_summary,
-    }).text || snapshot.lorebook.trim();
+  const resolvedGlobal = resolveGlobalCurrentMemory(chatId, lorebookBudget, {
+    storedRecentSummary: memRow.recent_summary,
+  });
+  const displayLorebook = resolvedGlobal.text || snapshot.lorebook.trim();
   const displayText = displayLorebook.trim();
+
+  // The records tab must show exactly what the next prompt receives: for a user-saved Global that is
+  // the Medium block the prompt builder assembles (same owner), not a UI-side guess.
+  const manualGlobalMemory = isManualGlobalActive(memRow);
+  const manualBoundaryTurn = manualGlobalMemory ? resolvedGlobal.manualBoundaryTurn : null;
+  const deliveredAfterManualStarts = new Set(
+    manualGlobalMemory
+      ? buildMediumTermMemoryBlockForProjection({
+          chatId,
+          blockCount: MEDIUM_TERM_BLOCK_COUNT,
+          projectionKind: resolvedGlobal.projectionKind,
+          manualBoundaryTurn,
+        }).turnRanges.map((range) => range.turnStart)
+      : []
+  );
 
   const displayMeta = { ...meta, currentLocation: undefined };
   const ledgerEvents = loadRelationshipLedgerEventsCore(db, chatId, names);
@@ -178,7 +198,9 @@ export async function GET(req: Request) {
   return Response.json({
     characterId: chat.character_id,
     ledgerEvents,
-    manualGlobalMemory: memRow.global_projection_kind === "manual_global",
+    manualGlobalMemory,
+    manualGlobalCoveredThroughTurn: manualBoundaryTurn,
+    manualGlobalDeliveredRecordCount: deliveredAfterManualStarts.size,
     longTerm: displayText,
     lorebook: displayLorebook,
     recentSummary: displayLorebook,
@@ -203,6 +225,12 @@ export async function GET(req: Request) {
     memoryRecords: memoryRecords.map((r) => ({
       ...r,
       isFallbackSummary: isFallbackMemoryRecordSummary(r.summary),
+      ...(manualGlobalMemory
+        ? {
+            deliveredAfterManualGlobal: deliveredAfterManualStarts.has(r.turnStart),
+            coveredByManualGlobal: manualBoundaryTurn != null && r.turnEnd <= manualBoundaryTurn,
+          }
+        : {}),
     })),
     memoryRecordMinChars: MEMORY_RECORD_MIN_CHARS,
     memoryRecordMaxChars: MEMORY_RECORD_MAX_CHARS,
