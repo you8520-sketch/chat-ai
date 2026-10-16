@@ -1,0 +1,385 @@
+{
+ "round": 5,
+ "beforeStateSource": "snap-a5-r5-before",
+ "before": {
+  "roundPhase": "ACTION_INPUT",
+  "campaignStatus": "ACTION_INPUT",
+  "exploration": {
+   "ap": 3,
+   "risk": 13,
+   "alarm": true,
+   "currentRoomId": "r9",
+   "currentRoomLabel": "경보실",
+   "rooms": [
+    {
+     "id": "r3",
+     "label": "현관홀",
+     "visited": true,
+     "current": false,
+     "markers": []
+    },
+    {
+     "id": "r4",
+     "label": "중앙홀",
+     "visited": true,
+     "current": false,
+     "markers": []
+    },
+    {
+     "id": "r5",
+     "label": "북쪽복도",
+     "visited": true,
+     "current": false,
+     "markers": []
+    },
+    {
+     "id": "r6",
+     "label": "남쪽복도",
+     "visited": true,
+     "current": false,
+     "markers": []
+    },
+    {
+     "id": "r8",
+     "label": "?",
+     "visited": false,
+     "current": false,
+     "markers": []
+    },
+    {
+     "id": "r2",
+     "label": "?",
+     "visited": false,
+     "current": false,
+     "markers": []
+    },
+    {
+     "id": "r9",
+     "label": "경보실",
+     "visited": true,
+     "current": true,
+     "markers": [
+      "hazard"
+     ]
+    },
+    {
+     "id": "r1",
+     "label": "?",
+     "visited": false,
+     "current": false,
+     "markers": []
+    },
+    {
+     "id": "r7",
+     "label": "?",
+     "visited": false,
+     "current": false,
+     "markers": []
+    }
+   ],
+   "edges": [
+    [
+     "r3",
+     "r4"
+    ],
+    [
+     "r3",
+     "r8"
+    ],
+    [
+     "r4",
+     "r5"
+    ],
+    [
+     "r4",
+     "r8"
+    ],
+    [
+     "r5",
+     "r6"
+    ],
+    [
+     "r5",
+     "r9"
+    ],
+    [
+     "r6",
+     "r2"
+    ],
+    [
+     "r6",
+     "r1"
+    ],
+    [
+     "r2",
+     "r1"
+    ],
+    [
+     "r8",
+     "r7"
+    ],
+    [
+     "r7",
+     "r9"
+    ]
+   ]
+  },
+  "sheets": [
+   {
+    "participantId": 81,
+    "name": "렌",
+    "hp": 40,
+    "maxHp": 40,
+    "location": "경보실",
+    "inventory": [],
+    "conditions": []
+   },
+   {
+    "participantId": 82,
+    "name": "권태현",
+    "hp": 35,
+    "maxHp": 35,
+    "location": "북쪽복도",
+    "inventory": [],
+    "conditions": []
+   },
+   {
+    "participantId": 83,
+    "name": "강이현",
+    "hp": 25,
+    "maxHp": 25,
+    "location": "중앙홀",
+    "inventory": [],
+    "conditions": []
+   }
+  ],
+  "goals": [
+   {
+    "id": "goal-0-1",
+    "title": "센터 탈출: 출구에 도달해 봉쇄된 센터를 빠져나간다.",
+    "status": "active",
+    "claimed": false
+   }
+  ],
+  "mechanicsLines": [],
+  "ongoingEffects": [],
+  "gmFailureKind": null,
+  "gmFailureHint": null
+ },
+ "after": {
+  "roundPhase": "ACTION_INPUT",
+  "campaignStatus": "ACTION_INPUT",
+  "exploration": {
+   "ap": 3,
+   "risk": 14,
+   "alarm": true,
+   "currentRoomId": "r9",
+   "currentRoomLabel": "경보실",
+   "rooms": [
+    {
+     "id": "r3",
+     "label": "현관홀",
+     "visited": true,
+     "current": false,
+     "markers": []
+    },
+    {
+     "id": "r4",
+     "label": "중앙홀",
+     "visited": true,
+     "current": false,
+     "markers": []
+    },
+    {
+     "id": "r5",
+     "label": "북쪽복도",
+     "visited": true,
+     "current": false,
+     "markers": []
+    },
+    {
+     "id": "r6",
+     "label": "남쪽복도",
+     "visited": true,
+     "current": false,
+     "markers": []
+    },
+    {
+     "id": "r8",
+     "label": "?",
+     "visited": false,
+     "current": false,
+     "markers": []
+    },
+    {
+     "id": "r2",
+     "label": "?",
+     "visited": false,
+     "current": false,
+     "markers": []
+    },
+    {
+     "id": "r9",
+     "label": "경보실",
+     "visited": true,
+     "current": true,
+     "markers": [
+      "hazard"
+     ]
+    },
+    {
+     "id": "r1",
+     "label": "?",
+     "visited": false,
+     "current": false,
+     "markers": []
+    },
+    {
+     "id": "r7",
+     "label": "?",
+     "visited": false,
+     "current": false,
+     "markers": []
+    }
+   ],
+   "edges": [
+    [
+     "r3",
+     "r4"
+    ],
+    [
+     "r3",
+     "r8"
+    ],
+    [
+     "r4",
+     "r5"
+    ],
+    [
+     "r4",
+     "r8"
+    ],
+    [
+     "r5",
+     "r6"
+    ],
+    [
+     "r5",
+     "r9"
+    ],
+    [
+     "r6",
+     "r2"
+    ],
+    [
+     "r6",
+     "r1"
+    ],
+    [
+     "r2",
+     "r1"
+    ],
+    [
+     "r8",
+     "r7"
+    ],
+    [
+     "r7",
+     "r9"
+    ]
+   ]
+  },
+  "sheets": [
+   {
+    "participantId": 81,
+    "name": "렌",
+    "hp": 40,
+    "maxHp": 40,
+    "location": "경보실",
+    "inventory": [],
+    "conditions": []
+   },
+   {
+    "participantId": 82,
+    "name": "권태현",
+    "hp": 35,
+    "maxHp": 35,
+    "location": "북쪽복도",
+    "inventory": [],
+    "conditions": []
+   },
+   {
+    "participantId": 83,
+    "name": "강이현",
+    "hp": 25,
+    "maxHp": 25,
+    "location": "중앙홀",
+    "inventory": [],
+    "conditions": []
+   }
+  ],
+  "goals": [
+   {
+    "id": "goal-0-1",
+    "title": "센터 탈출: 출구에 도달해 봉쇄된 센터를 빠져나간다.",
+    "status": "active",
+    "claimed": false
+   }
+  ],
+  "mechanicsLines": [],
+  "ongoingEffects": [],
+  "gmFailureKind": null,
+  "gmFailureHint": null
+ },
+ "rolls": [
+  {
+   "participantId": 81,
+   "name": "렌",
+   "d20": 7,
+   "statKey": "int",
+   "finalScore": 8,
+   "dc": 9,
+   "tier": "PARTIAL_SUCCESS",
+   "success": true,
+   "actionType": "investigate",
+   "kind": "human"
+  }
+ ],
+ "actions": [
+  {
+   "participantId": 81,
+   "name": "렌",
+   "kind": "human",
+   "actionType": "investigate",
+   "revealed": true,
+   "isStayFallback": false,
+   "bodyChars": 55,
+   "lockedBody": "경보실을 조사한다. 렌은 경보실 안에 머물며 아까 놓친 곳이 없는지 같은 방을 한 번 더 훑어본다."
+  },
+  {
+   "participantId": 82,
+   "name": "권태현",
+   "kind": "ai_character",
+   "actionType": "free",
+   "revealed": true,
+   "isStayFallback": true,
+   "bodyChars": 21,
+   "lockedBody": "권태현은 제자리에 서서 상황을 살핀다."
+  },
+  {
+   "participantId": 83,
+   "name": "강이현",
+   "kind": "ai_character",
+   "actionType": "free",
+   "revealed": true,
+   "isStayFallback": true,
+   "bodyChars": 21,
+   "lockedBody": "강이현은 제자리에 서서 상황을 살핀다."
+  }
+ ],
+ "gmNarration": "기계 제어 패널에서 뿜어져 나오는 핏빛 점멸선이 경보실 벽면과 바닥의 금속 격자망을 사납게 도려내듯 핥고 지나갔다. 센터의 방호 시스템이 침입자 격퇴 프로토콜을 극한까지 가동하면서, 귓전을 찢을 듯 울려 퍼지던 사이렌 소리는 이제 단순한 소음을 넘어선 물리적인 공진으로 변해 있었다. 콘크리트 내벽 속에 매립된 고전압 도관들이 과부하로 부르르 떨며 기괴한 허밍음을 쏟아냈고, 공기 중에는 타는 듯한 오존 냄새와 에테리움 잔류 입자의 서늘하고 불쾌한 냄새가 짙게 뒤엉켜 소용돌이쳤다. 중앙홀에서 북쪽 복도, 그리고 경보실로 이어지는 센터의 북측 축선은 이미 일촉즉발의 화약고나 다름없었다.\n\n경보실 천장에 매립되어 있던 소구경 자동 방어 포탑의 격실이 덜컹거리는 유압음과 함께 아래로 완전히 내려앉았다. 센서 하우징의 붉은 렌즈가 요란하게 회전하더니, 방 한가운데 서 있는 렌의 가냘픈 실루엣을 향해 즉각 살상 궤적을 좁혀왔다. 찰나의 순간, 고주파 충전음과 함께 방어 장치의 포구에서 경고 사격용 탄환이 매섭게 뿜어져 나왔다. 날카로운 파열음과 함께 탄환이 허공을 갈랐으나, 렌이 무의식중에 고개를 갸웃거리며 발걸음을 옮긴 궤적을 아슬아슬하게 비껴갔다. 빗나간 탄환은 렌의 에메랄드빛 머리카락 끝을 스치듯 지나쳐 뒤편의 강철 랙 프레임을 거칠게 강타했다. 쨍그랑하는 날카로운 금속 파편음과 함께 서버 랙 표면에서 스파크가 튀었고, 렌의 신체에는 단 하나의 흠집도 남지 않았다. 방어 장치의 기습적인 일격은 허무하게 빗나갔으나, 그 공격의 여파로 경보실 내부의 살벌한 기계적 적의는 턱밑까지 차올랐다.\n\n렌은 귓가를 날카롭게 스치고 지나간 탄환의 궤적에도 눈 하나 깜짝하지 않았다. 겁을 집어먹기는커녕 특유의 대담하고 직관적인 감각으로, 렌은 오히려 경보실 안에 머물며 아까 놓친 구석이 없는지 주변을 한 번 더 훑어보았다. 과부하로 까맣게 타들어 간 주 전원 패널을 건너뛰고, 서버 랙 사이사이에 엉켜 있는 보조 릴레이 박스와 벽면 하단의 금속 점검구를 꼼꼼하게 살폈다. 기계 장치의 복잡한 소프트웨어나 디지털 알고리즘은 렌에게 아무런 의미가 없었지만, 물리적인 부품들이 어떻게 맞물려 있는지에 대한 육안 관찰은 헛되지 않았다.\n\n렌의 끈질긴 시선 끝에, 분전반 측면의 비상 매뉴얼 패널이 포착되었다. 겉면에 붉게 음각된 도해도와 배선 경로도는 이 시끄러운 경보실의 시스템이 어떤 구조로 얽혀 있는지를 명백하게 드러내고 있었다. 비록 렌이 그토록 바랐던 여분의 비상 열쇠패스나 장비, 혹은 손쉽게 챙겨 들고 나갈 만한 보물 같은 물품은 단 하나도 없었다. 이 시끄러운 사이렌을 강제로 꺼버릴 수 있는 물리적 손잡이 역시 애초에 존재하지 않았고, 방어 장치들은 여전히 살벌한 적의를 뿜어내고 있었다. 하지만 그 한정적인 정보 속에서 렌은 결정적인 사실 하나를 확실하게 읽어냈다. 이 경보실의 주 회로는 중앙홀 저편의 출구 격벽 빗장과 단방향으로 완벽하게 연동되어 있으며, 이미 작동한 경보 프로토콜로 인해 출구의 물리적 잠금장치는 완전히 풀린 채 고정되었다는 점이었다. 더 이상 이 방 안의 기계들을 만지작거리며 씨름할 필요가 전혀 없다는 사실이 명백해진 셈이었다.\n\n렌: \"거참, 귀찮게 굴기는. 머리칼 다 탈 뻔했잖아. 겉만 요란하게 번쩍거리고 실속은 하나도 없네. 열심히 용을 써봐야 문짝 빗장 풀린 건 도로 못 잠그면서 말이야.\"\n\n렌은 입을 작게 삐죽거리며 발끝으로 탄환 자국이 남은 바닥의 금속 격자를 툭툭 두드렸다. 쓸 만한 자재가 없다는 점은 영 마음에 들지 않았으나, 출구가 열려 있다는 사실을 재확인한 렌의 표정에는 미련이 남아 있지 않았다.\n\n하지만 렌이 경보실 안에서 빗나간 공격을 흘려내며 시간을 지체하는 사이, 센터의 보안 감시망은 세 사람의 위치 데이터를 완전히 확정 지었다. 통제 시스템의 위험 수위는 기어이 14라는 극도의 위험 한계선에 도달했다. 벽면의 인디케이터들은 이제 점멸조차 멈춘 채 핏빛 붉은색으로 타오르고 있었고, 통로 전체를 뒤흔드는 고주파 차단 경고음은 바닥의 타일마저 잘게 떨리게 만들었다. 복도와 홀 사이의 환풍구에서는 유압 냉각 가스가 하얗게 뿜어져 나와 시야를 흐리기 시작했다.\n\n[캐릭터에셋: 83|전투]\n강이현은 중앙홀의 거대한 원형 기둥 뒤에 몸을 단단히 붙인 채, 중앙홀 내부로 뻗은 센서 사각지대를 기민하게 확보하고 있었다. 북쪽 복도로 섣불리 발을 뻗지 않은 채 중앙홀의 안전 구역을 지켜낸 그의 눈빛은 지극히 냉철했다. 접이식 석궁을 가슴 앞으로 바짝 끌어당긴 채, 이현은 붉은 안개 속에서 천장의 방호 격실들이 덜컹거리는 각도와 바닥의 압력 감지기 작동 주기를 정밀하게 훑었다. 위험 수위가 14까지 치솟은 이상, 중앙홀 한가운데는 언제 십자포화가 쏟아져도 이상하지 않은 사지(死地)로 변해 있었다. 그러나 이현의 날카로운 동체 시력은 출구로 이어지는 직선 통로 좌우측, 센서가 미처 닿지 않는 기둥 그늘의 좁은 틈새 라인을 이미 머릿속에 계산해 두고 있었다.\n\n강이현: \"위험 수위 14 찍었다! 저 방어 장치들 발발거리는 꼬라지 좀 봐! 신입 쟤는 방 안에서 총알이 튀는데도 귓등으로도 안 처듣고 있네! 야, 권태현 형! 복도 입구만 멍하니 지키고 서 있지 말고 당장 저 대책 없는 신입 목덜미라도 낚아채서 끌고 나와! 이 홀 한복판에 기총 소탕 프로토콜이라도 떨어지는 순간 우리 셋 다 벌집 피자가 된다고!\"\n\n이현의 목소리에는 특유의 능글맞은 껍데기를 뚫고 나온 팽팽한 긴장감이 실려 있었다. 그는 중앙홀의 퇴로를 주시하면서도, 결코 무리하게 혼자 출구로 내달리지 않은 채 일행의 합류 지점을 날카롭게 응시했다.\n\n[캐릭터에셋: 82|전투]\n그 시각, 북쪽 복도의 좁은 통로를 가로막고 서 있던 권태현은 콧김을 거칠게 내뿜었다. 190cm에 달하는 그의 거대한 체구는 붉은 비상등 불빛 아래에서 마치 굳건한 바위처럼 복도 입구를 묵직하게 가로막고 있었다. 한 손에 쥐여진 대형 마체테의 육중한 칼날이 바닥을 향해 비스듬히 겨눠져 있었고, 그의 잿빛 섞인 눈동자는 경보실 입구와 중앙홀 쪽을 번갈아 쏘아보고 있었다. 태현은 방어 장치의 포성이 울렸음에도 렌이 멀쩡하게 삐죽거리는 소리를 듣자, 어처구니없다는 듯 입꼬리를 비틀어 올리며 사납게 웃었다.\n\n권태현: \"총알 빗나가는 소리 들었냐, 이현아? 저 녀석은 겁대가리를 어따 두고 와서 저기서 뭉개고 있대냐. 아주 속이 터져서 뒤지겠네. 얌전하게 모셔갈 생각 따윈 애초에 없었어. 렌! 거기서 뭐 대단한 금송아지라도 찾았냐? 안 나오면 내가 직접 들어가서 통째로 들쳐업고 뛴다!\"\n\n태현의 굵직한 음성이 복도를 쩌렁쩌렁 울렸다. 그는 북쪽 복도에서 한 발짝도 물러서지 않은 채, 혹여나 복도 벽면에서 튀어나올지 모를 자동 방호 트랩의 동태를 거친 기세로 억누르고 있었다. 그의 넓은 어깨와 단단한 등판은 경보실에서 렌이 빠져나올 퇴로를 확실하게 틀어쥐고 있었고, 렌이 발을 떼는 순간 언제든 앞장서서 전방의 모든 위협을 마체테로 쪼개버릴 준비를 마친 상태였다.\n\n경보실 안의 렌은 분전반 앞을 벗어나 천천히 문가로 걸음을 옮겼다. 천장의 자동 포탑은 첫 사격이 빗나간 뒤 총열을 냉각하듯 쉭쉭거리는 증기를 내뿜으며 재장전 회로를 돌리고 있었고, 방 전체가 당장이라도 무너져 내릴 듯 요란하게 진동했다. 렌은 손가락으로 길게 땋아 내린 에메랄드빛 머리칼 끝을 가볍게 털어내며 북쪽 복도 쪽으로 시선을 던졌다. 복도 입구에는 거대한 마체테를 든 권태현이 길을 열어두고 있었고, 그 너머 중앙홀의 엄폐물 뒤편에서는 강이현이 접이식 석궁을 든 채 출구 쪽의 사각지대를 주시하며 초조하게 손짓하고 있었다.\n\n그리고 중앙홀 저편, 붉은 경보등과 자욱한 냉각 가스 너머에 웅장하게 서 있는 최종 출구 격벽이 보였다. 경보실의 시스템이 영구 해제 프로토콜로 묶여버렸음을 확인했듯, 저 거대한 강철 문의 빗장은 이미 완전히 풀려나 있었다. 오직 물리적인 힘으로 격벽을 밀어젖히고 나가기만 하면 이 숨 막히는 봉쇄 구역을 벗어날 수 있는 상태였다. 그러나 위험 수위 14라는 한계 상황은 더 이상의 지체를 용납하지 않았다. 당장 다음 순간에 복도와 홀 전체에 살상용 전류나 무차별 난사가 쏟아져도 이상하지 않은 찰나였다.\n\nGM: 경보실의 위협은 빗나갔고 출구 빗장의 해제는 확정되었으나, 위험 수위는 14로 폭증했다. 경보실의 렌과 북쪽 복도의 권태현, 중앙홀의 강이현은 지금 즉시 합류하여 출구를 향해 전력으로 돌파할 것인가?",
+ "botBriefReconstruction": {
+  "권태현": "[EXPLORATION — your current map facts. Move only through listed passages.]\nYou are in 북쪽복도.\nParty positions: 렌 경보실; 권태현 북쪽복도; 강이현 중앙홀.\nOpen passages: 중앙홀, 남쪽복도, 경보실.\nAction points left this turn: 3. Move costs 1, search 1, careful search 2.\nAlarm is on. The exit latch can open if you reach 출구 through listed passages.",
+  "강이현": "[EXPLORATION — your current map facts. Move only through listed passages.]\nYou are in 중앙홀.\nParty positions: 렌 경보실; 권태현 북쪽복도; 강이현 중앙홀.\nOpen passages: 현관홀, 북쪽복도, 기록실.\nAction points left this turn: 3. Move costs 1, search 1, careful search 2.\nAlarm is on. The exit latch can open if you reach 출구 through listed passages."
+ }
+}

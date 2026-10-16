@@ -1,0 +1,196 @@
+{
+ "note": "라운드 9 처리 중 운영 재배포로 GM 생성이 끊긴 직후 스냅샷(호스트가 /advance 재호출 전)",
+ "state": {
+  "roundPhase": "ERROR_RECOVERY",
+  "campaignStatus": "ACTION_INPUT",
+  "exploration": {
+   "ap": 0,
+   "risk": 23,
+   "alarm": true,
+   "currentRoomId": "r6",
+   "currentRoomLabel": "남쪽복도",
+   "rooms": [
+    {
+     "id": "r3",
+     "label": "현관홀",
+     "visited": true,
+     "current": false,
+     "markers": []
+    },
+    {
+     "id": "r4",
+     "label": "중앙홀",
+     "visited": true,
+     "current": false,
+     "markers": []
+    },
+    {
+     "id": "r5",
+     "label": "북쪽복도",
+     "visited": true,
+     "current": false,
+     "markers": []
+    },
+    {
+     "id": "r6",
+     "label": "남쪽복도",
+     "visited": true,
+     "current": true,
+     "markers": []
+    },
+    {
+     "id": "r8",
+     "label": "기록실",
+     "visited": true,
+     "current": false,
+     "markers": [
+      "clue"
+     ]
+    },
+    {
+     "id": "r2",
+     "label": "보관실",
+     "visited": true,
+     "current": false,
+     "markers": []
+    },
+    {
+     "id": "r9",
+     "label": "경보실",
+     "visited": true,
+     "current": false,
+     "markers": [
+      "hazard"
+     ]
+    },
+    {
+     "id": "r1",
+     "label": "?",
+     "visited": false,
+     "current": false,
+     "markers": []
+    },
+    {
+     "id": "r7",
+     "label": "순환로",
+     "visited": true,
+     "current": false,
+     "markers": []
+    }
+   ],
+   "edges": [
+    [
+     "r3",
+     "r4"
+    ],
+    [
+     "r3",
+     "r8"
+    ],
+    [
+     "r4",
+     "r5"
+    ],
+    [
+     "r4",
+     "r8"
+    ],
+    [
+     "r5",
+     "r6"
+    ],
+    [
+     "r5",
+     "r9"
+    ],
+    [
+     "r6",
+     "r2"
+    ],
+    [
+     "r6",
+     "r1"
+    ],
+    [
+     "r2",
+     "r1"
+    ],
+    [
+     "r8",
+     "r7"
+    ],
+    [
+     "r7",
+     "r9"
+    ]
+   ]
+  },
+  "sheets": [
+   {
+    "participantId": 81,
+    "name": "렌",
+    "hp": 40,
+    "maxHp": 40,
+    "location": "남쪽복도",
+    "inventory": [],
+    "conditions": []
+   },
+   {
+    "participantId": 82,
+    "name": "권태현",
+    "hp": 35,
+    "maxHp": 35,
+    "location": "중앙홀",
+    "inventory": [],
+    "conditions": []
+   },
+   {
+    "participantId": 83,
+    "name": "강이현",
+    "hp": 25,
+    "maxHp": 25,
+    "location": "중앙홀",
+    "inventory": [],
+    "conditions": []
+   }
+  ],
+  "goals": [
+   {
+    "id": "goal-0-1",
+    "title": "센터 탈출: 출구에 도달해 봉쇄된 센터를 빠져나간다.",
+    "status": "active",
+    "claimed": false
+   }
+  ],
+  "mechanicsLines": [],
+  "ongoingEffects": [],
+  "gmFailureKind": "gm_generation_orphan_reclaimed",
+  "gmFailureHint": "GM 생성 실패 · Generation lease expired"
+ },
+ "currentRolls": [
+  {
+   "participantId": 82,
+   "name": "권태현",
+   "d20": 5,
+   "statKey": "con",
+   "finalScore": 6,
+   "dc": 9,
+   "tier": "PARTIAL_SUCCESS",
+   "success": true,
+   "actionType": "defend",
+   "kind": "ai_character"
+  },
+  {
+   "participantId": 81,
+   "name": "렌",
+   "d20": 4,
+   "statKey": "int",
+   "finalScore": 5,
+   "dc": 9,
+   "tier": "FAILURE",
+   "success": false,
+   "actionType": "investigate",
+   "kind": "human"
+  }
+ ]
+}
