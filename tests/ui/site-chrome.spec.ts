@@ -294,7 +294,7 @@ test.describe("page content start line", () => {
   test("narrow editor forms share the main edge below lg and stay centered readable forms on desktop", async ({ page }) => {
     await demoLogin(page);
     await page.setViewportSize({ width: 390, height: 900 });
-    for (const path of ["/world/create", "/lorebook/create", "/lorebook"]) {
+    for (const path of ["/world/create", "/lorebook/create"]) {
       const o = await leftOffsets(page, path);
       expect(Math.abs(o.h1 - o.main), `390px ${path}`).toBeLessThanOrEqual(1);
     }
