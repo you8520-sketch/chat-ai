@@ -23,11 +23,18 @@ describe("owned child process group cleanup", { concurrency: 1 }, () => {
   it("after TERM wait, SIGKILL reaps an ignoring owned child only", async () => {
     const child = spawnOwnedDetachedChild(
       process.execPath,
-      ["-e", "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000)"],
-      { stdio: "ignore" }
+      [
+        "-e",
+        "process.on('SIGTERM', () => {}); process.stdout.write('ready\\n'); setInterval(() => {}, 1000)",
+      ],
+      { stdio: ["ignore", "pipe", "ignore"] }
     );
     const pid = child.pid;
     assert.ok(pid);
+    await new Promise<void>((resolve, reject) => {
+      child.stdout?.once("data", () => resolve());
+      child.once("exit", () => reject(new Error("child exited before ready")));
+    });
     const result = await stopOwnedChildProcess(child, { waitMs: 250 });
     assert.equal(result.usedKill, true);
     assert.equal(result.exited, true);
