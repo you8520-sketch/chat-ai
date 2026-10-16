@@ -60,7 +60,7 @@ export function MemoryTabBar({
     <div
       role="tablist"
       aria-label="기억 보기"
-      className="grid grid-cols-4 gap-1 rounded-lg border border-white/5 bg-[#121212]/70 p-1"
+      className="grid grid-cols-[1fr_1.3fr_1fr_1fr] gap-1 rounded-lg border border-white/5 bg-[#121212]/70 p-1"
     >
       {MEMORY_TABS.map((tab) => {
         const selected = tab.id === active;
@@ -71,7 +71,7 @@ export function MemoryTabBar({
             role="tab"
             aria-selected={selected}
             onClick={() => onChange(tab.id)}
-            className={`rounded-md px-1 py-1.5 text-[11px] font-semibold transition-colors ${
+            className={`whitespace-nowrap rounded-md px-0.5 py-1.5 text-[11px] font-semibold transition-colors ${
               selected
                 ? "bg-violet-500/20 text-violet-100"
                 : "text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
