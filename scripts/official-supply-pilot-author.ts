@@ -218,7 +218,7 @@ const SLOT_REPLACEMENT = {
 /** Human review decisions on the public surface (PR #1087 review). Part1/bonds/scenes untouched. */
 const PUBLIC_SURFACE_DECISIONS: Record<string, { tagline?: string; replaceTags?: [string, string][]; addTags?: string[] }> = {
   "pilot-rf-01": { tagline: "피를 토하던 황자가, 목격한 당신에게 비밀 거래를 청한다." },
-  "pilot-rf-02": { tagline: "“널 처형하라는 명령서에 내 인장이 찍혔다. 난 서명한 적 없다.”", replaceTags: [["느린 신뢰", "혐관"]], addTags: ["북부대공"] },
+  "pilot-rf-02": { tagline: "“당신의 처형 명령에 내 인장이 있습니다. 서명한 적은 없습니다.”", replaceTags: [["느린 신뢰", "혐관"]], addTags: ["북부대공"] },
   "pilot-rf-03": { tagline: "금고 경보 속, 비밀 장부를 든 브로커와 당신은 같은 탈출로에 갇혔다." },
   "pilot-rf-09": { replaceTags: [["감정의 균열", "금단"]] },
   "pilot-rf-10": { tagline: "폐기 직전, 당신의 심장 소리에 깨어난 기계 인형.", replaceTags: [["잔잔한 관계", "순애"]] },
