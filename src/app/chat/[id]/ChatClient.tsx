@@ -133,7 +133,10 @@ import {
   userSelectableAIOptionsForUser,
   type SelectedAI,
 } from "@/lib/chatModels";
-import { MODEL_SELECTION_REQUIRED_MESSAGE } from "@/lib/userSelectedAI";
+import {
+  MODEL_SELECTION_REQUIRED_MESSAGE,
+  createSelectedAiSaveGate,
+} from "@/lib/userSelectedAI";
 import {
   acceptPickerEstimateResponse,
   parseModelPickerEstimatePresentation,
@@ -1269,6 +1272,7 @@ export default function ChatClient({
   const [adultHandoffBusy, setAdultHandoffBusy] = useState(false);
   const [selectedAI, setSelectedAI] = useState<SelectedAI | "">(initialSelectedAI ?? "");
   const [modelSaveBusy, setModelSaveBusy] = useState(false);
+  const modelSaveGateRef = useRef(createSelectedAiSaveGate());
   const needsModelSelection = selectedAI === "";
   const generationNeedsModel = needsModelSelection || modelSaveBusy;
   const [modelPickerEstimates, setModelPickerEstimates] =
@@ -1427,11 +1431,15 @@ export default function ChatClient({
       if (next === selectedAI) return;
       const switchingToOpus = !isClaudeSelectedAI(selectedAI) && isClaudeSelectedAI(next);
       const prev = selectedAI;
+      const generation = modelSaveGateRef.current.begin();
       setSelectedAI(next);
       setModelSaveBusy(true);
       if (switchingToOpus) {
         setTargetResponseChars(DEFAULT_TARGET_RESPONSE_CHARS);
       }
+      let ok = false;
+      let serverId: SelectedAI | undefined;
+      let errorMessage: string | undefined;
       try {
         const res = await fetch("/api/user/selected-ai", {
           method: "PATCH",
@@ -1442,17 +1450,21 @@ export default function ChatClient({
           error?: string;
           selectedAI?: SelectedAI;
         };
-        if (!res.ok) {
-          setSelectedAI(prev);
-          setToastMsg(data.error || "모델 변경에 실패했습니다.");
+        ok = res.ok;
+        serverId = data.selectedAI;
+        errorMessage = data.error;
+      } catch {
+        errorMessage = "모델 변경 중 오류가 발생했습니다.";
+      } finally {
+        const { stillBusy, isLatest } = modelSaveGateRef.current.end(generation);
+        setModelSaveBusy(stillBusy);
+        if (!isLatest) return;
+        if (ok) {
+          if (serverId) setSelectedAI(serverId);
           return;
         }
-        if (data.selectedAI) setSelectedAI(data.selectedAI);
-      } catch {
         setSelectedAI(prev);
-        setToastMsg("모델 변경 중 오류가 발생했습니다.");
-      } finally {
-        setModelSaveBusy(false);
+        setToastMsg(errorMessage || "모델 변경에 실패했습니다.");
       }
     },
     [selectedAI]
@@ -6131,7 +6143,7 @@ export default function ChatClient({
                 void handleSelectedAIChange(next as SelectedAI);
               }}
               onFocus={() => refreshPickerEstimates(chatId ?? initialChatId)}
-              disabled={inputLocked}
+              disabled={inputLocked || modelSaveBusy}
               aria-describedby="picker-estimate-note"
               aria-invalid={needsModelSelection || undefined}
               className={`h-8 min-w-0 max-w-full flex-1 rounded-md border bg-[#1a1a1a] px-1.5 text-[11px] text-zinc-200 outline-none focus:border-violet-500/50 disabled:cursor-not-allowed disabled:opacity-60 min-[576px]:h-auto min-[576px]:flex-none min-[576px]:py-1 ${

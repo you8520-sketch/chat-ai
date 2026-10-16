@@ -80,6 +80,26 @@ export function isMainRpGenerationAllowed(
   return selectedAI != null && isValidSelectedAI(selectedAI);
 }
 
+/** Latest-wins in-flight gate for account-global model PATCH. */
+export function createSelectedAiSaveGate(): {
+  begin(): number;
+  end(generation: number): { stillBusy: boolean; isLatest: boolean };
+} {
+  let generation = 0;
+  let inFlight = 0;
+  return {
+    begin() {
+      inFlight += 1;
+      generation += 1;
+      return generation;
+    },
+    end(started: number) {
+      inFlight = Math.max(0, inFlight - 1);
+      return { stillBusy: inFlight > 0, isLatest: started === generation };
+    },
+  };
+}
+
 function readStoredSelectedAI(
   db: Database.Database,
   userId: number

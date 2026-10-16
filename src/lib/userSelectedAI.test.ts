@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import {
   consumeSelectedAiEntryNotice,
+  createSelectedAiSaveGate,
   ensureUserSelectedAI,
   globalModelChangedNotice,
   globalModelIntroNotice,
@@ -123,6 +124,27 @@ describe("userSelectedAI helpers", () => {
     };
     assert.equal(stored.selected_ai, OPENROUTER_MUSE_SPARK_11_MODEL);
     db.close();
+  });
+
+  it("keeps only the latest overlapping model save and stays busy until the last PATCH ends", () => {
+    const gate = createSelectedAiSaveGate();
+    const applied: string[] = [];
+    const gemini = gate.begin();
+    const sol = gate.begin();
+    const opus = gate.begin();
+    const first = gate.end(gemini);
+    assert.equal(first.stillBusy, true);
+    assert.equal(first.isLatest, false);
+    if (first.isLatest) applied.push("gemini-3.8-flash");
+    const second = gate.end(sol);
+    assert.equal(second.stillBusy, true);
+    assert.equal(second.isLatest, false);
+    if (second.isLatest) applied.push("gpt-6.1-sol");
+    const third = gate.end(opus);
+    assert.equal(third.stillBusy, false);
+    assert.equal(third.isLatest, true);
+    if (third.isLatest) applied.push("claude-opus-5.5");
+    assert.deepEqual(applied, ["claude-opus-5.5"]);
   });
 
   it("does not toast intro or all-chats-apply copy on first visit", () => {
