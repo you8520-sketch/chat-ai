@@ -39,12 +39,8 @@ import { installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/li
 import { estimateTokens } from "@/lib/tokenEstimate";
 
 const PILOT_DIR = path.join(process.cwd(), "src/lib/officialSupply/pilot");
-const LEGACY_KEYS = ["pilot-rf-03"] as const;
+const LEGACY_KEYS = ["pilot-rf-02", "pilot-rf-03"] as const;
 const FREE_PRINCIPLE_RE = /유저 관계 원칙: 유저의 이름·신분·성별과 유저-캐릭터 간 기존 관계는 유저 페르소나와 대화에서 명시된 설정을 우선한다\./;
-const ROLE_BOUND_PRINCIPLE_RE =
-  /유저 관계 원칙: 아래 고정 배경만 확정이다\. 유저의 이름·성별·외형·감정·말·행동과 그 밖의 인적 설정은 페르소나와 대화가 정하며, 페르소나에 이미 관계가 있으면 그것을 우선한다\./;
-const APPROVED_WOLFGANG_R2_TEXT_LOCK =
-  "599854610891ee4e09224d1bec863501227157584b66068f0e1cab5e0e1ca89c";
 
 const squash = (text: string): string => text.replace(/\s+/g, "");
 const occurrences = (text: string, needle: string): number => text.split(needle).length - 1;
@@ -315,7 +311,7 @@ describe("official bible V2: 19-item checklist is a design aid, not output field
   });
 });
 
-describe("official bible V2: approved Lucian stays legacy; Wolfgang r2 is role_bound", () => {
+describe("official bible V2: approved Lucian and the public Wolfgang sheet stay legacy", () => {
   for (const key of LEGACY_KEYS) {
     it(`${key}: legacy bible has no V2 fields and still compiles to its stored Text Lock`, () => {
       const stored = JSON.parse(fs.readFileSync(path.join(PILOT_DIR, "characters", `${key}.json`), "utf8")) as {
@@ -333,26 +329,6 @@ describe("official bible V2: approved Lucian stays legacy; Wolfgang r2 is role_b
       assert.equal(computeTextLockHash(source.draft), computeTextLockHash(stored.draft), `${key} Text Lock hash`);
     });
   }
-
-  it("pilot-rf-02: approved r2 bible is role_bound and compiles to the stored Text Lock", () => {
-    const stored = JSON.parse(fs.readFileSync(path.join(PILOT_DIR, "characters", "pilot-rf-02.json"), "utf8")) as {
-      bible: OfficialCharacterBible;
-      draft: ReturnType<typeof compileOfficialDraftFromBible>;
-    };
-    assert.equal(stored.bible.userRelationship.type, "role_bound");
-    assert.ok(stored.bible.rpEngine.selfDrive);
-    assert.equal(evaluateRelationBibleContract(stored.bible).errors.length, 0);
-    const source = loadCompiledOfficialCharacterSource("pilot-rf-02");
-    const rel = source.draft.sections.relationshipsAndDrives;
-    assert.match(rel, ROLE_BOUND_PRINCIPLE_RE);
-    assert.match(rel, /고정 배경:/);
-    assert.match(rel, /유저가 정하는 것:/);
-    assert.match(rel, /자기 추진/);
-    assert.equal(occurrences(rel, "유저 관계 원칙:"), 1);
-    assert.doesNotMatch(rel, /고정 관계:/);
-    assert.equal(computeTextLockHash(source.draft), computeTextLockHash(stored.draft), "pilot-rf-02 Text Lock hash");
-    assert.equal(computeTextLockHash(source.draft), APPROVED_WOLFGANG_R2_TEXT_LOCK);
-  });
 });
 
 describe("official bible V2: save and final RP wire carry the start type once, without truncation", () => {

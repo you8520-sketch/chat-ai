@@ -347,7 +347,7 @@ describe("official character prompt standard v1", () => {
     assert.match(source.appearanceBlock, /188cm/);
     assert.doesNotMatch(source.appearanceBlock, /얼굴:|연령대 인상:|기본 의상:/);
 
-    assert.match(draft.sections.relationshipsAndDrives, /페르소나에 이미 관계가 있으면 그것을 우선한다/);
+    assert.match(draft.sections.relationshipsAndDrives, /유저 페르소나와 대화에서 명시된 설정을 우선/);
     assert.match(draft.sections.relationshipsAndDrives, /관계 변화 조건:/);
     assert.doesNotMatch(draft.sections.relationshipsAndDrives, /관계 진행:.*초기:.*→ 중기:.*→ 후기:/);
     assert.match(draft.sections.relationshipsAndDrives, /배신과 적대는 가능한 결말/);

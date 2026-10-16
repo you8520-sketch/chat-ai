@@ -23,6 +23,7 @@ import {
   officialRpSettingOverflowChars,
 } from "@/lib/officialSupply/characterText";
 import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
+import { WOLFGANG_IN_PLACE_TARGET } from "@/lib/officialSupply/inPlaceWolfgang";
 import {
   ensureOfficialSharedWorldLibraryRow,
   findOfficialSharedWorldLibraryRow,
@@ -161,9 +162,8 @@ describe("official shared world: manuscripts keep what was not meant to change",
     }
   });
 
-  it("Wolfgang r2 keeps identity, core, secrets and appearance-era fields from the c91 manuscript", () => {
+  it("Wolfgang public sheet keeps identity, core and secrets from the c91 manuscript", () => {
     const approved = readJson<PilotFile>(path.join(PILOT_DIR, "fixtures", "pilot-rf-02-approved-c91ba66a.source.json"));
-    const r2 = readJson<PilotFile>(path.join(PILOT_DIR, "fixtures", "pilot-rf-02-approved-59985461.source.json"));
     const now = loadCompiledOfficialCharacterSource("pilot-rf-02").draft;
     const before = compileOfficialDraftFromBible(approved.bible, {
       draftKey: approved.draftKey,
@@ -174,18 +174,28 @@ describe("official shared world: manuscripts keep what was not meant to change",
       genres: now.genres,
       audience: now.audience,
     });
-    assert.equal(computeTextLockHash(now), "599854610891ee4e09224d1bec863501227157584b66068f0e1cab5e0e1ca89c");
+    assert.equal(
+      WOLFGANG_IN_PLACE_TARGET.previousTextLockHash,
+      "c91ba66ab5cd45976c53c4298a7c355fbb286e3f761758d3a6cd5ce14f993dc9"
+    );
+    assert.equal(
+      WOLFGANG_IN_PLACE_TARGET.approvedTextLockHash,
+      "599854610891ee4e09224d1bec863501227157584b66068f0e1cab5e0e1ca89c"
+    );
+    assert.notEqual(
+      computeTextLockHash(now),
+      WOLFGANG_IN_PLACE_TARGET.approvedTextLockHash,
+      "the public repo sheet is not the private r2 manuscript"
+    );
     assert.deepEqual(now.secrets, before.secrets);
     assert.equal(now.sections.characterCore, before.sections.characterCore);
     assert.equal(now.sections.extraCanon, before.sections.extraCanon);
     for (const field of ["name", "gender", "age", "genres", "supportingNpcs"] as const) {
       assert.deepEqual(now[field], before[field], `Wolfgang ${field} changed`);
     }
-    assert.deepEqual(r2.bible.identity, approved.bible.identity);
+    assert.deepEqual(pilotFile("pilot-rf-02").bible.identity, approved.bible.identity);
+    assert.equal(now.tagline, "“당신의 처형 명령에 내 인장이 있습니다. 서명한 적은 없습니다.”");
     assert.notEqual(now.tagline, before.tagline);
-    assert.notEqual(now.greeting, before.greeting);
-    assert.notEqual(now.description, before.description);
-    assert.notEqual(now.speech.personality, before.speech.personality);
     assert.ok(now.creatorComment);
     assert.notEqual(computeTextLockHash(now), computeTextLockHash(before));
   });
@@ -200,7 +210,7 @@ describe("official shared world: manuscripts keep what was not meant to change",
     }
     assert.match(situation, /금지 마석/);
     assert.match(situation, /서명과 인장/);
-    assert.match(now.sections.relationshipsAndDrives ?? "", /성별·신분·직업/);
+    assert.match(now.sections.relationshipsAndDrives ?? "", /유저의 이름·신분·성별/);
   });
 });
 
