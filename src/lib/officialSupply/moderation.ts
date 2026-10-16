@@ -1,3 +1,4 @@
+import { normalizeCreatorAssetTag } from "@/lib/characterAssets";
 import type { OfficialAssetModeration } from "@/lib/officialSupply/types";
 
 export type OfficialModerationVerdict = "missing" | "unavailable" | "rejected" | "adult_flagged" | "clean";
@@ -34,4 +35,14 @@ export function canonicalAssetModerationFields(
       ? { moderationReject: true, moderationReason: moderation.reason }
       : {}),
   };
+}
+
+/**
+ * Tag saved on the staged character asset. The vision classification of the
+ * stored image wins; the planned slot tag is only the fallback when vision did
+ * not run or the row predates the stored classification.
+ */
+export function stagedAssetTag(plannedTag: string, moderation: OfficialAssetModeration | null): string {
+  if (moderation?.status !== "checked") return plannedTag;
+  return normalizeCreatorAssetTag(moderation.visionTag, plannedTag);
 }

@@ -269,6 +269,8 @@ describe("Cluster B graphic rofan STYLE-ONLY references (v4)", () => {
     assert.equal(effective.contrast, "high");
     assert.equal(effective.lightSoftness, "hard");
     assert.notEqual(effective.rendering, rf02.rendering);
+    assert.notEqual(effective.lineDensity, "high", "references use large cel shapes, not maximal fine linework");
+    assert.notEqual(effective.costumeComplexity, "high", "ornament and fur stay large graphic shapes like the references");
 
     const draft = testDraft({
       draftKey: "v4-style",

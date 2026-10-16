@@ -7,6 +7,8 @@ import {
   LUCIAN_DRAFT_KEY,
   LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY,
   resolveCanonicalOfficialDraftKey,
+  WOLFGANG_DRAFT_KEY,
+  WOLFGANG_PUBLISHED_PREDECESSOR_DRAFT_KEY,
 } from "@/lib/officialSupply/officialDraftIdentity";
 
 describe("official semantic draft identity owner", () => {
@@ -16,6 +18,12 @@ describe("official semantic draft identity owner", () => {
     assert.equal(resolveCanonicalOfficialDraftKey("pilot-rf-01"), "pilot-rf-01");
     assert.equal(resolveCanonicalOfficialDraftKey("pilot-rf-v4-01"), "pilot-rf-v4-01");
     assert.equal(resolveCanonicalOfficialDraftKey(""), "");
+    assert.equal(resolveCanonicalOfficialDraftKey("constructor"), "constructor");
+  });
+
+  it("maps the published Wolfgang predecessor onto the Wolfgang compile key", () => {
+    assert.equal(resolveCanonicalOfficialDraftKey(WOLFGANG_PUBLISHED_PREDECESSOR_DRAFT_KEY), WOLFGANG_DRAFT_KEY);
+    assert.equal(resolveCanonicalOfficialDraftKey(WOLFGANG_DRAFT_KEY), WOLFGANG_DRAFT_KEY);
   });
 
   it("is the only predecessor→canonical mapping owner", () => {

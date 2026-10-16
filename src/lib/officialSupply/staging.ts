@@ -7,7 +7,7 @@ import {
 } from "@/lib/officialSupply/characterText";
 import { officialStagedAssetOrder } from "@/lib/officialSupply/publicAssetMap";
 import { OfficialSupplyGateError, type OfficialSupplyStore } from "@/lib/officialSupply/store";
-import { canonicalAssetModerationFields } from "@/lib/officialSupply/moderation";
+import { canonicalAssetModerationFields, stagedAssetTag } from "@/lib/officialSupply/moderation";
 import { loadOfficialPilotWorldBible } from "@/lib/officialSupply/compiledOfficialSource";
 import { attachOfficialCharacterLorebooks } from "@/lib/officialSupply/lorebookAttach";
 import type { CastRelationship } from "@/lib/officialSupply/castRelationships";
@@ -40,7 +40,7 @@ export function buildStagingAssets(store: OfficialSupplyStore, draftKey: string)
     }
     return {
       url: asset.resultUrl,
-      tag: slot.tag,
+      tag: stagedAssetTag(slot.tag, asset.moderation),
       width: asset.width,
       height: asset.height,
       viewerBlur: slot.kind !== "representative" && slot.depiction === "adult_grounded_non_explicit",

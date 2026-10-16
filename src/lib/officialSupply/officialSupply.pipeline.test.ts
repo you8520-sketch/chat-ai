@@ -646,6 +646,33 @@ describe("private staging through the canonical character save owner", () => {
     if (imageGenTable) assert.equal((db.prepare("SELECT COUNT(*) AS n FROM chat_image_generations").get() as { n: number }).n, 0);
   });
 
+  it("saves the stored vision classification as the asset tag and falls back to the planned tag only without one", async () => {
+    const world = new FakeWorld();
+    const batch = await freshBatch(store);
+    lockThroughPlan(store, batch, uniqueDraft("stage-vis", HWANG_VOCAB, "레온하르트"));
+    const clean = { status: "checked", adultFlagged: false, moderationReject: false, reason: "" } as const;
+    world.nextModeration.push(
+      clean,
+      { ...clean, visionTag: "미소" },
+      clean,
+      clean,
+      clean,
+      { ...clean, visionTag: "[분노]\n" },
+      { ...clean, visionTag: "   " }
+    );
+    await generateAndApproveAll(store, world, "stage-vis");
+
+    const staged = await stageOfficialCharacterPrivately({ store, draftKey: "stage-vis", stagingUser: STAGING_USER });
+    const row = getDb().prepare("SELECT assets FROM characters WHERE id=?").get(staged.characterId) as { assets: string };
+    const byUrl = new Map(parseAssets(row.assets).map((asset) => [asset.url, asset.tag]));
+    const planned = new Map((store.getCharacter("stage-vis").assetPlan?.slots ?? []).map((slot) => [slot.slotKey, slot.tag]));
+    const assetUrl = (slotKey: string) => store.listAssets("stage-vis").find((asset) => asset.slotKey === slotKey)!.resultUrl!;
+    assert.equal(byUrl.get(assetUrl("sig1")), "미소");
+    assert.equal(byUrl.get(assetUrl("emo1")), "분노");
+    assert.equal(byUrl.get(assetUrl("emo2")), planned.get("emo2"));
+    assert.equal(byUrl.get(assetUrl("sig2")), planned.get("sig2"));
+  });
+
   it("19+: adult metadata stored through canonical owners, adult scene asset blurred, still private", async () => {
     const world = new FakeWorld();
     const batch = await freshBatch(store);
