@@ -24,6 +24,7 @@ import {
   formatExplorationBotBrief,
   formatExplorationGmBlock,
   generateExplorationMap,
+  legalExplorationCommands,
   priceExplorationCommands,
   projectPublicExploration,
   roomDegree,
@@ -248,6 +249,42 @@ describe("exploration map generation", () => {
     }
     const declared = explorationCommandsFromMovementBody(emptyExplorationState("declare").map, "출구로 이동한다. 벽을 살핀다.");
     assert.deepEqual(declared, [{ op: "move", roomId: EXPLORATION_EXIT_ROOM }]);
+  });
+
+  it("keeps later legal moves and drops only the commands that fail price", () => {
+    const state = emptyExplorationState("declare");
+    const next = visibleExplorationNeighbors(state, EXPLORATION_ENTRANCE).find((roomId) => roomId !== EXPLORATION_EXIT_ROOM);
+    assert.ok(next);
+    assert.deepEqual(
+      legalExplorationCommands({
+        state,
+        fromRoomId: EXPLORATION_ENTRANCE,
+        commands: [
+          { op: "move", roomId: EXPLORATION_EXIT_ROOM },
+          { op: "move", roomId: next },
+        ],
+        apRemaining: 3,
+      }),
+      [{ op: "move", roomId: next }]
+    );
+    assert.deepEqual(
+      legalExplorationCommands({
+        state,
+        fromRoomId: EXPLORATION_ENTRANCE,
+        commands: [
+          { op: "move", roomId: next },
+          { op: "move", roomId: EXPLORATION_ENTRANCE },
+          { op: "move", roomId: next },
+          { op: "move", roomId: EXPLORATION_ENTRANCE },
+        ],
+        apRemaining: 3,
+      }),
+      [
+        { op: "move", roomId: next },
+        { op: "move", roomId: EXPLORATION_ENTRANCE },
+        { op: "move", roomId: next },
+      ]
+    );
   });
 
   it("keeps remember-round positions as fact and does not treat an unattempted exit as happened", () => {

@@ -214,6 +214,51 @@ export function declaredMovementGoals(body: string): string[] {
   return parseMovementDeclaration(body).goals;
 }
 
+/** Drops clauses that priced a live destination. Remaining prose is not a granted move. */
+export function omitLiveMovementClauses(body: string): string {
+  return splitClauses(body)
+    .filter((clause) => parseMovementDeclaration(clause).goals.length === 0)
+    .join(" ")
+    .trim();
+}
+
+/**
+ * Drops remainder clauses that name a place the actor is not in.
+ * A clause is kept only when it names `here` or a colocated seat — absence of a
+ * foreign room name is not independence. `에서` uses the existing source particle.
+ */
+export function omitClausesAwayFromHere(opts: {
+  body: string;
+  here: string;
+  colocatedNames: readonly string[];
+  foreignPlaces: readonly string[];
+}): string {
+  const foreign = [...new Set(opts.foreignPlaces.map((place) => place.trim()).filter(Boolean))].sort(
+    (left, right) => right.length - left.length
+  );
+  const allowed = [opts.here, ...opts.colocatedNames].map((token) => token.trim()).filter(Boolean);
+  return splitClauses(opts.body)
+    .filter((clause) => {
+      if (foreign.some((place) => clause.includes(place))) return false;
+      if (clauseHasUnresolvedSourcePlace(clause, allowed)) return false;
+      return allowed.some((token) => clause.includes(token));
+    })
+    .join(" ")
+    .trim();
+}
+
+function clauseHasUnresolvedSourcePlace(clause: string, allowed: readonly string[]): boolean {
+  const words = clause.split(/\s+/).map(trimPunctuation).filter(Boolean);
+  for (let index = 0; index < words.length; index += 1) {
+    const word = words[index]!;
+    if (!word.endsWith("에서") || word.length === 2) continue;
+    const phrase = goalPhraseBefore(words, index, word.slice(0, -2));
+    if (allowed.some((token) => phrase.includes(token) || word.includes(token))) continue;
+    return true;
+  }
+  return false;
+}
+
 /** Splits a goal phrase (or an open-route label) into the place the player named and its boundary side. */
 export function describeMovementGoal(phrase: string): MovementGoal {
   const words = phrase.split(/\s+/).map(trimPunctuation).filter(Boolean);

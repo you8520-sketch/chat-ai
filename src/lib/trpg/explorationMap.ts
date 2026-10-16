@@ -538,6 +538,30 @@ export function priceExplorationCommands(opts: {
   return { spent };
 }
 
+/** Keeps each command that `priceExplorationCommands` accepts from the current room and AP. */
+export function legalExplorationCommands(opts: {
+  state: ExplorationState;
+  fromRoomId: string;
+  commands: readonly ExplorationCommand[];
+  apRemaining: number;
+}): ExplorationCommand[] {
+  const kept: ExplorationCommand[] = [];
+  for (const command of opts.commands) {
+    try {
+      priceExplorationCommands({
+        state: opts.state,
+        fromRoomId: opts.fromRoomId,
+        commands: [...kept, command],
+        apRemaining: opts.apRemaining,
+      });
+      kept.push(command);
+    } catch {
+      continue;
+    }
+  }
+  return kept;
+}
+
 function tierFailed(tier: string | null | undefined): boolean {
   switch (tier) {
     case "CRITICAL_FAILURE":
