@@ -132,11 +132,11 @@ test("4 cache read positive → HEALTHY", () => {
     })
   );
   const agg = aggregateModelUsage({
-    modelId: "deepseek-v4.1-flash",
+    modelId: "gpt-6.1-sol",
     rows: rows.map((r) => ({
       request_id: String(r.request_id),
       created_at: String(r.created_at),
-      model: "deepseek-v4.1-flash",
+      model: "gpt-6.1-sol",
       endpoint: "/v1/chat/completions",
       status: "settled",
       prompt_tokens: 1000,
@@ -150,7 +150,7 @@ test("4 cache read positive → HEALTHY", () => {
       routing_overhead_ms: 10,
       time_to_response_headers_ms: 20,
     })),
-    catalog: catalog({ id: "deepseek-v4.1-flash" }),
+    catalog: catalog({ id: "gpt-6.1-sol" }),
     window: WINDOW,
     activeRegistryIds: MAIN_RP_MODEL_IDS,
   });
@@ -540,13 +540,13 @@ test("monthly comparison computes actual prior-month ratio and delta", () => {
     usageRow({
       request_id: `prior-${i}`,
       created_at: "2026-07-15 12:00:00",
-      model: "deepseek-v4.1-flash",
+      model: "gpt-6.1-sol",
       prompt_tokens: 1000,
       cache_read_input_tokens: 250,
     })
   );
   const priorRatios = buildPriorMonthCacheReadRatios(priorRows, MAIN_RP_MODEL_IDS);
-  assert.equal(priorRatios["deepseek-v4.1-flash"], 0.25);
+  assert.equal(priorRatios["gpt-6.1-sol"], 0.25);
   assert.equal(priorRatios["claude-opus-5.5"], "NOT_MEASURED");
   assert.equal(priorRatios["gemini-3.8-flash"], undefined);
 
@@ -556,7 +556,7 @@ test("monthly comparison computes actual prior-month ratio and delta", () => {
     usageRows: Array.from({ length: 4 }, (_, i) =>
       usageRow({
         request_id: `current-${i}`,
-        model: "deepseek-v4.1-flash",
+        model: "gpt-6.1-sol",
         prompt_tokens: 1000,
         cache_read_input_tokens: 500,
       })
@@ -568,7 +568,7 @@ test("monthly comparison computes actual prior-month ratio and delta", () => {
     paginationComplete: true,
     priorMonthRatios: priorRatios,
   });
-  assert.equal(report.models["deepseek-v4.1-flash"]!.priorMonthCacheHitOrReadRatio, 0.25);
-  assert.equal(report.models["deepseek-v4.1-flash"]!.cacheHitOrReadRatio, 0.5);
-  assert.equal(report.models["deepseek-v4.1-flash"]!.cacheHitOrReadRatioDelta, 0.25);
+  assert.equal(report.models["gpt-6.1-sol"]!.priorMonthCacheHitOrReadRatio, 0.25);
+  assert.equal(report.models["gpt-6.1-sol"]!.cacheHitOrReadRatio, 0.5);
+  assert.equal(report.models["gpt-6.1-sol"]!.cacheHitOrReadRatioDelta, 0.25);
 });
