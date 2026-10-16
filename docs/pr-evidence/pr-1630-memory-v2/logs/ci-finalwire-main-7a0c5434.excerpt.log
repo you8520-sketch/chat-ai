@@ -1,0 +1,123 @@
+    ok 2 - keeps one length owner on the user turn and one common prose owner
+      ---
+      duration_ms: 0.184965
+      ...
+    # Subtest: switches the user-authoring owner with level and auto progression
+    ok 3 - switches the user-authoring owner with level and auto progression
+      ---
+      duration_ms: 0.132362
+      ...
+    # Subtest: keeps three cache blocks and the pre-fix flat system bytes
+    not ok 4 - keeps three cache blocks and the pre-fix flat system bytes
+      ---
+      duration_ms: 2.616641
+      location: '/tmp/main-wt/src/lib/mainRpFinalWireAudit.test.ts:2:4127'
+      failureType: 'testCodeFailure'
+      error: |-
+        ds-interactive-normal-rich
+        + actual - expected
+
+        + '7c922c46fb16c01464cc462493025a46ac480341bcc22dca37d6e90554176726'
+        - 'ca412fccdcc8a7115021b6e7c46e983ccad2d1c374b28c0bbe26050ea1c98f4a'
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'ca412fccdcc8a7115021b6e7c46e983ccad2d1c374b28c0bbe26050ea1c98f4a'
+      actual: '7c922c46fb16c01464cc462493025a46ac480341bcc22dca37d6e90554176726'
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (/tmp/main-wt/src/lib/mainRpFinalWireAudit.test.ts:117:14)
+        Test.runInAsyncScope (node:async_hooks:211:14)
+        Test.run (node:internal/test_runner/test:979:25)
+        Suite.processPendingSubtests (node:internal/test_runner/test:677:18)
+        Test.postRun (node:internal/test_runner/test:1090:19)
+        Test.run (node:internal/test_runner/test:1018:12)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    # Subtest: keeps model adapters on their own wire shapes
+    ok 5 - keeps model adapters on their own wire shapes
+      ---
+      duration_ms: 0.431108
+      ...
+    # Subtest: treats Gemini 3.7 and 3.8 as the same prompt shape with different wire model ids
+    ok 6 - treats Gemini 3.7 and 3.8 as the same prompt shape with different wire model ids
+      ---
+      duration_ms: 0.097695
+      ...
+    # Subtest: delivers the OOC HTML directive once on the uncached dynamic block
+    ok 7 - delivers the OOC HTML directive once on the uncached dynamic block
+      ---
+      duration_ms: 0.259587
+      ...
+    # Subtest: places keyword and global lore on the user turn and JSX only when a catalog exists
+    ok 8 - places keyword and global lore on the user turn and JSX only when a catalog exists
+      ---
+      duration_ms: 0.24062
+      ...
+    # Subtest: keeps a trpg_sheet component out of the final RP request and its token budget
+    ok 9 - keeps a trpg_sheet component out of the final RP request and its token budget
+      ---
+      duration_ms: 0.255512
+      ...
+    # Subtest: keeps the live cue hashes and isolates the \#1288 candidate to one character-block clause
+    not ok 10 - keeps the live cue hashes and isolates the \#1288 candidate to one character-block clause
+      ---
+      duration_ms: 0.461594
+      location: '/tmp/main-wt/src/lib/mainRpFinalWireAudit.test.ts:2:15609'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+        + actual - expected
+
+        + '7c922c46fb16c01464cc462493025a46ac480341bcc22dca37d6e90554176726'
+        - 'ca412fccdcc8a7115021b6e7c46e983ccad2d1c374b28c0bbe26050ea1c98f4a'
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'ca412fccdcc8a7115021b6e7c46e983ccad2d1c374b28c0bbe26050ea1c98f4a'
+      actual: '7c922c46fb16c01464cc462493025a46ac480341bcc22dca37d6e90554176726'
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (/tmp/main-wt/src/lib/mainRpFinalWireAudit.test.ts:354:12)
+        Test.runInAsyncScope (node:async_hooks:211:14)
+        Test.run (node:internal/test_runner/test:979:25)
+        Suite.processPendingSubtests (node:internal/test_runner/test:677:18)
+        Test.postRun (node:internal/test_runner/test:1090:19)
+        Test.run (node:internal/test_runner/test:1018:12)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    # Subtest: appends the OOC HTML directive once when the request has no system split
+    ok 11 - appends the OOC HTML directive once when the request has no system split
+      ---
+      duration_ms: 0.267225
+      ...
+    # Subtest: labels promptAudit duplicate waste as a heuristic upper bound
+    ok 12 - labels promptAudit duplicate waste as a heuristic upper bound
+      ---
+      duration_ms: 0.270717
+      ...
+    1..12
+not ok 2 - Main RP final-wire audit
+  ---
+  duration_ms: 7.052298
+  type: 'suite'
+  location: '/tmp/main-wt/src/lib/mainRpFinalWireAudit.test.ts:2:1800'
+  failureType: 'subtestsFailed'
+  error: '2 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# [exchangeRate] refreshed {
+#   mode: 'daily_kst',
+#   dateKey: '2026-10-16',
+#   usdToKrw: 1342.741111,
+#   effectiveKrwPerUsd: 1369.59593322
+# }
+1..2
+# tests 25
+# suites 2
+# pass 23
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 11781.841054

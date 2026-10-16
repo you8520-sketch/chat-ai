@@ -161,6 +161,10 @@ import {
   sanitizeVisualAppearance,
 } from "@/lib/visualAnchor";
 import { formatMemoryMetaForPrompt, normalizeMemoryMeta, parseMemoryMeta, type RelationshipMetaDelta } from "@/lib/chatMemory";
+import {
+  loadRelationshipLedgerEventsCore,
+  selectPromiseHistoryForPrompt,
+} from "@/lib/memory/memory-relationship-timeline";
 import { buildSceneMomentumInputFromRoute } from "@/lib/sceneMomentum/routeInput";
 import {
   buildSceneMomentumProductionTelemetry,
@@ -1969,8 +1973,18 @@ export async function POST(req: Request) {
   const normalizedRelationshipMemoryMeta = memoryFeatureOn
     ? normalizeMemoryMeta(parseMemoryMeta(chat.memory_meta), relationshipNames)
     : null;
+  const endedPromisesForPrompt = memoryFeatureOn
+    ? selectPromiseHistoryForPrompt(
+        loadRelationshipLedgerEventsCore(db, chat.id, relationshipNames, {
+          beforeAssistantMessageId: regenerateMessageId,
+        }),
+        policyUserMessage
+      )
+    : [];
   const relationshipMemoryForPrompt = memoryFeatureOn
-    ? formatMemoryMetaForPrompt(normalizedRelationshipMemoryMeta!)
+    ? formatMemoryMetaForPrompt(normalizedRelationshipMemoryMeta!, {
+        endedPromises: endedPromisesForPrompt,
+      })
     : "";
   const activePromiseTexts = normalizedRelationshipMemoryMeta?.promises.map((p) => p.text) ?? [];
   const recentChatTextForEpisodicMemory = recentHistory

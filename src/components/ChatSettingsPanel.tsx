@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import ChatPersonaEditor, { restorePersonaSnapshot } from "@/components/ChatPersonaEditor";
 import PersonaSelector from "@/components/PersonaSelector";
 import StatusWidgetChatSettings from "@/components/StatusWidgetChatSettings";
@@ -19,6 +20,14 @@ import {
 import { findResponseLengthTier } from "@/lib/responseLengthConstants";
 import { MEMORY_CAPACITY_DEFAULT } from "@/lib/memory/memory-capacity-shared";
 import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
+import {
+  MemoryCurrentStatePanel,
+  MemoryEventsPanel,
+  MemoryTabBar,
+  type DeletableLedgerCategory,
+  type MemoryTabId,
+} from "@/components/ChatMemoryStatePanels";
+import type { RelationshipLedgerEvent } from "@/lib/memory/memory-relationship-timeline-types";
 import UserNoteSplitEditor from "@/components/UserNoteSplitEditor";
 import UserLorebookEditor from "@/components/UserLorebookEditor";
 import UserNotePresetPicker from "@/components/UserNotePresetPicker";
@@ -73,6 +82,9 @@ type MemoryRecordItem = {
 };
 
 type MemoryData = {
+  characterId?: number;
+  ledgerEvents?: RelationshipLedgerEvent[];
+  manualGlobalMemory?: boolean;
   longTerm: string;
   lorebook: string;
   recentSummary: string;
@@ -369,6 +381,7 @@ export default function ChatSettingsPanel({
           refreshing={memoryRefreshing}
           error={memoryError}
           onDataChange={setMemoryData}
+          onNavigated={onClose}
         />
       );
     }
@@ -1173,6 +1186,7 @@ function MemorySection({
   refreshing = false,
   error,
   onDataChange,
+  onNavigated,
 }: {
   chatId: number | null;
   data: MemoryData | null;
@@ -1180,7 +1194,11 @@ function MemorySection({
   refreshing?: boolean;
   error: string;
   onDataChange: React.Dispatch<React.SetStateAction<MemoryData | null>>;
+  onNavigated?: () => void;
 }) {
+  const router = useRouter();
+  const [tab, setTab] = useState<MemoryTabId>("state");
+  const [ledgerBusyKey, setLedgerBusyKey] = useState<string | null>(null);
   const [lorebookDraft, setLorebookDraft] = useState("");
   const [recordDrafts, setRecordDrafts] = useState<Record<number, string>>({});
   const [savingRecordId, setSavingRecordId] = useState<number | null>(null);
@@ -1405,25 +1423,82 @@ function MemorySection({
     setLorebookEditing(false);
   }
 
+  function jumpToSourceMessage(messageId: number) {
+    if (chatId == null || data?.characterId == null) return;
+    router.push(`/chat/${data.characterId}?chat=${chatId}&msg=${messageId}`);
+    onNavigated?.();
+  }
+
+  async function deleteLedgerItem(category: DeletableLedgerCategory, text: string) {
+    if (chatId == null) return;
+    const label = category === "promises" ? "약속" : "소지품";
+    if (!window.confirm(`이 ${label}을(를) 현재 상태에서 삭제할까요?\n삭제해도 '약속·소지품' 탭의 이력은 남습니다.`)) {
+      return;
+    }
+    setLedgerBusyKey(`${category}:${text}`);
+    setActionMsg("");
+    try {
+      const res = await fetch("/api/chat/memory", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chatId, action: "deleteRelationshipMetaItem", category, text }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error ?? "삭제 실패");
+      const refreshed = await fetch(`/api/chat/memory?chatId=${chatId}`, {
+        signal: AbortSignal.timeout(MEMORY_FETCH_TIMEOUT_MS),
+      });
+      const next = await refreshed.json();
+      if (refreshed.ok && !next.error) {
+        onDataChange(next as MemoryData);
+      } else {
+        onDataChange((prev) => (prev ? { ...prev, meta: j.meta ?? prev.meta } : prev));
+      }
+      setActionMsg(`${label}을(를) 삭제했습니다.`);
+    } catch (e) {
+      setActionMsg(`삭제 실패: ${(e as Error).message}`);
+    } finally {
+      setLedgerBusyKey(null);
+    }
+  }
+
   return (
     <div className="space-y-4 text-xs">
       {refreshing && (
         <p className="text-[10px] text-zinc-600">백그라운드 동기화 중…</p>
       )}
+      <MemoryTabBar active={tab} onChange={setTab} />
+
+      {tab === "state" && (
+        <MemoryCurrentStatePanel
+          meta={data.meta}
+          events={data.ledgerEvents ?? []}
+          busyKey={ledgerBusyKey}
+          onDelete={(category, text) => void deleteLedgerItem(category, text)}
+          onJump={jumpToSourceMessage}
+          onOpenEvents={() => setTab("events")}
+        />
+      )}
+
+      {tab === "events" && (
+        <MemoryEventsPanel events={data.ledgerEvents ?? []} onJump={jumpToSourceMessage} />
+      )}
+
+      {tab === "manual" && (
+      <>
       <div>
         <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
           <span className="font-bold text-violet-300">장기기억</span>
+          {data.manualGlobalMemory ? (
+            <span className="rounded border border-emerald-500/40 px-1.5 py-0.5 text-[10px] text-emerald-300">
+              직접 수정함
+            </span>
+          ) : (
+            <span className="rounded border border-white/10 px-1.5 py-0.5 text-[10px] text-zinc-500">
+              자동 생성
+            </span>
+          )}
         </div>
-        {data.messagesUntilCompression > 0 && (
-          <p className="mb-1 text-[10px] text-violet-400/80">
-            다음 기억 기록({ROLLING_SUMMARY_INTERVAL}턴 묶음)까지 {data.messagesUntilCompression}턴 남음
-          </p>
-        )}
-        {sealPending && (
-          <p className="mb-1 text-[10px] text-violet-400/80">
-            {data.totalTurns}턴까지 진행됨 — 비어 있는 [{ROLLING_SUMMARY_INTERVAL}턴] 기록을 자동 생성합니다…
-          </p>
-        )}
         <div className="mb-2 h-1 overflow-hidden rounded bg-white/5">
           <div className="h-full bg-violet-500/70" style={{ width: `${pct}%` }} />
         </div>
@@ -1490,6 +1565,27 @@ function MemorySection({
         </div>
       </div>
 
+      {data.manualGlobalMemory && (
+        <p className="text-[10px] leading-relaxed text-amber-300/80">
+          직접 수정한 장기기억은 이후 새 {ROLLING_SUMMARY_INTERVAL}턴 기록이 쌓여 자동 정리될 때 다시 만들어질 수 있습니다.
+          꼭 유지할 내용은 약속·소지품처럼 &apos;현재 상태&apos;에도 남아 있는지 확인해 주세요.
+        </p>
+      )}
+      </>
+      )}
+
+      {tab === "records" && (
+      <>
+      {data.messagesUntilCompression > 0 && (
+        <p className="text-[10px] text-violet-400/80">
+          다음 기억 기록({ROLLING_SUMMARY_INTERVAL}턴 묶음)까지 {data.messagesUntilCompression}턴 남음
+        </p>
+      )}
+      {sealPending && (
+        <p className="text-[10px] text-violet-400/80">
+          {data.totalTurns}턴까지 진행됨 — 비어 있는 [{ROLLING_SUMMARY_INTERVAL}턴] 기록을 자동 생성합니다…
+        </p>
+      )}
       <div className="rounded-lg border border-violet-500/20 bg-violet-950/10 p-2.5">
         <div className="mb-1.5 flex items-baseline justify-between gap-2">
           <span className="text-[11px] font-bold text-violet-200/90">
@@ -1535,7 +1631,9 @@ function MemorySection({
               return (
                 <div
                   key={r.id}
-                  className="rounded-md border border-white/10 bg-[#1a1a1a]/80 p-2"
+                  className={`rounded-md border bg-[#1a1a1a]/80 p-2 ${
+                    r.userEdited ? "border-emerald-500/40" : "border-white/10"
+                  }`}
                 >
                   <div className="mb-1 flex items-center justify-between gap-2">
                     <span className="text-[10px] font-bold text-violet-300">
@@ -1552,7 +1650,11 @@ function MemorySection({
                     </span>
                     <span className="text-[9px] text-zinc-500">
                       {draft.length}/{maxChars}자
-                      {r.userEdited && <span className="ml-1 text-emerald-400/80">· 수정됨</span>}
+                      {r.userEdited ? (
+                        <span className="ml-1 text-emerald-400/80">· 직접 수정함</span>
+                      ) : (
+                        <span className="ml-1 text-zinc-600">· 자동 생성</span>
+                      )}
                     </span>
                   </div>
                   {isEditing ? (
@@ -1768,6 +1870,8 @@ function MemorySection({
             ? `${ROLLING_SUMMARY_INTERVAL}턴 완료마다 히스토리가 생성되어 장기기억에 누적됩니다.`
             : "대화를 시작하면 히스토리가 장기기억에 자동으로 쌓입니다."}
         </p>
+      )}
+      </>
       )}
 
       <p className="text-[10px] text-zinc-600">전체 대화 {data.totalTurns}턴 · 캐릭터 공유 기억</p>

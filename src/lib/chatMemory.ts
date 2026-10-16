@@ -603,7 +603,10 @@ export function mergeMemoryMeta(
   };
 }
 
-export function formatMemoryMetaForPrompt(meta: MemoryMeta): string | null {
+export function formatMemoryMetaForPrompt(
+  meta: MemoryMeta,
+  opts: { endedPromises?: readonly string[] } = {}
+): string | null {
   const lines: string[] = [];
   if (meta.items.length) lines.push(`소지품:\n${formatGroupedPossessionsForPrompt(meta.items)}`);
   if (meta.promises.length) {
@@ -611,6 +614,9 @@ export function formatMemoryMetaForPrompt(meta: MemoryMeta): string | null {
       p.deadline ? `${p.text} (기한: ${p.deadline})` : p.text
     );
     lines.push(`약속: ${formatted.join(" · ")}`);
+  }
+  if (opts.endedPromises?.length) {
+    lines.push(`지난 약속(현재 유효하지 않음): ${opts.endedPromises.join(" · ")}`);
   }
   return lines.length
     ? `[Memory — 참고, 우선순위 2순위 하위]\n관계:\n${lines.join("\n")}`

@@ -1029,6 +1029,7 @@ async function persistComposedBatchScopes(opts: {
   previousWasNoncanonOrBranch?: boolean;
   charName?: string;
   dialogue?: string;
+  preserveManualGlobal?: boolean;
 }): Promise<boolean> {
   const scopePayload: ScopePayloadV1 = {
     v: 1,
@@ -1072,6 +1073,7 @@ async function persistComposedBatchScopes(opts: {
     sourceEndUserMessageId:
       opts.sourceUserMessageIds[opts.sourceUserMessageIds.length - 1] ?? null,
     pendingBranchControlOps: opts.composed.pendingBranchControlOps,
+    preserveManualGlobal: opts.preserveManualGlobal,
     __testThrowAfterUpsert: persistForceFailAfterUpsertForTests || undefined,
     __testThrowAfterBranchOps: persistForceFailAfterBranchOpsForTests || undefined,
   });
@@ -1094,6 +1096,16 @@ async function persistComposedBatchScopes(opts: {
   }
 
   const lorebookBudget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity).lorebook;
+
+  if (
+    opts.preserveManualGlobal &&
+    getChatMemoryRow(opts.chatId)?.global_projection_kind === "manual_global"
+  ) {
+    console.info(
+      `[memory] ${opts.logLabel} chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn} sealed; manual global kept`
+    );
+    return true;
+  }
 
   const compactResult = await executeGlobalLorebookCompaction({
     chatId: opts.chatId,
@@ -1305,6 +1317,8 @@ export async function processRollingSummaryBatch(opts: {
   memoryCapacity: number;
   userPersona?: string | null;
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
+  /** Panel/explicit repair seals a missing batch without replacing a user-saved manual Global. */
+  preserveManualGlobal?: boolean;
 }): Promise<boolean> {
   if (!isMemoryFeatureEnabled()) return false;
   // Coalesce: panel backfill + "지금 생성하기" share one in-flight seal instead of
@@ -1331,6 +1345,7 @@ export async function processRollingSummaryBatch(opts: {
           tier: opts.tier,
           playableTurnCount: playableCount,
           boundarySnapshot,
+          preserveManualGlobal: opts.preserveManualGlobal,
         });
         console.warn("[memory] SUMMARY_COUNTER_DRIFT reconciled", {
           chatId: opts.chatId,
@@ -1463,6 +1478,7 @@ export async function processRollingSummaryBatch(opts: {
         allEntries,
         previousWasNoncanonOrBranch,
         charName: opts.charName,
+        preserveManualGlobal: opts.preserveManualGlobal,
       });
     } catch (e) {
       console.error(
@@ -1537,6 +1553,7 @@ export function scheduleCharacterRollingSummary(opts: {
   memoryCapacity: number;
   userPersona?: string | null;
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
+  preserveManualGlobal?: boolean;
 }): void {
   void processRollingSummaryBatch(opts);
 }
@@ -1549,6 +1566,7 @@ export async function catchUpRollingSummaries(opts: {
   tier: MemoryTier;
   memoryCapacity: number;
   maxRounds?: number;
+  preserveManualGlobal?: boolean;
 }): Promise<number> {
   const maxRounds = opts.maxRounds ?? 5;
   let processed = 0;

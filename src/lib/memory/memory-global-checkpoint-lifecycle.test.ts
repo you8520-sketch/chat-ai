@@ -35,7 +35,7 @@ import {
   __setCompactCurrentMemoryTestOverride,
   compactCurrentMemory,
 } from "./memory-rolling-summary";
-import { upsertSummaryRowCore } from "./memory-summary-persist";
+import { reconcileSummarizedTurnCountFromTable, upsertSummaryRowCore } from "./memory-summary-persist";
 import {
   listMemoryRecordsForChat,
   markMemoryRecordInactive,
@@ -257,6 +257,40 @@ describe("MANUAL GLOBAL", () => {
     });
     assert.notEqual(result.mode, "incremental_append");
     __setCompactCurrentMemoryTestOverride(null);
+  });
+});
+
+describe("MANUAL GLOBAL — panel drift repair", () => {
+  it("opening the panel repairs the count but keeps the user's manual global text", async () => {
+    insertBlocksThrough(300);
+    await updateLorebookForChat(CHAT, USER, CHAR, "USER_MANUAL_GLOBAL_TEXT", "free", MEMORY_CAPACITY_FIXED);
+    reconcileSummarizedTurnCountFromTable({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      tier: "free",
+      playableTurnCount: 300,
+      preserveManualGlobal: true,
+    });
+    const row = getChatMemoryRow(CHAT)!;
+    assert.equal(row.recent_summary, "USER_MANUAL_GLOBAL_TEXT");
+    assert.equal(row.global_projection_kind, "manual_global");
+    assert.equal(row.summarized_turn_count, 300);
+  });
+
+  it("without the panel flag the rebuild owner still replaces it (record mutations)", async () => {
+    insertBlocksThrough(300);
+    await updateLorebookForChat(CHAT, USER, CHAR, "USER_MANUAL_GLOBAL_TEXT", "free", MEMORY_CAPACITY_FIXED);
+    reconcileSummarizedTurnCountFromTable({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      tier: "free",
+      playableTurnCount: 300,
+    });
+    const row = getChatMemoryRow(CHAT)!;
+    assert.notEqual(row.recent_summary, "USER_MANUAL_GLOBAL_TEXT");
+    assert.equal(row.global_projection_kind, null);
   });
 });
 

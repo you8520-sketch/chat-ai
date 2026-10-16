@@ -58,6 +58,7 @@ export function syncMemoryFromChat(opts: {
     characterId: opts.characterId,
     tier: opts.tier,
     playableTurnCount: playableCount,
+    preserveManualGlobal: true,
   });
 
   console.info(
@@ -75,6 +76,7 @@ export function syncMemoryFromChat(opts: {
       charName: opts.charName,
       tier: opts.tier,
       memoryCapacity: opts.memoryCapacity,
+      preserveManualGlobal: true,
     });
   }
 
@@ -115,6 +117,7 @@ export function prepareMemoryPanelView(opts: MemoryBackfillOpts): void {
     characterId: opts.characterId,
     tier: opts.tier,
     playableTurnCount: playable,
+    preserveManualGlobal: true,
   });
 }
 
@@ -136,6 +139,7 @@ export async function syncAndCompressMemoryFromChat(opts: MemoryBackfillOpts): P
   const processed = await catchUpRollingSummaries({
     ...opts,
     maxRounds: MEMORY_PANEL_BACKFILL_MAX_BATCHES_PER_REQUEST,
+    preserveManualGlobal: true,
   });
 
   const boundarySnapshot = getMemorySourceBoundary(opts.chatId);
@@ -145,12 +149,14 @@ export async function syncAndCompressMemoryFromChat(opts: MemoryBackfillOpts): P
   const stored = memory.recent_summary?.trim() ?? "";
   let update: { recent_summary: string; membership_tier: MemoryTier } | null = null;
 
-  if (resolved.text && resolved.text !== stored) {
+  // User-saved Global is canon: catch-up only repairs batch rows and counts.
+  const keepManualGlobal = memory.global_projection_kind === "manual_global" && stored.length > 0;
+  if (!keepManualGlobal && resolved.text && resolved.text !== stored) {
     update = {
       recent_summary: resolved.text,
       membership_tier: opts.tier,
     };
-  } else if (!resolved.text && stored.length > budget) {
+  } else if (!keepManualGlobal && !resolved.text && stored.length > budget) {
     const { text: fitted, compressed } = await ensureLorebookWithinBudget(stored, budget);
     if (compressed && fitted !== stored) {
       update = {
