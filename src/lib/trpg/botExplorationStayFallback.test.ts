@@ -218,7 +218,13 @@ describe("bot exploration stay fallback", () => {
     let botLine = `출구로 이동한다. ${"가".repeat(TRPG_ACTION_MAX_CHARS + 1)}`;
     const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
     submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
-    await assert.rejects(() => advanceTrpgCampaign(db, { campaignId, userId: 1, deps }), /행동이 너무 깁니다/);
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const errorJson = (
+      db.prepare(`SELECT error_json FROM trpg_rounds WHERE campaign_id=? ORDER BY id DESC LIMIT 1`).get(campaignId) as {
+        error_json: string | null;
+      }
+    ).error_json;
+    assert.match(errorJson ?? "", /행동이 너무 깁니다/);
     assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
     assert.equal(
       db.prepare(`SELECT body FROM trpg_action_submissions WHERE participant_id=?`).get(botId),
