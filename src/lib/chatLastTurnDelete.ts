@@ -6,7 +6,10 @@
  */
 import type Database from "better-sqlite3";
 import type { HonorificNames } from "@/lib/chatMemory";
-import { rollbackRelationshipMetaForDeletedTurnCore } from "@/lib/memory/memory-relationship-meta";
+import {
+  loadDeletedTurnRelationshipProvenanceCore,
+  rollbackRelationshipMetaForDeletedTurnCore,
+} from "@/lib/memory/memory-relationship-meta";
 import {
   countAssistantGenerationTurns,
   incrementCharacterTotalTurns,
@@ -106,6 +109,15 @@ export function executeLastTurnDeleteTransaction(
               | undefined
           )?.memory_relationship_before_json ?? null
         : null;
+    const deletedTurnProvenance =
+      input.relationshipMetaNames && input.assistantMessageId != null
+        ? loadDeletedTurnRelationshipProvenanceCore(
+            db,
+            input.chatId,
+            input.assistantMessageId,
+            input.relationshipMetaNames
+          )
+        : null;
 
     let numericAffectedStateCount = 0;
     if (input.revertNumeric && input.assistantMessageId != null) {
@@ -171,6 +183,8 @@ export function executeLastTurnDeleteTransaction(
         deletedUserText,
         deletedAssistantText,
         relationshipMetaBeforeJson,
+        relationshipMetaChange: deletedTurnProvenance?.change ?? null,
+        relationshipMetaAfter: deletedTurnProvenance?.after ?? null,
       });
     }
 
