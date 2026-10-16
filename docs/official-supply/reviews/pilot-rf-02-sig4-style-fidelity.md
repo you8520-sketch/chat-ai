@@ -130,11 +130,11 @@
 
 ![b7 / b13 / 기존 sig4 / 새 후보](./assets/wolfgang-sig4-style-fidelity/compare-full-b7-b13-old-new.webp)
 
-![원본 크기 모피](./assets/wolfgang-sig4-style-fidelity/compare-native-fur.webp)
+![§6 당시 원본 크기 모피 (b7/b13 seed·기존 sig4·b7 후보)](./assets/wolfgang-sig4-style-fidelity/compare-native-b7-era-fur.webp)
 
-![원본 크기 머리카락](./assets/wolfgang-sig4-style-fidelity/compare-native-hair.webp)
+![§6 머리카락](./assets/wolfgang-sig4-style-fidelity/compare-native-b7-era-hair.webp)
 
-![원본 크기 금속](./assets/wolfgang-sig4-style-fidelity/compare-native-metal.webp)
+![§6 금속](./assets/wolfgang-sig4-style-fidelity/compare-native-b7-era-metal.webp)
 
 ### 판정 (테스트 통과 ≠ 이미지 품질 합격)
 
@@ -144,7 +144,60 @@
 
 한 장 비교가 그림체 불합격이므로 나머지 13장 재생성, 기존 14개 태그 백필, 운영 교체는 열지 않는다.
 
+### 유료 결과 보존 (임시 one-shot harness만, 앱 전역 변경 없음)
+
+b7 첫 시도(`req_90653bcd…`)는 provider 성공 후 `/tmp/sig4-one-shot.ts`가 `sharp` 로딩·출력 경로 검증 없이 inspect 단계에 들어가 바이트를 잃었고, 예산 안이어도 **두 번째 image POST** 가 호출 수 제한 위반이었다. 이번 b13 비교 실행 전 harness 에만 다음을 넣었다 (`/tmp/sig4-one-shot.ts`, 커밋하지 않음).
+
+1. **`assertPaidRunPreflight()`** — 유료 HTTP 전에 workspace `sharp` 로딩과 `ARTIFACT_DIR`·`docs/.../wolfgang-sig4-style-fidelity` 쓰기 가능 여부 검증.
+2. **`preserveProviderBytes()`** — OpenAI 성공 직후 원본 webp 바이트를 artifacts·docs 에 `*-raw.webp` 로 저장 (inspect·변환보다 선행).
+3. **`readPreservedRaw()` + `completeReplacement`** — runner 가 inspect/storage 이후 실패해도 보존 바이트로 후보를 완료하고 **provider 재호출 금지** (`providerPostsThisRun` 상한 1).
+
+b13 실행: `recoveredFromPreservedRaw=false`, `providerPostsThisRun=1`, raw·후보 sha256 일치 (`18efc7c4…7565bf`).
+
+## 8. b13 STYLE 비교 한 장 (apply 없음)
+
+**게이트:** image POST 최대 1회, vision 검수 1회 의도, **이번 실행 상한 0.06 USD**. 직전 캠페인 누적 **0.09192353 USD** 는 별도 보고만 하며 잔액을 추가 호출 허가로 쓰지 않음. image fallback·재시도 없음 (`fallbackDisabled: true`). **공통 compose STYLE 기본값(b7)은 바꾸지 않음** — harness transport 에서 Image 2 만 b13 URL 로 교체.
+
+실측 (`assets/wolfgang-sig4-style-fidelity/sig4-b13-one-shot-actual.json`):
+
+| 항목 | b7 후보(§6) | b13 STYLE 후보(§8) |
+|---|---|---|
+| Image 1 IDENTITY | rep, sha `a66c49d4…` / 전처리 `88d08019…` | **동일** |
+| Image 2 STYLE | b7 `fc4047ac…` / 전처리 `ba5f3896…` | b13 `f9d01ebc…` / 전처리 **`f13d1f15…`** |
+| primaryPrompt sha256 | `2f1ddb3e…61016c` | **동일** |
+| model / size / quality | sunburst / 1536×1024 / medium / webp 88 | **동일** |
+| pose / shot | 승인 meal-offering / knee_or_full·environment | **동일** |
+| provider request | `req_8c811dd2…` | **`req_f87b9300…`** |
+| 후보 파일 | `sig4-candidate.webp`, 273926 B, `2e1da30e…` | **`sig4-candidate-b13.webp`**, 267564 B, **`18efc7c4…`** |
+| 이미지 비용 | 0.045716 USD | **0.045716 USD** |
+| vision | tag `앉음`, 1 attempt, 0.00049153 USD | tag `무표정`; **`analyzeAssetImage` 가 qwen3.8-flash 구조화 실패 후 vl-8b 로 1회 재시도** (앱 owner, harness 미변경) — attempts 2, vision 합 **0.00127499 USD** |
+| **이번 실행 합** | (§6) 0.04620753 | **0.04699099 USD** (≤ 0.06) |
+| **캠페인 누적** | 0.09192353 | **0.13891452 USD** |
+
+![b7 STYLE 후보 vs b13 STYLE 후보 (동일 표시 크기)](./assets/wolfgang-sig4-style-fidelity/compare-full-b7-b13-candidates.webp)
+
+![b13 STYLE ref / b7 후보 / b13 후보 — 모피 원본 크기](./assets/wolfgang-sig4-style-fidelity/compare-native-fur.webp)
+
+![머리카락 원본 크기](./assets/wolfgang-sig4-style-fidelity/compare-native-hair.webp)
+
+![금속 원본 크기](./assets/wolfgang-sig4-style-fidelity/compare-native-metal.webp)
+
+### 판정 기준 (이번 비교)
+
+- **흑철 갑옷·Appearance Lock** 유지. 금색이 아니라는 이유로 감점하지 않음.
+- **b13 STYLE seed** 의 모피 덩어리 경계·선명한 외곽선·정돈된 명암과 비교. 갑옷은 **잔 반사·크롬 무늬가 줄었는지** 확인.
+- **b7 단일 STYLE 이 주원인**이라 확정하지 않음. 운영 rep(IDENTITY) 질감이 모피 밀도에 기여했을 가능성은 남음.
+
+### 판정 (§8)
+
+**그림체 충실도: 불합격 (b7 STYLE 후보 대비 소폭 차이, b13 seed 기준 미달).** b13 STYLE 로 Image 2 만 바꿔도 모피는 b13 seed 의 **소수 큰 깃털 덩어리 + 진한 잉크 외곽 + 2~3단 cel 명암**에 닿지 않고, b7 후보와 같이 **잔 깃/털 결이 촘촘히 반복**되는 쪽에 가깝다. b13 후보가 외곽선·덩어리 경계가 **약간** 더 읽히는 구간은 있으나 seed 수준의 그래픽 모피는 아니다. 머리카락은 두 후보 모두 큰 덩어리+분산 하이라이트에 가깝고 seed 의 굵은 소수 띠와는 거리가 있다. **흑철 갑옷** 색·실루엣은 Lock 에 맞고 금색 부재는 감점 사유가 아니다. 금속·장식은 b7 후보와 마찬가지로 **흉갑·브로och 에 specular 띠가 여러 겹** 남아 있어 seed 의 정돈된 그래픽 금속·b13 후보 간 **크롬 무늬 감소**는 확인되지 않았다. → **STYLE 참조를 b7→b13 으로만 바꾼 것만으로는 그림체 게이트 통과 불가**; rep IDENTITY·prompt DNA·모델 한계 등 다른 축은 여전히 열려 있다.
+
+**음식 건네기: 부분 합격 (b7 후보와 동급).** 얼굴·장갑·김 나는 그릇·식당 환경·단독 인물은 유지. b13 후보는 손이 그릇 림을 잡아 **카메라 쪽으로 기울이는** 쪽으로 b7 후보(손을 옆에 올려 둔 느낌)보다 전달 방향이 약간 낫다. 그래도 “밀어 건넴”의 힘은 약하고 vision tag `무표정` 은 품질 판정과 무관.
+
+**운영:** 후보 교체·13장 재생성·태그 백필·r2/Lock·공개·유료 RP **진행하지 않음**. 추가 유료 생성 없음.
+
 ## 7. 이번 단계에서 하지 않은 것 / 후속
 
 - 운영 이미지·DB 변경, #50 변경, 공개·알림·유료 RP: 없음.
-- 후속(별도): 그림체 불합격 가설을 한 번에 하나만 바꿔 다시 한 장 (예: variation STYLE에 b13 추가). 기록 이전 14개 슬롯 vision 백필, replacement 적용 시 태그 갱신, 전송 prompt/quality/참조 해시 증거 컬럼은 스키마 변경이므로 별도 승인.
+- b13 STYLE 단일 변수 비교(§8)까지 수행; 그림체 불합격으로 **추가 유료 한 장은 열지 않음**.
+- 기록 이전 14개 슬롯 vision 백필, replacement 적용 시 태그 갱신, 전송 prompt/quality/참조 해시 증거 컬럼은 스키마 변경이므로 별도 승인.
