@@ -2,6 +2,7 @@ import fs from "fs";
 import Module from "module";
 import os from "os";
 import path from "path";
+import { createRequire } from "node:module";
 
 // Own DB so this suite never deletes or advances a developer's real derived_cache_jobs queue.
 process.env.DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "derived-worker-enablement-"));
@@ -100,11 +101,13 @@ describe("derived cache worker enablement by environment", { concurrency: 1 }, (
     nodeEnv: process.env.NODE_ENV,
     disable: process.env.DISABLE_DERIVED_CACHE_WORKER,
     key: process.env.CHEAPER_INFERENCE_API_KEY,
+    railwayEnvName: process.env.RAILWAY_ENVIRONMENT_NAME,
   };
 
   beforeEach(() => {
     envRef().CHEAPER_INFERENCE_API_KEY = "test-key-never-sent";
     delete process.env.DISABLE_DERIVED_CACHE_WORKER;
+    delete process.env.RAILWAY_ENVIRONMENT_NAME;
     __testOnly_resetDerivedCacheWakeupState();
   });
 
@@ -115,6 +118,7 @@ describe("derived cache worker enablement by environment", { concurrency: 1 }, (
       ["NODE_ENV", saved.nodeEnv],
       ["DISABLE_DERIVED_CACHE_WORKER", saved.disable],
       ["CHEAPER_INFERENCE_API_KEY", saved.key],
+      ["RAILWAY_ENVIRONMENT_NAME", saved.railwayEnvName],
     ] as const) {
       if (value === undefined) delete env[name];
       else env[name] = value;
@@ -178,29 +182,54 @@ describe("derived cache worker enablement by environment", { concurrency: 1 }, (
     assert.equal(isDerivedCacheWorkerDisabled(), true);
   });
 
-  it("production verification profile (DISABLE_DERIVED_CACHE_WORKER=1) performs no provider POST", async () => {
+  it("BEFORE NODE_ENV-only default would run; AFTER local production stays off", async () => {
     envRef().NODE_ENV = "production";
-    envRef().DISABLE_DERIVED_CACHE_WORKER = "1";
+    delete process.env.DISABLE_DERIVED_CACHE_WORKER;
+    delete process.env.RAILWAY_ENVIRONMENT_NAME;
+    const previousDefaultDisabled = process.env.NODE_ENV !== "production";
+    assert.equal(previousDefaultDisabled, false);
+    assert.equal(isDerivedCacheWorkerDisabled(), true);
+
     const { jobIds } = seedWorldWithPendingJob();
     const before = jobRows();
     const spy = installCountingProviderFetch();
     try {
       await wakeEveryEntryPoint();
       assert.equal(spy.posts, 0);
-      assert.equal(isDerivedCacheWorkerDisabled(), true);
     } finally {
       spy.restore();
     }
     assert.deepEqual(jobRows(), before);
     assert.equal(before[0]?.status, "pending");
+    assert.equal(before[0]?.attempts, 0);
     assert.deepEqual(
       before.map((row) => row.id),
       jobIds
     );
   });
 
-  it("production keeps the automatic worker with the flag unset or 0, and the opt-out with 1", async () => {
+  it("local production with explicit DISABLE_DERIVED_CACHE_WORKER=0 still runs the worker", async () => {
     envRef().NODE_ENV = "production";
+    envRef().DISABLE_DERIVED_CACHE_WORKER = "0";
+    delete process.env.RAILWAY_ENVIRONMENT_NAME;
+    seedWorldWithPendingJob();
+    const spy = installCountingProviderFetch();
+    try {
+      assert.equal(isDerivedCacheWorkerDisabled(), false);
+      await wakeEveryEntryPoint();
+      assert.equal(spy.posts, 1);
+    } finally {
+      spy.restore();
+    }
+    assert.deepEqual(
+      jobRows().map((row) => row.status),
+      ["done"]
+    );
+  });
+
+  it("Railway production deploy context keeps the automatic worker; opt-out with 1", async () => {
+    envRef().NODE_ENV = "production";
+    envRef().RAILWAY_ENVIRONMENT_NAME = "production";
     assert.equal(isDerivedCacheWorkerDisabled(), false);
     envRef().DISABLE_DERIVED_CACHE_WORKER = "0";
     assert.equal(isDerivedCacheWorkerDisabled(), false);
@@ -220,6 +249,28 @@ describe("derived cache worker enablement by environment", { concurrency: 1 }, (
       jobRows().map((row) => row.status),
       ["done"]
     );
+  });
+
+  it("default enablement stays locked to railwayProductionBootGuard deploy context", () => {
+    const requireJs = createRequire(import.meta.url);
+    const { isRailwayProductionEnvironment } = requireJs("../railwayProductionBootGuard.js") as {
+      isRailwayProductionEnvironment: (env?: NodeJS.ProcessEnv) => boolean;
+    };
+    delete process.env.DISABLE_DERIVED_CACHE_WORKER;
+    envRef().RAILWAY_ENVIRONMENT_NAME = "production";
+    assert.equal(isDerivedCacheWorkerDisabled(), !isRailwayProductionEnvironment());
+    delete process.env.RAILWAY_ENVIRONMENT_NAME;
+    assert.equal(isDerivedCacheWorkerDisabled(), !isRailwayProductionEnvironment());
+    envRef().RAILWAY_ENVIRONMENT_NAME = "staging";
+    assert.equal(isDerivedCacheWorkerDisabled(), !isRailwayProductionEnvironment());
+  });
+
+  it("paid key + NODE_ENV=production does not enable the worker without Railway deploy context", async () => {
+    envRef().NODE_ENV = "production";
+    envRef().CHEAPER_INFERENCE_API_KEY = "sk-paid-looking-key-never-sent";
+    delete process.env.DISABLE_DERIVED_CACHE_WORKER;
+    delete process.env.RAILWAY_ENVIRONMENT_NAME;
+    assert.equal(isDerivedCacheWorkerDisabled(), true);
   });
 
   it("restart keeps the same pending job (no loss, no duplicate), then one opt-in run completes it once", async () => {

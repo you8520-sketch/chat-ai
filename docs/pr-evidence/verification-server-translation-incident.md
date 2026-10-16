@@ -8,7 +8,7 @@
 ## Cause (confirmed from logs)
 
 - Manual `tsx server.js` with `NODE_ENV=production`, shared `DATA_DIR=/workspace/data`, and live `.env.local` provider keys.
-- `isDerivedCacheWorkerDisabled()` defaults to **worker ON** in production when `DISABLE_DERIVED_CACHE_WORKER` is unset (`src/lib/derivedCache/jobs.ts`).
+- **Previous owner:** `isDerivedCacheWorkerDisabled()` treated `NODE_ENV=production` as automatic worker ON when `DISABLE_DERIVED_CACHE_WORKER` was unset (`src/lib/derivedCache/jobs.ts`).
 - `[aux_provider_call]` `gpt-6-luna` + `background-prompt-translation` dominated both logs (~109 + ~97 blocks).
 
 ## 204 vs 199 settled
@@ -21,7 +21,9 @@
 - Log `jobId` values repeat across batches (e.g. ids 4, 5, 25, 27 with ~12–14 Luna aux lines each) → **retries / multi-batch translation on existing jobs**, not proof of a duplicate-server bug by itself.
 - Two servers on the same `DATA_DIR` could both drain/work the same queue; treat as operational hazard, not a separate code defect without more evidence.
 
-## Prevention (code)
+## Prevention (canonical owner — not launcher-only)
 
-- Canonical launcher: `scripts/memory-verification-prod-server.ts` + `scripts/lib/memoryVerificationProdServerEnv.ts` (`DISABLE_DERIVED_CACHE_WORKER=1`, isolated `DATA_DIR` per role).
-- Playwright prod webServer also sets `DISABLE_DERIVED_CACHE_WORKER=1`.
+- `isDerivedCacheWorkerDisabled()` (boot / request / timer / kick) defaults ON **only** when `RAILWAY_ENVIRONMENT_NAME === "production"` — the existing Railway deploy-context predicate in `src/lib/railwayProductionBootGuard.js` (`isRailwayProductionEnvironment`). `NODE_ENV=production` alone stays OFF.
+- Explicit allow remains `DISABLE_DERIVED_CACHE_WORKER=0`. Hard off remains `=1`.
+- No new flag. Railway production already injects `RAILWAY_ENVIRONMENT_NAME=production`; **no Railway env change applied**.
+- Launcher `scripts/memory-verification-prod-server.ts` still isolates DATA_DIR and **waits / SIGKILLs only its owned detached process group**.

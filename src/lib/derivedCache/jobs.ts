@@ -318,16 +318,20 @@ export function completeDerivedCacheJob(
 }
 
 /**
- * Single owner of worker enablement. Production keeps the automatic worker unless
- * `DISABLE_DERIVED_CACHE_WORKER=1`. Any other environment (dev server, tests) is off
- * unless a developer opts in with `DISABLE_DERIVED_CACHE_WORKER=0`, so restarting a dev
- * server never drains a stored queue against a paid provider by accident.
+ * Single owner of worker enablement for boot / request / timer / kick.
+ *
+ * `DISABLE_DERIVED_CACHE_WORKER=1` always off.
+ * `DISABLE_DERIVED_CACHE_WORKER=0` is the explicit allow (local paid translation).
+ * Default (flag unset): ON only for the existing Railway production deploy
+ * context (`RAILWAY_ENVIRONMENT_NAME === "production"`, same predicate as
+ * `isRailwayProductionEnvironment` in railwayProductionBootGuard.js).
+ * `NODE_ENV=production` alone — local verification or a forgotten flag — stays OFF.
  */
 export function isDerivedCacheWorkerDisabled(): boolean {
   const flag = process.env.DISABLE_DERIVED_CACHE_WORKER;
   if (flag === "1") return true;
   if (flag === "0") return false;
-  return process.env.NODE_ENV !== "production";
+  return process.env.RAILWAY_ENVIRONMENT_NAME !== "production";
 }
 
 /**
