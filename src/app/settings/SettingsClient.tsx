@@ -138,7 +138,7 @@ export default function SettingsClient({ user, pendingCommentReviews = 0 }: Prop
     <AppPageShell
       title="내 정보 · 설정"
       description="계정 정보와 취향·안전 설정을 한곳에서 관리합니다."
-      className="mx-auto mt-4 max-w-2xl lg:mx-0 lg:max-w-5xl"
+      className="mt-4 max-w-2xl lg:max-w-5xl"
     >
       <div className="lg:grid lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-10">
         <nav aria-label="설정 바로 이동" className="lg:sticky lg:top-24 lg:self-start">

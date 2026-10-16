@@ -115,7 +115,7 @@ export default async function CreatorProfilePage({
   const previousNotices = creatorNotices.slice(1);
 
   return (
-    <div className="creator-gallery mx-auto w-full max-w-5xl py-6 sm:py-10 lg:mx-0">
+    <div className="creator-gallery w-full max-w-5xl py-6 sm:py-10">
       <header className="creator-gallery__identity">
         <div className="flex min-w-0 flex-1 flex-col items-start">
           <p className="creator-gallery__eyebrow text-xs font-medium tracking-wider text-zinc-400">

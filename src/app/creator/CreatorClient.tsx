@@ -308,7 +308,7 @@ export default function CreatorClient({
   );
 
   return (
-    <div className="mx-auto mt-6 max-w-6xl space-y-5">
+    <div className="mt-6 w-full max-w-6xl space-y-5">
       <header className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">

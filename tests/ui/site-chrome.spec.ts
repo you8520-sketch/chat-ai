@@ -303,17 +303,38 @@ test.describe("page content start line", () => {
     expect(o.h1 - o.main, "desktop narrow form stays centered").toBeGreaterThan(100);
   });
 
-  test("settings and persona align to the same start line as the discovery pages on desktop", async ({ page }) => {
+  test("settings, persona and the creator dashboard keep the same start line as the discovery pages at every width", async ({ page }) => {
     await demoLogin(page);
-    for (const width of [768, 1023, 1024, 1440]) {
+    for (const width of [768, 960, 1000, 1023, 1024, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       const ref = await leftOffsets(page, "/search");
-      for (const path of ["/settings", "/persona"]) {
+      for (const path of ["/settings", "/persona", "/creator"]) {
         const o = await leftOffsets(page, path);
-        if (width >= 1024 || o.h1 === o.main) {
-          expect(Math.abs(o.h1 - ref.h1), `${width}px ${path} vs /search`).toBeLessThanOrEqual(1);
-        }
+        expect(Math.abs(o.h1 - ref.h1), `${width}px ${path} vs /search`).toBeLessThanOrEqual(1);
       }
+    }
+  });
+});
+
+test.describe("rail geometry before hydration", () => {
+  test("the left rail does not jump when the two-row header is measured below lg", async ({ page }) => {
+    for (const width of [768, 1023]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.addInitScript(() => {
+        (window as unknown as { __railShift: number }).__railShift = 0;
+        new PerformanceObserver((list) => {
+          for (const entry of list.getEntries() as unknown as { value: number; hadRecentInput: boolean; sources?: { node?: Node }[] }[]) {
+            if (entry.hadRecentInput) continue;
+            if ((entry.sources ?? []).some((s) => s.node instanceof Element && s.node.closest("aside.app-left-rail"))) {
+              (window as unknown as { __railShift: number }).__railShift += entry.value;
+            }
+          }
+        }).observe({ type: "layout-shift", buffered: true });
+      });
+      await page.goto("/tab/ranking");
+      await page.waitForTimeout(1200);
+      const shift = await page.evaluate(() => (window as unknown as { __railShift: number }).__railShift);
+      expect(shift, `${width}px rail layout shift`).toBeLessThan(0.0005);
     }
   });
 });
