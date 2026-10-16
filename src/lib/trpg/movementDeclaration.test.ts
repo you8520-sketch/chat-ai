@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   declaredMovementGoals,
   describeMovementGoal,
+  omitClausesAwayFromHere,
   omitLiveMovementClauses,
   parseMovementDeclaration,
 } from "./movementDeclaration";
@@ -25,5 +26,32 @@ describe("movement declaration — bot stay fallback", () => {
     );
     assert.equal(omitLiveMovementClauses("출구를 향해 전력 질주한다."), "");
     assert.equal(omitLiveMovementClauses("자리를 지키며 동료를 엄호한다."), "자리를 지키며 동료를 엄호한다");
+  });
+
+  it("drops remainder that names a foreign room or an unresolved beside-source", () => {
+    const here = {
+      here: "현관홀",
+      colocatedNames: ["현이", "서하"],
+      foreignPlaces: ["출구", "순환로", "권태현"],
+    };
+    assert.equal(omitClausesAwayFromHere({ body: "출구의 제어 패널을 조사한다", ...here }), "");
+    assert.equal(omitClausesAwayFromHere({ body: "권태현의 옆에서 방어선을 유지한다", ...here }), "");
+    assert.equal(
+      omitClausesAwayFromHere({ body: "자리를 지키며 동료를 엄호한다", ...here }),
+      "자리를 지키며 동료를 엄호한다"
+    );
+    assert.equal(
+      omitClausesAwayFromHere({ body: "현이 옆에서 방어선을 유지한다", ...here }),
+      "현이 옆에서 방어선을 유지한다"
+    );
+    assert.equal(
+      omitClausesAwayFromHere({
+        body: "출구의 제어 패널을 조사한다",
+        here: "순환로",
+        colocatedNames: ["서하"],
+        foreignPlaces: ["출구", "현관홀"],
+      }),
+      ""
+    );
   });
 });

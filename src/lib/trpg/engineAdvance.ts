@@ -68,7 +68,12 @@ import {
   legalExplorationCommands,
   visibleExplorationNeighbors,
 } from "./explorationMap";
-import { omitLiveMovementClauses } from "./movementDeclaration";
+import {
+  declaredMovementGoals,
+  describeMovementGoal,
+  omitClausesAwayFromHere,
+  omitLiveMovementClauses,
+} from "./movementDeclaration";
 import {
   explorationPromptForRound,
   ensureExplorationMap,
@@ -498,7 +503,7 @@ export function submitTrpgAction(
   const commands = readExplorationCommands(opts.explorationCommands);
   const text = opts.body.replace(/\s+/g, " ").trim();
   if (!text && commands.length === 0) throw new Error("행동을 입력하세요.");
-  if (Array.from(text).length > TRPG_ACTION_MAX_CHARS) throw new Error("행동이 너무 깁니다.");
+  assertTrpgActionMaxChars(text);
   const actionType = opts.actionType && isTrpgActionType(opts.actionType) ? opts.actionType : "free";
   const origin = parseTrpgInputOrigin(opts.inputOrigin);
   const mapped = loadExplorationState(db, opts.campaignId);
@@ -513,7 +518,7 @@ export function submitTrpgAction(
         commands: pricedCommands,
         freeText: text,
       });
-      if (Array.from(prepared.body).length > TRPG_ACTION_MAX_CHARS) throw new Error("행동이 너무 깁니다.");
+      assertTrpgActionMaxChars(prepared.body);
       upsertLockedAction(
         db,
         round.id,
@@ -1096,6 +1101,45 @@ function actorsForRound(
   }));
 }
 
+function assertTrpgActionMaxChars(text: string): void {
+  if (Array.from(text).length > TRPG_ACTION_MAX_CHARS) throw new Error("행동이 너무 깁니다.");
+}
+
+function stayWatchingInPlace(name: string): string {
+  return `${name}은 제자리에 서서 상황을 살핀다.`;
+}
+
+function roomAfterExplorationCommands(
+  fromRoomId: string,
+  commands: ReadonlyArray<{ op: string; roomId?: string }>
+): string {
+  let roomId = fromRoomId;
+  for (const command of commands) {
+    if (command.op === "move" && command.roomId) roomId = command.roomId;
+  }
+  return roomId;
+}
+
+function independentBotRemainder(opts: {
+  body: string;
+  here: string;
+  rooms: readonly string[];
+  party: ReadonlyArray<{ name: string; location: string }>;
+}): string {
+  return omitClausesAwayFromHere({
+    body: omitLiveMovementClauses(opts.body),
+    here: opts.here,
+    colocatedNames: opts.party.filter((seat) => seat.location === opts.here).map((seat) => seat.name),
+    foreignPlaces: [
+      ...opts.rooms.filter((room) => room !== opts.here),
+      ...opts.party.filter((seat) => seat.location !== opts.here).map((seat) => seat.name),
+      ...declaredMovementGoals(opts.body)
+        .map((goal) => describeMovementGoal(goal).place)
+        .filter((place): place is string => Boolean(place && place !== opts.here)),
+    ],
+  });
+}
+
 async function generateBotActions(
   db: Database.Database,
   opts: {
@@ -1253,22 +1297,28 @@ async function generateBotActions(
             commands: declared,
             freeText: body,
           });
-          if (Array.from(prepared.body).length > TRPG_ACTION_MAX_CHARS) throw new Error("행동이 너무 깁니다.");
+          assertTrpgActionMaxChars(prepared.body);
           upsertLockedAction(db, opts.roundId, bot.id, prepared.body, prepared.actionType, null, "bot_model");
           saveExplorationState(db, opts.campaign.id, prepared.state);
           return prepared.body;
         })();
       } catch (error) {
         if (!explorationMoveWasRejected(error)) throw error;
-        const remainder = omitLiveMovementClauses(body);
+        const fromRoomId = self?.location ?? "";
         const priced = latestMap
           ? legalExplorationCommands({
               state: latestMap,
-              fromRoomId: self?.location ?? "",
+              fromRoomId,
               commands: declared,
               apRemaining: displayExplorationAp(latestMap, bot.id, roundNumber),
             })
           : [];
+        const remainder = independentBotRemainder({
+          body,
+          here: roomAfterExplorationCommands(fromRoomId, priced),
+          rooms: latestMap?.map.rooms.map((room) => room.id) ?? [],
+          party: sheets.map((sheet) => ({ name: sheet.name, location: sheet.location })),
+        });
         if (priced.length > 0) {
           try {
             spoken = db.transaction(() => {
@@ -1279,24 +1329,25 @@ async function generateBotActions(
                 commands: priced,
                 freeText: remainder,
               });
-              if (Array.from(prepared.body).length > TRPG_ACTION_MAX_CHARS) throw new Error("행동이 너무 깁니다.");
+              assertTrpgActionMaxChars(prepared.body);
               upsertLockedAction(db, opts.roundId, bot.id, prepared.body, prepared.actionType, null, "bot_model");
               saveExplorationState(db, opts.campaign.id, prepared.state);
               return prepared.body;
             })();
           } catch (retryError) {
             if (!explorationMoveWasRejected(retryError)) throw retryError;
-            spoken = `${bot.display_name}은 제자리에 서서 상황을 살핀다.`;
+            spoken = stayWatchingInPlace(bot.display_name);
             upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
           }
         } else if (
           remainder &&
           (!latestMap || explorationCommandsFromMovementBody(latestMap.map, remainder).length === 0)
         ) {
+          assertTrpgActionMaxChars(remainder);
           spoken = remainder;
           upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model");
         } else {
-          spoken = `${bot.display_name}은 제자리에 서서 상황을 살핀다.`;
+          spoken = stayWatchingInPlace(bot.display_name);
           upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
         }
       }

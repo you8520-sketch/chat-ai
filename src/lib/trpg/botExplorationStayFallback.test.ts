@@ -15,6 +15,7 @@ import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { ensureTrpgTables } from "./schema";
 import { insertScenarioTemplate } from "./scenarioTemplates";
 import { insertParticipant } from "./store";
+import { TRPG_ACTION_MAX_CHARS } from "./types";
 
 const PLAN = {
   startingSituation: "닫힌 시설의 현관에 도착한다",
@@ -128,13 +129,102 @@ describe("bot exploration stay fallback", () => {
 
   it("keeps independent cover prose when an illegal move is rejected", async () => {
     const db = memoryDb();
+    let botLine = "출구로 이동한다. 자리를 지키며 동료를 엄호한다.";
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
+    assert.equal(lockedBody(db, botId), "자리를 지키며 동료를 엄호한다");
+    assert.equal(lockedBody(db, botId).includes(EXPLORATION_EXIT_ROOM), false);
+    db.close();
+  });
+
+  it("does not lock an exit-panel search after a rejected exit move", async () => {
+    const db = memoryDb();
+    let botLine = "출구로 이동한다. 출구의 제어 패널을 조사한다.";
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
+    assert.equal(lockedBody(db, botId), "서하은 제자리에 서서 상황을 살핀다.");
+    assert.equal(lockedBody(db, botId).includes("제어 패널"), false);
+    db.close();
+  });
+
+  it("does not lock cover beside a companion who is not here", async () => {
+    const db = memoryDb();
     let botLine = "출구로 이동한다. 권태현의 옆에서 방어선을 유지한다.";
     const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
     submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
-    assert.equal(lockedBody(db, botId), "권태현의 옆에서 방어선을 유지한다");
+    assert.equal(lockedBody(db, botId), "서하은 제자리에 서서 상황을 살핀다.");
+    assert.equal(lockedBody(db, botId).includes("권태현"), false);
+    db.close();
+  });
+
+  it("does not confirm a move beside a missing companion", async () => {
+    const db = memoryDb();
+    let botLine = "권태현의 옆으로 이동한다.";
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
+    assert.equal(lockedBody(db, botId), "서하은 제자리에 서서 상황을 살핀다.");
+    db.close();
+  });
+
+  it("does not keep later prose that names a room other than the applied destination", async () => {
+    const db = memoryDb();
+    let botLine = "자리를 지킨다.";
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    const fork = neighbors(loadExplorationState(db, campaignId)!, EXPLORATION_ENTRANCE).find(
+      (roomId) => roomId !== EXPLORATION_EXIT_ROOM
+    );
+    assert.ok(fork);
+    botLine = `출구로 이동한다. ${fork}로 이동한다. 출구의 제어 패널을 조사한다.`;
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(locationOf(db, botId), fork);
+    assert.match(lockedBody(db, botId), new RegExp(`${fork}.+이동한다`));
+    assert.equal(lockedBody(db, botId).includes("제어 패널"), false);
     assert.equal(lockedBody(db, botId).includes(EXPLORATION_EXIT_ROOM), false);
+    db.close();
+  });
+
+  it("does not confirm standing beside a companion who already left", async () => {
+    const db = memoryDb();
+    let botLine = "자리를 지킨다.";
+    const { campaignId, hostId, botId, deps } = await startWithBot(db, () => botLine);
+    const fork = neighbors(loadExplorationState(db, campaignId)!, EXPLORATION_ENTRANCE).find(
+      (roomId) => roomId !== EXPLORATION_EXIT_ROOM
+    );
+    assert.ok(fork);
+    submitTrpgAction(db, { campaignId, userId: 1, body: `${fork}로 이동한다.` });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(locationOf(db, hostId), fork);
+    assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
+    botLine = "출구로 이동한다. 현이 옆에서 방어선을 유지한다.";
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
+    assert.equal(lockedBody(db, botId), "서하은 제자리에 서서 상황을 살핀다.");
+    assert.equal(lockedBody(db, botId).includes("현이"), false);
+    db.close();
+  });
+
+  it("rejects an overlong remainder after a refused move", async () => {
+    const db = memoryDb();
+    let botLine = `출구로 이동한다. ${"가".repeat(TRPG_ACTION_MAX_CHARS + 1)}`;
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await assert.rejects(() => advanceTrpgCampaign(db, { campaignId, userId: 1, deps }), /행동이 너무 깁니다/);
+    assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
+    assert.equal(
+      db.prepare(`SELECT body FROM trpg_action_submissions WHERE participant_id=?`).get(botId),
+      undefined
+    );
+    assert.equal(loadExplorationState(db, campaignId)?.apRemaining[String(botId)], undefined);
     db.close();
   });
 
