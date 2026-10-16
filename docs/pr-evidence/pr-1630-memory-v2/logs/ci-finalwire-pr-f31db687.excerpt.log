@@ -16,10 +16,10 @@
       error: |-
         ds-interactive-normal-rich
         + actual - expected
-        
+
         + '7c922c46fb16c01464cc462493025a46ac480341bcc22dca37d6e90554176726'
         - 'ca412fccdcc8a7115021b6e7c46e983ccad2d1c374b28c0bbe26050ea1c98f4a'
-        
+
       code: 'ERR_ASSERTION'
       name: 'AssertionError'
       expected: 'ca412fccdcc8a7115021b6e7c46e983ccad2d1c374b28c0bbe26050ea1c98f4a'
@@ -68,10 +68,10 @@
       error: |-
         Expected values to be strictly equal:
         + actual - expected
-        
+
         + '7c922c46fb16c01464cc462493025a46ac480341bcc22dca37d6e90554176726'
         - 'ca412fccdcc8a7115021b6e7c46e983ccad2d1c374b28c0bbe26050ea1c98f4a'
-        
+
       code: 'ERR_ASSERTION'
       name: 'AssertionError'
       expected: 'ca412fccdcc8a7115021b6e7c46e983ccad2d1c374b28c0bbe26050ea1c98f4a'
