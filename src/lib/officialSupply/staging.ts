@@ -40,7 +40,7 @@ export function buildStagingAssets(store: OfficialSupplyStore, draftKey: string)
     }
     return {
       url: asset.resultUrl,
-      tag: stagedAssetTag(slot.tag, asset.moderation),
+      tag: stagedAssetTag(slot.tag, asset.moderation, slot.kind),
       width: asset.width,
       height: asset.height,
       viewerBlur: slot.kind !== "representative" && slot.depiction === "adult_grounded_non_explicit",

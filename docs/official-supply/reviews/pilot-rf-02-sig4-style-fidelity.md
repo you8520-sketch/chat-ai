@@ -70,13 +70,23 @@
 - `officialDraftIdentity.ts`: `pilot-rf-v4-02 → pilot-rf-02` 명시 alias 추가 (두 키가 같은 14슬롯 판을 쓴다). 저장 키, 파일명, URL, 기존 이미지는 그대로.
 - `style.ts`: Cluster B DNA 의 `lineDensity`/`costumeComplexity` 를 `high → medium`, `hairRendering` 을 큰 덩어리 + 소수의 굵은 하이라이트 띠로 교체 (문장 추가 없이 값 교체).
 - `imagePrompt.ts`: 중복 스타일 문장 1줄 삭제.
-- 태그 연결(`types.ts`, `productionAdapters.ts`, `moderation.ts`, `staging.ts`): 기존 vision 분류 결과(`analyzeAssetImage().tag`)를 moderation 기록에 `visionTag` 로 보관하고, staging 이 그 분류를 저장한다. vision 이 돌지 않았거나 기록 이전 행이면 계획 태그로 fallback 한다. 일반 제작자의 수동 태그 경로(`createCharacterFromForm`/`normalizeCreatorAssetTag`)는 변경 없음. **불합격 이미지에 이름을 붙이는 것으로 품질 문제를 닫지 않는다.** #51 의 기존 14개 태그는 이 PR 이 바꾸지 않는다 (기존 행에는 `visionTag` 가 없다).
+- 태그 연결(`types.ts`, `productionAdapters.ts`, `moderation.ts`, `staging.ts`): 기존 vision 분류 결과(`analyzeAssetImage().tag`)를 moderation 기록에 `visionTag` 로 보관한다. **대표 이미지는 계획된 고유 태그를 유지**하고, RP 이미지만 저장된 vision 분류를 쓴다. vision 이 돌지 않았거나 기록 이전 행이면 계획 태그로 fallback 한다. 일반 제작자의 수동 태그 경로(`createCharacterFromForm`/`normalizeCreatorAssetTag`)는 변경 없음. **불합격 이미지에 이름을 붙이는 것으로 품질 문제를 닫지 않는다.** #51 의 기존 14개 태그는 이 PR 이 바꾸지 않는다 (기존 행에는 `visionTag` 가 없다).
 
-## 5. sig4 한 장 재생성 요청 (준비만 — 전송 안 함)
+## 5. sig4 pose 교체 (reconcile owner 소스)와 한 장 후보
 
-**필요한 선행 승인: sig4 슬롯 `pose` 교체.** 현재 `pose` 는 "상대 쪽으로 밀어 둔다" 한 줄이라 단독 인물 규칙과 함께 쓰이면 방향이 사라진다. 승인된 art direction("받는 유저는 화면에 없음")과 같은 뜻으로, 한눈에 읽히도록 아래로 교체해야 한다. 이는 asset plan(`official_supply_characters.asset_plan_json`) 변경이므로 기존 reconcile owner(`official-supply-reconcile-locked-snapshot`)를 통한 별도 승인 운영 작업이다. 이 PR 은 `pilot-rf-02.json` 도 DB 도 바꾸지 않았다.
+**적용 위치:** `loadApprovedWolfgangV4Source()` 가 읽는 `src/lib/officialSupply/pilot/characters/pilot-rf-02.json` 의 sig4 `pose` 한 필드. 승인 r2 본문·Text Lock 초안(`pilot-rf-02-approved-text-lock-draft.json`)·Appearance Lock·#50·운영 `characters.assets` URL 은 그대로다.
 
-> 갑옷을 벗지 않은 채 식탁 앞쪽의 김 나는 수프 그릇을 장갑 낀 손으로 상대 쪽(카메라 쪽)으로 밀어 건넨다. 상대는 화면에 그리지 않고, 얼굴·장갑 낀 손·그릇이 한 프레임에서 함께 읽히며 그릇은 화면 앞쪽에 크게 놓인다
+**변경 전 값 (복구용):**
+`갑옷을 벗지 않은 채 따뜻한 식기를 상대 쪽으로 밀어 둔다`
+
+**변경 후 값 (이번 승인):**
+`갑옷을 벗지 않은 채 식탁에서 장갑 낀 손으로 김 나는 수프 그릇을 카메라 쪽으로 밀어 건넨다. 받는 사람은 그리지 않으며, 얼굴·장갑 낀 손·그릇과 전달 방향이 한눈에 보인다`
+
+**복구 방법:** 위 JSON 의 sig4 `pose` 를 변경 전 한 줄로 되돌린다. 2026-09-27 locked fixture(`pilot-rf-v4-02-locked-2026-09-27.json`)와 승인 r2 persist 소스에는 이전 값을 남겨 두었다.
+
+**운영 DB apply 를 하지 않은 이유:** 기존 `official-supply-reconcile-locked-snapshot` / `OfficialSupplyStore.reconcileLockedSnapshot` 은 `stage=asset_plan_locked` 이고 대표만 생성된 행만 쓴다. 프로덕션 `pilot-rf-v4-02` 는 `staged_private`, 14장 approved, `staged_character_id=51` 이라 inspect/apply 가 `character_stage` 로 STOP 한다. 운영 `asset_plan_json`·Text Lock·이미지 URL 을 우회 갱신하지 않았다.
+
+적용 후 이 PR 의 코드로 합성한 shot: `right_three_quarter / low_angle / knee_or_full`, 포즈 family prop, 배경 `an identifiable environment`.
 
 적용 후 이 PR 의 코드로 합성한 shot: `right_three_quarter / low_angle / knee_or_full`, 포즈 family prop, 배경 `an identifiable environment`. (같은 합성기에 위 pose 와 프로덕션 레코드를 넣은 실제 결과이며, 전체 primary/strict prompt 와 참조 목록은 `assets/wolfgang-sig4-style-fidelity/sig4-regeneration-request.json`. 이 JSON 의 `model_default_when_env_absent` 는 env 가 없을 때의 코드 기본값일 뿐 실제 요청 모델이 아니다.)
 

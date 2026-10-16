@@ -282,6 +282,12 @@ describe("Wolfgang v4 locked snapshot operator", () => {
     assert.equal(source.nextDraft.styleKey, WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.styleKey);
     assert.equal(computeTextLockHash(source.nextDraft), WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.expectedNextTextLockHash);
     assert.equal(source.nextPlan.slots.length, 14);
+    const sig4 = source.nextPlan.slots.find((slot) => slot.slotKey === "sig4");
+    assert.equal(
+      sig4?.pose,
+      "갑옷을 벗지 않은 채 식탁에서 장갑 낀 손으로 김 나는 수프 그릇을 카메라 쪽으로 밀어 건넨다. 받는 사람은 그리지 않으며, 얼굴·장갑 낀 손·그릇과 전달 방향이 한눈에 보인다"
+    );
+    assert.doesNotMatch(sig4?.pose ?? "", /따뜻한 식기를 상대 쪽으로 밀어 둔다/);
     assert.equal(isRailwayProductionSqlitePath("/data/app.db"), true);
     assert.equal(isRailwayProductionSqlitePath(getDatabasePath()), false);
     assert.equal(isRailwayProductionApplyEnvironment({}), false);
