@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { HomePopupNotice as HomePopupNoticeRow } from "@/lib/homePopupNotice";
 
 type Props = {
@@ -22,6 +22,7 @@ export default function HomePopupNotice({ notice }: Props) {
   const [visible, setVisible] = useState(false);
   const [hideToday, setHideToday] = useState(false);
   const handledForThisHomeVisitRef = useRef(false);
+  const confirmRef = useRef<HTMLButtonElement>(null);
   const key = useMemo(() => (notice ? storageKey(notice) : ""), [notice]);
 
   useEffect(() => {
@@ -36,14 +37,32 @@ export default function HomePopupNotice({ notice }: Props) {
     setVisible(true);
   }, [notice, key]);
 
-  if (!notice || !visible) return null;
-
-  function close() {
+  const close = useCallback(() => {
     if (hideToday && key) {
       window.localStorage.setItem(key, todayKey());
     }
     setVisible(false);
-  }
+  }, [hideToday, key]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    confirmRef.current?.focus();
+    return () => {
+      if (opener?.isConnected) opener.focus();
+    };
+  }, [visible]);
+
+  useEffect(() => {
+    if (!visible) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") close();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [visible, close]);
+
+  if (!notice || !visible) return null;
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 px-4 py-8 backdrop-blur-[2px]">
@@ -70,7 +89,7 @@ export default function HomePopupNotice({ notice }: Props) {
             <button
               type="button"
               onClick={close}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 text-lg leading-none text-zinc-300 transition hover:bg-white/10 hover:text-white"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-white/10 text-lg leading-none text-zinc-300 transition hover:bg-white/10 hover:text-white"
               aria-label="공지 닫기"
             >
               ×
@@ -82,7 +101,7 @@ export default function HomePopupNotice({ notice }: Props) {
           </p>
 
           <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/10 pt-3">
-            <label className="flex min-w-0 items-center gap-2 text-xs text-zinc-300">
+            <label className="flex min-h-11 min-w-0 items-center gap-2 text-xs text-zinc-300">
               <input
                 type="checkbox"
                 checked={hideToday}
@@ -92,9 +111,10 @@ export default function HomePopupNotice({ notice }: Props) {
               오늘 하루 보지 않기
             </label>
             <button
+              ref={confirmRef}
               type="button"
               onClick={close}
-              className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-violet-500"
+              className="min-h-11 min-w-16 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-violet-500"
             >
               확인
             </button>

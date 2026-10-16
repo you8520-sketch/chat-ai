@@ -1934,6 +1934,12 @@ html[data-keyboard-open] .mobile-bottom-nav {
   }
 }
 
+/* 고정 헤더·하단 메뉴 뒤로 포커스/앵커 대상이 가려지지 않도록 스크롤 여백을 맞춘다. */
+html:not(.chat-room-active) {
+  scroll-padding-top: calc(var(--site-header-height, 0px) + 0.5rem);
+  scroll-padding-bottom: calc(var(--mobile-nav-offset, 0px) + 0.5rem);
+}
+
 @media (min-width: 576px) {
   /*
    * App shell left rail (home / non-chat). Same 576px threshold as chat chrome.
