@@ -4,7 +4,10 @@
  */
 import { createHash } from "node:crypto";
 
-import { MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS, type SelectedAI } from "@/lib/chatModels";
+import {
+  MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
+  type MainRpQualityBenchmarkModelId,
+} from "@/lib/chatModels";
 import { toPublicPersonaDescription } from "@/lib/personaSecretLegacyMarkers";
 import { getPublishedPricing } from "@/lib/publishedModelPricing";
 import {
@@ -90,7 +93,7 @@ export function preparePaidRunnerPack(input: {
     if ("max_tokens" in request.requestBody || "max_completion_tokens" in request.requestBody) {
       throw new Error("PAID_RUNNER_MAX_TOKENS_PRESENT");
     }
-    const canonicalId = request.canonicalId as SelectedAI;
+    const canonicalId: MainRpQualityBenchmarkModelId = request.canonicalId;
     const provider = expectedPaidRunnerProvider(canonicalId);
     if (request.provider !== provider) {
       throw new Error("PAID_RUNNER_PROVIDER_MAPPING_MISMATCH");

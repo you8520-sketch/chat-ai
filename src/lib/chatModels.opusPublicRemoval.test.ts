@@ -11,7 +11,6 @@ import {
   CLAUDE_OPUS_5_DISPLAY_NAME,
   CLAUDE_OPUS_MODEL,
   CLAUDE_OPUS_MODEL_LEGACY,
-  DEFAULT_SELECTED_AI,
   MAIN_RP_MODEL_IDS,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
   SELECTED_AI_OPTIONS,
@@ -48,7 +47,7 @@ function memoryDb() {
 describe("Claude Opus 5 Main RP retirement (R-01..R-14)", () => {
   it("R-01 MAIN_RP_MODEL_IDS count follows the current picker registry", () => {
     assert.equal(MAIN_RP_MODEL_IDS.length, MAIN_RP_USER_SELECTABLE_OPTIONS.length);
-    assert.equal(MAIN_RP_MODEL_IDS.length, 5);
+    assert.equal(MAIN_RP_MODEL_IDS.length, 4);
   });
 
   it("R-02 picker aliases project the canonical current registry", () => {
@@ -58,9 +57,9 @@ describe("Claude Opus 5 Main RP retirement (R-01..R-14)", () => {
     assert.equal(userSelectableAIOptionsForUser(true).length, MAIN_RP_USER_SELECTABLE_OPTIONS.length);
   });
 
-  it("R-03 current DeepSeek V4.1 is selectable and retired V4 Pro is not", () => {
-    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL, false), true);
-    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL, true), true);
+  it("R-03 DeepSeek V4.1 Flash and V4 Pro are both retired from the picker", () => {
+    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL, false), false);
+    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL, true), false);
     assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, false), false);
     assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, true), false);
   });
@@ -93,19 +92,18 @@ describe("Claude Opus 5 Main RP retirement (R-01..R-14)", () => {
     assert.equal(isValidSelectedAI(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL), false);
   });
 
-  it("R-10 stored users.selected_ai=claude-opus-5 remaps to the canonical default", () => {
+  it("R-10 stored users.selected_ai=claude-opus-5 is not auto-rewritten", () => {
     const db = memoryDb();
     db.prepare("INSERT INTO users (id, selected_ai) VALUES (1, ?)").run(
       CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL
     );
     const r = ensureUserSelectedAI(db, 1);
-    assert.equal(r.selectedAI, DEFAULT_SELECTED_AI);
-    assert.equal(r.selectedAI, CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL);
-    assert.equal(r.remappedFromRetired, true);
+    assert.equal(r.selectedAI, null);
+    assert.equal(r.remappedFromRetired, false);
     const stored = db.prepare("SELECT selected_ai FROM users WHERE id=1").get() as {
       selected_ai: string;
     };
-    assert.equal(stored.selected_ai, CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL);
+    assert.equal(stored.selected_ai, CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL);
     db.close();
   });
 
@@ -145,18 +143,20 @@ describe("Claude Opus 5 Main RP retirement (R-01..R-14)", () => {
     assert.equal(receipt?.modelLabel, CLAUDE_OPUS_5_DISPLAY_NAME);
   });
 
-  it("R-14 current DeepSeek/Gemini picker metadata matches the canonical registry", () => {
+  it("R-14 live Gemini picker metadata remains and DeepSeek is absent from the picker", () => {
     const deepseek = MAIN_RP_USER_SELECTABLE_OPTIONS.find(
       (o) => o.id === CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL
     );
     const gemini38 = MAIN_RP_USER_SELECTABLE_OPTIONS.find(
       (o) => o.id === GEMINI_38_FLASH_MODEL
     );
-    assert.equal(deepseek?.label, "DeepSeek V4.1 Flash");
-    assert.equal(deepseek?.recommended, true);
+    assert.equal(deepseek, undefined);
     assert.equal(gemini38?.label, "Gemini 3.8 Flash");
     assert.equal(gemini38?.hint, "Google AI Studio");
-    assert.equal(deepseek?.provider, "cheaperinference");
     assert.equal(gemini38?.provider, "openrouter");
+    assert.equal(
+      MAIN_RP_USER_SELECTABLE_OPTIONS.some((o) => "recommended" in o && o.recommended === true),
+      false
+    );
   });
 });

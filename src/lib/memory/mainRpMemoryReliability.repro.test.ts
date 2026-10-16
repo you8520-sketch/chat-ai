@@ -102,9 +102,8 @@ describe("P1 memory reliability — Phase 3B restorage and allow/deny", () => {
     __setSummarizeTurnBatchCallerForTests(null);
   });
 
-  it("active Main RP registry is the five live models", () => {
+  it("active Main RP registry is the four live picker models", () => {
     assert.deepEqual([...MAIN_RP_MODEL_IDS], [
-      "deepseek-v4.1-flash",
       "gemini-3.8-flash",
       "gpt-6.1-sol",
       "claude-opus-5.5",

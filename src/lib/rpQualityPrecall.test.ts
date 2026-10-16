@@ -10,7 +10,7 @@ import {
   GEMINI_37_FLASH_DISPLAY_NAME,
   GEMINI_38_FLASH_MODEL,
   MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
-  MAIN_RP_USER_SELECTABLE_OPTIONS,
+  mainRpQualityBenchmarkOption,
 } from "@/lib/chatModels";
 import { resolveOpenRouterMaxTokens } from "@/lib/openRouterClient";
 import {
@@ -316,20 +316,14 @@ describe("rp quality PRECALL plan", () => {
     assert.deepEqual(models.map((row) => row.canonicalId), [...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS]);
     assert.deepEqual(
       models.map((row) => row.displayLabel),
-      MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.map((id) => {
-        const option = MAIN_RP_USER_SELECTABLE_OPTIONS.find((row) => row.id === id);
-        return option?.label;
-      })
+      MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.map((id) => mainRpQualityBenchmarkOption(id).label)
     );
     assert.deepEqual(RP_QUALITY_BENCHMARK_MODELS, [
-      ...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.map((id) => {
-        const option = MAIN_RP_USER_SELECTABLE_OPTIONS.find((row) => row.id === id);
-        return option?.label;
-      }),
+      ...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.map((id) => mainRpQualityBenchmarkOption(id).label),
     ]);
     assert.match(
       LIVE_QUALITY_SRC,
-      /export const RP_ACTIVE_MODEL_QUALITY_MODEL_IDS: readonly SelectedAI\[\s*\] =\s*MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS;/
+      /export const RP_ACTIVE_MODEL_QUALITY_MODEL_IDS: readonly MainRpQualityBenchmarkModelId\[\s*\] =\s*MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS;/
     );
     assert.equal(models.length, 4);
     assert.doesNotMatch(PRECALL_SRC, /const expected = \[/);

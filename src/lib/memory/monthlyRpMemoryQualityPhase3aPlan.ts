@@ -174,11 +174,11 @@ export const PHASE3A_CALL_PLAN = {
   phase1Evidence: MONTHLY_RP_MEMORY_QUALITY_PHASE1_EVIDENCE.provenance,
 } as const;
 
-export function phase3aWireModelId(modelId: SelectedAI): string {
+export function phase3aWireModelId(modelId: string): string {
   return resolveMainRpPrimaryWireModelId(modelId);
 }
 
-export function phase3aProvider(modelId: SelectedAI): SelectedAIOptionMeta["provider"] {
+export function phase3aProvider(modelId: string): SelectedAIOptionMeta["provider"] {
   return selectedAIProvider(modelId);
 }
 

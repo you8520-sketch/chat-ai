@@ -7,9 +7,9 @@
  * This file only fail-closes identity/mode and describes the public hash manifest.
  */
 import {
-  MAIN_RP_MODEL_IDS,
-  isMainRpModel,
-  type SelectedAI,
+  MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
+  isMainRpQualityBenchmarkModel,
+  type MainRpQualityBenchmarkModelId,
 } from "@/lib/chatModels";
 import {
   RP_QUALITY_PRECALL_FIXTURE_IDS,
@@ -98,7 +98,7 @@ export type MainRpStyleLengthIdentityInput = {
 
 export type MainRpStyleLengthPublicCall = {
   fixtureId: RpQualityPrecallFixtureId;
-  canonicalId: SelectedAI;
+  canonicalId: MainRpQualityBenchmarkModelId;
   provider: "openrouter" | "cheaperinference";
   wireModel: string;
   finalWireFingerprint: string;
@@ -132,7 +132,7 @@ export type MainRpStyleLengthPublicManifest = {
   identityHashes: PaidRunnerIdentityHashes;
   combinedIdentityHash: string;
   fixtureIds: typeof RP_QUALITY_PRECALL_FIXTURE_IDS;
-  models: readonly SelectedAI[];
+  models: readonly MainRpQualityBenchmarkModelId[];
   calls: readonly MainRpStyleLengthPublicCall[];
   sealedRequestCount: number;
   sourceKind: "railway-production-readonly-in-process-v1";
@@ -207,7 +207,7 @@ export function assertMainRpStyleLengthIdentity(
   if (input.models) {
     if (input.models.length === 0) reject("INACTIVE_MODEL");
     for (const modelId of input.models) {
-      if (!isMainRpModel(modelId)) reject("INACTIVE_MODEL");
+      if (!isMainRpQualityBenchmarkModel(modelId)) reject("INACTIVE_MODEL");
     }
   }
   if (input.finalWireFingerprints && input.finalWireFingerprints.length === 0) {
@@ -320,7 +320,7 @@ export function mainRpStyleLengthSitePolicy() {
     contentMode: "SAFE" as const,
     contentModeOwner: "rpQualityPrecallFixtures contentMode — PRECALL plan constant, not characters.nsfw",
     nsfwListingOwner: "characters.nsfw listing/content-rating only",
-    models: MAIN_RP_MODEL_IDS,
+    models: MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
     fixtureIds: RP_QUALITY_PRECALL_FIXTURE_IDS,
     targetLengthOwner: "UNIFIED_TIER_AIM_CHARS",
     artificialMaxOutputChars: null,

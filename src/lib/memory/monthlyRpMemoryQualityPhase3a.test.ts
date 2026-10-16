@@ -48,7 +48,6 @@ import { estimateTokens } from "@/lib/tokenEstimate";
 import type { buildContext as BuildContextFn } from "@/services/contextBuilder";
 
 const EXPECTED_MODELS = [
-  "deepseek-v4.1-flash",
   "gemini-3.8-flash",
   "gpt-6.1-sol",
   "claude-opus-5.5",
@@ -85,7 +84,7 @@ describe("#1486 Phase 3A Main RP recall preflight", () => {
     assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3A_PLAN_EVIDENCE.modelReplyQuality, "NOT_PROVEN");
     assert.equal(pathAPassIsNotPathBPass(), false);
     assert.equal(PHASE3A_CALL_PLAN.pathA.lunaPosts, 0);
-    assert.equal(PHASE3A_CALL_PLAN.pathA.mainRpPostsIfLaterApproved, 10);
+    assert.equal(PHASE3A_CALL_PLAN.pathA.mainRpPostsIfLaterApproved, 8);
     assert.equal(PHASE3A_CALL_PLAN.pathA.chatGenerationsToBuildHistory, 0);
     assert.equal(PHASE3A_CALL_PLAN.pathBLite.status, "FOLLOW_UP");
     assert.equal(PHASE3A_CALL_PLAN.pathBLite.newLunaPosts, 0);
@@ -136,7 +135,7 @@ describe("#1486 Phase 3A Main RP recall preflight", () => {
     assert.equal(PHASE3A_REUSED_PROBES.t6.query.includes("우산"), true);
     assert.equal(PHASE3A_CALL_PLAN.pathBLite.status, "FOLLOW_UP");
     assert.equal(PHASE3A_CALL_PLAN.pathBLite.mustNotUsePhase1AUmbrellaQuery, true);
-    assert.equal(PHASE3A_CALL_PLAN.pathA.mainRpPostsIfLaterApproved, 10);
+    assert.equal(PHASE3A_CALL_PLAN.pathA.mainRpPostsIfLaterApproved, 8);
   });
 
   it("labels production 라이크 18 / 렌 unread on this VM", () => {

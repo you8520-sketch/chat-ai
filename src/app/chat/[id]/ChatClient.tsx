@@ -134,6 +134,10 @@ import {
   type SelectedAI,
 } from "@/lib/chatModels";
 import {
+  MODEL_SELECTION_REQUIRED_MESSAGE,
+  createSelectedAiSaveGate,
+} from "@/lib/userSelectedAI";
+import {
   acceptPickerEstimateResponse,
   parseModelPickerEstimatePresentation,
   PICKER_ESTIMATE_VARIANCE_NOTE,
@@ -971,7 +975,7 @@ export default function ChatClient({
   isAdult: boolean;
   userNsfwOn: boolean;
   initialAdultHandoffEnabled?: boolean;
-  initialSelectedAI: SelectedAI;
+  initialSelectedAI: SelectedAI | null;
   /** 전역 모델 1회 안내 (SSR에서 consume) */
   initialGlobalModelNotice?: string | null;
   /** Active verified site promotions for model picker badge + inline notice. */
@@ -1266,7 +1270,11 @@ export default function ChatClient({
   const [adultHandoffOn, setAdultHandoffOn] = useState(!!initialAdultHandoffEnabled);
   const adultHandoffOnRef = useRef(!!initialAdultHandoffEnabled);
   const [adultHandoffBusy, setAdultHandoffBusy] = useState(false);
-  const [selectedAI, setSelectedAI] = useState<SelectedAI>(initialSelectedAI);
+  const [selectedAI, setSelectedAI] = useState<SelectedAI | "">(initialSelectedAI ?? "");
+  const [modelSaveBusy, setModelSaveBusy] = useState(false);
+  const modelSaveGateRef = useRef(createSelectedAiSaveGate());
+  const needsModelSelection = selectedAI === "";
+  const generationNeedsModel = needsModelSelection || modelSaveBusy;
   const [modelPickerEstimates, setModelPickerEstimates] =
     useState<ModelPickerEstimateMap>(initialModelPickerEstimates);
   const [modelPickerEstimateConfidence, setModelPickerEstimateConfidence] =
@@ -1423,10 +1431,15 @@ export default function ChatClient({
       if (next === selectedAI) return;
       const switchingToOpus = !isClaudeSelectedAI(selectedAI) && isClaudeSelectedAI(next);
       const prev = selectedAI;
+      const generation = modelSaveGateRef.current.begin();
       setSelectedAI(next);
+      setModelSaveBusy(true);
       if (switchingToOpus) {
         setTargetResponseChars(DEFAULT_TARGET_RESPONSE_CHARS);
       }
+      let ok = false;
+      let serverId: SelectedAI | undefined;
+      let errorMessage: string | undefined;
       try {
         const res = await fetch("/api/user/selected-ai", {
           method: "PATCH",
@@ -1437,15 +1450,21 @@ export default function ChatClient({
           error?: string;
           selectedAI?: SelectedAI;
         };
-        if (!res.ok) {
-          setSelectedAI(prev);
-          setToastMsg(data.error || "모델 변경에 실패했습니다.");
+        ok = res.ok;
+        serverId = data.selectedAI;
+        errorMessage = data.error;
+      } catch {
+        errorMessage = "모델 변경 중 오류가 발생했습니다.";
+      } finally {
+        const { stillBusy, isLatest } = modelSaveGateRef.current.end(generation);
+        setModelSaveBusy(stillBusy);
+        if (!isLatest) return;
+        if (ok) {
+          if (serverId) setSelectedAI(serverId);
           return;
         }
-        if (data.selectedAI) setSelectedAI(data.selectedAI);
-      } catch {
         setSelectedAI(prev);
-        setToastMsg("모델 변경 중 오류가 발생했습니다.");
+        setToastMsg(errorMessage || "모델 변경에 실패했습니다.");
       }
     },
     [selectedAI]
@@ -1837,7 +1856,7 @@ export default function ChatClient({
     };
     setUserNote(initialUserNote);
     setNotePresets(initialNotePresets);
-    setSelectedAI(initialSelectedAI);
+    setSelectedAI(initialSelectedAI ?? "");
     pickerEstimateRequestRef.current += 1;
     setModelPickerEstimates(initialModelPickerEstimates);
     setModelPickerEstimateConfidence(initialModelPickerEstimateConfidence);
@@ -4148,6 +4167,10 @@ export default function ChatClient({
   }
 
   async function sendContinue() {
+    if (generationNeedsModel) {
+      setError(MODEL_SELECTION_REQUIRED_MESSAGE);
+      return;
+    }
     if (!canContinue || inFlightRef.current) return;
     if (!(await flushChatSettings())) return;
     if (inFlightRef.current) return;
@@ -4259,6 +4282,10 @@ export default function ChatClient({
   }
 
   async function send() {
+    if (generationNeedsModel) {
+      setError(MODEL_SELECTION_REQUIRED_MESSAGE);
+      return;
+    }
     const text = input.trim();
     if (!text || inFlightRef.current) return;
     if (text.length > CHAT_MESSAGE_MAX) {
@@ -4485,6 +4512,10 @@ export default function ChatClient({
   }
 
   async function regenerate(targetAssistantMessageId?: number) {
+    if (generationNeedsModel) {
+      setToastMsg(MODEL_SELECTION_REQUIRED_MESSAGE);
+      return;
+    }
     if (inFlightRef.current) {
       setToastMsg("이미 응답을 생성 중입니다. 잠시만 기다려 주세요.");
       return;
@@ -5137,7 +5168,7 @@ export default function ChatClient({
           isRefunded={m.isRefunded}
           bookmarked={bookmarkedIds.has(m.id!)}
           showDelete={opts.onLastTurn && !m.canonAdopted}
-          showRegenerate={i === lastAssistantIdx && !inputLocked && !m.canonAdopted}
+          showRegenerate={i === lastAssistantIdx && !inputLocked && !generationNeedsModel && !m.canonAdopted}
           showFork
           disabled={inputLocked}
           showReportRefund={showReportRefund}
@@ -6106,12 +6137,22 @@ export default function ChatClient({
             <span className="shrink-0 font-semibold text-zinc-400 max-[399px]:sr-only">AI</span>
             <select
               value={selectedAI}
-              onChange={(e) => void handleSelectedAIChange(e.target.value as SelectedAI)}
+              onChange={(e) => {
+                const next = e.target.value;
+                if (!next) return;
+                void handleSelectedAIChange(next as SelectedAI);
+              }}
               onFocus={() => refreshPickerEstimates(chatId ?? initialChatId)}
-              disabled={inputLocked}
+              disabled={inputLocked || modelSaveBusy}
               aria-describedby="picker-estimate-note"
-              className="h-8 min-w-0 max-w-full flex-1 rounded-md border border-white/10 bg-[#1a1a1a] px-1.5 text-[11px] text-zinc-200 outline-none focus:border-violet-500/50 disabled:cursor-not-allowed disabled:opacity-60 min-[576px]:h-auto min-[576px]:flex-none min-[576px]:py-1"
+              aria-invalid={needsModelSelection || undefined}
+              className={`h-8 min-w-0 max-w-full flex-1 rounded-md border bg-[#1a1a1a] px-1.5 text-[11px] text-zinc-200 outline-none focus:border-violet-500/50 disabled:cursor-not-allowed disabled:opacity-60 min-[576px]:h-auto min-[576px]:flex-none min-[576px]:py-1 ${
+                needsModelSelection ? "border-amber-400/60" : "border-white/10"
+              }`}
             >
+              <option value="" disabled>
+                {MODEL_SELECTION_REQUIRED_MESSAGE}
+              </option>
               {selectableAIOptions.map((o) => (
                 <option key={o.id} value={o.id}>
                   {selectedAIOptionLabel(
@@ -6137,7 +6178,7 @@ export default function ChatClient({
             <SuggestedRepliesBar
               replies={suggestedRepliesTurn.suggestedReplies ?? []}
               pending={suggestedRepliesTurn.suggestedRepliesPending === true}
-              disabled={inputLocked}
+              disabled={inputLocked || generationNeedsModel}
               onPick={handleSuggestedReplyPick}
               onDisable={handleSuggestedRepliesDisable}
             />
@@ -6160,7 +6201,7 @@ export default function ChatClient({
                   !e.nativeEvent.isComposing
                 ) {
                   e.preventDefault();
-                  if (!inputLocked) send();
+                  if (!inputLocked && !generationNeedsModel) send();
                 }
               }}
               disabled={inputLocked}
@@ -6174,7 +6215,7 @@ export default function ChatClient({
                 type="button"
                 aria-label="자동진행"
                 onClick={sendContinue}
-                disabled={inputLocked || !canContinue}
+                disabled={inputLocked || generationNeedsModel || !canContinue}
                 title={`AI 답변 직후 서사를 이어갑니다. 자동진행 서술 범위: ${
                   autoProgressionAuthoringLevel === "LIMITED"
                     ? "제한"
@@ -6193,9 +6234,11 @@ export default function ChatClient({
               <button
                 type="button"
                 onClick={send}
-                disabled={inputLocked || !input.trim()}
+                disabled={inputLocked || generationNeedsModel || !input.trim()}
                 aria-busy={inputLocked || undefined}
-                data-chat-send-state={inputLocked ? "generating" : input.trim() ? "ready" : "empty"}
+                data-chat-send-state={
+                  inputLocked ? "generating" : generationNeedsModel ? "need-model" : input.trim() ? "ready" : "empty"
+                }
                 className={`min-h-10 rounded-md border border-violet-500/35 bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-500 disabled:opacity-40 min-[576px]:min-h-0 ${
                   inputLocked ? "cursor-progress motion-safe:animate-pulse" : ""
                 }`}

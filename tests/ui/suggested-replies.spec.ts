@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import path from "node:path";
 import { expect, test, type Page, type Route } from "@playwright/test";
 import { DEFAULT_CHAT_DISPLAY_PREFS } from "../../src/lib/chatDisplayPrefs";
+import { ensureLivePickerModel } from "./helpers/ensureLivePickerModel";
 import { openExplicitFreshChat } from "./helpers/openExplicitChat";
 
 const CHAT_DISPLAY_PREFS_KEY = "playai-chat-display-prefs";
@@ -246,6 +247,7 @@ async function setReactTextareaValue(page: Page, text: string) {
 }
 
 async function waitForChatInputReady(page: Page) {
+  await ensureLivePickerModel(page);
   const textarea = page.locator("textarea[placeholder*='메시지 입력']");
   for (let attempt = 0; attempt < 40; attempt += 1) {
     await setReactTextareaValue(page, "z");

@@ -48,7 +48,7 @@ export async function GET(req: Request) {
     );
     return Response.json({
       selectedAI,
-      label: selectedAILabel(selectedAI),
+      label: selectedAI ? selectedAILabel(selectedAI) : "",
       notice,
       noticeKind: kind,
       activeSitePromotions,
@@ -63,7 +63,7 @@ export async function GET(req: Request) {
   );
   return Response.json({
     selectedAI,
-    label: selectedAILabel(selectedAI),
+    label: selectedAI ? selectedAILabel(selectedAI) : "",
     activeSitePromotions,
   });
 }

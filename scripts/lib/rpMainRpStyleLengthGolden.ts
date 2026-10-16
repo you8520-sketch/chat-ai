@@ -8,7 +8,7 @@ import { createHash } from "node:crypto";
 import {
   MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
   selectedAIProvider,
-  type SelectedAI,
+  type MainRpQualityBenchmarkModelId,
 } from "@/lib/chatModels";
 import { readRailwayDeploymentSha } from "@/lib/opsRequestIncidents";
 import { toPublicPersonaDescription } from "@/lib/personaSecretLegacyMarkers";
@@ -89,7 +89,7 @@ function publicCalls(
 ): MainRpStyleLengthPublicCall[] {
   return sealed.map((request) => ({
     fixtureId: request.fixtureId,
-    canonicalId: request.canonicalId as SelectedAI,
+    canonicalId: request.canonicalId,
     provider: request.provider,
     wireModel: request.wireModel,
     finalWireFingerprint: request.finalWireFingerprint,
@@ -198,7 +198,7 @@ export function assembleMainRpStyleLengthSnapshot(input: {
     });
   }
   for (const request of assembled.sealedRequests) {
-    if (!MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.includes(request.canonicalId as SelectedAI)) {
+    if (!MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.includes(request.canonicalId)) {
       assertMainRpStyleLengthIdentity({
         characterId: MAIN_RP_STYLE_LENGTH_TARGET.characterId,
         characterName: MAIN_RP_STYLE_LENGTH_TARGET.characterName,
@@ -211,7 +211,7 @@ export function assembleMainRpStyleLengthSnapshot(input: {
         models: [request.canonicalId],
       });
     }
-    if (selectedAIProvider(request.canonicalId as SelectedAI) !== request.provider) {
+    if (selectedAIProvider(request.canonicalId) !== request.provider) {
       throw new Error("WIRE_PROVIDER_MISMATCH");
     }
   }
@@ -505,7 +505,7 @@ export function paidSealedCallsFromGoldenSnapshot(
     if (!request.requestBody || typeof request.requestBody !== "object") {
       throw new MainRpStyleLengthFixtureError("FINAL_WIRE_MISSING");
     }
-    const canonicalId = request.canonicalId as SelectedAI;
+    const canonicalId: MainRpQualityBenchmarkModelId = request.canonicalId;
     const provider = expectedPaidRunnerProvider(canonicalId);
     if (request.provider !== provider) {
       throw new Error("PAID_RUNNER_PROVIDER_MAPPING_MISMATCH");

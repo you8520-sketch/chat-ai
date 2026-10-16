@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { after, describe, it } from "node:test";
 import { AI_LEARNING_LIMIT } from "@/lib/characterFormLimits";
-import { MAIN_RP_USER_SELECTABLE_OPTIONS } from "@/lib/chatModels";
+import { MAIN_RP_USER_SELECTABLE_OPTIONS, selectedAIProvider } from "@/lib/chatModels";
 import { resolveBackgroundPrimaryModelId } from "@/lib/ai";
 import { resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
 import { getPublishedPricing } from "@/lib/publishedModelPricing";
@@ -77,7 +77,9 @@ describe("50-turn memory A/B preflight (provider-free)", () => {
     assert.equal(new Set(AB_SCRIPT.map((turn) => turn.user)).size, 50);
     assert.equal(AB_PROBES.length, AB_CALL_PLAN.probes);
     assert.deepEqual(MAIN_RP_USER_SELECTABLE_OPTIONS.map((option) => option.id), [
-      ...LIVE_MODEL_IDS,
+      "gemini-3.8-flash",
+      "gpt-6.1-sol",
+      "claude-opus-5.5",
       "gemini-4-argon",
     ]);
     for (const modelId of LIVE_MODEL_IDS) {
@@ -162,7 +164,7 @@ describe("50-turn memory A/B preflight (provider-free)", () => {
     ];
 
     const assemblies = [];
-    for (const model of MAIN_RP_USER_SELECTABLE_OPTIONS) {
+    for (const modelId of LIVE_MODEL_IDS) {
       for (const probe of AB_PROBES) {
         const shared = {
           charName: AB_CHARACTER_NAME,
@@ -172,8 +174,8 @@ describe("50-turn memory A/B preflight (provider-free)", () => {
           shortTermHistory: rawHistory,
           currentUserMessage: probe.user,
           nsfw: false as const,
-          provider: model.provider,
-          modelId: model.id,
+          provider: selectedAIProvider(modelId),
+          modelId,
           completedTurns: 50,
           summarizedTurnCount: 0,
         };
@@ -181,22 +183,22 @@ describe("50-turn memory A/B preflight (provider-free)", () => {
         const armB = buildContext({ ...shared, longTermMemory: oracle });
         const historyA = armA.history.map((message) => message.content).join("\n");
         const historyB = armB.history.map((message) => message.content).join("\n");
-        assert.equal(historyA, historyB, `${model.id} ${probe.id}`);
-        assert.equal(armA.meta.truncatedMemory, false, model.id);
-        assert.equal(armB.meta.truncatedMemory, false, model.id);
-        assert.equal(armA.systemPrompt.includes(AB_CHARACTER_CARD), true, model.id);
-        assert.equal(armB.systemPrompt.includes(AB_CHARACTER_CARD), true, model.id);
+        assert.equal(historyA, historyB, `${modelId} ${probe.id}`);
+        assert.equal(armA.meta.truncatedMemory, false, modelId);
+        assert.equal(armB.meta.truncatedMemory, false, modelId);
+        assert.equal(armA.systemPrompt.includes(AB_CHARACTER_CARD), true, modelId);
+        assert.equal(armB.systemPrompt.includes(AB_CHARACTER_CARD), true, modelId);
         for (const fact of AB_ANSWER_KEY) {
           if (!fact.oracleText) continue;
-          assert.equal(armA.systemPrompt.includes(fact.oracleText), false, `${model.id} ${fact.id}`);
-          assert.equal(armB.systemPrompt.includes(fact.oracleText), true, `${model.id} ${fact.id}`);
+          assert.equal(armA.systemPrompt.includes(fact.oracleText), false, `${modelId} ${fact.id}`);
+          assert.equal(armB.systemPrompt.includes(fact.oracleText), true, `${modelId} ${fact.id}`);
         }
         const sectionA = (armA.meta.trackedSections ?? []).find((section) => section.id === "current-memory");
         const sectionB = (armB.meta.trackedSections ?? []).find((section) => section.id === "current-memory");
         assert.equal(sectionA, undefined);
         assert.equal(sectionB?.text.includes("[진단 메모]"), true);
         assemblies.push({
-          modelId: model.id,
+          modelId,
           probeId: probe.id,
           armATokens: estimateTokens(armA.systemPrompt) + estimateTokens(historyA),
           armBTokens: estimateTokens(armB.systemPrompt) + estimateTokens(historyB),
@@ -222,7 +224,7 @@ describe("50-turn memory A/B preflight (provider-free)", () => {
         calls,
         inputTokens,
         outputTokensAtAim: outputTokens,
-        provider: MAIN_RP_USER_SELECTABLE_OPTIONS.find((option) => option.id === modelId)?.provider,
+        provider: selectedAIProvider(modelId),
         inputUsdPerMillion: pricing.billingReferenceInputUsdPerMillion,
         outputUsdPerMillion: pricing.billingReferenceOutputUsdPerMillion,
         expectedUsdAtAim:
