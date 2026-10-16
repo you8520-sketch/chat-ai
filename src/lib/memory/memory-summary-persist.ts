@@ -157,6 +157,8 @@ export function persistValidatedSummaryBatch(opts: {
   inactive?: boolean;
   /** When set, used as recent_summary instead of rebuild (e.g. after compact). */
   recentSummaryOverride?: string;
+  /** Repair seals keep a user-saved `manual_global` Global; only the batch row and count change. */
+  preserveManualGlobal?: boolean;
   playableTurnCount: number;
   boundarySnapshot?: MemorySourceBoundary;
   sourceUserMessageIds?: readonly number[];
@@ -300,7 +302,11 @@ export function persistValidatedSummaryBatch(opts: {
           turnStart: opts.turnStart,
         });
 
-      if (preserveHealthyCheckpoint) {
+      if (opts.preserveManualGlobal && current.global_projection_kind === "manual_global") {
+        db.prepare(
+          `UPDATE chat_memories SET summarized_turn_count=?, updated_at=datetime('now') WHERE chat_id=?`
+        ).run(contiguous, opts.chatId);
+      } else if (preserveHealthyCheckpoint) {
         const used = calcUsedChars({
           recent_summary: checkpointBefore.compactText,
           archive_summary: current.archive_summary,
