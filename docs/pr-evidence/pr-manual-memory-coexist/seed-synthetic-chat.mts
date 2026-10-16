@@ -1,7 +1,8 @@
 /**
  * Seeds one synthetic chat into the SQLite DB under $DATA_DIR (isolated copy, never production):
  * a signed-in user, a chat with 25 completed turns, 5-turn records sealed through the real
- * rolling-summary path (stubbed summarizer, no provider call), and a user-saved Global at T10.
+ * rolling-summary path (stubbed summarizer, no provider call), and a user-saved Global after
+ * MANUAL_SAVE_AT_TURN completed turns (default 11; 12 = a save in the middle of the T11–15 block).
  *
  *   DATA_DIR=/tmp/x MEMORY_FEATURE_ENABLED=1 OPENROUTER_API_KEY= CHEAPER_INFERENCE_API_KEY= OPENAI_API_KEY= \
  *   node --conditions=react-server --import tsx docs/pr-evidence/pr-manual-memory-coexist/seed-synthetic-chat.mts
@@ -127,7 +128,8 @@ const sealOpts = {
   maxRounds: 12,
 };
 
-play(11);
+const manualSaveAtTurn = Number(process.env.MANUAL_SAVE_AT_TURN ?? 11);
+play(manualSaveAtTurn);
 await catchUpRollingSummaries(sealOpts);
 await updateLorebookForChat(CHAT_ID, USER_ID, CHARACTER_ID, MANUAL_TEXT, "free", MEMORY_CAPACITY_FIXED);
 play(26);
