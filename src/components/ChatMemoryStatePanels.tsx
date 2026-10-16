@@ -11,7 +11,7 @@ export type MemoryTabId = "state" | "events" | "records" | "manual";
 
 export const MEMORY_TABS: { id: MemoryTabId; label: string }[] = [
   { id: "state", label: "현재 상태" },
-  { id: "events", label: "중요 사건" },
+  { id: "events", label: "약속·소지품" },
   { id: "records", label: "5턴 기록" },
   { id: "manual", label: "직접 기억" },
 ];
@@ -151,7 +151,7 @@ export function MemoryCurrentStatePanel({
   return (
     <div className="space-y-3" role="tabpanel" aria-label="현재 상태">
       <p className="text-[10px] leading-relaxed text-zinc-500">
-        지금 이야기에서 유효한 약속과 소지품입니다. 과거에 있었던 변화는 &apos;중요 사건&apos;에서 볼 수 있습니다.
+        지금 이야기에서 유효한 약속과 소지품입니다. 과거에 있었던 약속·소지품 변화는 &apos;약속·소지품&apos; 탭에서 볼 수 있습니다.
       </p>
 
       <section className="rounded-lg border border-violet-500/20 bg-violet-950/10 p-2.5">
@@ -279,6 +279,9 @@ export function MemoryCurrentStatePanel({
 
 type EventFilter = "all" | RelationshipLedgerEventCategory;
 
+const EVENTS_SCOPE_NOTE =
+  "이 탭은 약속·소지품 변화만 보여줍니다. 감정·관계·장소·인물 같은 다른 사건은 아직 포함되지 않으며, 그 내용은 '5턴 기록'에서 확인할 수 있습니다.";
+
 export function MemoryEventsPanel({
   events,
   onJump,
@@ -313,27 +316,29 @@ export function MemoryEventsPanel({
 
   if (events.length === 0) {
     return (
-      <div role="tabpanel" aria-label="중요 사건" className="space-y-1 py-3 text-center">
+      <div role="tabpanel" aria-label="약속·소지품 이력" className="space-y-1 py-3 text-center">
         <p className="text-[11px] text-zinc-400">기록된 약속·소지품 변화가 아직 없습니다.</p>
         <p className="text-[10px] leading-relaxed text-zinc-600">
           대화에서 약속을 하거나 취소하면, 언제 일어났는지 여기에 남습니다.
         </p>
+        <p className="text-[10px] leading-relaxed text-zinc-600">{EVENTS_SCOPE_NOTE}</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-2.5" role="tabpanel" aria-label="중요 사건">
+    <div className="space-y-2.5" role="tabpanel" aria-label="약속·소지품 이력">
       <p className="text-[10px] leading-relaxed text-zinc-500">
         약속과 소지품이 바뀐 순간을 AI가 자동 기록한 목록입니다. &apos;해제됨&apos;은 취소·이행·만료를 구분하지 않습니다.
       </p>
+      <p className="text-[10px] leading-relaxed text-zinc-600">{EVENTS_SCOPE_NOTE}</p>
       <div className="flex flex-wrap items-center gap-1.5">
         <input
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="사건 검색"
-          aria-label="사건 검색"
+          placeholder="이력 검색"
+          aria-label="약속·소지품 이력 검색"
           className="min-w-0 flex-1 rounded-md border border-white/10 bg-[#1a1a1a] px-2 py-1.5 text-[11px] text-zinc-200 placeholder:text-zinc-600 focus:border-violet-500/40 focus:outline-none"
         />
         <div className="flex gap-1">

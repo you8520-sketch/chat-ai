@@ -1432,7 +1432,7 @@ function MemorySection({
   async function deleteLedgerItem(category: DeletableLedgerCategory, text: string) {
     if (chatId == null) return;
     const label = category === "promises" ? "약속" : "소지품";
-    if (!window.confirm(`이 ${label}을(를) 현재 상태에서 삭제할까요?\n삭제해도 '중요 사건'의 기록은 남습니다.`)) {
+    if (!window.confirm(`이 ${label}을(를) 현재 상태에서 삭제할까요?\n삭제해도 '약속·소지품' 탭의 이력은 남습니다.`)) {
       return;
     }
     setLedgerBusyKey(`${category}:${text}`);
