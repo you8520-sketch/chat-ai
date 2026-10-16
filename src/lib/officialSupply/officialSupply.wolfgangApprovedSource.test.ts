@@ -80,6 +80,7 @@ function writeSyntheticApprovedSource(dest: string): void {
       assetPlan: base.assetPlan ?? { slots: [] },
       bible: {
         ...base.bible,
+        usesSharedWorld: true,
         greeting: SYNTHETIC_GREETING,
         publicProfile: {
           ...base.bible.publicProfile,

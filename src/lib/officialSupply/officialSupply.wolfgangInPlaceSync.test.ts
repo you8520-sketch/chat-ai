@@ -115,6 +115,7 @@ function writeSyntheticApprovedSource(dest: string): void {
     assetPlan: base.assetPlan ?? { slots: [] },
     bible: {
       ...base.bible,
+      usesSharedWorld: true,
       greeting: "합성 승인 첫 메시지입니다. 이 문장은 기계 동작 검증용이며 운영 원고가 아닙니다.",
       publicProfile: {
         ...base.bible.publicProfile,
@@ -455,7 +456,14 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
   }
 
   function approvedFixtureSpeech(): { examples: string; forbidden: string; frequentPhrases: string[] } {
-    return source().draft.speech;
+    const previous = JSON.parse(fs.readFileSync(PREVIOUS_SOURCE_FIXTURE, "utf8")) as {
+      bible: { speech: { frequentPhrases?: string[] } };
+    };
+    return {
+      examples: source().draft.speech.examples,
+      forbidden: source().draft.speech.forbidden,
+      frequentPhrases: previous.bible.speech.frequentPhrases ?? [],
+    };
   }
 
   function supplyRow() {
@@ -562,7 +570,6 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
     assert.equal(preview.notifiedFollowers, false);
     assert.deepEqual(preview.changedFields, [
       "tagline",
-      "description",
       "greeting",
       "system_prompt",
       "world",
