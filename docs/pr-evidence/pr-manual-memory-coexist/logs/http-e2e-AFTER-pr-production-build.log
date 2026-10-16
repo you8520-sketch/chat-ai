@@ -1,0 +1,18 @@
+# HTTP E2E AFTER-PR — http://localhost:3300 (production build, isolated DATA_DIR=/tmp/coexist-data-pr, provider keys blank)
+1) GET panel after seed (manual saved at T10, records T11-15/16-20/21-25 sealed afterwards)
+   {"http":200,"manualGlobalMemory":true,"covered":10,"deliveredCount":3,"lorebookHead":"[직접 정리한 장기기억] 주인공은 편의점 알바생 히유의 단골이다.","records":["1~5턴[covered]","6~10턴[covered]","11~15턴[delivered]","16~20턴[delivered]","21~25턴[delivered]"]}
+   wire: {"storedKind":"manual_global","storedBoundary":10,"globalHead":"[현재기억]\n최근 대화(히스토리)에 없는 이전 구간의 요약이다. 연속성은 히스토리와 관계 메모를 우선한다.\n\n[직접 정리한 장","globalChars":174,"mediumBlocks":["T11-15","T16-20","T21-25"],"mediumChars":1452,"wireMemoryTokensEst":1465,"globalContainsManualMarker":true}
+2) PATCH updateLorebook (user edits the manual text again at T25)
+   PATCH http=200 ok=true
+   {"http":200,"manualGlobalMemory":true,"covered":25,"deliveredCount":0,"lorebookHead":"[직접 정리한 장기기억] 수정본: 한강 약속은 취소, 열쇠는 보관","records":["1~5턴[covered]","6~10턴[covered]","11~15턴[covered]","16~20턴[covered]","21~25턴[covered]"]}
+3) normal RP continues: turns 27-32 added, T26-30 sealed by the real rolling-summary path (stub summarizer)
+   wire: {"storedKind":"manual_global","storedBoundary":25,"globalHead":"[현재기억]\n최근 대화(히스토리)에 없는 이전 구간의 요약이다. 연속성은 히스토리와 관계 메모를 우선한다.\n\n[직접 정리한 장","globalChars":121,"mediumBlocks":["T26-30"],"mediumChars":465,"wireMemoryTokensEst":529,"globalContainsManualMarker":true}
+   {"http":200,"manualGlobalMemory":true,"covered":25,"deliveredCount":1,"lorebookHead":"[직접 정리한 장기기억] 수정본: 한강 약속은 취소, 열쇠는 보관","records":["1~5턴[covered]","6~10턴[covered]","11~15턴[covered]","16~20턴[covered]","21~25턴[covered]","26~30턴[delivered]"]}
+4) PATCH updateLorebook with empty text (release → automatic memory)
+   PATCH http=200 ok=true
+   {"http":200,"manualGlobalMemory":false,"covered":null,"deliveredCount":0,"lorebookHead":"[1~5턴] [T1–5 자동 기록] 주인공은 퇴근길에 편의점에 들","records":["1~5턴","6~10턴","11~15턴","16~20턴","21~25턴","26~30턴"]}
+   wire: {"storedKind":null,"storedBoundary":null,"globalHead":"[현재기억]\n최근 대화(히스토리)에 없는 이전 구간의 요약이다. 연속성은 히스토리와 관계 메모를 우선한다.\n\n[1~5턴] [T","globalChars":2888,"mediumBlocks":[],"mediumChars":0,"wireMemoryTokensEst":2601,"globalContainsManualMarker":false}
+5) PATCH updateLorebook again (re-save manual after release)
+   PATCH http=200 ok=true
+   {"http":200,"manualGlobalMemory":true,"covered":30,"deliveredCount":0,"lorebookHead":"[직접 정리한 장기기억] 재저장본: 히유와 주인공은 단골 관계다.","records":["1~5턴[covered]","6~10턴[covered]","11~15턴[covered]","16~20턴[covered]","21~25턴[covered]","26~30턴[covered]"]}
+   wire: {"storedKind":"manual_global","storedBoundary":30,"globalHead":"[현재기억]\n최근 대화(히스토리)에 없는 이전 구간의 요약이다. 연속성은 히스토리와 관계 메모를 우선한다.\n\n[직접 정리한 장","globalChars":97,"mediumBlocks":[],"mediumChars":0,"wireMemoryTokensEst":89,"globalContainsManualMarker":true}

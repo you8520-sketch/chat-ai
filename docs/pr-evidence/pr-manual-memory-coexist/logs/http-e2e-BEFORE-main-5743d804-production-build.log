@@ -1,0 +1,4 @@
+# HTTP E2E BEFORE-MAIN — http://localhost:3400 (production build, isolated DATA_DIR=/tmp/coexist-data-base, provider keys blank)
+1) GET panel after seed (manual saved at T10, records T11-15/16-20/21-25 sealed afterwards)
+   {"http":200,"manualGlobalMemory":false,"lorebookHead":"[1~5턴] [T1–5 자동 기록] 주인공은 퇴근길에 편의점에 들","records":["1~5턴","6~10턴","11~15턴","16~20턴","21~25턴"]}
+   wire: {"storedKind":null,"storedBoundary":null,"globalHead":"[현재기억]\n최근 대화(히스토리)에 없는 이전 구간의 요약이다. 연속성은 히스토리와 관계 메모를 우선한다.\n\n[1~5턴] [T","globalChars":2429,"mediumBlocks":[],"mediumChars":0,"wireMemoryTokensEst":2187,"globalContainsManualMarker":false}
