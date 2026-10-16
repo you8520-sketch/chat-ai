@@ -35,7 +35,8 @@ export type {
 
 type RawEvent = Omit<RelationshipLedgerEvent, "validity">;
 
-const PROMISE_RECALL_CUE = /약속|기로\s*(?:했|한|하자)|취소|파기|없던|지키|지켜|어기|어겼/u;
+const PROMISE_RECALL_CUE =
+  /(?:예전|그때|지난|무슨).{0,20}약속|약속.{0,20}(?:어떻게|됐|했었|했지|기억)|기로\s*(?:했|한)|취소|파기|없던|지키|지켜|어기|어겼/u;
 const PROMISE_HISTORY_MAX_LINES = 2;
 const PROMISE_HISTORY_MAX_CANDIDATES = 40;
 
@@ -186,7 +187,8 @@ function endedPromises(events: readonly RelationshipLedgerEvent[]): EndedPromise
 
 /**
  * Past promises that are no longer valid, only when the current user message
- * recalls them (shared token overlap, or an explicit promise/cancel cue).
+ * recalls them (shared token overlap, or a past-looking promise/cancel cue).
+ * A bare 약속 is not enough — proposing a new one must not pull cancelled history.
  * Storage keeps every event; per-turn injection keeps at most two lines.
  */
 export function selectPromiseHistoryForPrompt(

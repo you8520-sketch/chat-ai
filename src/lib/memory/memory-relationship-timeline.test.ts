@@ -185,6 +185,21 @@ describe("relationship ledger timeline (promise create -> cancel -> recall)", ()
     assert.equal(lines.length, 1);
   });
 
+  it("does not inject ended promises when the user proposes a new one", () => {
+    assert.deepEqual(
+      selectPromiseHistoryForPrompt(events(), "오늘 새로운 약속을 정하자."),
+      []
+    );
+  });
+
+  it("still recalls an ended promise when the user asks what happened to it", () => {
+    const specific = selectPromiseHistoryForPrompt(events(), "예전에 한강 약속 어떻게 됐지?");
+    assert.equal(specific.length, 1);
+    assert.match(specific[0]!, /한강|야경/);
+    const generic = selectPromiseHistoryForPrompt(events(), "그때 무슨 약속 했었지?");
+    assert.equal(generic.length, 1);
+  });
+
   it("a re-added promise is active again and leaves no ended-history line", () => {
     applyAtTurn(30, { promisesAdd: [PROMISE] });
     assert.deepEqual(currentPromises(), [PROMISE.text]);
