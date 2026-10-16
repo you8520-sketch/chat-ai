@@ -1,23 +1,23 @@
-# E4-6 measured BEFORE (main 9a92db16) vs AFTER
+# E4-6 measured BEFORE (main 9a92db16) vs AFTER (PR HEAD)
 
-min/mean/max = card height px. small = link targets <24px in either axis; crowd = undersized targets with <24px spacing; hidden = tags clipped off the card; bo = badge overlaps; ov = horizontal document overflow; name/tagline>2 = text exceeds its 2-line clamp.
+height = min/mean/max card px. small = link targets <24px in either axis; crowd = undersized targets with <24px spacing; hidden = tags clipped off the card; bo = badge overlaps; ov = horizontal document overflow; name/tagline>2 = text exceeds its 2-line clamp.
 
 | scene@width | side | cards | height | small | crowd | hidden tags | badge overlap | overflow | name>2 | tagline>2 |
 |---|---|---|---|---|---|---|---|---|---|---|
 | search@320 | BEFORE | 14 | 384/386/388 | 43 | 44 | 5 | 0 | False | 0 | 14 |
-| search@320 | AFTER | 14 | 391/391/391 | 0 | 0 | 0 | 0 | False | 9 | 14 |
+| search@320 | AFTER | 14 | 391/391/391 | 0 | 0 | 0 | 0 | False | 0 | 14 |
 | searchAdmin@320 | BEFORE | 18 | 384/386/388 | 57 | 57 | 8 | 1 | False | 0 | 18 |
-| searchAdmin@320 | AFTER | 18 | 391/391/391 | 0 | 0 | 0 | 0 | False | 9 | 18 |
+| searchAdmin@320 | AFTER | 18 | 391/391/391 | 0 | 0 | 0 | 0 | False | 0 | 18 |
 | searchGuest@320 | BEFORE | 14 | 384/386/388 | 43 | 44 | 5 | 0 | False | 0 | 14 |
-| searchGuest@320 | AFTER | 14 | 391/391/391 | 0 | 0 | 0 | 0 | False | 9 | 14 |
+| searchGuest@320 | AFTER | 14 | 391/391/391 | 0 | 0 | 0 | 0 | False | 0 | 14 |
 | new@320 | BEFORE | 50 | 337/345/356 | 188 | 207 | 55 | 0 | False | 3 | 49 |
-| new@320 | AFTER | 50 | 339/354/359 | 0 | 0 | 0 | 0 | False | 12 | 49 |
+| new@320 | AFTER | 50 | 339/354/359 | 0 | 0 | 0 | 0 | False | 3 | 49 |
 | following@320 | BEFORE | 18 | 356/356/356 | 65 | 84 | 26 | 1 | False | 2 | 15 |
-| following@320 | AFTER | 18 | 359/359/359 | 0 | 0 | 0 | 0 | False | 11 | 15 |
+| following@320 | AFTER | 18 | 359/359/359 | 0 | 0 | 0 | 0 | False | 2 | 15 |
 | official@320 | BEFORE | 11 | 327/342/356 | 33 | 31 | 8 | 0 | False | 0 | 10 |
-| official@320 | AFTER | 11 | 327/353/359 | 0 | 0 | 0 | 0 | False | 1 | 10 |
+| official@320 | AFTER | 11 | 327/353/359 | 0 | 0 | 0 | 0 | False | 0 | 10 |
 | genre@320 | BEFORE | 20 | 352/354/356 | 55 | 67 | 9 | 0 | False | 0 | 19 |
-| genre@320 | AFTER | 20 | 359/359/359 | 0 | 0 | 0 | 0 | False | 7 | 19 |
+| genre@320 | AFTER | 20 | 359/359/359 | 0 | 0 | 0 | 0 | False | 0 | 19 |
 | creator@320 | BEFORE | 3 | 360/360/360 | 11 | 16 | 4 | 0 | False | 1 | 2 |
 | creator@320 | AFTER | 3 | 362/362/362 | 0 | 0 | 0 | 0 | False | 1 | 2 |
 | creatorEn@320 | BEFORE | 1 | 340/340/340 | 5 | 7 | 1 | 0 | False | 0 | 1 |
@@ -95,19 +95,19 @@ min/mean/max = card height px. small = link targets <24px in either axis; crowd 
 | creatorEn@768 | BEFORE | 1 | 504/504/504 | 5 | 7 | 0 | 0 | False | 0 | 0 |
 | creatorEn@768 | AFTER | 1 | 510/510/510 | 0 | 0 | 0 | 0 | False | 0 | 0 |
 | search@1024 | BEFORE | 14 | 391/394/395 | 43 | 44 | 5 | 0 | False | 0 | 14 |
-| search@1024 | AFTER | 14 | 398/398/398 | 0 | 0 | 0 | 0 | False | 9 | 14 |
+| search@1024 | AFTER | 14 | 398/398/398 | 0 | 0 | 0 | 0 | False | 0 | 14 |
 | searchAdmin@1024 | BEFORE | 18 | 391/394/395 | 57 | 57 | 8 | 0 | False | 0 | 18 |
-| searchAdmin@1024 | AFTER | 18 | 398/398/398 | 0 | 0 | 0 | 0 | False | 9 | 18 |
+| searchAdmin@1024 | AFTER | 18 | 398/398/398 | 0 | 0 | 0 | 0 | False | 0 | 18 |
 | searchGuest@1024 | BEFORE | 14 | 391/394/395 | 43 | 44 | 5 | 0 | False | 0 | 14 |
-| searchGuest@1024 | AFTER | 14 | 398/398/398 | 0 | 0 | 0 | 0 | False | 9 | 14 |
+| searchGuest@1024 | AFTER | 14 | 398/398/398 | 0 | 0 | 0 | 0 | False | 0 | 14 |
 | new@1024 | BEFORE | 50 | 342/355/366 | 188 | 232 | 12 | 0 | False | 3 | 49 |
-| new@1024 | AFTER | 50 | 348/361/369 | 0 | 0 | 0 | 0 | False | 12 | 17 |
+| new@1024 | AFTER | 50 | 348/361/369 | 0 | 0 | 0 | 0 | False | 3 | 17 |
 | following@1024 | BEFORE | 18 | 362/364/366 | 65 | 95 | 13 | 0 | False | 2 | 15 |
-| following@1024 | AFTER | 18 | 369/369/369 | 0 | 0 | 0 | 0 | False | 11 | 15 |
+| following@1024 | AFTER | 18 | 369/369/369 | 0 | 0 | 0 | 0 | False | 2 | 15 |
 | official@1024 | BEFORE | 11 | 337/353/366 | 33 | 35 | 1 | 0 | False | 0 | 10 |
-| official@1024 | AFTER | 11 | 337/357/369 | 0 | 0 | 0 | 0 | False | 1 | 3 |
+| official@1024 | AFTER | 11 | 337/357/369 | 0 | 0 | 0 | 0 | False | 0 | 3 |
 | genre@1024 | BEFORE | 20 | 362/364/366 | 55 | 74 | 2 | 0 | False | 0 | 19 |
-| genre@1024 | AFTER | 20 | 369/369/369 | 0 | 0 | 0 | 0 | False | 7 | 19 |
+| genre@1024 | AFTER | 20 | 369/369/369 | 0 | 0 | 0 | 0 | False | 0 | 19 |
 | creator@1024 | BEFORE | 3 | 500/546/570 | 13 | 17 | 2 | 0 | False | 0 | 0 |
 | creator@1024 | AFTER | 3 | 507/551/572 | 0 | 0 | 0 | 0 | False | 0 | 0 |
 | creatorEn@1024 | BEFORE | 1 | 545/545/545 | 5 | 7 | 0 | 0 | False | 0 | 0 |

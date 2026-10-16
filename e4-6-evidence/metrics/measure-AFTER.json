@@ -565,7 +565,7 @@
      "b": 1686.9,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "새싹 크리에이터의 작품"
     },
     "eyebrow": {
@@ -688,7 +688,7 @@
      "b": 1686.9,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "새싹 크리에이터의 두 번째 작품"
     },
     "eyebrow": {
@@ -811,7 +811,7 @@
      "b": 2098.3,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "일반 크리에이터의 작품"
     },
     "eyebrow": {
@@ -934,7 +934,7 @@
      "b": 2098.3,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "일반 크리에이터의 두 번째 작품"
     },
     "eyebrow": {
@@ -1057,7 +1057,7 @@
      "b": 2509.7,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 1"
     },
     "eyebrow": {
@@ -1180,7 +1180,7 @@
      "b": 2509.7,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 2"
     },
     "eyebrow": {
@@ -1303,7 +1303,7 @@
      "b": 2921,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 3"
     },
     "eyebrow": {
@@ -1426,7 +1426,7 @@
      "b": 2921,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 4"
     },
     "eyebrow": {
@@ -1549,7 +1549,7 @@
      "b": 3332.4,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 5"
     },
     "eyebrow": {
@@ -2952,7 +2952,7 @@
      "b": 2509.7,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "새싹 크리에이터의 작품"
     },
     "eyebrow": {
@@ -3075,7 +3075,7 @@
      "b": 2509.7,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "새싹 크리에이터의 두 번째 작품"
     },
     "eyebrow": {
@@ -3198,7 +3198,7 @@
      "b": 2921,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "일반 크리에이터의 작품"
     },
     "eyebrow": {
@@ -3321,7 +3321,7 @@
      "b": 2921,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "일반 크리에이터의 두 번째 작품"
     },
     "eyebrow": {
@@ -3444,7 +3444,7 @@
      "b": 3332.4,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 1"
     },
     "eyebrow": {
@@ -3567,7 +3567,7 @@
      "b": 3332.4,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 2"
     },
     "eyebrow": {
@@ -3690,7 +3690,7 @@
      "b": 3743.7,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 3"
     },
     "eyebrow": {
@@ -3813,7 +3813,7 @@
      "b": 3743.7,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 4"
     },
     "eyebrow": {
@@ -3936,7 +3936,7 @@
      "b": 4155.1,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 5"
     },
     "eyebrow": {
@@ -4728,7 +4728,7 @@
      "b": 1686.9,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "새싹 크리에이터의 작품"
     },
     "eyebrow": {
@@ -4851,7 +4851,7 @@
      "b": 1686.9,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "새싹 크리에이터의 두 번째 작품"
     },
     "eyebrow": {
@@ -4974,7 +4974,7 @@
      "b": 2098.3,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "일반 크리에이터의 작품"
     },
     "eyebrow": {
@@ -5097,7 +5097,7 @@
      "b": 2098.3,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "일반 크리에이터의 두 번째 작품"
     },
     "eyebrow": {
@@ -5220,7 +5220,7 @@
      "b": 2509.7,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 1"
     },
     "eyebrow": {
@@ -5343,7 +5343,7 @@
      "b": 2509.7,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 2"
     },
     "eyebrow": {
@@ -5466,7 +5466,7 @@
      "b": 2921,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 3"
     },
     "eyebrow": {
@@ -5589,7 +5589,7 @@
      "b": 2921,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 4"
     },
     "eyebrow": {
@@ -5712,7 +5712,7 @@
      "b": 3332.4,
      "w": 108,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 5"
     },
     "eyebrow": {
@@ -7071,7 +7071,7 @@
      "b": 1918.4,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "새싹 크리에이터의 작품"
     },
     "eyebrow": {
@@ -7194,7 +7194,7 @@
      "b": 1918.4,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "새싹 크리에이터의 두 번째 작품"
     },
     "eyebrow": {
@@ -7317,7 +7317,7 @@
      "b": 2293.8,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "일반 크리에이터의 작품"
     },
     "eyebrow": {
@@ -7440,7 +7440,7 @@
      "b": 2293.8,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "일반 크리에이터의 두 번째 작품"
     },
     "eyebrow": {
@@ -7563,7 +7563,7 @@
      "b": 2669.1,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 1"
     },
     "eyebrow": {
@@ -7686,7 +7686,7 @@
      "b": 2669.1,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 2"
     },
     "eyebrow": {
@@ -7809,7 +7809,7 @@
      "b": 3044.5,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 3"
     },
     "eyebrow": {
@@ -7932,7 +7932,7 @@
      "b": 3044.5,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 4"
     },
     "eyebrow": {
@@ -8055,7 +8055,7 @@
      "b": 3419.8,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 5"
     },
     "eyebrow": {
@@ -13588,7 +13588,7 @@
      "b": 2002.4,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "새싹 크리에이터의 작품"
     },
     "eyebrow": {
@@ -13711,7 +13711,7 @@
      "b": 2377.8,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "새싹 크리에이터의 두 번째 작품"
     },
     "eyebrow": {
@@ -13834,7 +13834,7 @@
      "b": 2377.8,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "일반 크리에이터의 작품"
     },
     "eyebrow": {
@@ -13957,7 +13957,7 @@
      "b": 2753.1,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "일반 크리에이터의 두 번째 작품"
     },
     "eyebrow": {
@@ -14080,7 +14080,7 @@
      "b": 2753.1,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 1"
     },
     "eyebrow": {
@@ -14203,7 +14203,7 @@
      "b": 3128.5,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 2"
     },
     "eyebrow": {
@@ -14326,7 +14326,7 @@
      "b": 3128.5,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 3"
     },
     "eyebrow": {
@@ -14449,7 +14449,7 @@
      "b": 3503.8,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 4"
     },
     "eyebrow": {
@@ -14572,7 +14572,7 @@
      "b": 3503.8,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 5"
     },
     "eyebrow": {
@@ -15894,7 +15894,7 @@
      "b": 1897.7,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "달빛 도서관지기의 랭킹 4"
     },
     "eyebrow": {
@@ -16360,7 +16360,7 @@
      "b": 1088.3,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "새싹 크리에이터의 작품"
     },
     "eyebrow": {
@@ -16483,7 +16483,7 @@
      "b": 1088.3,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "일반 크리에이터의 작품"
     },
     "eyebrow": {
@@ -16606,7 +16606,7 @@
      "b": 1463.7,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 1"
     },
     "eyebrow": {
@@ -16729,7 +16729,7 @@
      "b": 1463.7,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 2"
     },
     "eyebrow": {
@@ -16852,7 +16852,7 @@
      "b": 1839,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 3"
     },
     "eyebrow": {
@@ -16975,7 +16975,7 @@
      "b": 1839,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 4"
     },
     "eyebrow": {
@@ -17098,7 +17098,7 @@
      "b": 2214.4,
      "w": 106,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 5"
     },
     "eyebrow": {
@@ -95535,7 +95535,7 @@
      "b": 1062.1,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "새싹 크리에이터의 작품"
     },
     "eyebrow": {
@@ -95658,7 +95658,7 @@
      "b": 1480.4,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "새싹 크리에이터의 두 번째 작품"
     },
     "eyebrow": {
@@ -95781,7 +95781,7 @@
      "b": 1480.4,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "일반 크리에이터의 작품"
     },
     "eyebrow": {
@@ -95904,7 +95904,7 @@
      "b": 1480.4,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "일반 크리에이터의 두 번째 작품"
     },
     "eyebrow": {
@@ -96027,7 +96027,7 @@
      "b": 1480.4,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 1"
     },
     "eyebrow": {
@@ -96150,7 +96150,7 @@
      "b": 1480.4,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 2"
     },
     "eyebrow": {
@@ -96273,7 +96273,7 @@
      "b": 1898.6,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 3"
     },
     "eyebrow": {
@@ -96396,7 +96396,7 @@
      "b": 1898.6,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 4"
     },
     "eyebrow": {
@@ -96519,7 +96519,7 @@
      "b": 1898.7,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 5"
     },
     "eyebrow": {
@@ -97922,7 +97922,7 @@
      "b": 1376.4,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "새싹 크리에이터의 작품"
     },
     "eyebrow": {
@@ -98045,7 +98045,7 @@
      "b": 1376.4,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "새싹 크리에이터의 두 번째 작품"
     },
     "eyebrow": {
@@ -98168,7 +98168,7 @@
      "b": 1794.6,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "일반 크리에이터의 작품"
     },
     "eyebrow": {
@@ -98291,7 +98291,7 @@
      "b": 1794.6,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "일반 크리에이터의 두 번째 작품"
     },
     "eyebrow": {
@@ -98414,7 +98414,7 @@
      "b": 1794.7,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 1"
     },
     "eyebrow": {
@@ -98537,7 +98537,7 @@
      "b": 1794.6,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 2"
     },
     "eyebrow": {
@@ -98660,7 +98660,7 @@
      "b": 1794.7,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 3"
     },
     "eyebrow": {
@@ -98783,7 +98783,7 @@
      "b": 2212.9,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 4"
     },
     "eyebrow": {
@@ -98906,7 +98906,7 @@
      "b": 2212.9,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 5"
     },
     "eyebrow": {
@@ -99698,7 +99698,7 @@
      "b": 1062.1,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "새싹 크리에이터의 작품"
     },
     "eyebrow": {
@@ -99821,7 +99821,7 @@
      "b": 1480.4,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "새싹 크리에이터의 두 번째 작품"
     },
     "eyebrow": {
@@ -99944,7 +99944,7 @@
      "b": 1480.4,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "일반 크리에이터의 작품"
     },
     "eyebrow": {
@@ -100067,7 +100067,7 @@
      "b": 1480.4,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "일반 크리에이터의 두 번째 작품"
     },
     "eyebrow": {
@@ -100190,7 +100190,7 @@
      "b": 1480.4,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 1"
     },
     "eyebrow": {
@@ -100313,7 +100313,7 @@
      "b": 1480.4,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 2"
     },
     "eyebrow": {
@@ -100436,7 +100436,7 @@
      "b": 1898.6,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 3"
     },
     "eyebrow": {
@@ -100559,7 +100559,7 @@
      "b": 1898.6,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 4"
     },
     "eyebrow": {
@@ -100682,7 +100682,7 @@
      "b": 1898.7,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 5"
     },
     "eyebrow": {
@@ -102041,7 +102041,7 @@
      "b": 779.1,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "새싹 크리에이터의 작품"
     },
     "eyebrow": {
@@ -102164,7 +102164,7 @@
      "b": 779.1,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "새싹 크리에이터의 두 번째 작품"
     },
     "eyebrow": {
@@ -102287,7 +102287,7 @@
      "b": 1164.4,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "일반 크리에이터의 작품"
     },
     "eyebrow": {
@@ -102410,7 +102410,7 @@
      "b": 1164.4,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "일반 크리에이터의 두 번째 작품"
     },
     "eyebrow": {
@@ -102533,7 +102533,7 @@
      "b": 1164.4,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 1"
     },
     "eyebrow": {
@@ -102656,7 +102656,7 @@
      "b": 1164.4,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 2"
     },
     "eyebrow": {
@@ -102779,7 +102779,7 @@
      "b": 1164.4,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 3"
     },
     "eyebrow": {
@@ -102902,7 +102902,7 @@
      "b": 1549.7,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 4"
     },
     "eyebrow": {
@@ -103025,7 +103025,7 @@
      "b": 1549.7,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 5"
     },
     "eyebrow": {
@@ -108558,7 +108558,7 @@
      "b": 1248.4,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "새싹 크리에이터의 작품"
     },
     "eyebrow": {
@@ -108681,7 +108681,7 @@
      "b": 1248.4,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "새싹 크리에이터의 두 번째 작품"
     },
     "eyebrow": {
@@ -108804,7 +108804,7 @@
      "b": 1248.4,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "일반 크리에이터의 작품"
     },
     "eyebrow": {
@@ -108927,7 +108927,7 @@
      "b": 1248.4,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "일반 크리에이터의 두 번째 작품"
     },
     "eyebrow": {
@@ -109050,7 +109050,7 @@
      "b": 1633.7,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 1"
     },
     "eyebrow": {
@@ -109173,7 +109173,7 @@
      "b": 1633.7,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 2"
     },
     "eyebrow": {
@@ -109296,7 +109296,7 @@
      "b": 1633.7,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 3"
     },
     "eyebrow": {
@@ -109419,7 +109419,7 @@
      "b": 1633.7,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 4"
     },
     "eyebrow": {
@@ -109542,7 +109542,7 @@
      "b": 1633.7,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 5"
     },
     "eyebrow": {
@@ -110864,7 +110864,7 @@
      "b": 758.4,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "달빛 도서관지기의 랭킹 4"
     },
     "eyebrow": {
@@ -111330,7 +111330,7 @@
      "b": 497.9,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "새싹 크리에이터의 작품"
     },
     "eyebrow": {
@@ -111453,7 +111453,7 @@
      "b": 497.9,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "일반 크리에이터의 작품"
     },
     "eyebrow": {
@@ -111576,7 +111576,7 @@
      "b": 497.9,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 1"
     },
     "eyebrow": {
@@ -111699,7 +111699,7 @@
      "b": 883.1,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 2"
     },
     "eyebrow": {
@@ -111822,7 +111822,7 @@
      "b": 883.1,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 3"
     },
     "eyebrow": {
@@ -111945,7 +111945,7 @@
      "b": 883.1,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 4"
     },
     "eyebrow": {
@@ -112068,7 +112068,7 @@
      "b": 883.1,
      "w": 112.6,
      "h": 41.5,
-     "clipped": true,
+     "clipped": false,
      "text": "프로 크리에이터의 작품 5"
     },
     "eyebrow": {
