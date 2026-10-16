@@ -8,10 +8,10 @@ import {
   nextManualGlobalBoundary,
   NOT_MANUAL_GLOBAL_PROTECTED_SQL,
   readManualGlobalBoundary,
-  resolveCanonicalCompactFrontier,
   writeManualGlobalBoundaryCore,
 } from "./memory-global-checkpoint";
 import type { ChatMemoryRow } from "./memory-types";
+import { countMemoryEligibleCompletedTurnsCore } from "./memory-turn-loader";
 import { rebuildLorebookFromRecords } from "./memory-turn-summary";
 import { calcUsedChars } from "./memory-used-chars";
 
@@ -123,7 +123,7 @@ export function refreshGlobalMemoryMirrorFromRecords(chatId: number): void {
       chatId,
       nextManualGlobalBoundary({
         current: readManualGlobalBoundary(row),
-        frontier: resolveCanonicalCompactFrontier(chatId),
+        completedTurns: countMemoryEligibleCompletedTurnsCore(db, chatId),
       })
     );
     return;

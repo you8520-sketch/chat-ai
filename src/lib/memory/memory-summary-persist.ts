@@ -46,6 +46,7 @@ import {
   isMemoryWriteGuardCurrentCore,
   type MemorySourceBoundary,
 } from "./memory-source-boundary";
+import { countMemoryEligibleCompletedTurnsCore } from "./memory-turn-loader";
 
 export type PersistSummaryBatchResult =
   | { ok: true; reason: "SUMMARY_SUCCESS"; record: MemoryRecordView; summarizedTurnCount: number }
@@ -316,7 +317,7 @@ export function persistValidatedSummaryBatch(opts: {
           opts.chatId,
           nextManualGlobalBoundary({
             current: readManualGlobalBoundary(current),
-            frontier: resolveInjectibleFrontier(after),
+            completedTurns: countMemoryEligibleCompletedTurnsCore(db, opts.chatId),
             adoptFrontier: resolveInjectibleFrontier(before),
           })
         );
@@ -425,7 +426,7 @@ export function reconcileSummarizedTurnCountFromTable(opts: {
       opts.chatId,
       nextManualGlobalBoundary({
         current: readManualGlobalBoundary(current),
-        frontier: resolveInjectibleFrontier(records),
+        completedTurns: countMemoryEligibleCompletedTurnsCore(db, opts.chatId),
       })
     );
     return contiguous;

@@ -2,6 +2,7 @@ import type { GlobalProjectionKind } from "./memory-global-projection";
 import { RAW_HISTORY_COMPLETE_EXCHANGES, ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
 import {
   listPromptInjectibleMemoryRecords,
+  resolveManualGlobalMediumDelivery,
   resolvePromptInjectibleMemoryRecordBody,
   type MemoryRecordView,
 } from "./memory-turn-summary";
@@ -15,6 +16,14 @@ export const MEDIUM_TERM_BLOCK_COUNT = 15;
 export type MediumTermTurnRange = {
   turnStart: number;
   turnEnd: number;
+  /** Set only when a manual Global covers the record's first turns — Medium delivers just the part after. */
+  deliveredFromTurn?: number;
+};
+
+type MediumTermBlockSource = {
+  record: MemoryRecordView;
+  deliveredFromTurn: number;
+  body: string;
 };
 
 export type MediumTermMemoryAssembly = {
@@ -64,9 +73,22 @@ export function rawOwnedTurnStart(
   return Math.max(1, currentTurn - rawExchanges + 1);
 }
 
-function formatMediumTermBlock(record: MemoryRecordView): string {
-  const body = resolvePromptInjectibleMemoryRecordBody(record);
-  return `[최근 기억 · T${record.turnStart}–${record.turnEnd}]\n${body}`;
+function formatMediumTermBlock({ record, deliveredFromTurn, body }: MediumTermBlockSource): string {
+  return `[최근 기억 · T${deliveredFromTurn}–${record.turnEnd}]\n${body}`;
+}
+
+function resolveMediumTermBlockSources(
+  records: readonly MemoryRecordView[],
+  manualBoundaryTurn: number | null
+): MediumTermBlockSource[] {
+  return records.flatMap((record): MediumTermBlockSource[] => {
+    if (manualBoundaryTurn == null) {
+      const body = resolvePromptInjectibleMemoryRecordBody(record);
+      return [{ record, deliveredFromTurn: record.turnStart, body }];
+    }
+    const delivery = resolveManualGlobalMediumDelivery(record, manualBoundaryTurn);
+    return delivery ? [{ record, ...delivery }] : [];
+  });
 }
 
 /**
@@ -78,14 +100,16 @@ export function buildMediumTermMemoryBlock(opts: {
   blockCount: number;
   excludeTurnStartGte?: number;
   excludeAssistantMessageId?: number | null;
-  /** Only records that start after this turn — the part of history a manual Global does not cover. */
-  turnStartAfter?: number | null;
+  /** Last completed turn a manual Global covers — Medium delivers only what comes after it. */
+  manualBoundaryTurn?: number | null;
 }): MediumTermMemoryAssembly {
-  const turnStartAfter = opts.turnStartAfter;
-  const eligible = listPromptInjectibleMemoryRecords(opts.chatId, {
-    excludeTurnStartGte: opts.excludeTurnStartGte,
-    excludeAssistantMessageId: opts.excludeAssistantMessageId,
-  }).filter((record) => turnStartAfter == null || record.turnStart > turnStartAfter);
+  const eligible = resolveMediumTermBlockSources(
+    listPromptInjectibleMemoryRecords(opts.chatId, {
+      excludeTurnStartGte: opts.excludeTurnStartGte,
+      excludeAssistantMessageId: opts.excludeAssistantMessageId,
+    }),
+    opts.manualBoundaryTurn ?? null
+  );
   if (eligible.length === 0 || opts.blockCount <= 0) {
     return EMPTY_MEDIUM_TERM;
   }
@@ -96,9 +120,10 @@ export function buildMediumTermMemoryBlock(opts: {
     text,
     blockCount: ring.length,
     chars: text.length,
-    turnRanges: ring.map((record) => ({
+    turnRanges: ring.map(({ record, deliveredFromTurn }) => ({
       turnStart: record.turnStart,
       turnEnd: record.turnEnd,
+      ...(deliveredFromTurn > record.turnStart ? { deliveredFromTurn } : {}),
     })),
   };
 }
@@ -120,7 +145,7 @@ export function buildMediumTermMemoryBlockForProjection(opts: {
     blockCount: opts.blockCount,
     excludeTurnStartGte: opts.excludeTurnStartGte,
     excludeAssistantMessageId: opts.excludeAssistantMessageId,
-    turnStartAfter: opts.projectionKind === "manual_global" ? opts.manualBoundaryTurn : null,
+    manualBoundaryTurn: opts.projectionKind === "manual_global" ? opts.manualBoundaryTurn : null,
   });
 }
 

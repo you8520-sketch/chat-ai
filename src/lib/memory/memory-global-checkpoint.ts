@@ -92,8 +92,9 @@ export function isManualGlobalActive(
 }
 
 /**
- * Sealed-history turn the user's manual Global already covers (records with turnEnd <= it
- * existed when the user saved). `null` = legacy row saved before the boundary was recorded.
+ * Last completed playable turn the user's manual Global covered when it was saved. A 5-turn record
+ * is fully covered when `turnEnd <= it`, fully new when `turnStart > it`, and straddles it otherwise.
+ * `null` = legacy row saved before the boundary was recorded.
  */
 export function readManualGlobalBoundary(
   row: Pick<ChatMemoryRow, "global_projection_kind" | "global_covered_through_turn">
@@ -103,7 +104,7 @@ export function readManualGlobalBoundary(
   return covered != null && Number.isFinite(covered) && covered >= 0 ? Math.floor(covered) : null;
 }
 
-/** Highest turnEnd among prompt-injectible records — the frontier a manual save covers. */
+/** Highest turnEnd among prompt-injectible records — the sealed frontier a legacy manual row adopts. */
 export function resolveInjectibleFrontier(records: readonly MemoryRecordView[]): number {
   return records
     .filter(isPromptInjectibleMemoryRecord)
@@ -112,18 +113,19 @@ export function resolveInjectibleFrontier(records: readonly MemoryRecordView[]):
 
 /**
  * Boundary a sealing/reconciling writer keeps on a manual Global.
- * - recorded boundary: only ever lowered when trailing records disappeared (rollback),
- *   so records re-sealed afterwards count as new automatic memory.
+ * - recorded boundary: an exact completed-turn number, independent of which batches are sealed, so a
+ *   seal, count repair or record edit can never pull it back to an older sealed turn. It only drops
+ *   when turns it covers no longer exist (last-turn deletion); anything replayed afterwards is new.
  * - legacy `null`: adopted only by a seal (write path) as the frontier before that seal;
  *   reads and count repairs never invent one.
  */
 export function nextManualGlobalBoundary(opts: {
   current: number | null;
-  frontier: number;
+  completedTurns: number;
   adoptFrontier?: number;
 }): number | null {
   if (opts.current == null) return opts.adoptFrontier ?? null;
-  return Math.min(opts.current, opts.frontier);
+  return Math.min(opts.current, Math.max(0, Math.floor(opts.completedTurns)));
 }
 
 export function writeManualGlobalBoundaryCore(
@@ -367,7 +369,7 @@ export function commitManualGlobalCheckpointCore(
     chatId: number;
     manualText: string;
     archiveSummary: string;
-    /** Sealed-history frontier the saved text covers; later auto records are injected after it. */
+    /** Last completed playable turn at save time; only later turns reach the AI as automatic memory. */
     coveredThroughTurn: number;
   }
 ): void {

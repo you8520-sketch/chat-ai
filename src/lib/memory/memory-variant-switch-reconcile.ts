@@ -36,7 +36,6 @@ import {
   isManualGlobalActive,
   nextManualGlobalBoundary,
   readManualGlobalBoundary,
-  resolveInjectibleFrontier,
   writeManualGlobalBoundaryCore,
 } from "./memory-global-checkpoint";
 import type { ChatMemoryRow, MemoryTier } from "./memory-types";
@@ -325,7 +324,7 @@ export function reconcileMemoryAfterVariantSwitchCore(
       opts.chatId,
       nextManualGlobalBoundary({
         current: readManualGlobalBoundary(mem),
-        frontier: resolveInjectibleFrontier(activeAfter),
+        completedTurns: playableTurnCount,
       })
     );
   } else {

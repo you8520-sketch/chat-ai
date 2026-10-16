@@ -47,6 +47,16 @@ export type BranchControlMutation = {
   previous: BranchControlMutationPrevious;
 };
 
+/**
+ * Injection-only slice of a 5-turn record that straddles the boundary of a user-saved Global memory.
+ * `fromTurn` is the first source turn after the user's save; `scopes` are built from those turns only, with the
+ * same scope keys as the record. The record's own `summary` / `scopes` keep the full batch (Global rebuild after release).
+ */
+export type PostManualEditView = {
+  fromTurn: number;
+  scopes: Partial<Record<MemorySummaryScope, string>>;
+};
+
 export type ScopePayloadV1 = {
   v: 1;
   scopes: Partial<Record<MemorySummaryScope, string>>;
@@ -58,6 +68,8 @@ export type ScopePayloadV1 = {
   /** Newest mutation last — pop from end on rollback. */
   branchControlMutations?: BranchControlMutation[];
   inactive?: boolean;
+  /** Present only on a record sealed while a manual Global boundary fell inside its turn span. */
+  postManualEdit?: PostManualEditView;
 };
 
 export type TurnScopeClass =
@@ -151,6 +163,41 @@ export function resolveSummaryRowScopes(
 
 export function encodeScopePayload(payload: ScopePayloadV1): string {
   return JSON.stringify(payload);
+}
+
+/** Validated post-manual-edit slice, or null when absent/malformed (readers treat null as "unknown"). */
+export function readPostManualEdit(
+  payload: ScopePayloadV1 | null | undefined
+): PostManualEditView | null {
+  const raw = payload?.postManualEdit;
+  if (!raw || !Number.isInteger(raw.fromTurn) || raw.fromTurn < 1) return null;
+  if (!raw.scopes || typeof raw.scopes !== "object") return null;
+  return { fromTurn: raw.fromTurn, scopes: raw.scopes };
+}
+
+/** Branch lifecycle: "keep as branch" moves the slice's noncanon text the same way it moves the record's. */
+export function promotePostManualEditToBranch(
+  post: PostManualEditView | undefined
+): PostManualEditView | undefined {
+  if (!post?.scopes.noncanon?.trim()) return post;
+  const { noncanon, ...rest } = post.scopes;
+  return { ...post, scopes: { ...rest, branch_canon: noncanon } };
+}
+
+/**
+ * Branch lifecycle: adopting a branch into the main timeline resolves the slice exactly like the record's own
+ * scopes (existing main_canon wins, otherwise the branch text becomes main_canon; branch/noncanon are dropped).
+ */
+export function adoptPostManualEditToMain(
+  post: PostManualEditView | undefined
+): PostManualEditView | undefined {
+  if (!post) return post;
+  const adopted = post.scopes.branch_canon?.trim() || post.scopes.noncanon?.trim() || "";
+  const { branch_canon: _branch, noncanon: _non, ...rest } = post.scopes;
+  return {
+    ...post,
+    scopes: !rest.main_canon?.trim() && adopted ? { ...rest, main_canon: adopted } : rest,
+  };
 }
 
 export function scopesInjectedIntoPrompt(scope: MemorySummaryScope): boolean {

@@ -44,7 +44,11 @@ import {
   stripOocFromMemorySummary,
 } from "./memory-ooc-filter";
 import { getChatMemoryRow, getOrCreateChatMemory, updateChatMemory } from "./memory-db";
-import { readGlobalCheckpointSnapshot } from "./memory-global-checkpoint";
+import {
+  isManualGlobalActive,
+  readGlobalCheckpointSnapshot,
+  readManualGlobalBoundary,
+} from "./memory-global-checkpoint";
 import { executeGlobalLorebookCompaction } from "./memory-global-compaction-execution";
 import type { ChatMemoryRow, MemoryTier } from "./memory-types";
 import {
@@ -67,6 +71,7 @@ import {
   shouldPromoteBranchContinue,
   type BranchStatus,
   type MemorySummaryScope,
+  type PostManualEditView,
   type ScopePayloadV1,
 } from "./memory-summary-scope";
 
@@ -551,6 +556,13 @@ type ComposedBatchScope =
       reasonTag: string;
       mainModelCalls: number;
       /**
+       * Only for a batch that straddles the user's manual Global boundary: the same scopes rebuilt
+       * from the turns after it, so Medium never re-injects what the manual text already covers.
+       */
+      postManualEdit: PostManualEditView | null;
+      /** 0 or 1 — the single extra summarizer call a straddling batch pays. */
+      postManualEditModelCalls: number;
+      /**
        * Sole-closed reopen branch id (compose-only signal for scope attach).
        * Actual DB reopen is applied via pendingBranchControlOps inside persist txn.
        */
@@ -562,6 +574,60 @@ type ComposedBatchScope =
       pendingBranchControlOps: PendingBranchControlOp[];
     }
   | { ok: false; reason: string; detail?: string | null };
+
+type MainEntriesNarrative =
+  | { ok: true; narrative: string }
+  | { ok: false; reason: "SUMMARY_TIMEOUT" | "SUMMARY_EMPTY"; detail: string | null };
+
+/** The one main-RP summarizer call path — the full batch and a post-edit slice both go through it. */
+async function summarizeMainEntriesNarrative(opts: {
+  chatId: number;
+  batchStart: number;
+  endTurn: number;
+  entries: Array<{ turnIndex: number; turn: DialogueTurn }>;
+  charName: string;
+  characterIdentity?: string | null;
+  userPersona?: string | null;
+  openingPrelude?: string | null;
+  turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
+}): Promise<MainEntriesNarrative> {
+  const { entries } = opts;
+  let narrative = "";
+  try {
+    narrative = await summarizeTurnBatch({
+      dialogue: formatBatchDialogue(entries, opts.charName),
+      charName: opts.charName,
+      characterIdentity: opts.characterIdentity,
+      startTurn: entries[0]!.turnIndex,
+      endTurn: entries[entries.length - 1]!.turnIndex,
+      sourceTurnIndexes: entries.map((entry) => entry.turnIndex),
+      userPersona: opts.userPersona,
+      openingPrelude: opts.openingPrelude,
+      turnTrace: opts.turnTrace,
+    });
+  } catch (e) {
+    const msg = (e as Error).message ?? "";
+    const reason = /timeout|aborted|ETIMEDOUT/i.test(msg) ? "SUMMARY_TIMEOUT" : "SUMMARY_EMPTY";
+    console.error(`[memory] ${reason} chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn}`, msg);
+    return { ok: false, reason, detail: msg.slice(0, 300) };
+  }
+
+  if (!narrative.trim()) {
+    console.error(
+      `[memory] SUMMARY_EMPTY chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn} — batch pending retry`,
+      { summarizeError: lastSummarizeTurnBatchError }
+    );
+    return { ok: false, reason: "SUMMARY_EMPTY", detail: lastSummarizeTurnBatchError };
+  }
+  narrative = stripOocFromMemorySummary(narrative);
+  if (!narrative.trim()) {
+    console.error(
+      `[memory] SUMMARY_EMPTY after OOC strip chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn}`
+    );
+    return { ok: false, reason: "SUMMARY_EMPTY", detail: "OOC_STRIP" };
+  }
+  return { ok: true, narrative };
+}
 
 /**
  * Rebuild every scope for a stored summary batch from current surviving messages.
@@ -688,6 +754,17 @@ export async function composeBatchScopePayload(opts: {
   );
 
   const scopes: ScopePayloadV1["scopes"] = {};
+  const memoryRow = getChatMemoryRow(opts.chatId);
+  const manualBoundary =
+    memoryRow && isManualGlobalActive(memoryRow) ? readManualGlobalBoundary(memoryRow) : null;
+  const postEditFromTurn =
+    manualBoundary != null && opts.batchStart <= manualBoundary && manualBoundary < opts.endTurn
+      ? manualBoundary + 1
+      : null;
+  const isPostEditTurn = ({ turnIndex }: { turnIndex: number }): boolean =>
+    postEditFromTurn != null && turnIndex >= postEditFromTurn;
+  const postScopes: ScopePayloadV1["scopes"] = {};
+  let postManualEditModelCalls = 0;
   let summaryKind: MemorySummaryScope = plan.primaryKind;
   let reasonTag = "SUMMARY_SUCCESS";
   let branchId: string | null = null;
@@ -775,6 +852,10 @@ export async function composeBatchScopePayload(opts: {
 
   if (plan.preferenceTurns.length > 0) {
     scopes.preference = buildPreferenceSummaryFromTurns(plan.preferenceTurns);
+    const postPreferenceTurns = plan.preferenceTurns.filter(isPostEditTurn);
+    if (postPreferenceTurns.length > 0) {
+      postScopes.preference = buildPreferenceSummaryFromTurns(postPreferenceTurns);
+    }
   }
 
   const branchOrNoncanonTurns =
@@ -796,7 +877,9 @@ export async function composeBatchScopePayload(opts: {
       !plan.wantsMainAdopt &&
       !adoptLocked;
 
+    let nonScopeKey: "branch_canon" | "noncanon" | "main_canon";
     if ((userWantsBranch || preserveBranchScope) && !adoptLocked) {
+      nonScopeKey = "branch_canon";
       scopes.branch_canon = nonText;
       // Mixed sole-closed: keep primaryKind main_canon when main exists; else branch_canon.
       if (!(pendingSoleClosedReopenId && mainEntries.length > 0)) {
@@ -857,11 +940,17 @@ export async function composeBatchScopePayload(opts: {
         }
       }
     } else if (!adoptLocked) {
+      nonScopeKey = "noncanon";
       scopes.noncanon = nonText;
       if (summaryKind === "empty_ooc") summaryKind = "noncanon";
     } else {
       // Adopted main timeline: keep IF beats inside main_canon, never re-open noncanon.
+      nonScopeKey = "main_canon";
       scopes.main_canon = [scopes.main_canon, nonText].filter(Boolean).join("\n");
+    }
+    const postNonTurns = branchOrNoncanonTurns.filter(isPostEditTurn);
+    if (postNonTurns.length > 0) {
+      postScopes[nonScopeKey] = buildNoncanonSummaryFromTurns(postNonTurns);
     }
   }
 
@@ -883,53 +972,42 @@ export async function composeBatchScopePayload(opts: {
   ) {
     // Active-branch continue (non-sole-closed): do not overwrite with main_canon.
     delete scopes.main_canon;
+    delete postScopes.main_canon;
   } else if (mainEntries.length > 0) {
-    const dialogue = formatBatchDialogue(mainEntries, opts.charName);
-    const summaryStartTurn = mainEntries[0]!.turnIndex;
-    const summaryEndTurn = mainEntries[mainEntries.length - 1]!.turnIndex;
-    let narrative = "";
-    try {
-      mainModelCalls = 1;
-      narrative = await summarizeTurnBatch({
-        dialogue,
-        charName: opts.charName,
-        characterIdentity: opts.characterIdentity,
-        startTurn: summaryStartTurn,
-        endTurn: summaryEndTurn,
-        sourceTurnIndexes: mainEntries.map((entry) => entry.turnIndex),
-        userPersona: opts.userPersona,
-        openingPrelude: opts.openingPrelude,
-        turnTrace: opts.turnTrace,
-      });
-    } catch (e) {
-      const msg = (e as Error).message ?? "";
-      const reason = /timeout|aborted|ETIMEDOUT/i.test(msg)
-        ? "SUMMARY_TIMEOUT"
-        : "SUMMARY_EMPTY";
-      console.error(
-        `[memory] ${reason} chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn}`,
-        msg
-      );
-      return { ok: false, reason, detail: msg.slice(0, 300) };
-    }
+    mainModelCalls = 1;
+    const full = await summarizeMainEntriesNarrative({
+      chatId: opts.chatId,
+      batchStart: opts.batchStart,
+      endTurn: opts.endTurn,
+      entries: mainEntries,
+      charName: opts.charName,
+      characterIdentity: opts.characterIdentity,
+      userPersona: opts.userPersona,
+      openingPrelude: opts.openingPrelude,
+      turnTrace: opts.turnTrace,
+    });
+    if (!full.ok) return { ok: false, reason: full.reason, detail: full.detail };
+    const narrative = full.narrative;
 
-    if (!narrative.trim()) {
-      console.error(
-        `[memory] SUMMARY_EMPTY chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn} — batch pending retry`,
-        { summarizeError: lastSummarizeTurnBatchError }
-      );
-      return {
-        ok: false,
-        reason: "SUMMARY_EMPTY",
-        detail: lastSummarizeTurnBatchError,
-      };
-    }
-    narrative = stripOocFromMemorySummary(narrative);
-    if (!narrative.trim()) {
-      console.error(
-        `[memory] SUMMARY_EMPTY after OOC strip chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn}`
-      );
-      return { ok: false, reason: "SUMMARY_EMPTY", detail: "OOC_STRIP" };
+    const postMainEntries = mainEntries.filter(isPostEditTurn);
+    if (postMainEntries.length > 0) {
+      let postNarrative = narrative;
+      if (postMainEntries.length < mainEntries.length) {
+        postManualEditModelCalls = 1;
+        const post = await summarizeMainEntriesNarrative({
+          chatId: opts.chatId,
+          batchStart: opts.batchStart,
+          endTurn: opts.endTurn,
+          entries: postMainEntries,
+          charName: opts.charName,
+          characterIdentity: opts.characterIdentity,
+          userPersona: opts.userPersona,
+          turnTrace: opts.turnTrace,
+        });
+        if (!post.ok) return { ok: false, reason: post.reason, detail: post.detail };
+        postNarrative = post.narrative;
+      }
+      postScopes.main_canon = [postScopes.main_canon, postNarrative].filter(Boolean).join("\n");
     }
     scopes.main_canon = [scopes.main_canon, narrative].filter(Boolean).join("\n");
     if (opts.mode === "regen" && existing?.summaryKind === "branch_canon") {
@@ -938,6 +1016,10 @@ export async function composeBatchScopePayload(opts: {
         scopes.branch_canon ??
         existing.scopes.branch_canon ??
         existing.summary;
+      if (postEditFromTurn != null && !postScopes.branch_canon) {
+        const keptBranch = existing.postManualEdit?.scopes.branch_canon;
+        if (keptBranch) postScopes.branch_canon = keptBranch;
+      }
       branchId = existing.branchId ?? branchId;
       branchStatus = existing.branchStatus ?? branchStatus;
       promotedBy = existing.promotedBy ?? promotedBy;
@@ -954,6 +1036,12 @@ export async function composeBatchScopePayload(opts: {
     scopes.main_canon = [scopes.main_canon, adopted].filter(Boolean).join("\n");
     delete scopes.branch_canon;
     delete scopes.noncanon;
+    const postAdopted = postScopes.branch_canon || postScopes.noncanon;
+    if (postAdopted) {
+      postScopes.main_canon = [postScopes.main_canon, postAdopted].filter(Boolean).join("\n");
+    }
+    delete postScopes.branch_canon;
+    delete postScopes.noncanon;
     summaryKind = "main_canon";
     branchStatus = "closed";
     promotedBy = "user_main_adopt";
@@ -1001,6 +1089,11 @@ export async function composeBatchScopePayload(opts: {
     displaySummary: validated.text,
     reasonTag,
     mainModelCalls,
+    postManualEdit:
+      postEditFromTurn != null && Object.values(postScopes).some((text) => text?.trim())
+        ? { fromTurn: postEditFromTurn, scopes: postScopes }
+        : null,
+    postManualEditModelCalls,
     pendingSoleClosedReopenId,
     pendingBranchControlOps,
   };
@@ -1037,6 +1130,7 @@ async function persistComposedBatchScopes(opts: {
     branchStatus: opts.composed.branchStatus,
     promotedBy: opts.composed.promotedBy,
     promotedAt: opts.composed.promotedAt,
+    ...(opts.composed.postManualEdit ? { postManualEdit: opts.composed.postManualEdit } : {}),
   };
 
   const memoryBeforePersist = getChatMemoryRow(opts.chatId);
@@ -1112,7 +1206,7 @@ async function persistComposedBatchScopes(opts: {
   const currentMemory = getChatMemoryRow(opts.chatId)?.recent_summary ?? rebuildLorebookFromRecords(opts.chatId);
 
   console.info(
-    `[memory] ${opts.logLabel} chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn} (${opts.composed.displaySummary.length}ch → lorebook ${currentMemory.length}/${lorebookBudget}ch compact=${compactResult.mode} reason=${opts.composed.reasonTag} mainCalls=${opts.composed.mainModelCalls}`
+    `[memory] ${opts.logLabel} chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn} (${opts.composed.displaySummary.length}ch → lorebook ${currentMemory.length}/${lorebookBudget}ch compact=${compactResult.mode} reason=${opts.composed.reasonTag} mainCalls=${opts.composed.mainModelCalls} postManualEditCalls=${opts.composed.postManualEditModelCalls}`
   );
 
   return true;

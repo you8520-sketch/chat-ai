@@ -52,6 +52,7 @@ function cleanup(): void {
   const db = getDb();
   db.prepare("DELETE FROM chat_turn_summaries WHERE chat_id=?").run(CHAT);
   db.prepare("DELETE FROM chat_memories WHERE chat_id=?").run(CHAT);
+  db.prepare("DELETE FROM messages WHERE chat_id=?").run(CHAT);
   db.prepare("DELETE FROM chats WHERE id=?").run(CHAT);
 }
 
@@ -77,6 +78,20 @@ function padBody(marker: string, chars = ROLLING_SUMMARY_TARGET_CHARS): string {
   let body = `${marker} → event → consequence`;
   while (body.length < chars) body += ` → ${marker}_PAD`;
   return body.slice(0, chars);
+}
+
+function insertCompletedTurnsThrough(lastTurn: number): void {
+  const db = getDb();
+  for (let t = 1; t <= lastTurn; t++) {
+    const userMsgId = db
+      .prepare(
+        `INSERT INTO messages (chat_id, role, content, model, generation_status) VALUES (?,?,?,'user','submitted')`
+      )
+      .run(CHAT, "user", `본편 턴 ${t}`).lastInsertRowid as number;
+    db.prepare(
+      `INSERT INTO messages (chat_id, role, content, model, generation_status, user_message_id) VALUES (?,?,?,?,'completed',?)`
+    ).run(CHAT, "assistant", `응답 ${t} 대사`, "test", userMsgId);
+  }
 }
 
 function insertBlocksThrough(endTurn: number): void {
@@ -235,6 +250,7 @@ describe("PREFIX FINGERPRINT", () => {
 
 describe("MANUAL GLOBAL", () => {
   it("manual edit clears checkpoint and blocks incremental", async () => {
+    insertCompletedTurnsThrough(300);
     insertBlocksThrough(300);
     __setCompactCurrentMemoryTestOverride(async (input, max) => `COMPACT_${input.length}`.slice(0, max));
     await runCompact();
@@ -242,7 +258,7 @@ describe("MANUAL GLOBAL", () => {
     const cp = readCheckpoint();
     assert.equal(cp.projectionKind, "manual_global");
     assert.equal(cp.sourceFingerprint, null);
-    assert.equal(cp.coveredThroughTurn, 300, "manual save records the sealed frontier it covers");
+    assert.equal(cp.coveredThroughTurn, 300, "manual save records the last completed turn it covers");
     insertBlocksThrough(305);
     const result = await executeGlobalLorebookCompaction({
       chatId: CHAT,
@@ -262,6 +278,7 @@ describe("MANUAL GLOBAL", () => {
 
 describe("MANUAL GLOBAL — count repair and record mutations", () => {
   it("count repair keeps the user's manual global text and boundary", async () => {
+    insertCompletedTurnsThrough(300);
     insertBlocksThrough(300);
     await updateLorebookForChat(CHAT, USER, CHAR, "USER_MANUAL_GLOBAL_TEXT", "free", MEMORY_CAPACITY_FIXED);
     reconcileSummarizedTurnCountFromTable({
@@ -279,6 +296,7 @@ describe("MANUAL GLOBAL — count repair and record mutations", () => {
   });
 
   it("record mutations keep the manual global; only the user release hands it back to the rebuild owner", async () => {
+    insertCompletedTurnsThrough(300);
     insertBlocksThrough(300);
     await updateLorebookForChat(CHAT, USER, CHAR, "USER_MANUAL_GLOBAL_TEXT", "free", MEMORY_CAPACITY_FIXED);
     reconcileSummarizedTurnCountFromTable({
