@@ -65,8 +65,10 @@ import {
   filterExplorationFlagsAdd,
   filterExplorationFlagsRemove,
   formatExplorationBotBrief,
+  legalExplorationCommands,
   visibleExplorationNeighbors,
 } from "./explorationMap";
+import { omitLiveMovementClauses } from "./movementDeclaration";
 import {
   explorationPromptForRound,
   ensureExplorationMap,
@@ -1258,8 +1260,45 @@ async function generateBotActions(
         })();
       } catch (error) {
         if (!explorationMoveWasRejected(error)) throw error;
-        spoken = `${bot.display_name}은 제자리에 서서 상황을 살핀다.`;
-        upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
+        const remainder = omitLiveMovementClauses(body);
+        const priced = latestMap
+          ? legalExplorationCommands({
+              state: latestMap,
+              fromRoomId: self?.location ?? "",
+              commands: declared,
+              apRemaining: displayExplorationAp(latestMap, bot.id, roundNumber),
+            })
+          : [];
+        if (priced.length > 0) {
+          try {
+            spoken = db.transaction(() => {
+              const prepared = prepareLockedExploration(db, {
+                campaignId: opts.campaign.id,
+                roundId: opts.roundId,
+                participantId: bot.id,
+                commands: priced,
+                freeText: remainder,
+              });
+              if (Array.from(prepared.body).length > TRPG_ACTION_MAX_CHARS) throw new Error("행동이 너무 깁니다.");
+              upsertLockedAction(db, opts.roundId, bot.id, prepared.body, prepared.actionType, null, "bot_model");
+              saveExplorationState(db, opts.campaign.id, prepared.state);
+              return prepared.body;
+            })();
+          } catch (retryError) {
+            if (!explorationMoveWasRejected(retryError)) throw retryError;
+            spoken = `${bot.display_name}은 제자리에 서서 상황을 살핀다.`;
+            upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
+          }
+        } else if (
+          remainder &&
+          (!latestMap || explorationCommandsFromMovementBody(latestMap.map, remainder).length === 0)
+        ) {
+          spoken = remainder;
+          upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model");
+        } else {
+          spoken = `${bot.display_name}은 제자리에 서서 상황을 살핀다.`;
+          upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
+        }
       }
     } else {
       upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model");

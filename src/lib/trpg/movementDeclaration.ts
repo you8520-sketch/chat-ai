@@ -214,6 +214,14 @@ export function declaredMovementGoals(body: string): string[] {
   return parseMovementDeclaration(body).goals;
 }
 
+/** Drops clauses that priced a live destination. Remaining prose is not a granted move. */
+export function omitLiveMovementClauses(body: string): string {
+  return splitClauses(body)
+    .filter((clause) => parseMovementDeclaration(clause).goals.length === 0)
+    .join(" ")
+    .trim();
+}
+
 /** Splits a goal phrase (or an open-route label) into the place the player named and its boundary side. */
 export function describeMovementGoal(phrase: string): MovementGoal {
   const words = phrase.split(/\s+/).map(trimPunctuation).filter(Boolean);

@@ -1,0 +1,29 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import {
+  declaredMovementGoals,
+  describeMovementGoal,
+  omitLiveMovementClauses,
+  parseMovementDeclaration,
+} from "./movementDeclaration";
+
+describe("movement declaration — bot stay fallback", () => {
+  it("reads a live exit dash and does not read an aimed shot as travel", () => {
+    assert.deepEqual(declaredMovementGoals("출구를 향해 전력 질주한다."), ["출구"]);
+    assert.equal(
+      describeMovementGoal(declaredMovementGoals("중앙홀 너머 빗장이 풀린 출구를 향해 전력 질주한다.")[0] ?? "").place,
+      "출구"
+    );
+    assert.deepEqual(declaredMovementGoals("출구를 향해 화살을 쏜다."), []);
+    assert.equal(parseMovementDeclaration("출구를 향해 화살을 쏜다.").live, false);
+  });
+
+  it("drops only clauses that priced a destination and keeps cover prose", () => {
+    assert.equal(
+      omitLiveMovementClauses("출구로 이동한다. 권태현의 옆에서 방어선을 유지한다."),
+      "권태현의 옆에서 방어선을 유지한다"
+    );
+    assert.equal(omitLiveMovementClauses("출구를 향해 전력 질주한다."), "");
+    assert.equal(omitLiveMovementClauses("자리를 지키며 동료를 엄호한다."), "자리를 지키며 동료를 엄호한다");
+  });
+});
