@@ -151,9 +151,11 @@ export type LengthInstructionOpts = {
  * Soft target is Korean visible text >= 3,200. There is no upper cap:
  * scene need and an explicit user request (including OOC) may run longer.
  * Not an exact-3200 target, not a 3200–3500 band, and not a production hard-fail.
+ * How a quiet or long scene is written lives in [COMMON PROSE]; this sentence
+ * must not restate sensory/psychology fill methods.
  */
 export const USER_TAIL_LENGTH_OWNER_SENTENCE =
-  "이번 응답은 한국어 3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다. 장면과 사용자 요청에 필요한 만큼 자연스럽게 더 길게 이어간다. 현재 상호작용을 요약하거나 성급히 닫지 말고, [AI_CAST]/NPC/환경의 관찰·심리·판단·행동·대화·감각 변화를 먼저 깊게 전개한다. [B]의 새 직접 대사·중요 선택·중대 행동을 분량 채우기용으로 만들지 않는다.";
+  "이번 응답은 한국어 3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다. 장면과 사용자 요청에 필요한 만큼 자연스럽게 더 길게 이어간다. 현재 상호작용을 요약하거나 성급히 닫지 않는다. [B]의 새 직접 대사·중요 선택·중대 행동을 분량 채우기용으로 만들지 않는다.";
 
 /** @deprecated System length owner removed; all Main RP numeric length is owned by the user-tail sentence. */
 export const BOUNDED_LENGTH_OWNER_SENTENCE = "";
