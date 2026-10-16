@@ -1319,6 +1319,8 @@ async function generateBotActions(
           rooms: latestMap?.map.rooms.map((room) => room.id) ?? [],
           party: sheets.map((sheet) => ({ name: sheet.name, location: sheet.location })),
         });
+        const usableRemainder =
+          remainder && Array.from(remainder).length <= TRPG_ACTION_MAX_CHARS ? remainder : "";
         if (priced.length > 0) {
           try {
             spoken = db.transaction(() => {
@@ -1327,9 +1329,11 @@ async function generateBotActions(
                 roundId: opts.roundId,
                 participantId: bot.id,
                 commands: priced,
-                freeText: remainder,
+                freeText: usableRemainder,
               });
-              assertTrpgActionMaxChars(prepared.body);
+              if (Array.from(prepared.body).length > TRPG_ACTION_MAX_CHARS) {
+                throw new Error("행동이 너무 깁니다.");
+              }
               upsertLockedAction(db, opts.roundId, bot.id, prepared.body, prepared.actionType, null, "bot_model");
               saveExplorationState(db, opts.campaign.id, prepared.state);
               return prepared.body;
@@ -1340,11 +1344,10 @@ async function generateBotActions(
             upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
           }
         } else if (
-          remainder &&
-          (!latestMap || explorationCommandsFromMovementBody(latestMap.map, remainder).length === 0)
+          usableRemainder &&
+          (!latestMap || explorationCommandsFromMovementBody(latestMap.map, usableRemainder).length === 0)
         ) {
-          assertTrpgActionMaxChars(remainder);
-          spoken = remainder;
+          spoken = usableRemainder;
           upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model");
         } else {
           spoken = stayWatchingInPlace(bot.display_name);

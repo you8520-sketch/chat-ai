@@ -53,6 +53,15 @@ function neighbors(state: ExplorationState, roomId: string): string[] {
   return visibleExplorationNeighbors(state, roomId);
 }
 
+function latestRound(db: Database.Database, campaignId: number): {
+  phase: string;
+  error_json: string | null;
+} {
+  return db
+    .prepare(`SELECT phase, error_json FROM trpg_rounds WHERE campaign_id=? ORDER BY id DESC LIMIT 1`)
+    .get(campaignId) as { phase: string; error_json: string | null };
+}
+
 async function startWithBot(
   db: Database.Database,
   botLine: () => string
@@ -129,13 +138,28 @@ describe("bot exploration stay fallback", () => {
 
   it("keeps independent cover prose when an illegal move is rejected", async () => {
     const db = memoryDb();
-    let botLine = "출구로 이동한다. 자리를 지키며 동료를 엄호한다.";
+    let botLine = "출구로 이동한다. 현이 옆에서 방어선을 유지한다.";
     const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
     submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
-    assert.equal(lockedBody(db, botId), "자리를 지키며 동료를 엄호한다");
+    assert.equal(lockedBody(db, botId), "현이 옆에서 방어선을 유지한다");
     assert.equal(lockedBody(db, botId).includes(EXPLORATION_EXIT_ROOM), false);
+    assert.equal(latestRound(db, campaignId).phase, "ACTION_INPUT");
+    db.close();
+  });
+
+  it("does not lock a deictic search that depends on a rejected move", async () => {
+    const db = memoryDb();
+    let botLine = "출구로 이동한다. 그곳의 제어 패널을 조사한다.";
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
+    assert.equal(lockedBody(db, botId), "서하은 제자리에 서서 상황을 살핀다.");
+    assert.equal(lockedBody(db, botId).includes("제어 패널"), false);
+    assert.equal(loadExplorationState(db, campaignId)?.apRemaining[String(botId)], undefined);
+    assert.equal(latestRound(db, campaignId).phase, "ACTION_INPUT");
     db.close();
   });
 
@@ -182,7 +206,7 @@ describe("bot exploration stay fallback", () => {
       (roomId) => roomId !== EXPLORATION_EXIT_ROOM
     );
     assert.ok(fork);
-    botLine = `출구로 이동한다. ${fork}로 이동한다. 출구의 제어 패널을 조사한다.`;
+    botLine = `출구로 이동한다. ${fork}로 이동한다. 그곳의 제어 패널을 조사한다.`;
     submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     assert.equal(locationOf(db, botId), fork);
@@ -213,24 +237,18 @@ describe("bot exploration stay fallback", () => {
     db.close();
   });
 
-  it("rejects an overlong remainder after a refused move", async () => {
+  it("falls back to stay when salvage remainder is overlong", async () => {
     const db = memoryDb();
-    let botLine = `출구로 이동한다. ${"가".repeat(TRPG_ACTION_MAX_CHARS + 1)}`;
+    let botLine = `출구로 이동한다. 현이 옆에서 ${"가".repeat(TRPG_ACTION_MAX_CHARS)}`;
     const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
     submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
-    const errorJson = (
-      db.prepare(`SELECT error_json FROM trpg_rounds WHERE campaign_id=? ORDER BY id DESC LIMIT 1`).get(campaignId) as {
-        error_json: string | null;
-      }
-    ).error_json;
-    assert.match(errorJson ?? "", /행동이 너무 깁니다/);
+    const round = latestRound(db, campaignId);
+    assert.equal(lockedBody(db, botId), "서하은 제자리에 서서 상황을 살핀다.");
     assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
-    assert.equal(
-      db.prepare(`SELECT body FROM trpg_action_submissions WHERE participant_id=?`).get(botId),
-      undefined
-    );
     assert.equal(loadExplorationState(db, campaignId)?.apRemaining[String(botId)], undefined);
+    assert.doesNotMatch(round.error_json ?? "", /행동이 너무 깁니다/);
+    assert.equal(round.phase, "ACTION_INPUT");
     db.close();
   });
 
@@ -242,7 +260,7 @@ describe("bot exploration stay fallback", () => {
       (roomId) => roomId !== EXPLORATION_EXIT_ROOM
     );
     assert.ok(fork);
-    botLine = `출구로 이동한다. ${fork}로 이동한다. 동료를 엄호한다.`;
+    botLine = `출구로 이동한다. ${fork}로 이동한다. ${fork}에서 동료를 엄호한다.`;
     submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     assert.equal(locationOf(db, botId), fork);

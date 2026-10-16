@@ -224,8 +224,8 @@ export function omitLiveMovementClauses(body: string): string {
 
 /**
  * Drops remainder clauses that name a place the actor is not in.
- * `에서` is the existing source-location particle — if that source is not `here`
- * or a colocated name, independence is not assumed.
+ * A clause is kept only when it names `here` or a colocated seat — absence of a
+ * foreign room name is not independence. `에서` uses the existing source particle.
  */
 export function omitClausesAwayFromHere(opts: {
   body: string;
@@ -240,7 +240,8 @@ export function omitClausesAwayFromHere(opts: {
   return splitClauses(opts.body)
     .filter((clause) => {
       if (foreign.some((place) => clause.includes(place))) return false;
-      return !clauseHasUnresolvedSourcePlace(clause, allowed);
+      if (clauseHasUnresolvedSourcePlace(clause, allowed)) return false;
+      return allowed.some((token) => clause.includes(token));
     })
     .join(" ")
     .trim();
