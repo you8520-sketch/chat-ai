@@ -42,10 +42,10 @@ TAP version 13
       error: |-
         Expected values to be strictly equal:
         + actual - expected
-        
+
         + ''
         - 'USER_MANUAL_GLOBAL_TEXT — 유저가 직접 확정한 장기기억'
-        
+
       code: 'ERR_ASSERTION'
       name: 'AssertionError'
       expected: 'USER_MANUAL_GLOBAL_TEXT — 유저가 직접 확정한 장기기억'
@@ -68,10 +68,10 @@ TAP version 13
       error: |-
         Expected values to be strictly equal:
         + actual - expected
-        
+
         + '[1~5턴] 짧지만 중요한 사건 하나만 기록함. 이후 전개에 영향을 주는 약속과 관계 변화만 남김. 추가 장식 없이 사실만 압축. 반복 묘사는 생략. 핵심만 유지.'
         - 'USER_MANUAL_GLOBAL_TEXT — 유저가 직접 확정한 장기기억'
-        
+
       code: 'ERR_ASSERTION'
       name: 'AssertionError'
       expected: 'USER_MANUAL_GLOBAL_TEXT — 유저가 직접 확정한 장기기억'
@@ -92,10 +92,10 @@ TAP version 13
       error: |-
         Expected values to be strictly equal:
         + actual - expected
-        
+
         + '[1~5턴] 짧지만 중요한 사건 하나만 기록함. 이후 전개에 영향을 주는 약속과 관계 변화만 남김. 추가 장식 없이 사실만 압축. 반복 묘사는 생략. 핵심만 유지.'
         - 'USER_MANUAL_GLOBAL_TEXT — 유저가 직접 확정한 장기기억'
-        
+
       code: 'ERR_ASSERTION'
       name: 'AssertionError'
       expected: 'USER_MANUAL_GLOBAL_TEXT — 유저가 직접 확정한 장기기억'
