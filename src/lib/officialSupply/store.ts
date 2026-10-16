@@ -1736,7 +1736,8 @@ export class OfficialSupplyStore {
     actor: OfficialAdminActor,
     draftKey: string,
     slotKey: string,
-    intakeId: string
+    intakeId: string,
+    nowMs = Date.now()
   ): OfficialReplacementRecord {
     const claim = this.db.transaction(() => {
       const character = this.assertReplacementOperator(draftKey, actor);
@@ -1754,6 +1755,8 @@ export class OfficialSupplyStore {
           `${draftKey}/${slotKey} was planned for another appearance lock`
         );
       }
+      const leaseMs = this.getBatch(character.batchKey).config.leaseMs;
+      const expiresAt = nowMs + leaseMs;
       const existing = this.getReplacementOrNull(draftKey, slotKey);
       if (existing) {
         switch (existing.status) {
@@ -1779,21 +1782,15 @@ export class OfficialSupplyStore {
             throw new OfficialSupplyGateError("replacement_busy", String(exhaustive));
           }
         }
-        if (existing.leaseOwner && existing.leaseOwner !== intakeId) {
-          throw new OfficialSupplyGateError(
-            "replacement_busy",
-            `${draftKey}/${slotKey} replacement is claimed`
-          );
-        }
         const info = this.db
           .prepare(
             `UPDATE official_supply_asset_replacements
-             SET lease_owner=?, updated_at=datetime('now')
+             SET lease_owner=?, lease_expires_at=?, updated_at=datetime('now')
              WHERE draft_key=? AND slot_key=?
                AND status IN ('planned','failed','rejected','generated')
-               AND (lease_owner IS NULL OR lease_owner=?)`
+               AND (lease_owner IS NULL OR lease_owner=? OR lease_expires_at < ?)`
           )
-          .run(intakeId, draftKey, slotKey, intakeId);
+          .run(intakeId, expiresAt, draftKey, slotKey, intakeId, nowMs);
         if (info.changes !== 1) {
           throw new OfficialSupplyGateError(
             "replacement_busy",
@@ -1804,10 +1801,19 @@ export class OfficialSupplyStore {
         const info = this.db
           .prepare(
             `INSERT INTO official_supply_asset_replacements (
-               draft_key, slot_key, kind, status, base_result_url, appearance_lock_hash, lease_owner
-             ) VALUES (?, ?, ?, 'planned', ?, ?, ?)`
+               draft_key, slot_key, kind, status, base_result_url, appearance_lock_hash,
+               lease_owner, lease_expires_at
+             ) VALUES (?, ?, ?, 'planned', ?, ?, ?, ?)`
           )
-          .run(draftKey, slotKey, asset.kind, asset.resultUrl, character.appearanceLockHash, intakeId);
+          .run(
+            draftKey,
+            slotKey,
+            asset.kind,
+            asset.resultUrl,
+            character.appearanceLockHash,
+            intakeId,
+            expiresAt
+          );
         if (info.changes !== 1) {
           throw new OfficialSupplyGateError("replacement_busy", `${draftKey}/${slotKey} replacement could not be claimed`);
         }
@@ -1835,7 +1841,8 @@ export class OfficialSupplyStore {
   createReplacementCandidate(
     actor: OfficialAdminActor,
     draftKey: string,
-    slotKey: string
+    slotKey: string,
+    nowMs = Date.now()
   ): OfficialReplacementRecord {
     const character = this.assertReplacementOperator(draftKey, actor);
     this.assertTextLockCurrent(character);
@@ -1875,9 +1882,10 @@ export class OfficialSupplyStore {
            approved_tag=NULL,
            appearance_lock_hash=excluded.appearance_lock_hash,
            updated_at=datetime('now')
-         WHERE official_supply_asset_replacements.status IN ('planned','failed','rejected')`
+         WHERE official_supply_asset_replacements.status IN ('planned','failed','rejected')
+           AND (lease_owner IS NULL OR lease_expires_at < ?)`
       )
-      .run(draftKey, slotKey, asset.kind, asset.resultUrl, character.appearanceLockHash);
+      .run(draftKey, slotKey, asset.kind, asset.resultUrl, character.appearanceLockHash, nowMs);
     if (info.changes !== 1) {
       const existing = this.getReplacement(draftKey, slotKey);
       if (existing.status === "applied") {
@@ -2050,9 +2058,10 @@ export class OfficialSupplyStore {
         `UPDATE official_supply_asset_replacements
          SET status='generating', lease_owner=?, lease_expires_at=?, attempts=attempts+1, error=NULL, updated_at=datetime('now')
          WHERE draft_key=? AND slot_key=? AND attempts < ?
+           AND (lease_owner IS NULL OR lease_expires_at < ?)
            AND (status IN ('planned','failed','rejected') OR (status='generating' AND lease_expires_at < ?))`
       )
-      .run(workerId, nowMs + leaseMs, draftKey, slotKey, maxAttempts, nowMs);
+      .run(workerId, nowMs + leaseMs, draftKey, slotKey, maxAttempts, nowMs, nowMs);
     return info.changes === 1;
   }
 

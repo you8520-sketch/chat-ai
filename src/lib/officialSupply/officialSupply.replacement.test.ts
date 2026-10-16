@@ -1493,6 +1493,93 @@ describe("external file replacement", () => {
     assert.equal(store.getReplacement(draftKey, "sig4").moderation, null);
     assert.equal(world.calls.length, 0);
   });
+
+  it("refuses candidate reset and paid runner entry while an external intake lease is live", async () => {
+    const draftKey = "ext-lease-live";
+    await publishedOfficial(draftKey);
+    const now = 1_000_000;
+    const held = store.claimExternalReplacementIntake(ADMIN, draftKey, "sig4", "intake-A", now);
+    assert.equal(held.leaseOwner, "intake-A");
+    assert.equal(held.status, "planned");
+    assert.ok(held.leaseExpiresAt != null && held.leaseExpiresAt > now);
+
+    assert.throws(
+      () => store.createReplacementCandidate(ADMIN, draftKey, "sig4", now),
+      (error: OfficialSupplyGateError) => error.code === "replacement_busy"
+    );
+    const afterCreate = store.getReplacement(draftKey, "sig4");
+    assert.equal(afterCreate.leaseOwner, "intake-A");
+    assert.equal(afterCreate.leaseExpiresAt, held.leaseExpiresAt);
+    assert.equal(afterCreate.status, "planned");
+    assert.equal(afterCreate.candidateResultUrl, null);
+
+    assert.equal(store.claimReplacement(draftKey, "sig4", "paid-worker", now, 60_000, 3), false);
+    const afterPaidClaim = store.getReplacement(draftKey, "sig4");
+    assert.equal(afterPaidClaim.leaseOwner, "intake-A");
+    assert.equal(afterPaidClaim.status, "planned");
+
+    const world = new FakeWorld();
+    world.now = now;
+    const outcome = await runOfficialAssetReplacement(world.deps(store), draftKey, "sig4");
+    assert.equal(outcome.status, "in_progress_elsewhere");
+    assert.equal(world.calls.length, 0);
+    assert.equal(store.getReplacement(draftKey, "sig4").leaseOwner, "intake-A");
+  });
+
+  it("reclaims only an expired external lease and ignores late work from the previous intake", async () => {
+    const draftKey = "ext-lease-expire";
+    await stagePrivateOfficial(draftKey);
+    const now = 1_000_000;
+    const first = store.claimExternalReplacementIntake(ADMIN, draftKey, "sig4", "intake-A", now);
+    const leaseMs = store.getBatch(store.getCharacter(draftKey).batchKey).config.leaseMs;
+    assert.equal(first.leaseExpiresAt, now + leaseMs);
+
+    assert.throws(
+      () => store.claimExternalReplacementIntake(ADMIN, draftKey, "sig4", "intake-B", now + leaseMs),
+      (error: OfficialSupplyGateError) => error.code === "replacement_busy"
+    );
+    assert.equal(store.getReplacement(draftKey, "sig4").leaseOwner, "intake-A");
+
+    const recoveredAt = now + leaseMs + 1;
+    const recovered = store.claimExternalReplacementIntake(ADMIN, draftKey, "sig4", "intake-B", recoveredAt);
+    assert.equal(recovered.leaseOwner, "intake-B");
+    assert.equal(recovered.status, "planned");
+    assert.equal(recovered.candidateResultUrl, first.candidateResultUrl);
+    assert.equal(recovered.leaseExpiresAt, recoveredAt + leaseMs);
+
+    assert.throws(
+      () =>
+        store.registerExternalReplacementCandidate(ADMIN, draftKey, "sig4", {
+          url: "/uploads/late-a.webp",
+          width: 1536,
+          height: 1024,
+          approvedTag: MANUAL_TAG,
+          intakeId: "intake-A",
+        }),
+      (error: OfficialSupplyGateError) => error.code === "replacement_busy"
+    );
+    store.releaseExternalReplacementIntake(draftKey, "sig4", "intake-A");
+    assert.equal(store.completeReplacement(draftKey, "sig4", "intake-A", {
+      url: "/uploads/late-a.webp",
+      width: 1536,
+      height: 1024,
+    }), false);
+    const afterLate = store.getReplacement(draftKey, "sig4");
+    assert.equal(afterLate.leaseOwner, "intake-B");
+    assert.equal(afterLate.candidateResultUrl, null);
+    assert.equal(afterLate.status, "planned");
+
+    const finished = store.registerExternalReplacementCandidate(ADMIN, draftKey, "sig4", {
+      url: "/uploads/official-ext-lease-expire__sig4-ext-intake-B.webp",
+      width: 1536,
+      height: 1024,
+      approvedTag: MANUAL_TAG,
+      intakeId: "intake-B",
+    });
+    assert.equal(finished.leaseOwner, null);
+    assert.equal(finished.candidateResultUrl, "/uploads/official-ext-lease-expire__sig4-ext-intake-B.webp");
+    assert.equal(store.getReplacement(draftKey, "sig4").status, "generated");
+  });
 });
 
 describe("replacement tests never load production adapters", () => {

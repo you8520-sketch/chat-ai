@@ -319,7 +319,9 @@ b13 실행의 image POST 는 1회(`providerPostsThisRun=1`)이고 vision 2회는
 
 ### 10.7 BLOCKER 수정 (파일 덮어쓰기 · stale moderation)
 
-수정 전 재현: approved 재반입이 `official-…-r2.webp` 를 먼저 열어 `EEXIST` 가 났고, 동시 반입은 같은 경로를 써서 성공 0건이었으며, A→B 재등록은 같은 URL 을 재사용했다. 수정 후: 저장 전 lease, 반입마다 `…-ext-<intakeId>.webp`, moderation/QA 는 검수한 URL CAS. 임시 파일 회귀 3건을 포함해 replacement 테스트 20 pass.
+수정 전 재현: approved 재반입이 `official-…-r2.webp` 를 먼저 열어 `EEXIST` 가 났고, 동시 반입은 같은 경로를 써서 성공 0건이었으며, A→B 재등록은 같은 URL 을 재사용했다. 수정 후: 저장 전 lease, 반입마다 `…-ext-<intakeId>.webp`, moderation/QA 는 검수한 URL CAS.
+
+외부 반입 lease 는 기존 `lease_expires_at` 규칙을 쓴다. 살아 있는 lease 가 있으면 `createReplacementCandidate` 와 `claimReplacement` 가 후보를 초기화하거나 유료 worker 에 넘기지 않는다. 만료된 lease 만 CAS 로 회수하고, 이전 intake 의 늦은 완료·해제는 새 lease 를 바꾸지 않는다.
 
 ## 7. 이번 단계에서 하지 않은 것 / 후속
 

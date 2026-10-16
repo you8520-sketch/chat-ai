@@ -397,6 +397,7 @@ export async function registerExternalOfficialAssetReplacement(input: {
   slotKey: string;
   bytes: Buffer;
   approvedTag: string;
+  nowMs?: number;
 }): Promise<OfficialReplacementRecord> {
   const approvedTag = normalizeCreatorAssetTag(input.approvedTag, "");
   if (!approvedTag) {
@@ -407,7 +408,13 @@ export async function registerExternalOfficialAssetReplacement(input: {
   }
   const intakeId = randomUUID();
   try {
-    input.store.claimExternalReplacementIntake(input.actor, input.draftKey, input.slotKey, intakeId);
+    input.store.claimExternalReplacementIntake(
+      input.actor,
+      input.draftKey,
+      input.slotKey,
+      intakeId,
+      input.nowMs
+    );
     const asset = input.store.assertReplacementSlotAllowed(input.draftKey, input.slotKey);
     const profile = officialImageProfileForSlot(asset.kind);
     const dims = await input.imageOps.inspect(input.bytes);
