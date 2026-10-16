@@ -5,6 +5,7 @@ import path from "node:path";
 export const SR_PREFIX = "SR검증";
 export const SR_TAG = "sr캡태그";
 export const SR_CAP_TOTAL = 64;
+export const SR_CARD_TAGS = ["카드태그가길어요", "카드태그둘째", "카드태그셋째", "카드태그넷째"];
 
 type Row = {
   name: string;
@@ -66,6 +67,7 @@ export function seedSearchRankingFixture(dataDir: string) {
       add({ name: `${SR_PREFIX} 비공개`, visibility: "private", turns: 9999, chatsRecent: 9 });
       add({ name: `${SR_PREFIX} 심사중`, moderation: "pending", turns: 9999, chatsRecent: 9 });
       add({ name: `${SR_PREFIX} 성인`, nsfw: 1, turns: 9999, chatsRecent: 9 });
+      add({ name: `${SR_PREFIX} 카드태그`, tags: SR_CARD_TAGS });
       for (let i = 0; i < SR_CAP_TOTAL; i++) add({ name: `${SR_PREFIX} 캡${String(i).padStart(2, "0")}`, tags: [SR_TAG] });
     })();
   } finally {
