@@ -23,6 +23,7 @@ export default function HomePopupNotice({ notice }: Props) {
   const [hideToday, setHideToday] = useState(false);
   const handledForThisHomeVisitRef = useRef(false);
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLSectionElement>(null);
   const key = useMemo(() => (notice ? storageKey(notice) : ""), [notice]);
 
   useEffect(() => {
@@ -55,8 +56,34 @@ export default function HomePopupNotice({ notice }: Props) {
 
   useEffect(() => {
     if (!visible) return;
+    function dialogFocusables(): HTMLElement[] {
+      const root = dialogRef.current;
+      if (!root) return [];
+      return [...root.querySelectorAll<HTMLElement>("button, input, select, textarea, a[href], [tabindex]:not([tabindex='-1'])")].filter(
+        (el) => !el.hasAttribute("disabled") && el.tabIndex !== -1 && el.getClientRects().length > 0,
+      );
+    }
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") close();
+      if (e.key === "Escape") {
+        close();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const items = dialogFocusables();
+      if (items.length === 0) return;
+      const first = items[0]!;
+      const last = items[items.length - 1]!;
+      const active = document.activeElement;
+      const inside = active instanceof HTMLElement && items.includes(active);
+      if (e.shiftKey && (!inside || active === first)) {
+        e.preventDefault();
+        last.focus();
+        return;
+      }
+      if (!e.shiftKey && (!inside || active === last)) {
+        e.preventDefault();
+        first.focus();
+      }
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -67,6 +94,7 @@ export default function HomePopupNotice({ notice }: Props) {
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 px-4 py-8 backdrop-blur-[2px]">
       <section
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="home-popup-notice-title"

@@ -30,6 +30,55 @@ test.describe("home notice dialog", () => {
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
   });
+
+  test("keeps Tab and Shift+Tab inside the open dialog", async ({ page }) => {
+    await page.goto("/");
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    const confirm = dialog.getByRole("button", { name: "확인" });
+    const close = dialog.getByRole("button", { name: "공지 닫기" });
+    await expect(confirm).toBeFocused();
+
+    await page.keyboard.press("Tab");
+    await expect(close, "Tab from 확인 must wrap to the first dialog control").toBeFocused();
+
+    await page.keyboard.press("Shift+Tab");
+    await expect(confirm, "Shift+Tab from the first control must wrap to 확인").toBeFocused();
+
+    await page.keyboard.press("Shift+Tab");
+    const stillInside = await page.evaluate(() => {
+      const root = document.querySelector('[role="dialog"]');
+      return !!(root && document.activeElement && root.contains(document.activeElement));
+    });
+    expect(stillInside).toBe(true);
+  });
+
+  test("restores focus after Escape, close, and confirm, and keeps hide-today policy", async ({ page }) => {
+    await page.goto("/");
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    expect(await page.evaluate(() => document.activeElement?.tagName)).toMatch(/^(BODY|HTML)$/);
+
+    await page.reload();
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "공지 닫기" }).click();
+    await expect(dialog).toHaveCount(0);
+    expect(await page.evaluate(() => document.activeElement?.tagName)).toMatch(/^(BODY|HTML)$/);
+
+    await page.reload();
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "확인" }).click();
+    await expect(dialog).toHaveCount(0);
+    await page.reload();
+    await expect(dialog).toBeVisible();
+
+    await dialog.locator("label", { hasText: "오늘 하루 보지 않기" }).click();
+    await dialog.getByRole("button", { name: "확인" }).click();
+    await page.reload();
+    await expect(dialog).toHaveCount(0);
+  });
 });
 
 test.describe("mobile bottom menu", () => {
