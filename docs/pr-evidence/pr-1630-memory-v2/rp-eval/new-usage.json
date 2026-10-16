@@ -1,0 +1,130 @@
+{
+  "input": 4782,
+  "output": 1788,
+  "finishReason": "stop",
+  "savedOutputChars": 2870,
+  "model": "gemini-3.8-flash",
+  "provider": "openrouter",
+  "route": "safe",
+  "selectedAI": "gemini-3.8-flash",
+  "cost": 11,
+  "baseCost": 11,
+  "modelLabel": "Gemini 3.8 Flash",
+  "estimated": false,
+  "breakdown": [
+    {
+      "label": "최근 RAW: ~716 입력 토큰 추정 배분 · 729 chars · 4 exchanges",
+      "tokens": 716,
+      "pct": 15
+    },
+    {
+      "label": "캐릭터 컨텍스트: ~91 입력 토큰 추정 배분 · 168 chars",
+      "tokens": 91,
+      "pct": 2
+    },
+    {
+      "label": "시스템 프롬프트: ~3,648 입력 토큰 추정 배분",
+      "tokens": 3648,
+      "pct": 76
+    },
+    {
+      "label": "장기기억: ~138 입력 토큰 추정 배분",
+      "tokens": 138,
+      "pct": 3
+    },
+    {
+      "label": "페르소나: ~189 입력 토큰 추정 배분",
+      "tokens": 189,
+      "pct": 4
+    }
+  ],
+  "stages": [
+    {
+      "stage": "Gemini 3.8 Flash",
+      "model": "google/gemini-3.8-flash",
+      "input": 4782,
+      "output": 1788,
+      "finishReason": "stop",
+      "estimated": false,
+      "truncated": false
+    }
+  ],
+  "apiInputTokens": 4782,
+  "apiOutputTokens": 1788,
+  "assembledInputTokens": 8182,
+  "assembledPromptChars": {
+    "system": 7757,
+    "systemRules": 2940,
+    "characterSettings": 1299,
+    "dynamic": 3514,
+    "history": 1327,
+    "currentUser": 598,
+    "total": 9084
+  },
+  "rawHistoryHealth": {
+    "rawCompleteExchanges": 4,
+    "rawMessages": 8,
+    "rawChars": 729,
+    "rawInternalEstimate": 661,
+    "summaryInterval": 5,
+    "summarizedThroughTurn": 75,
+    "unsummarizedCompletedTurns": 4,
+    "realRawCompleteExchanges": 4
+  },
+  "shadowPricing": {
+    "pricingVersion": 1,
+    "billingReferenceInputUsdPerMillion": 0.375,
+    "billingReferenceOutputUsdPerMillion": 1.875,
+    "billingReferenceCostKrw": 7.9,
+    "billingReferenceCostUsd": 0.00514575,
+    "fxSnapshot": {
+      "dateKey": "2026-10-16",
+      "source": "emergency_fallback",
+      "baseUsdKrw": 1500,
+      "overseasFeeRate": 0.02,
+      "effectiveKrwPerUsd": 1530,
+      "locked": true
+    },
+    "providerListCostStatus": "reference_rates_unavailable",
+    "reserveStatus": "unavailable",
+    "actualTurnCostCoverage": "complete",
+    "actualProviderCostKrw": 5.9,
+    "actualCostUsd": 0.003872116666666667,
+    "actualCostSource": "provider_reported",
+    "modelId": "google/gemini-3.8-flash",
+    "provider": "openrouter",
+    "providerListCostKrw": 0,
+    "inputCostKrw": 0.4,
+    "outputCostKrw": 5.1,
+    "reasoningCostKrw": 0,
+    "cacheReadCostKrw": 0,
+    "cacheWriteCostKrw": 0,
+    "targetMargin": 0.55,
+    "minimumMarginFloor": 0.5,
+    "standardUserChargeKrw": 17.6,
+    "promoPercent": 0,
+    "finalShadowChargeKrw": 17.6,
+    "finalShadowPoints": 18,
+    "providerSavingsKrw": null,
+    "providerOverrunKrw": null,
+    "promoGivebackKrw": 0,
+    "netPricingBufferDeltaKrw": null,
+    "actualGrossProfitKrw": 11.7,
+    "actualRealizedMargin": 0.7,
+    "worstCasePromoMargin": null,
+    "marginFloorViolated": null
+  },
+  "billingContractDispatch": {
+    "billingContract": "legacy",
+    "billingContractReason": "phase1_billing_disabled",
+    "deliveredModelId": "google/gemini-3.8-flash",
+    "publishedBillingPhaseAttempted": null,
+    "publishedCandidateStatus": "not_attempted",
+    "publishedBlockReason": null,
+    "appliedFailClosedPolicy": null,
+    "pricingVersion": null,
+    "publishedFinalPoints": null,
+    "legacyFinalPoints": 11,
+    "settledDeductedPoints": 11
+  }
+}
