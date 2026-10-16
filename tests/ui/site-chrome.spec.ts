@@ -127,3 +127,143 @@ test.describe("keyboard focus is not hidden behind fixed chrome", () => {
     expect(hidden).toEqual([]);
   });
 });
+
+const HEADER_WIDTHS = [360, 390, 575, 576, 768, 1023] as const;
+
+async function headerMetrics(page: Page) {
+  return page.evaluate(() => {
+    const header = document.querySelector<HTMLElement>("header.site-header")!;
+    const rect = header.getBoundingClientRect();
+    const topRow = header.children[0] as HTMLElement;
+    const controls = Array.from(topRow.querySelectorAll<HTMLElement>("a, button"))
+      .filter((el) => !el.closest('nav[aria-label="주요 메뉴"]'))
+      .map((el) => {
+        const r = el.getBoundingClientRect();
+        return { label: (el.getAttribute("aria-label") || el.textContent || "").trim().slice(0, 16), l: r.left, r: r.right, t: r.top, b: r.bottom, w: r.width, h: r.height };
+      })
+      .filter((c) => c.w > 0 && c.h > 0);
+    const overlaps: string[] = [];
+    controls.forEach((a, i) => controls.slice(i + 1).forEach((c) => {
+      if (Math.min(a.r, c.r) - Math.max(a.l, c.l) > 1 && Math.min(a.b, c.b) - Math.max(a.t, c.t) > 1) overlaps.push(`${a.label}|${c.label}`);
+    }));
+    const viewport = document.documentElement.clientWidth;
+    const nav = Array.from(document.querySelectorAll<HTMLElement>('nav[aria-label="주요 메뉴"]')).find((n) => n.getBoundingClientRect().width > 0);
+    const tabs = nav ? Array.from(nav.querySelectorAll<HTMLElement>("a")).map((a) => {
+      const r = a.getBoundingClientRect();
+      return { label: a.textContent!.trim(), h: r.height, l: r.left, r: r.right, active: a.getAttribute("aria-current") === "page", clipped: a.scrollWidth > a.clientWidth + 1 };
+    }) : [];
+    const navRect = nav?.getBoundingClientRect();
+    return {
+      height: rect.height,
+      cssVar: parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--site-header-height")),
+      overlaps,
+      offRight: controls.filter((c) => c.r > viewport + 0.5 || c.l < -0.5).map((c) => c.label),
+      docOverflow: document.documentElement.scrollWidth > viewport + 1,
+      tabs,
+      navLeft: navRect?.left ?? 0,
+      navRight: navRect?.right ?? 0,
+    };
+  });
+}
+
+test.describe("compact mobile header", () => {
+  test("below lg the header stays under 100px at every layout boundary and keeps one 64px row from lg", async ({ page }) => {
+    for (const width of [...HEADER_WIDTHS, 1024, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/tab/ranking");
+      const m = await headerMetrics(page);
+      if (width < 1024) expect(m.height, `${width}px header`).toBeLessThanOrEqual(100);
+      else expect(m.height, `${width}px header`).toBeLessThanOrEqual(66);
+      expect(m.docOverflow, `${width}px overflow`).toBe(false);
+      expect(Math.abs(m.cssVar - m.height), `${width}px --site-header-height`).toBeLessThanOrEqual(1);
+    }
+  });
+
+  test("keeps every menu tab at 44px, never clipped, with the active tab in view", async ({ page }) => {
+    for (const width of [360, 390, 768]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto("/tab/following");
+      await page.waitForTimeout(150);
+      const m = await headerMetrics(page);
+      expect(m.tabs.map((t) => t.label)).toEqual(["홈", "신작", "랭킹", "TRPG", "검색", "북마크/팔로잉"]);
+      for (const t of m.tabs) {
+        expect(t.h, `${width}px ${t.label}`).toBeGreaterThanOrEqual(44);
+        expect(t.clipped, `${width}px ${t.label} clipped`).toBe(false);
+      }
+      const active = m.tabs.find((t) => t.active)!;
+      expect(active.label).toBe("북마크/팔로잉");
+      expect(active.l).toBeGreaterThanOrEqual(m.navLeft - 1);
+      expect(active.r).toBeLessThanOrEqual(m.navRight + 1);
+    }
+  });
+
+  test("logged-in controls neither overlap nor overflow at 360px with a long balance and a multi-digit badge", async ({ page }) => {
+    await demoLogin(page);
+    for (const width of [360, 390, 575, 576]) {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto("/tab/ranking");
+      await page.evaluate(() => {
+        const points = document.querySelector<HTMLElement>('header.site-header [aria-label^="보유 포인트"]');
+        const span = points?.querySelector("span") ?? points;
+        if (span) span.textContent = "123,456,789P";
+        const bell = document.querySelector<HTMLElement>('header.site-header button[aria-label^="알림"]');
+        const badge = bell?.querySelector("span");
+        if (badge) badge.textContent = "99+";
+      });
+      const m = await headerMetrics(page);
+      expect(m.overlaps, `${width}px overlaps`).toEqual([]);
+      expect(m.offRight, `${width}px off-screen controls`).toEqual([]);
+      expect(m.docOverflow, `${width}px overflow`).toBe(false);
+    }
+  });
+
+  test("stays sticky after scrolling and drives the rail, scroll padding and --site-header-height", async ({ page }) => {
+    await demoLogin(page);
+    for (const width of [390, 768, 1440]) {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto("/tab/ranking");
+      await page.evaluate(() => window.scrollTo({ top: 600, behavior: "instant" }));
+      await page.waitForTimeout(200);
+      const m = await page.evaluate(() => {
+        const header = document.querySelector("header.site-header")!.getBoundingClientRect();
+        const rail = document.querySelector("aside.app-left-rail");
+        const railRect = rail && getComputedStyle(rail).display !== "none" ? rail.getBoundingClientRect() : null;
+        return {
+          headerTop: header.top,
+          headerBottom: header.bottom,
+          railTop: railRect?.top ?? null,
+          railBottom: railRect?.bottom ?? null,
+          viewport: innerHeight,
+          scrollPaddingTop: parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop),
+        };
+      });
+      expect(Math.abs(m.headerTop), `${width}px sticky`).toBeLessThanOrEqual(1);
+      expect(Math.abs(m.scrollPaddingTop - (m.headerBottom + 8)), `${width}px scroll-padding-top`).toBeLessThanOrEqual(1.5);
+      if (m.railTop !== null) {
+        expect(Math.abs(m.railTop - m.headerBottom), `${width}px rail top`).toBeLessThanOrEqual(1);
+        expect(Math.abs(m.railBottom! - m.viewport), `${width}px rail bottom`).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  test("account controls still work: notification panel opens and the menu tabs navigate with history", async ({ page }) => {
+    await demoLogin(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/tab/ranking");
+    await page.getByRole("button", { name: /^알림/ }).first().click();
+    await expect(page.getByRole("dialog", { name: "알림 센터" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: "알림 센터" })).toHaveCount(0);
+    const nav = page.getByRole("navigation", { name: "주요 메뉴" }).locator("visible=true");
+    await nav.getByRole("link", { name: "검색" }).click();
+    await page.waitForURL(/\/search/);
+    await nav.getByRole("link", { name: "랭킹" }).click();
+    await page.waitForURL(/\/tab\/ranking/);
+    await page.goBack();
+    await page.waitForURL(/\/search/);
+    await expect(nav.getByRole("link", { name: "검색" })).toHaveAttribute("aria-current", "page");
+    await page.goForward();
+    await page.waitForURL(/\/tab\/ranking/);
+    await expect(nav.getByRole("link", { name: "랭킹" })).toHaveAttribute("aria-current", "page");
+  });
+});

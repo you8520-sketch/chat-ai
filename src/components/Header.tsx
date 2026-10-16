@@ -31,7 +31,7 @@ export default async function Header({ user }: { user: User | null }) {
   return (
     <>
       <header className="site-header sticky top-0 z-40 border-b border-white/[0.08] bg-[#070910]/88 shadow-[0_12px_40px_rgba(0,0,0,.18)] backdrop-blur-xl">
-        <div className="mx-auto flex min-h-16 max-w-7xl flex-nowrap items-center justify-between gap-2 px-3 text-xs sm:gap-3 sm:px-4">
+        <div className="mx-auto flex min-h-13 max-w-7xl flex-nowrap items-center justify-between gap-2 px-3 text-xs sm:gap-3 sm:px-4 lg:min-h-16">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <Link
               href="/"
