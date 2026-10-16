@@ -67,6 +67,8 @@ export type TrpgLocationPersistSubmission = {
   body: string;
   tier?: string | null;
   acceptedRoute?: string | null;
+  /** Room the exploration owner already moved this seat to; it stands even when the action's check failed. */
+  serverMovedTo?: string | null;
 };
 
 export type TrpgLocationPersistSheet = {
@@ -177,6 +179,7 @@ export function submissionAuthorizesLocation(
 ): boolean {
   const dest = destination.trim();
   if (!dest) return false;
+  if (submission.serverMovedTo?.trim() === dest) return true;
   if (movementAttemptFailed(submission.tier)) return false;
   const declaredGoals = [
     ...(submission.acceptedRoute ? [submission.acceptedRoute] : []),

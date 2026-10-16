@@ -534,6 +534,57 @@ describe("exploration play", () => {
     db.close();
   });
 
+  it("keeps the sheet and map at the server-moved room when a later search in the same action fails", async () => {
+    const db = memoryDb();
+    const templateId = insertScenarioTemplate(db, 7, {
+      title: "이동 뒤 조사 실패",
+      summary: "이동 뒤 조사 실패",
+      content: "현관에서 이동한 뒤 조사에 실패한다.",
+      visibility: "public",
+      startLocation: EXPLORATION_ENTRANCE,
+      scenarioPlan: {
+        startingSituation: "현관에 선다",
+        centralConflict: "문을 살핀다",
+        goal: "단서를 찾는다",
+        endingConditions: ["단서를 찾는다"],
+        exploration: true,
+      },
+    });
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "현이", viewerUserId: 1, templateId });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "현이", stats: EVEN_STATS });
+    const hostId = (db.prepare(`SELECT id FROM trpg_participants WHERE campaign_id=? AND user_id=1`).get(campaignId) as { id: number }).id;
+    let gmPlace = EXPLORATION_ENTRANCE;
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 1,
+      gmCall: async () => ({
+        text: wirePlayers("복도 끝에서 조사가 흐트러진다. GM: 무엇을 하겠는가.", gmPlace, [{ participantId: hostId, location: gmPlace }]),
+      }),
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const seeded = loadExplorationState(db, campaignId)!;
+    const fork = neighbors(seeded, EXPLORATION_ENTRANCE).find((roomId) => roomId !== EXPLORATION_EXIT_ROOM);
+    assert.ok(fork);
+    gmPlace = fork;
+    submitTrpgAction(db, {
+      campaignId,
+      userId: 1,
+      body: `${fork}로 이동한다. ${fork}을 조사한다.`,
+      explorationCommands: [
+        { op: "move", roomId: fork },
+        { op: "search", depth: "normal" },
+      ],
+    });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const settled = loadExplorationState(db, campaignId)!;
+    assert.equal(settled.visitedRoomIds.includes(fork), true);
+    assert.equal(settled.revealedEventIds.length, 0);
+    assert.equal(locationOf(db, hostId), fork);
+    assert.equal(loadCampaignLedger(db, campaignId).location, fork);
+    assert.equal(loadTrpgSnapshot(db, campaignId, 1)?.exploration?.rooms.find((room) => room.current)?.label, fork);
+    db.close();
+  });
+
   it("prices free-text movement for a human and an AI companion on the same map rules", async () => {
     const db = memoryDb();
     const templateId = insertScenarioTemplate(db, 7, {

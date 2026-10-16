@@ -175,6 +175,29 @@ describe("movement authority: what is not a declared move", () => {
     reject("서둘러 시장으로 이동한다.", { tier: "CRITICAL_FAILURE" });
   });
 
+  it("a failed check does not undo a move the exploration owner already applied, and approves no other place", () => {
+    const base = {
+      opening: false,
+      currentLocation: dock,
+      delta: { players: [{ participantId: 1, location: market }], location: market, nextRoundContext: "다음" },
+      sheetLocations: [{ participantId: 1, location: dock }],
+    };
+    const served = bindGmLocationToSubmittedMovement({
+      ...base,
+      proposedLocation: market,
+      submissions: [{ participantId: 1, body: "시장을 조사한다.", tier: "FAILURE", serverMovedTo: market }],
+    });
+    assert.equal(served.delta.players?.[0]?.location, market);
+    assert.equal(served.location, market);
+    const other = bindGmLocationToSubmittedMovement({
+      ...base,
+      proposedLocation: market,
+      submissions: [{ participantId: 1, body: "시장을 조사한다.", tier: "FAILURE", serverMovedTo: "창고" }],
+    });
+    assert.equal(other.delta.players?.[0]?.location, undefined);
+    assert.equal(other.location, dock);
+  });
+
   it("a partial success still moves the player that attempted it", () => {
     const bound = bind({ current: dock, gm: market, seats: [{ id: 1, at: dock, body: "시장으로 이동한다.", tier: "PARTIAL_SUCCESS" }] });
     assert.equal(bound.location, market);

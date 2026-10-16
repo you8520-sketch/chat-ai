@@ -1859,6 +1859,7 @@ function commitPendingGmResult(
         body: sub.body,
         tier: sub.tier,
         acceptedRoute,
+        serverMovedTo: explorationCommit?.results.find((result) => result.participantId === sub.participantId)?.location,
       };
     }),
     sheetLocations: sheets.map((sheet) => ({
