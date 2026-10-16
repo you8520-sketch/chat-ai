@@ -13,6 +13,7 @@ import {
   restrictRelationshipMetaDeltaToDurableAutoFacts,
   type HonorificNames,
   type MemoryMeta,
+  type MemoryPromise,
   type RelationshipMetaCategory,
   type RelationshipMetaDelta,
 } from "@/lib/chatMemory";
@@ -30,7 +31,9 @@ import {
 import {
   generationSequenceForVariant,
   normalizeMessageVariants,
+  type RelationshipLedgerChange,
 } from "@/lib/messageAlternates";
+import { parsePossessionEntry } from "@/lib/relationshipMetaItems";
 
 export type { RelationshipMetaCategory };
 
@@ -93,6 +96,229 @@ export function loadRelationshipMetaBeforeSnapshotCore(
   return parseRelationshipMetaBeforeSnapshot(row?.memory_relationship_before_json ?? null, names);
 }
 
+function parseLedgerPromise(value: unknown): MemoryPromise | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const text = (value as { text?: unknown }).text;
+  if (typeof text !== "string" || !text.trim()) return null;
+  const deadline = (value as { deadline?: unknown }).deadline;
+  return typeof deadline === "string" && deadline.trim()
+    ? { text: text.trim(), deadline: deadline.trim() }
+    : { text: text.trim() };
+}
+
+function parseRelationshipLedgerChange(value: unknown): RelationshipLedgerChange | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = value as { promises?: unknown; items?: unknown };
+  if (!Array.isArray(raw.promises) || !Array.isArray(raw.items)) return null;
+  const promises: RelationshipLedgerChange["promises"] = [];
+  for (const entry of raw.promises) {
+    if (!entry || typeof entry !== "object") return null;
+    const before = (entry as { before?: unknown }).before;
+    const after = (entry as { after?: unknown }).after;
+    const parsedBefore = before == null ? null : parseLedgerPromise(before);
+    const parsedAfter = after == null ? null : parseLedgerPromise(after);
+    if ((before != null && !parsedBefore) || (after != null && !parsedAfter)) return null;
+    if (!parsedBefore && !parsedAfter) return null;
+    promises.push({ before: parsedBefore, after: parsedAfter });
+  }
+  const items: RelationshipLedgerChange["items"] = [];
+  for (const entry of raw.items) {
+    if (!entry || typeof entry !== "object") return null;
+    const before = (entry as { before?: unknown }).before;
+    const after = (entry as { after?: unknown }).after;
+    if (before != null && (typeof before !== "string" || !before.trim())) return null;
+    if (after != null && (typeof after !== "string" || !after.trim())) return null;
+    if (before == null && after == null) return null;
+    items.push({ before: (before as string | null) ?? null, after: (after as string | null) ?? null });
+  }
+  return { promises, items };
+}
+
+function hasRelationshipLedgerChange(change: RelationshipLedgerChange): boolean {
+  return change.promises.length > 0 || change.items.length > 0;
+}
+
+function samePromise(a: MemoryPromise | null, b: MemoryPromise | null): boolean {
+  if (!a || !b) return a === b;
+  return a.text === b.text && (a.deadline ?? null) === (b.deadline ?? null);
+}
+
+function possessionKey(line: string): string {
+  return parsePossessionEntry(line)?.person ?? line;
+}
+
+/** key -> single line; a key with several lines is ambiguous and never reverted. */
+function indexPossessionLines(items: string[]): Map<string, string[]> {
+  const index = new Map<string, string[]>();
+  for (const line of items) {
+    const key = possessionKey(line);
+    index.set(key, [...(index.get(key) ?? []), line]);
+  }
+  return index;
+}
+
+function indexPromises(promises: MemoryPromise[]): Map<string, MemoryPromise[]> {
+  const index = new Map<string, MemoryPromise[]>();
+  for (const promise of promises) {
+    index.set(promise.text, [...(index.get(promise.text) ?? []), promise]);
+  }
+  return index;
+}
+
+function singleState<T>(entries: T[] | undefined): T | null | "ambiguous" {
+  if (!entries || entries.length === 0) return null;
+  return entries.length === 1 ? entries[0]! : "ambiguous";
+}
+
+/** Net per-key transitions between the pre-turn and post-turn projections. */
+function diffRelationshipLedger(before: MemoryMeta, after: MemoryMeta): RelationshipLedgerChange {
+  const change: RelationshipLedgerChange = { promises: [], items: [] };
+
+  const beforePromises = indexPromises(before.promises);
+  const afterPromises = indexPromises(after.promises);
+  for (const key of new Set([...beforePromises.keys(), ...afterPromises.keys()])) {
+    const b = singleState(beforePromises.get(key));
+    const a = singleState(afterPromises.get(key));
+    if (b === "ambiguous" || a === "ambiguous") continue;
+    if (!samePromise(b, a)) change.promises.push({ before: b, after: a });
+  }
+
+  const beforeItems = indexPossessionLines(before.items);
+  const afterItems = indexPossessionLines(after.items);
+  for (const key of new Set([...beforeItems.keys(), ...afterItems.keys()])) {
+    const b = singleState(beforeItems.get(key));
+    const a = singleState(afterItems.get(key));
+    if (b === "ambiguous" || a === "ambiguous") continue;
+    if (b !== a) change.items.push({ before: b, after: a });
+  }
+  return change;
+}
+
+/** item name -> persons currently holding it (gift lines `A→B` hold for B). */
+function possessionHoldersOutside(
+  items: string[],
+  excludedLines: Set<string>
+): Map<string, Set<string>> {
+  const holders = new Map<string, Set<string>>();
+  for (const line of items) {
+    if (excludedLines.has(line)) continue;
+    const parsed = parsePossessionEntry(line);
+    if (!parsed) continue;
+    const holder = parsed.person.includes("→")
+      ? parsed.person.split("→").pop()!.trim()
+      : parsed.person;
+    for (const item of parsed.items) {
+      const name = item.trim();
+      holders.set(name, new Set([...(holders.get(name) ?? []), holder]));
+    }
+  }
+  return holders;
+}
+
+/**
+ * A previous owner line is restored only for items nobody else legitimately
+ * holds now; a later transfer to another person wins over the old ownership.
+ */
+function restorablePossessionLine(
+  before: string,
+  laterHolders: Map<string, Set<string>>
+): string | null {
+  const parsed = parsePossessionEntry(before);
+  if (!parsed || parsed.person.includes("→")) return before;
+  const remaining = parsed.items.filter((item) => {
+    const holders = laterHolders.get(item.trim());
+    return !holders || [...holders].every((holder) => holder === parsed.person);
+  });
+  if (remaining.length === 0) return null;
+  if (remaining.length === parsed.items.length) return before;
+  return `${parsed.person}: ${remaining.join(", ")}`;
+}
+
+/**
+ * Three-way revert of one turn's net change onto the current ledger.
+ * An entry is reverted only while the current ledger still holds exactly the
+ * state this turn left (`current == after`). Anything a later writer touched
+ * (edit, cancel, re-add with other values, unrelated keys) is left alone.
+ */
+function revertRelationshipLedgerChange(
+  current: MemoryMeta,
+  change: RelationshipLedgerChange
+): MemoryMeta {
+  let promises = current.promises;
+  const promiseIndex = indexPromises(current.promises);
+  for (const entry of change.promises) {
+    const key = (entry.before ?? entry.after)!.text;
+    const state = singleState(promiseIndex.get(key));
+    if (state === "ambiguous" || !samePromise(state, entry.after)) continue;
+    if (state && entry.before) {
+      promises = promises.map((p) => (p === state ? entry.before! : p));
+    } else if (state) {
+      promises = promises.filter((p) => p !== state);
+    } else if (entry.before) {
+      promises = [...promises, entry.before];
+    }
+  }
+
+  let items = current.items;
+  const itemIndex = indexPossessionLines(current.items);
+  const stateFor = (entry: RelationshipLedgerChange["items"][number]) =>
+    singleState(itemIndex.get(possessionKey((entry.before ?? entry.after)!)));
+  // Lines this revert drops or replaces do not count as a later owner.
+  const revertedLines = new Set<string>();
+  for (const entry of change.items) {
+    const state = stateFor(entry);
+    if (state && state !== "ambiguous" && state === entry.after) revertedLines.add(state);
+  }
+  const laterHolders = possessionHoldersOutside(current.items, revertedLines);
+  for (const entry of change.items) {
+    const state = stateFor(entry);
+    if (state === "ambiguous" || state !== entry.after) continue;
+    const restored = entry.before
+      ? restorablePossessionLine(entry.before, laterHolders)
+      : null;
+    if (state && restored) {
+      items = items.map((line) => (line === state ? restored : line));
+    } else if (state) {
+      items = items.filter((line) => line !== state);
+    } else if (restored) {
+      items = [...items, restored];
+    }
+  }
+
+  return { ...current, promises, items };
+}
+
+export function loadDeletedTurnRelationshipProvenanceCore(
+  db: Database.Database,
+  chatId: number,
+  assistantMessageId: number,
+  names: HonorificNames
+): { change: RelationshipLedgerChange | null; after: MemoryMeta | null } {
+  const row = db
+    .prepare(
+      `SELECT content, model, usage, alternates, active_variant
+       FROM messages
+       WHERE id=? AND chat_id=? AND role='assistant'`
+    )
+    .get(assistantMessageId, chatId) as
+    | {
+        content: string;
+        model: string;
+        usage: string | null;
+        alternates: string | null;
+        active_variant: number | null;
+      }
+    | undefined;
+  if (!row) return { change: null, after: null };
+  const { variants, activeVariant } = normalizeMessageVariants(row);
+  const active = variants[activeVariant];
+  const afterParsed = parseRelationshipMetaObjectSnapshot(active?.relationshipMetaAfter);
+  return {
+    change: parseRelationshipLedgerChange(active?.relationshipMetaChange),
+    after: afterParsed ? normalizeMemoryMeta(afterParsed, names) : null,
+  };
+}
+
 function persistRelationshipMetaBeforeSnapshotCore(
   db: Database.Database,
   chatId: number,
@@ -124,6 +350,8 @@ function persistRelationshipMetaAfterSnapshotForGenerationCore(
     assistantMessageId: number;
     generationScope: AssistantGenerationScope;
     meta: MemoryMeta;
+    /** Undefined leaves any stored change untouched. Null or empty clears it. */
+    change?: RelationshipLedgerChange | null;
   }
 ): void {
   const row = db
@@ -157,10 +385,18 @@ function persistRelationshipMetaAfterSnapshotForGenerationCore(
     return;
   }
 
-  variants[activeVariant] = {
+  const nextVariant = {
     ...active,
     relationshipMetaAfter: opts.meta,
   };
+  if (opts.change !== undefined) {
+    if (opts.change && hasRelationshipLedgerChange(opts.change)) {
+      nextVariant.relationshipMetaChange = opts.change;
+    } else {
+      delete nextVariant.relationshipMetaChange;
+    }
+  }
+  variants[activeVariant] = nextVariant;
   db.prepare(
     "UPDATE messages SET alternates=? WHERE id=? AND chat_id=? AND role='assistant'"
   ).run(JSON.stringify(variants), opts.assistantMessageId, opts.chatId);
@@ -225,17 +461,19 @@ export function clearChatRelationshipMeta(chatId: number): void {
 }
 
 /**
- * Roll back relationship-meta entries added by a deleted turn.
+ * Roll back the relationship-meta changes of a deleted turn.
  *
- * The deleted turn's user+assistant text is no longer in the transcript, so any
- * promise/item/thought/honorific that was extracted *from that turn* should not
- * survive. We cannot perfectly reconstruct "which turn added X" from the merged
- * projection, so we re-derive from remaining messages: load all surviving turns,
- * re-run extraction is too expensive — instead we remove entries whose text no
- * longer appears in any surviving message.
- *
- * Conservative: only removes entries that are exact substring matches of the
- * deleted turn's text and are absent from all other turns.
+ * Provenance order:
+ * 1. `memory_relationship_before_json`, restored whole only while the current
+ *    ledger still equals that turn's after snapshot (no later writer). A later
+ *    edit is drift, same as variant switch `external_drift_preserved`.
+ * 2. Otherwise the turn's own net change (stored `relationshipMetaChange`, or
+ *    before vs after when both snapshots exist) is reverted per entry, and only
+ *    where the current entry still equals what the turn left. Adds, cancels and
+ *    transfers are all inverted; entries a later writer touched stay as they are.
+ *    A surviving turn's `relationshipMetaAfter` is never used as a restore source.
+ * 3. Conservative substring fallback. Paraphrased leftovers that match neither
+ *    surviving nor deleted RAW stay put — unknown old rows are not guessed away.
  */
 export function rollbackRelationshipMetaForDeletedTurnCore(
   db: Database.Database,
@@ -245,15 +483,35 @@ export function rollbackRelationshipMetaForDeletedTurnCore(
     deletedUserText: string;
     deletedAssistantText: string;
     relationshipMetaBeforeJson?: string | null;
+    relationshipMetaChange?: RelationshipLedgerChange | null;
+    relationshipMetaAfter?: MemoryMeta | null;
   }
 ): MemoryMeta {
   const before = parseRelationshipMetaBeforeSnapshot(
     opts.relationshipMetaBeforeJson,
     opts.names
   );
+  const after = opts.relationshipMetaAfter
+    ? normalizeMemoryMeta(opts.relationshipMetaAfter, opts.names)
+    : null;
   if (before) {
-    saveChatRelationshipMetaCore(db, opts.chatId, before);
-    return before;
+    const current = loadChatRelationshipMetaCore(db, opts.chatId, opts.names);
+    if (!after || JSON.stringify(current) === JSON.stringify(after)) {
+      saveChatRelationshipMetaCore(db, opts.chatId, before);
+      return before;
+    }
+  }
+
+  const change =
+    parseRelationshipLedgerChange(opts.relationshipMetaChange) ??
+    (before && after ? diffRelationshipLedger(before, after) : null);
+  if (change) {
+    const meta = loadChatRelationshipMetaCore(db, opts.chatId, opts.names);
+    const next = revertRelationshipLedgerChange(meta, change);
+    if (JSON.stringify(next) !== JSON.stringify(meta)) {
+      saveChatRelationshipMetaCore(db, opts.chatId, next);
+    }
+    return next;
   }
 
   const rows = db
@@ -330,6 +588,8 @@ export function rollbackRelationshipMetaForDeletedTurn(opts: {
   deletedUserText: string;
   deletedAssistantText: string;
   relationshipMetaBeforeJson?: string | null;
+  relationshipMetaChange?: RelationshipLedgerChange | null;
+  relationshipMetaAfter?: MemoryMeta | null;
 }): MemoryMeta {
   return rollbackRelationshipMetaForDeletedTurnCore(getDb(), opts);
 }
@@ -429,11 +689,15 @@ export function applyRelationshipDeltaToChat(opts: {
     }
     saveChatRelationshipMetaCore(db, opts.chatId, merged);
     if (assistantMessageId != null && opts.generationScope) {
+      const baseline =
+        loadRelationshipMetaBeforeSnapshotCore(db, assistantMessageId, opts.names) ??
+        prevNormalized;
       persistRelationshipMetaAfterSnapshotForGenerationCore(db, {
         chatId: opts.chatId,
         assistantMessageId,
         generationScope: opts.generationScope,
         meta: merged,
+        change: diffRelationshipLedger(baseline, normalizeMemoryMeta(merged, opts.names)),
       });
     }
     return { meta: merged, accepted: true };
