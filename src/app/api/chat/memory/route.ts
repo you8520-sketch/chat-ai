@@ -181,15 +181,16 @@ export async function GET(req: Request) {
   // the Medium block the prompt builder assembles (same owner), not a UI-side guess.
   const manualGlobalMemory = isManualGlobalActive(memRow);
   const manualBoundaryTurn = manualGlobalMemory ? resolvedGlobal.manualBoundaryTurn : null;
-  const deliveredAfterManualStarts = new Set(
-    manualGlobalMemory
+  const deliveredAfterManualRanges = new Map(
+    (manualGlobalMemory
       ? buildMediumTermMemoryBlockForProjection({
           chatId,
           blockCount: MEDIUM_TERM_BLOCK_COUNT,
           projectionKind: resolvedGlobal.projectionKind,
           manualBoundaryTurn,
-        }).turnRanges.map((range) => range.turnStart)
+        }).turnRanges
       : []
+    ).map((range) => [range.turnStart, range.deliveredFromTurn] as const)
   );
 
   const displayMeta = { ...meta, currentLocation: undefined };
@@ -200,7 +201,7 @@ export async function GET(req: Request) {
     ledgerEvents,
     manualGlobalMemory,
     manualGlobalCoveredThroughTurn: manualBoundaryTurn,
-    manualGlobalDeliveredRecordCount: deliveredAfterManualStarts.size,
+    manualGlobalDeliveredRecordCount: deliveredAfterManualRanges.size,
     longTerm: displayText,
     lorebook: displayLorebook,
     recentSummary: displayLorebook,
@@ -222,12 +223,13 @@ export async function GET(req: Request) {
     messagesUntilCompression: snapshot.messagesUntilCompression,
     budget: snapshot.budget,
     subscriptionTier: getSubscriptionTier(user),
-    memoryRecords: memoryRecords.map((r) => ({
+    memoryRecords: memoryRecords.map(({ postManualEdit: _postManualEdit, ...r }) => ({
       ...r,
       isFallbackSummary: isFallbackMemoryRecordSummary(r.summary),
       ...(manualGlobalMemory
         ? {
-            deliveredAfterManualGlobal: deliveredAfterManualStarts.has(r.turnStart),
+            deliveredAfterManualGlobal: deliveredAfterManualRanges.has(r.turnStart),
+            deliveredFromTurn: deliveredAfterManualRanges.get(r.turnStart),
             coveredByManualGlobal: manualBoundaryTurn != null && r.turnEnd <= manualBoundaryTurn,
           }
         : {}),

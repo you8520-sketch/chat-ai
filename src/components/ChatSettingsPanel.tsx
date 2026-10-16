@@ -81,6 +81,8 @@ type MemoryRecordItem = {
   isFallbackSummary?: boolean;
   /** 직접 기억이 있을 때만: 이 기록이 다음 프롬프트에 직접 기억과 함께 전달되는지 */
   deliveredAfterManualGlobal?: boolean;
+  /** 직접 기억이 있을 때만: 5턴 기록이 직접 수정 시점에 걸쳐 있을 때, AI에 전달되는 첫 턴 (이전 턴은 직접 기억에 반영됨) */
+  deliveredFromTurn?: number;
   /** 직접 기억이 있을 때만: 직접 수정 시점에 이미 존재해 직접 기억에 반영된 기록인지 */
   coveredByManualGlobal?: boolean;
 };
@@ -1766,7 +1768,9 @@ function MemorySection({
                   </div>
                   {r.deliveredAfterManualGlobal ? (
                     <p className="mb-1 text-[9px] text-sky-300/90">
-                      직접 수정 이후 기록 · 직접 기억과 함께 AI에 전달됨
+                      {r.deliveredFromTurn != null
+                        ? `직접 수정 이후 기록 · ${r.deliveredFromTurn}~${r.turnEnd}턴만 직접 기억과 함께 AI에 전달됨 (${r.turnStart}~${r.deliveredFromTurn - 1}턴은 직접 기억에 반영)`
+                        : "직접 수정 이후 기록 · 직접 기억과 함께 AI에 전달됨"}
                     </p>
                   ) : r.coveredByManualGlobal ? (
                     <p className="mb-1 text-[9px] text-zinc-500">
