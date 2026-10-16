@@ -1,7 +1,6 @@
 # Wolfgang #51 sig4 "절제된 온기" — 그림체 이탈 원인 확인과 한 장 재생성 요청 (미전송)
 
-상태: **사용자 거절 · 재생성 대상**. 이 문서와 PR은 새 유료 호출, 운영 이미지 교체, DB 쓰기를 하지 않았다.
-승인 r2 본문 / Text Lock / Appearance Lock, #50, 기존 이미지 원본·URL, 로어북·권한·공개 상태는 건드리지 않았다.
+상태: **한 장 후보 생성됨 · 운영 미적용**. 승인 r2 본문 / Text Lock / Appearance Lock, #50, 기존 이미지 원본·URL, 로어북·권한·공개 상태는 그대로다. 나머지 13장 재생성, 14개 태그 백필, 운영 URL 교체는 하지 않았다.
 
 ## 1. 생성 이력 (프로덕션 read-only, `PRAGMA query_only`)
 
@@ -104,7 +103,48 @@
 
 **게이트**: 한 장을 생성해 (1) 그림체(모피 외곽선·덩어리·명암 단계·금속 반사를 b7/b13/b5 와 원본 크기로 비교), (2) 장면 전달(얼굴·장갑 낀 손·그릇·내미는 방향·거리가 한눈에 보임)을 GPT/사용자가 통과시키기 전에는 나머지 13장 재생성, 운영 URL 교체, 태그 갱신을 진행하지 않는다. 통과 못 하면 이 문서 3의 추정 항목(b13 추가 STYLE 참조 등)을 한 번에 하나씩만 바꿔 다시 한 장을 요청한다.
 
-## 6. 이번 단계에서 하지 않은 것 / 후속
+## 6. 한 장 후보 실측 (replacement path, apply 없음)
 
-- 새 유료 호출, 운영 이미지·DB 변경, #50 변경: 없음.
-- 후속(별도): 기록 이전 14개 슬롯의 vision 분류 백필(유료 vision 호출 + DB 쓰기 → 승인 필요), replacement 적용 시 태그 갱신 정책, 전송된 prompt·quality·참조 해시·fallback 사용 여부를 슬롯 기록에 남기는 증거 컬럼(스키마 변경 → 별도 승인).
+실행 환경에서 확인한 전송값 (`assets/wolfgang-sig4-style-fidelity/sig4-one-shot-actual.json`). 요청 JSON을 그대로 쓰지 않았다.
+
+| 항목 | 실측 |
+|---|---|
+| model | `gpt-image-2.5-sunburst` (env resolve = 전송 = 저장) |
+| IDENTITY | `/uploads/official-pilot-rf-v4-02__rep-a1.webp` 로컬 접근, 원본 sha256 `a66c49d4…3a45f1`, 전처리 후 `88d08019…013fa2` |
+| STYLE | `https://hav.chat/official-supply/style-seeds/.../b7-black-gold-uniform.webp` → 로컬 public 바이트, 원본 `fc4047ac…d3168`, 전처리 후 `ba5f3896…065b89` |
+| 실패한 기존 sig4 | 참조 목록에 없음 |
+| size / quality / format | 1536x1024 / medium / webp, `output_compression` 88, `background=opaque`, `n=1` |
+| fallback | 꺼짐. `callOpenAiImageEdit` primary only |
+| draftKey / shot | `pilot-rf-v4-02` alias → `right_three_quarter / low_angle / knee_or_full / prop / environment` |
+| pose | 승인 문장(식탁에서 장갑 낀 손으로 김 나는 수프 그릇을 카메라 쪽으로 밀어 건넴) |
+| Appearance Lock | `1c3ccd13…24dcc3` (변경 없음) |
+| 저장 후보 | `sig4-candidate.webp`, 1536x1024, 273926 B, sha256 `2e1da30e…7cf977` |
+| request ID | `req_8c811dd2fbc14e028cc984b3fc981407` |
+| 이미지 비용 | 0.045716 USD |
+| vision | tag `앉음`, reject 없음, 0.00049153 USD |
+| 이번 실행 합 | 0.04620753 USD |
+| 직전 드롭 시도 | `req_90653bcd86354c9cb18930290b9a90ab`, 0.045716 USD. provider는 성공했으나 `/tmp` 스크립트가 `sharp`를 못 찾아 바이트를 저장하지 못함. provider 실패 재시도가 아님 |
+| 캠페인 합 | **0.09192353 USD** (상한 0.10). 운영 apply 없음 |
+
+![새 후보 전체](./assets/wolfgang-sig4-style-fidelity/sig4-candidate.webp)
+
+![b7 / b13 / 기존 sig4 / 새 후보](./assets/wolfgang-sig4-style-fidelity/compare-full-b7-b13-old-new.webp)
+
+![원본 크기 모피](./assets/wolfgang-sig4-style-fidelity/compare-native-fur.webp)
+
+![원본 크기 머리카락](./assets/wolfgang-sig4-style-fidelity/compare-native-hair.webp)
+
+![원본 크기 금속](./assets/wolfgang-sig4-style-fidelity/compare-native-metal.webp)
+
+### 판정 (테스트 통과 ≠ 이미지 품질 합격)
+
+**그림체 충실도: 불합격 (기존 클로즈업 모자이크 대비 부분 개선).** 새 후보는 전신·식탁 거리라 기존 sig4의 옆얼굴 클로즈업 모자이크는 사라졌다. 그러나 모피는 여전히 b13의 큰 깃털 덩어리+잉크 외곽선이 아니라 잔 결이 반복되는 밀도다. STYLE 참조가 b7(모피 거의 없음) 한 장이라는 기존 가설과 같은 방향이다. 머리카락은 b7/b13의 큰 덩어리+소수 하이라이트에 더 가깝고, 기존 sig4 이마 낱가닥보다는 낫다. 금속은 기존 크롬 다중 띠보다 면이 단순하고 늑대 문장이 읽히지만, b7/b13의 금색 그래픽 실루엣과는 여전히 다르다.
+
+**음식 건네기: 부분 합격.** 얼굴·장갑 낀 손·김 나는 그릇·식탁·환경이 한 프레임에 있고 받는 사람은 없다. 그릇은 카메라 쪽을 향한다. 다만 손은 그릇을 밀어 건네기보다 옆에 올려 둔 포즈에 가깝고, 지정한 “전달 방향이 한눈에 보이는 밀어 건넴”은 약하다. vision 태그 `앉음`은 분류일 뿐 품질 합격을 대신하지 않는다.
+
+한 장 비교가 그림체 불합격이므로 나머지 13장 재생성, 기존 14개 태그 백필, 운영 교체는 열지 않는다.
+
+## 7. 이번 단계에서 하지 않은 것 / 후속
+
+- 운영 이미지·DB 변경, #50 변경, 공개·알림·유료 RP: 없음.
+- 후속(별도): 그림체 불합격 가설을 한 번에 하나만 바꿔 다시 한 장 (예: variation STYLE에 b13 추가). 기록 이전 14개 슬롯 vision 백필, replacement 적용 시 태그 갱신, 전송 prompt/quality/참조 해시 증거 컬럼은 스키마 변경이므로 별도 승인.
