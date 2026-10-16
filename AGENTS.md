@@ -13,6 +13,10 @@ Single Next.js 15 (App Router) app — an AI character chat platform (Korean UI,
 - Local config lives in `.env.local` (gitignored, not committed). The update script creates it from `.env.example` if missing. It sets `PORTONE_CHARGE_ENABLED=0` / `NEXT_PUBLIC_PAYMENTS_ENABLED=0`, which disables payments and auto-skips adult verification for dev. Without `.env.local` those defaults are unset and some flows behave differently.
 - `data/app.db` is auto-created, migrated, and seeded on first boot (gitignored; persists in the VM snapshot).
 
+### Memory / RP production-mode verification (local)
+- Derived-cache translation worker default is ON only when Railway injects `RAILWAY_ENVIRONMENT_NAME=production` (same deploy-context predicate as `src/lib/railwayProductionBootGuard.js`). `NODE_ENV=production` alone does **not** start the worker.
+- Still prefer `./node_modules/.bin/tsx scripts/memory-verification-prod-server.ts baseline|pr` for Memory v2 A/B: isolated `DATA_DIR` per role (ports 3200 / 3100), `PLAYWRIGHT_PROD_SERVER=1` for local volume checks, and it reaps its owned `tsx server.js` process group on exit. Do not share `DATA_DIR=/workspace/data` with a long-lived verification server.
+
 ### Run (dev)
 - `npm run dev` starts a custom server (`server.js` via `tsx`, wrapped by `scripts/dev-server.ts`) on port 3000. Dev uses the `.next-dev` build dir; production `next build` uses `.next` (kept separate so build and dev don't clash).
 - The port-3000 auto-kill in `scripts/dev-server.ts` is Windows-only. On this Linux VM it does NOT free the port, so to restart you must first stop the running dev process (Ctrl-C in its terminal); otherwise the new one fails to bind. The workspace "dev-server" rule mentioning `npm.cmd`/PowerShell is Windows-specific and does not apply here.

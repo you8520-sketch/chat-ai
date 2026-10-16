@@ -66,6 +66,7 @@ export default defineConfig({
           CHEAPER_INFERENCE_BENCHMARK_API_KEY: "",
           OPENROUTER_API_KEY: "",
           OPENAI_API_KEY: "",
+          DISABLE_DERIVED_CACHE_WORKER: "1",
         },
         url: PROD_TEST_BASE_URL,
         reuseExistingServer: false,

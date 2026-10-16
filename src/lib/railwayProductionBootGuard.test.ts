@@ -3,8 +3,11 @@ import { describe, it } from "node:test";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { assertRailwayProductionNodeEnv } = require("./railwayProductionBootGuard.js") as {
+const { assertRailwayProductionNodeEnv, isRailwayProductionEnvironment } = require(
+  "./railwayProductionBootGuard.js"
+) as {
   assertRailwayProductionNodeEnv: (env?: NodeJS.ProcessEnv) => void;
+  isRailwayProductionEnvironment: (env?: NodeJS.ProcessEnv) => boolean;
 };
 
 describe("railwayProductionBootGuard", () => {
@@ -37,6 +40,13 @@ describe("railwayProductionBootGuard", () => {
         }),
       /Railway production requires NODE_ENV=production/
     );
+  });
+
+  it("isRailwayProductionEnvironment is only RAILWAY_ENVIRONMENT_NAME=production", () => {
+    assert.equal(isRailwayProductionEnvironment({ RAILWAY_ENVIRONMENT_NAME: "production" }), true);
+    assert.equal(isRailwayProductionEnvironment({ RAILWAY_ENVIRONMENT_NAME: "staging" }), false);
+    assert.equal(isRailwayProductionEnvironment({ NODE_ENV: "production" }), false);
+    assert.equal(isRailwayProductionEnvironment({}), false);
   });
 
   it("does not enforce outside Railway production", () => {

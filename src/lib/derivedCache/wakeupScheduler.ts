@@ -115,7 +115,7 @@ export function requestDerivedCacheWake(maxJobs = defaultMaxJobs): void {
 export function startDerivedCacheWakeup(): void {
   if (isDerivedCacheWorkerDisabled()) {
     console.log(
-      "[server] derived cache worker disabled (non-production default; set DISABLE_DERIVED_CACHE_WORKER=0 to run it)"
+      "[server] derived cache worker disabled (non-Railway-production default; set DISABLE_DERIVED_CACHE_WORKER=0 to run it)"
     );
     return;
   }
