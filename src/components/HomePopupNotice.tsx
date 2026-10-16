@@ -23,7 +23,7 @@ export default function HomePopupNotice({ notice }: Props) {
   const [hideToday, setHideToday] = useState(false);
   const handledForThisHomeVisitRef = useRef(false);
   const confirmRef = useRef<HTMLButtonElement>(null);
-  const dialogRef = useRef<HTMLSectionElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const key = useMemo(() => (notice ? storageKey(notice) : ""), [notice]);
 
   useEffect(() => {
@@ -92,9 +92,11 @@ export default function HomePopupNotice({ notice }: Props) {
   if (!notice || !visible) return null;
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 px-4 py-8 backdrop-blur-[2px]">
+    <div
+      ref={dialogRef}
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 px-4 py-8 backdrop-blur-[2px]"
+    >
       <section
-        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="home-popup-notice-title"
