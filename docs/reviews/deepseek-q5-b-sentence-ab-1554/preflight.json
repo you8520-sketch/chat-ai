@@ -1,0 +1,21 @@
+{
+  "preflight": "PASS",
+  "aHashMatchesRecorded": true,
+  "aSerializedSha256": "7650477054bfd52cb7fdd64ec0f7c38cb870bd4c3913d3116dc08ed6e2d072ea",
+  "bSerializedSha256": "fa6808f20d480c677d81e3d2c7ca1600d59304791095241ef103b848a15cf43c",
+  "diffPaths": [
+    ".messages.0.content.1.text"
+  ],
+  "onlyInsertion": true,
+  "noMaxTokens": true,
+  "stream": false,
+  "model": "deepseek-v4.1-flash",
+  "temperature": 0.92,
+  "top_p": 0.92,
+  "thinking": {
+    "type": "disabled"
+  },
+  "reasoning_effort": "none",
+  "blockIndex": 1,
+  "insertedChars": 92
+}
