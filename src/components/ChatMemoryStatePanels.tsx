@@ -332,7 +332,7 @@ export function MemoryEventsPanel({
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="사건 검색 (예: 야경, 10턴)"
+          placeholder="사건 검색"
           aria-label="사건 검색"
           className="min-w-0 flex-1 rounded-md border border-white/10 bg-[#1a1a1a] px-2 py-1.5 text-[11px] text-zinc-200 placeholder:text-zinc-600 focus:border-violet-500/40 focus:outline-none"
         />

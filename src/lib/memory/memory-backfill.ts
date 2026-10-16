@@ -115,6 +115,7 @@ export function prepareMemoryPanelView(opts: MemoryBackfillOpts): void {
     characterId: opts.characterId,
     tier: opts.tier,
     playableTurnCount: playable,
+    preserveManualGlobal: true,
   });
 }
 

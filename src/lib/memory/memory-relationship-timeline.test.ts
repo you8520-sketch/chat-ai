@@ -234,6 +234,43 @@ describe("relationship ledger timeline (promise create -> cancel -> recall)", ()
     assert.deepEqual(selectPromiseHistoryForPrompt(events(), "책 돌려주기로 한 거 기억나?").filter((l) => l.includes("도서관")), []);
   });
 
+  it("follows the active variant: a variant without the cancel hides the cancel event", () => {
+    const db = getDb();
+    const id = assistantIdOf(CANCEL_TURN);
+    const row = db.prepare("SELECT alternates FROM messages WHERE id=?").get(id) as {
+      alternates: string;
+    };
+    const [cancelVariant] = JSON.parse(row.alternates) as Record<string, unknown>[];
+    const plainVariant = { ...cancelVariant };
+    delete plainVariant.relationshipMetaChange;
+    delete plainVariant.relationshipMetaAfter;
+    db.prepare("UPDATE messages SET alternates=?, active_variant=1 WHERE id=?").run(
+      JSON.stringify([cancelVariant, { ...plainVariant, content: "다른 응답" }]),
+      id
+    );
+    assert.deepEqual(
+      events()
+        .filter((e) => e.category === "promise")
+        .map((e) => e.change),
+      ["created"]
+    );
+    db.prepare("UPDATE messages SET active_variant=0 WHERE id=?").run(id);
+    assert.deepEqual(
+      events()
+        .filter((e) => e.category === "promise")
+        .map((e) => e.change),
+      ["created", "released"]
+    );
+  });
+
+  it("legacy turns without provenance simply have no events", () => {
+    getDb()
+      .prepare("UPDATE messages SET alternates='[]' WHERE id IN (?, ?)")
+      .run(assistantIdOf(CREATE_TURN), assistantIdOf(CANCEL_TURN));
+    assert.deepEqual(events(), []);
+    assert.deepEqual(selectPromiseHistoryForPrompt(events(), "야경 약속 기억나?"), []);
+  });
+
   it("possession changes are listed with the same provenance", () => {
     applyAtTurn(40, { items: ["Tester: 청동열쇠"] });
     const item = events().find((e) => e.category === "item")!;

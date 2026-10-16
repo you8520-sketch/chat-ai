@@ -388,13 +388,26 @@ export function reconcileSummarizedTurnCountFromTable(opts: {
   tier: MemoryTier;
   playableTurnCount: number;
   boundarySnapshot?: MemorySourceBoundary;
+  /**
+   * Read-only callers (panel open) repair the count but must not discard a
+   * user-saved Global memory: only the count is rewritten for `manual_global`.
+   */
+  preserveManualGlobal?: boolean;
 }): number {
   const db = getDb();
   getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
   const records = listMemoryRecordsForChat(opts.chatId);
   const contiguous = highestContiguousCompletedTurn(records, opts.playableTurnCount);
-  const recent = rebuildLorebookFromRecords(opts.chatId);
   const current = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
+  if (opts.preserveManualGlobal && current.global_projection_kind === "manual_global") {
+    if (contiguous !== current.summarized_turn_count) {
+      db.prepare(
+        `UPDATE chat_memories SET summarized_turn_count=?, updated_at=datetime('now') WHERE chat_id=?`
+      ).run(contiguous, opts.chatId);
+    }
+    return contiguous;
+  }
+  const recent = rebuildLorebookFromRecords(opts.chatId);
   const used = calcUsedChars({
     recent_summary: recent,
     archive_summary: current.archive_summary,
