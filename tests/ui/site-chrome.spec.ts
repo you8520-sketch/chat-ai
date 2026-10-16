@@ -217,6 +217,41 @@ test.describe("compact mobile header", () => {
     }
   });
 
+  test("keyboard Tab walks the header controls then every menu tab without leaving the header", async ({ page }) => {
+    await demoLogin(page);
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.goto("/tab/ranking");
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    const seen: string[] = [];
+    for (let i = 0; i < 12; i += 1) {
+      await page.keyboard.press("Tab");
+      await page.waitForTimeout(150);
+      const info = await page.evaluate(() => {
+        const el = document.activeElement as HTMLElement;
+        const r = el.getBoundingClientRect();
+        const header = document.querySelector("header.site-header")!.getBoundingClientRect();
+        return {
+          label: (el.getAttribute("aria-label") || el.textContent || "").trim().slice(0, 12),
+          inHeader: !!el.closest("header.site-header"),
+          l: r.left,
+          r: r.right,
+          t: r.top,
+          b: r.bottom,
+          headerBottom: header.bottom,
+          vw: document.documentElement.clientWidth,
+        };
+      });
+      if (!info.inHeader) break;
+      seen.push(info.label);
+      expect(info.l, `${info.label} left`).toBeGreaterThanOrEqual(-1);
+      expect(info.l, `${info.label} starts on screen`).toBeLessThan(info.vw - 24);
+      expect(info.b, `${info.label} bottom`).toBeLessThanOrEqual(info.headerBottom + 1);
+    }
+    for (const label of ["하브 홈", "홈", "신작", "랭킹", "TRPG", "검색", "북마크/팔로잉"]) {
+      expect(seen.some((s) => s.includes(label)), `Tab reaches ${label}`).toBe(true);
+    }
+  });
+
   test("stays sticky after scrolling and drives the rail, scroll padding and --site-header-height", async ({ page }) => {
     await demoLogin(page);
     for (const width of [390, 768, 1440]) {
