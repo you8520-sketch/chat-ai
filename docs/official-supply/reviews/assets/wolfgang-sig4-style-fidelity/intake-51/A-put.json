@@ -1,0 +1,217 @@
+{
+ "label": "A-put",
+ "mode": "put",
+ "externalFile": "/workspace/docs/official-supply/reviews/assets/wolfgang-sig4-style-fidelity/sig4-candidate-b13.webp",
+ "steps": [
+  {
+   "name": "login",
+   "status": 200
+  },
+  {
+   "name": "GET before",
+   "status": 200,
+   "assetCount": 14
+  },
+  {
+   "name": "upload",
+   "status": 200,
+   "urls": [
+    "/media/private/4be34909-ffdf-4512-8c2f-51365342ba1e.webp"
+   ]
+  },
+  {
+   "name": "stored original",
+   "status": 200,
+   "width": 1536,
+   "height": 1024,
+   "bytes": 251378
+  },
+  {
+   "name": "auto tag (no provider key)",
+   "status": 200,
+   "tag": "미분류 1",
+   "estimated": true,
+   "costAttempts": []
+  },
+  {
+   "name": "PUT save",
+   "status": 400,
+   "body": {
+    "error": "다른 사용자의 이미지는 첨부할 수 없습니다."
+   }
+  },
+  {
+   "name": "GET after",
+   "status": 200,
+   "assetCount": 14,
+   "sig4": {
+    "url": "/uploads/official-pilot-rf-v4-02__sig4-a1.webp",
+    "tag": "절제된 온기",
+    "public": true,
+    "chat": true,
+    "viewerBlur": false,
+    "adultFlagged": false,
+    "width": 1536,
+    "height": 1024,
+    "orientation": "landscape"
+   }
+  }
+ ],
+ "afterAssets": [
+  {
+   "url": "/uploads/official-pilot-rf-v4-02__rep-a1.webp",
+   "tag": "흑철 늑대공",
+   "public": true,
+   "chat": true,
+   "viewerBlur": false,
+   "adultFlagged": false,
+   "width": 1024,
+   "height": 1536,
+   "orientation": "portrait",
+   "representativeRank": 1
+  },
+  {
+   "url": "/uploads/official-pilot-rf-v4-02__sig1-a1.webp",
+   "tag": "철혈의 지휘관",
+   "public": true,
+   "chat": true,
+   "viewerBlur": false,
+   "adultFlagged": false,
+   "width": 1536,
+   "height": 1024,
+   "orientation": "landscape"
+  },
+  {
+   "url": "/uploads/official-pilot-rf-v4-02__sig2-a1.webp",
+   "tag": "흉터의 맹세",
+   "public": true,
+   "chat": true,
+   "viewerBlur": false,
+   "adultFlagged": false,
+   "width": 1536,
+   "height": 1024,
+   "orientation": "landscape"
+  },
+  {
+   "url": "/uploads/official-pilot-rf-v4-02__sig3-a1.webp",
+   "tag": "봉인고의 열쇠",
+   "public": true,
+   "chat": true,
+   "viewerBlur": false,
+   "adultFlagged": false,
+   "width": 1536,
+   "height": 1024,
+   "orientation": "landscape"
+  },
+  {
+   "url": "/uploads/official-pilot-rf-v4-02__sig4-a1.webp",
+   "tag": "절제된 온기",
+   "public": true,
+   "chat": true,
+   "viewerBlur": false,
+   "adultFlagged": false,
+   "width": 1536,
+   "height": 1024,
+   "orientation": "landscape"
+  },
+  {
+   "url": "/uploads/official-pilot-rf-v4-02__emo1-a1.webp",
+   "tag": "기록의 모순",
+   "public": true,
+   "chat": true,
+   "viewerBlur": false,
+   "adultFlagged": false,
+   "width": 1536,
+   "height": 1024,
+   "orientation": "landscape"
+  },
+  {
+   "url": "/uploads/official-pilot-rf-v4-02__emo2-a1.webp",
+   "tag": "분노의 억제",
+   "public": true,
+   "chat": true,
+   "viewerBlur": false,
+   "adultFlagged": false,
+   "width": 1536,
+   "height": 1024,
+   "orientation": "landscape"
+  },
+  {
+   "url": "/uploads/official-pilot-rf-v4-02__emo3-a1.webp",
+   "tag": "증거 앞의 판단",
+   "public": true,
+   "chat": true,
+   "viewerBlur": false,
+   "adultFlagged": false,
+   "width": 1536,
+   "height": 1024,
+   "orientation": "landscape"
+  },
+  {
+   "url": "/uploads/official-pilot-rf-v4-02__emo4-a1.webp",
+   "tag": "뜻밖의 동요",
+   "public": true,
+   "chat": true,
+   "viewerBlur": false,
+   "adultFlagged": false,
+   "width": 1536,
+   "height": 1024,
+   "orientation": "landscape"
+  },
+  {
+   "url": "/uploads/official-pilot-rf-v4-02__emo5-a1.webp",
+   "tag": "경계의 완화",
+   "public": true,
+   "chat": true,
+   "viewerBlur": false,
+   "adultFlagged": false,
+   "width": 1536,
+   "height": 1024,
+   "orientation": "landscape"
+  },
+  {
+   "url": "/uploads/official-pilot-rf-v4-02__emo6-a1.webp",
+   "tag": "귀환의 안도",
+   "public": true,
+   "chat": true,
+   "viewerBlur": false,
+   "adultFlagged": false,
+   "width": 1536,
+   "height": 1024,
+   "orientation": "landscape"
+  },
+  {
+   "url": "/uploads/official-pilot-rf-v4-02__scene1-a1.webp",
+   "tag": "위조된 명령서의 밤",
+   "public": true,
+   "chat": true,
+   "viewerBlur": false,
+   "adultFlagged": false,
+   "width": 1536,
+   "height": 1024,
+   "orientation": "landscape"
+  },
+  {
+   "url": "/uploads/official-pilot-rf-v4-02__scene2-a1.webp",
+   "tag": "봉인된 장부의 빈칸",
+   "public": true,
+   "chat": true,
+   "viewerBlur": false,
+   "adultFlagged": false,
+   "width": 1536,
+   "height": 1024,
+   "orientation": "landscape"
+  },
+  {
+   "url": "/uploads/official-pilot-rf-v4-02__scene3-a1.webp",
+   "tag": "황실의 마지막 압박",
+   "public": true,
+   "chat": true,
+   "viewerBlur": false,
+   "adultFlagged": false,
+   "width": 1536,
+   "height": 1024,
+   "orientation": "landscape"
+  }
+ ]
+}

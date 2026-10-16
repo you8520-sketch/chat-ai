@@ -1,0 +1,54 @@
+{
+ "stagedPrivate": {
+  "stage": "staged_private",
+  "createReplacementCandidate": "character_stage: draft pilot-rf-v4-02 is staged_private; published official character required"
+ },
+ "afterPublishInCopy": {
+  "stage": "published"
+ },
+ "externalFilePublishedCopy": {
+  "created": "planned",
+  "claimed": true,
+  "completed": true,
+  "review": {
+   "approved": true
+  },
+  "applied": {
+   "status": "applied",
+   "characterId": 10,
+   "draftKey": "pilot-rf-v4-02",
+   "swapped": [
+    "sig4"
+   ]
+  },
+  "changedAssetIndexes": [
+   4
+  ],
+  "sig4After": {
+   "url": "/uploads/official-pilot-rf-v4-02__sig4-r1.webp",
+   "tag": "절제된 온기",
+   "public": true,
+   "chat": true,
+   "viewerBlur": false,
+   "width": 1536,
+   "height": 1024,
+   "orientation": "landscape",
+   "adultFlagged": false
+  },
+  "replacementRow": {
+   "status": "applied",
+   "spentUsd": 0,
+   "hasUnknownCost": false,
+   "model": null,
+   "providerRequestId": null
+  },
+  "activeSupplyRow": {
+   "status": "approved",
+   "model": null,
+   "providerRequestId": null,
+   "resultUrl": "/uploads/official-pilot-rf-v4-02__sig4-r1.webp"
+  },
+  "tagUnchangedBySwap": true,
+  "dimensionGate": "1536x1024 required exactly 1536x1024 for signature slots"
+ }
+}

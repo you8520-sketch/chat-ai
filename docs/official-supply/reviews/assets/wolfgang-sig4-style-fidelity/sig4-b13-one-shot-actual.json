@@ -1,0 +1,200 @@
+{
+ "executed": true,
+ "dryRun": false,
+ "styleCompare": "b13",
+ "isolatedDataDir": "/tmp/habby-test-db-P0ogpn",
+ "isolatedDatabasePath": "/tmp/habby-test-db-P0ogpn/app.db",
+ "model": "gpt-image-2.5-sunburst",
+ "openaiKeyChars": 164,
+ "openrouterKeyPresent": true,
+ "nextauthUrl": "https://hav.chat",
+ "draftKey": "pilot-rf-v4-02",
+ "appearanceLockHash": "1c3ccd134203a6dea6ae869c27cc443c42ff5498d1d0130c6f9765407c24dcc3",
+ "identitySha": "a66c49d4d947209206b70a284c99f2e26ef868934ed5426818042c29ba3a45f1",
+ "composedReferencesCanonical": [
+  "/uploads/official-pilot-rf-v4-02__rep-a1.webp",
+  "https://hav.chat/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b7-black-gold-uniform.webp"
+ ],
+ "transmittedReferences": [
+  "/uploads/official-pilot-rf-v4-02__rep-a1.webp",
+  "https://hav.chat/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b13-black-red-fur.webp"
+ ],
+ "referenceDiffFromPriorB7Run": {
+  "unchanged": [
+   "IDENTITY ONLY",
+   "primaryPrompt",
+   "model",
+   "quality",
+   "size",
+   "pose",
+   "shot"
+  ],
+  "changed": {
+   "image2StyleOnly": {
+    "from": "https://hav.chat/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b7-black-gold-uniform.webp",
+    "to": "https://hav.chat/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b13-black-red-fur.webp"
+   }
+  }
+ },
+ "referenceRoleLayout": "identity_then_style",
+ "referenceAccess": [
+  {
+   "index": 0,
+   "role": "IDENTITY ONLY",
+   "source": "/uploads/official-pilot-rf-v4-02__rep-a1.webp",
+   "readable": true,
+   "sha256": "a66c49d4d947209206b70a284c99f2e26ef868934ed5426818042c29ba3a45f1"
+  },
+  {
+   "index": 1,
+   "role": "STYLE ONLY",
+   "source": "https://hav.chat/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b13-black-red-fur.webp",
+   "readable": true,
+   "sha256": "f9d01ebc18291acb89894b070c3c8308a317575f9702e75db75b42a872ed4ae6",
+   "localPublicPath": "/workspace/public/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b13-black-red-fur.webp",
+   "styleCompareOverride": true
+  }
+ ],
+ "profile": {
+  "id": "official_character_rp",
+  "aspect": "3:2",
+  "orientation": "landscape",
+  "size": "1536x1024",
+  "width": 1536,
+  "height": 1024
+ },
+ "quality": "medium",
+ "outputCompression": 88,
+ "background": "opaque",
+ "outputFormat": "webp",
+ "n": 1,
+ "fallbackDisabled": true,
+ "pose": "갑옷을 벗지 않은 채 식탁에서 장갑 낀 손으로 김 나는 수프 그릇을 카메라 쪽으로 밀어 건넨다. 받는 사람은 그리지 않으며, 얼굴·장갑 낀 손·그릇과 전달 방향이 한눈에 보인다",
+ "shot": {
+  "slotKey": "sig4",
+  "kind": "signature",
+  "faceDirection": "right_three_quarter",
+  "cameraAngle": "low_angle",
+  "distance": "knee_or_full",
+  "poseFamily": "prop",
+  "expressionFamily": "tense",
+  "background": "environment"
+ },
+ "primaryPrompt": "Create one horizontal 3:2 roleplay illustration (1536x1024). This is a distinct cut of the same character — not another bust-card portrait. Follow the shot responsibility for face direction, camera, crop, and pose. Do not default to face-and-upper-body. SHOT RESPONSIBILITY (sig4/signature): head turned right three-quarter view; low-angle camera placed below the subject looking up, with visible upward perspective; knee-up or full-body shot with space around the figure. Background: an identifiable environment behind the character (architecture, weather, or workplace cue). This cut must look different from the other slots in face direction, camera, and framing. Do not inherit the representative card's camera, head angle, crop, or hand position. SHOT CHANGE MUST NOT CHANGE IDENTITY: same face structure, hair, eyes, marks, age, and body type as the IDENTITY LOCK.\nREFERENCE IMAGES: Image 1 is IDENTITY ONLY. Image 2 is STYLE ONLY. Image 1 IDENTITY ONLY — keep face identity, canonical hair, eye identity, character-specific identity features named in the IDENTITY LOCK, and body proportions. Use the supplied image solely to keep the same face structure, hair, eyes, marks, age, and body type. Do not copy the reference camera, head angle, face direction, crop, hand position, pose, expression, or background. Image 2 STYLE ONLY — drawing/rendering language, line treatment, cel shading, face rendering grammar, hair highlight treatment, material/detail rendering, hue separation, and finishing/polish. Use the supplied image(s) solely for drawing/rendering language, facial illustration treatment, coloring, lighting, hair rendering density, material detail, detail density, and overall polish. Do not copy any reference person's face identity, hairstyle, hair color, eye color, outfit design, jewelry, marks/tattoos/scars, pose, or background. Image 2 additionally must not contribute gender or body identity, camera, framing, scene, or a character-specific palette. SHOT RESPONSIBILITY owns camera, face direction, and shot distance. The Pose line owns action and props. The Expression line owns emotion. The IDENTITY LOCK / Appearance Lock below is the sole character-identity owner and overrides any resemblance to the style references. Prefer crisp, readable linework and graphic cel-shading over painterly blending or semi-realistic softness. Use stronger saturation and clean hue separation in the target character's canonical colors; the references demonstrate vivid accent handling, not a mandatory shared palette. Sharper youthful face readability on mobile cards — clean skin highlight structure, not muted beige-gold wash. Ornament and metal details should read as clear graphic silhouettes; backgrounds stay flatter and cleaner so the face wins. Avoid heavy mature realism, low-contrast noble haze, or soft airbrush that hides facial structure. Translate the target character's canonical Appearance Lock colors into that saturation/contrast/highlight treatment; reference colors are examples of color handling, not colors to copy. Never merge reference characters into one face; never import reference costumes, insignia, props, or seasonal/event setups.\nCharacter: 볼프강 폰 발켄하임, age 34.\nIDENTITY LOCK — identical across every image of this character:\n연령대 인상: 30s\n얼굴: 비율이 균형 잡힌 남성적인 얼굴, 매끈한 광대선과 또렷하되 과하게 길거나 넓지 않은 턱선\n눈: 길고 깊게 내려앉은 눈매. 상대의 말보다 손과 호흡을 먼저 살피는 차가운 시선 (빛이 적은 회청색)\n머리: 옆머리를 짧게 정리하고 윗머리를 거칠게 쓸어 넘긴 울프컷. 전투 뒤에는 눈가로 몇 가닥이 흐트러진다 (차가운 짙은 흑회색, 윗머리는 귀밑까지, 옆과 뒷머리는 짧다)\n키/체형: 188cm, 어깨가 넓고 허리가 단단한 체형. 움직임은 절제되어 있으나 전투 때는 망설임 없이 파고든다\n피부: 추위에 쉽게 옅게 붉어지는 깨끗한 창백 피부\n특징: 왼쪽 턱 아래에 가늘게 남은 흉터, 왼손 약지는 동상 후유증으로 감각이 둔하다\n기본 의상: 흑철 판금 갑옷 위에 검은 늑대 모피 코트를 걸친다. 집무실에서도 갑옷 일부를 벗지 않는다. 가문의 인장이 박힌 흑철 지휘관 반지, 방벽 열쇠 꾸러미, 낡은 가죽 장갑을 지닌다.\nNever drift: 회청색 눈과 왼쪽 턱 아래의 가는 흉터를 변경하지 않는다.; 차가운 짙은 흑회색 울프컷과 188cm의 크고 넓은 어깨 체형을 변경하지 않는다.; 흑철 판금 갑옷과 검은 늑대 모피 코트의 팔레트 및 핵심 실루엣을 변경하지 않는다..\nOutfit policy: 장면에 따라 갑옷 일부를 벗거나 손상·전투 흔적을 더할 수 있으나, 흑철 갑옷과 검은 늑대 모피 코트의 기본 조합 및 반지·열쇠·장갑은 유지한다.\nMATURE MALE VISUAL AGE LOCK — Keep an adult man in his 30s visibly mature and age-appropriate while preserving a polished romance-target face. Convey maturity through physique, shoulders, neck, posture, gaze, grooming, authority and styling. Keep facial skin clean and healthy, cheek lines controlled, and the jaw defined without adding older-age facial texture. Wrinkles, sagging skin, hollowed cheeks, age spots, visibly receding hair, or an older-than-canon face belong only to characters whose canon explicitly calls for that older visual age. Fantasy silver/gray hair may remain a canonical color and is not itself an aging cue.\nGENDER LOCK — mandatory identity rule.\nCharacter 볼프강 폰 발켄하임: confirmed MALE. Keep him male in face, torso and body shape. Long hair, soft facial features, slim build, cute SD/chibi styling, blush, eyelashes, delicate clothing or androgynous beauty must NOT be interpreted as female. Use a flat masculine chest and male-coded torso. Do not draw breasts, cleavage, a feminine chest mound, a bra-like chest shape, wide feminine hips, or a girl/woman body.\nNever change a person's gender to fit hairstyle, prettiness, cute SD proportions, pose, outfit, or template decoration.\nART STYLE (structured attributes — follow these, do not imitate any specific artist or existing character):\nface proportion: 샤프하고 또렷한 젊은 미형 비율, 작은 카드에서도 턱선·눈·코가 선명하게 읽히는 구조; eyes: 가늘고 긴 눈매, 선명한 속눈썹과 또렷한 캐치라이트, 강한 포인트 컬러로 감정이 즉시 읽히게; nose/mouth: 코·입은 얇고 깨끗한 선과 그래픽 음영, 과한 사실 텍스처나 번짐 없음\nline density: medium; rendering: cel; skin: 매끈한 피부에 작고 선명한 하이라이트, 부드러운 에어브러시 번짐보다 그래픽 명암; hair: 큰 덩어리 단위로 묶인 머리칼과 굵고 선명한 소수의 윤광 하이라이트 띠, 낱가닥 묘사 없음\nbody proportion: 8등신, 체격·어깨·목선으로 성숙함은 전달하되 얼굴은 젊고 깨끗한 인상; costume complexity: medium\npalette: Appearance Lock의 캐릭터 고유 색상을 그대로 유지하면서 색면 분리·명암 대비·포인트 채도를 선명하게 처리한다. 레퍼런스의 블랙·골드·레드·블루는 색 처리 방식의 예시이며 모든 캐릭터에 강제하는 공통 팔레트가 아니다.; light: hard; contrast: high; background density: low\natmosphere: 국내 여성향 로판 웹툰풍 — 선명, 고대비, 그래픽, 얼굴-first\nART STYLE describes rendering language, color, and illustration grammar only. Camera, face direction, and crop follow SHOT RESPONSIBILITY — not card bust framing or a face-first 2:3 crop.\nSAFETY — depict a non-explicit, non-graphic, provider-safe visual scene. Preserve cast, location, relationship, and emotion. Do not depict explicit sexual acts, exposed genitals, active injury, blood, weapons in use, self-harm, suicide, or medical trauma. A healed, non-graphic scar from saved identity may remain. Do not force a generic business meeting if the scene is romantic or intimate but still non-explicit.\nExpression: 엄격함 아래 드러나는 희미한 배려. Pose: 갑옷을 벗지 않은 채 식탁에서 장갑 낀 손으로 김 나는 수프 그릇을 카메라 쪽으로 밀어 건넨다. 받는 사람은 그리지 않으며, 얼굴·장갑 낀 손·그릇과 전달 방향이 한눈에 보인다. Outfit: 흑철 판금 갑옷 위에 검은 늑대 모피 코트를 걸친다. 집무실에서도 갑옷 일부를 벗지 않는다. 가문의 인장이 박힌 흑철 지휘관 반지, 방벽 열쇠 꾸러미, 낡은 가죽 장갑을 지닌다..\nFOREGROUND CAST: exactly one foreground person — the named character only. Do not add a second foreground interaction partner. No background extras.\nNo text, speech bubbles, captions, logos, signatures or watermarks.",
+ "primaryPromptSha256": "2f1ddb3e7b56d13c5811960e376fcaf202ae3ce3cc2de40c0ff357e04261016c",
+ "composedPreparedRefsB7Only": [
+  {
+   "index": 0,
+   "bytes": 252310,
+   "sha256": "88d08019ef83435e8a8c32cfaa7661ed40a0066603ee80eb08f4d20175013fa2"
+  },
+  {
+   "index": 1,
+   "bytes": 250552,
+   "sha256": "ba5f3896d1aa467dbc84db3bfbbb304147e98073b938f6b22fa82065377b5b89"
+  }
+ ],
+ "preparedRefs": [
+  {
+   "index": 0,
+   "bytes": 252310,
+   "sha256": "88d08019ef83435e8a8c32cfaa7661ed40a0066603ee80eb08f4d20175013fa2",
+   "dataUrlPrefix": "data:image/webp;base64,UklGRo7ZA"
+  },
+  {
+   "index": 1,
+   "bytes": 215350,
+   "sha256": "f13d1f1563c36630b00eb23db95a9f4824ef75d1d0ec9fbbb535e0dd2be13592",
+   "dataUrlPrefix": "data:image/webp;base64,UklGRi5JA"
+  }
+ ],
+ "runBudgetUsd": 0.06,
+ "priorCampaignTotalUsd": 0.09192353,
+ "priorDroppedAttempt": null,
+ "maxProviderImagePostsThisRun": 1,
+ "generateStatus": "generated",
+ "generateError": null,
+ "recoveredFromPreservedRaw": false,
+ "providerPostsThisRun": 1,
+ "providerRequestId": "req_f87b9300777343b080f06f090cf696dc",
+ "imageCostUsd": 0.045716,
+ "hasUnknownCost": false,
+ "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig4-r1.webp",
+ "candidateSha256": "18efc7c47ab37f088f250dff878ccf9a4d02a497b26fe050b8aacb29237565bf",
+ "candidateBytes": 267564,
+ "width": 1536,
+ "height": 1024,
+ "modelStored": "gpt-image-2.5-sunburst",
+ "transmitted": {
+  "model": "gpt-image-2.5-sunburst",
+  "prompt": "Create one horizontal 3:2 roleplay illustration (1536x1024). This is a distinct cut of the same character — not another bust-card portrait. Follow the shot responsibility for face direction, camera, crop, and pose. Do not default to face-and-upper-body. SHOT RESPONSIBILITY (sig4/signature): head turned right three-quarter view; low-angle camera placed below the subject looking up, with visible upward perspective; knee-up or full-body shot with space around the figure. Background: an identifiable environment behind the character (architecture, weather, or workplace cue). This cut must look different from the other slots in face direction, camera, and framing. Do not inherit the representative card's camera, head angle, crop, or hand position. SHOT CHANGE MUST NOT CHANGE IDENTITY: same face structure, hair, eyes, marks, age, and body type as the IDENTITY LOCK.\nREFERENCE IMAGES: Image 1 is IDENTITY ONLY. Image 2 is STYLE ONLY. Image 1 IDENTITY ONLY — keep face identity, canonical hair, eye identity, character-specific identity features named in the IDENTITY LOCK, and body proportions. Use the supplied image solely to keep the same face structure, hair, eyes, marks, age, and body type. Do not copy the reference camera, head angle, face direction, crop, hand position, pose, expression, or background. Image 2 STYLE ONLY — drawing/rendering language, line treatment, cel shading, face rendering grammar, hair highlight treatment, material/detail rendering, hue separation, and finishing/polish. Use the supplied image(s) solely for drawing/rendering language, facial illustration treatment, coloring, lighting, hair rendering density, material detail, detail density, and overall polish. Do not copy any reference person's face identity, hairstyle, hair color, eye color, outfit design, jewelry, marks/tattoos/scars, pose, or background. Image 2 additionally must not contribute gender or body identity, camera, framing, scene, or a character-specific palette. SHOT RESPONSIBILITY owns camera, face direction, and shot distance. The Pose line owns action and props. The Expression line owns emotion. The IDENTITY LOCK / Appearance Lock below is the sole character-identity owner and overrides any resemblance to the style references. Prefer crisp, readable linework and graphic cel-shading over painterly blending or semi-realistic softness. Use stronger saturation and clean hue separation in the target character's canonical colors; the references demonstrate vivid accent handling, not a mandatory shared palette. Sharper youthful face readability on mobile cards — clean skin highlight structure, not muted beige-gold wash. Ornament and metal details should read as clear graphic silhouettes; backgrounds stay flatter and cleaner so the face wins. Avoid heavy mature realism, low-contrast noble haze, or soft airbrush that hides facial structure. Translate the target character's canonical Appearance Lock colors into that saturation/contrast/highlight treatment; reference colors are examples of color handling, not colors to copy. Never merge reference characters into one face; never import reference costumes, insignia, props, or seasonal/event setups.\nCharacter: 볼프강 폰 발켄하임, age 34.\nIDENTITY LOCK — identical across every image of this character:\n연령대 인상: 30s\n얼굴: 비율이 균형 잡힌 남성적인 얼굴, 매끈한 광대선과 또렷하되 과하게 길거나 넓지 않은 턱선\n눈: 길고 깊게 내려앉은 눈매. 상대의 말보다 손과 호흡을 먼저 살피는 차가운 시선 (빛이 적은 회청색)\n머리: 옆머리를 짧게 정리하고 윗머리를 거칠게 쓸어 넘긴 울프컷. 전투 뒤에는 눈가로 몇 가닥이 흐트러진다 (차가운 짙은 흑회색, 윗머리는 귀밑까지, 옆과 뒷머리는 짧다)\n키/체형: 188cm, 어깨가 넓고 허리가 단단한 체형. 움직임은 절제되어 있으나 전투 때는 망설임 없이 파고든다\n피부: 추위에 쉽게 옅게 붉어지는 깨끗한 창백 피부\n특징: 왼쪽 턱 아래에 가늘게 남은 흉터, 왼손 약지는 동상 후유증으로 감각이 둔하다\n기본 의상: 흑철 판금 갑옷 위에 검은 늑대 모피 코트를 걸친다. 집무실에서도 갑옷 일부를 벗지 않는다. 가문의 인장이 박힌 흑철 지휘관 반지, 방벽 열쇠 꾸러미, 낡은 가죽 장갑을 지닌다.\nNever drift: 회청색 눈과 왼쪽 턱 아래의 가는 흉터를 변경하지 않는다.; 차가운 짙은 흑회색 울프컷과 188cm의 크고 넓은 어깨 체형을 변경하지 않는다.; 흑철 판금 갑옷과 검은 늑대 모피 코트의 팔레트 및 핵심 실루엣을 변경하지 않는다..\nOutfit policy: 장면에 따라 갑옷 일부를 벗거나 손상·전투 흔적을 더할 수 있으나, 흑철 갑옷과 검은 늑대 모피 코트의 기본 조합 및 반지·열쇠·장갑은 유지한다.\nMATURE MALE VISUAL AGE LOCK — Keep an adult man in his 30s visibly mature and age-appropriate while preserving a polished romance-target face. Convey maturity through physique, shoulders, neck, posture, gaze, grooming, authority and styling. Keep facial skin clean and healthy, cheek lines controlled, and the jaw defined without adding older-age facial texture. Wrinkles, sagging skin, hollowed cheeks, age spots, visibly receding hair, or an older-than-canon face belong only to characters whose canon explicitly calls for that older visual age. Fantasy silver/gray hair may remain a canonical color and is not itself an aging cue.\nGENDER LOCK — mandatory identity rule.\nCharacter 볼프강 폰 발켄하임: confirmed MALE. Keep him male in face, torso and body shape. Long hair, soft facial features, slim build, cute SD/chibi styling, blush, eyelashes, delicate clothing or androgynous beauty must NOT be interpreted as female. Use a flat masculine chest and male-coded torso. Do not draw breasts, cleavage, a feminine chest mound, a bra-like chest shape, wide feminine hips, or a girl/woman body.\nNever change a person's gender to fit hairstyle, prettiness, cute SD proportions, pose, outfit, or template decoration.\nART STYLE (structured attributes — follow these, do not imitate any specific artist or existing character):\nface proportion: 샤프하고 또렷한 젊은 미형 비율, 작은 카드에서도 턱선·눈·코가 선명하게 읽히는 구조; eyes: 가늘고 긴 눈매, 선명한 속눈썹과 또렷한 캐치라이트, 강한 포인트 컬러로 감정이 즉시 읽히게; nose/mouth: 코·입은 얇고 깨끗한 선과 그래픽 음영, 과한 사실 텍스처나 번짐 없음\nline density: medium; rendering: cel; skin: 매끈한 피부에 작고 선명한 하이라이트, 부드러운 에어브러시 번짐보다 그래픽 명암; hair: 큰 덩어리 단위로 묶인 머리칼과 굵고 선명한 소수의 윤광 하이라이트 띠, 낱가닥 묘사 없음\nbody proportion: 8등신, 체격·어깨·목선으로 성숙함은 전달하되 얼굴은 젊고 깨끗한 인상; costume complexity: medium\npalette: Appearance Lock의 캐릭터 고유 색상을 그대로 유지하면서 색면 분리·명암 대비·포인트 채도를 선명하게 처리한다. 레퍼런스의 블랙·골드·레드·블루는 색 처리 방식의 예시이며 모든 캐릭터에 강제하는 공통 팔레트가 아니다.; light: hard; contrast: high; background density: low\natmosphere: 국내 여성향 로판 웹툰풍 — 선명, 고대비, 그래픽, 얼굴-first\nART STYLE describes rendering language, color, and illustration grammar only. Camera, face direction, and crop follow SHOT RESPONSIBILITY — not card bust framing or a face-first 2:3 crop.\nSAFETY — depict a non-explicit, non-graphic, provider-safe visual scene. Preserve cast, location, relationship, and emotion. Do not depict explicit sexual acts, exposed genitals, active injury, blood, weapons in use, self-harm, suicide, or medical trauma. A healed, non-graphic scar from saved identity may remain. Do not force a generic business meeting if the scene is romantic or intimate but still non-explicit.\nExpression: 엄격함 아래 드러나는 희미한 배려. Pose: 갑옷을 벗지 않은 채 식탁에서 장갑 낀 손으로 김 나는 수프 그릇을 카메라 쪽으로 밀어 건넨다. 받는 사람은 그리지 않으며, 얼굴·장갑 낀 손·그릇과 전달 방향이 한눈에 보인다. Outfit: 흑철 판금 갑옷 위에 검은 늑대 모피 코트를 걸친다. 집무실에서도 갑옷 일부를 벗지 않는다. 가문의 인장이 박힌 흑철 지휘관 반지, 방벽 열쇠 꾸러미, 낡은 가죽 장갑을 지닌다..\nFOREGROUND CAST: exactly one foreground person — the named character only. Do not add a second foreground interaction partner. No background extras.\nNo text, speech bubbles, captions, logos, signatures or watermarks.",
+  "promptSha256": "2f1ddb3e7b56d13c5811960e376fcaf202ae3ce3cc2de40c0ff357e04261016c",
+  "size": "1536x1024",
+  "quality": "medium",
+  "outputCompression": 88,
+  "background": "opaque",
+  "outputFormat": "webp",
+  "n": 1,
+  "referenceCount": 2,
+  "referencesCanonicalCompose": [
+   "/uploads/official-pilot-rf-v4-02__rep-a1.webp",
+   "https://hav.chat/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b7-black-gold-uniform.webp"
+  ],
+  "referencesActuallySent": [
+   "/uploads/official-pilot-rf-v4-02__rep-a1.webp",
+   "https://hav.chat/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b13-black-red-fur.webp"
+  ],
+  "preparedRefs": [
+   {
+    "index": 0,
+    "bytes": 252310,
+    "sha256": "88d08019ef83435e8a8c32cfaa7661ed40a0066603ee80eb08f4d20175013fa2",
+    "dataUrlPrefix": "data:image/webp;base64,UklGRo7ZA"
+   },
+   {
+    "index": 1,
+    "bytes": 215350,
+    "sha256": "f13d1f1563c36630b00eb23db95a9f4824ef75d1d0ec9fbbb535e0dd2be13592",
+    "dataUrlPrefix": "data:image/webp;base64,UklGRi5JA"
+   }
+  ],
+  "startedAt": "2026-10-16T11:24:46.979Z",
+  "preservedRaw": {
+   "artifact": "/opt/cursor/artifacts/sig4-candidate-b13-raw.webp",
+   "doc": "/workspace/docs/official-supply/reviews/assets/wolfgang-sig4-style-fidelity/sig4-candidate-b13-raw.webp",
+   "sha256": "18efc7c47ab37f088f250dff878ccf9a4d02a497b26fe050b8aacb29237565bf"
+  }
+ },
+ "vision": {
+  "tag": "무표정",
+  "estimated": false,
+  "adultFlagged": false,
+  "moderationReject": false,
+  "reason": "유두·성기·항문 노출 없음, 선정적 포즈·속옷·젖은 상의·키스·엉덩강조 등 경계 케이스 없음",
+  "costAttempts": [
+   {
+    "model": "qwen/qwen3.8-flash",
+    "inputTokens": 3092,
+    "outputTokens": 2,
+    "upstreamCostUsd": 0.00046474,
+    "usageEstimated": false,
+    "providerRequestId": null,
+    "outcome": "success"
+   },
+   {
+    "model": "qwen/qwen3-vl-8b-instruct",
+    "inputTokens": 2941,
+    "outputTokens": 100,
+    "upstreamCostUsd": 0.00081025,
+    "usageEstimated": false,
+    "providerRequestId": null,
+    "outcome": "success"
+   }
+  ]
+ },
+ "visionError": null,
+ "visionSkipped": false,
+ "runKnownUsd": 0.046990989999999996,
+ "cumulativeKnownUsdIncludingPriorCampaign": 0.13891451999999999,
+ "applied": false
+}

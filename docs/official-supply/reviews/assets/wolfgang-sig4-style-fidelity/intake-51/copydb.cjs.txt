@@ -1,0 +1,3 @@
+const D = require("/workspace/node_modules/better-sqlite3");
+const db = new D("/tmp/sig4-intake-data/app.db", { readonly: true });
+db.exec("VACUUM INTO '/tmp/sig4-intake-copy/app.db'");

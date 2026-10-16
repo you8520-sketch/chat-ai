@@ -126,8 +126,14 @@ function assetFilename(draftKey: string, slotKey: string, attempt: number): stri
   return `official-${spoolKey(draftKey, slotKey)}-a${attempt}.webp`;
 }
 
-function replacementFilename(draftKey: string, slotKey: string, attempt: number): string {
+export function replacementFilename(draftKey: string, slotKey: string, attempt: number): string {
   return `official-${spoolKey(draftKey, slotKey)}-r${attempt}.webp`;
+}
+
+/** One immutable path per external intake. Never derived from active generation attempts. */
+export function externalReplacementFilename(draftKey: string, slotKey: string, intakeId: string): string {
+  const safeId = intakeId.replace(/[^a-zA-Z0-9._-]/g, "_");
+  return `official-${spoolKey(draftKey, slotKey)}-ext-${safeId}.webp`;
 }
 
 export type OfficialSlotGenerationCompose =
@@ -529,7 +535,8 @@ export async function moderateOfficialAssetReplacement(
       `${draftKey}/${slotKey} replacement is ${replacement.status}`
     );
   }
-  const moderation = await deps.moderator.moderate(replacement.candidateResultUrl);
-  deps.store.recordReplacementModeration(draftKey, slotKey, moderation);
+  const inspectedUrl = replacement.candidateResultUrl;
+  const moderation = await deps.moderator.moderate(inspectedUrl);
+  deps.store.recordReplacementModeration(draftKey, slotKey, inspectedUrl, moderation);
   return moderation;
 }

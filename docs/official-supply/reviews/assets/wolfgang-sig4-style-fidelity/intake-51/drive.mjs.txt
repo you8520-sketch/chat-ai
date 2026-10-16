@@ -1,0 +1,95 @@
+// Usage: node sig4-intake-drive.mjs <label> <mode>
+//   mode=patch : PATCH {scope:"public_profile"} (the editor's "공개/표시 정보 저장" path)
+//   mode=put   : PUT full form (the editor's full-save path)
+// Replaces ONLY assets[4] (sig4) with an existing external file uploaded through /api/upload.
+import fs from "node:fs";
+import { createRequire } from "node:module";
+
+const sharp = createRequire("/workspace/package.json")("sharp");
+const BASE = "http://localhost:3100";
+const CHARACTER_ID = Number(process.env.CHARACTER_ID ?? 10);
+const EXTERNAL_FILE =
+  process.env.EXTERNAL_FILE ??
+  "/workspace/docs/official-supply/reviews/assets/wolfgang-sig4-style-fidelity/sig4-candidate-b13.webp";
+const NEW_TAG = process.env.NEW_TAG ?? "수프 그릇을 내미는 손";
+const SIG4_INDEX = 4;
+const [label, mode] = [process.argv[2] ?? "run", process.argv[3] ?? "patch"];
+
+let cookie = "";
+async function call(path, init = {}) {
+  const res = await fetch(BASE + path, { ...init, headers: { ...(init.headers ?? {}), cookie }, redirect: "manual" });
+  const setCookie = res.headers.getSetCookie?.() ?? [];
+  if (setCookie.length) cookie = setCookie.map((c) => c.split(";")[0]).join("; ");
+  const text = await res.text();
+  let json = null;
+  try { json = JSON.parse(text); } catch { /* binary or html */ }
+  return { status: res.status, json, text, headers: res.headers };
+}
+
+const out = { label, mode, externalFile: EXTERNAL_FILE, steps: [] };
+const step = (name, data) => { out.steps.push({ name, ...data }); console.log(name, JSON.stringify(data).slice(0, 400)); };
+
+const login = await call("/api/auth/login", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ email: "admin-intake@test.local", password: "intake-pass-1234" }),
+});
+step("login", { status: login.status });
+
+const before = await call(`/api/characters/${CHARACTER_ID}`);
+step("GET before", { status: before.status, error: before.json?.error, assetCount: before.json?.assets?.length });
+if (before.status !== 200) { fs.writeFileSync(`/tmp/intake/${label}.json`, JSON.stringify(out, null, 1)); process.exit(0); }
+const loaded = before.json;
+
+const bytes = fs.readFileSync(EXTERNAL_FILE);
+const fd = new FormData();
+fd.append("files", new Blob([bytes], { type: "image/webp" }), "external-sig4.webp");
+const up = await call("/api/upload?purpose=character-asset", { method: "POST", body: fd });
+step("upload", { status: up.status, error: up.json?.error, urls: up.json?.urls });
+const media = up.json?.media?.[0];
+const uploadedUrl = up.json?.urls?.[0];
+if (!uploadedUrl) { fs.writeFileSync(`/tmp/intake/${label}.json`, JSON.stringify(out, null, 1)); process.exit(0); }
+
+const stored = await call(uploadedUrl);
+const storedBuf = Buffer.from(await (await fetch(BASE + uploadedUrl, { headers: { cookie } })).arrayBuffer());
+const meta = await sharp(storedBuf).metadata();
+step("stored original", { status: stored.status, width: meta.width, height: meta.height, bytes: storedBuf.length });
+
+const tag = await call("/api/assets/tag", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ urls: [uploadedUrl] }),
+});
+step("auto tag (no provider key)", { status: tag.status, tag: tag.json?.assets?.[0]?.tag, estimated: tag.json?.assets?.[0]?.estimated, costAttempts: tag.json?.assets?.[0]?.costAttempts });
+
+const oldSig4 = loaded.assets[SIG4_INDEX];
+const newAsset = {
+  url: uploadedUrl,
+  tag: NEW_TAG,
+  public: oldSig4.public,
+  chat: oldSig4.chat,
+  viewerBlur: oldSig4.viewerBlur,
+  width: meta.width,
+  height: meta.height,
+  orientation: meta.width > meta.height ? "landscape" : meta.height > meta.width ? "portrait" : "square",
+  ...(media ? { mediaId: media.mediaId, publicRenditionUrl: media.publicRenditionUrl, blurPreviewUrl: media.blurPreviewUrl } : {}),
+};
+const nextAssets = loaded.assets.map((asset, index) => (index === SIG4_INDEX ? newAsset : asset));
+
+const payload = {
+  ...loaded,
+  assets: nextAssets,
+  visual_subjects: loaded.visual_subjects,
+  lorebook_ids: loaded.lorebook_ids,
+};
+const request =
+  mode === "put"
+    ? { method: "PUT", body: JSON.stringify(payload) }
+    : { method: "PATCH", body: JSON.stringify({ ...payload, scope: "public_profile" }) };
+const save = await call(`/api/characters/${CHARACTER_ID}`, { ...request, headers: { "content-type": "application/json" } });
+step(`${request.method} save`, { status: save.status, body: save.json });
+
+const after = await call(`/api/characters/${CHARACTER_ID}`);
+step("GET after", { status: after.status, assetCount: after.json?.assets?.length, sig4: after.json?.assets?.[SIG4_INDEX] });
+out.afterAssets = after.json?.assets ?? null;
+fs.writeFileSync(`/tmp/intake/${label}.json`, JSON.stringify(out, null, 1));

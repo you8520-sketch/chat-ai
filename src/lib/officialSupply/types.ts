@@ -359,7 +359,14 @@ export type OfficialVariationQaReport = {
  * `unavailable` is explicit — it is never treated as a clean pass.
  */
 export type OfficialAssetModeration =
-  | { status: "checked"; adultFlagged: boolean; moderationReject: boolean; reason: string }
+  | {
+      status: "checked";
+      adultFlagged: boolean;
+      moderationReject: boolean;
+      reason: string;
+      /** Canonical asset-vision classification of the stored image (absent on rows recorded before it was kept). */
+      visionTag?: string;
+    }
   | { status: "unavailable"; reason: string };
 
 export type QaIssue = { code: string; message: string };

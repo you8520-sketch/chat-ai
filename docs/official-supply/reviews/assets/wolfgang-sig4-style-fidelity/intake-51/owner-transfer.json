@@ -1,0 +1,15 @@
+{
+ "dry": {
+  "changedFields": [
+   "creator_id"
+  ],
+  "fromOwnerId": 2,
+  "toOwnerId": 1
+ },
+ "apply": {
+  "applied": true,
+  "changedFields": [
+   "creator_id"
+  ]
+ }
+}

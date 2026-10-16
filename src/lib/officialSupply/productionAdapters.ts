@@ -104,8 +104,9 @@ export const uploadOfficialAssetStorage: OfficialAssetStorage = {
 
 /**
  * Canonical asset moderation — the same vision owner as creator uploads. The
- * vision auto-tag is ignored (the planned semantic tag stays authoritative).
- * When vision could not run, the result is explicitly `unavailable`.
+ * vision classification of the stored image is kept next to the verdict so
+ * staging can save what the image shows. When vision could not run, the
+ * result is explicitly `unavailable`.
  */
 export const visionOfficialAssetModerator: OfficialAssetModerator = {
   async moderate(url) {
@@ -117,6 +118,7 @@ export const visionOfficialAssetModerator: OfficialAssetModerator = {
       adultFlagged: result.adultFlagged,
       moderationReject: result.moderationReject,
       reason: result.moderationReason,
+      visionTag: result.tag,
     };
   },
 };

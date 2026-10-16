@@ -134,7 +134,6 @@ function clusterBStyleReferenceExtras(styleSeed: StyleReference | null | undefin
   if (!isClusterBGraphicStyleSeed(styleSeed)) return [];
   return [
     ROFAN_CLUSTER_B_GRAPHIC_STYLE_DIRECTION,
-    "Render with crisp graphic webtoon linework, decisive cel-style shading, clear hue separation, and vivid accent contrast consistent with the references.",
     "Translate the target character's canonical Appearance Lock colors into that saturation/contrast/highlight treatment; reference colors are examples of color handling, not colors to copy.",
     "Never merge reference characters into one face; never import reference costumes, insignia, props, or seasonal/event setups.",
   ];

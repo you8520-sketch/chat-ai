@@ -1,4 +1,5 @@
-import type { OfficialAssetModeration } from "@/lib/officialSupply/types";
+import { normalizeCreatorAssetTag } from "@/lib/characterAssets";
+import type { OfficialAssetModeration, OfficialAssetSlotKind } from "@/lib/officialSupply/types";
 
 export type OfficialModerationVerdict = "missing" | "unavailable" | "rejected" | "adult_flagged" | "clean";
 
@@ -34,4 +35,25 @@ export function canonicalAssetModerationFields(
       ? { moderationReject: true, moderationReason: moderation.reason }
       : {}),
   };
+}
+
+/**
+ * Tag saved on the staged character asset.
+ * Representative keeps the planned unique tag so RP tag selection cannot
+ * pick the 2:3 portrait. A human-approved action/situation tag wins over
+ * vision auto-classification. RP slots otherwise use the stored vision
+ * classification; the planned tag is only the fallback when vision did not
+ * run or the row predates the stored classification.
+ */
+export function stagedAssetTag(
+  plannedTag: string,
+  moderation: OfficialAssetModeration | null,
+  kind: OfficialAssetSlotKind,
+  approvedTag?: string | null
+): string {
+  if (kind === "representative") return plannedTag;
+  const manual = normalizeCreatorAssetTag(approvedTag ?? "", "");
+  if (manual) return manual;
+  if (moderation?.status !== "checked") return plannedTag;
+  return normalizeCreatorAssetTag(moderation.visionTag, plannedTag);
 }

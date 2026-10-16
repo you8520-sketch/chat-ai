@@ -9,6 +9,8 @@ import {
   LUCIAN_DRAFT_KEY,
   LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY,
   resolveCanonicalOfficialDraftKey,
+  WOLFGANG_DRAFT_KEY,
+  WOLFGANG_PUBLISHED_PREDECESSOR_DRAFT_KEY,
 } from "@/lib/officialSupply/officialDraftIdentity";
 import { testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures";
 import { LUCIAN_SIG4_REQUIRED_SHOT } from "@/lib/officialSupply/qualityShotQa";
@@ -128,7 +130,7 @@ describe("official shot seed canonical identity", () => {
   });
 
   it("D. leaves unaliased official draft keys on the previous raw-key seed", () => {
-    for (const key of ["pilot-rf-01", "pilot-rf-02", "pilot-rf-v4-01", "parity-1"]) {
+    for (const key of ["pilot-rf-01", "pilot-rf-v4-01", "parity-1"]) {
       assert.equal(resolveCanonicalOfficialDraftKey(key), key, key);
       assert.equal(officialShotSeed(key), legacyRawOfficialShotSeed(key), key);
     }
@@ -220,5 +222,28 @@ describe("official shot seed canonical identity", () => {
     );
     const sourceShot = resolveOfficialSlotShot(lucianSlot("sig4"), lucian.draft.draftKey);
     assert.deepEqual(shotFields(shot), shotFields(sourceShot));
+  });
+
+  it("H. rotates the same Wolfgang board for the compile key and the published predecessor", () => {
+    assert.equal(officialShotSeed(WOLFGANG_PUBLISHED_PREDECESSOR_DRAFT_KEY), officialShotSeed(WOLFGANG_DRAFT_KEY));
+    assert.equal(
+      officialShotSeed(WOLFGANG_PUBLISHED_PREDECESSOR_DRAFT_KEY),
+      legacyRawOfficialShotSeed(resolveCanonicalOfficialDraftKey(WOLFGANG_PUBLISHED_PREDECESSOR_DRAFT_KEY))
+    );
+    for (const slot of LUCIAN_SLOTS) {
+      assert.deepEqual(
+        shotFields(resolveOfficialSlotShot(slot, WOLFGANG_PUBLISHED_PREDECESSOR_DRAFT_KEY)),
+        shotFields(resolveOfficialSlotShot(slot, WOLFGANG_DRAFT_KEY)),
+        slot.slotKey
+      );
+    }
+  });
+
+  it("I. never frames the Wolfgang meal-offering sig4 as a simple-background close-up under either key", () => {
+    for (const draftKey of [WOLFGANG_DRAFT_KEY, WOLFGANG_PUBLISHED_PREDECESSOR_DRAFT_KEY]) {
+      const shot = resolveOfficialSlotShot({ slotKey: "sig4", kind: "signature" }, draftKey);
+      assert.notEqual(shot.distance, "close_up", draftKey);
+      assert.notEqual(shot.background, "simple", draftKey);
+    }
   });
 });
