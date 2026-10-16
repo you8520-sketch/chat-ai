@@ -15,7 +15,10 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
+import {
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+  MAIN_RP_MODEL_IDS,
+} from "@/lib/chatModels";
 import { MEDIUM_TERM_BLOCK_COUNT } from "./memory-medium-term";
 import { MOVING_DETAIL_MARKERS } from "./memory-medium-term-audit";
 import {
@@ -132,13 +135,13 @@ describe("FULL PROMPT N15 MATRIX (near-real)", () => {
   }
 
   it("DeepSeek — Medium grouped in LONG_TERM_MEMORY XML at N15", () => {
-    const deepseekId = MAIN_RP_MODEL_IDS.find((id) => id.includes("deepseek"))!;
+    const deepseekId = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
     const matrix = buildFullPromptBudgetMatrix(300, deepseekId);
     assert.equal(matrix.n15.deepSeekLtmGrouped, true);
   });
 
   it("N15 telemetry crossing is accepted — not a test failure gate", () => {
-    const deepseekId = MAIN_RP_MODEL_IDS.find((id) => id.includes("deepseek"))!;
+    const deepseekId = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
     const matrix = buildFullPromptBudgetMatrix(300, deepseekId);
     const crossing = reportsTelemetryTargetCrossing(matrix);
     assert.equal(typeof crossing, "boolean");
@@ -171,7 +174,7 @@ describe("TERRA N15", () => {
     it("Terra runtime N15 parity with DeepSeek", () => {
       const terra = reportModelSwitchMediumHorizon(terraId, 300);
       const deepseek = reportModelSwitchMediumHorizon(
-        MAIN_RP_MODEL_IDS.find((id) => id.includes("deepseek"))!,
+        CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
         300
       );
       assert.equal(terra.mediumBlockCount, 15);
