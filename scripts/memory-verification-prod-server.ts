@@ -2,16 +2,19 @@
 /**
  * Production-mode Memory v2 / RP verification server (local only).
  *
- * - DISABLE_DERIVED_CACHE_WORKER=1 (no background prompt-translation drain)
- * - Isolated DATA_DIR per role (baseline vs pr)
- * - PLAYWRIGHT_PROD_SERVER=1 for ephemeral local DATA_DIR under production runtime
- * - Cleans up the child server on exit / signals
+ * Isolated DATA_DIR per role. Translation worker stays off via the canonical
+ * derived-cache enablement owner (NODE_ENV=production is not a deploy context).
+ * Reaps the owned tsx/server.js process group on exit.
  *
  * Usage:
  *   ./node_modules/.bin/tsx scripts/memory-verification-prod-server.ts baseline|pr [--port N] [--data-dir PATH]
  */
-import { spawn, type ChildProcess } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
 import path from "node:path";
+import {
+  spawnOwnedDetachedChild,
+  stopOwnedChildProcess,
+} from "./lib/ownedChildProcess";
 import {
   defaultMemoryVerificationPort,
   resolveMemoryVerificationProdServerEnv,
@@ -41,13 +44,20 @@ function parseArgs(argv: string[]): {
 }
 
 let child: ChildProcess | null = null;
+let shuttingDown = false;
 
-function shutdown(reason: string, code = 0): void {
-  if (child && child.pid && !child.killed) {
-    console.log(`[memory-verification-server] stopping child pid=${child.pid} (${reason})`);
-    child.kill("SIGTERM");
+async function shutdown(reason: string, code = 0): Promise<void> {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  const owned = child;
+  child = null;
+  const result = await stopOwnedChildProcess(owned);
+  if (result.pid != null) {
+    console.log(
+      `[memory-verification-server] stopped owned child pid=${result.pid} reason=${reason} exited=${result.exited} usedKill=${result.usedKill}`
+    );
   }
-  setTimeout(() => process.exit(code), reason === "signal" ? 0 : 100).unref();
+  process.exit(code);
 }
 
 function main(): void {
@@ -58,26 +68,30 @@ function main(): void {
   const tsxBin = path.join(process.cwd(), "node_modules", ".bin", "tsx");
 
   console.log(
-    `[memory-verification-server] role=${role} port=${listenPort} DATA_DIR=${env.DATA_DIR} DISABLE_DERIVED_CACHE_WORKER=${env.DISABLE_DERIVED_CACHE_WORKER}`
+    `[memory-verification-server] role=${role} port=${listenPort} DATA_DIR=${env.DATA_DIR}`
   );
 
-  child = spawn(tsxBin, [serverJs], {
+  child = spawnOwnedDetachedChild(tsxBin, [serverJs], {
     cwd: process.cwd(),
     env,
     stdio: "inherit",
   });
+  console.log(`[memory-verification-server] owned child pid=${child.pid ?? "none"}`);
 
-  child.on("exit", (code, signal) => {
+  child.on("exit", (exitCode, signal) => {
     child = null;
+    if (shuttingDown) return;
     if (signal) {
       process.exit(0);
       return;
     }
-    process.exit(code ?? 1);
+    process.exit(exitCode ?? 1);
   });
 
   for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
-    process.on(sig, () => shutdown("signal"));
+    process.on(sig, () => {
+      void shutdown(sig);
+    });
   }
 }
 
