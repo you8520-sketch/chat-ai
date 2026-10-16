@@ -10,6 +10,7 @@ import {
   getOrCreateChatMemory,
   updateChatMemory,
 } from "./memory-db";
+import { isManualGlobalActive } from "./memory-global-checkpoint";
 import { ensureLorebookWithinBudget } from "./memory-lorebook-fit";
 import { resolveLorebookFromRecords } from "./memory-lorebook-resolve";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
@@ -58,7 +59,6 @@ export function syncMemoryFromChat(opts: {
     characterId: opts.characterId,
     tier: opts.tier,
     playableTurnCount: playableCount,
-    preserveManualGlobal: true,
   });
 
   console.info(
@@ -76,7 +76,6 @@ export function syncMemoryFromChat(opts: {
       charName: opts.charName,
       tier: opts.tier,
       memoryCapacity: opts.memoryCapacity,
-      preserveManualGlobal: true,
     });
   }
 
@@ -117,7 +116,6 @@ export function prepareMemoryPanelView(opts: MemoryBackfillOpts): void {
     characterId: opts.characterId,
     tier: opts.tier,
     playableTurnCount: playable,
-    preserveManualGlobal: true,
   });
 }
 
@@ -139,7 +137,6 @@ export async function syncAndCompressMemoryFromChat(opts: MemoryBackfillOpts): P
   const processed = await catchUpRollingSummaries({
     ...opts,
     maxRounds: MEMORY_PANEL_BACKFILL_MAX_BATCHES_PER_REQUEST,
-    preserveManualGlobal: true,
   });
 
   const boundarySnapshot = getMemorySourceBoundary(opts.chatId);
@@ -150,7 +147,7 @@ export async function syncAndCompressMemoryFromChat(opts: MemoryBackfillOpts): P
   let update: { recent_summary: string; membership_tier: MemoryTier } | null = null;
 
   // User-saved Global is canon: catch-up only repairs batch rows and counts.
-  const keepManualGlobal = memory.global_projection_kind === "manual_global" && stored.length > 0;
+  const keepManualGlobal = isManualGlobalActive(memory);
   if (!keepManualGlobal && resolved.text && resolved.text !== stored) {
     update = {
       recent_summary: resolved.text,

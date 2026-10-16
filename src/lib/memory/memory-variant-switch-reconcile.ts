@@ -32,7 +32,14 @@ import {
   type BranchStatus,
   type MemorySummaryScope,
 } from "./memory-summary-scope";
-import type { MemoryTier } from "./memory-types";
+import {
+  isManualGlobalActive,
+  nextManualGlobalBoundary,
+  readManualGlobalBoundary,
+  resolveInjectibleFrontier,
+  writeManualGlobalBoundaryCore,
+} from "./memory-global-checkpoint";
+import type { ChatMemoryRow, MemoryTier } from "./memory-types";
 import {
   getMemorySourceBoundaryCore,
   invalidateDerivedMemoryGenerationCore,
@@ -290,25 +297,53 @@ export function reconcileMemoryAfterVariantSwitchCore(
 
   const mem = db
     .prepare(
-      `SELECT archive_summary FROM chat_memories WHERE chat_id=?`
+      `SELECT archive_summary, recent_summary, global_projection_kind, global_covered_through_turn
+       FROM chat_memories WHERE chat_id=?`
     )
     .get(opts.chatId) as
-    | { archive_summary: string }
+    | Pick<
+        ChatMemoryRow,
+        | "archive_summary"
+        | "recent_summary"
+        | "global_projection_kind"
+        | "global_covered_through_turn"
+      >
     | undefined;
-  const used = calcUsedChars({
-    recent_summary: lorebook,
-    archive_summary: mem?.archive_summary ?? "",
-  });
 
-  db.prepare(
-    `UPDATE chat_memories SET
-       recent_summary=?,
-       used_chars=?,
-       summarized_turn_count=?,
-       membership_tier=?,
-       updated_at=datetime('now')
-     WHERE chat_id=?`
-  ).run(lorebook, used, contiguous, opts.tier, opts.chatId);
+  if (mem && isManualGlobalActive(mem)) {
+    // A user-saved Global survives the switch: only the count/tier follow the live world line, and
+    // the boundary drops if the switch removed trailing records it used to cover.
+    db.prepare(
+      `UPDATE chat_memories SET
+         summarized_turn_count=?,
+         membership_tier=?,
+         updated_at=datetime('now')
+       WHERE chat_id=?`
+    ).run(contiguous, opts.tier, opts.chatId);
+    writeManualGlobalBoundaryCore(
+      db,
+      opts.chatId,
+      nextManualGlobalBoundary({
+        current: readManualGlobalBoundary(mem),
+        frontier: resolveInjectibleFrontier(activeAfter),
+      })
+    );
+  } else {
+    const used = calcUsedChars({
+      recent_summary: lorebook,
+      archive_summary: mem?.archive_summary ?? "",
+    });
+
+    db.prepare(
+      `UPDATE chat_memories SET
+         recent_summary=?,
+         used_chars=?,
+         summarized_turn_count=?,
+         membership_tier=?,
+         updated_at=datetime('now')
+       WHERE chat_id=?`
+    ).run(lorebook, used, contiguous, opts.tier, opts.chatId);
+  }
 
   invalidateDerivedMemoryGenerationCore(db, opts.chatId);
 

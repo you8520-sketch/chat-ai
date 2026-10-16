@@ -9,9 +9,11 @@ import {
 import { calcUsedChars } from "./memory-used-chars";
 import {
   formatMemoryBlock,
+  isPromptInjectibleMemoryRecord,
   listPromptInjectibleMemoryRecords,
   rebuildLorebookFromRecords,
   resolvePromptInjectibleMemoryRecordBody,
+  type MemoryRecordView,
 } from "./memory-turn-summary";
 
 /** Durable projection kinds persisted on chat_memories — runtime-only kinds omitted. */
@@ -71,6 +73,69 @@ export function readGlobalCheckpointSnapshot(
 
 export function clearGlobalCheckpointMetadataSql(): string {
   return `global_projection_kind=NULL, global_source_fingerprint=NULL, global_covered_through_turn=NULL`;
+}
+
+/**
+ * SQL predicate: the row is NOT a user-saved Global. Every derived-projection writer
+ * (exact mirror, compact checkpoint, rebuilt mirror) gates its UPDATE on this so an
+ * automatic path can never replace `manual_global` text — only the user save/release can.
+ */
+export const NOT_MANUAL_GLOBAL_PROTECTED_SQL = `(COALESCE(global_projection_kind,'')<>'manual_global' OR TRIM(COALESCE(recent_summary,''))='')`;
+
+/** A manual Global is protected only while it actually carries user text. */
+export function isManualGlobalActive(
+  row: Pick<ChatMemoryRow, "recent_summary" | "global_projection_kind"> | null | undefined
+): boolean {
+  return (
+    row?.global_projection_kind === "manual_global" && (row.recent_summary?.trim() ?? "") !== ""
+  );
+}
+
+/**
+ * Sealed-history turn the user's manual Global already covers (records with turnEnd <= it
+ * existed when the user saved). `null` = legacy row saved before the boundary was recorded.
+ */
+export function readManualGlobalBoundary(
+  row: Pick<ChatMemoryRow, "global_projection_kind" | "global_covered_through_turn">
+): number | null {
+  if (row.global_projection_kind !== "manual_global") return null;
+  const covered = row.global_covered_through_turn;
+  return covered != null && Number.isFinite(covered) && covered >= 0 ? Math.floor(covered) : null;
+}
+
+/** Highest turnEnd among prompt-injectible records — the frontier a manual save covers. */
+export function resolveInjectibleFrontier(records: readonly MemoryRecordView[]): number {
+  return records
+    .filter(isPromptInjectibleMemoryRecord)
+    .reduce((max, record) => Math.max(max, record.turnEnd), 0);
+}
+
+/**
+ * Boundary a sealing/reconciling writer keeps on a manual Global.
+ * - recorded boundary: only ever lowered when trailing records disappeared (rollback),
+ *   so records re-sealed afterwards count as new automatic memory.
+ * - legacy `null`: adopted only by a seal (write path) as the frontier before that seal;
+ *   reads and count repairs never invent one.
+ */
+export function nextManualGlobalBoundary(opts: {
+  current: number | null;
+  frontier: number;
+  adoptFrontier?: number;
+}): number | null {
+  if (opts.current == null) return opts.adoptFrontier ?? null;
+  return Math.min(opts.current, opts.frontier);
+}
+
+export function writeManualGlobalBoundaryCore(
+  db: Database.Database,
+  chatId: number,
+  boundary: number | null
+): void {
+  db.prepare(
+    `UPDATE chat_memories SET global_covered_through_turn=?
+     WHERE chat_id=? AND global_projection_kind='manual_global'
+       AND COALESCE(global_covered_through_turn,-1)<>COALESCE(?,-1)`
+  ).run(boundary, chatId, boundary);
 }
 
 export function clearGlobalCheckpointMetadataCore(db: Database.Database, chatId: number): void {
@@ -155,7 +220,7 @@ export function classifyCheckpointProjectionState(
   if (kind == null && fingerprint == null && coveredThrough == null) {
     return "no_projection";
   }
-  if (kind === "manual_global" && fingerprint == null && coveredThrough == null) {
+  if (kind === "manual_global" && fingerprint == null) {
     return "manual_global";
   }
   if (
@@ -286,7 +351,7 @@ export function commitGlobalCompactCheckpointCore(
       global_covered_through_turn=?,
       used_chars=?,
       updated_at=datetime('now')
-     WHERE chat_id=?`
+     WHERE chat_id=? AND ${NOT_MANUAL_GLOBAL_PROTECTED_SQL}`
   ).run(
     opts.compactText,
     opts.sourceFingerprint,
@@ -302,6 +367,8 @@ export function commitManualGlobalCheckpointCore(
     chatId: number;
     manualText: string;
     archiveSummary: string;
+    /** Sealed-history frontier the saved text covers; later auto records are injected after it. */
+    coveredThroughTurn: number;
   }
 ): void {
   const used = calcUsedChars({
@@ -313,11 +380,11 @@ export function commitManualGlobalCheckpointCore(
       recent_summary=?,
       global_projection_kind='manual_global',
       global_source_fingerprint=NULL,
-      global_covered_through_turn=NULL,
+      global_covered_through_turn=?,
       used_chars=?,
       updated_at=datetime('now')
      WHERE chat_id=?`
-  ).run(opts.manualText, used, opts.chatId);
+  ).run(opts.manualText, Math.max(0, Math.floor(opts.coveredThroughTurn)), used, opts.chatId);
 }
 
 export function commitExactGlobalMirrorCore(
@@ -340,7 +407,7 @@ export function commitExactGlobalMirrorCore(
       used_chars=?,
       summarized_turn_count=COALESCE(?, summarized_turn_count),
       updated_at=datetime('now')
-     WHERE chat_id=?`
+     WHERE chat_id=? AND ${NOT_MANUAL_GLOBAL_PROTECTED_SQL}`
   ).run(
     opts.exactText,
     used,

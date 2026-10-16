@@ -242,7 +242,7 @@ describe("MANUAL GLOBAL", () => {
     const cp = readCheckpoint();
     assert.equal(cp.projectionKind, "manual_global");
     assert.equal(cp.sourceFingerprint, null);
-    assert.equal(cp.coveredThroughTurn, null);
+    assert.equal(cp.coveredThroughTurn, 300, "manual save records the sealed frontier it covers");
     insertBlocksThrough(305);
     const result = await executeGlobalLorebookCompaction({
       chatId: CHAT,
@@ -260,8 +260,8 @@ describe("MANUAL GLOBAL", () => {
   });
 });
 
-describe("MANUAL GLOBAL — panel drift repair", () => {
-  it("opening the panel repairs the count but keeps the user's manual global text", async () => {
+describe("MANUAL GLOBAL — count repair and record mutations", () => {
+  it("count repair keeps the user's manual global text and boundary", async () => {
     insertBlocksThrough(300);
     await updateLorebookForChat(CHAT, USER, CHAR, "USER_MANUAL_GLOBAL_TEXT", "free", MEMORY_CAPACITY_FIXED);
     reconcileSummarizedTurnCountFromTable({
@@ -270,15 +270,15 @@ describe("MANUAL GLOBAL — panel drift repair", () => {
       characterId: CHAR,
       tier: "free",
       playableTurnCount: 300,
-      preserveManualGlobal: true,
     });
     const row = getChatMemoryRow(CHAT)!;
     assert.equal(row.recent_summary, "USER_MANUAL_GLOBAL_TEXT");
     assert.equal(row.global_projection_kind, "manual_global");
+    assert.equal(row.global_covered_through_turn, 300);
     assert.equal(row.summarized_turn_count, 300);
   });
 
-  it("without the panel flag the rebuild owner still replaces it (record mutations)", async () => {
+  it("record mutations keep the manual global; only the user release hands it back to the rebuild owner", async () => {
     insertBlocksThrough(300);
     await updateLorebookForChat(CHAT, USER, CHAR, "USER_MANUAL_GLOBAL_TEXT", "free", MEMORY_CAPACITY_FIXED);
     reconcileSummarizedTurnCountFromTable({
@@ -288,9 +288,15 @@ describe("MANUAL GLOBAL — panel drift repair", () => {
       tier: "free",
       playableTurnCount: 300,
     });
+    const edited = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 41)!;
+    updateMemoryRecordById(CHAT, edited.id, padBody("EDITED"));
+    assert.equal(getChatMemoryRow(CHAT)!.recent_summary, "USER_MANUAL_GLOBAL_TEXT");
+    assert.equal(getChatMemoryRow(CHAT)!.global_projection_kind, "manual_global");
+    await updateLorebookForChat(CHAT, USER, CHAR, "", "free", MEMORY_CAPACITY_FIXED);
     const row = getChatMemoryRow(CHAT)!;
     assert.notEqual(row.recent_summary, "USER_MANUAL_GLOBAL_TEXT");
     assert.equal(row.global_projection_kind, null);
+    assert.equal(row.global_covered_through_turn, null);
   });
 });
 

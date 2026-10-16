@@ -102,7 +102,7 @@ function assertManualGlobalIntact(): void {
   assert.equal(row.recent_summary, MANUAL_TEXT);
   assert.equal(row.global_projection_kind, "manual_global");
   assert.equal(row.global_source_fingerprint, null);
-  assert.equal(row.global_covered_through_turn, null);
+  assert.equal(row.global_covered_through_turn, 0, "saved before any sealed record existed");
 }
 
 before(() => installIsolatedTestDatabase());

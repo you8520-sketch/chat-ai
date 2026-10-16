@@ -34,15 +34,21 @@ const EMPTY_MEDIUM_TERM: MediumTermMemoryAssembly = {
 /**
  * Canonical Medium-term activation owner.
  * Medium recovers chronological resolution lost by Global compaction — not duplicate exact rebuilds.
+ * A user-saved Global covers history only up to its boundary; Medium carries the automatic records
+ * sealed after it, so it is active for `manual_global` only when that boundary is known.
  */
-export function shouldInjectMediumTermMemory(projectionKind: GlobalProjectionKind): boolean {
+export function shouldInjectMediumTermMemory(
+  projectionKind: GlobalProjectionKind,
+  manualBoundaryTurn?: number | null
+): boolean {
   switch (projectionKind) {
     case "global_compact":
       return true;
+    case "manual_global":
+      return manualBoundaryTurn != null;
     case "exact":
     case "failure_fallback":
     case "stored_fallback":
-    case "manual_global":
       return false;
     default: {
       const _exhaustive: never = projectionKind;
@@ -72,11 +78,14 @@ export function buildMediumTermMemoryBlock(opts: {
   blockCount: number;
   excludeTurnStartGte?: number;
   excludeAssistantMessageId?: number | null;
+  /** Only records that start after this turn — the part of history a manual Global does not cover. */
+  turnStartAfter?: number | null;
 }): MediumTermMemoryAssembly {
+  const turnStartAfter = opts.turnStartAfter;
   const eligible = listPromptInjectibleMemoryRecords(opts.chatId, {
     excludeTurnStartGte: opts.excludeTurnStartGte,
     excludeAssistantMessageId: opts.excludeAssistantMessageId,
-  });
+  }).filter((record) => turnStartAfter == null || record.turnStart > turnStartAfter);
   if (eligible.length === 0 || opts.blockCount <= 0) {
     return EMPTY_MEDIUM_TERM;
   }
@@ -101,11 +110,18 @@ export function buildMediumTermMemoryBlockForProjection(opts: {
   excludeTurnStartGte?: number;
   excludeAssistantMessageId?: number | null;
   projectionKind: GlobalProjectionKind;
+  manualBoundaryTurn?: number | null;
 }): MediumTermMemoryAssembly {
-  if (!shouldInjectMediumTermMemory(opts.projectionKind)) {
+  if (!shouldInjectMediumTermMemory(opts.projectionKind, opts.manualBoundaryTurn)) {
     return EMPTY_MEDIUM_TERM;
   }
-  return buildMediumTermMemoryBlock(opts);
+  return buildMediumTermMemoryBlock({
+    chatId: opts.chatId,
+    blockCount: opts.blockCount,
+    excludeTurnStartGte: opts.excludeTurnStartGte,
+    excludeAssistantMessageId: opts.excludeAssistantMessageId,
+    turnStartAfter: opts.projectionKind === "manual_global" ? opts.manualBoundaryTurn : null,
+  });
 }
 
 /** Literal duplicate chars when medium block bodies appear verbatim inside Global text. */

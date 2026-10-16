@@ -1,4 +1,5 @@
 import { getDb } from "@/lib/db";
+import { isManualGlobalActive } from "./memory-global-checkpoint";
 import type { ChatMemoryRow, MemoryTier } from "./memory-types";
 import { calcUsedChars } from "./memory-used-chars";
 
@@ -65,7 +66,10 @@ export function updateChatMemory(
   const db = getDb();
   const current = getOrCreateChatMemory(chatId, userId, characterId, patch.membership_tier ?? "free");
 
-  const recent = patch.recent_summary ?? current.recent_summary;
+  // A user-saved Global is owned by the manual save/release path; derived callers cannot replace it.
+  const recent = isManualGlobalActive(current)
+    ? current.recent_summary
+    : (patch.recent_summary ?? current.recent_summary);
   const archive = patch.archive_summary ?? current.archive_summary;
   const tier = patch.membership_tier ?? current.membership_tier;
   const used = calcUsedChars({ recent_summary: recent, archive_summary: archive });

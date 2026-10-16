@@ -39,7 +39,12 @@ import { reconcileSharedEpisodicFactsForTurn } from "./memory-episodic-shared";
 import { runEpisodicSemanticIndexJob } from "./memory-episodic-semantic-jobs";
 import { buildMemoryContext } from "./memory-injector";
 import { ensureLorebookWithinBudget, trimLorebookToBudgetSync } from "./memory-lorebook-fit";
-import { commitManualGlobalCheckpointCore } from "./memory-global-checkpoint";
+import {
+  clearGlobalCheckpointMetadataCore,
+  commitManualGlobalCheckpointCore,
+  resolveCanonicalCompactFrontier,
+} from "./memory-global-checkpoint";
+import { refreshGlobalMemoryMirrorFromRecords } from "./memory-global-projection";
 import { executeGlobalLorebookCompaction } from "./memory-global-compaction-execution";
 import { resolveGlobalCurrentMemory } from "./memory-lorebook-resolve";
 import { isGeminiIsolationMode } from "@/lib/geminiIsolationMode";
@@ -215,6 +220,7 @@ export async function buildMemoryContextForPreview(opts: {
     blockCount: MEDIUM_TERM_BLOCK_COUNT,
     excludeTurnStartGte: opts.excludeSummaryTurnStartGte,
     projectionKind: resolved.projectionKind,
+    manualBoundaryTurn: resolved.manualBoundaryTurn,
   });
 
   return buildMemoryContext({
@@ -290,6 +296,7 @@ export async function buildMemoryContextForChat(opts: {
     blockCount: MEDIUM_TERM_BLOCK_COUNT,
     excludeTurnStartGte: opts.excludeSummaryTurnStartGte,
     projectionKind: resolved.projectionKind,
+    manualBoundaryTurn: resolved.manualBoundaryTurn,
   });
 
   return buildMemoryContext({
@@ -579,7 +586,12 @@ export function getMemorySnapshot(
   };
 }
 
-/** 유저가 패널에서 Global Current Memory 본문을 직접 수정 — projection layer only */
+/**
+ * 유저가 패널에서 Global Current Memory 본문을 직접 수정 — projection layer only.
+ * - 본문이 있으면 수동 기억으로 저장하고, 저장 시점까지 봉인된 기록 구간을 경계로 남긴다
+ *   (이후 자동 5턴 기록은 Medium으로 AI에 전달된다).
+ * - 본문이 비어 있으면 수동 기억을 해제하고 자동 기억(기록 재조립)으로 되돌린다.
+ */
 export async function updateLorebookForChat(
   chatId: number,
   userId: number,
@@ -594,16 +606,21 @@ export async function updateLorebookForChat(
   const budget = resolveMemoryBudgetFromCapacity(memoryCapacity).lorebook;
   const { text: fitted } = await ensureLorebookWithinBudget(lorebook, budget);
   const memory = getOrCreateChatMemory(chatId, userId, characterId, tier);
-  getDb()
-    .transaction(() => {
-      commitManualGlobalCheckpointCore(getDb(), {
-        chatId,
-        manualText: fitted,
-        archiveSummary: memory.archive_summary ?? "",
-      });
-      return true;
-    })
-    .immediate();
+  const releaseToAuto = fitted.trim() === "";
+  const db = getDb();
+  db.transaction(() => {
+    if (releaseToAuto) {
+      clearGlobalCheckpointMetadataCore(db, chatId);
+      refreshGlobalMemoryMirrorFromRecords(chatId);
+      return;
+    }
+    commitManualGlobalCheckpointCore(db, {
+      chatId,
+      manualText: fitted,
+      archiveSummary: memory.archive_summary ?? "",
+      coveredThroughTurn: resolveCanonicalCompactFrontier(chatId),
+    });
+  }).immediate();
   invalidateDerivedMemoryGeneration(chatId);
   return getMemorySnapshot(chatId, userId, characterId, tier, memoryCapacity);
 }

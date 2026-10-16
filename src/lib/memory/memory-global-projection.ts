@@ -2,7 +2,16 @@ import { getDb } from "@/lib/db";
 import { clampLorebookPreferRecentChars } from "./memory-lorebook-trim";
 import { MEMORY_CAPACITY_FIXED } from "./memory-capacity-shared";
 import { clampMemoryRecordSummary } from "./memory-summary-clamp";
-import { clearGlobalCheckpointMetadataSql } from "./memory-global-checkpoint";
+import {
+  clearGlobalCheckpointMetadataSql,
+  isManualGlobalActive,
+  nextManualGlobalBoundary,
+  NOT_MANUAL_GLOBAL_PROTECTED_SQL,
+  readManualGlobalBoundary,
+  resolveCanonicalCompactFrontier,
+  writeManualGlobalBoundaryCore,
+} from "./memory-global-checkpoint";
+import type { ChatMemoryRow } from "./memory-types";
 import { rebuildLorebookFromRecords } from "./memory-turn-summary";
 import { calcUsedChars } from "./memory-used-chars";
 
@@ -48,12 +57,17 @@ export function isManualGlobalProjectionFresh(
   _chatId: number,
   rebuilt: string,
   stored: string,
-  maxChars: number
+  maxChars: number,
+  opts?: { explicitManualRow?: boolean }
 ): boolean {
   const normalizedStored = stored.trim();
   const normalizedRebuilt = rebuilt.trim();
   if (!normalizedStored || normalizedStored.length > maxChars) return false;
   if (normalizedStored === normalizedRebuilt) return false;
+  // A row the user saved as manual stays authoritative however large the sealed history grows
+  // (and even if the saved text happens to equal an emergency trim); only heuristic (unmarked)
+  // rows must prove they are not a mechanical trim and that the rebuild fits the budget.
+  if (opts?.explicitManualRow === true) return true;
   if (isMechanicalEmergencyTrim(rebuilt, normalizedStored, maxChars)) return false;
   return normalizedRebuilt.length <= maxChars;
 }
@@ -81,12 +95,39 @@ export function isGlobalCompactProjectionFresh(
   return true;
 }
 
-/** Invalidate compact projection by mirroring uncompacted rebuild into recent_summary. */
+/**
+ * Invalidate compact projection by mirroring uncompacted rebuild into recent_summary.
+ * A user-saved manual Global is never replaced here — only the user save/release owns it.
+ * Record mutations still keep its boundary honest: trailing records that disappeared lower it,
+ * so anything re-sealed afterwards counts as new automatic memory.
+ */
 export function refreshGlobalMemoryMirrorFromRecords(chatId: number): void {
   const db = getDb();
   const row = db
-    .prepare(`SELECT archive_summary FROM chat_memories WHERE chat_id=?`)
-    .get(chatId) as { archive_summary: string } | undefined;
+    .prepare(
+      `SELECT archive_summary, recent_summary, global_projection_kind, global_covered_through_turn
+       FROM chat_memories WHERE chat_id=?`
+    )
+    .get(chatId) as
+    | Pick<
+        ChatMemoryRow,
+        | "archive_summary"
+        | "recent_summary"
+        | "global_projection_kind"
+        | "global_covered_through_turn"
+      >
+    | undefined;
+  if (row && isManualGlobalActive(row)) {
+    writeManualGlobalBoundaryCore(
+      db,
+      chatId,
+      nextManualGlobalBoundary({
+        current: readManualGlobalBoundary(row),
+        frontier: resolveCanonicalCompactFrontier(chatId),
+      })
+    );
+    return;
+  }
   const rebuilt = rebuildLorebookFromRecords(chatId);
   const archive = row?.archive_summary ?? "";
   const mirror =
@@ -94,7 +135,7 @@ export function refreshGlobalMemoryMirrorFromRecords(chatId: number): void {
       ? rebuilt
       : emergencyFallbackTrimLorebookSync(rebuilt, MEMORY_CAPACITY_FIXED);
   db.prepare(
-    `UPDATE chat_memories SET recent_summary=?, used_chars=?, ${clearGlobalCheckpointMetadataSql()}, updated_at=datetime('now') WHERE chat_id=?`
+    `UPDATE chat_memories SET recent_summary=?, used_chars=?, ${clearGlobalCheckpointMetadataSql()}, updated_at=datetime('now') WHERE chat_id=? AND ${NOT_MANUAL_GLOBAL_PROTECTED_SQL}`
   ).run(
     mirror,
     calcUsedChars({ recent_summary: mirror, archive_summary: archive }),
