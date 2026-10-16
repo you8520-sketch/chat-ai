@@ -42,6 +42,9 @@ function isNavActive(pathname: string, href: string): boolean {
   return pathname === path || pathname.startsWith(`${path}/`);
 }
 
+/** Server-render guess for the two-row header (strip below lg); replaced by the measured height on mount. */
+const SITE_HEADER_FALLBACK_PX = 98;
+
 /**
  * Keep left rail pinned under the sticky site header while main content scrolls.
  * Uses position:fixed + a layout spacer (sticky alone was sliding under the tab bar).
@@ -49,7 +52,7 @@ function isNavActive(pathname: string, href: string): boolean {
 function usePinnedSidebarGeometry(isChatRoom: boolean) {
   const spacerRef = useRef<HTMLDivElement>(null);
   const [geometry, setGeometry] = useState({
-    top: isChatRoom ? 44 : 120,
+    top: isChatRoom ? 44 : SITE_HEADER_FALLBACK_PX,
     left: 0,
     width: 176,
   });
@@ -64,7 +67,7 @@ function usePinnedSidebarGeometry(isChatRoom: boolean) {
           ? Math.ceil(header.getBoundingClientRect().height)
           : isChatRoom
             ? 44
-            : 120;
+            : SITE_HEADER_FALLBACK_PX;
       const rect = spacer?.getBoundingClientRect();
       setGeometry({
         top: Math.max(headerH, 0),
