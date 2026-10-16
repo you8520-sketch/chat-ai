@@ -1522,6 +1522,14 @@ function lexicalRelevance(
   return Math.min(2, tokens.filter((token) => tokenMatchesHaystack(haystack, token)).length);
 }
 
+/** Same tokenizer/matcher as episodic ranking, for any free text (0..2). */
+export function scoreTextLexicalRelevance(text: string, query: string): number {
+  const tokens = tokenizeForSimpleBoost(query);
+  if (tokens.length === 0) return 0;
+  const haystack = text.toLowerCase();
+  return Math.min(2, tokens.filter((token) => tokenMatchesHaystack(haystack, token)).length);
+}
+
 /** Existing-owner diagnostic — same tokenizer/scorer as production ranking. */
 export function inspectLexicalRelevanceForDebug(
   fact: Pick<EpisodicExtractedFact, "subject" | "attribute" | "value" | "fact_text">,

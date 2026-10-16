@@ -43,6 +43,7 @@ import {
   expectedSealedTurnCount,
   highestContiguousCompletedTurn,
 } from "@/lib/memory/memory-summary-integrity";
+import { loadRelationshipLedgerEventsCore } from "@/lib/memory/memory-relationship-timeline";
 import {
   loadChatRelationshipMeta,
   removeRelationshipMetaItem,
@@ -172,8 +173,12 @@ export async function GET(req: Request) {
   const displayText = displayLorebook.trim();
 
   const displayMeta = { ...meta, currentLocation: undefined };
+  const ledgerEvents = loadRelationshipLedgerEventsCore(db, chatId, names);
 
   return Response.json({
+    characterId: chat.character_id,
+    ledgerEvents,
+    manualGlobalMemory: memRow.global_projection_kind === "manual_global",
     longTerm: displayText,
     lorebook: displayLorebook,
     recentSummary: displayLorebook,
