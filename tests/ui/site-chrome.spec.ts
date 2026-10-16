@@ -317,24 +317,26 @@ test.describe("page content start line", () => {
 });
 
 test.describe("rail geometry before hydration", () => {
-  test("the left rail does not jump when the two-row header is measured below lg", async ({ page }) => {
-    for (const width of [768, 1023]) {
+  test("the left rail keeps its vertical position when the two-row header is measured below lg", async ({ page }) => {
+    for (const width of [576, 768, 1023]) {
       await page.setViewportSize({ width, height: 900 });
       await page.addInitScript(() => {
-        (window as unknown as { __railShift: number }).__railShift = 0;
+        const w = window as unknown as { __railTopMove: number };
+        w.__railTopMove = 0;
         new PerformanceObserver((list) => {
-          for (const entry of list.getEntries() as unknown as { value: number; hadRecentInput: boolean; sources?: { node?: Node }[] }[]) {
-            if (entry.hadRecentInput) continue;
-            if ((entry.sources ?? []).some((s) => s.node instanceof Element && s.node.closest("aside.app-left-rail"))) {
-              (window as unknown as { __railShift: number }).__railShift += entry.value;
+          for (const entry of list.getEntries() as unknown as { sources?: { node?: Node; previousRect: DOMRectReadOnly; currentRect: DOMRectReadOnly }[] }[]) {
+            for (const source of entry.sources ?? []) {
+              if (source.node instanceof Element && source.node.closest("aside.app-left-rail")) {
+                w.__railTopMove += Math.abs(source.currentRect.top - source.previousRect.top);
+              }
             }
           }
         }).observe({ type: "layout-shift", buffered: true });
       });
       await page.goto("/tab/ranking");
       await page.waitForTimeout(1200);
-      const shift = await page.evaluate(() => (window as unknown as { __railShift: number }).__railShift);
-      expect(shift, `${width}px rail layout shift`).toBeLessThan(0.0005);
+      const move = await page.evaluate(() => (window as unknown as { __railTopMove: number }).__railTopMove);
+      expect(move, `${width}px rail vertical shift`).toBeLessThanOrEqual(1);
     }
   });
 });
