@@ -1,0 +1,6 @@
+# HTTP E2E: GET /api/chat/memory?chatId=99201 (same synthetic chat, manual_global saved, 79 turns, 15 sealed batches)
+## BEFORE: main 7a0c5434 server (port 3200), DB copy taken with manual_global intact
+  (db copy at start: manual_global, len=186, '[직접 정리한 장기기억] 주인공은 히유가 일하는...')
+  after one GET on main: {"kind":null,"len":1026,"text":"[1~5턴] 편의점 단골이 된 주인공과 알바생 히유가 매일 밤"}
+## AFTER: PR server (port 3100), same chat, one GET
+  after one GET on PR:   {"kind":"manual_global","len":186,"text":"[직접 정리한 장기기억] 주인공은 히유가 일하는 편의점의 단골"}
