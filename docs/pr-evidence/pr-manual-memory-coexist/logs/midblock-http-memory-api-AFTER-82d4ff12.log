@@ -1,0 +1,43 @@
+# GET /api/chat/memory?chatId=880101 against the production build of 82d4ff12 (port 3400, DATA_DIR=/tmp/ss-after, provider keys blank)
+# seed: MANUAL_SAVE_AT_TURN=12, 25 completed turns, records 1-5/6-10/11-15/16-20/21-25
+{
+ "manualGlobalCoveredThroughTurn": 12,
+ "manualGlobalDeliveredRecordCount": 3,
+ "records": [
+  {
+   "range": "1-5",
+   "coveredByManualGlobal": true,
+   "deliveredAfterManualGlobal": false,
+   "deliveredFromTurn": null,
+   "postManualEditLeaked": false
+  },
+  {
+   "range": "6-10",
+   "coveredByManualGlobal": true,
+   "deliveredAfterManualGlobal": false,
+   "deliveredFromTurn": null,
+   "postManualEditLeaked": false
+  },
+  {
+   "range": "11-15",
+   "coveredByManualGlobal": false,
+   "deliveredAfterManualGlobal": true,
+   "deliveredFromTurn": 13,
+   "postManualEditLeaked": false
+  },
+  {
+   "range": "16-20",
+   "coveredByManualGlobal": false,
+   "deliveredAfterManualGlobal": true,
+   "deliveredFromTurn": null,
+   "postManualEditLeaked": false
+  },
+  {
+   "range": "21-25",
+   "coveredByManualGlobal": false,
+   "deliveredAfterManualGlobal": true,
+   "deliveredFromTurn": null,
+   "postManualEditLeaked": false
+  }
+ ]
+}
