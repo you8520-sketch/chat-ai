@@ -305,17 +305,21 @@ b13 실행의 image POST 는 1회(`providerPostsThisRun=1`)이고 vision 2회는
 | 보존 | 대표 이미지, 나머지 칸, 가림, 원고(`system_prompt`/`greeting`/`world`), Appearance Lock, 로어북 부착, `creator_id`, `official`, `visibility` |
 | 유료 생성 | staged_private 후보는 `runOfficialAssetReplacement` 가 `character_stage` 로 거부. transport 호출 0 |
 
-이 파일의 replacement 테스트는 17 pass / 0 fail. `src/lib/officialSupply/*.test.ts` 는 537 pass / 0 fail. `tsc -p tsconfig.app.json` 통과.
+이 파일의 replacement 테스트는 20 pass / 0 fail. `tsc -p tsconfig.app.json` 통과.
 
 ### 10.6 외부 파일 한 장의 절차 (운영 적용은 이미지 품질 승인 후)
 
-1. 반입. 공식 관리자 권한으로 `registerExternalOfficialAssetReplacement` 에 외부 파일 바이트와 행동·상황 태그를 넘긴다. 저장은 기존 official asset storage 다. 슬롯 크기가 아니면 파일을 쓰기 전에 거부한다. 소유권과 공개 상태는 바꾸지 않는다.
-2. 검수. 기존 replacement moderation 이 `checked` 이고 hard reject 가 아니어야 한다. `pending`/`unavailable`/누락은 합격이 아니다. 이어서 `reviewReplacement` 로 시각 QA 를 기록한다. 이번 PR 의 테스트 검수는 fixture 이며, 실제 이미지 품질 승인을 대신하지 않는다. 운영에서 moderation 을 라이브 vision 으로 실행하면 유료 호출이 되므로, 그 호출은 사용자가 품질 승인과 함께 결정하기 전까지 하지 않는다.
+1. 반입. 공식 관리자 권한으로 `registerExternalOfficialAssetReplacement` 에 외부 파일 바이트와 행동·상황 태그를 넘긴다. 저장 전에 후보 상태를 검사하고 intake lease 를 잡는다. 파일 경로는 반입마다 불변이며 active attempts 를 쓰지 않는다. approved/applied 후보는 파일을 쓰기 전에 거부한다. 소유권과 공개 상태는 바꾸지 않는다.
+2. 검수. 기존 replacement moderation 이 `checked` 이고 hard reject 가 아니어야 한다. 결과는 검수한 후보 URL 에 CAS 로 묶인다. 대기 중 후보가 바뀌면 `replacement_moderation_stale` 이고 새 후보는 미완료로 남는다. 시각 QA 도 검토자가 확인한 URL 을 대조한다. `pending`/`unavailable`/누락은 합격이 아니다. 이번 PR 의 테스트 검수는 fixture 이며 실제 이미지 품질 승인을 대신하지 않는다. 자동 재검수와 추가 provider 호출은 없다.
 3. dry-run. `applyApprovedOfficialAssetReplacements({ dryRun: true })`. 같은 검사를 통과한 뒤 롤백되므로 URL·태그·상태는 그대로다.
 4. apply. dry-run 과 같은 인자에서 `dryRun` 없이 실행한다. 대상 슬롯의 public URL, supply URL, 승인 태그가 한 트랜잭션에서 맞는다.
 5. 복구. apply 가 중간에서 실패하거나 교체 전 URL 이 바뀌었으면 트랜잭션이 전부 롤백된다. 재조회로 이전 URL 과 `approved` 후보가 남았는지 확인한 뒤, 조건을 고치고 같은 후보로 다시 apply 한다. 성공한 적용을 자동으로 되돌리는 기능은 없다. 후보 행의 `base_result_url` 이 교체 전 URL 기록이다.
 
 최종 운영 적용은 사용자가 고른 이미지의 품질을 승인한 뒤에만 한다. 공개·알림·유료 RP 는 계속 보류한다.
+
+### 10.7 BLOCKER 수정 (파일 덮어쓰기 · stale moderation)
+
+수정 전 재현: approved 재반입이 `official-…-r2.webp` 를 먼저 열어 `EEXIST` 가 났고, 동시 반입은 같은 경로를 써서 성공 0건이었으며, A→B 재등록은 같은 URL 을 재사용했다. 수정 후: 저장 전 lease, 반입마다 `…-ext-<intakeId>.webp`, moderation/QA 는 검수한 URL CAS. 임시 파일 회귀 3건을 포함해 replacement 테스트 20 pass.
 
 ## 7. 이번 단계에서 하지 않은 것 / 후속
 

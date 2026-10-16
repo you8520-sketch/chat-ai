@@ -1,10 +1,11 @@
+import { randomUUID } from "node:crypto";
 import { normalizeCreatorAssetTag, orientationFromSize, parseAssets, type CharacterAsset } from "@/lib/characterAssets";
 import type { OfficialAdminActor } from "@/lib/officialAdminAccess";
 import { evaluateOfficialImageDimensions, officialImageProfileForSlot } from "@/lib/officialSupply/imageProfile";
 import { canonicalAssetModerationFields, officialModerationVerdict } from "@/lib/officialSupply/moderation";
 import { mapOfficialPublicAssetSlots, officialStagedAssetOrder } from "@/lib/officialSupply/publicAssetMap";
 import {
-  replacementFilename,
+  externalReplacementFilename,
   type OfficialAssetStorage,
   type OfficialImageOps,
 } from "@/lib/officialSupply/runner";
@@ -404,22 +405,29 @@ export async function registerExternalOfficialAssetReplacement(input: {
       `${input.draftKey}/${input.slotKey} approved tag is empty after normalization`
     );
   }
-  input.store.assertReplacementOperator(input.draftKey, input.actor);
-  const asset = input.store.assertReplacementSlotAllowed(input.draftKey, input.slotKey);
-  const profile = officialImageProfileForSlot(asset.kind);
-  const dims = await input.imageOps.inspect(input.bytes);
-  if (!dims || evaluateOfficialImageDimensions(profile, dims.width, dims.height) !== "exact") {
-    throw new OfficialSupplyGateError(
-      "asset_dimensions",
-      `${input.draftKey}/${input.slotKey} external file is ${dims ? `${dims.width}x${dims.height}` : "unreadable"}, expected ${profile.size}`
-    );
+  const intakeId = randomUUID();
+  try {
+    input.store.claimExternalReplacementIntake(input.actor, input.draftKey, input.slotKey, intakeId);
+    const asset = input.store.assertReplacementSlotAllowed(input.draftKey, input.slotKey);
+    const profile = officialImageProfileForSlot(asset.kind);
+    const dims = await input.imageOps.inspect(input.bytes);
+    if (!dims || evaluateOfficialImageDimensions(profile, dims.width, dims.height) !== "exact") {
+      throw new OfficialSupplyGateError(
+        "asset_dimensions",
+        `${input.draftKey}/${input.slotKey} external file is ${dims ? `${dims.width}x${dims.height}` : "unreadable"}, expected ${profile.size}`
+      );
+    }
+    const filename = externalReplacementFilename(input.draftKey, input.slotKey, intakeId);
+    const stored = await input.storage.store(filename, input.bytes);
+    return input.store.registerExternalReplacementCandidate(input.actor, input.draftKey, input.slotKey, {
+      url: stored.url,
+      width: dims.width,
+      height: dims.height,
+      approvedTag,
+      intakeId,
+    });
+  } catch (error) {
+    input.store.releaseExternalReplacementIntake(input.draftKey, input.slotKey, intakeId);
+    throw error;
   }
-  const filename = replacementFilename(input.draftKey, input.slotKey, Math.max(1, asset.attempts + 1));
-  const stored = await input.storage.store(filename, input.bytes);
-  return input.store.registerExternalReplacementCandidate(input.actor, input.draftKey, input.slotKey, {
-    url: stored.url,
-    width: dims.width,
-    height: dims.height,
-    approvedTag,
-  });
 }
