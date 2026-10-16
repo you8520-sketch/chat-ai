@@ -8,7 +8,13 @@ import {
   type OfficialWorldBible,
 } from "@/lib/officialSupply/bible";
 import { composeOfficialSystemPrompt } from "@/lib/officialSupply/characterText";
+import {
+  assertWolfgangApprovedLocks,
+  isWolfgangInPlaceSource,
+  wolfgangApprovedPersistedSourcePath,
+} from "@/lib/officialSupply/inPlaceWolfgang";
 import { attachOfficialCharacterLorebooks } from "@/lib/officialSupply/lorebookAttach";
+import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import type {
   OfficialAppearanceLock,
   OfficialCharacterDraft,
@@ -46,6 +52,27 @@ function readJson<T>(file: string): T {
   return JSON.parse(fs.readFileSync(file, "utf8")) as T;
 }
 
+function testPilotDirOverride(): string {
+  return process.env.NODE_TEST_CONTEXT != null ? process.env.OFFICIAL_SUPPLY_PILOT_DIR?.trim() ?? "" : "";
+}
+
+function wolfgangCharacterFilePath(draftKey: string): string {
+  const override = testPilotDirOverride();
+  if (override) return path.join(override, "characters", `${draftKey}.json`);
+
+  const persisted = wolfgangApprovedPersistedSourcePath();
+  if (fs.existsSync(persisted)) return persisted;
+
+  if (process.env.NODE_TEST_CONTEXT != null) {
+    return path.join(DEFAULT_PILOT_DIR, "characters", `${draftKey}.json`);
+  }
+
+  throw new OfficialSupplyGateError(
+    "approved_source_missing",
+    `approved Wolfgang source is missing at ${persisted}; refusing to use the public repo sheet`
+  );
+}
+
 export function loadOfficialPilotWorldBible(): OfficialWorldBible {
   return readJson<{ bible: OfficialWorldBible }>(path.join(pilotDir(), "world-bible.json")).bible;
 }
@@ -71,7 +98,10 @@ export function loadCompiledOfficialCharacterSource(draftKey: string): {
 } {
   const manifest = readJson<{ worldKey: string; styleKey: string }>(path.join(pilotDir(), "manifest.json"));
   const world = readJson<{ bible: OfficialWorldBible }>(path.join(pilotDir(), "world-bible.json"));
-  const file = readJson<PilotCharacterFile>(path.join(pilotDir(), "characters", `${draftKey}.json`));
+  const characterPath = isWolfgangInPlaceSource(draftKey)
+    ? wolfgangCharacterFilePath(draftKey)
+    : path.join(pilotDir(), "characters", `${draftKey}.json`);
+  const file = readJson<PilotCharacterFile>(characterPath);
   if (file.draftKey !== draftKey) {
     throw new Error(`official source draftKey mismatch: ${file.draftKey} != ${draftKey}`);
   }
@@ -93,6 +123,13 @@ export function loadCompiledOfficialCharacterSource(draftKey: string): {
     },
   });
   if (!file.appearance) throw new Error(`official source ${draftKey} is missing appearance lock`);
+  const loadedPersistedWolfgang =
+    isWolfgangInPlaceSource(draftKey) &&
+    !testPilotDirOverride() &&
+    path.resolve(characterPath) === path.resolve(wolfgangApprovedPersistedSourcePath());
+  if (loadedPersistedWolfgang) {
+    assertWolfgangApprovedLocks({ draft, appearanceLock: file.appearance });
+  }
   const sharedLorebook = world.bible.lorebook;
   const resolvedLorebook = attachOfficialCharacterLorebooks({
     shared: sharedLorebook,

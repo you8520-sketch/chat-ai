@@ -50,6 +50,9 @@ jobs:
       - name: Locked snapshot operator defaults to inspect-only NOT_RUN
         run: npm run official-supply:reconcile-locked-snapshot
 
+      - name: Wolfgang approved-source operator defaults to inspect-only
+        run: npm run official-supply:wolfgang-approved-source
+
       - name: Lucian variation operator defaults to zero calls
         run: npm run official-supply:generate-lucian-variations
 

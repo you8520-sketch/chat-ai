@@ -333,36 +333,31 @@ describe("Wolfgang GPT-authored public copy", () => {
     };
   }
 
-  it("keeps compiled Wolfgang public surfaces byte-identical to the GPT candidate", () => {
+  it("keeps compiled Wolfgang public surfaces aligned to the approved public tagline", () => {
     const file = readJson<PilotChar>(path.join(PILOT_DIR, "characters", "pilot-rf-02.json"));
+    const manifest = readJson<{ publicSurfaceDecisions: Record<string, { tagline?: string }> }>(
+      path.join(PILOT_DIR, "manifest.json")
+    );
     const copy = candidate();
     const draft = compileOfficialDraftFromBible(file.bible, compileKeys(file));
-    assert.equal(file.bible.publicProfile.tagline, copy.tagline);
-    assert.equal(file.bible.publicProfile.description, copy.pitch);
-    assert.equal(file.bible.greeting, copy.greeting);
-    assert.equal(file.bible.situation.personalSituation, copy.personalSituation);
-    assert.equal(file.bible.situation.userEntry, copy.userEntry);
-    assert.equal(file.bible.rpEngine.immediateHook, copy.immediateHook);
-    assert.equal(file.bible.rpEngine.mediumConflict, copy.mediumConflict);
+    assert.equal(file.bible.publicProfile.tagline, manifest.publicSurfaceDecisions["pilot-rf-02"]?.tagline);
+    assert.equal(file.bible.publicProfile.tagline, "“당신의 처형 명령에 내 인장이 있습니다. 서명한 적은 없습니다.”");
     assert.equal(draft.description, file.bible.publicProfile.detailedDescription);
-    assert.notEqual(draft.description, copy.detailedDescription, "the public intro moved to the shared-world standard");
-    assert.equal(draft.greeting, copy.greeting);
-    assert.equal(draft.tagline, copy.tagline);
+    assert.equal(draft.greeting, file.bible.greeting);
+    assert.equal(draft.tagline, file.bible.publicProfile.tagline);
     assert.notEqual(draft.description, file.bible.publicProfile.description);
-    assert.equal(copy.tagline.length, 37);
-    assert.equal(copy.detailedDescription.length, 1299);
     assert.equal(
       readJson<PilotChar>(path.join(PILOT_DIR, "fixtures", "pilot-rf-02-approved-c91ba66a.source.json")).bible
         .publicProfile.detailedDescription,
       copy.detailedDescription,
-      "the GPT candidate document is the previously approved copy"
+      "the GPT candidate document remains the previously approved c91 copy"
     );
-    assert.equal(copy.greeting.length, 1547);
-    assert.ok(copy.greeting.length <= 2000);
+    assert.ok(file.bible.greeting.length <= 2000);
     assert.deepEqual(evaluateOfficialPublicDescription(draft.description, draft.name).errors, []);
     assert.match(draft.description, /세계관 설정: 에테르노스 제국/);
     assert.match(draft.description, /캐릭터 설정/);
     assert.match(draft.description, /도입 상황/);
+    assert.match(draft.description, /서명도 인장도 볼프강의 것이다/);
     assert.doesNotMatch(draft.description, /정략적 혐오에서 맹목적 충성으로/);
     assert.doesNotMatch(draft.greeting, /눈과 서리를 묻힌 당신이|젖은 외투/);
     assert.doesNotMatch(file.bible.identity.worldRole, /92kg|92㎏/);

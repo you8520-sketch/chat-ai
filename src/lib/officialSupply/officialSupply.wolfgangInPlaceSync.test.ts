@@ -26,13 +26,24 @@ import {
   computeAppearanceLockHash,
   renderAppearanceBlock,
 } from "@/lib/officialSupply/appearance";
-import { computeTextLockHash } from "@/lib/officialSupply/characterText";
+import { compileOfficialDraftFromBible } from "@/lib/officialSupply/bible";
+import {
+  composeOfficialSystemPrompt,
+  computeTextLockHash,
+  officialRpSettingOverflowChars,
+} from "@/lib/officialSupply/characterText";
 import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
+import type { OfficialCharacterBible } from "@/lib/officialSupply/bible";
 import {
   OFFICIAL_IN_PLACE_APPLY_ENV,
   syncOfficialCharacterInPlace,
 } from "@/lib/officialSupply/inPlaceSync";
-import { WOLFGANG_IN_PLACE_TARGET } from "@/lib/officialSupply/inPlaceWolfgang";
+import {
+  OFFICIAL_SUPPLY_WOLFGANG_TARGET_PATH_ENV,
+  WOLFGANG_IN_PLACE_TARGET,
+  wolfgangInPlaceTarget,
+} from "@/lib/officialSupply/inPlaceWolfgang";
+import { ensureOfficialSharedWorldLibraryRow } from "@/lib/officialSupply/officialSharedWorld";
 import {
   DERIVED_BANMAL_BAN,
   DERIVED_INTRA_TURN_SWITCH_BAN,
@@ -58,31 +69,87 @@ const SUPPLY_KEY = WOLFGANG_IN_PLACE_TARGET.supplyDraftKey;
 const SOURCE_KEY = WOLFGANG_IN_PLACE_TARGET.sourceDraftKey;
 const FIXTURE_DIR = path.join(process.cwd(), "src/lib/officialSupply/pilot/fixtures");
 const PILOT_SOURCE_DIR = path.join(process.cwd(), "src/lib/officialSupply/pilot");
-const APPROVED_SOURCE_FIXTURE = path.join(FIXTURE_DIR, "pilot-rf-02-approved-c91ba66a.source.json");
-const BEFORE_RP = path.join(process.cwd(), "docs/official-supply/reviews/pilot-rf-02-before-rp.txt");
+const PREVIOUS_SOURCE_FIXTURE = path.join(FIXTURE_DIR, "pilot-rf-02-approved-c91ba66a.source.json");
 
 function previousLockDraft(): OfficialCharacterDraft {
-  return (
-    JSON.parse(fs.readFileSync(path.join(FIXTURE_DIR, "pilot-rf-02-approved-text-lock-draft.json"), "utf8")) as {
-      draft: OfficialCharacterDraft;
-    }
-  ).draft;
+  const file = JSON.parse(fs.readFileSync(PREVIOUS_SOURCE_FIXTURE, "utf8")) as {
+    draftKey: string;
+    bible: OfficialCharacterBible;
+  };
+  const src = loadCompiledOfficialCharacterSource(SOURCE_KEY);
+  const compiled = compileOfficialDraftFromBible(file.bible, {
+    draftKey: file.draftKey,
+    worldKey: src.worldKey,
+    styleKey: src.draft.styleKey,
+    worldName: src.worldBible.name,
+    worldBible: src.worldBible,
+    hook: src.draft.hook,
+    genres: src.draft.genres,
+    audience: src.draft.audience,
+  });
+  return {
+    ...compiled,
+    draftKey: SUPPLY_KEY,
+    styleKey: "romance_fantasy_v4",
+  };
 }
 
 function firstSentence(text: string): string {
   return text.split(/(?<=[.!?。])\s+/)[0] ?? text;
 }
 
+function writeSyntheticApprovedSource(dest: string): void {
+  const base = JSON.parse(fs.readFileSync(PREVIOUS_SOURCE_FIXTURE, "utf8")) as {
+    slot: number;
+    draftKey: string;
+    brief: unknown;
+    bible: OfficialCharacterBible;
+    appearance: unknown;
+    assetPlan?: unknown;
+  };
+  const file = {
+    slot: base.slot,
+    draftKey: SOURCE_KEY,
+    brief: base.brief,
+    appearance: base.appearance,
+    assetPlan: base.assetPlan ?? { slots: [] },
+    bible: {
+      ...base.bible,
+      usesSharedWorld: true,
+      greeting: "합성 승인 첫 메시지입니다. 이 문장은 기계 동작 검증용이며 운영 원고가 아닙니다.",
+      publicProfile: {
+        ...base.bible.publicProfile,
+        tagline: "합성 승인 한 줄. 운영 태그라인이 아닙니다.",
+      },
+      speech: {
+        ...base.bible.speech,
+        examples: "“합성 예시 하나.”\n“합성 예시 둘.”\n“합성 예시 셋.”\n“합성 예시 넷.”\n“합성 예시 다섯.”",
+      },
+    },
+  };
+  fs.writeFileSync(dest, JSON.stringify(file));
+}
+
 /**
- * The pinned approved Text Lock (c91ba66a…) belongs to the manuscript approved before the
- * shared-world migration. The live `pilot-rf-02` source has moved on and needs a new approved
- * Text Lock, so the sync mechanics are exercised against the frozen approved source.
+ * Sync mechanics run against a synthetic approved source so the public suite
+ * does not copy the private r2 manuscript. Production pins stay in
+ * `WOLFGANG_IN_PLACE_TARGET` and are not rewritten here.
  */
 function installFrozenApprovedPilotDir(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wolfgang-approved-pilot-"));
   fs.cpSync(PILOT_SOURCE_DIR, dir, { recursive: true, filter: (src) => !src.includes(`${path.sep}fixtures`) });
-  fs.copyFileSync(APPROVED_SOURCE_FIXTURE, path.join(dir, "characters", `${SOURCE_KEY}.json`));
+  writeSyntheticApprovedSource(path.join(dir, "characters", `${SOURCE_KEY}.json`));
   process.env.OFFICIAL_SUPPLY_PILOT_DIR = dir;
+  const compiled = loadCompiledOfficialCharacterSource(SOURCE_KEY);
+  const targetPath = path.join(dir, "wolfgang-synthetic-target.json");
+  fs.writeFileSync(
+    targetPath,
+    JSON.stringify({
+      ...WOLFGANG_IN_PLACE_TARGET,
+      approvedTextLockHash: computeTextLockHash(compiled.draft),
+    })
+  );
+  process.env[OFFICIAL_SUPPLY_WOLFGANG_TARGET_PATH_ENV] = targetPath;
   return dir;
 }
 
@@ -95,6 +162,7 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
   after(() => {
     uninstallIsolatedTestDatabase();
     delete process.env.OFFICIAL_SUPPLY_PILOT_DIR;
+    delete process.env[OFFICIAL_SUPPLY_WOLFGANG_TARGET_PATH_ENV];
     fs.rmSync(frozenPilotDir, { recursive: true, force: true });
   });
   beforeEach(() => {
@@ -111,6 +179,7 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
       DELETE FROM official_supply_characters;
       DELETE FROM official_supply_batches;
       DELETE FROM characters;
+      DELETE FROM worlds;
       DELETE FROM users WHERE email LIKE '%@site-managed.invalid' OR email LIKE '%@test.local';
     `);
   });
@@ -150,6 +219,9 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
     siblingId: number;
     lorebookIds: number[];
     oldSystemPrompt: string;
+    sharedWorldId: number;
+    sharedWorldContent: string;
+    sharedWorldSummary: string;
   };
 
   function seedProductionShapedWolfgang(opts?: { appearanceRaw?: string }): Seed {
@@ -160,7 +232,12 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
       nickname: "로맨스 공식 스튜디오",
       email: "wolfgang-owner@site-managed.invalid",
     });
-    const oldSystemPrompt = fs.readFileSync(BEFORE_RP, "utf8").trimEnd();
+    const sharedWorld = ensureOfficialSharedWorldLibraryRow({
+      db,
+      creatorId: studio.id,
+      bible: src.worldBible,
+    });
+    const oldSystemPrompt = composeOfficialSystemPrompt(old, src.appearanceBlock);
     const fullLock = opts?.appearanceRaw ?? renderAppearanceBlock(src.appearanceLock);
     const assets = wolfgangAssets();
     const info = db
@@ -284,6 +361,7 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
       )
       .run(studio.id);
     const siblingId = Number(sibling.lastInsertRowid);
+    db.prepare("UPDATE characters SET world_id=? WHERE id=?").run(sharedWorld.worldId, siblingId);
     replaceCharacterCreatorLorebookAttachments(db, siblingId, lorebookIds);
 
     db.prepare(
@@ -315,7 +393,16 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
         computeAppearanceLockHash(src.appearanceLock)
       );
     }
-    return { characterId, ownerId: studio.id, siblingId, lorebookIds, oldSystemPrompt };
+    return {
+      characterId,
+      ownerId: studio.id,
+      siblingId,
+      lorebookIds,
+      oldSystemPrompt,
+      sharedWorldId: sharedWorld.worldId,
+      sharedWorldContent: sharedWorld.content,
+      sharedWorldSummary: sharedWorld.summary,
+    };
   }
 
   function characterRow(id: number) {
@@ -341,6 +428,7 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
     "greeting",
     "system_prompt",
     "world",
+    "world_id",
     "creator_comment",
     "example_dialog",
     "tags",
@@ -368,11 +456,14 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
   }
 
   function approvedFixtureSpeech(): { examples: string; forbidden: string; frequentPhrases: string[] } {
-    return (
-      JSON.parse(fs.readFileSync(APPROVED_SOURCE_FIXTURE, "utf8")) as {
-        bible: { speech: { examples: string; forbidden: string; frequentPhrases: string[] } };
-      }
-    ).bible.speech;
+    const previous = JSON.parse(fs.readFileSync(PREVIOUS_SOURCE_FIXTURE, "utf8")) as {
+      bible: { speech: { frequentPhrases?: string[] } };
+    };
+    return {
+      examples: source().draft.speech.examples,
+      forbidden: source().draft.speech.forbidden,
+      frequentPhrases: previous.bible.speech.frequentPhrases ?? [],
+    };
   }
 
   function supplyRow() {
@@ -442,7 +533,11 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
     const src = source();
     const old = previousLockDraft();
     assert.equal(computeTextLockHash(old), WOLFGANG_IN_PLACE_TARGET.previousTextLockHash);
-    assert.equal(computeTextLockHash(src.draft), WOLFGANG_IN_PLACE_TARGET.approvedTextLockHash);
+    assert.equal(computeTextLockHash(src.draft), wolfgangInPlaceTarget().approvedTextLockHash);
+    assert.equal(
+      WOLFGANG_IN_PLACE_TARGET.approvedTextLockHash,
+      "599854610891ee4e09224d1bec863501227157584b66068f0e1cab5e0e1ca89c"
+    );
     assert.equal(computeAppearanceLockHash(src.appearanceLock), WOLFGANG_IN_PLACE_TARGET.appearanceLockHash);
     assert.equal(
       classifyStoredAppearanceAgainstApprovedLock(
@@ -452,10 +547,11 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
       ),
       "identity_same_full_lock"
     );
-    assert.equal(old.secrets.length, 8);
+    assert.equal(old.secrets.length, 2);
     assert.equal(src.draft.secrets.length, 2);
-    assert.equal(removedSecrets().length, 6);
-    assert.equal(src.systemPrompt.length, 5445);
+    assert.deepEqual(src.draft.secrets, old.secrets);
+    assert.equal(removedSecrets().length, 0);
+    assert.ok(src.systemPrompt.length > 0);
   });
 
   it("dry-run reports the old to approved transition without writing", async () => {
@@ -472,10 +568,17 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
     assert.equal(preview.sameCharacterId, true);
     assert.equal(preview.createdNewCharacter, false);
     assert.equal(preview.notifiedFollowers, false);
-    assert.deepEqual(preview.changedFields, ["system_prompt", "supply_text_lock"]);
+    assert.deepEqual(preview.changedFields, [
+      "tagline",
+      "greeting",
+      "system_prompt",
+      "world",
+      "world_id",
+      "supply_text_lock",
+    ]);
     assert.equal(preview.preflightSnapshot.supplyDraftKey, SUPPLY_KEY);
     assert.equal(preview.preflightSnapshot.supplyTextLockHash, WOLFGANG_IN_PLACE_TARGET.previousTextLockHash);
-    assert.equal(preview.preflightSnapshot.targetTextLockHash, WOLFGANG_IN_PLACE_TARGET.approvedTextLockHash);
+    assert.equal(preview.preflightSnapshot.targetTextLockHash, wolfgangInPlaceTarget().approvedTextLockHash);
     assert.deepEqual(
       preview.lorebookPlan.map((item) => item.action),
       Array(8).fill("skip_identical")
@@ -510,14 +613,26 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
     assert.equal(result.sameCharacterId, true);
     assert.equal(result.createdNewCharacter, false);
     assert.equal(result.notifiedFollowers, false);
+    assert.equal(before.world_id, null);
+    assert.equal(result.after.worldId, seed.sharedWorldId);
 
     const after = characterRow(seed.characterId);
+    assert.equal(after.world_id, seed.sharedWorldId);
+    const worldAfter = getDb()
+      .prepare("SELECT id, content, summary FROM worlds WHERE id=?")
+      .get(seed.sharedWorldId) as { id: number; content: string; summary: string };
+    assert.equal(worldAfter.content, seed.sharedWorldContent);
+    assert.equal(worldAfter.summary, seed.sharedWorldSummary);
+    assert.equal(
+      (getDb().prepare("SELECT COUNT(*) AS n FROM worlds WHERE creator_id=?").get(seed.ownerId) as { n: number }).n,
+      1
+    );
     assert.equal(after.system_prompt, src.systemPrompt);
-    assert.equal((after.system_prompt as string).length, 5445);
+    assert.equal((after.system_prompt as string).length, src.systemPrompt.length);
     assert.notEqual(after.system_prompt, seed.oldSystemPrompt);
 
     const supply = supplyRow();
-    assert.equal(supply.text_lock_hash, WOLFGANG_IN_PLACE_TARGET.approvedTextLockHash);
+    assert.equal(supply.text_lock_hash, wolfgangInPlaceTarget().approvedTextLockHash);
     const storedDraft = JSON.parse(supply.draft_json as string) as OfficialCharacterDraft;
     assert.equal(computeTextLockHash(storedDraft), supply.text_lock_hash);
     assert.equal(storedDraft.draftKey, SUPPLY_KEY);
@@ -552,7 +667,7 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
     assert.notEqual(after.speech_profile, before.speech_profile, "the profile must be re-derived from the approved manuscript");
 
     const approvedExamples = [...approvedSpeech.examples.matchAll(/“([^”]+)”/gu)].map((match) => match[1]!.trim());
-    assert.equal(approvedExamples.length, 4);
+    assert.equal(approvedExamples.length, 5);
     assert.deepEqual(profileAfter.dialogue_examples, approvedExamples, "saved examples must be exactly the approved source examples");
     assert.ok(!profileAfter.dialogue_examples.includes("구버전 예시대사"), "the stale pre-change example must not survive");
 
@@ -580,6 +695,11 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
       );
     }
     assert.ok(profileAfter.forbidden_speech_patterns.includes(DERIVED_SAME_ADDRESSEE_SWITCH_BAN));
+    assert.equal(officialRpSettingOverflowChars(src.draft, src.appearanceBlock), 0);
+    assert.ok(!("default_register" in profileAfter));
+    assert.doesNotMatch(String(after.system_prompt ?? ""), /default_register/);
+    assert.doesNotMatch(String(after.example_dialog ?? ""), /default_register/);
+    assert.doesNotMatch(String(after.speech_profile ?? ""), /default_register/);
     assert.equal(after.id, seed.characterId);
     assert.equal(after.official, 0);
     assert.equal(after.visibility, "private");
@@ -610,15 +730,39 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
     assert.equal(derivedJobCount(seed.siblingId), 0);
   });
 
+  it("attaches the existing shared World Library without rewriting content used by the sibling", async () => {
+    const seed = seedProductionShapedWolfgang();
+    const adminId = insertAdmin();
+    const drifted = "운영에 이미 있는 공유 월드 본문. 볼프강 반영이 이 내용을 바꾸면 안 된다.";
+    getDb().prepare("UPDATE worlds SET content=? WHERE id=?").run(drifted, seed.sharedWorldId);
+    const siblingBefore = characterRow(seed.siblingId);
+
+    const preview = await dryRun(seed.characterId, adminId);
+    assert.ok(preview.changedFields.includes("world_id"));
+    assert.ok(!preview.changedFields.includes("lorebook"));
+    assert.deepEqual(
+      preview.lorebookPlan.map((item) => item.action),
+      Array(8).fill("skip_identical")
+    );
+
+    const result = await apply(seed.characterId, adminId);
+    assert.equal(result.applied, true);
+    assert.equal(characterRow(seed.characterId).world_id, seed.sharedWorldId);
+    const worldAfter = getDb()
+      .prepare("SELECT content, summary FROM worlds WHERE id=?")
+      .get(seed.sharedWorldId) as { content: string; summary: string };
+    assert.equal(worldAfter.content, drifted);
+    assert.equal(worldAfter.summary, seed.sharedWorldSummary);
+    assert.deepEqual(characterRow(seed.siblingId), siblingBefore);
+  });
+
   it("keeps the 2 approved secrets and no removed secret in prompt, canon and chunks", async () => {
     const seed = seedProductionShapedWolfgang();
     const adminId = insertAdmin();
     const src = source();
     const removed = removedSecrets();
-    assert.ok(
-      removed.every((secret) => seed.oldSystemPrompt.includes(secret)),
-      "the old production prompt carries every removed secret"
-    );
+    assert.deepEqual(removed, []);
+    assert.deepEqual(src.draft.secrets, previousLockDraft().secrets);
 
     await apply(seed.characterId, adminId);
 
@@ -690,7 +834,7 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
 
     const again = await dryRun(seed.characterId, adminId);
     assert.deepEqual(again.changedFields, []);
-    assert.equal(again.preflightSnapshot.supplyTextLockHash, WOLFGANG_IN_PLACE_TARGET.approvedTextLockHash);
+    assert.equal(again.preflightSnapshot.supplyTextLockHash, wolfgangInPlaceTarget().approvedTextLockHash);
 
     await apply(seed.characterId, adminId);
     assert.deepEqual(
@@ -964,7 +1108,7 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
       assert.equal(after.system_prompt, source().systemPrompt);
       assert.equal(after.official, 0);
       assert.equal(after.visibility, "private");
-      assert.equal(supplyRow().text_lock_hash, WOLFGANG_IN_PLACE_TARGET.approvedTextLockHash);
+      assert.equal(supplyRow().text_lock_hash, wolfgangInPlaceTarget().approvedTextLockHash);
       assert.deepEqual(lorebookRows(), lorebooksBefore, "no lorebook rows created or edited");
       assert.equal(
         JSON.stringify(getDb().prepare("SELECT * FROM official_supply_world_lorebooks ORDER BY world_key, entry_key").all()),

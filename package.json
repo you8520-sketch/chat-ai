@@ -31,6 +31,7 @@
     "official-supply:generate-rofan-v4-anchors": "node --conditions=react-server --import tsx scripts/official-supply-generate-rofan-v4-anchors.ts",
     "official-supply:approve-anchor": "node --conditions=react-server --import tsx scripts/official-supply-approve-anchor.ts",
     "official-supply:reconcile-locked-snapshot": "node --conditions=react-server --import tsx scripts/official-supply-reconcile-locked-snapshot.ts",
+    "official-supply:wolfgang-approved-source": "node --conditions=react-server --import tsx scripts/official-supply-wolfgang-approved-source.ts",
     "official-supply:generate-lucian-variations": "node --conditions=react-server --import tsx scripts/official-supply-generate-lucian-variations.ts",
     "audit:main-rp-monthly-cache": "node --conditions=react-server --import tsx scripts/main-rp-monthly-cache-audit.ts",
     "test:main-rp-monthly-cache-audit": "node --conditions=react-server --import tsx --test scripts/lib/mainRpMonthlyCacheAudit.test.ts",
