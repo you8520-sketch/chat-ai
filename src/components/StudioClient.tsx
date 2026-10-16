@@ -114,7 +114,7 @@ export default function StudioClient({
   );
 
   return (
-    <div data-testid="studio-page-shell" className="mx-auto w-full max-w-6xl px-4 py-6 sm:py-8">
+    <div data-testid="studio-page-shell" className="mx-auto w-full max-w-6xl py-6 sm:py-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className={cn(studioType.heading, "flex items-center gap-2.5")}>

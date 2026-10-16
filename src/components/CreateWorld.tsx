@@ -44,7 +44,7 @@ export default function CreateWorld({ worldId, showTrpg = false, catalog = null 
   }
 
   return (
-    <div className={cn("mx-auto max-w-2xl px-4 py-6 sm:py-8", kind === "world" ? "pb-32" : "pb-8")}>
+    <div className={cn("mx-auto max-w-2xl py-6 sm:py-8", kind === "world" ? "pb-32" : "pb-8")}>
       <StudioBackLink href="/studio?tab=worlds">← 제작 · 세계관</StudioBackLink>
 
       <h1 className={`${studioType.heading} mt-4`}>

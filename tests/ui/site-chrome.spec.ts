@@ -267,3 +267,53 @@ test.describe("compact mobile header", () => {
     await expect(nav.getByRole("link", { name: "랭킹" })).toHaveAttribute("aria-current", "page");
   });
 });
+
+test.describe("page content start line", () => {
+  async function leftOffsets(page: Page, path: string) {
+    await page.goto(path);
+    await page.locator("main h1").first().waitFor({ state: "visible" });
+    return page.evaluate(() => {
+      const main = document.querySelector("main")!.getBoundingClientRect();
+      const h1 = document.querySelector("main h1")!.getBoundingClientRect();
+      return { main: main.left, h1: h1.left, overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1 };
+    });
+  }
+
+  test("제작 pages start at the shared main edge instead of adding a second 16px gutter", async ({ page }) => {
+    await demoLogin(page);
+    for (const width of [360, 390, 768, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const path of ["/studio", "/my-characters", "/creator", "/create"]) {
+        const o = await leftOffsets(page, path);
+        expect(Math.abs(o.h1 - o.main), `${width}px ${path} h1 vs main`).toBeLessThanOrEqual(1);
+        expect(o.overflow, `${width}px ${path} overflow`).toBe(false);
+      }
+    }
+  });
+
+  test("narrow editor forms share the main edge below lg and stay centered readable forms on desktop", async ({ page }) => {
+    await demoLogin(page);
+    await page.setViewportSize({ width: 390, height: 900 });
+    for (const path of ["/world/create", "/lorebook/create", "/lorebook"]) {
+      const o = await leftOffsets(page, path);
+      expect(Math.abs(o.h1 - o.main), `390px ${path}`).toBeLessThanOrEqual(1);
+    }
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const o = await leftOffsets(page, "/world/create");
+    expect(o.h1 - o.main, "desktop narrow form stays centered").toBeGreaterThan(100);
+  });
+
+  test("settings and persona align to the same start line as the discovery pages on desktop", async ({ page }) => {
+    await demoLogin(page);
+    for (const width of [768, 1023, 1024, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      const ref = await leftOffsets(page, "/search");
+      for (const path of ["/settings", "/persona"]) {
+        const o = await leftOffsets(page, path);
+        if (width >= 1024 || o.h1 === o.main) {
+          expect(Math.abs(o.h1 - ref.h1), `${width}px ${path} vs /search`).toBeLessThanOrEqual(1);
+        }
+      }
+    }
+  });
+});

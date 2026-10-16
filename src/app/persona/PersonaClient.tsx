@@ -1508,7 +1508,7 @@ export default function PersonaClient({
   ];
 
   return (
-    <div className="mx-auto mt-6 max-w-2xl space-y-6 lg:max-w-5xl">
+    <div className="mx-auto mt-6 max-w-2xl space-y-6 lg:mx-0 lg:max-w-5xl">
       <div>
         <h1 className={studioType.heading}>페르소나·노트 제작</h1>
         <p className={`mt-1 ${studioType.body}`}>

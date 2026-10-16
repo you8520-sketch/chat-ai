@@ -166,12 +166,12 @@ export default function CreateKeywordLorebook({ lorebookId }: Props) {
 
   if (bootLoading) {
     return (
-      <p className={`mx-auto max-w-2xl px-4 py-12 ${studioType.helper}`}>불러오는 중...</p>
+      <p className={`mx-auto max-w-2xl py-12 ${studioType.helper}`}>불러오는 중...</p>
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6 pb-32 sm:py-8">
+    <div className="mx-auto max-w-2xl py-6 pb-32 sm:py-8">
       <StudioBackLink href="/studio?tab=lorebooks">← 제작 · 로어북</StudioBackLink>
 
       <h1 className={`${studioType.heading} mt-4`}>
