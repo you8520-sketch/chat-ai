@@ -6,6 +6,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  DEFAULT_SELECTED_AI,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL,
   OPENROUTER_DEEPSEEK_V3_MODEL,
@@ -126,7 +127,7 @@ describe("DeepSeek V4 Flash 0731 canonicalization", () => {
   it("3. stored DB selectedAI deepseek-v4-flash is retired → remaps to default Main RP model", async () => {
     assert.equal(isValidSelectedAI("deepseek-v4-flash"), false);
     assert.equal(isCheaperInferenceDeepSeekV4FlashModel("deepseek-v4-flash"), true);
-    assert.equal(resolveSelectedAI("deepseek-v4-flash"), CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
+    assert.equal(resolveSelectedAI("deepseek-v4-flash"), DEFAULT_SELECTED_AI);
     assert.equal(selectedAILabel("deepseek-v4-flash"), "DeepSeek V4 Flash");
 
     const db = new Database(":memory:");
@@ -141,8 +142,12 @@ describe("DeepSeek V4 Flash 0731 canonicalization", () => {
       "deepseek-v4-flash"
     );
     const ensured = ensureUserSelectedAI(db, 1);
-    assert.equal(ensured.selectedAI, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
-    assert.equal(ensured.remappedFromRetired, true);
+    assert.equal(ensured.selectedAI, null);
+    assert.equal(ensured.remappedFromRetired, false);
+    const stored = db.prepare("SELECT selected_ai FROM users WHERE id=1").get() as {
+      selected_ai: string;
+    };
+    assert.equal(stored.selected_ai, "deepseek-v4-flash");
     db.close();
   });
 
@@ -156,10 +161,7 @@ describe("DeepSeek V4 Flash 0731 canonicalization", () => {
       false
     );
     assert.equal(isValidSelectedAI("deepseek-v4-flash-0731"), false);
-    assert.equal(
-      resolveSelectedAI("deepseek-v4-flash-0731"),
-      CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
-    );
+    assert.equal(resolveSelectedAI("deepseek-v4-flash-0731"), DEFAULT_SELECTED_AI);
   });
 
   it("5. explicit Flash background still outbounds 0731; default PRIMARY is Luna", async () => {

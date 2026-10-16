@@ -27,7 +27,6 @@ import {
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
   CLAUDE_OPUS_MODEL,
-  DEFAULT_SELECTED_AI,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_KIMI_K3_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
@@ -264,7 +263,6 @@ function resolveExactDeliveredSelectedAI(deliveredModelId: string): SelectedAI {
 }
 
 function classifySelectedOption(id: SelectedAI): BilledModelReachabilityClass {
-  if (id === DEFAULT_SELECTED_AI) return "USER_DEFAULT";
   if (USER_SELECTABLE_AI_OPTIONS.some((o) => o.id === id)) return "USER_SELECTABLE";
   if (HIDDEN_CANONICAL_SELECTED.has(id)) return "HIDDEN_BUT_CANONICAL_VALID";
   return "USER_SELECTABLE";
@@ -365,7 +363,11 @@ export function buildCurrentReachableBilledModelInventory(): BilledModelInventor
     const resolved = resolveSelectedAI(legacySlug);
     byId.set(
       legacySlug,
-      inventoryEntry(legacySlug, "LEGACY_COMPAT_ONLY", resolved)
+      inventoryEntry(
+        legacySlug,
+        "LEGACY_COMPAT_ONLY",
+        isValidSelectedAI(resolved) ? resolved : null
+      )
     );
   }
 

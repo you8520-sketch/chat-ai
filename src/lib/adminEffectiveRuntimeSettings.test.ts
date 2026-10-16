@@ -5,12 +5,12 @@ import { buildEffectiveRuntimeSettingsProjection } from "@/lib/adminEffectiveRun
 import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-  DEFAULT_SELECTED_AI,
   GEMINI_38_FLASH_MODEL,
   MAIN_RP_MODEL_IDS,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
   OPENROUTER_GEMINI_31_PRO_MODEL,
   OPENROUTER_GEMINI_37_FLASH_MODEL,
+  isUserSelectableAI,
   resolveSelectedAI,
   selectedAIProvider,
 } from "@/lib/chatModels";
@@ -82,11 +82,12 @@ describe("effective runtime settings projection", () => {
       projection.mainRp.models.map((row) => [row.canonicalModelId, row.label]),
       MAIN_RP_USER_SELECTABLE_OPTIONS.map((option) => [option.id, option.label])
     );
-    assert.equal(projection.mainRp.defaultModelId, DEFAULT_SELECTED_AI);
+    assert.equal(projection.mainRp.defaultModelId, "");
     assert.deepEqual(
       projection.mainRp.models.filter((row) => row.isDefault).map((row) => row.canonicalModelId),
-      [DEFAULT_SELECTED_AI]
+      []
     );
+    assert.equal(projection.mainRp.models.some((row) => row.recommended), false);
     for (const row of projection.mainRp.models) {
       assert.equal(row.registryProvider, selectedAIProvider(row.canonicalModelId as never));
       assert.equal(row.wireModelId, resolveMainRpPrimaryWireModelId(row.canonicalModelId as never));
@@ -205,7 +206,7 @@ describe("effective runtime settings projection", () => {
     assert.ok(ids.includes(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL));
     for (const row of projection.historical.retiredObservableModelIds) {
       assert.equal(row.resolvesToCurrent, resolveSelectedAI(row.modelId));
-      assert.ok(active.has(row.resolvesToCurrent), row.modelId);
+      assert.equal(isUserSelectableAI(row.modelId, false), false, row.modelId);
     }
   });
 

@@ -324,9 +324,9 @@ describe("Main RP supply live candidate selection", () => {
   });
 
   it("skips cheaper but interactive-RP-unfit latency/throughput endpoints and selects the next healthy supplier", () => {
-    const report = isolateCheaperAlternate(radarReport(), "deepseek-v4.1-flash");
+    const report = isolateCheaperAlternate(radarReport(), "gpt-6.1-sol");
     const model = report.models.find(
-      (row) => row.modelId === "deepseek-v4.1-flash"
+      (row) => row.modelId === "gpt-6.1-sol"
     )!;
     const base = model.comparisons.find(
       (row) => row.provider?.slug === "fixture-provider"
@@ -385,7 +385,7 @@ describe("Main RP supply live candidate selection", () => {
 
     const selection = selectMainRpSupplyLiveCandidates(report);
     const chosen = selection.candidates.find(
-      (row) => row.modelId === "deepseek-v4.1-flash"
+      (row) => row.modelId === "gpt-6.1-sol"
     );
     assert.equal(chosen?.providerSlug, "healthy-alternative");
     assert.ok(
@@ -406,9 +406,9 @@ describe("Main RP supply live candidate selection", () => {
 
   // Real run 36536506840: Relace timed out, then Wafer completed both turns.
   it("retains up to three healthy cheaper alternatives for one model in price order", () => {
-    const report = isolateCheaperAlternate(radarReport(), "deepseek-v4.1-flash");
+    const report = isolateCheaperAlternate(radarReport(), "gpt-6.1-sol");
     const model = report.models.find(
-      (row) => row.modelId === "deepseek-v4.1-flash"
+      (row) => row.modelId === "gpt-6.1-sol"
     )!;
     const base = model.comparisons.find(
       (row) => row.provider?.slug === "fixture-provider"
@@ -433,11 +433,11 @@ describe("Main RP supply live candidate selection", () => {
     }));
 
     const selection = selectMainRpSupplyLiveCandidates(report);
-    const deepseek = selection.candidates.filter(
-      (row) => row.modelId === "deepseek-v4.1-flash"
+    const sol = selection.candidates.filter(
+      (row) => row.modelId === "gpt-6.1-sol"
     );
     assert.deepEqual(
-      deepseek.map((row) => row.providerSlug),
+      sol.map((row) => row.providerSlug),
       ["healthy-1", "healthy-2", "healthy-3"]
     );
     assert.ok(
@@ -450,9 +450,9 @@ describe("Main RP supply live candidate selection", () => {
   });
 
   it("requires 99.8% uptime before spending a live qualification call", () => {
-    const report = isolateCheaperAlternate(radarReport(), "deepseek-v4.1-flash");
+    const report = isolateCheaperAlternate(radarReport(), "gpt-6.1-sol");
     const model = report.models.find(
-      (row) => row.modelId === "deepseek-v4.1-flash"
+      (row) => row.modelId === "gpt-6.1-sol"
     )!;
     const base = model.comparisons.find(
       (row) => row.provider?.slug === "fixture-provider"
@@ -478,7 +478,7 @@ describe("Main RP supply live candidate selection", () => {
     const selection = selectMainRpSupplyLiveCandidates(report);
     assert.equal(
       selection.candidates.some(
-        (row) => row.modelId === "deepseek-v4.1-flash"
+        (row) => row.modelId === "gpt-6.1-sol"
       ),
       false
     );

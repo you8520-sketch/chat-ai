@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
+import { MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS } from "@/lib/chatModels";
 import { RP_QUALITY_PRECALL_FIXTURE_IDS } from "@/lib/rpQualityPrecall";
 import {
   MainRpStyleLengthFixtureError,
@@ -51,7 +51,7 @@ function publicManifest(version: number): MainRpStyleLengthPublicManifest {
     },
     combinedIdentityHash: "6".repeat(64),
     fixtureIds: RP_QUALITY_PRECALL_FIXTURE_IDS,
-    models: MAIN_RP_MODEL_IDS,
+    models: MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
     calls: [],
     sealedRequestCount: 0,
     sourceKind: "railway-production-readonly-in-process-v1",

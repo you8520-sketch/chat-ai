@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
 import type Database from "better-sqlite3";
@@ -8,6 +10,7 @@ import {
   type StoredAppearanceIdentityClass,
 } from "@/lib/officialSupply/appearance";
 import { computeTextLockHash } from "@/lib/officialSupply/characterText";
+import { getDataDir } from "@/lib/dataDir";
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import type { OfficialAppearanceLock, OfficialCharacterDraft } from "@/lib/officialSupply/types";
 
@@ -22,10 +25,76 @@ export const WOLFGANG_IN_PLACE_TARGET = {
   sourceDraftKey: "pilot-rf-02",
   supplyDraftKey: "pilot-rf-v4-02",
   characterName: "볼프강 폰 발켄하임",
-  previousTextLockHash: "6ff02833cfd45a542866aa1afa749486d94362eff5358e10f995b8f77fabd5fd",
-  approvedTextLockHash: "c91ba66ab5cd45976c53c4298a7c355fbb286e3f761758d3a6cd5ce14f993dc9",
+  previousTextLockHash: "c91ba66ab5cd45976c53c4298a7c355fbb286e3f761758d3a6cd5ce14f993dc9",
+  approvedTextLockHash: "599854610891ee4e09224d1bec863501227157584b66068f0e1cab5e0e1ca89c",
   appearanceLockHash: "1c3ccd134203a6dea6ae869c27cc443c42ff5498d1d0130c6f9765407c24dcc3",
 } as const;
+
+export type WolfgangInPlaceTarget = {
+  sourceDraftKey: string;
+  supplyDraftKey: string;
+  characterName: string;
+  previousTextLockHash: string;
+  approvedTextLockHash: string;
+  appearanceLockHash: string;
+};
+
+/** Survives Railway redeploy because DATA_DIR is the persistent volume (`/data`). */
+export const WOLFGANG_APPROVED_SOURCE_RELATIVE = path.join(
+  "official-supply",
+  "approved",
+  "pilot-rf-02.source.json"
+);
+
+export const OFFICIAL_SUPPLY_WOLFGANG_TARGET_PATH_ENV = "OFFICIAL_SUPPLY_WOLFGANG_TARGET_PATH";
+
+export function wolfgangApprovedPersistedSourcePath(dataDir = getDataDir()): string {
+  return path.join(dataDir, WOLFGANG_APPROVED_SOURCE_RELATIVE);
+}
+
+/**
+ * Production pins stay in `WOLFGANG_IN_PLACE_TARGET`. Tests may point at a synthetic
+ * target file only while the Node test runner is active.
+ */
+export function wolfgangInPlaceTarget(): WolfgangInPlaceTarget {
+  const override =
+    process.env.NODE_TEST_CONTEXT != null ? process.env[OFFICIAL_SUPPLY_WOLFGANG_TARGET_PATH_ENV]?.trim() : "";
+  if (!override) return WOLFGANG_IN_PLACE_TARGET;
+  const parsed = JSON.parse(fs.readFileSync(override, "utf8")) as WolfgangInPlaceTarget;
+  if (
+    parsed.sourceDraftKey !== WOLFGANG_IN_PLACE_TARGET.sourceDraftKey ||
+    parsed.supplyDraftKey !== WOLFGANG_IN_PLACE_TARGET.supplyDraftKey ||
+    parsed.characterName !== WOLFGANG_IN_PLACE_TARGET.characterName
+  ) {
+    throw new OfficialSupplyGateError(
+      "wolfgang_test_target_identity",
+      "synthetic Wolfgang target must keep the production source/supply identity"
+    );
+  }
+  return parsed;
+}
+
+export function assertWolfgangApprovedLocks(input: {
+  draft: OfficialCharacterDraft;
+  appearanceLock: OfficialAppearanceLock;
+}): { textLockHash: string; appearanceLockHash: string } {
+  const target = wolfgangInPlaceTarget();
+  const textLockHash = computeTextLockHash(input.draft);
+  if (textLockHash !== target.approvedTextLockHash) {
+    throw new OfficialSupplyGateError(
+      "approved_source_text_lock_mismatch",
+      `persisted ${target.sourceDraftKey} Text Lock ${textLockHash} is not the approved ${target.approvedTextLockHash}`
+    );
+  }
+  const appearanceLockHash = computeAppearanceLockHash(input.appearanceLock);
+  if (appearanceLockHash !== target.appearanceLockHash) {
+    throw new OfficialSupplyGateError(
+      "approved_source_appearance_lock_mismatch",
+      `persisted ${target.sourceDraftKey} Appearance Lock ${appearanceLockHash} is not the approved ${target.appearanceLockHash}`
+    );
+  }
+  return { textLockHash, appearanceLockHash };
+}
 
 const TEXT_LOCK_COVERED_DRAFT_KEYS: ReadonlySet<string> = new Set([
   "name",
@@ -103,7 +172,7 @@ export function planWolfgangSupply(input: {
   characterName: string;
   source: { draft: OfficialCharacterDraft; appearanceLock: OfficialAppearanceLock };
 }): WolfgangSupplyPlan {
-  const target = WOLFGANG_IN_PLACE_TARGET;
+  const target = wolfgangInPlaceTarget();
   if (input.characterName.trim() !== target.characterName) {
     throw new OfficialSupplyGateError(
       "character_identity_mismatch",

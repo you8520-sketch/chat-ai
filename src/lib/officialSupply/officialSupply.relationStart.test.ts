@@ -311,7 +311,7 @@ describe("official bible V2: 19-item checklist is a design aid, not output field
   });
 });
 
-describe("official bible V2: approved Lucian and Wolfgang manuscripts are untouched", () => {
+describe("official bible V2: approved Lucian and the public Wolfgang sheet stay legacy", () => {
   for (const key of LEGACY_KEYS) {
     it(`${key}: legacy bible has no V2 fields and still compiles to its stored Text Lock`, () => {
       const stored = JSON.parse(fs.readFileSync(path.join(PILOT_DIR, "characters", `${key}.json`), "utf8")) as {

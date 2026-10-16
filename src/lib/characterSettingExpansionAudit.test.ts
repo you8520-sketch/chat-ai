@@ -32,12 +32,17 @@ import type { CharacterChunk } from "@/types";
 
 const ADULT: SessionUser = { id: 1, nickname: "audit", is_adult: 1 };
 
-const MODELS = [
-  { id: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL, provider: "cheaperinference" as const },
+const LIVE_PICKER_MODELS = [
   { id: GEMINI_38_FLASH_MODEL, provider: "openrouter" as const },
   { id: CHEAPER_INFERENCE_GPT_61_SOL_MODEL, provider: "cheaperinference" as const },
   { id: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL, provider: "cheaperinference" as const },
   { id: GEMINI_4_ARGON_MODEL, provider: "openrouter" as const },
+];
+
+/** Assembly audit still includes historical DeepSeek prompt packing. */
+const MODELS = [
+  { id: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL, provider: "cheaperinference" as const },
+  ...LIVE_PICKER_MODELS,
 ];
 
 const SPEECH_PERSONALITY = "문장은 짧고 결론이 먼저다. 감정을 형용사로 풀지 않고 다음 행동으로 말한다.";
@@ -614,7 +619,7 @@ describe("character setting expansion readiness (no limit change, no provider)",
     }));
     assert.deepEqual(
       MAIN_RP_MODEL_IDS,
-      MODELS.map((m) => m.id)
+      LIVE_PICKER_MODELS.map((m) => m.id)
     );
     const acceptedTen = parseCharacterFormBody(formBody(ten.systemPrompt), ADULT);
     const acceptedTwelve = parseCharacterFormBody(formBody(twelve.systemPrompt), ADULT);

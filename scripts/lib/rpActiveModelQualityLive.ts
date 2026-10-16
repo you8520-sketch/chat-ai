@@ -1,11 +1,11 @@
 import crypto from "node:crypto";
 
 import {
-  MAIN_RP_MODEL_IDS,
   MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
-  MAIN_RP_USER_SELECTABLE_OPTIONS,
+  isMainRpQualityBenchmarkModel,
+  mainRpQualityBenchmarkOption,
   selectedAIProvider,
-  type SelectedAI,
+  type MainRpQualityBenchmarkModelId,
 } from "@/lib/chatModels";
 import {
   buildCheaperInferenceChatCompletionsUrl,
@@ -70,7 +70,7 @@ export const RP_ACTIVE_MODEL_QUALITY_LIVE_TIMEOUT_MS = 120_000;
  * Frozen 4-model paid-quality roster. User picker growth must not expand
  * this probe. The hard call cap still fail-closes if a later edit exceeds it.
  */
-export const RP_ACTIVE_MODEL_QUALITY_MODEL_IDS: readonly SelectedAI[] =
+export const RP_ACTIVE_MODEL_QUALITY_MODEL_IDS: readonly MainRpQualityBenchmarkModelId[] =
   MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS;
 export const RP_ACTIVE_MODEL_QUALITY_EXCLUDED = Object.freeze([] as const);
 export const RP_ACTIVE_MODEL_QUALITY_DEFAULT_CASE_IDS = [
@@ -170,16 +170,13 @@ function controls(body: JsonObject): JsonObject {
   return out;
 }
 
-function modelLabel(modelId: SelectedAI): string {
-  return (
-    MAIN_RP_USER_SELECTABLE_OPTIONS.find((option) => option.id === modelId)?.label ??
-    modelId
-  );
+function modelLabel(modelId: MainRpQualityBenchmarkModelId): string {
+  return mainRpQualityBenchmarkOption(modelId).label;
 }
 
 export function buildRpActiveModelQualityPlan(
   caseIds: readonly CanonicalQualificationCaseId[] = RP_ACTIVE_MODEL_QUALITY_DEFAULT_CASE_IDS,
-  modelIds: readonly SelectedAI[] = RP_ACTIVE_MODEL_QUALITY_MODEL_IDS,
+  modelIds: readonly MainRpQualityBenchmarkModelId[] = RP_ACTIVE_MODEL_QUALITY_MODEL_IDS,
   source?: RpActiveModelQualitySource
 ): RpActiveModelQualityProbe[] {
   if (resolveRpActiveModelQualitySource(source) !== "HISTORICAL_ONLY") {
@@ -187,8 +184,8 @@ export function buildRpActiveModelQualityPlan(
   }
   const uniqueModelIds = [...new Set(modelIds)];
   for (const modelId of uniqueModelIds) {
-    if (!MAIN_RP_MODEL_IDS.includes(modelId)) {
-      throw new Error(`Quality model is no longer active Main RP: ${modelId}`);
+    if (!isMainRpQualityBenchmarkModel(modelId)) {
+      throw new Error(`Quality model is not on the historical paid-quality roster: ${modelId}`);
     }
   }
 
@@ -448,7 +445,7 @@ export async function runRpActiveModelQualityLive(input: {
   credentials: Record<RpActiveModelQualityProvider, string>;
   runId: string;
   caseIds?: readonly CanonicalQualificationCaseId[];
-  modelIds?: readonly SelectedAI[];
+  modelIds?: readonly MainRpQualityBenchmarkModelId[];
   source?: RpActiveModelQualitySource;
   goldenRoot?: string;
   goldenVersion?: number;

@@ -12,9 +12,9 @@ import {
   GEMINI_31_PRO_PREVIEW_DISPLAY_NAME,
   GEMINI_37_FLASH_DISPLAY_NAME,
   MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
-  MAIN_RP_USER_SELECTABLE_OPTIONS,
+  mainRpQualityBenchmarkOption,
   selectedAIProvider,
-  type SelectedAI,
+  type MainRpQualityBenchmarkModelId,
 } from "@/lib/chatModels";
 import { resolveMainRpPrimaryWireModelId } from "@/lib/openRouterConfig";
 import { resolveOpenRouterMaxTokens } from "@/lib/openRouterClient";
@@ -308,7 +308,7 @@ export const RP_QUALITY_PRECALL_OWNER_MAP: readonly RpQualityPrecallOwnerRow[] =
 ];
 
 export type RpQualityPrecallModelPlan = {
-  canonicalId: SelectedAI;
+  canonicalId: MainRpQualityBenchmarkModelId;
   displayLabel: string;
   provider: ReturnType<typeof selectedAIProvider>;
   wireModel: string;
@@ -356,7 +356,7 @@ export type RpQualityPrecallPlannedSemanticInput = {
 };
 
 export type RpQualityPrecallAdapterDiff = {
-  canonicalId: SelectedAI;
+  canonicalId: MainRpQualityBenchmarkModelId;
   provider: RpQualityPrecallModelPlan["provider"];
   wireModel: string;
   routePolicyOwned: boolean;
@@ -427,7 +427,7 @@ export type RpQualityPrecallCostBound = {
     fx: "KRW not approved; USD provider catalog only";
   };
   catalogRatesUsdPerMillion: readonly {
-    canonicalId: SelectedAI;
+    canonicalId: MainRpQualityBenchmarkModelId;
     inputUsdPerMillion: number;
     outputUsdPerMillion: number;
   }[];
@@ -442,8 +442,8 @@ export type RpQualityPrecallPairSlot = {
   opaqueA: string;
   opaqueB: string;
   reveal: {
-    A: { canonicalId: SelectedAI; displayLabel: string };
-    B: { canonicalId: SelectedAI; displayLabel: string };
+    A: { canonicalId: MainRpQualityBenchmarkModelId; displayLabel: string };
+    B: { canonicalId: MainRpQualityBenchmarkModelId; displayLabel: string };
   };
   overall: RpQualityPrecallPairPreference;
   dimensionPreferences: Record<string, RpQualityPrecallPairPreference>;
@@ -676,10 +676,7 @@ export function hasApprovedCostBound(input?: {
 
 export function rpQualityPrecallBenchmarkModels(): readonly RpQualityPrecallModelPlan[] {
   return MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.map((id) => {
-    const option = MAIN_RP_USER_SELECTABLE_OPTIONS.find((row) => row.id === id);
-    if (!option) {
-      throw new Error(`PRECALL quality model missing from picker: ${id}`);
-    }
+    const option = mainRpQualityBenchmarkOption(id);
     return {
       canonicalId: option.id,
       displayLabel: option.label,
@@ -706,8 +703,7 @@ export function assertActiveMainRpBenchmarkSet(
   }
   const labels = models.map((row) => row.displayLabel);
   const registryLabels = MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.map((id) => {
-    const option = MAIN_RP_USER_SELECTABLE_OPTIONS.find((row) => row.id === id);
-    return option?.label;
+    return mainRpQualityBenchmarkOption(id).label;
   });
   if (JSON.stringify(labels) !== JSON.stringify(registryLabels)) {
     throw new Error("PRECALL labels are not MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS labels");
@@ -717,7 +713,7 @@ export function assertActiveMainRpBenchmarkSet(
     CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   ];
   for (const retiredId of retiredIds) {
-    if (ids.includes(retiredId as SelectedAI)) {
+    if (ids.includes(retiredId as MainRpQualityBenchmarkModelId)) {
       throw new Error(`Retired Gemini present in PRECALL set: ${retiredId}`);
     }
   }
@@ -928,7 +924,7 @@ export function evaluateRpQualityPrecallCostBound(): RpQualityPrecallCostBound {
 
 export type RpQualityPrecallSizeRow = {
   fixtureId: RpQualityPrecallFixtureId;
-  canonicalId: SelectedAI;
+  canonicalId: MainRpQualityBenchmarkModelId;
   totalInputChars: number;
   estimatedInputTokens: number;
   systemChars: number;
@@ -972,7 +968,7 @@ export type RpQualityPrecallOutputScenarioId =
 
 export type RpQualityPrecallCostPlanningCall = {
   fixtureId: RpQualityPrecallFixtureId;
-  canonicalId: SelectedAI;
+  canonicalId: MainRpQualityBenchmarkModelId;
   scenarioId: RpQualityPrecallOutputScenarioId;
   inputTokens: number;
   outputTokens: number;
@@ -987,7 +983,7 @@ export type RpQualityPrecallCostPlanningCall = {
 };
 
 export type RpQualityPrecallCostPlanningModelTotal = {
-  canonicalId: SelectedAI;
+  canonicalId: MainRpQualityBenchmarkModelId;
   scenarioId: RpQualityPrecallOutputScenarioId;
   calls: number;
   providerUsd: number;

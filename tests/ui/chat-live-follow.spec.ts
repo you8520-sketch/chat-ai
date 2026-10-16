@@ -3,6 +3,7 @@ import { DEFAULT_CHAT_DISPLAY_PREFS } from "../../src/lib/chatDisplayPrefs";
 import {
   seedCanonicalCompletedChatHistory,
 } from "./helpers/canonicalChatHistorySeed";
+import { ensureLivePickerModel } from "./helpers/ensureLivePickerModel";
 import { openExplicitFreshChat } from "./helpers/openExplicitChat";
 import {
   estimateLineWrapIntervalMs,
@@ -516,6 +517,7 @@ async function probeSubpixelWindowScroll(page: Page): Promise<SubpixelScrollProb
 }
 
 async function waitForChatInputReady(page: Page) {
+  await ensureLivePickerModel(page);
   const textarea = page.locator("textarea[placeholder*='메시지 입력']");
   for (let attempt = 0; attempt < 40; attempt += 1) {
     await setReactTextareaValue(page, "z");

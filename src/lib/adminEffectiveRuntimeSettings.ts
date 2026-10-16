@@ -11,7 +11,6 @@ import {
   resolvePublishedBillingPhase,
 } from "@/lib/chatBillingContractDispatch";
 import {
-  DEFAULT_SELECTED_AI,
   MAIN_RP_MODEL_IDS,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
   resolveSelectedAI,
@@ -298,8 +297,8 @@ function projectMainRpModel(
     workload: "main_rp",
     canonicalModelId: option.id,
     label: option.label,
-    isDefault: option.id === DEFAULT_SELECTED_AI,
-    recommended: "recommended" in option && option.recommended === true,
+    isDefault: false,
+    recommended: false,
     registryProvider,
     transportProvider,
     endpointHost: endpointHost(endpoint),
@@ -408,7 +407,7 @@ export function buildEffectiveRuntimeSettingsProjection(
     mainRp: {
       owner: "chatModels.MAIN_RP_USER_SELECTABLE_OPTIONS → openRouterConfig.resolveMainRpPrimaryWireModelId → openRouterClient.buildOpenRouterRequestBody + resolveMainRpOpenRouterRoutePolicy + adaptCheaperInferenceChatBody",
       activeModelIds: [...MAIN_RP_MODEL_IDS],
-      defaultModelId: DEFAULT_SELECTED_AI,
+      defaultModelId: "",
       models: mainRpModels,
       maxExternalProviderAttempts: MAX_MAIN_RP_EXTERNAL_PROVIDER_ATTEMPTS,
     },

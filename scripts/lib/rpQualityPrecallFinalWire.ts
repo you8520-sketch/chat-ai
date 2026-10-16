@@ -81,7 +81,10 @@ import {
   parseModelRouteState,
   resolveEffectiveConsentMode,
 } from "@/lib/adultSceneRouting";
-import { selectedAIProvider } from "@/lib/chatModels";
+import {
+  selectedAIProvider,
+  type MainRpQualityBenchmarkModelId,
+} from "@/lib/chatModels";
 import { buildCheaperInferenceChatCompletionsUrl } from "@/lib/cheaperInferenceConfig";
 import {
   OPENROUTER_CHAT_COMPLETIONS_URL,
@@ -201,7 +204,7 @@ export type PrecallCanonMetadata = {
 export type PrecallFinalWirePlan = {
   fixtureId: RpQualityPrecallFixtureId;
   stimulusId: string;
-  canonicalId: string;
+  canonicalId: MainRpQualityBenchmarkModelId;
   displayLabel: string;
   semanticFingerprint: string;
   finalWireFingerprint: string;
@@ -246,7 +249,7 @@ export type PrecallFinalWireReport = {
 /** In-process only. Never serialize requestBody into public PRECALL JSON. */
 export type PrecallSealedRequest = {
   fixtureId: RpQualityPrecallFixtureId;
-  canonicalId: string;
+  canonicalId: MainRpQualityBenchmarkModelId;
   provider: RpQualityPrecallModelPlan["provider"];
   wireModel: string;
   endpoint: string;

@@ -245,9 +245,9 @@ describe("deepseekV41FlashIntegration", () => {
     }
   });
 
-  it("R — public picker contains V4.1 as a distinct Main RP model", () => {
+  it("R — public picker no longer contains V4.1; historical id stays distinct", () => {
     const ids = MAIN_RP_USER_SELECTABLE_OPTIONS.map((o) => o.id);
-    assert.ok(ids.includes(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL));
+    assert.equal(ids.includes(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL), false);
     assert.notEqual(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL);
   });
 

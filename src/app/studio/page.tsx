@@ -49,7 +49,7 @@ export default async function StudioPage() {
   return (
     <Suspense
       fallback={
-        <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-zinc-500">불러오는 중…</div>
+        <div className="mx-auto min-h-screen max-w-6xl px-4 py-8 text-sm text-zinc-500">불러오는 중…</div>
       }
     >
       <StudioClient

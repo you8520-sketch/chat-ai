@@ -8,7 +8,7 @@ import { describe, it } from "node:test";
 import {
   MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
   selectedAIProvider,
-  type SelectedAI,
+  type MainRpQualityBenchmarkModelId,
 } from "@/lib/chatModels";
 import { CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL } from "@/lib/cheaperInferenceConfig";
 import {
@@ -329,7 +329,7 @@ describe("rp quality paid runner prepare and mock execution", () => {
       [{ approvedManifestFingerprint: "0".repeat(64) }, "MANIFEST_FINGERPRINT_MISMATCH"],
       [{ expectedProductionSha: "1".repeat(40) }, "PRODUCTION_SHA_MISMATCH"],
       [{ expectedIdentityHash: "2".repeat(64) }, "IDENTITY_HASH_MISMATCH"],
-      [{ allowlist: ["deepseek-v4.1-flash"] as SelectedAI[] }, "MODEL_ALLOWLIST_MISMATCH"],
+      [{ allowlist: ["deepseek-v4.1-flash"] as MainRpQualityBenchmarkModelId[] }, "MODEL_ALLOWLIST_MISMATCH"],
     ];
     for (const [extra, reason] of cases) {
       const result = await runPaidRunner({

@@ -24,7 +24,10 @@ import {
   type PaidRunnerTransport,
   type PaidRunnerTransportResult,
 } from "@/lib/rpQualityPaidRunner";
-import { MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS, type SelectedAI } from "@/lib/chatModels";
+import {
+  MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
+  type MainRpQualityBenchmarkModelId,
+} from "@/lib/chatModels";
 
 export const RP_QUALITY_PAID_OPENROUTER_KEY_ENV = "RP_QUALITY_PAID_OPENROUTER_KEY";
 export const RP_QUALITY_PAID_CHEAPERINFERENCE_KEY_ENV = "RP_QUALITY_PAID_CHEAPERINFERENCE_KEY";
@@ -36,7 +39,9 @@ export const PAID_RUNNER_LIVE_TIMEOUT_MS = 90_000;
  * GPT-6.1 Sol hit the 90 s abort mid-stream in run4 (HTTP 200, partial text)
  * while the provider still settled the request, so it shares the 240 s policy.
  */
-export const PAID_RUNNER_LIVE_TIMEOUT_MS_BY_MODEL: Partial<Record<SelectedAI, number>> = {
+export const PAID_RUNNER_LIVE_TIMEOUT_MS_BY_MODEL: Partial<
+  Record<MainRpQualityBenchmarkModelId, number>
+> = {
   "claude-opus-5.5": 240_000,
   "gpt-6.1-sol": 240_000,
 };
@@ -291,6 +296,6 @@ export function paidRunnerLiveExecuteEnabled(env: NodeJS.ProcessEnv = process.en
   return env[RP_QUALITY_PAID_LIVE_EXECUTE_ENV] === "1";
 }
 
-export function livePaidRunnerUsesCanonicalModels(ids: readonly SelectedAI[]): boolean {
+export function livePaidRunnerUsesCanonicalModels(ids: readonly MainRpQualityBenchmarkModelId[]): boolean {
   return JSON.stringify([...ids]) === JSON.stringify([...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS]);
 }

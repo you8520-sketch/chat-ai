@@ -6,7 +6,7 @@
  */
 import { resolveBackgroundPrimaryModelId } from "@/lib/ai";
 import { formatMemoryMetaForPrompt } from "@/lib/chatMemory";
-import { MAIN_RP_USER_SELECTABLE_OPTIONS } from "@/lib/chatModels";
+import { selectedAIProvider } from "@/lib/chatModels";
 import { getDb } from "@/lib/db";
 import {
   messagesToTurns,
@@ -350,7 +350,7 @@ export function estimateHarborAbCost(input: {
       calls,
       inputTokens,
       outputTokensAtAim: outputTokens,
-      provider: MAIN_RP_USER_SELECTABLE_OPTIONS.find((option) => option.id === modelId)?.provider,
+      provider: selectedAIProvider(modelId),
       inputUsdPerMillion: pricing.billingReferenceInputUsdPerMillion,
       outputUsdPerMillion: pricing.billingReferenceOutputUsdPerMillion,
       expectedUsdAtAim:
@@ -521,9 +521,10 @@ export async function runHarborAbDryRun(opts?: {
   const chunks = harborCharacterChunks();
 
   const assemblies: HarborAbAssembly[] = [];
-  const harborModels = MAIN_RP_USER_SELECTABLE_OPTIONS.filter((option) =>
-    (AB_LIVE_MODEL_IDS as readonly string[]).includes(option.id)
-  );
+  const harborModels = AB_LIVE_MODEL_IDS.map((id) => ({
+    id,
+    provider: selectedAIProvider(id),
+  }));
   for (const model of harborModels) {
     for (const probe of AB_PROBES) {
       const shared = {

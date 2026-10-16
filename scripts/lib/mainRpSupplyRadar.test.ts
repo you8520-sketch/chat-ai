@@ -125,10 +125,11 @@ test("active Main RP supply identities are derived exhaustively from canonical r
   const ids=listMainRpSupplyIdentities();
   assert.deepEqual(ids.map(x=>x.internalModelId),MAIN_RP_MODEL_IDS);
   assert.equal(ids.length,MAIN_RP_MODEL_IDS.length);
-  assert.equal(ids.find(x=>x.internalModelId==="deepseek-v4.1-flash")?.openRouterSlug,"deepseek/deepseek-v4.1-flash");
   assert.equal(ids.find(x=>x.internalModelId==="gemini-3.8-flash")?.openRouterSlug,"google/gemini-3.8-flash");
   assert.equal(ids.find(x=>x.internalModelId==="gpt-6.1-sol")?.openRouterSlug,"openai/gpt-6.1-sol");
+  assert.equal(ids.find(x=>x.internalModelId==="claude-opus-5.5")?.openRouterSlug,"anthropic/claude-opus-5.5");
   assert.equal(ids.find(x=>x.internalModelId==="gemini-4-argon")?.openRouterSlug,"google/gemini-4-argon");
+  assert.equal(ids.find(x=>x.internalModelId==="deepseek-v4.1-flash"),undefined);
 });
 
 test("credential resolver prefers dedicated radar key and never fabricates a key",()=>{
@@ -210,7 +211,7 @@ test("report follows mixed current providers and stays OBSERVE_ONLY",()=>{
 
 test("missing current-route baseline or market evidence is PARTIAL/NOT_RUN rather than guessed",()=>{
   const market=buildMainRpSupplyRadarReport({
-    endpointsByModel:{"deepseek-v4.1-flash":[baseEndpoint()]},
+    endpointsByModel:{"gpt-6.1-sol":[baseEndpoint()]},
     ciCatalogByModel:null,
   });
   assert.equal(market.status,"PARTIAL");

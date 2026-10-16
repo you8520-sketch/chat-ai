@@ -229,7 +229,12 @@ import {
   CHAT_MESSAGE_MAX,
   selectedAILabel,
 } from "@/lib/chatModels";
-import { getUserChatSelectedAI } from "@/lib/userSelectedAI";
+import {
+  MODEL_SELECTION_REQUIRED_CODE,
+  MODEL_SELECTION_REQUIRED_MESSAGE,
+  getUserChatSelectedAI,
+  isMainRpGenerationAllowed,
+} from "@/lib/userSelectedAI";
 import { stripRuntimePromptContaminationFromVisibleOutput } from "@/lib/runtimePromptContaminationGuard";
 import {
   buildSceneDirective,
@@ -777,6 +782,15 @@ export async function POST(req: Request) {
     is_admin: userAdminRow?.is_admin ?? 0,
   });
   const selectedAI = getUserChatSelectedAI(db, user.id);
+  if (!isMainRpGenerationAllowed(selectedAI)) {
+    return Response.json(
+      {
+        error: MODEL_SELECTION_REQUIRED_MESSAGE,
+        code: MODEL_SELECTION_REQUIRED_CODE,
+      },
+      { status: 400 }
+    );
+  }
 
   let initialPersonaId: number | null = null;
   if (requestedPersonaId) {

@@ -243,7 +243,9 @@ describe("50-turn memory A/B runner preflight (provider-free)", () => {
     assert.equal(ARCHIVE_CAPACITY_FIXED, 3000);
     assert.equal(AB_EXPERIMENT_SCOPE, "summary_only");
     assert.deepEqual(MAIN_RP_USER_SELECTABLE_OPTIONS.map((option) => option.id), [
-      ...AB_LIVE_MODEL_IDS,
+      "gemini-3.8-flash",
+      "gpt-6.1-sol",
+      "claude-opus-5.5",
       "gemini-4-argon",
     ]);
 

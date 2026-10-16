@@ -326,3 +326,32 @@ export function ensureOfficialSharedWorldLibraryRow(input: {
     updated: false,
   };
 }
+
+/**
+ * Attach the studio World Library row for in-place sync.
+ * Reuses an existing row without rewriting content used by other live characters.
+ * Creates the row only when the studio has none.
+ */
+export function attachOfficialSharedWorldLibraryRow(input: {
+  db: Database.Database;
+  creatorId: number;
+  bible: OfficialWorldBible;
+  createIfMissing: boolean;
+}): { worldId: number | null; created: boolean; contentDiffers: boolean } {
+  const name = officialSharedWorldLibraryName(input.bible);
+  const existing = findOfficialSharedWorldLibraryRow(input.db, input.creatorId, name);
+  if (existing) {
+    const projected = projectOfficialSharedWorld(input.bible);
+    const summary = officialSharedWorldLibrarySummary(input.bible);
+    return {
+      worldId: existing.id,
+      created: false,
+      contentDiffers: existing.content !== projected || existing.summary !== summary,
+    };
+  }
+  if (!input.createIfMissing) {
+    return { worldId: null, created: false, contentDiffers: false };
+  }
+  const created = ensureOfficialSharedWorldLibraryRow(input);
+  return { worldId: created.worldId, created: true, contentDiffers: false };
+}

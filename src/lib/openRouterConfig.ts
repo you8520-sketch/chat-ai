@@ -105,7 +105,7 @@ export function resolveRpOpenRouterModelId(modelId: string): string {
  * Main-RP primary wire model id. The registry provider decides the transport;
  * the same provider-neutral id may map to a different wire id on other workloads.
  */
-export function resolveMainRpPrimaryWireModelId(selected: SelectedAI): string {
+export function resolveMainRpPrimaryWireModelId(selected: string): string {
   return selectedAIProvider(selected) === "openrouter"
     ? resolveOpenRouterModelId(selected)
     : selected;
