@@ -126,7 +126,7 @@ function assetFilename(draftKey: string, slotKey: string, attempt: number): stri
   return `official-${spoolKey(draftKey, slotKey)}-a${attempt}.webp`;
 }
 
-function replacementFilename(draftKey: string, slotKey: string, attempt: number): string {
+export function replacementFilename(draftKey: string, slotKey: string, attempt: number): string {
   return `official-${spoolKey(draftKey, slotKey)}-r${attempt}.webp`;
 }
 

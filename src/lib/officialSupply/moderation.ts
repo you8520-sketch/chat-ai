@@ -40,17 +40,20 @@ export function canonicalAssetModerationFields(
 /**
  * Tag saved on the staged character asset.
  * Representative keeps the planned unique tag so RP tag selection cannot
- * pick the 2:3 portrait. RP slots use the stored vision classification when
- * present; the planned tag is only the fallback when vision did not run or
- * the row predates the stored classification. Creator manual tags stay on
- * the character-form owner.
+ * pick the 2:3 portrait. A human-approved action/situation tag wins over
+ * vision auto-classification. RP slots otherwise use the stored vision
+ * classification; the planned tag is only the fallback when vision did not
+ * run or the row predates the stored classification.
  */
 export function stagedAssetTag(
   plannedTag: string,
   moderation: OfficialAssetModeration | null,
-  kind: OfficialAssetSlotKind
+  kind: OfficialAssetSlotKind,
+  approvedTag?: string | null
 ): string {
   if (kind === "representative") return plannedTag;
+  const manual = normalizeCreatorAssetTag(approvedTag ?? "", "");
+  if (manual) return manual;
   if (moderation?.status !== "checked") return plannedTag;
   return normalizeCreatorAssetTag(moderation.visionTag, plannedTag);
 }

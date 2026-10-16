@@ -241,23 +241,17 @@ b13 실행의 image POST 는 1회(`providerPostsThisRun=1`)이고 vision 2회는
 
 임시 harness 는 비밀값 없이 검수할 수 있게 `assets/wolfgang-sig4-style-fidelity/harness/` 에 `.ts.txt` 로 복사했다 (컴파일·lint 대상 아님). API key 는 `process.env` 에서만 읽고 어떤 파일에도 쓰지 않는다. 검수 포인트: `assertPaidRunPreflight()` (유료 HTTP 전에 sharp·쓰기 경로 검사), `preserveProviderBytes()` (성공 직후 원본 바이트 저장), `readPreservedRaw()` + `completeReplacement` (사후 단계 실패 시 보존 바이트로 완료, provider 재호출 없음), `providerPostsThisRun` 상한 1, `SIG4_RUN_BUDGET_USD` 상한. 앱 코드에는 넣지 않았다.
 
-## 10. 외부 생성 이미지 한 장 반입 경로 (#51 sig4만, 격리 DB 검증)
+## 10. 외부 생성 이미지 한 장 반입
 
-격리 DB (운영 사본이 아니라 `/tmp` seed: 공식 supply 파이프라인으로 staged 한 Wolfgang 14장, admin 계정, 로어북 2개 부착, provider key 전부 비움)에서 기존 이미지 파일(`sig4-candidate-b13.webp`)을 입력으로 검증했다. 운영 적용 없음. 스크립트와 결과 JSON 은 `assets/wolfgang-sig4-style-fidelity/intake-51/` (`*.txt` 는 실행용 스크립트 사본, `*.json` 은 결과).
+운영 DB·이미지는 바꾸지 않았다. b7/b13 후보는 계속 적용하지 않는다. #51 소유권 이전은 하지 않는다. 이 변경의 검증에서 외부 provider 호출은 0회다 (이미지 POST, vision, 자동 태깅, vision fallback 모두). 누적 유료 비용은 **0.13891452 USD** 그대로다.
 
-### 10.1 경로별 결과
+### 10.1 격리 실험에서 부적합으로 확인한 우회 (권장 절차 아님)
 
-| 경로 | 결과 | 막히는 지점 |
-|---|---|---|
-| official replacement (`createReplacementCandidate` → `completeReplacement` → `reviewReplacement` → `applyApprovedReplacements`) | #51 같은 `staged_private` 에서는 `character_stage: ... published official character required` 로 거부. 게시된 사본에서는 외부 파일로 `swapped:["sig4"]`, 변경 인덱스 `[4]`, `spentUsd 0`, `model null`, `provider_request_id null` | 외부 파일 입력 CLI/관리자 UI 가 없다 (라이브러리+생성 runner 뿐). 정확히 1536x1024 만 허용. apply 가 태그를 갱신하지 않는다. 지금 #51 에는 해당 없음 |
-| 에디터 `PUT` 전체 저장 | 400 `다른 사용자의 이미지는 첨부할 수 없습니다.` | private media 업로더가 owner 여야 하는데 #51 owner 는 site-managed studio 다. 또 원고 전체를 다시 쓰는 경로라 부적합 |
-| 에디터 `PATCH {scope:"public_profile"}` — site-managed owner 상태 | 403 `본인 캐릭터만 수정할 수 있습니다.` | `creator_id === 세션 user.id` 필요 |
-| 에디터 `PATCH public_profile` — owner 가 admin 인 뒤 | 200. `characters.assets[4]` 한 칸만 변경 | 없음. 단 아래 10.4 의 주의점 |
-| owner 이전 (#1589 `transferOfficialCharacterOwnerToAdmin`, `OFFICIAL_OWNER_TRANSFER_ENABLED=1`) | dry-run/apply 모두 `changedFields:["creator_id"]` 만 | 운영에서는 별도 운영 변경이므로 사용자가 직접 승인해 실행해야 한다 |
+아래는 기존 에디터 저장을 격리 DB에서 시험한 기록이다. 권장 운영 절차가 아니다. 스크립트와 결과 JSON 은 `assets/wolfgang-sig4-style-fidelity/intake-51/`.
 
-**특정한 경로:** owner 이전(admin) → 관리자 에디터에서 에셋 관리 그리드로 sig4 한 칸만 외부 파일로 교체 → 태그 직접 입력 → 「공개/표시 정보 저장」(`PATCH public_profile`). 새 업로더나 생성 시스템은 만들지 않았다.
+당시 official replacement 는 `staged_private` 를 거부했다. 에디터 `PUT` 은 원고를 다시 쓰고 private media 소유자 검사에서 막혔다. 에디터 `PATCH public_profile` 은 owner 가 site-managed studio 인 동안 403 이었고, owner 를 admin 으로 옮긴 뒤에야 `characters.assets` 한 칸만 바꿨다. 그 경로는 supply `result_url` 을 그대로 두어 다음 replacement 가 `public_asset_map_mismatch` 로 막힌다. 소유권 이전은 교체를 위해 공개 상태나 소유자를 바꾸는 우회이므로 진행하지 않는다.
 
-### 10.2 보존 확인 (격리 DB, PATCH 전후 diff `intake-51/B-patch-diff.json`)
+### 10.2 그 우회의 보존 결과 (참고, `intake-51/B-patch-diff.json`)
 
 | 항목 | 결과 |
 |---|---|
@@ -272,38 +266,59 @@ b13 실행의 image POST 는 1회(`providerPostsThisRun=1`)이고 vision 2회는
 | 저장·재조회 | PATCH 200 후 `GET /api/characters/:id` 로 sig4 URL(`/media/private/…`), 태그, 1536x1024 확인 |
 | 가짜 값 | provider request ID 없음, 생성 비용 기록 없음 (업로드·`PATCH` 는 이미지 생성 비용을 만들지 않는다. 자동 분류 vision 호출만 키가 있을 때 별도로 비용이 생긴다) |
 
-### 10.3 태그 규칙
+그 PATCH 는 supply 행을 갱신하지 않았다. 그래서 권장 경로에서 제외한다.
 
-- 태그는 이미지에서 읽히는 감정·행동·상황이어야 한다. `절제된 온기` 같은 작품 제목을 자동 선택용 태그로 되돌리지 않는다. 격리 검증에서 교체 후 태그는 `수프 그릇을 내미는 손` 이었고, 이는 사용자가 그리드에서 입력하는 값의 예시이지 자동 결과가 아니다.
-- `앉음`, `무표정` 만으로는 음식을 건네는 상황이 구별되지 않는다. 위 두 값은 vision 분류일 뿐 합격 증거가 아니며, 선택 태그로는 행동이 드러나는 문구(예: 손·그릇·건넴)를 직접 입력해야 한다.
-- 태그 확인·수정 경로는 기존 에디터에 이미 있다: 업로드 후 `/api/assets/tag` 가 자동 분류 태그를 제안하고, `AssetManagerGrid` 에서 태그를 직접 수정한다. 격리 DB 는 provider key 가 없어 제안값이 `미분류 1` (estimated, 비용 0) 이었다. 운영에서는 provider key 가 있으면 이 자동 분류가 vision 1회를 사용한다 (이 작업의 유료 호출 금지에는 포함하지 않았다).
-- official replacement 경로는 태그를 바꾸지 않으므로 그 경로를 쓰면 태그를 따로 수정해야 한다.
-- 현재 14개 태그 백필은 하지 않았다.
+### 10.3 채택한 경로: 기존 official replacement owner
 
-### 10.4 남은 주의점 (실제로 확인한 한계)
+새 업로더나 생성 시스템을 만들지 않았다. 외부 바이트는 기존 `OfficialAssetStorage` 로 저장하고, 후보 검수는 기존 `reviewReplacement`, 반영은 기존 `applyApprovedOfficialAssetReplacements` 가 한다. 진입 함수는 `registerExternalOfficialAssetReplacement`.
 
-1. **supply/public 불일치.** 에디터 PATCH 는 `characters.assets` 만 바꾼다. `official_supply_assets` 의 sig4 `result_url` 은 그대로여서 `driftBetweenPublicAndSupplySig4: true`. 영향: `publish.ts` 게이트는 supply 의 `status='stale'` 슬롯과 `moderationReject===true` 만 막으므로 이 불일치 자체로 publish 가 막히지 않는다. `inPlaceSync.ts` 는 `characters.assets` 를 보존하며 동기화 CAS 에 현재 값을 그대로 쓴다. 그러나 이후 official replacement 는 `mapOfficialPublicAssetSlots` 가 public URL 과 supply `result_url` 의 정확한 일치를 요구하므로 `public_asset_map_mismatch` 로 막힌다. 이후 replacement 를 쓰려면 supply 행 정합이 필요하다. 이번 PR 에서는 고치지 않았다.
-2. **moderation `pending`.** 교체한 에셋의 `moderationStatus` 는 `/api/assets/tag` 가 끝나기 전까지 `pending` 이다 (hard reject 가 아니라 publish 를 막지 않는다).
-3. 업로드는 파일을 재인코딩한다 (크기 1536x1024 유지, 바이트는 달라짐).
-4. 에셋이 `/media/private/<id>.webp` URL 로 저장되고 blur 미리보기가 만들어진다. `/uploads/official-...` 파일 URL 로 저장되는 official replacement 와 다르다.
-5. 격리 검증은 `official=0` staged 사본에서 했다. 이미 게시된(`official=1`) 상태에서는 `PATCH public_profile` 이 공식 관리자 actor 를 요구하며 이 변형은 검증하지 않았다.
-6. 운영 DB 는 읽지 못했다 (SSH key 없음). #51 이 현재 `staged_private` 이고 owner 가 site-managed studio 라는 점은 기존 문서(`wolfgang-51-owner-normalization.md`)를 근거로 하며, 아래 조작 순서 1단계에서 확인해야 한다.
+- 후보 행의 `model`, `provider_request_id` 는 null 이고 `spent_usd` 는 0 이다. 가짜 값을 넣지 않는다.
+- 게시된 공식 캐릭터 검사는 그대로다. `stage=published` 이고 연결 행이 `official=1`, `visibility=public`, `moderation_status=approved` 일 때만 게시 경로가 열린다. 가시성만 바뀌어도 `character_not_published` 로 거부한다.
+- 비공개 staged 는 별도 검사다. `stage=staged_private`, `stagedCharacterId` 가 실제 행과 연결되고, 그 행이 `official=0`, `visibility=private` 일 때만 열린다. 둘 중 하나만 맞으면 `replacement_target_mismatch` 다. 그 외 stage 는 `character_stage` 다.
+- 실행자는 그 캐릭터를 관리할 수 있는 공식 관리자다 (`canAdminManageOfficialCharacter`). 권한 밖은 `replacement_forbidden`. site-managed studio 가 소유한 staged 행은 소유권을 옮기지 않아도 관리자가 실행할 수 있다.
+- Appearance Lock 과 교체 전 URL(`base_result_url` = 현재 supply URL = 현재 public URL)이 어긋나면 적용하지 않는다.
+- 유료 생성(`runOfficialAssetReplacement`)은 여전히 게시된 공식 캐릭터만 허용한다.
 
-### 10.5 사용자 조작 순서 (운영 적용은 사용자가 승인한 뒤에만)
+한 번의 apply 트랜잭션이 `characters.assets` 대상 칸, `official_supply_assets` 의 URL·`approved_tag`, replacement `status=applied` 를 함께 갱신한다. 승인한 행동·상황 태그는 `normalizeCreatorAssetTag` 로 정규화해 같은 적용에 쓴다. vision 태그(`앉음` 같은 자동 분류)는 이 수동 태그를 덮지 않는다. `stagedAssetTag` 도 수동 태그가 있으면 vision 보다 먼저 쓴다. 대표 슬롯은 교체할 수 없고, 대표 태그는 planned 태그를 유지한다. dry-run 은 같은 쓰기를 한 뒤 롤백한다. 중간 SQL 실패나 교체 전 URL 변경도 트랜잭션이 전부 되돌린다. moderation 이 없거나 `unavailable` 이거나 거절이면 합격으로 보지 않는다.
 
-1. #51 상태 확인: 공식 관리자 화면에서 #51 이 비공개·`staged_private` 인지, owner 가 site-managed studio 인지 본다 (기존 문서 기준 값 확인).
-2. owner 이전: `OFFICIAL_OWNER_TRANSFER_ENABLED=1` 상태에서 #1589 owner 이전 도구를 먼저 dry-run (변경 필드가 `creator_id` 하나인지 확인) → 사용자 승인 후 apply.
-3. 외부에서 생성한 이미지를 1536x1024(가로) 파일로 준비한다. 비밀값·provider ID 는 필요 없다.
-4. admin 계정으로 #51 편집 화면 → 에셋 관리 그리드에서 현재 sig4(5번째, 「절제된 온기」)만 선택해 새 파일로 교체한다. 대표 이미지(1번째)와 다른 13장은 건드리지 않는다.
-5. 태그 칸에 이미지에서 읽히는 감정·행동·상황을 직접 입력한다 (예: 손과 그릇, 건네는 행동이 드러나는 문구). 자동 제안값이 `앉음`/`무표정` 이면 그대로 두지 않는다. 가림 설정은 기존 sig4 값 그대로 둔다.
-6. 「공개/표시 정보 저장」 으로 저장한다 (전체 저장 `PUT` 이 아니다).
-7. 저장 후 화면을 다시 열어 sig4 한 장만 바뀌었는지, 대표 이미지·가림·태그가 그대로인지 확인한다.
-8. 이후 official replacement 를 쓸 계획이면 10.4-1 의 supply 불일치를 먼저 정리한다.
+### 10.4 태그
 
-운영 변경·공개·알림·유료 RP 는 계속 보류한다.
+- 태그는 이미지에서 읽히는 감정·행동·상황이다. 작품 제목 `절제된 온기` 를 선택 태그로 되돌리지 않는다.
+- `앉음` 이나 `무표정` 만으로 음식을 건네는 상황이 구별되지 않는다. 테스트가 vision 태그를 `앉음` 으로 넣어도 적용된 태그는 수동 승인 태그다.
+- 14개 태그 백필은 하지 않았다.
+- 자동 태깅과 vision fallback 은 이 경로를 타지 않는다. 이번 검증의 외부 provider 호출은 0회다.
+
+### 10.5 격리 DB 검증 (`officialSupply.replacement.test.ts`, provider 호출 0)
+
+테스트 moderation·QA 는 게이트용 fixture 다. b7/b13 이미지 품질 승인이 아니며 그 파일을 읽지 않는다.
+
+| 확인 | 결과 |
+|---|---|
+| `staged_private` sig4 교체 | 대상 칸만 변경. 재조회 시 character URL = supply `result_url`, character 태그 = supply `approved_tag` |
+| 다음 슬롯(scene1) replacement | `public_asset_map_mismatch` 없음 |
+| 기존 published 교체 | 회귀 통과. 가시성을 private 로 바꾸면 `character_not_published`. 외부 파일도 model/request id null, 비용 0 |
+| 권한 | 비관리자, 그리고 site-managed 가 아닌 소유자에게는 `replacement_forbidden`. 파일 저장 전에 거부 |
+| 연결 | `stagedCharacterId` null 은 `not_staged`, 없는 id 는 `character_missing`, official/visibility 불일치는 `replacement_target_mismatch` |
+| 오래된 후보 | 활성 URL 이 바뀌면 적용 전에 거부되고 공개 URL 은 그대로 |
+| moderation | 없음은 `moderation_missing`, `unavailable` 은 검수 거부, hard reject 는 `approved: false` 뒤 apply 거부 |
+| 중간 실패 | supply UPDATE 를 중단시키면 character URL·태그·replacement 상태가 적용 전으로 남고, 트리거를 걷어 낸 뒤 같은 후보를 다시 apply 하면 성공 |
+| 보존 | 대표 이미지, 나머지 칸, 가림, 원고(`system_prompt`/`greeting`/`world`), Appearance Lock, 로어북 부착, `creator_id`, `official`, `visibility` |
+| 유료 생성 | staged_private 후보는 `runOfficialAssetReplacement` 가 `character_stage` 로 거부. transport 호출 0 |
+
+이 파일의 replacement 테스트는 17 pass / 0 fail. `src/lib/officialSupply/*.test.ts` 는 537 pass / 0 fail. `tsc -p tsconfig.app.json` 통과.
+
+### 10.6 외부 파일 한 장의 절차 (운영 적용은 이미지 품질 승인 후)
+
+1. 반입. 공식 관리자 권한으로 `registerExternalOfficialAssetReplacement` 에 외부 파일 바이트와 행동·상황 태그를 넘긴다. 저장은 기존 official asset storage 다. 슬롯 크기가 아니면 파일을 쓰기 전에 거부한다. 소유권과 공개 상태는 바꾸지 않는다.
+2. 검수. 기존 replacement moderation 이 `checked` 이고 hard reject 가 아니어야 한다. `pending`/`unavailable`/누락은 합격이 아니다. 이어서 `reviewReplacement` 로 시각 QA 를 기록한다. 이번 PR 의 테스트 검수는 fixture 이며, 실제 이미지 품질 승인을 대신하지 않는다. 운영에서 moderation 을 라이브 vision 으로 실행하면 유료 호출이 되므로, 그 호출은 사용자가 품질 승인과 함께 결정하기 전까지 하지 않는다.
+3. dry-run. `applyApprovedOfficialAssetReplacements({ dryRun: true })`. 같은 검사를 통과한 뒤 롤백되므로 URL·태그·상태는 그대로다.
+4. apply. dry-run 과 같은 인자에서 `dryRun` 없이 실행한다. 대상 슬롯의 public URL, supply URL, 승인 태그가 한 트랜잭션에서 맞는다.
+5. 복구. apply 가 중간에서 실패하거나 교체 전 URL 이 바뀌었으면 트랜잭션이 전부 롤백된다. 재조회로 이전 URL 과 `approved` 후보가 남았는지 확인한 뒤, 조건을 고치고 같은 후보로 다시 apply 한다. 성공한 적용을 자동으로 되돌리는 기능은 없다. 후보 행의 `base_result_url` 이 교체 전 URL 기록이다.
+
+최종 운영 적용은 사용자가 고른 이미지의 품질을 승인한 뒤에만 한다. 공개·알림·유료 RP 는 계속 보류한다.
 
 ## 7. 이번 단계에서 하지 않은 것 / 후속
 
 - 운영 이미지·DB 변경, #50 변경, 공개·알림·유료 RP: 없음.
 - b13 STYLE 단일 변수 비교(§8)까지 수행; 그림체 불합격으로 **추가 유료 한 장은 열지 않음**.
-- 기록 이전 14개 슬롯 vision 백필, replacement 적용 시 태그 갱신, 전송 prompt/quality/참조 해시 증거 컬럼은 스키마 변경이므로 별도 승인.
+- 기록 이전 14개 슬롯 vision 백필은 하지 않았다. 외부 파일 반입의 수동 승인 태그만 같은 apply 에 반영한다. 전송 prompt/quality/참조 해시 증거 컬럼은 스키마 변경이므로 별도 승인.

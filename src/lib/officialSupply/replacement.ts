@@ -1,11 +1,13 @@
-import {
-  orientationFromSize,
-  parseAssets,
-  type CharacterAsset,
-} from "@/lib/characterAssets";
-import { officialImageProfileForSlot } from "@/lib/officialSupply/imageProfile";
+import { normalizeCreatorAssetTag, orientationFromSize, parseAssets, type CharacterAsset } from "@/lib/characterAssets";
+import type { OfficialAdminActor } from "@/lib/officialAdminAccess";
+import { evaluateOfficialImageDimensions, officialImageProfileForSlot } from "@/lib/officialSupply/imageProfile";
 import { canonicalAssetModerationFields, officialModerationVerdict } from "@/lib/officialSupply/moderation";
 import { mapOfficialPublicAssetSlots, officialStagedAssetOrder } from "@/lib/officialSupply/publicAssetMap";
+import {
+  replacementFilename,
+  type OfficialAssetStorage,
+  type OfficialImageOps,
+} from "@/lib/officialSupply/runner";
 import {
   OfficialSupplyGateError,
   type OfficialReplacementRecord,
@@ -13,11 +15,18 @@ import {
 } from "@/lib/officialSupply/store";
 
 export type OfficialReplacementApplyResult = {
-  status: "applied";
+  status: "applied" | "dry_run";
   characterId: number;
   draftKey: string;
   swapped: string[];
 };
+
+class ReplacementDryRun extends Error {
+  constructor(readonly result: OfficialReplacementApplyResult) {
+    super("replacement dry-run");
+    this.name = "ReplacementDryRun";
+  }
+}
 
 type PublicCharacterRow = {
   id: number;
@@ -48,6 +57,18 @@ function uniqueSlotKeys(slotKeys: readonly string[]): string[] {
   return keys;
 }
 
+function replacementAppliedTag(currentTag: string, candidate: OfficialReplacementRecord): string {
+  if (candidate.approvedTag == null || candidate.approvedTag.trim() === "") return currentTag;
+  const normalized = normalizeCreatorAssetTag(candidate.approvedTag, "");
+  if (!normalized) {
+    throw new OfficialSupplyGateError(
+      "replacement_tag_invalid",
+      `${candidate.draftKey}/${candidate.slotKey} approved tag is empty after normalization`
+    );
+  }
+  return normalized;
+}
+
 function nextAssetFromCandidate(current: CharacterAsset, candidate: OfficialReplacementRecord): CharacterAsset {
   if (!candidate.candidateResultUrl) {
     throw new OfficialSupplyGateError(
@@ -60,6 +81,7 @@ function nextAssetFromCandidate(current: CharacterAsset, candidate: OfficialRepl
   return {
     ...kept,
     url: candidate.candidateResultUrl,
+    tag: replacementAppliedTag(current.tag, candidate),
     ...(candidate.width != null ? { width: candidate.width } : {}),
     ...(candidate.height != null ? { height: candidate.height } : {}),
     ...(orientation ? { orientation } : {}),
@@ -138,19 +160,24 @@ function assertCandidateReadyForApply(
 }
 
 /**
- * Atomic owner that swaps approved replacement candidates into the live
- * published character. Updates only selected `characters.assets` entries and
- * the matching active `official_supply_assets` rows. Never publishes, never
- * notifies followers, never deletes old files, and never rewrites text/canon.
+ * Atomic owner that swaps approved replacement candidates into the linked
+ * character. Published official rows keep the published predicate. Staged-private
+ * rows must stay private and non-official. Updates only selected
+ * `characters.assets` entries, the matching active `official_supply_assets`
+ * rows, and the replacement status. Never publishes, never changes owner or
+ * visibility, never notifies followers, never deletes old files, and never
+ * rewrites text/canon. `dryRun` executes the same writes, then rolls them back.
  */
 export function applyApprovedOfficialAssetReplacements(input: {
   store: OfficialSupplyStore;
   draftKey: string;
   slotKeys: readonly string[];
+  actor: OfficialAdminActor;
+  dryRun?: boolean;
 }): OfficialReplacementApplyResult {
   const { store, draftKey } = input;
   const slotKeys = uniqueSlotKeys(input.slotKeys);
-  const character = store.assertPublishedOfficialCharacter(draftKey);
+  const character = store.assertReplacementOperator(draftKey, input.actor);
   for (const slotKey of slotKeys) {
     store.assertReplacementSlotAllowed(draftKey, slotKey);
   }
@@ -162,31 +189,44 @@ export function applyApprovedOfficialAssetReplacements(input: {
     throw new OfficialSupplyGateError("not_staged", `draft ${draftKey} has no public character`);
   }
 
+  const identityBefore = store.database
+    .prepare("SELECT official, visibility, moderation_status, creator_id FROM characters WHERE id=?")
+    .get(characterId) as
+    | { official: number; visibility: string; moderation_status: string; creator_id: number | null }
+    | undefined;
+  if (!identityBefore) {
+    throw new OfficialSupplyGateError("character_missing", `character ${characterId} not found`);
+  }
+
+  let dryRunResult: OfficialReplacementApplyResult | null = null;
   const apply = store.database.transaction(() => {
-    const liveCharacter = store.getCharacter(draftKey);
-    if (liveCharacter.stage !== "published" || liveCharacter.stagedCharacterId !== characterId) {
+    const liveCharacter = store.assertReplacementOperator(draftKey, input.actor);
+    if (liveCharacter.stage !== character.stage || liveCharacter.stagedCharacterId !== characterId) {
       throw new OfficialSupplyGateError(
-        "character_stage",
-        `draft ${draftKey} is ${liveCharacter.stage}; published official character required`
+        "staged_character_mismatch",
+        `draft ${draftKey} link changed during apply`
       );
     }
     if (!liveCharacter.appearanceLockHash || liveCharacter.appearanceLockHash !== character.appearanceLockHash) {
       throw new OfficialSupplyGateError("appearance_lock_stale", `${draftKey} appearance lock changed during apply`);
     }
-    store.assertPublishedOfficialCharacter(draftKey);
     const publicRow = store.database
-      .prepare("SELECT id, official, visibility, moderation_status, assets, images FROM characters WHERE id=?")
-      .get(characterId) as PublicCharacterRow | undefined;
+      .prepare(
+        "SELECT id, official, visibility, moderation_status, creator_id, assets, images FROM characters WHERE id=?"
+      )
+      .get(characterId) as (PublicCharacterRow & { creator_id: number | null }) | undefined;
+    if (!publicRow || publicRow.id !== characterId) {
+      throw new OfficialSupplyGateError("character_missing", `character ${characterId} not found`);
+    }
     if (
-      !publicRow ||
-      publicRow.id !== characterId ||
-      publicRow.official !== 1 ||
-      publicRow.visibility !== "public" ||
-      publicRow.moderation_status !== "approved"
+      publicRow.official !== identityBefore.official ||
+      publicRow.visibility !== identityBefore.visibility ||
+      publicRow.moderation_status !== identityBefore.moderation_status ||
+      publicRow.creator_id !== identityBefore.creator_id
     ) {
       throw new OfficialSupplyGateError(
-        "character_not_published",
-        `character ${characterId} is not the published official row`
+        "replacement_target_mismatch",
+        `character ${characterId} owner or visibility changed during apply`
       );
     }
 
@@ -280,6 +320,7 @@ export function applyApprovedOfficialAssetReplacements(input: {
       `UPDATE official_supply_assets
        SET result_url=?, width=?, height=?, model=?, provider_request_id=?,
            qa_json=?, moderation_json=?, status='approved', appearance_lock_hash=?,
+           approved_tag=?,
            error=NULL, lease_owner=NULL, lease_expires_at=NULL, updated_at=datetime('now')
        WHERE draft_key=? AND slot_key=? AND status='approved' AND result_url=?`
     );
@@ -299,6 +340,7 @@ export function applyApprovedOfficialAssetReplacements(input: {
         candidate.qa ? JSON.stringify(candidate.qa) : null,
         candidate.moderation ? JSON.stringify(candidate.moderation) : null,
         liveCharacter.appearanceLockHash,
+        nextAssets[mapped.indexes.get(slotKey)!]!.tag,
         draftKey,
         slotKey,
         candidate.baseResultUrl
@@ -318,13 +360,66 @@ export function applyApprovedOfficialAssetReplacements(input: {
       }
     }
 
-    return {
-      status: "applied" as const,
+    const result: OfficialReplacementApplyResult = {
+      status: input.dryRun ? "dry_run" : "applied",
       characterId,
       draftKey,
       swapped: [...slotKeys],
     };
+    if (input.dryRun) {
+      dryRunResult = result;
+      throw new ReplacementDryRun(result);
+    }
+    return result;
   });
 
-  return apply();
+  try {
+    return apply();
+  } catch (error) {
+    if (dryRunResult) return dryRunResult;
+    throw error;
+  }
+}
+
+/**
+ * Stores an external image through the existing official asset storage port
+ * and registers it as a replacement candidate. No provider call, no model,
+ * no provider request id, and no generation cost. The approved tag is the
+ * human action/situation label; vision classification does not write it.
+ */
+export async function registerExternalOfficialAssetReplacement(input: {
+  store: OfficialSupplyStore;
+  storage: OfficialAssetStorage;
+  imageOps: OfficialImageOps;
+  actor: OfficialAdminActor;
+  draftKey: string;
+  slotKey: string;
+  bytes: Buffer;
+  approvedTag: string;
+}): Promise<OfficialReplacementRecord> {
+  const approvedTag = normalizeCreatorAssetTag(input.approvedTag, "");
+  if (!approvedTag) {
+    throw new OfficialSupplyGateError(
+      "replacement_tag_invalid",
+      `${input.draftKey}/${input.slotKey} approved tag is empty after normalization`
+    );
+  }
+  input.store.assertReplacementOperator(input.draftKey, input.actor);
+  const asset = input.store.assertReplacementSlotAllowed(input.draftKey, input.slotKey);
+  const profile = officialImageProfileForSlot(asset.kind);
+  const dims = await input.imageOps.inspect(input.bytes);
+  if (!dims || evaluateOfficialImageDimensions(profile, dims.width, dims.height) !== "exact") {
+    throw new OfficialSupplyGateError(
+      "asset_dimensions",
+      `${input.draftKey}/${input.slotKey} external file is ${dims ? `${dims.width}x${dims.height}` : "unreadable"}, expected ${profile.size}`
+    );
+  }
+  const filename = replacementFilename(input.draftKey, input.slotKey, Math.max(1, asset.attempts + 1));
+  const stored = await input.storage.store(filename, input.bytes);
+  return input.store.registerExternalReplacementCandidate(input.actor, input.draftKey, input.slotKey, {
+    url: stored.url,
+    width: dims.width,
+    height: dims.height,
+    approvedTag,
+  });
 }
