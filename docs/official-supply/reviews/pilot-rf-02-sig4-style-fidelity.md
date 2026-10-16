@@ -196,6 +196,112 @@ b13 실행: `recoveredFromPreservedRaw=false`, `providerPostsThisRun=1`, raw·�
 
 **운영:** 후보 교체·13장 재생성·태그 백필·r2/Lock·공개·유료 RP **진행하지 않음**. 추가 유료 생성 없음.
 
+## 9. 유료 비교 종료: 코드 변경과 이미지 품질 결과의 분리
+
+유료 이미지 비교는 §8 에서 종료한다. b7 STYLE 후보도 b13 STYLE 후보도 운영을 교체하지 않는다. b13 STYLE 은 harness transport 에서만 Image 2 를 바꿨고 공통 STYLE 기본값(b7 compose)에는 반영하지 않았다.
+
+### 9.1 코드 변경 (실제 변경과 검증)
+
+| 변경 | 실제 변경 | 검증 (테스트가 증명하는 범위) |
+|---|---|---|
+| 태그 저장 연결 | `types.ts` checked moderation 에 `visionTag`, `productionAdapters.ts` 가 `result.tag` 를 `visionTag` 로 전달, `staging.ts` 가 `stagedAssetTag()` 로 저장 | `officialSupply.pipeline.test.ts`: checked 결과의 vision 태그가 비-대표 슬롯 `characters.assets[].tag` 로 저장됨 (sig1 `미소`, emo1 `분노`). 이미지 품질과 무관한 배선 검증이다 |
+| 대표 태그 분리 | `moderation.ts` `stagedAssetTag(plannedTag, moderation, kind)`: 대표(`representative`) 는 항상 planned 태그, 그 외 슬롯만 vision 태그 | 같은 파일: vision 이 대표를 `미소` 로 분류해도 대표 태그는 planned 로 유지되고 sig1 `미소` 와 달라 대표 태그가 유일함. `emo2`/`sig2` 는 vision 이 없으면 planned 유지 |
+| Wolfgang alias | `officialDraftIdentity.ts` `pilot-rf-v4-02 → pilot-rf-02` (Map 조회; `"constructor"` 같은 프로토타입 키는 그대로 반환) | `officialSupply.officialDraftIdentity.test.ts`, `officialSupply.shotSeedIdentity.test.ts` H/I (두 키가 같은 shot board 를 쓰고 sig4 가 단순 배경 클로즈업이 아님), `...lockedSnapshotReconcileOperator.test.ts` |
+| 승인 pose 수정 | `pilot/characters/pilot-rf-02.json` sig4 pose 를 승인 문장(식탁에서 장갑 낀 손으로 김 나는 수프 그릇을 카메라 쪽으로 건넴, 받는 사람 없음)으로 교체 | `officialSupply.pipeline.test.ts`: 새 pose 포함, 옛 `따뜻한 식기를 상대 쪽으로 밀어 둔다` 미포함 |
+| DNA 값 수정 | `style.ts` lineDensity/costumeComplexity `high → medium`, hairRendering 문구, `imagePrompt.ts` 한 문장 삭제 | `officialSupply.styleRefs.test.ts`: 값과 문장이 반영됨만 확인. **이 수정이나 STYLE 교체가 원하는 그림체를 복구했다고 주장하지 않는다.** §6/§8 판정은 둘 다 그림체 불합격이다 |
+
+검증 실행 (이 HEAD):
+
+| 명령 | 결과 |
+|---|---|
+| `git diff --check` | 출력 없음 |
+| `npm run lint` | 통과 (`tsc -p tsconfig.app.json`) |
+| `npm run typecheck:app` | 통과 |
+| `officialSupply/*.test.ts` (regular 정책 포함: `node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test`) | 532 pass / 0 fail |
+
+전체 `npm run test:regular` 와 `npm run typecheck` 의 기존 실패는 이 PR 범위 밖이며 이번에 새로 만들지 않았다. 병합은 GPT 코드 최종 검수 후에만 진행한다.
+
+### 9.2 이미지 품질 결과 (코드 변경과 별개)
+
+| 후보 | 그림체 | 음식 건네기 | 운영 |
+|---|---|---|---|
+| b7 STYLE 후보 (§6) | 불합격 | 부분 합격 | 교체 안 함 |
+| b13 STYLE 후보 (§8) | 불합격 | 부분 합격 (손이 그릇을 카메라 쪽으로 기울이는 점은 약간 나음) | 교체 안 함 |
+
+### 9.3 비용과 호출 구분 (추가 유료 호출 없음)
+
+| 실행 | image POST | vision provider 호출 | 비용 |
+|---|---|---|---|
+| b7 첫 시도 (바이트 유실) | 1 | 0 | 0.045716 |
+| b7 재시도 (§6 후보) | 1 | 1 | 0.04620753 (이미지 0.045716 + vision 0.00049153) |
+| b13 (§8 후보) | **1** | **2** (qwen3.8-flash 구조화 실패 → vl-8b fallback, 앱 owner `analyzeAssetImage` 동작) | 0.04699099 (이미지 0.045716 + vision 0.00127499) |
+| 누적 | | | **0.13891452 USD** (0.09192353 + 0.04699099) |
+
+b13 실행의 image POST 는 1회(`providerPostsThisRun=1`)이고 vision 2회는 이미지 호출이 아니다. 이후 이미지·vision 유료 호출은 하지 않았고 누적 비용은 변하지 않는다.
+
+임시 harness 는 비밀값 없이 검수할 수 있게 `assets/wolfgang-sig4-style-fidelity/harness/` 에 `.ts.txt` 로 복사했다 (컴파일·lint 대상 아님). API key 는 `process.env` 에서만 읽고 어떤 파일에도 쓰지 않는다. 검수 포인트: `assertPaidRunPreflight()` (유료 HTTP 전에 sharp·쓰기 경로 검사), `preserveProviderBytes()` (성공 직후 원본 바이트 저장), `readPreservedRaw()` + `completeReplacement` (사후 단계 실패 시 보존 바이트로 완료, provider 재호출 없음), `providerPostsThisRun` 상한 1, `SIG4_RUN_BUDGET_USD` 상한. 앱 코드에는 넣지 않았다.
+
+## 10. 외부 생성 이미지 한 장 반입 경로 (#51 sig4만, 격리 DB 검증)
+
+격리 DB (운영 사본이 아니라 `/tmp` seed: 공식 supply 파이프라인으로 staged 한 Wolfgang 14장, admin 계정, 로어북 2개 부착, provider key 전부 비움)에서 기존 이미지 파일(`sig4-candidate-b13.webp`)을 입력으로 검증했다. 운영 적용 없음. 스크립트와 결과 JSON 은 `assets/wolfgang-sig4-style-fidelity/intake-51/` (`*.txt` 는 실행용 스크립트 사본, `*.json` 은 결과).
+
+### 10.1 경로별 결과
+
+| 경로 | 결과 | 막히는 지점 |
+|---|---|---|
+| official replacement (`createReplacementCandidate` → `completeReplacement` → `reviewReplacement` → `applyApprovedReplacements`) | #51 같은 `staged_private` 에서는 `character_stage: ... published official character required` 로 거부. 게시된 사본에서는 외부 파일로 `swapped:["sig4"]`, 변경 인덱스 `[4]`, `spentUsd 0`, `model null`, `provider_request_id null` | 외부 파일 입력 CLI/관리자 UI 가 없다 (라이브러리+생성 runner 뿐). 정확히 1536x1024 만 허용. apply 가 태그를 갱신하지 않는다. 지금 #51 에는 해당 없음 |
+| 에디터 `PUT` 전체 저장 | 400 `다른 사용자의 이미지는 첨부할 수 없습니다.` | private media 업로더가 owner 여야 하는데 #51 owner 는 site-managed studio 다. 또 원고 전체를 다시 쓰는 경로라 부적합 |
+| 에디터 `PATCH {scope:"public_profile"}` — site-managed owner 상태 | 403 `본인 캐릭터만 수정할 수 있습니다.` | `creator_id === 세션 user.id` 필요 |
+| 에디터 `PATCH public_profile` — owner 가 admin 인 뒤 | 200. `characters.assets[4]` 한 칸만 변경 | 없음. 단 아래 10.4 의 주의점 |
+| owner 이전 (#1589 `transferOfficialCharacterOwnerToAdmin`, `OFFICIAL_OWNER_TRANSFER_ENABLED=1`) | dry-run/apply 모두 `changedFields:["creator_id"]` 만 | 운영에서는 별도 운영 변경이므로 사용자가 직접 승인해 실행해야 한다 |
+
+**특정한 경로:** owner 이전(admin) → 관리자 에디터에서 에셋 관리 그리드로 sig4 한 칸만 외부 파일로 교체 → 태그 직접 입력 → 「공개/표시 정보 저장」(`PATCH public_profile`). 새 업로더나 생성 시스템은 만들지 않았다.
+
+### 10.2 보존 확인 (격리 DB, PATCH 전후 diff `intake-51/B-patch-diff.json`)
+
+| 항목 | 결과 |
+|---|---|
+| 바뀐 컬럼 | `assets` 만 |
+| 바뀐 에셋 | 인덱스 4(sig4) 만. 나머지 13장 url/tag/blur/metadata 동일 (`unchangedAssetCount 13`) |
+| 대표 이미지 지정 | 동일 (`beforeRep 0 = afterRep 0`, 객체 동일) |
+| 가림(viewerBlur) | sig4 밖 전부 동일 |
+| 원고 | `system_prompt`, `greeting`, `world`, `example_dialog`, `appearance_raw`, `appearance_compiled`, `creator_raw_description` 동일 (Lock 포함) |
+| 로어북 | 부착 2건, 해시 동일 |
+| 권한/가시성 | `creator_id`, `official`, `visibility`, `moderation_status`, nsfw, `participant_min_age`, `adult_status` 동일 |
+| supply 테이블 | `official_supply_characters/assets/replacements` 및 `character_id` 연결 테이블 변경 없음 (`linkedTablesChanged:[]`) |
+| 저장·재조회 | PATCH 200 후 `GET /api/characters/:id` 로 sig4 URL(`/media/private/…`), 태그, 1536x1024 확인 |
+| 가짜 값 | provider request ID 없음, 생성 비용 기록 없음 (업로드·`PATCH` 는 이미지 생성 비용을 만들지 않는다. 자동 분류 vision 호출만 키가 있을 때 별도로 비용이 생긴다) |
+
+### 10.3 태그 규칙
+
+- 태그는 이미지에서 읽히는 감정·행동·상황이어야 한다. `절제된 온기` 같은 작품 제목을 자동 선택용 태그로 되돌리지 않는다. 격리 검증에서 교체 후 태그는 `수프 그릇을 내미는 손` 이었고, 이는 사용자가 그리드에서 입력하는 값의 예시이지 자동 결과가 아니다.
+- `앉음`, `무표정` 만으로는 음식을 건네는 상황이 구별되지 않는다. 위 두 값은 vision 분류일 뿐 합격 증거가 아니며, 선택 태그로는 행동이 드러나는 문구(예: 손·그릇·건넴)를 직접 입력해야 한다.
+- 태그 확인·수정 경로는 기존 에디터에 이미 있다: 업로드 후 `/api/assets/tag` 가 자동 분류 태그를 제안하고, `AssetManagerGrid` 에서 태그를 직접 수정한다. 격리 DB 는 provider key 가 없어 제안값이 `미분류 1` (estimated, 비용 0) 이었다. 운영에서는 provider key 가 있으면 이 자동 분류가 vision 1회를 사용한다 (이 작업의 유료 호출 금지에는 포함하지 않았다).
+- official replacement 경로는 태그를 바꾸지 않으므로 그 경로를 쓰면 태그를 따로 수정해야 한다.
+- 현재 14개 태그 백필은 하지 않았다.
+
+### 10.4 남은 주의점 (실제로 확인한 한계)
+
+1. **supply/public 불일치.** 에디터 PATCH 는 `characters.assets` 만 바꾼다. `official_supply_assets` 의 sig4 `result_url` 은 그대로여서 `driftBetweenPublicAndSupplySig4: true`. 영향: `publish.ts` 게이트는 supply 의 `status='stale'` 슬롯과 `moderationReject===true` 만 막으므로 이 불일치 자체로 publish 가 막히지 않는다. `inPlaceSync.ts` 는 `characters.assets` 를 보존하며 동기화 CAS 에 현재 값을 그대로 쓴다. 그러나 이후 official replacement 는 `mapOfficialPublicAssetSlots` 가 public URL 과 supply `result_url` 의 정확한 일치를 요구하므로 `public_asset_map_mismatch` 로 막힌다. 이후 replacement 를 쓰려면 supply 행 정합이 필요하다. 이번 PR 에서는 고치지 않았다.
+2. **moderation `pending`.** 교체한 에셋의 `moderationStatus` 는 `/api/assets/tag` 가 끝나기 전까지 `pending` 이다 (hard reject 가 아니라 publish 를 막지 않는다).
+3. 업로드는 파일을 재인코딩한다 (크기 1536x1024 유지, 바이트는 달라짐).
+4. 에셋이 `/media/private/<id>.webp` URL 로 저장되고 blur 미리보기가 만들어진다. `/uploads/official-...` 파일 URL 로 저장되는 official replacement 와 다르다.
+5. 격리 검증은 `official=0` staged 사본에서 했다. 이미 게시된(`official=1`) 상태에서는 `PATCH public_profile` 이 공식 관리자 actor 를 요구하며 이 변형은 검증하지 않았다.
+6. 운영 DB 는 읽지 못했다 (SSH key 없음). #51 이 현재 `staged_private` 이고 owner 가 site-managed studio 라는 점은 기존 문서(`wolfgang-51-owner-normalization.md`)를 근거로 하며, 아래 조작 순서 1단계에서 확인해야 한다.
+
+### 10.5 사용자 조작 순서 (운영 적용은 사용자가 승인한 뒤에만)
+
+1. #51 상태 확인: 공식 관리자 화면에서 #51 이 비공개·`staged_private` 인지, owner 가 site-managed studio 인지 본다 (기존 문서 기준 값 확인).
+2. owner 이전: `OFFICIAL_OWNER_TRANSFER_ENABLED=1` 상태에서 #1589 owner 이전 도구를 먼저 dry-run (변경 필드가 `creator_id` 하나인지 확인) → 사용자 승인 후 apply.
+3. 외부에서 생성한 이미지를 1536x1024(가로) 파일로 준비한다. 비밀값·provider ID 는 필요 없다.
+4. admin 계정으로 #51 편집 화면 → 에셋 관리 그리드에서 현재 sig4(5번째, 「절제된 온기」)만 선택해 새 파일로 교체한다. 대표 이미지(1번째)와 다른 13장은 건드리지 않는다.
+5. 태그 칸에 이미지에서 읽히는 감정·행동·상황을 직접 입력한다 (예: 손과 그릇, 건네는 행동이 드러나는 문구). 자동 제안값이 `앉음`/`무표정` 이면 그대로 두지 않는다. 가림 설정은 기존 sig4 값 그대로 둔다.
+6. 「공개/표시 정보 저장」 으로 저장한다 (전체 저장 `PUT` 이 아니다).
+7. 저장 후 화면을 다시 열어 sig4 한 장만 바뀌었는지, 대표 이미지·가림·태그가 그대로인지 확인한다.
+8. 이후 official replacement 를 쓸 계획이면 10.4-1 의 supply 불일치를 먼저 정리한다.
+
+운영 변경·공개·알림·유료 RP 는 계속 보류한다.
+
 ## 7. 이번 단계에서 하지 않은 것 / 후속
 
 - 운영 이미지·DB 변경, #50 변경, 공개·알림·유료 RP: 없음.
