@@ -9,7 +9,6 @@ import {
 } from "@/lib/characterFormLimits";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
   GEMINI_38_FLASH_MODEL,
   GEMINI_4_ARGON_MODEL,
@@ -33,7 +32,6 @@ import type { CharacterChunk } from "@/types";
 const ADULT: SessionUser = { id: 1, nickname: "audit", is_adult: 1 };
 
 const MODELS = [
-  { id: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL, provider: "cheaperinference" as const },
   { id: GEMINI_38_FLASH_MODEL, provider: "openrouter" as const },
   { id: CHEAPER_INFERENCE_GPT_61_SOL_MODEL, provider: "cheaperinference" as const },
   { id: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL, provider: "cheaperinference" as const },
@@ -723,15 +721,15 @@ describe("character setting expansion readiness (no limit change, no provider)",
       }
     }
     console.table(rows);
-    const deepseek = rows.filter((r) => r.model === CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL);
-    assert.equal(deepseek[0]!.historyTokens, deepseek[1]!.historyTokens);
-    assert.equal(deepseek[1]!.historyTokens, deepseek[2]!.historyTokens);
-    assert.ok(Number(deepseek[1]!.systemTokens) > Number(deepseek[0]!.systemTokens));
-    assert.ok(Number(deepseek[2]!.systemTokens) > Number(deepseek[1]!.systemTokens));
-    assert.equal(deepseek[0]!.cacheRulesTokens, deepseek[2]!.cacheRulesTokens);
-    assert.ok(Number(deepseek[1]!.cacheCharacterTokens) > Number(deepseek[0]!.cacheCharacterTokens));
-    assert.ok(Number(deepseek[2]!.cacheCharacterTokens) > Number(deepseek[1]!.cacheCharacterTokens));
-    const maxPayload = resolveMaxPayloadInputTokens(String(deepseek[0]!.model));
+    const representative = rows.filter((r) => r.model === GEMINI_38_FLASH_MODEL);
+    assert.equal(representative[0]!.historyTokens, representative[1]!.historyTokens);
+    assert.equal(representative[1]!.historyTokens, representative[2]!.historyTokens);
+    assert.ok(Number(representative[1]!.systemTokens) > Number(representative[0]!.systemTokens));
+    assert.ok(Number(representative[2]!.systemTokens) > Number(representative[1]!.systemTokens));
+    assert.equal(representative[0]!.cacheRulesTokens, representative[2]!.cacheRulesTokens);
+    assert.ok(Number(representative[1]!.cacheCharacterTokens) > Number(representative[0]!.cacheCharacterTokens));
+    assert.ok(Number(representative[2]!.cacheCharacterTokens) > Number(representative[1]!.cacheCharacterTokens));
+    const maxPayload = resolveMaxPayloadInputTokens(String(representative[0]!.model));
     assert.equal(maxPayload, Number.MAX_SAFE_INTEGER);
     assert.equal(AUDIT_SCOPE.maxPayloadSentinel, "LOCAL_ASSEMBLY_GATE_ONLY");
     assert.equal(AUDIT_SCOPE.unslicedAssembly, "MEASURED");

@@ -1,9 +1,9 @@
 import crypto from "node:crypto";
 
 import {
-  MAIN_RP_MODEL_IDS,
   MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
-  MAIN_RP_USER_SELECTABLE_OPTIONS,
+  isMainRpQualityBenchmarkModel,
+  mainRpQualityBenchmarkOption,
   selectedAIProvider,
   type MainRpQualityBenchmarkModelId,
 } from "@/lib/chatModels";
@@ -171,10 +171,7 @@ function controls(body: JsonObject): JsonObject {
 }
 
 function modelLabel(modelId: MainRpQualityBenchmarkModelId): string {
-  return (
-    MAIN_RP_USER_SELECTABLE_OPTIONS.find((option) => option.id === modelId)?.label ??
-    (modelId === "deepseek-v4.1-flash" ? "DeepSeek V4.1 Flash" : modelId)
-  );
+  return mainRpQualityBenchmarkOption(modelId).label;
 }
 
 export function buildRpActiveModelQualityPlan(
@@ -187,8 +184,8 @@ export function buildRpActiveModelQualityPlan(
   }
   const uniqueModelIds = [...new Set(modelIds)];
   for (const modelId of uniqueModelIds) {
-    if (!MAIN_RP_MODEL_IDS.includes(modelId)) {
-      throw new Error(`Quality model is no longer active Main RP: ${modelId}`);
+    if (!isMainRpQualityBenchmarkModel(modelId)) {
+      throw new Error(`Quality model is not on the historical paid-quality roster: ${modelId}`);
     }
   }
 

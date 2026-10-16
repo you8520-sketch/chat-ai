@@ -19,6 +19,7 @@ import {
   MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
   isMainRpModel,
+  isMainRpQualityBenchmarkModel,
   isUserSelectableAI,
   isValidSelectedAI,
   resolveSelectedAI,
@@ -90,6 +91,9 @@ describe("Main RP user-select policy after DeepSeek retirement", () => {
       CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
       CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
     ]);
+    assert.equal(isMainRpQualityBenchmarkModel(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL), true);
+    assert.equal(isMainRpQualityBenchmarkModel(GEMINI_4_ARGON_MODEL), false);
+    assert.equal(isMainRpModel(GEMINI_4_ARGON_MODEL), true);
     assert.equal(selectedAILabel(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL), "DeepSeek V4.1 Flash");
     assert.equal(selectedAIProvider(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL), "cheaperinference");
     assert.equal(

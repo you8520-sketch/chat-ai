@@ -7,8 +7,8 @@
  * This file only fail-closes identity/mode and describes the public hash manifest.
  */
 import {
-  MAIN_RP_MODEL_IDS,
-  isMainRpModel,
+  MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
+  isMainRpQualityBenchmarkModel,
   type MainRpQualityBenchmarkModelId,
 } from "@/lib/chatModels";
 import {
@@ -207,7 +207,7 @@ export function assertMainRpStyleLengthIdentity(
   if (input.models) {
     if (input.models.length === 0) reject("INACTIVE_MODEL");
     for (const modelId of input.models) {
-      if (!isMainRpModel(modelId)) reject("INACTIVE_MODEL");
+      if (!isMainRpQualityBenchmarkModel(modelId)) reject("INACTIVE_MODEL");
     }
   }
   if (input.finalWireFingerprints && input.finalWireFingerprints.length === 0) {
@@ -320,7 +320,7 @@ export function mainRpStyleLengthSitePolicy() {
     contentMode: "SAFE" as const,
     contentModeOwner: "rpQualityPrecallFixtures contentMode — PRECALL plan constant, not characters.nsfw",
     nsfwListingOwner: "characters.nsfw listing/content-rating only",
-    models: MAIN_RP_MODEL_IDS,
+    models: MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
     fixtureIds: RP_QUALITY_PRECALL_FIXTURE_IDS,
     targetLengthOwner: "UNIFIED_TIER_AIM_CHARS",
     artificialMaxOutputChars: null,

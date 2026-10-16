@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 
-import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
+import { MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS } from "@/lib/chatModels";
 import { RP_QUALITY_PRECALL_TARGET_SELECTOR } from "@/lib/rpQualityPrecall";
 import {
   HISTORICAL_RP_QUALIFICATION_CHARACTER_ID,
@@ -31,7 +31,7 @@ const LIVE = {
   adminUserId: 1,
   adminVerified: true,
   personaCount: 1,
-  models: MAIN_RP_MODEL_IDS,
+  models: MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
   finalWireFingerprints: ["a".repeat(64)],
 };
 
@@ -57,7 +57,7 @@ describe("MAIN_RP_STYLE_LENGTH fixture owner", () => {
     });
     assert.equal(policy.contentMode, "SAFE");
     assert.equal(policy.artificialMaxOutputChars, null);
-    assert.deepEqual(policy.models, MAIN_RP_MODEL_IDS);
+    assert.deepEqual(policy.models, MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS);
   });
 
   it("accepts live 라이크 18 / 렌", () => {

@@ -316,6 +316,15 @@ export const MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS = [
 export type MainRpQualityBenchmarkModelId =
   (typeof MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS)[number];
 
+/** Historical paid-quality / PRECALL roster only — not the live picker. */
+export function isMainRpQualityBenchmarkModel(
+  modelId: string
+): modelId is MainRpQualityBenchmarkModelId {
+  return (MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS as readonly string[]).includes(
+    modelId.trim().toLowerCase()
+  );
+}
+
 /** True only for canonical Main RP models. */
 export function isMainRpModel(modelId: string): boolean {
   return MAIN_RP_MODEL_IDS.includes(modelId.trim().toLowerCase() as SelectedAI);
