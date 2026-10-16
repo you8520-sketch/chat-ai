@@ -1,0 +1,5 @@
+채팅에 사용할 AI 모델을 선택해 주세요.
+Gemini 3.8 Flash · 약 23P · 초기 추정
+GPT-6.1 Sol · 약 99P · 초기 추정
+Claude Opus 5.5 · 약 138P · 초기 추정
+Gemini 4 Argon · 약 121P · 초기 추정
