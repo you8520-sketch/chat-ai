@@ -178,6 +178,27 @@ describe("derived cache worker enablement by environment", { concurrency: 1 }, (
     assert.equal(isDerivedCacheWorkerDisabled(), true);
   });
 
+  it("production verification profile (DISABLE_DERIVED_CACHE_WORKER=1) performs no provider POST", async () => {
+    envRef().NODE_ENV = "production";
+    envRef().DISABLE_DERIVED_CACHE_WORKER = "1";
+    const { jobIds } = seedWorldWithPendingJob();
+    const before = jobRows();
+    const spy = installCountingProviderFetch();
+    try {
+      await wakeEveryEntryPoint();
+      assert.equal(spy.posts, 0);
+      assert.equal(isDerivedCacheWorkerDisabled(), true);
+    } finally {
+      spy.restore();
+    }
+    assert.deepEqual(jobRows(), before);
+    assert.equal(before[0]?.status, "pending");
+    assert.deepEqual(
+      before.map((row) => row.id),
+      jobIds
+    );
+  });
+
   it("production keeps the automatic worker with the flag unset or 0, and the opt-out with 1", async () => {
     envRef().NODE_ENV = "production";
     assert.equal(isDerivedCacheWorkerDisabled(), false);
