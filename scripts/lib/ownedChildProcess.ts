@@ -1,6 +1,8 @@
-import { execFileSync, spawn, type ChildProcess, type SpawnOptions } from "node:child_process";
+import { spawn, type ChildProcess, type SpawnOptions } from "node:child_process";
 
 export const OWNED_CHILD_TERM_WAIT_MS = 8_000;
+
+export type OwnedGroupPresenceProbe = (pgid: number) => void;
 
 export function isPidAlive(pid: number): boolean {
   try {
@@ -15,21 +17,33 @@ function isOwnedPgid(pgid: number): boolean {
   return Number.isInteger(pgid) && pgid > 1;
 }
 
-/** PIDs in the detached child's process group only. Does not scan other groups. */
-export function listOwnedGroupPids(pgid: number): number[] {
-  if (!isOwnedPgid(pgid)) return [];
+function errorCode(err: unknown): string | undefined {
+  if (typeof err === "object" && err !== null && "code" in err) {
+    const code = (err as { code: unknown }).code;
+    return typeof code === "string" ? code : undefined;
+  }
+  return undefined;
+}
+
+function probeOwnedGroupPresence(pgid: number): void {
+  process.kill(-pgid, 0);
+}
+
+/**
+ * Whether the detached child's process group still exists.
+ * ESRCH is the only signal that the group is gone. Permission or query
+ * errors must not be treated as a clean exit.
+ */
+export function isOwnedGroupAlive(
+  pgid: number,
+  probe: OwnedGroupPresenceProbe = probeOwnedGroupPresence
+): boolean {
+  if (!isOwnedPgid(pgid)) return false;
   try {
-    const out = execFileSync("pgrep", ["-g", String(pgid)], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    });
-    return out
-      .trim()
-      .split(/\s+/)
-      .map(Number)
-      .filter((n) => Number.isInteger(n) && n > 1);
-  } catch {
-    return isPidAlive(pgid) ? [pgid] : [];
+    probe(pgid);
+    return true;
+  } catch (err) {
+    return errorCode(err) !== "ESRCH";
   }
 }
 
@@ -56,13 +70,17 @@ export async function waitForPidExit(pid: number, timeoutMs: number): Promise<bo
   return !isPidAlive(pid);
 }
 
-export async function waitForOwnedGroupExit(pgid: number, timeoutMs: number): Promise<boolean> {
+export async function waitForOwnedGroupExit(
+  pgid: number,
+  timeoutMs: number,
+  probe?: OwnedGroupPresenceProbe
+): Promise<boolean> {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
-    if (listOwnedGroupPids(pgid).length === 0) return true;
+    if (!isOwnedGroupAlive(pgid, probe)) return true;
     await new Promise((resolve) => setTimeout(resolve, 40));
   }
-  return listOwnedGroupPids(pgid).length === 0;
+  return !isOwnedGroupAlive(pgid, probe);
 }
 
 export function spawnOwnedDetachedChild(
@@ -75,20 +93,21 @@ export function spawnOwnedDetachedChild(
 
 export async function stopOwnedChildProcess(
   child: ChildProcess | null,
-  opts?: { waitMs?: number }
+  opts?: { waitMs?: number; probeGroup?: OwnedGroupPresenceProbe }
 ): Promise<{ pid: number | null; exited: boolean; usedKill: boolean }> {
   const pid = child?.pid ?? null;
   if (pid == null) {
     return { pid: null, exited: true, usedKill: false };
   }
-  if (listOwnedGroupPids(pid).length === 0) {
+  const probe = opts?.probeGroup;
+  if (!isOwnedGroupAlive(pid, probe)) {
     return { pid, exited: true, usedKill: false };
   }
   const waitMs = opts?.waitMs ?? OWNED_CHILD_TERM_WAIT_MS;
   signalOwnedProcessGroup(pid, "SIGTERM");
-  const termExited = await waitForOwnedGroupExit(pid, waitMs);
+  const termExited = await waitForOwnedGroupExit(pid, waitMs, probe);
   if (termExited) return { pid, exited: true, usedKill: false };
   signalOwnedProcessGroup(pid, "SIGKILL");
-  const killExited = await waitForOwnedGroupExit(pid, 2_000);
+  const killExited = await waitForOwnedGroupExit(pid, 2_000, probe);
   return { pid, exited: killExited, usedKill: true };
 }

@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
+import type { ChildProcess } from "node:child_process";
 import net from "node:net";
 import { createServer } from "node:net";
 import { describe, it } from "node:test";
 import {
+  isOwnedGroupAlive,
   isPidAlive,
-  listOwnedGroupPids,
   signalOwnedProcessGroup,
   spawnOwnedDetachedChild,
   stopOwnedChildProcess,
@@ -97,7 +98,11 @@ async function waitGroupReady(
 async function reapOwnedGroup(pgid: number | null | undefined): Promise<void> {
   if (pgid == null) return;
   signalOwnedProcessGroup(pgid, "SIGKILL");
-  await waitUntil(() => listOwnedGroupPids(pgid).length === 0, 2_000);
+  await waitUntil(() => !isOwnedGroupAlive(pgid), 2_000);
+}
+
+function errno(code: string): NodeJS.ErrnoException {
+  return Object.assign(new Error(code), { code });
 }
 
 describe("owned child process group cleanup", { concurrency: 1 }, () => {
@@ -112,7 +117,7 @@ describe("owned child process group cleanup", { concurrency: 1 }, () => {
     assert.equal(result.usedKill, false);
     assert.equal(result.exited, true);
     assert.equal(isPidAlive(pid), false);
-    assert.deepEqual(listOwnedGroupPids(pid), []);
+    assert.equal(isOwnedGroupAlive(pid), false);
   });
 
   it("after TERM wait, SIGKILL reaps an ignoring owned child only", async () => {
@@ -134,7 +139,7 @@ describe("owned child process group cleanup", { concurrency: 1 }, () => {
     assert.equal(result.usedKill, true);
     assert.equal(result.exited, true);
     assert.equal(isPidAlive(pid), false);
-    assert.deepEqual(listOwnedGroupPids(pid), []);
+    assert.equal(isOwnedGroupAlive(pid), false);
   });
 
   it("leader SIGTERM-exit does not hide a TERM-ignoring grandchild LISTEN server", async () => {
@@ -151,13 +156,13 @@ describe("owned child process group cleanup", { concurrency: 1 }, () => {
       assert.equal(isPidAlive(leaderPid!), false);
       assert.equal(isPidAlive(grandchildPid), false);
       assert.equal(await isPortListening(port), false);
-      assert.deepEqual(listOwnedGroupPids(leaderPid!), []);
+      assert.equal(isOwnedGroupAlive(leaderPid!), false);
     } finally {
       await reapOwnedGroup(leaderPid);
     }
   });
 
-  it("already-dead leader still reaps remaining group members (no early success)", async () => {
+  it("leader-exited-first still keeps the owned group alive until leftovers are reaped", async () => {
     const port = await listenFreePort();
     assert.notEqual(port, 3000);
     const child = spawnTermIgnoringListenGroup(port);
@@ -169,16 +174,55 @@ describe("owned child process group cleanup", { concurrency: 1 }, () => {
       assert.equal(await waitUntil(() => !isPidAlive(leaderPid!), 2_000), true);
       assert.equal(isPidAlive(grandchildPid), true);
       assert.equal(await isPortListening(port), true);
-      assert.deepEqual(listOwnedGroupPids(leaderPid!), [grandchildPid]);
+      assert.equal(
+        isOwnedGroupAlive(leaderPid!),
+        true,
+        "leader-dead + leftover member must not look like group absence"
+      );
 
       const result = await stopOwnedChildProcess(child, { waitMs: 800 });
       assert.equal(result.exited, true);
       assert.equal(result.usedKill, true);
       assert.equal(isPidAlive(grandchildPid), false);
       assert.equal(await isPortListening(port), false);
-      assert.deepEqual(listOwnedGroupPids(leaderPid!), []);
+      assert.equal(isOwnedGroupAlive(leaderPid!), false);
     } finally {
       await reapOwnedGroup(leaderPid);
     }
+  });
+
+  it("ESRCH is the only probe result treated as group absence", () => {
+    assert.equal(
+      isOwnedGroupAlive(4242, () => {
+        throw errno("ESRCH");
+      }),
+      false
+    );
+    assert.equal(
+      isOwnedGroupAlive(4242, () => {
+        throw errno("EPERM");
+      }),
+      true,
+      "permission errors must not look like the group is gone"
+    );
+    assert.equal(
+      isOwnedGroupAlive(4242, () => {
+        throw new Error("query failed");
+      }),
+      true,
+      "unclassified query errors must not look like the group is gone"
+    );
+  });
+
+  it("stopOwnedChildProcess does not treat a group probe error as a clean exit", async () => {
+    const result = await stopOwnedChildProcess({ pid: 4242 } as ChildProcess, {
+      waitMs: 80,
+      probeGroup: () => {
+        throw errno("EPERM");
+      },
+    });
+    assert.equal(result.pid, 4242);
+    assert.equal(result.exited, false);
+    assert.equal(result.usedKill, true);
   });
 });
