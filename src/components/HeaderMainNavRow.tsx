@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type FocusEvent } from "react";
 
 import { isChatRoomPathname } from "@/lib/chatDisplayPrefs";
 import { cn } from "@/lib/studioDesign";
@@ -39,11 +39,23 @@ export default function HeaderMainNavRow({ variant = "inline" }: Props) {
     nav.scrollLeft = active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2;
   }, [pathname, hidden]);
 
+  // 브라우저는 일부만 보이는 탭을 이미 보이는 것으로 보고 스크롤하지 않으므로, 포커스된 탭은 직접 완전히 보이게 한다.
+  const revealFocusedTab = (event: FocusEvent<HTMLElement>) => {
+    const nav = event.currentTarget;
+    const tab = event.target;
+    if (!(tab instanceof HTMLElement) || nav.scrollWidth <= nav.clientWidth) return;
+    const navRect = nav.getBoundingClientRect();
+    const tabRect = tab.getBoundingClientRect();
+    if (tabRect.left < navRect.left) nav.scrollLeft -= navRect.left - tabRect.left;
+    else if (tabRect.right > navRect.right) nav.scrollLeft += tabRect.right - navRect.right;
+  };
+
   if (hidden) return null;
 
   return (
     <nav
       ref={navRef}
+      onFocus={revealFocusedTab}
       className={cn(
         "scrollbar-hide items-stretch gap-0.5 overflow-x-auto overscroll-x-contain",
         variant === "inline"

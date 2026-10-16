@@ -166,6 +166,99 @@ async function headerMetrics(page: Page) {
   });
 }
 
+async function focusedHeaderControl(page: Page) {
+  return page.evaluate(() => {
+    const el = document.activeElement as HTMLElement;
+    const r = el.getBoundingClientRect();
+    const header = document.querySelector("header.site-header")!.getBoundingClientRect();
+    const nav = el.closest<HTMLElement>('nav[aria-label="주요 메뉴"]');
+    const navRect = nav?.getBoundingClientRect();
+    return {
+      label: (el.getAttribute("aria-label") || el.textContent || "").trim().slice(0, 12),
+      inHeader: !!el.closest("header.site-header"),
+      inNav: !!nav,
+      l: r.left,
+      r: r.right,
+      b: r.bottom,
+      navL: navRect?.left ?? 0,
+      navR: navRect?.right ?? 0,
+      headerBottom: header.bottom,
+      vw: document.documentElement.clientWidth,
+    };
+  });
+}
+
+const BALANCES = ["2,000P", "200,000P", "123,456,789P"] as const;
+const MATRIX_WIDTHS = [360, 375, 390, 575, 576] as const;
+
+async function applyBalanceAndBadge(page: Page, balance: string, badge: "0" | "99+") {
+  await page.evaluate(({ balance, badge }) => {
+    const points = document.querySelector<HTMLElement>('header.site-header [aria-label^="보유 포인트"]');
+    const span = points?.querySelector("span") ?? points;
+    if (span) span.textContent = balance;
+    if (badge === "99+") {
+      const bell = document.querySelector<HTMLElement>('header.site-header button[aria-label^="알림"]');
+      const count = bell?.querySelector("span");
+      if (count) count.textContent = "99+";
+    }
+  }, { balance, badge });
+}
+
+async function headerControlMatrix(page: Page, expectShopLink: boolean) {
+  await page.request.post("/api/auth/demo-login");
+  for (const width of MATRIX_WIDTHS) {
+    for (const balance of BALANCES) {
+      for (const badge of ["0", "99+"] as const) {
+        const tag = `${width}px ${balance} badge ${badge}`;
+        await page.setViewportSize({ width, height: 800 });
+        await page.goto("/tab/ranking");
+        await applyBalanceAndBadge(page, balance, badge);
+        const m = await headerMetrics(page);
+        expect(m.overlaps, `${tag} overlaps`).toEqual([]);
+        expect(m.offRight, `${tag} off-screen controls`).toEqual([]);
+        expect(m.docOverflow, `${tag} overflow`).toBe(false);
+
+        const detail = await page.evaluate(() => {
+          const top = document.querySelector("header.site-header")!.children[0] as HTMLElement;
+          const logo = top.querySelector<HTMLElement>('a[aria-label$="홈"]')!.getBoundingClientRect();
+          const bell = top.querySelector<HTMLElement>('button[aria-label^="알림"]')!.getBoundingClientRect();
+          const points = top.querySelector<HTMLElement>('[aria-label^="보유 포인트"]')!;
+          const pointsText = points.querySelector("span") ?? points;
+          const toggle = top.querySelector<HTMLElement>('button[aria-label="세이프티 필터"]')!;
+          const shop = top.querySelector<HTMLElement>('a[href="/points"]');
+          const state = Array.from(toggle.querySelectorAll<HTMLElement>("span"))
+            .map((s) => s.textContent?.trim())
+            .find((t) => t === "ON" || t === "OFF");
+          return {
+            logoToBell: bell.left - logo.right,
+            pointsText: pointsText.textContent,
+            pointsClipped: points.scrollWidth > points.clientWidth + 1,
+            toggleHeight: toggle.getBoundingClientRect().height,
+            togglePressed: toggle.getAttribute("aria-pressed"),
+            toggleState: state ?? null,
+            toggleVisibleText: toggle.innerText.trim(),
+            shopHref: shop?.getAttribute("href") ?? null,
+            shopW: shop?.getBoundingClientRect().width ?? 0,
+            shopH: shop?.getBoundingClientRect().height ?? 0,
+          };
+        });
+        expect(detail.logoToBell, `${tag} logo-to-bell gap`).toBeGreaterThanOrEqual(6);
+        expect(detail.pointsText, `${tag} exact balance text`).toBe(balance);
+        expect(detail.pointsClipped, `${tag} balance clipped`).toBe(false);
+        expect(detail.toggleHeight, `${tag} toggle height`).toBeGreaterThanOrEqual(36);
+        expect(detail.togglePressed, `${tag} toggle exposes state`).not.toBeNull();
+        expect(detail.toggleState, `${tag} toggle shows ON/OFF text`).toBe(detail.togglePressed === "true" ? "ON" : "OFF");
+        expect(detail.toggleVisibleText, `${tag} toggle label`).toContain("세이프티");
+        if (expectShopLink) {
+          expect(detail.shopHref, `${tag} charge link`).toBe("/points");
+          expect(detail.shopW, `${tag} charge link width`).toBeGreaterThanOrEqual(36);
+          expect(detail.shopH, `${tag} charge link height`).toBeGreaterThanOrEqual(36);
+        }
+      }
+    }
+  }
+}
+
 test.describe("compact mobile header", () => {
   test("below lg the header stays under 100px at every layout boundary and keeps one 64px row from lg", async ({ page }) => {
     for (const width of [...HEADER_WIDTHS, 1024, 1440]) {
@@ -197,27 +290,27 @@ test.describe("compact mobile header", () => {
     }
   });
 
-  test("logged-in controls neither overlap nor overflow at 360px with a long balance and a multi-digit badge", async ({ page }) => {
-    await demoLogin(page);
-    for (const width of [360, 390, 575, 576]) {
-      await page.setViewportSize({ width, height: 800 });
-      await page.goto("/tab/ranking");
-      await page.evaluate(() => {
-        const points = document.querySelector<HTMLElement>('header.site-header [aria-label^="보유 포인트"]');
-        const span = points?.querySelector("span") ?? points;
-        if (span) span.textContent = "123,456,789P";
-        const bell = document.querySelector<HTMLElement>('header.site-header button[aria-label^="알림"]');
-        const badge = bell?.querySelector("span");
-        if (badge) badge.textContent = "99+";
-      });
-      const m = await headerMetrics(page);
-      expect(m.overlaps, `${width}px overlaps`).toEqual([]);
-      expect(m.offRight, `${width}px off-screen controls`).toEqual([]);
-      expect(m.docOverflow, `${width}px overflow`).toBe(false);
-    }
+  test("payments OFF: header controls never overlap or overflow across balances, badges and widths", async ({ page }) => {
+    await headerControlMatrix(page, false);
   });
 
-  test("keyboard Tab walks the header controls then every menu tab without leaving the header", async ({ page }) => {
+  test("tapping the clipped last menu tab navigates and brings it fully into view", async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 360, height: 800 }, hasTouch: true, isMobile: true });
+    const page = await context.newPage();
+    await page.goto("/search");
+    const link = page.locator('nav[aria-label="주요 메뉴"] a[href="/tab/following"]:visible').first();
+    await link.tap();
+    await page.waitForURL("**/tab/following");
+    await page.waitForTimeout(150);
+    const m = await headerMetrics(page);
+    const active = m.tabs.find((t) => t.active)!;
+    expect(active.label).toBe("북마크/팔로잉");
+    expect(active.l).toBeGreaterThanOrEqual(m.navLeft - 1);
+    expect(active.r).toBeLessThanOrEqual(m.navRight + 1);
+    await context.close();
+  });
+
+  test("keyboard Tab walks the header controls then every menu tab, each focused tab fully inside the visible menu", async ({ page }) => {
     await demoLogin(page);
     await page.setViewportSize({ width: 360, height: 800 });
     await page.goto("/tab/ranking");
@@ -226,30 +319,69 @@ test.describe("compact mobile header", () => {
     for (let i = 0; i < 12; i += 1) {
       await page.keyboard.press("Tab");
       await page.waitForTimeout(150);
-      const info = await page.evaluate(() => {
-        const el = document.activeElement as HTMLElement;
-        const r = el.getBoundingClientRect();
-        const header = document.querySelector("header.site-header")!.getBoundingClientRect();
-        return {
-          label: (el.getAttribute("aria-label") || el.textContent || "").trim().slice(0, 12),
-          inHeader: !!el.closest("header.site-header"),
-          l: r.left,
-          r: r.right,
-          t: r.top,
-          b: r.bottom,
-          headerBottom: header.bottom,
-          vw: document.documentElement.clientWidth,
-        };
-      });
+      const info = await focusedHeaderControl(page);
       if (!info.inHeader) break;
       seen.push(info.label);
       expect(info.l, `${info.label} left`).toBeGreaterThanOrEqual(-1);
-      expect(info.l, `${info.label} starts on screen`).toBeLessThan(info.vw - 24);
+      expect(info.r, `${info.label} right edge on screen`).toBeLessThanOrEqual(info.vw + 1);
       expect(info.b, `${info.label} bottom`).toBeLessThanOrEqual(info.headerBottom + 1);
+      if (info.inNav) {
+        expect(info.l, `${info.label} left edge inside the visible menu`).toBeGreaterThanOrEqual(info.navL - 1);
+        expect(info.r, `${info.label} right edge inside the visible menu`).toBeLessThanOrEqual(info.navR + 1);
+      }
     }
     for (const label of ["하브 홈", "홈", "신작", "랭킹", "TRPG", "검색", "북마크/팔로잉"]) {
       expect(seen.some((s) => s.includes(label)), `Tab reaches ${label}`).toBe(true);
     }
+  });
+
+  test("Shift+Tab, direct URL entry and back/forward keep the focused menu tab fully visible", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    const walk = async (key: "Tab" | "Shift+Tab", steps: number, where: string) => {
+      for (let i = 0; i < steps; i += 1) {
+        await page.keyboard.press(key);
+        await page.waitForTimeout(120);
+        const info = await focusedHeaderControl(page);
+        if (!info.inNav) continue;
+        expect(info.l, `${where} ${key} ${info.label} left`).toBeGreaterThanOrEqual(info.navL - 1);
+        expect(info.r, `${where} ${key} ${info.label} right`).toBeLessThanOrEqual(info.navR + 1);
+      }
+    };
+    const focusTab = (selector: string) =>
+      page.evaluate((sel) => {
+        const nav = Array.from(document.querySelectorAll<HTMLElement>('nav[aria-label="주요 메뉴"]')).find((n) => n.getBoundingClientRect().width > 0);
+        nav?.querySelector<HTMLElement>(sel)?.focus();
+      }, selector);
+    const focusActiveTab = () => focusTab('[aria-current="page"]');
+
+    for (const path of ["/tab/following", "/tab/new", "/search"]) {
+      await page.goto(path);
+      await focusActiveTab();
+      await walk("Tab", 5, `direct ${path}`);
+      await walk("Shift+Tab", 6, `direct ${path}`);
+    }
+
+    await page.goto("/tab/ranking");
+    await page.getByRole("navigation", { name: "주요 메뉴" }).first().getByRole("link", { name: "북마크/팔로잉" }).click();
+    await page.waitForURL("**/tab/following");
+    await page.goBack();
+    await page.waitForURL("**/tab/ranking");
+    await focusActiveTab();
+    await walk("Tab", 6, "after back");
+    await page.goForward();
+    await page.waitForURL("**/tab/following");
+    await focusActiveTab();
+    await walk("Shift+Tab", 6, "after forward");
+
+    const last = await page.evaluate(() => {
+      const nav = Array.from(document.querySelectorAll<HTMLElement>('nav[aria-label="주요 메뉴"]')).find((n) => n.getBoundingClientRect().width > 0)!;
+      nav.scrollLeft = 0;
+      const link = nav.querySelector<HTMLElement>('a[href="/tab/following"]')!;
+      return { clippedBeforeFocus: link.getBoundingClientRect().right > nav.getBoundingClientRect().right + 1 };
+    });
+    expect(last.clippedBeforeFocus, "the last tab starts clipped when the menu is scrolled to its start").toBe(true);
+    await focusTab('a[href="/search"]');
+    await walk("Tab", 1, "from 검색 to the last tab");
   });
 
   test("stays sticky after scrolling and drives the rail, scroll padding and --site-header-height", async ({ page }) => {
@@ -373,5 +505,16 @@ test.describe("rail geometry before hydration", () => {
       const move = await page.evaluate(() => (window as unknown as { __railTopMove: number }).__railTopMove);
       expect(move, `${width}px rail vertical shift`).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+const PAYMENTS_BASE_URL = process.env.PLAYWRIGHT_PAYMENTS_BASE_URL;
+
+test.describe("compact mobile header with the charge shortcut", () => {
+  test.skip(!PAYMENTS_BASE_URL, "needs a production server started with PORTONE_CHARGE_ENABLED=1 (set PLAYWRIGHT_PAYMENTS_BASE_URL)");
+  test.use({ baseURL: PAYMENTS_BASE_URL });
+
+  test("payments ON: logo, bell, safety filter, balance and charge link never overlap or overflow", async ({ page }) => {
+    await headerControlMatrix(page, true);
   });
 });
