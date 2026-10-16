@@ -1,0 +1,25 @@
+{
+ "d1": {
+  "close": {
+   "w": 44,
+   "h": 44
+  },
+  "confirm": {
+   "w": 64,
+   "h": 44
+  },
+  "checkbox": {
+   "w": 113,
+   "h": 44
+  },
+  "focused": "확인",
+  "closedByEscape": true
+ },
+ "d3-create": "홈:- 대화:- 제작:page 설정:-",
+ "d3-my-characters": "홈:- 대화:- 제작:page 설정:-",
+ "d3-creator-dash": "홈:- 대화:- 제작:page 설정:-",
+ "d2": {
+  "stops": 40,
+  "underChrome": []
+ }
+}

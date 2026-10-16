@@ -1,0 +1,8857 @@
+{
+ "home-guest-360": {
+  "path": "/",
+  "user": null,
+  "width": 360,
+  "notice": {
+   "dialog": {
+    "w": 328,
+    "h": 264,
+    "top": 268,
+    "bottom": 532,
+    "vh": 800
+   },
+   "controls": [
+    {
+     "tag": "BUTTON",
+     "text": "공지 닫기",
+     "w": 32,
+     "h": 32
+    },
+    {
+     "tag": "LABEL",
+     "text": "오늘 하루 보지 않기",
+     "w": 113,
+     "h": 16
+    },
+    {
+     "tag": "INPUT",
+     "text": "",
+     "w": 16,
+     "h": 16
+    },
+    {
+     "tag": "BUTTON",
+     "text": "확인",
+     "w": 44,
+     "h": 28
+    }
+   ],
+   "activeTag": "BODY",
+   "inDialog": false,
+   "escapeClosed": false
+  },
+  "vw": 360,
+  "docH": 6129,
+  "hOverflow": false,
+  "smallTargets": 91,
+  "smallTargetsPage": 41,
+  "smallTargetsCard": 50,
+  "tinyCard": 125,
+  "tinyPage": 75,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "취향전체▾",
+    "w": 77.5,
+    "h": 30
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "로그인 후 저장",
+    "w": 66,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "취향 설정",
+    "w": 43,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 새벽의 공식 안내인의 한 줄 소개",
+    "w": 132,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "#새벽",
+    "w": 27,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "by 달빛서점",
+    "w": 132,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 새벽 정원사의 한 줄 소개입니다.",
+    "w": 132,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "#다정",
+    "w": 27,
+    "h": 16.5
+   }
+  ],
+  "tinyText": 200,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "EVENT"
+   },
+   {
+    "fs": 10,
+    "text": "취향"
+   },
+   {
+    "fs": 10,
+    "text": "▾"
+   },
+   {
+    "fs": 11,
+    "text": "로그인 후 저장"
+   },
+   {
+    "fs": 10,
+    "text": "FOR YOU"
+   }
+  ],
+  "outOfViewport": [
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": 0.3
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": 0.3
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": 0.3
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": 0.3
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": 0.3
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": 0.3
+   }
+  ],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "추천 캐릭터"
+  ],
+  "layout": {
+   "h1Left": 89,
+   "h1Top": 326.5,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": -156.7,
+   "contentRight": 1520,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": null,
+  "lowestContent": 730.8,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "홈"
+  ],
+  "navActive": [
+   "홈"
+  ],
+  "fixedEls": [],
+  "hScrollDoc": false
+ },
+ "home-guest-390": {
+  "path": "/",
+  "user": null,
+  "width": 390,
+  "notice": {
+   "dialog": {
+    "w": 358,
+    "h": 240,
+    "top": 302,
+    "bottom": 542,
+    "vh": 844
+   },
+   "controls": [
+    {
+     "tag": "BUTTON",
+     "text": "공지 닫기",
+     "w": 32,
+     "h": 32
+    },
+    {
+     "tag": "LABEL",
+     "text": "오늘 하루 보지 않기",
+     "w": 113,
+     "h": 16
+    },
+    {
+     "tag": "INPUT",
+     "text": "",
+     "w": 16,
+     "h": 16
+    },
+    {
+     "tag": "BUTTON",
+     "text": "확인",
+     "w": 44,
+     "h": 28
+    }
+   ],
+   "activeTag": "BODY",
+   "inDialog": false,
+   "escapeClosed": false
+  },
+  "vw": 390,
+  "docH": 6334,
+  "hOverflow": false,
+  "smallTargets": 91,
+  "smallTargetsPage": 41,
+  "smallTargetsCard": 50,
+  "tinyCard": 125,
+  "tinyPage": 75,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "취향전체▾",
+    "w": 77.5,
+    "h": 30
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "로그인 후 저장",
+    "w": 66,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "취향 설정",
+    "w": 43,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 새벽의 공식 안내인의 한 줄 소개",
+    "w": 144.7,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "#새벽",
+    "w": 27,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "by 달빛서점",
+    "w": 144.7,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 새벽 정원사의 한 줄 소개입니다.",
+    "w": 144.7,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "#다정",
+    "w": 27,
+    "h": 16.5
+   }
+  ],
+  "tinyText": 200,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "EVENT"
+   },
+   {
+    "fs": 10,
+    "text": "취향"
+   },
+   {
+    "fs": 10,
+    "text": "▾"
+   },
+   {
+    "fs": 11,
+    "text": "로그인 후 저장"
+   },
+   {
+    "fs": 10,
+    "text": "FOR YOU"
+   }
+  ],
+  "outOfViewport": [
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": -1.2
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": -1.2
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": -1.2
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": -1.2
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": -1.2
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": -1.2
+   }
+  ],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "추천 캐릭터"
+  ],
+  "layout": {
+   "h1Left": 89,
+   "h1Top": 326.5,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": -173.2,
+   "contentRight": 1646.9,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": null,
+  "lowestContent": 775.3,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "홈"
+  ],
+  "navActive": [
+   "홈"
+  ],
+  "fixedEls": [],
+  "hScrollDoc": false
+ },
+ "home-guest-768": {
+  "path": "/",
+  "user": null,
+  "width": 768,
+  "notice": {
+   "dialog": {
+    "w": 384,
+    "h": 240,
+    "top": 392,
+    "bottom": 632,
+    "vh": 1024
+   },
+   "controls": [
+    {
+     "tag": "BUTTON",
+     "text": "공지 닫기",
+     "w": 32,
+     "h": 32
+    },
+    {
+     "tag": "LABEL",
+     "text": "오늘 하루 보지 않기",
+     "w": 113,
+     "h": 16
+    },
+    {
+     "tag": "INPUT",
+     "text": "",
+     "w": 16,
+     "h": 16
+    },
+    {
+     "tag": "BUTTON",
+     "text": "확인",
+     "w": 44,
+     "h": 28
+    }
+   ],
+   "activeTag": "BODY",
+   "inDialog": false,
+   "escapeClosed": false
+  },
+  "vw": 768,
+  "docH": 4777,
+  "hOverflow": false,
+  "smallTargets": 92,
+  "smallTargetsPage": 42,
+  "smallTargetsCard": 50,
+  "tinyCard": 125,
+  "tinyPage": 72,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "전체",
+    "w": 58,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "여성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "남성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "로그인 후 저장",
+    "w": 66,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 새벽의 공식 안내인의 한 줄 소개",
+    "w": 204,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "#새벽",
+    "w": 27,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "by 달빛서점",
+    "w": 204,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 새벽 정원사의 한 줄 소개입니다.",
+    "w": 204,
+    "h": 40
+   }
+  ],
+  "tinyText": 197,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "EVENT"
+   },
+   {
+    "fs": 10,
+    "text": "FOR YOU"
+   },
+   {
+    "fs": 9,
+    "text": "공식"
+   },
+   {
+    "fs": 10,
+    "text": "로맨스 판타지"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "추천 캐릭터"
+  ],
+  "layout": {
+   "h1Left": 289,
+   "h1Top": 355.5,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": -12.8,
+   "contentRight": 2476,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 999.5,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "홈"
+  ],
+  "navActive": [
+   "홈"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "home-guest-1440": {
+  "path": "/",
+  "user": null,
+  "width": 1440,
+  "notice": {
+   "dialog": {
+    "w": 384,
+    "h": 240,
+    "top": 330,
+    "bottom": 570,
+    "vh": 900
+   },
+   "controls": [
+    {
+     "tag": "BUTTON",
+     "text": "공지 닫기",
+     "w": 32,
+     "h": 32
+    },
+    {
+     "tag": "LABEL",
+     "text": "오늘 하루 보지 않기",
+     "w": 113,
+     "h": 16
+    },
+    {
+     "tag": "INPUT",
+     "text": "",
+     "w": 16,
+     "h": 16
+    },
+    {
+     "tag": "BUTTON",
+     "text": "확인",
+     "w": 44,
+     "h": 28
+    }
+   ],
+   "activeTag": "BODY",
+   "inDialog": false,
+   "escapeClosed": false
+  },
+  "vw": 1440,
+  "docH": 4671,
+  "hOverflow": false,
+  "smallTargets": 92,
+  "smallTargetsPage": 42,
+  "smallTargetsCard": 50,
+  "tinyCard": 125,
+  "tinyPage": 73,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "전체",
+    "w": 58,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "여성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "남성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "로그인 후 저장",
+    "w": 66,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 새벽의 공식 안내인의 한 줄 소개",
+    "w": 228,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "#새벽",
+    "w": 27,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "by 달빛서점",
+    "w": 228,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 새벽 정원사의 한 줄 소개입니다.",
+    "w": 228,
+    "h": 40
+   }
+  ],
+  "tinyText": 198,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "EVENT"
+   },
+   {
+    "fs": 10,
+    "text": "CREATOR EVENT · 나만의 "
+   },
+   {
+    "fs": 10,
+    "text": "FOR YOU"
+   },
+   {
+    "fs": 9,
+    "text": "공식"
+   },
+   {
+    "fs": 10,
+    "text": "로맨스 판타지"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "추천 캐릭터"
+  ],
+  "layout": {
+   "h1Left": 391.1,
+   "h1Top": 305,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 16.8,
+   "contentRight": 2788.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 875.9,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "홈"
+  ],
+  "navActive": [
+   "홈"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "new-guest-360": {
+  "path": "/tab/new",
+  "user": null,
+  "width": 360,
+  "notice": null,
+  "vw": 360,
+  "docH": 10424,
+  "hOverflow": false,
+  "smallTargets": 200,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 200,
+  "tinyCard": 251,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 251,
+  "tinySample": [
+   {
+    "fs": 10,
+    "text": "로맨스 판타지"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "달빛서점"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   },
+   {
+    "fs": 10.5,
+    "text": "랭킹"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/tab/new",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "실시간 신작"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 134,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": 16,
+   "contentRight": 344,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": null,
+  "lowestContent": 730.7,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "신작"
+  ],
+  "navActive": [
+   "신작"
+  ],
+  "fixedEls": [],
+  "hScrollDoc": false
+ },
+ "new-guest-390": {
+  "path": "/tab/new",
+  "user": null,
+  "width": 390,
+  "notice": null,
+  "vw": 390,
+  "docH": 10966,
+  "hOverflow": false,
+  "smallTargets": 200,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 200,
+  "tinyCard": 251,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 251,
+  "tinySample": [
+   {
+    "fs": 10,
+    "text": "로맨스 판타지"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "달빛서점"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   },
+   {
+    "fs": 10.5,
+    "text": "랭킹"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/tab/new",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "실시간 신작"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 134,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": 16,
+   "contentRight": 374,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": null,
+  "lowestContent": 775.4,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "신작"
+  ],
+  "navActive": [
+   "신작"
+  ],
+  "fixedEls": [],
+  "hScrollDoc": false
+ },
+ "new-guest-768": {
+  "path": "/tab/new",
+  "user": null,
+  "width": 768,
+  "notice": null,
+  "vw": 768,
+  "docH": 7335,
+  "hOverflow": false,
+  "smallTargets": 200,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 200,
+  "tinyCard": 251,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 251,
+  "tinySample": [
+   {
+    "fs": 10,
+    "text": "로맨스 판타지"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "달빛서점"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   },
+   {
+    "fs": 10.5,
+    "text": "랭킹"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/tab/new",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "실시간 신작"
+  ],
+  "layout": {
+   "h1Left": 216,
+   "h1Top": 134,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": 216,
+   "contentRight": 737,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 999.7,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "신작"
+  ],
+  "navActive": [
+   "신작"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "new-guest-1440": {
+  "path": "/tab/new",
+  "user": null,
+  "width": 1440,
+  "notice": null,
+  "vw": 1440,
+  "docH": 4800,
+  "hOverflow": false,
+  "smallTargets": 200,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 200,
+  "tinyCard": 251,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 251,
+  "tinySample": [
+   {
+    "fs": 10,
+    "text": "로맨스 판타지"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "달빛서점"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   },
+   {
+    "fs": 10.5,
+    "text": "랭킹"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/tab/new",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "실시간 신작"
+  ],
+  "layout": {
+   "h1Left": 288.5,
+   "h1Top": 89,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 288.5,
+   "contentRight": 1336.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 875.6,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "신작"
+  ],
+  "navActive": [
+   "신작"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "ranking-guest-360": {
+  "path": "/tab/ranking",
+  "user": null,
+  "width": 360,
+  "notice": null,
+  "vw": 360,
+  "docH": 7542,
+  "hOverflow": false,
+  "smallTargets": 4,
+  "smallTargetsPage": 4,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "전체",
+    "w": 58,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "여성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "남성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "로그인 후 저장",
+    "w": 66,
+    "h": 16
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/tab/ranking",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "랭킹"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 134,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": 16,
+   "contentRight": 344,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": null,
+  "lowestContent": 731.1,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "랭킹",
+   "전체"
+  ],
+  "navActive": [
+   "랭킹"
+  ],
+  "fixedEls": [],
+  "hScrollDoc": false
+ },
+ "ranking-guest-390": {
+  "path": "/tab/ranking",
+  "user": null,
+  "width": 390,
+  "notice": null,
+  "vw": 390,
+  "docH": 7532,
+  "hOverflow": false,
+  "smallTargets": 4,
+  "smallTargetsPage": 4,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "전체",
+    "w": 58,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "여성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "남성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "로그인 후 저장",
+    "w": 66,
+    "h": 16
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/tab/ranking",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "랭킹"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 134,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": 16,
+   "contentRight": 374,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": null,
+  "lowestContent": 774.9,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "랭킹",
+   "전체"
+  ],
+  "navActive": [
+   "랭킹"
+  ],
+  "fixedEls": [],
+  "hScrollDoc": false
+ },
+ "ranking-guest-768": {
+  "path": "/tab/ranking",
+  "user": null,
+  "width": 768,
+  "notice": null,
+  "vw": 768,
+  "docH": 8086,
+  "hOverflow": false,
+  "smallTargets": 4,
+  "smallTargetsPage": 4,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "전체",
+    "w": 58,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "여성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "남성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "로그인 후 저장",
+    "w": 66,
+    "h": 16
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/tab/ranking",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "랭킹"
+  ],
+  "layout": {
+   "h1Left": 216,
+   "h1Top": 134,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": 216,
+   "contentRight": 737,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 1000,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "랭킹",
+   "전체"
+  ],
+  "navActive": [
+   "랭킹"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "ranking-guest-1440": {
+  "path": "/tab/ranking",
+  "user": null,
+  "width": 1440,
+  "notice": null,
+  "vw": 1440,
+  "docH": 8001,
+  "hOverflow": false,
+  "smallTargets": 4,
+  "smallTargetsPage": 4,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "전체",
+    "w": 58,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "여성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "남성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "로그인 후 저장",
+    "w": 66,
+    "h": 16
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/tab/ranking",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "랭킹"
+  ],
+  "layout": {
+   "h1Left": 288.5,
+   "h1Top": 89,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 288.5,
+   "contentRight": 1336.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 876.3,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "랭킹",
+   "전체"
+  ],
+  "navActive": [
+   "랭킹"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "search-guest-360": {
+  "path": "/search?q=%EC%83%88%EB%B2%BD",
+  "user": null,
+  "width": 360,
+  "notice": null,
+  "vw": 360,
+  "docH": 5556,
+  "hOverflow": false,
+  "smallTargets": 96,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 96,
+  "tinyCard": 133,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 133,
+  "tinySample": [
+   {
+    "fs": 9,
+    "text": "공식"
+   },
+   {
+    "fs": 10,
+    "text": "로맨스 판타지"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "하브 공식"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/search?q=%EC%83%88%EB%B2%BD",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "검색"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 150,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": -596,
+   "contentRight": 1639,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": null,
+  "lowestContent": 730.8,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "검색",
+   "전체",
+   "#새벽"
+  ],
+  "navActive": [
+   "검색"
+  ],
+  "fixedEls": [],
+  "hScrollDoc": false
+ },
+ "search-guest-390": {
+  "path": "/search?q=%EC%83%88%EB%B2%BD",
+  "user": null,
+  "width": 390,
+  "notice": null,
+  "vw": 390,
+  "docH": 5783,
+  "hOverflow": false,
+  "smallTargets": 96,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 96,
+  "tinyCard": 133,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 133,
+  "tinySample": [
+   {
+    "fs": 9,
+    "text": "공식"
+   },
+   {
+    "fs": 10,
+    "text": "로맨스 판타지"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "하브 공식"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/search?q=%EC%83%88%EB%B2%BD",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "검색"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 150,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": -566,
+   "contentRight": 1639,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": null,
+  "lowestContent": 775.5,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "검색",
+   "전체",
+   "#새벽"
+  ],
+  "navActive": [
+   "검색"
+  ],
+  "fixedEls": [],
+  "hScrollDoc": false
+ },
+ "search-guest-768": {
+  "path": "/search?q=%EC%83%88%EB%B2%BD",
+  "user": null,
+  "width": 768,
+  "notice": null,
+  "vw": 768,
+  "docH": 4124,
+  "hOverflow": false,
+  "smallTargets": 96,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 96,
+  "tinyCard": 133,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 133,
+  "tinySample": [
+   {
+    "fs": 9,
+    "text": "공식"
+   },
+   {
+    "fs": 10,
+    "text": "로맨스 판타지"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "하브 공식"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/search?q=%EC%83%88%EB%B2%BD",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "검색"
+  ],
+  "layout": {
+   "h1Left": 216,
+   "h1Top": 150,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": 216,
+   "contentRight": 737,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 999.5,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "검색",
+   "전체",
+   "#새벽"
+  ],
+  "navActive": [
+   "검색"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "search-guest-1440": {
+  "path": "/search?q=%EC%83%88%EB%B2%BD",
+  "user": null,
+  "width": 1440,
+  "notice": null,
+  "vw": 1440,
+  "docH": 3221,
+  "hOverflow": false,
+  "smallTargets": 96,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 96,
+  "tinyCard": 133,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 133,
+  "tinySample": [
+   {
+    "fs": 9,
+    "text": "공식"
+   },
+   {
+    "fs": 10,
+    "text": "로맨스 판타지"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "하브 공식"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/search?q=%EC%83%88%EB%B2%BD",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "검색"
+  ],
+  "layout": {
+   "h1Left": 288.5,
+   "h1Top": 105,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 288.5,
+   "contentRight": 1336.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 876.4,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "검색",
+   "전체",
+   "#새벽"
+  ],
+  "navActive": [
+   "검색"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "detail-guest-360": {
+  "path": "/character/10",
+  "user": null,
+  "width": 360,
+  "notice": null,
+  "vw": 360,
+  "docH": 1221,
+  "hOverflow": false,
+  "smallTargets": 0,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/character/10",
+  "status": 404,
+  "title": "404: This page could not be found.",
+  "h1": [
+   "404"
+  ],
+  "layout": {
+   "h1Left": 39.6,
+   "h1Top": 501.5,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": 16,
+   "contentRight": 344,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": null,
+  "lowestContent": 730.6,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [],
+  "hScrollDoc": false
+ },
+ "detail-guest-390": {
+  "path": "/character/10",
+  "user": null,
+  "width": 390,
+  "notice": null,
+  "vw": 390,
+  "docH": 1265,
+  "hOverflow": false,
+  "smallTargets": 0,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/character/10",
+  "status": 404,
+  "title": "404: This page could not be found.",
+  "h1": [
+   "404"
+  ],
+  "layout": {
+   "h1Left": 54.6,
+   "h1Top": 523.5,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": 16,
+   "contentRight": 374,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": null,
+  "lowestContent": 774.6,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [],
+  "hScrollDoc": false
+ },
+ "detail-guest-768": {
+  "path": "/character/10",
+  "user": null,
+  "width": 768,
+  "notice": null,
+  "vw": 768,
+  "docH": 1360,
+  "hOverflow": false,
+  "smallTargets": 0,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/character/10",
+  "status": 404,
+  "title": "404: This page could not be found.",
+  "h1": [
+   "404"
+  ],
+  "layout": {
+   "h1Left": 336.1,
+   "h1Top": 613.5,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": 216,
+   "contentRight": 737,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 999.9,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "detail-guest-1440": {
+  "path": "/character/10",
+  "user": null,
+  "width": 1440,
+  "notice": null,
+  "vw": 1440,
+  "docH": 1151,
+  "hOverflow": false,
+  "smallTargets": 0,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/character/10",
+  "status": 404,
+  "title": "404: This page could not be found.",
+  "h1": [
+   "404"
+  ],
+  "layout": {
+   "h1Left": 672.1,
+   "h1Top": 506.5,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 288.5,
+   "contentRight": 1336.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 876.1,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "creator-public-360": {
+  "path": "/creator/5",
+  "user": null,
+  "width": 360,
+  "notice": null,
+  "vw": 360,
+  "docH": 5754,
+  "hOverflow": false,
+  "smallTargets": 106,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 106,
+  "tinyCard": 140,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 140,
+  "tinySample": [
+   {
+    "fs": 10,
+    "text": "로맨스"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "공방지기"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   },
+   {
+    "fs": 10.5,
+    "text": "랭킹"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/creator/5",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "@공방지기"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 178,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": 16,
+   "contentRight": 344,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": null,
+  "lowestContent": 731,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [],
+  "hScrollDoc": false
+ },
+ "creator-public-390": {
+  "path": "/creator/5",
+  "user": null,
+  "width": 390,
+  "notice": null,
+  "vw": 390,
+  "docH": 5905,
+  "hOverflow": false,
+  "smallTargets": 106,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 106,
+  "tinyCard": 140,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 140,
+  "tinySample": [
+   {
+    "fs": 10,
+    "text": "로맨스"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "공방지기"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   },
+   {
+    "fs": 10.5,
+    "text": "랭킹"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/creator/5",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "@공방지기"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 178,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": 16,
+   "contentRight": 374,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": null,
+  "lowestContent": 775.2,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [],
+  "hScrollDoc": false
+ },
+ "creator-public-768": {
+  "path": "/creator/5",
+  "user": null,
+  "width": 768,
+  "notice": null,
+  "vw": 768,
+  "docH": 4733,
+  "hOverflow": false,
+  "smallTargets": 106,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 106,
+  "tinyCard": 140,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 140,
+  "tinySample": [
+   {
+    "fs": 10,
+    "text": "로맨스"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "공방지기"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   },
+   {
+    "fs": 10.5,
+    "text": "랭킹"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/creator/5",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "@공방지기"
+  ],
+  "layout": {
+   "h1Left": 216,
+   "h1Top": 194,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": 216,
+   "contentRight": 737,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 999.5,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "크리에이터"
+  ],
+  "navActive": [
+   "크리에이터"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "creator-public-1440": {
+  "path": "/creator/5",
+  "user": null,
+  "width": 1440,
+  "notice": null,
+  "vw": 1440,
+  "docH": 4483,
+  "hOverflow": false,
+  "smallTargets": 106,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 106,
+  "tinyCard": 140,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 140,
+  "tinySample": [
+   {
+    "fs": 10,
+    "text": "로맨스"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "공방지기"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   },
+   {
+    "fs": 10.5,
+    "text": "랭킹"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/creator/5",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "@공방지기"
+  ],
+  "layout": {
+   "h1Left": 300.5,
+   "h1Top": 149,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 300.5,
+   "contentRight": 1324.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 875.6,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "크리에이터"
+  ],
+  "navActive": [
+   "크리에이터"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "login-360": {
+  "path": "/login",
+  "user": null,
+  "width": 360,
+  "notice": null,
+  "vw": 360,
+  "docH": 974,
+  "hOverflow": false,
+  "smallTargets": 2,
+  "smallTargetsPage": 2,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "회원가입",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "이용약관",
+    "w": 40,
+    "h": 44
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/login",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "로그인"
+  ],
+  "layout": {
+   "h1Left": 49,
+   "h1Top": 239,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": 16,
+   "contentRight": 344,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": null,
+  "lowestContent": 731.4,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [],
+  "hScrollDoc": false
+ },
+ "login-390": {
+  "path": "/login",
+  "user": null,
+  "width": 390,
+  "notice": null,
+  "vw": 390,
+  "docH": 974,
+  "hOverflow": false,
+  "smallTargets": 2,
+  "smallTargetsPage": 2,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "회원가입",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "이용약관",
+    "w": 40,
+    "h": 44
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/login",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "로그인"
+  ],
+  "layout": {
+   "h1Left": 49,
+   "h1Top": 239,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": 16,
+   "contentRight": 374,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": null,
+  "lowestContent": 775.4,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [],
+  "hScrollDoc": false
+ },
+ "login-768": {
+  "path": "/login",
+  "user": null,
+  "width": 768,
+  "notice": null,
+  "vw": 768,
+  "docH": 1024,
+  "hOverflow": false,
+  "smallTargets": 2,
+  "smallTargetsPage": 2,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "회원가입",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "이용약관",
+    "w": 40,
+    "h": 44
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/login",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "로그인"
+  ],
+  "layout": {
+   "h1Left": 317.5,
+   "h1Top": 239,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": 284.5,
+   "contentRight": 668.5,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 1000,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "login-1440": {
+  "path": "/login",
+  "user": null,
+  "width": 1440,
+  "notice": null,
+  "vw": 1440,
+  "docH": 900,
+  "hOverflow": false,
+  "smallTargets": 2,
+  "smallTargetsPage": 2,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "회원가입",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "이용약관",
+    "w": 40,
+    "h": 44
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/login",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "로그인"
+  ],
+  "layout": {
+   "h1Left": 653.5,
+   "h1Top": 194,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 620.5,
+   "contentRight": 1004.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 876,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "home-user-360": {
+  "path": "/",
+  "user": "safe",
+  "width": 360,
+  "notice": {
+   "dialog": {
+    "w": 328,
+    "h": 264,
+    "top": 268,
+    "bottom": 532,
+    "vh": 800
+   },
+   "controls": [
+    {
+     "tag": "BUTTON",
+     "text": "공지 닫기",
+     "w": 32,
+     "h": 32
+    },
+    {
+     "tag": "LABEL",
+     "text": "오늘 하루 보지 않기",
+     "w": 113,
+     "h": 16
+    },
+    {
+     "tag": "INPUT",
+     "text": "",
+     "w": 16,
+     "h": 16
+    },
+    {
+     "tag": "BUTTON",
+     "text": "확인",
+     "w": 44,
+     "h": 28
+    }
+   ],
+   "activeTag": "BODY",
+   "inDialog": false,
+   "escapeClosed": false
+  },
+  "vw": 360,
+  "docH": 6129,
+  "hOverflow": false,
+  "smallTargets": 82,
+  "smallTargetsPage": 32,
+  "smallTargetsCard": 50,
+  "tinyCard": 125,
+  "tinyPage": 56,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "취향전체▾",
+    "w": 77.5,
+    "h": 30
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "취향 설정",
+    "w": 43,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "by 공방지기",
+    "w": 132,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 조용히 곁에 머무는 이야기를 건넵",
+    "w": 132,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "#랭킹",
+    "w": 27,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "by 공방지기",
+    "w": 132,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 조용히 곁에 머무는 이야기를 건넵",
+    "w": 132,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "#랭킹",
+    "w": 27,
+    "h": 16.5
+   }
+  ],
+  "tinyText": 181,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "EVENT"
+   },
+   {
+    "fs": 10,
+    "text": "취향"
+   },
+   {
+    "fs": 10,
+    "text": "▾"
+   },
+   {
+    "fs": 10,
+    "text": "FOR YOU"
+   },
+   {
+    "fs": 10,
+    "text": "학원"
+   }
+  ],
+  "outOfViewport": [
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": 0.3
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": 0.3
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": 0.3
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": 0.3
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": 0.3
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": 0.3
+   }
+  ],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "추천 캐릭터"
+  ],
+  "layout": {
+   "h1Left": 89,
+   "h1Top": 326.5,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": -156.7,
+   "contentRight": 1520,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": {
+   "top": 747,
+   "h": 53
+  },
+  "lowestContent": 730.8,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "홈",
+   "홈"
+  ],
+  "navActive": [
+   "홈",
+   "홈"
+  ],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 747,
+    "bottom": 800
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "home-user-390": {
+  "path": "/",
+  "user": "safe",
+  "width": 390,
+  "notice": {
+   "dialog": {
+    "w": 358,
+    "h": 240,
+    "top": 302,
+    "bottom": 542,
+    "vh": 844
+   },
+   "controls": [
+    {
+     "tag": "BUTTON",
+     "text": "공지 닫기",
+     "w": 32,
+     "h": 32
+    },
+    {
+     "tag": "LABEL",
+     "text": "오늘 하루 보지 않기",
+     "w": 113,
+     "h": 16
+    },
+    {
+     "tag": "INPUT",
+     "text": "",
+     "w": 16,
+     "h": 16
+    },
+    {
+     "tag": "BUTTON",
+     "text": "확인",
+     "w": 44,
+     "h": 28
+    }
+   ],
+   "activeTag": "BODY",
+   "inDialog": false,
+   "escapeClosed": false
+  },
+  "vw": 390,
+  "docH": 6334,
+  "hOverflow": false,
+  "smallTargets": 82,
+  "smallTargetsPage": 32,
+  "smallTargetsCard": 50,
+  "tinyCard": 125,
+  "tinyPage": 56,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "취향전체▾",
+    "w": 77.5,
+    "h": 30
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "취향 설정",
+    "w": 43,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "by 공방지기",
+    "w": 144.7,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 조용히 곁에 머무는 이야기를 건넵",
+    "w": 144.7,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "#랭킹",
+    "w": 27,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "by 공방지기",
+    "w": 144.7,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 조용히 곁에 머무는 이야기를 건넵",
+    "w": 144.7,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "#랭킹",
+    "w": 27,
+    "h": 16.5
+   }
+  ],
+  "tinyText": 181,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "EVENT"
+   },
+   {
+    "fs": 10,
+    "text": "취향"
+   },
+   {
+    "fs": 10,
+    "text": "▾"
+   },
+   {
+    "fs": 10,
+    "text": "FOR YOU"
+   },
+   {
+    "fs": 10,
+    "text": "학원"
+   }
+  ],
+  "outOfViewport": [
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": -1.2
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": -1.2
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": -1.2
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": -1.2
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": -1.2
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": -1.2
+   }
+  ],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "추천 캐릭터"
+  ],
+  "layout": {
+   "h1Left": 89,
+   "h1Top": 326.5,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": -173.2,
+   "contentRight": 1646.9,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": {
+   "top": 791,
+   "h": 53
+  },
+  "lowestContent": 775.3,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "홈",
+   "홈"
+  ],
+  "navActive": [
+   "홈",
+   "홈"
+  ],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 791,
+    "bottom": 844
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "home-user-768": {
+  "path": "/",
+  "user": "safe",
+  "width": 768,
+  "notice": {
+   "dialog": {
+    "w": 384,
+    "h": 240,
+    "top": 392,
+    "bottom": 632,
+    "vh": 1024
+   },
+   "controls": [
+    {
+     "tag": "BUTTON",
+     "text": "공지 닫기",
+     "w": 32,
+     "h": 32
+    },
+    {
+     "tag": "LABEL",
+     "text": "오늘 하루 보지 않기",
+     "w": 113,
+     "h": 16
+    },
+    {
+     "tag": "INPUT",
+     "text": "",
+     "w": 16,
+     "h": 16
+    },
+    {
+     "tag": "BUTTON",
+     "text": "확인",
+     "w": 44,
+     "h": 28
+    }
+   ],
+   "activeTag": "BODY",
+   "inDialog": false,
+   "escapeClosed": false
+  },
+  "vw": 768,
+  "docH": 4777,
+  "hOverflow": false,
+  "smallTargets": 83,
+  "smallTargetsPage": 33,
+  "smallTargetsCard": 50,
+  "tinyCard": 125,
+  "tinyPage": 54,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "전체",
+    "w": 58,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "여성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "남성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "by 공방지기",
+    "w": 204,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 조용히 곁에 머무는 이야기를 건넵",
+    "w": 204,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "#랭킹",
+    "w": 27,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "by 공방지기",
+    "w": 204,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 조용히 곁에 머무는 이야기를 건넵",
+    "w": 204,
+    "h": 40
+   }
+  ],
+  "tinyText": 179,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "EVENT"
+   },
+   {
+    "fs": 10,
+    "text": "FOR YOU"
+   },
+   {
+    "fs": 10,
+    "text": "학원"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "공방지기"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "추천 캐릭터"
+  ],
+  "layout": {
+   "h1Left": 289,
+   "h1Top": 355.5,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": -12.8,
+   "contentRight": 2476,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 999.5,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "홈"
+  ],
+  "navActive": [
+   "홈"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "home-user-1440": {
+  "path": "/",
+  "user": "safe",
+  "width": 1440,
+  "notice": {
+   "dialog": {
+    "w": 384,
+    "h": 240,
+    "top": 330,
+    "bottom": 570,
+    "vh": 900
+   },
+   "controls": [
+    {
+     "tag": "BUTTON",
+     "text": "공지 닫기",
+     "w": 32,
+     "h": 32
+    },
+    {
+     "tag": "LABEL",
+     "text": "오늘 하루 보지 않기",
+     "w": 113,
+     "h": 16
+    },
+    {
+     "tag": "INPUT",
+     "text": "",
+     "w": 16,
+     "h": 16
+    },
+    {
+     "tag": "BUTTON",
+     "text": "확인",
+     "w": 44,
+     "h": 28
+    }
+   ],
+   "activeTag": "BODY",
+   "inDialog": false,
+   "escapeClosed": false
+  },
+  "vw": 1440,
+  "docH": 4671,
+  "hOverflow": false,
+  "smallTargets": 83,
+  "smallTargetsPage": 33,
+  "smallTargetsCard": 50,
+  "tinyCard": 125,
+  "tinyPage": 55,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "전체",
+    "w": 58,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "여성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "남성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "by 공방지기",
+    "w": 228,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 조용히 곁에 머무는 이야기를 건넵",
+    "w": 228,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "#랭킹",
+    "w": 27,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "by 공방지기",
+    "w": 228,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 조용히 곁에 머무는 이야기를 건넵",
+    "w": 228,
+    "h": 40
+   }
+  ],
+  "tinyText": 180,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "EVENT"
+   },
+   {
+    "fs": 10,
+    "text": "CREATOR EVENT · 나만의 "
+   },
+   {
+    "fs": 10,
+    "text": "FOR YOU"
+   },
+   {
+    "fs": 10,
+    "text": "학원"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "추천 캐릭터"
+  ],
+  "layout": {
+   "h1Left": 391.1,
+   "h1Top": 305,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 16.8,
+   "contentRight": 2788.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 875.9,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "홈"
+  ],
+  "navActive": [
+   "홈"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "points-360": {
+  "path": "/points",
+  "user": "safe",
+  "width": 360,
+  "notice": null,
+  "vw": 360,
+  "docH": 2543,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 36.8,
+   "h": 72
+  },
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/points",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "출석 체크"
+  ],
+  "layout": {
+   "h1Left": 33,
+   "h1Top": 167,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": 16,
+   "contentRight": 344,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": {
+   "top": 747,
+   "h": 53
+  },
+  "lowestContent": 731.4,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 747,
+    "bottom": 800
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "points-390": {
+  "path": "/points",
+  "user": "safe",
+  "width": 390,
+  "notice": null,
+  "vw": 390,
+  "docH": 2508,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 41.1,
+   "h": 72
+  },
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/points",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "출석 체크"
+  ],
+  "layout": {
+   "h1Left": 33,
+   "h1Top": 167,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": 16,
+   "contentRight": 374,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": {
+   "top": 791,
+   "h": 53
+  },
+  "lowestContent": 774.6,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 791,
+    "bottom": 844
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "points-768": {
+  "path": "/points",
+  "user": "safe",
+  "width": 768,
+  "notice": null,
+  "vw": 768,
+  "docH": 2288,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 449,
+    "h": 36.1
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 61.6,
+   "h": 72
+  },
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/points",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "출석 체크"
+  ],
+  "layout": {
+   "h1Left": 237,
+   "h1Top": 171,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": 216,
+   "contentRight": 737,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 999.6,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "points-1440": {
+  "path": "/points",
+  "user": "safe",
+  "width": 1440,
+  "notice": null,
+  "vw": 1440,
+  "docH": 2182,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 96.8,
+   "h": 72
+  },
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/points",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "출석 체크"
+  ],
+  "layout": {
+   "h1Left": 449.5,
+   "h1Top": 126,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 428.5,
+   "contentRight": 1196.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 875.8,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "settings-360": {
+  "path": "/settings",
+  "user": "safe",
+  "width": 360,
+  "notice": null,
+  "vw": 360,
+  "docH": 2457,
+  "hOverflow": false,
+  "smallTargets": 6,
+  "smallTargetsPage": 6,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "전체",
+    "w": 58,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "여성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "남성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "",
+    "w": 52,
+    "h": 28
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "좋아요 푸시",
+    "w": 44,
+    "h": 24
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "댓글 푸시",
+    "w": 44,
+    "h": 24
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/settings",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "내 정보 · 설정"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 142,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": 12,
+   "contentRight": 348,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": {
+   "top": 747,
+   "h": 53
+  },
+  "lowestContent": 731.4,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "설정"
+  ],
+  "navActive": [
+   "설정"
+  ],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 747,
+    "bottom": 800
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "settings-390": {
+  "path": "/settings",
+  "user": "safe",
+  "width": 390,
+  "notice": null,
+  "vw": 390,
+  "docH": 2397,
+  "hOverflow": false,
+  "smallTargets": 6,
+  "smallTargetsPage": 6,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "전체",
+    "w": 58,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "여성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "남성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "",
+    "w": 52,
+    "h": 28
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "좋아요 푸시",
+    "w": 44,
+    "h": 24
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "댓글 푸시",
+    "w": 44,
+    "h": 24
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/settings",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "내 정보 · 설정"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 142,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": 12,
+   "contentRight": 378,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": {
+   "top": 791,
+   "h": 53
+  },
+  "lowestContent": 775.3,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "설정"
+  ],
+  "navActive": [
+   "설정"
+  ],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 791,
+    "bottom": 844
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "settings-768": {
+  "path": "/settings",
+  "user": "safe",
+  "width": 768,
+  "notice": null,
+  "vw": 768,
+  "docH": 2115,
+  "hOverflow": false,
+  "smallTargets": 6,
+  "smallTargetsPage": 6,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "전체",
+    "w": 58,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "여성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "남성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "",
+    "w": 52,
+    "h": 28
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "좋아요 푸시",
+    "w": 44,
+    "h": 24
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "댓글 푸시",
+    "w": 44,
+    "h": 24
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/settings",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "내 정보 · 설정"
+  ],
+  "layout": {
+   "h1Left": 216,
+   "h1Top": 142,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": 212,
+   "contentRight": 741,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 1000,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "settings-1440": {
+  "path": "/settings",
+  "user": "safe",
+  "width": 1440,
+  "notice": null,
+  "vw": 1440,
+  "docH": 1801,
+  "hOverflow": false,
+  "smallTargets": 6,
+  "smallTargetsPage": 6,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "전체",
+    "w": 58,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "여성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "남성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "",
+    "w": 52,
+    "h": 28
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "좋아요 푸시",
+    "w": 44,
+    "h": 24
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "댓글 푸시",
+    "w": 44,
+    "h": 24
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/settings",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "내 정보 · 설정"
+  ],
+  "layout": {
+   "h1Left": 300.5,
+   "h1Top": 97,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 300.5,
+   "contentRight": 1324.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 876.1,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "persona-360": {
+  "path": "/persona",
+  "user": "safe",
+  "width": 360,
+  "notice": null,
+  "vw": 360,
+  "docH": 1746,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 1,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "홈으로",
+    "w": 36,
+    "h": 44
+   }
+  ],
+  "tinyText": 1,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "일"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/persona",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "페르소나·노트 제작"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 150,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": 16,
+   "contentRight": 344,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": {
+   "top": 747,
+   "h": 53
+  },
+  "lowestContent": 731.3,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 747,
+    "bottom": 800
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "persona-390": {
+  "path": "/persona",
+  "user": "safe",
+  "width": 390,
+  "notice": null,
+  "vw": 390,
+  "docH": 1746,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 1,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "홈으로",
+    "w": 36,
+    "h": 44
+   }
+  ],
+  "tinyText": 1,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "일"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/persona",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "페르소나·노트 제작"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 150,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": 16,
+   "contentRight": 374,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": {
+   "top": 791,
+   "h": 53
+  },
+  "lowestContent": 775.3,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 791,
+    "bottom": 844
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "persona-768": {
+  "path": "/persona",
+  "user": "safe",
+  "width": 768,
+  "notice": null,
+  "vw": 768,
+  "docH": 1536,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 1,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "홈으로",
+    "w": 36,
+    "h": 44
+   }
+  ],
+  "tinyText": 1,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "일"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/persona",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "페르소나·노트 제작"
+  ],
+  "layout": {
+   "h1Left": 216,
+   "h1Top": 150,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": 216,
+   "contentRight": 737,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 999.6,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "페르소나·노트"
+  ],
+  "navActive": [
+   "페르소나·노트"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "persona-1440": {
+  "path": "/persona",
+  "user": "safe",
+  "width": 1440,
+  "notice": null,
+  "vw": 1440,
+  "docH": 1373,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 1,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "홈으로",
+    "w": 36,
+    "h": 44
+   }
+  ],
+  "tinyText": 1,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "일"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/persona",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "페르소나·노트 제작"
+  ],
+  "layout": {
+   "h1Left": 300.5,
+   "h1Top": 105,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 300.5,
+   "contentRight": 1324.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 875.8,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "페르소나·노트"
+  ],
+  "navActive": [
+   "페르소나·노트"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "chats-360": {
+  "path": "/chats",
+  "user": "safe",
+  "width": 360,
+  "notice": null,
+  "vw": 360,
+  "docH": 3235,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 80,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "선택 삭제",
+    "w": 69,
+    "h": 34
+   }
+  ],
+  "tinyText": 80,
+  "tinySample": [
+   {
+    "fs": 9,
+    "text": "24분 전 대화"
+   },
+   {
+    "fs": 10,
+    "text": "0턴 · 14개 대화"
+   },
+   {
+    "fs": 10,
+    "text": "대화를 시작해 보세요"
+   },
+   {
+    "fs": 10,
+    "text": "대화 선택 →"
+   },
+   {
+    "fs": 9,
+    "text": "27분 전 대화"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/chats",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "대화 목록"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 126,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": 16,
+   "contentRight": 344,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": {
+   "top": 747,
+   "h": 53
+  },
+  "lowestContent": 730.8,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "대화"
+  ],
+  "navActive": [
+   "대화"
+  ],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 747,
+    "bottom": 800
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "chats-390": {
+  "path": "/chats",
+  "user": "safe",
+  "width": 390,
+  "notice": null,
+  "vw": 390,
+  "docH": 3235,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 80,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "선택 삭제",
+    "w": 69,
+    "h": 34
+   }
+  ],
+  "tinyText": 80,
+  "tinySample": [
+   {
+    "fs": 9,
+    "text": "24분 전 대화"
+   },
+   {
+    "fs": 10,
+    "text": "0턴 · 14개 대화"
+   },
+   {
+    "fs": 10,
+    "text": "대화를 시작해 보세요"
+   },
+   {
+    "fs": 10,
+    "text": "대화 선택 →"
+   },
+   {
+    "fs": 9,
+    "text": "27분 전 대화"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/chats",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "대화 목록"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 126,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": 16,
+   "contentRight": 374,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": {
+   "top": 791,
+   "h": 53
+  },
+  "lowestContent": 774.8,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "대화"
+  ],
+  "navActive": [
+   "대화"
+  ],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 791,
+    "bottom": 844
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "chats-768": {
+  "path": "/chats",
+  "user": "safe",
+  "width": 768,
+  "notice": null,
+  "vw": 768,
+  "docH": 1688,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 80,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "선택 삭제",
+    "w": 69,
+    "h": 34
+   }
+  ],
+  "tinyText": 80,
+  "tinySample": [
+   {
+    "fs": 10,
+    "text": "24분 전 대화"
+   },
+   {
+    "fs": 11,
+    "text": "0턴 · 14개 대화"
+   },
+   {
+    "fs": 11,
+    "text": "대화를 시작해 보세요"
+   },
+   {
+    "fs": 11,
+    "text": "대화 선택 →"
+   },
+   {
+    "fs": 10,
+    "text": "27분 전 대화"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/chats",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "대화 목록"
+  ],
+  "layout": {
+   "h1Left": 216,
+   "h1Top": 126,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": 216,
+   "contentRight": 737,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 1000,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "대화 목록"
+  ],
+  "navActive": [
+   "대화 목록"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "chats-1440": {
+  "path": "/chats",
+  "user": "safe",
+  "width": 1440,
+  "notice": null,
+  "vw": 1440,
+  "docH": 2077,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "선택 삭제",
+    "w": 69,
+    "h": 34
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/chats",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "대화 목록"
+  ],
+  "layout": {
+   "h1Left": 288.5,
+   "h1Top": 81,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 288.5,
+   "contentRight": 1336.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 876.3,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "대화 목록"
+  ],
+  "navActive": [
+   "대화 목록"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "bookmarks-360": {
+  "path": "/bookmarks",
+  "user": "safe",
+  "width": 360,
+  "notice": null,
+  "vw": 360,
+  "docH": 3235,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 80,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "선택 삭제",
+    "w": 69,
+    "h": 34
+   }
+  ],
+  "tinyText": 80,
+  "tinySample": [
+   {
+    "fs": 9,
+    "text": "24분 전 대화"
+   },
+   {
+    "fs": 10,
+    "text": "0턴 · 14개 대화"
+   },
+   {
+    "fs": 10,
+    "text": "대화를 시작해 보세요"
+   },
+   {
+    "fs": 10,
+    "text": "대화 선택 →"
+   },
+   {
+    "fs": 9,
+    "text": "27분 전 대화"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/chats",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "대화 목록"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 126,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": 16,
+   "contentRight": 344,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": {
+   "top": 747,
+   "h": 53
+  },
+  "lowestContent": 730.8,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "대화"
+  ],
+  "navActive": [
+   "대화"
+  ],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 747,
+    "bottom": 800
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "bookmarks-390": {
+  "path": "/bookmarks",
+  "user": "safe",
+  "width": 390,
+  "notice": null,
+  "vw": 390,
+  "docH": 3235,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 80,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "선택 삭제",
+    "w": 69,
+    "h": 34
+   }
+  ],
+  "tinyText": 80,
+  "tinySample": [
+   {
+    "fs": 9,
+    "text": "24분 전 대화"
+   },
+   {
+    "fs": 10,
+    "text": "0턴 · 14개 대화"
+   },
+   {
+    "fs": 10,
+    "text": "대화를 시작해 보세요"
+   },
+   {
+    "fs": 10,
+    "text": "대화 선택 →"
+   },
+   {
+    "fs": 9,
+    "text": "27분 전 대화"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/chats",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "대화 목록"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 126,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": 16,
+   "contentRight": 374,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": {
+   "top": 791,
+   "h": 53
+  },
+  "lowestContent": 774.8,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "대화"
+  ],
+  "navActive": [
+   "대화"
+  ],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 791,
+    "bottom": 844
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "bookmarks-768": {
+  "path": "/bookmarks",
+  "user": "safe",
+  "width": 768,
+  "notice": null,
+  "vw": 768,
+  "docH": 1688,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 80,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "선택 삭제",
+    "w": 69,
+    "h": 34
+   }
+  ],
+  "tinyText": 80,
+  "tinySample": [
+   {
+    "fs": 10,
+    "text": "24분 전 대화"
+   },
+   {
+    "fs": 11,
+    "text": "0턴 · 14개 대화"
+   },
+   {
+    "fs": 11,
+    "text": "대화를 시작해 보세요"
+   },
+   {
+    "fs": 11,
+    "text": "대화 선택 →"
+   },
+   {
+    "fs": 10,
+    "text": "27분 전 대화"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/chats",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "대화 목록"
+  ],
+  "layout": {
+   "h1Left": 216,
+   "h1Top": 126,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": 216,
+   "contentRight": 737,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 1000,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "대화 목록"
+  ],
+  "navActive": [
+   "대화 목록"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "bookmarks-1440": {
+  "path": "/bookmarks",
+  "user": "safe",
+  "width": 1440,
+  "notice": null,
+  "vw": 1440,
+  "docH": 2077,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "선택 삭제",
+    "w": 69,
+    "h": 34
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/chats",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "대화 목록"
+  ],
+  "layout": {
+   "h1Left": 288.5,
+   "h1Top": 81,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 288.5,
+   "contentRight": 1336.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 876.3,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "대화 목록"
+  ],
+  "navActive": [
+   "대화 목록"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "notifications-360": {
+  "path": "/notifications",
+  "user": "safe",
+  "width": 360,
+  "notice": null,
+  "vw": 360,
+  "docH": 800,
+  "hOverflow": false,
+  "smallTargets": 0,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [
+   {
+    "m": "POST",
+    "p": "/api/notifications/read"
+   }
+  ],
+  "finalUrl": "/notifications",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "알림"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 142,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": 16,
+   "contentRight": 344,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": {
+   "top": 747,
+   "h": 53
+  },
+  "lowestContent": 731,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 747,
+    "bottom": 800
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "notifications-390": {
+  "path": "/notifications",
+  "user": "safe",
+  "width": 390,
+  "notice": null,
+  "vw": 390,
+  "docH": 844,
+  "hOverflow": false,
+  "smallTargets": 0,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [
+   {
+    "m": "POST",
+    "p": "/api/notifications/read"
+   }
+  ],
+  "finalUrl": "/notifications",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "알림"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 142,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": 16,
+   "contentRight": 374,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": {
+   "top": 791,
+   "h": 53
+  },
+  "lowestContent": 775,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 791,
+    "bottom": 844
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "notifications-768": {
+  "path": "/notifications",
+  "user": "safe",
+  "width": 768,
+  "notice": null,
+  "vw": 768,
+  "docH": 1024,
+  "hOverflow": false,
+  "smallTargets": 0,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [
+   {
+    "m": "POST",
+    "p": "/api/notifications/read"
+   }
+  ],
+  "finalUrl": "/notifications",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "알림"
+  ],
+  "layout": {
+   "h1Left": 216,
+   "h1Top": 142,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": 216,
+   "contentRight": 737,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 1000,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "notifications-1440": {
+  "path": "/notifications",
+  "user": "safe",
+  "width": 1440,
+  "notice": null,
+  "vw": 1440,
+  "docH": 900,
+  "hOverflow": false,
+  "smallTargets": 0,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [
+   {
+    "m": "POST",
+    "p": "/api/notifications/read"
+   }
+  ],
+  "finalUrl": "/notifications",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "알림"
+  ],
+  "layout": {
+   "h1Left": 476.5,
+   "h1Top": 97,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 476.5,
+   "contentRight": 1148.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 876,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "detail-user-360": {
+  "path": "/character/10",
+  "user": "safe",
+  "width": 360,
+  "notice": null,
+  "vw": 360,
+  "docH": 1221,
+  "hOverflow": false,
+  "smallTargets": 0,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/character/10",
+  "status": 404,
+  "title": "404: This page could not be found.",
+  "h1": [
+   "404"
+  ],
+  "layout": {
+   "h1Left": 39.6,
+   "h1Top": 501.5,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": 16,
+   "contentRight": 344,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": {
+   "top": 747,
+   "h": 53
+  },
+  "lowestContent": 730.6,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 747,
+    "bottom": 800
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "detail-user-390": {
+  "path": "/character/10",
+  "user": "safe",
+  "width": 390,
+  "notice": null,
+  "vw": 390,
+  "docH": 1265,
+  "hOverflow": false,
+  "smallTargets": 0,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/character/10",
+  "status": 404,
+  "title": "404: This page could not be found.",
+  "h1": [
+   "404"
+  ],
+  "layout": {
+   "h1Left": 54.6,
+   "h1Top": 523.5,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": 16,
+   "contentRight": 374,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": {
+   "top": 791,
+   "h": 53
+  },
+  "lowestContent": 774.6,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 791,
+    "bottom": 844
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "detail-user-768": {
+  "path": "/character/10",
+  "user": "safe",
+  "width": 768,
+  "notice": null,
+  "vw": 768,
+  "docH": 1360,
+  "hOverflow": false,
+  "smallTargets": 0,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/character/10",
+  "status": 404,
+  "title": "404: This page could not be found.",
+  "h1": [
+   "404"
+  ],
+  "layout": {
+   "h1Left": 336.1,
+   "h1Top": 613.5,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": 216,
+   "contentRight": 737,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 999.9,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "detail-user-1440": {
+  "path": "/character/10",
+  "user": "safe",
+  "width": 1440,
+  "notice": null,
+  "vw": 1440,
+  "docH": 1151,
+  "hOverflow": false,
+  "smallTargets": 0,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [
+   "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/character/10",
+  "status": 404,
+  "title": "404: This page could not be found.",
+  "h1": [
+   "404"
+  ],
+  "layout": {
+   "h1Left": 672.1,
+   "h1Top": 506.5,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 288.5,
+   "contentRight": 1336.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 876.1,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "search-user-360": {
+  "path": "/search?q=%EC%83%88%EB%B2%BD",
+  "user": "safe",
+  "width": 360,
+  "notice": null,
+  "vw": 360,
+  "docH": 5556,
+  "hOverflow": false,
+  "smallTargets": 96,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 96,
+  "tinyCard": 133,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 133,
+  "tinySample": [
+   {
+    "fs": 9,
+    "text": "공식"
+   },
+   {
+    "fs": 10,
+    "text": "로맨스 판타지"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "하브 공식"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/search?q=%EC%83%88%EB%B2%BD",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "검색"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 150,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": -596,
+   "contentRight": 1639,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": {
+   "top": 747,
+   "h": 53
+  },
+  "lowestContent": 730.8,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "검색",
+   "전체",
+   "#새벽"
+  ],
+  "navActive": [
+   "검색"
+  ],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 747,
+    "bottom": 800
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "search-user-390": {
+  "path": "/search?q=%EC%83%88%EB%B2%BD",
+  "user": "safe",
+  "width": 390,
+  "notice": null,
+  "vw": 390,
+  "docH": 5783,
+  "hOverflow": false,
+  "smallTargets": 96,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 96,
+  "tinyCard": 133,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 133,
+  "tinySample": [
+   {
+    "fs": 9,
+    "text": "공식"
+   },
+   {
+    "fs": 10,
+    "text": "로맨스 판타지"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "하브 공식"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/search?q=%EC%83%88%EB%B2%BD",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "검색"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 150,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": -566,
+   "contentRight": 1639,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": {
+   "top": 791,
+   "h": 53
+  },
+  "lowestContent": 775.5,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "검색",
+   "전체",
+   "#새벽"
+  ],
+  "navActive": [
+   "검색"
+  ],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 791,
+    "bottom": 844
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "search-user-768": {
+  "path": "/search?q=%EC%83%88%EB%B2%BD",
+  "user": "safe",
+  "width": 768,
+  "notice": null,
+  "vw": 768,
+  "docH": 4124,
+  "hOverflow": false,
+  "smallTargets": 96,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 96,
+  "tinyCard": 133,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 133,
+  "tinySample": [
+   {
+    "fs": 9,
+    "text": "공식"
+   },
+   {
+    "fs": 10,
+    "text": "로맨스 판타지"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "하브 공식"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/search?q=%EC%83%88%EB%B2%BD",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "검색"
+  ],
+  "layout": {
+   "h1Left": 216,
+   "h1Top": 150,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": 216,
+   "contentRight": 737,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 999.5,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "검색",
+   "전체",
+   "#새벽"
+  ],
+  "navActive": [
+   "검색"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "search-user-1440": {
+  "path": "/search?q=%EC%83%88%EB%B2%BD",
+  "user": "safe",
+  "width": 1440,
+  "notice": null,
+  "vw": 1440,
+  "docH": 3221,
+  "hOverflow": false,
+  "smallTargets": 96,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 96,
+  "tinyCard": 133,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 133,
+  "tinySample": [
+   {
+    "fs": 9,
+    "text": "공식"
+   },
+   {
+    "fs": 10,
+    "text": "로맨스 판타지"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "하브 공식"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/search?q=%EC%83%88%EB%B2%BD",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "검색"
+  ],
+  "layout": {
+   "h1Left": 288.5,
+   "h1Top": 105,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 288.5,
+   "contentRight": 1336.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 876.4,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "검색",
+   "전체",
+   "#새벽"
+  ],
+  "navActive": [
+   "검색"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "studio-360": {
+  "path": "/studio",
+  "user": "creatorA",
+  "width": 360,
+  "notice": null,
+  "vw": 360,
+  "docH": 7030,
+  "hOverflow": false,
+  "smallTargets": 102,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 102,
+  "tinyCard": 132,
+  "tinyPage": 3,
+  "smallSample": [],
+  "tinyText": 135,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "43"
+   },
+   {
+    "fs": 11,
+    "text": "0"
+   },
+   {
+    "fs": 11,
+    "text": "0"
+   },
+   {
+    "fs": 10,
+    "text": "로맨스"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/studio",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "제작"
+  ],
+  "layout": {
+   "h1Left": 32,
+   "h1Top": 150,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": 16,
+   "contentRight": 344,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": {
+   "top": 747,
+   "h": 53
+  },
+  "lowestContent": 731.4,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "제작"
+  ],
+  "navActive": [
+   "제작"
+  ],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 747,
+    "bottom": 800
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "studio-390": {
+  "path": "/studio",
+  "user": "creatorA",
+  "width": 390,
+  "notice": null,
+  "vw": 390,
+  "docH": 6921,
+  "hOverflow": false,
+  "smallTargets": 102,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 102,
+  "tinyCard": 132,
+  "tinyPage": 3,
+  "smallSample": [],
+  "tinyText": 135,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "43"
+   },
+   {
+    "fs": 11,
+    "text": "0"
+   },
+   {
+    "fs": 11,
+    "text": "0"
+   },
+   {
+    "fs": 10,
+    "text": "로맨스"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/studio",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "제작"
+  ],
+  "layout": {
+   "h1Left": 32,
+   "h1Top": 150,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": 16,
+   "contentRight": 374,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": {
+   "top": 791,
+   "h": 53
+  },
+  "lowestContent": 774.6,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "제작"
+  ],
+  "navActive": [
+   "제작"
+  ],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 791,
+    "bottom": 844
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "studio-768": {
+  "path": "/studio",
+  "user": "creatorA",
+  "width": 768,
+  "notice": null,
+  "vw": 768,
+  "docH": 4960,
+  "hOverflow": false,
+  "smallTargets": 102,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 102,
+  "tinyCard": 132,
+  "tinyPage": 3,
+  "smallSample": [],
+  "tinyText": 135,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "43"
+   },
+   {
+    "fs": 11,
+    "text": "0"
+   },
+   {
+    "fs": 11,
+    "text": "0"
+   },
+   {
+    "fs": 10,
+    "text": "로맨스"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/studio",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "제작"
+  ],
+  "layout": {
+   "h1Left": 232,
+   "h1Top": 158,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": 216,
+   "contentRight": 737,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 1000,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "제작"
+  ],
+  "navActive": [
+   "제작"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "studio-1440": {
+  "path": "/studio",
+  "user": "creatorA",
+  "width": 1440,
+  "notice": null,
+  "vw": 1440,
+  "docH": 3368,
+  "hOverflow": false,
+  "smallTargets": 102,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 102,
+  "tinyCard": 132,
+  "tinyPage": 3,
+  "smallSample": [],
+  "tinyText": 135,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "43"
+   },
+   {
+    "fs": 11,
+    "text": "0"
+   },
+   {
+    "fs": 11,
+    "text": "0"
+   },
+   {
+    "fs": 10,
+    "text": "로맨스"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/studio",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "제작"
+  ],
+  "layout": {
+   "h1Left": 304.5,
+   "h1Top": 113,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 288.5,
+   "contentRight": 1336.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 876.3,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "제작"
+  ],
+  "navActive": [
+   "제작"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "my-characters-360": {
+  "path": "/my-characters",
+  "user": "creatorA",
+  "width": 360,
+  "notice": null,
+  "vw": 360,
+  "docH": 11303,
+  "hOverflow": false,
+  "smallTargets": 198,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 197,
+  "tinyCard": 265,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "← 제작 메뉴",
+    "w": 69,
+    "h": 16
+   }
+  ],
+  "tinyText": 265,
+  "tinySample": [
+   {
+    "fs": 10,
+    "text": "로맨스"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "공방지기"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   },
+   {
+    "fs": 10.5,
+    "text": "랭킹"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/my-characters",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "내 제작 캐릭터"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 166,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": 16,
+   "contentRight": 344,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": {
+   "top": 747,
+   "h": 53
+  },
+  "lowestContent": 730.7,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 747,
+    "bottom": 800
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "my-characters-390": {
+  "path": "/my-characters",
+  "user": "creatorA",
+  "width": 390,
+  "notice": null,
+  "vw": 390,
+  "docH": 11697,
+  "hOverflow": false,
+  "smallTargets": 198,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 197,
+  "tinyCard": 265,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "← 제작 메뉴",
+    "w": 69,
+    "h": 16
+   }
+  ],
+  "tinyText": 265,
+  "tinySample": [
+   {
+    "fs": 10,
+    "text": "로맨스"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "공방지기"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   },
+   {
+    "fs": 10.5,
+    "text": "랭킹"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/my-characters",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "내 제작 캐릭터"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 166,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": 16,
+   "contentRight": 374,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": {
+   "top": 791,
+   "h": 53
+  },
+  "lowestContent": 775.4,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 791,
+    "bottom": 844
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "my-characters-768": {
+  "path": "/my-characters",
+  "user": "creatorA",
+  "width": 768,
+  "notice": null,
+  "vw": 768,
+  "docH": 7901,
+  "hOverflow": false,
+  "smallTargets": 198,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 197,
+  "tinyCard": 265,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "← 제작 메뉴",
+    "w": 69,
+    "h": 16
+   }
+  ],
+  "tinyText": 265,
+  "tinySample": [
+   {
+    "fs": 10,
+    "text": "로맨스"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "공방지기"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   },
+   {
+    "fs": 10.5,
+    "text": "랭킹"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/my-characters",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "내 제작 캐릭터"
+  ],
+  "layout": {
+   "h1Left": 216,
+   "h1Top": 166,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": 216,
+   "contentRight": 737,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 999.8,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "my-characters-1440": {
+  "path": "/my-characters",
+  "user": "creatorA",
+  "width": 1440,
+  "notice": null,
+  "vw": 1440,
+  "docH": 5246,
+  "hOverflow": false,
+  "smallTargets": 198,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 197,
+  "tinyCard": 265,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "← 제작 메뉴",
+    "w": 69,
+    "h": 16
+   }
+  ],
+  "tinyText": 265,
+  "tinySample": [
+   {
+    "fs": 10,
+    "text": "로맨스"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "공방지기"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   },
+   {
+    "fs": 10.5,
+    "text": "랭킹"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/my-characters",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "내 제작 캐릭터"
+  ],
+  "layout": {
+   "h1Left": 288.5,
+   "h1Top": 121,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 288.5,
+   "contentRight": 1336.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 876.4,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "creator-dash-360": {
+  "path": "/creator",
+  "user": "creatorA",
+  "width": 360,
+  "notice": null,
+  "vw": 360,
+  "docH": 3803,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "INPUT",
+    "text": "",
+    "w": 24,
+    "h": 24
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/creator",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "크리에이터"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 150,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": 16,
+   "contentRight": 344,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": {
+   "top": 747,
+   "h": 53
+  },
+  "lowestContent": 1683.6,
+  "lowestEl": "LI:달빛 정원사 10%0CP",
+  "contentCoveredByBottomNav": true,
+  "overlapPx": 936.6,
+  "active": [
+   "새싹 크리에이터 · 4%현재 "
+  ],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 747,
+    "bottom": 800
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "creator-dash-390": {
+  "path": "/creator",
+  "user": "creatorA",
+  "width": 390,
+  "notice": null,
+  "vw": 390,
+  "docH": 3723,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "INPUT",
+    "text": "",
+    "w": 24,
+    "h": 24
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/creator",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "크리에이터"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 150,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": 16,
+   "contentRight": 374,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": {
+   "top": 791,
+   "h": 53
+  },
+  "lowestContent": 1748.5,
+  "lowestEl": "LI:달빛 정원사 10%0CP",
+  "contentCoveredByBottomNav": true,
+  "overlapPx": 957.5,
+  "active": [
+   "새싹 크리에이터 · 4%현재 "
+  ],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 791,
+    "bottom": 844
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "creator-dash-768": {
+  "path": "/creator",
+  "user": "creatorA",
+  "width": 768,
+  "notice": null,
+  "vw": 768,
+  "docH": 3211,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "INPUT",
+    "text": "",
+    "w": 24,
+    "h": 24
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/creator",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "크리에이터"
+  ],
+  "layout": {
+   "h1Left": 216,
+   "h1Top": 150,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": 216,
+   "contentRight": 737,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 2232.1,
+  "lowestEl": "LI:달빛 정원사 10%0CP",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "크리에이터",
+   "새싹 크리에이터 · 4%현재 "
+  ],
+  "navActive": [
+   "크리에이터"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "creator-dash-1440": {
+  "path": "/creator",
+  "user": "creatorA",
+  "width": 1440,
+  "notice": null,
+  "vw": 1440,
+  "docH": 1826,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "INPUT",
+    "text": "",
+    "w": 24,
+    "h": 24
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/creator",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "크리에이터"
+  ],
+  "layout": {
+   "h1Left": 288.5,
+   "h1Top": 105,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 288.5,
+   "contentRight": 1336.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 3354.6,
+  "lowestEl": "LI:달빛 정원사 10%0CP",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "크리에이터",
+   "새싹 크리에이터 · 4%현재 "
+  ],
+  "navActive": [
+   "크리에이터"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "create-360": {
+  "path": "/create",
+  "user": "creatorA",
+  "width": 360,
+  "notice": null,
+  "vw": 360,
+  "docH": 5476,
+  "hOverflow": false,
+  "smallTargets": 5,
+  "smallTargetsPage": 5,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 20,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "← 제작 메뉴",
+    "w": 69,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "SELECT",
+    "text": "저장된 세계관 불러오기",
+    "w": 98,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "세계관 먼저 만들기",
+    "w": 86,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "로어북 먼저 만들기",
+    "w": 86,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "필수 8개 남음 · 캐릭터명 채우러 가기",
+    "w": 183,
+    "h": 32
+   }
+  ],
+  "tinyText": 20,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "6"
+   },
+   {
+    "fs": 11,
+    "text": "개 필수 항목 남음"
+   },
+   {
+    "fs": 11,
+    "text": "2"
+   },
+   {
+    "fs": 11,
+    "text": "개 필수 항목 남음"
+   },
+   {
+    "fs": 11,
+    "text": "필수"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/create",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "캐릭터·시뮬레이션 제작"
+  ],
+  "layout": {
+   "h1Left": 32,
+   "h1Top": 178,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": 0,
+   "contentRight": 360,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": {
+   "top": 747,
+   "h": 53
+  },
+  "lowestContent": 875.5,
+  "lowestEl": "P:12,000자 합산 한도에 포함 · 최소 작",
+  "contentCoveredByBottomNav": true,
+  "overlapPx": 128.5,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "DIV",
+    "label": "",
+    "h": 109,
+    "top": 638,
+    "bottom": 747
+   },
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 747,
+    "bottom": 800
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "create-390": {
+  "path": "/create",
+  "user": "creatorA",
+  "width": 390,
+  "notice": null,
+  "vw": 390,
+  "docH": 5307,
+  "hOverflow": false,
+  "smallTargets": 5,
+  "smallTargetsPage": 5,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 20,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "← 제작 메뉴",
+    "w": 69,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "SELECT",
+    "text": "저장된 세계관 불러오기",
+    "w": 98,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "세계관 먼저 만들기",
+    "w": 86,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "로어북 먼저 만들기",
+    "w": 86,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "필수 8개 남음 · 캐릭터명 채우러 가기",
+    "w": 183,
+    "h": 32
+   }
+  ],
+  "tinyText": 20,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "6"
+   },
+   {
+    "fs": 11,
+    "text": "개 필수 항목 남음"
+   },
+   {
+    "fs": 11,
+    "text": "2"
+   },
+   {
+    "fs": 11,
+    "text": "개 필수 항목 남음"
+   },
+   {
+    "fs": 11,
+    "text": "필수"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/create",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "캐릭터·시뮬레이션 제작"
+  ],
+  "layout": {
+   "h1Left": 32,
+   "h1Top": 178,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": 0,
+   "contentRight": 390,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": {
+   "top": 791,
+   "h": 53
+  },
+  "lowestContent": 877.6,
+  "lowestEl": "P:12,000자 합산 한도에 포함 · 최소 작",
+  "contentCoveredByBottomNav": true,
+  "overlapPx": 86.6,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "DIV",
+    "label": "",
+    "h": 109,
+    "top": 682,
+    "bottom": 791
+   },
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 791,
+    "bottom": 844
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "create-768": {
+  "path": "/create",
+  "user": "creatorA",
+  "width": 768,
+  "notice": null,
+  "vw": 768,
+  "docH": 4895,
+  "hOverflow": false,
+  "smallTargets": 5,
+  "smallTargetsPage": 5,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 24,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "← 제작 메뉴",
+    "w": 69,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "SELECT",
+    "text": "저장된 세계관 불러오기",
+    "w": 98,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "세계관 먼저 만들기",
+    "w": 86,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "로어북 먼저 만들기",
+    "w": 86,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "필수 8개 남음 · 캐릭터명 채우러 가기",
+    "w": 183,
+    "h": 32
+   }
+  ],
+  "tinyText": 24,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "1"
+   },
+   {
+    "fs": 11,
+    "text": "6"
+   },
+   {
+    "fs": 11,
+    "text": "개 필수 항목 남음"
+   },
+   {
+    "fs": 11,
+    "text": "2"
+   },
+   {
+    "fs": 11,
+    "text": "3"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/create",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "캐릭터·시뮬레이션 제작"
+  ],
+  "layout": {
+   "h1Left": 232,
+   "h1Top": 178,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": 0,
+   "contentRight": 753,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 1152.9,
+  "lowestEl": "P:12,000자 합산 한도에 포함 · 최소 작",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   },
+   {
+    "tag": "DIV",
+    "label": "",
+    "h": 69,
+    "top": 955,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "create-1440": {
+  "path": "/create",
+  "user": "creatorA",
+  "width": 1440,
+  "notice": null,
+  "vw": 1440,
+  "docH": 4674,
+  "hOverflow": false,
+  "smallTargets": 16,
+  "smallTargetsPage": 16,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 26,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "← 제작 메뉴",
+    "w": 69,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "SELECT",
+    "text": "저장된 세계관 불러오기",
+    "w": 98,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "세계관 먼저 만들기",
+    "w": 86,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "로어북 먼저 만들기",
+    "w": 86,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "1카드 정보필요",
+    "w": 246,
+    "h": 36
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "2AI 설정필요",
+    "w": 246,
+    "h": 36
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "3캐릭터 성별필요",
+    "w": 246,
+    "h": 36
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "4첫 메세지필요",
+    "w": 246,
+    "h": 36
+   }
+  ],
+  "tinyText": 26,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "1"
+   },
+   {
+    "fs": 11,
+    "text": "6"
+   },
+   {
+    "fs": 11,
+    "text": "개 필수 항목 남음"
+   },
+   {
+    "fs": 11,
+    "text": "2"
+   },
+   {
+    "fs": 11,
+    "text": "3"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/create",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "캐릭터·시뮬레이션 제작"
+  ],
+  "layout": {
+   "h1Left": 304.5,
+   "h1Top": 133,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 136.5,
+   "contentRight": 1336.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 1005.5,
+  "lowestEl": "P:12,000자 합산 한도에 포함 · 최소 작",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   },
+   {
+    "tag": "DIV",
+    "label": "",
+    "h": 69,
+    "top": 831,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "creator-public-user-360": {
+  "path": "/creator/5",
+  "user": "safe",
+  "width": 360,
+  "notice": null,
+  "vw": 360,
+  "docH": 5754,
+  "hOverflow": false,
+  "smallTargets": 106,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 106,
+  "tinyCard": 140,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 140,
+  "tinySample": [
+   {
+    "fs": 10,
+    "text": "로맨스"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "공방지기"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   },
+   {
+    "fs": 10.5,
+    "text": "랭킹"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/creator/5",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "@공방지기"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 178,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": 16,
+   "contentRight": 344,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": {
+   "top": 747,
+   "h": 53
+  },
+  "lowestContent": 731,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 747,
+    "bottom": 800
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "creator-public-user-390": {
+  "path": "/creator/5",
+  "user": "safe",
+  "width": 390,
+  "notice": null,
+  "vw": 390,
+  "docH": 5905,
+  "hOverflow": false,
+  "smallTargets": 106,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 106,
+  "tinyCard": 140,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 140,
+  "tinySample": [
+   {
+    "fs": 10,
+    "text": "로맨스"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "공방지기"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   },
+   {
+    "fs": 10.5,
+    "text": "랭킹"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/creator/5",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "@공방지기"
+  ],
+  "layout": {
+   "h1Left": 16,
+   "h1Top": 178,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": 16,
+   "contentRight": 374,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": {
+   "top": 791,
+   "h": 53
+  },
+  "lowestContent": 775.2,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 791,
+    "bottom": 844
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "creator-public-user-768": {
+  "path": "/creator/5",
+  "user": "safe",
+  "width": 768,
+  "notice": null,
+  "vw": 768,
+  "docH": 4733,
+  "hOverflow": false,
+  "smallTargets": 106,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 106,
+  "tinyCard": 140,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 140,
+  "tinySample": [
+   {
+    "fs": 10,
+    "text": "로맨스"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "공방지기"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   },
+   {
+    "fs": 10.5,
+    "text": "랭킹"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/creator/5",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "@공방지기"
+  ],
+  "layout": {
+   "h1Left": 216,
+   "h1Top": 194,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": 216,
+   "contentRight": 737,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 999.5,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "크리에이터"
+  ],
+  "navActive": [
+   "크리에이터"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "creator-public-user-1440": {
+  "path": "/creator/5",
+  "user": "safe",
+  "width": 1440,
+  "notice": null,
+  "vw": 1440,
+  "docH": 4483,
+  "hOverflow": false,
+  "smallTargets": 106,
+  "smallTargetsPage": 0,
+  "smallTargetsCard": 106,
+  "tinyCard": 140,
+  "tinyPage": 0,
+  "smallSample": [],
+  "tinyText": 140,
+  "tinySample": [
+   {
+    "fs": 10,
+    "text": "로맨스"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   },
+   {
+    "fs": 11,
+    "text": "공방지기"
+   },
+   {
+    "fs": 10.5,
+    "text": "#"
+   },
+   {
+    "fs": 10.5,
+    "text": "랭킹"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/creator/5",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "@공방지기"
+  ],
+  "layout": {
+   "h1Left": 300.5,
+   "h1Top": 149,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 300.5,
+   "contentRight": 1324.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 875.6,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "크리에이터"
+  ],
+  "navActive": [
+   "크리에이터"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "points-creator-360": {
+  "path": "/points",
+  "user": "creatorA",
+  "width": 360,
+  "notice": null,
+  "vw": 360,
+  "docH": 2543,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 36.8,
+   "h": 72
+  },
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/points",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "출석 체크"
+  ],
+  "layout": {
+   "h1Left": 33,
+   "h1Top": 167,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": 16,
+   "contentRight": 344,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": {
+   "top": 747,
+   "h": 53
+  },
+  "lowestContent": 731.4,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 747,
+    "bottom": 800
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "points-creator-390": {
+  "path": "/points",
+  "user": "creatorA",
+  "width": 390,
+  "notice": null,
+  "vw": 390,
+  "docH": 2508,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 41.1,
+   "h": 72
+  },
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/points",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "출석 체크"
+  ],
+  "layout": {
+   "h1Left": 33,
+   "h1Top": 167,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": 16,
+   "contentRight": 374,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": {
+   "top": 791,
+   "h": 53
+  },
+  "lowestContent": 774.6,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 791,
+    "bottom": 844
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "points-creator-768": {
+  "path": "/points",
+  "user": "creatorA",
+  "width": 768,
+  "notice": null,
+  "vw": 768,
+  "docH": 2288,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 449,
+    "h": 36.1
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 61.6,
+   "h": 72
+  },
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/points",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "출석 체크"
+  ],
+  "layout": {
+   "h1Left": 237,
+   "h1Top": 171,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": 216,
+   "contentRight": 737,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 999.6,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "points-creator-1440": {
+  "path": "/points",
+  "user": "creatorA",
+  "width": 1440,
+  "notice": null,
+  "vw": 1440,
+  "docH": 2182,
+  "hOverflow": false,
+  "smallTargets": 1,
+  "smallTargetsPage": 1,
+  "smallTargetsCard": 0,
+  "tinyCard": 0,
+  "tinyPage": 0,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "A",
+    "text": "결제 및 환불 정책",
+    "w": 86,
+    "h": 15
+   }
+  ],
+  "tinyText": 0,
+  "tinySample": [],
+  "outOfViewport": [],
+  "cellSize": {
+   "w": 96.8,
+   "h": 72
+  },
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/points",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "출석 체크"
+  ],
+  "layout": {
+   "h1Left": 449.5,
+   "h1Top": 126,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 428.5,
+   "contentRight": 1196.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 875.8,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [],
+  "navActive": [],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "home-admin-360": {
+  "path": "/",
+  "user": "admin",
+  "width": 360,
+  "notice": {
+   "dialog": {
+    "w": 328,
+    "h": 264,
+    "top": 268,
+    "bottom": 532,
+    "vh": 800
+   },
+   "controls": [
+    {
+     "tag": "BUTTON",
+     "text": "공지 닫기",
+     "w": 32,
+     "h": 32
+    },
+    {
+     "tag": "LABEL",
+     "text": "오늘 하루 보지 않기",
+     "w": 113,
+     "h": 16
+    },
+    {
+     "tag": "INPUT",
+     "text": "",
+     "w": 16,
+     "h": 16
+    },
+    {
+     "tag": "BUTTON",
+     "text": "확인",
+     "w": 44,
+     "h": 28
+    }
+   ],
+   "activeTag": "BODY",
+   "inDialog": false,
+   "escapeClosed": false
+  },
+  "vw": 360,
+  "docH": 6129,
+  "hOverflow": false,
+  "smallTargets": 88,
+  "smallTargetsPage": 38,
+  "smallTargetsCard": 50,
+  "tinyCard": 125,
+  "tinyPage": 73,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "취향전체▾",
+    "w": 77.5,
+    "h": 30
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "취향 설정",
+    "w": 43,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 새벽의 공식 안내인의 한 줄 소개",
+    "w": 132,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "#새벽",
+    "w": 27,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 새벽 성인 공식 캐릭터의 한 줄 ",
+    "w": 132,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "#새벽",
+    "w": 27,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "by 달빛서점",
+    "w": 132,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 새벽 정원사의 한 줄 소개입니다.",
+    "w": 132,
+    "h": 40
+   }
+  ],
+  "tinyText": 198,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "EVENT"
+   },
+   {
+    "fs": 10,
+    "text": "취향"
+   },
+   {
+    "fs": 10,
+    "text": "▾"
+   },
+   {
+    "fs": 10,
+    "text": "FOR YOU"
+   },
+   {
+    "fs": 9,
+    "text": "공식"
+   }
+  ],
+  "outOfViewport": [
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": 0.3
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": 0.3
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": 0.3
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": 0.3
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": 0.3
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": 0.3
+   }
+  ],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "추천 캐릭터"
+  ],
+  "layout": {
+   "h1Left": 89,
+   "h1Top": 326.5,
+   "mainLeft": 16,
+   "mainWidth": 328,
+   "contentLeft": -156.7,
+   "contentRight": 1520,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13.8,
+  "bottomNav": {
+   "top": 747,
+   "h": 53
+  },
+  "lowestContent": 730.8,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "홈",
+   "홈"
+  ],
+  "navActive": [
+   "홈",
+   "홈"
+  ],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 747,
+    "bottom": 800
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "home-admin-390": {
+  "path": "/",
+  "user": "admin",
+  "width": 390,
+  "notice": {
+   "dialog": {
+    "w": 358,
+    "h": 240,
+    "top": 302,
+    "bottom": 542,
+    "vh": 844
+   },
+   "controls": [
+    {
+     "tag": "BUTTON",
+     "text": "공지 닫기",
+     "w": 32,
+     "h": 32
+    },
+    {
+     "tag": "LABEL",
+     "text": "오늘 하루 보지 않기",
+     "w": 113,
+     "h": 16
+    },
+    {
+     "tag": "INPUT",
+     "text": "",
+     "w": 16,
+     "h": 16
+    },
+    {
+     "tag": "BUTTON",
+     "text": "확인",
+     "w": 44,
+     "h": 28
+    }
+   ],
+   "activeTag": "BODY",
+   "inDialog": false,
+   "escapeClosed": false
+  },
+  "vw": 390,
+  "docH": 6334,
+  "hOverflow": false,
+  "smallTargets": 88,
+  "smallTargetsPage": 38,
+  "smallTargetsCard": 50,
+  "tinyCard": 125,
+  "tinyPage": 73,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "취향전체▾",
+    "w": 77.5,
+    "h": 30
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "취향 설정",
+    "w": 43,
+    "h": 16
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 새벽의 공식 안내인의 한 줄 소개",
+    "w": 144.7,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "#새벽",
+    "w": 27,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 새벽 성인 공식 캐릭터의 한 줄 ",
+    "w": 144.7,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "#새벽",
+    "w": 27,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "by 달빛서점",
+    "w": 144.7,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 새벽 정원사의 한 줄 소개입니다.",
+    "w": 144.7,
+    "h": 40
+   }
+  ],
+  "tinyText": 198,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "EVENT"
+   },
+   {
+    "fs": 10,
+    "text": "취향"
+   },
+   {
+    "fs": 10,
+    "text": "▾"
+   },
+   {
+    "fs": 10,
+    "text": "FOR YOU"
+   },
+   {
+    "fs": 9,
+    "text": "공식"
+   }
+  ],
+  "outOfViewport": [
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": -1.2
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": -1.2
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": -1.2
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": -1.2
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": -1.2
+   },
+   {
+    "tag": "SPAN",
+    "cls": "home-card-sweep",
+    "right": -1.2
+   }
+  ],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "추천 캐릭터"
+  ],
+  "layout": {
+   "h1Left": 89,
+   "h1Top": 326.5,
+   "mainLeft": 16,
+   "mainWidth": 358,
+   "contentLeft": -173.2,
+   "contentRight": 1646.9,
+   "asideRight": null,
+   "asideTop": null,
+   "asideBottom": null
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 13,
+  "bottomNav": {
+   "top": 791,
+   "h": 53
+  },
+  "lowestContent": 775.3,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "홈",
+   "홈"
+  ],
+  "navActive": [
+   "홈",
+   "홈"
+  ],
+  "fixedEls": [
+   {
+    "tag": "NAV",
+    "label": "모바일 메뉴",
+    "h": 53,
+    "top": 791,
+    "bottom": 844
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "home-admin-768": {
+  "path": "/",
+  "user": "admin",
+  "width": 768,
+  "notice": {
+   "dialog": {
+    "w": 384,
+    "h": 240,
+    "top": 392,
+    "bottom": 632,
+    "vh": 1024
+   },
+   "controls": [
+    {
+     "tag": "BUTTON",
+     "text": "공지 닫기",
+     "w": 32,
+     "h": 32
+    },
+    {
+     "tag": "LABEL",
+     "text": "오늘 하루 보지 않기",
+     "w": 113,
+     "h": 16
+    },
+    {
+     "tag": "INPUT",
+     "text": "",
+     "w": 16,
+     "h": 16
+    },
+    {
+     "tag": "BUTTON",
+     "text": "확인",
+     "w": 44,
+     "h": 28
+    }
+   ],
+   "activeTag": "BODY",
+   "inDialog": false,
+   "escapeClosed": false
+  },
+  "vw": 768,
+  "docH": 4777,
+  "hOverflow": false,
+  "smallTargets": 89,
+  "smallTargetsPage": 39,
+  "smallTargetsCard": 50,
+  "tinyCard": 125,
+  "tinyPage": 71,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "전체",
+    "w": 58,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "여성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "남성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 새벽의 공식 안내인의 한 줄 소개",
+    "w": 204,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "#새벽",
+    "w": 27,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 새벽 성인 공식 캐릭터의 한 줄 ",
+    "w": 204,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "#새벽",
+    "w": 27,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "by 달빛서점",
+    "w": 204,
+    "h": 16.5
+   }
+  ],
+  "tinyText": 196,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "EVENT"
+   },
+   {
+    "fs": 10,
+    "text": "FOR YOU"
+   },
+   {
+    "fs": 9,
+    "text": "공식"
+   },
+   {
+    "fs": 10,
+    "text": "로맨스 판타지"
+   },
+   {
+    "fs": 11,
+    "text": "by"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "추천 캐릭터"
+  ],
+  "layout": {
+   "h1Left": 289,
+   "h1Top": 355.5,
+   "mainLeft": 216,
+   "mainWidth": 521,
+   "contentLeft": -12.8,
+   "contentRight": 2476,
+   "asideRight": 192,
+   "asideTop": 110,
+   "asideBottom": 1024
+  },
+  "headerH": 110,
+  "headerPos": "sticky",
+  "headerShare": 10.7,
+  "bottomNav": null,
+  "lowestContent": 999.5,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "홈"
+  ],
+  "navActive": [
+   "홈"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 914,
+    "top": 110,
+    "bottom": 1024
+   }
+  ],
+  "hScrollDoc": false
+ },
+ "home-admin-1440": {
+  "path": "/",
+  "user": "admin",
+  "width": 1440,
+  "notice": {
+   "dialog": {
+    "w": 384,
+    "h": 240,
+    "top": 330,
+    "bottom": 570,
+    "vh": 900
+   },
+   "controls": [
+    {
+     "tag": "BUTTON",
+     "text": "공지 닫기",
+     "w": 32,
+     "h": 32
+    },
+    {
+     "tag": "LABEL",
+     "text": "오늘 하루 보지 않기",
+     "w": 113,
+     "h": 16
+    },
+    {
+     "tag": "INPUT",
+     "text": "",
+     "w": 16,
+     "h": 16
+    },
+    {
+     "tag": "BUTTON",
+     "text": "확인",
+     "w": 44,
+     "h": 28
+    }
+   ],
+   "activeTag": "BODY",
+   "inDialog": false,
+   "escapeClosed": false
+  },
+  "vw": 1440,
+  "docH": 4671,
+  "hOverflow": false,
+  "smallTargets": 89,
+  "smallTargetsPage": 39,
+  "smallTargetsCard": 50,
+  "tinyCard": 125,
+  "tinyPage": 72,
+  "smallSample": [
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "전체",
+    "w": 58,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "여성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "BUTTON",
+    "text": "남성향",
+    "w": 70,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 새벽의 공식 안내인의 한 줄 소개",
+    "w": 228,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "#새벽",
+    "w": 27,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "[e44] 새벽 성인 공식 캐릭터의 한 줄 ",
+    "w": 228,
+    "h": 40
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "#새벽",
+    "w": 27,
+    "h": 16.5
+   },
+   {
+    "card": false,
+    "tag": "A",
+    "text": "by 달빛서점",
+    "w": 228,
+    "h": 16.5
+   }
+  ],
+  "tinyText": 197,
+  "tinySample": [
+   {
+    "fs": 11,
+    "text": "EVENT"
+   },
+   {
+    "fs": 10,
+    "text": "CREATOR EVENT · 나만의 "
+   },
+   {
+    "fs": 10,
+    "text": "FOR YOU"
+   },
+   {
+    "fs": 9,
+    "text": "공식"
+   },
+   {
+    "fs": 10,
+    "text": "로맨스 판타지"
+   }
+  ],
+  "outOfViewport": [],
+  "cellSize": null,
+  "errors": [],
+  "external": 0,
+  "posts": [],
+  "finalUrl": "/",
+  "status": 200,
+  "title": "하브 - AI 캐릭터 채팅",
+  "h1": [
+   "추천 캐릭터"
+  ],
+  "layout": {
+   "h1Left": 391.1,
+   "h1Top": 305,
+   "mainLeft": 288.5,
+   "mainWidth": 1048,
+   "contentLeft": 16.8,
+   "contentRight": 2788.5,
+   "asideRight": 265,
+   "asideTop": 65,
+   "asideBottom": 900
+  },
+  "headerH": 65,
+  "headerPos": "sticky",
+  "headerShare": 7.2,
+  "bottomNav": null,
+  "lowestContent": 875.9,
+  "lowestEl": "A:이용약관",
+  "contentCoveredByBottomNav": false,
+  "overlapPx": 0,
+  "active": [
+   "홈"
+  ],
+  "navActive": [
+   "홈"
+  ],
+  "fixedEls": [
+   {
+    "tag": "ASIDE",
+    "label": "",
+    "h": 835,
+    "top": 65,
+    "bottom": 900
+   }
+  ],
+  "hScrollDoc": false
+ }
+}

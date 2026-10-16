@@ -1,0 +1,331 @@
+{
+ "home-guest-390": {
+  "stops": 70,
+  "covered": [],
+  "offscreen": 0,
+  "noRing": [
+   "A:공식로맨스 판타지새벽의 공식 안내인",
+   "A:로맨스 판타지새벽 정원사",
+   "A:현대 판타지새벽 도서관지기",
+   "A:판타지새벽 기사",
+   "A:무협새벽 연금술사",
+   "A:SF새벽 사서",
+   "A:학원새벽 항해사",
+   "A:동양풍새벽 조향사"
+  ]
+ },
+ "home-guest-1440": {
+  "stops": 70,
+  "covered": [
+   {
+    "tag": "A",
+    "text": "N.03고요한 도서관지기의 랭킹 54",
+    "covered": true,
+    "coveredBy": "DIV.mx-auto flex min-h-16 max-w-7x",
+    "offscreen": false,
+    "ring": false,
+    "rectTop": 27,
+    "rectBottom": 385
+   }
+  ],
+  "offscreen": 0,
+  "noRing": [
+   "A:공식로맨스 판타지새벽의 공식 안내인",
+   "A:로맨스 판타지새벽 정원사",
+   "A:현대 판타지새벽 도서관지기",
+   "A:판타지새벽 기사",
+   "A:무협새벽 연금술사",
+   "A:SF새벽 사서",
+   "A:학원새벽 항해사",
+   "A:동양풍새벽 조향사"
+  ]
+ },
+ "new-390": {
+  "stops": 70,
+  "covered": [
+   {
+    "tag": "A",
+    "text": "",
+    "covered": true,
+    "coveredBy": "A.relative inline-flex min-h-11 ",
+    "offscreen": false,
+    "ring": true,
+    "rectTop": 88,
+    "rectBottom": 341
+   },
+   {
+    "tag": "A",
+    "text": "",
+    "covered": true,
+    "coveredBy": "DIV.mx-auto flex min-h-16 max-w-7x",
+    "offscreen": false,
+    "ring": true,
+    "rectTop": 45,
+    "rectBottom": 299
+   }
+  ],
+  "offscreen": 0,
+  "noRing": []
+ },
+ "new-1440": {
+  "stops": 70,
+  "covered": [],
+  "offscreen": 0,
+  "noRing": []
+ },
+ "ranking-390": {
+  "stops": 70,
+  "covered": [],
+  "offscreen": 0,
+  "noRing": []
+ },
+ "ranking-1440": {
+  "stops": 70,
+  "covered": [],
+  "offscreen": 0,
+  "noRing": []
+ },
+ "search-390": {
+  "stops": 70,
+  "covered": [
+   {
+    "tag": "A",
+    "text": "",
+    "covered": true,
+    "coveredBy": "BUTTON.relative flex h-9 w-9 shrink-0",
+    "offscreen": false,
+    "ring": true,
+    "rectTop": 34,
+    "rectBottom": 290
+   }
+  ],
+  "offscreen": 0,
+  "noRing": []
+ },
+ "search-1440": {
+  "stops": 70,
+  "covered": [],
+  "offscreen": 0,
+  "noRing": []
+ },
+ "creator-public-390": {
+  "stops": 70,
+  "covered": [
+   {
+    "tag": "A",
+    "text": "",
+    "covered": true,
+    "coveredBy": "A.relative inline-flex min-h-11 ",
+    "offscreen": false,
+    "ring": true,
+    "rectTop": 62,
+    "rectBottom": 319
+   }
+  ],
+  "offscreen": 0,
+  "noRing": []
+ },
+ "creator-public-1440": {
+  "stops": 70,
+  "covered": [],
+  "offscreen": 0,
+  "noRing": []
+ },
+ "points-390": {
+  "stops": 67,
+  "covered": [],
+  "offscreen": 0,
+  "noRing": []
+ },
+ "points-1440": {
+  "stops": 69,
+  "covered": [],
+  "offscreen": 0,
+  "noRing": []
+ },
+ "settings-390": {
+  "stops": 68,
+  "covered": [],
+  "offscreen": 0,
+  "noRing": []
+ },
+ "settings-1440": {
+  "stops": 69,
+  "covered": [],
+  "offscreen": 0,
+  "noRing": []
+ },
+ "persona-390": {
+  "stops": 68,
+  "covered": [],
+  "offscreen": 0,
+  "noRing": []
+ },
+ "persona-1440": {
+  "stops": 69,
+  "covered": [],
+  "offscreen": 0,
+  "noRing": []
+ },
+ "chats-390": {
+  "stops": 69,
+  "covered": [],
+  "offscreen": 0,
+  "noRing": []
+ },
+ "chats-1440": {
+  "stops": 70,
+  "covered": [],
+  "offscreen": 0,
+  "noRing": []
+ },
+ "studio-390": {
+  "stops": 70,
+  "covered": [
+   {
+    "tag": "A",
+    "text": "달빛 낭독가의 랭킹 55",
+    "covered": true,
+    "coveredBy": "A.relative flex min-h-11 flex-1 ",
+    "offscreen": false,
+    "ring": true,
+    "rectTop": 805,
+    "rectBottom": 844
+   },
+   {
+    "tag": "A",
+    "text": "달빛 조향사의 랭킹 49",
+    "covered": true,
+    "coveredBy": "A.relative flex min-h-11 flex-1 ",
+    "offscreen": false,
+    "ring": true,
+    "rectTop": 804,
+    "rectBottom": 844
+   },
+   {
+    "tag": "A",
+    "text": "달빛 사서의 랭킹 43",
+    "covered": true,
+    "coveredBy": "A.relative flex min-h-11 flex-1 ",
+    "offscreen": false,
+    "ring": true,
+    "rectTop": 804,
+    "rectBottom": 844
+   },
+   {
+    "tag": "A",
+    "text": "달빛 기사의 랭킹 37",
+    "covered": true,
+    "coveredBy": "A.relative flex min-h-11 flex-1 ",
+    "offscreen": false,
+    "ring": true,
+    "rectTop": 805,
+    "rectBottom": 844
+   }
+  ],
+  "offscreen": 0,
+  "noRing": []
+ },
+ "studio-1440": {
+  "stops": 70,
+  "covered": [
+   {
+    "tag": "A",
+    "text": "",
+    "covered": true,
+    "coveredBy": "DIV.mx-auto flex min-h-16 max-w-7x",
+    "offscreen": false,
+    "ring": true,
+    "rectTop": 0,
+    "rectBottom": 283
+   },
+   {
+    "tag": "A",
+    "text": "",
+    "covered": true,
+    "coveredBy": "DIV.mx-auto flex min-h-16 max-w-7x",
+    "offscreen": false,
+    "ring": true,
+    "rectTop": 0,
+    "rectBottom": 283
+   },
+   {
+    "tag": "A",
+    "text": "",
+    "covered": true,
+    "coveredBy": "DIV.mx-auto flex min-h-16 max-w-7x",
+    "offscreen": false,
+    "ring": true,
+    "rectTop": 0,
+    "rectBottom": 283
+   },
+   {
+    "tag": "A",
+    "text": "",
+    "covered": true,
+    "coveredBy": "DIV.mx-auto flex min-h-16 max-w-7x",
+    "offscreen": false,
+    "ring": true,
+    "rectTop": 0,
+    "rectBottom": 283
+   },
+   {
+    "tag": "A",
+    "text": "",
+    "covered": true,
+    "coveredBy": "DIV.mx-auto flex min-h-16 max-w-7x",
+    "offscreen": false,
+    "ring": true,
+    "rectTop": 45,
+    "rectBottom": 327
+   }
+  ],
+  "offscreen": 0,
+  "noRing": []
+ },
+ "creator-dash-390": {
+  "stops": 69,
+  "covered": [
+   {
+    "tag": "BUTTON",
+    "text": "바로가기",
+    "covered": true,
+    "coveredBy": "A.relative flex min-h-11 flex-1 ",
+    "offscreen": false,
+    "ring": true,
+    "rectTop": 800,
+    "rectBottom": 844
+   },
+   {
+    "tag": "BUTTON",
+    "text": "바로가기",
+    "covered": true,
+    "coveredBy": "A.relative flex min-h-11 flex-1 ",
+    "offscreen": false,
+    "ring": true,
+    "rectTop": 800,
+    "rectBottom": 844
+   }
+  ],
+  "offscreen": 0,
+  "noRing": []
+ },
+ "creator-dash-1440": {
+  "stops": 69,
+  "covered": [],
+  "offscreen": 0,
+  "noRing": []
+ },
+ "create-390": {
+  "stops": 69,
+  "covered": [],
+  "offscreen": 0,
+  "noRing": []
+ },
+ "create-1440": {
+  "stops": 69,
+  "covered": [],
+  "offscreen": 0,
+  "noRing": []
+ }
+}

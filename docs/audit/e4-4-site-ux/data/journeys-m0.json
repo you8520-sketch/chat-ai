@@ -1,0 +1,348 @@
+{
+ "j1": [
+  {
+   "step": "w390-detail",
+   "cardHref": "/character/674",
+   "url": "/character/674",
+   "urlSearch": "/search?q=%EC%83%88%EB%B2%BD",
+   "urlGenre": "/search?q=%EC%83%88%EB%B2%BD&g=%EB%A1%9C%EB%A7%A8%EC%8A%A4"
+  },
+  {
+   "step": "w390-creator",
+   "creatorHref": "/creator/7",
+   "url": "/creator/7"
+  },
+  {
+   "step": "w390-back1",
+   "url": "/character/674"
+  },
+  {
+   "step": "w390-back2",
+   "url": "/search?q=%EC%83%88%EB%B2%BD&g=%EB%A1%9C%EB%A7%A8%EC%8A%A4",
+   "input": "새벽",
+   "activeGenre": [
+    "로맨스",
+    "#새벽"
+   ],
+   "scrollY": 101
+  },
+  {
+   "step": "w390-forward",
+   "url": "/character/674"
+  },
+  {
+   "step": "w390-posts",
+   "posts": [],
+   "errors": []
+  },
+  {
+   "step": "w1440-detail",
+   "cardHref": "/character/674",
+   "url": "/character/674",
+   "urlSearch": "/search?q=%EC%83%88%EB%B2%BD",
+   "urlGenre": "/search?q=%EC%83%88%EB%B2%BD&g=%EB%A1%9C%EB%A7%A8%EC%8A%A4"
+  },
+  {
+   "step": "w1440-creator",
+   "creatorHref": "/creator/7",
+   "url": "/creator/7"
+  },
+  {
+   "step": "w1440-back1",
+   "url": "/character/674"
+  },
+  {
+   "step": "w1440-back2",
+   "url": "/search?q=%EC%83%88%EB%B2%BD&g=%EB%A1%9C%EB%A7%A8%EC%8A%A4",
+   "input": "새벽",
+   "activeGenre": [
+    "로맨스",
+    "#새벽"
+   ],
+   "scrollY": 51
+  },
+  {
+   "step": "w1440-forward",
+   "url": "/character/674"
+  },
+  {
+   "step": "w1440-posts",
+   "posts": [],
+   "errors": []
+  }
+ ],
+ "j2": [
+  {
+   "step": "w390-weekly",
+   "url": "/tab/ranking?p=weekly",
+   "rows": [
+    {
+     "rank": "1",
+     "name": "고요한 항해사의 랭킹 6",
+     "metric": "대화 시작30회"
+    },
+    {
+     "rank": "2",
+     "name": "달빛 항해사의 랭킹 16",
+     "metric": "대화 시작26회"
+    },
+    {
+     "rank": "3",
+     "name": "잿빛 항해사의 랭킹 26",
+     "metric": "대화 시작22회"
+    },
+    {
+     "rank": "4",
+     "name": "고요한 사서의 랭킹 3",
+     "metric": "대화 시작20회"
+    }
+   ],
+   "basis": "주간 랭킹 · 최근 7일 동안 대화가 시작된 횟수 기준\n\n전체 랭킹의 누적 대화 턴과는 다른 지표예요. 숫자를 서로 비교하지 마세요."
+  },
+  {
+   "step": "w390-transition",
+   "clickedName": "달빛 항해사의 랭킹 16",
+   "namesSeen": [
+    "달빛 항해사의랭킹 16"
+   ],
+   "samples": 53,
+   "finalPath": "/character/789"
+  },
+  {
+   "step": "w390-back",
+   "url": "/tab/ranking?p=weekly",
+   "period": [
+    "주간"
+   ]
+  },
+  {
+   "step": "w390-home",
+   "url": "/"
+  },
+  {
+   "step": "w1440-weekly",
+   "url": "/tab/ranking?p=weekly",
+   "rows": [
+    {
+     "rank": "1",
+     "name": "고요한 항해사의 랭킹 6",
+     "metric": "대화 시작30회"
+    },
+    {
+     "rank": "2",
+     "name": "달빛 항해사의 랭킹 16",
+     "metric": "대화 시작26회"
+    },
+    {
+     "rank": "3",
+     "name": "잿빛 항해사의 랭킹 26",
+     "metric": "대화 시작22회"
+    },
+    {
+     "rank": "4",
+     "name": "고요한 사서의 랭킹 3",
+     "metric": "대화 시작20회"
+    }
+   ],
+   "basis": "주간 랭킹 · 최근 7일 동안 대화가 시작된 횟수 기준\n\n전체 랭킹의 누적 대화 턴과는 다른 지표예요. 숫자를 서로 비교하지 마세요."
+  },
+  {
+   "step": "w1440-transition",
+   "clickedName": "달빛 항해사의 랭킹 16",
+   "namesSeen": [
+    "달빛 항해사의랭킹 16"
+   ],
+   "samples": 60,
+   "finalPath": "/character/789"
+  },
+  {
+   "step": "w1440-back",
+   "url": "/tab/ranking?p=weekly",
+   "period": [
+    "주간"
+   ]
+  },
+  {
+   "step": "w1440-home",
+   "url": "/"
+  }
+ ],
+ "j3": [
+  {
+   "step": "w390-home",
+   "badge": "2,000P",
+   "nav": [
+    "홈",
+    "홈"
+   ],
+   "switch": "true"
+  },
+  {
+   "step": "w390-points",
+   "url": "/points",
+   "badge": "2,000P",
+   "nav": [],
+   "switch": "true"
+  },
+  {
+   "step": "w390-settings",
+   "url": "/settings",
+   "badge": "2,000P",
+   "nav": [
+    "설정"
+   ],
+   "switch": "true"
+  },
+  {
+   "step": "w390-settings-reload",
+   "url": "/settings",
+   "badge": "2,000P",
+   "nav": [
+    "설정"
+   ],
+   "switch": "true"
+  },
+  {
+   "step": "w390-home2",
+   "url": "/",
+   "badge": "2,000P",
+   "nav": [
+    "홈",
+    "홈"
+   ],
+   "switch": "true"
+  },
+  {
+   "step": "w390-posts",
+   "posts": []
+  },
+  {
+   "step": "w1440-home",
+   "badge": "2,000P",
+   "nav": [
+    "홈"
+   ],
+   "switch": "true"
+  },
+  {
+   "step": "w1440-points",
+   "url": "/points",
+   "badge": "2,000P",
+   "nav": [],
+   "switch": "true"
+  },
+  {
+   "step": "w1440-settings",
+   "url": "/settings",
+   "badge": "2,000P",
+   "nav": [],
+   "switch": "true"
+  },
+  {
+   "step": "w1440-settings-reload",
+   "url": "/settings",
+   "badge": "2,000P",
+   "nav": [],
+   "switch": "true"
+  },
+  {
+   "step": "w1440-home2",
+   "url": "/",
+   "badge": "2,000P",
+   "nav": [
+    "홈"
+   ],
+   "switch": "true"
+  },
+  {
+   "step": "w1440-posts",
+   "posts": []
+  }
+ ],
+ "j4": [
+  {
+   "step": "w390-studio",
+   "url": "/studio",
+   "nav": [
+    "제작"
+   ]
+  },
+  {
+   "step": "w390-edit",
+   "editHref": "/create?edit=828",
+   "url": "/create?edit=828",
+   "nav": []
+  },
+  {
+   "step": "w390-back-studio",
+   "url": "/studio",
+   "dialog": 0
+  },
+  {
+   "step": "w390-profile",
+   "missing": true
+  },
+  {
+   "step": "w390-posts",
+   "posts": []
+  },
+  {
+   "step": "w1440-studio",
+   "url": "/studio",
+   "nav": [
+    "제작"
+   ]
+  },
+  {
+   "step": "w1440-edit",
+   "editHref": "/create?edit=828",
+   "url": "/create?edit=828",
+   "nav": []
+  },
+  {
+   "step": "w1440-back-studio",
+   "url": "/studio",
+   "dialog": 0
+  },
+  {
+   "step": "w1440-profile",
+   "missing": true
+  },
+  {
+   "step": "w1440-posts",
+   "posts": []
+  }
+ ],
+ "j5": [
+  {
+   "step": "w360-keyboard",
+   "inputTop": 249,
+   "inputBottom": 297,
+   "vh": 500,
+   "headerBottom": 110,
+   "navShown": false,
+   "btnBottom": 297,
+   "hScroll": false
+  },
+  {
+   "step": "w360-after",
+   "url": "/search?q=%EC%83%88%EB%B2%BD+%EC%A0%95%EC%9B%90",
+   "input": "새벽 정원"
+  },
+  {
+   "step": "w390-keyboard",
+   "inputTop": 249,
+   "inputBottom": 297,
+   "vh": 544,
+   "headerBottom": 110,
+   "navShown": false,
+   "btnBottom": 297,
+   "hScroll": false
+  },
+  {
+   "step": "w390-after",
+   "url": "/search?q=%EC%83%88%EB%B2%BD+%EC%A0%95%EC%9B%90",
+   "input": "새벽 정원"
+  }
+ ]
+}

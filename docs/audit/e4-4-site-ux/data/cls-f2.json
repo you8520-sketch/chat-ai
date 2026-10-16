@@ -1,0 +1,154 @@
+{
+ "home-390": {
+  "cls": 0,
+  "shifts": []
+ },
+ "home-1440": {
+  "cls": 0.0103,
+  "shifts": [
+   {
+    "v": 0.0103,
+    "t": 335,
+    "src": [
+     "ASIDE.app-left-rail fixed z-30 hidde"
+    ]
+   }
+  ]
+ },
+ "new-390": {
+  "cls": 0,
+  "shifts": []
+ },
+ "new-1440": {
+  "cls": 0.0103,
+  "shifts": [
+   {
+    "v": 0.0103,
+    "t": 323,
+    "src": [
+     "ASIDE.app-left-rail fixed z-30 hidde"
+    ]
+   }
+  ]
+ },
+ "ranking-390": {
+  "cls": 0,
+  "shifts": []
+ },
+ "ranking-1440": {
+  "cls": 0.0103,
+  "shifts": [
+   {
+    "v": 0.0103,
+    "t": 227,
+    "src": [
+     "ASIDE.app-left-rail fixed z-30 hidde"
+    ]
+   }
+  ]
+ },
+ "search-390": {
+  "cls": 0,
+  "shifts": []
+ },
+ "search-1440": {
+  "cls": 0.0105,
+  "shifts": [
+   {
+    "v": 0.0002,
+    "t": 233,
+    "src": [
+     "#text.",
+     "#text."
+    ]
+   },
+   {
+    "v": 0.0103,
+    "t": 283,
+    "src": [
+     "ASIDE.app-left-rail fixed z-30 hidde"
+    ]
+   }
+  ]
+ },
+ "creator-390": {
+  "cls": 0,
+  "shifts": []
+ },
+ "creator-1440": {
+  "cls": 0.0103,
+  "shifts": [
+   {
+    "v": 0.0103,
+    "t": 245,
+    "src": [
+     "ASIDE.app-left-rail fixed z-30 hidde"
+    ]
+   }
+  ]
+ },
+ "points-390": {
+  "cls": 0,
+  "shifts": []
+ },
+ "points-1440": {
+  "cls": 0.0103,
+  "shifts": [
+   {
+    "v": 0.0103,
+    "t": 233,
+    "src": [
+     "ASIDE.app-left-rail fixed z-30 hidde"
+    ]
+   }
+  ]
+ },
+ "studio-390": {
+  "cls": 0,
+  "shifts": []
+ },
+ "studio-1440": {
+  "cls": 0.0103,
+  "shifts": [
+   {
+    "v": 0.0103,
+    "t": 369,
+    "src": [
+     "ASIDE.app-left-rail fixed z-30 hidde"
+    ]
+   }
+  ]
+ },
+ "chats-390": {
+  "cls": 0,
+  "shifts": []
+ },
+ "chats-1440": {
+  "cls": 0.0103,
+  "shifts": [
+   {
+    "v": 0.0103,
+    "t": 272,
+    "src": [
+     "ASIDE.app-left-rail fixed z-30 hidde"
+    ]
+   }
+  ]
+ },
+ "settings-390": {
+  "cls": 0,
+  "shifts": []
+ },
+ "settings-1440": {
+  "cls": 0.0103,
+  "shifts": [
+   {
+    "v": 0.0103,
+    "t": 268,
+    "src": [
+     "ASIDE.app-left-rail fixed z-30 hidde"
+    ]
+   }
+  ]
+ }
+}
