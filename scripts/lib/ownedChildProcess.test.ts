@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import type { ChildProcess } from "node:child_process";
 import net from "node:net";
 import { createServer } from "node:net";
 import { describe, it } from "node:test";
@@ -215,14 +214,23 @@ describe("owned child process group cleanup", { concurrency: 1 }, () => {
   });
 
   it("stopOwnedChildProcess does not treat a group probe error as a clean exit", async () => {
-    const result = await stopOwnedChildProcess({ pid: 4242 } as ChildProcess, {
-      waitMs: 80,
-      probeGroup: () => {
-        throw errno("EPERM");
-      },
+    const child = spawnOwnedDetachedChild(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+      stdio: "ignore",
     });
-    assert.equal(result.pid, 4242);
-    assert.equal(result.exited, false);
-    assert.equal(result.usedKill, true);
+    const pid = child.pid;
+    assert.ok(pid);
+    try {
+      const result = await stopOwnedChildProcess(child, {
+        waitMs: 80,
+        probeGroup: () => {
+          throw errno("EPERM");
+        },
+      });
+      assert.equal(result.pid, pid);
+      assert.equal(result.exited, false);
+      assert.equal(result.usedKill, true);
+    } finally {
+      await reapOwnedGroup(pid);
+    }
   });
 });
