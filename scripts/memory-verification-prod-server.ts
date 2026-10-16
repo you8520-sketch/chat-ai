@@ -57,7 +57,7 @@ async function shutdown(reason: string, code = 0): Promise<void> {
       `[memory-verification-server] stopped owned child pid=${result.pid} reason=${reason} exited=${result.exited} usedKill=${result.usedKill}`
     );
   }
-  process.exit(code);
+  process.exit(result.exited ? code : 1);
 }
 
 function main(): void {
@@ -79,13 +79,8 @@ function main(): void {
   console.log(`[memory-verification-server] owned child pid=${child.pid ?? "none"}`);
 
   child.on("exit", (exitCode, signal) => {
-    child = null;
     if (shuttingDown) return;
-    if (signal) {
-      process.exit(0);
-      return;
-    }
-    process.exit(exitCode ?? 1);
+    void shutdown(signal ? `child-${signal}` : "child-exit", signal ? 0 : (exitCode ?? 1));
   });
 
   for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {

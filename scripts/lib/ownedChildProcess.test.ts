@@ -1,10 +1,104 @@
 import assert from "node:assert/strict";
+import net from "node:net";
+import { createServer } from "node:net";
 import { describe, it } from "node:test";
 import {
   isPidAlive,
+  listOwnedGroupPids,
+  signalOwnedProcessGroup,
   spawnOwnedDetachedChild,
   stopOwnedChildProcess,
 } from "./ownedChildProcess";
+
+function listenFreePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.listen(0, "127.0.0.1", () => {
+      const addr = server.address();
+      if (!addr || typeof addr === "string") {
+        server.close();
+        reject(new Error("no port"));
+        return;
+      }
+      const port = addr.port;
+      server.close((err) => (err ? reject(err) : resolve(port)));
+    });
+    server.on("error", reject);
+  });
+}
+
+function isPortListening(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = net.connect({ port, host: "127.0.0.1" });
+    socket.once("connect", () => {
+      socket.end();
+      resolve(true);
+    });
+    socket.once("error", () => resolve(false));
+  });
+}
+
+async function waitUntil(predicate: () => boolean | Promise<boolean>, timeoutMs: number): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await predicate()) return true;
+    await new Promise((resolve) => setTimeout(resolve, 40));
+  }
+  return predicate();
+}
+
+function spawnTermIgnoringListenGroup(port: number) {
+  const grandchildSrc = `
+process.on("SIGTERM", () => {});
+const s = require("node:net").createServer();
+s.listen(${port}, "127.0.0.1", () => process.stdout.write("listen-ready\\n"));
+setInterval(() => {}, 1000);
+`;
+  const parentSrc = `
+const { spawn } = require("node:child_process");
+process.on("SIGTERM", () => process.exit(0));
+const gc = spawn(process.execPath, ["-e", ${JSON.stringify(grandchildSrc)}], {
+  stdio: ["ignore", "inherit", "inherit"],
+});
+if (!gc.pid) process.exit(2);
+process.stdout.write("parent-ready " + gc.pid + "\\n");
+setInterval(() => {}, 1000);
+`;
+  const child = spawnOwnedDetachedChild(process.execPath, ["-e", parentSrc], {
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+  return child;
+}
+
+async function waitGroupReady(
+  child: ReturnType<typeof spawnOwnedDetachedChild>,
+  port: number
+): Promise<{ leaderPid: number; grandchildPid: number }> {
+  const leaderPid = child.pid;
+  assert.ok(leaderPid);
+  const grandchildPid = await new Promise<number>((resolve, reject) => {
+    let buf = "";
+    child.stdout?.on("data", (chunk: Buffer) => {
+      buf += String(chunk);
+      const match = buf.match(/parent-ready (\d+)/);
+      if (match) resolve(Number(match[1]));
+    });
+    child.once("exit", () => reject(new Error("leader exited before ready")));
+    setTimeout(() => reject(new Error("timeout waiting parent-ready")), 8_000);
+  });
+  assert.equal(
+    await waitUntil(() => isPortListening(port), 8_000),
+    true,
+    `grandchild ${grandchildPid} never listened`
+  );
+  return { leaderPid, grandchildPid };
+}
+
+async function reapOwnedGroup(pgid: number | null | undefined): Promise<void> {
+  if (pgid == null) return;
+  signalOwnedProcessGroup(pgid, "SIGKILL");
+  await waitUntil(() => listOwnedGroupPids(pgid).length === 0, 2_000);
+}
 
 describe("owned child process group cleanup", { concurrency: 1 }, () => {
   it("SIGTERM stops a cooperative owned child without SIGKILL", async () => {
@@ -18,6 +112,7 @@ describe("owned child process group cleanup", { concurrency: 1 }, () => {
     assert.equal(result.usedKill, false);
     assert.equal(result.exited, true);
     assert.equal(isPidAlive(pid), false);
+    assert.deepEqual(listOwnedGroupPids(pid), []);
   });
 
   it("after TERM wait, SIGKILL reaps an ignoring owned child only", async () => {
@@ -39,5 +134,51 @@ describe("owned child process group cleanup", { concurrency: 1 }, () => {
     assert.equal(result.usedKill, true);
     assert.equal(result.exited, true);
     assert.equal(isPidAlive(pid), false);
+    assert.deepEqual(listOwnedGroupPids(pid), []);
+  });
+
+  it("leader SIGTERM-exit does not hide a TERM-ignoring grandchild LISTEN server", async () => {
+    const port = await listenFreePort();
+    assert.notEqual(port, 3000);
+    const child = spawnTermIgnoringListenGroup(port);
+    const leaderPid = child.pid;
+    let grandchildPid = 0;
+    try {
+      ({ grandchildPid } = await waitGroupReady(child, port));
+      const result = await stopOwnedChildProcess(child, { waitMs: 800 });
+      assert.equal(result.exited, true, "group leftover must not be reported as a clean exit");
+      assert.equal(result.usedKill, true);
+      assert.equal(isPidAlive(leaderPid!), false);
+      assert.equal(isPidAlive(grandchildPid), false);
+      assert.equal(await isPortListening(port), false);
+      assert.deepEqual(listOwnedGroupPids(leaderPid!), []);
+    } finally {
+      await reapOwnedGroup(leaderPid);
+    }
+  });
+
+  it("already-dead leader still reaps remaining group members (no early success)", async () => {
+    const port = await listenFreePort();
+    assert.notEqual(port, 3000);
+    const child = spawnTermIgnoringListenGroup(port);
+    const leaderPid = child.pid;
+    let grandchildPid = 0;
+    try {
+      ({ grandchildPid } = await waitGroupReady(child, port));
+      process.kill(leaderPid!, "SIGTERM");
+      assert.equal(await waitUntil(() => !isPidAlive(leaderPid!), 2_000), true);
+      assert.equal(isPidAlive(grandchildPid), true);
+      assert.equal(await isPortListening(port), true);
+      assert.deepEqual(listOwnedGroupPids(leaderPid!), [grandchildPid]);
+
+      const result = await stopOwnedChildProcess(child, { waitMs: 800 });
+      assert.equal(result.exited, true);
+      assert.equal(result.usedKill, true);
+      assert.equal(isPidAlive(grandchildPid), false);
+      assert.equal(await isPortListening(port), false);
+      assert.deepEqual(listOwnedGroupPids(leaderPid!), []);
+    } finally {
+      await reapOwnedGroup(leaderPid);
+    }
   });
 });
