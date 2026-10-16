@@ -1,0 +1,139 @@
+# E4-6 measured BEFORE (main 9a92db16) vs AFTER
+
+min/mean/max = card height px. small = link targets <24px in either axis; crowd = undersized targets with <24px spacing; hidden = tags clipped off the card; bo = badge overlaps; ov = horizontal document overflow; name/tagline>2 = text exceeds its 2-line clamp.
+
+| scene@width | side | cards | height | small | crowd | hidden tags | badge overlap | overflow | name>2 | tagline>2 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| search@320 | BEFORE | 14 | 384/386/388 | 43 | 44 | 5 | 0 | False | 0 | 14 |
+| search@320 | AFTER | 14 | 391/391/391 | 0 | 0 | 0 | 0 | False | 9 | 14 |
+| searchAdmin@320 | BEFORE | 18 | 384/386/388 | 57 | 57 | 8 | 1 | False | 0 | 18 |
+| searchAdmin@320 | AFTER | 18 | 391/391/391 | 0 | 0 | 0 | 0 | False | 9 | 18 |
+| searchGuest@320 | BEFORE | 14 | 384/386/388 | 43 | 44 | 5 | 0 | False | 0 | 14 |
+| searchGuest@320 | AFTER | 14 | 391/391/391 | 0 | 0 | 0 | 0 | False | 9 | 14 |
+| new@320 | BEFORE | 50 | 337/345/356 | 188 | 207 | 55 | 0 | False | 3 | 49 |
+| new@320 | AFTER | 50 | 339/354/359 | 0 | 0 | 0 | 0 | False | 12 | 49 |
+| following@320 | BEFORE | 18 | 356/356/356 | 65 | 84 | 26 | 1 | False | 2 | 15 |
+| following@320 | AFTER | 18 | 359/359/359 | 0 | 0 | 0 | 0 | False | 11 | 15 |
+| official@320 | BEFORE | 11 | 327/342/356 | 33 | 31 | 8 | 0 | False | 0 | 10 |
+| official@320 | AFTER | 11 | 327/353/359 | 0 | 0 | 0 | 0 | False | 1 | 10 |
+| genre@320 | BEFORE | 20 | 352/354/356 | 55 | 67 | 9 | 0 | False | 0 | 19 |
+| genre@320 | AFTER | 20 | 359/359/359 | 0 | 0 | 0 | 0 | False | 7 | 19 |
+| creator@320 | BEFORE | 3 | 360/360/360 | 11 | 16 | 4 | 0 | False | 1 | 2 |
+| creator@320 | AFTER | 3 | 362/362/362 | 0 | 0 | 0 | 0 | False | 1 | 2 |
+| creatorEn@320 | BEFORE | 1 | 340/340/340 | 5 | 7 | 1 | 0 | False | 0 | 1 |
+| creatorEn@320 | AFTER | 1 | 342/342/342 | 0 | 0 | 0 | 0 | False | 0 | 1 |
+| search@360 | BEFORE | 14 | 414/414/418 | 44 | 44 | 3 | 0 | False | 0 | 0 |
+| search@360 | AFTER | 14 | 421/421/421 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| searchAdmin@360 | BEFORE | 18 | 399/413/418 | 59 | 57 | 6 | 0 | False | 0 | 0 |
+| searchAdmin@360 | AFTER | 18 | 401/419/421 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| searchGuest@360 | BEFORE | 14 | 414/414/418 | 44 | 44 | 3 | 0 | False | 0 | 0 |
+| searchGuest@360 | AFTER | 14 | 421/421/421 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| new@360 | BEFORE | 50 | 362/370/386 | 190 | 250 | 10 | 0 | False | 3 | 2 |
+| new@360 | AFTER | 50 | 369/378/389 | 0 | 0 | 0 | 0 | False | 3 | 2 |
+| following@360 | BEFORE | 18 | 382/383/386 | 66 | 94 | 12 | 0 | False | 2 | 2 |
+| following@360 | AFTER | 18 | 389/389/389 | 0 | 0 | 0 | 0 | False | 2 | 2 |
+| official@360 | BEFORE | 11 | 357/369/382 | 34 | 37 | 0 | 0 | False | 0 | 1 |
+| official@360 | AFTER | 11 | 357/375/389 | 0 | 0 | 0 | 0 | False | 0 | 1 |
+| genre@360 | BEFORE | 20 | 382/382/386 | 55 | 75 | 1 | 0 | False | 0 | 4 |
+| genre@360 | AFTER | 20 | 389/389/389 | 0 | 0 | 0 | 0 | False | 0 | 4 |
+| creator@360 | BEFORE | 3 | 385/388/390 | 11 | 17 | 3 | 0 | False | 1 | 1 |
+| creator@360 | AFTER | 3 | 392/392/392 | 0 | 0 | 0 | 0 | False | 1 | 1 |
+| creatorEn@360 | BEFORE | 1 | 370/370/370 | 5 | 7 | 1 | 0 | False | 0 | 0 |
+| creatorEn@360 | AFTER | 1 | 372/372/372 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| search@390 | BEFORE | 14 | 416/433/436 | 47 | 44 | 3 | 0 | False | 0 | 0 |
+| search@390 | AFTER | 14 | 423/441/444 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| searchAdmin@390 | BEFORE | 18 | 416/433/441 | 63 | 57 | 6 | 0 | False | 0 | 0 |
+| searchAdmin@390 | AFTER | 18 | 423/439/444 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| searchGuest@390 | BEFORE | 14 | 416/433/436 | 47 | 44 | 3 | 0 | False | 0 | 0 |
+| searchGuest@390 | AFTER | 14 | 423/441/444 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| new@390 | BEFORE | 50 | 384/392/409 | 193 | 248 | 9 | 0 | False | 3 | 2 |
+| new@390 | AFTER | 50 | 391/399/412 | 0 | 0 | 0 | 0 | False | 3 | 2 |
+| following@390 | BEFORE | 18 | 384/404/409 | 68 | 93 | 11 | 0 | False | 2 | 2 |
+| following@390 | AFTER | 18 | 391/410/412 | 0 | 0 | 0 | 0 | False | 2 | 2 |
+| official@390 | BEFORE | 11 | 380/391/404 | 34 | 37 | 0 | 0 | False | 0 | 1 |
+| official@390 | AFTER | 11 | 380/398/412 | 0 | 0 | 0 | 0 | False | 0 | 1 |
+| genre@390 | BEFORE | 20 | 384/398/404 | 60 | 77 | 1 | 0 | False | 0 | 4 |
+| genre@390 | AFTER | 20 | 391/406/412 | 0 | 0 | 0 | 0 | False | 0 | 4 |
+| creator@390 | BEFORE | 3 | 388/404/412 | 13 | 15 | 3 | 0 | False | 1 | 1 |
+| creator@390 | AFTER | 3 | 394/408/415 | 0 | 0 | 0 | 0 | False | 1 | 1 |
+| creatorEn@390 | BEFORE | 1 | 388/388/388 | 5 | 7 | 0 | 0 | False | 0 | 0 |
+| creatorEn@390 | AFTER | 1 | 394/394/394 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| search@576 | BEFORE | 14 | 415/415/419 | 44 | 44 | 3 | 0 | False | 0 | 0 |
+| search@576 | AFTER | 14 | 422/422/422 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| searchAdmin@576 | BEFORE | 18 | 399/414/419 | 59 | 57 | 6 | 0 | False | 0 | 0 |
+| searchAdmin@576 | AFTER | 18 | 401/420/422 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| searchGuest@576 | BEFORE | 14 | 415/415/419 | 44 | 44 | 3 | 0 | False | 0 | 0 |
+| searchGuest@576 | AFTER | 14 | 422/422/422 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| new@576 | BEFORE | 50 | 363/371/387 | 190 | 250 | 10 | 0 | False | 3 | 2 |
+| new@576 | AFTER | 50 | 369/379/390 | 0 | 0 | 0 | 0 | False | 3 | 2 |
+| following@576 | BEFORE | 18 | 383/384/387 | 66 | 94 | 12 | 0 | False | 2 | 2 |
+| following@576 | AFTER | 18 | 390/390/390 | 0 | 0 | 0 | 0 | False | 2 | 2 |
+| official@576 | BEFORE | 11 | 358/370/383 | 34 | 37 | 0 | 0 | False | 0 | 1 |
+| official@576 | AFTER | 11 | 358/376/390 | 0 | 0 | 0 | 0 | False | 0 | 1 |
+| genre@576 | BEFORE | 20 | 383/383/387 | 55 | 75 | 1 | 0 | False | 0 | 4 |
+| genre@576 | AFTER | 20 | 390/390/390 | 0 | 0 | 0 | 0 | False | 0 | 4 |
+| creator@576 | BEFORE | 3 | 386/389/390 | 11 | 17 | 3 | 0 | False | 1 | 1 |
+| creator@576 | AFTER | 3 | 393/393/393 | 0 | 0 | 0 | 0 | False | 1 | 1 |
+| creatorEn@576 | BEFORE | 1 | 370/370/370 | 5 | 7 | 1 | 0 | False | 0 | 0 |
+| creatorEn@576 | AFTER | 1 | 372/372/372 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| search@768 | BEFORE | 14 | 421/421/421 | 45 | 44 | 3 | 0 | False | 0 | 0 |
+| search@768 | AFTER | 14 | 429/429/429 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| searchAdmin@768 | BEFORE | 18 | 421/422/426 | 61 | 57 | 6 | 0 | False | 0 | 0 |
+| searchAdmin@768 | AFTER | 18 | 429/429/429 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| searchGuest@768 | BEFORE | 14 | 421/421/421 | 45 | 44 | 3 | 0 | False | 0 | 0 |
+| searchGuest@768 | AFTER | 14 | 429/429/429 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| new@768 | BEFORE | 50 | 372/381/397 | 191 | 247 | 10 | 0 | False | 3 | 2 |
+| new@768 | AFTER | 50 | 379/388/400 | 0 | 0 | 0 | 0 | False | 3 | 2 |
+| following@768 | BEFORE | 18 | 392/394/397 | 66 | 94 | 12 | 0 | False | 2 | 2 |
+| following@768 | AFTER | 18 | 400/400/400 | 0 | 0 | 0 | 0 | False | 2 | 2 |
+| official@768 | BEFORE | 11 | 372/382/392 | 34 | 37 | 0 | 0 | False | 0 | 1 |
+| official@768 | AFTER | 11 | 379/389/400 | 0 | 0 | 0 | 0 | False | 0 | 1 |
+| genre@768 | BEFORE | 20 | 372/390/392 | 58 | 74 | 1 | 0 | False | 0 | 4 |
+| genre@768 | AFTER | 20 | 379/398/400 | 0 | 0 | 0 | 0 | False | 0 | 4 |
+| creator@768 | BEFORE | 3 | 392/483/528 | 12 | 17 | 2 | 0 | False | 0 | 0 |
+| creator@768 | AFTER | 3 | 400/487/531 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| creatorEn@768 | BEFORE | 1 | 504/504/504 | 5 | 7 | 0 | 0 | False | 0 | 0 |
+| creatorEn@768 | AFTER | 1 | 510/510/510 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| search@1024 | BEFORE | 14 | 391/394/395 | 43 | 44 | 5 | 0 | False | 0 | 14 |
+| search@1024 | AFTER | 14 | 398/398/398 | 0 | 0 | 0 | 0 | False | 9 | 14 |
+| searchAdmin@1024 | BEFORE | 18 | 391/394/395 | 57 | 57 | 8 | 0 | False | 0 | 18 |
+| searchAdmin@1024 | AFTER | 18 | 398/398/398 | 0 | 0 | 0 | 0 | False | 9 | 18 |
+| searchGuest@1024 | BEFORE | 14 | 391/394/395 | 43 | 44 | 5 | 0 | False | 0 | 14 |
+| searchGuest@1024 | AFTER | 14 | 398/398/398 | 0 | 0 | 0 | 0 | False | 9 | 14 |
+| new@1024 | BEFORE | 50 | 342/355/366 | 188 | 232 | 12 | 0 | False | 3 | 49 |
+| new@1024 | AFTER | 50 | 348/361/369 | 0 | 0 | 0 | 0 | False | 12 | 17 |
+| following@1024 | BEFORE | 18 | 362/364/366 | 65 | 95 | 13 | 0 | False | 2 | 15 |
+| following@1024 | AFTER | 18 | 369/369/369 | 0 | 0 | 0 | 0 | False | 11 | 15 |
+| official@1024 | BEFORE | 11 | 337/353/366 | 33 | 35 | 1 | 0 | False | 0 | 10 |
+| official@1024 | AFTER | 11 | 337/357/369 | 0 | 0 | 0 | 0 | False | 1 | 3 |
+| genre@1024 | BEFORE | 20 | 362/364/366 | 55 | 74 | 2 | 0 | False | 0 | 19 |
+| genre@1024 | AFTER | 20 | 369/369/369 | 0 | 0 | 0 | 0 | False | 7 | 19 |
+| creator@1024 | BEFORE | 3 | 500/546/570 | 13 | 17 | 2 | 0 | False | 0 | 0 |
+| creator@1024 | AFTER | 3 | 507/551/572 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| creatorEn@1024 | BEFORE | 1 | 545/545/545 | 5 | 7 | 0 | 0 | False | 0 | 0 |
+| creatorEn@1024 | AFTER | 1 | 552/552/552 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| search@1440 | BEFORE | 14 | 452/461/472 | 55 | 42 | 1 | 0 | False | 0 | 0 |
+| search@1440 | AFTER | 14 | 459/472/480 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| searchAdmin@1440 | BEFORE | 18 | 452/465/472 | 72 | 53 | 2 | 0 | False | 0 | 0 |
+| searchAdmin@1440 | AFTER | 18 | 480/480/480 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| searchGuest@1440 | BEFORE | 14 | 452/461/472 | 55 | 42 | 1 | 0 | False | 0 | 0 |
+| searchGuest@1440 | AFTER | 14 | 459/472/480 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| new@1440 | BEFORE | 50 | 423/432/448 | 201 | 226 | 7 | 0 | False | 2 | 2 |
+| new@1440 | AFTER | 50 | 430/440/451 | 0 | 0 | 0 | 0 | False | 2 | 2 |
+| following@1440 | BEFORE | 18 | 423/436/448 | 76 | 86 | 8 | 0 | False | 1 | 2 |
+| following@1440 | AFTER | 18 | 430/447/451 | 0 | 0 | 0 | 0 | False | 1 | 2 |
+| official@1440 | BEFORE | 11 | 418/423/423 | 36 | 40 | 0 | 0 | False | 0 | 1 |
+| official@1440 | AFTER | 11 | 418/438/451 | 0 | 0 | 0 | 0 | False | 0 | 1 |
+| genre@1440 | BEFORE | 20 | 423/423/423 | 71 | 82 | 0 | 0 | False | 0 | 4 |
+| genre@1440 | AFTER | 20 | 430/435/450 | 0 | 0 | 0 | 0 | False | 0 | 4 |
+| creator@1440 | BEFORE | 3 | 494/544/570 | 13 | 17 | 2 | 0 | False | 0 | 0 |
+| creator@1440 | AFTER | 3 | 501/548/572 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+| creatorEn@1440 | BEFORE | 1 | 545/545/545 | 5 | 7 | 0 | 0 | False | 0 | 0 |
+| creatorEn@1440 | AFTER | 1 | 552/552/552 | 0 | 0 | 0 | 0 | False | 0 | 0 |
+
+## Font sizes (px) and target heights at 390 (search)
+
+```
+BEFORE {"eyebrow": [10], "name": [16.5], "creator": [11], "tagline": [12.5], "tag": [10.5], "tagH": [19.8], "creatorH": [16.5], "badge": [9]}
+AFTER {"eyebrow": [11], "name": [17], "creator": [12.5], "tagline": [13], "tag": [12], "tagH": [24], "creatorH": [24], "badge": [10.5]}
+```

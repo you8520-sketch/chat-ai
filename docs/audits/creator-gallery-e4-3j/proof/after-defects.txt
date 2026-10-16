@@ -1,9 +1,0 @@
-
-Running 2 tests using 1 worker
-
-(node:57387) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
-(Use `node --trace-warnings ...` to show where the warning was created)
-  ✓  1 [chromium] › tests/ui/creator-gallery.spec.ts:29:5 › gift action has a 44px touch target (1.1s)
-  ✓  2 [chromium] › tests/ui/creator-gallery.spec.ts:162:5 › community follows works; private, moderated and disabled states remain intact (2.4s)
-
-  2 passed (5.1s)

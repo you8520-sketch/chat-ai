@@ -1,5 +1,0 @@
-{
-  "version": 1,
-  "description": "Accepted unresolved production HIGH npm audit advisories on main. Empty after the 2026-09-27 transitive dependency security fix. Do not baseline CRITICAL.",
-  "acceptedHigh": []
-}
