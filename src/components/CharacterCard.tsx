@@ -424,10 +424,10 @@ const DEFAULT_CHROME = {
     groupWithAdult: "max-w-[calc(100%-5rem)]",
   } satisfies BadgeChrome,
   // Links own their vertical padding (no flex gap) so the 24px+ targets touch instead of overlapping.
-  body: "relative z-[2] -mt-7 flex min-h-[9.5rem] flex-1 flex-col px-3.5 pb-3.5",
+  body: "@container/card relative z-[2] -mt-7 flex min-h-[9.5rem] flex-1 flex-col px-3.5 pb-3.5",
   eyebrow: "line-clamp-1 pb-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-violet-200/80",
   nameLink: "block min-w-0 py-1",
-  name: "line-clamp-2 break-keep text-[17px] font-bold leading-[1.22] tracking-[-0.03em] text-white transition group-hover/card:text-violet-100 [overflow-wrap:anywhere]",
+  name: "line-clamp-2 @min-[8rem]/card:break-keep text-[17px] font-bold leading-[1.22] tracking-[-0.03em] text-white transition group-hover/card:text-violet-100 [overflow-wrap:anywhere]",
   creatorLink: "block truncate py-1 text-[12.5px] leading-4",
   creatorBy: "text-zinc-400",
   taglineLink: "block min-w-0 py-1",

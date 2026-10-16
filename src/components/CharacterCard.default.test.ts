@@ -138,7 +138,7 @@ describe("default CharacterCard", () => {
     const tagsWrap = html.match(/<div className="[^"]*overflow-x-auto[^"]*">/)?.[0] ?? "";
     assert.ok(tagsWrap, "tags are a scrollable single row");
     assert.doesNotMatch(tagsWrap, /overflow-hidden|max-h-|flex-wrap/);
-    assert.match(html, /<h3 className="[^"]*break-keep/);
+    assert.match(html, /<h3 className="[^"]*@min-\[8rem\]\/card:break-keep/);
     assert.match(html, /<p className="[^"]*text-\[13px\]/);
     assert.doesNotMatch(html, /<p className="[^"]*break-keep[^"]*text-\[13px\]/);
     assert.match(html, /<a [^>]*href="\/creator\/3"[^>]*class(Name)?="[^"]*truncate[^"]*py-1/);
