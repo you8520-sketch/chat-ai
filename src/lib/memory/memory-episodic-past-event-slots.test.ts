@@ -25,19 +25,20 @@ type RowSpec = {
   quote?: string;
   messageId?: number;
   authority?: "CURRENT_SCENE" | "USER_EXPLICIT" | "CHARACTER_CLAIM";
+  evidenceType?: "explicit_scene_event" | "explicit_user_statement";
   chatId?: number;
 };
 
 function insert(db: Database.Database, spec: RowSpec): number {
   const messageId = spec.messageId ?? spec.turn * 10 + 2;
   const metadata = {
-    memory_evidence_type: "explicit_scene_event",
+    memory_evidence_type: spec.evidenceType ?? "explicit_scene_event",
     content_route: "safe",
     assistant_message_id: messageId,
     ...(spec.quote
       ? {
           evidence: {
-            role: "assistant",
+            role: spec.authority === "USER_EXPLICIT" ? "user" : "assistant",
             message_id: messageId,
             quote: spec.quote,
             authority: spec.authority ?? "CURRENT_SCENE",
@@ -269,7 +270,7 @@ describe("B6-1 — completed past occurrence survives its state-style key", () =
     assert.equal(result.facts.some((fact) => fact.id === claim), false);
   });
 
-  it("a guard-blocked completed row does not close the state (no fallback past a blocked latest)", () => {
+  it("a guard-blocked latest is never recalled and no older state resurfaces past it", () => {
     const db = openDb();
     fillTurns(db, 1, 30);
     const t30 = insert(db, {
@@ -279,8 +280,16 @@ describe("B6-1 — completed past occurrence survives its state-style key", () =
       gloss: "에녹은 늑대에게 물려 왼팔을 크게 다쳤다.",
       quote: BITE_QUOTE,
     });
-    fillTurns(db, 31, 80);
-    insert(db, {
+    fillTurns(db, 31, 60);
+    const bandaged = insert(db, {
+      turn: 60,
+      attribute: "injury",
+      value: "left_arm_bandaged",
+      gloss: "에녹의 왼팔은 붕대에 감겨 있다.",
+      quote: "에녹의 왼팔에는 붕대가 감겨 있었다.",
+    });
+    fillTurns(db, 61, 80);
+    const blocked = insert(db, {
       turn: 80,
       attribute: "injury",
       value: "left_arm_recovered",
@@ -289,7 +298,9 @@ describe("B6-1 — completed past occurrence survives its state-style key", () =
     });
     fillTurns(db, 81, 500);
     const result = recall(db, 500, "예전에 에녹 왼팔은 왜 다쳤었지?");
-    assert.equal(result.facts.some((fact) => fact.id === t30), false);
+    assert.equal(result.facts.some((fact) => fact.id === blocked), false);
+    assert.equal(result.facts.some((fact) => fact.id === bandaged), false);
+    assert.ok(result.facts.some((fact) => fact.id === t30), "the verified bite is history, not a fallback state");
   });
 
   it("deleting the recovery's source turns the injury back into the current state", () => {
@@ -444,5 +455,219 @@ describe("B6-2 — repeated records: duplicates of one source cost one slot, rea
       env
     );
     assert.ok(candidates.rows.length > 0);
+  });
+});
+
+describe("B8-2 — B7 rows: a later, separate injury of the same key keeps the old occurrence", () => {
+  const FLANK_GLOSS = "태형은 진화형 크리처의 발톱에 왼쪽 옆구리를 찔렸다.";
+  const FLANK_QUOTE = "발톱이 태형의 왼쪽 옆구리를 꿰뚫었다.";
+  const STITCH_QUOTE = "그날 태형의 왼쪽 옆구리는 정식으로 열네 바늘 봉합되었다.";
+  const RETURN_QUOTE = "오늘부터 현장 복귀 허가합니다.";
+  const ANKLE_QUOTE = "태형은 계단 모서리에서 미끄러지며 오른쪽 발목을 접질렀다.";
+  const CAUSE_QUESTION = "옆구리 다친 건 이제 다 나은 거지? 그때 왜 다쳤었지?";
+
+  /** Same keys, importances, glosses and verified quotes as the B7 T500 snapshot rows 23/29/33/270. */
+  function seedB7(horizon: number, flank: Partial<RowSpec> = {}) {
+    const db = openDb();
+    fillTurns(db, 1, 30);
+    const t30 = insert(db, {
+      turn: 30,
+      subject: "taehyung",
+      attribute: "injury",
+      value: "left_flank_punctured",
+      gloss: FLANK_GLOSS,
+      quote: FLANK_QUOTE,
+      ...flank,
+    });
+    fillTurns(db, 31, 44);
+    const t44 = insert(db, {
+      turn: 44,
+      subject: "taehyung",
+      attribute: "injury_treatment",
+      value: "left_flank_stitches",
+      gloss: "태형은 왼쪽 옆구리 상처를 열네 바늘로 봉합받았다.",
+      quote: STITCH_QUOTE,
+    });
+    fillTurns(db, 45, 55);
+    const t55 = insert(db, {
+      turn: 55,
+      subject: "taehyung",
+      attribute: "medical_recovery",
+      value: "fully_recovered",
+      importance: "normal",
+      gloss: "태형은 왼쪽 옆구리 부상에서 완전히 회복되어 현장 복귀 허가를 받았다.",
+      quote: RETURN_QUOTE,
+    });
+    fillTurns(db, 56, 312);
+    const t312 = insert(db, {
+      turn: 312,
+      subject: "taehyung",
+      attribute: "injury",
+      value: "sprained_right_ankle",
+      importance: "normal",
+      gloss: "태형은 순찰 중 계단에서 미끄러져 오른쪽 발목을 접질렀다.",
+      quote: ANKLE_QUOTE,
+    });
+    fillTurns(db, 313, horizon);
+    return { db, t30, t44, t55, t312 };
+  }
+
+  for (const horizon of [500, 1000]) {
+    describe(`currentTurn=${horizon}`, () => {
+      it("the old flank-cause question recalls T30's verified quote from Episodic alone", () => {
+        const { db, t30, t55 } = seedB7(horizon);
+        const result = recall(db, horizon, CAUSE_QUESTION);
+        assert.ok(result.facts.some((fact) => fact.id === t30));
+        assert.ok(result.facts.some((fact) => fact.id === t55));
+        assert.ok(result.promptBlock.includes(`- [T30] [AI 장면 서술 발췌] “${FLANK_QUOTE}”`));
+        assert.ok(result.promptBlock.includes(RETURN_QUOTE));
+        assert.doesNotMatch(result.promptBlock, new RegExp(FLANK_GLOSS));
+      });
+
+      it("the recovery stays in view and the ankle stays the latest injury", () => {
+        const { db, t55, t312 } = seedB7(horizon);
+        const flank = recall(db, horizon, "옆구리는 지금도 아파?");
+        assert.ok(flank.facts.some((fact) => fact.id === t55));
+        assert.match(flank.promptBlock, /\[T55\]/);
+        const now = recall(db, horizon, "지금 어디 다친 데 있어? 발목은 괜찮아?");
+        assert.ok(now.facts.some((fact) => fact.id === t312));
+        assert.equal(now.debug.find((d) => d.id === t312)?.final_rank, 1);
+      });
+
+      it("two distinct injuries are both kept, each with its own turn", () => {
+        const { db, t30, t312 } = seedB7(horizon);
+        const result = recall(db, horizon, "예전에 옆구리 찔렸던 거랑 발목 접질렀던 거 둘 다 기억나?");
+        assert.ok(result.facts.some((fact) => fact.id === t30));
+        assert.ok(result.facts.some((fact) => fact.id === t312));
+        assert.match(result.promptBlock, /\[T30\][^\n]*옆구리/);
+        assert.match(result.promptBlock, /\[T312\][^\n]*발목/);
+      });
+    });
+  }
+
+  it("a re-extraction of the same T30 source costs one slot", () => {
+    const { db, t30 } = seedB7(500);
+    const sameSource = insert(db, {
+      turn: 30,
+      subject: "taehyung",
+      attribute: "combat_injury",
+      value: "flank_clawed",
+      gloss: "태형은 크리처의 발톱에 옆구리를 꿰뚫렸다.",
+      quote: FLANK_QUOTE,
+    });
+    const resaved = insert(db, {
+      turn: 30,
+      subject: "taehyung",
+      attribute: "injury",
+      value: "left_flank_punctured",
+      gloss: FLANK_GLOSS,
+      quote: FLANK_QUOTE,
+    });
+    const result = recall(db, 500, CAUSE_QUESTION);
+    const selected = [t30, sameSource, resaved].filter((id) => result.facts.some((fact) => fact.id === id));
+    assert.equal(selected.length, 1);
+    assert.equal(result.promptBlock.split(FLANK_QUOTE).length - 1, 1);
+  });
+
+  it("before the recovery the flank injury is recalled; it is never claimed recovered", () => {
+    const { db, t30, t55 } = seedB7(1000);
+    const result = recall(db, 50, "옆구리는 지금도 아파?");
+    assert.ok(result.facts.some((fact) => fact.id === t30));
+    assert.equal(result.facts.some((fact) => fact.id === t55), false);
+  });
+
+  it("present and copula-past states keep latest-wins under a verified source", () => {
+    const db = openDb();
+    fillTurns(db, 1, 300);
+    const intern = insert(db, {
+      turn: 40,
+      subject: "daon",
+      attribute: "organization_role",
+      value: "intern",
+      gloss: "서다온은 연구국 인턴이다.",
+      quote: "연구국 인턴 서다온이 서류를 내밀었다.",
+    });
+    const internPast = insert(db, {
+      turn: 90,
+      subject: "daon",
+      attribute: "organization_role",
+      value: "intern_past",
+      gloss: "서다온은 연구국 인턴이었다.",
+      quote: "서다온은 아직 연구국 인턴이었다.",
+    });
+    const researcher = insert(db, {
+      turn: 200,
+      subject: "daon",
+      attribute: "organization_role",
+      value: "researcher",
+      gloss: "서다온은 연구국 정식 연구원이다.",
+      quote: "정식 연구원 배지를 단 서다온이 웃었다.",
+    });
+    const result = recall(db, 300, "서다온은 연구국에서 무슨 일 해?");
+    assert.ok(result.facts.some((fact) => fact.id === researcher));
+    assert.equal(result.facts.some((fact) => fact.id === intern), false);
+    assert.equal(result.facts.some((fact) => fact.id === internPast), false);
+  });
+
+  it("an explicit user correction stays latest-wins", () => {
+    const db = openDb();
+    fillTurns(db, 1, 300);
+    const wrong = insert(db, {
+      turn: 40,
+      subject: "user",
+      attribute: "past_job",
+      value: "cafe",
+      gloss: "유저는 예전에 카페에서 일했다.",
+      quote: "나 예전에 카페에서 일했어.",
+      authority: "USER_EXPLICIT",
+      evidenceType: "explicit_user_statement",
+    });
+    const corrected = insert(db, {
+      turn: 120,
+      subject: "user",
+      attribute: "past_job",
+      value: "bookstore",
+      gloss: "유저는 예전에 카페가 아니라 서점에서 일했다.",
+      quote: "아, 카페 아니고 서점에서 일했어.",
+      authority: "USER_EXPLICIT",
+      evidenceType: "explicit_user_statement",
+    });
+    const result = recall(db, 300, "내가 예전에 어디서 일했다고 했지?");
+    assert.ok(result.facts.some((fact) => fact.id === corrected));
+    assert.equal(result.facts.some((fact) => fact.id === wrong), false);
+  });
+
+  it("the same T30 text as a character claim or a legacy row is not promoted past T312", () => {
+    for (const flank of [{ authority: "CHARACTER_CLAIM" as const }, { quote: undefined }]) {
+      const { db, t30 } = seedB7(500, flank);
+      const result = recall(db, 500, CAUSE_QUESTION);
+      assert.equal(result.facts.some((fact) => fact.id === t30), false);
+      assert.equal(result.promptBlock.includes(FLANK_QUOTE), false);
+    }
+  });
+
+  it("regenerating or deleting T30's source turn removes the occurrence", () => {
+    const { db, t30, t312 } = seedB7(500);
+    assert.equal(deleteEpisodicMemoryFactsByAssistantMessageIds(db, 1, [30 * 10 + 2]), 1);
+    const result = recall(db, 500, CAUSE_QUESTION);
+    assert.equal(result.facts.some((fact) => fact.id === t30), false);
+    assert.equal(result.promptBlock.includes(FLANK_QUOTE), false);
+    assert.ok(recall(db, 500, "지금 어디 다친 데 있어? 발목은 괜찮아?").facts.some((fact) => fact.id === t312));
+  });
+
+  it("a memory reset before T30 and another chat's T30 stay out", () => {
+    const { db, t30 } = seedB7(500);
+    db.prepare("UPDATE episodic_memory_facts SET source_user_message_id = source_turn * 10 + 1").run();
+    db.prepare("UPDATE chat_memories SET memory_reset_after_message_id = 400 WHERE chat_id = 1").run();
+    const reset = recall(db, 500, CAUSE_QUESTION);
+    assert.equal(reset.facts.some((fact) => fact.id === t30), false);
+    assert.equal(reset.promptBlock.includes(FLANK_QUOTE), false);
+
+    const other = seedB7(500);
+    other.db.prepare("UPDATE episodic_memory_facts SET chat_id = 2 WHERE id = ?").run(other.t30);
+    other.db.prepare("INSERT INTO chat_memories (chat_id) VALUES (2)").run();
+    const fromChat1 = recall(other.db, 500, CAUSE_QUESTION);
+    assert.equal(fromChat1.facts.some((fact) => fact.id === other.t30), false);
+    assert.ok(recall(other.db, 500, CAUSE_QUESTION, 2).facts.some((fact) => fact.id === other.t30));
   });
 });

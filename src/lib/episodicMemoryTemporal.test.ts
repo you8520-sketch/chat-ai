@@ -182,3 +182,74 @@ describe("classifyEpisodicFactTemporalNature", () => {
     );
   });
 });
+
+describe("verified scene occurrence under a free-form attribute", () => {
+  function verified(authority: string, role = "assistant"): string {
+    return JSON.stringify({
+      memory_evidence_type: "explicit_scene_event",
+      evidence: { role, message_id: 61, quote: "발톱이 태형의 왼쪽 옆구리를 꿰뚫었다.", authority, match: "normalized_exact" },
+    });
+  }
+  function classify(factText: string, metadata: string | null, overrides: Record<string, string> = {}) {
+    return classifyEpisodicFactTemporalNature({
+      category: "character",
+      attribute: "injury",
+      value: "v",
+      fact_text: factText,
+      evidence_type: "explicit_scene_event",
+      metadata,
+      ...overrides,
+    });
+  }
+
+  it("a verified past action or change is history whatever its key", () => {
+    for (const text of [
+      "태형은 진화형 크리처의 발톱에 왼쪽 옆구리를 찔렸다.",
+      "태형은 순찰 중 계단에서 미끄러져 오른쪽 발목을 접질렀다.",
+      "그날 태형의 왼쪽 옆구리는 열네 바늘 봉합되었다.",
+      "유저는 에녹의 요구를 거절했다.",
+    ]) {
+      assert.equal(classify(text, verified("CURRENT_SCENE")), "historical_event", text);
+    }
+    assert.equal(classify("유저는 문을 열었다.", verified("USER_EXPLICIT", "user")), "historical_event");
+  });
+
+  it("a legacy row, a character claim or another evidence type is not promoted", () => {
+    const text = "태형은 진화형 크리처의 발톱에 왼쪽 옆구리를 찔렸다.";
+    assert.equal(classify(text, null), "unknown");
+    assert.equal(classify(text, JSON.stringify({ memory_evidence_type: "explicit_scene_event" })), "unknown");
+    assert.equal(classify(text, verified("CHARACTER_CLAIM")), "unknown");
+    assert.equal(
+      classify("유저는 카페에서 일했다.", verified("USER_EXPLICIT", "user"), { evidence_type: "explicit_user_statement" }),
+      "unknown"
+    );
+  });
+
+  it("state-shaped glosses keep latest-wins even with a verified source", () => {
+    for (const text of [
+      "태형은 권총 두 자루를 허리춤에 차고 다닌다.",
+      "붕대 가장자리가 누렇게 변해 있었다.",
+      "태형은 연구국 인턴이었다.",
+      "태형은 조리장으로 일한다.",
+      "태형은 지금도 통증을 느끼고 있다.",
+      "에녹은 카페 안쪽 자리에 앉아 있다.",
+      "태형은 내일 다시 오겠다.",
+      "태형은 오른쪽 발목을 치료 중이다.",
+      "옆구리에 상처가 없었다.",
+    ]) {
+      assert.equal(classify(text, verified("CURRENT_SCENE")), "unknown", text);
+    }
+  });
+
+  it("durable and temporary attributes keep their nature", () => {
+    const metadata = verified("CURRENT_SCENE");
+    assert.equal(
+      classify("사용자는 딸기우유를 좋아하게 되었다.", metadata, { category: "preference", attribute: "favorite_drink" }),
+      "durable"
+    );
+    assert.equal(
+      classify("태형은 순간 얼굴을 찡그렸다.", metadata, { attribute: "facial_expression" }),
+      "clearly_temporary"
+    );
+  });
+});
