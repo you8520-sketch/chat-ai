@@ -23,8 +23,12 @@ export const PUBLIC_SITEMAP_PATHS = [
 ] as const;
 
 /**
- * Login-gated, personal, admin, token, and unlisted-share paths.
- * `/creator$` is the login-only studio route. Public profiles stay at `/creator/{id}`.
+ * Crawl blocks for login-gated, personal, admin, token, and unlisted-share paths.
+ * robots disallow limits fetching; it is not the same as HTML `noindex`.
+ * `/login`, `/signup`, `/tab/following`, `/tab/likes` stay out of this list so bots can
+ * fetch them and read `noindex` metadata. They remain out of the sitemap.
+ * `/creator$` is the login-only studio route (including `/creator?tab=…`). Public profiles stay at `/creator/{id}`.
+ * `/signup/` blocks token subpaths such as `/signup/verify` without blocking `/signup`.
  * TRPG routes are left untouched.
  */
 export const ROBOTS_DISALLOW_PATHS = [
@@ -39,7 +43,6 @@ export const ROBOTS_DISALLOW_PATHS = [
   "/create",
   "/creator$",
   "/events/",
-  "/login",
   "/lorebook",
   "/my-characters",
   "/notifications",
@@ -48,11 +51,9 @@ export const ROBOTS_DISALLOW_PATHS = [
   "/persona",
   "/points",
   "/settings",
-  "/signup",
+  "/signup/",
   "/simulation",
   "/studio",
-  "/tab/following",
-  "/tab/likes",
   "/verify",
   "/widget/",
   "/world",
@@ -216,34 +217,6 @@ export function signupMetadata(): Metadata {
     title: `회원가입 · ${SITE_DISPLAY_NAME}`,
     description: "하브 계정 만들기",
   });
-}
-
-function ruleMatches(rule: string, pathname: string): boolean {
-  const endAnchored = rule.endsWith("$");
-  const prefix = endAnchored ? rule.slice(0, -1) : rule;
-  if (!prefix.startsWith("/")) return false;
-  if (endAnchored) return pathname === prefix;
-  return pathname.startsWith(prefix);
-}
-
-/** Longest robots rule wins. An equal-length tie keeps the allow rule. */
-export function robotsAllowsPath(pathname: string): boolean {
-  const pathOnly = pathname.split("?")[0] || "/";
-  const rules: Array<{ kind: "allow" | "disallow"; rule: string }> = [
-    ...ROBOTS_ALLOW_PATHS.map((rule) => ({ kind: "allow" as const, rule })),
-    ...ROBOTS_DISALLOW_PATHS.map((rule) => ({ kind: "disallow" as const, rule })),
-  ];
-  let winnerKind: "allow" | "disallow" | null = null;
-  let winnerLength = -1;
-  for (const entry of rules) {
-    if (!ruleMatches(entry.rule, pathOnly)) continue;
-    const length = entry.rule.length;
-    if (winnerKind == null || length > winnerLength || (length === winnerLength && entry.kind === "allow")) {
-      winnerKind = entry.kind;
-      winnerLength = length;
-    }
-  }
-  return winnerKind == null || winnerKind === "allow";
 }
 
 export function buildRobots(): {

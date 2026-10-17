@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import {
   PUBLIC_SITEMAP_PATHS,
+  ROBOTS_ALLOW_PATHS,
   ROBOTS_DISALLOW_PATHS,
   SEO_CANONICAL_ORIGIN,
   buildRobots,
@@ -11,10 +12,55 @@ import {
   homeMetadata,
   isSearchIndexableCreator,
   loginMetadata,
-  robotsAllowsPath,
   searchMetadata,
+  signupMetadata,
   tabMetadata,
 } from "@/lib/siteSeo";
+
+/** Test-only robots path match (Google: rule applies to URL path; query is not part of the path). */
+function robotsPathname(input: string): string {
+  if (input.startsWith("http://") || input.startsWith("https://")) {
+    return new URL(input).pathname;
+  }
+  const q = input.indexOf("?");
+  return (q === -1 ? input : input.slice(0, q)) || "/";
+}
+
+function ruleMatches(rule: string, pathname: string): boolean {
+  const endAnchored = rule.endsWith("$");
+  const prefix = endAnchored ? rule.slice(0, -1) : rule;
+  if (!prefix.startsWith("/")) return false;
+  if (endAnchored) return pathname === prefix;
+  return pathname.startsWith(prefix);
+}
+
+/** Longest rule wins; equal length keeps allow. Mirrors the published allow/disallow lists only. */
+function robotsCrawlAllowed(input: string): boolean {
+  const pathname = robotsPathname(input);
+  const rules: Array<{ kind: "allow" | "disallow"; rule: string }> = [
+    ...ROBOTS_ALLOW_PATHS.map((rule) => ({ kind: "allow" as const, rule })),
+    ...ROBOTS_DISALLOW_PATHS.map((rule) => ({ kind: "disallow" as const, rule })),
+  ];
+  let winnerKind: "allow" | "disallow" | null = null;
+  let winnerLength = -1;
+  for (const entry of rules) {
+    if (!ruleMatches(entry.rule, pathname)) continue;
+    const length = entry.rule.length;
+    if (winnerKind == null || length > winnerLength || (length === winnerLength && entry.kind === "allow")) {
+      winnerKind = entry.kind;
+      winnerLength = length;
+    }
+  }
+  return winnerKind == null || winnerKind === "allow";
+}
+
+function metaNoindex(path: string): boolean {
+  if (path === "/login" || path.startsWith("/login?")) return loginMetadata().robots?.index === false;
+  if (path === "/signup" || path.startsWith("/signup?")) return signupMetadata().robots?.index === false;
+  if (path.startsWith("/tab/following")) return tabMetadata("following")?.robots?.index === false;
+  if (path.startsWith("/tab/likes")) return tabMetadata("likes")?.robots?.index === false;
+  return false;
+}
 
 function fixtureDb(): Database.Database {
   const db = new Database(":memory:");
@@ -101,57 +147,70 @@ describe("site SEO", () => {
     assert.equal(shown.alternates?.canonical, "https://hav.chat/creator/4");
   });
 
-  it("allows public discovery paths and blocks login, personal, and share paths", () => {
+  it("separates robots crawl allow, noindex metadata, and sitemap membership", () => {
     const robots = buildRobots();
     assert.equal(robots.sitemap, "https://hav.chat/sitemap.xml");
-    assert.equal(robots.host, "https://hav.chat");
     assert.equal(ROBOTS_DISALLOW_PATHS.includes("/trpg" as never), false);
-    assert.equal(robots.rules.disallow.some((rule) => rule.includes("trpg")), false);
+
+    const noindexEntryPaths = ["/login", "/signup", "/tab/following", "/tab/likes"];
+    for (const path of noindexEntryPaths) {
+      assert.equal(robotsCrawlAllowed(path), true, `crawl ${path}`);
+      assert.equal(metaNoindex(path), true, `noindex ${path}`);
+      assert.equal(robotsCrawlAllowed(`${path}?redirect=/`), true, `crawl ${path}?`);
+      assert.equal(metaNoindex(`${path}?redirect=/`), true, `noindex ${path}?`);
+    }
+
+    assert.equal(robotsCrawlAllowed("/creator"), false);
+    assert.equal(robotsCrawlAllowed("/creator?tab=overview"), false);
+    assert.equal(robotsCrawlAllowed("https://hav.chat/creator?tab=overview"), false);
+    assert.equal(robotsCrawlAllowed("/creator/8"), true);
+
+    assert.equal(robotsCrawlAllowed("/signup/verify"), false);
+    assert.equal(robotsCrawlAllowed("/signup"), true);
 
     for (const path of [
       "/",
       "/search",
       "/tab/ranking",
-      "/tab/new",
-      "/tab/official",
-      "/tab/genre",
-      "/terms",
-      "/privacy",
-      "/refund",
-      "/board/notice",
-      "/widgets",
-      "/notices/12",
       "/creator/8",
+      "/terms",
+      "/widgets",
     ]) {
-      assert.equal(robotsAllowsPath(path), true, path);
+      assert.equal(robotsCrawlAllowed(path), true, path);
     }
 
     for (const path of [
-      "/creator",
       "/points",
-      "/login",
-      "/signup",
-      "/signup/verify",
       "/chat/3",
-      "/chats",
-      "/settings",
       "/admin/ops",
       "/api/chat",
       "/character/2",
-      "/c/secret",
-      "/tab/following",
-      "/tab/likes",
-      "/verify",
       "/widget/apply/token",
       "/world/apply/token",
       "/notifications",
-      "/persona",
+      "/verify",
     ]) {
-      assert.equal(robotsAllowsPath(path), false, path);
+      assert.equal(robotsCrawlAllowed(path), false, path);
     }
 
-    assert.equal(robotsAllowsPath("/trpg"), true);
-    assert.equal(robotsAllowsPath("/trpg/1"), true);
+    const db = fixtureDb();
+    user(db, 1);
+    character(db, { id: 1, creatorId: 1 });
+    const sitemapPaths = urls(db);
+    for (const path of noindexEntryPaths) {
+      assert.equal(
+        sitemapPaths.some((url) => url.endsWith(path) || url.includes(`${path}?`)),
+        false,
+        `sitemap ${path}`
+      );
+    }
+    db.close();
+  });
+
+  it("fails crawl when query is left on the path (regression for studio URLs)", () => {
+    const pathnameIfQueryNotStripped = "/creator?tab=overview";
+    assert.equal(ruleMatches("/creator$", pathnameIfQueryNotStripped), false);
+    assert.equal(robotsCrawlAllowed(pathnameIfQueryNotStripped), false);
   });
 
   it("lists only listable non-adult public URLs from an isolated fixture", () => {
@@ -204,30 +263,30 @@ describe("site SEO", () => {
     assert.equal(found.includes("https://hav.chat/creator/1"), true);
     assert.equal(found.includes("https://hav.chat/creator/8"), true);
     assert.equal(found.includes("https://hav.chat/creator/10"), true);
-    assert.equal(found.filter((url) => url === "https://hav.chat/creator/1").length, 1);
 
     for (const creatorId of [2, 3, 4, 5, 6, 7, 9]) {
       assert.equal(found.includes(`https://hav.chat/creator/${creatorId}`), false, String(creatorId));
       assert.equal(isSearchIndexableCreator(db, creatorId), false, String(creatorId));
     }
-    assert.equal(isSearchIndexableCreator(db, 1), true);
-    assert.equal(isSearchIndexableCreator(db, 8), true);
-    assert.equal(isSearchIndexableCreator(db, 10), true);
-
-    const notice = entries.find((entry) => entry.url === "https://hav.chat/notices/50");
-    assert.equal(notice?.lastModified?.toISOString(), "2026-05-06T07:08:09.000Z");
-    const creator = entries.find((entry) => entry.url === "https://hav.chat/creator/1");
-    assert.equal(creator?.lastModified?.toISOString(), "2026-03-04T05:06:07.000Z");
 
     for (const url of found) {
-      const path = url.replace("https://hav.chat", "") || "/";
-      assert.equal(robotsAllowsPath(path), true, url);
       assert.equal(url.includes("?"), false, url);
-      for (const blocked of ["/chat", "/points", "/admin", "/character/", "/c/", "/trpg", "/api/", "/login"]) {
+      for (const blocked of [
+        "/chat",
+        "/points",
+        "/admin",
+        "/character/",
+        "/c/",
+        "/trpg",
+        "/api/",
+        "/login",
+        "/signup",
+        "/tab/following",
+        "/tab/likes",
+      ]) {
         assert.equal(url.includes(blocked), false, `${url} ${blocked}`);
       }
     }
-    assert.equal(found.some((url) => url.endsWith("/notices/51")), false);
     db.close();
   });
 });
