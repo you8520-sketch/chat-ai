@@ -50,7 +50,7 @@ function fakeChoiceCall(input: {
       estimated: false,
       upstreamCostUsd: input.cost ?? 0.00003,
     },
-    responseModel: "typesafe/jev-1.13-test",
+    responseModel: "typesafe/jev-1.14-test",
   })) as typeof callJevDecisions;
 }
 
