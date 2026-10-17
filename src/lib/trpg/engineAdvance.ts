@@ -1827,6 +1827,10 @@ function applyExplorationToParsed(
   for (const result of adjustment.results) {
     const patch = ensureDeltaPlayer(parsed.delta, result.participantId);
     if (result.location) patch.location = result.location;
+    if (result.searched) {
+      // A search's outcome is the server's: the GM may not add a reward the event did not grant.
+      patch.inventoryAdd = [];
+    }
     if (result.items.length) {
       const have = new Set(patch.inventoryAdd ?? []);
       for (const item of result.items) {

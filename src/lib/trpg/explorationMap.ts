@@ -121,6 +121,8 @@ export type ExplorationActorResult = {
   participantId: number;
   name: string;
   failed: boolean;
+  /** True when the actor's prepared commands included a search, whatever its outcome. */
+  searched: boolean;
   /** Display name of the room the actor ended in, when they moved. */
   location: string | null;
   items: string[];
@@ -874,6 +876,7 @@ export function settleExplorationActor(opts: {
     participantId: opts.pending.participantId,
     name: opts.name,
     failed: false,
+    searched: false,
     location: null,
     items: [],
     flags: [],
@@ -902,6 +905,7 @@ export function settleExplorationActor(opts: {
   let searchFailed = false;
   for (const command of opts.pending.commands) {
     const here = roomName(state.map, roomId);
+    if (command.op === "search") result.searched = true;
     if (command.op === "search" && tierFailsSearch) {
       searchFailed = true;
       if (legacy) {
@@ -1032,7 +1036,7 @@ function discoveryText(discovery: ExplorationDiscovery): string {
 }
 
 export const EXPLORATION_GM_HEADER =
-  "[EXPLORATION — server positions and this-round results. These override earlier narration. Narrate only these positions as fact. Do not invent another clue, item, secret passage, or a new human PC move, line, or decision.]";
+  "[EXPLORATION — server positions and this-round results. These override earlier narration, saved flags, next-round context, and story threads. Narrate only these positions as fact. Do not invent another clue, item, secret passage, or a new human PC move, line, or decision.]";
 
 export type ExplorationSeatFact = {
   name: string;

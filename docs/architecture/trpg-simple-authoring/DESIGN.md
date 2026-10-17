@@ -123,6 +123,8 @@ type TrpgAdventure = {
 - 사건 효과: `clue` = 발견 기록, `item` = 기존 인벤토리 owner로 아이템 지급, `hazard` = 결과 줄만 기록(HP·판정 변경 없음, 위협 권한은 RFC §6 별도 단계). `opensBy` 가 가리키는 사건이 발동하면 해당 링크가 `revealedEdgeIds` 에 들어간다.
 - 발견 가능한 사실의 owner는 사건이다. 정본에 사건이 있으면 `serializeTrpgScenarioPlanForGm` 은 plan의 자유 `clues` 목록을 GM에 보내지 않고, GM은 서버가 발동한 사건만 EXPLORATION 블록으로 받는다. 사건 없는 계획(구 템플릿, 정본 없는 계획, 세계관 직접 시작)은 기존처럼 단서 목록을 받는다.
 - v2는 세계 플래그를 소유하지 않는다(`explorationOwnsWorldFlags`). v1의 경보·빗장·고정 플래그 필터는 v1 상태에만 적용된다.
+- **GM 권한 정렬 (#1656)**: 사건 효과의 소유자는 서버이고 GM은 서버가 준 결과를 서술한다. (1) `TRPG_GM_SYSTEM` 의 기존 문장 "Inventory, location, … remain yours unless they conflict with mechanics…" 에 `[EXPLORATION]` 이 준 위치·길·발견·아이템(실패한 조사의 부재 포함)을 같은 서버 정본으로 추가했다. 새 금지 절을 만들지 않고 기존 예외 목록을 넓혔다. (2) `EXPLORATION_GM_HEADER` 는 "earlier narration" 외에 저장된 flags·next-round context·story threads 보다 우선함을 밝힌다. (3) commit owner `applyExplorationToParsed` 는 조사 command를 처리한 참가자(`ExplorationActorResult.searched`, 실패·무발견 포함)의 GM `inventoryAdd` 를 버리고 서버 아이템만 더한다. 조사하지 않은 참가자와 비탐험 캠페인의 인벤토리는 그대로다. 이동·길 상태는 이미 서버 소유라 변경이 없다(회귀 테스트는 이를 고정). `gm_secret`·`majorEvents` 는 배경 지식이므로 유지한다.
+- **한계**: flags·`nextRoundContext`·director 실마리의 자유 서술은 자연어라 구조적으로 걸러지지 않는다. 우선순위 선언은 모델 준수에 의존하며, 길 개방·아이템 지급을 모델이 따르는지의 실제 UI 실측은 여전히 부족하다.
 - AP·라운드·중복 가드·과금·권한은 바꾸지 않았다(이동 1, 조사 1, 정밀 조사 2, 라운드당 3).
 
 ## 5. 위험
@@ -135,8 +137,8 @@ type TrpgAdventure = {
 - **정본 생성 품질**: 실측 초안 1건(유령 기차)이 링크·사건 모순으로 거절됐다. 그 원인이던 `open` 종류는 제거했다. 거절 시 자동 재시도는 하지 않는다.
 - **GM 서술 vs 서버 사실**: GM 블록은 서버 사실만 사실로 서술하게 하지만, GM 텍스트 자체는 상태에 적용되지 않으므로 서술이 어긋나도 상태는 서버 owner가 결정한다.
 - **자유 단서 우회 공개 (실측 캠페인 47, 수정함)**: 사건 정본 옆에서 plan `clues`("객차 벽면 낙서에 '세 번째 침대 아래'…")가 GM에 그대로 들어갔다. 1라운드 조사 실패 뒤 GM은 "'세 번째……'"만 암시했지만, 2라운드에는 발동 전 사건 `find_manifest` 의 위치를 director 실마리("3호 객차 세 번째 침대 밑의 비밀")로 저장했고, 3라운드 정밀 조사 실패(서버 "Nothing was found") 뒤에는 침대 밑 서류를 찾았다가 기름에 망가졌다고 서술했다. 서버에서 `find_manifest` 는 미발동이라 이야기와 정본이 어긋난다. GM 입력에서 "세 번째 침대"의 출처는 이 목록뿐이었다. 남은 채널: `gm_secret`("명단 원본은 3호실 침대 밑")과 `majorEvents` 는 여전히 위치를 담는다(비밀 owner, FOLLOW-UP). 이미 저장된 캠페인 47의 실마리·플래그는 바꾸지 않았다.
-- **실패 서술이 서버 소유 대상을 파괴·봉쇄 (실측 캠페인 48, FOLLOW-UP)**: SF 정밀 조사 대실패(d20 1) 뒤 GM은 "로그 데이터"와 "방어망 무력화 코드"가 잿더미가 됐다고 서술했고(앞부분은 plan `clues` 의 "유지보수 로그"), 다음 라운드에는 격리 구역 영구 봉쇄를 서술하며 `격리구역_영구봉쇄발령` 플래그를 냈다. 서버에서 `find_maintenance_log`·`unlock_quarantine` 은 미발동이고 격리 구역 길은 여전히 사건으로 열린다. 봉쇄 서술은 단서 채널과 무관한 실패 연출이라 이번에 고치지 않았다.
-- **clue 사건 뒤 GM 인벤토리 추가**: 실측 캠페인 47에서 `wet_ticket`(clue, 아이템 없음) 발견 뒤 GM delta `inventoryAdd` "젖은 승차권(첫 사고 날짜)"이 기존 인벤토리 경로로 반영됐다. 사건 아이템 owner와 별개인 GM 인벤토리 경로다(FOLLOW-UP).
+- **실패 서술이 서버 소유 대상을 파괴·봉쇄 (실측 캠페인 48, 권한 계약 정렬로 좁힘)**: SF 정밀 조사 대실패(d20 1) 뒤 GM은 "로그 데이터"와 "방어망 무력화 코드"가 잿더미가 됐다고 서술했고(앞부분은 plan `clues` 의 "유지보수 로그"), 다음 라운드에는 격리 구역 영구 봉쇄를 서술하며 `격리구역_영구봉쇄발령` 플래그를 냈다. 서버에서 `find_maintenance_log`·`unlock_quarantine` 은 미발동이고 격리 구역 길은 여전히 사건으로 열린다. 봉쇄 서술은 단서 채널과 무관한 실패 연출이라 이번에 고치지 않았다. 이후 #1656 권한 보완에서 `TRPG_GM_SYSTEM` 의 기존 권한 문장과 `EXPLORATION_GM_HEADER` 를 맞췄다(아래 "GM 권한 정렬"). 서술·플래그·`nextRoundContext`·실마리는 구조적으로 걸러지지 않으므로 이미 저장된 모순 사실이 다음 라운드 입력에 남을 수 있다는 한계는 그대로다.
+- **clue 사건 뒤 GM 인벤토리 추가**: 실측 캠페인 47에서 `wet_ticket`(clue, 아이템 없음) 발견 뒤 GM delta `inventoryAdd` "젖은 승차권(첫 사고 날짜)"이 기존 인벤토리 경로로 반영됐다. 사건 아이템 owner와 별개인 GM 인벤토리 경로다(수정함: 아래 "GM 권한 정렬").
 - **dev 전용 과금 오류**: dev 모드 `getDb()` 가 호출마다 `migrate()` 를 다시 실행하고, libsql `transaction()` 은 중첩을 지원하지 않는다. 그래서 작성자 있는 캠페인의 라운드 commit(`resolveCreatorRewardRate` → `getDb()`)이 dev에서만 `cannot start a transaction within a transaction` 으로 실패한다. base에서도 재현되고 test/production 모드에서는 재현되지 않는다. 과금 영역이라 수정하지 않았다(FOLLOW-UP).
 
 ## 6. 선택지 (#1642) → 결정
@@ -163,5 +165,6 @@ type TrpgAdventure = {
 | `adventure_missing` 로그 | KEEP | 진단용. 성공/실패 판단은 `SCENARIO_DRAFT_ADVENTURE_MISSING` 오류가 소유한다 |
 | dev `getDb()` 재-migrate 중첩 트랜잭션 | FOLLOW-UP | dev 전용, base에서 재현, 과금 경계라 이번 PR에서 수정하지 않음 |
 | 사건 정본 옆 plan `clues` GM 공급 | 좁힘 | 사건이 있으면 보내지 않음. 사건 없는 계획은 유지. writer·저장 데이터는 그대로 |
-| `gm_secret`·`majorEvents` 의 사건 위치, clue 사건 뒤 GM `inventoryAdd` | FOLLOW-UP | 비밀·인벤토리 owner 결정 필요 |
-| 실패 서술의 사건 대상 파괴·길 영구 봉쇄 | FOLLOW-UP | 서버 사실(미발동 사건·열 수 있는 길)과 이야기의 불일치. 프롬프트 문구가 아닌 owner 설계 필요 |
+| `gm_secret`·`majorEvents` 의 사건 위치 | FOLLOW-UP | 배경 지식으로 GM에 필요하므로 삭제하지 않음. 사건 결과 확정 권한만 서버로 분리(아래) |
+| 실패 서술의 사건 대상 파괴·길 봉쇄 | 좁힘 | 기존 권한 문장과 EXPLORATION 머리글을 일치. 서술 자체는 모델 준수에 의존(실측 부족) |
+| 조사 command 결과의 GM `inventoryAdd` | 수정함 | commit owner에서 조사한 참가자의 GM 추가분을 버리고 서버 아이템만 1회 지급 |
