@@ -258,7 +258,7 @@ export function selectPromiseHistoryForPrompt(
         ]
       : [];
     const base = `${entry.text} (${span})`;
-    return evidence.length ? `${base} 근거 원문: ${evidence.join(" / ")}` : base;
+    return evidence.length ? `${base} 근거 발췌(발췌에 없는 전달 방식·장소·행동은 미확정): ${evidence.join(" / ")}` : base;
   });
 }
 

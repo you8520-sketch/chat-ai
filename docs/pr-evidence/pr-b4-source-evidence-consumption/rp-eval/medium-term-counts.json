@@ -1,0 +1,69 @@
+[
+ {
+  "file": "A-after-output.txt",
+  "chars": 2955,
+  "medium_terms": {
+   "연락": 2
+  }
+ },
+ {
+  "file": "A-b3-main-output.txt",
+  "chars": 3609,
+  "medium_terms": {
+   "문자": 2,
+   "답장": 3,
+   "연락": 1,
+   "전화": 1
+  }
+ },
+ {
+  "file": "A-before-output.txt",
+  "chars": 2408,
+  "medium_terms": {
+   "문자": 1,
+   "답장": 1,
+   "연락": 2
+  }
+ },
+ {
+  "file": "A-final-output.txt",
+  "chars": 3044,
+  "medium_terms": {
+   "답장": 1,
+   "전갈": 1
+  }
+ },
+ {
+  "file": "B-after-output.txt",
+  "chars": 2271,
+  "medium_terms": {
+   "문자": 4,
+   "답장": 1,
+   "메시지": 1
+  }
+ },
+ {
+  "file": "B-before-output.txt",
+  "chars": 2606,
+  "medium_terms": {
+   "문자": 5,
+   "전화": 1,
+   "메시지": 1
+  }
+ },
+ {
+  "file": "B-final-output.txt",
+  "chars": 2263,
+  "medium_terms": {
+   "문자": 2,
+   "연락": 1
+  }
+ },
+ {
+  "file": "C-after-output.txt",
+  "chars": 2560,
+  "medium_terms": {
+   "연락": 1
+  }
+ }
+]

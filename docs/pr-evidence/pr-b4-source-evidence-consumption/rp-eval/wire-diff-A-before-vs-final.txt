@@ -1,0 +1,24 @@
+126c126
+< chars=3,678 | tokens≈3,311
+---
+> chars=3,697 | tokens≈3,328
+157c157
+< 지난 약속(현재 유효하지 않음): 금요일 저녁 한강에서 같이 야경을 보기로 했다. (제10턴 약속 → 제20턴 해제) 근거 원문: 제10턴 [유저가 직접 쓴 원문] “이번 금요일 저녁에 한강에서 같이 야경 볼래요?” / 제20턴 [유저가 직접 쓴 원문] “미안해요, 사정이 생겨서 금요일 야경 약속은 없던 걸로 해야 할 것 같아요.”
+---
+> 지난 약속(현재 유효하지 않음): 금요일 저녁 한강에서 같이 야경을 보기로 했다. (제10턴 약속 → 제20턴 해제) 근거 발췌(발췌에 없는 전달 방식·장소·행동은 미확정): 제10턴 [유저 발언 발췌] “이번 금요일 저녁에 한강에서 같이 야경 볼래요?” / 제20턴 [유저 발언 발췌] “미안해요, 사정이 생겨서 금요일 야경 약�
+267c267
+< chars=838 | tokens≈755 | HIDDEN INJECTION
+---
+> chars=880 | tokens≈792 | HIDDEN INJECTION
+276c276
+< 이번 턴의 공유 과거는 [HISTORICAL TRUTH — CANONICAL MEMORY]에서 확인된 사실만 이어 쓰고, 비어 있는 이전 세부는 열린 상태로 둔다.
+---
+> 이번 턴의 공유 과거는 [HISTORICAL TRUTH — CANONICAL MEMORY]에서 확인된 사실만 이어 쓰고, 비어 있는 이전 세부는 열린 상태로 둔다(전달 방식·장소·그 사이의 행동 포함). 새 구체성은 현재 장면에서 만든다.
+316c316
+< • [message-9-user] Continuation / length-fix user injection (tokens≈755)
+---
+> • [message-9-user] Continuation / length-fix user injection (tokens≈792)
+324c324
+< 이번 턴의 공유 과거는 [HISTORICAL TRUTH — CANONICAL MEMORY]에서 확인된 사실만 이어 쓰고, 비어 있는 이전 세부는 열린 상태로 둔다.
+---
+> 이번 턴의 공유 과거는 [HISTORICAL TRUTH — CANONICAL MEMORY]에서 확인된 사실만 이어 쓰고, 비어 있는 이전 세부는 열린 상태로 둔다(전달 방식·장소·그 사이의 행동 포함). 새 구체성은 현재 장면에서 만든다.

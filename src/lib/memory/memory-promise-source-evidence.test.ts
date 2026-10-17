@@ -149,8 +149,8 @@ describe("past promise recall carries verified source quotes", () => {
     const [line] = history(RECALL);
     assert.ok(line);
     assert.match(line, /제10턴 약속 → 제20턴 해제/);
-    assert.ok(line.includes(`제10턴 [유저가 직접 쓴 원문] “${T10_USER}”`));
-    assert.ok(line.includes(`제20턴 [유저가 직접 쓴 원문] “${T20_USER}”`));
+    assert.ok(line.includes(`제10턴 [유저 입력 발췌] “${T10_USER}”`));
+    assert.ok(line.includes(`제20턴 [유저 입력 발췌] “${T20_USER}”`));
     assert.ok(line.includes("제20턴 [캐릭터 발언(미확정 주장)] “야경 약속은 없던 걸로 해요.”"));
   });
 
@@ -175,6 +175,18 @@ describe("past promise recall carries verified source quotes", () => {
     setTurnText(20, stated, T20_ASSISTANT);
     const [withReason] = history("그때 한강 야경 약속 왜 취소했더라?");
     assert.ok(withReason!.includes(`“${stated}”`));
+  });
+
+  it("B2: a delivery medium appears in the block only when the source states it, and the block marks everything else as unconfirmed", () => {
+    seedPromiseStory();
+    const [plain] = history(RECALL);
+    assert.doesNotMatch(plain!, /문자|전화|통화|연락|답장|메시지|카톡/);
+    assert.match(plain!, /발췌에 없는[^)]*미확정/);
+
+    const withMedium = "방금 문자 보냈는데요, 미안해요, 사정이 생겨서 금요일 야경 약속은 없던 걸로 해야 할 것 같아요.";
+    setTurnText(20, withMedium, T20_ASSISTANT);
+    const [stated] = history(RECALL);
+    assert.ok(stated!.includes(`“${withMedium}”`), "the stated medium is quoted verbatim");
   });
 
   it("C: proposing a new promise or an unrelated scene injects no past promise", () => {
@@ -202,8 +214,8 @@ describe("past promise recall carries verified source quotes", () => {
     assert.deepEqual(loadChatRelationshipMeta(CHAT_ID, NAMES).promises, []);
     const [line] = history(RECALL);
     assert.match(line!, /제30턴 약속 → 제40턴 해제/);
-    assert.ok(line!.includes(`제30턴 [유저가 직접 쓴 원문] “${reUser}”`));
-    assert.ok(line!.includes(`제40턴 [유저가 직접 쓴 원문] “${cancelAgainUser}”`));
+    assert.ok(line!.includes(`제30턴 [유저 입력 발췌] “${reUser}”`));
+    assert.ok(line!.includes(`제40턴 [유저 입력 발췌] “${cancelAgainUser}”`));
     assert.ok(!line!.includes("사정이 생겨서"), "the first cycle's cancel is not the current state");
   });
 
@@ -258,7 +270,7 @@ describe("past promise recall carries verified source quotes", () => {
     assert.ok(rewritten, "the ledger still ends the promise");
     assert.ok(!rewritten!.includes("사정이 생겨서"), "the replaced words are not quoted");
     assert.ok(!rewritten!.includes("삼각김밥"), `unrelated text is not offered as evidence: ${rewritten}`);
-    assert.ok(rewritten!.includes(`제10턴 [유저가 직접 쓴 원문] “${T10_USER}”`));
+    assert.ok(rewritten!.includes(`제10턴 [유저 입력 발췌] “${T10_USER}”`));
   });
 
   it("F: deleting the last turn drops the cancel and its quote with it", () => {
@@ -324,7 +336,7 @@ describe("past promise recall carries verified source quotes", () => {
     const long = `${filler} ${filler} 그래서 금요일 야경 약속은 이번에는 취소해야 할 것 같아요. ${filler} ${filler}`;
     setTurnText(20, long, T20_ASSISTANT);
     const [line] = history(RECALL);
-    const quote = /제20턴 \[유저가 직접 쓴 원문\] “([^”]*)”/.exec(line!)![1]!;
+    const quote = /제20턴 \[유저 입력 발췌\] “([^”]*)”/.exec(line!)![1]!;
     assert.ok(quote.length <= 200);
     assert.ok(quote.includes("금요일 야경 약속은 이번에는 취소해야 할 것 같아요."));
   });
@@ -341,6 +353,6 @@ describe("past promise recall carries verified source quotes", () => {
     getDb().prepare("DELETE FROM messages WHERE id IN (?,?)").run(userIdOf(10), assistantIdOf(10));
     const lines = history(RECALL);
     assert.ok(lines.length <= 1);
-    for (const line of lines) assert.ok(!line.includes("제10턴 [유저가 직접 쓴 원문]"));
+    for (const line of lines) assert.ok(!line.includes("제10턴 [유저 입력 발췌]"));
   });
 });
