@@ -4,7 +4,7 @@
  * navigation(href·redirect·권한)은 건드리지 않는다.
  */
 
-import { MENU_TRANSITION_TIMING } from "@/lib/menuTransitionSpec";
+import { TRANSITION_FAILSAFE_MS } from "@/lib/transitionShared";
 import {
   publicDossierRevealAttrs,
   type PublicDossierView,
@@ -40,8 +40,8 @@ export const CHARACTER_REVEAL_TIMING = {
   /** 도착이 늦어도 이 시각에는 reveal 시작. */
   holdMaxMs: 1300,
   revealMs: 420,
-  /** 메뉴 전환과 동일한 절대 상한. */
-  failsafeMs: MENU_TRANSITION_TIMING.failsafeMs,
+  /** 공통 전환 절대 상한. */
+  failsafeMs: TRANSITION_FAILSAFE_MS,
 } as const;
 
 /**

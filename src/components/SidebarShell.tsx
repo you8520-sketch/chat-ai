@@ -201,7 +201,7 @@ export default function SidebarShell({ user, recentActivity, navItems }: Props) 
           </Link>
         )}
 
-        <nav className="flex shrink-0 flex-col gap-0.5" data-menu-transition="">
+        <nav className="flex shrink-0 flex-col gap-0.5">
           {navItems.map((item) => (
             <SideLink
               key={item.href}

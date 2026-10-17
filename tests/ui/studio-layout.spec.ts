@@ -228,3 +228,26 @@ test.describe("E4-7 creator menu and /create fixed bars", () => {
     expect(geometry.boxBottom).toBeLessThanOrEqual(geometry.barTop + 1);
   });
 });
+
+test.describe("lorebook editor fits the narrowest phone", () => {
+  test("has no horizontal scroll at 320px with long keywords and keeps adding and removing them", async ({ page }) => {
+    await demoLogin(page);
+    await page.setViewportSize({ width: 320, height: 568 });
+    await page.goto("/lorebook/create");
+    const input = page.getByPlaceholder("키워드 입력 후 Enter");
+    await input.waitFor({ state: "visible" });
+    const overflow = () =>
+      page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+    expect(await overflow()).toBe(false);
+
+    for (const keyword of ["첫번째", "두번째 아주 긴 키워드 이름입니다 열두자 넘는"]) {
+      await input.fill(keyword);
+      await input.press("Enter");
+    }
+    await expect(page.locator('button[aria-label$="키워드 삭제"]')).toHaveCount(2);
+    expect(await overflow()).toBe(false);
+    await page.locator('button[aria-label="첫번째 키워드 삭제"]').click();
+    await expect(page.locator('button[aria-label$="키워드 삭제"]')).toHaveCount(1);
+    await expect(page.getByTestId("studio-save-bar")).toBeVisible();
+  });
+});

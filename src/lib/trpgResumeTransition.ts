@@ -5,7 +5,7 @@
  */
 
 import type { RevealRect } from "@/lib/characterReveal";
-import { MENU_TRANSITION_TIMING } from "@/lib/menuTransitionSpec";
+import { TRANSITION_FAILSAFE_MS } from "@/lib/transitionShared";
 
 export type TrpgRoomRef = { campaignId: number };
 
@@ -132,7 +132,7 @@ export const TRPG_RESUME_TIMING = {
   minCoverMs: 560,
   holdMaxMs: 1100,
   revealMs: 400,
-  failsafeMs: MENU_TRANSITION_TIMING.failsafeMs,
+  failsafeMs: TRANSITION_FAILSAFE_MS,
 } as const;
 
 export function trpgResumeRevealDelayMs(elapsedSinceClickMs: number): number {

@@ -50,11 +50,11 @@ describe("E4-3A navigation chrome", () => {
     assert.match(siteHeader, /<HeaderMainNavRow \/>/);
   });
 
-  it("keeps every main-tab destination and the menu transition marker", () => {
+  it("keeps every main-tab destination and no menu transition marker", () => {
     for (const href of ["/", "/tab/new", "/tab/ranking", "/trpg", "/search", "/tab/following"]) {
       assert.match(mainNav, new RegExp(`href: "${href.replace(/\//g, "\\/")}"`));
     }
-    assert.match(mainNav, /data-menu-transition=""/);
+    assert.doesNotMatch(mainNav, /data-menu-transition/);
   });
 
   it("keeps the mobile bottom nav destinations, hides it from 576px, and honors the iOS safe area", () => {

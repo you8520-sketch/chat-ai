@@ -297,7 +297,7 @@ describe("post-deploy verification", () => {
 });
 
 const PAGE_COPY: Record<PublicPagePath, string> = {
-  "/": "콘텐츠 탐색 취향 설정",
+  "/": "취향 설정 북마크/팔로잉",
   "/search": "장르 카테고리 캐릭터명 · 제작자명 · 태그",
   "/tab/new": "실시간 신작",
   "/tab/ranking": "누적 대화 턴",

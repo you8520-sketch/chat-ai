@@ -23,7 +23,7 @@ import {
   REVEAL_FRAME_ASPECT,
   splitRevealName,
 } from "@/lib/characterReveal";
-import { MENU_TRANSITION_TIMING } from "@/lib/menuTransitionSpec";
+import { TRANSITION_FAILSAFE_MS } from "@/lib/transitionShared";
 
 const root = process.cwd();
 const read = (rel: string) => fs.readFileSync(path.join(root, rel), "utf8");
@@ -195,7 +195,7 @@ describe("character reveal timeline", () => {
     assert.equal(characterRevealDelayMs(minCoverMs + 200), 0);
     assert.ok(holdMaxMs >= minCoverMs);
     assert.ok(holdMaxMs + revealMs <= failsafeMs);
-    assert.equal(failsafeMs, MENU_TRANSITION_TIMING.failsafeMs);
+    assert.equal(failsafeMs, TRANSITION_FAILSAFE_MS);
   });
 });
 
