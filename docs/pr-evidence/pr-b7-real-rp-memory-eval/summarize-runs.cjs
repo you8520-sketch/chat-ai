@@ -21,20 +21,32 @@ const KEYS = {
   E8_repeated_strawberry_milk: ["딸기우유"],
 };
 
-function exactSystemText(dump) {
-  const parts = [];
-  const re = /<<<BEGIN EXACT TEXT>>>\n([\s\S]*?)<<<END EXACT TEXT>>>/g;
+// Wire messages in order: role from the "[SECTION message-N-...] role=X" header,
+// hidden = runtime injection (not part of the stored conversation).
+function wireSections(dump) {
+  const out = [];
+  const re = /\[SECTION message-[^\]]*\] role=(\w+)([^\n]*(?:\n(?!<<<BEGIN EXACT TEXT>>>)[^\n]*)*)\n<<<BEGIN EXACT TEXT>>>\n([\s\S]*?)<<<END EXACT TEXT>>>/g;
   let m;
-  while ((m = re.exec(dump))) parts.push(m[1]);
-  return parts;
+  while ((m = re.exec(dump))) out.push({ role: m[1], hidden: /HIDDEN INJECTION/.test(m[2]), text: m[3] });
+  return out;
 }
 
+function exactSystemText(dump) {
+  return wireSections(dump).filter((s) => s.role === "system").map((s) => s.text);
+}
+
+// The Medium blocks are rendered as their own wire section right before
+// "[Memory]"; the rest of the memory (Global, Episodic, relationship notes)
+// runs from "[Memory]" to "[RUNTIME STYLE]".
 function memoryBlock(dump) {
   const system = exactSystemText(dump).join("\n");
   const start = system.indexOf("[Memory]\n");
   if (start < 0) return "";
   const end = system.indexOf("[RUNTIME STYLE]", start);
-  return system.slice(start, end < 0 ? undefined : end).trimEnd();
+  const memory = system.slice(start, end < 0 ? undefined : end).trimEnd();
+  const mediumStart = system.indexOf("[최근 기억 · T");
+  const medium = mediumStart >= 0 && mediumStart < start ? system.slice(mediumStart, start).trimEnd() : "";
+  return medium ? `${medium}\n\n${memory}` : memory;
 }
 
 function section(block, header, nextHeaders) {
@@ -49,8 +61,10 @@ function section(block, header, nextHeaders) {
 }
 
 function rawHistory(dump) {
-  const parts = exactSystemText(dump);
-  return parts.slice(1).join("\n");
+  return wireSections(dump)
+    .filter((s) => (s.role === "user" || s.role === "assistant") && !s.hidden)
+    .map((s) => s.text)
+    .join("\n");
 }
 
 function memoryHealth(serverLog) {
@@ -78,7 +92,7 @@ for (const file of fs.readdirSync(outDir).filter((f) => f.endsWith(".usage.json"
   const headers = ["[현재기억]", "[최근 기억 · T", "[EPISODIC MEMORY - RETRIEVED FACTS]", "[Memory — 참고"];
   const sections = {
     global: section(block, "[현재기억]", headers.filter((h) => h !== "[현재기억]")),
-    medium: section(block, "[최근 기억 · T", ["[EPISODIC MEMORY - RETRIEVED FACTS]", "[Memory — 참고"]),
+    medium: section(block, "[최근 기억 · T", ["[Memory]\n"]),
     episodic: section(block, "[EPISODIC MEMORY - RETRIEVED FACTS]", ["[Memory — 참고"]),
     relationship: section(block, "[Memory — 참고", []),
     raw_history: rawHistory(dump),
