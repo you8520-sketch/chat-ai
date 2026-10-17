@@ -1,0 +1,43 @@
+
+[count-locks] "에녹이 문을 잠갔던 적이 몇 번이었지?" H=1000 ms=18.8 chars=988 tokens≈890
+  selected: T950#960 T700#709 T500#508 T410#416 T400#405 T200#203 T100#102 T981#991
+  C_lock_1         T100  C real repeat (different source message) INJECTED#7
+  B_lock_legacy_1  T200  B identical gloss, no source             INJECTED#6
+  C_lock_2         T400  C real repeat (different source message) INJECTED#5
+  A_lock_410_row1  T410  A same source                            INJECTED#4
+  A_lock_410_row2  T410  A same source                            DEDUPED(duplicate_same_evidence)
+  B_lock_legacy_2  T500  B identical gloss, no source             INJECTED#3
+  C_lock_3         T700  C real repeat (different source message) INJECTED#2
+  C_lock_4         T950  C real repeat (different source message) INJECTED#1
+
+[when-locked] "에녹이 문을 잠갔던 때가 언제들이었는지 기억나?" H=1000 ms=10.8 chars=988 tokens≈890
+  selected: T950#960 T700#709 T500#508 T410#416 T400#405 T200#203 T100#102 T981#991
+  C_lock_1         T100  C real repeat (different source message) INJECTED#7
+  B_lock_legacy_1  T200  B identical gloss, no source             INJECTED#6
+  C_lock_2         T400  C real repeat (different source message) INJECTED#5
+  A_lock_410_row1  T410  A same source                            INJECTED#4
+  A_lock_410_row2  T410  A same source                            DEDUPED(duplicate_same_evidence)
+  B_lock_legacy_2  T500  B identical gloss, no source             INJECTED#3
+  C_lock_3         T700  C real repeat (different source message) INJECTED#2
+  C_lock_4         T950  C real repeat (different source message) INJECTED#1
+
+[letter] "그때 등대에서 루카가 찾았던 붉은 봉인 편지 기억나?" H=1000 ms=11.8 chars=989 tokens≈891
+  selected: T300#304 T972#982 T936#945 T900#909 T864#873 T72#73 T36#37 T992#1002
+  I2_letter        T300  important                                INJECTED#1
+
+[betrayal] "벨라가 우리를 경비대에 넘겼던 거 말이야, 왜 그랬을까?" H=1000 ms=12.8 chars=974 tokens≈877
+  selected: T25#26 T990#1000 T954#964 T918#927 T882#891 T846#855 T90#91 T54#55
+  I1_betrayal      T25   important                                INJECTED#1
+
+[unrelated] "오늘 날씨 좋다." H=1000 ms=7.9 chars=0 tokens≈1
+  selected: 
+  I1_betrayal      T25   important                                RELEVANCE_FAIL
+  C_lock_1         T100  C real repeat (different source message) CANDIDATE_MISS
+  B_lock_legacy_1  T200  B identical gloss, no source             CANDIDATE_MISS
+  I2_letter        T300  important                                CANDIDATE_MISS
+  C_lock_2         T400  C real repeat (different source message) CANDIDATE_MISS
+  A_lock_410_row1  T410  A same source                            CANDIDATE_MISS
+  A_lock_410_row2  T410  A same source                            CANDIDATE_MISS
+  B_lock_legacy_2  T500  B identical gloss, no source             CANDIDATE_MISS
+  C_lock_3         T700  C real repeat (different source message) CANDIDATE_MISS
+  C_lock_4         T950  C real repeat (different source message) RELEVANCE_FAIL
