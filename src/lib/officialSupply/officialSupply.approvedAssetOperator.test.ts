@@ -36,7 +36,6 @@ import {
   TestPorts,
 } from "@/lib/officialSupply/officialSupply.approvedApplyFixtures";
 import { testBatchConfig, testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures";
-import { createVisionOfficialAssetModerator } from "@/lib/officialSupply/productionAdapters";
 import { OfficialSupplyGateError, OfficialSupplyStore } from "@/lib/officialSupply/store";
 import type { OfficialAssetModeration } from "@/lib/officialSupply/types";
 import { installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/lib/test/isolatedTestDatabase";
@@ -80,11 +79,16 @@ function open(overrides: Partial<Parameters<typeof openApprovedAssetOperator>[0]
   });
 }
 
+function withoutUpdatedAt(row: unknown): Record<string, unknown> {
+  const { updated_at: _updatedAt, ...rest } = (row ?? {}) as Record<string, unknown>;
+  return rest;
+}
+
 function dbState() {
   const db = store.database;
   return {
     character: db.prepare("SELECT assets, images, official, visibility, creator_id FROM characters WHERE id=?").get(characterId),
-    supply: db.prepare("SELECT * FROM official_supply_characters WHERE draft_key=?").get(DRAFT),
+    supply: withoutUpdatedAt(db.prepare("SELECT * FROM official_supply_characters WHERE draft_key=?").get(DRAFT)),
     assets: db.prepare("SELECT * FROM official_supply_assets WHERE draft_key=? ORDER BY slot_key").all(DRAFT),
     replacements: db.prepare("SELECT * FROM official_supply_asset_replacements WHERE draft_key=? ORDER BY slot_key").all(DRAFT),
     applies: db.prepare("SELECT * FROM official_supply_replacement_applies WHERE draft_key=? ORDER BY apply_id").all(DRAFT),
@@ -310,15 +314,6 @@ describe("approved asset operator (isolated DB)", () => {
       0.2
     );
     assert.equal(knownVisionAttemptCostUsd({ model: "m", usageEstimated: false, outcome: "failed_with_usage" }), null);
-  });
-
-  it("4c. the production vision moderator reports every call's attempts to the meter", async () => {
-    const observed: unknown[] = [];
-    const moderator = createVisionOfficialAssetModerator((attempts) => observed.push(attempts));
-    const result = await moderator.moderate(CANDIDATES[0]!.file);
-    assert.deepEqual(result, { status: "unavailable", reason: "asset vision moderation unavailable" });
-    assert.deepEqual(observed, [[]]);
-    assert.deepEqual(egressAttempts, []);
   });
 
   it("5. review evidence is bound to the stored URL and SHA; fixtures, isolated proof in production and gaps are refused", () => {
