@@ -1,0 +1,2669 @@
+{
+  "version": 1,
+  "baseMainSha": "419cb2c0a699587de9ef277da0b0da799b66485c",
+  "benchmarkHeadSha": "cf68ddb4fee1812558f7d224b328dba28366bdd7",
+  "nodeVersion": "v22.14.0",
+  "resolvedPrimaryModel": "gpt-5.6-luna",
+  "resolvedFallbackModel": "google/gemini-3.1-flash-lite",
+  "scenePlanMaxProviderAttempts": 2,
+  "scenePlanRetryCount": 0,
+  "compatibility": {
+    "status": "PASS",
+    "probeFixtureIds": [
+      "F1",
+      "F5"
+    ],
+    "checks": {
+      "AI_OUTPUT_VALIDATED_BY_EXISTING_VALIDATOR": true,
+      "HERO_EVENT_IDS_EXIST_IN_CANONICAL_EVENTS": true,
+      "HERO_TEXT_PROVENANCE_FROM_ROUND_NARRATION": true,
+      "NAMED_PARTY_ACTIONS_REWRITTEN_BY_PLANNER": true,
+      "WRONG_ROUND_EVIDENCE": true,
+      "INVENTED_EVENT": true
+    }
+  },
+  "invocationCounts": {
+    "planChatImageSceneInvocations": 10,
+    "primarySuccessCount": 9,
+    "secondaryFallbackSuccessCount": 0,
+    "deterministicFallbackCount": 1,
+    "paidImageGenerationCalls": 0
+  },
+  "latenciesMs": [
+    5210,
+    5604,
+    5351,
+    6215,
+    6561,
+    6408,
+    7305,
+    6942,
+    5326,
+    7486
+  ],
+  "fixtures": [
+    {
+      "fixtureId": "F1",
+      "category": "QUIET_EMOTIONAL",
+      "fixtureProvenance": "SYNTHETIC",
+      "sourceSha256": "0beac313f31ef2b52ed302b09491f8daefc1c61540571a0429aa662cc5872627",
+      "source": {
+        "location": "폐허가 된 성채 안쪽 회랑",
+        "actions": [
+          {
+            "name": "세라",
+            "body": "벽면의 낡은 초상화를 조용히 바라본다."
+          },
+          {
+            "name": "민호",
+            "body": "손등으로 먼지를 털며 옆에 선다."
+          }
+        ],
+        "narration": "회랑 끝에서 바람이 멈춘다. 초상화 속 여인의 눈동자가 잠깐 빛나더니, 세라의 눈가에 눈물 한 방울이 맺힌다. 민호는 말을 삼키고 그 표정만 바라본다. 멀리서 유리창이 살짝 울린다."
+      },
+      "currentRaw": {
+        "situation": "LOCATION: 폐허가 된 성채 안쪽 회랑\nTHIS ROUND'S ACTIONS (what each listed person just did — depict these poses/actions):\n- 세라: 벽면의 낡은 초상화를 조용히 바라본다.\n- 민호: 손등으로 먼지를 털며 옆에 선다.\nGM SCENE:\n회랑 끝에서 바람이 멈춘다. 초상화 속 여인의 눈동자가 잠깐 빛나더니, 세라의 눈가에 눈물 한 방울이 맺힌다. 민호는 말을 삼키고 그 표정만 바라본다. 멀리서 유리창이 살짝 울린다.",
+        "chars": 275
+      },
+      "deterministic": {
+        "events": [
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "회랑 끝에서",
+            "id": "E1",
+            "order": 1
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "바람이 멈춘다",
+            "id": "E2",
+            "order": 2
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "초상화 속 여인의 눈동자가 잠깐 빛나더니, 세라의 눈가에 눈물 한 방울이 맺힌다",
+            "id": "E3",
+            "order": 3
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "민호는 말을 삼키고",
+            "id": "E4",
+            "order": 4
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "그 표정만 바라본다",
+            "id": "E5",
+            "order": 5
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "멀리서",
+            "id": "E6",
+            "order": 6
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "유리창이 살짝 울린다.",
+            "id": "E7",
+            "order": 7
+          }
+        ],
+        "heroEventIds": [
+          "E1",
+          "E2",
+          "E3"
+        ],
+        "heroScene": "회랑 끝에서 바람이 멈춘다 초상화 속 여인의 눈동자가 잠깐 빛나더니, 세라의 눈가에 눈물 한 방울이 맺힌다",
+        "sceneBackground": "",
+        "recommendedPanelCount": 4,
+        "heroEventPositions": [
+          0.14285714285714285,
+          0.2857142857142857,
+          0.42857142857142855
+        ]
+      },
+      "aiPlanner": {
+        "outcome": "PRIMARY_MODEL_SUCCESS",
+        "resolvedPrimaryModel": "gpt-5.6-luna",
+        "resolvedFallbackModel": "google/gemini-3.1-flash-lite",
+        "model": "gpt-5.6-luna",
+        "attempts": 1,
+        "usedFallback": false,
+        "latencyMs": 5210,
+        "inputTokens": 1399,
+        "outputTokens": 387,
+        "providerCostUsd": 0.000326,
+        "events": [
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "회랑 끝에서",
+            "id": "E1",
+            "order": 1
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "바람이 멈춘다",
+            "id": "E2",
+            "order": 2
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "초상화 속 여인의 눈동자가 잠깐 빛나더니, 세라의 눈가에 눈물 한 방울이 맺힌다",
+            "id": "E3",
+            "order": 3
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "민호는 말을 삼키고",
+            "id": "E4",
+            "order": 4
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "그 표정만 바라본다",
+            "id": "E5",
+            "order": 5
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "멀리서",
+            "id": "E6",
+            "order": 6
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "유리창이 살짝 울린다.",
+            "id": "E7",
+            "order": 7
+          }
+        ],
+        "heroEventIds": [
+          "E1",
+          "E2",
+          "E3",
+          "E4",
+          "E5",
+          "E6",
+          "E7"
+        ],
+        "heroScene": "회랑 끝에서 바람이 멈추고 초상화 속 여인의 눈동자가 빛난다. 세라의 눈가에 눈물 한 방울이 맺히고, 민호는 말을 삼킨 채 그 표정을 바라본다. 멀리서 유리창이 살짝 울린다.",
+        "sceneBackground": "회랑 끝, 초상화가 있는 실내, 바람이 멈춘 순간의 희미한 조명",
+        "atmosphere": "정적과 긴장감",
+        "recommendedPanelCount": 3,
+        "panels": [
+          {
+            "index": 1,
+            "sourceEventIds": [
+              "E1",
+              "E2",
+              "E3"
+            ],
+            "situation": "회랑 끝의 정적 속에서 바람이 멈추고, 초상화 속 여인의 눈동자가 잠깐 빛난 뒤 세라의 눈가에 눈물 한 방울이 맺힌다.",
+            "dialogue": []
+          },
+          {
+            "index": 2,
+            "sourceEventIds": [
+              "E4",
+              "E5"
+            ],
+            "situation": "민호는 말을 삼키고 세라의 표정만 바라본다.",
+            "dialogue": []
+          },
+          {
+            "index": 3,
+            "sourceEventIds": [
+              "E6",
+              "E7"
+            ],
+            "situation": "멀리서 유리창이 살짝 울린다.",
+            "dialogue": []
+          }
+        ],
+        "heroEventPositions": [
+          0.14285714285714285,
+          0.2857142857142857,
+          0.42857142857142855,
+          0.5714285714285714,
+          0.7142857142857143,
+          0.8571428571428571,
+          1
+        ]
+      },
+      "objective": {
+        "sourceEventCount": 7,
+        "deterministicHeroCount": 3,
+        "aiHeroCount": 7,
+        "deterministicHeroPositions": [
+          0.14285714285714285,
+          0.2857142857142857,
+          0.42857142857142855
+        ],
+        "aiHeroPositions": [
+          0.14285714285714285,
+          0.2857142857142857,
+          0.42857142857142855,
+          0.5714285714285714,
+          0.7142857142857143,
+          0.8571428571428571,
+          1
+        ],
+        "aiSelectedLastThird": true,
+        "aiModel": "gpt-5.6-luna",
+        "aiAttempts": 1,
+        "aiUsedFallback": false,
+        "aiDeterministicFallback": false,
+        "aiLatencyMs": 5210,
+        "heroIdsValid": true,
+        "provenanceValid": true,
+        "inventedEvent": false,
+        "wrongRound": false,
+        "wrongLocation": true,
+        "rewritesPartyAction": false
+      },
+      "review": {
+        "status": "GPT_SCORE_PENDING"
+      }
+    },
+    {
+      "fixtureId": "F2",
+      "category": "DIALOGUE_REACTION",
+      "fixtureProvenance": "SYNTHETIC",
+      "sourceSha256": "37c49facaa0e2bdd4e915a776f6fed5236c40363633fa075203b9c2ff1432572",
+      "source": {
+        "location": "항구 도시 '잿빛 부두'",
+        "actions": [
+          {
+            "name": "유나",
+            "body": "\"그 배, 우리가 찾던 거 맞아?\""
+          },
+          {
+            "name": "카이",
+            "body": "담배 연기를 내뿜으며 고개를 젓는다."
+          }
+        ],
+        "narration": "유나가 검은 돛대를 가리킨다. \"그 배, 우리가 찾던 거 맞아?\" 카이는 담배 연기를 내뿜으며 고개를 젓는다. \"아니. 돛에 새긴 문양이 다르지.\" 유나는 입술을 깨문다. 그때 갑판 위에서 낡은 로프가 끊어지며 쇳소리가 난다. 카이의 눈동자가 순간 크게 뜨인다."
+      },
+      "currentRaw": {
+        "situation": "LOCATION: 항구 도시 '잿빛 부두'\nTHIS ROUND'S ACTIONS (what each listed person just did — depict these poses/actions):\n- 유나: \"그 배, 우리가 찾던 거 맞아?\"\n- 카이: 담배 연기를 내뿜으며 고개를 젓는다.\nGM SCENE:\n유나가 검은 돛대를 가리킨다. \"그 배, 우리가 찾던 거 맞아?\" 카이는 담배 연기를 내뿜으며 고개를 젓는다. \"아니. 돛에 새긴 문양이 다르지.\" 유나는 입술을 깨문다. 그때 갑판 위에서 낡은 로프가 끊어지며 쇳소리가 난다. 카이의 눈동자가 순간 크게 뜨인다.",
+        "chars": 319
+      },
+      "deterministic": {
+        "events": [
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "유나가 검은 돛대를 가리킨다.",
+            "id": "E1",
+            "order": 1
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "dialogue",
+            "actor": "character",
+            "text": "그 배, 우리가 찾던 거 맞아?",
+            "id": "E2",
+            "order": 2
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "카이는 담배 연기를 내뿜으며 고개를 젓는다.",
+            "id": "E3",
+            "order": 3
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "dialogue",
+            "actor": "character",
+            "text": "아니. 돛에 새긴 문양이 다르지.",
+            "id": "E4",
+            "order": 4
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "유나는 입술을 깨문다. 그때 갑판 위에서 낡은 로프가 끊어지며 쇳소리가 난다. 카이의 눈동자가 순간 크게 뜨인다.",
+            "id": "E5",
+            "order": 5
+          }
+        ],
+        "heroEventIds": [
+          "E1",
+          "E2",
+          "E3"
+        ],
+        "heroScene": "유나가 검은 돛대를 가리킨다. 그 배, 우리가 찾던 거 맞아? 카이는 담배 연기를 내뿜으며 고개를 젓는다.",
+        "sceneBackground": "",
+        "recommendedPanelCount": 3,
+        "heroEventPositions": [
+          0.2,
+          0.4,
+          0.6
+        ]
+      },
+      "aiPlanner": {
+        "outcome": "PRIMARY_MODEL_SUCCESS",
+        "resolvedPrimaryModel": "gpt-5.6-luna",
+        "resolvedFallbackModel": "google/gemini-3.1-flash-lite",
+        "model": "gpt-5.6-luna",
+        "attempts": 1,
+        "usedFallback": false,
+        "latencyMs": 5604,
+        "inputTokens": 1342,
+        "outputTokens": 507,
+        "providerCostUsd": 0.000378,
+        "events": [
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "유나가 검은 돛대를 가리킨다.",
+            "id": "E1",
+            "order": 1
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "dialogue",
+            "actor": "character",
+            "text": "그 배, 우리가 찾던 거 맞아?",
+            "id": "E2",
+            "order": 2
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "카이는 담배 연기를 내뿜으며 고개를 젓는다.",
+            "id": "E3",
+            "order": 3
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "dialogue",
+            "actor": "character",
+            "text": "아니. 돛에 새긴 문양이 다르지.",
+            "id": "E4",
+            "order": 4
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "유나는 입술을 깨문다. 그때 갑판 위에서 낡은 로프가 끊어지며 쇳소리가 난다. 카이의 눈동자가 순간 크게 뜨인다.",
+            "id": "E5",
+            "order": 5
+          }
+        ],
+        "heroEventIds": [
+          "E1",
+          "E2",
+          "E3",
+          "E4"
+        ],
+        "heroScene": "유나가 검은 돛대를 가리키며 찾던 배인지 묻고, 카이가 담배 연기를 내뿜으며 문양이 다르다고 부정한다.",
+        "sceneBackground": "바닷가의 선착장, 낮, 흐린 자연광",
+        "atmosphere": "수상한 배를 둘러싼 긴장감",
+        "recommendedPanelCount": 3,
+        "panels": [
+          {
+            "index": 1,
+            "sourceEventIds": [
+              "E1",
+              "E2"
+            ],
+            "situation": "유나가 멀리 보이는 검은 돛대를 가리키며 배를 확인한다.",
+            "characterAction": "유나가 검은 돛대를 가리킨다.",
+            "dialogue": [
+              {
+                "speaker": "character",
+                "text": "그 배, 우리가 찾던 거 맞아?",
+                "sourceEventId": "E2",
+                "provenance": "source"
+              }
+            ]
+          },
+          {
+            "index": 2,
+            "sourceEventIds": [
+              "E3",
+              "E4"
+            ],
+            "situation": "카이가 담배 연기를 내뿜으며 배의 돛에 새겨진 문양을 부정한다.",
+            "characterAction": "카이는 담배 연기를 내뿜으며 고개를 젓는다.",
+            "dialogue": [
+              {
+                "speaker": "character",
+                "text": "아니. 돛에 새긴 문양이 다르지.",
+                "sourceEventId": "E4",
+                "provenance": "source"
+              }
+            ]
+          },
+          {
+            "index": 3,
+            "sourceEventIds": [
+              "E5"
+            ],
+            "situation": "유나가 입술을 깨무는 순간 갑판 위의 낡은 로프가 끊어져 쇳소리가 나고, 카이의 눈동자가 크게 뜨인다.",
+            "characterAction": "유나는 입술을 깨문다. 그때 갑판 위에서 낡은 로프가 끊어지며 쇳소리가 난다. 카이의 눈동자가 순간 크게 뜬다.",
+            "dialogue": []
+          }
+        ],
+        "heroEventPositions": [
+          0.2,
+          0.4,
+          0.6,
+          0.8
+        ]
+      },
+      "objective": {
+        "sourceEventCount": 5,
+        "deterministicHeroCount": 3,
+        "aiHeroCount": 4,
+        "deterministicHeroPositions": [
+          0.2,
+          0.4,
+          0.6
+        ],
+        "aiHeroPositions": [
+          0.2,
+          0.4,
+          0.6,
+          0.8
+        ],
+        "aiSelectedLastThird": true,
+        "aiModel": "gpt-5.6-luna",
+        "aiAttempts": 1,
+        "aiUsedFallback": false,
+        "aiDeterministicFallback": false,
+        "aiLatencyMs": 5604,
+        "heroIdsValid": true,
+        "provenanceValid": true,
+        "inventedEvent": false,
+        "wrongRound": false,
+        "wrongLocation": true,
+        "rewritesPartyAction": false
+      },
+      "review": {
+        "status": "GPT_SCORE_PENDING"
+      }
+    },
+    {
+      "fixtureId": "F3",
+      "category": "COMBAT_ACTION",
+      "fixtureProvenance": "SYNTHETIC",
+      "sourceSha256": "bbf7d4c2c8c21d9e95440f26a9b741f83b260b221794f1690b9569fb5e676092",
+      "source": {
+        "location": "지하 수로 교차로",
+        "actions": [
+          {
+            "name": "하린",
+            "body": "쌍검으로 습격자의 무릎 관절을 노린다."
+          },
+          {
+            "name": "준",
+            "body": "방패로 하린의 측면을 열어 준다."
+          }
+        ],
+        "narration": "습격자 셋이 어둠에서 튀어나온다. 하린이 쌍검을 교차시키며 무릎 관절을 노린다. 준은 방패를 들어 올려 하린의 측면을 열어 준다. 첫 번째 습격자는 비명을 지르며 물에 빠지고, 두 번째는 벽면을 박차며 후퇴한다. 마지막 한 명은 횃불을 바닥에 던지고 달아난다."
+      },
+      "currentRaw": {
+        "situation": "LOCATION: 지하 수로 교차로\nTHIS ROUND'S ACTIONS (what each listed person just did — depict these poses/actions):\n- 하린: 쌍검으로 습격자의 무릎 관절을 노린다.\n- 준: 방패로 하린의 측면을 열어 준다.\nGM SCENE:\n습격자 셋이 어둠에서 튀어나온다. 하린이 쌍검을 교차시키며 무릎 관절을 노린다. 준은 방패를 들어 올려 하린의 측면을 열어 준다. 첫 번째 습격자는 비명을 지르며 물에 빠지고, 두 번째는 벽면을 박차며 후퇴한다. 마지막 한 명은 횃불을 바닥에 던지고 달아난다.",
+        "chars": 313
+      },
+      "deterministic": {
+        "events": [
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "습격자",
+            "id": "E1",
+            "order": 1
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "셋이 어둠에서",
+            "id": "E2",
+            "order": 2
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "튀어나온다",
+            "id": "E3",
+            "order": 3
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "하린이 쌍검을 교차시키며",
+            "id": "E4",
+            "order": 4
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "무릎 관절을 노린다",
+            "id": "E5",
+            "order": 5
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "준은 방패를 들어 올려 하린의 측면을 열어 준다",
+            "id": "E6",
+            "order": 6
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "첫 번째 습격자는 비명을 지르며",
+            "id": "E7",
+            "order": 7
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "물에 빠지고, 두 번째는 벽면을 박차며",
+            "id": "E8",
+            "order": 8
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "후퇴한다",
+            "id": "E9",
+            "order": 9
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "마지막 한 명은 횃불을 바닥에 던지고",
+            "id": "E10",
+            "order": 10
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "달아난다.",
+            "id": "E11",
+            "order": 11
+          }
+        ],
+        "heroEventIds": [
+          "E1",
+          "E2",
+          "E3"
+        ],
+        "heroScene": "습격자 셋이 어둠에서 튀어나온다",
+        "sceneBackground": "",
+        "recommendedPanelCount": 4,
+        "heroEventPositions": [
+          0.09090909090909091,
+          0.18181818181818182,
+          0.2727272727272727
+        ]
+      },
+      "aiPlanner": {
+        "outcome": "PRIMARY_MODEL_SUCCESS",
+        "resolvedPrimaryModel": "gpt-5.6-luna",
+        "resolvedFallbackModel": "google/gemini-3.1-flash-lite",
+        "model": "gpt-5.6-luna",
+        "attempts": 1,
+        "usedFallback": false,
+        "latencyMs": 5351,
+        "inputTokens": 1683,
+        "outputTokens": 472,
+        "providerCostUsd": 0.000395,
+        "events": [
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "습격자",
+            "id": "E1",
+            "order": 1
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "셋이 어둠에서",
+            "id": "E2",
+            "order": 2
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "튀어나온다",
+            "id": "E3",
+            "order": 3
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "하린이 쌍검을 교차시키며",
+            "id": "E4",
+            "order": 4
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "무릎 관절을 노린다",
+            "id": "E5",
+            "order": 5
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "준은 방패를 들어 올려 하린의 측면을 열어 준다",
+            "id": "E6",
+            "order": 6
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "첫 번째 습격자는 비명을 지르며",
+            "id": "E7",
+            "order": 7
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "물에 빠지고, 두 번째는 벽면을 박차며",
+            "id": "E8",
+            "order": 8
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "후퇴한다",
+            "id": "E9",
+            "order": 9
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "마지막 한 명은 횃불을 바닥에 던지고",
+            "id": "E10",
+            "order": 10
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "달아난다.",
+            "id": "E11",
+            "order": 11
+          }
+        ],
+        "heroEventIds": [
+          "E1",
+          "E2",
+          "E3",
+          "E4",
+          "E5",
+          "E6",
+          "E7",
+          "E8",
+          "E9",
+          "E10",
+          "E11"
+        ],
+        "heroScene": "어둠에서 습격자 셋이 튀어나오고, 하린이 쌍검으로 무릎 관절을 노리는 동안 준이 방패를 들어 측면을 연다. 한 습격자는 물에 빠지고, 다른 한 명은 후퇴하며, 마지막 한 명은 횃불을 던지고 달아난다.",
+        "sceneBackground": "어둠 속의 물가와 벽면이 있는 장소, 습격 순간의 희미한 횃불빛",
+        "atmosphere": "급박하고 격렬한 전투",
+        "recommendedPanelCount": 4,
+        "panels": [
+          {
+            "index": 1,
+            "sourceEventIds": [
+              "E1",
+              "E2",
+              "E3"
+            ],
+            "situation": "어둠에서 습격자 셋이 튀어나온다.",
+            "dialogue": []
+          },
+          {
+            "index": 2,
+            "sourceEventIds": [
+              "E4",
+              "E5",
+              "E6"
+            ],
+            "situation": "하린이 쌍검을 교차시키며 무릎 관절을 노리고, 준은 방패를 들어 하린의 측면을 열어 준다.",
+            "dialogue": []
+          },
+          {
+            "index": 3,
+            "sourceEventIds": [
+              "E7",
+              "E8",
+              "E9"
+            ],
+            "situation": "첫 번째 습격자는 비명을 지르며 물에 빠지고, 두 번째는 벽면을 박차며 후퇴한다.",
+            "dialogue": []
+          },
+          {
+            "index": 4,
+            "sourceEventIds": [
+              "E10",
+              "E11"
+            ],
+            "situation": "마지막 한 명은 횃불을 바닥에 던지고 달아난다.",
+            "dialogue": []
+          }
+        ],
+        "heroEventPositions": [
+          0.09090909090909091,
+          0.18181818181818182,
+          0.2727272727272727,
+          0.36363636363636365,
+          0.45454545454545453,
+          0.5454545454545454,
+          0.6363636363636364,
+          0.7272727272727273,
+          0.8181818181818182,
+          0.9090909090909091,
+          1
+        ]
+      },
+      "objective": {
+        "sourceEventCount": 11,
+        "deterministicHeroCount": 3,
+        "aiHeroCount": 11,
+        "deterministicHeroPositions": [
+          0.09090909090909091,
+          0.18181818181818182,
+          0.2727272727272727
+        ],
+        "aiHeroPositions": [
+          0.09090909090909091,
+          0.18181818181818182,
+          0.2727272727272727,
+          0.36363636363636365,
+          0.45454545454545453,
+          0.5454545454545454,
+          0.6363636363636364,
+          0.7272727272727273,
+          0.8181818181818182,
+          0.9090909090909091,
+          1
+        ],
+        "aiSelectedLastThird": true,
+        "aiModel": "gpt-5.6-luna",
+        "aiAttempts": 1,
+        "aiUsedFallback": false,
+        "aiDeterministicFallback": false,
+        "aiLatencyMs": 5351,
+        "heroIdsValid": true,
+        "provenanceValid": true,
+        "inventedEvent": false,
+        "wrongRound": false,
+        "wrongLocation": true,
+        "rewritesPartyAction": false
+      },
+      "review": {
+        "status": "GPT_SCORE_PENDING"
+      }
+    },
+    {
+      "fixtureId": "F4",
+      "category": "LATE_CLIMAX",
+      "fixtureProvenance": "SYNTHETIC",
+      "sourceSha256": "8988dda5acfa07d7094f488b656c883d5b0ee33adb9c6957edbb407111378575",
+      "source": {
+        "location": "고대 관측탑 7층",
+        "actions": [
+          {
+            "name": "이안",
+            "body": "별자리 판을 천천히 돌린다."
+          },
+          {
+            "name": "소피",
+            "body": "기록장을 펼쳐 문양을 대조한다."
+          },
+          {
+            "name": "마르코",
+            "body": "창문 너머를 경계한다."
+          }
+        ],
+        "narration": "이안이 별자리 판을 돌리고, 소피는 기록장의 문양을 대조한다. 마르코는 창문 너머를 경계한다. 처음엔 아무 일도 없다. 바람만 스며든다. 소피가 \"아직 한 칸 부족해\"라고 중얼거린다. 이안이 판을 한 번 더 돌리자, 벽면의 석재가 갈라지며 먼지가 쏟아진다. 마지막 순간, 천장 중앙의 유리 구체가 붉게 점등하며 관측탑 전체를 비춘다."
+      },
+      "currentRaw": {
+        "situation": "LOCATION: 고대 관측탑 7층\nTHIS ROUND'S ACTIONS (what each listed person just did — depict these poses/actions):\n- 이안: 별자리 판을 천천히 돌린다.\n- 소피: 기록장을 펼쳐 문양을 대조한다.\n- 마르코: 창문 너머를 경계한다.\nGM SCENE:\n이안이 별자리 판을 돌리고, 소피는 기록장의 문양을 대조한다. 마르코는 창문 너머를 경계한다. 처음엔 아무 일도 없다. 바람만 스며든다. 소피가 \"아직 한 칸 부족해\"라고 중얼거린다. 이안이 판을 한 번 더 돌리자, 벽면의 석재가 갈라지며 먼지가 쏟아진다. 마지막 순간, 천장 중앙의 유리 구체가 붉게 점등하며 관측탑 전체를 비춘다.",
+        "chars": 368
+      },
+      "deterministic": {
+        "events": [
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "이안이 별자리 판을 돌리고, 소피는 기록장의 문양을 대조한다. 마르코는 창문 너머를 경계한다. 처음엔 아무 일도 없다. 바람만 스며든다. 소피가",
+            "id": "E1",
+            "order": 1
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "dialogue",
+            "actor": "character",
+            "text": "아직 한 칸 부족해",
+            "id": "E2",
+            "order": 2
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "라고 중얼거린다. 이안이 판을 한 번 더 돌리자, 벽면의 석재가 갈라지며 먼지가 쏟아진다. 마지막 순간, 천장 중앙의 유리 구체가 붉게 점등하며 관측탑 전체를 비춘다.",
+            "id": "E3",
+            "order": 3
+          }
+        ],
+        "heroEventIds": [
+          "E1",
+          "E2",
+          "E3"
+        ],
+        "heroScene": "이안이 별자리 판을 돌리고, 소피는 기록장의 문양을 대조한다. 마르코는 창문 너머를 경계한다. 처음엔 아무 일도 없다. 바람만 스며든다. 소피가 아직 한 칸 부족해 라고 중얼거린다. 이안이 판을 한 번 더 돌리자, 벽면의 석재가 갈라지며 먼지가 쏟아진다. 마지막 순간, 천장 중앙의 유리 구체가 붉게 점등하며 관측탑 전체를 비춘다.",
+        "sceneBackground": "",
+        "recommendedPanelCount": 2,
+        "heroEventPositions": [
+          0.3333333333333333,
+          0.6666666666666666,
+          1
+        ]
+      },
+      "aiPlanner": {
+        "outcome": "PRIMARY_MODEL_SUCCESS",
+        "resolvedPrimaryModel": "gpt-5.6-luna",
+        "resolvedFallbackModel": "google/gemini-3.1-flash-lite",
+        "model": "gpt-5.6-luna",
+        "attempts": 1,
+        "usedFallback": false,
+        "latencyMs": 6215,
+        "inputTokens": 1286,
+        "outputTokens": 569,
+        "providerCostUsd": 0.000402,
+        "events": [
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "이안이 별자리 판을 돌리고, 소피는 기록장의 문양을 대조한다. 마르코는 창문 너머를 경계한다. 처음엔 아무 일도 없다. 바람만 스며든다. 소피가",
+            "id": "E1",
+            "order": 1
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "dialogue",
+            "actor": "character",
+            "text": "아직 한 칸 부족해",
+            "id": "E2",
+            "order": 2
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "라고 중얼거린다. 이안이 판을 한 번 더 돌리자, 벽면의 석재가 갈라지며 먼지가 쏟아진다. 마지막 순간, 천장 중앙의 유리 구체가 붉게 점등하며 관측탑 전체를 비춘다.",
+            "id": "E3",
+            "order": 3
+          }
+        ],
+        "heroEventIds": [
+          "E1",
+          "E2",
+          "E3"
+        ],
+        "heroScene": "이안과 소피가 관측탑의 단서를 맞추고 마르코가 창문 너머를 경계하는 가운데, 소피가 부족한 한 칸을 지적한다. 이안이 판을 다시 돌리자 벽면이 갈라지고, 붉은 유리 구체가 관측탑 전체를 비춘다.",
+        "sceneBackground": "관측탑 내부, 별자리 판과 기록장이 놓인 시간대. 바람이 스며드는 가운데 천장 중앙의 유리 구체가 붉게 빛남",
+        "atmosphere": "고요한 긴장감이 점차 극적인 순간으로 고조됨",
+        "recommendedPanelCount": 3,
+        "panels": [
+          {
+            "index": 1,
+            "sourceEventIds": [
+              "E1"
+            ],
+            "situation": "관측탑 안에서 이안은 별자리 판을 돌리고 소피는 기록장의 문양을 대조하며, 마르코는 창문 너머를 경계한다. 처음에는 바람만 스며든다.",
+            "characterAction": "세 사람이 각자의 위치에서 단서를 살피고 주변을 경계한다.",
+            "dialogue": []
+          },
+          {
+            "index": 2,
+            "sourceEventIds": [
+              "E2"
+            ],
+            "situation": "소피가 기록장을 확인하다가 별자리 판과 맞지 않는 한 칸을 발견하고 중얼거린다.",
+            "characterAction": "소피가 기록장의 문양을 가리키며 낮게 중얼거린다.",
+            "dialogue": [
+              {
+                "speaker": "character",
+                "text": "아직 한 칸 부족해",
+                "sourceEventId": "E2",
+                "provenance": "source"
+              }
+            ]
+          },
+          {
+            "index": 3,
+            "sourceEventIds": [
+              "E3"
+            ],
+            "situation": "이안이 판을 한 번 더 돌리자 벽면의 석재가 갈라지고 먼지가 쏟아진다. 이어 천장 중앙의 유리 구체가 붉게 점등하며 관측탑 전체를 비춘다.",
+            "characterAction": "이안이 판을 다시 돌리는 순간 벽면이 갈라지고, 붉은 빛이 공간을 압도한다.",
+            "dialogue": []
+          }
+        ],
+        "heroEventPositions": [
+          0.3333333333333333,
+          0.6666666666666666,
+          1
+        ]
+      },
+      "objective": {
+        "sourceEventCount": 3,
+        "deterministicHeroCount": 3,
+        "aiHeroCount": 3,
+        "deterministicHeroPositions": [
+          0.3333333333333333,
+          0.6666666666666666,
+          1
+        ],
+        "aiHeroPositions": [
+          0.3333333333333333,
+          0.6666666666666666,
+          1
+        ],
+        "aiSelectedLastThird": true,
+        "aiModel": "gpt-5.6-luna",
+        "aiAttempts": 1,
+        "aiUsedFallback": false,
+        "aiDeterministicFallback": false,
+        "aiLatencyMs": 6215,
+        "heroIdsValid": true,
+        "provenanceValid": true,
+        "inventedEvent": false,
+        "wrongRound": false,
+        "wrongLocation": true,
+        "rewritesPartyAction": false
+      },
+      "review": {
+        "status": "GPT_SCORE_PENDING"
+      }
+    },
+    {
+      "fixtureId": "F5",
+      "category": "MULTI_PARTY_ACTION",
+      "fixtureProvenance": "SYNTHETIC",
+      "sourceSha256": "eedc83225b26ee49bb73998fecac81214046269926bb72bbf14491b39781bc18",
+      "source": {
+        "location": "숲속 전초 기지",
+        "actions": [
+          {
+            "name": "태현",
+            "body": "왼쪽 가드 포스트를 향해 돌진한다."
+          },
+          {
+            "name": "이현",
+            "body": "화살 두 발을 연속으로 쏜다."
+          },
+          {
+            "name": "에녹",
+            "body": "치유 손길을 태현의 어깨에 얹는다."
+          }
+        ],
+        "narration": "전초 기지의 횃불이 흔들린다. 태현이 왼쪽 가드 포스트를 향해 돌진하고, 이현은 화살 두 발을 연속으로 쏜다. 에녹은 치유 손길을 태현의 어깨에 얹는다. 첫 화살이 경고 등불을 꺼뜨리고, 둘째 화살이 로프를 끊는다. 태현은 문틈을 박차고 들어가며, 에녹의 빛이 그의 상처를 메운다."
+      },
+      "currentRaw": {
+        "situation": "LOCATION: 숲속 전초 기지\nTHIS ROUND'S ACTIONS (what each listed person just did — depict these poses/actions):\n- 태현: 왼쪽 가드 포스트를 향해 돌진한다.\n- 이현: 화살 두 발을 연속으로 쏜다.\n- 에녹: 치유 손길을 태현의 어깨에 얹는다.\nGM SCENE:\n전초 기지의 횃불이 흔들린다. 태현이 왼쪽 가드 포스트를 향해 돌진하고, 이현은 화살 두 발을 연속으로 쏜다. 에녹은 치유 손길을 태현의 어깨에 얹는다. 첫 화살이 경고 등불을 꺼뜨리고, 둘째 화살이 로프를 끊는다. 태현은 문틈을 박차고 들어가며, 에녹의 빛이 그의 상처를 메운다.",
+        "chars": 347
+      },
+      "deterministic": {
+        "events": [
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "전초 기지의 횃불이 흔들린다",
+            "id": "E1",
+            "order": 1
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "태현이 왼쪽 가드 포스트를 향해 돌진하고, 이현은 화살 두 발을 연속으로 쏜다",
+            "id": "E2",
+            "order": 2
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "에녹은 치유 손길을 태현의 어깨에 얹는다",
+            "id": "E3",
+            "order": 3
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "첫 화살이 경고",
+            "id": "E4",
+            "order": 4
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "등불을 꺼뜨리고, 둘째 화살이 로프를 끊는다",
+            "id": "E5",
+            "order": 5
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "태현은 문틈을 박차고",
+            "id": "E6",
+            "order": 6
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "들어가며, 에녹의 빛이 그의 상처를 메운다.",
+            "id": "E7",
+            "order": 7
+          }
+        ],
+        "heroEventIds": [
+          "E1",
+          "E2",
+          "E3"
+        ],
+        "heroScene": "전초 기지의 횃불이 흔들린다 태현이 왼쪽 가드 포스트를 향해 돌진하고, 이현은 화살 두 발을 연속으로 쏜다 에녹은 치유 손길을 태현의 어깨에 얹는다",
+        "sceneBackground": "",
+        "recommendedPanelCount": 4,
+        "heroEventPositions": [
+          0.14285714285714285,
+          0.2857142857142857,
+          0.42857142857142855
+        ]
+      },
+      "aiPlanner": {
+        "outcome": "PRIMARY_MODEL_SUCCESS",
+        "resolvedPrimaryModel": "gpt-5.6-luna",
+        "resolvedFallbackModel": "google/gemini-3.1-flash-lite",
+        "model": "gpt-5.6-luna",
+        "attempts": 1,
+        "usedFallback": false,
+        "latencyMs": 6561,
+        "inputTokens": 1490,
+        "outputTokens": 469,
+        "providerCostUsd": 0.000375,
+        "events": [
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "전초 기지의 횃불이 흔들린다",
+            "id": "E1",
+            "order": 1
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "태현이 왼쪽 가드 포스트를 향해 돌진하고, 이현은 화살 두 발을 연속으로 쏜다",
+            "id": "E2",
+            "order": 2
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "에녹은 치유 손길을 태현의 어깨에 얹는다",
+            "id": "E3",
+            "order": 3
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "첫 화살이 경고",
+            "id": "E4",
+            "order": 4
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "등불을 꺼뜨리고, 둘째 화살이 로프를 끊는다",
+            "id": "E5",
+            "order": 5
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "태현은 문틈을 박차고",
+            "id": "E6",
+            "order": 6
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "들어가며, 에녹의 빛이 그의 상처를 메운다.",
+            "id": "E7",
+            "order": 7
+          }
+        ],
+        "heroEventIds": [
+          "E1",
+          "E2",
+          "E4",
+          "E5",
+          "E6",
+          "E7"
+        ],
+        "heroScene": "흔들리는 횃불 아래 태현이 왼쪽 가드 포스트로 돌진하고 이현의 두 화살이 등불과 로프를 차례로 무너뜨린다. 태현은 문틈을 박차고 들어가며 에녹의 빛이 상처를 메운다.",
+        "sceneBackground": "전초 기지의 왼쪽 가드 포스트와 문틈, 흔들리는 횃불이 있는 밤",
+        "atmosphere": "긴박하고 어두운 침투 직전의 분위기",
+        "recommendedPanelCount": 3,
+        "panels": [
+          {
+            "index": 1,
+            "sourceEventIds": [
+              "E1",
+              "E2",
+              "E3"
+            ],
+            "situation": "전초 기지의 횃불이 흔들리는 가운데 태현이 왼쪽 가드 포스트로 돌진하고 이현이 화살 두 발을 연속으로 쏜다. 에녹은 태현의 어깨에 치유 손길을 얹는다.",
+            "dialogue": []
+          },
+          {
+            "index": 2,
+            "sourceEventIds": [
+              "E4",
+              "E5"
+            ],
+            "situation": "첫 화살이 경고가 되고, 둘째 화살이 등불을 꺼뜨린 뒤 로프를 끊는다.",
+            "dialogue": []
+          },
+          {
+            "index": 3,
+            "sourceEventIds": [
+              "E6",
+              "E7"
+            ],
+            "situation": "태현이 문틈을 박차고 들어가며 에녹의 빛이 그의 상처를 메운다.",
+            "dialogue": []
+          }
+        ],
+        "heroEventPositions": [
+          0.14285714285714285,
+          0.2857142857142857,
+          0.5714285714285714,
+          0.7142857142857143,
+          0.8571428571428571,
+          1
+        ]
+      },
+      "objective": {
+        "sourceEventCount": 7,
+        "deterministicHeroCount": 3,
+        "aiHeroCount": 6,
+        "deterministicHeroPositions": [
+          0.14285714285714285,
+          0.2857142857142857,
+          0.42857142857142855
+        ],
+        "aiHeroPositions": [
+          0.14285714285714285,
+          0.2857142857142857,
+          0.5714285714285714,
+          0.7142857142857143,
+          0.8571428571428571,
+          1
+        ],
+        "aiSelectedLastThird": true,
+        "aiModel": "gpt-5.6-luna",
+        "aiAttempts": 1,
+        "aiUsedFallback": false,
+        "aiDeterministicFallback": false,
+        "aiLatencyMs": 6561,
+        "heroIdsValid": true,
+        "provenanceValid": true,
+        "inventedEvent": false,
+        "wrongRound": false,
+        "wrongLocation": true,
+        "rewritesPartyAction": false
+      },
+      "review": {
+        "status": "GPT_SCORE_PENDING"
+      }
+    },
+    {
+      "fixtureId": "F6",
+      "category": "ENVIRONMENT_SHIFT",
+      "fixtureProvenance": "SYNTHETIC",
+      "sourceSha256": "710e3c5088220e54e48ad2c474d9340d7750daca07b770d64168b501261bd4bd",
+      "source": {
+        "location": "빗속 골목",
+        "actions": [
+          {
+            "name": "리나",
+            "body": "우산 없이 골목 깊숙이 들어간다."
+          },
+          {
+            "name": "도윤",
+            "body": "뒤따라가며 벽의 낙서를 확인한다."
+          }
+        ],
+        "narration": "비가 세차게 내린다. 리나가 우산 없이 골목 깊숙이 들어가고, 도윤은 벽의 낙서를 확인하며 뒤따른다. 골목 끝에서 바람 방향이 바뀌더니, 빗줄기가 갑자기 멈춘다. 공기가 건조해지고, 벽면의 낙서가 벗겨지며 뒤편의 유리 온실 입구가 드러난다. 온실 안쪽은 안개 대신 따뜻한 햇빛이 가득하다."
+      },
+      "currentRaw": {
+        "situation": "LOCATION: 빗속 골목\nTHIS ROUND'S ACTIONS (what each listed person just did — depict these poses/actions):\n- 리나: 우산 없이 골목 깊숙이 들어간다.\n- 도윤: 뒤따라가며 벽의 낙서를 확인한다.\nGM SCENE:\n비가 세차게 내린다. 리나가 우산 없이 골목 깊숙이 들어가고, 도윤은 벽의 낙서를 확인하며 뒤따른다. 골목 끝에서 바람 방향이 바뀌더니, 빗줄기가 갑자기 멈춘다. 공기가 건조해지고, 벽면의 낙서가 벗겨지며 뒤편의 유리 온실 입구가 드러난다. 온실 안쪽은 안개 대신 따뜻한 햇빛이 가득하다.",
+        "chars": 323
+      },
+      "deterministic": {
+        "events": [
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "비가 세차게 내린다",
+            "id": "E1",
+            "order": 1
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "리나가 우산 없이 골목 깊숙이 들어가고, 도윤은 벽의 낙서를 확인하며",
+            "id": "E2",
+            "order": 2
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "뒤따른다",
+            "id": "E3",
+            "order": 3
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "골목 끝에서",
+            "id": "E4",
+            "order": 4
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "바람 방향이 바뀌더니, 빗줄기가 갑자기 멈춘다",
+            "id": "E5",
+            "order": 5
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "공기가 건조해지고, 벽면의 낙서가 벗겨지며",
+            "id": "E6",
+            "order": 6
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "뒤편의 유리 온실 입구가 드러난다",
+            "id": "E7",
+            "order": 7
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "온실 안쪽은 안개 대신 따뜻한 햇빛이 가득하다.",
+            "id": "E8",
+            "order": 8
+          }
+        ],
+        "heroEventIds": [
+          "E1",
+          "E2",
+          "E3"
+        ],
+        "heroScene": "비가 세차게 내린다 리나가 우산 없이 골목 깊숙이 들어가고, 도윤은 벽의 낙서를 확인하며 뒤따른다",
+        "sceneBackground": "",
+        "recommendedPanelCount": 4,
+        "heroEventPositions": [
+          0.125,
+          0.25,
+          0.375
+        ]
+      },
+      "aiPlanner": {
+        "outcome": "PRIMARY_MODEL_SUCCESS",
+        "resolvedPrimaryModel": "gpt-5.6-luna",
+        "resolvedFallbackModel": "google/gemini-3.1-flash-lite",
+        "model": "gpt-5.6-luna",
+        "attempts": 1,
+        "usedFallback": false,
+        "latencyMs": 6408,
+        "inputTokens": 1543,
+        "outputTokens": 466,
+        "providerCostUsd": 0.000378,
+        "events": [
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "비가 세차게 내린다",
+            "id": "E1",
+            "order": 1
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "리나가 우산 없이 골목 깊숙이 들어가고, 도윤은 벽의 낙서를 확인하며",
+            "id": "E2",
+            "order": 2
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "뒤따른다",
+            "id": "E3",
+            "order": 3
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "골목 끝에서",
+            "id": "E4",
+            "order": 4
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "바람 방향이 바뀌더니, 빗줄기가 갑자기 멈춘다",
+            "id": "E5",
+            "order": 5
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "공기가 건조해지고, 벽면의 낙서가 벗겨지며",
+            "id": "E6",
+            "order": 6
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "뒤편의 유리 온실 입구가 드러난다",
+            "id": "E7",
+            "order": 7
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "온실 안쪽은 안개 대신 따뜻한 햇빛이 가득하다.",
+            "id": "E8",
+            "order": 8
+          }
+        ],
+        "heroEventIds": [
+          "E5",
+          "E6",
+          "E7",
+          "E8"
+        ],
+        "heroScene": "골목 끝에서 바람의 방향이 바뀌며 빗줄기가 멈추고, 벽면의 낙서가 벗겨져 뒤편의 유리 온실 입구가 드러난다. 온실 안쪽에는 안개 대신 따뜻한 햇빛이 가득하다.",
+        "sceneBackground": "비 내리는 골목에서 유리 온실 입구로 이어지는 낮의 공간",
+        "atmosphere": "거센 비가 멎고 숨겨진 온실이 드러나는 신비로운 분위기",
+        "recommendedPanelCount": 4,
+        "panels": [
+          {
+            "index": 1,
+            "sourceEventIds": [
+              "E1",
+              "E2"
+            ],
+            "situation": "세차게 내리는 비 속에서 리나가 우산 없이 골목 깊숙이 들어가고, 도윤은 벽의 낙서를 확인한다.",
+            "dialogue": []
+          },
+          {
+            "index": 2,
+            "sourceEventIds": [
+              "E3",
+              "E4"
+            ],
+            "situation": "도윤이 리나를 뒤따르며 골목 끝에 이른다.",
+            "dialogue": []
+          },
+          {
+            "index": 3,
+            "sourceEventIds": [
+              "E5",
+              "E6"
+            ],
+            "situation": "바람 방향이 바뀌고 빗줄기가 갑자기 멈춘다. 공기가 건조해지며 벽면의 낙서가 벗겨진다.",
+            "dialogue": []
+          },
+          {
+            "index": 4,
+            "sourceEventIds": [
+              "E7",
+              "E8"
+            ],
+            "situation": "벗겨진 낙서 뒤편에서 유리 온실 입구가 드러나고, 온실 안쪽은 안개 대신 따뜻한 햇빛으로 가득하다.",
+            "dialogue": []
+          }
+        ],
+        "heroEventPositions": [
+          0.625,
+          0.75,
+          0.875,
+          1
+        ]
+      },
+      "objective": {
+        "sourceEventCount": 8,
+        "deterministicHeroCount": 3,
+        "aiHeroCount": 4,
+        "deterministicHeroPositions": [
+          0.125,
+          0.25,
+          0.375
+        ],
+        "aiHeroPositions": [
+          0.625,
+          0.75,
+          0.875,
+          1
+        ],
+        "aiSelectedLastThird": true,
+        "aiModel": "gpt-5.6-luna",
+        "aiAttempts": 1,
+        "aiUsedFallback": false,
+        "aiDeterministicFallback": false,
+        "aiLatencyMs": 6408,
+        "heroIdsValid": true,
+        "provenanceValid": true,
+        "inventedEvent": false,
+        "wrongRound": false,
+        "wrongLocation": true,
+        "rewritesPartyAction": false
+      },
+      "review": {
+        "status": "GPT_SCORE_PENDING"
+      }
+    },
+    {
+      "fixtureId": "F7",
+      "category": "NPC_REVEAL",
+      "fixtureProvenance": "SYNTHETIC",
+      "sourceSha256": "bf6278696ca2b885c6604f6b4320ed2dc8ade9a09a379a4f4d5661993b0e8570",
+      "source": {
+        "location": "폐역 대합실",
+        "actions": [
+          {
+            "name": "지우",
+            "body": "떨어진 시간표를 줍는다."
+          },
+          {
+            "name": "한결",
+            "body": "기둥 뒤 그림자를 의심한다."
+          }
+        ],
+        "narration": "지우가 떨어진 시간표를 줍는다. 한결은 기둥 뒤 그림자를 의심하며 손을 검자루에 올린다. 그때 대합실 중앙의 시계가 거꾸로 돌기 시작한다. 기둥 뒤에서 검은 외투를 입은 여행객이 나타나며, \"늦었군\"이라고 말한다. 그의 가방에서 붉은 빛이 새어 나온다."
+      },
+      "currentRaw": {
+        "situation": "LOCATION: 폐역 대합실\nTHIS ROUND'S ACTIONS (what each listed person just did — depict these poses/actions):\n- 지우: 떨어진 시간표를 줍는다.\n- 한결: 기둥 뒤 그림자를 의심한다.\nGM SCENE:\n지우가 떨어진 시간표를 줍는다. 한결은 기둥 뒤 그림자를 의심하며 손을 검자루에 올린다. 그때 대합실 중앙의 시계가 거꾸로 돌기 시작한다. 기둥 뒤에서 검은 외투를 입은 여행객이 나타나며, \"늦었군\"이라고 말한다. 그의 가방에서 붉은 빛이 새어 나온다.",
+        "chars": 296
+      },
+      "deterministic": {
+        "events": [
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "지우가 떨어진 시간표를 줍는다. 한결은 기둥 뒤 그림자를 의심하며 손을 검자루에 올린다. 그때 대합실 중앙의 시계가 거꾸로 돌기 시작한다. 기둥 뒤에서 검은 외투를 입은 여행객이 나타나며,",
+            "id": "E1",
+            "order": 1
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "dialogue",
+            "actor": "character",
+            "text": "늦었군",
+            "id": "E2",
+            "order": 2
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "이라고 말한다. 그의 가방에서 붉은 빛이 새어 나온다.",
+            "id": "E3",
+            "order": 3
+          }
+        ],
+        "heroEventIds": [
+          "E1",
+          "E2",
+          "E3"
+        ],
+        "heroScene": "지우가 떨어진 시간표를 줍는다. 한결은 기둥 뒤 그림자를 의심하며 손을 검자루에 올린다. 그때 대합실 중앙의 시계가 거꾸로 돌기 시작한다. 기둥 뒤에서 검은 외투를 입은 여행객이 나타나며, 늦었군 이라고 말한다. 그의 가방에서 붉은 빛이 새어 나온다.",
+        "sceneBackground": "",
+        "recommendedPanelCount": 2,
+        "heroEventPositions": [
+          0.3333333333333333,
+          0.6666666666666666,
+          1
+        ]
+      },
+      "aiPlanner": {
+        "outcome": "DETERMINISTIC_FALLBACK",
+        "resolvedPrimaryModel": "gpt-5.6-luna",
+        "resolvedFallbackModel": "google/gemini-3.1-flash-lite",
+        "model": "deterministic-fallback",
+        "attempts": 2,
+        "usedFallback": true,
+        "latencyMs": 7305,
+        "inputTokens": 1257,
+        "outputTokens": 389,
+        "providerCostUsd": 0.00089775,
+        "events": [
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "지우가 떨어진 시간표를 줍는다. 한결은 기둥 뒤 그림자를 의심하며 손을 검자루에 올린다. 그때 대합실 중앙의 시계가 거꾸로 돌기 시작한다. 기둥 뒤에서 검은 외투를 입은 여행객이 나타나며,",
+            "id": "E1",
+            "order": 1
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "dialogue",
+            "actor": "character",
+            "text": "늦었군",
+            "id": "E2",
+            "order": 2
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "이라고 말한다. 그의 가방에서 붉은 빛이 새어 나온다.",
+            "id": "E3",
+            "order": 3
+          }
+        ],
+        "heroEventIds": [
+          "E1",
+          "E2",
+          "E3"
+        ],
+        "heroScene": "지우가 떨어진 시간표를 줍는다. 한결은 기둥 뒤 그림자를 의심하며 손을 검자루에 올린다. 그때 대합실 중앙의 시계가 거꾸로 돌기 시작한다. 기둥 뒤에서 검은 외투를 입은 여행객이 나타나며, 늦었군 이라고 말한다. 그의 가방에서 붉은 빛이 새어 나온다.",
+        "sceneBackground": "",
+        "recommendedPanelCount": 2,
+        "panels": [
+          {
+            "index": 1,
+            "sourceEventIds": [
+              "E1",
+              "E2"
+            ],
+            "situation": "지우가 떨어진 시간표를 줍는다. 한결은 기둥 뒤 그림자를 의심하며 손을 검자루에 올린다. 그때 대합실 중앙의 시계가 거꾸로 돌기 시작한다. 기둥 뒤에서 검은 외투를 입은 여행객이 나타나며, 늦었군",
+            "characterAction": "지우가 떨어진 시간표를 줍는다. 한결은 기둥 뒤 그림자를 의심하며 손을 검자루에 올린다. 그때 대합실 중앙의 시계가 거꾸로 돌기 시작한다. 기둥 뒤에서 검은 외투를 입은 여행객이 나타나며,",
+            "dialogue": [
+              {
+                "speaker": "character",
+                "text": "늦었군",
+                "sourceEventId": "E2",
+                "provenance": "source"
+              }
+            ]
+          },
+          {
+            "index": 2,
+            "sourceEventIds": [
+              "E3"
+            ],
+            "situation": "이라고 말한다. 그의 가방에서 붉은 빛이 새어 나온다.",
+            "characterAction": "이라고 말한다. 그의 가방에서 붉은 빛이 새어 나온다.",
+            "dialogue": []
+          }
+        ],
+        "heroEventPositions": [
+          0.3333333333333333,
+          0.6666666666666666,
+          1
+        ]
+      },
+      "objective": {
+        "sourceEventCount": 3,
+        "deterministicHeroCount": 3,
+        "aiHeroCount": 3,
+        "deterministicHeroPositions": [
+          0.3333333333333333,
+          0.6666666666666666,
+          1
+        ],
+        "aiHeroPositions": [
+          0.3333333333333333,
+          0.6666666666666666,
+          1
+        ],
+        "aiSelectedLastThird": true,
+        "aiModel": "deterministic-fallback",
+        "aiAttempts": 2,
+        "aiUsedFallback": true,
+        "aiDeterministicFallback": true,
+        "aiLatencyMs": 7305,
+        "heroIdsValid": true,
+        "provenanceValid": true,
+        "inventedEvent": false,
+        "wrongRound": false,
+        "wrongLocation": false,
+        "rewritesPartyAction": false
+      },
+      "review": {
+        "status": "GPT_SCORE_PENDING"
+      }
+    },
+    {
+      "fixtureId": "F8",
+      "category": "DISCOVERY_OBJECT",
+      "fixtureProvenance": "SYNTHETIC",
+      "sourceSha256": "15fb21ebee8acbdbf7c23edd42eda8ac3a9ff24254fec3894858285f3d428574",
+      "source": {
+        "location": "서고 지하 서가",
+        "actions": [
+          {
+            "name": "미래",
+            "body": "책장 사이의 금속함을 연다."
+          },
+          {
+            "name": "성호",
+            "body": "랜턴을 들어 올려 먼지를 확인한다."
+          }
+        ],
+        "narration": "미래가 책장 사이의 금속함을 연다. 성호는 랜턴을 들어 올려 먼지를 확인한다. 금속함 안에는 빈칸만 있을 줄 알았지만, 바닥에 낡은 열쇠 한 자루가 놓여 있다. 열쇠 손잡이에는 달 모양 문양이 새겨져 있고, 미래의 손끝이 닿자 차가운 빛이 번진다."
+      },
+      "currentRaw": {
+        "situation": "LOCATION: 서고 지하 서가\nTHIS ROUND'S ACTIONS (what each listed person just did — depict these poses/actions):\n- 미래: 책장 사이의 금속함을 연다.\n- 성호: 랜턴을 들어 올려 먼지를 확인한다.\nGM SCENE:\n미래가 책장 사이의 금속함을 연다. 성호는 랜턴을 들어 올려 먼지를 확인한다. 금속함 안에는 빈칸만 있을 줄 알았지만, 바닥에 낡은 열쇠 한 자루가 놓여 있다. 열쇠 손잡이에는 달 모양 문양이 새겨져 있고, 미래의 손끝이 닿자 차가운 빛이 번진다.",
+        "chars": 301
+      },
+      "deterministic": {
+        "events": [
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "미래가 책장 사이의 금속함을 연다",
+            "id": "E1",
+            "order": 1
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "성호는 랜턴을 들어 올려 먼지를 확인한다",
+            "id": "E2",
+            "order": 2
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "금속함 안에는 빈칸만 있을 줄 알았지만, 바닥에 낡은 열쇠 한 자루가 놓여 있다",
+            "id": "E3",
+            "order": 3
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "열쇠 손잡이에는 달 모양 문양이 새겨져 있고, 미래의 손끝이 닿자",
+            "id": "E4",
+            "order": 4
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "차가운 빛이 번진다.",
+            "id": "E5",
+            "order": 5
+          }
+        ],
+        "heroEventIds": [
+          "E1",
+          "E2",
+          "E3"
+        ],
+        "heroScene": "미래가 책장 사이의 금속함을 연다 성호는 랜턴을 들어 올려 먼지를 확인한다 금속함 안에는 빈칸만 있을 줄 알았지만, 바닥에 낡은 열쇠 한 자루가 놓여 있다",
+        "sceneBackground": "",
+        "recommendedPanelCount": 3,
+        "heroEventPositions": [
+          0.2,
+          0.4,
+          0.6
+        ]
+      },
+      "aiPlanner": {
+        "outcome": "PRIMARY_MODEL_SUCCESS",
+        "resolvedPrimaryModel": "gpt-5.6-luna",
+        "resolvedFallbackModel": "google/gemini-3.1-flash-lite",
+        "model": "gpt-5.6-luna",
+        "attempts": 1,
+        "usedFallback": false,
+        "latencyMs": 6942,
+        "inputTokens": 1328,
+        "outputTokens": 434,
+        "providerCostUsd": 0.000342,
+        "events": [
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "미래가 책장 사이의 금속함을 연다",
+            "id": "E1",
+            "order": 1
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "성호는 랜턴을 들어 올려 먼지를 확인한다",
+            "id": "E2",
+            "order": 2
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "금속함 안에는 빈칸만 있을 줄 알았지만, 바닥에 낡은 열쇠 한 자루가 놓여 있다",
+            "id": "E3",
+            "order": 3
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "열쇠 손잡이에는 달 모양 문양이 새겨져 있고, 미래의 손끝이 닿자",
+            "id": "E4",
+            "order": 4
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "차가운 빛이 번진다.",
+            "id": "E5",
+            "order": 5
+          }
+        ],
+        "heroEventIds": [
+          "E1",
+          "E2",
+          "E3",
+          "E4",
+          "E5"
+        ],
+        "heroScene": "미래가 책장 사이의 금속함을 열고, 성호가 랜턴으로 먼지를 비추는 가운데 낡은 달 문양의 열쇠가 발견된다. 미래의 손끝이 닿자 열쇠에서 차가운 빛이 번진다.",
+        "sceneBackground": "책장 사이의 오래된 공간, 어두운 실내, 랜턴과 열쇠에서 번지는 희미한 빛",
+        "atmosphere": "먼지 쌓인 정적과 불가사의한 긴장감",
+        "recommendedPanelCount": 3,
+        "panels": [
+          {
+            "index": 1,
+            "sourceEventIds": [
+              "E1",
+              "E2"
+            ],
+            "situation": "미래가 책장 사이의 금속함을 열고, 성호가 랜턴을 들어 올려 내부의 먼지를 확인한다.",
+            "characterAction": "미래가 금속함을 열고 성호가 랜턴을 비춘다.",
+            "dialogue": []
+          },
+          {
+            "index": 2,
+            "sourceEventIds": [
+              "E3"
+            ],
+            "situation": "금속함 바닥에 낡은 열쇠 한 자루가 놓여 있는 것이 드러난다.",
+            "characterAction": "낡은 열쇠를 발견한다.",
+            "dialogue": []
+          },
+          {
+            "index": 3,
+            "sourceEventIds": [
+              "E4",
+              "E5"
+            ],
+            "situation": "열쇠 손잡이의 달 모양 문양에 미래의 손끝이 닿자 차가운 빛이 번진다.",
+            "characterAction": "미래의 손끝이 열쇠에 닿고 차가운 빛이 번진다.",
+            "dialogue": []
+          }
+        ],
+        "heroEventPositions": [
+          0.2,
+          0.4,
+          0.6,
+          0.8,
+          1
+        ]
+      },
+      "objective": {
+        "sourceEventCount": 5,
+        "deterministicHeroCount": 3,
+        "aiHeroCount": 5,
+        "deterministicHeroPositions": [
+          0.2,
+          0.4,
+          0.6
+        ],
+        "aiHeroPositions": [
+          0.2,
+          0.4,
+          0.6,
+          0.8,
+          1
+        ],
+        "aiSelectedLastThird": true,
+        "aiModel": "gpt-5.6-luna",
+        "aiAttempts": 1,
+        "aiUsedFallback": false,
+        "aiDeterministicFallback": false,
+        "aiLatencyMs": 6942,
+        "heroIdsValid": true,
+        "provenanceValid": true,
+        "inventedEvent": false,
+        "wrongRound": false,
+        "wrongLocation": true,
+        "rewritesPartyAction": false
+      },
+      "review": {
+        "status": "GPT_SCORE_PENDING"
+      }
+    },
+    {
+      "fixtureId": "F9",
+      "category": "FAILURE_COMPLICATION",
+      "fixtureProvenance": "SYNTHETIC",
+      "sourceSha256": "018be17890d70617343003d4996760d77d068ccd78b2f829d23b7b344f7cfd74",
+      "source": {
+        "location": "절벽 옆 쇠사슬 다리",
+        "actions": [
+          {
+            "name": "아린",
+            "body": "다리 중앙의 고리를 힘껏 당긴다."
+          },
+          {
+            "name": "범",
+            "body": "밧줄로 아린의 허리를 묶어 고정한다."
+          }
+        ],
+        "narration": "아린이 다리 중앙의 고리를 힘껏 당긴다. 범은 밧줄로 아린의 허리를 묶어 고정한다. 고리는 움직이지 않는다. 대신 쇠사슬이 삐걱이며, 다리 한쪽이 아래로 기울기 시작한다. 아린은 발을 헛디뎌 넘어지고, 범은 밧줄을 붙잡은 채 둘 다 절벽 쪽으로 끌려간다."
+      },
+      "currentRaw": {
+        "situation": "LOCATION: 절벽 옆 쇠사슬 다리\nTHIS ROUND'S ACTIONS (what each listed person just did — depict these poses/actions):\n- 아린: 다리 중앙의 고리를 힘껏 당긴다.\n- 범: 밧줄로 아린의 허리를 묶어 고정한다.\nGM SCENE:\n아린이 다리 중앙의 고리를 힘껏 당긴다. 범은 밧줄로 아린의 허리를 묶어 고정한다. 고리는 움직이지 않는다. 대신 쇠사슬이 삐걱이며, 다리 한쪽이 아래로 기울기 시작한다. 아린은 발을 헛디뎌 넘어지고, 범은 밧줄을 붙잡은 채 둘 다 절벽 쪽으로 끌려간다.",
+        "chars": 311
+      },
+      "deterministic": {
+        "events": [
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "아린이 다리 중앙의 고리를 힘껏 당긴다",
+            "id": "E1",
+            "order": 1
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "범은 밧줄로 아린의 허리를 묶어 고정한다",
+            "id": "E2",
+            "order": 2
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "고리는 움직이지 않는다",
+            "id": "E3",
+            "order": 3
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "대신 쇠사슬이 삐걱이며, 다리 한쪽이 아래로 기울기 시작한다",
+            "id": "E4",
+            "order": 4
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "아린은 발을 헛디뎌 넘어지고, 범은 밧줄을 붙잡은 채 둘 다 절벽 쪽으로 끌려간다.",
+            "id": "E5",
+            "order": 5
+          }
+        ],
+        "heroEventIds": [
+          "E1",
+          "E2",
+          "E3"
+        ],
+        "heroScene": "아린이 다리 중앙의 고리를 힘껏 당긴다 범은 밧줄로 아린의 허리를 묶어 고정한다 고리는 움직이지 않는다",
+        "sceneBackground": "",
+        "recommendedPanelCount": 3,
+        "heroEventPositions": [
+          0.2,
+          0.4,
+          0.6
+        ]
+      },
+      "aiPlanner": {
+        "outcome": "PRIMARY_MODEL_SUCCESS",
+        "resolvedPrimaryModel": "gpt-5.6-luna",
+        "resolvedFallbackModel": "google/gemini-3.1-flash-lite",
+        "model": "gpt-5.6-luna",
+        "attempts": 1,
+        "usedFallback": false,
+        "latencyMs": 5326,
+        "inputTokens": 1340,
+        "outputTokens": 462,
+        "providerCostUsd": 0.000356,
+        "events": [
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "아린이 다리 중앙의 고리를 힘껏 당긴다",
+            "id": "E1",
+            "order": 1
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "범은 밧줄로 아린의 허리를 묶어 고정한다",
+            "id": "E2",
+            "order": 2
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "고리는 움직이지 않는다",
+            "id": "E3",
+            "order": 3
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "대신 쇠사슬이 삐걱이며, 다리 한쪽이 아래로 기울기 시작한다",
+            "id": "E4",
+            "order": 4
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "아린은 발을 헛디뎌 넘어지고, 범은 밧줄을 붙잡은 채 둘 다 절벽 쪽으로 끌려간다.",
+            "id": "E5",
+            "order": 5
+          }
+        ],
+        "heroEventIds": [
+          "E1",
+          "E2",
+          "E4",
+          "E5"
+        ],
+        "heroScene": "아린이 다리 중앙의 고리를 힘껏 당기는 동안 범이 밧줄로 아린을 고정하지만, 쇠사슬이 삐걱이며 다리 한쪽이 기울고 두 사람이 절벽 쪽으로 끌려간다.",
+        "sceneBackground": "절벽 위의 다리 중앙, 쇠사슬로 연결된 다리, 긴박한 상황의 시간대와 조명",
+        "atmosphere": "위험과 긴장감",
+        "recommendedPanelCount": 3,
+        "panels": [
+          {
+            "index": 1,
+            "sourceEventIds": [
+              "E1",
+              "E2"
+            ],
+            "situation": "아린이 다리 중앙의 고리를 힘껏 당기고, 범은 밧줄로 아린의 허리를 묶어 고정한다.",
+            "characterAction": "아린은 고리를 당기고 범은 밧줄을 단단히 고정한다.",
+            "dialogue": []
+          },
+          {
+            "index": 2,
+            "sourceEventIds": [
+              "E3",
+              "E4"
+            ],
+            "situation": "고리는 움직이지 않지만, 쇠사슬이 삐걱이며 다리 한쪽이 아래로 기울기 시작한다.",
+            "characterAction": "기울어지는 다리와 삐걱이는 쇠사슬을 긴박하게 표현한다.",
+            "dialogue": []
+          },
+          {
+            "index": 3,
+            "sourceEventIds": [
+              "E5"
+            ],
+            "situation": "아린이 발을 헛디뎌 넘어지고, 범은 밧줄을 붙잡은 채 둘 다 절벽 쪽으로 끌려간다.",
+            "characterAction": "아린은 넘어지고 범은 밧줄을 붙잡으며 두 사람 모두 절벽 쪽으로 끌려간다.",
+            "dialogue": []
+          }
+        ],
+        "heroEventPositions": [
+          0.2,
+          0.4,
+          0.8,
+          1
+        ]
+      },
+      "objective": {
+        "sourceEventCount": 5,
+        "deterministicHeroCount": 3,
+        "aiHeroCount": 4,
+        "deterministicHeroPositions": [
+          0.2,
+          0.4,
+          0.6
+        ],
+        "aiHeroPositions": [
+          0.2,
+          0.4,
+          0.8,
+          1
+        ],
+        "aiSelectedLastThird": true,
+        "aiModel": "gpt-5.6-luna",
+        "aiAttempts": 1,
+        "aiUsedFallback": false,
+        "aiDeterministicFallback": false,
+        "aiLatencyMs": 5326,
+        "heroIdsValid": true,
+        "provenanceValid": true,
+        "inventedEvent": false,
+        "wrongRound": false,
+        "wrongLocation": true,
+        "rewritesPartyAction": false
+      },
+      "review": {
+        "status": "GPT_SCORE_PENDING"
+      }
+    },
+    {
+      "fixtureId": "F10",
+      "category": "LONG_MULTI_BEAT",
+      "fixtureProvenance": "SYNTHETIC",
+      "sourceSha256": "d28dc185ae1d939a33e64c188a4627a43089d1194f8c61d036f3de61cf6e7add",
+      "source": {
+        "location": "왕궁 연회장",
+        "actions": [
+          {
+            "name": "엘리",
+            "body": "왕실 단상 앞에서 인사한다."
+          },
+          {
+            "name": "라온",
+            "body": "연주가의 시선을 피한다."
+          },
+          {
+            "name": "피터",
+            "body": "샴페인 잔을 들고 미소 짓는다."
+          }
+        ],
+        "narration": "연회장의 샹들리에가 반짝인다. 엘리가 왕실 단상 앞에서 인사하고, 라온은 연주가의 시선을 피하며 벽면으로 물러난다. 피터는 샴페인 잔을 들고 미소 짓는다. 처음엔 잔잔한 음악만 흐른다. 그다음, 하객들 사이에서 속삭임이 번진다. 라온의 장갑에서 붉은 얼룩이 드러나고, 엘리가 숨을 삼킨다. 마지막 순간, 단상 위의 붉은 장막이 떨어지며 숨겨진 왕실 문이 열린다."
+      },
+      "currentRaw": {
+        "situation": "LOCATION: 왕궁 연회장\nTHIS ROUND'S ACTIONS (what each listed person just did — depict these poses/actions):\n- 엘리: 왕실 단상 앞에서 인사한다.\n- 라온: 연주가의 시선을 피한다.\n- 피터: 샴페인 잔을 들고 미소 짓는다.\nGM SCENE:\n연회장의 샹들리에가 반짝인다. 엘리가 왕실 단상 앞에서 인사하고, 라온은 연주가의 시선을 피하며 벽면으로 물러난다. 피터는 샴페인 잔을 들고 미소 짓는다. 처음엔 잔잔한 음악만 흐른다. 그다음, 하객들 사이에서 속삭임이 번진다. 라온의 장갑에서 붉은 얼룩이 드러나고, 엘리가 숨을 삼킨다. 마지막 순간, 단상 위의 붉은 장막이 떨어지며 숨겨진 왕실 문이 열린다.",
+        "chars": 381
+      },
+      "deterministic": {
+        "events": [
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "연회장의 샹들리에가 반짝인다",
+            "id": "E1",
+            "order": 1
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "엘리가 왕실 단상 앞에서",
+            "id": "E2",
+            "order": 2
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "인사하고, 라온은 연주가의 시선을 피하며",
+            "id": "E3",
+            "order": 3
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "벽면으로 물러난다",
+            "id": "E4",
+            "order": 4
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "피터는 샴페인 잔을 들고",
+            "id": "E5",
+            "order": 5
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "미소 짓는다",
+            "id": "E6",
+            "order": 6
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "처음엔 잔잔한 음악만 흐른다",
+            "id": "E7",
+            "order": 7
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "그다음, 하객들 사이에서",
+            "id": "E8",
+            "order": 8
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "속삭임이 번진다",
+            "id": "E9",
+            "order": 9
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "라온의 장갑에서",
+            "id": "E10",
+            "order": 10
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "붉은 얼룩이 드러나고, 엘리가 숨을 삼킨다",
+            "id": "E11",
+            "order": 11
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "마지막 순간, 단상 위의 붉은 장막이 떨어지며",
+            "id": "E12",
+            "order": 12
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "숨겨진 왕실 문이 열린다.",
+            "id": "E13",
+            "order": 13
+          }
+        ],
+        "heroEventIds": [
+          "E1",
+          "E2",
+          "E3"
+        ],
+        "heroScene": "연회장의 샹들리에가 반짝인다 엘리가 왕실 단상 앞에서 인사하고, 라온은 연주가의 시선을 피하며",
+        "sceneBackground": "",
+        "recommendedPanelCount": 4,
+        "heroEventPositions": [
+          0.07692307692307693,
+          0.15384615384615385,
+          0.23076923076923078
+        ]
+      },
+      "aiPlanner": {
+        "outcome": "PRIMARY_MODEL_SUCCESS",
+        "resolvedPrimaryModel": "gpt-5.6-luna",
+        "resolvedFallbackModel": "google/gemini-3.1-flash-lite",
+        "model": "gpt-5.6-luna",
+        "attempts": 1,
+        "usedFallback": false,
+        "latencyMs": 7486,
+        "inputTokens": 1871,
+        "outputTokens": 497,
+        "providerCostUsd": 0.000426,
+        "events": [
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "연회장의 샹들리에가 반짝인다",
+            "id": "E1",
+            "order": 1
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "엘리가 왕실 단상 앞에서",
+            "id": "E2",
+            "order": 2
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "인사하고, 라온은 연주가의 시선을 피하며",
+            "id": "E3",
+            "order": 3
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "벽면으로 물러난다",
+            "id": "E4",
+            "order": 4
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "피터는 샴페인 잔을 들고",
+            "id": "E5",
+            "order": 5
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "미소 짓는다",
+            "id": "E6",
+            "order": 6
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "처음엔 잔잔한 음악만 흐른다",
+            "id": "E7",
+            "order": 7
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "그다음, 하객들 사이에서",
+            "id": "E8",
+            "order": 8
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "속삭임이 번진다",
+            "id": "E9",
+            "order": 9
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "라온의 장갑에서",
+            "id": "E10",
+            "order": 10
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "붉은 얼룩이 드러나고, 엘리가 숨을 삼킨다",
+            "id": "E11",
+            "order": 11
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "마지막 순간, 단상 위의 붉은 장막이 떨어지며",
+            "id": "E12",
+            "order": 12
+          },
+          {
+            "sourceMessageId": 1,
+            "sourceRole": "assistant",
+            "kind": "reaction",
+            "actor": "character",
+            "text": "숨겨진 왕실 문이 열린다.",
+            "id": "E13",
+            "order": 13
+          }
+        ],
+        "heroEventIds": [
+          "E10",
+          "E11",
+          "E12",
+          "E13"
+        ],
+        "heroScene": "라온의 장갑에서 붉은 얼룩이 드러나고 엘리가 숨을 삼키는 순간, 붉은 장막이 떨어져 숨겨진 왕실 문이 열린다.",
+        "sceneBackground": "연회장, 왕실 단상 앞, 잔잔한 음악이 흐르는 시간대, 샹들리에 조명",
+        "atmosphere": "고요함이 불안과 긴장으로 변한다",
+        "recommendedPanelCount": 4,
+        "panels": [
+          {
+            "index": 1,
+            "sourceEventIds": [
+              "E1",
+              "E2",
+              "E3",
+              "E4"
+            ],
+            "situation": "샹들리에가 빛나는 연회장에서 엘리가 왕실 단상 앞에서 인사하고, 라온은 연주가의 시선을 피해 벽면으로 물러난다.",
+            "dialogue": []
+          },
+          {
+            "index": 2,
+            "sourceEventIds": [
+              "E5",
+              "E6",
+              "E7",
+              "E8",
+              "E9"
+            ],
+            "situation": "피터가 샴페인 잔을 들고 미소 짓는 가운데 잔잔한 음악이 흐르고, 하객들 사이로 속삭임이 번진다.",
+            "dialogue": []
+          },
+          {
+            "index": 3,
+            "sourceEventIds": [
+              "E10",
+              "E11"
+            ],
+            "situation": "라온의 장갑에서 붉은 얼룩이 드러나고, 엘리가 숨을 삼킨다.",
+            "dialogue": []
+          },
+          {
+            "index": 4,
+            "sourceEventIds": [
+              "E12",
+              "E13"
+            ],
+            "situation": "단상 위의 붉은 장막이 떨어지며 숨겨진 왕실 문이 열린다.",
+            "dialogue": []
+          }
+        ],
+        "heroEventPositions": [
+          0.7692307692307693,
+          0.8461538461538461,
+          0.9230769230769231,
+          1
+        ]
+      },
+      "objective": {
+        "sourceEventCount": 13,
+        "deterministicHeroCount": 3,
+        "aiHeroCount": 4,
+        "deterministicHeroPositions": [
+          0.07692307692307693,
+          0.15384615384615385,
+          0.23076923076923078
+        ],
+        "aiHeroPositions": [
+          0.7692307692307693,
+          0.8461538461538461,
+          0.9230769230769231,
+          1
+        ],
+        "aiSelectedLastThird": true,
+        "aiModel": "gpt-5.6-luna",
+        "aiAttempts": 1,
+        "aiUsedFallback": false,
+        "aiDeterministicFallback": false,
+        "aiLatencyMs": 7486,
+        "heroIdsValid": true,
+        "provenanceValid": true,
+        "inventedEvent": false,
+        "wrongRound": false,
+        "wrongLocation": true,
+        "rewritesPartyAction": false
+      },
+      "review": {
+        "status": "GPT_SCORE_PENDING"
+      }
+    }
+  ]
+}
