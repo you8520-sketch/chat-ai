@@ -1,0 +1,11 @@
+
+Running 2 tests using 1 worker
+
+(node:2339027) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2339027) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › tests/ui/site-chrome.spec.ts:300:7 › compact mobile header › payments OFF: header controls never overlap or overflow across balances, badges and widths (11.3s)
+  ✓  2 [chromium] › tests/ui/site-chrome.spec.ts:524:7 › compact mobile header with the charge shortcut › payments ON: logo, bell, safety filter, balance and charge link never overlap or overflow (11.2s)
+
+  2 passed (23.0s)
