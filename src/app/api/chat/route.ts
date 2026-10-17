@@ -3409,6 +3409,7 @@ export async function POST(req: Request) {
                   contentKind:
                     ch.content_kind === "simulation" ? "simulation" : "character",
                   party: false,
+                  modelId: input.modelId,
                   primaryCharacterName: ch.name,
                   currentUserMessage: policyUserMessage,
                   recentMessages: promptHistory,

@@ -12,6 +12,10 @@
  */
 
 import type { ChatMsg } from "@/lib/ai";
+import {
+  isCheaperInferenceGemini38FlashModel,
+  OPENROUTER_GEMINI_38_FLASH_MODEL,
+} from "@/lib/chatModels";
 import type { ContentKind } from "@/lib/simulationMode";
 import type { SceneProgressionHistoryEntry } from "@/lib/sceneProgressionState";
 import {
@@ -650,10 +654,30 @@ export const DIALOGUE_BLOCK_CAP_PARAGRAPH =
  * D2 fixed owner kept for contrast; D3 renders ceiling dynamically.
  */
 export const TERMINAL_DIALOGUE_BUDGET_MARKER = "[이번 응답 대화]";
+/** Shared second line. Gemini 3.8 replaces this line; it does not add another. */
+export const TERMINAL_DIALOGUE_AXIS_LINE =
+  "유저가 반응할 질문·제안·요구는 하나의 중심축으로 모으고, [B]의 새 직접 발화·중대한 선택은 유저에게 남긴다.";
+/** Gemini 3.8 only. Same owner, same ceiling line, this second line instead. */
+export const GEMINI_38_TERMINAL_DIALOGUE_AXIS_LINE =
+  "이미 주어진 정보로 가능한 행동은 캐릭터가 이어가고, 사용자 답이 실제로 필요한 질문·제안·요구만 하나의 중심축으로 모은다. [B]의 새 직접 발화·중대한 선택은 유저에게 남긴다.";
 /** @deprecated D2 fixed max-4 owner — Arm U only. Prefer renderTerminalDialogueBudgetOwner. */
 export const TERMINAL_DIALOGUE_BUDGET_OWNER =
   `${TERMINAL_DIALOGUE_BUDGET_MARKER}\n` +
   `직접 발화는 최대 4개 블록으로 구성한다. 보통 1~3개면 충분하다.`;
+
+function usesGemini38TerminalDialogueAxis(modelId?: string | null): boolean {
+  if (!modelId?.trim()) return false;
+  const id = modelId.trim();
+  if (isCheaperInferenceGemini38FlashModel(id)) return true;
+  if (id === OPENROUTER_GEMINI_38_FLASH_MODEL) return true;
+  return id.toLowerCase().includes("gemini-3.8-flash");
+}
+
+function terminalDialogueAxisLineForModel(modelId?: string | null): string {
+  return usesGemini38TerminalDialogueAxis(modelId)
+    ? GEMINI_38_TERMINAL_DIALOGUE_AXIS_LINE
+    : TERMINAL_DIALOGUE_AXIS_LINE;
+}
 
 const COMM_HEAVY_TERMS = [
   "무전",
@@ -785,12 +809,13 @@ export function resolveTerminalDialogueBudget(input: {
 
 /** D3 terminal wording — ceiling only; no fixed 1–3 preferred line. */
 export function renderTerminalDialogueBudgetOwner(
-  maxBlocks: Exclude<DialogueBudget, null>
+  maxBlocks: Exclude<DialogueBudget, null>,
+  modelId?: string | null
 ): string {
   return (
     `${TERMINAL_DIALOGUE_BUDGET_MARKER}\n` +
     `AI 측 직접 발화는 필요한 만큼 사용하되 최대 ${maxBlocks}개 블록으로 구성한다.\n` +
-    `유저가 반응할 질문·제안·요구는 하나의 중심축으로 모으고, [B]의 새 직접 발화·중대한 선택은 유저에게 남긴다.`
+    terminalDialogueAxisLineForModel(modelId)
   );
 }
 
@@ -875,6 +900,8 @@ export function appendTerminalDialogueBudgetToUserTurn(input: {
   decision: ScenePacingDecision;
   /** When omitted, D2 fixed max-4 owner is used (Arm U). */
   budget?: TerminalDialogueBudgetResolution | null;
+  /** Canonical or wire model id. Omitted keeps the shared axis line. */
+  modelId?: string | null;
 }): {
   userContent: string;
   appended: boolean;
@@ -923,7 +950,7 @@ export function appendTerminalDialogueBudgetToUserTurn(input: {
   }
   const owner =
     input.budget != null
-      ? renderTerminalDialogueBudgetOwner(budget.maxBlocks)
+      ? renderTerminalDialogueBudgetOwner(budget.maxBlocks, input.modelId)
       : TERMINAL_DIALOGUE_BUDGET_OWNER;
   return {
     userContent: appendBeforeTerminalLengthOwner(input.userContent, owner),
@@ -1022,6 +1049,7 @@ export function applyScenePacingArmToMessages(input: {
     knownSupportingCastNames?: string[] | null;
     party?: boolean | null;
     contentKind?: ContentKind | null;
+    modelId?: string | null;
   } | null;
 }): {
   messages: Array<{ role: string; content: string }>;
@@ -1160,6 +1188,7 @@ export function applyScenePacingArmToMessages(input: {
         userContent: m.content,
         decision: input.decision,
         budget: input.arm === "V" ? dialogueBudget : undefined,
+        modelId: input.arm === "V" ? budgetInput?.modelId : undefined,
       });
       m.content = appended.userContent;
       terminalDialogueBudgetAppended = appended.appended;
@@ -1249,6 +1278,8 @@ export function applyProductionServerControlsToMessages(input: {
   canonicalSceneDirective?: SceneDirective | null;
   /** Skip [SCENE PACING] when SceneDirective block is the motion owner (auto/sim/party). */
   skipMotionCue?: boolean;
+  /** Request model. Gemini 3.8 selects the candidate axis line; others keep the shared line. */
+  modelId?: string | null;
 }): {
   messages: Array<{ role: string; content: string }>;
   decision: ScenePacingDecision;
@@ -1277,6 +1308,7 @@ export function applyProductionServerControlsToMessages(input: {
       knownSupportingCastNames: input.knownSupportingCastNames ?? undefined,
       party: input.party ?? undefined,
       contentKind: input.contentKind ?? undefined,
+      modelId: input.modelId ?? undefined,
     },
   });
   return {

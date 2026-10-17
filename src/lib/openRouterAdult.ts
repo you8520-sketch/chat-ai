@@ -572,6 +572,8 @@ export type OpenRouterMessageOpts = {
     progressionHistory?: SceneProgressionHistoryEntry[] | null;
     canonicalSceneDirective?: import("@/lib/sceneDirective").SceneDirective | null;
     skipMotionCue?: boolean;
+    /** Canonical or wire model id for the terminal dialogue axis line. */
+    modelId?: string | null;
   } | null;
   /** Anthropic prompt caching — rules + character 블록 분리 */
   systemSplit?: OpenRouterSystemSplit;
@@ -1368,7 +1370,8 @@ export function reprojectControlledTextOntoStructuredContent(
 
 function applyProductionServerControlsPreservingCacheBoundaries(
   messages: OpenRouterChatMessage[],
-  controls: NonNullable<OpenRouterMessageOpts["sceneServerControls"]>
+  controls: NonNullable<OpenRouterMessageOpts["sceneServerControls"]>,
+  modelId?: string | null
 ): OpenRouterChatMessage[] {
   const flatBefore = messages.map((m) => ({
     role: m.role,
@@ -1377,6 +1380,7 @@ function applyProductionServerControlsPreservingCacheBoundaries(
   const applied = applyProductionServerControlsToMessages({
     messages: flatBefore,
     ...controls,
+    modelId: modelId ?? controls.modelId,
   });
 
   return applied.messages.map((message, index) => {
@@ -1442,7 +1446,8 @@ export function assemblePrimaryRpRequest(opts: {
   if (controls) {
     messages = applyProductionServerControlsPreservingCacheBoundaries(
       messages,
-      controls
+      controls,
+      opts.modelId
     );
   }
   if (transport.provider === "cheaperinference") {

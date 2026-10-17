@@ -1,7 +1,8 @@
 /**
  * DeepSeek V4.1 Flash terminal dialogue wording — API=0 regression after #1616 revert.
- * The common `[이번 응답 대화]` second line is the only owner text. There is no
- * DeepSeek-only axis line, extra owner, numeric-ceiling change, or classifier change.
+ * DeepSeek keeps the shared `[이번 응답 대화]` second line. Gemini 3.8 is the only
+ * picker exception. There is no DeepSeek-only axis line, extra owner, numeric-ceiling
+ * change, or classifier change.
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -13,6 +14,7 @@ import {
 } from "@/lib/scenePacingController";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+  GEMINI_38_FLASH_MODEL,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
 } from "@/lib/chatModels";
 import { SCENE_FLOW_BLOCK } from "@/lib/generationProcessBeatFlow";
@@ -24,6 +26,8 @@ import type { ChatMsg } from "@/lib/ai";
 const DEEPSEEK = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
 const BASE_AXIS_LINE =
   "유저가 반응할 질문·제안·요구는 하나의 중심축으로 모으고, [B]의 새 직접 발화·중대한 선택은 유저에게 남긴다.";
+const GEMINI_38_AXIS_LINE =
+  "이미 주어진 정보로 가능한 행동은 캐릭터가 이어가고, 사용자 답이 실제로 필요한 질문·제안·요구만 하나의 중심축으로 모은다. [B]의 새 직접 발화·중대한 선택은 유저에게 남긴다.";
 const REVERTED_AXIS_FRAGMENTS = [
   "되풀이하지 않고",
   "같은 화자의 이어지는 말은 한 블록으로 묶고",
@@ -194,7 +198,7 @@ describe("DeepSeek V4.1 Flash terminal dialogue wording (reverted)", () => {
     assert.equal(count(lastUser(second), TERMINAL_DIALOGUE_BUDGET_MARKER), 1);
   });
 
-  it("assemblePrimaryRpRequest: DeepSeek V4.1 Flash uses the common axis line like every other picker model", () => {
+  it("assemblePrimaryRpRequest: DeepSeek keeps the common axis; Gemini 3.8 is the only picker exception", () => {
     const scene = SCENES[0]!;
     const history = [
       { role: "assistant" as const, content: "밤의 숙소는 조용했다." },
@@ -238,7 +242,13 @@ describe("DeepSeek V4.1 Flash terminal dialogue wording (reverted)", () => {
         if (option.id === DEEPSEEK) continue;
         const otherFlat = flat(build(option.id, regen));
         assert.equal(count(otherFlat, TERMINAL_DIALOGUE_BUDGET_MARKER), 1, option.id);
-        assert.ok(otherFlat.includes(BASE_AXIS_LINE), option.id);
+        if (option.id === GEMINI_38_FLASH_MODEL) {
+          assert.equal(count(otherFlat, GEMINI_38_AXIS_LINE), 1, option.id);
+          assert.equal(count(otherFlat, BASE_AXIS_LINE), 0, option.id);
+        } else {
+          assert.equal(count(otherFlat, BASE_AXIS_LINE), 1, option.id);
+          assert.equal(count(otherFlat, GEMINI_38_AXIS_LINE), 0, option.id);
+        }
         for (const fragment of REVERTED_AXIS_FRAGMENTS) {
           assert.equal(count(otherFlat, fragment), 0, option.id);
         }
