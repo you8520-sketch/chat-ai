@@ -176,7 +176,7 @@ describe("authorial habit JEV benchmark execution isolation", () => {
       });
       return Response.json({
         id: "dec_authorial_fixture",
-        model: "typesafe/jev-1.13-20260917",
+        model: "typesafe/jev-1.14-20260917",
         answers: {
           [AUTHORIAL_HABIT_JEV_QUESTION_ID]: {
             type: "choice",
@@ -247,7 +247,7 @@ describe("authorial habit JEV benchmark execution isolation", () => {
         inputTokens: 0,
         outputTokens: 0,
         actualCostUsd: null,
-        model: "typesafe/jev-1.13",
+        model: "typesafe/jev-1.14",
         providerCallAttempted: false,
       }),
     });
@@ -291,7 +291,7 @@ describe("authorial habit JEV benchmark execution isolation", () => {
           inputTokens: 20,
           outputTokens: 4,
           actualCostUsd,
-          model: "typesafe/jev-1.13",
+          model: "typesafe/jev-1.14",
           providerCallAttempted: true,
         };
       },
