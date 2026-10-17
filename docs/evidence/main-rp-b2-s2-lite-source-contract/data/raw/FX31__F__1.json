@@ -1,0 +1,46 @@
+{
+ "id": "FX31",
+ "arm": "F",
+ "rep": 1,
+ "text": "렌은 라이크와 함께 걸으며 그의 손을 잡았고, 라이크는 장작을 계속 쌓음.",
+ "usage": {
+  "inputTokens": 1555,
+  "outputTokens": 30,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1553,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000019,
+  "upstreamCostUsd": 0.000019,
+  "debugRawUsage": {
+   "completion_tokens": 30,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1555,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1553
+   },
+   "total_tokens": 1585,
+   "cost": 0.000019,
+   "cost_details": {
+    "upstream_inference_cost": 0.000019
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "98161d00-a3cf-415b-866d-847e463cd157"
+ },
+ "billedUsd": 0.000019,
+ "ms": 1739,
+ "systemChars": 2503,
+ "userChars": 591
+}

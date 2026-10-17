@@ -1,0 +1,20 @@
+{
+  "model": "gemini-3.8-flash",
+  "note": "Gold is fixed before calls. A verdict counts only if the cited quote entails it. Quote existence alone is not a pass.",
+  "cases": {
+    "luna-w1": {"must_support": ["약속", "시선|입술|끄덕|웃", "장작"], "must_not_drop_in_correction": ["약속", "장작"], "forbid_correction": ["스승", "연인"]},
+    "luna-w6": {"must_flag_not_fact": ["시작하기로"], "must_support": ["제안|연인하자", "손"], "forbid_correction": ["시작하기로", "연인이 됨", "연인 사이", "연인 관계"]},
+    "luna-w11": {"must_support": ["취소"], "must_support_emotion": ["어깨|으쓱"], "must_not_drop_in_correction": ["취소"]},
+    "luna-w16": {"must_support": ["서린"], "must_not_drop_in_correction": ["서린"]},
+    "luna-w21": {"claim_not_fact": ["아는 사이|예전부터"], "must_not_be_absent": ["누나"], "correction_must_attribute": ["말했|주장|전했"]},
+    "luna-w36": {"must_support": ["헤어|이별"], "must_support_emotion": ["시선"], "must_not_drop_in_correction": ["헤어", "시선"]},
+    "mentor-noiHu-w1": {"must_absent": ["스승"], "forbid_correction": ["스승", "검술"]},
+    "lover-noiHu-w1": {"must_absent_or_unestablished": ["연인"], "forbid_correction": ["연인"]},
+    "scene-seq-w1": {"must_support": ["장작"], "must_not_drop_in_correction": ["장작"]},
+    "promise-w1": {"must_support": ["약속|갈아"], "must_not_drop_in_correction": ["약속", "장작"]},
+    "mentor-이후-w1": {"must_absent": ["스승"], "forbid_correction": ["스승"]},
+    "promise-w11": {"must_absent": ["갈아|내일까지"], "must_support_if_present": ["장작"]},
+    "confirm-claim-w21": {"claim_not_fact": ["아는 사이|예전부터"], "must_support": ["시장"], "must_not_be_absent": ["누나"]},
+    "lover-long-w1": {"must_absent": ["연인", "시장"], "must_support": ["장작"], "must_not_drop_in_correction": ["장작"], "forbid_correction": ["연인", "시장"]}
+  }
+}

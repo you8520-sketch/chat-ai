@@ -1,0 +1,264 @@
+diff --git a/src/app/api/chat/route.ts b/src/app/api/chat/route.ts
+index 1b9e5602..acedaa8f 100644
+--- a/src/app/api/chat/route.ts
++++ b/src/app/api/chat/route.ts
+@@ -1562,7 +1562,7 @@ export async function POST(req: Request) {
+       charName: ch.name,
+       tier: memoryTier,
+       memoryCapacity,
+-      userPersona: personaDisplayName,
++      userPersona: backgroundPersonaIdentity ?? undefined,
+       completedTurns: completedTurnsForMemoryCoverage,
+     });
+     phaseAudit?.mark("T4b_SUMMARY_PREP_DONE");
+@@ -1581,7 +1581,7 @@ export async function POST(req: Request) {
+         charName: ch.name,
+         tier: memoryTier,
+         memoryCapacity,
+-        userPersona: personaDisplayName,
++        userPersona: backgroundPersonaIdentity ?? undefined,
+         completedTurns: completedTurnsForMemoryCoverage,
+       });
+       const barrierGate = gateChatOnSummaryBarrier(barrier);
+@@ -2924,7 +2924,7 @@ export async function POST(req: Request) {
+       charName: ch.name,
+       tier: memoryTier,
+       memoryCapacity,
+-      userPersona: personaDisplayName,
++      userPersona: backgroundPersonaIdentity ?? undefined,
+     });
+   }
+   if (regenerateMessageId != null) {
+diff --git a/src/lib/memory/memory-source-authority.ts b/src/lib/memory/memory-source-authority.ts
+index 45a752f9..08ffed54 100644
+--- a/src/lib/memory/memory-source-authority.ts
++++ b/src/lib/memory/memory-source-authority.ts
+@@ -43,17 +43,34 @@ export type MemorySourceAuthorityDecision = {
+ const ATTRIBUTED_CLAIM_MARKER =
+   /(?:말했|말하였다|밝혔|밝혔다|주장했|주장하였다|전했|전하였다|언급했|언급하였다|설명했|설명하였다|부탁했다고\s*말|물었다고\s*말)/i;
+ 
++/** Summary prose is 음슴체 (~함/~힘) by the rolling-summary prompt contract. */
++const SUMMARY_ATTRIBUTED_CLAIM_MARKER = /(?:말함|밝힘|주장함|전함|언급함|설명함)/;
++
++/**
++ * "episodic" keeps the original B-1 judgement. "summary" judges a five-turn summary
++ * written in 음슴체: in-window sequencing words (이후, 그때, 전에, 어제) are not a
++ * pre-existing shared-history claim, so only the hard prior-relationship cue and a
++ * family/third-party tie need user authority.
++ */
++export type MemoryAuthorityScope = "episodic" | "summary";
++
+ const USER_FAMILY_PARTICIPANT =
+   /누나|언니|오빠|동생|엄마|아빠|어머니|아버지|부모|친구|(?<![가-힣])형(?![가-힣])/u;
+ 
++const USER_FAMILY_PARTICIPANT_GLOBAL = new RegExp(USER_FAMILY_PARTICIPANT.source, "gu");
++
+ export function resolvePersonaName(userPersona?: string | null): string | null {
+   const match = userPersona?.match(/(?:^|\n)이름\/호칭:\s*([^\n]+)/);
+   const name = match?.[1]?.trim() ?? "";
+   return name || null;
+ }
+ 
+-export function isAttributedMemoryClaim(text: string): boolean {
+-  return ATTRIBUTED_CLAIM_MARKER.test(text);
++export function isAttributedMemoryClaim(
++  text: string,
++  scope: MemoryAuthorityScope = "episodic"
++): boolean {
++  if (ATTRIBUTED_CLAIM_MARKER.test(text)) return true;
++  return scope === "summary" && SUMMARY_ATTRIBUTED_CLAIM_MARKER.test(text);
+ }
+ 
+ export function mentionsUser(text: string, personaName: string | null): boolean {
+@@ -68,11 +85,13 @@ function hasFamilyParticipant(text: string): boolean {
+ export function clauseNeedsUserAuthority(
+   clause: string,
+   personaName: string | null,
+-  category?: string | null
++  category?: string | null,
++  scope: MemoryAuthorityScope = "episodic"
+ ): boolean {
+-  if (isAttributedMemoryClaim(clause)) return false;
++  if (isAttributedMemoryClaim(clause, scope)) return false;
+   const retrospective =
+-    looksLikePriorSharedUserHistory(clause) || looksLikeHardPriorSharedUserRelationship(clause);
++    looksLikeHardPriorSharedUserRelationship(clause) ||
++    (scope === "episodic" && looksLikePriorSharedUserHistory(clause));
+   const family = hasFamilyParticipant(clause);
+   if (mentionsUser(clause, personaName) && (retrospective || family)) return true;
+   return category === "relationship" && (retrospective || family);
+@@ -92,6 +111,30 @@ function findCoveringSource(
+   return null;
+ }
+ 
++/**
++ * Summary scope only. Luna paraphrases a user-declared tie ("…라는 설정으로 재회함"),
++ * so strict token coverage would reject faithful summaries. A summary clause that
++ * asserts a prior-relationship or family tie is accepted only when the user's own
++ * window text asserts the same kind of tie (same family terms; a prior-relationship
++ * statement). Assistant-only ties stay UNSUPPORTED.
++ */
++function findSummaryTieSource(
++  clause: string,
++  sources: readonly MemoryAuthoritySource[]
++): MemoryAuthoritySource | null {
++  const familyTerms = clause.match(USER_FAMILY_PARTICIPANT_GLOBAL) ?? [];
++  const needsHardTie = looksLikeHardPriorSharedUserRelationship(clause);
++  if (familyTerms.length === 0 && !needsHardTie) return null;
++  return (
++    sources.find(
++      (source) =>
++        familyTerms.every((term) => source.text.includes(term)) &&
++        (!needsHardTie ||
++          userSharedHistoryEvidenceUnits(source.text).some(looksLikeHardPriorSharedUserRelationship))
++    ) ?? null
++  );
++}
++
+ export function resolveClauseSourceAuthority(
+   clause: string,
+   opts: {
+@@ -100,10 +143,12 @@ export function resolveClauseSourceAuthority(
+     charName?: string | null;
+     attributed?: boolean;
+     category?: string | null;
++    scope?: MemoryAuthorityScope;
+   }
+ ): MemorySourceAuthorityDecision {
+   const personaName = opts.personaName ?? null;
+-  const attributed = opts.attributed === true || isAttributedMemoryClaim(clause);
++  const scope = opts.scope ?? "episodic";
++  const attributed = opts.attributed === true || isAttributedMemoryClaim(clause, scope);
+   if (attributed) {
+     return {
+       kind: "CHARACTER_CLAIM",
+@@ -112,7 +157,7 @@ export function resolveClauseSourceAuthority(
+       sourceMessageId: null,
+     };
+   }
+-  if (!clauseNeedsUserAuthority(clause, personaName, opts.category)) {
++  if (!clauseNeedsUserAuthority(clause, personaName, opts.category, scope)) {
+     return {
+       kind: "CURRENT_SCENE",
+       sourceRole: "none",
+@@ -131,6 +176,17 @@ export function resolveClauseSourceAuthority(
+       sourceMessageId: covering.messageId,
+     };
+   }
++  if (scope === "summary") {
++    const supporting = findSummaryTieSource(clause, opts.sources);
++    if (supporting) {
++      return {
++        kind: "USER_EXPLICIT",
++        sourceRole: /(?:^|\n)\s*OOC\s*:/iu.test(supporting.text) ? "ooc" : "user",
++        sourceTurn: supporting.turn,
++        sourceMessageId: supporting.messageId,
++      };
++    }
++  }
+   return {
+     kind: "UNSUPPORTED",
+     sourceRole: "none",
+@@ -147,6 +203,7 @@ export function resolveMemorySourceAuthority(
+     charName?: string | null;
+     attributed?: boolean;
+     category?: string | null;
++    scope?: MemoryAuthorityScope;
+   }
+ ): MemorySourceAuthorityDecision {
+   const clauses = splitSharedHistoryClauses(text);
+@@ -189,6 +246,7 @@ export function hasUnsupportedObjectiveUserLinkedFact(
+     charName?: string | null;
+     attributed?: boolean;
+     category?: string | null;
++    scope?: MemoryAuthorityScope;
+   }
+ ): boolean {
+   return resolveMemorySourceAuthority(text, opts).kind === "UNSUPPORTED";
+diff --git a/src/lib/memory/memory-summary-integrity.ts b/src/lib/memory/memory-summary-integrity.ts
+index 90a9c302..347affcd 100644
+--- a/src/lib/memory/memory-summary-integrity.ts
++++ b/src/lib/memory/memory-summary-integrity.ts
+@@ -7,9 +7,12 @@ import { isFallbackMemoryRecordSummary } from "./memory-summary-clamp";
+ import {
+   assistantSuppliesUnsupportedSharedHistoryDetail,
+   looksLikePriorSharedUserHistory,
++  userTextPresupposesSharedPast,
+ } from "@/lib/sharedHistoryEvidence";
+ import {
+   hasUnsupportedObjectiveUserLinkedFact,
++  isAttributedMemoryClaim,
++  mentionsUser,
+   resolvePersonaName,
+   sourcesFromUserText,
+ } from "./memory-source-authority";
+@@ -246,13 +249,15 @@ const SOURCE_UNCERTAINTY_MARKER =
+   /(?:추측|의심|가능성|확실하지|모른|아마|일지도|일\s*수|듯|것\s*같|보인|여긴|판단|진단)/i;
+ 
+ 
+-const ATTRIBUTED_RELATIONSHIP_CLAIM_MARKER =
+-  /(?:말했|말하였다|밝혔|밝혔다|주장했|주장하였다|전했|전하였다|언급했|언급하였다|설명했|설명하였다|부탁했다고\s*말)/i;
+-
+-function resolveSummaryUserName(userPersona?: string | null): string | null {
+-  const match = userPersona?.match(/(?:^|\n)이름\/호칭:\s*([^\n]+)/);
+-  const name = match?.[1]?.trim() ?? "";
+-  return name || null;
++/**
++ * The soft prior-history cues (이후, 그때, 전에…) also describe ordinary sequencing
++ * inside a five-turn window, and a normal summary is full of assistant-only scene
++ * detail. The whole-summary assistant-detail check is therefore only meaningful
++ * when the user's own window text talks about a shared past (a prior-history
++ * cue, or a "기억나?" presupposition); that is where an assistant can invent the details.
++ */
++function windowDiscussesSharedPast(userText: string): boolean {
++  return userTextPresupposesSharedPast(userText);
+ }
+ 
+ function summaryInventsUnsupportedUserRelationship(
+@@ -261,7 +266,7 @@ function summaryInventsUnsupportedUserRelationship(
+   userPersona?: string | null,
+   charName?: string | null
+ ): boolean {
+-  const personaName = resolvePersonaName(userPersona) ?? resolveSummaryUserName(userPersona);
++  const personaName = resolvePersonaName(userPersona);
+   if (
+     hasUnsupportedObjectiveUserLinkedFact(summary, {
+       sources: sourcesFromUserText(source.user),
+@@ -270,17 +275,15 @@ function summaryInventsUnsupportedUserRelationship(
+         charName ??
+         source.assistant.match(/^([가-힣A-Za-z0-9]{1,12})는/)?.[1] ??
+         null,
++      scope: "summary",
+     })
+   ) {
+     return true;
+   }
+   if (!looksLikePriorSharedUserHistory(summary)) return false;
+-  if (ATTRIBUTED_RELATIONSHIP_CLAIM_MARKER.test(summary)) return false;
+-
+-  const userName = personaName;
+-  const summaryNamesUser =
+-    /(?:유저|사용자)/.test(summary) || (!!userName && summary.includes(userName));
+-  if (!summaryNamesUser) return false;
++  if (isAttributedMemoryClaim(summary, "summary")) return false;
++  if (!mentionsUser(summary, personaName)) return false;
++  if (!windowDiscussesSharedPast(source.user)) return false;
+ 
+   return assistantSuppliesUnsupportedSharedHistoryDetail(
+     summary,
+diff --git a/src/lib/sharedHistoryEvidence.ts b/src/lib/sharedHistoryEvidence.ts
+index 191b9dbe..074bed89 100644
+--- a/src/lib/sharedHistoryEvidence.ts
++++ b/src/lib/sharedHistoryEvidence.ts
+@@ -80,6 +80,11 @@ export function looksLikePriorSharedUserHistory(text: string): boolean {
+   return PRIOR_SHARED_HISTORY_CUE.test(text);
+ }
+ 
++/** USER text that invites the assistant to recall a shared past ("기억나?", "알지?"). */
++export function userTextPresupposesSharedPast(text: string): boolean {
++  return RECALL_PRESUPPOSITION_CUE.test(text);
++}
++
+ export function looksLikeHardPriorSharedUserRelationship(text: string): boolean {
+   return HARD_PRIOR_SHARED_RELATIONSHIP_CUE.test(text);
+ }

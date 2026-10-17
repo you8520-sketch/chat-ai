@@ -1,0 +1,46 @@
+{
+ "id": "A02_fake_sister_friend",
+ "arm": "F",
+ "rep": 0,
+ "text": "비 오는 날 여관에서 라이크와 렌은 며칠간 함께 길을 걸으며 서로 이름과 검술 정도만 알게 된 사이로 식사함. 라이크가 렌을 낯익다고 하자 렌은 누나를 아는 듯 말한다고 지적했고, 라이크는 렌이 누나 이야기를 꺼낸 적 없는데도 그녀가 자신의 친구였다고 단언함. 정체를 묻는 렌에게 라이크는 “지금은 묻지 마”라며 설명을 미뤘으나, 렌이 이유를 요구하자 놀랄 만한 말이었다고 인정하고 둘이 렌을 알기 전부터 친구였다는 사실을 재확인함. 자세한 설명은 나중에 하겠다고 약속했으며, 라이크가 왜 렌을 낯익게 여기는지와 누나와의 과거는 미해결로 남음.",
+ "usage": {
+  "inputTokens": 2485,
+  "outputTokens": 206,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2482,
+  "standardInputTokens": 3,
+  "cheaperInferenceBilledCostUsd": 0.000268,
+  "upstreamCostUsd": 0.000268,
+  "debugRawUsage": {
+   "prompt_tokens": 2485,
+   "completion_tokens": 206,
+   "total_tokens": 2691,
+   "prompt_tokens_details": {
+    "cached_tokens": 0,
+    "cache_write_tokens": 2482,
+    "audio_tokens": 0
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 0,
+    "audio_tokens": 0,
+    "accepted_prediction_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "cost": 0.000268,
+   "cost_details": {
+    "upstream_inference_cost": 0.000268
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "5ba31c61-5d06-43e8-a0ab-8a985bc7bccc"
+ },
+ "billedUsd": 0.000268,
+ "ms": 9631,
+ "systemChars": 2503,
+ "userChars": 2003
+}

@@ -1,0 +1,46 @@
+{
+ "id": "FX76",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"라이크가 잡담마다 장작을 하나씩 쌓아 76번째부터 80번째까지 쌓음.\",\"items\":[]}",
+ "usage": {
+  "inputTokens": 1986,
+  "outputTokens": 37,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1984,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000025,
+  "upstreamCostUsd": 0.000025,
+  "debugRawUsage": {
+   "completion_tokens": 37,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1986,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1984
+   },
+   "total_tokens": 2023,
+   "cost": 0.000025,
+   "cost_details": {
+    "upstream_inference_cost": 0.000025
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "a5df9113-00c7-4b56-8c4c-6faeaf5cac9c"
+ },
+ "billedUsd": 0.000025,
+ "ms": 2293,
+ "systemChars": 3460,
+ "userChars": 617
+}

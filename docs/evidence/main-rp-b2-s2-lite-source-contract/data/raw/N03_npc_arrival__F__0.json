@@ -1,0 +1,46 @@
+{
+ "id": "N03_npc_arrival",
+ "arm": "F",
+ "rep": 0,
+ "text": "렌과 라이크가 아침 식사 중 여관 주인 서린에게 북쪽 숲길에서 짐마차가 지연되는 원인을 확인해 달라는 의뢰를 받음. 도적이나 야수의 소행인지는 불명이며, 북문에서 반나절 거리, 보수는 은화 열두 닢이고 해 지기 전 귀환 조건임. 렌은 흔적만 살피고 위험한 상대는 추격하지 말자고 제안했고, 라이크는 그 기준에 동의하며 렌의 의견을 존중함. 서린은 오래된 지도와 말린 식량을 제공하기로 했으며, 렌이 준비물을 챙겨 해 지기 전에 돌아오자고 하자 라이크가 의뢰서에 서명해 맡기로 확정함. 보수는 결과 확인 뒤 지급 예정임.",
+ "usage": {
+  "inputTokens": 2597,
+  "outputTokens": 191,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2595,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000273,
+  "upstreamCostUsd": 0.000273,
+  "debugRawUsage": {
+   "completion_tokens": 191,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2597,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2595,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2788,
+   "cost": 0.000273,
+   "cost_details": {
+    "upstream_inference_cost": 0.000273
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "2e36909d-1426-4b17-8525-58dd2ffdae25"
+ },
+ "billedUsd": 0.000273,
+ "ms": 3927,
+ "systemChars": 2503,
+ "userChars": 2227
+}

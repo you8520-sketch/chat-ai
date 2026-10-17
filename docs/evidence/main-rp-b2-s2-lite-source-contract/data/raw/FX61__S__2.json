@@ -1,0 +1,46 @@
+{
+ "id": "FX61",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"렌이 잡담을 건넬 때마다 라이크가 차례로 장작을 쌓아 61번째부터 65번째까지 쌓음. 관계·상태 변화는 없음.\",\"items\":[]}",
+ "usage": {
+  "inputTokens": 1986,
+  "outputTokens": 53,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1984,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.00003,
+  "upstreamCostUsd": 0.00003,
+  "debugRawUsage": {
+   "completion_tokens": 53,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1986,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1984
+   },
+   "total_tokens": 2039,
+   "cost": 0.00003,
+   "cost_details": {
+    "upstream_inference_cost": 0.00003
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "2f5c2dc5-9796-46ff-9016-f1d851258c58"
+ },
+ "billedUsd": 0.00003,
+ "ms": 2464,
+ "systemChars": 3460,
+ "userChars": 617
+}

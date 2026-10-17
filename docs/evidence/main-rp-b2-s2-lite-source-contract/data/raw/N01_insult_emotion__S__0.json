@@ -1,0 +1,46 @@
+{
+ "id": "N01_insult_emotion",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"훈련장에서 렌이 라이크의 검술을 아마추어 같다고 지적하자 라이크는 부족함을 인정하면서도 답 없이 혼자 검을 휘두름. 렌이 혼자 연습해선 늘겠냐고 묻고 물병을 건네자, 라이크는 잠시 망설인 뒤 감사하며 받아들임. 렌이 기분 나빴다면 사과하고 흔들리는 곳을 짚은 것이라 설명하자 라이크는 지적이 맞을 수 있다며 고칠 점을 알려 달라고 요청함. 렌이 공격하고 막아 보라 제안하자 라이크는 물병을 돌 위에 두고 방어 자세를 취해, 혼자 휘두르던 데서 렌의 움직임을 집중해 살피는 훈련으로 전환함.\",\"items\":[{\"actor\":\"user\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"user\",\"quote\":\"“솔직히 너 좀 아마추어 같아.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"“……아직 부족하긴 하지.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"user\",\"quote\":\"어색한 침묵을 깨려다 말고 물병을 내민다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"“흔들리는 곳을 말해 줘. 고쳐 볼 테니까.”\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"“좋아, 이번엔 내가 공격할게. 네가 막아 봐.”\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"“이번엔 제대로 볼게.”\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2955,
+  "outputTokens": 461,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2953,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000389,
+  "upstreamCostUsd": 0.000389,
+  "debugRawUsage": {
+   "completion_tokens": 461,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2955,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2953,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3416,
+   "cost": 0.000389,
+   "cost_details": {
+    "upstream_inference_cost": 0.000389
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "c1e60ac8-58a1-4513-aa28-f4a625baf6f6"
+ },
+ "billedUsd": 0.000389,
+ "ms": 5959,
+ "systemChars": 3460,
+ "userChars": 2023
+}

@@ -1,0 +1,46 @@
+{
+ "id": "N01_insult_emotion",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"훈련장에서 렌이 라이크의 검술을 아마추어 같다고 지적하자 라이크는 부족함을 인정했으나, 이후 렌의 조언에도 말없이 혼자 검을 휘둘렀음. 렌이 물병을 건네고 무례했다면 사과하며 흔들리는 곳을 봤다고 설명하자, 라이크는 기분 나쁘지 않다며 지적이 맞을 수도 있다고 인정하고 교정을 부탁함. 물병을 돌려받은 렌이 공격할 테니 막아 보라고 하자 라이크는 물병을 돌 위에 놓고 방어 자세를 취하며 이번엔 제대로 보겠다고 응함. 어색하고 경계하던 태도가 함께 훈련하며 조언을 받아들이는 방향으로 완화됨.\",\"items\":[{\"actor\":\"user\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"user\",\"quote\":\"“솔직히 너 좀 아마추어 같아.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"“흔들리는 곳을 말해 줘. 고쳐 볼 테니까.”\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"“좋아, 이번엔 내가 공격할게. 네가 막아 봐.”\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"“이번엔 제대로 볼게.”\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2955,
+  "outputTokens": 366,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2953,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000359,
+  "upstreamCostUsd": 0.000359,
+  "debugRawUsage": {
+   "completion_tokens": 366,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2955,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2953,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3321,
+   "cost": 0.000359,
+   "cost_details": {
+    "upstream_inference_cost": 0.000359
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "ade571e1-d06b-4c87-afd8-a336b553b7bc"
+ },
+ "billedUsd": 0.000359,
+ "ms": 4616,
+ "systemChars": 3460,
+ "userChars": 2023
+}

@@ -1,0 +1,46 @@
+{
+ "id": "FX21",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"라이크는 장작을 쌓는 일을 이어감. 렌이 시장에 다녀왔다고 하자, 라이크는 누나가 시장에서 렌을 알아봤으며 예전부터 알던 사이라고 전함.\",\"items\":[{\"actor\":\"character\",\"kind\":\"claim\",\"turn\":24,\"sourceRole\":\"assistant\",\"quote\":\"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"historical\"}]}",
+ "usage": {
+  "inputTokens": 2006,
+  "outputTokens": 113,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 2004,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000049,
+  "upstreamCostUsd": 0.000049,
+  "debugRawUsage": {
+   "completion_tokens": 113,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2006,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 2004
+   },
+   "total_tokens": 2119,
+   "cost": 0.000049,
+   "cost_details": {
+    "upstream_inference_cost": 0.000049
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "316b5232-1b07-49d5-abd1-d1f7033e7706"
+ },
+ "billedUsd": 0.000049,
+ "ms": 2757,
+ "systemChars": 3460,
+ "userChars": 647
+}

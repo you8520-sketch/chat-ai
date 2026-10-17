@@ -1,0 +1,46 @@
+{
+ "id": "N12_callback_in_window",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"변방 여관에 도착한 렌과 라이크는 남은 방이 하나뿐이라 큰 방을 함께 쓰기로 함. 라이크는 열쇠를 렌에게 건네고 자신은 잠들지 않아도 된다고 했으며, 렌이 밤새 문지기일 필요는 없다고 하자 필요 여부는 자신이 정한다고 선을 그음. 렌이 검과 마음에 관한 말을 묻자, 라이크는 두려움과 분노에 휘둘리면 지키려던 것까지 해칠 수 있다고 설명함. 자신도 흔들린다고 인정하면서, 멈춰 겨누는 대상을 확인한다고 밝힘. 새벽에 출발하기로 하고 렌에게 잠을 권한 뒤, 렌이 방으로 올라갈 때까지 문을 지킴. 둘 사이의 거리는 여전히 조심스럽지만 라이크의 보호 행동이 드러남.\",\"items\":[{\"actor\":\"user\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"user\",\"quote\":\"둘이 한 방 써도 상관없어.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 잠시 열쇠를 내려다보다 렌 쪽으로 밀었다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"하지만 그것에 끌려가면, 지키려던 것까지 베게 되지.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"흔들릴 때마다 멈추고, 내가 무엇을 겨누는지 확인할 뿐이다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"그는 문 앞을 지키며 렌이 방으로 올라갈 때까지 자리를 뜨지 않았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"잠은 자라, 렌. 새벽에 길을 나선다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2957,
+  "outputTokens": 499,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 2955,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000181,
+  "upstreamCostUsd": 0.000181,
+  "debugRawUsage": {
+   "completion_tokens": 499,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2957,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 2955
+   },
+   "total_tokens": 3456,
+   "cost": 0.000181,
+   "cost_details": {
+    "upstream_inference_cost": 0.000181
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "8b275eb8-7d06-4739-a1a1-f0fdcf028b68"
+ },
+ "billedUsd": 0.000181,
+ "ms": 5608,
+ "systemChars": 3460,
+ "userChars": 2043
+}

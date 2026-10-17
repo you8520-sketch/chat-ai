@@ -1,0 +1,46 @@
+{
+ "id": "FX11",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"라이크가 11~14번째 장작을 차례로 쌓음. 렌이 약속을 취소하고 검은 직접 가겠다고 하자 라이크는 아쉬운 듯 어깨를 으쓱함. 약속은 취소되고 검을 직접 가져가는 계획으로 바뀜.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":11,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 11번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":12,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 12번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":13,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 13번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":14,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 14번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":15,\"sourceRole\":\"user\",\"quote\":\"그 약속은 취소할게.\",\"relationshipState\":\"none\",\"eventStatus\":\"cancelled\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":15,\"sourceRole\":\"user\",\"quote\":\"검은 내가 직접 갈게.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 1999,
+  "outputTokens": 324,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1997,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000118,
+  "upstreamCostUsd": 0.000118,
+  "debugRawUsage": {
+   "completion_tokens": 324,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1999,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1997
+   },
+   "total_tokens": 2323,
+   "cost": 0.000118,
+   "cost_details": {
+    "upstream_inference_cost": 0.000118
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "2b813b68-e119-4e78-9470-d19ecc3c447a"
+ },
+ "billedUsd": 0.000118,
+ "ms": 4616,
+ "systemChars": 3460,
+ "userChars": 634
+}

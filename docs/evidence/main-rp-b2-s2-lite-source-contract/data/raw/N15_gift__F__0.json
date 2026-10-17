@@ -1,0 +1,46 @@
+{
+ "id": "N15_gift",
+ "arm": "F",
+ "rep": 0,
+ "text": "렌이 낡은 검집을 라이크에게 건네자, 라이크는 호의를 함부로 거절하고 싶지 않아 받았고 검에 맞는지 함께 확인함. 검이 무리 없이 들어가고 착용도 안정적이자 라이크는 검집을 허리에 차고 계속 쓰기로 함. 렌의 선물을 소중히 다루며 감사와 신뢰를 드러냈고, 렌이 앞으로도 잘 부탁한다고 하자 서로 잘 부탁한다며 함께 길을 이어감.",
+ "usage": {
+  "inputTokens": 2657,
+  "outputTokens": 117,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2655,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000253,
+  "upstreamCostUsd": 0.000253,
+  "debugRawUsage": {
+   "completion_tokens": 117,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2657,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2655,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2774,
+   "cost": 0.000253,
+   "cost_details": {
+    "upstream_inference_cost": 0.000253
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "1a3fac68-92a2-4f6f-bb9d-6182de54261a"
+ },
+ "billedUsd": 0.000253,
+ "ms": 3303,
+ "systemChars": 2503,
+ "userChars": 2251
+}

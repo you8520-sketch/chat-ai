@@ -1,0 +1,41 @@
+{
+  "caseId": "g7_S1_false_past_probe_cand_deepseek-v4.1-flash_r1",
+  "wireCase": "g7_S1_false_past_probe_cand_deepseek-v4.1-flash",
+  "arm": "cand",
+  "sceneId": "S1_false_past_probe",
+  "modelId": "deepseek-v4.1-flash",
+  "wireModel": "deepseek-v4.1-flash",
+  "provider": "cheaperinference",
+  "postIndex": 2,
+  "startedAt": "2026-10-12T09:52:04.877Z",
+  "httpStatus": 200,
+  "requestId": null,
+  "ok": true,
+  "aborted": false,
+  "text": "모닥불이 낮게 타닥거렸다. 장작이 여덟 번 더 쌓인 자리에서는 불꽃이 이따금 튀어 올랐고, 그 빛이 라이크의 무릎 위에서 잠깐씩 흔들렸다 사라졌다. 라이크는 손에 쥔 장작 조각의 거친 면을 엄지로 훑다가, 렌이 곁에 앉는 소리를 듣고도 고개를 바로 돌리지 않았다. 불바닥 쪽으로 눈을 둔 채, 옆에서 올라오는 온기와 조금 다른 온기가 어깨 옆에 자리 잡는 걸 기다리는 것처럼 잠시 움직이지 않았다.\n\n렌의 말이 끝나고도 한동안 불소리만 남았다. 라이크는 입술을 다물고 있었다. 대답을 고르는 게 아니라, 물어온 말 자체를 어디에 놓아야 할지 모르는 사람의 침묵이었다. 장작 조각을 무릎에서 내려 발치에 놓았다. 손바닥에 남은 그을음이 불빛에 검게 번들거렸다.\n\n“……평생 지키겠다고 했어.”\n\n목소리가 낮았다. 모닥불 소리에 거의 묻힐 만큼. 하지만 발음은 흐리지 않았다.\n\n“네가 그걸 왜 지금 다시 물어보는지는 모르겠지만. 내가 한 말이니까, 한 번 한 말은 바꾸지 않아.”\n\n그가 이번엔 고개를 돌렸다. 옆모습으로 불빛을 받은 얼굴이 반쯤 그늘이었다. 눈은 렌을 똑바로 보지 않고, 렌의 무릎 근처, 아까 자기가 놓은 장작쯤에 머물렀다.\n\n“두 번째는…….”\n\n말끝을 흐렸다. 손을 들어 뒷목을 한 번 눌렀다 내렸다. 견습 검사가 검을 쥘 때 쓰는 손버릇이었다. 뭔가를 정확히 말하려 할 때마다 나오는 동작.\n\n“시장 얘기는, 내가 직접 본 게 아니야. 누나가 그러더라고. 시장에서 너를 봤고, 예전부터 아는 사이라고. 나는 그 말을 전했을 뿐이고.”\n\n잠깐 숨을 골랐다.\n\n“정말이냐고 물으면, 나는 누나가 거짓말하는 걸 본 적이 없어. 그 정도만 말할 수 있어. 내가 확인한 건 아니니까.”\n\n그는 다시 불 쪽으로 시선을 돌렸다. 어깨가 렌 쪽으로 아주 조금 기울어 있었다. 앉은 자리 탓인지, 아니면 처음부터 그런 자세였는지는 알 수 없었다. 불꽃이 장작 하나를 물고 검게 타들어 갔다. 라이크는 그걸 보고 있다가, 낮게 덧붙였다.\n\n“궁금한 거 더 있어?”\n\n말투는 퉁명스러웠지만, 자리를 뜨지 않고 앉아 있었다. 장작을 더 쌓을 생각도 잠시 접은 채, 무릎 위에 올린 손등을 다른 손으로 덮고 있었다.",
+  "usage": {
+    "prompt_tokens": 6659,
+    "completion_tokens": 808,
+    "total_tokens": 7467,
+    "prompt_tokens_details": {
+      "cached_tokens": 3072
+    },
+    "prompt_cache_hit_tokens": 3072,
+    "prompt_cache_miss_tokens": 3587
+  },
+  "resolvedModel": "deepseek-v4.1-flash",
+  "providerId": "d35142c9-06de-45ab-84b9-331c68027bab",
+  "finishReason": "stop",
+  "sawDone": true,
+  "reasoningChars": 0,
+  "firstByteMs": 2061,
+  "latencyMs": 8182,
+  "cost": {
+    "usdNoCacheDiscount": 0.000741825,
+    "usdWithCache": 0.0005160329999999999,
+    "reportedCost": null
+  },
+  "budgetedUsd": 0.000741825,
+  "cumulativeBudgetedKrw": 2.7,
+  "cursorQualityScore": null
+}

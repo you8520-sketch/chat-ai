@@ -1,0 +1,46 @@
+{
+ "id": "N10_promise_real",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"북쪽 숲길이 막혀 라이크가 동쪽 고개로 가자고 정하고 새벽 출발을 제안함. 렌은 북문에서 만나자고 했고, 둘은 해 뜨기 전 마을 북문에서 만나 동행하기로 약속함. 다음 날 새벽 렌이 도착하자 이미 기다리던 라이크가 준비 여부를 확인했고, 렌이 검끈을 고쳐 매고 합류함. 문이 열린 뒤 라이크가 동쪽 길을 확인하고 렌을 기다려 함께 출발함.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"북쪽 숲길은 막혔어.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"내일 새벽에 마을 북문에서 기다리겠다.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"user\",\"quote\":\"좋아. 내일 새벽, 북문에서 보자.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"몇 걸음 뒤 멈춰 서서 네가 따라오는 것을 기다린 그는, 짧게 말했다.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"}]}",
+ "usage": {
+  "inputTokens": 2771,
+  "outputTokens": 316,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2769,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000327,
+  "upstreamCostUsd": 0.000327,
+  "debugRawUsage": {
+   "completion_tokens": 316,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2771,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2769,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3087,
+   "cost": 0.000327,
+   "cost_details": {
+    "upstream_inference_cost": 0.000327
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "63c8aee0-d00e-4433-bbc6-6eb7298ed77a"
+ },
+ "billedUsd": 0.000327,
+ "ms": 4401,
+ "systemChars": 3460,
+ "userChars": 1756
+}

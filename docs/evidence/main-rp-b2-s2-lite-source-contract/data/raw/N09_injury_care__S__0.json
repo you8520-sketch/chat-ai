@@ -1,0 +1,46 @@
+{
+ "id": "N09_injury_care",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"뿔짐승에게 팔을 할퀴어 피가 나자 렌은 얕은 상처라며 괜찮다고 했지만, 라이크는 흙이 들어갔을 수 있다며 치료를 고집함. 렌이 장비에 피가 묻을까 걱정해도 라이크는 장비보다 상처를 우선해 직접 씻고, 검을 쓰기 어려워질 수 있다고 설명하며 먼지를 제거함. 렌이 심각하지 않다고 반응하자 괜찮다는 말로 살피는 일을 건너뛰지 말라며 조심스럽게 붕대를 감음. 여관에서 서린에게 깨끗한 물을 부탁하겠다고 했고, 저림이나 출혈을 알리라고 당부함. 렌이 고맙다고 하자 라이크는 퉁명스레 받아넘기면서도 물통과 천을 챙기고 렌의 걸음에 맞춰 함께 여관으로 향함. 라이크의 돌봄과 배려가 행동으로 드러남.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"그는 허리춤에서 물통과 깨끗한 천을 꺼냈다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"여관에 도착하면 서린에게 깨끗한 물을 더 부탁하겠다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"고맙다. 네가 챙겨 줘서 살았네.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"그러고는 네 걸음에 맞춰 나란히 서서 여관 쪽으로 몸을 돌렸다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2779,
+  "outputTokens": 446,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2777,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.00037,
+  "upstreamCostUsd": 0.00037,
+  "debugRawUsage": {
+   "completion_tokens": 446,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2779,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2777,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3225,
+   "cost": 0.00037,
+   "cost_details": {
+    "upstream_inference_cost": 0.00037
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "65c37d5e-af9b-483d-b468-a2994e40731e"
+ },
+ "billedUsd": 0.00037,
+ "ms": 9389,
+ "systemChars": 3460,
+ "userChars": 1799
+}

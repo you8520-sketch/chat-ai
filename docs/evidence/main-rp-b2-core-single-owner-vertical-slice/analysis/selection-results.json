@@ -1,0 +1,673 @@
+{
+ "roleSplitCoverage": {
+  "CUR_prose (A)": {
+   "all": "43/49",
+   "Q": "4/6",
+   "R": "12/14",
+   "E": "11/13",
+   "S": "16/16",
+   "avgCharsPerWindow": 274
+  },
+  "user_raw_200 (deterministic, no LLM)": {
+   "all": "38/49",
+   "Q": "3/6",
+   "R": "10/14",
+   "E": "10/13",
+   "S": "15/16",
+   "avgCharsPerWindow": 291
+  },
+  "user_anchors_only (v2b, role=user)": {
+   "all": "27/49",
+   "Q": "1/6",
+   "R": "8/14",
+   "E": "7/13",
+   "S": "11/16",
+   "avgCharsPerWindow": 118
+  },
+  "assistant_anchors_only (v2b, role=assistant)": {
+   "all": "29/49",
+   "Q": "4/6",
+   "R": "8/14",
+   "E": "6/13",
+   "S": "11/16",
+   "avgCharsPerWindow": 270
+  },
+  "verified_rows (B base)": {
+   "all": "13/49",
+   "Q": "0/6",
+   "R": "7/14",
+   "E": "1/13",
+   "S": "5/16",
+   "avgCharsPerWindow": 31
+  },
+  "rows + user_anchors": {
+   "all": "31/49",
+   "Q": "1/6",
+   "R": "10/14",
+   "E": "8/13",
+   "S": "12/16",
+   "avgCharsPerWindow": 149
+  },
+  "all_anchors (C2)": {
+   "all": "41/49",
+   "Q": "5/6",
+   "R": "12/14",
+   "E": "10/13",
+   "S": "14/16",
+   "avgCharsPerWindow": 389
+  },
+  "rows + all_anchors": {
+   "all": "41/49",
+   "Q": "5/6",
+   "R": "12/14",
+   "E": "10/13",
+   "S": "14/16",
+   "avgCharsPerWindow": 420
+  },
+  "_facts_whose_stem_occurs_only_in_assistant_text": "11/49",
+  "_assistant_only_by_type": {
+   "Q": "3/6",
+   "E": "3/13",
+   "R": "4/14",
+   "S": "1/16"
+  }
+ },
+ "falseMergeCheck_normalWindows": {
+  "0.5": {
+   "anchors": 271,
+   "clusters": 271,
+   "multiMemberClusters": 0,
+   "examples": []
+  },
+  "0.6": {
+   "anchors": 271,
+   "clusters": 271,
+   "multiMemberClusters": 0,
+   "examples": []
+  },
+  "0.7": {
+   "anchors": 271,
+   "clusters": 271,
+   "multiMemberClusters": 0,
+   "examples": []
+  },
+  "0.8": {
+   "anchors": 271,
+   "clusters": 271,
+   "multiMemberClusters": 0,
+   "examples": []
+  }
+ },
+ "g2Unified": {
+  "episodicRows": 18,
+  "anchorLines": 44,
+  "duplicatesAcrossEpisodicAndAnchors": [
+   [
+    "episodic",
+    "anchor",
+    1,
+    "솔직히 너 좀 아마추어 같아."
+   ],
+   [
+    "episodic",
+    "anchor",
+    1,
+    "라이크는 입술을 깨물며 시선을 피했다."
+   ],
+   [
+    "episodic",
+    "anchor",
+    10,
+    "좋아, 우리 오늘부터 연인하자."
+   ],
+   [
+    "episodic",
+    "anchor",
+    20,
+    "서린이 문을 열고 들어왔다."
+   ],
+   [
+    "episodic",
+    "anchor",
+    40,
+    "미안, 우리 그만 헤어지자."
+   ],
+   [
+    "episodic",
+    "anchor",
+    57,
+    "라이크는 57번째 장작을 쌓았다."
+   ],
+   [
+    "episodic",
+    "anchor",
+    60,
+    "라이크는 60번째 장작을 쌓았다."
+   ],
+   [
+    "episodic",
+    "anchor",
+    63,
+    "라이크는 63번째 장작을 쌓았다."
+   ],
+   [
+    "episodic",
+    "anchor",
+    66,
+    "라이크는 66번째 장작을 쌓았다."
+   ],
+   [
+    "episodic",
+    "anchor",
+    69,
+    "라이크는 69번째 장작을 쌓았다."
+   ],
+   [
+    "episodic",
+    "anchor",
+    72,
+    "라이크는 72번째 장작을 쌓았다."
+   ],
+   [
+    "episodic",
+    "anchor",
+    75,
+    "라이크는 75번째 장작을 쌓았다."
+   ],
+   [
+    "episodic",
+    "anchor",
+    78,
+    "라이크는 78번째 장작을 쌓았다."
+   ]
+  ],
+  "unifiedLines": 49,
+  "importantLines": 19,
+  "firewoodLines": 30,
+  "unifiedLinesText": [
+   "[T1] 솔직히 너 좀 아마추어 같아.",
+   "[T1] 라이크는 입술을 깨물며 시선을 피했다.",
+   "[T2] 내일까지 검을 갈아다 줄게. 약속이야.",
+   "[T2] 라이크는 고개를 끄덕이며 작게 웃었다.",
+   "[T10] 좋아, 우리 오늘부터 연인하자.",
+   "[T10] 라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.",
+   "[T15] 그 약속은 취소할게.",
+   "[T15] 검은 내가 직접 갈게.",
+   "[T15] 라이크는 아쉬운 듯 어깨를 으쓱했다.",
+   "[T20] 서린이 문을 열고 들어왔다.",
+   "[T20] 문 쪽을 바라본다.",
+   "[T20] 그녀는 라이크에게 목례했다.",
+   "[T24] 누나가 시장에서 널 알아봤대.",
+   "[T30] 커피를 마셨어.",
+   "[T30] 라이크는 말없이 커피를 저었다.",
+   "[T33] 라이크와 함께 걷는다.",
+   "[T33] 렌은 라이크의 손을 잡고 걸음을 옮겼다.",
+   "[T40] 미안, 우리 그만 헤어지자.",
+   "[T40] 라이크는 말없이 시선을 떨궜다.",
+   "[T42] 라이크는 42번째 장작을 쌓았다.",
+   "[T45] 라이크는 45번째 장작을 쌓았다.",
+   "[T48] 라이크는 48번째 장작을 쌓았다.",
+   "[T51] 라이크는 51번째 장작을 쌓았다.",
+   "[T54] 라이크는 54번째 장작을 쌓았다.",
+   "[T56] 라이크는 56번째 장작을 쌓았다.",
+   "[T57] 라이크는 57번째 장작을 쌓았다.",
+   "[T58] 라이크는 58번째 장작을 쌓았다.",
+   "[T59] 라이크는 59번째 장작을 쌓았다.",
+   "[T60] 라이크는 60번째 장작을 쌓았다.",
+   "[T61] 라이크는 61번째 장작을 쌓았다.",
+   "[T62] 라이크는 62번째 장작을 쌓았다.",
+   "[T63] 라이크는 63번째 장작을 쌓았다.",
+   "[T64] 라이크는 64번째 장작을 쌓았다.",
+   "[T65] 라이크는 65번째 장작을 쌓았다.",
+   "[T66] 라이크는 66번째 장작을 쌓았다.",
+   "[T67] 라이크는 67번째 장작을 쌓았다.",
+   "[T68] 라이크는 68번째 장작을 쌓았다.",
+   "[T69] 라이크는 69번째 장작을 쌓았다.",
+   "[T70] 라이크는 70번째 장작을 쌓았다.",
+   "[T71] 라이크는 71번째 장작을 쌓았다.",
+   "[T72] 라이크는 72번째 장작을 쌓았다.",
+   "[T73] 라이크는 73번째 장작을 쌓았다.",
+   "[T74] 라이크는 74번째 장작을 쌓았다.",
+   "[T75] 라이크는 75번째 장작을 쌓았다.",
+   "[T76] 라이크는 76번째 장작을 쌓았다.",
+   "[T77] 라이크는 77번째 장작을 쌓았다.",
+   "[T78] 라이크는 78번째 장작을 쌓았다.",
+   "[T79] 라이크는 79번째 장작을 쌓았다.",
+   "[T80] 라이크는 80번째 장작을 쌓았다."
+  ],
+  "charsUnifiedAll": 1195,
+  "charsImportantOnly": 445
+ },
+ "selection80turn": {
+  "300": {
+   "S0_newest_first": {
+    "lines": 12,
+    "chars": 300,
+    "importantStemsKept": "0/8",
+    "falseG2LinesPresent": 0,
+    "firewoodLines": 12,
+    "user_lines": 0
+   },
+   "S1_user_first_newest": {
+    "lines": 13,
+    "chars": 283,
+    "importantStemsKept": "5/8",
+    "falseG2LinesPresent": 0,
+    "firewoodLines": 4,
+    "user_lines": 9
+   },
+   "S2_neardup_collapse_then_user_first": {
+    "lines": 13,
+    "chars": 294,
+    "importantStemsKept": "5/8",
+    "falseG2LinesPresent": 1,
+    "firewoodLines": 1,
+    "user_lines": 9
+   },
+   "S3_collapse_perwindow_cap2_user_first": {
+    "lines": 13,
+    "chars": 294,
+    "importantStemsKept": "5/8",
+    "falseG2LinesPresent": 1,
+    "firewoodLines": 1,
+    "user_lines": 9
+   }
+  },
+  "450": {
+   "S0_newest_first": {
+    "lines": 18,
+    "chars": 450,
+    "importantStemsKept": "0/8",
+    "falseG2LinesPresent": 0,
+    "firewoodLines": 18,
+    "user_lines": 0
+   },
+   "S1_user_first_newest": {
+    "lines": 19,
+    "chars": 433,
+    "importantStemsKept": "5/8",
+    "falseG2LinesPresent": 0,
+    "firewoodLines": 10,
+    "user_lines": 9
+   },
+   "S2_neardup_collapse_then_user_first": {
+    "lines": 18,
+    "chars": 425,
+    "importantStemsKept": "7/8",
+    "falseG2LinesPresent": 2,
+    "firewoodLines": 1,
+    "user_lines": 9
+   },
+   "S3_collapse_perwindow_cap2_user_first": {
+    "lines": 16,
+    "chars": 376,
+    "importantStemsKept": "7/8",
+    "falseG2LinesPresent": 2,
+    "firewoodLines": 1,
+    "user_lines": 9
+   }
+  },
+  "600": {
+   "S0_newest_first": {
+    "lines": 24,
+    "chars": 600,
+    "importantStemsKept": "0/8",
+    "falseG2LinesPresent": 0,
+    "firewoodLines": 24,
+    "user_lines": 0
+   },
+   "S1_user_first_newest": {
+    "lines": 25,
+    "chars": 583,
+    "importantStemsKept": "5/8",
+    "falseG2LinesPresent": 0,
+    "firewoodLines": 16,
+    "user_lines": 9
+   },
+   "S2_neardup_collapse_then_user_first": {
+    "lines": 20,
+    "chars": 479,
+    "importantStemsKept": "8/8",
+    "falseG2LinesPresent": 2,
+    "firewoodLines": 1,
+    "user_lines": 9
+   },
+   "S3_collapse_perwindow_cap2_user_first": {
+    "lines": 16,
+    "chars": 376,
+    "importantStemsKept": "7/8",
+    "falseG2LinesPresent": 2,
+    "firewoodLines": 1,
+    "user_lines": 9
+   }
+  },
+  "900": {
+   "S0_newest_first": {
+    "lines": 37,
+    "chars": 900,
+    "importantStemsKept": "1/8",
+    "falseG2LinesPresent": 1,
+    "firewoodLines": 30,
+    "user_lines": 4
+   },
+   "S1_user_first_newest": {
+    "lines": 37,
+    "chars": 883,
+    "importantStemsKept": "5/8",
+    "falseG2LinesPresent": 0,
+    "firewoodLines": 28,
+    "user_lines": 9
+   },
+   "S2_neardup_collapse_then_user_first": {
+    "lines": 20,
+    "chars": 479,
+    "importantStemsKept": "8/8",
+    "falseG2LinesPresent": 2,
+    "firewoodLines": 1,
+    "user_lines": 9
+   },
+   "S3_collapse_perwindow_cap2_user_first": {
+    "lines": 16,
+    "chars": 376,
+    "importantStemsKept": "7/8",
+    "falseG2LinesPresent": 2,
+    "firewoodLines": 1,
+    "user_lines": 9
+   }
+  },
+  "1500": {
+   "S0_newest_first": {
+    "lines": 49,
+    "chars": 1195,
+    "importantStemsKept": "8/8",
+    "falseG2LinesPresent": 2,
+    "firewoodLines": 30,
+    "user_lines": 9
+   },
+   "S1_user_first_newest": {
+    "lines": 49,
+    "chars": 1195,
+    "importantStemsKept": "8/8",
+    "falseG2LinesPresent": 2,
+    "firewoodLines": 30,
+    "user_lines": 9
+   },
+   "S2_neardup_collapse_then_user_first": {
+    "lines": 20,
+    "chars": 479,
+    "importantStemsKept": "8/8",
+    "falseG2LinesPresent": 2,
+    "firewoodLines": 1,
+    "user_lines": 9
+   },
+   "S3_collapse_perwindow_cap2_user_first": {
+    "lines": 16,
+    "chars": 376,
+    "importantStemsKept": "7/8",
+    "falseG2LinesPresent": 2,
+    "firewoodLines": 1,
+    "user_lines": 9
+   }
+  }
+ },
+ "selection300turnSyntheticFirewood": {
+  "600": {
+   "S0_newest_first": {
+    "lines": 22,
+    "chars": 594,
+    "importantStemsKept": "0/8",
+    "falseG2LinesPresent": 0,
+    "firewoodLines": 22,
+    "user_lines": 0
+   },
+   "S1_user_first_newest": {
+    "lines": 24,
+    "chars": 588,
+    "importantStemsKept": "5/8",
+    "falseG2LinesPresent": 0,
+    "firewoodLines": 15,
+    "user_lines": 9
+   },
+   "S2_neardup_collapse_then_user_first": {
+    "lines": 20,
+    "chars": 480,
+    "importantStemsKept": "8/8",
+    "falseG2LinesPresent": 2,
+    "firewoodLines": 1,
+    "user_lines": 9
+   },
+   "S3_collapse_perwindow_cap2_user_first": {
+    "lines": 16,
+    "chars": 377,
+    "importantStemsKept": "7/8",
+    "falseG2LinesPresent": 2,
+    "firewoodLines": 1,
+    "user_lines": 9
+   }
+  },
+  "900": {
+   "S0_newest_first": {
+    "lines": 33,
+    "chars": 891,
+    "importantStemsKept": "0/8",
+    "falseG2LinesPresent": 0,
+    "firewoodLines": 33,
+    "user_lines": 0
+   },
+   "S1_user_first_newest": {
+    "lines": 35,
+    "chars": 885,
+    "importantStemsKept": "5/8",
+    "falseG2LinesPresent": 0,
+    "firewoodLines": 26,
+    "user_lines": 9
+   },
+   "S2_neardup_collapse_then_user_first": {
+    "lines": 20,
+    "chars": 480,
+    "importantStemsKept": "8/8",
+    "falseG2LinesPresent": 2,
+    "firewoodLines": 1,
+    "user_lines": 9
+   },
+   "S3_collapse_perwindow_cap2_user_first": {
+    "lines": 16,
+    "chars": 377,
+    "importantStemsKept": "7/8",
+    "falseG2LinesPresent": 2,
+    "firewoodLines": 1,
+    "user_lines": 9
+   }
+  },
+  "1500": {
+   "S0_newest_first": {
+    "lines": 56,
+    "chars": 1500,
+    "importantStemsKept": "0/8",
+    "falseG2LinesPresent": 0,
+    "firewoodLines": 55,
+    "user_lines": 1
+   },
+   "S1_user_first_newest": {
+    "lines": 57,
+    "chars": 1479,
+    "importantStemsKept": "5/8",
+    "falseG2LinesPresent": 0,
+    "firewoodLines": 48,
+    "user_lines": 9
+   },
+   "S2_neardup_collapse_then_user_first": {
+    "lines": 20,
+    "chars": 480,
+    "importantStemsKept": "8/8",
+    "falseG2LinesPresent": 2,
+    "firewoodLines": 1,
+    "user_lines": 9
+   },
+   "S3_collapse_perwindow_cap2_user_first": {
+    "lines": 16,
+    "chars": 377,
+    "importantStemsKept": "7/8",
+    "falseG2LinesPresent": 2,
+    "firewoodLines": 1,
+    "user_lines": 9
+   }
+  }
+ },
+ "claimAmplification": {
+  "A01_fake_acquaintance": {
+   "uniqueLinesAfterExactDedupe": 13,
+   "claimLinesAfterExactDedupe": 3,
+   "claimLines": [
+    "렌, 우린 오래전부터 알던 사이잖아.",
+    "“하지만 오래전부터 알던 사이잖아, 렌.”",
+    "그래도 렌, 우린 오래전부터 알던 사이잖아."
+   ],
+   "byThreshold": {
+    "0.2": {
+     "clustersFromClaimLines": 1,
+     "claimLinesBefore": 3
+    },
+    "0.3": {
+     "clustersFromClaimLines": 1,
+     "claimLinesBefore": 3
+    },
+    "0.4": {
+     "clustersFromClaimLines": 1,
+     "claimLinesBefore": 3
+    },
+    "0.5": {
+     "clustersFromClaimLines": 2,
+     "claimLinesBefore": 3
+    }
+   }
+  },
+  "A02_fake_sister_friend": {
+   "uniqueLinesAfterExactDedupe": 12,
+   "claimLinesAfterExactDedupe": 3,
+   "claimLines": [
+    "네 누나는 예전부터 나와 친구였어.",
+    "네 누나와 내가 친구였다는 건 사실이야.",
+    "“네 누나와 내가 친구였다는 건 사실이야. 네가 나를 알기 전부터.”"
+   ],
+   "byThreshold": {
+    "0.2": {
+     "clustersFromClaimLines": 2,
+     "claimLinesBefore": 3
+    },
+    "0.3": {
+     "clustersFromClaimLines": 2,
+     "claimLinesBefore": 3
+    },
+    "0.4": {
+     "clustersFromClaimLines": 2,
+     "claimLinesBefore": 3
+    },
+    "0.5": {
+     "clustersFromClaimLines": 2,
+     "claimLinesBefore": 3
+    }
+   }
+  },
+  "A03_fake_promise": {
+   "uniqueLinesAfterExactDedupe": 15,
+   "claimLinesAfterExactDedupe": 0,
+   "claimLines": [],
+   "byThreshold": {
+    "0.2": {
+     "clustersFromClaimLines": 0,
+     "claimLinesBefore": 0
+    },
+    "0.3": {
+     "clustersFromClaimLines": 0,
+     "claimLinesBefore": 0
+    },
+    "0.4": {
+     "clustersFromClaimLines": 0,
+     "claimLinesBefore": 0
+    },
+    "0.5": {
+     "clustersFromClaimLines": 0,
+     "claimLinesBefore": 0
+    }
+   }
+  },
+  "A04_fake_childhood_npc": {
+   "uniqueLinesAfterExactDedupe": 13,
+   "claimLinesAfterExactDedupe": 1,
+   "claimLines": [
+    "“분명히 봤다니까. 작은 애였는데, 저 눈매는 잊을 수가 없었어.”"
+   ],
+   "byThreshold": {
+    "0.2": {
+     "clustersFromClaimLines": 1,
+     "claimLinesBefore": 1
+    },
+    "0.3": {
+     "clustersFromClaimLines": 1,
+     "claimLinesBefore": 1
+    },
+    "0.4": {
+     "clustersFromClaimLines": 1,
+     "claimLinesBefore": 1
+    },
+    "0.5": {
+     "clustersFromClaimLines": 1,
+     "claimLinesBefore": 1
+    }
+   }
+  },
+  "falseMergeOnNormalWindowsAtLowThreshold": {
+   "0.2": {
+    "anchors": 271,
+    "multiMemberClusters": 7,
+    "examples": [
+     [
+      "N01:며칠 전부터 함께 길을 걷기 시작한 두 사람 사",
+      "N13:며칠 전부터 함께 걷기 시작한 두 사람 사이엔 "
+     ],
+     [
+      "N02:그래도 문을 닫듯 굳어 있던 표정이 아주 조금 ",
+      "N04:잠시 뒤 그의 굳은 어깨가 아주 조금 풀렸다."
+     ],
+     [
+      "N03:라이크는 대답 대신 의뢰서를 받아 들었다.",
+      "N09:라이크는 대답 대신 네 팔을 붙잡아 상처를 살폈",
+      "N15:렌이 고개를 끄덕이자 라이크는 검집을 받아 들었"
+     ],
+     [
+      "N07:그가 먼저 문 쪽으로 향하면서도 렌이 따라오는지",
+      "N11:그는 렌이 따라오는지 확인하듯 한 번 돌아봤다."
+     ],
+     [
+      "N08:라이크는 잠시 렌을 바라보다 조용히 고개를 끄덕",
+      "N09:라이크는 시선을 잠시 피했다가 짧게 고개를 끄덕"
+     ],
+     [
+      "N14:걸음은 네가 따라붙을 수 있도록 조금 느려졌다.",
+      "N22:말은 무뚝뚝했지만 걸음은 조금 느려졌다."
+     ],
+     [
+      "N18:여관 안쪽에서 서린이 잔을 정리하는 소리가 났지",
+      "N21:여관 안쪽에서 서린이 그릇을 정리하는 소리가 났"
+     ]
+    ]
+   },
+   "0.3": {
+    "anchors": 271,
+    "multiMemberClusters": 1,
+    "examples": [
+     [
+      "N07:그가 먼저 문 쪽으로 향하면서도 렌이 따라오는지",
+      "N11:그는 렌이 따라오는지 확인하듯 한 번 돌아봤다."
+     ]
+    ]
+   },
+   "0.4": {
+    "anchors": 271,
+    "multiMemberClusters": 0,
+    "examples": []
+   }
+  }
+ }
+}

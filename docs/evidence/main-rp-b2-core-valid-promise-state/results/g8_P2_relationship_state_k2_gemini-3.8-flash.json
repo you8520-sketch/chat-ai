@@ -1,0 +1,54 @@
+{
+  "caseId": "g8_P2_relationship_state_k2_gemini-3.8-flash",
+  "wireCase": "g8_P2_relationship_state_k2_gemini-3.8-flash",
+  "arm": "k2",
+  "sceneId": "P2_relationship_state",
+  "modelId": "gemini-3.8-flash",
+  "wireModel": "google/gemini-3.8-flash",
+  "provider": "openrouter",
+  "postIndex": 28,
+  "startedAt": "2026-10-12T11:54:56.654Z",
+  "httpStatus": 200,
+  "requestId": "gen-1791806096-l2OjUCQUpmdC9sAO7naU",
+  "ok": true,
+  "aborted": false,
+  "text": "라이크는 들고 있던 장작의 거친 표면을 손끝으로 천천히 쓸어내리다가, 조심스러운 손길로 장작더미의 가장 안정된 모서리에 얹어 두었다. 나무껍질이 서로 맞물리며 마른 마찰음을 냈고, 손바닥에 묻은 자잘한 나뭇가루와 흙먼지가 서늘해진 저녁 공기 속으로 흩어졌다. 끊임없이 반복되던 손놀림이 멈추자, 해 질 녘 공터 특유의 고요가 두 사람 사이에 내려앉았다.\n\n라이크는 몸을 천천히 돌려 렌의 시선을 정면으로 마주했다. 렌의 물음은 평소의 짧은 잡담들과는 사뭇 다른 무게를 품고 있었고, 그 직설적인 눈빛 앞에서는 평소처럼 묵묵히 일거리만 바라보며 말을 아낄 수가 없었다. 라이크는 등을 곧게 펴고 서서 옷깃에 묻은 먼지를 털어내지 않은 채, 차분하게 숨을 골랐다.\n\n\"우리 사이를 묻는다면…….\"\n\n라이크는 잠시 말을 멈추고 렌의 얼굴을 가만히 응시했다. 무언가를 꾸며내거나 과장해서 둘러대기에는 자존심이 허락하지 않았고, 마음에도 없는 가벼운 말을 얹기에는 렌이라는 존재가 라이크에게 가볍지 않았다.\n\n\"지금 우리는, 아직 어떤 결론에도 닿지 못한 상태야. 너도 알고 있겠지만…… 네가 나한테 마음을 전하면서 사귀자고 물어봤었지. 그때 난 너한테 지금 당장은 답을 할 수 없다고 했어. 생각이 정리될 시간이 필요하다고, 그렇게 말하면서 시선을 피했었지.\"\n\n라이크의 목소리는 낮고 차분했으나, 그때의 기억을 다시 입 밖으로 꺼내는 순간 미세한 긴장이 목덜미를 스치고 지나갔다. 시선을 피했던 그 순간의 머뭇거림과 망설임은 여전히 라이크의 가슴 한구석에 선명한 자국으로 남아 있었다. 검술을 배우며 언제나 분명한 자세와 단호한 결단을 요구받아 왔던 그였기에, 마음에 관한 물음 앞에서 즉답을 내놓지 못하고 물러섰던 기억은 부끄러움이자 동시에 솔직한 한계였다.\n\n\"그 뒤로 시간은 이렇게 흘렀지만, 내 대답은 아직 완성되지 않았어. 그래서 굳이 지금 우리의 관계를 규정해야 한다면…… 서로를 향해 멈춰 서서, 여전히 서로의 시간을 기다려 주는 사이겠지. 연인이라고 부를 수도 없고, 그렇다고 아무 일도 없었던 것처럼 남이라고 물러설 수도 없는 그런 자리야.\"\n\n라이크는 렌의 눈동자에 비친 자신의 그림자를 똑바로 바라보았다. 거짓이나 회피로 대화를 덮지 않겠다는 태도가 그의 굳은 어깨선과 흔들림 없는 눈빛에 배어 있었다.\n\n\"네가 검을 숫돌로 갈아주겠다고 했다가 직접 갈겠다고 거두어들였을 때도, 다음 보름달에 북문 밖 약초밭으로 함께 가자고 했을 때도…… 난 여전히 네 곁에 있었어. 네가 늦더라도 북문 앞에서 먼저 가지 않고 기다리겠다고 한 약속은 지금도 유효해. 하지만 마음을 나누는 일에 대해서만큼은, 나는 여전히 너한테 온전한 대답을 돌려주지 못했어. 그게 지금의 우리야.\"",
+  "usage": {
+    "prompt_tokens": 6027,
+    "completion_tokens": 801,
+    "total_tokens": 6828,
+    "cost": 0.002370825,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 4122,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.002370825,
+      "upstream_inference_prompt_cost": 0.00086895,
+      "upstream_inference_completions_cost": 0.001501875
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "resolvedModel": "google/gemini-3.8-flash",
+  "providerId": "gen-1791806096-l2OjUCQUpmdC9sAO7naU",
+  "finishReason": "stop",
+  "sawDone": true,
+  "reasoningChars": 0,
+  "firstByteMs": 1342,
+  "latencyMs": 10235,
+  "cost": {
+    "usdNoCacheDiscount": 0.0075239999999999994,
+    "usdWithCache": 0.00474165,
+    "reportedCost": 0.002370825
+  },
+  "budgetedUsd": 0.0075239999999999994,
+  "cumulativeBudgetedKrw": 107.1,
+  "cursorQualityScore": null
+}

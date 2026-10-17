@@ -1,0 +1,46 @@
+{
+ "id": "N14_night_watch",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"밤샘 경계 중 렌이 졸자 라이크가 담요를 덮어 주고 홀로 경계를 이어감. 새벽에 렌은 담요를 돌려주며 감사했고, 라이크는 다음엔 잠들지 말라며 둘 다 깨어 있으면 좋다고 답함. 렌이 다음번엔 번갈아 쉬자고 제안했으나 라이크는 “상황을 봐서”라며 확답하지 않음. 담요를 챙긴 라이크와 렌은 여관으로 향했고, 라이크는 밤의 일을 입에 올리지 않으려는 듯 먼저 들어감.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"그는 말없이 어깨에 걸친 담요를 풀어 네 등에 덮어 주었다.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"“둘 다 깨어 있으면 좋지.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"다음번엔 서로 번갈아 쉬자고 말한 뒤\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"“상황을 봐서.”\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2791,
+  "outputTokens": 328,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 2789,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000124,
+  "upstreamCostUsd": 0.000124,
+  "debugRawUsage": {
+   "completion_tokens": 328,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2791,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 2789
+   },
+   "total_tokens": 3119,
+   "cost": 0.000124,
+   "cost_details": {
+    "upstream_inference_cost": 0.000124
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "3c609d36-026c-48b9-bc82-186b9c0ca0fe"
+ },
+ "billedUsd": 0.000124,
+ "ms": 4221,
+ "systemChars": 3460,
+ "userChars": 1825
+}

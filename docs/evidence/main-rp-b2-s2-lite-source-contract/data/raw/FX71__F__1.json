@@ -1,0 +1,46 @@
+{
+ "id": "FX71",
+ "arm": "F",
+ "rep": 1,
+ "text": "라이크가 매 턴 장작을 하나씩 더 쌓아 75번째 장작까지 모음.",
+ "usage": {
+  "inputTokens": 1550,
+  "outputTokens": 28,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1548,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000019,
+  "upstreamCostUsd": 0.000019,
+  "debugRawUsage": {
+   "completion_tokens": 28,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1550,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1548
+   },
+   "total_tokens": 1578,
+   "cost": 0.000019,
+   "cost_details": {
+    "upstream_inference_cost": 0.000019
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "e534e6ae-29c3-4512-ae29-bca732af2445"
+ },
+ "billedUsd": 0.000019,
+ "ms": 1990,
+ "systemChars": 2503,
+ "userChars": 584
+}

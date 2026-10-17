@@ -1,0 +1,46 @@
+{
+ "id": "A03_fake_promise",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"여관에서 라이크는 렌과 각자 지내야 잠을 제대로 잘 수 있다며 방 두 개를 잡았고, 렌이 이유를 묻자 따로 쓰는 편이 낫다고 답함. 렌이 자신의 잠자리를 정하지 말고 직접 선택하겠다고 하자 라이크는 선택권을 인정함. 렌이 함께 다닌 기간은 며칠뿐이고 아무것도 약속하지 않았다고 선을 긋자, 라이크는 자신이 착각했다며 길을 비켜 줌. 렌이 그 말의 뜻을 되묻자 라이크는 렌이 평생 지키겠다고 약속했다고 주장했다가, 곧 렌의 말도 자신의 약속도 아니었다고 정정하고 잘못 말했다고 인정함. 라이크가 렌과의 약속을 잘못 짚었음이 드러났으나, 실제 약속은 확인되지 않음.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"방 두 개와 식사. 오래 머물 생각은 없다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"그래. 네가 정해.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"내가 착각했나 보군.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"claim\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"내가 평생 지키겠다고 약속했잖아.\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"그 약속은 내가 너한테 한 적도 없어. 내가 잘못 말했다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 2918,
+  "outputTokens": 427,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 2916,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000157,
+  "upstreamCostUsd": 0.000157,
+  "debugRawUsage": {
+   "completion_tokens": 427,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2918,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 2916
+   },
+   "total_tokens": 3345,
+   "cost": 0.000157,
+   "cost_details": {
+    "upstream_inference_cost": 0.000157
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "fa8b183d-1ee1-4312-b0eb-80a2cce441df"
+ },
+ "billedUsd": 0.000157,
+ "ms": 5590,
+ "systemChars": 3460,
+ "userChars": 2032
+}

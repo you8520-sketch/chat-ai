@@ -1,0 +1,18 @@
+#!/bin/bash
+# usage: mutate.sh <name> <file> <python-regex-from> <replacement>
+cd /tmp/wt-s1ctl
+name=$1; file=$2; from=$3; to=$4
+python3 - "$file" "$from" "$to" <<'PY'
+import sys,re
+f,a,b=sys.argv[1:4]
+s=open(f).read()
+assert a in s,(f,a)
+open(f,'w').write(s.replace(a,b,1))
+PY
+git diff --stat -- "$file" | tail -1
+S1_ARM=s1ctl S1_OUT=/tmp/s1/out-mut-$name.json S1_ONLY=F \
+S1_FIXTURE=/workspace/src/lib/memory/fixtures/rolling-summary-seal-stall.real-luna.json \
+S1_CASES=/tmp/wt-ev/docs/evidence/main-rp-b2-core-provenance-contract-audit/data/false-past-cases.json \
+node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test src/lib/memory/s1-isolated.test.ts > /tmp/s1/log-mut-$name.txt 2>&1
+git checkout -- "$file"
+grep -E "^# (pass|fail)" /tmp/s1/log-mut-$name.txt

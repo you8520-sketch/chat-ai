@@ -1,0 +1,46 @@
+{
+ "id": "N11_jealousy",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"여관에서 서린이 렌에게 스튜와 꿀차를 특별히 챙겨 주고 렌이 고마워하자, 라이크는 말없이 지켜보다 퉁명스럽게 자리를 재촉함. 렌이 불편한 이유를 묻자 라이크는 부인하면서도 차를 믿지 말고 마시는 것을 조심하라고 경고함. 렌이 서린의 친절이 불편하냐고 재차 묻자 라이크는 부정했으나 칼집을 움켜쥐는 등 질투를 감추지 못함. 렌이 라이크의 잔도 챙기라 하자 그는 거절하며 “네 잔은 네가 마셔. 내 건 내가 고른다”고 선을 그었지만, 렌과 나란히 걸으며 따라오는지 확인함. 서린의 호의를 둘러싼 라이크의 질투와 경계심이 드러났으나 명시적으로 인정하진 않음.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"김이 오르는 그릇을 직접 식탁에 놓아 주었다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"먹었으면 가자.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"그 차, 너무 믿진 마.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"다만, 네가 먹고 마시는 건 조심하라는 거다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"네 잔은 네가 마셔. 내 건 내가 고른다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 2910,
+  "outputTokens": 444,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 2908,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000163,
+  "upstreamCostUsd": 0.000163,
+  "debugRawUsage": {
+   "completion_tokens": 444,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2910,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 2908
+   },
+   "total_tokens": 3354,
+   "cost": 0.000163,
+   "cost_details": {
+    "upstream_inference_cost": 0.000163
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "6bfccb4f-69f2-49d1-8f4f-d6a2b0449d4f"
+ },
+ "billedUsd": 0.000163,
+ "ms": 5146,
+ "systemChars": 3460,
+ "userChars": 1969
+}

@@ -1,0 +1,46 @@
+{
+ "id": "N10_promise_real",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"라이크가 북쪽 숲길이 막혔다며 동쪽 고개로 가자고 제안하고, 렌과 새벽 북문에서 만나기로 약속함. 다음 날 해 뜨기 전 북문에 도착한 렌을 라이크가 기다리고 있었고, 렌은 검끈을 조인 뒤 사과했으나 라이크는 늦지 않았다고 답함. 문이 열리자 라이크가 동쪽 길을 확인하고 렌을 기다렸으며, 두 사람은 나란히 동쪽 고개로 출발함.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"동쪽 고개로 간다. 새벽에 출발하지.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"내일 새벽에 마을 북문에서 기다리겠다.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"user\",\"quote\":\"좋아. 내일 새벽, 북문에서 보자.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"준비됐으면 가자.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"늦지 않았어.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"두 사람의 발자국이 젖은 흙 위에 나란히 이어졌다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2771,
+  "outputTokens": 387,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 2769,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000143,
+  "upstreamCostUsd": 0.000143,
+  "debugRawUsage": {
+   "completion_tokens": 387,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2771,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 2769
+   },
+   "total_tokens": 3158,
+   "cost": 0.000143,
+   "cost_details": {
+    "upstream_inference_cost": 0.000143
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "b56cbd1c-d745-4d25-b53a-1eb5de95ae55"
+ },
+ "billedUsd": 0.000143,
+ "ms": 13248,
+ "systemChars": 3460,
+ "userChars": 1756
+}

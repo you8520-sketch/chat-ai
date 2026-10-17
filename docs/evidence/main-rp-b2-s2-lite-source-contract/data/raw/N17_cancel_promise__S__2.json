@@ -1,0 +1,46 @@
+{
+ "id": "N17_cancel_promise",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"렌이 라이크의 검을 직접 갈기로 마음을 바꾸고, 익숙한 방식이라며 혼자 하겠다고 하자 라이크는 검집과 숫돌을 내주고 다치지 말라고 당부함. 짧은 동행이라 이유를 캐묻거나 돕지는 않았으나 제안이 거절된 데 약간 아쉬워함. 렌이 숫돌을 돌려놓고 검을 정리한 뒤 해 지기 전에 마을을 떠나자고 하자 라이크도 동의하고 준비를 마침. 방값은 이미 치렀으며, 라이크는 문가에서 렌이 검을 가는 동안 기다리며 서두르지 말라고 함. 렌의 검은 렌이 직접 정리 중이고, 두 사람은 함께 마을을 떠날 계획임.\",\"items\":[{\"actor\":\"user\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"user\",\"quote\":\"생각이 바뀌었어. 내가 직접 갈게.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"다치지만 마.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"물은 옆에 있어.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"오늘 해 지기 전에 마을을 떠나자.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"준비되면 말해.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"천천히 해.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 2723,
+  "outputTokens": 418,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2721,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000357,
+  "upstreamCostUsd": 0.000357,
+  "debugRawUsage": {
+   "completion_tokens": 418,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2723,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2721,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3141,
+   "cost": 0.000357,
+   "cost_details": {
+    "upstream_inference_cost": 0.000357
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "a37ce5b0-5e01-4cab-91a6-593c133c80f2"
+ },
+ "billedUsd": 0.000357,
+ "ms": 5761,
+ "systemChars": 3460,
+ "userChars": 1708
+}

@@ -1,0 +1,26 @@
+    ok 1 - fixture: real Luna outputs are 16 windows, most under 80 chars
+    ok 2 - seals every real Luna window (same conditions as the \#1571 80-turn run) and advances the contiguous frontier to turn 80
+    ok 3 - stores each real Luna summary verbatim (no padding, no rewriting)
+    ok 4 - long summaries keep the same acceptance as before
+    ok 5 - summarizeTurnBatch returns the valid short real Luna summary on the first attempt
+    ok 6 - length gate accepts every real Luna window, still rejects empty/placeholder/echo/too-short
+    ok 7 - sparse summaries must be anchored in the window's own content
+    ok 8 - rejected sparse candidate still yields an empty seal (no padding) after 3 attempts
+ok 1 - rolling summary seal stall on real Luna sparse windows
+    ok 1 - every real Luna window is grounded with the production persona string
+    ok 2 - seals all 16 real windows with the persona and keeps the NPC claim attributed
+    ok 3 - window 1 and 36: the user's own promise and breakup stay accepted
+    ok 4 - window 21: an unattributed false friendship is still rejected
+    ok 5 - claim-side cue ignores only a clause-initial 이후; evidence-side cue is unchanged
+    ok 6 - a clause-initial 이후 does not hide a prior-history claim in the same clause
+ok 2 - persona 이름/호칭: 렌 — real Luna windows 1 / 21 / 36 are not rejected by sequencing 이후
+    ok 1 - 30 turns: every sealed window is linked into current-memory on the final wire
+    ok 2 - 50 turns: every sealed window is linked into current-memory on the final wire
+    ok 3 - 80 turns: every sealed window is linked into current-memory on the final wire
+ok 3 - real Luna sparse seals reach the final wire at 30 / 50 / 80 turns (no persona)
+    ok 1 - 30 turns: every sealed window is linked into current-memory on the final wire
+    ok 2 - 50 turns: every sealed window is linked into current-memory on the final wire
+    ok 3 - 80 turns: every sealed window is linked into current-memory on the final wire
+ok 4 - real Luna sparse seals reach the final wire at 30 / 50 / 80 turns (persona 이름/호칭: 렌)
+# pass 20
+# fail 0

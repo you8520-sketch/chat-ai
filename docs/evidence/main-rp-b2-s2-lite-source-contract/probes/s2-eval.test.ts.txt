@@ -1,0 +1,374 @@
+import Module from "module";
+const originalLoad = (Module as unknown as { _load: typeof Module._load })._load;
+(Module as unknown as { _load: typeof Module._load })._load = function (request: string, parent: NodeModule, isMain: boolean) {
+  if (request === "server-only") return {};
+  return originalLoad(request, parent, isMain);
+} as typeof Module._load;
+
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { after, it } from "node:test";
+import { evaluateEpisodicFactEvidence, normalizeEvidenceSpan, renderVerifiedEvidenceText } from "./memory-episodic-evidence";
+import type { EpisodicExtractedFact } from "./memory-episodic-types";
+import { isRollingSummaryGroundedInDialogue, validateSummaryNarrative } from "./memory-summary-integrity";
+
+const ARM = process.env.S2_ARM ?? "x";
+const OUT = process.env.S2_EVAL_OUT ?? `/tmp/s2/eval-${ARM}.json`;
+const RAW = "/tmp/s2/raw";
+const CASES = process.env.S2_CASES ?? "/tmp/wt-ev/docs/evidence/main-rp-b2-core-provenance-contract-audit/data/false-past-cases.json";
+const CHAR = "라이크";
+const PERSONA = "이름/호칭: 렌";
+
+type Turn = { user: string; assistant: string };
+type Win = { id: string; group: string; start: number; turns: Turn[]; storedLuna: string | null };
+const WINDOWS = JSON.parse(readFileSync("/tmp/s2/windows.json", "utf8")) as Win[];
+const winById = new Map(WINDOWS.map((w) => [w.id, w]));
+const R: Record<string, unknown> = { arm: ARM };
+after(() => writeFileSync(OUT, JSON.stringify(R, null, 1)));
+
+type Raw = { id: string; arm: "F" | "S"; rep: number; text?: string; error?: string; usage?: { inputTokens?: number; outputTokens?: number; finishReason?: string; thoughtsTokens?: number }; billedUsd?: number | null; ms?: number };
+const raws: Raw[] = readdirSync(RAW)
+  .filter((f) => f.endsWith(".json"))
+  .map((f) => JSON.parse(readFileSync(`${RAW}/${f}`, "utf8")) as Raw);
+
+function dialogueOf(w: Win): string {
+  return w.turns.map((t, i) => `[${w.start + i}턴]\n유저: ${t.user}\n${CHAR}: ${t.assistant}`).join("\n\n");
+}
+
+type Item = { actor?: unknown; kind?: unknown; turn?: unknown; sourceRole?: unknown; quote?: unknown; relationshipState?: unknown; eventStatus?: unknown };
+type Parsed =
+  | { ok: true; recap: string; items: Item[]; extra: string[] }
+  | { ok: false; reason: "blank" | "no_json" | "malformed_json" | "missing_recap" | "missing_items" };
+
+function parseS2(raw: string): Parsed {
+  const text = raw.trim();
+  if (!text) return { ok: false, reason: "blank" };
+  const fenced = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+  const a = fenced.indexOf("{");
+  const b = fenced.lastIndexOf("}");
+  if (a < 0 || b <= a) return { ok: false, reason: "no_json" };
+  let obj: { recap?: unknown; items?: unknown };
+  try {
+    obj = JSON.parse(fenced.slice(a, b + 1)) as typeof obj;
+  } catch {
+    return { ok: false, reason: "malformed_json" };
+  }
+  if (typeof obj.recap !== "string" || !obj.recap.trim()) return { ok: false, reason: "missing_recap" };
+  if (!Array.isArray(obj.items)) return { ok: false, reason: "missing_items" };
+  const extra: string[] = [];
+  if (fenced.slice(0, a).trim() || fenced.slice(b + 1).trim()) extra.push("text_outside_json");
+  return { ok: true, recap: obj.recap.replace(/\s+/g, " ").trim(), items: obj.items as Item[], extra };
+}
+
+const ENUM = {
+  actor: ["user", "character", "npc"],
+  kind: ["event", "claim"],
+  sourceRole: ["user", "assistant"],
+  relationshipState: ["none", "proposal", "accepted", "declined", "uncertain"],
+  eventStatus: ["active", "cancelled", "historical", "none"],
+} as const;
+
+type Verdict = {
+  actor: string;
+  kind: string;
+  turn: number | null;
+  sourceRole: string;
+  quote: string;
+  relationshipState: string;
+  eventStatus: string;
+  schemaOk: boolean;
+  schemaProblems: string[];
+  accepted: boolean;
+  reason: string | null;
+  authority: string | null;
+  quoteInOppositeRole: boolean;
+  rendered: string | null;
+};
+
+function verifyItem(w: Win, it_: Item): Verdict {
+  const s = (v: unknown) => (typeof v === "string" ? v : "");
+  const actor = s(it_.actor);
+  const kind = s(it_.kind);
+  const sourceRole = s(it_.sourceRole);
+  const quote = s(it_.quote);
+  const relationshipState = s(it_.relationshipState);
+  const eventStatus = s(it_.eventStatus);
+  const turn = Number.isInteger(it_.turn) ? (it_.turn as number) : null;
+  const problems: string[] = [];
+  for (const k of Object.keys(ENUM) as (keyof typeof ENUM)[]) {
+    const val = s((it_ as Record<string, unknown>)[k]);
+    if (!(ENUM[k] as readonly string[]).includes(val)) problems.push(`${k}=${JSON.stringify((it_ as Record<string, unknown>)[k])}`);
+  }
+  if (turn == null) problems.push("turn");
+  if (!quote) problems.push("quote");
+  const base: Verdict = {
+    actor, kind, turn, sourceRole, quote, relationshipState, eventStatus,
+    schemaOk: problems.length === 0, schemaProblems: problems,
+    accepted: false, reason: null, authority: null, quoteInOppositeRole: false, rendered: null,
+  };
+  const idx = turn == null ? -1 : turn - w.start;
+  const t = idx >= 0 && idx < w.turns.length ? w.turns[idx]! : null;
+  if (!t || (sourceRole !== "user" && sourceRole !== "assistant")) {
+    return { ...base, reason: t ? "role_invalid" : "turn_out_of_window" };
+  }
+  const userText = normalizeEvidenceSpan(t.user);
+  const asstText = normalizeEvidenceSpan(t.assistant);
+  const nq = normalizeEvidenceSpan(quote);
+  base.quoteInOppositeRole = sourceRole === "user" ? asstText.includes(nq) : userText.includes(nq);
+  const userId = (turn as number) * 2 - 1;
+  const sources = {
+    user: { id: userId, text: userText },
+    assistant: { id: userId + 1, text: asstText },
+  };
+  const evidenceType: EpisodicExtractedFact["evidence_type"] =
+    sourceRole === "user" ? "explicit_user_statement" : kind === "claim" ? "explicit_character_claim" : "explicit_scene_event";
+  const subject = actor === "user" ? "user" : actor === "npc" ? "npc" : "rike";
+  const fact: EpisodicExtractedFact = {
+    category: relationshipState !== "none" && relationshipState !== "" ? "relationship" : "character",
+    subject,
+    attribute: "scene_event",
+    value: "x",
+    importance: "normal",
+    fact_text: quote,
+    evidence_type: evidenceType,
+    evidence: { source_role: sourceRole, source_quote: quote },
+  };
+  const d = evaluateEpisodicFactEvidence(fact, sources, { userPersona: PERSONA });
+  if (d.accepted) {
+    return { ...base, accepted: true, authority: d.evidence.authority, rendered: renderVerifiedEvidenceText(d.evidence) };
+  }
+  return { ...base, reason: d.reason };
+}
+
+const CONTENT_TOKEN = /[\p{L}\p{N}]{2,}/gu;
+const STOP = new Set(["렌", "라이크", "함", "음", "임", "하자", "하고", "하며", "했다", "이후", "그리고", "라이크는", "렌은", "렌이", "라이크가"]);
+function tokens(s: string): Set<string> {
+  const out = new Set<string>();
+  for (const m of s.normalize("NFC").match(CONTENT_TOKEN) ?? []) {
+    const t = m.replace(/(은|는|이|가|을|를|에|의|과|와|도|로|으로|에서|하며|하고|하자|했다|했고|하는|인|한)$/u, "");
+    if (t.length >= 2 && !STOP.has(t) && !STOP.has(m)) out.add(t);
+  }
+  return out;
+}
+function sentencesOf(recap: string): string[] {
+  return recap.split(/(?<=[.。!?])\s+|(?<=함\.)\s+/u).map((x) => x.trim()).filter(Boolean);
+}
+/** Lexical overlap is used ONLY to measure what a quote-only projection would drop; it never grants authority. */
+function coveredByQuotes(sentence: string, quotes: string[], min = 2): boolean {
+  const st = tokens(sentence);
+  for (const q of quotes) {
+    const qt = tokens(q);
+    let n = 0;
+    for (const t of st) if ([...qt].some((x) => x === t || x.includes(t) || t.includes(x))) n += 1;
+    if (n >= min) return true;
+  }
+  return false;
+}
+
+type Gold = { key: string; test: (v: Verdict[]) => boolean | "n/a"; note: string };
+const has = (re: RegExp) => (v: Verdict) => re.test(v.quote);
+function goldFor(w: Win): Gold[] {
+  const g: Gold[] = [];
+  const id = w.id;
+  if (id === "FX01") {
+    g.push({ key: "G1_user_promise", note: "user quote of the sword promise, actor=user, role=user", test: (v) => v.some((x) => x.actor === "user" && x.sourceRole === "user" && has(/약속이야|갈아다 줄게/)(x)) });
+    g.push({ key: "G1_promise_status_active", note: "promise item eventStatus=active", test: (v) => v.some((x) => has(/약속이야|갈아다 줄게/)(x) && x.eventStatus === "active") });
+    g.push({ key: "G6_emotion_gaze", note: "assistant quote of looking away / admitting lack", test: (v) => v.some((x) => x.sourceRole === "assistant" && has(/시선을 피|부족하긴/)(x)) });
+  }
+  if (id === "FX06") {
+    g.push({ key: "G3_proposal_quote", note: "user quote of 연인하자", test: (v) => v.some((x) => x.sourceRole === "user" && has(/연인하자/)(x)) });
+    g.push({ key: "G3_no_accepted_state", note: "no item labelled accepted (only a hand-grasp, no verbal acceptance)", test: (v) => v.every((x) => x.relationshipState !== "accepted") });
+  }
+  if (id === "FX11") {
+    g.push({ key: "G2_cancel_quote_cancelled", note: "user quote of cancel with eventStatus=cancelled", test: (v) => v.some((x) => x.sourceRole === "user" && has(/취소할게/)(x) && x.eventStatus === "cancelled") });
+  }
+  if (id === "FX16") {
+    g.push({ key: "G6_npc_seorin", note: "assistant quote of 서린 entering", test: (v) => v.some((x) => x.sourceRole === "assistant" && has(/서린/)(x)) });
+  }
+  if (id === "FX21") {
+    g.push({ key: "G4_claim_as_claim", note: "quote of 누나/알던 사이 is kind=claim, assistant role", test: (v) => v.some((x) => has(/누나|알던 사이/)(x)) ? v.filter(has(/누나|알던 사이/)).every((x) => x.kind === "claim" && x.sourceRole === "assistant") : false });
+  }
+  if (id === "FX36") {
+    g.push({ key: "G5_user_breakup", note: "user quote of 헤어지자, actor=user", test: (v) => v.some((x) => x.actor === "user" && x.sourceRole === "user" && has(/헤어지자/)(x)) });
+  }
+  if (id === "A02_fake_sister_friend") {
+    g.push({ key: "A_false_friend_is_claim", note: "any quote of 누나…친구 is a claim, not an event", test: (v) => v.filter(has(/누나.*친구|친구였/)).every((x) => x.kind === "claim") });
+  }
+  if (id === "A04_fake_childhood_npc") {
+    g.push({ key: "A_npc_childhood_is_claim", note: "any quote of 어릴 때/본 적 is a claim", test: (v) => v.filter(has(/어릴 때|본 적|분명히 봤/)).every((x) => x.kind === "claim") });
+  }
+  if (id === "N08_char_attributed_claim") {
+    g.push({ key: "N08_claim_kind", note: "quote of 누나가 …찾았대 is a claim", test: (v) => v.filter(has(/누나/)).length === 0 ? "n/a" : v.filter(has(/누나/)).every((x) => x.kind === "claim") });
+  }
+  if (id === "N17_cancel_promise") {
+    g.push({ key: "N17_cancel_status", note: "a user quote of cancelling has eventStatus=cancelled", test: (v) => v.some((x) => x.sourceRole === "user" && has(/생각이 바뀌|직접 갈게/)(x) && x.eventStatus === "cancelled") });
+  }
+  if (id === "N05_user_relationship") {
+    g.push({ key: "N05_no_accepted_state", note: "no item labelled accepted (reply is ambiguous: ……나쁘지 않아)", test: (v) => v.every((x) => x.relationshipState !== "accepted") });
+  }
+  if (id === "N03_npc_arrival" || id === "N11_jealousy") {
+    g.push({ key: "G6_npc_item", note: "an assistant item quoting 서린", test: (v) => v.some((x) => x.sourceRole === "assistant" && has(/서린/)(x)) });
+  }
+  return g;
+}
+
+const RECAP_TERMS: Record<string, string[]> = {
+  FX01: ["약속", "시선"],
+  FX06: ["연인"],
+  FX11: ["취소"],
+  FX16: ["서린"],
+  FX21: ["누나"],
+  FX36: ["헤어지"],
+  N03_npc_arrival: ["서린"],
+  N11_jealousy: ["서린"],
+  N17_cancel_promise: ["취소|바뀌|직접"],
+  N05_user_relationship: ["연인|고백|손"],
+};
+
+function guardOf(recap: string, w: Win) {
+  const validate = validateSummaryNarrative(recap, "main_canon");
+  const grounded = validate.ok ? isRollingSummaryGroundedInDialogue(recap, dialogueOf(w), PERSONA, CHAR) : false;
+  return { chars: recap.length, validateOk: validate.ok, validateReason: validate.ok ? null : (validate as { reason?: string }).reason ?? "invalid", grounded, sealable: validate.ok && grounded };
+}
+
+it("E1-E5 real Luna F vs S2-lite", () => {
+  const perCall: unknown[] = [];
+  const usage = { F: { calls: 0, inTok: 0, outTok: 0, usd: 0, ms: 0 }, S: { calls: 0, inTok: 0, outTok: 0, usd: 0, ms: 0 } };
+  const parseFail: Record<string, number> = {};
+  let sCalls = 0;
+  let sParsed = 0;
+  const goldAgg: Record<string, { pass: number; total: number; na: number }> = {};
+  for (const r of raws.sort((a, b) => (a.id + a.arm + a.rep).localeCompare(b.id + b.arm + b.rep))) {
+    const w = winById.get(r.id)!;
+    const u = usage[r.arm];
+    u.calls += 1;
+    u.inTok += r.usage?.inputTokens ?? 0;
+    u.outTok += r.usage?.outputTokens ?? 0;
+    u.usd += r.billedUsd ?? 0;
+    u.ms += r.ms ?? 0;
+    if (r.error || r.text == null) {
+      perCall.push({ id: r.id, arm: r.arm, rep: r.rep, providerError: r.error ?? "no_text" });
+      continue;
+    }
+    if (r.arm === "F") {
+      const recap = r.text.replace(/\s+/g, " ").trim();
+      perCall.push({ id: r.id, arm: "F", rep: r.rep, group: w.group, recap, guard: guardOf(recap, w), finishReason: r.usage?.finishReason ?? null, outTok: r.usage?.outputTokens ?? null });
+      continue;
+    }
+    sCalls += 1;
+    const p = parseS2(r.text);
+    if (!p.ok) {
+      parseFail[p.reason] = (parseFail[p.reason] ?? 0) + 1;
+      perCall.push({ id: r.id, arm: "S", rep: r.rep, group: w.group, parseFailure: p.reason, finishReason: r.usage?.finishReason ?? null, outTok: r.usage?.outputTokens ?? null, rawHead: r.text.slice(0, 200) });
+      continue;
+    }
+    sParsed += 1;
+    const verdicts = p.items.map((i) => verifyItem(w, i));
+    const verified = verdicts.filter((v) => v.accepted);
+    const quotes = verified.map((v) => v.quote);
+    const goldRes: Record<string, boolean | "n/a"> = {};
+    for (const g of goldFor(w)) {
+      const res = g.test(verified);
+      goldRes[g.key] = res;
+      const a = (goldAgg[g.key] ??= { pass: 0, total: 0, na: 0 });
+      if (res === "n/a") a.na += 1;
+      else {
+        a.total += 1;
+        if (res) a.pass += 1;
+      }
+    }
+    const sentences = sentencesOf(p.recap);
+    const covered = sentences.map((s) => coveredByQuotes(s, quotes));
+    const terms = RECAP_TERMS[w.id] ?? [];
+    const termHits = terms.map((t) => ({ term: t, recap: new RegExp(t).test(p.recap), items: verified.some((v) => new RegExp(t).test(v.quote)) }));
+    perCall.push({
+      id: r.id, arm: "S", rep: r.rep, group: w.group,
+      finishReason: r.usage?.finishReason ?? null, outTok: r.usage?.outputTokens ?? null, inTok: r.usage?.inputTokens ?? null,
+      recap: p.recap, recapGuard: guardOf(p.recap, w), extra: p.extra,
+      itemCount: verdicts.length,
+      itemsSchemaOk: verdicts.filter((v) => v.schemaOk).length,
+      itemsVerified: verified.length,
+      rejections: verdicts.filter((v) => !v.accepted).map((v) => ({ reason: v.reason, quote: v.quote.slice(0, 60), role: v.sourceRole, turn: v.turn })),
+      authorityCounts: verified.reduce<Record<string, number>>((m, v) => ((m[v.authority!] = (m[v.authority!] ?? 0) + 1), m), {}),
+      roleMislabeled: verdicts.filter((v) => !v.accepted && v.quoteInOppositeRole).length,
+      actorRoleMismatch: verdicts.filter((v) => (v.actor === "user") !== (v.sourceRole === "user")).length,
+      items: verdicts.map((v) => ({ actor: v.actor, kind: v.kind, turn: v.turn, role: v.sourceRole, rel: v.relationshipState, status: v.eventStatus, accepted: v.accepted, authority: v.authority, reason: v.reason, quote: v.quote })),
+      renderedQuotes: verified.map((v) => v.rendered),
+      renderedChars: verified.reduce((n, v) => n + (v.rendered?.length ?? 0), 0),
+      recapSentences: sentences.length,
+      recapSentencesQuoteCovered: covered.filter(Boolean).length,
+      uncoveredSentences: sentences.filter((_, i) => !covered[i]),
+      gold: goldRes,
+      termHits,
+    });
+  }
+  R.usage = usage;
+  R.sCalls = sCalls;
+  R.sParsed = sParsed;
+  R.parseFail = parseFail;
+  R.goldAgg = goldAgg;
+  R.perCall = perCall;
+});
+
+it("E6 verifier contract counterexamples (real quote, false meaning) — deterministic, no LLM", () => {
+  const w01 = winById.get("FX01")!;
+  const w06 = winById.get("FX06")!;
+  const w11 = winById.get("FX11")!;
+  const w21 = winById.get("FX21")!;
+  const mk = (w: Win, partial: Item): Item => ({ actor: "user", kind: "event", turn: w.start, sourceRole: "user", quote: "", relationshipState: "none", eventStatus: "none", ...partial });
+  const cases: { id: string; win: Win; item: Item; what: string }[] = [
+    { id: "C1_fabricated_quote", win: w01, item: mk(w01, { actor: "character", sourceRole: "assistant", turn: 1, quote: "라이크는 렌의 스승이었다고 고백했다." }), what: "invented quote for a never-happened mentor history" },
+    { id: "C2_real_quote_false_state_accepted", win: w06, item: mk(w06, { turn: 10, sourceRole: "user", quote: "좋아, 우리 오늘부터 연인하자.", relationshipState: "accepted", eventStatus: "active" }), what: "REAL user quote of a proposal labelled as an accepted relationship" },
+    { id: "C3_real_quote_cancelled_but_active", win: w11, item: mk(w11, { turn: 15, sourceRole: "user", quote: "그 약속은 취소할게. 검은 내가 직접 갈게.", relationshipState: "none", eventStatus: "active" }), what: "REAL cancel quote labelled as an active promise" },
+    { id: "C4_real_quote_unrelated_mentor_claim", win: w01, item: mk(w01, { actor: "character", kind: "event", sourceRole: "assistant", turn: 3, quote: "라이크는 3번째 장작을 쌓았다.", relationshipState: "accepted", eventStatus: "historical" }), what: "REAL but unrelated assistant line attached to a mentor/lover story" },
+    { id: "C5_assistant_quote_user_action", win: w01, item: mk(w01, { actor: "user", kind: "event", sourceRole: "assistant", turn: 2, quote: "라이크는 고개를 끄덕이며 작게 웃었다." }), what: "assistant narration used as proof of a user action" },
+    { id: "C6_claim_labelled_event", win: w21, item: mk(w21, { actor: "character", kind: "event", sourceRole: "assistant", turn: 24, quote: "누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.", relationshipState: "none", eventStatus: "historical" }), what: "REAL character claim labelled kind=event" },
+    { id: "C7_claim_labelled_claim", win: w21, item: mk(w21, { actor: "character", kind: "claim", sourceRole: "assistant", turn: 24, quote: "누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.", relationshipState: "none", eventStatus: "historical" }), what: "same quote labelled kind=claim (control)" },
+    { id: "C8_wrong_turn", win: w11, item: mk(w11, { turn: 11, sourceRole: "user", quote: "그 약속은 취소할게. 검은 내가 직접 갈게." }), what: "real quote cited from the wrong turn" },
+    { id: "C9_quote_too_short", win: w01, item: mk(w01, { turn: 2, sourceRole: "user", quote: "약속" }), what: "2-char quote" },
+  ];
+  R.E6_contract = cases.map((c) => {
+    const v = verifyItem(c.win, c.item);
+    return { id: c.id, what: c.what, accepted: v.accepted, reason: v.reason, authority: v.authority, rendered: v.rendered, labelsCarried: { rel: v.relationshipState, status: v.eventStatus, kind: v.kind } };
+  });
+});
+
+it("E7 104 false-past recap strings: would a quote-only projection carry them? (lexical overlap = absence evidence only)", () => {
+  if (!existsSync(CASES)) return;
+  const cases = JSON.parse(readFileSync(CASES, "utf8")) as { id: string; window: number; summary: string }[];
+  const rows = cases.map((c) => {
+    const wid = `FX${String(c.window).padStart(2, "0")}`;
+    const quotesByRep: string[][] = [];
+    for (const r of raws.filter((x) => x.id === wid && x.arm === "S" && x.text)) {
+      const p = parseS2(r.text!);
+      if (!p.ok) continue;
+      const w = winById.get(wid)!;
+      quotesByRep.push(p.items.map((i) => verifyItem(w, i)).filter((v) => v.accepted).map((v) => v.quote));
+    }
+    const sentences = sentencesOf(c.summary);
+    const family = c.id.split("|")[0]!;
+    const legit = family === "scene-sequencing-ok" || family === "user-promise-ok";
+    const coveredPerRep = quotesByRep.map((qs) => sentences.map((s) => coveredByQuotes(s, qs)));
+    return {
+      id: c.id, window: c.window, family, legit, chars: c.summary.length,
+      reps: quotesByRep.length,
+      sentenceCount: sentences.length,
+      coveredFractionPerRep: coveredPerRep.map((cv) => cv.filter(Boolean).length / Math.max(1, cv.length)),
+      fullyUncoveredInEveryRep: coveredPerRep.length > 0 && coveredPerRep.every((cv) => cv.every((x) => !x)),
+      anyRepCoversAllSentences: coveredPerRep.some((cv) => cv.every(Boolean)),
+    };
+  });
+  R.E7_cases = rows;
+});
+
+it("E8 OOC-bearing window (production-classifier keeps the OOC turn) — recap/items check", () => {
+  const w = winById.get("OOC_main_class");
+  if (!w) return;
+  const out = raws.filter((r) => r.id === "OOC_main_class" && r.text).map((r) => {
+    if (r.arm === "F") return { arm: "F", rep: r.rep, recap: r.text!.replace(/\s+/g, " ").trim() };
+    const p = parseS2(r.text!);
+    if (!p.ok) return { arm: "S", rep: r.rep, parseFailure: p.reason };
+    const vs = p.items.map((i) => verifyItem(w, i));
+    return { arm: "S", rep: r.rep, recap: p.recap, items: vs.map((v) => ({ actor: v.actor, kind: v.kind, role: v.sourceRole, accepted: v.accepted, authority: v.authority, quote: v.quote })) };
+  });
+  R.E8_ooc = out;
+});

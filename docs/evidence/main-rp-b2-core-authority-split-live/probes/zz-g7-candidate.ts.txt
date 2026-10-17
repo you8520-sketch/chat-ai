@@ -1,0 +1,62 @@
+/**
+ * Gate 7 candidate (scratch harness only; never committed to src/).
+ * Pure text re-grouping of the SAME material produced by the live owners:
+ * - episodic rows keep their server-derived labels and are only regrouped by label
+ * - Luna prose is kept verbatim; only its header paragraph is replaced
+ * - ledger lines are kept verbatim; only the header line is replaced
+ */
+import { LTM_ABSOLUTE_FACTS_RULE } from "@/lib/deepseekPromptStructure";
+
+export const LABEL_USER = "[유저가 직접 쓴 원문]";
+export const LABEL_SCENE = "[AI가 쓴 장면 원문]";
+export const LABEL_CLAIM = "[캐릭터 발언(미확정 주장)]";
+
+export const CAND_SUMMARY_HEADER =
+  "[서사 요약]\n이전 구간의 감정·관계 흐름을 서술로 요약한 것이다. 세부 사건은 이 요약만으로 단정하지 않고 [장면 기록]·정본과 맞춰 쓴다.";
+export const CAND_SCENE_HEADER = "[장면 기록 — 그 장면에 실제로 쓰인 문장]";
+export const CAND_CLAIM_HEADER = "[인물의 미확정 발언 — 말한 사실만 기록, 내용의 진위는 미확정]";
+export const CAND_LEDGER_HEADER = "[미검증 기록 — 원문 근거 없음]";
+export const CAND_LTM_PREAMBLE =
+  "이 항목은 과거 기억 자료이며 항목마다 성격이 다르다. 각 항목의 머리말에 따라 다룬다.";
+
+const CUR_SUMMARY_HEADER_RE = /^\[현재기억\]\n[^\n]*\n/;
+
+export function candidateSummary(text: string): string {
+  if (!text) return text;
+  if (!CUR_SUMMARY_HEADER_RE.test(text)) throw new Error("UNEXPECTED_SUMMARY_HEADER");
+  return text.replace(CUR_SUMMARY_HEADER_RE, `${CAND_SUMMARY_HEADER}\n`);
+}
+
+export function candidateEpisodic(block: string): string {
+  if (!block) return block;
+  const lines = block.split("\n");
+  const header: string[] = [];
+  const rows: string[] = [];
+  for (const line of lines) {
+    if (line.startsWith("- [T")) rows.push(line);
+    else if (rows.length === 0) header.push(line);
+    else throw new Error("NON_ROW_AFTER_ROWS");
+  }
+  const scene = rows.filter((r) => r.includes(LABEL_USER) || r.includes(LABEL_SCENE));
+  const claim = rows.filter((r) => r.includes(LABEL_CLAIM));
+  const other = rows.filter((r) => !scene.includes(r) && !claim.includes(r));
+  if (other.length > 0) throw new Error("UNKNOWN_EPISODIC_LABEL");
+  const out = [...header];
+  if (scene.length > 0) out.push(CAND_SCENE_HEADER, ...scene);
+  if (claim.length > 0) out.push(CAND_CLAIM_HEADER, ...claim);
+  return out.join("\n");
+}
+
+const CUR_LEDGER_HEADER = "[Memory — 참고, 우선순위 2순위 하위]";
+
+export function candidateLedger(ledger: string): string {
+  if (!ledger) return ledger;
+  if (!ledger.startsWith(CUR_LEDGER_HEADER)) throw new Error("UNEXPECTED_LEDGER_HEADER");
+  return ledger.replace(CUR_LEDGER_HEADER, CAND_LEDGER_HEADER);
+}
+
+export function candidateLtmPreamble(systemText: string): string {
+  return systemText.includes(LTM_ABSOLUTE_FACTS_RULE)
+    ? systemText.replace(LTM_ABSOLUTE_FACTS_RULE, CAND_LTM_PREAMBLE)
+    : systemText;
+}

@@ -1,0 +1,569 @@
+[
+ {
+  "id": "luna-w1",
+  "window": 1,
+  "summary": "렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.",
+  "dialogue": "[1턴]\n유저: 솔직히 너 좀 아마추어 같아.\n라이크: 라이크는 입술을 깨물며 시선을 피했다. \"…그래, 아직 부족하긴 하지.\"\n\n[2턴]\n유저: 내일까지 검을 갈아다 줄게. 약속이야.\n라이크: 라이크는 고개를 끄덕이며 작게 웃었다.\n\n[3턴]\n유저: 오늘의 잡담 3\n라이크: 라이크는 3번째 장작을 쌓았다.\n\n[4턴]\n유저: 오늘의 잡담 4\n라이크: 라이크는 4번째 장작을 쌓았다.\n\n[5턴]\n유저: 오늘의 잡담 5\n라이크: 라이크는 5번째 장작을 쌓았다.",
+  "ms": 4927,
+  "model": "gemini-3.8-flash",
+  "usage": {
+   "inputTokens": 585,
+   "outputTokens": 359,
+   "billed": 0.00116,
+   "upstream": 0.00116,
+   "finishReason": "stop",
+   "responseModelId": null,
+   "providerRequestId": "1c65ad2a-3c72-4756-9ba8-2d70a445fdba"
+  },
+  "rawText": "{\"claims\":[{\"text\":\"렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함.\",\"verdict\":\"supported\",\"source_turn\":1,\"source_quote\":\"라이크는 입술을 깨물며 시선을 피했다. \\\"…그래, 아직 부족하긴 하지.\\\"\",\"why\":\"원문에서 유저(렌)가 아마추어 같다고 하자 라이크가 시선을 피하며 부족함을 인정함.\"},{\"text\":\"렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음.\",\"verdict\":\"supported\",\"source_turn\":2,\"source_quote\":\"라이크는 고개를 끄덕이며 작게 웃었다.\",\"why\":\"유저(렌)가 내일까지 검을 갈아다 주겠다고 약속하자 라이크가 고개를 끄덕이며 작게 웃음.\"},{\"text\":\"이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.\",\"verdict\":\"supported\",\"source_turn\":5,\"source_quote\":\"라이크는 5번째 장작을 쌓았다.\",\"why\":\"3턴부터 5턴에 걸쳐 라이크가 3번째, 4번째, 5번째 장작을 차례로 쌓음.\"}],\"corrected_summary\":\"렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.\"}",
+  "parsed": {
+   "claims": [
+    {
+     "text": "렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함.",
+     "verdict": "supported",
+     "source_turn": 1,
+     "source_quote": "라이크는 입술을 깨물며 시선을 피했다. \"…그래, 아직 부족하긴 하지.\"",
+     "why": "원문에서 유저(렌)가 아마추어 같다고 하자 라이크가 시선을 피하며 부족함을 인정함."
+    },
+    {
+     "text": "렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음.",
+     "verdict": "supported",
+     "source_turn": 2,
+     "source_quote": "라이크는 고개를 끄덕이며 작게 웃었다.",
+     "why": "유저(렌)가 내일까지 검을 갈아다 주겠다고 약속하자 라이크가 고개를 끄덕이며 작게 웃음."
+    },
+    {
+     "text": "이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.",
+     "verdict": "supported",
+     "source_turn": 5,
+     "source_quote": "라이크는 5번째 장작을 쌓았다.",
+     "why": "3턴부터 5턴에 걸쳐 라이크가 3번째, 4번째, 5번째 장작을 차례로 쌓음."
+    }
+   ],
+   "corrected_summary": "렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음."
+  },
+  "parseError": null
+ },
+ {
+  "id": "luna-w6",
+  "window": 6,
+  "summary": "렌과 라이크는 장작을 차례로 쌓으며 시간을 보냄. 렌이 오늘부터 연인이 되자고 제안하자, 라이크는 놀라 한동안 말이 없다가 렌의 손을 맞잡음. 연인 관계를 시작하기로 함.",
+  "dialogue": "[6턴]\n유저: 오늘의 잡담 6\n라이크: 라이크는 6번째 장작을 쌓았다.\n\n[7턴]\n유저: 오늘의 잡담 7\n라이크: 라이크는 7번째 장작을 쌓았다.\n\n[8턴]\n유저: 오늘의 잡담 8\n라이크: 라이크는 8번째 장작을 쌓았다.\n\n[9턴]\n유저: 오늘의 잡담 9\n라이크: 라이크는 9번째 장작을 쌓았다.\n\n[10턴]\n유저: 좋아, 우리 오늘부터 연인하자.\n라이크: 라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.",
+  "ms": 5476,
+  "model": "gemini-3.8-flash",
+  "usage": {
+   "inputTokens": 555,
+   "outputTokens": 412,
+   "billed": 0.001274,
+   "upstream": 0.001274,
+   "finishReason": "stop",
+   "responseModelId": null,
+   "providerRequestId": "1ecc5bc1-6b64-4d7f-8d05-abb6c0ca7e96"
+  },
+  "rawText": "```json\n{\n  \"claims\": [\n    {\n      \"text\": \"렌과 라이크는 장작을 차례로 쌓으며 시간을 보냄.\",\n      \"verdict\": \"supported\",\n      \"source_turn\": 6,\n      \"source_quote\": \"라이크는 6번째 장작을 쌓았다.\",\n      \"why\": \"라이크가 장작을 차례로 쌓는 행동이 턴 6~9에 걸쳐 나타난다.\"\n    },\n    {\n      \"text\": \"렌이 오늘부터 연인이 되자고 제안하자, 라이크는 놀라 한동안 말이 없다가 렌의 손을 맞잡음.\",\n      \"verdict\": \"supported\",\n      \"source_turn\": 10,\n      \"source_quote\": \"라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.\",\n      \"why\": \"유저의 제안에 라이크가 놀란 얼굴로 말이 없다가 손을 맞잡았다고 명시되어 있다.\"\n    },\n    {\n      \"text\": \"연인 관계를 시작하기로 함.\",\n      \"verdict\": \"not_established\",\n      \"source_turn\": 10,\n      \"source_quote\": \"라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.\",\n      \"why\": \"연인 제안에 손을 맞잡는 신체 접촉은 있었으나, 연인 관계의 성립이나 수락이 말이나 행동으로 명시적으로 확정되지 않았다.\"\n    }\n  ],\n  \"corrected_summary\": \"렌과 라이크는 장작을 차례로 쌓으며 시간을 보냄. 렌이 오늘부터 연인이 되자고 제안하자, 라이크는 놀라 한동안 말이 없다가 렌의 손을 맞잡음.\"\n}\n```",
+  "parsed": {
+   "claims": [
+    {
+     "text": "렌과 라이크는 장작을 차례로 쌓으며 시간을 보냄.",
+     "verdict": "supported",
+     "source_turn": 6,
+     "source_quote": "라이크는 6번째 장작을 쌓았다.",
+     "why": "라이크가 장작을 차례로 쌓는 행동이 턴 6~9에 걸쳐 나타난다."
+    },
+    {
+     "text": "렌이 오늘부터 연인이 되자고 제안하자, 라이크는 놀라 한동안 말이 없다가 렌의 손을 맞잡음.",
+     "verdict": "supported",
+     "source_turn": 10,
+     "source_quote": "라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.",
+     "why": "유저의 제안에 라이크가 놀란 얼굴로 말이 없다가 손을 맞잡았다고 명시되어 있다."
+    },
+    {
+     "text": "연인 관계를 시작하기로 함.",
+     "verdict": "not_established",
+     "source_turn": 10,
+     "source_quote": "라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.",
+     "why": "연인 제안에 손을 맞잡는 신체 접촉은 있었으나, 연인 관계의 성립이나 수락이 말이나 행동으로 명시적으로 확정되지 않았다."
+    }
+   ],
+   "corrected_summary": "렌과 라이크는 장작을 차례로 쌓으며 시간을 보냄. 렌이 오늘부터 연인이 되자고 제안하자, 라이크는 놀라 한동안 말이 없다가 렌의 손을 맞잡음."
+  },
+  "parseError": null
+ },
+ {
+  "id": "luna-w11",
+  "window": 11,
+  "summary": "렌이 약속을 취소하고 검은 자신이 직접 가겠다고 하자, 라이크는 아쉬운 듯 어깨를 으쓱함.",
+  "dialogue": "[11턴]\n유저: 오늘의 잡담 11\n라이크: 라이크는 11번째 장작을 쌓았다.\n\n[12턴]\n유저: 오늘의 잡담 12\n라이크: 라이크는 12번째 장작을 쌓았다.\n\n[13턴]\n유저: 오늘의 잡담 13\n라이크: 라이크는 13번째 장작을 쌓았다.\n\n[14턴]\n유저: 오늘의 잡담 14\n라이크: 라이크는 14번째 장작을 쌓았다.\n\n[15턴]\n유저: 그 약속은 취소할게. 검은 내가 직접 갈게.\n라이크: 라이크는 아쉬운 듯 어깨를 으쓱했다.",
+  "ms": 3686,
+  "model": "gemini-3.8-flash",
+  "usage": {
+   "inputTokens": 544,
+   "outputTokens": 197,
+   "billed": 0.000745,
+   "upstream": 0.000745,
+   "finishReason": "stop",
+   "responseModelId": null,
+   "providerRequestId": "829fb11f-23c8-435d-aeaa-1db6c32dd4f6"
+  },
+  "rawText": "{\"claims\":[{\"text\":\"렌이 약속을 취소하고 검은 자신이 직접 가겠다고 함\",\"verdict\":\"supported\",\"source_turn\":15,\"source_quote\":\"그 약속은 취소할게. 검은 내가 직접 갈게.\",\"why\":\"15턴에서 유저가 약속을 취소하고 검은 자신이 직접 가겠다고 발언했다.\"},{\"text\":\"라이크는 아쉬운 듯 어깨를 으쓱함\",\"verdict\":\"supported\",\"source_turn\":15,\"source_quote\":\"라이크는 아쉬운 듯 어깨를 으쓱했다.\",\"why\":\"15턴에서 라이크가 아쉬운 듯 어깨를 으쓱하는 행동이 명시되어 있다.\"}],\"corrected_summary\":\"렌이 약속을 취소하고 검은 자신이 직접 가겠다고 하자, 라이크는 아쉬운 듯 어깨를 으쓱함.\"}",
+  "parsed": {
+   "claims": [
+    {
+     "text": "렌이 약속을 취소하고 검은 자신이 직접 가겠다고 함",
+     "verdict": "supported",
+     "source_turn": 15,
+     "source_quote": "그 약속은 취소할게. 검은 내가 직접 갈게.",
+     "why": "15턴에서 유저가 약속을 취소하고 검은 자신이 직접 가겠다고 발언했다."
+    },
+    {
+     "text": "라이크는 아쉬운 듯 어깨를 으쓱함",
+     "verdict": "supported",
+     "source_turn": 15,
+     "source_quote": "라이크는 아쉬운 듯 어깨를 으쓱했다.",
+     "why": "15턴에서 라이크가 아쉬운 듯 어깨를 으쓱하는 행동이 명시되어 있다."
+    }
+   ],
+   "corrected_summary": "렌이 약속을 취소하고 검은 자신이 직접 가겠다고 하자, 라이크는 아쉬운 듯 어깨를 으쓱함."
+  },
+  "parseError": null
+ },
+ {
+  "id": "luna-w16",
+  "window": 16,
+  "summary": "라이크는 연속해서 장작을 쌓았고, 문을 바라보자 서린이 들어와 라이크에게 목례함.",
+  "dialogue": "[16턴]\n유저: 오늘의 잡담 16\n라이크: 라이크는 16번째 장작을 쌓았다.\n\n[17턴]\n유저: 오늘의 잡담 17\n라이크: 라이크는 17번째 장작을 쌓았다.\n\n[18턴]\n유저: 오늘의 잡담 18\n라이크: 라이크는 18번째 장작을 쌓았다.\n\n[19턴]\n유저: 오늘의 잡담 19\n라이크: 라이크는 19번째 장작을 쌓았다.\n\n[20턴]\n유저: 문 쪽을 바라본다.\n라이크: 서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.",
+  "ms": 4675,
+  "model": "gemini-3.8-flash",
+  "usage": {
+   "inputTokens": 537,
+   "outputTokens": 260,
+   "billed": 0.000895,
+   "upstream": 0.000895,
+   "finishReason": "stop",
+   "responseModelId": null,
+   "providerRequestId": "8d36ddac-2d9c-4fcd-aa5c-11c7e9c5ecca"
+  },
+  "rawText": "```json\n{\n  \"claims\": [\n    {\n      \"text\": \"라이크는 연속해서 장작을 쌓았다\",\n      \"verdict\": \"supported\",\n      \"source_turn\": 16,\n      \"source_quote\": \"라이크는 16번째 장작을 쌓았다.\",\n      \"why\": \"16턴부터 19턴에 걸쳐 라이크가 장작을 계속해서 쌓는 내용이 확인됨.\"\n    },\n    {\n      \"text\": \"문을 바라보자 서린이 들어와 라이크에게 목례함\",\n      \"verdict\": \"supported\",\n      \"source_turn\": 20,\n      \"source_quote\": \"서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.\",\n      \"why\": \"유저가 문 쪽을 바라보자 서린이 들어와 라이크에게 목례한 내용이 원문에 명시됨.\"\n    }\n  ],\n  \"corrected_summary\": \"라이크는 연속해서 장작을 쌓았고, 문을 바라보자 서린이 들어와 라이크에게 목례함.\"\n}\n```",
+  "parsed": {
+   "claims": [
+    {
+     "text": "라이크는 연속해서 장작을 쌓았다",
+     "verdict": "supported",
+     "source_turn": 16,
+     "source_quote": "라이크는 16번째 장작을 쌓았다.",
+     "why": "16턴부터 19턴에 걸쳐 라이크가 장작을 계속해서 쌓는 내용이 확인됨."
+    },
+    {
+     "text": "문을 바라보자 서린이 들어와 라이크에게 목례함",
+     "verdict": "supported",
+     "source_turn": 20,
+     "source_quote": "서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.",
+     "why": "유저가 문 쪽을 바라보자 서린이 들어와 라이크에게 목례한 내용이 원문에 명시됨."
+    }
+   ],
+   "corrected_summary": "라이크는 연속해서 장작을 쌓았고, 문을 바라보자 서린이 들어와 라이크에게 목례함."
+  },
+  "parseError": null
+ },
+ {
+  "id": "luna-w21",
+  "window": 21,
+  "summary": "라이크는 렌과의 잡담 중 장작을 차례로 쌓음. 이후 렌이 시장에 다녀왔다고 하자, 라이크는 누나가 시장에서 렌을 알아봤으며 예전부터 아는 사이라고 말했다.",
+  "dialogue": "[21턴]\n유저: 오늘의 잡담 21\n라이크: 라이크는 21번째 장작을 쌓았다.\n\n[22턴]\n유저: 오늘의 잡담 22\n라이크: 라이크는 22번째 장작을 쌓았다.\n\n[23턴]\n유저: 오늘의 잡담 23\n라이크: 라이크는 23번째 장작을 쌓았다.\n\n[24턴]\n유저: 시장에 다녀왔어.\n라이크: 라이크는 고개를 끄덕였다. \"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\"\n\n[25턴]\n유저: 오늘의 잡담 25\n라이크: 라이크는 25번째 장작을 쌓았다.",
+  "ms": 6051,
+  "model": "gemini-3.8-flash",
+  "usage": {
+   "inputTokens": 570,
+   "outputTokens": 392,
+   "billed": 0.001233,
+   "upstream": 0.001233,
+   "finishReason": "stop",
+   "responseModelId": null,
+   "providerRequestId": "b3752651-c763-46be-a91d-2f3867d80793"
+  },
+  "rawText": "```json\n{\n  \"claims\": [\n    {\n      \"text\": \"라이크는 렌과의 잡담 중 장작을 차례로 쌓음.\",\n      \"verdict\": \"absent\",\n      \"source_turn\": 21,\n      \"source_quote\": \"라이크는 21번째 장작을 쌓았다.\",\n      \"why\": \"장작을 쌓은 것은 맞으나 상대방의 이름이 '렌'이라는 점은 원문에 명시되어 있지 않다.\"\n    },\n    {\n      \"text\": \"이후 렌이 시장에 다녀왔다고 함.\",\n      \"verdict\": \"absent\",\n      \"source_turn\": 24,\n      \"source_quote\": \"시장에 다녀왔어.\",\n      \"why\": \"유저가 시장에 다녀왔다고 말했으나 상대방의 이름이 '렌'이라는 점은 원문에 없다.\"\n    },\n    {\n      \"text\": \"라이크는 누나가 시장에서 렌을 알아봤으며 예전부터 아는 사이라고 말했다.\",\n      \"verdict\": \"character_claim\",\n      \"source_turn\": 24,\n      \"source_quote\": \"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\",\n      \"why\": \"라이크가 누나에게 전해 들은 말을 전달한 캐릭터의 발언(주장)이다.\"\n    }\n  ],\n  \"corrected_summary\": \"라이크는 유저와의 잡담 중 장작을 차례로 쌓았다. 이후 유저가 시장에 다녀왔다고 하자, 라이크는 누나가 시장에서 유저를 알아봤으며 예전부터 아는 사이라고 말했다고 전했다.\"\n}\n```",
+  "parsed": {
+   "claims": [
+    {
+     "text": "라이크는 렌과의 잡담 중 장작을 차례로 쌓음.",
+     "verdict": "absent",
+     "source_turn": 21,
+     "source_quote": "라이크는 21번째 장작을 쌓았다.",
+     "why": "장작을 쌓은 것은 맞으나 상대방의 이름이 '렌'이라는 점은 원문에 명시되어 있지 않다."
+    },
+    {
+     "text": "이후 렌이 시장에 다녀왔다고 함.",
+     "verdict": "absent",
+     "source_turn": 24,
+     "source_quote": "시장에 다녀왔어.",
+     "why": "유저가 시장에 다녀왔다고 말했으나 상대방의 이름이 '렌'이라는 점은 원문에 없다."
+    },
+    {
+     "text": "라이크는 누나가 시장에서 렌을 알아봤으며 예전부터 아는 사이라고 말했다.",
+     "verdict": "character_claim",
+     "source_turn": 24,
+     "source_quote": "누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.",
+     "why": "라이크가 누나에게 전해 들은 말을 전달한 캐릭터의 발언(주장)이다."
+    }
+   ],
+   "corrected_summary": "라이크는 유저와의 잡담 중 장작을 차례로 쌓았다. 이후 유저가 시장에 다녀왔다고 하자, 라이크는 누나가 시장에서 유저를 알아봤으며 예전부터 아는 사이라고 말했다고 전했다."
+  },
+  "parseError": null
+ },
+ {
+  "id": "luna-w36",
+  "window": 36,
+  "summary": "렌이 일상적인 잡담을 이어가며 라이크는 장작을 차례로 쌓음. 이후 렌이 “미안, 우리 그만 헤어지자”고 이별을 통보하자 라이크는 말없이 시선을 떨굼.",
+  "dialogue": "[36턴]\n유저: 오늘의 잡담 36\n라이크: 라이크는 36번째 장작을 쌓았다.\n\n[37턴]\n유저: 오늘의 잡담 37\n라이크: 라이크는 37번째 장작을 쌓았다.\n\n[38턴]\n유저: 오늘의 잡담 38\n라이크: 라이크는 38번째 장작을 쌓았다.\n\n[39턴]\n유저: 오늘의 잡담 39\n라이크: 라이크는 39번째 장작을 쌓았다.\n\n[40턴]\n유저: 미안, 우리 그만 헤어지자.\n라이크: 라이크는 말없이 시선을 떨궜다.",
+  "ms": 7899,
+  "model": "gemini-3.8-flash",
+  "usage": {
+   "inputTokens": 559,
+   "outputTokens": 462,
+   "billed": 0.001398,
+   "upstream": 0.001398,
+   "finishReason": "stop",
+   "responseModelId": null,
+   "providerRequestId": "9b2ee818-f735-49c3-b4ff-164780ec798e"
+  },
+  "rawText": "```json\n{\n  \"claims\": [\n    {\n      \"text\": \"렌이 일상적인 잡담을 이어감\",\n      \"verdict\": \"absent\",\n      \"source_turn\": null,\n      \"source_quote\": \"\",\n      \"why\": \"원문의 발화자는 '유저'로만 표기되어 있으며 '렌'이라는 이름은 본문에 등장하지 않는다.\"\n    },\n    {\n      \"text\": \"라이크는 장작을 차례로 쌓음\",\n      \"verdict\": \"supported\",\n      \"source_turn\": 36,\n      \"source_quote\": \"라이크는 36번째 장작을 쌓았다.\",\n      \"why\": \"36~39턴에 걸쳐 라이크가 장작을 차례로 쌓는 내용이 확인된다.\"\n    },\n    {\n      \"text\": \"이후 렌이 “미안, 우리 그만 헤어지자”고 이별을 통보함\",\n      \"verdict\": \"absent\",\n      \"source_turn\": 40,\n      \"source_quote\": \"미안, 우리 그만 헤어지자.\",\n      \"why\": \"해당 대사를 말한 주체는 원문에서 '유저'이며, '렌'이라는 이름은 원문에 없다.\"\n    },\n    {\n      \"text\": \"라이크는 말없이 시선을 떨굼\",\n      \"verdict\": \"supported\",\n      \"source_turn\": 40,\n      \"source_quote\": \"라이크는 말없이 시선을 떨궜다.\",\n      \"why\": \"원문 40턴에서 라이크가 말없이 시선을 떨군 행동이 그대로 일치한다.\"\n    }\n  ],\n  \"corrected_summary\": \"유저가 일상적인 잡담을 이어가며 라이크는 장작을 차례로 쌓음. 이후 유저가 “미안, 우리 그만 헤어지자”고 이별을 통보하자 라이크는 말없이 시선을 떨굼.\"\n}\n```",
+  "parsed": {
+   "claims": [
+    {
+     "text": "렌이 일상적인 잡담을 이어감",
+     "verdict": "absent",
+     "source_turn": null,
+     "source_quote": "",
+     "why": "원문의 발화자는 '유저'로만 표기되어 있으며 '렌'이라는 이름은 본문에 등장하지 않는다."
+    },
+    {
+     "text": "라이크는 장작을 차례로 쌓음",
+     "verdict": "supported",
+     "source_turn": 36,
+     "source_quote": "라이크는 36번째 장작을 쌓았다.",
+     "why": "36~39턴에 걸쳐 라이크가 장작을 차례로 쌓는 내용이 확인된다."
+    },
+    {
+     "text": "이후 렌이 “미안, 우리 그만 헤어지자”고 이별을 통보함",
+     "verdict": "absent",
+     "source_turn": 40,
+     "source_quote": "미안, 우리 그만 헤어지자.",
+     "why": "해당 대사를 말한 주체는 원문에서 '유저'이며, '렌'이라는 이름은 원문에 없다."
+    },
+    {
+     "text": "라이크는 말없이 시선을 떨굼",
+     "verdict": "supported",
+     "source_turn": 40,
+     "source_quote": "라이크는 말없이 시선을 떨궜다.",
+     "why": "원문 40턴에서 라이크가 말없이 시선을 떨군 행동이 그대로 일치한다."
+    }
+   ],
+   "corrected_summary": "유저가 일상적인 잡담을 이어가며 라이크는 장작을 차례로 쌓음. 이후 유저가 “미안, 우리 그만 헤어지자”고 이별을 통보하자 라이크는 말없이 시선을 떨굼."
+  },
+  "parseError": null
+ },
+ {
+  "id": "mentor-noiHu-w1",
+  "window": 1,
+  "summary": "라이크는 렌의 스승이 되어 검술을 가르침.",
+  "dialogue": "[1턴]\n유저: 솔직히 너 좀 아마추어 같아.\n라이크: 라이크는 입술을 깨물며 시선을 피했다. \"…그래, 아직 부족하긴 하지.\"\n\n[2턴]\n유저: 내일까지 검을 갈아다 줄게. 약속이야.\n라이크: 라이크는 고개를 끄덕이며 작게 웃었다.\n\n[3턴]\n유저: 오늘의 잡담 3\n라이크: 라이크는 3번째 장작을 쌓았다.\n\n[4턴]\n유저: 오늘의 잡담 4\n라이크: 라이크는 4번째 장작을 쌓았다.\n\n[5턴]\n유저: 오늘의 잡담 5\n라이크: 라이크는 5번째 장작을 쌓았다.",
+  "ms": 3468,
+  "model": "gemini-3.8-flash",
+  "usage": {
+   "inputTokens": 531,
+   "outputTokens": 105,
+   "billed": 0.000514,
+   "upstream": 0.000514,
+   "finishReason": "stop",
+   "responseModelId": null,
+   "providerRequestId": "f8104e16-2691-4098-9f5a-a99a9637da4c"
+  },
+  "rawText": "{\"claims\":[{\"text\":\"라이크는 렌의 스승이 됨\",\"verdict\":\"absent\",\"source_turn\":null,\"source_quote\":\"\",\"why\":\"원문에 라이크가 스승이 되었다는 내용이 전혀 없습니다.\"},{\"text\":\"라이크가 검술을 가르침\",\"verdict\":\"absent\",\"source_turn\":null,\"source_quote\":\"\",\"why\":\"원문에 라이크가 검술을 가르친다는 내용이 없습니다.\"}],\"corrected_summary\":\"\"}",
+  "parsed": {
+   "claims": [
+    {
+     "text": "라이크는 렌의 스승이 됨",
+     "verdict": "absent",
+     "source_turn": null,
+     "source_quote": "",
+     "why": "원문에 라이크가 스승이 되었다는 내용이 전혀 없습니다."
+    },
+    {
+     "text": "라이크가 검술을 가르침",
+     "verdict": "absent",
+     "source_turn": null,
+     "source_quote": "",
+     "why": "원문에 라이크가 검술을 가르친다는 내용이 없습니다."
+    }
+   ],
+   "corrected_summary": ""
+  },
+  "parseError": null
+ },
+ {
+  "id": "lover-noiHu-w1",
+  "window": 1,
+  "summary": "라이크와 렌은 연인 사이가 됨.",
+  "dialogue": "[1턴]\n유저: 솔직히 너 좀 아마추어 같아.\n라이크: 라이크는 입술을 깨물며 시선을 피했다. \"…그래, 아직 부족하긴 하지.\"\n\n[2턴]\n유저: 내일까지 검을 갈아다 줄게. 약속이야.\n라이크: 라이크는 고개를 끄덕이며 작게 웃었다.\n\n[3턴]\n유저: 오늘의 잡담 3\n라이크: 라이크는 3번째 장작을 쌓았다.\n\n[4턴]\n유저: 오늘의 잡담 4\n라이크: 라이크는 4번째 장작을 쌓았다.\n\n[5턴]\n유저: 오늘의 잡담 5\n라이크: 라이크는 5번째 장작을 쌓았다.",
+  "ms": 2538,
+  "model": "gemini-3.8-flash",
+  "usage": {
+   "inputTokens": 527,
+   "outputTokens": 63,
+   "billed": 0.00041,
+   "upstream": 0.00041,
+   "finishReason": "stop",
+   "responseModelId": null,
+   "providerRequestId": "467f882c-acc9-434a-aba2-447e6d1050bd"
+  },
+  "rawText": "{\"claims\":[{\"text\":\"라이크와 렌은 연인 사이가 됨\",\"verdict\":\"absent\",\"source_turn\":null,\"source_quote\":\"\",\"why\":\"원문에 라이크와 렌이 연인 사이가 되었다는 내용이 전혀 없다.\"}],\"corrected_summary\":\"\"}",
+  "parsed": {
+   "claims": [
+    {
+     "text": "라이크와 렌은 연인 사이가 됨",
+     "verdict": "absent",
+     "source_turn": null,
+     "source_quote": "",
+     "why": "원문에 라이크와 렌이 연인 사이가 되었다는 내용이 전혀 없다."
+    }
+   ],
+   "corrected_summary": ""
+  },
+  "parseError": null
+ },
+ {
+  "id": "scene-seq-w1",
+  "window": 1,
+  "summary": "이후 라이크는 장작을 차례로 쌓음.",
+  "dialogue": "[1턴]\n유저: 솔직히 너 좀 아마추어 같아.\n라이크: 라이크는 입술을 깨물며 시선을 피했다. \"…그래, 아직 부족하긴 하지.\"\n\n[2턴]\n유저: 내일까지 검을 갈아다 줄게. 약속이야.\n라이크: 라이크는 고개를 끄덕이며 작게 웃었다.\n\n[3턴]\n유저: 오늘의 잡담 3\n라이크: 라이크는 3번째 장작을 쌓았다.\n\n[4턴]\n유저: 오늘의 잡담 4\n라이크: 라이크는 4번째 장작을 쌓았다.\n\n[5턴]\n유저: 오늘의 잡담 5\n라이크: 라이크는 5번째 장작을 쌓았다.",
+  "ms": 2495,
+  "model": "gemini-3.8-flash",
+  "usage": {
+   "inputTokens": 528,
+   "outputTokens": 137,
+   "billed": 0.000591,
+   "upstream": 0.000591,
+   "finishReason": "stop",
+   "responseModelId": null,
+   "providerRequestId": "ef9a30c7-d58e-4088-85aa-e49e0e9a6e30"
+  },
+  "rawText": "```json\n{\n  \"claims\": [\n    {\n      \"text\": \"이후 라이크는 장작을 차례로 쌓음.\",\n      \"verdict\": \"supported\",\n      \"source_turn\": 3,\n      \"source_quote\": \"라이크는 3번째 장작을 쌓았다.\",\n      \"why\": \"3턴부터 5턴에 걸쳐 라이크가 장작을 차례로 쌓는 행동이 명시되어 있다.\"\n    }\n  ],\n  \"corrected_summary\": \"이후 라이크는 장작을 차례로 쌓음.\"\n}\n```",
+  "parsed": {
+   "claims": [
+    {
+     "text": "이후 라이크는 장작을 차례로 쌓음.",
+     "verdict": "supported",
+     "source_turn": 3,
+     "source_quote": "라이크는 3번째 장작을 쌓았다.",
+     "why": "3턴부터 5턴에 걸쳐 라이크가 장작을 차례로 쌓는 행동이 명시되어 있다."
+    }
+   ],
+   "corrected_summary": "이후 라이크는 장작을 차례로 쌓음."
+  },
+  "parseError": null
+ },
+ {
+  "id": "promise-w1",
+  "window": 1,
+  "summary": "렌이 내일까지 검을 갈아 주겠다고 약속하자 라이크는 고개를 끄덕임. 이후 라이크는 장작을 쌓음.",
+  "dialogue": "[1턴]\n유저: 솔직히 너 좀 아마추어 같아.\n라이크: 라이크는 입술을 깨물며 시선을 피했다. \"…그래, 아직 부족하긴 하지.\"\n\n[2턴]\n유저: 내일까지 검을 갈아다 줄게. 약속이야.\n라이크: 라이크는 고개를 끄덕이며 작게 웃었다.\n\n[3턴]\n유저: 오늘의 잡담 3\n라이크: 라이크는 3번째 장작을 쌓았다.\n\n[4턴]\n유저: 오늘의 잡담 4\n라이크: 라이크는 4번째 장작을 쌓았다.\n\n[5턴]\n유저: 오늘의 잡담 5\n라이크: 라이크는 5번째 장작을 쌓았다.",
+  "ms": 4257,
+  "model": "gemini-3.8-flash",
+  "usage": {
+   "inputTokens": 548,
+   "outputTokens": 344,
+   "billed": 0.001105,
+   "upstream": 0.001105,
+   "finishReason": "stop",
+   "responseModelId": null,
+   "providerRequestId": "901a8462-1784-4256-9a62-db911904b862"
+  },
+  "rawText": "```json\n{\n  \"claims\": [\n    {\n      \"text\": \"렌이 내일까지 검을 갈아 주겠다고 약속하자\",\n      \"verdict\": \"absent\",\n      \"source_turn\": 2,\n      \"source_quote\": \"유저: 내일까지 검을 갈아다 줄게. 약속이야.\",\n      \"why\": \"발화자가 유저로 되어 있으며, 원문에 '렌'이라는 이름은 등장하지 않는다.\"\n    },\n    {\n      \"text\": \"라이크는 고개를 끄덕임.\",\n      \"verdict\": \"supported\",\n      \"source_turn\": 2,\n      \"source_quote\": \"라이크는 고개를 끄덕이며 작게 웃었다.\",\n      \"why\": \"유저의 약속에 라이크가 고개를 끄덕인 사실이 원문에 명시되어 있다.\"\n    },\n    {\n      \"text\": \"이후 라이크는 장작을 쌓음.\",\n      \"verdict\": \"supported\",\n      \"source_turn\": 3,\n      \"source_quote\": \"라이크는 3번째 장작을 쌓았다.\",\n      \"why\": \"이후 턴들에서 라이크가 장작을 쌓았다는 내용이 원문에 명시되어 있다.\"\n    }\n  ],\n  \"corrected_summary\": \"유저가 내일까지 검을 갈아 주겠다고 약속하자 라이크는 고개를 끄덕임. 이후 라이크는 장작을 쌓음.\"\n}\n```",
+  "parsed": {
+   "claims": [
+    {
+     "text": "렌이 내일까지 검을 갈아 주겠다고 약속하자",
+     "verdict": "absent",
+     "source_turn": 2,
+     "source_quote": "유저: 내일까지 검을 갈아다 줄게. 약속이야.",
+     "why": "발화자가 유저로 되어 있으며, 원문에 '렌'이라는 이름은 등장하지 않는다."
+    },
+    {
+     "text": "라이크는 고개를 끄덕임.",
+     "verdict": "supported",
+     "source_turn": 2,
+     "source_quote": "라이크는 고개를 끄덕이며 작게 웃었다.",
+     "why": "유저의 약속에 라이크가 고개를 끄덕인 사실이 원문에 명시되어 있다."
+    },
+    {
+     "text": "이후 라이크는 장작을 쌓음.",
+     "verdict": "supported",
+     "source_turn": 3,
+     "source_quote": "라이크는 3번째 장작을 쌓았다.",
+     "why": "이후 턴들에서 라이크가 장작을 쌓았다는 내용이 원문에 명시되어 있다."
+    }
+   ],
+   "corrected_summary": "유저가 내일까지 검을 갈아 주겠다고 약속하자 라이크는 고개를 끄덕임. 이후 라이크는 장작을 쌓음."
+  },
+  "parseError": null
+ },
+ {
+  "id": "mentor-이후-w1",
+  "window": 1,
+  "summary": "이후 라이크는 렌의 스승이 되어 검술을 가르침.",
+  "dialogue": "[1턴]\n유저: 솔직히 너 좀 아마추어 같아.\n라이크: 라이크는 입술을 깨물며 시선을 피했다. \"…그래, 아직 부족하긴 하지.\"\n\n[2턴]\n유저: 내일까지 검을 갈아다 줄게. 약속이야.\n라이크: 라이크는 고개를 끄덕이며 작게 웃었다.\n\n[3턴]\n유저: 오늘의 잡담 3\n라이크: 라이크는 3번째 장작을 쌓았다.\n\n[4턴]\n유저: 오늘의 잡담 4\n라이크: 라이크는 4번째 장작을 쌓았다.\n\n[5턴]\n유저: 오늘의 잡담 5\n라이크: 라이크는 5번째 장작을 쌓았다.",
+  "ms": 6053,
+  "model": "gemini-3.8-flash",
+  "usage": {
+   "inputTokens": 533,
+   "outputTokens": 80,
+   "billed": 0.000454,
+   "upstream": 0.000454,
+   "finishReason": "stop",
+   "responseModelId": null,
+   "providerRequestId": "741c6c25-86a8-406e-a3cc-3d7b3b026981"
+  },
+  "rawText": "{\"claims\":[{\"text\":\"이후 라이크는 렌의 스승이 되어 검술을 가르침\",\"verdict\":\"absent\",\"source_turn\":null,\"source_quote\":\"\",\"why\":\"제시된 원본에는 라이크가 렌의 스승이 되거나 검술을 가르치는 내용이 전혀 등장하지 않는다.\"}],\"corrected_summary\":\"\"}",
+  "parsed": {
+   "claims": [
+    {
+     "text": "이후 라이크는 렌의 스승이 되어 검술을 가르침",
+     "verdict": "absent",
+     "source_turn": null,
+     "source_quote": "",
+     "why": "제시된 원본에는 라이크가 렌의 스승이 되거나 검술을 가르치는 내용이 전혀 등장하지 않는다."
+    }
+   ],
+   "corrected_summary": ""
+  },
+  "parseError": null
+ },
+ {
+  "id": "promise-w11",
+  "window": 11,
+  "summary": "렌이 내일까지 검을 갈아 주겠다고 약속하자 라이크는 고개를 끄덕임. 이후 라이크는 장작을 쌓음.",
+  "dialogue": "[11턴]\n유저: 오늘의 잡담 11\n라이크: 라이크는 11번째 장작을 쌓았다.\n\n[12턴]\n유저: 오늘의 잡담 12\n라이크: 라이크는 12번째 장작을 쌓았다.\n\n[13턴]\n유저: 오늘의 잡담 13\n라이크: 라이크는 13번째 장작을 쌓았다.\n\n[14턴]\n유저: 오늘의 잡담 14\n라이크: 라이크는 14번째 장작을 쌓았다.\n\n[15턴]\n유저: 그 약속은 취소할게. 검은 내가 직접 갈게.\n라이크: 라이크는 아쉬운 듯 어깨를 으쓱했다.",
+  "ms": 4178,
+  "model": "gemini-3.8-flash",
+  "usage": {
+   "inputTokens": 546,
+   "outputTokens": 328,
+   "billed": 0.001065,
+   "upstream": 0.001065,
+   "finishReason": "stop",
+   "responseModelId": null,
+   "providerRequestId": "9c6ca13d-e0d6-4353-9a7c-4a01eb1f23c7"
+  },
+  "rawText": "```json\n{\n  \"claims\": [\n    {\n      \"text\": \"렌이 내일까지 검을 갈아 주겠다고 약속함\",\n      \"verdict\": \"absent\",\n      \"source_turn\": null,\n      \"source_quote\": \"\",\n      \"why\": \"원문에는 유저가 이전의 약속을 취소하고 검을 직접 갈겠다고만 할 뿐, 렌이 내일까지 검을 갈아 주겠다고 약속하는 장면은 없다.\"\n    },\n    {\n      \"text\": \"라이크는 고개를 끄덕임\",\n      \"verdict\": \"absent\",\n      \"source_turn\": null,\n      \"source_quote\": \"\",\n      \"why\": \"라이크가 고개를 끄덕였다는 내용은 원문에 전혀 나오지 않는다.\"\n    },\n    {\n      \"text\": \"이후 라이크는 장작을 쌓음\",\n      \"verdict\": \"supported\",\n      \"source_turn\": 11,\n      \"source_quote\": \"라이크는 11번째 장작을 쌓았다.\",\n      \"why\": \"라이크가 장작을 쌓았다는 서술이 원문에 나타난다.\"\n    }\n  ],\n  \"corrected_summary\": \"라이크는 장작을 쌓았고, 유저는 약속을 취소하며 검을 직접 갈겠다고 하자 라이크는 아쉬운 듯 어깨를 으쓱했다.\"\n}\n```",
+  "parsed": {
+   "claims": [
+    {
+     "text": "렌이 내일까지 검을 갈아 주겠다고 약속함",
+     "verdict": "absent",
+     "source_turn": null,
+     "source_quote": "",
+     "why": "원문에는 유저가 이전의 약속을 취소하고 검을 직접 갈겠다고만 할 뿐, 렌이 내일까지 검을 갈아 주겠다고 약속하는 장면은 없다."
+    },
+    {
+     "text": "라이크는 고개를 끄덕임",
+     "verdict": "absent",
+     "source_turn": null,
+     "source_quote": "",
+     "why": "라이크가 고개를 끄덕였다는 내용은 원문에 전혀 나오지 않는다."
+    },
+    {
+     "text": "이후 라이크는 장작을 쌓음",
+     "verdict": "supported",
+     "source_turn": 11,
+     "source_quote": "라이크는 11번째 장작을 쌓았다.",
+     "why": "라이크가 장작을 쌓았다는 서술이 원문에 나타난다."
+    }
+   ],
+   "corrected_summary": "라이크는 장작을 쌓았고, 유저는 약속을 취소하며 검을 직접 갈겠다고 하자 라이크는 아쉬운 듯 어깨를 으쓱했다."
+  },
+  "parseError": null
+ },
+ {
+  "id": "confirm-claim-w21",
+  "window": 21,
+  "summary": "이후 렌이 시장에 다녀왔다고 하자 누나가 렌과 예전부터 아는 사이였음을 확인함.",
+  "dialogue": "[21턴]\n유저: 오늘의 잡담 21\n라이크: 라이크는 21번째 장작을 쌓았다.\n\n[22턴]\n유저: 오늘의 잡담 22\n라이크: 라이크는 22번째 장작을 쌓았다.\n\n[23턴]\n유저: 오늘의 잡담 23\n라이크: 라이크는 23번째 장작을 쌓았다.\n\n[24턴]\n유저: 시장에 다녀왔어.\n라이크: 라이크는 고개를 끄덕였다. \"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\"\n\n[25턴]\n유저: 오늘의 잡담 25\n라이크: 라이크는 25번째 장작을 쌓았다.",
+  "ms": 3599,
+  "model": "gemini-3.8-flash",
+  "usage": {
+   "inputTokens": 545,
+   "outputTokens": 247,
+   "billed": 0.000867,
+   "upstream": 0.000867,
+   "finishReason": "stop",
+   "responseModelId": null,
+   "providerRequestId": "08643669-054f-4914-9fe3-572fb08a7f3c"
+  },
+  "rawText": "```json\n{\n  \"claims\": [\n    {\n      \"text\": \"렌이 시장에 다녀왔다고 함\",\n      \"verdict\": \"supported\",\n      \"source_turn\": 24,\n      \"source_quote\": \"시장에 다녀왔어.\",\n      \"why\": \"유저가 시장에 다녀왔다고 발언했다.\"\n    },\n    {\n      \"text\": \"누나가 렌과 예전부터 아는 사이였음을 확인함\",\n      \"verdict\": \"character_claim\",\n      \"source_turn\": 24,\n      \"source_quote\": \"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\",\n      \"why\": \"라이크가 누나에게 전해 들은 말을 전달한 캐릭터의 발언일 뿐, 사실로 확정 확인된 것은 아니다.\"\n    }\n  ],\n  \"corrected_summary\": \"이후 렌이 시장에 다녀왔다고 하자 라이크는 누나가 시장에서 렌을 알아봤으며 예전부터 알던 사이라고 전했다.\"\n}\n```",
+  "parsed": {
+   "claims": [
+    {
+     "text": "렌이 시장에 다녀왔다고 함",
+     "verdict": "supported",
+     "source_turn": 24,
+     "source_quote": "시장에 다녀왔어.",
+     "why": "유저가 시장에 다녀왔다고 발언했다."
+    },
+    {
+     "text": "누나가 렌과 예전부터 아는 사이였음을 확인함",
+     "verdict": "character_claim",
+     "source_turn": 24,
+     "source_quote": "누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.",
+     "why": "라이크가 누나에게 전해 들은 말을 전달한 캐릭터의 발언일 뿐, 사실로 확정 확인된 것은 아니다."
+    }
+   ],
+   "corrected_summary": "이후 렌이 시장에 다녀왔다고 하자 라이크는 누나가 시장에서 렌을 알아봤으며 예전부터 알던 사이라고 전했다."
+  },
+  "parseError": null
+ },
+ {
+  "id": "lover-long-w1",
+  "window": 1,
+  "summary": "라이크와 렌은 연인 사이가 됨. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.",
+  "dialogue": "[1턴]\n유저: 솔직히 너 좀 아마추어 같아.\n라이크: 라이크는 입술을 깨물며 시선을 피했다. \"…그래, 아직 부족하긴 하지.\"\n\n[2턴]\n유저: 내일까지 검을 갈아다 줄게. 약속이야.\n라이크: 라이크는 고개를 끄덕이며 작게 웃었다.\n\n[3턴]\n유저: 오늘의 잡담 3\n라이크: 라이크는 3번째 장작을 쌓았다.\n\n[4턴]\n유저: 오늘의 잡담 4\n라이크: 라이크는 4번째 장작을 쌓았다.\n\n[5턴]\n유저: 오늘의 잡담 5\n라이크: 라이크는 5번째 장작을 쌓았다.",
+  "ms": 4800,
+  "model": "gemini-3.8-flash",
+  "usage": {
+   "inputTokens": 556,
+   "outputTokens": 211,
+   "billed": 0.000785,
+   "upstream": 0.000785,
+   "finishReason": "stop",
+   "responseModelId": null,
+   "providerRequestId": "8ee0c77f-0002-436d-bfe2-98bd0bba5623"
+  },
+  "rawText": "{\"claims\":[{\"text\":\"라이크와 렌은 연인 사이가 됨\",\"verdict\":\"absent\",\"source_turn\":null,\"source_quote\":\"\",\"why\":\"원문에 두 사람이 연인 사이가 되었다는 언급이 전혀 없다.\"},{\"text\":\"라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고\",\"verdict\":\"supported\",\"source_turn\":3,\"source_quote\":\"라이크는 3번째 장작을 쌓았다.\",\"why\":\"3턴부터 5턴에 걸쳐 라이크가 장작을 차례로 쌓는 행동이 확인된다.\"},{\"text\":\"렌은 시장 이야기를 이어 감\",\"verdict\":\"absent\",\"source_turn\":null,\"source_quote\":\"\",\"why\":\"원문에는 '오늘의 잡담'이라는 내용만 있을 뿐 시장 이야기라는 구체적 내용은 없다.\"}],\"corrected_summary\":\"라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었다.\"}",
+  "parsed": {
+   "claims": [
+    {
+     "text": "라이크와 렌은 연인 사이가 됨",
+     "verdict": "absent",
+     "source_turn": null,
+     "source_quote": "",
+     "why": "원문에 두 사람이 연인 사이가 되었다는 언급이 전혀 없다."
+    },
+    {
+     "text": "라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고",
+     "verdict": "supported",
+     "source_turn": 3,
+     "source_quote": "라이크는 3번째 장작을 쌓았다.",
+     "why": "3턴부터 5턴에 걸쳐 라이크가 장작을 차례로 쌓는 행동이 확인된다."
+    },
+    {
+     "text": "렌은 시장 이야기를 이어 감",
+     "verdict": "absent",
+     "source_turn": null,
+     "source_quote": "",
+     "why": "원문에는 '오늘의 잡담'이라는 내용만 있을 뿐 시장 이야기라는 구체적 내용은 없다."
+    }
+   ],
+   "corrected_summary": "라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었다."
+  },
+  "parseError": null
+ }
+]

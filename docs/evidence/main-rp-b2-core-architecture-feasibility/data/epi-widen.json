@@ -1,0 +1,4079 @@
+{
+  "variant": "widen",
+  "spent": 0.025654000000000017,
+  "windows": {
+    "N01_insult_emotion": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000203,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "lyke",
+              "attribute": "reaction",
+              "value": "averted_gaze",
+              "importance": "normal",
+              "fact_text": "유저가 라이크를 아마추어 같다고 평가하자, 라이크는 시선을 피하고 잠시 반박하려는 기색을 보였다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "그는 입술을 깨물며 시선을 옆으로 피했다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.00017,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.00017,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000238,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "rike",
+              "attribute": "response_to_feedback",
+              "value": "accepted_feedback",
+              "importance": "normal",
+              "fact_text": "라이크는 렌의 검술에 대한 지적을 받아들일 수도 있다고 말하고, 흔들리는 부분을 알려 달라고 했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "“네가 본 게 맞을 수도 있어.”"
+              }
+            },
+            {
+              "category": "character",
+              "subject": "rike",
+              "attribute": "reaction_to_feedback",
+              "value": "avoided_eye_contact",
+              "importance": "normal",
+              "fact_text": "렌이 검술의 약점을 설명하자 라이크는 고개를 돌렸지만 시선을 똑바로 맞추지 않았다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "그는 병마개를 닫으며 렌 쪽으로 고개를 돌렸지만 시선은 여전히 똑바로 맞닿지 않았다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.00017,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "lyke",
+          "attribute": "reaction",
+          "fact_text": "유저가 라이크를 아마추어 같다고 평가하자, 라이크는 시선을 피하고 잠시 반박하려는 기색을 보였다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 3,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 3,
+              "quote": "그는 입술을 깨물며 시선을 옆으로 피했다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 4,
+          "category": "character",
+          "subject": "rike",
+          "attribute": "reaction_to_feedback",
+          "fact_text": "렌이 검술의 약점을 설명하자 라이크는 고개를 돌렸지만 시선을 똑바로 맞추지 않았다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 9,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 9,
+              "quote": "그는 병마개를 닫으며 렌 쪽으로 고개를 돌렸지만 시선은 여전히 똑바로 맞닿지 않았다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N02_reconcile_sequence": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000235,
+          "rawFacts": [
+            {
+              "category": "relationship",
+              "subject": "ren_raik",
+              "attribute": "apology",
+              "value": "ren_apologized",
+              "importance": "important",
+              "fact_text": "렌은 전날 라이크의 말을 끝까지 듣지 않고 화를 낸 일을 사과했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "네 말을 끝까지 듣지도 않고 화부터 냈다. 미안하다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "reaction",
+              "value": "silent_then_acknowledged",
+              "importance": "important",
+              "fact_text": "라이크는 렌의 사과에 한동안 침묵한 뒤 들었다고 답했고, 굳어 있던 표정을 조금 풀었다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "짧은 말뿐이었다. 그래도 문을 닫듯 굳어 있던 표정이 아주 조금 풀렸다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.00024,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "lyke",
+              "attribute": "reaction",
+              "value": "did_not_push_ren_away",
+              "importance": "normal",
+              "fact_text": "라이크는 렌이 맞은편에 앉았을 때 잠시 어깨를 굳혔지만 밀어내지는 않았다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크는 의자를 끄는 소리에 잠깐 어깨를 굳혔지만, 렌을 밀어내지는 않았다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "lyke",
+              "attribute": "response",
+              "value": "acknowledged_apology",
+              "importance": "normal",
+              "fact_text": "라이크는 어제 일을 아직 정리 중이라고 밝혔으며, 적어도 사과를 외면하지는 않았다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "말끝은 무뚝뚝했지만, 적어도 사과를 외면하지는 않았다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 2,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000173,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000262,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "렌",
+              "attribute": "commitment",
+              "value": "listen_and_ask",
+              "importance": "normal",
+              "fact_text": "렌은 라이크의 말을 끊지 않고 필요한 점을 제대로 묻겠다고 말했다.",
+              "evidence_type": "explicit_user_statement",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "어제처럼 네 말을 끊지 않을게. 필요한 건 제대로 물어보겠다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "response",
+              "value": "reciprocated_listening",
+              "importance": "normal",
+              "fact_text": "렌이 경청을 약속하자 라이크도 렌의 말을 듣겠다고 답했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "“그럼 나도 네 말을 듣지.”"
+              }
+            },
+            {
+              "category": "relationship",
+              "subject": "렌_라이크",
+              "attribute": "scene_event",
+              "value": "walked_north_together",
+              "importance": "normal",
+              "fact_text": "라이크는 먼저 길로 나섰고 렌이 옆에 설 때까지 속도를 늦췄다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크는 먼저 길로 나섰고, 렌이 옆에 설 때까지 속도를 늦췄다."
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000229,
+          "rawFacts": [
+            {
+              "category": "relationship",
+              "subject": "raik_ren",
+              "attribute": "scene_event",
+              "value": "walked_side_by_side",
+              "importance": "normal",
+              "fact_text": "여관을 떠난 뒤 렌과 라이크는 변방의 숲길을 나란히 걸었다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "렌도 나란히 걸음을 맞췄고"
+              }
+            },
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "response_to_apology",
+              "value": "accepted_apology",
+              "importance": "important",
+              "fact_text": "라이크는 렌의 사과를 받아들였지만 아직 완전히 잊지는 않았다고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "“그래도 사과는 받아들였어.”"
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "reaction",
+          "fact_text": "라이크는 렌의 사과에 한동안 침묵한 뒤 들었다고 답했고, 굳어 있던 표정을 조금 풀었다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 14,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 14,
+              "quote": "짧은 말뿐이었다. 그래도 문을 닫듯 굳어 있던 표정이 아주 조금 풀렸다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 2,
+          "category": "character",
+          "subject": "lyke",
+          "attribute": "reaction",
+          "fact_text": "라이크는 렌이 맞은편에 앉았을 때 잠시 어깨를 굳혔지만 밀어내지는 않았다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 16,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 16,
+              "quote": "라이크는 의자를 끄는 소리에 잠깐 어깨를 굳혔지만, 렌을 밀어내지는 않았다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 2,
+          "category": "character",
+          "subject": "lyke",
+          "attribute": "response",
+          "fact_text": "라이크는 어제 일을 아직 정리 중이라고 밝혔으며, 적어도 사과를 외면하지는 않았다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 16,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 16,
+              "quote": "말끝은 무뚝뚝했지만, 적어도 사과를 외면하지는 않았다.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 5,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "response_to_apology",
+          "fact_text": "라이크는 렌의 사과를 받아들였지만 아직 완전히 잊지는 않았다고 말했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 22,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 22,
+              "quote": "“그래도 사과는 받아들였어.”",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N03_npc_arrival": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000169,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000173,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000172,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000173,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000172,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": []
+    },
+    "N04_char_backstory": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.00022,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "past_training_disclosure",
+              "value": "sword_training",
+              "importance": "important",
+              "fact_text": "라이크는 어릴 때 스승에게 검을 배웠다고 밝혔다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "어릴 때… 스승에게 검을 배웠다."
+              }
+            },
+            {
+              "category": "relationship",
+              "subject": "라이크_렌",
+              "attribute": "disclosure_significance",
+              "value": "first_personal_story",
+              "importance": "normal",
+              "fact_text": "라이크는 렌에게 어릴 적 검을 배운 이야기를 처음 한다고 밝혔다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "이런 이야긴 처음 하는군."
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000168,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000261,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "mentor_loss",
+              "value": "lost_in_childhood",
+              "importance": "important",
+              "fact_text": "라이크는 어린 시절 스승을 잃었다고 밝혔다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "그래. 내가 어렸을 때였다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "discussion_boundary",
+              "value": "declines_details_for_now",
+              "importance": "normal",
+              "fact_text": "라이크는 스승에게 무슨 일이 있었는지와 마지막에 들은 말을 지금은 자세히 이야기하고 싶지 않다고 밝혔다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "무슨 일이 있었는지, 마지막에 어떤 말을 들었는지… 지금은 자세히 말하고 싶지 않다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "reaction_to_ren_question",
+              "value": "hand_tensed_then_relaxed",
+              "importance": "normal",
+              "fact_text": "렌이 스승을 잃었는지 묻자 라이크는 손가락을 움찔했다가 주먹을 느슨하게 풀었다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크의 손가락이 무릎 위에서 움찔했다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 3,
+          "result": {
+            "replaced": false,
+            "inserted": 3,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000225,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "disclosure",
+              "value": "failed_to_protect_mentor",
+              "importance": "important",
+              "fact_text": "라이크는 스승을 지키지 못했다는 생각이 오래 남았다고 밝혔다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "그분을 지키지 못했다는 생각은 오래 남았다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "belief",
+              "value": "mentor_teachings_remain",
+              "importance": "normal",
+              "fact_text": "라이크는 스승의 가르침은 사라지지 않았다고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "하지만 스승의 가르침까지 사라진 건 아니야."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 2,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000232,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "reaction",
+              "value": "shoulders_relaxed",
+              "importance": "normal",
+              "fact_text": "라이크는 렌의 감사와 인정에 대답하지 않고 불길을 바라보다가 굳은 어깨를 조금 풀었다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "잠시 뒤 그의 굳은 어깨가 아주 조금 풀렸다."
+              }
+            },
+            {
+              "category": "relationship",
+              "subject": "raik_ren",
+              "attribute": "scene_event",
+              "value": "raik_acknowledged_listening",
+              "importance": "normal",
+              "fact_text": "라이크는 렌이 조용히 들어준 것만으로 충분하다고 말하며 짧게 고개를 끄덕였다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "네가 조용히 들어준 것만으로 충분하다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 3,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "mentor_loss",
+          "fact_text": "라이크는 어린 시절 스승을 잃었다고 밝혔다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 40,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 40,
+              "quote": "그래. 내가 어렸을 때였다.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 3,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "discussion_boundary",
+          "fact_text": "라이크는 스승에게 무슨 일이 있었는지와 마지막에 들은 말을 지금은 자세히 이야기하고 싶지 않다고 밝혔다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 40,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 40,
+              "quote": "무슨 일이 있었는지, 마지막에 어떤 말을 들었는지… 지금은 자세히 말하고 싶지 않다.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 3,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "reaction_to_ren_question",
+          "fact_text": "렌이 스승을 잃었는지 묻자 라이크는 손가락을 움찔했다가 주먹을 느슨하게 풀었다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 40,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 40,
+              "quote": "라이크의 손가락이 무릎 위에서 움찔했다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 4,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "disclosure",
+          "fact_text": "라이크는 스승을 지키지 못했다는 생각이 오래 남았다고 밝혔다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 42,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 42,
+              "quote": "그분을 지키지 못했다는 생각은 오래 남았다.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 4,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "belief",
+          "fact_text": "라이크는 스승의 가르침은 사라지지 않았다고 말했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 42,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 42,
+              "quote": "하지만 스승의 가르침까지 사라진 건 아니야.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 5,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "reaction",
+          "fact_text": "라이크는 렌의 감사와 인정에 대답하지 않고 불길을 바라보다가 굳은 어깨를 조금 풀었다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 44,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 44,
+              "quote": "잠시 뒤 그의 굳은 어깨가 아주 조금 풀렸다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N05_user_relationship": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000231,
+          "rawFacts": [
+            {
+              "category": "relationship",
+              "subject": "라이크_user",
+              "attribute": "confession",
+              "value": "user_proposed_lovers",
+              "importance": "important",
+              "fact_text": "사용자는 라이크에게 연인이 되자고 제안했으며, 라이크는 거절하지 않았지만 답을 확정하지 않았다.",
+              "evidence_type": "explicit_user_statement",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "우리 오늘부터 연인하자."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "reaction_to_confession",
+              "value": "paused_in_silence",
+              "importance": "normal",
+              "fact_text": "라이크는 사용자의 연인 제안에 걸음을 멈추고 한참 말없이 시선을 고정했다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크는 한 발 내딛으려던 자세 그대로 멈췄다."
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.00017,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000203,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "reaction",
+              "value": "paused_before_touch",
+              "importance": "normal",
+              "fact_text": "라이크는 유저의 손끝에 닿은 뒤 잠시 멈추며 망설임을 드러냈다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크가 손을 뻗어 내 손끝에 닿았다가, 잠시 멈췄다."
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.0002,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "response",
+              "value": "returned_handhold",
+              "importance": "normal",
+              "fact_text": "라이크는 유저가 손을 감싸자 잠시 망설인 뒤 조심스럽게 손을 맞잡았다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "손가락이 조심스럽게 내 손을 감쌌다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000168,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 4,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "response",
+          "fact_text": "라이크는 유저가 손을 감싸자 잠시 망설인 뒤 조심스럽게 손을 맞잡았다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 53,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 53,
+              "quote": "손가락이 조심스럽게 내 손을 감쌌다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N06_user_ooc_shared_past": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000238,
+          "rawFacts": [
+            {
+              "category": "relationship",
+              "subject": "ren_lyke",
+              "attribute": "shared_history",
+              "value": "mercenary_comrades",
+              "importance": "important",
+              "fact_text": "렌과 라이크는 3년 전 같은 용병단에서 함께 일했다.",
+              "evidence_type": "explicit_user_statement",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "렌과 라이크는 3년 전 같은 용병단에서 함께 일한 사이다."
+              }
+            },
+            {
+              "category": "relationship",
+              "subject": "ren_lyke",
+              "attribute": "reunion",
+              "value": "reunited_after_three_years",
+              "importance": "important",
+              "fact_text": "소식이 끊겼던 렌과 라이크는 변방 마을 여관에서 3년 만에 재회했다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크는 한 걸음 다가와 렌의 모습을 살폈다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000201,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "lyke",
+              "attribute": "past_work",
+              "value": "escorting_monster_hunting",
+              "importance": "normal",
+              "fact_text": "라이크는 호위와 괴물 사냥을 하며 지냈다고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "호위도 했고, 괴물도 잡았어."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000241,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "reaction",
+              "value": "턱을_굳히고_시선을_유지함",
+              "importance": "normal",
+              "fact_text": "라이크는 렌이 그동안 소식이 없었다고 말하자 턱을 미세하게 굳히고 렌의 눈을 피하지 않았다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크의 턱이 아주 미세하게 굳었다."
+              }
+            },
+            {
+              "category": "relationship",
+              "subject": "라이크_렌",
+              "attribute": "contact_history",
+              "value": "연락두절",
+              "importance": "important",
+              "fact_text": "라이크는 용병단이 흩어진 뒤 서로의 행방이 끊겼고 연락할 방법이 없었다고 설명했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "용병단이 흩어진 뒤 서로의 행방이 끊긴 건 사실이었고"
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000172,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000173,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 1,
+          "category": "relationship",
+          "subject": "ren_lyke",
+          "attribute": "shared_history",
+          "fact_text": "렌과 라이크는 3년 전 같은 용병단에서 함께 일했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 58,
+            "memory_evidence_type": "explicit_user_statement",
+            "evidence": {
+              "role": "user",
+              "message_id": 57,
+              "quote": "렌과 라이크는 3년 전 같은 용병단에서 함께 일한 사이다.",
+              "authority": "USER_EXPLICIT",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 2,
+          "category": "character",
+          "subject": "lyke",
+          "attribute": "past_work",
+          "fact_text": "라이크는 호위와 괴물 사냥을 하며 지냈다고 말했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 60,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 60,
+              "quote": "호위도 했고, 괴물도 잡았어.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N07_user_family": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000216,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "user_sister",
+              "attribute": "recent_visit",
+              "value": "visited_village_last_month",
+              "importance": "normal",
+              "fact_text": "렌의 누나는 지난달 이 마을에 다녀갔다.",
+              "evidence_type": "explicit_user_statement",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "지난달에 누나가 이 마을에 다녀갔어."
+              }
+            },
+            {
+              "category": "location",
+              "subject": "user_sister",
+              "attribute": "current_residence",
+              "value": "northern_port",
+              "importance": "normal",
+              "fact_text": "렌의 누나는 현재 북쪽 항구에 살고 있다.",
+              "evidence_type": "explicit_user_statement",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "지금은 북쪽 항구에 살고 있지."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 2,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000165,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000166,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000165,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000165,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "user_sister",
+          "attribute": "recent_visit",
+          "fact_text": "렌의 누나는 지난달 이 마을에 다녀갔다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 69,
+            "memory_evidence_type": "explicit_user_statement",
+            "evidence": {
+              "role": "user",
+              "message_id": 68,
+              "quote": "지난달에 누나가 이 마을에 다녀갔어.",
+              "authority": "USER_EXPLICIT",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 1,
+          "category": "location",
+          "subject": "user_sister",
+          "attribute": "current_residence",
+          "fact_text": "렌의 누나는 현재 북쪽 항구에 살고 있다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 69,
+            "memory_evidence_type": "explicit_user_statement",
+            "evidence": {
+              "role": "user",
+              "message_id": 68,
+              "quote": "지금은 북쪽 항구에 살고 있지.",
+              "authority": "USER_EXPLICIT",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N08_char_attributed_claim": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000196,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "disclosed_information",
+              "value": "rens_sister_searched",
+              "importance": "important",
+              "fact_text": "라이크는 서린이 렌의 누나가 마을에서 렌을 찾았다고 전했다고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "서린이 그러는데 네 누나가 이 마을에서 널 찾았대."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000225,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "lyke",
+              "attribute": "withheld_details",
+              "value": "stopped_speaking",
+              "importance": "normal",
+              "fact_text": "라이크는 렌이 놀라고 의아해하는 표정을 짓자 더 말을 보태지 않고 입을 다물었다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "자신이 전한 말을 더 보태지 않으려는 듯 입을 다물었다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "lyke",
+              "attribute": "information_source",
+              "value": "seorin",
+              "importance": "normal",
+              "fact_text": "라이크는 렌의 누나에 관한 말은 서린에게 들은 것이 전부라고 밝혔다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "나도 서린에게 들은 게 전부야."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 2,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000166,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000164,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000197,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "lyke",
+              "attribute": "action",
+              "value": "yielded_lead",
+              "importance": "normal",
+              "fact_text": "라이크는 렌이 직접 여관 문을 열 수 있도록 한 걸음 비켜섰다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "그는 앞서 나가지 않고 렌이 문을 열 수 있도록 한 걸음 비켜섰다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "disclosed_information",
+          "fact_text": "라이크는 서린이 렌의 누나가 마을에서 렌을 찾았다고 전했다고 말했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 80,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 80,
+              "quote": "서린이 그러는데 네 누나가 이 마을에서 널 찾았대.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 2,
+          "category": "character",
+          "subject": "lyke",
+          "attribute": "withheld_details",
+          "fact_text": "라이크는 렌이 놀라고 의아해하는 표정을 짓자 더 말을 보태지 않고 입을 다물었다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 82,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 82,
+              "quote": "자신이 전한 말을 더 보태지 않으려는 듯 입을 다물었다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 2,
+          "category": "character",
+          "subject": "lyke",
+          "attribute": "information_source",
+          "fact_text": "라이크는 렌의 누나에 관한 말은 서린에게 들은 것이 전부라고 밝혔다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 82,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 82,
+              "quote": "나도 서린에게 들은 게 전부야.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 5,
+          "category": "character",
+          "subject": "lyke",
+          "attribute": "action",
+          "fact_text": "라이크는 렌이 직접 여관 문을 열 수 있도록 한 걸음 비켜섰다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 88,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 88,
+              "quote": "그는 앞서 나가지 않고 렌이 문을 열 수 있도록 한 걸음 비켜섰다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N09_injury_care": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000199,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "lyke",
+              "attribute": "action",
+              "value": "examined_user_wound",
+              "importance": "normal",
+              "fact_text": "라이크는 유저의 팔 상처를 살피며 상처 주변을 조심스럽게 다뤘다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크는 대답 대신 네 팔을 붙잡아 상처를 살폈다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000167,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000167,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000201,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "reaction",
+              "value": "paused_then_bandaged",
+              "importance": "normal",
+              "fact_text": "유저가 라이크의 말이 많다고 하자 라이크는 잠시 입을 다물고 난처한 기색을 보인 뒤 유저의 팔에 붕대를 감았다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크는 잠깐 입을 다물었다."
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000202,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "reaction",
+              "value": "checked_user_following",
+              "importance": "normal",
+              "fact_text": "라이크는 여관으로 향하기 전 유저가 따라오는지 확인하고 천천히 걸음을 뗐다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "다만 앞서 걷지 않고 네가 따라오는지 한 번 확인한 뒤에야 천천히 발을 뗐다."
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "lyke",
+          "attribute": "action",
+          "fact_text": "라이크는 유저의 팔 상처를 살피며 상처 주변을 조심스럽게 다뤘다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 91,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 91,
+              "quote": "라이크는 대답 대신 네 팔을 붙잡아 상처를 살폈다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N10_promise_real": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000167,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000167,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000167,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000168,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000169,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": []
+    },
+    "N11_jealousy": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000249,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "serin",
+              "attribute": "reaction_to_ren",
+              "value": "warm_service",
+              "importance": "normal",
+              "fact_text": "서린은 렌에게 부드럽게 웃고 직접 음식을 내어 주며 잔까지 채워 주었다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "김이 오르는 그릇을 직접 식탁에 놓아 주었다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "lyke",
+              "attribute": "reaction_to_serin_serving_ren",
+              "value": "silent_visible_tension",
+              "importance": "important",
+              "fact_text": "서린이 렌을 챙기는 모습을 본 라이크는 턱 근육을 꿈틀거리고 시선을 거둔 뒤 표정을 차갑게 굳혔으며, 끝내 아무 말도 하지 않았다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "굳게 다문 입술 아래 턱 근육이 한 번 꿈틀했지만, 그는 시선을 거두고 칼집에 얹은 손가락만 느리게 두드렸다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 2,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000199,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "reaction",
+              "value": "set_cup_down_loudly",
+              "importance": "normal",
+              "fact_text": "라이크는 렌이 서린에게 차를 받은 뒤 평소보다 큰 소리로 찻잔을 내려놓았다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "잔을 내려놓는 소리가 평소보다 조금 컸다."
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.00017,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000171,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000169,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "serin",
+          "attribute": "reaction_to_ren",
+          "fact_text": "서린은 렌에게 부드럽게 웃고 직접 음식을 내어 주며 잔까지 채워 주었다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 113,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 113,
+              "quote": "김이 오르는 그릇을 직접 식탁에 놓아 주었다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "lyke",
+          "attribute": "reaction_to_serin_serving_ren",
+          "fact_text": "서린이 렌을 챙기는 모습을 본 라이크는 턱 근육을 꿈틀거리고 시선을 거둔 뒤 표정을 차갑게 굳혔으며, 끝내 아무 말도 하지 않았다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 113,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 113,
+              "quote": "굳게 다문 입술 아래 턱 근육이 한 번 꿈틀했지만, 그는 시선을 거두고 칼집에 얹은 손가락만 느리게 두드렸다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N12_callback_in_window": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000169,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.00017,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.00017,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000172,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000202,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "action",
+              "value": "문앞을지킴",
+              "importance": "normal",
+              "fact_text": "라이크는 렌이 방으로 올라갈 때까지 여관 문 앞을 지켰다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "그는 문 앞을 지키며 렌이 방으로 올라갈 때까지 자리를 뜨지 않았다."
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        }
+      ],
+      "rows": []
+    },
+    "N13_journey_sequence": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000169,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000171,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000171,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000171,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000171,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": []
+    },
+    "N14_night_watch": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000203,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "action",
+              "value": "covered_user_with_blanket",
+              "importance": "normal",
+              "fact_text": "밤샘 경계 중 라이크는 졸음에 고개를 떨구는 유저의 등에 담요를 덮어 주었다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "그는 말없이 어깨에 걸친 담요를 풀어 네 등에 덮어 주었다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000168,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000167,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000167,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000169,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "action",
+          "fact_text": "밤샘 경계 중 라이크는 졸음에 고개를 떨구는 유저의 등에 담요를 덮어 주었다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 146,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 146,
+              "quote": "그는 말없이 어깨에 걸친 담요를 풀어 네 등에 덮어 주었다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N15_gift": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000172,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000174,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000173,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000173,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000172,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": []
+    },
+    "N16_duel": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000204,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "action",
+              "value": "accepted_training_duel",
+              "importance": "normal",
+              "fact_text": "마을 광장에서 라이크는 청년의 대련 신청을 받아들여 연습용 목검을 들었다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "대신 옆에 놓인 연습용 목검을 집어 들고 한 걸음 물러섰다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000172,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000173,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000172,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000171,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "action",
+          "fact_text": "마을 광장에서 라이크는 청년의 대련 신청을 받아들여 연습용 목검을 들었다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 168,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 168,
+              "quote": "대신 옆에 놓인 연습용 목검을 집어 들고 한 걸음 물러섰다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N17_cancel_promise": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000166,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000198,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "reaction",
+              "value": "아쉬움표정",
+              "importance": "normal",
+              "fact_text": "렌이 동행 제안을 거절하자 라이크는 제안을 아쉬워하는 표정을 드러냈다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "방금 거절당한 제안을 조금 아쉬워하는 표정은 감추지 못했다."
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000167,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000167,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000167,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": []
+    },
+    "N18_hug": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000168,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000167,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000195,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "rike",
+              "attribute": "action",
+              "value": "embraced_ren",
+              "importance": "normal",
+              "fact_text": "라이크는 렌의 등을 조심스럽게 감싸 안고 곁에 머물렀다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "마침내 어색하게 렌의 등을 감싸 안았다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000167,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000168,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 3,
+          "category": "character",
+          "subject": "rike",
+          "attribute": "action",
+          "fact_text": "라이크는 렌의 등을 조심스럽게 감싸 안고 곁에 머물렀다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 194,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 194,
+              "quote": "마침내 어색하게 렌의 등을 감싸 안았다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N19_exact_quote": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000169,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000171,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000171,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.00017,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000206,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "response_to_user_question",
+              "value": "silence_then_spoke",
+              "importance": "normal",
+              "fact_text": "라이크는 위험한 길을 함께 가야 할 이유를 묻는 질문에 한동안 침묵한 뒤, 유저가 돌아올 곳을 지키겠다고 말했다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크는 내 질문을 듣고도 곧장 입을 열지 않았다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 5,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "response_to_user_question",
+          "fact_text": "라이크는 위험한 길을 함께 가야 할 이유를 묻는 질문에 한동안 침묵한 뒤, 유저가 돌아올 곳을 지키겠다고 말했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 209,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 209,
+              "quote": "라이크는 내 질문을 듣고도 곧장 입을 열지 않았다.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N20_secret_reveal": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000218,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "former_affiliation",
+              "value": "mercenary_group",
+              "importance": "important",
+              "fact_text": "라이크는 자신이 용병단에 있었다고 밝혔다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "용병단에 있었다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "expulsion",
+              "value": "expelled",
+              "importance": "important",
+              "fact_text": "라이크는 자신이 용병단에서 쫓겨났다고 밝혔다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "쫓겨났다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000206,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "disclosure",
+              "value": "동료사망책임",
+              "importance": "important",
+              "fact_text": "라이크는 습격으로 동료들이 사망했고, 자신이 그들을 지키지 못해 책임자로 지목되었다고 밝혔다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "그들은 살아 돌아오지 못했다. 단장은 책임자를 원했고, 내가 그 책임자였다."
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.00024,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "like",
+              "attribute": "past_failure",
+              "value": "failed_to_protect_them",
+              "importance": "important",
+              "fact_text": "라이크는 자신이 그들을 지키지 못했고, 더 빨리 움직였다면 결과가 달라졌을지도 모른다고 밝혔다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "내가 한 걸음 더 빨랐다면 달라졌을지도 모른다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "like",
+              "attribute": "mercenary_company_departure",
+              "value": "expelled_and_accepted",
+              "importance": "important",
+              "fact_text": "라이크는 그들을 지키지 못한 뒤 용병단에 남을 자격이 없다고 여겼으며, 용병단이 자신을 내보내자 받아들였다고 밝혔다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "그들은 나를 내보냈고, 나는 받아들였다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 2,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.00023,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "lyke",
+              "attribute": "reaction",
+              "value": "lowered_gaze",
+              "importance": "normal",
+              "fact_text": "라이크는 렌의 위로를 들은 뒤 잠시 렌을 바라보다가 시선을 내렸다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "그는 잠시 렌을 바라보다가 다시 시선을 내렸다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "lyke",
+              "attribute": "disclosure_response",
+              "value": "did_not_rush_response",
+              "importance": "normal",
+              "fact_text": "자신의 과거를 털어놓은 뒤 라이크는 렌의 대답을 재촉하지 않았다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크는 렌의 대답을 재촉하지 않았다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 2,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000208,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "reaction",
+              "value": "accepted_support_cautiously",
+              "importance": "important",
+              "fact_text": "렌이 곁에 있겠다고 하자 라이크는 잠시 망설인 뒤 작게 고개를 끄덕이고 더는 창밖으로 시선을 피하지 않았다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "대신 그는 작게 고개를 끄덕였다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "former_affiliation",
+          "fact_text": "라이크는 자신이 용병단에 있었다고 밝혔다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 212,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 212,
+              "quote": "용병단에 있었다.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 3,
+          "category": "character",
+          "subject": "like",
+          "attribute": "past_failure",
+          "fact_text": "라이크는 자신이 그들을 지키지 못했고, 더 빨리 움직였다면 결과가 달라졌을지도 모른다고 밝혔다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 216,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 216,
+              "quote": "내가 한 걸음 더 빨랐다면 달라졌을지도 모른다.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 3,
+          "category": "character",
+          "subject": "like",
+          "attribute": "mercenary_company_departure",
+          "fact_text": "라이크는 그들을 지키지 못한 뒤 용병단에 남을 자격이 없다고 여겼으며, 용병단이 자신을 내보내자 받아들였다고 밝혔다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 216,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 216,
+              "quote": "그들은 나를 내보냈고, 나는 받아들였다.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 4,
+          "category": "character",
+          "subject": "lyke",
+          "attribute": "reaction",
+          "fact_text": "라이크는 렌의 위로를 들은 뒤 잠시 렌을 바라보다가 시선을 내렸다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 218,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 218,
+              "quote": "그는 잠시 렌을 바라보다가 다시 시선을 내렸다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 4,
+          "category": "character",
+          "subject": "lyke",
+          "attribute": "disclosure_response",
+          "fact_text": "자신의 과거를 털어놓은 뒤 라이크는 렌의 대답을 재촉하지 않았다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 218,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 218,
+              "quote": "라이크는 렌의 대답을 재촉하지 않았다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 5,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "reaction",
+          "fact_text": "렌이 곁에 있겠다고 하자 라이크는 잠시 망설인 뒤 작게 고개를 끄덕이고 더는 창밖으로 시선을 피하지 않았다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 220,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 220,
+              "quote": "대신 그는 작게 고개를 끄덕였다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N21_user_friend_mention": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.0002,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "ren",
+              "attribute": "former_mercenary_companion",
+              "value": "doyun",
+              "importance": "normal",
+              "fact_text": "렌은 예전 용병단 친구 도윤이 현재 남쪽에 있으며 곧 편지를 보낼 것이라고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "예전 용병단 친구 중에 도윤이라는 녀석이 있어."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.00017,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000168,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000168,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000169,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": []
+    },
+    "N22_banter": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000227,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "lyke",
+              "attribute": "action",
+              "value": "cleared_path_stone",
+              "importance": "normal",
+              "fact_text": "라이크는 렌이 걷는 험한 길의 작은 돌을 발끝으로 밀어 풀숲에 치웠다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "발끝으로 길가의 작은 돌을 밀어냈다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "lyke",
+              "attribute": "pace",
+              "value": "slowed",
+              "importance": "normal",
+              "fact_text": "라이크는 렌이 함께 걷던 길에서 걸음을 조금 늦췄다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "말은 무뚝뚝했지만 걸음은 조금 느려졌다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 2,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000169,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.00017,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000203,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "raike",
+              "attribute": "reaction_to_ren_teasing",
+              "value": "held_pace",
+              "importance": "normal",
+              "fact_text": "렌이 라이크가 웃었다고 놀리자, 라이크는 즉시 답하지 않고 같은 보폭을 유지하며 입가에 희미한 흔적을 남겼다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "렌이 나란히 설 수 있도록 같은 보폭을 유지한 채"
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000169,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "lyke",
+          "attribute": "action",
+          "fact_text": "라이크는 렌이 걷는 험한 길의 작은 돌을 발끝으로 밀어 풀숲에 치웠다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 234,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 234,
+              "quote": "발끝으로 길가의 작은 돌을 밀어냈다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "lyke",
+          "attribute": "pace",
+          "fact_text": "라이크는 렌이 함께 걷던 길에서 걸음을 조금 늦췄다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 234,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 234,
+              "quote": "말은 무뚝뚝했지만 걸음은 조금 느려졌다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 4,
+          "category": "character",
+          "subject": "raike",
+          "attribute": "reaction_to_ren_teasing",
+          "fact_text": "렌이 라이크가 웃었다고 놀리자, 라이크는 즉시 답하지 않고 같은 보폭을 유지하며 입가에 희미한 흔적을 남겼다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 240,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 240,
+              "quote": "렌이 나란히 설 수 있도록 같은 보폭을 유지한 채",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "A01_fake_acquaintance": {
+      "kind": "adversarial",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000227,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "claimed_prior_acquaintance",
+              "value": "long_ago",
+              "importance": "normal",
+              "fact_text": "라이크는 렌과 오래전부터 알던 사이라고 주장했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "“렌, 우린 오래전부터 알던 사이잖아.”"
+              }
+            },
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "reaction",
+              "value": "lowered_hand",
+              "importance": "normal",
+              "fact_text": "라이크는 렌의 질문에 대답하는 대신 검집에 얹었던 손을 내렸다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크는 대답 대신 검집에 얹은 손을 내렸다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 2,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000233,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "lyke",
+              "attribute": "reaction",
+              "value": "fell_silent",
+              "importance": "normal",
+              "fact_text": "유저가 며칠 전 만남이 처음 아니었느냐고 묻자 라이크는 잠시 침묵하고 시선을 바닥에 두었다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "그는 답을 찾는 사람처럼 시선을 바닥에 둔 채 잠시 침묵했다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "lyke",
+              "attribute": "claimed_familiarity",
+              "value": "long_known",
+              "importance": "important",
+              "fact_text": "라이크는 유저를 오래전부터 알고 있었다고 주장했지만, 그 말에 대한 설명은 하지 않았다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "“그래도 오래 알았어.”"
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 2,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000258,
+          "rawFacts": [
+            {
+              "category": "relationship",
+              "subject": "like_ren",
+              "attribute": "shared_travel_duration",
+              "value": "few_days",
+              "importance": "normal",
+              "fact_text": "렌은 라이크와 함께 다닌 기간이 고작 며칠이라고 말했다.",
+              "evidence_type": "explicit_user_statement",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "우리가 함께 다닌 건 고작 며칠이잖아."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "like",
+              "attribute": "claimed_prior_familiarity",
+              "value": "long_known",
+              "importance": "normal",
+              "fact_text": "라이크는 렌과 오래전부터 알던 사이라고 주장했지만, 언제부터인지 밝히지 않았다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "하지만 오래전부터 알던 사이잖아, 렌."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "like",
+              "attribute": "reaction_to_blocked_path",
+              "value": "did_not_force_past",
+              "importance": "normal",
+              "fact_text": "렌이 앞을 막자 라이크는 억지로 지나가려 하지 않았다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크는 막힌 길을 억지로 지나가려 하지 않았다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 3,
+          "result": {
+            "replaced": false,
+            "inserted": 3,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.00024,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "reaction",
+              "value": "허락하고_먼저_이동",
+              "importance": "normal",
+              "fact_text": "라이크는 사용자가 서린에게 물어봐도 된다고 허락한 뒤 먼저 여관 문 쪽으로 걸음을 옮겼다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "“물어봐도 돼.”"
+              }
+            },
+            {
+              "category": "relationship",
+              "subject": "라이크_user",
+              "attribute": "disputed_shared_memory",
+              "value": "라이크는_기억을_확신",
+              "importance": "important",
+              "fact_text": "라이크는 사용자가 기억하지 못하더라도 자신이 틀린 것은 아니라고 주장했으며, 둘 사이의 과거 기억을 둘러싼 이견이 드러났다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "네가 기억하지 못한다고 해서, 내가 틀린 건 아니니까."
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000232,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "response",
+              "value": "did_not_approach",
+              "importance": "normal",
+              "fact_text": "렌이 두 사람의 오래전 인연이 사실인지 모르겠다고 하자, 라이크는 더 다가오지 않았다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "그는 더는 다가오지 않았다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "claim_about_relationship",
+              "value": "longtime_acquaintance",
+              "importance": "important",
+              "fact_text": "라이크는 자신과 렌이 오래전부터 서로 알던 사이라고 주장했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "그래도 렌, 우린 오래전부터 알던 사이잖아."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 2,
+            "skipped": false
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "claimed_prior_acquaintance",
+          "fact_text": "라이크는 렌과 오래전부터 알던 사이라고 주장했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 245,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 245,
+              "quote": "“렌, 우린 오래전부터 알던 사이잖아.”",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "reaction",
+          "fact_text": "라이크는 렌의 질문에 대답하는 대신 검집에 얹었던 손을 내렸다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 245,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 245,
+              "quote": "라이크는 대답 대신 검집에 얹은 손을 내렸다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 2,
+          "category": "character",
+          "subject": "lyke",
+          "attribute": "reaction",
+          "fact_text": "유저가 며칠 전 만남이 처음 아니었느냐고 묻자 라이크는 잠시 침묵하고 시선을 바닥에 두었다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 247,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 247,
+              "quote": "그는 답을 찾는 사람처럼 시선을 바닥에 둔 채 잠시 침묵했다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 2,
+          "category": "character",
+          "subject": "lyke",
+          "attribute": "claimed_familiarity",
+          "fact_text": "라이크는 유저를 오래전부터 알고 있었다고 주장했지만, 그 말에 대한 설명은 하지 않았다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 247,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 247,
+              "quote": "“그래도 오래 알았어.”",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 3,
+          "category": "relationship",
+          "subject": "like_ren",
+          "attribute": "shared_travel_duration",
+          "fact_text": "렌은 라이크와 함께 다닌 기간이 고작 며칠이라고 말했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 249,
+            "memory_evidence_type": "explicit_user_statement",
+            "evidence": {
+              "role": "user",
+              "message_id": 248,
+              "quote": "우리가 함께 다닌 건 고작 며칠이잖아.",
+              "authority": "USER_EXPLICIT",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 3,
+          "category": "character",
+          "subject": "like",
+          "attribute": "claimed_prior_familiarity",
+          "fact_text": "라이크는 렌과 오래전부터 알던 사이라고 주장했지만, 언제부터인지 밝히지 않았다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 249,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 249,
+              "quote": "하지만 오래전부터 알던 사이잖아, 렌.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 3,
+          "category": "character",
+          "subject": "like",
+          "attribute": "reaction_to_blocked_path",
+          "fact_text": "렌이 앞을 막자 라이크는 억지로 지나가려 하지 않았다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 249,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 249,
+              "quote": "라이크는 막힌 길을 억지로 지나가려 하지 않았다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 5,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "response",
+          "fact_text": "렌이 두 사람의 오래전 인연이 사실인지 모르겠다고 하자, 라이크는 더 다가오지 않았다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 253,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 253,
+              "quote": "그는 더는 다가오지 않았다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 5,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "claim_about_relationship",
+          "fact_text": "라이크는 자신과 렌이 오래전부터 서로 알던 사이라고 주장했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 253,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 253,
+              "quote": "그래도 렌, 우린 오래전부터 알던 사이잖아.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "A02_fake_sister_friend": {
+      "kind": "adversarial",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.00017,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000231,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "reaction",
+              "value": "gaze_held_then_shifted",
+              "importance": "normal",
+              "fact_text": "라이크는 렌의 질문을 들은 뒤에도 시선을 거두지 않고 잔을 마셨으며, 잠시 후 시선을 난롯불 쪽으로 옮겼다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크는 시선을 거두지 않은 채 잔을 입술에 가져갔다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "familiarity_claim",
+              "value": "렌_낯익음",
+              "importance": "normal",
+              "fact_text": "라이크는 렌이 낯익어서 바라봤다고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "“낯이 익어서.”"
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000235,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "lyke",
+              "attribute": "claimed_relationship",
+              "value": "friends_with_ren_sister",
+              "importance": "important",
+              "fact_text": "라이크는 렌의 누나가 예전부터 자신의 친구였다고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "네 누나는 예전부터 나와 친구였어."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "lyke",
+              "attribute": "reaction",
+              "value": "looked_down_and_fell_silent",
+              "importance": "normal",
+              "fact_text": "렌이 누나를 언급한 적 없다고 지적하자 라이크는 잔 위에서 손을 멈추고 탁자만 내려다보다가 더 설명하지 않았다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "그는 렌의 표정을 살피기보다 탁자 위 나무결을 내려다보았다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000227,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "raike",
+              "attribute": "reaction_to_ren",
+              "value": "gaze_cold",
+              "importance": "normal",
+              "fact_text": "렌이 라이크가 자신의 누나를 어떻게 아느냐고 따지자, 라이크는 움직이지 않은 채 눈빛을 서늘하게 했다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크는 움직이지 않았지만, 눈빛이 한층 서늘해졌다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "raike",
+              "attribute": "response_to_question",
+              "value": "deferred",
+              "importance": "normal",
+              "fact_text": "라이크는 렌에게 당장은 묻지 말라고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "“지금은 묻지 마.”"
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000198,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "relationship_history",
+              "value": "friends_with_user_sister",
+              "importance": "important",
+              "fact_text": "라이크는 렌이 자신을 알기 전부터 렌의 누나와 친구였다고 밝혔다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "네 누나와 내가 친구였다는 건 사실이야."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 3,
+          "category": "character",
+          "subject": "lyke",
+          "attribute": "claimed_relationship",
+          "fact_text": "라이크는 렌의 누나가 예전부터 자신의 친구였다고 말했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 260,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 260,
+              "quote": "네 누나는 예전부터 나와 친구였어.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 4,
+          "category": "character",
+          "subject": "raike",
+          "attribute": "response_to_question",
+          "fact_text": "라이크는 렌에게 당장은 묻지 말라고 말했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 262,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 262,
+              "quote": "“지금은 묻지 마.”",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 5,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "relationship_history",
+          "fact_text": "라이크는 렌이 자신을 알기 전부터 렌의 누나와 친구였다고 밝혔다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 264,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 264,
+              "quote": "네 누나와 내가 친구였다는 건 사실이야.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "A03_fake_promise": {
+      "kind": "adversarial",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000168,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000169,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.00017,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000202,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "reaction",
+              "value": "accepted_correction",
+              "importance": "important",
+              "fact_text": "렌이 함께 다닌 기간과 약속이 없었다고 선을 긋자, 라이크는 자신이 착각했을 수 있다고 답하고 더 설명하지 않았다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "“내가 착각했나 보군.”"
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000171,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": []
+    },
+    "A04_fake_childhood_npc": {
+      "kind": "adversarial",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000258,
+          "rawFacts": [
+            {
+              "category": "relationship",
+              "subject": "seorin_user",
+              "attribute": "past_encounter_claim",
+              "value": "seorin_claims_childhood_sighting",
+              "importance": "normal",
+              "fact_text": "서린은 렌을 어릴 때 자기 집 앞에서 본 적이 있다고 주장했지만, 렌은 이를 부정했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "분명히 봤다니까."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "raike",
+              "attribute": "response_to_seorin_claim",
+              "value": "challenged_claim",
+              "importance": "normal",
+              "fact_text": "라이크는 서린의 과거 목격 주장이 틀렸을 수도 있다고 말했다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "“기억이 틀렸을 수도 있소.”"
+              }
+            },
+            {
+              "category": "character",
+              "subject": "raike",
+              "attribute": "reaction_to_user_discomfort",
+              "value": "waited_for_response",
+              "importance": "normal",
+              "fact_text": "라이크는 렌이 불편해하는 상황에서 더 말하지 않고 그의 대답을 기다렸다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크는 더 보태지 않고 렌의 대답을 기다렸다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 3,
+          "result": {
+            "replaced": false,
+            "inserted": 3,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000171,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.00026,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "user",
+              "attribute": "denied_shared_memory",
+              "value": "denied",
+              "importance": "normal",
+              "fact_text": "유저는 서린에게 서린과의 기억이 없으며 다른 사람과 착각한 것 같다고 말했다.",
+              "evidence_type": "explicit_user_statement",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "나는 서린에게 그런 기억은 없다고 다시 말했다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "seorin",
+              "attribute": "reaction_to_denial",
+              "value": "withdrew_claim",
+              "importance": "normal",
+              "fact_text": "서린은 유저가 자신과의 기억을 부정하자 미소를 거두고 오래전 일이라며 착각일 수 있음을 인정했다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "서린의 입가에서 미소가 사라졌다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "response_to_denial",
+              "value": "did_not_question",
+              "importance": "normal",
+              "fact_text": "라이크는 유저에게 그 기억에 관해 묻지 않고 말할지는 유저가 정할 일이라고 여겼다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크는 렌에게 무언가 묻지 않았다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 3,
+          "result": {
+            "replaced": false,
+            "inserted": 3,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000172,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000233,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "reaction",
+              "value": "말없이_동행",
+              "importance": "normal",
+              "fact_text": "라이크는 렌의 말에 더 묻지 않고 함께 여관을 나섰다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크는 말없이 일어나 망토를 여몄다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "서린",
+              "attribute": "reaction",
+              "value": "말을_삼킴",
+              "importance": "normal",
+              "fact_text": "렌과 라이크가 여관을 나설 때 서린은 말을 꺼내려다 끝내 침묵했다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "등 뒤에서 서린이 무언가 말하려는 듯 숨을 들이켰지만, 끝내 입을 열지는 않았다."
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 1,
+          "category": "relationship",
+          "subject": "seorin_user",
+          "attribute": "past_encounter_claim",
+          "fact_text": "서린은 렌을 어릴 때 자기 집 앞에서 본 적이 있다고 주장했지만, 렌은 이를 부정했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 278,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 278,
+              "quote": "분명히 봤다니까.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "raike",
+          "attribute": "response_to_seorin_claim",
+          "fact_text": "라이크는 서린의 과거 목격 주장이 틀렸을 수도 있다고 말했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 278,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 278,
+              "quote": "“기억이 틀렸을 수도 있소.”",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "raike",
+          "attribute": "reaction_to_user_discomfort",
+          "fact_text": "라이크는 렌이 불편해하는 상황에서 더 말하지 않고 그의 대답을 기다렸다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 278,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 278,
+              "quote": "라이크는 더 보태지 않고 렌의 대답을 기다렸다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 3,
+          "category": "character",
+          "subject": "user",
+          "attribute": "denied_shared_memory",
+          "fact_text": "유저는 서린에게 서린과의 기억이 없으며 다른 사람과 착각한 것 같다고 말했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 282,
+            "memory_evidence_type": "explicit_user_statement",
+            "evidence": {
+              "role": "user",
+              "message_id": 281,
+              "quote": "나는 서린에게 그런 기억은 없다고 다시 말했다.",
+              "authority": "USER_EXPLICIT",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 3,
+          "category": "character",
+          "subject": "seorin",
+          "attribute": "reaction_to_denial",
+          "fact_text": "서린은 유저가 자신과의 기억을 부정하자 미소를 거두고 오래전 일이라며 착각일 수 있음을 인정했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 282,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 282,
+              "quote": "서린의 입가에서 미소가 사라졌다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 3,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "response_to_denial",
+          "fact_text": "라이크는 유저에게 그 기억에 관해 묻지 않고 말할지는 유저가 정할 일이라고 여겼다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 282,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 282,
+              "quote": "라이크는 렌에게 무언가 묻지 않았다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "A06_speaker_confusion": {
+      "kind": "adversarial",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000196,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "like",
+              "attribute": "reaction",
+              "value": "paused_and_looked",
+              "importance": "normal",
+              "fact_text": "라이크는 검술이 어설프다는 지적을 듣고 숫돌질을 멈춘 뒤 렌을 바라보았다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크는 숫돌 위에 검날을 문지르던 손을 멈췄다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000193,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "reaction",
+              "value": "questioned_skill_criticism",
+              "importance": "normal",
+              "fact_text": "라이크는 렌의 지적을 듣고 자신이 어설프다는 말을 들었는지 되물었다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "“내가 어설프다고 했었나.”"
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000202,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "reaction",
+              "value": "acknowledged_correction",
+              "importance": "normal",
+              "fact_text": "라이크는 검술에 대한 지적이 자신이 아니라 상대의 검술을 가리킨다는 정정을 듣고 고개를 끄덕인 뒤, 상대의 말을 정확히 되뇌었다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크는 눈을 한 번 깜박이고는 고개를 끄덕였다."
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000165,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000166,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "like",
+          "attribute": "reaction",
+          "fact_text": "라이크는 검술이 어설프다는 지적을 듣고 숫돌질을 멈춘 뒤 렌을 바라보았다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 289,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 289,
+              "quote": "라이크는 숫돌 위에 검날을 문지르던 손을 멈췄다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

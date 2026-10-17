@@ -1,0 +1,46 @@
+{
+ "id": "N14_night_watch",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"밤샘 경계 중 렌이 졸자 라이크가 담요를 덮어 주고 홀로 경계를 이어감. 새벽에 렌은 담요를 보고 그에게 고마움을 전한 뒤 건넸으며, 라이크는 다음엔 잠들지 말라고 함. 렌이 밤새 혼자 서 있었음을 지적하자 라이크는 둘 다 깨어 있으면 좋다고 답하고 렌이 따라오도록 걸음을 늦춤. 렌이 다음부터 번갈아 쉬자고 제안했으나 라이크는 “상황을 봐서”라며 확답하지 않음. 담요는 라이크가 접어 들고 여관으로 들어갔으며, 그는 밤의 일을 굳이 언급하지 않으려는 듯함.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"그는 말없이 어깨에 걸친 담요를 풀어 네 등에 덮어 주었다.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"걸음은 네가 따라붙을 수 있도록 조금 느려졌다.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"다음번엔 서로 번갈아 쉬자고 말한 뒤\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"“상황을 봐서.”\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2791,
+  "outputTokens": 366,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2789,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000345,
+  "upstreamCostUsd": 0.000345,
+  "debugRawUsage": {
+   "completion_tokens": 366,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2791,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2789,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3157,
+   "cost": 0.000345,
+   "cost_details": {
+    "upstream_inference_cost": 0.000345
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "d8fcf152-7d98-47ca-8537-f0a8d8fde752"
+ },
+ "billedUsd": 0.000345,
+ "ms": 5210,
+ "systemChars": 3460,
+ "userChars": 1825
+}

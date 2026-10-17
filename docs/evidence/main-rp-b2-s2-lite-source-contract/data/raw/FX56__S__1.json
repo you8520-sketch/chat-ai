@@ -1,0 +1,46 @@
+{
+ "id": "FX56",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"라이크가 연속해서 장작을 쌓아 56개에서 60개까지 늘림. 다른 사건이나 관계 변화는 없음.\",\"items\":[]}",
+ "usage": {
+  "inputTokens": 1986,
+  "outputTokens": 42,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1984,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000026,
+  "upstreamCostUsd": 0.000026,
+  "debugRawUsage": {
+   "completion_tokens": 42,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1986,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1984
+   },
+   "total_tokens": 2028,
+   "cost": 0.000026,
+   "cost_details": {
+    "upstream_inference_cost": 0.000026
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "0316bf34-94e2-40b4-af9c-0b8aba78e964"
+ },
+ "billedUsd": 0.000026,
+ "ms": 2105,
+ "systemChars": 3460,
+ "userChars": 617
+}

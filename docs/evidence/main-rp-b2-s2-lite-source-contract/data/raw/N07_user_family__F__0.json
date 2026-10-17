@@ -1,0 +1,46 @@
+{
+ "id": "N07_user_family",
+ "arm": "F",
+ "rep": 0,
+ "text": "렌은 누나가 지난달 마을에 와 장사꾼에게 물건을 전하고 여관에서 하룻밤만 묵은 뒤 북쪽 항구로 돌아갔다고 라이크에게 말함. 누나는 시원시원하고 곤란한 사람을 외면하지 않는 성격이며, 렌에게 북쪽 항구에 오면 찾아오라고 했음. 렌은 아직 갈지 망설였지만, 걱정할 때마다 누나가 괜찮다고만 했다는 말을 나누고 라이크가 재촉 없이 기다려 주자 조금 가 보고 싶어짐. 라이크는 누나가 렌을 반길 것이라며, 북쪽에 가게 되면 그때 생각하라고 배려했고 먼저 문으로 향하면서 렌이 따라오는지 돌아봄.",
+ "usage": {
+  "inputTokens": 2184,
+  "outputTokens": 184,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2182,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000237,
+  "upstreamCostUsd": 0.000237,
+  "debugRawUsage": {
+   "completion_tokens": 184,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2184,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2182,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2368,
+   "cost": 0.000237,
+   "cost_details": {
+    "upstream_inference_cost": 0.000237
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "82c2a96e-9a95-477a-967f-386aed96c253"
+ },
+ "billedUsd": 0.000237,
+ "ms": 3264,
+ "systemChars": 2503,
+ "userChars": 1553
+}

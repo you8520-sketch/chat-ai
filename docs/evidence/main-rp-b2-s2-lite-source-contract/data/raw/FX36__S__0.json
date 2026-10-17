@@ -1,0 +1,46 @@
+{
+ "id": "FX36",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"라이크가 36~39번째 장작을 차례로 쌓음. 이어 렌이 “미안, 우리 그만 헤어지자”고 이별을 통보하자 라이크는 말없이 시선을 떨굼.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":39,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 39번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":40,\"sourceRole\":\"user\",\"quote\":\"미안, 우리 그만 헤어지자.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":40,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 말없이 시선을 떨궜다.\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 1991,
+  "outputTokens": 191,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 1989,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000223,
+  "upstreamCostUsd": 0.000223,
+  "debugRawUsage": {
+   "completion_tokens": 191,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1991,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 1989,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2182,
+   "cost": 0.000223,
+   "cost_details": {
+    "upstream_inference_cost": 0.000223
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "264fa6ec-4dd0-4c06-9180-2e69eea97f36"
+ },
+ "billedUsd": 0.000223,
+ "ms": 3084,
+ "systemChars": 3460,
+ "userChars": 622
+}

@@ -1,0 +1,46 @@
+{
+ "id": "FX46",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"라이크는 유저의 잡담에 맞춰 46번째부터 50번째까지 장작을 쌓음.\",\"items\":[]}",
+ "usage": {
+  "inputTokens": 1986,
+  "outputTokens": 37,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1984,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000025,
+  "upstreamCostUsd": 0.000025,
+  "debugRawUsage": {
+   "completion_tokens": 37,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1986,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1984
+   },
+   "total_tokens": 2023,
+   "cost": 0.000025,
+   "cost_details": {
+    "upstream_inference_cost": 0.000025
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "aada1d61-2a55-404f-8056-f61260fa8183"
+ },
+ "billedUsd": 0.000025,
+ "ms": 2111,
+ "systemChars": 3460,
+ "userChars": 617
+}

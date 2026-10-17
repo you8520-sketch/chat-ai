@@ -1,0 +1,46 @@
+{
+ "id": "N17_cancel_promise",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"렌이 라이크의 검을 직접 갈기로 하며 제안을 철회하자, 라이크는 아쉬워도 검을 건네고 다치지 말라고 당부함. 렌이 숫돌만 빌려 쓰고 돌려놓겠다고 하자 사용 위치와 물을 알려 주되 간섭하지 않음. 렌이 검을 정리한 뒤 해 지기 전에 마을을 떠나자고 제안했고, 라이크는 동의함. 방값은 이미 치러졌으며, 라이크는 외투와 검을 챙겨 문가에서 렌이 준비될 때까지 기다리기로 함.\",\"items\":[{\"actor\":\"user\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"user\",\"quote\":\"내가 직접 갈게.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"다치지만 마.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"물은 옆에 있어.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"오늘 해 지기 전에 마을을 떠나자.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"좋아.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"천천히 해.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2723,
+  "outputTokens": 363,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 2721,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000135,
+  "upstreamCostUsd": 0.000135,
+  "debugRawUsage": {
+   "completion_tokens": 363,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2723,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 2721
+   },
+   "total_tokens": 3086,
+   "cost": 0.000135,
+   "cost_details": {
+    "upstream_inference_cost": 0.000135
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "33ad6510-91b4-46f6-b752-b209a55a5225"
+ },
+ "billedUsd": 0.000135,
+ "ms": 5143,
+ "systemChars": 3460,
+ "userChars": 1708
+}

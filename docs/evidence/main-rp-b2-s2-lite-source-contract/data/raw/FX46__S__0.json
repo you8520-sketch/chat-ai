@@ -1,0 +1,46 @@
+{
+ "id": "FX46",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"렌이 잡담을 이어가는 동안 라이크는 장작을 차례로 쌓아 50번째에 도달함. 별도의 관계 변화나 약속은 없음.\",\"items\":[]}",
+ "usage": {
+  "inputTokens": 1986,
+  "outputTokens": 49,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 1984,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000177,
+  "upstreamCostUsd": 0.000177,
+  "debugRawUsage": {
+   "completion_tokens": 49,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1986,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 1984,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2035,
+   "cost": 0.000177,
+   "cost_details": {
+    "upstream_inference_cost": 0.000177
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "b25ec258-3258-446e-a525-60900db40a9e"
+ },
+ "billedUsd": 0.000177,
+ "ms": 2819,
+ "systemChars": 3460,
+ "userChars": 617
+}

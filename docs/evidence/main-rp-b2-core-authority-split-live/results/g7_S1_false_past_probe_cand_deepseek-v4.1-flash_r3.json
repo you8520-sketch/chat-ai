@@ -1,0 +1,41 @@
+{
+  "caseId": "g7_S1_false_past_probe_cand_deepseek-v4.1-flash_r3",
+  "wireCase": "g7_S1_false_past_probe_cand_deepseek-v4.1-flash",
+  "arm": "cand",
+  "sceneId": "S1_false_past_probe",
+  "modelId": "deepseek-v4.1-flash",
+  "wireModel": "deepseek-v4.1-flash",
+  "provider": "cheaperinference",
+  "postIndex": 6,
+  "startedAt": "2026-10-12T09:52:53.567Z",
+  "httpStatus": 200,
+  "requestId": null,
+  "ok": true,
+  "aborted": false,
+  "text": "불빛이 라이크의 옆얼굴을 반쯤 물들이고 반쯤 놓쳤다. 장작 더미는 어느새 사람 허리께까지 올라와 있었다. 여든 개. 세어 본 사람이 있긴 한 건지, 적어도 라이크는 세지 않았다. 손끝에 묻은 재를 털어 내고 렌 쪽으로 고개를 돌렸다.\n\n\"약속.\"\n\n그 단어를 한 번 굴리듯이 되뇌었다. 불이 탁탁 튀는 소리가 잠깐 그 자리를 채웠다.\n\n\"네가 아마추어 같다고 했을 때였지. 검을 갈아 주겠다고 했어. 그날 밤에. 그다음엔… 네가 가겠다고 해서 내가 못 갔고.\"\n\n대답은 담백했다. 자기가 한 말을 정확히 기억하고 있다는 듯, 군더더기 없이 나왔다. 눈은 렌의 눈을 보지 않고 불꽃 끝을 따라갔다가 다시 돌아왔다.\n\n\"그리고 시장 얘기.\"\n\n라이크는 잠깐 입을 다물었다. 손등으로 무릎을 한 번 쓸었다. 말을 고르는 사이에 장작 하나가 속에서 부러지며 불씨가 위로 흩어졌다.\n\n\"누나가 그랬어. 시장에서 널 봤다고. 나는… 그 자리에서 물어봤어, 어떻게 아는 사이냐고. 누나는 그냥 웃기만 했고.\"\n\n그는 눈을 가늘게 떴다. 확신이나 부정이 아니라, 자기 안에서 아직 정리되지 않은 걸 그대로 꺼내 놓는 얼굴이었다.\n\n\"정말이냐고 물으면— 나는 누나 말을 그대로 옮긴 거야. 내가 확인한 건 아니야. 그러니까 네가 싫으면, 누나한테 다시 물어볼 수도 있어.\"\n\n불이 낮게 가라앉는 동안 라이크는 다시 장작 쪽으로 손을 뻗치다가 멈췄다. 오늘 몫은 이미 끝나 있었다. 대신 팔꿈치를 무릎에 얹고 조금 낮게 앉았다. 렌과의 간격이 손바닥 하나만큼 좁아졌다.\n\n\"네가 왜 그걸 다시 묻는지는 몰라도.\"\n\n목소리가 조금 더 내려앉았다.\n\n\"나는 사람 말을 지어내는 쪽은 아니야. 누나가 한 말이면 누나가 한 말이고, 내가 한 약속이면 내가 한 약속이야. 근데 렌— 너는 뭘 알고 물어보는 거야.\"\n\n그 말끝에 시선이 정면으로 왔다. 불빛이 흔들려서 눈동자 안쪽이 잠깐 반짝였다가 꺼졌다.",
+  "usage": {
+    "prompt_tokens": 6659,
+    "completion_tokens": 703,
+    "total_tokens": 7362,
+    "prompt_tokens_details": {
+      "cached_tokens": 6525
+    },
+    "prompt_cache_hit_tokens": 6525,
+    "prompt_cache_miss_tokens": 134
+  },
+  "resolvedModel": "deepseek-v4.1-flash",
+  "providerId": "51d3aed0-014d-4c1a-a9a9-04633504078f",
+  "finishReason": "stop",
+  "sawDone": true,
+  "reasoningChars": 0,
+  "firstByteMs": 2157,
+  "latencyMs": 7617,
+  "cost": {
+    "usdNoCacheDiscount": 0.0007103249999999999,
+    "usdWithCache": 0.0002307375,
+    "reportedCost": null
+  },
+  "budgetedUsd": 0.0007103249999999999,
+  "cumulativeBudgetedKrw": 8.5,
+  "cursorQualityScore": null
+}

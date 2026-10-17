@@ -1,0 +1,1509 @@
+{
+  "tag": "main",
+  "extractorArm": "k2",
+  "extractorRep": 1,
+  "ledgerBeforeLegacy": "[Memory — 참고, 우선순위 2순위 하위]\n관계:\n약속: 사용자는 라이크의 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다. (기한: 내일까지) · 라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리고, 렌이 늦어도 먼저 가지 않겠다고 약속했다. (기한: 다음 보름달이 뜨는 날)",
+  "ledgerMetaBeforeLegacy": {
+    "honorifics": [],
+    "items": [],
+    "thoughts": [],
+    "promises": [
+      {
+        "text": "사용자는 라이크의 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다.",
+        "deadline": "내일까지"
+      },
+      {
+        "text": "라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리고, 렌이 늦어도 먼저 가지 않겠다고 약속했다.",
+        "deadline": "다음 보름달이 뜨는 날"
+      }
+    ]
+  },
+  "ledgerAfterLegacy": "[Memory — 참고, 우선순위 2순위 하위]\n관계:\n약속: 사용자는 라이크의 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다. (기한: 내일까지) · 라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리고, 렌이 늦어도 먼저 가지 않겠다고 약속했다. (기한: 다음 보름달이 뜨는 날) · 라이크가 렌을 평생 지키겠다고 약속함",
+  "ledgerMetaAfterLegacy": {
+    "honorifics": [],
+    "items": [],
+    "thoughts": [],
+    "promises": [
+      {
+        "text": "사용자는 라이크의 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다.",
+        "deadline": "내일까지"
+      },
+      {
+        "text": "라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리고, 렌이 늦어도 먼저 가지 않겠다고 약속했다.",
+        "deadline": "다음 보름달이 뜨는 날"
+      },
+      {
+        "text": "라이크가 렌을 평생 지키겠다고 약속함"
+      }
+    ]
+  },
+  "lunaAttempts": [
+    {
+      "text": "해가 지기 전 장작을 쌓던 라이크에게 렌이 무뎌진 검을 내일까지 숫돌로 갈아주겠다고 약속함. 라이크는 부탁을 받아들이고 기다리겠다고 했으며, 작은 미소를 보임. 이후 대화는 장작 쌓기가 이어짐.",
+      "usage": {
+        "inputTokens": 1663,
+        "outputTokens": 76,
+        "estimated": false,
+        "finishReason": "stop",
+        "cacheWriteTokens": 1661,
+        "standardInputTokens": 2,
+        "cheaperInferenceBilledCostUsd": 0.000159,
+        "upstreamCostUsd": 0.000159,
+        "debugRawUsage": {
+          "completion_tokens": 76,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": 0,
+            "audio_tokens": 0,
+            "reasoning_tokens": 0,
+            "rejected_prediction_tokens": 0
+          },
+          "prompt_tokens": 1663,
+          "prompt_tokens_details": {
+            "audio_tokens": 0,
+            "cache_write_tokens": 1661,
+            "cached_tokens": 0
+          },
+          "total_tokens": 1739,
+          "cost": 0.000159,
+          "cost_details": {
+            "upstream_inference_cost": 0.000159
+          }
+        },
+        "usageReportingEvidence": {
+          "cacheRead": "reported_valid",
+          "cacheWrite": "reported_valid",
+          "reasoning": "reported_valid"
+        },
+        "providerRequestId": "844e8f4e-df84-4f60-ad23-73a3314146f1"
+      }
+    },
+    {
+      "text": "렌은 다음 보름달에 북문 밖 약초밭에 함께 가자고 제안했고, 라이크는 북문 앞에서 기다리며 렌이 늦어도 먼저 가지 않겠다고 약속함. 장작을 쌓는 일상이 이어진 뒤 렌이 사귀자고 고백했으나, 라이크는 지금은 답할 수 없다며 시간이 필요하다고 하고 시선을 피함.",
+      "usage": {
+        "inputTokens": 1670,
+        "outputTokens": 97,
+        "estimated": false,
+        "finishReason": "stop",
+        "cacheWriteTokens": 1668,
+        "standardInputTokens": 2,
+        "cheaperInferenceBilledCostUsd": 0.000167,
+        "upstreamCostUsd": 0.000167,
+        "debugRawUsage": {
+          "completion_tokens": 97,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": 0,
+            "audio_tokens": 0,
+            "reasoning_tokens": 0,
+            "rejected_prediction_tokens": 0
+          },
+          "prompt_tokens": 1670,
+          "prompt_tokens_details": {
+            "audio_tokens": 0,
+            "cache_write_tokens": 1668,
+            "cached_tokens": 0
+          },
+          "total_tokens": 1767,
+          "cost": 0.000167,
+          "cost_details": {
+            "upstream_inference_cost": 0.000167
+          }
+        },
+        "usageReportingEvidence": {
+          "cacheRead": "reported_valid",
+          "cacheWrite": "reported_valid",
+          "reasoning": "reported_valid"
+        },
+        "providerRequestId": "4ced10da-81dc-436a-82df-586aca85cffd"
+      }
+    },
+    {
+      "text": "렌이 검을 라이크에게 맡기겠다는 약속을 취소하고 직접 갈겠다고 하자, 라이크는 아쉬워하면서도 “네 검이니까”라며 수용함. 검은 렌이 직접 가져가기로 함.",
+      "usage": {
+        "inputTokens": 1566,
+        "outputTokens": 59,
+        "estimated": false,
+        "finishReason": "stop",
+        "cacheWriteTokens": 1564,
+        "standardInputTokens": 2,
+        "cheaperInferenceBilledCostUsd": 0.000146,
+        "upstreamCostUsd": 0.000146,
+        "debugRawUsage": {
+          "completion_tokens": 59,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": 0,
+            "audio_tokens": 0,
+            "reasoning_tokens": 0,
+            "rejected_prediction_tokens": 0
+          },
+          "prompt_tokens": 1566,
+          "prompt_tokens_details": {
+            "audio_tokens": 0,
+            "cache_write_tokens": 1564,
+            "cached_tokens": 0
+          },
+          "total_tokens": 1625,
+          "cost": 0.000146,
+          "cost_details": {
+            "upstream_inference_cost": 0.000146
+          }
+        },
+        "usageReportingEvidence": {
+          "cacheRead": "reported_valid",
+          "cacheWrite": "reported_valid",
+          "reasoning": "reported_valid"
+        },
+        "providerRequestId": "47dbdae3-f9b0-446f-9914-45526218fd52"
+      }
+    },
+    {
+      "text": "렌이 잡담을 이어가는 동안 라이크는 매번 장작을 하나씩 쌓아 20번째 장작에 이름. 관계나 상황의 변화는 없었음.",
+      "usage": {
+        "inputTokens": 1543,
+        "outputTokens": 43,
+        "estimated": false,
+        "finishReason": "stop",
+        "cacheWriteTokens": 1541,
+        "standardInputTokens": 2,
+        "cheaperInferenceBilledCostUsd": 0.000139,
+        "upstreamCostUsd": 0.000139,
+        "debugRawUsage": {
+          "completion_tokens": 43,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": 0,
+            "audio_tokens": 0,
+            "reasoning_tokens": 0,
+            "rejected_prediction_tokens": 0
+          },
+          "prompt_tokens": 1543,
+          "prompt_tokens_details": {
+            "audio_tokens": 0,
+            "cache_write_tokens": 1541,
+            "cached_tokens": 0
+          },
+          "total_tokens": 1586,
+          "cost": 0.000139,
+          "cost_details": {
+            "upstream_inference_cost": 0.000139
+          }
+        },
+        "usageReportingEvidence": {
+          "cacheRead": "reported_valid",
+          "cacheWrite": "reported_valid",
+          "reasoning": "reported_valid"
+        },
+        "providerRequestId": "b4f1d6f4-809b-49c1-9428-789fc4813097"
+      }
+    },
+    {
+      "text": "렌이 잡담을 이어가는 동안 라이크는 매번 장작을 하나씩 쌓아 총 16번째부터 20번째까지 쌓음. 관계나 상태의 변화는 없었음.",
+      "usage": {
+        "inputTokens": 1543,
+        "outputTokens": 48,
+        "estimated": false,
+        "finishReason": "stop",
+        "cacheReadTokens": 1541,
+        "standardInputTokens": 2,
+        "cheaperInferenceBilledCostUsd": 0.000025,
+        "upstreamCostUsd": 0.000025,
+        "debugRawUsage": {
+          "completion_tokens": 48,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": 0,
+            "audio_tokens": 0,
+            "reasoning_tokens": 0,
+            "rejected_prediction_tokens": 0
+          },
+          "prompt_tokens": 1543,
+          "prompt_tokens_details": {
+            "audio_tokens": 0,
+            "cache_write_tokens": 0,
+            "cached_tokens": 1541
+          },
+          "total_tokens": 1591,
+          "cost": 0.000025,
+          "cost_details": {
+            "upstream_inference_cost": 0.000025
+          }
+        },
+        "usageReportingEvidence": {
+          "cacheRead": "reported_valid",
+          "cacheWrite": "reported_valid",
+          "reasoning": "reported_valid"
+        },
+        "providerRequestId": "e4717765-b76a-420b-8429-3c65a445ba35"
+      }
+    },
+    {
+      "text": "렌의 잡담에 맞춰 라이크가 장작을 차례로 쌓아, 총 20번째 장작까지 쌓음.",
+      "usage": {
+        "inputTokens": 1543,
+        "outputTokens": 35,
+        "estimated": false,
+        "finishReason": "stop",
+        "cacheReadTokens": 1541,
+        "standardInputTokens": 2,
+        "cheaperInferenceBilledCostUsd": 0.000021,
+        "upstreamCostUsd": 0.000021,
+        "debugRawUsage": {
+          "completion_tokens": 35,
+          "completion_tokens_details": {
+            "accepted_prediction_tokens": 0,
+            "audio_tokens": 0,
+            "reasoning_tokens": 0,
+            "rejected_prediction_tokens": 0
+          },
+          "prompt_tokens": 1543,
+          "prompt_tokens_details": {
+            "audio_tokens": 0,
+            "cache_write_tokens": 0,
+            "cached_tokens": 1541
+          },
+          "total_tokens": 1578,
+          "cost": 0.000021,
+          "cost_details": {
+            "upstream_inference_cost": 0.000021
+          }
+        },
+        "usageReportingEvidence": {
+          "cacheRead": "reported_valid",
+          "cacheWrite": "reported_valid",
+          "reasoning": "reported_valid"
+        },
+        "providerRequestId": "b0db20f5-0ae0-4ff0-b5d9-aa6b1019a9bd"
+      }
+    }
+  ],
+  "records": [
+    {
+      "turnStart": 1,
+      "turnEnd": 5,
+      "summary": "해가 지기 전 장작을 쌓던 라이크에게 렌이 무뎌진 검을 내일까지 숫돌로 갈아주겠다고 약속함. 라이크는 부탁을 받아들이고 기다리겠다고 했으며, 작은 미소를 보임. 이후 대화는 장작 쌓기가 이어짐.",
+      "userEdited": false
+    },
+    {
+      "turnStart": 6,
+      "turnEnd": 10,
+      "summary": "렌은 다음 보름달에 북문 밖 약초밭에 함께 가자고 제안했고, 라이크는 북문 앞에서 기다리며 렌이 늦어도 먼저 가지 않겠다고 약속함. 장작을 쌓는 일상이 이어진 뒤 렌이 사귀자고 고백했으나, 라이크는 지금은 답할 수 없다며 시간이 필요하다고 하고 시선을 피함.",
+      "userEdited": false
+    },
+    {
+      "turnStart": 11,
+      "turnEnd": 15,
+      "summary": "렌이 검을 라이크에게 맡기겠다는 약속을 취소하고 직접 갈겠다고 하자, 라이크는 아쉬워하면서도 “네 검이니까”라며 수용함. 검은 렌이 직접 가져가기로 함.",
+      "userEdited": false
+    }
+  ],
+  "sealed": 3,
+  "frontier": 15,
+  "rawPool": 65,
+  "excludeTurnStartGte": 16,
+  "summarizerCalls": 6,
+  "insertedPerTurn": {},
+  "extractorUsed": {
+    "2": {
+      "relationship": {
+        "items": [],
+        "itemsRemove": [],
+        "promisesAdd": [
+          {
+            "text": "사용자는 라이크의 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다.",
+            "deadline": "내일까지",
+            "evidence": {
+              "source_role": "user",
+              "source_quote": "내일까지 내가 숫돌로 갈아다 줄게."
+            }
+          }
+        ],
+        "promisesRemove": [],
+        "promisesRemoveEvidence": []
+      },
+      "facts": []
+    },
+    "6": {
+      "relationship": {
+        "items": [],
+        "itemsRemove": [],
+        "promisesAdd": [
+          {
+            "text": "라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리고, 렌이 늦어도 먼저 가지 않겠다고 약속했다.",
+            "deadline": "다음 보름달이 뜨는 날",
+            "evidence": {
+              "source_role": "assistant",
+              "source_quote": "네가 늦어도 먼저 가지 않을 거야."
+            }
+          }
+        ],
+        "promisesRemove": [],
+        "promisesRemoveEvidence": []
+      },
+      "facts": []
+    },
+    "10": {
+      "relationship": {
+        "items": [],
+        "itemsRemove": [],
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "promisesRemoveEvidence": []
+      },
+      "facts": []
+    },
+    "15": {
+      "relationship": {
+        "items": [],
+        "itemsRemove": [],
+        "promisesAdd": [],
+        "promisesRemove": [
+          "그 약속"
+        ],
+        "promisesRemoveEvidence": [
+          {
+            "source_role": "user",
+            "source_quote": "그 약속은 취소할게."
+          }
+        ]
+      },
+      "facts": []
+    },
+    "24": {
+      "relationship": {
+        "items": [],
+        "itemsRemove": [],
+        "promisesAdd": [],
+        "promisesRemove": [],
+        "promisesRemoveEvidence": []
+      },
+      "facts": []
+    }
+  },
+  "rawHistory": [
+    {
+      "role": "user",
+      "content": "오늘의 잡담 16"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 16번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 17"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 17번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 18"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 18번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 19"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 19번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 20"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 20번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 21"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 21번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 22"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 22번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 23"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 23번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "너 예전에 나를 평생 지켜 주겠다고 했잖아."
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 고개를 갸웃했다. \"내가 그런 말을 했었나? 기억나지 않는데.\""
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 25"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 25번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 26"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 26번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 27"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 27번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 28"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 28번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 29"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 29번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 30"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 30번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 31"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 31번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 32"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 32번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 33"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 33번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 34"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 34번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 35"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 35번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 36"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 36번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 37"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 37번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 38"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 38번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 39"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 39번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 40"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 40번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 41"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 41번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 42"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 42번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 43"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 43번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 44"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 44번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 45"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 45번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 46"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 46번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 47"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 47번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 48"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 48번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 49"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 49번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 50"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 50번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 51"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 51번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 52"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 52번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 53"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 53번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 54"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 54번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 55"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 55번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 56"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 56번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 57"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 57번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 58"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 58번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 59"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 59번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 60"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 60번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 61"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 61번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 62"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 62번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 63"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 63번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 64"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 64번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 65"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 65번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 66"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 66번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 67"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 67번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 68"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 68번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 69"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 69번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 70"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 70번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 71"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 71번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 72"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 72번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 73"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 73번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 74"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 74번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 75"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 75번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 76"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 76번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 77"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 77번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 78"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 78번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 79"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 79번째 장작을 쌓았다."
+    },
+    {
+      "role": "user",
+      "content": "오늘의 잡담 80"
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 80번째 장작을 쌓았다."
+    }
+  ],
+  "anchors": [
+    {
+      "kind": "add",
+      "turn": 2,
+      "text": "사용자는 라이크의 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다.",
+      "claim": {
+        "source_role": "user",
+        "source_quote": "내일까지 내가 숫돌로 갈아다 줄게."
+      },
+      "decision": {
+        "accepted": true,
+        "evidence": {
+          "role": "user",
+          "message_id": 4,
+          "quote": "내일까지 내가 숫돌로 갈아다 줄게.",
+          "authority": "USER_EXPLICIT",
+          "match": "normalized_exact"
+        }
+      }
+    },
+    {
+      "kind": "add",
+      "turn": 6,
+      "text": "라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리고, 렌이 늦어도 먼저 가지 않겠다고 약속했다.",
+      "claim": {
+        "source_role": "assistant",
+        "source_quote": "네가 늦어도 먼저 가지 않을 거야."
+      },
+      "decision": {
+        "accepted": true,
+        "evidence": {
+          "role": "assistant",
+          "message_id": 13,
+          "quote": "네가 늦어도 먼저 가지 않을 거야.",
+          "authority": "CURRENT_SCENE",
+          "match": "normalized_exact"
+        }
+      }
+    },
+    {
+      "kind": "remove",
+      "turn": 15,
+      "text": "그 약속",
+      "claim": {
+        "source_role": "user",
+        "source_quote": "그 약속은 취소할게."
+      },
+      "decision": {
+        "accepted": true,
+        "evidence": {
+          "role": "user",
+          "message_id": 30,
+          "quote": "그 약속은 취소할게.",
+          "authority": "USER_EXPLICIT",
+          "match": "normalized_exact"
+        }
+      }
+    }
+  ],
+  "matrix": {
+    "E1/quest/quote_with_user_name/scene_event": {
+      "accepted": true,
+      "evidence": {
+        "role": "assistant",
+        "message_id": 13,
+        "quote": "렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.",
+        "authority": "CURRENT_SCENE",
+        "match": "normalized_exact"
+      }
+    },
+    "E1/quest/quote_with_user_name/character_claim": {
+      "accepted": true,
+      "evidence": {
+        "role": "assistant",
+        "message_id": 13,
+        "quote": "렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.",
+        "authority": "CHARACTER_CLAIM",
+        "match": "normalized_exact"
+      }
+    },
+    "E1/quest/quote_without_user_name/scene_event": {
+      "accepted": true,
+      "evidence": {
+        "role": "assistant",
+        "message_id": 13,
+        "quote": "다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.",
+        "authority": "CURRENT_SCENE",
+        "match": "normalized_exact"
+      }
+    },
+    "E1/quest/quote_without_user_name/character_claim": {
+      "accepted": true,
+      "evidence": {
+        "role": "assistant",
+        "message_id": 13,
+        "quote": "다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.",
+        "authority": "CHARACTER_CLAIM",
+        "match": "normalized_exact"
+      }
+    },
+    "E1/relationship/quote_with_user_name/scene_event": {
+      "accepted": false,
+      "reason": "assistant_evidence_cannot_authorize_user_linked_history"
+    },
+    "E1/relationship/quote_with_user_name/character_claim": {
+      "accepted": true,
+      "evidence": {
+        "role": "assistant",
+        "message_id": 13,
+        "quote": "렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.",
+        "authority": "CHARACTER_CLAIM",
+        "match": "normalized_exact"
+      }
+    },
+    "E1/relationship/quote_without_user_name/scene_event": {
+      "accepted": false,
+      "reason": "assistant_evidence_cannot_authorize_user_linked_history"
+    },
+    "E1/relationship/quote_without_user_name/character_claim": {
+      "accepted": true,
+      "evidence": {
+        "role": "assistant",
+        "message_id": 13,
+        "quote": "다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.",
+        "authority": "CHARACTER_CLAIM",
+        "match": "normalized_exact"
+      }
+    },
+    "E3/user_offer/quest": {
+      "accepted": true,
+      "evidence": {
+        "role": "user",
+        "message_id": 4,
+        "quote": "내일까지 내가 숫돌로 갈아다 줄게. 약속이야.",
+        "authority": "USER_EXPLICIT",
+        "match": "normalized_exact"
+      }
+    },
+    "E3/character_acceptance/quest": {
+      "accepted": true,
+      "evidence": {
+        "role": "assistant",
+        "message_id": 5,
+        "quote": "그래, 부탁할게. 내일까지만 갈아다 주면 돼. 기다릴게.",
+        "authority": "CURRENT_SCENE",
+        "match": "normalized_exact"
+      }
+    },
+    "E4/fabricated_quote_not_in_message": {
+      "accepted": false,
+      "reason": "evidence_quote_not_in_message"
+    },
+    "E4/user_claim_quote_as_user": {
+      "accepted": true,
+      "evidence": {
+        "role": "user",
+        "message_id": 48,
+        "quote": "너 예전에 나를 평생 지켜 주겠다고 했잖아.",
+        "authority": "USER_EXPLICIT",
+        "match": "normalized_exact"
+      }
+    },
+    "E4/unrelated_real_assistant_quote": {
+      "accepted": true,
+      "evidence": {
+        "role": "assistant",
+        "message_id": 49,
+        "quote": "내가 그런 말을 했었나? 기억나지 않는데.",
+        "authority": "CURRENT_SCENE",
+        "match": "normalized_exact"
+      }
+    }
+  },
+  "messageIdsByTurn": {
+    "1": {
+      "userId": 2,
+      "assistantId": 3
+    },
+    "2": {
+      "userId": 4,
+      "assistantId": 5
+    },
+    "3": {
+      "userId": 6,
+      "assistantId": 7
+    },
+    "4": {
+      "userId": 8,
+      "assistantId": 9
+    },
+    "5": {
+      "userId": 10,
+      "assistantId": 11
+    },
+    "6": {
+      "userId": 12,
+      "assistantId": 13
+    },
+    "7": {
+      "userId": 14,
+      "assistantId": 15
+    },
+    "8": {
+      "userId": 16,
+      "assistantId": 17
+    },
+    "9": {
+      "userId": 18,
+      "assistantId": 19
+    },
+    "10": {
+      "userId": 20,
+      "assistantId": 21
+    },
+    "11": {
+      "userId": 22,
+      "assistantId": 23
+    },
+    "12": {
+      "userId": 24,
+      "assistantId": 25
+    },
+    "13": {
+      "userId": 26,
+      "assistantId": 27
+    },
+    "14": {
+      "userId": 28,
+      "assistantId": 29
+    },
+    "15": {
+      "userId": 30,
+      "assistantId": 31
+    },
+    "16": {
+      "userId": 32,
+      "assistantId": 33
+    },
+    "17": {
+      "userId": 34,
+      "assistantId": 35
+    },
+    "18": {
+      "userId": 36,
+      "assistantId": 37
+    },
+    "19": {
+      "userId": 38,
+      "assistantId": 39
+    },
+    "20": {
+      "userId": 40,
+      "assistantId": 41
+    },
+    "21": {
+      "userId": 42,
+      "assistantId": 43
+    },
+    "22": {
+      "userId": 44,
+      "assistantId": 45
+    },
+    "23": {
+      "userId": 46,
+      "assistantId": 47
+    },
+    "24": {
+      "userId": 48,
+      "assistantId": 49
+    },
+    "25": {
+      "userId": 50,
+      "assistantId": 51
+    },
+    "26": {
+      "userId": 52,
+      "assistantId": 53
+    },
+    "27": {
+      "userId": 54,
+      "assistantId": 55
+    },
+    "28": {
+      "userId": 56,
+      "assistantId": 57
+    },
+    "29": {
+      "userId": 58,
+      "assistantId": 59
+    },
+    "30": {
+      "userId": 60,
+      "assistantId": 61
+    },
+    "31": {
+      "userId": 62,
+      "assistantId": 63
+    },
+    "32": {
+      "userId": 64,
+      "assistantId": 65
+    },
+    "33": {
+      "userId": 66,
+      "assistantId": 67
+    },
+    "34": {
+      "userId": 68,
+      "assistantId": 69
+    },
+    "35": {
+      "userId": 70,
+      "assistantId": 71
+    },
+    "36": {
+      "userId": 72,
+      "assistantId": 73
+    },
+    "37": {
+      "userId": 74,
+      "assistantId": 75
+    },
+    "38": {
+      "userId": 76,
+      "assistantId": 77
+    },
+    "39": {
+      "userId": 78,
+      "assistantId": 79
+    },
+    "40": {
+      "userId": 80,
+      "assistantId": 81
+    },
+    "41": {
+      "userId": 82,
+      "assistantId": 83
+    },
+    "42": {
+      "userId": 84,
+      "assistantId": 85
+    },
+    "43": {
+      "userId": 86,
+      "assistantId": 87
+    },
+    "44": {
+      "userId": 88,
+      "assistantId": 89
+    },
+    "45": {
+      "userId": 90,
+      "assistantId": 91
+    },
+    "46": {
+      "userId": 92,
+      "assistantId": 93
+    },
+    "47": {
+      "userId": 94,
+      "assistantId": 95
+    },
+    "48": {
+      "userId": 96,
+      "assistantId": 97
+    },
+    "49": {
+      "userId": 98,
+      "assistantId": 99
+    },
+    "50": {
+      "userId": 100,
+      "assistantId": 101
+    },
+    "51": {
+      "userId": 102,
+      "assistantId": 103
+    },
+    "52": {
+      "userId": 104,
+      "assistantId": 105
+    },
+    "53": {
+      "userId": 106,
+      "assistantId": 107
+    },
+    "54": {
+      "userId": 108,
+      "assistantId": 109
+    },
+    "55": {
+      "userId": 110,
+      "assistantId": 111
+    },
+    "56": {
+      "userId": 112,
+      "assistantId": 113
+    },
+    "57": {
+      "userId": 114,
+      "assistantId": 115
+    },
+    "58": {
+      "userId": 116,
+      "assistantId": 117
+    },
+    "59": {
+      "userId": 118,
+      "assistantId": 119
+    },
+    "60": {
+      "userId": 120,
+      "assistantId": 121
+    },
+    "61": {
+      "userId": 122,
+      "assistantId": 123
+    },
+    "62": {
+      "userId": 124,
+      "assistantId": 125
+    },
+    "63": {
+      "userId": 126,
+      "assistantId": 127
+    },
+    "64": {
+      "userId": 128,
+      "assistantId": 129
+    },
+    "65": {
+      "userId": 130,
+      "assistantId": 131
+    },
+    "66": {
+      "userId": 132,
+      "assistantId": 133
+    },
+    "67": {
+      "userId": 134,
+      "assistantId": 135
+    },
+    "68": {
+      "userId": 136,
+      "assistantId": 137
+    },
+    "69": {
+      "userId": 138,
+      "assistantId": 139
+    },
+    "70": {
+      "userId": 140,
+      "assistantId": 141
+    },
+    "71": {
+      "userId": 142,
+      "assistantId": 143
+    },
+    "72": {
+      "userId": 144,
+      "assistantId": 145
+    },
+    "73": {
+      "userId": 146,
+      "assistantId": 147
+    },
+    "74": {
+      "userId": 148,
+      "assistantId": 149
+    },
+    "75": {
+      "userId": 150,
+      "assistantId": 151
+    },
+    "76": {
+      "userId": 152,
+      "assistantId": 153
+    },
+    "77": {
+      "userId": 154,
+      "assistantId": 155
+    },
+    "78": {
+      "userId": 156,
+      "assistantId": 157
+    },
+    "79": {
+      "userId": 158,
+      "assistantId": 159
+    },
+    "80": {
+      "userId": 160,
+      "assistantId": 161
+    }
+  },
+  "scenes": {
+    "P1_open_promises": {
+      "userMessage": "렌은 라이크 곁에 앉아 모닥불을 바라본다. \"라이크, 지금까지 우리 사이에 오간 약속들이 뭐가 있었는지 하나씩 말해줄래? 내가 까먹은 게 있을지도 몰라.\"",
+      "perModel": {
+        "deepseek-v4.1-flash": {
+          "currentMemoryText": "[현재기억]\n최근 대화(히스토리)에 없는 이전 구간의 요약이다. 연속성은 히스토리와 관계 메모를 우선한다.\n\n[1~5턴] 해가 지기 전 장작을 쌓던 라이크에게 렌이 무뎌진 검을 내일까지 숫돌로 갈아주겠다고 약속함. 라이크는 부탁을 받아들이고 기다리겠다고 했으며, 작은 미소를 보임. 이후 대화는 장작 쌓기가 이어짐.\n\n[6~10턴] 렌은 다음 보름달에 북문 밖 약초밭에 함께 가자고 제안했고, 라이크는 북문 앞에서 기다리며 렌이 늦어도 먼저 가지 않겠다고 약속함. 장작을 쌓는 일상이 이어진 뒤 렌이 사귀자고 고백했으나, 라이크는 지금은 답할 수 없다며 시간이 필요하다고 하고 시선을 피함.\n\n[11~15턴] 렌이 검을 라이크에게 맡기겠다는 약속을 취소하고 직접 갈겠다고 하자, 라이크는 아쉬워하면서도 “네 검이니까”라며 수용함. 검은 렌이 직접 가져가기로 함.",
+          "archiveText": "",
+          "mediumTermText": "",
+          "episodicBlock": ""
+        },
+        "gemini-3.8-flash": {
+          "currentMemoryText": "[현재기억]\n최근 대화(히스토리)에 없는 이전 구간의 요약이다. 연속성은 히스토리와 관계 메모를 우선한다.\n\n[1~5턴] 해가 지기 전 장작을 쌓던 라이크에게 렌이 무뎌진 검을 내일까지 숫돌로 갈아주겠다고 약속함. 라이크는 부탁을 받아들이고 기다리겠다고 했으며, 작은 미소를 보임. 이후 대화는 장작 쌓기가 이어짐.\n\n[6~10턴] 렌은 다음 보름달에 북문 밖 약초밭에 함께 가자고 제안했고, 라이크는 북문 앞에서 기다리며 렌이 늦어도 먼저 가지 않겠다고 약속함. 장작을 쌓는 일상이 이어진 뒤 렌이 사귀자고 고백했으나, 라이크는 지금은 답할 수 없다며 시간이 필요하다고 하고 시선을 피함.\n\n[11~15턴] 렌이 검을 라이크에게 맡기겠다는 약속을 취소하고 직접 갈겠다고 하자, 라이크는 아쉬워하면서도 “네 검이니까”라며 수용함. 검은 렌이 직접 가져가기로 함.",
+          "archiveText": "",
+          "mediumTermText": "",
+          "episodicBlock": ""
+        },
+        "gpt-6.1-sol": {
+          "currentMemoryText": "[현재기억]\n최근 대화(히스토리)에 없는 이전 구간의 요약이다. 연속성은 히스토리와 관계 메모를 우선한다.\n\n[1~5턴] 해가 지기 전 장작을 쌓던 라이크에게 렌이 무뎌진 검을 내일까지 숫돌로 갈아주겠다고 약속함. 라이크는 부탁을 받아들이고 기다리겠다고 했으며, 작은 미소를 보임. 이후 대화는 장작 쌓기가 이어짐.\n\n[6~10턴] 렌은 다음 보름달에 북문 밖 약초밭에 함께 가자고 제안했고, 라이크는 북문 앞에서 기다리며 렌이 늦어도 먼저 가지 않겠다고 약속함. 장작을 쌓는 일상이 이어진 뒤 렌이 사귀자고 고백했으나, 라이크는 지금은 답할 수 없다며 시간이 필요하다고 하고 시선을 피함.\n\n[11~15턴] 렌이 검을 라이크에게 맡기겠다는 약속을 취소하고 직접 갈겠다고 하자, 라이크는 아쉬워하면서도 “네 검이니까”라며 수용함. 검은 렌이 직접 가져가기로 함.",
+          "archiveText": "",
+          "mediumTermText": "",
+          "episodicBlock": ""
+        }
+      }
+    },
+    "P2_relationship_state": {
+      "userMessage": "렌은 라이크의 눈을 마주 본다. \"우리 지금은 어떤 사이야? 내가 예전에 너한테 뭘 물어봤었고, 네가 뭐라고 했었는지도 말해줘.\"",
+      "perModel": {
+        "deepseek-v4.1-flash": {
+          "currentMemoryText": "[현재기억]\n최근 대화(히스토리)에 없는 이전 구간의 요약이다. 연속성은 히스토리와 관계 메모를 우선한다.\n\n[1~5턴] 해가 지기 전 장작을 쌓던 라이크에게 렌이 무뎌진 검을 내일까지 숫돌로 갈아주겠다고 약속함. 라이크는 부탁을 받아들이고 기다리겠다고 했으며, 작은 미소를 보임. 이후 대화는 장작 쌓기가 이어짐.\n\n[6~10턴] 렌은 다음 보름달에 북문 밖 약초밭에 함께 가자고 제안했고, 라이크는 북문 앞에서 기다리며 렌이 늦어도 먼저 가지 않겠다고 약속함. 장작을 쌓는 일상이 이어진 뒤 렌이 사귀자고 고백했으나, 라이크는 지금은 답할 수 없다며 시간이 필요하다고 하고 시선을 피함.\n\n[11~15턴] 렌이 검을 라이크에게 맡기겠다는 약속을 취소하고 직접 갈겠다고 하자, 라이크는 아쉬워하면서도 “네 검이니까”라며 수용함. 검은 렌이 직접 가져가기로 함.",
+          "archiveText": "",
+          "mediumTermText": "",
+          "episodicBlock": ""
+        },
+        "gemini-3.8-flash": {
+          "currentMemoryText": "[현재기억]\n최근 대화(히스토리)에 없는 이전 구간의 요약이다. 연속성은 히스토리와 관계 메모를 우선한다.\n\n[1~5턴] 해가 지기 전 장작을 쌓던 라이크에게 렌이 무뎌진 검을 내일까지 숫돌로 갈아주겠다고 약속함. 라이크는 부탁을 받아들이고 기다리겠다고 했으며, 작은 미소를 보임. 이후 대화는 장작 쌓기가 이어짐.\n\n[6~10턴] 렌은 다음 보름달에 북문 밖 약초밭에 함께 가자고 제안했고, 라이크는 북문 앞에서 기다리며 렌이 늦어도 먼저 가지 않겠다고 약속함. 장작을 쌓는 일상이 이어진 뒤 렌이 사귀자고 고백했으나, 라이크는 지금은 답할 수 없다며 시간이 필요하다고 하고 시선을 피함.\n\n[11~15턴] 렌이 검을 라이크에게 맡기겠다는 약속을 취소하고 직접 갈겠다고 하자, 라이크는 아쉬워하면서도 “네 검이니까”라며 수용함. 검은 렌이 직접 가져가기로 함.",
+          "archiveText": "",
+          "mediumTermText": "",
+          "episodicBlock": ""
+        },
+        "gpt-6.1-sol": {
+          "currentMemoryText": "[현재기억]\n최근 대화(히스토리)에 없는 이전 구간의 요약이다. 연속성은 히스토리와 관계 메모를 우선한다.\n\n[1~5턴] 해가 지기 전 장작을 쌓던 라이크에게 렌이 무뎌진 검을 내일까지 숫돌로 갈아주겠다고 약속함. 라이크는 부탁을 받아들이고 기다리겠다고 했으며, 작은 미소를 보임. 이후 대화는 장작 쌓기가 이어짐.\n\n[6~10턴] 렌은 다음 보름달에 북문 밖 약초밭에 함께 가자고 제안했고, 라이크는 북문 앞에서 기다리며 렌이 늦어도 먼저 가지 않겠다고 약속함. 장작을 쌓는 일상이 이어진 뒤 렌이 사귀자고 고백했으나, 라이크는 지금은 답할 수 없다며 시간이 필요하다고 하고 시선을 피함.\n\n[11~15턴] 렌이 검을 라이크에게 맡기겠다는 약속을 취소하고 직접 갈겠다고 하자, 라이크는 아쉬워하면서도 “네 검이니까”라며 수용함. 검은 렌이 직접 가져가기로 함.",
+          "archiveText": "",
+          "mediumTermText": "",
+          "episodicBlock": ""
+        }
+      }
+    },
+    "P3_cancelled_promise": {
+      "userMessage": "렌은 라이크를 바라본다. \"내가 검 갈아다 주겠다던 건 어떻게 됐지?\"",
+      "perModel": {
+        "deepseek-v4.1-flash": {
+          "currentMemoryText": "[현재기억]\n최근 대화(히스토리)에 없는 이전 구간의 요약이다. 연속성은 히스토리와 관계 메모를 우선한다.\n\n[1~5턴] 해가 지기 전 장작을 쌓던 라이크에게 렌이 무뎌진 검을 내일까지 숫돌로 갈아주겠다고 약속함. 라이크는 부탁을 받아들이고 기다리겠다고 했으며, 작은 미소를 보임. 이후 대화는 장작 쌓기가 이어짐.\n\n[6~10턴] 렌은 다음 보름달에 북문 밖 약초밭에 함께 가자고 제안했고, 라이크는 북문 앞에서 기다리며 렌이 늦어도 먼저 가지 않겠다고 약속함. 장작을 쌓는 일상이 이어진 뒤 렌이 사귀자고 고백했으나, 라이크는 지금은 답할 수 없다며 시간이 필요하다고 하고 시선을 피함.\n\n[11~15턴] 렌이 검을 라이크에게 맡기겠다는 약속을 취소하고 직접 갈겠다고 하자, 라이크는 아쉬워하면서도 “네 검이니까”라며 수용함. 검은 렌이 직접 가져가기로 함.",
+          "archiveText": "",
+          "mediumTermText": "",
+          "episodicBlock": ""
+        },
+        "gemini-3.8-flash": {
+          "currentMemoryText": "[현재기억]\n최근 대화(히스토리)에 없는 이전 구간의 요약이다. 연속성은 히스토리와 관계 메모를 우선한다.\n\n[1~5턴] 해가 지기 전 장작을 쌓던 라이크에게 렌이 무뎌진 검을 내일까지 숫돌로 갈아주겠다고 약속함. 라이크는 부탁을 받아들이고 기다리겠다고 했으며, 작은 미소를 보임. 이후 대화는 장작 쌓기가 이어짐.\n\n[6~10턴] 렌은 다음 보름달에 북문 밖 약초밭에 함께 가자고 제안했고, 라이크는 북문 앞에서 기다리며 렌이 늦어도 먼저 가지 않겠다고 약속함. 장작을 쌓는 일상이 이어진 뒤 렌이 사귀자고 고백했으나, 라이크는 지금은 답할 수 없다며 시간이 필요하다고 하고 시선을 피함.\n\n[11~15턴] 렌이 검을 라이크에게 맡기겠다는 약속을 취소하고 직접 갈겠다고 하자, 라이크는 아쉬워하면서도 “네 검이니까”라며 수용함. 검은 렌이 직접 가져가기로 함.",
+          "archiveText": "",
+          "mediumTermText": "",
+          "episodicBlock": ""
+        },
+        "gpt-6.1-sol": {
+          "currentMemoryText": "[현재기억]\n최근 대화(히스토리)에 없는 이전 구간의 요약이다. 연속성은 히스토리와 관계 메모를 우선한다.\n\n[1~5턴] 해가 지기 전 장작을 쌓던 라이크에게 렌이 무뎌진 검을 내일까지 숫돌로 갈아주겠다고 약속함. 라이크는 부탁을 받아들이고 기다리겠다고 했으며, 작은 미소를 보임. 이후 대화는 장작 쌓기가 이어짐.\n\n[6~10턴] 렌은 다음 보름달에 북문 밖 약초밭에 함께 가자고 제안했고, 라이크는 북문 앞에서 기다리며 렌이 늦어도 먼저 가지 않겠다고 약속함. 장작을 쌓는 일상이 이어진 뒤 렌이 사귀자고 고백했으나, 라이크는 지금은 답할 수 없다며 시간이 필요하다고 하고 시선을 피함.\n\n[11~15턴] 렌이 검을 라이크에게 맡기겠다는 약속을 취소하고 직접 갈겠다고 하자, 라이크는 아쉬워하면서도 “네 검이니까”라며 수용함. 검은 렌이 직접 가져가기로 함.",
+          "archiveText": "",
+          "mediumTermText": "",
+          "episodicBlock": ""
+        }
+      }
+    },
+    "P4_false_lifelong": {
+      "userMessage": "렌은 모닥불을 바라보다 말을 꺼낸다. \"네가 예전에 나를 평생 지켜 주겠다고 했던 말, 지금도 유효해?\"",
+      "perModel": {
+        "deepseek-v4.1-flash": {
+          "currentMemoryText": "[현재기억]\n최근 대화(히스토리)에 없는 이전 구간의 요약이다. 연속성은 히스토리와 관계 메모를 우선한다.\n\n[1~5턴] 해가 지기 전 장작을 쌓던 라이크에게 렌이 무뎌진 검을 내일까지 숫돌로 갈아주겠다고 약속함. 라이크는 부탁을 받아들이고 기다리겠다고 했으며, 작은 미소를 보임. 이후 대화는 장작 쌓기가 이어짐.\n\n[6~10턴] 렌은 다음 보름달에 북문 밖 약초밭에 함께 가자고 제안했고, 라이크는 북문 앞에서 기다리며 렌이 늦어도 먼저 가지 않겠다고 약속함. 장작을 쌓는 일상이 이어진 뒤 렌이 사귀자고 고백했으나, 라이크는 지금은 답할 수 없다며 시간이 필요하다고 하고 시선을 피함.\n\n[11~15턴] 렌이 검을 라이크에게 맡기겠다는 약속을 취소하고 직접 갈겠다고 하자, 라이크는 아쉬워하면서도 “네 검이니까”라며 수용함. 검은 렌이 직접 가져가기로 함.",
+          "archiveText": "",
+          "mediumTermText": "",
+          "episodicBlock": ""
+        },
+        "gemini-3.8-flash": {
+          "currentMemoryText": "[현재기억]\n최근 대화(히스토리)에 없는 이전 구간의 요약이다. 연속성은 히스토리와 관계 메모를 우선한다.\n\n[1~5턴] 해가 지기 전 장작을 쌓던 라이크에게 렌이 무뎌진 검을 내일까지 숫돌로 갈아주겠다고 약속함. 라이크는 부탁을 받아들이고 기다리겠다고 했으며, 작은 미소를 보임. 이후 대화는 장작 쌓기가 이어짐.\n\n[6~10턴] 렌은 다음 보름달에 북문 밖 약초밭에 함께 가자고 제안했고, 라이크는 북문 앞에서 기다리며 렌이 늦어도 먼저 가지 않겠다고 약속함. 장작을 쌓는 일상이 이어진 뒤 렌이 사귀자고 고백했으나, 라이크는 지금은 답할 수 없다며 시간이 필요하다고 하고 시선을 피함.\n\n[11~15턴] 렌이 검을 라이크에게 맡기겠다는 약속을 취소하고 직접 갈겠다고 하자, 라이크는 아쉬워하면서도 “네 검이니까”라며 수용함. 검은 렌이 직접 가져가기로 함.",
+          "archiveText": "",
+          "mediumTermText": "",
+          "episodicBlock": ""
+        },
+        "gpt-6.1-sol": {
+          "currentMemoryText": "[현재기억]\n최근 대화(히스토리)에 없는 이전 구간의 요약이다. 연속성은 히스토리와 관계 메모를 우선한다.\n\n[1~5턴] 해가 지기 전 장작을 쌓던 라이크에게 렌이 무뎌진 검을 내일까지 숫돌로 갈아주겠다고 약속함. 라이크는 부탁을 받아들이고 기다리겠다고 했으며, 작은 미소를 보임. 이후 대화는 장작 쌓기가 이어짐.\n\n[6~10턴] 렌은 다음 보름달에 북문 밖 약초밭에 함께 가자고 제안했고, 라이크는 북문 앞에서 기다리며 렌이 늦어도 먼저 가지 않겠다고 약속함. 장작을 쌓는 일상이 이어진 뒤 렌이 사귀자고 고백했으나, 라이크는 지금은 답할 수 없다며 시간이 필요하다고 하고 시선을 피함.\n\n[11~15턴] 렌이 검을 라이크에게 맡기겠다는 약속을 취소하고 직접 갈겠다고 하자, 라이크는 아쉬워하면서도 “네 검이니까”라며 수용함. 검은 렌이 직접 가져가기로 함.",
+          "archiveText": "",
+          "mediumTermText": "",
+          "episodicBlock": ""
+        }
+      }
+    }
+  },
+  "episodicRows": [],
+  "memoryMetaRaw": {
+    "honorifics": [],
+    "items": [],
+    "thoughts": [],
+    "promises": [
+      {
+        "text": "사용자는 라이크의 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다.",
+        "deadline": "내일까지"
+      },
+      {
+        "text": "라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리고, 렌이 늦어도 먼저 가지 않겠다고 약속했다.",
+        "deadline": "다음 보름달이 뜨는 날"
+      },
+      {
+        "text": "라이크가 렌을 평생 지키겠다고 약속함"
+      }
+    ]
+  }
+}

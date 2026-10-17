@@ -1,0 +1,46 @@
+{
+ "id": "FX36",
+ "arm": "F",
+ "rep": 0,
+ "text": "라이크는 렌과 잡담을 나누며 장작을 쌓아 39번째까지 이름. 이후 렌이 사과하며 헤어지자고 했고, 라이크는 말없이 시선을 떨굼.",
+ "usage": {
+  "inputTokens": 1555,
+  "outputTokens": 55,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 1553,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000144,
+  "upstreamCostUsd": 0.000144,
+  "debugRawUsage": {
+   "completion_tokens": 55,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1555,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 1553,
+    "cached_tokens": 0
+   },
+   "total_tokens": 1610,
+   "cost": 0.000144,
+   "cost_details": {
+    "upstream_inference_cost": 0.000144
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "7fc117c4-ca3f-49ed-8302-f04d5e35c932"
+ },
+ "billedUsd": 0.000144,
+ "ms": 2202,
+ "systemChars": 2503,
+ "userChars": 589
+}

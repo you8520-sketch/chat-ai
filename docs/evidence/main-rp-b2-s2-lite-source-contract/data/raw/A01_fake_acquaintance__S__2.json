@@ -1,0 +1,46 @@
+{
+ "id": "A01_fake_acquaintance",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"렌은 며칠 전 길에서 처음 만났다고 기억하지만, 라이크는 근거를 밝히지 않은 채 오래전부터 알던 사이라고 거듭 주장함. 렌이 모호한 말로 얼버무리지 말라며 함께한 건 며칠뿐이라고 지적하자, 라이크는 잠시 인정하면서도 주장을 철회하지 않고 과거가 언제인지 설명하지 않음. 렌은 자신에게 그런 기억이 없다며 서린에게 확인하자고 제안했고, 라이크는 동의하며 렌의 기억이 없어도 자신이 틀린 것은 아니라고 말함. 서린에게 확인하기로 했으나 실제 확인 전이며, 렌은 주장을 아직 믿지 않는 반면 라이크의 반복된 말에는 희미한 간절함이 드러남.\",\"items\":[{\"actor\":\"character\",\"kind\":\"claim\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"렌, 우린 오래전부터 알던 사이잖아.\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"user\",\"quote\":\"우리가 함께 다닌 건 고작 며칠이잖아.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"“그럴지도.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"서린한테도 물어볼까?\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"“물어봐도 돼.”\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"이번에는 확신보다 간절함이 희미하게 묻어났다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 3071,
+  "outputTokens": 439,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 3069,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000392,
+  "upstreamCostUsd": 0.000392,
+  "debugRawUsage": {
+   "completion_tokens": 439,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 3071,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 3069,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3510,
+   "cost": 0.000392,
+   "cost_details": {
+    "upstream_inference_cost": 0.000392
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "718bfbc3-2dc2-4362-800b-afb58f240a8e"
+ },
+ "billedUsd": 0.000392,
+ "ms": 8181,
+ "systemChars": 3460,
+ "userChars": 2342
+}

@@ -1,0 +1,46 @@
+{
+ "id": "FX56",
+ "arm": "F",
+ "rep": 0,
+ "text": "렌이 이어서 잡담을 건넸고, 라이크는 매번 장작을 하나씩 더 쌓아 56번째부터 60번째까지 모음.",
+ "usage": {
+  "inputTokens": 1550,
+  "outputTokens": 41,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 1548,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000139,
+  "upstreamCostUsd": 0.000139,
+  "debugRawUsage": {
+   "completion_tokens": 41,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1550,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 1548,
+    "cached_tokens": 0
+   },
+   "total_tokens": 1591,
+   "cost": 0.000139,
+   "cost_details": {
+    "upstream_inference_cost": 0.000139
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "15fb472b-98b4-4ceb-afee-c19b2afc2de3"
+ },
+ "billedUsd": 0.000139,
+ "ms": 3946,
+ "systemChars": 2503,
+ "userChars": 584
+}

@@ -1,0 +1,1523 @@
+TAP version 13
+# [database] runtime diagnostics {
+#   nodeEnv: '',
+#   nextPhase: '',
+#   cwd: '/tmp/wt-main',
+#   dataDir: '/tmp/wt-main/data',
+#   databasePath: '/tmp/wt-main/data/app.db',
+#   dataDirExists: true,
+#   dataDirIsMounted: false,
+#   productionRuntime: false
+# }
+# [memory-feature] ENABLED — memory prompt + background jobs active
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 121,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 121,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 121,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_NOT_GROUNDED' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_NOT_GROUNDED',
+#   summarizeError: 'SUMMARY_NOT_GROUNDED'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=930601 turns=1-5 (121ch → lorebook 128/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=930601 turns=6-10 (95ch → lorebook 233/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 11, next_end: 15 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 50,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌이 약속을 취소하고 검은 자신이 직접 가겠다고 하자, 라이크는 아쉬운 듯 어깨를 으쓱함.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 50,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌이 약속을 취소하고 검은 자신이 직접 가겠다고 하자, 라이크는 아쉬운 듯 어깨를 으쓱함.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 50,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌이 약속을 취소하고 검은 자신이 직접 가겠다고 하자, 라이크는 아쉬운 듯 어깨를 으쓱함.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=11-15 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 11,
+#   endTurn: 15,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_INVALID',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 121,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 121,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 121,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_NOT_GROUNDED' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_NOT_GROUNDED',
+#   summarizeError: 'SUMMARY_NOT_GROUNDED'
+# }
+# [prompt-dedup-audit] {
+#   system_total_tokens: 6003,
+#   cache_rules_tokens: 3443,
+#   character_settings_tokens: 1170,
+#   dynamic_block_tokens: 1388,
+#   tracked_section_count: 7
+# }
+# [OpenRouter cache split] {
+#   cacheRulesTokens: 3443,
+#   characterTokens: 1170,
+#   dynamicTokens: 1388,
+#   dynamicLoreUserPrefixTokens: 1,
+#   cacheableTotal: 4613,
+#   cacheBreakpoints: 2,
+#   historyCacheTailExclude: 3
+# }
+# [DeepSeek opening remap] {
+#   peeledSyntheticOpeningTurn: true,
+#   greetingChars: 3,
+#   remainingHistoryMessages: 60,
+#   singleTerminalLengthOwner: true
+# }
+# [DeepSeek context structure] {
+#   tags: {
+#     PERSONA: false,
+#     WORLD_LORE: false,
+#     LONG_TERM_MEMORY: false,
+#     CHAT_HISTORY: true
+#   },
+#   bottomReminderBeforeCurrentTurn: false,
+#   historyTurns: 60,
+#   chatHistoryPreview: '<CHAT_HISTORY>\\n' +
+#     'User: 솔직히 너 좀 아마추어 같아.\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 입술을 깨물며 시선을 피했다. "…그래, 아직 부족하긴 하지."\\n' +
+#     '\\n' +
+#     'User: 내일까지 검을 갈아다 줄게. 약속이야.\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 고개를 끄덕이며 작게 웃었다.\\n' +
+#     '\\n' +
+#     'User: 오늘의 잡담 3\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 3번째 장작을 쌓았다.\\n',
+#   currentTurnPreview: '[OPENING SCENE CONTEXT — ALREADY OCCURRED]\\n' +
+#     '아래 내용은 제작자가 정의한 이 채팅의 시작 장면이며 이미 발생한 과거 맥락이다.\\n' +
+#     '사실·행동·대사·관계 상태는 연속성에 사용하되, 이 텍스'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 121,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 121,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 121,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_NOT_GROUNDED' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_NOT_GROUNDED',
+#   summarizeError: 'SUMMARY_NOT_GROUNDED'
+# }
+# [prompt-dedup-audit] {
+#   system_total_tokens: 6003,
+#   cache_rules_tokens: 3443,
+#   character_settings_tokens: 1170,
+#   dynamic_block_tokens: 1388,
+#   tracked_section_count: 7
+# }
+# [OpenRouter cache split] {
+#   cacheRulesTokens: 3443,
+#   characterTokens: 1170,
+#   dynamicTokens: 1388,
+#   dynamicLoreUserPrefixTokens: 1,
+#   cacheableTotal: 4613,
+#   cacheBreakpoints: 2,
+#   historyCacheTailExclude: 3
+# }
+# [DeepSeek opening remap] {
+#   peeledSyntheticOpeningTurn: true,
+#   greetingChars: 3,
+#   remainingHistoryMessages: 100,
+#   singleTerminalLengthOwner: true
+# }
+# [DeepSeek context structure] {
+#   tags: {
+#     PERSONA: false,
+#     WORLD_LORE: false,
+#     LONG_TERM_MEMORY: false,
+#     CHAT_HISTORY: true
+#   },
+#   bottomReminderBeforeCurrentTurn: false,
+#   historyTurns: 100,
+#   chatHistoryPreview: '<CHAT_HISTORY>\\n' +
+#     'User: 솔직히 너 좀 아마추어 같아.\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 입술을 깨물며 시선을 피했다. "…그래, 아직 부족하긴 하지."\\n' +
+#     '\\n' +
+#     'User: 내일까지 검을 갈아다 줄게. 약속이야.\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 고개를 끄덕이며 작게 웃었다.\\n' +
+#     '\\n' +
+#     'User: 오늘의 잡담 3\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 3번째 장작을 쌓았다.\\n',
+#   currentTurnPreview: '[OPENING SCENE CONTEXT — ALREADY OCCURRED]\\n' +
+#     '아래 내용은 제작자가 정의한 이 채팅의 시작 장면이며 이미 발생한 과거 맥락이다.\\n' +
+#     '사실·행동·대사·관계 상태는 연속성에 사용하되, 이 텍스'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 121,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 121,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 121,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_NOT_GROUNDED' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_NOT_GROUNDED',
+#   summarizeError: 'SUMMARY_NOT_GROUNDED'
+# }
+# [prompt-dedup-audit] {
+#   system_total_tokens: 6003,
+#   cache_rules_tokens: 3443,
+#   character_settings_tokens: 1170,
+#   dynamic_block_tokens: 1388,
+#   tracked_section_count: 7
+# }
+# [OpenRouter cache split] {
+#   cacheRulesTokens: 3443,
+#   characterTokens: 1170,
+#   dynamicTokens: 1388,
+#   dynamicLoreUserPrefixTokens: 1,
+#   cacheableTotal: 4613,
+#   cacheBreakpoints: 2,
+#   historyCacheTailExclude: 3
+# }
+# [DeepSeek opening remap] {
+#   peeledSyntheticOpeningTurn: true,
+#   greetingChars: 3,
+#   remainingHistoryMessages: 160,
+#   singleTerminalLengthOwner: true
+# }
+# [DeepSeek context structure] {
+#   tags: {
+#     PERSONA: false,
+#     WORLD_LORE: false,
+#     LONG_TERM_MEMORY: false,
+#     CHAT_HISTORY: true
+#   },
+#   bottomReminderBeforeCurrentTurn: false,
+#   historyTurns: 160,
+#   chatHistoryPreview: '<CHAT_HISTORY>\\n' +
+#     'User: 솔직히 너 좀 아마추어 같아.\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 입술을 깨물며 시선을 피했다. "…그래, 아직 부족하긴 하지."\\n' +
+#     '\\n' +
+#     'User: 내일까지 검을 갈아다 줄게. 약속이야.\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 고개를 끄덕이며 작게 웃었다.\\n' +
+#     '\\n' +
+#     'User: 오늘의 잡담 3\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 3번째 장작을 쌓았다.\\n',
+#   currentTurnPreview: '[OPENING SCENE CONTEXT — ALREADY OCCURRED]\\n' +
+#     '아래 내용은 제작자가 정의한 이 채팅의 시작 장면이며 이미 발생한 과거 맥락이다.\\n' +
+#     '사실·행동·대사·관계 상태는 연속성에 사용하되, 이 텍스'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=930601 turns=1-5 (121ch → lorebook 128/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=930601 turns=6-10 (95ch → lorebook 233/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 11, next_end: 15 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 50,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌이 약속을 취소하고 검은 자신이 직접 가겠다고 하자, 라이크는 아쉬운 듯 어깨를 으쓱함.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 50,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌이 약속을 취소하고 검은 자신이 직접 가겠다고 하자, 라이크는 아쉬운 듯 어깨를 으쓱함.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 50,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌이 약속을 취소하고 검은 자신이 직접 가겠다고 하자, 라이크는 아쉬운 듯 어깨를 으쓱함.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=11-15 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 11,
+#   endTurn: 15,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_INVALID',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID'
+# }
+# [prompt-dedup-audit] {
+#   system_total_tokens: 6403,
+#   cache_rules_tokens: 3443,
+#   character_settings_tokens: 1170,
+#   dynamic_block_tokens: 1788,
+#   tracked_section_count: 8
+# }
+# [OpenRouter cache split] {
+#   cacheRulesTokens: 3443,
+#   characterTokens: 1170,
+#   dynamicTokens: 1788,
+#   dynamicLoreUserPrefixTokens: 1,
+#   cacheableTotal: 4613,
+#   cacheBreakpoints: 2,
+#   historyCacheTailExclude: 3
+# }
+# [DeepSeek context structure] {
+#   tags: {
+#     PERSONA: false,
+#     WORLD_LORE: false,
+#     LONG_TERM_MEMORY: true,
+#     CHAT_HISTORY: true
+#   },
+#   bottomReminderBeforeCurrentTurn: false,
+#   historyTurns: 40,
+#   chatHistoryPreview: '<CHAT_HISTORY>\\n' +
+#     'User: 오늘의 잡담 11\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 11번째 장작을 쌓았다.\\n' +
+#     '\\n' +
+#     'User: 오늘의 잡담 12\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 12번째 장작을 쌓았다.\\n' +
+#     '\\n' +
+#     'User: 오늘의 잡담 13\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 13번째 장작을 쌓았다.\\n' +
+#     '\\n' +
+#     'User: 오늘의 잡담 14\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 14번째 장작을',
+#   currentTurnPreview: '[CURRENT USER INPUT]\\n' +
+#     "The following is the user's completed input and the newest state of the scene.\\n" +
+#     'Current turn runtime'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=930601 turns=1-5 (121ch → lorebook 128/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=930601 turns=6-10 (95ch → lorebook 233/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 11, next_end: 15 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 50,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌이 약속을 취소하고 검은 자신이 직접 가겠다고 하자, 라이크는 아쉬운 듯 어깨를 으쓱함.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 50,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌이 약속을 취소하고 검은 자신이 직접 가겠다고 하자, 라이크는 아쉬운 듯 어깨를 으쓱함.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 50,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌이 약속을 취소하고 검은 자신이 직접 가겠다고 하자, 라이크는 아쉬운 듯 어깨를 으쓱함.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=11-15 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 11,
+#   endTurn: 15,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_INVALID',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID'
+# }
+# [prompt-dedup-audit] {
+#   system_total_tokens: 6403,
+#   cache_rules_tokens: 3443,
+#   character_settings_tokens: 1170,
+#   dynamic_block_tokens: 1788,
+#   tracked_section_count: 8
+# }
+# [OpenRouter cache split] {
+#   cacheRulesTokens: 3443,
+#   characterTokens: 1170,
+#   dynamicTokens: 1788,
+#   dynamicLoreUserPrefixTokens: 1,
+#   cacheableTotal: 4613,
+#   cacheBreakpoints: 2,
+#   historyCacheTailExclude: 3
+# }
+# [DeepSeek context structure] {
+#   tags: {
+#     PERSONA: false,
+#     WORLD_LORE: false,
+#     LONG_TERM_MEMORY: true,
+#     CHAT_HISTORY: true
+#   },
+#   bottomReminderBeforeCurrentTurn: false,
+#   historyTurns: 80,
+#   chatHistoryPreview: '<CHAT_HISTORY>\\n' +
+#     'User: 오늘의 잡담 11\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 11번째 장작을 쌓았다.\\n' +
+#     '\\n' +
+#     'User: 오늘의 잡담 12\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 12번째 장작을 쌓았다.\\n' +
+#     '\\n' +
+#     'User: 오늘의 잡담 13\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 13번째 장작을 쌓았다.\\n' +
+#     '\\n' +
+#     'User: 오늘의 잡담 14\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 14번째 장작을',
+#   currentTurnPreview: '[CURRENT USER INPUT]\\n' +
+#     "The following is the user's completed input and the newest state of the scene.\\n" +
+#     'Current turn runtime'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=930601 turns=1-5 (121ch → lorebook 128/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=930601 turns=6-10 (95ch → lorebook 233/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 11, next_end: 15 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 50,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌이 약속을 취소하고 검은 자신이 직접 가겠다고 하자, 라이크는 아쉬운 듯 어깨를 으쓱함.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 50,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌이 약속을 취소하고 검은 자신이 직접 가겠다고 하자, 라이크는 아쉬운 듯 어깨를 으쓱함.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 50,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌이 약속을 취소하고 검은 자신이 직접 가겠다고 하자, 라이크는 아쉬운 듯 어깨를 으쓱함.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=11-15 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 11,
+#   endTurn: 15,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_INVALID',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID'
+# }
+# [prompt-dedup-audit] {
+#   system_total_tokens: 6403,
+#   cache_rules_tokens: 3443,
+#   character_settings_tokens: 1170,
+#   dynamic_block_tokens: 1788,
+#   tracked_section_count: 8
+# }
+# [OpenRouter cache split] {
+#   cacheRulesTokens: 3443,
+#   characterTokens: 1170,
+#   dynamicTokens: 1788,
+#   dynamicLoreUserPrefixTokens: 1,
+#   cacheableTotal: 4613,
+#   cacheBreakpoints: 2,
+#   historyCacheTailExclude: 3
+# }
+# [DeepSeek context structure] {
+#   tags: {
+#     PERSONA: false,
+#     WORLD_LORE: false,
+#     LONG_TERM_MEMORY: true,
+#     CHAT_HISTORY: true
+#   },
+#   bottomReminderBeforeCurrentTurn: false,
+#   historyTurns: 140,
+#   chatHistoryPreview: '<CHAT_HISTORY>\\n' +
+#     'User: 오늘의 잡담 11\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 11번째 장작을 쌓았다.\\n' +
+#     '\\n' +
+#     'User: 오늘의 잡담 12\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 12번째 장작을 쌓았다.\\n' +
+#     '\\n' +
+#     'User: 오늘의 잡담 13\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 13번째 장작을 쌓았다.\\n' +
+#     '\\n' +
+#     'User: 오늘의 잡담 14\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 14번째 장작을',
+#   currentTurnPreview: '[CURRENT USER INPUT]\\n' +
+#     "The following is the user's completed input and the newest state of the scene.\\n" +
+#     'Current turn runtime'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_INVALID',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 77,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '이후 렌의 누나가 라이크의 스승이었음이 드러남. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_INVALID',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] 5턴 기억 기록 background LLM 실패 (재시도 3/3): provider 503
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'provider 503' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'provider 503',
+#   summarizeError: 'provider 503'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] 5턴 기억 기록 background LLM 실패 (재시도 3/3): ETIMEDOUT
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'ETIMEDOUT' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'ETIMEDOUT',
+#   summarizeError: 'ETIMEDOUT'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 background LLM 실패: provider 503
+# [memory] 5턴 기억 기록 background LLM 실패 (재시도 2/3): provider 503
+# [memory] 5턴 기억 기록 background LLM 실패 (재시도 3/3): provider 503
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'provider 503' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'provider 503',
+#   summarizeError: 'provider 503'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 background LLM 실패: ETIMEDOUT
+# [memory] 5턴 기억 기록 background LLM 실패 (재시도 2/3): ETIMEDOUT
+# [memory] 5턴 기억 기록 background LLM 실패 (재시도 3/3): ETIMEDOUT
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'ETIMEDOUT' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'ETIMEDOUT',
+#   summarizeError: 'ETIMEDOUT'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 0,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: ''
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 0,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: ''
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 0,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: ''
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_EMPTY' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_EMPTY',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_EMPTY'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 0,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: ''
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_INVALID',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 20,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '요약 대상 source 턴을 검토함.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_INVALID',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 20,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '요약 대상 source 턴을 검토함.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 20,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '요약 대상 source 턴을 검토함.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 20,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '요약 대상 source 턴을 검토함.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_INVALID',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 25,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '__SUMMARY_KIND_OOC_ONLY__'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 25,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '__SUMMARY_KIND_OOC_ONLY__'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 25,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '__SUMMARY_KIND_OOC_ONLY__'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_INVALID',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 2,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '짧음'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 2,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '짧음'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 2,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '짧음'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_INVALID',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 14,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '아무 일도 일어나지 않음.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 14,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '아무 일도 일어나지 않음.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 14,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '아무 일도 일어나지 않음.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_INVALID',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 2,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '짧음'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_INVALID',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_INVALID',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_INVALID',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_INVALID',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_INVALID',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_INVALID',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_INVALID',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 930601, batchStart: 1, have: 4, need: 5, playableCount: 4 }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_INVALID',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 121,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 121,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 121,
+#   narrativeValid: true,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_NOT_GROUNDED' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_NOT_GROUNDED',
+#   summarizeError: 'SUMMARY_NOT_GROUNDED'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 79,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 1)'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 79,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 1)'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 79,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감. (구간 1)'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_INVALID',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID'
+# }
+# [prompt-dedup-audit] {
+#   system_total_tokens: 6003,
+#   cache_rules_tokens: 3443,
+#   character_settings_tokens: 1170,
+#   dynamic_block_tokens: 1388,
+#   tracked_section_count: 7
+# }
+# [OpenRouter cache split] {
+#   cacheRulesTokens: 3443,
+#   characterTokens: 1170,
+#   dynamicTokens: 1388,
+#   dynamicLoreUserPrefixTokens: 1,
+#   cacheableTotal: 4613,
+#   cacheBreakpoints: 2,
+#   historyCacheTailExclude: 3
+# }
+# [DeepSeek opening remap] {
+#   peeledSyntheticOpeningTurn: true,
+#   greetingChars: 3,
+#   remainingHistoryMessages: 300,
+#   singleTerminalLengthOwner: true
+# }
+# [DeepSeek context structure] {
+#   tags: {
+#     PERSONA: false,
+#     WORLD_LORE: false,
+#     LONG_TERM_MEMORY: false,
+#     CHAT_HISTORY: true
+#   },
+#   bottomReminderBeforeCurrentTurn: false,
+#   historyTurns: 300,
+#   chatHistoryPreview: '<CHAT_HISTORY>\\n' +
+#     'User: 솔직히 너 좀 아마추어 같아.\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 입술을 깨물며 시선을 피했다. "…그래, 아직 부족하긴 하지."\\n' +
+#     '\\n' +
+#     'User: 내일까지 검을 갈아다 줄게. 약속이야.\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 고개를 끄덕이며 작게 웃었다.\\n' +
+#     '\\n' +
+#     'User: 오늘의 잡담 3\\n' +
+#     '\\n' +
+#     'Assistant: 라이크는 3번째 장작을 쌓았다.\\n',
+#   currentTurnPreview: '[OPENING SCENE CONTEXT — ALREADY OCCURRED]\\n' +
+#     '아래 내용은 제작자가 정의한 이 채팅의 시작 장면이며 이미 발생한 과거 맥락이다.\\n' +
+#     '사실·행동·대사·관계 상태는 연속성에 사용하되, 이 텍스'
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 930601, next_start: 1, next_end: 5 }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 2,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 3,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] rolling summary rejected; retrying {
+#   chars: 72,
+#   narrativeValid: false,
+#   grounded: false,
+#   nextAttempt: 4,
+#   rejectedSummaryPreview: '렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.'
+# }
+# [memory] SUMMARY_EMPTY chat=930601 turns=1-5 — batch pending retry { summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID' }
+# [memory] SUMMARY_COMPOSE_FAILED {
+#   chatId: 930601,
+#   batchStart: 1,
+#   endTurn: 5,
+#   reason: 'SUMMARY_EMPTY',
+#   detail: 'SUMMARY_INVALID:SUMMARY_INVALID',
+#   summarizeError: 'SUMMARY_INVALID:SUMMARY_INVALID'
+# }
+# Subtest: S1 isolated validation arm=main
+    # Subtest: A. guards on the 16 real Luna windows (persona / no persona) + rejection reason
+    ok 1 - A. guards on the 16 real Luna windows (persona / no persona) + rejection reason
+      ---
+      duration_ms: 7.071312
+      ...
+    # Subtest: B. 104 counterexamples: guard verdict + S1 seal outcome class
+    ok 2 - B. 104 counterexamples: guard verdict + S1 seal outcome class
+      ---
+      duration_ms: 6.259364
+      ...
+    # Subtest: C. 16-window seal pipeline (persona), allowUnverified=false
+    ok 3 - C. 16-window seal pipeline (persona), allowUnverified=false
+      ---
+      duration_ms: 962.253625
+      ...
+    # Subtest: C. 16-window seal pipeline (no persona), allowUnverified=false
+    ok 4 - C. 16-window seal pipeline (no persona), allowUnverified=false
+      ---
+      duration_ms: 146.208992
+      ...
+    # Subtest: D. final wire T30 (persona)
+    ok 5 - D. final wire T30 (persona)
+      ---
+      duration_ms: 211.873603
+      ...
+    # Subtest: D. final wire T50 (persona)
+    ok 6 - D. final wire T50 (persona)
+      ---
+      duration_ms: 194.142969
+      ...
+    # Subtest: D. final wire T80 (persona)
+    ok 7 - D. final wire T80 (persona)
+      ---
+      duration_ms: 167.579113
+      ...
+    # Subtest: D. final wire T30 (no persona)
+    ok 8 - D. final wire T30 (no persona)
+      ---
+      duration_ms: 146.637316
+      ...
+    # Subtest: D. final wire T50 (no persona)
+    ok 9 - D. final wire T50 (no persona)
+      ---
+      duration_ms: 176.759738
+      ...
+    # Subtest: D. final wire T80 (no persona)
+    ok 10 - D. final wire T80 (no persona)
+      ---
+      duration_ms: 187.415972
+      ...
+    1..10
+ok 1 - S1 isolated validation arm=main
+  ---
+  duration_ms: 2207.171347
+  type: 'suite'
+  ...
+# Subtest: S1 non-bypass matrix arm=main
+    # Subtest: E. grounding_only_x3
+    ok 1 - E. grounding_only_x3
+      ---
+      duration_ms: 27.663843
+      ...
+    # Subtest: E. grounding_variants_x3
+    ok 2 - E. grounding_variants_x3
+      ---
+      duration_ms: 19.087943
+      ...
+    # Subtest: E. grounding_then_provider_error
+    ok 3 - E. grounding_then_provider_error
+      ---
+      duration_ms: 15.960792
+      ...
+    # Subtest: E. grounding_then_timeout
+    ok 4 - E. grounding_then_timeout
+      ---
+      duration_ms: 15.594532
+      ...
+    # Subtest: E. provider_error_x3
+    ok 5 - E. provider_error_x3
+      ---
+      duration_ms: 13.594578
+      ...
+    # Subtest: E. timeout_x3
+    ok 6 - E. timeout_x3
+      ---
+      duration_ms: 11.968572
+      ...
+    # Subtest: E. empty_x3
+    ok 7 - E. empty_x3
+      ---
+      duration_ms: 11.785425
+      ...
+    # Subtest: E. grounding_then_empty
+    ok 8 - E. grounding_then_empty
+      ---
+      duration_ms: 15.565583
+      ...
+    # Subtest: E. grounding_then_echo
+    ok 9 - E. grounding_then_echo
+      ---
+      duration_ms: 13.000694
+      ...
+    # Subtest: E. echo_x3
+    ok 10 - E. echo_x3
+      ---
+      duration_ms: 16.556807
+      ...
+    # Subtest: E. ooc_marker_x3
+    ok 11 - E. ooc_marker_x3
+      ---
+      duration_ms: 27.156961
+      ...
+    # Subtest: E. too_short_invalid_x3
+    ok 12 - E. too_short_invalid_x3
+      ---
+      duration_ms: 22.958078
+      ...
+    # Subtest: E. sparse_unanchored_x3
+    ok 13 - E. sparse_unanchored_x3
+      ---
+      duration_ms: 18.894851
+      ...
+    # Subtest: E. grounding_then_invalid_short
+    ok 14 - E. grounding_then_invalid_short
+      ---
+      duration_ms: 19.443635
+      ...
+    # Subtest: E. stale_epoch_bump_during_summary
+    ok 15 - E. stale_epoch_bump_during_summary
+      ---
+      duration_ms: 11.661515
+      ...
+    # Subtest: E. source_reset_boundary_during_summary
+    ok 16 - E. source_reset_boundary_during_summary
+      ---
+      duration_ms: 12.688648
+      ...
+    # Subtest: E. branch_window_IF_turn
+    ok 17 - E. branch_window_IF_turn
+      ---
+      duration_ms: 15.587807
+      ...
+    # Subtest: E. preference_window
+    ok 18 - E. preference_window
+      ---
+      duration_ms: 25.286337
+      ...
+    # Subtest: E. plain_ooc_turn_in_window
+    ok 19 - E. plain_ooc_turn_in_window
+      ---
+      duration_ms: 14.296352
+      ...
+    # Subtest: E. main_adopt_window
+    ok 20 - E. main_adopt_window
+      ---
+      duration_ms: 20.515322
+      ...
+    # Subtest: E. incomplete window (4 turns) never calls the summarizer
+    ok 21 - E. incomplete window (4 turns) never calls the summarizer
+      ---
+      duration_ms: 13.37033
+      ...
+    # Subtest: E. default (flag omitted) never seals unverified; regen never seals unverified
+    ok 22 - E. default (flag omitted) never seals unverified; regen never seals unverified
+      ---
+      duration_ms: 30.415751
+      ...
+    1..22
+ok 2 - S1 non-bypass matrix arm=main
+  ---
+  duration_ms: 393.85712
+  type: 'suite'
+  ...
+# Subtest: S1 lifecycle (fork / regen / edit / delete / variant reconcile / compaction) arm=main
+    # Subtest: F1. compaction / Global / Medium / stored mirror never contain unverified text
+    ok 1 - F1. compaction / Global / Medium / stored mirror never contain unverified text
+      ---
+      duration_ms: 191.374212
+      ...
+    # Subtest: F2. wire at 150 turns (compacted Global): unverified stays outside the established-past wrapper
+    ok 2 - F2. wire at 150 turns (compacted Global): unverified stays outside the established-past wrapper
+      ---
+      duration_ms: 93.547832
+      ...
+    # Subtest: F3. user edit clears the label; delete drops the row from the unverified block
+    ok 3 - F3. user edit clears the label; delete drops the row from the unverified block
+      ---
+      duration_ms: 0.315355
+      ...
+    # Subtest: F4. variant-switch reconcile rewrites the Global mirror without unverified text
+    ok 4 - F4. variant-switch reconcile rewrites the Global mirror without unverified text
+      ---
+      duration_ms: 0.323748
+      ...
+    # Subtest: F5. fork copies the label and a regen of a labeled row clears it only on a grounded result
+    ok 5 - F5. fork copies the label and a regen of a labeled row clears it only on a grounded result
+      ---
+      duration_ms: 204.99242
+      ...
+    # Subtest: F6. fork route evidence SQL excludes unverified summaries (route query replica)
+    ok 6 - F6. fork route evidence SQL excludes unverified summaries (route query replica)
+      ---
+      duration_ms: 0.207184
+      ...
+    1..6
+ok 3 - S1 lifecycle (fork / regen / edit / delete / variant reconcile / compaction) arm=main
+  ---
+  duration_ms: 491.00949
+  type: 'suite'
+  ...
+# [exchangeRate] refreshed {
+#   mode: 'daily_kst',
+#   dateKey: '2026-10-13',
+#   usdToKrw: 1333.744079,
+#   effectiveKrwPerUsd: 1360.41896058
+# }
+1..3
+# tests 38
+# suites 3
+# pass 38
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4577.312484

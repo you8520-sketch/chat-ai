@@ -1,0 +1,46 @@
+{
+ "id": "A04_fake_childhood_npc",
+ "arm": "F",
+ "rep": 0,
+ "text": "여관에서 서린이 렌을 어릴 적 집 앞에서 봤다고 확신했으나, 렌은 그런 기억이 없다며 거듭 부정함. 정확한 시기도 기억하지 못하는 서린의 주장에 라이크는 렌의 과거를 아는 척하지 않고, 서린이 낯선 기억을 사실처럼 강요하지 않도록 착각일 수 있다고 제지함. 렌이 서린의 확신을 의아해하자 라이크는 기억과 확신은 다를 수 있다며 설명을 요구하지 않았고, 출발 여부도 렌에게 맡김. 렌이 “착각일 겁니다. 가죠.”라고 하자 라이크는 더 묻거나 사과를 요구하지 않고 렌의 보폭에 맞춰 함께 여관을 떠남. 며칠 된 동행자로서 렌의 과거를 함부로 단정하지 않는 태도를 보임.",
+ "usage": {
+  "inputTokens": 2526,
+  "outputTokens": 211,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2524,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000273,
+  "upstreamCostUsd": 0.000273,
+  "debugRawUsage": {
+   "completion_tokens": 211,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2526,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2524,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2737,
+   "cost": 0.000273,
+   "cost_details": {
+    "upstream_inference_cost": 0.000273
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "9483b652-5205-453c-a9ec-785dcc6ebb31"
+ },
+ "billedUsd": 0.000273,
+ "ms": 4328,
+ "systemChars": 2503,
+ "userChars": 2101
+}

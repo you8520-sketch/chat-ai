@@ -1,0 +1,46 @@
+{
+ "id": "FX31",
+ "arm": "F",
+ "rep": 0,
+ "text": "렌은 라이크와 함께 걸으며 그의 손을 잡음. 라이크는 계속 장작을 쌓았으나, 함께 걷는 장면 외에 관계나 상황의 변화는 드러나지 않음.",
+ "usage": {
+  "inputTokens": 1555,
+  "outputTokens": 52,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 1553,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000143,
+  "upstreamCostUsd": 0.000143,
+  "debugRawUsage": {
+   "completion_tokens": 52,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1555,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 1553,
+    "cached_tokens": 0
+   },
+   "total_tokens": 1607,
+   "cost": 0.000143,
+   "cost_details": {
+    "upstream_inference_cost": 0.000143
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "22a79556-94d0-4208-a8ab-a4738c1d2cf4"
+ },
+ "billedUsd": 0.000143,
+ "ms": 2532,
+ "systemChars": 2503,
+ "userChars": 591
+}

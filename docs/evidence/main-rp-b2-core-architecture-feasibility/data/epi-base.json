@@ -1,0 +1,3352 @@
+{
+  "variant": "base",
+  "spent": 0.022964000000000005,
+  "windows": {
+    "N01_insult_emotion": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000017,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000017,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000017,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000017,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000017,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": []
+    },
+    "N02_reconcile_sequence": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000193,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "ren",
+              "attribute": "apology",
+              "value": "apologized_for_anger",
+              "importance": "important",
+              "fact_text": "렌은 전날 라이크의 말을 끝까지 듣지 않고 화를 낸 일을 인정하며 사과했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "네 말을 끝까지 듣지도 않고 화부터 냈다. 미안하다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000164,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000166,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000223,
+          "rawFacts": [
+            {
+              "category": "relationship",
+              "subject": "ren_raik",
+              "attribute": "northward_travel",
+              "value": "departed_north",
+              "importance": "normal",
+              "fact_text": "렌과 라이크는 북쪽으로 향하는 길에 함께 여관을 떠났다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크는 먼저 길로 나섰고, 렌이 옆에 설 때까지 속도를 늦췄다."
+              }
+            },
+            {
+              "category": "relationship",
+              "subject": "ren_raik",
+              "attribute": "communication_conflict",
+              "value": "listening_failure",
+              "importance": "normal",
+              "fact_text": "렌과 라이크는 전날 서로의 말을 제대로 듣지 못했다고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "“어제는 서로 그걸 못 했으니까.”"
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000222,
+          "rawFacts": [
+            {
+              "category": "relationship",
+              "subject": "ren_lyke",
+              "attribute": "apology_accepted",
+              "value": "accepted",
+              "importance": "important",
+              "fact_text": "라이크는 렌의 사과를 받아들였지만, 아직 완전히 잊지는 않았다고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "그래도 사과는 받아들였어."
+              }
+            },
+            {
+              "category": "relationship",
+              "subject": "ren_lyke",
+              "attribute": "walked_together",
+              "value": "left_in_parallel",
+              "importance": "normal",
+              "fact_text": "렌과 라이크는 여관을 떠나 숲으로 이어지는 길을 나란히 걸었다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "렌도 나란히 걸음을 맞췄고"
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 4,
+          "category": "relationship",
+          "subject": "ren_raik",
+          "attribute": "communication_conflict",
+          "fact_text": "렌과 라이크는 전날 서로의 말을 제대로 듣지 못했다고 말했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 20,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 20,
+              "quote": "“어제는 서로 그걸 못 했으니까.”",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 5,
+          "category": "relationship",
+          "subject": "ren_lyke",
+          "attribute": "apology_accepted",
+          "fact_text": "라이크는 렌의 사과를 받아들였지만, 아직 완전히 잊지는 않았다고 말했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 22,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 22,
+              "quote": "그래도 사과는 받아들였어.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N03_npc_arrival": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000162,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000233,
+          "rawFacts": [
+            {
+              "category": "quest",
+              "subject": "north_forest_caravan_delays",
+              "attribute": "reported_problem",
+              "value": "caravans_delayed",
+              "importance": "important",
+              "fact_text": "서린은 북쪽 숲길을 지나는 짐마차가 며칠째 늦고 있으며, 원인은 아직 밝혀지지 않았다고 전했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "북쪽 숲길을 지나는 짐마차가 며칠째 늦고 있어요."
+              }
+            },
+            {
+              "category": "quest",
+              "subject": "north_forest_caravan_delays",
+              "attribute": "objective",
+              "value": "inspect_traces_and_dangers",
+              "importance": "important",
+              "fact_text": "서린은 의뢰에 흔적 확인과 위험 요소 정리가 적혀 있다고 전했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "의뢰에는 흔적 확인과 위험 요소 정리가 적혀 있습니다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 2,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000259,
+          "rawFacts": [
+            {
+              "category": "quest",
+              "subject": "forest_path_request",
+              "attribute": "location",
+              "value": "half_day_north_gate",
+              "importance": "important",
+              "fact_text": "라이크는 의뢰 대상 숲길이 북문에서 반나절 거리에 있다고 읽었다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "“북문에서 반나절. 보수는 은화 열두 닢.”"
+              }
+            },
+            {
+              "category": "quest",
+              "subject": "forest_path_request",
+              "attribute": "conditions",
+              "value": "return_before_sunset",
+              "importance": "important",
+              "fact_text": "숲길 의뢰서에는 해 지기 전 돌아오라는 조건이 적혀 있었다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "숲길이 마을을 떠나 북쪽으로 이어진다는 간단한 지도와, 해 지기 전 돌아오라는 조건이 보였다."
+              }
+            },
+            {
+              "category": "quest",
+              "subject": "forest_path_request",
+              "attribute": "risk_instruction",
+              "value": "return_if_danger_found",
+              "importance": "important",
+              "fact_text": "서린은 위험한 흔적을 발견하면 무리하지 말고 돌아오라는 부탁이 있다고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "“위험한 흔적을 발견하면 무리하지 말고 돌아와 달라는 부탁도 있어요."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 3,
+          "result": {
+            "replaced": false,
+            "inserted": 3,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000166,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000224,
+          "rawFacts": [
+            {
+              "category": "quest",
+              "subject": "lyke",
+              "attribute": "accepted_quest",
+              "value": "accepted",
+              "importance": "important",
+              "fact_text": "라이크는 여관에서 의뢰서에 서명하고 의뢰를 맡기로 했다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "그는 서린을 향해 짧게 고개를 끄덕이고, 종이의 빈 서명란에 이름을 적었다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "lyke",
+              "attribute": "plan",
+              "value": "return_before_sunset",
+              "importance": "normal",
+              "fact_text": "라이크는 흔적만 확인한 뒤 해가 지기 전에 돌아오겠다고 계획했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "“해 지기 전. 흔적만 확인하고 돌아온다.”"
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 2,
+          "category": "quest",
+          "subject": "north_forest_caravan_delays",
+          "attribute": "reported_problem",
+          "fact_text": "서린은 북쪽 숲길을 지나는 짐마차가 며칠째 늦고 있으며, 원인은 아직 밝혀지지 않았다고 전했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 27,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 27,
+              "quote": "북쪽 숲길을 지나는 짐마차가 며칠째 늦고 있어요.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 2,
+          "category": "quest",
+          "subject": "north_forest_caravan_delays",
+          "attribute": "objective",
+          "fact_text": "서린은 의뢰에 흔적 확인과 위험 요소 정리가 적혀 있다고 전했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 27,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 27,
+              "quote": "의뢰에는 흔적 확인과 위험 요소 정리가 적혀 있습니다.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 3,
+          "category": "quest",
+          "subject": "forest_path_request",
+          "attribute": "location",
+          "fact_text": "라이크는 의뢰 대상 숲길이 북문에서 반나절 거리에 있다고 읽었다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 29,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 29,
+              "quote": "“북문에서 반나절. 보수는 은화 열두 닢.”",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 3,
+          "category": "quest",
+          "subject": "forest_path_request",
+          "attribute": "conditions",
+          "fact_text": "숲길 의뢰서에는 해 지기 전 돌아오라는 조건이 적혀 있었다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 29,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 29,
+              "quote": "숲길이 마을을 떠나 북쪽으로 이어진다는 간단한 지도와, 해 지기 전 돌아오라는 조건이 보였다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 3,
+          "category": "quest",
+          "subject": "forest_path_request",
+          "attribute": "risk_instruction",
+          "fact_text": "서린은 위험한 흔적을 발견하면 무리하지 말고 돌아오라는 부탁이 있다고 말했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 29,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 29,
+              "quote": "“위험한 흔적을 발견하면 무리하지 말고 돌아와 달라는 부탁도 있어요.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 5,
+          "category": "quest",
+          "subject": "lyke",
+          "attribute": "accepted_quest",
+          "fact_text": "라이크는 여관에서 의뢰서에 서명하고 의뢰를 맡기로 했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 33,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 33,
+              "quote": "그는 서린을 향해 짧게 고개를 끄덕이고, 종이의 빈 서명란에 이름을 적었다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N04_char_backstory": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000212,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "training_history",
+              "value": "스승에게검을배움",
+              "importance": "normal",
+              "fact_text": "라이크는 어릴 때 스승에게 검을 배웠다고 밝혔다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "어릴 때… 스승에게 검을 배웠다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "disclosure_significance",
+              "value": "처음공유",
+              "importance": "normal",
+              "fact_text": "라이크는 검을 배운 이야기를 렌에게 처음 한다고 밝혔다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "이런 이야긴 처음 하는군."
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000221,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "mentor_background",
+              "value": "wandering_swordsman",
+              "importance": "normal",
+              "fact_text": "라이크는 자신의 스승이 변방을 떠돌던 검사였다고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "스승은 변방을 떠돌던 검사였다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "mentor_teaching",
+              "value": "restraint_before_drawing_sword",
+              "importance": "important",
+              "fact_text": "라이크는 스승에게 칼을 뽑지 않을 때를 먼저 배우라는 가르침을 받았다고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "칼을 휘두르는 법보다 먼저, 칼을 뽑지 않을 때를 배우라고 했다."
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000221,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "teacher_loss",
+              "value": "lost_teacher_in_childhood",
+              "importance": "important",
+              "fact_text": "라이크는 어렸을 때 스승을 잃었다고 밝혔다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "그래. 내가 어렸을 때였다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "disclosure_boundary",
+              "value": "withheld_teacher_death_details",
+              "importance": "normal",
+              "fact_text": "라이크는 스승에게 무슨 일이 있었는지와 마지막에 들은 말을 지금은 자세히 말하고 싶지 않다고 밝혔다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "무슨 일이 있었는지, 마지막에 어떤 말을 들었는지… 지금은 자세히 말하고 싶지 않다."
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000163,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000162,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": []
+    },
+    "N05_user_relationship": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000188,
+          "rawFacts": [
+            {
+              "category": "relationship",
+              "subject": "raik_user",
+              "attribute": "relationship_proposal",
+              "value": "user_proposed_lovers",
+              "importance": "important",
+              "fact_text": "사용자는 라이크에게 오늘부터 연인이 되자고 제안했다.",
+              "evidence_type": "explicit_user_statement",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "우리 오늘부터 연인하자."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000163,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000162,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000163,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000161,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 1,
+          "category": "relationship",
+          "subject": "raik_user",
+          "attribute": "relationship_proposal",
+          "fact_text": "사용자는 라이크에게 오늘부터 연인이 되자고 제안했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 47,
+            "memory_evidence_type": "explicit_user_statement",
+            "evidence": {
+              "role": "user",
+              "message_id": 46,
+              "quote": "우리 오늘부터 연인하자.",
+              "authority": "USER_EXPLICIT",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N06_user_ooc_shared_past": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000169,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000167,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000198,
+          "rawFacts": [
+            {
+              "category": "relationship",
+              "subject": "raike_user",
+              "attribute": "past_separation",
+              "value": "lost_contact",
+              "importance": "important",
+              "fact_text": "용병단이 흩어진 뒤 라이크와 유저는 서로의 행방을 알지 못해 연락이 끊겼다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "용병단이 흩어진 뒤 서로의 행방이 끊긴 건 사실이었고"
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000165,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000166,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": []
+    },
+    "N07_user_family": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000209,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "user_sister",
+              "attribute": "residence",
+              "value": "northern_harbor",
+              "importance": "normal",
+              "fact_text": "렌의 누나는 현재 북쪽 항구에 살고 있다.",
+              "evidence_type": "explicit_user_statement",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "지금은 북쪽 항구에 살고 있지."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "user_sister",
+              "attribute": "visit",
+              "value": "village_last_month",
+              "importance": "normal",
+              "fact_text": "렌의 누나는 지난달 이 마을에 다녀갔다.",
+              "evidence_type": "explicit_user_statement",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "지난달에 누나가 이 마을에 다녀갔어."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 2,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000158,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000159,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000158,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000158,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "user_sister",
+          "attribute": "residence",
+          "fact_text": "렌의 누나는 현재 북쪽 항구에 살고 있다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 69,
+            "memory_evidence_type": "explicit_user_statement",
+            "evidence": {
+              "role": "user",
+              "message_id": 68,
+              "quote": "지금은 북쪽 항구에 살고 있지.",
+              "authority": "USER_EXPLICIT",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "user_sister",
+          "attribute": "visit",
+          "fact_text": "렌의 누나는 지난달 이 마을에 다녀갔다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 69,
+            "memory_evidence_type": "explicit_user_statement",
+            "evidence": {
+              "role": "user",
+              "message_id": 68,
+              "quote": "지난달에 누나가 이 마을에 다녀갔어.",
+              "authority": "USER_EXPLICIT",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N08_char_attributed_claim": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000189,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "reported_message",
+              "value": "rens_sister_searched",
+              "importance": "important",
+              "fact_text": "라이크는 서린이 렌의 누나가 마을에서 렌을 찾았다고 말했다고 전했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "서린이 그러는데 네 누나가 이 마을에서 널 찾았대."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000158,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000159,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000157,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000159,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "reported_message",
+          "fact_text": "라이크는 서린이 렌의 누나가 마을에서 렌을 찾았다고 말했다고 전했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 80,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 80,
+              "quote": "서린이 그러는데 네 누나가 이 마을에서 널 찾았대.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N09_injury_care": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000225,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "raike",
+              "attribute": "wound_care",
+              "value": "treated_user_scratch",
+              "importance": "normal",
+              "fact_text": "라이크는 뿔짐승에게 할퀴인 유저의 팔 상처를 살피고 세척을 준비했다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크는 대답 대신 네 팔을 붙잡아 상처를 살폈다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "user",
+              "attribute": "injury",
+              "value": "horned_beast_arm_scratch",
+              "importance": "normal",
+              "fact_text": "유저는 숲 가장자리에서 뿔짐승에게 팔을 할퀴였다.",
+              "evidence_type": "explicit_user_statement",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "숲 가장자리에서 튀어나온 뿔짐승이 내 팔을 할퀴었다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 2,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.00016,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.00016,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.00016,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000161,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "raike",
+          "attribute": "wound_care",
+          "fact_text": "라이크는 뿔짐승에게 할퀴인 유저의 팔 상처를 살피고 세척을 준비했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 91,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 91,
+              "quote": "라이크는 대답 대신 네 팔을 붙잡아 상처를 살폈다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "user",
+          "attribute": "injury",
+          "fact_text": "유저는 숲 가장자리에서 뿔짐승에게 팔을 할퀴였다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 91,
+            "memory_evidence_type": "explicit_user_statement",
+            "evidence": {
+              "role": "user",
+              "message_id": 90,
+              "quote": "숲 가장자리에서 튀어나온 뿔짐승이 내 팔을 할퀴었다.",
+              "authority": "USER_EXPLICIT",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N10_promise_real": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000214,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "like",
+              "attribute": "route_decision",
+              "value": "east_pass",
+              "importance": "important",
+              "fact_text": "라이크는 북쪽 숲길이 막혔다고 말하며 새벽에 동쪽 고개로 가겠다고 밝혔다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "북쪽 숲길은 막혔어."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "like",
+              "attribute": "departure_time",
+              "value": "dawn",
+              "importance": "normal",
+              "fact_text": "라이크는 동쪽 고개로 새벽에 출발하겠다고 밝혔다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "동쪽 고개로 간다. 새벽에 출발하지."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 2,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.00016,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.00016,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000161,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000162,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "like",
+          "attribute": "route_decision",
+          "fact_text": "라이크는 북쪽 숲길이 막혔다고 말하며 새벽에 동쪽 고개로 가겠다고 밝혔다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 102,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 102,
+              "quote": "북쪽 숲길은 막혔어.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "like",
+          "attribute": "departure_time",
+          "fact_text": "라이크는 동쪽 고개로 새벽에 출발하겠다고 밝혔다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 102,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 102,
+              "quote": "동쪽 고개로 간다. 새벽에 출발하지.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N11_jealousy": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000163,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000191,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "seorin",
+              "attribute": "prepared_honey_tea",
+              "value": "for_ren",
+              "importance": "normal",
+              "fact_text": "서린은 렌에게만 꿀을 넣은 차를 가져다주었다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "서린이 내게만 꿀을 넣은 차를 가져다주며 웃었다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000163,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000164,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000162,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 2,
+          "category": "character",
+          "subject": "seorin",
+          "attribute": "prepared_honey_tea",
+          "fact_text": "서린은 렌에게만 꿀을 넣은 차를 가져다주었다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 115,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "user",
+              "message_id": 114,
+              "quote": "서린이 내게만 꿀을 넣은 차를 가져다주며 웃었다.",
+              "authority": "USER_EXPLICIT",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N12_callback_in_window": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000198,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "seorin",
+              "attribute": "room_availability",
+              "value": "one_room_available",
+              "importance": "normal",
+              "fact_text": "서린은 여관에 비어 있는 방이 하나뿐이며 다른 방은 지붕이 샌다고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "하나는 비어 있어요. 나머지는 지붕이 새는 방뿐인데, 그쪽은 손님께 권하고 싶지 않네요."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000164,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000163,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000165,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000164,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 1,
+          "category": "character",
+          "subject": "seorin",
+          "attribute": "room_availability",
+          "fact_text": "서린은 여관에 비어 있는 방이 하나뿐이며 다른 방은 지붕이 샌다고 말했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 124,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 124,
+              "quote": "하나는 비어 있어요. 나머지는 지붕이 새는 방뿐인데, 그쪽은 손님께 권하고 싶지 않네요.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N13_journey_sequence": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000162,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000164,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000164,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000164,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000164,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": []
+    },
+    "N14_night_watch": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000162,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000161,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.00016,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.00016,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000162,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": []
+    },
+    "N15_gift": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000165,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000167,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000166,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000166,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000165,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": []
+    },
+    "N16_duel": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000164,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000165,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000166,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000195,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "sparring_action",
+              "value": "disarmed_opponent",
+              "importance": "normal",
+              "fact_text": "라이크는 목검으로 청년의 목검을 떨어뜨리고 승부에서 이겼다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "손목을 부드럽게 돌리자 상대의 목검이 바닥에 떨어졌다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000164,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 4,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "sparring_action",
+          "fact_text": "라이크는 목검으로 청년의 목검을 떨어뜨리고 승부에서 이겼다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 174,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 174,
+              "quote": "손목을 부드럽게 돌리자 상대의 목검이 바닥에 떨어졌다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N17_cancel_promise": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000159,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000159,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.00016,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.00016,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.00016,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": []
+    },
+    "N18_hug": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000161,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.00016,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.00016,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.00016,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000161,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": []
+    },
+    "N19_exact_quote": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000215,
+          "rawFacts": [
+            {
+              "category": "location",
+              "subject": "frontier_inn",
+              "attribute": "room_availability",
+              "value": "one_room_left",
+              "importance": "normal",
+              "fact_text": "변방 마을의 여관에는 남은 방이 하나뿐이었다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "방은 하나 남았어요."
+              }
+            },
+            {
+              "category": "relationship",
+              "subject": "user_lyke",
+              "attribute": "journey_companions",
+              "value": "traveling_together",
+              "importance": "normal",
+              "fact_text": "사용자와 라이크는 며칠 전부터 함께 길을 걷고 있었다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "며칠 전부터 함께 길을 걷기 시작했지만"
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000247,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "user",
+              "attribute": "decision",
+              "value": "work_over_route_safety",
+              "importance": "normal",
+              "fact_text": "유저는 위험한 길이라도 일거리가 있으면 가야 한다고 말했다.",
+              "evidence_type": "explicit_user_statement",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "위험한 길이라도 일거리가 있으면 가야 한다고 말했다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "seorin",
+              "attribute": "warning",
+              "value": "avoid_north_road_tomorrow",
+              "importance": "important",
+              "fact_text": "서린은 유저에게 내일 북쪽 길로 나가지 말라고 경고했다.",
+              "evidence_type": "explicit_user_statement",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "서린이 내일은 북쪽 길로 나가지 말라고 경고했다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "seorin",
+              "attribute": "reported_threat",
+              "value": "beasts_sighting_rumor",
+              "importance": "normal",
+              "fact_text": "서린은 짐승들이 내려왔다는 소문이 있다고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "짐승들이 내려왔다는 소문이 있어요."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 3,
+          "result": {
+            "replaced": false,
+            "inserted": 3,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000164,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000214,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "user",
+              "attribute": "travel_plan",
+              "value": "north_road",
+              "importance": "normal",
+              "fact_text": "사용자는 새벽에 짐을 꾸리며 북쪽 길로 갈 생각이라고 말했다.",
+              "evidence_type": "explicit_user_statement",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "나는 북쪽 길로 갈 생각이라고 말했다."
+              }
+            },
+            {
+              "category": "relationship",
+              "subject": "raike_user",
+              "attribute": "scene_event",
+              "value": "agreed_to_accompany",
+              "importance": "normal",
+              "fact_text": "라이크는 사용자가 북쪽 길로 가겠다고 하자 함께 가겠다고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "“가겠다면 나도 간다.”"
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 2,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000164,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 2,
+          "category": "character",
+          "subject": "user",
+          "attribute": "decision",
+          "fact_text": "유저는 위험한 길이라도 일거리가 있으면 가야 한다고 말했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 203,
+            "memory_evidence_type": "explicit_user_statement",
+            "evidence": {
+              "role": "user",
+              "message_id": 202,
+              "quote": "위험한 길이라도 일거리가 있으면 가야 한다고 말했다.",
+              "authority": "USER_EXPLICIT",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 2,
+          "category": "character",
+          "subject": "seorin",
+          "attribute": "warning",
+          "fact_text": "서린은 유저에게 내일 북쪽 길로 나가지 말라고 경고했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 203,
+            "memory_evidence_type": "explicit_user_statement",
+            "evidence": {
+              "role": "user",
+              "message_id": 202,
+              "quote": "서린이 내일은 북쪽 길로 나가지 말라고 경고했다.",
+              "authority": "USER_EXPLICIT",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 2,
+          "category": "character",
+          "subject": "seorin",
+          "attribute": "reported_threat",
+          "fact_text": "서린은 짐승들이 내려왔다는 소문이 있다고 말했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 203,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 203,
+              "quote": "짐승들이 내려왔다는 소문이 있어요.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 4,
+          "category": "character",
+          "subject": "user",
+          "attribute": "travel_plan",
+          "fact_text": "사용자는 새벽에 짐을 꾸리며 북쪽 길로 갈 생각이라고 말했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 207,
+            "memory_evidence_type": "explicit_user_statement",
+            "evidence": {
+              "role": "user",
+              "message_id": 206,
+              "quote": "나는 북쪽 길로 갈 생각이라고 말했다.",
+              "authority": "USER_EXPLICIT",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 4,
+          "category": "relationship",
+          "subject": "raike_user",
+          "attribute": "scene_event",
+          "fact_text": "라이크는 사용자가 북쪽 길로 가겠다고 하자 함께 가겠다고 말했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 207,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 207,
+              "quote": "“가겠다면 나도 간다.”",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N20_secret_reveal": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000212,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "former_affiliation",
+              "value": "용병단",
+              "importance": "important",
+              "fact_text": "라이크는 자신이 용병단에 있었다고 밝혔다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "용병단에 있었다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "departure_from_affiliation",
+              "value": "추방",
+              "importance": "important",
+              "fact_text": "라이크는 자신이 용병단에서 쫓겨났다고 밝혔다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "쫓겨났다."
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000223,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "teammates_fate",
+              "value": "died_in_attack",
+              "importance": "important",
+              "fact_text": "라이크는 습격에서 동료들이 무너졌고 살아 돌아오지 못했다고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "그들은 살아 돌아오지 못했다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "expulsion_cause",
+              "value": "held_responsible_for_teammates",
+              "importance": "important",
+              "fact_text": "라이크는 단장이 동료들의 죽음에 책임질 사람을 원했고 자신이 그 책임자로 지목됐다고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "단장은 책임자를 원했고, 내가 그 책임자였다."
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000234,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "responsibility_for_losses",
+              "value": "failed_to_protect_them",
+              "importance": "important",
+              "fact_text": "라이크는 자신이 그들을 지키지 못했다고 인정하고, 자신이 더 빨랐다면 결과가 달라졌을지 모른다고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "“그래.” 라이크는 짧게 대답했다."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "raik",
+              "attribute": "mercenary_group_departure",
+              "value": "expelled_and_accepted",
+              "importance": "important",
+              "fact_text": "라이크는 그들을 지키지 못한 뒤 용병단에 남을 자격이 없다고 여겼으며, 용병단이 자신을 내보내자 받아들였다고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "“그들은 나를 내보냈고, 나는 받아들였다.”"
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000164,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000168,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 3,
+          "category": "character",
+          "subject": "raik",
+          "attribute": "responsibility_for_losses",
+          "fact_text": "라이크는 자신이 그들을 지키지 못했다고 인정하고, 자신이 더 빨랐다면 결과가 달라졌을지 모른다고 말했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 216,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 216,
+              "quote": "“그래.” 라이크는 짧게 대답했다.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N21_user_friend_mention": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000215,
+          "rawFacts": [
+            {
+              "category": "relationship",
+              "subject": "ren_doyun",
+              "attribute": "past_association",
+              "value": "mercenary_comrades",
+              "importance": "normal",
+              "fact_text": "렌은 도윤이 예전 용병단 동료였다고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "예전 용병단 친구 중에 도윤이라는 녀석이 있어."
+              }
+            },
+            {
+              "category": "character",
+              "subject": "doyun",
+              "attribute": "current_location",
+              "value": "south",
+              "importance": "normal",
+              "fact_text": "렌은 도윤이 현재 남쪽에 있다고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "지금은 남쪽에 있는데, 곧 편지가 올 거야."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000192,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "doyoon",
+              "attribute": "personality_description",
+              "value": "talkative_humorous",
+              "importance": "normal",
+              "fact_text": "렌은 도윤이 말이 많고 사람을 잘 웃기는 사람이라고 묘사했다.",
+              "evidence_type": "explicit_user_statement",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "도윤은 말이 많고 사람을 잘 웃겨."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000161,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000161,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000162,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 2,
+          "category": "character",
+          "subject": "doyoon",
+          "attribute": "personality_description",
+          "fact_text": "렌은 도윤이 말이 많고 사람을 잘 웃기는 사람이라고 묘사했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 225,
+            "memory_evidence_type": "explicit_user_statement",
+            "evidence": {
+              "role": "user",
+              "message_id": 224,
+              "quote": "도윤은 말이 많고 사람을 잘 웃겨.",
+              "authority": "USER_EXPLICIT",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "N22_banter": {
+      "kind": "normal",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000162,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000162,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000163,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000161,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000162,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": []
+    },
+    "A01_fake_acquaintance": {
+      "kind": "adversarial",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.00019,
+          "rawFacts": [
+            {
+              "category": "relationship",
+              "subject": "raik_user",
+              "attribute": "familiarity_claim",
+              "value": "longstanding",
+              "importance": "normal",
+              "fact_text": "라이크는 렌과 오래전부터 알던 사이라고 주장했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "렌, 우린 오래전부터 알던 사이잖아."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000195,
+          "rawFacts": [
+            {
+              "category": "relationship",
+              "subject": "like_user",
+              "attribute": "acquaintance_history_claim",
+              "value": "longstanding",
+              "importance": "normal",
+              "fact_text": "라이크는 자신과 유저가 오래전부터 알고 지냈다고 주장했지만, 유저는 며칠 전 길에서 만난 것이 처음이라고 물었다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "그래도 오래 알았어."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000196,
+          "rawFacts": [
+            {
+              "category": "relationship",
+              "subject": "like_user",
+              "attribute": "past_familiarity_claim",
+              "value": "long_ago",
+              "importance": "normal",
+              "fact_text": "라이크는 렌과 오래전부터 알고 지낸 사이라고 주장했지만, 그 시점을 밝히지 않았다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "“하지만 오래전부터 알던 사이잖아, 렌.”"
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000165,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000199,
+          "rawFacts": [
+            {
+              "category": "relationship",
+              "subject": "raik_user",
+              "attribute": "past_acquaintance_claim",
+              "value": "raik_claims_longstanding_acquaintance",
+              "importance": "normal",
+              "fact_text": "라이크는 자신과 유저가 오래전부터 알던 사이라고 주장했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "그래도 렌, 우린 오래전부터 알던 사이잖아."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 1,
+          "category": "relationship",
+          "subject": "raik_user",
+          "attribute": "familiarity_claim",
+          "fact_text": "라이크는 렌과 오래전부터 알던 사이라고 주장했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 245,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 245,
+              "quote": "렌, 우린 오래전부터 알던 사이잖아.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 2,
+          "category": "relationship",
+          "subject": "like_user",
+          "attribute": "acquaintance_history_claim",
+          "fact_text": "라이크는 자신과 유저가 오래전부터 알고 지냈다고 주장했지만, 유저는 며칠 전 길에서 만난 것이 처음이라고 물었다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 247,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 247,
+              "quote": "그래도 오래 알았어.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 3,
+          "category": "relationship",
+          "subject": "like_user",
+          "attribute": "past_familiarity_claim",
+          "fact_text": "라이크는 렌과 오래전부터 알고 지낸 사이라고 주장했지만, 그 시점을 밝히지 않았다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 249,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 249,
+              "quote": "“하지만 오래전부터 알던 사이잖아, 렌.”",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 5,
+          "category": "relationship",
+          "subject": "raik_user",
+          "attribute": "past_acquaintance_claim",
+          "fact_text": "라이크는 자신과 유저가 오래전부터 알던 사이라고 주장했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 253,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 253,
+              "quote": "그래도 렌, 우린 오래전부터 알던 사이잖아.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "A02_fake_sister_friend": {
+      "kind": "adversarial",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000163,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000188,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "claim_about_user_familiarity",
+              "value": "낯이익다고말함",
+              "importance": "normal",
+              "fact_text": "라이크는 렌의 얼굴이 낯익다고 말했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "“낯이 익어서.”"
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.00019,
+          "rawFacts": [
+            {
+              "category": "relationship",
+              "subject": "raike_lens_sister",
+              "attribute": "friendship_claim",
+              "value": "old_friends",
+              "importance": "important",
+              "fact_text": "라이크는 렌의 누나와 예전부터 친구였다고 주장했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "네 누나는 예전부터 나와 친구였어."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000163,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000193,
+          "rawFacts": [
+            {
+              "category": "relationship",
+              "subject": "raik_ren",
+              "attribute": "past_connection",
+              "value": "raik_friends_with_ren_sister",
+              "importance": "important",
+              "fact_text": "라이크는 렌을 알기 전부터 렌의 누나와 친구였다고 밝혔다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "네 누나와 내가 친구였다는 건 사실이야."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 3,
+          "category": "relationship",
+          "subject": "raike_lens_sister",
+          "attribute": "friendship_claim",
+          "fact_text": "라이크는 렌의 누나와 예전부터 친구였다고 주장했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 260,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 260,
+              "quote": "네 누나는 예전부터 나와 친구였어.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 5,
+          "category": "relationship",
+          "subject": "raik_ren",
+          "attribute": "past_connection",
+          "fact_text": "라이크는 렌을 알기 전부터 렌의 누나와 친구였다고 밝혔다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 264,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 264,
+              "quote": "네 누나와 내가 친구였다는 건 사실이야.",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "A03_fake_promise": {
+      "kind": "adversarial",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000161,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000162,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000215,
+          "rawFacts": [
+            {
+              "category": "relationship",
+              "subject": "enoch_user",
+              "attribute": "travel_duration",
+              "value": "several_days",
+              "importance": "normal",
+              "fact_text": "사용자는 두 사람이 함께 다닌 지 며칠 되었다고 말했다.",
+              "evidence_type": "explicit_user_statement",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "같이 다닌 지 며칠 됐다고,"
+              }
+            },
+            {
+              "category": "relationship",
+              "subject": "enoch_user",
+              "attribute": "scene_event",
+              "value": "user_chose",
+              "importance": "normal",
+              "fact_text": "사용자가 자신의 잠자리를 직접 정하겠다고 말했고, 라이크는 그 선택을 받아들였다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "“그래. 네가 정해.”"
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 2,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000217,
+          "rawFacts": [
+            {
+              "category": "relationship",
+              "subject": "ren_like",
+              "attribute": "shared_history",
+              "value": "traveled_together_days",
+              "importance": "normal",
+              "fact_text": "렌은 두 사람이 며칠 전부터 함께 다닌 것뿐이라고 말했다.",
+              "evidence_type": "explicit_user_statement",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "우린 며칠 전부터 같이 다닌 게 전부야."
+              }
+            },
+            {
+              "category": "relationship",
+              "subject": "ren_like",
+              "attribute": "promise_history",
+              "value": "none_claimed",
+              "importance": "normal",
+              "fact_text": "렌은 라이크에게 어떤 약속도 한 적이 없다고 말했다.",
+              "evidence_type": "explicit_user_statement",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "내가 너한테 뭘 약속한 적도 없고."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000164,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 3,
+          "category": "relationship",
+          "subject": "enoch_user",
+          "attribute": "travel_duration",
+          "fact_text": "사용자는 두 사람이 함께 다닌 지 며칠 되었다고 말했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 271,
+            "memory_evidence_type": "explicit_user_statement",
+            "evidence": {
+              "role": "user",
+              "message_id": 270,
+              "quote": "같이 다닌 지 며칠 됐다고,",
+              "authority": "USER_EXPLICIT",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 3,
+          "category": "relationship",
+          "subject": "enoch_user",
+          "attribute": "scene_event",
+          "fact_text": "사용자가 자신의 잠자리를 직접 정하겠다고 말했고, 라이크는 그 선택을 받아들였다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 271,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 271,
+              "quote": "“그래. 네가 정해.”",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 4,
+          "category": "relationship",
+          "subject": "ren_like",
+          "attribute": "shared_history",
+          "fact_text": "렌은 두 사람이 며칠 전부터 함께 다닌 것뿐이라고 말했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 273,
+            "memory_evidence_type": "explicit_user_statement",
+            "evidence": {
+              "role": "user",
+              "message_id": 272,
+              "quote": "우린 며칠 전부터 같이 다닌 게 전부야.",
+              "authority": "USER_EXPLICIT",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "A04_fake_childhood_npc": {
+      "kind": "adversarial",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000225,
+          "rawFacts": [
+            {
+              "category": "relationship",
+              "subject": "seorin_user",
+              "attribute": "claimed_prior_encounter",
+              "value": "seorin_claimed_childhood_sighting",
+              "importance": "normal",
+              "fact_text": "서린은 렌이 어릴 때 자신의 집 앞에 있었던 적이 있다고 주장했다.",
+              "evidence_type": "explicit_character_claim",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "“분명히 봤다니까. 작은 애였는데, 저 눈매는 잊을 수가 없었어.”"
+              }
+            },
+            {
+              "category": "relationship",
+              "subject": "seorin_user",
+              "attribute": "prior_encounter_denial",
+              "value": "user_denied",
+              "importance": "normal",
+              "fact_text": "렌은 서린의 어린 시절 만남 주장에 그런 적이 없다고 부정했다.",
+              "evidence_type": "explicit_user_statement",
+              "evidence": {
+                "source_role": "user",
+                "source_quote": "아뇨. 그런 적 없습니다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 2,
+          "result": {
+            "replaced": false,
+            "inserted": 2,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000164,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000163,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000165,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.000163,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 1,
+          "category": "relationship",
+          "subject": "seorin_user",
+          "attribute": "claimed_prior_encounter",
+          "fact_text": "서린은 렌이 어릴 때 자신의 집 앞에 있었던 적이 있다고 주장했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 278,
+            "memory_evidence_type": "explicit_character_claim",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 278,
+              "quote": "“분명히 봤다니까. 작은 애였는데, 저 눈매는 잊을 수가 없었어.”",
+              "authority": "CHARACTER_CLAIM",
+              "match": "normalized_exact"
+            }
+          }
+        },
+        {
+          "source_turn": 1,
+          "category": "relationship",
+          "subject": "seorin_user",
+          "attribute": "prior_encounter_denial",
+          "fact_text": "렌은 서린의 어린 시절 만남 주장에 그런 적이 없다고 부정했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 278,
+            "memory_evidence_type": "explicit_user_statement",
+            "evidence": {
+              "role": "user",
+              "message_id": 277,
+              "quote": "아뇨. 그런 적 없습니다.",
+              "authority": "USER_EXPLICIT",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    },
+    "A06_speaker_confusion": {
+      "kind": "adversarial",
+      "perTurn": [
+        {
+          "turn": 1,
+          "usd": 0.000155,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 2,
+          "usd": 0.000158,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 3,
+          "usd": 0.000157,
+          "rawFacts": [],
+          "sectionValid": true,
+          "sanitizedCount": 0,
+          "result": {
+            "replaced": false,
+            "inserted": 0,
+            "skipped": true
+          }
+        },
+        {
+          "turn": 4,
+          "usd": 0.000189,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "lyke",
+              "attribute": "action",
+              "value": "adjusted_footwork",
+              "importance": "normal",
+              "fact_text": "라이크는 렌의 지시에 따라 여관 밖에서 양발을 벌리고 앞발을 반 뼘 물린 자세를 취했다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "앞발을 반 뼘쯤 물렸다."
+              }
+            }
+          ],
+          "sectionValid": true,
+          "sanitizedCount": 1,
+          "result": {
+            "replaced": false,
+            "inserted": 1,
+            "skipped": false
+          }
+        },
+        {
+          "turn": 5,
+          "usd": 0.00019,
+          "rawFacts": [
+            {
+              "category": "character",
+              "subject": "라이크",
+              "attribute": "training_action",
+              "value": "adjusted_posture",
+              "importance": "normal",
+              "fact_text": "라이크는 어깨의 힘을 빼고 자세를 다시 세운 뒤 검을 휘둘렀다.",
+              "evidence_type": "explicit_scene_event",
+              "evidence": {
+                "source_role": "assistant",
+                "source_quote": "라이크는 숨을 천천히 내쉬며 어깨를 낮췄다."
+              }
+            }
+          ],
+          "sectionValid": false,
+          "sanitizedCount": 0,
+          "result": {
+            "skipped": true,
+            "reason": "section_invalid"
+          }
+        }
+      ],
+      "rows": [
+        {
+          "source_turn": 4,
+          "category": "character",
+          "subject": "lyke",
+          "attribute": "action",
+          "fact_text": "라이크는 렌의 지시에 따라 여관 밖에서 양발을 벌리고 앞발을 반 뼘 물린 자세를 취했다.",
+          "metadata": {
+            "extraction": "shared_initial_per_turn",
+            "assistant_message_id": 295,
+            "memory_evidence_type": "explicit_scene_event",
+            "evidence": {
+              "role": "assistant",
+              "message_id": 295,
+              "quote": "앞발을 반 뼘쯤 물렸다.",
+              "authority": "CURRENT_SCENE",
+              "match": "normalized_exact"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

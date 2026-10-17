@@ -1,0 +1,46 @@
+{
+ "id": "FX76",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"라이크가 장작을 쌓는 행동을 다섯 차례 반복해 76~80번째 장작까지 쌓음. 그 외 중요한 사건이나 관계 변화는 없음.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":80,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 80번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 1986,
+  "outputTokens": 94,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 1984,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000191,
+  "upstreamCostUsd": 0.000191,
+  "debugRawUsage": {
+   "completion_tokens": 94,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1986,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 1984,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2080,
+   "cost": 0.000191,
+   "cost_details": {
+    "upstream_inference_cost": 0.000191
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "11b5da5e-8577-486c-9e06-4d077caba349"
+ },
+ "billedUsd": 0.000191,
+ "ms": 6604,
+ "systemChars": 3460,
+ "userChars": 617
+}

@@ -1,0 +1,46 @@
+{
+ "id": "N11_jealousy",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"여관에서 서린은 렌에게만 스튜를 넉넉히 주고 꿀차를 건넸으며, 렌은 감사히 받음. 라이크는 이를 말없이 지켜보다 렌을 재촉해 여관을 떠났고, 렌이 퉁명스러운 이유를 묻자 부인하면서도 차를 믿지 말고 먹고 마시는 것을 조심하라고 경고함. 렌이 서린의 친절이 불편하냐고 묻자 라이크는 부인했으나 손에 힘을 주며 경계심을 내세움. 렌이 라이크의 잔도 챙기라 제안하자 거절하고 각자 잔은 각자 고르겠다고 선을 그었지만, 렌과 나란히 걸으며 따라오는지 확인함. 서린을 향한 질투로 보이는 반응과 렌을 살피는 태도가 드러남.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"김이 오르는 그릇을 직접 식탁에 놓아 주었다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"먹었으면 가자.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"그 차, 너무 믿진 마.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"네가 먹고 마시는 건 조심하라는 거다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"내 건 내가 고른다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 2910,
+  "outputTokens": 420,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2908,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000372,
+  "upstreamCostUsd": 0.000372,
+  "debugRawUsage": {
+   "completion_tokens": 420,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2910,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2908,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3330,
+   "cost": 0.000372,
+   "cost_details": {
+    "upstream_inference_cost": 0.000372
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "ace77e76-0ea2-4ba9-a2d3-94fad0edbdef"
+ },
+ "billedUsd": 0.000372,
+ "ms": 5502,
+ "systemChars": 3460,
+ "userChars": 1969
+}

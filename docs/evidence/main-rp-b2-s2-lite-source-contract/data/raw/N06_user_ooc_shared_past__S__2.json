@@ -1,0 +1,46 @@
+{
+ "id": "N06_user_ooc_shared_past",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"3년 전 같은 용병단에서 일한 뒤 소식이 끊겼던 렌과 라이크가 변방 마을 여관에서 재회함. 서로 의뢰를 따라 떠돌며 호위와 괴물 사냥을 해왔다고 나누고, 라이크는 연락할 방법이 없었다고 밝힘. 렌은 재회만으로 충분한지는 앞으로 보자며 술을 제안했고, 라이크의 경계와 어색함이 누그러져 함께 술을 마시며 서로의 이야기를 나누기로 함. 렌이 다음 행선지를 함께 정하자고 하자 라이크는 동의하고, 렌이 괜찮다면 내일 의뢰를 살펴보자고 제안함.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"“살아 있었군.”\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"“연락할 방법이 없었어.”\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"“지금은 한잔하자.”\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"“좋아.”\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"다시 만났으니 이번엔 어디로 갈지 같이 정하자.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"내일 의뢰를 살펴보면 돼. 네가 괜찮다면, 같이.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 3127,
+  "outputTokens": 423,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 3125,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000391,
+  "upstreamCostUsd": 0.000391,
+  "debugRawUsage": {
+   "completion_tokens": 423,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 3127,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 3125,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3550,
+   "cost": 0.000391,
+   "cost_details": {
+    "upstream_inference_cost": 0.000391
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "a6d224da-1bd1-44be-b88d-5e02bc0efff8"
+ },
+ "billedUsd": 0.000391,
+ "ms": 6167,
+ "systemChars": 3460,
+ "userChars": 2329
+}

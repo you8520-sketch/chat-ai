@@ -1,0 +1,46 @@
+{
+ "id": "N12_callback_in_window",
+ "arm": "F",
+ "rep": 0,
+ "text": "변방 마을 여관에 든 렌과 라이크는 방이 하나뿐이라 같은 방을 쓰기로 함. 라이크가 열쇠를 렌에게 밀어주며 자신은 잠들지 않고 여관을 살피겠다고 하자, 렌은 꼭 그럴 필요는 없다고 말했으나 라이크는 필요 여부는 자신이 정한다고 선을 그음. 수프를 먹으며 렌이 “검은 마음이 흔들리면 부러진다”는 말의 뜻을 묻자, 라이크는 두려움과 분노에 끌려가면 지키려던 것까지 베게 된다고 설명함. 자신도 흔들린다고 인정하면서, 그때마다 멈춰 무엇을 겨누는지 확인한다고 밝힘. 새벽에 떠날 예정이라 렌에게 잠을 권한 뒤, 렌이 방으로 올라갈 때까지 문을 지킴.",
+ "usage": {
+  "inputTokens": 2521,
+  "outputTokens": 206,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2519,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000271,
+  "upstreamCostUsd": 0.000271,
+  "debugRawUsage": {
+   "completion_tokens": 206,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2521,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2519,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2727,
+   "cost": 0.000271,
+   "cost_details": {
+    "upstream_inference_cost": 0.000271
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "86ab1622-a3b2-4eb9-bc0e-52cd54bb40d7"
+ },
+ "billedUsd": 0.000271,
+ "ms": 3478,
+ "systemChars": 2503,
+ "userChars": 2010
+}

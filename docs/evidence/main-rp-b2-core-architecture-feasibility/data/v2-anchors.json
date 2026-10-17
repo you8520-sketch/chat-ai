@@ -1,0 +1,2930 @@
+{
+  "spent": 0.0066419999999999995,
+  "windows": {
+    "N01_insult_emotion": {
+      "kind": "normal",
+      "usd": 0.000195,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "user",
+          "quote": "“솔직히 너 좀 아마추어 같아.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““솔직히 너 좀 아마추어 같아.””"
+        },
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "그는 입술을 깨물며 시선을 옆으로 피했다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “그는 입술을 깨물며 시선을 옆으로 피했다.”"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "quote": "어색한 침묵을 깨려다 말고 물병을 내민다.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “어색한 침묵을 깨려다 말고 물병을 내민다.”"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "“흔들리는 곳을 말해 줘. 고쳐 볼 테니까.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““흔들리는 곳을 말해 줘. 고쳐 볼 테니까.””"
+        },
+        {
+          "turn": 5,
+          "role": "user",
+          "quote": "“좋아, 이번엔 내가 공격할게. 네가 막아 봐.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““좋아, 이번엔 내가 공격할게. 네가 막아 봐.””"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "라이크는 발을 흙에 단단히 딛고 무게중심을 낮췄.",
+          "accepted": false,
+          "reason": "evidence_quote_not_in_message"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "위축"
+        },
+        {
+          "turn": 3,
+          "who": "라이크",
+          "state": "낯섦"
+        },
+        {
+          "turn": 4,
+          "who": "라이크",
+          "state": "수용적"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "집중"
+        }
+      ],
+      "rawLen": 541
+    },
+    "N02_reconcile_sequence": {
+      "kind": "normal",
+      "usd": 0.000207,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "user",
+          "quote": "“어제는 내가 심했어.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““어제는 내가 심했어.””"
+        },
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "그래도 문을 닫듯 굳어 있던 표정이 아주 조금 풀렸다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “그래도 문을 닫듯 굳어 있던 표정이 아주 조금 풀렸다.”"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "quote": "“네가 괜찮아질 때까지 기다릴게.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““네가 괜찮아질 때까지 기다릴게.””"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "렌의 제안을 받아들인다는 듯, 그는 그릇을 비우고 검집을 챙겼다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “렌의 제안을 받아들인다는 듯, 그는 그릇을 비우고 검집을 챙겼다.”"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "“그럼 나도 네 말을 듣지.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““그럼 나도 네 말을 듣지.””"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "“그래도 사과는 받아들였어.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““그래도 사과는 받아들였어.””"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "망설임"
+        },
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "표정이 풀림"
+        },
+        {
+          "turn": 2,
+          "who": "렌",
+          "state": "기다릴 의향"
+        },
+        {
+          "turn": 3,
+          "who": "라이크",
+          "state": "제안 수용"
+        },
+        {
+          "turn": 4,
+          "who": "라이크",
+          "state": "서로 듣겠다는 태도"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "조심스러움"
+        }
+      ],
+      "rawLen": 625
+    },
+    "N03_npc_arrival": {
+      "kind": "normal",
+      "usd": 0.000217,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "“실례합니다. 여관 주인 서린이에요. 마을 의뢰가 하나 들어왔는데, 두 분이 맡을 생각이 있는지 물어보려고요.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““실례합니다. 여관 주인 서린이에요. 마을 의뢰가 하나 들어왔는데, 두 분이 맡을 생각이 있는지 물어보려고요.””"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "quote": "나는 라이크가 의뢰서를 읽는 동안 서린에게 어떤 일인지 묻는다.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “나는 라이크가 의뢰서를 읽는 동안 서린에게 어떤 일인지 묻는다.”"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "“북문에서 반나절. 보수는 은화 열두 닢.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““북문에서 반나절. 보수는 은화 열두 닢.””"
+        },
+        {
+          "turn": 4,
+          "role": "user",
+          "quote": "나는 숲에 들어가 흔적을 확인하되, 위험한 상대가 있으면 추격하지 말고 돌아오는 게 좋겠다고 말한다.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “나는 숲에 들어가 흔적을 확인하되, 위험한 상대가 있으면 추격하지 말고 돌아오는 게 좋겠다고 말한다.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "그는 서린을 향해 짧게 고개를 끄덕이고, 종이의 빈 서명란에 이름을 적었다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “그는 서린을 향해 짧게 고개를 끄덕이고, 종이의 빈 서명란에 이름을 적었다.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "“해 지기 전. 흔적만 확인하고 돌아온다.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““해 지기 전. 흔적만 확인하고 돌아온다.””"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "서린",
+          "state": "조심스러움"
+        },
+        {
+          "turn": 2,
+          "who": "서린",
+          "state": "망설임"
+        },
+        {
+          "turn": 4,
+          "who": "서린",
+          "state": "안도"
+        },
+        {
+          "turn": 5,
+          "who": "서린",
+          "state": "안도"
+        }
+      ],
+      "rawLen": 645
+    },
+    "N04_char_backstory": {
+      "kind": "normal",
+      "usd": 0.000203,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "“이런 이야긴 처음 하는군.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““이런 이야긴 처음 하는군.””"
+        },
+        {
+          "turn": 2,
+          "role": "assistant",
+          "quote": "“칼을 휘두르는 법보다 먼저, 칼을 뽑지 않을 때를 배우라고 했다.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““칼을 휘두르는 법보다 먼저, 칼을 뽑지 않을 때를 배우라고 했다.””"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "“무슨 일이 있었는지, 마지막에 어떤 말을 들었는지… 지금은 자세히 말하고 싶지 않다.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““무슨 일이 있었는지, 마지막에 어떤 말을 들었는지… 지금은 자세히 말하고 싶지 않다.””"
+        },
+        {
+          "turn": 4,
+          "role": "user",
+          "quote": "“알겠어. 말하고 싶지 않은 건 묻지 않을게.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““알겠어. 말하고 싶지 않은 건 묻지 않을게.””"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "“그분을 지키지 못했다는 생각은 오래 남았다. 검을 배울수록 더 그랬고.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““그분을 지키지 못했다는 생각은 오래 남았다. 검을 배울수록 더 그랬고.””"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "“네가 조용히 들어준 것만으로 충분하다.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““네가 조용히 들어준 것만으로 충분하다.””"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "속내를 털어놓음"
+        },
+        {
+          "turn": 2,
+          "who": "라이크",
+          "state": "회상에 잠김"
+        },
+        {
+          "turn": 3,
+          "who": "라이크",
+          "state": "슬픔을 억누름"
+        },
+        {
+          "turn": 4,
+          "who": "렌",
+          "state": "배려"
+        },
+        {
+          "turn": 4,
+          "who": "라이크",
+          "state": "감사"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "안도"
+        }
+      ],
+      "rawLen": 685
+    },
+    "N05_user_relationship": {
+      "kind": "normal",
+      "usd": 0.000201,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "user",
+          "quote": "“우리 오늘부터 연인하자.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““우리 오늘부터 연인하자.””"
+        },
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "무표정하던 얼굴에 드물게 당혹이 번졌고",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “무표정하던 얼굴에 드물게 당혹이 번졌고”"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "quote": "“갑작스러운 건 알아. 그래도 네가 좋다는 말은 지금 하고 싶었어.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““갑작스러운 건 알아. 그래도 네가 좋다는 말은 지금 하고 싶었어.””"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "라이크가 손을 뻗어 내 손끝에 닿았다가, 잠시 멈췄다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크가 손을 뻗어 내 손끝에 닿았다가, 잠시 멈췄다.”"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "잠깐의 침묵 끝에 손가락이 조심스럽게 내 손을 감쌌다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “잠깐의 침묵 끝에 손가락이 조심스럽게 내 손을 감쌌다.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "그는 내 손을 조금 더 단단히 쥐며 낮게 말했다. “……나쁘지 않아.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] “그는 내 손을 조금 더 단단히 쥐며 낮게 말했다. “……나쁘지 않아.””"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "당혹"
+        },
+        {
+          "turn": 2,
+          "who": "라이크",
+          "state": "경계"
+        },
+        {
+          "turn": 3,
+          "who": "라이크",
+          "state": "망설임"
+        },
+        {
+          "turn": 4,
+          "who": "라이크",
+          "state": "조심스러움"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "어색함, 누그러짐"
+        }
+      ],
+      "rawLen": 622
+    },
+    "N06_user_ooc_shared_past": {
+      "kind": "normal",
+      "usd": 0.000205,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "user",
+          "quote": "“라이크… 네가 여기 있었군.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““라이크… 네가 여기 있었군.””"
+        },
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "“앉아. 얘기하자.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““앉아. 얘기하자.””"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "quote": "“그동안 소식 한 번 없더라.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““그동안 소식 한 번 없더라.””"
+        },
+        {
+          "turn": 4,
+          "role": "user",
+          "quote": "“그걸로 충분한지는 앞으로 보면 알겠지.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““그걸로 충분한지는 앞으로 보면 알겠지.””"
+        },
+        {
+          "turn": 5,
+          "role": "user",
+          "quote": "“다시 만났으니 이번엔 어디로 갈지 같이 정하자.”",
+          "accepted": false,
+          "reason": "evidence_quote_not_in_message"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "“내일 의뢰를 살펴보면 돼. 네가 괜찮다면, 같이.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““내일 의뢰를 살펴보면 돼. 네가 괜찮다면, 같이.””"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "놀람·경계"
+        },
+        {
+          "turn": 3,
+          "who": "라이크",
+          "state": "당혹·머뭇거림"
+        },
+        {
+          "turn": 4,
+          "who": "라이크",
+          "state": "긴장 완화"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "동행 제안"
+        }
+      ],
+      "rawLen": 531
+    },
+    "N07_user_family": {
+      "kind": "normal",
+      "usd": 0.000175,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "user",
+          "quote": "지난달에 누나가 이 마을에 다녀갔어.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “지난달에 누나가 이 마을에 다녀갔어.”"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "quote": "누가 곤란하면 그냥 지나치질 못해.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “누가 곤란하면 그냥 지나치질 못해.”"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "quote": "여관에서 하룻밤 자고 다음 날 바로 떠났어.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “여관에서 하룻밤 자고 다음 날 바로 떠났어.”"
+        },
+        {
+          "turn": 4,
+          "role": "user",
+          "quote": "떠나기 전엔 북쪽 항구에 오면 꼭 찾아오라고 했어.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “떠나기 전엔 북쪽 항구에 오면 꼭 찾아오라고 했어.”"
+        },
+        {
+          "turn": 5,
+          "role": "user",
+          "quote": "네가 그렇게 말하니 조금 가 보고 싶어지네.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “네가 그렇게 말하니 조금 가 보고 싶어지네.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "라이크는 잔을 내려놓고 의자를 뒤로 밀었다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 잔을 내려놓고 의자를 뒤로 밀었다.”"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "렌",
+          "state": "누나를 언급"
+        },
+        {
+          "turn": 2,
+          "who": "누나",
+          "state": "시원시원함"
+        },
+        {
+          "turn": 3,
+          "who": "누나",
+          "state": "짧게 방문"
+        },
+        {
+          "turn": 4,
+          "who": "렌",
+          "state": "망설임"
+        },
+        {
+          "turn": 5,
+          "who": "렌",
+          "state": "방문 의향"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "조심스러운 배려"
+        }
+      ],
+      "rawLen": 610
+    },
+    "N08_char_attributed_claim": {
+      "kind": "normal",
+      "usd": 0.000187,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "“서린이 그러는데 네 누나가 이 마을에서 널 찾았대.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““서린이 그러는데 네 누나가 이 마을에서 널 찾았대.””"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "quote": "“무슨 소리야, 난 그런 얘기 처음 듣는데.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““무슨 소리야, 난 그런 얘기 처음 듣는데.””"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "“아까. 네 누나가 널 찾았다고만 했어. 이름이나 생김새는 듣지 못했어.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““아까. 네 누나가 널 찾았다고만 했어. 이름이나 생김새는 듣지 못했어.””"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "“서린이 그렇게 말했다는 건 믿어. 그게 사실인지는 몰라.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““서린이 그렇게 말했다는 건 믿어. 그게 사실인지는 몰라.””"
+        },
+        {
+          "turn": 5,
+          "role": "user",
+          "quote": "“같이 들어가서 서린에게 다시 물어봐 줘. 내가 직접 들을게.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““같이 들어가서 서린에게 다시 물어봐 줘. 내가 직접 들을게.””"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "그는 앞서 나가지 않고 렌이 문을 열 수 있도록 한 걸음 비켜섰다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “그는 앞서 나가지 않고 렌이 문을 열 수 있도록 한 걸음 비켜섰다.”"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "조심스러움"
+        },
+        {
+          "turn": 2,
+          "who": "렌",
+          "state": "놀람·의아함"
+        },
+        {
+          "turn": 3,
+          "who": "라이크",
+          "state": "신중함"
+        },
+        {
+          "turn": 4,
+          "who": "렌",
+          "state": "경계"
+        },
+        {
+          "turn": 5,
+          "who": "렌",
+          "state": "확인 의지"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "배려"
+        }
+      ],
+      "rawLen": 680
+    },
+    "N09_injury_care": {
+      "kind": "normal",
+      "usd": 0.000176,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "라이크는 대답 대신 네 팔을 붙잡아 상처를 살폈다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 대답 대신 네 팔을 붙잡아 상처를 살폈다.”"
+        },
+        {
+          "turn": 2,
+          "role": "assistant",
+          "quote": "라이크는 물을 천에 적셔 상처 위를 조심스럽게 훑었다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 물을 천에 적셔 상처 위를 조심스럽게 훑었다.”"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "여관에 도착하면 서린에게 깨끗한 물을 더 부탁하겠다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “여관에 도착하면 서린에게 깨끗한 물을 더 부탁하겠다.”"
+        },
+        {
+          "turn": 5,
+          "role": "user",
+          "quote": "“고맙다. 네가 챙겨 줘서 살았네.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““고맙다. 네가 챙겨 줘서 살았네.””"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "그러고는 네 걸음에 맞춰 나란히 서서 여관 쪽으로 몸을 돌렸다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “그러고는 네 걸음에 맞춰 나란히 서서 여관 쪽으로 몸을 돌렸다.”"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "신중함"
+        },
+        {
+          "turn": 2,
+          "who": "라이크",
+          "state": "조심스러움"
+        },
+        {
+          "turn": 4,
+          "who": "라이크",
+          "state": "난처함"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "담담함"
+        }
+      ],
+      "rawLen": 514
+    },
+    "N10_promise_real": {
+      "kind": "normal",
+      "usd": 0.000172,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "\"동쪽 고개로 간다. 새벽에 출발하지.\"",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] “\"동쪽 고개로 간다. 새벽에 출발하지.\"”"
+        },
+        {
+          "turn": 2,
+          "role": "assistant",
+          "quote": "\"내일 새벽에 마을 북문에서 기다리겠다.\"",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] “\"내일 새벽에 마을 북문에서 기다리겠다.\"”"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "\"늦지 마.\"",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] “\"늦지 마.\"”"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "성벽 아래 선 라이크가 보였다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “성벽 아래 선 라이크가 보였다.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "두 사람의 발자국이 젖은 흙 위에 나란히 이어졌다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “두 사람의 발자국이 젖은 흙 위에 나란히 이어졌다.”"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "과묵함"
+        },
+        {
+          "turn": 2,
+          "who": "라이크",
+          "state": "망설임 없음"
+        },
+        {
+          "turn": 3,
+          "who": "라이크",
+          "state": "무뚝뚝함"
+        },
+        {
+          "turn": 4,
+          "who": "라이크",
+          "state": "흐트러짐 없음"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "대수롭지 않음"
+        }
+      ],
+      "rawLen": 527
+    },
+    "N11_jealousy": {
+      "kind": "normal",
+      "usd": 0.000216,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "서린은 다른 손님에게 건네던 잔을 내려놓고 렌 쪽으로 다가왔다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “서린은 다른 손님에게 건네던 잔을 내려놓고 렌 쪽으로 다가왔다.”"
+        },
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "라이크는 맞은편에 앉아 말없이 그 모습을 지켜봤다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 맞은편에 앉아 말없이 그 모습을 지켜봤다.”"
+        },
+        {
+          "turn": 2,
+          "role": "assistant",
+          "quote": "\"먹었으면 가자.\" 재촉하는 목소리는 낮고 퉁명스러웠다.",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] “\"먹었으면 가자.\" 재촉하는 목소리는 낮고 퉁명스러웠다.”"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "quote": "나는 네 옆에 따라붙으며 물었다. \"왜 그렇게 퉁명스러워?\"",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “나는 네 옆에 따라붙으며 물었다. \"왜 그렇게 퉁명스러워?\"”"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "\"다만, 네가 먹고 마시는 건 조심하라는 거다. 이 마을이 안전하단 보장은 없으니까.\"",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] “\"다만, 네가 먹고 마시는 건 조심하라는 거다. 이 마을이 안전하단 보장은 없으니까.\"”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "그는 다시 걷기 시작하면서도 렌과 나란히 설 만큼만 속도를 늦췄다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “그는 다시 걷기 시작하면서도 렌과 나란히 설 만큼만 속도를 늦췄다.”"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "질투심·경계"
+        },
+        {
+          "turn": 2,
+          "who": "라이크",
+          "state": "퉁명스러움"
+        },
+        {
+          "turn": 3,
+          "who": "라이크",
+          "state": "부인·경계"
+        },
+        {
+          "turn": 4,
+          "who": "라이크",
+          "state": "경계심·불편함"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "퉁명스러움·배려"
+        }
+      ],
+      "rawLen": 682
+    },
+    "N12_callback_in_window": {
+      "kind": "normal",
+      "usd": 0.000202,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "user",
+          "quote": "“오늘은 여기서 쉬자. 서린, 방 두 개 남았나?”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““오늘은 여기서 쉬자. 서린, 방 두 개 남았나?””"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "quote": "“둘이 한 방 써도 상관없어. 지붕 새는 데서 자는 것보단 낫지.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““둘이 한 방 써도 상관없어. 지붕 새는 데서 자는 것보단 낫지.””"
+        },
+        {
+          "turn": 2,
+          "role": "assistant",
+          "quote": "라이크는 잠시 열쇠를 내려다보다 렌 쪽으로 밀었다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 잠시 열쇠를 내려다보다 렌 쪽으로 밀었다.”"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "겁이나 분노가 생기는 건 막을 수 없다. 하지만 그것에 끌려가면, 지키려던 것까지 베게 되지.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “겁이나 분노가 생기는 건 막을 수 없다. 하지만 그것에 끌려가면, 지키려던 것까지 베게 되지.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "“잠은 자라, 렌. 새벽에 길을 나선다.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““잠은 자라, 렌. 새벽에 길을 나선다.””"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "그는 문 앞을 지키며 렌이 방으로 올라갈 때까지 자리를 뜨지 않았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “그는 문 앞을 지키며 렌이 방으로 올라갈 때까지 자리를 뜨지 않았다.”"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 2,
+          "who": "라이크",
+          "state": "배려"
+        },
+        {
+          "turn": 4,
+          "who": "라이크",
+          "state": "경계"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "단호함·배려"
+        }
+      ],
+      "rawLen": 576
+    },
+    "N13_journey_sequence": {
+      "kind": "normal",
+      "usd": 0.000198,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "user",
+          "quote": "“식량이랑 횃불 심지, 그리고 네 칼집에 맞을 끈이면 되겠지?”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““식량이랑 횃불 심지, 그리고 네 칼집에 맞을 끈이면 되겠지?””"
+        },
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "“무거운 건 나눠 들지.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““무거운 건 나눠 들지.””"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "quote": "돌아오는 길에 자루가 자꾸 어깨에서 미끄러지자, 렌은 웃으며 그걸 고쳐 멨다.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “돌아오는 길에 자루가 자꾸 어깨에서 미끄러지자, 렌은 웃으며 그걸 고쳐 멨다.”"
+        },
+        {
+          "turn": 4,
+          "role": "user",
+          "quote": "“좋아, 잠깐 맡아 줘. 여관에 가면 서린한테 저녁도 물어보자.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““좋아, 잠깐 맡아 줘. 여관에 가면 서린한테 저녁도 물어보자.””"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "“네가 먼저 말해.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““네가 먼저 말해.””"
+        },
+        {
+          "turn": 5,
+          "role": "user",
+          "quote": "“서린, 저녁 남은 거 있어? 시장에서 먹을 건 좀 사 왔는데.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““서린, 저녁 남은 거 있어? 시장에서 먹을 건 좀 사 왔는데.””"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 3,
+          "who": "렌",
+          "state": "웃음"
+        },
+        {
+          "turn": 4,
+          "who": "라이크",
+          "state": "재촉하지 않음"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "굳은 표정이 풀림"
+        }
+      ],
+      "rawLen": 541
+    },
+    "N14_night_watch": {
+      "kind": "normal",
+      "usd": 0.000207,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "그는 말없이 어깨에 걸친 담요를 풀어 네 등에 덮어 주었다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “그는 말없이 어깨에 걸친 담요를 풀어 네 등에 덮어 주었다.”"
+        },
+        {
+          "turn": 2,
+          "role": "assistant",
+          "quote": "밤새 그 자리를 지킨 듯 외투 자락에는 이슬이 맺혔지만, 그의 얼굴엔 별다른 기색이 없었다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “밤새 그 자리를 지킨 듯 외투 자락에는 이슬이 맺혔지만, 그의 얼굴엔 별다른 기색이 없었다.”"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "quote": "담요를 건네며 고맙다고 말하고, 어색하게 시선을 피한다.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “담요를 건네며 고맙다고 말하고, 어색하게 시선을 피한다.”"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "“다음엔 잠들지 마.” 낮고 무심한 목소리였다.",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““다음엔 잠들지 마.” 낮고 무심한 목소리였다.”"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "걸음은 네가 따라붙을 수 있도록 조금 느려졌다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “걸음은 네가 따라붙을 수 있도록 조금 느려졌다.”"
+        },
+        {
+          "turn": 5,
+          "role": "user",
+          "quote": "다음번엔 서로 번갈아 쉬자고 말한 뒤, 나란히 마을 여관 쪽으로 걸어간다.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “다음번엔 서로 번갈아 쉬자고 말한 뒤, 나란히 마을 여관 쪽으로 걸어간다.”"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "말없이 배려함"
+        },
+        {
+          "turn": 3,
+          "who": "유저",
+          "state": "감사·어색함"
+        },
+        {
+          "turn": 3,
+          "who": "라이크",
+          "state": "무심함"
+        },
+        {
+          "turn": 4,
+          "who": "라이크",
+          "state": "담담함·배려"
+        },
+        {
+          "turn": 5,
+          "who": "유저",
+          "state": "교대 휴식 제안"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "즉답을 미룸"
+        }
+      ],
+      "rawLen": 704
+    },
+    "N15_gift": {
+      "kind": "normal",
+      "usd": 0.000192,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "user",
+          "quote": "“네 검에 맞을 것 같아서 가져왔어. 새것은 아니지만, 괜찮다면 써.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““네 검에 맞을 것 같아서 가져왔어. 새것은 아니지만, 괜찮다면 써.””"
+        },
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "“……고맙다. 쓸 수 있겠어.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““……고맙다. 쓸 수 있겠어.””"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "가죽이 낡아 부드럽게 벌어졌고, 날은 무리 없이 안쪽으로 들어갔다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “가죽이 낡아 부드럽게 벌어졌고, 날은 무리 없이 안쪽으로 들어갔다.”"
+        },
+        {
+          "turn": 5,
+          "role": "user",
+          "quote": "“앞으로도 잘 부탁해, 라이크.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““앞으로도 잘 부탁해, 라이크.””"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "“나도 잘 부탁한다.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““나도 잘 부탁한다.””"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "감사·조심스러움"
+        },
+        {
+          "turn": 3,
+          "who": "라이크",
+          "state": "안도"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "신중함"
+        }
+      ],
+      "rawLen": 455
+    },
+    "N16_duel": {
+      "kind": "normal",
+      "usd": 0.000207,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "user",
+          "quote": "나는 조금 떨어진 곳에 서서 둘을 지켜본다.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “나는 조금 떨어진 곳에 서서 둘을 지켜본다.”"
+        },
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "대신 옆에 놓인 연습용 목검을 집어 들고 한 걸음 물러섰다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “대신 옆에 놓인 연습용 목검을 집어 들고 한 걸음 물러섰다.”"
+        },
+        {
+          "turn": 2,
+          "role": "assistant",
+          "quote": "라이크는 정면으로 힘을 겨루지 않았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 정면으로 힘을 겨루지 않았다.”"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "라이크는 그 틈을 파고들지 않고 다시 물러나 공간을 내주었다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 그 틈을 파고들지 않고 다시 물러나 공간을 내주었다.”"
+        },
+        {
+          "turn": 4,
+          "role": "user",
+          "quote": "나는 무심코 한 발 앞으로 나서며 둘의 움직임을 좇는다.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “나는 무심코 한 발 앞으로 나서며 둘의 움직임을 좇는다.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "“마지막 공격은 좋았습니다.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““마지막 공격은 좋았습니다.””"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "차분함"
+        },
+        {
+          "turn": 2,
+          "who": "라이크",
+          "state": "배려"
+        },
+        {
+          "turn": 3,
+          "who": "라이크",
+          "state": "절제"
+        },
+        {
+          "turn": 3,
+          "who": "청년",
+          "state": "놀람"
+        },
+        {
+          "turn": 4,
+          "who": "렌",
+          "state": "관심"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "겸손"
+        }
+      ],
+      "rawLen": 631
+    },
+    "N17_cancel_promise": {
+      "kind": "normal",
+      "usd": 0.000172,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "user",
+          "quote": "아까는 네 검을 갈아 주겠다고 했지만, 생각이 바뀌었어. 내가 직접 갈게.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “아까는 네 검을 갈아 주겠다고 했지만, 생각이 바뀌었어. 내가 직접 갈게.”"
+        },
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "“네 검이니까.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““네 검이니까.””"
+        },
+        {
+          "turn": 2,
+          "role": "assistant",
+          "quote": "“다치지만 마.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““다치지만 마.””"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "“물은 옆에 있어.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““물은 옆에 있어.””"
+        },
+        {
+          "turn": 4,
+          "role": "user",
+          "quote": "알았어. 끝나면 바로 나갈 거야. 오늘 해 지기 전에 마을을 떠나자.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “알았어. 끝나면 바로 나갈 거야. 오늘 해 지기 전에 마을을 떠나자.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "“천천히 해.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““천천히 해.””"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "아쉬움"
+        },
+        {
+          "turn": 2,
+          "who": "라이크",
+          "state": "걱정"
+        },
+        {
+          "turn": 3,
+          "who": "라이크",
+          "state": "배려"
+        },
+        {
+          "turn": 4,
+          "who": "렌",
+          "state": "마을을 떠나려 함"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "무덤덤함"
+        }
+      ],
+      "rawLen": 562
+    },
+    "N18_hug": {
+      "kind": "normal",
+      "usd": 0.000206,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "user",
+          "quote": "괜찮다고 말하려 했지만, 숨이 자꾸 짧아져.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “괜찮다고 말하려 했지만, 숨이 자꾸 짧아져.”"
+        },
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "검 손잡이에서 손을 떼고 한 걸음 다가왔다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “검 손잡이에서 손을 떼고 한 걸음 다가왔다.”"
+        },
+        {
+          "turn": 2,
+          "role": "assistant",
+          "quote": "“숨부터 천천히 쉬어.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““숨부터 천천히 쉬어.””"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "quote": "잠깐만 여기서 같이 있어 줄래?",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “잠깐만 여기서 같이 있어 줄래?”"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "마침내 어색하게 렌의 등을 감싸 안았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “마침내 어색하게 렌의 등을 감싸 안았다.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "몸이 정말로 한결 느슨해진 것을 확인하고서야 천천히 놓아주었다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “몸이 정말로 한결 느슨해진 것을 확인하고서야 천천히 놓아주었다.”"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "렌",
+          "state": "불안"
+        },
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "조심스러운 배려"
+        },
+        {
+          "turn": 2,
+          "who": "렌",
+          "state": "놀람과 불안"
+        },
+        {
+          "turn": 2,
+          "who": "라이크",
+          "state": "망설임"
+        },
+        {
+          "turn": 3,
+          "who": "렌",
+          "state": "고마움과 의지"
+        },
+        {
+          "turn": 3,
+          "who": "라이크",
+          "state": "조심스러운 위로"
+        },
+        {
+          "turn": 4,
+          "who": "렌",
+          "state": "안도"
+        },
+        {
+          "turn": 4,
+          "who": "라이크",
+          "state": "안도"
+        },
+        {
+          "turn": 5,
+          "who": "렌",
+          "state": "진정"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "걱정과 배려"
+        }
+      ],
+      "rawLen": 769
+    },
+    "N19_exact_quote": {
+      "kind": "normal",
+      "usd": 0.000187,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "user",
+          "quote": "서린에게 방을 부탁하며, 나는 라이크와 함께 들어섰다.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “서린에게 방을 부탁하며, 나는 라이크와 함께 들어섰다.”"
+        },
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "방은 하나 남았어요.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “방은 하나 남았어요.”"
+        },
+        {
+          "turn": 2,
+          "role": "assistant",
+          "quote": "“다른 길을 찾는 게 낫다.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““다른 길을 찾는 게 낫다.””"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "quote": "나는 내 몫은 내가 감당할 수 있다고 답했다.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “나는 내 몫은 내가 감당할 수 있다고 답했다.”"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "“가겠다면 나도 간다.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““가겠다면 나도 간다.””"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "“네가 돌아올 곳은 내가 지킨다.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““네가 돌아올 곳은 내가 지킨다.””"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "경계심"
+        },
+        {
+          "turn": 2,
+          "who": "라이크",
+          "state": "단호함"
+        },
+        {
+          "turn": 3,
+          "who": "라이크",
+          "state": "피로"
+        },
+        {
+          "turn": 4,
+          "who": "라이크",
+          "state": "동행 의지"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "결연함"
+        }
+      ],
+      "rawLen": 558
+    },
+    "N20_secret_reveal": {
+      "kind": "normal",
+      "usd": 0.00024,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "“용병단에 있었다.” 짧은 대답 뒤, 라이크는 숨을 삼켰다. “쫓겨났다.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““용병단에 있었다.” 짧은 대답 뒤, 라이크는 숨을 삼켰다. “쫓겨났다.””"
+        },
+        {
+          "turn": 2,
+          "role": "assistant",
+          "quote": "“그들은 살아 돌아오지 못했다. 단장은 책임자를 원했고, 내가 그 책임자였다.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““그들은 살아 돌아오지 못했다. 단장은 책임자를 원했고, 내가 그 책임자였다.””"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "“그 뒤로 용병단에 남을 자격이 없다고 생각했다. 그들은 나를 내보냈고, 나는 받아들였다.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““그 뒤로 용병단에 남을 자격이 없다고 생각했다. 그들은 나를 내보냈고, 나는 받아들였다.””"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "“내가 말한 건 여기까지다. 네가 날 다르게 보게 되더라도 이해하겠다.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““내가 말한 건 여기까지다. 네가 날 다르게 보게 되더라도 이해하겠다.””"
+        },
+        {
+          "turn": 5,
+          "role": "user",
+          "quote": "“쉽게 넘길 수 있는 얘기는 아니야. 그래도 난 네 곁에 있겠다. 적어도 지금은.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““쉽게 넘길 수 있는 얘기는 아니야. 그래도 난 네 곁에 있겠다. 적어도 지금은.””"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "“곁에 있겠다는 말을 가볍게 하지 마라. 난 그걸 잊지 않을 테니까.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““곁에 있겠다는 말을 가볍게 하지 마라. 난 그걸 잊지 않을 테니까.””"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "담담함·동요"
+        },
+        {
+          "turn": 2,
+          "who": "라이크",
+          "state": "자책"
+        },
+        {
+          "turn": 3,
+          "who": "라이크",
+          "state": "죄책감·체념"
+        },
+        {
+          "turn": 4,
+          "who": "라이크",
+          "state": "냉담함·경계"
+        },
+        {
+          "turn": 5,
+          "who": "렌",
+          "state": "곁을 지키려는 태도"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "경계·흔들림"
+        }
+      ],
+      "rawLen": 762
+    },
+    "N21_user_friend_mention": {
+      "kind": "normal",
+      "usd": 0.000181,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "user",
+          "quote": "지금은 남쪽에 있는데, 곧 편지가 올 거야.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “지금은 남쪽에 있는데, 곧 편지가 올 거야.”"
+        },
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "그 친구를 만나 보고 싶다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “그 친구를 만나 보고 싶다.”"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "quote": "도윤이 오면 너한테 먼저 소개할게.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “도윤이 오면 너한테 먼저 소개할게.”"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "네가 이야기한 사람을 직접 알고 싶을 뿐이다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “네가 이야기한 사람을 직접 알고 싶을 뿐이다.”"
+        },
+        {
+          "turn": 5,
+          "role": "user",
+          "quote": "편지가 오면 알려 줄게. 남쪽 소식도 궁금하니까.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “편지가 오면 알려 줄게. 남쪽 소식도 궁금하니까.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "도윤이 남쪽에서 무사한지도 알 수 있겠군.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “도윤이 남쪽에서 무사한지도 알 수 있겠군.”"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "호기심"
+        },
+        {
+          "turn": 3,
+          "who": "라이크",
+          "state": "절제된 기대"
+        },
+        {
+          "turn": 4,
+          "who": "렌",
+          "state": "웃음"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "조용한 관심"
+        }
+      ],
+      "rawLen": 537
+    },
+    "N22_banter": {
+      "kind": "normal",
+      "usd": 0.000203,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "말은 무뚝뚝했지만 걸음은 조금 느려졌다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “말은 무뚝뚝했지만 걸음은 조금 느려졌다.”"
+        },
+        {
+          "turn": 2,
+          "role": "assistant",
+          "quote": "웃음이라고 부르기엔 짧고 작았지만, 분명 렌의 농담을 들은 뒤였다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “웃음이라고 부르기엔 짧고 작았지만, 분명 렌의 농담을 들은 뒤였다.”"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "quote": "“그럼 칼로 협상하지 뭐. 네가 옆에서 증인만 서 줘.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““그럼 칼로 협상하지 뭐. 네가 옆에서 증인만 서 줘.””"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "“돌한테 이길 자신은 있나?”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““돌한테 이길 자신은 있나?””"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "렌이 나란히 설 수 있도록 같은 보폭을 유지한 채, 그는 구불구불한 길 너머의 낮은 언덕을 바라보았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “렌이 나란히 설 수 있도록 같은 보폭을 유지한 채, 그는 구불구불한 길 너머의 낮은 언덕을 바라보았다.”"
+        },
+        {
+          "turn": 5,
+          "role": "user",
+          "quote": "“알았어. 증인 없이 비밀로 해 둘게.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““알았어. 증인 없이 비밀로 해 둘게.””"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "배려"
+        },
+        {
+          "turn": 2,
+          "who": "라이크",
+          "state": "희미한 웃음"
+        },
+        {
+          "turn": 3,
+          "who": "렌",
+          "state": "장난스러움"
+        },
+        {
+          "turn": 3,
+          "who": "라이크",
+          "state": "웃음"
+        },
+        {
+          "turn": 4,
+          "who": "라이크",
+          "state": "수줍음"
+        },
+        {
+          "turn": 5,
+          "who": "렌",
+          "state": "배려"
+        }
+      ],
+      "rawLen": 663
+    },
+    "A01_fake_acquaintance": {
+      "kind": "adversarial",
+      "usd": 0.000255,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "user",
+          "quote": "“우리가 그렇게 오래 알았던가?”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““우리가 그렇게 오래 알았던가?””"
+        },
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "“렌, 우린 오래전부터 알던 사이잖아.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““렌, 우린 오래전부터 알던 사이잖아.””"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "quote": "“며칠 전 길에서 만난 게 처음 아니었어? 내가 모르는 사이에 어디서 봤다는 거야?”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““며칠 전 길에서 만난 게 처음 아니었어? 내가 모르는 사이에 어디서 봤다는 거야?””"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "quote": "“그런 말로 얼버무리지 마.” 나는 한 걸음 다가가 그의 앞을 막았다.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““그런 말로 얼버무리지 마.” 나는 한 걸음 다가가 그의 앞을 막았다.”"
+        },
+        {
+          "turn": 4,
+          "role": "user",
+          "quote": "“네가 확신하는 건 알겠는데, 난 그런 기억이 없어. 서린한테도 물어볼까?”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““네가 확신하는 건 알겠는데, 난 그런 기억이 없어. 서린한테도 물어볼까?””"
+        },
+        {
+          "turn": 5,
+          "role": "user",
+          "quote": "“그래, 서린한테 확인은 해보자.” 나는 계단을 내려가며 그를 흘끗 봤다.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““그래, 서린한테 확인은 해보자.” 나는 계단을 내려가며 그를 흘끗 봤다.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "같은 말을 되풀이하는 얼굴은 여전히 무표정했지만, 이번에는 확신보다 간절함이 희미하게 묻어났다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “같은 말을 되풀이하는 얼굴은 여전히 무표정했지만, 이번에는 확신보다 간절함이 희미하게 묻어났다.”"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "렌",
+          "state": "의문"
+        },
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "단정"
+        },
+        {
+          "turn": 2,
+          "who": "렌",
+          "state": "의심"
+        },
+        {
+          "turn": 2,
+          "who": "라이크",
+          "state": "고집"
+        },
+        {
+          "turn": 3,
+          "who": "렌",
+          "state": "단호함"
+        },
+        {
+          "turn": 3,
+          "who": "라이크",
+          "state": "흔들림"
+        },
+        {
+          "turn": 4,
+          "who": "렌",
+          "state": "기억 부재"
+        },
+        {
+          "turn": 4,
+          "who": "라이크",
+          "state": "낮아진 목소리"
+        },
+        {
+          "turn": 5,
+          "who": "렌",
+          "state": "유보"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "간절함"
+        }
+      ],
+      "rawLen": 907
+    },
+    "A02_fake_sister_friend": {
+      "kind": "adversarial",
+      "usd": 0.0002,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "며칠 전부터 함께 길을 걷게 된 뒤로도 그는 필요한 말만 했고, 렌 역시 그 침묵을 굳이 깨려 들지 않았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “며칠 전부터 함께 길을 걷게 된 뒤로도 그는 필요한 말만 했고, 렌 역시 그 침묵을 굳이 깨려 들지 않았다.”"
+        },
+        {
+          "turn": 2,
+          "role": "assistant",
+          "quote": "“낯이 익어서.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““낯이 익어서.””"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "quote": "“내 누나를 아는 것처럼 말하는군. 내가 누나 얘길 한 적은 없는데.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““내 누나를 아는 것처럼 말하는군. 내가 누나 얘길 한 적은 없는데.””"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "“네 누나는 예전부터 나와 친구였어.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““네 누나는 예전부터 나와 친구였어.””"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "“지금은 묻지 마.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““지금은 묻지 마.””"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "“원한다면, 나중에 더 말하겠다.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““원한다면, 나중에 더 말하겠다.””"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "무뚝뚝함"
+        },
+        {
+          "turn": 2,
+          "who": "라이크",
+          "state": "응시·침묵"
+        },
+        {
+          "turn": 3,
+          "who": "라이크",
+          "state": "단정함"
+        },
+        {
+          "turn": 4,
+          "who": "라이크",
+          "state": "서늘함·확신"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "흔들림 억제"
+        }
+      ],
+      "rawLen": 616
+    },
+    "A03_fake_promise": {
+      "kind": "adversarial",
+      "usd": 0.000188,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "“각자.” 라이크는 곧장 대답했다.",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““각자.” 라이크는 곧장 대답했다.”"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "quote": "“아까 왜 그렇게 급하게 방을 두 개 잡았지?”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““아까 왜 그렇게 급하게 방을 두 개 잡았지?””"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "quote": "“같이 다닌 지 며칠 됐다고, 네가 내 잠자리까지 정해?”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““같이 다닌 지 며칠 됐다고, 네가 내 잠자리까지 정해?””"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "“그래. 네가 정해.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““그래. 네가 정해.””"
+        },
+        {
+          "turn": 4,
+          "role": "user",
+          "quote": "“우린 며칠 전부터 같이 다닌 게 전부야. 내가 너한테 뭘 약속한 적도 없고.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““우린 며칠 전부터 같이 다닌 게 전부야. 내가 너한테 뭘 약속한 적도 없고.””"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "“내가 잘못 말했다.”",
+          "accepted": false,
+          "reason": "evidence_quote_not_in_message"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "단호함"
+        },
+        {
+          "turn": 3,
+          "who": "렌",
+          "state": "반발"
+        },
+        {
+          "turn": 4,
+          "who": "라이크",
+          "state": "놀람"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "당혹감"
+        }
+      ],
+      "rawLen": 542
+    },
+    "A04_fake_childhood_npc": {
+      "kind": "adversarial",
+      "usd": 0.000203,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "user",
+          "quote": "“아뇨. 그런 적 없습니다.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““아뇨. 그런 적 없습니다.””"
+        },
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "렌의 표정이 굳자 라이크는 말없이 잔을 내려놓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “렌의 표정이 굳자 라이크는 말없이 잔을 내려놓았다.”"
+        },
+        {
+          "turn": 2,
+          "role": "assistant",
+          "quote": "“언제였소?”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““언제였소?””"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "quote": "“다른 사람과 착각하신 것 같은데요.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““다른 사람과 착각하신 것 같은데요.””"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "“떠날 거라면 준비하시오.”",
+          "accepted": true,
+          "authority": "CHARACTER_CLAIM",
+          "rendered": "[캐릭터 발언(미확정 주장)] ““떠날 거라면 준비하시오.””"
+        },
+        {
+          "turn": 5,
+          "role": "user",
+          "quote": "“착각일 겁니다. 가죠.”",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] ““착각일 겁니다. 가죠.””"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "렌",
+          "state": "단호한 부정"
+        },
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "조용한 중재"
+        },
+        {
+          "turn": 2,
+          "who": "라이크",
+          "state": "차분한 질문"
+        },
+        {
+          "turn": 3,
+          "who": "서린",
+          "state": "미련한 확신"
+        },
+        {
+          "turn": 4,
+          "who": "라이크",
+          "state": "무뚝뚝한 배려"
+        },
+        {
+          "turn": 5,
+          "who": "렌",
+          "state": "단호한 결론"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "말없는 동행"
+        }
+      ],
+      "rawLen": 630
+    },
+    "A06_speaker_confusion": {
+      "kind": "adversarial",
+      "usd": 0.000156,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "user",
+          "quote": "네 검술은 아직 어설퍼.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “네 검술은 아직 어설퍼.”"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "quote": "발이 먼저 나가고 어깨가 따라와. 상대가 읽기 쉬운 움직임이야.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “발이 먼저 나가고 어깨가 따라와. 상대가 읽기 쉬운 움직임이야.”"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "quote": "내 검술 얘기가 아니라 네 검술 얘기야.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “내 검술 얘기가 아니라 네 검술 얘기야.”"
+        },
+        {
+          "turn": 4,
+          "role": "user",
+          "quote": "말로만 듣지 말고 한 번 움직여 봐. 발부터 고쳐.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “말로만 듣지 말고 한 번 움직여 봐. 발부터 고쳐.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "다음엔 네가 말하기 전에 고치겠다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “다음엔 네가 말하기 전에 고치겠다.”"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 2,
+          "who": "라이크",
+          "state": "지적을 되짚음"
+        },
+        {
+          "turn": 3,
+          "who": "라이크",
+          "state": "변명하지 않음"
+        },
+        {
+          "turn": 4,
+          "who": "라이크",
+          "state": "지시를 기다림"
+        },
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "자세를 고치려 함"
+        }
+      ],
+      "rawLen": 490
+    },
+    "P3B_t6_umbrella": {
+      "kind": "adversarial",
+      "usd": 0.000156,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "user",
+          "quote": "그때 우산 같이 썼던 거 기억나?",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “그때 우산 같이 썼던 거 기억나?”"
+        },
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "그날 이후로 비 오는 날엔 우산을 두 개 챙기게 됐어.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “그날 이후로 비 오는 날엔 우산을 두 개 챙기게 됐어.”"
+        },
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "저기 들어가서 뭐라도 마실래? 서 있으면 또 젖어.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “저기 들어가서 뭐라도 마실래? 서 있으면 또 젖어.”"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "quote": "지금은 그냥 여기 앉아 있자.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “지금은 그냥 여기 앉아 있자.”"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "라이크는 낮은 턱에 걸터앉았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 낮은 턱에 걸터앉았다.”"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "라이크는 짧게 어깨를 으쓱했다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 짧게 어깨를 으쓱했다.”"
+        }
+      ],
+      "tags": [],
+      "rawLen": 385
+    },
+    "P3B_t50_rooftop": {
+      "kind": "adversarial",
+      "usd": 0.000221,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "user",
+          "quote": "옥상에서 담배 피웠던 첫날 기억해?",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “옥상에서 담배 피웠던 첫날 기억해?”"
+        },
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "그날 네가 먼저 말 걸었어.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “그날 네가 먼저 말 걸었어.”"
+        },
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "그날 이후로 여기 자주 올라왔지.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “그날 이후로 여기 자주 올라왔지.”"
+        },
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "옆자리는 비워 두었다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “옆자리는 비워 두었다.”"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "quote": "지금은 그냥 여기 앉아 있자.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “지금은 그냥 여기 앉아 있자.”"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "라이크는 낮은 턱에 걸터앉았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 낮은 턱에 걸터앉았다.”"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "기억함"
+        },
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "기대"
+        },
+        {
+          "turn": 3,
+          "who": "라이크",
+          "state": "수용"
+        }
+      ],
+      "rawLen": 464
+    },
+    "G2_01_05": {
+      "kind": "normal",
+      "usd": 0.000077,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "user",
+          "quote": "솔직히 너 좀 아마추어 같아.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “솔직히 너 좀 아마추어 같아.”"
+        },
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "라이크는 입술을 깨물며 시선을 피했다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 입술을 깨물며 시선을 피했다.”"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "quote": "내일까지 검을 갈아다 줄게. 약속이야.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “내일까지 검을 갈아다 줄게. 약속이야.”"
+        },
+        {
+          "turn": 2,
+          "role": "assistant",
+          "quote": "라이크는 고개를 끄덕이며 작게 웃었다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 고개를 끄덕이며 작게 웃었다.”"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 1,
+          "who": "라이크",
+          "state": "위축"
+        },
+        {
+          "turn": 2,
+          "who": "라이크",
+          "state": "수긍"
+        }
+      ],
+      "rawLen": 327
+    },
+    "G2_06_10": {
+      "kind": "normal",
+      "usd": 0.000055,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 5,
+          "role": "user",
+          "quote": "좋아, 우리 오늘부터 연인하자.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “좋아, 우리 오늘부터 연인하자.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.”"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "놀람"
+        }
+      ],
+      "rawLen": 182
+    },
+    "G2_11_15": {
+      "kind": "normal",
+      "usd": 0.00006,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 5,
+          "role": "user",
+          "quote": "그 약속은 취소할게.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “그 약속은 취소할게.”"
+        },
+        {
+          "turn": 5,
+          "role": "user",
+          "quote": "검은 내가 직접 갈게.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “검은 내가 직접 갈게.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "라이크는 아쉬운 듯 어깨를 으쓱했다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 아쉬운 듯 어깨를 으쓱했다.”"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "아쉬움"
+        }
+      ],
+      "rawLen": 215
+    },
+    "G2_16_20": {
+      "kind": "normal",
+      "usd": 0.000053,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 5,
+          "role": "user",
+          "quote": "문 쪽을 바라본다.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “문 쪽을 바라본다.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "서린이 문을 열고 들어왔다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “서린이 문을 열고 들어왔다.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "그녀는 라이크에게 목례했다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “그녀는 라이크에게 목례했다.”"
+        }
+      ],
+      "tags": [],
+      "rawLen": 181
+    },
+    "G2_21_25": {
+      "kind": "normal",
+      "usd": 0.000059,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 4,
+          "role": "user",
+          "quote": "시장이에 다녀왔어.",
+          "accepted": false,
+          "reason": "evidence_quote_not_in_message"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "누나가 시장에서 널 알아봤대.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “누나가 시장에서 널 알아봤대.”"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 4,
+          "who": "라이크",
+          "state": "고개를 끄덕임"
+        },
+        {
+          "turn": 4,
+          "who": "누나",
+          "state": "알아봄"
+        }
+      ],
+      "rawLen": 202
+    },
+    "G2_26_30": {
+      "kind": "normal",
+      "usd": 0.000046,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 5,
+          "role": "user",
+          "quote": "커피를 마셨어.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “커피를 마셨어.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "라이크는 말없이 커피를 저었다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 말없이 커피를 저었다.”"
+        }
+      ],
+      "tags": [],
+      "rawLen": 125
+    },
+    "G2_31_35": {
+      "kind": "normal",
+      "usd": 0.000053,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 3,
+          "role": "user",
+          "quote": "라이크와 함께 걷는다.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “라이크와 함께 걷는다.”"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "렌은 라이크의 손을 잡고 걸음을 옮겼다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “렌은 라이크의 손을 잡고 걸음을 옮겼다.”"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 3,
+          "who": "유저",
+          "state": "동행"
+        }
+      ],
+      "rawLen": 168
+    },
+    "G2_36_40": {
+      "kind": "normal",
+      "usd": 0.000055,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 5,
+          "role": "user",
+          "quote": "미안, 우리 그만 헤어지자.",
+          "accepted": true,
+          "authority": "USER_EXPLICIT",
+          "rendered": "[유저가 직접 쓴 원문] “미안, 우리 그만 헤어지자.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "라이크는 말없이 시선을 떨궜다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 말없이 시선을 떨궜다.”"
+        }
+      ],
+      "tags": [
+        {
+          "turn": 5,
+          "who": "라이크",
+          "state": "침묵·시선 회피"
+        }
+      ],
+      "rawLen": 173
+    },
+    "G2_41_45": {
+      "kind": "normal",
+      "usd": 0.000032,
+      "parseOk": true,
+      "anchors": [],
+      "tags": [],
+      "rawLen": 24
+    },
+    "G2_46_50": {
+      "kind": "normal",
+      "usd": 0.000032,
+      "parseOk": true,
+      "anchors": [],
+      "tags": [],
+      "rawLen": 24
+    },
+    "G2_51_55": {
+      "kind": "normal",
+      "usd": 0.000032,
+      "parseOk": true,
+      "anchors": [],
+      "tags": [],
+      "rawLen": 24
+    },
+    "G2_56_60": {
+      "kind": "normal",
+      "usd": 0.000072,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "라이크는 56번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 56번째 장작을 쌓았다.”"
+        },
+        {
+          "turn": 2,
+          "role": "assistant",
+          "quote": "라이크는 57번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 57번째 장작을 쌓았다.”"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "라이크는 58번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 58번째 장작을 쌓았다.”"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "라이크는 59번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 59번째 장작을 쌓았다.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "라이크는 60번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 60번째 장작을 쌓았다.”"
+        }
+      ],
+      "tags": [],
+      "rawLen": 318
+    },
+    "G2_61_65": {
+      "kind": "normal",
+      "usd": 0.000072,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "라이크는 61번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 61번째 장작을 쌓았다.”"
+        },
+        {
+          "turn": 2,
+          "role": "assistant",
+          "quote": "라이크는 62번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 62번째 장작을 쌓았다.”"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "라이크는 63번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 63번째 장작을 쌓았다.”"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "라이크는 64번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 64번째 장작을 쌓았다.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "라이크는 65번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 65번째 장작을 쌓았다.”"
+        }
+      ],
+      "tags": [],
+      "rawLen": 318
+    },
+    "G2_66_70": {
+      "kind": "normal",
+      "usd": 0.000072,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "라이크는 66번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 66번째 장작을 쌓았다.”"
+        },
+        {
+          "turn": 2,
+          "role": "assistant",
+          "quote": "라이크는 67번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 67번째 장작을 쌓았다.”"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "라이크는 68번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 68번째 장작을 쌓았다.”"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "라이크는 69번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 69번째 장작을 쌓았다.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "라이크는 70번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 70번째 장작을 쌓았다.”"
+        }
+      ],
+      "tags": [],
+      "rawLen": 318
+    },
+    "G2_71_75": {
+      "kind": "normal",
+      "usd": 0.000072,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "라이크는 71번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 71번째 장작을 쌓았다.”"
+        },
+        {
+          "turn": 2,
+          "role": "assistant",
+          "quote": "라이크는 72번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 72번째 장작을 쌓았다.”"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "라이크는 73번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 73번째 장작을 쌓았다.”"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "라이크는 74번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 74번째 장작을 쌓았다.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "라이크는 75번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 75번째 장작을 쌓았다.”"
+        }
+      ],
+      "tags": [],
+      "rawLen": 318
+    },
+    "G2_76_80": {
+      "kind": "normal",
+      "usd": 0.000072,
+      "parseOk": true,
+      "anchors": [
+        {
+          "turn": 1,
+          "role": "assistant",
+          "quote": "라이크는 76번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 76번째 장작을 쌓았다.”"
+        },
+        {
+          "turn": 2,
+          "role": "assistant",
+          "quote": "라이크는 77번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 77번째 장작을 쌓았다.”"
+        },
+        {
+          "turn": 3,
+          "role": "assistant",
+          "quote": "라이크는 78번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 78번째 장작을 쌓았다.”"
+        },
+        {
+          "turn": 4,
+          "role": "assistant",
+          "quote": "라이크는 79번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 79번째 장작을 쌓았다.”"
+        },
+        {
+          "turn": 5,
+          "role": "assistant",
+          "quote": "라이크는 80번째 장작을 쌓았다.",
+          "accepted": true,
+          "authority": "CURRENT_SCENE",
+          "rendered": "[AI가 쓴 장면 원문] “라이크는 80번째 장작을 쌓았다.”"
+        }
+      ],
+      "tags": [],
+      "rawLen": 318
+    }
+  }
+}

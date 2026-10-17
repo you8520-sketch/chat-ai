@@ -1,0 +1,46 @@
+{
+ "id": "N18_hug",
+ "arm": "F",
+ "rep": 0,
+ "text": "여관 문이 거칠게 닫히자 렌은 움찔하고 숨이 가빠졌으며, 큰 소리에 놀랐을 뿐이라고 했지만 가슴이 진정되지 않았음. 라이크는 캐묻지 않고 곁에 있겠다며 천천히 숨 쉬도록 이끌었고, 렌이 함께 있어 달라고 하자 조심스럽게 등을 감싸 안았음. 렌은 처음엔 놀랐지만 품이 편하다고 말하며 호흡을 가라앉혔고, 라이크는 안도하며 움직이지 않고 곁을 지켰음. 렌이 진정되어 놓아도 된다고 하자 라이크는 상태를 확인한 뒤 천천히 놓아주고 어깨를 두드렸으며, 렌의 고른 숨에 표정이 누그러졌음. 이어 물을 마시라고 당부함.",
+ "usage": {
+  "inputTokens": 2329,
+  "outputTokens": 199,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2327,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000253,
+  "upstreamCostUsd": 0.000253,
+  "debugRawUsage": {
+   "completion_tokens": 199,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2329,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2327,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2528,
+   "cost": 0.000253,
+   "cost_details": {
+    "upstream_inference_cost": 0.000253
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "008fef88-656c-43b5-99a0-fda1614211a7"
+ },
+ "billedUsd": 0.000253,
+ "ms": 4143,
+ "systemChars": 2503,
+ "userChars": 1754
+}

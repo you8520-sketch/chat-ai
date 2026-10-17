@@ -1,0 +1,46 @@
+{
+ "id": "FX26",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"렌이 잡담을 이어가는 동안 라이크는 26~29번째 장작을 차례로 쌓음. 렌이 커피를 마셨다고 하자 라이크는 말없이 커피를 저음.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":26,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 26번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":27,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 27번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":28,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 28번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":29,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 29번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":30,\"sourceRole\":\"user\",\"quote\":\"커피를 마셨어.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":30,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 말없이 커피를 저었다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 1984,
+  "outputTokens": 304,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 1982,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000259,
+  "upstreamCostUsd": 0.000259,
+  "debugRawUsage": {
+   "completion_tokens": 304,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1984,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 1982,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2288,
+   "cost": 0.000259,
+   "cost_details": {
+    "upstream_inference_cost": 0.000259
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "bfd9e10c-e604-4b8e-8d62-b4dddd85effd"
+ },
+ "billedUsd": 0.000259,
+ "ms": 4714,
+ "systemChars": 3460,
+ "userChars": 615
+}

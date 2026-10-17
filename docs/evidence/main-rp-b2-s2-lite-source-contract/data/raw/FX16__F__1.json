@@ -1,0 +1,46 @@
+{
+ "id": "FX16",
+ "arm": "F",
+ "rep": 1,
+ "text": "렌이 오늘의 잡담을 이어가는 동안 라이크는 매번 장작을 하나씩 쌓아 19번째 장작까지 모음. 이후 렌이 문 쪽을 바라보자 서린이 들어와 라이크에게 목례함.",
+ "usage": {
+  "inputTokens": 1557,
+  "outputTokens": 59,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1555,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000029,
+  "upstreamCostUsd": 0.000029,
+  "debugRawUsage": {
+   "completion_tokens": 59,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1557,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1555
+   },
+   "total_tokens": 1616,
+   "cost": 0.000029,
+   "cost_details": {
+    "upstream_inference_cost": 0.000029
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "42db5486-c60b-4499-b9f7-ca4cdc4c05bf"
+ },
+ "billedUsd": 0.000029,
+ "ms": 2289,
+ "systemChars": 2503,
+ "userChars": 598
+}
