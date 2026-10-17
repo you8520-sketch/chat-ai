@@ -16,6 +16,7 @@ import {
   projectPublicExploration,
   settleExplorationActor,
   spendExplorationAp,
+  visibleExplorationNeighbors,
   type ExplorationActorResult,
   type ExplorationState,
 } from "./explorationMap";
@@ -174,13 +175,11 @@ export function explorationPromptForRound(
       .filter((result) => result.location)
       .map((result) => [result.participantId, result.location as string])
   );
+  const settled = commit?.state ?? state;
   const seats = loadExplorationSeats(db, opts.campaignId).map((seat) => {
     const start = opts.opening ? EXPLORATION_ENTRANCE : seat.location.trim() || EXPLORATION_ENTRANCE;
-    return {
-      name: seat.name,
-      start,
-      end: opts.opening ? EXPLORATION_ENTRANCE : (endById.get(seat.participantId) ?? start),
-    };
+    const end = opts.opening ? EXPLORATION_ENTRANCE : (endById.get(seat.participantId) ?? start);
+    return { name: seat.name, start, end, exits: visibleExplorationNeighbors(settled, end) };
   });
   return formatExplorationGmBlock({
     opening: opts.opening,

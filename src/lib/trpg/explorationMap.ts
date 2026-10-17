@@ -712,6 +712,8 @@ export type ExplorationSeatFact = {
   name: string;
   start: string;
   end: string;
+  /** `visibleExplorationNeighbors` of `end`, the same list companions receive. */
+  exits: readonly string[];
 };
 
 export function visibleExplorationNeighbors(state: ExplorationState, roomId: string): string[] {
@@ -737,18 +739,23 @@ export function formatExplorationGmBlock(opts: {
     if (start === end) return `${seat.name} is in ${end}. They did not move this round.`;
     return `${seat.name} started in ${start} and is now in ${end}.`;
   });
+  const exitsByRoom = new Map<string, readonly string[]>();
+  for (const seat of opts.seats) {
+    const room = seat.end.trim() || seat.start.trim() || EXPLORATION_ENTRANCE;
+    if (!exitsByRoom.has(room)) exitsByRoom.set(room, seat.exits);
+  }
+  const exits = [...exitsByRoom].map(([room, next]) => `Open passages from ${room}: ${next.join(", ") || "(none)"}.`);
   const atExit = opts.seats.some((seat) => (seat.end.trim() || seat.start.trim()) === EXPLORATION_EXIT_ROOM);
   return [
     EXPLORATION_GM_HEADER,
     `Risk ${opts.risk}. Alarm: ${opts.alarm ? "yes" : "no"}.`,
-    opts.opening ? `The party begins in ${EXPLORATION_ENTRANCE}. At least two passages leave this room.` : "",
+    opts.opening ? `The party begins in ${EXPLORATION_ENTRANCE}.` : "",
     ...positions,
+    ...exits,
     ...opts.resultLines,
     explorationLatchFact(opts.alarm, atExit),
-    "Describe the rooms they occupy. Visible passages may be atmosphere. Do not walk anyone down a passage they did not take.",
-    opts.flags.length
-      ? `Server flags already include: ${opts.flags.join("; ")}. Only the server confirms ${EXPLORATION_ALARM_FLAG}, ${EXPLORATION_CLUE_FLAG}, and ${EXPLORATION_PASSAGE_FLAG}. Other world facts may still be recorded.`
-      : `No exploration flags yet. Only the server confirms ${EXPLORATION_ALARM_FLAG}, ${EXPLORATION_CLUE_FLAG}, and ${EXPLORATION_PASSAGE_FLAG}. Other world facts may still be recorded.`,
+    "Describe the rooms they occupy. Only the open passages listed here lead out. Do not walk anyone down a passage they did not take.",
+    opts.flags.length ? `Server flags already include: ${opts.flags.join("; ")}. Other world facts may still be recorded.` : "",
   ]
     .filter(Boolean)
     .join("\n");
@@ -837,7 +844,7 @@ export function projectPublicExploration(opts: {
       if (revealedEvents.some((event) => event.roomId === room.id && event.kind === "hidden")) markers.push("passage");
       return {
         id: room.publicId,
-        label: seen ? room.id : "?",
+        label: room.id,
         x: room.x,
         y: room.y,
         visited: seen,

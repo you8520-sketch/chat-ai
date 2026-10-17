@@ -257,12 +257,22 @@ describe("exploration play", () => {
     for (const id of [hostId, human2, ...ai]) assert.equal(locationOf(db, id), EXPLORATION_ENTRANCE);
     const openingSnap = loadTrpgSnapshot(db, campaignId, 1)!;
     const openingWire = JSON.stringify(openingSnap.exploration);
-    assert.equal(openingSnap.exploration?.rooms.some((room) => room.label === "?"), true);
+    const entranceExits = neighbors(seeded, EXPLORATION_ENTRANCE);
+    assert.deepEqual(
+      openingSnap.exploration?.rooms.map((room) => room.label).sort(),
+      [EXPLORATION_ENTRANCE, ...entranceExits].sort()
+    );
     assert.equal(openingWire.includes(EXPLORATION_CLUE_TEXT), false);
     assert.equal(openingWire.includes(EXPLORATION_ITEM_NAME), false);
-    assert.match(gmPrompts[0] ?? "", /\[EXPLORATION/);
-    assert.match(gmPrompts[0] ?? "", /Do not invent another clue/);
-    assert.match(gmPrompts[0] ?? "", /현이 is in 현관홀/);
+    const openingGm = gmPrompts[0] ?? "";
+    assert.match(openingGm, /\[EXPLORATION/);
+    assert.match(openingGm, /Do not invent another clue/);
+    assert.match(openingGm, /현이 is in 현관홀/);
+    assert.ok(openingGm.includes(`Open passages from ${EXPLORATION_ENTRANCE}: ${entranceExits.join(", ")}.`), openingGm);
+    assert.doesNotMatch(openingGm, /At least two passages|may be atmosphere/);
+    assert.equal(openingGm.includes(EXPLORATION_PASSAGE_FLAG), false);
+    assert.equal(openingGm.includes(EXPLORATION_CLUE_FLAG), false);
+    assert.equal(openingGm.includes(EXPLORATION_LOOP_ROOM), entranceExits.includes(EXPLORATION_LOOP_ROOM));
 
     const log: string[] = [];
     const submitBoth = (left: { commands?: unknown; body?: string }, right: { commands?: unknown; body?: string }) => {
@@ -306,6 +316,12 @@ describe("exploration play", () => {
     );
     await play();
     assert.notEqual(locationOf(db, hostId), locationOf(db, human2));
+    const afterFirst = loadExplorationState(db, campaignId)!;
+    assert.ok(botPrompts.some((prompt) => prompt.includes(`Open passages: ${entranceExits.join(", ")}.`)), botPrompts.join("\n---\n"));
+    const firstGm = gmPrompts.at(-1) ?? "";
+    for (const room of [locationOf(db, hostId), locationOf(db, human2)]) {
+      assert.ok(firstGm.includes(`Open passages from ${room}: ${neighbors(afterFirst, room).join(", ")}.`), firstGm);
+    }
     assert.equal(loadExplorationState(db, campaignId)?.revealedEventIds.includes("event-clue"), false);
     assert.equal(itemQty(db, hostId, EXPLORATION_ITEM_NAME), 0);
 
