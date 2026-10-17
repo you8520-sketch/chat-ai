@@ -59,13 +59,19 @@ export class TrpgAuthoringEmptyError extends Error {
 
 export const TRPG_SCENARIO_DRAFT_ADVENTURE_INVALID_MESSAGE =
   "AI가 만든 장소 연결이 맞지 않아 모험을 완성하지 못했습니다. 작성 중인 내용은 그대로 보존되었습니다. 다시 시도해 주세요.";
+export const TRPG_SCENARIO_DRAFT_ADVENTURE_MISSING_MESSAGE =
+  "AI가 장소와 사건을 만들지 않아 모험을 완성하지 못했습니다. 작성 중인 내용은 그대로 보존되었습니다. 다시 시도해 주세요.";
+
+export type TrpgAuthoringAdventureErrorCode = "SCENARIO_DRAFT_ADVENTURE_INVALID" | "SCENARIO_DRAFT_ADVENTURE_MISSING";
 
 export class TrpgAuthoringAdventureInvalidError extends Error {
   readonly issues: string[];
-  constructor(issues: string[]) {
-    super(TRPG_SCENARIO_DRAFT_ADVENTURE_INVALID_MESSAGE);
+  readonly code: TrpgAuthoringAdventureErrorCode;
+  constructor(issues: string[], code: TrpgAuthoringAdventureErrorCode = "SCENARIO_DRAFT_ADVENTURE_INVALID") {
+    super(code === "SCENARIO_DRAFT_ADVENTURE_MISSING" ? TRPG_SCENARIO_DRAFT_ADVENTURE_MISSING_MESSAGE : TRPG_SCENARIO_DRAFT_ADVENTURE_INVALID_MESSAGE);
     this.name = "TrpgAuthoringAdventureInvalidError";
     this.issues = issues;
+    this.code = code;
   }
 }
 
@@ -413,8 +419,9 @@ export async function completeTrpgAuthoringJson(opts: {
 }
 
 /**
- * An empty draft parses cleanly but fills nothing, and a requested adventure the server cannot
- * play would quietly become "no map". Neither is reported as a success.
+ * An empty draft parses cleanly but fills nothing, and a requested adventure that is missing or
+ * that the server cannot play would quietly become "no map". None is reported as a success, and
+ * none is hidden by calling the model again. Fields that were not requested are not checked.
  */
 export async function completeTrpgScenarioDraftJson(
   opts: Parameters<typeof completeTrpgAuthoringJson>[0]
@@ -424,12 +431,17 @@ export async function completeTrpgScenarioDraftJson(
   if (expectsFields && (result.generatedFields?.length ?? 0) === 0) {
     throw new TrpgAuthoringEmptyError();
   }
-  if (opts.expectedFields?.includes("adventure") && result.adventureIssues?.length) {
+  if (!opts.expectedFields?.includes("adventure")) return result;
+  if (result.adventureIssues?.length) {
     console.info("[trpg-authoring] adventure_invalid", { issues: result.adventureIssues });
     throw new TrpgAuthoringAdventureInvalidError(result.adventureIssues);
   }
-  if (opts.expectedFields?.includes("adventure") && !result.plan.adventure) {
+  if (!result.plan.adventure) {
     console.info("[trpg-authoring] adventure_missing");
+    throw new TrpgAuthoringAdventureInvalidError(
+      ["장소 구성(adventure)이 응답에 없습니다."],
+      "SCENARIO_DRAFT_ADVENTURE_MISSING"
+    );
   }
   return result;
 }

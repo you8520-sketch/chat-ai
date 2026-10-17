@@ -177,7 +177,7 @@ export async function POST(req: Request) {
     }
     if (e instanceof TrpgAuthoringAdventureInvalidError) {
       return NextResponse.json(
-        { error: e.message, code: "SCENARIO_DRAFT_ADVENTURE_INVALID", issues: e.issues },
+        { error: e.message, code: e.code, issues: e.issues },
         { status: 422 }
       );
     }

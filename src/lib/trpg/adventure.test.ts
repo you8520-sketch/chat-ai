@@ -7,7 +7,11 @@ import {
   evaluateAdventure,
   parseAdventure,
 } from "./adventure";
-import { completeTrpgScenarioDraftJson, TrpgAuthoringAdventureInvalidError } from "./scenarioDraftCall";
+import {
+  completeTrpgScenarioDraftJson,
+  TRPG_SCENARIO_DRAFT_ADVENTURE_MISSING_MESSAGE,
+  TrpgAuthoringAdventureInvalidError,
+} from "./scenarioDraftCall";
 import {
   buildSandboxDirectorSystemPrompt,
   buildScenarioDraftSystemPrompt,
@@ -217,6 +221,41 @@ describe("adventure in the scenario draft", () => {
       complete: async () => ({ text: draftJson({ ...valid(), start: "roof" }), latencyMs: 1, model: "m" }),
     });
     assert.equal(otherField.plan.adventure, undefined);
+  });
+
+  it("fails a requested adventure the model left out or set to null, once, without retry", async () => {
+    for (const adventure of [undefined, null]) {
+      let calls = 0;
+      await assert.rejects(
+        completeTrpgScenarioDraftJson({
+          kind: "scenario_draft",
+          system: "sys",
+          user: "user",
+          expectedFields: ["title", "startingSituation", "goal", "adventure"],
+          complete: async () => {
+            calls += 1;
+            return { text: draftJson(adventure), latencyMs: 1, model: "m" };
+          },
+        }),
+        (error: unknown) =>
+          error instanceof TrpgAuthoringAdventureInvalidError &&
+          error.code === "SCENARIO_DRAFT_ADVENTURE_MISSING" &&
+          error.message === TRPG_SCENARIO_DRAFT_ADVENTURE_MISSING_MESSAGE
+      );
+      assert.equal(calls, 1, `${String(adventure)}: no retry`);
+    }
+  });
+
+  it("does not require an adventure that was not requested", async () => {
+    const goalOnly = await completeTrpgScenarioDraftJson({
+      kind: "scenario_draft",
+      system: "sys",
+      user: "user",
+      expectedFields: ["goal"],
+      complete: async () => ({ text: JSON.stringify({ goal: "기관실에 닿는다" }), latencyMs: 1, model: "m" }),
+    });
+    assert.equal(goalOnly.plan.goal, "기관실에 닿는다");
+    assert.equal(goalOnly.plan.adventure, undefined);
   });
 });
 
