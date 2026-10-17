@@ -603,12 +603,13 @@ describe("TRPG scenario AI draft", () => {
     assert.ok(editor.indexOf('data-scenario-field="bundle"') > editor.indexOf('title="표시 / 공개"'));
     assert.doesNotMatch(editor, /세계관 \{worldChars\.toLocaleString\(\)\}/);
     assert.match(editor, /excludedGenres=\{\["시뮬레이션"\]\}/);
-    assert.equal(editor.match(/titleVariant="prominent"/g)?.length, 5);
+    assert.equal(editor.match(/titleVariant="prominent"/g)?.length, 6);
     assert.doesNotMatch(editor, /data-scenario-story-details/);
     const orderedSections = [
       'title="세계관"',
       'title="이야기"',
       'title="게임 규칙"',
+      'title="장소와 사건"',
       'title="보스 / 조연 NPC"',
       'title="표시 / 공개"',
     ].map((title) => editor.indexOf(title));
