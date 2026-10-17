@@ -148,7 +148,7 @@ it("distinctive-utterance: 게-ending seed reaches candidates then retrieve-sche
       targetInMerged: candidates.rows.some((row) => row.id === answerId),
       final: final.facts.some((fact) => fact.id === answerId),
       guard,
-      lexicalTokensAfterFirst5: lexical.tokensAfterFirst5,
+      lexicalRelevanceLaneTokens: lexical.relevanceLaneTokens,
     })
   );
   assert.equal(lanes.includes("recent"), false);

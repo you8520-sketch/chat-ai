@@ -217,7 +217,7 @@ describe("#1486 Phase 1 live memory path (라이크 18 / 렌)", () => {
     );
     assert.ok(dayLex.relevanceScore > 0, "day-old wording must keep lexical overlap");
     assert.ok(monthLex.relevanceScore > 0, "month-old wording must keep lexical overlap via 달");
-    assert.ok(monthLex.tokensAfterFirst5.includes("달"));
+    assert.ok(monthLex.relevanceLaneTokens.includes("달"));
 
     const result = recall(db, 46, query);
     assert.match(result.promptBlock, /이틀 전/);

@@ -1536,8 +1536,7 @@ export function inspectLexicalRelevanceForDebug(
   query: string
 ): {
   rawTokens: string[];
-  tokensBeforeSlice: string[];
-  tokensAfterFirst5: string[];
+  relevanceLaneTokens: string[];
   tokens: Array<{
     raw: string;
     normalized: string;
@@ -1554,20 +1553,18 @@ export function inspectLexicalRelevanceForDebug(
 } {
   const haystack = factSearchText(fact);
   const rawTokens = query.split(/[^a-z0-9가-힣_]+/i).filter(Boolean);
-  const tokensBeforeSlice = tokenizeForSimpleBoost(query);
-  const tokensAfterFirst5 = tokensBeforeSlice.slice(0, 5);
+  const relevanceLaneTokens = tokenizeForSimpleBoost(query);
   const subject = String(fact.subject ?? "").toLowerCase();
   const attribute = String(fact.attribute ?? "").toLowerCase();
   const value = String(fact.value ?? "").toLowerCase();
   const factText = String(sanitizeRecalledMemoryFactText(fact.fact_text) ?? "").toLowerCase();
   return {
     rawTokens,
-    tokensBeforeSlice,
-    tokensAfterFirst5,
+    relevanceLaneTokens,
     tokens: rawTokens.map((raw) => {
       const normalized = normalizeRetrievalToken(raw);
       const lengthFilterPass = isKeepableRetrievalToken(normalized);
-      const selected = lengthFilterPass && tokensAfterFirst5.includes(normalized);
+      const selected = lengthFilterPass && relevanceLaneTokens.includes(normalized);
       return {
         raw,
         normalized,
@@ -2323,7 +2320,7 @@ function fetchEpisodicMemoryCandidateRows(
   const minRecentTurn =
     recentRows.length > 0 ? Math.min(...recentRows.map((row) => row.source_turn)) : null;
 
-  const tokens = tokenizeForSimpleBoost(input.currentUserMessage ?? "").slice(0, 5);
+  const tokens = tokenizeForSimpleBoost(input.currentUserMessage ?? "");
   let relevanceRows: EpisodicMemoryFactRecord[] = [];
   if (tokens.length > 0 && budgets.relevance > 0) {
     const relevanceWhere = [...input.scope.recallWhere];
@@ -2332,25 +2329,22 @@ function fetchEpisodicMemoryCandidateRows(
       relevanceWhere.push("source_turn < ?");
       relevanceParams.push(minRecentTurn);
     }
-    const tokenClauses = tokens.map(
-      () =>
-        `(LOWER(fact_text) LIKE ? OR LOWER(subject) LIKE ? OR LOWER(attribute) LIKE ? OR LOWER(value) LIKE ?
-          OR LOWER(CASE WHEN json_valid(metadata) THEN json_extract(metadata, '$.evidence.quote') END) LIKE ?)`
-    );
-    relevanceWhere.push(`(${tokenClauses.join(" OR ")})`);
-    for (const token of tokens) {
-      const pattern = `%${token.toLowerCase()}%`;
-      relevanceParams.push(pattern, pattern, pattern, pattern, pattern);
-    }
+    const tokenClause = `(LOWER(fact_text) LIKE ? OR LOWER(subject) LIKE ? OR LOWER(attribute) LIKE ? OR LOWER(value) LIKE ?
+          OR LOWER(CASE WHEN json_valid(metadata) THEN json_extract(metadata, '$.evidence.quote') END) LIKE ?)`;
+    const tokenPatterns = tokens.flatMap((token) => Array<string>(5).fill(`%${token.toLowerCase()}%`));
+    relevanceWhere.push(`(${tokens.map(() => tokenClause).join(" OR ")})`);
+    // Rank by matched query tokens before recency: with any-token matching alone,
+    // newer rows sharing one recurring name or filler word fill the lane first.
+    const matchedTokenCount = tokens.map(() => `(CASE WHEN ${tokenClause} THEN 1 ELSE 0 END)`).join(" + ");
     relevanceRows = (db
       .prepare(
         `SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
            FROM episodic_memory_facts
            WHERE ${relevanceWhere.join(" AND ")}
-           ORDER BY source_turn DESC, id DESC
+           ORDER BY ${matchedTokenCount} DESC, source_turn DESC, id DESC
            LIMIT ?`
       )
-      .all(...relevanceParams, budgets.relevance) as EpisodicMemoryFactRecord[]).map(
+      .all(...relevanceParams, ...tokenPatterns, ...tokenPatterns, budgets.relevance) as EpisodicMemoryFactRecord[]).map(
       attachStoredEvidenceType
     );
     queryCount += 1;
