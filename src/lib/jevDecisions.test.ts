@@ -109,6 +109,33 @@ describe("jev decisions official wire contract", () => {
     }
   });
 
+  it("C1b retired Jev cannot trigger provider HTTP even via an explicit benchmark override", async () => {
+    const { callJevDecisions, JevDecisionsError } = await import("./jevDecisions");
+    const { isRetiredJevModelId } = await import("./jevModelPolicy");
+    withKey();
+    try {
+      stubFetch(() => jsonResponse(decisionBody()));
+      for (const model of [
+        "typesafe/jev-1.13",
+        "typesafe/jev-1.13-20260920",
+        "~typesafe/jev-1.13",
+        "typesafe/jev-1.13:free",
+      ]) {
+        assert.equal(isRetiredJevModelId(model), true);
+        await assert.rejects(
+          () => callJevDecisions({ model, state: {}, questions: questions(), ledger: null }),
+          (error: unknown) =>
+            error instanceof JevDecisionsError && error.code === "invalid_request"
+        );
+      }
+      assert.equal(calls.length, 0, "retired IDs must never reach OpenRouter");
+      assert.equal(isRetiredJevModelId("typesafe/jev-1.130"), false);
+      assert.equal(isRetiredJevModelId("typesafe/jev-1.14"), false);
+    } finally {
+      restoreEnv();
+    }
+  });
+
   it("C2 choice response preserves choice/probabilities/confidence", async () => {
     const { callJevDecisions } = await import("./jevDecisions");
     withKey();
