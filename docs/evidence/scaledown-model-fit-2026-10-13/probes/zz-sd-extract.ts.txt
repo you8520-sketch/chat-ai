@@ -1,0 +1,359 @@
+import {
+  CHAR,
+  OUT,
+  PERSONA,
+  SD_OR_KEY,
+  USER_NAME,
+  buildBlocks,
+  g8Turn,
+  k1591Turn,
+  parseCostUsd,
+  resolveSpan,
+  setTag,
+  setTapFile,
+  tapRecords,
+  writeJson,
+  FX,
+  type SourceTurn,
+} from "./zz-sd-common";
+import { BACKGROUND_OPENROUTER_MODEL } from "@/lib/ai";
+import { runPostTurnRelationshipOnlyInitial } from "@/lib/postTurnSharedInitial/run";
+
+const REPS = Number(process.env.SD_B_REPS ?? "2");
+const RUN_LUNA = process.env.SD_B_LUNA !== "0";
+const RUN_SD = process.env.SD_B_SD !== "0";
+
+const SWORD_PROMISE = "사용자가 라이크의 무뎌진 검을 숫돌로 갈아 내일까지 돌려주기로 약속했다.";
+const NORTH_GATE_PROMISE = "라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다리기로 약속했다.";
+
+type Expect = {
+  mustTypes: { type: string; role: "user" | "assistant" }[];
+  mustNotTypes: string[];
+};
+
+type Case = {
+  id: string;
+  label: string;
+  src: SourceTurn;
+  activePromises: string[];
+  expect: Expect;
+  note: string;
+};
+
+const NEVER = ["mentor_or_lover_relationship"];
+
+const CASES: Case[] = [
+  {
+    id: "G8_T2_promise_made",
+    label: "검 손질 약속 (유저 제안 + 캐릭터 수락)",
+    src: g8Turn(2),
+    activePromises: [],
+    expect: { mustTypes: [{ type: "promise", role: "user" }], mustNotTypes: ["promise_cancellation", "relationship_acceptance", ...NEVER] },
+    note: "정답: 유저가 검을 갈아다 주기로 약속, 라이크가 수락.",
+  },
+  {
+    id: "G8_T6_character_promise",
+    label: "캐릭터가 한 북문 약속",
+    src: g8Turn(6),
+    activePromises: [SWORD_PROMISE],
+    expect: { mustTypes: [{ type: "promise", role: "assistant" }], mustNotTypes: ["promise_cancellation", "relationship_acceptance", ...NEVER] },
+    note: "정답: 라이크(assistant)가 렌에게 북문 앞에서 기다리겠다고 약속. 유저의 제안 발화는 약속이 아님.",
+  },
+  {
+    id: "G8_T10_proposal_deferred",
+    label: "연인 제안 + 명시적 보류(수락 아님)",
+    src: g8Turn(10),
+    activePromises: [SWORD_PROMISE, NORTH_GATE_PROMISE],
+    expect: { mustTypes: [{ type: "relationship_proposal", role: "user" }], mustNotTypes: ["relationship_acceptance", "promise", ...NEVER] },
+    note: "정답: 렌이 사귀자고 제안, 라이크는 '지금은 대답 못 해. 시간이 필요해'로 보류. 수락 없음.",
+  },
+  {
+    id: "G8_T15_promise_cancel",
+    label: "약속 취소",
+    src: g8Turn(15),
+    activePromises: [SWORD_PROMISE, NORTH_GATE_PROMISE],
+    expect: { mustTypes: [{ type: "promise_cancellation", role: "user" }], mustNotTypes: ["promise", "relationship_acceptance", ...NEVER] },
+    note: "정답: 렌이 검 약속을 취소(철회). 북문 약속은 유지.",
+  },
+  {
+    id: "G8_T24_false_premise",
+    label: "원문에 없는 평생 약속을 유저가 전제로 주장, 캐릭터 부인",
+    src: g8Turn(24),
+    activePromises: [SWORD_PROMISE, NORTH_GATE_PROMISE],
+    expect: { mustTypes: [], mustNotTypes: ["promise", "relationship_acceptance", ...NEVER] },
+    note: "정답: 새 약속 없음. 렌의 주장은 렌의 말로만 귀속되고 라이크는 기억나지 않는다고 부인.",
+  },
+  {
+    id: "K1591_T10_proposal_gesture",
+    label: "'오늘부터 연인하자' + 비언어 반응(손 맞잡음)",
+    src: k1591Turn(10),
+    activePromises: [],
+    expect: { mustTypes: [{ type: "relationship_proposal", role: "user" }], mustNotTypes: [...NEVER] },
+    note: "모호: 원문에 말로 된 수락은 없고 손을 맞잡음만 있음. 수락 판정은 GPT 몫(acceptance 타입은 must/mustNot에서 제외).",
+  },
+  {
+    id: "K1591_T20_npc_entry",
+    label: "NPC 서린 입장(정상 NPC 행동)",
+    src: k1591Turn(20),
+    activePromises: [],
+    expect: { mustTypes: [{ type: "npc_action", role: "assistant" }], mustNotTypes: ["promise", "relationship_proposal", "relationship_acceptance", ...NEVER] },
+    note: "정답: 서린(NPC)이 문을 열고 들어와 라이크에게 목례. 유저·라이크의 행동이 아님.",
+  },
+  {
+    id: "K1591_T24_sister_claim",
+    label: "누나의 과거 친분 주장(캐릭터가 전달한 전언)",
+    src: k1591Turn(24),
+    activePromises: [],
+    expect: { mustTypes: [{ type: "past_acquaintance_claim", role: "assistant" }], mustNotTypes: ["promise", ...NEVER] },
+    note: "정답: 라이크가 '누나가 널 알아봤고 예전부터 알던 사이라더라'고 전함 = 검증되지 않은 전언. 객관적 공유 과거로 취급하면 오류.",
+  },
+  {
+    id: "K1591_T1_emotion",
+    label: "정상 감정(아마추어 지적 -> 시선 피함)",
+    src: k1591Turn(1),
+    activePromises: [],
+    expect: { mustTypes: [{ type: "emotion", role: "assistant" }], mustNotTypes: ["promise", "relationship_proposal", ...NEVER] },
+    note: "정답: 라이크가 부족함을 인정하며 시선을 피함. 스승/연인 관계는 원문에 없음.",
+  },
+  {
+    id: "G8_T3_filler_negative",
+    label: "음성 대조군(사건 없음)",
+    src: g8Turn(3),
+    activePromises: [SWORD_PROMISE, NORTH_GATE_PROMISE],
+    expect: { mustTypes: [], mustNotTypes: ["promise", "promise_cancellation", "relationship_proposal", "relationship_acceptance", "past_acquaintance_claim", ...NEVER] },
+    note: "정답: 사건 없음(장작 쌓기). 어떤 사건이든 추출하면 허위 사건.",
+  },
+  {
+    id: "G8_T50_filler_negative",
+    label: "음성 대조군 2(사건 없음)",
+    src: g8Turn(50),
+    activePromises: [SWORD_PROMISE, NORTH_GATE_PROMISE],
+    expect: { mustTypes: [], mustNotTypes: ["promise", "promise_cancellation", "relationship_proposal", "relationship_acceptance", "past_acquaintance_claim", ...NEVER] },
+    note: "정답: 사건 없음.",
+  },
+];
+
+const ENTITY_TYPES = {
+  promise: "A promise, commitment or agreement to do something in the future, stated by anyone in the text.",
+  promise_cancellation: "A statement that cancels, withdraws or revokes an earlier promise or agreement.",
+  relationship_proposal: "A proposal, request or confession asking to start or change a romantic relationship.",
+  relationship_acceptance: "An explicit statement by the other person that accepts a relationship proposal.",
+  past_acquaintance_claim: "A claim that two people knew each other or shared a history before the present scene.",
+  emotion: "An emotional state or emotional reaction of a character.",
+  npc_action: "An action performed by a third character who is neither the user nor the main character.",
+  mentor_or_lover_relationship: "A stated teacher-student or romantic partner relationship between two people.",
+};
+
+const INSTRUCTION =
+  "This is a roleplay chat log. Extract only spans that literally state the described event. " +
+  "Do not infer events that are not written. A claim made by one speaker about the past is not established fact. " +
+  "A relationship proposal is not accepted unless the other person explicitly accepts it.";
+
+function sdBody(text: string, withInstruction: boolean) {
+  return {
+    model: "scaledown/extract",
+    messages: [
+      ...(withInstruction ? [{ role: "system", content: INSTRUCTION }] : []),
+      { role: "user", content: text },
+    ],
+    provider: { zdr: true, data_collection: "deny", options: { scaledown: { entities: ENTITY_TYPES } } },
+  };
+}
+
+async function callExtract(text: string, withInstruction: boolean) {
+  const started = performance.now();
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${SD_OR_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify(sdBody(text, withInstruction)),
+  });
+  const raw = await res.text();
+  const ms = Math.round((performance.now() - started) * 10) / 10;
+  let parsed: any = null;
+  let content: any = null;
+  let parseError: string | null = null;
+  try {
+    parsed = JSON.parse(raw);
+    content = JSON.parse(parsed.choices?.[0]?.message?.content ?? "null");
+  } catch (e) {
+    parseError = (e as Error).message;
+  }
+  return { status: res.status, ms, raw, parsed, content, parseError, ...parseCostUsd(raw) };
+}
+
+function evalSdEntities(text: string, segments: ReturnType<typeof buildBlocks>["segments"], entities: any[]) {
+  return entities.map((e) => {
+    const exact = typeof e.start === "number" && typeof e.end === "number" ? text.slice(e.start, e.end) === e.text : false;
+    const where =
+      typeof e.start === "number" && typeof e.end === "number"
+        ? resolveSpan(segments, e.start, e.end)
+        : { msgId: null, role: null, crossesBoundary: false, inHeader: false };
+    return {
+      type: e.type,
+      text: e.text,
+      confidence: e.confidence,
+      start: e.start,
+      end: e.end,
+      spanMatchesInputSlice: exact,
+      msgId: where.msgId,
+      role: where.role,
+      crossesBoundary: where.crossesBoundary,
+      inHeader: where.inHeader,
+    };
+  });
+}
+
+function checkExpect(expect: Expect, evald: ReturnType<typeof evalSdEntities>) {
+  const mustHit = expect.mustTypes.map((m) => ({
+    ...m,
+    hit: evald.some((e) => e.type === m.type && e.role === m.role),
+    hitWrongRole: evald.some((e) => e.type === m.type && e.role !== m.role),
+  }));
+  const mustNotViolations = evald.filter((e) => expect.mustNotTypes.includes(e.type)).map((e) => ({ type: e.type, text: e.text, role: e.role }));
+  return { mustHit, mustNotViolations };
+}
+
+function judgeLuna(c: Case, run: Awaited<ReturnType<typeof runPostTurnRelationshipOnlyInitial>>) {
+  const userBody = c.src.user;
+  const asstBody = c.src.assistant;
+  const facts = run.parsed?.episodic?.facts ?? [];
+  const factJudge = facts.map((f: any) => {
+    const q: string = f.evidence?.source_quote ?? "";
+    const role: string = f.evidence?.source_role ?? "";
+    const inUser = q.length > 0 && userBody.includes(q);
+    const inAsst = q.length > 0 && asstBody.includes(q);
+    return {
+      fact_text: f.fact_text,
+      category: f.category,
+      evidence_type: f.evidence_type,
+      claimedRole: role,
+      quote: q,
+      quoteExactInClaimedRole: role === "user" ? inUser : role === "assistant" ? inAsst : false,
+      quoteFoundInOtherRoleOnly: role === "user" ? !inUser && inAsst : role === "assistant" ? !inAsst && inUser : false,
+      quoteNotInAnyMessage: !inUser && !inAsst,
+      resolvedMsgId: role === "user" && inUser ? c.src.userMsgId : role === "assistant" && inAsst ? c.src.assistantMsgId : null,
+    };
+  });
+  const rel = run.parsed?.relationship;
+  const delta: any = rel && "delta" in rel ? (rel as any).delta : null;
+  const removeExact = (delta?.promisesRemove ?? []).map((t: string) => ({ text: t, exactlyMatchesActive: c.activePromises.includes(t) }));
+  return {
+    transportOk: run.transportOk,
+    errorCode: run.errorCode,
+    relationshipValid: (rel as any)?.valid ?? null,
+    episodicValid: (run.parsed?.episodic as any)?.valid ?? null,
+    promisesAdd: delta?.promisesAdd ?? [],
+    promisesRemove: removeExact,
+    itemsDelta: { items: delta?.items ?? [], itemsRemove: delta?.itemsRemove ?? [] },
+    facts: factJudge,
+  };
+}
+
+async function main() {
+  if (!SD_OR_KEY) throw new Error("OPENROUTER_JEV_BENCHMARK_API_KEY required");
+  setTapFile(`${OUT}/raw/extract.jsonl`);
+  const out: Record<string, unknown> = {
+    caseDefs: CASES.map((c) => ({ id: c.id, label: c.label, note: c.note, fixture: c.src.fixture, turn: c.src.turn, activePromises: c.activePromises, expect: c.expect })),
+    entityTypes: ENTITY_TYPES,
+    instruction: INSTRUCTION,
+    lunaModel: BACKGROUND_OPENROUTER_MODEL,
+  };
+
+  const results: any[] = [];
+  for (const c of CASES) {
+    const { text, segments } = buildBlocks([c.src]);
+    if (RUN_SD) {
+      for (const withInstruction of [false, true]) {
+        for (let rep = 1; rep <= REPS; rep++) {
+          setTag(`B_sd_${withInstruction ? "x2" : "x1"}_${c.id}_rep${rep}`);
+          const r = await callExtract(text, withInstruction);
+          const entities = r.content?.entities ?? [];
+          const evald = evalSdEntities(text, segments, entities);
+          results.push({
+            arm: withInstruction ? "scaledown_extract_entities+instruction" : "scaledown_extract_entities_only",
+            caseId: c.id,
+            rep,
+            input: text,
+            status: r.status,
+            ms: r.ms,
+            promptTokens: r.promptTokens,
+            completionTokens: r.completionTokens,
+            costUsd: r.costUsd,
+            parseError: r.parseError,
+            rawContent: r.parsed?.choices?.[0]?.message?.content ?? null,
+            entities: evald,
+            check: checkExpect(c.expect, evald),
+          });
+        }
+      }
+    }
+    if (RUN_LUNA) {
+      for (let rep = 1; rep <= REPS; rep++) {
+        setTag(`B_luna_${c.id}_rep${rep}`);
+        const before = tapRecords().length;
+        const started = performance.now();
+        const run = await runPostTurnRelationshipOnlyInitial({
+          charName: CHAR,
+          personaName: USER_NAME,
+          userPersona: PERSONA,
+          userMessage: c.src.user,
+          assistantProse: c.src.assistant,
+          primaryModelId: BACKGROUND_OPENROUTER_MODEL,
+          previousAssistantMessage: null,
+          activePromises: c.activePromises,
+          includeSuggestions: false,
+          includeRelationship: true,
+          includeEpisodic: true,
+        });
+        const ms = Math.round((performance.now() - started) * 10) / 10;
+        const tapped = tapRecords().slice(before);
+        const usd = (run.usage as any)?.cheaperInferenceBilledCostUsd ?? (run.usage as any)?.upstreamCostUsd ?? null;
+        results.push({
+          arm: "luna_production_shared_initial",
+          caseId: c.id,
+          rep,
+          input: { user: c.src.user, assistant: c.src.assistant, activePromises: c.activePromises },
+          ms,
+          inputTokens: run.usage?.inputTokens ?? null,
+          outputTokens: run.usage?.outputTokens ?? null,
+          costUsd: usd,
+          physicalCalls: tapped.length,
+          rawText: run.text,
+          judge: judgeLuna(c, run),
+        });
+      }
+    }
+  }
+  out.results = results;
+
+  // Window-level Extract (message-ID mapping across 10 messages), ScaleDown only.
+  if (RUN_SD) {
+    const windows: { id: string; turns: SourceTurn[] }[] = [
+      { id: "G8_W_T6_T10", turns: [6, 7, 8, 9, 10].map(g8Turn) },
+      { id: "G8_W_T11_T15", turns: [11, 12, 13, 14, 15].map(g8Turn) },
+      { id: "G8_W_T21_T25", turns: [21, 22, 23, 24, 25].map(g8Turn) },
+      { id: "K1591_W_T16_T20", turns: [16, 17, 18, 19, 20].map(k1591Turn) },
+      { id: "K1591_W_T21_T25", turns: [21, 22, 23, 24, 25].map(k1591Turn) },
+    ];
+    const wres: any[] = [];
+    for (const w of windows) {
+      const { text, segments } = buildBlocks(w.turns);
+      setTag(`B_sd_window_${w.id}`);
+      const r = await callExtract(text, false);
+      const evald = evalSdEntities(text, segments, r.content?.entities ?? []);
+      wres.push({ windowId: w.id, input: text, status: r.status, ms: r.ms, promptTokens: r.promptTokens, costUsd: r.costUsd, rawContent: r.parsed?.choices?.[0]?.message?.content ?? null, entities: evald });
+    }
+    out.windowResults = wres;
+  }
+
+  const usd = tapRecords().filter((r) => r.url.includes("openrouter.ai")).reduce((s, r) => s + (parseCostUsd(r.responseText).costUsd ?? 0), 0);
+  const lunaUsd = (results as any[]).filter((r) => r.arm.startsWith("luna")).reduce((s, r) => s + (r.costUsd ?? 0), 0);
+  out.tapSummary = { aiCalls: tapRecords().length, openrouterReportedCostUsd: usd, lunaBilledCostUsd: lunaUsd, totalKrw: (usd + lunaUsd) * FX };
+  writeJson(`extract-results${process.env.SD_B_SUFFIX ?? ""}.json`, out);
+  console.log("B_DONE", JSON.stringify(out.tapSummary));
+}
+
+main().catch((e) => {
+  console.error("B_FAIL", e);
+  process.exit(1);
+});
