@@ -3,6 +3,8 @@
  * No LLM calls. No product DB schema.
  */
 
+import { readVerifiedEvidence } from "@/lib/memory/memory-episodic-evidence";
+
 export type EpisodicFactTemporalNature =
   | "durable"
   | "historical_event"
@@ -44,6 +46,8 @@ type TemporalFactInput = {
   value?: string | null;
   fact_text?: string | null;
   evidence_type?: string | null;
+  /** Stored row metadata; carries the server-verified evidence quote and authority. */
+  metadata?: string | null;
 };
 
 /** Completed scene events — distinct source turns must not collapse under latest-wins. */
@@ -61,17 +65,19 @@ export const COMPLETED_SCENE_EVENT_ATTRIBUTES = new Set<string>([
  * Conservative: requires explicit completed/result morphology.
  * Do NOT treat mere co-occurrence of "지만" + 이동/발견/중단/회복 as historical.
  */
+function describesOngoingState(text: string): boolean {
+  return (
+    /(?:이동|치료|느끼|진행)\s*중(?:이다|이다)?/.test(text) ||
+    /지금도\s*(?:느끼|하고|있다)/.test(text)
+  );
+}
+
 export function looksLikeCompletedHistoricalEvent(factText: string): boolean {
   const t = factText.replace(/\s+/g, " ").trim();
   if (!t) return false;
 
   // Ongoing progressive / still-present state — never completed historical.
-  if (
-    /(?:이동|치료|느끼|진행)\s*중(?:이다|이다)?/.test(t) ||
-    /지금도\s*(?:느끼|하고|있다)/.test(t)
-  ) {
-    return false;
-  }
+  if (describesOngoingState(t)) return false;
 
   // Explicit completed recovery after treatment / injury.
   if (/(?:치료\s*후|이후)\s*회복(?:함|했다|하였다)/.test(t)) return true;
@@ -93,17 +99,90 @@ export function looksLikeCompletedHistoricalEvent(factText: string): boolean {
   return false;
 }
 
+const HANGUL_SYLLABLE_FIRST = 0xac00;
+const HANGUL_SYLLABLE_COUNT = 11172;
+/** Final consonant ㅆ: the past-tense marker 았/었/였/했 (also the stem 있 and the modal 겠). */
+const HANGUL_FINAL_SSANG_SIOT = 20;
+
+/**
+ * The gloss closes on a past-tense action or change ("찔렸다", "접질렀다", "봉합되었다"),
+ * i.e. it reports something that happened at its turn. A resultative/existential or
+ * copula past ("변해 있었다", "인턴이었다"), any present form ("일한다", "앉아 있다")
+ * and an intention ("돌아오겠다") describe a state, which later values of the same key replace.
+ */
+export function looksLikeCompletedOccurrence(factText: string): boolean {
+  const t = factText.replace(/[\s.。!?"'”’)]+$/u, "");
+  if (t.length < 2 || !t.endsWith("다") || describesOngoingState(t)) return false;
+  const syllable = t.charCodeAt(t.length - 2) - HANGUL_SYLLABLE_FIRST;
+  if (syllable < 0 || syllable >= HANGUL_SYLLABLE_COUNT) return false;
+  if (syllable % 28 !== HANGUL_FINAL_SSANG_SIOT) return false;
+  if (/(?:있|겠|있었|없었)다$/u.test(t)) return false;
+  if (/(?:이었|였)다$/u.test(t) && !/하였다$/u.test(t)) return false;
+  return true;
+}
+
+function evidenceTypeOf(fact: TemporalFactInput): string {
+  return String(fact.evidence_type ?? "").trim().toLowerCase();
+}
+
+/**
+ * A first-hand record the server verified: the assistant scene or the user's message matched
+ * the quote of an observed scene event, or the user's own statement matched with user
+ * authority. A character's word does not count. Who narrated it does not decide its nature.
+ */
+export function isVerifiedFirstHandRecord(fact: TemporalFactInput): boolean {
+  const evidence = readVerifiedEvidence(fact.metadata);
+  if (evidence == null || evidence.authority === "CHARACTER_CLAIM") return false;
+  const evidenceType = evidenceTypeOf(fact);
+  if (evidenceType === "explicit_scene_event") return true;
+  return evidenceType === "explicit_user_statement" && evidence.authority === "USER_EXPLICIT";
+}
+
+const STANDING_VALUE_ATTRIBUTE =
+  /(?:^|_)(?:status|state|stage|condition|job|occupation|profession|career|employment|employer|workplace|role|position|title|affiliation|membership|member|location|residence|whereabouts|address|dynamic)(?:_|$)|^relationship$/i;
+/** "…으로 소개되었다 / 언급되었다 / 등장했다": who or what someone was presented as. */
+const PRESENTED_AS_GLOSS = /(?:으로|로)\s*(?:소개|언급|등장|지목|알려)(?:되었|됐|했|졌)다$/u;
+
+/**
+ * The record states a standing value (status, job, role, affiliation, place, current
+ * relationship) — by its key, or by a gloss that only says what someone was presented as.
+ * Even a completed-sounding gloss ("인턴으로 소개되었다", "카페에서 일했다") then names the value
+ * a later record of the key replaces, whoever narrated it.
+ */
+function statesStandingValue(fact: TemporalFactInput): boolean {
+  if (STANDING_VALUE_ATTRIBUTE.test(String(fact.attribute ?? "").trim())) return true;
+  return PRESENTED_AS_GLOSS.test(String(fact.fact_text ?? "").replace(/[\s.。!?"'”’)]+$/u, ""));
+}
+
 /**
  * Pure classifier — character/world/genre agnostic.
  *
  * clearly_temporary: exact temporary attribute AND not a completed historical event.
- * historical_event: completed event/outcome narrative (eligible for long-term recall).
+ * historical_event: completed event/outcome narrative, or a verified first-hand occurrence
+ *   (scene or the user's own statement) outside standing-value keys (eligible for long-term
+ *   recall; a later separate occurrence of the same key does not replace it).
  * durable: preference/rule/quest (or clear durable attribute prefix).
  * unknown: conservatively eligible for recall (not blocked).
  */
 export function classifyEpisodicFactTemporalNature(
   fact: TemporalFactInput
 ): EpisodicFactTemporalNature {
+  const nature = classifyIntrinsicNature(fact);
+  // The extractor files observed occurrences under free-form attributes (`injury`,
+  // `ability_use`, ...). Legacy rows, claims, standing values and state-shaped glosses keep
+  // latest-wins.
+  if (
+    nature === "unknown" &&
+    looksLikeCompletedOccurrence(String(fact.fact_text ?? "")) &&
+    isVerifiedFirstHandRecord(fact) &&
+    !statesStandingValue(fact)
+  ) {
+    return "historical_event";
+  }
+  return nature;
+}
+
+function classifyIntrinsicNature(fact: TemporalFactInput): EpisodicFactTemporalNature {
   const attribute = String(fact.attribute ?? "")
     .trim()
     .toLowerCase();

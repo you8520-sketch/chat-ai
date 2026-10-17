@@ -1,0 +1,119 @@
+    ok 1 - marks exact temporary attributes as clearly_temporary
+    ok 2 - does not treat broad attributes as temporary by substring
+    ok 3 - preserves completed historical events even on temporary attributes
+    ok 4 - does not mis-classify plain present states as historical events
+    ok 5 - keeps ongoing current states as clearly_temporary (no 지만+이동 false positive)
+    ok 6 - marks new current_* psychological attributes as clearly_temporary
+    ok 7 - marks explicit_scene_event scene_event with completed morphology as historical_event
+    ok 8 - marks preference facts as durable and unknown otherwise
+ok 1 - classifyEpisodicFactTemporalNature
+    ok 1 - a verified past action or change is history whatever its key
+    ok 2 - a legacy row, a character claim or another evidence type is not promoted
+    ok 3 - a user's verified statement that something happened is an occurrence that closes, not history
+    ok 4 - state-shaped glosses keep latest-wins even with a verified source
+    ok 5 - durable and temporary attributes keep their nature
+ok 2 - verified scene occurrence under a free-form attribute
+    ok 1 - every fact must carry corrects, restricted to the fixed handle enum
+    ok 2 - the schema does not vary with the offered candidates
+ok 3 - episodic correction contract — wire schema
+    ok 1 - the user block lists the offered records under their handles; the system prompt never does
+    ok 2 - no candidates says so; no episodic section shows no list
+    ok 3 - the corrects rule replaces the id/timestamp line instead of adding a second one
+ok 4 - episodic correction contract — prompt
+    ok 1 - an offered handle maps to the record id the server offered
+    ok 2 - "" (new event, recovery, unclear target) or an unoffered handle maps to nothing
+    ok 3 - a fact id written by the model itself is ignored
+    ok 4 - the fact itself is kept either way
+ok 5 - episodic correction contract — server-side handle mapping
+    ok 1 - counts only with a verified user quote and an earlier target
+ok 6 - episodic correction contract — stored link reading
+        ok 1 - current state: the recovery leads, so the old injury is not read as current
+        ok 2 - why was it hurt: the T30 source quote reaches the block, without invented cause
+        ok 3 - when and how recovered: the T80 treatment/recovery source, via a conjugated question
+        ok 4 - still injured?: T80 comes first; the T30 line is only ever past history after it
+        ok 5 - an action-shaped extraction behaves the same as the state-shaped one
+    ok 1 - currentTurn=200
+        ok 1 - current state: the recovery leads, so the old injury is not read as current
+        ok 2 - why was it hurt: the T30 source quote reaches the block, without invented cause
+        ok 3 - when and how recovered: the T80 treatment/recovery source, via a conjugated question
+        ok 4 - still injured?: T80 comes first; the T30 line is only ever past history after it
+        ok 5 - an action-shaped extraction behaves the same as the state-shaped one
+    ok 2 - currentTurn=500
+        ok 1 - current state: the recovery leads, so the old injury is not read as current
+        ok 2 - why was it hurt: the T30 source quote reaches the block, without invented cause
+        ok 3 - when and how recovered: the T80 treatment/recovery source, via a conjugated question
+        ok 4 - still injured?: T80 comes first; the T30 line is only ever past history after it
+        ok 5 - an action-shaped extraction behaves the same as the state-shaped one
+    ok 3 - currentTurn=1000
+    ok 4 - before the recovery (T40) the injury is still the current state
+    ok 5 - a second, independent injury keeps both the first history and the new state
+    ok 6 - a state replaced by a later state (no completed row) still keeps latest-wins
+    ok 7 - legacy rows without a verified source stay latest-wins (nothing proves the occurrence)
+    ok 8 - a character's unconfirmed claim is not kept as an occurrence
+    ok 9 - a guard-blocked latest is never recalled and no older state resurfaces past it
+    ok 10 - deleting the recovery's source turns the injury back into the current state
+    ok 11 - a recovery in another chat does not close this chat's injury
+ok 7 - B6-1 — completed past occurrence survives its state-style key
+    ok 1 - rows of one canonical source (same message and quote) occupy exactly one slot
+    ok 2 - real repeats from different source messages are each recalled with their own turn
+    ok 3 - identical glosses without a source at different turns are not merged
+    ok 4 - repeats do not push out an old important event, and the \#1648 T300 clue stays first
+    ok 5 - more real repeats than slots: nothing is merged, the block stays within budget
+    ok 6 - an unrelated question injects nothing from the repeated history
+ok 8 - B6-2 — repeated records: duplicates of one source cost one slot, real repeats stay
+        ok 1 - the old flank-cause question recalls T30's verified quote from Episodic alone
+        ok 2 - the recovery stays in view and the ankle stays the latest injury
+        ok 3 - two distinct injuries are both kept, each with its own turn
+    ok 1 - currentTurn=500
+        ok 1 - the old flank-cause question recalls T30's verified quote from Episodic alone
+        ok 2 - the recovery stays in view and the ankle stays the latest injury
+        ok 3 - two distinct injuries are both kept, each with its own turn
+    ok 2 - currentTurn=1000
+    ok 3 - a re-extraction of the same T30 source costs one slot
+    ok 4 - before the recovery the flank injury is recalled; it is never claimed recovered
+    ok 5 - present and copula-past states keep latest-wins under a verified source
+    ok 6 - an explicit user correction stays latest-wins
+    ok 7 - the same T30 text as a character claim or a legacy row is not promoted past T312
+    ok 8 - regenerating or deleting T30's source turn removes the occurrence
+    ok 9 - a memory reset before T30 and another chat's T30 stay out
+ok 9 - B8-2 — B7 rows: a later, separate injury of the same key keeps the old occurrence
+        ok 1 - A: the same event corrected — the wrong cause is gone, the user's cause is kept (에녹은 늑대에게 물려 왼팔을 크게 다쳤다.)
+        ok 2 - B: a separate injury of the same key told by the user keeps both events (에녹은 늑대에게 물려 왼팔을 크게 다쳤다.)
+        ok 3 - C: corrected, then a separate T312 injury — the correction and T312 are both kept (에녹은 늑대에게 물려 왼팔을 크게 다쳤다.)
+        ok 4 - A: the same event corrected — the wrong cause is gone, the user's cause is kept (에녹의 왼팔에는 늑대에게 물린 상처가 남아 있다.)
+        ok 5 - B: a separate injury of the same key told by the user keeps both events (에녹의 왼팔에는 늑대에게 물린 상처가 남아 있다.)
+        ok 6 - C: corrected, then a separate T312 injury — the correction and T312 are both kept (에녹의 왼팔에는 늑대에게 물린 상처가 남아 있다.)
+        ok 7 - D: a scene_event/action record corrected under injury_cause is handled through the link
+        ok 8 - E: a real injury followed by its recovery keeps the past cause (recovery is not a correction)
+        ok 9 - unclear target: corrects "" stores no link and invalidates nothing
+    ok 1 - currentTurn=500
+        ok 1 - A: the same event corrected — the wrong cause is gone, the user's cause is kept (에녹은 늑대에게 물려 왼팔을 크게 다쳤다.)
+        ok 2 - B: a separate injury of the same key told by the user keeps both events (에녹은 늑대에게 물려 왼팔을 크게 다쳤다.)
+        ok 3 - C: corrected, then a separate T312 injury — the correction and T312 are both kept (에녹은 늑대에게 물려 왼팔을 크게 다쳤다.)
+        ok 4 - A: the same event corrected — the wrong cause is gone, the user's cause is kept (에녹의 왼팔에는 늑대에게 물린 상처가 남아 있다.)
+        ok 5 - B: a separate injury of the same key told by the user keeps both events (에녹의 왼팔에는 늑대에게 물린 상처가 남아 있다.)
+        ok 6 - C: corrected, then a separate T312 injury — the correction and T312 are both kept (에녹의 왼팔에는 늑대에게 물린 상처가 남아 있다.)
+        ok 7 - D: a scene_event/action record corrected under injury_cause is handled through the link
+        ok 8 - E: a real injury followed by its recovery keeps the past cause (recovery is not a correction)
+        ok 9 - unclear target: corrects "" stores no link and invalidates nothing
+    ok 2 - currentTurn=1000
+    ok 3 - A: a recovery between the record and its correction stays; only the linked record goes
+    ok 4 - C: a later correction of the correction wins; the earlier correction and the record both go
+    ok 5 - the candidate list offers the record, and once corrected offers the correction in its place
+    ok 6 - link validation: no link from an assistant quote, an unoffered handle, or a raw model id
+    ok 7 - link validation: a target in another chat or not earlier than the correction is rejected at save
+    ok 8 - F: deleting or regenerating the correction turn, or editing its user source, restores the record
+    ok 9 - F: a deleted target leaves the correction as an ordinary record; other events are untouched
+    ok 10 - F: a memory reset or another chat's correction never reaches across the boundary
+    ok 11 - the correction inside the RAW window removes the record without injecting a duplicate
+    ok 12 - stored rows: the correction carries its verified user quote and the link to T30
+ok 10 - B8-2 — a user correction replaces only the record it is linked to
+    ok 1 - same-key recovery: the verified cause survives (에녹은 늑대에게 물려 왼팔을 크게 다쳤다.)
+    ok 2 - recovery under another key, then a separate same-key injury: the verified cause survives (에녹은 늑대에게 물려 왼팔을 크게 다쳤다.)
+    ok 3 - same-key recovery: the verified cause survives (에녹의 왼팔에는 늑대에게 물린 상처가 남아 있다.)
+    ok 4 - recovery under another key, then a separate same-key injury: the verified cause survives (에녹의 왼팔에는 늑대에게 물린 상처가 남아 있다.)
+    ok 5 - job, location and preference states under a verified source stay latest-wins
+ok 11 - B8-2 — \#1651 preservation: same verified source, different gloss wording
+# tests 98
+# pass 98
+# fail 0

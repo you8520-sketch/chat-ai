@@ -10,6 +10,11 @@ import {
   type ReconcileEpisodicMemoryFactsInput,
 } from "@/lib/episodicMemoryFacts";
 import { sanitizeEpisodicExtractedFacts } from "./memory-episodic-normalize";
+import {
+  buildEpisodicCorrectionHandleMap,
+  EPISODIC_CORRECTION_HANDLES,
+  type EpisodicCorrectionCandidate,
+} from "./memory-episodic-correction";
 import type { EpisodicExtractedFact } from "./memory-episodic-types";
 import { isMemoryFeatureEnabled } from "./memory-feature";
 import { resolveEpisodicTurnEligibility, type TurnScopeClass } from "./memory-summary-scope";
@@ -97,6 +102,7 @@ export function buildSharedEpisodicSectionJsonSchema(): Record<string, unknown> 
       "fact_text",
       "evidence_type",
       "evidence",
+      "corrects",
     ],
     properties: {
       category: {
@@ -131,6 +137,7 @@ export function buildSharedEpisodicSectionJsonSchema(): Record<string, unknown> 
           source_quote: { type: "string" },
         },
       },
+      corrects: { type: "string", enum: [...EPISODIC_CORRECTION_HANDLES] },
     },
   };
   return {
@@ -152,7 +159,10 @@ export function buildSharedEpisodicSectionJsonSchema(): Record<string, unknown> 
  * Parse top-level episodic section from Shared Initial JSON.
  * Distinguishes valid semantic empty from contract failure.
  */
-export function parseSharedEpisodicSection(raw: unknown): EpisodicSectionParse {
+export function parseSharedEpisodicSection(
+  raw: unknown,
+  correctionCandidates?: readonly EpisodicCorrectionCandidate[] | null
+): EpisodicSectionParse {
   if (raw === undefined || raw === null) {
     return { present: false, valid: false, facts: [] };
   }
@@ -171,6 +181,7 @@ export function parseSharedEpisodicSection(raw: unknown): EpisodicSectionParse {
   const facts = sanitizeEpisodicExtractedFacts(rawFacts, {
     requireEvidence: true,
     requireSourceQuote: true,
+    correctionHandles: buildEpisodicCorrectionHandleMap(correctionCandidates),
   });
   if (facts.length === 0) {
     return { present: true, valid: false, facts: [] };

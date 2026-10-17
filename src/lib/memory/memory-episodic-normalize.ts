@@ -48,6 +48,10 @@ function parseEvidenceClaim(raw: unknown): EpisodicFactEvidenceClaim | null {
   return { source_role: role, source_quote: quote };
 }
 
+function positiveFactId(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : undefined;
+}
+
 function koreanCharCount(value: string): number {
   return (value.match(/[가-힣]/g) ?? []).length;
 }
@@ -84,7 +88,14 @@ function isConciseFactValue(value: string): boolean {
 
 export function sanitizeEpisodicExtractedFacts(
   raw: unknown,
-  opts: { requireEvidence?: boolean; requireSourceQuote?: boolean } = {}
+  opts: {
+    requireEvidence?: boolean;
+    requireSourceQuote?: boolean;
+    /** Raw model output: resolve `corrects` only through the handles offered this turn. */
+    correctionHandles?: ReadonlyMap<string, number>;
+    /** Already-resolved facts handed to the save path keep their server-resolved target. */
+    preserveCorrectionTarget?: boolean;
+  } = {}
 ): EpisodicExtractedFact[] {
   if (!Array.isArray(raw)) return [];
 
@@ -118,6 +129,11 @@ export function sanitizeEpisodicExtractedFacts(
     const dedupeKey = `${category}:${subject}:${attribute}:${value}:${factText}`;
     if (seen.has(dedupeKey)) continue;
     seen.add(dedupeKey);
+    const correctionTarget = opts.correctionHandles
+      ? opts.correctionHandles.get(cleanString(obj.corrects))
+      : opts.preserveCorrectionTarget
+        ? positiveFactId(obj.correction_target_fact_id)
+        : undefined;
     out.push({
       category,
       subject,
@@ -127,6 +143,7 @@ export function sanitizeEpisodicExtractedFacts(
       fact_text: factText,
       ...(FACT_EVIDENCE_TYPES.has(evidenceType) ? { evidence_type: evidenceType } : {}),
       ...(evidenceClaim ? { evidence: evidenceClaim } : {}),
+      ...(correctionTarget != null ? { correction_target_fact_id: correctionTarget } : {}),
     });
     if (out.length >= 3) break;
   }

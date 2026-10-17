@@ -1,4 +1,5 @@
 import { callBackgroundMemory } from "@/lib/ai";
+import type { EpisodicCorrectionCandidate } from "@/lib/memory/memory-episodic-correction";
 import { CompatibleCompletionError } from "@/lib/openRouterCompletion";
 import type { StatusWidgetExtractCaller } from "@/lib/statusWidget/extract";
 import {
@@ -132,6 +133,7 @@ export async function runPostTurnRelationshipOnlyInitial(
     personaDescription?: string | null;
     personaSpeechExamples?: string | null;
     userPersona?: string | null;
+    episodicCorrectionCandidates?: readonly EpisodicCorrectionCandidate[];
   },
   caller?: StatusWidgetExtractCaller,
   ledgerContext?: import("@/lib/providerCostLedger").ProviderCostLedgerContext
@@ -154,6 +156,7 @@ export async function runPostTurnRelationshipOnlyInitial(
         ? { previousAssistantMessage: input.previousAssistantMessage }
         : null,
       activePromises: input.activePromises,
+      episodicCorrectionCandidates: input.episodicCorrectionCandidates,
     },
     caller,
     ledgerContext

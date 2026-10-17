@@ -1,0 +1,72 @@
+16c16
+< T22	explicit_user_statement	unknown	relationship:user:event_cancellation	렌은 태형에게 금요일 야시장에 가지 않겠다고 말하고 배정받은 가이드와 탕후루를 먹을 필요가 없다고 했다.
+---
+> T22	explicit_user_statement	historical_event	relationship:user:event_cancellation	렌은 태형에게 금요일 야시장에 가지 않겠다고 말하고 배정받은 가이드와 탕후루를 먹을 필요가 없다고 했다.
+42c42
+< T69	explicit_user_statement	unknown	relationship:user_taehyung_pair:praised_in_briefing	사용자는 백무진 국장이 오늘 브리핑에서 자신과 태형의 페어를 칭찬했다고 말했다.
+---
+> T69	explicit_user_statement	historical_event	relationship:user_taehyung_pair:praised_in_briefing	사용자는 백무진 국장이 오늘 브리핑에서 자신과 태형의 페어를 칭찬했다고 말했다.
+46c46
+< T82	explicit_user_statement	unknown	setting:user_training:instructor	사용자는 오늘 훈련 교관이 바뀌었다고 말했다.
+---
+> T82	explicit_user_statement	historical_event	setting:user_training:instructor	사용자는 오늘 훈련 교관이 바뀌었다고 말했다.
+71c71
+< T114	explicit_scene_event	historical_event	character:seo_daon:organization_role	서다온은 연구국 인턴으로 소개되었다.
+---
+> T114	explicit_scene_event	unknown	character:seo_daon:organization_role	서다온은 연구국 인턴으로 소개되었다.
+88c88
+< T126	explicit_scene_event	historical_event	character:yeom_taeo:job	염태오는 에지카 구급대원으로 소개되었다.
+---
+> T126	explicit_scene_event	unknown	character:yeom_taeo:job	염태오는 에지카 구급대원으로 소개되었다.
+125c125
+< T161	explicit_scene_event	historical_event	character:yeom_taeo:occupation	염태오는 에지카 소속 구급대원으로 등장했다.
+---
+> T161	explicit_scene_event	unknown	character:yeom_taeo:occupation	염태오는 에지카 소속 구급대원으로 등장했다.
+156c156
+< T195	explicit_scene_event	historical_event	character:seo_daon:organization_affiliation	서다온은 연구국 인턴으로 소개되었다.
+---
+> T195	explicit_scene_event	unknown	character:seo_daon:organization_affiliation	서다온은 연구국 인턴으로 소개되었다.
+212c212
+< T255	explicit_scene_event	historical_event	character:seo_daon:organization	서다온은 연구국 인턴으로 소개되었다.
+---
+> T255	explicit_scene_event	unknown	character:seo_daon:organization	서다온은 연구국 인턴으로 소개되었다.
+215c215
+< T260	explicit_scene_event	historical_event	character:yeom_taeo:occupation	염태오는 에지카 구급대원으로 언급되었다.
+---
+> T260	explicit_scene_event	unknown	character:yeom_taeo:occupation	염태오는 에지카 구급대원으로 언급되었다.
+230c230
+< T271	explicit_scene_event	historical_event	character:yuharam:occupation	유하람은 신입 가이드로 소개되었다.
+---
+> T271	explicit_scene_event	unknown	character:yuharam:occupation	유하람은 신입 가이드로 소개되었다.
+246c246
+< T285	explicit_scene_event	historical_event	character:yeom_taeo:occupation	염태오는 에지카 소속 구급대원으로 언급되었다.
+---
+> T285	explicit_scene_event	unknown	character:yeom_taeo:occupation	염태오는 에지카 소속 구급대원으로 언급되었다.
+273c273
+< T313	explicit_user_statement	unknown	character:yeom_taeo:visited_user_and_partner	염태오가 오늘 유저와 동행인을 찾았다고 전해졌다.
+---
+> T313	explicit_user_statement	historical_event	character:yeom_taeo:visited_user_and_partner	염태오가 오늘 유저와 동행인을 찾았다고 전해졌다.
+327c327
+< T375	explicit_scene_event	historical_event	character:seo_daon:organization	서다온은 연구국 인턴으로 소개되었다.
+---
+> T375	explicit_scene_event	unknown	character:seo_daon:organization	서다온은 연구국 인턴으로 소개되었다.
+338c338
+< T386	explicit_scene_event	historical_event	character:seo_daon:organization_role	서다온은 연구국 인턴으로 소개되었다.
+---
+> T386	explicit_scene_event	unknown	character:seo_daon:organization_role	서다온은 연구국 인턴으로 소개되었다.
+340c340
+< T393	explicit_user_statement	unknown	character:daon_seo:visited_user_and_ren	서다온이 오늘 유저와 렌을 찾았다고 전해졌다.
+---
+> T393	explicit_user_statement	historical_event	character:daon_seo:visited_user_and_ren	서다온이 오늘 유저와 렌을 찾았다고 전해졌다.
+344c344
+< T398	explicit_scene_event	historical_event	character:yeom_taeo:occupation_claim	염태오는 에지카 소속 구급대원으로 소개되었다.
+---
+> T398	explicit_scene_event	unknown	character:yeom_taeo:occupation_claim	염태오는 에지카 소속 구급대원으로 소개되었다.
+402c402
+< T449	explicit_user_statement	unknown	character:namgung_hyeon:action	교관 남궁현이 오늘 두 사람을 찾았다는 말이 나왔다.
+---
+> T449	explicit_user_statement	historical_event	character:namgung_hyeon:action	교관 남궁현이 오늘 두 사람을 찾았다는 말이 나왔다.
+429c429
+< T479	explicit_scene_event	historical_event	character:yeom_taeo:occupation_claim	에지카 구급대원 염태오가 한강 둔치를 지나갔다.
+---
+> T479	explicit_scene_event	unknown	character:yeom_taeo:occupation_claim	에지카 구급대원 염태오가 한강 둔치를 지나갔다.
