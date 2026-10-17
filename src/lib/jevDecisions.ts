@@ -32,6 +32,20 @@ import { buildAuxProviderCallLogInput, logAuxProviderCall } from "@/lib/auxProvi
 /** Candidate pinned model — never the `latest` alias (auto-drift risk). */
 export const JEV_DECISIONS_MODEL = "typesafe/jev-1.14";
 
+/**
+ * Retired Jev IDs are not request defaults, aliases, fallbacks, or radar
+ * candidates. Dated snapshots (`typesafe/jev-1.13-YYYYMMDD`) are included.
+ */
+const RETIRED_JEV_MODEL = "typesafe/jev-1.13";
+
+export function isRetiredJevModelId(modelId: string): boolean {
+  const trimmed = modelId.trim().toLowerCase();
+  const id = trimmed.startsWith("~") ? trimmed.slice(1) : trimmed;
+  if (!id.startsWith(RETIRED_JEV_MODEL)) return false;
+  const suffix = id.slice(RETIRED_JEV_MODEL.length);
+  return suffix === "" || suffix.startsWith("-") || suffix.startsWith(":");
+}
+
 /** Decisions endpoint — deliberately NOT the chat/completions transport. */
 export const JEV_DECISIONS_URL = "https://openrouter.ai/api/alpha/decisions";
 
@@ -351,7 +365,7 @@ export async function callJevDecisions(opts: {
   state: string | Record<string, unknown> | string[];
   /** Official questions object keyed by question ID. */
   questions: JevDecisionQuestions;
-  /** Pinned-model override for tests only — production always uses the pin. */
+  /** Benchmark/test override; retired Jev 1.13 IDs are denied before HTTP. */
   model?: string;
   timeoutMs?: number;
   /** Null skips ledger recording (wire-contract tests); omitted records canonically. */
@@ -379,9 +393,15 @@ export async function callJevDecisions(opts: {
       code: "invalid_request",
     });
   }
+  const model = (opts.model ?? JEV_DECISIONS_MODEL).trim() || JEV_DECISIONS_MODEL;
+  if (isRetiredJevModelId(model)) {
+    throw new JevDecisionsError({
+      message: "[jev-decisions] retired Jev model is not callable",
+      code: "invalid_request",
+    });
+  }
   // Canonical auth owner throws NO_OPENROUTER_KEY before any HTTP.
   const key = resolveOpenRouterApiKey();
-  const model = (opts.model ?? JEV_DECISIONS_MODEL).trim() || JEV_DECISIONS_MODEL;
   const requestKind = opts.ledger?.requestKind ?? JEV_DECISIONS_REQUEST_KIND;
 
   logAuxProviderCall(

@@ -38,6 +38,8 @@ describe("decision model radar isolation", () => {
     const scheduler = fs.readFileSync("src/lib/schedulerDefinitions.ts", "utf8");
 
     assert.match(jev, /JEV_DECISIONS_MODEL\s*=\s*"typesafe\/jev-1\.14"/);
+    assert.match(jev, /if \(isRetiredJevModelId\(model\)\)/);
+    assert.equal(fs.existsSync("src/lib/jevModelPolicy.ts"), false);
     assert.doesNotMatch(workflow, /schedulerDefinitions\.ts|src\/cron\/|mcp__Railway__|merge_pull_request/);
     assert.doesNotMatch(scheduler, /decision[_-]model[_-]radar/i);
     assert.match(workflow, /decision-model-radar-ledger/);

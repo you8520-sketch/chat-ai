@@ -73,6 +73,29 @@ describe("decision catalog request contract", () => {
 });
 
 describe("decision model radar catalog", () => {
+  it("never offers retired Jev 1.13, including dated snapshots, as a candidate", () => {
+    const catalog = parseDecisionCatalog({
+      data: [
+        { id: "typesafe/jev-1.13", created: 200, pricing: { prompt: "0.000000042", completion: "0" } },
+        { id: "typesafe/jev-1.13-20260920", created: 199, pricing: { prompt: "0.000000042", completion: "0" } },
+        { id: "typesafe/jev-1.14", created: 201, pricing: { prompt: "0.000000042", completion: "0" } },
+        { id: "candidate/other", created: 202, pricing: { prompt: "0.000000042", completion: "0" } },
+      ],
+    });
+    assert.deepEqual(
+      catalog.map((row) => row.id),
+      ["candidate/other", "typesafe/jev-1.14"]
+    );
+    const selected = selectChangedDecisionCandidates({
+      catalog,
+      ledger: emptyDecisionRadarLedger(),
+    });
+    assert.deepEqual(
+      selected.selected.map((row) => row.id),
+      ["candidate/other"]
+    );
+  });
+
   it("parses decision models, prices per million, and filters aliases/routers", () => {
     const parsed = parseDecisionCatalog({
       data: [
