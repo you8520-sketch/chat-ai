@@ -965,7 +965,7 @@ after에서 `characters.images`는 새 대표 업로드 URL 하나다. `anchor_a
 
 ### 22.8 운영 절차 (이번에 실행하지 않음)
 
-전용 CLI는 없다. 운영 적용은 같은 owner를 이 순서로 호출한다. 각 단계는 별도 승인 뒤에만 실행한다.
+같은 owner를 이 순서로 호출한다. 각 단계는 별도 승인 뒤에만 실행한다. 이 순서를 감싸는 단계 명령은 §23.3이다.
 
 1. 실행 전: `git rev-parse HEAD`가 배포 SHA와 같은지 확인한다. #51 `stage=staged_private`, `official=0`, `visibility=private`, 현재 Text Lock·Appearance Lock 해시, 현재 대표 URL을 운영 행에서 읽어 기록한다. 검수와 apply는 그 값과 같아야 한다.
 2. 14칸마다 `registerExternalOfficialAssetReplacement({ actor: 공식 관리자, draftKey: "pilot-rf-v4-02", slotKey, bytes, approvedTag })`. 바이트 SHA는 `fourteen-f-candidates.json`과 같아야 한다.
@@ -979,6 +979,153 @@ after에서 `characters.images`는 새 대표 업로드 URL 하나다. `anchor_a
 
 - 14장의 품질 승인과 실제 RP 품질은 이번 범위가 아니다. 테스트 승인은 fixture다.
 - 운영 moderation은 유료 vision 호출이다. 비용 승인 전에는 3단계를 실행하지 않는다.
-- 위 절차를 감싸는 CLI는 별도 후속이다.
-- 승인 계획의 personTag: `편안함`·`안도`는 `ASSET_PERSON_TAGS`에 없어 emo5 `진지함`, emo6 `미소`의 기존 값을 유지했다. 편집 검토 항목이다.
+- 절차를 감싸는 단계 명령과 personTag는 §23에서 처리했다.
 - 대표가 바뀐 뒤 유료 교체 생성은 published 전용이고 대표 재생성은 막혀 있다. 공개 뒤 RP 교체 생성은 저장 정책으로 조립된다.
+
+## 23. 이전 이미지 메타데이터 잔존 수정과 단계 명령
+
+범위는 코드와 격리 DB 검증이다. 새 이미지, vision, 유료 RP 호출, 운영 DB 쓰기, 소유권 변경, 병합·배포·공개·알림은 하지 않았다. 최종 14장 파일, r2 원고, Text Lock, Appearance Lock, #50은 그대로다. GPT의 14장 후보 시각 검수는 유지 상태이고 이번 코드 보완으로 다시 요구하지 않는다.
+
+### 23.1 이전 이미지 메타데이터 잔존 (차단 항목)
+
+원인: `nextAssetFromCandidate`가 현재 에셋을 펼친 뒤 url만 바꿨다. 옛 파일의 `mediaId`·`publicRenditionUrl`·`blurPreviewUrl`·`moderationStatus`·`nippleExposure`가 새 url 옆에 남았다. 표시 owner는 `mediaId` → `publicRenditionUrl` → url 순서로 읽으므로(`publicRepresentativeUrl`), 이런 대표가 바뀌면 카드·상세·채팅이 옛 이미지를 계속 보여 준다. 흐림 미리보기(`safeLockedPreviewUrl`, `projectAssetsForViewer`)도 옛 `blurPreviewUrl`을 썼다.
+
+수정: 에셋 모양 owner인 `characterAssets.ts`에 `withReplacedAssetFile(current, file)`를 두었다. 파일과 무관한 배치 필드만 허용 목록으로 옮긴다(tag, visualSubjectKey, public, chat, viewerBlur, representativeRank). 크기는 새 파일 값이다. `nextAssetFromCandidate`는 이것에 적용 태그와 새 후보의 moderation 필드(`canonicalAssetModerationFields`)를 더한다. 결과는 `buildStagingAssets`가 새 `/uploads/` 파일에 쓰는 모양과 같다. 표시 경로는 바꾸지 않았다. 새 url에서 공개 이미지와 `legacy-blur-<파일명>.webp`를 그대로 계산한다. 화면에서 URL을 덮는 우회는 없다.
+
+테스트 `officialSupply.approvedRepresentativeApply.test.ts` "applied images carry no metadata of the replaced file":
+
+| 테스트 | 시작 상태 | 확인 |
+|---|---|---|
+| 10a | 옛 대표에 `mediaId`·`blurPreviewUrl`·`moderationStatus`·`nippleExposure` | 대표 이미지·공개 URL 목록·기본 채팅·비로그인 열람 투영이 새 url, 흐림 미리보기가 새 파일 기준, 순위 1·`viewerBlur` 유지, rollback 뒤 옛 assets 문자열과 정확히 같음 |
+| 10b | 옛 대표에 `publicRenditionUrl`·`blurPreviewUrl` | 위와 같음 |
+| 10c | 흐림이 켜진 RP 칸에 `mediaId`·`blurPreviewUrl`·`moderationStatus: pending`·`nippleExposure: uncertain` | 사용자 흐림 유지, 나머지 13칸 불변, `assetModerationSummary` 비성인, 공개 미디어 route가 새 파일의 legacy-blur를 200 webp로 생성, rollback 뒤 옛 assets와 같음 |
+
+| 실행 | 결과 | 기록 |
+|---|---|---|
+| 수정 전 owner + 새 테스트 | 10a·10b·10c 실패 3. 10a `representative kept the replaced file's mediaId`, 10c `RP slot kept the replaced file's mediaId` | `stale-metadata-before-fix.log` |
+| 수정 전, 10b만 | 실패 1. `representative kept the replaced file's publicRenditionUrl` (`/media/public/old-representative-public.webp`) | `stale-metadata-before-fix-10b-alone.log` |
+| 수정 후, 적용 테스트 + 기존 교체 테스트 | 36/36 통과. 기존 RP 교체·published 교체·intake lease·stale CAS 22개 포함 | `stale-metadata-after-fix.log` |
+
+10b는 10a 실패 뒤 상태가 이어져 단독으로 다시 실행했다.
+
+### 23.2 personTag
+
+승인 계획 `pilot-rf-02-approved-asset-plan-f.json`에서 emo5는 `tag 편안함, personTag null`, emo6는 `tag 안도, personTag null`이다. 이전의 `진지함`·`미소` 대체 값은 지웠다. `ASSET_PERSON_TAGS`는 늘리지 않았다. personTag는 프롬프트에 들어가지 않으므로 13개 RP 전송문 SHA는 manifest 기록과 그대로 일치한다(테스트 7). 테스트 1b가 적용 뒤 계획의 두 칸이 `personTag: null`인지 확인한다.
+
+### 23.3 단계 명령
+
+기존 운영 스크립트 `scripts/official-supply-wolfgang-approved-source.ts`에 `assets` 하위 명령을 더했다. 판단은 `src/lib/officialSupply/approvedAssetApplyOperator.ts`에 있고, 각 단계는 기존 owner(`registerExternalOfficialAssetReplacement`, `moderateOfficialAssetReplacement`, `reviewReplacement`·`reviewRepresentativeReplacement`, `applyApprovedOfficialAssetReplacements`, `rollbackOfficialAssetReplacementApply`)만 호출한다. SQL이나 교체 로직을 따로 두지 않았다. 볼프강 이름 분기나 별도 compiler는 없다.
+
+```
+npm run official-supply:wolfgang-approved-source -- assets status   --admin-email <관리자> --character-id <#51 id>
+npm run official-supply:wolfgang-approved-source -- assets intake   --admin-email <관리자> --character-id <#51 id> [--execute]
+npm run official-supply:wolfgang-approved-source -- assets moderate --admin-email <관리자> --character-id <#51 id> [--execute --max-calls 28 --max-cost-usd 0.28 --per-call-reserve-usd 0.01]
+npm run official-supply:wolfgang-approved-source -- assets review   --admin-email <관리자> --character-id <#51 id> [--evidence <검수 파일> [--execute]]
+npm run official-supply:wolfgang-approved-source -- assets apply    --admin-email <관리자> --character-id <#51 id> [--execute]
+npm run official-supply:wolfgang-approved-source -- assets rollback --admin-email <관리자> --character-id <#51 id> --apply-id <applyId> [--execute]
+```
+
+- 기본 실행은 조회 또는 dry-run이다. `--execute`가 없으면 쓰지 않는다. moderation 기본 실행은 호출 0건 계획이다.
+- 모든 단계 전에 확인한다. 실행자는 `users` 행이 있는 공식 관리자다. `--character-id`가 draft의 `staged_character_id`와 같아야 한다(`operator_target_mismatch`). manifest는 14칸이 승인 계획 슬롯과 같고, 태그가 계획과 같으며, 파일 바이트 SHA가 `rawSha256`과 같아야 한다(`operator_manifest_slots/tag/file/sha`).
+- 재개: 칸마다 다음 단계(intake / moderate / review / apply / applied / blocked)를 저장 상태에서 계산한다. 끝난 칸은 다시 반입·moderation·검수하지 않는다. 저장 후보가 manifest SHA와 다르면, 검수 전이면 다시 반입하고 승인·적용·거절된 다른 파일이면 `blocked`로 멈춘다. moderation 거절도 `blocked`다.
+- apply는 `applyId`와 rollback 명령을 출력한다. 같은 상태에서 다시 실행하면 `already_applied`와 같은 `applyId`를 보여 준다.
+- 기본값: draft `pilot-rf-v4-02`, manifest `fourteen-f-candidates.json`, 계획 `pilot-rf-02-approved-asset-plan-f.json`.
+
+### 23.4 moderation 최대 호출·비용 계획
+
+운영 moderator는 canonical asset vision이고 한 장마다 primary가 실패하면 내부 fallback 모델을 한 번 더 부른다(`visionModels()` 2개). 단계 명령은 이 fallback을 호출 수와 비용에 넣는다.
+
+| 항목 | 값 |
+|---|---|
+| 대상 | 14장 |
+| 한 장의 최대 시도 | 2 (primary + fallback) |
+| 최대 호출 | 28 |
+| 시도당 예약액 (`--per-call-reserve-usd`) | 0.01 USD (운영자가 정하는 상한) |
+| 최대 비용 (`--max-cost-usd`) | 0.28 USD |
+
+- `--execute`에는 세 상한이 모두 필요하다(`operator_moderation_budget_required`). 첫 호출 전에 최악값(남은 장 × 2 시도 × 예약액)이 상한 안인지 확인한다(`operator_moderation_budget_exceeded`).
+- 한 장이 끝날 때마다 2시도를 청구한다. provider 청구액이 보고된 시도는 그 금액, 청구액이 없는 시도(추정 usage 포함)와 관측되지 않은 시도는 예약액으로 센다. 실패한 fetch는 비용 근거를 남기지 않기 때문이다.
+- unavailable이면 그 장에서 멈춘다. 시도 비용이 예약액보다 크거나 계획보다 시도가 많아도 멈춘다. 거절·unavailable을 통과로 바꾸지 않는다.
+- vision 모델 단가는 이번에 확인하지 않았다. 실행 전에 단가가 예약액 안인지 확인하고 상한을 정해야 한다. 실행 자체는 별도 비용 승인 대상이다.
+
+### 23.5 운영 검수 증거 파일
+
+`assets review`(evidence 없이)는 검수 대기 칸의 빈 양식을 출력한다. 양식에는 칸별 저장 후보 URL, 원본 SHA, 대표 앵커 QA 10항목 또는 RP variation QA 항목이 `ok: null`로 들어 있고 그대로는 제출되지 않는다.
+
+- `reviewer`와 `approvalEvidence`(GPT/사용자 승인 근거의 위치)가 필요하다. 모든 QA 항목은 명시적인 `ok`와 메모가 있어야 하고, 모르는 항목은 거부한다.
+- 칸마다 URL과 SHA가 저장된 후보와 manifest에 같아야 한다.
+- `test-fixture`·`not-quality-approval` 문구가 있으면 거부한다. `isolatedProofOnly: true` 증거는 운영 DB(`RAILWAY_ENVIRONMENT_NAME=production` 또는 운영 SQLite 경로)에서 거부한다.
+- 출력에 증거 파일 SHA-256이 남는다. 코드가 검수 결과를 채우지 않는다.
+
+### 23.6 격리 DB 실행
+
+기록: `assets/wolfgang-asset-redesign/isolated-operator-cli-evidence.json`. 스크립트: `isolated-operator-cli-evidence.ts.txt`. 임시 DATA_DIR에 스테이징한 #51 형태 draft에 대해 실제 CLI를 자식 프로세스로 실행했다. provider 키와 네트워크는 없고 실행 뒤 DB를 지웠다.
+
+| 단계 | 결과 |
+|---|---|
+| status | 쓰기 0. 14칸 `next=intake`, manifest SHA 일치 |
+| intake 기본 / `--execute` / 재실행 | 계획만 / 14칸 반입 / 14칸 건너뜀(`next=moderate`) |
+| moderate 기본 | `planned`, 호출 0 |
+| moderate `--execute` 상한 없음 | `operator_moderation_budget_required`로 중단 |
+| moderate `--execute` 상한 27회 | `operator_moderation_budget_exceeded` ("14 images need up to 28 calls / 0.28 USD") |
+| moderate `--execute` 28 / 0.28 / 0.01, 키 없음 | vision unavailable로 rep에서 `stopped`. 청구 2회 / 0.02 USD, 관측 시도 0 |
+| (격리 전용) moderation fixture | 같은 owner에 테스트 moderator를 넣어 14칸 기록. provider 호출 0. 품질 승인이 아니다 |
+| moderate 재실행 | `completed`, 호출 0, 14칸 건너뜀 |
+| review 양식 / production 표시 상태에서 격리 증거 | 빈 양식 / `operator_review_evidence`로 거부 |
+| review 기본 / `--execute` / 재실행 | 기록 0 / 14칸 기록 / 14칸 `alreadyReviewed` |
+| apply 기본 / `--execute` / 재실행 | `dry_run` / `applied`, applyId `a2095028…`와 rollback 명령 / `already_applied` 같은 applyId |
+| rollback 기본 / `--execute` | `dry_run` / `rolled_back` |
+
+화면 owner 기준 before / apply 후 / rollback 후:
+
+| | before | apply 후 | rollback 후 |
+|---|---|---|---|
+| 카드 대표 | `rep-a1.webp` | `rep-ext-<id>.webp` | `rep-a1.webp` |
+| 대표 태그 | 흑철 늑대공 | 기본 초상 | 흑철 늑대공 |
+| 흐림 미리보기 | `legacy-blur-…rep-a1.webp` | `legacy-blur-…rep-ext-<id>.webp` | `legacy-blur-…rep-a1.webp` |
+
+rollback 뒤 캐릭터 행은 before와 같았다(`rollbackRestoredCharacterRow: true`). 같은 흐름의 owner 테스트는 `officialSupply.approvedAssetOperator.test.ts`(7개)다.
+
+### 23.7 검수 상태
+
+| 항목 | 상태 |
+|---|---|
+| 14장 후보 시각 검수 | GPT 검수 유지 |
+| 운영 moderation | 미실행. 비용 승인 필요 |
+| 운영 검수 기록 | 미실행. §23.5 형식의 실제 검수 파일 필요 |
+| 운영 apply | 미실행 |
+| 실제 RP 품질 | 별도 미결 |
+
+테스트·격리 실행의 moderation과 검수는 게이트 fixture이고 실제 품질 승인 기록이 아니다.
+
+### 23.8 `npm run test:regular` 차이
+
+| 실행 | 실패 | `SQLITE_BUSY` 실패 기록 |
+|---|---|---|
+| 기준 `50e23fe8` | 299 | 31 |
+| 이전 브랜치 실행 | 340 | 71 |
+| 이번 HEAD | 303 | 29 |
+
+확인한 것:
+
+- 이번 HEAD와 기준의 차이는 파일 10개다. HEAD에서 늘어난 파일은 `investigationDiscovery.s3`(0 → 28), `personaSecretDiscovery.followup`(0 → 9), `worldShares.borrow`(2 → 3)이고, 나머지 7개는 기준에서 더 많이 실패했다(`knowledgeTransfer.s4d` 13 → 0 등).
+- HEAD에서 늘어난 세 파일의 실패는 `SQLITE_BUSY`/`database is locked`다. 기준에서만 실패한 `knowledgeTransfer.s4d`·`points.deepseekCheaperInference`·`investigationDiscovery.s3Home`도 같은 오류다.
+- 세 파일은 HEAD에서 단독 실행 시 모두 통과한다(21/21, 8/8, 40/40). 이전 실행에서 차이가 난 7개 파일도 단독으로는 통과했다(`knowledgeTransfer.s4VariantProjection`은 기준에서도 1개 실패).
+- 세 파일은 `installIsolatedTestDatabase` 없이 기본 `getDb()`를 연다. 이번 브랜치의 새 테스트는 격리 DB helper를 쓰고, 세 파일과 import로 연결되지 않는다.
+- 차이가 나는 파일 묶음은 실행마다 바뀌었다.
+
+확인하지 못한 것: 실행마다 실패 위치가 달라지는 원인, 그리고 이 브랜치가 추가한 테스트 파일이 병렬 실행의 잠금 경합에 영향을 주는지 여부. 기준과 HEAD를 같은 조건에서 반복 실행해 분포를 비교하지 않았다. 따라서 무관하다거나 해결됐다고 판단하지 않는다.
+
+### 23.9 검증
+
+| 확인 | 결과 |
+|---|---|
+| official-supply 전체 (`src/lib/officialSupply/**/*.test.ts`) | 573/573 통과, 연속 2회 |
+| 적용 테스트 + 기존 교체 테스트 | 36/36 통과 |
+| 단계 명령 테스트 | 7/7 통과 |
+| `npm run lint` | 통과 |
+| `npm run typecheck:app` | 통과 |
+| `git diff --check` | 통과 |
+| `npm run test:regular` | 13546개 중 303 실패, §23.8 |
+
+official-supply 전체 실행에서 처음 두 문제가 나왔고 고쳤다. 단계 명령 테스트가 `productionAdapters`를 import해 기존 경계 테스트("tests never load the network-capable production adapters")가 실패했다. 그 테스트를 지웠고, 운영 moderator 연결은 §23.6의 CLI 실행이 확인한다. rollback 비교에서 초 단위 `updated_at`이 부하 중 1초 넘어가 실패했다. 기존 적용 테스트와 같이 `updated_at`을 비교에서 뺐다.
