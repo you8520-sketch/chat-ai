@@ -37,10 +37,10 @@ describe("decision model radar isolation", () => {
     );
     const scheduler = fs.readFileSync("src/lib/schedulerDefinitions.ts", "utf8");
 
-    assert.match(jev, /JEV_DECISIONS_MODEL\\s*=\\s*JEV_ACTIVE_MODEL/);
+    assert.ok(jev.includes("export const JEV_DECISIONS_MODEL = JEV_ACTIVE_MODEL;"));
     const policy = fs.readFileSync("src/lib/jevModelPolicy.ts", "utf8");
-    assert.match(policy, /JEV_ACTIVE_MODEL\\s*=\\s*"typesafe\\/jev-1\\.14"/);
-    assert.match(jev, /isRetiredJevModelId\\(model\\)/);
+    assert.ok(policy.includes('export const JEV_ACTIVE_MODEL = "typesafe/jev-1.14";'));
+    assert.ok(jev.includes("if (isRetiredJevModelId(model))"));
     assert.doesNotMatch(workflow, /schedulerDefinitions\.ts|src\/cron\/|mcp__Railway__|merge_pull_request/);
     assert.doesNotMatch(scheduler, /decision[_-]model[_-]radar/i);
     assert.match(workflow, /decision-model-radar-ledger/);
