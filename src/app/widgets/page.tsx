@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
 
 import StatusWidgetCommunity from "@/components/StatusWidgetCommunity";
+import { widgetsMetadata } from "@/lib/siteSeo";
 import { getSessionUser } from "@/lib/auth";
 import { listPublicStatusWidgetShares } from "@/lib/statusWidgetShares";
 import { parseStatusWidgetShareSort } from "@/lib/statusWidgetShareTypes";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "공유 상태창",
-};
+export const metadata: Metadata = widgetsMetadata();
 
 export default async function WidgetsPage({
   searchParams,

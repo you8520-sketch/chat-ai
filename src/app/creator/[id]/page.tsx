@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import "./creator-gallery.css";
 import { notFound } from "next/navigation";
@@ -26,8 +27,25 @@ import { userHasReportedComment } from "@/lib/commentReports";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 import { decorateCharactersWithCreatorTiers } from "@/lib/creatorTierBadges";
 import { listCreatorNotices } from "@/lib/creatorNotices";
+import { creatorProfileMetadata, isSearchIndexableCreator } from "@/lib/siteSeo";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const creatorId = Number(id);
+  if (!Number.isFinite(creatorId) || creatorId <= 0) return {};
+  const db = getDb();
+  const creator = db.prepare("SELECT id, nickname FROM users WHERE id=?").get(creatorId) as
+    | { id: number; nickname: string }
+    | undefined;
+  if (!creator) return {};
+  return creatorProfileMetadata(creator, isSearchIndexableCreator(db, creator.id));
+}
 
 export default async function CreatorProfilePage({
   params,

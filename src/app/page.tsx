@@ -11,8 +11,11 @@ import { canAccessAdultContent, shouldHideAdultListings } from "@/lib/adultVerif
 import { fetchHomeSections, homeSectionNumbers } from "@/lib/homeSections";
 import { getActiveHomePopupNotice } from "@/lib/homePopupNotice";
 import { cn, studioType } from "@/lib/studioDesign";
+import { homeMetadata } from "@/lib/siteSeo";
 
 export const dynamic = "force-dynamic";
+
+export const metadata = homeMetadata();
 
 /** 변형별 카드 폭 — 추천은 일러스트 중심의 세로형, 공모전은 더 넓은 전시 프레임 */
 const CARD_WIDTH = {

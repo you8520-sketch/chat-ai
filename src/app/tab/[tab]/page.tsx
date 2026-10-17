@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDb } from "@/lib/db";
@@ -17,9 +18,19 @@ import {
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 import { canAccessAdultContent, shouldHideAdultListings } from "@/lib/adultVerification";
 import { decorateCharactersWithCreatorTiers } from "@/lib/creatorTierBadges";
+import { tabMetadata } from "@/lib/siteSeo";
 import { RankingList, RankingPeriodNav } from "./RankingView";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ tab: string }>;
+}): Promise<Metadata> {
+  const { tab } = await params;
+  return tabMetadata(tab) ?? {};
+}
 
 /** 홈 '신규 캐릭터'(25)의 '더보기'이므로 홈보다 넓게 보여준다. */
 const NEW_TAB_LIMIT = 50;
