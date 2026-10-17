@@ -29,6 +29,7 @@ type Props = {
  * Docks directly above the mobile bottom nav (--mobile-nav-offset) and above the
  * on-screen keyboard (--keyboard-inset) so the save/cancel buttons stay reachable, and
  * publishes its height as --studio-save-bar-h so the page footer can reserve room for it.
+ * On short landscape screens with the keyboard open it flows with the page (see globals.css).
  */
 export default function StudioSaveBar({
   onSave,
@@ -70,7 +71,7 @@ export default function StudioSaveBar({
       ref={barRef}
       data-testid="studio-save-bar"
       className={cn(
-        "fixed inset-x-0 bottom-[calc(var(--mobile-nav-offset)+var(--keyboard-inset))] z-40 border-t border-white/10 bg-[#0b0d14]/95 backdrop-blur-md",
+        "studio-save-bar fixed inset-x-0 bottom-[calc(var(--mobile-nav-offset)+var(--keyboard-inset))] z-40 border-t border-white/10 bg-[#0b0d14]/95 backdrop-blur-md",
         "pb-0 min-[576px]:pb-[env(safe-area-inset-bottom)]",
         className,
       )}

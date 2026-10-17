@@ -251,3 +251,131 @@ test.describe("lorebook editor fits the narrowest phone", () => {
     await expect(page.getByTestId("studio-save-bar")).toBeVisible();
   });
 });
+
+const FAKE_VISUAL_VIEWPORT = `(() => {
+  const fake = new EventTarget();
+  const state = { kb: 0 };
+  const define = (key, read) => Object.defineProperty(fake, key, { get: read });
+  define("width", () => innerWidth);
+  define("height", () => innerHeight - state.kb);
+  define("offsetTop", () => 0);
+  define("offsetLeft", () => 0);
+  define("pageTop", () => scrollY);
+  define("pageLeft", () => 0);
+  define("scale", () => 1);
+  Object.defineProperty(window, "visualViewport", { get: () => fake });
+  window.__setKeyboard = (kb) => { state.kb = kb; fake.dispatchEvent(new Event("resize")); };
+})();`;
+
+async function openEditorWithKeyboard(page: Page, width: number, height: number, keyboard: number) {
+  await demoLogin(page);
+  await page.addInitScript(FAKE_VISUAL_VIEWPORT);
+  await page.setViewportSize({ width, height });
+  await page.goto("/create");
+  await page.getByTestId("studio-save-bar").waitFor({ state: "visible" });
+  await page.evaluate((kb) => (window as unknown as { __setKeyboard: (k: number) => void }).__setKeyboard(kb), keyboard);
+  await expect(page.locator("html")).toHaveAttribute("data-keyboard-open", "");
+}
+
+/** Pixels of the visual viewport left for the form once the sticky/fixed chrome is subtracted. */
+async function freeEditingHeight(page: Page) {
+  await page.evaluate(() => window.scrollTo(0, 700));
+  await page.waitForTimeout(150);
+  return page.evaluate(() => {
+    const rect = (el: Element | null) => el!.getBoundingClientRect();
+    const fixedOrSticky = (el: Element | null) => !!el && ["fixed", "sticky"].includes(getComputedStyle(el).position);
+    const header = document.querySelector(".site-header");
+    const tabs = document.querySelector('[role="tablist"][aria-label="캐릭터·시뮬레이션 제작 탭"]');
+    const bar = document.querySelector('[data-testid="studio-save-bar"]');
+    const headerBottom = fixedOrSticky(header) ? rect(header).bottom : 0;
+    const tabsStuck = fixedOrSticky(tabs) && rect(tabs).top <= headerBottom + 1;
+    const top = Math.max(headerBottom, tabsStuck ? rect(tabs).bottom : 0);
+    const bottom = fixedOrSticky(bar) ? rect(bar).top : window.visualViewport!.height;
+    return { free: Math.round(bottom - top), tabs: getComputedStyle(tabs!).position, bar: getComputedStyle(bar!).position };
+  });
+}
+
+test.describe("E4-9 editor on short landscape screens with the keyboard open", () => {
+  for (const [width, height, keyboard] of [
+    [667, 375, 190],
+    [740, 360, 180],
+    [844, 390, 200],
+  ] as const) {
+    test(`${width}x${height}: tab bar and save bar leave the fixed layer and the typed line stays visible`, async ({ page }) => {
+      await openEditorWithKeyboard(page, width, height, keyboard);
+      const open = await freeEditingHeight(page);
+      expect(open.tabs).toBe("static");
+      expect(open.bar).toBe("static");
+      expect(open.free).toBeGreaterThanOrEqual(80);
+
+      const textarea = page.locator("#studio-character-form textarea:visible").first();
+      await textarea.click();
+      await page.keyboard.type("첫 줄\n둘째 줄\n셋째 줄\n넷째 줄\n다섯째 줄 캐럿이 보여야 합니다");
+      const geometry = await page.evaluate(() => {
+        const ta = document.activeElement as HTMLTextAreaElement;
+        const box = ta.getBoundingClientRect();
+        const header = document.querySelector(".site-header")!.getBoundingClientRect();
+        return { top: box.top, bottom: box.bottom, headerBottom: header.bottom, vv: window.visualViewport!.height };
+      });
+      expect(Math.min(geometry.bottom, geometry.vv) - Math.max(geometry.top, geometry.headerBottom)).toBeGreaterThanOrEqual(40);
+      expect(await textarea.inputValue()).toContain("다섯째 줄 캐럿이 보여야 합니다");
+
+      const save = page.getByTestId("studio-save-bar").getByRole("button").last();
+      await save.scrollIntoViewIfNeeded();
+      const reach = await save.evaluate((el) => {
+        const box = el.getBoundingClientRect();
+        return { top: box.top, bottom: box.bottom, headerBottom: document.querySelector(".site-header")!.getBoundingClientRect().bottom };
+      });
+      expect(reach.top).toBeGreaterThanOrEqual(reach.headerBottom - 1);
+      expect(reach.bottom).toBeLessThanOrEqual(height);
+    });
+  }
+
+  test("667x375: closing the keyboard restores the sticky tab bar, fixed save bar and scroll padding", async ({ page }) => {
+    await openEditorWithKeyboard(page, 667, 375, 190);
+    await page.evaluate(() => (window as unknown as { __setKeyboard: (k: number) => void }).__setKeyboard(0));
+    await expect(page.locator("html")).not.toHaveAttribute("data-keyboard-open", "");
+    const closed = await freeEditingHeight(page);
+    expect(closed.tabs).toBe("sticky");
+    expect(closed.bar).toBe("fixed");
+    expect(closed.free).toBeGreaterThanOrEqual(140);
+    const padding = await page.evaluate(() => {
+      const cs = getComputedStyle(document.documentElement);
+      return { top: parseFloat(cs.scrollPaddingTop), bottom: parseFloat(cs.scrollPaddingBottom) };
+    });
+    expect(padding.top).toBeGreaterThan(98 + 54);
+    expect(padding.bottom).toBeGreaterThan(69);
+  });
+
+  test("667x375: required-field jump anchors under the header only, since the tab bar is no longer sticky", async ({ page }) => {
+    await openEditorWithKeyboard(page, 667, 375, 190);
+    const jump = page.getByTestId("studio-save-bar").getByRole("button", { name: /채우러 가기/ });
+    await jump.scrollIntoViewIfNeeded();
+    await jump.click();
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const el = document.activeElement as HTMLInputElement;
+            const labelTop = el.labels?.[0]?.getBoundingClientRect().top ?? 0;
+            return labelTop - document.querySelector(".site-header")!.getBoundingClientRect().bottom;
+          }),
+        { timeout: 4000 },
+      )
+      .toBeGreaterThanOrEqual(-1);
+    await page.waitForTimeout(600);
+    const gap = await page.evaluate(() => {
+      const el = document.activeElement as HTMLInputElement;
+      return (el.labels?.[0]?.getBoundingClientRect().top ?? 0) - document.querySelector(".site-header")!.getBoundingClientRect().bottom;
+    });
+    expect(gap).toBeGreaterThanOrEqual(-1);
+    expect(gap).toBeLessThanOrEqual(30);
+  });
+
+  test("portrait phones keep the sticky tab bar and docked save bar while typing", async ({ page }) => {
+    await openEditorWithKeyboard(page, 390, 844, 330);
+    const open = await freeEditingHeight(page);
+    expect(open.tabs).toBe("sticky");
+    expect(open.bar).toBe("fixed");
+  });
+});
