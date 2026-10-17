@@ -1,0 +1,56 @@
+{
+  "identicalFinalWire": false,
+  "reason": "campaign snapshots do not persist assembled GM system+user packets (secret, personas, plan, director, localScene, mechanics, live exploration commit, memory horizon).",
+  "reconstructedWithLiveOwners": [
+    "TRPG_GM_SYSTEM",
+    "buildTrpgGmUserBlock",
+    "formatTrpgSheetCanon",
+    "buildTrpgMemoryPromptBlock(structured+recent raw only)",
+    "formatResolutionOrderBlock",
+    "formatExplorationGmBlock(seats stayed in 현관홀, no commit lines)",
+    "TRPG_GM_STRUCTURED_RESPONSE_FORMAT"
+  ],
+  "missingPackets": [
+    "gmSecret",
+    "playerPersonas (live always emits at least a name block)",
+    "scenarioPlanBlock",
+    "storyDirectorBlock",
+    "localSceneBlock",
+    "localSceneDeltaContract",
+    "mechanicsPacket",
+    "aiPartyCharacterContext",
+    "characterAssetCatalog",
+    "scenarioAssetPrompt",
+    "sealedSummary / memory horizon / campaign anchors",
+    "exploration commit resultLines (DB planExplorationCommit)",
+    "exact stay-seat checkReason"
+  ],
+  "scenes": [
+    {
+      "id": "r1",
+      "targetRound": 1,
+      "systemChars": 10026,
+      "userChars": 9018,
+      "flashNarrationChars": 3263,
+      "flashBilledPoints": 33,
+      "actionNames": [
+        "렌:SUCCESS",
+        "강이현:FAILURE",
+        "권태현:no_check"
+      ]
+    },
+    {
+      "id": "r3",
+      "targetRound": 3,
+      "systemChars": 10026,
+      "userChars": 17228,
+      "flashNarrationChars": 3155,
+      "flashBilledPoints": 41,
+      "actionNames": [
+        "렌:SUCCESS",
+        "강이현:no_check",
+        "권태현:PARTIAL_SUCCESS"
+      ]
+    }
+  ]
+}
