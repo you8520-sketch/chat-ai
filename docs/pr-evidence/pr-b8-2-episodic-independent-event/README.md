@@ -1,214 +1,241 @@
 # B8-2 evidence: Episodic independent past events, recovery, and user correction
 
-This PR changes how the shared Episodic path decides that a later user statement corrects an earlier record. Rounds 1 and 2 (independent past occurrence kept, #1651 gloss closure restored) are unchanged and summarized under PRESERVED. This README describes **round 3**, the response to GPT's review of `71e39dff`.
+This PR changes how the shared Episodic path decides that a later user statement corrects an earlier record. Rounds 1–3 are unchanged in intent and summarized under PRESERVED and the round 3 recap. This README describes **round 4**, the response to GPT's review of `8124ca8f`.
 
-Round 3 scope: a user correction now replaces **only the record it is explicitly linked to**. Being on the same key as a later user statement is no longer a correction. No new memory store, no separate judge, no extra per-turn LLM call, no production DB change, no merge or deploy.
+Round 4 scope is fixed to three issues: (③) long correction chains, (④) correction validity independent of how many other corrections exist, (⑤) user-stated events preserved like scene events. Zero provider calls this round; the round 3 live extraction evidence is reused. No new store, no schema or migration, no new prompt sentence, no production DB change, no merge or deploy.
 
 ## SHAs
 
-- Base / merge-base: `0a086447`. Main at the time of this update: `e808831f` (#1660). The branch merges into main without conflicts.
-- Reviewed head: `71e39dff`. Round 3 commits:
-  - `e721132b`: the correction link (contract, save, retrieval)
-  - `2c5001ce`: a user-stated occurrence closes an earlier scene record, so the result does not depend on who narrated the later event
-  - `b1982cee`: the `corrects` prompt line is reworded so the extractor records the correction (the live check found it omitted the correction entirely)
-- Live extraction: model `gpt-6-luna` (`BACKGROUND_OPENROUTER_MODEL`), 11 calls, about 1.66 KRW in total.
+- Base / merge-base: `0a086447`. Main checked at the start of this round: `e808831f` (unchanged; owners unchanged).
+- Reviewed head: `8124ca8f`. Round 4 commits:
+  - `f3d36428`: a correction chain is grouped by its stored root, with no count or depth bound (③, ④)
+  - `6aa78999`: a verified first-hand occurrence is history whoever narrated it; standing values keep latest-wins (⑤)
+  - `492a1273`: regression tests for the three boundaries through the real save path
+  - evidence commit (this README, `boundary-probe.mts`, `classify-dump.mts`, `logs/boundary/`, `logs/probes-round4/`, `logs/tests/*round4*`, `logs/link-probe/round4-492a1273.log`)
 
-## Changed files (vs main, src only)
+## Changed files (round 4)
 
 | File | Change |
 |---|---|
-| `src/lib/memory/memory-episodic-correction.ts` (new) | Handles `C1`..`C6`, the candidate block text, the stored-link reader and validator |
-| `src/lib/episodicMemoryFacts.ts` | `listEpisodicCorrectionCandidates`, link validation at save (`metadata.correction`), link resolution and substitution at recall. The same-key correction lookup from round 2 is removed |
-| `src/lib/episodicMemoryTemporal.ts` | `isUserStatedOccurrence` (closing only). `isUserCorrectableSceneRecord` is removed |
-| `src/lib/memory/memory-episodic-{shared,normalize,types,prompt}.ts` | Schema field `corrects` (fixed enum, required), handle → fact id mapping in the parser, one prompt line replaced |
-| `src/lib/postTurnSharedInitial/*`, `src/lib/statusWidget/{extract,telemetry}.ts` | Candidate passthrough into the existing Shared Initial user block |
-| `src/app/api/chat/route.ts` | Lists the candidates before the existing Shared Initial call (status ON and OFF paths) |
-| Tests | `memory-episodic-correction.test.ts` (new, 10), `memory-episodic-past-event-slots.test.ts` (B8-2 link suite replaces the same-key suite), `episodicMemoryTemporal.test.ts` |
+| `src/lib/memory/memory-episodic-correction.ts` | `EpisodicCorrectionLink` gains `root_fact_id` / `root_source_turn`. The reader defaults a missing root to the target and rejects a root later than the target |
+| `src/lib/episodicMemoryFacts.ts` | Save: the root is copied from the target's own valid link (else the target). Recall: `createEpisodicCorrectionResolver` replaces `resolveEpisodicCorrectionLinks`; `substituteEpisodicCorrections` uses it. `EPISODIC_CORRECTION_LINK_SCAN_LIMIT = 200` and `EPISODIC_CORRECTION_CHAIN_MAX_DEPTH = 3` are deleted. Reconcile closure uses `isVerifiedFirstHandRecord` |
+| `src/lib/episodicMemoryTemporal.ts` | `isVerifiedFirstHandRecord` and `statesStandingValue` replace `isVerifiedSceneRecord` and `isUserStatedOccurrence` |
+| Tests | `memory-episodic-past-event-slots.test.ts` (+18), `memory-episodic-correction.test.ts` (+1, 1 changed), `episodicMemoryTemporal.test.ts` (2 rewritten, see REMOVED) |
 
-## BEFORE
+## BEFORE (`8124ca8f`)
 
-Fixture: T30 assistant scene "늑대가 에녹의 왼팔을 깊이 물어뜯었다." (`character:enoch:injury`, verified `CURRENT_SCENE`), fillers up to T1000, questions asked at T500 and T1000 (outside RAW).
+All cases run through the production save path: the server lists its candidates, the simulated model copies a handle, `parseSharedEpisodicSection` parses it, `reconcileEpisodicMemoryFactsForGeneration` saves it, and `getEpisodicMemoryForPrompt` builds the block at T500/T1000.
 
-| Case | main `e808831f` | reviewed `71e39dff` |
-|---|---|---|
-| A. T120 user corrects the same event (same key) | pass (latest-wins) | pass (same-key correction) |
-| B. T200 user tells a separate right-hand injury (same key) | **fail**: T30 is gone, only T200 remains | **fail**: same |
-| C. corrected at T120, separate T312 injury (scene or user) | **fail**: T312 replaces the correction | **fail**: same |
-| D. T30 filed as `scene_event`/`action`, correction under `injury_cause` | **fail**: wolf cause still injected | **fail**: same |
-| Unclear statement, no target | **fail**: T30 replaced by latest-wins | **fail**: same |
-
-`link-probe.mts` on the production save path: main 21 pass / 17 fail, `71e39dff` 21 pass / 17 fail (`logs/link-probe/main-e808831f.log`, `prev-71e39dff.log`). Example, B on both trees at T500:
+**③ Chain R → C1 → C2 → C3 → C4** (each correction targets the record the server offers, i.e. the previous one). At T1000, `logs/boundary/before-8124ca8f.log`:
 
 ```
--- B state old cause @T500 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> FAIL
-   missing: “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
-   - [T200] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+id=30  T30  injury       explicit_scene_event    CURRENT_SCENE correction=null
+id=120 T120 injury_cause explicit_user_statement USER_EXPLICIT correction={"target_fact_id":30,"target_source_turn":30}
+id=121 T140 injury_cause explicit_user_statement USER_EXPLICIT correction={"target_fact_id":120,"target_source_turn":120}
+id=122 T160 injury_cause explicit_user_statement USER_EXPLICIT correction={"target_fact_id":121,"target_source_turn":140}
+id=123 T180 injury_cause explicit_user_statement USER_EXPLICIT correction={"target_fact_id":122,"target_source_turn":160}
+final block @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?":
+  - [T180] [유저 입력 발췌] “그 부상은 사실 울타리에 다친 거야.”
+  - [T160] [유저 입력 발췌] “그 부상은 사실 낙석에 다친 거야.”      ← C3 resurfaced
 ```
 
-Live, before (main prompt, same S1 input): the extractor returned `"extracted_facts":[]` for the explicit correction turn (`logs/live/1-before-main-e808831f-S1.log`), so main never stored the correction in the first place.
+With 10 corrections the block holds C10 and C3 (`녹슨 못` + `낙석`).
+
+**④ One correction, then 211 corrections of other events** (marker k is a scene record; the user corrects marker k−1 each turn). At T1000:
+
+```
+final block @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?":
+  - [T30] [AI 장면 서술 발췌] “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”   ← wrong original resurrected
+  - [T120] [유저 입력 발췌] “그 부상은 사실 창틀에 다친 거야.”
+```
+
+**⑤ First event stored as `explicit_user_statement` (USER_EXPLICIT), separate second injury on the same `injury` key.** user → user, at T1000:
+
+```
+id=30  T30  injury explicit_user_statement USER_EXPLICIT correction=null
+id=200 T200 injury explicit_user_statement USER_EXPLICIT correction=null
+final block @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?":
+  - [T200] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”     ← T30 replaced
+```
+
+user → scene fails the same way; scene → scene and scene → user pass. Both gloss wordings behave the same.
+
+New tests on `8124ca8f` (`logs/tests/new-boundary-tests-before-8124ca8f.tap`): **91 tests, 81 pass, 10 fail**:
+
+| Failing test | Assertion |
+|---|---|
+| stored rows (link carries the root) | link lacks `root_fact_id` / `root_source_turn` |
+| long chains 1/3/4/10, T500 and T1000 | `4 corrections: correction 3 resurfaced` |
+| server offers the latest correction | `correction 1` (no root) |
+| removing a middle correction | `correction 1` resurfaced |
+| a correction stays in force after 210 later corrections | `T500`: T30 back |
+| user → scene, user → user (× 2 glosses) | `T500 first`: T30 missing |
 
 ## ROOT CAUSE
 
-1. **Correction was inferred from the key.** Round 2 treated "same `category:subject:attribute` + a later `explicit_user_statement`" as a correction of the earlier verified record. A separate event on the same key (B, C) satisfies that rule just like a correction does, and a correction filed under another key (D) never does. Nothing in the stored data said which record the user meant, so no key-based rule can satisfy both A and B.
-2. **Narrator dependence.** On a state-worded T30 gloss ("…상처가 남아 있다"), a later separate event closed T30 only when the assistant narrated it (historical scene occurrence). The same event stated by the user did not close T30, so B/C flipped by narrator.
-3. **Extraction omitted the correction (found live).** The first `corrects` wording only said when to fill the handle. `gpt-6-luna` returned no fact for an explicit correction on main and on that wording (2/2), so the link never formed in production.
+1. **③ Chain depth was a loop bound.** `resolveEpisodicCorrectionLinks` climbed to the root and walked down to the stand-in with two loops bounded by `EPISODIC_CORRECTION_CHAIN_MAX_DEPTH = 3`. From C4 the climb stopped at C1, which made C1 a second root whose stand-in was C3. So the walk produced two stand-ins, C3 and C4.
+2. **④ The link scan read the latest 200 corrections in the whole chat.** `ORDER BY source_turn DESC LIMIT 200` ignored the candidates being resolved. After 200 corrections of other events, the link from T120 to T30 was no longer read, and T30 came back as a normal record.
+3. **⑤ Narrator decided the nature of the record.** `classifyEpisodicFactTemporalNature` promoted only `explicit_scene_event` rows to `historical_event`, and the #1651 closure (`isVerifiedSceneRecord`) only kept scene rows. `isUserStatedOccurrence` let a user statement close earlier scene rows, but the statement itself stayed state. A later row of the same key then replaced it, whoever narrated that later row.
 
 ## AFTER
 
-### Contract: bounded candidates, handle output, server mapping
+### ③ ④ One owner for "which corrections belong to this event": the stored root
 
-The server lists up to 6 records the user can correct this turn (`listEpisodicCorrectionCandidates`). It reuses the lexical recall pass with min age 0 (no semantic query, no provider call). They go into the **existing** Shared Initial user block as handles. The system prompt stays the same for every turn.
+- **Save.** `resolveEpisodicCorrectionLinkForSave` already loads the target in scope. It now also reads the target's own valid link and stores `root_fact_id` / `root_source_turn` = the target's root, else the target itself. Every correction of one event shares one root, whatever the chain length.
+- **Recall.** `createEpisodicCorrectionResolver(db, scope).cover(rows)` gives each candidate one group key: its stored root if it is a valid correction, else itself. One query in `scope.baseWhere` reads exactly the corrections stored under those roots:
 
-```
-[CORRECTABLE PAST RECORDS — episodic corrects may only copy one of these handles]
-- C1 [T30] 에녹은 늑대에게 물려 왼팔을 크게 다쳤다. (source: “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”)
-```
+  ```sql
+  … AND source_turn > ?minRootTurn
+    AND COALESCE(json_extract(metadata,'$.correction.root_fact_id'),
+                 json_extract(metadata,'$.correction.target_fact_id')) IN (?rootIds)
+  ```
 
-With no candidates the block says `(none → corrects "")`. The schema requires `corrects` on every fact, restricted to `["", "C1".."C6"]`. The parser maps the handle back to the fact id it offered. A handle that was not offered, or a raw id in any field, is ignored. The model never sees or outputs a fact id.
+  A primary-key read in scope loads any root that is not a candidate. Members still need a valid link (user `USER_EXPLICIT` quote, target earlier), and their root key must match by id **and** turn. The latest member by `(source_turn, id)` is the stand-in. There is no count or depth bound, so the chain ends where the stored `source_turn` order ends.
+- **Root alive** (it exists in scope at `root_source_turn` and passes the guard): reconcile sees the root and keeps its standing. The root is then replaced by the stand-in, and a corrected past occurrence stays a past occurrence.
+- **Root gone** (deleted, regenerated, before a memory reset, or guard-blocked): the stand-in stands as an ordinary record and the earlier members stay hidden.
+- Rows that reconcile introduces are covered by a second `cover` call before substitution. A stand-in owned by RAW or blocked by the guard removes its group without injecting anything (unchanged).
+- **Processing limit.** None exists in this path. Candidate max 6 (`EPISODIC_CORRECTION_CANDIDATE_LIMIT`) only bounds what the extractor is shown each turn; it does not bound stored link validity.
 
-Prompt: the existing line "- NEVER generate source_turn, id, uuid, or timestamp." is **replaced** (not added to) by one line:
-
-```
-- corrects: "" by default. When the CURRENT USER explicitly says a [CORRECTABLE PAST RECORDS] entry got that same event wrong, record the corrected fact (explicit_user_statement quoting the user's correction, source_role=user) and copy that entry's handle. A new separate event, a recovery or later change, or an unclear target is never a correction. NEVER output an unlisted handle, source_turn, id, uuid, or timestamp.
-```
-
-| Input (user / assistant) | Expected `corrects` | Result |
-|---|---|---|
-| "늑대에게 물린 게 아니라 문에 팔이 끼인 거야. 같은 사건이야." | `C1` | link to T30 |
-| "어제 훈련하다 칼에 오른손을 베였잖아." (separate) | `""` | no link |
-| "치료를 마친 에녹의 왼팔은 완전히 회복되었다." (recovery) | `""` | no link |
-| "…좀 다른 것 같기도 하고… 잘 모르겠다." (unclear) | `""` | no link, nothing invalidated |
-| `C4` when only `C1` was offered, or `correction_target_fact_id: 30` from the model | — | ignored, no link |
-
-### Save: link validation
-
-`metadata.correction = {target_fact_id, target_source_turn}` is stored only when all of these hold:
-
-- the fact's evidence is verified against the saved message with `role = user` and authority `USER_EXPLICIT`;
-- the target row exists in the same scope (chat, character/user, memory-reset boundary);
-- the target's `source_turn` is earlier than the correction's.
-
-Otherwise the fact is saved as an ordinary record and `EPISODIC_CORRECTION_LINK_REJECTED` is logged. A link is never derived from the key. Nothing is physically deleted: the target row stays in the DB with its verified quote.
-
-### Recall: quote verified vs. currently valid
-
-The target's quote is still **verified** (its row and evidence are untouched), but it is no longer **currently valid canon** once a valid link supersedes it.
-
-- `resolveEpisodicCorrectionLinks` makes one scoped query for links (LIMIT 200) and one for missing targets. A link counts only if the target still exists with the same `source_turn`, so a regenerated target leaves a dangling link that does nothing. Chains (correction of a correction) resolve to the latest, depth ≤ 3.
-- Each candidate that has been corrected is replaced by its root record for reconcile. Then the root is substituted by its latest correction. If the correction is in the RAW window or guard-blocked, the record is dropped without a duplicate.
-- Current-state keys keep latest-wins. Past events are kept by the round 1 classifier and the #1651 closure. A user-stated completed occurrence (`isUserStatedOccurrence`) now closes an earlier scene record the same way an assistant-narrated occurrence does. It is not itself classified as historical, so the user's own state statements (job, relationship status) stay latest-wins.
-
-AFTER, A (state gloss) at T500 and T1000 (`logs/link-probe/fix-b1982cee.log`):
+AFTER on the same scenarios (`logs/boundary/after-492a1273.log`):
 
 ```
-id=30  T30  injury=left_arm_bitten         role=assistant authority=CURRENT_SCENE quote=“늑대가 에녹의 왼팔을 깊이 물어뜯었다.” correction=null
-id=120 T120 injury=left_arm_caught_in_door role=user      authority=USER_EXPLICIT quote=“늑대에게 물린 게 아니라 문에 팔이 끼인 거야.” correction={"target_fact_id":30,"target_source_turn":30}
--- A state @T500 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> PASS
-   - [T120] [유저 입력 발췌] “늑대에게 물린 게 아니라 문에 팔이 끼인 거야.”
+id=30  T30  injury       explicit_scene_event    CURRENT_SCENE correction=null
+id=120 T120 injury_cause … correction={"target_fact_id":30,"target_source_turn":30,"root_fact_id":30,"root_source_turn":30}
+id=121 T140 injury_cause … correction={"target_fact_id":120,"target_source_turn":120,"root_fact_id":30,"root_source_turn":30}
+id=122 T160 injury_cause … correction={"target_fact_id":121,"target_source_turn":140,"root_fact_id":30,"root_source_turn":30}
+id=123 T180 injury_cause … correction={"target_fact_id":122,"target_source_turn":160,"root_fact_id":30,"root_source_turn":30}
+final block @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?":
+  - [T180] [유저 입력 발췌] “그 부상은 사실 울타리에 다친 거야.”
+  (+7 filler lines)
+
+chain of 10 @T1000:            - [T300] [유저 입력 발췌] “그 부상은 사실 녹슨 못에 다친 거야.”   (only)
+1 correction + 211 others:     - [T120] [유저 입력 발췌] “그 부상은 사실 창틀에 다친 거야.”      (only; T30 absent)
+10,600-row chat, chain 10 + 301 others @T3000:  - [T300] … “녹슨 못” (only)
 ```
 
-AFTER, C (corrected at T120, then a separate user-told T312 injury on the same `injury` key), two questions at T500:
+### ⑤ One owner for narrator authority vs. event/state nature
+
+- `isVerifiedFirstHandRecord(fact)`: the server verified the record first-hand. That is a verified `explicit_scene_event` quote, or the user's own `explicit_user_statement` with `USER_EXPLICIT`. Character claims never count. The classifier promotes to `historical_event`, and the reconcile closure keeps a row, on this single predicate, so the narrator no longer decides either.
+- `statesStandingValue(fact)` keeps latest-wins for standing values, for **either** narrator. It matches a key naming status / state / condition / job / occupation / role / position / title / affiliation / member / location / residence / current relationship, or a gloss that only says what someone was presented as (`…으로 소개/언급/등장되었다`). So not every user past tense becomes a permanent event: "카페에서 일했다" under `past_job` and "구급대원으로 언급되었다" under `occupation` stay latest-wins.
+
+AFTER, user → user at T1000:
 
 ```
--- C state/user statement corrected cause @T500 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> PASS
-   - [T120] [유저 입력 발췌] “늑대에게 물린 게 아니라 문에 팔이 끼인 거야.”
--- C state/user statement T312 @T500 q="에녹 오른손은 왜 다쳤었지?" -> PASS
-   - [T312] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+id=30  T30  injury explicit_user_statement USER_EXPLICIT correction=null
+id=200 T200 injury explicit_user_statement USER_EXPLICIT correction=null
+final block @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?":
+  - [T30] [유저 입력 발췌] “지난번에 늑대가 네 왼팔을 깊이 물어뜯었잖아.”
+  - [T200] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+final block @T1000 q="에녹 오른손은 왜 다쳤었지?":
+  - [T200] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+  - [T30] [유저 입력 발췌] “지난번에 늑대가 네 왼팔을 깊이 물어뜯었잖아.”
 ```
 
-### Live extraction (production call path, isolated DB)
+All 8 narrator runs (4 combinations × 2 glosses) pass at T500 and T1000. The first event is really stored as `explicit_user_statement` with `USER_EXPLICIT`, and the test asserts the stored type and authority.
 
-Path: `runPostTurnRelationshipOnlyInitial` → `runPostTurnSharedInitial` → `callBackgroundMemory` (`gpt-6-luna`, the status OFF shape: relationship + episodic, suggestions off) → `parsePostTurnSharedInitialResponse` → `reconcileEpisodicMemoryFactsForGeneration` → `getEpisodicMemoryForPrompt` at T500/T1000. Only the current turn is live; T30 and fillers are seeded. In-memory chat DB, temporary `DATA_DIR`, benchmark key, no production DB. Script: `live-extraction.mts`; logs: `logs/live/`; per-call ledger: `logs/live/call-ledger.json`. The provider did not return `responseModelId`; the requested model is `gpt-6-luna`.
+### Effect on real data (B7 500-turn snapshot, 441 rows, classifier only)
 
-| # | Tree / prompt | Case | Input tok (cache read) | Output tok | `corrects` | Stored / injected at T500, T1000 | Verdict |
-|---|---|---|---|---|---|---|---|
-| 1 | main `e808831f` | S1 explicit correction | 2,369 (0) | 40 | no facts | T30 wolf bite only | correction not stored (BEFORE) |
-| 2 | v1 wording | S1 | 2,542 (0) | 40 | no facts | T30 only | FAIL: extraction omitted |
-| 3 | v1 wording | S2 implicit correction | 2,535 (2,362) | 40 | no facts | T30 only | FAIL: extraction omitted |
-| 4 | v2 (`b1982cee`) | S1 | 2,549 (0) | 145 | `C1` | T120 user quote only | PASS |
-| 5 | v2 | S2 "그때 창고 문에 왼팔이 끼여서 다친 거였어." | 2,542 (2,369) | 146 | `C1` (key `left_arm_injury_cause`) | T120 user quote only | PASS |
-| 6 | v2 | S3 separate right-hand injury | 2,536 (2,369) | 40 | no facts | T30 kept | PASS on link; the new event was not extracted |
-| 7 | v2 | S4 recovery | 2,535 (2,369) | 135 | `""` | T30 + T80 recovery | PASS |
-| 8 | v2 | S5 unclear | 2,523 (2,369) | 40 | no facts | T30 kept | PASS |
-| 9 | v2 | S6 = D, T30 filed `scene_event` | 2,549 (2,546) | 145 | `C1` (key `injury_cause`) | T120 user quote only | PASS |
-| 10 | v2 | S1 repeat | 2,549 (2,546) | 148 | `C1` | T120 user quote only | PASS |
-| 11 | v2 | S3 repeat | 2,536 (2,533) | 40 | no facts | T30 kept | PASS on link |
+18 rows change class (`classify-dump.mts` run in both checkouts; diff in `logs/boundary/b7-snap500-classification-diff.txt`; the snapshot itself is not committed):
 
-Cost: 11 calls, billed $0.001105 (`cheaperInferenceBilledCostUsd`), about 1.66 KRW at 1,500 KRW/USD. The budget was ≤ 12 calls and ≤ 100 KRW. Input tokens per call: main 2,369 → this branch 2,549 (+180, +7.6%: the candidate block, the reworded line and the enum). Output tokens change only when a correction fact is now recorded. The number of production calls per turn is unchanged (the candidates ride the existing Shared Initial call).
+- **6 user rows become `historical_event`**, all genuine events: T22 야시장 cancellation, T69 praise in a briefing, T82 the instructor changed, and the T313 / T393 / T449 visits.
+- **12 scene rows become latest-wins**: repeated identity glosses (`서다온은 연구국 인턴으로 소개되었다` ×5, `염태오는 에지카 구급대원으로 소개/언급/등장했다` ×5, `유하람은 신입 가이드로 소개되었다`), and one action the extractor filed under `occupation_claim`. These used to pile up as separate "events".
+- Unchanged by design: `차세린은 리컨 유닛 소속으로 언급되었다` (`member`) and `박철은 정비팀 소속으로 언급되었다` (`work_team`, caught by the gloss) stay latest-wins. A key-token-only rule that included `team` was tried and rejected: it also demoted the genuine event T214 `called_seal_team` ("봉인반을 불렀다").
 
 ## REMOVED
 
 | Removed | Why it is safe |
 |---|---|
-| `findUserCorrectedSceneRecordIds` (same-key correction lookup, round 2) in `episodicMemoryFacts.ts` | Replaced by the explicit link. It was the cause of B/C. Rows written by round 2 have no link field; round 2 never shipped (Draft) |
-| `isUserCorrectableSceneRecord` in `episodicMemoryTemporal.ts` | Its only reader was the lookup above |
-| Prompt line "- NEVER generate source_turn, id, uuid, or timestamp." in the Shared Initial episodic body | Merged into the `corrects` line, which keeps that prohibition. The standalone extractor (`EPISODIC_FACTS_EXTRACT_INSTRUCTIONS`) keeps the original line |
-| `correction-probe.mts` and `logs/correction-probe/` (round 2) | Superseded by `link-probe.mts`, which covers A–F on main, `71e39dff` and this branch |
-| Round 2 fixture TAPs (`fixture-on-*`, `fixture-after.tap`) and old related-suite summaries | Replaced by `logs/tests/*-b1982cee.*` and per-tree summaries |
+| `EPISODIC_CORRECTION_LINK_SCAN_LIMIT = 200` and the latest-200 scan | The cause of ④. Replaced by the root query bound to the current candidates, not by a larger number |
+| `EPISODIC_CORRECTION_CHAIN_MAX_DEPTH = 3` and both bounded loops | The cause of ③. The stored root makes a walk unnecessary |
+| `resolveEpisodicCorrectionLinks`, `EpisodicCorrectionLinks` (`rootIdByCorrectionId` / `standInByRootId`) | Replaced in place by `createEpisodicCorrectionResolver`. No other reader |
+| `isVerifiedSceneRecord`, `isUserStatedOccurrence` (`episodicMemoryTemporal.ts`) | Replaced by `isVerifiedFirstHandRecord` + `statesStandingValue`. Their only readers were the classifier and the reconcile closure |
+| Changed test: `episodicMemoryTemporal` "a legacy row, a character claim or another evidence type is not promoted" | Its user case "유저는 카페에서 일했다." under `injury` asserted that **any** user statement stays state. That was the narrator rule being fixed. The same sentence is now asserted latest-wins under `past_job`, by the standing-value rule. A non-first-hand evidence-type case was added |
+| Changed test: "a user's verified statement … closes, not history" | Asserted `isUserStatedOccurrence` and that a user occurrence is not history, which is the ⑤ bug. Rewritten as classifier cases: user event → history; state gloss, unverified, character claim and assistant authority → not; standing values → latest-wins for both narrators |
+| Changed expectation: stored link shape (`stored rows` test, `counts only with a verified user quote`) | The link now carries `root_fact_id` / `root_source_turn`. A new test pins the default (missing root = target) and rejects a root later than its target |
+
+The round 3 fixtures run on round 4 code give 94/98 (`logs/tests/round3-fixtures-on-492a1273.tap`). The 4 failures are exactly the changed tests listed here.
 
 ## PRESERVED
 
-- **#1651 and round 1/2 preservation.** A same-key or other-key recovery keeps the verified T30 cause for both gloss wordings ("…크게 다쳤다." / "…상처가 남아 있다.") at T500/T1000 (`B8-2 — #1651 preservation`, 4 tests). The B7 T30 flank cause stays injected: all 26 B7 replay probes are content-identical to `71e39dff` once timing is removed (`L500-A5`: `- [T30] [AI 장면 서술 발췌] “발톱이 태형의 왼쪽 옆구리를 꿰뚫었다.”`).
-- **User correction authority.** A linked correction is always a verified user quote and wins over the record it names (A, D, the chain test).
-- **Independent events.** B and C keep both events, for an assistant-narrated or a user-stated later event, and for both gloss wordings.
-- **Current-state latest-wins.** Job, location, preference and relationship status under a verified source stay latest-wins (`memory-b2-source-lineage` "promise made then cancelled" passes).
-- **Source authority.** Assistant quotes, character claims, unoffered handles and raw ids never create a link.
-- **Boundaries (F).** Deleting or regenerating the correction turn, or editing its user source, restores the record. A deleted target leaves the correction as an ordinary record. A memory reset or another chat never crosses.
-- **Budgets.** Global 10,000 chars, Episodic 8 facts / 1,000 chars, the existing search budgets, the RP 3,200+ target and no output cap are untouched. B7 block chars ≤ 1,099.
+- **Explicit correction link, real extraction linking, T30 restoration, #1651 state-gloss preservation.** The link contract, prompt line and candidate list are untouched. `link-probe.mts`: 38/38 PASS (`logs/link-probe/round4-492a1273.log`); the only differences from round 3 are the root fields and B/C now also listing the user-told right-hand event next to T30. The B7 T30 flank cause stays injected at L500-A5 (`- [T30] [AI 장면 서술 발췌] “발톱이 태형의 왼쪽 옆구리를 꿰뚫었다.”`).
+- **Delete / regenerate / source edit / reset / other chat.** Tested on a 4-correction chain:
+  - Deleting, regenerating or editing the latest correction makes the previous one current, and the C4 quote is gone.
+  - Removing a middle correction keeps C4.
+  - Removing the original leaves C4 as an ordinary record.
+  - After a memory reset at T150 only C4 remains (R, C1 and C2 are out of scope).
+  - Moving the chain to another chat leaves chat 1 with the original only.
+  - Round 3's single-correction boundary tests pass unchanged.
+- **Normal latest-wins.** State, preference, job and current relationship keep latest-wins: the round 1–3 tests, the `memory-b2-source-lineage` cancel test, and the new "user's standing value stays latest-wins" test (`occupation`, `past_job`).
+- **Budgets.** Global 10,000 chars, Episodic 8 facts / 1,000 chars, the RP 3,200+ target and no output cap are untouched. B7 block chars ≤ 1,099 (identical to round 3 for every probe).
 
 ## REGRESSION RISKS (for GPT review)
 
-1. **The link depends on the model choosing the handle.** 4/4 live corrections linked and 0/5 non-corrections linked, but that is 9 samples on synthetic text. A wrong `C#` on a real separate event would hide the earlier record. It stays in the DB and comes back when the correcting turn is deleted, regenerated or edited.
-2. **The extraction change is real.** The reworded line makes the extractor record a correction fact where it used to record nothing. The non-correction cases (S3, S4, S5) show the same output as before (no facts, or a recovery with `corrects:""`).
-3. **Candidate discovery is lexical on the user message.** "팔은 이제 괜찮아?" does not match a record about "왼팔" (pre-existing relevance gap), so no candidate is offered. A correction that names nothing lexically shared with the record cannot link. In that case nothing is invalidated (unresolved) and the record stays.
-4. **One extra lexical recall pass per eligible turn** (`listEpisodicCorrectionCandidates`, in-process SQLite, no provider). B7 recall passes take about 6–9 ms each.
-5. **The separate same-key event in S3 was not extracted live (2/2).** That is extraction recall for user-told past events and was the same before this change. The fixture/probe B case proves preservation when such an event is stored.
+1. **The standing-value rule is vocabulary.** The key tokens and the presented-as gloss are generic, but a standing value filed under an unlisted key with a completed-change gloss (e.g. `instructor` "교관이 바뀌었다", B7 T82) is now an event for either narrator. That is the existing scene behavior, now narrator-independent. The opposite error, an event under a standing key, keeps latest-wins (B7 T479, misfiled by the extractor).
+2. **Scene identity rows changed class.** 12 B7 scene rows that were `historical_event` are now latest-wins. On B7 this changed one decision: T398 moves from `DROPPED(max_facts)` to `RECONCILED_OUT`. The block is identical. It also changed one ordering: T22 sits two lines higher in T80-B3 and T90-B3, same content.
+3. **More user rows reach the milestone lane.** A user-told event that is now history can win an important-milestone slot. On B7 that is T22, so `milestone_important` goes 5 → 6 in every probe, and injected content is unchanged.
+4. **The root query reads the chat range after the oldest candidate root.** `json_extract` is evaluated per row over `(chat_id, source_turn)` index range, like the old scan, which read the whole chat whenever fewer than 200 links existed. Measured cost is in PROOF. An expression index on the root would be a schema change; it is reported as an option and was not added.
+5. **Rows written before round 4 have no root.** The reader then defaults root = target, so a pre-round-4 chain of 2+ would split into groups. No such rows exist outside this Draft (round 3 never shipped).
 
 ## PROOF
 
-### Fail-before / pass-after on the production save path (`link-probe.mts`, 38 checks)
+### Fail-before / pass-after for the new boundaries
 
-| Tree | Pass | Fail | Failing cases |
-|---|---|---|---|
-| main `e808831f` | 21 | 17 | B ×4, C ×8, D ×4, unclear ×1 |
-| reviewed `71e39dff` | 21 | 17 | same |
-| this branch `b1982cee` | 38 | 0 | — |
+| Evidence | `8124ca8f` | `492a1273` |
+|---|---|---|
+| New boundary tests (`memory-episodic-past-event-slots.test.ts`, final version) | 91 / 81 pass / **10 fail** | 91 / **91 pass** / 0 fail |
+| `boundary-probe.mts`: chain 1 / 3 / 4 / 10 at T500 and T1000 | 4 / 8 ok (4 and 10 fail) | 8 / 8 ok |
+| `boundary-probe.mts`: 1 correction + 211 others at T500 and T1000 | 0 / 2 ok | 2 / 2 ok |
+| `boundary-probe.mts`: 10,600-row chat, chain 10 + 301 others at T3000 | fail (T30 back) | ok |
+| `boundary-probe.mts`: narrator 4 combinations × 2 glosses | 4 / 8 ok (user-first fail) | 8 / 8 ok |
 
-### Fixture tests (`logs/tests/fixture-final-b1982cee.tap`)
+### Fixture and related tests
 
-`memory-episodic-past-event-slots.test.ts`, `memory-episodic-correction.test.ts`, `episodicMemoryTemporal.test.ts`: **98/98 pass**. The B8-2 link suite runs every turn through `listEpisodicCorrectionCandidates` → `parseSharedEpisodicSection` → `reconcileEpisodicMemoryFactsForGeneration` → `getEpisodicMemoryForPrompt`:
-
-- A, B and C for both gloss wordings, D and E, and the unclear case, at T500 and T1000 (18 tests).
-- A recovery between the record and its correction; a correction of a correction.
-- Candidate list behavior; link validation (assistant quote, unoffered handle, raw id, other chat, later target).
-- F: delete, regenerate, user source edit, deleted target, memory reset and another chat.
-- The RAW window, and the stored rows.
-
-The 98 passing tests do not cover the gaps listed under REGRESSION RISKS 1, 3 and 5.
-
-### Related regression set (84 files, `logs/tests/related-files.txt`, one invocation, fresh `DATA_DIR`, provider keys stripped by `regularTestEgressPolicy`)
+- Fixture set (`episodicMemoryTemporal`, `memory-episodic-past-event-slots`, `memory-episodic-correction`): **116/116 pass** (`logs/tests/fixture-round4-492a1273.tap`). That is the 98 from round 3 (4 updated as listed under REMOVED) plus 18 new.
+- Related regression set (84 files, one invocation, fresh `DATA_DIR`, keys stripped by `regularTestEgressPolicy`):
 
 | Tree | Tests | Pass | Fail |
 |---|---|---|---|
 | main `e808831f` | 1,026 | 1,006 | 20 |
-| reviewed `71e39dff` | 1,055 | 1,035 | 20 |
-| this branch `b1982cee` | 1,087 | 1,067 | 20 |
+| round 3 `b1982cee` | 1,087 | 1,067 | 20 |
+| round 4 `492a1273` | 1,105 | 1,085 | 20 |
 
-The 20 failing leaf tests are identical across all three trees (`logs/tests/related-*.summary.txt`). The causes are pre-existing: the min-age floor in old fixtures, save without `evidenceBinding`, missing `releaseLlm` mocks, a test schema without `global_projection_kind`, and `extractV4Fallback` (also failing on main when run alone). The unrelated full suite was not rerun.
+The 20 failing leaf tests are identical on all three (`logs/tests/related-round4-492a1273.summary.txt`). The causes are pre-existing, as described in round 3.
+
+### Query volume and time (`logs/boundary/performance.md`)
+
+Prepared statements per `getEpisodicMemoryForPrompt` call and average time. Both trees were measured in the same session on the same machine.
+
+| Scenario | statements `8124ca8f` → `492a1273` | avg ms `8124ca8f` → `492a1273` |
+|---|---|---|
+| chain 4, T1000 (923 rows) | 7 → 6 | 7.98 → 7.09 |
+| chain 10, T1000 (809 rows) | 7 → 6 | 7.29 → 6.35 |
+| 1 + 211 corrections, T1000 (1,209 rows) | 8 → 6 | 11.89 → 8.61 |
+| 10,600-row chat, T3000 | 8 → 6 | 56.43 → 50.89 |
+| B7 26 probes (no corrections), mean | 27.65 → 27.00 | 6.35 → 6.74 |
+
+The resolver issues one root query per `cover` with uncovered keys, plus a primary-key read only when a root is not a candidate. On B7, which has no corrections, round 4 costs about +0.4 ms per call (mostly the second root read after reconcile). Statements per call move by −3 to +1 per probe.
 
 ### B7 replay (0 provider calls)
 
-`run-probes.sh /tmp/b7 <out>` on the isolated B7 snapshots: 26/26 probes content-identical to the committed `logs/probes-after/` (only `firstCallMs` and `avgMsOver50` differ).
+`run-probes.sh /tmp/b7 logs/probes-round4`: 26 probes. Apart from the summary line, the blocks match round 3 (`logs/probes-after/`) in 24 probes. The other 2 (T80-B3, T90-B3) contain the same lines with T22 two lines higher. Per-row placement differs in one probe: X500-yeom-occupation, T398, Risk 2.
 
 ### Static checks
 
-`git diff --check` clean; `npm run lint` and `npm run typecheck:app` pass.
+`git diff --check` clean; `npm run lint` and `npm run typecheck:app` pass (also at `f3d36428` alone).
+
+## Round 3 recap (unchanged; evidence reused)
+
+- **Contract.** The server offers up to 6 records as handles `C1`..`C6` in the existing Shared Initial user block. `corrects` is a required enum; the parser maps handles back to fact ids. One prompt line replaced the old "NEVER generate source_turn, id…" line.
+- **Save.** A link is stored only for a user `USER_EXPLICIT` verified quote whose target is earlier and in the same chat/character/user/reset scope.
+- **Live extraction** (`logs/live/`, `call-ledger.json`): `gpt-6-luna`, 11 calls, about 1.66 KRW. 4/4 explicit corrections linked `C1`, 0/5 non-corrections linked, and main stored no correction at all.
+- **Link probe.** `logs/link-probe/{main-e808831f,prev-71e39dff,fix-b1982cee}.log`: 21/38 → 21/38 → 38/38.
 
 ## LIMITS / FOLLOW-UPS (not in this PR)
 
-- **Existing rows have no link.** Rows saved before this change are not linked, and none are linked speculatively; same-key corrections in existing data stay as they are under the round 1/2 rules (both kept).
-- **The standalone extractor can't link.** `memory-episodic-extract.ts` has no candidate list, so it never outputs a link.
-- **Dangling link after the target is regenerated.** The correction stands alone as an ordinary record.
-- **Passive `…였다` endings.** `looksLikeCompletedOccurrence` treats them as copula past (e.g. "베였다"), so such a user gloss does not close an earlier scene record.
-- **Lexical candidate discovery gap** (Risk 3) and **extraction recall for user-told past events** (Risk 5).
-- **Round 2 follow-ups still open:** injection diversity for repeats, 25-key cap saturation, promise completion, 1000-turn real-RP verification, #1591 (untouched).
+- **팔 / 왼팔 candidate miss.** Lexical candidate discovery: "팔은 이제 괜찮아?" offers no record about "왼팔", so such a correction cannot link and nothing is invalidated.
+- **New right-hand event not extracted live** (round 3 S3, 2/2): extraction recall for user-told past events.
+- **The standalone (fallback) extractor has no candidate list**, so it never writes a link.
+- **Pre-round-4 links without a root** default to root = target (Risk 5).
+- **Expression index on the correction root.** An option if the root query ever shows up at scale; it needs a schema change, so it is not added here.
+- **Passive `…였다` endings** are read as copula past (`looksLikeCompletedOccurrence`).
+- Round 2 follow-ups still open: injection diversity for repeats, 25-key cap saturation, promise completion, 1000-turn real-RP verification, #1591 (untouched).
