@@ -26,10 +26,7 @@ import {
   trpgPlayHref,
 } from "./scenarioHandoff";
 import {
-  countFirstCreateFilledFields,
-  countFirstCreateRemainingFields,
   evaluateScenarioReadiness,
-  FIRST_CREATE_VISIBLE_FIELDS,
   scenarioReadinessHeadline,
 } from "./scenarioReadiness";
 import { insertScenarioTemplate, loadScenarioTemplate, rowToScenarioTemplate, updateScenarioTemplate } from "./scenarioTemplates";
@@ -142,8 +139,6 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.equal(readiness.status, "playable");
     assert.equal(readiness.canPlay, true);
     assert.equal(readiness.blockers.length, 0);
-    assert.deepEqual([...FIRST_CREATE_VISIBLE_FIELDS], ["title", "startingSituation", "goal"]);
-    assert.equal(FIRST_CREATE_VISIBLE_FIELDS.length, 3);
   });
 
   it("TEST 6: blocked scenario cannot play and names the first missing field", () => {
@@ -159,16 +154,10 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.ok(readiness.blockers.some((item) => item.field === "startingSituation"));
     assert.equal(readiness.blockers.length, 2);
     assert.equal(scenarioPersistDecision({ dirty: true, canPlay: false, savedId: null }), "blocked");
-    const FIRST_CREATE_FILLED = countFirstCreateFilledFields({ title: "", scenarioPlan: emptyPlan });
-    const FIRST_CREATE_REMAINING = countFirstCreateRemainingFields({ title: "", scenarioPlan: emptyPlan });
-    const HEADLINE = scenarioReadinessHeadline(readiness, {
-      firstCreateRemaining: FIRST_CREATE_REMAINING,
-    });
-    assert.equal(FIRST_CREATE_FILLED, 0);
-    assert.equal(FIRST_CREATE_REMAINING, 3);
-    assert.equal(HEADLINE, "아직 3개 항목이 필요합니다");
+    assert.equal(scenarioReadinessHeadline(readiness), "아직 2개 항목이 필요합니다");
     const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
-    assert.match(editor, /scenarioReadinessHeadline\(readiness, \{ firstCreateRemaining \}\)/);
+    assert.match(editor, /scenarioReadinessHeadline\(readiness\)/);
+    assert.doesNotMatch(editor, /필수 이야기/);
   });
 
   it("TEST 7: recommended-only quality lint does not block play", () => {
@@ -461,29 +450,14 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.equal(payload.secretContent, fields.secretContent);
   });
 
-  it("IA cleanup: authoring activation follows scenario ownership, not default values or world selection", () => {
+  it("A-stage: editor is edit-only and the first-create chrome is gone", () => {
     const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
-
-    assert.match(editor, /useState\(Boolean\(initial\?\.id\)\)/);
-    assert.match(
-      editor,
-      /const scenarioAuthoringStarted = scenarioAuthoringActive \|\| lastDraftSnapshot !== null;/
-    );
-
-    const worldSelection = editor.slice(
-      editor.indexOf("const nextWorldId"),
-      editor.indexOf('className="mt-2 min-h-10', editor.indexOf("const nextWorldId"))
-    );
-    assert.doesNotMatch(worldSelection, /setScenarioAuthoringActive/);
-
-    assert.match(editor, /async function requestDraft[\s\S]*?setScenarioAuthoringActive\(true\);[\s\S]*?setDraftBusy\(true\)/);
-    assert.match(editor, /onChange=\{\(e\) => \{\s*setScenarioAuthoringActive\(true\);\s*setTitle/);
-    assert.match(editor, /function pickFiles[\s\S]*?setScenarioAuthoringActive\(true\)/);
-    assert.match(editor, /function editGenres[\s\S]*?setScenarioAuthoringActive\(true\)/);
-    assert.match(editor, /function editVisibility[\s\S]*?setScenarioAuthoringActive\(true\)/);
-    assert.match(editor, /function patchPlan[\s\S]*?setScenarioAuthoringActive\(true\)/);
-    assert.match(editor, /function toggleStatKey[\s\S]*?setScenarioAuthoringActive\(true\)/);
-    assert.match(editor, /function editNpcs[\s\S]*?setScenarioAuthoringActive\(true\)/);
+    assert.doesNotMatch(editor, /scenarioAuthoring/);
+    assert.doesNotMatch(editor, /embedded/);
+    assert.doesNotMatch(editor, /필수 이야기/);
+    assert.doesNotMatch(editor, /data-scenario-ai-primary-cta/);
+    assert.doesNotMatch(editor, /직접 작성하려면/);
+    assert.match(editor, /initial: TrpgScenarioTemplate;/);
   });
 
   it("A: dirty 나가기 cancel keeps the editor and does not navigate", () => {
@@ -601,9 +575,8 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.equal(isScenarioEditorDirty(submitted, savedSnapshot), false);
   });
 
-  it("Phase 2: first-create labels, helpers, and AI chrome stay collapsed", () => {
+  it("Phase 2: story labels, helpers, and AI chrome stay collapsed", () => {
     const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
-    assert.equal(FIRST_CREATE_VISIBLE_FIELDS.length, 3);
     assert.equal(SCENARIO_STORY_FIELD_COPY.summary.label, "플레이어 공개 소개");
     assert.equal(SCENARIO_STORY_FIELD_COPY.startingSituation.label, "시작 상황");
     assert.equal(SCENARIO_STORY_FIELD_COPY.goal.label, "플레이어 목표");
@@ -611,8 +584,6 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.ok(SCENARIO_STORY_FIELD_COPY.startingSituation.helper);
     assert.ok(SCENARIO_STORY_FIELD_COPY.goal.helper);
     assert.ok(SCENARIO_STORY_FIELD_COPY.gmNotes.helper);
-    assert.match(editor, /data-scenario-ai-primary-cta/);
-    assert.match(editor, /직접 작성하려면 아래 기본 항목만 채우면 됩니다/);
     assert.match(editor, /data-scenario-field-helper="startingSituation"/);
     assert.match(editor, /data-scenario-field-helper="goal"/);
     assert.match(editor, /data-scenario-field-helper="secretContent"/);
@@ -627,7 +598,6 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.match(story, /SCENARIO_STORY_FIELD_COPY\.startingSituation\.label/);
     assert.match(story, /SCENARIO_STORY_FIELD_COPY\.goal\.label/);
     assert.match(story, /SCENARIO_STORY_FIELD_COPY\.summary\.label/);
-    assert.match(story, /data-scenario-ai-primary-cta/);
     assert.equal(/data-scenario-ai-regen-all/.test(story), true);
     assert.match(editor, /if \(!showAiFieldChrome\) return null;/);
   });
@@ -676,43 +646,22 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     assert.doesNotMatch(editor, /setAiToolsOpen\(true\)/);
   });
 
-  it("Phase 2: first-create blocked headline uses remaining visible fields", () => {
-    const twoFilledPlan = {
-      ...emptyTrpgScenarioPlan(),
-      startingSituation: "폐도시에 들어간다",
-    };
-    const twoFilled = evaluateScenarioReadiness({
+  it("blocked headline counts real blockers", () => {
+    const none = evaluateScenarioReadiness({
+      title: "",
+      content: "",
+      scenarioPlan: emptyTrpgScenarioPlan(),
+    });
+    assert.equal(none.canPlay, false);
+    assert.equal(scenarioReadinessHeadline(none), `아직 ${none.blockers.length}개 항목이 필요합니다`);
+    const one = evaluateScenarioReadiness({
       title: "폐역",
       content: "",
-      scenarioPlan: twoFilledPlan,
+      scenarioPlan: { ...emptyTrpgScenarioPlan(), startingSituation: "폐도시에 들어간다" },
     });
-    assert.equal(twoFilled.status, "blocked");
-    assert.equal(twoFilled.canPlay, false);
-    const filledTwo = countFirstCreateFilledFields({ title: "폐역", scenarioPlan: twoFilledPlan });
-    const remainingTwo = countFirstCreateRemainingFields({ title: "폐역", scenarioPlan: twoFilledPlan });
-    assert.equal(filledTwo, 2);
-    assert.equal(remainingTwo, 1);
-    assert.equal(
-      scenarioReadinessHeadline(twoFilled, { firstCreateRemaining: remainingTwo }),
-      "아직 1개 항목이 필요합니다"
-    );
-
-    const titleOnlyPlan = emptyTrpgScenarioPlan();
-    const titleOnly = evaluateScenarioReadiness({
-      title: "폐역",
-      content: "",
-      scenarioPlan: titleOnlyPlan,
-    });
-    assert.equal(titleOnly.status, "blocked");
-    assert.equal(titleOnly.canPlay, false);
-    const filledOne = countFirstCreateFilledFields({ title: "폐역", scenarioPlan: titleOnlyPlan });
-    const remainingOne = countFirstCreateRemainingFields({ title: "폐역", scenarioPlan: titleOnlyPlan });
-    assert.equal(filledOne, 1);
-    assert.equal(remainingOne, 2);
-    assert.equal(
-      scenarioReadinessHeadline(titleOnly, { firstCreateRemaining: remainingOne }),
-      "아직 2개 항목이 필요합니다"
-    );
+    assert.equal(one.canPlay, false);
+    assert.equal(one.blockers.length, 1);
+    assert.equal(scenarioReadinessHeadline(one), "아직 플레이할 수 없습니다");
   });
 
   it("Phase 2: manual basic author is playable without AI chrome", () => {
@@ -723,13 +672,6 @@ describe("TRPG scenario readiness and creator-to-play handoff", () => {
     });
     assert.equal(readiness.canPlay, true);
     assert.equal(readiness.canSave, true);
-    assert.equal(
-      countFirstCreateFilledFields({
-        title: "[SMOKE] 최소 시나리오",
-        scenarioPlan: playablePlan(),
-      }),
-      3
-    );
     assert.equal(scenarioReadinessHeadline(readiness), "플레이 가능");
     const payload = scenarioEditorSavePayload({
       ...emptySnapshot(),
