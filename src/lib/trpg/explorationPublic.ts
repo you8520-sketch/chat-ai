@@ -52,6 +52,8 @@ export type PublicExploration = {
   ap: number;
   currentRoomId: string | null;
   discoveries: PublicExplorationDiscovery[];
+  /** One-place adventure: its events run through search, but there is no map to draw or move on. */
+  singlePlace?: true;
   /** Legacy v1 facility maps only. */
   legacy?: { risk: number; alarm: boolean };
 };

@@ -89,6 +89,24 @@ const HARBOR_PLOT: TrpgAdventure = {
   ],
 };
 
+const SINGLE_STUDY: TrpgAdventure = {
+  start: "study",
+  places: [{ key: "study", name: "잠긴 서재", summary: "먼지 쌓인 책장과 식은 벽난로가 있는 서재.", role: "start" }],
+  links: [],
+  events: [
+    { key: "ash_note", place: "study", trigger: "search", kind: "clue", text: "벽난로 재 속에서 반쯤 탄 편지가 나온다." },
+    {
+      key: "desk_key",
+      place: "study",
+      trigger: "careful_search",
+      kind: "item",
+      text: "책상 서랍 이중 바닥에 작은 열쇠가 붙어 있다.",
+      item: "서랍 열쇠",
+      requires: ["ash_note"],
+    },
+  ],
+};
+
 function memoryDb(): Database.Database {
   const db = new Database(":memory:");
   db.exec(`CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, nickname TEXT, points INTEGER NOT NULL DEFAULT 0)`);
@@ -526,6 +544,75 @@ describe("adventure exploration (B2+B3)", () => {
     assert.equal(gmCalls, 1);
     assert.equal(loadExplorationState(db, campaignId), null);
     assert.equal(loadTrpgSnapshot(db, campaignId, 1)?.exploration, null);
+    db.close();
+  });
+
+  it("runs single-place clue and item events through search without a map", async () => {
+    const db = memoryDb();
+    const templateId = insertScenarioTemplate(db, 1, {
+      title: "잠긴 서재",
+      summary: "s",
+      content: "c",
+      visibility: "private",
+      startLocation: "",
+      scenarioPlan: { startingSituation: "서재에 갇힌다", goal: "편지의 주인을 찾는다", endingConditions: ["편지의 주인을 찾는다"], adventure: SINGLE_STUDY },
+    });
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "현이", viewerUserId: 1, templateId });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "현이", stats: EVEN_STATS });
+    const host = participantId(db, campaignId, 1);
+    const prompts: string[] = [];
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 16,
+      rollDie: () => 2,
+      gmCall: async ({ user }) => {
+        prompts.push(user);
+        return { text: wire(`${prompts.length}번째 장면. GM: 무엇을 하겠는가.`, "잠긴 서재") };
+      },
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const state = () => loadExplorationState(db, campaignId)!;
+    assert.equal(state().version, 2);
+    assert.equal(state().map.rooms.length, 1);
+    assert.equal(sheet(db, host).location, "잠긴 서재");
+    const opening = loadTrpgSnapshot(db, campaignId, 1)!.exploration!;
+    assert.equal(opening.singlePlace, true);
+    assert.deepEqual(opening.edges, []);
+    for (const event of SINGLE_STUDY.events) assert.equal(JSON.stringify(opening).includes(event.text), false, "unfired event text stays secret");
+    assert.match(prompts[0] ?? "", /The party begins in 잠긴 서재\./);
+
+    const round = async (input: { commands?: unknown; body?: string }) => {
+      submitTrpgAction(db, { campaignId, userId: 1, body: input.body ?? "", explorationCommands: input.commands });
+      await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+      return prompts.at(-1) ?? "";
+    };
+
+    const clue = await round({ commands: [{ op: "search", depth: "normal" }] });
+    assert.deepEqual(state().revealedEventIds, ["ash_note"]);
+    assert.equal(clue.split("found this clue exactly once").length - 1, 1, clue);
+    assert.ok(clue.includes(SINGLE_STUDY.events[0]!.text));
+    assert.equal(state().apRemaining[String(host)], 2, "one search spends one AP");
+
+    const item = await round({ commands: [{ op: "search", depth: "careful" }] });
+    assert.deepEqual(state().revealedEventIds, ["ash_note", "desk_key"]);
+    assert.match(item, /received item "서랍 열쇠" exactly once/);
+    assert.equal(itemQty(db, [host], "서랍 열쇠"), 1);
+    assert.equal(state().apRemaining[String(host)], 1, "one careful search spends two AP");
+
+    const again = await round({ commands: [{ op: "search", depth: "careful" }] });
+    assert.match(again, /The server had nothing new hidden there/);
+    assert.equal(itemQty(db, [host], "서랍 열쇠"), 1, "the item is granted once");
+    assert.deepEqual(state().grantedEventIds, ["desk_key"]);
+
+    await round({ body: "서재 문을 밀고 복도로 나가 본다." });
+    assert.equal(sheet(db, host).location, "잠긴 서재", "a one-place adventure keeps its one place");
+
+    const frozen = JSON.stringify(state());
+    await regenerateTrpgNarration(db, { campaignId, userId: 1, deps });
+    assert.equal(JSON.stringify(state()), frozen);
+    assert.equal(itemQty(db, [host], "서랍 열쇠"), 1);
+    const discoveries = loadTrpgSnapshot(db, campaignId, 1)!.exploration!.discoveries.map((entry) => entry.text);
+    assert.deepEqual(discoveries, SINGLE_STUDY.events.map((event) => event.text));
     db.close();
   });
 

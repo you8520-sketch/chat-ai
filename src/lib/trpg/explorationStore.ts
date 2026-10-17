@@ -70,10 +70,12 @@ function frozenCampaignPlan(
 }
 
 /**
- * Builds the campaign map once from the frozen plan. A multi-place adventure compiles to a v2
- * map; a single place or no adventure means no map. Only a legacy `exploration: true` plan
- * without an adventure still gets the v1 facility map. Template edits never reach a started
- * campaign because both the plan copy and this map are written once.
+ * Builds the campaign's exploration state once from the frozen plan. A multi-place adventure
+ * compiles to a v2 map; a single place with events compiles to a one-room v2 state, so its
+ * events run through the same search and commit owners without a map. A single place without
+ * events, or no adventure, means no state. Only a legacy `exploration: true` plan without an
+ * adventure still gets the v1 facility map. Template edits never reach a started campaign
+ * because both the plan copy and this state are written once.
  */
 export function ensureExplorationMap(db: Database.Database, campaignId: number): void {
   const existing = db
@@ -89,7 +91,9 @@ export function ensureExplorationMap(db: Database.Database, campaignId: number):
   if (plan.adventure != null) {
     const { adventure, issues } = evaluateAdventure(plan.adventure);
     if (!adventure) throw new TrpgAdventureCanonError(issues);
-    if (adventureHasMap(adventure)) saveExplorationState(db, campaignId, adventureExplorationState(adventure, seed));
+    if (adventure.events.length > 0 || adventureHasMap(adventure)) {
+      saveExplorationState(db, campaignId, adventureExplorationState(adventure, seed));
+    }
     return;
   }
   if (plan.exploration !== true) return;

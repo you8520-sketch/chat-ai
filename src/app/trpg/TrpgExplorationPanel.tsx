@@ -88,11 +88,13 @@ export default function TrpgExplorationPanel({
   const left = (x: number) => (x / maxX) * 78 + 11;
   const top = (y: number) => (1 - y / maxY) * 72 + 14;
   const canQueue = !locked && Boolean(onQueue);
+  const hasMap = !exploration.singlePlace;
 
   return (
     <section
       data-trpg-exploration={open ? "expanded" : "collapsed"}
       data-exploration-ap={exploration.ap}
+      data-exploration-single-place={hasMap ? undefined : "yes"}
       className="mb-3 rounded-2xl border border-white/10 bg-[#12151f] text-zinc-100"
     >
       <button
@@ -102,7 +104,7 @@ export default function TrpgExplorationPanel({
         onClick={() => setOpen((value) => !value)}
       >
         <span className="min-w-0">
-          <span className="block text-sm font-semibold">탐험 지도</span>
+          <span className="block text-sm font-semibold">{hasMap ? "탐험 지도" : "현장 조사"}</span>
           <span className="block truncate text-xs text-zinc-400" data-exploration-summary>
             {here?.label ?? "위치 확인 중"} · 행동력 {exploration.ap}
             {legacy ? ` · 위험도 ${legacy.risk}${legacy.alarm ? " · 위험 고조" : ""}` : ""}
@@ -112,90 +114,94 @@ export default function TrpgExplorationPanel({
       </button>
       {open ? (
         <div className="space-y-3 border-t border-white/10 px-3 py-3">
-          <div className="relative h-72 w-full sm:h-80" data-trpg-exploration-map>
-            <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              {exploration.edges.map((edge) => {
-                const from = exploration.rooms.find((room) => room.id === edge.from);
-                const to = exploration.rooms.find((room) => room.id === edge.to);
-                if (!from || !to) return null;
+          {hasMap ? (
+            <div className="relative h-72 w-full sm:h-80" data-trpg-exploration-map>
+              <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                {exploration.edges.map((edge) => {
+                  const from = exploration.rooms.find((room) => room.id === edge.from);
+                  const to = exploration.rooms.find((room) => room.id === edge.to);
+                  if (!from || !to) return null;
+                  return (
+                    <line
+                      key={`${edge.from}-${edge.to}`}
+                      x1={left(from.x)}
+                      y1={top(from.y)}
+                      x2={left(to.x)}
+                      y2={top(to.y)}
+                      stroke={edge.locked ? "rgba(252,211,77,0.7)" : "rgba(255,255,255,0.78)"}
+                      strokeWidth="2"
+                      strokeDasharray={edge.locked ? "4 4" : undefined}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  );
+                })}
+              </svg>
+              {exploration.rooms.map((room) => {
+                const reachable = exits.some((exit) => exit.id === room.id);
                 return (
-                  <line
-                    key={`${edge.from}-${edge.to}`}
-                    x1={left(from.x)}
-                    y1={top(from.y)}
-                    x2={left(to.x)}
-                    y2={top(to.y)}
-                    stroke={edge.locked ? "rgba(252,211,77,0.7)" : "rgba(255,255,255,0.78)"}
-                    strokeWidth="2"
-                    strokeDasharray={edge.locked ? "4 4" : undefined}
-                    vectorEffect="non-scaling-stroke"
-                  />
+                  <button
+                    key={room.id}
+                    type="button"
+                    title={room.label}
+                    aria-label={room.label}
+                    disabled={!canQueue || !reachable}
+                    data-exploration-room={room.id}
+                    data-exploration-known={room.visited ? "yes" : "no"}
+                    onClick={() => onQueue?.({ op: "move", roomId: room.id })}
+                    className={`absolute flex h-11 min-w-11 max-w-[5.5rem] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-lg border px-1 text-[11px] leading-tight ${
+                      room.current
+                        ? "border-violet-300 bg-violet-600 text-white"
+                        : reachable && canQueue
+                          ? "border-emerald-300/70 bg-[#173026]"
+                          : room.visited
+                            ? "border-white/20 bg-[#1c2230]"
+                            : "border-dashed border-white/30 bg-[#0e1118] text-zinc-400"
+                    } disabled:opacity-80`}
+                    style={{ left: `${left(room.x)}%`, top: `${top(room.y)}%` }}
+                  >
+                    <span className="max-w-full truncate">{room.label}</span>
+                    {room.markers.length ? (
+                      <span className="text-[9px] text-amber-200">{room.markers.map((marker) => MARKER_LABEL[marker]).join(" ")}</span>
+                    ) : null}
+                  </button>
                 );
               })}
-            </svg>
-            {exploration.rooms.map((room) => {
-              const reachable = exits.some((exit) => exit.id === room.id);
-              return (
-                <button
-                  key={room.id}
-                  type="button"
-                  title={room.label}
-                  aria-label={room.label}
-                  disabled={!canQueue || !reachable}
-                  data-exploration-room={room.id}
-                  data-exploration-known={room.visited ? "yes" : "no"}
-                  onClick={() => onQueue?.({ op: "move", roomId: room.id })}
-                  className={`absolute flex h-11 min-w-11 max-w-[5.5rem] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-lg border px-1 text-[11px] leading-tight ${
-                    room.current
-                      ? "border-violet-300 bg-violet-600 text-white"
-                      : reachable && canQueue
-                        ? "border-emerald-300/70 bg-[#173026]"
-                        : room.visited
-                          ? "border-white/20 bg-[#1c2230]"
-                          : "border-dashed border-white/30 bg-[#0e1118] text-zinc-400"
-                  } disabled:opacity-80`}
-                  style={{ left: `${left(room.x)}%`, top: `${top(room.y)}%` }}
-                >
-                  <span className="max-w-full truncate">{room.label}</span>
-                  {room.markers.length ? (
-                    <span className="text-[9px] text-amber-200">{room.markers.map((marker) => MARKER_LABEL[marker]).join(" ")}</span>
-                  ) : null}
-                </button>
-              );
-            })}
-          </div>
+            </div>
+          ) : null}
           <div className="rounded-xl border border-white/10 bg-[#171b27] px-3 py-2" data-exploration-place>
             <p className="text-xs text-zinc-400">{plannedRoom && plannedRoom !== exploration.currentRoomId ? "이동 후 위치" : "지금 위치"}</p>
             <p className="break-keep text-sm font-semibold">{planned?.label ?? "위치 확인 중"}</p>
             {planned?.summary ? <p className="mt-1 break-keep text-xs text-zinc-300">{planned.summary}</p> : null}
           </div>
-          <div className="space-y-1" data-exploration-exits>
-            <p className="text-xs text-zinc-400">열린 길</p>
-            {exits.length ? (
-              <div className="flex flex-wrap gap-2">
-                {exits.map((room) => (
-                  <button
-                    key={room.id}
-                    type="button"
-                    disabled={!canQueue}
-                    data-exploration-exit={room.id}
-                    onClick={() => onQueue?.({ op: "move", roomId: room.id })}
-                    className="min-h-11 max-w-full break-keep rounded-xl border border-emerald-300/40 px-3 text-left text-sm disabled:opacity-60"
-                  >
-                    {room.label}
-                    {goalParticle(room.label)} 이동 1
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-zinc-500">지금 지날 수 있는 길이 없습니다.</p>
-            )}
-            {shut.length ? (
-              <p className="break-keep text-xs text-amber-200/90" data-exploration-shut>
-                닫힌 길: {shut.map((room) => room.label).join(", ")} · 단서나 조사로 열어야 합니다.
-              </p>
-            ) : null}
-          </div>
+          {hasMap ? (
+            <div className="space-y-1" data-exploration-exits>
+              <p className="text-xs text-zinc-400">열린 길</p>
+              {exits.length ? (
+                <div className="flex flex-wrap gap-2">
+                  {exits.map((room) => (
+                    <button
+                      key={room.id}
+                      type="button"
+                      disabled={!canQueue}
+                      data-exploration-exit={room.id}
+                      onClick={() => onQueue?.({ op: "move", roomId: room.id })}
+                      className="min-h-11 max-w-full break-keep rounded-xl border border-emerald-300/40 px-3 text-left text-sm disabled:opacity-60"
+                    >
+                      {room.label}
+                      {goalParticle(room.label)} 이동 1
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-zinc-500">지금 지날 수 있는 길이 없습니다.</p>
+              )}
+              {shut.length ? (
+                <p className="break-keep text-xs text-amber-200/90" data-exploration-shut>
+                  닫힌 길: {shut.map((room) => room.label).join(", ")} · 단서나 조사로 열어야 합니다.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -216,7 +222,7 @@ export default function TrpgExplorationPanel({
           </div>
           <p className={`text-xs ${short ? "text-rose-300" : "text-zinc-400"}`} data-exploration-queue-cost={cost}>
             제출 예정 {cost} / 행동력 {exploration.ap}
-            {short ? " · 행동력이 부족합니다" : ""}. 지도는 명령을 만들 뿐이고, 확정은 서버가 합니다.
+            {short ? " · 행동력이 부족합니다" : ""}. {hasMap ? "지도는" : "조사 버튼은"} 명령을 만들 뿐이고, 확정은 서버가 합니다.
           </p>
           {queue.length ? (
             <ul className="space-y-1 text-sm">
@@ -232,7 +238,9 @@ export default function TrpgExplorationPanel({
               ))}
             </ul>
           ) : (
-            <p className="text-xs text-zinc-500">열린 길을 누르거나 조사하면 이번 행동에 붙습니다. 자유 입력과 함께 보낼 수 있습니다.</p>
+            <p className="text-xs text-zinc-500">
+              {hasMap ? "열린 길을 누르거나 조사하면" : "조사하면"} 이번 행동에 붙습니다. 자유 입력과 함께 보낼 수 있습니다.
+            </p>
           )}
           {exploration.discoveries.length ? (
             <div className="space-y-1" data-exploration-discoveries>

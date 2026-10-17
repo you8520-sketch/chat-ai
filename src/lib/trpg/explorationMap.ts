@@ -445,12 +445,19 @@ function assertLegacyPlayable(map: ExplorationMap): void {
   if (!explorationCanEscape(map)) throw new Error("탐험 지도에서 탈출할 수 없습니다.");
 }
 
+/** A one-room state carries a single-place adventure's events; it has no map to move on. */
+export function explorationHasMap(map: ExplorationMap): boolean {
+  return map.rooms.length >= 2;
+}
+
 /**
  * Movement goals in free text, priced later by the same command owner as a map click.
  * A goal resolves by its head word, then by the whole phrase, then by the longest room name
- * the phrase contains, so multi-word adventure names still match.
+ * the phrase contains, so multi-word adventure names still match. Without a map there is
+ * nowhere to price a move, so free text stays narration.
  */
 export function explorationCommandsFromMovementBody(map: ExplorationMap, body: string): ExplorationCommand[] {
+  if (!explorationHasMap(map)) return [];
   const commands: ExplorationCommand[] = [];
   const byLength = [...map.rooms].sort((a, b) => nameKey(b.name ?? b.id).length - nameKey(a.name ?? a.id).length);
   for (const goal of declaredMovementGoals(body)) {
@@ -1235,6 +1242,7 @@ export function projectPublicExploration(opts: {
     ap: opts.viewerParticipantId == null ? EXPLORATION_AP_PER_ROUND : displayExplorationAp(state, opts.viewerParticipantId, opts.roundNumber),
     currentRoomId: currentRoom?.publicId ?? null,
     discoveries,
+    ...(explorationHasMap(state.map) ? {} : { singlePlace: true as const }),
     ...(isLegacy(state) ? { legacy: { risk: state.risk, alarm: state.alarmFlagged } } : {}),
   };
 }
