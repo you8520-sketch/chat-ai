@@ -1,0 +1,244 @@
+{
+  "assetPlan": {
+    "slots": [
+      {
+        "slotKey": "rep",
+        "kind": "representative",
+        "tag": "기본 초상",
+        "expression": "경계심을 감춘 냉정한 위엄",
+        "pose": "갑옷을 입은 채 정면을 향해 서서 한 손을 검 손잡이에 얹는다",
+        "outfit": "흑철 판금 갑옷과 검은 늑대 모피 코트",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": null,
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
+      },
+      {
+        "slotKey": "sig1",
+        "kind": "signature",
+        "tag": "지도를 짚음",
+        "expression": "엄격하고 흔들림 없이 지도를 읽는 진지한 표정. 이를 보이지 않는다.",
+        "pose": "흑철 요새 지휘실 탁자 위 작전 지도의 한 지점을 장갑 낀 검지로 짚는다. 지도와 짚는 손이 프레임 안에 보인다. 부하는 그리지 않는다. 서류 더미는 두지 않는다.",
+        "outfit": "default",
+        "location": "흑철 요새 지휘실",
+        "situation": "방벽의 교대 병력과 철수 여유를 작전서에 직접 기록한다",
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "진지함",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
+      },
+      {
+        "slotKey": "sig2",
+        "kind": "signature",
+        "tag": "턱을 괴고 생각",
+        "expression": "말을 삼키며 턱을 괸 채 생각을 정리하는 눈빛. 흉터를 만지거나 보여 주지 않는다.",
+        "pose": "갑옷 장갑을 낀 손으로 턱을 괴고 앉는다. 괴고 있는 손과 얼굴이 한눈에 보인다. 서류·지도·열쇠는 두지 않는다. 흉터를 쓰다듬지 않는다.",
+        "outfit": "default",
+        "location": "흑철 요새 기록실",
+        "situation": "명령을 따르면 모두를 구할 수 있다는 믿음이 깨진 뒤 지휘관의 책임을 문서로 남긴다",
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "의심",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
+      },
+      {
+        "slotKey": "sig3",
+        "kind": "signature",
+        "tag": "열쇠를 확인함",
+        "expression": "위험을 가늠하며 열쇠를 확인하는 집중. 이를 보이지 않는다.",
+        "pose": "장갑 낀 손으로 방벽 열쇠 꾸러미를 들어 열쇠 이를 확인한다. 열쇠와 손이 프레임 안에 보인다. 상자를 열거나 문서를 펼치지 않는다.",
+        "outfit": "default",
+        "location": "흑철 요새 봉인고",
+        "situation": "마석의 소유권 주장보다 작동 위험과 연성 흔적을 먼저 조사한다",
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "진지함",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
+      },
+      {
+        "slotKey": "sig4",
+        "kind": "signature",
+        "tag": "옅은 미소",
+        "expression": "긴장을 풀고 상대를 바라보며 입꼬리만 살짝 올린 옅은 미소. 이를 보이지 않는다.",
+        "pose": "갑옷을 벗지 않은 채 창가 돌벤치에 앉아 상체를 상대(카메라) 쪽으로 돌린다. 양손은 허벅지 위에 올려 두고 소품을 건네지 않는다. 어깨는 살짝 내려가 있고, 얼굴·눈·옅은 미소가 한눈에 보인다. 유저는 그리지 않는다.",
+        "outfit": "default",
+        "location": "흑철 요새 집무실 창가",
+        "situation": "늦은 당직을 마친 뒤 짧은 휴식을 취하며 상대를 바라본다",
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "미소",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
+      },
+      {
+        "slotKey": "emo1",
+        "kind": "emotion",
+        "tag": "의심",
+        "expression": "상대를 바라보며 눈썹만 좁힌 의심. 입을 다문다. 서류를 보지 않는다.",
+        "pose": "상체를 상대(카메라) 쪽으로 두고 손을 비운다. 문서·편지·지도·열쇠는 없다. 유저는 그리지 않는다.",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "의심",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
+      },
+      {
+        "slotKey": "emo2",
+        "kind": "emotion",
+        "tag": "분노",
+        "expression": "턱을 굳게 다문 채 억제된 분노를 누른다. 눈썹과 턱 근육에 긴장이 남는다. 이를 보이지 않는다.",
+        "pose": "주먹을 쥐되 집무실 책상 위에 내려놓는다. 서류·열쇠·음식 같은 소품은 두지 않는다. 유저는 그리지 않는다.",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "분노",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
+      },
+      {
+        "slotKey": "emo3",
+        "kind": "emotion",
+        "tag": "진지함",
+        "expression": "상대의 말을 끝까지 듣는 냉정한 진지함. 눈썹을 찌푸리거나 웃지 않는다.",
+        "pose": "손을 비운 채 상대(카메라)를 바라본다. 문서·지도·열쇠·주먹은 없다. 유저는 그리지 않는다.",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "진지함",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
+      },
+      {
+        "slotKey": "emo4",
+        "kind": "emotion",
+        "tag": "당황",
+        "expression": "예상 밖의 말에 눈이 잠깐 커지고 입술이 살짝 벌어진 당황. 웃음이 아니다.",
+        "pose": "고개를 옆으로 돌렸다가 다시 상대(카메라)를 본다. 손이 보이면 소품을 쥐지 않는다. 서류는 없다. 유저는 그리지 않는다.",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "당황",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
+      },
+      {
+        "slotKey": "emo5",
+        "kind": "emotion",
+        "tag": "편안함",
+        "expression": "눈꺼풀을 조금 낮추고 미간과 입술의 힘을 뺀 편안함. 눈은 뜨고 입술은 부드럽게 다문다.",
+        "pose": "돌벽에 등을 가볍게 기대고 한쪽 다리에 체중을 싣는다. 어깨와 팔꿈치와 손의 힘을 풀어 편하게 쉰다. 손은 비어 있다.",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "진지함",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
+      },
+      {
+        "slotKey": "emo6",
+        "kind": "emotion",
+        "tag": "안도",
+        "expression": "눈을 잠깐 감고 미간의 힘이 풀리며, 입술을 살짝 벌려 길게 숨을 내쉬는 안도. 웃는 입꼬리나 장난기보다 긴장이 풀리는 표정이다.",
+        "pose": "갑옷을 벗지 않은 채 상체를 상대(카메라) 쪽으로 돌리고 어깨를 낮춘다. 손은 허벅지 위에 가볍게 두고 소품을 건네지 않는다. 유저는 그리지 않는다.",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "미소",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
+      },
+      {
+        "slotKey": "scene1",
+        "kind": "scene",
+        "tag": "문서를 대조함",
+        "expression": "서로 다른 인장의 문서를 대조하며 판단을 보류하는 의심. 이를 보이지 않는다.",
+        "pose": "장갑 낀 양손에 인장이 다른 문서 두 장을 들어 나란히 보여 준다. 두 문서와 손이 프레임 안에 보인다. 상대는 그리지 않는다.",
+        "outfit": "default",
+        "location": "발켄하임 혹한의 검은 방벽 (흑철 요새) 집무실",
+        "situation": "흑철 요새 집무실에서 황실 문장과 볼프강 인장이 찍힌 서로 다른 문서 두 장을 대조한다.",
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "의심",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
+      },
+      {
+        "slotKey": "scene2",
+        "kind": "scene",
+        "tag": "기록을 맞춤",
+        "expression": "서로 다른 인계 기록을 맞춰 보며 놓치지 않는 집중. 이를 보이지 않는다.",
+        "pose": "판도라 아카이브 탁자 위 인계 기록과 증인 서류를 양손으로 나란히 맞춰 본다. 종이 두 종류와 손이 프레임 안에 보인다.",
+        "outfit": "default",
+        "location": "판도라 대도서관 심연의 아카이브",
+        "situation": "판도라 아카이브에서 서로 다른 인계 기록과 증인의 서류를 맞춰 본다.",
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "진지함",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
+      },
+      {
+        "slotKey": "scene3",
+        "kind": "scene",
+        "tag": "긴장",
+        "expression": "압박 앞에서 턱과 어깨에 힘이 들어간 단호한 긴장. 웃지 않고 이를 보이지 않는다. 눈을 감지 않는다.",
+        "pose": "솔라리스 유리온실의 유리와 조명 아래 갑옷을 입은 채 서서 상대(카메라)를 본다. 문서·열쇠·음식은 없다. 유혈이나 무기는 그리지 않는다.",
+        "outfit": "default",
+        "location": "솔라리스 유리온실 (태양궁 최상층)",
+        "situation": "솔라리스 유리온실의 유리와 조명 아래, 볼프강이 단호한 긴장으로 선다.",
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "긴장",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
+      }
+    ]
+  }
+}
