@@ -532,39 +532,88 @@ test.describe("E4-9 editor on short landscape screens with the keyboard open", (
   });
 });
 
+async function expectSharedSaveBarRelease(page: Page) {
+  const bar = page.getByTestId("studio-save-bar");
+  await expect(bar).toBeVisible();
+  const barPosition = () => bar.evaluate((el) => getComputedStyle(el).position);
+  expect(await barPosition()).toBe("fixed");
+
+  await setKeyboard(page, 190);
+  expect(await barPosition()).toBe("static");
+  const open = await rootPadding(page);
+  expect(open.editor).toBe(true);
+  expect(open.saveBarVar).toBe("0px");
+  expect(open.bottom).toBe(190 + 8);
+
+  const reach = await wheelUntilReachable(page);
+  expect(reach.reachable).toBe(true);
+
+  await setKeyboard(page, 0);
+  expect(await barPosition()).toBe("fixed");
+  const closed = await rootPadding(page);
+  expect(closed.bottom).toBeGreaterThan(40);
+  expect(closed.saveBarVar).not.toBe("0px");
+}
+
 test.describe("E4-9 the correction lives only while an editor is mounted", () => {
   const SHARED_EDITORS = [
     { path: "/create", wait: "#studio-character-form" },
     { path: "/world/create", wait: '[data-testid="studio-save-bar"]' },
     { path: "/lorebook/create", wait: '[data-testid="studio-save-bar"]' },
-    { path: "/trpg/scenarios/new", wait: '[data-testid="studio-save-bar"]' },
   ] as const;
 
   for (const editor of SHARED_EDITORS) {
     test(`${editor.path}: the shared save bar flows with the page at 667x375 with the keyboard open and docks again when it closes`, async ({ page }) => {
       await openEditorWithKeyboard(page, editor.path, 667, 375, 0, editor.wait);
-      const bar = page.getByTestId("studio-save-bar");
-      await expect(bar).toBeVisible();
-      const barPosition = () => bar.evaluate((el) => getComputedStyle(el).position);
-      expect(await barPosition()).toBe("fixed");
-
-      await setKeyboard(page, 190);
-      expect(await barPosition()).toBe("static");
-      const open = await rootPadding(page);
-      expect(open.editor).toBe(true);
-      expect(open.saveBarVar).toBe("0px");
-      expect(open.bottom).toBe(190 + 8);
-
-      const reach = await wheelUntilReachable(page);
-      expect(reach.reachable).toBe(true);
-
-      await setKeyboard(page, 0);
-      expect(await barPosition()).toBe("fixed");
-      const closed = await rootPadding(page);
-      expect(closed.bottom).toBeGreaterThan(40);
-      expect(closed.saveBarVar).not.toBe("0px");
+      await expectSharedSaveBarRelease(page);
     });
   }
+
+  test("owned scenario edit: the shared save bar flows with the page at 667x375 and docks again when the keyboard closes", async ({ page }) => {
+    await demoLogin(page);
+    await page.goto("/");
+    // The session cookie is Secure. Create the row from the page so the browser sends it on http.
+    const created = await page.evaluate(async () => {
+      const res = await fetch("/api/trpg/scenarios", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          title: "E4-9 회귀 시나리오",
+          content: "시작 상황입니다. 키보드가 열려도 저장 버튼에 닿을 수 있어야 합니다.",
+        }),
+      });
+      const json = (await res.json()) as { scenario?: { id?: number }; error?: string };
+      return { ok: res.ok, status: res.status, id: json.scenario?.id ?? 0, error: json.error ?? "" };
+    });
+    expect(created.ok, `${created.status} ${created.error}`).toBe(true);
+    expect(created.id).toBeGreaterThan(0);
+
+    await openEditorWithKeyboard(page, `/trpg/scenarios/${created.id}`, 667, 375, 0);
+    await expect(page.getByRole("heading", { name: "TRPG 시나리오 수정" })).toBeVisible();
+    await expectSharedSaveBarRelease(page);
+  });
+
+  test("/trpg/scenarios/new opens simple create and does not apply the editor correction", async ({ page }) => {
+    await openEditorWithKeyboard(page, "/trpg/scenarios/new", 667, 375, 0, "[data-trpg-simple-create]");
+    await expect(page).toHaveURL(/\/world\/create\?tab=scenario/);
+    await expect(page.getByRole("heading", { name: "TRPG 만들기" })).toBeVisible();
+    await expect(page.getByTestId("studio-save-bar")).toHaveCount(0);
+
+    const closed = await rootPadding(page);
+    expect(closed.editor).toBe(false);
+    expect(closed.saveBarVar).toBe("");
+    expect(closed.inlineScrollPadding).toBe("");
+
+    await setKeyboard(page, 190);
+    const open = await rootPadding(page);
+    expect(open.editor).toBe(false);
+    expect(open.keyboardOpen).toBe(true);
+    expect(open.saveBarVar).toBe("");
+    expect(open.inlineScrollPadding).toBe("");
+    expect(open.top).toBe(closed.top);
+    expect(open.bottom).toBe(closed.bottom);
+  });
 
   test("editor to non-editor navigation with the keyboard open leaves no correction behind", async ({ page }) => {
     await openEditorWithKeyboard(page, "/create", 667, 375, 190);
