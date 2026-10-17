@@ -107,7 +107,26 @@ function tamperedManifest(mutate: (candidates: typeof CANDIDATES) => void): stri
   return manifestPath;
 }
 
-type ProviderReply = { status: number; content?: string; costUsd?: number; usage?: boolean };
+type ProviderReply =
+  | { status: number; content?: string; costUsd?: number; usage?: boolean }
+  | { broken: "truncated_json" | "unreadable_body" };
+
+function brokenProviderResponse(broken: "truncated_json" | "unreadable_body"): Response {
+  if (broken === "truncated_json") {
+    return new Response('{"choices":[{"message":{"content":', {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }
+  return new Response(
+    new ReadableStream({
+      start(controller) {
+        controller.error(new Error("body read failed"));
+      },
+    }),
+    { status: 200, headers: { "content-type": "application/json" } }
+  );
+}
 
 const PRIMARY = OPENROUTER_QWEN38_FLASH_MODEL;
 const FALLBACK = OPENROUTER_QWEN3_VL_8B_INSTRUCT_MODEL;
@@ -192,6 +211,7 @@ before(async () => {
     if (url === OPENROUTER_CHAT_COMPLETIONS_URL && init?.method === "POST" && providerReplies.length > 0) {
       providerPosts.push((JSON.parse(String(init.body)) as { model: string }).model);
       const next = providerReplies.shift()!;
+      if ("broken" in next) return brokenProviderResponse(next.broken);
       if (next.status !== 200) return new Response("upstream error", { status: next.status });
       const usage = next.usage
         ? { prompt_tokens: 3000, completion_tokens: 40, ...(next.costUsd != null ? { cost: next.costUsd } : {}) }
@@ -357,6 +377,55 @@ describe("approved asset operator (isolated DB)", () => {
     assert.deepEqual(providerPosts, []);
 
     process.env.OPENROUTER_API_KEY = DUMMY_KEY;
+    const moderationBeforeParseFailure = store.getReplacement(DRAFT, "rep").moderation;
+    providerReplies = [{ broken: "truncated_json" }];
+    const truncated = await runApprovedAssetModeration(target, visionMeter, caps, true);
+    assert.equal(truncated.status, "stopped");
+    assert.equal(truncated.error?.code, "moderation_error");
+    assert.match(truncated.error?.message ?? "", /JSON/);
+    assert.deepEqual(providerPosts, [PRIMARY]);
+    assert.equal(truncated.accounting.providerPosts, 1);
+    assert.equal(truncated.accounting.postsWithConfirmedCost, 0);
+    assert.equal(truncated.accounting.confirmedCostUsd, 0);
+    assert.equal(truncated.accounting.postsWithUnknownCost, 1);
+    assert.equal(truncated.accounting.unknownCostReserveHeldUsd, 0.01);
+    assert.deepEqual(truncated.posts.map((post) => [post.slot, post.model, post.outcome, post.confirmedCostUsd]), [
+      ["rep", PRIMARY, "unparsed", null],
+    ]);
+    assert.deepEqual(store.getReplacement(DRAFT, "rep").moderation, moderationBeforeParseFailure);
+
+    providerPosts = [];
+    providerReplies = [{ broken: "unreadable_body" }];
+    const unreadable = await runApprovedAssetModeration(target, visionMeter, caps, true);
+    assert.equal(unreadable.status, "stopped");
+    assert.match(unreadable.error?.message ?? "", /body read failed/);
+    assert.deepEqual(providerPosts, [PRIMARY]);
+    assert.equal(unreadable.accounting.providerPosts, 1);
+    assert.equal(unreadable.accounting.confirmedCostUsd, 0);
+    assert.equal(unreadable.accounting.postsWithUnknownCost, 1);
+    assert.equal(unreadable.accounting.unknownCostReserveHeldUsd, 0.01);
+    assert.deepEqual(store.getReplacement(DRAFT, "rep").moderation, moderationBeforeParseFailure);
+
+    providerPosts = [];
+    providerReplies = [http500, { broken: "truncated_json" }];
+    const kept = await runApprovedAssetModeration(target, visionMeter, caps, true);
+    assert.equal(kept.status, "stopped");
+    assert.equal(kept.error?.code, "moderation_error");
+    assert.deepEqual(providerPosts, [PRIMARY, FALLBACK]);
+    assert.deepEqual(
+      kept.posts.map((post) => [post.model, post.outcome, post.confirmedCostUsd]),
+      [
+        [PRIMARY, "http_error", null],
+        [FALLBACK, "unparsed", null],
+      ]
+    );
+    assert.equal(kept.accounting.providerPosts, 2);
+    assert.equal(kept.accounting.postsWithConfirmedCost, 0);
+    assert.equal(kept.accounting.postsWithUnknownCost, 2);
+    assert.equal(kept.accounting.unknownCostReserveHeldUsd, 0.02);
+    assert.deepEqual(store.getReplacement(DRAFT, "rep").moderation, moderationBeforeParseFailure);
+
+    providerPosts = [];
     providerReplies = [unparsed(0.02)];
     const overReserve = await runApprovedAssetModeration(target, visionMeter, caps, true);
     assert.equal(overReserve.status, "stopped");

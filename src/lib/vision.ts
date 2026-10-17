@@ -128,7 +128,9 @@ export type VisionProviderPost = {
  * Optional run control for callers that meter paid vision. `beforeProviderPost`
  * runs immediately before each POST (primary and fallback) and returns a stop
  * reason to send nothing more; `afterProviderPost` settles that POST before the
- * next one is considered. Without a control the primary → fallback order is unchanged.
+ * next one is considered. A response that cannot be read, parsed, or interpreted
+ * still settles that one POST and then rejects, so it is not retried. Without a
+ * control the primary → fallback order is unchanged.
  */
 export type VisionRunControl = {
   beforeProviderPost(model: string): string | null;
@@ -295,7 +297,18 @@ export async function analyzeAssetImage(
     const model = models[i]!;
     const stop = control?.beforeProviderPost(model) ?? null;
     if (stop) return unresolved(costAttempts, stop);
-    const result = await analyzeWithModel(model, dataUrl, apiKey);
+    // Throws here are after the provider POST. A failed fetch returns
+    // transport_error instead of throwing. Settle the unread response once as
+    // unknown cost, then keep the error so the fallback is not a new retry and
+    // the caller still has the settlement.
+    let result: VisionAttempt;
+    try {
+      result = await analyzeWithModel(model, dataUrl, apiKey);
+    } catch (error) {
+      console.error("[vision] provider response unsettled:", model, error);
+      control?.afterProviderPost({ model, outcome: "unparsed", cost: null });
+      throw error;
+    }
     if (result.cost) costAttempts.push(result.cost);
     control?.afterProviderPost({ model, outcome: result.outcome, cost: result.cost });
     if (result.parsed) {

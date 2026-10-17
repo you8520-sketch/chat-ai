@@ -21,7 +21,28 @@ const PARSED = JSON.stringify({
   nippleExposure: "none",
 });
 
-type ProviderReply = { status: number; content?: string; costUsd?: number; usage?: boolean } | "transport_error";
+type ProviderReply =
+  | { status: number; content?: string; costUsd?: number; usage?: boolean }
+  | "transport_error"
+  | { broken: "truncated_json" | "unreadable_body" | "null_body" };
+
+function brokenResponse(broken: "truncated_json" | "unreadable_body" | "null_body"): Response {
+  if (broken === "truncated_json") {
+    return new Response('{"choices":[{"message":{"content":', {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }
+  if (broken === "null_body") return Response.json(null);
+  return new Response(
+    new ReadableStream({
+      start(controller) {
+        controller.error(new Error("body read failed"));
+      },
+    }),
+    { status: 200, headers: { "content-type": "application/json" } }
+  );
+}
 
 const originalFetch = globalThis.fetch;
 const originalKey = process.env.OPENROUTER_API_KEY;
@@ -67,6 +88,7 @@ before(() => {
       const next = replies.shift();
       if (!next) throw new Error("mock provider has no scripted reply");
       if (next === "transport_error") throw new TypeError("fetch failed");
+      if ("broken" in next) return brokenResponse(next.broken);
       if (next.status !== 200) return new Response("upstream error", { status: next.status });
       const usage = next.usage
         ? { prompt_tokens: 3000, completion_tokens: 40, ...(next.costUsd != null ? { cost: next.costUsd } : {}) }
@@ -174,6 +196,53 @@ describe("asset vision run control (mock provider)", () => {
       [
         ["transport_error", null, null],
         ["parsed", true, null],
+      ]
+    );
+  });
+
+  it("a 200 with truncated JSON settles that POST once as unknown cost and does not continue", async () => {
+    process.env.OPENROUTER_API_KEY = DUMMY_KEY;
+    replies = [{ broken: "truncated_json" }];
+    const run = recordingControl();
+    await assert.rejects(
+      () => analyzeAssetImage(IMAGE_URL, 0, run.control),
+      (error: unknown) => error instanceof SyntaxError
+    );
+    assert.deepEqual(providerPosts, [OPENROUTER_QWEN38_FLASH_MODEL]);
+    assert.deepEqual(run.before, [OPENROUTER_QWEN38_FLASH_MODEL]);
+    assert.deepEqual(
+      run.settled.map((post) => [post.model, post.outcome, post.cost]),
+      [[OPENROUTER_QWEN38_FLASH_MODEL, "unparsed", null]]
+    );
+  });
+
+  it("an unreadable response body settles that POST once as unknown cost and does not continue", async () => {
+    process.env.OPENROUTER_API_KEY = DUMMY_KEY;
+    replies = [{ broken: "unreadable_body" }];
+    const run = recordingControl();
+    await assert.rejects(() => analyzeAssetImage(IMAGE_URL, 0, run.control), /body read failed/);
+    assert.deepEqual(providerPosts, [OPENROUTER_QWEN38_FLASH_MODEL]);
+    assert.deepEqual(run.before, [OPENROUTER_QWEN38_FLASH_MODEL]);
+    assert.deepEqual(
+      run.settled.map((post) => [post.outcome, post.cost]),
+      [["unparsed", null]]
+    );
+  });
+
+  it("a response that is not an object settles that POST once and keeps the earlier settlement", async () => {
+    process.env.OPENROUTER_API_KEY = DUMMY_KEY;
+    replies = [{ status: 500 }, { broken: "null_body" }];
+    const run = recordingControl();
+    await assert.rejects(
+      () => analyzeAssetImage(IMAGE_URL, 0, run.control),
+      (error: unknown) => error instanceof TypeError
+    );
+    assert.deepEqual(providerPosts, [OPENROUTER_QWEN38_FLASH_MODEL, OPENROUTER_QWEN3_VL_8B_INSTRUCT_MODEL]);
+    assert.deepEqual(
+      run.settled.map((post) => [post.model, post.outcome, post.cost]),
+      [
+        [OPENROUTER_QWEN38_FLASH_MODEL, "http_error", null],
+        [OPENROUTER_QWEN3_VL_8B_INSTRUCT_MODEL, "unparsed", null],
       ]
     );
   });
