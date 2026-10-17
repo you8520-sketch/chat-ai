@@ -421,4 +421,6 @@ POST 1회. fallback, 재시도, vision은 없다. 원본 바이트를 검사보�
 
 기준 이미지는 `reattach-2026-10-17/03-eval_style.webp`, SHA `7814a3950742201a5a0d9fff3b38b9ad3d706b93d52b6d3b603221c3d5aab699`다. 정면 상반신에 큰 모피 덩어리, 내부 선, 피부와 분리된 금속 하이라이트가 같이 있다. 적안과 적·금 군복 색은 복사 대상이 아니다. 9~11번, b7·b13·b5, 운영 대표, A~D 출력은 이 입력에 넣지 않는다.
 
-제안 설정은 1024x1536, medium, n=1, webp 88, opaque, 참조 1장이다. 모델은 고르지 않았다. 전송문은 `rep-edit-input-prompt.txt`, SHA `a0236c6f5a1a648fbb3d3b37ed687ec99a0bbfea6f7492d6bb6d9f80d05af570`. 운영 compiler는 바꾸지 않았다. 이 안은 보내지 않았다.
+입력안을 고쳤다. 모델은 `gpt-image-2`다. 새 정면 구도와 검 손잡이 포즈 문장은 뺐다. 원본의 캔버스, 크롭, 카메라, 머리 각도, 시선, 포즈, 배경을 유지한다. 화면 밖의 손·반지·열쇠·검을 보여 주려고 프레임을 넓히지 않는다. 소지품 문장은 Appearance Lock 안에 그대로 둔다. 흉터의 왼쪽은 인물 자신의 왼쪽이라고 실험 문장에만 적는다. Lock 원문과 hash `1c3ccd13…24dcc3`은 바꾸지 않았다. 공통 스타일 DNA와 새 광택·조명 규칙은 넣지 않았다.
+
+전송문 SHA `e24378f1…3de46e`. 이전 안 SHA `a0236c6f…5af570`. diff는 `rep-edit-input-prompt.diff`. 전처리 SHA `8d3b42d1…1a90fa`, 183858바이트. `prepareOfficialImageReferences`는 업로드·플랫폼 seed URL만 받으므로, 로컬 검토 파일에는 그 함수와 같은 sharp 단계(rotate, 1536 이내 확대 없음, webp quality 90 effort 4)를 적용했다. 이 개정은 아직 POST 전이다. 한도는 1회, 0.10 USD다.

@@ -1,6 +1,6 @@
-Edit the supplied image into one vertical 2:3 character card (1024x1536). Head and upper body, face readable in the upper third. Near-frontal, eye-level, simple uncluttered background.
-STYLE PRESERVATION — Keep this image's line weight, coloring method, and the way highlights sit on each material. Keep the relationship between large hair or fur masses and the description inside those masses. Keep the balance of face detail and costume detail. Do not restyle the picture into a different rendering.
-IDENTITY REPLACEMENT — The person, age, sex, costume, and colors become the approved Appearance Lock below. Do not copy this image's face, eye color, hair color, outfit design, outfit colors, insignia, jewelry, or props.
+Edit the supplied image in place at 1024x1536. Keep this image's canvas, crop, camera, head angle, gaze direction, pose, and background. Do not reframe the camera, crop, or head angle. Do not extend the frame to show hands, a ring, keys, or a sword that sit outside this crop.
+STYLE PRESERVATION — Keep the placement of the large hair masses and fur masses, and the way detail is drawn inside those masses. Keep the line weight, the skin coloring, the per-material highlights, and the relationship between face detail and costume detail. Draw the replaced face and armor with this same line and coloring method. Do not restyle the picture.
+IDENTITY REPLACEMENT — Depict 볼프강 폰 발켄하임 from the approved Appearance Lock. Do not copy the supplied person's face identity, red-and-gold uniform, gems, or insignia. Black hair and black fur that already agree with the lock stay; do not recolor them for their own sake. Replace the red-and-gold uniform with black-iron plate armor and a black wolf-fur coat.
 Character: 볼프강 폰 발켄하임, age 34.
 IDENTITY LOCK — identical across every image of this character:
 연령대 인상: 30s
@@ -11,9 +11,9 @@ IDENTITY LOCK — identical across every image of this character:
 피부: 추위에 쉽게 옅게 붉어지는 깨끗한 창백 피부
 특징: 왼쪽 턱 아래에 가늘게 남은 흉터, 왼손 약지는 동상 후유증으로 감각이 둔하다
 기본 의상: 흑철 판금 갑옷 위에 검은 늑대 모피 코트를 걸친다. 집무실에서도 갑옷 일부를 벗지 않는다. 가문의 인장이 박힌 흑철 지휘관 반지, 방벽 열쇠 꾸러미, 낡은 가죽 장갑을 지닌다.
+Scar side — In that lock, 왼쪽 means the character's own left, under his jaw on the side of his left shoulder, not the viewer's left.
 Never drift: 회청색 눈과 왼쪽 턱 아래의 가는 흉터를 변경하지 않는다.; 차가운 짙은 흑회색 울프컷과 188cm의 크고 넓은 어깨 체형을 변경하지 않는다.; 흑철 판금 갑옷과 검은 늑대 모피 코트의 팔레트 및 핵심 실루엣을 변경하지 않는다.
 MATURE MALE VISUAL AGE LOCK — Keep an adult man in his 30s visibly mature and age-appropriate while preserving a polished romance-target face. Convey maturity through physique, shoulders, neck, posture, gaze, grooming, authority and styling. Keep facial skin clean and healthy, cheek lines controlled, and the jaw defined without adding older-age facial texture. Wrinkles, sagging skin, hollowed cheeks, age spots, visibly receding hair, or an older-than-canon face belong only to characters whose canon explicitly calls for that older visual age.
 GENDER LOCK — Character 볼프강 폰 발켄하임: confirmed MALE. Flat masculine chest. Do not draw a feminine chest or a girl/woman body.
-Expression: 경계심을 감춘 냉정한 위엄. Pose: 갑옷을 입은 채 정면을 향해 서서 한 손을 검 손잡이에 얹는다.
 SAFETY — non-explicit, non-graphic. A healed, non-graphic scar from saved identity may remain. No blood, no weapon in use.
 FOREGROUND CAST: exactly one person. No text, speech bubbles, captions, logos, signatures, or watermarks.
