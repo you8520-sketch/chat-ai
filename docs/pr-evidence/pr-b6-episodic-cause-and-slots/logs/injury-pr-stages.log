@@ -1,0 +1,36 @@
+injury(state-like, verified) H=200 now: T30=INJECTED#2 T80=INJECTED#1
+injury(state-like, verified) H=200 why: T30=INJECTED#2 T80=INJECTED#1
+injury(state-like, verified) H=200 how-recovered: T30=CANDIDATE_MISS T80=INJECTED#1
+injury(state-like, verified) H=200 still-injured: T30=INJECTED#2 T80=INJECTED#1
+injury(state-like, verified) H=500 now: T30=INJECTED#2 T80=INJECTED#1
+injury(state-like, verified) H=500 why: T30=INJECTED#2 T80=INJECTED#1
+injury(state-like, verified) H=500 how-recovered: T30=CANDIDATE_MISS T80=INJECTED#1
+injury(state-like, verified) H=500 still-injured: T30=INJECTED#2 T80=INJECTED#1
+injury(state-like, verified) H=1000 now: T30=INJECTED#2 T80=INJECTED#1
+injury(state-like, verified) H=1000 why: T30=INJECTED#2 T80=INJECTED#1
+injury(state-like, verified) H=1000 how-recovered: T30=CANDIDATE_MISS T80=INJECTED#1
+injury(state-like, verified) H=1000 still-injured: T30=INJECTED#2 T80=INJECTED#1
+action(historical, verified) H=200 now: T30=INJECTED#2 T80=INJECTED#1
+action(historical, verified) H=200 why: T30=INJECTED#2 T80=INJECTED#1
+action(historical, verified) H=200 how-recovered: T30=DROPPED T80=INJECTED#1
+action(historical, verified) H=200 still-injured: T30=INJECTED#2 T80=INJECTED#1
+action(historical, verified) H=500 now: T30=INJECTED#2 T80=INJECTED#1
+action(historical, verified) H=500 why: T30=INJECTED#2 T80=INJECTED#1
+action(historical, verified) H=500 how-recovered: T30=DROPPED T80=INJECTED#1
+action(historical, verified) H=500 still-injured: T30=INJECTED#2 T80=INJECTED#1
+action(historical, verified) H=1000 now: T30=INJECTED#2 T80=INJECTED#1
+action(historical, verified) H=1000 why: T30=INJECTED#2 T80=INJECTED#1
+action(historical, verified) H=1000 how-recovered: T30=DROPPED T80=INJECTED#1
+action(historical, verified) H=1000 still-injured: T30=INJECTED#2 T80=INJECTED#1
+injury(state-like, legacy no source) H=200 now: T30=RECONCILED_OUT T80=INJECTED#1
+injury(state-like, legacy no source) H=200 why: T30=RECONCILED_OUT T80=INJECTED#1
+injury(state-like, legacy no source) H=200 how-recovered: T30=CANDIDATE_MISS T80=INJECTED#1
+injury(state-like, legacy no source) H=200 still-injured: T30=RECONCILED_OUT T80=INJECTED#1
+injury(state-like, legacy no source) H=500 now: T30=RECONCILED_OUT T80=INJECTED#1
+injury(state-like, legacy no source) H=500 why: T30=RECONCILED_OUT T80=INJECTED#1
+injury(state-like, legacy no source) H=500 how-recovered: T30=CANDIDATE_MISS T80=INJECTED#1
+injury(state-like, legacy no source) H=500 still-injured: T30=RECONCILED_OUT T80=INJECTED#1
+injury(state-like, legacy no source) H=1000 now: T30=RECONCILED_OUT T80=INJECTED#1
+injury(state-like, legacy no source) H=1000 why: T30=RECONCILED_OUT T80=INJECTED#1
+injury(state-like, legacy no source) H=1000 how-recovered: T30=CANDIDATE_MISS T80=INJECTED#1
+injury(state-like, legacy no source) H=1000 still-injured: T30=RECONCILED_OUT T80=INJECTED#1
