@@ -94,6 +94,20 @@ export function getNoticeById(db: Database.Database, id: number) {
     | undefined;
 }
 
+/** Notice ids for the public sitemap. Same `board='notice'` predicate as getNoticeById, without post bodies. */
+export function listPublicNoticeSitemapRows(
+  db: Database.Database
+): { id: number; created_at: string }[] {
+  return db
+    .prepare(
+      `SELECT id, created_at
+       FROM posts
+       WHERE board='notice'
+       ORDER BY id ASC`
+    )
+    .all() as { id: number; created_at: string }[];
+}
+
 /** 단일 공지 읽음 — logged-in notice_reads; guest sparse cookie state */
 export function markSingleNoticeRead(
   db: Database.Database,

@@ -1,10 +1,22 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getDb } from "@/lib/db";
 import { BOARD_CONFIG } from "@/lib/boardConfig";
+import { noticeBoardMetadata } from "@/lib/siteSeo";
 import MarkNoticeRead from "./MarkNoticeRead";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  if (slug !== "notice") return {};
+  return noticeBoardMetadata();
+}
 
 type Post = { id: number; title: string; content: string; author_name: string; created_at: string };
 

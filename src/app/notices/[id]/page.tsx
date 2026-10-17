@@ -1,12 +1,27 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppPageShell } from "@/components/AppPageShell";
 import { getDb } from "@/lib/db";
 import { getNoticeById } from "@/lib/notices";
+import { noticeDetailMetadata } from "@/lib/siteSeo";
 import { cn, studioType } from "@/lib/studioDesign";
 import MarkNoticeReadOnView from "./MarkNoticeReadOnView";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id: rawId } = await params;
+  const id = Number(rawId);
+  if (!Number.isFinite(id) || id <= 0) return {};
+  const notice = getNoticeById(getDb(), id);
+  if (!notice) return {};
+  return noticeDetailMetadata(notice);
+}
 
 function formatDate(iso: string) {
   return new Date(iso + "Z").toLocaleDateString("ko-KR", {

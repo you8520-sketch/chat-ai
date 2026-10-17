@@ -30,8 +30,11 @@ import {
   SEARCH_RESULT_LIMIT,
   searchSqlLikePattern,
 } from "@/lib/tagSearch";
+import { searchMetadata } from "@/lib/siteSeo";
 
 export const dynamic = "force-dynamic";
+
+export const metadata = searchMetadata();
 
 function collectPopularTags(rows: { tags: string }[], limit = 16): string[] {
   const counts = new Map<string, number>();
