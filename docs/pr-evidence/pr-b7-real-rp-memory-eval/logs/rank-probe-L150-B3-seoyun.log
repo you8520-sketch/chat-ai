@@ -1,0 +1,11 @@
+{"qid":"L150-B3-seoyun","currentTurn":151,"semantic_reason":"ok","candidates":86,"lanes":{"recent":55,"relevance":25,"milestone_critical":0,"milestone_important":1,"semantic":5},"injected":7}
+T57	RECONCILED_OUT	lanes=relevance	composite=-	rel=-	sem=-	character:taehyung:response_to_cake	태형은 서윤이 복귀 축하로 보낸 케이크를 공용 테이블에 두고 한 조각도 먹지 않았다.
+T64	RECONCILED_OUT	lanes=relevance+semantic	composite=-	rel=-	sem=-	character:taehyung:rejected_company	태형은 구내식당에서 한서윤의 동석 제안을 거절했다.
+-- injected
+#1	T146	lanes=recent+semantic	composite=10.920	rel=2.000	sem=0.530	태형은 골목 끝에서 작은 균열을 확인하고 봉인반을 불렀다.
+#2	T131	lanes=recent+semantic	composite=10.619	rel=2.000	sem=0.530	태형은 골목 끝에서 작은 균열을 확인하고 봉인반을 불렀다.
+#3	T116	lanes=recent+semantic	composite=10.483	rel=2.000	sem=0.530	태형은 골목 끝에서 작은 균열을 확인하고 봉인반을 불렀다.
+#4	T146	lanes=recent	composite=8.800	rel=2.000	sem=0.468	태형과 렌은 한강 둔치에서 D급 순찰을 했다.
+#5	T144	lanes=recent	composite=8.741	rel=2.000	sem=0.436	태형과 렌은 가이딩실에서 야간 대기를 했다.
+#6	T130	lanes=recent	composite=8.488	rel=2.000	sem=0.483	태형은 렌에게 두 사람이 14일째 평화로운 날을 보내고 있다고 말했다.
+#7	T130	lanes=recent	composite=8.488	rel=2.000	sem=0.455	태형은 렌과 함께 가이딩실에서 산책했다.

@@ -1,0 +1,6 @@
+== snap-150 (currentTurn=151, message=B3-seoyun, guard-allowed candidates, reconcileGlobalStateLikeFacts)
+prefer=all {"allowed":81,"target":[40,39,34],"kept":[],"stats":{"queryCount":25,"rowsFetched":25,"keysDiscovered":50,"keysReconciled":23,"keysDroppedDueToCap":25,"keysOmittedBlockedLatest":0,"keysOmittedRawWindow":2}}
+prefer=seoyun-only {"allowed":81,"target":[40,39,34],"kept":[40,39,34],"stats":{"queryCount":25,"rowsFetched":25,"keysDiscovered":50,"keysReconciled":23,"keysDroppedDueToCap":25,"keysOmittedBlockedLatest":0,"keysOmittedRawWindow":2}}
+== snap-500 (currentTurn=501, message=B3-seoyun, guard-allowed candidates, reconcileGlobalStateLikeFacts)
+prefer=all {"allowed":81,"target":[40],"kept":[],"stats":{"queryCount":25,"rowsFetched":25,"keysDiscovered":46,"keysReconciled":25,"keysDroppedDueToCap":21,"keysOmittedBlockedLatest":0,"keysOmittedRawWindow":0}}
+prefer=seoyun-only {"allowed":81,"target":[40],"kept":[40],"stats":{"queryCount":25,"rowsFetched":25,"keysDiscovered":46,"keysReconciled":25,"keysDroppedDueToCap":21,"keysOmittedBlockedLatest":0,"keysOmittedRawWindow":0}}

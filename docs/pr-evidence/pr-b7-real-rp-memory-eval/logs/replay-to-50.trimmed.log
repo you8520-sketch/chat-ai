@@ -1,0 +1,51 @@
+[memory] 5턴 기억 기록 chat=1 turns=26-30 (308ch → lorebook 2124/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  mode: 'daily_kst',
+[replay] T31 shared=ok episodic_req=true rel=true barrier=30 episodic_rows=23 summaries=6
+[replay] T32 shared=ok episodic_req=true rel=true barrier=30 episodic_rows=23 summaries=6
+  source_turn: 33,
+  replaced_source_turn: false,
+[replay] T33 shared=ok episodic_req=true rel=true barrier=30 episodic_rows=24 summaries=6
+[replay] T34 shared=ok episodic_req=true rel=true barrier=30 episodic_rows=24 summaries=6
+  source_turn: 35,
+  replaced_source_turn: false,
+[replay] T35 shared=ok episodic_req=true rel=true barrier=30 episodic_rows=26 summaries=6
+[memory] 5턴 기억 기록 chat=1 turns=31-35 (277ch → lorebook 2412/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T36 shared=ok episodic_req=true rel=true barrier=35 episodic_rows=26 summaries=7
+[replay] T37 shared=ok episodic_req=true rel=true barrier=35 episodic_rows=26 summaries=7
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 38,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 38,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T38 shared=ok episodic_req=true rel=true barrier=35 episodic_rows=26 summaries=7
+[replay] T39 shared=ok episodic_req=true rel=true barrier=35 episodic_rows=26 summaries=7
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 40,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+  source_turn: 40,
+  replaced_source_turn: false,
+[replay] T40 shared=ok episodic_req=true rel=true barrier=35 episodic_rows=27 summaries=7
+[memory] 5턴 기억 기록 chat=1 turns=36-40 (322ch → lorebook 2745/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T41 shared=ok episodic_req=true rel=true barrier=40 episodic_rows=27 summaries=8
+  source_turn: 42,
+  replaced_source_turn: false,
+[replay] T42 shared=ok episodic_req=true rel=true barrier=40 episodic_rows=28 summaries=8
+[replay] T43 shared=ok episodic_req=true rel=true barrier=40 episodic_rows=28 summaries=8
+  source_turn: 44,
+  replaced_source_turn: false,
+[replay] T44 shared=ok episodic_req=true rel=true barrier=40 episodic_rows=29 summaries=8
+[replay] T45 shared=ok episodic_req=true rel=true barrier=40 episodic_rows=29 summaries=8
+[memory] 5턴 기억 기록 chat=1 turns=41-45 (287ch → lorebook 3043/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 46,
+  replaced_source_turn: false,
+[replay] T46 shared=ok episodic_req=true rel=true barrier=45 episodic_rows=31 summaries=9
+[replay] T47 shared=ok episodic_req=true rel=true barrier=45 episodic_rows=31 summaries=9
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 48,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+  source_turn: 48,
+  replaced_source_turn: false,
+[replay] T48 shared=ok episodic_req=true rel=true barrier=45 episodic_rows=32 summaries=9
+[replay] T49 shared=ok episodic_req=true rel=true barrier=45 episodic_rows=32 summaries=9
+[replay] T50 shared=ok episodic_req=true rel=true barrier=45 episodic_rows=32 summaries=9

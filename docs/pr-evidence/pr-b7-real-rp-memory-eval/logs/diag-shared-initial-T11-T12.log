@@ -1,0 +1,242 @@
+[database] runtime diagnostics {
+  nodeEnv: '',
+  nextPhase: '',
+  cwd: '/workspace',
+  dataDir: '/tmp/b7/run/diag',
+  databasePath: '/tmp/b7/run/diag/app.db',
+  dataDirExists: true,
+  dataDirIsMounted: false,
+  productionRuntime: false
+}
+[aux_provider_call] {
+  event: 'aux_provider_call',
+  auxOwner: 'STATUS_WIDGET',
+  model: 'gpt-6-luna',
+  requestKind: 'background-post-turn-shared-initial',
+  trigger: null,
+  chatId: null,
+  messageId: null,
+  requestId: null,
+  attempt: 1,
+  isRetry: false,
+  jobId: null,
+  promptFingerprint: '018f5283a3593d14'
+}
+[database] runtime diagnostics {
+  nodeEnv: '',
+  nextPhase: '',
+  cwd: '/workspace',
+  dataDir: '/tmp/b7/run/diag',
+  databasePath: '/tmp/b7/run/diag/app.db',
+  dataDirExists: true,
+  dataDirIsMounted: false,
+  productionRuntime: false
+}
+{
+ "turn": 11,
+ "sample": 1,
+ "transportOk": true,
+ "raw_episodic": {
+  "extracted_facts": [
+   {
+    "category": "character",
+    "subject": "seoyun",
+    "attribute": "occupation",
+    "value": "support_bureau_coordinator",
+    "importance": "normal",
+    "fact_text": "한서윤은 지원국 코디네이터다.",
+    "evidence_type": "explicit_scene_event",
+    "evidence": {
+     "source_role": "assistant",
+     "source_quote": "지원국 코디네이터 한서윤이 복도 끝에서 손을 흔들었다."
+    }
+   },
+   {
+    "category": "character",
+    "subject": "taehyung",
+    "attribute": "name_on_document",
+    "value": "seoyun_carried_file",
+    "importance": "normal",
+    "fact_text": "렌은 서윤이 든 서류철 맨 위에 태형의 이름이 적힌 것을 보았다.",
+    "evidence_type": "explicit_scene_event",
+    "evidence": {
+     "source_role": "assistant",
+     "source_quote": "렌은 그녀가 들고 가는 서류철 맨 위에 태형의 이름이 적힌 걸 보았다."
+    }
+   }
+  ]
+ },
+ "parsed_episodic": {
+  "present": true,
+  "valid": true,
+  "facts": [
+   {
+    "category": "character",
+    "subject": "seoyun",
+    "attribute": "occupation",
+    "value": "support_bureau_coordinator",
+    "importance": "normal",
+    "fact_text": "한서윤은 지원국 코디네이터다.",
+    "evidence_type": "explicit_scene_event",
+    "evidence": {
+     "source_role": "assistant",
+     "source_quote": "지원국 코디네이터 한서윤이 복도 끝에서 손을 흔들었다."
+    }
+   },
+   {
+    "category": "character",
+    "subject": "taehyung",
+    "attribute": "name_on_document",
+    "value": "seoyun_carried_file",
+    "importance": "normal",
+    "fact_text": "렌은 서윤이 든 서류철 맨 위에 태형의 이름이 적힌 것을 보았다.",
+    "evidence_type": "explicit_scene_event",
+    "evidence": {
+     "source_role": "assistant",
+     "source_quote": "렌은 그녀가 들고 가는 서류철 맨 위에 태형의 이름이 적힌 걸 보았다."
+    }
+   }
+  ]
+ }
+}
+[aux_provider_call] {
+  event: 'aux_provider_call',
+  auxOwner: 'STATUS_WIDGET',
+  model: 'gpt-6-luna',
+  requestKind: 'background-post-turn-shared-initial',
+  trigger: null,
+  chatId: null,
+  messageId: null,
+  requestId: null,
+  attempt: 1,
+  isRetry: false,
+  jobId: null,
+  promptFingerprint: '018f5283a3593d14'
+}
+[exchangeRate] refreshed {
+  mode: 'daily_kst',
+  dateKey: '2026-10-17',
+  usdToKrw: 1334.892169,
+  effectiveKrwPerUsd: 1361.59001238
+}
+{
+ "turn": 11,
+ "sample": 2,
+ "transportOk": true,
+ "raw_episodic": {
+  "extracted_facts": []
+ },
+ "parsed_episodic": {
+  "present": true,
+  "valid": true,
+  "facts": []
+ }
+}
+[aux_provider_call] {
+  event: 'aux_provider_call',
+  auxOwner: 'STATUS_WIDGET',
+  model: 'gpt-6-luna',
+  requestKind: 'background-post-turn-shared-initial',
+  trigger: null,
+  chatId: null,
+  messageId: null,
+  requestId: null,
+  attempt: 1,
+  isRetry: false,
+  jobId: null,
+  promptFingerprint: '69e59e19e3d5cb64'
+}
+{
+ "turn": 12,
+ "sample": 1,
+ "transportOk": true,
+ "raw_episodic": {
+  "extracted_facts": []
+ },
+ "parsed_episodic": {
+  "present": true,
+  "valid": true,
+  "facts": []
+ }
+}
+[aux_provider_call] {
+  event: 'aux_provider_call',
+  auxOwner: 'STATUS_WIDGET',
+  model: 'gpt-6-luna',
+  requestKind: 'background-post-turn-shared-initial',
+  trigger: null,
+  chatId: null,
+  messageId: null,
+  requestId: null,
+  attempt: 1,
+  isRetry: false,
+  jobId: null,
+  promptFingerprint: '69e59e19e3d5cb64'
+}
+{
+ "turn": 12,
+ "sample": 2,
+ "transportOk": true,
+ "raw_episodic": {
+  "extracted_facts": [
+   {
+    "category": "character",
+    "subject": "taehyung",
+    "attribute": "disciplinary_action",
+    "value": "three_day_confinement",
+    "importance": "normal",
+    "fact_text": "태형은 규정 위반으로 3일 근신 처분을 받았다.",
+    "evidence_type": "explicit_scene_event",
+    "evidence": {
+     "source_role": "assistant",
+     "source_quote": "3일 동안 숙소에서 뒹굴지 뭐."
+    }
+   },
+   {
+    "category": "character",
+    "subject": "taehyung",
+    "attribute": "reported_by",
+    "value": "han_seoyoon",
+    "importance": "normal",
+    "fact_text": "태형은 징계 통지서에 지원국 코디네이터 한서윤이 보고자로 기재되어 있었다고 말했다.",
+    "evidence_type": "explicit_character_claim",
+    "evidence": {
+     "source_role": "assistant",
+     "source_quote": "서윤 씨가 직접 올렸대."
+    }
+   }
+  ]
+ },
+ "parsed_episodic": {
+  "present": true,
+  "valid": true,
+  "facts": [
+   {
+    "category": "character",
+    "subject": "taehyung",
+    "attribute": "disciplinary_action",
+    "value": "three_day_confinement",
+    "importance": "normal",
+    "fact_text": "태형은 규정 위반으로 3일 근신 처분을 받았다.",
+    "evidence_type": "explicit_scene_event",
+    "evidence": {
+     "source_role": "assistant",
+     "source_quote": "3일 동안 숙소에서 뒹굴지 뭐."
+    }
+   },
+   {
+    "category": "character",
+    "subject": "taehyung",
+    "attribute": "reported_by",
+    "value": "han_seoyoon",
+    "importance": "normal",
+    "fact_text": "태형은 징계 통지서에 지원국 코디네이터 한서윤이 보고자로 기재되어 있었다고 말했다.",
+    "evidence_type": "explicit_character_claim",
+    "evidence": {
+     "source_role": "assistant",
+     "source_quote": "서윤 씨가 직접 올렸대."
+    }
+   }
+  ]
+ }
+}

@@ -1,0 +1,4 @@
+{"qid":"L500-C1-text","currentTurn":501,"semantic_reason":"ok","candidates":57,"lanes":{"recent":55,"relevance":1,"milestone_critical":0,"milestone_important":1,"semantic":0},"injected":1}
+T22	INJECTED#1	lanes=relevance+semantic	composite=7.164	rel=1.000	sem=0.531	relationship:user:event_cancellation	렌은 태형에게 금요일 야시장에 가지 않겠다고 말하고 배정받은 가이드와 탕후루를 먹을 필요가 없다고 했다.
+-- injected
+#1	T22	lanes=relevance+semantic	composite=7.164	rel=1.000	sem=0.531	렌은 태형에게 금요일 야시장에 가지 않겠다고 말하고 배정받은 가이드와 탕후루를 먹을 필요가 없다고 했다.
