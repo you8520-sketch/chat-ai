@@ -1,13 +1,19 @@
 /**
- * Seeded exploration graph. Pure: no database, no client import.
+ * Exploration graph engine. Pure: no database, no client import.
  * The client renders PublicExploration only. This module holds hidden events.
+ *
+ * Version 2 maps are compiled from the campaign's frozen `plan.adventure`.
+ * Version 1 maps are the legacy seeded facility (현관홀/경보실/출구); their risk, alarm, and
+ * exit-latch rules apply only when `state.version === 1`.
  */
+import type { AdventureEventKind, AdventureEventTrigger, AdventurePlaceRole, TrpgAdventure } from "./adventure";
 import { declaredMovementGoals, describeMovementGoal } from "./movementDeclaration";
 import {
   EXPLORATION_AP_PER_ROUND,
   EXPLORATION_COMMAND_LIMIT,
   type ExplorationCommand,
   type PublicExploration,
+  type PublicExplorationDiscovery,
   type PublicExplorationMarker,
   explorationCommandCost,
 } from "./explorationPublic";
@@ -38,36 +44,43 @@ const ROOM_IDS = [
   EXPLORATION_LOOP_ROOM,
 ] as const;
 
-export type ExplorationRoomRole = "start" | "fork" | "passage" | "search" | "reward" | "hazard" | "exit" | "loop";
+type LegacyRoomRole = "start" | "fork" | "passage" | "search" | "reward" | "hazard" | "exit" | "loop";
+export type ExplorationRoomRole = LegacyRoomRole | AdventurePlaceRole;
 
 export type ExplorationRoom = {
-  /** Sheet location label. */
+  /** Stable key. Legacy v1 rooms use their Korean label as the key. */
   id: string;
-  /** Opaque id for the public map. Unvisited rooms are addressed by this, not by their label. */
+  /** Display name, written to sheet location. Absent on legacy v1 rooms, where it equals `id`. */
+  name?: string;
+  /** Opaque id for the public map. */
   publicId: string;
   x: number;
   y: number;
   role: ExplorationRoomRole;
+  /** Player-safe description from the adventure canon. */
+  summary?: string;
 };
 
+/** Passable when neither hidden nor locked, or once its id is in `revealedEdgeIds`. */
 export type ExplorationEdge = {
   id: string;
   from: string;
   to: string;
   hidden?: boolean;
+  opensBy?: string;
 };
 
 export type ExplorationEvent = {
   id: string;
   roomId: string;
-  kind: "clue" | "supply" | "hidden";
-  /** Minimum search depth. Careful search also resolves normal events. */
-  search: "normal" | "careful";
-  clueFlag?: string;
-  clueText?: string;
-  itemName?: string;
-  revealEdgeId?: string;
-  passageFlag?: string;
+  trigger: AdventureEventTrigger;
+  effect: AdventureEventKind;
+  /** Secret until the event fires. */
+  text: string;
+  item?: string;
+  requires?: string[];
+  /** Legacy v1 only: exact world flag mirrored into the ledger. */
+  flag?: string;
 };
 
 export type ExplorationMap = {
@@ -85,14 +98,18 @@ export type ExplorationPending = {
 };
 
 export type ExplorationState = {
-  version: 1;
+  /** 1 = legacy seeded facility map, 2 = compiled adventure canon. */
+  version: 1 | 2;
   seed: string;
+  startRoomId: string;
   map: ExplorationMap;
   revealedEventIds: string[];
   grantedEventIds: string[];
   revealedEdgeIds: string[];
   visitedRoomIds: string[];
+  /** Legacy v1 only. */
   risk: number;
+  /** Legacy v1 only. */
   alarmFlagged: boolean;
   apRoundNumber: number;
   apRemaining: Record<string, number>;
@@ -104,13 +121,14 @@ export type ExplorationActorResult = {
   participantId: number;
   name: string;
   failed: boolean;
+  /** Display name of the room the actor ended in, when they moved. */
   location: string | null;
   items: string[];
   flags: string[];
   lines: string[];
 };
 
-const ROLES: Record<string, ExplorationRoomRole> = {
+const ROLES: Record<string, LegacyRoomRole> = {
   [EXPLORATION_ENTRANCE]: "start",
   중앙홀: "fork",
   북쪽복도: "fork",
@@ -222,7 +240,11 @@ function edgeId(from: string, to: string): string {
   return from < to ? `edge-${from}-${to}` : `edge-${to}-${from}`;
 }
 
-function eventsForMap(): ExplorationEvent[] {
+/**
+ * Legacy v1 events in their stored shape. Stored v1 campaigns keep these keys; the reader adds
+ * the canonical fields beside them, so a rollback still finds what it wrote.
+ */
+function legacyEventsForMap(): Array<Record<string, unknown>> {
   return [
     {
       id: "event-clue",
@@ -251,9 +273,72 @@ function eventsForMap(): ExplorationEvent[] {
   ];
 }
 
+function str(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function normalizeLegacyEvent(raw: Record<string, unknown>): ExplorationEvent & Record<string, unknown> {
+  const kind = str(raw.kind);
+  const effect: AdventureEventKind = kind === "supply" ? "item" : kind === "hidden" ? "open" : "clue";
+  const canonical: ExplorationEvent = {
+    id: str(raw.id),
+    roomId: str(raw.roomId),
+    trigger: raw.search === "careful" ? "careful_search" : "search",
+    effect,
+    text: str(raw.clueText) || str(raw.clueFlag) || str(raw.passageFlag) || str(raw.itemName),
+    ...(effect === "item" && str(raw.itemName) ? { item: str(raw.itemName) } : {}),
+    ...(str(raw.clueFlag) || str(raw.passageFlag) ? { flag: str(raw.clueFlag) || str(raw.passageFlag) } : {}),
+  };
+  return { ...raw, ...canonical };
+}
+
+/** Reads stored maps of either version into the canonical shape. */
+function normalizeMap(raw: ExplorationMap, version: 1 | 2): ExplorationMap {
+  if (version === 2) return raw;
+  const events = (raw.events as unknown as Array<Record<string, unknown>>).map((event) =>
+    "effect" in event && "trigger" in event ? (event as unknown as ExplorationEvent) : normalizeLegacyEvent(event)
+  );
+  const opener = new Map<string, string>();
+  for (const event of raw.events as unknown as Array<Record<string, unknown>>) {
+    const reveal = str(event.revealEdgeId);
+    if (reveal) opener.set(reveal, str(event.id));
+  }
+  const edges = raw.edges.map((edge) =>
+    edge.hidden && !edge.opensBy && opener.has(edge.id) ? { ...edge, opensBy: opener.get(edge.id) } : edge
+  );
+  return { rooms: raw.rooms, edges, events };
+}
+
+export function roomName(map: ExplorationMap, roomId: string): string {
+  const room = map.rooms.find((item) => item.id === roomId);
+  return room?.name ?? room?.id ?? roomId;
+}
+
+function nameKey(label: string): string {
+  return label.replace(/\s+/g, "").toLowerCase();
+}
+
+/** Resolves a public id, key, or display name to the room key. */
+export function canonicalRoomId(map: ExplorationMap, token: string): string | null {
+  const trimmed = token.trim();
+  if (!trimmed) return null;
+  const exact = map.rooms.find((room) => room.publicId === trimmed || room.id === trimmed || room.name === trimmed);
+  if (exact) return exact.id;
+  const wanted = nameKey(trimmed);
+  return map.rooms.find((room) => nameKey(room.name ?? room.id) === wanted)?.id ?? null;
+}
+
+function edgePassable(edge: ExplorationEdge, revealed: ReadonlySet<string>): boolean {
+  return (!edge.hidden && !edge.opensBy) || revealed.has(edge.id);
+}
+
+function edgeVisible(edge: ExplorationEdge, revealed: ReadonlySet<string>): boolean {
+  return !edge.hidden || revealed.has(edge.id);
+}
+
 export function openEdges(map: ExplorationMap, revealedEdgeIds: readonly string[]): ExplorationEdge[] {
   const revealed = new Set(revealedEdgeIds);
-  return map.edges.filter((edge) => !edge.hidden || revealed.has(edge.id));
+  return map.edges.filter((edge) => edgePassable(edge, revealed));
 }
 
 export function roomDegree(map: ExplorationMap, roomId: string, includeHidden: boolean): number {
@@ -263,11 +348,15 @@ export function roomDegree(map: ExplorationMap, roomId: string, includeHidden: b
   }).length;
 }
 
+function startRoomOf(map: ExplorationMap): string | undefined {
+  return (map.rooms.find((room) => room.role === "start") ?? map.rooms[0])?.id;
+}
+
 export function explorationRoomsReachable(map: ExplorationMap, includeHidden: boolean): boolean {
-  const start = map.rooms.find((room) => room.role === "start") ?? map.rooms[0];
+  const start = startRoomOf(map);
   if (!start) return false;
-  const seen = new Set<string>([start.id]);
-  const queue = [start.id];
+  const seen = new Set<string>([start]);
+  const queue = [start];
   const revealed = includeHidden ? map.edges.map((edge) => edge.id) : [];
   const edges = openEdges(map, revealed);
   while (queue.length) {
@@ -316,7 +405,7 @@ function openNeighbors(map: ExplorationMap, roomId: string): string[] {
 }
 
 /**
- * The exit latch opens only after the alarm. The clue is not required.
+ * Legacy v1: the exit latch opens only after the alarm. The clue is not required.
  * Alarm can be raised by ordinary moves and searches, so a connected map
  * is not escapable unless that sequence can still reach the exit.
  */
@@ -345,7 +434,7 @@ export function explorationCanEscape(map: ExplorationMap): boolean {
   return false;
 }
 
-function assertPlayable(map: ExplorationMap): void {
+function assertLegacyPlayable(map: ExplorationMap): void {
   if (map.rooms.length < 7 || map.rooms.length > 9) throw new Error("탐험 지도 방 수가 범위를 벗어났습니다.");
   if (!explorationRoomsReachable(map, false)) throw new Error("탐험 지도가 연결되지 않았습니다.");
   if (!explorationMapHasCycle(map, false)) throw new Error("탐험 지도에 순환 경로가 없습니다.");
@@ -356,13 +445,24 @@ function assertPlayable(map: ExplorationMap): void {
   if (!explorationCanEscape(map)) throw new Error("탐험 지도에서 탈출할 수 없습니다.");
 }
 
-/** Movement goals in free text, priced later by the same command owner as a map click. */
+/**
+ * Movement goals in free text, priced later by the same command owner as a map click.
+ * A goal resolves by its head word, then by the whole phrase, then by the longest room name
+ * the phrase contains, so multi-word adventure names still match.
+ */
 export function explorationCommandsFromMovementBody(map: ExplorationMap, body: string): ExplorationCommand[] {
   const commands: ExplorationCommand[] = [];
+  const byLength = [...map.rooms].sort((a, b) => nameKey(b.name ?? b.id).length - nameKey(a.name ?? a.id).length);
   for (const goal of declaredMovementGoals(body)) {
     const place = describeMovementGoal(goal).place;
-    if (!place) continue;
-    commands.push({ op: "move", roomId: canonicalRoomId(map, place) ?? place });
+    const phrase = nameKey(goal);
+    const contained = byLength.find((room) => {
+      const key = nameKey(room.name ?? room.id);
+      return key.length >= 2 && phrase.includes(key);
+    });
+    const roomId = (place ? canonicalRoomId(map, place) : null) ?? canonicalRoomId(map, goal) ?? contained?.id;
+    if (roomId) commands.push({ op: "move", roomId });
+    else if (place) commands.push({ op: "move", roomId: place });
   }
   if (commands.length > EXPLORATION_COMMAND_LIMIT) throw new Error("한 번에 너무 많은 탐험 명령입니다.");
   return commands;
@@ -375,11 +475,7 @@ export function generateExplorationMap(seed: string): ExplorationMap {
     if (!position) throw new Error("탐험 지도 좌표가 없습니다.");
     return { id, publicId: "", x: position[0], y: position[1], role: ROLES[id] ?? "passage" };
   });
-  [...rooms]
-    .sort((a, b) => a.y - b.y || a.x - b.x || a.id.localeCompare(b.id))
-    .forEach((room, index) => {
-      room.publicId = `r${index + 1}`;
-    });
+  assignPublicIds(rooms);
   const edges: ExplorationEdge[] = layout.links.map(([from, to]) => ({ id: edgeId(from, to), from, to }));
   edges.push({
     id: EXPLORATION_HIDDEN_EDGE,
@@ -387,21 +483,89 @@ export function generateExplorationMap(seed: string): ExplorationMap {
     to: EXPLORATION_ENTRANCE,
     hidden: true,
   });
-  const map = { rooms, edges, events: eventsForMap() };
-  assertPlayable(map);
+  const map = normalizeMap({ rooms, edges, events: legacyEventsForMap() as unknown as ExplorationEvent[] }, 1);
+  assertLegacyPlayable(map);
   return map;
 }
 
-export function emptyExplorationState(seed: string): ExplorationState {
-  const map = generateExplorationMap(seed);
+function assignPublicIds(rooms: ExplorationRoom[]): void {
+  [...rooms]
+    .sort((a, b) => a.y - b.y || a.x - b.x || a.id.localeCompare(b.id))
+    .forEach((room, index) => {
+      room.publicId = `r${index + 1}`;
+    });
+}
+
+/**
+ * Compiles a validated adventure (see `evaluateAdventure`) into a frozen map.
+ * Columns are link distance from the start; rows are centered within each column.
+ */
+export function compileAdventureMap(adventure: TrpgAdventure): ExplorationMap {
+  const depth = new Map<string, number>([[adventure.start, 0]]);
+  const queue = [adventure.start];
+  while (queue.length) {
+    const current = queue.shift()!;
+    for (const link of adventure.links) {
+      const next = link.from === current ? link.to : link.to === current ? link.from : "";
+      if (!next || depth.has(next)) continue;
+      depth.set(next, (depth.get(current) ?? 0) + 1);
+      queue.push(next);
+    }
+  }
+  const deepest = Math.max(0, ...depth.values());
+  const columns = new Map<number, string[]>();
+  for (const place of adventure.places) {
+    const column = depth.get(place.key) ?? deepest + 1;
+    columns.set(column, [...(columns.get(column) ?? []), place.key]);
+  }
+  const tallest = Math.max(1, ...[...columns.values()].map((keys) => keys.length));
+  const position = new Map<string, [number, number]>();
+  for (const [column, keys] of columns) {
+    const offset = (tallest - keys.length) / 2;
+    keys.forEach((key, index) => position.set(key, [column, offset + index]));
+  }
+  const rooms: ExplorationRoom[] = adventure.places.map((place) => {
+    const [x, y] = position.get(place.key) ?? [0, 0];
+    return {
+      id: place.key,
+      name: place.name,
+      publicId: "",
+      x,
+      y,
+      role: place.role,
+      ...(place.summary ? { summary: place.summary } : {}),
+    };
+  });
+  assignPublicIds(rooms);
+  const edges: ExplorationEdge[] = adventure.links.map((link) => ({
+    id: edgeId(link.from, link.to),
+    from: link.from,
+    to: link.to,
+    ...(link.hidden ? { hidden: true } : {}),
+    ...(link.opensBy ? { opensBy: link.opensBy } : {}),
+  }));
+  const events: ExplorationEvent[] = adventure.events.map((event) => ({
+    id: event.key,
+    roomId: event.place,
+    trigger: event.trigger,
+    effect: event.kind,
+    text: event.text,
+    ...(event.item ? { item: event.item } : {}),
+    ...(event.requires?.length ? { requires: [...event.requires] } : {}),
+  }));
+  return { rooms, edges, events };
+}
+
+function freshState(version: 1 | 2, seed: string, map: ExplorationMap, startRoomId: string): ExplorationState {
   return {
-    version: 1,
+    version,
     seed,
+    startRoomId,
     map,
     revealedEventIds: [],
     grantedEventIds: [],
     revealedEdgeIds: [],
-    visitedRoomIds: [EXPLORATION_ENTRANCE],
+    visitedRoomIds: [startRoomId],
     risk: 0,
     alarmFlagged: false,
     apRoundNumber: 0,
@@ -409,6 +573,15 @@ export function emptyExplorationState(seed: string): ExplorationState {
     pending: [],
     appliedKeys: [],
   };
+}
+
+/** Legacy v1 facility map. Only reached for test plans with `exploration: true` and no adventure. */
+export function emptyExplorationState(seed: string): ExplorationState {
+  return freshState(1, seed, generateExplorationMap(seed), EXPLORATION_ENTRANCE);
+}
+
+export function adventureExplorationState(adventure: TrpgAdventure, seed: string): ExplorationState {
+  return freshState(2, seed, compileAdventureMap(adventure), adventure.start);
 }
 
 export function parseExplorationState(raw: unknown): ExplorationState | null {
@@ -424,12 +597,21 @@ export function parseExplorationState(raw: unknown): ExplorationState | null {
   }
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as Partial<ExplorationState>;
-  if (row.version !== 1 || typeof row.seed !== "string" || !row.map) return null;
+  if ((row.version !== 1 && row.version !== 2) || typeof row.seed !== "string" || !row.map) return null;
   if (!Array.isArray(row.map.rooms) || !Array.isArray(row.map.edges) || !Array.isArray(row.map.events)) return null;
+  const map = normalizeMap(row.map, row.version);
+  const startRoomId =
+    typeof row.startRoomId === "string" && map.rooms.some((room) => room.id === row.startRoomId)
+      ? row.startRoomId
+      : row.version === 1
+        ? EXPLORATION_ENTRANCE
+        : null;
+  if (!startRoomId) return null;
   return {
-    version: 1,
+    version: row.version,
     seed: row.seed,
-    map: row.map,
+    startRoomId,
+    map,
     revealedEventIds: Array.isArray(row.revealedEventIds) ? row.revealedEventIds.filter((id) => typeof id === "string") : [],
     grantedEventIds: Array.isArray(row.grantedEventIds) ? row.grantedEventIds.filter((id) => typeof id === "string") : [],
     revealedEdgeIds: Array.isArray(row.revealedEdgeIds) ? row.revealedEdgeIds.filter((id) => typeof id === "string") : [],
@@ -448,6 +630,19 @@ export function parseExplorationState(raw: unknown): ExplorationState | null {
     pending: Array.isArray(row.pending) ? row.pending.filter((item) => item && typeof item === "object") : [],
     appliedKeys: Array.isArray(row.appliedKeys) ? row.appliedKeys.filter((id) => typeof id === "string") : [],
   };
+}
+
+function isLegacy(state: ExplorationState): boolean {
+  return state.version === 1;
+}
+
+/** v1 mirrors exact facility flags into the ledger; v2 discoveries live only in exploration state. */
+export function explorationOwnsWorldFlags(state: ExplorationState): boolean {
+  return isLegacy(state);
+}
+
+export function explorationStartName(state: ExplorationState): string {
+  return roomName(state.map, state.startRoomId);
 }
 
 /** Round recovery lives here: a new round number refills AP without a read-side write. */
@@ -470,43 +665,50 @@ function goalParticle(label: string): "로" | "으로" {
 }
 
 export function composeExplorationSentences(map: ExplorationMap, fromRoomId: string, commands: readonly ExplorationCommand[]): string {
-  let roomId = fromRoomId;
+  let label = roomName(map, canonicalRoomId(map, fromRoomId) ?? fromRoomId);
   const lines: string[] = [];
   for (const command of commands) {
     if (command.op === "move") {
-      const label = canonicalRoomId(map, command.roomId) ?? command.roomId;
+      const dest = canonicalRoomId(map, command.roomId);
+      label = dest ? roomName(map, dest) : command.roomId;
       lines.push(`${label}${goalParticle(label)} 이동한다.`);
-      roomId = label;
       continue;
     }
-    const label = roomId;
     const particle = hasBatchim(label) ? "을" : "를";
     lines.push(command.depth === "careful" ? `${label}${particle} 정밀히 조사한다.` : `${label}${particle} 조사한다.`);
   }
   return lines.join(" ");
 }
 
-function canonicalRoomId(map: ExplorationMap, token: string): string | null {
-  const room = map.rooms.find((item) => item.publicId === token || item.id === token);
-  return room?.id ?? null;
+/** Display name of the room after the move commands that resolve on this map. */
+export function roomNameAfterCommands(map: ExplorationMap, fromLabel: string, commands: readonly ExplorationCommand[]): string {
+  let label = fromLabel;
+  for (const command of commands) {
+    if (command.op !== "move") continue;
+    const dest = canonicalRoomId(map, command.roomId);
+    if (dest) label = roomName(map, dest);
+  }
+  return label;
 }
 
-function publicIdFor(map: ExplorationMap, roomId: string): string {
-  return map.rooms.find((room) => room.id === roomId)?.publicId ?? roomId;
+export function explorationRoomNames(map: ExplorationMap): string[] {
+  return map.rooms.map((room) => room.name ?? room.id);
 }
 
-function moveClass(
-  map: ExplorationMap,
-  from: string,
-  to: string,
-  revealedEdgeIds: readonly string[]
-): "ok" | "hidden" | "absent" | "unknown" {
+type MoveClass = "ok" | "locked" | "hidden" | "absent" | "unknown";
+
+function moveClass(map: ExplorationMap, from: string, to: string, revealedEdgeIds: readonly string[]): MoveClass {
   if (!map.rooms.some((room) => room.id === from) || !map.rooms.some((room) => room.id === to)) return "unknown";
   const edges = map.edges.filter((edge) => (edge.from === from && edge.to === to) || (edge.to === from && edge.from === to));
   if (edges.length === 0) return "absent";
   const revealed = new Set(revealedEdgeIds);
-  if (edges.some((edge) => !edge.hidden || revealed.has(edge.id))) return "ok";
+  if (edges.some((edge) => edgePassable(edge, revealed))) return "ok";
+  if (edges.some((edge) => edgeVisible(edge, revealed))) return "locked";
   return "hidden";
+}
+
+function legacyLatchShut(state: ExplorationState, dest: string): boolean {
+  return isLegacy(state) && dest === EXPLORATION_EXIT_ROOM && !state.alarmFlagged;
 }
 
 export function priceExplorationCommands(opts: {
@@ -515,10 +717,9 @@ export function priceExplorationCommands(opts: {
   commands: readonly ExplorationCommand[];
   apRemaining: number;
 }): { spent: number } {
-  if (!opts.state.map.rooms.some((room) => room.id === opts.fromRoomId)) {
-    throw new Error("현재 위치가 지도와 맞지 않습니다.");
-  }
-  let roomId = opts.fromRoomId;
+  const from = canonicalRoomId(opts.state.map, opts.fromRoomId);
+  if (!from) throw new Error("현재 위치가 지도와 맞지 않습니다.");
+  let roomId = from;
   let spent = 0;
   for (const command of opts.commands) {
     const cost = explorationCommandCost(command);
@@ -527,10 +728,9 @@ export function priceExplorationCommands(opts: {
       const dest = canonicalRoomId(opts.state.map, command.roomId);
       const kind = dest ? moveClass(opts.state.map, roomId, dest, opts.state.revealedEdgeIds) : "unknown";
       if (kind === "hidden") throw new Error("아직 발견하지 못한 통로입니다.");
+      if (kind === "locked") throw new Error("아직 열리지 않은 통로입니다.");
       if (kind !== "ok" || !dest) throw new Error("연결되지 않은 곳으로는 이동할 수 없습니다.");
-      if (dest === EXPLORATION_EXIT_ROOM && !opts.state.alarmFlagged) {
-        throw new Error("출구 빗장은 경보가 울린 뒤에만 풀립니다.");
-      }
+      if (legacyLatchShut(opts.state, dest)) throw new Error("출구 빗장은 경보가 울린 뒤에만 풀립니다.");
       roomId = dest;
     }
     spent += cost;
@@ -573,13 +773,88 @@ function tierFailed(tier: string | null | undefined): boolean {
   }
 }
 
-function searchFinds(event: ExplorationEvent, depth: "normal" | "careful"): boolean {
-  if (depth === "careful") return true;
-  return event.search === "normal";
-}
-
 function pushUnique(list: string[], value: string): string[] {
   return list.includes(value) ? list : [...list, value];
+}
+
+type FireCause = { kind: "enter" } | { kind: "search"; depth: "normal" | "careful" };
+
+function triggerMatches(event: ExplorationEvent, cause: FireCause): boolean {
+  switch (event.trigger) {
+    case "enter":
+      return cause.kind === "enter";
+    case "search":
+      return cause.kind === "search";
+    case "careful_search":
+      return cause.kind === "search" && cause.depth === "careful";
+    default: {
+      const neverTrigger: never = event.trigger;
+      return neverTrigger;
+    }
+  }
+}
+
+/**
+ * Fires every not-yet-fired event in `roomId` that this cause triggers and whose prerequisites
+ * have fired, repeating so a chain inside one room resolves in one action. Each event fires once.
+ */
+function fireRoomEvents(
+  state: ExplorationState,
+  roomId: string,
+  cause: FireCause,
+  actor: string,
+  result: ExplorationActorResult
+): { state: ExplorationState; fired: number } {
+  let next = state;
+  let fired = 0;
+  const label = roomName(state.map, roomId);
+  const verb = cause.kind === "enter" ? `entered ${label}` : `searched ${label} (${cause.depth})`;
+  let progressed = true;
+  while (progressed) {
+    progressed = false;
+    for (const event of next.map.events) {
+      if (event.roomId !== roomId || next.revealedEventIds.includes(event.id)) continue;
+      if (!triggerMatches(event, cause)) continue;
+      if (!(event.requires ?? []).every((need) => next.revealedEventIds.includes(need))) continue;
+      next = { ...next, revealedEventIds: pushUnique(next.revealedEventIds, event.id) };
+      fired += 1;
+      progressed = true;
+      const opened = next.map.edges.filter((edge) => edge.opensBy === event.id);
+      for (const edge of opened) next = { ...next, revealedEdgeIds: pushUnique(next.revealedEdgeIds, edge.id) };
+      if (event.flag) result.flags.push(event.flag);
+      result.lines.push(eventLine(next, event, actor, verb, opened));
+      if (event.effect === "item" && event.item && !next.grantedEventIds.includes(event.id)) {
+        next = { ...next, grantedEventIds: pushUnique(next.grantedEventIds, event.id) };
+        result.items.push(event.item);
+      }
+    }
+  }
+  return { state: next, fired };
+}
+
+function eventLine(
+  state: ExplorationState,
+  event: ExplorationEvent,
+  actor: string,
+  verb: string,
+  opened: readonly ExplorationEdge[]
+): string {
+  const ways = opened.map((edge) => `${roomName(state.map, edge.from)}–${roomName(state.map, edge.to)}`).join(", ");
+  const openedText = ways ? ` It opened the way ${ways}. Do not invent another passage.` : "";
+  switch (event.effect) {
+    case "clue":
+      return `${actor}: ${verb} and found this clue exactly once: "${event.text}". Do not invent another clue.${openedText}`;
+    case "item":
+      return `${actor}: ${verb} and received item "${event.item ?? ""}" exactly once${event.text && event.text !== event.item ? ` (${event.text})` : ""}. Do not grant it again.${openedText}`;
+    case "open":
+      return `${actor}: ${verb} and opened a way exactly once (${event.text}).${openedText || " Do not invent another passage."}`;
+    case "hazard":
+      return `${actor}: ${verb} and set off a danger exactly once: "${event.text}". The server applied no damage or condition; any harm comes only from the normal check and threat rules.${openedText}`;
+    default: {
+      const neverEffect: never = event.effect;
+      return neverEffect;
+    }
+  }
 }
 
 export function settleExplorationActor(opts: {
@@ -590,28 +865,6 @@ export function settleExplorationActor(opts: {
 }): { state: ExplorationState; result: ExplorationActorResult } {
   const tierFailsSearch = tierFailed(opts.tier);
   const key = `${opts.pending.roundId}:${opts.pending.participantId}`;
-  if (opts.state.appliedKeys.includes(key)) {
-    return {
-      state: {
-        ...opts.state,
-        pending: opts.state.pending.filter((row) => `${row.roundId}:${row.participantId}` !== key),
-      },
-      result: {
-        participantId: opts.pending.participantId,
-        name: opts.name,
-        failed: false,
-        location: null,
-        items: [],
-        flags: [],
-        lines: [],
-      },
-    };
-  }
-  let state: ExplorationState = {
-    ...opts.state,
-    appliedKeys: [...opts.state.appliedKeys, key],
-    pending: opts.state.pending.filter((row) => `${row.roundId}:${row.participantId}` !== key),
-  };
   const result: ExplorationActorResult = {
     participantId: opts.pending.participantId,
     name: opts.name,
@@ -621,18 +874,37 @@ export function settleExplorationActor(opts: {
     flags: [],
     lines: [],
   };
-  let roomId = opts.pending.fromRoomId;
+  if (opts.state.appliedKeys.includes(key)) {
+    return {
+      state: {
+        ...opts.state,
+        pending: opts.state.pending.filter((row) => `${row.roundId}:${row.participantId}` !== key),
+      },
+      result,
+    };
+  }
+  const legacy = isLegacy(opts.state);
+  let state: ExplorationState = {
+    ...opts.state,
+    appliedKeys: [...opts.state.appliedKeys, key],
+    pending: opts.state.pending.filter((row) => `${row.roundId}:${row.participantId}` !== key),
+  };
+  const fromRoomId = canonicalRoomId(state.map, opts.pending.fromRoomId) ?? opts.pending.fromRoomId;
+  let roomId = fromRoomId;
   const visited = [...state.visitedRoomIds];
   let riskDelta = 0;
   const moved: string[] = [];
   let searchFailed = false;
   for (const command of opts.pending.commands) {
+    const here = roomName(state.map, roomId);
     if (command.op === "search" && tierFailsSearch) {
       searchFailed = true;
-      riskDelta += 1;
-      result.lines.push(
-        `${opts.name}: the search failed. They stay in ${roomId}. Nothing was found. Risk +1.`
-      );
+      if (legacy) {
+        riskDelta += 1;
+        result.lines.push(`${opts.name}: the search failed. They stay in ${here}. Nothing was found. Risk +1.`);
+      } else {
+        result.lines.push(`${opts.name}: the search failed. They stay in ${here}. Nothing was found.`);
+      }
       break;
     }
     if (command.op === "move") {
@@ -642,56 +914,38 @@ export function settleExplorationActor(opts: {
         result.lines.push(`${opts.name}: the prepared move could not be applied.`);
         break;
       }
-      if (dest === EXPLORATION_EXIT_ROOM && !state.alarmFlagged) {
-        result.lines.push(`${opts.name}: the exit latch is still shut. They stay in ${roomId}.`);
+      if (legacyLatchShut(state, dest)) {
+        result.lines.push(`${opts.name}: the exit latch is still shut. They stay in ${here}.`);
         break;
       }
       roomId = dest;
-      moved.push(roomId);
+      moved.push(roomName(state.map, roomId));
       if (!visited.includes(roomId)) visited.push(roomId);
-      riskDelta += 1;
-      if (roomId === EXPLORATION_ALARM_ROOM) riskDelta += 2;
+      if (legacy) {
+        riskDelta += 1;
+        if (roomId === EXPLORATION_ALARM_ROOM) riskDelta += 2;
+      } else {
+        state = fireRoomEvents(state, roomId, { kind: "enter" }, opts.name, result).state;
+      }
       continue;
     }
-    riskDelta += command.depth === "normal" ? 1 : 0;
-    for (const event of state.map.events) {
-      if (event.roomId !== roomId || !searchFinds(event, command.depth)) continue;
-      if (state.revealedEventIds.includes(event.id)) continue;
-      state = {
-        ...state,
-        revealedEventIds: pushUnique(state.revealedEventIds, event.id),
-      };
-      if (event.kind === "clue" && event.clueFlag) {
-        result.flags.push(event.clueFlag);
-        result.lines.push(
-          `${opts.name}: searched ${roomId} (${command.depth}) and found this clue exactly once: "${event.clueText ?? event.clueFlag}". Do not invent another clue.`
-        );
-      } else if (event.kind === "supply" && event.itemName && !state.grantedEventIds.includes(event.id)) {
-        state = { ...state, grantedEventIds: pushUnique(state.grantedEventIds, event.id) };
-        result.items.push(event.itemName);
-        result.lines.push(
-          `${opts.name}: searched ${roomId} (${command.depth}) and received item "${event.itemName}" exactly once. Do not grant it again.`
-        );
-      } else if (event.kind === "hidden" && event.revealEdgeId) {
-        state = { ...state, revealedEdgeIds: pushUnique(state.revealedEdgeIds, event.revealEdgeId) };
-        if (event.passageFlag) result.flags.push(event.passageFlag);
-        result.lines.push(
-          `${opts.name}: careful search of ${roomId} opened one hidden passage (${event.clueText ?? event.passageFlag}). Do not invent another passage.`
-        );
-      }
-    }
-    if (!result.lines.some((line) => line.startsWith(`${opts.name}: searched ${roomId}`))) {
-      result.lines.push(`${opts.name}: searched ${roomId} (${command.depth}). The server had nothing new hidden there.`);
+    if (legacy) riskDelta += command.depth === "normal" ? 1 : 0;
+    const searched = fireRoomEvents(state, roomId, { kind: "search", depth: command.depth }, opts.name, result);
+    state = searched.state;
+    if (searched.fired === 0) {
+      result.lines.push(`${opts.name}: searched ${here} (${command.depth}). The server had nothing new hidden there.`);
     }
   }
   result.failed = searchFailed;
   if (moved.length) {
-    result.location = roomId;
-    result.lines.unshift(`${opts.name}: moved ${opts.pending.fromRoomId} → ${moved.join(" → ")}.`);
+    result.location = roomName(state.map, roomId);
+    result.lines.unshift(`${opts.name}: moved ${roomName(state.map, fromRoomId)} → ${moved.join(" → ")}.`);
   }
   state = { ...state, visitedRoomIds: visited };
-  state = raiseRisk(state, riskDelta, result.flags);
-  if (riskDelta > 0) result.lines.push(`Risk +${riskDelta}. Risk is now ${state.risk}. Alarm: ${state.alarmFlagged ? "yes" : "no"}.`);
+  if (legacy) {
+    state = raiseRisk(state, riskDelta, result.flags);
+    if (riskDelta > 0) result.lines.push(`Risk +${riskDelta}. Risk is now ${state.risk}. Alarm: ${state.alarmFlagged ? "yes" : "no"}.`);
+  }
   return { state, result };
 }
 
@@ -705,6 +959,73 @@ function raiseRisk(state: ExplorationState, delta: number, flags: string[]): Exp
   return { ...state, risk };
 }
 
+/**
+ * The one projection of what a party member at `roomToken` can know: where they are, which
+ * ways lead out, which visible ways are still shut, and every discovery already fired.
+ * GM input, companion briefs, the public map, and move pricing all read the same edges.
+ */
+export type ExplorationRoomFacts = {
+  roomId: string;
+  name: string;
+  summary: string;
+  exits: string[];
+  lockedExits: string[];
+};
+
+export function explorationRoomFacts(state: ExplorationState, roomToken: string): ExplorationRoomFacts {
+  const roomId = canonicalRoomId(state.map, roomToken) ?? roomToken;
+  const revealed = new Set(state.revealedEdgeIds);
+  const exits: string[] = [];
+  const lockedExits: string[] = [];
+  for (const edge of state.map.edges) {
+    const other = edge.from === roomId ? edge.to : edge.to === roomId ? edge.from : "";
+    if (!other || !edgeVisible(edge, revealed)) continue;
+    const label = roomName(state.map, other);
+    if (edgePassable(edge, revealed)) {
+      if (!exits.includes(label)) exits.push(label);
+    } else if (!lockedExits.includes(label)) {
+      lockedExits.push(label);
+    }
+  }
+  const room = state.map.rooms.find((item) => item.id === roomId);
+  return {
+    roomId,
+    name: roomName(state.map, roomId),
+    summary: room?.summary ?? "",
+    exits,
+    lockedExits: lockedExits.filter((label) => !exits.includes(label)),
+  };
+}
+
+/** Open way names out of `roomToken`. */
+export function visibleExplorationNeighbors(state: ExplorationState, roomToken: string): string[] {
+  return explorationRoomFacts(state, roomToken).exits;
+}
+
+export type ExplorationDiscovery = { place: string; effect: AdventureEventKind; text: string; item?: string };
+
+/** Fired events are public results; unfired event text never leaves this module. */
+export function explorationDiscoveries(state: ExplorationState, onlyIds?: ReadonlySet<string>): ExplorationDiscovery[] {
+  return state.revealedEventIds.flatMap((id) => {
+    if (onlyIds && !onlyIds.has(id)) return [];
+    const event = state.map.events.find((item) => item.id === id);
+    if (!event) return [];
+    return [
+      {
+        place: roomName(state.map, event.roomId),
+        effect: event.effect,
+        text: event.text,
+        ...(event.item ? { item: event.item } : {}),
+      },
+    ];
+  });
+}
+
+function discoveryText(discovery: ExplorationDiscovery): string {
+  const item = discovery.item ? ` [item ${discovery.item}]` : "";
+  return `${discovery.place}: "${discovery.text}"${item}`;
+}
+
 export const EXPLORATION_GM_HEADER =
   "[EXPLORATION — server positions and this-round results. These override earlier narration. Narrate only these positions as fact. Do not invent another clue, item, secret passage, or a new human PC move, line, or decision.]";
 
@@ -712,50 +1033,64 @@ export type ExplorationSeatFact = {
   name: string;
   start: string;
   end: string;
-  /** `visibleExplorationNeighbors` of `end`, the same list companions receive. */
+  /** `explorationRoomFacts(end).exits`, the same list companions receive. */
   exits: readonly string[];
+  lockedExits?: readonly string[];
+  summary?: string;
 };
 
-export function visibleExplorationNeighbors(state: ExplorationState, roomId: string): string[] {
-  const next: string[] = [];
-  for (const edge of openEdges(state.map, state.revealedEdgeIds)) {
-    if (edge.from === roomId) next.push(edge.to);
-    else if (edge.to === roomId) next.push(edge.from);
-  }
-  return next;
-}
-
-export function formatExplorationGmBlock(opts: {
-  opening: boolean;
-  seats: readonly ExplorationSeatFact[];
-  resultLines: readonly string[];
+export type ExplorationLegacyFacts = {
   alarm: boolean;
   risk: number;
   flags: readonly string[];
+};
+
+export function formatExplorationGmBlock(opts: {
+  opening: boolean;
+  startName: string;
+  seats: readonly ExplorationSeatFact[];
+  resultLines: readonly string[];
+  /** Discoveries fired in earlier rounds. This round's are in `resultLines`. */
+  discoveries?: readonly ExplorationDiscovery[];
+  legacy?: ExplorationLegacyFacts;
 }): string {
+  const fallback = opts.startName;
   const positions = opts.seats.map((seat) => {
-    const start = seat.start.trim() || EXPLORATION_ENTRANCE;
+    const start = seat.start.trim() || fallback;
     const end = seat.end.trim() || start;
     if (start === end) return `${seat.name} is in ${end}. They did not move this round.`;
     return `${seat.name} started in ${start} and is now in ${end}.`;
   });
-  const exitsByRoom = new Map<string, readonly string[]>();
+  const byRoom = new Map<string, ExplorationSeatFact>();
   for (const seat of opts.seats) {
-    const room = seat.end.trim() || seat.start.trim() || EXPLORATION_ENTRANCE;
-    if (!exitsByRoom.has(room)) exitsByRoom.set(room, seat.exits);
+    const room = seat.end.trim() || seat.start.trim() || fallback;
+    if (!byRoom.has(room)) byRoom.set(room, seat);
   }
-  const exits = [...exitsByRoom].map(([room, next]) => `Open passages from ${room}: ${next.join(", ") || "(none)"}.`);
+  const places = [...byRoom]
+    .filter(([, seat]) => seat.summary?.trim())
+    .map(([room, seat]) => `Place ${room}: ${seat.summary!.trim()}`);
+  const exits = [...byRoom].map(([room, seat]) => `Open passages from ${room}: ${seat.exits.join(", ") || "(none)"}.`);
+  const locked = [...byRoom]
+    .filter(([, seat]) => seat.lockedExits?.length)
+    .map(([room, seat]) => `Shut ways from ${room}: ${seat.lockedExits!.join(", ")}. They open only through a server event, never by narration.`);
+  const discoveries = opts.discoveries?.length
+    ? `Discoveries already recorded by the server: ${opts.discoveries.map(discoveryText).join("; ")}.`
+    : "";
+  const legacy = opts.legacy;
   const atExit = opts.seats.some((seat) => (seat.end.trim() || seat.start.trim()) === EXPLORATION_EXIT_ROOM);
   return [
     EXPLORATION_GM_HEADER,
-    `Risk ${opts.risk}. Alarm: ${opts.alarm ? "yes" : "no"}.`,
-    opts.opening ? `The party begins in ${EXPLORATION_ENTRANCE}.` : "",
+    legacy ? `Risk ${legacy.risk}. Alarm: ${legacy.alarm ? "yes" : "no"}.` : "",
+    opts.opening ? `The party begins in ${opts.startName}.` : "",
     ...positions,
+    ...places,
     ...exits,
+    ...locked,
+    discoveries,
     ...opts.resultLines,
-    explorationLatchFact(opts.alarm, atExit),
+    legacy ? explorationLatchFact(legacy.alarm, atExit) : "",
     "Describe the rooms they occupy. Only the open passages listed here lead out. Do not walk anyone down a passage they did not take.",
-    opts.flags.length ? `Server flags already include: ${opts.flags.join("; ")}. Other world facts may still be recorded.` : "",
+    legacy?.flags.length ? `Server flags already include: ${legacy.flags.join("; ")}. Other world facts may still be recorded.` : "",
   ]
     .filter(Boolean)
     .join("\n");
@@ -776,23 +1111,33 @@ function explorationLatchFact(alarm: boolean, atExit: boolean): string {
 
 export function formatExplorationBotBrief(opts: {
   roomId: string;
+  startName: string;
   neighbors: readonly string[];
+  lockedExits?: readonly string[];
+  summary?: string;
+  discoveries?: readonly ExplorationDiscovery[];
   ap: number;
-  alarm: boolean;
   party: readonly { name: string; location: string }[];
+  legacy?: { alarm: boolean };
 }): string {
   const party = opts.party
-    .map((seat) => `${seat.name} ${seat.location.trim() || EXPLORATION_ENTRANCE}`)
+    .map((seat) => `${seat.name} ${seat.location.trim() || opts.startName}`)
     .join("; ");
+  const here = opts.roomId.trim() || opts.startName;
   return [
     "[EXPLORATION — your current map facts. Move only through listed passages.]",
-    `You are in ${opts.roomId.trim() || EXPLORATION_ENTRANCE}.`,
+    `You are in ${here}.`,
+    opts.summary?.trim() ? `About ${here}: ${opts.summary.trim()}` : "",
     party ? `Party positions: ${party}.` : "",
     `Open passages: ${opts.neighbors.join(", ") || "(none)"}.`,
+    opts.lockedExits?.length ? `Shut ways (cannot pass yet): ${opts.lockedExits.join(", ")}.` : "",
+    opts.discoveries?.length ? `Party discoveries so far: ${opts.discoveries.map(discoveryText).join("; ")}.` : "",
     `Action points left this turn: ${opts.ap}. Move costs 1, search 1, careful search 2.`,
-    opts.alarm
-      ? `Alarm is on. The exit latch can open if you reach ${EXPLORATION_EXIT_ROOM} through listed passages.`
-      : "Alarm is off. The exit latch is still shut.",
+    opts.legacy
+      ? opts.legacy.alarm
+        ? `Alarm is on. The exit latch can open if you reach ${EXPLORATION_EXIT_ROOM} through listed passages.`
+        : "Alarm is off. The exit latch is still shut."
+      : "",
   ]
     .filter(Boolean)
     .join("\n");
@@ -804,15 +1149,32 @@ const EXPLORATION_SERVER_FLAGS = new Set<string>([
   EXPLORATION_PASSAGE_FLAG,
 ]);
 
-/** Exact exploration flags stay only when the server already recorded them or grants them this round. */
+/** Legacy v1: exact exploration flags stay only when the server already recorded them or grants them this round. */
 export function filterExplorationFlagsAdd(proposed: readonly string[], serverFlags: readonly string[]): string[] {
   const granted = new Set(serverFlags);
   return proposed.filter((flag) => !EXPLORATION_SERVER_FLAGS.has(flag) || granted.has(flag));
 }
 
-/** GM cannot drop exact server-owned exploration flags. Other world facts still leave. */
+/** Legacy v1: GM cannot drop exact server-owned exploration flags. Other world facts still leave. */
 export function filterExplorationFlagsRemove(proposed: readonly string[]): string[] {
   return proposed.filter((flag) => !EXPLORATION_SERVER_FLAGS.has(flag));
+}
+
+function markerFor(effect: AdventureEventKind): PublicExplorationMarker {
+  switch (effect) {
+    case "clue":
+      return "clue";
+    case "item":
+      return "reward";
+    case "open":
+      return "passage";
+    case "hazard":
+      return "hazard";
+    default: {
+      const neverEffect: never = effect;
+      return neverEffect;
+    }
+  }
 }
 
 export function projectPublicExploration(opts: {
@@ -821,47 +1183,61 @@ export function projectPublicExploration(opts: {
   viewerLocation: string;
   roundNumber: number;
 }): PublicExploration {
-  const revealed = new Set(opts.state.revealedEdgeIds);
-  const visited = new Set(opts.state.visitedRoomIds);
-  const visibleEdges = opts.state.map.edges.filter((edge) => !edge.hidden || revealed.has(edge.id));
+  const { state } = opts;
+  const revealed = new Set(state.revealedEdgeIds);
+  const visited = new Set(state.visitedRoomIds);
+  const visibleEdges = state.map.edges.filter((edge) => edgeVisible(edge, revealed));
   const known = new Set<string>(visited);
   for (const edge of visibleEdges) {
     if (visited.has(edge.from)) known.add(edge.to);
     if (visited.has(edge.to)) known.add(edge.from);
   }
-  const currentRoomId =
-    known.has(opts.viewerLocation) && visited.has(opts.viewerLocation) ? publicIdFor(opts.state.map, opts.viewerLocation) : null;
-  const revealedEvents = opts.state.map.events.filter((event) => opts.state.revealedEventIds.includes(event.id));
-  const rooms = opts.state.map.rooms
+  const viewerRoom = canonicalRoomId(state.map, opts.viewerLocation);
+  const currentRoom = viewerRoom && visited.has(viewerRoom) ? state.map.rooms.find((room) => room.id === viewerRoom) : undefined;
+  const revealedEvents = state.map.events.filter((event) => state.revealedEventIds.includes(event.id));
+  const rooms = state.map.rooms
     .filter((room) => known.has(room.id))
     .map((room) => {
       const seen = visited.has(room.id);
       const markers: PublicExplorationMarker[] = [];
       if (seen && room.role === "hazard") markers.push("hazard");
-      if (seen && room.role === "exit") markers.push("exit");
-      if (revealedEvents.some((event) => event.roomId === room.id && event.kind === "clue")) markers.push("clue");
-      if (revealedEvents.some((event) => event.roomId === room.id && event.kind === "supply")) markers.push("reward");
-      if (revealedEvents.some((event) => event.roomId === room.id && event.kind === "hidden")) markers.push("passage");
+      if (seen && (room.role === "exit" || room.role === "goal")) markers.push("exit");
+      for (const event of revealedEvents) {
+        if (event.roomId !== room.id) continue;
+        const marker = markerFor(event.effect);
+        if (!markers.includes(marker)) markers.push(marker);
+      }
       return {
         id: room.publicId,
-        label: room.id,
+        label: room.name ?? room.id,
         x: room.x,
         y: room.y,
         visited: seen,
-        current: room.publicId === currentRoomId,
+        current: room.id === currentRoom?.id,
         markers,
+        ...(seen && room.summary ? { summary: room.summary } : {}),
       };
     });
   const edges = visibleEdges
     .filter((edge) => known.has(edge.from) && known.has(edge.to))
-    .map((edge) => ({ from: publicIdFor(opts.state.map, edge.from), to: publicIdFor(opts.state.map, edge.to) }));
+    .map((edge) => {
+      const from = state.map.rooms.find((room) => room.id === edge.from)?.publicId ?? edge.from;
+      const to = state.map.rooms.find((room) => room.id === edge.to)?.publicId ?? edge.to;
+      return edgePassable(edge, revealed) ? { from, to } : { from, to, locked: true };
+    });
+  const discoveries: PublicExplorationDiscovery[] = explorationDiscoveries(state).map((item) => ({
+    place: item.place,
+    kind: item.effect,
+    text: item.text,
+    ...(item.item ? { item: item.item } : {}),
+  }));
   return {
     rooms,
     edges,
-    ap: opts.viewerParticipantId == null ? EXPLORATION_AP_PER_ROUND : displayExplorationAp(opts.state, opts.viewerParticipantId, opts.roundNumber),
-    risk: opts.state.risk,
-    alarm: opts.state.alarmFlagged,
-    currentRoomId,
+    ap: opts.viewerParticipantId == null ? EXPLORATION_AP_PER_ROUND : displayExplorationAp(state, opts.viewerParticipantId, opts.roundNumber),
+    currentRoomId: currentRoom?.publicId ?? null,
+    discoveries,
+    ...(isLegacy(state) ? { legacy: { risk: state.risk, alarm: state.alarmFlagged } } : {}),
   };
 }
 
@@ -894,7 +1270,7 @@ export function spendExplorationAp(opts: {
       {
         roundId: opts.roundId,
         participantId: opts.participantId,
-        fromRoomId: opts.fromRoomId,
+        fromRoomId: canonicalRoomId(opts.state.map, opts.fromRoomId) ?? opts.fromRoomId,
         commands: [...opts.commands],
         spent,
       },
