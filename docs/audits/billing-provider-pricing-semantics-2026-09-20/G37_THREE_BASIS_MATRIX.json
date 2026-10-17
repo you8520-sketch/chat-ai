@@ -1,0 +1,93 @@
+{
+  "fx": {
+    "usdToKrw": 1530,
+    "effectiveKrwPerUsd": 1560.6,
+    "overseasFeeRate": 0.02
+  },
+  "rows": [
+    {
+      "basisId": "A_STANDARD_INTRO",
+      "benchmarkId": "gemini37_competitor_a",
+      "inputTokens": 24952,
+      "outputTokens": 2367,
+      "referenceRawKrw": 43.1,
+      "ourBaseP": 96,
+      "competitorP": 55,
+      "deltaP": 41,
+      "deltaPercent": 74.5,
+      "targetMargin": 0.55,
+      "ciProcurementKrw": 15.1,
+      "ciProcurementRealizedMargin": 0.8
+    },
+    {
+      "basisId": "A_STANDARD_INTRO",
+      "benchmarkId": "gemini37_competitor_b",
+      "inputTokens": 42195,
+      "outputTokens": 3862,
+      "referenceRawKrw": 72,
+      "ourBaseP": 160,
+      "competitorP": 84.4,
+      "deltaP": 75.6,
+      "deltaPercent": 89.6,
+      "targetMargin": 0.55,
+      "ciProcurementKrw": 25.2,
+      "ciProcurementRealizedMargin": 0.8
+    },
+    {
+      "basisId": "B_STANDARD_POST_INTRO",
+      "benchmarkId": "gemini37_competitor_a",
+      "inputTokens": 24952,
+      "outputTokens": 2367,
+      "referenceRawKrw": 86.1,
+      "ourBaseP": 192,
+      "competitorP": 55,
+      "deltaP": 137,
+      "deltaPercent": 249.1,
+      "targetMargin": 0.55,
+      "ciProcurementKrw": 15.1,
+      "ciProcurementRealizedMargin": 0.9
+    },
+    {
+      "basisId": "B_STANDARD_POST_INTRO",
+      "benchmarkId": "gemini37_competitor_b",
+      "inputTokens": 42195,
+      "outputTokens": 3862,
+      "referenceRawKrw": 144,
+      "ourBaseP": 320,
+      "competitorP": 84.4,
+      "deltaP": 235.6,
+      "deltaPercent": 279.1,
+      "targetMargin": 0.55,
+      "ciProcurementKrw": 25.2,
+      "ciProcurementRealizedMargin": 0.9
+    },
+    {
+      "basisId": "C_FLEX_BATCH_INTRO",
+      "benchmarkId": "gemini37_competitor_a",
+      "inputTokens": 24952,
+      "outputTokens": 2367,
+      "referenceRawKrw": 21.5,
+      "ourBaseP": 48,
+      "competitorP": 55,
+      "deltaP": -7,
+      "deltaPercent": -12.7,
+      "targetMargin": 0.55,
+      "ciProcurementKrw": 15.1,
+      "ciProcurementRealizedMargin": 0.7
+    },
+    {
+      "basisId": "C_FLEX_BATCH_INTRO",
+      "benchmarkId": "gemini37_competitor_b",
+      "inputTokens": 42195,
+      "outputTokens": 3862,
+      "referenceRawKrw": 36,
+      "ourBaseP": 80,
+      "competitorP": 84.4,
+      "deltaP": -4.4,
+      "deltaPercent": -5.2,
+      "targetMargin": 0.55,
+      "ciProcurementKrw": 25.2,
+      "ciProcurementRealizedMargin": 0.7
+    }
+  ]
+}
