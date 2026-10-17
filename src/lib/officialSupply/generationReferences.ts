@@ -23,6 +23,11 @@ export type OfficialGenerationReferencePlan =
       mode: "variation_identity_then_style";
       references: readonly [string, string];
       referenceRoleLayout: "identity_then_style";
+    }
+  | {
+      mode: "variation_identity_and_style";
+      references: readonly [string];
+      referenceRoleLayout: "identity_and_style";
     };
 
 export type OfficialGenerationReferencePlanFailure = {
@@ -33,7 +38,8 @@ export type OfficialGenerationReferencePlanFailure = {
     | "missing_style_root"
     | "unsafe_style_root"
     | "invalid_cluster_b_seed"
-    | "missing_style_seed";
+    | "missing_style_seed"
+    | "role_conflict";
 };
 
 export type OfficialGenerationReferencePlanResult =
@@ -44,6 +50,11 @@ export type OfficialGenerationReferenceInput = {
   kind: OfficialAssetSlotKind;
   styleSeed: StyleReference | null | undefined;
   representativeUrl: string | null | undefined;
+  /**
+   * One local image that owns both identity and style for this request.
+   * Production callers omit it. Representative STYLE ONLY rejects it.
+   */
+  samePersonIdentityStyleUrl?: string | null;
 };
 
 /**
@@ -119,12 +130,51 @@ function fail(
   return { ok: false, code, reason };
 }
 
+function samePersonIdentityStylePlan(
+  input: OfficialGenerationReferenceInput,
+  url: string
+): OfficialGenerationReferencePlanResult {
+  switch (input.kind) {
+    case "representative":
+      return fail(
+        "role_conflict",
+        "a same-person identity and style image is not part of representative STYLE ONLY generation"
+      );
+    case "signature":
+    case "emotion":
+    case "scene": {
+      const styleUrls = input.styleSeed ? resolveOfficialStyleGenerationReferences(input.styleSeed) : [];
+      if (styleUrls.includes(url) || isOfficialClusterBPrimaryStyleRef(url)) {
+        return fail("role_conflict", "the same-person image must not be a STYLE reference");
+      }
+      const representative = input.representativeUrl?.trim() ?? "";
+      if (representative && url === representative) {
+        return fail("role_conflict", "the same-person image must not be the production representative");
+      }
+      return {
+        ok: true,
+        plan: {
+          mode: "variation_identity_and_style",
+          references: [url],
+          referenceRoleLayout: "identity_and_style",
+        },
+      };
+    }
+    default: {
+      const exhaustive: never = input.kind;
+      throw new Error(`Unknown official asset slot kind ${String(exhaustive)}`);
+    }
+  }
+}
+
 /**
  * Canonical generation-reference plan: references, order, and prompt role together.
  */
 export function resolveOfficialGenerationReferencePlan(
   input: OfficialGenerationReferenceInput
 ): OfficialGenerationReferencePlanResult {
+  const samePerson = input.samePersonIdentityStyleUrl?.trim() ?? "";
+  if (samePerson) return samePersonIdentityStylePlan(input, samePerson);
   switch (input.kind) {
     case "representative": {
       if (!input.styleSeed) {
@@ -188,6 +238,7 @@ export function officialGenerationReferenceRoleLayout(
     case "variation_identity_anchor":
       return plan.referenceRoleLayout;
     case "variation_identity_then_style":
+    case "variation_identity_and_style":
       return plan.referenceRoleLayout;
     default: {
       const exhaustive: never = plan;
