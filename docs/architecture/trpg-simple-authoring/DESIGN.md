@@ -86,6 +86,7 @@ locked body가 이동 문장 없는 자유 텍스트 + `actionType=free` 인 것
 설명 → `POST ai-draft` → 비공개 저장 → 결과 화면. B2+B3에서 바뀐 점:
 - 초안 계약에 `adventure` 가 추가됐다(같은 모델·같은 1회 호출, `json_object` 모드 미사용 유지).
 - 초안과 저장은 같은 엄격 검증(`evaluateAdventure`)을 쓴다. 잘못된 다중 장소 정본은 오류로 돌려주고 자동 재시도하지 않는다. 입력은 보존된다.
+- 정본을 요청한 초안(`expectedFields` 에 `adventure`)이 정본을 빠뜨리거나 `null` 로 돌려주면 `SCENARIO_DRAFT_ADVENTURE_MISSING` 422로 실패한다(재호출 없음, 입력 보존). 목표만 다시 만들기 같은 부분 재생성과 기존 수동 시나리오는 정본을 요구하지 않는다.
 - 정본이 있으면 `startLocation` 은 정본 시작 장소에서 파생되고 편집기에서 읽기 전용이다.
 - 편집기 "AI가 구성한 내용" 에 **장소와 사건** 카드(장소, 숨은/잠긴 길, 사건, 고정/다시 생성, "장소 구성 없이 진행하기")가 추가됐다.
 
@@ -106,8 +107,8 @@ type TrpgAdventure = {
 ```
 
 - 길을 여는 것은 사건 종류가 아니라 **링크 데이터**다. `hidden + opensBy` = 숨은 길(발견 전 비공개), `opensBy` 만 = 보이는 잠긴 길. #1642의 `passage`/`gate` 종류와 초기 구현의 `open` 종류는 링크와 모순될 수 있어 제거했다.
-- 검증(`evaluateAdventure`): 형식, key·이름 중복, 없는 장소/사건 참조, 숨은 길의 여는 사건 필수, 시작 장소 enter 사건 금지, 2곳 이상이면 사건 존재 + 사건이 길/다음 사건으로 이어짐 + 모든 장소·사건 도달 가능(고정점 계산).
-- 1곳 정본은 지도 없는 정상 모험이다. 정본이 없으면(구 템플릿, 세계관 직접 시작) 기존 비탐험 경로.
+- 검증(`evaluateAdventure`): 형식, key·이름 중복, 없는 장소/사건 참조, 숨은 길의 여는 사건 필수, 시작 장소 enter 사건 금지, 2곳 이상이면 사건 존재 + 사건이 길/다음 사건으로 이어짐 + 모든 장소·사건 도달 가능(고정점 계산). 선택 필드(`requires`, `hidden`, `opensBy`, `trigger`)는 생략하면 없음으로 읽지만, 값이 있는데 타입이 틀리면 기본값으로 바꾸지 않고 오류로 돌려준다.
+- 1곳 정본은 지도 없는 정상 모험이다. 사건이 있으면 지도 없이 v2 상태를 저장하고 조사(`조사 1`/`정밀 조사 2`)로 같은 판정 owner가 사건을 실행한다. 공개 projection은 `singlePlace` 로 지도·길 대신 "현장 조사" 패널을 보여 주고, 자유 텍스트 이동은 파싱하지 않는다. 사건 없는 1곳 정본과 정본이 없는 경우(구 템플릿, 세계관 직접 시작, 제작자가 "장소 구성 없이 진행하기"로 지운 경우)는 기존 비탐험 경로.
 
 **한 상태, 여러 소비자:**
 
@@ -125,9 +126,11 @@ type TrpgAdventure = {
 
 ## 5. 위험
 
-- **동결된 정본이 잘못된 경우**: 저장·초안 경계에서 막지만, 구 데이터나 수동 수정으로 잘못된 정본이 동결되면 `ensureExplorationMap` 이 throw하고 `startTrpgCampaign` 은 경고 로그 후 지도 없이 진행한다. 조용한 성공이 아니라 로그가 남는 강등이지만 플레이어 화면에는 표시되지 않는다.
+- **동결된 정본이 잘못된 경우**: 저장·초안 경계에서 막고, 구 데이터나 수동 수정으로 템플릿에 잘못된 정본이 있으면 `loadScenarioSnapshot` 이 관대한 파서보다 먼저 `assertFrozenAdventureValid` 로 검사해 `TrpgAdventureCanonError` 를 던진다. `startTrpgCampaign` 은 이 오류만 다시 던져 GM 호출·라운드·과금 전에 시작을 막고, 플레이어에게는 issue 목록 없이 고정 문구를 보여 준다. 정본과 무관한 director 실패는 기존처럼 경고 후 진행한다.
+- **한 라운드 이동 범위**: 공개 projection이 방문한 곳과 열린 길로 이어진 곳만 보여 주므로, UI로는 한 라운드에 지금 위치에서 한 칸 너머까지만 큐에 넣을 수 있다. AP 3이어도 두 칸 떨어진 사건은 다음 라운드에 닿는다(실측 SF 초안). 정책 결정 전 수정하지 않는다.
+- **게임방 진입 직후 빈 띠 (#1621, main)**: 탐험 anchor의 `paddingBottom` 과 bottom tail의 `scrollMarginBottom` 이 모두 dock 가림 높이를 써서, 최신 따라가기 위치에서 접힌 탐험 패널이 화면 위로 밀리고 goal 바와 dock 사이가 비어 보인다(390: 패널 top −254, 1440: −153). 스크롤하면 패널이 정상으로 보이고 클릭 경로는 막히지 않는다. 공용 follow owner라 이 PR에서 고치지 않았다(FOLLOW-UP).
 - **v1 진행 캠페인**: v1 reader와 고정 9방 지도는 유지했다. 운영 v1 행 수는 확인하지 않았다(운영 DB 읽기 없음). B4 전 확인 필요.
-- **초안 출력 증가**: places/links/events 추가로 출력 토큰 증가(같은 모델·같은 호출). 실측 초안 2건 모두 약 1,350~1,460 completion tokens, 호출당 약 1원.
+- **초안 출력 증가**: places/links/events 추가로 출력 토큰 증가(같은 모델·같은 호출). 최종 계약 실측 초안 2건(미스터리·SF)은 1,371·1,784 completion tokens, 호출당 약 1.1·1.4원.
 - **정본 생성 품질**: 실측 초안 1건(유령 기차)이 링크·사건 모순으로 거절됐다. 그 원인이던 `open` 종류는 제거했다. 거절 시 자동 재시도는 하지 않는다.
 - **GM 서술 vs 서버 사실**: GM 블록은 서버 사실만 사실로 서술하게 하지만, GM 텍스트 자체는 상태에 적용되지 않으므로 서술이 어긋나도 상태는 서버 owner가 결정한다.
 - **dev 전용 과금 오류**: dev 모드 `getDb()` 가 호출마다 `migrate()` 를 다시 실행하고, libsql `transaction()` 은 중첩을 지원하지 않는다. 그래서 작성자 있는 캠페인의 라운드 commit(`resolveCreatorRewardRate` → `getDb()`)이 dev에서만 `cannot start a transaction within a transaction` 으로 실패한다. base에서도 재현되고 test/production 모드에서는 재현되지 않는다. 과금 영역이라 수정하지 않았다(FOLLOW-UP).
@@ -153,5 +156,5 @@ type TrpgAdventure = {
 | `plan.exploration` opt-in | KEEP → B4 | v1 시작 경로의 유일한 writer |
 | 미사용 plan key(`npc.stats` 등), `plan.secret`/`plan.boss` 중복 | FOLLOW-UP | 저장 데이터 reader 확인 필요 |
 | 세계관 직접 시작의 정본 생성 | FOLLOW-UP | sandbox director 경로는 이번 범위 밖. 지도 없이 기존대로 진행 |
-| `adventure_missing` 로그 | KEEP | 초안이 정본을 빠뜨린 비율 관측용. 정책 결정 전 자동 보정 없음 |
+| `adventure_missing` 로그 | KEEP | 진단용. 성공/실패 판단은 `SCENARIO_DRAFT_ADVENTURE_MISSING` 오류가 소유한다 |
 | dev `getDb()` 재-migrate 중첩 트랜잭션 | FOLLOW-UP | dev 전용, base에서 재현, 과금 경계라 이번 PR에서 수정하지 않음 |
