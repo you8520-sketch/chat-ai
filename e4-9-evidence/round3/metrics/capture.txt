@@ -1,0 +1,80 @@
+{
+  "base": "http://127.0.0.1:3646",
+  "scenarioId": 4,
+  "simulation": "visualViewport",
+  "shots": {
+    "editKeyboardClosed": {
+      "url": "/trpg/scenarios/4",
+      "heading": "TRPG 시나리오 수정",
+      "editor": true,
+      "keyboardOpen": false,
+      "simpleCreate": false,
+      "saveBarCount": 1,
+      "barPosition": "fixed",
+      "saveBarVar": "69px",
+      "scrollPaddingTop": "106px",
+      "scrollPaddingBottom": "85px",
+      "inlineScrollPadding": "calc(69px + var(--mobile-nav-offset, 0px) + var(--keyboard-inset, 0px) + 1rem)",
+      "save": {
+        "top": 319,
+        "bottom": 363,
+        "reachable": true
+      },
+      "visualViewportHeight": 375
+    },
+    "editKeyboardOpenTop": {
+      "url": "/trpg/scenarios/4",
+      "heading": "TRPG 시나리오 수정",
+      "editor": true,
+      "keyboardOpen": true,
+      "simpleCreate": false,
+      "saveBarCount": 1,
+      "barPosition": "static",
+      "saveBarVar": "0px",
+      "scrollPaddingTop": "106px",
+      "scrollPaddingBottom": "198px",
+      "inlineScrollPadding": "calc(113px + var(--mobile-nav-offset, 0px) + var(--keyboard-inset, 0px) + 1rem)",
+      "save": {
+        "top": 3160,
+        "bottom": 3204,
+        "reachable": false
+      },
+      "visualViewportHeight": 185
+    },
+    "editKeyboardOpenScrolled": {
+      "url": "/trpg/scenarios/4",
+      "heading": "TRPG 시나리오 수정",
+      "editor": true,
+      "keyboardOpen": true,
+      "simpleCreate": false,
+      "saveBarCount": 1,
+      "barPosition": "static",
+      "saveBarVar": "0px",
+      "scrollPaddingTop": "106px",
+      "scrollPaddingBottom": "198px",
+      "inlineScrollPadding": "calc(113px + var(--mobile-nav-offset, 0px) + var(--keyboard-inset, 0px) + 1rem)",
+      "save": {
+        "top": 140,
+        "bottom": 184,
+        "reachable": true
+      },
+      "visualViewportHeight": 185,
+      "steps": 18
+    },
+    "simpleCreateKeyboardOpen": {
+      "url": "/world/create?tab=scenario",
+      "heading": "TRPG 만들기",
+      "editor": false,
+      "keyboardOpen": true,
+      "simpleCreate": true,
+      "saveBarCount": 0,
+      "barPosition": null,
+      "saveBarVar": "",
+      "scrollPaddingTop": "106px",
+      "scrollPaddingBottom": "8px",
+      "inlineScrollPadding": "",
+      "save": null,
+      "visualViewportHeight": 185
+    }
+  }
+}

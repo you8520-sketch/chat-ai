@@ -1,0 +1,45 @@
+
+Running 1 test using 1 worker
+
+(node:2291194) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2291194) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 [chromium] › tests/ui/studio-layout.spec.ts:544:9 › E4-9 the correction lives only while an editor is mounted › /trpg/scenarios/new: the shared save bar flows with the page at 667x375 with the keyboard open and docks again when it closes (30.1s)
+
+
+  1) [chromium] › tests/ui/studio-layout.spec.ts:544:9 › E4-9 the correction lives only while an editor is mounted › /trpg/scenarios/new: the shared save bar flows with the page at 667x375 with the keyboard open and docks again when it closes 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.waitFor: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('[data-testid="studio-save-bar"]').first() to be visible
+
+
+      288 |   await page.setViewportSize({ width, height });
+      289 |   await page.goto(path);
+    > 290 |   await page.locator(waitFor).first().waitFor({ state: "visible" });
+          |                                       ^
+      291 |   if (keyboard > 0) await setKeyboard(page, keyboard);
+      292 | }
+      293 |
+        at openEditorWithKeyboard (/workspace/tests/ui/studio-layout.spec.ts:290:39)
+        at /workspace/tests/ui/studio-layout.spec.ts:545:7
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/studio-layout-E4-9-the-cor-a20bf--docks-again-when-it-closes-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/studio-layout-E4-9-the-cor-a20bf--docks-again-when-it-closes-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/studio-layout-E4-9-the-cor-a20bf--docks-again-when-it-closes-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/studio-layout-E4-9-the-cor-a20bf--docks-again-when-it-closes-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › tests/ui/studio-layout.spec.ts:544:9 › E4-9 the correction lives only while an editor is mounted › /trpg/scenarios/new: the shared save bar flows with the page at 667x375 with the keyboard open and docks again when it closes 
