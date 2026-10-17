@@ -299,14 +299,14 @@ describe("B-2 dedupe: verified provenance is never suppressed by untyped surroun
       query: "아마추어 같다는 말 기억해?",
       longTermMemoryText: `라이크는 "${LINE}"라고 말했다. 유저는 고개를 숙였다.`,
     });
-    assert.ok(block.includes("[유저가 직접 쓴 원문]"), block);
+    assert.ok(block.includes("[유저 발언 발췌]"), block);
     assert.ok(block.includes(LINE), block);
   });
 
   it("a quoted question about who said it keeps the provenance-bearing row", () => {
     const turn = seedVerifiedUserLine();
     const block = recall(turn.chatId, { query: `"${LINE}" 이 말을 누가 했지?` });
-    assert.ok(block.includes("[유저가 직접 쓴 원문]"), block);
+    assert.ok(block.includes("[유저 발언 발췌]"), block);
   });
 
   it("the exact line present in recent RAW text without a speaker label does not remove the row", () => {
@@ -372,7 +372,7 @@ describe("B-2 dedupe: verified provenance is never suppressed by untyped surroun
       },
     ]);
     const block = recall(turn.chatId, { query: "아마추어 같다는 말 기억해?" });
-    assert.ok(block.includes("[유저가 직접 쓴 원문]"), block);
+    assert.ok(block.includes("[유저 발언 발췌]"), block);
     assert.ok(block.includes("[캐릭터 발언(미확정 주장)]"), block);
   });
 });

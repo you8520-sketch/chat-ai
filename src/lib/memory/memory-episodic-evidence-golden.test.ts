@@ -699,7 +699,7 @@ describe("B-1 80-turn continuous scenario: emotional callback from correctly att
       { EPISODIC_MEMORY_RECALL_ENABLED: "1" } as NodeJS.ProcessEnv
     );
     assert.ok(
-      recall.promptBlock.includes("[유저가 직접 쓴 원문] “오늘은 어머니 기일이라서 마음이 무거워.”"),
+      recall.promptBlock.includes("[유저 발언 발췌] “오늘은 어머니 기일이라서 마음이 무거워.”"),
       "verified user statement is recalled as the user's own quoted words"
     );
     assert.equal(recall.promptBlock.includes("직접 만난 적"), false, "invented shared history never reaches the prompt");
