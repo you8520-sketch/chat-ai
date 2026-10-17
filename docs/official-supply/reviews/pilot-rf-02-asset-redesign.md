@@ -223,4 +223,47 @@ Appearance Lock·Cluster B DNA·안전 문구는 기존 조립기를 그대로 �
 
 하지 않음: 운영 apply, 14태그 백필, 음식 후보 적용, 나머지 13장 생성, #1633 재오픈, 사용자 재업로드 요청, 원고·장르·Lock 재작성, shot 시스템 수정, 새 전역 prompt 문장 추가.
 
-대표 후보 한 장은 기존 `composeOfficialSlotGeneration` owner와 격리 환경에서만 뽑는다. 검수 전에는 운영 대표를 바꾸지 않는다.
+대표 후보 한 장은 기존 `composeOfficialSlotGeneration` owner와 격리 환경에서만 뽑았다. 검수 전에는 운영 대표를 바꾸지 않는다. 나머지 13장은 생성하지 않았다.
+
+## 9. 격리 대표 후보 1장 (실험)
+
+기존 owner: `composeOfficialSlotGeneration` + `prepareOfficialImageReferences` + `callOpenAiImageEdit`. fallback/retry/vision 없음. POST 1회.
+
+| 항목 | 값 |
+|---|---|
+| 실행 환경 모델 | `gpt-image-2.5-sunburst` (Railway `chat-ai` production `OPENAI_IMAGE_MODEL`) |
+| profile | 1024x1536 · medium · n=1 · compression 88 |
+| 참조 | b7 + b13 + b5 STYLE ONLY. 운영 대표·음식 후보 없음 |
+| b7 SHA | `fc4047ac…d3168` |
+| b13 SHA | `f9d01ebc…d4ae6` |
+| b5 SHA | `fdab6b92…e4998` |
+| 전송 prompt SHA | `08b3634f…946a21` (`rep-style-only-compose.json`) |
+| request ID | `req_8abe53c02b0a43adb963341c93359baf` |
+| 비용 | 0.056524 USD (상한 0.08) |
+| 이전 누적 | 0.13891452 USD |
+| 이번 포함 누적 | **0.19543852 USD** |
+| 원본 바이트 | `rep-candidate-raw.webp` 289838 B, SHA `23da8467…cb8a85`. inspect 전 보존. inspect 후에도 동일 |
+
+![새 대표 후보 전체](./assets/wolfgang-asset-redesign/rep-candidate.webp)
+
+![b7 / b13 / b5 / 운영 대표 / 새 후보](./assets/wolfgang-asset-redesign/compare-thumbs-b7-b13-b5-old-new.webp)
+
+![운영 대표 vs 새 후보](./assets/wolfgang-asset-redesign/compare-full-old-new.webp)
+
+![모피 원본 크기](./assets/wolfgang-asset-redesign/compare-native-fur.webp)
+
+![머리카락 원본 크기](./assets/wolfgang-asset-redesign/compare-native-hair.webp)
+
+![금속 원본 크기](./assets/wolfgang-asset-redesign/compare-native-metal.webp)
+
+### 그림체 충실도 (STYLE)
+
+근거는 seed와 원본 크기 크롭이다. 새 후보는 운영 대표보다 머리카락 덩어리가 크고, 모피는 b13처럼 깃털 면이 보이며, 흉갑 반사는 운영 대표의 다중 크롬 띠보다 면이 단순하다. 다만 b13의 잉크 외곽·2~3단 명암에는 아직 못 미친다. 모피 잔 결이 완전히 사라진 것은 아니다.
+
+이 한 장이 나아 보여도, IDENTITY 질감이 원인이었다고 확정하지 않는다. 이번 요청은 운영 대표를 참조에서 뺐을 뿐이고, prompt·모델·quality도 함께 쓰였다.
+
+### 캐릭터 외형 일치 (Appearance Lock)
+
+새 후보는 남성 30대 인상, 회청색 눈, 흑회색 울프컷, 창백한 피부, 왼쪽 턱 아래 흉터, 넓은 어깨, 흑철 갑옷, 검은 모피, 반지·장갑·검을 유지한다. b7의 금장 군복, b13의 적안, b5의 여성 드레스는 복사되지 않았다.
+
+운영 대표·앵커·14장·태그는 그대로다. 이 후보를 검수하기 전에는 나머지 13장을 생성하지 않는다.

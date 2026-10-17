@@ -1,0 +1,157 @@
+import { createRequire } from "node:module";
+import fs from "node:fs";
+import path from "node:path";
+
+const requireFromWorkspace = createRequire("/workspace/package.json");
+const sharp = requireFromWorkspace("sharp") as typeof import("sharp");
+
+const DOC = "/workspace/docs/official-supply/reviews/assets/wolfgang-asset-redesign";
+const ART = "/opt/cursor/artifacts";
+const STYLE = "/workspace/public/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary";
+
+const files = {
+  b7: path.join(STYLE, "b7-black-gold-uniform.webp"),
+  b13: path.join(STYLE, "b13-black-red-fur.webp"),
+  b5: path.join(STYLE, "b5-red-dress-female.webp"),
+  oldRep: "/tmp/wolfgang-51-assets/rep.webp",
+  neu: path.join(DOC, "rep-candidate.webp"),
+};
+
+async function thumb(input: string, width: number, height: number): Promise<Buffer> {
+  return sharp(input)
+    .rotate()
+    .resize(width, height, { fit: "cover", position: "top" })
+    .webp({ quality: 90 })
+    .toBuffer();
+}
+
+async function extract(input: string, left: number, top: number, width: number, height: number): Promise<Buffer> {
+  const meta = await sharp(input).metadata();
+  const maxLeft = Math.max(0, (meta.width ?? width) - width);
+  const maxTop = Math.max(0, (meta.height ?? height) - height);
+  return sharp(input)
+    .extract({
+      left: Math.min(left, maxLeft),
+      top: Math.min(top, maxTop),
+      width,
+      height,
+    })
+    .webp({ quality: 92 })
+    .toBuffer();
+}
+
+async function labeledRow(items: Array<{ label: string; buf: Buffer }>, cellW: number, cellH: number): Promise<Buffer> {
+  const labeled = await Promise.all(
+    items.map(async (item) => {
+      const bar = await sharp({
+        create: { width: cellW, height: 36, channels: 3, background: "#111111" },
+      })
+        .composite([
+          {
+            input: Buffer.from(
+              `<svg width="${cellW}" height="36"><text x="12" y="24" font-size="18" fill="#ffffff" font-family="sans-serif">${item.label}</text></svg>`
+            ),
+            top: 0,
+            left: 0,
+          },
+        ])
+        .png()
+        .toBuffer();
+      return sharp({
+        create: { width: cellW, height: cellH + 36, channels: 3, background: "#000000" },
+      })
+        .composite([
+          { input: bar, top: 0, left: 0 },
+          { input: item.buf, top: 36, left: 0 },
+        ])
+        .png()
+        .toBuffer();
+    })
+  );
+  return sharp({
+    create: {
+      width: cellW * labeled.length,
+      height: cellH + 36,
+      channels: 3,
+      background: "#000000",
+    },
+  })
+    .composite(labeled.map((buf, i) => ({ input: buf, top: 0, left: i * cellW })))
+    .webp({ quality: 90 })
+    .toBuffer();
+}
+
+async function writeBoth(name: string, buf: Buffer): Promise<void> {
+  fs.writeFileSync(path.join(DOC, name), buf);
+  fs.writeFileSync(path.join(ART, name), buf);
+}
+
+async function main(): Promise<void> {
+  fs.copyFileSync(files.oldRep, path.join(DOC, "production-rep.webp"));
+  fs.copyFileSync(files.oldRep, path.join(ART, "production-rep.webp"));
+  fs.copyFileSync(files.neu, path.join(ART, "rep-candidate.webp"));
+  fs.copyFileSync(path.join(DOC, "rep-candidate-raw.webp"), path.join(ART, "rep-candidate-raw.webp"));
+
+  const strip = await labeledRow(
+    [
+      { label: "b7 STYLE", buf: await thumb(files.b7, 280, 420) },
+      { label: "b13 STYLE", buf: await thumb(files.b13, 280, 420) },
+      { label: "b5 STYLE", buf: await thumb(files.b5, 280, 420) },
+      { label: "운영 대표", buf: await thumb(files.oldRep, 280, 420) },
+      { label: "새 대표 후보", buf: await thumb(files.neu, 280, 420) },
+    ],
+    280,
+    420
+  );
+  await writeBoth("compare-thumbs-b7-b13-b5-old-new.webp", strip);
+
+  const full = await labeledRow(
+    [
+      { label: "운영 대표 1024x1536", buf: await thumb(files.oldRep, 512, 768) },
+      { label: "새 대표 후보 1024x1536", buf: await thumb(files.neu, 512, 768) },
+    ],
+    512,
+    768
+  );
+  await writeBoth("compare-full-old-new.webp", full);
+
+  const fur = await labeledRow(
+    [
+      { label: "b13 모피 원본 400", buf: await extract(files.b13, 0, 420, 400, 400) },
+      { label: "운영 대표 모피 400", buf: await extract(files.oldRep, 0, 520, 400, 400) },
+      { label: "새 후보 모피 400", buf: await extract(files.neu, 0, 480, 400, 400) },
+    ],
+    400,
+    400
+  );
+  await writeBoth("compare-native-fur.webp", fur);
+
+  const hair = await labeledRow(
+    [
+      { label: "b13 머리 원본 400", buf: await extract(files.b13, 360, 0, 400, 400) },
+      { label: "운영 대표 머리 400", buf: await extract(files.oldRep, 312, 0, 400, 400) },
+      { label: "새 후보 머리 400", buf: await extract(files.neu, 312, 0, 400, 400) },
+    ],
+    400,
+    400
+  );
+  await writeBoth("compare-native-hair.webp", hair);
+
+  const metal = await labeledRow(
+    [
+      { label: "b7 금속 원본 400", buf: await extract(files.b7, 300, 720, 400, 400) },
+      { label: "운영 대표 금속 400", buf: await extract(files.oldRep, 360, 780, 400, 400) },
+      { label: "새 후보 금속 400", buf: await extract(files.neu, 360, 760, 400, 400) },
+    ],
+    400,
+    400
+  );
+  await writeBoth("compare-native-metal.webp", metal);
+
+  console.log("compare artifacts written");
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
