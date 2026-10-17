@@ -73,7 +73,7 @@ function mockCall(choice: string | null) {
           },
         },
         usage: { inputTokens: 10, outputTokens: 5, estimated: false, upstreamCostUsd: 0.0001 },
-        responseModel: "typesafe/jev-1.13-test",
+        responseModel: "typesafe/jev-1.14-test",
       };
     }
     return {
@@ -86,7 +86,7 @@ function mockCall(choice: string | null) {
         },
       },
       usage: { inputTokens: 12, outputTokens: 6, estimated: false, upstreamCostUsd: 0.0002 },
-      responseModel: "typesafe/jev-1.13-test",
+      responseModel: "typesafe/jev-1.14-test",
     };
   }) as typeof import("@/lib/jevDecisions").callJevDecisions;
 }
@@ -327,7 +327,7 @@ describe("generation-scoped exactly-once + lifecycle", () => {
           },
         },
         usage: { inputTokens: 5, outputTokens: 3, estimated: false },
-        responseModel: "typesafe/jev-1.13-test",
+        responseModel: "typesafe/jev-1.14-test",
       };
     }) as typeof import("@/lib/jevDecisions").callJevDecisions;
     const completionCall = (async () => {
