@@ -1,0 +1,562 @@
+import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
+import fs from "node:fs";
+import path from "node:path";
+
+const requireFromWorkspace = createRequire("/workspace/package.json");
+const sharp = requireFromWorkspace("sharp") as typeof import("sharp");
+
+import { CHAT_IMAGE_GENERATION_KNOWN_MODEL_IDS } from "@/lib/chatImageGeneration";
+import { OFFICIAL_ASSET_OUTPUT_COMPRESSION } from "@/lib/officialSupply/imageProfile";
+import { prepareOfficialImageReferences } from "@/lib/officialSupply/referencePreparation";
+import { isLucianSig4ProofSupportedImageModel } from "@/lib/officialSupply/qualityShotQa";
+import { callOpenAiImageEdit, OpenAiImageError } from "@/lib/openAiImageEdit";
+
+const DOC_DIR = "/workspace/docs/official-supply/reviews/assets/wolfgang-asset-redesign";
+const ARTIFACT_DIR = "/opt/cursor/artifacts";
+const PREPARED_DIR = path.join(DOC_DIR, "rep-abc-prepared");
+const ACTUAL_PATH = path.join(DOC_DIR, "rep-candidate-actual.json");
+const COMPOSE_PATH = path.join(DOC_DIR, "rep-style-only-compose.json");
+const PROMPT_A_PATH = path.join(DOC_DIR, "rep-abc-prompt-a.txt");
+const PROMPT_C_PATH = path.join(DOC_DIR, "rep-abc-prompt-c.txt");
+const PREFLIGHT_PATH = path.join(DOC_DIR, "rep-abc-preflight.json");
+const LEDGER_PATH = path.join(DOC_DIR, "rep-abc-ledger.json");
+const BUDGET_USD = 0.16;
+const OBSERVED_A_USD = 0.056524;
+const PLANNING_CEILING_USD = 0.07;
+const MODEL_B = "gpt-image-2";
+const MODEL_C = "gpt-image-2.5-sunburst";
+const EXPECTED_SOURCE = [
+  {
+    order: 1,
+    id: "b7",
+    path: "public/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b7-black-gold-uniform.webp",
+    sha256: "fc4047ac876152a8668897e6c7e8a03e1b2a0bf975cb1513cedc5839e10d3168",
+    bytes: 214512,
+    url: "https://hav.chat/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b7-black-gold-uniform.webp",
+  },
+  {
+    order: 2,
+    id: "b13",
+    path: "public/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b13-black-red-fur.webp",
+    sha256: "f9d01ebc18291acb89894b070c3c8308a317575f9702e75db75b42a872ed4ae6",
+    bytes: 182512,
+    url: "https://hav.chat/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b13-black-red-fur.webp",
+  },
+  {
+    order: 3,
+    id: "b5",
+    path: "public/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b5-red-dress-female.webp",
+    sha256: "fdab6b92a41480e8f28f4eaedd951c81283dde81a0e8b67600799356632e4998",
+    bytes: 173714,
+    url: "https://hav.chat/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b5-red-dress-female.webp",
+  },
+] as const;
+const EXPECTED_PROMPT_A = "08b3634fa8bad213ff8c0729d63caa3eb5fcbf26257ec24940ebc87bc6946a21";
+const EXPECTED_PROMPT_C = "34e866261b217a5a54f84f0cb1a052c7a26be378d292b8c45cc590d856ef9238";
+
+type PreparedRef = {
+  order: number;
+  id: string;
+  sourcePath: string;
+  sourceSha256: string;
+  sourceBytes: number;
+  url: string;
+  preparedSha256: string;
+  preparedBytes: number;
+  dataUriSha256: string;
+  file: string;
+};
+
+type Ledger = {
+  postsStarted: number;
+  budgetUsd: number;
+  spentUsd: number;
+  conditions: Record<
+    string,
+    {
+      state: "starting" | "saved" | "failed" | "skipped";
+      model?: string;
+      startedAt?: string;
+      finishedAt?: string;
+      providerRequestId?: string | null;
+      costUsd?: number | null;
+      rawSha256?: string;
+      errorStatus?: number;
+      errorMessage?: string;
+      providerChargeEvidence?: string | null;
+      skipReason?: string;
+    }
+  >;
+};
+
+function sha256(buf: Buffer | string): string {
+  return createHash("sha256").update(buf).digest("hex");
+}
+
+function writeJson(file: string, payload: unknown): void {
+  const text = `${JSON.stringify(payload, null, 2)}\n`;
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, text);
+  fs.mkdirSync(ARTIFACT_DIR, { recursive: true });
+  fs.writeFileSync(path.join(ARTIFACT_DIR, path.basename(file)), text);
+}
+
+function loadPrompt(file: string): string {
+  const raw = fs.readFileSync(file);
+  if (!raw.length || raw[raw.length - 1] !== 0x0a) {
+    throw new Error(`${file} must end with a single recorded newline`);
+  }
+  return raw.subarray(0, raw.length - 1).toString("utf8");
+}
+
+function loadLedger(): Ledger {
+  if (!fs.existsSync(LEDGER_PATH)) {
+    return { postsStarted: 0, budgetUsd: BUDGET_USD, spentUsd: 0, conditions: {} };
+  }
+  return JSON.parse(fs.readFileSync(LEDGER_PATH, "utf8")) as Ledger;
+}
+
+function saveLedger(ledger: Ledger): void {
+  writeJson(LEDGER_PATH, ledger);
+}
+
+function dataUriToBytes(uri: string): Buffer {
+  const match = /^data:image\/webp;base64,([A-Za-z0-9+/=\s]+)$/.exec(uri);
+  if (!match) throw new Error("prepared reference is not a webp data URI");
+  const bytes = Buffer.from(match[1], "base64");
+  if (!bytes.length) throw new Error("prepared reference decoded empty");
+  return bytes;
+}
+
+async function assertSources(): Promise<void> {
+  const actual = JSON.parse(fs.readFileSync(ACTUAL_PATH, "utf8")) as {
+    references: string[];
+    promptSha256: string;
+    size: string;
+    quality: string;
+    n: number;
+    outputCompression: number;
+    model: string;
+  };
+  const compose = JSON.parse(fs.readFileSync(COMPOSE_PATH, "utf8")) as {
+    primaryPrompt: string;
+    references: string[];
+  };
+  if (actual.promptSha256 !== EXPECTED_PROMPT_A) throw new Error("A prompt SHA drifted");
+  if (actual.model !== MODEL_C) throw new Error("A model record is not sunburst");
+  if (actual.size !== "1024x1536" || actual.quality !== "medium" || actual.n !== 1) {
+    throw new Error("A output settings drifted");
+  }
+  if (actual.outputCompression !== OFFICIAL_ASSET_OUTPUT_COMPRESSION) {
+    throw new Error("A compression drifted");
+  }
+  const promptA = loadPrompt(PROMPT_A_PATH);
+  const promptC = loadPrompt(PROMPT_C_PATH);
+  if (sha256(promptA) !== EXPECTED_PROMPT_A) throw new Error("prompt A file SHA mismatch");
+  if (sha256(promptC) !== EXPECTED_PROMPT_C) throw new Error("prompt C file SHA mismatch");
+  if (promptA !== compose.primaryPrompt) throw new Error("prompt A is not the composed primaryPrompt");
+  if (promptA === promptC) throw new Error("prompt C was not changed");
+  if (!promptC.includes("STYLE REFERENCE PRIORITY")) throw new Error("prompt C missing priority line");
+  if (!promptC.includes("MATURE MALE VISUAL AGE LOCK")) throw new Error("prompt C dropped age lock");
+  if (compose.references.length !== 3 || actual.references.length !== 3) {
+    throw new Error("reference count is not 3");
+  }
+  EXPECTED_SOURCE.forEach((source, index) => {
+    if (actual.references[index] !== source.url || compose.references[index] !== source.url) {
+      throw new Error(`reference order mismatch at ${source.id}`);
+    }
+    const abs = path.join("/workspace", source.path);
+    const bytes = fs.readFileSync(abs);
+    if (bytes.length !== source.bytes || sha256(bytes) !== source.sha256) {
+      throw new Error(`source bytes drifted for ${source.id}`);
+    }
+  });
+}
+
+async function preparePair(): Promise<PreparedRef[]> {
+  const urls = EXPECTED_SOURCE.map((source) => source.url);
+  const env = { ...process.env, NEXTAUTH_URL: "https://hav.chat" };
+  const first = await prepareOfficialImageReferences(urls, env);
+  const second = await prepareOfficialImageReferences(urls, env);
+  if (first.length !== 3 || second.length !== 3) throw new Error("prepared count mismatch");
+  fs.mkdirSync(PREPARED_DIR, { recursive: true });
+  return EXPECTED_SOURCE.map((source, index) => {
+    if (first[index] !== second[index]) {
+      throw new Error(`prepared bytes are not deterministic for ${source.id}`);
+    }
+    const bytes = dataUriToBytes(first[index]!);
+    const file = path.join(PREPARED_DIR, `${source.id}.webp`);
+    fs.writeFileSync(file, bytes);
+    const reread = fs.readFileSync(file);
+    if (!reread.equals(bytes)) throw new Error(`prepared write mismatch for ${source.id}`);
+    return {
+      order: source.order,
+      id: source.id,
+      sourcePath: source.path,
+      sourceSha256: source.sha256,
+      sourceBytes: source.bytes,
+      url: source.url,
+      preparedSha256: sha256(bytes),
+      preparedBytes: bytes.length,
+      dataUriSha256: sha256(first[index]!),
+      file: `rep-abc-prepared/${source.id}.webp`,
+    };
+  });
+}
+
+function loadPreparedDataUris(record: PreparedRef[]): string[] {
+  return record.map((item) => {
+    const bytes = fs.readFileSync(path.join(DOC_DIR, item.file));
+    if (sha256(bytes) !== item.preparedSha256 || bytes.length !== item.preparedBytes) {
+      throw new Error(`saved prepared bytes drifted for ${item.id}`);
+    }
+    const uri = `data:image/webp;base64,${bytes.toString("base64")}`;
+    if (sha256(uri) !== item.dataUriSha256) throw new Error(`data URI reconstruction drifted for ${item.id}`);
+    return uri;
+  });
+}
+
+async function preflight(): Promise<void> {
+  await assertSources();
+  const probe = await sharp({
+    create: { width: 2, height: 2, channels: 3, background: "#000" },
+  })
+    .webp()
+    .toBuffer();
+  if (!probe.length) throw new Error("sharp preflight produced empty webp");
+  for (const dir of [DOC_DIR, ARTIFACT_DIR, PREPARED_DIR]) {
+    fs.mkdirSync(dir, { recursive: true });
+    const probePath = path.join(dir, ".abc-write-probe");
+    fs.writeFileSync(probePath, probe);
+    const back = fs.readFileSync(probePath);
+    fs.rmSync(probePath);
+    if (!back.equals(probe)) throw new Error(`write probe mismatch in ${dir}`);
+  }
+  const prepared = await preparePair();
+  const modelSupport = {
+    knownModelIds: [...CHAT_IMAGE_GENERATION_KNOWN_MODEL_IDS],
+    b: isLucianSig4ProofSupportedImageModel(MODEL_B),
+    c: isLucianSig4ProofSupportedImageModel(MODEL_C),
+  };
+  if (!modelSupport.b || !modelSupport.c) throw new Error("model support check failed");
+  const key = process.env.OPENAI_API_KEY?.trim() || "";
+  if (!key) throw new Error("OPENAI_API_KEY is empty");
+  writeJson(PREFLIGHT_PATH, {
+    status: "PREFLIGHT",
+    providerPosts: 0,
+    aPreparedWireBytesRestored: false,
+    aPreparedLimitation:
+      "A의 실제 전처리 바이트는 저장되지 않았다. 아래 바이트는 현재 prepareOfficialImageReferences 두 번이 같다는 기록이다. A의 POST 바이트와 동일하다고 주장하지 않는다.",
+    bAndCShareThesePreparedBytes: true,
+    references: prepared,
+    promptASha256: EXPECTED_PROMPT_A,
+    promptCSha256: EXPECTED_PROMPT_C,
+    size: "1024x1536",
+    quality: "medium",
+    n: 1,
+    outputFormat: "webp",
+    outputCompression: OFFICIAL_ASSET_OUTPUT_COMPRESSION,
+    background: "opaque",
+    modelSupport,
+    cost: {
+      formula: "image_input_tokens * 0.000008 + text_input_tokens * 0.000005 + output_tokens * 0.00003",
+      separatePublishedRateInCode: false,
+      observedAUsd: OBSERVED_A_USD,
+      perCallPlanningCeilingUsd: PLANNING_CEILING_USD,
+      twoCallEstimateUsd: Number((PLANNING_CEILING_USD * 2).toFixed(8)),
+      capUsd: BUDGET_USD,
+      postsAuthorized: 2,
+    },
+    apiKeyPresent: true,
+    apiKeyLength: key.length,
+    envImageModelIgnoredForExplicitCalls: process.env.OPENAI_IMAGE_MODEL?.trim() || null,
+    fallback: false,
+    retry: false,
+    vision: false,
+  });
+  console.log(
+    JSON.stringify({
+      status: "PREFLIGHT",
+      prepared: prepared.map((item) => ({
+        id: item.id,
+        preparedSha256: item.preparedSha256,
+        preparedBytes: item.preparedBytes,
+      })),
+      modelSupport,
+      twoCallEstimateUsd: PLANNING_CEILING_USD * 2,
+    })
+  );
+}
+
+function publicError(error: unknown): {
+  errorStatus: number;
+  errorMessage: string;
+  providerRequestId: string | null;
+  costUsd: number | null;
+  providerChargeEvidence: string | null;
+} {
+  if (error instanceof OpenAiImageError) {
+    return {
+      errorStatus: error.status,
+      errorMessage: error.message.slice(0, 400),
+      providerRequestId: error.diagnostic?.providerRequestId ?? null,
+      costUsd: error.diagnostic?.computedCostUsd ?? null,
+      providerChargeEvidence: error.diagnostic?.providerChargeEvidence ?? null,
+    };
+  }
+  return {
+    errorStatus: 0,
+    errorMessage: error instanceof Error ? error.message.slice(0, 400) : "unknown error",
+    providerRequestId: null,
+    costUsd: null,
+    providerChargeEvidence: null,
+  };
+}
+
+function canAffordNext(spent: number, lastCost: number | null): { ok: boolean; reason: string } {
+  if (lastCost == null) {
+    return { ok: false, reason: "previous call has no usage cost, so the remaining budget is unknown" };
+  }
+  const remaining = BUDGET_USD - spent;
+  const threshold = Math.max(lastCost, OBSERVED_A_USD) * 1.05;
+  if (remaining + 1e-9 < threshold) {
+    return {
+      ok: false,
+      reason: `remaining ${remaining.toFixed(6)} is below threshold ${threshold.toFixed(6)}`,
+    };
+  }
+  return { ok: true, reason: "remaining budget covers the next planning threshold" };
+}
+
+async function postCondition(
+  id: "b" | "c",
+  model: string,
+  prompt: string,
+  references: string[]
+): Promise<{ costUsd: number | null; saved: boolean }> {
+  const ledger = loadLedger();
+  const existing = ledger.conditions[id];
+  if (existing && existing.state !== "skipped") {
+    throw new Error(`condition ${id} already ${existing.state}; refusing another POST`);
+  }
+  if (ledger.postsStarted >= 2) throw new Error("POST cap already reached");
+  ledger.postsStarted += 1;
+  ledger.conditions[id] = { state: "starting", model, startedAt: new Date().toISOString() };
+  saveLedger(ledger);
+
+  const rawName = `rep-${id}-raw.webp`;
+  try {
+    const result = await callOpenAiImageEdit({
+      model,
+      prompt,
+      references,
+      size: "1024x1536",
+      quality: "medium",
+      outputCompression: OFFICIAL_ASSET_OUTPUT_COMPRESSION,
+      templateId: "official_character_asset",
+      mode: `isolated_abc_${id}`,
+    });
+    const artifact = path.join(ARTIFACT_DIR, rawName);
+    const doc = path.join(DOC_DIR, rawName);
+    fs.writeFileSync(artifact, result.buffer);
+    fs.writeFileSync(doc, result.buffer);
+    const rawSha = sha256(result.buffer);
+    let inspect: Record<string, unknown> = { inspectError: null };
+    try {
+      const meta = await sharp(result.buffer).metadata();
+      const copyName = `rep-${id}.webp`;
+      fs.writeFileSync(path.join(DOC_DIR, copyName), result.buffer);
+      fs.writeFileSync(path.join(ARTIFACT_DIR, copyName), result.buffer);
+      inspect = {
+        width: meta.width ?? null,
+        height: meta.height ?? null,
+        format: meta.format ?? null,
+        inspectedSha256: sha256(fs.readFileSync(doc)),
+        inspectedBytes: result.buffer.length,
+      };
+    } catch (inspectError) {
+      inspect = {
+        inspectError: inspectError instanceof Error ? inspectError.message.slice(0, 240) : "inspect failed",
+      };
+    }
+    const after = loadLedger();
+    after.conditions[id] = {
+      state: "saved",
+      model,
+      startedAt: ledger.conditions[id]?.startedAt,
+      finishedAt: new Date().toISOString(),
+      providerRequestId: result.providerRequestId,
+      costUsd: result.costUsd,
+      rawSha256: rawSha,
+    };
+    after.spentUsd = Number(
+      (
+        after.spentUsd +
+        (typeof result.costUsd === "number" ? result.costUsd : 0)
+      ).toFixed(8)
+    );
+    saveLedger(after);
+    writeJson(path.join(DOC_DIR, `rep-${id}-actual.json`), {
+      status: "GENERATED",
+      condition: id,
+      providerPosts: 1,
+      persistedToProduction: false,
+      model,
+      quality: "medium",
+      size: "1024x1536",
+      n: 1,
+      outputCompression: OFFICIAL_ASSET_OUTPUT_COMPRESSION,
+      background: "opaque",
+      outputFormat: "webp",
+      promptSha256: sha256(prompt),
+      preparedReferenceFile: "rep-abc-preflight.json",
+      aPreparedWireBytesRestored: false,
+      providerRequestId: result.providerRequestId,
+      usageEvidence: result.usageEvidence,
+      costUsd: result.costUsd,
+      fallback: false,
+      retry: false,
+      vision: false,
+      raw: { doc, artifact, sha256: rawSha, bytes: result.buffer.length },
+      inspect,
+    });
+    return { costUsd: result.costUsd, saved: true };
+  } catch (error) {
+    const pub = publicError(error);
+    const after = loadLedger();
+    after.conditions[id] = {
+      state: "failed",
+      model,
+      startedAt: ledger.conditions[id]?.startedAt,
+      finishedAt: new Date().toISOString(),
+      providerRequestId: pub.providerRequestId,
+      costUsd: pub.costUsd,
+      errorStatus: pub.errorStatus,
+      errorMessage: pub.errorMessage,
+      providerChargeEvidence: pub.providerChargeEvidence,
+    };
+    if (typeof pub.costUsd === "number") {
+      after.spentUsd = Number((after.spentUsd + pub.costUsd).toFixed(8));
+    }
+    saveLedger(after);
+    writeJson(path.join(DOC_DIR, `rep-${id}-actual.json`), {
+      status: "FAILED",
+      condition: id,
+      providerPosts: 1,
+      persistedToProduction: false,
+      model,
+      promptSha256: sha256(prompt),
+      aPreparedWireBytesRestored: false,
+      fallback: false,
+      retry: false,
+      vision: false,
+      ...pub,
+    });
+    return { costUsd: pub.costUsd, saved: false };
+  }
+}
+
+async function post(): Promise<void> {
+  if (!fs.existsSync(PREFLIGHT_PATH)) throw new Error("preflight record missing");
+  const preflightRecord = JSON.parse(fs.readFileSync(PREFLIGHT_PATH, "utf8")) as {
+    references: PreparedRef[];
+    providerPosts: number;
+  };
+  if (preflightRecord.providerPosts !== 0) throw new Error("preflight record is not a zero-post record");
+  await assertSources();
+  const references = loadPreparedDataUris(preflightRecord.references);
+  const promptA = loadPrompt(PROMPT_A_PATH);
+  const promptC = loadPrompt(PROMPT_C_PATH);
+  const b = await postCondition("b", MODEL_B, promptA, references);
+  const ledger = loadLedger();
+  if (ledger.postsStarted >= 2 && !ledger.conditions.c) {
+    throw new Error("POST cap reached before C");
+  }
+  if (ledger.conditions.c && ledger.conditions.c.state !== "skipped") {
+    throw new Error("C already recorded; refusing another POST");
+  }
+  const gate = b.saved ? canAffordNext(ledger.spentUsd, b.costUsd) : { ok: false, reason: "" };
+  let runC = false;
+  if (!b.saved) {
+    const authFailure = ledger.conditions.b?.errorStatus === 401 || ledger.conditions.b?.errorStatus === 403;
+    if (authFailure) {
+      ledger.conditions.c = {
+        state: "skipped",
+        model: MODEL_C,
+        skipReason: "B failed authentication; C would use the same key",
+      };
+      saveLedger(ledger);
+    } else if (ledger.postsStarted >= 2) {
+      ledger.conditions.c = { state: "skipped", model: MODEL_C, skipReason: "POST cap reached" };
+      saveLedger(ledger);
+    } else {
+      runC = true;
+    }
+  } else if (!gate.ok) {
+    ledger.conditions.c = { state: "skipped", model: MODEL_C, skipReason: gate.reason };
+    saveLedger(ledger);
+  } else {
+    runC = true;
+  }
+  if (runC) await postCondition("c", MODEL_C, promptC, references);
+  const done = loadLedger();
+  console.log(
+    JSON.stringify({
+      postsStarted: done.postsStarted,
+      spentUsd: done.spentUsd,
+      b: done.conditions.b,
+      c: done.conditions.c,
+    })
+  );
+}
+
+async function postCOnly(): Promise<void> {
+  const ledger = loadLedger();
+  if (ledger.postsStarted !== 1) throw new Error(`expected exactly one started POST, got ${ledger.postsStarted}`);
+  if (ledger.conditions.b?.state !== "saved") throw new Error("B is not saved; refusing C");
+  if (ledger.conditions.c?.state !== "skipped") throw new Error("C is not in the skipped state");
+  const remaining = Number((BUDGET_USD - ledger.spentUsd).toFixed(8));
+  if (remaining + 1e-9 < PLANNING_CEILING_USD) {
+    throw new Error(`remaining ${remaining} is below the sunburst planning ceiling ${PLANNING_CEILING_USD}`);
+  }
+  ledger.conditions.c = {
+    state: "skipped",
+    model: MODEL_C,
+    skipReason:
+      "first gate used B's gpt-image-2 cost as the next-call predictor. C uses the sunburst observation instead and is authorized while remaining budget covers the 0.07 ceiling.",
+  };
+  saveLedger(ledger);
+  await assertSources();
+  const preflightRecord = JSON.parse(fs.readFileSync(PREFLIGHT_PATH, "utf8")) as {
+    references: PreparedRef[];
+  };
+  const references = loadPreparedDataUris(preflightRecord.references);
+  const promptC = loadPrompt(PROMPT_C_PATH);
+  await postCondition("c", MODEL_C, promptC, references);
+  const done = loadLedger();
+  console.log(JSON.stringify({ postsStarted: done.postsStarted, spentUsd: done.spentUsd, c: done.conditions.c }));
+}
+
+async function main(): Promise<void> {
+  const mode = process.argv[2];
+  if (mode === "preflight") {
+    await preflight();
+    return;
+  }
+  if (mode === "post") {
+    await post();
+    return;
+  }
+  if (mode === "post-c") {
+    await postCOnly();
+    return;
+  }
+  throw new Error("mode must be preflight, post, or post-c");
+}
+
+main().catch((error) => {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(message.slice(0, 500));
+  process.exit(1);
+});
