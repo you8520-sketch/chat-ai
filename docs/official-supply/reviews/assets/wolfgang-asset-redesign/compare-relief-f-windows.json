@@ -29,22 +29,22 @@
     },
     "candidate": {
       "face": {
-        "left": 560,
-        "top": 90,
-        "width": 380,
-        "height": 380
+        "left": 820,
+        "top": 75,
+        "width": 290,
+        "height": 250
       },
       "hair": {
-        "left": 600,
+        "left": 930,
         "top": 0,
-        "width": 300,
-        "height": 220
+        "width": 340,
+        "height": 140
       },
       "fur": {
-        "left": 60,
-        "top": 280,
-        "width": 260,
-        "height": 220
+        "left": 520,
+        "top": 40,
+        "width": 300,
+        "height": 240
       },
       "armor": {
         "left": 500,
@@ -60,8 +60,8 @@
       "bytes": 154202
     },
     "compare-relief-f-face.webp": {
-      "sha256": "20783f4a929fefd645b7ae665802e687603b42cdf7d03263580555bd436582b1",
-      "bytes": 75876,
+      "sha256": "cbf65e2144d0b7310a4c51b49d98efde3a0919057a98086b1a20b13e71565b31",
+      "bytes": 59430,
       "window": {
         "F": {
           "left": 280,
@@ -70,16 +70,16 @@
           "height": 460
         },
         "candidate": {
-          "left": 560,
-          "top": 90,
-          "width": 380,
-          "height": 380
+          "left": 820,
+          "top": 75,
+          "width": 290,
+          "height": 250
         }
       }
     },
     "compare-relief-f-hair.webp": {
-      "sha256": "4c95b0f12d2836ecead8a989a03b1b859e3809170f686610b316acd2c46b7fec",
-      "bytes": 46618,
+      "sha256": "71f43aea09f2530d34aa157cd4408da4d051c0889b9bfa1a8347891840f00588",
+      "bytes": 43804,
       "window": {
         "F": {
           "left": 300,
@@ -88,16 +88,16 @@
           "height": 360
         },
         "candidate": {
-          "left": 600,
+          "left": 930,
           "top": 0,
-          "width": 300,
-          "height": 220
+          "width": 340,
+          "height": 140
         }
       }
     },
     "compare-relief-f-fur.webp": {
-      "sha256": "466bded5fd68100af390680edf42b20f29e9432dff50e91101eba752a12ffda5",
-      "bytes": 14318,
+      "sha256": "dd7c8171fd6249e8ac9449e14f26e7841427cc4b71b7bc184cb9405ee335d9b2",
+      "bytes": 19380,
       "window": {
         "F": {
           "left": 10,
@@ -106,10 +106,10 @@
           "height": 180
         },
         "candidate": {
-          "left": 60,
-          "top": 280,
-          "width": 260,
-          "height": 220
+          "left": 520,
+          "top": 40,
+          "width": 300,
+          "height": 240
         }
       }
     },

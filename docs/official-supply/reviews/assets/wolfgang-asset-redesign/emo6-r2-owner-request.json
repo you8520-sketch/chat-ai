@@ -1,0 +1,18 @@
+{
+  "providerPosts": 0,
+  "assembly": "composeOfficialSlotGeneration + prepareOfficialImageReferences + callOpenAiImageEdit",
+  "slotKey": "emo6r2",
+  "tag": "안도",
+  "model": "gpt-image-2.5-sunburst",
+  "size": "1536x1024",
+  "referenceRoleLayout": "identity_and_style",
+  "references": [
+    "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp"
+  ],
+  "primaryPromptSha256": "40e0c45405a96f5b1ce378e5d7bd39311af6a762bf232fe8c9e7dde023372e05",
+  "strictFallbackPromptSha256": "bb64ddb947320505d668b5289be45a36568d779b111e596a132525ab04191b7e",
+  "hasStyleOnly": false,
+  "hasStyleDna": false,
+  "hasAgeLock": true,
+  "appearanceLockHash": "1c3ccd134203a6dea6ae869c27cc443c42ff5498d1d0130c6f9765407c24dcc3"
+}

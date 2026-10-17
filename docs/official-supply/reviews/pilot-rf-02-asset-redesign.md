@@ -648,7 +648,13 @@ F 한 장을 `official-review-candidate` 토큰으로 identity+style 참조에 �
 
 **감정 전달:** sig4는 옅은 미소와 창가 휴식이 분명하다. emo2는 턱을 다문 긴장·주먹으로 분노 억제가 미소·안도와 구별된다. 다만 책상 위 서류가 보이면 prompt의 “서류 없음”과 어긋난다. Lock 위반이나 자동 합격 근거로 쓰지 않는다. emo6은 큰 웃음 없이 어깨·눈가가 풀린 안도로, sig4의 “입꼬리 미소”와 감정 톤이 다르다.
 
-**화면 기준 좌우 (후보만):** emo2 분노 — 코는 화면 왼쪽, 보이는 귀는 화면 오른쪽. emo6 안도 — 코는 화면 오른쪽, 보이는 귀는 화면 왼쪽. F·sig4는 §16.1과 같다.
+**화면 기준 좌우:** emo2 분노 원본에서 코는 화면 오른쪽, 보이는 귀는 화면 왼쪽이다. emo6 안도도 코는 화면 오른쪽, 보이는 귀는 화면 왼쪽이다. F·sig4는 §16.1과 같다.
+
+F를 대표 후보로 세면 현재 후보는 4칸(rep F, sig4 옅은 미소, emo2 분노, emo6 안도)이다. 14칸 재설계에서 남은 제작 대상은 10칸이다.
+
+비교 좌표는 1:1 추출이다. 얼굴은 검수 좌표를 그대로 썼다. 분노 얼굴 `825,125,310×300`. 안도 얼굴 `820,75,290×250`. 머리·모피·갑옷 창은 비교판을 열어 해당 부위가 들어가게 다시 잡았다. 기록은 `compare-anger-f-windows.json`, `compare-relief-f-windows.json`이다.
+
+네 컷 요약의 미소 전송 SHA는 실제 생성 기록 `95e795a7…44223cf`다. 이후 owner 조립 `8847a0d3…c2f7e5ff`는 그 호출에 소급하지 않는다. `sig4-smile-f-actual.json`은 그대로다.
 
 ![emo2 분노](./assets/wolfgang-asset-redesign/emo2-anger-f.webp)
 
@@ -675,3 +681,31 @@ F 한 장을 `official-review-candidate` 토큰으로 identity+style 참조에 �
 ![안도 갑옷 1:1](./assets/wolfgang-asset-redesign/compare-relief-f-armor.webp)
 
 옅은 미소·F 비교는 §16.1과 `compare-smile-f-*.webp`를 그대로 본다. 네 컷 전체 요약 JSON: `four-f-candidates-summary.json`.
+
+## 19. emo6-r2 — Expression만 바꾼 안도
+
+기존 emo6은 여유 있는 미소에 가깝다. 그 파일과 2회 호출 ledger는 덮어쓰지 않았다. r2는 Expression만 바꿨다. Pose·샷·F 참조·Appearance Lock·34세 가드는 같다. 전송문 diff는 `emo6-r2-prompt.diff`다. 바뀐 줄은 Expression 한 줄뿐이다.
+
+새 Expression: 눈을 잠깐 감고 미간의 힘이 풀리며, 입술을 살짝 벌려 길게 숨을 내쉬는 안도. 웃는 입꼬리나 장난기보다 긴장이 풀리는 표정이다.
+
+경로: `composeOfficialSlotGeneration` → `prepareOfficialImageReferences` → `callOpenAiImageEdit` 1회. 모델 `gpt-image-2.5-sunburst`. 1536×1024 / medium / n=1 / webp 88 / opaque. fallback·재시도·vision 없음. 원본 `emo6-r2-raw.webp`를 검사보다 먼저 저장했다. 실행 기록은 `emo6-r2-ledger.json`, `emo6-r2-actual.json`이다.
+
+| 항목 | 값 |
+|---|---|
+| request | `req_3ec37eba8f184d68af6ee9b6fbc7b8a5` |
+| 비용 | 0.030293 USD (상한 0.08) |
+| 전송 SHA | `40e0c454…372e05` |
+| 원본 SHA | `f52f9f21…47e214` |
+| F 전처리 | `39d425e5…2ae1c7` |
+
+**인물:** 검은 울프컷, 흑철 판금, 검은 모피, 늑대 문양은 F·미소·분노·기존 안도와 같은 사람이다. 이 컷은 눈을 감아 회청 눈동자는 보이지 않는다.
+
+**그림체:** 같은 cel-shaded 로판 남주 선과 면이다. 배경은 기존 안도처럼 단순하다.
+
+**감정:** 눈은 감겨 있고 입술은 살짝 벌어져 숨을 내쉬는 쪽에 가깝다. 기존 안도의 여유 있는 미소, sig4의 눈을 뜬 옅은 미소, emo2의 턱을 다문 분노와 구별된다. 코는 화면 오른쪽을 향한다. 귀는 머리카락에 많이 가려 이 창만으로 단정하지 않는다.
+
+얼굴 비교 1:1은 `compare-five-faces.webp`다. r2 얼굴 창은 `700,40,360×300`이다. 칸 수는 그대로다. r2는 emo6의 표현 보완이지 다섯 번째 슬롯이 아니다. 채워진 후보는 4칸, 남은 제작 대상은 10칸이다.
+
+![emo6-r2 안도](./assets/wolfgang-asset-redesign/emo6-r2.webp)
+
+![다섯 얼굴 1:1](./assets/wolfgang-asset-redesign/compare-five-faces.webp)

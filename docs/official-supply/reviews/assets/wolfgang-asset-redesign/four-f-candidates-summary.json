@@ -24,7 +24,11 @@
       "tag": "옅은 미소",
       "file": "sig4-smile-f-raw.webp",
       "rawSha256": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1",
-      "primaryPromptSha256": "8847a0d3561ee002ee5439fa4f21020622f572b64f2c1730f4d6b8a5c2f7e5ff",
+      "sentPromptSha256": "95e795a7c1799a30e50f698b666867f8e7a3db61f541c7bc0c6e7f01444223cf",
+      "sentPromptSource": "sig4-smile-f-actual.json promptSha256",
+      "laterOwnerAssemblyPromptSha256": "8847a0d3561ee002ee5439fa4f21020622f572b64f2c1730f4d6b8a5c2f7e5ff",
+      "laterOwnerAssemblySource": "sig4-smile-f-owner-request.json primaryPromptSha256",
+      "laterAssemblyIsNotTheSentCall": true,
       "providerRequestId": "req_9f16055bae0840c4b0d2c49677a931c5",
       "costUsd": 0.030393,
       "providerPosts": 1
@@ -50,6 +54,9 @@
       "providerPosts": 1
     }
   ],
+  "filledCandidateSlots": 4,
+  "filledSlots": ["rep F", "sig4 옅은 미소", "emo2 분노", "emo6 안도"],
+  "remainingProductionSlots": 10,
   "thisTurnPosts": 2,
   "thisTurnCostUsd": 0.060356,
   "fourCutPostsTotal": 3,

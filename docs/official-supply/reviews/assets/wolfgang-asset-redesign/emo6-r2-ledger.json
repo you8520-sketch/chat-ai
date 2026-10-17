@@ -1,0 +1,44 @@
+{
+  "postsCompleted": 1,
+  "totalBudgetUsd": 0.08,
+  "spentUsd": 0.030293,
+  "slots": {
+    "emo6r2": {
+      "status": "GENERATED",
+      "slotKey": "emo6",
+      "revision": "r2",
+      "tag": "안도",
+      "providerPosts": 1,
+      "persistedToProduction": false,
+      "model": "gpt-image-2.5-sunburst",
+      "reference": "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp",
+      "sourceSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+      "preparedSha256": "39d425e5bf7a8e48110107ab74e6d5989608d6d93156e85b10f90c77312ae1c7",
+      "primaryPromptSha256": "40e0c45405a96f5b1ce378e5d7bd39311af6a762bf232fe8c9e7dde023372e05",
+      "size": "1536x1024",
+      "quality": "medium",
+      "n": 1,
+      "outputCompression": 88,
+      "background": "opaque",
+      "providerRequestId": "req_3ec37eba8f184d68af6ee9b6fbc7b8a5",
+      "usageEvidence": "usage_present",
+      "costUsd": 0.030293,
+      "budgetUsd": 0.08,
+      "fallback": false,
+      "retry": false,
+      "vision": false,
+      "raw": {
+        "sha256": "f52f9f21046f7993a349e672b3326f2f5144bcb885badcf3181ad7326547e214",
+        "bytes": 193688
+      },
+      "inspect": {
+        "width": 1536,
+        "height": 1024,
+        "format": "webp",
+        "inspectedSha256": "f52f9f21046f7993a349e672b3326f2f5144bcb885badcf3181ad7326547e214"
+      }
+    }
+  },
+  "state": "saved",
+  "finishedAt": "2026-10-17T10:51:14.388Z"
+}

@@ -29,28 +29,28 @@
     },
     "candidate": {
       "face": {
-        "left": 420,
-        "top": 60,
-        "width": 400,
-        "height": 400
+        "left": 825,
+        "top": 125,
+        "width": 310,
+        "height": 300
       },
       "hair": {
-        "left": 460,
+        "left": 860,
         "top": 0,
-        "width": 340,
-        "height": 260
+        "width": 420,
+        "height": 220
       },
       "fur": {
-        "left": 0,
-        "top": 260,
+        "left": 500,
+        "top": 90,
         "width": 300,
         "height": 240
       },
       "armor": {
-        "left": 380,
-        "top": 420,
-        "width": 460,
-        "height": 340
+        "left": 700,
+        "top": 520,
+        "width": 400,
+        "height": 300
       }
     }
   },
@@ -60,8 +60,8 @@
       "bytes": 173222
     },
     "compare-anger-f-face.webp": {
-      "sha256": "d1bad1b90ace669bc5c46eb31959bcba91d779b8c5d45444dc0becd1fd9de978",
-      "bytes": 68200,
+      "sha256": "e9e1076da2dc730bad0b9d6d1d30bbeedc7f058bc763edc1a231aec57468e479",
+      "bytes": 63376,
       "window": {
         "F": {
           "left": 280,
@@ -70,16 +70,16 @@
           "height": 460
         },
         "candidate": {
-          "left": 420,
-          "top": 60,
-          "width": 400,
-          "height": 400
+          "left": 825,
+          "top": 125,
+          "width": 310,
+          "height": 300
         }
       }
     },
     "compare-anger-f-hair.webp": {
-      "sha256": "11babb2745a1f94826fa76ad76ee0bdae6d45a849431e77ff6f182bf30287ae3",
-      "bytes": 48246,
+      "sha256": "224be1fc852a813eea69b3b39dc8d85289c0fc0b91795b699b1fe728fa67c05b",
+      "bytes": 52970,
       "window": {
         "F": {
           "left": 300,
@@ -88,16 +88,16 @@
           "height": 360
         },
         "candidate": {
-          "left": 460,
+          "left": 860,
           "top": 0,
-          "width": 340,
-          "height": 260
+          "width": 420,
+          "height": 220
         }
       }
     },
     "compare-anger-f-fur.webp": {
-      "sha256": "4fda6f8e3eccfa5fae5abb843732562a7d950a16364c9795c7cc956f18ea5680",
-      "bytes": 19370,
+      "sha256": "2571932989d7e9235d84934bd44f6da0b4e620b7e3deaec93a057f6f4f5f66a3",
+      "bytes": 20604,
       "window": {
         "F": {
           "left": 10,
@@ -106,16 +106,16 @@
           "height": 180
         },
         "candidate": {
-          "left": 0,
-          "top": 260,
+          "left": 500,
+          "top": 90,
           "width": 300,
           "height": 240
         }
       }
     },
     "compare-anger-f-armor.webp": {
-      "sha256": "193ba1b721d054dd534ae3b30bdef7e607a81a9552259e4f847daadd70f1c511",
-      "bytes": 41496,
+      "sha256": "a40818c41db7b21bb83d6ca7d6867927b0adf6a393678b123df6e2b85ee64162",
+      "bytes": 40558,
       "window": {
         "F": {
           "left": 340,
@@ -124,10 +124,10 @@
           "height": 260
         },
         "candidate": {
-          "left": 380,
-          "top": 420,
-          "width": 460,
-          "height": 340
+          "left": 700,
+          "top": 520,
+          "width": 400,
+          "height": 300
         }
       }
     }
