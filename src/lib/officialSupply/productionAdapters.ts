@@ -12,7 +12,7 @@ import {
 } from "@/lib/openAiImageSafetyFallback";
 import { recordBackgroundProviderCost } from "@/lib/providerCostLedger";
 import { storeUpload } from "@/lib/uploadStorage";
-import { analyzeAssetImage } from "@/lib/vision";
+import { analyzeAssetImage, type VisionCostEvidence } from "@/lib/vision";
 import { recordVisionCostAttempts } from "@/lib/visionCost";
 import { prepareOfficialImageReferences } from "@/lib/officialSupply/referencePreparation";
 import {
@@ -106,22 +106,30 @@ export const uploadOfficialAssetStorage: OfficialAssetStorage = {
  * Canonical asset moderation — the same vision owner as creator uploads. The
  * vision classification of the stored image is kept next to the verdict so
  * staging can save what the image shows. When vision could not run, the
- * result is explicitly `unavailable`.
+ * result is explicitly `unavailable`. `observe` receives the usage witnesses of
+ * every vision attempt of one call, including the internal fallback model.
  */
-export const visionOfficialAssetModerator: OfficialAssetModerator = {
-  async moderate(url) {
-    const result = await analyzeAssetImage(url);
-    recordVisionCostAttempts(result.costAttempts);
-    if (result.estimated) return { status: "unavailable", reason: "asset vision moderation unavailable" };
-    return {
-      status: "checked",
-      adultFlagged: result.adultFlagged,
-      moderationReject: result.moderationReject,
-      reason: result.moderationReason,
-      visionTag: result.tag,
-    };
-  },
-};
+export function createVisionOfficialAssetModerator(
+  observe?: (attempts: readonly VisionCostEvidence[]) => void
+): OfficialAssetModerator {
+  return {
+    async moderate(url) {
+      const result = await analyzeAssetImage(url);
+      recordVisionCostAttempts(result.costAttempts);
+      observe?.(result.costAttempts);
+      if (result.estimated) return { status: "unavailable", reason: "asset vision moderation unavailable" };
+      return {
+        status: "checked",
+        adultFlagged: result.adultFlagged,
+        moderationReject: result.moderationReject,
+        reason: result.moderationReason,
+        visionTag: result.tag,
+      };
+    },
+  };
+}
+
+export const visionOfficialAssetModerator: OfficialAssetModerator = createVisionOfficialAssetModerator();
 
 export function fileOfficialAssetSpool(dir = path.join(getDataDir(), "official-supply-spool")): OfficialAssetSpool {
   const file = (key: string) => path.join(dir, `${key}.webp`);

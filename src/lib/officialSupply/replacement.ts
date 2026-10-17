@@ -655,6 +655,49 @@ type ReplacementApplyLedgerRow = {
   status: string;
 };
 
+export type OfficialReplacementApplySummary = {
+  applyId: string;
+  characterId: number;
+  slotKeys: string[];
+  status: string;
+  appliedById: number | null;
+  appliedAt: string;
+  rolledBackById: number | null;
+  rolledBackAt: string | null;
+};
+
+/** Apply ledger rows for one draft, oldest first. */
+export function listOfficialAssetReplacementApplies(
+  store: OfficialSupplyStore,
+  draftKey: string
+): OfficialReplacementApplySummary[] {
+  const rows = store.database
+    .prepare(
+      `SELECT apply_id, character_id, slot_keys_json, status, applied_by_id, applied_at, rolled_back_by_id, rolled_back_at
+       FROM official_supply_replacement_applies WHERE draft_key=? ORDER BY applied_at, rowid`
+    )
+    .all(draftKey) as Array<{
+    apply_id: string;
+    character_id: number;
+    slot_keys_json: string;
+    status: string;
+    applied_by_id: number | null;
+    applied_at: string;
+    rolled_back_by_id: number | null;
+    rolled_back_at: string | null;
+  }>;
+  return rows.map((row) => ({
+    applyId: row.apply_id,
+    characterId: row.character_id,
+    slotKeys: JSON.parse(row.slot_keys_json) as string[],
+    status: row.status,
+    appliedById: row.applied_by_id,
+    appliedAt: row.applied_at,
+    rolledBackById: row.rolled_back_by_id,
+    rolledBackAt: row.rolled_back_at,
+  }));
+}
+
 /**
  * Restores the state recorded before one successful apply: public assets and
  * images (tags, representative designation), the active supply rows (QA,

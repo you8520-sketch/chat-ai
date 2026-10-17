@@ -512,7 +512,14 @@ function anchorQaPasses(qa: OfficialAnchorQaReport): boolean {
   return Object.values(qa).every((check) => check.ok);
 }
 
-const ANCHOR_QA_KEYS = [
+export const VARIATION_QA_KEYS = [
+  "identityMatchesAnchor",
+  "expressionMatchesPlan",
+  "characterPresent",
+  "artStyle",
+] as const satisfies ReadonlyArray<keyof OfficialVariationQaReport>;
+
+export const ANCHOR_QA_KEYS = [
   "gender",
   "ageAppearance",
   "face",
