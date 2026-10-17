@@ -1,0 +1,9 @@
+production build suffix e9d
+command: bash scripts/e44-build.sh e9d /workspace
+exit: 0
+tree: merge 26a2d856 (origin/main 28d6337d into E4-9 b75898fe)
+note: the later test-only commit does not change the production bundle
+
+10: ✓ Compiled successfully in 77s
+11:   Linting and checking validity of types ...
+18:   Collecting page data ...
