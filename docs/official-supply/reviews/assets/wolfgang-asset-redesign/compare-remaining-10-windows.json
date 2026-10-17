@@ -1,0 +1,317 @@
+{
+  "scale": "1:1 extract",
+  "shots": [
+    {
+      "id": "sig1",
+      "tag": "지도를 짚음",
+      "file": "sig1-map-f-raw.webp",
+      "face": {
+        "left": 500,
+        "top": 180,
+        "width": 420,
+        "height": 340
+      },
+      "hair": {
+        "left": 500,
+        "top": 0,
+        "width": 420,
+        "height": 180
+      },
+      "fur": {
+        "left": 980,
+        "top": 80,
+        "width": 420,
+        "height": 320
+      },
+      "armor": {
+        "left": 740,
+        "top": 540,
+        "width": 420,
+        "height": 280
+      }
+    },
+    {
+      "id": "sig2",
+      "tag": "턱을 괴고 생각",
+      "file": "sig2-chin-f-raw.webp",
+      "face": {
+        "left": 430,
+        "top": 20,
+        "width": 340,
+        "height": 300
+      },
+      "hair": {
+        "left": 400,
+        "top": 0,
+        "width": 220,
+        "height": 120
+      },
+      "fur": {
+        "left": 760,
+        "top": 180,
+        "width": 360,
+        "height": 280
+      },
+      "armor": {
+        "left": 430,
+        "top": 300,
+        "width": 380,
+        "height": 300
+      }
+    },
+    {
+      "id": "sig3",
+      "tag": "열쇠를 확인함",
+      "file": "sig3-key-f-raw.webp",
+      "face": {
+        "left": 500,
+        "top": 30,
+        "width": 380,
+        "height": 340
+      },
+      "hair": {
+        "left": 520,
+        "top": 0,
+        "width": 360,
+        "height": 160
+      },
+      "fur": {
+        "left": 980,
+        "top": 160,
+        "width": 400,
+        "height": 300
+      },
+      "armor": {
+        "left": 520,
+        "top": 400,
+        "width": 420,
+        "height": 320
+      }
+    },
+    {
+      "id": "emo1",
+      "tag": "의심",
+      "file": "emo1-doubt-f-raw.webp",
+      "face": {
+        "left": 180,
+        "top": 40,
+        "width": 460,
+        "height": 400
+      },
+      "hair": {
+        "left": 220,
+        "top": 0,
+        "width": 420,
+        "height": 180
+      },
+      "fur": {
+        "left": 900,
+        "top": 200,
+        "width": 420,
+        "height": 300
+      },
+      "armor": {
+        "left": 520,
+        "top": 540,
+        "width": 420,
+        "height": 280
+      }
+    },
+    {
+      "id": "emo3",
+      "tag": "진지함",
+      "file": "emo3-serious-f-raw.webp",
+      "face": {
+        "left": 430,
+        "top": 70,
+        "width": 340,
+        "height": 280
+      },
+      "hair": {
+        "left": 500,
+        "top": 0,
+        "width": 240,
+        "height": 110
+      },
+      "fur": {
+        "left": 710,
+        "top": 220,
+        "width": 220,
+        "height": 180
+      },
+      "armor": {
+        "left": 400,
+        "top": 360,
+        "width": 360,
+        "height": 300
+      }
+    },
+    {
+      "id": "emo4",
+      "tag": "당황",
+      "file": "emo4-fluster-f-raw.webp",
+      "face": {
+        "left": 420,
+        "top": 80,
+        "width": 480,
+        "height": 400
+      },
+      "hair": {
+        "left": 480,
+        "top": 0,
+        "width": 460,
+        "height": 180
+      },
+      "fur": {
+        "left": 40,
+        "top": 200,
+        "width": 360,
+        "height": 280
+      },
+      "armor": {
+        "left": 340,
+        "top": 700,
+        "width": 560,
+        "height": 300
+      }
+    },
+    {
+      "id": "emo5",
+      "tag": "편안함",
+      "file": "emo5-ease-f-raw.webp",
+      "face": {
+        "left": 430,
+        "top": 40,
+        "width": 320,
+        "height": 280
+      },
+      "hair": {
+        "left": 520,
+        "top": 0,
+        "width": 240,
+        "height": 100
+      },
+      "fur": {
+        "left": 690,
+        "top": 220,
+        "width": 150,
+        "height": 160
+      },
+      "armor": {
+        "left": 400,
+        "top": 340,
+        "width": 360,
+        "height": 300
+      }
+    },
+    {
+      "id": "scene1",
+      "tag": "문서를 대조함",
+      "file": "scene1-docs-f-raw.webp",
+      "face": {
+        "left": 720,
+        "top": 40,
+        "width": 380,
+        "height": 320
+      },
+      "hair": {
+        "left": 760,
+        "top": 0,
+        "width": 340,
+        "height": 150
+      },
+      "fur": {
+        "left": 1080,
+        "top": 150,
+        "width": 400,
+        "height": 300
+      },
+      "armor": {
+        "left": 620,
+        "top": 380,
+        "width": 400,
+        "height": 300
+      }
+    },
+    {
+      "id": "scene2",
+      "tag": "기록을 맞춤",
+      "file": "scene2-records-f-raw.webp",
+      "face": {
+        "left": 420,
+        "top": 30,
+        "width": 340,
+        "height": 280
+      },
+      "hair": {
+        "left": 450,
+        "top": 0,
+        "width": 300,
+        "height": 140
+      },
+      "fur": {
+        "left": 200,
+        "top": 180,
+        "width": 320,
+        "height": 240
+      },
+      "armor": {
+        "left": 400,
+        "top": 320,
+        "width": 360,
+        "height": 280
+      }
+    },
+    {
+      "id": "scene3",
+      "tag": "긴장",
+      "file": "scene3-tense-f-raw.webp",
+      "face": {
+        "left": 640,
+        "top": 40,
+        "width": 360,
+        "height": 300
+      },
+      "hair": {
+        "left": 800,
+        "top": 30,
+        "width": 200,
+        "height": 80
+      },
+      "fur": {
+        "left": 360,
+        "top": 100,
+        "width": 340,
+        "height": 260
+      },
+      "armor": {
+        "left": 520,
+        "top": 360,
+        "width": 380,
+        "height": 300
+      }
+    }
+  ],
+  "parts": {
+    "face": {
+      "file": "compare-remaining-10-face.webp",
+      "sha256": "9dc6610d564b1359023c41fa9a319421277bcf68cbb180a96dd080cb73fa4279",
+      "bytes": 230586
+    },
+    "hair": {
+      "file": "compare-remaining-10-hair.webp",
+      "sha256": "2f790ff604b0c943fc59027796466951f6a59145df4e04b5b0e5f20ee4586090",
+      "bytes": 92398
+    },
+    "fur": {
+      "file": "compare-remaining-10-fur.webp",
+      "sha256": "1f05833ecb29c50e8be556145efe6280ada7f4e454601d9fdae2fee910fe7e9b",
+      "bytes": 146288
+    },
+    "armor": {
+      "file": "compare-remaining-10-armor.webp",
+      "sha256": "c365476c123dbed5ab2e206aafe9c2b6fb85802ae3a77f695530236d886cbd32",
+      "bytes": 216782
+    }
+  }
+}

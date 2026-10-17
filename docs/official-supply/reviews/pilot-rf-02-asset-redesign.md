@@ -709,3 +709,67 @@ F를 대표 후보로 세면 현재 후보는 4칸(rep F, sig4 옅은 미소, em
 ![emo6-r2 안도](./assets/wolfgang-asset-redesign/emo6-r2.webp)
 
 ![다섯 얼굴 1:1](./assets/wolfgang-asset-redesign/compare-five-faces.webp)
+
+10칸 제작과 14칸 제출은 §20이다.
+
+## 20. 남은 10칸 후보 제출
+
+유지한 네 칸은 재생성하지 않았다. rep F, sig4 `옅은 미소`, emo2 `분노`, emo6 `안도` r2다. 기존 안도 r1(`emo6-relief-f-*`)은 비교 이력으로 남기고 최종 emo6 후보와 구분한다. 운영 대표·앵커·이미지·태그·r2·Locks·#50·소유권은 그대로다.
+
+새 10칸은 승인 재설계 §4의 장면·행동을 메모리 오버레이로만 썼다. 운영 JSON의 옛 제목 태그는 넣지 않았다. 경로: `composeOfficialSlotGeneration` → `prepareOfficialImageReferences` → `callOpenAiImageEdit` 1회. 모델 `gpt-image-2.5-sunburst`. 1536×1024 / medium / n=1 / webp 88 / opaque. F는 같은 `official-review-candidate` 토큰으로 identity+style에 썼다. Appearance Lock·34세 가드·슬롯별 샷은 유지했다. 합성 후 문자열 치환, b7, 스타일 DNA, 새 전역 화풍 문구는 없다.
+
+호출은 슬롯당 1회, 합계 10회다. 순차 실행이고 fallback·재시도·재추첨·vision은 없다. 원본 바이트를 검사보다 먼저 저장했다. 후처리 복구는 없었다. provider 실패·비용 불명·예산 초과는 없었다. 실행 기록은 새 파일 `remaining-10-f-ledger.json`이다. 기존 smile·emo2·emo6·emo6-r2 actual과 ledger는 덮어쓰지 않았다.
+
+이번 10회 비용은 0.302265 USD다. 슬롯 상한 0.08, 합계 상한 0.80이다. 중단 사유는 없다.
+
+전송 SHA는 각 호출 actual의 해당 필드에서 복사했다. sig4의 이후 재조립 SHA `8847a0d3…c2f7e5ff`는 그 호출의 전송값이 아니다. 전체 목록은 `fourteen-f-candidates.json`이다. 아래 표의 SHA는 그 파일과 같다.
+
+| 슬롯 | 태그 | 파일 | 원본 SHA | 전송 SHA | request | USD |
+|---|---|---|---|---|---|---|
+| rep | F | `rep-f-raw.webp` | `a95f9aca…0f8032` | `e24378f1…83de46e` | `req_77188f324f0845b388c50a5b856161a8` | 0.027393 |
+| sig1 | 지도를 짚음 | `sig1-map-f-raw.webp` | `e9864034…6782f5` | `1dc3003b…1323a5` | `req_8cad5780dde64785a419d63ceb53e453` | 0.030198 |
+| sig2 | 턱을 괴고 생각 | `sig2-chin-f-raw.webp` | `3242bbad…f9bdb4` | `ab17ab9e…9ce15c` | `req_ee31e437cdbb4702adf28ace9a88c8b4` | 0.030153 |
+| sig3 | 열쇠를 확인함 | `sig3-key-f-raw.webp` | `b7df32fa…0f8a19` | `83f11f68…5e030d` | `req_905fc7abe4ce4e21a00252f67ca0e1b0` | 0.030018 |
+| sig4 | 옅은 미소 | `sig4-smile-f-raw.webp` | `fc14ebff…a24dc1` | `95e795a7…4223cf` | `req_9f16055bae0840c4b0d2c49677a931c5` | 0.030393 |
+| emo1 | 의심 | `emo1-doubt-f-raw.webp` | `6f345d95…346a07` | `84c0eb9b…e67d72` | `req_b474a1e014164ecbaae1dd27765ea7e0` | 0.030063 |
+| emo2 | 분노 | `emo2-anger-f-raw.webp` | `c4d38db0…6d5db8` | `c76aec7e…733311` | `req_995ff002b4864ac695708ad75a5f0523` | 0.030123 |
+| emo3 | 진지함 | `emo3-serious-f-raw.webp` | `758e1f8d…19643a` | `6ac62f40…adf245` | `req_8c5320ba66274741bbfa59692c6bb587` | 0.030138 |
+| emo4 | 당황 | `emo4-fluster-f-raw.webp` | `52708694…7bf4d4` | `6995697c…873b51` | `req_5db3268c0ca94919a6587368050b3e7b` | 0.030038 |
+| emo5 | 편안함 | `emo5-ease-f-raw.webp` | `113e7a2c…033a1a` | `9e04e897…f09d73` | `req_93aa24e820c541f9bab6444fb19a7c6d` | 0.030173 |
+| emo6 | 안도 r2 | `emo6-r2-raw.webp` | `f52f9f21…47e214` | `40e0c454…372e05` | `req_3ec37eba8f184d68af6ee9b6fbc7b8a5` | 0.030293 |
+| scene1 | 문서를 대조함 | `scene1-docs-f-raw.webp` | `1150bf9d…e6230c` | `9f89d980…898cc5` | `req_9c5d7971ef8c4a619ae0a5e471b8fb94` | 0.030438 |
+| scene2 | 기록을 맞춤 | `scene2-records-f-raw.webp` | `0cb364a2…74b3e5` | `a24b813c…8075f2` | `req_7608b37f1a06407a838014d8a8f765c1` | 0.030388 |
+| scene3 | 긴장 | `scene3-tense-f-raw.webp` | `bd3a47bc…33482c` | `3a8469dc…3ab860` | `req_44c5e4bdebb3457dadc0b9d179096297` | 0.030658 |
+
+이력 emo6-r1은 최종 후보가 아니다. 파일 `emo6-relief-f-raw.webp`, 원본 `c4775c0d…7ba802`, 전송 `2ffade03…cecf2b`, request `req_e8a41d84ed504492b42b37c1617ef0a9`, 0.030233 USD.
+
+rep F의 과거 호출 크기는 1024×1536이다. 이번 10칸과 유지한 sig4·emo2·emo6-r2는 1536×1024다.
+
+**인물:** 열 장 모두 검은 울프컷, 회청 눈, 흑철 판금, 검은 모피, 늑대 문양이다. F·미소·분노·안도 r2와 같은 사람 쪽으로 읽힌다.
+
+**그림체:** 같은 cel-shaded 로판 남주 선과 면이다. 배경은 슬롯 장소가 달라 눈 내리는 성벽, 집무실, 아카이브, 유리온실로 갈린다.
+
+**행동·감정:** 후보 제출용으로 원본을 연 관찰이다. 14장 품질 검수는 이 제출 다음에 한다.
+
+- sig1: 탁자 위 지도를 장갑 낀 검지로 짚는다. 지도와 손이 프레임 안에 있다. 코는 화면 왼쪽, 보이는 귀는 화면 오른쪽이다.
+- sig2: 앉아 장갑 낀 손으로 턱을 괸다. 서류·지도·열쇠는 없다.
+- sig3: 열쇠 꾸러미를 들어 열쇠를 본다. 열쇠와 손이 프레임 안에 있다.
+- emo1: 눈썹을 좁히고 입을 다문 근접이다. 서류가 없다.
+- emo3: 눈 오는 성벽에서 눈을 뜨고 손을 비운 채 선다. 웃음이 아니다. 얼굴이 프레임에서 작다.
+- emo4: 눈이 커지고 입술이 살짝 벌어진 근접이다. 웃음이 아니다.
+- emo5: 눈을 뜨고 어깨를 내린 채 선다. 눈을 감고 숨을 내쉬는 안도 r2와 창가에 앉아 웃는 미소와 다르다. 서류·검·열쇠가 없다.
+- scene1: 인장이 다른 문서 두 장을 양손에 들고 대조한다. 탁자에 지도가 더 있다.
+- scene2: 아카이브 탁자의 기록을 양손으로 맞춰 본다.
+- scene3: 유리온실에서 눈을 뜨고 선다. 턱과 어깨에 힘이 있고 주먹을 가볍게 쥐고 있다. 문서·열쇠·유혈은 없다. 프롬프트에서 처형 표현은 뺐다. 재시도가 금지된 호출에서 안전 거부를 피하기 위한 것이고, 장소와 긴장된 자세는 남겼다.
+
+얼굴·머리·모피·갑옷 1:1은 원본에서 해당 부위가 들어가도록 창을 열어 맞춘 뒤 붙였다. 좌표는 `compare-remaining-10-windows.json`이다. scene3 머리 창은 작은 머리 위 유리 골조가 함께 보이고, emo5 모피 창은 깃 가장자리에 갑옷이 조금 남는다. 두 창 모두 해당 부위가 주된 내용이다.
+
+![14칸 전체](./assets/wolfgang-asset-redesign/compare-14-candidates.webp)
+
+![남은 10 얼굴](./assets/wolfgang-asset-redesign/compare-remaining-10-face.webp)
+
+![남은 10 머리](./assets/wolfgang-asset-redesign/compare-remaining-10-hair.webp)
+
+![남은 10 모피](./assets/wolfgang-asset-redesign/compare-remaining-10-fur.webp)
+
+![남은 10 갑옷](./assets/wolfgang-asset-redesign/compare-remaining-10-armor.webp)

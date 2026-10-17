@@ -1,0 +1,191 @@
+{
+  "pipeline": "composeOfficialSlotGeneration + prepareOfficialImageReferences + callOpenAiImageEdit",
+  "model": "gpt-image-2.5-sunburst",
+  "settings": {
+    "size": "1536x1024",
+    "quality": "medium",
+    "n": 1,
+    "outputFormat": "webp",
+    "outputCompression": 88,
+    "background": "opaque"
+  },
+  "note": "rep F was generated earlier at 1024x1536. Sent hashes are copied from each call's actual record. emo6-r1 is history.",
+  "candidates": [
+    {
+      "slot": "rep",
+      "tag": "F",
+      "role": "candidate",
+      "file": "rep-f-raw.webp",
+      "rawSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+      "sentPromptSha256": "e24378f1f1b5de20ca7ff21f54f206aa73e21776b4350938b2f81e58883de46e",
+      "sentPromptSource": "rep-f-actual.json promptSha256",
+      "providerRequestId": "req_77188f324f0845b388c50a5b856161a8",
+      "costUsd": 0.027393
+    },
+    {
+      "slot": "sig1",
+      "tag": "지도를 짚음",
+      "role": "candidate",
+      "file": "sig1-map-f-raw.webp",
+      "rawSha256": "e986403412b7754b520901afa97cc00e895ace0184542144383198f3506782f5",
+      "sentPromptSha256": "1dc3003b68c3ce2df14de9566c91d3d0eee448c35fdd1d5b04ddb6dfb31323a5",
+      "sentPromptSource": "sig1-map-f-actual.json sentPromptSha256",
+      "providerRequestId": "req_8cad5780dde64785a419d63ceb53e453",
+      "costUsd": 0.030198
+    },
+    {
+      "slot": "sig2",
+      "tag": "턱을 괴고 생각",
+      "role": "candidate",
+      "file": "sig2-chin-f-raw.webp",
+      "rawSha256": "3242bbadb72a6514314f9dd8ab425ad22e459358821c85b800215d4205f9bdb4",
+      "sentPromptSha256": "ab17ab9e2d4263d4952ddc11accb0a8ccc14c50c66aa84a3652250aefb9ce15c",
+      "sentPromptSource": "sig2-chin-f-actual.json sentPromptSha256",
+      "providerRequestId": "req_ee31e437cdbb4702adf28ace9a88c8b4",
+      "costUsd": 0.030153
+    },
+    {
+      "slot": "sig3",
+      "tag": "열쇠를 확인함",
+      "role": "candidate",
+      "file": "sig3-key-f-raw.webp",
+      "rawSha256": "b7df32fa69725fdfe86849dcd78bfbf6d8f4916f3bf5a6b8ecccb17ae50f8a19",
+      "sentPromptSha256": "83f11f68d070d199ceb7a9b11c7067a25a35b6d089297f5a4fa2682e2a5e030d",
+      "sentPromptSource": "sig3-key-f-actual.json sentPromptSha256",
+      "providerRequestId": "req_905fc7abe4ce4e21a00252f67ca0e1b0",
+      "costUsd": 0.030018
+    },
+    {
+      "slot": "sig4",
+      "tag": "옅은 미소",
+      "role": "candidate",
+      "file": "sig4-smile-f-raw.webp",
+      "rawSha256": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1",
+      "sentPromptSha256": "95e795a7c1799a30e50f698b666867f8e7a3db61f541c7bc0c6e7f01444223cf",
+      "sentPromptSource": "sig4-smile-f-actual.json promptSha256",
+      "providerRequestId": "req_9f16055bae0840c4b0d2c49677a931c5",
+      "costUsd": 0.030393,
+      "laterOwnerAssemblyPromptSha256": "8847a0d3561ee002ee5439fa4f21020622f572b64f2c1730f4d6b8a5c2f7e5ff",
+      "laterAssemblyIsNotTheSentCall": true
+    },
+    {
+      "slot": "emo1",
+      "tag": "의심",
+      "role": "candidate",
+      "file": "emo1-doubt-f-raw.webp",
+      "rawSha256": "6f345d95b85a30850a954e4369f4aa9a7a9ccd978669643f41166fe5a7346a07",
+      "sentPromptSha256": "84c0eb9b750ddf27a24d906ec6aca2112b8c20273b87f953eddf6d0046e67d72",
+      "sentPromptSource": "emo1-doubt-f-actual.json sentPromptSha256",
+      "providerRequestId": "req_b474a1e014164ecbaae1dd27765ea7e0",
+      "costUsd": 0.030063
+    },
+    {
+      "slot": "emo2",
+      "tag": "분노",
+      "role": "candidate",
+      "file": "emo2-anger-f-raw.webp",
+      "rawSha256": "c4d38db0e3adfb59cf6fc2da8b79457636a90d64113c8b059ad30639d66d5db8",
+      "sentPromptSha256": "c76aec7ec9e47fd7765282f0daf491a78a86d1cc31e734f3d7435b3654733311",
+      "sentPromptSource": "emo2-anger-f-actual.json primaryPromptSha256",
+      "providerRequestId": "req_995ff002b4864ac695708ad75a5f0523",
+      "costUsd": 0.030123
+    },
+    {
+      "slot": "emo3",
+      "tag": "진지함",
+      "role": "candidate",
+      "file": "emo3-serious-f-raw.webp",
+      "rawSha256": "758e1f8d182ffdf229107eb83c0d7476e24c7f9c2d1de02ca3ab9bb19419643a",
+      "sentPromptSha256": "6ac62f403af830c16093e67182c8b4e0bb2b0cafc093bc2c8e9bd565a7adf245",
+      "sentPromptSource": "emo3-serious-f-actual.json sentPromptSha256",
+      "providerRequestId": "req_8c5320ba66274741bbfa59692c6bb587",
+      "costUsd": 0.030138
+    },
+    {
+      "slot": "emo4",
+      "tag": "당황",
+      "role": "candidate",
+      "file": "emo4-fluster-f-raw.webp",
+      "rawSha256": "527086945e164458a773cd84eac1e69a4e07d19e8ed14af4eb1c4d8c257bf4d4",
+      "sentPromptSha256": "6995697c5a7b1f0e04d3fa2088b5785a4a990a5ba6f482db8d42629afe873b51",
+      "sentPromptSource": "emo4-fluster-f-actual.json sentPromptSha256",
+      "providerRequestId": "req_5db3268c0ca94919a6587368050b3e7b",
+      "costUsd": 0.030038
+    },
+    {
+      "slot": "emo5",
+      "tag": "편안함",
+      "role": "candidate",
+      "file": "emo5-ease-f-raw.webp",
+      "rawSha256": "113e7a2c18a49b7cbf5f94684217096e4222641b6cfa64c95b7c25013e033a1a",
+      "sentPromptSha256": "9e04e897e5d5ddcea10a1f9511a41525018b1ecb322a5efec96821ea98f09d73",
+      "sentPromptSource": "emo5-ease-f-actual.json sentPromptSha256",
+      "providerRequestId": "req_93aa24e820c541f9bab6444fb19a7c6d",
+      "costUsd": 0.030173
+    },
+    {
+      "slot": "emo6",
+      "tag": "안도",
+      "role": "candidate",
+      "file": "emo6-r2-raw.webp",
+      "rawSha256": "f52f9f21046f7993a349e672b3326f2f5144bcb885badcf3181ad7326547e214",
+      "sentPromptSha256": "40e0c45405a96f5b1ce378e5d7bd39311af6a762bf232fe8c9e7dde023372e05",
+      "sentPromptSource": "emo6-r2-actual.json primaryPromptSha256",
+      "providerRequestId": "req_3ec37eba8f184d68af6ee9b6fbc7b8a5",
+      "costUsd": 0.030293,
+      "revision": "r2"
+    },
+    {
+      "slot": "scene1",
+      "tag": "문서를 대조함",
+      "role": "candidate",
+      "file": "scene1-docs-f-raw.webp",
+      "rawSha256": "1150bf9d17b6e7720e3e020c5288be20e346a83468c633d7672a9796f1e6230c",
+      "sentPromptSha256": "9f89d980e84be8df9edf5330db15f6e815ae7e54ce7093a2e55d5ab049898cc5",
+      "sentPromptSource": "scene1-docs-f-actual.json sentPromptSha256",
+      "providerRequestId": "req_9c5d7971ef8c4a619ae0a5e471b8fb94",
+      "costUsd": 0.030438
+    },
+    {
+      "slot": "scene2",
+      "tag": "기록을 맞춤",
+      "role": "candidate",
+      "file": "scene2-records-f-raw.webp",
+      "rawSha256": "0cb364a2eddfddf5196e1ab1f0da8deb20ca175b62cc996b3ac583cea674b3e5",
+      "sentPromptSha256": "a24b813c2a6522d1fcb5188ab90a5e640d76c01e0158a07ffe7d50da7e8075f2",
+      "sentPromptSource": "scene2-records-f-actual.json sentPromptSha256",
+      "providerRequestId": "req_7608b37f1a06407a838014d8a8f765c1",
+      "costUsd": 0.030388
+    },
+    {
+      "slot": "scene3",
+      "tag": "긴장",
+      "role": "candidate",
+      "file": "scene3-tense-f-raw.webp",
+      "rawSha256": "bd3a47bc70ac79ac2bbc9b9a92e93903680397f59265afd9bb1f02309433482c",
+      "sentPromptSha256": "3a8469dcfc03d1208c0f899b09ddb3b5dd52d73a5b14d1dd6fd55453913ab860",
+      "sentPromptSource": "scene3-tense-f-actual.json sentPromptSha256",
+      "providerRequestId": "req_44c5e4bdebb3457dadc0b9d179096297",
+      "costUsd": 0.030658
+    }
+  ],
+  "history": [
+    {
+      "slot": "emo6-r1",
+      "tag": "안도",
+      "role": "history",
+      "file": "emo6-relief-f-raw.webp",
+      "rawSha256": "c4775c0dea1d116b30db9177305c37cfe72c7419d56e3c7a37893f0b757ba802",
+      "sentPromptSha256": "2ffade03ff51de5e1e22e1a3801279186dabc194b68b69a9c8ebd21932cecf2b",
+      "sentPromptSource": "emo6-relief-f-actual.json primaryPromptSha256",
+      "providerRequestId": "req_e8a41d84ed504492b42b37c1617ef0a9",
+      "costUsd": 0.030233,
+      "notTheFinalEmo6Candidate": true
+    }
+  ],
+  "thisTurnPosts": 10,
+  "thisTurnCostUsd": 0.302265,
+  "thisTurnBudgetUsd": 0.8,
+  "qualityReview": "not started; candidate submission only",
+  "persistedToProduction": false
+}
