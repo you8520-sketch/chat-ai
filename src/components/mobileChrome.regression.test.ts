@@ -113,3 +113,24 @@ describe("E4-3B candidate A — header strip owns mobile discovery", () => {
     assert.match(mainNav, /nav\.scrollLeft = /);
   });
 });
+
+describe("E4-7 /create fixed bars own the scroll padding they cover", () => {
+  const saveBar = read("src/components/studio/StudioSaveBar.tsx");
+  const create = read("src/components/CreateCharacter.tsx");
+
+  it("reserves save bar + bottom nav + keyboard inset below focused fields", () => {
+    const padding = saveBar.slice(saveBar.indexOf('"scroll-padding-bottom"'));
+    assert.match(padding.slice(0, 220), /var\(--mobile-nav-offset, 0px\)/);
+    assert.match(padding.slice(0, 220), /var\(--keyboard-inset, 0px\)/);
+  });
+
+  it("reserves header + sticky tab bar above focused fields and releases it on unmount", () => {
+    assert.match(create, /"scroll-padding-top"/);
+    assert.match(create, /var\(--site-header-height, 0px\) \+ \$\{Math\.ceil\(tabs\.getBoundingClientRect\(\)\.height\)\}px/);
+    assert.match(create, /removeProperty\("scroll-padding-top"\)/);
+  });
+
+  it("jumps to the label row so the field title is not hidden behind the tab bar", () => {
+    assert.match(create, /\.labels\?\.\[0\]\?\.parentElement \?\? el/);
+  });
+});

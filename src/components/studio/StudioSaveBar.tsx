@@ -50,7 +50,10 @@ export default function StudioSaveBar({
     const publish = () => {
       const height = `${Math.ceil(bar.getBoundingClientRect().height)}px`;
       root.style.setProperty("--studio-save-bar-h", height);
-      root.style.setProperty("scroll-padding-bottom", `calc(${height} + 1rem)`);
+      root.style.setProperty(
+        "scroll-padding-bottom",
+        `calc(${height} + var(--mobile-nav-offset, 0px) + var(--keyboard-inset, 0px) + 1rem)`,
+      );
     };
     publish();
     const observer = new ResizeObserver(publish);
