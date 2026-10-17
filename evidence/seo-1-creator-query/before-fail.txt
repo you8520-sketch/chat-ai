@@ -1,0 +1,84 @@
+TAP version 13
+# Subtest: site SEO
+    # Subtest: uses the published origin for canonicals without reading OAuth env
+    ok 1 - uses the published origin for canonicals without reading OAuth env
+      ---
+      duration_ms: 0.966314
+      ...
+    # Subtest: separates robots crawl allow, noindex metadata, and sitemap membership
+    not ok 2 - separates robots crawl allow, noindex metadata, and sitemap membership
+      ---
+      duration_ms: 2.225252
+      location: '/workspace/src/lib/siteSeo.test.ts:23:2752'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+        
+        true !== false
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: false
+      actual: true
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (/workspace/src/lib/siteSeo.test.ts:164:12)
+        Test.runInAsyncScope (node:async_hooks:211:14)
+        Test.run (node:internal/test_runner/test:979:25)
+        Suite.processPendingSubtests (node:internal/test_runner/test:677:18)
+        Test.postRun (node:internal/test_runner/test:1090:19)
+        Test.run (node:internal/test_runner/test:1018:12)
+        async Promise.all (index 0)
+        async Suite.run (node:internal/test_runner/test:1358:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+      ...
+    # Subtest: keeps the query when matching studio and profile URLs
+    not ok 3 - keeps the query when matching studio and profile URLs
+      ---
+      duration_ms: 0.306652
+      location: '/workspace/src/lib/siteSeo.test.ts:23:4732'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+        
+        true !== false
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: false
+      actual: true
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (/workspace/src/lib/siteSeo.test.ts:218:12)
+        Test.runInAsyncScope (node:async_hooks:211:14)
+        Test.run (node:internal/test_runner/test:979:25)
+        Suite.processPendingSubtests (node:internal/test_runner/test:677:18)
+        Test.postRun (node:internal/test_runner/test:1090:19)
+        Test.run (node:internal/test_runner/test:1018:12)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    # Subtest: lists only listable non-adult public URLs from an isolated fixture
+    ok 4 - lists only listable non-adult public URLs from an isolated fixture
+      ---
+      duration_ms: 2.369149
+      ...
+    1..4
+not ok 1 - site SEO
+  ---
+  duration_ms: 6.592204
+  type: 'suite'
+  location: '/workspace/src/lib/siteSeo.test.ts:23:355'
+  failureType: 'subtestsFailed'
+  error: '2 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 4
+# suites 1
+# pass 2
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 379.661733
+EXIT:1

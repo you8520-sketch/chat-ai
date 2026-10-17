@@ -1,0 +1,51 @@
+robots.txt HTTP 200 text/plain
+--- robots.txt body ---
+User-Agent: *
+Allow: /
+Allow: /creator/
+Disallow: /api/
+Disallow: /admin/
+Disallow: /albums
+Disallow: /bookmarks
+Disallow: /c/
+Disallow: /character/
+Disallow: /chat/
+Disallow: /chats
+Disallow: /create
+Disallow: /creator$
+Disallow: /creator?
+Disallow: /events/
+Disallow: /lorebook
+Disallow: /my-characters
+Disallow: /notifications
+Disallow: /onboarding
+Disallow: /payments
+Disallow: /persona
+Disallow: /points
+Disallow: /settings
+Disallow: /signup/
+Disallow: /simulation
+Disallow: /studio
+Disallow: /verify
+Disallow: /widget/
+Disallow: /world
+
+Host: https://hav.chat
+Sitemap: https://hav.chat/sitemap.xml
+--- end robots.txt ---
+contains Disallow: /creator$ true
+contains Disallow: /creator? true
+contains Allow: /creator/ true
+contains Disallow: /login false
+contains Disallow: /signup/ true
+
+HTTP below is the app response. A 307 is the login redirect, not the robots crawl decision.
+{"path":"/creator","http":307,"location":"/login?redirect=/creator","robotsMeta":"","title":""}
+{"path":"/creator?tab=overview","http":307,"location":"/login?redirect=/creator","robotsMeta":"","title":""}
+{"path":"/creator/8","http":404,"location":"","robotsMeta":"noindex","title":"하브 - AI 캐릭터 채팅"}
+{"path":"/creator/8?sort=new","http":404,"location":"","robotsMeta":"noindex","title":"하브 - AI 캐릭터 채팅"}
+{"path":"/login","http":200,"location":"","robotsMeta":"noindex, nofollow","title":"로그인 · 하브"}
+{"path":"/signup","http":200,"location":"","robotsMeta":"noindex, nofollow","title":"회원가입 · 하브"}
+{"path":"/tab/following","http":200,"location":"","robotsMeta":"noindex, nofollow","title":"북마크/팔로잉 · 하브"}
+{"path":"/tab/likes","http":200,"location":"","robotsMeta":"noindex, nofollow","title":"북마크한 캐릭터 · 하브"}
+{"path":"/signup/verify?token=fixture","http":307,"location":"/login?verify=failed","robotsMeta":"","title":""}
