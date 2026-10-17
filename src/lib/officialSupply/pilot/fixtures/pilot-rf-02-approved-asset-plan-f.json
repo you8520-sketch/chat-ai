@@ -165,7 +165,7 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "진지함",
+        "personTag": null,
         "imageSubjects": {
           "foreground": "solo_character",
           "backgroundExtras": "none"
@@ -182,7 +182,7 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "미소",
+        "personTag": null,
         "imageSubjects": {
           "foreground": "solo_character",
           "backgroundExtras": "none"

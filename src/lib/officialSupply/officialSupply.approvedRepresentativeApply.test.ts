@@ -484,6 +484,15 @@ describe("approved fourteen-slot private apply (isolated DB, test-only review fi
     assert.deepEqual(store.getAsset(MAIN, "rep").qa, anchorQa());
     const character = store.getCharacter(MAIN);
     assert.deepEqual(character.assetPlan, APPROVED_PLAN);
+    assert.deepEqual(
+      character.assetPlan!.slots
+        .filter((slot) => slot.slotKey === "emo5" || slot.slotKey === "emo6")
+        .map((slot) => [slot.tag, slot.personTag]),
+      [
+        ["편안함", null],
+        ["안도", null],
+      ]
+    );
     assert.equal(draftState(MAIN).supply.anchor_approved_by, TEST_ONLY_REVIEWER);
     assert.deepEqual(character.generationReferencePolicy, {
       mode: "representative_identity_and_style",
