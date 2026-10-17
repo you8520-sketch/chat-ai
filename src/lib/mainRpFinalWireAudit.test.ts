@@ -28,6 +28,10 @@ import {
   type WireCaseResult,
 } from "@/lib/mainRpFinalWireAudit";
 import { buildOpenRouterMessages } from "@/lib/openRouterAdult";
+import {
+  ARGON_DIALOGUE_ACTION_INNER_PROHIBITION,
+  SHARED_DIALOGUE_ACTION_INNER_PROHIBITION,
+} from "@/lib/noGodmodding";
 
 const report = runMainRpFinalWireAudit();
 
@@ -328,6 +332,41 @@ describe("Main RP final-wire audit", () => {
       jsx.sections.map((section) => [section.id, section.sha256])
     );
     assert.deepEqual(withSheet.localEstimateTokens, jsx.localEstimateTokens);
+  });
+
+  it("replaces only the Argon NORMAL coauthor inner sentence", () => {
+    const section = (id: string) =>
+      caseById(id).sections.find((row) => row.id === "no-godmodding");
+    const sharedIds = [
+      "ds-interactive-normal-rich",
+      "g31-interactive-normal-rich",
+      "g38-interactive-normal-rich",
+      "sol-interactive-normal-rich",
+      "opus-interactive-long-history",
+    ] as const;
+    const shared = section(sharedIds[0]);
+    assert.ok(shared);
+    for (const id of sharedIds) {
+      assert.equal(section(id)?.sha256, shared.sha256, id);
+      assert.equal(section(id)?.chars, shared.chars, id);
+    }
+    const argon = section("g4-interactive-normal-rich");
+    assert.ok(argon);
+    assert.notEqual(argon.sha256, shared.sha256);
+    assert.equal(
+      argon.chars,
+      shared.chars +
+        ARGON_DIALOGUE_ACTION_INNER_PROHIBITION.length -
+        SHARED_DIALOGUE_ACTION_INNER_PROHIBITION.length
+    );
+    assert.equal(
+      caseById("g4-interactive-normal-rich").anchors.userAuthoringTitle,
+      caseById("g38-interactive-normal-rich").anchors.userAuthoringTitle
+    );
+    assert.equal(
+      caseById("ds-auto-normal").sections.find((row) => row.id === "no-godmodding")?.sha256,
+      caseById("opus-auto-normal").sections.find((row) => row.id === "no-godmodding")?.sha256
+    );
   });
 
   it("keeps the live cue hashes and isolates the #1288 candidate to one character-block clause", () => {

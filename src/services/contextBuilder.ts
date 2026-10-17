@@ -637,6 +637,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     appendGemini31UserAgencySupplement(
       buildNoGodmoddingBlock(input.charName, personaLabel, godmoddingMode, {
         currentTurnDelegation,
+        modelId: input.modelId,
       }),
       {
         modelId: input.modelId,

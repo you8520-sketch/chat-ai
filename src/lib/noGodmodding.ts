@@ -1,4 +1,8 @@
 import { buildAutoProgressionUserControlBlock } from "@/lib/autoProgressionRules";
+import {
+  GEMINI_4_ARGON_MODEL,
+  OPENROUTER_GEMINI_4_ARGON_MODEL,
+} from "@/lib/chatModels";
 import { HISTORICAL_TRUTH_POLICY_SHORT_REF } from "@/lib/historicalTruthPolicy";
 import {
   MANDATORY_RULES_BOUNDED_AUTHORITY_SHORT_REF,
@@ -142,7 +146,35 @@ export const CURRENT_INPUT_OVERRIDES_PRIOR_ASSISTANT_LINE =
 
 export type NoGodmoddingBlockOptions = {
   currentTurnDelegation?: CurrentTurnAuthoringDelegation;
+  /** Final request model. Exact canonical or wire id; omitted keeps the shared sentence. */
+  modelId?: string | null;
 };
+
+/** Shared dialogue+action / no-inner branch. First sentence only. */
+export const SHARED_DIALOGUE_ACTION_INNER_PROHIBITION =
+  "[B]의 비공개 속마음·내면 독백·숨은 욕망을 객관적 사실로 쓰지 않는다.";
+
+/**
+ * Argon-only replacement for the shared inner prohibition.
+ * The irreversible-canon sentence on the same line stays shared.
+ */
+export const ARGON_DIALOGUE_ACTION_INNER_PROHIBITION =
+  "[B]의 비공개 속마음·내면 독백·감정·호불호·의도·욕망을 서술자가 객관적 사실로 확정하지 않는다. 표정·시선·행동에서 그 속뜻을 해석할 때는 [A]의 관찰·추측임을 구분한다.";
+
+export const DIALOGUE_ACTION_IRREVERSIBLE_PROHIBITION =
+  "[B]의 사망·영구 상실·정체성·장기 관계·소속 같은 불가역 정본 변경도 대신 확정하지 않는다.";
+
+function usesExactArgonRequestModel(modelId?: string | null): boolean {
+  if (!modelId?.trim()) return false;
+  const id = modelId.trim().toLowerCase();
+  return id === GEMINI_4_ARGON_MODEL || id === OPENROUTER_GEMINI_4_ARGON_MODEL;
+}
+
+function dialogueActionInnerProhibition(modelId?: string | null): string {
+  return usesExactArgonRequestModel(modelId)
+    ? ARGON_DIALOGUE_ACTION_INNER_PROHIBITION
+    : SHARED_DIALOGUE_ACTION_INNER_PROHIBITION;
+}
 
 function resolveCoauthorDuration(
   delegation?: CurrentTurnAuthoringDelegation
@@ -171,7 +203,8 @@ function coauthorDurationLine(
 
 function delegatedScopeLines(
   delegation?: CurrentTurnAuthoringDelegation,
-  duration: UserCoauthorDuration = "turn"
+  duration: UserCoauthorDuration = "turn",
+  modelId?: string | null
 ): string {
   const allowDialogue = delegation?.allowDialogue === true;
   const allowMajorActions = delegation?.allowMajorActions === true;
@@ -195,7 +228,7 @@ function delegatedScopeLines(
   if (allowDialogue && allowMajorActions) {
     return `[B]의 직접 대사와 외부에서 관찰 가능한 중요한 행동을 페르소나에 맞게 공동 서술할 수 있다.
 장면에 필요한 일상적 선택, 대화 왕복, 접근·후퇴·망설임·수락·거절 같은 국소적 반응을 자연스럽게 이어갈 수 있다.${turnLimited ? " 이번 턴에만 적용된다." : ""}
-[B]의 비공개 속마음·내면 독백·숨은 욕망을 객관적 사실로 쓰지 않는다. [B]의 사망·영구 상실·정체성·장기 관계·소속 같은 불가역 정본 변경도 대신 확정하지 않는다.`;
+${dialogueActionInnerProhibition(modelId)} ${DIALOGUE_ACTION_IRREVERSIBLE_PROHIBITION}`;
   }
 
   if (allowDialogue) {
@@ -220,7 +253,8 @@ function aiCastIrreversibleExpansionLine(
 
 /** Parameterized coauthor owner — turn-only or persistent. Not LIMITED CO-NARRATION. */
 export function buildUserCoauthorOwnerBlock(
-  delegation?: CurrentTurnAuthoringDelegation
+  delegation?: CurrentTurnAuthoringDelegation,
+  modelId?: string | null
 ): string {
   const duration = resolveCoauthorDuration(delegation);
   return `${USER_COAUTHOR_OWNER_TITLE}
@@ -229,7 +263,7 @@ ${coauthorDurationLine(delegation, duration)}
 
 [USER_PERSONA], 확정된 관계, 현재 장면, 실제 대화·기억을 정본으로 따른다. 새 성격을 만들지 않는다.
 
-${delegatedScopeLines(delegation, duration)}
+${delegatedScopeLines(delegation, duration, modelId)}
 
 ${aiCastIrreversibleExpansionLine(delegation)}
 
@@ -242,9 +276,10 @@ ${MANDATORY_RULES_BOUNDED_AUTHORITY_SHORT_REF}
 
 /** @deprecated Use buildUserCoauthorOwnerBlock. */
 export function buildCurrentTurnDelegatedOwnerBlock(
-  delegation?: CurrentTurnAuthoringDelegation
+  delegation?: CurrentTurnAuthoringDelegation,
+  modelId?: string | null
 ): string {
-  return buildUserCoauthorOwnerBlock(delegation);
+  return buildUserCoauthorOwnerBlock(delegation, modelId);
 }
 
 export function buildNoGodmoddingBlock(
@@ -259,7 +294,10 @@ export function buildNoGodmoddingBlock(
     case "coNarration":
       return buildLimitedCoNarrationBlock();
     case "currentTurnDelegated":
-      return buildCurrentTurnDelegatedOwnerBlock(options?.currentTurnDelegation);
+      return buildCurrentTurnDelegatedOwnerBlock(
+        options?.currentTurnDelegation,
+        options?.modelId
+      );
     case "standard":
       return buildCompactNoGodmoddingStandardBlock();
     default: {

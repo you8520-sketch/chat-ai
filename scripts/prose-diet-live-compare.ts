@@ -147,6 +147,11 @@ async function main() {
     await runGemini38AxisLiveCompare();
     return;
   }
+  if (process.env.ARGON_INNER_SCOPE_COMPARE === "1") {
+    const { runArgonInnerScopeLiveCompare } = await import("./lib/argonInnerScopeLiveCompare");
+    await runArgonInnerScopeLiveCompare();
+    return;
+  }
   const apiKey =
     exitIfBenchmarkCheaperInferenceApiKeyMissing("PROSE_DIET_NOT_RUN");
 
