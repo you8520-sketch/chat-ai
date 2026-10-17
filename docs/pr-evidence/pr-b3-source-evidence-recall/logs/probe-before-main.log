@@ -1,0 +1,52 @@
+[database] runtime diagnostics {
+  nodeEnv: '',
+  nextPhase: '',
+  cwd: '/tmp/main-wt',
+  dataDir: '/tmp/b3/pb',
+  databasePath: '/tmp/b3/pb/app.db',
+  dataDirExists: true,
+  dataDirIsMounted: false,
+  productionRuntime: false
+}
+{"chatId":99201,"turns":79,"memoryMeta":{"honorifics":[],"items":["데모유저: 청동열쇠"],"thoughts":[],"promises":[{"text":"다음 주 토요일 도서관 앞에서 빌린 책을 돌려주기로 했다.","deadline":"다음 주 토요일"}]}}
+===== A recall promise =====
+user message: 그러고 보니 예전에 한강에서 야경 보기로 했던 거, 우리 어떻게 됐었지?
+promise-history lines: 1  chars: 46  ms: 4.95
+--- relationship memory block (exact) ---
+[Memory — 참고, 우선순위 2순위 하위]
+관계:
+소지품:
+데모유저: 청동열쇠
+약속: 다음 주 토요일 도서관 앞에서 빌린 책을 돌려주기로 했다. (기한: 다음 주 토요일)
+지난 약속(현재 유효하지 않음): 금요일 저녁 한강에서 같이 야경을 보기로 했다. (제10턴 약속 → 제20턴 해제)
+
+===== B ask cancel reason =====
+user message: 그때 한강 야경 약속 왜 취소했더라?
+promise-history lines: 1  chars: 46  ms: 1.32
+--- relationship memory block (exact) ---
+[Memory — 참고, 우선순위 2순위 하위]
+관계:
+소지품:
+데모유저: 청동열쇠
+약속: 다음 주 토요일 도서관 앞에서 빌린 책을 돌려주기로 했다. (기한: 다음 주 토요일)
+지난 약속(현재 유효하지 않음): 금요일 저녁 한강에서 같이 야경을 보기로 했다. (제10턴 약속 → 제20턴 해제)
+
+===== C propose a new promise =====
+user message: 이번 주말에 새로 약속 잡아볼까요? 영화 어때요?
+promise-history lines: 0  chars: 0  ms: 1.18
+--- relationship memory block (exact) ---
+[Memory — 참고, 우선순위 2순위 하위]
+관계:
+소지품:
+데모유저: 청동열쇠
+약속: 다음 주 토요일 도서관 앞에서 빌린 책을 돌려주기로 했다. (기한: 다음 주 토요일)
+
+===== C2 unrelated scene =====
+user message: 오늘도 삼각김밥 하나 주세요.
+promise-history lines: 0  chars: 0  ms: 1.07
+--- relationship memory block (exact) ---
+[Memory — 참고, 우선순위 2순위 하위]
+관계:
+소지품:
+데모유저: 청동열쇠
+약속: 다음 주 토요일 도서관 앞에서 빌린 책을 돌려주기로 했다. (기한: 다음 주 토요일)

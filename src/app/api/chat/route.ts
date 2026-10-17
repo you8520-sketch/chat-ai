@@ -161,10 +161,7 @@ import {
   sanitizeVisualAppearance,
 } from "@/lib/visualAnchor";
 import { formatMemoryMetaForPrompt, normalizeMemoryMeta, parseMemoryMeta, type RelationshipMetaDelta } from "@/lib/chatMemory";
-import {
-  loadRelationshipLedgerEventsCore,
-  selectPromiseHistoryForPrompt,
-} from "@/lib/memory/memory-relationship-timeline";
+import { loadPromiseHistoryForPromptCore } from "@/lib/memory/memory-relationship-timeline";
 import { buildSceneMomentumInputFromRoute } from "@/lib/sceneMomentum/routeInput";
 import {
   buildSceneMomentumProductionTelemetry,
@@ -1974,11 +1971,12 @@ export async function POST(req: Request) {
     ? normalizeMemoryMeta(parseMemoryMeta(chat.memory_meta), relationshipNames)
     : null;
   const endedPromisesForPrompt = memoryFeatureOn
-    ? selectPromiseHistoryForPrompt(
-        loadRelationshipLedgerEventsCore(db, chat.id, relationshipNames, {
-          beforeAssistantMessageId: regenerateMessageId,
-        }),
-        policyUserMessage
+    ? loadPromiseHistoryForPromptCore(
+        db,
+        chat.id,
+        relationshipNames,
+        policyUserMessage,
+        { beforeAssistantMessageId: regenerateMessageId }
       )
     : [];
   const relationshipMemoryForPrompt = memoryFeatureOn

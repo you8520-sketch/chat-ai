@@ -1,0 +1,213 @@
+TAP version 13
+# [database] runtime diagnostics {
+#   nodeEnv: '',
+#   nextPhase: '',
+#   cwd: '/tmp/main-wt',
+#   dataDir: '/tmp/main-wt/data',
+#   databasePath: '/tmp/main-wt/data/app.db',
+#   dataDirExists: true,
+#   dataDirIsMounted: false,
+#   productionRuntime: false
+# }
+# Subtest: past promise recall carries verified source quotes
+    # Subtest: A: a clear question returns the T10 promise and the T20 cancel, each with its own words
+    not ok 1 - A: a clear question returns the T10 promise and the T20 cancel, each with its own words
+      ---
+      duration_ms: 440.207574
+      location: '/tmp/main-wt/src/lib/memory/memory-promise-source-evidence.test.ts:4:2432'
+      failureType: 'testCodeFailure'
+      error: 'false == true'
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: true
+      actual: false
+      operator: '=='
+      stack: |-
+        TestContext.<anonymous> (/tmp/main-wt/src/lib/memory/memory-promise-source-evidence.test.ts:152:12)
+        Test.runInAsyncScope (node:async_hooks:211:14)
+        Test.run (node:internal/test_runner/test:979:25)
+        async Promise.all (index 0)
+        async Suite.run (node:internal/test_runner/test:1358:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+      ...
+    # Subtest: the quoted turns, speakers and ledger state agree: the promise is ended, not active
+    ok 2 - the quoted turns, speakers and ledger state agree: the promise is ended, not active
+      ---
+      duration_ms: 6.142894
+      ...
+    # Subtest: B: when the cancel gives no reason the block holds no reason; a stated reason is quoted verbatim
+    not ok 3 - B: when the cancel gives no reason the block holds no reason; a stated reason is quoted verbatim
+      ---
+      duration_ms: 7.746449
+      location: '/tmp/main-wt/src/lib/memory/memory-promise-source-evidence.test.ts:4:3611'
+      failureType: 'testCodeFailure'
+      error: |-
+        The input did not match the regular expression /사정이 생겨서/. Input:
+
+        '금요일 저녁 한강에서 같이 야경을 보기로 했다. (제10턴 약속 → 제20턴 해제)'
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      actual: '금요일 저녁 한강에서 같이 야경을 보기로 했다. (제10턴 약속 → 제20턴 해제)'
+      operator: 'match'
+      stack: |-
+        TestContext.<anonymous> (/tmp/main-wt/src/lib/memory/memory-promise-source-evidence.test.ts:172:12)
+        Test.runInAsyncScope (node:async_hooks:211:14)
+        Test.run (node:internal/test_runner/test:979:25)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    # Subtest: C: proposing a new promise or an unrelated scene injects no past promise
+    ok 4 - C: proposing a new promise or an unrelated scene injects no past promise
+      ---
+      duration_ms: 9.183009
+      ...
+    # Subtest: D: create, cancel, re-promise, re-cancel keeps order and quotes the latest cycle
+    not ok 5 - D: create, cancel, re-promise, re-cancel keeps order and quotes the latest cycle
+      ---
+      duration_ms: 44.982035
+      location: '/tmp/main-wt/src/lib/memory/memory-promise-source-evidence.test.ts:4:4926'
+      failureType: 'testCodeFailure'
+      error: 'false == true'
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: true
+      actual: false
+      operator: '=='
+      stack: |-
+        TestContext.<anonymous> (/tmp/main-wt/src/lib/memory/memory-promise-source-evidence.test.ts:205:12)
+        Test.runInAsyncScope (node:async_hooks:211:14)
+        Test.run (node:internal/test_runner/test:979:25)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    # Subtest: E: an old promise is still found at T80, T150, T500 and T1000 behind many newer ended ones
+    not ok 6 - E: an old promise is still found at T80, T150, T500 and T1000 behind many newer ended ones
+      ---
+      duration_ms: 61.005823
+      location: '/tmp/main-wt/src/lib/memory/memory-promise-source-evidence.test.ts:4:6800'
+      failureType: 'testCodeFailure'
+      error: |-
+        The input did not match the regular expression /제10턴 약속 → 제20턴 해제/. Input:
+
+        '45번 창고 열쇠를 월요일에 정산하기로 했다. (제206턴 약속 → 제208턴 해제)'
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      actual: '45번 창고 열쇠를 월요일에 정산하기로 했다. (제206턴 약속 → 제208턴 해제)'
+      operator: 'match'
+      stack: |-
+        TestContext.<anonymous> (/tmp/main-wt/src/lib/memory/memory-promise-source-evidence.test.ts:227:14)
+        Test.runInAsyncScope (node:async_hooks:211:14)
+        Test.run (node:internal/test_runner/test:979:25)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    # Subtest: F: deleted, regenerated, switched or rewritten sources never resurface an old quote
+    not ok 7 - F: deleted, regenerated, switched or rewritten sources never resurface an old quote
+      ---
+      duration_ms: 59.822367
+      location: '/tmp/main-wt/src/lib/memory/memory-promise-source-evidence.test.ts:4:7921'
+      failureType: 'testCodeFailure'
+      error: |-
+        The expression evaluated to a falsy value:
+
+          assert.deepEqual(visible, [], "regenerating the cancel turn hides its own cancellation")
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: true
+      actual: false
+      operator: '=='
+      stack: |-
+        TestContext.<anonymous> (/tmp/main-wt/src/lib/memory/memory-promise-source-evidence.test.ts:261:12)
+        Test.runInAsyncScope (node:async_hooks:211:14)
+        Test.run (node:internal/test_runner/test:979:25)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    # Subtest: F: deleting the last turn drops the cancel and its quote with it
+    ok 8 - F: deleting the last turn drops the cancel and its quote with it
+      ---
+      duration_ms: 11.9957
+      ...
+    # Subtest: F: an assistant message that did not finish cannot be quoted
+    ok 9 - F: an assistant message that did not finish cannot be quoted
+      ---
+      duration_ms: 7.077778
+      ...
+    # Subtest: G: a manual Global edit changes neither the ended-promise line nor the ledger state
+    ok 10 - G: a manual Global edit changes neither the ended-promise line nor the ledger state
+      ---
+      duration_ms: 7.644825
+      ...
+    # Subtest: quotes are data: an embedded command is cut before it reaches the block
+    not ok 11 - quotes are data: an embedded command is cut before it reaches the block
+      ---
+      duration_ms: 63.420186
+      location: '/tmp/main-wt/src/lib/memory/memory-promise-source-evidence.test.ts:4:11573'
+      failureType: 'testCodeFailure'
+      error: |-
+        The expression evaluated to a falsy value:
+
+          getDb().transaction(() => {
+          commitManualGlobalCheckpointCore(getDb(), {
+          chatId: CHAT_ID,
+          manualText: "[직접 정리한 장기기억] 히유와 한강 야경 약속은 취소되어 지금은 유효하지 않다.",
+          archiveSummary: "",
+          });
+          })
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: true
+      actual: false
+      operator: '=='
+      stack: |-
+        TestContext.<anonymous> (/tmp/main-wt/src/lib/memory/memory-promise-source-evidence.test.ts:317:12)
+        Test.runInAsyncScope (node:async_hooks:211:14)
+        Test.run (node:internal/test_runner/test:979:25)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    # Subtest: a long cancel message is cut to the sentences that bear on the promise
+    not ok 12 - a long cancel message is cut to the sentences that bear on the promise
+      ---
+      duration_ms: 9.10884
+      location: '/tmp/main-wt/src/lib/memory/memory-promise-source-evidence.test.ts:4:12223'
+      failureType: 'testCodeFailure'
+      error: "Cannot read properties of null (reading '1')"
+      code: 'ERR_TEST_FAILURE'
+      name: 'TypeError'
+      stack: |-
+        TestContext.<anonymous> (/tmp/main-wt/src/lib/memory/memory-promise-source-evidence.test.ts:327:62)
+        Test.runInAsyncScope (node:async_hooks:211:14)
+        Test.run (node:internal/test_runner/test:979:25)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    # Subtest: never reads another chat's messages
+    ok 13 - never reads another chat's messages
+      ---
+      duration_ms: 6.638666
+      ...
+    # Subtest: legacy ended promises without a usable source keep the plain line
+    ok 14 - legacy ended promises without a usable source keep the plain line
+      ---
+      duration_ms: 6.85461
+      ...
+    1..14
+not ok 1 - past promise recall carries verified source quotes
+  ---
+  duration_ms: 744.004817
+  type: 'suite'
+  location: '/tmp/main-wt/src/lib/memory/memory-promise-source-evidence.test.ts:4:1818'
+  failureType: 'subtestsFailed'
+  error: '7 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 14
+# suites 1
+# pass 7
+# fail 7
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2077.214673
