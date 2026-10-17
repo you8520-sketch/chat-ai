@@ -67,11 +67,14 @@ describe("exploration map generation", () => {
       roundNumber: 1,
     });
     const wire = JSON.stringify(projected);
-    assert.equal(projected.rooms.some((room) => room.label === "?"), true);
+    const exits = visibleExplorationNeighbors(state, EXPLORATION_ENTRANCE);
+    assert.deepEqual(projected.rooms.map((room) => room.label).sort(), [EXPLORATION_ENTRANCE, ...exits].sort());
     assert.equal(projected.rooms.some((room) => room.label === EXPLORATION_ENTRANCE && room.current), true);
+    assert.equal(projected.rooms.filter((room) => room.visited).length, 1);
     assert.equal(wire.includes(EXPLORATION_CLUE_TEXT), false);
     assert.equal(wire.includes(EXPLORATION_ITEM_NAME), false);
-    assert.equal(wire.includes(EXPLORATION_ARCHIVE_ROOM), false);
+    assert.equal(wire.includes(EXPLORATION_ARCHIVE_ROOM), exits.includes(EXPLORATION_ARCHIVE_ROOM));
+    assert.equal(wire.includes(EXPLORATION_LOOP_ROOM), false);
     assert.equal(wire.includes(EXPLORATION_HIDDEN_EDGE), false);
     assert.equal(wire.includes("event-clue"), false);
     assert.equal(projected.ap, 3);
@@ -291,10 +294,10 @@ describe("exploration map generation", () => {
     const remember = formatExplorationGmBlock({
       opening: false,
       seats: [
-        { name: "현이", start: EXPLORATION_ARCHIVE_ROOM, end: EXPLORATION_ARCHIVE_ROOM },
-        { name: "도윤", start: EXPLORATION_ENTRANCE, end: EXPLORATION_ENTRANCE },
-        { name: "서하", start: EXPLORATION_ENTRANCE, end: EXPLORATION_ENTRANCE },
-        { name: "도윤봇", start: EXPLORATION_ENTRANCE, end: EXPLORATION_ENTRANCE },
+        { name: "현이", start: EXPLORATION_ARCHIVE_ROOM, end: EXPLORATION_ARCHIVE_ROOM, exits: [] },
+        { name: "도윤", start: EXPLORATION_ENTRANCE, end: EXPLORATION_ENTRANCE, exits: [] },
+        { name: "서하", start: EXPLORATION_ENTRANCE, end: EXPLORATION_ENTRANCE, exits: [] },
+        { name: "도윤봇", start: EXPLORATION_ENTRANCE, end: EXPLORATION_ENTRANCE, exits: [] },
       ],
       resultLines: [],
       alarm: true,
@@ -312,7 +315,7 @@ describe("exploration map generation", () => {
     assert.doesNotMatch(remember, /moved .*출구/);
     const shut = formatExplorationGmBlock({
       opening: false,
-      seats: [{ name: "현이", start: EXPLORATION_ENTRANCE, end: EXPLORATION_ENTRANCE }],
+      seats: [{ name: "현이", start: EXPLORATION_ENTRANCE, end: EXPLORATION_ENTRANCE, exits: [] }],
       resultLines: [],
       alarm: false,
       risk: 0,
@@ -320,9 +323,27 @@ describe("exploration map generation", () => {
     });
     assert.match(shut, /Alarm is off\. The exit latch is still shut\./);
     assert.doesNotMatch(shut, /already met/);
+    const seeded = emptyExplorationState("gm-exits");
+    const entranceExits = visibleExplorationNeighbors(seeded, EXPLORATION_ENTRANCE);
+    const opening = formatExplorationGmBlock({
+      opening: true,
+      seats: [
+        { name: "현이", start: EXPLORATION_ENTRANCE, end: EXPLORATION_ENTRANCE, exits: entranceExits },
+        { name: "도윤", start: EXPLORATION_ENTRANCE, end: EXPLORATION_ENTRANCE, exits: entranceExits },
+      ],
+      resultLines: [],
+      alarm: false,
+      risk: 0,
+      flags: [],
+    });
+    assert.equal(opening.split(`Open passages from ${EXPLORATION_ENTRANCE}: ${entranceExits.join(", ")}.`).length, 2);
+    assert.doesNotMatch(opening, /At least two passages|may be atmosphere|Server flags/);
+    for (const hidden of [EXPLORATION_LOOP_ROOM, EXPLORATION_PASSAGE_FLAG, EXPLORATION_CLUE_FLAG, EXPLORATION_CLUE_TEXT]) {
+      assert.equal(opening.includes(hidden), false, hidden);
+    }
     const arrived = formatExplorationGmBlock({
       opening: false,
-      seats: [{ name: "현이", start: "북쪽복도", end: EXPLORATION_EXIT_ROOM }],
+      seats: [{ name: "현이", start: "북쪽복도", end: EXPLORATION_EXIT_ROOM, exits: [] }],
       resultLines: ["현이: moved 북쪽복도 → 출구."],
       alarm: true,
       risk: 7,
@@ -332,7 +353,7 @@ describe("exploration map generation", () => {
     assert.doesNotMatch(arrived, /Nobody has reached 출구/);
     const moved = formatExplorationGmBlock({
       opening: false,
-      seats: [{ name: "현이", start: EXPLORATION_ENTRANCE, end: "중앙홀" }],
+      seats: [{ name: "현이", start: EXPLORATION_ENTRANCE, end: "중앙홀", exits: [] }],
       resultLines: ["현이: moved 현관홀 → 중앙홀."],
       alarm: false,
       risk: 1,

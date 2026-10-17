@@ -17,7 +17,7 @@ export type PublicExplorationMarker = "clue" | "reward" | "hazard" | "exit" | "p
 
 export type PublicExplorationRoom = {
   id: string;
-  /** Visited rooms use the server label. Known but unvisited rooms are "?". */
+  /** Server label. Only visited rooms and rooms behind an open passage from them are projected. */
   label: string;
   x: number;
   y: number;

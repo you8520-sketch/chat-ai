@@ -32,7 +32,7 @@ function roomAfterQueue(exploration: PublicExploration, queue: readonly Explorat
 function commandLabel(exploration: PublicExploration, command: ExplorationCommand, index: number, queue: readonly ExplorationCommand[]): string {
   if (command.op === "search") return command.depth === "careful" ? "정밀 조사" : "조사";
   const room = exploration.rooms.find((item) => item.id === command.roomId);
-  const name = room?.visited ? room.label : "?";
+  const name = room?.label ?? "?";
   const last = name.charCodeAt(name.length - 1);
   const jong = last >= 0xac00 && last <= 0xd7a3 ? (last - 0xac00) % 28 : 0;
   const particle = jong === 0 || jong === 8 ? "로" : "으로";
@@ -127,7 +127,7 @@ export default function TrpgExplorationPanel({
                   } disabled:opacity-80`}
                   style={{ left: `${(room.x / maxX) * 78 + 11}%`, top: `${(1 - room.y / maxY) * 72 + 14}%` }}
                 >
-                  <span className="max-w-16 truncate">{room.visited ? room.label : "?"}</span>
+                  <span className="max-w-16 truncate">{room.label}</span>
                   {room.markers.length ? (
                     <span className="text-[9px] text-amber-200">{room.markers.map((marker) => MARKER_LABEL[marker]).join(" ")}</span>
                   ) : null}
