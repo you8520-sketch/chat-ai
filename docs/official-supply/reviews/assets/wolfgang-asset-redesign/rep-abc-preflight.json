@@ -1,0 +1,77 @@
+{
+  "status": "PREFLIGHT",
+  "providerPosts": 0,
+  "aPreparedWireBytesRestored": false,
+  "aPreparedLimitation": "A의 실제 전처리 바이트는 저장되지 않았다. 아래 바이트는 현재 prepareOfficialImageReferences 두 번이 같다는 기록이다. A의 POST 바이트와 동일하다고 주장하지 않는다.",
+  "bAndCShareThesePreparedBytes": true,
+  "references": [
+    {
+      "order": 1,
+      "id": "b7",
+      "sourcePath": "public/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b7-black-gold-uniform.webp",
+      "sourceSha256": "fc4047ac876152a8668897e6c7e8a03e1b2a0bf975cb1513cedc5839e10d3168",
+      "sourceBytes": 214512,
+      "url": "https://hav.chat/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b7-black-gold-uniform.webp",
+      "preparedSha256": "ba5f3896d1aa467dbc84db3bfbbb304147e98073b938f6b22fa82065377b5b89",
+      "preparedBytes": 250552,
+      "dataUriSha256": "61c87f4a579ee931ec8f11326d4e6a1d506e1c5042215fa7678bd70b5a9577ff",
+      "file": "rep-abc-prepared/b7.webp"
+    },
+    {
+      "order": 2,
+      "id": "b13",
+      "sourcePath": "public/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b13-black-red-fur.webp",
+      "sourceSha256": "f9d01ebc18291acb89894b070c3c8308a317575f9702e75db75b42a872ed4ae6",
+      "sourceBytes": 182512,
+      "url": "https://hav.chat/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b13-black-red-fur.webp",
+      "preparedSha256": "f13d1f1563c36630b00eb23db95a9f4824ef75d1d0ec9fbbb535e0dd2be13592",
+      "preparedBytes": 215350,
+      "dataUriSha256": "baebcce520ed7aa2d38dad92e91074eab7f7b230fdfdf41bf157b4b7601c3d7f",
+      "file": "rep-abc-prepared/b13.webp"
+    },
+    {
+      "order": 3,
+      "id": "b5",
+      "sourcePath": "public/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b5-red-dress-female.webp",
+      "sourceSha256": "fdab6b92a41480e8f28f4eaedd951c81283dde81a0e8b67600799356632e4998",
+      "sourceBytes": 173714,
+      "url": "https://hav.chat/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b5-red-dress-female.webp",
+      "preparedSha256": "80e0ab0c668dfd6dae42f3ef659ae217b8c8f1a594b81b667513356705c2efbf",
+      "preparedBytes": 213464,
+      "dataUriSha256": "7888fbb3426f9d6fd46fe256cd5c65f985b8afa639e58dada63b4314d92b4f94",
+      "file": "rep-abc-prepared/b5.webp"
+    }
+  ],
+  "promptASha256": "08b3634fa8bad213ff8c0729d63caa3eb5fcbf26257ec24940ebc87bc6946a21",
+  "promptCSha256": "34e866261b217a5a54f84f0cb1a052c7a26be378d292b8c45cc590d856ef9238",
+  "size": "1024x1536",
+  "quality": "medium",
+  "n": 1,
+  "outputFormat": "webp",
+  "outputCompression": 88,
+  "background": "opaque",
+  "modelSupport": {
+    "knownModelIds": [
+      "gpt-image-2.5-sunburst",
+      "gpt-image-2.5-flare",
+      "gpt-image-2"
+    ],
+    "b": true,
+    "c": true
+  },
+  "cost": {
+    "formula": "image_input_tokens * 0.000008 + text_input_tokens * 0.000005 + output_tokens * 0.00003",
+    "separatePublishedRateInCode": false,
+    "observedAUsd": 0.056524,
+    "perCallPlanningCeilingUsd": 0.07,
+    "twoCallEstimateUsd": 0.14,
+    "capUsd": 0.16,
+    "postsAuthorized": 2
+  },
+  "apiKeyPresent": true,
+  "apiKeyLength": 164,
+  "envImageModelIgnoredForExplicitCalls": "gpt-image-2.5-sunburst",
+  "fallback": false,
+  "retry": false,
+  "vision": false
+}
