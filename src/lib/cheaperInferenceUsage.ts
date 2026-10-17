@@ -27,6 +27,8 @@ export type CheaperInferenceUsageRequest = {
   createdAt: string | null;
   /** Provider API-key id when the usage payload includes one. Never return or log this. */
   apiKeyId?: string | null;
+  /** Provider API-key label when present. Internal classification only; never export. */
+  apiKeyName?: string | null;
 };
 
 export type UsageClientResult<T> =
@@ -97,6 +99,11 @@ function readApiKeyId(item: Record<string, unknown>): string | null {
   return null;
 }
 
+function readApiKeyName(item: Record<string, unknown>): string | null {
+  const name = item.api_key_name ?? item.apiKeyName;
+  return typeof name === "string" && name.trim() ? name.trim() : null;
+}
+
 function extractItems(payload: unknown): unknown[] | null {
   if (Array.isArray(payload)) return payload;
   if (payload && typeof payload === "object") {
@@ -139,6 +146,7 @@ function parseRequestsPage(
         item.created_at ?? item.createdAt ?? item.timestamp ?? item.created
       ),
       apiKeyId: readApiKeyId(item),
+      apiKeyName: readApiKeyName(item),
     });
   }
   return { requests, nextCursor: extractNextCursor(payload) };
@@ -222,6 +230,8 @@ export async function fetchUsageRequestsPage(opts: {
   endAt: string;
   limit?: number;
   cursor?: string | null;
+  /** Official usage:read filter. A key outside the workspace is HTTP 404, not an empty page. */
+  apiKeyId?: string | null;
   fetchImpl?: UsageFetcher;
   /** Explicit usage:read credential. Production default still uses resolveCheaperInferenceApiKey(). */
   apiKey?: string;
@@ -233,6 +243,8 @@ export async function fetchUsageRequestsPage(opts: {
     limit: String(clampLimit(opts.limit)),
   });
   if (opts.cursor) params.set("cursor", opts.cursor);
+  const filterKeyId = opts.apiKeyId?.trim();
+  if (filterKeyId) params.set("api_key_id", filterKeyId);
   const outcome = await requestJson(
     `${CI_USAGE_REQUESTS_URL}?${params.toString()}`,
     fetchImpl,
@@ -261,6 +273,7 @@ export async function fetchAllUsageRequests(opts: {
   maxPages?: number;
   fetchImpl?: UsageFetcher;
   apiKey?: string;
+  apiKeyId?: string | null;
 }): Promise<UsageClientResult<{ requests: CheaperInferenceUsageRequest[]; pages: number }>> {
   const maxPages = Math.max(1, Math.floor(opts.maxPages ?? 50));
   const requests: CheaperInferenceUsageRequest[] = [];
@@ -274,6 +287,7 @@ export async function fetchAllUsageRequests(opts: {
       cursor,
       fetchImpl: opts.fetchImpl,
       apiKey: opts.apiKey,
+      apiKeyId: opts.apiKeyId,
     });
     if (!page.ok) return page;
     requests.push(...page.value.requests);

@@ -1,3 +1,8 @@
+import {
+  classifyForwardSettledSpend,
+  unknownRequestFingerprint,
+  type ApprovedExperimentEvidence,
+} from "@/lib/approvedExperimentSpend";
 import type { CheaperInferenceUsageRequest } from "@/lib/cheaperInferenceUsage";
 
 /**
@@ -19,6 +24,7 @@ export type ForwardReconCase =
   | "zero_new_calls"
   | "matched_luna"
   | "unmatched_luna"
+  | "approved_experiment"
   | "other_key"
   | "pending_settlement"
   | "fetch_failure"
@@ -66,6 +72,9 @@ export type ForwardReconAudit = {
   settledMicroUsd: number;
   matchedSettledMicroUsd: number;
   unmatchedSettledMicroUsd: number;
+  approvedExperimentCount: number;
+  approvedExperimentMicroUsd: number;
+  unknownRequestFingerprint: string | null;
   unverifiableTimestampCount: number;
   unverifiableSettledCount: number;
   byModel: Record<string, ForwardModelAudit>;
@@ -218,6 +227,9 @@ function emptyAudit(
       settledMicroUsd: 0,
       matchedSettledMicroUsd: 0,
       unmatchedSettledMicroUsd: 0,
+      approvedExperimentCount: 0,
+      approvedExperimentMicroUsd: 0,
+      unknownRequestFingerprint: null,
       unverifiableTimestampCount: 0,
       unverifiableSettledCount: 0,
       byModel: {},
@@ -244,6 +256,9 @@ function emptyAudit(
     settledMicroUsd: 0,
     matchedSettledMicroUsd: 0,
     unmatchedSettledMicroUsd: 0,
+    approvedExperimentCount: 0,
+    approvedExperimentMicroUsd: 0,
+    unknownRequestFingerprint: null,
     unverifiableTimestampCount: 0,
     unverifiableSettledCount: 0,
     byModel: {},
@@ -262,6 +277,7 @@ export function buildForwardReconAudit(input: {
   observationSource: ForwardObservationSource | null;
   fetchStatus: ForwardReconFetchStatus;
   configInvalid?: boolean;
+  experimentEvidence?: ApprovedExperimentEvidence;
 }): ForwardReconAudit {
   if (input.configInvalid) {
     return emptyAudit(input.fetchStatus, input.observedSince, input.observationSource, {
@@ -290,10 +306,14 @@ export function buildForwardReconAudit(input: {
   let settledMicroUsd = 0;
   let matchedSettledMicroUsd = 0;
   let unmatchedSettledMicroUsd = 0;
+  let approvedExperimentCount = 0;
+  let approvedExperimentMicroUsd = 0;
   let matchedLuna = 0;
   let unmatchedLuna = 0;
+  let approvedExperiment = 0;
   let unverifiableTimestampCount = 0;
   let unverifiableSettledCount = 0;
+  const unknownRequestIds: string[] = [];
 
   for (const request of input.requests) {
     const createdMs = sqlOrIsoToUtcMs(request.createdAt);
@@ -326,17 +346,37 @@ export function buildForwardReconAudit(input: {
     settledCount += 1;
     settledMicroUsd += request.billedMicroUsd;
 
-    const linked = input.ledgerIds.has(request.requestId);
-    if (linked) {
-      matchedLedgerCount += 1;
-      matchedSettledMicroUsd += request.billedMicroUsd;
-      if (isLunaUsageModel(request.model)) matchedLuna += 1;
-    } else {
-      unmatchedLedgerCount += 1;
-      unmatchedSettledMicroUsd += request.billedMicroUsd;
-      bucket.unmatchedCount += 1;
-      bucket.unmatchedMicroUsd += request.billedMicroUsd;
-      if (isLunaUsageModel(request.model)) unmatchedLuna += 1;
+    const spendClass = classifyForwardSettledSpend({
+      requestId: request.requestId,
+      ledgerIds: input.ledgerIds,
+      evidence: input.experimentEvidence,
+    });
+    switch (spendClass) {
+      case "PRODUCTION_LEDGER_MATCHED":
+        matchedLedgerCount += 1;
+        matchedSettledMicroUsd += request.billedMicroUsd;
+        if (isLunaUsageModel(request.model)) matchedLuna += 1;
+        break;
+      case "APPROVED_EXPERIMENT_CONFIRMED":
+        approvedExperimentCount += 1;
+        approvedExperimentMicroUsd += request.billedMicroUsd;
+        approvedExperiment += 1;
+        break;
+      case "UNKNOWN_UNMATCHED":
+        unmatchedLedgerCount += 1;
+        unmatchedSettledMicroUsd += request.billedMicroUsd;
+        bucket.unmatchedCount += 1;
+        bucket.unmatchedMicroUsd += request.billedMicroUsd;
+        unknownRequestIds.push(request.requestId);
+        if (isLunaUsageModel(request.model)) unmatchedLuna += 1;
+        break;
+      case "UNVERIFIABLE":
+        unverifiableSettledCount += 1;
+        break;
+      default: {
+        const exhaustive: never = spendClass;
+        throw new Error(`unhandled forward spend class: ${exhaustive}`);
+      }
     }
     byModel[modelKey] = bucket;
   }
@@ -346,6 +386,7 @@ export function buildForwardReconAudit(input: {
   if (requestCount === 0 && unverifiableTimestampCount === 0) cases.push("zero_new_calls");
   if (matchedLuna > 0) cases.push("matched_luna");
   if (unmatchedLuna > 0) cases.push("unmatched_luna");
+  if (approvedExperiment > 0) cases.push("approved_experiment");
   if (apiKeys.size > 1) cases.push("other_key");
   if (pendingCount > 0) cases.push("pending_settlement");
 
@@ -363,6 +404,9 @@ export function buildForwardReconAudit(input: {
     settledMicroUsd,
     matchedSettledMicroUsd,
     unmatchedSettledMicroUsd,
+    approvedExperimentCount,
+    approvedExperimentMicroUsd,
+    unknownRequestFingerprint: unknownRequestFingerprint(unknownRequestIds),
     unverifiableTimestampCount,
     unverifiableSettledCount,
     byModel,
@@ -421,6 +465,7 @@ const FORWARD_CASES = new Set<ForwardReconCase>([
   "zero_new_calls",
   "matched_luna",
   "unmatched_luna",
+  "approved_experiment",
   "other_key",
   "pending_settlement",
   "fetch_failure",
@@ -504,6 +549,12 @@ export function parseStoredForwardReconAudit(raw: unknown): ForwardReconAudit | 
     settledMicroUsd: finiteInt(row.settledMicroUsd),
     matchedSettledMicroUsd: finiteInt(row.matchedSettledMicroUsd),
     unmatchedSettledMicroUsd: finiteInt(row.unmatchedSettledMicroUsd),
+    approvedExperimentCount: finiteInt(row.approvedExperimentCount),
+    approvedExperimentMicroUsd: finiteInt(row.approvedExperimentMicroUsd),
+    unknownRequestFingerprint:
+      typeof row.unknownRequestFingerprint === "string" && row.unknownRequestFingerprint.trim()
+        ? row.unknownRequestFingerprint.trim()
+        : null,
     unverifiableTimestampCount: finiteInt(row.unverifiableTimestampCount),
     unverifiableSettledCount: finiteInt(row.unverifiableSettledCount),
     byModel,

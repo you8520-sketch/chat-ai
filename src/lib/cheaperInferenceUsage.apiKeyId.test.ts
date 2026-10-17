@@ -37,6 +37,7 @@ describe("CheaperInference usage api_key_id contract", () => {
       assert.equal(stringPage.ok, true);
       if (stringPage.ok) {
         assert.equal(stringPage.value.requests[0]!.apiKeyId, "key_abc");
+        assert.equal(stringPage.value.requests[0]!.apiKeyName, "must-not-be-parsed-as-id");
       }
 
       const numericPage = await fetchUsageRequestsPage({
@@ -61,6 +62,33 @@ describe("CheaperInference usage api_key_id contract", () => {
       if (numericPage.ok) {
         assert.equal(numericPage.value.requests[0]!.apiKeyId, "42");
       }
+    } finally {
+      if (previous == null) delete process.env.CHEAPER_INFERENCE_API_KEY;
+      else process.env.CHEAPER_INFERENCE_API_KEY = previous;
+    }
+  });
+
+  it("forwards the official api_key_id filter and fail-closes a 404", async () => {
+    const previous = process.env.CHEAPER_INFERENCE_API_KEY;
+    process.env.CHEAPER_INFERENCE_API_KEY = "test-usage-key";
+    try {
+      const urls: string[] = [];
+      const page = await fetchUsageRequestsPage({
+        startAt: "2026-10-05T03:00:00Z",
+        endAt: "2026-10-09T00:00:00Z",
+        apiKeyId: "11111111-1111-1111-1111-111111111111",
+        fetchImpl: async (input) => {
+          urls.push(String(input));
+          return new Response("not in workspace", { status: 404 });
+        },
+      });
+      assert.equal(page.ok, false);
+      if (!page.ok) {
+        assert.equal(page.reason, "http");
+        assert.equal(page.status, 404);
+      }
+      assert.equal(urls.length, 1);
+      assert.match(urls[0] ?? "", /api_key_id=11111111-1111-1111-1111-111111111111/);
     } finally {
       if (previous == null) delete process.env.CHEAPER_INFERENCE_API_KEY;
       else process.env.CHEAPER_INFERENCE_API_KEY = previous;

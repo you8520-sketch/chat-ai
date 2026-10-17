@@ -126,6 +126,12 @@ function pushForwardReconAnomalies(anomalies: FinanceAnomaly[], audit: ForwardRe
   const keyNote = audit.otherApiKeyCandidate
     ? " Forward window saw more than one API-key id; key-level audit is not applied because production key mapping is unavailable."
     : " Production key mapping is unavailable, so remote workspace usage is not confirmed as HAV-exclusive cost.";
+  const experimentNote =
+    audit.approvedExperimentCount > 0
+      ? ` ${audit.approvedExperimentCount} confirmed approved-experiment request(s) ` +
+        `(${usdFromMicro(audit.approvedExperimentMicroUsd)} USD) remain recorded and are excluded from this unmatched warning.`
+      : "";
+  const fingerprint = audit.unknownRequestFingerprint ?? "none";
   anomalies.push({
     id: "provider-reconciliation:forward-unmatched",
     code: "FORWARD_UNMATCHED_REMOTE_SPEND",
@@ -134,11 +140,12 @@ function pushForwardReconAnomalies(anomalies: FinanceAnomaly[], audit: ForwardRe
     summary:
       `${audit.observationNote} Period since ${audit.observedSince}: ` +
       `${audit.unmatchedLedgerCount} settled remote request(s) are not linked to the local ledger ` +
-      `(${usdFromMicro(audit.unmatchedSettledMicroUsd)} USD confirmed remote settled; ` +
+      `(${usdFromMicro(audit.unmatchedSettledMicroUsd)} USD unknown unmatched; ` +
       `${audit.matchedLedgerCount} linked). Models: ${formatForwardModelBreakdown(audit)}.` +
+      experimentNote +
       keyNote +
       " havExclusiveCostConfirmed=false.",
-    sourceRef: `forward_unmatched:${audit.observedSince}:${audit.unmatchedLedgerCount}`,
+    sourceRef: `forward_unmatched:${audit.observedSince}:${audit.unmatchedLedgerCount}:${fingerprint}`,
     href: "/admin/finance",
     modelId: audit.cases.includes("unmatched_luna") ? "gpt-6-luna" : null,
   });

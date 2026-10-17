@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 
 import { buildAdminFinanceSummary, currentKstMonthKey, monthRangeSql } from "@/lib/adminFinance";
+import { hashProviderRequestId } from "@/lib/approvedExperimentSpend";
 import { buildFinanceAnomalyReport } from "@/lib/financeAnomalyRadar";
 import {
   ensureProviderCostLedgerSchema,
@@ -93,6 +94,7 @@ async function reconcile(
     captureWindow?: { startAt: string; endAt: string };
     nowMs?: number;
     observedSinceEnv?: string | null;
+    experimentEvidence?: { confirmedRequestIdHashes: ReadonlySet<string> };
   }
 ): Promise<ProviderReconciliationResult> {
   return reconcileCheaperInferenceUsage({
@@ -103,6 +105,7 @@ async function reconcile(
       persistInTests: true,
       now: input.nowMs != null ? () => input.nowMs! : undefined,
       observedSinceEnv: input.observedSinceEnv,
+      experimentEvidence: input.experimentEvidence,
       fetchRequests: async (opts) => {
         if (input.incomplete) {
           return {
@@ -430,6 +433,67 @@ describe("provider cost reconciliation audit #1337", () => {
       assert.equal(report.status, "HEALTHY");
       assert.equal(after.totalApiCostKrw, before.totalApiCostKrw);
       assert.equal(after.aiCost.totalActualKrw, before.aiCost.totalActualKrw);
+    } finally {
+      d.close();
+    }
+  });
+
+  it("10. confirmed experiment spend does not change ledger, user billing, or monthly totals", async () => {
+    const d = db();
+    try {
+      insertIdentity(d, {
+        id: 9,
+        requestId: "prod-linked",
+        createdAt: "2026-10-07 18:51:00",
+      });
+      const experimentId = "exp-unlinked";
+      const before = await reconcile(d, {
+        windowStart: "2026-10-01 00:00:00",
+        windowEnd: "2026-11-01 00:00:00",
+        requests: [settled("prod-linked", 45_512, "2026-10-07 18:51:00")],
+        dailyMicroUsd: 45_512,
+        nowMs: Date.parse("2026-10-08T12:00:00.000Z"),
+        observedSinceEnv: "2026-10-05T03:00:00.175Z",
+      });
+      const ledgerBefore = (
+        d.prepare("SELECT COUNT(*) AS c FROM api_cost_ledger").get() as { c: number }
+      ).c;
+      const financeBefore = buildAdminFinanceSummary(d, "2026-10");
+      const after = await reconcile(d, {
+        windowStart: "2026-10-01 00:00:00",
+        windowEnd: "2026-11-01 00:00:00",
+        requests: [
+          settled("prod-linked", 45_512, "2026-10-07 18:51:00"),
+          {
+            requestId: experimentId,
+            status: "settled",
+            billedMicroUsd: 88_511,
+            settled: true,
+            model: "gemini-3.8-flash",
+            endpoint: "/chat/completions",
+            createdAt: "2026-10-08 09:56:00",
+            apiKeyName: "operator-agent",
+          },
+        ],
+        dailyMicroUsd: 134_023,
+        nowMs: Date.parse("2026-10-08T12:00:00.000Z"),
+        observedSinceEnv: "2026-10-05T03:00:00.175Z",
+        experimentEvidence: {
+          confirmedRequestIdHashes: new Set([hashProviderRequestId(experimentId)]),
+        },
+      });
+      const ledgerAfter = (
+        d.prepare("SELECT COUNT(*) AS c FROM api_cost_ledger").get() as { c: number }
+      ).c;
+      const financeAfter = buildAdminFinanceSummary(d, "2026-10");
+      assert.equal(after.localReconciledMicroUsd, before.localReconciledMicroUsd);
+      assert.equal(ledgerAfter, ledgerBefore);
+      assert.equal(financeAfter.totalApiCostKrw, financeBefore.totalApiCostKrw);
+      assert.equal(financeAfter.aiCost.totalActualKrw, financeBefore.aiCost.totalActualKrw);
+      assert.equal(after.forwardAudit?.matchedLedgerCount, 1);
+      assert.equal(after.forwardAudit?.approvedExperimentCount, 1);
+      assert.equal(after.forwardAudit?.unmatchedLedgerCount, 0);
+      assert.deepEqual(anomalyCodes(after), []);
     } finally {
       d.close();
     }
