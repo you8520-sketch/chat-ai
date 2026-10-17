@@ -417,10 +417,41 @@ POST 1회. fallback, 재시도, vision은 없다. 원본 바이트를 검사보�
 
 ## 13. 편집 입력안
 
-추가 POST는 없다. 다음 검토는 재첨부 원본 한 장을 편집해 그 그림체를 유지하고 인물만 승인 Appearance Lock으로 바꾸는 방식이다.
+이 절의 입력은 재첨부 원본 한 장을 편집해 그림체를 유지하고 인물만 승인 Appearance Lock으로 바꾸는 방식이다. 그 입력으로 호출한 결과는 13.1이다.
 
 기준 이미지는 `reattach-2026-10-17/03-eval_style.webp`, SHA `7814a3950742201a5a0d9fff3b38b9ad3d706b93d52b6d3b603221c3d5aab699`다. 정면 상반신에 큰 모피 덩어리, 내부 선, 피부와 분리된 금속 하이라이트가 같이 있다. 적안과 적·금 군복 색은 복사 대상이 아니다. 9~11번, b7·b13·b5, 운영 대표, A~D 출력은 이 입력에 넣지 않는다.
 
 입력안을 고쳤다. 모델은 `gpt-image-2`다. 새 정면 구도와 검 손잡이 포즈 문장은 뺐다. 원본의 캔버스, 크롭, 카메라, 머리 각도, 시선, 포즈, 배경을 유지한다. 화면 밖의 손·반지·열쇠·검을 보여 주려고 프레임을 넓히지 않는다. 소지품 문장은 Appearance Lock 안에 그대로 둔다. 흉터의 왼쪽은 인물 자신의 왼쪽이라고 실험 문장에만 적는다. Lock 원문과 hash `1c3ccd13…24dcc3`은 바꾸지 않았다. 공통 스타일 DNA와 새 광택·조명 규칙은 넣지 않았다.
 
-전송문 SHA `e24378f1…3de46e`. 이전 안 SHA `a0236c6f…5af570`. diff는 `rep-edit-input-prompt.diff`. 전처리 SHA `8d3b42d1…1a90fa`, 183858바이트. `prepareOfficialImageReferences`는 업로드·플랫폼 seed URL만 받으므로, 로컬 검토 파일에는 그 함수와 같은 sharp 단계(rotate, 1536 이내 확대 없음, webp quality 90 effort 4)를 적용했다. 이 개정은 아직 POST 전이다. 한도는 1회, 0.10 USD다.
+전송문 SHA `e24378f1…3de46e`. 이전 안 SHA `a0236c6f…5af570`. diff는 `rep-edit-input-prompt.diff`. 전처리 SHA `8d3b42d1…1a90fa`, 183858바이트. `prepareOfficialImageReferences`는 업로드·플랫폼 seed URL만 받으므로, 로컬 검토 파일에는 그 함수와 같은 sharp 단계(rotate, 1536 이내 확대 없음, webp quality 90 effort 4)를 적용했다.
+
+### 13.1 편집 후보 E
+
+POST 1회. fallback, 재시도, vision은 없다. 원본 바이트를 검사보다 먼저 저장했고 SHA가 같다. 비용 0.058213 USD. 상한 0.10 USD 안이다. 같은 조건 재추첨은 하지 않는다. 대표·앵커로 승인하지 않는다.
+
+| 항목 | 값 |
+|---|---|
+| 모델 | `gpt-image-2` |
+| request | `req_97784cb608234364b6c3caf8c92706f6` |
+| 출력 SHA | `49cc70ce…77ec7c` |
+| 크기 | 1024x1536 |
+
+비교 창은 원본과 E에 같다. 얼굴 `280,160,460x460`, 머리 `300,0,420x360`, 모피 `10,520,180x180`, 갑옷 `340,700,340x260`. 이 네 창은 1:1이다. 전체 시트만 0.5 배다.
+
+그림체: 캔버스, 흰 배경, 머리 각도, 시선, 모피의 큰 덩어리 위치는 같은 창에 남는다. 모피의 깃털 결도 남는다. 머리의 굵은 광택 띠는 줄고 가닥이 더 잘게 나뉜다. 갑옷 창은 원본의 평면 색덩어리에서 금속 판의 흠집과 반사로 바뀐다. 선과 피부 음영도 원본보다 부드럽다. 구도는 유지되고, 채색 방식은 일부만 유지된다.
+
+외형: 적안, 적·금 군복, 보석, 금색 십자 문장은 빠진다. 눈은 회청이고 갑옷은 어두운 판금이다. 검은 머리와 검은 모피는 남는다. 인물 왼쪽 뺨에서 턱으로 가는 짧은 선이 있다. Lock의 “턱 아래”보다 뺨 쪽에 있다. 가슴에 늑대 부조가 새로 있다. 손·반지·검은 프레임 밖에 그대로다. 이전 A~D가 어긋난 단일 원인을 이 결과로 확정하지 않는다.
+
+![원본 3번 전체](./assets/wolfgang-asset-redesign/reattach-2026-10-17/03-eval_style.webp)
+
+![E 전체](./assets/wolfgang-asset-redesign/rep-e.webp)
+
+![원본과 E 0.5배](./assets/wolfgang-asset-redesign/compare-e-full.webp)
+
+![얼굴 1:1](./assets/wolfgang-asset-redesign/compare-e-face.webp)
+
+![머리 1:1](./assets/wolfgang-asset-redesign/compare-e-hair.webp)
+
+![모피 1:1](./assets/wolfgang-asset-redesign/compare-e-fur.webp)
+
+![갑옷 1:1](./assets/wolfgang-asset-redesign/compare-e-armor.webp)

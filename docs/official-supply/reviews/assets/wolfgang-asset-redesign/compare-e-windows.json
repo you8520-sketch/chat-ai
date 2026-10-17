@@ -1,0 +1,79 @@
+{
+  "windows": {
+    "face": {
+      "left": 280,
+      "top": 160,
+      "width": 460,
+      "height": 460
+    },
+    "hair": {
+      "left": 300,
+      "top": 0,
+      "width": 420,
+      "height": 360
+    },
+    "fur": {
+      "left": 10,
+      "top": 520,
+      "width": 180,
+      "height": 180
+    },
+    "armor": {
+      "left": 340,
+      "top": 700,
+      "width": 340,
+      "height": 260
+    }
+  },
+  "outputs": {
+    "compare-e-full.webp": {
+      "sha256": "bbc31b25ab11eb23bc9f6503bd366ff742266b5c59dc72bc8d3dcbdfc824782a",
+      "bytes": 173562,
+      "scale": "0.5 of native, same scale"
+    },
+    "compare-e-face.webp": {
+      "sha256": "0bdef1d776a44e16afbe7783242ae9705cdabac7fe6bc873078180e2b597668c",
+      "bytes": 81874,
+      "window": {
+        "left": 280,
+        "top": 160,
+        "width": 460,
+        "height": 460
+      },
+      "scale": "1:1 extract, no resize"
+    },
+    "compare-e-hair.webp": {
+      "sha256": "ff2696b2040287cfc9b7f0dc04f448a9a888543dcbac8d9a821ee97185d216f3",
+      "bytes": 67916,
+      "window": {
+        "left": 300,
+        "top": 0,
+        "width": 420,
+        "height": 360
+      },
+      "scale": "1:1 extract, no resize"
+    },
+    "compare-e-fur.webp": {
+      "sha256": "43ac23ed8726c9919cd2c7111e5ae5cdfc05d2810b547499174b1b9e3d2e63c8",
+      "bytes": 11046,
+      "window": {
+        "left": 10,
+        "top": 520,
+        "width": 180,
+        "height": 180
+      },
+      "scale": "1:1 extract, no resize"
+    },
+    "compare-e-armor.webp": {
+      "sha256": "a2ca4296cff7b7f4002daff9f7c7aa367c45f4974c555c358b58438cd4e0349b",
+      "bytes": 32824,
+      "window": {
+        "left": 340,
+        "top": 700,
+        "width": 340,
+        "height": 260
+      },
+      "scale": "1:1 extract, no resize"
+    }
+  }
+}

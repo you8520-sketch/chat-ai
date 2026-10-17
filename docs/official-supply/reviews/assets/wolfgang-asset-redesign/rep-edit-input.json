@@ -1,7 +1,8 @@
 {
-  "status": "READY",
-  "providerPosts": 0,
-  "sent": false,
+  "status": "SENT",
+  "providerPosts": 1,
+  "sent": true,
+  "result": "rep-e-actual.json",
   "method": "Edit reattach image 3 in place with callOpenAiImageEdit.",
   "baseImage": {
     "storedAs": "reattach-2026-10-17/03-eval_style.webp",
