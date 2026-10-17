@@ -1,0 +1,74 @@
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 1,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+  source_turn: 1,
+  replaced_source_turn: false,
+  mode: 'daily_kst',
+[replay] T1 shared=ok episodic_req=true rel=true barrier=0 episodic_rows=1 summaries=0
+  source_turn: 2,
+  replaced_source_turn: false,
+[replay] T2 shared=ok episodic_req=true rel=true barrier=0 episodic_rows=3 summaries=0
+  source_turn: 3,
+  replaced_source_turn: false,
+[replay] T3 shared=ok episodic_req=true rel=true barrier=0 episodic_rows=5 summaries=0
+  source_turn: 4,
+  replaced_source_turn: false,
+[replay] T4 shared=ok episodic_req=true rel=true barrier=0 episodic_rows=6 summaries=0
+[replay] T5 shared=ok episodic_req=true rel=true barrier=0 episodic_rows=6 summaries=0
+[memory] 5턴 기억 기록 chat=1 turns=1-5 (356ch → lorebook 363/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T6 shared=ok episodic_req=true rel=true barrier=5 episodic_rows=6 summaries=1
+[replay] T7 shared=ok episodic_req=true rel=true barrier=5 episodic_rows=6 summaries=1
+[replay] T8 shared=ok episodic_req=true rel=true barrier=5 episodic_rows=6 summaries=1
+  source_turn: 9,
+  replaced_source_turn: false,
+[replay] T9 shared=ok episodic_req=true rel=true barrier=5 episodic_rows=8 summaries=1
+  source_turn: 10,
+  replaced_source_turn: false,
+[replay] T10 shared=ok episodic_req=true rel=true barrier=5 episodic_rows=10 summaries=1
+[memory] 5턴 기억 기록 chat=1 turns=6-10 (367ch → lorebook 740/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T11 shared=ok episodic_req=true rel=true barrier=10 episodic_rows=10 summaries=2
+[replay] T12 shared=ok episodic_req=true rel=true barrier=10 episodic_rows=10 summaries=2
+  source_turn: 13,
+  replaced_source_turn: false,
+[replay] T13 shared=ok episodic_req=true rel=true barrier=10 episodic_rows=11 summaries=2
+  source_turn: 14,
+  replaced_source_turn: false,
+[replay] T14 shared=ok episodic_req=true rel=true barrier=10 episodic_rows=12 summaries=2
+[replay] T15 shared=ok episodic_req=true rel=true barrier=10 episodic_rows=12 summaries=2
+[memory] 5턴 기억 기록 chat=1 turns=11-15 (310ch → lorebook 1061/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 16,
+  replaced_source_turn: false,
+[replay] T16 shared=ok episodic_req=true rel=true barrier=15 episodic_rows=14 summaries=3
+[replay] T17 shared=ok episodic_req=true rel=true barrier=15 episodic_rows=14 summaries=3
+[replay] T18 shared=ok episodic_req=true rel=true barrier=15 episodic_rows=14 summaries=3
+  source_turn: 19,
+  replaced_source_turn: false,
+[replay] T19 shared=ok episodic_req=true rel=true barrier=15 episodic_rows=15 summaries=3
+[replay] T20 shared=ok episodic_req=true rel=true barrier=15 episodic_rows=15 summaries=3
+[memory] 5턴 기억 기록 chat=1 turns=16-20 (346ch → lorebook 1418/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T21 shared=ok episodic_req=true rel=true barrier=20 episodic_rows=15 summaries=4
+  source_turn: 22,
+  replaced_source_turn: false,
+[replay] T22 shared=ok episodic_req=true rel=true barrier=20 episodic_rows=16 summaries=4
+[replay] T23 shared=ok episodic_req=true rel=true barrier=20 episodic_rows=16 summaries=4
+  source_turn: 24,
+  replaced_source_turn: false,
+[replay] T24 shared=ok episodic_req=true rel=true barrier=20 episodic_rows=17 summaries=4
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 25,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+  source_turn: 25,
+  replaced_source_turn: false,
+[replay] T25 shared=ok episodic_req=true rel=true barrier=20 episodic_rows=18 summaries=4
+[memory] 5턴 기억 기록 chat=1 turns=21-25 (376ch → lorebook 1805/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T26 shared=ok episodic_req=true rel=true barrier=25 episodic_rows=18 summaries=5
+  source_turn: 27,
+  replaced_source_turn: false,
+[replay] T27 shared=ok episodic_req=true rel=true barrier=25 episodic_rows=21 summaries=5
+  source_turn: 28,
+  replaced_source_turn: false,
+[replay] T28 shared=ok episodic_req=true rel=true barrier=25 episodic_rows=22 summaries=5
+[replay] T29 shared=ok episodic_req=true rel=true barrier=25 episodic_rows=22 summaries=5
+  source_turn: 30,
+  replaced_source_turn: false,
+[replay] T30 shared=ok episodic_req=true rel=true barrier=25 episodic_rows=23 summaries=5

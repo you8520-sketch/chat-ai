@@ -1,0 +1,11 @@
+{"qid":"L500-B3-seoyun","currentTurn":501,"semantic_reason":"ok","candidates":91,"lanes":{"recent":55,"relevance":25,"milestone_critical":0,"milestone_important":1,"semantic":10},"injected":7}
+T57	CANDIDATE_MISS	lanes=-	composite=-	rel=-	sem=-	character:taehyung:response_to_cake	태형은 서윤이 복귀 축하로 보낸 케이크를 공용 테이블에 두고 한 조각도 먹지 않았다.
+T64	CANDIDATE_MISS	lanes=-	composite=-	rel=-	sem=-	character:taehyung:rejected_company	태형은 구내식당에서 한서윤의 동석 제안을 거절했다.
+-- injected
+#1	T463	lanes=recent+semantic	composite=10.417	rel=2.000	sem=0.518	태형은 골목 끝의 작은 균열을 확인하고 봉인반을 불렀다.
+#2	T440	lanes=recent+semantic	composite=10.407	rel=2.000	sem=0.540	태형은 순찰 중 작은 균열을 확인하고 봉인반을 불렀다.
+#3	T380	lanes=relevance+semantic	composite=10.321	rel=2.000	sem=0.545	태형은 D급 순찰 중 골목 끝에서 작은 균열을 확인하고 봉인반을 불렀다.
+#4	T342	lanes=relevance+semantic	composite=10.313	rel=2.000	sem=0.550	태형은 순찰 중 골목 끝의 작은 균열을 확인하고 봉인반을 불렀다.
+#5	T267	lanes=semantic	composite=10.301	rel=2.000	sem=0.556	태형은 순찰 중 골목 끝에서 작은 균열을 확인하고 봉인반을 불렀다.
+#6	T357	lanes=relevance+semantic	composite=10.293	rel=2.000	sem=0.543	태형은 순찰 중 작은 균열을 발견하고 봉인반을 불렀다.
+#19	T10	lanes=milestone_important	composite=7.039	rel=1.000	sem=0.460	태형은 승인 없이 능력을 사용해 지하철역 계단에 갇힌 시민 일곱 명을 구조했다.

@@ -1,0 +1,60 @@
+[memory] 5턴 기억 기록 chat=1 turns=46-50 (305ch → lorebook 3359/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  mode: 'daily_kst',
+[replay] T51 shared=ok episodic_req=true rel=true barrier=50 episodic_rows=32 summaries=10
+[replay] T52 shared=ok episodic_req=true rel=true barrier=50 episodic_rows=32 summaries=10
+[replay] T53 shared=ok episodic_req=true rel=true barrier=50 episodic_rows=32 summaries=10
+[replay] T54 shared=ok episodic_req=true rel=true barrier=50 episodic_rows=32 summaries=10
+  source_turn: 55,
+  replaced_source_turn: false,
+[replay] T55 shared=ok episodic_req=true rel=true barrier=50 episodic_rows=33 summaries=10
+[memory] 5턴 기억 기록 chat=1 turns=51-55 (286ch → lorebook 3656/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T56 shared=ok episodic_req=true rel=true barrier=55 episodic_rows=33 summaries=11
+  source_turn: 57,
+  replaced_source_turn: false,
+[replay] T57 shared=ok episodic_req=true rel=true barrier=55 episodic_rows=34 summaries=11
+  source_turn: 58,
+  replaced_source_turn: false,
+[replay] T58 shared=ok episodic_req=true rel=true barrier=55 episodic_rows=36 summaries=11
+  source_turn: 59,
+  replaced_source_turn: false,
+[replay] T59 shared=ok episodic_req=true rel=true barrier=55 episodic_rows=38 summaries=11
+[replay] T60 shared=ok episodic_req=true rel=true barrier=55 episodic_rows=38 summaries=11
+[memory] 5턴 기억 기록 chat=1 turns=56-60 (266ch → lorebook 3933/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T61 shared=ok episodic_req=true rel=true barrier=60 episodic_rows=38 summaries=12
+[replay] T62 shared=ok episodic_req=true rel=true barrier=60 episodic_rows=38 summaries=12
+[replay] T63 shared=ok episodic_req=true rel=true barrier=60 episodic_rows=38 summaries=12
+  source_turn: 64,
+  replaced_source_turn: false,
+[replay] T64 shared=ok episodic_req=true rel=true barrier=60 episodic_rows=40 summaries=12
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 65,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T65 shared=ok episodic_req=true rel=true barrier=60 episodic_rows=40 summaries=12
+[memory] 5턴 기억 기록 chat=1 turns=61-65 (309ch → lorebook 4253/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T66 shared=ok episodic_req=true rel=true barrier=65 episodic_rows=40 summaries=13
+[replay] T67 shared=ok episodic_req=true rel=true barrier=65 episodic_rows=40 summaries=13
+  source_turn: 68,
+  replaced_source_turn: false,
+[replay] T68 shared=ok episodic_req=true rel=true barrier=65 episodic_rows=41 summaries=13
+  source_turn: 69,
+  replaced_source_turn: false,
+[replay] T69 shared=ok episodic_req=true rel=true barrier=65 episodic_rows=42 summaries=13
+[replay] T70 shared=ok episodic_req=true rel=true barrier=65 episodic_rows=42 summaries=13
+[memory] 5턴 기억 기록 chat=1 turns=66-70 (310ch → lorebook 4574/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 71,
+  replaced_source_turn: false,
+[replay] T71 shared=ok episodic_req=true rel=true barrier=70 episodic_rows=43 summaries=14
+[replay] T72 shared=ok episodic_req=true rel=true barrier=70 episodic_rows=43 summaries=14
+[replay] T73 shared=ok episodic_req=true rel=true barrier=70 episodic_rows=43 summaries=14
+[replay] T74 shared=ok episodic_req=true rel=true barrier=70 episodic_rows=43 summaries=14
+  source_turn: 75,
+  replaced_source_turn: false,
+[replay] T75 shared=ok episodic_req=true rel=true barrier=70 episodic_rows=44 summaries=14
+[memory] 5턴 기억 기록 chat=1 turns=71-75 (324ch → lorebook 4909/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T76 shared=ok episodic_req=true rel=true barrier=75 episodic_rows=44 summaries=15
+[replay] T77 shared=ok episodic_req=true rel=true barrier=75 episodic_rows=44 summaries=15
+[replay] T78 shared=ok episodic_req=true rel=true barrier=75 episodic_rows=44 summaries=15
+[replay] T79 shared=ok episodic_req=true rel=true barrier=75 episodic_rows=44 summaries=15
+  source_turn: 80,
+  replaced_source_turn: false,
+[replay] T80 shared=ok episodic_req=true rel=true barrier=75 episodic_rows=45 summaries=15
