@@ -31,8 +31,8 @@ export default async function Header({ user }: { user: User | null }) {
   return (
     <>
       <header className="site-header sticky top-0 z-40 border-b border-white/[0.08] bg-[#070910]/88 shadow-[0_12px_40px_rgba(0,0,0,.18)] backdrop-blur-xl">
-        <div className="mx-auto flex min-h-13 max-w-7xl flex-nowrap items-center justify-between gap-2 px-3 text-xs sm:gap-3 sm:px-4 lg:min-h-16">
-          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <div className="mx-auto flex min-h-13 max-w-7xl flex-nowrap items-center justify-between gap-2 px-3 text-xs max-[359px]:gap-1 max-[359px]:px-2 sm:gap-3 sm:px-4 lg:min-h-16">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <Link
               href="/"
               aria-label={`${SITE_DISPLAY_NAME} 홈`}
@@ -55,7 +55,7 @@ export default async function Header({ user }: { user: User | null }) {
             <HeaderMainNavRow />
           </div>
 
-          <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap sm:gap-2">
+          <div className="flex min-w-0 items-center justify-end gap-1 whitespace-nowrap max-[359px]:gap-0.5 sm:gap-2">
             {user ? (
               <>
                 <NotificationBell count={unreadCount} />
@@ -66,7 +66,7 @@ export default async function Header({ user }: { user: User | null }) {
                   pref={(user.pref as "female" | "male" | null) ?? null}
                   variant="header"
                 />
-                <div className="flex items-center gap-0.5">
+                <div className="flex min-w-0 items-center gap-0.5 max-[359px]:gap-0">
                   <AnimatedPointsBadge
                     initialPoints={pointBalance?.total ?? user.points}
                     initialPaid={pointBalance?.paid ?? 0}
