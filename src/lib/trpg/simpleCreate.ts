@@ -3,7 +3,7 @@ import {
   scenarioEditorSavePayload,
   type ScenarioEditorSnapshot,
 } from "./scenarioEditorState";
-import { emptyTrpgScenarioPlan, type TrpgScenarioPlan } from "./scenarioPlan";
+import { emptyTrpgScenarioPlan, hasMinimumPlayableStory, type TrpgScenarioPlan } from "./scenarioPlan";
 import { evaluateScenarioReadiness } from "./scenarioReadiness";
 import {
   countScenarioBundleChars,
@@ -178,6 +178,9 @@ export function composeSimpleScenario(
     inventoryText: fields.inventoryText,
     bundleChars: used,
   });
+  if (!hasMinimumPlayableStory(draft.plan)) {
+    return { ok: false, message: SIMPLE_CREATE_UNUSABLE_DRAFT_MESSAGE };
+  }
   if (!readiness.canSave) {
     const overBundle = readiness.blockers.some((item) => item.id === "bundle_limit");
     return {

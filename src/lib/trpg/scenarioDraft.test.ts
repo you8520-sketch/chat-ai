@@ -47,10 +47,9 @@ import {
   TrpgAuthoringEmptyError,
   TrpgAuthoringTruncatedError,
   TRPG_AUTHORING_PROVIDER_RETRY,
-  TRPG_SCENARIO_DRAFT_EMPTY_RETRY,
   TRPG_SCENARIO_DRAFT_TIMEOUT_MESSAGE,
 } from "./scenarioDraftCall";
-import { emptyTrpgScenarioPlan, lintTrpgScenarioPlan } from "./scenarioPlan";
+import { emptyTrpgScenarioPlan, hasMinimumPlayableStory, lintTrpgScenarioPlan } from "./scenarioPlan";
 import { TRPG_SCENARIO_BUNDLE_LIMIT } from "./scenarioTypes";
 
 const generated = parseScenarioDraftJson(
@@ -92,7 +91,7 @@ describe("TRPG scenario AI draft", () => {
     assert.deepEqual(body.thinking, { type: "disabled" });
     assert.equal(body.reasoning_effort, "none");
     assert.equal(body.max_tokens, 6000);
-    assert.deepEqual(body.response_format, { type: "json_object" });
+    assert.equal("response_format" in body, false);
   });
 
   it("parses JSON and forces NPC stats to null", () => {
@@ -102,64 +101,53 @@ describe("TRPG scenario AI draft", () => {
     assert.equal(generated.generatedFields?.includes("npcs"), true);
   });
 
-  it("unwraps a draft the model nested under an echo of the field-list label", () => {
-    const inner = JSON.stringify({ title: "안개 속 등대", goal: "등대를 되찾는다" });
-    const wrappedString = parseScenarioDraftJson(JSON.stringify({ "/fill_or_replace_fields": inner }));
-    assert.equal(wrappedString.title, "안개 속 등대");
-    assert.deepEqual([...(wrappedString.generatedFields ?? [])].sort(), ["goal", "title"]);
-    const wrappedObject = parseScenarioDraftJson(JSON.stringify({ fill_or_replace_fields: { title: "등대" } }));
-    assert.equal(wrappedObject.title, "등대");
-    const listOnly = parseScenarioDraftJson(JSON.stringify({ "/fill_or_replace_fields": "title,summary,goal" }));
-    assert.equal(listOnly.generatedFields?.length ?? 0, 0);
-    const emptyWrapper = parseScenarioDraftJson(JSON.stringify({ "/fill_or_replace_fields": {} }));
-    assert.equal(emptyWrapper.generatedFields?.length ?? 0, 0);
+  it("recorded JSON-mode failures (pre-fix) are never accepted as a successful draft, with no retry", async () => {
+    const preFixOutputs = [
+      "{}",
+      '{"/fill_or_replace_fields": {}}',
+      '{"/fill_or_replace_fields": "title,summary,startingSituation,centralConflict,goal"}',
+      '{"/mnt/data/캠페인_블루프린트.json": "created"}',
+    ];
+    for (const text of preFixOutputs) {
+      let calls = 0;
+      await assert.rejects(
+        completeTrpgScenarioDraftJson({
+          kind: "scenario_draft",
+          system: "sys",
+          user: "user",
+          expectedFields: ["title", "startingSituation", "goal", "endingConditions"],
+          complete: async () => {
+            calls += 1;
+            return { text, latencyMs: 1, model: "m" };
+          },
+        }),
+        TrpgAuthoringEmptyError
+      );
+      assert.equal(calls, 1, `no hidden retry for ${text.slice(0, 24)}`);
+    }
   });
 
-  it("retries empty {} answers a bounded number of times and then fails clearly", async () => {
-    const base = {
-      kind: "scenario_draft" as const,
+  it("recorded plain-output draft maps every requested field and passes the minimum story check", async () => {
+    const plainOutput = "{\n  \"title\": \"유령 기차의 비밀\",\n  \"summary\": \"비 오는 밤, 폐역에 도착한 유령 기차에서 사라진 승객들의 비밀을 추적하는 미스터리 모험.\",\n  \"startingSituation\": \"플레이어들은 비 오는 밤, 폐역 대합실에서 비를 피하고 있다. 갑자기 유령 기차가 도착하고, 승객들이 하나둘 사라진다. 플레이어들은 기차에 올라타 사라진 승객들을 찾게 된다.\",\n  \"centralConflict\": \"유령 기차는 과거에 사고로 죽은 승객들의 영혼이 반복되는 순환에 갇힌 공간이다. 기차의 정체를 밝히고, 영혼들을 해방시키는 것이 중심 갈등이다.\",\n  \"goal\": \"사라진 승객들을 찾고, 유령 기차의 비밀을 밝혀 영혼들을 해방시킨다.\",\n  \"secret\": \"유령 기차는 과거 폐역에서 발생한 열차 사고로 죽은 승객들의 영혼이 반복되는 순환에 갇힌 공간이다. 기차의 정체를 밝히고, 영혼들을 해방시키는 것이 중심 갈등이다.\",\n  \"endingConditions\": [\n    \"승객들의 영혼을 해방시키고 기차가 사라진다.\",\n    \"기차의 비밀을 밝히고 폐역을 떠난다.\"\n  ],\n  \"majorEvents\": [\n    \"기차 안에서 승객들의 과거 기억 조각 발견\",\n    \"기차의 운전사와 대면하여 사고의 진실을 알게 됨\"\n  ],\n  \"clues\": [\n    \"승객들의 유품에서 사고 당시의 신문 기사 발견\",\n    \"기차의 운전사가 남긴 일기장에서 사고의 진실 확인\"\n  ],\n  \"startLocation\": \"비 오는 밤의 폐역 대합실\",\n  \"startInventory\": [\n    \"손전등\",\n    \"낡은 지도\"\n  ],\n  \"difficulty\": \"normal\",\n  \"climax\": \"플레이어들이 기차의 운전사와 대면하여 사고의 진실을 알게 되고, 영혼들을 해방시키기 위한 마지막 선택을 한다.\"\n}";
+    const result = await completeTrpgScenarioDraftJson({
+      kind: "scenario_draft",
       system: "sys",
       user: "user",
-      expectedFields: ["title", "goal"],
-    };
-    const reply = (text: string) => async () => ({ text, latencyMs: 1, model: "m" });
-    let calls = 0;
-    const recovered = await completeTrpgScenarioDraftJson({
-      ...base,
-      complete: async () => {
-        calls += 1;
-        return { text: calls === 1 ? "{}" : '{"title":"폐역","goal":"봉인한다"}', latencyMs: 1, model: "m" };
-      },
+      expectedFields: ["title", "startingSituation", "goal", "endingConditions"],
+      complete: async () => ({ text: "```json\n" + plainOutput + "\n```", latencyMs: 1, model: "m" }),
     });
-    assert.equal(calls, 2);
-    assert.equal(recovered.title, "폐역");
-
-    let emptyCalls = 0;
-    await assert.rejects(
-      completeTrpgScenarioDraftJson({
-        ...base,
-        complete: async () => {
-          emptyCalls += 1;
-          return reply("{}")();
-        },
-      }),
-      TrpgAuthoringEmptyError
-    );
-    assert.equal(emptyCalls, TRPG_SCENARIO_DRAFT_EMPTY_RETRY + 1);
-
-    let okCalls = 0;
-    await completeTrpgScenarioDraftJson({
-      ...base,
-      complete: async () => {
-        okCalls += 1;
-        return reply('{"title":"a"}')();
-      },
-    });
-    assert.equal(okCalls, 1);
-
+    assert.equal(result.title, "유령 기차의 비밀");
+    assert.ok(result.plan.startingSituation.includes("폐역 대합실"));
+    assert.ok(result.plan.goal.length > 0);
+    assert.equal(result.plan.endingConditions.length, 2);
+    assert.equal(result.startLocation, "비 오는 밤의 폐역 대합실");
+    assert.ok(result.generatedFields?.includes("endingConditions"));
+    assert.equal(hasMinimumPlayableStory(result.plan), true);
     const route = readFileSync("src/app/api/trpg/scenarios/ai-draft/route.ts", "utf8");
     assert.match(route, /completeTrpgScenarioDraftJson\(\{/);
     assert.match(route, /SCENARIO_DRAFT_EMPTY/);
+    const call = readFileSync("src/lib/trpg/scenarioDraftCall.ts", "utf8");
+    assert.doesNotMatch(call, /EMPTY_RETRY/);
   });
 
   it("repairs malformed JSON once, does not retry transport errors, and calls once for valid JSON", async () => {

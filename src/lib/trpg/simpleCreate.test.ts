@@ -136,6 +136,27 @@ describe("simple TRPG create", () => {
     assert.deepEqual(result, { ok: false, message: SIMPLE_CREATE_UNUSABLE_DRAFT_MESSAGE });
   });
 
+  it("compose: start and goal without any ending possibility is rejected, optional fields stay optional", () => {
+    const base = draftFixture();
+    const noEnding: SimpleCreateDraft = { ...base, plan: { ...base.plan, endingConditions: [], endingCandidates: [] } };
+    assert.deepEqual(composeSimpleScenario(DESC, noEnding), { ok: false, message: SIMPLE_CREATE_UNUSABLE_DRAFT_MESSAGE });
+
+    const candidatesOnly: SimpleCreateDraft = {
+      ...base,
+      plan: { ...base.plan, endingConditions: [], endingCandidates: ["진실을 밝히고 떠난다"] },
+    };
+    assert.equal(composeSimpleScenario(DESC, candidatesOnly).ok, true);
+
+    const minimal: SimpleCreateDraft = {
+      ...base,
+      summary: "",
+      startLocation: "",
+      startInventory: [],
+      plan: { ...emptyTrpgScenarioPlan(), startingSituation: "역에 선다", goal: "기차를 막는다", endingConditions: ["기차가 멈춘다"] },
+    };
+    assert.equal(composeSimpleScenario(DESC, minimal).ok, true);
+  });
+
   it("description only: one draft call, one private POST, saved id returned", async () => {
     const net = fakeFetch({ draft: okDraft, post: okPost });
     const steps: string[] = [];

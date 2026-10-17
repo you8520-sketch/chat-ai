@@ -319,22 +319,9 @@ export function mergeScenarioDraft(opts: {
   };
 }
 
-const DRAFT_ECHO_ENVELOPE_KEY = "fill_or_replace_fields";
-
-/** The model sometimes nests the whole draft under an echo of the prompt's field-list label. */
-function unwrapDraftEchoEnvelope(parsed: Record<string, unknown>): Record<string, unknown> {
-  const keys = Object.keys(parsed);
-  if (keys.length !== 1 || keys[0]!.replace(/^\/+/, "") !== DRAFT_ECHO_ENVELOPE_KEY) return parsed;
-  const inner = parsed[keys[0]!];
-  if (typeof inner === "string") return extractJsonObject(inner) ?? parsed;
-  if (inner && typeof inner === "object" && !Array.isArray(inner)) return inner as Record<string, unknown>;
-  return parsed;
-}
-
 export function parseScenarioDraftJson(raw: string): TrpgScenarioDraftResult {
-  const extracted = extractJsonObject(raw);
-  if (!extracted) throw new Error("시나리오 초안 JSON을 읽지 못했습니다.");
-  const parsed = unwrapDraftEchoEnvelope(extracted);
+  const parsed = extractJsonObject(raw);
+  if (!parsed) throw new Error("시나리오 초안 JSON을 읽지 못했습니다.");
   const parsedPlan = parseTrpgScenarioPlan(parsed) ?? emptyTrpgScenarioPlan();
   // Model output is never a trusted source of mechanical threats; only the human author adds encounters.
   const { encounters: _modelEncounters, ...plan } = parsedPlan;

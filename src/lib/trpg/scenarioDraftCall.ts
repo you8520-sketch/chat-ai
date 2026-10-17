@@ -149,8 +149,11 @@ export function buildTrpgScenarioDraftRequestBody(opts: {
     stream: false,
     temperature: opts.temperature ?? 0.6,
     max_tokens: opts.maxTokens ?? 4096,
-    response_format: { type: "json_object" },
   });
+  // No `response_format: json_object`: with deepseek-v4-flash-0731 on CheaperInference it made
+  // the model answer `{}` or path-like keys ("/fill_or_replace_fields", ".title", "/mnt/data/")
+  // for most draft and sandbox-blueprint calls. Plain output parses fine through
+  // `extractJsonObject`, and the repair stage still covers malformed JSON.
   // Scenario authoring owns true-off after the generic DeepSeek adapter.
   // This does not alter global adapter behavior or GM/Bot calls.
   body.thinking = { type: "disabled" };
@@ -371,20 +374,14 @@ export async function completeTrpgAuthoringJson(opts: {
   }
 }
 
-/**
- * The model often answers a draft request with `{}` (or a wrapper holding nothing). That parses
- * cleanly but fills nothing, and such replies return in seconds at ~1k input tokens, so a handful of
- * quick retries are cheaper than making the creator press the button again.
- */
-export const TRPG_SCENARIO_DRAFT_EMPTY_RETRY = 5;
-
+/** An empty draft parses cleanly but fills nothing; it must not be reported as a success. */
 export async function completeTrpgScenarioDraftJson(
   opts: Parameters<typeof completeTrpgAuthoringJson>[0]
 ): Promise<TrpgScenarioDraftResult> {
+  const result = await completeTrpgAuthoringJson(opts);
   const expectsFields = (opts.expectedFields?.length ?? 0) > 0;
-  for (let attempt = 0; attempt <= TRPG_SCENARIO_DRAFT_EMPTY_RETRY; attempt += 1) {
-    const result = await completeTrpgAuthoringJson(opts);
-    if (!expectsFields || (result.generatedFields?.length ?? 0) > 0) return result;
+  if (expectsFields && (result.generatedFields?.length ?? 0) === 0) {
+    throw new TrpgAuthoringEmptyError();
   }
-  throw new TrpgAuthoringEmptyError();
+  return result;
 }
