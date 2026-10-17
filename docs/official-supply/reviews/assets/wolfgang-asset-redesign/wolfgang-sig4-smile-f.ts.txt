@@ -1,0 +1,497 @@
+import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
+import fs from "node:fs";
+import path from "node:path";
+
+const sharp = createRequire("/workspace/package.json")("sharp") as typeof import("sharp");
+
+import { renderChatImageStyleFidelityContract } from "@/lib/chatImageVisualIdentity";
+import { computeAppearanceLockHash } from "@/lib/officialSupply/appearance";
+import {
+  compileOfficialDraftFromBible,
+  type OfficialCharacterBible,
+  type OfficialWorldBible,
+} from "@/lib/officialSupply/bible";
+import {
+  OFFICIAL_IDENTITY_COPY_FORBIDDEN_CLAUSE,
+  OFFICIAL_SHOT_POSE_EXPRESSION_OWNER_CLAUSE,
+} from "@/lib/officialSupply/imagePrompt";
+import { OFFICIAL_ASSET_OUTPUT_COMPRESSION } from "@/lib/officialSupply/imageProfile";
+import { testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures";
+import { PILOT_STYLE_PROOF_CANDIDATE_ID } from "@/lib/officialSupply/pilotStyleProof";
+import { isLucianSig4ProofSupportedImageModel } from "@/lib/officialSupply/qualityShotQa";
+import { composeOfficialSlotGeneration } from "@/lib/officialSupply/runner";
+import { ROFAN_CLUSTER_B_VISUAL_STYLE_DNA } from "@/lib/officialSupply/style";
+import type {
+  OfficialAppearanceLock,
+  OfficialAssetPlan,
+  OfficialAssetSlotPlan,
+  OfficialCharacterDraft,
+  OfficialCharacterRecord,
+} from "@/lib/officialSupply/types";
+import { buildClusterBRofanStyleSeed } from "@/lib/officialSupply/userOwnedRofanStyleRefs";
+import { callOpenAiImageEdit, OpenAiImageError } from "@/lib/openAiImageEdit";
+
+const DOC = "/workspace/docs/official-supply/reviews/assets/wolfgang-asset-redesign";
+const ART = "/opt/cursor/artifacts";
+const F_SOURCE = path.join(DOC, "rep-f-raw.webp");
+const PROMPT_PATH = path.join(DOC, "sig4-smile-f-prompt.txt");
+const PREPARED = path.join(DOC, "sig4-smile-f-prepared/source.webp");
+const PREFLIGHT_PATH = path.join(DOC, "sig4-smile-f-preflight.json");
+const LEDGER_PATH = path.join(DOC, "sig4-smile-f-ledger.json");
+const F_SHA = "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032";
+const LOCK_HASH = "1c3ccd134203a6dea6ae869c27cc443c42ff5498d1d0130c6f9765407c24dcc3";
+const MODEL = "gpt-image-2.5-sunburst";
+const BUDGET = 0.08;
+const SIZE = "1536x1024";
+
+const redesignedSig4: OfficialAssetSlotPlan = {
+  slotKey: "sig4",
+  kind: "signature",
+  tag: "옅은 미소",
+  expression: "긴장을 풀고 상대를 바라보며 입꼬리만 살짝 올린 옅은 미소. 이를 보이지 않는다.",
+  pose: "갑옷을 벗지 않은 채 창가 돌벤치에 앉아 상체를 상대(카메라) 쪽으로 돌린다. 양손은 허벅지 위에 올려 두고 소품을 건네지 않는다. 어깨는 살짝 내려가 있고, 얼굴·눈·옅은 미소가 한눈에 보인다. 유저는 그리지 않는다.",
+  outfit: "default",
+  location: "흑철 요새 집무실 창가",
+  situation: "늦은 당직을 마친 뒤 짧은 휴식을 취하며 상대를 바라본다",
+  characterPresence: "required",
+  depiction: "standard",
+  personTag: "미소",
+  imageSubjects: { foreground: "solo_character", backgroundExtras: "none" },
+};
+
+function sha256(buf: Buffer | string): string {
+  return createHash("sha256").update(buf).digest("hex");
+}
+
+function writeJson(file: string, payload: unknown): void {
+  const text = `${JSON.stringify(payload, null, 2)}\n`;
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.mkdirSync(ART, { recursive: true });
+  fs.writeFileSync(file, text);
+  fs.writeFileSync(path.join(ART, path.basename(file)), text);
+}
+
+function wolfgangCharacter(
+  draft: OfficialCharacterDraft,
+  appearance: OfficialAppearanceLock,
+  plan: OfficialAssetPlan
+): OfficialCharacterRecord {
+  return {
+    draftKey: "pilot-rf-02",
+    batchKey: "pilot-romance-fantasy-04-cluster-b",
+    worldKey: draft.worldKey,
+    styleKey: draft.styleKey,
+    stage: "asset_plan_locked",
+    draft,
+    textLockHash: null,
+    appearance,
+    appearanceLockHash: null,
+    assetPlan: plan,
+    isStyleProof: false,
+    stagedCharacterId: null,
+  };
+}
+
+function buildExperimentalPrompt(officialPrimary: string): {
+  prompt: string;
+  styleFidelity: string;
+} {
+  const framingEnd = officialPrimary.indexOf("\nREFERENCE IMAGES:");
+  const characterStart = officialPrimary.indexOf("\nCharacter:");
+  const artStyleStart = officialPrimary.indexOf("\nART STYLE (structured attributes");
+  const safetyStart = officialPrimary.indexOf("\nSAFETY —");
+  if (framingEnd < 0 || characterStart < 0 || artStyleStart < 0 || safetyStart < 0) {
+    throw new Error("official prompt markers missing");
+  }
+  if (!(framingEnd < characterStart && characterStart < artStyleStart && artStyleStart < safetyStart)) {
+    throw new Error("official prompt marker order changed");
+  }
+  const framing = officialPrimary.slice(0, framingEnd);
+  const identity = officialPrimary.slice(characterStart + 1, artStyleStart);
+  const safetyAndRest = officialPrimary.slice(safetyStart + 1);
+  const styleFidelity = renderChatImageStyleFidelityContract({
+    hasTemplate: false,
+    subjectCount: 1,
+  });
+  const reference = [
+    "REFERENCE IMAGE: one supplied image. It is both the identity source and the style source for this one person.",
+    "Keep this person's face, hair, eyes, armor, and fur, and this image's line and coloring method.",
+    OFFICIAL_IDENTITY_COPY_FORBIDDEN_CLAUSE,
+    OFFICIAL_SHOT_POSE_EXPRESSION_OWNER_CLAUSE,
+    "Do not move a hidden scar or possession into view by changing its place on the body.",
+    styleFidelity,
+  ].join("\n");
+  const prompt = [framing, reference, identity, safetyAndRest].join("\n");
+  return { prompt, styleFidelity };
+}
+
+function assertExperimentalPrompt(prompt: string): void {
+  const required = [
+    "MATURE MALE VISUAL AGE LOCK",
+    "옅은 미소",
+    "창가 돌벤치",
+    "right three-quarter",
+    "low-angle",
+    "knee-up",
+    "STYLE FIDELITY",
+    "both the identity source and the style source",
+    "Do not copy the reference camera, head angle",
+  ];
+  for (const token of required) {
+    if (!prompt.includes(token)) throw new Error(`experimental prompt missing ${token}`);
+  }
+  const forbidden = [
+    "STYLE ONLY",
+    "IDENTITY ONLY",
+    "ART STYLE (structured attributes",
+    "수프",
+    "eye-level",
+    "검 손잡이",
+    "b7-black-gold-uniform",
+    "official-pilot-rf-v4-02__rep-a1",
+  ];
+  for (const token of forbidden) {
+    if (prompt.includes(token)) throw new Error(`experimental prompt still has ${token}`);
+  }
+}
+
+function loadPrompt(): string {
+  const raw = fs.readFileSync(PROMPT_PATH);
+  if (raw[raw.length - 1] !== 0x0a) throw new Error("prompt file must end with one newline");
+  const body = raw.subarray(0, raw.length - 1).toString("utf8");
+  assertExperimentalPrompt(body);
+  return body;
+}
+
+async function prepareOnce(bytes: Buffer): Promise<Buffer> {
+  return sharp(bytes, { failOn: "none", animated: false })
+    .rotate()
+    .resize({ width: 1536, height: 1536, fit: "inside", withoutEnlargement: true })
+    .webp({ quality: 90, effort: 4 })
+    .toBuffer();
+}
+
+function composeOfficialThenExperimental(): {
+  officialPrimary: string;
+  officialReferences: readonly string[];
+  prompt: string;
+  promptSha256: string;
+  styleFidelity: string;
+} {
+  const characterFile = JSON.parse(
+    fs.readFileSync("/workspace/src/lib/officialSupply/pilot/characters/pilot-rf-02.json", "utf8")
+  ) as {
+    slot: number;
+    draftKey: string;
+    bible: OfficialCharacterBible;
+    appearance: OfficialAppearanceLock;
+    assetPlan: OfficialAssetPlan;
+    brief: { audience: OfficialCharacterDraft["audience"] };
+  };
+  const manifest = JSON.parse(
+    fs.readFileSync("/workspace/src/lib/officialSupply/pilot/manifest.json", "utf8")
+  ) as { worldKey: string; styleKey: string };
+  const world = JSON.parse(
+    fs.readFileSync("/workspace/src/lib/officialSupply/pilot/world-bible.json", "utf8")
+  ) as { bible: OfficialWorldBible };
+  const lockHash = computeAppearanceLockHash(characterFile.appearance);
+  if (lockHash !== LOCK_HASH) throw new Error(`Appearance Lock drifted: ${lockHash}`);
+  const brief = world.bible.portfolio.find((item) => item.slot === characterFile.slot);
+  if (!brief) throw new Error("portfolio brief missing");
+  const draft = compileOfficialDraftFromBible(characterFile.bible, {
+    draftKey: characterFile.draftKey,
+    worldKey: manifest.worldKey,
+    styleKey: manifest.styleKey,
+    genres: ["로맨스 판타지"],
+    audience: characterFile.brief.audience,
+    worldName: world.bible.name,
+    worldBible: world.bible,
+    hook: {
+      archetype: brief.archetype,
+      relationshipTrope: brief.relationshipTrope,
+      occupation: brief.occupation,
+      rpHook: brief.rpHook,
+    },
+  });
+  const styleSeed = buildClusterBRofanStyleSeed({ NEXTAUTH_URL: "https://hav.chat" });
+  const candidate = {
+    ...testStyleCandidate(PILOT_STYLE_PROOF_CANDIDATE_ID),
+    dna: ROFAN_CLUSTER_B_VISUAL_STYLE_DNA,
+  };
+  const style = {
+    styleKey: draft.styleKey,
+    genre: "로맨스 판타지",
+    stage: "style_locked" as const,
+    candidates: [candidate],
+    approvedCandidateId: candidate.candidateId,
+    styleSeed,
+    proofAssetLimit: 1,
+  };
+  const sig4Plan: OfficialAssetPlan = {
+    ...characterFile.assetPlan,
+    slots: characterFile.assetPlan.slots.map((slot) => (slot.slotKey === "sig4" ? redesignedSig4 : slot)),
+  };
+  const official = composeOfficialSlotGeneration({
+    character: wolfgangCharacter(draft, characterFile.appearance, sig4Plan),
+    style,
+    slotKey: "sig4",
+    representativeUrl: "https://hav.chat/uploads/official-pilot-rf-v4-02__rep-a1.webp",
+  });
+  if (!official.ok) throw new Error(official.error);
+  if (official.profile.size !== SIZE) throw new Error(`profile size ${official.profile.size}`);
+  if (draft.audience !== "female" || !draft.genres.includes("로맨스 판타지")) {
+    throw new Error("compiler draft gate fields drifted");
+  }
+  if (!official.primaryPrompt.includes("MATURE MALE VISUAL AGE LOCK")) {
+    throw new Error("official compose missing age lock");
+  }
+  const rebuilt = buildExperimentalPrompt(official.primaryPrompt);
+  assertExperimentalPrompt(rebuilt.prompt);
+  return {
+    officialPrimary: official.primaryPrompt,
+    officialReferences: official.references,
+    prompt: rebuilt.prompt,
+    promptSha256: sha256(rebuilt.prompt),
+    styleFidelity: rebuilt.styleFidelity,
+  };
+}
+
+async function compose(): Promise<void> {
+  const built = composeOfficialThenExperimental();
+  fs.writeFileSync(PROMPT_PATH, `${built.prompt}\n`);
+  writeJson(path.join(DOC, "sig4-smile-f-compose.json"), {
+    status: "COMPOSED",
+    providerPosts: 0,
+    compilerUnchanged: true,
+    productionReferencesDiscarded: built.officialReferences,
+    sentReferences: ["sig4-smile-f-prepared/source.webp from rep-f-raw.webp"],
+    fSha256: F_SHA,
+    appearanceLockHash: LOCK_HASH,
+    officialPrimarySha256: sha256(built.officialPrimary),
+    experimentalPromptSha256: built.promptSha256,
+    officialHasStyleOnly: built.officialPrimary.includes("STYLE ONLY"),
+    experimentalHasStyleOnly: built.prompt.includes("STYLE ONLY"),
+    experimentalHasStyleDna: built.prompt.includes("ART STYLE (structured attributes"),
+    styleFidelityContract: built.styleFidelity,
+    slot: redesignedSig4,
+    tagProposalOnly: "옅은 미소",
+    model: MODEL,
+    size: SIZE,
+    quality: "medium",
+    n: 1,
+    outputCompression: 88,
+    background: "opaque",
+  });
+  writeJson(path.join(DOC, "sig4-smile-f-input.json"), {
+    status: "READY",
+    providerPosts: 0,
+    sent: false,
+    method: "Reuse composeOfficialSlotGeneration for shot, lock, age, pose, and expression. Replace STYLE ONLY and style DNA with one F identity+style reference plus renderChatImageStyleFidelityContract.",
+    fSource: { file: "rep-f-raw.webp", sha256: F_SHA },
+    excludedFromThisInput: ["b7", "b13", "b5", "production representative", "A-E outputs"],
+    settings: {
+      model: MODEL,
+      size: SIZE,
+      quality: "medium",
+      n: 1,
+      outputFormat: "webp",
+      outputCompression: 88,
+      background: "opaque",
+      referenceCount: 1,
+    },
+    promptFile: "sig4-smile-f-prompt.txt",
+    promptSha256: built.promptSha256,
+    appearanceLockSourceUnchanged: true,
+    appearanceLockHash: LOCK_HASH,
+    compilerUnchanged: true,
+    budgetUsd: BUDGET,
+    postsAuthorized: 1,
+  });
+  console.log(JSON.stringify({ status: "COMPOSED", promptSha256: built.promptSha256, bytes: built.prompt.length }));
+}
+
+async function preflight(): Promise<void> {
+  const built = composeOfficialThenExperimental();
+  const onDisk = loadPrompt();
+  if (sha256(onDisk) !== built.promptSha256) throw new Error("prompt file drifted from compose");
+  const source = fs.readFileSync(F_SOURCE);
+  if (sha256(source) !== F_SHA) throw new Error("F SHA mismatch");
+  const probe = await sharp({ create: { width: 2, height: 2, channels: 3, background: "#000" } })
+    .webp()
+    .toBuffer();
+  for (const dir of [DOC, ART, path.dirname(PREPARED)]) {
+    fs.mkdirSync(dir, { recursive: true });
+    const probePath = path.join(dir, ".smile-write-probe");
+    fs.writeFileSync(probePath, probe);
+    fs.rmSync(probePath);
+  }
+  const first = await prepareOnce(source);
+  const second = await prepareOnce(source);
+  if (!first.equals(second)) throw new Error("prepared bytes are not deterministic");
+  fs.writeFileSync(PREPARED, first);
+  if (!fs.readFileSync(PREPARED).equals(first)) throw new Error("prepared write mismatch");
+  if (!isLucianSig4ProofSupportedImageModel(MODEL)) throw new Error("model unsupported");
+  if (OFFICIAL_ASSET_OUTPUT_COMPRESSION !== 88) throw new Error("compression is not 88");
+  const key = process.env.OPENAI_API_KEY?.trim() || "";
+  if (!key) throw new Error("OPENAI_API_KEY is empty");
+  writeJson(PREFLIGHT_PATH, {
+    status: "PREFLIGHT",
+    providerPosts: 0,
+    source: { file: "rep-f-raw.webp", sha256: F_SHA, bytes: source.length },
+    prepared: {
+      file: "sig4-smile-f-prepared/source.webp",
+      sha256: sha256(first),
+      bytes: first.length,
+      pipeline: "same sharp steps as referenceToDataUrl",
+    },
+    model: MODEL,
+    modelSupported: true,
+    size: SIZE,
+    quality: "medium",
+    n: 1,
+    outputCompression: 88,
+    background: "opaque",
+    promptSha256: built.promptSha256,
+    budgetUsd: BUDGET,
+    observedOneRefSunburstUsd: 0.027393,
+    estimateNote: "F's one-reference sunburst call at 1024x1536 cost 0.027393. This request is the same pixel count.",
+    apiKeyPresent: true,
+    apiKeyLength: key.length,
+    fallback: false,
+    retry: false,
+    vision: false,
+  });
+  console.log(JSON.stringify({ status: "PREFLIGHT", preparedSha256: sha256(first), preparedBytes: first.length }));
+}
+
+function publicError(error: unknown) {
+  if (error instanceof OpenAiImageError) {
+    return {
+      errorStatus: error.status,
+      errorMessage: error.message.slice(0, 400),
+      providerRequestId: error.diagnostic?.providerRequestId ?? null,
+      costUsd: error.diagnostic?.computedCostUsd ?? null,
+    };
+  }
+  return {
+    errorStatus: 0,
+    errorMessage: error instanceof Error ? error.message.slice(0, 400) : "unknown",
+    providerRequestId: null,
+    costUsd: null,
+  };
+}
+
+async function post(): Promise<void> {
+  if (fs.existsSync(path.join(DOC, "sig4-smile-f-raw.webp"))) throw new Error("sig4-smile-f-raw.webp exists");
+  const ledger = fs.existsSync(LEDGER_PATH)
+    ? (JSON.parse(fs.readFileSync(LEDGER_PATH, "utf8")) as { postsStarted?: number; state?: string })
+    : {};
+  if ((ledger.postsStarted ?? 0) >= 1 || ledger.state) throw new Error("sig4 smile already started");
+  const pre = JSON.parse(fs.readFileSync(PREFLIGHT_PATH, "utf8")) as {
+    prepared: { sha256: string; bytes: number };
+    providerPosts: number;
+    promptSha256: string;
+  };
+  if (pre.providerPosts !== 0) throw new Error("preflight is not zero-post");
+  const prepared = fs.readFileSync(PREPARED);
+  if (sha256(prepared) !== pre.prepared.sha256 || prepared.length !== pre.prepared.bytes) {
+    throw new Error("prepared bytes drifted");
+  }
+  const prompt = loadPrompt();
+  if (sha256(prompt) !== pre.promptSha256) throw new Error("prompt SHA drifted");
+  const uri = `data:image/webp;base64,${prepared.toString("base64")}`;
+  writeJson(LEDGER_PATH, { postsStarted: 1, budgetUsd: BUDGET, state: "starting", startedAt: new Date().toISOString() });
+  try {
+    const result = await callOpenAiImageEdit({
+      model: MODEL,
+      prompt,
+      references: [uri],
+      size: SIZE,
+      quality: "medium",
+      outputCompression: OFFICIAL_ASSET_OUTPUT_COMPRESSION,
+      templateId: "official_character_asset",
+      mode: "isolated_sig4_smile_f",
+    });
+    const rawDoc = path.join(DOC, "sig4-smile-f-raw.webp");
+    fs.writeFileSync(rawDoc, result.buffer);
+    fs.writeFileSync(path.join(ART, "sig4-smile-f-raw.webp"), result.buffer);
+    const rawSha = sha256(result.buffer);
+    let inspect: Record<string, unknown> = {};
+    try {
+      const meta = await sharp(result.buffer).metadata();
+      fs.writeFileSync(path.join(DOC, "sig4-smile-f.webp"), result.buffer);
+      fs.writeFileSync(path.join(ART, "sig4-smile-f.webp"), result.buffer);
+      inspect = {
+        width: meta.width ?? null,
+        height: meta.height ?? null,
+        format: meta.format ?? null,
+        inspectedSha256: sha256(fs.readFileSync(rawDoc)),
+      };
+    } catch (inspectError) {
+      inspect = { inspectError: inspectError instanceof Error ? inspectError.message.slice(0, 240) : "inspect failed" };
+    }
+    writeJson(LEDGER_PATH, {
+      postsStarted: 1,
+      budgetUsd: BUDGET,
+      spentUsd: result.costUsd,
+      state: "saved",
+      providerRequestId: result.providerRequestId,
+      rawSha256: rawSha,
+      finishedAt: new Date().toISOString(),
+    });
+    writeJson(path.join(DOC, "sig4-smile-f-actual.json"), {
+      status: typeof result.costUsd === "number" && result.costUsd > BUDGET ? "OVER_BUDGET" : "GENERATED",
+      condition: "sig4-smile-f",
+      providerPosts: 1,
+      persistedToProduction: false,
+      model: MODEL,
+      promptSha256: pre.promptSha256,
+      preparedSha256: pre.prepared.sha256,
+      sourceSha256: F_SHA,
+      size: SIZE,
+      quality: "medium",
+      n: 1,
+      outputCompression: 88,
+      background: "opaque",
+      providerRequestId: result.providerRequestId,
+      usageEvidence: result.usageEvidence,
+      costUsd: result.costUsd,
+      budgetUsd: BUDGET,
+      fallback: false,
+      retry: false,
+      vision: false,
+      raw: { sha256: rawSha, bytes: result.buffer.length },
+      inspect,
+    });
+    console.log(JSON.stringify({ status: "GENERATED", providerRequestId: result.providerRequestId, costUsd: result.costUsd, rawSha256: rawSha }));
+  } catch (error) {
+    const pub = publicError(error);
+    writeJson(LEDGER_PATH, { postsStarted: 1, budgetUsd: BUDGET, state: "failed", ...pub, finishedAt: new Date().toISOString() });
+    writeJson(path.join(DOC, "sig4-smile-f-actual.json"), {
+      status: "FAILED",
+      condition: "sig4-smile-f",
+      providerPosts: 1,
+      model: MODEL,
+      promptSha256: pre.promptSha256,
+      fallback: false,
+      retry: false,
+      vision: false,
+      ...pub,
+    });
+    throw new Error(`sig4 smile failed: ${pub.errorStatus} ${pub.errorMessage}`);
+  }
+}
+
+async function main(): Promise<void> {
+  const mode = process.argv[2];
+  if (mode === "compose") return compose();
+  if (mode === "preflight") return preflight();
+  if (mode === "post") return post();
+  throw new Error("mode must be compose, preflight, or post");
+}
+
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message.slice(0, 500) : String(error));
+  process.exit(1);
+});

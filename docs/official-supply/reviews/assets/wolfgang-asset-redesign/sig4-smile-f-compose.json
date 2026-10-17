@@ -1,0 +1,44 @@
+{
+  "status": "COMPOSED",
+  "providerPosts": 0,
+  "compilerUnchanged": true,
+  "productionReferencesDiscarded": [
+    "https://hav.chat/uploads/official-pilot-rf-v4-02__rep-a1.webp",
+    "https://hav.chat/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b7-black-gold-uniform.webp"
+  ],
+  "sentReferences": [
+    "sig4-smile-f-prepared/source.webp from rep-f-raw.webp"
+  ],
+  "fSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+  "appearanceLockHash": "1c3ccd134203a6dea6ae869c27cc443c42ff5498d1d0130c6f9765407c24dcc3",
+  "officialPrimarySha256": "4b9063553870228db954acda6ca45d4bd12910083dd14463a1ae4892b1f0ae02",
+  "experimentalPromptSha256": "95e795a7c1799a30e50f698b666867f8e7a3db61f541c7bc0c6e7f01444223cf",
+  "officialHasStyleOnly": true,
+  "experimentalHasStyleOnly": false,
+  "experimentalHasStyleDna": false,
+  "styleFidelityContract": "STYLE FIDELITY — rendering technique must follow the supplied character identity reference images, not a generic stock illustration or default model look.\nDerive line weight, line quality, coloring method, shading, facial rendering, and overall finish directly from the subject reference images.\nEach subject reference is both an identity anchor and a style anchor for that character's rendering.\nEach numbered reference image maps 1:1 to exactly one listed subject. Do not reuse a photo for anyone else.\nMatch the listed subject reference rendering as closely as possible. Do not substitute a generic polished illustration look.",
+  "slot": {
+    "slotKey": "sig4",
+    "kind": "signature",
+    "tag": "옅은 미소",
+    "expression": "긴장을 풀고 상대를 바라보며 입꼬리만 살짝 올린 옅은 미소. 이를 보이지 않는다.",
+    "pose": "갑옷을 벗지 않은 채 창가 돌벤치에 앉아 상체를 상대(카메라) 쪽으로 돌린다. 양손은 허벅지 위에 올려 두고 소품을 건네지 않는다. 어깨는 살짝 내려가 있고, 얼굴·눈·옅은 미소가 한눈에 보인다. 유저는 그리지 않는다.",
+    "outfit": "default",
+    "location": "흑철 요새 집무실 창가",
+    "situation": "늦은 당직을 마친 뒤 짧은 휴식을 취하며 상대를 바라본다",
+    "characterPresence": "required",
+    "depiction": "standard",
+    "personTag": "미소",
+    "imageSubjects": {
+      "foreground": "solo_character",
+      "backgroundExtras": "none"
+    }
+  },
+  "tagProposalOnly": "옅은 미소",
+  "model": "gpt-image-2.5-sunburst",
+  "size": "1536x1024",
+  "quality": "medium",
+  "n": 1,
+  "outputCompression": 88,
+  "background": "opaque"
+}

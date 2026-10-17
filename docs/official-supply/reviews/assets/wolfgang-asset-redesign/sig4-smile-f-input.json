@@ -1,0 +1,34 @@
+{
+  "status": "READY",
+  "providerPosts": 0,
+  "sent": false,
+  "method": "Reuse composeOfficialSlotGeneration for shot, lock, age, pose, and expression. Replace STYLE ONLY and style DNA with one F identity+style reference plus renderChatImageStyleFidelityContract.",
+  "fSource": {
+    "file": "rep-f-raw.webp",
+    "sha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032"
+  },
+  "excludedFromThisInput": [
+    "b7",
+    "b13",
+    "b5",
+    "production representative",
+    "A-E outputs"
+  ],
+  "settings": {
+    "model": "gpt-image-2.5-sunburst",
+    "size": "1536x1024",
+    "quality": "medium",
+    "n": 1,
+    "outputFormat": "webp",
+    "outputCompression": 88,
+    "background": "opaque",
+    "referenceCount": 1
+  },
+  "promptFile": "sig4-smile-f-prompt.txt",
+  "promptSha256": "95e795a7c1799a30e50f698b666867f8e7a3db61f541c7bc0c6e7f01444223cf",
+  "appearanceLockSourceUnchanged": true,
+  "appearanceLockHash": "1c3ccd134203a6dea6ae869c27cc443c42ff5498d1d0130c6f9765407c24dcc3",
+  "compilerUnchanged": true,
+  "budgetUsd": 0.08,
+  "postsAuthorized": 1
+}
