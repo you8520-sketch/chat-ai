@@ -1,0 +1,24 @@
+{
+  "chat_id": 801,
+  "chat_url": "https://hav.chat/chat/18?chat=801",
+  "production_sha": "fe9db4839d2c6d97aca931b1450b3c61e7a519f9",
+  "health_git_commit": "fe9db48",
+  "selected_model": "Gemini 4 Argon",
+  "actual_model": "google/gemini-4-argon",
+  "authoring": "NORMAL",
+  "adult": "SAFE",
+  "auto_progress": "OFF",
+  "receipt_visible": {
+    "provider_cost_usd": 0.050762,
+    "billed_cost_usd": 0.051541,
+    "display_points": 72,
+    "krw_approx": 70,
+    "cache": "none, 11321 tok",
+    "input_output_tokens": "11321 / 2812",
+    "output_chars_receipt": 4796,
+    "helper_model": "gpt-6-luna",
+    "helper_cost_usd": 0.000779,
+    "finish_reason": "not shown in UI"
+  },
+  "note": "Agent OCR of actual_model as gemini1.5-argon was incorrect; screenshot shows google/gemini-4-argon."
+}

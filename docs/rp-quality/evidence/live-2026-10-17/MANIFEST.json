@@ -1,0 +1,45 @@
+{
+  "production_sha": "fe9db4839d2c6d97aca931b1450b3c61e7a519f9",
+  "purpose": "GPT literary review originals. No persona internals, keys, or system prompts.",
+  "sol_new_generation": 0,
+  "argon_new_generation": 1,
+  "chats": {
+    "sol_799": {
+      "chat_id": 799,
+      "model": "gpt-6.1-sol",
+      "file": "SOL_chat799_A.txt"
+    },
+    "sol_800": {
+      "chat_id": 800,
+      "model": "gpt-6.1-sol",
+      "file": "SOL_chat800_A.txt"
+    },
+    "argon_801": {
+      "chat_id": 801,
+      "model": "google/gemini-4-argon",
+      "url": "https://hav.chat/chat/18?chat=801",
+      "file": "ARGON_chat801_A.txt",
+      "receipt": "ARGON_chat801_receipt.json"
+    }
+  },
+  "files": [
+    {
+      "file": "SOL_chat799_A.txt",
+      "chars": 4214,
+      "hangul": 2944,
+      "sha256": "9cfca0bdb864b74cf52726f3ae39939b1226f262df63cdf4895c0004a57b03be"
+    },
+    {
+      "file": "SOL_chat800_A.txt",
+      "chars": 3878,
+      "hangul": 2720,
+      "sha256": "e7da8e9d43878ac13425e5a394c71811dbcfad40e8427482c072349d77d40e42"
+    },
+    {
+      "file": "ARGON_chat801_A.txt",
+      "chars": 4744,
+      "hangul": 3361,
+      "sha256": "96412b98a7b0da98b95848695c7f42c1e23af3cf8c5bb487fd84dc6ff926ff93"
+    }
+  ]
+}
