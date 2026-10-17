@@ -1,0 +1,38 @@
+label=after-v2 model=gpt-6-luna link contract present: yes
+
+== S1 explicit correction of the T30 event (live turn T120)
+   user: 아까 그 부상 장면 정정할게. 늑대에게 물린 게 아니라 문에 팔이 끼인 거야. 같은 사건이야.
+   assistant: 에녹은 잠시 생각하다 고개를 끄덕였다. “그래, 문이었지. 내가 잘못 기억했나 보군.”
+   offered candidates: C1=T30(T30 seed)
+   call: transportOk=true http=200 responseModel=? input=2549 (cacheRead=0) output=145 cost=$0.000254 (billed) ≈0.381원
+   raw response: {"relationship":{"items":[],"itemsRemove":[],"promisesAdd":[],"promisesRemove":[]},"episodic":{"extracted_facts":[{"category":"character","subject":"enoch","attribute":"injury_cause","value":"arm_caught_in_door","importance":"important","fact_text":"에녹의 같은 부상 사건은 늑대에게 물린 것이 아니라 팔이 문에 끼여 발생했다.","evidence_type":"explicit_user_statement","evidence":{"source_role":"user","source_quote":"늑대에게 물린 게 아니라 문에 팔이 끼인 거야."},"corrects":"C1"}]}}
+   model corrects (raw): "C1"
+   parsed: injury_cause=arm_caught_in_door explicit_user_statement role=user quote=“늑대에게 물린 게 아니라 문에 팔이 끼인 거야.” correction_target_fact_id=30
+   stored rows:
+     id=30 T30 injury=left_arm_bitten role=assistant authority=CURRENT_SCENE quote=“늑대가 에녹의 왼팔을 깊이 물어뜯었다.” correction=null
+     id=120 T120 injury_cause=arm_caught_in_door role=user authority=USER_EXPLICIT quote=“늑대에게 물린 게 아니라 문에 팔이 끼인 거야.” correction={"target_fact_id":30,"target_source_turn":30}
+   link to T30: linked (expected linked, T30 offered as C1) -> PASS
+   final block @T500 q="예전에 에녹 왼팔은 왜 다쳤었지?" T30 bite hidden -> consistent with link
+     - [T120] [유저 입력 발췌] “늑대에게 물린 게 아니라 문에 팔이 끼인 거야.”
+   final block @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?" T30 bite hidden -> consistent with link
+     - [T120] [유저 입력 발췌] “늑대에게 물린 게 아니라 문에 팔이 끼인 거야.”
+
+== S2 implicit correction (no 정정 keyword) (live turn T120)
+   user: 늑대한테 물린 거 아니잖아. 그때 창고 문에 왼팔이 끼여서 다친 거였어.
+   assistant: 에녹이 멋쩍게 웃었다. “…그랬던가. 문에 끼였던 거였지.”
+   offered candidates: C1=T30(T30 seed)
+   call: transportOk=true http=200 responseModel=? input=2542 (cacheRead=2369) output=146 cost=$0.000076 (billed) ≈0.114원
+   raw response: {"relationship":{"items":[],"itemsRemove":[],"promisesAdd":[],"promisesRemove":[]},"episodic":{"extracted_facts":[{"category":"character","subject":"enoch","attribute":"left_arm_injury_cause","value":"warehouse_door","importance":"important","fact_text":"에녹은 늑대에게 물린 것이 아니라 창고 문에 왼팔이 끼여 다쳤다.","evidence_type":"explicit_user_statement","evidence":{"source_role":"user","source_quote":"그때 창고 문에 왼팔이 끼여서 다친 거였어."},"corrects":"C1"}]}}
+   model corrects (raw): "C1"
+   parsed: left_arm_injury_cause=warehouse_door explicit_user_statement role=user quote=“그때 창고 문에 왼팔이 끼여서 다친 거였어.” correction_target_fact_id=30
+   stored rows:
+     id=30 T30 injury=left_arm_bitten role=assistant authority=CURRENT_SCENE quote=“늑대가 에녹의 왼팔을 깊이 물어뜯었다.” correction=null
+     id=120 T120 left_arm_injury_cause=warehouse_door role=user authority=USER_EXPLICIT quote=“그때 창고 문에 왼팔이 끼여서 다친 거였어.” correction={"target_fact_id":30,"target_source_turn":30}
+   link to T30: linked (expected linked, T30 offered as C1) -> PASS
+   final block @T500 q="예전에 에녹 왼팔은 왜 다쳤었지?" T30 bite hidden -> consistent with link
+     - [T120] [유저 입력 발췌] “그때 창고 문에 왼팔이 끼여서 다친 거였어.”
+   final block @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?" T30 bite hidden -> consistent with link
+     - [T120] [유저 입력 발췌] “그때 창고 문에 왼팔이 끼여서 다친 거였어.”
+
+RESULT label=after-v2 calls=2 input=5091 output=291 cost≈0.495원 contract_failures=0
+TICKET TOTAL calls=5/12 cost≈1.194원/100원

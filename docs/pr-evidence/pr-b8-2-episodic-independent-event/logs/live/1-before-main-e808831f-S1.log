@@ -1,0 +1,18 @@
+label=before-main model=gpt-6-luna link contract present: no
+
+== S1 explicit correction of the T30 event (live turn T120)
+   user: 아까 그 부상 장면 정정할게. 늑대에게 물린 게 아니라 문에 팔이 끼인 거야. 같은 사건이야.
+   assistant: 에녹은 잠시 생각하다 고개를 끄덕였다. “그래, 문이었지. 내가 잘못 기억했나 보군.”
+   offered candidates: (none)
+   call: transportOk=true http=200 responseModel=? input=2369 (cacheRead=0) output=40 cost=$0.000205 (billed) ≈0.307원
+   model corrects (raw): (no facts)
+   stored rows:
+     id=30 T30 injury=left_arm_bitten role=assistant authority=CURRENT_SCENE quote=“늑대가 에녹의 왼팔을 깊이 물어뜯었다.” correction=null
+   link to T30: not linked (expected linked, T30 not offered) -> PASS
+   final block @T500 q="예전에 에녹 왼팔은 왜 다쳤었지?" T30 bite shown -> consistent with link
+     - [T30] [AI 장면 서술 발췌] “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+   final block @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?" T30 bite shown -> consistent with link
+     - [T30] [AI 장면 서술 발췌] “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+
+RESULT label=before-main calls=1 input=2369 output=40 cost≈0.307원 contract_failures=0
+TICKET TOTAL calls=2/12 cost≈0.636원/100원

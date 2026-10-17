@@ -1,0 +1,90 @@
+[
+ {
+  "label": "after",
+  "scenario": "S1",
+  "model": null,
+  "inputTokens": 2542,
+  "outputTokens": 40,
+  "krw": 0.3285
+ },
+ {
+  "label": "before-main",
+  "scenario": "S1",
+  "model": null,
+  "inputTokens": 2369,
+  "outputTokens": 40,
+  "krw": 0.3075
+ },
+ {
+  "label": "after",
+  "scenario": "S2",
+  "model": null,
+  "inputTokens": 2535,
+  "outputTokens": 40,
+  "krw": 0.063
+ },
+ {
+  "label": "after-v2",
+  "scenario": "S1",
+  "model": null,
+  "inputTokens": 2549,
+  "outputTokens": 145,
+  "krw": 0.381
+ },
+ {
+  "label": "after-v2",
+  "scenario": "S2",
+  "model": null,
+  "inputTokens": 2542,
+  "outputTokens": 146,
+  "krw": 0.114
+ },
+ {
+  "label": "after-v2",
+  "scenario": "S3",
+  "model": null,
+  "inputTokens": 2536,
+  "outputTokens": 40,
+  "krw": 0.0615
+ },
+ {
+  "label": "after-v2",
+  "scenario": "S4",
+  "model": null,
+  "inputTokens": 2535,
+  "outputTokens": 135,
+  "krw": 0.108
+ },
+ {
+  "label": "after-v2",
+  "scenario": "S5",
+  "model": null,
+  "inputTokens": 2523,
+  "outputTokens": 40,
+  "krw": 0.060000000000000005
+ },
+ {
+  "label": "after-v2",
+  "scenario": "S6",
+  "model": null,
+  "inputTokens": 2549,
+  "outputTokens": 145,
+  "krw": 0.0945
+ },
+ {
+  "label": "after-v2",
+  "scenario": "S1r",
+  "model": null,
+  "inputTokens": 2549,
+  "outputTokens": 148,
+  "krw": 0.096
+ },
+ {
+  "label": "after-v2",
+  "scenario": "S3r",
+  "model": null,
+  "inputTokens": 2536,
+  "outputTokens": 40,
+  "krw": 0.0435
+ }
+]

@@ -1,26 +1,24 @@
-# tests 743
-# pass 729
-# fail 14
--- failing tests
-assistant material prose edit
-assistant-only canon-adopted source identity
+# tests 1026
+# pass 1006
+# fail 20
+-- failing leaf tests
 E1 normal facts insert
 E3 regen A=[fact1] → B=[fact2] final = fact2 only
 E4 regen A=[fact1] → B=[] final = none
 E5 duplicate finalize (same request_id) no extra delete/insert
-edits assistant-only turn without misattributing to prior user turn
-episodic abstract psychological inference recall guard
-getEpisodicMemoryForPrompt
-invalidates sealed summary and reseals with new source prose
-latest fact wins for the same category subject attribute
 LTM re-summary eligibility after rewind (API=0)
 M1/M2/M5: LTM suppresses rejected D; prior batch preserved; LLM=0
+default template widget block includes 현재목표 and 속마음 instructions
+dual-source partial response preserves valid source without fallback
+edits assistant-only turn without misattributing to prior user turn
+invalidates sealed summary and reseals with new source prose
+latest fact wins for the same category subject attribute
+marks deepseek and gemini pro as deepseek parser
 material user source edit invalidates sealed summary and allows reseal
 older facts are injected when old enough
-Phase B0 — episodic reconciliation (E1-E8)
-Phase B1-D2 FINAL HARDENING
 preserves psychological resolution, negation, and recovery events at save and recall
 ranking prefers critical over important over normal
-status episodic source-of-truth and evidence boundaries
-user message edit
+reports overlapping widget and firewall instructions reduced after dedupe
+single-source V4 503 is terminal after one physical attempt
+uses instruction text in layout preview
 verifies explicit-user provenance against the actual RAW user message
