@@ -173,7 +173,14 @@ export async function runArgonInnerScopeLiveCompare(): Promise<void> {
       .reverse()
       .find((message) => message.role === "user")?.content
   );
-  if (!lastUserFlat.includes(REQUIRED_USER)) fail("STIMULUS_NOT_IN_WIRE");
+  const stimulusLines = [
+    "임무가 끝난 밤",
+    "창틀에서 한 걸음 떨어져",
+    "오늘은 그냥 이렇게 있자.",
+  ];
+  if (stimulusLines.some((line) => !lastUserFlat.includes(line))) {
+    fail("STIMULUS_NOT_IN_WIRE");
+  }
   for (const marker of CHAT_801_TYPO_MARKERS) {
     if (flatWire.includes(marker)) fail("CHAT_801_TYPO_PRESENT", { marker });
   }
@@ -186,8 +193,15 @@ export async function runArgonInnerScopeLiveCompare(): Promise<void> {
   if (argonCount + sharedCount !== 1) {
     fail("INNER_SENTENCE_COUNT", { argonCount, sharedCount });
   }
-  if (count(systemFlat, OWNER_TITLE) !== 1) {
-    fail("OWNER_COUNT", { ownerCount: count(systemFlat, OWNER_TITLE) });
+  const ownerCount = count(systemFlat, OWNER_TITLE);
+  const persistentGrantCount = count(
+    systemFlat,
+    "사용자가 유저 페르소나 공동 서술을 켜 두었다."
+  );
+  // The title string is referenced three times by the existing system contract.
+  // The persistent grant line is the single policy block.
+  if (ownerCount !== 3 || persistentGrantCount !== 1) {
+    fail("OWNER_COUNT", { ownerCount, persistentGrantCount });
   }
   const expectedInner = label === "after" ? "argon" : "shared";
   const actualInner = argonCount === 1 ? "argon" : "shared";
@@ -234,7 +248,8 @@ export async function runArgonInnerScopeLiveCompare(): Promise<void> {
     expectedInner,
     argonInnerCount: argonCount,
     sharedInnerCount: sharedCount,
-    systemOwnerCount: count(systemFlat, OWNER_TITLE),
+    systemOwnerTitleCount: ownerCount,
+    persistentGrantCount,
     requestBodyFingerprint: argon.requestBodyFingerprint,
     normalizedFingerprint: sha256(normalizeBody(body)),
     benchmarkA: benchmarkFingerprints,
@@ -359,7 +374,8 @@ export async function runArgonInnerScopeLiveCompare(): Promise<void> {
     requestBodyFingerprint: argon.requestBodyFingerprint,
     normalizedFingerprint: fingerprints.normalizedFingerprint,
     innerSentence: actualInner,
-    systemOwnerCount: fingerprints.systemOwnerCount,
+    systemOwnerTitleCount: fingerprints.systemOwnerTitleCount,
+    persistentGrantCount: fingerprints.persistentGrantCount,
     estimatedPairKrw,
     oneCallKrw,
     characterId: 18,
