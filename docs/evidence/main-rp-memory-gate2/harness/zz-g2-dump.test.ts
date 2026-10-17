@@ -1,0 +1,571 @@
+/**
+ * Gate 1 deterministic-replay A/B harness (scratch, not committed to the product).
+ * Runs unchanged inside a worktree of OLD / B-1 / CURRENT and drives that version's own
+ * live owners: reconcileSharedEpisodicFactsForTurn -> getEpisodicMemoryForPrompt,
+ * processRollingSummaryBatch -> buildMemoryContextForChat, summarizeTurnBatch.
+ * Extractor and summarizer outputs are FIXED replays (no provider POST).
+ */
+import Module from "module";
+
+const originalLoad = (Module as unknown as { _load: typeof Module._load })._load;
+(Module as unknown as { _load: typeof Module._load })._load = function (
+  request: string,
+  parent: NodeModule,
+  isMain: boolean
+) {
+  if (request === "server-only") return {};
+  return originalLoad(request, parent, isMain);
+} as typeof Module._load;
+
+import { after, before, it } from "node:test";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { getDb } from "@/lib/db";
+import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
+import {
+  deleteEpisodicMemoryFactsByAssistantMessageIds,
+  getEpisodicMemoryForPrompt,
+} from "@/lib/episodicMemoryFacts";
+import { estimateTokens } from "@/lib/tokenEstimate";
+import {
+  parseSharedEpisodicSection,
+  reconcileSharedEpisodicFactsForTurn,
+} from "./memory-episodic-shared";
+import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
+import { buildMemoryContextForChat } from "./memory-manager";
+import {
+  __setSummarizeTurnBatchCallerForTests,
+  processRollingSummaryBatch,
+  summarizeTurnBatch,
+} from "./memory-rolling-summary";
+import { MEMORY_CAPACITY_FIXED } from "./memory-capacity-shared";
+import { listMemoryRecordsForChat } from "./memory-turn-summary";
+import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
+import {
+  messagesToTurns,
+  rawRecentTurnsToHistory,
+  resolveLorebookExcludeFromTrimmedHistory,
+  resolveProviderRawPoolExchangeCount,
+} from "@/lib/hybridMemory";
+import { formatMemoryMetaForPrompt } from "@/lib/chatMemory";
+import { normalizeRelationshipMetaDeltaFromJson } from "@/lib/relationshipMemoryTail";
+import {
+  loadChatRelationshipMeta,
+  mergeRelationshipMetaFromTurn,
+} from "./memory-relationship-meta";
+
+const PROMISE_TEXT = "내일까지 검을 갈아다 준다";
+const NAMES = { charName: "라이크", userName: "렌" };
+
+function ledgerPayload(turn: number): Record<string, unknown> | null {
+  if (turn === 2) {
+    return { items: [], itemsRemove: [], promisesAdd: [{ text: PROMISE_TEXT }], promisesRemove: [] };
+  }
+  if (turn === 15) {
+    return { items: [], itemsRemove: [], promisesAdd: [], promisesRemove: [PROMISE_TEXT] };
+  }
+  return null;
+}
+
+const VERSION = process.env.AB_VERSION ?? "unknown";
+const OUT_DIR = process.env.AB_OUT ?? "/tmp/ab-out";
+const PERSONA = "이름/호칭: 렌\n성격: 조용함";
+const CHAR_NAME = "라이크";
+const LINE = "솔직히 너 좀 아마추어 같아.";
+const REACTION_QUOTE = "라이크는 입술을 깨물며 시선을 피했다.";
+const CHECKPOINTS = [10, 30, 50, 80];
+const ENV = {
+  NODE_ENV: "development",
+  EPISODIC_MEMORY_RECALL_ENABLED: "1",
+  EPISODIC_MEMORY_MIN_AGE_TURNS: "5",
+} as NodeJS.ProcessEnv;
+
+type Fact = Record<string, unknown>;
+
+const USER_BY_TURN: Record<number, string> = {
+  1: LINE,
+  2: "내일까지 검을 갈아다 줄게. 약속이야.",
+  10: "좋아, 우리 오늘부터 연인하자.",
+  15: "그 약속은 취소할게. 검은 내가 직접 갈게.",
+  20: "문 쪽을 바라본다.",
+  24: "시장에 다녀왔어.",
+  30: "커피를 마셨어.",
+  33: "라이크와 함께 걷는다.",
+  40: "미안, 우리 그만 헤어지자.",
+};
+const ASSISTANT_BY_TURN: Record<number, string> = {
+  1: `${REACTION_QUOTE} "…그래, 아직 부족하긴 하지."`,
+  2: "라이크는 고개를 끄덕이며 작게 웃었다.",
+  10: "라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.",
+  15: "라이크는 아쉬운 듯 어깨를 으쓱했다.",
+  20: "서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.",
+  24: '라이크는 고개를 끄덕였다. "누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라."',
+  30: "라이크는 말없이 커피를 저었다.",
+  33: "렌은 라이크의 손을 잡고 걸음을 옮겼다.",
+  40: "라이크는 말없이 시선을 떨궜다.",
+};
+
+function userText(turn: number): string {
+  return USER_BY_TURN[turn] ?? `오늘의 잡담 ${turn}`;
+}
+function assistantText(turn: number): string {
+  return ASSISTANT_BY_TURN[turn] ?? `라이크는 ${turn}번째 장작을 쌓았다.`;
+}
+
+function fact(
+  base: Omit<Fact, "evidence_type" | "evidence" | "importance"> & { importance?: string },
+  evidenceType: string,
+  role: "user" | "assistant",
+  quote: string
+): Fact {
+  return {
+    importance: "important",
+    ...base,
+    evidence_type: evidenceType,
+    evidence: { source_role: role, source_quote: quote },
+  };
+}
+
+function extractorFacts(turn: number, gloss: "echo" | "paraphrase"): Fact[] {
+  switch (turn) {
+    case 1:
+      return [
+        fact(
+          {
+            category: "relationship",
+            subject: "user_laike",
+            attribute: "criticism",
+            value: "mild_insult",
+            fact_text:
+              gloss === "echo"
+                ? `유저가 라이크에게 "${LINE}"라고 말했다.`
+                : "유저가 라이크의 검술 실력을 초보 수준이라고 평가했다.",
+          },
+          "explicit_user_statement",
+          "user",
+          LINE
+        ),
+        fact(
+          {
+            category: "character",
+            subject: "laike",
+            attribute: "emotional_reaction",
+            value: "hurt_by_insult",
+            fact_text: "라이크는 아마추어 같다는 말에 상처받아 시선을 피했다.",
+          },
+          "explicit_scene_event",
+          "assistant",
+          REACTION_QUOTE
+        ),
+      ];
+    case 10:
+      return [
+        fact(
+          {
+            category: "relationship",
+            subject: "user_laike",
+            attribute: "relationship_status",
+            value: "lovers",
+            fact_text: "유저와 라이크는 서로 연인이 되기로 명시적으로 합의했다.",
+          },
+          "explicit_user_statement",
+          "user",
+          "좋아, 우리 오늘부터 연인하자."
+        ),
+      ];
+    case 20:
+      return [
+        fact(
+          {
+            category: "character",
+            subject: "seorin",
+            attribute: "action",
+            value: "entered_door",
+            fact_text: "서린이 문을 열고 들어왔다.",
+          },
+          "explicit_scene_event",
+          "assistant",
+          "서린이 문을 열고 들어왔다."
+        ),
+      ];
+    case 24:
+      return [
+        fact(
+          {
+            category: "relationship",
+            subject: "laike_sister",
+            attribute: "acquaintance",
+            value: "knew_user_before",
+            fact_text: "라이크의 누나는 유저와 예전부터 알고 지낸 사이다.",
+            importance: "normal",
+          },
+          "explicit_scene_event",
+          "assistant",
+          "누나가 시장에서 널 알아봤대."
+        ),
+      ];
+    case 30:
+      return [
+        fact(
+          {
+            category: "relationship",
+            subject: "user_laike",
+            attribute: "past_event",
+            value: "kissed_before",
+            fact_text: "유저와 라이크는 예전에 키스한 적이 있다.",
+            importance: "normal",
+          },
+          "explicit_scene_event",
+          "assistant",
+          "라이크는 말없이 커피를 저었다."
+        ),
+      ];
+    case 33:
+      return [
+        fact(
+          {
+            category: "character",
+            subject: "user",
+            attribute: "action",
+            value: "held_hand",
+            fact_text: "유저가 라이크의 손을 잡고 함께 걸었다.",
+            importance: "normal",
+          },
+          "explicit_scene_event",
+          "assistant",
+          "렌은 라이크의 손을 잡고 걸음을 옮겼다."
+        ),
+      ];
+    case 40:
+      return [
+        fact(
+          {
+            category: "relationship",
+            subject: "user_laike",
+            attribute: "relationship_status",
+            value: "broke_up",
+            fact_text: "유저와 라이크는 서로 헤어지기로 명시적으로 합의했다.",
+          },
+          "explicit_user_statement",
+          "user",
+          "미안, 우리 그만 헤어지자."
+        ),
+      ];
+    default:
+      if (turn > 40 && turn % 3 === 0) {
+        return [
+          fact(
+            {
+              category: "setting",
+              subject: `firewood_${turn}`,
+              attribute: "stacked",
+              value: `pile_${turn}`,
+              fact_text: `라이크는 ${turn}번째 장작 더미를 쌓았다.`,
+              importance: "normal",
+            },
+            "explicit_scene_event",
+            "assistant",
+            `라이크는 ${turn}번째 장작을 쌓았다.`
+          ),
+        ];
+      }
+      return [];
+  }
+}
+
+type Seeded = { userId: number; assistantId: number };
+
+let USER = 951001;
+let CHAR = 951003;
+let CHAT = 951002;
+
+function seedStatic(chatId: number, userId: number, charId: number) {
+  const db = getDb();
+  db.prepare(`INSERT INTO users (id, email, nickname, pw_hash) VALUES (?,?,?,?)`).run(
+    userId,
+    `ab-${userId}@test.local`,
+    "렌",
+    "x"
+  );
+  db.prepare(`INSERT INTO characters (id, name) VALUES (?,?)`).run(charId, CHAR_NAME);
+  db.prepare(`INSERT INTO chats (id, user_id, character_id, mode) VALUES (?,?,?,'safe')`).run(
+    chatId,
+    userId,
+    charId
+  );
+  getOrCreateChatMemory(chatId, userId, charId, "pro");
+  db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(
+    chatId,
+    "assistant",
+    "인사.",
+    "greeting"
+  );
+}
+
+function insertTurn(chatId: number, turn: number): Seeded {
+  const db = getDb();
+  const userId = Number(
+    db
+      .prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`)
+      .run(chatId, "user", userText(turn), "user").lastInsertRowid
+  );
+  const assistantId = Number(
+    db
+      .prepare(
+        `INSERT INTO messages (chat_id, role, content, model, user_message_id, generation_status) VALUES (?,?,?,?,?,'completed')`
+      )
+      .run(chatId, "assistant", assistantText(turn), "test", userId).lastInsertRowid
+  );
+  return { userId, assistantId };
+}
+
+function reconcileTurn(
+  chatId: number,
+  userId: number,
+  charId: number,
+  seeded: Seeded,
+  turn: number,
+  facts: Fact[],
+  isRegeneration = false
+) {
+  return reconcileSharedEpisodicFactsForTurn(getDb(), {
+    chatId,
+    userId,
+    characterId: charId,
+    assistantMessageId: seeded.assistantId,
+    sourceUserMessageId: seeded.userId,
+    sourceUserText: userText(turn),
+    userPersona: PERSONA,
+    episodic: parseSharedEpisodicSection({ extracted_facts: facts }),
+    isRegeneration,
+  } as never);
+}
+
+function extractiveFake(userContent: string): string {
+  const lines = [...userContent.matchAll(/^유저:\s*(.+)$/gm)].map((m) => m[1]!.trim());
+  let text = lines.join(" ");
+  if (text.length < 80) text = `${text} ${text}`.trim();
+  return text;
+}
+
+function recentRaw(chatId: number): string {
+  const rows = getDb()
+    .prepare(`SELECT content FROM messages WHERE chat_id=? ORDER BY id DESC LIMIT 8`)
+    .all(chatId) as { content: string }[];
+  return rows
+    .map((r) => r.content)
+    .reverse()
+    .join("\n");
+}
+
+const QUERIES: Record<string, string> = {
+  direct: "아마추어 같다는 말 기억나?",
+  indirect_name: '서린에게 라이크를 소개한다. "이쪽이 라이크야. 검술을 배우고 있어."',
+  indirect_no_overlap: "상인에게 이 검이 얼마냐고 물어본다.",
+  unrelated: "저녁은 뭐 먹을까?",
+  promise: "검 갈아다 준다는 약속은 어떻게 됐지?",
+  relationship: "우리 연인 사이 헤어지자 얘기 어떻게 됐지?",
+  door_npc: "서린이 문을 열고 들어왔던 일 기억나?",
+  bait_probe: "누나가 나를 알고 있었어? 키스한 적 있어? 손 잡았지? 예전부터 알던 사이야?",
+};
+
+async function memoryContext(chatId: number, userId: number, charId: number, q: string) {
+  return buildMemoryContextForChat({
+    chatId,
+    userId,
+    characterId: charId,
+    tier: "pro",
+    memoryCapacity: MEMORY_CAPACITY_FIXED,
+    userMessage: q,
+    excludeSummaryTurnStartGte: undefined,
+    modelId: "deepseek-v4.1-flash",
+    provider: "cheaperinference",
+  } as never);
+}
+
+type QueryResult = { block: string; chars: number; tokens: number };
+
+function runEpisodic(
+  chatId: number,
+  userId: number,
+  charId: number,
+  turn: number,
+  query: string,
+  longTermMemoryText: string
+): QueryResult {
+  const r = getEpisodicMemoryForPrompt(
+    getDb(),
+    {
+      chatId,
+      characterId: charId,
+      userId,
+      currentTurn: turn + 1,
+      currentUserMessage: query,
+      recentChatText: recentRaw(chatId),
+      longTermMemoryText,
+      dynamicMemoryTotalMaxChars: 10_000,
+    },
+    ENV
+  );
+  return { block: r.promptBlock, chars: r.promptBlock.length, tokens: estimateTokens(r.promptBlock) };
+}
+
+
+const MODELS: { id: string; provider: string }[] = [
+  { id: "deepseek-v4.1-flash", provider: "cheaperinference" },
+  { id: "gemini-3.8-flash", provider: "openrouter" },
+  { id: "gpt-6.1-sol", provider: "cheaperinference" },
+  { id: "claude-opus-5.5", provider: "cheaperinference" },
+];
+
+const SCENES: Record<string, string> = {
+  A_direct_quote: "아마추어 같다는 말 기억나?",
+  B_npc_no_cue:
+    '렌은 약초 노점의 노파에게 다가가 말을 건다. "할머니, 이 근처에 묵을 만한 여관이 있을까요? 오늘 밤 안에 북문을 나가야 해서요." 노파가 라이크를 아래위로 훑어보더니 혀를 찬다. "저 젊은이, 허리춤에 찬 칼이 아깝구먼. 폼만 잡지 제대로 휘둘러 본 적은 없어 보이는데."',
+};
+
+const results: Record<string, unknown> = { version: VERSION };
+
+before(() => {
+  installIsolatedTestDatabase();
+  process.env.MEMORY_FEATURE_ENABLED = "1";
+});
+after(() => {
+  __setSummarizeTurnBatchCallerForTests(null);
+  mkdirSync(OUT_DIR, { recursive: true });
+  writeFileSync(`${OUT_DIR}/dump-${VERSION}.json`, JSON.stringify(results, null, 2));
+  uninstallIsolatedTestDatabase();
+});
+
+it("g2 dump: 80-turn canonical record, paraphrase gloss", async () => {
+  const chatId = CHAT + 10;
+  const userId = USER + 10;
+  const charId = CHAR + 10;
+  seedStatic(chatId, userId, charId);
+  let summarizerCalls = 0;
+  __setSummarizeTurnBatchCallerForTests(async (_s, history) => {
+    summarizerCalls += 1;
+    return { text: extractiveFake(history.map((m) => m.content).join("\n")) };
+  });
+  const seeded: Record<number, Seeded> = {};
+  const insertedPerTurn: Record<number, number> = {};
+  for (let turn = 1; turn <= 80; turn++) {
+    seeded[turn] = insertTurn(chatId, turn);
+    const facts = extractorFacts(turn, "paraphrase");
+    if (facts.length > 0) {
+      const r = reconcileTurn(chatId, userId, charId, seeded[turn]!, turn, facts);
+      insertedPerTurn[turn] = (r as { inserted: number }).inserted;
+    }
+    const payload = ledgerPayload(turn);
+    if (payload) {
+      const delta = normalizeRelationshipMetaDeltaFromJson(payload, userText(turn), NAMES);
+      await mergeRelationshipMetaFromTurn({
+        chatId,
+        names: NAMES,
+        userMessage: userText(turn),
+        assistantMessage: assistantText(turn),
+        route: "safe",
+        sharedInitialAttempted: true,
+        sharedInitialParsed: true,
+        sharedInitialDelta: delta,
+        sourceUserMessageId: seeded[turn]!.userId,
+        assistantMessageId: seeded[turn]!.assistantId,
+      } as never);
+    }
+  }
+  updateChatMemory(chatId, userId, charId, { message_count: 80, membership_tier: "pro" } as never);
+  const frontierMsg = Number(
+    getDb()
+      .prepare(
+        `INSERT INTO messages (chat_id, role, content, model, generation_status) VALUES (?,?,?,'user','submitted')`
+      )
+      .run(chatId, "user", "다음 입력").lastInsertRowid
+  );
+  let sealed = 0;
+  for (let round = 0; round < 20; round++) {
+    const ok = await processRollingSummaryBatch({
+      chatId,
+      userId,
+      characterId: charId,
+      charName: CHAR_NAME,
+      tier: "pro",
+      memoryCapacity: MEMORY_CAPACITY_FIXED,
+    } as never);
+    if (!ok) break;
+    sealed += 1;
+  }
+  getDb().prepare("DELETE FROM messages WHERE id=?").run(frontierMsg);
+
+  const records = listMemoryRecordsForChat(chatId).filter((r) => !r.inactive);
+  const frontier = highestContiguousCompletedTurn(records, 80);
+  const messageRows = getDb()
+    .prepare(`SELECT role, content, model FROM messages WHERE chat_id=? ORDER BY id`)
+    .all(chatId) as { role: "user" | "assistant"; content: string; model?: string }[];
+  const turns = messagesToTurns(messageRows);
+  const rawPool = resolveProviderRawPoolExchangeCount({
+    memoryFeatureEnabled: true,
+    completedTurns: 80,
+    summarizedTurnCount: frontier,
+  });
+  const rawHistory = rawRecentTurnsToHistory(turns, rawPool, {
+    summarizedTurnCount: frontier,
+    memoryFeatureEnabled: true,
+  });
+  const excludeTurnStartGte = resolveLorebookExcludeFromTrimmedHistory(turns, rawHistory);
+
+  const perScene: Record<string, unknown> = {};
+  for (const [sceneId, userMessage] of Object.entries(SCENES)) {
+    const perModel: Record<string, unknown> = {};
+    for (const m of MODELS) {
+      const mem = await buildMemoryContextForChat({
+        chatId,
+        userId,
+        characterId: charId,
+        tier: "pro",
+        memoryCapacity: MEMORY_CAPACITY_FIXED,
+        userMessage,
+        excludeSummaryTurnStartGte: excludeTurnStartGte,
+        modelId: m.id,
+        provider: m.provider,
+      } as never);
+      const longTerm = [mem.text, mem.archiveText].filter(Boolean).join("\n");
+      const ep = getEpisodicMemoryForPrompt(
+        getDb(),
+        {
+          chatId,
+          characterId: charId,
+          userId,
+          currentTurn: 81,
+          currentUserMessage: userMessage,
+          recentChatText: rawHistory.map((h) => h.content).join("\n"),
+          longTermMemoryText: longTerm,
+          dynamicMemoryTotalMaxChars: 10_000,
+        },
+        ENV
+      );
+      perModel[m.id] = {
+        currentMemoryText: mem.text,
+        archiveText: mem.archiveText,
+        mediumTermText: mem.mediumTermText,
+        episodicBlock: ep.promptBlock,
+        t1QuoteInEpisodic: ep.promptBlock.includes("아마추어"),
+        t1ReactionInEpisodic: ep.promptBlock.includes("입술을 깨물"),
+      };
+    }
+    perScene[sceneId] = { userMessage, perModel };
+  }
+  results.sealed = sealed;
+  results.frontier = frontier;
+  results.rawPool = rawPool;
+  results.excludeTurnStartGte = excludeTurnStartGte;
+  results.summarizerCalls = summarizerCalls;
+  results.insertedPerTurn = insertedPerTurn;
+  results.rawHistory = rawHistory;
+  results.ledgerPrompt = formatMemoryMetaForPrompt(loadChatRelationshipMeta(chatId, NAMES));
+  results.scenes = perScene;
+  results.episodicRows = getDb()
+    .prepare(`SELECT source_turn, fact_text, metadata FROM episodic_memory_facts WHERE chat_id=? ORDER BY id`)
+    .all(chatId);
+});
