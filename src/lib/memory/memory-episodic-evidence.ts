@@ -144,7 +144,7 @@ const AUTHORITIES: ReadonlySet<string> = new Set<EpisodicEvidenceAuthority>([
 ]);
 
 const AUTHORITY_LABEL: Record<EpisodicEvidenceAuthority, string> = {
-  USER_EXPLICIT: "유저 발언 발췌",
+  USER_EXPLICIT: "유저 입력 발췌",
   CURRENT_SCENE: "AI 장면 서술 발췌",
   CHARACTER_CLAIM: "캐릭터 발언(미확정 주장)",
 };

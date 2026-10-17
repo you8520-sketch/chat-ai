@@ -790,6 +790,46 @@ describe("B-1 fact-vs-quote entailment (GPT blockers on the live writer)", () =>
     assert.ok(injected.includes("[캐릭터 발언(미확정 주장)] “누나가 널 예전에 시장에서 봤대.”"));
   });
 
+  it("a user action and a user line are both injected as user input excerpts, never as spoken statements", () => {
+    const turn = seedChat({
+      userText: "나는 우산을 접고 편의점 문을 밀었다. 비 오는 날에는 따뜻한 캔커피가 최고야.",
+      assistantText: "에녹은 고개를 끄덕였다.",
+    });
+    const result = reconcile(turn, [
+      fact(
+        {
+          category: "character",
+          subject: "user",
+          attribute: "entered_store",
+          value: "closed_umbrella_and_entered",
+          fact_text: "사용자는 우산을 접고 편의점에 들어갔다.",
+          evidence_type: "explicit_user_statement",
+        },
+        { source_role: "user", source_quote: "나는 우산을 접고 편의점 문을 밀었다." }
+      ),
+      fact(
+        {
+          category: "preference",
+          subject: "user",
+          attribute: "favorite_drink",
+          value: "canned_coffee",
+          fact_text: "사용자는 비 오는 날 캔커피를 좋아한다.",
+          evidence_type: "explicit_user_statement",
+        },
+        { source_role: "user", source_quote: "비 오는 날에는 따뜻한 캔커피가 최고야." }
+      ),
+    ]);
+    assert.equal(result.inserted, 2);
+    for (const row of rows(turn.chatId)) {
+      assert.equal(evidenceOf(row)?.role, "user");
+      assert.equal(evidenceOf(row)?.authority, "USER_EXPLICIT");
+    }
+    const injected = injectedMemory(turn.chatId, "우산 편의점 문 캔커피 비 오는 날");
+    assert.ok(injected.includes("[유저 입력 발췌] “나는 우산을 접고 편의점 문을 밀었다.”"), injected);
+    assert.ok(injected.includes("[유저 입력 발췌] “비 오는 날에는 따뜻한 캔커피가 최고야.”"), injected);
+    assert.ok(!injected.includes("발언 발췌"), "no user excerpt is labelled as speech");
+  });
+
   it("a gloss that asserts user-linked history rejects the fact even when the quote itself is innocuous", () => {
     const turn = seedChat({
       userText: PLAIN_USER,
