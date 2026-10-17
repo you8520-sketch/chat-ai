@@ -588,6 +588,74 @@ describe("OLD-VALUE relevance trap", () => {
   });
 });
 
+describe("RELEVANCE lane — mid-history event behind recurring-name rows", () => {
+  const LETTER_T300: ExtractedStatusFact = {
+    category: "character",
+    subject: "luka",
+    attribute: "scene_event",
+    value: "sealed_letter_found",
+    importance: "normal",
+    fact_text: "루카가 등대 꼭대기에서 붉은 봉인이 찍힌 편지를 찾아냈다.",
+    evidence_type: "explicit_scene_event",
+  };
+  const ERRANDS = [
+    "루카가 여관 방 열쇠를 카운터에 맡겼다.",
+    "루카가 시장에서 말린 생선을 흥정해 샀다.",
+    "루카가 지하 창고에서 술통을 옮겼다.",
+    "루카가 우리에게 북쪽 다리가 무너졌다는 소문을 전했다.",
+  ];
+
+  function seedLetterBehindErrands(db: Database.Database, currentTurn: number): number {
+    persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: 1,
+      sourceTurn: 300,
+      facts: [LETTER_T300],
+      metadata: { memory_evidence_type: "explicit_scene_event" },
+    });
+    const insert = db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, ?, 'character', 'luka', 'scene_event', ?, 'normal', ?,
+               '{"memory_evidence_type":"explicit_scene_event","content_route":"safe"}')`
+    );
+    for (let turn = 301; turn < currentTurn; turn++) {
+      insert.run(turn, `errand_${turn}`, ERRANDS[turn % ERRANDS.length]);
+    }
+    return (
+      db.prepare("SELECT id FROM episodic_memory_facts WHERE value = 'sealed_letter_found'").get() as {
+        id: number;
+      }
+    ).id;
+  }
+
+  for (const currentTurn of [500, 1000]) {
+    it(`T300 normal event is recalled at currentTurn=${currentTurn} when newer rows share only the NPC name`, () => {
+      const db = createDb();
+      const targetId = seedLetterBehindErrands(db, currentTurn);
+      const trace = traceRetrievalStages(db, {
+        chatId: 1,
+        targetId,
+        currentTurn,
+        currentUserMessage: "그때 등대에서 루카가 찾았던 붉은 봉인 편지 기억나?",
+      });
+      assert.deepEqual(trace.lanes, ["relevance"]);
+      assert.equal(trace.RANK, 1);
+      assert.equal(trace.IN_FINAL_PROMPT, true);
+    });
+  }
+
+  it("an unrelated scene query still does not surface the old event", () => {
+    const db = createDb();
+    const targetId = seedLetterBehindErrands(db, 1000);
+    const recall = getEpisodicMemoryForPrompt(
+      db,
+      { chatId: 1, currentTurn: 1000, currentUserMessage: "오늘 날씨 좋다." },
+      recallEnv
+    );
+    assert.equal(recall.facts.some((fact) => fact.id === targetId), false);
+  });
+});
+
 describe("CRITICAL vs IMPORTANT milestone priority", () => {
   it("T21 critical historical event survives 20 older important milestones", () => {
     const db = createDb();

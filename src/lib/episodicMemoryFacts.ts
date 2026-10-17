@@ -1478,16 +1478,20 @@ function tokenMatchesHaystack(haystack: string, token: string): boolean {
   return haystack.includes(token);
 }
 
-function tokenizeForSimpleBoost(text: string): string[] {
+/** Query words, each as its keepable surface/particle-stripped forms (32 forms max overall). */
+function tokenizeQueryWords(text: string): string[][] {
   const seen = new Set<string>();
-  const tokens: string[] = [];
-  const push = (token: string) => {
-    if (!isKeepableRetrievalToken(token) || seen.has(token) || tokens.length >= 32) return;
-    seen.add(token);
-    tokens.push(token);
-  };
+  const words: string[][] = [];
+  let formCount = 0;
   for (const raw of text.split(/[^a-z0-9가-힣_]+/i)) {
     if (!raw) continue;
+    const forms: string[] = [];
+    const push = (token: string) => {
+      if (!isKeepableRetrievalToken(token) || seen.has(token) || formCount >= 32) return;
+      seen.add(token);
+      forms.push(token);
+      formCount += 1;
+    };
     // Keep the surface form before particle strip. Stripping 이/는/에 first
     // then applying length>=2 drops the only tokens that still match stored
     // Korean fact_text (달이→달, 뜨는→뜨, 밤에→밤).
@@ -1495,10 +1499,21 @@ function tokenizeForSimpleBoost(text: string): string[] {
     push(surface);
     const normalized = normalizeRetrievalToken(raw);
     // "달이"(moon) must not become the calendar unigram 달 and match "두 달 전".
-    if (normalized === surface || KOREAN_CALENDAR_UNIT_UNIGRAMS.has(normalized)) continue;
-    push(normalized);
+    if (normalized !== surface && !KOREAN_CALENDAR_UNIT_UNIGRAMS.has(normalized)) push(normalized);
+    if (forms.length > 0) words.push(forms);
   }
-  return tokens;
+  return words;
+}
+
+function tokenizeForSimpleBoost(text: string): string[] {
+  return tokenizeQueryWords(text).flat();
+}
+
+/** A word counts once even when both its surface and stripped forms match (루카가/루카). */
+function countMatchedQueryWords(haystack: string, query: string): number {
+  return tokenizeQueryWords(query).filter((forms) =>
+    forms.some((token) => tokenMatchesHaystack(haystack, token))
+  ).length;
 }
 
 type FactSearchFields = Pick<EpisodicExtractedFact, "subject" | "attribute" | "value" | "fact_text"> & {
@@ -1516,18 +1531,12 @@ function lexicalRelevance(
   fact: FactSearchFields,
   currentUserMessage: string
 ): number {
-  const tokens = tokenizeForSimpleBoost(currentUserMessage);
-  if (tokens.length === 0) return 0;
-  const haystack = factSearchText(fact);
-  return Math.min(2, tokens.filter((token) => tokenMatchesHaystack(haystack, token)).length);
+  return Math.min(2, countMatchedQueryWords(factSearchText(fact), currentUserMessage));
 }
 
 /** Same tokenizer/matcher as episodic ranking, for any free text (0..2). */
 export function scoreTextLexicalRelevance(text: string, query: string): number {
-  const tokens = tokenizeForSimpleBoost(query);
-  if (tokens.length === 0) return 0;
-  const haystack = text.toLowerCase();
-  return Math.min(2, tokens.filter((token) => tokenMatchesHaystack(haystack, token)).length);
+  return Math.min(2, countMatchedQueryWords(text.toLowerCase(), query));
 }
 
 /** Existing-owner diagnostic — same tokenizer/scorer as production ranking. */
@@ -2320,7 +2329,8 @@ function fetchEpisodicMemoryCandidateRows(
   const minRecentTurn =
     recentRows.length > 0 ? Math.min(...recentRows.map((row) => row.source_turn)) : null;
 
-  const tokens = tokenizeForSimpleBoost(input.currentUserMessage ?? "");
+  const queryWords = tokenizeQueryWords(input.currentUserMessage ?? "");
+  const tokens = queryWords.flat();
   let relevanceRows: EpisodicMemoryFactRecord[] = [];
   if (tokens.length > 0 && budgets.relevance > 0) {
     const relevanceWhere = [...input.scope.recallWhere];
@@ -2329,22 +2339,34 @@ function fetchEpisodicMemoryCandidateRows(
       relevanceWhere.push("source_turn < ?");
       relevanceParams.push(minRecentTurn);
     }
-    const tokenClause = `(LOWER(fact_text) LIKE ? OR LOWER(subject) LIKE ? OR LOWER(attribute) LIKE ? OR LOWER(value) LIKE ?
-          OR LOWER(CASE WHEN json_valid(metadata) THEN json_extract(metadata, '$.evidence.quote') END) LIKE ?)`;
-    const tokenPatterns = tokens.flatMap((token) => Array<string>(5).fill(`%${token.toLowerCase()}%`));
-    relevanceWhere.push(`(${tokens.map(() => tokenClause).join(" OR ")})`);
-    // Rank by matched query tokens before recency: with any-token matching alone,
-    // newer rows sharing one recurring name or filler word fill the lane first.
-    const matchedTokenCount = tokens.map(() => `(CASE WHEN ${tokenClause} THEN 1 ELSE 0 END)`).join(" + ");
+    const tokenPatterns = tokens.map((token) => `%${token.toLowerCase()}%`);
+    const matchedWordCount = queryWords
+      .map((forms) => `(CASE WHEN ${forms.map(() => "search_text LIKE ?").join(" OR ")} THEN 1 ELSE 0 END)`)
+      .join(" + ");
+    // Rank by matched query words before recency, as the final scorer does: with
+    // any-token matching alone, newer rows sharing one recurring name or filler
+    // word fill the lane first. Tokens never contain the char(10) separator.
     relevanceRows = (db
       .prepare(
-        `SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
-           FROM episodic_memory_facts
-           WHERE ${relevanceWhere.join(" AND ")}
-           ORDER BY ${matchedTokenCount} DESC, source_turn DESC, id DESC
-           LIMIT ?`
+        `WITH scoped AS MATERIALIZED (
+           SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS},
+                  LOWER(COALESCE(fact_text, '') || char(10) || COALESCE(subject, '') || char(10)
+                    || COALESCE(attribute, '') || char(10) || COALESCE(value, '') || char(10)
+                    || COALESCE(CASE WHEN json_valid(metadata) THEN json_extract(metadata, '$.evidence.quote') END, '')
+                  ) AS search_text
+             FROM episodic_memory_facts
+            WHERE ${relevanceWhere.join(" AND ")}
+         ),
+         matched AS MATERIALIZED (
+           SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}, ${matchedWordCount} AS matched_words FROM scoped
+         )
+         SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
+           FROM matched
+          WHERE matched_words > 0
+          ORDER BY matched_words DESC, source_turn DESC, id DESC
+          LIMIT ?`
       )
-      .all(...relevanceParams, ...tokenPatterns, ...tokenPatterns, budgets.relevance) as EpisodicMemoryFactRecord[]).map(
+      .all(...relevanceParams, ...tokenPatterns, budgets.relevance) as EpisodicMemoryFactRecord[]).map(
       attachStoredEvidenceType
     );
     queryCount += 1;
