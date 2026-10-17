@@ -40,9 +40,11 @@ import {
   buildAuthoringRepairUser,
   buildTrpgScenarioDraftRequestBody,
   completeTrpgAuthoringJson,
+  completeTrpgScenarioDraftJson,
   FORM_PRESERVED_ON_TIMEOUT,
   isTrpgAuthoringTimeoutError,
   REPAIR_IS_REWRITE,
+  TrpgAuthoringEmptyError,
   TrpgAuthoringTruncatedError,
   TRPG_AUTHORING_PROVIDER_RETRY,
   TRPG_SCENARIO_DRAFT_TIMEOUT_MESSAGE,
@@ -97,6 +99,53 @@ describe("TRPG scenario AI draft", () => {
     assert.equal(generated.npcs[0]?.stats, null);
     assert.equal(generated.plan.difficulty, "hard");
     assert.equal(generated.generatedFields?.includes("npcs"), true);
+  });
+
+  it("retries once when the model answers {} and fails clearly when it stays empty", async () => {
+    const base = {
+      kind: "scenario_draft" as const,
+      system: "sys",
+      user: "user",
+      expectedFields: ["title", "goal"],
+    };
+    const reply = (text: string) => async () => ({ text, latencyMs: 1, model: "m" });
+    let calls = 0;
+    const recovered = await completeTrpgScenarioDraftJson({
+      ...base,
+      complete: async () => {
+        calls += 1;
+        return { text: calls === 1 ? "{}" : '{"title":"폐역","goal":"봉인한다"}', latencyMs: 1, model: "m" };
+      },
+    });
+    assert.equal(calls, 2);
+    assert.equal(recovered.title, "폐역");
+
+    let emptyCalls = 0;
+    await assert.rejects(
+      completeTrpgScenarioDraftJson({
+        ...base,
+        complete: async () => {
+          emptyCalls += 1;
+          return reply("{}")();
+        },
+      }),
+      TrpgAuthoringEmptyError
+    );
+    assert.equal(emptyCalls, 2);
+
+    let okCalls = 0;
+    await completeTrpgScenarioDraftJson({
+      ...base,
+      complete: async () => {
+        okCalls += 1;
+        return reply('{"title":"a"}')();
+      },
+    });
+    assert.equal(okCalls, 1);
+
+    const route = readFileSync("src/app/api/trpg/scenarios/ai-draft/route.ts", "utf8");
+    assert.match(route, /completeTrpgScenarioDraftJson\(\{/);
+    assert.match(route, /SCENARIO_DRAFT_EMPTY/);
   });
 
   it("repairs malformed JSON once, does not retry transport errors, and calls once for valid JSON", async () => {

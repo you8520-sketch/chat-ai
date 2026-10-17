@@ -35,6 +35,8 @@ export const TRPG_SCENARIO_DRAFT_TIMEOUT_MESSAGE =
   "AI 초안 생성이 예상보다 오래 걸렸습니다. 작성 중인 내용은 그대로 보존되었습니다. 잠시 후 다시 시도해 주세요.";
 export const TRPG_SCENARIO_DRAFT_TRUNCATED_MESSAGE =
   "AI 초안이 너무 길어 완성되지 않았습니다. 작성 중인 내용은 그대로 보존되었습니다. 다시 시도해 주세요.";
+export const TRPG_SCENARIO_DRAFT_EMPTY_MESSAGE =
+  "AI가 초안 내용을 만들지 못했습니다. 작성 중인 내용은 그대로 보존되었습니다. 다시 시도해 주세요.";
 export const FORM_PRESERVED_ON_TIMEOUT = true;
 export const REPAIR_IS_REWRITE = false;
 export const TRPG_AUTHORING_PROVIDER_RETRY = 0;
@@ -46,6 +48,13 @@ export function isTrpgAuthoringTimeoutError(error: unknown): boolean {
     error.name === "AbortError" ||
     /aborted due to timeout|timed out|timeout/i.test(error.message)
   );
+}
+
+export class TrpgAuthoringEmptyError extends Error {
+  constructor() {
+    super(TRPG_SCENARIO_DRAFT_EMPTY_MESSAGE);
+    this.name = "TrpgAuthoringEmptyError";
+  }
 }
 
 export class TrpgAuthoringTruncatedError extends Error {
@@ -360,4 +369,18 @@ export async function completeTrpgAuthoringJson(opts: {
       throw repairParseError;
     }
   }
+}
+
+/** The model sometimes answers a draft request with `{}`, which parses cleanly but fills nothing. */
+export const TRPG_SCENARIO_DRAFT_EMPTY_RETRY = 1;
+
+export async function completeTrpgScenarioDraftJson(
+  opts: Parameters<typeof completeTrpgAuthoringJson>[0]
+): Promise<TrpgScenarioDraftResult> {
+  const expectsFields = (opts.expectedFields?.length ?? 0) > 0;
+  for (let attempt = 0; attempt <= TRPG_SCENARIO_DRAFT_EMPTY_RETRY; attempt += 1) {
+    const result = await completeTrpgAuthoringJson(opts);
+    if (!expectsFields || (result.generatedFields?.length ?? 0) > 0) return result;
+  }
+  throw new TrpgAuthoringEmptyError();
 }
