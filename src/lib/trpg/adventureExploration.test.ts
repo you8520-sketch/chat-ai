@@ -616,6 +616,57 @@ describe("adventure exploration (B2+B3)", () => {
     db.close();
   });
 
+  it("gives the GM a planned clue only through the server event that owns it", async () => {
+    const db = memoryDb();
+    const freeClue = "벽면 낙서에 '책상 서랍 이중 바닥'이라는 문구가 반복된다.";
+    const templateId = insertScenarioTemplate(db, 1, {
+      title: "잠긴 서재",
+      summary: "s",
+      content: "c",
+      visibility: "private",
+      startLocation: "",
+      scenarioPlan: {
+        startingSituation: "서재에 갇힌다",
+        goal: "편지의 주인을 찾는다",
+        endingConditions: ["편지의 주인을 찾는다"],
+        clues: [freeClue],
+        adventure: SINGLE_STUDY,
+      },
+    });
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "현이", viewerUserId: 1, templateId });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "현이", stats: EVEN_STATS });
+    let face = 1;
+    const prompts: string[] = [];
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => face,
+      rollDie: () => 2,
+      gmCall: async ({ user }) => {
+        prompts.push(user);
+        return { text: wire(`${prompts.length}번째 장면. GM: 무엇을 하겠는가.`, "잠긴 서재") };
+      },
+    };
+    const search = async () => {
+      submitTrpgAction(db, { campaignId, userId: 1, body: "", explorationCommands: [{ op: "search", depth: "normal" }] });
+      await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+      return prompts.at(-1) ?? "";
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+
+    const failed = await search();
+    assert.match(failed, /the search failed/);
+    assert.deepEqual(loadExplorationState(db, campaignId)!.revealedEventIds, []);
+
+    face = 16;
+    const found = await search();
+    assert.ok(found.includes(SINGLE_STUDY.events[0]!.text), "the fired event reaches the GM");
+    for (const prompt of prompts) {
+      assert.equal(prompt.includes(freeClue), false, "the free clue list never reaches the GM beside adventure events");
+      assert.equal(prompt.includes(SINGLE_STUDY.events[1]!.text), false, "an unfired event stays secret");
+    }
+    db.close();
+  });
+
   it("refuses to build a map from an invalid frozen canon instead of falling back to the test map", () => {
     const db = memoryDb();
     const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "현이", viewerUserId: 1 });

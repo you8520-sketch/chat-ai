@@ -475,13 +475,15 @@ export function serializeTrpgScenarioPlanForGm(
 ): string {
   if (!plan || isTrpgScenarioPlanEmpty(plan)) return "";
   const skipBoss = opts?.npcs?.some((npc) => npc.role === "boss" && npc.name.trim());
+  // Adventure events own discoveries; the GM learns a clue only when the server fires its event.
+  const freeClues = plan.adventure?.events.length ? [] : plan.clues;
   const body = [
     line("시작 상황:", plan.startingSituation),
     line("중심 갈등:", plan.centralConflict),
     line("목표:", plan.goal),
     bullets("종료 조건:", effectiveEndingConditionsForGm(plan)),
     bullets("현재 사용 가능한 주요 사건 (강제 순서가 아님):", plan.majorEvents),
-    bullets("단서:", plan.clues),
+    bullets("단서:", freeClues),
     bullets("금지 사건:", plan.forbiddenEvents),
     skipBoss ? "" : line("보스:", plan.boss),
     bullets(
