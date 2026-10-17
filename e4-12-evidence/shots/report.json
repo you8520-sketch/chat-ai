@@ -1,0 +1,158 @@
+[
+  {
+    "width": 360,
+    "mode": "empty",
+    "hasEmptyCopy": true,
+    "rail": {
+      "rail": "none",
+      "recent": 0
+    }
+  },
+  {
+    "width": 360,
+    "mode": "one",
+    "expectedChat": 1,
+    "landed": "http://127.0.0.1:3672/chat/2?chat=1",
+    "matched": true,
+    "beforeClick": {
+      "found": true,
+      "h": 120,
+      "top": 273,
+      "bottom": 393,
+      "underHeader": false,
+      "underNav": false,
+      "headerH": 98,
+      "navTop": 727
+    },
+    "resumeBox": {
+      "found": true,
+      "h": 52,
+      "top": 547,
+      "bottom": 599,
+      "underHeader": false,
+      "underNav": false,
+      "headerH": 98,
+      "navTop": 727
+    },
+    "backHasList": true
+  },
+  {
+    "width": 360,
+    "mode": "many-card",
+    "cardCount": 2,
+    "expected": 2,
+    "landed": "http://127.0.0.1:3672/chat/2?chat=2",
+    "matched": true
+  },
+  {
+    "width": 360,
+    "mode": "many-back",
+    "ok": true
+  },
+  {
+    "width": 390,
+    "mode": "empty",
+    "hasEmptyCopy": true,
+    "rail": {
+      "rail": "none",
+      "recent": 0
+    }
+  },
+  {
+    "width": 390,
+    "mode": "one",
+    "expectedChat": 5,
+    "landed": "http://127.0.0.1:3672/chat/2?chat=5",
+    "matched": true,
+    "beforeClick": {
+      "found": true,
+      "h": 120,
+      "top": 273,
+      "bottom": 393,
+      "underHeader": false,
+      "underNav": false,
+      "headerH": 98,
+      "navTop": 727
+    },
+    "resumeBox": {
+      "found": true,
+      "h": 52,
+      "top": 547,
+      "bottom": 599,
+      "underHeader": false,
+      "underNav": false,
+      "headerH": 98,
+      "navTop": 727
+    },
+    "backHasList": true
+  },
+  {
+    "width": 390,
+    "mode": "many-card",
+    "cardCount": 2,
+    "expected": 6,
+    "landed": "http://127.0.0.1:3672/chat/2?chat=6",
+    "matched": true
+  },
+  {
+    "width": 390,
+    "mode": "many-back",
+    "ok": true
+  },
+  {
+    "width": 1280,
+    "mode": "empty",
+    "hasEmptyCopy": true,
+    "rail": {
+      "rail": "flex",
+      "recent": 0
+    }
+  },
+  {
+    "width": 1280,
+    "mode": "one",
+    "expectedChat": 9,
+    "landed": "http://127.0.0.1:3672/chat/2?chat=9",
+    "matched": true,
+    "beforeClick": {
+      "found": true,
+      "h": 144,
+      "top": 240,
+      "bottom": 384,
+      "underHeader": false,
+      "underNav": false,
+      "headerH": 65,
+      "navTop": null
+    },
+    "resumeBox": {
+      "found": true,
+      "h": 52,
+      "top": 378,
+      "bottom": 430,
+      "underHeader": false,
+      "underNav": false,
+      "headerH": 65,
+      "navTop": null
+    },
+    "backHasList": true
+  },
+  {
+    "width": 1280,
+    "mode": "many-sidebar",
+    "landed": "http://127.0.0.1:3672/chat/2?chat=11",
+    "sideCount": 1
+  },
+  {
+    "width": 1280,
+    "mode": "many-card",
+    "cardCount": 2,
+    "expected": 10,
+    "landed": "http://127.0.0.1:3672/chat/2?chat=10",
+    "matched": true
+  },
+  {
+    "width": 1280,
+    "mode": "many-back",
+    "ok": true
+  }
+]
