@@ -1,0 +1,99 @@
+import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
+import fs from "node:fs";
+import path from "node:path";
+
+const sharp = createRequire("/workspace/package.json")("sharp") as typeof import("sharp");
+const DOC = "/workspace/docs/official-supply/reviews/assets/wolfgang-asset-redesign";
+const ART = "/opt/cursor/artifacts";
+const sources = {
+  SRC: path.join(DOC, "reattach-2026-10-17/03-eval_style.webp"),
+  E: path.join(DOC, "rep-e-raw.webp"),
+  F: path.join(DOC, "rep-f-raw.webp"),
+} as const;
+const windows = {
+  face: { left: 280, top: 160, width: 460, height: 460 },
+  hair: { left: 300, top: 0, width: 420, height: 360 },
+  fur: { left: 10, top: 520, width: 180, height: 180 },
+  armor: { left: 340, top: 700, width: 340, height: 260 },
+} as const;
+
+function sha256(buf: Buffer): string {
+  return createHash("sha256").update(buf).digest("hex");
+}
+
+async function extract(file: string, box: { left: number; top: number; width: number; height: number }) {
+  const meta = await sharp(file).metadata();
+  if (meta.width !== 1024 || meta.height !== 1536) throw new Error(`${file} ${meta.width}x${meta.height}`);
+  return sharp(file).extract(box).webp({ quality: 92 }).toBuffer();
+}
+
+async function row(items: Array<{ label: string; buf: Buffer }>, cellW: number, cellH: number) {
+  const cells = await Promise.all(
+    items.map(async (item) => {
+      const bar = await sharp({ create: { width: cellW, height: 32, channels: 3, background: "#111111" } })
+        .composite([
+          {
+            input: Buffer.from(
+              `<svg width="${cellW}" height="32"><text x="8" y="22" font-size="16" fill="#ffffff" font-family="sans-serif">${item.label}</text></svg>`
+            ),
+            top: 0,
+            left: 0,
+          },
+        ])
+        .png()
+        .toBuffer();
+      return sharp({ create: { width: cellW, height: cellH + 32, channels: 3, background: "#000" } })
+        .composite([
+          { input: bar, top: 0, left: 0 },
+          { input: item.buf, top: 32, left: 0 },
+        ])
+        .png()
+        .toBuffer();
+    })
+  );
+  return sharp({ create: { width: cellW * cells.length, height: cellH + 32, channels: 3, background: "#000" } })
+    .composite(cells.map((buf, i) => ({ input: buf, top: 0, left: i * cellW })))
+    .webp({ quality: 90 })
+    .toBuffer();
+}
+
+async function main() {
+  const outputs: Record<string, unknown> = {};
+  const full = await row(
+    await Promise.all(
+      (["SRC", "E", "F"] as const).map(async (label) => ({
+        label: `${label} 0.5x`,
+        buf: await sharp(sources[label]).resize(512, 768, { fit: "fill" }).webp({ quality: 90 }).toBuffer(),
+      }))
+    ),
+    512,
+    768
+  );
+  fs.writeFileSync(path.join(DOC, "compare-f-full.webp"), full);
+  fs.writeFileSync(path.join(ART, "compare-f-full.webp"), full);
+  outputs["compare-f-full.webp"] = { sha256: sha256(full), bytes: full.length, scale: "0.5 of native, same scale" };
+  for (const [name, box] of Object.entries(windows)) {
+    const image = await row(
+      await Promise.all(
+        (["SRC", "E", "F"] as const).map(async (label) => ({
+          label: `${label} 1:1`,
+          buf: await extract(sources[label], box),
+        }))
+      ),
+      box.width,
+      box.height
+    );
+    const file = `compare-f-${name}.webp`;
+    fs.writeFileSync(path.join(DOC, file), image);
+    fs.writeFileSync(path.join(ART, file), image);
+    outputs[file] = { sha256: sha256(image), bytes: image.length, window: box, scale: "1:1 extract, no resize" };
+  }
+  const record = { windows, outputs };
+  const text = `${JSON.stringify(record, null, 2)}\n`;
+  fs.writeFileSync(path.join(DOC, "compare-f-windows.json"), text);
+  fs.writeFileSync(path.join(ART, "compare-f-windows.json"), text);
+  console.log(Object.keys(outputs).join("\n"));
+}
+
+main();

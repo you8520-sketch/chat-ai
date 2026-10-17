@@ -1,7 +1,8 @@
 {
-  "status": "READY",
-  "providerPosts": 0,
-  "sent": false,
+  "status": "SENT",
+  "providerPosts": 1,
+  "sent": true,
+  "result": "rep-f-actual.json",
   "method": "Reuse E's callOpenAiImageEdit path, prompt, and prepared bytes. Change only the model to gpt-image-2.5-sunburst.",
   "baseImage": {
     "storedAs": "reattach-2026-10-17/03-eval_style.webp",
