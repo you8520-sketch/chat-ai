@@ -47,6 +47,20 @@ describe("decision model radar isolation", () => {
     assert.match(workflow, /git diff --exit-code -- \. ':!artifacts'/);
   });
 
+  it("keeps retired Jev references out of all executable source and workflows", () => {
+    const result = spawnSync(
+      "git",
+      ["grep", "-l", "-F", "typesafe/jev-1.13", "--", "src", "scripts", ".github"],
+      { cwd: process.cwd(), encoding: "utf8" }
+    );
+    assert.ok(result.status === 0 || result.status === 1, result.stderr);
+    const offenders = result.stdout
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .filter((path) => !path.endsWith(".test.ts") && path !== "src/lib/jevModelPolicy.ts");
+    assert.deepEqual(offenders, [], "retired model may appear only in negative safety tests and the deny policy");
+  });
+
   it("requires explicit benchmark opt-in and never auto-switches models", () => {
     const runner = fs.readFileSync("scripts/decision-model-radar.ts", "utf8");
     assert.match(runner, /decisionCatalogModelsUrl\(/);
