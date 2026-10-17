@@ -149,6 +149,10 @@ export default function TrpgSimpleCreate({
         world,
         fetchImpl: (input, init) => fetch(input, init),
         onStep: setStep,
+        onSession: (next) => {
+          sessionRef.current = next;
+          writeStoredSession(next);
+        },
       });
       if (outcome.status === "draft_failed") {
         sessionRef.current = null;

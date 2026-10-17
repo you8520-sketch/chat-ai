@@ -265,46 +265,51 @@ async function requestDraft(
 
 /**
  * A prior POST may have committed even though the response never arrived. The draft's own
- * `generatedAt` stamp is unique, so a saved row carrying it is this same adventure.
+ * `generatedAt` stamp identifies that generation. Title is not part of the identity.
  */
 function findAlreadySaved(
   mine: readonly TrpgScenarioTemplate[],
   composed: SimpleCreateComposed
 ): TrpgScenarioTemplate | null {
   if (!composed.generatedAt) return null;
-  return (
-    mine.find(
-      (row) =>
-        row.title === composed.preview.title &&
-        row.scenarioPlan?.provenance?.generatedAt === composed.generatedAt
-    ) ?? null
-  );
+  return mine.find((row) => row.scenarioPlan?.provenance?.generatedAt === composed.generatedAt) ?? null;
 }
 
+type SavedLookup =
+  | { status: "found"; scenario: TrpgScenarioTemplate }
+  | { status: "absent" }
+  | { status: "unavailable" };
+
+/** A failed or unreadable list is `unavailable`, not proof that the row is missing. */
 async function lookupAlreadySaved(
   composed: SimpleCreateComposed,
   fetchImpl: typeof fetch
-): Promise<TrpgScenarioTemplate | null> {
+): Promise<SavedLookup> {
   try {
     const res = await fetchImpl(SCENARIOS_ENDPOINT, { method: "GET" });
-    if (!res.ok) return null;
+    if (!res.ok) return { status: "unavailable" };
     const data = await readJson<{ mine?: TrpgScenarioTemplate[] }>(res);
-    return findAlreadySaved(data?.mine ?? [], composed);
+    if (!data || !Array.isArray(data.mine)) return { status: "unavailable" };
+    const found = findAlreadySaved(data.mine, composed);
+    return found ? { status: "found", scenario: found } : { status: "absent" };
   } catch {
-    return null;
+    return { status: "unavailable" };
   }
 }
 
 /**
  * Runs whichever steps are still missing: draft (paid) then private save. A retry never repeats a
- * step that already finished, so a failed save is retried without another AI call and a saved
- * adventure is never saved twice.
+ * finished step. The list lookup is only a shortcut: a failed lookup is not "no such row", and the
+ * save owner collapses a second POST of the same generation onto the same scenario id.
+ * `onSession` runs after the draft is fixed and before the save POST, so a refresh during the
+ * request can reuse that draft.
  */
 export async function advanceSimpleCreate(opts: {
   session: SimpleCreateSession;
   world?: SimpleCreateWorld | null;
   fetchImpl: typeof fetch;
   onStep?: (step: SimpleCreateStep) => void;
+  onSession?: (session: SimpleCreateSession) => void;
 }): Promise<SimpleCreateOutcome> {
   const fetchImpl = opts.fetchImpl;
   let session = opts.session;
@@ -320,13 +325,22 @@ export async function advanceSimpleCreate(opts: {
 
   opts.onStep?.("save");
   if (session.saveAttempted) {
-    const existing = await lookupAlreadySaved(composed, fetchImpl);
-    if (existing) {
-      session = { ...session, savedId: existing.id };
-      return { status: "saved", session, scenario: existing };
+    const lookup = await lookupAlreadySaved(composed, fetchImpl);
+    switch (lookup.status) {
+      case "found":
+        session = { ...session, savedId: lookup.scenario.id };
+        return { status: "saved", session, scenario: lookup.scenario };
+      case "absent":
+      case "unavailable":
+        break;
+      default: {
+        const unreachable: never = lookup;
+        throw new Error(`unexpected save lookup: ${String(unreachable)}`);
+      }
     }
   }
   session = { ...session, saveAttempted: true };
+  opts.onSession?.(session);
   let res: Response;
   try {
     res = await fetchImpl(SCENARIOS_ENDPOINT, {

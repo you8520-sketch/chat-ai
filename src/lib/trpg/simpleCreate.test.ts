@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import Database from "better-sqlite3";
 import { emptyTrpgScenarioPlan } from "./scenarioPlan";
+import { ensureTrpgTables } from "./schema";
+import { insertScenarioTemplate, loadScenarioTemplate, rowToScenarioTemplate } from "./scenarioTemplates";
 import {
   advanceSimpleCreate,
   buildSimpleDraftRequest,
@@ -20,7 +23,7 @@ import {
   type SimpleCreateDraft,
   type SimpleCreateInput,
 } from "./simpleCreate";
-import { TRPG_SCENARIO_BUNDLE_LIMIT } from "./scenarioTypes";
+import { TRPG_SCENARIO_BUNDLE_LIMIT, type TrpgScenarioTemplateInput } from "./scenarioTypes";
 
 function draftFixture(generatedAt = "2026-10-17T00:00:00.000Z"): SimpleCreateDraft {
   return {
@@ -256,7 +259,7 @@ describe("simple TRPG create", () => {
     assert.ok(outcome.session.composed);
   });
 
-  it("ambiguous save: a retry adopts the row that already committed instead of saving twice", async () => {
+  it("ambiguous save: a retry adopts the row with the same generation stamp, even when the title differs", async () => {
     const generatedAt = "2026-10-17T00:00:00.000Z";
     const net = fakeFetch({
       draft: okDraft,
@@ -266,8 +269,8 @@ describe("simple TRPG create", () => {
       list: () =>
         jsonResponse(200, {
           mine: [
-            { id: 99, title: "다른 모험", scenarioPlan: { provenance: { generatedAt: "other" } } },
-            { id: 55, title: "폐역의 유령 기차", scenarioPlan: { provenance: { generatedAt } } },
+            { id: 99, title: "폐역의 유령 기차", scenarioPlan: { provenance: { generatedAt: "other" } } },
+            { id: 55, title: "저장되며 잘린 제목", scenarioPlan: { provenance: { generatedAt } } },
           ],
           public: [],
         }),
@@ -279,6 +282,110 @@ describe("simple TRPG create", () => {
     assert.equal(retry.session.savedId, 55);
     assert.equal(net.count("/api/trpg/scenarios", "POST"), 1);
     assert.equal(net.count("/api/trpg/scenarios/ai-draft", "POST"), 1);
+  });
+
+  it("a failed list lookup is not absence: the retry replays the save, and the save owner keeps one row", async () => {
+    const db = new Database(":memory:");
+    ensureTrpgTables(db);
+    const count = () =>
+      (db.prepare(`SELECT COUNT(*) AS n FROM trpg_scenario_templates`).get() as { n: number }).n;
+    const net = fakeFetch({
+      draft: okDraft,
+      list: () => {
+        throw new TypeError("lookup failed");
+      },
+      post: (n, body) => {
+        const id = insertScenarioTemplate(db, 1, body as TrpgScenarioTemplateInput);
+        if (n === 1) throw new TypeError("response lost");
+        const row = loadScenarioTemplate(db, id);
+        return jsonResponse(200, {
+          scenario: row ? rowToScenarioTemplate(row, { includeSecret: true }) : null,
+        });
+      },
+    });
+    const first = await advanceSimpleCreate({ session: newSimpleCreateSession(DESC), fetchImpl: net.impl });
+    assert.equal(first.status, "save_failed");
+    assert.equal(count(), 1);
+    const committedId = (db.prepare(`SELECT id FROM trpg_scenario_templates`).get() as { id: number }).id;
+
+    const retry = await advanceSimpleCreate({ session: first.session, fetchImpl: net.impl });
+    assert.equal(retry.status, "saved");
+    assert.equal(retry.session.savedId, committedId);
+    assert.equal(count(), 1);
+    assert.equal(net.count("/api/trpg/scenarios/ai-draft", "POST"), 1);
+    assert.equal(net.count("/api/trpg/scenarios", "POST"), 2);
+    assert.equal(net.count("/api/trpg/scenarios", "GET"), 1);
+    db.close();
+  });
+
+  it("an empty list means absence and still saves once; a second arrival of that payload returns the same id", async () => {
+    const db = new Database(":memory:");
+    ensureTrpgTables(db);
+    const count = () =>
+      (db.prepare(`SELECT COUNT(*) AS n FROM trpg_scenario_templates`).get() as { n: number }).n;
+    const net = fakeFetch({
+      draft: okDraft,
+      list: () => jsonResponse(200, { mine: [], public: [] }),
+      post: (_n, body) => {
+        const id = insertScenarioTemplate(db, 1, body as TrpgScenarioTemplateInput);
+        const row = loadScenarioTemplate(db, id);
+        return jsonResponse(200, {
+          scenario: row ? rowToScenarioTemplate(row, { includeSecret: true }) : null,
+        });
+      },
+    });
+    const first = await advanceSimpleCreate({ session: newSimpleCreateSession(DESC), fetchImpl: net.impl });
+    assert.equal(first.status, "saved");
+    assert.equal(count(), 1);
+    const duplicate = await advanceSimpleCreate({
+      session: { ...first.session, savedId: null, saveAttempted: true },
+      fetchImpl: net.impl,
+    });
+    assert.equal(duplicate.status, "saved");
+    assert.equal(duplicate.session.savedId, first.session.savedId);
+    assert.equal(count(), 1);
+    assert.equal(net.count("/api/trpg/scenarios/ai-draft", "POST"), 1);
+    db.close();
+  });
+
+  it("persists the draft and the save attempt before the save POST, so a refresh reuses the draft", async () => {
+    let checkpoint: ReturnType<typeof newSimpleCreateSession> | null = null;
+    let persistedBeforePost = false;
+    const net = fakeFetch({
+      draft: okDraft,
+      post: () => {
+        persistedBeforePost = checkpoint?.saveAttempted === true && checkpoint.composed != null;
+        throw new TypeError("refresh during save");
+      },
+    });
+    const outcome = await advanceSimpleCreate({
+      session: newSimpleCreateSession(DESC),
+      fetchImpl: net.impl,
+      onSession: (session) => {
+        checkpoint = session;
+      },
+    });
+    assert.equal(outcome.status, "save_failed");
+    assert.equal(persistedBeforePost, true);
+    assert.ok(checkpoint);
+    const restored = parseSimpleCreateSession(serializeSimpleCreateSession(checkpoint!), []);
+    assert.ok(restored?.composed);
+    assert.equal(restored?.saveAttempted, true);
+    assert.equal(restored?.savedId, null);
+
+    const retry = fakeFetch({
+      draft: () => {
+        throw new Error("draft must not run after refresh");
+      },
+      list: () => jsonResponse(500, { error: "lookup down" }),
+      post: okPost,
+    });
+    const again = await advanceSimpleCreate({ session: restored!, fetchImpl: retry.impl });
+    assert.equal(again.status, "saved");
+    assert.equal(again.session.savedId, 41);
+    assert.equal(retry.count("/api/trpg/scenarios/ai-draft", "POST"), 0);
+    assert.equal(retry.count("/api/trpg/scenarios", "POST"), 1);
+    assert.equal(retry.count("/api/trpg/scenarios", "GET"), 1);
   });
 
   it("an already saved session is never saved again", async () => {
@@ -359,6 +466,8 @@ describe("simple TRPG create", () => {
     assert.match(ui, /trpgPlayHref\(/);
     assert.match(ui, /\/trpg\/scenarios\/\$\{/);
     assert.match(ui, /advanceSimpleCreate/);
+    assert.match(ui, /onSession:\s*\(next\)/);
+    assert.match(ui, /writeStoredSession\(next\)/);
     assert.match(ui, /createSingleFlight/);
     assert.match(ui, /모험 만들기/);
     assert.match(ui, /이 모험 시작/);
