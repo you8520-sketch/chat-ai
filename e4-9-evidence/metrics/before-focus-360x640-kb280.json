@@ -1,0 +1,599 @@
+{
+ "vp": "360x640",
+ "kb": 280,
+ "tab": [
+  {
+   "tag": "TEXTAREA",
+   "id": "_R_1bsnptb_-world",
+   "name": "세계관 / 배경선택",
+   "h": 196.6,
+   "visiblePx": 73.7,
+   "visibleRatio": 0.4,
+   "free": 99,
+   "covers": {
+    "top": 152,
+    "bottom": 251,
+    "vh": 360
+   },
+   "caret": {
+    "t": 190.1,
+    "b": 213.9,
+    "hidden": false
+   }
+  },
+  {
+   "tag": "TEXTAREA",
+   "id": "ptb_-system_prompt",
+   "name": "캐릭터 설정필수",
+   "h": 268,
+   "visiblePx": 74,
+   "visibleRatio": 0.3,
+   "free": 99,
+   "covers": {
+    "top": 152,
+    "bottom": 251,
+    "vh": 360
+   },
+   "caret": {
+    "t": 190.1,
+    "b": 213.9,
+    "hidden": false
+   }
+  },
+  {
+   "tag": "TEXTAREA",
+   "id": "speech_personality",
+   "name": "기본 말투권장",
+   "h": 125.2,
+   "visiblePx": 73.7,
+   "visibleRatio": 0.6,
+   "free": 99,
+   "covers": {
+    "top": 152,
+    "bottom": 251,
+    "vh": 360
+   },
+   "caret": {
+    "t": 189.5,
+    "b": 213.3,
+    "hidden": false
+   }
+  },
+  {
+   "tag": "TEXTAREA",
+   "id": "b_-speech_examples",
+   "name": "캐릭터 대사 예시권장",
+   "h": 220.4,
+   "visiblePx": 74.4,
+   "visibleRatio": 0.3,
+   "free": 99,
+   "covers": {
+    "top": 152,
+    "bottom": 251,
+    "vh": 360
+   },
+   "caret": {
+    "t": 190,
+    "b": 213.8,
+    "hidden": false
+   }
+  },
+  {
+   "tag": "TEXTAREA",
+   "id": "_-speech_forbidden",
+   "name": "금지 말투선택",
+   "h": 101.4,
+   "visiblePx": 73.8,
+   "visibleRatio": 0.7,
+   "free": 99,
+   "covers": {
+    "top": 152,
+    "bottom": 251,
+    "vh": 360
+   },
+   "caret": {
+    "t": 189.4,
+    "b": 213.2,
+    "hidden": false
+   }
+  },
+  {
+   "tag": "TEXTAREA",
+   "id": "_1bsnptb_-greeting",
+   "name": "첫 메세지 본문",
+   "h": 375.2,
+   "visiblePx": 80,
+   "visibleRatio": 0.2,
+   "free": 99,
+   "covers": {
+    "top": 152,
+    "bottom": 251,
+    "vh": 360
+   },
+   "caret": {
+    "t": 189.9,
+    "b": 213.7,
+    "hidden": false
+   }
+  }
+ ],
+ "shift": [
+  {
+   "tag": "TEXTAREA",
+   "id": "_1bsnptb_-greeting",
+   "name": "첫 메세지 본문",
+   "h": 375.2,
+   "visiblePx": 80,
+   "visibleRatio": 0.2,
+   "free": 99,
+   "covers": {
+    "top": 152,
+    "bottom": 251,
+    "vh": 360
+   },
+   "caret": {
+    "t": 189.9,
+    "b": 213.7,
+    "hidden": false
+   }
+  },
+  {
+   "tag": "TEXTAREA",
+   "id": "_-speech_forbidden",
+   "name": "금지 말투선택",
+   "h": 101.4,
+   "visiblePx": 73.8,
+   "visibleRatio": 0.7,
+   "free": 99,
+   "covers": {
+    "top": 152,
+    "bottom": 251,
+    "vh": 360
+   },
+   "caret": {
+    "t": 189.4,
+    "b": 213.2,
+    "hidden": false
+   }
+  },
+  {
+   "tag": "TEXTAREA",
+   "id": "b_-speech_examples",
+   "name": "캐릭터 대사 예시권장",
+   "h": 220.4,
+   "visiblePx": 74.4,
+   "visibleRatio": 0.3,
+   "free": 99,
+   "covers": {
+    "top": 152,
+    "bottom": 251,
+    "vh": 360
+   },
+   "caret": {
+    "t": 190,
+    "b": 213.8,
+    "hidden": false
+   }
+  },
+  {
+   "tag": "TEXTAREA",
+   "id": "speech_personality",
+   "name": "기본 말투권장",
+   "h": 125.2,
+   "visiblePx": 73.7,
+   "visibleRatio": 0.6,
+   "free": 99,
+   "covers": {
+    "top": 152,
+    "bottom": 251,
+    "vh": 360
+   },
+   "caret": {
+    "t": 189.5,
+    "b": 213.3,
+    "hidden": false
+   }
+  },
+  {
+   "tag": "TEXTAREA",
+   "id": "ptb_-system_prompt",
+   "name": "캐릭터 설정필수",
+   "h": 268,
+   "visiblePx": 74,
+   "visibleRatio": 0.3,
+   "free": 99,
+   "covers": {
+    "top": 152,
+    "bottom": 251,
+    "vh": 360
+   },
+   "caret": {
+    "t": 190.1,
+    "b": 213.9,
+    "hidden": false
+   }
+  },
+  {
+   "tag": "TEXTAREA",
+   "id": "_R_1bsnptb_-world",
+   "name": "세계관 / 배경선택",
+   "h": 196.6,
+   "visiblePx": 73.7,
+   "visibleRatio": 0.4,
+   "free": 99,
+   "covers": {
+    "top": 152,
+    "bottom": 251,
+    "vh": 360
+   },
+   "caret": {
+    "t": 190.1,
+    "b": 213.9,
+    "hidden": false
+   }
+  }
+ ],
+ "touch": [
+  {
+   "name": "세계관 / 배경선택",
+   "click": {
+    "tag": "TEXTAREA",
+    "id": "_R_1bsnptb_-world",
+    "name": "세계관 / 배경선택",
+    "h": 196.6,
+    "visiblePx": 99,
+    "visibleRatio": 0.5,
+    "free": 99,
+    "covers": {
+     "top": 152,
+     "bottom": 251,
+     "vh": 360
+    },
+    "caret": {
+     "t": 141.1,
+     "b": 164.9,
+     "hidden": true
+    }
+   },
+   "atEnd": {
+    "tag": "TEXTAREA",
+    "id": "_R_1bsnptb_-world",
+    "name": "세계관 / 배경선택",
+    "h": 196.6,
+    "visiblePx": 99,
+    "visibleRatio": 0.5,
+    "free": 99,
+    "covers": {
+     "top": 152,
+     "bottom": 251,
+     "vh": 360
+    },
+    "caret": {
+     "t": 219.1,
+     "b": 242.9,
+     "hidden": false
+    }
+   },
+   "typed": {
+    "tag": "TEXTAREA",
+    "id": "_R_1bsnptb_-world",
+    "name": "세계관 / 배경선택",
+    "h": 196.6,
+    "visiblePx": 83.7,
+    "visibleRatio": 0.4,
+    "free": 99,
+    "covers": {
+     "top": 152,
+     "bottom": 251,
+     "vh": 360
+    },
+    "caret": {
+     "t": 219.1,
+     "b": 242.9,
+     "hidden": false
+    }
+   }
+  },
+  {
+   "name": "캐릭터 설정필수",
+   "click": {
+    "tag": "TEXTAREA",
+    "id": "ptb_-system_prompt",
+    "name": "캐릭터 설정필수",
+    "h": 268,
+    "visiblePx": 99,
+    "visibleRatio": 0.4,
+    "free": 99,
+    "covers": {
+     "top": 152,
+     "bottom": 251,
+     "vh": 360
+    },
+    "caret": {
+     "t": 152.1,
+     "b": 175.9,
+     "hidden": false
+    }
+   },
+   "atEnd": {
+    "tag": "TEXTAREA",
+    "id": "ptb_-system_prompt",
+    "name": "캐릭터 설정필수",
+    "h": 268,
+    "visiblePx": 99,
+    "visibleRatio": 0.4,
+    "free": 99,
+    "covers": {
+     "top": 152,
+     "bottom": 251,
+     "vh": 360
+    },
+    "caret": {
+     "t": 219.1,
+     "b": 242.9,
+     "hidden": false
+    }
+   },
+   "typed": {
+    "tag": "TEXTAREA",
+    "id": "ptb_-system_prompt",
+    "name": "캐릭터 설정필수",
+    "h": 268,
+    "visiblePx": 84,
+    "visibleRatio": 0.3,
+    "free": 99,
+    "covers": {
+     "top": 152,
+     "bottom": 251,
+     "vh": 360
+    },
+    "caret": {
+     "t": 219.1,
+     "b": 242.9,
+     "hidden": false
+    }
+   }
+  },
+  {
+   "name": "기본 말투권장",
+   "click": {
+    "tag": "TEXTAREA",
+    "id": "speech_personality",
+    "name": "기본 말투권장",
+    "h": 125.2,
+    "visiblePx": 99,
+    "visibleRatio": 0.8,
+    "free": 99,
+    "covers": {
+     "top": 152,
+     "bottom": 251,
+     "vh": 360
+    },
+    "caret": {
+     "t": 152.5,
+     "b": 176.3,
+     "hidden": false
+    }
+   },
+   "atEnd": {
+    "tag": "TEXTAREA",
+    "id": "speech_personality",
+    "name": "기본 말투권장",
+    "h": 125.2,
+    "visiblePx": 99,
+    "visibleRatio": 0.8,
+    "free": 99,
+    "covers": {
+     "top": 152,
+     "bottom": 251,
+     "vh": 360
+    },
+    "caret": {
+     "t": 218.5,
+     "b": 242.3,
+     "hidden": false
+    }
+   },
+   "typed": {
+    "tag": "TEXTAREA",
+    "id": "speech_personality",
+    "name": "기본 말투권장",
+    "h": 125.2,
+    "visiblePx": 83.7,
+    "visibleRatio": 0.7,
+    "free": 99,
+    "covers": {
+     "top": 152,
+     "bottom": 251,
+     "vh": 360
+    },
+    "caret": {
+     "t": 218.5,
+     "b": 242.3,
+     "hidden": false
+    }
+   }
+  },
+  {
+   "name": "캐릭터 대사 예시권장",
+   "click": {
+    "tag": "TEXTAREA",
+    "id": "b_-speech_examples",
+    "name": "캐릭터 대사 예시권장",
+    "h": 220.4,
+    "visiblePx": 99,
+    "visibleRatio": 0.4,
+    "free": 99,
+    "covers": {
+     "top": 152,
+     "bottom": 251,
+     "vh": 360
+    },
+    "caret": {
+     "t": 152,
+     "b": 175.8,
+     "hidden": false
+    }
+   },
+   "atEnd": {
+    "tag": "TEXTAREA",
+    "id": "b_-speech_examples",
+    "name": "캐릭터 대사 예시권장",
+    "h": 220.4,
+    "visiblePx": 99,
+    "visibleRatio": 0.4,
+    "free": 99,
+    "covers": {
+     "top": 152,
+     "bottom": 251,
+     "vh": 360
+    },
+    "caret": {
+     "t": 219,
+     "b": 242.8,
+     "hidden": false
+    }
+   },
+   "typed": {
+    "tag": "TEXTAREA",
+    "id": "b_-speech_examples",
+    "name": "캐릭터 대사 예시권장",
+    "h": 220.4,
+    "visiblePx": 99,
+    "visibleRatio": 0.4,
+    "free": 99,
+    "covers": {
+     "top": 152,
+     "bottom": 251,
+     "vh": 360
+    },
+    "caret": {
+     "t": 219,
+     "b": 242.8,
+     "hidden": false
+    }
+   }
+  },
+  {
+   "name": "금지 말투선택",
+   "click": {
+    "tag": "TEXTAREA",
+    "id": "_-speech_forbidden",
+    "name": "금지 말투선택",
+    "h": 101.4,
+    "visiblePx": 95.8,
+    "visibleRatio": 0.9,
+    "free": 99,
+    "covers": {
+     "top": 152,
+     "bottom": 251,
+     "vh": 360
+    },
+    "caret": {
+     "t": 163.4,
+     "b": 187.2,
+     "hidden": false
+    }
+   },
+   "atEnd": {
+    "tag": "TEXTAREA",
+    "id": "_-speech_forbidden",
+    "name": "금지 말투선택",
+    "h": 101.4,
+    "visiblePx": 95.8,
+    "visibleRatio": 0.9,
+    "free": 99,
+    "covers": {
+     "top": 152,
+     "bottom": 251,
+     "vh": 360
+    },
+    "caret": {
+     "t": 211.4,
+     "b": 235.2,
+     "hidden": false
+    }
+   },
+   "typed": {
+    "tag": "TEXTAREA",
+    "id": "_-speech_forbidden",
+    "name": "금지 말투선택",
+    "h": 101.4,
+    "visiblePx": 95.8,
+    "visibleRatio": 0.9,
+    "free": 99,
+    "covers": {
+     "top": 152,
+     "bottom": 251,
+     "vh": 360
+    },
+    "caret": {
+     "t": 211.4,
+     "b": 235.2,
+     "hidden": false
+    }
+   }
+  },
+  {
+   "name": "첫 메세지 본문",
+   "click": {
+    "tag": "TEXTAREA",
+    "id": "_1bsnptb_-greeting",
+    "name": "첫 메세지 본문",
+    "h": 375.2,
+    "visiblePx": 99,
+    "visibleRatio": 0.3,
+    "free": 99,
+    "covers": {
+     "top": 152,
+     "bottom": 251,
+     "vh": 360
+    },
+    "caret": {
+     "t": 151.9,
+     "b": 175.7,
+     "hidden": false
+    }
+   },
+   "atEnd": {
+    "tag": "TEXTAREA",
+    "id": "_1bsnptb_-greeting",
+    "name": "첫 메세지 본문",
+    "h": 375.2,
+    "visiblePx": 99,
+    "visibleRatio": 0.3,
+    "free": 99,
+    "covers": {
+     "top": 152,
+     "bottom": 251,
+     "vh": 360
+    },
+    "caret": {
+     "t": 218.9,
+     "b": 242.7,
+     "hidden": false
+    }
+   },
+   "typed": {
+    "tag": "TEXTAREA",
+    "id": "_1bsnptb_-greeting",
+    "name": "첫 메세지 본문",
+    "h": 375.2,
+    "visiblePx": 85,
+    "visibleRatio": 0.2,
+    "free": 99,
+    "covers": {
+     "top": 152,
+     "bottom": 251,
+     "vh": 360
+    },
+    "caret": {
+     "t": 218.9,
+     "b": 242.7,
+     "hidden": false
+    }
+   }
+  }
+ ],
+ "typing": []
+}

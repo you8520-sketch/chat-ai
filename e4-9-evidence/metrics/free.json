@@ -1,0 +1,318 @@
+[
+ {
+  "vp": "320x568",
+  "kb": 230,
+  "before": {
+   "closed": {
+    "vv": 568,
+    "free": 254,
+    "pct": 45
+   },
+   "open": {
+    "vv": 338,
+    "free": 77,
+    "pct": 23
+   }
+  },
+  "after": {
+   "closed": {
+    "vv": 568,
+    "free": 254,
+    "pct": 45
+   },
+   "open": {
+    "vv": 338,
+    "free": 77,
+    "pct": 23
+   }
+  }
+ },
+ {
+  "vp": "360x740",
+  "kb": 290,
+  "before": {
+   "closed": {
+    "vv": 740,
+    "free": 426,
+    "pct": 58
+   },
+   "open": {
+    "vv": 450,
+    "free": 189,
+    "pct": 42
+   }
+  },
+  "after": {
+   "closed": {
+    "vv": 740,
+    "free": 426,
+    "pct": 58
+   },
+   "open": {
+    "vv": 450,
+    "free": 189,
+    "pct": 42
+   }
+  }
+ },
+ {
+  "vp": "375x667",
+  "kb": 270,
+  "before": {
+   "closed": {
+    "vv": 667,
+    "free": 353,
+    "pct": 53
+   },
+   "open": {
+    "vv": 397,
+    "free": 136,
+    "pct": 34
+   }
+  },
+  "after": {
+   "closed": {
+    "vv": 667,
+    "free": 353,
+    "pct": 53
+   },
+   "open": {
+    "vv": 397,
+    "free": 136,
+    "pct": 34
+   }
+  }
+ },
+ {
+  "vp": "390x844",
+  "kb": 330,
+  "before": {
+   "closed": {
+    "vv": 844,
+    "free": 530,
+    "pct": 63
+   },
+   "open": {
+    "vv": 514,
+    "free": 253,
+    "pct": 49
+   }
+  },
+  "after": {
+   "closed": {
+    "vv": 844,
+    "free": 530,
+    "pct": 63
+   },
+   "open": {
+    "vv": 514,
+    "free": 253,
+    "pct": 49
+   }
+  }
+ },
+ {
+  "vp": "576x768",
+  "kb": 300,
+  "before": {
+   "closed": {
+    "vv": 768,
+    "free": 507,
+    "pct": 66
+   },
+   "open": {
+    "vv": 468,
+    "free": 207,
+    "pct": 44
+   }
+  },
+  "after": {
+   "closed": {
+    "vv": 768,
+    "free": 507,
+    "pct": 66
+   },
+   "open": {
+    "vv": 468,
+    "free": 207,
+    "pct": 44
+   }
+  }
+ },
+ {
+  "vp": "667x375",
+  "kb": 190,
+  "before": {
+   "closed": {
+    "vv": 375,
+    "free": 154,
+    "pct": 41
+   },
+   "open": {
+    "vv": 185,
+    "free": -36,
+    "pct": -19
+   }
+  },
+  "after": {
+   "closed": {
+    "vv": 375,
+    "free": 154,
+    "pct": 41
+   },
+   "open": {
+    "vv": 185,
+    "free": 87,
+    "pct": 47
+   }
+  }
+ },
+ {
+  "vp": "740x360",
+  "kb": 180,
+  "before": {
+   "closed": {
+    "vv": 360,
+    "free": 139,
+    "pct": 39
+   },
+   "open": {
+    "vv": 180,
+    "free": -41,
+    "pct": -23
+   }
+  },
+  "after": {
+   "closed": {
+    "vv": 360,
+    "free": 139,
+    "pct": 39
+   },
+   "open": {
+    "vv": 180,
+    "free": 82,
+    "pct": 46
+   }
+  }
+ },
+ {
+  "vp": "844x390",
+  "kb": 200,
+  "before": {
+   "closed": {
+    "vv": 390,
+    "free": 169,
+    "pct": 43
+   },
+   "open": {
+    "vv": 190,
+    "free": -31,
+    "pct": -16
+   }
+  },
+  "after": {
+   "closed": {
+    "vv": 390,
+    "free": 169,
+    "pct": 43
+   },
+   "open": {
+    "vv": 190,
+    "free": 92,
+    "pct": 48
+   }
+  }
+ },
+ {
+  "vp": "932x430",
+  "kb": 215,
+  "before": {
+   "closed": {
+    "vv": 430,
+    "free": 209,
+    "pct": 49
+   },
+   "open": {
+    "vv": 215,
+    "free": -6,
+    "pct": -3
+   }
+  },
+  "after": {
+   "closed": {
+    "vv": 430,
+    "free": 209,
+    "pct": 49
+   },
+   "open": {
+    "vv": 215,
+    "free": 117,
+    "pct": 54
+   }
+  }
+ },
+ {
+  "vp": "768x1024",
+  "kb": 330,
+  "before": {
+   "closed": {
+    "vv": 1024,
+    "free": 803,
+    "pct": 78
+   },
+   "open": {
+    "vv": 694,
+    "free": 473,
+    "pct": 68
+   }
+  },
+  "after": {
+   "closed": {
+    "vv": 1024,
+    "free": 803,
+    "pct": 78
+   },
+   "open": {
+    "vv": 694,
+    "free": 473,
+    "pct": 68
+   }
+  }
+ },
+ {
+  "vp": "1024x768",
+  "kb": 0,
+  "before": {
+   "closed": {
+    "vv": 768,
+    "free": 580,
+    "pct": 76
+   }
+  },
+  "after": {
+   "closed": {
+    "vv": 768,
+    "free": 580,
+    "pct": 76
+   }
+  }
+ },
+ {
+  "vp": "1440x900",
+  "kb": 0,
+  "before": {
+   "closed": {
+    "vv": 900,
+    "free": 712,
+    "pct": 79
+   }
+  },
+  "after": {
+   "closed": {
+    "vv": 900,
+    "free": 712,
+    "pct": 79
+   }
+  }
+ }
+]

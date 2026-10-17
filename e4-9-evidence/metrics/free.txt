@@ -1,0 +1,12 @@
+320x568   kb 230 | BEFORE closed 254px (45%)  open 77px (23%)   | AFTER closed 254px (45%)  open 77px (23%)
+360x740   kb 290 | BEFORE closed 426px (58%)  open 189px (42%)  | AFTER closed 426px (58%)  open 189px (42%)
+375x667   kb 270 | BEFORE closed 353px (53%)  open 136px (34%)  | AFTER closed 353px (53%)  open 136px (34%)
+390x844   kb 330 | BEFORE closed 530px (63%)  open 253px (49%)  | AFTER closed 530px (63%)  open 253px (49%)
+576x768   kb 300 | BEFORE closed 507px (66%)  open 207px (44%)  | AFTER closed 507px (66%)  open 207px (44%)
+667x375   kb 190 | BEFORE closed 154px (41%)  open -36px (-19%) | AFTER closed 154px (41%)  open 87px (47%)
+740x360   kb 180 | BEFORE closed 139px (39%)  open -41px (-23%) | AFTER closed 139px (39%)  open 82px (46%)
+844x390   kb 200 | BEFORE closed 169px (43%)  open -31px (-16%) | AFTER closed 169px (43%)  open 92px (48%)
+932x430   kb 215 | BEFORE closed 209px (49%)  open -6px (-3%)   | AFTER closed 209px (49%)  open 117px (54%)
+768x1024  kb 330 | BEFORE closed 803px (78%)  open 473px (68%)  | AFTER closed 803px (78%)  open 473px (68%)
+1024x768  kb 0   | BEFORE closed 580px (76%)  open -            | AFTER closed 580px (76%)  open -
+1440x900  kb 0   | BEFORE closed 712px (79%)  open -            | AFTER closed 712px (79%)  open -

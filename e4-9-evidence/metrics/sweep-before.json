@@ -1,0 +1,2594 @@
+[
+ {
+  "vp": "320x568",
+  "path": "/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 110,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "179px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 110,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "353px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 110,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "179px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.235,
+  "kbOpen": 227
+ },
+ {
+  "vp": "320x568",
+  "path": "/create?kind=simulation",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 110,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "179px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 110,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "353px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 110,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "179px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.235,
+  "kbOpen": 227
+ },
+ {
+  "vp": "320x568",
+  "path": "/create?edit=693",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 110,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "179px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 110,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "353px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 110,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "179px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.235,
+  "kbOpen": 227
+ },
+ {
+  "vp": "320x568",
+  "path": "/world/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "146px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "320px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "146px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.166,
+  "kbOpen": 227
+ },
+ {
+  "vp": "320x568",
+  "path": "/lorebook/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "146px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "320px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "146px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.166,
+  "kbOpen": 227
+ },
+ {
+  "vp": "320x568",
+  "path": "/trpg/scenarios/new",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 131,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "200px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 131,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "374px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 131,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "200px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.283,
+  "kbOpen": 227
+ },
+ {
+  "vp": "360x740",
+  "path": "/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "178px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "421px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "178px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.193,
+  "kbOpen": 296
+ },
+ {
+  "vp": "360x740",
+  "path": "/create?kind=simulation",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "178px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "421px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "178px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.193,
+  "kbOpen": 296
+ },
+ {
+  "vp": "360x740",
+  "path": "/create?edit=693",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "178px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "421px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "178px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.193,
+  "kbOpen": 296
+ },
+ {
+  "vp": "360x740",
+  "path": "/world/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "146px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "389px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "146px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.137,
+  "kbOpen": 296
+ },
+ {
+  "vp": "360x740",
+  "path": "/lorebook/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "146px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "389px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "146px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.137,
+  "kbOpen": 296
+ },
+ {
+  "vp": "360x740",
+  "path": "/trpg/scenarios/new",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 93,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "162px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 93,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "405px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 93,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "162px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.165,
+  "kbOpen": 296
+ },
+ {
+  "vp": "375x667",
+  "path": "/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "178px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "392px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "178px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.21,
+  "kbOpen": 267
+ },
+ {
+  "vp": "375x667",
+  "path": "/create?kind=simulation",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "178px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "392px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "178px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.21,
+  "kbOpen": 267
+ },
+ {
+  "vp": "375x667",
+  "path": "/create?edit=693",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "178px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "392px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "178px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.21,
+  "kbOpen": 267
+ },
+ {
+  "vp": "375x667",
+  "path": "/world/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "146px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "360px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "146px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.148,
+  "kbOpen": 267
+ },
+ {
+  "vp": "375x667",
+  "path": "/lorebook/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "146px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "360px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "146px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.148,
+  "kbOpen": 267
+ },
+ {
+  "vp": "375x667",
+  "path": "/trpg/scenarios/new",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 93,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "162px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 93,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "376px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 93,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "162px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.179,
+  "kbOpen": 267
+ },
+ {
+  "vp": "390x844",
+  "path": "/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "178px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "463px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "178px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.174,
+  "kbOpen": 338
+ },
+ {
+  "vp": "390x844",
+  "path": "/create?kind=simulation",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "178px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "463px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "178px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.174,
+  "kbOpen": 338
+ },
+ {
+  "vp": "390x844",
+  "path": "/create?edit=693",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "178px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "463px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "178px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.174,
+  "kbOpen": 338
+ },
+ {
+  "vp": "390x844",
+  "path": "/world/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "146px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "431px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "146px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.123,
+  "kbOpen": 338
+ },
+ {
+  "vp": "390x844",
+  "path": "/lorebook/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "146px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "431px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "146px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.123,
+  "kbOpen": 338
+ },
+ {
+  "vp": "390x844",
+  "path": "/trpg/scenarios/new",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 93,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "162px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 93,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "447px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 93,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "162px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.149,
+  "kbOpen": 338
+ },
+ {
+  "vp": "576x768",
+  "path": "/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "125px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "432px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "125px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.221,
+  "kbOpen": 307
+ },
+ {
+  "vp": "576x768",
+  "path": "/create?kind=simulation",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "125px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "432px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "125px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.221,
+  "kbOpen": 307
+ },
+ {
+  "vp": "576x768",
+  "path": "/create?edit=693",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "125px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "432px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 109,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "125px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.221,
+  "kbOpen": 307
+ },
+ {
+  "vp": "576x768",
+  "path": "/world/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "93px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "400px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "93px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.156,
+  "kbOpen": 307
+ },
+ {
+  "vp": "576x768",
+  "path": "/lorebook/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "93px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "400px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 77,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "93px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.156,
+  "kbOpen": 307
+ },
+ {
+  "vp": "576x768",
+  "path": "/trpg/scenarios/new",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 93,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "109px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 93,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "416px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 93,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "109px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.189,
+  "kbOpen": 307
+ },
+ {
+  "vp": "667x375",
+  "path": "/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "273px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.203,
+  "kbOpen": 188
+ },
+ {
+  "vp": "667x375",
+  "path": "/create?kind=simulation",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "273px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.203,
+  "kbOpen": 188
+ },
+ {
+  "vp": "667x375",
+  "path": "/create?edit=693",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "273px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.203,
+  "kbOpen": 188
+ },
+ {
+  "vp": "667x375",
+  "path": "/world/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "273px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.203,
+  "kbOpen": 188
+ },
+ {
+  "vp": "667x375",
+  "path": "/lorebook/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "273px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.203,
+  "kbOpen": 188
+ },
+ {
+  "vp": "667x375",
+  "path": "/trpg/scenarios/new",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "273px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.203,
+  "kbOpen": 188
+ },
+ {
+  "vp": "740x360",
+  "path": "/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "265px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.183,
+  "kbOpen": 180
+ },
+ {
+  "vp": "740x360",
+  "path": "/create?kind=simulation",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "265px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.183,
+  "kbOpen": 180
+ },
+ {
+  "vp": "740x360",
+  "path": "/create?edit=693",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "265px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.183,
+  "kbOpen": 180
+ },
+ {
+  "vp": "740x360",
+  "path": "/world/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "265px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.183,
+  "kbOpen": 180
+ },
+ {
+  "vp": "740x360",
+  "path": "/lorebook/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "265px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.183,
+  "kbOpen": 180
+ },
+ {
+  "vp": "740x360",
+  "path": "/trpg/scenarios/new",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "265px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.183,
+  "kbOpen": 180
+ },
+ {
+  "vp": "844x390",
+  "path": "/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "280px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.161,
+  "kbOpen": 195
+ },
+ {
+  "vp": "844x390",
+  "path": "/create?kind=simulation",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "280px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.161,
+  "kbOpen": 195
+ },
+ {
+  "vp": "844x390",
+  "path": "/create?edit=693",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "280px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.161,
+  "kbOpen": 195
+ },
+ {
+  "vp": "844x390",
+  "path": "/world/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "280px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.161,
+  "kbOpen": 195
+ },
+ {
+  "vp": "844x390",
+  "path": "/lorebook/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "280px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.161,
+  "kbOpen": 195
+ },
+ {
+  "vp": "844x390",
+  "path": "/trpg/scenarios/new",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "280px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.161,
+  "kbOpen": 195
+ },
+ {
+  "vp": "932x430",
+  "path": "/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "300px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.146,
+  "kbOpen": 215
+ },
+ {
+  "vp": "932x430",
+  "path": "/create?kind=simulation",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "300px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.146,
+  "kbOpen": 215
+ },
+ {
+  "vp": "932x430",
+  "path": "/create?edit=693",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "300px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.146,
+  "kbOpen": 215
+ },
+ {
+  "vp": "932x430",
+  "path": "/world/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "300px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.146,
+  "kbOpen": 215
+ },
+ {
+  "vp": "932x430",
+  "path": "/lorebook/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "300px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.146,
+  "kbOpen": 215
+ },
+ {
+  "vp": "932x430",
+  "path": "/trpg/scenarios/new",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "300px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.146,
+  "kbOpen": 215
+ },
+ {
+  "vp": "768x1024",
+  "path": "/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "495px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.106,
+  "kbOpen": 410
+ },
+ {
+  "vp": "768x1024",
+  "path": "/create?kind=simulation",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "495px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.106,
+  "kbOpen": 410
+ },
+ {
+  "vp": "768x1024",
+  "path": "/create?edit=693",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "495px",
+   "spt": "160px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "160px"
+  },
+  "clsToggle": 0.106,
+  "kbOpen": 410
+ },
+ {
+  "vp": "768x1024",
+  "path": "/world/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "495px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.106,
+  "kbOpen": 410
+ },
+ {
+  "vp": "768x1024",
+  "path": "/lorebook/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "495px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.106,
+  "kbOpen": 410
+ },
+ {
+  "vp": "768x1024",
+  "path": "/trpg/scenarios/new",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "495px",
+   "spt": "106px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "106px"
+  },
+  "clsToggle": 0.106,
+  "kbOpen": 410
+ },
+ {
+  "vp": "1024x768",
+  "path": "/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "127px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "469px",
+   "spt": "127px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "127px"
+  },
+  "clsToggle": 0.133,
+  "kbOpen": 384
+ },
+ {
+  "vp": "1024x768",
+  "path": "/create?kind=simulation",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "127px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "469px",
+   "spt": "127px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "127px"
+  },
+  "clsToggle": 0.133,
+  "kbOpen": 384
+ },
+ {
+  "vp": "1024x768",
+  "path": "/create?edit=693",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "127px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "469px",
+   "spt": "127px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "127px"
+  },
+  "clsToggle": 0.133,
+  "kbOpen": 384
+ },
+ {
+  "vp": "1024x768",
+  "path": "/world/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "73px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "469px",
+   "spt": "73px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "73px"
+  },
+  "clsToggle": 0.133,
+  "kbOpen": 384
+ },
+ {
+  "vp": "1024x768",
+  "path": "/lorebook/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "73px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "469px",
+   "spt": "73px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "73px"
+  },
+  "clsToggle": 0.133,
+  "kbOpen": 384
+ },
+ {
+  "vp": "1024x768",
+  "path": "/trpg/scenarios/new",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "73px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "469px",
+   "spt": "73px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "73px"
+  },
+  "clsToggle": 0.133,
+  "kbOpen": 384
+ },
+ {
+  "vp": "1440x900",
+  "path": "/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "127px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "535px",
+   "spt": "127px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "127px"
+  },
+  "clsToggle": 0.095,
+  "kbOpen": 450
+ },
+ {
+  "vp": "1440x900",
+  "path": "/create?kind=simulation",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "127px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "535px",
+   "spt": "127px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "127px"
+  },
+  "clsToggle": 0.095,
+  "kbOpen": 450
+ },
+ {
+  "vp": "1440x900",
+  "path": "/create?edit=693",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "127px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "535px",
+   "spt": "127px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": "sticky",
+   "barH": 69,
+   "minBtn": 32,
+   "minTab": 44,
+   "spb": "85px",
+   "spt": "127px"
+  },
+  "clsToggle": 0.095,
+  "kbOpen": 450
+ },
+ {
+  "vp": "1440x900",
+  "path": "/world/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "73px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "535px",
+   "spt": "73px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "73px"
+  },
+  "clsToggle": 0.095,
+  "kbOpen": 450
+ },
+ {
+  "vp": "1440x900",
+  "path": "/lorebook/create",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "73px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "535px",
+   "spt": "73px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "73px"
+  },
+  "clsToggle": 0.095,
+  "kbOpen": 450
+ },
+ {
+  "vp": "1440x900",
+  "path": "/trpg/scenarios/new",
+  "closed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "73px"
+  },
+  "open": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "535px",
+   "spt": "73px"
+  },
+  "reclosed": {
+   "overflow": false,
+   "barPos": "fixed",
+   "tabsPos": null,
+   "barH": 69,
+   "minBtn": 44,
+   "minTab": null,
+   "spb": "85px",
+   "spt": "73px"
+  },
+  "clsToggle": 0.095,
+  "kbOpen": 450
+ }
+]
