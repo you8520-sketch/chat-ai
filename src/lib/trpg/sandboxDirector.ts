@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { assertFrozenAdventureValid } from "./adventure";
 import { canUseWorldForTrpg } from "./catalog";
 import {
   emptyCampaignContext,
@@ -27,6 +28,7 @@ function loadScenarioSnapshot(db: Database.Database, templateId: number | null):
   if (!templateId) return null;
   const row = loadScenarioTemplate(db, templateId);
   if (!row) return null;
+  assertFrozenAdventureValid(row.scenario_plan_json);
   const template = rowToScenarioTemplate(row, { includeSecret: true });
   return {
     id: template.id,
@@ -46,7 +48,8 @@ function loadScenarioSnapshot(db: Database.Database, templateId: number | null):
  * Scenario campaigns copy the authored plan. World-only sandbox copies a pre-generated
  * world-revision Blueprint when valid; otherwise directorPlan stays null and opening GM proceeds.
  * Campaign start never generates Sandbox Blueprint — worker owns generation.
- * Failure never blocks campaign start.
+ * Failure never blocks campaign start, except `TrpgAdventureCanonError`: a scenario whose explicit
+ * adventure cannot be played is not frozen, so the start stops instead of running without it.
  */
 export async function ensureCampaignDirectorContext(
   db: Database.Database,

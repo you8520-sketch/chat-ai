@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL } from "@/lib/chatModels";
 import { estimateTokens } from "@/lib/tokenEstimate";
+import { evaluateAdventure } from "./adventure";
 import {
   emptyTrpgScenarioPlan,
   hasPlayableScenarioPlan,
@@ -67,6 +68,7 @@ export const TRPG_SCENARIO_DRAFT_FIELDS = [
   "factionChanges",
   "gmDirection",
   "playLength",
+  "adventure",
 ] as const;
 
 export type TrpgScenarioDraftField = (typeof TRPG_SCENARIO_DRAFT_FIELDS)[number];
@@ -85,6 +87,7 @@ export const TRPG_SCENARIO_DRAFT_CORE_FIELDS: readonly TrpgScenarioDraftField[] 
   "startInventory",
   "difficulty",
   "climax",
+  "adventure",
 ];
 
 export type TrpgScenarioDraftExisting = {
@@ -107,6 +110,8 @@ export type TrpgScenarioDraftResult = {
   npcs: TrpgScenarioNpc[];
   plan: TrpgScenarioPlan;
   generatedFields?: TrpgScenarioDraftField[];
+  /** Findings when the model returned an `adventure` that the server cannot play. */
+  adventureIssues?: string[];
 };
 
 const PLAN_KEYS = [
@@ -213,6 +218,8 @@ function fieldFilled(existing: TrpgScenarioDraftExisting, field: TrpgScenarioDra
     case "playLength":
       if ((existing.touchedFields ?? []).includes("playLength")) return true;
       return existing.plan?.playLength != null && existing.plan.playLength !== "medium";
+    case "adventure":
+      return Boolean(plan.adventure);
     default:
       return nonemptyText(plan[field as keyof TrpgScenarioPlan]);
   }
@@ -265,6 +272,10 @@ export function mergeScenarioDraft(opts: {
     generatedAllowed(field) ? pickText(existing, value, overwrite(field)) : String(existing ?? "").trim();
   const list = (field: TrpgScenarioDraftField, existing: string[] | undefined, value: string[]) =>
     generatedAllowed(field) ? pickList(existing, value, overwrite(field)) : existing ?? [];
+  const adventure =
+    generatedAllowed("adventure") && overwrite("adventure") && generated.plan.adventure
+      ? generated.plan.adventure
+      : existingPlan.adventure;
   const plan: TrpgScenarioPlan = {
     ...emptyTrpgScenarioPlan(),
     startingSituation: text("startingSituation", existingPlan.startingSituation, generated.plan.startingSituation),
@@ -289,6 +300,7 @@ export function mergeScenarioDraft(opts: {
       : existingPlan.playLength,
     provenance: opts.provenance ?? generated.plan.provenance ?? existingPlan.provenance ?? null,
     ...(existingPlan.encounters?.length ? { encounters: existingPlan.encounters } : {}),
+    ...(adventure ? { adventure } : {}),
   };
   return {
     title: text("title", opts.existing.title, generated.title).slice(0, TRPG_SCENARIO_TITLE_LIMIT),
@@ -327,6 +339,7 @@ export function parseScenarioDraftJson(raw: string): TrpgScenarioDraftResult {
   const { encounters: _modelEncounters, ...plan } = parsedPlan;
   const title = String(parsed.title ?? "").trim().slice(0, TRPG_SCENARIO_TITLE_LIMIT);
   const summary = String(parsed.summary ?? "").trim().slice(0, TRPG_SCENARIO_SUMMARY_LIMIT);
+  const adventureIssues = evaluateAdventure(parsed.adventure).issues;
   return {
     title,
     summary,
@@ -335,6 +348,7 @@ export function parseScenarioDraftJson(raw: string): TrpgScenarioDraftResult {
     npcs: normalizeDraftBossIntoNpcs(plan.boss, parseScenarioNpcs(parsed.npcs).map((npc) => ({ ...npc, stats: null }))),
     plan,
     generatedFields: parseDraftFields(Object.keys(parsed)),
+    ...(adventureIssues.length ? { adventureIssues } : {}),
   };
 }
 
@@ -357,7 +371,7 @@ export function extractJsonObject(raw: string): Record<string, unknown> | null {
   return tryParse(text.slice(start, end + 1));
 }
 
-export function buildScenarioDraftSystemPrompt(): string {
+function scenarioDesignSystemRules(): string {
   return `You are a TRPG scenario designer, not a novelist.
 Write structured campaign design in Korean. Output JSON only.
 
@@ -400,6 +414,21 @@ string arrays: endingConditions, majorEvents, clues, forbiddenEvents, specialRul
 npcs: array of {role, name, description, greeting, systemPrompt, stats:null}
 difficulty: easy|normal|hard|deadly
 playLength: short|medium|long|open_ended`;
+}
+
+/** The server validates this graph and runs these events; the model only fills in the story. */
+const ADVENTURE_DRAFT_CONTRACT = `adventure: object {start, places, links, events}. The places this adventure is played in. Its own item counts below replace the 2-item list cap.
+- places: 3-6 items {key, name, summary, role}. key: lowercase ascii id (a-z, 0-9, _), unique, never like r1. name: Korean, unique, at most 16 chars. summary: one short player-safe sentence. role: start|hub|site|goal.
+- start: key of the start place. startLocation must be exactly that place's name.
+- links: 3-8 items {from, to} using place keys. Undirected, no duplicates. Locked way: add opensBy:"<event key>". Secret passage: add hidden:true and opensBy:"<event key>".
+- events: 2-5 items {key, place, trigger, kind, text, item, requires}. trigger: search|careful_search|enter (enter fires on arriving, so never at the start place). kind: clue|item|hazard (what an event opens is set only by a link's opensBy). text: what is found or happens, one sentence, secret until it fires. item: item name, only for kind item, at most 20 chars. requires: event keys that must happen first, or [].
+- At least one link uses opensBy. Its event must be reachable without that link. Every place must be reachable from start.
+- Discoveries must matter: a clue or item opens a way, unlocks a later event, or points to the goal. Fit places and events to this story and genre.`;
+
+export function buildScenarioDraftSystemPrompt(): string {
+  return `${scenarioDesignSystemRules()}
+
+${ADVENTURE_DRAFT_CONTRACT}`;
 }
 
 export type ScenarioDraftPromptContext = {
@@ -629,7 +658,7 @@ export function buildScenarioDraftUserPrompt(opts: {
 }
 
 export function buildSandboxDirectorSystemPrompt(): string {
-  return `${buildScenarioDraftSystemPrompt()}
+  return `${scenarioDesignSystemRules()}
 
 This is a world-only sandbox campaign blueprint, not a published scenario.
 Do not write player-character future actions.

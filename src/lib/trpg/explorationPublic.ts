@@ -3,6 +3,8 @@
  * Room secrets, seeds, and the generator live in explorationMap.ts and must not be imported here.
  */
 
+import type { AdventureEventKind } from "./adventure";
+
 export const EXPLORATION_AP_PER_ROUND = 3;
 export const EXPLORATION_MOVE_COST = 1;
 export const EXPLORATION_SEARCH_COST = 1;
@@ -17,18 +19,30 @@ export type PublicExplorationMarker = "clue" | "reward" | "hazard" | "exit" | "p
 
 export type PublicExplorationRoom = {
   id: string;
-  /** Server label. Only visited rooms and rooms behind an open passage from them are projected. */
+  /** Server label. Only visited rooms and rooms behind a visible way from them are projected. */
   label: string;
   x: number;
   y: number;
   visited: boolean;
   current: boolean;
   markers: PublicExplorationMarker[];
+  /** Player-safe place description, only after a visit. */
+  summary?: string;
 };
 
 export type PublicExplorationEdge = {
   from: string;
   to: string;
+  /** A visible way that a server event has not opened yet. */
+  locked?: boolean;
+};
+
+/** A fired event. Unfired event text is never projected. */
+export type PublicExplorationDiscovery = {
+  place: string;
+  kind: AdventureEventKind;
+  text: string;
+  item?: string;
 };
 
 /** Fogged projection. Unrevealed event text is never part of this object. */
@@ -36,9 +50,12 @@ export type PublicExploration = {
   rooms: PublicExplorationRoom[];
   edges: PublicExplorationEdge[];
   ap: number;
-  risk: number;
-  alarm: boolean;
   currentRoomId: string | null;
+  discoveries: PublicExplorationDiscovery[];
+  /** One-place adventure: its events run through search, but there is no map to draw or move on. */
+  singlePlace?: true;
+  /** Legacy v1 facility maps only. */
+  legacy?: { risk: number; alarm: boolean };
 };
 
 export function explorationCommandCost(command: ExplorationCommand): number {
@@ -56,6 +73,18 @@ export function explorationCommandCost(command: ExplorationCommand): number {
 
 export function explorationQueueCost(commands: readonly ExplorationCommand[]): number {
   return commands.reduce((sum, command) => sum + explorationCommandCost(command), 0);
+}
+
+/** Public room ids reachable in one move from `roomId` through ways that are open now. */
+export function publicOpenExits(exploration: PublicExploration, roomId: string | null): string[] {
+  if (!roomId) return [];
+  const next: string[] = [];
+  for (const edge of exploration.edges) {
+    if (edge.locked) continue;
+    const other = edge.from === roomId ? edge.to : edge.to === roomId ? edge.from : "";
+    if (other && !next.includes(other)) next.push(other);
+  }
+  return next;
 }
 
 export function parseExplorationCommands(raw: unknown): ExplorationCommand[] {

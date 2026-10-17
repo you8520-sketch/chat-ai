@@ -23,6 +23,7 @@ import {
   type TrpgRoundUsageEntry,
 } from "./roundUsage";
 import { isTrpgActionType, pickStatForAction } from "./actionTypes";
+import { TrpgAdventureCanonError } from "./adventure";
 import { logTrpgMechanicsCheckTelemetry } from "./mechanicsObservability";
 import {
   computeTrpgRoundPoints,
@@ -60,14 +61,18 @@ import {
   settleLedgerForCommit,
 } from "./campaignLedger";
 import {
+  composeExplorationSentences,
   displayExplorationAp,
   explorationCommandsFromMovementBody,
+  explorationOwnsWorldFlags,
+  explorationRoomNames,
   filterExplorationFlagsAdd,
   filterExplorationFlagsRemove,
-  formatExplorationBotBrief,
   legalExplorationCommands,
-  visibleExplorationNeighbors,
+  roomNameAfterCommands,
+  type ExplorationState,
 } from "./explorationMap";
+import { type ExplorationCommand } from "./explorationPublic";
 import {
   declaredMovementGoals,
   describeMovementGoal,
@@ -75,6 +80,7 @@ import {
   omitLiveMovementClauses,
 } from "./movementDeclaration";
 import {
+  explorationBriefForBot,
   explorationPromptForRound,
   ensureExplorationMap,
   loadExplorationState,
@@ -313,6 +319,13 @@ function mustSnapshot(db: Database.Database, campaignId: number, userId: number)
   return snap;
 }
 
+/** An explicit adventure that cannot be played stops the start before any round, GM call, or charge. */
+function rethrowAdventureCanonError(error: unknown, campaignId: number): void {
+  if (!(error instanceof TrpgAdventureCanonError)) return;
+  console.warn("[trpg-adventure] invalid canon; start blocked", { campaignId, issues: error.issues });
+  throw error;
+}
+
 export async function startTrpgCampaign(
   db: Database.Database,
   opts: { campaignId: number; userId: number; deps?: TrpgEngineDeps }
@@ -321,11 +334,13 @@ export async function startTrpgCampaign(
   try {
     await ensureCampaignDirectorContext(db, opts.campaignId);
   } catch (error) {
+    rethrowAdventureCanonError(error, opts.campaignId);
     console.warn("[trpg-director] context failed; continuing with existing GM", error);
   }
   try {
     ensureExplorationMap(db, opts.campaignId);
   } catch (error) {
+    rethrowAdventureCanonError(error, opts.campaignId);
     console.warn("[trpg-exploration] map failed; continuing without a map", error);
   }
   const latest = loadLatestRound(db, opts.campaignId);
@@ -1109,17 +1124,6 @@ function stayWatchingInPlace(name: string): string {
   return `${name}은 제자리에 서서 상황을 살핀다.`;
 }
 
-function roomAfterExplorationCommands(
-  fromRoomId: string,
-  commands: ReadonlyArray<{ op: string; roomId?: string }>
-): string {
-  let roomId = fromRoomId;
-  for (const command of commands) {
-    if (command.op === "move" && command.roomId) roomId = command.roomId;
-  }
-  return roomId;
-}
-
 function independentBotRemainder(opts: {
   body: string;
   here: string;
@@ -1240,7 +1244,6 @@ async function generateBotActions(
       botRecalled: botHorizon.botCount,
     });
     const sheets = loadSheetSnapshots(db, opts.campaign.id);
-    const mapped = loadExplorationState(db, opts.campaign.id);
     const self = sheets.find((sheet) => sheet.participantId === bot.id);
     const user = buildTrpgBotActionUserBlock({
       characterName: bot.display_name,
@@ -1261,16 +1264,11 @@ async function generateBotActions(
           conditions: s.conditions,
         })),
       }),
-      explorationBrief:
-        mapped && self
-          ? formatExplorationBotBrief({
-              roomId: self.location,
-              neighbors: visibleExplorationNeighbors(mapped, self.location),
-              ap: displayExplorationAp(mapped, bot.id, roundNumber),
-              alarm: mapped.alarmFlagged,
-              party: sheets.map((sheet) => ({ name: sheet.name, location: sheet.location })),
-            })
-          : "",
+      explorationBrief: explorationBriefForBot(db, {
+        campaignId: opts.campaign.id,
+        participantId: bot.id,
+        roundNumber,
+      }),
       longTermMemories: botHorizon.botMemories,
       compactContinuity: continuity.compact,
       humanActions: humans.map((h) => ({ playerName: h.name, text: h.body })),
@@ -1315,8 +1313,8 @@ async function generateBotActions(
           : [];
         const remainder = independentBotRemainder({
           body,
-          here: roomAfterExplorationCommands(fromRoomId, priced),
-          rooms: latestMap?.map.rooms.map((room) => room.id) ?? [],
+          here: latestMap ? roomNameAfterCommands(latestMap.map, fromRoomId, priced) : fromRoomId,
+          rooms: latestMap ? explorationRoomNames(latestMap.map) : [],
           party: sheets.map((sheet) => ({ name: sheet.name, location: sheet.location })),
         });
         const usableRemainder =
@@ -1816,10 +1814,40 @@ function dropUnpricedExplorationMoves(
   parsed.delta.location = current;
 }
 
+function normalizedActionText(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+/** The submitted body is only the exploration sentences when the player sent no other action. */
+function submittedActionIsSeparate(
+  body: string,
+  state: ExplorationState,
+  fromRoomId: string,
+  commands: readonly ExplorationCommand[]
+): boolean {
+  const sentences = normalizedActionText(composeExplorationSentences(state.map, fromRoomId, commands));
+  const normalized = normalizedActionText(body);
+  if (!sentences) return normalized.length > 0;
+  return normalized !== sentences;
+}
+
+/** Item identities of v2 events the server has already granted. v1 has no event-reward policy. */
+function grantedEventRewardNames(state: ExplorationState): Set<string> {
+  if (state.version !== 2) return new Set();
+  const granted = new Set(state.grantedEventIds);
+  const names = new Set<string>();
+  for (const event of state.map.events) {
+    const item = event.item?.trim();
+    if (item && granted.has(event.id)) names.add(item);
+  }
+  return names;
+}
+
 function applyExplorationToParsed(
   parsed: ParsedTrpgGmOutput,
   adjustment: ExplorationCommitAdjustment,
-  sheetIds: readonly number[]
+  sheetIds: readonly number[],
+  bodies: ReadonlyMap<number, string>
 ): void {
   if (adjustment.openingLocation) {
     parsed.location = adjustment.openingLocation;
@@ -1828,10 +1856,38 @@ function applyExplorationToParsed(
       ensureDeltaPlayer(parsed.delta, participantId).location = adjustment.openingLocation;
     }
   }
+  const eventRewards = adjustment.state.version === 2;
+  const grantedNames = grantedEventRewardNames(adjustment.state);
   const flags = new Set(parsed.delta.flagsAdd ?? []);
   for (const result of adjustment.results) {
     const patch = ensureDeltaPlayer(parsed.delta, result.participantId);
     if (result.location) patch.location = result.location;
+    if (eventRewards && result.commands.length > 0) {
+      const grantNow = new Set(result.items.map((item) => item.trim()).filter(Boolean));
+      const separate = submittedActionIsSeparate(
+        bodies.get(result.participantId) ?? "",
+        adjustment.state,
+        result.fromRoomId,
+        result.commands
+      );
+      // No separate submitted action: this resolution owns the grants, so only the server items remain.
+      // A separate action keeps its own grants, except the event reward itself.
+      if (result.eventResolved && !separate) {
+        patch.inventoryAdd = [];
+      } else if (patch.inventoryAdd?.length) {
+        const kept = patch.inventoryAdd.filter((name) => {
+          const trimmed = name.trim();
+          return !grantNow.has(trimmed) && !grantedNames.has(trimmed);
+        });
+        if (kept.length) patch.inventoryAdd = kept;
+        else delete patch.inventoryAdd;
+      }
+      if (patch.inventoryRemove?.length && grantNow.size > 0) {
+        const kept = patch.inventoryRemove.filter((name) => !grantNow.has(name.trim()));
+        if (kept.length) patch.inventoryRemove = kept;
+        else delete patch.inventoryRemove;
+      }
+    }
     if (result.items.length) {
       const have = new Set(patch.inventoryAdd ?? []);
       for (const item of result.items) {
@@ -1909,13 +1965,17 @@ function commitPendingGmResult(
     applyExplorationToParsed(
       parsed,
       explorationCommit,
-      sheets.map((sheet) => sheet.participantId)
+      sheets.map((sheet) => sheet.participantId),
+      new Map(lockedSubs.map((sub) => [sub.participantId, sub.body]))
     );
   }
-  if (!opts.regenerate && loadExplorationState(db, campaign.id)) {
+  const explorationState = opts.regenerate ? null : loadExplorationState(db, campaign.id);
+  if (explorationState) {
     if (!opts.opening) {
       dropUnpricedExplorationMoves(parsed, explorationCommit?.results ?? [], currentLedger.location);
     }
+  }
+  if (explorationState && explorationOwnsWorldFlags(explorationState)) {
     const ownedFlags = [
       ...currentLedger.worldFlags,
       ...(explorationCommit?.results.flatMap((result) => result.flags) ?? []),

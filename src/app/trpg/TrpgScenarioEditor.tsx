@@ -10,6 +10,7 @@ import { defaultAssetFlags, withAssetSize, type CharacterAsset } from "@/lib/cha
 import type { CharacterGenre } from "@/lib/characterGenres";
 import { measureImageUrl } from "@/lib/measureImageSize";
 import type { TrpgCatalog } from "@/lib/trpg/catalog";
+import { adventureStartPlace, type AdventureEventKind } from "@/lib/trpg/adventure";
 import { formatInventoryAuthoringText, parseInventoryAuthoringText } from "@/lib/trpg/inventory";
 import {
   TRPG_SCENARIO_MAX_ASSETS,
@@ -94,6 +95,12 @@ const PLAY_LENGTH_LABEL: Record<TrpgScenarioPlayLength, string> = {
   open_ended: "열린 결말",
 };
 
+const ADVENTURE_EVENT_LABEL: Record<AdventureEventKind, string> = {
+  clue: "단서",
+  item: "획득",
+  hazard: "위험",
+};
+
 const DIFFICULTY_LABEL: Record<TrpgScenarioDifficulty, string> = {
   easy: "쉬움",
   normal: "보통",
@@ -128,6 +135,7 @@ export default function TrpgScenarioEditor({
   );
   const [assets, setAssets] = useState<CharacterAsset[]>(initial.assets ?? []);
   const [plan, setPlan] = useState<TrpgScenarioPlan>(initial.scenarioPlan ?? emptyTrpgScenarioPlan());
+  const adventureStart = plan.adventure ? adventureStartPlace(plan.adventure)?.name : undefined;
   const [lockedFields, setLockedFields] = useState<TrpgScenarioDraftField[]>([]);
   const [touchedFields, setTouchedFields] = useState<TrpgScenarioDraftField[]>(() =>
     initial.scenarioPlan ? ["difficulty", "playLength"] : []
@@ -942,12 +950,16 @@ export default function TrpgScenarioEditor({
           <label className="block text-sm text-zinc-300">
             시작 장소
             <input
-              value={startLocation}
+              value={adventureStart ?? startLocation}
+              readOnly={Boolean(adventureStart)}
               onChange={(e) => {
                 setStartLocation(e.target.value);
               }}
-              className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
+              className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100 read-only:text-zinc-400"
             />
+            {adventureStart ? (
+              <span className="mt-1 block text-xs text-zinc-500">장소와 사건의 시작 장소로 정해집니다.</span>
+            ) : null}
           </label>
           <label data-scenario-field="inventory" className="mt-3 block text-sm text-zinc-300">
             시작 소지품 (쉼표로 구분, 여러 개는 ×N)
@@ -979,6 +991,72 @@ export default function TrpgScenarioEditor({
             />
           </label>
         </AppSectionCard>
+
+        {plan.adventure || showAiFieldChrome ? (
+          <div data-scenario-field="adventure">
+            <AppSectionCard title="장소와 사건" titleVariant="prominent">
+              <p className="mb-3 text-sm leading-relaxed text-zinc-400">
+                AI가 이야기에 맞춰 만든 장소, 길, 조사 사건입니다. 이동과 조사 결과는 서버가 이 구성대로 확정합니다.
+                <LockButton field="adventure" />
+                <RegenButton field="adventure" label="장소와 사건" />
+              </p>
+              {plan.adventure ? (
+                <div className="space-y-3 text-sm text-zinc-200">
+                  <ul className="flex flex-wrap gap-1.5">
+                    {plan.adventure.places.map((place) => (
+                      <li
+                        key={place.key}
+                        title={place.summary}
+                        className={`rounded-full px-3 py-1 text-xs ${
+                          place.key === plan.adventure?.start ? "bg-violet-600 text-white" : "border border-white/10 text-zinc-300"
+                        }`}
+                      >
+                        {place.name}
+                        {place.role === "goal" ? " · 목표" : ""}
+                      </li>
+                    ))}
+                  </ul>
+                  <ul className="space-y-1 text-xs text-zinc-400">
+                    {plan.adventure.links.map((link) => {
+                      const name = (key: string) => plan.adventure?.places.find((place) => place.key === key)?.name ?? key;
+                      return (
+                        <li key={`${link.from}-${link.to}`}>
+                          {name(link.from)} ↔ {name(link.to)}
+                          {link.hidden ? " · 숨은 길" : link.opensBy ? " · 잠긴 길" : ""}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <ul className="space-y-1 text-xs text-zinc-300">
+                    {plan.adventure.events.map((event) => (
+                      <li key={event.key} className="rounded-lg bg-white/5 px-2 py-1.5">
+                        <span className="font-semibold text-amber-200">{ADVENTURE_EVENT_LABEL[event.kind]}</span>{" "}
+                        <span className="text-zinc-500">
+                          {plan.adventure?.places.find((place) => place.key === event.place)?.name ?? event.place}
+                        </span>{" "}
+                        {event.text}
+                        {event.item ? ` (${event.item})` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    type="button"
+                    data-scenario-adventure-clear
+                    onClick={() => {
+                      const { adventure: _drop, ...rest } = plan;
+                      setPlan(rest);
+                    }}
+                    className="text-xs text-zinc-500 underline"
+                  >
+                    장소 구성 없이 진행하기
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-zinc-500">아직 장소 구성이 없습니다. 지도 없이도 플레이할 수 있습니다.</p>
+              )}
+            </AppSectionCard>
+          </div>
+        ) : null}
 
         <div data-scenario-field="npcs">
         <AppSectionCard title="보스 / 조연 NPC" titleVariant="prominent">
