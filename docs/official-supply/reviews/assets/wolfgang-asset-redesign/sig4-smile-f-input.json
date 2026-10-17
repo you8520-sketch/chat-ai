@@ -1,7 +1,8 @@
 {
-  "status": "READY",
-  "providerPosts": 0,
-  "sent": false,
+  "status": "SENT",
+  "providerPosts": 1,
+  "sent": true,
+  "result": "sig4-smile-f-actual.json",
   "method": "Reuse composeOfficialSlotGeneration for shot, lock, age, pose, and expression. Replace STYLE ONLY and style DNA with one F identity+style reference plus renderChatImageStyleFidelityContract.",
   "fSource": {
     "file": "rep-f-raw.webp",

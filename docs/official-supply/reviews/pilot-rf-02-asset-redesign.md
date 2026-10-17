@@ -558,20 +558,44 @@ F를 다음 제작의 인물·그림체 기준으로 채택한다. 운영 대표
 
 공식 합성 `composeOfficialSlotGeneration`의 샷·Lock·나이 가드·표정·포즈는 그대로다. 공식 primary SHA `4b906355…0ae02`는 이전 기록과 같다. 운영 compiler는 바꾸지 않았다. 이번 요청에서만 참조 지시를 한 장 F에 맞춘다. F가 identity와 style을 함께 담당한다. `renderChatImageStyleFidelityContract({ hasTemplate: false, subjectCount: 1 })`를 쓴다. STYLE ONLY와 스타일 DNA는 넣지 않는다. b7·b13·b5와 운영 대표는 보내지 않는다.
 
-전송문 SHA `95e795a7…44223cf`. 전처리 SHA `39d425e5…2ae1c7`, 231636바이트. 원본 F SHA `a95f9aca…0f8032`. 모델 `gpt-image-2.5-sunburst`. 1536x1024 / medium / n=1 / webp 88 / opaque. 한도는 POST 1회, 0.08 USD. 이 절은 호출 전이다.
+전송문 SHA `95e795a7…44223cf`. 전처리 SHA `39d425e5…2ae1c7`, 231636바이트. 원본 F SHA `a95f9aca…0f8032`. 모델 `gpt-image-2.5-sunburst`. 1536x1024 / medium / n=1 / webp 88 / opaque. 한도는 POST 1회, 0.08 USD.
 
-![원본 3번 전체](./assets/wolfgang-asset-redesign/reattach-2026-10-17/03-eval_style.webp)
+### 16.1 결과
 
-![E 전체](./assets/wolfgang-asset-redesign/rep-e.webp)
+POST 1회. 원본 바이트를 검사보다 먼저 저장했고 SHA가 같다. 비용 0.030393 USD. 상한 0.08 USD 안이다. fallback, 재시도, vision은 없다. 같은 조건 재추첨과 나머지 13장 생성은 하지 않는다. 운영 대표·앵커로 승인하지 않는다. 이 한 장으로 전체 자동화 품질을 합격 처리하지 않는다. 태그 `옅은 미소`는 후보 제안이다.
+
+| 항목 | 값 |
+|---|---|
+| 모델 | `gpt-image-2.5-sunburst` |
+| request | `req_9f16055bae0840c4b0d2c49677a931c5` |
+| 출력 SHA | `fc14ebff…a24dc1` |
+| 크기 | 1536x1024 |
+
+비교 창은 캔버스가 달라 좌표가 다르다. 전부 1:1 추출이고 리사이즈는 없다. 전체만 각 원본의 0.5 배다.
+
+| 부위 | F | 후보 |
+|---|---|---|
+| 얼굴 | `280,160,460x460` | `500,70,360x360` |
+| 머리 | `300,0,420x360` | `540,0,240x180` |
+| 모피 | `10,520,180x180` | `720,200,200x180` |
+| 갑옷 | `340,700,340x260` | `520,400,320x240` |
+
+같은 인물·그림체: 검은 울프컷, 회청 눈, 흑철 판금, 검은 모피, 얼굴의 큰 비율은 F와 같은 방향이다. 선과 피부 면의 관계도 F에 가깝다. 머리의 넓은 윤광 띠는 이 3/4 구도에서 F의 정면 창보다 약하다. 후보 머리 비교 창은 3/4 옆정수리라 F의 정수리 창과 같지 않다. 갑옷은 F처럼 은색 테와 장식이 있고, 늑대 걸쇠와 체인이 이어진다. 후보 흉갑의 판 겹침은 F의 가로 띠보다 많다.
+
+옅은 미소와 휴식: 입꼬리가 올라가고 이는 보이지 않는다. 창가 돌 난간에 앉아 상체를 돌리고 양손은 허벅지 위다. 음식·서류·열쇠 전달과 상대 인물은 없다. 배경은 창과 요새다. 집무실 책상은 없다. 카메라는 아래에서 올려 보는 쪽에 가깝고 무릎 이상이다. 얼굴은 인물 왼쪽이 더 보인다. 승인 샷은 오른쪽 3/4다. 이 항목은 그림체와 분리한다.
+
+승인 외형: 회청 눈, 검은 머리, 흑철과 검은 모피는 남는다. 턱 아래 흉터는 이 3/4에서 분명하지 않다. 인물 왼쪽 뺨에 짧은 선이 있다. 구도를 바꿔 보이게 하지 않는다. 늑대 걸쇠·체인·벽 문양은 추가 장식이다. 명시적 금지 근거 없이 Lock 위반으로 단정하지 않는다.
 
 ![F 전체](./assets/wolfgang-asset-redesign/rep-f.webp)
 
-![원본 E F 0.5배](./assets/wolfgang-asset-redesign/compare-f-full.webp)
+![옅은 미소 후보](./assets/wolfgang-asset-redesign/sig4-smile-f.webp)
 
-![얼굴 1:1](./assets/wolfgang-asset-redesign/compare-f-face.webp)
+![F와 후보 0.5배](./assets/wolfgang-asset-redesign/compare-smile-f-full.webp)
 
-![머리 1:1](./assets/wolfgang-asset-redesign/compare-f-hair.webp)
+![얼굴 1:1](./assets/wolfgang-asset-redesign/compare-smile-f-face.webp)
 
-![모피 1:1](./assets/wolfgang-asset-redesign/compare-f-fur.webp)
+![머리 1:1](./assets/wolfgang-asset-redesign/compare-smile-f-hair.webp)
 
-![갑옷 1:1](./assets/wolfgang-asset-redesign/compare-f-armor.webp)
+![모피 1:1](./assets/wolfgang-asset-redesign/compare-smile-f-fur.webp)
+
+![갑옷 1:1](./assets/wolfgang-asset-redesign/compare-smile-f-armor.webp)

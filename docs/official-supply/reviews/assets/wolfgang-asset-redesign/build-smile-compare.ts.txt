@@ -1,0 +1,106 @@
+import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
+import fs from "node:fs";
+import path from "node:path";
+
+const sharp = createRequire("/workspace/package.json")("sharp") as typeof import("sharp");
+const DOC = "/workspace/docs/official-supply/reviews/assets/wolfgang-asset-redesign";
+const ART = "/opt/cursor/artifacts";
+const F = path.join(DOC, "rep-f-raw.webp");
+const C = path.join(DOC, "sig4-smile-f-raw.webp");
+
+const windows = {
+  face: {
+    F: { left: 280, top: 160, width: 460, height: 460 },
+    C: { left: 500, top: 70, width: 360, height: 360 },
+  },
+  hair: {
+    F: { left: 300, top: 0, width: 420, height: 360 },
+    C: { left: 540, top: 0, width: 240, height: 180 },
+  },
+  fur: {
+    F: { left: 10, top: 520, width: 180, height: 180 },
+    C: { left: 720, top: 200, width: 200, height: 180 },
+  },
+  armor: {
+    F: { left: 340, top: 700, width: 340, height: 260 },
+    C: { left: 520, top: 400, width: 320, height: 240 },
+  },
+} as const;
+
+function sha256(buf: Buffer): string {
+  return createHash("sha256").update(buf).digest("hex");
+}
+
+async function labeled(buf: Buffer, label: string, width: number, height: number) {
+  const bar = await sharp({ create: { width, height: 32, channels: 3, background: "#111111" } })
+    .composite([
+      {
+        input: Buffer.from(
+          `<svg width="${width}" height="32"><text x="8" y="22" font-size="16" fill="#ffffff" font-family="sans-serif">${label}</text></svg>`
+        ),
+        top: 0,
+        left: 0,
+      },
+    ])
+    .png()
+    .toBuffer();
+  return sharp({ create: { width, height: height + 32, channels: 3, background: "#000" } })
+    .composite([
+      { input: bar, top: 0, left: 0 },
+      { input: buf, top: 32, left: 0 },
+    ])
+    .png()
+    .toBuffer();
+}
+
+async function pair(
+  items: Array<{ label: string; buf: Buffer; width: number; height: number }>
+) {
+  const cells = await Promise.all(items.map((item) => labeled(item.buf, item.label, item.width, item.height)));
+  const width = items.reduce((sum, item) => sum + item.width, 0);
+  const height = Math.max(...items.map((item) => item.height)) + 32;
+  let left = 0;
+  const placed = items.map((item, index) => {
+    const out = { input: cells[index], top: 0, left };
+    left += item.width;
+    return out;
+  });
+  return sharp({ create: { width, height, channels: 3, background: "#000" } })
+    .composite(placed)
+    .webp({ quality: 90 })
+    .toBuffer();
+}
+
+async function main() {
+  const outputs: Record<string, unknown> = {};
+  const fFull = await sharp(F).resize(512, 768, { fit: "fill" }).webp({ quality: 90 }).toBuffer();
+  const cFull = await sharp(C).resize(768, 512, { fit: "fill" }).webp({ quality: 90 }).toBuffer();
+  const full = await pair([
+    { label: "F 0.5x 1024x1536", buf: fFull, width: 512, height: 768 },
+    { label: "smile 0.5x 1536x1024", buf: cFull, width: 768, height: 512 },
+  ]);
+  fs.writeFileSync(path.join(DOC, "compare-smile-f-full.webp"), full);
+  fs.writeFileSync(path.join(ART, "compare-smile-f-full.webp"), full);
+  outputs["compare-smile-f-full.webp"] = { sha256: sha256(full), bytes: full.length, scale: "0.5 of each native canvas" };
+
+  for (const [name, box] of Object.entries(windows)) {
+    const fBuf = await sharp(F).extract(box.F).webp({ quality: 92 }).toBuffer();
+    const cBuf = await sharp(C).extract(box.C).webp({ quality: 92 }).toBuffer();
+    const image = await pair([
+      { label: `F 1:1 ${box.F.width}x${box.F.height}`, buf: fBuf, width: box.F.width, height: box.F.height },
+      { label: `smile 1:1 ${box.C.width}x${box.C.height}`, buf: cBuf, width: box.C.width, height: box.C.height },
+    ]);
+    const file = `compare-smile-f-${name}.webp`;
+    fs.writeFileSync(path.join(DOC, file), image);
+    fs.writeFileSync(path.join(ART, file), image);
+    outputs[file] = { sha256: sha256(image), bytes: image.length, window: box, scale: "1:1 extract, no resize" };
+  }
+  const record = { windows, note: "Windows are part-aligned. F and the smile candidate use different canvases, so coordinates differ.", outputs };
+  const text = `${JSON.stringify(record, null, 2)}\n`;
+  fs.writeFileSync(path.join(DOC, "compare-smile-f-windows.json"), text);
+  fs.writeFileSync(path.join(ART, "compare-smile-f-windows.json"), text);
+  console.log(Object.keys(outputs).join("\n"));
+}
+
+main();
