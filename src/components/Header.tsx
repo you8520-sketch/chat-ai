@@ -97,7 +97,7 @@ export default async function Header({ user }: { user: User | null }) {
             )}
           </div>
         </div>
-        <div className="mx-auto max-w-7xl px-3 sm:px-4">
+        <div className="site-header-nav-strip mx-auto max-w-7xl px-3 sm:px-4">
           <HeaderMainNavRow variant="strip" />
         </div>
       </header>

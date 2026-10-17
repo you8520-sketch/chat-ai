@@ -420,7 +420,44 @@ const SHORT_LANDSCAPE = [
   [667, 375, 190],
   [740, 360, 180],
   [844, 390, 200],
+  [932, 430, 215],
 ] as const;
+
+interface HeaderChrome {
+  height: number;
+  cssVar: number;
+  strip: string;
+  firstRow: boolean;
+}
+
+async function headerChrome(page: Page): Promise<HeaderChrome> {
+  return page.evaluate(() => {
+    const header = document.querySelector("header.site-header");
+    if (!(header instanceof HTMLElement)) return { height: 0, cssVar: 0, strip: "missing", firstRow: false };
+    const height = header.getBoundingClientRect().height;
+    const cssVar = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--site-header-height")) || 0;
+    const strip = document.querySelector(".site-header-nav-strip");
+    const row = header.children[0];
+    const wanted = [
+      row?.querySelector('a[aria-label$="홈"]'),
+      row?.querySelector('button[aria-label^="알림"]'),
+      row?.querySelector('button[aria-label="세이프티 필터"]'),
+      row?.querySelector('[aria-label^="보유 포인트"]'),
+      row?.querySelector('button[aria-label="프로필 메뉴"]'),
+    ];
+    const shown = (el: Element | null | undefined) => {
+      if (!(el instanceof HTMLElement)) return false;
+      const box = el.getBoundingClientRect();
+      return box.width > 0 && box.height > 0 && getComputedStyle(el).visibility !== "hidden";
+    };
+    return {
+      height,
+      cssVar,
+      strip: strip instanceof HTMLElement ? getComputedStyle(strip).display : "missing",
+      firstRow: wanted.every(shown),
+    };
+  });
+}
 
 test.describe("E4-9 editor on short landscape screens with the keyboard open", () => {
   for (const [width, height, keyboard] of SHORT_LANDSCAPE) {
@@ -523,12 +560,82 @@ test.describe("E4-9 editor on short landscape screens with the keyboard open", (
   });
 
   test("portrait phones keep the sticky tab bar and docked save bar while typing", async ({ page }) => {
-    await openEditorWithKeyboard(page, "/create", 390, 844, 330);
+    await openEditorWithKeyboard(page, "/create", 390, 844, 0);
+    const closedHeader = await headerChrome(page);
+    await setKeyboard(page, 330);
     const open = await freeEditingHeight(page);
+    const openHeader = await headerChrome(page);
     expect(open.tabs).toBe("sticky");
     expect(open.bar).toBe("fixed");
     const reach = await saveButtonReach(page);
     expect(reach.reachable).toBe(true);
+    expect(openHeader.strip).not.toBe("none");
+    expect(Math.abs(openHeader.height - closedHeader.height)).toBeLessThanOrEqual(1);
+    expect(Math.abs(openHeader.cssVar - openHeader.height)).toBeLessThanOrEqual(1);
+  });
+});
+
+test.describe("E4-10 the second header row folds only while a short editor has the keyboard open", () => {
+  for (const [width, height, keyboard] of SHORT_LANDSCAPE) {
+    test(`${width}x${height}: folding the menu row shortens the measured header and keeps the first row`, async ({ page }) => {
+      await openEditorWithKeyboard(page, "/create", width, height, 0);
+      const editable = page.locator("#studio-character-form input:visible").first();
+      await editable.fill("메뉴를 접어도 남는 값");
+      const fieldId = await editable.getAttribute("id");
+      await page.getByRole("tab", { name: "공개 소개" }).click();
+      const closed = await headerChrome(page);
+      expect(closed.strip).not.toBe("none");
+      expect(closed.firstRow).toBe(true);
+      expect(Math.abs(closed.cssVar - closed.height)).toBeLessThanOrEqual(1);
+
+      await setKeyboard(page, keyboard);
+      await expect.poll(async () => {
+        const open = await headerChrome(page);
+        return open.strip === "none"
+          && open.firstRow
+          && open.height <= closed.height - 40
+          && Math.abs(open.cssVar - open.height) <= 1;
+      }).toBe(true);
+      await expect(page.getByRole("tab", { name: "공개 소개" })).toHaveAttribute("aria-selected", "true");
+
+      await setKeyboard(page, 0);
+      await setKeyboard(page, keyboard);
+      await expect(page.getByRole("tab", { name: "공개 소개" })).toHaveAttribute("aria-selected", "true");
+      await setKeyboard(page, 0);
+      await page.getByRole("tab", { name: "제작" }).click();
+      await expect(page.locator(`[id="${fieldId}"]`)).toHaveValue("메뉴를 접어도 남는 값");
+
+      await setKeyboard(page, 0);
+      const restored = await headerChrome(page);
+      expect(restored.strip).not.toBe("none");
+      expect(restored.firstRow).toBe(true);
+      expect(Math.abs(restored.height - closed.height)).toBeLessThanOrEqual(1);
+      expect(Math.abs(restored.cssVar - restored.height)).toBeLessThanOrEqual(1);
+      const labels = await page.locator(".site-header-nav-strip a").allInnerTexts();
+      expect(labels.map((label) => label.trim())).toEqual(["홈", "신작", "랭킹", "TRPG", "검색", "북마크/팔로잉"]);
+    });
+  }
+
+  test("a tall desktop window keeps the inline menu while the keyboard is open", async ({ page }) => {
+    await openEditorWithKeyboard(page, "/create", 1280, 800, 300);
+    await expect(page.locator(".site-header").getByRole("link", { name: "검색" })).toBeVisible();
+    const open = await headerChrome(page);
+    expect(open.strip).not.toBe("none");
+    expect(Math.abs(open.cssVar - open.height)).toBeLessThanOrEqual(1);
+  });
+
+  test("a short desktop window folds only the strip and leaves the inline menu", async ({ page }) => {
+    await openEditorWithKeyboard(page, "/create", 1280, 430, 200);
+    await expect(page.locator(".site-header").getByRole("link", { name: "검색" })).toBeVisible();
+    const inlineVisible = await page.evaluate(() => {
+      const row = document.querySelector("header.site-header")?.children[0];
+      const nav = row?.querySelector('nav[aria-label="주요 메뉴"]');
+      if (!(nav instanceof HTMLElement)) return false;
+      const box = nav.getBoundingClientRect();
+      return box.width > 0 && box.height > 0;
+    });
+    expect(inlineVisible).toBe(true);
+    await expect(page.locator(".site-header-nav-strip")).toBeHidden();
   });
 });
 
@@ -537,8 +644,17 @@ async function expectSharedSaveBarRelease(page: Page) {
   await expect(bar).toBeVisible();
   const barPosition = () => bar.evaluate((el) => getComputedStyle(el).position);
   expect(await barPosition()).toBe("fixed");
+  const closedHeader = await headerChrome(page);
+  expect(closedHeader.strip).not.toBe("none");
+  expect(Math.abs(closedHeader.cssVar - closedHeader.height)).toBeLessThanOrEqual(1);
 
   await setKeyboard(page, 190);
+  await expect.poll(async () => {
+    const openHeader = await headerChrome(page);
+    return openHeader.strip === "none"
+      && openHeader.height <= closedHeader.height - 40
+      && Math.abs(openHeader.cssVar - openHeader.height) <= 1;
+  }).toBe(true);
   expect(await barPosition()).toBe("static");
   const open = await rootPadding(page);
   expect(open.editor).toBe(true);
@@ -550,6 +666,12 @@ async function expectSharedSaveBarRelease(page: Page) {
 
   await setKeyboard(page, 0);
   expect(await barPosition()).toBe("fixed");
+  await expect.poll(async () => {
+    const restored = await headerChrome(page);
+    return restored.strip !== "none"
+      && Math.abs(restored.height - closedHeader.height) <= 1
+      && Math.abs(restored.cssVar - restored.height) <= 1;
+  }).toBe(true);
   const closed = await rootPadding(page);
   expect(closed.bottom).toBeGreaterThan(40);
   expect(closed.saveBarVar).not.toBe("0px");
@@ -601,40 +723,59 @@ test.describe("E4-9 the correction lives only while an editor is mounted", () =>
     await expect(page.getByTestId("studio-save-bar")).toHaveCount(0);
 
     const closed = await rootPadding(page);
+    const closedHeader = await headerChrome(page);
     expect(closed.editor).toBe(false);
     expect(closed.saveBarVar).toBe("");
     expect(closed.inlineScrollPadding).toBe("");
+    expect(closedHeader.strip).not.toBe("none");
 
     await setKeyboard(page, 190);
     const open = await rootPadding(page);
+    const openHeader = await headerChrome(page);
     expect(open.editor).toBe(false);
     expect(open.keyboardOpen).toBe(true);
     expect(open.saveBarVar).toBe("");
     expect(open.inlineScrollPadding).toBe("");
     expect(open.top).toBe(closed.top);
     expect(open.bottom).toBe(closed.bottom);
+    expect(openHeader.strip).not.toBe("none");
+    expect(Math.abs(openHeader.height - closedHeader.height)).toBeLessThanOrEqual(1);
   });
 
-  test("editor to non-editor navigation with the keyboard open leaves no correction behind", async ({ page }) => {
+  test("editor to non-editor navigation leaves no correction behind", async ({ page }) => {
     await openEditorWithKeyboard(page, "/create", 667, 375, 190);
     const inEditor = await rootPadding(page);
     expect(inEditor.editor).toBe(true);
     expect(inEditor.saveBarVar).toBe("0px");
+    await expect(page.locator(".site-header-nav-strip")).toBeHidden();
+    await expect(page.locator(".site-header").getByRole("link", { name: "검색" })).toHaveCount(0);
 
-    await page.locator(".site-header").getByRole("link", { name: "검색" }).first().click();
+    const foldedFocus = await page.evaluate(() => {
+      const link = document.querySelector(".site-header-nav-strip a");
+      if (!(link instanceof HTMLElement)) return false;
+      link.focus();
+      return document.activeElement === link;
+    });
+    expect(foldedFocus).toBe(false);
+
+    await setKeyboard(page, 0);
+    await expect(page.locator(".site-header-nav-strip")).toBeVisible();
+    await page.locator(".site-header").getByRole("link", { name: "검색" }).click();
     await page.waitForURL("**/search");
     await expect(page.locator("html")).not.toHaveAttribute("data-studio-editor", "");
     await expect(page.getByTestId("studio-save-bar")).toHaveCount(0);
+    await expect(page.locator(".site-header-nav-strip")).toBeVisible();
 
+    const closed = await rootPadding(page);
+    await setKeyboard(page, 190);
     const afterNav = await rootPadding(page);
+    expect(afterNav.editor).toBe(false);
     expect(afterNav.keyboardOpen).toBe(true);
     expect(afterNav.inlineScrollPadding).toBe("");
     expect(afterNav.saveBarVar).toBe("");
-
-    await setKeyboard(page, 0);
-    const closed = await rootPadding(page);
     expect(afterNav.top).toBe(closed.top);
     expect(afterNav.bottom).toBe(closed.bottom);
+    await expect(page.locator(".site-header-nav-strip")).toBeVisible();
   });
 
   for (const path of ["/search", "/settings", "/persona"]) {
