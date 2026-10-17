@@ -1,0 +1,55 @@
+{
+ "card-detail-390": {
+  "rv": 70,
+  "cr": 0,
+  "tr": 0,
+  "menu": 0,
+  "minPath": null,
+  "path": "/character/9701298",
+  "leftover": 0,
+  "expectPrefix": "/character/"
+ },
+ "card-detail-1440": {
+  "rv": 83,
+  "cr": 0,
+  "tr": 0,
+  "menu": 0,
+  "minPath": null,
+  "path": "/character/9701298",
+  "leftover": 0,
+  "expectPrefix": "/character/"
+ },
+ "chat-resume-390": {
+  "err": "no element a[data-chat-resume]"
+ },
+ "chat-resume-1440": {
+  "rv": 0,
+  "cr": 53,
+  "tr": 0,
+  "menu": 0,
+  "minPath": null,
+  "path": "/chat/777?chat=1345",
+  "leftover": 0,
+  "expectPrefix": "/chat/"
+ },
+ "trpg-resume-390": {
+  "rv": 0,
+  "cr": 0,
+  "tr": 44,
+  "menu": 0,
+  "minPath": null,
+  "path": "/trpg/1",
+  "leftover": 0,
+  "expectPrefix": "/trpg/"
+ },
+ "trpg-resume-1440": {
+  "rv": 0,
+  "cr": 0,
+  "tr": 50,
+  "menu": 0,
+  "minPath": null,
+  "path": "/trpg/1",
+  "leftover": 0,
+  "expectPrefix": "/trpg/"
+ }
+}

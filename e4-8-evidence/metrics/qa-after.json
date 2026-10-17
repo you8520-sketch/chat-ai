@@ -1,0 +1,639 @@
+{
+ "journeys": {
+  "public-390": {
+   "log": [
+    {
+     "step": "신작",
+     "path": "/tab/new",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "랭킹",
+     "path": "/tab/ranking",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "검색",
+     "path": "/search",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "홈",
+     "path": "/",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    }
+   ],
+   "back": [
+    "/search",
+    "/tab/ranking"
+   ],
+   "fwd": "/search",
+   "afterReload": "/search",
+   "reloadOverflow": false,
+   "veilEver": 0
+  },
+  "public-viewer-390": {
+   "log": [
+    {
+     "step": "신작",
+     "path": "/tab/new",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "랭킹",
+     "path": "/tab/ranking",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "검색",
+     "path": "/search",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "작품 상세",
+     "path": "/character/9701298",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "크리에이터 프로필",
+     "path": "/creator/97014",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "홈",
+     "path": "/",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    }
+   ],
+   "back": [
+    "/creator/97014",
+    "/character/9701298"
+   ],
+   "fwd": "/creator/97014",
+   "afterReload": "/creator/97014",
+   "reloadOverflow": false,
+   "veilEver": 0
+  },
+  "loggedin-390": {
+   "log": [
+    {
+     "step": "대화",
+     "path": "/chats",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "설정",
+     "path": "/settings",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "페르소나",
+     "path": "/persona",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "제작",
+     "path": "/studio",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    }
+   ],
+   "back": [
+    "/persona",
+    "/settings"
+   ],
+   "fwd": "/persona",
+   "afterReload": "/persona",
+   "reloadOverflow": false,
+   "veilEver": 0
+  },
+  "creator-390": {
+   "log": [
+    {
+     "step": "제작",
+     "path": "/studio",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "캐릭터 제작",
+     "path": "/create",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "스튜디오",
+     "path": "/studio",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "대시보드",
+     "path": "/creator",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "내 공개 프로필",
+     "path": "/creator/5",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    }
+   ],
+   "back": [
+    "/creator",
+    "/studio"
+   ],
+   "fwd": "/creator",
+   "afterReload": "/creator",
+   "reloadOverflow": false,
+   "veilEver": 0
+  },
+  "points-390": {
+   "log": [
+    {
+     "step": "포인트",
+     "path": "/points",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "홈으로",
+     "path": "/",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    }
+   ],
+   "back": [
+    "/points",
+    "/"
+   ],
+   "fwd": "/points",
+   "afterReload": "/points",
+   "reloadOverflow": false,
+   "veilEver": 0
+  },
+  "public-1440": {
+   "log": [
+    {
+     "step": "신작",
+     "path": "/tab/new",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "랭킹",
+     "path": "/tab/ranking",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "검색",
+     "path": "/search",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "홈",
+     "path": "/",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    }
+   ],
+   "back": [
+    "/search",
+    "/tab/ranking"
+   ],
+   "fwd": "/search",
+   "afterReload": "/search",
+   "reloadOverflow": false,
+   "veilEver": 0
+  },
+  "public-viewer-1440": {
+   "log": [
+    {
+     "step": "신작",
+     "path": "/tab/new",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "랭킹",
+     "path": "/tab/ranking",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "검색",
+     "path": "/search",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "작품 상세",
+     "path": "/character/9701298",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "크리에이터 프로필",
+     "path": "/creator/97014",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "홈",
+     "path": "/",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    }
+   ],
+   "back": [
+    "/creator/97014",
+    "/character/9701298"
+   ],
+   "fwd": "/creator/97014",
+   "afterReload": "/creator/97014",
+   "reloadOverflow": false,
+   "veilEver": 0
+  },
+  "loggedin-1440": {
+   "log": [
+    {
+     "step": "대화",
+     "path": "/chats",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "설정",
+     "path": "/settings",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "페르소나",
+     "path": "/persona",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "제작",
+     "path": "/studio",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    }
+   ],
+   "back": [
+    "/persona",
+    "/settings"
+   ],
+   "fwd": "/persona",
+   "afterReload": "/persona",
+   "reloadOverflow": false,
+   "veilEver": 0
+  },
+  "creator-1440": {
+   "log": [
+    {
+     "step": "제작",
+     "path": "/studio",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "캐릭터 제작",
+     "path": "/create",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "스튜디오",
+     "path": "/studio",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "대시보드",
+     "path": "/creator",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "내 공개 프로필",
+     "path": "/creator/5",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    }
+   ],
+   "back": [
+    "/creator",
+    "/studio"
+   ],
+   "fwd": "/creator",
+   "afterReload": "/creator",
+   "reloadOverflow": false,
+   "veilEver": 0
+  },
+  "points-1440": {
+   "log": [
+    {
+     "step": "포인트",
+     "path": "/points",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    },
+    {
+     "step": "홈으로",
+     "path": "/",
+     "ok": true,
+     "overflow": false,
+     "err": null
+    }
+   ],
+   "back": [
+    "/points",
+    "/"
+   ],
+   "fwd": "/points",
+   "afterReload": "/points",
+   "reloadOverflow": false,
+   "veilEver": 0
+  }
+ },
+ "sweep": [
+  {
+   "vp": "320x568",
+   "overflow": [],
+   "noBottomNav": [
+    "/",
+    "/tab/new",
+    "/tab/ranking",
+    "/search"
+   ]
+  },
+  {
+   "vp": "360x740",
+   "overflow": [],
+   "noBottomNav": [
+    "/",
+    "/tab/new",
+    "/tab/ranking",
+    "/search"
+   ]
+  },
+  {
+   "vp": "375x667",
+   "overflow": [],
+   "noBottomNav": [
+    "/",
+    "/tab/new",
+    "/tab/ranking",
+    "/search"
+   ]
+  },
+  {
+   "vp": "390x844",
+   "overflow": [],
+   "noBottomNav": [
+    "/",
+    "/tab/new",
+    "/tab/ranking",
+    "/search"
+   ]
+  },
+  {
+   "vp": "576x900",
+   "overflow": [],
+   "noBottomNav": [
+    "/",
+    "/tab/new",
+    "/tab/ranking",
+    "/search",
+    "/trpg",
+    "/tab/following",
+    "/chats",
+    "/persona",
+    "/settings",
+    "/studio",
+    "/creator",
+    "/points"
+   ]
+  },
+  {
+   "vp": "768x1024",
+   "overflow": [],
+   "noBottomNav": [
+    "/",
+    "/tab/new",
+    "/tab/ranking",
+    "/search",
+    "/trpg",
+    "/tab/following",
+    "/chats",
+    "/persona",
+    "/settings",
+    "/studio",
+    "/creator",
+    "/points"
+   ]
+  },
+  {
+   "vp": "1024x800",
+   "overflow": [],
+   "noBottomNav": []
+  },
+  {
+   "vp": "1440x900",
+   "overflow": [],
+   "noBottomNav": []
+  },
+  {
+   "vp": "667x375",
+   "overflow": [],
+   "noBottomNav": []
+  }
+ ],
+ "focus": [
+  {
+   "vp": "320x568",
+   "path": "/",
+   "checked": 40,
+   "hidden": 0,
+   "samples": []
+  },
+  {
+   "vp": "320x568",
+   "path": "/search",
+   "checked": 40,
+   "hidden": 0,
+   "samples": []
+  },
+  {
+   "vp": "320x568",
+   "path": "/settings",
+   "checked": 39,
+   "hidden": 0,
+   "samples": []
+  },
+  {
+   "vp": "320x568",
+   "path": "/persona",
+   "checked": 39,
+   "hidden": 0,
+   "samples": []
+  },
+  {
+   "vp": "320x568",
+   "path": "/studio",
+   "checked": 40,
+   "hidden": 0,
+   "samples": []
+  },
+  {
+   "vp": "320x568",
+   "path": "/create",
+   "checked": 40,
+   "hidden": 0,
+   "samples": []
+  },
+  {
+   "vp": "375x667",
+   "path": "/",
+   "checked": 40,
+   "hidden": 0,
+   "samples": []
+  },
+  {
+   "vp": "375x667",
+   "path": "/search",
+   "checked": 40,
+   "hidden": 0,
+   "samples": []
+  },
+  {
+   "vp": "375x667",
+   "path": "/settings",
+   "checked": 39,
+   "hidden": 0,
+   "samples": []
+  },
+  {
+   "vp": "375x667",
+   "path": "/persona",
+   "checked": 39,
+   "hidden": 0,
+   "samples": []
+  },
+  {
+   "vp": "375x667",
+   "path": "/studio",
+   "checked": 40,
+   "hidden": 0,
+   "samples": []
+  },
+  {
+   "vp": "375x667",
+   "path": "/create",
+   "checked": 40,
+   "hidden": 0,
+   "samples": []
+  },
+  {
+   "vp": "390x844",
+   "path": "/",
+   "checked": 40,
+   "hidden": 0,
+   "samples": []
+  },
+  {
+   "vp": "390x844",
+   "path": "/search",
+   "checked": 40,
+   "hidden": 0,
+   "samples": []
+  },
+  {
+   "vp": "390x844",
+   "path": "/settings",
+   "checked": 39,
+   "hidden": 0,
+   "samples": []
+  },
+  {
+   "vp": "390x844",
+   "path": "/persona",
+   "checked": 39,
+   "hidden": 0,
+   "samples": []
+  },
+  {
+   "vp": "390x844",
+   "path": "/studio",
+   "checked": 40,
+   "hidden": 0,
+   "samples": []
+  },
+  {
+   "vp": "390x844",
+   "path": "/create",
+   "checked": 40,
+   "hidden": 0,
+   "samples": []
+  }
+ ]
+}

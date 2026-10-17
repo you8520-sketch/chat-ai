@@ -1,0 +1,202 @@
+{
+ "loggedOut": [
+  {
+   "name": "신작",
+   "dest": "/tab/new",
+   "path": "/tab/new",
+   "veil": 50,
+   "anyCover": 50,
+   "ok": true
+  },
+  {
+   "name": "랭킹",
+   "dest": "/tab/ranking",
+   "path": "/tab/ranking",
+   "veil": 55,
+   "anyCover": 55,
+   "ok": true
+  },
+  {
+   "name": "검색",
+   "dest": "/search",
+   "path": "/search",
+   "veil": 56,
+   "anyCover": 56,
+   "ok": true
+  },
+  {
+   "name": "TRPG",
+   "dest": "/trpg",
+   "path": "/login?redirect=/trpg",
+   "veil": 56,
+   "anyCover": 56,
+   "ok": false
+  },
+  {
+   "name": "홈",
+   "dest": "/",
+   "path": "/",
+   "veil": 55,
+   "anyCover": 55,
+   "ok": true
+  },
+  {
+   "name": "login",
+   "veil": 0,
+   "anyCover": 0,
+   "rv": 0,
+   "cr": 0,
+   "tr": 0,
+   "path": "/login"
+  }
+ ],
+ "reclick": {
+  "veil": 0,
+  "anyCover": 0,
+  "rv": 0,
+  "cr": 0,
+  "tr": 0,
+  "path": "/search",
+  "expected": "/search"
+ },
+ "rapid": {
+  "veil": 79,
+  "anyCover": 79,
+  "rv": 0,
+  "cr": 0,
+  "tr": 0,
+  "path": "/search",
+  "expected": "/search",
+  "active": [
+   "검색",
+   "검색"
+  ]
+ },
+ "history": {
+  "back1": "/tab/ranking",
+  "back2": "/tab/new",
+  "fwd1": "/tab/ranking",
+  "veil": 0,
+  "anyCover": 0,
+  "rv": 0,
+  "cr": 0,
+  "tr": 0,
+  "path": "/tab/ranking"
+ },
+ "enter": {
+  "veil": 0,
+  "anyCover": 0,
+  "rv": 0,
+  "cr": 0,
+  "tr": 0,
+  "path": "/tab/ranking",
+  "expected": "/tab/ranking"
+ },
+ "ctrlClick": {
+  "newTab": true,
+  "newTabUrl": "http://localhost:3641/tab/new",
+  "origin": {
+   "veil": 0,
+   "anyCover": 0,
+   "rv": 0,
+   "cr": 0,
+   "tr": 0,
+   "path": "/tab/ranking"
+  },
+  "expectedOrigin": "/tab/ranking"
+ },
+ "slowRsc": {
+  "during": [
+   {
+    "at": 300,
+    "veil": 15,
+    "anyCover": 15,
+    "rv": 0,
+    "cr": 0,
+    "tr": 0,
+    "path": "/tab/new"
+   },
+   {
+    "at": 1000,
+    "veil": 57,
+    "anyCover": 57,
+    "rv": 0,
+    "cr": 0,
+    "tr": 0,
+    "path": "/tab/new"
+   },
+   {
+    "at": 2000,
+    "veil": 86,
+    "anyCover": 86,
+    "rv": 0,
+    "cr": 0,
+    "tr": 0,
+    "path": "/tab/new"
+   }
+  ],
+  "final": {
+   "veil": 86,
+   "anyCover": 86,
+   "rv": 0,
+   "cr": 0,
+   "tr": 0,
+   "path": "/search"
+  }
+ },
+ "strip": {
+  "before": 0,
+  "scrollLeft": 0,
+  "activeText": "북마크/팔로잉",
+  "fullyVisible": true,
+  "veil": 56,
+  "anyCover": 56,
+  "rv": 0,
+  "cr": 0,
+  "tr": 0,
+  "path": "/tab/following"
+ },
+ "bottomNav": {
+  "active": [
+   "대화"
+  ],
+  "veil": 56,
+  "anyCover": 56,
+  "rv": 0,
+  "cr": 0,
+  "tr": 0,
+  "path": "/chats"
+ },
+ "m390-ranking": {
+  "veil": 55,
+  "anyCover": 55,
+  "rv": 0,
+  "cr": 0,
+  "tr": 0,
+  "path": "/tab/ranking"
+ },
+ "m1440-new": {
+  "veil": 50,
+  "anyCover": 50,
+  "rv": 0,
+  "cr": 0,
+  "tr": 0,
+  "path": "/tab/new"
+ },
+ "m390-trpg-lobby": {
+  "veil": 56,
+  "anyCover": 56,
+  "rv": 0,
+  "cr": 0,
+  "tr": 0,
+  "path": "/trpg"
+ },
+ "m1440-trpg-lobby": {
+  "veil": 56,
+  "anyCover": 56,
+  "rv": 0,
+  "cr": 0,
+  "tr": 0,
+  "path": "/trpg"
+ }
+}
