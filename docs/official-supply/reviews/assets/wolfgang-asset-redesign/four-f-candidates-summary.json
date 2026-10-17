@@ -1,0 +1,61 @@
+{
+  "reference": "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp",
+  "referenceRawSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+  "preparedReferenceSha256": "39d425e5bf7a8e48110107ab74e6d5989608d6d93156e85b10f90c77312ae1c7",
+  "model": "gpt-image-2.5-sunburst",
+  "settings": {
+    "size": "1536x1024",
+    "quality": "medium",
+    "n": 1,
+    "outputCompression": 88,
+    "background": "opaque"
+  },
+  "pipeline": "composeOfficialSlotGeneration + prepareOfficialImageReferences + callOpenAiImageEdit (single POST per slot)",
+  "candidates": [
+    {
+      "role": "identity_style_anchor",
+      "label": "F",
+      "file": "rep-f-raw.webp",
+      "rawSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+      "providerPosts": 0
+    },
+    {
+      "slotKey": "sig4",
+      "tag": "옅은 미소",
+      "file": "sig4-smile-f-raw.webp",
+      "rawSha256": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1",
+      "primaryPromptSha256": "8847a0d3561ee002ee5439fa4f21020622f572b64f2c1730f4d6b8a5c2f7e5ff",
+      "providerRequestId": "req_9f16055bae0840c4b0d2c49677a931c5",
+      "costUsd": 0.030393,
+      "providerPosts": 1
+    },
+    {
+      "slotKey": "emo2",
+      "tag": "분노",
+      "file": "emo2-anger-f-raw.webp",
+      "rawSha256": "c4d38db0e3adfb59cf6fc2da8b79457636a90d64113c8b059ad30639d66d5db8",
+      "primaryPromptSha256": "c76aec7ec9e47fd7765282f0daf491a78a86d1cc31e734f3d7435b3654733311",
+      "providerRequestId": "req_995ff002b4864ac695708ad75a5f0523",
+      "costUsd": 0.030123,
+      "providerPosts": 1
+    },
+    {
+      "slotKey": "emo6",
+      "tag": "안도",
+      "file": "emo6-relief-f-raw.webp",
+      "rawSha256": "c4775c0dea1d116b30db9177305c37cfe72c7419d56e3c7a37893f0b757ba802",
+      "primaryPromptSha256": "2ffade03ff51de5e1e22e1a3801279186dabc194b68b69a9c8ebd21932cecf2b",
+      "providerRequestId": "req_e8a41d84ed504492b42b37c1617ef0a9",
+      "costUsd": 0.030233,
+      "providerPosts": 1
+    }
+  ],
+  "thisTurnPosts": 2,
+  "thisTurnCostUsd": 0.060356,
+  "fourCutPostsTotal": 3,
+  "fourCutCostUsd": 0.090749,
+  "fallback": false,
+  "retry": false,
+  "vision": false,
+  "persistedToProduction": false
+}

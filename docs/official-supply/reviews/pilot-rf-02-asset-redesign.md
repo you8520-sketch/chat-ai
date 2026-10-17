@@ -619,3 +619,59 @@ F는 검토 자산 후보로만 넣는다. 런타임은 F 경로를 하드코딩
 조립 확인은 `officialSupply.identityStyleReference.test.ts`다. runner payload와 compose 결과가 같고, 참조 문자열은 후보 토큰이다. 그 테스트는 transport를 대체하므로 준비 단계의 증거가 아니다. 준비 증거는 `officialSupply.reviewCandidatePreparation.test.ts`다. 실제 `openAiOfficialImageTransport`가 `prepareOfficialImageReferences`를 호출하고, 이미지 바이트를 `https://api.openai.com/v1/images/edits` POST 본문에 넣은 뒤 응답 전에 중단한다. provider 응답은 없다. 누락·해시 불일치·절대 경로는 fetch가 0회다. 기록은 `sig4-smile-f-reference-preparation.json`이다.
 
 조립 전문은 `assets/wolfgang-asset-redesign/sig4-smile-f-owner-prompt.txt`다. 요약은 `sig4-smile-f-owner-request.json`이다. primary SHA `8847a0d3…c2f7e5ff`. 운영 JSON의 sig4 태그는 여전히 `절제된 온기`다.
+
+## 18. F 기준 감정 2컷 — emo2 `분노`, emo6 `안도`
+
+F 한 장을 `official-review-candidate` 토큰으로 identity+style 참조에 넣었다. `resolveOfficialGenerationReferencePlan` → `buildOfficialAssetPrompts` → `prepareOfficialImageReferences` → `callOpenAiImageEdit` 단발 POST다. 합성 뒤 문자열 치환, b7, STYLE DNA 재삽입은 없다. Appearance Lock·34세 가드·승인 재설계 표정·행동·샷은 owner prompt에 그대로다. fallback·재시도·vision은 없다. 운영 대표·앵커·14장·태그·r2·Lock·#50은 바꾸지 않았다.
+
+| 슬롯 | 태그 | POST | request | 비용 USD | 출력 SHA |
+|---|---|---|---|---|---|
+| emo2 | 분노 | 1 | `req_995ff002b4864ac695708ad75a5f0523` | 0.030123 | `c4d38db0…6d5db8` |
+| emo6 | 안도 | 1 | `req_e8a41d84ed504492b42b37c1617ef0a9` | 0.030233 | `c4775c0d…7ba802` |
+
+합계 POST 2회, 0.060356 USD. 각 상한 0.08 USD. 모델 `gpt-image-2.5-sunburst`, 1536×1024 / medium / n=1 / webp 88 / opaque. F 원본 SHA `a95f9aca…0f8032`. 전처리 SHA `39d425e5…2ae1c7`. primary SHA emo2 `c76aec7e…733311`, emo6 `2ffade03…cecf2b`. 기록: `emo-f-candidates-ledger.json`, 슬롯별 `*-owner-request.json`, `*-actual.json`, `*-owner-prompt.txt`.
+
+원본 webp는 검사보다 먼저 `*-raw.webp`에 저장했다. 후처리는 표시용 `*.webp` 복사만이다.
+
+### 18.1 F·옅은 미소·분노·안도 — 함께 보는 판
+
+| 컷 | 역할 | 감정·행동 구분 |
+|---|---|---|
+| F | identity+style 기준 | 무표정에 가까운 3/4 대표 후보. 재생성 대상 아님 |
+| sig4 옅은 미소 | 휴식·온기 | 창가 돌벤치, 입꼬리만 올린 옅은 미소, 손·어깨 풀림 |
+| emo2 분노 | 억제된 분노 | high-angle medium, 주먹을 책상에 내림, 턱·눈썹 긴장. 미소·안도와 다른 각·표정 |
+| emo6 안도 | 긴장 해소 | low-angle medium, 어깨 내림·숨 고름. 크게 웃지 않음. sig4의 “웃는 휴식”과 다른 컷 |
+
+**인물 일관성:** 네 컷 모두 검은 울프컷, 회청 눈, 흑철 판금·검은 모피, 늑대 문양·체인 계열이 F와 같은 사람·같은 그림체로 읽힌다. emo2·emo6도 F의 선·면 처리와 은색 테·모피 덩어리감이 가깝다.
+
+**그림체:** F 대비 sig4·emo2·emo6 모두 cel-shaded 로판 남주 렌더링을 유지한다. emo6은 배경이 단순해 F·sig4보다 장식 대비가 약하지만, 얼굴·갑옷 선화는 같은 계열이다.
+
+**감정 전달:** sig4는 옅은 미소와 창가 휴식이 분명하다. emo2는 턱을 다문 긴장·주먹으로 분노 억제가 미소·안도와 구별된다. 다만 책상 위 서류가 보이면 prompt의 “서류 없음”과 어긋난다. Lock 위반이나 자동 합격 근거로 쓰지 않는다. emo6은 큰 웃음 없이 어깨·눈가가 풀린 안도로, sig4의 “입꼬리 미소”와 감정 톤이 다르다.
+
+**화면 기준 좌우 (후보만):** emo2 분노 — 코는 화면 왼쪽, 보이는 귀는 화면 오른쪽. emo6 안도 — 코는 화면 오른쪽, 보이는 귀는 화면 왼쪽. F·sig4는 §16.1과 같다.
+
+![emo2 분노](./assets/wolfgang-asset-redesign/emo2-anger-f.webp)
+
+![emo6 안도](./assets/wolfgang-asset-redesign/emo6-relief-f.webp)
+
+![F vs 분노 0.5배](./assets/wolfgang-asset-redesign/compare-anger-f-full.webp)
+
+![F vs 안도 0.5배](./assets/wolfgang-asset-redesign/compare-relief-f-full.webp)
+
+![분노 얼굴 1:1](./assets/wolfgang-asset-redesign/compare-anger-f-face.webp)
+
+![안도 얼굴 1:1](./assets/wolfgang-asset-redesign/compare-relief-f-face.webp)
+
+![분노 머리 1:1](./assets/wolfgang-asset-redesign/compare-anger-f-hair.webp)
+
+![안도 머리 1:1](./assets/wolfgang-asset-redesign/compare-relief-f-hair.webp)
+
+![분노 모피 1:1](./assets/wolfgang-asset-redesign/compare-anger-f-fur.webp)
+
+![안도 모피 1:1](./assets/wolfgang-asset-redesign/compare-relief-f-fur.webp)
+
+![분노 갑옷 1:1](./assets/wolfgang-asset-redesign/compare-anger-f-armor.webp)
+
+![안도 갑옷 1:1](./assets/wolfgang-asset-redesign/compare-relief-f-armor.webp)
+
+옅은 미소·F 비교는 §16.1과 `compare-smile-f-*.webp`를 그대로 본다. 네 컷 전체 요약 JSON: `four-f-candidates-summary.json`.

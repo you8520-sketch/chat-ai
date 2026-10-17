@@ -1,0 +1,135 @@
+{
+  "candidate": "anger",
+  "windows": {
+    "F": {
+      "face": {
+        "left": 280,
+        "top": 160,
+        "width": 460,
+        "height": 460
+      },
+      "hair": {
+        "left": 300,
+        "top": 0,
+        "width": 420,
+        "height": 360
+      },
+      "fur": {
+        "left": 10,
+        "top": 520,
+        "width": 180,
+        "height": 180
+      },
+      "armor": {
+        "left": 340,
+        "top": 700,
+        "width": 340,
+        "height": 260
+      }
+    },
+    "candidate": {
+      "face": {
+        "left": 420,
+        "top": 60,
+        "width": 400,
+        "height": 400
+      },
+      "hair": {
+        "left": 460,
+        "top": 0,
+        "width": 340,
+        "height": 260
+      },
+      "fur": {
+        "left": 0,
+        "top": 260,
+        "width": 300,
+        "height": 240
+      },
+      "armor": {
+        "left": 380,
+        "top": 420,
+        "width": 460,
+        "height": 340
+      }
+    }
+  },
+  "outputs": {
+    "compare-anger-f-full.webp": {
+      "sha256": "6b1a90213a51959b21f550ed04b6432fd710a47274a94393f2e612fcb31623a1",
+      "bytes": 173222
+    },
+    "compare-anger-f-face.webp": {
+      "sha256": "d1bad1b90ace669bc5c46eb31959bcba91d779b8c5d45444dc0becd1fd9de978",
+      "bytes": 68200,
+      "window": {
+        "F": {
+          "left": 280,
+          "top": 160,
+          "width": 460,
+          "height": 460
+        },
+        "candidate": {
+          "left": 420,
+          "top": 60,
+          "width": 400,
+          "height": 400
+        }
+      }
+    },
+    "compare-anger-f-hair.webp": {
+      "sha256": "11babb2745a1f94826fa76ad76ee0bdae6d45a849431e77ff6f182bf30287ae3",
+      "bytes": 48246,
+      "window": {
+        "F": {
+          "left": 300,
+          "top": 0,
+          "width": 420,
+          "height": 360
+        },
+        "candidate": {
+          "left": 460,
+          "top": 0,
+          "width": 340,
+          "height": 260
+        }
+      }
+    },
+    "compare-anger-f-fur.webp": {
+      "sha256": "4fda6f8e3eccfa5fae5abb843732562a7d950a16364c9795c7cc956f18ea5680",
+      "bytes": 19370,
+      "window": {
+        "F": {
+          "left": 10,
+          "top": 520,
+          "width": 180,
+          "height": 180
+        },
+        "candidate": {
+          "left": 0,
+          "top": 260,
+          "width": 300,
+          "height": 240
+        }
+      }
+    },
+    "compare-anger-f-armor.webp": {
+      "sha256": "193ba1b721d054dd534ae3b30bdef7e607a81a9552259e4f847daadd70f1c511",
+      "bytes": 41496,
+      "window": {
+        "F": {
+          "left": 340,
+          "top": 700,
+          "width": 340,
+          "height": 260
+        },
+        "candidate": {
+          "left": 380,
+          "top": 420,
+          "width": 460,
+          "height": 340
+        }
+      }
+    }
+  }
+}

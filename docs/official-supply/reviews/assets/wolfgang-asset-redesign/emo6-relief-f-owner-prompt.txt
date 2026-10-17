@@ -1,0 +1,31 @@
+Create one horizontal 3:2 roleplay illustration (1536x1024). This is a distinct cut of the same character — not another bust-card portrait. Follow the shot responsibility for face direction, camera, crop, and pose. Do not default to face-and-upper-body. SHOT RESPONSIBILITY (emo6/emotion): head turned right three-quarter view; low-angle camera placed below the subject looking up, with visible upward perspective; medium shot (waist-up or mid-thigh). Background: simple, uncluttered background — no competing scene. This cut must look different from the other slots in face direction, camera, and framing. Do not inherit the representative card's camera, head angle, crop, or hand position. SHOT CHANGE MUST NOT CHANGE IDENTITY: same face structure, hair, eyes, marks, age, and body type as the IDENTITY LOCK.
+REFERENCE IMAGE: one supplied image. It is both the identity source and the style source for this one person.
+Keep this person's identity and this image's line and coloring method.
+Do not copy the reference camera, head angle, face direction, crop, hand position, pose, expression, or background.
+SHOT RESPONSIBILITY owns camera, face direction, and shot distance. The Pose line owns action and props. The Expression line owns emotion.
+Do not move a hidden scar or possession into view by changing its place on the body.
+STYLE FIDELITY — rendering technique must follow the supplied character identity reference images, not a generic stock illustration or default model look.
+Derive line weight, line quality, coloring method, shading, facial rendering, and overall finish directly from the subject reference images.
+Each subject reference is both an identity anchor and a style anchor for that character's rendering.
+Each numbered reference image maps 1:1 to exactly one listed subject. Do not reuse a photo for anyone else.
+Match the listed subject reference rendering as closely as possible. Do not substitute a generic polished illustration look.
+Character: 볼프강 폰 발켄하임, age 34.
+IDENTITY LOCK — identical across every image of this character:
+연령대 인상: 30s
+얼굴: 비율이 균형 잡힌 남성적인 얼굴, 매끈한 광대선과 또렷하되 과하게 길거나 넓지 않은 턱선
+눈: 길고 깊게 내려앉은 눈매. 상대의 말보다 손과 호흡을 먼저 살피는 차가운 시선 (빛이 적은 회청색)
+머리: 옆머리를 짧게 정리하고 윗머리를 거칠게 쓸어 넘긴 울프컷. 전투 뒤에는 눈가로 몇 가닥이 흐트러진다 (차가운 짙은 흑회색, 윗머리는 귀밑까지, 옆과 뒷머리는 짧다)
+키/체형: 188cm, 어깨가 넓고 허리가 단단한 체형. 움직임은 절제되어 있으나 전투 때는 망설임 없이 파고든다
+피부: 추위에 쉽게 옅게 붉어지는 깨끗한 창백 피부
+특징: 왼쪽 턱 아래에 가늘게 남은 흉터, 왼손 약지는 동상 후유증으로 감각이 둔하다
+기본 의상: 흑철 판금 갑옷 위에 검은 늑대 모피 코트를 걸친다. 집무실에서도 갑옷 일부를 벗지 않는다. 가문의 인장이 박힌 흑철 지휘관 반지, 방벽 열쇠 꾸러미, 낡은 가죽 장갑을 지닌다.
+Never drift: 회청색 눈과 왼쪽 턱 아래의 가는 흉터를 변경하지 않는다.; 차가운 짙은 흑회색 울프컷과 188cm의 크고 넓은 어깨 체형을 변경하지 않는다.; 흑철 판금 갑옷과 검은 늑대 모피 코트의 팔레트 및 핵심 실루엣을 변경하지 않는다..
+Outfit policy: 장면에 따라 갑옷 일부를 벗거나 손상·전투 흔적을 더할 수 있으나, 흑철 갑옷과 검은 늑대 모피 코트의 기본 조합 및 반지·열쇠·장갑은 유지한다.
+MATURE MALE VISUAL AGE LOCK — Keep an adult man in his 30s visibly mature and age-appropriate while preserving a polished romance-target face. Convey maturity through physique, shoulders, neck, posture, gaze, grooming, authority and styling. Keep facial skin clean and healthy, cheek lines controlled, and the jaw defined without adding older-age facial texture. Wrinkles, sagging skin, hollowed cheeks, age spots, visibly receding hair, or an older-than-canon face belong only to characters whose canon explicitly calls for that older visual age. Fantasy silver/gray hair may remain a canonical color and is not itself an aging cue.
+GENDER LOCK — mandatory identity rule.
+Character 볼프강 폰 발켄하임: confirmed MALE. Keep him male in face, torso and body shape. Long hair, soft facial features, slim build, cute SD/chibi styling, blush, eyelashes, delicate clothing or androgynous beauty must NOT be interpreted as female. Use a flat masculine chest and male-coded torso. Do not draw breasts, cleavage, a feminine chest mound, a bra-like chest shape, wide feminine hips, or a girl/woman body.
+Never change a person's gender to fit hairstyle, prettiness, cute SD proportions, pose, outfit, or template decoration.
+SAFETY — depict a non-explicit, non-graphic, provider-safe visual scene. Preserve cast, location, relationship, and emotion. Do not depict explicit sexual acts, exposed genitals, active injury, blood, weapons in use, self-harm, suicide, or medical trauma. A healed, non-graphic scar from saved identity may remain. Do not force a generic business meeting if the scene is romantic or intimate but still non-explicit.
+Expression: 상대의 무사 귀환을 확인한 뒤 긴장이 풀리며 숨을 내쉰다. 눈가와 어깨의 경직이 풀린다. 크게 웃지 않는다.. Pose: 갑옷을 벗지 않은 채 상체를 상대(카메라) 쪽으로 돌리고 어깨를 낮춘다. 손은 허벅지 위에 가볍게 두고 소품을 건네지 않는다. 유저는 그리지 않는다.. Outfit: 흑철 판금 갑옷 위에 검은 늑대 모피 코트를 걸친다. 집무실에서도 갑옷 일부를 벗지 않는다. 가문의 인장이 박힌 흑철 지휘관 반지, 방벽 열쇠 꾸러미, 낡은 가죽 장갑을 지닌다..
+FOREGROUND CAST: exactly one foreground person — the named character only. Do not add a second foreground interaction partner. No background extras.
+No text, speech bubbles, captions, logos, signatures or watermarks.

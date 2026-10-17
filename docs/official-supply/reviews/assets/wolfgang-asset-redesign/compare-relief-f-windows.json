@@ -1,0 +1,135 @@
+{
+  "candidate": "relief",
+  "windows": {
+    "F": {
+      "face": {
+        "left": 280,
+        "top": 160,
+        "width": 460,
+        "height": 460
+      },
+      "hair": {
+        "left": 300,
+        "top": 0,
+        "width": 420,
+        "height": 360
+      },
+      "fur": {
+        "left": 10,
+        "top": 520,
+        "width": 180,
+        "height": 180
+      },
+      "armor": {
+        "left": 340,
+        "top": 700,
+        "width": 340,
+        "height": 260
+      }
+    },
+    "candidate": {
+      "face": {
+        "left": 560,
+        "top": 90,
+        "width": 380,
+        "height": 380
+      },
+      "hair": {
+        "left": 600,
+        "top": 0,
+        "width": 300,
+        "height": 220
+      },
+      "fur": {
+        "left": 60,
+        "top": 280,
+        "width": 260,
+        "height": 220
+      },
+      "armor": {
+        "left": 500,
+        "top": 440,
+        "width": 420,
+        "height": 320
+      }
+    }
+  },
+  "outputs": {
+    "compare-relief-f-full.webp": {
+      "sha256": "f92894cc720056a85e025848adc04eaee7aff0d8a3f27e0840cc852f122a6bc5",
+      "bytes": 154202
+    },
+    "compare-relief-f-face.webp": {
+      "sha256": "20783f4a929fefd645b7ae665802e687603b42cdf7d03263580555bd436582b1",
+      "bytes": 75876,
+      "window": {
+        "F": {
+          "left": 280,
+          "top": 160,
+          "width": 460,
+          "height": 460
+        },
+        "candidate": {
+          "left": 560,
+          "top": 90,
+          "width": 380,
+          "height": 380
+        }
+      }
+    },
+    "compare-relief-f-hair.webp": {
+      "sha256": "4c95b0f12d2836ecead8a989a03b1b859e3809170f686610b316acd2c46b7fec",
+      "bytes": 46618,
+      "window": {
+        "F": {
+          "left": 300,
+          "top": 0,
+          "width": 420,
+          "height": 360
+        },
+        "candidate": {
+          "left": 600,
+          "top": 0,
+          "width": 300,
+          "height": 220
+        }
+      }
+    },
+    "compare-relief-f-fur.webp": {
+      "sha256": "466bded5fd68100af390680edf42b20f29e9432dff50e91101eba752a12ffda5",
+      "bytes": 14318,
+      "window": {
+        "F": {
+          "left": 10,
+          "top": 520,
+          "width": 180,
+          "height": 180
+        },
+        "candidate": {
+          "left": 60,
+          "top": 280,
+          "width": 260,
+          "height": 220
+        }
+      }
+    },
+    "compare-relief-f-armor.webp": {
+      "sha256": "4ffde97b94694c9e400515dfc9a9fa5f7e3bae07bb655048a3d7f918b62177a1",
+      "bytes": 41580,
+      "window": {
+        "F": {
+          "left": 340,
+          "top": 700,
+          "width": 340,
+          "height": 260
+        },
+        "candidate": {
+          "left": 500,
+          "top": 440,
+          "width": 420,
+          "height": 320
+        }
+      }
+    }
+  }
+}

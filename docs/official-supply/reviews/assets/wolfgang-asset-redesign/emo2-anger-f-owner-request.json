@@ -1,0 +1,18 @@
+{
+  "providerPosts": 0,
+  "assembly": "composeOfficialSlotGeneration + prepareOfficialImageReferences + callOpenAiImageEdit",
+  "slotKey": "emo2",
+  "tag": "분노",
+  "model": "gpt-image-2.5-sunburst",
+  "size": "1536x1024",
+  "referenceRoleLayout": "identity_and_style",
+  "references": [
+    "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp"
+  ],
+  "primaryPromptSha256": "c76aec7ec9e47fd7765282f0daf491a78a86d1cc31e734f3d7435b3654733311",
+  "strictFallbackPromptSha256": "2cabd7fe6c390840392de04fdd8863bc05c6e5c5b5be8da13a4f793f287d55a7",
+  "hasStyleOnly": false,
+  "hasStyleDna": false,
+  "hasAgeLock": true,
+  "appearanceLockHash": "1c3ccd134203a6dea6ae869c27cc443c42ff5498d1d0130c6f9765407c24dcc3"
+}
