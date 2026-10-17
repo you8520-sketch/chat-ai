@@ -121,8 +121,15 @@ export type ExplorationActorResult = {
   participantId: number;
   name: string;
   failed: boolean;
-  /** True when the actor's prepared commands included a search, whatever its outcome. */
-  searched: boolean;
+  /**
+   * True when this settlement resolved an event: a search (including a failed one)
+   * or an enter that fired. A plain move that fired nothing is not an event resolution.
+   */
+  eventResolved: boolean;
+  /** The commands this settlement applied, in order. */
+  commands: ExplorationCommand[];
+  /** Room the commands started from. */
+  fromRoomId: string;
   /** Display name of the room the actor ended in, when they moved. */
   location: string | null;
   items: string[];
@@ -876,7 +883,9 @@ export function settleExplorationActor(opts: {
     participantId: opts.pending.participantId,
     name: opts.name,
     failed: false,
-    searched: false,
+    eventResolved: false,
+    commands: [],
+    fromRoomId: "",
     location: null,
     items: [],
     flags: [],
@@ -898,6 +907,8 @@ export function settleExplorationActor(opts: {
     pending: opts.state.pending.filter((row) => `${row.roundId}:${row.participantId}` !== key),
   };
   const fromRoomId = canonicalRoomId(state.map, opts.pending.fromRoomId) ?? opts.pending.fromRoomId;
+  result.commands = [...opts.pending.commands];
+  result.fromRoomId = fromRoomId;
   let roomId = fromRoomId;
   const visited = [...state.visitedRoomIds];
   let riskDelta = 0;
@@ -905,7 +916,7 @@ export function settleExplorationActor(opts: {
   let searchFailed = false;
   for (const command of opts.pending.commands) {
     const here = roomName(state.map, roomId);
-    if (command.op === "search") result.searched = true;
+    if (command.op === "search") result.eventResolved = true;
     if (command.op === "search" && tierFailsSearch) {
       searchFailed = true;
       if (legacy) {
@@ -934,7 +945,9 @@ export function settleExplorationActor(opts: {
         riskDelta += 1;
         if (roomId === EXPLORATION_ALARM_ROOM) riskDelta += 2;
       } else {
-        state = fireRoomEvents(state, roomId, { kind: "enter" }, opts.name, result).state;
+        const entered = fireRoomEvents(state, roomId, { kind: "enter" }, opts.name, result);
+        state = entered.state;
+        if (entered.fired > 0) result.eventResolved = true;
       }
       continue;
     }
@@ -1036,7 +1049,7 @@ function discoveryText(discovery: ExplorationDiscovery): string {
 }
 
 export const EXPLORATION_GM_HEADER =
-  "[EXPLORATION — server positions and this-round results. These override earlier narration, saved flags, next-round context, and story threads. Narrate only these positions as fact. Do not invent another clue, item, secret passage, or a new human PC move, line, or decision.]";
+  "[EXPLORATION — server positions and this-round results. These override earlier narration, saved flags, next-round context, and story threads. Narrate only these positions as fact. Event rewards named here are granted once; do not add, remove, or repeat them. Do not invent another clue, secret passage, or a new human PC move, line, or decision. Inventory for a separate action the player submitted stays with you.]";
 
 export type ExplorationSeatFact = {
   name: string;

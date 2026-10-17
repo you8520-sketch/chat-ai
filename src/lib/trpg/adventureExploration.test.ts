@@ -90,6 +90,22 @@ const HARBOR_PLOT: TrpgAdventure = {
   ],
 };
 
+const ENTER_OFFICE: TrpgAdventure = {
+  start: "hall",
+  places: [
+    { key: "hall", name: "현관", summary: "넓은 현관.", role: "start" },
+    { key: "office", name: "집무실", summary: "도장이 있는 집무실.", role: "site" },
+    { key: "vault", name: "금고", summary: "봉인된 금고.", role: "goal" },
+  ],
+  links: [
+    { from: "hall", to: "office" },
+    { from: "office", to: "vault", opensBy: "seal" },
+  ],
+  events: [
+    { key: "seal", place: "office", trigger: "enter", kind: "item", text: "책상 위 봉인 도장을 집어 든다.", item: "봉인 도장" },
+  ],
+};
+
 const SINGLE_STUDY: TrpgAdventure = {
   start: "study",
   places: [{ key: "study", name: "잠긴 서재", summary: "먼지 쌓인 책장과 식은 벽난로가 있는 서재.", role: "start" }],
@@ -668,7 +684,7 @@ describe("adventure exploration (B2+B3)", () => {
     db.close();
   });
 
-  async function ghostTrainSession() {
+  async function ghostTrainSession(adventure: TrpgAdventure = GHOST_TRAIN) {
     const db = memoryDb();
     const templateId = insertScenarioTemplate(db, 1, {
       title: "유령 기차",
@@ -676,7 +692,7 @@ describe("adventure exploration (B2+B3)", () => {
       content: "c",
       visibility: "private",
       startLocation: "",
-      scenarioPlan: { startingSituation: "역에 선다", goal: "기관실에 닿는다", endingConditions: ["기관실에 닿는다"], adventure: GHOST_TRAIN },
+      scenarioPlan: { startingSituation: "역에 선다", goal: "기관실에 닿는다", endingConditions: ["기관실에 닿는다"], adventure },
     });
     const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "현이", viewerUserId: 1, templateId });
     saveTrpgSheet(db, { campaignId, userId: 1, name: "현이", stats: EVEN_STATS });
@@ -685,7 +701,7 @@ describe("adventure exploration (B2+B3)", () => {
       db,
       host,
       face: 1,
-      proposal: { inventoryAdd: [] as string[], location: "" },
+      proposal: { inventoryAdd: [] as string[], inventoryRemove: [] as string[], location: "" },
       inputs: [] as Array<{ system: string; user: string }>,
     };
     const deps: TrpgEngineDeps = {
@@ -697,7 +713,11 @@ describe("adventure exploration (B2+B3)", () => {
         const here = loadCampaignLedger(db, campaignId).location;
         return {
           text: buildTrpgGmStructuredWireText("장면이 이어진다. GM: 무엇을 하겠는가.", {
-            players: [{ participantId: host, inventoryAdd: session.proposal.inventoryAdd }],
+            players: [{
+              participantId: host,
+              inventoryAdd: session.proposal.inventoryAdd,
+              inventoryRemove: session.proposal.inventoryRemove,
+            }],
             location: session.proposal.location || here,
             next_round_context: "다음",
             campaign_finished: false,
@@ -727,15 +747,15 @@ describe("adventure exploration (B2+B3)", () => {
     const t = await ghostTrainSession();
     const baseline = t.names();
     t.session.face = 1;
-    t.session.proposal = { inventoryAdd: ["찾아낸 서류철"], location: "기관실" };
-    await t.play([{ op: "move", roomId: t.room("3호 객차") }, { op: "search", depth: "normal" }], "객차를 뒤진다.");
+    t.session.proposal = { inventoryAdd: ["찾아낸 서류철"], inventoryRemove: [], location: "기관실" };
+    await t.play([{ op: "move", roomId: t.room("3호 객차") }, { op: "search", depth: "normal" }], "");
     assert.deepEqual(t.state().revealedEventIds, [], "a failed search fires nothing");
     assert.deepEqual(t.state().revealedEdgeIds, [], "a GM proposal does not open a way");
     assert.equal(sheet(t.db, t.host).location, "3호 객차", "a GM proposal does not move a seat through a shut way");
     assert.deepEqual(t.names(), baseline, "a failed search grants nothing");
 
     t.session.face = 16;
-    t.session.proposal = { inventoryAdd: [], location: "" };
+    t.session.proposal = { inventoryAdd: [], inventoryRemove: [], location: "" };
     await t.play([{ op: "search", depth: "normal" }], "다시 객차를 뒤진다.");
     assert.deepEqual(t.state().revealedEventIds, ["ticket"], "the same search can succeed later");
     t.db.close();
@@ -745,8 +765,8 @@ describe("adventure exploration (B2+B3)", () => {
     const t = await ghostTrainSession();
     const baseline = t.names();
     t.session.face = 16;
-    t.session.proposal = { inventoryAdd: ["젖은 승차권"], location: "" };
-    await t.play([{ op: "move", roomId: t.room("3호 객차") }, { op: "search", depth: "normal" }], "객차를 뒤진다.");
+    t.session.proposal = { inventoryAdd: ["젖은 승차권"], inventoryRemove: [], location: "" };
+    await t.play([{ op: "move", roomId: t.room("3호 객차") }, { op: "search", depth: "normal" }], "");
     assert.deepEqual(t.state().revealedEventIds, ["ticket"]);
     assert.deepEqual(t.names(), baseline, "a clue is a discovery record, not an item");
     t.db.close();
@@ -756,20 +776,97 @@ describe("adventure exploration (B2+B3)", () => {
     const t = await ghostTrainSession();
     t.session.face = 16;
     await t.play([{ op: "move", roomId: t.room("3호 객차") }, { op: "search", depth: "normal" }], "객차를 뒤진다.");
-    t.session.proposal = { inventoryAdd: ["차장 열쇠", "여분 열쇠"], location: "" };
-    await t.play([{ op: "move", roomId: t.room("식당칸") }, { op: "search", depth: "normal" }], "식당칸을 뒤진다.");
+    t.session.proposal = { inventoryAdd: ["차장 열쇠", "여분 열쇠"], inventoryRemove: [], location: "" };
+    await t.play([{ op: "move", roomId: t.room("식당칸") }, { op: "search", depth: "normal" }], "");
     assert.equal(itemQty(t.db, [t.host], "차장 열쇠"), 1, "the approved item is granted once");
     assert.equal(itemQty(t.db, [t.host], "여분 열쇠"), 0, "the GM adds no second reward for the same search");
 
-    t.session.proposal = { inventoryAdd: ["차장 열쇠"], location: "" };
+    t.session.proposal = { inventoryAdd: ["차장 열쇠"], inventoryRemove: [], location: "" };
     await t.play([{ op: "search", depth: "normal" }], "한 번 더 뒤진다.");
     assert.equal(itemQty(t.db, [t.host], "차장 열쇠"), 1, "searching again does not grant it twice");
     assert.deepEqual(t.state().grantedEventIds, ["conductor_key"]);
 
-    t.session.proposal = { inventoryAdd: ["식은 찻잔"], location: "" };
+    t.session.proposal = { inventoryAdd: ["식은 찻잔"], inventoryRemove: [], location: "" };
     await t.play([], "찻잔 하나를 챙긴다.");
     assert.equal(itemQty(t.db, [t.host], "식은 찻잔"), 1, "bookkeeping outside a search stays with the GM");
     t.db.close();
+  });
+
+  it("keeps a grant the player submitted separately in the same round as a search, and a GM remove does not cancel the server reward", async () => {
+    const t = await ghostTrainSession();
+    t.session.face = 16;
+    await t.play([{ op: "move", roomId: t.room("3호 객차") }, { op: "search", depth: "normal" }], "");
+    t.session.proposal = { inventoryAdd: ["차장 열쇠", "식은 찻잔"], inventoryRemove: ["차장 열쇠"], location: "" };
+    await t.play(
+      [{ op: "move", roomId: t.room("식당칸") }, { op: "search", depth: "normal" }],
+      "상인에게 식은 찻잔을 산다."
+    );
+    assert.equal(itemQty(t.db, [t.host], "차장 열쇠"), 1, "the server reward is granted once and the GM remove does not cancel it");
+    assert.equal(itemQty(t.db, [t.host], "식은 찻잔"), 1, "the separate submitted action's grant stays");
+    t.db.close();
+  });
+
+  it("grants an enter reward once, ignores an extra reward with no separate action, and does not grant it again on re-entry", async () => {
+    const t = await ghostTrainSession(ENTER_OFFICE);
+    t.session.face = 16;
+    t.session.proposal = { inventoryAdd: ["붕대"], inventoryRemove: [], location: "" };
+    await t.play([], "붕대를 건네받는다.");
+    assert.equal(itemQty(t.db, [t.host], "붕대"), 1, "a grant before any event stays");
+
+    t.session.proposal = {
+      inventoryAdd: ["봉인 도장", "여분 도장"],
+      inventoryRemove: ["봉인 도장", "붕대"],
+      location: "",
+    };
+    await t.play([{ op: "move", roomId: t.room("집무실") }], "");
+    assert.deepEqual(t.state().grantedEventIds, ["seal"]);
+    assert.equal(itemQty(t.db, [t.host], "봉인 도장"), 1, "the approved enter reward is granted once");
+    assert.equal(itemQty(t.db, [t.host], "여분 도장"), 0, "an extra reward with no separate submitted action is not granted");
+    assert.equal(itemQty(t.db, [t.host], "붕대"), 0, "removing an item that is not this round's event reward still applies");
+
+    t.session.proposal = { inventoryAdd: [], inventoryRemove: [], location: "" };
+    await t.play([{ op: "move", roomId: t.room("현관") }], "");
+    t.session.proposal = { inventoryAdd: ["봉인 도장"], inventoryRemove: [], location: "" };
+    await t.play([{ op: "move", roomId: t.room("집무실") }], "");
+    assert.equal(itemQty(t.db, [t.host], "봉인 도장"), 1, "re-entering does not grant the event reward again");
+    assert.deepEqual(t.state().revealedEventIds, ["seal"]);
+    t.db.close();
+  });
+
+  it("keeps a GM inventory grant in a legacy exploration campaign", async () => {
+    const db = memoryDb();
+    const templateId = insertScenarioTemplate(db, 1, {
+      title: "옛 시설",
+      summary: "s",
+      content: "c",
+      visibility: "private",
+      startLocation: "",
+      scenarioPlan: { startingSituation: "현관", goal: "출구", endingConditions: ["출구"], exploration: true },
+    });
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "현이", viewerUserId: 1, templateId });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "현이", stats: EVEN_STATS });
+    const host = participantId(db, campaignId, 1);
+    let grant: string[] = [];
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 1,
+      rollDie: () => 2,
+      gmCall: async () => ({
+        text: buildTrpgGmStructuredWireText("현관이 이어진다. GM: 무엇을 하겠는가.", {
+          players: [{ participantId: host, inventoryAdd: grant }],
+          location: "현관홀",
+          next_round_context: "다음",
+          campaign_finished: false,
+        }),
+      }),
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(loadExplorationState(db, campaignId)?.version, 1);
+    grant = ["손전등"];
+    submitTrpgAction(db, { campaignId, userId: 1, body: "", explorationCommands: [{ op: "search", depth: "normal" }] });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(itemQty(db, [host], "손전등"), 1, "v1 does not take the v2 event-reward grant policy");
+    db.close();
   });
 
   it("states one authority order in the system and user halves of the final GM input", async () => {
@@ -784,6 +881,9 @@ describe("adventure exploration (B2+B3)", () => {
     assert.match(header, /saved flags/);
     assert.match(header, /next-round context/);
     assert.match(header, /story threads/);
+    assert.match(authority, /separate action the player submitted/);
+    assert.match(header, /separate action the player submitted/);
+    assert.match(header, /granted once/);
     t.db.close();
   });
 
