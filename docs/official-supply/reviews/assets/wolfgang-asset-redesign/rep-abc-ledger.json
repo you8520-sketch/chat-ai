@@ -33,5 +33,17 @@
       "costUsd": 0.054064,
       "rawSha256": "2d8116b05be6555c532b247d2152e6ca94bb238086a51efbc17ec749a9ae0406"
     }
+  },
+  "dExperiment": {
+    "postsStarted": 1,
+    "budgetUsd": 0.1,
+    "spentUsd": 0.084784,
+    "state": "saved",
+    "model": "gpt-image-2",
+    "startedAt": "2026-10-17T06:04:56.922Z",
+    "finishedAt": "2026-10-17T06:05:29.867Z",
+    "providerRequestId": "req_ab82e37d250b46af853ec5f224378a97",
+    "costUsd": 0.084784,
+    "rawSha256": "5e338c0aa0b5a05d351162ba9ddfa8f158067de3d4bb7273149b8ec183b373a5"
   }
 }

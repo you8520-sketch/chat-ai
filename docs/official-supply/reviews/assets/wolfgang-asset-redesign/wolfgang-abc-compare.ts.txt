@@ -68,10 +68,28 @@ type PreparedRef = {
   file: string;
 };
 
+const D_BUDGET_USD = 0.1;
+const OBSERVED_B_USD = 0.087244;
+
 type Ledger = {
   postsStarted: number;
   budgetUsd: number;
   spentUsd: number;
+  dExperiment?: {
+    postsStarted: number;
+    budgetUsd: number;
+    spentUsd: number;
+    state: "starting" | "saved" | "failed";
+    model?: string;
+    startedAt?: string;
+    finishedAt?: string;
+    providerRequestId?: string | null;
+    costUsd?: number | null;
+    rawSha256?: string;
+    errorStatus?: number;
+    errorMessage?: string;
+    providerChargeEvidence?: string | null;
+  };
   conditions: Record<
     string,
     {
@@ -538,6 +556,154 @@ async function postCOnly(): Promise<void> {
   console.log(JSON.stringify({ postsStarted: done.postsStarted, spentUsd: done.spentUsd, c: done.conditions.c }));
 }
 
+async function postD(): Promise<void> {
+  const ledger = loadLedger();
+  if ((ledger.dExperiment?.postsStarted ?? 0) >= 1 || ledger.dExperiment?.state) {
+    throw new Error(`D already ${ledger.dExperiment?.state ?? "started"}; refusing another POST`);
+  }
+  if (fs.existsSync(path.join(DOC_DIR, "rep-d-raw.webp"))) {
+    throw new Error("rep-d-raw.webp already exists; refusing another POST");
+  }
+  const prompt = loadPrompt(PROMPT_C_PATH);
+  if (sha256(prompt) !== EXPECTED_PROMPT_C) throw new Error("D prompt SHA mismatch");
+  if (OFFICIAL_ASSET_OUTPUT_COMPRESSION !== 88) throw new Error("compression is not 88");
+  if (!isLucianSig4ProofSupportedImageModel(MODEL_B)) throw new Error("gpt-image-2 is not supported");
+  const preflightRecord = JSON.parse(fs.readFileSync(PREFLIGHT_PATH, "utf8")) as {
+    references: PreparedRef[];
+  };
+  const references = loadPreparedDataUris(preflightRecord.references);
+  if (references.length !== 3) throw new Error("D reference count is not 3");
+  if (OBSERVED_B_USD > D_BUDGET_USD) {
+    throw new Error("same-model observation already exceeds the D budget");
+  }
+  ledger.dExperiment = {
+    postsStarted: 1,
+    budgetUsd: D_BUDGET_USD,
+    spentUsd: 0,
+    state: "starting",
+    model: MODEL_B,
+    startedAt: new Date().toISOString(),
+  };
+  saveLedger(ledger);
+
+  const rawName = "rep-d-raw.webp";
+  try {
+    const result = await callOpenAiImageEdit({
+      model: MODEL_B,
+      prompt,
+      references,
+      size: "1024x1536",
+      quality: "medium",
+      outputCompression: OFFICIAL_ASSET_OUTPUT_COMPRESSION,
+      templateId: "official_character_asset",
+      mode: "isolated_abc_d",
+    });
+    const artifact = path.join(ARTIFACT_DIR, rawName);
+    const doc = path.join(DOC_DIR, rawName);
+    fs.writeFileSync(artifact, result.buffer);
+    fs.writeFileSync(doc, result.buffer);
+    const rawSha = sha256(result.buffer);
+    let inspect: Record<string, unknown> = { inspectError: null };
+    try {
+      const meta = await sharp(result.buffer).metadata();
+      fs.writeFileSync(path.join(DOC_DIR, "rep-d.webp"), result.buffer);
+      fs.writeFileSync(path.join(ARTIFACT_DIR, "rep-d.webp"), result.buffer);
+      inspect = {
+        width: meta.width ?? null,
+        height: meta.height ?? null,
+        format: meta.format ?? null,
+        inspectedSha256: sha256(fs.readFileSync(doc)),
+        inspectedBytes: result.buffer.length,
+      };
+    } catch (inspectError) {
+      inspect = {
+        inspectError: inspectError instanceof Error ? inspectError.message.slice(0, 240) : "inspect failed",
+      };
+    }
+    const after = loadLedger();
+    const costUsd = result.costUsd;
+    after.dExperiment = {
+      postsStarted: 1,
+      budgetUsd: D_BUDGET_USD,
+      spentUsd: typeof costUsd === "number" ? Number(costUsd.toFixed(8)) : 0,
+      state: "saved",
+      model: MODEL_B,
+      startedAt: ledger.dExperiment?.startedAt,
+      finishedAt: new Date().toISOString(),
+      providerRequestId: result.providerRequestId,
+      costUsd,
+      rawSha256: rawSha,
+    };
+    saveLedger(after);
+    writeJson(path.join(DOC_DIR, "rep-d-actual.json"), {
+      status: typeof costUsd === "number" && costUsd > D_BUDGET_USD ? "OVER_BUDGET" : "GENERATED",
+      condition: "d",
+      providerPosts: 1,
+      persistedToProduction: false,
+      model: MODEL_B,
+      quality: "medium",
+      size: "1024x1536",
+      n: 1,
+      outputCompression: OFFICIAL_ASSET_OUTPUT_COMPRESSION,
+      background: "opaque",
+      outputFormat: "webp",
+      promptSha256: sha256(prompt),
+      preparedReferenceFile: "rep-abc-preflight.json",
+      preparedReferenceOrder: ["b7", "b13", "b5"],
+      aPreparedWireBytesRestored: false,
+      providerRequestId: result.providerRequestId,
+      usageEvidence: result.usageEvidence,
+      costUsd,
+      budgetUsd: D_BUDGET_USD,
+      fallback: false,
+      retry: false,
+      vision: false,
+      raw: { doc, artifact, sha256: rawSha, bytes: result.buffer.length },
+      inspect,
+    });
+    console.log(
+      JSON.stringify({
+        status: "GENERATED",
+        providerRequestId: result.providerRequestId,
+        costUsd,
+        rawSha256: rawSha,
+      })
+    );
+  } catch (error) {
+    const pub = publicError(error);
+    const after = loadLedger();
+    after.dExperiment = {
+      postsStarted: 1,
+      budgetUsd: D_BUDGET_USD,
+      spentUsd: typeof pub.costUsd === "number" ? Number(pub.costUsd.toFixed(8)) : 0,
+      state: "failed",
+      model: MODEL_B,
+      startedAt: ledger.dExperiment?.startedAt,
+      finishedAt: new Date().toISOString(),
+      providerRequestId: pub.providerRequestId,
+      costUsd: pub.costUsd,
+      errorStatus: pub.errorStatus,
+      errorMessage: pub.errorMessage,
+      providerChargeEvidence: pub.providerChargeEvidence,
+    };
+    saveLedger(after);
+    writeJson(path.join(DOC_DIR, "rep-d-actual.json"), {
+      status: "FAILED",
+      condition: "d",
+      providerPosts: 1,
+      persistedToProduction: false,
+      model: MODEL_B,
+      promptSha256: sha256(prompt),
+      aPreparedWireBytesRestored: false,
+      fallback: false,
+      retry: false,
+      vision: false,
+      ...pub,
+    });
+    throw new Error(`D failed: ${pub.errorStatus} ${pub.errorMessage}`);
+  }
+}
+
 async function main(): Promise<void> {
   const mode = process.argv[2];
   if (mode === "preflight") {
@@ -552,7 +718,11 @@ async function main(): Promise<void> {
     await postCOnly();
     return;
   }
-  throw new Error("mode must be preflight, post, or post-c");
+  if (mode === "post-d") {
+    await postD();
+    return;
+  }
+  throw new Error("mode must be preflight, post, post-c, or post-d");
 }
 
 main().catch((error) => {

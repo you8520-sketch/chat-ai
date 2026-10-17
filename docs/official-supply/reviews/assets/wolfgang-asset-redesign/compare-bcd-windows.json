@@ -1,0 +1,100 @@
+{
+  "keptFixedSheets": [
+    "compare-abc-full.webp",
+    "compare-abc-face.webp",
+    "compare-abc-hair.webp",
+    "compare-abc-fur.webp",
+    "compare-abc-metal.webp"
+  ],
+  "sources": {
+    "B": {
+      "file": "rep-b-raw.webp",
+      "sha256": "33c23f5a37091cfe7a8c43f43484c49076cac1015fdbd8347f32b83876322f67",
+      "bytes": 222334
+    },
+    "C": {
+      "file": "rep-c-raw.webp",
+      "sha256": "2d8116b05be6555c532b247d2152e6ca94bb238086a51efbc17ec749a9ae0406",
+      "bytes": 264922
+    },
+    "D": {
+      "file": "rep-d-raw.webp",
+      "sha256": "5e338c0aa0b5a05d351162ba9ddfa8f158067de3d4bb7273149b8ec183b373a5",
+      "bytes": 291806
+    }
+  },
+  "outputs": {
+    "compare-bcd-full.webp": {
+      "sha256": "d121d8fddfbe49b608a492c0e80c681fe99e8c905d5fb3e34075683dcadd408c",
+      "bytes": 265202,
+      "scale": "each panel 0.5 of native 1024x1536, same scale across B/C/D"
+    },
+    "compare-bcd-face.webp": {
+      "sha256": "fe943b9986b60178622ba4ac53a17fec347ce60c81f60331c9dd422413fe64cd",
+      "bytes": 137026,
+      "window": {
+        "left": 282,
+        "top": 180,
+        "width": 460,
+        "height": 460,
+        "scale": "1:1 extract, no resize"
+      }
+    },
+    "compare-bcd-hair.webp": {
+      "sha256": "5cbbc0b472a132c37227fe8012813cea848247ec3d3a12eff3365caeb894be1a",
+      "bytes": 109986,
+      "window": {
+        "left": 312,
+        "top": 0,
+        "width": 400,
+        "height": 400,
+        "scale": "1:1 extract, no resize"
+      }
+    },
+    "compare-bcd-fur.webp": {
+      "sha256": "a55dc32ea1f6e0d8d013088aa607fbd200c0e44669b3aec858d7cf4b7717b3e1",
+      "bytes": 20492,
+      "window": {
+        "left": 80,
+        "top": 560,
+        "width": 220,
+        "height": 180,
+        "scale": "1:1 extract, no resize",
+        "note": "fur mass only. Excludes metal, skin, and background."
+      }
+    },
+    "compare-bcd-cuirass.webp": {
+      "sha256": "0ea4d4a5959d67780a4f7e20970524dc89d8a5b5b3437ab6ee262b031cbbd095",
+      "bytes": 38900,
+      "window": {
+        "left": 390,
+        "top": 700,
+        "width": 280,
+        "height": 200,
+        "scale": "1:1 extract, no resize",
+        "note": "chest-plate plane. Excludes glove and skin."
+      }
+    },
+    "compare-bcd-jaw.webp": {
+      "sha256": "fef856074748d1b962ec204d2ea97748505576dd94ea119fb985476f98cfba31",
+      "bytes": 55170,
+      "scale": "1:1 extract, no resize",
+      "topRow": {
+        "left": 282,
+        "top": 430,
+        "width": 230,
+        "height": 210,
+        "scale": "1:1 extract, no resize",
+        "note": "viewer-left window. Character's right jaw on a frontal face."
+      },
+      "bottomRow": {
+        "left": 512,
+        "top": 430,
+        "width": 230,
+        "height": 210,
+        "scale": "1:1 extract, no resize",
+        "note": "viewer-right window. Character's left jaw on a frontal face."
+      }
+    }
+  }
+}
