@@ -1,0 +1,35 @@
+{
+  "status": "GENERATED",
+  "condition": "b",
+  "providerPosts": 1,
+  "persistedToProduction": false,
+  "model": "gpt-image-2",
+  "quality": "medium",
+  "size": "1024x1536",
+  "n": 1,
+  "outputCompression": 88,
+  "background": "opaque",
+  "outputFormat": "webp",
+  "promptSha256": "08b3634fa8bad213ff8c0729d63caa3eb5fcbf26257ec24940ebc87bc6946a21",
+  "preparedReferenceFile": "rep-abc-preflight.json",
+  "aPreparedWireBytesRestored": false,
+  "providerRequestId": "req_706630cddfa846d5bbb21d63f875e8af",
+  "usageEvidence": "usage_present",
+  "costUsd": 0.087244,
+  "fallback": false,
+  "retry": false,
+  "vision": false,
+  "raw": {
+    "doc": "/workspace/docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-b-raw.webp",
+    "artifact": "/opt/cursor/artifacts/rep-b-raw.webp",
+    "sha256": "33c23f5a37091cfe7a8c43f43484c49076cac1015fdbd8347f32b83876322f67",
+    "bytes": 222334
+  },
+  "inspect": {
+    "width": 1024,
+    "height": 1536,
+    "format": "webp",
+    "inspectedSha256": "33c23f5a37091cfe7a8c43f43484c49076cac1015fdbd8347f32b83876322f67",
+    "inspectedBytes": 222334
+  }
+}

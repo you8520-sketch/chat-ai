@@ -111,6 +111,30 @@ type VisionAttempt = {
   retryable: boolean;
   /** Pure usage witness for this physical attempt (no persistence here). */
   cost: VisionCostEvidence | null;
+  outcome: VisionProviderPost["outcome"];
+};
+
+/**
+ * One provider POST of asset vision after its response settled. A transport
+ * error may or may not have reached the provider, so it still counts as sent.
+ */
+export type VisionProviderPost = {
+  model: string;
+  outcome: "parsed" | "unparsed" | "http_error" | "transport_error";
+  cost: VisionCostEvidence | null;
+};
+
+/**
+ * Optional run control for callers that meter paid vision. `beforeProviderPost`
+ * runs immediately before each POST (primary and fallback) and returns a stop
+ * reason to send nothing more; `afterProviderPost` settles that POST before the
+ * next one is considered. A response that cannot be read, parsed, or interpreted
+ * still settles that one POST and then rejects, so it is not retried. Without a
+ * control the primary → fallback order is unchanged.
+ */
+export type VisionRunControl = {
+  beforeProviderPost(model: string): string | null;
+  afterProviderPost(post: VisionProviderPost): void;
 };
 
 /**
@@ -178,12 +202,12 @@ async function analyzeWithModel(
     });
   } catch (err) {
     console.error("[vision] OpenRouter fetch failed:", model, err);
-    return { parsed: null, retryable: true, cost: null };
+    return { parsed: null, retryable: true, cost: null, outcome: "transport_error" };
   }
 
   if (!res.ok) {
     console.error("[vision] OpenRouter 오류:", model, await res.text());
-    return { parsed: null, retryable: true, cost: null };
+    return { parsed: null, retryable: true, cost: null, outcome: "http_error" };
   }
 
   const body = (await res.json()) as {
@@ -216,22 +240,23 @@ async function analyzeWithModel(
   }
   if (!text) {
     console.warn("[vision] empty response:", model);
-    return { parsed: null, retryable: true, cost };
+    return { parsed: null, retryable: true, cost, outcome: "unparsed" };
   }
 
   const structured = parseAssetVisionResponseText(text);
   if (!structured) {
     console.warn("[vision] invalid structured response:", model, text.slice(0, 200));
-    return { parsed: null, retryable: true, cost };
+    return { parsed: null, retryable: true, cost, outcome: "unparsed" };
   }
 
-  return { parsed: finalizeStructuredVisionResult(structured), retryable: false, cost };
+  return { parsed: finalizeStructuredVisionResult(structured), retryable: false, cost, outcome: "parsed" };
 }
 
 /** OpenRouter vision으로 캐릭터 에셋 분류 태그 + moderation (이미지 첨부 필수) */
 export async function analyzeAssetImage(
   url: string,
-  index = 0
+  index = 0,
+  control?: VisionRunControl
 ): Promise<{
   tag: string;
   estimated: boolean;
@@ -241,32 +266,27 @@ export async function analyzeAssetImage(
   nippleExposure?: NippleExposure;
   /** Per-attempt usage witnesses for server-side persistence (visionCost). */
   costAttempts: VisionCostEvidence[];
+  /** Set when the run control refused the next provider POST. */
+  stoppedBeforeProviderPost?: string;
 }> {
+  const unresolved = (costAttempts: VisionCostEvidence[], stoppedBeforeProviderPost?: string) => ({
+    tag: unresolvedTag(index),
+    estimated: true,
+    adultFlagged: false,
+    moderationReject: false,
+    moderationReason: "",
+    costAttempts,
+    ...(stoppedBeforeProviderPost ? { stoppedBeforeProviderPost } : {}),
+  });
   const apiKey = process.env.OPENROUTER_API_KEY?.trim();
-  if (!apiKey) {
-    return {
-      tag: unresolvedTag(index),
-      estimated: true,
-      adultFlagged: false,
-      moderationReject: false,
-      moderationReason: "",
-      costAttempts: [],
-    };
-  }
+  if (!apiKey) return unresolved([]);
 
   let img: { mime: string; data: string };
   try {
     img = await loadImageBase64(url);
   } catch (err) {
     console.error("[vision] image load failed:", err);
-    return {
-      tag: unresolvedTag(index),
-      estimated: true,
-      adultFlagged: false,
-      moderationReject: false,
-      moderationReason: "",
-      costAttempts: [],
-    };
+    return unresolved([]);
   }
 
   const dataUrl = `data:${img.mime};base64,${img.data}`;
@@ -275,8 +295,22 @@ export async function analyzeAssetImage(
 
   for (let i = 0; i < models.length; i++) {
     const model = models[i]!;
-    const result = await analyzeWithModel(model, dataUrl, apiKey);
+    const stop = control?.beforeProviderPost(model) ?? null;
+    if (stop) return unresolved(costAttempts, stop);
+    // Throws here are after the provider POST. A failed fetch returns
+    // transport_error instead of throwing. Settle the unread response once as
+    // unknown cost, then keep the error so the fallback is not a new retry and
+    // the caller still has the settlement.
+    let result: VisionAttempt;
+    try {
+      result = await analyzeWithModel(model, dataUrl, apiKey);
+    } catch (error) {
+      console.error("[vision] provider response unsettled:", model, error);
+      control?.afterProviderPost({ model, outcome: "unparsed", cost: null });
+      throw error;
+    }
     if (result.cost) costAttempts.push(result.cost);
+    control?.afterProviderPost({ model, outcome: result.outcome, cost: result.cost });
     if (result.parsed) {
       return { ...result.parsed, estimated: false, costAttempts };
     }
@@ -286,14 +320,7 @@ export async function analyzeAssetImage(
     }
   }
 
-  return {
-    tag: unresolvedTag(index),
-    estimated: true,
-    adultFlagged: false,
-    moderationReject: false,
-    moderationReason: "",
-    costAttempts,
-  };
+  return unresolved(costAttempts);
 }
 
 async function mapWithBoundedConcurrency<T, R>(

@@ -34,6 +34,7 @@ export function officialSlotGenerationReferences(input: {
   kind: OfficialAssetSlotKind;
   styleSeed: StyleReference;
   representativeUrl: string | null | undefined;
+  samePersonIdentityStyleUrl?: string | null;
 }): string[] {
   const resolved = resolveOfficialGenerationReferencePlan(input);
   return resolved.ok ? [...resolved.plan.references] : [];
@@ -102,6 +103,11 @@ export type OfficialAssetRunnerDeps = {
   workerId: string;
   now?: () => number;
   env?: NodeJS.ProcessEnv;
+  /**
+   * Local candidate image that owns both identity and style for this run.
+   * Production callers omit it. Representative STYLE ONLY rejects it.
+   */
+  samePersonIdentityStyleUrl?: string | null;
 };
 
 export type OfficialAssetRunOutcome =
@@ -158,6 +164,7 @@ export function composeOfficialSlotGeneration(input: {
   slotKey: string;
   representativeUrl: string | null | undefined;
   env?: NodeJS.ProcessEnv;
+  samePersonIdentityStyleUrl?: string | null;
 }): OfficialSlotGenerationCompose {
   const plan = input.character.assetPlan?.slots.find((slot) => slot.slotKey === input.slotKey);
   const candidate = input.style.candidates.find((c) => c.candidateId === input.style.approvedCandidateId);
@@ -168,6 +175,8 @@ export function composeOfficialSlotGeneration(input: {
     kind: plan.kind,
     styleSeed: input.style.styleSeed,
     representativeUrl: input.representativeUrl,
+    samePersonIdentityStyleUrl: input.samePersonIdentityStyleUrl,
+    representativeIdentityStyle: input.character.generationReferencePolicy,
   });
   if (!generation.ok) {
     return { ok: false, error: generation.reason };
@@ -403,6 +412,7 @@ function composeOrFail(
     slotKey,
     representativeUrl: deps.store.representativeAsset(draftKey).resultUrl,
     env: deps.env,
+    samePersonIdentityStyleUrl: deps.samePersonIdentityStyleUrl,
   });
   if (!composed.ok) {
     persist.fail(composed.error);

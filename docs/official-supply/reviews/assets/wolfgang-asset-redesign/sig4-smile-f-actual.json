@@ -1,0 +1,32 @@
+{
+  "status": "GENERATED",
+  "condition": "sig4-smile-f",
+  "providerPosts": 1,
+  "persistedToProduction": false,
+  "model": "gpt-image-2.5-sunburst",
+  "promptSha256": "95e795a7c1799a30e50f698b666867f8e7a3db61f541c7bc0c6e7f01444223cf",
+  "preparedSha256": "39d425e5bf7a8e48110107ab74e6d5989608d6d93156e85b10f90c77312ae1c7",
+  "sourceSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+  "size": "1536x1024",
+  "quality": "medium",
+  "n": 1,
+  "outputCompression": 88,
+  "background": "opaque",
+  "providerRequestId": "req_9f16055bae0840c4b0d2c49677a931c5",
+  "usageEvidence": "usage_present",
+  "costUsd": 0.030393000000000003,
+  "budgetUsd": 0.08,
+  "fallback": false,
+  "retry": false,
+  "vision": false,
+  "raw": {
+    "sha256": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1",
+    "bytes": 322224
+  },
+  "inspect": {
+    "width": 1536,
+    "height": 1024,
+    "format": "webp",
+    "inspectedSha256": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1"
+  }
+}

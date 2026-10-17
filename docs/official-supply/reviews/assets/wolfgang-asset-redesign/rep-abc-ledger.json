@@ -1,0 +1,49 @@
+{
+  "postsStarted": 2,
+  "budgetUsd": 0.16,
+  "spentUsd": 0.141308,
+  "gateHistory": [
+    {
+      "at": "2026-10-17T05:39:08Z",
+      "action": "skip-c-first-gate",
+      "reason": "remaining 0.072756 was below max(B cost, A cost) * 1.05 = 0.091606. That predictor used the gpt-image-2 bill for a sunburst call."
+    },
+    {
+      "at": "2026-10-17T05:39:54Z",
+      "action": "post-c",
+      "reason": "Sunburst planning ceiling 0.07 fits the remaining 0.072756. A's observed sunburst cost is 0.056524. C was called once. B was not called again."
+    }
+  ],
+  "conditions": {
+    "b": {
+      "state": "saved",
+      "model": "gpt-image-2",
+      "startedAt": "2026-10-17T05:38:35.500Z",
+      "finishedAt": "2026-10-17T05:39:08.024Z",
+      "providerRequestId": "req_706630cddfa846d5bbb21d63f875e8af",
+      "costUsd": 0.087244,
+      "rawSha256": "33c23f5a37091cfe7a8c43f43484c49076cac1015fdbd8347f32b83876322f67"
+    },
+    "c": {
+      "state": "saved",
+      "model": "gpt-image-2.5-sunburst",
+      "startedAt": "2026-10-17T05:39:54.825Z",
+      "finishedAt": "2026-10-17T05:40:15.649Z",
+      "providerRequestId": "req_777a75255a514ae081374ead310d73a6",
+      "costUsd": 0.054064,
+      "rawSha256": "2d8116b05be6555c532b247d2152e6ca94bb238086a51efbc17ec749a9ae0406"
+    }
+  },
+  "dExperiment": {
+    "postsStarted": 1,
+    "budgetUsd": 0.1,
+    "spentUsd": 0.084784,
+    "state": "saved",
+    "model": "gpt-image-2",
+    "startedAt": "2026-10-17T06:04:56.922Z",
+    "finishedAt": "2026-10-17T06:05:29.867Z",
+    "providerRequestId": "req_ab82e37d250b46af853ec5f224378a97",
+    "costUsd": 0.084784,
+    "rawSha256": "5e338c0aa0b5a05d351162ba9ddfa8f158067de3d4bb7273149b8ec183b373a5"
+  }
+}

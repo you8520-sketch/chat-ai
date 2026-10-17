@@ -1,0 +1,45 @@
+{
+  "scale": "1:1 extract, no resize",
+  "faces": [
+    {
+      "label": "F",
+      "left": 280,
+      "top": 160,
+      "width": 460,
+      "height": 460
+    },
+    {
+      "label": "smile",
+      "left": 500,
+      "top": 70,
+      "width": 360,
+      "height": 360
+    },
+    {
+      "label": "anger",
+      "left": 825,
+      "top": 125,
+      "width": 310,
+      "height": 300
+    },
+    {
+      "label": "relief",
+      "left": 820,
+      "top": 75,
+      "width": 290,
+      "height": 250
+    },
+    {
+      "label": "relief-r2",
+      "left": 700,
+      "top": 40,
+      "width": 360,
+      "height": 300
+    }
+  ],
+  "output": {
+    "file": "compare-five-faces.webp",
+    "sha256": "64caffbb68c9cfe57ee7fa364bdba16585f96437c479435bea11d952a44d6ccb",
+    "bytes": 135668
+  }
+}

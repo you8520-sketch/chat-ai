@@ -1,0 +1,31 @@
+{
+  "status": "PREFLIGHT",
+  "providerPosts": 0,
+  "source": {
+    "file": "rep-f-raw.webp",
+    "sha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+    "bytes": 249520
+  },
+  "prepared": {
+    "file": "sig4-smile-f-prepared/source.webp",
+    "sha256": "39d425e5bf7a8e48110107ab74e6d5989608d6d93156e85b10f90c77312ae1c7",
+    "bytes": 231636,
+    "pipeline": "same sharp steps as referenceToDataUrl"
+  },
+  "model": "gpt-image-2.5-sunburst",
+  "modelSupported": true,
+  "size": "1536x1024",
+  "quality": "medium",
+  "n": 1,
+  "outputCompression": 88,
+  "background": "opaque",
+  "promptSha256": "95e795a7c1799a30e50f698b666867f8e7a3db61f541c7bc0c6e7f01444223cf",
+  "budgetUsd": 0.08,
+  "observedOneRefSunburstUsd": 0.027393,
+  "estimateNote": "F's one-reference sunburst call at 1024x1536 cost 0.027393. This request is the same pixel count.",
+  "apiKeyPresent": true,
+  "apiKeyLength": 164,
+  "fallback": false,
+  "retry": false,
+  "vision": false
+}

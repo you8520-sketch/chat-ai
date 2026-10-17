@@ -1,0 +1,12 @@
+{
+  "providerPosts": 0,
+  "assembly": "composeOfficialSlotGeneration + prepareOfficialImageReferences + callOpenAiImageEdit",
+  "slotKey": "sig3",
+  "tag": "열쇠를 확인함",
+  "expression": "위험을 가늠하며 열쇠를 확인하는 집중. 이를 보이지 않는다.",
+  "pose": "장갑 낀 손으로 방벽 열쇠 꾸러미를 들어 열쇠 이를 확인한다. 열쇠와 손이 프레임 안에 보인다. 상자를 열거나 문서를 펼치지 않는다.",
+  "primaryPromptSha256": "83f11f68d070d199ceb7a9b11c7067a25a35b6d089297f5a4fa2682e2a5e030d",
+  "preparedSha256": "39d425e5bf7a8e48110107ab74e6d5989608d6d93156e85b10f90c77312ae1c7",
+  "preparedBytes": 231636,
+  "reference": "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp"
+}

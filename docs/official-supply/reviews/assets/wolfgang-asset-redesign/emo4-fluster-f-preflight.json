@@ -1,0 +1,19 @@
+{
+  "status": "PREFLIGHT",
+  "providerPosts": 0,
+  "model": "gpt-image-2.5-sunburst",
+  "size": "1536x1024",
+  "quality": "medium",
+  "n": 1,
+  "outputCompression": 88,
+  "background": "opaque",
+  "budgetUsd": 0.08,
+  "slotKey": "emo4",
+  "tag": "당황",
+  "expression": "예상 밖의 말에 눈이 잠깐 커지고 입술이 살짝 벌어진 당황. 웃음이 아니다.",
+  "pose": "고개를 옆으로 돌렸다가 다시 상대(카메라)를 본다. 손이 보이면 소품을 쥐지 않는다. 서류는 없다. 유저는 그리지 않는다.",
+  "primaryPromptSha256": "6995697c5a7b1f0e04d3fa2088b5785a4a990a5ba6f482db8d42629afe873b51",
+  "preparedSha256": "39d425e5bf7a8e48110107ab74e6d5989608d6d93156e85b10f90c77312ae1c7",
+  "preparedBytes": 231636,
+  "reference": "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp"
+}

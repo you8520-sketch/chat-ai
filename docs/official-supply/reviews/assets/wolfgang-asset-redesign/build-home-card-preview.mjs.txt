@@ -1,0 +1,107 @@
+import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
+import fs from "node:fs";
+import http from "node:http";
+import path from "node:path";
+
+const { chromium } = createRequire("/workspace/package.json")("playwright");
+
+const DOC = "/workspace/docs/official-supply/reviews/assets/wolfgang-asset-redesign";
+const ART = "/opt/cursor/artifacts";
+const REP = "/tmp/habby-test-db-X3VSSs/uploads/official-pilot-rf-v4-02__rep-a1.webp";
+const F = path.join(DOC, "rep-f.webp");
+const EXPECTED_REP = "a66c49d4d947209206b70a284c99f2e26ef868934ed5426818042c29ba3a45f1";
+
+function sha256(file) {
+  return createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+}
+
+const repSha = sha256(REP);
+if (repSha !== EXPECTED_REP) throw new Error(`rep sha ${repSha}`);
+fs.copyFileSync(REP, path.join(DOC, "production-rep.webp"));
+fs.copyFileSync(REP, path.join(ART, "production-rep.webp"));
+
+const server = http.createServer((req, res) => {
+  const file = req.url === "/rep.webp" ? REP : req.url === "/f.webp" ? F : "";
+  if (!file) {
+    res.writeHead(404);
+    res.end();
+    return;
+  }
+  res.writeHead(200, { "content-type": "image/webp" });
+  res.end(fs.readFileSync(file));
+});
+await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+const port = server.address().port;
+
+const html = `<!doctype html>
+<meta charset="utf-8">
+<title>home card crop</title>
+<style>
+  body { margin: 0; background: #0b0d14; color: #fff; font-family: sans-serif; }
+  section { padding: 16px 16px 8px; }
+  h2 { margin: 0 0 12px; font-size: 14px; font-weight: 700; }
+  .row { display: flex; gap: 20px; align-items: flex-start; }
+  .cap { margin-top: 8px; font-size: 12px; color: #d4d4d8; }
+  .home-card-frame { position: relative; overflow: hidden; background: #12141c; }
+  .home-card-media { position: absolute; inset: 0; }
+  .home-card-media img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+  .editorial { width: 232px; aspect-ratio: 2 / 3; }
+  .exhibit { width: 300px; aspect-ratio: 4 / 5; clip-path: polygon(0 0, calc(100% - 1.75rem) 0, 100% 1.75rem, 100% 100%, 0 100%); }
+  .index { width: 172px; aspect-ratio: 3 / 4; }
+  .home-card-cap { position: absolute; inset-inline: 0; bottom: 0; z-index: 4; background: linear-gradient(to top, rgb(0 0 0 / 0.95), rgb(0 0 0 / 0.55), transparent); padding: 3.5rem 12px 14px; }
+  .home-card-name { margin: 4px 0 0; font-size: 19px; font-weight: 800; line-height: 1.15; letter-spacing: -0.035em; }
+</style>
+<section id="editorial">
+  <h2>추천 editorial · xl 232px · aspect 2/3 · object-fit cover · object-position top</h2>
+  <div class="row">
+    <div><div class="home-card-frame editorial"><div class="home-card-media"><img src="http://127.0.0.1:${port}/rep.webp" alt=""></div><div class="home-card-cap"><h3 class="home-card-name">볼프강</h3></div></div><p class="cap">운영 대표</p></div>
+    <div><div class="home-card-frame editorial"><div class="home-card-media"><img src="http://127.0.0.1:${port}/f.webp" alt=""></div><div class="home-card-cap"><h3 class="home-card-name">볼프강</h3></div></div><p class="cap">F</p></div>
+  </div>
+</section>
+<section id="exhibit">
+  <h2>공모전 exhibit · xl 300px · aspect 4/5 · 우상단 컷 · object-position top</h2>
+  <div class="row">
+    <div><div class="home-card-frame exhibit"><div class="home-card-media"><img src="http://127.0.0.1:${port}/rep.webp" alt=""></div></div><p class="cap">운영 대표</p></div>
+    <div><div class="home-card-frame exhibit"><div class="home-card-media"><img src="http://127.0.0.1:${port}/f.webp" alt=""></div></div><p class="cap">F</p></div>
+  </div>
+</section>
+<section id="index">
+  <h2>신규 index · 390px 뷰포트 2열 172px · aspect 3/4 · object-position top</h2>
+  <div class="row">
+    <div><div class="home-card-frame index"><div class="home-card-media"><img src="http://127.0.0.1:${port}/rep.webp" alt=""></div></div><p class="cap">운영 대표</p></div>
+    <div><div class="home-card-frame index"><div class="home-card-media"><img src="http://127.0.0.1:${port}/f.webp" alt=""></div></div><p class="cap">F</p></div>
+  </div>
+</section>`;
+
+const browser = await chromium.launch({ executablePath: "/usr/bin/google-chrome", headless: true });
+const page = await browser.newPage({ viewport: { width: 760, height: 1400 }, deviceScaleFactor: 2 });
+await page.setContent(html, { waitUntil: "networkidle" });
+const shots = {};
+for (const id of ["editorial", "exhibit", "index"]) {
+  const name = `compare-card-${id}.png`;
+  const buf = await page.locator(`#${id}`).screenshot({ type: "png" });
+  fs.writeFileSync(path.join(DOC, name), buf);
+  fs.writeFileSync(path.join(ART, name), buf);
+  shots[name] = { sha256: createHash("sha256").update(buf).digest("hex"), bytes: buf.length };
+}
+await browser.close();
+server.close();
+const record = {
+  providerPosts: 0,
+  dbWrites: 0,
+  component: "CharacterCard HomeCard + CharacterCardCarousel",
+  imageRule: "object-fit: cover; object-position: top",
+  widths: {
+    editorial: "232px xl from page.tsx CARD_WIDTH, aspect 2/3",
+    exhibit: "300px xl, aspect 4/5, clip-path from CharacterCard exhibit frame",
+    index: "172px = (390 - 32 padding - 14 gap) / 2, aspect 3/4",
+  },
+  productionRepSha256: repSha,
+  fSha256: sha256(F),
+  shots,
+};
+const text = `${JSON.stringify(record, null, 2)}\n`;
+fs.writeFileSync(path.join(DOC, "compare-card-preview.json"), text);
+fs.writeFileSync(path.join(ART, "compare-card-preview.json"), text);
+console.log(text);

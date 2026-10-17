@@ -1,0 +1,36 @@
+{
+  "status": "GENERATED",
+  "slotKey": "emo5",
+  "revision": "r2",
+  "tag": "편안함",
+  "providerPosts": 1,
+  "persistedToProduction": false,
+  "model": "gpt-image-2.5-sunburst",
+  "reference": "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp",
+  "sourceSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+  "preparedSha256": "39d425e5bf7a8e48110107ab74e6d5989608d6d93156e85b10f90c77312ae1c7",
+  "primaryPromptSha256": "1fbf0dbc819a8b4f118591d32a325cc1d2808e8f58bb391b80586e9b4bc44ca8",
+  "size": "1536x1024",
+  "quality": "medium",
+  "n": 1,
+  "outputCompression": 88,
+  "background": "opaque",
+  "providerRequestId": "req_36a02238b64642f7a13befe73a642d20",
+  "usageEvidence": "usage_present",
+  "costUsd": 0.030133,
+  "budgetUsd": 0.08,
+  "fallback": false,
+  "retry": false,
+  "vision": false,
+  "recoveredFromRaw": false,
+  "raw": {
+    "sha256": "ef87914c71865944cdb1b40a6417105b3a426f089769189648e9ff86036ab517",
+    "bytes": 341204
+  },
+  "inspect": {
+    "width": 1536,
+    "height": 1024,
+    "format": "webp",
+    "inspectedSha256": "ef87914c71865944cdb1b40a6417105b3a426f089769189648e9ff86036ab517"
+  }
+}

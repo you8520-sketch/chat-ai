@@ -1,0 +1,144 @@
+{
+  "windows": {
+    "face": {
+      "F": {
+        "left": 280,
+        "top": 160,
+        "width": 460,
+        "height": 460
+      },
+      "C": {
+        "left": 500,
+        "top": 70,
+        "width": 360,
+        "height": 360
+      }
+    },
+    "hair": {
+      "F": {
+        "left": 300,
+        "top": 0,
+        "width": 420,
+        "height": 360
+      },
+      "C": {
+        "left": 540,
+        "top": 0,
+        "width": 240,
+        "height": 180
+      }
+    },
+    "fur": {
+      "F": {
+        "left": 10,
+        "top": 520,
+        "width": 180,
+        "height": 180
+      },
+      "C": {
+        "left": 720,
+        "top": 200,
+        "width": 200,
+        "height": 180
+      }
+    },
+    "armor": {
+      "F": {
+        "left": 340,
+        "top": 700,
+        "width": 340,
+        "height": 260
+      },
+      "C": {
+        "left": 520,
+        "top": 400,
+        "width": 320,
+        "height": 240
+      }
+    }
+  },
+  "note": "Windows are part-aligned. F and the smile candidate use different canvases, so coordinates differ.",
+  "outputs": {
+    "compare-smile-f-full.webp": {
+      "sha256": "2b202e83e573e30a2022be42a9fa8176d5f651c2cf47cdd6593e12dadc721aca",
+      "bytes": 197274,
+      "scale": "0.5 of each native canvas"
+    },
+    "compare-smile-f-face.webp": {
+      "sha256": "8fec80cef0e088c457bc0ca6068a12d787fa85d0e20966f5dd9d5750ff61413a",
+      "bytes": 80738,
+      "window": {
+        "F": {
+          "left": 280,
+          "top": 160,
+          "width": 460,
+          "height": 460
+        },
+        "C": {
+          "left": 500,
+          "top": 70,
+          "width": 360,
+          "height": 360
+        }
+      },
+      "scale": "1:1 extract, no resize"
+    },
+    "compare-smile-f-hair.webp": {
+      "sha256": "4512c455c61af2f78e881ea1fc42c7aed8acdad529c2a1fe443b112ae22ea67b",
+      "bytes": 47430,
+      "window": {
+        "F": {
+          "left": 300,
+          "top": 0,
+          "width": 420,
+          "height": 360
+        },
+        "C": {
+          "left": 540,
+          "top": 0,
+          "width": 240,
+          "height": 180
+        }
+      },
+      "scale": "1:1 extract, no resize"
+    },
+    "compare-smile-f-fur.webp": {
+      "sha256": "059a021931192628733e99509778f95029794ed6632cec78686e49c32262ef44",
+      "bytes": 18016,
+      "window": {
+        "F": {
+          "left": 10,
+          "top": 520,
+          "width": 180,
+          "height": 180
+        },
+        "C": {
+          "left": 720,
+          "top": 200,
+          "width": 200,
+          "height": 180
+        }
+      },
+      "scale": "1:1 extract, no resize"
+    },
+    "compare-smile-f-armor.webp": {
+      "sha256": "2280c2be12e156b4eeea37c4903f5e91ff556fc93b82b5b3ce04bc07dccb1be8",
+      "bytes": 41436,
+      "window": {
+        "F": {
+          "left": 340,
+          "top": 700,
+          "width": 340,
+          "height": 260
+        },
+        "C": {
+          "left": 520,
+          "top": 400,
+          "width": 320,
+          "height": 240
+        }
+      },
+      "scale": "1:1 extract, no resize"
+    }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "status": "GENERATED",
+  "slotKey": "scene2",
+  "tag": "기록을 맞춤",
+  "providerPosts": 1,
+  "persistedToProduction": false,
+  "model": "gpt-image-2.5-sunburst",
+  "reference": "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp",
+  "sourceSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+  "preparedSha256": "39d425e5bf7a8e48110107ab74e6d5989608d6d93156e85b10f90c77312ae1c7",
+  "sentPromptSha256": "a24b813c2a6522d1fcb5188ab90a5e640d76c01e0158a07ffe7d50da7e8075f2",
+  "size": "1536x1024",
+  "quality": "medium",
+  "n": 1,
+  "outputCompression": 88,
+  "background": "opaque",
+  "providerRequestId": "req_7608b37f1a06407a838014d8a8f765c1",
+  "usageEvidence": "usage_present",
+  "costUsd": 0.030388000000000002,
+  "budgetUsd": 0.08,
+  "fallback": false,
+  "retry": false,
+  "vision": false,
+  "raw": {
+    "sha256": "0cb364a2eddfddf5196e1ab1f0da8deb20ca175b62cc996b3ac583cea674b3e5",
+    "bytes": 361590
+  },
+  "inspect": {
+    "width": 1536,
+    "height": 1024,
+    "format": "webp",
+    "inspectedSha256": "0cb364a2eddfddf5196e1ab1f0da8deb20ca175b62cc996b3ac583cea674b3e5"
+  }
+}

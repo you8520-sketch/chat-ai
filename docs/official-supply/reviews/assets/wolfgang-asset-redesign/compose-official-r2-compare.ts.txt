@@ -1,0 +1,292 @@
+import { createHash } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+
+import {
+  buildMatureMaleVisualAgePrompt,
+  computeAppearanceLockHash,
+  isMatureMaleRofanRomanceTarget,
+  MATURE_MALE_VISUAL_AGE_RULE,
+} from "@/lib/officialSupply/appearance";
+import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
+import { loadApprovedWolfgangV4Source } from "@/lib/officialSupply/lockedSnapshotReconcileOperator";
+import { testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures";
+import { PILOT_STYLE_PROOF_CANDIDATE_ID } from "@/lib/officialSupply/pilotStyleProof";
+import { composeOfficialSlotGeneration } from "@/lib/officialSupply/runner";
+import { resolveOfficialSlotShot, renderOfficialShotResponsibility } from "@/lib/officialSupply/shotPlan";
+import { ROFAN_CLUSTER_B_VISUAL_STYLE_DNA } from "@/lib/officialSupply/style";
+import type {
+  OfficialAppearanceLock,
+  OfficialAssetPlan,
+  OfficialAssetSlotPlan,
+  OfficialCharacterDraft,
+  OfficialCharacterRecord,
+} from "@/lib/officialSupply/types";
+import { buildClusterBRofanStyleSeed } from "@/lib/officialSupply/userOwnedRofanStyleRefs";
+
+const OUT_DIR = "/workspace/docs/official-supply/reviews/assets/wolfgang-asset-redesign";
+const PILOT_PATH = "/workspace/src/lib/officialSupply/pilot/characters/pilot-rf-02.json";
+const STUB_COMPOSE_PATH = path.join(OUT_DIR, "sig4-rest-compose.experimental-stub.json");
+const APPROVED_APPEARANCE_LOCK_HASH =
+  "1c3ccd134203a6dea6ae869c27cc443c42ff5498d1d0130c6f9765407c24dcc3";
+
+const redesignedSig4: OfficialAssetSlotPlan = {
+  slotKey: "sig4",
+  kind: "signature",
+  tag: "옅은 미소",
+  expression: "긴장을 풀고 상대를 바라보며 입꼬리만 살짝 올린 옅은 미소. 이를 보이지 않는다.",
+  pose: "갑옷을 벗지 않은 채 창가 돌벤치에 앉아 상체를 상대(카메라) 쪽으로 돌린다. 양손은 허벅지 위에 올려 두고 소품을 건네지 않는다. 어깨는 살짝 내려가 있고, 얼굴·눈·옅은 미소가 한눈에 보인다. 유저는 그리지 않는다.",
+  outfit: "default",
+  location: "흑철 요새 집무실 창가",
+  situation: "늦은 당직을 마친 뒤 짧은 휴식을 취하며 상대를 바라본다",
+  characterPresence: "required",
+  depiction: "standard",
+  personTag: "미소",
+  imageSubjects: { foreground: "solo_character", backgroundExtras: "none" },
+};
+
+const experimentalStubDraft = {
+  draftKey: "pilot-rf-v4-02",
+  worldKey: "pilot-rf-erendel",
+  styleKey: "romance_fantasy_v4",
+  name: "볼프강 폰 발켄하임",
+  tagline: "",
+  description: "",
+  greeting: "",
+  gender: "male",
+  age: 34,
+  genres: ["romance_fantasy"],
+  tags: [],
+  audience: "all",
+} as unknown as OfficialCharacterDraft;
+
+function gateFields(draft: OfficialCharacterDraft) {
+  return {
+    draftKey: draft.draftKey,
+    name: draft.name,
+    gender: draft.gender,
+    age: draft.age,
+    genres: draft.genres,
+    audience: draft.audience,
+    matureMaleTarget: isMatureMaleRofanRomanceTarget(draft),
+    matureMalePromptPresent: Boolean(buildMatureMaleVisualAgePrompt(draft)),
+  };
+}
+
+function sha256(text: string): string {
+  return createHash("sha256").update(text, "utf8").digest("hex");
+}
+
+function wolfgangCharacter(
+  draft: OfficialCharacterDraft,
+  appearance: OfficialAppearanceLock,
+  plan: OfficialAssetPlan
+): OfficialCharacterRecord {
+  return {
+    draftKey: "pilot-rf-02",
+    batchKey: "pilot-romance-fantasy-04-cluster-b",
+    worldKey: draft.worldKey,
+    styleKey: draft.styleKey,
+    stage: "asset_plan_locked",
+    draft,
+    textLockHash: null,
+    appearance,
+    appearanceLockHash: null,
+    assetPlan: plan,
+    isStyleProof: false,
+    stagedCharacterId: null,
+  };
+}
+
+const file = JSON.parse(fs.readFileSync(PILOT_PATH, "utf8")) as {
+  appearance: OfficialAppearanceLock;
+  assetPlan: OfficialAssetPlan;
+  brief: { audience: OfficialCharacterDraft["audience"] };
+};
+const appearanceHash = computeAppearanceLockHash(file.appearance);
+if (appearanceHash !== APPROVED_APPEARANCE_LOCK_HASH) {
+  throw new Error(`Appearance Lock drifted: ${appearanceHash}`);
+}
+
+const compiled = loadCompiledOfficialCharacterSource("pilot-rf-02");
+const approved = loadApprovedWolfgangV4Source();
+const styleSeed = buildClusterBRofanStyleSeed({ NEXTAUTH_URL: "https://hav.chat" });
+const candidate = {
+  ...testStyleCandidate(PILOT_STYLE_PROOF_CANDIDATE_ID),
+  dna: ROFAN_CLUSTER_B_VISUAL_STYLE_DNA,
+};
+const style = {
+  styleKey: compiled.draft.styleKey,
+  genre: "로맨스 판타지",
+  stage: "style_locked" as const,
+  candidates: [candidate],
+  approvedCandidateId: candidate.candidateId,
+  styleSeed,
+  proofAssetLimit: 1,
+};
+
+const compilerVsApproved = {
+  gender: compiled.draft.gender === approved.nextDraft.gender,
+  age: compiled.draft.age === approved.nextDraft.age,
+  genres: JSON.stringify(compiled.draft.genres) === JSON.stringify(approved.nextDraft.genres),
+  audience: compiled.draft.audience === approved.nextDraft.audience,
+  matureMaleTarget:
+    isMatureMaleRofanRomanceTarget(compiled.draft) ===
+    isMatureMaleRofanRomanceTarget(approved.nextDraft),
+};
+
+const sig4Plan: OfficialAssetPlan = {
+  ...file.assetPlan,
+  slots: file.assetPlan.slots.map((slot) => (slot.slotKey === "sig4" ? redesignedSig4 : slot)),
+};
+
+const sig4Official = composeOfficialSlotGeneration({
+  character: wolfgangCharacter(compiled.draft, compiled.appearanceLock, sig4Plan),
+  style,
+  slotKey: "sig4",
+  representativeUrl: "https://hav.chat/uploads/official-pilot-rf-v4-02__rep-a1.webp",
+  env: {},
+});
+if (!sig4Official.ok) throw new Error(sig4Official.error);
+
+const sig4ApprovedDraft = composeOfficialSlotGeneration({
+  character: wolfgangCharacter(approved.nextDraft, compiled.appearanceLock, sig4Plan),
+  style,
+  slotKey: "sig4",
+  representativeUrl: "https://hav.chat/uploads/official-pilot-rf-v4-02__rep-a1.webp",
+  env: {},
+});
+if (!sig4ApprovedDraft.ok) throw new Error(sig4ApprovedDraft.error);
+
+const repOfficial = composeOfficialSlotGeneration({
+  character: wolfgangCharacter(compiled.draft, compiled.appearanceLock, file.assetPlan),
+  style,
+  slotKey: "rep",
+  representativeUrl: null,
+  env: { OPENAI_IMAGE_MODEL: "gpt-image-2.5-sunburst" },
+});
+if (!repOfficial.ok) throw new Error(repOfficial.error);
+
+const stubHasAgeLock = Boolean(buildMatureMaleVisualAgePrompt(experimentalStubDraft));
+const officialHasAgeLock = sig4Official.primaryPrompt.includes(MATURE_MALE_VISUAL_AGE_RULE);
+const approvedHasAgeLock = sig4ApprovedDraft.primaryPrompt.includes(MATURE_MALE_VISUAL_AGE_RULE);
+const repHasAgeLock = repOfficial.primaryPrompt.includes(MATURE_MALE_VISUAL_AGE_RULE);
+const shot = resolveOfficialSlotShot(redesignedSig4, compiled.draft.draftKey);
+
+if (!officialHasAgeLock || !approvedHasAgeLock || !repHasAgeLock) {
+  throw new Error("official/approved/rep compose is missing MATURE MALE VISUAL AGE LOCK");
+}
+if (stubHasAgeLock) {
+  throw new Error("experimental stub unexpectedly returned the age lock");
+}
+if (sig4Official.primaryPrompt.includes("poseFamily") || sig4Official.primaryPrompt.includes("expressionFamily")) {
+  throw new Error("shot tense/prop metadata leaked into primaryPrompt");
+}
+
+const experimental = JSON.parse(fs.readFileSync(path.join(OUT_DIR, "sig4-rest-compose.json"), "utf8")) as {
+  primaryPrompt: string;
+};
+fs.writeFileSync(STUB_COMPOSE_PATH, `${JSON.stringify(experimental, null, 2)}\n`);
+
+const sig4Out = {
+  composedAt: new Date().toISOString(),
+  paidProviderCalls: 0,
+  inputFix: "official_compiler_draft",
+  slot: redesignedSig4,
+  shot,
+  shotLine: renderOfficialShotResponsibility(shot),
+  shotMetadataNotInPrompt: {
+    poseFamily: shot.poseFamily,
+    expressionFamily: shot.expressionFamily,
+    note: "tense/prop remain shot metadata only; primaryPrompt does not include them; shot system unchanged",
+  },
+  generation: {
+    ok: true,
+    plan: {
+      mode: "variation_identity_then_style",
+      references: [...sig4Official.references],
+      referenceRoleLayout: sig4Official.referenceRoleLayout,
+    },
+  },
+  primaryPrompt: sig4Official.primaryPrompt,
+  matureMaleVisualAgeLockPresent: officialHasAgeLock,
+};
+fs.writeFileSync(path.join(OUT_DIR, "sig4-rest-compose.json"), `${JSON.stringify(sig4Out, null, 2)}\n`);
+
+const repOut = {
+  composedAt: new Date().toISOString(),
+  paidProviderCalls: 0,
+  slotKey: "rep",
+  owner: "composeOfficialSlotGeneration",
+  modelRequestedForComposeRecord: "gpt-image-2.5-sunburst",
+  profile: repOfficial.profile,
+  quality: "medium",
+  n: 1,
+  references: [...repOfficial.references],
+  referenceRoleLayout: repOfficial.referenceRoleLayout,
+  productionRepIncluded: [...repOfficial.references].some((item) => item.includes("official-pilot-rf-v4-02__rep")),
+  foodCandidateIncluded: [...repOfficial.references].some((item) => item.includes("sig4-candidate")),
+  primaryPrompt: repOfficial.primaryPrompt,
+  matureMaleVisualAgeLockPresent: repHasAgeLock,
+};
+fs.writeFileSync(path.join(OUT_DIR, "rep-style-only-compose.json"), `${JSON.stringify(repOut, null, 2)}\n`);
+
+const diff = {
+  comparedAt: new Date().toISOString(),
+  experimentalStub: {
+    source: "/tmp/compose-sig4-redesign.ts",
+    fields: gateFields(experimentalStubDraft),
+    submittedPromptHasMatureMaleLock: experimental.primaryPrompt.includes("MATURE MALE VISUAL AGE LOCK"),
+  },
+  officialCompiler: {
+    owner: "loadCompiledOfficialCharacterSource + compileOfficialDraftFromBible",
+    fields: gateFields(compiled.draft),
+    appearanceLockHash: appearanceHash,
+    briefAudience: file.brief.audience,
+    compilerGenres: ["로맨스 판타지"],
+  },
+  approvedR2Draft: {
+    owner: "loadApprovedWolfgangV4Source",
+    fields: gateFields(approved.nextDraft),
+  },
+  compilerVsApprovedGateFields: compilerVsApproved,
+  missingInExperimental: {
+    genres: "romance_fantasy English slug instead of 로맨스 판타지",
+    audience: "all instead of female",
+    effect: "buildMatureMaleVisualAgePrompt returned null; MATURE MALE VISUAL AGE LOCK omitted",
+  },
+  unchanged: {
+    r2Manuscript: true,
+    r2Genres: true,
+    appearanceLock: true,
+    shotSystem: true,
+    newGlobalPromptSentence: false,
+  },
+  recomposed: {
+    sig4OfficialPromptSha256: sha256(sig4Official.primaryPrompt),
+    sig4ApprovedDraftPromptSha256: sha256(sig4ApprovedDraft.primaryPrompt),
+    officialEqualsApprovedDraftPrompt: sig4Official.primaryPrompt === sig4ApprovedDraft.primaryPrompt,
+    sig4AgeLock: officialHasAgeLock,
+    repAgeLock: repHasAgeLock,
+    shotTensePropInPrompt: false,
+  },
+};
+fs.writeFileSync(path.join(OUT_DIR, "compose-input-diff.json"), `${JSON.stringify(diff, null, 2)}\n`);
+
+console.log(
+  JSON.stringify(
+    {
+      stubMature: stubHasAgeLock,
+      officialMature: officialHasAgeLock,
+      approvedMature: approvedHasAgeLock,
+      repMature: repHasAgeLock,
+      compilerVsApproved,
+      officialEqualsApprovedDraftPrompt: sig4Official.primaryPrompt === sig4ApprovedDraft.primaryPrompt,
+      sig4Refs: [...sig4Official.references],
+      repRefs: [...repOfficial.references],
+      shotFamilies: { poseFamily: shot.poseFamily, expressionFamily: shot.expressionFamily },
+    },
+    null,
+    2
+  )
+);

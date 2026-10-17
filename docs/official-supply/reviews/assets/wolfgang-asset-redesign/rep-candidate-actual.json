@@ -1,0 +1,56 @@
+{
+  "status": "GENERATED",
+  "providerPosts": 1,
+  "persistedToProduction": false,
+  "model": "gpt-image-2.5-sunburst",
+  "quality": "medium",
+  "size": "1024x1536",
+  "n": 1,
+  "outputCompression": 88,
+  "references": [
+    "https://hav.chat/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b7-black-gold-uniform.webp",
+    "https://hav.chat/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b13-black-red-fur.webp",
+    "https://hav.chat/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b5-red-dress-female.webp"
+  ],
+  "localRefs": [
+    {
+      "path": "public/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b7-black-gold-uniform.webp",
+      "bytes": 214512,
+      "sha256": "fc4047ac876152a8668897e6c7e8a03e1b2a0bf975cb1513cedc5839e10d3168"
+    },
+    {
+      "path": "public/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b13-black-red-fur.webp",
+      "bytes": 182512,
+      "sha256": "f9d01ebc18291acb89894b070c3c8308a317575f9702e75db75b42a872ed4ae6"
+    },
+    {
+      "path": "public/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b5-red-dress-female.webp",
+      "bytes": 173714,
+      "sha256": "fdab6b92a41480e8f28f4eaedd951c81283dde81a0e8b67600799356632e4998"
+    }
+  ],
+  "promptSha256": "08b3634fa8bad213ff8c0729d63caa3eb5fcbf26257ec24940ebc87bc6946a21",
+  "providerRequestId": "req_8abe53c02b0a43adb963341c93359baf",
+  "usageEvidence": "usage_present",
+  "costUsd": 0.056524000000000005,
+  "budgetUsd": 0.08,
+  "priorCampaignUsd": 0.13891452,
+  "cumulativeKnownUsd": 0.19543852,
+  "fallback": false,
+  "retry": false,
+  "vision": false,
+  "raw": {
+    "artifact": "/opt/cursor/artifacts/rep-candidate-raw.webp",
+    "doc": "/workspace/docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-candidate-raw.webp",
+    "sha256": "23da84679e504a91e830a5562eee3c56bb780a7b370728c63541506b94cb8a85",
+    "bytes": 289838
+  },
+  "inspect": {
+    "width": 1024,
+    "height": 1536,
+    "format": "webp",
+    "dimensionVerdict": "exact",
+    "inspectedSha256": "23da84679e504a91e830a5562eee3c56bb780a7b370728c63541506b94cb8a85",
+    "inspectedBytes": 289838
+  }
+}

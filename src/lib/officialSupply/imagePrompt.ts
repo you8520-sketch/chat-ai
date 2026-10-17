@@ -1,6 +1,7 @@
 import { buildImageGenderLockPrompt } from "@/lib/chatImageGeneration";
 import { buildIllustrationSafeDepiction } from "@/lib/chatImageIllustrationSanitizer";
 import { STRICT_SAFE_DEPICTION } from "@/lib/chatImageStrictSafetyFallbackPrompt";
+import { renderChatImageStyleFidelityContract } from "@/lib/chatImageVisualIdentity";
 import { buildMatureMaleVisualAgePrompt, renderAppearanceBlock } from "@/lib/officialSupply/appearance";
 import { adultDepictionAllowed } from "@/lib/officialSupply/assetPlan";
 import { officialImageProfileForSlot } from "@/lib/officialSupply/imageProfile";
@@ -82,7 +83,7 @@ function framingForSlot(slot: OfficialAssetSlotPlan, draftKey: string): string {
   }
 }
 
-export type OfficialReferenceRoleLayout = "slot_default" | "identity_then_style";
+export type OfficialReferenceRoleLayout = "slot_default" | "identity_then_style" | "identity_and_style";
 
 export type OfficialAssetPromptInput = {
   draft: OfficialCharacterDraft;
@@ -95,6 +96,7 @@ export type OfficialAssetPromptInput = {
    * Production callers pass the layout from `resolveOfficialGenerationReferencePlan`.
    * Default `slot_default` is representative STYLE ONLY or non-Cluster-B IDENTITY ANCHOR ONLY.
    * `identity_then_style` is the Cluster B variation layout: Image 1 identity, Image 2 style.
+   * `identity_and_style` is one local image for both roles. It does not render style DNA.
    */
   referenceRoleLayout?: OfficialReferenceRoleLayout;
 };
@@ -158,6 +160,21 @@ export const OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE = [
   OFFICIAL_SHOT_POSE_EXPRESSION_OWNER_CLAUSE,
 ].join(" ");
 
+/**
+ * One supplied image owns both identity and rendering.
+ * Shot, pose, and expression stay with their existing lines. Style DNA is not added beside this rule.
+ */
+export function officialIdentityAndStyleReferenceRule(): string {
+  return [
+    "REFERENCE IMAGE: one supplied image. It is both the identity source and the style source for this one person.",
+    "Keep this person's identity and this image's line and coloring method.",
+    OFFICIAL_IDENTITY_COPY_FORBIDDEN_CLAUSE,
+    OFFICIAL_SHOT_POSE_EXPRESSION_OWNER_CLAUSE,
+    "Do not move a hidden scar or possession into view by changing its place on the body.",
+    renderChatImageStyleFidelityContract({ hasTemplate: false, subjectCount: 1 }),
+  ].join("\n");
+}
+
 /** Cluster B variation: Image 1 = identity, Image 2 = approved styleSeed.url. */
 export function officialIdentityThenStyleReferenceRule(
   styleSeed: StyleReference | null | undefined
@@ -183,6 +200,8 @@ function officialSlotReferenceRule(
   referenceRoleLayout: OfficialReferenceRoleLayout = "slot_default"
 ): string {
   switch (referenceRoleLayout) {
+    case "identity_and_style":
+      return officialIdentityAndStyleReferenceRule();
     case "identity_then_style":
       return officialIdentityThenStyleReferenceRule(styleSeed);
     case "slot_default":
@@ -206,17 +225,17 @@ export function buildOfficialAssetPrompts(input: OfficialAssetPromptInput): {
   strictFallbackPrompt: string;
 } {
   const { draft, appearance, style, slot, styleSeed } = input;
+  const referenceRoleLayout = input.referenceRoleLayout ?? "slot_default";
+  const identityAndStyle = referenceRoleLayout === "identity_and_style";
   const adultGrounded =
     slot.depiction === "adult_grounded_non_explicit" && adultDepictionAllowed(draft);
   const genderLock = buildImageGenderLockPrompt([
     { label: "Character", name: draft.name, gender: draft.gender },
   ]);
-  const effectiveStyle = resolveOfficialAssetStyleDna(style, styleSeed);
-  const referenceRule = officialSlotReferenceRule(
-    slot,
-    styleSeed,
-    input.referenceRoleLayout ?? "slot_default"
-  );
+  const styleBody = identityAndStyle
+    ? []
+    : [renderStyleDna(resolveOfficialAssetStyleDna(style, styleSeed)), renderOfficialStyleFramingOverride(slot.kind)];
+  const referenceRule = officialSlotReferenceRule(slot, styleSeed, referenceRoleLayout);
   const moment = [
     `Expression: ${slot.expression}.`,
     slot.pose.trim() ? `Pose: ${slot.pose}.` : "",
@@ -234,8 +253,7 @@ export function buildOfficialAssetPrompts(input: OfficialAssetPromptInput): {
     renderIdentityLock(appearance),
     buildMatureMaleVisualAgePrompt(draft) ?? "",
     genderLock,
-    renderStyleDna(effectiveStyle),
-    renderOfficialStyleFramingOverride(slot.kind),
+    ...styleBody,
     buildIllustrationSafeDepiction({ adultGrounded }),
     moment,
     officialImageSubjectRuleForSlot(slot),
@@ -250,7 +268,7 @@ export function buildOfficialAssetPrompts(input: OfficialAssetPromptInput): {
     renderIdentityLock(appearance),
     buildMatureMaleVisualAgePrompt(draft) ?? "",
     genderLock,
-    renderOfficialStyleFramingOverride(slot.kind),
+    ...(identityAndStyle ? [] : [renderOfficialStyleFramingOverride(slot.kind)]),
     moment,
     officialImageSubjectRuleForSlot(slot),
     "No text, logos or watermarks.",

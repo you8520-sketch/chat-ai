@@ -310,6 +310,17 @@ export type OfficialAssetPlan = {
   slots: OfficialAssetSlotPlan[];
 };
 
+/**
+ * Per-character variation reference policy. The approved representative file
+ * (asset storage URL + raw SHA-256) is the single identity+style reference.
+ * Characters without a policy keep the default reference plan.
+ */
+export type OfficialGenerationReferencePolicy = {
+  mode: "representative_identity_and_style";
+  url: string;
+  sha256: string;
+};
+
 export type OfficialAssetStatus =
   | "planned"
   | "generating"

@@ -1,0 +1,114 @@
+{
+  "providerPosts": 0,
+  "count": 10,
+  "totalBudgetUsd": 0.8,
+  "perSlotBudgetUsd": 0.08,
+  "kept": [
+    "rep F",
+    "sig4 옅은 미소",
+    "emo2 분노",
+    "emo6 r2"
+  ],
+  "inputs": [
+    {
+      "slotKey": "sig1",
+      "tag": "지도를 짚음",
+      "expression": "엄격하고 흔들림 없이 지도를 읽는 진지한 표정. 이를 보이지 않는다.",
+      "pose": "흑철 요새 지휘실 탁자 위 작전 지도의 한 지점을 장갑 낀 검지로 짚는다. 지도와 짚는 손이 프레임 안에 보인다. 부하는 그리지 않는다. 서류 더미는 두지 않는다.",
+      "primaryPromptSha256": "1dc3003b68c3ce2df14de9566c91d3d0eee448c35fdd1d5b04ddb6dfb31323a5",
+      "preparedSha256": "39d425e5bf7a8e48110107ab74e6d5989608d6d93156e85b10f90c77312ae1c7",
+      "preparedBytes": 231636,
+      "reference": "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp"
+    },
+    {
+      "slotKey": "sig2",
+      "tag": "턱을 괴고 생각",
+      "expression": "말을 삼키며 턱을 괸 채 생각을 정리하는 눈빛. 흉터를 만지거나 보여 주지 않는다.",
+      "pose": "갑옷 장갑을 낀 손으로 턱을 괴고 앉는다. 괴고 있는 손과 얼굴이 한눈에 보인다. 서류·지도·열쇠는 두지 않는다. 흉터를 쓰다듬지 않는다.",
+      "primaryPromptSha256": "ab17ab9e2d4263d4952ddc11accb0a8ccc14c50c66aa84a3652250aefb9ce15c",
+      "preparedSha256": "39d425e5bf7a8e48110107ab74e6d5989608d6d93156e85b10f90c77312ae1c7",
+      "preparedBytes": 231636,
+      "reference": "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp"
+    },
+    {
+      "slotKey": "sig3",
+      "tag": "열쇠를 확인함",
+      "expression": "위험을 가늠하며 열쇠를 확인하는 집중. 이를 보이지 않는다.",
+      "pose": "장갑 낀 손으로 방벽 열쇠 꾸러미를 들어 열쇠 이를 확인한다. 열쇠와 손이 프레임 안에 보인다. 상자를 열거나 문서를 펼치지 않는다.",
+      "primaryPromptSha256": "83f11f68d070d199ceb7a9b11c7067a25a35b6d089297f5a4fa2682e2a5e030d",
+      "preparedSha256": "39d425e5bf7a8e48110107ab74e6d5989608d6d93156e85b10f90c77312ae1c7",
+      "preparedBytes": 231636,
+      "reference": "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp"
+    },
+    {
+      "slotKey": "emo1",
+      "tag": "의심",
+      "expression": "상대를 바라보며 눈썹만 좁힌 의심. 입을 다문다. 서류를 보지 않는다.",
+      "pose": "상체를 상대(카메라) 쪽으로 두고 손을 비운다. 문서·편지·지도·열쇠는 없다. 유저는 그리지 않는다.",
+      "primaryPromptSha256": "84c0eb9b750ddf27a24d906ec6aca2112b8c20273b87f953eddf6d0046e67d72",
+      "preparedSha256": "39d425e5bf7a8e48110107ab74e6d5989608d6d93156e85b10f90c77312ae1c7",
+      "preparedBytes": 231636,
+      "reference": "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp"
+    },
+    {
+      "slotKey": "emo3",
+      "tag": "진지함",
+      "expression": "상대의 말을 끝까지 듣는 냉정한 진지함. 눈썹을 찌푸리거나 웃지 않는다.",
+      "pose": "손을 비운 채 상대(카메라)를 바라본다. 문서·지도·열쇠·주먹은 없다. 유저는 그리지 않는다.",
+      "primaryPromptSha256": "6ac62f403af830c16093e67182c8b4e0bb2b0cafc093bc2c8e9bd565a7adf245",
+      "preparedSha256": "39d425e5bf7a8e48110107ab74e6d5989608d6d93156e85b10f90c77312ae1c7",
+      "preparedBytes": 231636,
+      "reference": "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp"
+    },
+    {
+      "slotKey": "emo4",
+      "tag": "당황",
+      "expression": "예상 밖의 말에 눈이 잠깐 커지고 입술이 살짝 벌어진 당황. 웃음이 아니다.",
+      "pose": "고개를 옆으로 돌렸다가 다시 상대(카메라)를 본다. 손이 보이면 소품을 쥐지 않는다. 서류는 없다. 유저는 그리지 않는다.",
+      "primaryPromptSha256": "6995697c5a7b1f0e04d3fa2088b5785a4a990a5ba6f482db8d42629afe873b51",
+      "preparedSha256": "39d425e5bf7a8e48110107ab74e6d5989608d6d93156e85b10f90c77312ae1c7",
+      "preparedBytes": 231636,
+      "reference": "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp"
+    },
+    {
+      "slotKey": "emo5",
+      "tag": "편안함",
+      "expression": "눈을 뜨고 눈가의 힘이 풀린 편안함. 입꼬리를 올리지 않는다. 눈을 감거나 길게 숨을 내쉬거나 웃지 않는다.",
+      "pose": "소품 없이 어깨를 내려 선다. 손은 몸 옆에 가볍게 둔다. 서류·검·열쇠·주먹은 없다. 창가에 앉아 웃지 않는다. 유저는 그리지 않는다.",
+      "primaryPromptSha256": "9e04e897e5d5ddcea10a1f9511a41525018b1ecb322a5efec96821ea98f09d73",
+      "preparedSha256": "39d425e5bf7a8e48110107ab74e6d5989608d6d93156e85b10f90c77312ae1c7",
+      "preparedBytes": 231636,
+      "reference": "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp"
+    },
+    {
+      "slotKey": "scene1",
+      "tag": "문서를 대조함",
+      "expression": "서로 다른 인장의 문서를 대조하며 판단을 보류하는 의심. 이를 보이지 않는다.",
+      "pose": "장갑 낀 양손에 인장이 다른 문서 두 장을 들어 나란히 보여 준다. 두 문서와 손이 프레임 안에 보인다. 상대는 그리지 않는다.",
+      "primaryPromptSha256": "9f89d980e84be8df9edf5330db15f6e815ae7e54ce7093a2e55d5ab049898cc5",
+      "preparedSha256": "39d425e5bf7a8e48110107ab74e6d5989608d6d93156e85b10f90c77312ae1c7",
+      "preparedBytes": 231636,
+      "reference": "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp"
+    },
+    {
+      "slotKey": "scene2",
+      "tag": "기록을 맞춤",
+      "expression": "서로 다른 인계 기록을 맞춰 보며 놓치지 않는 집중. 이를 보이지 않는다.",
+      "pose": "판도라 아카이브 탁자 위 인계 기록과 증인 서류를 양손으로 나란히 맞춰 본다. 종이 두 종류와 손이 프레임 안에 보인다.",
+      "primaryPromptSha256": "a24b813c2a6522d1fcb5188ab90a5e640d76c01e0158a07ffe7d50da7e8075f2",
+      "preparedSha256": "39d425e5bf7a8e48110107ab74e6d5989608d6d93156e85b10f90c77312ae1c7",
+      "preparedBytes": 231636,
+      "reference": "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp"
+    },
+    {
+      "slotKey": "scene3",
+      "tag": "긴장",
+      "expression": "압박 앞에서 턱과 어깨에 힘이 들어간 단호한 긴장. 웃지 않고 이를 보이지 않는다. 눈을 감지 않는다.",
+      "pose": "솔라리스 유리온실의 유리와 조명 아래 갑옷을 입은 채 서서 상대(카메라)를 본다. 문서·열쇠·음식은 없다. 유혈이나 무기는 그리지 않는다.",
+      "primaryPromptSha256": "3a8469dcfc03d1208c0f899b09ddb3b5dd52d73a5b14d1dd6fd55453913ab860",
+      "preparedSha256": "39d425e5bf7a8e48110107ab74e6d5989608d6d93156e85b10f90c77312ae1c7",
+      "preparedBytes": 231636,
+      "reference": "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp"
+    }
+  ]
+}

@@ -4,7 +4,19 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+import { getDatabasePath } from "@/lib/dataDir";
 import { computeAppearanceLockHash } from "@/lib/officialSupply/appearance";
+import {
+  approvedAssetReviewTemplate,
+  approvedAssetStatus,
+  openApprovedAssetOperator,
+  runApprovedAssetApply,
+  runApprovedAssetIntake,
+  runApprovedAssetModeration,
+  runApprovedAssetReview,
+  runApprovedAssetRollback,
+  type ModerationMeter,
+} from "@/lib/officialSupply/approvedAssetApplyOperator";
 import { computeTextLockHash } from "@/lib/officialSupply/characterText";
 import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
 import {
@@ -12,7 +24,17 @@ import {
   WOLFGANG_IN_PLACE_TARGET,
   wolfgangApprovedPersistedSourcePath,
 } from "@/lib/officialSupply/inPlaceWolfgang";
-import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
+import {
+  isRailwayProductionApplyEnvironment,
+  isRailwayProductionSqlitePath,
+} from "@/lib/officialSupply/lockedSnapshotReconcileOperator";
+import {
+  createVisionOfficialAssetModerator,
+  sharpOfficialImageOps,
+  uploadOfficialAssetStorage,
+} from "@/lib/officialSupply/productionAdapters";
+import { OfficialSupplyGateError, OfficialSupplyStore } from "@/lib/officialSupply/store";
+import { visionModels } from "@/lib/vision";
 
 const RAILWAY_PROJECT = "072644e5-ce50-49bb-ab2e-1f13bae6b149";
 const RAILWAY_SERVICE = "chat-ai";
@@ -58,6 +80,7 @@ function inspect(): void {
         place: placeCommand(),
         restore: restoreCommand(),
         verify: "npm run official-supply:wolfgang-approved-source -- --verify <decrypted-source.json>",
+        assets: ASSET_USAGE,
       },
       null,
       2
@@ -104,7 +127,112 @@ function verify(sourcePath: string): void {
   }
 }
 
-function main(): void {
+const ASSET_STEPS = ["status", "intake", "moderate", "review", "apply", "rollback"] as const;
+type AssetStep = (typeof ASSET_STEPS)[number];
+const ASSET_MANIFEST_DEFAULT = "docs/official-supply/reviews/assets/wolfgang-asset-redesign/fourteen-f-candidates.json";
+const ASSET_PLAN_DEFAULT = "src/lib/officialSupply/pilot/fixtures/pilot-rf-02-approved-asset-plan-f.json";
+const ASSET_USAGE =
+  "usage: official-supply-wolfgang-approved-source assets <status|intake|moderate|review|apply|rollback> " +
+  "--admin-email <email> --character-id <id> [--execute] [--evidence <file>] [--apply-id <id>] " +
+  "[--max-calls <n> --max-cost-usd <usd> --per-call-reserve-usd <usd>] [--manifest <file>] [--approved-plan <file>]";
+
+function parseAssetFlags(args: readonly string[]): { step: AssetStep; flags: Map<string, string>; execute: boolean } {
+  const step = args[0] as AssetStep;
+  if (!ASSET_STEPS.includes(step)) throw new OfficialSupplyGateError("approved_source_usage", ASSET_USAGE);
+  const flags = new Map<string, string>();
+  let execute = false;
+  for (let i = 1; i < args.length; i++) {
+    const arg = args[i]!;
+    if (arg === "--execute") {
+      execute = true;
+      continue;
+    }
+    const value = args[i + 1];
+    if (!arg.startsWith("--") || value == null || value.startsWith("--")) {
+      throw new OfficialSupplyGateError("approved_source_usage", ASSET_USAGE);
+    }
+    flags.set(arg.slice(2), value);
+    i++;
+  }
+  if (execute && step === "status") throw new OfficialSupplyGateError("approved_source_usage", "status never writes");
+  return { step, flags, execute };
+}
+
+function productionDatabase(): boolean {
+  return isRailwayProductionApplyEnvironment(process.env) || isRailwayProductionSqlitePath(getDatabasePath());
+}
+
+const visionModerationMeter: ModerationMeter = {
+  attemptsPerCall: visionModels().length,
+  createModerator: (control) => createVisionOfficialAssetModerator(control),
+};
+
+async function runAssetStep(args: readonly string[]): Promise<boolean> {
+  const { step, flags, execute } = parseAssetFlags(args);
+  const number = (key: string) => (flags.has(key) ? Number(flags.get(key)) : NaN);
+  const target = openApprovedAssetOperator({
+    store: new OfficialSupplyStore(),
+    draftKey: flags.get("draft-key") ?? WOLFGANG_IN_PLACE_TARGET.supplyDraftKey,
+    characterId: number("character-id"),
+    adminEmail: flags.get("admin-email") ?? "",
+    manifestPath: path.resolve(flags.get("manifest") ?? ASSET_MANIFEST_DEFAULT),
+    approvedPlanPath: path.resolve(flags.get("approved-plan") ?? ASSET_PLAN_DEFAULT),
+  });
+  const print = (value: unknown) =>
+    console.log(JSON.stringify({ db: getDatabasePath(), productionDatabase: productionDatabase(), ...(value as object) }, null, 2));
+  switch (step) {
+    case "status":
+      print(approvedAssetStatus(target));
+      return true;
+    case "intake": {
+      const report = await runApprovedAssetIntake(target, { storage: uploadOfficialAssetStorage, imageOps: sharpOfficialImageOps }, execute);
+      print(report);
+      return report.status !== "stopped";
+    }
+    case "moderate": {
+      const budget =
+        flags.has("max-calls") || flags.has("max-cost-usd") || flags.has("per-call-reserve-usd")
+          ? { maxCalls: number("max-calls"), maxCostUsd: number("max-cost-usd"), perCallReserveUsd: number("per-call-reserve-usd") }
+          : null;
+      const report = await runApprovedAssetModeration(target, visionModerationMeter, budget, execute);
+      print(report);
+      return report.status !== "stopped";
+    }
+    case "review": {
+      const evidence = flags.get("evidence");
+      if (!evidence) {
+        print({ step: "review", template: approvedAssetReviewTemplate(target) });
+        return true;
+      }
+      print(
+        runApprovedAssetReview(target, fs.readFileSync(path.resolve(evidence)), {
+          execute,
+          productionDatabase: productionDatabase(),
+        })
+      );
+      return true;
+    }
+    case "apply": {
+      const result = runApprovedAssetApply(target, execute);
+      print({
+        ...result,
+        rollback: result.applyId
+          ? `npm run official-supply:wolfgang-approved-source -- assets rollback --admin-email ${target.actor.email} --character-id ${target.characterId} --apply-id ${result.applyId}`
+          : null,
+      });
+      return true;
+    }
+    case "rollback":
+      print(runApprovedAssetRollback(target, flags.get("apply-id") ?? "", execute));
+      return true;
+    default: {
+      const exhaustive: never = step;
+      throw new OfficialSupplyGateError("approved_source_usage", String(exhaustive));
+    }
+  }
+}
+
+async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   if (argv.length === 0) {
     inspect();
@@ -114,10 +242,18 @@ function main(): void {
     verify(argv[1]);
     return;
   }
+  if (argv[0] === "assets") {
+    if (!(await runAssetStep(argv.slice(1)))) process.exitCode = 1;
+    return;
+  }
   throw new OfficialSupplyGateError(
     "approved_source_usage",
-    "usage: official-supply-wolfgang-approved-source [--verify <decrypted-source.json>]"
+    `usage: official-supply-wolfgang-approved-source [--verify <decrypted-source.json>]\n${ASSET_USAGE}`
   );
 }
 
-main();
+main().catch((error: unknown) => {
+  const code = error instanceof OfficialSupplyGateError ? error.code : "approved_source_operator";
+  console.error("[wolfgang-approved-source] STOP:", code, error instanceof Error ? error.message : String(error));
+  process.exit(1);
+});

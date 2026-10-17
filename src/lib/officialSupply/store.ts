@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { parseAssets } from "@/lib/characterAssets";
 import { parseCharacterFormBody, type SessionUser } from "@/lib/characterFormSave";
 import { primaryCharacterGenre } from "@/lib/characterGenres";
 import { getDb } from "@/lib/db";
@@ -22,6 +23,7 @@ import {
   mergeQa,
 } from "@/lib/officialSupply/characterText";
 import { officialImageProfileForSlot } from "@/lib/officialSupply/imageProfile";
+import { mapOfficialPublicAssetSlots } from "@/lib/officialSupply/publicAssetMap";
 import { evaluatePortfolioBalance, type OfficialPortfolioPolicy } from "@/lib/officialSupply/research";
 import {
   DEFAULT_STYLE_PROOF_ASSET_LIMIT,
@@ -40,6 +42,7 @@ import {
   type OfficialAssetStatus,
   type OfficialCharacterDraft,
   type OfficialCharacterStage,
+  type OfficialGenerationReferencePolicy,
   type OfficialGenreStyle,
   type OfficialReplacementStatus,
   type OfficialStyleStage,
@@ -87,6 +90,7 @@ export type OfficialCharacterRecord = {
   assetPlan: OfficialAssetPlan | null;
   isStyleProof: boolean;
   stagedCharacterId: number | null;
+  generationReferencePolicy?: OfficialGenerationReferencePolicy | null;
 };
 
 export type OfficialLockedSnapshotReconcileInput = {
@@ -155,6 +159,12 @@ export type OfficialReplacementRecord = {
   appliedAt: string | null;
   /** Human-approved action/situation tag. Never filled from vision auto-classification. */
   approvedTag: string | null;
+  /** Raw SHA-256 of an external candidate file, recorded before the file is stored. */
+  candidateSha256: string | null;
+  /** Representative anchor reviewer; null for RP variation review. */
+  reviewedBy: string | null;
+  /** Text Lock the candidate review was recorded against. */
+  reviewedTextLockHash: string | null;
 };
 
 export class OfficialSupplyGateError extends Error {
@@ -269,9 +279,28 @@ export function ensureOfficialSupplySchema(db: Database.Database): void {
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       UNIQUE(draft_key, slot_key)
     );
+    CREATE TABLE IF NOT EXISTS official_supply_replacement_applies (
+      apply_id TEXT PRIMARY KEY,
+      draft_key TEXT NOT NULL,
+      character_id INTEGER NOT NULL,
+      slot_keys_json TEXT NOT NULL,
+      before_json TEXT NOT NULL,
+      after_json TEXT NOT NULL,
+      status TEXT NOT NULL,
+      applied_by_id INTEGER,
+      applied_at TEXT NOT NULL DEFAULT (datetime('now')),
+      rolled_back_by_id INTEGER,
+      rolled_back_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_official_supply_replacement_applies_draft
+      ON official_supply_replacement_applies(draft_key, applied_at);
   `);
   ensureOfficialSupplyColumn(db, "official_supply_assets", "approved_tag", "TEXT");
   ensureOfficialSupplyColumn(db, "official_supply_asset_replacements", "approved_tag", "TEXT");
+  ensureOfficialSupplyColumn(db, "official_supply_asset_replacements", "candidate_sha256", "TEXT");
+  ensureOfficialSupplyColumn(db, "official_supply_asset_replacements", "reviewed_by", "TEXT");
+  ensureOfficialSupplyColumn(db, "official_supply_asset_replacements", "reviewed_text_lock_hash", "TEXT");
+  ensureOfficialSupplyColumn(db, "official_supply_characters", "generation_reference_json", "TEXT");
   const assetColumns = new Set(
     (db.prepare("PRAGMA table_info(official_supply_assets)").all() as Array<{ name: string }>).map((c) => c.name)
   );
@@ -282,7 +311,7 @@ export function ensureOfficialSupplySchema(db: Database.Database): void {
 
 function ensureOfficialSupplyColumn(
   db: Database.Database,
-  table: "official_supply_assets" | "official_supply_asset_replacements",
+  table: "official_supply_assets" | "official_supply_asset_replacements" | "official_supply_characters",
   column: string,
   ddl: string
 ): void {
@@ -307,6 +336,7 @@ type CharacterRow = {
   asset_plan_json: string | null;
   is_style_proof: number;
   staged_character_id: number | null;
+  generation_reference_json: string | null;
 };
 
 type AssetRow = {
@@ -353,6 +383,9 @@ type ReplacementRow = {
   moderation_json: string | null;
   applied_at: string | null;
   approved_tag: string | null;
+  candidate_sha256: string | null;
+  reviewed_by: string | null;
+  reviewed_text_lock_hash: string | null;
 };
 
 function parseJson<T>(raw: string | null): T | null {
@@ -374,6 +407,7 @@ function toCharacter(row: CharacterRow): OfficialCharacterRecord {
     assetPlan: parseJson<OfficialAssetPlan>(row.asset_plan_json),
     isStyleProof: row.is_style_proof === 1,
     stagedCharacterId: row.staged_character_id,
+    generationReferencePolicy: parseJson<OfficialGenerationReferencePolicy>(row.generation_reference_json),
   };
 }
 
@@ -424,10 +458,13 @@ function toReplacement(row: ReplacementRow): OfficialReplacementRecord {
     moderation: parseJson<OfficialAssetModeration>(row.moderation_json),
     appliedAt: row.applied_at,
     approvedTag: row.approved_tag,
+    candidateSha256: row.candidate_sha256,
+    reviewedBy: row.reviewed_by,
+    reviewedTextLockHash: row.reviewed_text_lock_hash,
   };
 }
 
-function canonicalJson(value: unknown): string {
+export function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
   if (value && typeof value === "object") {
     return `{${Object.entries(value as Record<string, unknown>)
@@ -473,6 +510,33 @@ type AssetSnapshotRow = AssetRow & { id: number; updated_at: string };
 
 function anchorQaPasses(qa: OfficialAnchorQaReport): boolean {
   return Object.values(qa).every((check) => check.ok);
+}
+
+export const VARIATION_QA_KEYS = [
+  "identityMatchesAnchor",
+  "expressionMatchesPlan",
+  "characterPresent",
+  "artStyle",
+] as const satisfies ReadonlyArray<keyof OfficialVariationQaReport>;
+
+export const ANCHOR_QA_KEYS = [
+  "gender",
+  "ageAppearance",
+  "face",
+  "hair",
+  "eyes",
+  "body",
+  "identifyingFeatures",
+  "artStyle",
+  "outfit",
+  "cardCrop",
+] as const satisfies ReadonlyArray<keyof OfficialAnchorQaReport>;
+
+/** Every anchor check is present and passing. A variation report never qualifies. */
+export function isCompletePassingAnchorQa(qa: unknown): qa is OfficialAnchorQaReport {
+  if (!qa || typeof qa !== "object") return false;
+  const record = qa as Record<string, { ok?: unknown } | undefined>;
+  return ANCHOR_QA_KEYS.every((key) => record[key]?.ok === true);
 }
 
 function variationQaPasses(qa: OfficialVariationQaReport): boolean {
@@ -833,7 +897,7 @@ export class OfficialSupplyStore {
     return qa;
   }
 
-  private assertTextLockCurrent(record: OfficialCharacterRecord): void {
+  assertTextLockCurrent(record: OfficialCharacterRecord): void {
     if (!record.textLockHash || record.textLockHash !== computeTextLockHash(record.draft)) {
       throw new OfficialSupplyGateError("text_lock_stale", `draft ${record.draftKey} text changed after TEXT_LOCK`);
     }
@@ -1693,7 +1757,7 @@ export class OfficialSupplyStore {
     }
   }
 
-  /** Representative replacement is a follow-up; this lifecycle is non-representative only. */
+  /** Default slot gate (paid generation and published rows): the representative is never replaced. */
   assertReplacementSlotAllowed(draftKey: string, slotKey: string): OfficialAssetRecord {
     const asset = this.getAsset(draftKey, slotKey);
     if (asset.kind === "representative") {
@@ -1703,6 +1767,46 @@ export class OfficialSupplyStore {
       );
     }
     return asset;
+  }
+
+  /**
+   * Slot gate for external intake and apply. `character` must come from
+   * `assertReplacementOperator`. The representative is allowed only while the
+   * linked row is staged_private (official=0, private); every other stage keeps
+   * the default refusal.
+   */
+  assertReplacementTargetAllowed(character: OfficialCharacterRecord, slotKey: string): OfficialAssetRecord {
+    const asset = this.getAsset(character.draftKey, slotKey);
+    if (asset.kind === "representative" && character.stage !== "staged_private") {
+      throw new OfficialSupplyGateError(
+        "replacement_representative_forbidden",
+        `${character.draftKey}/${slotKey} representative replacement is limited to staged_private characters`
+      );
+    }
+    return asset;
+  }
+
+  /** The linked row's public assets are this draft's active slots, in plan order. */
+  private assertLinkedPublicAssetsMatch(character: OfficialCharacterRecord): void {
+    if (!character.assetPlan || character.stagedCharacterId == null) {
+      throw new OfficialSupplyGateError("not_staged", `draft ${character.draftKey} has no linked character`);
+    }
+    const row = this.db
+      .prepare("SELECT assets FROM characters WHERE id=?")
+      .get(character.stagedCharacterId) as { assets: string } | undefined;
+    const mapped = mapOfficialPublicAssetSlots({
+      plan: character.assetPlan,
+      publicAssets: parseAssets(row?.assets ?? "[]"),
+      activeUrlBySlot: new Map(
+        this.listAssets(character.draftKey).map((asset) => [asset.slotKey, asset.resultUrl ?? ""])
+      ),
+    });
+    if (!mapped.ok) {
+      throw new OfficialSupplyGateError(
+        "staged_character_mismatch",
+        `draft ${character.draftKey} is not linked to its public character: ${mapped.reason}`
+      );
+    }
   }
 
   listReplacements(draftKey: string): OfficialReplacementRecord[] {
@@ -1742,7 +1846,8 @@ export class OfficialSupplyStore {
     const claim = this.db.transaction(() => {
       const character = this.assertReplacementOperator(draftKey, actor);
       this.assertTextLockCurrent(character);
-      const asset = this.assertReplacementSlotAllowed(draftKey, slotKey);
+      const asset = this.assertReplacementTargetAllowed(character, slotKey);
+      this.assertLinkedPublicAssetsMatch(character);
       if (asset.status !== "approved" || !asset.resultUrl) {
         throw new OfficialSupplyGateError(
           "active_slot_not_approved",
@@ -1880,6 +1985,9 @@ export class OfficialSupplyStore {
            qa_json=NULL,
            applied_at=NULL,
            approved_tag=NULL,
+           candidate_sha256=NULL,
+           reviewed_by=NULL,
+           reviewed_text_lock_hash=NULL,
            appearance_lock_hash=excluded.appearance_lock_hash,
            updated_at=datetime('now')
          WHERE official_supply_asset_replacements.status IN ('planned','failed','rejected')
@@ -1912,12 +2020,19 @@ export class OfficialSupplyStore {
     actor: OfficialAdminActor,
     draftKey: string,
     slotKey: string,
-    input: { url: string; width: number; height: number; approvedTag: string; intakeId: string }
+    input: {
+      url: string;
+      width: number;
+      height: number;
+      approvedTag: string;
+      intakeId: string;
+      sha256: string;
+    }
   ): OfficialReplacementRecord {
     const register = this.db.transaction(() => {
       const character = this.assertReplacementOperator(draftKey, actor);
       this.assertTextLockCurrent(character);
-      const asset = this.assertReplacementSlotAllowed(draftKey, slotKey);
+      const asset = this.assertReplacementTargetAllowed(character, slotKey);
       if (asset.status !== "approved" || !asset.resultUrl) {
         throw new OfficialSupplyGateError(
           "active_slot_not_approved",
@@ -1948,6 +2063,9 @@ export class OfficialSupplyStore {
                applied_at=NULL,
                appearance_lock_hash=?,
                approved_tag=?,
+               candidate_sha256=?,
+               reviewed_by=NULL,
+               reviewed_text_lock_hash=NULL,
                updated_at=datetime('now')
            WHERE draft_key=? AND slot_key=? AND lease_owner=?
              AND status IN ('planned','failed','rejected','generated')`
@@ -1959,6 +2077,7 @@ export class OfficialSupplyStore {
           input.height,
           character.appearanceLockHash,
           input.approvedTag,
+          input.sha256,
           draftKey,
           slotKey,
           input.intakeId
@@ -2108,6 +2227,7 @@ export class OfficialSupplyStore {
         `UPDATE official_supply_asset_replacements
          SET status='generated', lease_owner=NULL, lease_expires_at=NULL,
              candidate_result_url=?, width=?, height=?, error=NULL, qa_json=NULL, moderation_json=NULL,
+             candidate_sha256=NULL, reviewed_by=NULL, reviewed_text_lock_hash=NULL,
              updated_at=datetime('now')
          WHERE draft_key=? AND slot_key=? AND status IN ('generating','upload_pending') AND lease_owner=?`
       )
@@ -2185,7 +2305,113 @@ export class OfficialSupplyStore {
   ): { approved: boolean } {
     const character = this.assertReplacementOperator(draftKey, actor);
     this.assertTextLockCurrent(character);
-    const asset = this.assertReplacementSlotAllowed(draftKey, slotKey);
+    const asset = this.assertReplacementTargetAllowed(character, slotKey);
+    if (asset.kind === "representative") {
+      throw new OfficialSupplyGateError(
+        "use_anchor_review",
+        `${draftKey}/${slotKey} representative candidates are reviewed with anchor QA`
+      );
+    }
+    const { replacement, inspectedUrl } = this.assertReviewableReplacement(
+      character,
+      asset,
+      expectedCandidateUrl
+    );
+    const approved = this.moderationGateFor(
+      replacement.moderation,
+      draftKey,
+      slotKey
+    ) === "pass" && variationQaPasses(qa);
+    const info = this.db
+      .prepare(
+        `UPDATE official_supply_asset_replacements
+         SET status=?, qa_json=?, reviewed_text_lock_hash=?, updated_at=datetime('now')
+         WHERE draft_key=? AND slot_key=? AND status='generated' AND candidate_result_url=?`
+      )
+      .run(
+        approved ? "approved" : "rejected",
+        JSON.stringify(qa),
+        character.textLockHash,
+        draftKey,
+        slotKey,
+        inspectedUrl
+      );
+    if (info.changes !== 1) {
+      throw new OfficialSupplyGateError(
+        "replacement_review_stale",
+        `${draftKey}/${slotKey} review no longer matches the inspected candidate`
+      );
+    }
+    return { approved };
+  }
+
+  /**
+   * ANCHOR_APPROVAL for a replacement representative on a staged_private
+   * character. Uses anchor QA, not variation QA. The review is bound to the
+   * inspected candidate URL, its raw file SHA-256 and the current Text Lock /
+   * Appearance Lock. The live representative row and its earlier anchor QA are
+   * untouched until apply.
+   */
+  reviewRepresentativeReplacement(
+    actor: OfficialAdminActor,
+    draftKey: string,
+    qa: OfficialAnchorQaReport,
+    inspected: { candidateUrl: string; candidateSha256: string },
+    reviewer: string
+  ): { approved: boolean } {
+    const character = this.assertReplacementOperator(draftKey, actor);
+    this.assertTextLockCurrent(character);
+    if (!reviewer.trim()) throw new OfficialSupplyGateError("reviewer_required", "approver identity required");
+    const representative = this.representativeAsset(draftKey);
+    const asset = this.assertReplacementTargetAllowed(character, representative.slotKey);
+    const { replacement, inspectedUrl } = this.assertReviewableReplacement(
+      character,
+      asset,
+      inspected.candidateUrl
+    );
+    const inspectedSha = inspected.candidateSha256.trim().toLowerCase();
+    if (!replacement.candidateSha256 || replacement.candidateSha256 !== inspectedSha) {
+      throw new OfficialSupplyGateError(
+        "replacement_review_stale",
+        `${draftKey}/${asset.slotKey} review does not match the stored candidate file`
+      );
+    }
+    const approved =
+      this.moderationGateFor(replacement.moderation, draftKey, asset.slotKey) === "pass" &&
+      isCompletePassingAnchorQa(qa);
+    const info = this.db
+      .prepare(
+        `UPDATE official_supply_asset_replacements
+         SET status=?, qa_json=?, reviewed_by=?, reviewed_text_lock_hash=?, updated_at=datetime('now')
+         WHERE draft_key=? AND slot_key=? AND kind='representative' AND status='generated'
+           AND candidate_result_url=? AND candidate_sha256=? AND appearance_lock_hash=?`
+      )
+      .run(
+        approved ? "approved" : "rejected",
+        JSON.stringify(qa),
+        approved ? reviewer.trim() : null,
+        character.textLockHash,
+        draftKey,
+        asset.slotKey,
+        inspectedUrl,
+        inspectedSha,
+        character.appearanceLockHash
+      );
+    if (info.changes !== 1) {
+      throw new OfficialSupplyGateError(
+        "replacement_review_stale",
+        `${draftKey}/${asset.slotKey} review no longer matches the inspected candidate`
+      );
+    }
+    return { approved };
+  }
+
+  private assertReviewableReplacement(
+    character: OfficialCharacterRecord,
+    asset: OfficialAssetRecord,
+    expectedCandidateUrl: string
+  ): { replacement: OfficialReplacementRecord; inspectedUrl: string } {
+    const { draftKey, slotKey } = asset;
     if (asset.status !== "approved" || !asset.resultUrl) {
       throw new OfficialSupplyGateError(
         "active_slot_not_approved",
@@ -2230,24 +2456,7 @@ export class OfficialSupplyStore {
         `${draftKey}/${slotKey} base_result_url no longer matches the active slot`
       );
     }
-    const approved = this.moderationGateFor(
-      replacement.moderation,
-      draftKey,
-      slotKey
-    ) === "pass" && variationQaPasses(qa);
-    const info = this.db
-      .prepare(
-        `UPDATE official_supply_asset_replacements SET status=?, qa_json=?, updated_at=datetime('now')
-         WHERE draft_key=? AND slot_key=? AND status='generated' AND candidate_result_url=?`
-      )
-      .run(approved ? "approved" : "rejected", JSON.stringify(qa), draftKey, slotKey, inspectedUrl);
-    if (info.changes !== 1) {
-      throw new OfficialSupplyGateError(
-        "replacement_review_stale",
-        `${draftKey}/${slotKey} review no longer matches the inspected candidate`
-      );
-    }
-    return { approved };
+    return { replacement, inspectedUrl };
   }
 
   private moderationGateFor(

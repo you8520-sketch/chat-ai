@@ -1,0 +1,211 @@
+import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
+import fs from "node:fs";
+import path from "node:path";
+
+const requireFromWorkspace = createRequire("/workspace/package.json");
+const sharp = requireFromWorkspace("sharp") as typeof import("sharp");
+
+import {
+  OFFICIAL_ASSET_OUTPUT_COMPRESSION,
+  evaluateOfficialImageDimensions,
+} from "@/lib/officialSupply/imageProfile";
+import { prepareOfficialImageReferences } from "@/lib/officialSupply/referencePreparation";
+import { callOpenAiImageEdit } from "@/lib/openAiImageEdit";
+
+const DOC_DIR = "/workspace/docs/official-supply/reviews/assets/wolfgang-asset-redesign";
+const ARTIFACT_DIR = "/opt/cursor/artifacts";
+const COMPOSE_PATH = path.join(DOC_DIR, "rep-style-only-compose.json");
+const RAW_NAME = "rep-candidate-raw.webp";
+const OUT_NAME = "rep-candidate.webp";
+const EVIDENCE_NAME = "rep-candidate-actual.json";
+const BUDGET_USD = 0.08;
+const PRIOR_CAMPAIGN_TOTAL_USD = 0.13891452;
+const EXPECTED_MODEL = "gpt-image-2.5-sunburst";
+const LOCAL_STYLE_PATHS = [
+  "public/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b7-black-gold-uniform.webp",
+  "public/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b13-black-red-fur.webp",
+  "public/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b5-red-dress-female.webp",
+] as const;
+
+function sha256(buf: Buffer): string {
+  return createHash("sha256").update(buf).digest("hex");
+}
+
+function writeEvidence(payload: Record<string, unknown>): void {
+  const text = `${JSON.stringify(payload, null, 2)}\n`;
+  fs.mkdirSync(DOC_DIR, { recursive: true });
+  fs.mkdirSync(ARTIFACT_DIR, { recursive: true });
+  fs.writeFileSync(path.join(DOC_DIR, EVIDENCE_NAME), text);
+  fs.writeFileSync(path.join(ARTIFACT_DIR, EVIDENCE_NAME), text);
+}
+
+async function preflight(): Promise<{
+  sharpOk: true;
+  writePaths: string[];
+  localRefs: Array<{ path: string; bytes: number; sha256: string }>;
+}> {
+  const probe = await sharp({
+    create: { width: 2, height: 2, channels: 3, background: "#000" },
+  })
+    .webp()
+    .toBuffer();
+  if (!probe.length) throw new Error("sharp preflight produced empty webp");
+
+  const writePaths = [DOC_DIR, ARTIFACT_DIR];
+  for (const dir of writePaths) {
+    fs.mkdirSync(dir, { recursive: true });
+    const probePath = path.join(dir, ".rep-write-probe");
+    fs.writeFileSync(probePath, probe);
+    fs.rmSync(probePath);
+    const rawProbe = path.join(dir, RAW_NAME);
+    fs.writeFileSync(rawProbe, probe);
+    fs.rmSync(rawProbe);
+  }
+
+  const localRefs = LOCAL_STYLE_PATHS.map((rel) => {
+    const abs = path.join(process.cwd(), rel);
+    if (!fs.existsSync(abs)) throw new Error(`missing style ref ${abs}`);
+    const bytes = fs.readFileSync(abs);
+    if (!bytes.length) throw new Error(`empty style ref ${abs}`);
+    return { path: rel, bytes: bytes.length, sha256: sha256(bytes) };
+  });
+  return { sharpOk: true, writePaths, localRefs };
+}
+
+function preserveRaw(buffer: Buffer): { artifact: string; doc: string; sha256: string; bytes: number } {
+  const artifact = path.join(ARTIFACT_DIR, RAW_NAME);
+  const doc = path.join(DOC_DIR, RAW_NAME);
+  fs.writeFileSync(artifact, buffer);
+  fs.writeFileSync(doc, buffer);
+  return { artifact, doc, sha256: sha256(buffer), bytes: buffer.length };
+}
+
+async function main(): Promise<void> {
+  const compose = JSON.parse(fs.readFileSync(COMPOSE_PATH, "utf8")) as {
+    primaryPrompt: string;
+    references: string[];
+    profile: { size: "1024x1536"; width: number; height: number; aspect: "2:3" };
+    productionRepIncluded: boolean;
+    foodCandidateIncluded: boolean;
+  };
+  if (compose.productionRepIncluded || compose.foodCandidateIncluded) {
+    throw new Error("compose references include forbidden production/food images");
+  }
+  if (compose.references.length !== 3) {
+    throw new Error(`expected 3 STYLE refs, got ${compose.references.length}`);
+  }
+  for (const banned of ["official-pilot-rf-v4-02__rep", "sig4-candidate"]) {
+    if (compose.references.some((item) => item.includes(banned))) {
+      throw new Error(`forbidden reference ${banned}`);
+    }
+  }
+  if (!compose.primaryPrompt.includes("MATURE MALE VISUAL AGE LOCK")) {
+    throw new Error("recorded prompt is missing MATURE MALE VISUAL AGE LOCK");
+  }
+
+  const pre = await preflight();
+  const model = process.env.OPENAI_IMAGE_MODEL?.trim() || "";
+  const apiKey = process.env.OPENAI_API_KEY?.trim() || "";
+  if (model !== EXPECTED_MODEL) throw new Error(`unexpected model ${model || "UNSET"}`);
+  if (!apiKey) throw new Error("OPENAI_API_KEY is empty in the isolated run env");
+
+  writeEvidence({
+    status: "PREFLIGHT",
+    providerPosts: 0,
+    model,
+    quality: "medium",
+    size: compose.profile.size,
+    n: 1,
+    budgetUsd: BUDGET_USD,
+    priorCampaignUsd: PRIOR_CAMPAIGN_TOTAL_USD,
+    references: compose.references,
+    localRefs: pre.localRefs,
+    promptSha256: sha256(Buffer.from(compose.primaryPrompt, "utf8")),
+    fallback: false,
+    retry: false,
+    vision: false,
+  });
+
+  const prepared = await prepareOfficialImageReferences(compose.references, {
+    ...process.env,
+    NEXTAUTH_URL: "https://hav.chat",
+  });
+  if (prepared.length !== 3) throw new Error("prepared reference count mismatch");
+
+  const result = await callOpenAiImageEdit({
+    model,
+    prompt: compose.primaryPrompt,
+    references: prepared,
+    size: compose.profile.size,
+    quality: "medium",
+    outputCompression: OFFICIAL_ASSET_OUTPUT_COMPRESSION,
+    templateId: "official_character_asset",
+    mode: "isolated_representative_style_only",
+  });
+
+  const preserved = preserveRaw(result.buffer);
+  const meta = await sharp(result.buffer).metadata();
+  const dims = evaluateOfficialImageDimensions(compose.profile, meta.width ?? 0, meta.height ?? 0);
+  const inspected = path.join(DOC_DIR, OUT_NAME);
+  const inspectedArtifact = path.join(ARTIFACT_DIR, OUT_NAME);
+  fs.writeFileSync(inspected, result.buffer);
+  fs.writeFileSync(inspectedArtifact, result.buffer);
+
+  const costUsd = result.costUsd;
+  const overBudget = costUsd != null && costUsd > BUDGET_USD;
+  writeEvidence({
+    status: overBudget ? "OVER_BUDGET" : "GENERATED",
+    providerPosts: 1,
+    persistedToProduction: false,
+    model,
+    quality: "medium",
+    size: compose.profile.size,
+    n: 1,
+    outputCompression: OFFICIAL_ASSET_OUTPUT_COMPRESSION,
+    references: compose.references,
+    localRefs: pre.localRefs,
+    promptSha256: sha256(Buffer.from(compose.primaryPrompt, "utf8")),
+    providerRequestId: result.providerRequestId,
+    usageEvidence: result.usageEvidence,
+    costUsd,
+    budgetUsd: BUDGET_USD,
+    priorCampaignUsd: PRIOR_CAMPAIGN_TOTAL_USD,
+    cumulativeKnownUsd: costUsd == null ? null : Number((PRIOR_CAMPAIGN_TOTAL_USD + costUsd).toFixed(8)),
+    fallback: false,
+    retry: false,
+    vision: false,
+    raw: preserved,
+    inspect: {
+      width: meta.width ?? null,
+      height: meta.height ?? null,
+      format: meta.format ?? null,
+      dimensionVerdict: dims,
+      inspectedSha256: sha256(result.buffer),
+      inspectedBytes: result.buffer.length,
+    },
+  });
+  if (overBudget) {
+    throw new Error(`cost ${costUsd} exceeded budget ${BUDGET_USD}; raw preserved, no retry`);
+  }
+  console.log(
+    JSON.stringify(
+      {
+        status: "GENERATED",
+        providerRequestId: result.providerRequestId,
+        costUsd,
+        cumulativeKnownUsd:
+          costUsd == null ? null : Number((PRIOR_CAMPAIGN_TOTAL_USD + costUsd).toFixed(8)),
+        rawSha256: preserved.sha256,
+        dims,
+      },
+      null,
+      2
+    )
+  );
+}
+
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+});

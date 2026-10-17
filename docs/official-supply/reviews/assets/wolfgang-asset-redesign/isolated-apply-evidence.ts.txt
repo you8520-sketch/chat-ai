@@ -1,0 +1,167 @@
+/**
+ * Isolated-DB evidence for the approved fourteen-slot private apply path.
+ * Temporary SQLite under os.tmpdir(), fetch blocked, no provider adapter.
+ * Moderation and QA are test-only gate fixtures, not quality approval.
+ * Run: node --conditions=react-server --import tsx scripts/isolated-apply-evidence.ts <out.json>
+ */
+import { createHash } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import sharp from "sharp";
+
+import { parseAssets } from "@/lib/characterAssets";
+import type { SessionUser } from "@/lib/characterFormSave";
+import { getDb } from "@/lib/db";
+import { officialImageProfileForSlot } from "@/lib/officialSupply/imageProfile";
+import { loadApprovedWolfgangV4Source } from "@/lib/officialSupply/lockedSnapshotReconcileOperator";
+import { testBatchConfig, testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures";
+import { PILOT_STYLE_PROOF_CANDIDATE_ID } from "@/lib/officialSupply/pilotStyleProof";
+import { prepareOfficialImageReferences } from "@/lib/officialSupply/referencePreparation";
+import {
+  applyApprovedOfficialAssetReplacements,
+  registerExternalOfficialAssetReplacement,
+  rollbackOfficialAssetReplacementApply,
+} from "@/lib/officialSupply/replacement";
+import { composeOfficialSlotGeneration, moderateOfficialAssetReplacement } from "@/lib/officialSupply/runner";
+import { stageOfficialCharacterPrivately } from "@/lib/officialSupply/staging";
+import { ROFAN_CLUSTER_B_VISUAL_STYLE_DNA } from "@/lib/officialSupply/style";
+import { OfficialSupplyGateError, OfficialSupplyStore } from "@/lib/officialSupply/store";
+import type { OfficialAppearanceLock, OfficialAssetModeration, OfficialAssetPlan } from "@/lib/officialSupply/types";
+import { buildClusterBRofanStyleSeed } from "@/lib/officialSupply/userOwnedRofanStyleRefs";
+import { installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/lib/test/isolatedTestDatabase";
+import { storeUpload } from "@/lib/uploadStorage";
+
+const DOC = "docs/official-supply/reviews/assets/wolfgang-asset-redesign";
+const DRAFT = "pilot-rf-v4-02";
+const STAGING: SessionUser = { id: 8401, nickname: "evidence-staging", is_adult: 1 };
+const ADMIN = { id: 8403, email: "evidence-admin@test.local", is_admin: 1 as const };
+const MODERATION: OfficialAssetModeration = {
+  status: "checked", adultFlagged: false, moderationReject: false, reason: "test-fixture-not-quality-approval", visionTag: "앉음",
+};
+const PASS = { ok: true };
+const ANCHOR_QA = { gender: PASS, ageAppearance: PASS, face: PASS, hair: PASS, eyes: PASS, body: PASS, identifyingFeatures: PASS, artStyle: PASS, outfit: PASS, cardCrop: PASS };
+const VARIATION_QA = { identityMatchesAnchor: PASS, expressionMatchesPlan: PASS, characterPresent: PASS, artStyle: PASS };
+const sha = (v: string | Buffer) => createHash("sha256").update(v).digest("hex");
+
+type Candidate = { slot: string; tag: string; file: string; rawSha256: string; sentPromptSha256: string; laterOwnerAssemblyPromptSha256?: string };
+
+async function main(out: string) {
+  const egress: string[] = [];
+  globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
+    egress.push(String(input));
+    throw new Error("egress blocked");
+  }) as typeof fetch;
+  delete process.env.BLOB_READ_WRITE_TOKEN;
+  installIsolatedTestDatabase();
+  try {
+    const db = getDb();
+    db.prepare("INSERT INTO users (id, email, nickname, pw_hash, points, is_adult, site_managed) VALUES (?,?,?,?,0,1,1)").run(STAGING.id, "s@test.local", STAGING.nickname, "h");
+    db.prepare("INSERT INTO users (id, email, nickname, pw_hash, points, is_adult, is_admin) VALUES (?,?,?,?,0,1,1)").run(ADMIN.id, ADMIN.email, "admin", "h");
+    const store = new OfficialSupplyStore(db);
+    store.createBatch("evidence", testBatchConfig({ budgetUsd: { batch: 100 } }));
+    store.proposeStyle({ styleKey: "romance_fantasy_v4", genre: "로맨스 판타지", candidates: ["c1", "c2", "c3"].map(testStyleCandidate) });
+    store.approveStyleCandidate("romance_fantasy_v4", "c2", { url: "/uploads/official-style-seed.webp", provenance: "platform_owned", note: "seed" }, "owner");
+    const { nextDraft } = loadApprovedWolfgangV4Source();
+    const file = JSON.parse(fs.readFileSync("src/lib/officialSupply/pilot/characters/pilot-rf-02.json", "utf8")) as { appearance: OfficialAppearanceLock; assetPlan: OfficialAssetPlan };
+    store.addCharacterDraft("evidence", { ...nextDraft, draftKey: DRAFT }, {});
+    store.lockText(DRAFT, { stagingUser: STAGING });
+    store.lockAppearance(DRAFT, file.appearance);
+    store.lockAssetPlan(DRAFT, file.assetPlan);
+    const record = store.getCharacter(DRAFT);
+    for (const slot of record.assetPlan!.slots) {
+      const p = officialImageProfileForSlot(slot.kind);
+      db.prepare(`UPDATE official_supply_assets SET status='approved', result_url=?, width=?, height=?, attempts=1, appearance_lock_hash=?, moderation_json=?, qa_json=? WHERE draft_key=? AND slot_key=?`)
+        .run(`/uploads/official-${DRAFT}__${slot.slotKey}-a1.webp`, p.width, p.height, record.appearanceLockHash, JSON.stringify({ ...MODERATION, visionTag: undefined }), JSON.stringify(slot.kind === "representative" ? ANCHOR_QA : VARIATION_QA), DRAFT, slot.slotKey);
+    }
+    db.prepare("UPDATE official_supply_characters SET stage='qa_passed', anchor_approved_by='seed-reviewer' WHERE draft_key=?").run(DRAFT);
+    const { characterId } = await stageOfficialCharacterPrivately({ store, draftKey: DRAFT, stagingUser: STAGING });
+
+    const snapshot = () => {
+      const row = db.prepare("SELECT assets, images, official, visibility, creator_id FROM characters WHERE id=?").get(characterId) as { assets: string; images: string; official: number; visibility: string; creator_id: number };
+      const supply = db.prepare("SELECT stage, text_lock_hash, appearance_lock_hash, anchor_approved_by, generation_reference_json FROM official_supply_characters WHERE draft_key=?").get(DRAFT) as Record<string, string | null>;
+      const plan = store.getCharacter(DRAFT).assetPlan!;
+      return {
+        characters: {
+          official: row.official, visibility: row.visibility, creatorId: row.creator_id,
+          images: JSON.parse(row.images) as string[],
+          assets: parseAssets(row.assets).map((a, i) => ({ slot: plan.slots[i]!.slotKey, url: a.url, tag: a.tag, representativeRank: a.representativeRank ?? null })),
+        },
+        supplyCharacter: { ...supply, generation_reference_json: supply.generation_reference_json ? JSON.parse(supply.generation_reference_json) : null, planTags: plan.slots.map((s) => `${s.slotKey}:${s.tag}`) },
+        supplyAssets: store.listAssets(DRAFT).map((a) => ({ slot: a.slotKey, url: a.resultUrl, approvedTag: a.approvedTag, qaKind: a.qa && "cardCrop" in (a.qa as object) ? "anchor" : "variation" })),
+      };
+    };
+
+    const before = snapshot();
+    const candidates = (JSON.parse(fs.readFileSync(path.join(DOC, "fourteen-f-candidates.json"), "utf8")) as { candidates: Candidate[] }).candidates;
+    const moderator = { moderate: async () => MODERATION };
+    const imageOps = { inspect: async (b: Buffer) => { const m = await sharp(b).metadata(); return m.width && m.height ? { width: m.width, height: m.height } : null; } };
+    const storage = { store: async (name: string, b: Buffer) => ({ url: (await storeUpload(name, b, "image/webp")).url }) };
+    const intake = [];
+    for (const c of candidates) {
+      const bytes = fs.readFileSync(path.join(DOC, c.file));
+      if (sha(bytes) !== c.rawSha256) throw new Error(`${c.file} sha mismatch`);
+      const reg = await registerExternalOfficialAssetReplacement({ store, storage, imageOps, actor: ADMIN, draftKey: DRAFT, slotKey: c.slot, bytes, approvedTag: c.tag });
+      await moderateOfficialAssetReplacement({ store, moderator }, DRAFT, c.slot);
+      const reviewed = c.slot === "rep"
+        ? store.reviewRepresentativeReplacement(ADMIN, DRAFT, ANCHOR_QA, { candidateUrl: reg.candidateResultUrl!, candidateSha256: c.rawSha256 }, "test-fixture-reviewer-not-quality-approval")
+        : store.reviewReplacement(ADMIN, DRAFT, c.slot, VARIATION_QA, reg.candidateResultUrl!);
+      intake.push({ slot: c.slot, file: c.file, candidateUrl: reg.candidateResultUrl, candidateSha256: reg.candidateSha256, approvedTag: reg.approvedTag, review: c.slot === "rep" ? "anchor" : "variation", approved: reviewed.approved });
+    }
+    const approvedPlan = (JSON.parse(fs.readFileSync("src/lib/officialSupply/pilot/fixtures/pilot-rf-02-approved-asset-plan-f.json", "utf8")) as { assetPlan: OfficialAssetPlan }).assetPlan;
+    const slotKeys = candidates.map((c) => c.slot);
+    const representative = { nextAssetPlan: approvedPlan, generationReference: "representative_identity_and_style" as const };
+    const beforeDry = JSON.stringify(snapshot());
+    const dryRun = applyApprovedOfficialAssetReplacements({ store, draftKey: DRAFT, actor: ADMIN, slotKeys, representative, dryRun: true });
+    const dryRunUnchanged = JSON.stringify(snapshot()) === beforeDry;
+    const apply = applyApprovedOfficialAssetReplacements({ store, draftKey: DRAFT, actor: ADMIN, slotKeys, representative });
+    const after = snapshot();
+
+    const character = store.getCharacter(DRAFT);
+    const style = {
+      styleKey: "romance_fantasy_v4", genre: "로맨스 판타지", stage: "style_locked" as const,
+      candidates: [{ ...testStyleCandidate(PILOT_STYLE_PROOF_CANDIDATE_ID), dna: ROFAN_CLUSTER_B_VISUAL_STYLE_DNA }],
+      approvedCandidateId: PILOT_STYLE_PROOF_CANDIDATE_ID,
+      styleSeed: buildClusterBRofanStyleSeed({ NEXTAUTH_URL: "https://hav.chat" } as NodeJS.ProcessEnv), proofAssetLimit: 3,
+    };
+    const compose = candidates.map((c) => {
+      const composed = composeOfficialSlotGeneration({ character, style, slotKey: c.slot, representativeUrl: store.representativeAsset(DRAFT).resultUrl, env: { OPENAI_IMAGE_MODEL: "gpt-image-2.5-sunburst" } as NodeJS.ProcessEnv });
+      if (!composed.ok) return { slot: c.slot, ok: false, error: composed.error };
+      const recorded = c.laterOwnerAssemblyPromptSha256 ?? c.sentPromptSha256;
+      return { slot: c.slot, ok: true, layout: composed.referenceRoleLayout, references: composed.references, promptSha256: sha(composed.primaryPrompt), recordedPromptSha256: recorded, match: sha(composed.primaryPrompt) === recorded };
+    });
+    const prepared = await prepareOfficialImageReferences([...(compose.find((c) => c.ok) as { references: string[] }).references]);
+
+    const assetsJson = (db.prepare("SELECT assets FROM characters WHERE id=?").get(characterId) as { assets: string }).assets;
+    const edited = parseAssets(assetsJson);
+    edited[3] = { ...edited[3]!, tag: "편집된 태그" };
+    db.prepare("UPDATE characters SET assets=? WHERE id=?").run(JSON.stringify(edited), characterId);
+    let staleRollback = "";
+    try {
+      rollbackOfficialAssetReplacementApply({ store, draftKey: DRAFT, applyId: apply.applyId!, actor: ADMIN });
+    } catch (error) {
+      staleRollback = error instanceof OfficialSupplyGateError ? error.code : String(error);
+    }
+    db.prepare("UPDATE characters SET assets=? WHERE id=?").run(assetsJson, characterId);
+    const rollback = rollbackOfficialAssetReplacementApply({ store, draftKey: DRAFT, applyId: apply.applyId!, actor: ADMIN });
+    const restored = snapshot();
+    const ledger = db.prepare("SELECT apply_id, status, applied_by_id, rolled_back_by_id, slot_keys_json FROM official_supply_replacement_applies WHERE draft_key=?").all(DRAFT);
+
+    const evidence = {
+      scope: "isolated temporary SQLite; fetch blocked; moderation/QA are test-only fixtures, not quality approval",
+      providerCalls: egress.length,
+      before,
+      intake,
+      dryRun: { ...dryRun, stateUnchanged: dryRunUnchanged },
+      apply,
+      after,
+      refetch: { generationReferencePolicy: character.generationReferencePolicy, compose, preparedReferenceCount: prepared.length },
+      rollback: { staleAttempt: staleRollback, result: rollback, restoredEqualsBefore: JSON.stringify(restored) === JSON.stringify(before), ledger },
+    };
+    fs.writeFileSync(out, `${JSON.stringify(evidence, null, 2)}\n`);
+    console.log(JSON.stringify({ providerCalls: egress.length, dryRunUnchanged, apply: apply.status, matches: compose.filter((c) => "match" in c && c.match).length, staleRollback, rollback: rollback.status, restored: evidence.rollback.restoredEqualsBefore }));
+  } finally {
+    uninstallIsolatedTestDatabase();
+  }
+}
+
+void main(process.argv[2] ?? "/tmp/isolated-apply-evidence.json");

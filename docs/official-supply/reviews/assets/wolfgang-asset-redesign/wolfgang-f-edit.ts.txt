@@ -1,0 +1,238 @@
+import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
+import fs from "node:fs";
+import path from "node:path";
+
+const sharp = createRequire("/workspace/package.json")("sharp") as typeof import("sharp");
+
+import { OFFICIAL_ASSET_OUTPUT_COMPRESSION } from "@/lib/officialSupply/imageProfile";
+import { isLucianSig4ProofSupportedImageModel } from "@/lib/officialSupply/qualityShotQa";
+import { callOpenAiImageEdit, OpenAiImageError } from "@/lib/openAiImageEdit";
+
+const DOC = "/workspace/docs/official-supply/reviews/assets/wolfgang-asset-redesign";
+const ART = "/opt/cursor/artifacts";
+const SOURCE = path.join(DOC, "reattach-2026-10-17/03-eval_style.webp");
+const PROMPT_PATH = path.join(DOC, "rep-edit-input-prompt.txt");
+const PREPARED = path.join(DOC, "rep-e-prepared/source.webp");
+const PREFLIGHT_PATH = path.join(DOC, "rep-f-preflight.json");
+const LEDGER_PATH = path.join(DOC, "rep-f-ledger.json");
+const SOURCE_SHA = "7814a3950742201a5a0d9fff3b38b9ad3d706b93d52b6d3b603221c3d5aab699";
+const PROMPT_SHA = "e24378f1f1b5de20ca7ff21f54f206aa73e21776b4350938b2f81e58883de46e";
+const PREPARED_SHA = "8d3b42d117198038a2608fa5e3b8eaf366416efa530aab120222c4a6171a90fa";
+const PREPARED_BYTES = 183858;
+const MODEL = "gpt-image-2.5-sunburst";
+const BUDGET = 0.08;
+
+function sha256(buf: Buffer | string): string {
+  return createHash("sha256").update(buf).digest("hex");
+}
+
+function writeJson(file: string, payload: unknown): void {
+  const text = `${JSON.stringify(payload, null, 2)}\n`;
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.mkdirSync(ART, { recursive: true });
+  fs.writeFileSync(file, text);
+  fs.writeFileSync(path.join(ART, path.basename(file)), text);
+}
+
+function loadPrompt(): string {
+  const raw = fs.readFileSync(PROMPT_PATH);
+  if (raw[raw.length - 1] !== 0x0a) throw new Error("prompt file must end with one newline");
+  const body = raw.subarray(0, raw.length - 1).toString("utf8");
+  if (sha256(body) !== PROMPT_SHA) throw new Error("prompt SHA mismatch");
+  if (body.includes("검 손잡이") || body.includes("eye-level")) {
+    throw new Error("removed composition instruction is still in the prompt");
+  }
+  return body;
+}
+
+function loadPrepared(): Buffer {
+  const prepared = fs.readFileSync(PREPARED);
+  if (prepared.length !== PREPARED_BYTES) throw new Error("prepared length drifted");
+  if (sha256(prepared) !== PREPARED_SHA) throw new Error("prepared SHA drifted");
+  return prepared;
+}
+
+async function preflight(): Promise<void> {
+  const source = fs.readFileSync(SOURCE);
+  if (sha256(source) !== SOURCE_SHA) throw new Error("source SHA mismatch");
+  const probe = await sharp({
+    create: { width: 2, height: 2, channels: 3, background: "#000" },
+  })
+    .webp()
+    .toBuffer();
+  for (const dir of [DOC, ART]) {
+    fs.mkdirSync(dir, { recursive: true });
+    const probePath = path.join(dir, ".f-write-probe");
+    fs.writeFileSync(probePath, probe);
+    fs.rmSync(probePath);
+  }
+  const prepared = loadPrepared();
+  if (!isLucianSig4ProofSupportedImageModel(MODEL)) throw new Error("model unsupported");
+  if (OFFICIAL_ASSET_OUTPUT_COMPRESSION !== 88) throw new Error("compression is not 88");
+  const key = process.env.OPENAI_API_KEY?.trim() || "";
+  if (!key) throw new Error("OPENAI_API_KEY is empty");
+  loadPrompt();
+  writeJson(PREFLIGHT_PATH, {
+    status: "PREFLIGHT",
+    providerPosts: 0,
+    source: { file: "reattach-2026-10-17/03-eval_style.webp", sha256: SOURCE_SHA, bytes: source.length },
+    prepared: {
+      file: "rep-e-prepared/source.webp",
+      sha256: sha256(prepared),
+      bytes: prepared.length,
+      reusedWithoutReencoding: true,
+      note: "These are the stored bytes E sent. This preflight does not rewrite them.",
+    },
+    model: MODEL,
+    modelSupported: true,
+    size: "1024x1536",
+    quality: "medium",
+    n: 1,
+    outputCompression: 88,
+    background: "opaque",
+    promptSha256: PROMPT_SHA,
+    promptUnchangedFromE: true,
+    budgetUsd: BUDGET,
+    observedOneRefGptImage2Usd: 0.058213,
+    observedThreeRefSunburstUsd: 0.054064,
+    estimateNote: "C's three-reference sunburst call cost 0.054064. One reused reference should stay under 0.08.",
+    apiKeyPresent: true,
+    apiKeyLength: key.length,
+    fallback: false,
+    retry: false,
+    vision: false,
+  });
+  console.log(JSON.stringify({ status: "PREFLIGHT", preparedSha256: sha256(prepared), preparedBytes: prepared.length, model: MODEL }));
+}
+
+function publicError(error: unknown) {
+  if (error instanceof OpenAiImageError) {
+    return {
+      errorStatus: error.status,
+      errorMessage: error.message.slice(0, 400),
+      providerRequestId: error.diagnostic?.providerRequestId ?? null,
+      costUsd: error.diagnostic?.computedCostUsd ?? null,
+    };
+  }
+  return {
+    errorStatus: 0,
+    errorMessage: error instanceof Error ? error.message.slice(0, 400) : "unknown",
+    providerRequestId: null,
+    costUsd: null,
+  };
+}
+
+async function post(): Promise<void> {
+  if (fs.existsSync(path.join(DOC, "rep-f-raw.webp"))) throw new Error("rep-f-raw.webp exists");
+  const ledger = fs.existsSync(LEDGER_PATH)
+    ? (JSON.parse(fs.readFileSync(LEDGER_PATH, "utf8")) as { postsStarted?: number; state?: string })
+    : {};
+  if ((ledger.postsStarted ?? 0) >= 1 || ledger.state) throw new Error("F already started");
+  const pre = JSON.parse(fs.readFileSync(PREFLIGHT_PATH, "utf8")) as {
+    prepared: { sha256: string; bytes: number };
+    providerPosts: number;
+    model: string;
+  };
+  if (pre.providerPosts !== 0) throw new Error("preflight is not zero-post");
+  if (pre.model !== MODEL) throw new Error("preflight model is not sunburst");
+  const prepared = loadPrepared();
+  if (sha256(prepared) !== pre.prepared.sha256 || prepared.length !== pre.prepared.bytes) {
+    throw new Error("prepared bytes drifted");
+  }
+  const prompt = loadPrompt();
+  const uri = `data:image/webp;base64,${prepared.toString("base64")}`;
+  writeJson(LEDGER_PATH, { postsStarted: 1, budgetUsd: BUDGET, state: "starting", startedAt: new Date().toISOString() });
+  try {
+    const result = await callOpenAiImageEdit({
+      model: MODEL,
+      prompt,
+      references: [uri],
+      size: "1024x1536",
+      quality: "medium",
+      outputCompression: OFFICIAL_ASSET_OUTPUT_COMPRESSION,
+      templateId: "official_character_asset",
+      mode: "isolated_edit_f",
+    });
+    const rawDoc = path.join(DOC, "rep-f-raw.webp");
+    const rawArt = path.join(ART, "rep-f-raw.webp");
+    fs.writeFileSync(rawDoc, result.buffer);
+    fs.writeFileSync(rawArt, result.buffer);
+    const rawSha = sha256(result.buffer);
+    let inspect: Record<string, unknown> = {};
+    try {
+      const meta = await sharp(result.buffer).metadata();
+      fs.writeFileSync(path.join(DOC, "rep-f.webp"), result.buffer);
+      fs.writeFileSync(path.join(ART, "rep-f.webp"), result.buffer);
+      inspect = {
+        width: meta.width ?? null,
+        height: meta.height ?? null,
+        format: meta.format ?? null,
+        inspectedSha256: sha256(fs.readFileSync(rawDoc)),
+      };
+    } catch (inspectError) {
+      inspect = { inspectError: inspectError instanceof Error ? inspectError.message.slice(0, 240) : "inspect failed" };
+    }
+    writeJson(LEDGER_PATH, {
+      postsStarted: 1,
+      budgetUsd: BUDGET,
+      spentUsd: result.costUsd,
+      state: "saved",
+      providerRequestId: result.providerRequestId,
+      rawSha256: rawSha,
+      finishedAt: new Date().toISOString(),
+    });
+    writeJson(path.join(DOC, "rep-f-actual.json"), {
+      status: typeof result.costUsd === "number" && result.costUsd > BUDGET ? "OVER_BUDGET" : "GENERATED",
+      condition: "f",
+      providerPosts: 1,
+      persistedToProduction: false,
+      model: MODEL,
+      promptSha256: PROMPT_SHA,
+      preparedSha256: PREPARED_SHA,
+      sourceSha256: SOURCE_SHA,
+      size: "1024x1536",
+      quality: "medium",
+      n: 1,
+      outputCompression: 88,
+      background: "opaque",
+      providerRequestId: result.providerRequestId,
+      usageEvidence: result.usageEvidence,
+      costUsd: result.costUsd,
+      budgetUsd: BUDGET,
+      fallback: false,
+      retry: false,
+      vision: false,
+      raw: { sha256: rawSha, bytes: result.buffer.length },
+      inspect,
+    });
+    console.log(JSON.stringify({ status: "GENERATED", providerRequestId: result.providerRequestId, costUsd: result.costUsd, rawSha256: rawSha }));
+  } catch (error) {
+    const pub = publicError(error);
+    writeJson(LEDGER_PATH, { postsStarted: 1, budgetUsd: BUDGET, state: "failed", ...pub, finishedAt: new Date().toISOString() });
+    writeJson(path.join(DOC, "rep-f-actual.json"), {
+      status: "FAILED",
+      condition: "f",
+      providerPosts: 1,
+      model: MODEL,
+      promptSha256: PROMPT_SHA,
+      fallback: false,
+      retry: false,
+      vision: false,
+      ...pub,
+    });
+    throw new Error(`F failed: ${pub.errorStatus} ${pub.errorMessage}`);
+  }
+}
+
+async function main(): Promise<void> {
+  const mode = process.argv[2];
+  if (mode === "preflight") return preflight();
+  if (mode === "post") return post();
+  throw new Error("mode must be preflight or post");
+}
+
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message.slice(0, 500) : String(error));
+  process.exit(1);
+});

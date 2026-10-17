@@ -1,0 +1,67 @@
+{
+  "scale": "native pixel windows, no per-image reframe",
+  "sources": {
+    "A": {
+      "file": "rep-candidate-raw.webp",
+      "sha256": "23da84679e504a91e830a5562eee3c56bb780a7b370728c63541506b94cb8a85",
+      "bytes": 289838
+    },
+    "B": {
+      "file": "rep-b-raw.webp",
+      "sha256": "33c23f5a37091cfe7a8c43f43484c49076cac1015fdbd8347f32b83876322f67",
+      "bytes": 222334
+    },
+    "C": {
+      "file": "rep-c-raw.webp",
+      "sha256": "2d8116b05be6555c532b247d2152e6ca94bb238086a51efbc17ec749a9ae0406",
+      "bytes": 264922
+    }
+  },
+  "outputs": {
+    "compare-abc-full.webp": {
+      "sha256": "8a6b424af7c190d7ed64a7041f36906ab3b3584f56ab219074c72c9bd81dd4d9",
+      "bytes": 278894,
+      "window": "each panel is the native 1024x1536 frame scaled by 0.5 with fill, so A/B/C stay at the same scale"
+    },
+    "compare-abc-face.webp": {
+      "sha256": "cdacd4fec71a6c01cf2898b56d633f38a18c3ebf058f829f7b7ba8a350165869",
+      "bytes": 132344,
+      "window": {
+        "left": 282,
+        "top": 180,
+        "width": 460,
+        "height": 460
+      }
+    },
+    "compare-abc-hair.webp": {
+      "sha256": "9eb42920f609f03847a802d65bebbcd52d846c364a54832ff6a873b5b680c7fb",
+      "bytes": 107652,
+      "window": {
+        "left": 312,
+        "top": 0,
+        "width": 400,
+        "height": 400
+      }
+    },
+    "compare-abc-fur.webp": {
+      "sha256": "9f55f92362c326114733cadacf91c2e2e1deb1b2bcab9ebeea909e7cccb91c54",
+      "bytes": 77380,
+      "window": {
+        "left": 0,
+        "top": 500,
+        "width": 400,
+        "height": 400
+      }
+    },
+    "compare-abc-metal.webp": {
+      "sha256": "0b83cc9129b0d41ee0bb2c06f44420ff52be4a70e5eb99f9c8537d43082ced92",
+      "bytes": 98938,
+      "window": {
+        "left": 312,
+        "top": 760,
+        "width": 400,
+        "height": 400
+      }
+    }
+  }
+}

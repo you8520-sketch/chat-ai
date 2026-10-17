@@ -1,0 +1,784 @@
+{
+  "scope": "isolated temporary SQLite; fetch blocked; moderation/QA are test-only fixtures, not quality approval",
+  "providerCalls": 0,
+  "before": {
+    "characters": {
+      "official": 0,
+      "visibility": "private",
+      "creatorId": 8401,
+      "images": [
+        "/uploads/official-pilot-rf-v4-02__rep-a1.webp"
+      ],
+      "assets": [
+        {
+          "slot": "rep",
+          "url": "/uploads/official-pilot-rf-v4-02__rep-a1.webp",
+          "tag": "흑철 늑대공",
+          "representativeRank": 1
+        },
+        {
+          "slot": "sig1",
+          "url": "/uploads/official-pilot-rf-v4-02__sig1-a1.webp",
+          "tag": "철혈의 지휘관",
+          "representativeRank": null
+        },
+        {
+          "slot": "sig2",
+          "url": "/uploads/official-pilot-rf-v4-02__sig2-a1.webp",
+          "tag": "흉터의 맹세",
+          "representativeRank": null
+        },
+        {
+          "slot": "sig3",
+          "url": "/uploads/official-pilot-rf-v4-02__sig3-a1.webp",
+          "tag": "봉인고의 열쇠",
+          "representativeRank": null
+        },
+        {
+          "slot": "sig4",
+          "url": "/uploads/official-pilot-rf-v4-02__sig4-a1.webp",
+          "tag": "절제된 온기",
+          "representativeRank": null
+        },
+        {
+          "slot": "emo1",
+          "url": "/uploads/official-pilot-rf-v4-02__emo1-a1.webp",
+          "tag": "기록의 모순",
+          "representativeRank": null
+        },
+        {
+          "slot": "emo2",
+          "url": "/uploads/official-pilot-rf-v4-02__emo2-a1.webp",
+          "tag": "분노의 억제",
+          "representativeRank": null
+        },
+        {
+          "slot": "emo3",
+          "url": "/uploads/official-pilot-rf-v4-02__emo3-a1.webp",
+          "tag": "증거 앞의 판단",
+          "representativeRank": null
+        },
+        {
+          "slot": "emo4",
+          "url": "/uploads/official-pilot-rf-v4-02__emo4-a1.webp",
+          "tag": "뜻밖의 동요",
+          "representativeRank": null
+        },
+        {
+          "slot": "emo5",
+          "url": "/uploads/official-pilot-rf-v4-02__emo5-a1.webp",
+          "tag": "경계의 완화",
+          "representativeRank": null
+        },
+        {
+          "slot": "emo6",
+          "url": "/uploads/official-pilot-rf-v4-02__emo6-a1.webp",
+          "tag": "귀환의 안도",
+          "representativeRank": null
+        },
+        {
+          "slot": "scene1",
+          "url": "/uploads/official-pilot-rf-v4-02__scene1-a1.webp",
+          "tag": "위조된 명령서의 밤",
+          "representativeRank": null
+        },
+        {
+          "slot": "scene2",
+          "url": "/uploads/official-pilot-rf-v4-02__scene2-a1.webp",
+          "tag": "봉인된 장부의 빈칸",
+          "representativeRank": null
+        },
+        {
+          "slot": "scene3",
+          "url": "/uploads/official-pilot-rf-v4-02__scene3-a1.webp",
+          "tag": "황실의 마지막 압박",
+          "representativeRank": null
+        }
+      ]
+    },
+    "supplyCharacter": {
+      "stage": "staged_private",
+      "text_lock_hash": "6ff02833cfd45a542866aa1afa749486d94362eff5358e10f995b8f77fabd5fd",
+      "appearance_lock_hash": "1c3ccd134203a6dea6ae869c27cc443c42ff5498d1d0130c6f9765407c24dcc3",
+      "anchor_approved_by": "seed-reviewer",
+      "generation_reference_json": null,
+      "planTags": [
+        "rep:흑철 늑대공",
+        "sig1:철혈의 지휘관",
+        "sig2:흉터의 맹세",
+        "sig3:봉인고의 열쇠",
+        "sig4:절제된 온기",
+        "emo1:기록의 모순",
+        "emo2:분노의 억제",
+        "emo3:증거 앞의 판단",
+        "emo4:뜻밖의 동요",
+        "emo5:경계의 완화",
+        "emo6:귀환의 안도",
+        "scene1:위조된 명령서의 밤",
+        "scene2:봉인된 장부의 빈칸",
+        "scene3:황실의 마지막 압박"
+      ]
+    },
+    "supplyAssets": [
+      {
+        "slot": "rep",
+        "url": "/uploads/official-pilot-rf-v4-02__rep-a1.webp",
+        "approvedTag": null,
+        "qaKind": "anchor"
+      },
+      {
+        "slot": "sig1",
+        "url": "/uploads/official-pilot-rf-v4-02__sig1-a1.webp",
+        "approvedTag": null,
+        "qaKind": "variation"
+      },
+      {
+        "slot": "sig2",
+        "url": "/uploads/official-pilot-rf-v4-02__sig2-a1.webp",
+        "approvedTag": null,
+        "qaKind": "variation"
+      },
+      {
+        "slot": "sig3",
+        "url": "/uploads/official-pilot-rf-v4-02__sig3-a1.webp",
+        "approvedTag": null,
+        "qaKind": "variation"
+      },
+      {
+        "slot": "sig4",
+        "url": "/uploads/official-pilot-rf-v4-02__sig4-a1.webp",
+        "approvedTag": null,
+        "qaKind": "variation"
+      },
+      {
+        "slot": "emo1",
+        "url": "/uploads/official-pilot-rf-v4-02__emo1-a1.webp",
+        "approvedTag": null,
+        "qaKind": "variation"
+      },
+      {
+        "slot": "emo2",
+        "url": "/uploads/official-pilot-rf-v4-02__emo2-a1.webp",
+        "approvedTag": null,
+        "qaKind": "variation"
+      },
+      {
+        "slot": "emo3",
+        "url": "/uploads/official-pilot-rf-v4-02__emo3-a1.webp",
+        "approvedTag": null,
+        "qaKind": "variation"
+      },
+      {
+        "slot": "emo4",
+        "url": "/uploads/official-pilot-rf-v4-02__emo4-a1.webp",
+        "approvedTag": null,
+        "qaKind": "variation"
+      },
+      {
+        "slot": "emo5",
+        "url": "/uploads/official-pilot-rf-v4-02__emo5-a1.webp",
+        "approvedTag": null,
+        "qaKind": "variation"
+      },
+      {
+        "slot": "emo6",
+        "url": "/uploads/official-pilot-rf-v4-02__emo6-a1.webp",
+        "approvedTag": null,
+        "qaKind": "variation"
+      },
+      {
+        "slot": "scene1",
+        "url": "/uploads/official-pilot-rf-v4-02__scene1-a1.webp",
+        "approvedTag": null,
+        "qaKind": "variation"
+      },
+      {
+        "slot": "scene2",
+        "url": "/uploads/official-pilot-rf-v4-02__scene2-a1.webp",
+        "approvedTag": null,
+        "qaKind": "variation"
+      },
+      {
+        "slot": "scene3",
+        "url": "/uploads/official-pilot-rf-v4-02__scene3-a1.webp",
+        "approvedTag": null,
+        "qaKind": "variation"
+      }
+    ]
+  },
+  "intake": [
+    {
+      "slot": "rep",
+      "file": "rep-f-raw.webp",
+      "candidateUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-cfd5bc2e-0a91-4c0c-bd5d-cd81c018f250.webp",
+      "candidateSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+      "approvedTag": "기본 초상",
+      "review": "anchor",
+      "approved": true
+    },
+    {
+      "slot": "sig1",
+      "file": "sig1-map-f-raw.webp",
+      "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig1-ext-52fb0bdb-6e10-4551-8cbf-c77ef344e194.webp",
+      "candidateSha256": "e986403412b7754b520901afa97cc00e895ace0184542144383198f3506782f5",
+      "approvedTag": "지도를 짚음",
+      "review": "variation",
+      "approved": true
+    },
+    {
+      "slot": "sig2",
+      "file": "sig2-chin-f-raw.webp",
+      "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig2-ext-09624f17-2598-4c31-be02-58e5d32d4f83.webp",
+      "candidateSha256": "3242bbadb72a6514314f9dd8ab425ad22e459358821c85b800215d4205f9bdb4",
+      "approvedTag": "턱을 괴고 생각",
+      "review": "variation",
+      "approved": true
+    },
+    {
+      "slot": "sig3",
+      "file": "sig3-key-f-raw.webp",
+      "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig3-ext-5e5427bb-78d0-4098-a438-4937f3820d75.webp",
+      "candidateSha256": "b7df32fa69725fdfe86849dcd78bfbf6d8f4916f3bf5a6b8ecccb17ae50f8a19",
+      "approvedTag": "열쇠를 확인함",
+      "review": "variation",
+      "approved": true
+    },
+    {
+      "slot": "sig4",
+      "file": "sig4-smile-f-raw.webp",
+      "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig4-ext-abb46824-bc5e-46fa-b4c3-6a2a5fcb01bf.webp",
+      "candidateSha256": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1",
+      "approvedTag": "옅은 미소",
+      "review": "variation",
+      "approved": true
+    },
+    {
+      "slot": "emo1",
+      "file": "emo1-doubt-f-raw.webp",
+      "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo1-ext-30246766-a16f-439e-96e1-96be1f779a61.webp",
+      "candidateSha256": "6f345d95b85a30850a954e4369f4aa9a7a9ccd978669643f41166fe5a7346a07",
+      "approvedTag": "의심",
+      "review": "variation",
+      "approved": true
+    },
+    {
+      "slot": "emo2",
+      "file": "emo2-anger-f-raw.webp",
+      "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo2-ext-7c16c5ba-dbb9-4a0f-9ebd-6364978d380c.webp",
+      "candidateSha256": "c4d38db0e3adfb59cf6fc2da8b79457636a90d64113c8b059ad30639d66d5db8",
+      "approvedTag": "분노",
+      "review": "variation",
+      "approved": true
+    },
+    {
+      "slot": "emo3",
+      "file": "emo3-serious-f-raw.webp",
+      "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo3-ext-5be9894b-f68c-41b0-9c95-39791b1754b5.webp",
+      "candidateSha256": "758e1f8d182ffdf229107eb83c0d7476e24c7f9c2d1de02ca3ab9bb19419643a",
+      "approvedTag": "진지함",
+      "review": "variation",
+      "approved": true
+    },
+    {
+      "slot": "emo4",
+      "file": "emo4-fluster-f-raw.webp",
+      "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo4-ext-dee50687-f5ca-4a54-82a6-2313116f8ce9.webp",
+      "candidateSha256": "527086945e164458a773cd84eac1e69a4e07d19e8ed14af4eb1c4d8c257bf4d4",
+      "approvedTag": "당황",
+      "review": "variation",
+      "approved": true
+    },
+    {
+      "slot": "emo5",
+      "file": "emo5-r2-raw.webp",
+      "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo5-ext-f4a1bc0f-2fa1-4c1d-81e3-c57ada369776.webp",
+      "candidateSha256": "ef87914c71865944cdb1b40a6417105b3a426f089769189648e9ff86036ab517",
+      "approvedTag": "편안함",
+      "review": "variation",
+      "approved": true
+    },
+    {
+      "slot": "emo6",
+      "file": "emo6-r2-raw.webp",
+      "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo6-ext-f16a2be0-800b-4ed0-a822-e290a3e9f0f4.webp",
+      "candidateSha256": "f52f9f21046f7993a349e672b3326f2f5144bcb885badcf3181ad7326547e214",
+      "approvedTag": "안도",
+      "review": "variation",
+      "approved": true
+    },
+    {
+      "slot": "scene1",
+      "file": "scene1-docs-f-raw.webp",
+      "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene1-ext-7ce749e4-fe2b-4c26-9b48-fa451752e1a8.webp",
+      "candidateSha256": "1150bf9d17b6e7720e3e020c5288be20e346a83468c633d7672a9796f1e6230c",
+      "approvedTag": "문서를 대조함",
+      "review": "variation",
+      "approved": true
+    },
+    {
+      "slot": "scene2",
+      "file": "scene2-records-f-raw.webp",
+      "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene2-ext-92b9ebd9-9d29-446a-a229-af81f45940ef.webp",
+      "candidateSha256": "0cb364a2eddfddf5196e1ab1f0da8deb20ca175b62cc996b3ac583cea674b3e5",
+      "approvedTag": "기록을 맞춤",
+      "review": "variation",
+      "approved": true
+    },
+    {
+      "slot": "scene3",
+      "file": "scene3-tense-f-raw.webp",
+      "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene3-ext-c7792f43-c7c1-4809-9470-05758a8690c3.webp",
+      "candidateSha256": "bd3a47bc70ac79ac2bbc9b9a92e93903680397f59265afd9bb1f02309433482c",
+      "approvedTag": "긴장",
+      "review": "variation",
+      "approved": true
+    }
+  ],
+  "dryRun": {
+    "status": "dry_run",
+    "characterId": 10,
+    "draftKey": "pilot-rf-v4-02",
+    "swapped": [
+      "rep",
+      "sig1",
+      "sig2",
+      "sig3",
+      "sig4",
+      "emo1",
+      "emo2",
+      "emo3",
+      "emo4",
+      "emo5",
+      "emo6",
+      "scene1",
+      "scene2",
+      "scene3"
+    ],
+    "applyId": null,
+    "stateUnchanged": true
+  },
+  "apply": {
+    "status": "applied",
+    "characterId": 10,
+    "draftKey": "pilot-rf-v4-02",
+    "swapped": [
+      "rep",
+      "sig1",
+      "sig2",
+      "sig3",
+      "sig4",
+      "emo1",
+      "emo2",
+      "emo3",
+      "emo4",
+      "emo5",
+      "emo6",
+      "scene1",
+      "scene2",
+      "scene3"
+    ],
+    "applyId": "bd9300fc-8a73-4df8-9274-fedff885a947"
+  },
+  "after": {
+    "characters": {
+      "official": 0,
+      "visibility": "private",
+      "creatorId": 8401,
+      "images": [
+        "/uploads/official-pilot-rf-v4-02__rep-ext-cfd5bc2e-0a91-4c0c-bd5d-cd81c018f250.webp"
+      ],
+      "assets": [
+        {
+          "slot": "rep",
+          "url": "/uploads/official-pilot-rf-v4-02__rep-ext-cfd5bc2e-0a91-4c0c-bd5d-cd81c018f250.webp",
+          "tag": "기본 초상",
+          "representativeRank": 1
+        },
+        {
+          "slot": "sig1",
+          "url": "/uploads/official-pilot-rf-v4-02__sig1-ext-52fb0bdb-6e10-4551-8cbf-c77ef344e194.webp",
+          "tag": "지도를 짚음",
+          "representativeRank": null
+        },
+        {
+          "slot": "sig2",
+          "url": "/uploads/official-pilot-rf-v4-02__sig2-ext-09624f17-2598-4c31-be02-58e5d32d4f83.webp",
+          "tag": "턱을 괴고 생각",
+          "representativeRank": null
+        },
+        {
+          "slot": "sig3",
+          "url": "/uploads/official-pilot-rf-v4-02__sig3-ext-5e5427bb-78d0-4098-a438-4937f3820d75.webp",
+          "tag": "열쇠를 확인함",
+          "representativeRank": null
+        },
+        {
+          "slot": "sig4",
+          "url": "/uploads/official-pilot-rf-v4-02__sig4-ext-abb46824-bc5e-46fa-b4c3-6a2a5fcb01bf.webp",
+          "tag": "옅은 미소",
+          "representativeRank": null
+        },
+        {
+          "slot": "emo1",
+          "url": "/uploads/official-pilot-rf-v4-02__emo1-ext-30246766-a16f-439e-96e1-96be1f779a61.webp",
+          "tag": "의심",
+          "representativeRank": null
+        },
+        {
+          "slot": "emo2",
+          "url": "/uploads/official-pilot-rf-v4-02__emo2-ext-7c16c5ba-dbb9-4a0f-9ebd-6364978d380c.webp",
+          "tag": "분노",
+          "representativeRank": null
+        },
+        {
+          "slot": "emo3",
+          "url": "/uploads/official-pilot-rf-v4-02__emo3-ext-5be9894b-f68c-41b0-9c95-39791b1754b5.webp",
+          "tag": "진지함",
+          "representativeRank": null
+        },
+        {
+          "slot": "emo4",
+          "url": "/uploads/official-pilot-rf-v4-02__emo4-ext-dee50687-f5ca-4a54-82a6-2313116f8ce9.webp",
+          "tag": "당황",
+          "representativeRank": null
+        },
+        {
+          "slot": "emo5",
+          "url": "/uploads/official-pilot-rf-v4-02__emo5-ext-f4a1bc0f-2fa1-4c1d-81e3-c57ada369776.webp",
+          "tag": "편안함",
+          "representativeRank": null
+        },
+        {
+          "slot": "emo6",
+          "url": "/uploads/official-pilot-rf-v4-02__emo6-ext-f16a2be0-800b-4ed0-a822-e290a3e9f0f4.webp",
+          "tag": "안도",
+          "representativeRank": null
+        },
+        {
+          "slot": "scene1",
+          "url": "/uploads/official-pilot-rf-v4-02__scene1-ext-7ce749e4-fe2b-4c26-9b48-fa451752e1a8.webp",
+          "tag": "문서를 대조함",
+          "representativeRank": null
+        },
+        {
+          "slot": "scene2",
+          "url": "/uploads/official-pilot-rf-v4-02__scene2-ext-92b9ebd9-9d29-446a-a229-af81f45940ef.webp",
+          "tag": "기록을 맞춤",
+          "representativeRank": null
+        },
+        {
+          "slot": "scene3",
+          "url": "/uploads/official-pilot-rf-v4-02__scene3-ext-c7792f43-c7c1-4809-9470-05758a8690c3.webp",
+          "tag": "긴장",
+          "representativeRank": null
+        }
+      ]
+    },
+    "supplyCharacter": {
+      "stage": "staged_private",
+      "text_lock_hash": "6ff02833cfd45a542866aa1afa749486d94362eff5358e10f995b8f77fabd5fd",
+      "appearance_lock_hash": "1c3ccd134203a6dea6ae869c27cc443c42ff5498d1d0130c6f9765407c24dcc3",
+      "anchor_approved_by": "test-fixture-reviewer-not-quality-approval",
+      "generation_reference_json": {
+        "mode": "representative_identity_and_style",
+        "url": "/uploads/official-pilot-rf-v4-02__rep-ext-cfd5bc2e-0a91-4c0c-bd5d-cd81c018f250.webp",
+        "sha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032"
+      },
+      "planTags": [
+        "rep:기본 초상",
+        "sig1:지도를 짚음",
+        "sig2:턱을 괴고 생각",
+        "sig3:열쇠를 확인함",
+        "sig4:옅은 미소",
+        "emo1:의심",
+        "emo2:분노",
+        "emo3:진지함",
+        "emo4:당황",
+        "emo5:편안함",
+        "emo6:안도",
+        "scene1:문서를 대조함",
+        "scene2:기록을 맞춤",
+        "scene3:긴장"
+      ]
+    },
+    "supplyAssets": [
+      {
+        "slot": "rep",
+        "url": "/uploads/official-pilot-rf-v4-02__rep-ext-cfd5bc2e-0a91-4c0c-bd5d-cd81c018f250.webp",
+        "approvedTag": "기본 초상",
+        "qaKind": "anchor"
+      },
+      {
+        "slot": "sig1",
+        "url": "/uploads/official-pilot-rf-v4-02__sig1-ext-52fb0bdb-6e10-4551-8cbf-c77ef344e194.webp",
+        "approvedTag": "지도를 짚음",
+        "qaKind": "variation"
+      },
+      {
+        "slot": "sig2",
+        "url": "/uploads/official-pilot-rf-v4-02__sig2-ext-09624f17-2598-4c31-be02-58e5d32d4f83.webp",
+        "approvedTag": "턱을 괴고 생각",
+        "qaKind": "variation"
+      },
+      {
+        "slot": "sig3",
+        "url": "/uploads/official-pilot-rf-v4-02__sig3-ext-5e5427bb-78d0-4098-a438-4937f3820d75.webp",
+        "approvedTag": "열쇠를 확인함",
+        "qaKind": "variation"
+      },
+      {
+        "slot": "sig4",
+        "url": "/uploads/official-pilot-rf-v4-02__sig4-ext-abb46824-bc5e-46fa-b4c3-6a2a5fcb01bf.webp",
+        "approvedTag": "옅은 미소",
+        "qaKind": "variation"
+      },
+      {
+        "slot": "emo1",
+        "url": "/uploads/official-pilot-rf-v4-02__emo1-ext-30246766-a16f-439e-96e1-96be1f779a61.webp",
+        "approvedTag": "의심",
+        "qaKind": "variation"
+      },
+      {
+        "slot": "emo2",
+        "url": "/uploads/official-pilot-rf-v4-02__emo2-ext-7c16c5ba-dbb9-4a0f-9ebd-6364978d380c.webp",
+        "approvedTag": "분노",
+        "qaKind": "variation"
+      },
+      {
+        "slot": "emo3",
+        "url": "/uploads/official-pilot-rf-v4-02__emo3-ext-5be9894b-f68c-41b0-9c95-39791b1754b5.webp",
+        "approvedTag": "진지함",
+        "qaKind": "variation"
+      },
+      {
+        "slot": "emo4",
+        "url": "/uploads/official-pilot-rf-v4-02__emo4-ext-dee50687-f5ca-4a54-82a6-2313116f8ce9.webp",
+        "approvedTag": "당황",
+        "qaKind": "variation"
+      },
+      {
+        "slot": "emo5",
+        "url": "/uploads/official-pilot-rf-v4-02__emo5-ext-f4a1bc0f-2fa1-4c1d-81e3-c57ada369776.webp",
+        "approvedTag": "편안함",
+        "qaKind": "variation"
+      },
+      {
+        "slot": "emo6",
+        "url": "/uploads/official-pilot-rf-v4-02__emo6-ext-f16a2be0-800b-4ed0-a822-e290a3e9f0f4.webp",
+        "approvedTag": "안도",
+        "qaKind": "variation"
+      },
+      {
+        "slot": "scene1",
+        "url": "/uploads/official-pilot-rf-v4-02__scene1-ext-7ce749e4-fe2b-4c26-9b48-fa451752e1a8.webp",
+        "approvedTag": "문서를 대조함",
+        "qaKind": "variation"
+      },
+      {
+        "slot": "scene2",
+        "url": "/uploads/official-pilot-rf-v4-02__scene2-ext-92b9ebd9-9d29-446a-a229-af81f45940ef.webp",
+        "approvedTag": "기록을 맞춤",
+        "qaKind": "variation"
+      },
+      {
+        "slot": "scene3",
+        "url": "/uploads/official-pilot-rf-v4-02__scene3-ext-c7792f43-c7c1-4809-9470-05758a8690c3.webp",
+        "approvedTag": "긴장",
+        "qaKind": "variation"
+      }
+    ]
+  },
+  "refetch": {
+    "generationReferencePolicy": {
+      "mode": "representative_identity_and_style",
+      "url": "/uploads/official-pilot-rf-v4-02__rep-ext-cfd5bc2e-0a91-4c0c-bd5d-cd81c018f250.webp",
+      "sha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032"
+    },
+    "compose": [
+      {
+        "slot": "rep",
+        "ok": false,
+        "error": "the representative is the approved identity and style reference and is not regenerated"
+      },
+      {
+        "slot": "sig1",
+        "ok": true,
+        "layout": "identity_and_style",
+        "references": [
+          "official-approved-asset:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:/uploads/official-pilot-rf-v4-02__rep-ext-cfd5bc2e-0a91-4c0c-bd5d-cd81c018f250.webp"
+        ],
+        "promptSha256": "1dc3003b68c3ce2df14de9566c91d3d0eee448c35fdd1d5b04ddb6dfb31323a5",
+        "recordedPromptSha256": "1dc3003b68c3ce2df14de9566c91d3d0eee448c35fdd1d5b04ddb6dfb31323a5",
+        "match": true
+      },
+      {
+        "slot": "sig2",
+        "ok": true,
+        "layout": "identity_and_style",
+        "references": [
+          "official-approved-asset:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:/uploads/official-pilot-rf-v4-02__rep-ext-cfd5bc2e-0a91-4c0c-bd5d-cd81c018f250.webp"
+        ],
+        "promptSha256": "ab17ab9e2d4263d4952ddc11accb0a8ccc14c50c66aa84a3652250aefb9ce15c",
+        "recordedPromptSha256": "ab17ab9e2d4263d4952ddc11accb0a8ccc14c50c66aa84a3652250aefb9ce15c",
+        "match": true
+      },
+      {
+        "slot": "sig3",
+        "ok": true,
+        "layout": "identity_and_style",
+        "references": [
+          "official-approved-asset:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:/uploads/official-pilot-rf-v4-02__rep-ext-cfd5bc2e-0a91-4c0c-bd5d-cd81c018f250.webp"
+        ],
+        "promptSha256": "83f11f68d070d199ceb7a9b11c7067a25a35b6d089297f5a4fa2682e2a5e030d",
+        "recordedPromptSha256": "83f11f68d070d199ceb7a9b11c7067a25a35b6d089297f5a4fa2682e2a5e030d",
+        "match": true
+      },
+      {
+        "slot": "sig4",
+        "ok": true,
+        "layout": "identity_and_style",
+        "references": [
+          "official-approved-asset:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:/uploads/official-pilot-rf-v4-02__rep-ext-cfd5bc2e-0a91-4c0c-bd5d-cd81c018f250.webp"
+        ],
+        "promptSha256": "8847a0d3561ee002ee5439fa4f21020622f572b64f2c1730f4d6b8a5c2f7e5ff",
+        "recordedPromptSha256": "8847a0d3561ee002ee5439fa4f21020622f572b64f2c1730f4d6b8a5c2f7e5ff",
+        "match": true
+      },
+      {
+        "slot": "emo1",
+        "ok": true,
+        "layout": "identity_and_style",
+        "references": [
+          "official-approved-asset:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:/uploads/official-pilot-rf-v4-02__rep-ext-cfd5bc2e-0a91-4c0c-bd5d-cd81c018f250.webp"
+        ],
+        "promptSha256": "84c0eb9b750ddf27a24d906ec6aca2112b8c20273b87f953eddf6d0046e67d72",
+        "recordedPromptSha256": "84c0eb9b750ddf27a24d906ec6aca2112b8c20273b87f953eddf6d0046e67d72",
+        "match": true
+      },
+      {
+        "slot": "emo2",
+        "ok": true,
+        "layout": "identity_and_style",
+        "references": [
+          "official-approved-asset:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:/uploads/official-pilot-rf-v4-02__rep-ext-cfd5bc2e-0a91-4c0c-bd5d-cd81c018f250.webp"
+        ],
+        "promptSha256": "c76aec7ec9e47fd7765282f0daf491a78a86d1cc31e734f3d7435b3654733311",
+        "recordedPromptSha256": "c76aec7ec9e47fd7765282f0daf491a78a86d1cc31e734f3d7435b3654733311",
+        "match": true
+      },
+      {
+        "slot": "emo3",
+        "ok": true,
+        "layout": "identity_and_style",
+        "references": [
+          "official-approved-asset:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:/uploads/official-pilot-rf-v4-02__rep-ext-cfd5bc2e-0a91-4c0c-bd5d-cd81c018f250.webp"
+        ],
+        "promptSha256": "6ac62f403af830c16093e67182c8b4e0bb2b0cafc093bc2c8e9bd565a7adf245",
+        "recordedPromptSha256": "6ac62f403af830c16093e67182c8b4e0bb2b0cafc093bc2c8e9bd565a7adf245",
+        "match": true
+      },
+      {
+        "slot": "emo4",
+        "ok": true,
+        "layout": "identity_and_style",
+        "references": [
+          "official-approved-asset:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:/uploads/official-pilot-rf-v4-02__rep-ext-cfd5bc2e-0a91-4c0c-bd5d-cd81c018f250.webp"
+        ],
+        "promptSha256": "6995697c5a7b1f0e04d3fa2088b5785a4a990a5ba6f482db8d42629afe873b51",
+        "recordedPromptSha256": "6995697c5a7b1f0e04d3fa2088b5785a4a990a5ba6f482db8d42629afe873b51",
+        "match": true
+      },
+      {
+        "slot": "emo5",
+        "ok": true,
+        "layout": "identity_and_style",
+        "references": [
+          "official-approved-asset:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:/uploads/official-pilot-rf-v4-02__rep-ext-cfd5bc2e-0a91-4c0c-bd5d-cd81c018f250.webp"
+        ],
+        "promptSha256": "1fbf0dbc819a8b4f118591d32a325cc1d2808e8f58bb391b80586e9b4bc44ca8",
+        "recordedPromptSha256": "1fbf0dbc819a8b4f118591d32a325cc1d2808e8f58bb391b80586e9b4bc44ca8",
+        "match": true
+      },
+      {
+        "slot": "emo6",
+        "ok": true,
+        "layout": "identity_and_style",
+        "references": [
+          "official-approved-asset:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:/uploads/official-pilot-rf-v4-02__rep-ext-cfd5bc2e-0a91-4c0c-bd5d-cd81c018f250.webp"
+        ],
+        "promptSha256": "40e0c45405a96f5b1ce378e5d7bd39311af6a762bf232fe8c9e7dde023372e05",
+        "recordedPromptSha256": "40e0c45405a96f5b1ce378e5d7bd39311af6a762bf232fe8c9e7dde023372e05",
+        "match": true
+      },
+      {
+        "slot": "scene1",
+        "ok": true,
+        "layout": "identity_and_style",
+        "references": [
+          "official-approved-asset:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:/uploads/official-pilot-rf-v4-02__rep-ext-cfd5bc2e-0a91-4c0c-bd5d-cd81c018f250.webp"
+        ],
+        "promptSha256": "9f89d980e84be8df9edf5330db15f6e815ae7e54ce7093a2e55d5ab049898cc5",
+        "recordedPromptSha256": "9f89d980e84be8df9edf5330db15f6e815ae7e54ce7093a2e55d5ab049898cc5",
+        "match": true
+      },
+      {
+        "slot": "scene2",
+        "ok": true,
+        "layout": "identity_and_style",
+        "references": [
+          "official-approved-asset:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:/uploads/official-pilot-rf-v4-02__rep-ext-cfd5bc2e-0a91-4c0c-bd5d-cd81c018f250.webp"
+        ],
+        "promptSha256": "a24b813c2a6522d1fcb5188ab90a5e640d76c01e0158a07ffe7d50da7e8075f2",
+        "recordedPromptSha256": "a24b813c2a6522d1fcb5188ab90a5e640d76c01e0158a07ffe7d50da7e8075f2",
+        "match": true
+      },
+      {
+        "slot": "scene3",
+        "ok": true,
+        "layout": "identity_and_style",
+        "references": [
+          "official-approved-asset:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:/uploads/official-pilot-rf-v4-02__rep-ext-cfd5bc2e-0a91-4c0c-bd5d-cd81c018f250.webp"
+        ],
+        "promptSha256": "3a8469dcfc03d1208c0f899b09ddb3b5dd52d73a5b14d1dd6fd55453913ab860",
+        "recordedPromptSha256": "3a8469dcfc03d1208c0f899b09ddb3b5dd52d73a5b14d1dd6fd55453913ab860",
+        "match": true
+      }
+    ],
+    "preparedReferenceCount": 1
+  },
+  "rollback": {
+    "staleAttempt": "rollback_stale",
+    "result": {
+      "status": "rolled_back",
+      "applyId": "bd9300fc-8a73-4df8-9274-fedff885a947",
+      "characterId": 10,
+      "draftKey": "pilot-rf-v4-02",
+      "restored": [
+        "rep",
+        "sig1",
+        "sig2",
+        "sig3",
+        "sig4",
+        "emo1",
+        "emo2",
+        "emo3",
+        "emo4",
+        "emo5",
+        "emo6",
+        "scene1",
+        "scene2",
+        "scene3"
+      ]
+    },
+    "restoredEqualsBefore": true,
+    "ledger": [
+      {
+        "apply_id": "bd9300fc-8a73-4df8-9274-fedff885a947",
+        "status": "rolled_back",
+        "applied_by_id": 8403,
+        "rolled_back_by_id": 8403,
+        "slot_keys_json": "[\"rep\",\"sig1\",\"sig2\",\"sig3\",\"sig4\",\"emo1\",\"emo2\",\"emo3\",\"emo4\",\"emo5\",\"emo6\",\"scene1\",\"scene2\",\"scene3\"]"
+      }
+    ]
+  }
+}

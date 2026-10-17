@@ -1,0 +1,12 @@
+{
+  "providerPosts": 0,
+  "assembly": "composeOfficialSlotGeneration + prepareOfficialImageReferences + callOpenAiImageEdit",
+  "slotKey": "emo3",
+  "tag": "진지함",
+  "expression": "상대의 말을 끝까지 듣는 냉정한 진지함. 눈썹을 찌푸리거나 웃지 않는다.",
+  "pose": "손을 비운 채 상대(카메라)를 바라본다. 문서·지도·열쇠·주먹은 없다. 유저는 그리지 않는다.",
+  "primaryPromptSha256": "6ac62f403af830c16093e67182c8b4e0bb2b0cafc093bc2c8e9bd565a7adf245",
+  "preparedSha256": "39d425e5bf7a8e48110107ab74e6d5989608d6d93156e85b10f90c77312ae1c7",
+  "preparedBytes": 231636,
+  "reference": "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp"
+}

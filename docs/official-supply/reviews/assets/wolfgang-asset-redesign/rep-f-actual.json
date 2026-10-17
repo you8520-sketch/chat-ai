@@ -1,0 +1,32 @@
+{
+  "status": "GENERATED",
+  "condition": "f",
+  "providerPosts": 1,
+  "persistedToProduction": false,
+  "model": "gpt-image-2.5-sunburst",
+  "promptSha256": "e24378f1f1b5de20ca7ff21f54f206aa73e21776b4350938b2f81e58883de46e",
+  "preparedSha256": "8d3b42d117198038a2608fa5e3b8eaf366416efa530aab120222c4a6171a90fa",
+  "sourceSha256": "7814a3950742201a5a0d9fff3b38b9ad3d706b93d52b6d3b603221c3d5aab699",
+  "size": "1024x1536",
+  "quality": "medium",
+  "n": 1,
+  "outputCompression": 88,
+  "background": "opaque",
+  "providerRequestId": "req_77188f324f0845b388c50a5b856161a8",
+  "usageEvidence": "usage_present",
+  "costUsd": 0.027393,
+  "budgetUsd": 0.08,
+  "fallback": false,
+  "retry": false,
+  "vision": false,
+  "raw": {
+    "sha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+    "bytes": 249520
+  },
+  "inspect": {
+    "width": 1024,
+    "height": 1536,
+    "format": "webp",
+    "inspectedSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032"
+  }
+}
