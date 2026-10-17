@@ -747,4 +747,55 @@ describe("TRPG scenarios and catalog", () => {
     );
     db.close();
   });
+
+  it("resubmitting the same generation returns the existing scenario id and leaves one row", () => {
+    const db = memoryDb();
+    const generatedAt = "2026-10-17T08:00:00.000Z";
+    const plan = {
+      ...emptyTrpgScenarioPlan(),
+      startingSituation: "폐역에 선다",
+      goal: "기차를 멈춘다",
+      endingConditions: ["기차가 멈춘다"],
+      provenance: {
+        generatorModel: "test-model",
+        schemaVersion: "1",
+        generatedAt,
+        sourceWorldId: null,
+        sourceWorldUpdatedAt: "",
+        sourceWorldHash: "",
+      },
+    };
+    const input = { title: "유령 기차", content: "비 오는 밤.", scenarioPlan: plan };
+    const first = insertScenarioTemplate(db, 1, input);
+    const replay = insertScenarioTemplate(db, 1, { ...input, title: "다시 보낸 제목", content: "다른 본문" });
+    assert.equal(replay, first);
+    const stored = rowToScenarioTemplate(loadScenarioTemplate(db, first)!, { includeSecret: true });
+    assert.equal(stored.title, "유령 기차");
+    assert.equal(stored.content, "비 오는 밤.");
+    assert.equal(stored.scenarioPlan?.provenance?.generatedAt, generatedAt);
+    assert.equal(
+      (
+        db
+          .prepare(
+            `SELECT COUNT(*) AS n FROM trpg_scenario_templates
+             WHERE creator_id=1 AND json_extract(scenario_plan_json, '$.provenance.generatedAt')=?`
+          )
+          .get(generatedAt) as { n: number }
+      ).n,
+      1
+    );
+
+    const otherCreator = insertScenarioTemplate(db, 2, input);
+    assert.notEqual(otherCreator, first);
+
+    const manualA = insertScenarioTemplate(db, 1, { title: "손작성", content: "본문" });
+    const manualB = insertScenarioTemplate(db, 1, { title: "손작성", content: "본문" });
+    assert.notEqual(manualA, manualB);
+
+    const unstamped = { ...plan, provenance: { ...plan.provenance, generatedAt: "" } };
+    const blankA = insertScenarioTemplate(db, 1, { title: "스탬프 없음", content: "본문", scenarioPlan: unstamped });
+    const blankB = insertScenarioTemplate(db, 1, { title: "스탬프 없음", content: "본문", scenarioPlan: unstamped });
+    assert.notEqual(blankA, blankB);
+    db.close();
+  });
 });

@@ -22,7 +22,8 @@ import {
   type TrpgScenarioDraftExisting,
 } from "@/lib/trpg/scenarioDraft";
 import {
-  completeTrpgAuthoringJson,
+  completeTrpgScenarioDraftJson,
+  TrpgAuthoringEmptyError,
   isTrpgAuthoringTimeoutError,
   TrpgAuthoringTruncatedError,
   TRPG_SCENARIO_DRAFT_TIMEOUT_MESSAGE,
@@ -117,7 +118,7 @@ export async function POST(req: Request) {
       MAX_TOKENS: primaryMaxTokens,
       TIMEOUT_MS: primaryTimeoutMs,
     });
-    const generated = await completeTrpgAuthoringJson({
+    const generated = await completeTrpgScenarioDraftJson({
       kind: "scenario_draft",
       system: systemPrompt,
       user: userPrompt,
@@ -165,6 +166,12 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: TRPG_SCENARIO_DRAFT_TIMEOUT_MESSAGE, code: "SCENARIO_DRAFT_TIMEOUT" },
         { status: 504 }
+      );
+    }
+    if (e instanceof TrpgAuthoringEmptyError) {
+      return NextResponse.json(
+        { error: e.message, code: "SCENARIO_DRAFT_EMPTY" },
+        { status: 422 }
       );
     }
     if (e instanceof TrpgAuthoringTruncatedError) {

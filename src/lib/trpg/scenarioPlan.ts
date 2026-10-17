@@ -380,6 +380,12 @@ export function hasPlayableScenarioPlan(plan: TrpgScenarioPlan | null | undefine
   return Boolean(plan.startingSituation.trim() && plan.goal.trim());
 }
 
+/** What a one-shot generated adventure needs to be runnable and able to end: start, goal, and an ending. */
+export function hasMinimumPlayableStory(plan: TrpgScenarioPlan | null | undefined): boolean {
+  if (!plan || !hasPlayableScenarioPlan(plan)) return false;
+  return [...plan.endingConditions, ...plan.endingCandidates].some((item) => item.trim());
+}
+
 export function hasLegacyAdvancedPlanFields(plan: TrpgScenarioPlan | null | undefined): boolean {
   if (!plan) return false;
   return Boolean(

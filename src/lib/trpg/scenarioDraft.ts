@@ -394,8 +394,10 @@ Rules:
 - The user supplies fill_or_replace_fields. Return exactly and only those top-level keys; never emit locked or kept fields.
 
 JSON keys:
-title, summary, startingSituation, centralConflict, goal, secret, endingConditions, majorEvents, clues, npcs, forbiddenEvents, boss, startLocation, startInventory, specialRules, difficulty, climax, endingCandidates, factionChanges, gmDirection, playLength
-npcs items: {role, name, description, greeting, systemPrompt, stats:null}
+List keys are JSON arrays of strings even for one item, never one string.
+strings: title, summary, startingSituation, centralConflict, goal, secret, boss, startLocation, climax, gmDirection
+string arrays: endingConditions, majorEvents, clues, forbiddenEvents, specialRules, endingCandidates, factionChanges, startInventory
+npcs: array of {role, name, description, greeting, systemPrompt, stats:null}
 difficulty: easy|normal|hard|deadly
 playLength: short|medium|long|open_ended`;
 }

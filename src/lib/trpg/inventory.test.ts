@@ -153,7 +153,7 @@ describe("TRPG start-inventory authoring text ⇄ canonical unit list", () => {
 
   it("L. saved duplicate raw units reload as compact editor text", () => {
     const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
-    assert.match(editor, /useState\(\(\) => formatInventoryAuthoringText\(initial\?\.startInventory \?\? \[\]\)\)/);
+    assert.match(editor, /useState\(\(\) => formatInventoryAuthoringText\(initial\.startInventory \?\? \[\]\)\)/);
     assert.equal(formatInventoryAuthoringText(["붕대", "붕대", "해독제"]), "붕대 ×2, 해독제");
   });
 

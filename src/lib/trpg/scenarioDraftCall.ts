@@ -35,6 +35,8 @@ export const TRPG_SCENARIO_DRAFT_TIMEOUT_MESSAGE =
   "AI 초안 생성이 예상보다 오래 걸렸습니다. 작성 중인 내용은 그대로 보존되었습니다. 잠시 후 다시 시도해 주세요.";
 export const TRPG_SCENARIO_DRAFT_TRUNCATED_MESSAGE =
   "AI 초안이 너무 길어 완성되지 않았습니다. 작성 중인 내용은 그대로 보존되었습니다. 다시 시도해 주세요.";
+export const TRPG_SCENARIO_DRAFT_EMPTY_MESSAGE =
+  "AI가 초안 내용을 만들지 못했습니다. 작성 중인 내용은 그대로 보존되었습니다. 다시 시도해 주세요.";
 export const FORM_PRESERVED_ON_TIMEOUT = true;
 export const REPAIR_IS_REWRITE = false;
 export const TRPG_AUTHORING_PROVIDER_RETRY = 0;
@@ -46,6 +48,13 @@ export function isTrpgAuthoringTimeoutError(error: unknown): boolean {
     error.name === "AbortError" ||
     /aborted due to timeout|timed out|timeout/i.test(error.message)
   );
+}
+
+export class TrpgAuthoringEmptyError extends Error {
+  constructor() {
+    super(TRPG_SCENARIO_DRAFT_EMPTY_MESSAGE);
+    this.name = "TrpgAuthoringEmptyError";
+  }
 }
 
 export class TrpgAuthoringTruncatedError extends Error {
@@ -140,8 +149,11 @@ export function buildTrpgScenarioDraftRequestBody(opts: {
     stream: false,
     temperature: opts.temperature ?? 0.6,
     max_tokens: opts.maxTokens ?? 4096,
-    response_format: { type: "json_object" },
   });
+  // No `response_format: json_object`: with deepseek-v4-flash-0731 on CheaperInference it made
+  // the model answer `{}` or path-like keys ("/fill_or_replace_fields", ".title", "/mnt/data/")
+  // for most draft and sandbox-blueprint calls. Plain output parses fine through
+  // `extractJsonObject`, and the repair stage still covers malformed JSON.
   // Scenario authoring owns true-off after the generic DeepSeek adapter.
   // This does not alter global adapter behavior or GM/Bot calls.
   body.thinking = { type: "disabled" };
@@ -360,4 +372,16 @@ export async function completeTrpgAuthoringJson(opts: {
       throw repairParseError;
     }
   }
+}
+
+/** An empty draft parses cleanly but fills nothing; it must not be reported as a success. */
+export async function completeTrpgScenarioDraftJson(
+  opts: Parameters<typeof completeTrpgAuthoringJson>[0]
+): Promise<TrpgScenarioDraftResult> {
+  const result = await completeTrpgAuthoringJson(opts);
+  const expectsFields = (opts.expectedFields?.length ?? 0) > 0;
+  if (expectsFields && (result.generatedFields?.length ?? 0) === 0) {
+    throw new TrpgAuthoringEmptyError();
+  }
+  return result;
 }
