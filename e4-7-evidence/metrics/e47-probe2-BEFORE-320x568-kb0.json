@@ -1,0 +1,194 @@
+{
+ "W": 320,
+ "H": 568,
+ "KB": 0,
+ "initial": {
+  "el": null,
+  "label": null,
+  "topStack": 98,
+  "bottomStack": 405.5,
+  "barT": 405.5,
+  "navOn": true,
+  "sy": 0,
+  "vars": {
+   "kb": "0px",
+   "spb": "126px",
+   "spt": "106px"
+  },
+  "kbAttr": false
+ },
+ "reverse": {
+  "n": 24,
+  "hiddenTop": 2,
+  "hiddenBottom": 0,
+  "samples": [
+   {
+    "el": {
+     "tag": "INPUT",
+     "text": "홈·목록에 보이는 짧은 소개 ",
+     "t": 111.5,
+     "b": 161.5,
+     "h": 50
+    },
+    "topStack": 152,
+    "bottomStack": 405.5
+   },
+   {
+    "el": {
+     "tag": "BUTTON",
+     "text": "단일 캐릭터한 캐릭터의 성격·",
+     "t": 120.8,
+     "b": 217.8,
+     "h": 97
+    },
+    "topStack": 152,
+    "bottomStack": 405.5
+   }
+  ]
+ },
+ "forward": {
+  "n": 30,
+  "hiddenTop": 0,
+  "hiddenBottom": 2,
+  "samples": [
+   {
+    "el": {
+     "tag": "BUTTON",
+     "text": "다인 시뮬레이션세계관과 여러 ",
+     "t": 330.8,
+     "b": 427.8,
+     "h": 97
+    },
+    "topStack": 152,
+    "bottomStack": 405.5
+   },
+   {
+    "el": {
+     "tag": "BUTTON",
+     "text": "+ 에셋 이미지 추가최대 10",
+     "t": 312.5,
+     "b": 424.5,
+     "h": 112
+    },
+    "topStack": 152,
+    "bottomStack": 405.5
+   }
+  ]
+ },
+ "jumps": [
+  {
+   "el": {
+    "tag": "INPUT",
+    "text": "예: 리카르트 발크리드",
+    "t": 172.3,
+    "b": 222.3,
+    "h": 50
+   },
+   "label": {
+    "t": 147,
+    "b": 166.3,
+    "h": 19.3
+   },
+   "secT": 11.8,
+   "topStack": 152,
+   "bottomStack": 405.5,
+   "labelHidden": true,
+   "elHidden": false
+  },
+  {
+   "el": {
+    "tag": "INPUT",
+    "text": "홈·목록에 보이는 짧은 소개 ",
+    "t": 171.5,
+    "b": 221.5,
+    "h": 50
+   },
+   "label": {
+    "t": 146.3,
+    "b": 165.5,
+    "h": 19.3
+   },
+   "secT": -80.2,
+   "topStack": 152,
+   "bottomStack": 405.5,
+   "labelHidden": true,
+   "elHidden": false
+  },
+  {
+   "el": {
+    "tag": "TEXTAREA",
+    "text": "성격, 말투 특징, 외모, 배",
+    "t": 172.2,
+    "b": 440.2,
+    "h": 268
+   },
+   "label": {
+    "t": 119.8,
+    "b": 139.1,
+    "h": 19.3
+   },
+   "secT": -569,
+   "topStack": 152,
+   "bottomStack": 405.5,
+   "labelHidden": true,
+   "elHidden": true
+  },
+  {
+   "el": {
+    "tag": "TEXTAREA",
+    "text": "xxxxxxxxxxxxxxxx",
+    "t": 172.2,
+    "b": 440.2,
+    "h": 268
+   },
+   "label": {
+    "t": 119.8,
+    "b": 139.1,
+    "h": 19.3
+   },
+   "secT": -569,
+   "topStack": 152,
+   "bottomStack": 405.5,
+   "labelHidden": true,
+   "elHidden": true
+  }
+ ],
+ "switches": [
+  {
+   "tab": "공개 소개",
+   "sy": 104,
+   "hdrB": 98,
+   "tabsT": 113.5,
+   "tabsB": 167.5,
+   "firstSecT": 383.5,
+   "firstSecVisibleH": 22
+  },
+  {
+   "tab": "상태창",
+   "sy": 104,
+   "hdrB": 98,
+   "tabsT": 113.5,
+   "tabsB": 167.5,
+   "firstSecT": 383.5,
+   "firstSecVisibleH": 22
+  },
+  {
+   "tab": "공개 설정",
+   "sy": 104,
+   "hdrB": 98,
+   "tabsT": 113.5,
+   "tabsB": 167.5,
+   "firstSecT": 383.5,
+   "firstSecVisibleH": 22
+  },
+  {
+   "tab": "제작",
+   "sy": 104,
+   "hdrB": 98,
+   "tabsT": 113.5,
+   "tabsB": 167.5,
+   "firstSecT": 383.5,
+   "firstSecVisibleH": 22
+  }
+ ]
+}

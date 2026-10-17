@@ -1,0 +1,148 @@
+{
+ "W": 390,
+ "H": 844,
+ "KB": 0,
+ "initial": {
+  "el": null,
+  "label": null,
+  "topStack": 98,
+  "bottomStack": 682,
+  "barT": 682,
+  "navOn": true,
+  "sy": 0,
+  "vars": {
+   "kb": "0px",
+   "spb": "178px",
+   "spt": "160px"
+  },
+  "kbAttr": false
+ },
+ "reverse": {
+  "n": 24,
+  "hiddenTop": 0,
+  "hiddenBottom": 0,
+  "samples": []
+ },
+ "forward": {
+  "n": 30,
+  "hiddenTop": 0,
+  "hiddenBottom": 0,
+  "samples": []
+ },
+ "jumps": [
+  {
+   "el": {
+    "tag": "INPUT",
+    "text": "예: 리카르트 발크리드",
+    "t": 189.3,
+    "b": 239.3,
+    "h": 50
+   },
+   "label": {
+    "t": 164,
+    "b": 183.3,
+    "h": 19.3
+   },
+   "secT": 60.8,
+   "topStack": 152,
+   "bottomStack": 682,
+   "labelHidden": false,
+   "elHidden": false
+  },
+  {
+   "el": {
+    "tag": "INPUT",
+    "text": "홈·목록에 보이는 짧은 소개 ",
+    "t": 189.5,
+    "b": 239.5,
+    "h": 50
+   },
+   "label": {
+    "t": 164.3,
+    "b": 183.5,
+    "h": 19.3
+   },
+   "secT": -30.2,
+   "topStack": 152,
+   "bottomStack": 682,
+   "labelHidden": false,
+   "elHidden": false
+  },
+  {
+   "el": {
+    "tag": "TEXTAREA",
+    "text": "성격, 말투 특징, 외모, 배",
+    "t": 216.8,
+    "b": 484.8,
+    "h": 268
+   },
+   "label": {
+    "t": 164.5,
+    "b": 183.7,
+    "h": 19.3
+   },
+   "secT": -430.1,
+   "topStack": 152,
+   "bottomStack": 682,
+   "labelHidden": false,
+   "elHidden": false
+  },
+  {
+   "el": {
+    "tag": "TEXTAREA",
+    "text": "xxxxxxxxxxxxxxxx",
+    "t": 216.8,
+    "b": 484.8,
+    "h": 268
+   },
+   "label": {
+    "t": 164.5,
+    "b": 183.7,
+    "h": 19.3
+   },
+   "secT": -430.1,
+   "topStack": 152,
+   "bottomStack": 682,
+   "labelHidden": false,
+   "elHidden": false
+  }
+ ],
+ "switches": [
+  {
+   "tab": "공개 소개",
+   "sy": 104,
+   "hdrB": 98,
+   "tabsT": 113.5,
+   "tabsB": 167.5,
+   "firstSecT": 331.5,
+   "firstSecVisibleH": 350.5
+  },
+  {
+   "tab": "상태창",
+   "sy": 104,
+   "hdrB": 98,
+   "tabsT": 113.5,
+   "tabsB": 167.5,
+   "firstSecT": 331.5,
+   "firstSecVisibleH": 350.5
+  },
+  {
+   "tab": "공개 설정",
+   "sy": 104,
+   "hdrB": 98,
+   "tabsT": 113.5,
+   "tabsB": 167.5,
+   "firstSecT": 331.5,
+   "firstSecVisibleH": 350.5
+  },
+  {
+   "tab": "제작",
+   "sy": 104,
+   "hdrB": 98,
+   "tabsT": 113.5,
+   "tabsB": 167.5,
+   "firstSecT": 331.5,
+   "firstSecVisibleH": 281.3
+  }
+ ]
+}

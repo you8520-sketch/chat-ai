@@ -1,0 +1,171 @@
+{
+ "W": 390,
+ "H": 844,
+ "KB": 300,
+ "initial": {
+  "el": null,
+  "label": null,
+  "topStack": 98,
+  "bottomStack": 435,
+  "barT": 435,
+  "navOn": false,
+  "sy": 0,
+  "vars": {
+   "kb": "300px",
+   "spb": "125px",
+   "spt": "106px"
+  },
+  "kbAttr": true
+ },
+ "reverse": {
+  "n": 0,
+  "hiddenTop": 0,
+  "hiddenBottom": 0,
+  "samples": []
+ },
+ "forward": {
+  "n": 27,
+  "hiddenTop": 0,
+  "hiddenBottom": 2,
+  "samples": [
+   {
+    "el": {
+     "tag": "INPUT",
+     "text": "예: 리카르트 발크리드",
+     "t": 387.3,
+     "b": 437.3,
+     "h": 50
+    },
+    "topStack": 152,
+    "bottomStack": 435
+   },
+   {
+    "el": {
+     "tag": "SUMMARY",
+     "text": "더 다듬기선택이미지 인물 · ",
+     "t": 388.7,
+     "b": 436.7,
+     "h": 48
+    },
+    "topStack": 152,
+    "bottomStack": 435
+   }
+  ]
+ },
+ "jumps": [
+  {
+   "el": {
+    "tag": "INPUT",
+    "text": "예: 리카르트 발크리드",
+    "t": 172.3,
+    "b": 222.3,
+    "h": 50
+   },
+   "label": {
+    "t": 147,
+    "b": 166.3,
+    "h": 19.3
+   },
+   "secT": 43.8,
+   "topStack": 152,
+   "bottomStack": 435,
+   "labelHidden": true,
+   "elHidden": false
+  },
+  {
+   "el": {
+    "tag": "INPUT",
+    "text": "홈·목록에 보이는 짧은 소개 ",
+    "t": 171.5,
+    "b": 221.5,
+    "h": 50
+   },
+   "label": {
+    "t": 146.3,
+    "b": 165.5,
+    "h": 19.3
+   },
+   "secT": -48.2,
+   "topStack": 152,
+   "bottomStack": 435,
+   "labelHidden": true,
+   "elHidden": false
+  },
+  {
+   "el": {
+    "tag": "TEXTAREA",
+    "text": "성격, 말투 특징, 외모, 배",
+    "t": 171.8,
+    "b": 439.8,
+    "h": 268
+   },
+   "label": {
+    "t": 119.5,
+    "b": 138.7,
+    "h": 19.3
+   },
+   "secT": -475.1,
+   "topStack": 152,
+   "bottomStack": 435,
+   "labelHidden": true,
+   "elHidden": true
+  },
+  {
+   "el": {
+    "tag": "TEXTAREA",
+    "text": "xxxxxxxxxxxxxxxx",
+    "t": 171.8,
+    "b": 439.8,
+    "h": 268
+   },
+   "label": {
+    "t": 119.5,
+    "b": 138.7,
+    "h": 19.3
+   },
+   "secT": -475.1,
+   "topStack": 152,
+   "bottomStack": 435,
+   "labelHidden": true,
+   "elHidden": true
+  }
+ ],
+ "switches": [
+  {
+   "tab": "공개 소개",
+   "sy": 104,
+   "hdrB": 98,
+   "tabsT": 113.5,
+   "tabsB": 167.5,
+   "firstSecT": 331.5,
+   "firstSecVisibleH": 103.5
+  },
+  {
+   "tab": "상태창",
+   "sy": 104,
+   "hdrB": 98,
+   "tabsT": 113.5,
+   "tabsB": 167.5,
+   "firstSecT": 331.5,
+   "firstSecVisibleH": 103.5
+  },
+  {
+   "tab": "공개 설정",
+   "sy": 104,
+   "hdrB": 98,
+   "tabsT": 113.5,
+   "tabsB": 167.5,
+   "firstSecT": 331.5,
+   "firstSecVisibleH": 103.5
+  },
+  {
+   "tab": "제작",
+   "sy": 104,
+   "hdrB": 98,
+   "tabsT": 113.5,
+   "tabsB": 167.5,
+   "firstSecT": 331.5,
+   "firstSecVisibleH": 103.5
+  }
+ ]
+}
