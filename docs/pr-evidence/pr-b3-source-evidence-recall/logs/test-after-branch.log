@@ -1,0 +1,185 @@
+TAP version 13
+# [database] runtime diagnostics {
+#   nodeEnv: '',
+#   nextPhase: '',
+#   cwd: '/workspace',
+#   dataDir: '/workspace/data',
+#   databasePath: '/workspace/data/app.db',
+#   dataDirExists: true,
+#   dataDirIsMounted: false,
+#   productionRuntime: false
+# }
+# [b3-distance] 1000-turn chat, 46 ended promises, recall ms {"T80":13.2,"T150":8.6,"T500":11.7,"T1000":11.7}
+# Subtest: past promise recall carries verified source quotes
+    # Subtest: A: a clear question returns the T10 promise and the T20 cancel, each with its own words
+    ok 1 - A: a clear question returns the T10 promise and the T20 cancel, each with its own words
+      ---
+      duration_ms: 652.021558
+      ...
+    # Subtest: the quoted turns, speakers and ledger state agree: the promise is ended, not active
+    ok 2 - the quoted turns, speakers and ledger state agree: the promise is ended, not active
+      ---
+      duration_ms: 8.435031
+      ...
+    # Subtest: B: when the cancel gives no reason the block holds no reason; a stated reason is quoted verbatim
+    ok 3 - B: when the cancel gives no reason the block holds no reason; a stated reason is quoted verbatim
+      ---
+      duration_ms: 13.827933
+      ...
+    # Subtest: C: proposing a new promise or an unrelated scene injects no past promise
+    ok 4 - C: proposing a new promise or an unrelated scene injects no past promise
+      ---
+      duration_ms: 6.105438
+      ...
+    # Subtest: D: create, cancel, re-promise, re-cancel keeps order and quotes the latest cycle
+    ok 5 - D: create, cancel, re-promise, re-cancel keeps order and quotes the latest cycle
+      ---
+      duration_ms: 9.8354
+      ...
+    # Subtest: E: an old promise is still found at T80, T150, T500 and T1000 behind many newer ended ones
+    ok 6 - E: an old promise is still found at T80, T150, T500 and T1000 behind many newer ended ones
+      ---
+      duration_ms: 83.658513
+      ...
+    # Subtest: F: deleted, regenerated, switched or rewritten sources never resurface an old quote
+    ok 7 - F: deleted, regenerated, switched or rewritten sources never resurface an old quote
+      ---
+      duration_ms: 7.754337
+      ...
+    # Subtest: F: deleting the last turn drops the cancel and its quote with it
+    ok 8 - F: deleting the last turn drops the cancel and its quote with it
+      ---
+      duration_ms: 9.652742
+      ...
+    # Subtest: F: an assistant message that did not finish cannot be quoted
+    ok 9 - F: an assistant message that did not finish cannot be quoted
+      ---
+      duration_ms: 3.904233
+      ...
+    # Subtest: G: a manual Global edit changes neither the ended-promise line nor the ledger state
+    ok 10 - G: a manual Global edit changes neither the ended-promise line nor the ledger state
+      ---
+      duration_ms: 7.14079
+      ...
+    # Subtest: quotes are data: an embedded command is cut before it reaches the block
+    ok 11 - quotes are data: an embedded command is cut before it reaches the block
+      ---
+      duration_ms: 3.892982
+      ...
+    # Subtest: a long cancel message is cut to the sentences that bear on the promise
+    ok 12 - a long cancel message is cut to the sentences that bear on the promise
+      ---
+      duration_ms: 3.901766
+      ...
+    # Subtest: never reads another chat's messages
+    ok 13 - never reads another chat's messages
+      ---
+      duration_ms: 3.51244
+      ...
+    # Subtest: legacy ended promises without a usable source keep the plain line
+    ok 14 - legacy ended promises without a usable source keep the plain line
+      ---
+      duration_ms: 4.051146
+      ...
+    1..14
+ok 1 - past promise recall carries verified source quotes
+  ---
+  duration_ms: 819.98826
+  type: 'suite'
+  ...
+# [database] runtime diagnostics {
+#   nodeEnv: '',
+#   nextPhase: '',
+#   cwd: '/workspace',
+#   dataDir: '/workspace/data',
+#   databasePath: '/workspace/data/app.db',
+#   dataDirExists: true,
+#   dataDirIsMounted: false,
+#   productionRuntime: false
+# }
+# Subtest: relationship ledger timeline (promise create -> cancel -> recall)
+    # Subtest: keeps both events with source turns while the ledger holds no active promise
+    ok 1 - keeps both events with source turns while the ledger holds no active promise
+      ---
+      duration_ms: 671.787146
+      ...
+    # Subtest: T80 recall injects the past promise as ended, not as an active promise
+    ok 2 - T80 recall injects the past promise as ended, not as an active promise
+      ---
+      duration_ms: 24.644608
+      ...
+    # Subtest: injects nothing on turns that do not recall the promise
+    ok 3 - injects nothing on turns that do not recall the promise
+      ---
+      duration_ms: 17.979589
+      ...
+    # Subtest: an explicit promise cue recalls ended promises without shared words
+    ok 4 - an explicit promise cue recalls ended promises without shared words
+      ---
+      duration_ms: 13.907745
+      ...
+    # Subtest: does not inject ended promises when the user proposes a new one
+    ok 5 - does not inject ended promises when the user proposes a new one
+      ---
+      duration_ms: 15.266291
+      ...
+    # Subtest: still recalls an ended promise when the user asks what happened to it
+    ok 6 - still recalls an ended promise when the user asks what happened to it
+      ---
+      duration_ms: 19.297915
+      ...
+    # Subtest: a re-added promise is active again and leaves no ended-history line
+    ok 7 - a re-added promise is active again and leaves no ended-history line
+      ---
+      duration_ms: 24.45707
+      ...
+    # Subtest: regeneration of the cancel turn does not recall its own cancellation
+    ok 8 - regeneration of the cancel turn does not recall its own cancellation
+      ---
+      duration_ms: 15.185839
+      ...
+    # Subtest: deleting the last turn drops its event and keeps the older history
+    ok 9 - deleting the last turn drops its event and keeps the older history
+      ---
+      duration_ms: 20.528586
+      ...
+    # Subtest: deleting a cancel turn restores the promise as active and removes the cancel event
+    ok 10 - deleting a cancel turn restores the promise as active and removes the cancel event
+      ---
+      duration_ms: 25.537994
+      ...
+    # Subtest: follows the active variant: a variant without the cancel hides the cancel event
+    ok 11 - follows the active variant: a variant without the cancel hides the cancel event
+      ---
+      duration_ms: 17.593421
+      ...
+    # Subtest: legacy turns without provenance simply have no events
+    ok 12 - legacy turns without provenance simply have no events
+      ---
+      duration_ms: 14.30595
+      ...
+    # Subtest: possession changes are listed with the same provenance
+    ok 13 - possession changes are listed with the same provenance
+      ---
+      duration_ms: 20.197955
+      ...
+    # Subtest: never reads another chat's provenance
+    ok 14 - never reads another chat's provenance
+      ---
+      duration_ms: 16.990907
+      ...
+    1..14
+ok 2 - relationship ledger timeline (promise create -> cancel -> recall)
+  ---
+  duration_ms: 920.015681
+  type: 'suite'
+  ...
+1..2
+# tests 28
+# suites 2
+# pass 28
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2195.154422
