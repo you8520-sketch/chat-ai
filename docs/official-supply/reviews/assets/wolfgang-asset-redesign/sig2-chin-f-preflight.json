@@ -1,0 +1,19 @@
+{
+  "status": "PREFLIGHT",
+  "providerPosts": 0,
+  "model": "gpt-image-2.5-sunburst",
+  "size": "1536x1024",
+  "quality": "medium",
+  "n": 1,
+  "outputCompression": 88,
+  "background": "opaque",
+  "budgetUsd": 0.08,
+  "slotKey": "sig2",
+  "tag": "턱을 괴고 생각",
+  "expression": "말을 삼키며 턱을 괸 채 생각을 정리하는 눈빛. 흉터를 만지거나 보여 주지 않는다.",
+  "pose": "갑옷 장갑을 낀 손으로 턱을 괴고 앉는다. 괴고 있는 손과 얼굴이 한눈에 보인다. 서류·지도·열쇠는 두지 않는다. 흉터를 쓰다듬지 않는다.",
+  "primaryPromptSha256": "ab17ab9e2d4263d4952ddc11accb0a8ccc14c50c66aa84a3652250aefb9ce15c",
+  "preparedSha256": "39d425e5bf7a8e48110107ab74e6d5989608d6d93156e85b10f90c77312ae1c7",
+  "preparedBytes": 231636,
+  "reference": "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp"
+}

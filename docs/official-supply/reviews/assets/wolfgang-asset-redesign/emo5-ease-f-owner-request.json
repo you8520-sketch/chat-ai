@@ -1,0 +1,12 @@
+{
+  "providerPosts": 0,
+  "assembly": "composeOfficialSlotGeneration + prepareOfficialImageReferences + callOpenAiImageEdit",
+  "slotKey": "emo5",
+  "tag": "편안함",
+  "expression": "눈을 뜨고 눈가의 힘이 풀린 편안함. 입꼬리를 올리지 않는다. 눈을 감거나 길게 숨을 내쉬거나 웃지 않는다.",
+  "pose": "소품 없이 어깨를 내려 선다. 손은 몸 옆에 가볍게 둔다. 서류·검·열쇠·주먹은 없다. 창가에 앉아 웃지 않는다. 유저는 그리지 않는다.",
+  "primaryPromptSha256": "9e04e897e5d5ddcea10a1f9511a41525018b1ecb322a5efec96821ea98f09d73",
+  "preparedSha256": "39d425e5bf7a8e48110107ab74e6d5989608d6d93156e85b10f90c77312ae1c7",
+  "preparedBytes": 231636,
+  "reference": "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp"
+}

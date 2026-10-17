@@ -1,0 +1,12 @@
+{
+  "providerPosts": 0,
+  "assembly": "composeOfficialSlotGeneration + prepareOfficialImageReferences + callOpenAiImageEdit",
+  "slotKey": "sig1",
+  "tag": "지도를 짚음",
+  "expression": "엄격하고 흔들림 없이 지도를 읽는 진지한 표정. 이를 보이지 않는다.",
+  "pose": "흑철 요새 지휘실 탁자 위 작전 지도의 한 지점을 장갑 낀 검지로 짚는다. 지도와 짚는 손이 프레임 안에 보인다. 부하는 그리지 않는다. 서류 더미는 두지 않는다.",
+  "primaryPromptSha256": "1dc3003b68c3ce2df14de9566c91d3d0eee448c35fdd1d5b04ddb6dfb31323a5",
+  "preparedSha256": "39d425e5bf7a8e48110107ab74e6d5989608d6d93156e85b10f90c77312ae1c7",
+  "preparedBytes": 231636,
+  "reference": "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp"
+}
