@@ -1,0 +1,38 @@
+draft response 200 2032
+real-desc SAVED 7455ms http://localhost:3203/world/create?tab=scenario&created=48
+{
+ "id": 48,
+ "title": "유령 기차의 비밀",
+ "visibility": "private",
+ "world_id": null,
+ "summary": "비 오는 밤, 폐역에 도착한 유령 기차에서 사라진 승객들의 비밀을 추적하는 미스터리 모험.",
+ "startLocation": "구포역 폐역 승강장",
+ "goal": "기차 안에서 단서를 모아 승객들의 죽음의 진실을 밝히고, 저주에서 벗어나 기차를 떠나는 것.",
+ "startingSituation": "플레이어들은 비 오는 밤, 우연히 폐역인 구포역에 도착한다. 갑자기 나타난 증기 기관차가 정차하고, 문이 열리며 안에서 희미한 불빛이 새어 나온다.",
+ "endings": [
+  "승객들의 죽음의 진실이 밝혀지고 영혼들이 평화를 찾는다.",
+  "플레이어들이 기차에서 탈출에 성공하지만 진실은 묻힌다."
+ ],
+ "model": "deepseek-v4-flash-0731",
+ "generatedAt": "2026-10-17T08:10:55.619Z"
+}
+play prep: http://localhost:3203/trpg?scenarioId=48 true
+draft response 200 2106
+real-world SAVED 9488ms http://localhost:3203/world/create?tab=scenario&created=49
+{
+ "id": 49,
+ "title": "안개 속 사라진 등대",
+ "visibility": "private",
+ "world_id": 122,
+ "summary": "하르바의 등대가 꺼지고, 안개 속에서 배가 사라진다. 등대지기 조합과 밀수 길드의 갈등 속에서 진실을 찾는 이야기.",
+ "startLocation": "하르바 항구의 세관 사무소 앞",
+ "goal": "등대를 다시 켜고, 사라진 배들의 진실을 밝혀 하르바의 안개 속 질서를 회복한다.",
+ "startingSituation": "하르바의 등대가 일주일째 꺼져 있고, 안개가 평소보다 짙다. 등대지기 조합은 밀수 길드의 방화로 의심하고, 밀수 길드는 조합의 내부 문제로 치부한다. 세관은 두 세력 사이에서 혼란스러워한다.",
+ "endings": [
+  "등대가 다시 켜지고, 마르코의 조직이 해체되거나 체포된다.",
+  "마르코의 계획이 실패하고, 하르바의 안개가 평소 상태로 돌아온다."
+ ],
+ "model": "deepseek-v4-flash-0731",
+ "generatedAt": "2026-10-17T08:11:17.122Z"
+}
+play prep: http://localhost:3203/trpg?scenarioId=49 true
