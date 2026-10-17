@@ -47,6 +47,7 @@ import {
   TrpgAuthoringEmptyError,
   TrpgAuthoringTruncatedError,
   TRPG_AUTHORING_PROVIDER_RETRY,
+  TRPG_SCENARIO_DRAFT_EMPTY_RETRY,
   TRPG_SCENARIO_DRAFT_TIMEOUT_MESSAGE,
 } from "./scenarioDraftCall";
 import { emptyTrpgScenarioPlan, lintTrpgScenarioPlan } from "./scenarioPlan";
@@ -101,7 +102,7 @@ describe("TRPG scenario AI draft", () => {
     assert.equal(generated.generatedFields?.includes("npcs"), true);
   });
 
-  it("retries once when the model answers {} and fails clearly when it stays empty", async () => {
+  it("retries empty {} answers a bounded number of times and then fails clearly", async () => {
     const base = {
       kind: "scenario_draft" as const,
       system: "sys",
@@ -131,7 +132,7 @@ describe("TRPG scenario AI draft", () => {
       }),
       TrpgAuthoringEmptyError
     );
-    assert.equal(emptyCalls, 2);
+    assert.equal(emptyCalls, TRPG_SCENARIO_DRAFT_EMPTY_RETRY + 1);
 
     let okCalls = 0;
     await completeTrpgScenarioDraftJson({
