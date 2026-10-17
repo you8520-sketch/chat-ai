@@ -1,0 +1,26 @@
+# tests 731
+# pass 717
+# fail 14
+-- failing tests
+assistant material prose edit
+assistant-only canon-adopted source identity
+E1 normal facts insert
+E3 regen A=[fact1] → B=[fact2] final = fact2 only
+E4 regen A=[fact1] → B=[] final = none
+E5 duplicate finalize (same request_id) no extra delete/insert
+edits assistant-only turn without misattributing to prior user turn
+episodic abstract psychological inference recall guard
+getEpisodicMemoryForPrompt
+invalidates sealed summary and reseals with new source prose
+latest fact wins for the same category subject attribute
+LTM re-summary eligibility after rewind (API=0)
+M1/M2/M5: LTM suppresses rejected D; prior batch preserved; LLM=0
+material user source edit invalidates sealed summary and allows reseal
+older facts are injected when old enough
+Phase B0 — episodic reconciliation (E1-E8)
+Phase B1-D2 FINAL HARDENING
+preserves psychological resolution, negation, and recovery events at save and recall
+ranking prefers critical over important over normal
+status episodic source-of-truth and evidence boundaries
+user message edit
+verifies explicit-user provenance against the actual RAW user message
