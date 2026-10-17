@@ -1,8 +1,8 @@
 # Wolfgang #51 에셋 재설계 — 기존 참고자료 재사용, 식사 콘셉트 폐기
 
-상태: **재설계안. 유료 호출 0. 운영 이미지·DB·Lock·#50 미변경.** 승인 r2 본문 / Text Lock / Appearance Lock은 그대로다. 이미 병합된 #1633은 열거나 수정하지 않는다. 외부 반입 기능은 배포된 보조 경로로 유지하되, 자동 이미지 제작 목표를 사용자 재업로드로 넘기지 않는다.
+상태: **재설계 방향 승인. 운영 이미지·태그·DB·Lock·#50 미변경.** 승인 r2 본문 / Text Lock / Appearance Lock은 그대로다. 이미 병합된 #1633은 열거나 수정하지 않는다. 외부 반입 기능은 배포된 보조 경로로 유지하되, 자동 이미지 제작 목표를 사용자 재업로드로 넘기지 않는다.
 
-이번 단계의 목표는 사용자가 이미 준 그림체 참고자료를 복원해 검토·선별을 구분하고, 일상 RP에서 표정과 행동이 바로 읽히는 14슬롯 구성을 다시 짜는 것이다. 새 참고자료 제작이나 재업로드를 요구하지 않는다.
+식사 폐기와 감정 컷의 서류 반복을 줄이는 방향을 승인했다. 운영 태그는 아직 바꾸지 않는다. 현재 픽셀과 다른 감정을 이름만 바꿔 붙이지 않는다.
 
 ## 1. 기존 참고자료 복원
 
@@ -119,12 +119,12 @@ URL 패턴: `https://hav.chat/uploads/official-pilot-rf-v4-02__{slot}-a1.webp`. 
 | 후보와 겹칠 수 있는 칸 | 구분 |
 |---|---|
 | emo6 현재 픽셀 (성벽 착석) | 그쪽은 옆모습·열쇠·미소 없음. 새 sig4는 **상대를 보고 웃는** 휴식 |
-| emo6 새 계획 (`미소`) | 감정 클로즈. sig4는 환경이 있는 서명 컷 `옅은 미소` |
+| emo6 새 계획 (`안도`) | 상대의 무사를 확인한 뒤 긴장이 풀리는 감정 컷. sig4는 창가에서 상대를 보며 옅게 웃는 휴식 |
 | emo4 현재 픽셀 (턱 괴고 풍경) | 상대를 보지 않음. 새 sig4는 카메라 쪽 |
 | sig2 (턱 괴고 생각) | 책상·사고. 새 sig4는 손 비움·온기 |
 | emo2 (주먹) | 반대 감정 |
 
-shot 판의 잔여 라벨: 합성 결과 `poseFamily=prop`, `expressionFamily=tense`가 아직 음식 판에서 돌고 있다. Expression/Pose 줄이 감정·동작을 소유한다. 이번 단계는 `shotPlan`을 바꾸지 않는다. 생성 승인 때 tense/prop 잔여가 미소를 누르는지 한 축으로만 본다.
+shot 판의 잔여 라벨: 합성 결과 `poseFamily=prop`, `expressionFamily=tense`가 아직 음식 판에서 돌고 있다. 이 메타데이터는 제출·재기록한 `primaryPrompt`에 들어가지 않는다. Expression/Pose 줄이 감정·동작을 소유한다. 이번 단계는 이 이유로 `shotPlan`을 바꾸지 않는다.
 
 ## 4. 슬롯별 현재 → 문제 → 새 장면·태그
 
@@ -134,24 +134,40 @@ shot 판의 잔여 라벨: 합성 결과 `poseFamily=prop`, `expressionFamily=te
 
 | 슬롯 | 현재 장면 · 태그 | 문제 | 새 장면 · 태그 | 재생성 |
 |---|---|---|---|---|
-| rep | 정면 검 파지 · `흑철 늑대공` | 작품 제목. 픽셀은 무표정. 잔 질감 IDENTITY 위험 | 같은 카드 구도 유지. 태그 `무표정` (`personTag` 무표정). 그림체 게이트는 대표를 먼저 | 스타일 게이트 후 |
+| rep | 정면 검 파지 · `흑철 늑대공` | 작품 제목. 픽셀은 무표정. 잔 질감 IDENTITY 위험 | 같은 카드 구도 유지. 태그 `기본 초상` (대표 고유 태그. RP 감정 태그와 분리). 현재 무표정 픽셀에 `편안함`/`안도`를 붙이지 않음 | 스타일 게이트 후 |
 | sig1 | 지도를 짚음 · `철혈의 지휘관` | 제목 | 장면 유지. 태그 `지도를 짚음` (`personTag` 진지함) | 태그 교체만으로 가능. 그림체는 대표 이후 |
 | sig2 | 턱을 괴고 생각 · `흉터의 맹세` | 제목. 흉터 동작 없음. 서류실 반복 | 현재 픽셀에 맞춰 `턱을 괴고 생각` (`personTag` 의심). 흉터 연출은 넣지 않음 | 태그 우선 |
 | sig3 | 열쇠로 상자 확인 · `봉인고의 열쇠` | 제목 | 장면 유지. 태그 `열쇠를 확인함` (`personTag` 진지함) | 태그 우선 |
-| sig4 | 수프 클로즈업 · `절제된 온기` | 폐기한 식사. 미소 없음 | **휴식 옅은 미소** (§3). 태그 `옅은 미소` (`personTag` 미소) | 필수. 음식 후보 참조 금지 |
+| sig4 | 수프 클로즈업 · `절제된 온기` | 폐기한 식사. 미소 없음 | **창가에서 상대를 보며 옅게 웃는 휴식** (§3). 태그 `옅은 미소` (`personTag` 미소) | 필수. 음식 후보 참조 금지 |
 | emo1 | 편지 두 장 · `기록의 모순` | 제목. 서류 반복. 일반 대화 부적합 | 상대를 보며 눈썹만 좁힌 **의심**. 서류 없음. 태그 `의심` | 필수 |
 | emo2 | 주먹을 내림 · `분노의 억제` | 제목에 가깝고 분노가 약함 | 턱을 다문 억제된 **분노**, 서류 없음. 태그 `분노` | 표정 강화 시 재생성 |
 | emo3 | 서류 대조 · `증거 앞의 판단` | 제목. scene1/2와 동일 행동 | 상대 말을 듣는 **진지함**. 손 비움. 태그 `진지함` | 필수 |
 | emo4 | 풍경을 봄 · `뜻밖의 동요` | 제목. 당황 없음 | 시선을 피했다가 다시 보는 **당황**. 태그 `당황` | 필수 |
-| emo5 | 서류 응시 · `경계의 완화` | 제목. 또 서류 | 서류를 덮고 상대를 보는 **일상**. 태그 `일상` | 필수 |
-| emo6 | 성벽 착석 · `귀환의 안도` | 제목. 미소 없음 | 얼굴이 큰 **미소** (sig4보다 근접). 태그 `미소`. 현재 픽셀을 `미소`로 부르지 않음 | 필수 |
+| emo5 | 서류 응시 · `경계의 완화` | 제목. 또 서류. 현재 픽셀은 편안함이 아님 | 소품 없이 어깨와 눈가의 긴장이 풀린 **편안함**. 서류·검·열쇠 없음. 태그 `편안함`. 현재 서류 컷에 이 이름을 붙이지 않음 | 필수 |
+| emo6 | 성벽 착석 · `귀환의 안도` | 제목. 미소 없음. 현재 픽셀은 안도가 아님 | 상대의 무사를 확인한 뒤 긴장이 풀리는 **안도**. 태그 `안도`. 현재 성벽·열쇠 컷을 `안도`나 `미소`로 부르지 않음 | 필수 |
 | scene1 | 인장 다른 서류 · `위조된 명령서의 밤` | 제목. 사건 장면으로는 유효 | 장면 유지. 태그 `문서를 대조함` (`personTag` 의심) | 태그 우선 |
 | scene2 | 도서관 서류 · `봉인된 장부의 빈칸` | 제목. 서류이지만 장소가 다름 | 장면 유지. 태그 `기록을 맞춤` (`personTag` 진지함) | 태그 우선 |
 | scene3 | 유리온실 · `황실의 마지막 압박` | 제목. 압박 표정은 약함 | 장소 유지, 표정은 단호한 **긴장**. 태그 `긴장` | 표정 약하면 재생성 |
 
-서류 조사는 scene1·scene2·(선택) sig1에만 남긴다. 감정 6칸은 일반 대화 태그(`의심` `분노` `진지함` `당황` `일상` `미소`)로 연다.
+서류 조사는 scene1·scene2·(선택) sig1에만 남긴다. 감정 6칸은 일반 대화 태그(`의심` `분노` `진지함` `당황` `편안함` `안도`)로 연다. 대표 태그 `기본 초상`은 이 감정 목록에 넣지 않는다.
 
-## 5. sig4 최종 생성 prompt
+## 5. 생성 입력 확인 — 실험 합성과 승인 r2 컴파일러
+
+제출했던 `sig4-rest-compose.json`에는 `MATURE MALE VISUAL AGE LOCK`이 없었다. 원인은 새 전역 문구 누락이 아니라 실험용 draft 입력이었다.
+
+| 입력 | gender | age | genres | audience | `buildMatureMaleVisualAgePrompt` |
+|---|---|---|---|---|---|
+| `/tmp/compose-sig4-redesign.ts` 스텁 | male | 34 | `romance_fantasy` | `all` | null |
+| 정식 compiler `loadCompiledOfficialCharacterSource("pilot-rf-02")` | male | 34 | `로맨스 판타지` | `female` | `MATURE_MALE_VISUAL_AGE_RULE` |
+| 승인 r2 `loadApprovedWolfgangV4Source()` | male | 34 | `로맨스 판타지` | `female` | 동일 |
+
+`isMatureMaleRofanRomanceTarget`은 한국어 장르 슬러그 `로맨스 판타지`와 `audience !== "male"`을 요구한다. 영어 `romance_fantasy`와 `audience: "all"`은 가드를 끈다. r2 원고·장르·Lock은 바꾸지 않았다. 새 전역 문장을 추가하지 않았다.
+
+compiler draft와 승인 r2 draft로 다시 합성한 sig4 `primaryPrompt`는 바이트가 같다 (`compose-input-diff.json`). 고친 입력의 최종 prompt는 `sig4-rest-compose.json`이다. 이전 스텁 제출본은 `sig4-rest-compose.experimental-stub.json`으로 옮겼다. shot의 `poseFamily=prop` / `expressionFamily=tense`는 메타데이터로만 남고, 재기록한 `primaryPrompt`에는 없다. 이 이유로 shot 시스템을 수정하지 않는다.
+
+대표 후보 합성도 같은 정식 compiler draft를 `composeOfficialSlotGeneration`에 넣었다. 증거: `rep-style-only-compose.json`. STYLE ONLY 참조는 b7→b13→b5. 운영 대표와 음식 후보는 참조 목록에 없다. `MATURE MALE VISUAL AGE LOCK`이 들어 있다.
+
+## 6. sig4 최종 생성 prompt
 
 유료 POST 없이 기존 owner로 합성했다. 증거: `assets/wolfgang-asset-redesign/sig4-rest-compose.json`.
 
@@ -176,14 +192,15 @@ shot 판의 잔여 라벨: 합성 결과 `poseFamily=prop`, `expressionFamily=te
 Create one horizontal 3:2 roleplay illustration (1536x1024). ...
 SHOT RESPONSIBILITY (sig4/signature): head turned right three-quarter view; low-angle camera ... knee-up or full-body ... identifiable environment ...
 REFERENCE IMAGES: Image 1 is IDENTITY ONLY. Image 2 is STYLE ONLY. ...
+MATURE MALE VISUAL AGE LOCK — Keep an adult man in his 30s visibly mature ...
 Expression: 긴장을 풀고 상대를 바라보며 입꼬리만 살짝 올린 옅은 미소. 이를 보이지 않는다.
 Pose: 갑옷을 벗지 않은 채 창가 돌벤치에 앉아 상체를 상대(카메라) 쪽으로 돌린다. 양손은 허벅지 위에 올려 두고 소품을 건네지 않는다. 어깨는 살짝 내려가 있고, 얼굴·눈·옅은 미소가 한눈에 보인다. 유저는 그리지 않는다.
 FOREGROUND CAST: exactly one foreground person — the named character only.
 ```
 
-Appearance Lock·Cluster B DNA·안전 문구는 기존 조립기를 그대로 탄다. 이 단계에서 quality/model/참조 루트를 바꾸지 않았다.
+Appearance Lock·Cluster B DNA·안전 문구는 기존 조립기를 그대로 탄다. 고친 것은 실험 draft의 genres/audience 입력뿐이다. quality/model/참조 루트와 r2 Lock은 그대로다.
 
-## 6. 대표 잔 질감이 IDENTITY로 따라올 가능성
+## 7. 대표 잔 질감이 IDENTITY로 따라올 가능성
 
 “잔 질감”은 유리 재질이 아니라, 운영 대표 모피·금속에 있는 **외곽 없는 잔 결·다중 반사**를 말한다.
 
@@ -195,15 +212,15 @@ Appearance Lock·Cluster B DNA·안전 문구는 기존 조립기를 그대로 �
 
 판단:
 
-- 잔 질감이 IDENTITY를 통해 따라올 **가능성은 높다.** 확정은 대표를 빼고 같은 prompt를 한 장 더 찍어 보기 전에는 하지 않는다. 이번 단계는 그 유료 비교를 열지 않는다.
-- 그래서 13장을 지금 대표로 다시 그리면 같은 결이 재유입될 위험이 있다. 자동 제작을 사용자 외부 한 장 업로드로 우회하지 않는다. #1633 반입은 보조일 뿐 그림체 복구 경로가 아니다.
-- 다음 생성 순서는 **대표를 Cluster B 3장(b7+b13+b5) STYLE ONLY로 다시 뽑는 것**이 먼저다. 그 대표가 seed 덩어리·외곽을 통과한 뒤에만 나머지 칸의 IDENTITY로 쓴다.
+- 잔 질감이 IDENTITY를 통해 따라올 **가능성은 높다.** 대표 후보를 한 장 뽑아 그림체를 비교하는 실험은 열 수 있다. 그 한 장이 나아 보여도 IDENTITY 질감이 원인이었다고 확정하지 않는다.
+- 그래서 13장을 지금 운영 대표로 다시 그리면 같은 결이 재유입될 위험이 있다. 자동 제작을 사용자 외부 한 장 업로드로 우회하지 않는다. #1633 반입은 보조일 뿐 그림체 복구 경로가 아니다.
+- 다음 생성 순서는 **대표를 Cluster B 3장(b7+b13+b5) STYLE ONLY로 다시 뽑는 것**이 먼저다. 그 대표가 검수를 통과한 뒤에만 나머지 칸의 IDENTITY로 쓴다.
 - 현재 대표를 IDENTITY로 둔 채 variation STYLE만 바꾸는 실험은 이미 두 번 실패했다. 같은 방향의 세 번째 강화는 하지 않는다.
 
-## 7. 유지 / 하지 않은 것
+## 8. 유지 / 하지 않은 것
 
-유지: 승인 r2 본문, Text Lock, Appearance Lock, #50, 운영 14 URL, 로어북, 공개 상태, 일반 제작자 수동 태그, 배포된 #1633 반입 코드.
+유지: 승인 r2 본문, Text Lock, Appearance Lock, #50, 운영 14 URL·태그·앵커, 로어북, 공개 상태, 소유권, 알림, 유료 RP, 일반 제작자 수동 태그, 배포된 #1633 반입 코드.
 
-하지 않음: 유료 vision·이미지 POST, 운영 apply, 14태그 백필, 음식 후보 적용, #1633 재오픈, 사용자 재업로드 요청, 원고 재작성.
+하지 않음: 운영 apply, 14태그 백필, 음식 후보 적용, 나머지 13장 생성, #1633 재오픈, 사용자 재업로드 요청, 원고·장르·Lock 재작성, shot 시스템 수정, 새 전역 prompt 문장 추가.
 
-다음 승인 질문(실행 아님): 이 14칸 태그·장면 재설계를 받아들일지. 받아들이면 대표 그림체 한 장을 기존 Cluster B 3장으로 다시 뽑을지. 음식 후보는 계속 폐기한다.
+대표 후보 한 장은 기존 `composeOfficialSlotGeneration` owner와 격리 환경에서만 뽑는다. 검수 전에는 운영 대표를 바꾸지 않는다.

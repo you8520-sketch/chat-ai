@@ -1,0 +1,81 @@
+{
+  "comparedAt": "2026-10-17T05:04:14.865Z",
+  "experimentalStub": {
+    "source": "/tmp/compose-sig4-redesign.ts",
+    "fields": {
+      "draftKey": "pilot-rf-v4-02",
+      "name": "볼프강 폰 발켄하임",
+      "gender": "male",
+      "age": 34,
+      "genres": [
+        "romance_fantasy"
+      ],
+      "audience": "all",
+      "matureMaleTarget": false,
+      "matureMalePromptPresent": false
+    },
+    "submittedPromptHasMatureMaleLock": false
+  },
+  "officialCompiler": {
+    "owner": "loadCompiledOfficialCharacterSource + compileOfficialDraftFromBible",
+    "fields": {
+      "draftKey": "pilot-rf-02",
+      "name": "볼프강 폰 발켄하임",
+      "gender": "male",
+      "age": 34,
+      "genres": [
+        "로맨스 판타지"
+      ],
+      "audience": "female",
+      "matureMaleTarget": true,
+      "matureMalePromptPresent": true
+    },
+    "appearanceLockHash": "1c3ccd134203a6dea6ae869c27cc443c42ff5498d1d0130c6f9765407c24dcc3",
+    "briefAudience": "female",
+    "compilerGenres": [
+      "로맨스 판타지"
+    ]
+  },
+  "approvedR2Draft": {
+    "owner": "loadApprovedWolfgangV4Source",
+    "fields": {
+      "draftKey": "pilot-rf-v4-02",
+      "name": "볼프강 폰 발켄하임",
+      "gender": "male",
+      "age": 34,
+      "genres": [
+        "로맨스 판타지"
+      ],
+      "audience": "female",
+      "matureMaleTarget": true,
+      "matureMalePromptPresent": true
+    }
+  },
+  "compilerVsApprovedGateFields": {
+    "gender": true,
+    "age": true,
+    "genres": true,
+    "audience": true,
+    "matureMaleTarget": true
+  },
+  "missingInExperimental": {
+    "genres": "romance_fantasy English slug instead of 로맨스 판타지",
+    "audience": "all instead of female",
+    "effect": "buildMatureMaleVisualAgePrompt returned null; MATURE MALE VISUAL AGE LOCK omitted"
+  },
+  "unchanged": {
+    "r2Manuscript": true,
+    "r2Genres": true,
+    "appearanceLock": true,
+    "shotSystem": true,
+    "newGlobalPromptSentence": false
+  },
+  "recomposed": {
+    "sig4OfficialPromptSha256": "4b9063553870228db954acda6ca45d4bd12910083dd14463a1ae4892b1f0ae02",
+    "sig4ApprovedDraftPromptSha256": "4b9063553870228db954acda6ca45d4bd12910083dd14463a1ae4892b1f0ae02",
+    "officialEqualsApprovedDraftPrompt": true,
+    "sig4AgeLock": true,
+    "repAgeLock": true,
+    "shotTensePropInPrompt": false
+  }
+}
