@@ -121,6 +121,7 @@ type TrpgAdventure = {
 
 - 공개 projection: 열린 길로 이어진 장소 이름은 방문 전에도 보인다(티켓 고정, #1642 §7-2 결정). 숨은 길과 그 너머 장소, 발동 전 사건 내용은 projection에 들어가지 않는다.
 - 사건 효과: `clue` = 발견 기록, `item` = 기존 인벤토리 owner로 아이템 지급, `hazard` = 결과 줄만 기록(HP·판정 변경 없음, 위협 권한은 RFC §6 별도 단계). `opensBy` 가 가리키는 사건이 발동하면 해당 링크가 `revealedEdgeIds` 에 들어간다.
+- 발견 가능한 사실의 owner는 사건이다. 정본에 사건이 있으면 `serializeTrpgScenarioPlanForGm` 은 plan의 자유 `clues` 목록을 GM에 보내지 않고, GM은 서버가 발동한 사건만 EXPLORATION 블록으로 받는다. 사건 없는 계획(구 템플릿, 정본 없는 계획, 세계관 직접 시작)은 기존처럼 단서 목록을 받는다.
 - v2는 세계 플래그를 소유하지 않는다(`explorationOwnsWorldFlags`). v1의 경보·빗장·고정 플래그 필터는 v1 상태에만 적용된다.
 - AP·라운드·중복 가드·과금·권한은 바꾸지 않았다(이동 1, 조사 1, 정밀 조사 2, 라운드당 3).
 
@@ -133,6 +134,8 @@ type TrpgAdventure = {
 - **초안 출력 증가**: places/links/events 추가로 출력 토큰 증가(같은 모델·같은 호출). 최종 계약 실측 초안 2건(미스터리·SF)은 1,371·1,784 completion tokens, 호출당 약 1.1·1.4원.
 - **정본 생성 품질**: 실측 초안 1건(유령 기차)이 링크·사건 모순으로 거절됐다. 그 원인이던 `open` 종류는 제거했다. 거절 시 자동 재시도는 하지 않는다.
 - **GM 서술 vs 서버 사실**: GM 블록은 서버 사실만 사실로 서술하게 하지만, GM 텍스트 자체는 상태에 적용되지 않으므로 서술이 어긋나도 상태는 서버 owner가 결정한다.
+- **자유 단서 우회 공개 (실측 캠페인 47, 수정함)**: 사건 정본 옆에서 plan `clues`("객차 벽면 낙서에 '세 번째 침대 아래'…")가 GM에 그대로 들어갔다. 1라운드 조사 실패 뒤 GM은 "'세 번째……'"만 암시했지만, 2라운드에는 발동 전 사건 `find_manifest` 의 위치를 director 실마리("3호 객차 세 번째 침대 밑의 비밀")로 저장했고, 3라운드 정밀 조사 실패(서버 "Nothing was found") 뒤에는 침대 밑 서류를 찾았다가 기름에 망가졌다고 서술했다. 서버에서 `find_manifest` 는 미발동이라 이야기와 정본이 어긋난다. GM 입력에서 "세 번째 침대"의 출처는 이 목록뿐이었다. 남은 채널: `gm_secret`("명단 원본은 3호실 침대 밑")과 `majorEvents` 는 여전히 위치를 담는다(비밀 owner, FOLLOW-UP). 이미 저장된 캠페인 47의 실마리·플래그는 바꾸지 않았다.
+- **clue 사건 뒤 GM 인벤토리 추가**: 실측 캠페인 47에서 `wet_ticket`(clue, 아이템 없음) 발견 뒤 GM delta `inventoryAdd` "젖은 승차권(첫 사고 날짜)"이 기존 인벤토리 경로로 반영됐다. 사건 아이템 owner와 별개인 GM 인벤토리 경로다(FOLLOW-UP).
 - **dev 전용 과금 오류**: dev 모드 `getDb()` 가 호출마다 `migrate()` 를 다시 실행하고, libsql `transaction()` 은 중첩을 지원하지 않는다. 그래서 작성자 있는 캠페인의 라운드 commit(`resolveCreatorRewardRate` → `getDb()`)이 dev에서만 `cannot start a transaction within a transaction` 으로 실패한다. base에서도 재현되고 test/production 모드에서는 재현되지 않는다. 과금 영역이라 수정하지 않았다(FOLLOW-UP).
 
 ## 6. 선택지 (#1642) → 결정
@@ -158,3 +161,5 @@ type TrpgAdventure = {
 | 세계관 직접 시작의 정본 생성 | FOLLOW-UP | sandbox director 경로는 이번 범위 밖. 지도 없이 기존대로 진행 |
 | `adventure_missing` 로그 | KEEP | 진단용. 성공/실패 판단은 `SCENARIO_DRAFT_ADVENTURE_MISSING` 오류가 소유한다 |
 | dev `getDb()` 재-migrate 중첩 트랜잭션 | FOLLOW-UP | dev 전용, base에서 재현, 과금 경계라 이번 PR에서 수정하지 않음 |
+| 사건 정본 옆 plan `clues` GM 공급 | 좁힘 | 사건이 있으면 보내지 않음. 사건 없는 계획은 유지. writer·저장 데이터는 그대로 |
+| `gm_secret`·`majorEvents` 의 사건 위치, clue 사건 뒤 GM `inventoryAdd` | FOLLOW-UP | 비밀·인벤토리 owner 결정 필요 |
