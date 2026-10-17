@@ -141,7 +141,7 @@ describe("episodic correction contract — server-side handle mapping", () => {
 
 describe("episodic correction contract — stored link reading", () => {
   const userEvidence = { role: "user", message_id: 1201, quote: "늑대에게 물린 게 아니라 문에 팔이 끼인 거야.", authority: "USER_EXPLICIT", match: "normalized_exact" };
-  const link = { target_fact_id: 412, target_source_turn: 30 };
+  const link = { target_fact_id: 412, target_source_turn: 30, root_fact_id: 380, root_source_turn: 12 };
 
   it("counts only with a verified user quote and an earlier target", () => {
     assert.deepEqual(
@@ -167,5 +167,17 @@ describe("episodic correction contract — stored link reading", () => {
       readValidEpisodicCorrectionLink({ source_turn: 120, metadata: JSON.stringify({ evidence: userEvidence, correction: { target_fact_id: "x" } }) }),
       null
     );
+  });
+
+  it("a link without a root roots at its target; a root later than the target is not a link", () => {
+    const read = (correction: Record<string, unknown>) =>
+      readValidEpisodicCorrectionLink({ source_turn: 120, metadata: JSON.stringify({ evidence: userEvidence, correction }) });
+    assert.deepEqual(read({ target_fact_id: 412, target_source_turn: 30 }), {
+      target_fact_id: 412,
+      target_source_turn: 30,
+      root_fact_id: 412,
+      root_source_turn: 30,
+    });
+    assert.equal(read({ ...link, root_source_turn: 31 }), null);
   });
 });

@@ -23,10 +23,16 @@ export type EpisodicCorrectionCandidate = {
   quote: string | null;
 };
 
-/** Stored in the correcting row's metadata as `correction`. */
+/**
+ * Stored in the correcting row's metadata as `correction`. `root_*` names the record the whole
+ * chain started from (copied from the target's own link at save), so every correction of one
+ * event shares one group however long the chain grows or whichever member is later removed.
+ */
 export type EpisodicCorrectionLink = {
   target_fact_id: number;
   target_source_turn: number;
+  root_fact_id: number;
+  root_source_turn: number;
 };
 
 export function buildEpisodicCorrectionHandleMap(
@@ -73,7 +79,15 @@ export function readEpisodicCorrectionLink(
   const targetFactId = positiveInt(record.target_fact_id);
   const targetSourceTurn = positiveInt(record.target_source_turn);
   if (targetFactId == null || targetSourceTurn == null) return null;
-  return { target_fact_id: targetFactId, target_source_turn: targetSourceTurn };
+  const rootFactId = positiveInt(record.root_fact_id) ?? targetFactId;
+  const rootSourceTurn = positiveInt(record.root_source_turn) ?? targetSourceTurn;
+  if (rootSourceTurn > targetSourceTurn) return null;
+  return {
+    target_fact_id: targetFactId,
+    target_source_turn: targetSourceTurn,
+    root_fact_id: rootFactId,
+    root_source_turn: rootSourceTurn,
+  };
 }
 
 /**
