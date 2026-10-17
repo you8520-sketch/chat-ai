@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
@@ -15,25 +14,35 @@ import {
   safeLockedPreviewUrl,
   type CharacterAsset,
 } from "@/lib/characterAssets";
-import type { SessionUser } from "@/lib/characterFormSave";
 import { assetModerationSummary } from "@/lib/characterListingModeration";
 import { getDb } from "@/lib/db";
+import type { OfficialAdminActor } from "@/lib/officialAdminAccess";
 import { resolveInlineAsset } from "@/lib/inlineTaggedAssets";
 import { projectAssetsForViewer } from "@/lib/mediaAccess";
 import {
   officialApprovedAssetReference,
   resolveOfficialGenerationReferencePlan,
 } from "@/lib/officialSupply/generationReferences";
-import { officialImageProfileForSlot } from "@/lib/officialSupply/imageProfile";
-import { loadApprovedWolfgangV4Source } from "@/lib/officialSupply/lockedSnapshotReconcileOperator";
 import {
-  HWANG_VOCAB,
-  testAppearance,
-  testAssetPlan,
-  testBatchConfig,
-  testDraft,
-  testStyleCandidate,
-} from "@/lib/officialSupply/officialSupply.fixtures";
+  ADMIN,
+  anchorQa,
+  APPROVED_PLAN,
+  CANDIDATES,
+  candidateBytes,
+  REP,
+  seedApprovedApplyUsers,
+  sha256,
+  stageApprovedWolfgangDraft as stageWolfgang,
+  stageDefaultPathDraft as stageDefault,
+  STAGING_USER,
+  STRANGER,
+  TEST_ONLY_MODERATION,
+  TEST_ONLY_REVIEWER,
+  TestPorts,
+  variationQa,
+  type ManifestCandidate,
+} from "@/lib/officialSupply/officialSupply.approvedApplyFixtures";
+import { testBatchConfig, testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures";
 import { PILOT_STYLE_PROOF_CANDIDATE_ID } from "@/lib/officialSupply/pilotStyleProof";
 import { prepareOfficialImageReferences } from "@/lib/officialSupply/referencePreparation";
 import {
@@ -42,28 +51,12 @@ import {
   rollbackOfficialAssetReplacementApply,
   type OfficialRepresentativeApplySet,
 } from "@/lib/officialSupply/replacement";
-import {
-  composeOfficialSlotGeneration,
-  moderateOfficialAssetReplacement,
-  type OfficialAssetModerator,
-  type OfficialAssetStorage,
-  type OfficialImageOps,
-} from "@/lib/officialSupply/runner";
-import { stageOfficialCharacterPrivately } from "@/lib/officialSupply/staging";
+import { composeOfficialSlotGeneration, moderateOfficialAssetReplacement } from "@/lib/officialSupply/runner";
 import { ROFAN_CLUSTER_B_VISUAL_STYLE_DNA } from "@/lib/officialSupply/style";
 import { OfficialSupplyGateError, OfficialSupplyStore } from "@/lib/officialSupply/store";
-import type {
-  OfficialAnchorQaReport,
-  OfficialAppearanceLock,
-  OfficialAssetModeration,
-  OfficialAssetPlan,
-  OfficialGenreStyle,
-  OfficialVariationQaReport,
-  OfficialWorldLorebookEntry,
-} from "@/lib/officialSupply/types";
+import type { OfficialAssetModeration, OfficialAssetPlan, OfficialGenreStyle } from "@/lib/officialSupply/types";
 import { buildClusterBRofanStyleSeed } from "@/lib/officialSupply/userOwnedRofanStyleRefs";
 import { installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/lib/test/isolatedTestDatabase";
-import { storeUpload } from "@/lib/uploadStorage";
 
 /**
  * Isolated-DB verification of the approved fourteen-slot private apply path.
@@ -71,67 +64,12 @@ import { storeUpload } from "@/lib/uploadStorage";
  * are not an image-quality approval of these files, and no row written here
  * leaves the temporary database.
  */
-const TEST_ONLY_MODERATION: OfficialAssetModeration = {
-  status: "checked",
-  adultFlagged: false,
-  moderationReject: false,
-  reason: "test-fixture-not-quality-approval",
-  visionTag: "앉음",
-};
-const TEST_ONLY_REVIEWER = "test-fixture-reviewer-not-quality-approval";
-const PASS = { ok: true };
-const anchorQa = (overrides: Partial<OfficialAnchorQaReport> = {}): OfficialAnchorQaReport => ({
-  gender: PASS, ageAppearance: PASS, face: PASS, hair: PASS, eyes: PASS, body: PASS,
-  identifyingFeatures: PASS, artStyle: PASS, outfit: PASS, cardCrop: PASS, ...overrides,
-});
-const variationQa = (): OfficialVariationQaReport => ({
-  identityMatchesAnchor: PASS, expressionMatchesPlan: PASS, characterPresent: PASS, artStyle: PASS,
-});
-
-const STAGING_USER: SessionUser = { id: 8301, nickname: "approved-apply-staging", is_adult: 1 };
-const ADMIN = { id: 8303, email: "approved-apply-admin@test.local", is_admin: 1 as const };
-const STRANGER = { id: 8304, email: "approved-apply-stranger@test.local", is_admin: 0 as const };
-const IMAGE_ENV = { OPENAI_IMAGE_MODEL: "gpt-image-2.5-sunburst" } as NodeJS.ProcessEnv;
-const DOC = path.join(process.cwd(), "docs/official-supply/reviews/assets/wolfgang-asset-redesign");
-const APPROVED_PLAN_PATH = path.join(
-  process.cwd(),
-  "src/lib/officialSupply/pilot/fixtures/pilot-rf-02-approved-asset-plan-f.json"
-);
-const SHARED_LORE: OfficialWorldLorebookEntry[] = [
-  { entryKey: "approved-apply-wall", name: "검은 방벽", keywords: ["방벽"], content: "북부의 검은 방벽은 흑철 요새가 지킨다." },
-];
-
-type ManifestCandidate = {
-  slot: string;
-  tag: string;
-  file: string;
-  rawSha256: string;
-  sentPromptSha256: string;
-  laterOwnerAssemblyPromptSha256?: string;
-};
-
-const manifest = JSON.parse(fs.readFileSync(path.join(DOC, "fourteen-f-candidates.json"), "utf8")) as {
-  candidates: ManifestCandidate[];
-};
-const CANDIDATES = manifest.candidates;
-const APPROVED_PLAN = (JSON.parse(fs.readFileSync(APPROVED_PLAN_PATH, "utf8")) as { assetPlan: OfficialAssetPlan })
-  .assetPlan;
-const REP = CANDIDATES.find((c) => c.slot === "rep")!;
+const IMAGE_ENV = { OPENAI_IMAGE_MODEL: "gpt-image-2.5-sunburst" } as unknown as NodeJS.ProcessEnv;
 const REPRESENTATIVE_SET: OfficialRepresentativeApplySet = {
   nextAssetPlan: APPROVED_PLAN,
   generationReference: "representative_identity_and_style",
 };
 const OLD_TITLE_TAGS = ["흑철 늑대공", "절제된 온기", "경계의 완화", "귀환의 안도"];
-
-function sha256(value: string | Buffer): string {
-  return createHash("sha256").update(value).digest("hex");
-}
-
-function candidateBytes(candidate: ManifestCandidate): Buffer {
-  const bytes = fs.readFileSync(path.join(DOC, candidate.file));
-  assert.equal(sha256(bytes), candidate.rawSha256, `${candidate.file} differs from the manifest`);
-  return bytes;
-}
 
 function approvedAssemblyStyle(): OfficialGenreStyle {
   return {
@@ -140,37 +78,8 @@ function approvedAssemblyStyle(): OfficialGenreStyle {
     stage: "style_locked",
     candidates: [{ ...testStyleCandidate(PILOT_STYLE_PROOF_CANDIDATE_ID), dna: ROFAN_CLUSTER_B_VISUAL_STYLE_DNA }],
     approvedCandidateId: PILOT_STYLE_PROOF_CANDIDATE_ID,
-    styleSeed: buildClusterBRofanStyleSeed({ NEXTAUTH_URL: "https://hav.chat" } as NodeJS.ProcessEnv),
+    styleSeed: buildClusterBRofanStyleSeed({ NEXTAUTH_URL: "https://hav.chat" } as unknown as NodeJS.ProcessEnv),
     proofAssetLimit: 3,
-  };
-}
-
-class TestPorts {
-  storedFiles: string[] = [];
-  moderatedUrls: string[] = [];
-  nextModeration: OfficialAssetModeration[] = [];
-
-  storage: OfficialAssetStorage = {
-    store: async (filename, buffer) => {
-      this.storedFiles.push(filename);
-      return { url: (await storeUpload(filename, buffer, "image/webp")).url };
-    },
-  };
-
-  imageOps: OfficialImageOps = {
-    inspect: async (buffer) => {
-      const meta = await sharp(buffer).metadata();
-      return meta.width && meta.height ? { width: meta.width, height: meta.height } : null;
-    },
-  };
-
-  moderator: OfficialAssetModerator = {
-    moderate: async (url) => {
-      this.moderatedUrls.push(url);
-      const next = this.nextModeration.shift();
-      if (!next) throw new Error("test moderation fixture not queued");
-      return next;
-    },
   };
 }
 
@@ -235,67 +144,12 @@ function expectGate(code: string) {
   };
 }
 
-function seedApprovedAssets(draftKey: string): void {
-  const character = store.getCharacter(draftKey);
-  assert.ok(character.assetPlan && character.appearanceLockHash);
-  for (const slot of character.assetPlan.slots) {
-    const profile = officialImageProfileForSlot(slot.kind);
-    store.database
-      .prepare(
-        `UPDATE official_supply_assets
-         SET status='approved', result_url=?, width=?, height=?, attempts=1,
-             appearance_lock_hash=?, moderation_json=?, qa_json=?
-         WHERE draft_key=? AND slot_key=?`
-      )
-      .run(
-        `/uploads/official-${draftKey}__${slot.slotKey}-a1.webp`,
-        profile.width,
-        profile.height,
-        character.appearanceLockHash,
-        JSON.stringify({ ...TEST_ONLY_MODERATION, visionTag: undefined }),
-        JSON.stringify(slot.kind === "representative" ? anchorQa() : variationQa()),
-        draftKey,
-        slot.slotKey
-      );
-  }
-  store.database
-    .prepare("UPDATE official_supply_characters SET stage='qa_passed', anchor_approved_by='seed-reviewer' WHERE draft_key=?")
-    .run(draftKey);
-}
-
 let batchKey = "";
-async function stageApprovedWolfgangDraft(draftKey: string, inBatch = batchKey): Promise<number> {
-  const { nextDraft } = loadApprovedWolfgangV4Source();
-  const characterFile = JSON.parse(
-    fs.readFileSync(path.join(process.cwd(), "src/lib/officialSupply/pilot/characters/pilot-rf-02.json"), "utf8")
-  ) as { appearance: OfficialAppearanceLock; assetPlan: OfficialAssetPlan };
-  store.addCharacterDraft(inBatch, { ...nextDraft, draftKey }, {});
-  const textQa = store.lockText(draftKey, { stagingUser: STAGING_USER });
-  assert.equal(textQa.ok, true, JSON.stringify(textQa.errors));
-  assert.equal(store.lockAppearance(draftKey, characterFile.appearance).ok, true);
-  assert.equal(store.lockAssetPlan(draftKey, characterFile.assetPlan).ok, true);
-  seedApprovedAssets(draftKey);
-  const staged = await stageOfficialCharacterPrivately({
-    store,
-    draftKey,
-    stagingUser: STAGING_USER,
-    sharedLorebook: SHARED_LORE,
-  });
-  return staged.characterId;
-}
+const stageApprovedWolfgangDraft = (draftKey: string, inBatch = batchKey) =>
+  stageWolfgang(store, draftKey, inBatch);
+const stageDefaultPathDraft = (draftKey: string, inBatch = batchKey) => stageDefault(store, draftKey, inBatch);
 
-async function stageDefaultPathDraft(draftKey: string, inBatch = batchKey): Promise<number> {
-  const draft = testDraft({ draftKey, name: "레온하르트", vocabulary: HWANG_VOCAB });
-  store.addCharacterDraft(inBatch, { ...draft, styleKey: "romance_fantasy_v4", worldKey: "approved-apply-world-b" }, {});
-  assert.equal(store.lockText(draftKey, { stagingUser: STAGING_USER }).ok, true);
-  assert.equal(store.lockAppearance(draftKey, testAppearance()).ok, true);
-  assert.equal(store.lockAssetPlan(draftKey, testAssetPlan()).ok, true);
-  seedApprovedAssets(draftKey);
-  const staged = await stageOfficialCharacterPrivately({ store, draftKey, stagingUser: STAGING_USER });
-  return staged.characterId;
-}
-
-async function register(draftKey: string, slotKey: string, bytes: Buffer, approvedTag: string, actor = ADMIN) {
+async function register(draftKey: string, slotKey: string, bytes: Buffer, approvedTag: string, actor: OfficialAdminActor = ADMIN) {
   return registerExternalOfficialAssetReplacement({
     store,
     storage: ports.storage,
@@ -308,7 +162,7 @@ async function register(draftKey: string, slotKey: string, bytes: Buffer, approv
   });
 }
 
-async function moderate(draftKey: string, slotKey: string, moderation = TEST_ONLY_MODERATION) {
+async function moderate(draftKey: string, slotKey: string, moderation: OfficialAssetModeration = TEST_ONLY_MODERATION) {
   ports.nextModeration.push(moderation);
   await moderateOfficialAssetReplacement({ store, moderator: ports.moderator }, draftKey, slotKey);
 }
@@ -358,14 +212,7 @@ before(async () => {
   delete process.env.BLOB_READ_WRITE_TOKEN;
   installIsolatedTestDatabase();
   const db = getDb();
-  db.prepare("INSERT OR IGNORE INTO users (id, email, nickname, pw_hash, points, is_adult) VALUES (?,?,?,?,1000,1)")
-    .run(STAGING_USER.id, "approved-apply-staging@test.local", STAGING_USER.nickname, "hash");
-  db.prepare("UPDATE users SET site_managed=1, is_admin=0 WHERE id=?").run(STAGING_USER.id);
-  for (const user of [ADMIN, STRANGER]) {
-    db.prepare(
-      "INSERT OR IGNORE INTO users (id, email, nickname, pw_hash, points, is_adult, is_admin) VALUES (?,?,?,?,1000,1,?)"
-    ).run(user.id, user.email, `user-${user.id}`, "hash", user.is_admin);
-  }
+  seedApprovedApplyUsers(db);
   store = new OfficialSupplyStore(db);
   ports = new TestPorts();
   batchKey = "approved-apply-batch";
