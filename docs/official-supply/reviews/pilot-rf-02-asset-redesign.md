@@ -1044,9 +1044,9 @@ npm run official-supply:wolfgang-approved-source -- assets rollback --admin-emai
 | 최대 비용 (`--max-cost-usd`) | 0.28 USD |
 
 - `--execute`에는 세 상한이 모두 필요하다(`operator_moderation_budget_required`). 첫 호출 전에 최악값(남은 장 × 2 시도 × 예약액)이 상한 안인지 확인한다(`operator_moderation_budget_exceeded`).
-- 한 장이 끝날 때마다 2시도를 청구한다. provider 청구액이 보고된 시도는 그 금액, 청구액이 없는 시도(추정 usage 포함)와 관측되지 않은 시도는 예약액으로 센다. 실패한 fetch는 비용 근거를 남기지 않기 때문이다.
-- unavailable이면 그 장에서 멈춘다. 시도 비용이 예약액보다 크거나 계획보다 시도가 많아도 멈춘다. 거절·unavailable을 통과로 바꾸지 않는다.
-- vision 모델 단가는 이번에 확인하지 않았다. 실행 전에 단가가 예약액 안인지 확인하고 상한을 정해야 한다. 실행 자체는 별도 비용 승인 대상이다.
+- ~~한 장이 끝날 때마다 2시도를 청구한다.~~ **정정(§24.2):** 이 방식은 실제 provider 호출이 없어도 한 장당 2시도 × 예약액을 "청구"로 표시했다. 키가 없어 POST가 0건인 실행도 "2회 / 0.02 USD 청구"로 보였다. 이 값은 최악값 예약이었고 실제 호출·청구가 아니다. 현재는 실제 POST마다 직전에 상한을 확인하고, 호출·확정 비용·비용 미확인 시도·예약을 따로 보고한다.
+- unavailable이면 그 장에서 멈춘다. 거절·unavailable을 통과로 바꾸지 않는다.
+- ~~vision 모델 단가는 이번에 확인하지 않았다.~~ 단가는 §24.3에서 읽기 전용으로 확인했다. 운영 실행 자체는 여전히 별도 비용 승인 대상이다.
 
 ### 23.5 운영 검수 증거 파일
 
@@ -1059,7 +1059,9 @@ npm run official-supply:wolfgang-approved-source -- assets rollback --admin-emai
 
 ### 23.6 격리 DB 실행
 
-기록: `assets/wolfgang-asset-redesign/isolated-operator-cli-evidence.json`. 스크립트: `isolated-operator-cli-evidence.ts.txt`. 임시 DATA_DIR에 스테이징한 #51 형태 draft에 대해 실제 CLI를 자식 프로세스로 실행했다. provider 키와 네트워크는 없고 실행 뒤 DB를 지웠다.
+이 절은 이전 실행(applyId `a2095028…`)이다. 같은 경로의 기록은 §24.5의 새 실행으로 교체됐고, 이 절의 원래 기록은 커밋 `d574519e`에 남아 있다. 그 기록의 `chargedCalls 2 / chargedCostUsd 0.02`와 단계 이름의 "charged at the reserve"는 예약이었다(§24.2).
+
+기록(이전): `assets/wolfgang-asset-redesign/isolated-operator-cli-evidence.json`. 스크립트: `isolated-operator-cli-evidence.ts.txt`. 임시 DATA_DIR에 스테이징한 #51 형태 draft에 대해 실제 CLI를 자식 프로세스로 실행했다. provider 키와 네트워크는 없고 실행 뒤 DB를 지웠다.
 
 | 단계 | 결과 |
 |---|---|
@@ -1068,8 +1070,8 @@ npm run official-supply:wolfgang-approved-source -- assets rollback --admin-emai
 | moderate 기본 | `planned`, 호출 0 |
 | moderate `--execute` 상한 없음 | `operator_moderation_budget_required`로 중단 |
 | moderate `--execute` 상한 27회 | `operator_moderation_budget_exceeded` ("14 images need up to 28 calls / 0.28 USD") |
-| moderate `--execute` 28 / 0.28 / 0.01, 키 없음 | vision unavailable로 rep에서 `stopped`. 청구 2회 / 0.02 USD, 관측 시도 0 |
-| (격리 전용) moderation fixture | 같은 owner에 테스트 moderator를 넣어 14칸 기록. provider 호출 0. 품질 승인이 아니다 |
+| moderate `--execute` 28 / 0.28 / 0.01, 키 없음 | vision unavailable로 rep에서 `stopped`. 실제 provider POST 0, 확정 비용 0. 당시 출력의 "청구 2회 / 0.02 USD"는 최악값 예약이었다(정정, §24.2) |
+| (격리 전용) moderation fixture | 같은 owner에 테스트 moderator를 넣어 14칸 기록. provider 호출 0. 품질 승인이 아니다. 새 실행에서는 mock provider moderation으로 바꿨다(§24.5) |
 | moderate 재실행 | `completed`, 호출 0, 14칸 건너뜀 |
 | review 양식 / production 표시 상태에서 격리 증거 | 빈 양식 / `operator_review_evidence`로 거부 |
 | review 기본 / `--execute` / 재실행 | 기록 0 / 14칸 기록 / 14칸 `alreadyReviewed` |
@@ -1129,3 +1131,127 @@ rollback 뒤 캐릭터 행은 before와 같았다(`rollbackRestoredCharacterRow:
 | `npm run test:regular` | 13546개 중 303 실패, §23.8 |
 
 official-supply 전체 실행에서 처음 두 문제가 나왔고 고쳤다. 단계 명령 테스트가 `productionAdapters`를 import해 기존 경계 테스트("tests never load the network-capable production adapters")가 실패했다. 그 테스트를 지웠고, 운영 moderator 연결은 §23.6의 CLI 실행이 확인한다. rollback 비교에서 초 단위 `updated_at`이 부하 중 1초 넘어가 실패했다. 기존 적용 테스트와 같이 `updated_at`을 비교에서 뺐다.
+
+## 24. 실패한 반입 재개와 moderation 실행 제어
+
+운영 DB 쓰기, 이미지 적용, 병합·배포·공개·알림·소유권 변경, 추가 이미지 생성, 유료 RP는 하지 않았다. 모든 검증은 mock provider 또는 네트워크 차단 상태에서 했고 실제 유료 호출은 없다.
+
+### 24.1 실패한 반입 재개
+
+원인: 단계 명령의 `nextStep`이 `planned`·`failed` 교체 행을 `blocked`로 분류했다. 기존 owner `registerExternalOfficialAssetReplacement`는 저장이나 등록이 실패하면 `releaseExternalReplacementIntake`로 lease를 풀고 행을 `planned`로 남긴다. 그래서 저장 실패 한 번 뒤에는 같은 intake로 그 칸을 다시 반입할 수 없었다.
+
+수정(`approvedAssetApplyOperator.ts`): 분류만 바꿨다. 반입은 기존 owner(`claimExternalReplacementIntake` → 검사 → 저장 → `registerExternalReplacementCandidate`)를 그대로 부른다.
+
+| 저장 상태 | 다음 단계 |
+|---|---|
+| `planned`, lease 없음 | intake ("previous intake stopped before registration") |
+| `planned`/`failed`, lease 만료 | intake. 기존 claim CAS(`lease_expires_at < now`)가 회수한다 |
+| `planned`/`failed`/다른 파일의 `generated`, 유효한 lease | blocked ("another intake holds the lease (<만료 시각>)") |
+| `failed`, lease 없음 | intake ("previous attempt failed: <오류>") |
+| `generating`·`upload_pending` | blocked (생성 진행 중) |
+| 승인·적용된 후보, 거절 | 기존과 같이 blocked / applied |
+| manifest와 같은 파일로 등록된 후보 | moderate 이후 단계. 다시 저장하지 않는다 |
+
+- intake 출력은 `status: planned | completed | stopped`, `registered[]`(`resumed` 표시), `failed {slot, code, message}`, `skipped[]`다. 첫 오류에서 멈추고 `stopped`로 보고하며 CLI 종료 코드는 1이다. 실패를 skip이나 성공으로 보고하지 않는다.
+- 남은 위험(후속): 저장은 성공했는데 등록이 실패하면, 기존 owner는 시도마다 새 `intakeId`로 파일 이름을 만들기 때문에 처음 저장한 파일은 참조 없이 남는다. 재실행은 새 파일을 저장한다. 이번에는 owner의 파일 정리 규칙을 바꾸지 않았다.
+
+전/후: 같은 주입 실패를 기준 `b4d2eb96`과 수정본에서 재현했다. 기준에서는 rep가 `planned`로 남고 `blocked "replacement is planned"`로 분류돼 재실행에서도 건너뛰었다. 수정본에서는 첫 실행이 `stopped`(rep `intake_error`)로 끝나고, 같은 intake 재실행에서 rep가 등록됐다.
+
+### 24.2 moderation 실행 제어
+
+원인: 이전 계량은 vision owner 바깥에서 한 장이 끝난 뒤 계산했다. primary 결과를 보고 fallback을 막을 수 없었고, 실제 POST 없이도 2시도 × 예약액을 "청구"로 표시했다.
+
+수정:
+
+- `src/lib/vision.ts`의 `analyzeAssetImage(url, index, control?)`에 선택 인자 `VisionRunControl`을 더했다. 실제 provider POST 직전마다 `beforeProviderPost(model)`을 묻고, 응답이 정리된 뒤 `afterProviderPost({model, outcome, cost})`를 알린다. primary가 끝난 뒤 fallback POST 전에도 다시 묻는다. 거절이면 POST를 보내지 않고 `stoppedBeforeProviderPost`를 돌려준다. 별도 vision 경로는 없다.
+- `control`이 없으면 동작은 이전과 같다(primary → fallback). 일반 업로드 호출부는 바꾸지 않았다.
+- 운영 moderator `createVisionOfficialAssetModerator(control)`가 이 control을 owner에 넘긴다. 거절로 멈추면 `unavailable`("asset vision moderation stopped: …")이고 통과가 아니다.
+- 단계 명령의 control은 POST 직전에 순서대로 확인한다: 예약액을 넘은 청구가 이미 있는지, 다음 POST가 `--max-calls`를 넘는지, 사용액 + 예약액이 `--max-cost-usd`를 넘는지. 하나라도 걸리면 그 POST를 보내지 않고 `stopped`로 끝난다.
+- 사용액 계산: 청구액이 보고된 POST는 그 금액, 청구액이 없거나 usage가 추정인 POST와 전송 오류(요청을 보냈지만 응답을 못 받음)는 비용 미확인으로 보고 예약액을 잡아 둔다.
+- 키가 없거나 로컬 이미지를 읽지 못하면 POST 전에 끝난다. control을 묻지 않고 호출 0, 확정 비용 0이다. 쓰지 않은 fallback과 예약은 호출·청구로 보이지 않는다.
+
+출력 `accounting`:
+
+| 필드 | 뜻 |
+|---|---|
+| `scope` | `this command run` |
+| `providerPosts` | 실제로 보낸 provider POST 수 (primary + fallback) |
+| `postsWithConfirmedCost` / `confirmedCostUsd` | provider가 청구액을 보고한 POST와 그 합 |
+| `postsWithUnknownCost` / `unknownCostReserveHeldUsd` | 보냈지만 비용을 모르는 POST와 그만큼 잡아 둔 예약 |
+| `budgetUsedUsd` | 확정 비용 + 잡아 둔 예약. 상한 비교에 쓰는 값 |
+| `reservedUsd` / `unusedReserveUsd` | 실행 시작 때 최악값 예약과 쓰지 않은 나머지. 호출이나 청구가 아니다 |
+| `chargesAboveReserve[]` | 한 POST의 확정 청구가 예약액보다 큰 경우. 숨기지 않고 기록하며 다음 POST를 막는다 |
+
+`posts[]`에는 POST마다 `slot, model, outcome(parsed|unparsed|http_error|transport_error), confirmedCostUsd, aboveReserve`가 남는다.
+
+### 24.3 예약액 근거 (읽기 전용 확인)
+
+- 모델: `resolveAssetVisionModels` 기본값은 primary `qwen/qwen3.8-flash`, fallback `qwen/qwen3-vl-8b-instruct`다. `ASSET_VISION_MODEL`·`BACKGROUND_VISION_MODEL`·`ASSET_VISION_MODEL_FALLBACK`로 바꿀 수 있다. 운영 환경 변수 값은 확인하지 않았다. 실행 전에 확인해야 한다.
+- 출력 상한: 요청당 `max_tokens: 128`. flash는 `reasoning: {effort: "none"}`.
+- 단가 출처: OpenRouter `GET /api/v1/models/<id>/endpoints`(2026-10-17 약 15:08 UTC, 인증 없는 조회).
+  - `qwen/qwen3.8-flash`(Alibaba): 입력 0.15 USD/M, 출력 0.47 USD/M
+  - `qwen/qwen3-vl-8b-instruct`(Parasail): 입력 0.25 USD/M, 출력 0.75 USD/M
+  - 별도 이미지 단가는 없고, 이미지는 입력 토큰으로 계산된다.
+- 추정: prompt 2,231자 + schema 743자. 가장 큰 후보는 1024×1536(28px 격자 기준 약 2,000 토큰). 입력을 보수적으로 8,000 토큰으로 잡으면 POST당 flash 약 0.0013 USD 이하, vl-8b 약 0.0021 USD 이하다. 예약액 0.01 USD는 vl-8b 추정의 약 4.7배다. 실제 이미지 토큰 수는 확인하지 않았다.
+- repo 가격표에는 vision 전용 항목이 없다. `openRouterModelPricing`은 "qwen" id를 `QWEN_37_MAX_RATES`로 계산한다. 원장 기록용 추정이고 이번 상한 판단에는 쓰지 않았다.
+
+### 24.4 보장 범위
+
+- 상한은 명령 1회 실행 단위다. 재실행을 합친 전체 작업 합계가 아니다. 출력도 실행 1회 값만 보고한다. 전체 작업 총액은 실행마다의 출력을 더해야 한다.
+- 실제 청구가 상한 안이라는 보장은 POST 하나의 실제 청구가 예약액 이하일 때만 성립한다. 예약액보다 큰 청구는 그 POST가 끝난 뒤에야 알 수 있다. 그 금액은 기록되고 다음 POST는 보내지 않는다. 이미 보낸 POST의 청구는 되돌릴 수 없다.
+- 비용 미확인 POST의 실제 청구는 보장하지 않는다. 예약액을 잡아 다음 POST의 상한 계산에만 쓴다.
+- 예약은 계획 값이다. `reservedUsd`·`unusedReserveUsd`를 호출이나 청구로 읽지 않는다.
+- 비용 원장(`recordVisionCostAttempts` → `recordBackgroundProviderCost`)이 환율을 `GET https://open.er-api.com/v6/latest/USD`로 조회할 수 있다. 무료 환율 조회이고 provider 호출이 아니다. 격리 실행에서는 mock이 이 요청을 거부했다.
+
+### 24.5 격리 CLI 실행 (교체된 기록)
+
+기록: `assets/wolfgang-asset-redesign/isolated-operator-cli-evidence.json`. 스크립트: `isolated-operator-cli-evidence.ts.txt`. 임시 DATA_DIR의 #51 형태 draft에 실제 CLI를 자식 프로세스로 실행했다. moderation 응답은 `--import`로 넣은 mock provider(`mock-provider.mjs`)가 준다. mock은 OpenRouter POST만 답하고 나머지 요청은 거부하며 받은 요청을 기록한다. 키는 dummy다. mock 응답은 vision 결과가 아니다. 실행 뒤 DB와 파일을 지웠다.
+
+| 단계 | 결과 |
+|---|---|
+| intake `--execute`, uploads 디렉터리 읽기 전용 | `stopped`, rep `intake_error` EACCES, 종료 코드 1 |
+| status | rep `next=intake` ("previous intake stopped before registration") |
+| (격리) 다른 intake가 sig1을 claim | 유효한 lease |
+| intake `--execute` | rep 재개(`resumed`) + 12칸 등록. sig1은 lease로 blocked |
+| (격리) sig1 lease 만료 시각을 과거로 | — |
+| intake `--execute` | sig1 회수·등록("lease expired") |
+| intake 재실행 | 등록 0, 14칸 건너뜀 |
+| moderate 기본 / 상한 없음 / 상한 부족 | 호출 0 계획 / `budget_required` / `budget_exceeded` |
+| moderate `--execute`, 키 없음 | POST 0, 확정 0, 예약 0.28 중 미사용 0.28. rep unavailable로 `stopped` |
+| mock: primary가 예약액보다 큰 0.02 USD 청구 | POST 1, 확정 0.02, `chargesAboveReserve` 1건, fallback POST 0 |
+| mock: rep 성공 / sig1 500 → fallback 성공 / sig2 usage 없음 / sig3 둘 다 실패 | POST 6, 확정 2건 0.001, 미확인 4건(예약 0.04), 사용 0.041, 미사용 0.239. sig3 unavailable로 `stopped` |
+| mock: 남은 11칸 | POST 11, 확정 0.0055, 미사용 0.2145. 3칸 건너뜀 |
+| moderate 재실행 | POST 0, 14칸 건너뜀 |
+| review / apply / rollback | 이전과 같은 흐름. applyId `708b62bf…`, rollback 뒤 캐릭터 행 동일(`rollbackRestoredCharacterRow: true`) |
+| apply 뒤 intake | 등록 0, 14칸 applied로 건너뜀 |
+
+mock 기록의 provider POST 수는 각 단계의 `providerPosts`와 같았다. mock 기록에는 각 유료 단계마다 거부된 환율 GET 1건이 더 있다(§24.4). 저장된 후보 파일은 14개다.
+
+### 24.6 요구 검증과 근거
+
+| 요구 | 자동 테스트 | 격리 CLI |
+|---|---|---|
+| 1. 키 없음: POST 0, 호출 0, 확정 0 | `vision.runControl.test.ts` "without a key or a readable image", 단계 명령 테스트 4 | 키 없음 단계 |
+| 2. primary 성공: 호출 1, fallback 없음 | "a parsed primary is one POST" | 남은 11칸 단계 (11칸 POST 11) |
+| 3. primary 실패, fallback 허용: 호출 2 | "a failed primary settles before the fallback POST" | sig1 500 → fallback |
+| 4. primary 뒤 예산 정지: fallback POST 0 | "a refusal after the primary sends no fallback POST", 단계 명령 테스트 4 | 예약 초과 단계 |
+| 5. usage 없는 시도: 확정·미확인 분리 | "transport errors and replies without usage" | sig2·sig3 (미확인 4건) |
+| 6. 같은 CLI로 반입 실패 재개, 끝난 단계 반복 없음 | 단계 명령 테스트 3 | intake 실패 → 재개 → 재실행 0 |
+
+전/후: 새·변경 테스트 13개를 기준 `b4d2eb96` 코드에 돌리면 8개가 실패한다. vision 실행 제어 4개, 단계 명령의 반입 재개(3)·moderation(4), 같은 파일에서 바뀐 출력을 이어 쓰는 검수(5)·적용(6)이다. 수정본에서는 모두 통과한다.
+
+### 24.7 검증
+
+| 확인 | 결과 |
+|---|---|
+| official-supply 전체 (`src/lib/officialSupply/**/*.test.ts`) | 573/573 통과 |
+| vision 관련 (`assetVisionStructured`, `characterMediaAcl.followup`, `vision.models`, `vision.runControl`) | 42/42 통과 |
+| 단계 명령 테스트 | 7/7 통과 |
+| `npm run lint` / `npm run typecheck:app` / `git diff --check` | 통과 |
+| 운영 스크립트 typecheck (임시 tsconfig) | 통과 |
+
+`npm run test:regular`의 `SQLITE_BUSY` 실패(§23.8)는 이번에 다시 확인하지 않았다. 원인은 여전히 확인되지 않았고 이번 변경으로 해결됐다고 보지 않는다.
+
+### 24.8 검수 상태
+
+§23.7과 같다. 운영 moderation·검수 기록·apply는 미실행이고, 운영 moderation은 비용 승인이 필요하다. 14장 후보 시각 검수와 코드 검증을 전체 자동 제작이나 실제 RP 품질 합격으로 보지 않는다. 테스트와 격리 실행의 mock moderation·검수는 게이트 확인용이고 실제 품질 승인 기록이 아니다.
