@@ -51,8 +51,7 @@ import {
   classifyEpisodicFactTemporalNature,
   COMPLETED_SCENE_EVENT_ATTRIBUTES,
   isClearlyTemporaryEpisodicFact,
-  isUserStatedOccurrence,
-  isVerifiedSceneRecord,
+  isVerifiedFirstHandRecord,
 } from "@/lib/episodicMemoryTemporal";
 import {
   EPISODIC_CORRECTION_CANDIDATE_LIMIT,
@@ -2408,7 +2407,7 @@ export function reconcileGlobalStateLikeFacts(
     if (turn > (closingTurnByKey.get(key) ?? -1)) closingTurnByKey.set(key, turn);
   };
   const closesEarlierRecords = (row: EpisodicMemoryFactRecord) =>
-    classifyEpisodicFactTemporalNature(row) === "historical_event" || isUserStatedOccurrence(row);
+    classifyEpisodicFactTemporalNature(row) === "historical_event";
   for (const row of rows) {
     if (closesEarlierRecords(row)) noteClosingTurn(episodicLogicalKey(row), row.source_turn);
   }
@@ -2451,7 +2450,7 @@ export function reconcileGlobalStateLikeFacts(
       continue;
     }
     const key = episodicLogicalKey(row);
-    if ((closingTurnByKey.get(key) ?? -1) > row.source_turn && isVerifiedSceneRecord(row)) {
+    if ((closingTurnByKey.get(key) ?? -1) > row.source_turn && isVerifiedFirstHandRecord(row)) {
       closedOccurrenceIds.add(row.id);
       result.push(row);
       continue;

@@ -126,35 +126,41 @@ function evidenceTypeOf(fact: TemporalFactInput): string {
 }
 
 /**
- * A scene record whose quote the server matched to the assistant scene or the user's
- * message. A character's word does not count.
+ * A first-hand record the server verified: the assistant scene or the user's message matched
+ * the quote of an observed scene event, or the user's own statement matched with user
+ * authority. A character's word does not count. Who narrated it does not decide its nature.
  */
-export function isVerifiedSceneRecord(fact: TemporalFactInput): boolean {
-  if (evidenceTypeOf(fact) !== "explicit_scene_event") return false;
+export function isVerifiedFirstHandRecord(fact: TemporalFactInput): boolean {
   const evidence = readVerifiedEvidence(fact.metadata);
-  return evidence != null && evidence.authority !== "CHARACTER_CLAIM";
+  if (evidence == null || evidence.authority === "CHARACTER_CLAIM") return false;
+  const evidenceType = evidenceTypeOf(fact);
+  if (evidenceType === "explicit_scene_event") return true;
+  return evidenceType === "explicit_user_statement" && evidence.authority === "USER_EXPLICIT";
 }
 
+const STANDING_VALUE_ATTRIBUTE =
+  /(?:^|_)(?:status|state|stage|condition|job|occupation|profession|career|employment|employer|workplace|role|position|title|affiliation|membership|member|location|residence|whereabouts|address|dynamic)(?:_|$)|^relationship$/i;
+/** "…으로 소개되었다 / 언급되었다 / 등장했다": who or what someone was presented as. */
+const PRESENTED_AS_GLOSS = /(?:으로|로)\s*(?:소개|언급|등장|지목|알려)(?:되었|됐|했|졌)다$/u;
+
 /**
- * The user's own verified statement that something happened ("어제 훈련하다 칼날에 다쳤어").
- * Like a scene occurrence it closes an earlier scene record of its key, so who narrated the
- * later event does not decide whether the earlier one is kept. The statement itself keeps
- * latest-wins: users mostly declare current states ("헤어지자", "이직했어").
+ * The record states a standing value (status, job, role, affiliation, place, current
+ * relationship) — by its key, or by a gloss that only says what someone was presented as.
+ * Even a completed-sounding gloss ("인턴으로 소개되었다", "카페에서 일했다") then names the value
+ * a later record of the key replaces, whoever narrated it.
  */
-export function isUserStatedOccurrence(fact: TemporalFactInput): boolean {
-  if (evidenceTypeOf(fact) !== "explicit_user_statement") return false;
-  if (classifyIntrinsicNature(fact) !== "unknown") return false;
-  if (!looksLikeCompletedOccurrence(String(fact.fact_text ?? ""))) return false;
-  return readVerifiedEvidence(fact.metadata)?.authority === "USER_EXPLICIT";
+function statesStandingValue(fact: TemporalFactInput): boolean {
+  if (STANDING_VALUE_ATTRIBUTE.test(String(fact.attribute ?? "").trim())) return true;
+  return PRESENTED_AS_GLOSS.test(String(fact.fact_text ?? "").replace(/[\s.。!?"'”’)]+$/u, ""));
 }
 
 /**
  * Pure classifier — character/world/genre agnostic.
  *
  * clearly_temporary: exact temporary attribute AND not a completed historical event.
- * historical_event: completed event/outcome narrative, or a source-verified scene
- *   occurrence (eligible for long-term recall; a later separate occurrence of the same
- *   key does not replace it).
+ * historical_event: completed event/outcome narrative, or a verified first-hand occurrence
+ *   (scene or the user's own statement) outside standing-value keys (eligible for long-term
+ *   recall; a later separate occurrence of the same key does not replace it).
  * durable: preference/rule/quest (or clear durable attribute prefix).
  * unknown: conservatively eligible for recall (not blocked).
  */
@@ -163,11 +169,13 @@ export function classifyEpisodicFactTemporalNature(
 ): EpisodicFactTemporalNature {
   const nature = classifyIntrinsicNature(fact);
   // The extractor files observed occurrences under free-form attributes (`injury`,
-  // `ability_use`, ...). Legacy rows, claims and state-shaped glosses keep latest-wins.
+  // `ability_use`, ...). Legacy rows, claims, standing values and state-shaped glosses keep
+  // latest-wins.
   if (
     nature === "unknown" &&
     looksLikeCompletedOccurrence(String(fact.fact_text ?? "")) &&
-    isVerifiedSceneRecord(fact)
+    isVerifiedFirstHandRecord(fact) &&
+    !statesStandingValue(fact)
   ) {
     return "historical_event";
   }
