@@ -1,0 +1,29 @@
+{
+  "providerPosts": 0,
+  "dbWrites": 0,
+  "deviceScaleFactor": 2,
+  "pixelNote": "Layout widths below are CSS pixels. Saved PNGs are 2x those pixels.",
+  "component": "CharacterCard HomeCard + CharacterCardCarousel",
+  "imageRule": "object-fit: cover; object-position: top",
+  "widths": {
+    "editorial": "232px xl from page.tsx CARD_WIDTH, aspect 2/3",
+    "exhibit": "300px xl, aspect 4/5, clip-path from CharacterCard exhibit frame",
+    "index": "172px = (390 - 32 padding - 14 gap) / 2, aspect 3/4"
+  },
+  "productionRepSha256": "a66c49d4d947209206b70a284c99f2e26ef868934ed5426818042c29ba3a45f1",
+  "fSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+  "shots": {
+    "compare-card-editorial.png": {
+      "sha256": "91986dd659c583a725ba17bf9d67a13a4931853c86aa3826894a199c3e8dfab0",
+      "bytes": 935700
+    },
+    "compare-card-exhibit.png": {
+      "sha256": "be3cabc25463dc1e272bc911324febe0bba491e415038b137ac8aacd1bf08740",
+      "bytes": 1302822
+    },
+    "compare-card-index.png": {
+      "sha256": "1b14a029369cd93ee84bdce125d3235bfbdbe6637739493bf8de809325dd7383",
+      "bytes": 562872
+    }
+  }
+}

@@ -491,6 +491,67 @@ POST 1회. 원본 바이트를 검사보다 먼저 저장했고 SHA가 같다. �
 
 이 편집 경로의 한 장 E와 한 장 F로 모델 우열을 닫지 않는다. 같은 조건 재추첨과 새 유료 실험은 여기서 멈춘다.
 
+### 14.3 이미지 대조 정정
+
+14.1의 제작자 관찰은 그대로 둔다. 그중 “원본의 넓은 윤광 띠는 E와 F 모두에서 가는 가닥 하이라이트로 줄어든다”와 14.2의 “빠진다: 머리의 넓은 윤광 띠”는 머리 1:1 창과 맞지 않아 정정한다.
+
+머리 창 `300,0,420x360`: 원본은 넓은 윤광 띠다. E는 그 띠가 가는 가닥으로 나뉜다. F는 넓은 윤광 띠가 원본 쪽에 더 가깝다. 가닥이 조금 더 나뉘지만 E와 같은 정도로 줄었다고 적지 않는다.
+
+얼굴 창과 모피 창도 같은 방향이다. F의 얼굴 선·명암 경계와 모피 깃의 분리는 E보다 원본에 가깝다. 원본과 같은 평면 색면이라고 적지는 않는다.
+
+### 14.4 GPT 재검수
+
+GPT 판단은 제작자 관찰과 별도로 적는다. F는 E보다 원본의 넓은 머리 윤광 띠, 얼굴의 선·명암, 모피 표현에 가깝다.
+
+F는 그림체 채택 검토 후보다. 대표·앵커 승인이나 운영 QA 통과로 기록하지 않는다.
+
+### 14.5 그림체와 분리한 항목
+
+원본 인물과의 얼굴 유사성: 머리 각도, 시선, 얼굴의 큰 배치는 원본 3번과 가깝다. 눈은 적안에서 회청으로 바뀌었다. 이 유사성은 그림체 채택과 다른 항목이다.
+
+승인 흉터 위치: E의 짧은 선은 인물 왼쪽 뺨에서 턱으로 가고, 명시된 턱 아래와 높이가 다르다. F의 같은 얼굴 창에서는 턱 아래의 가는 선이 분명하지 않다. 보이게 하려고 구도를 바꾸지 않는다.
+
+추가 장식: E의 가슴 늑대 부조, F의 늑대 걸쇠·펜던트·체인은 승인 외형에 없는 추가 장식이다. 명시적 금지 근거 없이 Lock 위반으로 단정하지 않는다.
+
+### 14.6 홈카드 미리보기
+
+새 화면은 만들지 않았다. `CharacterCard`의 홈 프레임과 `CharacterCardCarousel`의 `object-cover object-top`을 로컬 Chrome에서 그렸다. 운영 DB write 0, Provider POST 0이다. 운영 대표 파일 SHA `a66c49d4…3a45f1`. 저장 PNG는 CSS 크기의 2배 픽셀이다. 1:1 질감 비교는 위의 원본·E·F 창을 유지한다.
+
+| 홈 변형 | 규칙 |
+|---|---|
+| 추천 editorial | xl 232px, aspect 2/3. 원본이 2:3이면 추가 크롭이 없다. 하단 이름 그라데이션이 있다 |
+| 공모전 exhibit | xl 300px, aspect 4/5, 우상단 컷. 위쪽 정렬로 아래가 잘린다 |
+| 신규 index | 390px 뷰포트의 2열 172px, aspect 3/4. 위쪽 정렬로 아래가 잘린다 |
+
+![추천 카드](./assets/wolfgang-asset-redesign/compare-card-editorial.png)
+
+![공모전 카드](./assets/wolfgang-asset-redesign/compare-card-exhibit.png)
+
+![신규 카드](./assets/wolfgang-asset-redesign/compare-card-index.png)
+
+## 15. 성공 결과 두 장과 기존 생성 기록
+
+대상은 재첨부 10·11이다. 파일명 `ai-ld-current-turn-45e89a27-5146-43bc-9d1c-a91ba0f59819.webp`, `ai-ld-current-turn-7561aec6-94c9-46d6-8f6d-bd262528fdff.webp`. 픽셀은 800x1200 webp다. 볼프강 생성 참조로 쓰지 않는다.
+
+이 체크아웃의 `data/app.db`를 읽기 전용으로 봤다. `chat_image_generations` 0행, `character_image_album` 0행, `chat_image_generation_jobs` 0행, `image_generation_creator_earnings` 0행이다. `api_cost_ledger` 59행은 배경 TRPG 답변 제안이고 이미지 파일명과 무관하다. `point_logs`에도 이 파일의 차감이 없다. 두 파일의 실제 모델, 참조 목록, 전송문은 이 기록에서 확인되지 않는다.
+
+현재 코드가 저장하는 모양도 전송문 본문을 남기지 않는다. `options_json`은 mode, source, quality, outputSize, identityReferenceCount를 남긴다. job의 `provider_attempts_json`은 promptHash와 promptCharCount를 남긴다. 행이 있어도 전송문 전문은 이 스키마에 없다. 지금 코드를 조립한 문장을 당시 전송문이라고 적지 않는다.
+
+파일명 패턴과 800x1200은 현재 LD 일러스트 출력과 같다. 그것은 크기·이름 일치이고, 당시 호출의 증거는 아니다.
+
+### 15.1 참조 역할 — 확인된 차이
+
+| 작업 | owner | 참조 역할 |
+|---|---|---|
+| 같은 인물의 장면 변주 | `chatLdIllustrationGeneration.ts` | 인물 사진이 그 인물의 identity이자 style이다. `renderChatImageStyleFidelityContract`는 템플릿이 없으면 번호 이미지를 인물과 1:1로 매핑한다. LD는 `hasTemplate: false`다 |
+| 참고 화풍으로 새 인물 | `officialSupply/imagePrompt.ts` 대표 | `STYLE ONLY`. 새 인물을 만들고, 참조의 얼굴·머리·의상·표식은 복사하지 않는다. 정체는 Appearance Lock이다 |
+| 같은 인물의 다른 컷 | 같은 파일의 variation | Image 1 `IDENTITY ONLY`, Image 2 `STYLE ONLY` |
+| E/F | 검토용 편집 한 장 | 이미지 한 장이 수정 대상이다. 구도와 채색 유지를 문장으로 요청하고 인물을 바꾼다 |
+
+계약 문구를 복사하거나 런타임 프롬프트를 바꾸지 않았다.
+
+원인 가설은 확인과 분리한다. LD가 화풍을 유지한 이유로 자주 거론되는 것은, 같은 인물 사진이 스타일 앵커이면서 장면만 바뀌기 때문이다. 공식 대표는 새 인물과 참조 정체 복제 금지가 같이 있다. 이 가설은 10·11의 전송문이 없어 그 두 장으로 확인되지 않는다. E/F 한 장씩으로 모델 우열을 닫지 않는다.
+
 ![원본 3번 전체](./assets/wolfgang-asset-redesign/reattach-2026-10-17/03-eval_style.webp)
 
 ![E 전체](./assets/wolfgang-asset-redesign/rep-e.webp)
