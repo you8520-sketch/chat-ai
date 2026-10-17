@@ -518,3 +518,54 @@ test.describe("compact mobile header with the charge shortcut", () => {
     await headerControlMatrix(page, true);
   });
 });
+
+test.describe("general menus navigate without a full-screen transition", () => {
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 1280, height: 800 },
+  ]) {
+    test(`menu clicks never cover the page at ${viewport.width}px`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await demoLogin(page);
+      await page.goto("/search");
+
+      const watch = () =>
+        page.evaluate(
+          () =>
+            new Promise<{ veils: number; covers: number }>((resolve) => {
+              let veils = 0;
+              let covers = 0;
+              const end = performance.now() + 1100;
+              const tick = () => {
+                if (document.querySelector(".menu-veil")) veils += 1;
+                for (const el of Array.from(document.body.children)) {
+                  if (el.matches('[role="dialog"], [role="alertdialog"]')) continue;
+                  const cs = getComputedStyle(el);
+                  if (cs.position !== "fixed" || cs.display === "none" || Number(cs.opacity) < 0.05) continue;
+                  const r = el.getBoundingClientRect();
+                  if (r.width >= innerWidth * 0.9 && r.height >= innerHeight * 0.9) covers += 1;
+                }
+                if (performance.now() < end) requestAnimationFrame(tick);
+                else resolve({ veils, covers });
+              };
+              requestAnimationFrame(tick);
+            }),
+        );
+
+      const nav = page.getByRole("navigation", { name: "주요 메뉴" }).locator("visible=true");
+      for (const [name, url] of [
+        ["신작", "/tab/new"],
+        ["랭킹", "/tab/ranking"],
+        ["TRPG", "/trpg"],
+        ["북마크/팔로잉", "/tab/following"],
+        ["검색", "/search"],
+      ] as const) {
+        const sampled = watch();
+        await nav.getByRole("link", { name, exact: true }).click();
+        await expect(page, name).toHaveURL(new RegExp(`${url.replace(/\//g, "\\/")}$`));
+        await expect(nav.getByRole("link", { name, exact: true }), name).toHaveAttribute("aria-current", "page");
+        expect(await sampled, name).toEqual({ veils: 0, covers: 0 });
+      }
+    });
+  }
+});

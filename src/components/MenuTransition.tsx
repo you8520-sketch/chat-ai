@@ -1,16 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
-import {
-  isPlainLeftClick,
-  MENU_TRANSITION_ATTR,
-  MENU_TRANSITION_TIMING,
-  menuRevealDelayMs,
-  resolveMenuClickTransition,
-  type MenuTransitionSpec,
-} from "@/lib/menuTransitionSpec";
+import { isPlainLeftClick } from "@/lib/transitionShared";
 import {
   CHARACTER_CARD_ATTR,
   CHARACTER_HERO_IMAGE_ATTR,
@@ -79,11 +72,10 @@ import {
 import TrpgResumeScene, { type TrpgResumeScene as TrpgScene } from "@/components/TrpgResumeScene";
 
 /**
- * 공통 전환 lifecycle의 단일 owner (Phase C 메뉴 + Phase D-1 캐릭터 + Phase D-2 채팅 + Phase D-3 TRPG).
+ * 공통 전환 lifecycle의 단일 owner (Phase D-1 캐릭터 + Phase D-2 채팅 + Phase D-3 TRPG).
  *
  * - canonical navigation owner는 기존 `next/link` 그대로 (href·redirect·query 불변).
- * - 시각 렌더만 kind로 구분한다.
- *   - `menu`: 승인된 메뉴 영역(`data-menu-transition`) 클릭 → Phase C 그래픽 전환.
+ * - 시각 렌더만 kind로 구분한다. 일반 메뉴(홈·신작·랭킹 등) 클릭은 전환 연출 없이 네이티브 이동한다.
  *   - `character`: 캐릭터 카드(`data-character-card`)의 프로필 링크 클릭 → artwork reveal.
  *   - `chat`: 최근 활동의 캐릭터 채팅 행(`data-chat-resume`) 클릭 → 기존 채팅방 reveal.
  *     방은 characterId + chatId로 식별하고(query-only 이동 포함), 실제 방 마커가 도착해야 분할한다.
@@ -99,7 +91,6 @@ type BurstBase = {
   dest: string;
   phase: "cover" | "reveal";
 };
-type MenuBurst = BurstBase & { kind: "menu"; spec: MenuTransitionSpec };
 type CharacterBurst = BurstBase & { kind: "character"; scene: CharacterScene };
 type ChatBurst = BurstBase & {
   kind: "chat";
@@ -120,12 +111,10 @@ type TrpgBurst = BurstBase & {
   superseded: string[];
   from: string;
 };
-type Burst = MenuBurst | CharacterBurst | ChatBurst | TrpgBurst;
+type Burst = CharacterBurst | ChatBurst | TrpgBurst;
 
 function timingFor(kind: Burst["kind"]) {
   switch (kind) {
-    case "menu":
-      return MENU_TRANSITION_TIMING;
     case "character":
       return CHARACTER_REVEAL_TIMING;
     case "chat":
@@ -141,8 +130,6 @@ function timingFor(kind: Burst["kind"]) {
 
 function revealDelayFor(kind: Burst["kind"], elapsedMs: number): number {
   switch (kind) {
-    case "menu":
-      return menuRevealDelayMs(elapsedMs);
     case "character":
       return characterRevealDelayMs(elapsedMs);
     case "chat":
@@ -417,7 +404,7 @@ export default function MenuTransitionHost() {
     }
     setBurst(next);
     const timing = timingFor(next.kind);
-    // 메뉴·캐릭터는 도착이 늦어도 holdMax에 분할한다. 채팅·TRPG는 실제 방이 오기 전에
+    // 캐릭터는 도착이 늦어도 holdMax에 분할한다. 채팅·TRPG는 실제 방이 오기 전에
     // 분할하면 이전 화면이 드러나므로 holdMax로 열지 않는다.
     if (next.kind !== "chat" && next.kind !== "trpg") {
       timers.current.push(window.setTimeout(() => beginReveal(next.id), timing.holdMaxMs));
@@ -517,12 +504,6 @@ export default function MenuTransitionHost() {
     }
   }
 
-  function scheduleMenuBurst(spec: MenuTransitionSpec, dest: string) {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    burstSeq += 1;
-    startBurst({ kind: "menu", id: burstSeq, spec, dest, phase: "cover" });
-  }
-
   function scheduleCharacterBurst(scene: CharacterScene, dest: string) {
     burstSeq += 1;
     startBurst({ kind: "character", id: burstSeq, scene, dest, phase: "cover" });
@@ -570,7 +551,7 @@ export default function MenuTransitionHost() {
     });
   }
 
-  // BEAT 1 — 승인된 영역(메뉴 / 캐릭터 카드 / 최근 채팅 행 / TRPG 행)의 클릭에 즉각 반응. navigation은 그대로 진행.
+  // BEAT 1 — 승인된 영역(캐릭터 카드 / 최근 채팅 행 / TRPG 행)의 클릭에 즉각 반응. navigation은 그대로 진행.
   useEffect(() => {
     function onClickCapture(e: MouseEvent) {
       if (!isPlainLeftClick(e)) return;
@@ -644,21 +625,7 @@ export default function MenuTransitionHost() {
         }
         const scene = buildCharacterScene(card, id);
         if (scene) scheduleCharacterBurst(scene, dest.pathname);
-        return;
       }
-
-      if (!anchor.closest(`[${MENU_TRANSITION_ATTR}]`)) return;
-      const spec = resolveMenuClickTransition({
-        inMenuRegion: true,
-        destPathname: dest.pathname,
-        currentPathname: window.location.pathname,
-      });
-      if (!spec) return;
-      anchor.classList.remove("menu-flash");
-      void anchor.offsetWidth;
-      anchor.classList.add("menu-flash");
-      window.setTimeout(() => anchor.classList.remove("menu-flash"), 350);
-      scheduleMenuBurst(spec, dest.pathname);
     }
     document.addEventListener("click", onClickCapture, true);
     return () => document.removeEventListener("click", onClickCapture, true);
@@ -721,28 +688,6 @@ export default function MenuTransitionHost() {
 
   if (!burst) return null;
   switch (burst.kind) {
-    case "menu": {
-      const { spec } = burst;
-      return (
-        <div
-          key={burst.id}
-          aria-hidden
-          data-motif={spec.motif}
-          data-phase={burst.phase}
-          className="menu-veil"
-          style={{ "--menu-accent": spec.accent, "--menu-chars": spec.en.length } as CSSProperties}
-        >
-          <div className="menu-ink" />
-          <div className="menu-field" />
-          <div className="menu-type">
-            <div className="menu-slab">
-              <span className="menu-en">{spec.en}</span>
-              <span className="menu-ko">{spec.ko}</span>
-            </div>
-          </div>
-        </div>
-      );
-    }
     case "character":
       return <CharacterRevealScene key={burst.id} scene={burst.scene} phase={burst.phase} />;
     case "chat":

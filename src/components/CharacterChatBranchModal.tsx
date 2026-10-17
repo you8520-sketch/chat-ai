@@ -15,7 +15,7 @@ import MaskedChatGlyph from "@/components/MaskedChatGlyph";
 import { chatEntryHref, characterPageHref } from "@/lib/chatLinks";
 import { CHAT_RESUME_THUMB_ATTR, chatResumeAttrs } from "@/lib/chatResumeTransition";
 import { chatRoomHref, requestExplicitChatSession } from "@/lib/chatSessionStartClient";
-import { isPlainLeftClick } from "@/lib/menuTransitionSpec";
+import { isPlainLeftClick } from "@/lib/transitionShared";
 
 type Props = {
   open: boolean;

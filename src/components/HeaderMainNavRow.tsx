@@ -63,7 +63,6 @@ export default function HeaderMainNavRow({ variant = "inline" }: Props) {
           : "flex border-t border-white/[0.06] lg:hidden",
       )}
       aria-label="주요 메뉴"
-      data-menu-transition=""
     >
       {baseTabs.map((t) => {
         const active = isTabActive(pathname, t.href);
