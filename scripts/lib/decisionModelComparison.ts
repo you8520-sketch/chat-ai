@@ -1,3 +1,4 @@
+import { DECISION_RADAR_BASELINE_MODEL } from "@/lib/decisionModelRadar";
 import {
   callJevDecisions,
   type JevDecisionQuestions,
@@ -29,7 +30,7 @@ import {
   withIsolatedAuthorialHabitBenchmarkOpenRouterKey,
 } from "./authorialHabitJevBenchmarkCredential";
 
-export const DECISION_BASELINE_MODEL = "typesafe/jev-1.13";
+export const DECISION_BASELINE_MODEL = DECISION_RADAR_BASELINE_MODEL;
 export type ModelId = string;
 type Expected = AuthorialHabitSemanticVerdict | CompletionIntegrityJevVerdict | SceneBoundaryJevVerdict;
 

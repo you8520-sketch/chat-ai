@@ -61,7 +61,7 @@ describe("jev decisions official wire contract", () => {
 
   /** Official-shaped raw response (dated served snapshot, object answers). */
   const decisionBody = () => ({
-    model: "typesafe/jev-1.13-20260920",
+    model: "typesafe/jev-1.14-20261014",
     answers: {
       attack_plan: {
         type: "choice",
@@ -95,7 +95,7 @@ describe("jev decisions official wire contract", () => {
       assert.equal(headers.Authorization, "Bearer test-key");
       assert.equal(headers["Content-Type"], "application/json");
       const body = JSON.parse(String(calls[0]!.init.body)) as Record<string, unknown>;
-      assert.equal(body.model, "typesafe/jev-1.13");
+      assert.equal(body.model, "typesafe/jev-1.14");
       assert.deepEqual(body.state, { round: 3 });
       const wireQuestions = body.questions as Record<string, Record<string, unknown>>;
       assert.equal(Array.isArray(wireQuestions), false, "questions must be an object, not an array");
@@ -163,7 +163,7 @@ describe("jev decisions official wire contract", () => {
       for (const valid of [0, 1]) {
         stubFetch(() =>
           jsonResponse({
-            model: "typesafe/jev-1.13",
+            model: "typesafe/jev-1.14",
             answers: { moral_stance: { type: "noul", noul: valid } },
             usage: { input_tokens: 1, output_tokens: 1, cost: 0.00001 },
           })
@@ -175,7 +175,7 @@ describe("jev decisions official wire contract", () => {
       for (const invalid of [-0.1, 1.1, Number.NaN, "0.5"]) {
         stubFetch(() =>
           jsonResponse({
-            model: "typesafe/jev-1.13",
+            model: "typesafe/jev-1.14",
             answers: { moral_stance: { type: "noul", noul: invalid } },
             usage: { input_tokens: 1, output_tokens: 1, cost: 0.00001 },
           })
@@ -363,7 +363,7 @@ describe("jev decisions official wire contract", () => {
       }[];
       assert.equal(rows.length, 1);
       assert.equal(rows[0]!.provider, "openrouter");
-      assert.equal(rows[0]!.model, "typesafe/jev-1.13");
+      assert.equal(rows[0]!.model, "typesafe/jev-1.14");
       assert.match(rows[0]!.request_kind, /jev/i);
       assert.equal(rows[0]!.actual_cost_usd, 0.00042);
       assert.equal(rows[0]!.actual_cost_source, "provider_reported");
@@ -497,10 +497,10 @@ describe("jev decisions official wire contract", () => {
         questions: questions(),
         ledger: null,
       });
-      assert.equal(result.responseModel, "typesafe/jev-1.13-20260920");
+      assert.equal(result.responseModel, "typesafe/jev-1.14-20261014");
       stubFetch(() =>
         jsonResponse({
-          model: "typesafe/jev-1.13",
+          model: "typesafe/jev-1.14",
           answers: [{ type: "noul", noul: 0.5 }],
           usage: { input_tokens: 1, output_tokens: 1, cost: 0.00001 },
         })

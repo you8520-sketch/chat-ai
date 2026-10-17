@@ -30,7 +30,7 @@ import { buildAuxProviderCallLogInput, logAuxProviderCall } from "@/lib/auxProvi
  */
 
 /** Candidate pinned model — never the `latest` alias (auto-drift risk). */
-export const JEV_DECISIONS_MODEL = "typesafe/jev-1.13";
+export const JEV_DECISIONS_MODEL = "typesafe/jev-1.14";
 
 /** Decisions endpoint — deliberately NOT the chat/completions transport. */
 export const JEV_DECISIONS_URL = "https://openrouter.ai/api/alpha/decisions";
@@ -359,7 +359,7 @@ export async function callJevDecisions(opts: {
 }): Promise<{
   answers: Record<string, JevDecisionAnswer>;
   usage: JevDecisionUsage;
-  /** Served model snapshot (dated pins like typesafe/jev-1.13-YYYYMMDD accepted). */
+  /** Served model snapshot (dated pins like typesafe/jev-1.14-YYYYMMDD accepted). */
   responseModel: string;
 }> {
   const asked = validateQuestions(opts.questions);

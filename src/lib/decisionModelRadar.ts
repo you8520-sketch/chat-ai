@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 export const DECISION_RADAR_VERSION = 1;
-export const DECISION_RADAR_BASELINE_MODEL = "typesafe/jev-1.13";
+export const DECISION_RADAR_BASELINE_MODEL = "typesafe/jev-1.14";
 export const DECISION_RADAR_LEDGER_BRANCH = "decision-model-radar-ledger";
 export const DECISION_RADAR_WORKFLOW_PATH = ".github/workflows/decision-model-radar-weekly.yml";
 export const DECISION_RADAR_MAX_CANDIDATES_PER_RUN = 3;
