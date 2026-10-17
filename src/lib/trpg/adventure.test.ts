@@ -97,6 +97,8 @@ describe("adventure canon validator", () => {
     assert.match(issuesOf((raw) => void (raw.links[1] = { from: "car3", to: "engine", hidden: true } as never)).join(" "), /opensBy\)이 필요/);
     assert.match(issuesOf((raw) => void (raw.places[0]!.key = "r1")).join(" "), /key "r1"/);
     assert.match(issuesOf((raw) => void (raw.events[0]!.kind = "teleport")).join(" "), /kind는/);
+    // Opening is link data; an "open" kind could name a way no link opens.
+    assert.match(issuesOf((raw) => void (raw.events[0]!.kind = "open")).join(" "), /kind는 clue\/item\/hazard/);
     assert.match(issuesOf((raw) => void (raw.events[0]!.kind = "item")).join(" "), /아이템 이름/);
     assert.match(
       issuesOf((raw) => void raw.events.push({ key: "welcome", place: "platform", trigger: "enter", kind: "clue", text: "x" })).join(" "),

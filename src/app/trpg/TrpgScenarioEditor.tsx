@@ -98,7 +98,6 @@ const PLAY_LENGTH_LABEL: Record<TrpgScenarioPlayLength, string> = {
 const ADVENTURE_EVENT_LABEL: Record<AdventureEventKind, string> = {
   clue: "단서",
   item: "획득",
-  open: "길 열림",
   hazard: "위험",
 };
 

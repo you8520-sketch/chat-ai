@@ -421,7 +421,7 @@ const ADVENTURE_DRAFT_CONTRACT = `adventure: object {start, places, links, event
 - places: 3-6 items {key, name, summary, role}. key: lowercase ascii id (a-z, 0-9, _), unique, never like r1. name: Korean, unique, at most 16 chars. summary: one short player-safe sentence. role: start|hub|site|goal.
 - start: key of the start place. startLocation must be exactly that place's name.
 - links: 3-8 items {from, to} using place keys. Undirected, no duplicates. Locked way: add opensBy:"<event key>". Secret passage: add hidden:true and opensBy:"<event key>".
-- events: 2-5 items {key, place, trigger, kind, text, item, requires}. trigger: search|careful_search|enter (enter fires on arriving, so never at the start place). kind: clue|item|open|hazard. text: what is found or happens, one sentence, secret until it fires. item: item name, only for kind item, at most 20 chars. requires: event keys that must happen first, or [].
+- events: 2-5 items {key, place, trigger, kind, text, item, requires}. trigger: search|careful_search|enter (enter fires on arriving, so never at the start place). kind: clue|item|hazard (what an event opens is set only by a link's opensBy). text: what is found or happens, one sentence, secret until it fires. item: item name, only for kind item, at most 20 chars. requires: event keys that must happen first, or [].
 - At least one link uses opensBy. Its event must be reachable without that link. Every place must be reachable from start.
 - Discoveries must matter: a clue or item opens a way, unlocks a later event, or points to the goal. Fit places and events to this story and genre.`;
 

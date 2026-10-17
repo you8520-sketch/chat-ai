@@ -53,7 +53,7 @@ const GHOST_TRAIN: TrpgAdventure = {
       item: "차장 열쇠",
       requires: ["ticket"],
     },
-    { key: "mail_hatch", place: "mail", trigger: "careful_search", kind: "open", text: "우편 자루 뒤 바닥 해치가 승강장 아래로 이어진다." },
+    { key: "mail_hatch", place: "mail", trigger: "careful_search", kind: "clue", text: "우편 자루 뒤 바닥 해치가 승강장 아래로 이어진다." },
     { key: "cold_steam", place: "engine", trigger: "enter", kind: "hazard", text: "기관실 문이 열리자 얼음 같은 증기가 쏟아진다." },
   ],
 };
@@ -84,7 +84,7 @@ const HARBOR_PLOT: TrpgAdventure = {
       item: "반출 명령서",
       requires: ["gossip"],
     },
-    { key: "ledger_gap", place: "warehouse", trigger: "careful_search", kind: "open", text: "장부의 빈칸이 가리키는 바닥 문 아래로 밀수선이 보인다." },
+    { key: "ledger_gap", place: "warehouse", trigger: "careful_search", kind: "clue", text: "장부의 빈칸이 가리키는 바닥 문 아래로 밀수선이 보인다." },
     { key: "deck_blades", place: "ship", trigger: "enter", kind: "hazard", text: "갑판 위 선원들이 칼을 뽑아 든다." },
   ],
 };
@@ -314,7 +314,7 @@ async function playAdventure(genre: string, adventure: TrpgAdventure): Promise<E
   assert.equal(JSON.stringify(state()), frozen);
 
   // Secret passage: walk to it, search carefully, then pass through it.
-  const passage = adventure.events.find((event) => event.kind === "open")!;
+  const passage = adventure.events.find((event) => adventure.links.some((link) => link.hidden && link.opensBy === event.key))!;
   const hiddenEdge = state().map.edges.find((edge) => edge.opensBy === passage.key)!;
   const hiddenFar = hiddenEdge.from === passage.place ? hiddenEdge.to : hiddenEdge.from;
   for (let guard = 0; guard < 3 && locationKey(host) !== passage.place; guard += 1) await play(walk(host, passage.place), wait);

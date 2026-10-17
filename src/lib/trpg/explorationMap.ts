@@ -279,7 +279,7 @@ function str(value: unknown): string {
 
 function normalizeLegacyEvent(raw: Record<string, unknown>): ExplorationEvent & Record<string, unknown> {
   const kind = str(raw.kind);
-  const effect: AdventureEventKind = kind === "supply" ? "item" : kind === "hidden" ? "open" : "clue";
+  const effect: AdventureEventKind = kind === "supply" ? "item" : "clue";
   const canonical: ExplorationEvent = {
     id: str(raw.id),
     roomId: str(raw.roomId),
@@ -846,8 +846,6 @@ function eventLine(
       return `${actor}: ${verb} and found this clue exactly once: "${event.text}". Do not invent another clue.${openedText}`;
     case "item":
       return `${actor}: ${verb} and received item "${event.item ?? ""}" exactly once${event.text && event.text !== event.item ? ` (${event.text})` : ""}. Do not grant it again.${openedText}`;
-    case "open":
-      return `${actor}: ${verb} and opened a way exactly once (${event.text}).${openedText || " Do not invent another passage."}`;
     case "hazard":
       return `${actor}: ${verb} and set off a danger exactly once: "${event.text}". The server applied no damage or condition; any harm comes only from the normal check and threat rules.${openedText}`;
     default: {
@@ -1160,14 +1158,14 @@ export function filterExplorationFlagsRemove(proposed: readonly string[]): strin
   return proposed.filter((flag) => !EXPLORATION_SERVER_FLAGS.has(flag));
 }
 
-function markerFor(effect: AdventureEventKind): PublicExplorationMarker {
+function markerFor(state: ExplorationState, event: ExplorationEvent): PublicExplorationMarker {
+  if (state.map.edges.some((edge) => edge.opensBy === event.id)) return "passage";
+  const effect = event.effect;
   switch (effect) {
     case "clue":
       return "clue";
     case "item":
       return "reward";
-    case "open":
-      return "passage";
     case "hazard":
       return "hazard";
     default: {
@@ -1204,7 +1202,7 @@ export function projectPublicExploration(opts: {
       if (seen && (room.role === "exit" || room.role === "goal")) markers.push("exit");
       for (const event of revealedEvents) {
         if (event.roomId !== room.id) continue;
-        const marker = markerFor(event.effect);
+        const marker = markerFor(state, event);
         if (!markers.includes(marker)) markers.push(marker);
       }
       return {

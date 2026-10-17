@@ -3,6 +3,8 @@
  * Room secrets, seeds, and the generator live in explorationMap.ts and must not be imported here.
  */
 
+import type { AdventureEventKind } from "./adventure";
+
 export const EXPLORATION_AP_PER_ROUND = 3;
 export const EXPLORATION_MOVE_COST = 1;
 export const EXPLORATION_SEARCH_COST = 1;
@@ -38,7 +40,7 @@ export type PublicExplorationEdge = {
 /** A fired event. Unfired event text is never projected. */
 export type PublicExplorationDiscovery = {
   place: string;
-  kind: "clue" | "item" | "open" | "hazard";
+  kind: AdventureEventKind;
   text: string;
   item?: string;
 };

@@ -125,7 +125,7 @@ const MOCK_DRAFT = JSON.stringify({
         key: "warm_pipe",
         place: "radio",
         trigger: "careful_search",
-        kind: "open",
+        kind: "clue",
         text: "기단 아래 따뜻한 관 옆으로 좁은 틈이 열린다.",
         requires: ["last_log"],
       },

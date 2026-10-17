@@ -10,8 +10,8 @@ export type AdventurePlaceRole = (typeof ADVENTURE_PLACE_ROLES)[number];
 export const ADVENTURE_EVENT_TRIGGERS = ["enter", "search", "careful_search"] as const;
 export type AdventureEventTrigger = (typeof ADVENTURE_EVENT_TRIGGERS)[number];
 
-/** Effects the server can apply. Anything else is rejected, never interpreted. */
-export const ADVENTURE_EVENT_KINDS = ["clue", "item", "open", "hazard"] as const;
+/** Effects the server can apply. Anything else is rejected, never interpreted. Opening a way is link data (`opensBy`), not a kind. */
+export const ADVENTURE_EVENT_KINDS = ["clue", "item", "hazard"] as const;
 export type AdventureEventKind = (typeof ADVENTURE_EVENT_KINDS)[number];
 
 export const ADVENTURE_LIMITS = {
@@ -255,9 +255,6 @@ export function evaluateAdventure(raw: unknown): { adventure: TrpgAdventure | nu
     }
     if (trigger === "enter" && place && place === text(raw.start) && requires.length === 0) {
       issues.push(`${label} (${key}): 시작 장소의 enter 사건은 선행 사건 없이는 일어나지 않습니다. search로 바꾸세요.`);
-    }
-    if (kind === "open" && !rawLinks.some((link) => isRecord(link) && text(link.opensBy) === key)) {
-      issues.push(`${label} (${key}): 여는 사건인데 이 사건으로 열리는 연결이 없습니다.`);
     }
     events.push({
       key,

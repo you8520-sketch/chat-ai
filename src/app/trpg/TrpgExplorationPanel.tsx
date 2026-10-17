@@ -21,7 +21,6 @@ const MARKER_LABEL: Record<PublicExplorationRoom["markers"][number], string> = {
 const DISCOVERY_LABEL: Record<PublicExplorationDiscovery["kind"], string> = {
   clue: "단서",
   item: "획득",
-  open: "길 열림",
   hazard: "위험",
 };
 
