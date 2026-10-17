@@ -37,7 +37,7 @@ describe("decision model radar isolation", () => {
     );
     const scheduler = fs.readFileSync("src/lib/schedulerDefinitions.ts", "utf8");
 
-    assert.match(jev, /JEV_DECISIONS_MODEL\s*=\s*"typesafe\/jev-1\.13"/);
+    assert.match(jev, /JEV_DECISIONS_MODEL\s*=\s*"typesafe\/jev-1\.14"/);
     assert.doesNotMatch(workflow, /schedulerDefinitions\.ts|src\/cron\/|mcp__Railway__|merge_pull_request/);
     assert.doesNotMatch(scheduler, /decision[_-]model[_-]radar/i);
     assert.match(workflow, /decision-model-radar-ledger/);
@@ -66,7 +66,7 @@ describe("decision model radar isolation", () => {
   it("loads decisionModelComparison with the weekly radar Node/tsx loader", () => {
     const result = runWithWorkflowLoader([
       "--eval",
-      "import('./scripts/lib/decisionModelComparison.ts').then((mod) => { const baseline = mod.DECISION_BASELINE_MODEL ?? mod.default?.DECISION_BASELINE_MODEL; if (baseline !== 'typesafe/jev-1.13') throw new Error('unexpected baseline'); console.log('LOAD_OK'); })",
+      "import('./scripts/lib/decisionModelComparison.ts').then((mod) => { const baseline = mod.DECISION_BASELINE_MODEL ?? mod.default?.DECISION_BASELINE_MODEL; if (baseline !== 'typesafe/jev-1.14') throw new Error('unexpected baseline'); console.log('LOAD_OK'); })",
     ]);
     assert.equal(result.status, 0, result.stderr || result.stdout);
     assert.match(result.stdout, /LOAD_OK/);
