@@ -12,7 +12,7 @@ import {
 } from "@/lib/openAiImageSafetyFallback";
 import { recordBackgroundProviderCost } from "@/lib/providerCostLedger";
 import { storeUpload } from "@/lib/uploadStorage";
-import { analyzeAssetImage, type VisionCostEvidence } from "@/lib/vision";
+import { analyzeAssetImage, type VisionRunControl } from "@/lib/vision";
 import { recordVisionCostAttempts } from "@/lib/visionCost";
 import { prepareOfficialImageReferences } from "@/lib/officialSupply/referencePreparation";
 import {
@@ -106,17 +106,17 @@ export const uploadOfficialAssetStorage: OfficialAssetStorage = {
  * Canonical asset moderation — the same vision owner as creator uploads. The
  * vision classification of the stored image is kept next to the verdict so
  * staging can save what the image shows. When vision could not run, the
- * result is explicitly `unavailable`. `observe` receives the usage witnesses of
- * every vision attempt of one call, including the internal fallback model.
+ * result is explicitly `unavailable`. `control` is checked by the vision owner
+ * before every provider POST, including the internal fallback model.
  */
-export function createVisionOfficialAssetModerator(
-  observe?: (attempts: readonly VisionCostEvidence[]) => void
-): OfficialAssetModerator {
+export function createVisionOfficialAssetModerator(control?: VisionRunControl): OfficialAssetModerator {
   return {
     async moderate(url) {
-      const result = await analyzeAssetImage(url);
+      const result = await analyzeAssetImage(url, 0, control);
       recordVisionCostAttempts(result.costAttempts);
-      observe?.(result.costAttempts);
+      if (result.stoppedBeforeProviderPost) {
+        return { status: "unavailable", reason: `asset vision moderation stopped: ${result.stoppedBeforeProviderPost}` };
+      }
       if (result.estimated) return { status: "unavailable", reason: "asset vision moderation unavailable" };
       return {
         status: "checked",
