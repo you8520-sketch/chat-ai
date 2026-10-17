@@ -9,7 +9,6 @@ import { computeAppearanceLockHash } from "@/lib/officialSupply/appearance";
 import {
   approvedAssetReviewTemplate,
   approvedAssetStatus,
-  knownVisionAttemptCostUsd,
   openApprovedAssetOperator,
   runApprovedAssetApply,
   runApprovedAssetIntake,
@@ -165,10 +164,7 @@ function productionDatabase(): boolean {
 
 const visionModerationMeter: ModerationMeter = {
   attemptsPerCall: visionModels().length,
-  createModerator: (observe) =>
-    createVisionOfficialAssetModerator((attempts) =>
-      observe(attempts.map((attempt) => ({ costUsd: knownVisionAttemptCostUsd(attempt) })))
-    ),
+  createModerator: (control) => createVisionOfficialAssetModerator(control),
 };
 
 async function runAssetStep(args: readonly string[]): Promise<boolean> {
@@ -188,9 +184,11 @@ async function runAssetStep(args: readonly string[]): Promise<boolean> {
     case "status":
       print(approvedAssetStatus(target));
       return true;
-    case "intake":
-      print(await runApprovedAssetIntake(target, { storage: uploadOfficialAssetStorage, imageOps: sharpOfficialImageOps }, execute));
-      return true;
+    case "intake": {
+      const report = await runApprovedAssetIntake(target, { storage: uploadOfficialAssetStorage, imageOps: sharpOfficialImageOps }, execute);
+      print(report);
+      return report.status !== "stopped";
+    }
     case "moderate": {
       const budget =
         flags.has("max-calls") || flags.has("max-cost-usd") || flags.has("per-call-reserve-usd")

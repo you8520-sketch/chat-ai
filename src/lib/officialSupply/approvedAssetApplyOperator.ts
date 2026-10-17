@@ -33,7 +33,7 @@ import type {
   OfficialVariationQaReport,
   QaCheck,
 } from "@/lib/officialSupply/types";
-import type { VisionCostEvidence } from "@/lib/vision";
+import type { VisionCostEvidence, VisionProviderPost, VisionRunControl } from "@/lib/vision";
 
 /**
  * Step-by-step operator for applying one approved manifest of external files
@@ -144,19 +144,32 @@ export function openApprovedAssetOperator(input: {
   return { store, draftKey, characterId: input.characterId, actor, candidates, bytesBySlot, approvedPlan };
 }
 
+/** Intake lease still held by another run; claim refuses it until it expires. */
+function liveIntakeLease(replacement: OfficialReplacementRecord, nowMs: number): string | null {
+  if (!replacement.leaseOwner) return null;
+  if (replacement.leaseExpiresAt != null && replacement.leaseExpiresAt < nowMs) return null;
+  const until = replacement.leaseExpiresAt != null ? new Date(replacement.leaseExpiresAt).toISOString() : "no expiry";
+  return `another intake holds the lease (${until})`;
+}
+
 function nextStep(
   replacement: OfficialReplacementRecord | null,
-  candidate: ApprovedAssetCandidate
+  candidate: ApprovedAssetCandidate,
+  nowMs: number
 ): { next: SlotStep; reason: string | null } {
   if (!replacement) return { next: "intake", reason: null };
   const matches = replacement.candidateSha256 === candidate.rawSha256;
+  const reclaim = (reason: string): { next: SlotStep; reason: string } => {
+    const lease = liveIntakeLease(replacement, nowMs);
+    return lease ? { next: "blocked", reason: lease } : { next: "intake", reason };
+  };
   switch (replacement.status) {
     case "applied":
       return matches ? { next: "applied", reason: null } : { next: "blocked", reason: "another file is applied" };
     case "approved":
       return matches ? { next: "apply", reason: null } : { next: "blocked", reason: "another file is approved" };
     case "generated": {
-      if (!matches) return { next: "intake", reason: "replaces an unreviewed candidate with another file" };
+      if (!matches) return reclaim("replaces an unreviewed candidate with another file");
       const verdict = officialModerationVerdict(replacement.moderation);
       switch (verdict) {
         case "missing":
@@ -176,9 +189,13 @@ function nextStep(
     case "rejected":
       return { next: "blocked", reason: matches ? "review rejected this file" : "review rejected another file" };
     case "planned":
+      return reclaim(
+        replacement.leaseOwner ? "previous intake lease expired before registration" : "previous intake stopped before registration"
+      );
+    case "failed":
+      return reclaim(`previous attempt failed${replacement.error ? `: ${replacement.error}` : ""}`);
     case "generating":
     case "upload_pending":
-    case "failed":
       return { next: "blocked", reason: `replacement is ${replacement.status}` };
     default: {
       const exhaustive: never = replacement.status;
@@ -187,11 +204,11 @@ function nextStep(
   }
 }
 
-export function slotStatuses(target: ApprovedAssetOperatorTarget): SlotStatus[] {
+export function slotStatuses(target: ApprovedAssetOperatorTarget, nowMs = Date.now()): SlotStatus[] {
   const replacements = new Map(target.store.listReplacements(target.draftKey).map((r) => [r.slotKey, r]));
   return target.candidates.map((candidate) => {
     const replacement = replacements.get(candidate.slot) ?? null;
-    const { next, reason } = nextStep(replacement, candidate);
+    const { next, reason } = nextStep(replacement, candidate, nowMs);
     return {
       slot: candidate.slot,
       tag: candidate.tag,
@@ -230,17 +247,34 @@ export function approvedAssetStatus(target: ApprovedAssetOperatorTarget) {
   };
 }
 
+/**
+ * Registers every slot whose next step is intake through the existing
+ * claim/register owner. A slot left planned or failed by an earlier run is
+ * reclaimed by the same claim CAS; a live lease, an approved/applied file or a
+ * running generation stays protected. The first failure stops the run and is
+ * reported with its slot and code, never as skipped or registered.
+ */
 export async function runApprovedAssetIntake(
   target: ApprovedAssetOperatorTarget,
-  deps: { storage: OfficialAssetStorage; imageOps: OfficialImageOps },
+  deps: { storage: OfficialAssetStorage; imageOps: OfficialImageOps; nowMs?: number },
   execute: boolean
 ) {
-  const statuses = slotStatuses(target);
+  const statuses = slotStatuses(target, deps.nowMs);
   const pending = statuses.filter((s) => s.next === "intake");
-  const registered: Array<{ slot: string; candidateUrl: string; candidateSha256: string }> = [];
-  if (execute) {
-    for (const status of pending) {
-      const candidate = target.candidates.find((c) => c.slot === status.slot)!;
+  const registered: Array<{ slot: string; candidateUrl: string; candidateSha256: string; resumed: string | null }> = [];
+  const report = (status: "planned" | "completed" | "stopped", failed: { slot: string; code: string; message: string } | null = null) => ({
+    step: "intake" as const,
+    execute,
+    status,
+    planned: pending.map((s) => ({ slot: s.slot, resumes: s.reason })),
+    registered,
+    failed,
+    skipped: statuses.filter((s) => s.next !== "intake").map((s) => ({ slot: s.slot, next: s.next, reason: s.reason })),
+  });
+  if (!execute) return report("planned");
+  for (const status of pending) {
+    const candidate = target.candidates.find((c) => c.slot === status.slot)!;
+    try {
       const record = await registerExternalOfficialAssetReplacement({
         store: target.store,
         storage: deps.storage,
@@ -250,31 +284,42 @@ export async function runApprovedAssetIntake(
         slotKey: candidate.slot,
         bytes: target.bytesBySlot.get(candidate.slot)!,
         approvedTag: candidate.tag,
+        nowMs: deps.nowMs,
       });
       if (record.candidateSha256 !== candidate.rawSha256 || !record.candidateResultUrl) {
         gate("operator_intake_sha", `${candidate.slot} stored candidate does not match the manifest SHA-256`);
       }
-      registered.push({ slot: candidate.slot, candidateUrl: record.candidateResultUrl, candidateSha256: record.candidateSha256 });
+      registered.push({
+        slot: candidate.slot,
+        candidateUrl: record.candidateResultUrl,
+        candidateSha256: record.candidateSha256,
+        resumed: status.reason,
+      });
+    } catch (error) {
+      const code = error instanceof OfficialSupplyGateError ? error.code : "intake_error";
+      return report("stopped", { slot: candidate.slot, code, message: (error as Error).message });
     }
   }
-  return {
-    step: "intake" as const,
-    execute,
-    planned: pending.map((s) => s.slot),
-    registered,
-    skipped: statuses.filter((s) => s.next !== "intake").map((s) => ({ slot: s.slot, next: s.next, reason: s.reason })),
-  };
+  return report("completed");
 }
 
-export type MeteredAttempt = { costUsd: number | null };
-
-/** Builds a moderator that reports every provider attempt of one call, fallback included. */
+/** Builds a moderator whose vision owner checks `control` before every provider POST, fallback included. */
 export type ModerationMeter = {
+  /** Provider POSTs one image may need (primary + internal fallback). */
   attemptsPerCall: number;
-  createModerator(observe: (attempts: readonly MeteredAttempt[]) => void): OfficialAssetModerator;
+  createModerator(control: VisionRunControl): OfficialAssetModerator;
 };
 
+/** Caps for one command run; reruns get their own caps and are not summed. */
 export type ModerationBudget = { maxCalls: number; maxCostUsd: number; perCallReserveUsd: number };
+
+type ModerationPost = {
+  slot: string;
+  model: string;
+  outcome: VisionProviderPost["outcome"];
+  confirmedCostUsd: number | null;
+  aboveReserve: boolean;
+};
 
 /** Billed cost of one vision attempt when the provider reported it; otherwise null. */
 export function knownVisionAttemptCostUsd(attempt: VisionCostEvidence): number | null {
@@ -287,9 +332,12 @@ function round6(value: number): number {
 }
 
 /**
- * Paid moderation is metered at the worst case: every image is charged
- * `attemptsPerCall` calls (primary + internal fallback), each unreported or
- * failed attempt at the per-call reserve. Default is a plan with zero calls.
+ * Paid moderation for one command run. Before every provider POST the vision
+ * owner asks this meter; a POST is refused when it would pass the call cap,
+ * when confirmed charges plus the reserve held for unknown-cost POSTs plus one
+ * more reserve would pass the cost cap, or after any confirmed charge above
+ * the per-call reserve. Unsent fallbacks and unused reserve are never reported
+ * as calls or charges. Default is a plan with zero calls.
  */
 export async function runApprovedAssetModeration(
   target: ApprovedAssetOperatorTarget,
@@ -301,25 +349,45 @@ export async function runApprovedAssetModeration(
   const pending = statuses.filter((s) => s.next === "moderate").map((s) => s.slot);
   const worstCaseCalls = pending.length * meter.attemptsPerCall;
   const plan = {
+    scope: "this command run" as const,
     pending,
     attemptsPerCall: meter.attemptsPerCall,
     worstCaseCalls,
     worstCaseCostUsd: budget ? round6(worstCaseCalls * budget.perCallReserveUsd) : null,
   };
-  const accounting = { chargedCalls: 0, observedAttempts: 0, chargedCostUsd: 0, knownCostUsd: 0 };
+  const posts: ModerationPost[] = [];
   const results: Array<{ slot: string; verdict: OfficialModerationVerdict }> = [];
-  const report = (status: "planned" | "completed" | "stopped", stopReason: string | null = null) => ({
+  const reserve = budget?.perCallReserveUsd ?? 0;
+  const confirmedCostUsd = () => posts.reduce((sum, p) => sum + (p.confirmedCostUsd ?? 0), 0);
+  const unknownCostPosts = () => posts.filter((p) => p.confirmedCostUsd == null).length;
+  const budgetUsedUsd = () => confirmedCostUsd() + unknownCostPosts() * reserve;
+  const report = (
+    status: "planned" | "completed" | "stopped",
+    stopReason: string | null = null,
+    error: { code: string; message: string } | null = null
+  ) => ({
     step: "moderate" as const,
     execute,
     status,
     stopReason,
+    error,
     plan,
     budget,
     accounting: {
-      ...accounting,
-      chargedCostUsd: round6(accounting.chargedCostUsd),
-      knownCostUsd: round6(accounting.knownCostUsd),
+      scope: "this command run" as const,
+      providerPosts: posts.length,
+      postsWithConfirmedCost: posts.length - unknownCostPosts(),
+      confirmedCostUsd: round6(confirmedCostUsd()),
+      postsWithUnknownCost: unknownCostPosts(),
+      unknownCostReserveHeldUsd: round6(unknownCostPosts() * reserve),
+      budgetUsedUsd: round6(budgetUsedUsd()),
+      reservedUsd: execute ? plan.worstCaseCostUsd : null,
+      unusedReserveUsd: execute && plan.worstCaseCostUsd != null ? round6(Math.max(0, plan.worstCaseCostUsd - budgetUsedUsd())) : null,
+      chargesAboveReserve: posts
+        .filter((p) => p.aboveReserve)
+        .map((p) => ({ slot: p.slot, model: p.model, confirmedCostUsd: p.confirmedCostUsd, reserveUsd: reserve })),
     },
+    posts,
     results,
     skipped: statuses.filter((s) => s.next !== "moderate").map((s) => ({ slot: s.slot, next: s.next })),
   });
@@ -338,30 +406,47 @@ export async function runApprovedAssetModeration(
       `${pending.length} images need up to ${worstCaseCalls} calls / ${plan.worstCaseCostUsd} USD; caps are ${budget.maxCalls} calls / ${budget.maxCostUsd} USD`
     );
   }
+  const refusal = (): string | null => {
+    const above = posts.find((p) => p.aboveReserve);
+    if (above) {
+      return `${above.slot} ${above.model} was billed ${above.confirmedCostUsd} USD, above the ${reserve} USD per-call reserve`;
+    }
+    if (posts.length + 1 > budget.maxCalls) return `call cap ${budget.maxCalls} reached`;
+    if (budgetUsedUsd() + reserve > budget.maxCostUsd + 1e-9) return `cost cap ${budget.maxCostUsd} USD would be exceeded`;
+    return null;
+  };
   for (const slot of pending) {
-    let observed: readonly MeteredAttempt[] = [];
-    const moderator = meter.createModerator((attempts) => {
-      observed = [...attempts];
+    const before = refusal();
+    if (before) return report("stopped", `${slot} not started: ${before}`);
+    const control = { refused: null as string | null };
+    const moderator = meter.createModerator({
+      beforeProviderPost: () => {
+        control.refused = refusal();
+        return control.refused;
+      },
+      afterProviderPost: (post) => {
+        const confirmed = post.cost ? knownVisionAttemptCostUsd(post.cost) : null;
+        posts.push({
+          slot,
+          model: post.model,
+          outcome: post.outcome,
+          confirmedCostUsd: confirmed,
+          aboveReserve: confirmed != null && confirmed > reserve,
+        });
+      },
     });
     let verdict: OfficialModerationVerdict;
     try {
       verdict = officialModerationVerdict(
         await moderateOfficialAssetReplacement({ store: target.store, moderator }, target.draftKey, slot)
       );
-    } finally {
-      const known = observed.map((a) => a.costUsd).filter((c): c is number => c != null);
-      accounting.chargedCalls += meter.attemptsPerCall;
-      accounting.observedAttempts += observed.length;
-      accounting.knownCostUsd += known.reduce((sum, c) => sum + c, 0);
-      accounting.chargedCostUsd +=
-        observed.reduce((sum, a) => sum + (a.costUsd ?? budget.perCallReserveUsd), 0) +
-        Math.max(0, meter.attemptsPerCall - observed.length) * budget.perCallReserveUsd;
+    } catch (error) {
+      const code = error instanceof OfficialSupplyGateError ? error.code : "moderation_error";
+      return report("stopped", `${slot} moderation failed`, { code, message: (error as Error).message });
     }
     results.push({ slot, verdict });
-    if (observed.length > meter.attemptsPerCall) return report("stopped", `${slot} made more attempts than planned`);
-    if (observed.some((a) => a.costUsd != null && a.costUsd > budget.perCallReserveUsd)) {
-      return report("stopped", `${slot} attempt cost exceeded the per-call reserve`);
-    }
+    if (control.refused) return report("stopped", `${slot}: ${control.refused}; the next provider POST was not sent`);
+    if (posts.some((p) => p.aboveReserve)) return report("stopped", refusal());
     if (verdict === "unavailable") return report("stopped", `${slot} moderation unavailable`);
   }
   return report("completed");
