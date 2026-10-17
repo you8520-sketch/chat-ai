@@ -51,7 +51,8 @@ export type OfficialGenerationReferenceInput = {
   styleSeed: StyleReference | null | undefined;
   representativeUrl: string | null | undefined;
   /**
-   * One local image that owns both identity and style for this request.
+   * One image that owns both identity and style for this request.
+   * A review candidate is `officialReviewCandidateReference(path, sha256)`.
    * Production callers omit it. Representative STYLE ONLY rejects it.
    */
   samePersonIdentityStyleUrl?: string | null;

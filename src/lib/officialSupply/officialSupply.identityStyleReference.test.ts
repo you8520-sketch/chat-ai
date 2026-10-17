@@ -11,6 +11,7 @@ import {
   officialGenerationReferenceRoleLayout,
   resolveOfficialGenerationReferencePlan,
 } from "@/lib/officialSupply/generationReferences";
+import { officialReviewCandidateReference } from "@/lib/officialSupply/referencePreparation";
 import {
   OFFICIAL_IDENTITY_COPY_FORBIDDEN_CLAUSE,
   buildOfficialAssetPrompts,
@@ -47,11 +48,10 @@ import {
 } from "@/lib/officialSupply/userOwnedRofanStyleRefs";
 import { installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/lib/test/isolatedTestDatabase";
 
-const F_PATH = path.join(
-  process.cwd(),
-  "docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp"
-);
+const F_RELATIVE = "docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp";
+const F_PATH = path.join(process.cwd(), F_RELATIVE);
 const F_SHA = "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032";
+const F_REFERENCE = officialReviewCandidateReference(F_RELATIVE, F_SHA);
 const PRODUCTION_REP = "https://hav.chat/uploads/official-pilot-rf-v4-02__rep-a1.webp";
 const ENV = { NEXTAUTH_URL: "https://example.test" } as NodeJS.ProcessEnv;
 const STAGING_USER = { id: 7101, nickname: "identity-style", is_adult: 1 as const };
@@ -155,7 +155,7 @@ after(() => {
 
 describe("same-person identity and style reference plan", () => {
   const seed = buildClusterBRofanStyleSeed(ENV);
-  const local = F_PATH;
+  const local = F_REFERENCE;
 
   it("keeps representative STYLE ONLY and Cluster B identity-then-style when no local image is supplied", () => {
     const representative = resolveOfficialGenerationReferencePlan({
@@ -408,7 +408,7 @@ describe("runner pre-send input for the local F candidate", () => {
     );
     const conflictCalls = calls.length;
     const conflict = await runOfficialAssetSlot(
-      deps({ samePersonIdentityStyleUrl: F_PATH }),
+      deps({ samePersonIdentityStyleUrl: F_REFERENCE }),
       conflictKey,
       "rep"
     );
@@ -423,20 +423,20 @@ describe("runner pre-send input for the local F candidate", () => {
       slotKey: "sig4",
       representativeUrl: liveRep,
       env: { OPENAI_IMAGE_MODEL: "gpt-image-2.5-sunburst" },
-      samePersonIdentityStyleUrl: F_PATH,
+      samePersonIdentityStyleUrl: F_REFERENCE,
     });
     assert.equal(composed.ok, true);
     if (!composed.ok) return;
 
     const sent = await runOfficialAssetSlot(
-      deps({ samePersonIdentityStyleUrl: F_PATH }),
+      deps({ samePersonIdentityStyleUrl: F_REFERENCE }),
       compiled.draft.draftKey,
       "sig4"
     );
     assert.equal(sent.status, "generated");
     const payload = calls.at(-1);
     assert.ok(payload);
-    assert.deepEqual(payload.references, [F_PATH]);
+    assert.deepEqual(payload.references, [F_REFERENCE]);
     assert.equal(payload.references.includes(liveRep), false);
     assert.equal(payload.references.includes(seed.url), false);
     assert.equal(payload.primaryPrompt, composed.primaryPrompt);
@@ -449,7 +449,7 @@ describe("runner pre-send input for the local F candidate", () => {
     assert.equal(calls.length, repCalls + 2);
     assert.equal(egressAttempts.length, 0);
 
-    const stopped = deps({ samePersonIdentityStyleUrl: F_PATH });
+    const stopped = deps({ samePersonIdentityStyleUrl: F_REFERENCE });
     stopped.transport = {
       generate: async () => {
         throw new OfficialImageTransportError("provider must not be called twice", 0, false, false);

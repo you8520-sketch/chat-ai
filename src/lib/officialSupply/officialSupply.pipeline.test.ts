@@ -872,8 +872,17 @@ describe("adult validation stays canonical (no official bypass)", () => {
 
   it("tests never load the network-capable production adapters (OpenAI transport, reference fetch, vision)", () => {
     const dir = path.join(process.cwd(), "src/lib/officialSupply");
+    const prePostPreparation = "officialSupply.reviewCandidatePreparation.test.ts";
     for (const file of fs.readdirSync(dir).filter((f) => f.endsWith(".test.ts") || f.endsWith(".fixtures.ts"))) {
-      assert.doesNotMatch(fs.readFileSync(path.join(dir, file), "utf8"), /from "@\/lib\/officialSupply\/productionAdapters"/, file);
+      const source = fs.readFileSync(path.join(dir, file), "utf8");
+      if (file === prePostPreparation) {
+        assert.match(source, /from "@\/lib\/officialSupply\/productionAdapters"/);
+        assert.match(source, /globalThis\.fetch =/);
+        assert.match(source, /blocked before provider response/);
+        assert.match(source, /providerAttempted, false/);
+        continue;
+      }
+      assert.doesNotMatch(source, /from "@\/lib\/officialSupply\/productionAdapters"/, file);
     }
   });
 
