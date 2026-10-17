@@ -13,7 +13,7 @@
 
 import type { ChatMsg } from "@/lib/ai";
 import {
-  isCheaperInferenceGemini38FlashModel,
+  GEMINI_38_FLASH_MODEL,
   OPENROUTER_GEMINI_38_FLASH_MODEL,
 } from "@/lib/chatModels";
 import type { ContentKind } from "@/lib/simulationMode";
@@ -667,10 +667,8 @@ export const TERMINAL_DIALOGUE_BUDGET_OWNER =
 
 function usesGemini38TerminalDialogueAxis(modelId?: string | null): boolean {
   if (!modelId?.trim()) return false;
-  const id = modelId.trim();
-  if (isCheaperInferenceGemini38FlashModel(id)) return true;
-  if (id === OPENROUTER_GEMINI_38_FLASH_MODEL) return true;
-  return id.toLowerCase().includes("gemini-3.8-flash");
+  const id = modelId.trim().toLowerCase();
+  return id === GEMINI_38_FLASH_MODEL || id === OPENROUTER_GEMINI_38_FLASH_MODEL;
 }
 
 function terminalDialogueAxisLineForModel(modelId?: string | null): string {

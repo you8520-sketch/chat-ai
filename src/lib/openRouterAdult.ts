@@ -1380,7 +1380,7 @@ function applyProductionServerControlsPreservingCacheBoundaries(
   const applied = applyProductionServerControlsToMessages({
     messages: flatBefore,
     ...controls,
-    modelId: modelId ?? controls.modelId,
+    modelId,
   });
 
   return applied.messages.map((message, index) => {
@@ -1447,7 +1447,7 @@ export function assemblePrimaryRpRequest(opts: {
     messages = applyProductionServerControlsPreservingCacheBoundaries(
       messages,
       controls,
-      opts.modelId
+      normalizeOpenRouterModelId(modelId)
     );
   }
   if (transport.provider === "cheaperinference") {

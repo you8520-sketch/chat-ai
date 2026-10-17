@@ -4,7 +4,8 @@
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { assemblePrimaryRpRequest } from "@/lib/openRouterAdult";
+import { assemblePrimaryRpRequest, OPENROUTER_ADULT_MODEL } from "@/lib/openRouterAdult";
+import { normalizeOpenRouterModelId } from "@/lib/openRouterConfig";
 import {
   applyProductionServerControlsToMessages,
   GEMINI_38_TERMINAL_DIALOGUE_AXIS_LINE,
@@ -107,7 +108,7 @@ function flatMessageList(result: ReturnType<typeof assemble>): string {
 }
 
 describe("Gemini 3.8 terminal dialogue axis", () => {
-  it("keeps the shared line when the model is omitted, Sol, Opus, Argon, or a retired Gemini id", () => {
+  it("keeps the shared line when the model is omitted, Sol, Opus, Argon, a retired Gemini id, or an unregistered lookalike", () => {
     const unchanged = [
       undefined,
       "",
@@ -120,6 +121,12 @@ describe("Gemini 3.8 terminal dialogue axis", () => {
       "google/gemini-3.1-pro-preview",
       "gemini-3.7-flash",
       "google/gemini-3.7-flash",
+      "x-gemini-3.8-flash",
+      "gemini-3.8-flash-extra",
+      "google/gemini-3.8-flash-20260902",
+      "prefix/google/gemini-3.8-flash",
+      "gemini-3.8-flash:batch",
+      "not-gemini-3.8-flash",
     ];
     for (const modelId of unchanged) {
       const owner = renderTerminalDialogueBudgetOwner(4, modelId);
@@ -133,7 +140,12 @@ describe("Gemini 3.8 terminal dialogue axis", () => {
   });
 
   it("replaces only the second line for canonical and wire Gemini 3.8 ids", () => {
-    for (const modelId of [GEMINI_38_FLASH_MODEL, OPENROUTER_GEMINI_38_FLASH_MODEL, "Google/Gemini-3.8-Flash"]) {
+    for (const modelId of [
+      GEMINI_38_FLASH_MODEL,
+      OPENROUTER_GEMINI_38_FLASH_MODEL,
+      " Gemini-3.8-Flash ",
+      "Google/Gemini-3.8-Flash",
+    ]) {
       const owner = renderTerminalDialogueBudgetOwner(6, modelId);
       const lines = owner.split("\n");
       assert.equal(lines.length, 3, modelId);
@@ -215,12 +227,37 @@ describe("Gemini 3.8 terminal dialogue axis", () => {
     assert.equal(flatMessageList(assemble(CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL)), solMessages);
     assert.equal(flatMessageList(assemble(OPENROUTER_GEMINI_4_ARGON_MODEL)), solMessages);
     assert.equal(flatMessageList(assemble(undefined)), solMessages);
-    const fromControls = flatMessages(assemble(undefined, GEMINI_38_FLASH_MODEL));
-    assert.equal(count(fromControls, GEMINI_38_TERMINAL_DIALOGUE_AXIS_LINE), 1);
-    const requestWins = flatMessages(
-      assemble(CHEAPER_INFERENCE_GPT_61_SOL_MODEL, GEMINI_38_FLASH_MODEL)
-    );
-    assert.equal(count(requestWins, TERMINAL_DIALOGUE_AXIS_LINE), 1);
-    assert.equal(count(requestWins, GEMINI_38_TERMINAL_DIALOGUE_AXIS_LINE), 0);
+    const defaultModel = normalizeOpenRouterModelId(OPENROUTER_ADULT_MODEL);
+    const controlsOnly = JSON.parse(flatMessages(assemble(undefined, GEMINI_38_FLASH_MODEL))) as {
+      model: string;
+    };
+    assert.equal(controlsOnly.model, defaultModel);
+    const controlsOnlyText = JSON.stringify(controlsOnly);
+    if (
+      defaultModel.toLowerCase() === GEMINI_38_FLASH_MODEL ||
+      defaultModel.toLowerCase() === OPENROUTER_GEMINI_38_FLASH_MODEL
+    ) {
+      assert.equal(count(controlsOnlyText, GEMINI_38_TERMINAL_DIALOGUE_AXIS_LINE), 1);
+    } else {
+      assert.equal(count(controlsOnlyText, TERMINAL_DIALOGUE_AXIS_LINE), 1);
+      assert.equal(count(controlsOnlyText, GEMINI_38_TERMINAL_DIALOGUE_AXIS_LINE), 0);
+    }
+    const requestWins = JSON.parse(
+      flatMessages(assemble(CHEAPER_INFERENCE_GPT_61_SOL_MODEL, GEMINI_38_FLASH_MODEL))
+    ) as { model: string };
+    assert.equal(requestWins.model, CHEAPER_INFERENCE_GPT_61_SOL_MODEL);
+    const requestWinsText = JSON.stringify(requestWins);
+    assert.equal(count(requestWinsText, TERMINAL_DIALOGUE_AXIS_LINE), 1);
+    assert.equal(count(requestWinsText, GEMINI_38_TERMINAL_DIALOGUE_AXIS_LINE), 0);
+    const explicitGemini = JSON.parse(
+      flatMessages(assemble(OPENROUTER_GEMINI_38_FLASH_MODEL, CHEAPER_INFERENCE_GPT_61_SOL_MODEL))
+    ) as { model: string };
+    assert.equal(explicitGemini.model, OPENROUTER_GEMINI_38_FLASH_MODEL);
+    const explicitGeminiText = JSON.stringify(explicitGemini);
+    assert.equal(count(explicitGeminiText, GEMINI_38_TERMINAL_DIALOGUE_AXIS_LINE), 1);
+    assert.equal(count(explicitGeminiText, TERMINAL_DIALOGUE_AXIS_LINE), 0);
+    const lookalike = flatMessages(assemble("google/gemini-3.8-flash-extra"));
+    assert.equal(count(lookalike, GEMINI_38_TERMINAL_DIALOGUE_AXIS_LINE), 0);
+    assert.equal(count(lookalike, TERMINAL_DIALOGUE_AXIS_LINE), 1);
   });
 });
