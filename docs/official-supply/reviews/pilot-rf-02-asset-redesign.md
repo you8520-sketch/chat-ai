@@ -358,3 +358,11 @@ A 대 B는 모델 비교다. A 대 C는 실험 prompt 비교다. B 대 C는 모�
 ![모피 같은 창](./assets/wolfgang-asset-redesign/compare-abc-fur.webp)
 
 ![금속 같은 창](./assets/wolfgang-asset-redesign/compare-abc-metal.webp)
+
+## 12. 조건 D
+
+D는 `gpt-image-2`에 C의 전송문을 그대로 쓴다. prompt SHA `34e866261b217a5a54f84f0cb1a052c7a26be378d292b8c45cc590d856ef9238`. 참조는 B·C가 쓴 `rep-abc-prepared/b7.webp`, `b13.webp`, `b5.webp`를 같은 순서·같은 바이트로 쓴다. 전처리 SHA는 b7 `ba5f3896…7b5b89`, b13 `f13d1f15…e13592`, b5 `80e0ab0c…c2efbf`. 출력은 1024x1536, medium, n=1, webp 88, opaque. 흉터 강조, 의상 수정, 참조 교체는 이 요청에 넣지 않는다.
+
+이 실험의 한도는 POST 1회, 0.10 USD다. 같은 모델인 B의 관측 비용은 0.087244 USD이고, D의 문장은 그보다 짧다. 이미지 입력은 같다. 예상은 0.10 USD 안이다. 비용식은 기존 `calculateGptImage2CostUsd`다. 운영 compiler는 바꾸지 않는다.
+
+비교 축은 B 대 D가 같은 모델·같은 참조의 prompt 차이고, C 대 D가 같은 prompt·같은 참조의 모델 차이다. A는 과거 결과로 둔다. A의 전처리 바이트가 복원된 것은 아니다.
