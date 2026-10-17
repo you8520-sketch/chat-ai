@@ -1,0 +1,45 @@
+{
+  "status": "READY",
+  "providerPosts": 0,
+  "sent": false,
+  "method": "Reuse E's callOpenAiImageEdit path, prompt, and prepared bytes. Change only the model to gpt-image-2.5-sunburst.",
+  "baseImage": {
+    "storedAs": "reattach-2026-10-17/03-eval_style.webp",
+    "sha256": "7814a3950742201a5a0d9fff3b38b9ad3d706b93d52b6d3b603221c3d5aab699",
+    "role": "the only edit source"
+  },
+  "preparedReference": {
+    "file": "rep-e-prepared/source.webp",
+    "sha256": "8d3b42d117198038a2608fa5e3b8eaf366416efa530aab120222c4a6171a90fa",
+    "bytes": 183858,
+    "reuse": "byte-identical to the file E actually sent"
+  },
+  "excludedFromThisInput": [
+    "reattach 09, 10, 11",
+    "prepared b7, b13, b5",
+    "production representative",
+    "A, B, C, D outputs",
+    "E output pixels"
+  ],
+  "settings": {
+    "model": "gpt-image-2.5-sunburst",
+    "size": "1024x1536",
+    "quality": "medium",
+    "n": 1,
+    "outputFormat": "webp",
+    "outputCompression": 88,
+    "background": "opaque",
+    "referenceCount": 1
+  },
+  "promptFile": "rep-edit-input-prompt.txt",
+  "promptSha256": "e24378f1f1b5de20ca7ff21f54f206aa73e21776b4350938b2f81e58883de46e",
+  "promptUnchangedFromE": true,
+  "noScarRewrite": true,
+  "noEmblemBan": true,
+  "noNewStyleOrGlossRules": true,
+  "appearanceLockSourceUnchanged": true,
+  "appearanceLockHash": "1c3ccd134203a6dea6ae869c27cc443c42ff5498d1d0130c6f9765407c24dcc3",
+  "compilerUnchanged": true,
+  "budgetUsd": 0.08,
+  "postsAuthorized": 1
+}
