@@ -1,0 +1,31 @@
+Memory/episodic direct suite (111 files: src/lib/memory/*.test.ts + src/lib/episodic*.test.ts), --test-concurrency=4
+base 83b9bd60:
+# tests 1345
+# pass 1283
+# fail 62
+PR 4e2b466d:
+# tests 1348
+# pass 1286
+# fail 62
+failing test names only on PR: 0
+failing test names only on base: 0
+
+Wider set (193 files: memory + every test importing episodicMemoryFacts/contextBuilder), --test-concurrency=4
+base:
+# tests 2337
+# pass 2232
+# fail 105
+PR:
+# tests 2340
+# pass 2235
+# fail 105
+differing names (SQLITE_BUSY 'database is locked' flakes; both files pass 22/22 when run alone on PR):
+matrix B=false N=false C=false R=false
+matrix B=true N=false C=false R=false
+	Persona Secret design verification — synthetic integration
+PR-S0 structural secret isolation
+	Scenario 0 — secret stored, initially unknown to all observers
+	Scenario 1 — S1 direct disclosure: A CONFIRMED, B UNKNOWN, no cross-observer leak
+
+New regression (memory-episodic-long-horizon.test.ts 'RELEVANCE lane — mid-history event behind recurring-name rows'):
+base 83b9bd60: 1 pass / 2 fail; lane-only cd963ce5: 1 pass / 2 fail; PR 4e2b466d: 3 pass / 0 fail

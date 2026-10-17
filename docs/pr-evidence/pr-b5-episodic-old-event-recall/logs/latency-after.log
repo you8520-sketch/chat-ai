@@ -1,0 +1,9 @@
+H=150 rows=198 query="그러고 보니 우리 예전에 지하실에…" median_ms=4.60 p90_ms=6.11
+H=150 rows=198 query="그때 등대에서 루카가 찾았던 붉은…" median_ms=3.46 p90_ms=4.00
+H=150 rows=198 query="오늘 날씨 좋다.…" median_ms=1.98 p90_ms=2.31
+H=1000 rows=1332 query="그러고 보니 우리 예전에 지하실에…" median_ms=7.88 p90_ms=8.38
+H=1000 rows=1332 query="그때 등대에서 루카가 찾았던 붉은…" median_ms=6.69 p90_ms=6.98
+H=1000 rows=1332 query="오늘 날씨 좋다.…" median_ms=4.31 p90_ms=4.61
+H=4000 rows=5332 query="그러고 보니 우리 예전에 지하실에…" median_ms=22.09 p90_ms=22.50
+H=4000 rows=5332 query="그때 등대에서 루카가 찾았던 붉은…" median_ms=18.75 p90_ms=19.12
+H=4000 rows=5332 query="오늘 날씨 좋다.…" median_ms=13.20 p90_ms=13.49

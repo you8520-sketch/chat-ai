@@ -1,0 +1,30 @@
+[A 오래된 사건(NPC 단서 발견)] H=30 rows=39 relevanceLane=0 A_T12:INJECTED#1 | injected turns=[12,13,11,18,24,22,21,19] chars=964 tokens≈868 ms=13.3
+[A 오래된 사건(NPC 단서 발견)] H=50 rows=66 relevanceLane=4(T2-T4) A_T12:INJECTED#1 | injected turns=[12,43,41,28,26,13,11,45] chars=983 tokens≈885 ms=5.6
+[A 오래된 사건(NPC 단서 발견)] H=80 rows=106 relevanceLane=25(T3-T34) A_T12:INJECTED#1 | injected turns=[12,73,71,58,56,43,41,28] chars=982 tokens≈884 ms=10
+[A 오래된 사건(NPC 단서 발견)] H=150 rows=199 relevanceLane=25(T11-T103) A_T12:INJECTED#1 | injected turns=[12,133,131,118,116,103,101,88] chars=988 tokens≈890 ms=7.9
+[A 오래된 사건(NPC 단서 발견)] H=500 rows=666 relevanceLane=25(T12-T448) A_T12:INJECTED#1 | injected turns=[12,493,491,478,476,463,461,448] chars=989 tokens≈891 ms=11.4
+[A 오래된 사건(NPC 단서 발견)] H=1000 rows=1333 relevanceLane=25(T12-T943) A_T12:INJECTED#1 | injected turns=[12,988,986,973,971,958,956,943] chars=989 tokens≈891 ms=17.7
+[B NPC 행동(배신)] H=50 rows=66 relevanceLane=3(T3-T4) B_T25:INJECTED#1 | injected turns=[25,9,45,39,37,34,30,24] chars=990 tokens≈891 ms=4.5
+[B NPC 행동(배신)] H=80 rows=106 relevanceLane=18(T3-T34) B_T25:INJECTED#1 | injected turns=[25,54,9,75,69,67,64,60] chars=990 tokens≈891 ms=5.5
+[B NPC 행동(배신)] H=150 rows=199 relevanceLane=25(T15-T99) B_T25:INJECTED#1 | injected turns=[25,144,99,54,9,142,139,135] chars=994 tokens≈895 ms=6.8
+[B NPC 행동(배신)] H=500 rows=666 relevanceLane=25(T364-T454) B_T25:INJECTED#1 | injected turns=[25,459,414,369,54,9,495,489] chars=1003 tokens≈903 ms=12.2
+[B NPC 행동(배신)] H=1000 rows=1333 relevanceLane=25(T862-T952) B_T25:INJECTED#1 | injected turns=[25,909,864,54,9,994,990,984] chars=1000 tokens≈900 ms=14.7
+[C 관계 변화(불신 → 화해)] H=80 rows=107 relevanceLane=19(T1-T34) C_T20:INJECTED#3 C_T60:INJECTED#2 | injected turns=[63,60,20,18,74,71,67,64] chars=989 tokens≈891 ms=6
+[C 관계 변화(불신 → 화해)] H=150 rows=200 relevanceLane=25(T52-T104) C_T20:INJECTED#4 C_T60:INJECTED#3 | injected turns=[108,63,60,20,18,142,139,138] chars=981 tokens≈883 ms=8.7
+[C 관계 변화(불신 → 화해)] H=500 rows=667 relevanceLane=25(T406-T454) C_T20:INJECTED#5 C_T60:INJECTED#4 | injected turns=[468,423,63,60,20,18,494,491] chars=985 tokens≈887 ms=10.4
+[C 관계 변화(불신 → 화해)] H=1000 rows=1334 relevanceLane=25(T903-T952) C_T20:INJECTED#5 C_T60:INJECTED#4 | injected turns=[963,918,63,60,20,18,994,993] chars=978 tokens≈881 ms=16.5
+[D 감정 변화(상실 → 위로)] H=50 rows=67 relevanceLane=4(T2-T5) D_T15:INJECTED#1 D_T40:INJECTED#2 | injected turns=[15,40,18,35,33,33,32,20] chars=982 tokens≈884 ms=4.1
+[D 감정 변화(상실 → 위로)] H=80 rows=107 relevanceLane=13(T2-T35) D_T15:INJECTED#1 D_T40:INJECTED#2 | injected turns=[15,40,63,18,65,63,62,50] chars=982 tokens≈884 ms=5
+[D 감정 변화(상실 → 위로)] H=150 rows=200 relevanceLane=25(T15-T95) D_T15:INJECTED#1 D_T40:INJECTED#2 | injected turns=[15,40,108,63,18,140,138,138] chars=976 tokens≈879 ms=6.6
+[D 감정 변화(상실 → 위로)] H=500 rows=667 relevanceLane=25(T15-T453) D_T15:INJECTED#1 D_T40:INJECTED#2 | injected turns=[15,40,468,423,378,63,18,485] chars=976 tokens≈879 ms=10.9
+[D 감정 변화(상실 → 위로)] H=1000 rows=1334 relevanceLane=25(T15-T950) D_T15:INJECTED#1 D_T40:INJECTED#2 | injected turns=[15,40,963,918,873,63,18,995] chars=976 tokens≈879 ms=14.8
+[E 시간적 사실 갱신(부상 → 회복)] H=150 rows=200 relevanceLane=16(T1-T104) E_T30:RECONCILED_OUT E_T80:INJECTED#1 | injected turns=[80,136,134,121,119,106,104,91] chars=975 tokens≈878 ms=6
+[E 시간적 사실 갱신(부상 → 회복)] H=500 rows=667 relevanceLane=25(T30-T451) E_T30:RECONCILED_OUT E_T80:INJECTED#1 | injected turns=[80,494,481,479,466,464,451,449] chars=971 tokens≈874 ms=10.9
+[E 시간적 사실 갱신(부상 → 회복)] H=1000 rows=1334 relevanceLane=25(T30-T946) E_T30:RECONCILED_OUT E_T80:INJECTED#1 | injected turns=[80,991,989,976,974,961,959,946] chars=976 tokens≈879 ms=13
+[A2 중간 이력의 일반 사건(T300 단서)] H=500 rows=666 relevanceLane=25(T300-T450) A2_T300:INJECTED#1 | injected turns=[300,495,486,450,441,405,396,90] chars=965 tokens≈869 ms=8.7
+[A2 중간 이력의 일반 사건(T300 단서)] H=1000 rows=1333 relevanceLane=25(T300-T951) A2_T300:INJECTED#1 | injected turns=[300,990,981,945,936,900,90,81] chars=964 tokens≈868 ms=15.1
+[F 근거 없는 질문(기록 없는 장소)] H=50 rows=66 relevanceLane=1(T4-T4) F_T25:INJECTED#1 | injected turns=[25,9,45,39,37,34,30,24] chars=990 tokens≈891 ms=3.8
+[F 근거 없는 질문(기록 없는 장소)] H=80 rows=106 relevanceLane=10(T4-T34) F_T25:INJECTED#1 | injected turns=[25,54,9,75,69,67,64,60] chars=990 tokens≈891 ms=4.3
+[F 근거 없는 질문(기록 없는 장소)] H=150 rows=199 relevanceLane=25(T15-T99) F_T25:INJECTED#1 | injected turns=[25,144,99,54,9,142,139,135] chars=994 tokens≈895 ms=6
+[F 근거 없는 질문(기록 없는 장소)] H=500 rows=666 relevanceLane=25(T364-T454) F_T25:INJECTED#1 | injected turns=[25,459,414,369,54,9,495,489] chars=1003 tokens≈903 ms=10
+[F 근거 없는 질문(기록 없는 장소)] H=1000 rows=1333 relevanceLane=25(T862-T952) F_T25:INJECTED#1 | injected turns=[25,909,864,54,9,994,990,984] chars=1000 tokens≈900 ms=13.2
