@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 
 import AdultContentBadge from "@/components/AdultContentBadge";
+import CardTagScrollRow from "@/components/CardTagScrollRow";
 import CharacterCardCarousel from "@/components/CharacterCardCarousel";
 import { characterCardHref } from "@/lib/chatLinks";
 import { characterRevealAttrs } from "@/lib/characterReveal";
@@ -161,26 +162,41 @@ function revealAttrs(c: CharacterRow, view: CardView): Record<string, string> {
 
 const HOME_OFFICIAL_BADGE =
   "rounded-md border border-white/10 bg-violet-600/90 px-1.5 py-1 text-[9px] font-bold leading-none text-white shadow-sm backdrop-blur";
+const HOME_SIMULATION_BADGE =
+  "rounded-md border border-white/10 bg-cyan-700/90 px-1.5 py-1 text-[9px] font-bold leading-none text-white shadow-sm backdrop-blur";
+const HOME_BADGE_GROUP = "absolute left-2.5 top-2.5 z-[4] flex flex-wrap gap-1";
 
-function CardBadges({ c, officialClassName = HOME_OFFICIAL_BADGE }: { c: CharacterRow; officialClassName?: string }) {
+type BadgeChrome = { official: string; simulation: string; group: string; groupWithAdult?: string; adult?: string };
+
+const HOME_BADGES: BadgeChrome = {
+  official: HOME_OFFICIAL_BADGE,
+  simulation: HOME_SIMULATION_BADGE,
+  group: HOME_BADGE_GROUP,
+};
+
+function CardBadges({ c, chrome = HOME_BADGES }: { c: CharacterRow; chrome?: BadgeChrome }) {
   return (
     <>
-      {c.nsfw === 1 && <AdultContentBadge className="absolute right-2.5 top-2.5 z-[4] shadow-sm" />}
-      <div className="absolute left-2.5 top-2.5 z-[4] flex flex-wrap gap-1">
-        {c.official === 1 && (
-          <span className={officialClassName}>공식</span>
-        )}
-        {c.content_kind === "simulation" && (
-          <span className="rounded-md border border-white/10 bg-cyan-700/90 px-1.5 py-1 text-[9px] font-bold leading-none text-white shadow-sm backdrop-blur">
-            다인 시뮬
-          </span>
-        )}
+      {c.nsfw === 1 && <AdultContentBadge className={cn("absolute right-2.5 top-2.5 z-[4] shadow-sm", chrome.adult)} />}
+      <div className={cn(chrome.group, c.nsfw === 1 && chrome.groupWithAdult)}>
+        {c.official === 1 && <span className={chrome.official}>공식</span>}
+        {c.content_kind === "simulation" && <span className={chrome.simulation}>다인 시뮬</span>}
       </div>
     </>
   );
 }
 
-function CreatorLine({ view, className, byClassName }: { view: CardView; className?: string; byClassName?: string }) {
+function CreatorLine({
+  view,
+  className,
+  byClassName,
+  linkClassName = "line-clamp-1 text-[11px]",
+}: {
+  view: CardView;
+  className?: string;
+  byClassName?: string;
+  linkClassName?: string;
+}) {
   if (!view.creatorName) return null;
   const { creatorStyle } = view;
   const inner = (
@@ -197,27 +213,36 @@ function CreatorLine({ view, className, byClassName }: { view: CardView; classNa
     return (
       <Link
         href={view.creatorHref}
-        className={cn("line-clamp-1 text-[11px] transition hover:text-violet-200", creatorStyle.nameClassName, className)}
+        className={cn(linkClassName, "transition hover:text-violet-200", creatorStyle.nameClassName, className)}
         title={`${view.creatorName} 프로필`}
       >
         {inner}
       </Link>
     );
   }
-  return <p className={cn("line-clamp-1 text-[11px]", creatorStyle.nameClassName, className)}>{inner}</p>;
+  return <p className={cn(linkClassName, creatorStyle.nameClassName, className)}>{inner}</p>;
 }
 
-function CardTags({ tags, max, className, tagClassName }: { tags: string[]; max: number; className: string; tagClassName: string }) {
+function CardTags({
+  tags,
+  max,
+  className,
+  tagClassName,
+  scrollRow = false,
+}: {
+  tags: string[];
+  max: number;
+  className: string;
+  tagClassName: string;
+  scrollRow?: boolean;
+}) {
   if (tags.length === 0) return null;
-  return (
-    <div className={className}>
-      {tags.slice(0, max).map((t) => (
-        <Link key={t} href={`/search?q=${encodeURIComponent(t)}`} className={tagClassName}>
-          #{t}
-        </Link>
-      ))}
-    </div>
-  );
+  const links = tags.slice(0, max).map((t) => (
+    <Link key={t} href={`/search?q=${encodeURIComponent(t)}`} className={tagClassName}>
+      #{t}
+    </Link>
+  ));
+  return scrollRow ? <CardTagScrollRow className={className}>{links}</CardTagScrollRow> : <div className={className}>{links}</div>;
 }
 
 function CardEmoji({ emoji, hidden }: { emoji: string; hidden: boolean }) {
@@ -390,15 +415,28 @@ const DEFAULT_CHROME = {
   keyline: "pointer-events-none absolute inset-0 z-[2] rounded-t-[1.15rem] border-x border-t border-white/[0.08]",
   overlay:
     "absolute inset-0 z-[3] flex items-center justify-center bg-[#07081a]/65 px-2 text-center text-[11px] font-semibold text-white sm:text-xs",
-  official:
-    "rounded-md border border-violet-200/25 bg-[#241a52]/85 px-1.5 py-1 text-[9px] font-bold leading-none text-violet-100 shadow-sm backdrop-blur",
-  body: "relative z-[2] -mt-7 flex min-h-[9.5rem] flex-1 flex-col gap-1.5 px-4 pb-4",
-  eyebrow: "line-clamp-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-200/70",
-  name: "line-clamp-2 text-[16.5px] font-bold leading-[1.2] tracking-[-0.03em] text-white transition group-hover/card:text-violet-100 [overflow-wrap:anywhere]",
+  badges: {
+    official:
+      "rounded-md border border-violet-200/25 bg-[#241a52]/85 px-2 py-[3px] text-[10.5px] font-bold leading-none text-violet-100 shadow-sm backdrop-blur",
+    simulation:
+      "rounded-md border border-white/10 bg-cyan-700/90 px-2 py-[3px] text-[10.5px] font-bold leading-none text-white shadow-sm backdrop-blur",
+    group: HOME_BADGE_GROUP,
+    groupWithAdult: "max-w-[calc(100%-5rem)]",
+  } satisfies BadgeChrome,
+  // Links own their vertical padding (no flex gap) so the 24px+ targets touch instead of overlapping.
+  body: "@container/card relative z-[2] -mt-7 flex min-h-[9.5rem] flex-1 flex-col px-3.5 pb-3.5",
+  eyebrow: "line-clamp-1 pb-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-violet-200/80",
+  nameLink: "block min-w-0 py-1",
+  name: "line-clamp-2 @min-[8rem]/card:break-keep text-[17px] font-bold leading-[1.22] tracking-[-0.03em] text-white transition group-hover/card:text-violet-100 [overflow-wrap:anywhere]",
+  creatorLink: "block truncate py-1 text-[12.5px] leading-4",
   creatorBy: "text-zinc-400",
-  tagline: "line-clamp-2 min-h-[2.5rem] text-[12.5px] leading-5 text-zinc-300/90",
-  tagsWrap: "mt-auto flex max-h-[1.9rem] flex-wrap gap-1.5 overflow-hidden pt-1.5",
-  tag: "max-w-full truncate rounded-full bg-white/[0.05] px-2 py-0.5 text-[10.5px] font-medium text-zinc-300 ring-1 ring-inset ring-white/10 transition hover:bg-violet-400/20 hover:text-white hover:ring-violet-300/30",
+  taglineLink: "block min-w-0 py-1",
+  tagline: "line-clamp-2 min-h-[2.4rem] text-[13px] leading-[1.45] text-zinc-300/90 [overflow-wrap:anywhere]",
+  emptyTagline: "min-h-[2.4rem] text-[13px] leading-[1.45] text-zinc-400",
+  // One swipeable row: every tag stays reachable and focusable, and the card height does not depend on tag count.
+  tagsWrap:
+    "scrollbar-hide -mx-3.5 mt-auto flex flex-nowrap gap-1.5 overflow-x-auto overscroll-x-contain scroll-px-3.5 px-3.5 pt-2 [mask-image:linear-gradient(to_right,#000_calc(100%-14px),transparent)]",
+  tag: "block h-6 max-w-[11rem] shrink-0 truncate rounded-full bg-white/[0.05] px-2.5 text-[12px] font-medium leading-6 text-zinc-300 outline-none ring-1 ring-inset ring-white/10 transition hover:bg-violet-400/20 hover:text-white hover:ring-violet-300/30 focus-visible:ring-2 focus-visible:ring-violet-300/80",
 } as const;
 
 function DefaultCard({ c, view }: { c: CharacterRow; view: CardView }) {
@@ -421,25 +459,29 @@ function DefaultCard({ c, view }: { c: CharacterRow; view: CardView }) {
           )}
           <span aria-hidden className={chrome.fade} />
           <span aria-hidden className={chrome.keyline} />
-          <CardBadges c={c} officialClassName={chrome.official} />
+          <CardBadges c={c} chrome={chrome.badges} />
           {view.hidden && <div className={chrome.overlay}>{view.overlayLabel}</div>}
         </div>
       </Link>
 
       <div className={chrome.body}>
         {view.genreLabel ? <p className={chrome.eyebrow}>{view.genreLabel}</p> : null}
-        <Link href={view.href} className={cn("min-w-0", FOCUS)}>
+        <Link href={view.href} className={cn(chrome.nameLink, FOCUS)}>
           <h3 className={chrome.name}>{c.name}</h3>
         </Link>
-        <CreatorLine view={view} byClassName={chrome.creatorBy} />
-        <Link href={view.href} className={cn("min-w-0", FOCUS)}>
+        <CreatorLine
+          view={view}
+          byClassName={chrome.creatorBy}
+          linkClassName={cn(chrome.creatorLink, view.creatorHref && FOCUS)}
+        />
+        <Link href={view.href} className={cn(chrome.taglineLink, FOCUS)}>
           {view.displayTagline ? (
             <p className={chrome.tagline}>{view.displayTagline}</p>
           ) : (
-            <p className="min-h-[2.5rem] text-xs leading-5 text-zinc-400">한 줄 소개 없음</p>
+            <p className={chrome.emptyTagline}>한 줄 소개 없음</p>
           )}
         </Link>
-        <CardTags tags={view.tags} max={4} className={chrome.tagsWrap} tagClassName={chrome.tag} />
+        <CardTags tags={view.tags} max={4} className={chrome.tagsWrap} tagClassName={chrome.tag} scrollRow />
       </div>
     </article>
   );

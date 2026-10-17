@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { SR_PREFIX, SR_TAG, seedSearchRankingFixture } from "./helpers/searchRankingFixture";
+import { SR_CARD_TAGS, SR_PREFIX, SR_TAG, seedSearchRankingFixture } from "./helpers/searchRankingFixture";
 
 test.use({ launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
   ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {} });
@@ -99,4 +99,32 @@ test("period ranking labels chat starts, not cumulative turns", async ({ page })
   const metric = await page.getByTestId("ranking-metric").first().innerText();
   expect(metric).toContain("대화 시작");
   expect(metric).not.toContain("누적");
+});
+
+test("mobile character card links are 24px+ targets and keyboard focus stays fully visible", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/search?q=${encodeURIComponent(`${SR_PREFIX} 카드태그`)}`);
+  const card = page.locator("article", { hasText: `${SR_PREFIX} 카드태그` }).first();
+  const creator = card.locator('a[href^="/creator/"]');
+  const tags = card.locator('a[href^="/search?q="]');
+  await expect(tags).toHaveCount(SR_CARD_TAGS.length);
+
+  const creatorBox = (await creator.boundingBox())!;
+  expect(creatorBox.height).toBeGreaterThanOrEqual(24);
+  for (let i = 0; i < SR_CARD_TAGS.length; i++) {
+    const box = (await tags.nth(i).boundingBox())!;
+    expect(box.height, `tag ${i} height`).toBeGreaterThanOrEqual(24);
+  }
+
+  const row = (await tags.first().locator("..").boundingBox())!;
+  for (let i = 0; i < SR_CARD_TAGS.length; i++) {
+    await tags.nth(i).focus();
+    await page.waitForTimeout(250);
+    const box = (await tags.nth(i).boundingBox())!;
+    expect(box.x, `tag ${i} left`).toBeGreaterThanOrEqual(row.x - 0.5);
+    expect(box.x + box.width, `tag ${i} right`).toBeLessThanOrEqual(row.x + row.width + 0.5);
+  }
+
+  await tags.nth(1).click();
+  await page.waitForURL((u) => u.pathname === "/search" && u.searchParams.get("q") === SR_CARD_TAGS[1]);
 });

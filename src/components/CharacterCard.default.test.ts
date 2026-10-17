@@ -107,7 +107,8 @@ describe("default CharacterCard", () => {
   it("keeps creator, genre and tag meta readable on both card families", async () => {
     for (const variant of ["default", "index"] as const) {
       const html = await render(row(), { variant, loggedIn: true });
-      assert.match(html, /<a[^>]*text-\[11px\][^>]*>/, `${variant} creator link is at least 11px`);
+      const minCreator = variant === "default" ? /text-\[12\.5px\]/ : /text-\[11px\]/;
+      assert.match(html, new RegExp(`<a[^>]*href="/creator/3"[^>]*${minCreator.source}`), `${variant} creator link size`);
       assert.doesNotMatch(html, /<span className="text-(zinc-[56]00|emerald-600\/80)">by<\/span>/, variant);
     }
     const index = await render(row(), { variant: "index", loggedIn: true });
@@ -122,5 +123,34 @@ describe("default CharacterCard", () => {
     const html = await render(row(), { variant: "index" });
     assert.match(html, /home-card--index/);
     assert.ok(!html.includes("rounded-[1.15rem]"));
+  });
+
+  it("gives the default card links 24px+ targets, visible focus and no clipped tags", async () => {
+    const html = await render(row({ tags: JSON.stringify(["하나", "둘", "셋", "넷", "다섯"]) }), { loggedIn: true });
+    const link = (href: string) => html.match(new RegExp(`<a[^>]*href="${href}"[^>]*>`))?.[0] ?? "";
+    for (const tag of ["하나", "둘", "셋", "넷"]) {
+      const a = link(`/search\\?q=${encodeURIComponent(tag)}`);
+      assert.match(a, /\bh-6\b/, `${tag} tag is 24px tall`);
+      assert.match(a, /focus-visible:ring-2/, `${tag} tag shows a focus ring`);
+    }
+    assert.ok(!html.includes("%EB%8B%A4%EC%84%AF"), "only four tags render");
+    assert.match(link("/creator/3"), /py-1[^"]*focus-visible:ring-2|focus-visible:ring-2[^"]*py-1/, "creator link has padding and a focus ring");
+    const tagsWrap = html.match(/<div className="[^"]*overflow-x-auto[^"]*">/)?.[0] ?? "";
+    assert.ok(tagsWrap, "tags are a scrollable single row");
+    assert.doesNotMatch(tagsWrap, /overflow-hidden|max-h-|flex-wrap/);
+    assert.match(html, /<h3 className="[^"]*@min-\[8rem\]\/card:break-keep/);
+    assert.match(html, /<p className="[^"]*text-\[13px\]/);
+    assert.doesNotMatch(html, /<p className="[^"]*break-keep[^"]*text-\[13px\]/);
+    assert.match(html, /<a [^>]*href="\/creator\/3"[^>]*class(Name)?="[^"]*truncate[^"]*py-1/);
+  });
+
+  it("keeps adult and status badges apart on the default card and leaves home badges alone", async () => {
+    const c = row({ nsfw: 1, official: 1, content_kind: "simulation" });
+    const html = await render(c, { loggedIn: true, blurNsfw: false });
+    assert.match(html, /max-w-\[calc\(100%-5rem\)\]/);
+    assert.match(html, /text-\[10\.5px\][^"]*text-violet-100/);
+    const home = await render(c, { variant: "index", loggedIn: true, blurNsfw: false });
+    assert.ok(!home.includes("max-w-[calc(100%-5rem)]"));
+    assert.match(home, /text-\[9px\]/);
   });
 });
