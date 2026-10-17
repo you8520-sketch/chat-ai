@@ -1,0 +1,166 @@
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import Database from "better-sqlite3";
+
+/**
+ * Isolated-DB proof of the `assets` operator steps through the real CLI.
+ * Builds a temporary DATA_DIR with a staged Wolfgang row, then runs each step
+ * as a child process with every provider key removed. Moderation results that
+ * let review proceed are recorded with a fixture moderator and labelled so.
+ * Rerun: copy to scripts/wolfgang-asset-operator-isolated-proof.ts, then
+ * node --conditions=react-server --import tsx scripts/wolfgang-asset-operator-isolated-proof.ts <out.json>
+ */
+
+const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "wolfgang-operator-proof-"));
+process.env.DATA_DIR = DATA_DIR;
+delete process.env.BLOB_READ_WRITE_TOKEN;
+for (const key of ["OPENROUTER_API_KEY", "OPENAI_API_KEY", "CHEAPER_INFERENCE_API_KEY"]) delete process.env[key];
+
+type Step = { label: string; args: string[]; env?: Record<string, string>; exitCode: number | null; output: unknown };
+
+async function main(): Promise<void> {
+  const out = process.argv[2];
+  if (!out) throw new Error("output path required");
+  // `@/lib/db` resolves DATA_DIR at import time, so app modules load after it is set.
+  const { getDb } = await import("@/lib/db");
+  const fixtures = await import("@/lib/officialSupply/officialSupply.approvedApplyFixtures");
+  const { testBatchConfig, testStyleCandidate } = await import("@/lib/officialSupply/officialSupply.fixtures");
+  const { OfficialSupplyStore } = await import("@/lib/officialSupply/store");
+  const { moderateOfficialAssetReplacement } = await import("@/lib/officialSupply/runner");
+  const { getCharacterRepresentativeImageUrl, parseAssets, safeLockedPreviewUrl } = await import("@/lib/characterAssets");
+
+  const db = getDb();
+  fixtures.seedApprovedApplyUsers(db);
+  const store = new OfficialSupplyStore(db);
+  store.createBatch("operator-proof-batch", testBatchConfig({ budgetUsd: { batch: 100 } }));
+  store.proposeStyle({ styleKey: "romance_fantasy_v4", genre: "로맨스 판타지", candidates: ["c1", "c2", "c3"].map(testStyleCandidate) });
+  store.approveStyleCandidate(
+    "romance_fantasy_v4",
+    "c2",
+    { url: "/uploads/official-style-seed.webp", provenance: "platform_owned", note: "owned seed" },
+    "owner"
+  );
+  const draftKey = "pilot-rf-v4-02";
+  const characterId = await fixtures.stageApprovedWolfgangDraft(store, draftKey, "operator-proof-batch");
+  const before = db.prepare("SELECT assets, images FROM characters WHERE id=?").get(characterId) as { assets: string; images: string };
+  db.close();
+  (global as { __db?: unknown }).__db = undefined;
+
+  const steps: Step[] = [];
+  const sanitize = (text: string) => text.split(DATA_DIR).join("<isolated DATA_DIR>");
+  const base = ["--admin-email", fixtures.ADMIN.email, "--character-id", String(characterId)];
+  const run = (label: string, args: string[], env: Record<string, string> = {}) => {
+    const child = spawnSync(
+      process.execPath,
+      ["--conditions=react-server", "--import", "tsx", "scripts/official-supply-wolfgang-approved-source.ts", "assets", ...args],
+      { env: { ...process.env, NODE_ENV: "", ...env }, encoding: "utf8" }
+    );
+    const stdout = sanitize(child.stdout.trim());
+    const jsonStart = stdout.search(/^\{$/m);
+    let output: unknown = stdout;
+    try {
+      output = JSON.parse(stdout.slice(Math.max(0, jsonStart)));
+    } catch {
+      output = { stdout, stderr: sanitize(child.stderr.trim()).split("\n").filter((l) => l.includes("STOP")) };
+    }
+    steps.push({ label, args: args.map(sanitize), ...(Object.keys(env).length ? { env } : {}), exitCode: child.status, output });
+    return output as Record<string, unknown>;
+  };
+
+  run("status (default, read-only)", ["status", ...base]);
+  run("intake plan (default)", ["intake", ...base]);
+  run("intake --execute", ["intake", ...base, "--execute"]);
+  run("intake --execute rerun (resume: nothing re-registered)", ["intake", ...base, "--execute"]);
+  run("moderate plan (default, zero calls)", ["moderate", ...base, "--max-calls", "28", "--max-cost-usd", "0.28", "--per-call-reserve-usd", "0.01"]);
+  run("moderate --execute without caps (refused)", ["moderate", ...base, "--execute"]);
+  run("moderate --execute caps below worst case (refused)", ["moderate", ...base, "--execute", "--max-calls", "27", "--max-cost-usd", "0.28", "--per-call-reserve-usd", "0.01"]);
+  run("moderate --execute with caps, no provider key (vision unavailable: stops after one image, charged at the reserve)", [
+    "moderate", ...base, "--execute", "--max-calls", "28", "--max-cost-usd", "0.28", "--per-call-reserve-usd", "0.01",
+  ]);
+
+  const fixtureDb = new Database(path.join(DATA_DIR, "app.db"));
+  const fixtureStore = new OfficialSupplyStore(fixtureDb);
+  const ports = new fixtures.TestPorts();
+  for (const candidate of fixtures.CANDIDATES) {
+    ports.nextModeration.push(fixtures.TEST_ONLY_MODERATION);
+    await moderateOfficialAssetReplacement({ store: fixtureStore, moderator: ports.moderator }, draftKey, candidate.slot);
+  }
+  fixtureDb.close();
+  steps.push({
+    label: "ISOLATED FIXTURE moderation recorded in-process (reason test-fixture-not-quality-approval; not a vision result)",
+    args: [],
+    exitCode: 0,
+    output: { slots: fixtures.CANDIDATES.map((c) => c.slot), moderatorCalls: ports.moderatedUrls.length, providerCalls: 0 },
+  });
+  run("moderate rerun (all moderated: zero calls)", ["moderate", ...base, "--execute", "--max-calls", "1", "--max-cost-usd", "0.01", "--per-call-reserve-usd", "0.01"]);
+
+  const template = run("review template (unfilled)", ["review", ...base]).template as {
+    slots: Array<{ slot: string; candidateUrl: string; candidateSha256: string; qa: Record<string, unknown> }>;
+  };
+  const evidencePath = path.join(DATA_DIR, "isolated-review-evidence.json");
+  fs.writeFileSync(
+    evidencePath,
+    JSON.stringify({
+      draftKey,
+      characterId,
+      isolatedProofOnly: true,
+      reviewer: "isolated-operator-proof",
+      approvalEvidence: "isolated DB wrapper proof only; production review uses its own evidence file",
+      slots: template.slots.map((slot) => ({
+        ...slot,
+        qa: Object.fromEntries(Object.keys(slot.qa).map((key) => [key, { ok: true, note: `${slot.slot} ${key} isolated check` }])),
+      })),
+    })
+  );
+  const evidence = ["--evidence", evidencePath];
+  run("review isolated evidence with RAILWAY_ENVIRONMENT_NAME=production (refused)", ["review", ...base, ...evidence, "--execute"], {
+    RAILWAY_ENVIRONMENT_NAME: "production",
+  });
+  run("review dry (default)", ["review", ...base, ...evidence]);
+  run("review --execute", ["review", ...base, ...evidence, "--execute"]);
+  run("review --execute rerun (already reviewed)", ["review", ...base, ...evidence, "--execute"]);
+  run("apply (default dry-run)", ["apply", ...base]);
+  const applied = run("apply --execute", ["apply", ...base, "--execute"]);
+  run("apply --execute rerun (already applied)", ["apply", ...base, "--execute"]);
+  const afterDb = new Database(path.join(DATA_DIR, "app.db"), { readonly: true });
+  const after = afterDb.prepare("SELECT assets, images FROM characters WHERE id=?").get(characterId) as { assets: string; images: string };
+  afterDb.close();
+  run("status after apply", ["status", ...base]);
+  run("rollback (default dry-run)", ["rollback", ...base, "--apply-id", String(applied.applyId)]);
+  run("rollback --execute", ["rollback", ...base, "--apply-id", String(applied.applyId), "--execute"]);
+  const restoredDb = new Database(path.join(DATA_DIR, "app.db"), { readonly: true });
+  const restored = restoredDb.prepare("SELECT assets, images FROM characters WHERE id=?").get(characterId) as { assets: string; images: string };
+  restoredDb.close();
+  run("status after rollback", ["status", ...base]);
+
+  const card = (row: { assets: string; images: string }) => ({
+    card: getCharacterRepresentativeImageUrl(row.assets, row.images),
+    images: JSON.parse(row.images),
+    representativeTag: parseAssets(row.assets)[0]?.tag,
+    representativeBlurPreview: safeLockedPreviewUrl(parseAssets(row.assets)[0]!),
+  });
+  fs.writeFileSync(
+    out,
+    `${JSON.stringify(
+      {
+        scope: "isolated temporary DATA_DIR; deleted after the run. No production database, no provider key, no network.",
+        draftKey,
+        characterId,
+        readers: { before: card(before), afterApply: card(after), afterRollback: card(restored) },
+        rollbackRestoredCharacterRow: restored.assets === before.assets && restored.images === before.images,
+        steps,
+      },
+      null,
+      2
+    )}\n`
+  );
+  fs.rmSync(DATA_DIR, { recursive: true, force: true });
+}
+
+main().catch((error: unknown) => {
+  fs.rmSync(DATA_DIR, { recursive: true, force: true });
+  console.error(error);
+  process.exit(1);
+});

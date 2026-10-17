@@ -1,0 +1,2113 @@
+{
+  "scope": "isolated temporary DATA_DIR; deleted after the run. No production database, no provider key, no network.",
+  "draftKey": "pilot-rf-v4-02",
+  "characterId": 10,
+  "readers": {
+    "before": {
+      "card": "/uploads/official-pilot-rf-v4-02__rep-a1.webp",
+      "images": [
+        "/uploads/official-pilot-rf-v4-02__rep-a1.webp"
+      ],
+      "representativeTag": "흑철 늑대공",
+      "representativeBlurPreview": "/media/public/legacy-blur-official-pilot-rf-v4-02__rep-a1.webp"
+    },
+    "afterApply": {
+      "card": "/uploads/official-pilot-rf-v4-02__rep-ext-e89b192f-1c2b-4187-a2bb-7636276c5891.webp",
+      "images": [
+        "/uploads/official-pilot-rf-v4-02__rep-ext-e89b192f-1c2b-4187-a2bb-7636276c5891.webp"
+      ],
+      "representativeTag": "기본 초상",
+      "representativeBlurPreview": "/media/public/legacy-blur-official-pilot-rf-v4-02__rep-ext-e89b192f-1c2b-4187-a2bb-7636276c5891.webp"
+    },
+    "afterRollback": {
+      "card": "/uploads/official-pilot-rf-v4-02__rep-a1.webp",
+      "images": [
+        "/uploads/official-pilot-rf-v4-02__rep-a1.webp"
+      ],
+      "representativeTag": "흑철 늑대공",
+      "representativeBlurPreview": "/media/public/legacy-blur-official-pilot-rf-v4-02__rep-a1.webp"
+    }
+  },
+  "rollbackRestoredCharacterRow": true,
+  "steps": [
+    {
+      "label": "status (default, read-only)",
+      "args": [
+        "status",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10"
+      ],
+      "exitCode": 0,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "status",
+        "writes": 0,
+        "draftKey": "pilot-rf-v4-02",
+        "characterId": 10,
+        "stage": "staged_private",
+        "textLockHash": "6ff02833cfd45a542866aa1afa749486d94362eff5358e10f995b8f77fabd5fd",
+        "appearanceLockHash": "1c3ccd134203a6dea6ae869c27cc443c42ff5498d1d0130c6f9765407c24dcc3",
+        "admin": {
+          "id": 8303,
+          "email": "approved-apply-admin@test.local"
+        },
+        "manifest": {
+          "candidates": 14,
+          "filesMatchSha256": true
+        },
+        "slots": [
+          {
+            "slot": "rep",
+            "tag": "기본 초상",
+            "rawSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__rep-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "sig1",
+            "tag": "지도를 짚음",
+            "rawSha256": "e986403412b7754b520901afa97cc00e895ace0184542144383198f3506782f5",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig1-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "sig2",
+            "tag": "턱을 괴고 생각",
+            "rawSha256": "3242bbadb72a6514314f9dd8ab425ad22e459358821c85b800215d4205f9bdb4",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig2-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "sig3",
+            "tag": "열쇠를 확인함",
+            "rawSha256": "b7df32fa69725fdfe86849dcd78bfbf6d8f4916f3bf5a6b8ecccb17ae50f8a19",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig3-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "sig4",
+            "tag": "옅은 미소",
+            "rawSha256": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig4-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "emo1",
+            "tag": "의심",
+            "rawSha256": "6f345d95b85a30850a954e4369f4aa9a7a9ccd978669643f41166fe5a7346a07",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo1-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "emo2",
+            "tag": "분노",
+            "rawSha256": "c4d38db0e3adfb59cf6fc2da8b79457636a90d64113c8b059ad30639d66d5db8",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo2-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "emo3",
+            "tag": "진지함",
+            "rawSha256": "758e1f8d182ffdf229107eb83c0d7476e24c7f9c2d1de02ca3ab9bb19419643a",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo3-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "emo4",
+            "tag": "당황",
+            "rawSha256": "527086945e164458a773cd84eac1e69a4e07d19e8ed14af4eb1c4d8c257bf4d4",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo4-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "emo5",
+            "tag": "편안함",
+            "rawSha256": "ef87914c71865944cdb1b40a6417105b3a426f089769189648e9ff86036ab517",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo5-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "emo6",
+            "tag": "안도",
+            "rawSha256": "f52f9f21046f7993a349e672b3326f2f5144bcb885badcf3181ad7326547e214",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo6-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "scene1",
+            "tag": "문서를 대조함",
+            "rawSha256": "1150bf9d17b6e7720e3e020c5288be20e346a83468c633d7672a9796f1e6230c",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__scene1-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "scene2",
+            "tag": "기록을 맞춤",
+            "rawSha256": "0cb364a2eddfddf5196e1ab1f0da8deb20ca175b62cc996b3ac583cea674b3e5",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__scene2-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "scene3",
+            "tag": "긴장",
+            "rawSha256": "bd3a47bc70ac79ac2bbc9b9a92e93903680397f59265afd9bb1f02309433482c",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__scene3-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          }
+        ],
+        "applies": []
+      }
+    },
+    {
+      "label": "intake plan (default)",
+      "args": [
+        "intake",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10"
+      ],
+      "exitCode": 0,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "intake",
+        "execute": false,
+        "planned": [
+          "rep",
+          "sig1",
+          "sig2",
+          "sig3",
+          "sig4",
+          "emo1",
+          "emo2",
+          "emo3",
+          "emo4",
+          "emo5",
+          "emo6",
+          "scene1",
+          "scene2",
+          "scene3"
+        ],
+        "registered": [],
+        "skipped": []
+      }
+    },
+    {
+      "label": "intake --execute",
+      "args": [
+        "intake",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10",
+        "--execute"
+      ],
+      "exitCode": 0,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "intake",
+        "execute": true,
+        "planned": [
+          "rep",
+          "sig1",
+          "sig2",
+          "sig3",
+          "sig4",
+          "emo1",
+          "emo2",
+          "emo3",
+          "emo4",
+          "emo5",
+          "emo6",
+          "scene1",
+          "scene2",
+          "scene3"
+        ],
+        "registered": [
+          {
+            "slot": "rep",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-e89b192f-1c2b-4187-a2bb-7636276c5891.webp",
+            "candidateSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032"
+          },
+          {
+            "slot": "sig1",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig1-ext-602dec13-9def-4ac9-a38a-3b3ba40f1cb7.webp",
+            "candidateSha256": "e986403412b7754b520901afa97cc00e895ace0184542144383198f3506782f5"
+          },
+          {
+            "slot": "sig2",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig2-ext-690b5584-f0b2-4359-8e1a-2492a4ea83de.webp",
+            "candidateSha256": "3242bbadb72a6514314f9dd8ab425ad22e459358821c85b800215d4205f9bdb4"
+          },
+          {
+            "slot": "sig3",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig3-ext-f9be162f-22b1-4926-874f-672c11f0edb6.webp",
+            "candidateSha256": "b7df32fa69725fdfe86849dcd78bfbf6d8f4916f3bf5a6b8ecccb17ae50f8a19"
+          },
+          {
+            "slot": "sig4",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig4-ext-6015b488-4b83-4f23-8939-3ad2fcd0115b.webp",
+            "candidateSha256": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1"
+          },
+          {
+            "slot": "emo1",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo1-ext-6770eb16-97f3-45ae-a60f-5d6291b0e1f6.webp",
+            "candidateSha256": "6f345d95b85a30850a954e4369f4aa9a7a9ccd978669643f41166fe5a7346a07"
+          },
+          {
+            "slot": "emo2",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo2-ext-2bd272cd-af61-4186-84f8-bdc0ae3822f8.webp",
+            "candidateSha256": "c4d38db0e3adfb59cf6fc2da8b79457636a90d64113c8b059ad30639d66d5db8"
+          },
+          {
+            "slot": "emo3",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo3-ext-0d4d9b7e-d575-4cff-b8ff-2b5cd585a598.webp",
+            "candidateSha256": "758e1f8d182ffdf229107eb83c0d7476e24c7f9c2d1de02ca3ab9bb19419643a"
+          },
+          {
+            "slot": "emo4",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo4-ext-5c2c8473-2321-48bf-9e12-7441d1ab8f33.webp",
+            "candidateSha256": "527086945e164458a773cd84eac1e69a4e07d19e8ed14af4eb1c4d8c257bf4d4"
+          },
+          {
+            "slot": "emo5",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo5-ext-6d5e4c32-f7a7-483f-8ed7-e65b98515090.webp",
+            "candidateSha256": "ef87914c71865944cdb1b40a6417105b3a426f089769189648e9ff86036ab517"
+          },
+          {
+            "slot": "emo6",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo6-ext-466a9de8-8df1-45e2-bf15-90a9844c3ccc.webp",
+            "candidateSha256": "f52f9f21046f7993a349e672b3326f2f5144bcb885badcf3181ad7326547e214"
+          },
+          {
+            "slot": "scene1",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene1-ext-c301a03e-5d26-486f-8161-60af0064dff9.webp",
+            "candidateSha256": "1150bf9d17b6e7720e3e020c5288be20e346a83468c633d7672a9796f1e6230c"
+          },
+          {
+            "slot": "scene2",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene2-ext-a268d75c-ed16-498b-bff1-f1db7016b73e.webp",
+            "candidateSha256": "0cb364a2eddfddf5196e1ab1f0da8deb20ca175b62cc996b3ac583cea674b3e5"
+          },
+          {
+            "slot": "scene3",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene3-ext-1ba5c819-f60b-4762-81cf-ad098ac55b06.webp",
+            "candidateSha256": "bd3a47bc70ac79ac2bbc9b9a92e93903680397f59265afd9bb1f02309433482c"
+          }
+        ],
+        "skipped": []
+      }
+    },
+    {
+      "label": "intake --execute rerun (resume: nothing re-registered)",
+      "args": [
+        "intake",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10",
+        "--execute"
+      ],
+      "exitCode": 0,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "intake",
+        "execute": true,
+        "planned": [],
+        "registered": [],
+        "skipped": [
+          {
+            "slot": "rep",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "sig1",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "sig2",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "sig3",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "sig4",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "emo1",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "emo2",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "emo3",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "emo4",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "emo5",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "emo6",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "scene1",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "scene2",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "scene3",
+            "next": "moderate",
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "label": "moderate plan (default, zero calls)",
+      "args": [
+        "moderate",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10",
+        "--max-calls",
+        "28",
+        "--max-cost-usd",
+        "0.28",
+        "--per-call-reserve-usd",
+        "0.01"
+      ],
+      "exitCode": 0,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "moderate",
+        "execute": false,
+        "status": "planned",
+        "stopReason": null,
+        "plan": {
+          "pending": [
+            "rep",
+            "sig1",
+            "sig2",
+            "sig3",
+            "sig4",
+            "emo1",
+            "emo2",
+            "emo3",
+            "emo4",
+            "emo5",
+            "emo6",
+            "scene1",
+            "scene2",
+            "scene3"
+          ],
+          "attemptsPerCall": 2,
+          "worstCaseCalls": 28,
+          "worstCaseCostUsd": 0.28
+        },
+        "budget": {
+          "maxCalls": 28,
+          "maxCostUsd": 0.28,
+          "perCallReserveUsd": 0.01
+        },
+        "accounting": {
+          "chargedCalls": 0,
+          "observedAttempts": 0,
+          "chargedCostUsd": 0,
+          "knownCostUsd": 0
+        },
+        "results": [],
+        "skipped": []
+      }
+    },
+    {
+      "label": "moderate --execute without caps (refused)",
+      "args": [
+        "moderate",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10",
+        "--execute"
+      ],
+      "exitCode": 1,
+      "output": {
+        "stdout": "[database] runtime diagnostics {\n  nodeEnv: '',\n  nextPhase: '',\n  cwd: '/workspace',\n  dataDir: '<isolated DATA_DIR>',\n  databasePath: '<isolated DATA_DIR>/app.db',\n  dataDirExists: true,\n  dataDirIsMounted: false,\n  productionRuntime: false\n}",
+        "stderr": [
+          "[wolfgang-approved-source] STOP: operator_moderation_budget_required paid moderation needs --max-calls, --max-cost-usd and --per-call-reserve-usd"
+        ]
+      }
+    },
+    {
+      "label": "moderate --execute caps below worst case (refused)",
+      "args": [
+        "moderate",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10",
+        "--execute",
+        "--max-calls",
+        "27",
+        "--max-cost-usd",
+        "0.28",
+        "--per-call-reserve-usd",
+        "0.01"
+      ],
+      "exitCode": 1,
+      "output": {
+        "stdout": "[database] runtime diagnostics {\n  nodeEnv: '',\n  nextPhase: '',\n  cwd: '/workspace',\n  dataDir: '<isolated DATA_DIR>',\n  databasePath: '<isolated DATA_DIR>/app.db',\n  dataDirExists: true,\n  dataDirIsMounted: false,\n  productionRuntime: false\n}",
+        "stderr": [
+          "[wolfgang-approved-source] STOP: operator_moderation_budget_exceeded 14 images need up to 28 calls / 0.28 USD; caps are 27 calls / 0.28 USD"
+        ]
+      }
+    },
+    {
+      "label": "moderate --execute with caps, no provider key (vision unavailable: stops after one image, charged at the reserve)",
+      "args": [
+        "moderate",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10",
+        "--execute",
+        "--max-calls",
+        "28",
+        "--max-cost-usd",
+        "0.28",
+        "--per-call-reserve-usd",
+        "0.01"
+      ],
+      "exitCode": 1,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "moderate",
+        "execute": true,
+        "status": "stopped",
+        "stopReason": "rep moderation unavailable",
+        "plan": {
+          "pending": [
+            "rep",
+            "sig1",
+            "sig2",
+            "sig3",
+            "sig4",
+            "emo1",
+            "emo2",
+            "emo3",
+            "emo4",
+            "emo5",
+            "emo6",
+            "scene1",
+            "scene2",
+            "scene3"
+          ],
+          "attemptsPerCall": 2,
+          "worstCaseCalls": 28,
+          "worstCaseCostUsd": 0.28
+        },
+        "budget": {
+          "maxCalls": 28,
+          "maxCostUsd": 0.28,
+          "perCallReserveUsd": 0.01
+        },
+        "accounting": {
+          "chargedCalls": 2,
+          "observedAttempts": 0,
+          "chargedCostUsd": 0.02,
+          "knownCostUsd": 0
+        },
+        "results": [
+          {
+            "slot": "rep",
+            "verdict": "unavailable"
+          }
+        ],
+        "skipped": []
+      }
+    },
+    {
+      "label": "ISOLATED FIXTURE moderation recorded in-process (reason test-fixture-not-quality-approval; not a vision result)",
+      "args": [],
+      "exitCode": 0,
+      "output": {
+        "slots": [
+          "rep",
+          "sig1",
+          "sig2",
+          "sig3",
+          "sig4",
+          "emo1",
+          "emo2",
+          "emo3",
+          "emo4",
+          "emo5",
+          "emo6",
+          "scene1",
+          "scene2",
+          "scene3"
+        ],
+        "moderatorCalls": 14,
+        "providerCalls": 0
+      }
+    },
+    {
+      "label": "moderate rerun (all moderated: zero calls)",
+      "args": [
+        "moderate",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10",
+        "--execute",
+        "--max-calls",
+        "1",
+        "--max-cost-usd",
+        "0.01",
+        "--per-call-reserve-usd",
+        "0.01"
+      ],
+      "exitCode": 0,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "moderate",
+        "execute": true,
+        "status": "completed",
+        "stopReason": null,
+        "plan": {
+          "pending": [],
+          "attemptsPerCall": 2,
+          "worstCaseCalls": 0,
+          "worstCaseCostUsd": 0
+        },
+        "budget": {
+          "maxCalls": 1,
+          "maxCostUsd": 0.01,
+          "perCallReserveUsd": 0.01
+        },
+        "accounting": {
+          "chargedCalls": 0,
+          "observedAttempts": 0,
+          "chargedCostUsd": 0,
+          "knownCostUsd": 0
+        },
+        "results": [],
+        "skipped": [
+          {
+            "slot": "rep",
+            "next": "review"
+          },
+          {
+            "slot": "sig1",
+            "next": "review"
+          },
+          {
+            "slot": "sig2",
+            "next": "review"
+          },
+          {
+            "slot": "sig3",
+            "next": "review"
+          },
+          {
+            "slot": "sig4",
+            "next": "review"
+          },
+          {
+            "slot": "emo1",
+            "next": "review"
+          },
+          {
+            "slot": "emo2",
+            "next": "review"
+          },
+          {
+            "slot": "emo3",
+            "next": "review"
+          },
+          {
+            "slot": "emo4",
+            "next": "review"
+          },
+          {
+            "slot": "emo5",
+            "next": "review"
+          },
+          {
+            "slot": "emo6",
+            "next": "review"
+          },
+          {
+            "slot": "scene1",
+            "next": "review"
+          },
+          {
+            "slot": "scene2",
+            "next": "review"
+          },
+          {
+            "slot": "scene3",
+            "next": "review"
+          }
+        ]
+      }
+    },
+    {
+      "label": "review template (unfilled)",
+      "args": [
+        "review",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10"
+      ],
+      "exitCode": 0,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "review",
+        "template": {
+          "draftKey": "pilot-rf-v4-02",
+          "characterId": 10,
+          "isolatedProofOnly": false,
+          "reviewer": "",
+          "approvalEvidence": "",
+          "slots": [
+            {
+              "slot": "rep",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-e89b192f-1c2b-4187-a2bb-7636276c5891.webp",
+              "candidateSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+              "qa": {
+                "gender": {
+                  "ok": null,
+                  "note": ""
+                },
+                "ageAppearance": {
+                  "ok": null,
+                  "note": ""
+                },
+                "face": {
+                  "ok": null,
+                  "note": ""
+                },
+                "hair": {
+                  "ok": null,
+                  "note": ""
+                },
+                "eyes": {
+                  "ok": null,
+                  "note": ""
+                },
+                "body": {
+                  "ok": null,
+                  "note": ""
+                },
+                "identifyingFeatures": {
+                  "ok": null,
+                  "note": ""
+                },
+                "artStyle": {
+                  "ok": null,
+                  "note": ""
+                },
+                "outfit": {
+                  "ok": null,
+                  "note": ""
+                },
+                "cardCrop": {
+                  "ok": null,
+                  "note": ""
+                }
+              }
+            },
+            {
+              "slot": "sig1",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig1-ext-602dec13-9def-4ac9-a38a-3b3ba40f1cb7.webp",
+              "candidateSha256": "e986403412b7754b520901afa97cc00e895ace0184542144383198f3506782f5",
+              "qa": {
+                "identityMatchesAnchor": {
+                  "ok": null,
+                  "note": ""
+                },
+                "expressionMatchesPlan": {
+                  "ok": null,
+                  "note": ""
+                },
+                "characterPresent": {
+                  "ok": null,
+                  "note": ""
+                },
+                "artStyle": {
+                  "ok": null,
+                  "note": ""
+                }
+              }
+            },
+            {
+              "slot": "sig2",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig2-ext-690b5584-f0b2-4359-8e1a-2492a4ea83de.webp",
+              "candidateSha256": "3242bbadb72a6514314f9dd8ab425ad22e459358821c85b800215d4205f9bdb4",
+              "qa": {
+                "identityMatchesAnchor": {
+                  "ok": null,
+                  "note": ""
+                },
+                "expressionMatchesPlan": {
+                  "ok": null,
+                  "note": ""
+                },
+                "characterPresent": {
+                  "ok": null,
+                  "note": ""
+                },
+                "artStyle": {
+                  "ok": null,
+                  "note": ""
+                }
+              }
+            },
+            {
+              "slot": "sig3",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig3-ext-f9be162f-22b1-4926-874f-672c11f0edb6.webp",
+              "candidateSha256": "b7df32fa69725fdfe86849dcd78bfbf6d8f4916f3bf5a6b8ecccb17ae50f8a19",
+              "qa": {
+                "identityMatchesAnchor": {
+                  "ok": null,
+                  "note": ""
+                },
+                "expressionMatchesPlan": {
+                  "ok": null,
+                  "note": ""
+                },
+                "characterPresent": {
+                  "ok": null,
+                  "note": ""
+                },
+                "artStyle": {
+                  "ok": null,
+                  "note": ""
+                }
+              }
+            },
+            {
+              "slot": "sig4",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig4-ext-6015b488-4b83-4f23-8939-3ad2fcd0115b.webp",
+              "candidateSha256": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1",
+              "qa": {
+                "identityMatchesAnchor": {
+                  "ok": null,
+                  "note": ""
+                },
+                "expressionMatchesPlan": {
+                  "ok": null,
+                  "note": ""
+                },
+                "characterPresent": {
+                  "ok": null,
+                  "note": ""
+                },
+                "artStyle": {
+                  "ok": null,
+                  "note": ""
+                }
+              }
+            },
+            {
+              "slot": "emo1",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo1-ext-6770eb16-97f3-45ae-a60f-5d6291b0e1f6.webp",
+              "candidateSha256": "6f345d95b85a30850a954e4369f4aa9a7a9ccd978669643f41166fe5a7346a07",
+              "qa": {
+                "identityMatchesAnchor": {
+                  "ok": null,
+                  "note": ""
+                },
+                "expressionMatchesPlan": {
+                  "ok": null,
+                  "note": ""
+                },
+                "characterPresent": {
+                  "ok": null,
+                  "note": ""
+                },
+                "artStyle": {
+                  "ok": null,
+                  "note": ""
+                }
+              }
+            },
+            {
+              "slot": "emo2",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo2-ext-2bd272cd-af61-4186-84f8-bdc0ae3822f8.webp",
+              "candidateSha256": "c4d38db0e3adfb59cf6fc2da8b79457636a90d64113c8b059ad30639d66d5db8",
+              "qa": {
+                "identityMatchesAnchor": {
+                  "ok": null,
+                  "note": ""
+                },
+                "expressionMatchesPlan": {
+                  "ok": null,
+                  "note": ""
+                },
+                "characterPresent": {
+                  "ok": null,
+                  "note": ""
+                },
+                "artStyle": {
+                  "ok": null,
+                  "note": ""
+                }
+              }
+            },
+            {
+              "slot": "emo3",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo3-ext-0d4d9b7e-d575-4cff-b8ff-2b5cd585a598.webp",
+              "candidateSha256": "758e1f8d182ffdf229107eb83c0d7476e24c7f9c2d1de02ca3ab9bb19419643a",
+              "qa": {
+                "identityMatchesAnchor": {
+                  "ok": null,
+                  "note": ""
+                },
+                "expressionMatchesPlan": {
+                  "ok": null,
+                  "note": ""
+                },
+                "characterPresent": {
+                  "ok": null,
+                  "note": ""
+                },
+                "artStyle": {
+                  "ok": null,
+                  "note": ""
+                }
+              }
+            },
+            {
+              "slot": "emo4",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo4-ext-5c2c8473-2321-48bf-9e12-7441d1ab8f33.webp",
+              "candidateSha256": "527086945e164458a773cd84eac1e69a4e07d19e8ed14af4eb1c4d8c257bf4d4",
+              "qa": {
+                "identityMatchesAnchor": {
+                  "ok": null,
+                  "note": ""
+                },
+                "expressionMatchesPlan": {
+                  "ok": null,
+                  "note": ""
+                },
+                "characterPresent": {
+                  "ok": null,
+                  "note": ""
+                },
+                "artStyle": {
+                  "ok": null,
+                  "note": ""
+                }
+              }
+            },
+            {
+              "slot": "emo5",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo5-ext-6d5e4c32-f7a7-483f-8ed7-e65b98515090.webp",
+              "candidateSha256": "ef87914c71865944cdb1b40a6417105b3a426f089769189648e9ff86036ab517",
+              "qa": {
+                "identityMatchesAnchor": {
+                  "ok": null,
+                  "note": ""
+                },
+                "expressionMatchesPlan": {
+                  "ok": null,
+                  "note": ""
+                },
+                "characterPresent": {
+                  "ok": null,
+                  "note": ""
+                },
+                "artStyle": {
+                  "ok": null,
+                  "note": ""
+                }
+              }
+            },
+            {
+              "slot": "emo6",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo6-ext-466a9de8-8df1-45e2-bf15-90a9844c3ccc.webp",
+              "candidateSha256": "f52f9f21046f7993a349e672b3326f2f5144bcb885badcf3181ad7326547e214",
+              "qa": {
+                "identityMatchesAnchor": {
+                  "ok": null,
+                  "note": ""
+                },
+                "expressionMatchesPlan": {
+                  "ok": null,
+                  "note": ""
+                },
+                "characterPresent": {
+                  "ok": null,
+                  "note": ""
+                },
+                "artStyle": {
+                  "ok": null,
+                  "note": ""
+                }
+              }
+            },
+            {
+              "slot": "scene1",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene1-ext-c301a03e-5d26-486f-8161-60af0064dff9.webp",
+              "candidateSha256": "1150bf9d17b6e7720e3e020c5288be20e346a83468c633d7672a9796f1e6230c",
+              "qa": {
+                "identityMatchesAnchor": {
+                  "ok": null,
+                  "note": ""
+                },
+                "expressionMatchesPlan": {
+                  "ok": null,
+                  "note": ""
+                },
+                "characterPresent": {
+                  "ok": null,
+                  "note": ""
+                },
+                "artStyle": {
+                  "ok": null,
+                  "note": ""
+                }
+              }
+            },
+            {
+              "slot": "scene2",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene2-ext-a268d75c-ed16-498b-bff1-f1db7016b73e.webp",
+              "candidateSha256": "0cb364a2eddfddf5196e1ab1f0da8deb20ca175b62cc996b3ac583cea674b3e5",
+              "qa": {
+                "identityMatchesAnchor": {
+                  "ok": null,
+                  "note": ""
+                },
+                "expressionMatchesPlan": {
+                  "ok": null,
+                  "note": ""
+                },
+                "characterPresent": {
+                  "ok": null,
+                  "note": ""
+                },
+                "artStyle": {
+                  "ok": null,
+                  "note": ""
+                }
+              }
+            },
+            {
+              "slot": "scene3",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene3-ext-1ba5c819-f60b-4762-81cf-ad098ac55b06.webp",
+              "candidateSha256": "bd3a47bc70ac79ac2bbc9b9a92e93903680397f59265afd9bb1f02309433482c",
+              "qa": {
+                "identityMatchesAnchor": {
+                  "ok": null,
+                  "note": ""
+                },
+                "expressionMatchesPlan": {
+                  "ok": null,
+                  "note": ""
+                },
+                "characterPresent": {
+                  "ok": null,
+                  "note": ""
+                },
+                "artStyle": {
+                  "ok": null,
+                  "note": ""
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "label": "review isolated evidence with RAILWAY_ENVIRONMENT_NAME=production (refused)",
+      "args": [
+        "review",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10",
+        "--evidence",
+        "<isolated DATA_DIR>/isolated-review-evidence.json",
+        "--execute"
+      ],
+      "env": {
+        "RAILWAY_ENVIRONMENT_NAME": "production"
+      },
+      "exitCode": 1,
+      "output": {
+        "stdout": "[database] runtime diagnostics {\n  nodeEnv: '',\n  nextPhase: '',\n  cwd: '/workspace',\n  dataDir: '<isolated DATA_DIR>',\n  databasePath: '<isolated DATA_DIR>/app.db',\n  dataDirExists: true,\n  dataDirIsMounted: false,\n  productionRuntime: false\n}",
+        "stderr": [
+          "[wolfgang-approved-source] STOP: operator_review_evidence isolated-proof review evidence cannot be recorded in the production database"
+        ]
+      }
+    },
+    {
+      "label": "review dry (default)",
+      "args": [
+        "review",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10",
+        "--evidence",
+        "<isolated DATA_DIR>/isolated-review-evidence.json"
+      ],
+      "exitCode": 0,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "review",
+        "execute": false,
+        "evidenceSha256": "52e7f2b5f7814e5e1b2c9dfdf4dca8f054808acd60371887af858caa5058fbc3",
+        "reviewer": "isolated-operator-proof",
+        "approvalEvidence": "isolated DB wrapper proof only; production review uses its own evidence file",
+        "isolatedProofOnly": true,
+        "planned": [
+          {
+            "slot": "rep",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-e89b192f-1c2b-4187-a2bb-7636276c5891.webp",
+            "candidateSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+            "allChecksOk": true
+          },
+          {
+            "slot": "sig1",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig1-ext-602dec13-9def-4ac9-a38a-3b3ba40f1cb7.webp",
+            "candidateSha256": "e986403412b7754b520901afa97cc00e895ace0184542144383198f3506782f5",
+            "allChecksOk": true
+          },
+          {
+            "slot": "sig2",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig2-ext-690b5584-f0b2-4359-8e1a-2492a4ea83de.webp",
+            "candidateSha256": "3242bbadb72a6514314f9dd8ab425ad22e459358821c85b800215d4205f9bdb4",
+            "allChecksOk": true
+          },
+          {
+            "slot": "sig3",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig3-ext-f9be162f-22b1-4926-874f-672c11f0edb6.webp",
+            "candidateSha256": "b7df32fa69725fdfe86849dcd78bfbf6d8f4916f3bf5a6b8ecccb17ae50f8a19",
+            "allChecksOk": true
+          },
+          {
+            "slot": "sig4",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig4-ext-6015b488-4b83-4f23-8939-3ad2fcd0115b.webp",
+            "candidateSha256": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1",
+            "allChecksOk": true
+          },
+          {
+            "slot": "emo1",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo1-ext-6770eb16-97f3-45ae-a60f-5d6291b0e1f6.webp",
+            "candidateSha256": "6f345d95b85a30850a954e4369f4aa9a7a9ccd978669643f41166fe5a7346a07",
+            "allChecksOk": true
+          },
+          {
+            "slot": "emo2",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo2-ext-2bd272cd-af61-4186-84f8-bdc0ae3822f8.webp",
+            "candidateSha256": "c4d38db0e3adfb59cf6fc2da8b79457636a90d64113c8b059ad30639d66d5db8",
+            "allChecksOk": true
+          },
+          {
+            "slot": "emo3",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo3-ext-0d4d9b7e-d575-4cff-b8ff-2b5cd585a598.webp",
+            "candidateSha256": "758e1f8d182ffdf229107eb83c0d7476e24c7f9c2d1de02ca3ab9bb19419643a",
+            "allChecksOk": true
+          },
+          {
+            "slot": "emo4",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo4-ext-5c2c8473-2321-48bf-9e12-7441d1ab8f33.webp",
+            "candidateSha256": "527086945e164458a773cd84eac1e69a4e07d19e8ed14af4eb1c4d8c257bf4d4",
+            "allChecksOk": true
+          },
+          {
+            "slot": "emo5",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo5-ext-6d5e4c32-f7a7-483f-8ed7-e65b98515090.webp",
+            "candidateSha256": "ef87914c71865944cdb1b40a6417105b3a426f089769189648e9ff86036ab517",
+            "allChecksOk": true
+          },
+          {
+            "slot": "emo6",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo6-ext-466a9de8-8df1-45e2-bf15-90a9844c3ccc.webp",
+            "candidateSha256": "f52f9f21046f7993a349e672b3326f2f5144bcb885badcf3181ad7326547e214",
+            "allChecksOk": true
+          },
+          {
+            "slot": "scene1",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene1-ext-c301a03e-5d26-486f-8161-60af0064dff9.webp",
+            "candidateSha256": "1150bf9d17b6e7720e3e020c5288be20e346a83468c633d7672a9796f1e6230c",
+            "allChecksOk": true
+          },
+          {
+            "slot": "scene2",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene2-ext-a268d75c-ed16-498b-bff1-f1db7016b73e.webp",
+            "candidateSha256": "0cb364a2eddfddf5196e1ab1f0da8deb20ca175b62cc996b3ac583cea674b3e5",
+            "allChecksOk": true
+          },
+          {
+            "slot": "scene3",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene3-ext-1ba5c819-f60b-4762-81cf-ad098ac55b06.webp",
+            "candidateSha256": "bd3a47bc70ac79ac2bbc9b9a92e93903680397f59265afd9bb1f02309433482c",
+            "allChecksOk": true
+          }
+        ],
+        "recorded": [],
+        "alreadyReviewed": [],
+        "notInEvidence": []
+      }
+    },
+    {
+      "label": "review --execute",
+      "args": [
+        "review",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10",
+        "--evidence",
+        "<isolated DATA_DIR>/isolated-review-evidence.json",
+        "--execute"
+      ],
+      "exitCode": 0,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "review",
+        "execute": true,
+        "evidenceSha256": "52e7f2b5f7814e5e1b2c9dfdf4dca8f054808acd60371887af858caa5058fbc3",
+        "reviewer": "isolated-operator-proof",
+        "approvalEvidence": "isolated DB wrapper proof only; production review uses its own evidence file",
+        "isolatedProofOnly": true,
+        "planned": [
+          {
+            "slot": "rep",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-e89b192f-1c2b-4187-a2bb-7636276c5891.webp",
+            "candidateSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+            "allChecksOk": true
+          },
+          {
+            "slot": "sig1",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig1-ext-602dec13-9def-4ac9-a38a-3b3ba40f1cb7.webp",
+            "candidateSha256": "e986403412b7754b520901afa97cc00e895ace0184542144383198f3506782f5",
+            "allChecksOk": true
+          },
+          {
+            "slot": "sig2",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig2-ext-690b5584-f0b2-4359-8e1a-2492a4ea83de.webp",
+            "candidateSha256": "3242bbadb72a6514314f9dd8ab425ad22e459358821c85b800215d4205f9bdb4",
+            "allChecksOk": true
+          },
+          {
+            "slot": "sig3",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig3-ext-f9be162f-22b1-4926-874f-672c11f0edb6.webp",
+            "candidateSha256": "b7df32fa69725fdfe86849dcd78bfbf6d8f4916f3bf5a6b8ecccb17ae50f8a19",
+            "allChecksOk": true
+          },
+          {
+            "slot": "sig4",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig4-ext-6015b488-4b83-4f23-8939-3ad2fcd0115b.webp",
+            "candidateSha256": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1",
+            "allChecksOk": true
+          },
+          {
+            "slot": "emo1",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo1-ext-6770eb16-97f3-45ae-a60f-5d6291b0e1f6.webp",
+            "candidateSha256": "6f345d95b85a30850a954e4369f4aa9a7a9ccd978669643f41166fe5a7346a07",
+            "allChecksOk": true
+          },
+          {
+            "slot": "emo2",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo2-ext-2bd272cd-af61-4186-84f8-bdc0ae3822f8.webp",
+            "candidateSha256": "c4d38db0e3adfb59cf6fc2da8b79457636a90d64113c8b059ad30639d66d5db8",
+            "allChecksOk": true
+          },
+          {
+            "slot": "emo3",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo3-ext-0d4d9b7e-d575-4cff-b8ff-2b5cd585a598.webp",
+            "candidateSha256": "758e1f8d182ffdf229107eb83c0d7476e24c7f9c2d1de02ca3ab9bb19419643a",
+            "allChecksOk": true
+          },
+          {
+            "slot": "emo4",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo4-ext-5c2c8473-2321-48bf-9e12-7441d1ab8f33.webp",
+            "candidateSha256": "527086945e164458a773cd84eac1e69a4e07d19e8ed14af4eb1c4d8c257bf4d4",
+            "allChecksOk": true
+          },
+          {
+            "slot": "emo5",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo5-ext-6d5e4c32-f7a7-483f-8ed7-e65b98515090.webp",
+            "candidateSha256": "ef87914c71865944cdb1b40a6417105b3a426f089769189648e9ff86036ab517",
+            "allChecksOk": true
+          },
+          {
+            "slot": "emo6",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo6-ext-466a9de8-8df1-45e2-bf15-90a9844c3ccc.webp",
+            "candidateSha256": "f52f9f21046f7993a349e672b3326f2f5144bcb885badcf3181ad7326547e214",
+            "allChecksOk": true
+          },
+          {
+            "slot": "scene1",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene1-ext-c301a03e-5d26-486f-8161-60af0064dff9.webp",
+            "candidateSha256": "1150bf9d17b6e7720e3e020c5288be20e346a83468c633d7672a9796f1e6230c",
+            "allChecksOk": true
+          },
+          {
+            "slot": "scene2",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene2-ext-a268d75c-ed16-498b-bff1-f1db7016b73e.webp",
+            "candidateSha256": "0cb364a2eddfddf5196e1ab1f0da8deb20ca175b62cc996b3ac583cea674b3e5",
+            "allChecksOk": true
+          },
+          {
+            "slot": "scene3",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene3-ext-1ba5c819-f60b-4762-81cf-ad098ac55b06.webp",
+            "candidateSha256": "bd3a47bc70ac79ac2bbc9b9a92e93903680397f59265afd9bb1f02309433482c",
+            "allChecksOk": true
+          }
+        ],
+        "recorded": [
+          {
+            "slot": "rep",
+            "approved": true
+          },
+          {
+            "slot": "sig1",
+            "approved": true
+          },
+          {
+            "slot": "sig2",
+            "approved": true
+          },
+          {
+            "slot": "sig3",
+            "approved": true
+          },
+          {
+            "slot": "sig4",
+            "approved": true
+          },
+          {
+            "slot": "emo1",
+            "approved": true
+          },
+          {
+            "slot": "emo2",
+            "approved": true
+          },
+          {
+            "slot": "emo3",
+            "approved": true
+          },
+          {
+            "slot": "emo4",
+            "approved": true
+          },
+          {
+            "slot": "emo5",
+            "approved": true
+          },
+          {
+            "slot": "emo6",
+            "approved": true
+          },
+          {
+            "slot": "scene1",
+            "approved": true
+          },
+          {
+            "slot": "scene2",
+            "approved": true
+          },
+          {
+            "slot": "scene3",
+            "approved": true
+          }
+        ],
+        "alreadyReviewed": [],
+        "notInEvidence": []
+      }
+    },
+    {
+      "label": "review --execute rerun (already reviewed)",
+      "args": [
+        "review",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10",
+        "--evidence",
+        "<isolated DATA_DIR>/isolated-review-evidence.json",
+        "--execute"
+      ],
+      "exitCode": 0,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "review",
+        "execute": true,
+        "evidenceSha256": "52e7f2b5f7814e5e1b2c9dfdf4dca8f054808acd60371887af858caa5058fbc3",
+        "reviewer": "isolated-operator-proof",
+        "approvalEvidence": "isolated DB wrapper proof only; production review uses its own evidence file",
+        "isolatedProofOnly": true,
+        "planned": [],
+        "recorded": [],
+        "alreadyReviewed": [
+          "rep",
+          "sig1",
+          "sig2",
+          "sig3",
+          "sig4",
+          "emo1",
+          "emo2",
+          "emo3",
+          "emo4",
+          "emo5",
+          "emo6",
+          "scene1",
+          "scene2",
+          "scene3"
+        ],
+        "notInEvidence": []
+      }
+    },
+    {
+      "label": "apply (default dry-run)",
+      "args": [
+        "apply",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10"
+      ],
+      "exitCode": 0,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "apply",
+        "execute": false,
+        "status": "dry_run",
+        "characterId": 10,
+        "draftKey": "pilot-rf-v4-02",
+        "swapped": [
+          "rep",
+          "sig1",
+          "sig2",
+          "sig3",
+          "sig4",
+          "emo1",
+          "emo2",
+          "emo3",
+          "emo4",
+          "emo5",
+          "emo6",
+          "scene1",
+          "scene2",
+          "scene3"
+        ],
+        "applyId": null,
+        "rollback": null
+      }
+    },
+    {
+      "label": "apply --execute",
+      "args": [
+        "apply",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10",
+        "--execute"
+      ],
+      "exitCode": 0,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "apply",
+        "execute": true,
+        "status": "applied",
+        "characterId": 10,
+        "draftKey": "pilot-rf-v4-02",
+        "swapped": [
+          "rep",
+          "sig1",
+          "sig2",
+          "sig3",
+          "sig4",
+          "emo1",
+          "emo2",
+          "emo3",
+          "emo4",
+          "emo5",
+          "emo6",
+          "scene1",
+          "scene2",
+          "scene3"
+        ],
+        "applyId": "a2095028-8bde-4699-a5e8-3e827ef4344e",
+        "rollback": "npm run official-supply:wolfgang-approved-source -- assets rollback --admin-email approved-apply-admin@test.local --character-id 10 --apply-id a2095028-8bde-4699-a5e8-3e827ef4344e"
+      }
+    },
+    {
+      "label": "apply --execute rerun (already applied)",
+      "args": [
+        "apply",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10",
+        "--execute"
+      ],
+      "exitCode": 0,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "apply",
+        "execute": true,
+        "status": "already_applied",
+        "applyId": "a2095028-8bde-4699-a5e8-3e827ef4344e",
+        "swapped": [],
+        "rollback": "npm run official-supply:wolfgang-approved-source -- assets rollback --admin-email approved-apply-admin@test.local --character-id 10 --apply-id a2095028-8bde-4699-a5e8-3e827ef4344e"
+      }
+    },
+    {
+      "label": "status after apply",
+      "args": [
+        "status",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10"
+      ],
+      "exitCode": 0,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "status",
+        "writes": 0,
+        "draftKey": "pilot-rf-v4-02",
+        "characterId": 10,
+        "stage": "staged_private",
+        "textLockHash": "6ff02833cfd45a542866aa1afa749486d94362eff5358e10f995b8f77fabd5fd",
+        "appearanceLockHash": "1c3ccd134203a6dea6ae869c27cc443c42ff5498d1d0130c6f9765407c24dcc3",
+        "admin": {
+          "id": 8303,
+          "email": "approved-apply-admin@test.local"
+        },
+        "manifest": {
+          "candidates": 14,
+          "filesMatchSha256": true
+        },
+        "slots": [
+          {
+            "slot": "rep",
+            "tag": "기본 초상",
+            "rawSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-e89b192f-1c2b-4187-a2bb-7636276c5891.webp",
+            "replacementStatus": "applied",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-e89b192f-1c2b-4187-a2bb-7636276c5891.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "sig1",
+            "tag": "지도를 짚음",
+            "rawSha256": "e986403412b7754b520901afa97cc00e895ace0184542144383198f3506782f5",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig1-ext-602dec13-9def-4ac9-a38a-3b3ba40f1cb7.webp",
+            "replacementStatus": "applied",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig1-ext-602dec13-9def-4ac9-a38a-3b3ba40f1cb7.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "sig2",
+            "tag": "턱을 괴고 생각",
+            "rawSha256": "3242bbadb72a6514314f9dd8ab425ad22e459358821c85b800215d4205f9bdb4",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig2-ext-690b5584-f0b2-4359-8e1a-2492a4ea83de.webp",
+            "replacementStatus": "applied",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig2-ext-690b5584-f0b2-4359-8e1a-2492a4ea83de.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "sig3",
+            "tag": "열쇠를 확인함",
+            "rawSha256": "b7df32fa69725fdfe86849dcd78bfbf6d8f4916f3bf5a6b8ecccb17ae50f8a19",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig3-ext-f9be162f-22b1-4926-874f-672c11f0edb6.webp",
+            "replacementStatus": "applied",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig3-ext-f9be162f-22b1-4926-874f-672c11f0edb6.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "sig4",
+            "tag": "옅은 미소",
+            "rawSha256": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig4-ext-6015b488-4b83-4f23-8939-3ad2fcd0115b.webp",
+            "replacementStatus": "applied",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig4-ext-6015b488-4b83-4f23-8939-3ad2fcd0115b.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "emo1",
+            "tag": "의심",
+            "rawSha256": "6f345d95b85a30850a954e4369f4aa9a7a9ccd978669643f41166fe5a7346a07",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo1-ext-6770eb16-97f3-45ae-a60f-5d6291b0e1f6.webp",
+            "replacementStatus": "applied",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo1-ext-6770eb16-97f3-45ae-a60f-5d6291b0e1f6.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "emo2",
+            "tag": "분노",
+            "rawSha256": "c4d38db0e3adfb59cf6fc2da8b79457636a90d64113c8b059ad30639d66d5db8",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo2-ext-2bd272cd-af61-4186-84f8-bdc0ae3822f8.webp",
+            "replacementStatus": "applied",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo2-ext-2bd272cd-af61-4186-84f8-bdc0ae3822f8.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "emo3",
+            "tag": "진지함",
+            "rawSha256": "758e1f8d182ffdf229107eb83c0d7476e24c7f9c2d1de02ca3ab9bb19419643a",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo3-ext-0d4d9b7e-d575-4cff-b8ff-2b5cd585a598.webp",
+            "replacementStatus": "applied",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo3-ext-0d4d9b7e-d575-4cff-b8ff-2b5cd585a598.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "emo4",
+            "tag": "당황",
+            "rawSha256": "527086945e164458a773cd84eac1e69a4e07d19e8ed14af4eb1c4d8c257bf4d4",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo4-ext-5c2c8473-2321-48bf-9e12-7441d1ab8f33.webp",
+            "replacementStatus": "applied",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo4-ext-5c2c8473-2321-48bf-9e12-7441d1ab8f33.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "emo5",
+            "tag": "편안함",
+            "rawSha256": "ef87914c71865944cdb1b40a6417105b3a426f089769189648e9ff86036ab517",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo5-ext-6d5e4c32-f7a7-483f-8ed7-e65b98515090.webp",
+            "replacementStatus": "applied",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo5-ext-6d5e4c32-f7a7-483f-8ed7-e65b98515090.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "emo6",
+            "tag": "안도",
+            "rawSha256": "f52f9f21046f7993a349e672b3326f2f5144bcb885badcf3181ad7326547e214",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo6-ext-466a9de8-8df1-45e2-bf15-90a9844c3ccc.webp",
+            "replacementStatus": "applied",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo6-ext-466a9de8-8df1-45e2-bf15-90a9844c3ccc.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "scene1",
+            "tag": "문서를 대조함",
+            "rawSha256": "1150bf9d17b6e7720e3e020c5288be20e346a83468c633d7672a9796f1e6230c",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__scene1-ext-c301a03e-5d26-486f-8161-60af0064dff9.webp",
+            "replacementStatus": "applied",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene1-ext-c301a03e-5d26-486f-8161-60af0064dff9.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "scene2",
+            "tag": "기록을 맞춤",
+            "rawSha256": "0cb364a2eddfddf5196e1ab1f0da8deb20ca175b62cc996b3ac583cea674b3e5",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__scene2-ext-a268d75c-ed16-498b-bff1-f1db7016b73e.webp",
+            "replacementStatus": "applied",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene2-ext-a268d75c-ed16-498b-bff1-f1db7016b73e.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "scene3",
+            "tag": "긴장",
+            "rawSha256": "bd3a47bc70ac79ac2bbc9b9a92e93903680397f59265afd9bb1f02309433482c",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__scene3-ext-1ba5c819-f60b-4762-81cf-ad098ac55b06.webp",
+            "replacementStatus": "applied",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene3-ext-1ba5c819-f60b-4762-81cf-ad098ac55b06.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "applied",
+            "reason": null
+          }
+        ],
+        "applies": [
+          {
+            "applyId": "a2095028-8bde-4699-a5e8-3e827ef4344e",
+            "characterId": 10,
+            "slotKeys": [
+              "rep",
+              "sig1",
+              "sig2",
+              "sig3",
+              "sig4",
+              "emo1",
+              "emo2",
+              "emo3",
+              "emo4",
+              "emo5",
+              "emo6",
+              "scene1",
+              "scene2",
+              "scene3"
+            ],
+            "status": "applied",
+            "appliedById": 8303,
+            "appliedAt": "2026-10-17 14:31:49",
+            "rolledBackById": null,
+            "rolledBackAt": null
+          }
+        ]
+      }
+    },
+    {
+      "label": "rollback (default dry-run)",
+      "args": [
+        "rollback",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10",
+        "--apply-id",
+        "a2095028-8bde-4699-a5e8-3e827ef4344e"
+      ],
+      "exitCode": 0,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "rollback",
+        "execute": false,
+        "status": "dry_run",
+        "applyId": "a2095028-8bde-4699-a5e8-3e827ef4344e",
+        "characterId": 10,
+        "draftKey": "pilot-rf-v4-02",
+        "restored": [
+          "rep",
+          "sig1",
+          "sig2",
+          "sig3",
+          "sig4",
+          "emo1",
+          "emo2",
+          "emo3",
+          "emo4",
+          "emo5",
+          "emo6",
+          "scene1",
+          "scene2",
+          "scene3"
+        ]
+      }
+    },
+    {
+      "label": "rollback --execute",
+      "args": [
+        "rollback",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10",
+        "--apply-id",
+        "a2095028-8bde-4699-a5e8-3e827ef4344e",
+        "--execute"
+      ],
+      "exitCode": 0,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "rollback",
+        "execute": true,
+        "status": "rolled_back",
+        "applyId": "a2095028-8bde-4699-a5e8-3e827ef4344e",
+        "characterId": 10,
+        "draftKey": "pilot-rf-v4-02",
+        "restored": [
+          "rep",
+          "sig1",
+          "sig2",
+          "sig3",
+          "sig4",
+          "emo1",
+          "emo2",
+          "emo3",
+          "emo4",
+          "emo5",
+          "emo6",
+          "scene1",
+          "scene2",
+          "scene3"
+        ]
+      }
+    },
+    {
+      "label": "status after rollback",
+      "args": [
+        "status",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10"
+      ],
+      "exitCode": 0,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "status",
+        "writes": 0,
+        "draftKey": "pilot-rf-v4-02",
+        "characterId": 10,
+        "stage": "staged_private",
+        "textLockHash": "6ff02833cfd45a542866aa1afa749486d94362eff5358e10f995b8f77fabd5fd",
+        "appearanceLockHash": "1c3ccd134203a6dea6ae869c27cc443c42ff5498d1d0130c6f9765407c24dcc3",
+        "admin": {
+          "id": 8303,
+          "email": "approved-apply-admin@test.local"
+        },
+        "manifest": {
+          "candidates": 14,
+          "filesMatchSha256": true
+        },
+        "slots": [
+          {
+            "slot": "rep",
+            "tag": "기본 초상",
+            "rawSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__rep-a1.webp",
+            "replacementStatus": "approved",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-e89b192f-1c2b-4187-a2bb-7636276c5891.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "apply",
+            "reason": null
+          },
+          {
+            "slot": "sig1",
+            "tag": "지도를 짚음",
+            "rawSha256": "e986403412b7754b520901afa97cc00e895ace0184542144383198f3506782f5",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig1-a1.webp",
+            "replacementStatus": "approved",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig1-ext-602dec13-9def-4ac9-a38a-3b3ba40f1cb7.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "apply",
+            "reason": null
+          },
+          {
+            "slot": "sig2",
+            "tag": "턱을 괴고 생각",
+            "rawSha256": "3242bbadb72a6514314f9dd8ab425ad22e459358821c85b800215d4205f9bdb4",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig2-a1.webp",
+            "replacementStatus": "approved",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig2-ext-690b5584-f0b2-4359-8e1a-2492a4ea83de.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "apply",
+            "reason": null
+          },
+          {
+            "slot": "sig3",
+            "tag": "열쇠를 확인함",
+            "rawSha256": "b7df32fa69725fdfe86849dcd78bfbf6d8f4916f3bf5a6b8ecccb17ae50f8a19",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig3-a1.webp",
+            "replacementStatus": "approved",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig3-ext-f9be162f-22b1-4926-874f-672c11f0edb6.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "apply",
+            "reason": null
+          },
+          {
+            "slot": "sig4",
+            "tag": "옅은 미소",
+            "rawSha256": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig4-a1.webp",
+            "replacementStatus": "approved",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig4-ext-6015b488-4b83-4f23-8939-3ad2fcd0115b.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "apply",
+            "reason": null
+          },
+          {
+            "slot": "emo1",
+            "tag": "의심",
+            "rawSha256": "6f345d95b85a30850a954e4369f4aa9a7a9ccd978669643f41166fe5a7346a07",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo1-a1.webp",
+            "replacementStatus": "approved",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo1-ext-6770eb16-97f3-45ae-a60f-5d6291b0e1f6.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "apply",
+            "reason": null
+          },
+          {
+            "slot": "emo2",
+            "tag": "분노",
+            "rawSha256": "c4d38db0e3adfb59cf6fc2da8b79457636a90d64113c8b059ad30639d66d5db8",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo2-a1.webp",
+            "replacementStatus": "approved",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo2-ext-2bd272cd-af61-4186-84f8-bdc0ae3822f8.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "apply",
+            "reason": null
+          },
+          {
+            "slot": "emo3",
+            "tag": "진지함",
+            "rawSha256": "758e1f8d182ffdf229107eb83c0d7476e24c7f9c2d1de02ca3ab9bb19419643a",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo3-a1.webp",
+            "replacementStatus": "approved",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo3-ext-0d4d9b7e-d575-4cff-b8ff-2b5cd585a598.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "apply",
+            "reason": null
+          },
+          {
+            "slot": "emo4",
+            "tag": "당황",
+            "rawSha256": "527086945e164458a773cd84eac1e69a4e07d19e8ed14af4eb1c4d8c257bf4d4",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo4-a1.webp",
+            "replacementStatus": "approved",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo4-ext-5c2c8473-2321-48bf-9e12-7441d1ab8f33.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "apply",
+            "reason": null
+          },
+          {
+            "slot": "emo5",
+            "tag": "편안함",
+            "rawSha256": "ef87914c71865944cdb1b40a6417105b3a426f089769189648e9ff86036ab517",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo5-a1.webp",
+            "replacementStatus": "approved",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo5-ext-6d5e4c32-f7a7-483f-8ed7-e65b98515090.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "apply",
+            "reason": null
+          },
+          {
+            "slot": "emo6",
+            "tag": "안도",
+            "rawSha256": "f52f9f21046f7993a349e672b3326f2f5144bcb885badcf3181ad7326547e214",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo6-a1.webp",
+            "replacementStatus": "approved",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo6-ext-466a9de8-8df1-45e2-bf15-90a9844c3ccc.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "apply",
+            "reason": null
+          },
+          {
+            "slot": "scene1",
+            "tag": "문서를 대조함",
+            "rawSha256": "1150bf9d17b6e7720e3e020c5288be20e346a83468c633d7672a9796f1e6230c",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__scene1-a1.webp",
+            "replacementStatus": "approved",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene1-ext-c301a03e-5d26-486f-8161-60af0064dff9.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "apply",
+            "reason": null
+          },
+          {
+            "slot": "scene2",
+            "tag": "기록을 맞춤",
+            "rawSha256": "0cb364a2eddfddf5196e1ab1f0da8deb20ca175b62cc996b3ac583cea674b3e5",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__scene2-a1.webp",
+            "replacementStatus": "approved",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene2-ext-a268d75c-ed16-498b-bff1-f1db7016b73e.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "apply",
+            "reason": null
+          },
+          {
+            "slot": "scene3",
+            "tag": "긴장",
+            "rawSha256": "bd3a47bc70ac79ac2bbc9b9a92e93903680397f59265afd9bb1f02309433482c",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__scene3-a1.webp",
+            "replacementStatus": "approved",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene3-ext-1ba5c819-f60b-4762-81cf-ad098ac55b06.webp",
+            "candidateMatchesManifest": true,
+            "moderation": "clean",
+            "next": "apply",
+            "reason": null
+          }
+        ],
+        "applies": [
+          {
+            "applyId": "a2095028-8bde-4699-a5e8-3e827ef4344e",
+            "characterId": 10,
+            "slotKeys": [
+              "rep",
+              "sig1",
+              "sig2",
+              "sig3",
+              "sig4",
+              "emo1",
+              "emo2",
+              "emo3",
+              "emo4",
+              "emo5",
+              "emo6",
+              "scene1",
+              "scene2",
+              "scene3"
+            ],
+            "status": "rolled_back",
+            "appliedById": 8303,
+            "appliedAt": "2026-10-17 14:31:49",
+            "rolledBackById": 8303,
+            "rolledBackAt": "2026-10-17 14:31:54"
+          }
+        ]
+      }
+    }
+  ]
+}
