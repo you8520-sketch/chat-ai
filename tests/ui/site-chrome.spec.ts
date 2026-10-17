@@ -254,6 +254,7 @@ async function headerControlMatrix(page: Page, expectShopLink: boolean) {
         if (width >= 360) {
           expect(detail.toggleVisibleText, `${tag} toggle label`).toContain("세이프티");
         } else {
+          expect(detail.toggleVisibleText, `${tag} toggle compact label`).toContain("필터");
           expect(detail.toggleVisibleText, `${tag} toggle compact label`).toMatch(/ON|OFF/);
         }
         if (expectShopLink) {
@@ -299,6 +300,19 @@ test.describe("compact mobile header", () => {
 
   test("payments OFF: header controls never overlap or overflow across balances, badges and widths", async ({ page }) => {
     await headerControlMatrix(page, false);
+  });
+
+  test("desktop widths keep the header logo clear with a large balance", async ({ page }) => {
+    await page.request.post("/api/auth/demo-login");
+    for (const width of [1024, 1280] as const) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/tab/ranking");
+      await applyBalanceAndBadge(page, "123,456,789P", "0");
+      const m = await headerMetrics(page);
+      expect(m.overlaps, `${width}px overlaps`).toEqual([]);
+      expect(m.offRight, `${width}px off-screen controls`).toEqual([]);
+      expect(m.docOverflow, `${width}px overflow`).toBe(false);
+    }
   });
 
   test("tapping the clipped last menu tab navigates and brings it fully into view", async ({ browser }) => {
@@ -523,6 +537,63 @@ test.describe("compact mobile header with the charge shortcut", () => {
 
   test("payments ON: logo, bell, safety filter, balance and charge link never overlap or overflow", async ({ page }) => {
     await headerControlMatrix(page, true);
+  });
+
+  test("320px: points deduct and refund animations keep digits inside the chip and off the charge link", async ({ page }) => {
+    await page.request.post("/api/auth/demo-login");
+    await page.setViewportSize({ width: 320, height: 800 });
+    await page.goto("/tab/ranking");
+    await applyBalanceAndBadge(page, "123,456,789P", "0");
+
+    const probe = () =>
+      page.evaluate(() => {
+        const top = document.querySelector("header.site-header")!.children[0] as HTMLElement;
+        const pill = top.querySelector<HTMLElement>('[aria-label^="보유 포인트"]')!;
+        const span = pill.querySelector<HTMLElement>("span")!;
+        const shop = top.querySelector<HTMLElement>('a[aria-label="포인트 충전"]')!;
+        const spanR = span.getBoundingClientRect();
+        const pillR = pill.getBoundingClientRect();
+        const shopR = shop.getBoundingClientRect();
+        const ox = Math.min(spanR.right, shopR.right) - Math.max(spanR.left, shopR.left);
+        const oy = Math.min(spanR.bottom, shopR.bottom) - Math.max(spanR.top, shopR.top);
+        return {
+          text: span.textContent,
+          spanClipped: span.scrollWidth > span.clientWidth + 1,
+          pillClipped: pill.scrollWidth > pill.clientWidth + 1,
+          spanInsidePill: spanR.left >= pillR.left - 0.5 && spanR.right <= pillR.right + 0.5,
+          shopOverlap: ox > 1 && oy > 1,
+        };
+      });
+
+    for (const remaining of [123_456_789, 98_765_432.1, 1_234_567.8]) {
+      await page.evaluate((value) => {
+        window.dispatchEvent(
+          new CustomEvent("playai:points-deducted", {
+            detail: { remainingPoints: value, paidPoints: value, freePoints: 0, totalPointsCost: 1 },
+          }),
+        );
+      }, remaining);
+      await page.waitForTimeout(80);
+      const mid = await probe();
+      expect(mid.spanClipped, `deduct mid ${remaining}`).toBe(false);
+      expect(mid.pillClipped, `deduct pill ${remaining}`).toBe(false);
+      expect(mid.spanInsidePill, `deduct inside ${remaining}`).toBe(true);
+      expect(mid.shopOverlap, `deduct shop ${remaining}`).toBe(false);
+    }
+
+    await page.evaluate(() => {
+      window.dispatchEvent(
+        new CustomEvent("playai:points-refunded", {
+          detail: { remainingPoints: 123_456_789, paidPoints: 123_456_789, freePoints: 0, refundedAmount: 1 },
+        }),
+      );
+    });
+    await page.waitForTimeout(900);
+    const settled = await probe();
+    expect(settled.text).toBe("123,456,789P");
+    expect(settled.spanClipped).toBe(false);
+    expect(settled.pillClipped).toBe(false);
+    expect(settled.shopOverlap).toBe(false);
   });
 });
 
