@@ -126,7 +126,9 @@ export function adventureStartPlace(adventure: TrpgAdventure): AdventurePlace | 
 /**
  * Shape checks and graph checks in one place. The lenient reader keeps an adventure only when
  * this finds nothing; the save and draft boundaries reject the same findings, so a broken
- * multi-place canon never turns into a silent "no map" success.
+ * multi-place canon never turns into a silent "no map" success. An omitted optional field means
+ * none; a provided one of the wrong type is an issue, never a default, because `requires`,
+ * `hidden`, `opensBy`, and `trigger` decide what is visible, open, and fired.
  */
 export function evaluateAdventure(raw: unknown): { adventure: TrpgAdventure | null; issues: string[] } {
   const issues: string[] = [];
@@ -198,6 +200,8 @@ export function evaluateAdventure(raw: unknown): { adventure: TrpgAdventure | nu
     const to = text(item.to);
     const opensBy = text(item.opensBy);
     const hidden = item.hidden === true;
+    if (item.hidden != null && typeof item.hidden !== "boolean") issues.push(`${label}: hidden은 true/false여야 합니다.`);
+    if (item.opensBy != null && typeof item.opensBy !== "string") issues.push(`${label}: opensBy는 사건 key 문자열이어야 합니다.`);
     if (!placeKeys.has(from) || !placeKeys.has(to)) {
       issues.push(`${label}: 없는 장소 "${placeKeys.has(from) ? to : from}"를 잇습니다.`);
       return;
@@ -224,15 +228,19 @@ export function evaluateAdventure(raw: unknown): { adventure: TrpgAdventure | nu
     }
     const key = text(item.key);
     const place = text(item.place);
-    const trigger = text(item.trigger) || "search";
+    const trigger = typeof item.trigger === "string" ? item.trigger.trim() || "search" : item.trigger == null ? "search" : String(item.trigger);
     const kind = text(item.kind);
     const body = clip(text(item.text), ADVENTURE_LIMITS.textChars);
     const itemName = text(item.item);
-    const requires = Array.isArray(item.requires) ? item.requires.map(text).filter(Boolean) : [];
+    const requiresWellFormed =
+      item.requires == null ||
+      (Array.isArray(item.requires) && item.requires.every((need) => typeof need === "string" && need.trim().length > 0));
+    const requires = requiresWellFormed && Array.isArray(item.requires) ? item.requires.map(text) : [];
     if (!key || charCount(key) > ADVENTURE_LIMITS.keyChars || !KEY_PATTERN.test(key)) {
       issues.push(`${label}: key "${key}"는 영문 소문자·숫자·_·- ${ADVENTURE_LIMITS.keyChars}자 이하여야 합니다.`);
       return;
     }
+    if (!requiresWellFormed) issues.push(`${label} (${key}): requires는 사건 key 목록이어야 합니다.`);
     if (eventKeys.has(key)) issues.push(`${label}: key "${key}"가 중복됩니다.`);
     eventKeys.add(key);
     if (!placeKeys.has(place)) issues.push(`${label} (${key}): 없는 장소 "${place}"에 있습니다.`);

@@ -219,3 +219,71 @@ describe("adventure in the scenario draft", () => {
     assert.equal(otherField.plan.adventure, undefined);
   });
 });
+
+describe("adventure condition fields", () => {
+  const withTwoEvents = () => {
+    const raw = valid();
+    raw.events.push({ key: "pass", place: "platform", trigger: "search", kind: "clue", text: "승강장 벽에 객차 번호가 적혀 있다." } as never);
+    return raw;
+  };
+
+  it("keeps an omitted or empty optional condition as no condition", () => {
+    const omitted = withTwoEvents();
+    assert.deepEqual(evaluateAdventure(omitted).issues, []);
+    const explicit = withTwoEvents() as unknown as { events: Array<Record<string, unknown>>; links: Array<Record<string, unknown>> };
+    explicit.events[0]!.requires = [];
+    explicit.events[1]!.requires = null;
+    explicit.links[0]!.hidden = false;
+    explicit.links[0]!.opensBy = null;
+    const { adventure, issues } = evaluateAdventure(explicit);
+    assert.deepEqual(issues, []);
+    assert.equal(adventure?.events[0]?.requires, undefined);
+    assert.equal(adventure?.links[0]?.hidden, undefined);
+  });
+
+  it("rejects requires that is provided but not a list of event keys instead of dropping it", () => {
+    const issuesFor = (requires: unknown) => {
+      const raw = withTwoEvents() as unknown as { events: Array<Record<string, unknown>> };
+      raw.events[0]!.requires = requires;
+      return evaluateAdventure(raw).issues.join(" ");
+    };
+    assert.match(issuesFor("pass"), /requires는 사건 key 목록이어야 합니다/);
+    assert.match(issuesFor(3), /requires는 사건 key 목록이어야 합니다/);
+    assert.match(issuesFor({ key: "pass" }), /requires는 사건 key 목록이어야 합니다/);
+    assert.match(issuesFor(["pass", 7]), /requires는 사건 key 목록이어야 합니다/);
+    assert.match(issuesFor(["pass", ""]), /requires는 사건 key 목록이어야 합니다/);
+    assert.match(issuesFor(["ghost"]), /없는 선행 사건 "ghost"/);
+    assert.deepEqual(evaluateAdventure((() => {
+      const raw = withTwoEvents() as unknown as { events: Array<Record<string, unknown>> };
+      raw.events[0]!.requires = ["pass"];
+      return raw;
+    })()).issues, []);
+  });
+
+  it("rejects link and trigger fields whose wrong type would change what is visible, open, or fired", () => {
+    const linkIssues = (patch: Record<string, unknown>) => {
+      const raw = valid() as unknown as { links: Array<Record<string, unknown>> };
+      Object.assign(raw.links[1]!, patch);
+      return evaluateAdventure(raw).issues.join(" ");
+    };
+    assert.match(linkIssues({ hidden: "true" }), /hidden은 true\/false여야 합니다/);
+    assert.match(linkIssues({ hidden: 1 }), /hidden은 true\/false여야 합니다/);
+    assert.match(linkIssues({ opensBy: 5 }), /opensBy는 사건 key 문자열이어야 합니다/);
+    assert.match(linkIssues({ opensBy: ["ticket"] }), /opensBy는 사건 key 문자열이어야 합니다/);
+    const eventIssues = (patch: Record<string, unknown>) => {
+      const raw = valid() as unknown as { events: Array<Record<string, unknown>> };
+      Object.assign(raw.events[0]!, patch);
+      return evaluateAdventure(raw).issues.join(" ");
+    };
+    assert.match(eventIssues({ trigger: 1 }), /trigger는 search\/careful_search\/enter|trigger는 enter\/search\/careful_search/);
+  });
+
+  it("rejects a malformed condition at the draft and save boundaries too", () => {
+    const raw = withTwoEvents() as unknown as { events: Array<Record<string, unknown>> };
+    raw.events[0]!.requires = "pass";
+    const draft = parseScenarioDraftJson(JSON.stringify({ title: "유령 기차", goal: "기관실", adventure: raw }));
+    assert.equal(draft.plan.adventure, undefined);
+    assert.match((draft.adventureIssues ?? []).join(" "), /requires는 사건 key 목록이어야 합니다/);
+    assert.throws(() => assertAuthoredAdventureValid({ adventure: raw }), /requires는 사건 key 목록이어야 합니다/);
+  });
+});
