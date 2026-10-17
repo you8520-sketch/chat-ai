@@ -303,7 +303,7 @@ export async function verifyOfficialDeployment(input: {
 }
 
 const PUBLIC_PAGE_SPECS: readonly { path: PublicPagePath; markers: readonly string[] }[] = [
-  { path: "/", markers: ["콘텐츠 탐색", "취향 설정"] },
+  { path: "/", markers: ["취향 설정", "북마크/팔로잉"] },
   { path: "/search", markers: ["장르 카테고리", "캐릭터명 · 제작자명 · 태그"] },
   { path: "/tab/new", markers: ["실시간 신작"] },
   { path: "/tab/ranking", markers: ["누적 대화 턴"] },
