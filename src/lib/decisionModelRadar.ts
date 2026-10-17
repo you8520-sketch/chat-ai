@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { isRetiredJevModelId } from "@/lib/jevDecisions";
 
 export const DECISION_RADAR_VERSION = 1;
 export const DECISION_RADAR_BASELINE_MODEL = "typesafe/jev-1.14";
@@ -243,7 +244,7 @@ export function parseDecisionCatalog(payload: unknown): DecisionCatalogModel[] {
   }
 
   return out
-    .filter((model) => !looksLikeAliasOrRouter(model))
+    .filter((model) => !looksLikeAliasOrRouter(model) && !isRetiredJevModelId(model.id))
     .sort((a, b) => (b.created ?? 0) - (a.created ?? 0));
 }
 
@@ -260,7 +261,7 @@ export function selectChangedDecisionCandidates(input: {
   const baselineModel = input.baselineModel ?? DECISION_RADAR_BASELINE_MODEL;
   const maxCandidates = input.maxCandidates ?? DECISION_RADAR_MAX_CANDIDATES_PER_RUN;
   const changed = input.catalog.filter((model) => {
-    if (model.id === baselineModel) return false;
+    if (model.id === baselineModel || isRetiredJevModelId(model.id)) return false;
     const prior = input.ledger.models[model.id];
     return !prior || prior.lastBenchmarkedFingerprint !== model.fingerprint;
   });

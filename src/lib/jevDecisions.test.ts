@@ -520,6 +520,58 @@ describe("jev decisions official wire contract", () => {
       restoreEnv();
     }
   });
+
+  it("rejects explicit 1.13 and dated 1.13 overrides before auth or HTTP", async () => {
+    const { callJevDecisions, JevDecisionsError } = await import("./jevDecisions");
+    savedFetch = globalThis.fetch;
+    savedKey = process.env.OPENROUTER_API_KEY;
+    delete process.env.OPENROUTER_API_KEY;
+    stubFetch(() => jsonResponse(decisionBody()));
+    try {
+      for (const model of ["typesafe/jev-1.13", "typesafe/jev-1.13-20260920", "~typesafe/jev-1.13"]) {
+        const err = await callJevDecisions({
+          state: {},
+          questions: questions(),
+          model,
+          ledger: null,
+        }).then(
+          () => null,
+          (e: unknown) => e
+        );
+        assert.ok(err instanceof JevDecisionsError, model);
+        assert.equal((err as JevDecisionsError).code, "invalid_request", model);
+        assert.match((err as JevDecisionsError).message, /retired Jev model is not callable/, model);
+      }
+      assert.equal(calls.length, 0, "retired override must not POST");
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it("still posts a non-retired benchmark override", async () => {
+    const { callJevDecisions } = await import("./jevDecisions");
+    withKey();
+    try {
+      stubFetch(() =>
+        jsonResponse({
+          ...decisionBody(),
+          model: "upstage/solar-decide",
+        })
+      );
+      const result = await callJevDecisions({
+        state: {},
+        questions: questions(),
+        model: "upstage/solar-decide",
+        ledger: null,
+      });
+      assert.equal(calls.length, 1);
+      const body = JSON.parse(String(calls[0]!.init.body)) as Record<string, unknown>;
+      assert.equal(body.model, "upstage/solar-decide");
+      assert.equal(result.responseModel, "upstage/solar-decide");
+    } finally {
+      restoreEnv();
+    }
+  });
 });
 
 describe("jev decisions regression gates", () => {
