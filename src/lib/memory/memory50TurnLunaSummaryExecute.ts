@@ -5,7 +5,9 @@
  * Production-key fallback is forbidden. This is not a second billing owner.
  */
 import {
+  accessSync,
   closeSync,
+  constants,
   existsSync,
   fsyncSync,
   mkdirSync,
@@ -94,6 +96,9 @@ export const LUNA_SUMMARY_JOURNAL_DIR_ENV = "MEMORY_LUNA_SUMMARY_JOURNAL_DIR";
 export const LUNA_SUMMARY_CANONICAL_JOURNAL_DIR =
   "/opt/cursor/artifacts/luna-summary-journal-v1" as const;
 export const LUNA_SUMMARY_JOURNAL_DIR_PREFIX = "luna-summary-journal";
+export const LUNA_SUMMARY_EXECUTE_STOP_FILENAME =
+  "memory_50turn_luna_summary_execute_stop.json" as const;
+export const LUNA_SUMMARY_EXECUTE_STOP_PREFERRED_DIR = "/opt/cursor/artifacts" as const;
 export type LunaLiveApprovalStatus = "NOT_APPROVED" | "APPROVED";
 export const LUNA_SUMMARY_LIVE_APPROVAL_STATUS: LunaLiveApprovalStatus = "NOT_APPROVED";
 export const LUNA_SUMMARY_LIVE_BATCH_FINGERPRINTS = [
@@ -292,6 +297,91 @@ export function resolveLunaSummaryJournalDirectory(input?: {
     return { ok: false, reason: "JOURNAL_PATH_UNSAFE" };
   }
   return { ok: true, directory: resolved };
+}
+
+function directoryIsWritable(directory: string): boolean {
+  try {
+    accessSync(directory, constants.W_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function resolveLunaExecuteReportPath(input?: {
+  preferredDirectory?: string | null;
+  journalDirectory?: string | null;
+  filename?: string;
+  mkdirPreferred?: boolean;
+}):
+  | { ok: true; path: string; directory: string; usedJournalFallback: boolean }
+  | { ok: false; reason: "REPORT_PATH_UNWRITABLE" } {
+  const filename = input?.filename ?? LUNA_SUMMARY_EXECUTE_STOP_FILENAME;
+  const preferred = input?.preferredDirectory ?? LUNA_SUMMARY_EXECUTE_STOP_PREFERRED_DIR;
+  if (preferred) {
+    if (!existsSync(preferred) && input?.mkdirPreferred !== false) {
+      try {
+        mkdirSync(preferred, { recursive: true, mode: 0o700 });
+      } catch {
+        /* Fall back to the existing journal directory. Never chmod 0777. */
+      }
+    }
+    if (existsSync(preferred) && directoryIsWritable(preferred)) {
+      return {
+        ok: true,
+        path: path.join(preferred, filename),
+        directory: preferred,
+        usedJournalFallback: false,
+      };
+    }
+  }
+  const journal = input?.journalDirectory?.trim() || "";
+  if (journal && existsSync(journal) && directoryIsWritable(journal)) {
+    return {
+      ok: true,
+      path: path.join(journal, filename),
+      directory: journal,
+      usedJournalFallback: true,
+    };
+  }
+  return { ok: false, reason: "REPORT_PATH_UNWRITABLE" };
+}
+
+export function writeLunaExecuteStopReport(input: {
+  report: unknown;
+  preferredDirectory?: string | null;
+  journalDirectory?: string | null;
+  filename?: string;
+  mkdirPreferred?: boolean;
+}): {
+  path: string | null;
+  directory: string | null;
+  usedJournalFallback: boolean;
+  written: boolean;
+} {
+  const resolved = resolveLunaExecuteReportPath(input);
+  if (!resolved.ok) {
+    return { path: null, directory: null, usedJournalFallback: false, written: false };
+  }
+  try {
+    writeFileSync(resolved.path, `${JSON.stringify(input.report, null, 2)}\n`, {
+      encoding: "utf8",
+      mode: 0o600,
+    });
+    return {
+      path: resolved.path,
+      directory: resolved.directory,
+      usedJournalFallback: resolved.usedJournalFallback,
+      written: true,
+    };
+  } catch {
+    return {
+      path: resolved.path,
+      directory: resolved.directory,
+      usedJournalFallback: resolved.usedJournalFallback,
+      written: false,
+    };
+  }
 }
 
 function lunaJournalPath(directory: string, fingerprint: string): string {
