@@ -1,0 +1,7 @@
+667x375, keyboard simulated 190px (visualViewport fake, NOT a real device). [scroll-padding-top, scroll-padding-bottom, --studio-save-bar-h]
+user=safe/creatorA fixtures
+PR HEAD f59d1932 (build e9b)                          | this fix b75898fe (build e9c)
+/chat/1359 closed [auto, auto, unset] kb190 [8px, 198px, 0px]   | closed [auto, auto, unset] kb190 [auto, auto, unset]
+/chats     closed [106px, 8px, unset] kb190 [106px, 198px, 0px] | closed [106px, 8px, unset] kb190 [106px, 8px, unset]
+/persona   closed [106px, 8px, unset] kb190 [106px, 198px, 0px] | closed [106px, 8px, unset] kb190 [106px, 8px, unset]
+/search    closed [106px, 8px, unset] kb190 [106px, 198px, 0px] | closed [106px, 8px, unset] kb190 [106px, 8px, unset]

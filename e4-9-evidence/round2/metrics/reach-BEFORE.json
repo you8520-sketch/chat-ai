@@ -1,0 +1,20 @@
+{
+ "create": {
+  "vv": 185,
+  "hdr": 98,
+  "top": 129,
+  "bottom": 173,
+  "bar": "fixed",
+  "ok": true,
+  "steps": 0
+ },
+ "world": {
+  "vv": 185,
+  "hdr": 98,
+  "top": 129,
+  "bottom": 173,
+  "bar": "fixed",
+  "ok": true,
+  "steps": 0
+ }
+}
