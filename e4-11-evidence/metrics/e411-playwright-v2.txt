@@ -1,0 +1,14 @@
+
+Running 5 tests using 1 worker
+
+(node:2344622) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2344622) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › tests/ui/site-chrome.spec.ts:301:7 › compact mobile header › payments OFF: header controls never overlap or overflow across balances, badges and widths (11.5s)
+  ✓  2 [chromium] › tests/ui/site-chrome.spec.ts:305:7 › compact mobile header › desktop widths keep the header logo clear with a large balance (850ms)
+  ✓  3 [chromium] › tests/ui/site-chrome.spec.ts:482:7 › page content start line › narrow editor forms share the main edge below lg and stay centered readable forms on desktop (706ms)
+  ✓  4 [chromium] › tests/ui/site-chrome.spec.ts:538:7 › compact mobile header with the charge shortcut › payments ON: logo, bell, safety filter, balance and charge link never overlap or overflow (11.4s)
+  ✓  5 [chromium] › tests/ui/site-chrome.spec.ts:542:7 › compact mobile header with the charge shortcut › 320px: points deduct and refund animations keep digits inside the chip and off the charge link (1.7s)
+
+  5 passed (26.7s)
