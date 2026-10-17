@@ -1,5 +1,6 @@
 import type { CharacterAsset } from "@/lib/characterAssets";
 import { parseGenresJson, type CharacterGenre } from "@/lib/characterGenres";
+import { adventureHasMap, adventureStartPlace, assertAuthoredAdventureValid } from "./adventure";
 import { TRPG_INVENTORY_ITEM_NAME_LIMIT, TRPG_START_INVENTORY_MAX_UNITS } from "./inventory";
 import { normalizeScenarioAssets } from "./scenarioAssets";
 import {
@@ -265,7 +266,9 @@ export function normalizeScenarioTemplateInput(
   const title = clip(String(input.title ?? ""), TRPG_SCENARIO_TITLE_LIMIT);
   const content = clip(String(input.content ?? ""), TRPG_SCENARIO_CONTENT_LIMIT);
   assertAuthoredEncountersValid(input.scenarioPlan);
+  assertAuthoredAdventureValid(input.scenarioPlan);
   const scenarioPlan = parseTrpgScenarioPlan(input.scenarioPlan);
+  const mapStart = adventureHasMap(scenarioPlan?.adventure) ? adventureStartPlace(scenarioPlan.adventure)?.name : undefined;
   if (!title) throw new Error("시나리오 제목을 입력해 주세요.");
   if (!content && !hasPlayableScenarioPlan(scenarioPlan)) {
     throw new Error("시작 상황과 플레이어 목표를 입력해 주세요.");
@@ -304,7 +307,7 @@ export function normalizeScenarioTemplateInput(
     secretContent: clip(String(input.secretContent ?? ""), TRPG_SCENARIO_SECRET_LIMIT),
     worldId: Number.isInteger(worldIdRaw) && worldIdRaw > 0 ? worldIdRaw : null,
     visibility,
-    startLocation: clip(String(input.startLocation ?? ""), TRPG_SCENARIO_LOCATION_LIMIT),
+    startLocation: clip(mapStart ?? String(input.startLocation ?? ""), TRPG_SCENARIO_LOCATION_LIMIT),
     startInventory: parseInventory(input.startInventory),
     defaultPcStats: parseStatRecord(input.defaultPcStats, statDefs, pool) ?? evenStats(statDefs, pool),
     statKeys,

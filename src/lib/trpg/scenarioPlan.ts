@@ -1,3 +1,4 @@
+import { parseAdventure, type TrpgAdventure } from "./adventure";
 import { TRPG_START_INVENTORY_MAX_UNITS } from "./inventory";
 import { TRPG_DEFAULT_ENDING_GUIDANCE } from "./trpgPublication";
 import type { TrpgScenarioNpc } from "./scenarioTypes";
@@ -114,7 +115,9 @@ export type TrpgScenarioPlan = {
   provenance?: TrpgScenarioPlanProvenance | null;
   /** Typed, author-approved threats. Omitted when the scenario defines none. */
   encounters?: TrpgScenarioEncounter[];
-  /** Opt-in seeded exploration map. Absent on every existing scenario. */
+  /** Places, links, and events. Two or more places make the campaign start with a map. */
+  adventure?: TrpgAdventure;
+  /** Legacy test-only opt-in for the fixed facility map. Ignored when `adventure` is present. */
   exploration?: boolean;
 };
 
@@ -348,6 +351,8 @@ export function parseTrpgScenarioPlan(raw: unknown): TrpgScenarioPlan | null {
   };
   const encounters = parseScenarioEncounters(row.encounters);
   if (encounters.length) plan.encounters = encounters;
+  const adventure = parseAdventure(row.adventure);
+  if (adventure) plan.adventure = adventure;
   if (row.exploration === true) plan.exploration = true;
   return isTrpgScenarioPlanEmpty(plan) ? null : plan;
 }
@@ -370,6 +375,7 @@ export function isTrpgScenarioPlanEmpty(plan: TrpgScenarioPlan | null | undefine
     plan.factionChanges.length ||
     plan.gmDirection ||
     plan.encounters?.length ||
+    plan.adventure ||
     plan.exploration === true
   );
 }
