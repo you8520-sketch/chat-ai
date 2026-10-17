@@ -1255,3 +1255,28 @@ mock 기록의 provider POST 수는 각 단계의 `providerPosts`와 같았다. 
 ### 24.8 검수 상태
 
 §23.7과 같다. 운영 moderation·검수 기록·apply는 미실행이고, 운영 moderation은 비용 승인이 필요하다. 14장 후보 시각 검수와 코드 검증을 전체 자동 제작이나 실제 RP 품질 합격으로 보지 않는다. 테스트와 격리 실행의 mock moderation·검수는 게이트 확인용이고 실제 품질 승인 기록이 아니다.
+
+### 24.9 응답을 읽지 못한 POST의 정산
+
+원인: provider가 HTTP 200과 잘린 JSON을 주면 `res.json()`이 `SyntaxError`를 던졌다. 그 예외는 `afterProviderPost`보다 먼저 나가서, 명령은 `stopped`인데 보고는 provider POST 0, 미확인 비용 0이었다. 응답 본문을 읽지 못하거나 응답이 객체가 아닌 경우도 같다.
+
+수정은 vision owner의 POST 실행과 정산 사이다. `analyzeWithModel`은 전송 실패를 `transport_error`로 돌려주고, 그 밖의 예외는 POST 이후의 본문 읽기·JSON 파싱·응답 구조 해석 실패다. 그 시도는 `unparsed`, 비용 `null`로 정확히 한 번 정산하고 같은 예외를 다시 던진다.
+
+- 청구액을 읽지 못했으므로 미확인 비용으로 보고하고 예약액을 유지한다.
+- 예외가 실행을 멈추므로 fallback을 새로 보내지 않는다. 새 재시도나 별도 vision 경로는 없다.
+- 정상 응답, HTTP 오류, transport 오류는 기존 반환 경로에서 한 번만 정산한다.
+- 키 없음과 이미지 읽기 실패는 POST 전에 끝나고 호출 0, 확정 비용 0이다.
+- 예외로 멈춰도 그 실행의 `posts`에는 이미 정산된 요청이 남는다. 그 칸의 moderation 기록은 예외 전에 저장된 값에서 바뀌지 않는다.
+
+| 확인 | 수정 전 (`aa13aa3a`) | 수정 후 |
+|---|---|---|
+| HTTP 200 + 잘린 JSON | 정산 0, 보고 POST 0 | POST 1 = 보고 1, 미확인 1건, 예약 유지, fallback 없음 |
+| POST 후 본문 읽기 실패 | 정산 0 | 같은 보장 |
+| HTTP 오류 뒤 구조 해석 실패 | HTTP 오류만 정산되고 다음 POST는 누락 | 둘 다 한 번씩 남고 예외는 유지 |
+| 정상 응답·HTTP 오류·transport 오류 | 각각 1회 | 각각 1회 |
+| 키 없음·이미지 읽기 실패 | POST 0, 확정 0 | POST 0, 확정 0 |
+| primary 뒤 예산 정지 | fallback POST 0 | 유지 |
+
+vision owner 테스트는 `vision.runControl.test.ts`, 운영 연결은 `officialSupply.approvedAssetOperator.test.ts`의 moderation 실행이다. 둘 다 mock provider이고 네트워크로 나가지 않는다. 수정 전 로그는 정산 배열이 비어 있거나 앞선 HTTP 오류만 남고, 운영 보고의 provider POST가 0이다. 수정 후 vision 관련 테스트 45/45, 단계 명령 테스트 7/7, official-supply 전체 573/573, `npm run lint`(`typecheck:app`), `git diff --check`가 통과했다.
+
+미참조 파일 정리는 후속이다. `npm run test:regular`의 `SQLITE_BUSY` 실패(§23.8)는 이번에 다시 확인하지 않았고, 이번 변경으로 해결됐다고 보지 않는다.
