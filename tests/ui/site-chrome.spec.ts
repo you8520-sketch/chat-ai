@@ -189,17 +189,20 @@ async function focusedHeaderControl(page: Page) {
 }
 
 const BALANCES = ["2,000P", "200,000P", "123,456,789P"] as const;
-const MATRIX_WIDTHS = [360, 375, 390, 575, 576] as const;
+const MATRIX_WIDTHS = [320, 360, 375, 390, 575, 576] as const;
 
-async function applyBalanceAndBadge(page: Page, balance: string, badge: "0" | "99+") {
+async function applyBalanceAndBadge(page: Page, balance: string, badge: "0" | "1" | "99+") {
   await page.evaluate(({ balance, badge }) => {
     const points = document.querySelector<HTMLElement>('header.site-header [aria-label^="보유 포인트"]');
     const span = points?.querySelector("span") ?? points;
     if (span) span.textContent = balance;
-    if (badge === "99+") {
-      const bell = document.querySelector<HTMLElement>('header.site-header button[aria-label^="알림"]');
-      const count = bell?.querySelector("span");
-      if (count) count.textContent = "99+";
+    const bell = document.querySelector<HTMLElement>('header.site-header button[aria-label^="알림"]');
+    const count = bell?.querySelector("span");
+    if (badge === "0") {
+      if (count) count.style.display = "none";
+    } else if (count) {
+      count.style.display = "";
+      count.textContent = badge;
     }
   }, { balance, badge });
 }
@@ -208,7 +211,7 @@ async function headerControlMatrix(page: Page, expectShopLink: boolean) {
   await page.request.post("/api/auth/demo-login");
   for (const width of MATRIX_WIDTHS) {
     for (const balance of BALANCES) {
-      for (const badge of ["0", "99+"] as const) {
+      for (const badge of ["0", "1", "99+"] as const) {
         const tag = `${width}px ${balance} badge ${badge}`;
         await page.setViewportSize({ width, height: 800 });
         await page.goto("/tab/ranking");
@@ -248,7 +251,11 @@ async function headerControlMatrix(page: Page, expectShopLink: boolean) {
         expect(detail.toggleHeight, `${tag} toggle height`).toBeGreaterThanOrEqual(36);
         expect(detail.togglePressed, `${tag} toggle exposes state`).not.toBeNull();
         expect(detail.toggleState, `${tag} toggle shows ON/OFF text`).toBe(detail.togglePressed === "true" ? "ON" : "OFF");
-        expect(detail.toggleVisibleText, `${tag} toggle label`).toContain("세이프티");
+        if (width >= 360) {
+          expect(detail.toggleVisibleText, `${tag} toggle label`).toContain("세이프티");
+        } else {
+          expect(detail.toggleVisibleText, `${tag} toggle compact label`).toMatch(/ON|OFF/);
+        }
         if (expectShopLink) {
           expect(detail.shopHref, `${tag} charge link`).toBe("/points");
           expect(detail.shopW, `${tag} charge link width`).toBeGreaterThanOrEqual(36);
