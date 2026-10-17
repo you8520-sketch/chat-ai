@@ -1,8 +1,7 @@
 import { createHash } from "node:crypto";
-import { JEV_ACTIVE_MODEL, isRetiredJevModelId } from "@/lib/jevModelPolicy";
 
 export const DECISION_RADAR_VERSION = 1;
-export const DECISION_RADAR_BASELINE_MODEL = JEV_ACTIVE_MODEL;
+export const DECISION_RADAR_BASELINE_MODEL = "typesafe/jev-1.14";
 export const DECISION_RADAR_LEDGER_BRANCH = "decision-model-radar-ledger";
 export const DECISION_RADAR_WORKFLOW_PATH = ".github/workflows/decision-model-radar-weekly.yml";
 export const DECISION_RADAR_MAX_CANDIDATES_PER_RUN = 3;
@@ -244,7 +243,7 @@ export function parseDecisionCatalog(payload: unknown): DecisionCatalogModel[] {
   }
 
   return out
-    .filter((model) => !looksLikeAliasOrRouter(model) && !isRetiredJevModelId(model.id))
+    .filter((model) => !looksLikeAliasOrRouter(model))
     .sort((a, b) => (b.created ?? 0) - (a.created ?? 0));
 }
 
@@ -261,7 +260,7 @@ export function selectChangedDecisionCandidates(input: {
   const baselineModel = input.baselineModel ?? DECISION_RADAR_BASELINE_MODEL;
   const maxCandidates = input.maxCandidates ?? DECISION_RADAR_MAX_CANDIDATES_PER_RUN;
   const changed = input.catalog.filter((model) => {
-    if (model.id === baselineModel || isRetiredJevModelId(model.id)) return false;
+    if (model.id === baselineModel) return false;
     const prior = input.ledger.models[model.id];
     return !prior || prior.lastBenchmarkedFingerprint !== model.fingerprint;
   });

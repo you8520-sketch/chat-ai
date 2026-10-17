@@ -73,20 +73,6 @@ describe("decision catalog request contract", () => {
 });
 
 describe("decision model radar catalog", () => {
-  it("never offers a retired Jev pin (including dated snapshots) as a benchmark candidate", () => {
-    const catalog = parseDecisionCatalog({
-      data: [
-        { id: "typesafe/jev-1.13", created: 200, pricing: { prompt: "0.000000042", completion: "0" } },
-        { id: "typesafe/jev-1.13-20260920", created: 199, pricing: { prompt: "0.000000042", completion: "0" } },
-        { id: "typesafe/jev-1.14", created: 201, pricing: { prompt: "0.000000042", completion: "0" } },
-        { id: "candidate/other", created: 202, pricing: { prompt: "0.000000042", completion: "0" } },
-      ],
-    });
-    assert.deepEqual(catalog.map((row) => row.id), ["candidate/other", "typesafe/jev-1.14"]);
-    const selected = selectChangedDecisionCandidates({ catalog, ledger: emptyDecisionRadarLedger() });
-    assert.deepEqual(selected.selected.map((row) => row.id), ["candidate/other"]);
-  });
-
   it("parses decision models, prices per million, and filters aliases/routers", () => {
     const parsed = parseDecisionCatalog({
       data: [
@@ -263,7 +249,7 @@ describe("decision model radar catalog", () => {
 
 describe("decision model comparison gate", () => {
   it("marks only objectively better suites and never infers a global winner from a weaker overall result", () => {
-    const baseline = summary("typesafe/jev-1.14", 0.8, 2, [
+    const baseline = summary("typesafe/jev-1.13", 0.8, 2, [
       ["authorial_habit", 0.8, 1],
       ["completion_integrity", 0.6, 1],
       ["scene_boundary", 0.9, 0],

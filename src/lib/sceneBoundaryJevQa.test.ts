@@ -189,7 +189,7 @@ describe("generation-scoped exactly-once + failure mapping", () => {
           },
         },
         usage: { inputTokens: 10, outputTokens: 5, estimated: false, upstreamCostUsd: 0.0001 },
-        responseModel: "typesafe/jev-1.14-test",
+        responseModel: "typesafe/jev-1.13-test",
       };
     }) as typeof import("@/lib/jevDecisions").callJevDecisions;
 
@@ -255,7 +255,7 @@ describe("generation-scoped exactly-once + failure mapping", () => {
           },
         },
         usage: { inputTokens: 8, outputTokens: 4, estimated: false },
-        responseModel: "typesafe/jev-1.14-test",
+        responseModel: "typesafe/jev-1.13-test",
       };
     }) as typeof import("@/lib/jevDecisions").callJevDecisions;
 
@@ -351,7 +351,7 @@ describe("privacy payload + billing provenance", () => {
           },
         },
         usage: { inputTokens: 10, outputTokens: 5, estimated: false, upstreamCostUsd: 0.0001 },
-        responseModel: "typesafe/jev-1.14-test",
+        responseModel: "typesafe/jev-1.13-test",
       };
     }) as typeof import("@/lib/jevDecisions").callJevDecisions;
 
