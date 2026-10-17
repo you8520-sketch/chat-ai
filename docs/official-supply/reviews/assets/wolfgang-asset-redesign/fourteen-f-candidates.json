@@ -9,18 +9,19 @@
     "outputCompression": 88,
     "background": "opaque"
   },
-  "note": "rep F was generated earlier at 1024x1536. Sent hashes are copied from each call's actual record. emo6-r1 is history.",
+  "note": "User tag for the representative is 기본 초상. F is the internal candidate name. The representative file is the earlier 1024x1536 generation. emo5 and emo6 candidates are the r2 files. Sent hashes are copied from each call actual.",
   "candidates": [
     {
       "slot": "rep",
-      "tag": "F",
+      "tag": "기본 초상",
       "role": "candidate",
       "file": "rep-f-raw.webp",
       "rawSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
       "sentPromptSha256": "e24378f1f1b5de20ca7ff21f54f206aa73e21776b4350938b2f81e58883de46e",
       "sentPromptSource": "rep-f-actual.json promptSha256",
       "providerRequestId": "req_77188f324f0845b388c50a5b856161a8",
-      "costUsd": 0.027393
+      "costUsd": 0.027393,
+      "internalName": "F"
     },
     {
       "slot": "sig1",
@@ -116,12 +117,13 @@
       "slot": "emo5",
       "tag": "편안함",
       "role": "candidate",
-      "file": "emo5-ease-f-raw.webp",
-      "rawSha256": "113e7a2c18a49b7cbf5f94684217096e4222641b6cfa64c95b7c25013e033a1a",
-      "sentPromptSha256": "9e04e897e5d5ddcea10a1f9511a41525018b1ecb322a5efec96821ea98f09d73",
-      "sentPromptSource": "emo5-ease-f-actual.json sentPromptSha256",
-      "providerRequestId": "req_93aa24e820c541f9bab6444fb19a7c6d",
-      "costUsd": 0.030173
+      "file": "emo5-r2-raw.webp",
+      "rawSha256": "ef87914c71865944cdb1b40a6417105b3a426f089769189648e9ff86036ab517",
+      "sentPromptSha256": "1fbf0dbc819a8b4f118591d32a325cc1d2808e8f58bb391b80586e9b4bc44ca8",
+      "sentPromptSource": "emo5-r2-actual.json primaryPromptSha256",
+      "providerRequestId": "req_36a02238b64642f7a13befe73a642d20",
+      "costUsd": 0.030133,
+      "revision": "r2"
     },
     {
       "slot": "emo6",
@@ -171,6 +173,18 @@
   ],
   "history": [
     {
+      "slot": "emo5-r1",
+      "tag": "편안함",
+      "role": "history",
+      "file": "emo5-ease-f-raw.webp",
+      "rawSha256": "113e7a2c18a49b7cbf5f94684217096e4222641b6cfa64c95b7c25013e033a1a",
+      "sentPromptSha256": "9e04e897e5d5ddcea10a1f9511a41525018b1ecb322a5efec96821ea98f09d73",
+      "sentPromptSource": "emo5-ease-f-actual.json sentPromptSha256",
+      "providerRequestId": "req_93aa24e820c541f9bab6444fb19a7c6d",
+      "costUsd": 0.030173,
+      "notTheFinalEmo5Candidate": true
+    },
+    {
       "slot": "emo6-r1",
       "tag": "안도",
       "role": "history",
@@ -183,9 +197,11 @@
       "notTheFinalEmo6Candidate": true
     }
   ],
-  "thisTurnPosts": 10,
-  "thisTurnCostUsd": 0.302265,
-  "thisTurnBudgetUsd": 0.8,
+  "tenSlotRunPosts": 10,
+  "tenSlotRunCostUsd": 0.302265,
+  "emo5r2Posts": 1,
+  "emo5r2CostUsd": 0.030133,
+  "emo5r2BudgetUsd": 0.08,
   "qualityReview": "not started; candidate submission only",
   "persistedToProduction": false
 }

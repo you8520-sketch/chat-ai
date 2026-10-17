@@ -773,3 +773,81 @@ rep F의 과거 호출 크기는 1024×1536이다. 이번 10칸과 유지한 sig
 ![남은 10 모피](./assets/wolfgang-asset-redesign/compare-remaining-10-fur.webp)
 
 ![남은 10 갑옷](./assets/wolfgang-asset-redesign/compare-remaining-10-armor.webp)
+
+§20 표의 emo5 행과 대표 표기 `F`는 그 시점의 제출이다. 현재 최종 후보는 §21이다.
+
+## 21. emo5-r2 편안함과 비공개 적용 준비
+
+GPT 검수에서 emo5를 뺀 13장은 유지한다. 기존 emo5와 10회 ledger는 덮어쓰지 않았다. 슬롯 수는 14개다.
+
+### 21.1 emo5-r2
+
+Expression과 Pose만 바꿨다. emo5 샷 책임(왼쪽 3/4, 눈높이, 무릎 이상, 환경 배경), F `official-review-candidate`, Appearance Lock, 34세 가드는 같다. 전송문 diff는 `emo5-r2-prompt.diff`다. 바뀐 것은 29번째 줄의 Expression·Pose뿐이다.
+
+- Expression: 눈꺼풀을 조금 낮추고 미간과 입술의 힘을 뺀 편안함. 눈은 뜨고 입술은 부드럽게 다문다.
+- Pose: 돌벽에 등을 가볍게 기대고 한쪽 다리에 체중을 싣는다. 어깨와 팔꿈치와 손의 힘을 풀어 편하게 쉰다. 손은 비어 있다.
+
+경로: `composeOfficialSlotGeneration` → `prepareOfficialImageReferences` → `callOpenAiImageEdit` 1회. `gpt-image-2.5-sunburst`, 1536×1024 / medium / n=1 / webp 88 / opaque. fallback·재시도·vision 없음. 원본을 검사보다 먼저 저장했다. 실행 기록은 `emo5-r2-ledger.json`, `emo5-r2-actual.json`이다. 전처리 SHA는 기존 F와 같은 `39d425e5…2ae1c7`이다.
+
+| 항목 | 값 |
+|---|---|
+| request | `req_36a02238b64642f7a13befe73a642d20` |
+| 비용 | 0.030133 USD (상한 0.08) |
+| 전송 SHA | `1fbf0dbc…c44ca8` |
+| 원본 SHA | `ef87914c…6ab517` |
+
+**인물·그림체:** 검은 울프컷, 흑철 판금, 검은 모피, 늑대 문양이다. 기존 13장과 같은 cel-shaded 로판 남주다.
+
+**자세:** 돌벽에 등을 기대고 한쪽 무릎을 굽혀 체중을 싣는다. 손은 비어 있고 소품과 상대 인물은 없다. 눈은 뜨고 입술은 다물어 있다. 기존 편안함의 곧게 선 자세, 진지함의 성벽 옆모습, 옅은 미소의 앉은 웃음, 안도 r2의 눈 감고 앉은 숨과 구별된다.
+
+![emo5-r2 편안함](./assets/wolfgang-asset-redesign/emo5-r2.webp)
+
+![편안함 비교](./assets/wolfgang-asset-redesign/compare-ease-r2.webp)
+
+### 21.2 최종 14칸
+
+사용자용 대표 태그는 `기본 초상`이다. `F`는 내부 후보 이름이다. emo5 최종 파일은 `emo5-r2-raw.webp`, emo6 최종 파일은 `emo6-r2-raw.webp`다. 전송 SHA는 각 actual에서 복사했다. 전체 문자열은 `fourteen-f-candidates.json`이다.
+
+| 슬롯 | 태그 | 파일 | request | USD |
+|---|---|---|---|---|
+| rep | 기본 초상 | `rep-f-raw.webp` | `req_77188f324f0845b388c50a5b856161a8` | 0.027393 |
+| sig1 | 지도를 짚음 | `sig1-map-f-raw.webp` | `req_8cad5780dde64785a419d63ceb53e453` | 0.030198 |
+| sig2 | 턱을 괴고 생각 | `sig2-chin-f-raw.webp` | `req_ee31e437cdbb4702adf28ace9a88c8b4` | 0.030153 |
+| sig3 | 열쇠를 확인함 | `sig3-key-f-raw.webp` | `req_905fc7abe4ce4e21a00252f67ca0e1b0` | 0.030018 |
+| sig4 | 옅은 미소 | `sig4-smile-f-raw.webp` | `req_9f16055bae0840c4b0d2c49677a931c5` | 0.030393 |
+| emo1 | 의심 | `emo1-doubt-f-raw.webp` | `req_b474a1e014164ecbaae1dd27765ea7e0` | 0.030063 |
+| emo2 | 분노 | `emo2-anger-f-raw.webp` | `req_995ff002b4864ac695708ad75a5f0523` | 0.030123 |
+| emo3 | 진지함 | `emo3-serious-f-raw.webp` | `req_8c5320ba66274741bbfa59692c6bb587` | 0.030138 |
+| emo4 | 당황 | `emo4-fluster-f-raw.webp` | `req_5db3268c0ca94919a6587368050b3e7b` | 0.030038 |
+| emo5 | 편안함 r2 | `emo5-r2-raw.webp` | `req_36a02238b64642f7a13befe73a642d20` | 0.030133 |
+| emo6 | 안도 r2 | `emo6-r2-raw.webp` | `req_3ec37eba8f184d68af6ee9b6fbc7b8a5` | 0.030293 |
+| scene1 | 문서를 대조함 | `scene1-docs-f-raw.webp` | `req_9c5d7971ef8c4a619ae0a5e471b8fb94` | 0.030438 |
+| scene2 | 기록을 맞춤 | `scene2-records-f-raw.webp` | `req_7608b37f1a06407a838014d8a8f765c1` | 0.030388 |
+| scene3 | 긴장 | `scene3-tense-f-raw.webp` | `req_44c5e4bdebb3457dadc0b9d179096297` | 0.030658 |
+
+이력: emo5-r1 `emo5-ease-f-raw.webp` `req_93aa24e820c541f9bab6444fb19a7c6d` 0.030173 USD. emo6-r1 `emo6-relief-f-raw.webp` `req_e8a41d84ed504492b42b37c1617ef0a9` 0.030233 USD.
+
+![14칸 4열](./assets/wolfgang-asset-redesign/compare-14-candidates.webp)
+
+### 21.3 #51 비공개 적용 경로
+
+이번 턴은 절차 확인만 했다. provider 호출, DB 쓰기, 대표 교체 금지 검사 삭제는 없다.
+
+13개 RP 슬롯(sig1–4, emo1–6, scene1–3)의 기존 owner는 다음 순서다.
+
+1. `registerExternalOfficialAssetReplacement`. 공식 관리자가 외부 바이트와 승인 태그를 넘긴다. 저장 전 intake lease를 잡고, 파일은 `ext-<intakeId>` 경로에 둔다. 활성 슬롯은 `approved`이고 `result_url`이 있어야 한다. Appearance Lock이 현재 잠금과 같아야 한다. 크기는 해당 칸 프로필과 정확히 같아야 한다. RP 프로필은 1536×1024다. 이번 후보 13장은 그 크기다.
+2. moderation이 `checked`이고 거절이 아니어야 한다. `reviewReplacement`는 검수한 후보 URL과 variation QA를 CAS로 묶는다. 이 검수는 아직 실행하지 않았다.
+3. `applyApprovedOfficialAssetReplacements({ dryRun: true })`가 같은 검사를 통과한 뒤 롤백한다.
+4. dry-run과 같은 인자에서 `dryRun` 없이 apply 한다.
+
+한 트랜잭션이 대상 칸의 `characters.assets` URL·태그·크기, `official_supply_assets.result_url`·`approved_tag`, replacement `status=applied`를 함께 갱신한다. `mapOfficialPublicAssetSlots`는 계획 순서와 활성 URL이 공개 URL과 같을 때만 인덱스를 준다. 대표는 계획 순서의 0번이고 `representativeRank`는 기존 에셋을 복사해 유지한다. 카드 URL은 순위가 있는 assets를 먼저 본다. `characters.images`는 이 apply가 쓰지 않으며, assets에 순위 URL이 없을 때만 레거시 fallback이다. 소유권, `official`, `visibility`, 공개, 알림, 원고는 바꾸지 않는다. #51은 `staged_private`라 `official=0`, `visibility=private`가 유지되어야 한다.
+
+복구: dry-run과 중간 SQL 실패는 트랜잭션이 전부 되돌린다. 교체 전 URL은 후보의 `base_result_url`에 남고, 옛 파일은 지우지 않는다. 성공한 apply를 자동으로 되돌리는 기능은 없다. `VACUUM INTO` 백업은 locked-snapshot reconcile owner의 절차이고, 그 owner는 대표 URL 변경을 거부한다. 이미지 교체의 백업은 replacement 트랜잭션과 `base_result_url`이다.
+
+대표 이미지 반입은 이 경로에서 지원되지 않는다. `assertReplacementSlotAllowed`, `createReplacementCandidate`, 외부 반입, apply가 모두 `replacement_representative_forbidden`으로 대표를 거부한다. 거부는 파일 쓰기와 공개 행 변경 전에 일어난다. 근거는 `officialSupply.replacement.test.ts`의 representative create/apply fail-closed 테스트다. F 원본은 1024×1536이라 대표 프로필 `OFFICIAL_REPRESENTATIVE_IMAGE_PROFILE`의 크기와는 맞지만, 종류 검사가 크기 검사보다 먼저 거부한다.
+
+앵커도 같이 막힌다. `reviewAnchor`는 stage가 `asset_plan_locked`이고 대표 status가 `generated`일 때만 동작한다. #51은 이미 staged라 그 게이트로 새 초상을 다시 승인할 수 없다. `reviewReplacement`도 대표에서 `use_anchor_review`가 아니라 대표 교체 금지로 멈춘다. 그래서 현재 앵커 QA는 살아 있는 대표 URL에 묶인 채로 남는다.
+
+태그는 두 owner가 다르다. 이미 staged된 칸의 교체 태그는 `replacementAppliedTag`가 승인 태그를 쓴다. 처음 스테이징의 대표 태그는 `stagedAssetTag`가 계획 태그를 반환한다. 현재 `pilot-rf-02.json` 대표 계획 태그는 `흑철 늑대공`이다. `기본 초상`은 그 계획 태그를 바꾸지 않은 승인 태그다. 운영 JSON은 이번에도 수정하지 않았다.
+
+필요한 변경은 대표 한 칸에 한정된다. 금지 검사를 지우기보다, 같은 외부 저장·moderation·1024×1536 정확 크기·Appearance Lock·기준 URL CAS·dry-run·롤백 안에 대표를 넣고, staged 상태의 대표 행에 새 앵커 QA를 기록하는 owner가 필요하다. 그 owner가 생기기 전에는 #51 대표와 앵커를 F로 바꾸지 않는다. 13개 RP 슬롯은 위 1–4 순서로 품질 승인 뒤에 적용할 수 있다. 이번 턴은 그 적용을 실행하지 않았다.

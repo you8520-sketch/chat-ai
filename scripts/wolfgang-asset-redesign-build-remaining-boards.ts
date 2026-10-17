@@ -155,36 +155,72 @@ async function partBoard(part: "face" | "hair" | "fur" | "armor") {
   return { file, sha256: sha256(image), bytes: image.length };
 }
 
-async function fourteen() {
-  const cards: Array<{ label: string; file: string; portrait: boolean }> = [
-    { label: "rep F", file: "rep-f-raw.webp", portrait: true },
-    { label: "sig1 map", file: "sig1-map-f-raw.webp", portrait: false },
-    { label: "sig2 chin", file: "sig2-chin-f-raw.webp", portrait: false },
-    { label: "sig3 key", file: "sig3-key-f-raw.webp", portrait: false },
-    { label: "sig4 smile", file: "sig4-smile-f-raw.webp", portrait: false },
-    { label: "emo1 doubt", file: "emo1-doubt-f-raw.webp", portrait: false },
-    { label: "emo2 anger", file: "emo2-anger-f-raw.webp", portrait: false },
-    { label: "emo3 serious", file: "emo3-serious-f-raw.webp", portrait: false },
-    { label: "emo4 fluster", file: "emo4-fluster-f-raw.webp", portrait: false },
-    { label: "emo5 ease", file: "emo5-ease-f-raw.webp", portrait: false },
-    { label: "emo6 relief-r2", file: "emo6-r2-raw.webp", portrait: false },
-    { label: "scene1 docs", file: "scene1-docs-f-raw.webp", portrait: false },
-    { label: "scene2 records", file: "scene2-records-f-raw.webp", portrait: false },
-    { label: "scene3 tense", file: "scene3-tense-f-raw.webp", portrait: false },
-  ];
-  const cellW = 320;
-  const cellH = 214;
-  const items = [];
-  for (const card of cards) {
-    const fitted = card.portrait
-      ? await sharp(path.join(DOC, card.file)).resize(214, cellH, { fit: "contain", background: "#111" }).webp().toBuffer()
-      : await sharp(path.join(DOC, card.file)).resize(cellW, cellH, { fit: "fill" }).webp().toBuffer();
-    const meta = await sharp(fitted).metadata();
-    items.push({ label: card.label, buf: fitted, width: meta.width ?? cellW, height: meta.height ?? cellH });
+async function labelBar(text: string, width: number): Promise<Buffer> {
+  const svg = `<svg width="${width}" height="40"><rect width="100%" height="100%" fill="#111111"/><text x="10" y="27" font-size="20" fill="#ffffff" font-family="WenQuanYi Micro Hei, sans-serif">${text}</text></svg>`;
+  return sharp(Buffer.from(svg)).png().toBuffer();
+}
+
+async function grid(cards: Array<{ label: string; file: string; portrait?: boolean }>, columns: number, fileName: string) {
+  const cellW = 460;
+  const cellH = 307;
+  const labelH = 40;
+  const gap = 10;
+  const rows = Math.ceil(cards.length / columns);
+  const width = columns * cellW + (columns - 1) * gap;
+  const height = rows * (cellH + labelH) + (rows - 1) * gap;
+  const placed = [];
+  for (const [index, card] of cards.entries()) {
+    const column = index % columns;
+    const rowIndex = Math.floor(index / columns);
+    const fitted = await sharp(path.join(DOC, card.file))
+      .resize(cellW, cellH, { fit: "contain", background: "#111111" })
+      .png()
+      .toBuffer();
+    const left = column * (cellW + gap);
+    const top = rowIndex * (cellH + labelH + gap);
+    placed.push({ input: await labelBar(card.label, cellW), left, top });
+    placed.push({ input: fitted, left, top: top + labelH });
   }
-  const image = await row(items);
-  fs.writeFileSync(path.join(DOC, "compare-14-candidates.webp"), image);
-  fs.writeFileSync(path.join(ART, "compare-14-candidates.webp"), image);
+  const image = await sharp({ create: { width, height, channels: 3, background: "#000000" } })
+    .composite(placed)
+    .webp({ quality: 86 })
+    .toBuffer();
+  fs.writeFileSync(path.join(DOC, fileName), image);
+  fs.writeFileSync(path.join(ART, fileName), image);
+}
+
+async function fourteen() {
+  await grid(
+    [
+      { label: "기본 초상", file: "rep-f-raw.webp", portrait: true },
+      { label: "지도를 짚음", file: "sig1-map-f-raw.webp" },
+      { label: "턱을 괴고 생각", file: "sig2-chin-f-raw.webp" },
+      { label: "열쇠를 확인함", file: "sig3-key-f-raw.webp" },
+      { label: "옅은 미소", file: "sig4-smile-f-raw.webp" },
+      { label: "의심", file: "emo1-doubt-f-raw.webp" },
+      { label: "분노", file: "emo2-anger-f-raw.webp" },
+      { label: "진지함", file: "emo3-serious-f-raw.webp" },
+      { label: "당황", file: "emo4-fluster-f-raw.webp" },
+      { label: "편안함", file: "emo5-r2-raw.webp" },
+      { label: "안도", file: "emo6-r2-raw.webp" },
+      { label: "문서를 대조함", file: "scene1-docs-f-raw.webp" },
+      { label: "기록을 맞춤", file: "scene2-records-f-raw.webp" },
+      { label: "긴장", file: "scene3-tense-f-raw.webp" },
+    ],
+    4,
+    "compare-14-candidates.webp"
+  );
+  await grid(
+    [
+      { label: "새 편안함", file: "emo5-r2-raw.webp" },
+      { label: "기존 편안함", file: "emo5-ease-f-raw.webp" },
+      { label: "진지함", file: "emo3-serious-f-raw.webp" },
+      { label: "옅은 미소", file: "sig4-smile-f-raw.webp" },
+      { label: "안도", file: "emo6-r2-raw.webp" },
+    ],
+    5,
+    "compare-ease-r2.webp"
+  );
 }
 
 type Actual = {
@@ -204,7 +240,7 @@ const CANDIDATES: Array<{
   sentField: "promptSha256" | "primaryPromptSha256" | "sentPromptSha256";
   role: "candidate" | "history";
 }> = [
-  { slot: "rep", tag: "F", file: "rep-f-raw.webp", actual: "rep-f-actual.json", sentField: "promptSha256", role: "candidate" },
+  { slot: "rep", tag: "기본 초상", file: "rep-f-raw.webp", actual: "rep-f-actual.json", sentField: "promptSha256", role: "candidate" },
   { slot: "sig1", tag: "지도를 짚음", file: "sig1-map-f-raw.webp", actual: "sig1-map-f-actual.json", sentField: "sentPromptSha256", role: "candidate" },
   { slot: "sig2", tag: "턱을 괴고 생각", file: "sig2-chin-f-raw.webp", actual: "sig2-chin-f-actual.json", sentField: "sentPromptSha256", role: "candidate" },
   { slot: "sig3", tag: "열쇠를 확인함", file: "sig3-key-f-raw.webp", actual: "sig3-key-f-actual.json", sentField: "sentPromptSha256", role: "candidate" },
@@ -213,11 +249,12 @@ const CANDIDATES: Array<{
   { slot: "emo2", tag: "분노", file: "emo2-anger-f-raw.webp", actual: "emo2-anger-f-actual.json", sentField: "primaryPromptSha256", role: "candidate" },
   { slot: "emo3", tag: "진지함", file: "emo3-serious-f-raw.webp", actual: "emo3-serious-f-actual.json", sentField: "sentPromptSha256", role: "candidate" },
   { slot: "emo4", tag: "당황", file: "emo4-fluster-f-raw.webp", actual: "emo4-fluster-f-actual.json", sentField: "sentPromptSha256", role: "candidate" },
-  { slot: "emo5", tag: "편안함", file: "emo5-ease-f-raw.webp", actual: "emo5-ease-f-actual.json", sentField: "sentPromptSha256", role: "candidate" },
+  { slot: "emo5", tag: "편안함", file: "emo5-r2-raw.webp", actual: "emo5-r2-actual.json", sentField: "primaryPromptSha256", role: "candidate" },
   { slot: "emo6", tag: "안도", file: "emo6-r2-raw.webp", actual: "emo6-r2-actual.json", sentField: "primaryPromptSha256", role: "candidate" },
   { slot: "scene1", tag: "문서를 대조함", file: "scene1-docs-f-raw.webp", actual: "scene1-docs-f-actual.json", sentField: "sentPromptSha256", role: "candidate" },
   { slot: "scene2", tag: "기록을 맞춤", file: "scene2-records-f-raw.webp", actual: "scene2-records-f-actual.json", sentField: "sentPromptSha256", role: "candidate" },
   { slot: "scene3", tag: "긴장", file: "scene3-tense-f-raw.webp", actual: "scene3-tense-f-actual.json", sentField: "sentPromptSha256", role: "candidate" },
+  { slot: "emo5-r1", tag: "편안함", file: "emo5-ease-f-raw.webp", actual: "emo5-ease-f-actual.json", sentField: "sentPromptSha256", role: "history" },
   { slot: "emo6-r1", tag: "안도", file: "emo6-relief-f-raw.webp", actual: "emo6-relief-f-actual.json", sentField: "primaryPromptSha256", role: "history" },
 ];
 
@@ -253,26 +290,32 @@ function candidateList() {
       entry.laterOwnerAssemblyPromptSha256 = smileOwner.primaryPromptSha256;
       entry.laterAssemblyIsNotTheSentCall = true;
     }
-    if (row.slot === "emo6") entry.revision = "r2";
-    if (row.role === "history") entry.notTheFinalEmo6Candidate = true;
+    if (row.slot === "rep") entry.internalName = "F";
+    if (row.slot === "emo5" || row.slot === "emo6") entry.revision = "r2";
+    if (row.slot === "emo5-r1") entry.notTheFinalEmo5Candidate = true;
+    if (row.slot === "emo6-r1") entry.notTheFinalEmo6Candidate = true;
     return entry;
   });
   const candidates = rows.filter((row) => row.role === "candidate");
   const history = rows.filter((row) => row.role === "history");
-  const thisTurn = candidates.filter((row) =>
-    ["sig1", "sig2", "sig3", "emo1", "emo3", "emo4", "emo5", "scene1", "scene2", "scene3"].includes(String(row.slot)),
-  );
+  const tenLedger = JSON.parse(fs.readFileSync(path.join(DOC, "remaining-10-f-ledger.json"), "utf8")) as {
+    postsCompleted: number;
+    spentUsd: number;
+  };
+  const emo5r2 = candidates.find((row) => row.slot === "emo5");
   const text = `${JSON.stringify(
     {
       pipeline: "composeOfficialSlotGeneration + prepareOfficialImageReferences + callOpenAiImageEdit",
       model: "gpt-image-2.5-sunburst",
       settings: { size: "1536x1024", quality: "medium", n: 1, outputFormat: "webp", outputCompression: 88, background: "opaque" },
-      note: "rep F was generated earlier at 1024x1536. Sent hashes are copied from each call's actual record. emo6-r1 is history.",
+      note: "User tag for the representative is 기본 초상. F is the internal candidate name. The representative file is the earlier 1024x1536 generation. emo5 and emo6 candidates are the r2 files. Sent hashes are copied from each call actual.",
       candidates,
       history,
-      thisTurnPosts: thisTurn.length,
-      thisTurnCostUsd: usd(thisTurn.reduce((sum, row) => sum + Number(row.costUsd), 0)),
-      thisTurnBudgetUsd: 0.8,
+      tenSlotRunPosts: tenLedger.postsCompleted,
+      tenSlotRunCostUsd: usd(tenLedger.spentUsd),
+      emo5r2Posts: 1,
+      emo5r2CostUsd: usd(Number(emo5r2?.costUsd ?? 0)),
+      emo5r2BudgetUsd: 0.08,
       qualityReview: "not started; candidate submission only",
       persistedToProduction: false,
     },
