@@ -90,17 +90,20 @@ describe("Main RP final-wire audit", () => {
     const auto = caseById("ds-auto-normal");
     const adult = caseById("ds-adult-normal");
     const regen = caseById("ds-regen-normal");
+    // #1623 replaced one speech-metadata sentence in the contamination guard (+44).
+    // That sentence is the only system-byte change since the 2026-10-02 pin.
+    // Character blocks are unchanged. The Gemini 3.8 axis is not in system.
     const preFixFlatSha256 = {
       "ds-interactive-normal-rich":
-        "ca412fccdcc8a7115021b6e7c46e983ccad2d1c374b28c0bbe26050ea1c98f4a",
+        "7c922c46fb16c01464cc462493025a46ac480341bcc22dca37d6e90554176726",
       "ds-regen-normal":
-        "311b58849a342accf443706b63b046b46cc1d78b83f90959370dddefdc99322b",
+        "29e6c4ee9883550690991f80418255f880829305f7bd6b4532f322393ec3bef8",
       "ds-adult-normal":
-        "2c3cd7334845ae60211b442e621c69b23fd024623f8a5930ffb55dfc22f01f86",
+        "c8bd55bd955df15ad16f9b716c8c632879eaa91394942e0ba17b9b704d37856a",
       "g31-interactive-normal-rich":
-        "6b5495a133574c36b6bce7ae02e0901584660ab95343ec632fafac9e2678dbf6",
+        "ef050f76500db339a3797990748ffe0068bcb2df26fcc88747e886afd3831932",
       "opus-interactive-long-history":
-        "6b5495a133574c36b6bce7ae02e0901584660ab95343ec632fafac9e2678dbf6",
+        "ef050f76500db339a3797990748ffe0068bcb2df26fcc88747e886afd3831932",
     } as const;
 
     for (const entry of report.cases) {
@@ -122,17 +125,17 @@ describe("Main RP final-wire audit", () => {
     assert.equal(normal.wire.scenePacingInsideCachedCharacterBlock, true);
     assert.equal(
       normal.wire.systemBlocks.reduce((sum, block) => sum + block.chars, 0) + 4,
-      7761
+      7805
     );
-    assert.equal(normal.localEstimateTokens.cacheRules, 3535);
+    assert.equal(normal.localEstimateTokens.cacheRules, 3574);
     assert.equal(normal.localEstimateTokens.cacheCharacter, 1702);
     assert.equal(normal.localEstimateTokens.dynamic, 1746);
     assert.equal(normal.localEstimateTokens.userTurn, 617);
-    assert.equal(normal.localEstimateTokens.promptAuditTotal, 7697);
+    assert.equal(normal.localEstimateTokens.promptAuditTotal, 7737);
 
     assert.equal(
       limited.wire.systemBlocks[0]?.sha256,
-      "628e4ed8f6a0a004b1d713a456c26841a65620fceb915ab1bc6166d2ce842b52"
+      "dccfea2dbb6a4024bf9f38428146602c1b5473297b950fa8cb0e46a88cd38741"
     );
     assert.equal(
       limited.wire.systemBlocks[1]?.sha256,
@@ -353,11 +356,11 @@ describe("Main RP final-wire audit", () => {
     }
     assert.equal(
       caseById("ds-interactive-normal-rich").wire.systemFlatSha256,
-      "ca412fccdcc8a7115021b6e7c46e983ccad2d1c374b28c0bbe26050ea1c98f4a"
+      "7c922c46fb16c01464cc462493025a46ac480341bcc22dca37d6e90554176726"
     );
     assert.equal(
       caseById("ds-interactive-normal-rich").bodyCueCandidate.candidateFlatSha256,
-      "86dab270ffda8bc080df26b6f6c24f0fdb6678c500a49c18b4fae76e261e464a"
+      "ae5002a7b6ba7ac043058df836542684eddb2a9fe5d1b354ae62c5572beb0cc0"
     );
     assert.equal(
       caseById("ds-interactive-normal-rich").bodyCueCandidate.candidateCharacterSha256,
