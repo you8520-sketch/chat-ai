@@ -41,6 +41,9 @@ export const HISTORICAL_TRUTH_CURRENT_USER_RECENCY_MARKER =
 export const HISTORICAL_TRUTH_CURRENT_USER_EVIDENCE_MARKER =
   "[HISTORICAL EVIDENCE — CURRENT USER]";
 
+const OPEN_PAST_DETAIL_RULE =
+  "비어 있는 이전 세부는 열린 상태로 둔다(전달 방식·장소·그 사이의 행동 포함). 새 구체성은 현재 장면에서 만든다.";
+
 const CURRENT_USER_HISTORICAL_PREMISE_PATTERNS: readonly RegExp[] = [
   /기억(?:하지|나|나지|해|하니|하냐)/u,
   /알(?:지|잖아)(?:[?!….,\s]|$)/u,
@@ -79,9 +82,9 @@ export function buildHistoricalTruthCurrentUserRecencyRef(
     return `${HISTORICAL_TRUTH_CURRENT_USER_EVIDENCE_MARKER}
 USER가 이번 턴에 직접 확정한 공유 과거:
 ${explicitScope.map((line) => `- ${line}`).join("\n")}
-이 범위는 그대로 이어 쓰고, 비어 있는 이전 세부는 열린 상태로 둔다. 새 구체성은 현재 장면에서 만든다.`;
+이 범위는 그대로 이어 쓰고, ${OPEN_PAST_DETAIL_RULE}`;
   }
   if (!currentUserNeedsHistoricalTruthRecencyRef(text)) return "";
   return `${HISTORICAL_TRUTH_CURRENT_USER_RECENCY_MARKER}
-이번 턴의 공유 과거는 ${HISTORICAL_TRUTH_POLICY_TITLE}에서 확인된 사실만 이어 쓰고, 비어 있는 이전 세부는 열린 상태로 둔다.`;
+이번 턴의 공유 과거는 ${HISTORICAL_TRUTH_POLICY_TITLE}에서 확인된 사실만 이어 쓰고, ${OPEN_PAST_DETAIL_RULE}`;
 }
