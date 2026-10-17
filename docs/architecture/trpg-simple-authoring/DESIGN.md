@@ -135,6 +135,7 @@ type TrpgAdventure = {
 - **정본 생성 품질**: 실측 초안 1건(유령 기차)이 링크·사건 모순으로 거절됐다. 그 원인이던 `open` 종류는 제거했다. 거절 시 자동 재시도는 하지 않는다.
 - **GM 서술 vs 서버 사실**: GM 블록은 서버 사실만 사실로 서술하게 하지만, GM 텍스트 자체는 상태에 적용되지 않으므로 서술이 어긋나도 상태는 서버 owner가 결정한다.
 - **자유 단서 우회 공개 (실측 캠페인 47, 수정함)**: 사건 정본 옆에서 plan `clues`("객차 벽면 낙서에 '세 번째 침대 아래'…")가 GM에 그대로 들어갔다. 1라운드 조사 실패 뒤 GM은 "'세 번째……'"만 암시했지만, 2라운드에는 발동 전 사건 `find_manifest` 의 위치를 director 실마리("3호 객차 세 번째 침대 밑의 비밀")로 저장했고, 3라운드 정밀 조사 실패(서버 "Nothing was found") 뒤에는 침대 밑 서류를 찾았다가 기름에 망가졌다고 서술했다. 서버에서 `find_manifest` 는 미발동이라 이야기와 정본이 어긋난다. GM 입력에서 "세 번째 침대"의 출처는 이 목록뿐이었다. 남은 채널: `gm_secret`("명단 원본은 3호실 침대 밑")과 `majorEvents` 는 여전히 위치를 담는다(비밀 owner, FOLLOW-UP). 이미 저장된 캠페인 47의 실마리·플래그는 바꾸지 않았다.
+- **실패 서술이 서버 소유 대상을 파괴·봉쇄 (실측 캠페인 48, FOLLOW-UP)**: SF 정밀 조사 대실패(d20 1) 뒤 GM은 "로그 데이터"와 "방어망 무력화 코드"가 잿더미가 됐다고 서술했고(앞부분은 plan `clues` 의 "유지보수 로그"), 다음 라운드에는 격리 구역 영구 봉쇄를 서술하며 `격리구역_영구봉쇄발령` 플래그를 냈다. 서버에서 `find_maintenance_log`·`unlock_quarantine` 은 미발동이고 격리 구역 길은 여전히 사건으로 열린다. 봉쇄 서술은 단서 채널과 무관한 실패 연출이라 이번에 고치지 않았다.
 - **clue 사건 뒤 GM 인벤토리 추가**: 실측 캠페인 47에서 `wet_ticket`(clue, 아이템 없음) 발견 뒤 GM delta `inventoryAdd` "젖은 승차권(첫 사고 날짜)"이 기존 인벤토리 경로로 반영됐다. 사건 아이템 owner와 별개인 GM 인벤토리 경로다(FOLLOW-UP).
 - **dev 전용 과금 오류**: dev 모드 `getDb()` 가 호출마다 `migrate()` 를 다시 실행하고, libsql `transaction()` 은 중첩을 지원하지 않는다. 그래서 작성자 있는 캠페인의 라운드 commit(`resolveCreatorRewardRate` → `getDb()`)이 dev에서만 `cannot start a transaction within a transaction` 으로 실패한다. base에서도 재현되고 test/production 모드에서는 재현되지 않는다. 과금 영역이라 수정하지 않았다(FOLLOW-UP).
 
@@ -163,3 +164,4 @@ type TrpgAdventure = {
 | dev `getDb()` 재-migrate 중첩 트랜잭션 | FOLLOW-UP | dev 전용, base에서 재현, 과금 경계라 이번 PR에서 수정하지 않음 |
 | 사건 정본 옆 plan `clues` GM 공급 | 좁힘 | 사건이 있으면 보내지 않음. 사건 없는 계획은 유지. writer·저장 데이터는 그대로 |
 | `gm_secret`·`majorEvents` 의 사건 위치, clue 사건 뒤 GM `inventoryAdd` | FOLLOW-UP | 비밀·인벤토리 owner 결정 필요 |
+| 실패 서술의 사건 대상 파괴·길 영구 봉쇄 | FOLLOW-UP | 서버 사실(미발동 사건·열 수 있는 길)과 이야기의 불일치. 프롬프트 문구가 아닌 owner 설계 필요 |
