@@ -1,0 +1,34 @@
+draft response 200 2182
+real-desc SAVED 21048ms http://localhost:3203/world/create?tab=scenario&created=40
+{
+ "id": 40,
+ "title": "유령 기차의 비밀",
+ "visibility": "private",
+ "world_id": null,
+ "summary": "비 오는 밤, 폐역에 도착한 유령 기차에서 사라진 승객들의 실종 사건을 추적하는 미스터리 모험.",
+ "startLocation": "망각역 대합실",
+ "goal": "유령 기차의 비밀을 밝혀내고, 사라진 승객들을 구출하거나 영혼들을 평화롭게 보내는 것.",
+ "startingSituation": "플레이어들은 비 오는 밤, 폐역인 '망각역'에 도착합니다. 역에는 이미 다른 승객 몇 명이 있으며, 갑자기 나타난 유령 기차가 승객들을 태우고 사라집니다. 플레이어들은 기차에 타지 않은 유일한 사람들입니다.",
+ "endings": [],
+ "model": "deepseek-v4-flash-0731",
+ "generatedAt": "2026-10-17T06:40:27.715Z"
+}
+play prep: http://localhost:3203/trpg?scenarioId=40 true
+draft response 200 2500
+real-world SAVED 18505ms http://localhost:3203/world/create?tab=scenario&created=41
+{
+ "id": 41,
+ "title": "안개 속 사라진 등대",
+ "visibility": "private",
+ "world_id": 122,
+ "summary": "하르바 항구에서 등대가 꺼진 밤, 안개 속에서 배가 사라진다. 등대지기 조합과 밀수 길드의 갈등 속에서 진실을 찾는 이야기.",
+ "startLocation": "하르바 항구의 중앙 광장, 안개가 자욱한 이른 아침",
+ "goal": "등대가 꺼지는 진짜 원인을 밝혀내고, 실종된 선박과 화물의 행방을 찾아 항구의 평화를 회복한다.",
+ "startingSituation": "최근 일주일째 등대가 밤마다 꺼지는 사건이 반복되고, 그 밤마다 항구에서 소형 선박 한 척씩 실종된다. 등대지기 조합은 밀수 길드의 방해 공작이라 주장하고, 밀수 길드는 세관의 함정이라 반박한다. 세관은 양측을 모두 의심하며 항구를 봉쇄했다.",
+ "endings": [
+  "실종 선박의 화물을 찾고 레녹스의 범행 증거를 세관에 제출하면 사건이 종결된다.",
+  "레녹스가 도주하거나 증거가 불충분하면, 사건은 미궁에 빠지고 항구의 갈등이 장기화된다."
+ "model": "deepseek-v4-flash-0731",
+ "generatedAt": "2026-10-17T06:40:58.333Z"
+}
+play prep: http://localhost:3203/trpg?scenarioId=41 true

@@ -1,0 +1,40 @@
+PASS 9 start screen 390: heading/label/CTA 
+PASS 9 start screen 390: no legacy chrome 
+PASS 9 start screen 390: no horizontal overflow 
+PASS 9 start screen 1440: heading/label/CTA 
+PASS 9 start screen 1440: no legacy chrome 
+PASS 9 start screen 1440: no horizontal overflow 
+PASS 5 empty input shows one short guidance and sends nothing 
+PASS 10 typed description survives refresh 
+PASS 1 result URL carries saved id http://localhost:3202/world/create?tab=scenario&created=42
+PASS 1 exactly one draft and one save request POST /api/trpg/scenarios/ai-draft|POST /api/trpg/scenarios
+PASS 1 saved row is private and owned {"id":42,"title":"끊긴 북부 보급","visibility":"private","world_id":null,"cl":25}
+PASS 1 result shows title/start/CTAs 
+PASS 10 refresh on result keeps saved result 
+PASS 1 play handoff URL http://localhost:3202/trpg?scenarioId=42
+PASS 1 play prep shows the saved scenario 하브 홈 신작 랭킹 TRPG 검색 북마크/팔로잉 1 세이프티 필터 OFF 2,000P 성인인증 데모유저 대화 목록 페르소나·노트 제작 크리에이터 성인인증  최근 활동  탐험 미니맵 검수 TRPG 세계관·시나리오 카드를 눌러 본문을 읽은 뒤 캠페인을 시작합니다. 최대 참가인원은 4명입니다.  선택한 시나리오 · 끊긴 북부 보급  통신이 끊긴 성채로 향하는 보
+PASS 4 edited title saved 끊긴 북부 보급 (수정)
+PASS 4 reopen shows edited title 
+PASS 2 world only: dropdown lists only own worlds 선택 안 함 / [검증] 안개 항구 세계관 / w / w / w
+PASS 2 world only: saved private with original world {"id":43,"visibility":"private","world_id":122,"content":""}
+PASS 2 world only: world row untouched 
+PASS 3 world + description: dropdown lists only own worlds 선택 안 함 / [검증] 안개 항구 세계관 / w / w / w
+PASS 3 world + description: saved private with original world {"id":44,"visibility":"private","world_id":122,"content":"분위기는 더 음산하게, 해적 선단이 등장한다."}
+PASS 3 description kept as add-on content 
+PASS 3 world + description: world row untouched 
+PASS 5 timeout: guidance shown, input kept, nothing saved AI 초안 생성이 예상보다 오래 걸렸습니다. 작성 중인 내용은 그대로 보존되었습니다. 잠시 후 다시 시도해 주세요.
+PASS 5 network failure: input kept, nothing saved 
+PASS 5 save failure: generated result kept with retry card drafts=1 posts=1
+PASS 10 refresh on save-failed restores generated result 
+PASS 5 retry saves without calling the paid draft again drafts=1 posts=2
+PASS 5 retry result persisted 
+PASS 6 double click: one draft, one save, one new row drafts=1 posts=1 rows+1
+PASS 7 editor opens for scenario 27 
+PASS 7 editor opens for scenario 42 
+PASS 7 list API still returns mine/public 
+PASS 8 foreign world is rejected by server status=403
+PASS 8 existing draft rate limit still applies (same server guard) 200,400 시나리오 초안은 잠시 뒤에 다시 요청할 수 있습니다.
+PASS 8 saved simple scenarios are not public 
+rows 41 -> 46
+
+37/37 passed

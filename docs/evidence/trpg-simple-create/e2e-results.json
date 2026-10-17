@@ -1,0 +1,166 @@
+[
+  {
+    "name": "9 start screen 390: heading/label/CTA",
+    "ok": true
+  },
+  {
+    "name": "9 start screen 390: no legacy chrome",
+    "ok": true
+  },
+  {
+    "name": "9 start screen 390: no horizontal overflow",
+    "ok": true
+  },
+  {
+    "name": "9 start screen 1440: heading/label/CTA",
+    "ok": true
+  },
+  {
+    "name": "9 start screen 1440: no legacy chrome",
+    "ok": true
+  },
+  {
+    "name": "9 start screen 1440: no horizontal overflow",
+    "ok": true
+  },
+  {
+    "name": "5 empty input shows one short guidance and sends nothing",
+    "ok": true
+  },
+  {
+    "name": "10 typed description survives refresh",
+    "ok": true
+  },
+  {
+    "name": "1 result URL carries saved id",
+    "ok": true,
+    "detail": "http://localhost:3202/world/create?tab=scenario&created=42"
+  },
+  {
+    "name": "1 exactly one draft and one save request",
+    "ok": true,
+    "detail": "POST /api/trpg/scenarios/ai-draft|POST /api/trpg/scenarios"
+  },
+  {
+    "name": "1 saved row is private and owned",
+    "ok": true,
+    "detail": "{\"id\":42,\"title\":\"끊긴 북부 보급\",\"visibility\":\"private\",\"world_id\":null,\"cl\":25}"
+  },
+  {
+    "name": "1 result shows title/start/CTAs",
+    "ok": true
+  },
+  {
+    "name": "10 refresh on result keeps saved result",
+    "ok": true
+  },
+  {
+    "name": "1 play handoff URL",
+    "ok": true,
+    "detail": "http://localhost:3202/trpg?scenarioId=42"
+  },
+  {
+    "name": "1 play prep shows the saved scenario",
+    "ok": true,
+    "detail": "하브 홈 신작 랭킹 TRPG 검색 북마크/팔로잉 1 세이프티 필터 OFF 2,000P 성인인증 데모유저 대화 목록 페르소나·노트 제작 크리에이터 성인인증  최근 활동  탐험 미니맵 검수 TRPG 세계관·시나리오 카드를 눌러 본문을 읽은 뒤 캠페인을 시작합니다. 최대 참가인원은 4명입니다.  선택한 시나리오 · 끊긴 북부 보급  통신이 끊긴 성채로 향하는 보"
+  },
+  {
+    "name": "4 edited title saved",
+    "ok": true,
+    "detail": "끊긴 북부 보급 (수정)"
+  },
+  {
+    "name": "4 reopen shows edited title",
+    "ok": true
+  },
+  {
+    "name": "2 world only: dropdown lists only own worlds",
+    "ok": true,
+    "detail": "선택 안 함 / [검증] 안개 항구 세계관 / w / w / w"
+  },
+  {
+    "name": "2 world only: saved private with original world",
+    "ok": true,
+    "detail": "{\"id\":43,\"visibility\":\"private\",\"world_id\":122,\"content\":\"\"}"
+  },
+  {
+    "name": "2 world only: world row untouched",
+    "ok": true
+  },
+  {
+    "name": "3 world + description: dropdown lists only own worlds",
+    "ok": true,
+    "detail": "선택 안 함 / [검증] 안개 항구 세계관 / w / w / w"
+  },
+  {
+    "name": "3 world + description: saved private with original world",
+    "ok": true,
+    "detail": "{\"id\":44,\"visibility\":\"private\",\"world_id\":122,\"content\":\"분위기는 더 음산하게, 해적 선단이 등장한다.\"}"
+  },
+  {
+    "name": "3 description kept as add-on content",
+    "ok": true
+  },
+  {
+    "name": "3 world + description: world row untouched",
+    "ok": true
+  },
+  {
+    "name": "5 timeout: guidance shown, input kept, nothing saved",
+    "ok": true,
+    "detail": "AI 초안 생성이 예상보다 오래 걸렸습니다. 작성 중인 내용은 그대로 보존되었습니다. 잠시 후 다시 시도해 주세요."
+  },
+  {
+    "name": "5 network failure: input kept, nothing saved",
+    "ok": true
+  },
+  {
+    "name": "5 save failure: generated result kept with retry card",
+    "ok": true,
+    "detail": "drafts=1 posts=1"
+  },
+  {
+    "name": "10 refresh on save-failed restores generated result",
+    "ok": true
+  },
+  {
+    "name": "5 retry saves without calling the paid draft again",
+    "ok": true,
+    "detail": "drafts=1 posts=2"
+  },
+  {
+    "name": "5 retry result persisted",
+    "ok": true
+  },
+  {
+    "name": "6 double click: one draft, one save, one new row",
+    "ok": true,
+    "detail": "drafts=1 posts=1 rows+1"
+  },
+  {
+    "name": "7 editor opens for scenario 27",
+    "ok": true
+  },
+  {
+    "name": "7 editor opens for scenario 42",
+    "ok": true
+  },
+  {
+    "name": "7 list API still returns mine/public",
+    "ok": true
+  },
+  {
+    "name": "8 foreign world is rejected by server",
+    "ok": true,
+    "detail": "status=403"
+  },
+  {
+    "name": "8 existing draft rate limit still applies (same server guard)",
+    "ok": true,
+    "detail": "200,400 시나리오 초안은 잠시 뒤에 다시 요청할 수 있습니다."
+  },
+  {
+    "name": "8 saved simple scenarios are not public",
+    "ok": true
+  }
+]
