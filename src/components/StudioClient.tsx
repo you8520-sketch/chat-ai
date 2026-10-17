@@ -87,6 +87,7 @@ type Props = {
   worlds: WorldListItem[];
   lorebooks: KeywordLorebookListItem[];
   blurNsfw: boolean;
+  creatorId: number;
 };
 
 export default function StudioClient({
@@ -95,6 +96,7 @@ export default function StudioClient({
   worlds,
   lorebooks,
   blurNsfw,
+  creatorId,
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -121,6 +123,26 @@ export default function StudioClient({
             <IconSidebarStudio className="h-6 w-6 shrink-0 text-zinc-400" />
             제작
           </h1>
+          <nav aria-label="제작자 메뉴" data-testid="studio-creator-nav" className="mt-3 flex flex-wrap gap-2">
+            <StudioButton
+              href="/creator"
+              variant="secondary"
+              size="sm"
+              className="whitespace-nowrap"
+              title="수익·CP·공지를 관리하는 나만의 대시보드"
+            >
+              크리에이터 대시보드
+            </StudioButton>
+            <StudioButton
+              href={`/creator/${creatorId}`}
+              variant="secondary"
+              size="sm"
+              className="whitespace-nowrap"
+              title="다른 사용자에게 보이는 내 제작자 페이지"
+            >
+              내 공개 프로필
+            </StudioButton>
+          </nav>
         </div>
         <StudioButton href={activeMeta.createHref} size="lg" className="w-full justify-center sm:w-auto">
           <span className="text-base leading-none" aria-hidden>

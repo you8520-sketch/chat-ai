@@ -58,6 +58,7 @@ export default async function StudioPage() {
         worlds={worlds}
         lorebooks={lorebooks}
         blurNsfw={blurNsfw}
+        creatorId={user.id}
       />
     </Suspense>
   );

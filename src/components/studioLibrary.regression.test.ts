@@ -154,3 +154,27 @@ describe("studio tab contract", () => {
     }
   });
 });
+
+describe("E4-7 studio creator menu", () => {
+  const page = read("../app/studio/page.tsx");
+  const button = read("./studio/StudioButton.tsx");
+
+  it("derives the own-profile id from the server-verified session user, not from the URL or client state", () => {
+    assert.match(page, /const user = await getSessionUser\(\)/);
+    assert.match(page, /creatorId=\{user\.id\}/);
+    assert.doesNotMatch(page, /searchParams/);
+  });
+
+  it("links the dashboard and the own public profile as two distinct, labelled destinations", () => {
+    assert.match(studio, /href="\/creator"[\s\S]{1,200}title="수익·CP·공지를 관리하는 나만의 대시보드"[\s\S]{1,40}크리에이터 대시보드/);
+    assert.match(studio, /href=\{`\/creator\/\$\{creatorId\}`\}[\s\S]{1,200}title="다른 사용자에게 보이는 내 제작자 페이지"[\s\S]{1,40}내 공개 프로필/);
+    assert.match(studio, /aria-label="제작자 메뉴"/);
+    assert.match(button, /title=\{title\}/);
+  });
+
+  it("keeps the existing reverse links on the creator dashboard", () => {
+    const creator = read("../app/creator/CreatorClient.tsx");
+    assert.match(creator, /href=\{`\/creator\/\$\{creatorId\}`\}/);
+    assert.match(creator, /href="\/studio"/);
+  });
+});
