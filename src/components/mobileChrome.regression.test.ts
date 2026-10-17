@@ -54,16 +54,19 @@ describe("E4-3B fixed bottom chrome", () => {
     assert.match(saveBar, /pb-0 min-\[576px\]:pb-\[env\(safe-area-inset-bottom\)\]/);
   });
 
-  it("lets the editor tab bar and save bar flow with the page on short screens while the keyboard is open", () => {
+  it("scopes the short-landscape keyboard release to mounted studio editors", () => {
     const create = read("src/components/CreateCharacter.tsx");
+    assert.match(saveBar, /root\.setAttribute\("data-studio-editor", ""\)/);
+    assert.match(saveBar, /root\.removeAttribute\("data-studio-editor"\)/);
     assert.match(saveBar, /"studio-save-bar fixed/);
-    assert.match(create, /"studio-sticky-tabs sticky top-\[var\(--site-header-height,44px\)\]/);
-    const rule = css.match(/@media \(max-height: 500px\) \{\s*html\[data-keyboard-open\] \.studio-sticky-tabs,\s*html\[data-keyboard-open\] \.studio-save-bar \{\s*position: static;[\s\S]*?\n\}\n/);
+    assert.match(create, /"studio-sticky-tabs sticky /);
+    const rule = css.match(/@media \(max-height: 500px\) \{[\s\S]*?\n\}\n/);
     assert.ok(rule, "short-screen keyboard rule exists");
-    assert.match(rule[0], /--studio-save-bar-h: 0px !important/);
-    assert.match(rule[0], /scroll-padding-top: calc\(var\(--site-header-height, 0px\) \+ 0\.5rem\) !important/);
-    assert.match(rule[0], /scroll-padding-bottom: calc\(var\(--keyboard-inset, 0px\) \+ 0\.5rem\) !important/);
-    assert.doesNotMatch(rule[0], /site-header\s*\{/);
+    const selectors = [...rule[0].matchAll(/^\s*(html[^{]*?)\s*\{/gm)].map((m) => m[1]);
+    assert.ok(selectors.length >= 2);
+    for (const selector of selectors) {
+      assert.match(selector, /^html\[data-studio-editor\]\[data-keyboard-open\]/, selector);
+    }
   });
 
   it("leaves discovery to the header row, so the home page carries no second tab set", () => {

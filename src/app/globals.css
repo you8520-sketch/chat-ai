@@ -1747,19 +1747,20 @@ html[data-keyboard-open] .mobile-bottom-nav {
 }
 
 /*
- * Short landscape + on-screen keyboard: the sticky site header (~98px), the editor tab bar and the
- * save bar together exceed the visual viewport, leaving no room to see the field being typed in.
- * The editor's own bars leave fixed/sticky positioning and flow with the page until the keyboard
- * closes. The site header and all other pages are unchanged. !important is needed because the
- * editor owners publish their scroll offsets as inline styles on <html>.
+ * Short landscape + on-screen keyboard, studio editors only (StudioSaveBar marks <html data-studio-editor>
+ * while mounted): the sticky site header (~98px), the editor tab bar and the save bar together exceed the
+ * visual viewport, leaving no room to see the field being typed in. The editor's own bars leave
+ * fixed/sticky positioning and flow with the page until the keyboard closes. The site header and every
+ * non-editor page are unchanged. !important is needed because the editor owners publish their scroll
+ * offsets as inline styles on <html>.
  */
 @media (max-height: 500px) {
-  html[data-keyboard-open] .studio-sticky-tabs,
-  html[data-keyboard-open] .studio-save-bar {
+  html[data-studio-editor][data-keyboard-open] .studio-sticky-tabs,
+  html[data-studio-editor][data-keyboard-open] .studio-save-bar {
     position: static;
   }
 
-  html[data-keyboard-open] {
+  html[data-studio-editor][data-keyboard-open] {
     --studio-save-bar-h: 0px !important;
     scroll-padding-top: calc(var(--site-header-height, 0px) + 0.5rem) !important;
     scroll-padding-bottom: calc(var(--keyboard-inset, 0px) + 0.5rem) !important;
