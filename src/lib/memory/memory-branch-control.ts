@@ -141,7 +141,8 @@ function applyPreviousToRow(
   recordId: number,
   chatId: number,
   previous: BranchControlMutationPrevious,
-  remainingMutations: BranchControlMutation[]
+  remainingMutations: BranchControlMutation[],
+  postManualEdit: ScopePayloadV1["postManualEdit"]
 ): void {
   const payload: ScopePayloadV1 = {
     v: 1,
@@ -151,6 +152,7 @@ function applyPreviousToRow(
     promotedBy: previous.promotedBy,
     promotedAt: previous.promotedAt,
     branchControlMutations: remainingMutations,
+    ...(postManualEdit ? { postManualEdit } : {}),
   };
   const display =
     previous.scopes[previous.summaryKind]?.trim() ||
@@ -210,7 +212,7 @@ export function rollbackBranchControlMutationsForDeletedUserMessage(
       if (top.sourceUserMessageId !== deletedUserMessageId) break;
 
       mutations.pop();
-      applyPreviousToRow(row.id, chatId, top.previous, mutations);
+      applyPreviousToRow(row.id, chatId, top.previous, mutations, parsed?.postManualEdit);
       rolled += 1;
     }
   }

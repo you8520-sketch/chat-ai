@@ -1,5 +1,9 @@
 import { getChatMemoryRow } from "./memory-db";
-import { buildPrefixFingerprintThroughTurn } from "./memory-global-checkpoint";
+import {
+  buildPrefixFingerprintThroughTurn,
+  isManualGlobalActive,
+  readManualGlobalBoundary,
+} from "./memory-global-checkpoint";
 import {
   emergencyFallbackTrimLorebookSync,
   isGlobalCompactProjectionFresh,
@@ -7,6 +11,7 @@ import {
 } from "./memory-global-projection";
 import { rebuildLorebookFromRecords } from "./memory-turn-summary";
 import type { GlobalProjectionKind } from "./memory-global-projection";
+import type { ChatMemoryRow } from "./memory-types";
 
 export type GlobalCurrentMemorySource = "chat_turn_summaries" | "chat_memories_recent_summary";
 
@@ -18,7 +23,14 @@ export type GlobalCurrentMemoryResolution = {
   rebuiltChars: number;
   storedRecentSummaryChars: number;
   needsBackgroundCompact: boolean;
+  /**
+   * `manual_global` only: sealed-history turn the user's text covers. Medium carries the records after
+   * it. `null` for every other projection (and for legacy manual rows until their next seal).
+   */
+  manualBoundaryTurn: number | null;
 };
+
+type GlobalCurrentMemoryCore = Omit<GlobalCurrentMemoryResolution, "manualBoundaryTurn">;
 
 /**
  * Canonical Global Current Memory resolver.
@@ -31,8 +43,24 @@ export function resolveGlobalCurrentMemory(
   maxChars: number,
   opts?: { excludeTurnStartGte?: number; storedRecentSummary?: string }
 ): GlobalCurrentMemoryResolution {
-  const rebuilt = rebuildLorebookFromRecords(chatId, opts).trim();
   const memoryRow = getChatMemoryRow(chatId);
+  const resolved = resolveGlobalCurrentMemoryCore(chatId, maxChars, memoryRow, opts);
+  return {
+    ...resolved,
+    manualBoundaryTurn:
+      resolved.projectionKind === "manual_global" && memoryRow
+        ? readManualGlobalBoundary(memoryRow)
+        : null,
+  };
+}
+
+function resolveGlobalCurrentMemoryCore(
+  chatId: number,
+  maxChars: number,
+  memoryRow: ChatMemoryRow | null | undefined,
+  opts?: { excludeTurnStartGte?: number; storedRecentSummary?: string }
+): GlobalCurrentMemoryCore {
+  const rebuilt = rebuildLorebookFromRecords(chatId, opts).trim();
   const stored = opts?.storedRecentSummary?.trim() ?? memoryRow?.recent_summary?.trim() ?? "";
   const storedRecentSummaryChars = stored.length;
   const rebuiltChars = rebuilt.length;
@@ -51,8 +79,8 @@ export function resolveGlobalCurrentMemory(
     };
   }
 
-  if (memoryRow?.global_projection_kind === "manual_global" && stored) {
-    if (isManualGlobalProjectionFresh(chatId, rebuilt, stored, maxChars)) {
+  if (isManualGlobalActive(memoryRow) && stored) {
+    if (isManualGlobalProjectionFresh(chatId, rebuilt, stored, maxChars, { explicitManualRow: true })) {
       return {
         text: stored,
         overBudget: rebuilt.length > maxChars,

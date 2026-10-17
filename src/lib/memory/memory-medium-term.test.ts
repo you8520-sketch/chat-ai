@@ -61,6 +61,7 @@ function cleanup(): void {
   const db = getDb();
   db.prepare("DELETE FROM chat_turn_summaries WHERE chat_id=?").run(CHAT);
   db.prepare("DELETE FROM chat_memories WHERE chat_id=?").run(CHAT);
+  db.prepare("DELETE FROM messages WHERE chat_id=?").run(CHAT);
   db.prepare("DELETE FROM chats WHERE id=?").run(CHAT);
 }
 
@@ -86,6 +87,20 @@ function padBody(marker: string, chars = 420): string {
   let body = `${marker} → event → consequence`;
   while (body.length < chars) body += ` → ${marker}_PAD`;
   return body.slice(0, chars);
+}
+
+function insertCompletedTurnsThrough(lastTurn: number): void {
+  const db = getDb();
+  for (let t = 1; t <= lastTurn; t++) {
+    const userMsgId = db
+      .prepare(
+        `INSERT INTO messages (chat_id, role, content, model, generation_status) VALUES (?,?,?,'user','submitted')`
+      )
+      .run(CHAT, "user", `본편 턴 ${t}`).lastInsertRowid as number;
+    db.prepare(
+      `INSERT INTO messages (chat_id, role, content, model, generation_status, user_message_id) VALUES (?,?,?,?,'completed',?)`
+    ).run(CHAT, "assistant", `응답 ${t} 대사`, "test", userMsgId);
+  }
 }
 
 function insertBlocks(count: number): void {
@@ -265,6 +280,7 @@ describe("MEDIUM ACTIVATION", () => {
 
 describe("MANUAL GLOBAL INTERACTION", () => {
   it("manual_global — medium OFF; does not reintroduce ledger ORIGINAL_DETAIL", async () => {
+    insertCompletedTurnsThrough(5);
     upsertSummaryRowCore({
       chatId: CHAT,
       turnStart: 1,

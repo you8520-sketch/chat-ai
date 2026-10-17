@@ -1,0 +1,740 @@
+[database] runtime diagnostics {
+  nodeEnv: '',
+  nextPhase: '',
+  cwd: '/tmp/before-wt',
+  dataDir: '/tmp/before-wt/data',
+  databasePath: '/tmp/before-wt/data/app.db',
+  dataDirExists: true,
+  dataDirIsMounted: false,
+  productionRuntime: false
+}
+[memory-feature] ENABLED — memory prompt + background jobs active
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 1, next_end: 5 }
+[memory] 5턴 기억 기록 chat=997211 turns=1-5 (419ch → lorebook 426/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 6, next_end: 10 }
+[memory] 5턴 기억 기록 chat=997211 turns=6-10 (420ch → lorebook 856/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 11, next_end: 15 }
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 1, next_end: 5 }
+[memory] 5턴 기억 기록 chat=997212 turns=1-5 (419ch → lorebook 426/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 6, next_end: 10 }
+[memory] 5턴 기억 기록 chat=997212 turns=6-10 (420ch → lorebook 856/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 11, next_end: 15 }
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 11, next_end: 15 }
+[memory] 5턴 기억 기록 chat=997211 turns=11-15 (419ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 16, next_end: 20 }
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 11, next_end: 15 }
+[memory] 5턴 기억 기록 chat=997212 turns=11-15 (419ch → lorebook 1286/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 16, next_end: 20 }
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 16, next_end: 20 }
+[memory] 5턴 기억 기록 chat=997211 turns=16-20 (419ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 21, next_end: 25 }
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 16, next_end: 20 }
+[memory] 5턴 기억 기록 chat=997212 turns=16-20 (419ch → lorebook 1716/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 21, next_end: 25 }
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 21, next_end: 25 }
+[memory] 5턴 기억 기록 chat=997211 turns=21-25 (419ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 26, next_end: 30 }
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 21, next_end: 25 }
+[memory] 5턴 기억 기록 chat=997212 turns=21-25 (419ch → lorebook 2146/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 26, next_end: 30 }
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 26, next_end: 30 }
+[memory] 5턴 기억 기록 chat=997211 turns=26-30 (419ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 31, next_end: 35 }
+[memory] 5턴 기억 기록 chat=997211 turns=31-35 (419ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 36, next_end: 40 }
+[memory] 5턴 기억 기록 chat=997211 turns=36-40 (419ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 41, next_end: 45 }
+[memory] 5턴 기억 기록 chat=997211 turns=41-45 (419ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 46, next_end: 50 }
+[memory] 5턴 기억 기록 chat=997211 turns=46-50 (419ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 51, next_end: 55 }
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 26, next_end: 30 }
+[memory] 5턴 기억 기록 chat=997212 turns=26-30 (419ch → lorebook 2576/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 31, next_end: 35 }
+[memory] 5턴 기억 기록 chat=997212 turns=31-35 (419ch → lorebook 3006/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 36, next_end: 40 }
+[memory] 5턴 기억 기록 chat=997212 turns=36-40 (419ch → lorebook 3436/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 41, next_end: 45 }
+[memory] 5턴 기억 기록 chat=997212 turns=41-45 (419ch → lorebook 3866/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 46, next_end: 50 }
+[memory] 5턴 기억 기록 chat=997212 turns=46-50 (419ch → lorebook 4296/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 51, next_end: 55 }
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 51, next_end: 55 }
+[memory] 5턴 기억 기록 chat=997211 turns=51-55 (419ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 56, next_end: 60 }
+[memory] 5턴 기억 기록 chat=997211 turns=56-60 (419ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 61, next_end: 65 }
+[memory] 5턴 기억 기록 chat=997211 turns=61-65 (419ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 66, next_end: 70 }
+[memory] 5턴 기억 기록 chat=997211 turns=66-70 (419ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 71, next_end: 75 }
+[memory] 5턴 기억 기록 chat=997211 turns=71-75 (419ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 76, next_end: 80 }
+[memory] 5턴 기억 기록 chat=997211 turns=76-80 (419ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 81, next_end: 85 }
+[memory] 5턴 기억 기록 chat=997211 turns=81-85 (419ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 86, next_end: 90 }
+[memory] 5턴 기억 기록 chat=997211 turns=86-90 (419ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 91, next_end: 95 }
+[memory] 5턴 기억 기록 chat=997211 turns=91-95 (419ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 96, next_end: 100 }
+[memory] 5턴 기억 기록 chat=997211 turns=96-100 (420ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 101, next_end: 105 }
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 51, next_end: 55 }
+[memory] 5턴 기억 기록 chat=997212 turns=51-55 (419ch → lorebook 4726/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 56, next_end: 60 }
+[memory] 5턴 기억 기록 chat=997212 turns=56-60 (419ch → lorebook 5156/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 61, next_end: 65 }
+[memory] 5턴 기억 기록 chat=997212 turns=61-65 (419ch → lorebook 5586/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 66, next_end: 70 }
+[memory] 5턴 기억 기록 chat=997212 turns=66-70 (419ch → lorebook 6016/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 71, next_end: 75 }
+[memory] 5턴 기억 기록 chat=997212 turns=71-75 (419ch → lorebook 6446/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 76, next_end: 80 }
+[memory] 5턴 기억 기록 chat=997212 turns=76-80 (419ch → lorebook 6876/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 81, next_end: 85 }
+[memory] 5턴 기억 기록 chat=997212 turns=81-85 (419ch → lorebook 7306/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 86, next_end: 90 }
+[memory] 5턴 기억 기록 chat=997212 turns=86-90 (419ch → lorebook 7736/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 91, next_end: 95 }
+[memory] 5턴 기억 기록 chat=997212 turns=91-95 (419ch → lorebook 8166/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 96, next_end: 100 }
+[memory] 5턴 기억 기록 chat=997212 turns=96-100 (420ch → lorebook 8598/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 101, next_end: 105 }
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 101, next_end: 105 }
+[memory] 5턴 기억 기록 chat=997211 turns=101-105 (420ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 106, next_end: 110 }
+[memory] 5턴 기억 기록 chat=997211 turns=106-110 (420ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 111, next_end: 115 }
+[memory] 5턴 기억 기록 chat=997211 turns=111-115 (420ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 116, next_end: 120 }
+[memory] 5턴 기억 기록 chat=997211 turns=116-120 (420ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 121, next_end: 125 }
+[memory] 5턴 기억 기록 chat=997211 turns=121-125 (420ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 126, next_end: 130 }
+[memory] 5턴 기억 기록 chat=997211 turns=126-130 (420ch → lorebook 110/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997211, next_start: 131, next_end: 135 }
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 101, next_end: 105 }
+[memory] 5턴 기억 기록 chat=997212 turns=101-105 (420ch → lorebook 9031/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 106, next_end: 110 }
+[memory] 5턴 기억 기록 chat=997212 turns=106-110 (420ch → lorebook 9464/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 111, next_end: 115 }
+[memory] 5턴 기억 기록 chat=997212 turns=111-115 (420ch → lorebook 9897/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 116, next_end: 120 }
+[memory] lorebook_compact {
+  compression_complete: true,
+  inputChars: 10330,
+  outputChars: 10000,
+  maxChars: 10000,
+  targetChars: 10000
+}
+GLOBAL_COMPACT_EXECUTION {
+  trigger: 'post_seal',
+  mode: 'full_rebuild',
+  committed: false,
+  invalidReason: 'provider_failure',
+  coveredThroughBefore: null
+}
+[memory] 5턴 기억 기록 chat=997212 turns=116-120 (420ch → lorebook 10330/10000ch compact=full_rebuild reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 121, next_end: 125 }
+[memory] lorebook_compact {
+  compression_complete: true,
+  inputChars: 10763,
+  outputChars: 10000,
+  maxChars: 10000,
+  targetChars: 10000
+}
+GLOBAL_COMPACT_EXECUTION {
+  trigger: 'post_seal',
+  mode: 'full_rebuild',
+  committed: false,
+  invalidReason: 'provider_failure',
+  coveredThroughBefore: null
+}
+[memory] 5턴 기억 기록 chat=997212 turns=121-125 (420ch → lorebook 10763/10000ch compact=full_rebuild reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 126, next_end: 130 }
+[memory] lorebook_compact {
+  compression_complete: true,
+  inputChars: 11196,
+  outputChars: 10000,
+  maxChars: 10000,
+  targetChars: 10000
+}
+GLOBAL_COMPACT_EXECUTION {
+  trigger: 'post_seal',
+  mode: 'full_rebuild',
+  committed: false,
+  invalidReason: 'provider_failure',
+  coveredThroughBefore: null
+}
+[memory] 5턴 기억 기록 chat=997212 turns=126-130 (420ch → lorebook 11196/10000ch compact=full_rebuild reason=SUMMARY_SUCCESS mainCalls=1
+MEMORY_SUMMARY_DUE { chat_id: 997212, next_start: 131, next_end: 135 }
+[memory] lorebook_compact {
+  compression_complete: true,
+  inputChars: 11196,
+  outputChars: 10000,
+  maxChars: 10000,
+  targetChars: 10000
+}
+GLOBAL_COMPACT_EXECUTION {
+  trigger: 'background',
+  mode: 'full_rebuild',
+  committed: false,
+  invalidReason: 'provider_failure',
+  coveredThroughBefore: null
+}
+[memory] lorebook_compact {
+  compression_complete: true,
+  inputChars: 11196,
+  outputChars: 10000,
+  maxChars: 10000,
+  targetChars: 10000
+}
+GLOBAL_COMPACT_EXECUTION {
+  trigger: 'background',
+  mode: 'full_rebuild',
+  committed: false,
+  invalidReason: 'provider_failure',
+  coveredThroughBefore: null
+}
+[memory] lorebook_compact {
+  compression_complete: true,
+  inputChars: 11196,
+  outputChars: 10000,
+  maxChars: 10000,
+  targetChars: 10000
+}
+GLOBAL_COMPACT_EXECUTION {
+  trigger: 'background',
+  mode: 'full_rebuild',
+  committed: false,
+  invalidReason: 'provider_failure',
+  coveredThroughBefore: null
+}
+[memory] lorebook_compact {
+  compression_complete: true,
+  inputChars: 11196,
+  outputChars: 10000,
+  maxChars: 10000,
+  targetChars: 10000
+}
+GLOBAL_COMPACT_EXECUTION {
+  trigger: 'background',
+  mode: 'full_rebuild',
+  committed: false,
+  invalidReason: 'provider_failure',
+  coveredThroughBefore: null
+}
+[memory] lorebook_compact {
+  compression_complete: true,
+  inputChars: 11196,
+  outputChars: 10000,
+  maxChars: 10000,
+  targetChars: 10000
+}
+GLOBAL_COMPACT_EXECUTION {
+  trigger: 'background',
+  mode: 'full_rebuild',
+  committed: false,
+  invalidReason: 'provider_failure',
+  coveredThroughBefore: null
+}
+[memory] lorebook_compact {
+  compression_complete: true,
+  inputChars: 11196,
+  outputChars: 10000,
+  maxChars: 10000,
+  targetChars: 10000
+}
+GLOBAL_COMPACT_EXECUTION {
+  trigger: 'background',
+  mode: 'full_rebuild',
+  committed: false,
+  invalidReason: 'provider_failure',
+  coveredThroughBefore: null
+}
+[memory] lorebook_compact {
+  compression_complete: true,
+  inputChars: 11196,
+  outputChars: 10000,
+  maxChars: 10000,
+  targetChars: 10000
+}
+GLOBAL_COMPACT_EXECUTION {
+  trigger: 'background',
+  mode: 'full_rebuild',
+  committed: false,
+  invalidReason: 'provider_failure',
+  coveredThroughBefore: null
+}
+[memory] lorebook_compact {
+  compression_complete: true,
+  inputChars: 11196,
+  outputChars: 10000,
+  maxChars: 10000,
+  targetChars: 10000
+}
+GLOBAL_COMPACT_EXECUTION {
+  trigger: 'background',
+  mode: 'full_rebuild',
+  committed: false,
+  invalidReason: 'provider_failure',
+  coveredThroughBefore: null
+}
+[memory] lorebook_compact {
+  compression_complete: true,
+  inputChars: 11196,
+  outputChars: 10000,
+  maxChars: 10000,
+  targetChars: 10000
+}
+GLOBAL_COMPACT_EXECUTION {
+  trigger: 'background',
+  mode: 'full_rebuild',
+  committed: false,
+  invalidReason: 'provider_failure',
+  coveredThroughBefore: null
+}
+[memory] lorebook_compact {
+  compression_complete: true,
+  inputChars: 11196,
+  outputChars: 10000,
+  maxChars: 10000,
+  targetChars: 10000
+}
+GLOBAL_COMPACT_EXECUTION {
+  trigger: 'background',
+  mode: 'full_rebuild',
+  committed: false,
+  invalidReason: 'provider_failure',
+  coveredThroughBefore: null
+}
+[memory] lorebook_compact {
+  compression_complete: true,
+  inputChars: 11196,
+  outputChars: 10000,
+  maxChars: 10000,
+  targetChars: 10000
+}
+GLOBAL_COMPACT_EXECUTION {
+  trigger: 'background',
+  mode: 'full_rebuild',
+  committed: false,
+  invalidReason: 'provider_failure',
+  coveredThroughBefore: null
+}
+[memory] lorebook_compact {
+  compression_complete: true,
+  inputChars: 11196,
+  outputChars: 10000,
+  maxChars: 10000,
+  targetChars: 10000
+}
+GLOBAL_COMPACT_EXECUTION {
+  trigger: 'background',
+  mode: 'full_rebuild',
+  committed: false,
+  invalidReason: 'provider_failure',
+  coveredThroughBefore: null
+}
+[memory] lorebook_compact {
+  compression_complete: true,
+  inputChars: 11196,
+  outputChars: 10000,
+  maxChars: 10000,
+  targetChars: 10000
+}
+GLOBAL_COMPACT_EXECUTION {
+  trigger: 'background',
+  mode: 'full_rebuild',
+  committed: false,
+  invalidReason: 'provider_failure',
+  coveredThroughBefore: null
+}
+[memory] lorebook_compact {
+  compression_complete: true,
+  inputChars: 11196,
+  outputChars: 10000,
+  maxChars: 10000,
+  targetChars: 10000
+}
+GLOBAL_COMPACT_EXECUTION {
+  trigger: 'background',
+  mode: 'full_rebuild',
+  committed: false,
+  invalidReason: 'provider_failure',
+  coveredThroughBefore: null
+}
+[memory] lorebook_compact {
+  compression_complete: true,
+  inputChars: 11196,
+  outputChars: 10000,
+  maxChars: 10000,
+  targetChars: 10000
+}
+GLOBAL_COMPACT_EXECUTION {
+  trigger: 'background',
+  mode: 'full_rebuild',
+  committed: false,
+  invalidReason: 'provider_failure',
+  coveredThroughBefore: null
+}
+[memory] lorebook_compact {
+  compression_complete: true,
+  inputChars: 11196,
+  outputChars: 10000,
+  maxChars: 10000,
+  targetChars: 10000
+}
+GLOBAL_COMPACT_EXECUTION {
+  trigger: 'background',
+  mode: 'full_rebuild',
+  committed: false,
+  invalidReason: 'provider_failure',
+  coveredThroughBefore: null
+}
+{
+  "label": "before-5233221e",
+  "node": "v22.14.0",
+  "providerCallsOutsideSummaryStub": 0,
+  "note": "summarizer and Global compaction stubbed (counted); no network, no provider keys",
+  "manualChat": [
+    {
+      "step": "T10 sealed (before manual save)",
+      "playedTurns": 11,
+      "storedKind": null,
+      "manualTextChars": 0,
+      "manualKept": false,
+      "manualInWire": false,
+      "autoRecordsStored": 2,
+      "globalChars": 917,
+      "mediumChars": 0,
+      "mediumBlocks": [],
+      "globalMediumDuplicateChars": 0,
+      "wireMemoryChars": 917,
+      "wireMemoryTokensEst": 837,
+      "assemblyMsMedian": 0.18,
+      "summaryModelCallsThisChat": 2,
+      "globalCompactModelCallsThisChat": 0,
+      "wireSha256": "66d6999b0cfbff7e"
+    },
+    {
+      "step": "T10 manual save",
+      "playedTurns": 11,
+      "storedKind": "manual_global",
+      "manualTextChars": 110,
+      "manualKept": true,
+      "manualInWire": true,
+      "autoRecordsStored": 2,
+      "globalChars": 171,
+      "mediumChars": 0,
+      "mediumBlocks": [],
+      "globalMediumDuplicateChars": 0,
+      "wireMemoryChars": 171,
+      "wireMemoryTokensEst": 165,
+      "assemblyMsMedian": 0.161,
+      "summaryModelCallsThisChat": 2,
+      "globalCompactModelCallsThisChat": 0,
+      "wireSha256": "d35df7d9e104977c"
+    },
+    {
+      "step": "T15 normal seal",
+      "playedTurns": 16,
+      "storedKind": "manual_global",
+      "manualTextChars": 110,
+      "manualKept": true,
+      "manualInWire": true,
+      "autoRecordsStored": 3,
+      "globalChars": 171,
+      "mediumChars": 436,
+      "mediumBlocks": [
+        "T11-15"
+      ],
+      "globalMediumDuplicateChars": 0,
+      "wireMemoryChars": 607,
+      "wireMemoryTokensEst": 558,
+      "assemblyMsMedian": 0.178,
+      "summaryModelCallsThisChat": 3,
+      "globalCompactModelCallsThisChat": 0,
+      "wireSha256": "d3433aa9ab140bb4"
+    },
+    {
+      "step": "T20 normal seal",
+      "playedTurns": 21,
+      "storedKind": "manual_global",
+      "manualTextChars": 110,
+      "manualKept": true,
+      "manualInWire": true,
+      "autoRecordsStored": 4,
+      "globalChars": 171,
+      "mediumChars": 874,
+      "mediumBlocks": [
+        "T11-15",
+        "T16-20"
+      ],
+      "globalMediumDuplicateChars": 0,
+      "wireMemoryChars": 1045,
+      "wireMemoryTokensEst": 952,
+      "assemblyMsMedian": 0.19,
+      "summaryModelCallsThisChat": 4,
+      "globalCompactModelCallsThisChat": 0,
+      "wireSha256": "cd057bb5fb94935d"
+    },
+    {
+      "step": "T25 normal seal",
+      "playedTurns": 26,
+      "storedKind": "manual_global",
+      "manualTextChars": 110,
+      "manualKept": true,
+      "manualInWire": true,
+      "autoRecordsStored": 5,
+      "globalChars": 171,
+      "mediumChars": 1312,
+      "mediumBlocks": [
+        "T11-15",
+        "T16-20",
+        "T21-25"
+      ],
+      "globalMediumDuplicateChars": 0,
+      "wireMemoryChars": 1483,
+      "wireMemoryTokensEst": 1346,
+      "assemblyMsMedian": 0.207,
+      "summaryModelCallsThisChat": 5,
+      "globalCompactModelCallsThisChat": 0,
+      "wireSha256": "df726816a0b010ef"
+    },
+    {
+      "step": "T50 normal seal",
+      "playedTurns": 51,
+      "storedKind": "manual_global",
+      "manualTextChars": 110,
+      "manualKept": true,
+      "manualInWire": true,
+      "autoRecordsStored": 10,
+      "globalChars": 171,
+      "mediumChars": 3502,
+      "mediumBlocks": [
+        "T11-15",
+        "T16-20",
+        "T21-25",
+        "T26-30",
+        "T31-35",
+        "T36-40",
+        "T41-45",
+        "T46-50"
+      ],
+      "globalMediumDuplicateChars": 0,
+      "wireMemoryChars": 3673,
+      "wireMemoryTokensEst": 3317,
+      "assemblyMsMedian": 0.385,
+      "summaryModelCallsThisChat": 10,
+      "globalCompactModelCallsThisChat": 0,
+      "wireSha256": "277f644de9cc7281"
+    },
+    {
+      "step": "T100 normal seal",
+      "playedTurns": 101,
+      "storedKind": "manual_global",
+      "manualTextChars": 110,
+      "manualKept": true,
+      "manualInWire": true,
+      "autoRecordsStored": 20,
+      "globalChars": 171,
+      "mediumChars": 6570,
+      "mediumBlocks": [
+        "T26-30",
+        "T31-35",
+        "T36-40",
+        "T41-45",
+        "T46-50",
+        "T51-55",
+        "T56-60",
+        "T61-65",
+        "T66-70",
+        "T71-75",
+        "T76-80",
+        "T81-85",
+        "T86-90",
+        "T91-95",
+        "T96-100"
+      ],
+      "globalMediumDuplicateChars": 0,
+      "wireMemoryChars": 6741,
+      "wireMemoryTokensEst": 6078,
+      "assemblyMsMedian": 0.509,
+      "summaryModelCallsThisChat": 20,
+      "globalCompactModelCallsThisChat": 0,
+      "wireSha256": "73dc9d953ad884f5"
+    },
+    {
+      "step": "T130 normal seal",
+      "playedTurns": 131,
+      "storedKind": "manual_global",
+      "manualTextChars": 110,
+      "manualKept": true,
+      "manualInWire": true,
+      "autoRecordsStored": 26,
+      "globalChars": 171,
+      "mediumChars": 6588,
+      "mediumBlocks": [
+        "T56-60",
+        "T61-65",
+        "T66-70",
+        "T71-75",
+        "T76-80",
+        "T81-85",
+        "T86-90",
+        "T91-95",
+        "T96-100",
+        "T101-105",
+        "T106-110",
+        "T111-115",
+        "T116-120",
+        "T121-125",
+        "T126-130"
+      ],
+      "globalMediumDuplicateChars": 0,
+      "wireMemoryChars": 6759,
+      "wireMemoryTokensEst": 6094,
+      "assemblyMsMedian": 1.645,
+      "summaryModelCallsThisChat": 26,
+      "globalCompactModelCallsThisChat": 0,
+      "wireSha256": "3b6fbd546a32c9df"
+    }
+  ],
+  "automaticControlChat": [
+    {
+      "step": "T10 sealed",
+      "playedTurns": 11,
+      "storedKind": null,
+      "manualTextChars": 0,
+      "manualKept": false,
+      "manualInWire": false,
+      "autoRecordsStored": 2,
+      "globalChars": 917,
+      "mediumChars": 0,
+      "mediumBlocks": [],
+      "globalMediumDuplicateChars": 0,
+      "wireMemoryChars": 917,
+      "wireMemoryTokensEst": 837,
+      "assemblyMsMedian": 0.116,
+      "summaryModelCallsThisChat": 2,
+      "globalCompactModelCallsThisChat": 0,
+      "wireSha256": "66d6999b0cfbff7e"
+    },
+    {
+      "step": "T15 normal seal",
+      "playedTurns": 16,
+      "storedKind": null,
+      "manualTextChars": 0,
+      "manualKept": false,
+      "manualInWire": false,
+      "autoRecordsStored": 3,
+      "globalChars": 1347,
+      "mediumChars": 0,
+      "mediumBlocks": [],
+      "globalMediumDuplicateChars": 0,
+      "wireMemoryChars": 1347,
+      "wireMemoryTokensEst": 1224,
+      "assemblyMsMedian": 0.142,
+      "summaryModelCallsThisChat": 3,
+      "globalCompactModelCallsThisChat": 0,
+      "wireSha256": "e79e3955c3b499e9"
+    },
+    {
+      "step": "T20 normal seal",
+      "playedTurns": 21,
+      "storedKind": null,
+      "manualTextChars": 0,
+      "manualKept": false,
+      "manualInWire": false,
+      "autoRecordsStored": 4,
+      "globalChars": 1777,
+      "mediumChars": 0,
+      "mediumBlocks": [],
+      "globalMediumDuplicateChars": 0,
+      "wireMemoryChars": 1777,
+      "wireMemoryTokensEst": 1611,
+      "assemblyMsMedian": 0.134,
+      "summaryModelCallsThisChat": 4,
+      "globalCompactModelCallsThisChat": 0,
+      "wireSha256": "d9f8403f7094235d"
+    },
+    {
+      "step": "T25 normal seal",
+      "playedTurns": 26,
+      "storedKind": null,
+      "manualTextChars": 0,
+      "manualKept": false,
+      "manualInWire": false,
+      "autoRecordsStored": 5,
+      "globalChars": 2207,
+      "mediumChars": 0,
+      "mediumBlocks": [],
+      "globalMediumDuplicateChars": 0,
+      "wireMemoryChars": 2207,
+      "wireMemoryTokensEst": 1998,
+      "assemblyMsMedian": 0.144,
+      "summaryModelCallsThisChat": 5,
+      "globalCompactModelCallsThisChat": 0,
+      "wireSha256": "e778a8616a220218"
+    },
+    {
+      "step": "T50 normal seal",
+      "playedTurns": 51,
+      "storedKind": null,
+      "manualTextChars": 0,
+      "manualKept": false,
+      "manualInWire": false,
+      "autoRecordsStored": 10,
+      "globalChars": 4357,
+      "mediumChars": 0,
+      "mediumBlocks": [],
+      "globalMediumDuplicateChars": 0,
+      "wireMemoryChars": 4357,
+      "wireMemoryTokensEst": 3933,
+      "assemblyMsMedian": 0.199,
+      "summaryModelCallsThisChat": 10,
+      "globalCompactModelCallsThisChat": 0,
+      "wireSha256": "ed5cb5b76ba322e4"
+    },
+    {
+      "step": "T100 normal seal",
+      "playedTurns": 101,
+      "storedKind": null,
+      "manualTextChars": 0,
+      "manualKept": false,
+      "manualInWire": false,
+      "autoRecordsStored": 20,
+      "globalChars": 8659,
+      "mediumChars": 0,
+      "mediumBlocks": [],
+      "globalMediumDuplicateChars": 0,
+      "wireMemoryChars": 8659,
+      "wireMemoryTokensEst": 7804,
+      "assemblyMsMedian": 0.355,
+      "summaryModelCallsThisChat": 20,
+      "globalCompactModelCallsThisChat": 0,
+      "wireSha256": "2c7ca0b940f9a07c"
+    },
+    {
+      "step": "T130 normal seal",
+      "playedTurns": 131,
+      "storedKind": null,
+      "manualTextChars": 0,
+      "manualKept": false,
+      "manualInWire": false,
+      "autoRecordsStored": 26,
+      "globalChars": 9986,
+      "mediumChars": 0,
+      "mediumBlocks": [],
+      "globalMediumDuplicateChars": 0,
+      "wireMemoryChars": 9986,
+      "wireMemoryTokensEst": 8999,
+      "assemblyMsMedian": 3.841,
+      "summaryModelCallsThisChat": 26,
+      "globalCompactModelCallsThisChat": 3,
+      "wireSha256": "0b8c010f807b3330"
+    }
+  ]
+}

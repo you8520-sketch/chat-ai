@@ -13,6 +13,7 @@ import {
   fingerprintForCoveredThroughTurn,
   fullCanonicalSourceFingerprint,
   isCheckpointMetadataCurrentInDb,
+  isManualGlobalActive,
   readGlobalCheckpointSnapshot,
   resolveCanonicalCompactFrontier,
   type GlobalCheckpointInvalidReason,
@@ -182,6 +183,18 @@ export async function executeGlobalLorebookCompaction(opts: {
     );
 
   const coveredThroughBefore = checkpointBeforePersist.coveredThroughTurn;
+
+  // A user-saved Global is never compacted or mirrored over; new sealed records reach the AI as Medium.
+  if (isManualGlobalActive(memoryRow)) {
+    return {
+      committed: false,
+      mode: "none",
+      invalidReason: "manual_global",
+      coveredThroughBefore,
+      coveredThroughAfter: coveredThroughBefore,
+      compactInputChars: 0,
+    };
+  }
 
   if (
     !isMemoryWriteGuardCurrentCore(db, {

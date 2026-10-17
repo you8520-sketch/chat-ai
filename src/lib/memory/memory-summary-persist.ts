@@ -26,7 +26,12 @@ import {
 import {
   canPreserveHealthyCheckpointOnPureAppend,
   clearGlobalCheckpointMetadataSql,
+  isManualGlobalActive,
+  nextManualGlobalBoundary,
   readGlobalCheckpointSnapshot,
+  readManualGlobalBoundary,
+  resolveInjectibleFrontier,
+  writeManualGlobalBoundaryCore,
 } from "./memory-global-checkpoint";
 import {
   encodeScopePayload,
@@ -41,6 +46,7 @@ import {
   isMemoryWriteGuardCurrentCore,
   type MemorySourceBoundary,
 } from "./memory-source-boundary";
+import { countMemoryEligibleCompletedTurnsCore } from "./memory-turn-loader";
 
 export type PersistSummaryBatchResult =
   | { ok: true; reason: "SUMMARY_SUCCESS"; record: MemoryRecordView; summarizedTurnCount: number }
@@ -157,8 +163,6 @@ export function persistValidatedSummaryBatch(opts: {
   inactive?: boolean;
   /** When set, used as recent_summary instead of rebuild (e.g. after compact). */
   recentSummaryOverride?: string;
-  /** Repair seals keep a user-saved `manual_global` Global; only the batch row and count change. */
-  preserveManualGlobal?: boolean;
   playableTurnCount: number;
   boundarySnapshot?: MemorySourceBoundary;
   sourceUserMessageIds?: readonly number[];
@@ -302,10 +306,21 @@ export function persistValidatedSummaryBatch(opts: {
           turnStart: opts.turnStart,
         });
 
-      if (opts.preserveManualGlobal && current.global_projection_kind === "manual_global") {
+      if (isManualGlobalActive(current)) {
+        // A user-saved Global is never replaced by a seal: the new batch row is stored and counted,
+        // and sits after the manual boundary so it reaches the AI as Medium (최근 기억).
         db.prepare(
           `UPDATE chat_memories SET summarized_turn_count=?, updated_at=datetime('now') WHERE chat_id=?`
         ).run(contiguous, opts.chatId);
+        writeManualGlobalBoundaryCore(
+          db,
+          opts.chatId,
+          nextManualGlobalBoundary({
+            current: readManualGlobalBoundary(current),
+            completedTurns: countMemoryEligibleCompletedTurnsCore(db, opts.chatId),
+            adoptFrontier: resolveInjectibleFrontier(before),
+          })
+        );
       } else if (preserveHealthyCheckpoint) {
         const used = calcUsedChars({
           recent_summary: checkpointBefore.compactText,
@@ -394,23 +409,26 @@ export function reconcileSummarizedTurnCountFromTable(opts: {
   tier: MemoryTier;
   playableTurnCount: number;
   boundarySnapshot?: MemorySourceBoundary;
-  /**
-   * Read-only callers (panel open) repair the count but must not discard a
-   * user-saved Global memory: only the count is rewritten for `manual_global`.
-   */
-  preserveManualGlobal?: boolean;
 }): number {
   const db = getDb();
   getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
   const records = listMemoryRecordsForChat(opts.chatId);
   const contiguous = highestContiguousCompletedTurn(records, opts.playableTurnCount);
   const current = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
-  if (opts.preserveManualGlobal && current.global_projection_kind === "manual_global") {
+  if (isManualGlobalActive(current)) {
     if (contiguous !== current.summarized_turn_count) {
       db.prepare(
         `UPDATE chat_memories SET summarized_turn_count=?, updated_at=datetime('now') WHERE chat_id=?`
       ).run(contiguous, opts.chatId);
     }
+    writeManualGlobalBoundaryCore(
+      db,
+      opts.chatId,
+      nextManualGlobalBoundary({
+        current: readManualGlobalBoundary(current),
+        completedTurns: countMemoryEligibleCompletedTurnsCore(db, opts.chatId),
+      })
+    );
     return contiguous;
   }
   const recent = rebuildLorebookFromRecords(opts.chatId);

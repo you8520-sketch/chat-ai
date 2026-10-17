@@ -12,17 +12,21 @@ import {
   type BranchControlSource,
 } from "./memory-branch-control";
 import {
+  adoptPostManualEditToMain,
   encodeScopePayload,
   historyScopeLabel,
   isEmptyOocScope,
   lorebookTextFromScopes,
   normalizeSummaryScope,
   parseScopePayload,
+  promotePostManualEditToBranch,
+  readPostManualEdit,
   resolveSummaryRowScopes,
   scopesInjectedIntoPrompt,
   scopesVisibleInHistory,
   type BranchStatus,
   type MemorySummaryScope,
+  type PostManualEditView,
   type ScopePayloadV1,
   type SummaryKind,
 } from "./memory-summary-scope";
@@ -68,6 +72,8 @@ export type MemoryRecordView = {
   userEdited: boolean;
   charCount: number;
   assistantMessageId: number | null;
+  /** Slice after a user-saved Global's boundary, for a record that straddled it when sealed. */
+  postManualEdit?: PostManualEditView | null;
 };
 
 function clampRecord(text: string, max = MEMORY_RECORD_MAX_CHARS): string {
@@ -113,6 +119,7 @@ function rowToViewOrNull(r: MemoryRecordRow): MemoryRecordView | null {
     userEdited: r.user_edited === 1,
     charCount: r.summary.length,
     assistantMessageId: r.assistant_message_id ?? null,
+    postManualEdit: readPostManualEdit(payload),
   };
 }
 
@@ -169,6 +176,36 @@ export function resolvePromptInjectibleMemoryRecordBody(record: MemoryRecordView
     return record.summary.trim();
   }
   return "";
+}
+
+export type ManualGlobalMediumDelivery = {
+  /** First source turn the delivered text covers: the record start, or the turn after the user's save. */
+  deliveredFromTurn: number;
+  body: string;
+};
+
+/**
+ * What Medium delivers of one injectible record while a user-saved Global covers turns 1..manualBoundary.
+ * - fully covered record: nothing (the user's text already carries it)
+ * - record after the boundary: its full body
+ * - record straddling the boundary: only the post-save slice stored at seal time. Never the full batch,
+ *   which still carries the pre-save facts the user corrected. A record without a slice (or with a slice
+ *   that starts inside the covered range) delivers nothing instead of guessing.
+ * - user-edited record: the user's own text is delivered as written.
+ */
+export function resolveManualGlobalMediumDelivery(
+  record: MemoryRecordView,
+  manualBoundary: number
+): ManualGlobalMediumDelivery | null {
+  if (record.turnEnd <= manualBoundary) return null;
+  if (record.turnStart > manualBoundary || record.userEdited) {
+    const body = resolvePromptInjectibleMemoryRecordBody(record);
+    return body ? { deliveredFromTurn: record.turnStart, body } : null;
+  }
+  const slice = record.postManualEdit;
+  if (!slice || slice.fromTurn <= manualBoundary) return null;
+  const body = lorebookTextFromScopes(slice.scopes, { branchStatus: record.branchStatus }).trim();
+  return body ? { deliveredFromTurn: slice.fromTurn, body } : null;
 }
 
 /**
@@ -394,6 +431,9 @@ export function promoteRecordsToBranchCanon(opts: {
       branchStatus: "active",
       promotedBy: opts.promotedBy,
       promotedAt: now,
+      ...(basePayload.postManualEdit
+        ? { postManualEdit: promotePostManualEditToBranch(basePayload.postManualEdit) }
+        : {}),
     };
     if (
       opts.control &&
@@ -779,6 +819,7 @@ export function adoptBranchToMainCanon(opts: {
     view.scopes.noncanon ||
     view.summary;
   const now = new Date().toISOString();
+  const adoptedSlice = adoptPostManualEditToMain(view.postManualEdit ?? undefined);
   const payload: ScopePayloadV1 = {
     v: 1,
     scopes: { main_canon: text, ...view.scopes, branch_canon: undefined, noncanon: undefined },
@@ -786,6 +827,7 @@ export function adoptBranchToMainCanon(opts: {
     branchStatus: "closed",
     promotedBy: opts.promotedBy,
     promotedAt: now,
+    ...(adoptedSlice ? { postManualEdit: adoptedSlice } : {}),
   };
   db.prepare(
     `UPDATE chat_turn_summaries SET

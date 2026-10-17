@@ -1,0 +1,480 @@
+TAP version 13
+# [database] runtime diagnostics {
+#   nodeEnv: '',
+#   nextPhase: '',
+#   cwd: '/workspace',
+#   dataDir: '/workspace/data',
+#   databasePath: '/workspace/data/app.db',
+#   dataDirExists: true,
+#   dataDirIsMounted: false,
+#   productionRuntime: false
+# }
+# [memory-feature] ENABLED — memory prompt + background jobs active
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 16, have: 1, need: 5, playableCount: 16 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 16, have: 1, need: 5, playableCount: 16 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 21, have: 1, need: 5, playableCount: 21 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] 5턴 기억 기록 chat=997101 turns=21-25 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 26, next_end: 30 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 26, have: 1, need: 5, playableCount: 26 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 21, have: 1, need: 5, playableCount: 21 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 21, have: 1, need: 5, playableCount: 21 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 16, have: 1, need: 5, playableCount: 16 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 1719/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 21, have: 1, need: 5, playableCount: 21 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] 5턴 기억 기록 chat=997101 turns=21-25 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 26, next_end: 30 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 26, have: 1, need: 5, playableCount: 26 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] 5턴 기억 기록 chat=997101 turns=21-25 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 26, next_end: 30 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 26, have: 1, need: 5, playableCount: 26 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] reconcile after record delete chat=997101 turns=26 summarized=20
+# [memory] 5턴 기억 기록 chat=997101 turns=21-25 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] 5턴 기억 기록 chat=997101 turns=21-25 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 26, next_end: 30 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 26, have: 1, need: 5, playableCount: 26 }
+# [memory] reconcile after turn delete chat=997101 turns=20 summarized=20
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] 5턴 기억 기록 chat=997101 turns=21-25 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 26, next_end: 30 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 26, have: 1, need: 5, playableCount: 26 }
+# [memory] reconcile after variant switch chat=997101 sourceTurn=12 inactivated=1 summarized=10
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] 5턴 기억 기록 chat=997101 turns=21-25 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 26, next_end: 30 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 26, have: 1, need: 5, playableCount: 26 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] 5턴 기억 기록 chat=997101 turns=21-25 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 26, next_end: 30 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 26, have: 1, need: 5, playableCount: 26 }
+# [memory] regenerateMemoryRecordBatch chat=997101 turns=16-20 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] 5턴 기억 기록 chat=997101 turns=21-25 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 26, next_end: 30 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 26, have: 1, need: 5, playableCount: 26 }
+# [memory] synced counts chat=997101 playable=26 summarized=25
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] 5턴 기억 기록 chat=997101 turns=21-25 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 26, next_end: 30 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 26, have: 1, need: 5, playableCount: 26 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 1288/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 16, have: 1, need: 5, playableCount: 16 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 21, have: 1, need: 5, playableCount: 21 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 1288/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 16, have: 1, need: 5, playableCount: 16 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 1288/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 16, have: 1, need: 5, playableCount: 16 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 1288/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 1719/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] 5턴 기억 기록 chat=997101 turns=21-25 (420ch → lorebook 2150/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 26, next_end: 30 }
+# [memory] 5턴 기억 기록 chat=997101 turns=26-30 (420ch → lorebook 2581/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 31, next_end: 35 }
+# [memory] 5턴 기억 기록 chat=997101 turns=31-35 (420ch → lorebook 3012/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 36, next_end: 40 }
+# [memory] 5턴 기억 기록 chat=997101 turns=36-40 (420ch → lorebook 3443/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 41, next_end: 45 }
+# [memory] 5턴 기억 기록 chat=997101 turns=41-45 (420ch → lorebook 3874/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 46, next_end: 50 }
+# [memory] 5턴 기억 기록 chat=997101 turns=46-50 (420ch → lorebook 4305/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 51, next_end: 55 }
+# [memory] 5턴 기억 기록 chat=997101 turns=51-55 (420ch → lorebook 4736/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 56, next_end: 60 }
+# [memory] 5턴 기억 기록 chat=997101 turns=56-60 (420ch → lorebook 5167/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 61, next_end: 65 }
+# [memory] 5턴 기억 기록 chat=997101 turns=61-65 (420ch → lorebook 5598/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 66, next_end: 70 }
+# [memory] 5턴 기억 기록 chat=997101 turns=66-70 (420ch → lorebook 6029/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 71, next_end: 75 }
+# [memory] 5턴 기억 기록 chat=997101 turns=71-75 (420ch → lorebook 6460/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 76, next_end: 80 }
+# [memory] 5턴 기억 기록 chat=997101 turns=76-80 (420ch → lorebook 6891/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 81, next_end: 85 }
+# [memory] 5턴 기억 기록 chat=997101 turns=81-85 (420ch → lorebook 7322/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 86, next_end: 90 }
+# [memory] 5턴 기억 기록 chat=997101 turns=86-90 (420ch → lorebook 7753/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 91, next_end: 95 }
+# [memory] 5턴 기억 기록 chat=997101 turns=91-95 (420ch → lorebook 8184/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 96, next_end: 100 }
+# [memory] 5턴 기억 기록 chat=997101 turns=96-100 (420ch → lorebook 8616/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 101, next_end: 105 }
+# [memory] SUMMARY_BATCH_INCOMPLETE {
+#   chatId: 997101,
+#   batchStart: 101,
+#   have: 1,
+#   need: 5,
+#   playableCount: 101
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 101, next_end: 105 }
+# [memory] 5턴 기억 기록 chat=997101 turns=101-105 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 106, next_end: 110 }
+# [memory] 5턴 기억 기록 chat=997101 turns=106-110 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 111, next_end: 115 }
+# [memory] 5턴 기억 기록 chat=997101 turns=111-115 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 116, next_end: 120 }
+# [memory] 5턴 기억 기록 chat=997101 turns=116-120 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 121, next_end: 125 }
+# [memory] 5턴 기억 기록 chat=997101 turns=121-125 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 126, next_end: 130 }
+# [memory] 5턴 기억 기록 chat=997101 turns=126-130 (420ch → lorebook 53/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 131, next_end: 135 }
+# [memory] SUMMARY_BATCH_INCOMPLETE {
+#   chatId: 997101,
+#   batchStart: 131,
+#   have: 1,
+#   need: 5,
+#   playableCount: 131
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# Subtest: A — normal 5-turn seal keeps the user's manual Global
+    # Subtest: T10 manual save → T15 automatic seal: manual text, kind and new record all survive
+    ok 1 - T10 manual save → T15 automatic seal: manual text, kind and new record all survive
+      ---
+      duration_ms: 394.323404
+      ...
+    1..1
+ok 1 - A — normal 5-turn seal keeps the user's manual Global
+  ---
+  duration_ms: 394.707783
+  type: 'suite'
+  ...
+# Subtest: B — RP keeps going: manual stays, automatic records keep reaching the prompt
+    # Subtest: T10 manual → T15/T20/T25 seals: every new record is stored and injected, older ones are not re-injected
+    ok 1 - T10 manual → T15/T20/T25 seals: every new record is stored and injected, older ones are not re-injected
+      ---
+      duration_ms: 28.977751
+      ...
+    # Subtest: model preview and the real RP assemble the same final memory
+    ok 2 - model preview and the real RP assemble the same final memory
+      ---
+      duration_ms: 25.987646
+      ...
+    # Subtest: without records after the save the Medium stays empty (no extra tokens)
+    ok 3 - without records after the save the Medium stays empty (no extra tokens)
+      ---
+      duration_ms: 13.944335
+      ...
+    1..3
+ok 2 - B — RP keeps going: manual stays, automatic records keep reaching the prompt
+  ---
+  duration_ms: 69.157299
+  type: 'suite'
+  ...
+# Subtest: C — user correction wins over older automatic records
+    # Subtest: a corrected promise in the manual text is not contradicted by the old automatic record
+    ok 1 - a corrected promise in the manual text is not contradicted by the old automatic record
+      ---
+      duration_ms: 18.642053
+      ...
+    1..1
+ok 3 - C — user correction wins over older automatic records
+  ---
+  duration_ms: 18.726044
+  type: 'suite'
+  ...
+# Subtest: D — deleting the manual memory returns to automatic memory
+    # Subtest: saving an empty text releases manual mode and rebuilds Global from the 5-turn records
+    ok 1 - saving an empty text releases manual mode and rebuilds Global from the 5-turn records
+      ---
+      duration_ms: 19.379218
+      ...
+    1..1
+ok 4 - D — deleting the manual memory returns to automatic memory
+  ---
+  duration_ms: 19.546143
+  type: 'suite'
+  ...
+# Subtest: E — alternate paths never discard the manual Global
+    # Subtest: editing a 5-turn record
+    ok 1 - editing a 5-turn record
+      ---
+      duration_ms: 23.954742
+      ...
+    # Subtest: deleting a 5-turn record then reconciling
+    ok 2 - deleting a 5-turn record then reconciling
+      ---
+      duration_ms: 34.337791
+      ...
+    # Subtest: deleting the last turns
+    ok 3 - deleting the last turns
+      ---
+      duration_ms: 27.875719
+      ...
+    # Subtest: variant switch / source message edit invalidating a post-save record
+    ok 4 - variant switch / source message edit invalidating a post-save record
+      ---
+      duration_ms: 22.457823
+      ...
+    # Subtest: branch promotion / close and the route's generic Global refresh
+    ok 5 - branch promotion / close and the route's generic Global refresh
+      ---
+      duration_ms: 27.195286
+      ...
+    # Subtest: regenerating a post-save 5-turn record
+    ok 6 - regenerating a post-save 5-turn record
+      ---
+      duration_ms: 24.344711
+      ...
+    # Subtest: panel open / reconnect (GET path) repairs counts only
+    ok 7 - panel open / reconnect (GET path) repairs counts only
+      ---
+      duration_ms: 24.40901
+      ...
+    # Subtest: global compaction never overwrites or even calls the provider for a manual row
+    ok 8 - global compaction never overwrites or even calls the provider for a manual row
+      ---
+      duration_ms: 20.759719
+      ...
+    # Subtest: a manual save that lands while an automatic compaction is in flight wins
+    ok 9 - a manual save that lands while an automatic compaction is in flight wins
+      ---
+      duration_ms: 9.151906
+      ...
+    1..9
+ok 5 - E — alternate paths never discard the manual Global
+  ---
+  duration_ms: 214.818962
+  type: 'suite'
+  ...
+# Subtest: F — existing data
+    # Subtest: legacy manual_global without a recorded boundary: reads keep it, the next seal adopts the boundary
+    ok 1 - legacy manual_global without a recorded boundary: reads keep it, the next seal adopts the boundary
+      ---
+      duration_ms: 11.959844
+      ...
+    # Subtest: automatic (non-manual) chats keep the exact mirror and never inject Medium
+    ok 2 - automatic (non-manual) chats keep the exact mirror and never inject Medium
+      ---
+      duration_ms: 9.020666
+      ...
+    # Subtest: no extra provider calls: one summary call per sealed batch, none for manual save/read
+    ok 3 - no extra provider calls: one summary call per sealed batch, none for manual save/read
+      ---
+      duration_ms: 10.592832
+      ...
+    1..3
+ok 6 - F — existing data
+  ---
+  duration_ms: 31.690104
+  type: 'suite'
+  ...
+# Subtest: G — structural guard and long histories
+    # Subtest: a manual Global stays authoritative after the sealed history outgrows the Global budget
+    ok 1 - a manual Global stays authoritative after the sealed history outgrows the Global budget
+      ---
+      duration_ms: 108.686642
+      ...
+    # Subtest: derived-projection writers still write non-manual rows and refuse manual ones
+    ok 2 - derived-projection writers still write non-manual rows and refuse manual ones
+      ---
+      duration_ms: 14.528279
+      ...
+    # Subtest: an emptied legacy manual row (no user text) is not protected and rebuilds normally
+    ok 3 - an emptied legacy manual row (no user text) is not protected and rebuilds normally
+      ---
+      duration_ms: 11.415104
+      ...
+    1..3
+ok 7 - G — structural guard and long histories
+  ---
+  duration_ms: 134.760682
+  type: 'suite'
+  ...
+1..7
+# tests 21
+# suites 7
+# pass 21
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2149.059237

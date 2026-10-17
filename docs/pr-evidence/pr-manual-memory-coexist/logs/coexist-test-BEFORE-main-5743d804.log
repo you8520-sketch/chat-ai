@@ -1,0 +1,937 @@
+TAP version 13
+# [database] runtime diagnostics {
+#   nodeEnv: '',
+#   nextPhase: '',
+#   cwd: '/tmp/base-wt',
+#   dataDir: '/tmp/base-wt/data',
+#   databasePath: '/tmp/base-wt/data/app.db',
+#   dataDirExists: true,
+#   dataDirIsMounted: false,
+#   productionRuntime: false
+# }
+# [memory-feature] ENABLED — memory prompt + background jobs active
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 1288/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 16, have: 1, need: 5, playableCount: 16 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 1288/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 16, have: 1, need: 5, playableCount: 16 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 1719/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 21, have: 1, need: 5, playableCount: 21 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] 5턴 기억 기록 chat=997101 turns=21-25 (420ch → lorebook 2150/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 26, next_end: 30 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 26, have: 1, need: 5, playableCount: 26 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 1288/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 1719/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 21, have: 1, need: 5, playableCount: 21 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 1288/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 1719/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 21, have: 1, need: 5, playableCount: 21 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 1288/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 16, have: 1, need: 5, playableCount: 16 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 1288/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 1719/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] 5턴 기억 기록 chat=997101 turns=21-25 (420ch → lorebook 2150/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 26, next_end: 30 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 26, have: 1, need: 5, playableCount: 26 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 1288/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 1719/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] 5턴 기억 기록 chat=997101 turns=21-25 (420ch → lorebook 2150/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 26, next_end: 30 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 26, have: 1, need: 5, playableCount: 26 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] reconcile after record delete chat=997101 turns=26 summarized=20
+# [memory] 5턴 기억 기록 chat=997101 turns=21-25 (420ch → lorebook 2150/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 1288/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 1719/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] 5턴 기억 기록 chat=997101 turns=21-25 (420ch → lorebook 2150/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 26, next_end: 30 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 26, have: 1, need: 5, playableCount: 26 }
+# [memory] reconcile after turn delete chat=997101 turns=20 summarized=20
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 1288/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 1719/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] 5턴 기억 기록 chat=997101 turns=21-25 (420ch → lorebook 2150/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 26, next_end: 30 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 26, have: 1, need: 5, playableCount: 26 }
+# [memory] reconcile after variant switch chat=997101 sourceTurn=12 inactivated=1 summarized=10
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 1288/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 1719/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] 5턴 기억 기록 chat=997101 turns=21-25 (420ch → lorebook 2150/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 26, next_end: 30 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 26, have: 1, need: 5, playableCount: 26 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 1288/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 1719/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] 5턴 기억 기록 chat=997101 turns=21-25 (420ch → lorebook 2150/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 26, next_end: 30 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 26, have: 1, need: 5, playableCount: 26 }
+# [memory] regenerateMemoryRecordBatch chat=997101 turns=16-20 (420ch → lorebook 2150/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 1288/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 1719/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] 5턴 기억 기록 chat=997101 turns=21-25 (420ch → lorebook 2150/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 26, next_end: 30 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 26, have: 1, need: 5, playableCount: 26 }
+# [memory] synced counts chat=997101 playable=26 summarized=25
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 1288/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 1719/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] 5턴 기억 기록 chat=997101 turns=21-25 (420ch → lorebook 2150/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 26, next_end: 30 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 26, have: 1, need: 5, playableCount: 26 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 1288/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 16, have: 1, need: 5, playableCount: 16 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 1719/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 21, have: 1, need: 5, playableCount: 21 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 1288/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 16, have: 1, need: 5, playableCount: 16 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 1288/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 16, have: 1, need: 5, playableCount: 16 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] 5턴 기억 기록 chat=997101 turns=11-15 (420ch → lorebook 1288/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 16, next_end: 20 }
+# [memory] 5턴 기억 기록 chat=997101 turns=16-20 (420ch → lorebook 1719/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 21, next_end: 25 }
+# [memory] 5턴 기억 기록 chat=997101 turns=21-25 (420ch → lorebook 2150/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 26, next_end: 30 }
+# [memory] 5턴 기억 기록 chat=997101 turns=26-30 (420ch → lorebook 2581/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 31, next_end: 35 }
+# [memory] 5턴 기억 기록 chat=997101 turns=31-35 (420ch → lorebook 3012/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 36, next_end: 40 }
+# [memory] 5턴 기억 기록 chat=997101 turns=36-40 (420ch → lorebook 3443/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 41, next_end: 45 }
+# [memory] 5턴 기억 기록 chat=997101 turns=41-45 (420ch → lorebook 3874/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 46, next_end: 50 }
+# [memory] 5턴 기억 기록 chat=997101 turns=46-50 (420ch → lorebook 4305/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 51, next_end: 55 }
+# [memory] 5턴 기억 기록 chat=997101 turns=51-55 (420ch → lorebook 4736/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 56, next_end: 60 }
+# [memory] 5턴 기억 기록 chat=997101 turns=56-60 (420ch → lorebook 5167/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 61, next_end: 65 }
+# [memory] 5턴 기억 기록 chat=997101 turns=61-65 (420ch → lorebook 5598/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 66, next_end: 70 }
+# [memory] 5턴 기억 기록 chat=997101 turns=66-70 (420ch → lorebook 6029/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 71, next_end: 75 }
+# [memory] 5턴 기억 기록 chat=997101 turns=71-75 (420ch → lorebook 6460/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 76, next_end: 80 }
+# [memory] 5턴 기억 기록 chat=997101 turns=76-80 (420ch → lorebook 6891/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 81, next_end: 85 }
+# [memory] 5턴 기억 기록 chat=997101 turns=81-85 (420ch → lorebook 7322/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 86, next_end: 90 }
+# [memory] 5턴 기억 기록 chat=997101 turns=86-90 (420ch → lorebook 7753/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 91, next_end: 95 }
+# [memory] 5턴 기억 기록 chat=997101 turns=91-95 (420ch → lorebook 8184/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 96, next_end: 100 }
+# [memory] 5턴 기억 기록 chat=997101 turns=96-100 (420ch → lorebook 8616/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 101, next_end: 105 }
+# [memory] SUMMARY_BATCH_INCOMPLETE {
+#   chatId: 997101,
+#   batchStart: 101,
+#   have: 1,
+#   need: 5,
+#   playableCount: 101
+# }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 1, next_end: 5 }
+# [memory] 5턴 기억 기록 chat=997101 turns=1-5 (420ch → lorebook 427/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 6, next_end: 10 }
+# [memory] 5턴 기억 기록 chat=997101 turns=6-10 (420ch → lorebook 857/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1
+# MEMORY_SUMMARY_DUE { chat_id: 997101, next_start: 11, next_end: 15 }
+# [memory] SUMMARY_BATCH_INCOMPLETE { chatId: 997101, batchStart: 11, have: 1, need: 5, playableCount: 11 }
+# Subtest: A — normal 5-turn seal keeps the user's manual Global
+    # Subtest: T10 manual save → T15 automatic seal: manual text, kind and new record all survive
+    not ok 1 - T10 manual save → T15 automatic seal: manual text, kind and new record all survive
+      ---
+      duration_ms: 484.337886
+      location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:2:6970'
+      failureType: 'testCodeFailure'
+      error: |-
+        manual text must be unchanged
+        + actual - expected
+
+        + '[1~5턴] OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5 → event → consequence → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_H\n' +
+        +   '\n' +
+        +   '[6~10턴] AUTO_T6_10 → event → consequence → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_\n' +
+        +   '\n' +
+        +   '[11~15턴] AUTO_T11_15 → event → consequence → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T'
+        - 'USER_MANUAL_GLOBAL — 직접 확정: 한강 약속은 취소되었고 지금은 유효하지 않다.'
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'USER_MANUAL_GLOBAL — 직접 확정: 한강 약속은 취소되었고 지금은 유효하지 않다.'
+      actual: |-
+        [1~5턴] OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5 → event → consequence → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_H
+
+        [6~10턴] AUTO_T6_10 → event → consequence → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_
+
+        [11~15턴] AUTO_T11_15 → event → consequence → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T
+      operator: 'strictEqual'
+      stack: |-
+        assertManualKept (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:154:10)
+        TestContext.<anonymous> (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:216:5)
+        async Test.run (node:internal/test_runner/test:980:9)
+        async Promise.all (index 0)
+        async Suite.run (node:internal/test_runner/test:1358:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+      ...
+    1..1
+not ok 1 - A — normal 5-turn seal keeps the user's manual Global
+  ---
+  duration_ms: 484.692061
+  type: 'suite'
+  location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:2:6880'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: B — RP keeps going: manual stays, automatic records keep reaching the prompt
+    # Subtest: T10 manual → T15/T20/T25 seals: every new record is stored and injected, older ones are not re-injected
+    not ok 1 - T10 manual → T15/T20/T25 seals: every new record is stored and injected, older ones are not re-injected
+      ---
+      duration_ms: 27.230273
+      location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:2:7531'
+      failureType: 'testCodeFailure'
+      error: |-
+        manual text must be unchanged
+        + actual - expected
+
+        + '[1~5턴] OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5 → event → consequence → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_H\n' +
+        +   '\n' +
+        +   '[6~10턴] AUTO_T6_10 → event → consequence → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_\n' +
+        +   '\n' +
+        +   '[11~15턴] AUTO_T11_15 → event → consequence → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T\n' +
+        +   '\n' +
+        +   '[16~20턴] AUTO_T16_20 → event → consequence → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T\n' +
+        +   '\n' +
+        +   '[21~25턴] AUTO_T21_25 → event → consequence → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T'
+        - 'USER_MANUAL_GLOBAL — 직접 확정: 한강 약속은 취소되었고 지금은 유효하지 않다.'
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'USER_MANUAL_GLOBAL — 직접 확정: 한강 약속은 취소되었고 지금은 유효하지 않다.'
+      actual: |-
+        [1~5턴] OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5 → event → consequence → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_H
+
+        [6~10턴] AUTO_T6_10 → event → consequence → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_
+
+        [11~15턴] AUTO_T11_15 → event → consequence → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T
+
+        [16~20턴] AUTO_T16_20 → event → consequence → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T
+
+        [21~25턴] AUTO_T21_25 → event → consequence → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T
+      operator: 'strictEqual'
+      stack: |-
+        assertManualKept (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:154:10)
+        TestContext.<anonymous> (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:235:5)
+        async Test.run (node:internal/test_runner/test:980:9)
+        async Promise.all (index 0)
+        async Suite.run (node:internal/test_runner/test:1358:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    # Subtest: model preview and the real RP assemble the same final memory
+    not ok 2 - model preview and the real RP assemble the same final memory
+      ---
+      duration_ms: 22.831559
+      location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:2:8591'
+      failureType: 'testCodeFailure'
+      error: |-
+        The input did not match the regular expression /AUTO_T11_15/. Input:
+
+        ''
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      actual: ''
+      operator: 'match'
+      stack: |-
+        TestContext.<anonymous> (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:265:12)
+        async Test.run (node:internal/test_runner/test:980:9)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    # Subtest: without records after the save the Medium stays empty (no extra tokens)
+    ok 3 - without records after the save the Medium stays empty (no extra tokens)
+      ---
+      duration_ms: 9.667736
+      ...
+    1..3
+not ok 2 - B — RP keeps going: manual stays, automatic records keep reaching the prompt
+  ---
+  duration_ms: 59.937842
+  type: 'suite'
+  location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:2:7418'
+  failureType: 'subtestsFailed'
+  error: '2 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: C — user correction wins over older automatic records
+    # Subtest: a corrected promise in the manual text is not contradicted by the old automatic record
+    not ok 1 - a corrected promise in the manual text is not contradicted by the old automatic record
+      ---
+      duration_ms: 18.911959
+      location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:2:9621'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+
+        true !== false
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: false
+      actual: true
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:291:12)
+        async Test.run (node:internal/test_runner/test:980:9)
+        async Promise.all (index 0)
+        async Suite.run (node:internal/test_runner/test:1358:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    1..1
+not ok 3 - C — user correction wins over older automatic records
+  ---
+  duration_ms: 18.997696
+  type: 'suite'
+  location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:2:9531'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: D — deleting the manual memory returns to automatic memory
+    # Subtest: saving an empty text releases manual mode and rebuilds Global from the 5-turn records
+    not ok 1 - saving an empty text releases manual mode and rebuilds Global from the 5-turn records
+      ---
+      duration_ms: 14.342262
+      location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:3:602'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+        + actual - expected
+
+        + 'manual_global'
+        - null
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: ~
+      actual: 'manual_global'
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:313:12)
+        async Test.run (node:internal/test_runner/test:980:9)
+        async Promise.all (index 0)
+        async Suite.run (node:internal/test_runner/test:1358:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    1..1
+not ok 4 - D — deleting the manual memory returns to automatic memory
+  ---
+  duration_ms: 14.509854
+  type: 'suite'
+  location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:3:507'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: E — alternate paths never discard the manual Global
+    # Subtest: editing a 5-turn record
+    not ok 1 - editing a 5-turn record
+      ---
+      duration_ms: 24.459753
+      location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:3:1826'
+      failureType: 'testCodeFailure'
+      error: |-
+        manual text must be unchanged
+        + actual - expected
+
+        + '[1~5턴] OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5 → event → consequence → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_H\n' +
+        +   '\n' +
+        +   '[6~10턴] AUTO_T6_10 → event → consequence → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_\n' +
+        +   '\n' +
+        +   '[11~15턴] AUTO_T11_15 → event → consequence → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T\n' +
+        +   '\n' +
+        +   '[16~20턴] USER_EDITED_RECORD → event → consequence → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → US\n' +
+        +   '\n' +
+        +   '[21~25턴] AUTO_T21_25 → event → consequence → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T'
+        - 'USER_MANUAL_GLOBAL — 직접 확정: 한강 약속은 취소되었고 지금은 유효하지 않다.'
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'USER_MANUAL_GLOBAL — 직접 확정: 한강 약속은 취소되었고 지금은 유효하지 않다.'
+      actual: |-
+        [1~5턴] OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5 → event → consequence → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_H
+
+        [6~10턴] AUTO_T6_10 → event → consequence → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_
+
+        [11~15턴] AUTO_T11_15 → event → consequence → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T
+
+        [16~20턴] USER_EDITED_RECORD → event → consequence → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → USER_EDITED_RECORD_PAD → US
+
+        [21~25턴] AUTO_T21_25 → event → consequence → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T
+      operator: 'strictEqual'
+      stack: |-
+        assertManualKept (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:154:10)
+        TestContext.<anonymous> (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:343:5)
+        async Test.run (node:internal/test_runner/test:980:9)
+        async Promise.all (index 0)
+        async Suite.run (node:internal/test_runner/test:1358:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    # Subtest: deleting a 5-turn record then reconciling
+    not ok 2 - deleting a 5-turn record then reconciling
+      ---
+      duration_ms: 27.013882
+      location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:3:2241'
+      failureType: 'testCodeFailure'
+      error: |-
+        manual text must be unchanged
+        + actual - expected
+
+        + '[1~5턴] OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5 → event → consequence → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_H\n' +
+        +   '\n' +
+        +   '[6~10턴] AUTO_T6_10 → event → consequence → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_\n' +
+        +   '\n' +
+        +   '[11~15턴] AUTO_T11_15 → event → consequence → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T\n' +
+        +   '\n' +
+        +   '[16~20턴] AUTO_T16_20 → event → consequence → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T'
+        - 'USER_MANUAL_GLOBAL — 직접 확정: 한강 약속은 취소되었고 지금은 유효하지 않다.'
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'USER_MANUAL_GLOBAL — 직접 확정: 한강 약속은 취소되었고 지금은 유효하지 않다.'
+      actual: |-
+        [1~5턴] OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5 → event → consequence → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_H
+
+        [6~10턴] AUTO_T6_10 → event → consequence → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_
+
+        [11~15턴] AUTO_T11_15 → event → consequence → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T
+
+        [16~20턴] AUTO_T16_20 → event → consequence → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T
+      operator: 'strictEqual'
+      stack: |-
+        assertManualKept (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:154:10)
+        TestContext.<anonymous> (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:360:5)
+        async Test.run (node:internal/test_runner/test:980:9)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    # Subtest: deleting the last turns
+    not ok 3 - deleting the last turns
+      ---
+      duration_ms: 27.111831
+      location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:3:2922'
+      failureType: 'testCodeFailure'
+      error: |-
+        manual text must be unchanged
+        + actual - expected
+
+        + '[1~5턴] OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5 → event → consequence → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_H\n' +
+        +   '\n' +
+        +   '[6~10턴] AUTO_T6_10 → event → consequence → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_\n' +
+        +   '\n' +
+        +   '[11~15턴] AUTO_T11_15 → event → consequence → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T\n' +
+        +   '\n' +
+        +   '[16~20턴] AUTO_T16_20 → event → consequence → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T'
+        - 'USER_MANUAL_GLOBAL — 직접 확정: 한강 약속은 취소되었고 지금은 유효하지 않다.'
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'USER_MANUAL_GLOBAL — 직접 확정: 한강 약속은 취소되었고 지금은 유효하지 않다.'
+      actual: |-
+        [1~5턴] OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5 → event → consequence → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_H
+
+        [6~10턴] AUTO_T6_10 → event → consequence → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_
+
+        [11~15턴] AUTO_T11_15 → event → consequence → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T
+
+        [16~20턴] AUTO_T16_20 → event → consequence → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T
+      operator: 'strictEqual'
+      stack: |-
+        assertManualKept (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:154:10)
+        TestContext.<anonymous> (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:380:5)
+        async Test.run (node:internal/test_runner/test:980:9)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    # Subtest: variant switch / source message edit invalidating a post-save record
+    not ok 4 - variant switch / source message edit invalidating a post-save record
+      ---
+      duration_ms: 21.462464
+      location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:3:3455'
+      failureType: 'testCodeFailure'
+      error: |-
+        manual text must be unchanged
+        + actual - expected
+
+        + '[1~5턴] OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5 → event → consequence → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_H\n' +
+        +   '\n' +
+        +   '[6~10턴] AUTO_T6_10 → event → consequence → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_\n' +
+        +   '\n' +
+        +   '[16~20턴] AUTO_T16_20 → event → consequence → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T\n' +
+        +   '\n' +
+        +   '[21~25턴] AUTO_T21_25 → event → consequence → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T'
+        - 'USER_MANUAL_GLOBAL — 직접 확정: 한강 약속은 취소되었고 지금은 유효하지 않다.'
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'USER_MANUAL_GLOBAL — 직접 확정: 한강 약속은 취소되었고 지금은 유효하지 않다.'
+      actual: |-
+        [1~5턴] OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5 → event → consequence → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_H
+
+        [6~10턴] AUTO_T6_10 → event → consequence → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_
+
+        [16~20턴] AUTO_T16_20 → event → consequence → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T
+
+        [21~25턴] AUTO_T21_25 → event → consequence → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T
+      operator: 'strictEqual'
+      stack: |-
+        assertManualKept (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:154:10)
+        TestContext.<anonymous> (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:394:5)
+        async Test.run (node:internal/test_runner/test:980:9)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    # Subtest: branch promotion / close and the route's generic Global refresh
+    not ok 5 - branch promotion / close and the route's generic Global refresh
+      ---
+      duration_ms: 19.057002
+      location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:3:4083'
+      failureType: 'testCodeFailure'
+      error: |-
+        manual text must be unchanged
+        + actual - expected
+
+        + '[1~5턴] OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5 → event → consequence → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_H\n' +
+        +   '\n' +
+        +   '[6~10턴] AUTO_T6_10 → event → consequence → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_\n' +
+        +   '\n' +
+        +   '[11~15턴] AUTO_T11_15 → event → consequence → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T\n' +
+        +   '\n' +
+        +   '[16~20턴] AUTO_T16_20 → event → consequence → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T\n' +
+        +   '\n' +
+        +   '[21~25턴] AUTO_T21_25 → event → consequence → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T\n' +
+        +   'AUTO_T21_25 → event → consequence → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T'
+        - 'USER_MANUAL_GLOBAL — 직접 확정: 한강 약속은 취소되었고 지금은 유효하지 않다.'
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'USER_MANUAL_GLOBAL — 직접 확정: 한강 약속은 취소되었고 지금은 유효하지 않다.'
+      actual: |-
+        [1~5턴] OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5 → event → consequence → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_H
+
+        [6~10턴] AUTO_T6_10 → event → consequence → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_
+
+        [11~15턴] AUTO_T11_15 → event → consequence → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T
+
+        [16~20턴] AUTO_T16_20 → event → consequence → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T
+
+        [21~25턴] AUTO_T21_25 → event → consequence → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T
+        AUTO_T21_25 → event → consequence → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T
+      operator: 'strictEqual'
+      stack: |-
+        assertManualKept (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:154:10)
+        TestContext.<anonymous> (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:409:5)
+        async Test.run (node:internal/test_runner/test:980:9)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    # Subtest: regenerating a post-save 5-turn record
+    not ok 6 - regenerating a post-save 5-turn record
+      ---
+      duration_ms: 29.296814
+      location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:3:4704'
+      failureType: 'testCodeFailure'
+      error: |-
+        manual text must be unchanged
+        + actual - expected
+
+        + '[1~5턴] OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5 → event → consequence → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_H\n' +
+        +   '\n' +
+        +   '[6~10턴] AUTO_T6_10 → event → consequence → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_\n' +
+        +   '\n' +
+        +   '[11~15턴] AUTO_T11_15 → event → consequence → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T\n' +
+        +   '\n' +
+        +   '[16~20턴] AUTO_T16_20 → event → consequence → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T\n' +
+        +   '\n' +
+        +   '[21~25턴] AUTO_T21_25 → event → consequence → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T'
+        - 'USER_MANUAL_GLOBAL — 직접 확정: 한강 약속은 취소되었고 지금은 유효하지 않다.'
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'USER_MANUAL_GLOBAL — 직접 확정: 한강 약속은 취소되었고 지금은 유효하지 않다.'
+      actual: |-
+        [1~5턴] OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5 → event → consequence → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_H
+
+        [6~10턴] AUTO_T6_10 → event → consequence → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_
+
+        [11~15턴] AUTO_T11_15 → event → consequence → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T
+
+        [16~20턴] AUTO_T16_20 → event → consequence → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T
+
+        [21~25턴] AUTO_T21_25 → event → consequence → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T
+      operator: 'strictEqual'
+      stack: |-
+        assertManualKept (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:154:10)
+        TestContext.<anonymous> (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:428:5)
+        async Test.run (node:internal/test_runner/test:980:9)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    # Subtest: panel open / reconnect (GET path) repairs counts only
+    not ok 7 - panel open / reconnect (GET path) repairs counts only
+      ---
+      duration_ms: 20.911001
+      location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:3:5106'
+      failureType: 'testCodeFailure'
+      error: |-
+        manual text must be unchanged
+        + actual - expected
+
+        + '[1~5턴] OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5 → event → consequence → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_H\n' +
+        +   '\n' +
+        +   '[6~10턴] AUTO_T6_10 → event → consequence → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_\n' +
+        +   '\n' +
+        +   '[11~15턴] AUTO_T11_15 → event → consequence → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T\n' +
+        +   '\n' +
+        +   '[16~20턴] AUTO_T16_20 → event → consequence → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T\n' +
+        +   '\n' +
+        +   '[21~25턴] AUTO_T21_25 → event → consequence → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T'
+        - 'USER_MANUAL_GLOBAL — 직접 확정: 한강 약속은 취소되었고 지금은 유효하지 않다.'
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'USER_MANUAL_GLOBAL — 직접 확정: 한강 약속은 취소되었고 지금은 유효하지 않다.'
+      actual: |-
+        [1~5턴] OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5 → event → consequence → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_H
+
+        [6~10턴] AUTO_T6_10 → event → consequence → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_
+
+        [11~15턴] AUTO_T11_15 → event → consequence → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T
+
+        [16~20턴] AUTO_T16_20 → event → consequence → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T
+
+        [21~25턴] AUTO_T21_25 → event → consequence → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T21_25_PAD → AUTO_T
+      operator: 'strictEqual'
+      stack: |-
+        assertManualKept (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:154:10)
+        TestContext.<anonymous> (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:435:5)
+        async Test.run (node:internal/test_runner/test:980:9)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    # Subtest: global compaction never overwrites or even calls the provider for a manual row
+    not ok 8 - global compaction never overwrites or even calls the provider for a manual row
+      ---
+      duration_ms: 18.070509
+      location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:3:5499'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+
+        true !== false
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: false
+      actual: true
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:458:12)
+        async Test.run (node:internal/test_runner/test:980:9)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    # Subtest: a manual save that lands while an automatic compaction is in flight wins
+    ok 9 - a manual save that lands while an automatic compaction is in flight wins
+      ---
+      duration_ms: 8.518472
+      ...
+    1..9
+not ok 5 - E — alternate paths never discard the manual Global
+  ---
+  duration_ms: 196.235415
+  type: 'suite'
+  location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:3:1477'
+  failureType: 'subtestsFailed'
+  error: '8 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: F — existing data
+    # Subtest: legacy manual_global without a recorded boundary: reads keep it, the next seal adopts the boundary
+    not ok 1 - legacy manual_global without a recorded boundary: reads keep it, the next seal adopts the boundary
+      ---
+      duration_ms: 14.857278
+      location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:3:7174'
+      failureType: 'testCodeFailure'
+      error: |-
+        manual text must be unchanged
+        + actual - expected
+
+        + '[1~5턴] OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5 → event → consequence → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_H\n' +
+        +   '\n' +
+        +   '[6~10턴] AUTO_T6_10 → event → consequence → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_\n' +
+        +   '\n' +
+        +   '[11~15턴] AUTO_T11_15 → event → consequence → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T\n' +
+        +   '\n' +
+        +   '[16~20턴] AUTO_T16_20 → event → consequence → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T'
+        - 'USER_MANUAL_GLOBAL — 직접 확정: 한강 약속은 취소되었고 지금은 유효하지 않다.'
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'USER_MANUAL_GLOBAL — 직접 확정: 한강 약속은 취소되었고 지금은 유효하지 않다.'
+      actual: |-
+        [1~5턴] OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5 → event → consequence → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_HANGANG_ACTIVE AUTO_T1_5_PAD → OLD_PROMISE_FACT_H
+
+        [6~10턴] AUTO_T6_10 → event → consequence → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_PAD → AUTO_T6_10_
+
+        [11~15턴] AUTO_T11_15 → event → consequence → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T11_15_PAD → AUTO_T
+
+        [16~20턴] AUTO_T16_20 → event → consequence → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T16_20_PAD → AUTO_T
+      operator: 'strictEqual'
+      stack: |-
+        assertManualKept (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:154:10)
+        TestContext.<anonymous> (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:512:5)
+        async Test.run (node:internal/test_runner/test:980:9)
+        async Promise.all (index 0)
+        async Suite.run (node:internal/test_runner/test:1358:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    # Subtest: automatic (non-manual) chats keep the exact mirror and never inject Medium
+    ok 2 - automatic (non-manual) chats keep the exact mirror and never inject Medium
+      ---
+      duration_ms: 11.53865
+      ...
+    # Subtest: no extra provider calls: one summary call per sealed batch, none for manual save/read
+    ok 3 - no extra provider calls: one summary call per sealed batch, none for manual save/read
+      ---
+      duration_ms: 12.9024
+      ...
+    1..3
+not ok 6 - F — existing data
+  ---
+  duration_ms: 39.422019
+  type: 'suite'
+  location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:3:7120'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: G — structural guard and long histories
+    # Subtest: a manual Global stays authoritative after the sealed history outgrows the Global budget
+    not ok 1 - a manual Global stays authoritative after the sealed history outgrows the Global budget
+      ---
+      duration_ms: 83.91819
+      location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:4:1854'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+
+        null !== 100
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 100
+      actual: ~
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:549:12)
+        async Test.run (node:internal/test_runner/test:980:9)
+        async Promise.all (index 0)
+        async Suite.run (node:internal/test_runner/test:1358:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    # Subtest: derived-projection writers still write non-manual rows and refuse manual ones
+    not ok 2 - derived-projection writers still write non-manual rows and refuse manual ones
+      ---
+      duration_ms: 9.350613
+      location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:4:3186'
+      failureType: 'testCodeFailure'
+      error: |-
+        manual text must be unchanged
+        + actual - expected
+
+        + 'AUTO_PATCH_E'
+        - 'USER_MANUAL_GLOBAL — 직접 확정: 한강 약속은 취소되었고 지금은 유효하지 않다.'
+
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 'USER_MANUAL_GLOBAL — 직접 확정: 한강 약속은 취소되었고 지금은 유효하지 않다.'
+      actual: 'AUTO_PATCH_E'
+      operator: 'strictEqual'
+      stack: |-
+        assertManualKept (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:154:10)
+        TestContext.<anonymous> (/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:602:5)
+        async Test.run (node:internal/test_runner/test:980:9)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:677:7)
+      ...
+    # Subtest: an emptied legacy manual row (no user text) is not protected and rebuilds normally
+    ok 3 - an emptied legacy manual row (no user text) is not protected and rebuilds normally
+      ---
+      duration_ms: 9.644061
+      ...
+    1..3
+not ok 7 - G — structural guard and long histories
+  ---
+  duration_ms: 103.051266
+  type: 'suite'
+  location: '/tmp/base-wt/src/lib/memory/memory-manual-global-coexist.test.ts:4:1778'
+  failureType: 'subtestsFailed'
+  error: '2 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..7
+# tests 21
+# suites 7
+# pass 5
+# fail 16
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2178.140396
