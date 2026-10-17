@@ -60,6 +60,7 @@ import { billableOutputTokens } from "@/lib/points";
 import { dumpOpenRouterRequest } from "@/services/promptDebugDump";
 import type { PromptDebugMeta } from "@/services/promptDebugDump";
 import { normalizeStreamTermination, accumulateStreamFinishReason } from "@/lib/providerTermination";
+import { readCheaperInferenceResponseDiagnostics } from "@/lib/turnPhaseLatencyAudit";
 import { buildControlledPossessionRules } from "@/lib/controlledPossession";
 import {
   detectRpMetaLeakage,
@@ -1647,7 +1648,12 @@ export async function* streamOpenRouterAdult(
         240_000,
         transport.label
       );
-      messageOpts?.phaseAudit?.mark("T11_PROVIDER_HEADERS");
+      messageOpts?.phaseAudit?.mark("T11_PROVIDER_RESPONSE_HEADERS");
+      if (transport.provider === "cheaperinference" && messageOpts?.phaseAudit) {
+        messageOpts.phaseAudit.setCheaperInferenceDiagnostics(
+          readCheaperInferenceResponseDiagnostics(res.headers)
+        );
+      }
     }
     if (!res.body) {
       throw new OpenRouterApiError({
