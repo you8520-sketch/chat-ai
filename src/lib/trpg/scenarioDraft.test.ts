@@ -127,6 +127,32 @@ describe("TRPG scenario AI draft", () => {
     }
   });
 
+  it("prompt schema declares every list field as a string array (a bare string would be dropped by the plan parser)", () => {
+    const arrayLine = buildScenarioDraftSystemPrompt()
+      .split("\n")
+      .find((line) => line.startsWith("string arrays:"));
+    assert.ok(arrayLine);
+    for (const key of [
+      "endingConditions",
+      "majorEvents",
+      "clues",
+      "forbiddenEvents",
+      "specialRules",
+      "endingCandidates",
+      "factionChanges",
+      "startInventory",
+    ]) {
+      assert.ok(arrayLine.includes(key), key);
+    }
+    const preFixOutput = JSON.stringify({
+      title: "유령 기차의 비밀",
+      startingSituation: "폐역 대합실",
+      goal: "승객을 찾는다",
+      endingConditions: "모든 승객이 구출되거나, 기차의 저주가 풀리거나, 플레이어들이 기차에서 탈출하는 경우.",
+    });
+    assert.deepEqual(parseScenarioDraftJson(preFixOutput).plan.endingConditions, []);
+  });
+
   it("recorded plain-output draft maps every requested field and passes the minimum story check", async () => {
     const plainOutput = "{\n  \"title\": \"유령 기차의 비밀\",\n  \"summary\": \"비 오는 밤, 폐역에 도착한 유령 기차에서 사라진 승객들의 비밀을 추적하는 미스터리 모험.\",\n  \"startingSituation\": \"플레이어들은 비 오는 밤, 폐역 대합실에서 비를 피하고 있다. 갑자기 유령 기차가 도착하고, 승객들이 하나둘 사라진다. 플레이어들은 기차에 올라타 사라진 승객들을 찾게 된다.\",\n  \"centralConflict\": \"유령 기차는 과거에 사고로 죽은 승객들의 영혼이 반복되는 순환에 갇힌 공간이다. 기차의 정체를 밝히고, 영혼들을 해방시키는 것이 중심 갈등이다.\",\n  \"goal\": \"사라진 승객들을 찾고, 유령 기차의 비밀을 밝혀 영혼들을 해방시킨다.\",\n  \"secret\": \"유령 기차는 과거 폐역에서 발생한 열차 사고로 죽은 승객들의 영혼이 반복되는 순환에 갇힌 공간이다. 기차의 정체를 밝히고, 영혼들을 해방시키는 것이 중심 갈등이다.\",\n  \"endingConditions\": [\n    \"승객들의 영혼을 해방시키고 기차가 사라진다.\",\n    \"기차의 비밀을 밝히고 폐역을 떠난다.\"\n  ],\n  \"majorEvents\": [\n    \"기차 안에서 승객들의 과거 기억 조각 발견\",\n    \"기차의 운전사와 대면하여 사고의 진실을 알게 됨\"\n  ],\n  \"clues\": [\n    \"승객들의 유품에서 사고 당시의 신문 기사 발견\",\n    \"기차의 운전사가 남긴 일기장에서 사고의 진실 확인\"\n  ],\n  \"startLocation\": \"비 오는 밤의 폐역 대합실\",\n  \"startInventory\": [\n    \"손전등\",\n    \"낡은 지도\"\n  ],\n  \"difficulty\": \"normal\",\n  \"climax\": \"플레이어들이 기차의 운전사와 대면하여 사고의 진실을 알게 되고, 영혼들을 해방시키기 위한 마지막 선택을 한다.\"\n}";
     const result = await completeTrpgScenarioDraftJson({
