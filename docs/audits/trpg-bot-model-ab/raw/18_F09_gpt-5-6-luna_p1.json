@@ -1,0 +1,42 @@
+{
+  "fixture_id": "F09",
+  "model": "gpt-5.6-luna",
+  "pass": 1,
+  "call_index": 18,
+  "request_contract": {
+    "model": "gpt-5.6-luna",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none",
+    "reasoning": {
+      "effort": "none"
+    }
+  },
+  "input_token_count": 10616,
+  "output_token_count": 414,
+  "cached_input_tokens": 0,
+  "reasoning_tokens": 0,
+  "latency_ms": 7791,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "철제 문틈으로 스며드는 바람이 손등의 붕대를 차갑게 적셨다. 피 냄새 아래에 젖은 돌과 오래된 재의 냄새가 섞여 있었다. 문 너머는 보이지 않지만, 금속을 긁던 소리가 사라진 뒤의 정적이 오히려 더 불길했다. 전장에서는 침묵이 끝난 게 아니라, 다음 명령을 기다리는 순간이 늘 가장 위험했다.\n\n나는 검 손잡이에 손을 얹은 채 문에서 반 걸음 물러났다. 유저가 틈새를 살피려는 움직임을 막지는 않았다. 대신 무너진 천장과 좌우 벽을 번갈아 훑으며, 발을 디딜 곳과 몸을 숨길 기둥의 위치를 다시 잡았다. 벽면의 오염된 룬은 문을 여는 열쇠라기보다, 안쪽의 무언가가 흘러나온 흔적처럼 보였다. 확신은 없었다. 그래서 더 가까이 가야 했다.\n\n\"하, 또 이 꼴이야.\"\n\n낮게 중얼거린 뒤, 나는 허리를 낮추고 좌측 기둥의 그늘에 붙었다. 한 손으로 유저가 틈새를 확인할 때 몸을 가릴 수 있도록 기둥 가장자리를 짚고, 다른 손은 언제든 검을 뽑을 수 있게 둔다. 문 너머의 움직임과 룬의 반응을 함께 살피되, 아직 문에는 손대지 않았다.\n\n<<<ACTION_TYPE>>>\ninvestigate\n\n<<<INTENT>>>\n렌은 좌측 기둥 뒤에 몸을 숨긴 채 석실 문틈과 오염된 벽면 룬을 번갈아 관찰해 내부의 위협과 마력 흐름의 단서를 확인하려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": false,
+    "outputCharCount": 640,
+    "outputTokenEstimate": 356,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "철제 문틈으로 스며드는 바람이 손등의 붕대를 차갑게 적셨다. 피 냄새 아래에 젖은 돌과 오래된 재의 냄새가 섞여 있었다. 문 너머는 보이지 않지만, 금속을 긁던 소리가 사라진 뒤의 정적이 오히려 더 불길했다. 전장에서는 침묵이 끝난 게 아니라, 다음 명령을 기다리는 순간이 늘 가장 위험했다.\n\n나는 검 손잡이에 손을 얹은 채 문에서 반 걸음 물러났다. 유저가 틈새를 살피려는 움직임을 막지는 않았다. 대신 무너진 천장과 좌우 벽을 번갈아 훑으며, 발을 디딜 곳과 몸을 숨길 기둥의 위치를 다시 잡았다. 벽면의 오염된 룬은 문을 여는 열쇠라기보다, 안쪽의 무언가가 흘러나온 흔적처럼 보였다. 확신은 없었다. 그래서 더 가까이 가야 했다.\n\n\"하, 또 이 꼴이야.\"\n\n낮게 중얼거린 뒤, 나는 허리를 낮추고 좌측 기둥의 그늘에 붙었다. 한 손으로 유저가 틈새를 확인할 때 몸을 가릴 수 있도록 기둥 가장자리를 짚고, 다른 손은 언제든 검을 뽑을 수 있게 둔다. 문 너머의 움직임과 룬의 반응을 함께 살피되, 아직 문에는 손대지 않았다.",
+    "parsedActionType": "investigate",
+    "parsedIntent": "렌은 좌측 기둥 뒤에 몸을 숨긴 채 석실 문틈과 오염된 벽면 룬을 번갈아 관찰해 내부의 위협과 마력 흐름의 단서를 확인하려 했다."
+  }
+}

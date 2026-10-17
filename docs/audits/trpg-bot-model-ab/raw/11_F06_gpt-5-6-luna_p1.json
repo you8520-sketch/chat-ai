@@ -1,0 +1,42 @@
+{
+  "fixture_id": "F06",
+  "model": "gpt-5.6-luna",
+  "pass": 1,
+  "call_index": 11,
+  "request_contract": {
+    "model": "gpt-5.6-luna",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none",
+    "reasoning": {
+      "effort": "none"
+    }
+  },
+  "input_token_count": 8239,
+  "output_token_count": 366,
+  "cached_input_tokens": 0,
+  "reasoning_tokens": 0,
+  "latency_ms": 5906,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "붉은 섬광이 통로 깊은 곳에서 다시 번지자, 렌은 철문보다 먼저 등 뒤를 돌아보았다. 금속을 긁던 소리는 끊겼지만, 조용해졌다는 사실이 오히려 불길했다. 피가 밴 손등이 욱신거렸으나 방패를 놓을 이유는 되지 못했다. 렌은 유저의 돌진을 따라가되, 그대로 앞을 추월하지 않고 한 걸음 뒤와 반 발짝 옆을 차지했다. 좁아진 통로에서는 누군가 공격해도 방패를 비틀어 몸을 밀어낼 공간이 필요했다.\n\n\"내 뒤로.\"\n\n낮게 말한 뒤 렌은 방패를 어깨 높이까지 세우고, 무너진 천장과 좌우 기둥 사이를 번갈아 훑었다. 석실 안의 원천을 확인하려면 문턱을 넘어야 했지만, 붉은 빛이 통로에서 다시 번진다면 유저에게 닿기 전에 자신이 받아내야 했다. 그는 문과 통로 사이에 몸을 걸치고, 유저가 잠금 장치에 손을 댈 수 있는 폭만 남겼다. 시선은 어둠에 고정한 채, 발끝으로 느슨한 돌조각을 밀어 통로 중앙의 발판을 비웠다.\n\n<<<ACTION_TYPE>>>\ndefend\n\n<<<INTENT>>>\n렌은 유저의 한 걸음 뒤에서 방패를 세우고, 통로에서 오는 공격이 유저에게 닿기 전에 몸으로 가로막으려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": false,
+    "outputCharCount": 555,
+    "outputTokenEstimate": 308,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "붉은 섬광이 통로 깊은 곳에서 다시 번지자, 렌은 철문보다 먼저 등 뒤를 돌아보았다. 금속을 긁던 소리는 끊겼지만, 조용해졌다는 사실이 오히려 불길했다. 피가 밴 손등이 욱신거렸으나 방패를 놓을 이유는 되지 못했다. 렌은 유저의 돌진을 따라가되, 그대로 앞을 추월하지 않고 한 걸음 뒤와 반 발짝 옆을 차지했다. 좁아진 통로에서는 누군가 공격해도 방패를 비틀어 몸을 밀어낼 공간이 필요했다.\n\n\"내 뒤로.\"\n\n낮게 말한 뒤 렌은 방패를 어깨 높이까지 세우고, 무너진 천장과 좌우 기둥 사이를 번갈아 훑었다. 석실 안의 원천을 확인하려면 문턱을 넘어야 했지만, 붉은 빛이 통로에서 다시 번진다면 유저에게 닿기 전에 자신이 받아내야 했다. 그는 문과 통로 사이에 몸을 걸치고, 유저가 잠금 장치에 손을 댈 수 있는 폭만 남겼다. 시선은 어둠에 고정한 채, 발끝으로 느슨한 돌조각을 밀어 통로 중앙의 발판을 비웠다.",
+    "parsedActionType": "defend",
+    "parsedIntent": "렌은 유저의 한 걸음 뒤에서 방패를 세우고, 통로에서 오는 공격이 유저에게 닿기 전에 몸으로 가로막으려 했다."
+  }
+}
