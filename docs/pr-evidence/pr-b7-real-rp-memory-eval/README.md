@@ -10,18 +10,26 @@ Evidence only. No code change, no production write, no merge or deploy. Cursor d
    | Condition | Status |
    |---|---|
    | Confirm the real character, admin persona and production path | Done: character 18 (라이크), persona 1 (렌), production flags and chat settings copied read-only |
-   | 30/50/80-turn memory accuracy and RP quality | Done, 21 real Main RP outputs (plus T90), facts checked, RP left to GPT |
+   | 30/50/80-turn memory accuracy and RP quality | Done: 17 real Main RP runs at T30/50/80, plus 2 at T90, facts checked, RP left to GPT |
    | 150/500/1000-turn retrieval, injection and consumption | 150 and 500 done. 1000 is blocked on cost (see "Cost") |
    | Verdicts on the four follow-ups | Done (see "Four follow-ups") |
    | Real raw outputs and failure evidence for GPT | `outputs/`, `memory-blocks/`, `audit/`, `logs/` |
    | Root-fix the single most important problem, or file it | Filed as the single next task. No fix in this PR |
 
-3. **Actual result.** Through 500 turns every recorded event (old clue, NPC betrayal, rift and repair, loss, injury cause and recovery, cancelled promise) reached the final wire and was recalled correctly. Global is exact up to 150 turns and a compact checkpoint after that, and it carried all eight events in detail. Failures are all at the model-consumption stage or are design gaps:
-   - gemini-3.8-flash stated an invented detail as past fact on an unrecorded question in 2 of 4 samples. gpt-6.1-sol did not, on the same wire.
+3. **Actual result** (corrected after GPT review and B8-1; see "B8-1 corrections"). The history is synthetic: 90 hand-written turns plus templated filler, replayed through the production background path. It is not 500 turns of real production use.
+   - **Injected vs recall-verified.** At T500, E1–E8 were all *injected* (Global carried them in detail). Only the events actually asked about were *recall-tested*, by 10 long-range runs on 5 questions.
+   - **Key-clue recall vs full factual accuracy.** Key clues were usually recalled: G-117, 서윤's report, the in-person cancellation, the claw wound and 14 stitches. Several of those same answers also stated wrong surrounding facts as past fact:
+     - T50-C2: gemini invented eyewitness details in 4 of 4 samples. gpt-6.1-sol, on the same wire, did not.
+     - T50-B2 moved the cancelled night-market promise onto the rooftop.
+     - L500-A5 flipped who cut the rabbit apples, and the order of application, ban and stitches.
+   - **Not all failures are at model consumption.**
+     - A, B and C first diverge at the model response on a correct wire.
+     - The stored T31–35 summary reverses who supported whom (summary generation). That reversal carried into the T500 Global compact, although no output used it.
+     - Relationship notes keep fulfilled promises open (a stored-state error).
    - The model never gave the 12-occurrence count, even with all 12 occurrences in the wire.
-   - At 150/500 turns, the Episodic layer (the intended long-range backstop) lost two old events: an NPC event to lane saturation and the reconcile key cap, and an injury cause to a logical-key collision. Global still covered both.
+   - At 150/500 turns, the Episodic layer (the intended long-range backstop) lost two old events. An NPC event went to lane saturation and the reconcile key cap; an injury cause went to a logical-key collision. Global still covered both.
 4. **Current stage.** Evidence submitted as a Draft PR. Awaiting GPT review. STOP.
-5. **Single next most important task.** Separate ticket: gemini-3.8-flash states invented specifics as past fact when asked about unrecorded detail ("C-type fabrication", failure class 모델 무시/왜곡), even though the wire already carries the HISTORICAL TRUTH rule. Per "Attack the Premise", audit how that rule and the memory block are positioned for the gemini adapter instead of adding a sentence.
+5. **Single next most important task.** Done as B8-1 (#1657), which traced each distortion to its first divergent stage. It found no server defect to fix (details in #1657).
 6. **On hold.**
    - 1000-turn leg: about 530 KRW more at production cadence, needs approval.
    - Per-seal compaction cost structure: provider-cost decision.
@@ -35,7 +43,7 @@ Evidence only. No code change, no production write, no merge or deploy. Cursor d
 - **Production parity (read-only).**
   - Character 18 (라이크): approved, adult_status confirmed, world 4, one global lorebook entry, no lorebook attachment. Its prompt text stays local only (`prod-config.json`, not committed).
   - Persona 1 (렌), owned by admin user 1.
-  - Chat settings copied from admin chats 800–802: safe route, third person, NORMAL, memory capacity 10,000, target 3,200, coauthor off.
+  - Chat settings copied from admin chats 800–802: safe route, third person, authoring level NORMAL, memory capacity 10,000, target 3,200. `user_coauthor_mode` is OFF, but authoring level NORMAL already renders the co-narration policy on the wire ("사용자가 유저 페르소나 공동 서술을 켜 두었다"), so "coauthor off" did not describe the effective behaviour. This matches production.
   - Production memory flags copied (`BACKGROUND_MEMORY_MODEL=gpt-6-luna`, `EPISODIC_SEMANTIC_DISCOVERY_ENABLED=1` with bge-m3, `EPISODIC_MEMORY_RECALL_ENABLED=1`, `MEMORY_5PLUS4_ENABLED=true`, `CANON_INJECTION_*`).
 - **Isolation.** A separate SQLite DB (`setup-isolated-db.mts`). No production row written, no real user chat read for content.
 - **Real admin chat 707.** Only counts were read (`audit/chat707-counts.json`): 22 turns, last active 2026-09-12. It predates the current memory pipeline (no evidence authority metadata, 0 embeddings), so it is not a current-quality sample.
@@ -70,14 +78,14 @@ Classes: A = direct recall, B = indirect recall (no over-listing needed), C = un
 | T30-C1 "did I cancel by text?" | C | Correct denial: in person | — |
 | T50-A2 flank, how it happened | A | Correct (인천항, evolved creature's claw, shielding 렌, 14 stitches, not yet healed) | — |
 | T50-A3 night market, why | A | Correct cause and order | — |
-| T50-B2 rooftop "reminds me of that day" | B | Correct (apology, "숨기지 마", pair application and approval) | — |
-| T50-C2 지환's last words (4 gemini + 1 sol) | C | gemini r1: invents a quote "가이드님, 도망쳐요". r2: says nobody heard, then states the mouth shape "meant 도망치라". r3: no invention. r4: no words, asserts "원망하는 눈빛은 아니었어, 확실해". sol: refuses to invent, asks 렌 | 모델 무시/왜곡 (gemini 2/4) |
+| T50-B2 rooftop "reminds me of that day" | B | **Corrected: wrong.** Apology and pair application are right, but it asserts "그때 여기서 약속했던 거, 페어 신청하는 거 말고 하나 더 있었잖아. 야시장…". That puts the T15 promise, cancelled at T22, on the rooftop as a rooftop promise. The closing "실밥 풀리면 야시장부터 가자" is a legitimate new proposal | 모델 무시/왜곡 |
+| T50-C2 지환's last words (4 gemini + 1 sol) | C | **Corrected: gemini 4 of 4 invent past witness or action**, quoted or not. r1: mouth-shape quote, "똑똑히 목격". r2: "네 바로 옆에 있었잖아". r3: "시신… 목격", "내가 봤어". r4: "입술이 달싹거리긴 했는데", "원망하는 눈빛 전혀 아니었어". Source T25: 태형 came down afterwards and saw nothing. sol: refuses to invent, asks 렌 | 모델 무시/왜곡 (gemini 4/4) |
 | T80-A4 stone engraving | A | Correct (G-117, inner pocket, 구로) | — |
 | T80-A5 flank healed? why? | A | Correct | — |
 | T80-A6 milk count | A | Wrong: hedges "스무 개… 서른 개?" and adds an invented occurrence | 모델 무시/왜곡 (all 12 occurrences were in the wire) |
 | T80-A7 how did the rift resolve | A | Correct | — |
 | T80-B3 서윤 approaches | B | Correct (report → suspension; guarded) | — |
-| T80-C3 "what did 민호's note say?" | C | Does not invent content and recalls the spoken "측정기 오차", but accepts the note premise | Partial: premise accepted |
+| T80-C3 "what did 민호's note say?" | C | Does not invent content and recalls the spoken "측정기 오차"; accepts the note premise | **Corrected: compliant with current policy.** A user's concrete past statement is an accepted ground |
 | T90-A4 stone | A | Correct, short (1,683 chars), slight distortion: says he suggested asking 민호 (T53: hold off) | Minor distortion |
 | T90-B3 서윤 approaches | B | Correct | — |
 
@@ -111,7 +119,7 @@ No user-visible failure came from these Episodic losses, because Global carried 
 | Run | Fact check |
 |---|---|
 | L150-A4 / L500-A4 stone | Correct both. L150 includes the T53 detail "묻어두자고" |
-| L150-A5 / L500-A5 flank | Correct both (healed, scar, 인천항, claw, 14 stitches); no confusion with the ankle/palm distractors |
+| L150-A5 / L500-A5 flank | Healed, scar, 인천항, claw and 14 stitches recalled in both, with no confusion with the ankle/palm distractors. **Corrected for L500:** "네가 깎아준… 토끼 사과" flips the actor (태형 cut them, 렌 ate). "2주… 페어 신청서에 서명했다" puts the application inside the ban (application T40 came before the T44 ban). "열네 바늘이나 꿰맨 자리가 덧나서" reverses festering and stitching. L150 has no flip or order inversion; minor embellishment only ("병원에 실려 가서", "2주 동안 얌전히 누워") |
 | L150-A6 / L500-A6 milk count | No number. L150 enumerates and gives up, with an invented "bought three, gave two" on the subway day (T10 is not a milk turn). L500: "십몇 번은 줬을 텐데" |
 | L150-B3 / L500-B3 서윤 | Correct (report, her name on the notice, suspension), guarded stance |
 | L150-C1 / L500-C1 text? | Correct denial both. L500 blends the T18 location ("탈의실 앞에서") and says 렌 looked at him (T22: he walked past) |
@@ -126,12 +134,35 @@ Level 3 stops at 500 because of the cost cap.
   - E2's T12 report has no row; extraction returned empty in 2 of 3 samples (`logs/diag-shared-initial-T11-T12.log`). Later 서윤 rows come from T57/T64.
   - E8 has 2 "ritual" rows. Summaries mention 12 occurrences across 11 blocks; raw assistant messages contain 딸기우유 in exactly 12 turns.
 - Episodic evidence rejections in the replay are designed authority guards, not summary failures. About 30 rejections, almost all `assistant_evidence_cannot_authorize_user_linked_history` on relationship-category facts that cite assistant text (`memory-episodic-evidence.ts`), including T25/T38/T40/T48. Those events still have other rows plus Global.
-- Summaries: every seal SUMMARY_SUCCESS with `mainCalls=1` through T500 (persona "렌").
+- Summaries: every seal SUMMARY_SUCCESS with `mainCalls=1` through T500 (persona "렌"). Success here means the summary passed validation, not that every fact is right. Stored [31~35] says "렌을 부축하면서 함께 복귀함" (subject 태형), but in T32 렌 supports 태형. The T500 Global compact repeats it with an explicit subject. B8-1 reran that summary call 10 times with 0 reversals.
+- Relationship notes: from T80/T90, fulfilled promises stay open and lose their actor, e.g. "현장 복귀하면 다시 렌 앞에 서겠다고 약속했다" (fulfilled T56) and "내일 아침 사과를 토끼 모양으로 깎아 주겠다고 약속했다" (fulfilled T90). No output used them.
+
+## B8-1 corrections (after GPT review)
+
+Run counts, rechecked against `runs-summary.json`:
+- 29 runs in total: 28 gemini-3.8-flash and 1 gpt-6.1-sol.
+- By checkpoint:
+  - T30/50/80: 17 runs (T30 3, T50 8 including the 3 C2 reruns and the sol sample, T80 6).
+  - T90: 2 runs.
+  - Long-range: 10 runs (L150 5, L500 5).
+
+| Item | Earlier B7 verdict | Corrected |
+|---|---|---|
+| T50-C2 (gemini) | Invented quote in 2 of 4; r3 "no invention" | Invented past witness or action in 4 of 4. "2/4" counted direct quotes only and is not a distortion rate |
+| T50-B2 | Correct | Wrong: the cancelled night-market promise is placed on the rooftop as a past promise |
+| L500-A5 | Correct | Wrong: rabbit-apple actor flipped; application/ban order and festering/stitching order reversed |
+| T31–35 stored summary | Not noted ("every seal SUMMARY_SUCCESS") | Actor reversed at summary generation (렌 supported 태형); carried into the T500 Global compact |
+| T80-C3 | Partial: premise accepted | Compliant with current policy (a user's concrete past statement is an accepted ground) |
+| "Failures are all at model consumption" | — | Wrong: D is a summary-generation error, and the stale promises are a stored-state error |
+| "Recalled correctly" through 500 turns | — | Key clues were recalled, but full factual accuracy failed in T50-C2, T50-B2 and L500-A5. At T500, E1–E8 were injected; only the questioned events were recall-tested |
+| "coauthor off" | — | Authoring level NORMAL renders co-narration on the wire; `user_coauthor_mode` OFF alone does not describe it |
+
+B8-1 (#1657) traced each item to its first divergent stage. A, B and C diverge at the model response on a correct wire. D diverges at summary generation but did not recur in 10 reruns.
 
 ## Four follow-ups
 
 1. **75-turn Medium window: keep the size, do not enlarge.** Information beyond 75 turns stays in Global (exact to 150; compact at 500 with E1–E8 in detail) and partly in Episodic. At T500, Medium carries T421–495 as designed. The weak stage for old events is Episodic selection, not Medium size.
-2. **B4 문자/답장/전갈 fabrication: did not recur as unprompted message detail.** All 7 earlier B4 outputs were gemini-3.8-flash. Across 24 B7 gemini outputs there are 0 unprompted message words (the only "문자" outside the C1 question is "대문자 G"). The direct "by text?" question was denied correctly at T30, T150 and T500. The same class shows up in other forms: invented last words (T50-C2, 2 of 4) and an accepted note premise (T80-C3). No word-ban prompt added.
+2. **B4 문자/답장/전갈 fabrication: did not recur as unprompted message detail.** All 7 earlier B4 outputs were gemini-3.8-flash. Across 24 B7 gemini outputs there are 0 unprompted message words (the only "문자" outside the C1 question is "대문자 G"). The direct "by text?" question was denied correctly at T30, T150 and T500. The same class shows up in other forms: invented eyewitness details (T50-C2, 4 of 4) and a cancelled promise moved to another scene (T50-B2). T80-C3's accepted note premise is compliant with current policy. No word-ban prompt added.
 3. **Count of 12 repeats: a real use case; the canonical source can compute it, but no memory owner exposes it.** Raw messages hold exactly 12 occurrences, and at T80 all 12 were in the exact Global wire. The model still did not count (T80: "20–30"; L500: "십몇 번"). After compaction and at 8 Episodic slots, no layer carries a count. The model is not made to guess from 8 lines, and no aggregate store or LLM judge was added. A count owner is a design decision.
 4. **#1591: REBASE-AND-RETEST.**
    - Its owners are unchanged on main: `ROLLING_SUMMARY_MIN_CHARS = 80` in `memory-summary-integrity.ts`, and `PRIOR_SHARED_HISTORY_CUE` in `src/lib/sharedHistoryEvidence.ts`. Nothing supersedes it.
