@@ -1173,9 +1173,332 @@ describe("B8-2 — a user correction replaces only the record it is linked to", 
       meta.map((m) => [m.memory_evidence_type, m.evidence.role, m.evidence.authority, m.evidence.quote, m.correction ?? null]),
       [
         ["explicit_scene_event", "assistant", "CURRENT_SCENE", BITE_QUOTE, null],
-        ["explicit_user_statement", "user", "USER_EXPLICIT", CORRECTION_QUOTE, { target_fact_id: t30, target_source_turn: 30 }],
+        ["explicit_user_statement", "user", "USER_EXPLICIT", CORRECTION_QUOTE, { target_fact_id: t30, target_source_turn: 30, root_fact_id: t30, root_source_turn: 30 }],
       ]
     );
+  });
+
+  const CHAIN_CAUSES = ["창틀", "덫", "낙석", "울타리", "사다리", "마차 바퀴", "얼음판", "쇠사슬", "부러진 창", "녹슨 못"];
+  const chainQuote = (cause: string) => `그 부상은 사실 ${cause}에 다친 거야.`;
+
+  /** Each correction targets whichever record of the chain the server currently offers. */
+  function correctionChain(db: Database.Database, t30: number, length: number, firstTurn = 120, step = 20): number[] {
+    const chain = [t30];
+    for (let k = 0; k < length; k++) {
+      const turn = firstTurn + k * step;
+      const quote = chainQuote(CHAIN_CAUSES[k]!);
+      const { ids } = sharedTurn(db, turn, `에녹 왼팔 부상 다시 정정할게. ${quote}`, "에녹은 고개를 끄덕였다.", (offered) => {
+        const shown = offered.find((c) => chain.includes(c.factId));
+        assert.ok(shown, `turn ${turn}: the chain must be offered`);
+        return [
+          {
+            category: "character",
+            subject: "enoch",
+            attribute: "injury_cause",
+            value: `cause_${turn}`,
+            importance: "important",
+            fact_text: `에녹의 왼팔 부상 원인은 ${CHAIN_CAUSES[k]}이다.`,
+            evidence_type: "explicit_user_statement",
+            evidence: { source_role: "user", source_quote: quote },
+            corrects: shown.handle,
+          },
+        ];
+      });
+      chain.push(ids[0]!);
+    }
+    return chain;
+  }
+
+  function assertOnlyLatest(db: Database.Database, horizon: number, chain: number[], label: string): void {
+    const result = recall(db, horizon, CAUSE);
+    const latest = chain.length - 1;
+    assert.equal(result.promptBlock.includes(BITE_QUOTE), false, `${label}: the original resurfaced`);
+    for (let k = 0; k < latest - 1; k++) {
+      assert.equal(result.promptBlock.includes(chainQuote(CHAIN_CAUSES[k]!)), false, `${label}: correction ${k + 1} resurfaced`);
+    }
+    if (latest > 1) {
+      assert.equal(result.promptBlock.includes(chainQuote(CHAIN_CAUSES[latest - 2]!)), false, `${label}: correction ${latest - 1} resurfaced`);
+    }
+    assert.ok(result.promptBlock.includes(chainQuote(CHAIN_CAUSES[latest - 1]!)), `${label}: latest correction missing`);
+    assert.ok(has(result, chain[latest]!), label);
+    for (const id of chain.slice(0, latest)) assert.equal(has(result, id), false, `${label}: id ${id}`);
+  }
+
+  for (const horizon of [500, 1000]) {
+    it(`long chains: after 1, 3, 4 and 10 corrections only the latest is current (T${horizon})`, () => {
+      for (const length of [1, 3, 4, 10]) {
+        const db = chatDb();
+        fill(db, 1, 30);
+        const t30 = bite(db);
+        fill(db, 31, 120);
+        const chain = correctionChain(db, t30, length);
+        fill(db, 120 + length * 20, horizon);
+        assertOnlyLatest(db, horizon, chain, `${length} corrections`);
+      }
+    });
+  }
+
+  it("long chains: the server offers the latest correction, so each correction targets the one before it", () => {
+    const db = chatDb();
+    fill(db, 1, 30);
+    const t30 = bite(db);
+    fill(db, 31, 120);
+    const chain = correctionChain(db, t30, 10);
+    for (let k = 1; k < chain.length; k++) {
+      const link = correctionOf(db, chain[k]!) as { target_fact_id: number; root_fact_id: number };
+      assert.equal(link.target_fact_id, chain[k - 1], `correction ${k}`);
+      assert.equal(link.root_fact_id, t30, `correction ${k}`);
+    }
+  });
+
+  it("long chains: deleting, regenerating or editing the latest correction makes the previous one current", () => {
+    const setup = () => {
+      const db = chatDb();
+      fill(db, 1, 30);
+      const t30 = bite(db);
+      fill(db, 31, 120);
+      const chain = correctionChain(db, t30, 4);
+      fill(db, 200, 500);
+      return { db, chain };
+    };
+    const deleted = setup();
+    assert.equal(deleteEpisodicMemoryFactsByAssistantMessageIds(deleted.db, 1, [180 * 10 + 2]), 1);
+    assertOnlyLatest(deleted.db, 500, deleted.chain.slice(0, 4), "latest deleted");
+    assert.equal(recall(deleted.db, 500, CAUSE).promptBlock.includes(chainQuote(CHAIN_CAUSES[3]!)), false, "latest deleted");
+
+    const regenerated = setup();
+    sharedTurn(regenerated.db, 180, "에녹 왼팔 부상 다시 정정할게.", "에녹은 대답하지 않았다.", () => [], { regenerate: true });
+    assertOnlyLatest(regenerated.db, 500, regenerated.chain.slice(0, 4), "latest regenerated");
+    assert.equal(recall(regenerated.db, 500, CAUSE).promptBlock.includes(chainQuote(CHAIN_CAUSES[3]!)), false, "latest regenerated");
+
+    const edited = setup();
+    assert.equal(deleteSharedEpisodicFactsForEditedUserSource(edited.db, { chatId: 1, sourceUserMessageId: 180 * 10 + 1 }), 1);
+    assertOnlyLatest(edited.db, 500, edited.chain.slice(0, 4), "latest edited");
+    assert.equal(recall(edited.db, 500, CAUSE).promptBlock.includes(chainQuote(CHAIN_CAUSES[3]!)), false, "latest edited");
+  });
+
+  it("long chains: removing a middle correction keeps the latest current; removing the original leaves the latest as a record", () => {
+    const db = chatDb();
+    fill(db, 1, 30);
+    const t30 = bite(db);
+    fill(db, 31, 120);
+    const chain = correctionChain(db, t30, 4);
+    fill(db, 200, 500);
+    assert.equal(deleteSharedEpisodicFactsForEditedUserSource(db, { chatId: 1, sourceUserMessageId: 140 * 10 + 1 }), 1);
+    const middle = recall(db, 500, CAUSE);
+    assert.ok(middle.promptBlock.includes(chainQuote(CHAIN_CAUSES[3]!)));
+    for (const k of [0, 2]) assert.equal(middle.promptBlock.includes(chainQuote(CHAIN_CAUSES[k]!)), false, `correction ${k + 1}`);
+    assert.equal(middle.promptBlock.includes(BITE_QUOTE), false);
+
+    assert.equal(deleteEpisodicMemoryFactsByAssistantMessageIds(db, 1, [30 * 10 + 2]), 1);
+    const orphan = recall(db, 500, CAUSE);
+    assert.ok(orphan.promptBlock.includes(chainQuote(CHAIN_CAUSES[3]!)));
+    for (const k of [0, 2]) assert.equal(orphan.promptBlock.includes(chainQuote(CHAIN_CAUSES[k]!)), false, `correction ${k + 1}`);
+    assert.ok(has(orphan, chain[4]!));
+  });
+
+  it("long chains: a memory reset or another chat never carries a chain across", () => {
+    const reset = chatDb();
+    fill(reset, 1, 30);
+    const r30 = bite(reset);
+    fill(reset, 31, 120);
+    correctionChain(reset, r30, 4);
+    fill(reset, 200, 500);
+    reset.prepare("UPDATE episodic_memory_facts SET source_user_message_id = source_turn * 10 + 1").run();
+    reset.prepare("UPDATE chat_memories SET memory_reset_after_message_id = ? WHERE chat_id = 1").run(150 * 10 + 1);
+    const afterReset = recall(reset, 500, CAUSE);
+    assert.equal(afterReset.promptBlock.includes(BITE_QUOTE), false);
+    for (const k of [0, 1, 2]) assert.equal(afterReset.promptBlock.includes(chainQuote(CHAIN_CAUSES[k]!)), false, `correction ${k + 1}`);
+    assert.ok(afterReset.promptBlock.includes(chainQuote(CHAIN_CAUSES[3]!)));
+
+    const other = chatDb();
+    fill(other, 1, 30);
+    const o30 = bite(other);
+    fill(other, 31, 120);
+    const chain = correctionChain(other, o30, 4);
+    fill(other, 200, 500);
+    other.prepare(`UPDATE episodic_memory_facts SET chat_id = 2 WHERE id IN (${chain.slice(1).join(",")})`).run();
+    other.prepare("INSERT INTO chat_memories (chat_id) VALUES (2)").run();
+    const chat1 = recall(other, 500, CAUSE);
+    assert.ok(has(chat1, o30));
+    assert.ok(chat1.promptBlock.includes(BITE_QUOTE));
+    for (const k of [0, 1, 2, 3]) assert.equal(chat1.promptBlock.includes(chainQuote(CHAIN_CAUSES[k]!)), false);
+  });
+
+  /** One turn of another event: a new scene record, and the user's correction of the previous one. */
+  function otherEventTurn(db: Database.Database, turn: number, k: number, previous: number | null): number {
+    const sceneQuote = `${k}번 표지석에 붉은 글씨가 새겨져 있었다.`;
+    const correctionQuote = `${k - 1}번 표지석 글씨는 붉은색이 아니라 푸른색이야.`;
+    const userText = previous == null ? "(표지석을 살핀다)" : `(표지석을 살핀다) ${correctionQuote}`;
+    const userId = turn * 10 + 1;
+    const assistantId = turn * 10 + 2;
+    const message = db.prepare(
+      "INSERT INTO messages (id, chat_id, role, content, generation_status, model, user_message_id) VALUES (?, 1, ?, ?, 'completed', 'm', ?)"
+    );
+    message.run(userId, "user", userText, null);
+    message.run(assistantId, "assistant", sceneQuote, userId);
+    const facts: ModelFact[] = [
+      {
+        category: "setting",
+        subject: `marker_${k}`,
+        attribute: "inscription",
+        value: "red",
+        importance: "normal",
+        fact_text: `${k}번 표지석에는 붉은 글씨가 새겨져 있었다.`,
+        evidence_type: "explicit_scene_event",
+        evidence: { source_role: "assistant", source_quote: sceneQuote },
+        corrects: "",
+      },
+    ];
+    const offered: EpisodicCorrectionCandidate[] = [];
+    if (previous != null) {
+      offered.push({ handle: "C1", factId: previous, sourceTurn: turn - 1, factText: "", quote: null });
+      facts.push({
+        category: "setting",
+        subject: `marker_${k - 1}`,
+        attribute: "inscription_color",
+        value: "blue",
+        importance: "normal",
+        fact_text: `${k - 1}번 표지석의 글씨는 푸른색이다.`,
+        evidence_type: "explicit_user_statement",
+        evidence: { source_role: "user", source_quote: correctionQuote },
+        corrects: "C1",
+      });
+    }
+    const parsed = parseSharedEpisodicSection({ extracted_facts: facts }, offered);
+    reconcileEpisodicMemoryFactsForGeneration(db, {
+      chatId: 1,
+      sourceTurn: turn,
+      sourceUserMessageId: userId,
+      sourceUserText: userText,
+      evidenceBinding: { userMessageId: userId, assistantMessageId: assistantId },
+      metadata: { extraction: "shared_initial_per_turn", assistant_message_id: assistantId, content_route: "safe" },
+      facts: parsed.facts,
+      isRegeneration: false,
+    });
+    return (db.prepare("SELECT id FROM episodic_memory_facts WHERE source_turn = ? AND subject = ?").get(turn, `marker_${k}`) as { id: number }).id;
+  }
+
+  it("a correction stays in force after 210 later corrections of other events (T500 and T1000)", () => {
+    const db = chatDb();
+    fill(db, 1, 30);
+    const t30 = bite(db);
+    fill(db, 31, 120);
+    const { id: t120 } = correction(db, t30);
+    fill(db, 121, 130);
+    let previous: number | null = null;
+    for (let k = 0; k <= 210; k++) previous = otherEventTurn(db, 130 + k, k, previous);
+    fill(db, 341, 1000);
+    const links = db
+      .prepare("SELECT COUNT(*) AS n FROM episodic_memory_facts WHERE json_extract(metadata, '$.correction.target_fact_id') IS NOT NULL")
+      .get() as { n: number };
+    assert.equal(links.n, 211);
+    for (const horizon of [500, 1000]) {
+      const result = recall(db, horizon, CAUSE);
+      assert.equal(has(result, t30), false, `T${horizon}`);
+      assert.equal(result.promptBlock.includes(BITE_QUOTE), false, `T${horizon}`);
+      assert.ok(has(result, t120!), `T${horizon}`);
+    }
+    const marker = recall(db, 1000, "5번 표지석 글씨는 무슨 색이었지?");
+    assert.equal(marker.promptBlock.includes("5번 표지석에 붉은 글씨가 새겨져 있었다."), false);
+  });
+
+  describe("independent events are kept whoever narrated each", () => {
+    const FIRST = {
+      scene: { user: "(에녹의 팔을 붙잡는다) 괜찮아?", assistant: `${BITE_QUOTE} 에녹은 이를 악물었다.`, role: "assistant", type: "explicit_scene_event", quote: BITE_QUOTE },
+      user: {
+        user: "(에녹의 팔에 붕대를 감는다) 지난번에 늑대가 네 왼팔을 깊이 물어뜯었잖아.",
+        assistant: "에녹은 말없이 팔을 내밀었다.",
+        role: "user",
+        type: "explicit_user_statement",
+        quote: "지난번에 늑대가 네 왼팔을 깊이 물어뜯었잖아.",
+      },
+    } as const;
+    const HAND_SCENE_QUOTE = "훈련용 칼날이 에녹의 오른손을 베었다.";
+    const SECOND = {
+      scene: { user: "(검을 건넨다)", assistant: `${HAND_SCENE_QUOTE} 피가 배어 나왔다.`, role: "assistant", type: "explicit_scene_event", quote: HAND_SCENE_QUOTE },
+      user: { user: SEPARATE_MESSAGE, assistant: "에녹은 붕대 감긴 손을 내려다보았다.", role: "user", type: "explicit_user_statement", quote: SEPARATE_QUOTE },
+    } as const;
+
+    function event(db: Database.Database, turn: number, spec: (typeof FIRST)[keyof typeof FIRST] | (typeof SECOND)[keyof typeof SECOND], value: string, gloss: string): number {
+      const { ids } = sharedTurn(db, turn, spec.user, spec.assistant, () => [
+        {
+          category: "character",
+          subject: "enoch",
+          attribute: "injury",
+          value,
+          importance: "important",
+          fact_text: gloss,
+          evidence_type: spec.type,
+          evidence: { source_role: spec.role, source_quote: spec.quote },
+          corrects: "",
+        },
+      ]);
+      return ids[0]!;
+    }
+
+    for (const gloss of BITE_GLOSSES) {
+      for (const first of ["scene", "user"] as const) {
+        for (const second of ["scene", "user"] as const) {
+          it(`${first} event → separate ${second} event: both recalled at T500 and T1000 (${gloss})`, () => {
+            const db = chatDb();
+            fill(db, 1, 30);
+            const t30 = event(db, 30, FIRST[first], "left_arm_bitten", gloss);
+            fill(db, 31, 200);
+            const t200 = event(db, 200, SECOND[second], "right_hand_cut", "에녹은 훈련 중 칼날에 오른손을 다쳤다.");
+            fill(db, 201, 1000);
+            const stored = db
+              .prepare("SELECT id, json_extract(metadata, '$.memory_evidence_type') AS type, json_extract(metadata, '$.evidence.authority') AS authority FROM episodic_memory_facts WHERE id IN (?, ?) ORDER BY id")
+              .all(t30, t200) as Array<{ type: string; authority: string }>;
+            assert.deepEqual(
+              stored.map((row) => row.type),
+              [FIRST[first].type, SECOND[second].type]
+            );
+            assert.equal(stored[0]!.authority, first === "user" ? "USER_EXPLICIT" : "CURRENT_SCENE");
+            for (const horizon of [500, 1000]) {
+              const cause = recall(db, horizon, CAUSE);
+              assert.ok(has(cause, t30), `T${horizon} first`);
+              assert.ok(cause.promptBlock.includes(FIRST[first].quote), `T${horizon} first quote`);
+              const hand = recall(db, horizon, HAND);
+              assert.ok(has(hand, t200), `T${horizon} second`);
+              assert.ok(hand.promptBlock.includes(SECOND[second].quote), `T${horizon} second quote`);
+            }
+          });
+        }
+      }
+    }
+
+    it("a user's standing value stays latest-wins even when glossed in the past tense", () => {
+      const db = chatDb();
+      fill(db, 1, 40);
+      const keys: Array<[string, string, string, string, string]> = [
+        ["occupation", "나 사실 구급대원이야.", "유저는 구급대원으로 언급되었다.", "나 이제 식당 조리장이야.", "유저는 식당 조리장으로 언급되었다."],
+        ["past_job", "나 예전에 카페에서 일했어.", "유저는 예전에 카페에서 일했다.", "아, 카페 아니고 서점에서 일했어.", "유저는 예전에 서점에서 일했다."],
+      ];
+      let turn = 40;
+      for (const [attribute, oldQuote, oldGloss, newQuote, newGloss] of keys) {
+        const statement = (quote: string, gloss: string, value: string) =>
+          sharedTurn(db, turn++, `(차를 마신다) ${quote}`, "에녹이 고개를 끄덕였다.", () => [
+            {
+              category: "character",
+              subject: "user",
+              attribute,
+              value,
+              importance: "important",
+              fact_text: gloss,
+              evidence_type: "explicit_user_statement",
+              evidence: { source_role: "user", source_quote: quote },
+              corrects: "",
+            },
+          ]).ids[0]!;
+        const old = statement(oldQuote, oldGloss, "old");
+        turn += 60;
+        const latest = statement(newQuote, newGloss, "new");
+        const result = recall(db, 500, `${oldQuote} ${newQuote}`);
+        assert.equal(has(result, old), false, attribute);
+        assert.ok(has(result, latest), attribute);
+      }
+    });
   });
 });
 
