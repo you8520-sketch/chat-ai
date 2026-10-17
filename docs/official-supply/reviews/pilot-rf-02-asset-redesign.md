@@ -831,6 +831,8 @@ Expression과 Pose만 바꿨다. emo5 샷 책임(왼쪽 3/4, 눈높이, 무릎 �
 
 ### 21.3 #51 비공개 적용 경로
 
+이 절은 §22 이전의 기록이다. 대표 교체, `characters.images`, 복구에 대한 현재 동작은 §22다.
+
 이번 턴은 절차 확인만 했다. provider 호출, DB 쓰기, 대표 교체 금지 검사 삭제는 없다.
 
 13개 RP 슬롯(sig1–4, emo1–6, scene1–3)의 기존 owner는 다음 순서다.
@@ -842,7 +844,7 @@ Expression과 Pose만 바꿨다. emo5 샷 책임(왼쪽 3/4, 눈높이, 무릎 �
 
 한 트랜잭션이 대상 칸의 `characters.assets` URL·태그·크기, `official_supply_assets.result_url`·`approved_tag`, replacement `status=applied`를 함께 갱신한다. `mapOfficialPublicAssetSlots`는 계획 순서와 활성 URL이 공개 URL과 같을 때만 인덱스를 준다. 대표는 계획 순서의 0번이고 `representativeRank`는 기존 에셋을 복사해 유지한다. 카드 URL은 순위가 있는 assets를 먼저 본다. `characters.images`는 이 apply가 쓰지 않으며, assets에 순위 URL이 없을 때만 레거시 fallback이다. 소유권, `official`, `visibility`, 공개, 알림, 원고는 바꾸지 않는다. #51은 `staged_private`라 `official=0`, `visibility=private`가 유지되어야 한다.
 
-복구: dry-run과 중간 SQL 실패는 트랜잭션이 전부 되돌린다. 교체 전 URL은 후보의 `base_result_url`에 남고, 옛 파일은 지우지 않는다. 성공한 apply를 자동으로 되돌리는 기능은 없다. `VACUUM INTO` 백업은 locked-snapshot reconcile owner의 절차이고, 그 owner는 대표 URL 변경을 거부한다. 이미지 교체의 백업은 replacement 트랜잭션과 `base_result_url`이다.
+복구(정정): dry-run과 중간 SQL 실패는 트랜잭션이 전부 되돌린다. 이것은 실패한 apply의 원자성이지 백업이 아니다. `base_result_url`은 교체 전 URL 한 칸만 남기고, 태그·QA·moderation·대표 지정·계획은 남기지 않는다. 그래서 "트랜잭션과 `base_result_url`이 백업"이라는 이전 문장은 틀렸다. 이 시점에는 성공한 apply의 복구 경로가 없었다. 현재는 §22.4의 apply 기록과 `rollbackOfficialAssetReplacementApply`가 그 역할을 한다. `VACUUM INTO` 백업은 locked-snapshot reconcile owner의 절차이고, 그 owner는 대표 URL 변경을 거부한다.
 
 대표 이미지 반입은 이 경로에서 지원되지 않는다. `assertReplacementSlotAllowed`, `createReplacementCandidate`, 외부 반입, apply가 모두 `replacement_representative_forbidden`으로 대표를 거부한다. 거부는 파일 쓰기와 공개 행 변경 전에 일어난다. 근거는 `officialSupply.replacement.test.ts`의 representative create/apply fail-closed 테스트다. F 원본은 1024×1536이라 대표 프로필 `OFFICIAL_REPRESENTATIVE_IMAGE_PROFILE`의 크기와는 맞지만, 종류 검사가 크기 검사보다 먼저 거부한다.
 
@@ -851,3 +853,132 @@ Expression과 Pose만 바꿨다. emo5 샷 책임(왼쪽 3/4, 눈높이, 무릎 �
 태그는 두 owner가 다르다. 이미 staged된 칸의 교체 태그는 `replacementAppliedTag`가 승인 태그를 쓴다. 처음 스테이징의 대표 태그는 `stagedAssetTag`가 계획 태그를 반환한다. 현재 `pilot-rf-02.json` 대표 계획 태그는 `흑철 늑대공`이다. `기본 초상`은 그 계획 태그를 바꾸지 않은 승인 태그다. 운영 JSON은 이번에도 수정하지 않았다.
 
 필요한 변경은 대표 한 칸에 한정된다. 금지 검사를 지우기보다, 같은 외부 저장·moderation·1024×1536 정확 크기·Appearance Lock·기준 URL CAS·dry-run·롤백 안에 대표를 넣고, staged 상태의 대표 행에 새 앵커 QA를 기록하는 owner가 필요하다. 그 owner가 생기기 전에는 #51 대표와 앵커를 F로 바꾸지 않는다. 13개 RP 슬롯은 위 1–4 순서로 품질 승인 뒤에 적용할 수 있다. 이번 턴은 그 적용을 실행하지 않았다.
+
+## 22. 승인 후보 14장의 비공개 적용 경로
+
+범위는 코드와 격리 DB 검증이다. 새 provider 호출, vision 호출, 운영 DB 쓰기, 이미지 적용, 소유권 이전, 공개, 알림, 병합·배포는 하지 않았다. 아래의 moderation·앵커 QA·variation QA는 모두 테스트용 게이트 fixture다(`reason: test-fixture-not-quality-approval`, 검수자 `test-fixture-reviewer-not-quality-approval`). 이것은 14장의 품질 승인이나 실제 RP 품질 합격이 아니다. 기록은 임시 DB에만 쓰이고 테스트가 끝나면 지워진다.
+
+입력은 §21.2의 14칸 그대로다. `fourteen-f-candidates.json`의 원본 SHA와 파일 바이트가 같은지 테스트가 먼저 확인한다. 대표 태그는 `기본 초상`이고 `F`는 내부 이름이다. emo5는 `emo5-r2-raw.webp`, emo6는 `emo6-r2-raw.webp`다. r1 컷은 이력이다.
+
+### 22.1 바뀐 owner
+
+| 책임 | owner | 변경 |
+|---|---|---|
+| 대표 교체 허용 | `OfficialSupplyStore.assertReplacementTargetAllowed` | 새 게이트. 대표는 `staged_private`일 때만 허용한다. 외부 반입·검수·apply가 사용한다 |
+| 기본 거부 | `assertReplacementSlotAllowed` | 그대로. 유료 교체 생성(`createReplacementCandidate`, `assertReplacementGenerationAllowed`)과 published 행은 대표를 계속 거부한다 |
+| 연결 확인 | `claimExternalReplacementIntake` | 연결된 공개 행의 assets가 이 draft의 활성 슬롯과 계획 순서로 일치해야 한다. 파일 쓰기 전에 검사한다 |
+| 대표 검수 | `reviewRepresentativeReplacement` | 새 메서드. 앵커 QA 10항목 전부 통과 + moderation 통과일 때만 승인한다. 후보 URL·파일 SHA-256·Text Lock·Appearance Lock에 CAS로 묶는다. `reviewReplacement`는 대표에서 `use_anchor_review`로 멈춘다 |
+| 후보 파일 SHA | `registerExternalOfficialAssetReplacement` | 저장한 바이트의 SHA-256을 `candidate_sha256`에 기록한다. 재반입과 생성 후보는 SHA·검수자·검수 시 Text Lock을 지운다 |
+| 적용 | `applyApprovedOfficialAssetReplacements` | 대표가 대상이면 `representative`(승인 계획 + 참조 정책)가 필수다. 대표가 대상이 아니면 받지 않는다 |
+| 복구 | `rollbackOfficialAssetReplacementApply` | 새 함수. 같은 파일(`replacement.ts`)에 있다 |
+| 적용 기록 | `official_supply_replacement_applies` | 새 테이블. apply마다 before/after 상태와 실행자를 남긴다 |
+| 이후 생성 참조 | `official_supply_characters.generation_reference_json` → `resolveOfficialGenerationReferencePlan` | 캐릭터별 저장 정책. 조립 owner 하나가 읽는다 |
+| 참조 준비 | `prepareOfficialImageReferences` | `official-approved-asset:<sha>:<url>`을 일반 업로드/https 경로로 읽고 SHA가 다르면 provider 전에 실패한다 |
+
+볼프강 이름 분기와 별도 compiler는 없다. 승인 계획은 `src/lib/officialSupply/pilot/fixtures/pilot-rf-02-approved-asset-plan-f.json`이다. `pilot-rf-02.json`과 r2 본문, 두 Lock은 바꾸지 않았다.
+
+### 22.2 대표 교체 조건
+
+모두 만족해야 한다. 앞의 네 개는 파일 쓰기 전에 검사한다.
+
+1. 실행자가 연결 캐릭터를 관리할 수 있는 공식 관리자다(`canAdminManageOfficialCharacter`). 아니면 `replacement_forbidden`.
+2. 공급 stage가 `staged_private`이고 연결 행이 `official=0`, `visibility=private`다. published면 `replacement_representative_forbidden`, 행이 어긋나면 `replacement_target_mismatch`.
+3. `staged_character_id`가 가리키는 행의 assets가 이 draft의 활성 슬롯과 같다. 아니면 `staged_character_mismatch`.
+4. 대상 칸 종류 검사가 크기 검사보다 먼저다. 크기는 대표 프로필 1024×1536과 정확히 같아야 한다(`asset_dimensions`).
+5. moderation이 `checked`이고 거절이 아니다. 누락은 `moderation_missing`, unavailable은 `moderation_unavailable`, 거절은 검수 결과 `rejected`다.
+6. 앵커 검수가 현재 후보 URL과 파일 SHA에 묶여 있다. 다른 URL이나 SHA는 `replacement_review_stale`이다. 검수 뒤 Text Lock이 다르면 `representative_review_stale`, 앵커 QA 항목이 빠지면 `representative_review_missing`이다.
+7. 후보의 Appearance Lock과 `base_result_url`이 현재 대표와 같다(`appearance_lock_stale`, `replacement_base_stale`).
+
+옛 대표의 앵커 승인(`anchor_approved_by`, 활성 행 `qa_json`)은 새 후보에 쓰지 않는다. 새 후보의 검수자와 앵커 QA는 apply 때만 활성 행과 공급 캐릭터로 옮겨진다.
+
+### 22.3 한 트랜잭션 적용
+
+`applyApprovedOfficialAssetReplacements({ slotKeys: 14칸, representative: { nextAssetPlan, generationReference: "representative_identity_and_style" } })`가 한 트랜잭션에서 다음을 함께 쓴다.
+
+- `characters.assets`: 14칸 URL·태그·크기·moderation 필드. 대표 순위 1은 기존 에셋에서 그대로 복사한다. 대표가 바뀌면 `characters.images`도 `listingImageUrls(assets)`로 맞춘다.
+- `official_supply_assets`: 칸별 `result_url`, `approved_tag`, QA(대표는 앵커 QA), moderation.
+- replacement `status=applied`.
+- `official_supply_characters`: `asset_plan_json`(승인 계획), `anchor_approved_by`(새 대표 검수자), `generation_reference_json`(`{ mode, url, sha256 }`).
+- apply 기록 1행(before/after).
+
+태그: 대표 `기본 초상`, RP는 manifest 태그다. vision의 `visionTag`(테스트 fixture는 `앉음`)는 수동 승인 태그를 덮지 않는다. 승인 계획은 plan QA를 통과해야 하고, 슬롯 키·종류·순서를 유지해야 하며, 대상이 아닌 칸은 바뀌면 안 되고(`asset_plan_untargeted_change`), 대상 칸의 계획 태그는 적용 태그와 같아야 한다(`asset_plan_tag_mismatch`). 공급 캐릭터 갱신은 stage·연결·두 Lock·이전 계획/검수자/정책에 CAS를 건다.
+
+기존 동작은 그대로다. 단일 RP 교체, published 교체, intake lease, 만료 lease 회수, `ext-<intakeId>` 불변 경로, stale moderation/QA CAS 테스트(`officialSupply.replacement.test.ts` 22개)가 통과한다.
+
+### 22.4 성공한 apply 복구
+
+`rollbackOfficialAssetReplacementApply({ applyId })`는 apply 기록의 before 상태를 한 트랜잭션에서 되돌린다. 대상은 `characters.assets`·`images`, 칸별 활성 행 전체(QA, moderation, 승인 태그 포함), replacement status·`applied_at`, 공급 캐릭터의 계획·앵커 검수자·참조 정책이다.
+
+- 현재 상태가 그 apply의 after와 정확히 같을 때만 실행한다. 이후 편집이 하나라도 있으면 `rollback_stale`로 아무것도 쓰지 않는다.
+- 끝난 뒤 상태가 before와 같은지 다시 확인한다(`rollback_postcondition`).
+- 옛 파일과 새 파일을 지우지 않는다. apply 기록은 `rolled_back`과 실행자로 남는다. 후보는 `approved`로 돌아가 다시 apply 할 수 있다.
+- 전체 DB 덮어쓰기는 쓰지 않는다. `dryRun`을 지원한다.
+
+### 22.5 이후 생성 참조
+
+정책이 저장된 캐릭터에서 `resolveOfficialGenerationReferencePlan`은 RP 칸마다 승인 대표 한 장을 identity+style로 보낸다(`variation_identity_and_style`, 참조 `official-approved-asset:<F sha>:<업로드 URL>`). docs 경로나 로컬 경로는 정책 URL로 받지 않는다. 대표 재생성은 `role_conflict`, 별도 same-person 이미지는 `role_conflict`, 현재 대표 URL과 정책 URL이 다르면 `reference_policy_stale`로 provider 전에 멈춘다. 옛 대표 + b7/DNA나 food sig4, 옛 제목 태그로 돌아가지 않는다.
+
+정책이 없는 캐릭터(#50 포함)는 기존 Cluster B `identity_then_style`이다. 테스트에서 기본 경로 캐릭터가 대표 URL + 기본 STYLE root를 그대로 받는 것을 확인했다.
+
+승인 계획의 sig4 location/situation은 식사 문구를 `흑철 요새 집무실 창가` / `늦은 당직을 마친 뒤 짧은 휴식을 취하며 상대를 바라본다`로 바꿨다. signature 칸은 location을 프롬프트에 쓰지 않으므로 전송문은 바뀌지 않는다.
+
+### 22.6 격리 DB 검증
+
+테스트: `src/lib/officialSupply/officialSupply.approvedRepresentativeApply.test.ts` (11개). 실제 14개 파일 바이트를 `storeUpload`로 임시 DATA_DIR에 저장하고 sharp로 크기를 읽는다. fetch는 막혀 있고 provider 어댑터는 없다. 호출 0건.
+
+| 요구 | 테스트 | 결과 |
+|---|---|---|
+| 14칸 apply 성공, dry-run 무변경 | 1a, 1b | 통과 |
+| 권한 없음·published·연결 불일치·기본 대표 거부, 파일 쓰기 전 차단 | 2 | 통과. 저장 파일 수 변화 0 |
+| 크기 오류·검수 누락/거절·후보 변경·stale QA·기준 URL 변경 차단 | 3 | 통과 |
+| 트랜잭션 중간 실패 시 14칸·앵커·참조 정책 복구 | 4 (마지막 쓰기인 apply 기록 INSERT에서 실패 주입) | 통과 |
+| 재적용 시 중복·상태 손상 없음 | 5, 6 | 통과 |
+| 성공 후 rollback, stale rollback 거부 | 6 | 통과 |
+| 재조회 후 다음 조립이 승인 대표 identity+style + 14칸 계획 | 7 | 통과. 13개 RP 전송문 SHA가 기록과 일치 |
+| 카드·상세·채팅 이미지, RP 태그 목록 | 8 | 통과 |
+| 원고·두 Lock·공유 세계/로어북·소유권·공개 범위·official, 기본 경로 캐릭터 보존 | 9 | 통과 |
+
+7번은 store에서 다시 읽은 캐릭터로 조립했다. 비교 기준은 manifest의 전송 SHA다. sig4는 manifest의 `laterOwnerAssemblyPromptSha256`(`8847a0d3…`)이다. 준비 단계에서 저장 파일의 SHA를 확인했고, 다른 SHA를 넣으면 `approved asset hash mismatch`로 실패했다.
+
+### 22.7 격리 before/after
+
+기록: `assets/wolfgang-asset-redesign/isolated-apply-evidence.json`. 스크립트: `isolated-apply-evidence.ts.txt`(같은 owner 호출 순서, 임시 DB). 결과 요약은 provider 호출 0, dry-run 무변경, apply `applied`, 전송 SHA 13/13 일치, stale rollback `rollback_stale`, rollback 후 before와 동일이다.
+
+| 칸 | before 태그 | after 태그 |
+|---|---|---|
+| rep (순위 1) | 흑철 늑대공 | 기본 초상 |
+| sig1 | 철혈의 지휘관 | 지도를 짚음 |
+| sig2 | 흉터의 맹세 | 턱을 괴고 생각 |
+| sig3 | 봉인고의 열쇠 | 열쇠를 확인함 |
+| sig4 | 절제된 온기 | 옅은 미소 |
+| emo1 | 기록의 모순 | 의심 |
+| emo2 | 분노의 억제 | 분노 |
+| emo3 | 증거 앞의 판단 | 진지함 |
+| emo4 | 뜻밖의 동요 | 당황 |
+| emo5 | 경계의 완화 | 편안함 |
+| emo6 | 귀환의 안도 | 안도 |
+| scene1 | 위조된 명령서의 밤 | 문서를 대조함 |
+| scene2 | 봉인된 장부의 빈칸 | 기록을 맞춤 |
+| scene3 | 황실의 마지막 압박 | 긴장 |
+
+after에서 `characters.images`는 새 대표 업로드 URL 하나다. `anchor_approved_by`는 seed 값에서 테스트 검수자로 바뀌고, `generation_reference_json`은 `{ mode: representative_identity_and_style, url: /uploads/official-pilot-rf-v4-02__rep-ext-…webp, sha256: a95f9aca…8032 }`이다. Text Lock·Appearance Lock·`official=0`·`visibility=private`·소유자는 그대로다. rollback 뒤에는 태그·이미지·앵커 검수자·정책(null)·칸별 QA가 before로 돌아갔고 apply 기록은 `rolled_back`으로 남았다.
+
+### 22.8 운영 절차 (이번에 실행하지 않음)
+
+전용 CLI는 없다. 운영 적용은 같은 owner를 이 순서로 호출한다. 각 단계는 별도 승인 뒤에만 실행한다.
+
+1. 실행 전: `git rev-parse HEAD`가 배포 SHA와 같은지 확인한다. #51 `stage=staged_private`, `official=0`, `visibility=private`, 현재 Text Lock·Appearance Lock 해시, 현재 대표 URL을 운영 행에서 읽어 기록한다. 검수와 apply는 그 값과 같아야 한다.
+2. 14칸마다 `registerExternalOfficialAssetReplacement({ actor: 공식 관리자, draftKey: "pilot-rf-v4-02", slotKey, bytes, approvedTag })`. 바이트 SHA는 `fourteen-f-candidates.json`과 같아야 한다.
+3. 14칸마다 `moderateOfficialAssetReplacement`. 운영 moderator는 canonical asset vision이고 유료 호출이다. 별도 비용 승인이 필요하다.
+4. RP 13칸은 `reviewReplacement`(variation QA), 대표는 `reviewRepresentativeReplacement`(앵커 QA, 후보 URL, 원본 SHA `a95f9aca…8032`, 검수자). 검수 기록은 GPT/사용자 육안 승인을 옮겨 적는 것이고 코드가 대신하지 않는다.
+5. `applyApprovedOfficialAssetReplacements({ slotKeys: 14칸, representative: { nextAssetPlan: 승인 계획, generationReference: "representative_identity_and_style" }, dryRun: true })`.
+6. 같은 인자에서 `dryRun` 없이 apply. 반환된 `applyId`를 기록한다.
+7. 되돌릴 때: `rollbackOfficialAssetReplacementApply({ draftKey, applyId, dryRun: true })` 뒤 `dryRun` 없이 실행. 이후 편집이 있으면 거부된다.
+
+### 22.9 남은 것
+
+- 14장의 품질 승인과 실제 RP 품질은 이번 범위가 아니다. 테스트 승인은 fixture다.
+- 운영 moderation은 유료 vision 호출이다. 비용 승인 전에는 3단계를 실행하지 않는다.
+- 위 절차를 감싸는 CLI는 별도 후속이다.
+- 승인 계획의 personTag: `편안함`·`안도`는 `ASSET_PERSON_TAGS`에 없어 emo5 `진지함`, emo6 `미소`의 기존 값을 유지했다. 편집 검토 항목이다.
+- 대표가 바뀐 뒤 유료 교체 생성은 published 전용이고 대표 재생성은 막혀 있다. 공개 뒤 RP 교체 생성은 저장 정책으로 조립된다.
