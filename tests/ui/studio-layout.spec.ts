@@ -130,3 +130,101 @@ test.describe("studio tab layout regression", () => {
     });
   }
 });
+
+test.describe("E4-7 creator menu and /create fixed bars", () => {
+  test.beforeEach(async ({ page }) => {
+    await demoLogin(page);
+  });
+
+  for (const width of [320, 390, 1280] as const) {
+    test(`studio creator menu stays on one row without overlap at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto("/studio");
+      const nav = page.getByTestId("studio-creator-nav");
+      await nav.waitFor({ state: "visible" });
+      const rects = await nav.locator("a").evaluateAll((links) =>
+        links.map((a) => {
+          const r = a.getBoundingClientRect();
+          return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, text: a.textContent?.trim() };
+        }),
+      );
+      expect(rects.map((r) => r.text)).toEqual(["크리에이터 대시보드", "내 공개 프로필"]);
+      expect(Math.abs(rects[0].top - rects[1].top)).toBeLessThan(2);
+      expect(rects[0].right).toBeLessThanOrEqual(rects[1].left);
+      expect(rects[1].right).toBeLessThanOrEqual(width);
+      expect(rects[0].bottom - rects[0].top).toBeGreaterThanOrEqual(36);
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+      );
+      expect(overflow).toBe(false);
+    });
+  }
+
+  test("studio menu leads to the dashboard and to the user's own public profile", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.goto("/studio");
+    const profile = page.getByTestId("studio-creator-nav").getByRole("link", { name: "내 공개 프로필" });
+    const href = await profile.getAttribute("href");
+    expect(href).toMatch(/^\/creator\/\d+$/);
+    await profile.click();
+    await page.waitForURL(`**${href}`);
+    await expect(page.getByRole("link", { name: /크리에이터 대시보드/ })).toBeVisible();
+
+    await page.goto("/studio");
+    await page.getByTestId("studio-creator-nav").getByRole("link", { name: "크리에이터 대시보드" }).click();
+    await page.waitForURL("**/creator");
+    await expect(page.getByRole("link", { name: "내 제작자 페이지" })).toHaveAttribute("href", href!);
+    await page.getByRole("link", { name: "제작 스튜디오" }).first().click();
+    await page.waitForURL("**/studio");
+  });
+
+  test("/create keeps scroll padding in step with header, tab bar, save bar, bottom nav and keyboard", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 667 });
+    await page.goto("/create");
+    const bar = page.getByTestId("studio-save-bar");
+    await bar.waitFor({ state: "visible" });
+    const read = () =>
+      page.evaluate(() => {
+        const root = document.documentElement;
+        const cs = getComputedStyle(root);
+        const nav = document.querySelector(".mobile-bottom-nav");
+        const out = {
+          top: parseFloat(cs.scrollPaddingTop),
+          bottom: parseFloat(cs.scrollPaddingBottom),
+          header: document.querySelector(".site-header")!.getBoundingClientRect().height,
+          tabs: document.querySelector('[role="tablist"][aria-label="캐릭터·시뮬레이션 제작 탭"]')!.getBoundingClientRect().height,
+          bar: document.querySelector('[data-testid="studio-save-bar"]')!.getBoundingClientRect().height,
+          nav: nav && getComputedStyle(nav).display !== "none" ? nav.getBoundingClientRect().height : 0,
+        };
+        return out;
+      });
+    const closed = await read();
+    expect(closed.top).toBeGreaterThanOrEqual(closed.header + closed.tabs);
+    expect(closed.bottom).toBeGreaterThanOrEqual(closed.bar + closed.nav);
+
+    await page.evaluate(() => document.documentElement.style.setProperty("--keyboard-inset", "300px"));
+    const open = await read();
+    expect(open.bottom).toBeGreaterThanOrEqual(closed.bottom + 299);
+  });
+
+  test("/create jump lands the field title below the sticky header and tab bar", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 667 });
+    await page.goto("/create");
+    await page.getByTestId("studio-save-bar").waitFor({ state: "visible" });
+    const jump = page.getByTestId("studio-save-bar").getByRole("button", { name: /채우러 가기/ });
+    await expect(jump).toBeVisible();
+    await jump.click();
+    await page.waitForTimeout(900);
+    const geometry = await page.evaluate(() => {
+      const el = document.activeElement as HTMLInputElement | null;
+      const label = el?.labels?.[0]?.getBoundingClientRect();
+      const tabs = document.querySelector('[role="tablist"][aria-label="캐릭터·시뮬레이션 제작 탭"]')!.getBoundingClientRect();
+      const bar = document.querySelector('[data-testid="studio-save-bar"]')!.getBoundingClientRect();
+      const box = el!.getBoundingClientRect();
+      return { labelTop: label?.top ?? 0, tabsBottom: tabs.bottom, barTop: bar.top, boxBottom: box.bottom, boxTop: box.top };
+    });
+    expect(geometry.labelTop).toBeGreaterThanOrEqual(geometry.tabsBottom - 1);
+    expect(geometry.boxTop).toBeGreaterThanOrEqual(geometry.tabsBottom - 1);
+    expect(geometry.boxBottom).toBeLessThanOrEqual(geometry.barTop + 1);
+  });
+});

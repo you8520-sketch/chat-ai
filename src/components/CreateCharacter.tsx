@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CharacterGender } from "@/lib/characterGender";
 import { GENDER_LABELS } from "@/lib/characterGender";
@@ -707,14 +707,35 @@ export default function CreateCharacter({
       getComputedStyle(document.documentElement).getPropertyValue("--site-header-height"),
     );
     const offset =
-      (Number.isFinite(headerH) ? headerH : 44) + (tabListRef.current?.offsetHeight ?? 0) + 20;
+      (Number.isFinite(headerH) ? headerH : 44) + (tabListRef.current?.offsetHeight ?? 0) + 12;
+    // Anchor on the label row so the field's title is not left behind the sticky header + tabs.
+    const anchor =
+      (el as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).labels?.[0]?.parentElement ?? el;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     window.scrollTo({
-      top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - offset),
+      top: Math.max(0, anchor.getBoundingClientRect().top + window.scrollY - offset),
       behavior: reduce ? "auto" : "smooth",
     });
     el.focus({ preventScroll: true });
   }, [jump]);
+
+  useLayoutEffect(() => {
+    const tabs = tabListRef.current;
+    if (!tabs) return;
+    const root = document.documentElement;
+    const publish = () =>
+      root.style.setProperty(
+        "scroll-padding-top",
+        `calc(var(--site-header-height, 0px) + ${Math.ceil(tabs.getBoundingClientRect().height)}px + 0.5rem)`,
+      );
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(tabs);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("scroll-padding-top");
+    };
+  }, []);
 
   useEffect(() => {
     setFieldError(null);
