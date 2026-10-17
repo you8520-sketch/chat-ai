@@ -102,6 +102,19 @@ describe("TRPG scenario AI draft", () => {
     assert.equal(generated.generatedFields?.includes("npcs"), true);
   });
 
+  it("unwraps a draft the model nested under an echo of the field-list label", () => {
+    const inner = JSON.stringify({ title: "안개 속 등대", goal: "등대를 되찾는다" });
+    const wrappedString = parseScenarioDraftJson(JSON.stringify({ "/fill_or_replace_fields": inner }));
+    assert.equal(wrappedString.title, "안개 속 등대");
+    assert.deepEqual([...(wrappedString.generatedFields ?? [])].sort(), ["goal", "title"]);
+    const wrappedObject = parseScenarioDraftJson(JSON.stringify({ fill_or_replace_fields: { title: "등대" } }));
+    assert.equal(wrappedObject.title, "등대");
+    const listOnly = parseScenarioDraftJson(JSON.stringify({ "/fill_or_replace_fields": "title,summary,goal" }));
+    assert.equal(listOnly.generatedFields?.length ?? 0, 0);
+    const emptyWrapper = parseScenarioDraftJson(JSON.stringify({ "/fill_or_replace_fields": {} }));
+    assert.equal(emptyWrapper.generatedFields?.length ?? 0, 0);
+  });
+
   it("retries empty {} answers a bounded number of times and then fails clearly", async () => {
     const base = {
       kind: "scenario_draft" as const,

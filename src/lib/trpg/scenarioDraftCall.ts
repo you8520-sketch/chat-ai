@@ -373,10 +373,10 @@ export async function completeTrpgAuthoringJson(opts: {
 
 /**
  * The model often answers a draft request with `{}` (or a wrapper holding nothing). That parses
- * cleanly but fills nothing, and such replies return in seconds at ~1k input tokens, so a few
+ * cleanly but fills nothing, and such replies return in seconds at ~1k input tokens, so a handful of
  * quick retries are cheaper than making the creator press the button again.
  */
-export const TRPG_SCENARIO_DRAFT_EMPTY_RETRY = 3;
+export const TRPG_SCENARIO_DRAFT_EMPTY_RETRY = 5;
 
 export async function completeTrpgScenarioDraftJson(
   opts: Parameters<typeof completeTrpgAuthoringJson>[0]
