@@ -1,0 +1,173 @@
+[database] runtime diagnostics {
+  nodeEnv: '',
+  nextPhase: '',
+  cwd: '/workspace',
+  dataDir: '/tmp/b7/probe-sum',
+  databasePath: '/tmp/b7/probe-sum/app.db',
+  dataDirExists: true,
+  dataDirIsMounted: false,
+  productionRuntime: false
+}
+--- dialogue label preview (T31) ---
+[31턴]
+유저: (현장 응급 처치 텐트에서) 너 피 너무 많이 흘렸어. 의무실 가.
+라이크: 응급 요원이 옆구리에 붕대를 감는 동안 태형은 고개를 저었다. "의무실 가면 2주는 묶여. 붕대만 감고 버틸래." 렌이 차가운 눈으로 노려보자 그는 엄살을 부리며 웃었다. "아야야, 그렇게 보면 상처가 더 아파." 렌은 대답 대신 그의 손목을 잡고 가이딩을 이어갔다.
+[background-memory] compatible API request {
+  model: 'gpt-6-luna',
+  provider: 'cheaperinference',
+  requestKind: 'background-memory-extract',
+  messages: 2,
+  inputTokensEst: 3372
+}
+[aux_provider_call] {
+  event: 'aux_provider_call',
+  auxOwner: 'ROLLING_SUMMARY',
+  model: 'gpt-6-luna',
+  requestKind: 'background-memory-extract',
+  trigger: null,
+  chatId: null,
+  messageId: null,
+  requestId: null,
+  attempt: 1,
+  isRetry: false,
+  jobId: null,
+  promptFingerprint: 'b9f439ce6c18008a'
+}
+[database] runtime diagnostics {
+  nodeEnv: '',
+  nextPhase: '',
+  cwd: '/workspace',
+  dataDir: '/tmp/b7/probe-sum',
+  databasePath: '/tmp/b7/probe-sum/app.db',
+  dataDirExists: true,
+  dataDirIsMounted: false,
+  productionRuntime: false
+}
+#1 CORRECT | 옆구리를 크게 다친 태형은 의무실을 거부하고 붕대만 감은 채 렌의 가이딩을 받았으나, 출혈이 계속되자 렌이 이를 지적하고 부축함.
+   full: 옆구리를 크게 다친 태형은 의무실을 거부하고 붕대만 감은 채 렌의 가이딩을 받았으나, 출혈이 계속되자 렌이 이를 지적하고 부축함. 부상 중에도 렌을 따라 D급 정리 임무에 나가 크리처를 처리했고, 복귀길에는 딸기우유를 사 건네며 함께 살아 돌아온 일을 기념함. 렌이 상처 통증을 묻자 태형은 생각할 게 있다며 나중에 제대로 말하겠다고 했고, 윤도겸이 전한 국장의 면담 요청에 표정이 굳어 렌에게 혼자 가지 말라고 경고함. 국장이 렌을 직속 유닛으로 데려가려 하며 도겸은 전달자라고 밝힘.
+[background-memory] compatible API request {
+  model: 'gpt-6-luna',
+  provider: 'cheaperinference',
+  requestKind: 'background-memory-extract',
+  messages: 2,
+  inputTokensEst: 3372
+}
+[aux_provider_call] {
+  event: 'aux_provider_call',
+  auxOwner: 'ROLLING_SUMMARY',
+  model: 'gpt-6-luna',
+  requestKind: 'background-memory-extract',
+  trigger: null,
+  chatId: null,
+  messageId: null,
+  requestId: null,
+  attempt: 1,
+  isRetry: false,
+  jobId: null,
+  promptFingerprint: 'b9f439ce6c18008a'
+}
+[exchangeRate] refreshed {
+  mode: 'daily_kst',
+  dateKey: '2026-10-17',
+  usdToKrw: 1334.892169,
+  effectiveKrwPerUsd: 1361.59001238
+}
+#2 CORRECT | 렌이 손목을 잡고 가이딩했으나 붕대에 피가 배어 나왔고, 태형은 괜찮다면서도 계단에서 옆구리를 감쌌으며 렌의 부축을 받음.
+   full: 응급 요원이 옆구리를 붕대 감아줬지만, 태형은 의무실에 가면 2주간 묶인다며 치료를 거부하고 붕대만으로 버팀. 렌이 손목을 잡고 가이딩했으나 붕대에 피가 배어 나왔고, 태형은 괜찮다면서도 계단에서 옆구리를 감쌌으며 렌의 부축을 받음. 부상 중에도 렌을 따라 D급 정리 임무에 나가 크리처를 처리하고, 복귀길에 딸기우유를 사서 건넴. 렌이 상처를 걱정하자 태형은 생각할 일이 있다며 나중에 제대로 말하겠다고 미룸. 이후 국장의 호출을 들은 렌에게 혼자 가지 말라고 경고하고, 국장이 렌을 직속 유닛으로 데려가려 하며 윤도겸은 그 심부름꾼이라고 밝힘.
+[background-memory] compatible API request {
+  model: 'gpt-6-luna',
+  provider: 'cheaperinference',
+  requestKind: 'background-memory-extract',
+  messages: 2,
+  inputTokensEst: 3372
+}
+[aux_provider_call] {
+  event: 'aux_provider_call',
+  auxOwner: 'ROLLING_SUMMARY',
+  model: 'gpt-6-luna',
+  requestKind: 'background-memory-extract',
+  trigger: null,
+  chatId: null,
+  messageId: null,
+  requestId: null,
+  attempt: 1,
+  isRetry: false,
+  jobId: null,
+  promptFingerprint: 'b9f439ce6c18008a'
+}
+#3 OMITTED |
+   full: 옆구리 부상으로 피를 많이 흘린 태형은 의무실에 가길 거부하고 붕대만 감은 채 버티려 했으며, 렌은 손목을 잡고 가이딩을 이어갔다. 붕대에 피가 배어 나와도 태형은 괜찮다며 D급 정리 임무에 따라나섰고, 핑거스냅으로 크리처를 처리한 뒤 절뚝이며 렌에게 딸기우유를 건넸다. 숙소에서 태형은 할 말이 있다며 나중에 제대로 말하겠다고 미뤘고, 이후 국장이 렌을 직속 유닛으로 데려가려 한다고 밝혔다. 태형은 렌에게 가지 말라며, 가더라도 혼자 가지 말라고 경고함.
+[background-memory] compatible API request {
+  model: 'gpt-6-luna',
+  provider: 'cheaperinference',
+  requestKind: 'background-memory-extract',
+  messages: 2,
+  inputTokensEst: 3372
+}
+[aux_provider_call] {
+  event: 'aux_provider_call',
+  auxOwner: 'ROLLING_SUMMARY',
+  model: 'gpt-6-luna',
+  requestKind: 'background-memory-extract',
+  trigger: null,
+  chatId: null,
+  messageId: null,
+  requestId: null,
+  attempt: 1,
+  isRetry: false,
+  jobId: null,
+  promptFingerprint: 'b9f439ce6c18008a'
+}
+#4 CORRECT | 렌은 가이딩을 이어가고 부축했으나 태형은 렌이 나간 D급 정리 임무까지 따라가 크리처를 처리함.
+   full: 부상으로 피를 많이 흘린 태형은 의무실을 거부하고 붕대만 감았으며, 피가 배어 나와도 센티넬의 회복력을 믿고 버팀. 렌은 가이딩을 이어가고 부축했으나 태형은 렌이 나간 D급 정리 임무까지 따라가 크리처를 처리함. 복귀 후 딸기우유를 건네며 함께 살아 돌아온 것을 기념했고, 렌은 받아들임. 태형은 할 말이 있다고 했다가 미루고, 이후 윤도겸이 전한 국장 면담 건에 평소와 달리 굳어 렌에게 혼자 가지 말라고 경고함. 국장이 렌을 직속 유닛으로 데려가려 하며 도겸은 전달자라고 밝힘.
+[background-memory] compatible API request {
+  model: 'gpt-6-luna',
+  provider: 'cheaperinference',
+  requestKind: 'background-memory-extract',
+  messages: 2,
+  inputTokensEst: 3372
+}
+[aux_provider_call] {
+  event: 'aux_provider_call',
+  auxOwner: 'ROLLING_SUMMARY',
+  model: 'gpt-6-luna',
+  requestKind: 'background-memory-extract',
+  trigger: null,
+  chatId: null,
+  messageId: null,
+  requestId: null,
+  attempt: 1,
+  isRetry: false,
+  jobId: null,
+  promptFingerprint: 'b9f439ce6c18008a'
+}
+  chars: 228,
+  narrativeValid: true,
+  grounded: false,
+  nextAttempt: 2,
+  rejectedSummaryPreview: '옆구리를 크게 다친 태형은 유저의 권고에도 의무실을 거부하고 붕대만 감은 채 버팀. 피가 배어 나오자 렌이 말없이 부축했고, 태형은 부상 중에도 렌이 나간 D급 정리 임무에 따라가 크리처를 처리함. 복귀길에 딸기우유를 사 건네며 생환을 기념했고 렌은 받아들임. 이후 태형은 할 말이 있다며 미뤘다가, 국장이 렌을 직속 유닛으로 데려가려 한다고 밝히며 “가지 마. 아니, 가더라도 혼자 가지 마.”라고 경고함.'
+}
+[background-memory] compatible API request {
+  model: 'gpt-6-luna',
+  provider: 'cheaperinference',
+  requestKind: 'background-memory-extract-retry',
+  messages: 2,
+  inputTokensEst: 3372
+}
+[aux_provider_call] {
+  event: 'aux_provider_call',
+  auxOwner: 'ROLLING_SUMMARY',
+  model: 'gpt-6-luna',
+  requestKind: 'background-memory-extract-retry',
+  trigger: null,
+  chatId: null,
+  messageId: null,
+  requestId: null,
+  attempt: 1,
+  isRetry: true,
+  jobId: null,
+  promptFingerprint: 'b9f439ce6c18008a'
+}
+#5 CORRECT | 붕대에 피가 배어 나와도 센티넬이라 회복이 빠르다며 괜찮다고 했으나, 렌은 계속 가이딩하고 부축함.
+   full: 전투 중 옆구리를 크게 다쳐 피를 흘린 태형은 의무실 치료를 거부하고 붕대만 감은 채 버티려 함. 붕대에 피가 배어 나와도 센티넬이라 회복이 빠르다며 괜찮다고 했으나, 렌은 계속 가이딩하고 부축함. 부상 상태로 D급 정리 임무까지 따라나선 태형은 “내 가이드가 나가는데 내가 왜 빠져”라며 크리처를 처리했고, 복귀길엔 딸기우유를 사 렌에게 건넴. 이후 고민을 털어놓으려다 “나중에 말할게. 제대로”라며 미룸. 렌이 윤도겸을 통해 국장의 호출을 전하자 태형은 혼자 가지 말라고 경고하고, 국장이 렌을 직속 유닛으로 데려가려 한다고 밝힘.
+{"start":31,"end":35,"identity":"none","n":5,"tally":{"CORRECT":4,"OMITTED":1},"calls":6,"krw":0.863}
