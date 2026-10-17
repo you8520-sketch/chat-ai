@@ -61,7 +61,7 @@ describe("jev decisions official wire contract", () => {
 
   /** Official-shaped raw response (dated served snapshot, object answers). */
   const decisionBody = () => ({
-    model: "typesafe/jev-1.14-20260920",
+    model: "typesafe/jev-1.14-20261014",
     answers: {
       attack_plan: {
         type: "choice",
@@ -497,7 +497,7 @@ describe("jev decisions official wire contract", () => {
         questions: questions(),
         ledger: null,
       });
-      assert.equal(result.responseModel, "typesafe/jev-1.14-20260920");
+      assert.equal(result.responseModel, "typesafe/jev-1.14-20261014");
       stubFetch(() =>
         jsonResponse({
           model: "typesafe/jev-1.14",
