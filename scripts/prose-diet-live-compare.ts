@@ -142,6 +142,11 @@ async function streamOnce(
 }
 
 async function main() {
+  if (process.env.GEMINI38_AXIS_COMPARE === "1") {
+    const { runGemini38AxisLiveCompare } = await import("./lib/gemini38AxisLiveCompare");
+    await runGemini38AxisLiveCompare();
+    return;
+  }
   const apiKey =
     exitIfBenchmarkCheaperInferenceApiKeyMissing("PROSE_DIET_NOT_RUN");
 
