@@ -5,7 +5,7 @@
  */
 import { randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
-import { adventureHasMap, evaluateAdventure } from "./adventure";
+import { adventureHasMap, evaluateAdventure, TrpgAdventureCanonError } from "./adventure";
 import { loadCampaignLedger } from "./campaignLedger";
 import { parseTrpgScenarioPlan } from "./scenarioPlan";
 import {
@@ -88,7 +88,7 @@ export function ensureExplorationMap(db: Database.Database, campaignId: number):
   const seed = randomBytes(8).toString("hex");
   if (plan.adventure != null) {
     const { adventure, issues } = evaluateAdventure(plan.adventure);
-    if (!adventure) throw new Error(`장소 구성(adventure)이 맞지 않아 지도를 만들지 않았습니다: ${issues.join(" ")}`);
+    if (!adventure) throw new TrpgAdventureCanonError(issues);
     if (adventureHasMap(adventure)) saveExplorationState(db, campaignId, adventureExplorationState(adventure, seed));
     return;
   }

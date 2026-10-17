@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
-import { evaluateAdventure, type TrpgAdventure } from "./adventure";
+import { evaluateAdventure, TRPG_ADVENTURE_CANON_START_MESSAGE, TrpgAdventureCanonError, type TrpgAdventure } from "./adventure";
 import { loadCampaignContext } from "./campaignContext";
 import { loadCampaignLedger } from "./campaignLedger";
 import { EVEN_STATS, createTrpgCampaign, joinTrpgCampaign, saveTrpgSheet, writeSheet } from "./engineCreate";
@@ -437,6 +437,98 @@ describe("adventure exploration (B2+B3)", () => {
     db.close();
   });
 
+  it("blocks the start of an invalid frozen canon before any GM call, round, or charge, and again on retry", async () => {
+    const variants: Array<[string, (raw: Record<string, any>) => void]> = [
+      ["string requires", (raw) => void (raw.events[1].requires = "ticket")],
+      ["string hidden", (raw) => void (raw.links[4].hidden = "true")],
+      ["unknown start", (raw) => void (raw.start = "roof")],
+    ];
+    for (const [label, mutate] of variants) {
+      const db = memoryDb();
+      const plan = { startingSituation: "역", goal: "기관실", endingConditions: ["기관실에 닿는다"] };
+      const templateId = insertScenarioTemplate(db, 1, {
+        title: "유령 기차",
+        summary: "s",
+        content: "c",
+        visibility: "private",
+        startLocation: "",
+        scenarioPlan: { ...plan, adventure: GHOST_TRAIN },
+      });
+      const raw = JSON.parse(JSON.stringify(GHOST_TRAIN)) as Record<string, any>;
+      mutate(raw);
+      db.prepare(`UPDATE trpg_scenario_templates SET scenario_plan_json=? WHERE id=?`).run(JSON.stringify({ ...plan, adventure: raw }), templateId);
+      const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "현이", viewerUserId: 1, templateId });
+      saveTrpgSheet(db, { campaignId, userId: 1, name: "현이", stats: EVEN_STATS });
+      const statusBefore = (db.prepare(`SELECT status FROM trpg_campaigns WHERE id=?`).get(campaignId) as { status: string }).status;
+      const pointsBefore = (db.prepare(`SELECT points FROM users WHERE id=1`).get() as { points: number }).points;
+      let gmCalls = 0;
+      const deps: TrpgEngineDeps = {
+        rollD20: () => 16,
+        gmCall: async () => {
+          gmCalls += 1;
+          return { text: wire("열차가 멈춘다. GM: 무엇을 하겠는가.", "폐역 승강장") };
+        },
+      };
+      for (let attempt = 1; attempt <= 2; attempt += 1) {
+        await assert.rejects(startTrpgCampaign(db, { campaignId, userId: 1, deps }), (error: unknown) => {
+          assert.ok(error instanceof TrpgAdventureCanonError, `${label}: canon error`);
+          assert.equal(error.message, TRPG_ADVENTURE_CANON_START_MESSAGE);
+          for (const secret of [...GHOST_TRAIN.events.map((event) => event.text), "우편칸", "mail_hatch"]) {
+            assert.equal(error.message.includes(secret), false, `${label}: message leaks ${secret}`);
+          }
+          return true;
+        });
+      }
+      assert.equal(gmCalls, 0, `${label}: no GM call`);
+      assert.equal((db.prepare(`SELECT COUNT(*) AS n FROM trpg_rounds WHERE campaign_id=?`).get(campaignId) as { n: number }).n, 0);
+      assert.equal(loadExplorationState(db, campaignId), null);
+      assert.equal(loadCampaignContext(db, campaignId), null, `${label}: nothing frozen from a broken canon`);
+      assert.equal((db.prepare(`SELECT status FROM trpg_campaigns WHERE id=?`).get(campaignId) as { status: string }).status, statusBefore);
+      assert.equal((db.prepare(`SELECT points FROM users WHERE id=1`).get() as { points: number }).points, pointsBefore);
+      db.close();
+    }
+  });
+
+  it("starts an adventure whose author removed the places on purpose, without a map", async () => {
+    const db = memoryDb();
+    const plan = { startingSituation: "역", goal: "기관실", endingConditions: ["기관실에 닿는다"] };
+    const templateId = insertScenarioTemplate(db, 1, {
+      title: "유령 기차",
+      summary: "s",
+      content: "c",
+      visibility: "private",
+      startLocation: "",
+      scenarioPlan: { ...plan, adventure: GHOST_TRAIN },
+    });
+    updateScenarioTemplate(db, templateId, 1, {
+      title: "유령 기차",
+      summary: "s",
+      content: "c",
+      visibility: "private",
+      startLocation: "폐역 승강장",
+      scenarioPlan: plan,
+    });
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "현이", viewerUserId: 1, templateId });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "현이", stats: EVEN_STATS });
+    let gmCalls = 0;
+    await startTrpgCampaign(db, {
+      campaignId,
+      userId: 1,
+      deps: {
+        skipBilling: true,
+        rollD20: () => 16,
+        gmCall: async () => {
+          gmCalls += 1;
+          return { text: wire("승강장에 비가 내린다. GM: 무엇을 하겠는가.", "폐역 승강장") };
+        },
+      },
+    });
+    assert.equal(gmCalls, 1);
+    assert.equal(loadExplorationState(db, campaignId), null);
+    assert.equal(loadTrpgSnapshot(db, campaignId, 1)?.exploration, null);
+    db.close();
+  });
+
   it("refuses to build a map from an invalid frozen canon instead of falling back to the test map", () => {
     const db = memoryDb();
     const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "현이", viewerUserId: 1 });
@@ -445,7 +537,7 @@ describe("adventure exploration (B2+B3)", () => {
       `INSERT INTO trpg_campaign_context (campaign_id, source_mode, scenario_snapshot_json, director_plan_json, updated_at)
        VALUES (?, 'scenario', ?, NULL, datetime('now'))`
     ).run(campaignId, JSON.stringify({ plan: { startingSituation: "역", goal: "기관실", exploration: true, adventure: broken } }));
-    assert.throws(() => ensureExplorationMap(db, campaignId), /장소 구성\(adventure\)이 맞지 않아/);
+    assert.throws(() => ensureExplorationMap(db, campaignId), TrpgAdventureCanonError);
     assert.equal(loadExplorationState(db, campaignId), null);
     db.close();
   });

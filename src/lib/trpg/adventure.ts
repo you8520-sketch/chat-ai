@@ -299,18 +299,42 @@ export function parseAdventure(raw: unknown): TrpgAdventure | null {
   return evaluateAdventure(raw).adventure;
 }
 
-/** Save-boundary guard: an explicit adventure must be fully valid. */
-export function assertAuthoredAdventureValid(rawPlan: unknown): void {
+/** Findings for the plan's explicit adventure; none when the plan has no adventure or is unreadable. */
+function planAdventureIssues(rawPlan: unknown): string[] {
   let plan: unknown = rawPlan;
   if (typeof rawPlan === "string") {
-    if (!rawPlan.trim()) return;
+    if (!rawPlan.trim()) return [];
     try {
       plan = JSON.parse(rawPlan);
     } catch {
-      return;
+      return [];
     }
   }
-  if (!isRecord(plan) || plan.adventure == null) return;
-  const { issues } = evaluateAdventure(plan.adventure);
+  if (!isRecord(plan) || plan.adventure == null) return [];
+  return evaluateAdventure(plan.adventure).issues;
+}
+
+/** Save-boundary guard: an explicit adventure must be fully valid. The author sees every finding. */
+export function assertAuthoredAdventureValid(rawPlan: unknown): void {
+  const issues = planAdventureIssues(rawPlan);
   if (issues.length > 0) throw new Error(`장소 구성(adventure) 오류: ${issues.join(" ")}`);
+}
+
+/** The host may not be the author, so findings that name hidden places or events stay in `issues`. */
+export const TRPG_ADVENTURE_CANON_START_MESSAGE =
+  "이 모험의 장소 구성이 맞지 않아 시작할 수 없습니다. 제작자가 장소와 사건을 고친 뒤 다시 시작해 주세요.";
+
+export class TrpgAdventureCanonError extends Error {
+  readonly issues: string[];
+  constructor(issues: string[]) {
+    super(TRPG_ADVENTURE_CANON_START_MESSAGE);
+    this.name = "TrpgAdventureCanonError";
+    this.issues = issues;
+  }
+}
+
+/** Start-boundary guard: an explicit adventure that cannot be played stops the start instead of becoming "no map". */
+export function assertFrozenAdventureValid(rawPlan: unknown): void {
+  const issues = planAdventureIssues(rawPlan);
+  if (issues.length > 0) throw new TrpgAdventureCanonError(issues);
 }

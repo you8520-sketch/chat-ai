@@ -23,6 +23,7 @@ import {
   type TrpgRoundUsageEntry,
 } from "./roundUsage";
 import { isTrpgActionType, pickStatForAction } from "./actionTypes";
+import { TrpgAdventureCanonError } from "./adventure";
 import { logTrpgMechanicsCheckTelemetry } from "./mechanicsObservability";
 import {
   computeTrpgRoundPoints,
@@ -315,6 +316,13 @@ function mustSnapshot(db: Database.Database, campaignId: number, userId: number)
   return snap;
 }
 
+/** An explicit adventure that cannot be played stops the start before any round, GM call, or charge. */
+function rethrowAdventureCanonError(error: unknown, campaignId: number): void {
+  if (!(error instanceof TrpgAdventureCanonError)) return;
+  console.warn("[trpg-adventure] invalid canon; start blocked", { campaignId, issues: error.issues });
+  throw error;
+}
+
 export async function startTrpgCampaign(
   db: Database.Database,
   opts: { campaignId: number; userId: number; deps?: TrpgEngineDeps }
@@ -323,11 +331,13 @@ export async function startTrpgCampaign(
   try {
     await ensureCampaignDirectorContext(db, opts.campaignId);
   } catch (error) {
+    rethrowAdventureCanonError(error, opts.campaignId);
     console.warn("[trpg-director] context failed; continuing with existing GM", error);
   }
   try {
     ensureExplorationMap(db, opts.campaignId);
   } catch (error) {
+    rethrowAdventureCanonError(error, opts.campaignId);
     console.warn("[trpg-exploration] map failed; continuing without a map", error);
   }
   const latest = loadLatestRound(db, opts.campaignId);
