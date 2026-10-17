@@ -3,8 +3,8 @@ import type Database from "better-sqlite3";
 import {
   listingImageUrls,
   normalizeCreatorAssetTag,
-  orientationFromSize,
   parseAssets,
+  withReplacedAssetFile,
   type CharacterAsset,
 } from "@/lib/characterAssets";
 import type { OfficialAdminActor } from "@/lib/officialAdminAccess";
@@ -187,15 +187,13 @@ function nextAssetFromCandidate(current: CharacterAsset, candidate: OfficialRepl
       `${candidate.draftKey}/${candidate.slotKey} has no candidate url`
     );
   }
-  const { adultFlagged: _af, moderationReject: _mr, moderationReason: _md, ...kept } = current;
-  const orientation = orientationFromSize(candidate.width, candidate.height);
   return {
-    ...kept,
-    url: candidate.candidateResultUrl,
+    ...withReplacedAssetFile(current, {
+      url: candidate.candidateResultUrl,
+      width: candidate.width,
+      height: candidate.height,
+    }),
     tag: replacementAppliedTag(current.tag, candidate),
-    ...(candidate.width != null ? { width: candidate.width } : {}),
-    ...(candidate.height != null ? { height: candidate.height } : {}),
-    ...(orientation ? { orientation } : {}),
     ...canonicalAssetModerationFields(candidate.moderation),
   };
 }

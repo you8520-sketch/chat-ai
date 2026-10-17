@@ -64,6 +64,31 @@ export function withAssetSize(
   };
 }
 
+/**
+ * Swaps the image file behind an existing slot. Only slot and viewer settings
+ * carry over; every field describing the previous file (media id, public
+ * rendition, blur preview, size, moderation ledger) is dropped so readers
+ * derive them from the new url. The caller supplies the new file's moderation.
+ */
+export function withReplacedAssetFile(
+  current: CharacterAsset,
+  file: { url: string; width?: number | null; height?: number | null }
+): CharacterAsset {
+  return withAssetSize(
+    {
+      url: file.url,
+      tag: current.tag,
+      ...(current.visualSubjectKey ? { visualSubjectKey: current.visualSubjectKey } : {}),
+      ...(current.public !== undefined ? { public: current.public } : {}),
+      ...(current.chat !== undefined ? { chat: current.chat } : {}),
+      ...(current.viewerBlur !== undefined ? { viewerBlur: current.viewerBlur } : {}),
+      ...(current.representativeRank != null ? { representativeRank: current.representativeRank } : {}),
+    },
+    file.width,
+    file.height
+  );
+}
+
 /** 가로로 긴 에셋만 본문 인라인. 정사각·세로는 좌측/배경 초상. 크기 미확인은 세로로 취급. */
 export function isWideInlineAsset(asset: Pick<CharacterAsset, "width" | "height" | "orientation">): boolean {
   const orientation = asset.orientation ?? orientationFromSize(asset.width, asset.height);

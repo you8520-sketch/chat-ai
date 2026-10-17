@@ -5,16 +5,21 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import sharp from "sharp";
 
+import { GET as getPublicMedia } from "@/app/media/public/[filename]/route";
 import {
   chatAssets,
   getCharacterRepresentativeImageUrl,
   getCharacterRepresentativePublicUrls,
   getDefaultChatAsset,
   parseAssets,
+  safeLockedPreviewUrl,
+  type CharacterAsset,
 } from "@/lib/characterAssets";
 import type { SessionUser } from "@/lib/characterFormSave";
+import { assetModerationSummary } from "@/lib/characterListingModeration";
 import { getDb } from "@/lib/db";
 import { resolveInlineAsset } from "@/lib/inlineTaggedAssets";
+import { projectAssetsForViewer } from "@/lib/mediaAccess";
 import {
   officialApprovedAssetReference,
   resolveOfficialGenerationReferencePlan,
@@ -866,6 +871,168 @@ describe("approved representative gates (isolated DB)", () => {
     const applied = applyRep();
     assert.equal(applied.status, "applied");
     assert.equal(parseAssets(characterRow(applied.characterId).assets)[0]!.tag, "기본 초상");
+    assert.deepEqual(egressAttempts, []);
+  });
+});
+
+describe("applied images carry no metadata of the replaced file (isolated DB)", () => {
+  const MEDIA = "approved-apply-media";
+  const OLD_REP_MEDIA_ID = "0b6f7f3e-5d1c-4c2a-9e8f-1a2b3c4d5e6f";
+  const OLD_SIG1_MEDIA_ID = "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f";
+  let mediaCharacterId = 0;
+  let repUrl = "";
+  let sig1Url = "";
+  let repOnly: OfficialRepresentativeApplySet;
+
+  const legacyBlurOf = (url: string) =>
+    `/media/public/legacy-blur-${path.basename(url).replace(/\.[a-zA-Z0-9]+$/, "")}.webp`;
+
+  function seedSlot(index: number, fields: Partial<CharacterAsset>): string {
+    const assets = parseAssets(characterRow(mediaCharacterId).assets);
+    const { mediaId: _m, publicRenditionUrl: _p, blurPreviewUrl: _b, moderationStatus: _s, nippleExposure: _n, ...base } =
+      assets[index]!;
+    assets[index] = { ...base, ...fields };
+    const json = JSON.stringify(assets);
+    store.database.prepare("UPDATE characters SET assets=? WHERE id=?").run(json, mediaCharacterId);
+    return characterRow(mediaCharacterId).assets;
+  }
+
+  function strangerView(assets: CharacterAsset[]) {
+    return projectAssetsForViewer(assets, { canSeeOriginals: false, nsfw: false, viewer: STRANGER });
+  }
+
+  function assertRepresentativeIsNewFile() {
+    const row = characterRow(mediaCharacterId);
+    const assets = parseAssets(row.assets);
+    const rep = assets[0]!;
+    assert.equal(rep.url, repUrl);
+    assert.equal(rep.representativeRank, 1);
+    assert.equal(rep.viewerBlur, false);
+    for (const field of ["mediaId", "publicRenditionUrl", "blurPreviewUrl", "moderationStatus", "nippleExposure"] as const) {
+      assert.equal(rep[field], undefined, `representative kept the replaced file's ${field}`);
+    }
+    assert.equal(rep.adultFlagged, false);
+    assert.deepEqual(JSON.parse(row.images), [repUrl]);
+    assert.equal(getCharacterRepresentativeImageUrl(row.assets, row.images), repUrl);
+    assert.deepEqual(getCharacterRepresentativePublicUrls(row.assets, row.images), [repUrl]);
+    assert.equal(getDefaultChatAsset(assets)?.url, repUrl);
+    assert.equal(strangerView(assets)[0]!.url, repUrl);
+    assert.equal(safeLockedPreviewUrl(rep), legacyBlurOf(repUrl));
+  }
+
+  function applyRepresentative() {
+    return applyApprovedOfficialAssetReplacements({
+      store,
+      draftKey: MEDIA,
+      actor: ADMIN,
+      slotKeys: ["rep"],
+      representative: repOnly,
+    });
+  }
+
+  before(async () => {
+    store.createBatch("approved-apply-media-batch", testBatchConfig({ budgetUsd: { batch: 100 } }));
+    mediaCharacterId = await stageApprovedWolfgangDraft(MEDIA, "approved-apply-media-batch");
+    repOnly = {
+      ...REPRESENTATIVE_SET,
+      nextAssetPlan: {
+        slots: store.getCharacter(MEDIA).assetPlan!.slots.map((slot) =>
+          slot.kind === "representative" ? { ...slot, tag: "기본 초상" } : slot
+        ),
+      },
+    };
+    const rep = await register(MEDIA, "rep", candidateBytes(REP), "기본 초상");
+    await moderate(MEDIA, "rep");
+    assert.equal(review(MEDIA, REP, rep.candidateResultUrl!).approved, true);
+    repUrl = rep.candidateResultUrl!;
+    const sig1 = CANDIDATES.find((c) => c.slot === "sig1")!;
+    const sig1Registered = await register(MEDIA, "sig1", candidateBytes(sig1), sig1.tag);
+    await moderate(MEDIA, "sig1");
+    assert.equal(review(MEDIA, sig1, sig1Registered.candidateResultUrl!).approved, true);
+    sig1Url = sig1Registered.candidateResultUrl!;
+  });
+
+  it("10a. old representative with mediaId: card, detail, chat and blur read the new file; rollback restores the old metadata", () => {
+    const seeded = seedSlot(0, {
+      mediaId: OLD_REP_MEDIA_ID,
+      blurPreviewUrl: `/media/public/${OLD_REP_MEDIA_ID}-blur.webp`,
+      moderationStatus: "checked",
+      nippleExposure: "none",
+    });
+    assert.equal(
+      getCharacterRepresentativeImageUrl(seeded, characterRow(mediaCharacterId).images),
+      `/media/public/${OLD_REP_MEDIA_ID}-public.webp`
+    );
+    const applied = applyRepresentative();
+    assert.equal(applied.status, "applied");
+    assertRepresentativeIsNewFile();
+
+    rollbackOfficialAssetReplacementApply({ store, draftKey: MEDIA, applyId: applied.applyId!, actor: ADMIN });
+    assert.equal(characterRow(mediaCharacterId).assets, seeded);
+    assert.equal(parseAssets(seeded)[0]!.mediaId, OLD_REP_MEDIA_ID);
+  });
+
+  it("10b. old representative with publicRenditionUrl: card, detail, chat and blur read the new file; rollback restores the old metadata", () => {
+    const seeded = seedSlot(0, {
+      publicRenditionUrl: "/media/public/old-representative-public.webp",
+      blurPreviewUrl: "/media/public/old-representative-blur.webp",
+    });
+    assert.equal(
+      getCharacterRepresentativeImageUrl(seeded, characterRow(mediaCharacterId).images),
+      "/media/public/old-representative-public.webp"
+    );
+    const applied = applyRepresentative();
+    assert.equal(applied.status, "applied");
+    assertRepresentativeIsNewFile();
+
+    rollbackOfficialAssetReplacementApply({ store, draftKey: MEDIA, applyId: applied.applyId!, actor: ADMIN });
+    assert.equal(characterRow(mediaCharacterId).assets, seeded);
+    assert.equal(parseAssets(seeded)[0]!.publicRenditionUrl, "/media/public/old-representative-public.webp");
+  });
+
+  it("10c. a blurred RP slot keeps the user's blur and previews the new file; rollback restores the old metadata", async () => {
+    const index = parseAssets(characterRow(mediaCharacterId).assets).findIndex(
+      (asset) => asset.url === store.getAsset(MEDIA, "sig1").resultUrl
+    );
+    const seeded = seedSlot(index, {
+      viewerBlur: true,
+      mediaId: OLD_SIG1_MEDIA_ID,
+      blurPreviewUrl: `/media/public/${OLD_SIG1_MEDIA_ID}-blur.webp`,
+      moderationStatus: "pending",
+      nippleExposure: "uncertain",
+    });
+    const others = parseAssets(seeded).filter((_, i) => i !== index);
+
+    const applied = applyApprovedOfficialAssetReplacements({ store, draftKey: MEDIA, actor: ADMIN, slotKeys: ["sig1"] });
+    assert.equal(applied.status, "applied");
+    const assets = parseAssets(characterRow(mediaCharacterId).assets);
+    const sig1 = assets[index]!;
+    assert.equal(sig1.url, sig1Url);
+    assert.equal(sig1.viewerBlur, true);
+    for (const field of ["mediaId", "publicRenditionUrl", "blurPreviewUrl", "moderationStatus", "nippleExposure"] as const) {
+      assert.equal(sig1[field], undefined, `RP slot kept the replaced file's ${field}`);
+    }
+    assert.equal(sig1.adultFlagged, false);
+    assert.deepEqual(
+      assets.filter((_, i) => i !== index),
+      others
+    );
+    assert.equal(assetModerationSummary(assets).adultFlagged, false);
+
+    const preview = strangerView(assets)[index]!;
+    assert.equal(preview.viewerBlur, true);
+    assert.equal(preview.url, legacyBlurOf(sig1Url));
+    assert.equal(safeLockedPreviewUrl(sig1), legacyBlurOf(sig1Url));
+    const response = await getPublicMedia(new Request(`http://local${preview.url}`), {
+      params: Promise.resolve({ filename: path.basename(preview.url) }),
+    });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("content-type"), "image/webp");
+    const blurred = await sharp(Buffer.from(await response.arrayBuffer())).metadata();
+    assert.equal(blurred.format, "webp");
+
+    rollbackOfficialAssetReplacementApply({ store, draftKey: MEDIA, applyId: applied.applyId!, actor: ADMIN });
+    assert.equal(characterRow(mediaCharacterId).assets, seeded);
     assert.deepEqual(egressAttempts, []);
   });
 });
