@@ -27,7 +27,8 @@ export const PUBLIC_SITEMAP_PATHS = [
  * robots disallow limits fetching; it is not the same as HTML `noindex`.
  * `/login`, `/signup`, `/tab/following`, `/tab/likes` stay out of this list so bots can
  * fetch them and read `noindex` metadata. They remain out of the sitemap.
- * `/creator$` is the login-only studio route (including `/creator?tab=…`). Public profiles stay at `/creator/{id}`.
+ * `/creator$` blocks the studio path with no query. Google's `$` does not match a query,
+ * so `/creator?` blocks `/creator?tab=overview`. `Allow: /creator/` keeps `/creator/8` and `/creator/8?sort=new`.
  * `/signup/` blocks token subpaths such as `/signup/verify` without blocking `/signup`.
  * TRPG routes are left untouched.
  */
@@ -42,6 +43,7 @@ export const ROBOTS_DISALLOW_PATHS = [
   "/chats",
   "/create",
   "/creator$",
+  "/creator?",
   "/events/",
   "/lorebook",
   "/my-characters",

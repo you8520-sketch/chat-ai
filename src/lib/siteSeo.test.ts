@@ -17,26 +17,26 @@ import {
   tabMetadata,
 } from "@/lib/siteSeo";
 
-/** Test-only robots path match (Google: rule applies to URL path; query is not part of the path). */
-function robotsPathname(input: string): string {
+/** Pathname plus search. Google matches the query; `$` does not ignore it. */
+function robotsMatchTarget(input: string): string {
   if (input.startsWith("http://") || input.startsWith("https://")) {
-    return new URL(input).pathname;
+    const url = new URL(input);
+    return `${url.pathname}${url.search}`;
   }
-  const q = input.indexOf("?");
-  return (q === -1 ? input : input.slice(0, q)) || "/";
+  return input;
 }
 
-function ruleMatches(rule: string, pathname: string): boolean {
+function ruleMatches(rule: string, target: string): boolean {
   const endAnchored = rule.endsWith("$");
   const prefix = endAnchored ? rule.slice(0, -1) : rule;
   if (!prefix.startsWith("/")) return false;
-  if (endAnchored) return pathname === prefix;
-  return pathname.startsWith(prefix);
+  if (endAnchored) return target === prefix;
+  return target.startsWith(prefix);
 }
 
 /** Longest rule wins; equal length keeps allow. Mirrors the published allow/disallow lists only. */
 function robotsCrawlAllowed(input: string): boolean {
-  const pathname = robotsPathname(input);
+  const pathname = robotsMatchTarget(input);
   const rules: Array<{ kind: "allow" | "disallow"; rule: string }> = [
     ...ROBOTS_ALLOW_PATHS.map((rule) => ({ kind: "allow" as const, rule })),
     ...ROBOTS_DISALLOW_PATHS.map((rule) => ({ kind: "disallow" as const, rule })),
@@ -164,8 +164,10 @@ describe("site SEO", () => {
     assert.equal(robotsCrawlAllowed("/creator?tab=overview"), false);
     assert.equal(robotsCrawlAllowed("https://hav.chat/creator?tab=overview"), false);
     assert.equal(robotsCrawlAllowed("/creator/8"), true);
+    assert.equal(robotsCrawlAllowed("/creator/8?sort=new"), true);
 
     assert.equal(robotsCrawlAllowed("/signup/verify"), false);
+    assert.equal(robotsCrawlAllowed("/signup/verify?token=fixture"), false);
     assert.equal(robotsCrawlAllowed("/signup"), true);
 
     for (const path of [
@@ -207,10 +209,16 @@ describe("site SEO", () => {
     db.close();
   });
 
-  it("fails crawl when query is left on the path (regression for studio URLs)", () => {
-    const pathnameIfQueryNotStripped = "/creator?tab=overview";
-    assert.equal(ruleMatches("/creator$", pathnameIfQueryNotStripped), false);
-    assert.equal(robotsCrawlAllowed(pathnameIfQueryNotStripped), false);
+  it("keeps the query when matching studio and profile URLs", () => {
+    const studioQuery = "/creator?tab=overview";
+    assert.equal(robotsMatchTarget("https://hav.chat/creator?tab=overview"), studioQuery);
+    assert.equal(ruleMatches("/creator$", studioQuery), false);
+    assert.equal(ruleMatches("/creator?", studioQuery), true);
+    assert.equal(robotsCrawlAllowed("/creator"), false);
+    assert.equal(robotsCrawlAllowed(studioQuery), false);
+    assert.equal(robotsCrawlAllowed("https://hav.chat/creator?tab=overview"), false);
+    assert.equal(robotsCrawlAllowed("/creator/8"), true);
+    assert.equal(robotsCrawlAllowed("/creator/8?sort=new"), true);
   });
 
   it("lists only listable non-adult public URLs from an isolated fixture", () => {
