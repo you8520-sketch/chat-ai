@@ -217,6 +217,27 @@ function assertScenarioWorldAccess(
   }
 }
 
+/**
+ * Same creator resubmitting one AI generation (`provenance.generatedAt`) is that scenario, not a
+ * second row. A missing stamp is a manual save and stays insert-only. The oldest row wins.
+ */
+function existingScenarioIdForGeneration(
+  db: Database.Database,
+  creatorId: number,
+  generatedAt: string
+): number | null {
+  const row = db
+    .prepare(
+      `SELECT id FROM trpg_scenario_templates
+       WHERE creator_id = ?
+         AND json_extract(scenario_plan_json, '$.provenance.generatedAt') = ?
+       ORDER BY id ASC
+       LIMIT 1`
+    )
+    .get(creatorId, generatedAt) as { id: number } | undefined;
+  return row ? Number(row.id) : null;
+}
+
 export function insertScenarioTemplate(
   db: Database.Database,
   creatorId: number,
@@ -226,33 +247,41 @@ export function insertScenarioTemplate(
   assertScenarioWorldAccess(db, creatorId, n.worldId);
   assertImportedCharactersAccessible(db, n.characterIds, creatorId);
   assertScenarioBundleFits(db, n);
-  const info = db
-    .prepare(
-      `INSERT INTO trpg_scenario_templates
-        (creator_id, world_id, title, summary, content, secret_content, visibility, start_location,
-         start_inventory_json, default_pc_stats_json, stat_keys_json, npcs_json, character_ids_json, genres, assets_json,
-         scenario_plan_json, updated_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))`
-    )
-    .run(
-      creatorId,
-      n.worldId,
-      n.title,
-      n.summary,
-      n.content,
-      n.secretContent,
-      n.visibility,
-      n.startLocation,
-      JSON.stringify(n.startInventory),
-      n.defaultPcStats ? JSON.stringify(n.defaultPcStats) : "",
-      JSON.stringify(n.statKeys),
-      JSON.stringify(n.npcs),
-      JSON.stringify(n.characterIds),
-      JSON.stringify(n.genres),
-      JSON.stringify(n.assets),
-      n.scenarioPlan ? JSON.stringify(n.scenarioPlan) : null
-    );
-  return Number(info.lastInsertRowid);
+  const generatedAt = n.scenarioPlan?.provenance?.generatedAt.trim() ?? "";
+  const commit = db.transaction(() => {
+    if (generatedAt) {
+      const existingId = existingScenarioIdForGeneration(db, creatorId, generatedAt);
+      if (existingId != null) return existingId;
+    }
+    const info = db
+      .prepare(
+        `INSERT INTO trpg_scenario_templates
+          (creator_id, world_id, title, summary, content, secret_content, visibility, start_location,
+           start_inventory_json, default_pc_stats_json, stat_keys_json, npcs_json, character_ids_json, genres, assets_json,
+           scenario_plan_json, updated_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))`
+      )
+      .run(
+        creatorId,
+        n.worldId,
+        n.title,
+        n.summary,
+        n.content,
+        n.secretContent,
+        n.visibility,
+        n.startLocation,
+        JSON.stringify(n.startInventory),
+        n.defaultPcStats ? JSON.stringify(n.defaultPcStats) : "",
+        JSON.stringify(n.statKeys),
+        JSON.stringify(n.npcs),
+        JSON.stringify(n.characterIds),
+        JSON.stringify(n.genres),
+        JSON.stringify(n.assets),
+        n.scenarioPlan ? JSON.stringify(n.scenarioPlan) : null
+      );
+    return Number(info.lastInsertRowid);
+  });
+  return db.inTransaction ? commit() : commit.immediate();
 }
 
 export function updateScenarioTemplate(

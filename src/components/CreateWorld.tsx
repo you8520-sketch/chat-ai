@@ -7,10 +7,11 @@ import { StudioBackLink } from "@/components/studio/StudioEmptyState";
 import { StudioInput, StudioTextarea } from "@/components/studio/StudioInput";
 import StudioSaveBar from "@/components/studio/StudioSaveBar";
 import GenrePicker from "@/components/GenrePicker";
-import TrpgScenarioEditor from "@/app/trpg/TrpgScenarioEditor";
+import TrpgSimpleCreate from "@/app/trpg/TrpgSimpleCreate";
 import type { TrpgCatalog } from "@/lib/trpg/catalog";
 import type { CharacterGenre } from "@/lib/characterGenres";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
+import { parseSimpleCreatedId } from "@/lib/trpg/simpleCreate";
 import { cropImageFileToSquare } from "@/lib/worldCoverCrop";
 import {
   WORLD_CONTENT_LIMIT,
@@ -48,22 +49,22 @@ export default function CreateWorld({ worldId, showTrpg = false, catalog = null 
       <StudioBackLink href="/studio?tab=worlds">← 제작 · 세계관</StudioBackLink>
 
       <h1 className={`${studioType.heading} mt-4`}>
-        {isEdit ? "세계관 수정" : "세계관 제작"}
+        {isEdit ? "세계관 수정" : kind === "scenario" ? "TRPG 만들기" : "세계관 제작"}
       </h1>
-      <p className={`${studioType.helper} mt-2`}>
-        {isEdit
-          ? "캐릭터·시뮬레이션·TRPG에서 함께 사용할 세계관을 수정합니다."
-          : showTrpg
-            ? kind === "scenario"
-              ? "세계관만으로도 TRPG를 시작할 수 있습니다. 시나리오는 목표·전개·규칙을 더하는 선택적 확장입니다."
-              : "한 번 만든 세계관은 캐릭터·시뮬레이션·TRPG에서 함께 사용할 수 있습니다."
-            : "배경·시대·장소·세력·규칙 등을 저장해 두면, 캐릭터 제작 시 불러올 수 있습니다."}
-      </p>
+      {kind === "scenario" ? null : (
+        <p className={`${studioType.helper} mt-2`}>
+          {isEdit
+            ? "캐릭터·시뮬레이션·TRPG에서 함께 사용할 세계관을 수정합니다."
+            : showTrpg
+              ? "한 번 만든 세계관은 캐릭터·시뮬레이션·TRPG에서 함께 사용할 수 있습니다."
+              : "배경·시대·장소·세력·규칙 등을 저장해 두면, 캐릭터 제작 시 불러올 수 있습니다."}
+        </p>
+      )}
 
       {!isEdit && showTrpg ? (
         <div
           role="tablist"
-          aria-label="세계관 종류"
+          aria-label="만들 종류"
           className="mt-5 grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-[#0e1120] p-1.5"
         >
           <button
@@ -88,17 +89,16 @@ export default function CreateWorld({ worldId, showTrpg = false, catalog = null 
               kind === "scenario" ? studioSurface.tabActive : studioSurface.tabIdle,
             )}
           >
-            TRPG 시나리오
+            TRPG
           </button>
         </div>
       ) : null}
 
       {kind === "scenario" && catalog ? (
         <div className="mt-6">
-          <TrpgScenarioEditor
+          <TrpgSimpleCreate
             catalog={catalog}
-            embedded
-            returnHref="/studio?tab=worlds"
+            createdId={parseSimpleCreatedId(searchParams.get("created"))}
           />
         </div>
       ) : (

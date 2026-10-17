@@ -40,14 +40,16 @@ import {
   buildAuthoringRepairUser,
   buildTrpgScenarioDraftRequestBody,
   completeTrpgAuthoringJson,
+  completeTrpgScenarioDraftJson,
   FORM_PRESERVED_ON_TIMEOUT,
   isTrpgAuthoringTimeoutError,
   REPAIR_IS_REWRITE,
+  TrpgAuthoringEmptyError,
   TrpgAuthoringTruncatedError,
   TRPG_AUTHORING_PROVIDER_RETRY,
   TRPG_SCENARIO_DRAFT_TIMEOUT_MESSAGE,
 } from "./scenarioDraftCall";
-import { emptyTrpgScenarioPlan, lintTrpgScenarioPlan } from "./scenarioPlan";
+import { emptyTrpgScenarioPlan, hasMinimumPlayableStory, lintTrpgScenarioPlan } from "./scenarioPlan";
 import { TRPG_SCENARIO_BUNDLE_LIMIT } from "./scenarioTypes";
 
 const generated = parseScenarioDraftJson(
@@ -89,7 +91,7 @@ describe("TRPG scenario AI draft", () => {
     assert.deepEqual(body.thinking, { type: "disabled" });
     assert.equal(body.reasoning_effort, "none");
     assert.equal(body.max_tokens, 6000);
-    assert.deepEqual(body.response_format, { type: "json_object" });
+    assert.equal("response_format" in body, false);
   });
 
   it("parses JSON and forces NPC stats to null", () => {
@@ -97,6 +99,81 @@ describe("TRPG scenario AI draft", () => {
     assert.equal(generated.npcs[0]?.stats, null);
     assert.equal(generated.plan.difficulty, "hard");
     assert.equal(generated.generatedFields?.includes("npcs"), true);
+  });
+
+  it("recorded JSON-mode failures (pre-fix) are never accepted as a successful draft, with no retry", async () => {
+    const preFixOutputs = [
+      "{}",
+      '{"/fill_or_replace_fields": {}}',
+      '{"/fill_or_replace_fields": "title,summary,startingSituation,centralConflict,goal"}',
+      '{"/mnt/data/캠페인_블루프린트.json": "created"}',
+    ];
+    for (const text of preFixOutputs) {
+      let calls = 0;
+      await assert.rejects(
+        completeTrpgScenarioDraftJson({
+          kind: "scenario_draft",
+          system: "sys",
+          user: "user",
+          expectedFields: ["title", "startingSituation", "goal", "endingConditions"],
+          complete: async () => {
+            calls += 1;
+            return { text, latencyMs: 1, model: "m" };
+          },
+        }),
+        TrpgAuthoringEmptyError
+      );
+      assert.equal(calls, 1, `no hidden retry for ${text.slice(0, 24)}`);
+    }
+  });
+
+  it("prompt schema declares every list field as a string array (a bare string would be dropped by the plan parser)", () => {
+    const arrayLine = buildScenarioDraftSystemPrompt()
+      .split("\n")
+      .find((line) => line.startsWith("string arrays:"));
+    assert.ok(arrayLine);
+    for (const key of [
+      "endingConditions",
+      "majorEvents",
+      "clues",
+      "forbiddenEvents",
+      "specialRules",
+      "endingCandidates",
+      "factionChanges",
+      "startInventory",
+    ]) {
+      assert.ok(arrayLine.includes(key), key);
+    }
+    const preFixOutput = JSON.stringify({
+      title: "유령 기차의 비밀",
+      startingSituation: "폐역 대합실",
+      goal: "승객을 찾는다",
+      endingConditions: "모든 승객이 구출되거나, 기차의 저주가 풀리거나, 플레이어들이 기차에서 탈출하는 경우.",
+    });
+    assert.deepEqual(parseScenarioDraftJson(preFixOutput).plan.endingConditions, []);
+  });
+
+  it("recorded plain-output draft maps every requested field and passes the minimum story check", async () => {
+    const plainOutput = "{\n  \"title\": \"유령 기차의 비밀\",\n  \"summary\": \"비 오는 밤, 폐역에 도착한 유령 기차에서 사라진 승객들의 비밀을 추적하는 미스터리 모험.\",\n  \"startingSituation\": \"플레이어들은 비 오는 밤, 폐역 대합실에서 비를 피하고 있다. 갑자기 유령 기차가 도착하고, 승객들이 하나둘 사라진다. 플레이어들은 기차에 올라타 사라진 승객들을 찾게 된다.\",\n  \"centralConflict\": \"유령 기차는 과거에 사고로 죽은 승객들의 영혼이 반복되는 순환에 갇힌 공간이다. 기차의 정체를 밝히고, 영혼들을 해방시키는 것이 중심 갈등이다.\",\n  \"goal\": \"사라진 승객들을 찾고, 유령 기차의 비밀을 밝혀 영혼들을 해방시킨다.\",\n  \"secret\": \"유령 기차는 과거 폐역에서 발생한 열차 사고로 죽은 승객들의 영혼이 반복되는 순환에 갇힌 공간이다. 기차의 정체를 밝히고, 영혼들을 해방시키는 것이 중심 갈등이다.\",\n  \"endingConditions\": [\n    \"승객들의 영혼을 해방시키고 기차가 사라진다.\",\n    \"기차의 비밀을 밝히고 폐역을 떠난다.\"\n  ],\n  \"majorEvents\": [\n    \"기차 안에서 승객들의 과거 기억 조각 발견\",\n    \"기차의 운전사와 대면하여 사고의 진실을 알게 됨\"\n  ],\n  \"clues\": [\n    \"승객들의 유품에서 사고 당시의 신문 기사 발견\",\n    \"기차의 운전사가 남긴 일기장에서 사고의 진실 확인\"\n  ],\n  \"startLocation\": \"비 오는 밤의 폐역 대합실\",\n  \"startInventory\": [\n    \"손전등\",\n    \"낡은 지도\"\n  ],\n  \"difficulty\": \"normal\",\n  \"climax\": \"플레이어들이 기차의 운전사와 대면하여 사고의 진실을 알게 되고, 영혼들을 해방시키기 위한 마지막 선택을 한다.\"\n}";
+    const result = await completeTrpgScenarioDraftJson({
+      kind: "scenario_draft",
+      system: "sys",
+      user: "user",
+      expectedFields: ["title", "startingSituation", "goal", "endingConditions"],
+      complete: async () => ({ text: "```json\n" + plainOutput + "\n```", latencyMs: 1, model: "m" }),
+    });
+    assert.equal(result.title, "유령 기차의 비밀");
+    assert.ok(result.plan.startingSituation.includes("폐역 대합실"));
+    assert.ok(result.plan.goal.length > 0);
+    assert.equal(result.plan.endingConditions.length, 2);
+    assert.equal(result.startLocation, "비 오는 밤의 폐역 대합실");
+    assert.ok(result.generatedFields?.includes("endingConditions"));
+    assert.equal(hasMinimumPlayableStory(result.plan), true);
+    const route = readFileSync("src/app/api/trpg/scenarios/ai-draft/route.ts", "utf8");
+    assert.match(route, /completeTrpgScenarioDraftJson\(\{/);
+    assert.match(route, /SCENARIO_DRAFT_EMPTY/);
+    const call = readFileSync("src/lib/trpg/scenarioDraftCall.ts", "utf8");
+    assert.doesNotMatch(call, /EMPTY_RETRY/);
   });
 
   it("repairs malformed JSON once, does not retry transport errors, and calls once for valid JSON", async () => {
@@ -518,7 +595,6 @@ describe("TRPG scenario AI draft", () => {
     const editor = readFileSync("src/app/trpg/TrpgScenarioEditor.tsx", "utf8");
     const worldStudio = readFileSync("src/components/CreateWorld.tsx", "utf8");
     const route = readFileSync("src/app/api/trpg/scenarios/ai-draft/route.ts", "utf8");
-    assert.match(editor, /세계관 분석 · 시나리오 구성 중/);
     assert.match(editor, /세계관 선택/);
     assert.match(editor, /불러온 세계관에 덧붙일 설정/);
     assert.doesNotMatch(editor, /전체 시나리오 본문|없음 — 독립 시나리오|예전처럼|기존 형식/);
@@ -544,12 +620,12 @@ describe("TRPG scenario AI draft", () => {
     assert.doesNotMatch(editor, /title="이야기 보강"|title="GM 메모|title="공개 설정"/);
     assert.doesNotMatch(editor, /GM 비공개 설정 \(선택\)/);
     assert.doesNotMatch(editor, /피해야 할 전개/);
-    assert.match(editor, /scenarioAuthoringStarted \? \(/);
-    assert.match(editor, /세계관만으로도 TRPG를 시작할 수 있습니다/);
+    assert.doesNotMatch(editor, /scenarioAuthoringStarted/);
     assert.match(worldStudio, />\s*세계관\s*<\/button>/);
     assert.doesNotMatch(worldStudio, /캐릭터·시뮬레이션 세계관/);
     assert.match(worldStudio, /캐릭터·시뮬레이션·TRPG에서 함께 사용할/);
-    assert.match(worldStudio, /시나리오는 목표·전개·규칙을 더하는 선택적 확장/);
+    assert.match(worldStudio, /<TrpgSimpleCreate/);
+    assert.doesNotMatch(worldStudio, /<TrpgScenarioEditor/);
     assert.doesNotMatch(editor, /AI 초안은 세계관을 선택한 뒤에/);
     assert.doesNotMatch(editor, /disabled=\{draftBusy \|\| typeof worldId !== "number"\}/);
     assert.match(route, /worldId == null \? null : loadWorldForTrpg/);

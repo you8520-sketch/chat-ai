@@ -36,9 +36,8 @@ import {
   type ScenarioEditorSnapshot,
 } from "@/lib/trpg/scenarioEditorState";
 import { scenarioPersistDecision, scenarioPlayCtaLabel, trpgPlayHref } from "@/lib/trpg/scenarioHandoff";
+import { scenarioDraftErrorMessage } from "@/lib/trpg/simpleCreate";
 import {
-  countFirstCreateFilledFields,
-  countFirstCreateRemainingFields,
   evaluateScenarioReadiness,
   scenarioReadinessHeadline,
   type ScenarioReadinessField,
@@ -102,59 +101,40 @@ const DIFFICULTY_LABEL: Record<TrpgScenarioDifficulty, string> = {
   deadly: "치명적",
 };
 
-const SCENARIO_DRAFT_TIMEOUT_MESSAGE =
-  "AI 초안 생성이 예상보다 오래 걸렸습니다. 작성 중인 내용은 그대로 보존되었습니다. 잠시 후 다시 시도해 주세요.";
-
-function scenarioDraftErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    if (
-      error.name === "TimeoutError" ||
-      error.name === "AbortError" ||
-      /aborted due to timeout|timed out|timeout/i.test(error.message)
-    ) {
-      return SCENARIO_DRAFT_TIMEOUT_MESSAGE;
-    }
-    if (error.message.trim()) return error.message;
-  }
-  return "AI 초안에 실패했습니다.";
-}
-
 export default function TrpgScenarioEditor({
   catalog,
   initial,
-  embedded = false,
   returnHref = "/trpg",
 }: {
   catalog: TrpgCatalog;
-  initial?: TrpgScenarioTemplate | null;
-  embedded?: boolean;
+  initial: TrpgScenarioTemplate;
   returnHref?: string;
 }) {
   const router = useRouter();
-  const [title, setTitle] = useState(initial?.title ?? "");
-  const [summary, setSummary] = useState(initial?.summary ?? "");
-  const [content, setContent] = useState(initial?.content ?? "");
-  const [secretContent, setSecretContent] = useState(initial?.secretContent ?? "");
-  const [worldId, setWorldId] = useState<number | "">(initial?.worldId ?? "");
-  const [visibility, setVisibility] = useState<TrpgVisibility>(initial?.visibility ?? "private");
-  const [startLocation, setStartLocation] = useState(initial?.startLocation ?? "");
-  const [inventoryText, setInventoryText] = useState(() => formatInventoryAuthoringText(initial?.startInventory ?? []));
+  const [title, setTitle] = useState(initial.title ?? "");
+  const [summary, setSummary] = useState(initial.summary ?? "");
+  const [content, setContent] = useState(initial.content ?? "");
+  const [secretContent, setSecretContent] = useState(initial.secretContent ?? "");
+  const [worldId, setWorldId] = useState<number | "">(initial.worldId ?? "");
+  const [visibility, setVisibility] = useState<TrpgVisibility>(initial.visibility ?? "private");
+  const [startLocation, setStartLocation] = useState(initial.startLocation ?? "");
+  const [inventoryText, setInventoryText] = useState(() => formatInventoryAuthoringText(initial.startInventory ?? []));
   const [statKeys, setStatKeys] = useState<string[]>(() =>
-    initial?.statKeys?.length ? initial.statKeys : [...DEFAULT_TRPG_STAT_KEYS]
+    initial.statKeys?.length ? initial.statKeys : [...DEFAULT_TRPG_STAT_KEYS]
   );
-  const [npcs, setNpcs] = useState<TrpgScenarioNpc[]>(initial?.npcs?.length ? initial.npcs : []);
+  const [npcs, setNpcs] = useState<TrpgScenarioNpc[]>(initial.npcs?.length ? initial.npcs : []);
   const [genres, setGenres] = useState<CharacterGenre[]>(() =>
-    (initial?.genres ?? []).filter((genre) => genre !== "시뮬레이션")
+    (initial.genres ?? []).filter((genre) => genre !== "시뮬레이션")
   );
-  const [assets, setAssets] = useState<CharacterAsset[]>(initial?.assets ?? []);
-  const [plan, setPlan] = useState<TrpgScenarioPlan>(initial?.scenarioPlan ?? emptyTrpgScenarioPlan());
+  const [assets, setAssets] = useState<CharacterAsset[]>(initial.assets ?? []);
+  const [plan, setPlan] = useState<TrpgScenarioPlan>(initial.scenarioPlan ?? emptyTrpgScenarioPlan());
   const [lockedFields, setLockedFields] = useState<TrpgScenarioDraftField[]>([]);
   const [touchedFields, setTouchedFields] = useState<TrpgScenarioDraftField[]>(() =>
-    initial?.scenarioPlan ? ["difficulty", "playLength"] : []
+    initial.scenarioPlan ? ["difficulty", "playLength"] : []
   );
   const [aiToolsOpen, setAiToolsOpen] = useState(false);
   const [worldExtraOpen, setWorldExtraOpen] = useState(() =>
-    Boolean(initial?.worldId && initial?.content.trim())
+    Boolean(initial.worldId && initial.content.trim())
   );
   const [draftBusy, setDraftBusy] = useState(false);
   const [lintMessages, setLintMessages] = useState<string[]>([]);
@@ -162,9 +142,8 @@ export default function TrpgScenarioEditor({
   const [progress, setProgress] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [savedId, setSavedId] = useState<number | null>(initial?.id ?? null);
-  const [scenarioAuthoringActive, setScenarioAuthoringActive] = useState(Boolean(initial?.id));
-  const [characterIds, setCharacterIds] = useState<number[]>(initial?.characterIds ?? []);
+  const [savedId, setSavedId] = useState<number | null>(initial.id ?? null);
+  const [characterIds, setCharacterIds] = useState<number[]>(initial.characterIds ?? []);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function currentFields(): ScenarioEditorSnapshot {
@@ -237,7 +216,6 @@ export default function TrpgScenarioEditor({
   const hasManualEdits = lastDraftSnapshot
     ? isScenarioEditorDirty(currentFields(), lastDraftSnapshot)
     : dirty;
-  const scenarioAuthoringStarted = scenarioAuthoringActive || lastDraftSnapshot !== null;
   const readiness = useMemo(
     () =>
       evaluateScenarioReadiness({
@@ -266,9 +244,7 @@ export default function TrpgScenarioEditor({
     isEditingSaved: savedId != null,
   });
   const showAiFieldChrome = offerAiEditingTools && aiToolsOpen;
-  const firstCreateFilled = countFirstCreateFilledFields({ title, scenarioPlan: plan });
-  const firstCreateRemaining = countFirstCreateRemainingFields({ title, scenarioPlan: plan });
-  const readinessHeadline = scenarioReadinessHeadline(readiness, { firstCreateRemaining });
+  const readinessHeadline = scenarioReadinessHeadline(readiness);
 
   function leaveEditor() {
     if (
@@ -287,24 +263,20 @@ export default function TrpgScenarioEditor({
   }
 
   function patchPlan(partial: Partial<TrpgScenarioPlan>) {
-    setScenarioAuthoringActive(true);
     setPlan((prev) => ({ ...prev, ...partial }));
   }
 
   function editNpcs(updater: (prev: TrpgScenarioNpc[]) => TrpgScenarioNpc[]) {
-    setScenarioAuthoringActive(true);
     setNpcs(updater);
   }
 
   function editVisibility(next: TrpgVisibility) {
     if (next === visibility) return;
-    setScenarioAuthoringActive(true);
     setVisibility(next);
   }
 
   function editGenres(next: CharacterGenre[]) {
     if (next.length === genres.length && next.every((genre, index) => genre === genres[index])) return;
-    setScenarioAuthoringActive(true);
     setGenres(next);
   }
 
@@ -318,14 +290,12 @@ export default function TrpgScenarioEditor({
 
   function commitAssets(next: CharacterAsset[]) {
     // Aspect ratio is unrestricted — landscape, portrait, square all allowed.
-    setScenarioAuthoringActive(true);
     setAssets(next);
   }
 
   function pickFiles(list: FileList | null) {
     if (!list || list.length === 0) return;
     const room = TRPG_SCENARIO_MAX_ASSETS - assets.length;
-    setScenarioAuthoringActive(true);
     setFiles([...files, ...Array.from(list)].slice(0, room));
   }
 
@@ -467,7 +437,6 @@ export default function TrpgScenarioEditor({
     const on = statKeys.includes(key);
     const next = on ? statKeys.filter((item) => item !== key) : [...statKeys, key];
     if (next.length === 0) return;
-    setScenarioAuthoringActive(true);
     setStatKeys(defsFromKeys(next).map((definition) => definition.key));
   }
 
@@ -511,7 +480,6 @@ export default function TrpgScenarioEditor({
       );
       if (!ok) return;
     }
-    setScenarioAuthoringActive(true);
     setDraftBusy(true);
     setError("");
     try {
@@ -606,7 +574,7 @@ export default function TrpgScenarioEditor({
     const submittedFields = currentFields();
     try {
       const body = scenarioEditorSavePayload(submittedFields);
-      const targetId = savedId ?? initial?.id ?? null;
+      const targetId = savedId ?? initial.id ?? null;
       const res = await fetch(targetId ? `/api/trpg/scenarios/${targetId}` : "/api/trpg/scenarios", {
         method: targetId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
@@ -685,17 +653,16 @@ export default function TrpgScenarioEditor({
 
   const form = (
       <form id="studio-trpg-scenario-form" onSubmit={(e) => void save(e)} className="space-y-4">
-        {scenarioAuthoringStarted ? (
-          <div
-            data-scenario-readiness={readiness.status}
-            className={`rounded-xl border px-3 py-2 text-sm ${
-              readiness.status === "blocked"
-                ? "border-rose-500/30 bg-rose-500/10 text-rose-100"
-                : readiness.status === "recommended"
-                  ? "border-amber-500/20 bg-amber-500/10 text-amber-50"
-                  : "border-emerald-500/25 bg-emerald-500/10 text-emerald-50"
-            }`}
-          >
+        <div
+          data-scenario-readiness={readiness.status}
+          className={`rounded-xl border px-3 py-2 text-sm ${
+            readiness.status === "blocked"
+              ? "border-rose-500/30 bg-rose-500/10 text-rose-100"
+              : readiness.status === "recommended"
+                ? "border-amber-500/20 bg-amber-500/10 text-amber-50"
+                : "border-emerald-500/25 bg-emerald-500/10 text-emerald-50"
+          }`}
+        >
           <p className="font-semibold">{readinessHeadline}</p>
           <p className="mt-1 text-xs opacity-80">
             {saveStateLabel}
@@ -704,11 +671,6 @@ export default function TrpgScenarioEditor({
               나가기
             </button>
           </p>
-          {readiness.status === "blocked" ? (
-            <p className="mt-1 text-xs opacity-80" data-scenario-first-create-progress>
-              필수 이야기 {firstCreateFilled} / 5
-            </p>
-          ) : null}
           {readiness.blockers[0] ? (
             <button
               type="button"
@@ -736,12 +698,7 @@ export default function TrpgScenarioEditor({
           ) : (
             <p className="mt-1 text-xs opacity-80">이 시나리오는 바로 시작할 수 있습니다.</p>
           )}
-          </div>
-        ) : (
-          <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-zinc-300">
-            세계관만으로도 TRPG를 시작할 수 있습니다. 시나리오는 필요할 때 추가하세요.
-          </div>
-        )}
+        </div>
 
         <AppSectionCard title="세계관" titleVariant="prominent">
           <label className="block text-sm font-semibold text-zinc-100">
@@ -825,28 +782,6 @@ export default function TrpgScenarioEditor({
         </AppSectionCard>
 
         <AppSectionCard title="이야기" titleVariant="prominent">
-          <p className="mb-2 text-[10px] font-semibold tracking-[0.16em] text-violet-300/80">빠르게 시작</p>
-          <div className="mb-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              data-scenario-ai-primary-cta
-              disabled={draftBusy}
-              onClick={() => void requestDraft("fill_empty")}
-              className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-            >
-              {draftBusy ? (
-                <>
-                  <span className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" aria-hidden="true" />
-                  {typeof worldId === "number" ? "세계관 분석 · 시나리오 구성 중…" : "시나리오 구성 중…"}
-                </>
-              ) : (
-                "✨ AI로 시나리오 초안 만들기"
-              )}
-            </button>
-          </div>
-          <p className="mb-3 text-xs text-zinc-500">
-            직접 작성하려면 아래 기본 항목만 채우면 됩니다. AI 초안은 바로 저장되지 않습니다.
-          </p>
           {offerAiEditingTools ? (
             <div className="mb-3">
               <button
@@ -881,7 +816,6 @@ export default function TrpgScenarioEditor({
               value={title}
               maxLength={TRPG_SCENARIO_TITLE_LIMIT}
               onChange={(e) => {
-                setScenarioAuthoringActive(true);
                 setTitle(e.target.value);
               }}
               className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
@@ -898,7 +832,6 @@ export default function TrpgScenarioEditor({
               value={summary}
               maxLength={summaryMax}
               onChange={(e) => {
-                setScenarioAuthoringActive(true);
                 setSummary(e.target.value);
               }}
               className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
@@ -945,7 +878,6 @@ export default function TrpgScenarioEditor({
               rows={4}
               placeholder={SCENARIO_STORY_FIELD_COPY.gmNotes.placeholder}
               onChange={(e) => {
-                setScenarioAuthoringActive(true);
                 setSecretContent(e.target.value);
               }}
               className="mt-1 w-full rounded-xl border border-amber-500/20 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
@@ -1012,7 +944,6 @@ export default function TrpgScenarioEditor({
             <input
               value={startLocation}
               onChange={(e) => {
-                setScenarioAuthoringActive(true);
                 setStartLocation(e.target.value);
               }}
               className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
@@ -1026,7 +957,6 @@ export default function TrpgScenarioEditor({
               aria-invalid={!inventory.ok}
               aria-describedby={inventory.ok ? undefined : "scenario-inventory-error"}
               onChange={(e) => {
-                setScenarioAuthoringActive(true);
                 setInventoryText(e.target.value);
               }}
               className={`mt-1 min-h-10 w-full rounded-xl border bg-[#161922] px-3 text-sm text-zinc-100 ${
@@ -1346,19 +1276,10 @@ export default function TrpgScenarioEditor({
     </StudioSaveBar>
   );
 
-  if (embedded) {
-    return (
-      <div className="pb-24">
-        {form}
-        {saveBar}
-      </div>
-    );
-  }
-
   return (
     <AppPageShell
-      title={initial ? "TRPG 시나리오 수정" : "TRPG 시나리오 만들기"}
-      description="세계관만으로도 TRPG를 시작할 수 있고, 시나리오는 목표·전개·규칙을 더하는 선택 확장입니다."
+      title="TRPG 시나리오 수정"
+      description="AI가 만든 모험을 원하는 만큼만 고쳐 쓰세요. 수정하지 않아도 바로 플레이할 수 있습니다."
       narrow
     >
       <div className="pb-24">

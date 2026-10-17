@@ -53,9 +53,6 @@ export type ScenarioReadiness = {
   canPlay: boolean;
 };
 
-/** First-create writing decisions for the simplified basic authoring UI. */
-export const FIRST_CREATE_VISIBLE_FIELDS = ["title", "startingSituation", "goal"] as const;
-
 export function namedNpcCount(raw: unknown): number {
   if (!Array.isArray(raw)) return 0;
   return raw.filter(
@@ -223,38 +220,8 @@ export function evaluateScenarioReadiness(input: ScenarioReadinessInput): Scenar
   };
 }
 
-export function countFirstCreateFilledFields(input: {
-  title: string;
-  scenarioPlan: TrpgScenarioPlan | null | undefined;
-}): number {
-  const plan = input.scenarioPlan;
-  return [
-    Boolean(String(input.title ?? "").trim()),
-    Boolean(plan?.startingSituation.trim()),
-    Boolean(plan?.goal.trim()),
-  ].filter(Boolean).length;
-}
-
-export function countFirstCreateRemainingFields(input: {
-  title: string;
-  scenarioPlan: TrpgScenarioPlan | null | undefined;
-}): number {
-  return FIRST_CREATE_VISIBLE_FIELDS.length - countFirstCreateFilledFields(input);
-}
-
-export type ScenarioReadinessHeadlineOptions = {
-  firstCreateRemaining?: number;
-};
-
-export function scenarioReadinessHeadline(
-  readiness: ScenarioReadiness,
-  options?: ScenarioReadinessHeadlineOptions
-): string {
+export function scenarioReadinessHeadline(readiness: ScenarioReadiness): string {
   if (readiness.status === "blocked") {
-    const remaining = options?.firstCreateRemaining;
-    if (remaining != null && remaining > 0) {
-      return `아직 ${remaining}개 항목이 필요합니다`;
-    }
     return readiness.blockers.length > 1
       ? `아직 ${readiness.blockers.length}개 항목이 필요합니다`
       : "아직 플레이할 수 없습니다";
