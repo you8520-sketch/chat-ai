@@ -176,6 +176,7 @@ export function composeOfficialSlotGeneration(input: {
     styleSeed: input.style.styleSeed,
     representativeUrl: input.representativeUrl,
     samePersonIdentityStyleUrl: input.samePersonIdentityStyleUrl,
+    representativeIdentityStyle: input.character.generationReferencePolicy,
   });
   if (!generation.ok) {
     return { ok: false, error: generation.reason };

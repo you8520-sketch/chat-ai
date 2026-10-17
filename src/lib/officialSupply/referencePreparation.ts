@@ -4,6 +4,7 @@ import path from "node:path";
 import sharp from "sharp";
 
 import { filenameFromUploadUrl, resolveExistingUploadPath } from "@/lib/uploadStorage";
+import { parseOfficialApprovedAssetReference } from "@/lib/officialSupply/generationReferences";
 import { CLUSTER_B_PRIMARY_STYLE_PATH } from "@/lib/officialSupply/userOwnedRofanStyleRefs";
 import { OfficialImageTransportError } from "@/lib/officialSupply/runner";
 
@@ -118,6 +119,13 @@ function platformPublicReferencePath(source: string, env: NodeJS.ProcessEnv): st
 
 async function readReference(source: string, env: NodeJS.ProcessEnv): Promise<Buffer> {
   if (source.startsWith(REVIEW_CANDIDATE_SCHEME)) return readReviewCandidate(source);
+  const approved = parseOfficialApprovedAssetReference(source);
+  if (approved) {
+    const buffer = await readReference(approved.url, env);
+    const digest = createHash("sha256").update(buffer).digest("hex");
+    if (digest !== approved.sha256) throw new Error("approved asset hash mismatch");
+    return buffer;
+  }
 
   const uploadName = filenameFromUploadUrl(source);
   if (uploadName) {

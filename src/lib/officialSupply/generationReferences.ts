@@ -5,8 +5,39 @@ import {
   resolveOfficialStyleGenerationReferences,
   validateClusterBStyleSeedForApproval,
 } from "@/lib/officialSupply/style";
-import type { OfficialAssetSlotKind, StyleReference } from "@/lib/officialSupply/types";
+import type {
+  OfficialAssetSlotKind,
+  OfficialGenerationReferencePolicy,
+  StyleReference,
+} from "@/lib/officialSupply/types";
 import { isOfficialClusterBPrimaryStyleRef } from "@/lib/officialSupply/userOwnedRofanStyleRefs";
+
+const APPROVED_ASSET_SCHEME = "official-approved-asset:";
+const SHA256_HEX = /^[a-f0-9]{64}$/;
+const ASSET_STORAGE_URL = /^(\/uploads\/|https:\/\/)/i;
+
+/**
+ * Approved representative read through normal asset storage. Preparation
+ * reads `url` and refuses bytes whose SHA-256 differs from the approved file.
+ */
+export function officialApprovedAssetReference(url: string, sha256: string): string {
+  const digest = sha256.trim().toLowerCase();
+  const source = url.trim();
+  if (!SHA256_HEX.test(digest)) throw new Error("approved asset sha256 must be 64 lowercase hex characters");
+  if (!ASSET_STORAGE_URL.test(source)) throw new Error("approved asset must be an asset storage url");
+  return `${APPROVED_ASSET_SCHEME}${digest}:${source}`;
+}
+
+export function parseOfficialApprovedAssetReference(source: string): { sha256: string; url: string } | null {
+  if (!source.startsWith(APPROVED_ASSET_SCHEME)) return null;
+  const rest = source.slice(APPROVED_ASSET_SCHEME.length);
+  const sha256 = rest.slice(0, 64);
+  const url = rest.slice(65);
+  if (rest[64] !== ":" || !SHA256_HEX.test(sha256) || !ASSET_STORAGE_URL.test(url)) {
+    throw new Error("invalid approved asset reference");
+  }
+  return { sha256, url };
+}
 
 export type OfficialGenerationReferencePlan =
   | {
@@ -39,7 +70,8 @@ export type OfficialGenerationReferencePlanFailure = {
     | "unsafe_style_root"
     | "invalid_cluster_b_seed"
     | "missing_style_seed"
-    | "role_conflict";
+    | "role_conflict"
+    | "reference_policy_stale";
 };
 
 export type OfficialGenerationReferencePlanResult =
@@ -56,6 +88,12 @@ export type OfficialGenerationReferenceInput = {
    * Production callers omit it. Representative STYLE ONLY rejects it.
    */
   samePersonIdentityStyleUrl?: string | null;
+  /**
+   * Stored per-character policy: the approved representative alone owns
+   * identity and style for variations. Characters without it keep the
+   * default path (Cluster B identity-then-style).
+   */
+  representativeIdentityStyle?: OfficialGenerationReferencePolicy | null;
 };
 
 /**
@@ -168,12 +206,68 @@ function samePersonIdentityStylePlan(
   }
 }
 
+function approvedRepresentativePlan(
+  input: OfficialGenerationReferenceInput,
+  policy: OfficialGenerationReferencePolicy
+): OfficialGenerationReferencePlanResult {
+  if (input.samePersonIdentityStyleUrl?.trim()) {
+    return fail("role_conflict", "the approved representative already owns identity and style");
+  }
+  switch (input.kind) {
+    case "representative":
+      return fail(
+        "role_conflict",
+        "the representative is the approved identity and style reference and is not regenerated"
+      );
+    case "signature":
+    case "emotion":
+    case "scene": {
+      const representative = input.representativeUrl?.trim() ?? "";
+      if (!representative || representative !== policy.url) {
+        return fail(
+          "reference_policy_stale",
+          "the stored reference policy does not name the current representative"
+        );
+      }
+      let reference: string;
+      try {
+        reference = officialApprovedAssetReference(policy.url, policy.sha256);
+      } catch (error) {
+        return fail("reference_policy_stale", error instanceof Error ? error.message : String(error));
+      }
+      return {
+        ok: true,
+        plan: {
+          mode: "variation_identity_and_style",
+          references: [reference],
+          referenceRoleLayout: "identity_and_style",
+        },
+      };
+    }
+    default: {
+      const exhaustive: never = input.kind;
+      throw new Error(`Unknown official asset slot kind ${String(exhaustive)}`);
+    }
+  }
+}
+
 /**
  * Canonical generation-reference plan: references, order, and prompt role together.
  */
 export function resolveOfficialGenerationReferencePlan(
   input: OfficialGenerationReferenceInput
 ): OfficialGenerationReferencePlanResult {
+  const policy = input.representativeIdentityStyle;
+  if (policy) {
+    switch (policy.mode) {
+      case "representative_identity_and_style":
+        return approvedRepresentativePlan(input, policy);
+      default: {
+        const exhaustive: never = policy.mode;
+        return fail("reference_policy_stale", `unknown reference policy ${String(exhaustive)}`);
+      }
+    }
+  }
   const samePerson = input.samePersonIdentityStyleUrl?.trim() ?? "";
   if (samePerson) return samePersonIdentityStylePlan(input, samePerson);
   switch (input.kind) {
