@@ -1,0 +1,194 @@
+{
+  "create-667x375-kb0": {
+    "url": "/create",
+    "header": 98,
+    "cssVar": 98,
+    "editor": true,
+    "keyboard": false,
+    "strip": "absent",
+    "navs": [
+      {
+        "display": "none",
+        "h": 0,
+        "w": 0
+      },
+      {
+        "display": "flex",
+        "h": 45,
+        "w": 620
+      }
+    ],
+    "free": 208,
+    "vv": 375,
+    "tabs": "sticky",
+    "bar": "fixed"
+  },
+  "create-667x375-kb190": {
+    "url": "/create",
+    "header": 98,
+    "cssVar": 98,
+    "editor": true,
+    "keyboard": true,
+    "strip": "absent",
+    "navs": [
+      {
+        "display": "none",
+        "h": 0,
+        "w": 0
+      },
+      {
+        "display": "flex",
+        "h": 45,
+        "w": 620
+      }
+    ],
+    "free": 87,
+    "vv": 185,
+    "tabs": "static",
+    "bar": "static"
+  },
+  "create-740x360-kb180": {
+    "url": "/create",
+    "header": 98,
+    "cssVar": 98,
+    "editor": true,
+    "keyboard": true,
+    "strip": "absent",
+    "navs": [
+      {
+        "display": "none",
+        "h": 0,
+        "w": 0
+      },
+      {
+        "display": "flex",
+        "h": 45,
+        "w": 693
+      }
+    ],
+    "free": 82,
+    "vv": 180,
+    "tabs": "static",
+    "bar": "static"
+  },
+  "create-844x390-kb200": {
+    "url": "/create",
+    "header": 98,
+    "cssVar": 98,
+    "editor": true,
+    "keyboard": true,
+    "strip": "absent",
+    "navs": [
+      {
+        "display": "none",
+        "h": 0,
+        "w": 0
+      },
+      {
+        "display": "flex",
+        "h": 45,
+        "w": 797
+      }
+    ],
+    "free": 92,
+    "vv": 190,
+    "tabs": "static",
+    "bar": "static"
+  },
+  "create-932x430-kb215": {
+    "url": "/create",
+    "header": 98,
+    "cssVar": 98,
+    "editor": true,
+    "keyboard": true,
+    "strip": "absent",
+    "navs": [
+      {
+        "display": "none",
+        "h": 0,
+        "w": 0
+      },
+      {
+        "display": "flex",
+        "h": 45,
+        "w": 885
+      }
+    ],
+    "free": 117,
+    "vv": 215,
+    "tabs": "static",
+    "bar": "static"
+  },
+  "create-390x844-kb330": {
+    "url": "/create",
+    "header": 98,
+    "cssVar": 98,
+    "editor": true,
+    "keyboard": true,
+    "strip": "absent",
+    "navs": [
+      {
+        "display": "none",
+        "h": 0,
+        "w": 0
+      },
+      {
+        "display": "flex",
+        "h": 45,
+        "w": 351
+      }
+    ],
+    "free": 307,
+    "vv": 514,
+    "tabs": "sticky",
+    "bar": "fixed"
+  },
+  "create-1280x800-kb300": {
+    "url": "/create",
+    "header": 65,
+    "cssVar": 65,
+    "editor": true,
+    "keyboard": true,
+    "strip": "absent",
+    "navs": [
+      {
+        "display": "flex",
+        "h": 44,
+        "w": 353
+      },
+      {
+        "display": "none",
+        "h": 0,
+        "w": 0
+      }
+    ],
+    "free": 366,
+    "vv": 500,
+    "tabs": "sticky",
+    "bar": "fixed"
+  },
+  "search-667x375-kb190": {
+    "url": "/search",
+    "header": 98,
+    "cssVar": 98,
+    "editor": false,
+    "keyboard": true,
+    "strip": "absent",
+    "navs": [
+      {
+        "display": "none",
+        "h": 0,
+        "w": 0
+      },
+      {
+        "display": "flex",
+        "h": 45,
+        "w": 620
+      }
+    ],
+    "free": 87,
+    "vv": 185,
+    "tabs": null,
+    "bar": null
+  }
+}

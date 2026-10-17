@@ -1,0 +1,190 @@
+TAP version 13
+# Subtest: E4-3B fixed bottom chrome
+    # Subtest: loads the session once in the root layout and hands it to Header
+    ok 1 - loads the session once in the root layout and hands it to Header
+      ---
+      duration_ms: 0.608218
+      ...
+    # Subtest: places the bottom nav after main and the footer so Tab order follows the screen
+    ok 2 - places the bottom nav after main and the footer so Tab order follows the screen
+      ---
+      duration_ms: 0.148172
+      ...
+    # Subtest: hides the bottom nav in chat and TRPG rooms, whose docks own the bottom edge
+    ok 3 - hides the bottom nav in chat and TRPG rooms, whose docks own the bottom edge
+      ---
+      duration_ms: 0.067587
+      ...
+    # Subtest: derives every bottom reserve from one nav-height token
+    ok 4 - derives every bottom reserve from one nav-height token
+      ---
+      duration_ms: 0.215838
+      ...
+    # Subtest: docks the studio save bar on the nav and keyboard offsets without raising z-index
+    ok 5 - docks the studio save bar on the nav and keyboard offsets without raising z-index
+      ---
+      duration_ms: 0.071292
+      ...
+    # Subtest: scopes the short-landscape keyboard release to mounted studio editors
+    ok 6 - scopes the short-landscape keyboard release to mounted studio editors
+      ---
+      duration_ms: 0.733725
+      ...
+    # Subtest: leaves discovery to the header row, so the home page carries no second tab set
+    ok 7 - leaves discovery to the header row, so the home page carries no second tab set
+      ---
+      duration_ms: 0.125021
+      ...
+    # Subtest: registers the keyboard inset publisher once in the layout
+    ok 8 - registers the keyboard inset publisher once in the layout
+      ---
+      duration_ms: 0.137353
+      ...
+    1..8
+ok 1 - E4-3B fixed bottom chrome
+  ---
+  duration_ms: 2.900912
+  type: 'suite'
+  ...
+# Subtest: computeKeyboardInset
+    # Subtest: is 0 with no keyboard
+    ok 1 - is 0 with no keyboard
+      ---
+      duration_ms: 0.154805
+      ...
+    # Subtest: ignores URL-bar sized changes below the threshold
+    ok 2 - ignores URL-bar sized changes below the threshold
+      ---
+      duration_ms: 0.141735
+      ...
+    # Subtest: reports the covered height once the keyboard opens
+    ok 3 - reports the covered height once the keyboard opens
+      ---
+      duration_ms: 0.056237
+      ...
+    # Subtest: subtracts a scrolled visual viewport (iOS shifts offsetTop)
+    ok 4 - subtracts a scrolled visual viewport (iOS shifts offsetTop)
+      ---
+      duration_ms: 0.070988
+      ...
+    # Subtest: is 0 while pinch-zoomed
+    ok 5 - is 0 while pinch-zoomed
+      ---
+      duration_ms: 0.03916
+      ...
+    1..5
+ok 2 - computeKeyboardInset
+  ---
+  duration_ms: 0.589638
+  type: 'suite'
+  ...
+# Subtest: E4-3B candidate A — header strip owns mobile discovery
+    # Subtest: renders the strip below lg at every width, inside the sticky header, and still hides it in chat rooms
+    ok 1 - renders the strip below lg at every width, inside the sticky header, and still hides it in chat rooms
+      ---
+      duration_ms: 0.081015
+      ...
+    # Subtest: anchors the TRPG mobile tools panel to the measured header height, not a fixed 64px guess
+    ok 2 - anchors the TRPG mobile tools panel to the measured header height, not a fixed 64px guess
+      ---
+      duration_ms: 4.608909
+      ...
+    # Subtest: keeps the active tab in view when the strip scrolls
+    ok 3 - keeps the active tab in view when the strip scrolls
+      ---
+      duration_ms: 0.087918
+      ...
+    1..3
+ok 3 - E4-3B candidate A — header strip owns mobile discovery
+  ---
+  duration_ms: 4.861871
+  type: 'suite'
+  ...
+# Subtest: E4-7 /create fixed bars own the scroll padding they cover
+    # Subtest: reserves save bar + bottom nav + keyboard inset below focused fields
+    ok 1 - reserves save bar + bottom nav + keyboard inset below focused fields
+      ---
+      duration_ms: 0.088992
+      ...
+    # Subtest: reserves header + sticky tab bar above focused fields and releases it on unmount
+    ok 2 - reserves header + sticky tab bar above focused fields and releases it on unmount
+      ---
+      duration_ms: 0.068984
+      ...
+    # Subtest: jumps to the label row so the field title is not hidden behind the tab bar
+    ok 3 - jumps to the label row so the field title is not hidden behind the tab bar
+      ---
+      duration_ms: 0.043408
+      ...
+    1..3
+ok 4 - E4-7 /create fixed bars own the scroll padding they cover
+  ---
+  duration_ms: 0.256092
+  type: 'suite'
+  ...
+# Subtest: E4-3A navigation chrome
+    # Subtest: shows exactly one main-tab row at every width (inline from lg, strip below lg)
+    ok 1 - shows exactly one main-tab row at every width (inline from lg, strip below lg)
+      ---
+      duration_ms: 6.199421
+      ...
+    # Subtest: renders the strip row inside the sticky header so the rail geometry follows its height
+    ok 2 - renders the strip row inside the sticky header so the rail geometry follows its height
+      ---
+      duration_ms: 0.142312
+      ...
+    # Subtest: keeps every main-tab destination and no menu transition marker
+    ok 3 - keeps every main-tab destination and no menu transition marker
+      ---
+      duration_ms: 0.103526
+      ...
+    # Subtest: keeps the mobile bottom nav destinations, hides it from 576px, and honors the iOS safe area
+    ok 4 - keeps the mobile bottom nav destinations, hides it from 576px, and honors the iOS safe area
+      ---
+      duration_ms: 0.196256
+      ...
+    # Subtest: exposes settings and logout from 576px so no width loses account access
+    ok 5 - exposes settings and logout from 576px so no width loses account access
+      ---
+      duration_ms: 0.095071
+      ...
+    # Subtest: marks the active destination with aria-current in header, rail and bottom nav
+    ok 6 - marks the active destination with aria-current in header, rail and bottom nav
+      ---
+      duration_ms: 0.114373
+      ...
+    # Subtest: keeps header chrome text at 11px or larger and notification counts capped at 99+
+    ok 7 - keeps header chrome text at 11px or larger and notification counts capped at 99+
+      ---
+      duration_ms: 0.24422
+      ...
+    # Subtest: keeps the points tooltip inside the viewport by anchoring it to the chip's right edge
+    ok 8 - keeps the points tooltip inside the viewport by anchoring it to the chip's right edge
+      ---
+      duration_ms: 0.133998
+      ...
+    # Subtest: keeps the safety filter a single labelled 36px toggle with explicit ON/OFF state
+    ok 9 - keeps the safety filter a single labelled 36px toggle with explicit ON/OFF state
+      ---
+      duration_ms: 0.172805
+      ...
+    # Subtest: keeps header action hit areas at least 36px
+    ok 10 - keeps header action hit areas at least 36px
+      ---
+      duration_ms: 0.295376
+      ...
+    1..10
+ok 5 - E4-3A navigation chrome
+  ---
+  duration_ms: 8.44366
+  type: 'suite'
+  ...
+1..5
+# tests 29
+# suites 5
+# pass 29
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 653.124305
