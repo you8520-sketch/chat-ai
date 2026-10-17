@@ -54,6 +54,21 @@ describe("E4-3B fixed bottom chrome", () => {
     assert.match(saveBar, /pb-0 min-\[576px\]:pb-\[env\(safe-area-inset-bottom\)\]/);
   });
 
+  it("scopes the short-landscape keyboard release to mounted studio editors", () => {
+    const create = read("src/components/CreateCharacter.tsx");
+    assert.match(saveBar, /root\.setAttribute\("data-studio-editor", ""\)/);
+    assert.match(saveBar, /root\.removeAttribute\("data-studio-editor"\)/);
+    assert.match(saveBar, /"studio-save-bar fixed/);
+    assert.match(create, /"studio-sticky-tabs sticky /);
+    const rule = css.match(/@media \(max-height: 500px\) \{[\s\S]*?\n\}\n/);
+    assert.ok(rule, "short-screen keyboard rule exists");
+    const selectors = [...rule[0].matchAll(/^\s*(html[^{]*?)\s*\{/gm)].map((m) => m[1]);
+    assert.ok(selectors.length >= 2);
+    for (const selector of selectors) {
+      assert.match(selector, /^html\[data-studio-editor\]\[data-keyboard-open\]/, selector);
+    }
+  });
+
   it("leaves discovery to the header row, so the home page carries no second tab set", () => {
     assert.doesNotMatch(home, /MobileDiscoveryNav|MOBILE_DISCOVERY_TABS/);
   });

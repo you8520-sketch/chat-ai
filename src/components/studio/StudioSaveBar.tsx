@@ -29,6 +29,8 @@ type Props = {
  * Docks directly above the mobile bottom nav (--mobile-nav-offset) and above the
  * on-screen keyboard (--keyboard-inset) so the save/cancel buttons stay reachable, and
  * publishes its height as --studio-save-bar-h so the page footer can reserve room for it.
+ * While mounted it marks <html data-studio-editor>; on short landscape screens with the keyboard open
+ * the bar flows with the page (see globals.css).
  */
 export default function StudioSaveBar({
   onSave,
@@ -47,6 +49,7 @@ export default function StudioSaveBar({
     const bar = barRef.current;
     if (!bar) return;
     const root = document.documentElement;
+    root.setAttribute("data-studio-editor", "");
     const publish = () => {
       const height = `${Math.ceil(bar.getBoundingClientRect().height)}px`;
       root.style.setProperty("--studio-save-bar-h", height);
@@ -60,6 +63,7 @@ export default function StudioSaveBar({
     observer.observe(bar);
     return () => {
       observer.disconnect();
+      root.removeAttribute("data-studio-editor");
       root.style.removeProperty("--studio-save-bar-h");
       root.style.removeProperty("scroll-padding-bottom");
     };
@@ -70,7 +74,7 @@ export default function StudioSaveBar({
       ref={barRef}
       data-testid="studio-save-bar"
       className={cn(
-        "fixed inset-x-0 bottom-[calc(var(--mobile-nav-offset)+var(--keyboard-inset))] z-40 border-t border-white/10 bg-[#0b0d14]/95 backdrop-blur-md",
+        "studio-save-bar fixed inset-x-0 bottom-[calc(var(--mobile-nav-offset)+var(--keyboard-inset))] z-40 border-t border-white/10 bg-[#0b0d14]/95 backdrop-blur-md",
         "pb-0 min-[576px]:pb-[env(safe-area-inset-bottom)]",
         className,
       )}

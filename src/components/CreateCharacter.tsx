@@ -706,8 +706,9 @@ export default function CreateCharacter({
     const headerH = Number.parseFloat(
       getComputedStyle(document.documentElement).getPropertyValue("--site-header-height"),
     );
-    const offset =
-      (Number.isFinite(headerH) ? headerH : 44) + (tabListRef.current?.offsetHeight ?? 0) + 12;
+    const tabs = tabListRef.current;
+    const stuckTabsH = tabs && getComputedStyle(tabs).position === "sticky" ? tabs.offsetHeight : 0;
+    const offset = (Number.isFinite(headerH) ? headerH : 44) + stuckTabsH + 12;
     // Anchor on the label row so the field's title is not left behind the sticky header + tabs.
     const anchor =
       (el as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).labels?.[0]?.parentElement ?? el;
@@ -1555,7 +1556,7 @@ export default function CreateCharacter({
         ref={tabListRef}
         className={cn(
           studioSurface.tabList,
-          "sticky top-[var(--site-header-height,44px)] z-30 mt-6 bg-[#0e1120]/95 backdrop-blur-md",
+          "studio-sticky-tabs sticky top-[var(--site-header-height,44px)] z-30 mt-6 bg-[#0e1120]/95 backdrop-blur-md",
         )}
         role="tablist"
         aria-label="캐릭터·시뮬레이션 제작 탭"
