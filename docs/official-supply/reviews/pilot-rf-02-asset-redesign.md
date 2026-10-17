@@ -584,7 +584,7 @@ POST 1회. 원본 바이트를 검사보다 먼저 저장했고 SHA가 같다. �
 
 옅은 미소와 휴식: 입꼬리가 올라가고 이는 보이지 않는다. 창가 돌 난간에 앉아 상체를 돌리고 양손은 허벅지 위다. 음식·서류·열쇠 전달과 상대 인물은 없다. 배경은 창과 요새다. 집무실 책상은 없다. 카메라는 아래에서 올려 보는 쪽에 가깝고 무릎 이상이다.
 
-화면 기준 좌우: 코끝은 화면 왼쪽을 향한다. 보이는 귀는 화면 오른쪽 귀이고, 마주 본 기준으로는 왼쪽 귀다. 화면에서 더 넓게 열린 볼은 화면 왼쪽 볼이고, 마주 본 기준으로는 오른쪽 볼이다. 샷 문장 `head turned right three-quarter view`는 화면 오른쪽인지 인물 오른쪽인지 그 문장만으로 정하지 않는다. 이 관찰만으로 구도 실패를 선언하지 않고 재생성하지 않는다.
+화면 기준 좌우를 이미지마다 따로 적는다. F 원본은 코가 화면 왼쪽을 향하고, 보이는 귀는 화면 오른쪽 귀다. 마주 본 기준으로 그 귀는 왼쪽 귀다. 화면에서 더 넓게 열린 볼은 화면 왼쪽 볼이고, 마주 본 기준으로는 오른쪽 볼이다. 옅은 미소 후보는 코가 화면 오른쪽을 향하고, 보이는 귀는 화면 왼쪽 귀다. 샷 문장 `head turned right three-quarter view`는 화면 오른쪽인지 인물 오른쪽인지 그 문장만으로 정하지 않는다. 이 관찰만으로 구도 실패를 선언하지 않고 재생성하지 않는다.
 
 승인 외형: 회청 눈, 검은 머리, 흑철과 검은 모피는 남는다. 승인 흉터는 왼쪽 턱 아래의 가는 흉터다. 이 구도에서 그 흉터는 분명하지 않다. 뺨에 짧은 선이 있어도 그 선을 승인 흉터의 구현으로 세지 않는다. 구도를 바꿔 흉터를 보이게 하지 않는다. 늑대 걸쇠·체인·벽 문양은 추가 장식이다. 명시적 금지 근거 없이 Lock 위반으로 단정하지 않는다.
 
@@ -604,12 +604,18 @@ POST 1회. 원본 바이트를 검사보다 먼저 저장했고 SHA가 같다. �
 
 ## 17. identity+style을 기존 조립 owner에 연결
 
-같은 인물·그림체와 미소·휴식은 채택 가능한 방향이다. 전체 자동화 품질 합격이나 운영 대표·앵커 교체는 아니다. 이번 연결은 provider 호출이 없다.
+같은 인물·그림체와 미소·휴식은 채택 가능한 방향이다. 전체 자동화 품질 합격이나 운영 대표·앵커 교체는 아니다. 이미지를 다시 생성하지 않는다.
 
 조건은 합성 뒤 프롬프트를 치환하지 않는다. `resolveOfficialGenerationReferencePlan`이 로컬 이미지 한 장을 `variation_identity_and_style`로 고르고, `buildOfficialAssetPrompts`가 `identity_and_style` 규칙을 만든다. `composeOfficialSlotGeneration`과 `runOfficialAssetSlot`이 그 결과를 전송 직전 `transport.generate` 입력으로 넘긴다. 로컬 입력이 없으면 대표 STYLE ONLY와 Cluster B identity-then-style은 그대로다.
 
-F는 로컬 후보 경로로만 넣었다. SHA `a95f9aca…0f8032`. 운영 대표 URL과 b7 style root는 참조에서 빠진다. 원고, Appearance Lock, 34세 나이 가드, sig4 샷·표정·포즈는 프롬프트에 남는다. 참조의 자세와 배경은 따라오지 않는다. STYLE ONLY, IDENTITY ONLY, ART STYLE DNA는 다시 넣지 않는다.
+F는 검토 자산 후보로만 넣는다. 런타임은 F 경로를 하드코딩하지 않는다. 호출자가 `officialReviewCandidateReference`로 저장소 상대 경로와 원본 SHA를 지정한다. 경로는 `docs/official-supply/reviews/assets/` 안으로 제한된다. 임의의 로컬 파일과 절대 경로는 받지 않는다. F 원본 SHA `a95f9aca…0f8032`, 249520바이트.
+
+`prepareOfficialImageReferences`가 그 토큰을 읽는다. 원본 SHA가 맞은 뒤에만 기존 전처리(회전, 1536 이내, webp q90)로 이미지 데이터를 만든다. F 전처리 결과는 SHA `39d425e5…2ae1c7`, 231636바이트, 1024x1536 webp다. 이 해시는 이미 생성에 쓴 전처리와 같다. 파일이 없거나 SHA가 다르면 provider 호출 전에 `providerAttempted: false`, 비용 0으로 실패한다. 절대 경로도 같은 단계에서 `unsupported reference source`로 실패한다.
+
+운영 대표 URL과 b7 style root는 참조에서 빠진다. 원고, Appearance Lock, 34세 나이 가드, sig4 샷·표정·포즈는 프롬프트에 남는다. 참조의 자세와 배경은 따라오지 않는다. STYLE ONLY, IDENTITY ONLY, ART STYLE DNA는 다시 넣지 않는다.
 
 역할 충돌은 전송 전에 거절한다. 대표 슬롯에 이 입력을 주면 STYLE ONLY로 섞지 않는다. STYLE root, b7 경로, 운영 대표 URL을 이 한 장으로 쓰면 거절한다.
 
-전송 직전 입력은 `officialSupply.identityStyleReference.test.ts`가 runner payload와 compose 결과가 같음을 확인했다. 네트워크 호출은 0이다. 조립 전문은 `assets/wolfgang-asset-redesign/sig4-smile-f-owner-prompt.txt`다. 요약은 `sig4-smile-f-owner-request.json`이다. primary SHA `8847a0d3…c2f7e5ff`. 운영 JSON의 sig4 태그는 여전히 `절제된 온기`다.
+조립 확인은 `officialSupply.identityStyleReference.test.ts`다. runner payload와 compose 결과가 같고, 참조 문자열은 후보 토큰이다. 그 테스트는 transport를 대체하므로 준비 단계의 증거가 아니다. 준비 증거는 `officialSupply.reviewCandidatePreparation.test.ts`다. 실제 `openAiOfficialImageTransport`가 `prepareOfficialImageReferences`를 호출하고, 이미지 바이트를 `https://api.openai.com/v1/images/edits` POST 본문에 넣은 뒤 응답 전에 중단한다. provider 응답은 없다. 누락·해시 불일치·절대 경로는 fetch가 0회다. 기록은 `sig4-smile-f-reference-preparation.json`이다.
+
+조립 전문은 `assets/wolfgang-asset-redesign/sig4-smile-f-owner-prompt.txt`다. 요약은 `sig4-smile-f-owner-request.json`이다. primary SHA `8847a0d3…c2f7e5ff`. 운영 JSON의 sig4 태그는 여전히 `절제된 온기`다.

@@ -6,7 +6,7 @@
   "size": "1536x1024",
   "referenceRoleLayout": "identity_and_style",
   "references": [
-    "/workspace/docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp"
+    "official-review-candidate:a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032:docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp"
   ],
   "localFile": "docs/official-supply/reviews/assets/wolfgang-asset-redesign/rep-f-raw.webp",
   "localFileSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
