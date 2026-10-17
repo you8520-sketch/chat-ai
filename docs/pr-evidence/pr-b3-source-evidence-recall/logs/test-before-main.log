@@ -43,9 +43,9 @@ TAP version 13
       failureType: 'testCodeFailure'
       error: |-
         The input did not match the regular expression /사정이 생겨서/. Input:
-        
+
         '금요일 저녁 한강에서 같이 야경을 보기로 했다. (제10턴 약속 → 제20턴 해제)'
-        
+
       code: 'ERR_ASSERTION'
       name: 'AssertionError'
       expected:
@@ -88,9 +88,9 @@ TAP version 13
       failureType: 'testCodeFailure'
       error: |-
         The input did not match the regular expression /제10턴 약속 → 제20턴 해제/. Input:
-        
+
         '45번 창고 열쇠를 월요일에 정산하기로 했다. (제206턴 약속 → 제208턴 해제)'
-        
+
       code: 'ERR_ASSERTION'
       name: 'AssertionError'
       expected:
@@ -110,9 +110,9 @@ TAP version 13
       failureType: 'testCodeFailure'
       error: |-
         The expression evaluated to a falsy value:
-        
+
           assert.deepEqual(visible, [], "regenerating the cancel turn hides its own cancellation")
-        
+
       code: 'ERR_ASSERTION'
       name: 'AssertionError'
       expected: true
@@ -147,7 +147,7 @@ TAP version 13
       failureType: 'testCodeFailure'
       error: |-
         The expression evaluated to a falsy value:
-        
+
           getDb().transaction(() => {
           commitManualGlobalCheckpointCore(getDb(), {
           chatId: CHAT_ID,
@@ -155,7 +155,7 @@ TAP version 13
           archiveSummary: "",
           });
           })
-        
+
       code: 'ERR_ASSERTION'
       name: 'AssertionError'
       expected: true
