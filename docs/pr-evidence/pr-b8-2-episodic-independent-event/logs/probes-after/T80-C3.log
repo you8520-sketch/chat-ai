@@ -1,4 +1,4 @@
-{"question":"민호 씨가 측정기 고쳐 주면서 나한테 쪽지 줬었잖아. 거기 뭐라고 써 있었지?","currentTurn":81,"candidates":44,"lanes":{"recent":44,"relevance":0,"milestone_critical":0,"milestone_important":5,"semantic":0},"resolved":43,"ranked":5,"injected":5,"blockChars":950,"preparedStatementsPerCall":28,"firstCallMs":10.77,"avgMsOver50":4.49}
+{"question":"민호 씨가 측정기 고쳐 주면서 나한테 쪽지 줬었잖아. 거기 뭐라고 써 있었지?","currentTurn":81,"candidates":44,"lanes":{"recent":44,"relevance":0,"milestone_critical":0,"milestone_important":5,"semantic":0},"resolved":43,"ranked":5,"injected":5,"blockChars":950,"preparedStatementsPerCall":29,"firstCallMs":11.73,"avgMsOver50":5.19}
 T27	INJECTED#2	character:kang_minho:action	강민호 연구원은 측정기를 밤새 재보정했다.
 T27	INJECTED#1	character:kang_minho:claim	강민호 연구원은 측정기 오차 때문에 반응이 늦었다고 말했다.
 T27	INJECTED#5	character:taehyung:action	태형은 렌이 측정기를 돌려받는 모습을 지켜본 뒤 조용히 자리를 떴다.

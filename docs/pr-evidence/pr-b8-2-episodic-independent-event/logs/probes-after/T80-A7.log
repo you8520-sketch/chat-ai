@@ -1,4 +1,4 @@
-{"question":"우리 한동안 엄청 서먹했잖아. 그거 어떻게 풀렸었지?","currentTurn":81,"candidates":44,"lanes":{"recent":44,"relevance":0,"milestone_critical":0,"milestone_important":5,"semantic":0},"resolved":43,"ranked":1,"injected":1,"blockChars":753,"preparedStatementsPerCall":28,"firstCallMs":10.26,"avgMsOver50":4.11}
+{"question":"우리 한동안 엄청 서먹했잖아. 그거 어떻게 풀렸었지?","currentTurn":81,"candidates":44,"lanes":{"recent":44,"relevance":0,"milestone_critical":0,"milestone_important":5,"semantic":0},"resolved":43,"ranked":1,"injected":1,"blockChars":753,"preparedStatementsPerCall":29,"firstCallMs":13.05,"avgMsOver50":4.58}
 T40	DROPPED(no_relevance)	setting:pair_application_review:estimated_duration	지원국 직원은 페어 신청 심사에 일주일쯤 걸린다고 안내했다.
 T46	DROPPED(no_relevance)	character:yoon_dogyeom:response_to_pair_application	태형은 정식 페어 신청이 들어간 뒤 윤도겸이 물러선 것 같다고 말했다.
 T46	DROPPED(no_relevance)	character:taehyung:pair_application_reason	태형은 페어가 승인되면 국장이 함부로 데려가지 못하므로 서둘렀다고 말했다.

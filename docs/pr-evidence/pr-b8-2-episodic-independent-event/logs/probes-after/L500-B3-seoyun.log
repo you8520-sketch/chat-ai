@@ -1,4 +1,4 @@
-{"question":"(복도 끝에서 한서윤이 서류를 안고 다가오는 걸 보고 태형의 소매를 잡아끈다) 저 사람 또 왔어.","currentTurn":501,"candidates":85,"lanes":{"recent":55,"relevance":25,"milestone_critical":0,"milestone_important":5,"semantic":0},"resolved":73,"ranked":70,"injected":7,"blockChars":1073,"preparedStatementsPerCall":27,"firstCallMs":18.95,"avgMsOver50":9.99}
+{"question":"(복도 끝에서 한서윤이 서류를 안고 다가오는 걸 보고 태형의 소매를 잡아끈다) 저 사람 또 왔어.","currentTurn":501,"candidates":85,"lanes":{"recent":55,"relevance":25,"milestone_critical":0,"milestone_important":5,"semantic":0},"resolved":73,"ranked":70,"injected":7,"blockChars":1073,"preparedStatementsPerCall":28,"firstCallMs":20.27,"avgMsOver50":10.71}
 T57	CANDIDATE_MISS	character:taehyung:response_to_cake	태형은 서윤이 복귀 축하로 보낸 케이크를 공용 테이블에 두고 한 조각도 먹지 않았다.
 T64	CANDIDATE_MISS	character:taehyung:rejected_company	태형은 구내식당에서 한서윤의 동석 제안을 거절했다.
 T64	DROPPED(max_chars)	character:taehyung:opinion_of_seoyun	태형은 뒤에서 서류를 올리는 사람과 식사하고 싶지 않다고 말했다.

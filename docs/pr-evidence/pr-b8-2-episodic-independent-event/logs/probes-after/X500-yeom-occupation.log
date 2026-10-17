@@ -1,4 +1,4 @@
-{"question":"염태오 씨는 뭐 하는 사람이었지?","currentTurn":501,"candidates":85,"lanes":{"recent":55,"relevance":25,"milestone_critical":0,"milestone_important":5,"semantic":0},"resolved":70,"ranked":30,"injected":8,"blockChars":1099,"preparedStatementsPerCall":30,"firstCallMs":15.57,"avgMsOver50":7.35}
+{"question":"염태오 씨는 뭐 하는 사람이었지?","currentTurn":501,"candidates":85,"lanes":{"recent":55,"relevance":25,"milestone_critical":0,"milestone_important":5,"semantic":0},"resolved":70,"ranked":30,"injected":8,"blockChars":1099,"preparedStatementsPerCall":31,"firstCallMs":15.1,"avgMsOver50":8.55}
 T101	CANDIDATE_MISS	character:yeom_taeo:occupation	염태오는 에지카의 구급대원으로 언급되었다.
 T119	CANDIDATE_MISS	character:yeom_taeo:comment	염태오는 태형과 렌의 호흡이 좋다고 말했다.
 T126	CANDIDATE_MISS	character:yeom_taeo:job	염태오는 에지카 구급대원으로 소개되었다.

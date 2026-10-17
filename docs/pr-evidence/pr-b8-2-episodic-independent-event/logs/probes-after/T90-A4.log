@@ -1,4 +1,4 @@
-{"question":"내가 맨 처음 게이트에서 주웠던 그 돌멩이, 기억나? 거기 뭐라고 새겨져 있었지?","currentTurn":91,"candidates":46,"lanes":{"recent":46,"relevance":0,"milestone_critical":0,"milestone_important":5,"semantic":0},"resolved":45,"ranked":3,"injected":3,"blockChars":867,"preparedStatementsPerCall":29,"firstCallMs":11.08,"avgMsOver50":4.71}
+{"question":"내가 맨 처음 게이트에서 주웠던 그 돌멩이, 기억나? 거기 뭐라고 새겨져 있었지?","currentTurn":91,"candidates":46,"lanes":{"recent":46,"relevance":0,"milestone_critical":0,"milestone_important":5,"semantic":0},"resolved":45,"ranked":3,"injected":3,"blockChars":867,"preparedStatementsPerCall":30,"firstCallMs":13.76,"avgMsOver50":5.24}
 T4	INJECTED#3	item:blue_riftstone_fragment:engraving	푸른 균열석 조각의 표면에는 'G-117'이라는 각인이 새겨져 있다.
 -- final Episodic block
 [EPISODIC MEMORY - RETRIEVED FACTS]

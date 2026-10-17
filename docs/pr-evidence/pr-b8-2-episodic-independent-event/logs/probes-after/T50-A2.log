@@ -1,4 +1,4 @@
-{"question":"옆구리는 지금 좀 어때? 그때 어쩌다 다친 거였더라?","currentTurn":51,"candidates":31,"lanes":{"recent":31,"relevance":0,"milestone_critical":0,"milestone_important":5,"semantic":0},"resolved":30,"ranked":3,"injected":3,"blockChars":869,"preparedStatementsPerCall":23,"firstCallMs":10.13,"avgMsOver50":3.62}
+{"question":"옆구리는 지금 좀 어때? 그때 어쩌다 다친 거였더라?","currentTurn":51,"candidates":31,"lanes":{"recent":31,"relevance":0,"milestone_critical":0,"milestone_important":5,"semantic":0},"resolved":30,"ranked":3,"injected":3,"blockChars":869,"preparedStatementsPerCall":24,"firstCallMs":10.63,"avgMsOver50":4.08}
 T30	INJECTED#2	character:taehyung:injury	태형은 진화형 크리처의 발톱에 왼쪽 옆구리를 찔렸다.
 T44	INJECTED#1	character:taehyung:injury_treatment	태형은 왼쪽 옆구리 상처를 열네 바늘로 봉합받았다.
 T48	CANDIDATE_MISS	character:taehyung:injury_reaction	태형은 렌을 들어 올리려다 옆구리 통증에 주저앉았다.

@@ -1,4 +1,4 @@
-{"question":"요즘 가이딩 측정 수치는 어때?","currentTurn":501,"candidates":85,"lanes":{"recent":55,"relevance":25,"milestone_critical":0,"milestone_important":5,"semantic":0},"resolved":77,"ranked":30,"injected":6,"blockChars":1074,"preparedStatementsPerCall":25,"firstCallMs":15.45,"avgMsOver50":7.11}
+{"question":"요즘 가이딩 측정 수치는 어때?","currentTurn":501,"candidates":85,"lanes":{"recent":55,"relevance":25,"milestone_critical":0,"milestone_important":5,"semantic":0},"resolved":77,"ranked":30,"injected":6,"blockChars":1074,"preparedStatementsPerCall":26,"firstCallMs":17.58,"avgMsOver50":8.23}
 T27	CANDIDATE_MISS	character:kang_minho:action	강민호 연구원은 측정기를 밤새 재보정했다.
 T27	CANDIDATE_MISS	character:kang_minho:claim	강민호 연구원은 측정기 오차 때문에 반응이 늦었다고 말했다.
 T27	CANDIDATE_MISS	character:taehyung:action	태형은 렌이 측정기를 돌려받는 모습을 지켜본 뒤 조용히 자리를 떴다.

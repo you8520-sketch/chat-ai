@@ -1,4 +1,4 @@
-{"question":"같이 야간 당직 섰던 거 기억나?","currentTurn":501,"candidates":72,"lanes":{"recent":55,"relevance":12,"milestone_critical":0,"milestone_important":5,"semantic":0},"resolved":64,"ranked":15,"injected":7,"blockChars":1061,"preparedStatementsPerCall":25,"firstCallMs":14.52,"avgMsOver50":6.6}
+{"question":"같이 야간 당직 섰던 거 기억나?","currentTurn":501,"candidates":72,"lanes":{"recent":55,"relevance":12,"milestone_critical":0,"milestone_important":5,"semantic":0},"resolved":64,"ranked":15,"injected":7,"blockChars":1061,"preparedStatementsPerCall":26,"firstCallMs":15.82,"avgMsOver50":7.3}
 T114	DROPPED(max_chars)	character:taehyung:night_watch_behavior	태형은 야간 대기 중 상황실 의자에서 졸면서 무전을 지켰다.
 T242	DROPPED(max_chars)	character:taehyung:night_watch	태형은 야간 대기 중 상황실 의자에서 졸면서 무전을 지켰다.
 T295	CANDIDATE_MISS	character:taehyung:night_watch_duty	태형은 상황실에서 졸면서 무전을 지켰다.

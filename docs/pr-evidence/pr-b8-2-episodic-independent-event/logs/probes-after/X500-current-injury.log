@@ -1,4 +1,4 @@
-{"question":"지금 어디 다친 데 있어? 발목은 괜찮아?","currentTurn":501,"candidates":63,"lanes":{"recent":55,"relevance":3,"milestone_critical":0,"milestone_important":5,"semantic":0},"resolved":55,"ranked":3,"injected":3,"blockChars":873,"preparedStatementsPerCall":25,"firstCallMs":12.89,"avgMsOver50":6.53}
+{"question":"지금 어디 다친 데 있어? 발목은 괜찮아?","currentTurn":501,"candidates":63,"lanes":{"recent":55,"relevance":3,"milestone_critical":0,"milestone_important":5,"semantic":0},"resolved":55,"ranked":3,"injected":3,"blockChars":873,"preparedStatementsPerCall":26,"firstCallMs":13.98,"avgMsOver50":7.33}
 T30	DROPPED(no_relevance)	character:taehyung:injury	태형은 진화형 크리처의 발톱에 왼쪽 옆구리를 찔렸다.
 T44	DROPPED(no_relevance)	character:taehyung:injury_treatment	태형은 왼쪽 옆구리 상처를 열네 바늘로 봉합받았다.
 T48	CANDIDATE_MISS	character:taehyung:injury_reaction	태형은 렌을 들어 올리려다 옆구리 통증에 주저앉았다.

@@ -1,4 +1,4 @@
-{"question":"옆구리는 지금도 아파?","currentTurn":501,"candidates":63,"lanes":{"recent":55,"relevance":5,"milestone_critical":0,"milestone_important":5,"semantic":0},"resolved":55,"ranked":5,"injected":5,"blockChars":980,"preparedStatementsPerCall":24,"firstCallMs":11.91,"avgMsOver50":5.96}
+{"question":"옆구리는 지금도 아파?","currentTurn":501,"candidates":63,"lanes":{"recent":55,"relevance":5,"milestone_critical":0,"milestone_important":5,"semantic":0},"resolved":55,"ranked":5,"injected":5,"blockChars":980,"preparedStatementsPerCall":25,"firstCallMs":15.3,"avgMsOver50":6.67}
 T30	INJECTED#2	character:taehyung:injury	태형은 진화형 크리처의 발톱에 왼쪽 옆구리를 찔렸다.
 T44	INJECTED#1	character:taehyung:injury_treatment	태형은 왼쪽 옆구리 상처를 열네 바늘로 봉합받았다.
 T48	INJECTED#4	character:taehyung:injury_reaction	태형은 렌을 들어 올리려다 옆구리 통증에 주저앉았다.

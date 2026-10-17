@@ -1,4 +1,4 @@
-{"question":"너 임무 끝나고 나한테 딸기우유 준 거, 지금까지 몇 번인지 알아?","currentTurn":81,"candidates":44,"lanes":{"recent":44,"relevance":0,"milestone_critical":0,"milestone_important":5,"semantic":0},"resolved":43,"ranked":4,"injected":4,"blockChars":891,"preparedStatementsPerCall":28,"firstCallMs":10.62,"avgMsOver50":4.42}
+{"question":"너 임무 끝나고 나한테 딸기우유 준 거, 지금까지 몇 번인지 알아?","currentTurn":81,"candidates":44,"lanes":{"recent":44,"relevance":0,"milestone_critical":0,"milestone_important":5,"semantic":0},"resolved":43,"ranked":4,"injected":4,"blockChars":891,"preparedStatementsPerCall":29,"firstCallMs":11.8,"avgMsOver50":5.02}
 T9	INJECTED#2	character:taehyung:ritual	태형은 임무가 끝나면 딸기우유를 마시는 것을 자신만의 의식이라고 말했다.
 T28	INJECTED#1	character:taehyung:mission_completion_ritual	태형은 임무가 끝난 뒤 딸기우유를 건네는 것을 자신만의 의식이라고 말했다.
 -- final Episodic block
