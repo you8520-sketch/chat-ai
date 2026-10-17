@@ -428,5 +428,8 @@ export async function completeTrpgScenarioDraftJson(
     console.info("[trpg-authoring] adventure_invalid", { issues: result.adventureIssues });
     throw new TrpgAuthoringAdventureInvalidError(result.adventureIssues);
   }
+  if (opts.expectedFields?.includes("adventure") && !result.plan.adventure) {
+    console.info("[trpg-authoring] adventure_missing");
+  }
   return result;
 }
