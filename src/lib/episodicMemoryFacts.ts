@@ -51,6 +51,7 @@ import {
   classifyEpisodicFactTemporalNature,
   COMPLETED_SCENE_EVENT_ATTRIBUTES,
   isClearlyTemporaryEpisodicFact,
+  isUserStatedOccurrence,
   isVerifiedSceneRecord,
 } from "@/lib/episodicMemoryTemporal";
 import {
@@ -2356,10 +2357,10 @@ export function reconcileGlobalStateLikeFacts(
   const noteClosingTurn = (key: string, turn: number) => {
     if (turn > (closingTurnByKey.get(key) ?? -1)) closingTurnByKey.set(key, turn);
   };
+  const closesEarlierRecords = (row: EpisodicMemoryFactRecord) =>
+    classifyEpisodicFactTemporalNature(row) === "historical_event" || isUserStatedOccurrence(row);
   for (const row of rows) {
-    if (classifyEpisodicFactTemporalNature(row) === "historical_event") {
-      noteClosingTurn(episodicLogicalKey(row), row.source_turn);
-    }
+    if (closesEarlierRecords(row)) noteClosingTurn(episodicLogicalKey(row), row.source_turn);
   }
 
   for (const key of keysToReconcile) {
@@ -2375,20 +2376,13 @@ export function reconcileGlobalStateLikeFacts(
     queryCount += 1;
     if (!latest) continue;
     rowsFetched += 1;
-    if (!isStateLikeForGlobalReconciliation(latest)) {
-      if (
-        classifyEpisodicFactTemporalNature(latest) === "historical_event" &&
-        evaluateEpisodicRetrievalGuard(latest).allowed
-      ) {
-        noteClosingTurn(key, latest.source_turn);
-      }
-      continue;
-    }
+    const guard = evaluateEpisodicRetrievalGuard(latest);
+    if (guard.allowed && closesEarlierRecords(latest)) noteClosingTurn(key, latest.source_turn);
+    if (!isStateLikeForGlobalReconciliation(latest)) continue;
     if (isLatestStateInRawWindow(scope, latest.source_turn)) {
       keysOmittedRawWindow += 1;
       continue;
     }
-    const guard = evaluateEpisodicRetrievalGuard(latest);
     if (!guard.allowed) {
       keysOmittedBlockedLatest += 1;
       continue;

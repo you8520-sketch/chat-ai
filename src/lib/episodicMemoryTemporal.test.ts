@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   classifyEpisodicFactTemporalNature,
+  isUserStatedOccurrence,
   looksLikeCompletedHistoricalEvent,
 } from "@/lib/episodicMemoryTemporal";
 
@@ -223,6 +224,31 @@ describe("verified scene occurrence under a free-form attribute", () => {
       classify("유저는 카페에서 일했다.", verified("USER_EXPLICIT", "user"), { evidence_type: "explicit_user_statement" }),
       "unknown"
     );
+  });
+
+  it("a user's verified statement that something happened is an occurrence that closes, not history", () => {
+    const user = verified("USER_EXPLICIT", "user");
+    const statement = (fact_text: string, metadata: string | null = user, overrides: Record<string, string> = {}) => ({
+      category: "character",
+      attribute: "injury",
+      value: "v",
+      fact_text,
+      evidence_type: "explicit_user_statement",
+      metadata,
+      ...overrides,
+    });
+    assert.equal(isUserStatedOccurrence(statement("에녹은 훈련 중 칼날에 오른손을 다쳤다.")), true);
+    assert.equal(isUserStatedOccurrence(statement("에녹은 오른손에 상처가 있다.")), false);
+    assert.equal(isUserStatedOccurrence(statement("에녹은 훈련 중 칼날에 오른손을 다쳤다.", null)), false);
+    assert.equal(
+      isUserStatedOccurrence(statement("에녹은 훈련 중 칼날에 오른손을 다쳤다.", user, { evidence_type: "explicit_scene_event" })),
+      false
+    );
+    assert.equal(
+      isUserStatedOccurrence(statement("사용자는 딸기우유를 좋아하게 되었다.", user, { category: "preference", attribute: "favorite_drink" })),
+      false
+    );
+    assert.equal(classifyEpisodicFactTemporalNature(statement("에녹은 훈련 중 칼날에 오른손을 다쳤다.")), "unknown");
   });
 
   it("state-shaped glosses keep latest-wins even with a verified source", () => {

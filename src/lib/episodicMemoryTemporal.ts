@@ -121,14 +121,31 @@ export function looksLikeCompletedOccurrence(factText: string): boolean {
   return true;
 }
 
+function evidenceTypeOf(fact: TemporalFactInput): string {
+  return String(fact.evidence_type ?? "").trim().toLowerCase();
+}
+
 /**
  * A scene record whose quote the server matched to the assistant scene or the user's
  * message. A character's word does not count.
  */
 export function isVerifiedSceneRecord(fact: TemporalFactInput): boolean {
-  if (String(fact.evidence_type ?? "").trim().toLowerCase() !== "explicit_scene_event") return false;
+  if (evidenceTypeOf(fact) !== "explicit_scene_event") return false;
   const evidence = readVerifiedEvidence(fact.metadata);
   return evidence != null && evidence.authority !== "CHARACTER_CLAIM";
+}
+
+/**
+ * The user's own verified statement that something happened ("어제 훈련하다 칼날에 다쳤어").
+ * Like a scene occurrence it closes an earlier scene record of its key, so who narrated the
+ * later event does not decide whether the earlier one is kept. The statement itself keeps
+ * latest-wins: users mostly declare current states ("헤어지자", "이직했어").
+ */
+export function isUserStatedOccurrence(fact: TemporalFactInput): boolean {
+  if (evidenceTypeOf(fact) !== "explicit_user_statement") return false;
+  if (classifyIntrinsicNature(fact) !== "unknown") return false;
+  if (!looksLikeCompletedOccurrence(String(fact.fact_text ?? ""))) return false;
+  return readVerifiedEvidence(fact.metadata)?.authority === "USER_EXPLICIT";
 }
 
 /**
