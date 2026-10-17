@@ -121,10 +121,23 @@ export function looksLikeCompletedOccurrence(factText: string): boolean {
   return true;
 }
 
-/** The server matched the row's quote to an assistant scene or user message; a character's word does not count. */
-function hasVerifiedSceneEvidence(metadata: string | null | undefined): boolean {
-  const evidence = readVerifiedEvidence(metadata);
+/**
+ * A scene record whose quote the server matched to the assistant scene or the user's
+ * message. A character's word does not count.
+ */
+export function isVerifiedSceneRecord(fact: TemporalFactInput): boolean {
+  if (String(fact.evidence_type ?? "").trim().toLowerCase() !== "explicit_scene_event") return false;
+  const evidence = readVerifiedEvidence(fact.metadata);
   return evidence != null && evidence.authority !== "CHARACTER_CLAIM";
+}
+
+/**
+ * Its attribute and wording alone do not make it history or durable, so its standing as a
+ * kept occurrence rests on the verified source. An explicit user statement of the same key
+ * made later outranks that source.
+ */
+export function isUserCorrectableSceneRecord(fact: TemporalFactInput): boolean {
+  return classifyIntrinsicNature(fact) === "unknown" && isVerifiedSceneRecord(fact);
 }
 
 /**
@@ -132,13 +145,28 @@ function hasVerifiedSceneEvidence(metadata: string | null | undefined): boolean 
  *
  * clearly_temporary: exact temporary attribute AND not a completed historical event.
  * historical_event: completed event/outcome narrative, or a source-verified scene
- *   occurrence (eligible for long-term recall; never replaced by later same-key rows).
+ *   occurrence (eligible for long-term recall; a later separate occurrence of the same
+ *   key does not replace it).
  * durable: preference/rule/quest (or clear durable attribute prefix).
  * unknown: conservatively eligible for recall (not blocked).
  */
 export function classifyEpisodicFactTemporalNature(
   fact: TemporalFactInput
 ): EpisodicFactTemporalNature {
+  const nature = classifyIntrinsicNature(fact);
+  // The extractor files observed occurrences under free-form attributes (`injury`,
+  // `ability_use`, ...). Legacy rows, claims and state-shaped glosses keep latest-wins.
+  if (
+    nature === "unknown" &&
+    looksLikeCompletedOccurrence(String(fact.fact_text ?? "")) &&
+    isVerifiedSceneRecord(fact)
+  ) {
+    return "historical_event";
+  }
+  return nature;
+}
+
+function classifyIntrinsicNature(fact: TemporalFactInput): EpisodicFactTemporalNature {
   const attribute = String(fact.attribute ?? "")
     .trim()
     .toLowerCase();
@@ -175,18 +203,6 @@ export function classifyEpisodicFactTemporalNature(
     attribute.startsWith("ownership_")
   ) {
     return "durable";
-  }
-
-  // The extractor files observed occurrences under free-form attributes (`injury`,
-  // `ability_use`, ...). A verified scene occurrence stays history whatever its key, so
-  // a later, separate occurrence of the same key never replaces it. Legacy rows, claims
-  // and state-shaped glosses keep latest-wins.
-  if (
-    evidenceType === "explicit_scene_event" &&
-    looksLikeCompletedOccurrence(factText) &&
-    hasVerifiedSceneEvidence(fact.metadata)
-  ) {
-    return "historical_event";
   }
 
   return "unknown";

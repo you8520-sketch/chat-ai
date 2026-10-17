@@ -51,6 +51,8 @@ import {
   classifyEpisodicFactTemporalNature,
   COMPLETED_SCENE_EVENT_ATTRIBUTES,
   isClearlyTemporaryEpisodicFact,
+  isUserCorrectableSceneRecord,
+  isVerifiedSceneRecord,
 } from "@/lib/episodicMemoryTemporal";
 import {
   isCanonAdoptedScene,
@@ -2094,14 +2096,60 @@ function fetchLatestBoundedStateRowForKey(
   return row ? attachStoredEvidenceType(row) : null;
 }
 
+/**
+ * Verified scene records whose key the user later restated in an explicit statement with a
+ * verified quote: USER_EXPLICIT outranks the scene source, so the record is corrected and
+ * falls back to the key's latest-wins. A later scene occurrence never corrects a record.
+ */
+function findUserCorrectedSceneRecordIds(
+  db: Database.Database,
+  scope: EpisodicCandidateScope,
+  rows: EpisodicMemoryFactRecord[]
+): { ids: Set<number>; queried: boolean } {
+  const correctable = rows.filter(isUserCorrectableSceneRecord);
+  const keys = [...new Set(correctable.map(episodicLogicalKey))];
+  if (keys.length === 0) return { ids: new Set(), queried: false };
+  const statements = db
+    .prepare(
+      `SELECT category, subject, attribute, source_turn, metadata
+         FROM episodic_memory_facts
+         WHERE ${scope.baseWhere.join(" AND ")}
+           AND json_extract(metadata, '$.memory_evidence_type') = 'explicit_user_statement'
+           AND json_extract(metadata, '$.evidence.authority') = 'USER_EXPLICIT'
+           AND (category || ':' || subject || ':' || attribute) IN (${keys.map(() => "?").join(", ")})`
+    )
+    .all(...scope.baseParams, ...keys) as Array<
+    Pick<EpisodicMemoryFactRecord, "category" | "subject" | "attribute" | "source_turn" | "metadata">
+  >;
+  const correctionTurnByKey = new Map<string, number>();
+  for (const statement of statements) {
+    if (readVerifiedEvidence(statement.metadata)?.authority !== "USER_EXPLICIT") continue;
+    const key = episodicLogicalKey(statement);
+    correctionTurnByKey.set(key, Math.max(correctionTurnByKey.get(key) ?? -1, statement.source_turn));
+  }
+  const ids = new Set<number>();
+  for (const row of correctable) {
+    if ((correctionTurnByKey.get(episodicLogicalKey(row)) ?? -1) > row.source_turn) ids.add(row.id);
+  }
+  return { ids, queried: true };
+}
+
 /** Replace stale state-like candidates with guard-checked latest canonical row within boundary. */
 export function reconcileGlobalStateLikeFacts(
   db: Database.Database,
   scope: EpisodicCandidateScope,
   rows: EpisodicMemoryFactRecord[],
   options?: ReconcileGlobalStateLikeFactsOptions
-): { rows: EpisodicMemoryFactRecord[]; stats: EpisodicStateReconcileStats } {
-  const stateRows = rows.filter(isStateLikeForGlobalReconciliation);
+): {
+  rows: EpisodicMemoryFactRecord[];
+  stats: EpisodicStateReconcileStats;
+  /** State-like rows kept as history because a later completed row of their key closed them. */
+  closedOccurrenceIds: Set<number>;
+} {
+  const corrected = findUserCorrectedSceneRecordIds(db, scope, rows);
+  const isStateLike = (row: EpisodicMemoryFactRecord) =>
+    corrected.ids.has(row.id) || isStateLikeForGlobalReconciliation(row);
+  const stateRows = rows.filter(isStateLike);
   const seenKeys = new Set<string>();
   const stateKeys: string[] = [];
   const pushStateKey = (row: EpisodicMemoryFactRecord) => {
@@ -2118,11 +2166,13 @@ export function reconcileGlobalStateLikeFacts(
   }
   for (const row of stateRows) pushStateKey(row);
   const keysDiscovered = stateKeys.length;
+  let queryCount = corrected.queried ? 1 : 0;
   if (keysDiscovered === 0) {
     return {
       rows,
+      closedOccurrenceIds: new Set<number>(),
       stats: {
-        queryCount: 0,
+        queryCount,
         rowsFetched: 0,
         keysDiscovered: 0,
         keysReconciled: 0,
@@ -2136,10 +2186,18 @@ export function reconcileGlobalStateLikeFacts(
   const keysToReconcile = stateKeys.slice(0, EPISODIC_MEMORY_STATE_RECONCILE_MAX_KEYS);
   const keysDroppedDueToCap = keysDiscovered - keysToReconcile.length;
   const latestAllowedByKey = new Map<string, EpisodicMemoryFactRecord>();
-  let queryCount = 0;
   let rowsFetched = 0;
   let keysOmittedBlockedLatest = 0;
   let keysOmittedRawWindow = 0;
+  const closingTurnByKey = new Map<string, number>();
+  const noteClosingTurn = (key: string, turn: number) => {
+    if (turn > (closingTurnByKey.get(key) ?? -1)) closingTurnByKey.set(key, turn);
+  };
+  for (const row of rows) {
+    if (!corrected.ids.has(row.id) && classifyEpisodicFactTemporalNature(row) === "historical_event") {
+      noteClosingTurn(episodicLogicalKey(row), row.source_turn);
+    }
+  }
 
   for (const key of keysToReconcile) {
     const parts = key.split(":");
@@ -2154,7 +2212,15 @@ export function reconcileGlobalStateLikeFacts(
     queryCount += 1;
     if (!latest) continue;
     rowsFetched += 1;
-    if (!isStateLikeForGlobalReconciliation(latest)) continue;
+    if (!isStateLikeForGlobalReconciliation(latest)) {
+      if (
+        classifyEpisodicFactTemporalNature(latest) === "historical_event" &&
+        evaluateEpisodicRetrievalGuard(latest).allowed
+      ) {
+        noteClosingTurn(key, latest.source_turn);
+      }
+      continue;
+    }
     if (isLatestStateInRawWindow(scope, latest.source_turn)) {
       keysOmittedRawWindow += 1;
       continue;
@@ -2170,13 +2236,23 @@ export function reconcileGlobalStateLikeFacts(
   const reconciledKeySet = new Set(keysToReconcile);
   const result: EpisodicMemoryFactRecord[] = [];
   const emittedStateKeys = new Set<string>();
+  const closedOccurrenceIds = new Set<number>();
 
   for (const row of rows) {
-    if (!isStateLikeForGlobalReconciliation(row)) {
+    if (!isStateLike(row)) {
       result.push(row);
       continue;
     }
     const key = episodicLogicalKey(row);
+    if (
+      !corrected.ids.has(row.id) &&
+      (closingTurnByKey.get(key) ?? -1) > row.source_turn &&
+      isVerifiedSceneRecord(row)
+    ) {
+      closedOccurrenceIds.add(row.id);
+      result.push(row);
+      continue;
+    }
     if (!reconciledKeySet.has(key)) continue;
     if (emittedStateKeys.has(key)) continue;
     emittedStateKeys.add(key);
@@ -2188,6 +2264,7 @@ export function reconcileGlobalStateLikeFacts(
 
   return {
     rows: result,
+    closedOccurrenceIds,
     stats: {
       queryCount,
       rowsFetched,
@@ -2754,7 +2831,10 @@ function pickLatestFactByTurn(rows: EpisodicMemoryFactRecord[]): EpisodicMemoryF
   return latest;
 }
 
-function resolveLatestFactsByLogicalKey(rows: EpisodicMemoryFactRecord[]): EpisodicMemoryFactRecord[] {
+function resolveLatestFactsByLogicalKey(
+  rows: EpisodicMemoryFactRecord[],
+  closedOccurrenceIds: ReadonlySet<number>
+): EpisodicMemoryFactRecord[] {
   const byKey = new Map<string, EpisodicMemoryFactRecord[]>();
   for (const row of rows) {
     const key = `${row.category}:${row.subject}:${row.attribute}`;
@@ -2773,7 +2853,10 @@ function resolveLatestFactsByLogicalKey(rows: EpisodicMemoryFactRecord[]): Episo
     const historical: EpisodicMemoryFactRecord[] = [];
     const stateLike: EpisodicMemoryFactRecord[] = [];
     for (const row of group) {
-      if (classifyEpisodicFactTemporalNature(row) === "historical_event") {
+      if (
+        classifyEpisodicFactTemporalNature(row) === "historical_event" ||
+        closedOccurrenceIds.has(row.id)
+      ) {
         historical.push(row);
       } else {
         stateLike.push(row);
@@ -2980,13 +3063,12 @@ export function getEpisodicMemoryForPrompt(
       if (lanes?.some(lanePrefersStateReconcileBudget)) preferRowIds.add(row.id);
       if (lexicalRelevance(row, currentMessage) > 0) preferRowIds.add(row.id);
     }
-    const { rows: stateReconciledRows, stats: stateReconcileStats } = reconcileGlobalStateLikeFacts(
-      db,
-      scope,
-      uncontaminatedRows,
-      { preferRowIds }
-    );
-    const resolved = resolveLatestFactsByLogicalKey(stateReconciledRows);
+    const {
+      rows: stateReconciledRows,
+      stats: stateReconcileStats,
+      closedOccurrenceIds,
+    } = reconcileGlobalStateLikeFacts(db, scope, uncontaminatedRows, { preferRowIds });
+    const resolved = resolveLatestFactsByLogicalKey(stateReconciledRows, closedOccurrenceIds);
     const skippedConflictFactsCount = Math.max(0, stateReconciledRows.length - resolved.length);
     const debugById = new Map<number, EpisodicMemorySelectionDebug>();
     for (const fact of resolved) {

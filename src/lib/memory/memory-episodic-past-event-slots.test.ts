@@ -6,6 +6,8 @@ import {
   deleteEpisodicMemoryFactsByAssistantMessageIds,
   fetchEpisodicMemoryCandidatesForDebug,
   getEpisodicMemoryForPrompt,
+  persistEpisodicMemoryFactsCore,
+  type EpisodicExtractedFact,
 } from "@/lib/episodicMemoryFacts";
 import { openDb } from "@/lib/memory/memory-rp-benchmark-suite";
 
@@ -669,5 +671,252 @@ describe("B8-2 — B7 rows: a later, separate injury of the same key keeps the o
     const fromChat1 = recall(other.db, 500, CAUSE_QUESTION);
     assert.equal(fromChat1.facts.some((fact) => fact.id === other.t30), false);
     assert.ok(recall(other.db, 500, CAUSE_QUESTION, 2).facts.some((fact) => fact.id === other.t30));
+  });
+});
+
+describe("B8-2 — an explicit user correction of a verified scene record", () => {
+  const CORRECTION_MESSAGE =
+    "아까 그 부상 장면 정정할게. 늑대에게 물린 게 아니라 문에 팔이 끼인 거야. 같은 사건이야.";
+  const CORRECTION_QUOTE = "늑대에게 물린 게 아니라 문에 팔이 끼인 거야.";
+  const CAUSE = "예전에 에녹 왼팔은 왜 다쳤었지?";
+
+  /** Rows are written by the production save path, which verifies each quote against the stored message. */
+  function chatDb() {
+    const db = openDb();
+    db.exec(
+      "CREATE TABLE messages (id INTEGER PRIMARY KEY, chat_id INTEGER, role TEXT, content TEXT, generation_status TEXT, model TEXT, user_message_id INTEGER, usage TEXT)"
+    );
+    return db;
+  }
+
+  function persistTurn(
+    db: Database.Database,
+    turn: number,
+    userText: string,
+    assistantText: string,
+    facts: EpisodicExtractedFact[]
+  ): number[] {
+    const userId = turn * 10 + 1;
+    const assistantId = turn * 10 + 2;
+    const message = db.prepare(
+      "INSERT INTO messages (id, chat_id, role, content, generation_status, model, user_message_id) VALUES (?, 1, ?, ?, 'completed', 'm', ?)"
+    );
+    message.run(userId, "user", userText, null);
+    message.run(assistantId, "assistant", assistantText, userId);
+    persistEpisodicMemoryFactsCore(db, {
+      chatId: 1,
+      sourceTurn: turn,
+      sourceUserMessageId: userId,
+      sourceUserText: userText,
+      evidenceBinding: { userMessageId: userId, assistantMessageId: assistantId },
+      metadata: { extraction: "shared_initial_per_turn", assistant_message_id: assistantId, content_route: "safe" },
+      facts,
+    });
+    return (
+      db.prepare("SELECT id FROM episodic_memory_facts WHERE source_turn = ? ORDER BY id").all(turn) as Array<{ id: number }>
+    ).map((row) => row.id);
+  }
+
+  function bite(db: Database.Database): number {
+    const [id] = persistTurn(db, 30, "(에녹의 팔을 붙잡는다) 괜찮아?", `${BITE_QUOTE} 에녹은 이를 악물었다.`, [
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "injury",
+        value: "left_arm_bitten",
+        importance: "important",
+        fact_text: "에녹은 늑대에게 물려 왼팔을 크게 다쳤다.",
+        evidence_type: "explicit_scene_event",
+        evidence: { source_role: "assistant", source_quote: BITE_QUOTE },
+      },
+    ]);
+    return id!;
+  }
+
+  function correction(db: Database.Database, turn = 120, attribute = "injury"): number {
+    const [id] = persistTurn(db, turn, CORRECTION_MESSAGE, "에녹은 잠시 생각하다 고개를 끄덕였다.", [
+      {
+        category: "character",
+        subject: "enoch",
+        attribute,
+        value: "left_arm_caught_in_door",
+        importance: "important",
+        fact_text: "유저는 에녹의 왼팔 부상이 늑대에게 물린 것이 아니라 문에 팔이 끼인 것이라고 정정했다.",
+        evidence_type: "explicit_user_statement",
+        evidence: { source_role: "user", source_quote: CORRECTION_QUOTE },
+      },
+    ]);
+    return id!;
+  }
+
+  function sceneInjury(db: Database.Database, turn: number, quote: string, gloss: string, value: string): number {
+    const [id] = persistTurn(db, turn, "(조심스럽게 다가간다)", quote, [
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "injury",
+        value,
+        importance: "normal",
+        fact_text: gloss,
+        evidence_type: "explicit_scene_event",
+        evidence: { source_role: "assistant", source_quote: quote },
+      },
+    ]);
+    return id!;
+  }
+
+  function fill(db: Database.Database, from: number, to: number): void {
+    for (let turn = from; turn < to; turn++) insert(db, { turn, subject: "bg", attribute: "scene_event", value: `f${turn}`, importance: "normal", gloss: FILLER[turn % FILLER.length]!, messageId: turn * 10 + 9 });
+  }
+
+  for (const horizon of [500, 1000]) {
+    it(`currentTurn=${horizon}: the wrong cause is not injected once the correction left RAW`, () => {
+      const db = chatDb();
+      fill(db, 1, 30);
+      const t30 = bite(db);
+      fill(db, 31, 120);
+      const t120 = correction(db);
+      fill(db, 121, horizon);
+      const result = recall(db, horizon, CAUSE);
+      assert.equal(result.facts.some((fact) => fact.id === t30), false);
+      assert.equal(result.promptBlock.includes(BITE_QUOTE), false);
+      assert.ok(result.facts.some((fact) => fact.id === t120));
+      assert.ok(result.promptBlock.includes(`- [T120] [유저 입력 발췌] “${CORRECTION_QUOTE}”`));
+    });
+  }
+
+  it("a same-key recovery between the record and the correction does not keep the wrong cause", () => {
+    const db = chatDb();
+    fill(db, 1, 30);
+    const t30 = bite(db);
+    fill(db, 31, 80);
+    const t80 = sceneInjury(db, 80, RECOVERY_QUOTE, "에녹의 왼팔 부상은 치료 후 회복했다.", "left_arm_recovered");
+    fill(db, 81, 120);
+    const t120 = correction(db);
+    fill(db, 121, 500);
+    const result = recall(db, 500, CAUSE);
+    assert.equal(result.facts.some((fact) => fact.id === t30), false);
+    assert.equal(result.promptBlock.includes(BITE_QUOTE), false);
+    assert.ok(result.facts.some((fact) => fact.id === t80));
+    assert.ok(result.facts.some((fact) => fact.id === t120));
+  });
+
+  it("a later, separate scene injury keeps the key; neither the wrong cause nor a revived record appears", () => {
+    const db = chatDb();
+    fill(db, 1, 30);
+    const t30 = bite(db);
+    fill(db, 31, 120);
+    correction(db);
+    fill(db, 121, 312);
+    const ankleQuote = "에녹은 계단에서 미끄러지며 오른쪽 발목을 접질렀다.";
+    const t312 = sceneInjury(db, 312, ankleQuote, "에녹은 계단에서 미끄러져 오른쪽 발목을 접질렀다.", "sprained_right_ankle");
+    fill(db, 313, 1000);
+    const cause = recall(db, 1000, CAUSE);
+    assert.equal(cause.facts.some((fact) => fact.id === t30), false);
+    assert.equal(cause.promptBlock.includes(BITE_QUOTE), false);
+    const ankle = recall(db, 1000, "예전에 에녹 발목은 왜 다쳤었지?");
+    assert.ok(ankle.facts.some((fact) => fact.id === t312));
+  });
+
+  it("a later scene occurrence or an earlier user statement of the key is not a correction", () => {
+    const db = chatDb();
+    fill(db, 1, 20);
+    correction(db, 20);
+    fill(db, 21, 30);
+    const t30 = bite(db);
+    fill(db, 31, 312);
+    sceneInjury(db, 312, "에녹은 계단에서 미끄러지며 오른쪽 발목을 접질렀다.", "에녹은 계단에서 미끄러져 오른쪽 발목을 접질렀다.", "sprained_right_ankle");
+    fill(db, 313, 500);
+    const result = recall(db, 500, CAUSE);
+    assert.ok(result.facts.some((fact) => fact.id === t30));
+    assert.ok(result.promptBlock.includes(BITE_QUOTE));
+  });
+
+  it("regenerating the correction turn, or a correction in another chat, restores the record", () => {
+    const db = chatDb();
+    fill(db, 1, 30);
+    const t30 = bite(db);
+    fill(db, 31, 120);
+    correction(db);
+    fill(db, 121, 500);
+    assert.equal(deleteEpisodicMemoryFactsByAssistantMessageIds(db, 1, [120 * 10 + 2]), 1);
+    assert.ok(recall(db, 500, CAUSE).facts.some((fact) => fact.id === t30));
+
+    const other = chatDb();
+    fill(other, 1, 30);
+    const otherT30 = bite(other);
+    fill(other, 31, 120);
+    const t120 = correction(other);
+    other.prepare("UPDATE episodic_memory_facts SET chat_id = 2 WHERE id = ?").run(t120);
+    fill(other, 121, 500);
+    assert.ok(recall(other, 500, CAUSE).facts.some((fact) => fact.id === otherT30));
+  });
+
+  it("stored rows: the record and the correction carry their verified source and authority", () => {
+    const db = chatDb();
+    const t30 = bite(db);
+    const t120 = correction(db);
+    const rows = db
+      .prepare("SELECT id, source_turn, attribute, metadata FROM episodic_memory_facts WHERE id IN (?, ?) ORDER BY id")
+      .all(t30, t120) as Array<{ id: number; source_turn: number; attribute: string; metadata: string }>;
+    const meta = rows.map((row) => JSON.parse(row.metadata) as { memory_evidence_type: string; evidence: { role: string; authority: string; quote: string } });
+    assert.deepEqual(
+      meta.map((m) => [m.memory_evidence_type, m.evidence.role, m.evidence.authority, m.evidence.quote]),
+      [
+        ["explicit_scene_event", "assistant", "CURRENT_SCENE", BITE_QUOTE],
+        ["explicit_user_statement", "user", "USER_EXPLICIT", CORRECTION_QUOTE],
+      ]
+    );
+    assert.deepEqual(rows.map((row) => row.attribute), ["injury", "injury"]);
+  });
+});
+
+describe("B8-2 — #1651 preservation: same verified source, different gloss wording", () => {
+  const GLOSSES = ["에녹은 늑대에게 물려 왼팔을 크게 다쳤다.", "에녹의 왼팔에는 늑대에게 물린 상처가 남아 있다."];
+
+  for (const gloss of GLOSSES) {
+    it(`same-key recovery: the verified cause survives (${gloss})`, () => {
+      const db = openDb();
+      fillTurns(db, 1, 30);
+      const t30 = insert(db, { turn: 30, attribute: "injury", value: "left_arm_bitten", gloss, quote: BITE_QUOTE });
+      fillTurns(db, 31, 80);
+      const t80 = insert(db, { turn: 80, attribute: "injury", value: "left_arm_recovered", gloss: "에녹의 왼팔 부상은 치료 후 회복했다.", quote: RECOVERY_QUOTE });
+      fillTurns(db, 81, 500);
+      const result = recall(db, 500, "예전에 에녹 왼팔은 왜 다쳤었지?");
+      assert.ok(result.facts.some((fact) => fact.id === t30));
+      assert.ok(result.facts.some((fact) => fact.id === t80));
+      assert.ok(result.promptBlock.includes(`- [T30] [AI 장면 서술 발췌] “${BITE_QUOTE}”`));
+    });
+
+    it(`recovery under another key, then a separate same-key injury: the verified cause survives (${gloss})`, () => {
+      const db = openDb();
+      fillTurns(db, 1, 30);
+      const t30 = insert(db, { turn: 30, attribute: "injury", value: "left_arm_bitten", gloss, quote: BITE_QUOTE });
+      fillTurns(db, 31, 55);
+      insert(db, { turn: 55, attribute: "medical_recovery", value: "recovered", importance: "normal", gloss: "에녹은 왼팔 부상에서 완전히 회복되어 복귀 허가를 받았다.", quote: "오늘부터 복귀를 허가합니다." });
+      fillTurns(db, 56, 312);
+      insert(db, { turn: 312, attribute: "injury", value: "sprained_right_ankle", importance: "normal", gloss: "에녹은 계단에서 미끄러져 오른쪽 발목을 접질렀다.", quote: "에녹은 계단에서 미끄러지며 오른쪽 발목을 접질렀다." });
+      fillTurns(db, 313, 500);
+      const result = recall(db, 500, "예전에 에녹 왼팔은 왜 다쳤었지?");
+      assert.ok(result.facts.some((fact) => fact.id === t30));
+      assert.ok(result.promptBlock.includes(BITE_QUOTE));
+    });
+  }
+
+  it("job, location and preference states under a verified source stay latest-wins", () => {
+    const db = openDb();
+    fillTurns(db, 1, 300);
+    const keys: Array<[string, string, string, string]> = [
+      ["job", "에녹은 마을 대장장이로 일한다.", "에녹은 기사단 소속 기사다.", "에녹은 대장장이야, 기사단 기사야?"],
+      ["location", "에녹은 도서관 열람실에 있다.", "에녹은 항구 창고 앞에 서 있다.", "에녹은 도서관에 있어, 항구 창고에 있어?"],
+      ["drink_preference", "에녹은 홍차를 좋아한다.", "에녹은 이제 커피를 더 좋아한다.", "에녹은 홍차를 좋아해, 커피를 좋아해?"],
+    ];
+    for (const [attribute, oldGloss, newGloss, question] of keys) {
+      const old = insert(db, { turn: 40, attribute, value: `${attribute}_old`, gloss: oldGloss, quote: oldGloss });
+      const latest = insert(db, { turn: 200, attribute, value: `${attribute}_new`, gloss: newGloss, quote: newGloss });
+      const result = recall(db, 300, question);
+      assert.equal(result.facts.some((fact) => fact.id === old), false, attribute);
+      assert.ok(result.facts.some((fact) => fact.id === latest), attribute);
+    }
   });
 });
