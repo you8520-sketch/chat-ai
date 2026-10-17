@@ -39,8 +39,9 @@ const MODEL = "gpt-image-2.5-sunburst";
 const BUDGET = 0.08;
 const SIZE = "1536x1024";
 const LEDGER = path.join(DOC, "emo-f-candidates-ledger.json");
+const R2_LEDGER = path.join(DOC, "emo6-r2-ledger.json");
 
-type SlotId = "emo2" | "emo6";
+type SlotId = "emo2" | "emo6" | "emo6r2";
 
 const SLOTS: Record<
   SlotId,
@@ -75,6 +76,24 @@ const SLOTS: Record<
       tag: "안도",
       expression:
         "상대의 무사 귀환을 확인한 뒤 긴장이 풀리며 숨을 내쉰다. 눈가와 어깨의 경직이 풀린다. 크게 웃지 않는다.",
+      pose: "갑옷을 벗지 않은 채 상체를 상대(카메라) 쪽으로 돌리고 어깨를 낮춘다. 손은 허벅지 위에 가볍게 두고 소품을 건네지 않는다. 유저는 그리지 않는다.",
+      outfit: "default",
+      location: null,
+      situation: null,
+      characterPresence: "required",
+      depiction: "standard",
+      personTag: null,
+      imageSubjects: { foreground: "solo_character", backgroundExtras: "none" },
+    },
+  },
+  emo6r2: {
+    prefix: "emo6-r2",
+    slot: {
+      slotKey: "emo6",
+      kind: "emotion",
+      tag: "안도",
+      expression:
+        "눈을 잠깐 감고 미간의 힘이 풀리며, 입술을 살짝 벌려 길게 숨을 내쉬는 안도. 웃는 입꼬리나 장난기보다 긴장이 풀리는 표정이다.",
       pose: "갑옷을 벗지 않은 채 상체를 상대(카메라) 쪽으로 돌리고 어깨를 낮춘다. 손은 허벅지 위에 가볍게 두고 소품을 건네지 않는다. 유저는 그리지 않는다.",
       outfit: "default",
       location: null,
@@ -209,15 +228,15 @@ function composeSlot(slotId: SlotId) {
   const ctx = loadWolfgangContext();
   const { slot } = SLOTS[slotId];
   const plan: OfficialAssetPlan = {
-    slots: ctx.assetPlan.slots.map((entry) => (entry.slotKey === slotId ? slot : entry)),
+    slots: ctx.assetPlan.slots.map((entry) => (entry.slotKey === slot.slotKey ? slot : entry)),
   };
   const composed = composeOfficialSlotGeneration({
     character: wolfgangCharacter(ctx.draft, ctx.appearance, plan),
     style: ctx.style,
-    slotKey: slotId,
     representativeUrl: "https://hav.chat/uploads/official-pilot-rf-v4-02__rep-a1.webp",
     env: { OPENAI_IMAGE_MODEL: MODEL },
     samePersonIdentityStyleUrl: F_REFERENCE,
+    slotKey: slot.slotKey,
   });
   if (!composed.ok) throw new Error(composed.error);
   if (composed.referenceRoleLayout !== "identity_and_style") {
@@ -312,6 +331,8 @@ async function preflightSlot(slotId: SlotId): Promise<void> {
     appearanceLockHash: LOCK_HASH,
   });
 
+  if (slotId === "emo6r2") writeExpressionOnlyDiff(composed.primaryPrompt);
+
   console.log(
     JSON.stringify({
       status: "PREFLIGHT",
@@ -322,9 +343,44 @@ async function preflightSlot(slotId: SlotId): Promise<void> {
   );
 }
 
-function readLedger(): { postsCompleted: number; slots: Record<string, unknown> } {
-  if (!fs.existsSync(LEDGER)) return { postsCompleted: 0, slots: {} };
-  return JSON.parse(fs.readFileSync(LEDGER, "utf8")) as { postsCompleted: number; slots: Record<string, unknown> };
+function expressionAndPose(prompt: string): { expression: string; pose: string } {
+  const expression = /Expression: (.*?)\. Pose: /.exec(prompt)?.[1];
+  const pose = /Pose: (.*?)\. Outfit: /.exec(prompt)?.[1];
+  if (!expression || !pose) throw new Error("expression or pose line missing");
+  return { expression, pose };
+}
+
+function writeExpressionOnlyDiff(nextPrompt: string): void {
+  const previous = fs.readFileSync(pathsFor("emo6").prompt, "utf8").replace(/\n$/, "");
+  const previousParts = expressionAndPose(previous);
+  const nextParts = expressionAndPose(nextPrompt);
+  if (previousParts.pose !== nextParts.pose) throw new Error("emo6-r2 pose drifted");
+  if (previousParts.expression === nextParts.expression) throw new Error("emo6-r2 expression did not change");
+  const previousLines = previous.split("\n");
+  const nextLines = nextPrompt.split("\n");
+  if (previousLines.length !== nextLines.length) throw new Error("emo6-r2 prompt line count drifted");
+  const changed = previousLines.flatMap((line, index) => (line === nextLines[index] ? [] : [index]));
+  if (changed.length !== 1) throw new Error(`emo6-r2 changed ${changed.length} lines`);
+  const diff = [
+    "--- emo6-relief-f-owner-prompt.txt",
+    "+++ emo6-r2-owner-prompt.txt",
+    `@@ expression only, line ${changed[0] + 1} @@`,
+    `-${previousLines[changed[0]]}`,
+    `+${nextLines[changed[0]]}`,
+    "",
+  ].join("\n");
+  const file = path.join(DOC, "emo6-r2-prompt.diff");
+  fs.writeFileSync(file, diff);
+  fs.writeFileSync(path.join(ART, "emo6-r2-prompt.diff"), diff);
+}
+
+function ledgerFile(slotId: SlotId): string {
+  return slotId === "emo6r2" ? R2_LEDGER : LEDGER;
+}
+
+function readLedger(file = LEDGER): { postsCompleted: number; slots: Record<string, unknown> } {
+  if (!fs.existsSync(file)) return { postsCompleted: 0, slots: {} };
+  return JSON.parse(fs.readFileSync(file, "utf8")) as { postsCompleted: number; slots: Record<string, unknown> };
 }
 
 function publicError(error: unknown) {
@@ -346,10 +402,12 @@ function publicError(error: unknown) {
 
 async function postSlot(slotId: SlotId): Promise<void> {
   const paths = pathsFor(slotId);
+  const ledgerPath = ledgerFile(slotId);
   if (fs.existsSync(paths.raw)) throw new Error(`${paths.raw} already exists`);
-  const ledger = readLedger();
+  const ledger = readLedger(ledgerPath);
   if (ledger.slots[slotId]) throw new Error(`${slotId} already posted in ledger`);
-  if (ledger.postsCompleted >= 2) throw new Error("post budget exhausted");
+  const postCap = slotId === "emo6r2" ? 1 : 2;
+  if (ledger.postsCompleted >= postCap) throw new Error("post budget exhausted");
 
   const pre = JSON.parse(fs.readFileSync(paths.preflight, "utf8")) as {
     providerPosts: number;
@@ -370,7 +428,7 @@ async function postSlot(slotId: SlotId): Promise<void> {
     throw new Error("prepared bytes drifted");
   }
 
-  writeJson(LEDGER, {
+  writeJson(ledgerPath, {
     ...ledger,
     postsStarted: (ledger.postsCompleted ?? 0) + 1,
     state: `starting-${slotId}`,
@@ -413,7 +471,8 @@ async function postSlot(slotId: SlotId): Promise<void> {
     const actual = {
       status:
         typeof result.costUsd === "number" && result.costUsd > BUDGET ? "OVER_BUDGET" : "GENERATED",
-      slotKey: slotId,
+      slotKey: SLOTS[slotId].slot.slotKey,
+      revision: slotId === "emo6r2" ? "r2" : null,
       tag: SLOTS[slotId].slot.tag,
       providerPosts: 1,
       persistedToProduction: false,
@@ -439,15 +498,16 @@ async function postSlot(slotId: SlotId): Promise<void> {
     };
     writeJson(paths.actual, actual);
 
-    const nextLedger = readLedger();
+    const nextLedger = readLedger(ledgerPath);
     const slots = { ...nextLedger.slots, [slotId]: actual };
-    const spentUsd = (["emo2", "emo6"] as const).reduce((sum, key) => {
+    const spentKeys = slotId === "emo6r2" ? (["emo6r2"] as const) : (["emo2", "emo6"] as const);
+    const spentUsd = spentKeys.reduce((sum, key) => {
       const entry = slots[key] as { costUsd?: number | null } | undefined;
       return sum + (typeof entry?.costUsd === "number" ? entry.costUsd : 0);
     }, 0);
-    writeJson(LEDGER, {
+    writeJson(ledgerPath, {
       postsCompleted: Object.keys(slots).length,
-      totalBudgetUsd: 0.16,
+      totalBudgetUsd: slotId === "emo6r2" ? BUDGET : 0.16,
       spentUsd,
       slots,
       state: "saved",
@@ -474,7 +534,7 @@ async function postSlot(slotId: SlotId): Promise<void> {
       vision: false,
       ...pub,
     });
-    writeJson(LEDGER, { ...readLedger(), state: `failed-${slotId}`, ...pub });
+    writeJson(ledgerPath, { ...readLedger(ledgerPath), state: `failed-${slotId}`, ...pub });
     throw error;
   }
 }
@@ -483,7 +543,7 @@ async function main(): Promise<void> {
   const mode = process.argv[2];
   const slot = process.argv[3] as SlotId | undefined;
   if (mode === "preflight") {
-    if (slot === "emo2" || slot === "emo6") return preflightSlot(slot);
+    if (slot === "emo2" || slot === "emo6" || slot === "emo6r2") return preflightSlot(slot);
     if (!slot) {
       await preflightSlot("emo2");
       await preflightSlot("emo6");
@@ -491,7 +551,9 @@ async function main(): Promise<void> {
     }
   }
   if (mode === "post") {
-    if (slot !== "emo2" && slot !== "emo6") throw new Error("post requires emo2 or emo6");
+    if (slot !== "emo2" && slot !== "emo6" && slot !== "emo6r2") {
+      throw new Error("post requires emo2, emo6, or emo6r2");
+    }
     return postSlot(slot);
   }
   throw new Error("usage: wolfgang-asset-redesign-emo-f-candidates.ts preflight [emo2|emo6] | post emo2|emo6");

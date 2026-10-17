@@ -12,19 +12,19 @@ const candidates = {
     label: "anger",
     file: path.join(DOC, "emo2-anger-f-raw.webp"),
     windows: {
-      face: { left: 420, top: 60, width: 400, height: 400 },
-      hair: { left: 460, top: 0, width: 340, height: 260 },
-      fur: { left: 0, top: 260, width: 300, height: 240 },
-      armor: { left: 380, top: 420, width: 460, height: 340 },
+      face: { left: 825, top: 125, width: 310, height: 300 },
+      hair: { left: 860, top: 0, width: 420, height: 220 },
+      fur: { left: 500, top: 90, width: 300, height: 240 },
+      armor: { left: 700, top: 520, width: 400, height: 300 },
     },
   },
   relief: {
     label: "relief",
     file: path.join(DOC, "emo6-relief-f-raw.webp"),
     windows: {
-      face: { left: 560, top: 90, width: 380, height: 380 },
-      hair: { left: 600, top: 0, width: 300, height: 220 },
-      fur: { left: 60, top: 280, width: 260, height: 220 },
+      face: { left: 820, top: 75, width: 290, height: 250 },
+      hair: { left: 930, top: 0, width: 340, height: 140 },
+      fur: { left: 520, top: 40, width: 300, height: 240 },
       armor: { left: 500, top: 440, width: 420, height: 320 },
     },
   },
@@ -123,9 +123,60 @@ async function buildOne(key: keyof typeof candidates) {
   fs.writeFileSync(path.join(ART, jsonName), text);
 }
 
+const fiveFaces = [
+  { label: "F", file: F, box: { left: 280, top: 160, width: 460, height: 460 } },
+  {
+    label: "smile",
+    file: path.join(DOC, "sig4-smile-f-raw.webp"),
+    box: { left: 500, top: 70, width: 360, height: 360 },
+  },
+  {
+    label: "anger",
+    file: path.join(DOC, "emo2-anger-f-raw.webp"),
+    box: { left: 825, top: 125, width: 310, height: 300 },
+  },
+  {
+    label: "relief",
+    file: path.join(DOC, "emo6-relief-f-raw.webp"),
+    box: { left: 820, top: 75, width: 290, height: 250 },
+  },
+  {
+    label: "relief-r2",
+    file: path.join(DOC, "emo6-r2-raw.webp"),
+    box: { left: 700, top: 40, width: 360, height: 300 },
+  },
+] as const;
+
+async function buildFiveFaces() {
+  if (!fs.existsSync(fiveFaces[4].file)) return;
+  const items = [];
+  for (const face of fiveFaces) {
+    const buf = await sharp(face.file).extract(face.box).webp({ quality: 92 }).toBuffer();
+    items.push({
+      label: `${face.label} 1:1 ${face.box.width}x${face.box.height}`,
+      buf,
+      width: face.box.width,
+      height: face.box.height,
+    });
+  }
+  const image = await pair(items);
+  const file = "compare-five-faces.webp";
+  fs.writeFileSync(path.join(DOC, file), image);
+  fs.writeFileSync(path.join(ART, file), image);
+  const record = {
+    scale: "1:1 extract, no resize",
+    faces: fiveFaces.map((face) => ({ label: face.label, ...face.box })),
+    output: { file, sha256: sha256(image), bytes: image.length },
+  };
+  const text = `${JSON.stringify(record, null, 2)}\n`;
+  fs.writeFileSync(path.join(DOC, "compare-five-faces.json"), text);
+  fs.writeFileSync(path.join(ART, "compare-five-faces.json"), text);
+}
+
 async function main() {
   await buildOne("anger");
   await buildOne("relief");
+  await buildFiveFaces();
   console.log("done");
 }
 
