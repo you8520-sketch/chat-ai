@@ -7,8 +7,11 @@ import Database from "better-sqlite3";
 /**
  * Isolated-DB proof of the `assets` operator steps through the real CLI.
  * Builds a temporary DATA_DIR with a staged Wolfgang row, then runs each step
- * as a child process with every provider key removed. Moderation results that
- * let review proceed are recorded with a fixture moderator and labelled so.
+ * as a child process with every provider key removed. Moderation steps that
+ * need a provider run the production vision moderator against a mock provider
+ * preloaded into the child (`--import`); it answers only the OpenRouter chat
+ * completions POST, logs every POST it receives and refuses any other request.
+ * Mock answers are not vision results and not a quality approval.
  * Rerun: copy to scripts/wolfgang-asset-operator-isolated-proof.ts, then
  * node --conditions=react-server --import tsx scripts/wolfgang-asset-operator-isolated-proof.ts <out.json>
  */
@@ -18,7 +21,54 @@ process.env.DATA_DIR = DATA_DIR;
 delete process.env.BLOB_READ_WRITE_TOKEN;
 for (const key of ["OPENROUTER_API_KEY", "OPENAI_API_KEY", "CHEAPER_INFERENCE_API_KEY"]) delete process.env[key];
 
-type Step = { label: string; args: string[]; env?: Record<string, string>; exitCode: number | null; output: unknown };
+const MOCK_PROVIDER = path.join(DATA_DIR, "mock-provider.mjs");
+const MOCK_LOG = path.join(DATA_DIR, "mock-provider-posts.jsonl");
+const DUMMY_KEY = "isolated-proof-dummy-key-not-a-credential";
+const PARSED = JSON.stringify({
+  imageType: "person",
+  personTag: "미소",
+  backgroundTag: null,
+  adult: false,
+  reject: false,
+  reason: "mock provider answer, not a vision result",
+  nippleExposure: "none",
+});
+
+fs.writeFileSync(
+  MOCK_PROVIDER,
+  `import fs from "node:fs";
+const replies = JSON.parse(process.env.MOCK_VISION_REPLIES ?? "[]");
+globalThis.fetch = async (input, init) => {
+  const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+  if (url === "https://openrouter.ai/api/v1/chat/completions" && init?.method === "POST") {
+    const model = JSON.parse(String(init.body)).model;
+    const next = replies.shift();
+    fs.appendFileSync(process.env.MOCK_VISION_LOG, JSON.stringify({ model, reply: next ?? "none scripted" }) + "\\n");
+    if (!next) throw new Error("mock provider has no scripted reply");
+    if (next.status !== 200) return new Response("upstream error", { status: next.status });
+    const usage = next.usage ? { prompt_tokens: 3000, completion_tokens: 40, ...(next.costUsd != null ? { cost: next.costUsd } : {}) } : undefined;
+    return Response.json({ choices: [{ message: { content: next.content } }], ...(usage ? { usage } : {}) });
+  }
+  fs.appendFileSync(process.env.MOCK_VISION_LOG, JSON.stringify({ refusedUrl: url }) + "\\n");
+  throw new Error("network egress is not allowed in the isolated proof: " + url);
+};
+`
+);
+
+type Reply = { status: number; content?: string; costUsd?: number; usage?: boolean };
+const parsed = (costUsd?: number): Reply => ({ status: 200, content: PARSED, costUsd, usage: true });
+const unparsed = (costUsd?: number): Reply => ({ status: 200, content: "not json", costUsd, usage: true });
+const noUsage: Reply = { status: 200, content: PARSED, usage: false };
+const http500: Reply = { status: 500 };
+
+type Step = {
+  label: string;
+  args: string[];
+  env?: Record<string, string>;
+  mockProviderPosts?: unknown[];
+  exitCode: number | null;
+  output: unknown;
+};
 
 async function main(): Promise<void> {
   const out = process.argv[2];
@@ -28,7 +78,6 @@ async function main(): Promise<void> {
   const fixtures = await import("@/lib/officialSupply/officialSupply.approvedApplyFixtures");
   const { testBatchConfig, testStyleCandidate } = await import("@/lib/officialSupply/officialSupply.fixtures");
   const { OfficialSupplyStore } = await import("@/lib/officialSupply/store");
-  const { moderateOfficialAssetReplacement } = await import("@/lib/officialSupply/runner");
   const { getCharacterRepresentativeImageUrl, parseAssets, safeLockedPreviewUrl } = await import("@/lib/characterAssets");
 
   const db = getDb();
@@ -51,11 +100,17 @@ async function main(): Promise<void> {
   const steps: Step[] = [];
   const sanitize = (text: string) => text.split(DATA_DIR).join("<isolated DATA_DIR>");
   const base = ["--admin-email", fixtures.ADMIN.email, "--character-id", String(characterId)];
-  const run = (label: string, args: string[], env: Record<string, string> = {}) => {
+  const run = (label: string, args: string[], env: Record<string, string> = {}, mock: Reply[] | null = null) => {
+    fs.rmSync(MOCK_LOG, { force: true });
+    const childEnv: Record<string, string | undefined> = { ...process.env, NODE_ENV: "", MOCK_VISION_LOG: MOCK_LOG, ...env };
+    if (mock) {
+      childEnv.OPENROUTER_API_KEY = DUMMY_KEY;
+      childEnv.MOCK_VISION_REPLIES = JSON.stringify(mock);
+    }
     const child = spawnSync(
       process.execPath,
-      ["--conditions=react-server", "--import", "tsx", "scripts/official-supply-wolfgang-approved-source.ts", "assets", ...args],
-      { env: { ...process.env, NODE_ENV: "", ...env }, encoding: "utf8" }
+      ["--conditions=react-server", "--import", "tsx", "--import", MOCK_PROVIDER, "scripts/official-supply-wolfgang-approved-source.ts", "assets", ...args],
+      { env: childEnv as NodeJS.ProcessEnv, encoding: "utf8" }
     );
     const stdout = sanitize(child.stdout.trim());
     const jsonStart = stdout.search(/^\{$/m);
@@ -65,35 +120,79 @@ async function main(): Promise<void> {
     } catch {
       output = { stdout, stderr: sanitize(child.stderr.trim()).split("\n").filter((l) => l.includes("STOP")) };
     }
-    steps.push({ label, args: args.map(sanitize), ...(Object.keys(env).length ? { env } : {}), exitCode: child.status, output });
+    const mockProviderPosts = fs.existsSync(MOCK_LOG)
+      ? fs.readFileSync(MOCK_LOG, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line))
+      : [];
+    steps.push({
+      label,
+      args: args.map(sanitize),
+      ...(Object.keys(env).length ? { env } : {}),
+      ...(mock ? { env: { ...env, OPENROUTER_API_KEY: "<dummy, mock provider only>" } } : {}),
+      mockProviderPosts,
+      exitCode: child.status,
+      output,
+    });
     return output as Record<string, unknown>;
+  };
+  const inProcess = (label: string, output: unknown) => steps.push({ label, args: [], exitCode: 0, output });
+  // Store helpers also read through the app connection, so in-process steps use it too and close it before the next child run.
+  const withDb = <T>(fn: (database: Database.Database) => T): T => {
+    const database = getDb();
+    try {
+      return fn(database);
+    } finally {
+      database.close();
+      (global as { __db?: unknown }).__db = undefined;
+    }
   };
 
   run("status (default, read-only)", ["status", ...base]);
   run("intake plan (default)", ["intake", ...base]);
-  run("intake --execute", ["intake", ...base, "--execute"]);
-  run("intake --execute rerun (resume: nothing re-registered)", ["intake", ...base, "--execute"]);
-  run("moderate plan (default, zero calls)", ["moderate", ...base, "--max-calls", "28", "--max-cost-usd", "0.28", "--per-call-reserve-usd", "0.01"]);
+
+  const uploads = path.join(DATA_DIR, "uploads");
+  fs.mkdirSync(uploads, { recursive: true });
+  fs.chmodSync(uploads, 0o555);
+  run("intake --execute with the uploads directory read-only (store fails after the claim)", ["intake", ...base, "--execute"]);
+  fs.chmodSync(uploads, 0o755);
+  run("status after the failed store", ["status", ...base]);
+
+  const leaseUntil = withDb((database) => {
+    const live = new OfficialSupplyStore(database).claimExternalReplacementIntake(fixtures.ADMIN, draftKey, "sig1", "another-live-intake");
+    return live.leaseExpiresAt;
+  });
+  inProcess("ISOLATED: another intake claims sig1 through claimExternalReplacementIntake (live lease)", {
+    slot: "sig1",
+    leaseOwner: "another-live-intake",
+    leaseExpiresAt: leaseUntil,
+  });
+  run("intake --execute (rep resumes, sig1 lease protected)", ["intake", ...base, "--execute"]);
+  withDb((database) =>
+    database
+      .prepare("UPDATE official_supply_asset_replacements SET lease_expires_at=? WHERE draft_key=? AND slot_key='sig1'")
+      .run(Date.now() - 1, draftKey)
+  );
+  inProcess("ISOLATED: sig1 lease_expires_at moved into the past to simulate expiry", { slot: "sig1" });
+  run("intake --execute (sig1 reclaimed by the claim CAS)", ["intake", ...base, "--execute"]);
+  run("intake --execute rerun (nothing re-registered)", ["intake", ...base, "--execute"]);
+
+  const caps = ["--max-calls", "28", "--max-cost-usd", "0.28", "--per-call-reserve-usd", "0.01"];
+  run("moderate plan (default, zero calls)", ["moderate", ...base, ...caps]);
   run("moderate --execute without caps (refused)", ["moderate", ...base, "--execute"]);
   run("moderate --execute caps below worst case (refused)", ["moderate", ...base, "--execute", "--max-calls", "27", "--max-cost-usd", "0.28", "--per-call-reserve-usd", "0.01"]);
-  run("moderate --execute with caps, no provider key (vision unavailable: stops after one image, charged at the reserve)", [
-    "moderate", ...base, "--execute", "--max-calls", "28", "--max-cost-usd", "0.28", "--per-call-reserve-usd", "0.01",
-  ]);
-
-  const fixtureDb = new Database(path.join(DATA_DIR, "app.db"));
-  const fixtureStore = new OfficialSupplyStore(fixtureDb);
-  const ports = new fixtures.TestPorts();
-  for (const candidate of fixtures.CANDIDATES) {
-    ports.nextModeration.push(fixtures.TEST_ONLY_MODERATION);
-    await moderateOfficialAssetReplacement({ store: fixtureStore, moderator: ports.moderator }, draftKey, candidate.slot);
-  }
-  fixtureDb.close();
-  steps.push({
-    label: "ISOLATED FIXTURE moderation recorded in-process (reason test-fixture-not-quality-approval; not a vision result)",
-    args: [],
-    exitCode: 0,
-    output: { slots: fixtures.CANDIDATES.map((c) => c.slot), moderatorCalls: ports.moderatedUrls.length, providerCalls: 0 },
-  });
+  run("moderate --execute, no provider key (no POST)", ["moderate", ...base, "--execute", ...caps]);
+  run("MOCK PROVIDER moderate --execute: primary billed above the reserve (fallback not sent)", ["moderate", ...base, "--execute", ...caps], {}, [unparsed(0.02)]);
+  run(
+    "MOCK PROVIDER moderate --execute: primary ok, primary 500 → fallback ok, reply without usage, both fail",
+    ["moderate", ...base, "--execute", ...caps],
+    {},
+    [parsed(0.0004), http500, parsed(0.0006), noUsage, http500, http500]
+  );
+  run(
+    "MOCK PROVIDER moderate --execute: remaining 11 slots, primary ok",
+    ["moderate", ...base, "--execute", "--max-calls", "22", "--max-cost-usd", "0.22", "--per-call-reserve-usd", "0.01"],
+    {},
+    Array.from({ length: 11 }, () => parsed(0.0005))
+  );
   run("moderate rerun (all moderated: zero calls)", ["moderate", ...base, "--execute", "--max-calls", "1", "--max-cost-usd", "0.01", "--per-call-reserve-usd", "0.01"]);
 
   const template = run("review template (unfilled)", ["review", ...base]).template as {
@@ -124,16 +223,18 @@ async function main(): Promise<void> {
   run("apply (default dry-run)", ["apply", ...base]);
   const applied = run("apply --execute", ["apply", ...base, "--execute"]);
   run("apply --execute rerun (already applied)", ["apply", ...base, "--execute"]);
-  const afterDb = new Database(path.join(DATA_DIR, "app.db"), { readonly: true });
-  const after = afterDb.prepare("SELECT assets, images FROM characters WHERE id=?").get(characterId) as { assets: string; images: string };
-  afterDb.close();
+  run("intake --execute after apply (nothing stored)", ["intake", ...base, "--execute"]);
+  const after = withDb(
+    (database) => database.prepare("SELECT assets, images FROM characters WHERE id=?").get(characterId) as { assets: string; images: string }
+  );
   run("status after apply", ["status", ...base]);
   run("rollback (default dry-run)", ["rollback", ...base, "--apply-id", String(applied.applyId)]);
   run("rollback --execute", ["rollback", ...base, "--apply-id", String(applied.applyId), "--execute"]);
-  const restoredDb = new Database(path.join(DATA_DIR, "app.db"), { readonly: true });
-  const restored = restoredDb.prepare("SELECT assets, images FROM characters WHERE id=?").get(characterId) as { assets: string; images: string };
-  restoredDb.close();
+  const restored = withDb(
+    (database) => database.prepare("SELECT assets, images FROM characters WHERE id=?").get(characterId) as { assets: string; images: string }
+  );
   run("status after rollback", ["status", ...base]);
+  const storedCandidateFiles = fs.readdirSync(uploads).filter((name) => name.includes("-ext-")).length;
 
   const card = (row: { assets: string; images: string }) => ({
     card: getCharacterRepresentativeImageUrl(row.assets, row.images),
@@ -145,9 +246,11 @@ async function main(): Promise<void> {
     out,
     `${JSON.stringify(
       {
-        scope: "isolated temporary DATA_DIR; deleted after the run. No production database, no provider key, no network.",
+        scope:
+          "isolated temporary DATA_DIR; deleted after the run. No production database, no provider key, no network. Moderation answers come from a mock provider and are not vision results.",
         draftKey,
         characterId,
+        storedCandidateFiles,
         readers: { before: card(before), afterApply: card(after), afterRollback: card(restored) },
         rollbackRestoredCharacterRow: restored.assets === before.assets && restored.images === before.images,
         steps,

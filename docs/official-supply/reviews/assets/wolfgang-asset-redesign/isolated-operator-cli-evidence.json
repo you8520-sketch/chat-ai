@@ -1,7 +1,8 @@
 {
-  "scope": "isolated temporary DATA_DIR; deleted after the run. No production database, no provider key, no network.",
+  "scope": "isolated temporary DATA_DIR; deleted after the run. No production database, no provider key, no network. Moderation answers come from a mock provider and are not vision results.",
   "draftKey": "pilot-rf-v4-02",
   "characterId": 10,
+  "storedCandidateFiles": 14,
   "readers": {
     "before": {
       "card": "/uploads/official-pilot-rf-v4-02__rep-a1.webp",
@@ -12,12 +13,12 @@
       "representativeBlurPreview": "/media/public/legacy-blur-official-pilot-rf-v4-02__rep-a1.webp"
     },
     "afterApply": {
-      "card": "/uploads/official-pilot-rf-v4-02__rep-ext-e89b192f-1c2b-4187-a2bb-7636276c5891.webp",
+      "card": "/uploads/official-pilot-rf-v4-02__rep-ext-4010ba0e-db58-47f9-aa9f-2e7d99b49d08.webp",
       "images": [
-        "/uploads/official-pilot-rf-v4-02__rep-ext-e89b192f-1c2b-4187-a2bb-7636276c5891.webp"
+        "/uploads/official-pilot-rf-v4-02__rep-ext-4010ba0e-db58-47f9-aa9f-2e7d99b49d08.webp"
       ],
       "representativeTag": "기본 초상",
-      "representativeBlurPreview": "/media/public/legacy-blur-official-pilot-rf-v4-02__rep-ext-e89b192f-1c2b-4187-a2bb-7636276c5891.webp"
+      "representativeBlurPreview": "/media/public/legacy-blur-official-pilot-rf-v4-02__rep-ext-4010ba0e-db58-47f9-aa9f-2e7d99b49d08.webp"
     },
     "afterRollback": {
       "card": "/uploads/official-pilot-rf-v4-02__rep-a1.webp",
@@ -39,6 +40,7 @@
         "--character-id",
         "10"
       ],
+      "mockProviderPosts": [],
       "exitCode": 0,
       "output": {
         "db": "<isolated DATA_DIR>/app.db",
@@ -240,34 +242,79 @@
         "--character-id",
         "10"
       ],
+      "mockProviderPosts": [],
       "exitCode": 0,
       "output": {
         "db": "<isolated DATA_DIR>/app.db",
         "productionDatabase": false,
         "step": "intake",
         "execute": false,
+        "status": "planned",
         "planned": [
-          "rep",
-          "sig1",
-          "sig2",
-          "sig3",
-          "sig4",
-          "emo1",
-          "emo2",
-          "emo3",
-          "emo4",
-          "emo5",
-          "emo6",
-          "scene1",
-          "scene2",
-          "scene3"
+          {
+            "slot": "rep",
+            "resumes": null
+          },
+          {
+            "slot": "sig1",
+            "resumes": null
+          },
+          {
+            "slot": "sig2",
+            "resumes": null
+          },
+          {
+            "slot": "sig3",
+            "resumes": null
+          },
+          {
+            "slot": "sig4",
+            "resumes": null
+          },
+          {
+            "slot": "emo1",
+            "resumes": null
+          },
+          {
+            "slot": "emo2",
+            "resumes": null
+          },
+          {
+            "slot": "emo3",
+            "resumes": null
+          },
+          {
+            "slot": "emo4",
+            "resumes": null
+          },
+          {
+            "slot": "emo5",
+            "resumes": null
+          },
+          {
+            "slot": "emo6",
+            "resumes": null
+          },
+          {
+            "slot": "scene1",
+            "resumes": null
+          },
+          {
+            "slot": "scene2",
+            "resumes": null
+          },
+          {
+            "slot": "scene3",
+            "resumes": null
+          }
         ],
         "registered": [],
+        "failed": null,
         "skipped": []
       }
     },
     {
-      "label": "intake --execute",
+      "label": "intake --execute with the uploads directory read-only (store fails after the claim)",
       "args": [
         "intake",
         "--admin-email",
@@ -276,105 +323,465 @@
         "10",
         "--execute"
       ],
+      "mockProviderPosts": [],
+      "exitCode": 1,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "intake",
+        "execute": true,
+        "status": "stopped",
+        "planned": [
+          {
+            "slot": "rep",
+            "resumes": null
+          },
+          {
+            "slot": "sig1",
+            "resumes": null
+          },
+          {
+            "slot": "sig2",
+            "resumes": null
+          },
+          {
+            "slot": "sig3",
+            "resumes": null
+          },
+          {
+            "slot": "sig4",
+            "resumes": null
+          },
+          {
+            "slot": "emo1",
+            "resumes": null
+          },
+          {
+            "slot": "emo2",
+            "resumes": null
+          },
+          {
+            "slot": "emo3",
+            "resumes": null
+          },
+          {
+            "slot": "emo4",
+            "resumes": null
+          },
+          {
+            "slot": "emo5",
+            "resumes": null
+          },
+          {
+            "slot": "emo6",
+            "resumes": null
+          },
+          {
+            "slot": "scene1",
+            "resumes": null
+          },
+          {
+            "slot": "scene2",
+            "resumes": null
+          },
+          {
+            "slot": "scene3",
+            "resumes": null
+          }
+        ],
+        "registered": [],
+        "failed": {
+          "slot": "rep",
+          "code": "intake_error",
+          "message": "EACCES: permission denied, open '<isolated DATA_DIR>/uploads/official-pilot-rf-v4-02__rep-ext-94f3ca49-d28c-4862-9651-749d20794bf6.webp'"
+        },
+        "skipped": []
+      }
+    },
+    {
+      "label": "status after the failed store",
+      "args": [
+        "status",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10"
+      ],
+      "mockProviderPosts": [],
+      "exitCode": 0,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "status",
+        "writes": 0,
+        "draftKey": "pilot-rf-v4-02",
+        "characterId": 10,
+        "stage": "staged_private",
+        "textLockHash": "6ff02833cfd45a542866aa1afa749486d94362eff5358e10f995b8f77fabd5fd",
+        "appearanceLockHash": "1c3ccd134203a6dea6ae869c27cc443c42ff5498d1d0130c6f9765407c24dcc3",
+        "admin": {
+          "id": 8303,
+          "email": "approved-apply-admin@test.local"
+        },
+        "manifest": {
+          "candidates": 14,
+          "filesMatchSha256": true
+        },
+        "slots": [
+          {
+            "slot": "rep",
+            "tag": "기본 초상",
+            "rawSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__rep-a1.webp",
+            "replacementStatus": "planned",
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": "missing",
+            "next": "intake",
+            "reason": "previous intake stopped before registration"
+          },
+          {
+            "slot": "sig1",
+            "tag": "지도를 짚음",
+            "rawSha256": "e986403412b7754b520901afa97cc00e895ace0184542144383198f3506782f5",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig1-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "sig2",
+            "tag": "턱을 괴고 생각",
+            "rawSha256": "3242bbadb72a6514314f9dd8ab425ad22e459358821c85b800215d4205f9bdb4",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig2-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "sig3",
+            "tag": "열쇠를 확인함",
+            "rawSha256": "b7df32fa69725fdfe86849dcd78bfbf6d8f4916f3bf5a6b8ecccb17ae50f8a19",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig3-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "sig4",
+            "tag": "옅은 미소",
+            "rawSha256": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig4-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "emo1",
+            "tag": "의심",
+            "rawSha256": "6f345d95b85a30850a954e4369f4aa9a7a9ccd978669643f41166fe5a7346a07",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo1-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "emo2",
+            "tag": "분노",
+            "rawSha256": "c4d38db0e3adfb59cf6fc2da8b79457636a90d64113c8b059ad30639d66d5db8",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo2-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "emo3",
+            "tag": "진지함",
+            "rawSha256": "758e1f8d182ffdf229107eb83c0d7476e24c7f9c2d1de02ca3ab9bb19419643a",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo3-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "emo4",
+            "tag": "당황",
+            "rawSha256": "527086945e164458a773cd84eac1e69a4e07d19e8ed14af4eb1c4d8c257bf4d4",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo4-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "emo5",
+            "tag": "편안함",
+            "rawSha256": "ef87914c71865944cdb1b40a6417105b3a426f089769189648e9ff86036ab517",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo5-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "emo6",
+            "tag": "안도",
+            "rawSha256": "f52f9f21046f7993a349e672b3326f2f5144bcb885badcf3181ad7326547e214",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo6-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "scene1",
+            "tag": "문서를 대조함",
+            "rawSha256": "1150bf9d17b6e7720e3e020c5288be20e346a83468c633d7672a9796f1e6230c",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__scene1-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "scene2",
+            "tag": "기록을 맞춤",
+            "rawSha256": "0cb364a2eddfddf5196e1ab1f0da8deb20ca175b62cc996b3ac583cea674b3e5",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__scene2-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          },
+          {
+            "slot": "scene3",
+            "tag": "긴장",
+            "rawSha256": "bd3a47bc70ac79ac2bbc9b9a92e93903680397f59265afd9bb1f02309433482c",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__scene3-a1.webp",
+            "replacementStatus": null,
+            "candidateUrl": null,
+            "candidateMatchesManifest": false,
+            "moderation": null,
+            "next": "intake",
+            "reason": null
+          }
+        ],
+        "applies": []
+      }
+    },
+    {
+      "label": "ISOLATED: another intake claims sig1 through claimExternalReplacementIntake (live lease)",
+      "args": [],
+      "exitCode": 0,
+      "output": {
+        "slot": "sig1",
+        "leaseOwner": "another-live-intake",
+        "leaseExpiresAt": 1792250482447
+      }
+    },
+    {
+      "label": "intake --execute (rep resumes, sig1 lease protected)",
+      "args": [
+        "intake",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10",
+        "--execute"
+      ],
+      "mockProviderPosts": [],
       "exitCode": 0,
       "output": {
         "db": "<isolated DATA_DIR>/app.db",
         "productionDatabase": false,
         "step": "intake",
         "execute": true,
+        "status": "completed",
         "planned": [
-          "rep",
-          "sig1",
-          "sig2",
-          "sig3",
-          "sig4",
-          "emo1",
-          "emo2",
-          "emo3",
-          "emo4",
-          "emo5",
-          "emo6",
-          "scene1",
-          "scene2",
-          "scene3"
+          {
+            "slot": "rep",
+            "resumes": "previous intake stopped before registration"
+          },
+          {
+            "slot": "sig2",
+            "resumes": null
+          },
+          {
+            "slot": "sig3",
+            "resumes": null
+          },
+          {
+            "slot": "sig4",
+            "resumes": null
+          },
+          {
+            "slot": "emo1",
+            "resumes": null
+          },
+          {
+            "slot": "emo2",
+            "resumes": null
+          },
+          {
+            "slot": "emo3",
+            "resumes": null
+          },
+          {
+            "slot": "emo4",
+            "resumes": null
+          },
+          {
+            "slot": "emo5",
+            "resumes": null
+          },
+          {
+            "slot": "emo6",
+            "resumes": null
+          },
+          {
+            "slot": "scene1",
+            "resumes": null
+          },
+          {
+            "slot": "scene2",
+            "resumes": null
+          },
+          {
+            "slot": "scene3",
+            "resumes": null
+          }
         ],
         "registered": [
           {
             "slot": "rep",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-e89b192f-1c2b-4187-a2bb-7636276c5891.webp",
-            "candidateSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032"
-          },
-          {
-            "slot": "sig1",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig1-ext-602dec13-9def-4ac9-a38a-3b3ba40f1cb7.webp",
-            "candidateSha256": "e986403412b7754b520901afa97cc00e895ace0184542144383198f3506782f5"
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-4010ba0e-db58-47f9-aa9f-2e7d99b49d08.webp",
+            "candidateSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+            "resumed": "previous intake stopped before registration"
           },
           {
             "slot": "sig2",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig2-ext-690b5584-f0b2-4359-8e1a-2492a4ea83de.webp",
-            "candidateSha256": "3242bbadb72a6514314f9dd8ab425ad22e459358821c85b800215d4205f9bdb4"
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig2-ext-c0a5afc8-73a9-4cdc-91d2-ab5bc8221c8d.webp",
+            "candidateSha256": "3242bbadb72a6514314f9dd8ab425ad22e459358821c85b800215d4205f9bdb4",
+            "resumed": null
           },
           {
             "slot": "sig3",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig3-ext-f9be162f-22b1-4926-874f-672c11f0edb6.webp",
-            "candidateSha256": "b7df32fa69725fdfe86849dcd78bfbf6d8f4916f3bf5a6b8ecccb17ae50f8a19"
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig3-ext-8b38e472-2396-499b-be4e-20ae08704040.webp",
+            "candidateSha256": "b7df32fa69725fdfe86849dcd78bfbf6d8f4916f3bf5a6b8ecccb17ae50f8a19",
+            "resumed": null
           },
           {
             "slot": "sig4",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig4-ext-6015b488-4b83-4f23-8939-3ad2fcd0115b.webp",
-            "candidateSha256": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1"
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig4-ext-48a5db39-841f-4559-be04-ca4c29b65bbc.webp",
+            "candidateSha256": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1",
+            "resumed": null
           },
           {
             "slot": "emo1",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo1-ext-6770eb16-97f3-45ae-a60f-5d6291b0e1f6.webp",
-            "candidateSha256": "6f345d95b85a30850a954e4369f4aa9a7a9ccd978669643f41166fe5a7346a07"
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo1-ext-93b56f45-4392-4255-b15e-c4a3958c2e42.webp",
+            "candidateSha256": "6f345d95b85a30850a954e4369f4aa9a7a9ccd978669643f41166fe5a7346a07",
+            "resumed": null
           },
           {
             "slot": "emo2",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo2-ext-2bd272cd-af61-4186-84f8-bdc0ae3822f8.webp",
-            "candidateSha256": "c4d38db0e3adfb59cf6fc2da8b79457636a90d64113c8b059ad30639d66d5db8"
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo2-ext-3bc83aad-e3d4-48aa-8f9a-8ade48a0b5c0.webp",
+            "candidateSha256": "c4d38db0e3adfb59cf6fc2da8b79457636a90d64113c8b059ad30639d66d5db8",
+            "resumed": null
           },
           {
             "slot": "emo3",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo3-ext-0d4d9b7e-d575-4cff-b8ff-2b5cd585a598.webp",
-            "candidateSha256": "758e1f8d182ffdf229107eb83c0d7476e24c7f9c2d1de02ca3ab9bb19419643a"
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo3-ext-c81465f7-58f7-4d88-8247-e7f1d753aac9.webp",
+            "candidateSha256": "758e1f8d182ffdf229107eb83c0d7476e24c7f9c2d1de02ca3ab9bb19419643a",
+            "resumed": null
           },
           {
             "slot": "emo4",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo4-ext-5c2c8473-2321-48bf-9e12-7441d1ab8f33.webp",
-            "candidateSha256": "527086945e164458a773cd84eac1e69a4e07d19e8ed14af4eb1c4d8c257bf4d4"
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo4-ext-3bfad329-f824-46b8-b7a7-335fa65c4d46.webp",
+            "candidateSha256": "527086945e164458a773cd84eac1e69a4e07d19e8ed14af4eb1c4d8c257bf4d4",
+            "resumed": null
           },
           {
             "slot": "emo5",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo5-ext-6d5e4c32-f7a7-483f-8ed7-e65b98515090.webp",
-            "candidateSha256": "ef87914c71865944cdb1b40a6417105b3a426f089769189648e9ff86036ab517"
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo5-ext-68b43334-b7d7-4095-8078-dcfa5b06110b.webp",
+            "candidateSha256": "ef87914c71865944cdb1b40a6417105b3a426f089769189648e9ff86036ab517",
+            "resumed": null
           },
           {
             "slot": "emo6",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo6-ext-466a9de8-8df1-45e2-bf15-90a9844c3ccc.webp",
-            "candidateSha256": "f52f9f21046f7993a349e672b3326f2f5144bcb885badcf3181ad7326547e214"
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo6-ext-06c08e61-0482-480f-8760-a40bb2b8e9bd.webp",
+            "candidateSha256": "f52f9f21046f7993a349e672b3326f2f5144bcb885badcf3181ad7326547e214",
+            "resumed": null
           },
           {
             "slot": "scene1",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene1-ext-c301a03e-5d26-486f-8161-60af0064dff9.webp",
-            "candidateSha256": "1150bf9d17b6e7720e3e020c5288be20e346a83468c633d7672a9796f1e6230c"
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene1-ext-cb32f4f5-6401-4f93-928c-8ba8f5bda3a5.webp",
+            "candidateSha256": "1150bf9d17b6e7720e3e020c5288be20e346a83468c633d7672a9796f1e6230c",
+            "resumed": null
           },
           {
             "slot": "scene2",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene2-ext-a268d75c-ed16-498b-bff1-f1db7016b73e.webp",
-            "candidateSha256": "0cb364a2eddfddf5196e1ab1f0da8deb20ca175b62cc996b3ac583cea674b3e5"
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene2-ext-165e5af3-7aa8-4626-ac00-0ec556d2d16b.webp",
+            "candidateSha256": "0cb364a2eddfddf5196e1ab1f0da8deb20ca175b62cc996b3ac583cea674b3e5",
+            "resumed": null
           },
           {
             "slot": "scene3",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene3-ext-1ba5c819-f60b-4762-81cf-ad098ac55b06.webp",
-            "candidateSha256": "bd3a47bc70ac79ac2bbc9b9a92e93903680397f59265afd9bb1f02309433482c"
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene3-ext-ab30861a-77eb-47de-a7d8-a07197c8e464.webp",
+            "candidateSha256": "bd3a47bc70ac79ac2bbc9b9a92e93903680397f59265afd9bb1f02309433482c",
+            "resumed": null
           }
         ],
-        "skipped": []
+        "failed": null,
+        "skipped": [
+          {
+            "slot": "sig1",
+            "next": "blocked",
+            "reason": "another intake holds the lease (2026-10-17T15:21:22.447Z)"
+          }
+        ]
       }
     },
     {
-      "label": "intake --execute rerun (resume: nothing re-registered)",
+      "label": "ISOLATED: sig1 lease_expires_at moved into the past to simulate expiry",
+      "args": [],
+      "exitCode": 0,
+      "output": {
+        "slot": "sig1"
+      }
+    },
+    {
+      "label": "intake --execute (sig1 reclaimed by the claim CAS)",
       "args": [
         "intake",
         "--admin-email",
@@ -383,14 +790,119 @@
         "10",
         "--execute"
       ],
+      "mockProviderPosts": [],
       "exitCode": 0,
       "output": {
         "db": "<isolated DATA_DIR>/app.db",
         "productionDatabase": false,
         "step": "intake",
         "execute": true,
+        "status": "completed",
+        "planned": [
+          {
+            "slot": "sig1",
+            "resumes": "previous intake lease expired before registration"
+          }
+        ],
+        "registered": [
+          {
+            "slot": "sig1",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig1-ext-0224642d-16fe-4576-98a7-48493927b0e0.webp",
+            "candidateSha256": "e986403412b7754b520901afa97cc00e895ace0184542144383198f3506782f5",
+            "resumed": "previous intake lease expired before registration"
+          }
+        ],
+        "failed": null,
+        "skipped": [
+          {
+            "slot": "rep",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "sig2",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "sig3",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "sig4",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "emo1",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "emo2",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "emo3",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "emo4",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "emo5",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "emo6",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "scene1",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "scene2",
+            "next": "moderate",
+            "reason": null
+          },
+          {
+            "slot": "scene3",
+            "next": "moderate",
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "label": "intake --execute rerun (nothing re-registered)",
+      "args": [
+        "intake",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10",
+        "--execute"
+      ],
+      "mockProviderPosts": [],
+      "exitCode": 0,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "intake",
+        "execute": true,
+        "status": "completed",
         "planned": [],
         "registered": [],
+        "failed": null,
         "skipped": [
           {
             "slot": "rep",
@@ -480,6 +992,7 @@
         "--per-call-reserve-usd",
         "0.01"
       ],
+      "mockProviderPosts": [],
       "exitCode": 0,
       "output": {
         "db": "<isolated DATA_DIR>/app.db",
@@ -488,7 +1001,9 @@
         "execute": false,
         "status": "planned",
         "stopReason": null,
+        "error": null,
         "plan": {
+          "scope": "this command run",
           "pending": [
             "rep",
             "sig1",
@@ -515,11 +1030,18 @@
           "perCallReserveUsd": 0.01
         },
         "accounting": {
-          "chargedCalls": 0,
-          "observedAttempts": 0,
-          "chargedCostUsd": 0,
-          "knownCostUsd": 0
+          "scope": "this command run",
+          "providerPosts": 0,
+          "postsWithConfirmedCost": 0,
+          "confirmedCostUsd": 0,
+          "postsWithUnknownCost": 0,
+          "unknownCostReserveHeldUsd": 0,
+          "budgetUsedUsd": 0,
+          "reservedUsd": null,
+          "unusedReserveUsd": null,
+          "chargesAboveReserve": []
         },
+        "posts": [],
         "results": [],
         "skipped": []
       }
@@ -534,6 +1056,7 @@
         "10",
         "--execute"
       ],
+      "mockProviderPosts": [],
       "exitCode": 1,
       "output": {
         "stdout": "[database] runtime diagnostics {\n  nodeEnv: '',\n  nextPhase: '',\n  cwd: '/workspace',\n  dataDir: '<isolated DATA_DIR>',\n  databasePath: '<isolated DATA_DIR>/app.db',\n  dataDirExists: true,\n  dataDirIsMounted: false,\n  productionRuntime: false\n}",
@@ -558,6 +1081,7 @@
         "--per-call-reserve-usd",
         "0.01"
       ],
+      "mockProviderPosts": [],
       "exitCode": 1,
       "output": {
         "stdout": "[database] runtime diagnostics {\n  nodeEnv: '',\n  nextPhase: '',\n  cwd: '/workspace',\n  dataDir: '<isolated DATA_DIR>',\n  databasePath: '<isolated DATA_DIR>/app.db',\n  dataDirExists: true,\n  dataDirIsMounted: false,\n  productionRuntime: false\n}",
@@ -567,7 +1091,7 @@
       }
     },
     {
-      "label": "moderate --execute with caps, no provider key (vision unavailable: stops after one image, charged at the reserve)",
+      "label": "moderate --execute, no provider key (no POST)",
       "args": [
         "moderate",
         "--admin-email",
@@ -582,6 +1106,7 @@
         "--per-call-reserve-usd",
         "0.01"
       ],
+      "mockProviderPosts": [],
       "exitCode": 1,
       "output": {
         "db": "<isolated DATA_DIR>/app.db",
@@ -590,7 +1115,9 @@
         "execute": true,
         "status": "stopped",
         "stopReason": "rep moderation unavailable",
+        "error": null,
         "plan": {
+          "scope": "this command run",
           "pending": [
             "rep",
             "sig1",
@@ -617,11 +1144,18 @@
           "perCallReserveUsd": 0.01
         },
         "accounting": {
-          "chargedCalls": 2,
-          "observedAttempts": 0,
-          "chargedCostUsd": 0.02,
-          "knownCostUsd": 0
+          "scope": "this command run",
+          "providerPosts": 0,
+          "postsWithConfirmedCost": 0,
+          "confirmedCostUsd": 0,
+          "postsWithUnknownCost": 0,
+          "unknownCostReserveHeldUsd": 0,
+          "budgetUsedUsd": 0,
+          "reservedUsd": 0.28,
+          "unusedReserveUsd": 0.28,
+          "chargesAboveReserve": []
         },
+        "posts": [],
         "results": [
           {
             "slot": "rep",
@@ -632,28 +1166,599 @@
       }
     },
     {
-      "label": "ISOLATED FIXTURE moderation recorded in-process (reason test-fixture-not-quality-approval; not a vision result)",
-      "args": [],
+      "label": "MOCK PROVIDER moderate --execute: primary billed above the reserve (fallback not sent)",
+      "args": [
+        "moderate",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10",
+        "--execute",
+        "--max-calls",
+        "28",
+        "--max-cost-usd",
+        "0.28",
+        "--per-call-reserve-usd",
+        "0.01"
+      ],
+      "env": {
+        "OPENROUTER_API_KEY": "<dummy, mock provider only>"
+      },
+      "mockProviderPosts": [
+        {
+          "model": "qwen/qwen3.8-flash",
+          "reply": {
+            "status": 200,
+            "content": "not json",
+            "costUsd": 0.02,
+            "usage": true
+          }
+        },
+        {
+          "refusedUrl": "https://open.er-api.com/v6/latest/USD"
+        }
+      ],
+      "exitCode": 1,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "moderate",
+        "execute": true,
+        "status": "stopped",
+        "stopReason": "rep: rep qwen/qwen3.8-flash was billed 0.02 USD, above the 0.01 USD per-call reserve; the next provider POST was not sent",
+        "error": null,
+        "plan": {
+          "scope": "this command run",
+          "pending": [
+            "rep",
+            "sig1",
+            "sig2",
+            "sig3",
+            "sig4",
+            "emo1",
+            "emo2",
+            "emo3",
+            "emo4",
+            "emo5",
+            "emo6",
+            "scene1",
+            "scene2",
+            "scene3"
+          ],
+          "attemptsPerCall": 2,
+          "worstCaseCalls": 28,
+          "worstCaseCostUsd": 0.28
+        },
+        "budget": {
+          "maxCalls": 28,
+          "maxCostUsd": 0.28,
+          "perCallReserveUsd": 0.01
+        },
+        "accounting": {
+          "scope": "this command run",
+          "providerPosts": 1,
+          "postsWithConfirmedCost": 1,
+          "confirmedCostUsd": 0.02,
+          "postsWithUnknownCost": 0,
+          "unknownCostReserveHeldUsd": 0,
+          "budgetUsedUsd": 0.02,
+          "reservedUsd": 0.28,
+          "unusedReserveUsd": 0.26,
+          "chargesAboveReserve": [
+            {
+              "slot": "rep",
+              "model": "qwen/qwen3.8-flash",
+              "confirmedCostUsd": 0.02,
+              "reserveUsd": 0.01
+            }
+          ]
+        },
+        "posts": [
+          {
+            "slot": "rep",
+            "model": "qwen/qwen3.8-flash",
+            "outcome": "unparsed",
+            "confirmedCostUsd": 0.02,
+            "aboveReserve": true
+          }
+        ],
+        "results": [
+          {
+            "slot": "rep",
+            "verdict": "unavailable"
+          }
+        ],
+        "skipped": []
+      }
+    },
+    {
+      "label": "MOCK PROVIDER moderate --execute: primary ok, primary 500 → fallback ok, reply without usage, both fail",
+      "args": [
+        "moderate",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10",
+        "--execute",
+        "--max-calls",
+        "28",
+        "--max-cost-usd",
+        "0.28",
+        "--per-call-reserve-usd",
+        "0.01"
+      ],
+      "env": {
+        "OPENROUTER_API_KEY": "<dummy, mock provider only>"
+      },
+      "mockProviderPosts": [
+        {
+          "model": "qwen/qwen3.8-flash",
+          "reply": {
+            "status": 200,
+            "content": "{\"imageType\":\"person\",\"personTag\":\"미소\",\"backgroundTag\":null,\"adult\":false,\"reject\":false,\"reason\":\"mock provider answer, not a vision result\",\"nippleExposure\":\"none\"}",
+            "costUsd": 0.0004,
+            "usage": true
+          }
+        },
+        {
+          "refusedUrl": "https://open.er-api.com/v6/latest/USD"
+        },
+        {
+          "model": "qwen/qwen3.8-flash",
+          "reply": {
+            "status": 500
+          }
+        },
+        {
+          "model": "qwen/qwen3-vl-8b-instruct",
+          "reply": {
+            "status": 200,
+            "content": "{\"imageType\":\"person\",\"personTag\":\"미소\",\"backgroundTag\":null,\"adult\":false,\"reject\":false,\"reason\":\"mock provider answer, not a vision result\",\"nippleExposure\":\"none\"}",
+            "costUsd": 0.0006,
+            "usage": true
+          }
+        },
+        {
+          "model": "qwen/qwen3.8-flash",
+          "reply": {
+            "status": 200,
+            "content": "{\"imageType\":\"person\",\"personTag\":\"미소\",\"backgroundTag\":null,\"adult\":false,\"reject\":false,\"reason\":\"mock provider answer, not a vision result\",\"nippleExposure\":\"none\"}",
+            "usage": false
+          }
+        },
+        {
+          "model": "qwen/qwen3.8-flash",
+          "reply": {
+            "status": 500
+          }
+        },
+        {
+          "model": "qwen/qwen3-vl-8b-instruct",
+          "reply": {
+            "status": 500
+          }
+        }
+      ],
+      "exitCode": 1,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "moderate",
+        "execute": true,
+        "status": "stopped",
+        "stopReason": "sig3 moderation unavailable",
+        "error": null,
+        "plan": {
+          "scope": "this command run",
+          "pending": [
+            "rep",
+            "sig1",
+            "sig2",
+            "sig3",
+            "sig4",
+            "emo1",
+            "emo2",
+            "emo3",
+            "emo4",
+            "emo5",
+            "emo6",
+            "scene1",
+            "scene2",
+            "scene3"
+          ],
+          "attemptsPerCall": 2,
+          "worstCaseCalls": 28,
+          "worstCaseCostUsd": 0.28
+        },
+        "budget": {
+          "maxCalls": 28,
+          "maxCostUsd": 0.28,
+          "perCallReserveUsd": 0.01
+        },
+        "accounting": {
+          "scope": "this command run",
+          "providerPosts": 6,
+          "postsWithConfirmedCost": 2,
+          "confirmedCostUsd": 0.001,
+          "postsWithUnknownCost": 4,
+          "unknownCostReserveHeldUsd": 0.04,
+          "budgetUsedUsd": 0.041,
+          "reservedUsd": 0.28,
+          "unusedReserveUsd": 0.239,
+          "chargesAboveReserve": []
+        },
+        "posts": [
+          {
+            "slot": "rep",
+            "model": "qwen/qwen3.8-flash",
+            "outcome": "parsed",
+            "confirmedCostUsd": 0.0004,
+            "aboveReserve": false
+          },
+          {
+            "slot": "sig1",
+            "model": "qwen/qwen3.8-flash",
+            "outcome": "http_error",
+            "confirmedCostUsd": null,
+            "aboveReserve": false
+          },
+          {
+            "slot": "sig1",
+            "model": "qwen/qwen3-vl-8b-instruct",
+            "outcome": "parsed",
+            "confirmedCostUsd": 0.0006,
+            "aboveReserve": false
+          },
+          {
+            "slot": "sig2",
+            "model": "qwen/qwen3.8-flash",
+            "outcome": "parsed",
+            "confirmedCostUsd": null,
+            "aboveReserve": false
+          },
+          {
+            "slot": "sig3",
+            "model": "qwen/qwen3.8-flash",
+            "outcome": "http_error",
+            "confirmedCostUsd": null,
+            "aboveReserve": false
+          },
+          {
+            "slot": "sig3",
+            "model": "qwen/qwen3-vl-8b-instruct",
+            "outcome": "http_error",
+            "confirmedCostUsd": null,
+            "aboveReserve": false
+          }
+        ],
+        "results": [
+          {
+            "slot": "rep",
+            "verdict": "clean"
+          },
+          {
+            "slot": "sig1",
+            "verdict": "clean"
+          },
+          {
+            "slot": "sig2",
+            "verdict": "clean"
+          },
+          {
+            "slot": "sig3",
+            "verdict": "unavailable"
+          }
+        ],
+        "skipped": []
+      }
+    },
+    {
+      "label": "MOCK PROVIDER moderate --execute: remaining 11 slots, primary ok",
+      "args": [
+        "moderate",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10",
+        "--execute",
+        "--max-calls",
+        "22",
+        "--max-cost-usd",
+        "0.22",
+        "--per-call-reserve-usd",
+        "0.01"
+      ],
+      "env": {
+        "OPENROUTER_API_KEY": "<dummy, mock provider only>"
+      },
+      "mockProviderPosts": [
+        {
+          "model": "qwen/qwen3.8-flash",
+          "reply": {
+            "status": 200,
+            "content": "{\"imageType\":\"person\",\"personTag\":\"미소\",\"backgroundTag\":null,\"adult\":false,\"reject\":false,\"reason\":\"mock provider answer, not a vision result\",\"nippleExposure\":\"none\"}",
+            "costUsd": 0.0005,
+            "usage": true
+          }
+        },
+        {
+          "refusedUrl": "https://open.er-api.com/v6/latest/USD"
+        },
+        {
+          "model": "qwen/qwen3.8-flash",
+          "reply": {
+            "status": 200,
+            "content": "{\"imageType\":\"person\",\"personTag\":\"미소\",\"backgroundTag\":null,\"adult\":false,\"reject\":false,\"reason\":\"mock provider answer, not a vision result\",\"nippleExposure\":\"none\"}",
+            "costUsd": 0.0005,
+            "usage": true
+          }
+        },
+        {
+          "model": "qwen/qwen3.8-flash",
+          "reply": {
+            "status": 200,
+            "content": "{\"imageType\":\"person\",\"personTag\":\"미소\",\"backgroundTag\":null,\"adult\":false,\"reject\":false,\"reason\":\"mock provider answer, not a vision result\",\"nippleExposure\":\"none\"}",
+            "costUsd": 0.0005,
+            "usage": true
+          }
+        },
+        {
+          "model": "qwen/qwen3.8-flash",
+          "reply": {
+            "status": 200,
+            "content": "{\"imageType\":\"person\",\"personTag\":\"미소\",\"backgroundTag\":null,\"adult\":false,\"reject\":false,\"reason\":\"mock provider answer, not a vision result\",\"nippleExposure\":\"none\"}",
+            "costUsd": 0.0005,
+            "usage": true
+          }
+        },
+        {
+          "model": "qwen/qwen3.8-flash",
+          "reply": {
+            "status": 200,
+            "content": "{\"imageType\":\"person\",\"personTag\":\"미소\",\"backgroundTag\":null,\"adult\":false,\"reject\":false,\"reason\":\"mock provider answer, not a vision result\",\"nippleExposure\":\"none\"}",
+            "costUsd": 0.0005,
+            "usage": true
+          }
+        },
+        {
+          "model": "qwen/qwen3.8-flash",
+          "reply": {
+            "status": 200,
+            "content": "{\"imageType\":\"person\",\"personTag\":\"미소\",\"backgroundTag\":null,\"adult\":false,\"reject\":false,\"reason\":\"mock provider answer, not a vision result\",\"nippleExposure\":\"none\"}",
+            "costUsd": 0.0005,
+            "usage": true
+          }
+        },
+        {
+          "model": "qwen/qwen3.8-flash",
+          "reply": {
+            "status": 200,
+            "content": "{\"imageType\":\"person\",\"personTag\":\"미소\",\"backgroundTag\":null,\"adult\":false,\"reject\":false,\"reason\":\"mock provider answer, not a vision result\",\"nippleExposure\":\"none\"}",
+            "costUsd": 0.0005,
+            "usage": true
+          }
+        },
+        {
+          "model": "qwen/qwen3.8-flash",
+          "reply": {
+            "status": 200,
+            "content": "{\"imageType\":\"person\",\"personTag\":\"미소\",\"backgroundTag\":null,\"adult\":false,\"reject\":false,\"reason\":\"mock provider answer, not a vision result\",\"nippleExposure\":\"none\"}",
+            "costUsd": 0.0005,
+            "usage": true
+          }
+        },
+        {
+          "model": "qwen/qwen3.8-flash",
+          "reply": {
+            "status": 200,
+            "content": "{\"imageType\":\"person\",\"personTag\":\"미소\",\"backgroundTag\":null,\"adult\":false,\"reject\":false,\"reason\":\"mock provider answer, not a vision result\",\"nippleExposure\":\"none\"}",
+            "costUsd": 0.0005,
+            "usage": true
+          }
+        },
+        {
+          "model": "qwen/qwen3.8-flash",
+          "reply": {
+            "status": 200,
+            "content": "{\"imageType\":\"person\",\"personTag\":\"미소\",\"backgroundTag\":null,\"adult\":false,\"reject\":false,\"reason\":\"mock provider answer, not a vision result\",\"nippleExposure\":\"none\"}",
+            "costUsd": 0.0005,
+            "usage": true
+          }
+        },
+        {
+          "model": "qwen/qwen3.8-flash",
+          "reply": {
+            "status": 200,
+            "content": "{\"imageType\":\"person\",\"personTag\":\"미소\",\"backgroundTag\":null,\"adult\":false,\"reject\":false,\"reason\":\"mock provider answer, not a vision result\",\"nippleExposure\":\"none\"}",
+            "costUsd": 0.0005,
+            "usage": true
+          }
+        }
+      ],
       "exitCode": 0,
       "output": {
-        "slots": [
-          "rep",
-          "sig1",
-          "sig2",
-          "sig3",
-          "sig4",
-          "emo1",
-          "emo2",
-          "emo3",
-          "emo4",
-          "emo5",
-          "emo6",
-          "scene1",
-          "scene2",
-          "scene3"
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "moderate",
+        "execute": true,
+        "status": "completed",
+        "stopReason": null,
+        "error": null,
+        "plan": {
+          "scope": "this command run",
+          "pending": [
+            "sig3",
+            "sig4",
+            "emo1",
+            "emo2",
+            "emo3",
+            "emo4",
+            "emo5",
+            "emo6",
+            "scene1",
+            "scene2",
+            "scene3"
+          ],
+          "attemptsPerCall": 2,
+          "worstCaseCalls": 22,
+          "worstCaseCostUsd": 0.22
+        },
+        "budget": {
+          "maxCalls": 22,
+          "maxCostUsd": 0.22,
+          "perCallReserveUsd": 0.01
+        },
+        "accounting": {
+          "scope": "this command run",
+          "providerPosts": 11,
+          "postsWithConfirmedCost": 11,
+          "confirmedCostUsd": 0.0055,
+          "postsWithUnknownCost": 0,
+          "unknownCostReserveHeldUsd": 0,
+          "budgetUsedUsd": 0.0055,
+          "reservedUsd": 0.22,
+          "unusedReserveUsd": 0.2145,
+          "chargesAboveReserve": []
+        },
+        "posts": [
+          {
+            "slot": "sig3",
+            "model": "qwen/qwen3.8-flash",
+            "outcome": "parsed",
+            "confirmedCostUsd": 0.0005,
+            "aboveReserve": false
+          },
+          {
+            "slot": "sig4",
+            "model": "qwen/qwen3.8-flash",
+            "outcome": "parsed",
+            "confirmedCostUsd": 0.0005,
+            "aboveReserve": false
+          },
+          {
+            "slot": "emo1",
+            "model": "qwen/qwen3.8-flash",
+            "outcome": "parsed",
+            "confirmedCostUsd": 0.0005,
+            "aboveReserve": false
+          },
+          {
+            "slot": "emo2",
+            "model": "qwen/qwen3.8-flash",
+            "outcome": "parsed",
+            "confirmedCostUsd": 0.0005,
+            "aboveReserve": false
+          },
+          {
+            "slot": "emo3",
+            "model": "qwen/qwen3.8-flash",
+            "outcome": "parsed",
+            "confirmedCostUsd": 0.0005,
+            "aboveReserve": false
+          },
+          {
+            "slot": "emo4",
+            "model": "qwen/qwen3.8-flash",
+            "outcome": "parsed",
+            "confirmedCostUsd": 0.0005,
+            "aboveReserve": false
+          },
+          {
+            "slot": "emo5",
+            "model": "qwen/qwen3.8-flash",
+            "outcome": "parsed",
+            "confirmedCostUsd": 0.0005,
+            "aboveReserve": false
+          },
+          {
+            "slot": "emo6",
+            "model": "qwen/qwen3.8-flash",
+            "outcome": "parsed",
+            "confirmedCostUsd": 0.0005,
+            "aboveReserve": false
+          },
+          {
+            "slot": "scene1",
+            "model": "qwen/qwen3.8-flash",
+            "outcome": "parsed",
+            "confirmedCostUsd": 0.0005,
+            "aboveReserve": false
+          },
+          {
+            "slot": "scene2",
+            "model": "qwen/qwen3.8-flash",
+            "outcome": "parsed",
+            "confirmedCostUsd": 0.0005,
+            "aboveReserve": false
+          },
+          {
+            "slot": "scene3",
+            "model": "qwen/qwen3.8-flash",
+            "outcome": "parsed",
+            "confirmedCostUsd": 0.0005,
+            "aboveReserve": false
+          }
         ],
-        "moderatorCalls": 14,
-        "providerCalls": 0
+        "results": [
+          {
+            "slot": "sig3",
+            "verdict": "clean"
+          },
+          {
+            "slot": "sig4",
+            "verdict": "clean"
+          },
+          {
+            "slot": "emo1",
+            "verdict": "clean"
+          },
+          {
+            "slot": "emo2",
+            "verdict": "clean"
+          },
+          {
+            "slot": "emo3",
+            "verdict": "clean"
+          },
+          {
+            "slot": "emo4",
+            "verdict": "clean"
+          },
+          {
+            "slot": "emo5",
+            "verdict": "clean"
+          },
+          {
+            "slot": "emo6",
+            "verdict": "clean"
+          },
+          {
+            "slot": "scene1",
+            "verdict": "clean"
+          },
+          {
+            "slot": "scene2",
+            "verdict": "clean"
+          },
+          {
+            "slot": "scene3",
+            "verdict": "clean"
+          }
+        ],
+        "skipped": [
+          {
+            "slot": "rep",
+            "next": "review"
+          },
+          {
+            "slot": "sig1",
+            "next": "review"
+          },
+          {
+            "slot": "sig2",
+            "next": "review"
+          }
+        ]
       }
     },
     {
@@ -672,6 +1777,7 @@
         "--per-call-reserve-usd",
         "0.01"
       ],
+      "mockProviderPosts": [],
       "exitCode": 0,
       "output": {
         "db": "<isolated DATA_DIR>/app.db",
@@ -680,7 +1786,9 @@
         "execute": true,
         "status": "completed",
         "stopReason": null,
+        "error": null,
         "plan": {
+          "scope": "this command run",
           "pending": [],
           "attemptsPerCall": 2,
           "worstCaseCalls": 0,
@@ -692,11 +1800,18 @@
           "perCallReserveUsd": 0.01
         },
         "accounting": {
-          "chargedCalls": 0,
-          "observedAttempts": 0,
-          "chargedCostUsd": 0,
-          "knownCostUsd": 0
+          "scope": "this command run",
+          "providerPosts": 0,
+          "postsWithConfirmedCost": 0,
+          "confirmedCostUsd": 0,
+          "postsWithUnknownCost": 0,
+          "unknownCostReserveHeldUsd": 0,
+          "budgetUsedUsd": 0,
+          "reservedUsd": 0,
+          "unusedReserveUsd": 0,
+          "chargesAboveReserve": []
         },
+        "posts": [],
         "results": [],
         "skipped": [
           {
@@ -767,6 +1882,7 @@
         "--character-id",
         "10"
       ],
+      "mockProviderPosts": [],
       "exitCode": 0,
       "output": {
         "db": "<isolated DATA_DIR>/app.db",
@@ -781,7 +1897,7 @@
           "slots": [
             {
               "slot": "rep",
-              "candidateUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-e89b192f-1c2b-4187-a2bb-7636276c5891.webp",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-4010ba0e-db58-47f9-aa9f-2e7d99b49d08.webp",
               "candidateSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
               "qa": {
                 "gender": {
@@ -828,7 +1944,7 @@
             },
             {
               "slot": "sig1",
-              "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig1-ext-602dec13-9def-4ac9-a38a-3b3ba40f1cb7.webp",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig1-ext-0224642d-16fe-4576-98a7-48493927b0e0.webp",
               "candidateSha256": "e986403412b7754b520901afa97cc00e895ace0184542144383198f3506782f5",
               "qa": {
                 "identityMatchesAnchor": {
@@ -851,7 +1967,7 @@
             },
             {
               "slot": "sig2",
-              "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig2-ext-690b5584-f0b2-4359-8e1a-2492a4ea83de.webp",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig2-ext-c0a5afc8-73a9-4cdc-91d2-ab5bc8221c8d.webp",
               "candidateSha256": "3242bbadb72a6514314f9dd8ab425ad22e459358821c85b800215d4205f9bdb4",
               "qa": {
                 "identityMatchesAnchor": {
@@ -874,7 +1990,7 @@
             },
             {
               "slot": "sig3",
-              "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig3-ext-f9be162f-22b1-4926-874f-672c11f0edb6.webp",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig3-ext-8b38e472-2396-499b-be4e-20ae08704040.webp",
               "candidateSha256": "b7df32fa69725fdfe86849dcd78bfbf6d8f4916f3bf5a6b8ecccb17ae50f8a19",
               "qa": {
                 "identityMatchesAnchor": {
@@ -897,7 +2013,7 @@
             },
             {
               "slot": "sig4",
-              "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig4-ext-6015b488-4b83-4f23-8939-3ad2fcd0115b.webp",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig4-ext-48a5db39-841f-4559-be04-ca4c29b65bbc.webp",
               "candidateSha256": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1",
               "qa": {
                 "identityMatchesAnchor": {
@@ -920,7 +2036,7 @@
             },
             {
               "slot": "emo1",
-              "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo1-ext-6770eb16-97f3-45ae-a60f-5d6291b0e1f6.webp",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo1-ext-93b56f45-4392-4255-b15e-c4a3958c2e42.webp",
               "candidateSha256": "6f345d95b85a30850a954e4369f4aa9a7a9ccd978669643f41166fe5a7346a07",
               "qa": {
                 "identityMatchesAnchor": {
@@ -943,7 +2059,7 @@
             },
             {
               "slot": "emo2",
-              "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo2-ext-2bd272cd-af61-4186-84f8-bdc0ae3822f8.webp",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo2-ext-3bc83aad-e3d4-48aa-8f9a-8ade48a0b5c0.webp",
               "candidateSha256": "c4d38db0e3adfb59cf6fc2da8b79457636a90d64113c8b059ad30639d66d5db8",
               "qa": {
                 "identityMatchesAnchor": {
@@ -966,7 +2082,7 @@
             },
             {
               "slot": "emo3",
-              "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo3-ext-0d4d9b7e-d575-4cff-b8ff-2b5cd585a598.webp",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo3-ext-c81465f7-58f7-4d88-8247-e7f1d753aac9.webp",
               "candidateSha256": "758e1f8d182ffdf229107eb83c0d7476e24c7f9c2d1de02ca3ab9bb19419643a",
               "qa": {
                 "identityMatchesAnchor": {
@@ -989,7 +2105,7 @@
             },
             {
               "slot": "emo4",
-              "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo4-ext-5c2c8473-2321-48bf-9e12-7441d1ab8f33.webp",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo4-ext-3bfad329-f824-46b8-b7a7-335fa65c4d46.webp",
               "candidateSha256": "527086945e164458a773cd84eac1e69a4e07d19e8ed14af4eb1c4d8c257bf4d4",
               "qa": {
                 "identityMatchesAnchor": {
@@ -1012,7 +2128,7 @@
             },
             {
               "slot": "emo5",
-              "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo5-ext-6d5e4c32-f7a7-483f-8ed7-e65b98515090.webp",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo5-ext-68b43334-b7d7-4095-8078-dcfa5b06110b.webp",
               "candidateSha256": "ef87914c71865944cdb1b40a6417105b3a426f089769189648e9ff86036ab517",
               "qa": {
                 "identityMatchesAnchor": {
@@ -1035,7 +2151,7 @@
             },
             {
               "slot": "emo6",
-              "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo6-ext-466a9de8-8df1-45e2-bf15-90a9844c3ccc.webp",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo6-ext-06c08e61-0482-480f-8760-a40bb2b8e9bd.webp",
               "candidateSha256": "f52f9f21046f7993a349e672b3326f2f5144bcb885badcf3181ad7326547e214",
               "qa": {
                 "identityMatchesAnchor": {
@@ -1058,7 +2174,7 @@
             },
             {
               "slot": "scene1",
-              "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene1-ext-c301a03e-5d26-486f-8161-60af0064dff9.webp",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene1-ext-cb32f4f5-6401-4f93-928c-8ba8f5bda3a5.webp",
               "candidateSha256": "1150bf9d17b6e7720e3e020c5288be20e346a83468c633d7672a9796f1e6230c",
               "qa": {
                 "identityMatchesAnchor": {
@@ -1081,7 +2197,7 @@
             },
             {
               "slot": "scene2",
-              "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene2-ext-a268d75c-ed16-498b-bff1-f1db7016b73e.webp",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene2-ext-165e5af3-7aa8-4626-ac00-0ec556d2d16b.webp",
               "candidateSha256": "0cb364a2eddfddf5196e1ab1f0da8deb20ca175b62cc996b3ac583cea674b3e5",
               "qa": {
                 "identityMatchesAnchor": {
@@ -1104,7 +2220,7 @@
             },
             {
               "slot": "scene3",
-              "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene3-ext-1ba5c819-f60b-4762-81cf-ad098ac55b06.webp",
+              "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene3-ext-ab30861a-77eb-47de-a7d8-a07197c8e464.webp",
               "candidateSha256": "bd3a47bc70ac79ac2bbc9b9a92e93903680397f59265afd9bb1f02309433482c",
               "qa": {
                 "identityMatchesAnchor": {
@@ -1144,6 +2260,7 @@
       "env": {
         "RAILWAY_ENVIRONMENT_NAME": "production"
       },
+      "mockProviderPosts": [],
       "exitCode": 1,
       "output": {
         "stdout": "[database] runtime diagnostics {\n  nodeEnv: '',\n  nextPhase: '',\n  cwd: '/workspace',\n  dataDir: '<isolated DATA_DIR>',\n  databasePath: '<isolated DATA_DIR>/app.db',\n  dataDirExists: true,\n  dataDirIsMounted: false,\n  productionRuntime: false\n}",
@@ -1163,98 +2280,99 @@
         "--evidence",
         "<isolated DATA_DIR>/isolated-review-evidence.json"
       ],
+      "mockProviderPosts": [],
       "exitCode": 0,
       "output": {
         "db": "<isolated DATA_DIR>/app.db",
         "productionDatabase": false,
         "step": "review",
         "execute": false,
-        "evidenceSha256": "52e7f2b5f7814e5e1b2c9dfdf4dca8f054808acd60371887af858caa5058fbc3",
+        "evidenceSha256": "fed14752a64e55a65043cc3e96da32fdf34f69b5c645d3307567d11ba1f58103",
         "reviewer": "isolated-operator-proof",
         "approvalEvidence": "isolated DB wrapper proof only; production review uses its own evidence file",
         "isolatedProofOnly": true,
         "planned": [
           {
             "slot": "rep",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-e89b192f-1c2b-4187-a2bb-7636276c5891.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-4010ba0e-db58-47f9-aa9f-2e7d99b49d08.webp",
             "candidateSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
             "allChecksOk": true
           },
           {
             "slot": "sig1",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig1-ext-602dec13-9def-4ac9-a38a-3b3ba40f1cb7.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig1-ext-0224642d-16fe-4576-98a7-48493927b0e0.webp",
             "candidateSha256": "e986403412b7754b520901afa97cc00e895ace0184542144383198f3506782f5",
             "allChecksOk": true
           },
           {
             "slot": "sig2",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig2-ext-690b5584-f0b2-4359-8e1a-2492a4ea83de.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig2-ext-c0a5afc8-73a9-4cdc-91d2-ab5bc8221c8d.webp",
             "candidateSha256": "3242bbadb72a6514314f9dd8ab425ad22e459358821c85b800215d4205f9bdb4",
             "allChecksOk": true
           },
           {
             "slot": "sig3",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig3-ext-f9be162f-22b1-4926-874f-672c11f0edb6.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig3-ext-8b38e472-2396-499b-be4e-20ae08704040.webp",
             "candidateSha256": "b7df32fa69725fdfe86849dcd78bfbf6d8f4916f3bf5a6b8ecccb17ae50f8a19",
             "allChecksOk": true
           },
           {
             "slot": "sig4",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig4-ext-6015b488-4b83-4f23-8939-3ad2fcd0115b.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig4-ext-48a5db39-841f-4559-be04-ca4c29b65bbc.webp",
             "candidateSha256": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1",
             "allChecksOk": true
           },
           {
             "slot": "emo1",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo1-ext-6770eb16-97f3-45ae-a60f-5d6291b0e1f6.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo1-ext-93b56f45-4392-4255-b15e-c4a3958c2e42.webp",
             "candidateSha256": "6f345d95b85a30850a954e4369f4aa9a7a9ccd978669643f41166fe5a7346a07",
             "allChecksOk": true
           },
           {
             "slot": "emo2",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo2-ext-2bd272cd-af61-4186-84f8-bdc0ae3822f8.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo2-ext-3bc83aad-e3d4-48aa-8f9a-8ade48a0b5c0.webp",
             "candidateSha256": "c4d38db0e3adfb59cf6fc2da8b79457636a90d64113c8b059ad30639d66d5db8",
             "allChecksOk": true
           },
           {
             "slot": "emo3",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo3-ext-0d4d9b7e-d575-4cff-b8ff-2b5cd585a598.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo3-ext-c81465f7-58f7-4d88-8247-e7f1d753aac9.webp",
             "candidateSha256": "758e1f8d182ffdf229107eb83c0d7476e24c7f9c2d1de02ca3ab9bb19419643a",
             "allChecksOk": true
           },
           {
             "slot": "emo4",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo4-ext-5c2c8473-2321-48bf-9e12-7441d1ab8f33.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo4-ext-3bfad329-f824-46b8-b7a7-335fa65c4d46.webp",
             "candidateSha256": "527086945e164458a773cd84eac1e69a4e07d19e8ed14af4eb1c4d8c257bf4d4",
             "allChecksOk": true
           },
           {
             "slot": "emo5",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo5-ext-6d5e4c32-f7a7-483f-8ed7-e65b98515090.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo5-ext-68b43334-b7d7-4095-8078-dcfa5b06110b.webp",
             "candidateSha256": "ef87914c71865944cdb1b40a6417105b3a426f089769189648e9ff86036ab517",
             "allChecksOk": true
           },
           {
             "slot": "emo6",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo6-ext-466a9de8-8df1-45e2-bf15-90a9844c3ccc.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo6-ext-06c08e61-0482-480f-8760-a40bb2b8e9bd.webp",
             "candidateSha256": "f52f9f21046f7993a349e672b3326f2f5144bcb885badcf3181ad7326547e214",
             "allChecksOk": true
           },
           {
             "slot": "scene1",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene1-ext-c301a03e-5d26-486f-8161-60af0064dff9.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene1-ext-cb32f4f5-6401-4f93-928c-8ba8f5bda3a5.webp",
             "candidateSha256": "1150bf9d17b6e7720e3e020c5288be20e346a83468c633d7672a9796f1e6230c",
             "allChecksOk": true
           },
           {
             "slot": "scene2",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene2-ext-a268d75c-ed16-498b-bff1-f1db7016b73e.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene2-ext-165e5af3-7aa8-4626-ac00-0ec556d2d16b.webp",
             "candidateSha256": "0cb364a2eddfddf5196e1ab1f0da8deb20ca175b62cc996b3ac583cea674b3e5",
             "allChecksOk": true
           },
           {
             "slot": "scene3",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene3-ext-1ba5c819-f60b-4762-81cf-ad098ac55b06.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene3-ext-ab30861a-77eb-47de-a7d8-a07197c8e464.webp",
             "candidateSha256": "bd3a47bc70ac79ac2bbc9b9a92e93903680397f59265afd9bb1f02309433482c",
             "allChecksOk": true
           }
@@ -1276,98 +2394,99 @@
         "<isolated DATA_DIR>/isolated-review-evidence.json",
         "--execute"
       ],
+      "mockProviderPosts": [],
       "exitCode": 0,
       "output": {
         "db": "<isolated DATA_DIR>/app.db",
         "productionDatabase": false,
         "step": "review",
         "execute": true,
-        "evidenceSha256": "52e7f2b5f7814e5e1b2c9dfdf4dca8f054808acd60371887af858caa5058fbc3",
+        "evidenceSha256": "fed14752a64e55a65043cc3e96da32fdf34f69b5c645d3307567d11ba1f58103",
         "reviewer": "isolated-operator-proof",
         "approvalEvidence": "isolated DB wrapper proof only; production review uses its own evidence file",
         "isolatedProofOnly": true,
         "planned": [
           {
             "slot": "rep",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-e89b192f-1c2b-4187-a2bb-7636276c5891.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-4010ba0e-db58-47f9-aa9f-2e7d99b49d08.webp",
             "candidateSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
             "allChecksOk": true
           },
           {
             "slot": "sig1",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig1-ext-602dec13-9def-4ac9-a38a-3b3ba40f1cb7.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig1-ext-0224642d-16fe-4576-98a7-48493927b0e0.webp",
             "candidateSha256": "e986403412b7754b520901afa97cc00e895ace0184542144383198f3506782f5",
             "allChecksOk": true
           },
           {
             "slot": "sig2",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig2-ext-690b5584-f0b2-4359-8e1a-2492a4ea83de.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig2-ext-c0a5afc8-73a9-4cdc-91d2-ab5bc8221c8d.webp",
             "candidateSha256": "3242bbadb72a6514314f9dd8ab425ad22e459358821c85b800215d4205f9bdb4",
             "allChecksOk": true
           },
           {
             "slot": "sig3",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig3-ext-f9be162f-22b1-4926-874f-672c11f0edb6.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig3-ext-8b38e472-2396-499b-be4e-20ae08704040.webp",
             "candidateSha256": "b7df32fa69725fdfe86849dcd78bfbf6d8f4916f3bf5a6b8ecccb17ae50f8a19",
             "allChecksOk": true
           },
           {
             "slot": "sig4",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig4-ext-6015b488-4b83-4f23-8939-3ad2fcd0115b.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig4-ext-48a5db39-841f-4559-be04-ca4c29b65bbc.webp",
             "candidateSha256": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1",
             "allChecksOk": true
           },
           {
             "slot": "emo1",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo1-ext-6770eb16-97f3-45ae-a60f-5d6291b0e1f6.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo1-ext-93b56f45-4392-4255-b15e-c4a3958c2e42.webp",
             "candidateSha256": "6f345d95b85a30850a954e4369f4aa9a7a9ccd978669643f41166fe5a7346a07",
             "allChecksOk": true
           },
           {
             "slot": "emo2",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo2-ext-2bd272cd-af61-4186-84f8-bdc0ae3822f8.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo2-ext-3bc83aad-e3d4-48aa-8f9a-8ade48a0b5c0.webp",
             "candidateSha256": "c4d38db0e3adfb59cf6fc2da8b79457636a90d64113c8b059ad30639d66d5db8",
             "allChecksOk": true
           },
           {
             "slot": "emo3",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo3-ext-0d4d9b7e-d575-4cff-b8ff-2b5cd585a598.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo3-ext-c81465f7-58f7-4d88-8247-e7f1d753aac9.webp",
             "candidateSha256": "758e1f8d182ffdf229107eb83c0d7476e24c7f9c2d1de02ca3ab9bb19419643a",
             "allChecksOk": true
           },
           {
             "slot": "emo4",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo4-ext-5c2c8473-2321-48bf-9e12-7441d1ab8f33.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo4-ext-3bfad329-f824-46b8-b7a7-335fa65c4d46.webp",
             "candidateSha256": "527086945e164458a773cd84eac1e69a4e07d19e8ed14af4eb1c4d8c257bf4d4",
             "allChecksOk": true
           },
           {
             "slot": "emo5",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo5-ext-6d5e4c32-f7a7-483f-8ed7-e65b98515090.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo5-ext-68b43334-b7d7-4095-8078-dcfa5b06110b.webp",
             "candidateSha256": "ef87914c71865944cdb1b40a6417105b3a426f089769189648e9ff86036ab517",
             "allChecksOk": true
           },
           {
             "slot": "emo6",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo6-ext-466a9de8-8df1-45e2-bf15-90a9844c3ccc.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo6-ext-06c08e61-0482-480f-8760-a40bb2b8e9bd.webp",
             "candidateSha256": "f52f9f21046f7993a349e672b3326f2f5144bcb885badcf3181ad7326547e214",
             "allChecksOk": true
           },
           {
             "slot": "scene1",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene1-ext-c301a03e-5d26-486f-8161-60af0064dff9.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene1-ext-cb32f4f5-6401-4f93-928c-8ba8f5bda3a5.webp",
             "candidateSha256": "1150bf9d17b6e7720e3e020c5288be20e346a83468c633d7672a9796f1e6230c",
             "allChecksOk": true
           },
           {
             "slot": "scene2",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene2-ext-a268d75c-ed16-498b-bff1-f1db7016b73e.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene2-ext-165e5af3-7aa8-4626-ac00-0ec556d2d16b.webp",
             "candidateSha256": "0cb364a2eddfddf5196e1ab1f0da8deb20ca175b62cc996b3ac583cea674b3e5",
             "allChecksOk": true
           },
           {
             "slot": "scene3",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene3-ext-1ba5c819-f60b-4762-81cf-ad098ac55b06.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene3-ext-ab30861a-77eb-47de-a7d8-a07197c8e464.webp",
             "candidateSha256": "bd3a47bc70ac79ac2bbc9b9a92e93903680397f59265afd9bb1f02309433482c",
             "allChecksOk": true
           }
@@ -1446,13 +2565,14 @@
         "<isolated DATA_DIR>/isolated-review-evidence.json",
         "--execute"
       ],
+      "mockProviderPosts": [],
       "exitCode": 0,
       "output": {
         "db": "<isolated DATA_DIR>/app.db",
         "productionDatabase": false,
         "step": "review",
         "execute": true,
-        "evidenceSha256": "52e7f2b5f7814e5e1b2c9dfdf4dca8f054808acd60371887af858caa5058fbc3",
+        "evidenceSha256": "fed14752a64e55a65043cc3e96da32fdf34f69b5c645d3307567d11ba1f58103",
         "reviewer": "isolated-operator-proof",
         "approvalEvidence": "isolated DB wrapper proof only; production review uses its own evidence file",
         "isolatedProofOnly": true,
@@ -1486,6 +2606,7 @@
         "--character-id",
         "10"
       ],
+      "mockProviderPosts": [],
       "exitCode": 0,
       "output": {
         "db": "<isolated DATA_DIR>/app.db",
@@ -1525,6 +2646,7 @@
         "10",
         "--execute"
       ],
+      "mockProviderPosts": [],
       "exitCode": 0,
       "output": {
         "db": "<isolated DATA_DIR>/app.db",
@@ -1550,8 +2672,8 @@
           "scene2",
           "scene3"
         ],
-        "applyId": "a2095028-8bde-4699-a5e8-3e827ef4344e",
-        "rollback": "npm run official-supply:wolfgang-approved-source -- assets rollback --admin-email approved-apply-admin@test.local --character-id 10 --apply-id a2095028-8bde-4699-a5e8-3e827ef4344e"
+        "applyId": "708b62bf-3466-4b6f-81d2-5d16978c4491",
+        "rollback": "npm run official-supply:wolfgang-approved-source -- assets rollback --admin-email approved-apply-admin@test.local --character-id 10 --apply-id 708b62bf-3466-4b6f-81d2-5d16978c4491"
       }
     },
     {
@@ -1564,6 +2686,7 @@
         "10",
         "--execute"
       ],
+      "mockProviderPosts": [],
       "exitCode": 0,
       "output": {
         "db": "<isolated DATA_DIR>/app.db",
@@ -1571,9 +2694,104 @@
         "step": "apply",
         "execute": true,
         "status": "already_applied",
-        "applyId": "a2095028-8bde-4699-a5e8-3e827ef4344e",
+        "applyId": "708b62bf-3466-4b6f-81d2-5d16978c4491",
         "swapped": [],
-        "rollback": "npm run official-supply:wolfgang-approved-source -- assets rollback --admin-email approved-apply-admin@test.local --character-id 10 --apply-id a2095028-8bde-4699-a5e8-3e827ef4344e"
+        "rollback": "npm run official-supply:wolfgang-approved-source -- assets rollback --admin-email approved-apply-admin@test.local --character-id 10 --apply-id 708b62bf-3466-4b6f-81d2-5d16978c4491"
+      }
+    },
+    {
+      "label": "intake --execute after apply (nothing stored)",
+      "args": [
+        "intake",
+        "--admin-email",
+        "approved-apply-admin@test.local",
+        "--character-id",
+        "10",
+        "--execute"
+      ],
+      "mockProviderPosts": [],
+      "exitCode": 0,
+      "output": {
+        "db": "<isolated DATA_DIR>/app.db",
+        "productionDatabase": false,
+        "step": "intake",
+        "execute": true,
+        "status": "completed",
+        "planned": [],
+        "registered": [],
+        "failed": null,
+        "skipped": [
+          {
+            "slot": "rep",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "sig1",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "sig2",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "sig3",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "sig4",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "emo1",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "emo2",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "emo3",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "emo4",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "emo5",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "emo6",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "scene1",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "scene2",
+            "next": "applied",
+            "reason": null
+          },
+          {
+            "slot": "scene3",
+            "next": "applied",
+            "reason": null
+          }
+        ]
       }
     },
     {
@@ -1585,6 +2803,7 @@
         "--character-id",
         "10"
       ],
+      "mockProviderPosts": [],
       "exitCode": 0,
       "output": {
         "db": "<isolated DATA_DIR>/app.db",
@@ -1609,9 +2828,9 @@
             "slot": "rep",
             "tag": "기본 초상",
             "rawSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
-            "activeUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-e89b192f-1c2b-4187-a2bb-7636276c5891.webp",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-4010ba0e-db58-47f9-aa9f-2e7d99b49d08.webp",
             "replacementStatus": "applied",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-e89b192f-1c2b-4187-a2bb-7636276c5891.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-4010ba0e-db58-47f9-aa9f-2e7d99b49d08.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "applied",
@@ -1621,9 +2840,9 @@
             "slot": "sig1",
             "tag": "지도를 짚음",
             "rawSha256": "e986403412b7754b520901afa97cc00e895ace0184542144383198f3506782f5",
-            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig1-ext-602dec13-9def-4ac9-a38a-3b3ba40f1cb7.webp",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig1-ext-0224642d-16fe-4576-98a7-48493927b0e0.webp",
             "replacementStatus": "applied",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig1-ext-602dec13-9def-4ac9-a38a-3b3ba40f1cb7.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig1-ext-0224642d-16fe-4576-98a7-48493927b0e0.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "applied",
@@ -1633,9 +2852,9 @@
             "slot": "sig2",
             "tag": "턱을 괴고 생각",
             "rawSha256": "3242bbadb72a6514314f9dd8ab425ad22e459358821c85b800215d4205f9bdb4",
-            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig2-ext-690b5584-f0b2-4359-8e1a-2492a4ea83de.webp",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig2-ext-c0a5afc8-73a9-4cdc-91d2-ab5bc8221c8d.webp",
             "replacementStatus": "applied",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig2-ext-690b5584-f0b2-4359-8e1a-2492a4ea83de.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig2-ext-c0a5afc8-73a9-4cdc-91d2-ab5bc8221c8d.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "applied",
@@ -1645,9 +2864,9 @@
             "slot": "sig3",
             "tag": "열쇠를 확인함",
             "rawSha256": "b7df32fa69725fdfe86849dcd78bfbf6d8f4916f3bf5a6b8ecccb17ae50f8a19",
-            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig3-ext-f9be162f-22b1-4926-874f-672c11f0edb6.webp",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig3-ext-8b38e472-2396-499b-be4e-20ae08704040.webp",
             "replacementStatus": "applied",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig3-ext-f9be162f-22b1-4926-874f-672c11f0edb6.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig3-ext-8b38e472-2396-499b-be4e-20ae08704040.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "applied",
@@ -1657,9 +2876,9 @@
             "slot": "sig4",
             "tag": "옅은 미소",
             "rawSha256": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1",
-            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig4-ext-6015b488-4b83-4f23-8939-3ad2fcd0115b.webp",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__sig4-ext-48a5db39-841f-4559-be04-ca4c29b65bbc.webp",
             "replacementStatus": "applied",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig4-ext-6015b488-4b83-4f23-8939-3ad2fcd0115b.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig4-ext-48a5db39-841f-4559-be04-ca4c29b65bbc.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "applied",
@@ -1669,9 +2888,9 @@
             "slot": "emo1",
             "tag": "의심",
             "rawSha256": "6f345d95b85a30850a954e4369f4aa9a7a9ccd978669643f41166fe5a7346a07",
-            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo1-ext-6770eb16-97f3-45ae-a60f-5d6291b0e1f6.webp",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo1-ext-93b56f45-4392-4255-b15e-c4a3958c2e42.webp",
             "replacementStatus": "applied",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo1-ext-6770eb16-97f3-45ae-a60f-5d6291b0e1f6.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo1-ext-93b56f45-4392-4255-b15e-c4a3958c2e42.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "applied",
@@ -1681,9 +2900,9 @@
             "slot": "emo2",
             "tag": "분노",
             "rawSha256": "c4d38db0e3adfb59cf6fc2da8b79457636a90d64113c8b059ad30639d66d5db8",
-            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo2-ext-2bd272cd-af61-4186-84f8-bdc0ae3822f8.webp",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo2-ext-3bc83aad-e3d4-48aa-8f9a-8ade48a0b5c0.webp",
             "replacementStatus": "applied",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo2-ext-2bd272cd-af61-4186-84f8-bdc0ae3822f8.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo2-ext-3bc83aad-e3d4-48aa-8f9a-8ade48a0b5c0.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "applied",
@@ -1693,9 +2912,9 @@
             "slot": "emo3",
             "tag": "진지함",
             "rawSha256": "758e1f8d182ffdf229107eb83c0d7476e24c7f9c2d1de02ca3ab9bb19419643a",
-            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo3-ext-0d4d9b7e-d575-4cff-b8ff-2b5cd585a598.webp",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo3-ext-c81465f7-58f7-4d88-8247-e7f1d753aac9.webp",
             "replacementStatus": "applied",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo3-ext-0d4d9b7e-d575-4cff-b8ff-2b5cd585a598.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo3-ext-c81465f7-58f7-4d88-8247-e7f1d753aac9.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "applied",
@@ -1705,9 +2924,9 @@
             "slot": "emo4",
             "tag": "당황",
             "rawSha256": "527086945e164458a773cd84eac1e69a4e07d19e8ed14af4eb1c4d8c257bf4d4",
-            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo4-ext-5c2c8473-2321-48bf-9e12-7441d1ab8f33.webp",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo4-ext-3bfad329-f824-46b8-b7a7-335fa65c4d46.webp",
             "replacementStatus": "applied",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo4-ext-5c2c8473-2321-48bf-9e12-7441d1ab8f33.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo4-ext-3bfad329-f824-46b8-b7a7-335fa65c4d46.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "applied",
@@ -1717,9 +2936,9 @@
             "slot": "emo5",
             "tag": "편안함",
             "rawSha256": "ef87914c71865944cdb1b40a6417105b3a426f089769189648e9ff86036ab517",
-            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo5-ext-6d5e4c32-f7a7-483f-8ed7-e65b98515090.webp",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo5-ext-68b43334-b7d7-4095-8078-dcfa5b06110b.webp",
             "replacementStatus": "applied",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo5-ext-6d5e4c32-f7a7-483f-8ed7-e65b98515090.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo5-ext-68b43334-b7d7-4095-8078-dcfa5b06110b.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "applied",
@@ -1729,9 +2948,9 @@
             "slot": "emo6",
             "tag": "안도",
             "rawSha256": "f52f9f21046f7993a349e672b3326f2f5144bcb885badcf3181ad7326547e214",
-            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo6-ext-466a9de8-8df1-45e2-bf15-90a9844c3ccc.webp",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__emo6-ext-06c08e61-0482-480f-8760-a40bb2b8e9bd.webp",
             "replacementStatus": "applied",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo6-ext-466a9de8-8df1-45e2-bf15-90a9844c3ccc.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo6-ext-06c08e61-0482-480f-8760-a40bb2b8e9bd.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "applied",
@@ -1741,9 +2960,9 @@
             "slot": "scene1",
             "tag": "문서를 대조함",
             "rawSha256": "1150bf9d17b6e7720e3e020c5288be20e346a83468c633d7672a9796f1e6230c",
-            "activeUrl": "/uploads/official-pilot-rf-v4-02__scene1-ext-c301a03e-5d26-486f-8161-60af0064dff9.webp",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__scene1-ext-cb32f4f5-6401-4f93-928c-8ba8f5bda3a5.webp",
             "replacementStatus": "applied",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene1-ext-c301a03e-5d26-486f-8161-60af0064dff9.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene1-ext-cb32f4f5-6401-4f93-928c-8ba8f5bda3a5.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "applied",
@@ -1753,9 +2972,9 @@
             "slot": "scene2",
             "tag": "기록을 맞춤",
             "rawSha256": "0cb364a2eddfddf5196e1ab1f0da8deb20ca175b62cc996b3ac583cea674b3e5",
-            "activeUrl": "/uploads/official-pilot-rf-v4-02__scene2-ext-a268d75c-ed16-498b-bff1-f1db7016b73e.webp",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__scene2-ext-165e5af3-7aa8-4626-ac00-0ec556d2d16b.webp",
             "replacementStatus": "applied",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene2-ext-a268d75c-ed16-498b-bff1-f1db7016b73e.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene2-ext-165e5af3-7aa8-4626-ac00-0ec556d2d16b.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "applied",
@@ -1765,9 +2984,9 @@
             "slot": "scene3",
             "tag": "긴장",
             "rawSha256": "bd3a47bc70ac79ac2bbc9b9a92e93903680397f59265afd9bb1f02309433482c",
-            "activeUrl": "/uploads/official-pilot-rf-v4-02__scene3-ext-1ba5c819-f60b-4762-81cf-ad098ac55b06.webp",
+            "activeUrl": "/uploads/official-pilot-rf-v4-02__scene3-ext-ab30861a-77eb-47de-a7d8-a07197c8e464.webp",
             "replacementStatus": "applied",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene3-ext-1ba5c819-f60b-4762-81cf-ad098ac55b06.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene3-ext-ab30861a-77eb-47de-a7d8-a07197c8e464.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "applied",
@@ -1776,7 +2995,7 @@
         ],
         "applies": [
           {
-            "applyId": "a2095028-8bde-4699-a5e8-3e827ef4344e",
+            "applyId": "708b62bf-3466-4b6f-81d2-5d16978c4491",
             "characterId": 10,
             "slotKeys": [
               "rep",
@@ -1796,7 +3015,7 @@
             ],
             "status": "applied",
             "appliedById": 8303,
-            "appliedAt": "2026-10-17 14:31:49",
+            "appliedAt": "2026-10-17 15:20:44",
             "rolledBackById": null,
             "rolledBackAt": null
           }
@@ -1812,8 +3031,9 @@
         "--character-id",
         "10",
         "--apply-id",
-        "a2095028-8bde-4699-a5e8-3e827ef4344e"
+        "708b62bf-3466-4b6f-81d2-5d16978c4491"
       ],
+      "mockProviderPosts": [],
       "exitCode": 0,
       "output": {
         "db": "<isolated DATA_DIR>/app.db",
@@ -1821,7 +3041,7 @@
         "step": "rollback",
         "execute": false,
         "status": "dry_run",
-        "applyId": "a2095028-8bde-4699-a5e8-3e827ef4344e",
+        "applyId": "708b62bf-3466-4b6f-81d2-5d16978c4491",
         "characterId": 10,
         "draftKey": "pilot-rf-v4-02",
         "restored": [
@@ -1851,9 +3071,10 @@
         "--character-id",
         "10",
         "--apply-id",
-        "a2095028-8bde-4699-a5e8-3e827ef4344e",
+        "708b62bf-3466-4b6f-81d2-5d16978c4491",
         "--execute"
       ],
+      "mockProviderPosts": [],
       "exitCode": 0,
       "output": {
         "db": "<isolated DATA_DIR>/app.db",
@@ -1861,7 +3082,7 @@
         "step": "rollback",
         "execute": true,
         "status": "rolled_back",
-        "applyId": "a2095028-8bde-4699-a5e8-3e827ef4344e",
+        "applyId": "708b62bf-3466-4b6f-81d2-5d16978c4491",
         "characterId": 10,
         "draftKey": "pilot-rf-v4-02",
         "restored": [
@@ -1891,6 +3112,7 @@
         "--character-id",
         "10"
       ],
+      "mockProviderPosts": [],
       "exitCode": 0,
       "output": {
         "db": "<isolated DATA_DIR>/app.db",
@@ -1917,7 +3139,7 @@
             "rawSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
             "activeUrl": "/uploads/official-pilot-rf-v4-02__rep-a1.webp",
             "replacementStatus": "approved",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-e89b192f-1c2b-4187-a2bb-7636276c5891.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-4010ba0e-db58-47f9-aa9f-2e7d99b49d08.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "apply",
@@ -1929,7 +3151,7 @@
             "rawSha256": "e986403412b7754b520901afa97cc00e895ace0184542144383198f3506782f5",
             "activeUrl": "/uploads/official-pilot-rf-v4-02__sig1-a1.webp",
             "replacementStatus": "approved",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig1-ext-602dec13-9def-4ac9-a38a-3b3ba40f1cb7.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig1-ext-0224642d-16fe-4576-98a7-48493927b0e0.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "apply",
@@ -1941,7 +3163,7 @@
             "rawSha256": "3242bbadb72a6514314f9dd8ab425ad22e459358821c85b800215d4205f9bdb4",
             "activeUrl": "/uploads/official-pilot-rf-v4-02__sig2-a1.webp",
             "replacementStatus": "approved",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig2-ext-690b5584-f0b2-4359-8e1a-2492a4ea83de.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig2-ext-c0a5afc8-73a9-4cdc-91d2-ab5bc8221c8d.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "apply",
@@ -1953,7 +3175,7 @@
             "rawSha256": "b7df32fa69725fdfe86849dcd78bfbf6d8f4916f3bf5a6b8ecccb17ae50f8a19",
             "activeUrl": "/uploads/official-pilot-rf-v4-02__sig3-a1.webp",
             "replacementStatus": "approved",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig3-ext-f9be162f-22b1-4926-874f-672c11f0edb6.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig3-ext-8b38e472-2396-499b-be4e-20ae08704040.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "apply",
@@ -1965,7 +3187,7 @@
             "rawSha256": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1",
             "activeUrl": "/uploads/official-pilot-rf-v4-02__sig4-a1.webp",
             "replacementStatus": "approved",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig4-ext-6015b488-4b83-4f23-8939-3ad2fcd0115b.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__sig4-ext-48a5db39-841f-4559-be04-ca4c29b65bbc.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "apply",
@@ -1977,7 +3199,7 @@
             "rawSha256": "6f345d95b85a30850a954e4369f4aa9a7a9ccd978669643f41166fe5a7346a07",
             "activeUrl": "/uploads/official-pilot-rf-v4-02__emo1-a1.webp",
             "replacementStatus": "approved",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo1-ext-6770eb16-97f3-45ae-a60f-5d6291b0e1f6.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo1-ext-93b56f45-4392-4255-b15e-c4a3958c2e42.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "apply",
@@ -1989,7 +3211,7 @@
             "rawSha256": "c4d38db0e3adfb59cf6fc2da8b79457636a90d64113c8b059ad30639d66d5db8",
             "activeUrl": "/uploads/official-pilot-rf-v4-02__emo2-a1.webp",
             "replacementStatus": "approved",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo2-ext-2bd272cd-af61-4186-84f8-bdc0ae3822f8.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo2-ext-3bc83aad-e3d4-48aa-8f9a-8ade48a0b5c0.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "apply",
@@ -2001,7 +3223,7 @@
             "rawSha256": "758e1f8d182ffdf229107eb83c0d7476e24c7f9c2d1de02ca3ab9bb19419643a",
             "activeUrl": "/uploads/official-pilot-rf-v4-02__emo3-a1.webp",
             "replacementStatus": "approved",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo3-ext-0d4d9b7e-d575-4cff-b8ff-2b5cd585a598.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo3-ext-c81465f7-58f7-4d88-8247-e7f1d753aac9.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "apply",
@@ -2013,7 +3235,7 @@
             "rawSha256": "527086945e164458a773cd84eac1e69a4e07d19e8ed14af4eb1c4d8c257bf4d4",
             "activeUrl": "/uploads/official-pilot-rf-v4-02__emo4-a1.webp",
             "replacementStatus": "approved",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo4-ext-5c2c8473-2321-48bf-9e12-7441d1ab8f33.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo4-ext-3bfad329-f824-46b8-b7a7-335fa65c4d46.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "apply",
@@ -2025,7 +3247,7 @@
             "rawSha256": "ef87914c71865944cdb1b40a6417105b3a426f089769189648e9ff86036ab517",
             "activeUrl": "/uploads/official-pilot-rf-v4-02__emo5-a1.webp",
             "replacementStatus": "approved",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo5-ext-6d5e4c32-f7a7-483f-8ed7-e65b98515090.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo5-ext-68b43334-b7d7-4095-8078-dcfa5b06110b.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "apply",
@@ -2037,7 +3259,7 @@
             "rawSha256": "f52f9f21046f7993a349e672b3326f2f5144bcb885badcf3181ad7326547e214",
             "activeUrl": "/uploads/official-pilot-rf-v4-02__emo6-a1.webp",
             "replacementStatus": "approved",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo6-ext-466a9de8-8df1-45e2-bf15-90a9844c3ccc.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__emo6-ext-06c08e61-0482-480f-8760-a40bb2b8e9bd.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "apply",
@@ -2049,7 +3271,7 @@
             "rawSha256": "1150bf9d17b6e7720e3e020c5288be20e346a83468c633d7672a9796f1e6230c",
             "activeUrl": "/uploads/official-pilot-rf-v4-02__scene1-a1.webp",
             "replacementStatus": "approved",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene1-ext-c301a03e-5d26-486f-8161-60af0064dff9.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene1-ext-cb32f4f5-6401-4f93-928c-8ba8f5bda3a5.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "apply",
@@ -2061,7 +3283,7 @@
             "rawSha256": "0cb364a2eddfddf5196e1ab1f0da8deb20ca175b62cc996b3ac583cea674b3e5",
             "activeUrl": "/uploads/official-pilot-rf-v4-02__scene2-a1.webp",
             "replacementStatus": "approved",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene2-ext-a268d75c-ed16-498b-bff1-f1db7016b73e.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene2-ext-165e5af3-7aa8-4626-ac00-0ec556d2d16b.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "apply",
@@ -2073,7 +3295,7 @@
             "rawSha256": "bd3a47bc70ac79ac2bbc9b9a92e93903680397f59265afd9bb1f02309433482c",
             "activeUrl": "/uploads/official-pilot-rf-v4-02__scene3-a1.webp",
             "replacementStatus": "approved",
-            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene3-ext-1ba5c819-f60b-4762-81cf-ad098ac55b06.webp",
+            "candidateUrl": "/uploads/official-pilot-rf-v4-02__scene3-ext-ab30861a-77eb-47de-a7d8-a07197c8e464.webp",
             "candidateMatchesManifest": true,
             "moderation": "clean",
             "next": "apply",
@@ -2082,7 +3304,7 @@
         ],
         "applies": [
           {
-            "applyId": "a2095028-8bde-4699-a5e8-3e827ef4344e",
+            "applyId": "708b62bf-3466-4b6f-81d2-5d16978c4491",
             "characterId": 10,
             "slotKeys": [
               "rep",
@@ -2102,9 +3324,9 @@
             ],
             "status": "rolled_back",
             "appliedById": 8303,
-            "appliedAt": "2026-10-17 14:31:49",
+            "appliedAt": "2026-10-17 15:20:44",
             "rolledBackById": 8303,
-            "rolledBackAt": "2026-10-17 14:31:54"
+            "rolledBackAt": "2026-10-17 15:20:51"
           }
         ]
       }
