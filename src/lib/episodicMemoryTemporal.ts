@@ -132,15 +132,6 @@ export function isVerifiedSceneRecord(fact: TemporalFactInput): boolean {
 }
 
 /**
- * Its attribute and wording alone do not make it history or durable, so its standing as a
- * kept occurrence rests on the verified source. An explicit user statement of the same key
- * made later outranks that source.
- */
-export function isUserCorrectableSceneRecord(fact: TemporalFactInput): boolean {
-  return classifyIntrinsicNature(fact) === "unknown" && isVerifiedSceneRecord(fact);
-}
-
-/**
  * Pure classifier — character/world/genre agnostic.
  *
  * clearly_temporary: exact temporary attribute AND not a completed historical event.

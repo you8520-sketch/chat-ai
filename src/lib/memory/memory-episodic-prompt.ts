@@ -56,6 +56,9 @@ export const SHARED_STATUS_WIDGET_SCOPE_INSTRUCTIONS = `statusWidget section —
 const EPISODIC_FACTS_BODY = EPISODIC_FACTS_EXTRACT_INSTRUCTIONS.replace(
   'Return exactly one JSON object: {"extracted_facts": []}',
   "Return facts in episodic.extracted_facts"
+).replace(
+  "- NEVER generate source_turn, id, uuid, or timestamp.",
+  `- corrects: "" by default. Copy a handle from [CORRECTABLE PAST RECORDS] only when the CURRENT USER explicitly says that record got the same event wrong, and the fact quotes the user's correction (source_role=user). A new separate event, a recovery or later change, or an unclear target is never a correction. NEVER output an unlisted handle, source_turn, id, uuid, or timestamp.`
 );
 
 /** Canonical episodic semantic rules for Shared Initial top-level episodic section. */

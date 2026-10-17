@@ -1,5 +1,6 @@
 import type { TokenUsage } from "@/lib/ai";
 import type { EpisodicSectionParse } from "@/lib/memory/memory-episodic-shared";
+import type { EpisodicCorrectionCandidate } from "@/lib/memory/memory-episodic-correction";
 import type { CombinedDualWidgetExtractParseResult } from "@/lib/statusWidget/extractNormalize";
 import type { StatusWidget, StatusWidgetValues } from "@/lib/statusWidget/types";
 import type { SuggestedReplyItem } from "@/lib/suggestedReplies/types";
@@ -58,6 +59,11 @@ export type PostTurnSharedInitialInput = {
    * verbatim — `mergePromises` removes by exact stored text.
    */
   activePromises: readonly string[];
+  /**
+   * Past episodic records offered under handles this turn (episodic section only).
+   * `corrects` may only copy one of these handles; the server maps it back to the record.
+   */
+  episodicCorrectionCandidates?: readonly EpisodicCorrectionCandidate[];
 };
 
 export type PostTurnSharedSingleWidgetParse = {

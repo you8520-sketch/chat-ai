@@ -47,6 +47,11 @@ export type EpisodicExtractedFact = {
   evidence_type?: EpisodicFactEvidenceType;
   /** Required for Shared Initial output; absent on legacy stored facts and internal fixtures. */
   evidence?: EpisodicFactEvidenceClaim;
+  /**
+   * Server-resolved from a correction handle the server offered this turn (never read from
+   * raw model output). The save path validates it before storing `metadata.correction`.
+   */
+  correction_target_fact_id?: number;
 };
 
 /** Batch user source for 5-turn seal evidence provenance validation. */

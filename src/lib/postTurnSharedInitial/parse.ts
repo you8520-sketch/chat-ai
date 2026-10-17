@@ -129,7 +129,7 @@ export function parsePostTurnSharedInitialResponse(
     ? parseSharedRelationshipSection(root.relationship ?? root.relationshipMemory)
     : { present: false, valid: false, delta: {} };
   const episodic = input.includeEpisodic
-    ? parseSharedEpisodicSection(root.episodic)
+    ? parseSharedEpisodicSection(root.episodic, input.episodicCorrectionCandidates)
     : { present: false, valid: false, facts: [] };
 
   return {

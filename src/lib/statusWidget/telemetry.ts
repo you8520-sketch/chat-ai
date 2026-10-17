@@ -41,6 +41,7 @@ import {
   type StatusWidgetPreviousEchoStats,
 } from "./extractNormalize";
 import type { PostTurnSharedInitialWidgetShapeDiagnostics } from "@/lib/postTurnSharedInitial/widgetShapeDiagnostics";
+import type { EpisodicCorrectionCandidate } from "@/lib/memory/memory-episodic-correction";
 
 export type StatusWidgetModelFamily =
   | "deepseek"
@@ -162,6 +163,8 @@ export type ResolveStatusWidgetTurnValuesInput = {
   relationshipRegenContext?: { previousAssistantMessage: string } | null;
   /** Stored text of the canonical active promises for the shared relationship section. */
   activePromises: readonly string[];
+  /** Past episodic records the shared episodic section may name as corrected. */
+  episodicCorrectionCandidates?: readonly EpisodicCorrectionCandidate[];
   /** Phase B1-B shadow eligibility (optional; fail-closed when absent). */
   userId?: number | null;
   characterId?: number | null;
@@ -450,6 +453,7 @@ export async function resolveStatusWidgetTurnValues(
         shareEpisodic: input.shareEpisodic === true,
         relationshipRegenContext: input.relationshipRegenContext ?? null,
         activePromises: input.activePromises,
+        episodicCorrectionCandidates: input.episodicCorrectionCandidates,
       });
       widgetExtractDiagnostics = {
         exhausted: v3Result.meta.exhausted,

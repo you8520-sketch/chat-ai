@@ -51,9 +51,14 @@ import {
   classifyEpisodicFactTemporalNature,
   COMPLETED_SCENE_EVENT_ATTRIBUTES,
   isClearlyTemporaryEpisodicFact,
-  isUserCorrectableSceneRecord,
   isVerifiedSceneRecord,
 } from "@/lib/episodicMemoryTemporal";
+import {
+  EPISODIC_CORRECTION_CANDIDATE_LIMIT,
+  readValidEpisodicCorrectionLink,
+  type EpisodicCorrectionCandidate,
+  type EpisodicCorrectionLink,
+} from "@/lib/memory/memory-episodic-correction";
 import {
   isCanonAdoptedScene,
   isNoncanonicalGeneration,
@@ -1070,7 +1075,7 @@ export function persistEpisodicMemoryFactsCore(
   };
   let facts = dedupeFactsWithinResponse(
     filterUnsafeEpisodicFactsForSave(
-      sanitizeEpisodicExtractedFacts(input.facts ?? []),
+      sanitizeEpisodicExtractedFacts(input.facts ?? [], { preserveCorrectionTarget: true }),
       evidenceOpts
     )
   );
@@ -1130,11 +1135,21 @@ export function persistEpisodicMemoryFactsCore(
             : null
           : sourceUserMessageId;
     const verified = verifiedEvidence.get(fact);
+    const correction =
+      fact.correction_target_fact_id != null
+        ? resolveEpisodicCorrectionLinkForSave(
+            db,
+            { chatId, characterId, userId, sourceTurn },
+            fact.correction_target_fact_id,
+            verified
+          )
+        : null;
     const metadataJson = JSON.stringify({
       ...(input.metadata ?? {}),
       memory_evidence_type: fact.evidence_type ?? "legacy_unknown",
       ...(provenance.turn != null ? { evidence_source_turn: provenance.turn } : {}),
       ...(verified ? { evidence: verified } : {}),
+      ...(correction ? { correction } : {}),
     });
     insert.run(
       chatId,
@@ -1169,6 +1184,48 @@ export function persistEpisodicMemoryFactsCore(
   }
 
   return facts.length;
+}
+
+/**
+ * A correction link is stored only when the correcting fact's own quote was verified against
+ * the user's message and the target is an earlier record visible in the same chat, character,
+ * user and memory boundary. Otherwise the fact is saved as an ordinary fact with no link.
+ */
+function resolveEpisodicCorrectionLinkForSave(
+  db: Database.Database,
+  scope: { chatId: number; characterId: number | null; userId: number | null; sourceTurn: number },
+  targetFactId: number,
+  verified: EpisodicVerifiedEvidence | undefined
+): EpisodicCorrectionLink | null {
+  const reject = (reason: string) => {
+    console.info("EPISODIC_CORRECTION_LINK_REJECTED", {
+      chat_id: scope.chatId,
+      source_turn: scope.sourceTurn,
+      target_fact_id: targetFactId,
+      reason,
+    });
+    return null;
+  };
+  if (verified?.role !== "user" || verified.authority !== "USER_EXPLICIT") {
+    return reject("correction_not_user_verified");
+  }
+  const where: string[] = [];
+  const params: Array<number | string> = [];
+  appendEpisodicScopeIdentityFilters(
+    db,
+    { chatId: scope.chatId, characterId: scope.characterId, userId: scope.userId },
+    where,
+    params,
+    scope.chatId
+  );
+  const target = db
+    .prepare(
+      `SELECT id, source_turn FROM episodic_memory_facts
+         WHERE ${where.join(" AND ")} AND id = ? AND source_turn < ?`
+    )
+    .get(...params, targetFactId, scope.sourceTurn) as { id: number; source_turn: number } | undefined;
+  if (!target) return reject("target_not_in_scope");
+  return { target_fact_id: target.id, target_source_turn: target.source_turn };
 }
 
 export function persistEpisodicMemoryFactsBestEffort(
@@ -2096,42 +2153,151 @@ function fetchLatestBoundedStateRowForKey(
   return row ? attachStoredEvidenceType(row) : null;
 }
 
+const EPISODIC_CORRECTION_LINK_SCAN_LIMIT = 200;
+const EPISODIC_CORRECTION_CHAIN_MAX_DEPTH = 3;
+
+type EpisodicCorrectionLinks = {
+  /** Candidates with every linked correction replaced by the record it corrects. */
+  rows: EpisodicMemoryFactRecord[];
+  /** Corrected record (chain root) id → the latest correction that now stands in for it. */
+  standInByRootId: Map<number, EpisodicMemoryFactRecord>;
+  rootIdByCorrectionId: Map<number, number>;
+};
+
 /**
- * Verified scene records whose key the user later restated in an explicit statement with a
- * verified quote: USER_EXPLICIT outranks the scene source, so the record is corrected and
- * falls back to the key's latest-wins. A later scene occurrence never corrects a record.
+ * Correction links in scope, read from `metadata.correction` (see memory-episodic-correction).
+ * A correction counts only while its target still exists at the linked turn; a dangling link
+ * (target deleted or regenerated) leaves the correction as an ordinary record.
  */
-function findUserCorrectedSceneRecordIds(
+function resolveEpisodicCorrectionLinks(
   db: Database.Database,
   scope: EpisodicCandidateScope,
   rows: EpisodicMemoryFactRecord[]
-): { ids: Set<number>; queried: boolean } {
-  const correctable = rows.filter(isUserCorrectableSceneRecord);
-  const keys = [...new Set(correctable.map(episodicLogicalKey))];
-  if (keys.length === 0) return { ids: new Set(), queried: false };
-  const statements = db
-    .prepare(
-      `SELECT category, subject, attribute, source_turn, metadata
-         FROM episodic_memory_facts
-         WHERE ${scope.baseWhere.join(" AND ")}
-           AND json_extract(metadata, '$.memory_evidence_type') = 'explicit_user_statement'
-           AND json_extract(metadata, '$.evidence.authority') = 'USER_EXPLICIT'
-           AND (category || ':' || subject || ':' || attribute) IN (${keys.map(() => "?").join(", ")})`
-    )
-    .all(...scope.baseParams, ...keys) as Array<
-    Pick<EpisodicMemoryFactRecord, "category" | "subject" | "attribute" | "source_turn" | "metadata">
-  >;
-  const correctionTurnByKey = new Map<string, number>();
-  for (const statement of statements) {
-    if (readVerifiedEvidence(statement.metadata)?.authority !== "USER_EXPLICIT") continue;
-    const key = episodicLogicalKey(statement);
-    correctionTurnByKey.set(key, Math.max(correctionTurnByKey.get(key) ?? -1, statement.source_turn));
+): EpisodicCorrectionLinks {
+  const corrections = (
+    db
+      .prepare(
+        `SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
+           FROM episodic_memory_facts
+           WHERE ${scope.baseWhere.join(" AND ")}
+             AND json_extract(metadata, '$.correction.target_fact_id') IS NOT NULL
+           ORDER BY source_turn DESC, id DESC
+           LIMIT ?`
+      )
+      .all(...scope.baseParams, EPISODIC_CORRECTION_LINK_SCAN_LIMIT) as EpisodicMemoryFactRecord[]
+  ).map(attachStoredEvidenceType);
+  const empty: EpisodicCorrectionLinks = {
+    rows,
+    standInByRootId: new Map(),
+    rootIdByCorrectionId: new Map(),
+  };
+  const linkById = new Map<number, EpisodicCorrectionLink>();
+  for (const correction of corrections) {
+    const link = readValidEpisodicCorrectionLink(correction);
+    if (link) linkById.set(correction.id, link);
   }
-  const ids = new Set<number>();
-  for (const row of correctable) {
-    if ((correctionTurnByKey.get(episodicLogicalKey(row)) ?? -1) > row.source_turn) ids.add(row.id);
+  if (linkById.size === 0) return empty;
+
+  const known = new Map<number, EpisodicMemoryFactRecord>();
+  for (const row of [...rows, ...corrections]) known.set(row.id, row);
+  const missingTargetIds = [...new Set([...linkById.values()].map((link) => link.target_fact_id))].filter(
+    (id) => !known.has(id)
+  );
+  if (missingTargetIds.length > 0) {
+    const targets = db
+      .prepare(
+        `SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
+           FROM episodic_memory_facts
+           WHERE ${scope.baseWhere.join(" AND ")}
+             AND id IN (${missingTargetIds.map(() => "?").join(", ")})`
+      )
+      .all(...scope.baseParams, ...missingTargetIds) as EpisodicMemoryFactRecord[];
+    for (const target of targets) known.set(target.id, attachStoredEvidenceType(target));
   }
-  return { ids, queried: true };
+
+  const parentById = new Map<number, number>();
+  const latestCorrectionByTargetId = new Map<number, EpisodicMemoryFactRecord>();
+  for (const correction of corrections) {
+    const link = linkById.get(correction.id);
+    const target = link ? known.get(link.target_fact_id) : undefined;
+    if (!link || !target || target.source_turn !== link.target_source_turn) continue;
+    parentById.set(correction.id, target.id);
+    if (!latestCorrectionByTargetId.has(target.id)) latestCorrectionByTargetId.set(target.id, correction);
+  }
+  if (parentById.size === 0) return empty;
+
+  const rootIdByCorrectionId = new Map<number, number>();
+  for (const correctionId of parentById.keys()) {
+    let rootId = correctionId;
+    for (let depth = 0; depth < EPISODIC_CORRECTION_CHAIN_MAX_DEPTH; depth += 1) {
+      const parentId = parentById.get(rootId);
+      if (parentId == null) break;
+      rootId = parentId;
+    }
+    rootIdByCorrectionId.set(correctionId, rootId);
+  }
+  const standInByRootId = new Map<number, EpisodicMemoryFactRecord>();
+  for (const rootId of new Set(rootIdByCorrectionId.values())) {
+    let standIn = latestCorrectionByTargetId.get(rootId);
+    for (let depth = 1; standIn && depth < EPISODIC_CORRECTION_CHAIN_MAX_DEPTH; depth += 1) {
+      const next = latestCorrectionByTargetId.get(standIn.id);
+      if (!next) break;
+      standIn = next;
+    }
+    if (standIn) standInByRootId.set(rootId, standIn);
+  }
+
+  const seen = new Set<number>();
+  const rootedRows: EpisodicMemoryFactRecord[] = [];
+  for (const row of rows) {
+    const root = known.get(rootIdByCorrectionId.get(row.id) ?? row.id);
+    const next = root && evaluateEpisodicRetrievalGuard(root).allowed ? root : row;
+    if (seen.has(next.id)) continue;
+    seen.add(next.id);
+    rootedRows.push(next);
+  }
+  return { rows: rootedRows, standInByRootId, rootIdByCorrectionId };
+}
+
+/**
+ * After state reconciliation, each surviving corrected record yields to its stand-in, which
+ * keeps the record's standing: a corrected past occurrence stays a past occurrence even when
+ * the correction itself is worded as a state. A stand-in owned by RAW or blocked by the guard
+ * removes the corrected record without injecting anything in its place.
+ */
+function substituteEpisodicCorrections(
+  scope: EpisodicCandidateScope,
+  rows: EpisodicMemoryFactRecord[],
+  closedOccurrenceIds: ReadonlySet<number>,
+  links: EpisodicCorrectionLinks
+): { rows: EpisodicMemoryFactRecord[]; closedOccurrenceIds: Set<number> } {
+  const closed = new Set(closedOccurrenceIds);
+  if (links.standInByRootId.size === 0) return { rows, closedOccurrenceIds: closed };
+  const seen = new Set<number>();
+  const result: EpisodicMemoryFactRecord[] = [];
+  const push = (row: EpisodicMemoryFactRecord) => {
+    if (seen.has(row.id)) return;
+    seen.add(row.id);
+    result.push(row);
+  };
+  for (const row of rows) {
+    const standIn = links.standInByRootId.get(links.rootIdByCorrectionId.get(row.id) ?? row.id);
+    if (!standIn || standIn.id === row.id) {
+      push(row);
+      continue;
+    }
+    if (
+      isLatestStateInRawWindow(scope, standIn.source_turn) ||
+      !evaluateEpisodicRetrievalGuard(standIn).allowed
+    ) {
+      continue;
+    }
+    if (closed.has(row.id) || classifyEpisodicFactTemporalNature(row) === "historical_event") {
+      closed.add(standIn.id);
+    }
+    push(standIn);
+  }
+  return { rows: result, closedOccurrenceIds: closed };
 }
 
 /** Replace stale state-like candidates with guard-checked latest canonical row within boundary. */
@@ -2146,10 +2312,7 @@ export function reconcileGlobalStateLikeFacts(
   /** State-like rows kept as history because a later completed row of their key closed them. */
   closedOccurrenceIds: Set<number>;
 } {
-  const corrected = findUserCorrectedSceneRecordIds(db, scope, rows);
-  const isStateLike = (row: EpisodicMemoryFactRecord) =>
-    corrected.ids.has(row.id) || isStateLikeForGlobalReconciliation(row);
-  const stateRows = rows.filter(isStateLike);
+  const stateRows = rows.filter(isStateLikeForGlobalReconciliation);
   const seenKeys = new Set<string>();
   const stateKeys: string[] = [];
   const pushStateKey = (row: EpisodicMemoryFactRecord) => {
@@ -2166,13 +2329,12 @@ export function reconcileGlobalStateLikeFacts(
   }
   for (const row of stateRows) pushStateKey(row);
   const keysDiscovered = stateKeys.length;
-  let queryCount = corrected.queried ? 1 : 0;
   if (keysDiscovered === 0) {
     return {
       rows,
       closedOccurrenceIds: new Set<number>(),
       stats: {
-        queryCount,
+        queryCount: 0,
         rowsFetched: 0,
         keysDiscovered: 0,
         keysReconciled: 0,
@@ -2186,6 +2348,7 @@ export function reconcileGlobalStateLikeFacts(
   const keysToReconcile = stateKeys.slice(0, EPISODIC_MEMORY_STATE_RECONCILE_MAX_KEYS);
   const keysDroppedDueToCap = keysDiscovered - keysToReconcile.length;
   const latestAllowedByKey = new Map<string, EpisodicMemoryFactRecord>();
+  let queryCount = 0;
   let rowsFetched = 0;
   let keysOmittedBlockedLatest = 0;
   let keysOmittedRawWindow = 0;
@@ -2194,7 +2357,7 @@ export function reconcileGlobalStateLikeFacts(
     if (turn > (closingTurnByKey.get(key) ?? -1)) closingTurnByKey.set(key, turn);
   };
   for (const row of rows) {
-    if (!corrected.ids.has(row.id) && classifyEpisodicFactTemporalNature(row) === "historical_event") {
+    if (classifyEpisodicFactTemporalNature(row) === "historical_event") {
       noteClosingTurn(episodicLogicalKey(row), row.source_turn);
     }
   }
@@ -2239,16 +2402,12 @@ export function reconcileGlobalStateLikeFacts(
   const closedOccurrenceIds = new Set<number>();
 
   for (const row of rows) {
-    if (!isStateLike(row)) {
+    if (!isStateLikeForGlobalReconciliation(row)) {
       result.push(row);
       continue;
     }
     const key = episodicLogicalKey(row);
-    if (
-      !corrected.ids.has(row.id) &&
-      (closingTurnByKey.get(key) ?? -1) > row.source_turn &&
-      isVerifiedSceneRecord(row)
-    ) {
+    if ((closingTurnByKey.get(key) ?? -1) > row.source_turn && isVerifiedSceneRecord(row)) {
       closedOccurrenceIds.add(row.id);
       result.push(row);
       continue;
@@ -3057,17 +3216,24 @@ export function getEpisodicMemoryForPrompt(
       }
     }
     const currentMessage = input.currentUserMessage ?? "";
+    const correctionLinks = resolveEpisodicCorrectionLinks(db, scope, uncontaminatedRows);
     const preferRowIds = new Set<number>();
     for (const row of uncontaminatedRows) {
       const lanes = laneById.get(row.id);
-      if (lanes?.some(lanePrefersStateReconcileBudget)) preferRowIds.add(row.id);
-      if (lexicalRelevance(row, currentMessage) > 0) preferRowIds.add(row.id);
+      const preferred =
+        Boolean(lanes?.some(lanePrefersStateReconcileBudget)) || lexicalRelevance(row, currentMessage) > 0;
+      if (!preferred) continue;
+      preferRowIds.add(row.id);
+      const rootId = correctionLinks.rootIdByCorrectionId.get(row.id);
+      if (rootId != null) preferRowIds.add(rootId);
     }
-    const {
-      rows: stateReconciledRows,
-      stats: stateReconcileStats,
-      closedOccurrenceIds,
-    } = reconcileGlobalStateLikeFacts(db, scope, uncontaminatedRows, { preferRowIds });
+    const reconciled = reconcileGlobalStateLikeFacts(db, scope, correctionLinks.rows, { preferRowIds });
+    const { rows: stateReconciledRows, closedOccurrenceIds } = substituteEpisodicCorrections(
+      scope,
+      reconciled.rows,
+      reconciled.closedOccurrenceIds,
+      correctionLinks
+    );
     const resolved = resolveLatestFactsByLogicalKey(stateReconciledRows, closedOccurrenceIds);
     const skippedConflictFactsCount = Math.max(0, stateReconciledRows.length - resolved.length);
     const debugById = new Map<number, EpisodicMemorySelectionDebug>();
@@ -3230,6 +3396,30 @@ export function getEpisodicMemoryForPrompt(
     console.error("[EpisodicMemory] failed to retrieve facts:", (e as Error).message);
     return { facts: [], promptBlock: "", debug: [] };
   }
+}
+
+/**
+ * The past records the extractor may name as corrected this turn: the canonical retrieval
+ * without the RAW-window exclusion, because the user most often corrects what was just said.
+ * Corrected records are already replaced by their stand-ins, so a chain links to its latest.
+ */
+export function listEpisodicCorrectionCandidates(
+  db: Database.Database,
+  input: Pick<GetEpisodicMemoryForPromptInput, "chatId" | "characterId" | "userId" | "currentTurn" | "currentUserMessage">,
+  env = process.env
+): EpisodicCorrectionCandidate[] {
+  const { facts } = getEpisodicMemoryForPrompt(
+    db,
+    { ...input, minAgeTurns: 0, maxFacts: EPISODIC_CORRECTION_CANDIDATE_LIMIT },
+    env
+  );
+  return facts.slice(0, EPISODIC_CORRECTION_CANDIDATE_LIMIT).map((fact, index) => ({
+    handle: `C${index + 1}`,
+    factId: fact.id,
+    sourceTurn: fact.source_turn,
+    factText: fact.fact_text,
+    quote: readVerifiedEvidence(fact.metadata)?.quote ?? null,
+  }));
 }
 
 export function listEpisodicMemoryFactsForDebug(

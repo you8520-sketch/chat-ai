@@ -546,6 +546,7 @@ import { resolveRegenerateGenerationOverrides } from "@/lib/openRouterClient";
 import { sanitizePrimaryModelAssistantHistory } from "@/lib/flashOwnedOutputFirewall";
 import {
   getEpisodicMemoryForPrompt,
+  listEpisodicCorrectionCandidates,
   hasEpisodicSemanticIndexInScope,
   logStatusMemoryPipelineDev,
   summarizeEpisodicFactPersistCandidates,
@@ -5255,6 +5256,12 @@ export async function POST(req: Request) {
           chatId: chatRef.id,
           sourceUserMessageId: userMessageId,
         });
+        const episodicCorrectionCandidates = shareEpisodicInSharedInitial
+          ? listEpisodicCorrectionCandidates(db, {
+              ...episodicRetrievalScope,
+              currentUserMessage: messageText,
+            })
+          : [];
         const suggestedRepliesGenerationEligible =
           !htmlFlashOnlyTurn &&
           !oocSceneRenderTurn &&
@@ -5296,6 +5303,7 @@ export async function POST(req: Request) {
                 ? { previousAssistantMessage: rejectedAssistantDraft }
                 : null,
             activePromises: activePromiseTexts,
+            episodicCorrectionCandidates,
           });
           savedText = widgetResolved.prose;
           statusWidgetValuesPayload = widgetResolved.values;
@@ -6509,6 +6517,7 @@ export async function POST(req: Request) {
                       ? rejectedAssistantDraft
                       : null,
                   activePromises: activePromiseTexts,
+                  episodicCorrectionCandidates,
                 },
                 undefined,
                 ledgerContext
