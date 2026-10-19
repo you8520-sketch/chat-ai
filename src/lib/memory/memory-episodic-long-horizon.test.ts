@@ -656,6 +656,285 @@ describe("RELEVANCE lane — mid-history event behind recurring-name rows", () =
   });
 });
 
+describe("COMMON-NAME saturation — old event vs newer rows sharing the name and one incidental word", () => {
+  const EVENT_QUESTION =
+    "(복도 끝에서 한서윤이 서류를 안고 다가오는 걸 보고 태형의 소매를 잡아끈다) 저 사람 또 왔어.";
+  const NAME_FILLER = [
+    "태형은 골목 끝에서 작은 균열을 확인하고 봉인반을 불렀다.",
+    "태형은 순찰 일지에 지나간 사람 수를 적었다.",
+  ];
+
+  /** Every row is a distinct state-like key except lunch_partner, superseded at T80. */
+  function seedSaturatedChat(db: Database.Database, currentTurn: number) {
+    const insert = db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, ?, 'character', 'taehyung', ?, ?, 'normal', ?,
+               '{"memory_evidence_type":"explicit_scene_event","content_route":"safe"}')`
+    );
+    const add = (turn: number, attribute: string, factText: string) =>
+      Number(insert.run(turn, attribute, `${attribute}_${turn}`, factText).lastInsertRowid);
+    const refusalId = add(64, "rejected_company", "태형은 구내식당에서 한서윤의 동석 제안을 거절했다.");
+    const opinionId = add(64, "opinion_of_seoyun", "태형은 뒤에서 서류를 올리는 사람과 식사하고 싶지 않다고 말했다.");
+    const supersededLunchId = add(70, "lunch_partner", "태형은 한서윤과 점심을 먹기로 했다.");
+    add(80, "lunch_partner", "태형은 점심을 렌과 먹는다.");
+    for (let turn = 90; turn < currentTurn; turn++) {
+      add(turn, `patrol_note_${turn}`, NAME_FILLER[turn % NAME_FILLER.length]!);
+    }
+    return { refusalId, opinionId, supersededLunchId };
+  }
+
+  function recall(db: Database.Database, currentTurn: number, currentUserMessage: string) {
+    return getEpisodicMemoryForPrompt(db, { chatId: 1, currentTurn, currentUserMessage }, recallEnv);
+  }
+
+  function assertEveryInjectedRowIsLatestForItsKey(db: Database.Database, facts: { id: number }[]) {
+    const latestTurn = db.prepare(
+      `SELECT MAX(f2.source_turn) AS latest, f1.source_turn AS turn
+         FROM episodic_memory_facts f1
+         JOIN episodic_memory_facts f2
+           ON f2.chat_id = f1.chat_id AND f2.category = f1.category
+          AND f2.subject = f1.subject AND f2.attribute = f1.attribute
+        WHERE f1.id = ?`
+    );
+    for (const fact of facts) {
+      const row = latestTurn.get(fact.id) as { latest: number; turn: number };
+      assert.equal(row.turn, row.latest, `injected row ${fact.id} is not the latest state of its key`);
+    }
+  }
+
+  for (const currentTurn of [150, 500]) {
+    it(`currentTurn=${currentTurn}: the old event wins the relevance lane, the state-key cap and the final ranking`, () => {
+      const db = createDb();
+      const { refusalId, opinionId, supersededLunchId } = seedSaturatedChat(db, currentTurn);
+
+      const candidates = fetchEpisodicMemoryCandidatesForDebug(
+        db,
+        { chatId: 1, currentTurn, currentUserMessage: EVENT_QUESTION },
+        recallEnv
+      );
+      const candidateStateKeys = new Set(
+        candidates.rows
+          .filter((row) => classifyEpisodicFactTemporalNature(row) === "unknown")
+          .map((row) => `${row.category}:${row.subject}:${row.attribute}`)
+      );
+      assert.ok(candidateStateKeys.size > 25, `fixture must exceed the key cap, got ${candidateStateKeys.size}`);
+      assert.deepEqual(candidates.laneById.get(refusalId), ["relevance"]);
+      assert.deepEqual(candidates.laneById.get(opinionId), ["relevance"]);
+
+      const result = recall(db, currentTurn, EVENT_QUESTION);
+      const rankOf = (id: number) => result.debug.find((row) => row.id === id)?.final_rank ?? Infinity;
+      assert.ok(result.facts.some((fact) => fact.id === refusalId), "T64 refusal must be injected");
+      assert.ok(result.facts.some((fact) => fact.id === opinionId), "T64 opinion must be injected");
+      assert.ok(rankOf(opinionId) <= 2 && rankOf(refusalId) <= 2);
+      assert.equal(result.facts.some((fact) => fact.id === supersededLunchId), false);
+      assertEveryInjectedRowIsLatestForItsKey(db, result.facts);
+    });
+  }
+
+  it("a name-only question still recalls rows about that name, latest state only", () => {
+    const db = createDb();
+    const { supersededLunchId } = seedSaturatedChat(db, 500);
+    const result = recall(db, 500, "태형 기억나?");
+    assert.ok(result.facts.length > 0);
+    for (const fact of result.facts) assert.match(fact.fact_text, /태형/);
+    assert.equal(result.facts.some((fact) => fact.id === supersededLunchId), false);
+    assertEveryInjectedRowIsLatestForItsKey(db, result.facts);
+  });
+
+  it("an unrelated question does not surface the old event", () => {
+    const db = createDb();
+    const { refusalId, opinionId } = seedSaturatedChat(db, 500);
+    const result = recall(db, 500, "오늘 날씨 좋다.");
+    assert.equal(result.facts.some((fact) => fact.id === refusalId || fact.id === opinionId), false);
+  });
+});
+
+describe("QUOTE-ONLY rare word — a verbatim-only match must not outrank rows about the asked topic", () => {
+  const NIGHT_QUESTION = "같이 야간 당직 섰던 거 기억나?";
+  const PLACES = ["가이딩실", "정비고", "상황실", "한강 둔치", "본부 옥상", "지하 사격장", "매점 앞", "구내식당"];
+
+  type SeedRow = { turn: number; attribute: string; factText: string; quote?: string; claim?: boolean };
+
+  function seedRows(db: Database.Database, rows: SeedRow[]): Map<string, number> {
+    const insert = db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, ?, 'character', 'taehyung', ?, ?, 'normal', ?, ?)`
+    );
+    const attributed = (factText: string) =>
+      /말했다\.$/.test(factText) ? factText : factText.replace(/다\.$/, "다고 말했다.");
+    const ids = new Map<string, number>();
+    for (const row of rows) {
+      // A verified scene quote makes a completed-occurrence gloss a historical event, which the
+      // 25-key reconcile cap never sees; a character claim stays a state-like row.
+      const metadata = {
+        memory_evidence_type: row.claim ? "explicit_character_claim" : "explicit_scene_event",
+        content_route: "safe",
+        ...(row.quote
+          ? {
+              evidence: {
+                role: "assistant",
+                message_id: row.turn,
+                quote: row.quote,
+                authority: row.claim ? "CHARACTER_CLAIM" : "CURRENT_SCENE",
+                match: "normalized_exact",
+              },
+            }
+          : {}),
+      };
+      ids.set(
+        row.attribute,
+        Number(
+          insert.run(
+            row.turn,
+            row.attribute,
+            `${row.attribute}_v`,
+            row.claim ? attributed(row.factText) : row.factText,
+            JSON.stringify(metadata)
+          )
+            .lastInsertRowid
+        )
+      );
+    }
+    return ids;
+  }
+
+  /** Name-only filler, one distinct state key per turn; contains none of the question's words. */
+  function fillerRows(fromTurn: number, toTurn: number, skip: Set<number>): SeedRow[] {
+    const rows: SeedRow[] = [];
+    for (let turn = fromTurn; turn < toTurn; turn++) {
+      if (skip.has(turn)) continue;
+      rows.push({ turn, attribute: `daily_${turn}`, factText: "태형은 렌과 커피를 마셨다.", quote: "두 사람은 커피를 마셨다." });
+    }
+    return rows;
+  }
+
+  const DECOY_ROWS: SeedRow[] = [
+    {
+      turn: 64,
+      attribute: "opinion_of_seoyun",
+      factText: "태형은 뒤에서 서류를 올리는 사람과 식사하고 싶지 않다고 말했다.",
+      quote: "웃으면서 뒤에서 서류 올리는 사람이랑은 밥 같이 안 먹어.",
+    },
+    {
+      turn: 71,
+      attribute: "accepted_offer",
+      factText: "태형은 렌의 제안을 받아들였다.",
+      quote: "그래, 같이 가자.",
+    },
+  ];
+
+  function nightRows(turns: number[], claim = false): SeedRow[] {
+    return turns.map((turn, i) => ({
+      claim,
+      turn,
+      attribute: `night_watch_${turn}`,
+      factText: `태형과 렌은 ${PLACES[i % PLACES.length]}에서 야간 대기를 했다.`,
+      quote: `두 사람은 ${PLACES[i % PLACES.length]}에서 야간 대기를 했다.`,
+    }));
+  }
+
+  function seedChat(nightTurns: number[], currentTurn: number, opts: { decoyTurns?: number[]; claim?: boolean } = {}) {
+    const db = createDb();
+    const decoys = DECOY_ROWS.map((row, i) => ({
+      ...row,
+      claim: opts.claim,
+      turn: opts.decoyTurns?.[i] ?? row.turn,
+    }));
+    const skip = new Set([...nightTurns, ...decoys.map((row) => row.turn)]);
+    const ids = seedRows(db, [...decoys, ...nightRows(nightTurns, opts.claim), ...fillerRows(60, currentTurn - 1, skip)]);
+    return {
+      db,
+      decoyIds: decoys.map((row) => ids.get(row.attribute)!),
+      nightIds: nightTurns.map((turn) => ids.get(`night_watch_${turn}`)!),
+    };
+  }
+
+  const recallAt = (db: Database.Database, currentTurn: number, currentUserMessage: string) =>
+    getEpisodicMemoryForPrompt(db, { chatId: 1, currentTurn, currentUserMessage }, recallEnv);
+
+  // B7 shape: 15 night rows among ~440, two rows whose quote alone contains "같이".
+  const B7_NIGHT_TURNS = [114, 144, 182, 235, 242, 280, 340, 348, 378, 416, 423, 446, 476, 491, 495];
+
+  it("final ranking: unrelated verbatim-only rows rank after every night row", () => {
+    const { db, decoyIds, nightIds } = seedChat(B7_NIGHT_TURNS, 500);
+    const result = recallAt(db, 500, NIGHT_QUESTION);
+    const rank = (id: number) => result.debug.find((row) => row.id === id)?.final_rank ?? Infinity;
+    const worstNight = Math.max(...nightIds.map(rank));
+    for (const id of decoyIds) {
+      assert.ok(rank(id) > worstNight, `decoy ${id} rank ${rank(id)} must follow every night row (worst ${worstNight})`);
+    }
+    const night348 = nightIds[B7_NIGHT_TURNS.indexOf(348)]!;
+    assert.ok(rank(night348) < Infinity);
+    assert.equal(result.facts.some((fact) => decoyIds.includes(fact.id)), false);
+  });
+
+  it("candidate lane: verbatim-only rows do not take lane slots from night rows when the lane is full", () => {
+    const olderNight = Array.from({ length: 36 }, (_, i) => 90 + i * 9);
+    const { db, decoyIds, nightIds } = seedChat(olderNight, 500);
+    const candidates = fetchEpisodicMemoryCandidatesForDebug(
+      db,
+      { chatId: 1, currentTurn: 500, currentUserMessage: NIGHT_QUESTION },
+      recallEnv
+    );
+    const inLane = (id: number) => candidates.laneById.get(id)?.includes("relevance") ?? false;
+    assert.equal(nightIds.filter(inLane).length, 25, "the relevance lane holds 25 night rows");
+    for (const id of decoyIds) assert.equal(inLane(id), false, `decoy ${id} must not hold a lane slot`);
+  });
+
+  it("25-key priority: verbatim-only rows that reach the candidates do not take reconcile slots from night rows", () => {
+    const olderNight = Array.from({ length: 36 }, (_, i) => 90 + i * 9);
+    // The decoys sit in the recent window, so they are candidates through the recent lane and only
+    // the reconcile preference decides which of the 27 matching state-like keys the cap keeps.
+    const { db, decoyIds, nightIds } = seedChat(olderNight, 500, { decoyTurns: [480, 485], claim: true });
+    const result = recallAt(db, 500, NIGHT_QUESTION);
+    const ranked = new Set(result.debug.filter((row) => row.final_rank != null).map((row) => row.id));
+    assert.equal(nightIds.filter((id) => ranked.has(id)).length, 25);
+    for (const id of decoyIds) assert.equal(ranked.has(id), false, `decoy ${id} must not take a key slot`);
+  });
+
+  it("a verbatim-only clue still recalls the row when only name-only rows compete", () => {
+    const db = createDb();
+    const ids = seedRows(db, [
+      {
+        turn: 120,
+        attribute: "burned_letter",
+        factText: "태형은 받은 편지를 처리했다.",
+        quote: "그 편지는 불태워버려.",
+      },
+      ...fillerRows(60, 119, new Set()),
+      ...fillerRows(121, 499, new Set()).map((row) => ({ ...row, factText: "태형은 렌과 순찰을 돌았다." })),
+    ]);
+    const result = recallAt(db, 500, "그때 태형이 불태워버려 라고 했었나?");
+    const target = ids.get("burned_letter")!;
+    assert.equal(result.debug.find((row) => row.id === target)?.final_rank, 1);
+    assert.ok(result.facts.some((fact) => fact.id === target));
+  });
+
+  it("a verbatim-only clue plus a second matching word beats rows matching one common content word", () => {
+    const db = createDb();
+    const letterRows: SeedRow[] = Array.from({ length: 12 }, (_, i) => ({
+      turn: 200 + i * 20,
+      attribute: `letter_${i}`,
+      factText: `태형은 ${PLACES[i % PLACES.length]}에서 편지를 읽었다.`,
+      quote: `그는 ${PLACES[i % PLACES.length]}에서 편지를 읽었다.`,
+    }));
+    const ids = seedRows(db, [
+      {
+        turn: 120,
+        attribute: "burned_letter",
+        factText: "태형은 받은 편지를 처리했다.",
+        quote: "그 편지는 불태워버려.",
+      },
+      ...letterRows,
+      ...fillerRows(60, 499, new Set([120, ...letterRows.map((row) => row.turn)])),
+    ]);
+    const result = recallAt(db, 500, "불태워버려 편지 기억나?");
+    assert.equal(result.debug.find((row) => row.id === ids.get("burned_letter"))?.final_rank, 1);
+  });
+});
+
 describe("CRITICAL vs IMPORTANT milestone priority", () => {
   it("T21 critical historical event survives 20 older important milestones", () => {
     const db = createDb();

@@ -1,0 +1,82 @@
+before 460adb6d (worktree):
+# tests 13726
+# pass 13398
+# fail 327
+after (branch):
+# tests 13730
+# pass 13424
+# fail 305
+
+failing names only in before:
+activation overlay toggles with generationSequence
+C6: background bypass applies per session only
+charges from provider-reported actual cost when available
+falls back to output plus thinking when API completion totals are absent
+K: historical message with NO S4 evidence → gate passes
+L: activation / knowledge atomic failure rolls back
+legacy user transfer remains variant-unscoped and effective
+M: S1/S2/S3 evidence rows never deleted/updated on variant switch
+never truncates a save-accepted character (thin speech, large world)
+P10: malformed provenance rejection leaves all S4 tables unchanged
+P1: assistantMessageId only → reject, DB delta 0
+P2: generation only → reject, DB delta 0
+P3: nonexistent assistant message → reject, DB delta 0
+P4: assistant from another chat → reject, DB delta 0
+P5: USER-role message id → reject, DB delta 0
+P6: valid assistant + unknown generationSequence → reject, DB delta 0
+P7: valid assistant + generationSequence=0 → PASS
+P8: same assistant + regen generationSequence=1 → PASS, distinct from gen0
+P9: both provenance fields null → legacy unscoped S4 unchanged
+Q1: S4 exists + selected variant generation missing → reject + rollback
+Q2: index collision must not activate generation-1 S4 evidence
+Q3: legacy message without S4 evidence switches without generationSequence
+Q4: valid explicit generationSequence=0 with S4 → switch PASS
+Q5: valid explicit generationSequence=1 with S4 → switch PASS + correct activation
+Q6: S4 provenance failure leaves derived state identical to pre-switch snapshot
+REFUND-E2E-DOUBLE error-status message with valid slices approves once, then rejects
+REFUND-E2E-NOSLICE error-status message without slices goes pending — never auto-minted
+refund exact reversal — canonical semantics (EXACT REVERSAL / ORIGINAL EXPIRY PRESERVED)
+REFUND-MISSING-1 slice pointing at a deleted row never mints — integrity failure
+refund report-path boundaries — fail-closed, no silent mint
+REFUND-REV-3 expired attendance refund restores the same row — no new 30d lot, no generic conversion
+REFUND-REV-4 expired PAID refund restores the same row — no fresh 1y lot
+reprojection semantics: UNKNOWN+SUSPECTED → SUSPECTED
+RP setting source cap follows the canonical save limits
+S4 variant projection foundation
+session-local text state — production-equivalent gates
+uses API-reported prompt/completion totals as the authoritative billing basis
+variant provenance fail-closed P1–P10
+variant switch provenance fail-closed Q1–Q6
+
+failing names only in after:
+10. ensemble: transfer updates DB but prompt facts stay redacted
+9. retry → transfer/evidence/knowledge duplicate 0
+assistant self-unlock creates zero new reveal rows
+creates share slug and borrows as read-only library reference
+cross-chat isolation
+eligible investigation rules are enabled at compile time (enabled=1 sole authority)
+negatives / side-channel
+observer mismatch → no knowledge change
+owner persona editor access
+PR-S0 structural secret isolation
+PR-S3 investigation discovery
+rebuilds known facts after investigation unlock
+retry same investigation does not duplicate evidence events
+returns 404 without secret source for another user's persona
+same-turn known facts
+worldShares
+
+rerun of the files behind after-only failures, branch, --test-concurrency=1:
+src/lib/creatorNarrationStyle.integration.test.ts
+src/lib/derivedCache/derivedCache.test.ts
+src/lib/investigationDiscovery.s3Home.test.ts
+src/lib/investigationDiscovery.s3.test.ts
+src/lib/knowledgeTransfer.s4d.test.ts
+src/lib/personaOwnerEditorAccess.test.ts
+src/lib/personaSecretBoundary.test.ts
+src/lib/personaSecretIsolation.s0.test.ts
+src/lib/sceneWitness.s4b.test.ts
+src/lib/visualDiscovery.s2b.test.ts
+src/lib/worldShares.borrow.test.ts
+src/lib/worldShares.test.ts
+# tests 208 / pass 208 / fail 0
