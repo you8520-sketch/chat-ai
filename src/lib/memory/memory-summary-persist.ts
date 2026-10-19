@@ -26,6 +26,7 @@ import {
 import {
   canPreserveHealthyCheckpointOnPureAppend,
   clearGlobalCheckpointMetadataSql,
+  isHealthyDurableGlobalCompactCheckpoint,
   isManualGlobalActive,
   nextManualGlobalBoundary,
   readGlobalCheckpointSnapshot,
@@ -431,12 +432,6 @@ export function reconcileSummarizedTurnCountFromTable(opts: {
     );
     return contiguous;
   }
-  const recent = rebuildLorebookFromRecords(opts.chatId);
-  const used = calcUsedChars({
-    recent_summary: recent,
-    archive_summary: current.archive_summary,
-  });
-
   const applied = db.transaction(() => {
     if (
       opts.boundarySnapshot &&
@@ -447,6 +442,22 @@ export function reconcileSummarizedTurnCountFromTable(opts: {
     ) {
       return false;
     }
+    // A count repair never changes the source records. A compact whose prefix fingerprint still
+    // matches them stays the canonical Global projection; only a stale or invalid one is mirrored.
+    const stored = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
+    if (isHealthyDurableGlobalCompactCheckpoint(opts.chatId, readGlobalCheckpointSnapshot(stored))) {
+      if (stored.summarized_turn_count !== contiguous) {
+        db.prepare(
+          `UPDATE chat_memories SET summarized_turn_count=?, updated_at=datetime('now') WHERE chat_id=?`
+        ).run(contiguous, opts.chatId);
+      }
+      return true;
+    }
+    const recent = rebuildLorebookFromRecords(opts.chatId);
+    const used = calcUsedChars({
+      recent_summary: recent,
+      archive_summary: stored.archive_summary,
+    });
     db.prepare(
       `UPDATE chat_memories SET
         recent_summary=?,
