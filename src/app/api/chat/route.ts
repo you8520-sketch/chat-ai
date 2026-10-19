@@ -17,7 +17,11 @@ import {
   sanitizeStreamArtifacts,
   detectAdultGenerationFailure,
   isProviderRefusalFailure,
+  isSiteAdultOutputFailure,
+  parseStoredZeroChargeFailure,
+  isZeroChargeReplayFailure,
   generationFailureUserMessage,
+  type GenerationFailureReason,
   htmlFlashFailureUserMessage,
   isCatastrophicallyShortResponse,
   CATASTROPHIC_MIN_RESPONSE_CHARS,
@@ -632,6 +636,13 @@ import {
   resolveEffectiveAdultRp,
   resolveRoomAdultModeEnabled,
 } from "@/lib/chatAdultHandoff";
+import {
+  createAdultOffOutputHold,
+  evaluateAdultOffOutput,
+  isAdultOffOutputGuardEnabled,
+  shouldApplyAdultOffOutputGuard,
+} from "@/lib/adultOffOutputGuard";
+import { classifyAdultOffWindow } from "@/lib/adultOffOutputClassifier";
 
 const SSE_HEADERS = {
   "Content-Type": "text/event-stream; charset=utf-8",
@@ -2839,9 +2850,9 @@ export async function POST(req: Request) {
           );
           const stored = priorRefusalSettlement.assistantMessageId
             ? (db
-                .prepare(`SELECT content FROM messages WHERE id=? AND chat_id=?`)
+                .prepare(`SELECT content, usage FROM messages WHERE id=? AND chat_id=?`)
                 .get(priorRefusalSettlement.assistantMessageId, chatRef.id) as
-                | { content: string | null }
+                | { content: string | null; usage: string | null }
                 | undefined)
             : undefined;
           if ((stored?.content ?? "").trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
@@ -2849,7 +2860,9 @@ export async function POST(req: Request) {
           }
           safe.send({
             type: "error",
-            error: generationFailureUserMessage("model_refusal"),
+            error: generationFailureUserMessage(
+              parseStoredZeroChargeFailure(stored?.usage) ?? "model_refusal"
+            ),
             messageId: priorRefusalSettlement.assistantMessageId,
             requestId: clientRequestId,
           });
@@ -3237,6 +3250,15 @@ export async function POST(req: Request) {
       let sseDoneAttempted = false;
       let mainProviderFinished = false;
       let mainFinishReason: string | null = null;
+      const adultOffGuardActive = shouldApplyAdultOffOutputGuard({
+        enabled: isAdultOffOutputGuardEnabled(),
+        effectiveAdultRp,
+        mainRpProviderSkipped: htmlFlashOnlyTurn,
+      });
+      const adultOffHold = adultOffGuardActive ? createAdultOffOutputHold(send) : null;
+      const mainRpSend = adultOffHold ? adultOffHold.send : send;
+      let adultOffApproved = !adultOffGuardActive;
+      let adultOffGuardEvidence: Record<string, unknown> | null = null;
 
       const emitStreamTurnForensics = (assistantFinalizeStatus: string | null) => {
         if (!clientRequestId) return;
@@ -3294,6 +3316,123 @@ export async function POST(req: Request) {
 
       const stopPostprocessHeartbeat = () => {
         postprocessHeartbeat.stop();
+      };
+
+      /**
+       * 생성 실패 턴의 단일 반환 경로. 공급자 사용량 원가는 항상 남기고, 공급자 거절과
+       * 사이트 수위 차단·검사 실패는 같은 0P `waived` 정산 한 곳으로 모은다.
+       * 승인되지 않은 본문은 어떤 경우에도 저장·전달하지 않는다.
+       */
+      const failMainRpTurn = (input: {
+        generationFailure: GenerationFailureReason;
+        primaryStage: StageUsage | undefined;
+        bodyApproved: boolean;
+        candidateText: string;
+        outputChars: number;
+        routedTo: string;
+        flashHtmlError?: string | null;
+        errorMessage: string;
+        failureEvidence?: Record<string, unknown>;
+      }) => {
+        const { generationFailure, primaryStage } = input;
+        const nativeRefusal = isProviderNativeRefusalSignal(primaryStage?.finishReason);
+        const hideRefusalBody = generationFailure === "model_refusal" && !nativeRefusal;
+        const persistedFailureText =
+          !input.bodyApproved || hideRefusalBody || isSiteAdultOutputFailure(generationFailure)
+            ? ""
+            : input.candidateText;
+        console.warn("[/api/chat] generation failure — billing skipped", {
+          generationFailure,
+          finishReason: primaryStage?.finishReason,
+          outputChars: input.outputChars,
+          model: primaryStage?.responseModelId ?? primaryStage?.model ?? deliveredModelId ?? null,
+          provider: deliveredProvider,
+          upstreamCostUsd: primaryStage?.upstreamCostUsd ?? null,
+          cheaperInferenceBilledCostUsd: primaryStage?.cheaperInferenceBilledCostUsd ?? null,
+          providerRequestId: primaryStage?.providerRequestId ?? null,
+          targetResponseChars: targetResponseCharsRef,
+          routedTo: input.routedTo,
+          flashHtmlError: input.flashHtmlError ?? null,
+        });
+        if (primaryStage != null) {
+          try {
+            recordMainGenerationProviderCost({
+              chatId: chatRef.id,
+              assistantMessageId: persistedAssistantId,
+              generationSequence: currentTurnGenerationScope.generationSequence,
+              generationRequestId: currentTurnGenerationScope.generationRequestId,
+              provider: deliveredProvider,
+              model: primaryStage.responseModelId ?? primaryStage.model,
+              requestKind: "main-rp",
+              inputTokens: primaryStage.input,
+              outputTokens: primaryStage.output,
+              reasoningTokens: primaryStage.apiReasoningOutputTokens,
+              cacheReadTokens: primaryStage.cacheReadTokens,
+              cacheWriteTokens: primaryStage.cacheWriteTokens,
+              cheaperInferenceBilledCostUsd: primaryStage.cheaperInferenceBilledCostUsd,
+              upstreamCostUsd: primaryStage.upstreamCostUsd,
+              usageEstimated: primaryStage.estimated,
+              providerRequestId: primaryStage.providerRequestId,
+              outcome: "failed_with_usage",
+            });
+          } catch (mainCostErr) {
+            console.warn(
+              "[/api/chat] refusal provider cost record skipped:",
+              (mainCostErr as Error).message
+            );
+          }
+        }
+        clearPartialTimer();
+        stopPostprocessHeartbeat();
+        try {
+          markAssistantFailed(db, persistedAssistantId, persistedFailureText);
+          if (isZeroChargeReplayFailure(generationFailure)) {
+            db.prepare(`UPDATE messages SET usage=? WHERE id=? AND chat_id=?`).run(
+              JSON.stringify({
+                generationFailure,
+                finishReason: primaryStage?.finishReason ?? null,
+                model:
+                  primaryStage?.responseModelId ?? primaryStage?.model ?? deliveredModelId ?? null,
+                provider: deliveredProvider,
+                upstreamCostUsd: primaryStage?.upstreamCostUsd ?? null,
+                cheaperInferenceBilledCostUsd: primaryStage?.cheaperInferenceBilledCostUsd ?? null,
+                providerRequestId: primaryStage?.providerRequestId ?? null,
+                ...(input.failureEvidence ?? {}),
+              }),
+              persistedAssistantId,
+              chatRef.id
+            );
+            settleChatTurnBillingExactlyOnce(db, {
+              userId: user.id,
+              chatId: chatRef.id,
+              requestId: clientRequestId,
+              assistantMessageId: persistedAssistantId,
+              requestedPoints: 0,
+              reason: `${generationFailure} · ${
+                primaryStage?.responseModelId ?? primaryStage?.model ?? deliveredModelId ?? ""
+              }`,
+            });
+          }
+          if (regenerateMessageId) {
+            restoreAssistantFromAlternatesOnFailedRegen(db, regenerateMessageId, chatRef.id);
+          }
+          persistenceDiag.interrupted = true;
+          logStreamingPersistence(persistenceDiag);
+        } catch {
+          /* ignore */
+        }
+        // 이미 스트리밍된 본문이 있으면 reset 금지 — 화면이 비었다가 에러만 남는 현상 방지
+        if (persistedFailureText.trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
+          send({ type: "reset" });
+        }
+        send({
+          type: "error",
+          error: input.errorMessage,
+          messageId: persistedAssistantId,
+          userMessageId,
+          requestId: clientRequestId,
+        });
+        safe.close(controller);
       };
 
       let partialTimer: ReturnType<typeof setInterval> | null = setInterval(() => {
@@ -3359,22 +3498,14 @@ export async function POST(req: Request) {
             .get(existingByRequest.assistantMessageId, chatRef.id) as
             | { content: string | null; usage: string | null }
             | undefined;
-          let replayModelRefusal = false;
-          if (priorFailure?.usage) {
-            try {
-              const parsed = JSON.parse(priorFailure.usage) as { generationFailure?: unknown };
-              replayModelRefusal = parsed.generationFailure === "model_refusal";
-            } catch {
-              replayModelRefusal = false;
-            }
-          }
-          if (replayModelRefusal) {
+          const replayFailure = parseStoredZeroChargeFailure(priorFailure?.usage);
+          if (replayFailure) {
             if ((priorFailure?.content ?? "").trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
               send({ type: "reset" });
             }
             send({
               type: "error",
-              error: generationFailureUserMessage("model_refusal"),
+              error: generationFailureUserMessage(replayFailure),
               messageId: existingByRequest.assistantMessageId,
               userMessageId,
               requestId: clientRequestId,
@@ -3444,7 +3575,7 @@ export async function POST(req: Request) {
           const shouldBufferGeneral =
             adultDeliveryPlan.fallbackPrepared && fallbackAdultContext != null;
           const streamGate = createInitialStreamBuffer(
-            send,
+            mainRpSend,
             shouldBufferGeneral
               ? adultRoutingConfig.initialStreamBufferChars
               : 0
@@ -3454,6 +3585,10 @@ export async function POST(req: Request) {
             : chatRef.id
               ? `chat-${chatRef.id}`
               : undefined;
+
+          if (adultOffHold) {
+            postprocessHeartbeat.start("postprocess");
+          }
 
           const runStream = async (input: {
             send: (obj: object) => void;
@@ -3563,7 +3698,7 @@ export async function POST(req: Request) {
             streamGate.discard();
             const fallback = fallbackAdultContext!;
             const fallbackResult = await runStream({
-              send,
+              send: mainRpSend,
               system: fallback.systemPrompt,
               history: fallback.history,
               systemSplit: fallback.openRouterSystemSplit,
@@ -3660,17 +3795,89 @@ export async function POST(req: Request) {
               streamGate.flush();
             }
           }
-          fullText = result.text;
           confirmedProviderRefusal = detectAdultGenerationFailure(
             result.stage?.finishReason,
-            fullText,
+            result.text,
             targetResponseCharsRef
           );
+          stages.push(result.stage);
+          if (result.recoveryStage) stages.push(result.recoveryStage);
+          if (adultOffHold) {
+            if (isProviderRefusalFailure(confirmedProviderRefusal)) {
+              adultOffHold.discard();
+              failMainRpTurn({
+                generationFailure: confirmedProviderRefusal,
+                primaryStage: selectBillableStages(stages, {
+                  refusalFallbackDelivered: adultFallbackSucceeded,
+                })[0],
+                bodyApproved: false,
+                candidateText: "",
+                outputChars: result.text.length,
+                routedTo: "openrouter",
+                errorMessage: generationFailureUserMessage(confirmedProviderRefusal),
+              });
+              return;
+            } else {
+              const guardStartedAt = Date.now();
+              const decision = await evaluateAdultOffOutput(
+                [result.text, result.streamVisibleText ?? ""],
+                classifyAdultOffWindow
+              );
+              adultOffGuardEvidence = {
+                adultOffGuard: {
+                  status: decision.status,
+                  ...(decision.status === "blocked"
+                    ? { category: decision.category, confidence: decision.confidence }
+                    : {}),
+                  ...(decision.status === "check_failed" ? { reason: decision.reason } : {}),
+                  checkedWindows: decision.checkedWindows,
+                  checkMs: Date.now() - guardStartedAt,
+                  classifierCalls: decision.usages.map((u) => ({
+                    model: u.model,
+                    inputTokens: u.inputTokens,
+                    outputTokens: u.outputTokens,
+                    costUsd: u.costUsd,
+                    providerRequestId: u.providerRequestId,
+                    latencyMs: u.latencyMs,
+                  })),
+                },
+              };
+              console.info("[/api/chat] adult-off output guard", {
+                chatId: chatRef.id,
+                ...(adultOffGuardEvidence.adultOffGuard as Record<string, unknown>),
+              });
+              if (decision.status === "approved") {
+                adultOffApproved = true;
+                adultOffHold.release(result.streamVisibleText ?? result.text);
+              } else {
+                adultOffHold.discard();
+                failMainRpTurn({
+                  generationFailure:
+                    decision.status === "blocked"
+                      ? "adult_output_blocked"
+                      : "adult_output_check_failed",
+                  primaryStage: selectBillableStages(stages, {
+                    refusalFallbackDelivered: adultFallbackSucceeded,
+                  })[0],
+                  bodyApproved: false,
+                  candidateText: "",
+                  outputChars: 0,
+                  routedTo: "openrouter",
+                  errorMessage: generationFailureUserMessage(
+                    decision.status === "blocked"
+                      ? "adult_output_blocked"
+                      : "adult_output_check_failed"
+                  ),
+                  failureEvidence: adultOffGuardEvidence,
+                });
+                return;
+              }
+            }
+          }
+          fullText = result.text;
           streamVisibleTextRef = result.streamVisibleText ?? fullText;
           rawStreamTextRef = result.rawStreamText ?? fullText;
-          stages.push(result.stage);
           openRouterRemovalTraceSteps = result.removalTraceSteps;
-          if (result.recoveryStage) stages.push(result.recoveryStage);
           if (phaseAudit && result.stage) {
             const providerPrompt =
               result.stage.apiReportedInputTokens ?? result.stage.input ?? null;
@@ -4542,108 +4749,19 @@ export async function POST(req: Request) {
         }
 
         if (generationFailure) {
-          const nativeRefusal = isProviderNativeRefusalSignal(primaryStage?.finishReason);
-          const hideRefusalBody = generationFailure === "model_refusal" && !nativeRefusal;
-          const persistedFailureText = hideRefusalBody
-            ? ""
-            : savedText || streamVisibleTextRef;
-          console.warn("[/api/chat] generation failure — billing skipped", {
+          failMainRpTurn({
             generationFailure,
-            finishReason: primaryStage?.finishReason,
+            primaryStage,
+            bodyApproved: adultOffApproved,
+            candidateText: savedText || streamVisibleTextRef,
             outputChars: savedText.length,
-            model: primaryStage?.responseModelId ?? primaryStage?.model ?? deliveredModelId ?? null,
-            provider: deliveredProvider,
-            upstreamCostUsd: primaryStage?.upstreamCostUsd ?? null,
-            cheaperInferenceBilledCostUsd: primaryStage?.cheaperInferenceBilledCostUsd ?? null,
-            providerRequestId: primaryStage?.providerRequestId ?? null,
-            targetResponseChars: targetResponseCharsRef,
             routedTo: htmlFlashOnlyTurn ? "html-only" : "openrouter",
             flashHtmlError,
+            errorMessage:
+              htmlFlashOnlyTurn && generationFailure === "under_length"
+                ? htmlFlashFailureUserMessage(flashHtmlError)
+                : generationFailureUserMessage(generationFailure),
           });
-          if (primaryStage != null) {
-            try {
-              recordMainGenerationProviderCost({
-                chatId: chatRef.id,
-                assistantMessageId: persistedAssistantId,
-                generationSequence: currentTurnGenerationScope.generationSequence,
-                generationRequestId: currentTurnGenerationScope.generationRequestId,
-                provider: deliveredProvider,
-                model: primaryStage.responseModelId ?? primaryStage.model,
-                requestKind: "main-rp",
-                inputTokens: primaryStage.input,
-                outputTokens: primaryStage.output,
-                reasoningTokens: primaryStage.apiReasoningOutputTokens,
-                cacheReadTokens: primaryStage.cacheReadTokens,
-                cacheWriteTokens: primaryStage.cacheWriteTokens,
-                cheaperInferenceBilledCostUsd: primaryStage.cheaperInferenceBilledCostUsd,
-                upstreamCostUsd: primaryStage.upstreamCostUsd,
-                usageEstimated: primaryStage.estimated,
-                providerRequestId: primaryStage.providerRequestId,
-                outcome: "failed_with_usage",
-              });
-            } catch (mainCostErr) {
-              console.warn(
-                "[/api/chat] refusal provider cost record skipped:",
-                (mainCostErr as Error).message
-              );
-            }
-          }
-          clearPartialTimer();
-          stopPostprocessHeartbeat();
-          try {
-            markAssistantFailed(db, persistedAssistantId, persistedFailureText);
-            if (generationFailure === "model_refusal") {
-              db.prepare(
-                `UPDATE messages SET usage=? WHERE id=? AND chat_id=?`
-              ).run(
-                JSON.stringify({
-                  generationFailure,
-                  finishReason: primaryStage?.finishReason ?? null,
-                  model:
-                    primaryStage?.responseModelId ?? primaryStage?.model ?? deliveredModelId ?? null,
-                  provider: deliveredProvider,
-                  upstreamCostUsd: primaryStage?.upstreamCostUsd ?? null,
-                  cheaperInferenceBilledCostUsd: primaryStage?.cheaperInferenceBilledCostUsd ?? null,
-                  providerRequestId: primaryStage?.providerRequestId ?? null,
-                }),
-                persistedAssistantId,
-                chatRef.id
-              );
-              settleChatTurnBillingExactlyOnce(db, {
-                userId: user.id,
-                chatId: chatRef.id,
-                requestId: clientRequestId,
-                assistantMessageId: persistedAssistantId,
-                requestedPoints: 0,
-                reason: `model_refusal · ${
-                  primaryStage?.responseModelId ?? primaryStage?.model ?? deliveredModelId ?? ""
-                }`,
-              });
-            }
-            if (regenerateMessageId) {
-              restoreAssistantFromAlternatesOnFailedRegen(db, regenerateMessageId, chatRef.id);
-            }
-            persistenceDiag.interrupted = true;
-            logStreamingPersistence(persistenceDiag);
-          } catch {
-            /* ignore */
-          }
-          // 이미 스트리밍된 본문이 있으면 reset 금지 — 화면이 비었다가 에러만 남는 현상 방지
-          if (persistedFailureText.trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
-            send({ type: "reset" });
-          }
-          const errorMessage =
-            htmlFlashOnlyTurn && generationFailure === "under_length"
-              ? htmlFlashFailureUserMessage(flashHtmlError)
-              : generationFailureUserMessage(generationFailure);
-          send({
-            type: "error",
-            error: errorMessage,
-            messageId: persistedAssistantId,
-            userMessageId,
-            requestId: clientRequestId,
-          });
-          safe.close(controller);
           return;
         }
         const persistedGenerationStatus = "completed" as const;
