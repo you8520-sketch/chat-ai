@@ -1614,6 +1614,227 @@ describe("share world english consumer", () => {
   });
 });
 
+describe("CURRENT linked world english freshness", () => {
+  function seedCurrentLinkedCharacter(opts: {
+    userId: number;
+    koreanWorld: string;
+    worldId: number | null;
+    shareId: number | null;
+    identityEnglish: string;
+    worldEnglish: string;
+  }) {
+    const db = getDb();
+    const info = db
+      .prepare(
+        `INSERT INTO characters (
+           name, system_prompt, world, world_id, source_world_share_id, setting_chunks, creator_id, creator_name
+         ) VALUES ('c','prompt',?,?,?,'[]',?,'u')`
+      )
+      .run(opts.koreanWorld, opts.worldId, opts.shareId, opts.userId);
+    const characterId = Number(info.lastInsertRowid);
+    const chunks: CharacterChunk[] = [
+      {
+        id: "c-1",
+        characterId: String(characterId),
+        content: "identity",
+        category: "identity",
+        importance: "CRITICAL",
+        tokenCount: 5,
+        keywords: [],
+      },
+      {
+        id: "c-2",
+        characterId: String(characterId),
+        content: opts.koreanWorld,
+        category: "world",
+        importance: "CRITICAL",
+        tokenCount: 10,
+        keywords: [],
+      },
+    ];
+    const english: CharacterChunk[] = [
+      { ...chunks[0], content: opts.identityEnglish },
+      { ...chunks[1], content: opts.worldEnglish },
+    ];
+    const fingerprint = koreanChunksTranslationFingerprint(chunks);
+    db.prepare(
+      `UPDATE characters SET setting_chunks=?, setting_chunks_en=?, prompt_translation_hash=? WHERE id=?`
+    ).run(JSON.stringify(chunks), JSON.stringify(english), fingerprint, characterId);
+    return { characterId, chunks, fingerprint };
+  }
+
+  function storedEnglish(characterId: number) {
+    const row = getDb()
+      .prepare(
+        `SELECT setting_chunks_en, prompt_translation_hash FROM characters WHERE id=?`
+      )
+      .get(characterId) as { setting_chunks_en: string; prompt_translation_hash: string };
+    return {
+      chunks: deserializeCharacterChunks(row.setting_chunks_en),
+      fingerprint: row.prompt_translation_hash,
+    };
+  }
+
+  it("owned world English-only update copies the new blob and does not call Luna", async () => {
+    const userId = 93201;
+    process.env.DISABLE_DERIVED_CACHE_WORKER = "1";
+    process.env.CHEAPER_INFERENCE_API_KEY = "test";
+    seedUser(userId);
+    const koreanWorld = "소유 세계관 영어만 갱신 {{user}}";
+    const worldId = seedWorld(userId, koreanWorld);
+    const fp = worldContentFingerprint(koreanWorld);
+    getDb()
+      .prepare(`UPDATE worlds SET content_en=?, content_translation_fingerprint=? WHERE id=?`)
+      .run("NEW owned world EN {{user}}", fp, worldId);
+    const seeded = seedCurrentLinkedCharacter({
+      userId,
+      koreanWorld,
+      worldId,
+      shareId: null,
+      identityEnglish: "OLD identity EN",
+      worldEnglish: "OLD owned world EN",
+    });
+    const spy = installDeferredProviderFetch((body) =>
+      mockTranslationResponseForBody(body, "should-not-run")
+    );
+    try {
+      const ok = await translateCharacterChunksForDerivedRefresh(seeded.characterId, seeded.chunks);
+      assert.equal(ok, true);
+      assert.equal(spy.calls, 0, "OWNED_WORLD_EN_ONLY_LUNA=0");
+      const stored = storedEnglish(seeded.characterId);
+      assert.equal(stored.fingerprint, seeded.fingerprint);
+      assert.equal(stored.chunks.find((c) => c.category === "identity")?.content, "OLD identity EN");
+      assert.equal(
+        stored.chunks.find((c) => c.category === "world")?.content,
+        "NEW owned world EN {{user}}"
+      );
+    } finally {
+      spy.restore();
+    }
+  });
+
+  it("share world English-only update copies the new blob and does not call Luna", async () => {
+    const userId = 93202;
+    process.env.DISABLE_DERIVED_CACHE_WORKER = "1";
+    process.env.CHEAPER_INFERENCE_API_KEY = "test";
+    seedUser(userId);
+    const koreanWorld = "공유 세계관 영어만 갱신 {{user}}";
+    const worldId = seedWorld(userId, koreanWorld);
+    const db = getDb();
+    const shareSlug = `current-share-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const shareInsert = db
+      .prepare(
+        `INSERT INTO world_shares (share_slug, user_id, world_id, name, summary, content, content_en, content_translation_fingerprint)
+         VALUES (?, ?, ?, 'W', 's', ?, ?, ?)`
+      )
+      .run(
+        shareSlug,
+        userId,
+        worldId,
+        koreanWorld,
+        "NEW share world EN {{user}}",
+        worldContentFingerprint(koreanWorld)
+      );
+    const shareId = Number(shareInsert.lastInsertRowid);
+    const seeded = seedCurrentLinkedCharacter({
+      userId,
+      koreanWorld,
+      worldId: null,
+      shareId,
+      identityEnglish: "OLD identity EN",
+      worldEnglish: "OLD share world EN",
+    });
+    const spy = installDeferredProviderFetch((body) =>
+      mockTranslationResponseForBody(body, "should-not-run")
+    );
+    try {
+      const ok = await translateCharacterChunksForDerivedRefresh(seeded.characterId, seeded.chunks);
+      assert.equal(ok, true);
+      assert.equal(spy.calls, 0, "SHARE_WORLD_EN_ONLY_LUNA=0");
+      const stored = storedEnglish(seeded.characterId);
+      assert.equal(stored.fingerprint, seeded.fingerprint);
+      assert.equal(stored.chunks.find((c) => c.category === "identity")?.content, "OLD identity EN");
+      assert.equal(
+        stored.chunks.find((c) => c.category === "world")?.content,
+        "NEW share world EN {{user}}"
+      );
+    } finally {
+      spy.restore();
+    }
+  });
+
+  it("pending or stale linked world English keeps the dependency and does not call Luna", async () => {
+    process.env.DISABLE_DERIVED_CACHE_WORKER = "1";
+    process.env.CHEAPER_INFERENCE_API_KEY = "test";
+    const db = getDb();
+
+    const pendingUser = 93203;
+    seedUser(pendingUser);
+    const pendingKorean = "pending 세계관 {{user}}";
+    const pendingWorldId = seedWorld(pendingUser, pendingKorean);
+    db.prepare(
+      `UPDATE worlds SET content_en='', content_translation_fingerprint='' WHERE id=?`
+    ).run(pendingWorldId);
+    const pending = seedCurrentLinkedCharacter({
+      userId: pendingUser,
+      koreanWorld: pendingKorean,
+      worldId: pendingWorldId,
+      shareId: null,
+      identityEnglish: "OLD identity EN",
+      worldEnglish: "OLD pending world EN",
+    });
+
+    const staleUser = 93204;
+    seedUser(staleUser);
+    const staleKorean = "stale 세계관 {{user}}";
+    const staleWorldId = seedWorld(staleUser, staleKorean);
+    db.prepare(
+      `UPDATE worlds SET content_en=?, content_translation_fingerprint=? WHERE id=?`
+    ).run("STALE world EN", "not-the-fingerprint", staleWorldId);
+    const stale = seedCurrentLinkedCharacter({
+      userId: staleUser,
+      koreanWorld: staleKorean,
+      worldId: staleWorldId,
+      shareId: null,
+      identityEnglish: "OLD identity EN",
+      worldEnglish: "OLD stale world EN",
+    });
+
+    const spy = installDeferredProviderFetch((body) =>
+      mockTranslationResponseForBody(body, "should-not-run")
+    );
+    try {
+      const pendingOk = await translateCharacterChunksForDerivedRefresh(pending.characterId, pending.chunks);
+      const staleOk = await translateCharacterChunksForDerivedRefresh(stale.characterId, stale.chunks);
+      assert.equal(pendingOk, false);
+      assert.equal(staleOk, false);
+      assert.equal(spy.calls, 0, "PENDING_STALE_WORLD_LUNA=0");
+      assert.equal(
+        storedEnglish(pending.characterId).chunks.find((c) => c.category === "world")?.content,
+        "OLD pending world EN"
+      );
+      assert.equal(
+        storedEnglish(stale.characterId).chunks.find((c) => c.category === "identity")?.content,
+        "OLD identity EN"
+      );
+      const pendingJobs = db
+        .prepare(
+          `SELECT COUNT(*) AS c FROM derived_cache_jobs WHERE job_kind='world_translate' AND entity_id=?`
+        )
+        .get(pendingWorldId) as { c: number };
+      const staleJobs = db
+        .prepare(
+          `SELECT COUNT(*) AS c FROM derived_cache_jobs WHERE job_kind='world_translate' AND entity_id=?`
+        )
+        .get(staleWorldId) as { c: number };
+      assert.equal(pendingJobs.c, 1);
+      assert.equal(staleJobs.c, 1);
+    } finally {
+      spy.restore();
+    }
+  });
+});
+
 describe("appearance currentness", () => {
   it("R4 raw B after A compiled uses B raw not A compiled", () => {
     const rawA = "금발";
