@@ -1,0 +1,7 @@
+Base: origin/main 7a3cb9d438d36d73adb08f45204fce2aa6783bb1
+HEAD: (see PR) after fix
+GET /points (no session) -> location: /login?redirect=/points
+GET /settings (no session) -> location: /login?redirect=/settings
+GET /chats (no session) -> location: /login?redirect=/chats
+
+Playwright (isolated DATA_DIR, prod webServer :3001): 7/7 passed — see /opt/cursor/artifacts/login-return-points-settings/playwright.txt

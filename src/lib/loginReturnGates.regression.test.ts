@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, test } from "node:test";
 
-const repoRoot = path.resolve(import.meta.dirname, "..");
+const repoRoot = path.resolve(import.meta.dirname, "../..");
 
 function readPage(relativePath: string): string {
   return fs.readFileSync(path.join(repoRoot, relativePath), "utf8");
