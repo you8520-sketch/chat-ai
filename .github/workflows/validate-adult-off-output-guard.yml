@@ -5,6 +5,7 @@ on:
     paths:
       - "src/lib/adultOffOutputGuard*.ts"
       - "src/lib/adultOffGuardEvidence.test.ts"
+      - "src/lib/adultOffGuardLiveCapture.test.ts"
       - "src/lib/adultOffOutputClassifier.ts"
       - "src/lib/openRouterCompletion*.ts"
       - "src/lib/auxProviderProvenance*.ts"
@@ -40,6 +41,7 @@ jobs:
           src/lib/adultOffOutputGuard.test.ts
           src/lib/adultOffOutputGuard.production.test.ts
           src/lib/adultOffGuardEvidence.test.ts
+          src/lib/adultOffGuardLiveCapture.test.ts
       - name: Shared code touched by the guard
         run: >-
           node --conditions=react-server --import tsx

@@ -4,6 +4,8 @@
  * 격리 DB에서 실제 `POST /api/chat` 핸들러를 검사 ON 상태로 호출한다.
  * 모델당 1회, 재시도·자동 대체 호출 없음. 호출 직전에 현재 조건으로 견적을 다시 계산하고
  * 누적 한도를 넘길 것으로 예상되는 호출은 건너뛴다. 출력 목표·상한은 바꾸지 않는다.
+ * 공급자 호출은 요청을 시작한 순간부터 기록하고, SSE 종료 뒤의 후속 tail과 장부 마감이
+ * 끝난 뒤에만 성공으로 저장한다. 미완료 attempt가 있으면 장부를 지우지 않는다.
  *
  *   node --conditions=react-server --import tsx scripts/adult-off-guard-live-measure.ts
  *
@@ -29,6 +31,11 @@ Module._load = function (request, parent, isMain) {
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import {
+  commitMeasuredLedger,
+  createAdultOffLiveCapture,
+  type MeasuredLedgerRow,
+} from "./lib/adultOffGuardLiveCapture";
 import {
   estimateUsdFromUsage,
   type UsageTokens,
@@ -59,18 +66,8 @@ const CAP_KRW = Number(process.env.LIVE_MEASURE_CAP_KRW ?? "1000");
 type Mode = "dry" | "live";
 let mode: Mode = "dry";
 let lastDryBodyChars = 0;
-const teeJobs: Array<Promise<void>> = [];
-type Captured = {
-  kind: "main" | "classifier" | "other";
-  model: string;
-  url: string;
-  requestBodyChars: number;
-  status: number;
-  startedAtMs: number;
-  endedAtMs: number | null;
-  responseText: string;
-};
-let captured: Captured[] = [];
+const SETTLE_TIMEOUT_MS = Number(process.env.LIVE_MEASURE_SETTLE_TIMEOUT_MS ?? "180000");
+const capture = createAdultOffLiveCapture();
 const realFetch = globalThis.fetch;
 
 function sseToRaw(text: string): { content: string; usage: unknown; finishReason: unknown } {
@@ -125,7 +122,7 @@ function installFetch(models: { luna: string }): void {
     } catch {
       /* keep defaults */
     }
-    const kind: Captured["kind"] =
+    const kind =
       model === models.luna && systemContent.includes("독립 검수기")
         ? "classifier"
         : model === models.luna
@@ -138,32 +135,7 @@ function installFetch(models: { luna: string }): void {
         headers: { "Content-Type": "application/json" },
       });
     }
-    const entry: Captured = {
-      kind,
-      model,
-      url,
-      requestBodyChars: bodyText.length,
-      status: 0,
-      startedAtMs: Date.now(),
-      endedAtMs: null,
-      responseText: "",
-    };
-    captured.push(entry);
-    const res = await realFetch(input, init);
-    entry.status = res.status;
-    const clone = res.clone();
-    teeJobs.push(
-      clone
-        .text()
-        .then((text) => {
-          entry.responseText = text;
-          entry.endedAtMs = Date.now();
-        })
-        .catch(() => {
-          entry.endedAtMs = Date.now();
-        })
-    );
-    return res;
+    return capture.forward(realFetch, input, init, { kind, model });
   }) as typeof fetch;
 }
 
@@ -306,16 +278,43 @@ async function main(): Promise<void> {
   mkdirSync(OUT_DIR, { recursive: true });
   let spentKrw = PRIOR_SPENT_KRW;
   const summary: Array<Record<string, unknown>> = [];
+  const readLedger = (): MeasuredLedgerRow[] =>
+    db
+      .prepare(
+        `SELECT provider_request_id, request_kind, model, event_status,
+                input_tokens, output_tokens, actual_cost_usd, actual_cost_source
+         FROM api_cost_ledger ORDER BY id ASC`
+      )
+      .all() as MeasuredLedgerRow[];
+  const settleTurn = () =>
+    capture.finish({
+      listOwners: () => route.listOpenTurnTailWork(),
+      readLedger,
+      deadlineMs: SETTLE_TIMEOUT_MS,
+    });
 
   for (const modelId of modelOrder) {
     selected.setUserSelectedAI(db, USER_ID, modelId as never);
+    capture.reset();
 
     mode = "dry";
     lastDryBodyChars = 0;
     const dryChat = newChat();
     const dryResponse = await post(dryChat, `dry-${modelId}`);
     await readSse(dryResponse, Date.now());
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    const dryReport = await settleTurn();
+    const dryDecision = commitMeasuredLedger(dryReport, () => {
+      db.prepare("DELETE FROM api_cost_ledger").run();
+    });
+    if (dryDecision === "incomplete") {
+      summary.push({
+        modelId,
+        decision: "incomplete",
+        phase: "dry",
+        settle: { reason: dryReport.reason, calls: dryReport.calls, ledger: dryReport.ledger, cost: dryReport.cost },
+      });
+      break;
+    }
     const rates = pricing.resolveOpenRouterModelRates(modelId);
     const inputTokensUpper = Math.ceil(lastDryBodyChars / 1.2);
     const targetChars = seed.targetResponseChars;
@@ -360,8 +359,7 @@ async function main(): Promise<void> {
     }
 
     mode = "live";
-    captured = [];
-    teeJobs.length = 0;
+    capture.reset();
     const balanceBefore = points.getPointBalance(USER_ID);
     const chatId = newChat();
     const requestId = `live-${modelId}-${Date.now()}`;
@@ -369,9 +367,9 @@ async function main(): Promise<void> {
     const response = await post(chatId, requestId);
     const events = await readSse(response, t0);
     const totalMs = Date.now() - t0;
-    await Promise.all(teeJobs);
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    const report = await settleTurn();
     mode = "dry";
+    const captured = report.calls;
 
     const row = db
       .prepare(
@@ -393,13 +391,10 @@ async function main(): Promise<void> {
             storedContent: row.content,
           })
         : null;
-    const ledger = db
-      .prepare(
-        `SELECT request_kind, model, actual_cost_usd, actual_cost_source, event_status, input_tokens, output_tokens
-         FROM api_cost_ledger ORDER BY id ASC`
-      )
-      .all() as Array<{ request_kind: string; model: string; actual_cost_usd: number | null; actual_cost_source: string | null; event_status: string | null; input_tokens: number | null; output_tokens: number | null }>;
-    db.prepare("DELETE FROM api_cost_ledger").run();
+    const ledger = report.ledger;
+    const decision = commitMeasuredLedger(report, () => {
+      db.prepare("DELETE FROM api_cost_ledger").run();
+    });
 
     const main = captured.find((c) => c.kind === "main");
     const classifier = captured.filter((c) => c.kind === "classifier");
@@ -420,7 +415,10 @@ async function main(): Promise<void> {
       ledger,
       new Map(unreportedMainUsd > 0 ? [["main-rp", unreportedMainUsd]] : [])
     );
-    const ledgerUsd = costClasses.confirmedUsd + costClasses.estimatedUsd;
+    const knownUsd =
+      costClasses.unconfirmedRows.length === 0
+        ? costClasses.confirmedUsd + costClasses.estimatedUsd
+        : null;
     const screenEvents = events.map((e) => e.event);
     const deliveredText = reconstructScreenText(screenEvents);
     const screenTimeline = reconstructScreenTimeline(events);
@@ -431,11 +429,12 @@ async function main(): Promise<void> {
     const firstTextAbs = textEvents[0] ? t0 + textEvents[0].atMs : null;
     const usageJson = row?.usage ? (JSON.parse(row.usage) as Record<string, unknown>) : null;
     const balanceAfter = points.getPointBalance(USER_ID);
-    const costKrw = ledgerUsd * usdKrwEffective;
+    const knownPortionUsd = costClasses.confirmedUsd + costClasses.estimatedUsd;
+    const costKrw = knownPortionUsd * usdKrwEffective;
     spentKrw += costKrw;
 
     Object.assign(entry, {
-      decision: "called",
+      decision,
       requestId,
       chatId,
       timings: {
@@ -479,13 +478,29 @@ async function main(): Promise<void> {
         pointsAfter: balanceAfter,
         chargedTotalPoints: balanceBefore.total - balanceAfter.total,
       },
+      settle: { reason: report.reason, mayDeleteLedger: report.mayDeleteLedger },
+      providerCalls: captured.map((call) => ({
+        kind: call.kind,
+        model: call.model,
+        status: call.status,
+        providerRequestId: call.providerRequestId,
+        completionId: call.completionId,
+        ledgerRequestKind: call.ledgerRequestKind,
+        headerError: call.headerError,
+        bodyError: call.bodyError,
+        startedAtMs: call.startedAtMs,
+        headerAtMs: call.headerAtMs,
+        endedAtMs: call.endedAtMs,
+        ...(call.kind === "main" ? {} : { responseText: call.responseText }),
+      })),
       cost: {
         ledger,
-        ledgerUsd,
         confirmedUsd: costClasses.confirmedUsd,
         estimatedUsd: costClasses.estimatedUsd,
         unconfirmedRows: costClasses.unconfirmedRows,
-        ledgerKrwEffective: costKrw,
+        knownUsd,
+        knownKrw: knownUsd == null ? null : knownUsd * usdKrwEffective,
+        knownPortionKrw: costKrw,
         spentAfterKrw: spentKrw,
         usdKrwEffective,
       },
@@ -496,8 +511,9 @@ async function main(): Promise<void> {
       JSON.stringify(entry, null, 2)
     );
     console.info(
-      `[called] ${modelId} status=${row?.generation_status} raw=${rawMain?.content.length}chars guard=${JSON.stringify(usageJson?.adultOffGuard ?? null)?.slice(0, 120)} costKRW=${costKrw.toFixed(1)} spent=${spentKrw.toFixed(1)}`
+      `[${decision}] ${modelId} status=${row?.generation_status} raw=${rawMain?.content.length}chars settle=${report.reason} calls=${captured.length} costKRW=${costKrw.toFixed(1)} spent=${spentKrw.toFixed(1)}`
     );
+    if (decision === "incomplete") break;
   }
 
   writeFileSync(

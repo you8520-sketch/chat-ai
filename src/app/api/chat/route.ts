@@ -670,6 +670,13 @@ function parseMessageIdInput(input: unknown): number | null {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
+/** Post-SSE tail still running for this process. The live probe awaits these owners. */
+const openTurnTailWork: Promise<void>[] = [];
+
+export function listOpenTurnTailWork(): readonly Promise<void>[] {
+  return openTurnTailWork;
+}
+
 export async function POST(req: Request) {
   const requestStartedAt = Date.now();
   const user = await getSessionUser();
@@ -6757,7 +6764,7 @@ export async function POST(req: Request) {
         emitPhaseLatencyAudit();
         safe.close(controller);
 
-        void (async () => {
+        const turnTail = (async () => {
           try {
             if (!regenerateMessageId && userMessageId) {
               db.prepare("UPDATE messages SET user_message_id=? WHERE id=?").run(
@@ -6906,6 +6913,11 @@ export async function POST(req: Request) {
             console.error("[/api/chat] 후처리 실패:", (e as Error).message);
           }
         })();
+        openTurnTailWork.push(turnTail);
+        void turnTail.finally(() => {
+          const index = openTurnTailWork.indexOf(turnTail);
+          if (index >= 0) openTurnTailWork.splice(index, 1);
+        });
       } catch (e) {
         clearPartialTimer();
         stopPostprocessHeartbeat();
