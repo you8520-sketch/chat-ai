@@ -333,4 +333,121 @@ describe("TRPG provider billing request id ledger", () => {
     assert.equal(rows[0]!.provider_request_id, "gm-abort-body");
     assert.equal(rows[0]!.event_status, "failed_without_usage");
   });
+
+  it("keeps a Bot header billing id when JSON parsing or the body fails", async () => {
+    const cases: Array<{
+      name: string;
+      id: string;
+      response: Response;
+      error: RegExp;
+      status: "failed_without_usage" | "failed_with_usage";
+      inputTokens?: number;
+    }> = [
+      {
+        name: "malformed JSON",
+        id: "bot-bad-json",
+        response: new Response("not-json", {
+          status: 200,
+          headers: { "content-type": "application/json", "x-ci-request-id": "bot-bad-json" },
+        }),
+        error: /JSON|Unexpected|token/i,
+        status: "failed_without_usage",
+      },
+      {
+        name: "body read abort",
+        id: "bot-read-abort",
+        response: new Response(
+          new ReadableStream({
+            pull(controller) {
+              controller.error(new Error("body read aborted"));
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json", "x-ci-request-id": "bot-read-abort" } }
+        ),
+        error: /body read aborted/,
+        status: "failed_without_usage",
+      },
+      {
+        name: "JSON null",
+        id: "bot-json-null",
+        response: new Response("null", {
+          status: 200,
+          headers: { "content-type": "application/json", "x-ci-request-id": "bot-json-null" },
+        }),
+        error: /null/,
+        status: "failed_without_usage",
+      },
+      {
+        name: "non-string content",
+        id: "bot-nonstr-content",
+        response: jsonResponse(
+          {
+            id: "chatcmpl-not-billing",
+            choices: [{ message: { content: 12 } }],
+            usage: { prompt_tokens: 3, completion_tokens: 1 },
+          },
+          200,
+          { "x-ci-request-id": "bot-nonstr-content" }
+        ),
+        error: /trim/,
+        status: "failed_with_usage",
+        inputTokens: 3,
+      },
+    ];
+    for (const item of cases) {
+      getDb().exec("DELETE FROM api_cost_ledger");
+      const seen = installFetch(() => item.response);
+      await assert.rejects(
+        () => callTrpgBot({ system: "sys", user: "행동", timeoutMs: 5_000, persistProviderCostInTests: true }),
+        item.error
+      );
+      assert.equal(seen.calls, 1, item.name);
+      const rows = ledgerRows();
+      assert.equal(rows.length, 1, item.name);
+      assert.equal(rows[0]!.provider_request_id, item.id, item.name);
+      assert.equal(rows[0]!.event_status, item.status, item.name);
+      assert.equal(rows[0]!.actual_cost_source, "unavailable", item.name);
+      assert.equal(rows[0]!.actual_cost_usd, null, item.name);
+      assert.equal(rows[0]!.request_kind, "background-trpg-bot", item.name);
+      if (item.inputTokens != null) assert.equal(rows[0]!.input_tokens, item.inputTokens, item.name);
+      assert.equal(rows[0]!.provider_request_id === "chatcmpl-not-billing", false);
+    }
+  });
+
+  it("keeps SSE billing id and usage when the chunk callback throws", async () => {
+    installFetch(() =>
+      sseResponse([
+        {
+          id: "chatcmpl-not-billing",
+          choices: [{ delta: { content: "문" } }],
+          usage: { prompt_tokens: 6, completion_tokens: 2 },
+          cheaper_inference: { request_id: "gm-callback-id" },
+        },
+      ])
+    );
+    await assert.rejects(
+      () =>
+        callTrpgGm({
+          system: "sys",
+          user: "장면",
+          timeoutMs: 5_000,
+          persistProviderCostInTests: true,
+          stream: {
+            onProviderChunk() {
+              throw new Error("chunk consumer failed");
+            },
+          },
+        }),
+      /chunk consumer failed/
+    );
+    const rows = ledgerRows();
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]!.provider_request_id, "gm-callback-id");
+    assert.equal(rows[0]!.event_status, "failed_with_usage");
+    assert.equal(rows[0]!.input_tokens, 6);
+    assert.equal(rows[0]!.output_tokens, 2);
+    assert.equal(rows[0]!.actual_cost_source, "unavailable");
+    assert.equal(rows[0]!.actual_cost_usd, null);
+    assert.equal(rows[0]!.attempt_ordinal, 1);
+  });
 });

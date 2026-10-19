@@ -40,8 +40,9 @@ type TrpgProviderAttemptCapture = {
 /**
  * Canonical TRPG cost capture. Reuses the background ledger writer.
  * Provider usage witnesses stay usageEstimated — exact billed amount stays
- * with the reconciler. A confirmed billing request id is kept even when
- * usage is absent. No id is invented when the provider did not send one.
+ * with the reconciler. Recording is skipped only when both usage and a
+ * billing request id are absent. Usage without an id is still recorded,
+ * and no id is invented. An id without usage is kept with cost unavailable.
  */
 function recordTrpgProviderCost(
   requestKind: "background-trpg-gm" | "background-trpg-bot",
@@ -146,6 +147,19 @@ function maxProviderAttempts(role: "gm" | "bot"): number {
       return GM_MAX_PROVIDER_ATTEMPTS;
     case "bot":
       return BOT_MAX_PROVIDER_ATTEMPTS;
+    default: {
+      const _exhaustive: never = role;
+      return _exhaustive;
+    }
+  }
+}
+
+function trpgRequestKind(role: "gm" | "bot"): "background-trpg-gm" | "background-trpg-bot" {
+  switch (role) {
+    case "gm":
+      return "background-trpg-gm";
+    case "bot":
+      return "background-trpg-bot";
     default: {
       const _exhaustive: never = role;
       return _exhaustive;
@@ -328,16 +342,34 @@ async function postTrpgChat(opts: {
         body: serializedBody,
         signal: AbortSignal.timeout(opts.timeoutMs),
       });
-      if (!res.ok) {
-        const errText = await res.text().catch(() => "");
-        const failedRequestId = readTrpgBillingRequestId(res.headers, parseJsonValue(errText));
-        recordTrpgProviderCost(opts.role === "gm" ? "background-trpg-gm" : "background-trpg-bot", opts.request, {
-          providerRequestId: failedRequestId,
+      const headerRequestId = readTrpgBillingRequestId(res.headers);
+      let supplementalRequestId: string | null = null;
+      let capturedUsage: TrpgModelUsage | undefined;
+      let recordedThisAttempt = false;
+      const recordThisAttemptFailure = () => {
+        if (recordedThisAttempt) return;
+        recordedThisAttempt = true;
+        recordTrpgProviderCost(trpgRequestKind(opts.role), opts.request, {
+          providerRequestId: headerRequestId ?? supplementalRequestId,
+          usage: capturedUsage,
           httpStatus: res.status,
-          outcome: "failed_without_usage",
+          outcome: capturedUsage ? "failed_with_usage" : "failed_without_usage",
           jobAttemptOrdinal: attempt,
           persistInTests: opts.persistProviderCostInTests,
         });
+      };
+      if (!res.ok) {
+        let errText = "";
+        try {
+          errText = await res.text();
+        } catch (readError) {
+          recordThisAttemptFailure();
+          throw readError;
+        }
+        if (!headerRequestId) {
+          supplementalRequestId = readTrpgBillingRequestId(undefined, parseJsonValue(errText));
+        }
+        recordThisAttemptFailure();
         lastHttpError = attachTrpgCallFailureMeta(new Error(`[TRPG] ${res.status}: ${errText.slice(0, 240)}`), {
           httpStatus: res.status,
           reasoningTokens: "unavailable",
@@ -348,53 +380,59 @@ async function postTrpgChat(opts: {
         }
         throw lastHttpError;
       }
-      const data = (await res.json()) as {
-        choices?: { message?: { content?: string } }[];
-        usage?: {
-          prompt_tokens?: number;
-          completion_tokens?: number;
-          prompt_tokens_details?: { cached_tokens?: number };
-          completion_tokens_details?: { reasoning_tokens?: unknown };
-          reasoning_tokens?: unknown;
-          cost?: unknown;
-          total_cost?: unknown;
-          cost_usd?: unknown;
-          total_cost_usd?: unknown;
-          cost_details?: unknown;
+      let data: unknown;
+      try {
+        data = await res.json();
+      } catch (readOrParseError) {
+        recordThisAttemptFailure();
+        throw readOrParseError;
+      }
+      try {
+        if (!headerRequestId) {
+          supplementalRequestId = readTrpgBillingRequestId(undefined, data);
+        }
+        const payload = data as {
+          choices?: { message?: { content?: string } }[];
+          usage?: {
+            prompt_tokens?: number;
+            completion_tokens?: number;
+            prompt_tokens_details?: { cached_tokens?: number };
+            completion_tokens_details?: { reasoning_tokens?: unknown };
+            reasoning_tokens?: unknown;
+            cost?: unknown;
+            total_cost?: unknown;
+            cost_usd?: unknown;
+            total_cost_usd?: unknown;
+            cost_details?: unknown;
+          };
         };
-      };
-      const reasoningTokens = reasoningTokensFromProviderUsage(data.usage);
-      const elapsedMs = Date.now() - started;
-      const providerRequestId = readTrpgBillingRequestId(res.headers, data);
-      const usage = usageFromResponse(request.model, data);
-      console.info(`[TRPG][${opts.role}] response_meta`, {
-        model: request.model,
-        elapsedMs,
-        reasoningTokens,
-      });
-      const text = data.choices?.[0]?.message?.content?.trim() ?? "";
-      if (!text) {
-        recordTrpgProviderCost(opts.role === "gm" ? "background-trpg-gm" : "background-trpg-bot", opts.request, {
-          providerRequestId,
-          usage,
-          httpStatus: res.status,
-          outcome: usage ? "failed_with_usage" : "failed_without_usage",
-          jobAttemptOrdinal: attempt,
-          persistInTests: opts.persistProviderCostInTests,
-        });
-        throw attachTrpgCallFailureMeta(new Error("[TRPG] empty completion"), {
+        capturedUsage = usageFromResponse(request.model, payload);
+        const reasoningTokens = reasoningTokensFromProviderUsage(payload.usage);
+        const elapsedMs = Date.now() - started;
+        console.info(`[TRPG][${opts.role}] response_meta`, {
+          model: request.model,
           elapsedMs,
           reasoningTokens,
         });
+        const text = payload.choices?.[0]?.message?.content?.trim() ?? "";
+        if (!text) {
+          throw attachTrpgCallFailureMeta(new Error("[TRPG] empty completion"), {
+            elapsedMs,
+            reasoningTokens,
+          });
+        }
+        return {
+          text,
+          usage: capturedUsage,
+          elapsedMs,
+          reasoningTokens,
+          providerRequestId: headerRequestId ?? supplementalRequestId,
+          jobAttemptOrdinal: attempt,
+        };
+      } catch (structureError) {
+        recordThisAttemptFailure();
+        throw structureError;
       }
-      return {
-        text,
-        usage,
-        elapsedMs,
-        reasoningTokens,
-        providerRequestId,
-        jobAttemptOrdinal: attempt,
-      };
     }
     throw lastHttpError ?? new Error("[TRPG] provider retry exhausted");
   } catch (error) {
@@ -467,8 +505,6 @@ async function readGmProviderSseStream(opts: {
   };
 
   const onSsePayload = (payload: unknown) => {
-    const content = deltaContentFromSsePayload(payload);
-    if (content) emitRaw(content);
     if (!opts.capture.providerRequestId) {
       const fromEvent = readTrpgBillingRequestId(undefined, payload);
       if (fromEvent) opts.capture.providerRequestId = fromEvent;
@@ -481,6 +517,8 @@ async function readGmProviderSseStream(opts: {
     }
     const finishReason = finishReasonFromSsePayload(payload);
     if (finishReason) terminalFinishReason = finishReason;
+    const content = deltaContentFromSsePayload(payload);
+    if (content) emitRaw(content);
   };
 
   while (true) {
