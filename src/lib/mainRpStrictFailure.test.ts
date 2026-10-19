@@ -319,14 +319,59 @@ describe("P0-5 — Main RP failure terminates canonically (one external attempt,
     });
   });
 
-  it("failure path in route.ts performs no settlement (no synthetic Usage / no synthetic 0P)", () => {
+  it("pre-provider failure does not settle, and a real refusal settles explicit 0P", () => {
     const source = readFileSync(
       resolve(process.cwd(), "src/app/api/chat/route.ts"),
       "utf8"
     );
-    // Exactly one settlement call exists and it lives on the success path.
-    assert.equal((source.match(/settleChatTurnBillingExactlyOnce\(/g) ?? []).length, 1);
-    // Failure paths explicitly skip billing and mark the assistant failed.
+    const failureAt = source.indexOf("[/api/chat] generation failure — billing skipped");
+    assert.ok(failureAt > 0);
+    const failureWindow = source.slice(failureAt, failureAt + 3200);
+    assert.match(failureWindow, /recordMainGenerationProviderCost\(/);
+    assert.match(failureWindow, /inputTokens:\s*primaryStage\.input/);
+    assert.match(failureWindow, /outputTokens:\s*primaryStage\.output/);
+    assert.match(failureWindow, /upstreamCostUsd:\s*primaryStage\.upstreamCostUsd/);
+    assert.match(failureWindow, /outcome:\s*"failed_with_usage"/);
+    const refusalAt = failureAt + failureWindow.indexOf('if (generationFailure === "model_refusal")');
+    assert.ok(failureWindow.includes('if (generationFailure === "model_refusal")'));
+    const refusalWindow = source.slice(refusalAt, refusalAt + 1400);
+    assert.equal(
+      (refusalWindow.match(/settleChatTurnBillingExactlyOnce\(/g) ?? []).length,
+      1
+    );
+    assert.match(refusalWindow, /requestedPoints:\s*0/);
+    assert.doesNotMatch(refusalWindow, /inputTokens:\s*0\b/);
+
+    const successAt = source.indexOf("const settlement = settleChatTurnBillingExactlyOnce(");
+    assert.ok(successAt > refusalAt);
+    assert.match(source.slice(successAt, successAt + 500), /requestedPoints:\s*cost/);
+
+    const providerFailAt = source.indexOf("Main RP provider generation failed");
+    const modelDeliveredAt = source.indexOf("const modelDeliveredText");
+    assert.ok(providerFailAt > 0 && modelDeliveredAt > providerFailAt);
+    const providerFailWindow = source.slice(providerFailAt, modelDeliveredAt);
+    assert.equal(providerFailWindow.includes("settleChatTurnBillingExactlyOnce"), false);
+    assert.equal(providerFailWindow.includes("recordMainGenerationProviderCost"), false);
+
+    const degenerationAt = source.indexOf("DEGENERATION_ABORT — billing skipped");
+    assert.ok(degenerationAt > 0 && degenerationAt < providerFailAt);
+    const degenerationWindow = source.slice(degenerationAt, providerFailAt);
+    assert.equal(degenerationWindow.includes("settleChatTurnBillingExactlyOnce"), false);
+    assert.equal(degenerationWindow.includes("recordMainGenerationProviderCost"), false);
+
+    const settleIndexes = [...source.matchAll(/settleChatTurnBillingExactlyOnce\(/g)].map(
+      (match) => match.index ?? -1
+    );
+    for (const index of settleIndexes) {
+      const inRefusal = index >= failureAt && index < failureAt + 3200;
+      const inSuccess = index >= successAt && index < successAt + 80;
+      assert.equal(
+        inRefusal || inSuccess,
+        true,
+        `settlement call outside the refusal 0P path and the success path at ${index}`
+      );
+    }
+
     assert.match(source, /generation failure — billing skipped/);
     assert.ok((source.match(/billing skipped/g) ?? []).length >= 4);
     assert.ok((source.match(/markAssistantFailed\(/g) ?? []).length >= 3);
