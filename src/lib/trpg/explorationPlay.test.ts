@@ -844,9 +844,10 @@ describe("exploration play", () => {
     await play();
     const remember = gmPrompts[beforeRemember] ?? "";
     assert.match(remember, /override earlier narration/);
-    assert.match(remember, /현이 is in 기록실\. They did not move this round\./);
-    assert.match(remember, /도윤 is in 현관홀\. They did not move this round\./);
-    assert.match(remember, /서하 is in 현관홀\. They did not move this round\./);
+    assert.match(remember, /현이 is in 기록실\./);
+    assert.match(remember, /도윤 is in 현관홀\./);
+    assert.match(remember, /서하 is in 현관홀\./);
+    assert.doesNotMatch(remember, /did not move/);
     assert.match(remember, /Alarm is already on\. The exit latch condition is already met\./);
     assert.match(remember, /Nobody has reached 출구\. Escape is not a fact\./);
     assert.doesNotMatch(remember, /can open/);
