@@ -244,6 +244,16 @@ export function approvedAssetStatus(target: ApprovedAssetOperatorTarget) {
     manifest: { candidates: target.candidates.length, filesMatchSha256: true },
     slots: slotStatuses(target),
     applies: listOfficialAssetReplacementApplies(target.store, target.draftKey),
+    rereviews: target.store.listReplacementRereviews(target.draftKey).map((row) => ({
+      id: row.id,
+      slot: row.slotKey,
+      candidateUrl: row.candidateResultUrl,
+      candidateSha256: row.candidateSha256,
+      previousStatus: row.previousStatus,
+      newStatus: row.newStatus,
+      reviewer: row.reviewer,
+      createdAt: row.createdAt,
+    })),
   };
 }
 
@@ -458,7 +468,14 @@ export type ReviewEvidence = {
   isolatedProofOnly: boolean;
   reviewer: string;
   approvalEvidence: string;
-  slots: Array<{ slot: string; candidateUrl: string; candidateSha256: string; qa: Record<string, QaCheck> }>;
+  slots: Array<{
+    slot: string;
+    candidateUrl: string;
+    candidateSha256: string;
+    qa: Record<string, QaCheck>;
+    /** Only read with `rereview`: why the earlier rejected judgement of this same file is corrected. */
+    correction?: { reason: string; evidence: string };
+  }>;
 };
 
 function qaKeysFor(slot: string, target: ApprovedAssetOperatorTarget): readonly string[] {
@@ -493,8 +510,9 @@ export function approvedAssetReviewTemplate(target: ApprovedAssetOperatorTarget)
 export function runApprovedAssetReview(
   target: ApprovedAssetOperatorTarget,
   evidenceBytes: Buffer,
-  options: { execute: boolean; productionDatabase: boolean }
+  options: { execute: boolean; productionDatabase: boolean; rereview?: boolean }
 ) {
+  const rereview = options.rereview === true;
   const evidence = JSON.parse(evidenceBytes.toString("utf8")) as ReviewEvidence;
   const fail = (message: string): never => gate("operator_review_evidence", message);
   if (evidence.draftKey !== target.draftKey || evidence.characterId !== target.characterId) {
@@ -511,7 +529,13 @@ export function runApprovedAssetReview(
   const statuses = new Map(slotStatuses(target).map((s) => [s.slot, s]));
   const replacements = new Map(target.store.listReplacements(target.draftKey).map((r) => [r.slotKey, r]));
   const seen = new Set<string>();
-  const planned: Array<{ slot: string; qa: Record<string, QaCheck>; candidateUrl: string; candidateSha256: string }> = [];
+  const planned: Array<{
+    slot: string;
+    qa: Record<string, QaCheck>;
+    candidateUrl: string;
+    candidateSha256: string;
+    correction: { reason: string; evidence: string } | null;
+  }> = [];
   const alreadyReviewed: string[] = [];
   for (const entry of evidence.slots ?? []) {
     const candidate = target.candidates.find((c) => c.slot === entry.slot);
@@ -523,11 +547,31 @@ export function runApprovedAssetReview(
     if (!stored || stored.candidateResultUrl !== entry.candidateUrl || stored.candidateSha256 !== entry.candidateSha256) {
       fail(`${entry.slot} evidence does not name the stored candidate file`);
     }
-    if (status.next === "apply" || status.next === "applied") {
+    if (!rereview && (status.next === "apply" || status.next === "applied")) {
       alreadyReviewed.push(entry.slot);
       continue;
     }
-    if (status.next !== "review") fail(`${entry.slot} is not ready for review (${status.next})`);
+    let correction: { reason: string; evidence: string } | null = null;
+    if (rereview) {
+      if (status.next !== "blocked" || stored!.status !== "rejected") {
+        fail(`${entry.slot} has no rejected review to correct (${status.next})`);
+      }
+      if (target.approvedPlan.slots.find((s) => s.slotKey === entry.slot)?.kind !== "representative") {
+        fail(`${entry.slot} explicit re-review is limited to the representative`);
+      }
+      const reason = entry.correction?.reason;
+      const proof = entry.correction?.evidence;
+      if (typeof reason !== "string" || !reason.trim() || typeof proof !== "string" || !proof.trim()) {
+        fail(`${entry.slot} re-review needs correction.reason and correction.evidence`);
+      }
+      if (FIXTURE_RE.test(reason!) || FIXTURE_RE.test(proof!)) fail(`${entry.slot} correction is a test fixture`);
+      correction = { reason: reason!.trim(), evidence: proof!.trim() };
+    } else {
+      if (entry.correction !== undefined) fail(`${entry.slot} correction is only accepted with --rereview`);
+      if (status.next !== "review") {
+        fail(`${entry.slot} is not ready for review (${status.next}${status.reason ? `: ${status.reason}` : ""})`);
+      }
+    }
     const keys = qaKeysFor(entry.slot, target);
     const extra = Object.keys(entry.qa ?? {}).filter((key) => !keys.includes(key));
     if (extra.length > 0) fail(`${entry.slot} has unknown QA checks ${extra.join(",")}`);
@@ -540,12 +584,30 @@ export function runApprovedAssetReview(
       if (FIXTURE_RE.test(check!.note!)) fail(`${entry.slot}.${key} note is a test fixture`);
       qa[key] = { ok: check!.ok, note: check!.note!.trim() };
     }
-    planned.push({ slot: entry.slot, qa, candidateUrl: entry.candidateUrl, candidateSha256: entry.candidateSha256 });
+    planned.push({
+      slot: entry.slot,
+      qa,
+      candidateUrl: entry.candidateUrl,
+      candidateSha256: entry.candidateSha256,
+      correction,
+    });
   }
-  const recorded: Array<{ slot: string; approved: boolean }> = [];
+  const recorded: Array<{ slot: string; approved: boolean; rereviewId?: number }> = [];
   if (options.execute) {
     for (const item of planned) {
       const kind = target.approvedPlan.slots.find((s) => s.slotKey === item.slot)!.kind;
+      if (item.correction) {
+        const corrected = target.store.rereviewRepresentativeReplacement(
+          target.actor,
+          target.draftKey,
+          item.qa as OfficialAnchorQaReport,
+          { candidateUrl: item.candidateUrl, candidateSha256: item.candidateSha256 },
+          evidence.reviewer.trim(),
+          item.correction
+        );
+        recorded.push({ slot: item.slot, approved: corrected.approved, rereviewId: corrected.rereviewId });
+        continue;
+      }
       const result =
         kind === "representative"
           ? target.store.reviewRepresentativeReplacement(
@@ -568,6 +630,7 @@ export function runApprovedAssetReview(
   return {
     step: "review" as const,
     execute: options.execute,
+    rereview,
     evidenceSha256: sha256Hex(evidenceBytes),
     reviewer: evidence.reviewer.trim(),
     approvalEvidence: evidence.approvalEvidence.trim(),
@@ -577,6 +640,7 @@ export function runApprovedAssetReview(
       candidateUrl: p.candidateUrl,
       candidateSha256: p.candidateSha256,
       allChecksOk: Object.values(p.qa).every((c) => c.ok),
+      correction: p.correction,
     })),
     recorded,
     alreadyReviewed,

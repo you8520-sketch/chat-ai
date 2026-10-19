@@ -133,18 +133,25 @@ const ASSET_MANIFEST_DEFAULT = "docs/official-supply/reviews/assets/wolfgang-ass
 const ASSET_PLAN_DEFAULT = "src/lib/officialSupply/pilot/fixtures/pilot-rf-02-approved-asset-plan-f.json";
 const ASSET_USAGE =
   "usage: official-supply-wolfgang-approved-source assets <status|intake|moderate|review|apply|rollback> " +
-  "--admin-email <email> --character-id <id> [--execute] [--evidence <file>] [--apply-id <id>] " +
+  "--admin-email <email> --character-id <id> [--execute] [--rereview] [--evidence <file>] [--apply-id <id>] " +
   "[--max-calls <n> --max-cost-usd <usd> --per-call-reserve-usd <usd>] [--manifest <file>] [--approved-plan <file>]";
 
-function parseAssetFlags(args: readonly string[]): { step: AssetStep; flags: Map<string, string>; execute: boolean } {
+function parseAssetFlags(
+  args: readonly string[]
+): { step: AssetStep; flags: Map<string, string>; execute: boolean; rereview: boolean } {
   const step = args[0] as AssetStep;
   if (!ASSET_STEPS.includes(step)) throw new OfficialSupplyGateError("approved_source_usage", ASSET_USAGE);
   const flags = new Map<string, string>();
   let execute = false;
+  let rereview = false;
   for (let i = 1; i < args.length; i++) {
     const arg = args[i]!;
     if (arg === "--execute") {
       execute = true;
+      continue;
+    }
+    if (arg === "--rereview") {
+      rereview = true;
       continue;
     }
     const value = args[i + 1];
@@ -155,7 +162,10 @@ function parseAssetFlags(args: readonly string[]): { step: AssetStep; flags: Map
     i++;
   }
   if (execute && step === "status") throw new OfficialSupplyGateError("approved_source_usage", "status never writes");
-  return { step, flags, execute };
+  if (rereview && (step !== "review" || !flags.has("evidence"))) {
+    throw new OfficialSupplyGateError("approved_source_usage", "--rereview applies to review with --evidence only");
+  }
+  return { step, flags, execute, rereview };
 }
 
 function productionDatabase(): boolean {
@@ -168,7 +178,7 @@ const visionModerationMeter: ModerationMeter = {
 };
 
 async function runAssetStep(args: readonly string[]): Promise<boolean> {
-  const { step, flags, execute } = parseAssetFlags(args);
+  const { step, flags, execute, rereview } = parseAssetFlags(args);
   const number = (key: string) => (flags.has(key) ? Number(flags.get(key)) : NaN);
   const target = openApprovedAssetOperator({
     store: new OfficialSupplyStore(),
@@ -207,6 +217,7 @@ async function runAssetStep(args: readonly string[]): Promise<boolean> {
       print(
         runApprovedAssetReview(target, fs.readFileSync(path.resolve(evidence)), {
           execute,
+          rereview,
           productionDatabase: productionDatabase(),
         })
       );
