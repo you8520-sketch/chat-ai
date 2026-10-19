@@ -21,6 +21,11 @@ import {
   installIsolatedTestDatabase,
   uninstallIsolatedTestDatabase,
 } from "@/lib/test/isolatedTestDatabase";
+import {
+  reconstructScreenText,
+  reconstructScreenTimeline,
+  screenBeforeAndAfter,
+} from "../../scripts/lib/adultOffGuardEvidence";
 
 /**
  * 합성 공급자 응답 + 분류기 스텁으로 노출·저장·정산 경로를 검증한다.
@@ -496,18 +501,6 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
   }
 
   /** SSE 의 replace/delta/append 의미대로 최종 화면 본문을 재구성한다(단순 연결 금지). */
-  function reconstructScreenText(events: Array<Record<string, unknown>>): string {
-    let screen = "";
-    for (const event of events) {
-      if (event.type === "reset") screen = "";
-      else if (event.type === "replace" && typeof event.text === "string") screen = event.text;
-      else if ((event.type === "delta" || event.type === "append") && typeof event.text === "string") {
-        screen += event.text;
-      }
-    }
-    return screen;
-  }
-
   async function runBlockedLikeTurn(input: {
     mode: ClassifierMode;
     expectedMessage: string;
@@ -755,9 +748,19 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
     assert.ok(!JSON.stringify(done).includes("adultOffGuard"), "internal evidence never reaches SSE");
 
     assert.equal(
-      reconstructScreenText(result.events).replace(/\s+/g, ""),
-      row.content.replace(/\s+/g, ""),
+      reconstructScreenText(result.events),
+      row.content,
       "final on-screen body equals the stored body"
+    );
+    const screenView = screenBeforeAndAfter(
+      reconstructScreenTimeline(result.events.map((event, index) => ({ atMs: index, event })))
+    );
+    assert.equal(screenView.charsBeforeFirstBodyEvent, 0, "screen is empty before approval");
+    assert.equal(screenView.charsAtEnd, row.content.length, "screen shows the full body after approval");
+    assert.ok(
+      result.events.findIndex((event) => event.type === "status" || event.type === "stream_heartbeat") <
+        result.events.findIndex((event) => event.type === "replace"),
+      "only notices precede the approved body"
     );
     assert.ok(harness.balance().total < before.total, "approved turn is billed as before");
   });
@@ -868,10 +871,7 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
       assert.equal(classifierCalls, 2, "raw text and the rewritten text were each checked");
       assert.equal(row.generation_status, "completed");
       assert.match(row.content, new RegExp(REWRITE_SENTINEL));
-      assert.equal(
-        reconstructScreenText(result.events).replace(/\s+/g, ""),
-        row.content.replace(/\s+/g, "")
-      );
+      assert.equal(reconstructScreenText(result.events), row.content);
       const evidence = guardEvidence(row);
       assert.deepEqual(
         evidence?.checks?.map((check) => [check.stage, check.status]),
@@ -991,7 +991,7 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
       assert.equal(row.generation_status, "completed");
       assert.match(row.content, /오늘도 조용한 하루였습니다/);
       const screen = reconstructScreenText(result.events);
-      assert.equal(screen.replace(/\s+/g, ""), row.content.replace(/\s+/g, ""));
+      assert.equal(screen, row.content);
       const api = await harness.getMessageApi(row.id);
       assert.equal(api.status, 200);
       assert.equal(api.json.content, row.content);
