@@ -7,3 +7,4 @@ GET /chats (no session) -> location: /login?redirect=/chats
 Isolated prod Playwright (tests/ui/login-return-path.spec.ts, 7 cases):
 - Full log: playwright-run.txt (same directory, pinned to evidence commit in PR)
 - Viewport PNGs: after-*-{390,1280}.png (copied from Playwright testInfo.outputPath artifacts)
+- Evidence screenshots wait for destination URL + page marker + login form removal (not URL alone).
