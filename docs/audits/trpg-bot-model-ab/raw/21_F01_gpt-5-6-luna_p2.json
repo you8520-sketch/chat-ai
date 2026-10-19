@@ -1,0 +1,42 @@
+{
+  "fixture_id": "F01",
+  "model": "gpt-5.6-luna",
+  "pass": 2,
+  "call_index": 21,
+  "request_contract": {
+    "model": "gpt-5.6-luna",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none",
+    "reasoning": {
+      "effort": "none"
+    }
+  },
+  "input_token_count": 8369,
+  "output_token_count": 390,
+  "cached_input_tokens": 8366,
+  "reasoning_tokens": 0,
+  "latency_ms": 7783,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "철제 문틈에서 새어 나온 바람이 목덜미를 스쳤다. 차갑다기보다, 오래 닫힌 관 안에서 올라온 숨 같았다. 유저가 어깨를 낮추고 문을 밀려는 순간, 카일은 시선을 바닥으로 내렸다. 혈흔과 마법진 잔해 사이, 먼지가 끊긴 가느다란 선이 문 안쪽으로 이어져 있었다. 누군가 최근에 지나갔거나, 적어도 무언가가 끌려간 흔적이다. 멀리서 다시 금속 긁는 소리가 날 것처럼 통로의 정적이 팽팽하게 당겨졌다.\n\n카일은 허리의 단검 손잡이를 잡고, 유저의 바로 뒤가 아니라 한 발 옆으로 비켜섰다. 좁은 입구에서 등을 맞대면 둘 다 좋은 표적이 된다. 대신 문이 열릴 틈과 천장 붕괴석 사이를 번갈아 살피며, 바닥의 선을 밟지 않을 자리를 찾았다.\n\n\"잠깐. 문보다 바닥이 더 수상한데.\"\n\n말을 끝낸 카일은 쪼그려 앉아 손가락 끝으로 먼지를 건드리지 않고, 칼끝으로 흔적의 방향과 주변 압력판처럼 보이는 돌의 경계를 가늠했다. 유저가 문을 밀어 틈을 만들 경우 바로 안쪽을 엿볼 수 있도록 몸을 낮춘 채 기다렸다.\n\n<<<ACTION_TYPE>>>\ninvestigate\n\n<<<INTENT>>>\n카일은 문 안쪽으로 이어지는 끌림 자국과 주변의 압력판처럼 보이는 돌을 건드리지 않고 칼끝으로 조사하려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": false,
+    "outputCharCount": 611,
+    "outputTokenEstimate": 339,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "철제 문틈에서 새어 나온 바람이 목덜미를 스쳤다. 차갑다기보다, 오래 닫힌 관 안에서 올라온 숨 같았다. 유저가 어깨를 낮추고 문을 밀려는 순간, 카일은 시선을 바닥으로 내렸다. 혈흔과 마법진 잔해 사이, 먼지가 끊긴 가느다란 선이 문 안쪽으로 이어져 있었다. 누군가 최근에 지나갔거나, 적어도 무언가가 끌려간 흔적이다. 멀리서 다시 금속 긁는 소리가 날 것처럼 통로의 정적이 팽팽하게 당겨졌다.\n\n카일은 허리의 단검 손잡이를 잡고, 유저의 바로 뒤가 아니라 한 발 옆으로 비켜섰다. 좁은 입구에서 등을 맞대면 둘 다 좋은 표적이 된다. 대신 문이 열릴 틈과 천장 붕괴석 사이를 번갈아 살피며, 바닥의 선을 밟지 않을 자리를 찾았다.\n\n\"잠깐. 문보다 바닥이 더 수상한데.\"\n\n말을 끝낸 카일은 쪼그려 앉아 손가락 끝으로 먼지를 건드리지 않고, 칼끝으로 흔적의 방향과 주변 압력판처럼 보이는 돌의 경계를 가늠했다. 유저가 문을 밀어 틈을 만들 경우 바로 안쪽을 엿볼 수 있도록 몸을 낮춘 채 기다렸다.",
+    "parsedActionType": "investigate",
+    "parsedIntent": "카일은 문 안쪽으로 이어지는 끌림 자국과 주변의 압력판처럼 보이는 돌을 건드리지 않고 칼끝으로 조사하려 했다."
+  }
+}

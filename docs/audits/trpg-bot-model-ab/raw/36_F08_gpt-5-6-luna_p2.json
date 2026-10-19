@@ -1,0 +1,42 @@
+{
+  "fixture_id": "F08",
+  "model": "gpt-5.6-luna",
+  "pass": 2,
+  "call_index": 36,
+  "request_contract": {
+    "model": "gpt-5.6-luna",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none",
+    "reasoning": {
+      "effort": "none"
+    }
+  },
+  "input_token_count": 8313,
+  "output_token_count": 400,
+  "cached_input_tokens": 8310,
+  "reasoning_tokens": 0,
+  "latency_ms": 11810,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "차가운 바람이 철문 틈에서 흘러나와 스케치 종이를 떨리게 했다. 세라는 무릎을 굽혀 벽면에 가까이 다가갔다. 반쯤 지워진 은빛 고리 세 개, 그리고 붉게 오염된 네 번째 고리의 끊어진 접점을 번갈아 훑었다. 지난번에 베껴 둔 문양과 대조하자, 단순한 잔해라기보다 결계 회로의 일부가 강제로 절단된 흔적처럼 보였다. 특히 붉은 얼룩은 녹이나 피가 아니라 마력이 역류하며 남긴 변색에 가까웠다. 그녀는 장갑 낀 손가락으로 문양의 바깥선을 따라가되, 룬을 직접 건드리지는 않았다. 등 뒤 통로에서 들렸던 금속음과 이 흔적이 무관하다고 단정할 수 없었다.\n\n\"이 문양은 결계 잔해가 맞습니다. 3왕조의 은빛 고리 구성 중 일부인데, 고리가 끊긴 지점에서 마수가 유입될 수 있는 변형 흔적이 보입니다.\"\n\n세라는 허리춤에서 얇은 흑연봉을 꺼내 붉게 오염된 고리 주변의 선과 틈을 종이에 옮겼다. 이어 문 가장자리까지 시선을 넓혀 같은 계통의 연결선이나 잠금식의 흔적을 찾아보려 했다.\n\n<<<ACTION_TYPE>>>\ninvestigate\n\n<<<INTENT>>>\n세라는 붕괴 석실 입구 벽면의 은빛 고리 룬과 붉게 오염된 접점을 기존 기록과 대조해 결계 잔해의 구조와 위험 징후를 조사하려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": false,
+    "outputCharCount": 609,
+    "outputTokenEstimate": 338,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "차가운 바람이 철문 틈에서 흘러나와 스케치 종이를 떨리게 했다. 세라는 무릎을 굽혀 벽면에 가까이 다가갔다. 반쯤 지워진 은빛 고리 세 개, 그리고 붉게 오염된 네 번째 고리의 끊어진 접점을 번갈아 훑었다. 지난번에 베껴 둔 문양과 대조하자, 단순한 잔해라기보다 결계 회로의 일부가 강제로 절단된 흔적처럼 보였다. 특히 붉은 얼룩은 녹이나 피가 아니라 마력이 역류하며 남긴 변색에 가까웠다. 그녀는 장갑 낀 손가락으로 문양의 바깥선을 따라가되, 룬을 직접 건드리지는 않았다. 등 뒤 통로에서 들렸던 금속음과 이 흔적이 무관하다고 단정할 수 없었다.\n\n\"이 문양은 결계 잔해가 맞습니다. 3왕조의 은빛 고리 구성 중 일부인데, 고리가 끊긴 지점에서 마수가 유입될 수 있는 변형 흔적이 보입니다.\"\n\n세라는 허리춤에서 얇은 흑연봉을 꺼내 붉게 오염된 고리 주변의 선과 틈을 종이에 옮겼다. 이어 문 가장자리까지 시선을 넓혀 같은 계통의 연결선이나 잠금식의 흔적을 찾아보려 했다.",
+    "parsedActionType": "investigate",
+    "parsedIntent": "세라는 붕괴 석실 입구 벽면의 은빛 고리 룬과 붉게 오염된 접점을 기존 기록과 대조해 결계 잔해의 구조와 위험 징후를 조사하려 했다."
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "fixture_id": "F05",
+  "model": "gemini-3.7-flash",
+  "pass": 1,
+  "call_index": 9,
+  "request_contract": {
+    "model": "gemini-3.7-flash",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none"
+  },
+  "input_token_count": 7966,
+  "output_token_count": 273,
+  "cached_input_tokens": 0,
+  "reasoning_tokens": "unavailable",
+  "latency_ms": 12708,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "천장에서 부서진 돌가루가 쏟아져 내리는 꼴을 보자마자 등줄기가 서늘해졌다. 틈새로 무작정 기어들어 가려는 뒷모습을 보며 혀를 찼다. 저러다 위에서 큼직한 석재 하나만 떨어져도 그대로 깔릴 판이었다. 피로 때문에 어깨가 뻐근했지만 멍하니 보고만 있을 수는 없었다. \n\n\"야, 또 위험한 데로 머리부터 들이밀지? 내가 먼저 갈게.\"\n\n가볍게 바닥을 차고 앞으로 나서며 손을 뻗었다. 좁고 위태로운 틈새 주변의 석재를 발로 디디며, 무너져 내릴 것 같은 천장 파편의 하중을 살피고 아래층으로 통하는 틈새를 먼저 확보하려 몸을 밀어 넣었다. 발 디딜 곳이 무너지지 않도록 기민하게 중심을 잡았다.\n\n<<<ACTION_TYPE>>>\nstealth\n<<<INTENT>>>\n카일은 유저가 위험한 틈새로 진입하기 전에 먼저 기민하게 움직여 잔해의 붕괴 위험을 피하며 아래층 틈새로 진입을 시도한다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": true,
+    "outputCharCount": 438,
+    "outputTokenEstimate": 243,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "천장에서 부서진 돌가루가 쏟아져 내리는 꼴을 보자마자 등줄기가 서늘해졌다. 틈새로 무작정 기어들어 가려는 뒷모습을 보며 혀를 찼다. 저러다 위에서 큼직한 석재 하나만 떨어져도 그대로 깔릴 판이었다. 피로 때문에 어깨가 뻐근했지만 멍하니 보고만 있을 수는 없었다.\n\n\"야, 또 위험한 데로 머리부터 들이밀지? 내가 먼저 갈게.\"\n\n가볍게 바닥을 차고 앞으로 나서며 손을 뻗었다. 좁고 위태로운 틈새 주변의 석재를 발로 디디며, 무너져 내릴 것 같은 천장 파편의 하중을 살피고 아래층으로 통하는 틈새를 먼저 확보하려 몸을 밀어 넣었다. 발 디딜 곳이 무너지지 않도록 기민하게 중심을 잡았다.",
+    "parsedActionType": "stealth",
+    "parsedIntent": "카일은 유저가 위험한 틈새로 진입하기 전에 먼저 기민하게 움직여 잔해의 붕괴 위험을 피하며 아래층 틈새로 진입을 시도한다."
+  }
+}

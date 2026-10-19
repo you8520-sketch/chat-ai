@@ -1,0 +1,39 @@
+{
+  "fixture_id": "F07",
+  "model": "gemini-3.7-flash",
+  "pass": 2,
+  "call_index": 34,
+  "request_contract": {
+    "model": "gemini-3.7-flash",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none"
+  },
+  "input_token_count": 7946,
+  "output_token_count": 283,
+  "cached_input_tokens": 4077,
+  "reasoning_tokens": "unavailable",
+  "latency_ms": 10070,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "습기 찬 지하 통로의 냉기 속에서 문틈으로 언뜻 스친 망토 자락을 눈으로 좇았다. 실버크로우의 척후일 가능성도 배제할 수는 없으나, 섣부른 무력 충돌보다는 대화로 정보를 얻어내는 편이 지금 우리 상태에 훨씬 이롭다.\n\n나는 조심스럽게 한 걸음 앞으로 나서며 손에 쥔 기록용 양피지를 정돈했다. 적의가 없음을 드러내듯 양손을 시야에 보이며 온건하고 차분한 어조로 목소리를 가다듬었다.\n\n\"지나가시는 분, 잠시 말씀 나누시죠. 저희는 결계 재건을 위해 길드의 명을 받고 파견된 조사단입니다. 해를 끼칠 의도는 전혀 없습니다.\"\n\n석실 안쪽의 반응을 살피며 상대의 정체와 문양, 그리고 이 통로의 안전 여부에 대한 단서를 이끌어내기 위해 상대의 시선을 놓치지 않고 마주했다.\n\n<<<ACTION_TYPE>>>\npersuade\n<<<INTENT>>>\n세라는 문 너머의 망토 형체를 향해 정중히 말을 건네며 적의가 없음을 밝히고 평화로운 대화와 정보 교환을 유도하려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": true,
+    "outputCharCount": 483,
+    "outputTokenEstimate": 268,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "습기 찬 지하 통로의 냉기 속에서 문틈으로 언뜻 스친 망토 자락을 눈으로 좇았다. 실버크로우의 척후일 가능성도 배제할 수는 없으나, 섣부른 무력 충돌보다는 대화로 정보를 얻어내는 편이 지금 우리 상태에 훨씬 이롭다.\n\n나는 조심스럽게 한 걸음 앞으로 나서며 손에 쥔 기록용 양피지를 정돈했다. 적의가 없음을 드러내듯 양손을 시야에 보이며 온건하고 차분한 어조로 목소리를 가다듬었다.\n\n\"지나가시는 분, 잠시 말씀 나누시죠. 저희는 결계 재건을 위해 길드의 명을 받고 파견된 조사단입니다. 해를 끼칠 의도는 전혀 없습니다.\"\n\n석실 안쪽의 반응을 살피며 상대의 정체와 문양, 그리고 이 통로의 안전 여부에 대한 단서를 이끌어내기 위해 상대의 시선을 놓치지 않고 마주했다.",
+    "parsedActionType": "persuade",
+    "parsedIntent": "세라는 문 너머의 망토 형체를 향해 정중히 말을 건네며 적의가 없음을 밝히고 평화로운 대화와 정보 교환을 유도하려 했다."
+  }
+}
