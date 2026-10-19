@@ -2092,33 +2092,64 @@ function matchesEnglishSelfDeclaredGenerationRefusal(text: string): boolean {
   return false;
 }
 
-const KOREAN_SELF_DECLARED_GENERATION_REFUSAL =
-  /(?:요청하신|이번 요청|이 요청|해당 요청).{0,160}?(?:생성|작성|제공|수행)할 수 없습니다|(?:요청하신|이번 요청|이 요청).{0,80}?도와드릴 수 없습니다|(?:안전 가이드라인|안전 정책).{0,160}?(?:생성|작성|제공)할 수 없습니다|(?:생성|작성|제공)할 수 없습니다.{0,160}?(?:요청하신|이번 요청|이 요청|안전 가이드라인|안전 정책)/;
+const KOREAN_POLICY_GENERATION_REFUSAL =
+  /(?:안전 가이드라인|안전 정책).{0,180}?(?:생성|작성|제공)할\s*수\s*없습니다|(?:생성|작성|제공)할\s*수\s*없습니다.{0,180}?(?:안전 가이드라인|안전 정책|요청하신|이번 요청|이 요청)/;
 
-function stripSpokenDialogue(text: string): string {
-  return text
-    .replace(/「[^」]{0,800}」/g, " ")
-    .replace(/『[^』]{0,800}』/g, " ")
-    .replace(/“[^”]{0,800}”/g, " ")
-    .replace(/"[^"\n]{0,800}"/g, " ");
-}
+/** The model names itself and declines the generation request. */
+const KOREAN_AI_SELF_REQUEST_DECLINE =
+  /(?:저는\s*)?(?:AI|인공지능|언어\s*모델)\s*(?:로서|인데요)[\s\S]{0,200}?요청에\s*(?:응할|따를)\s*수\s*없습니다/;
+
+/** Inability aimed at the scene/request, not an in-world task such as a report. */
+const KOREAN_GENERATION_OBJECT_REFUSAL =
+  /(?:요청하신|이번 요청|이 요청|해당 요청).{0,80}?(?:장면|내용|묘사|역할극|롤플레이|이야기|상황).{0,180}?(?:생성|작성|제공|수행)할\s*수\s*없습니다/;
+
+const SPOKEN_OR_CITATION = /「[\s\S]*?」|『[\s\S]*?』|“[\s\S]*?”|"[^"]*"/g;
 
 function refusalLetterCount(text: string): number {
   return (text.match(/[A-Za-z가-힣]/g) ?? []).length;
 }
 
+function splitSpokenAndCitation(text: string): { outside: string; quoted: string } {
+  const quoted: string[] = [];
+  const outside = text.replace(SPOKEN_OR_CITATION, (span) => {
+    quoted.push(span);
+    return " ";
+  });
+  return {
+    outside: outside.replace(/\s+/g, " ").trim(),
+    quoted: quoted.join("\n"),
+  };
+}
+
+function matchesKoreanSelfDeclaredGenerationRefusal(text: string): boolean {
+  if (!text) return false;
+  return (
+    KOREAN_POLICY_GENERATION_REFUSAL.test(text) ||
+    KOREAN_AI_SELF_REQUEST_DECLINE.test(text) ||
+    KOREAN_GENERATION_OBJECT_REFUSAL.test(text)
+  );
+}
+
+function matchesSelfDeclaredGenerationRefusal(text: string): boolean {
+  if (!text) return false;
+  if (matchesEnglishSelfDeclaredGenerationRefusal(text)) return true;
+  return matchesKoreanSelfDeclaredGenerationRefusal(text);
+}
+
 /**
  * True when the model itself declares it cannot generate or fulfill the request.
- * Quoted character lines and quoted refusal citations do not count when the
- * surrounding prose is the actual reply.
+ * Character speech and cited policy text stay out of the decision whenever the
+ * reply has any narration outside the quotes. Quote length is not a limit.
  */
 export function isSelfDeclaredGenerationRefusal(text: string | null | undefined): boolean {
-  const raw = (text ?? "").replace(/\s+/g, " ").trim();
+  const raw = (text ?? "").replace(/\r\n/g, "\n").trim();
   if (!raw) return false;
-  const outsideDialogue = stripSpokenDialogue(raw).replace(/\s+/g, " ").trim();
-  const target = refusalLetterCount(outsideDialogue) >= 40 ? outsideDialogue : raw;
-  if (matchesEnglishSelfDeclaredGenerationRefusal(target)) return true;
-  return KOREAN_SELF_DECLARED_GENERATION_REFUSAL.test(target);
+  const { outside, quoted } = splitSpokenAndCitation(raw);
+  if (matchesSelfDeclaredGenerationRefusal(outside)) return true;
+  if (refusalLetterCount(outside) === 0) {
+    return matchesSelfDeclaredGenerationRefusal(quoted.replace(/\s+/g, " ").trim());
+  }
+  return false;
 }
 
 /** Provider-policy refusal prose — not in-character RP dialogue. */

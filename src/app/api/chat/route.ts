@@ -16,6 +16,7 @@ import {
   normalizeTargetResponseChars,
   sanitizeStreamArtifacts,
   detectAdultGenerationFailure,
+  isProviderRefusalFailure,
   generationFailureUserMessage,
   htmlFlashFailureUserMessage,
   isCatastrophicallyShortResponse,
@@ -3225,6 +3226,7 @@ export async function POST(req: Request) {
       });
       const stages: StageUsage[] = [];
       let fullText = "";
+      let confirmedProviderRefusal: ReturnType<typeof detectAdultGenerationFailure> = null;
       let streamVisibleTextRef = "";
       let rawStreamTextRef = "";
       let rawProsePersisted = false;
@@ -3659,6 +3661,11 @@ export async function POST(req: Request) {
             }
           }
           fullText = result.text;
+          confirmedProviderRefusal = detectAdultGenerationFailure(
+            result.stage?.finishReason,
+            fullText,
+            targetResponseCharsRef
+          );
           streamVisibleTextRef = result.streamVisibleText ?? fullText;
           rawStreamTextRef = result.rawStreamText ?? fullText;
           stages.push(result.stage);
@@ -3706,7 +3713,11 @@ export async function POST(req: Request) {
           postprocessHeartbeat.start("postprocess");
           }
 
-          if (!htmlFlashOnlyTurn && fullText.trim()) {
+          if (
+            !isProviderRefusalFailure(confirmedProviderRefusal) &&
+            !htmlFlashOnlyTurn &&
+            fullText.trim()
+          ) {
             const lexiconRewrite = await maybeRewriteNarrationLexicon({
               text: fullText,
               charName: ch.name,
@@ -4135,6 +4146,7 @@ export async function POST(req: Request) {
         }
 
         if (
+          !isProviderRefusalFailure(confirmedProviderRefusal) &&
           NARRATIVE_LENGTH_CONTINUATION_ENABLED &&
           proseOnly.trim() &&
           needsVisibleLengthContinuation(proseOnly, targetResponseCharsRef)
@@ -4182,6 +4194,7 @@ export async function POST(req: Request) {
         let htmlBlockBeforeEnsure: string | null = null;
         const savedBeforeHtmlFlash = savedText;
         if (
+          !isProviderRefusalFailure(confirmedProviderRefusal) &&
           !oocHtmlMode &&
           (htmlVisualCardPolicyRef.enabled || chatOocRpUnrelated || htmlFlashOnlyTurn)
         ) {
@@ -4470,12 +4483,14 @@ export async function POST(req: Request) {
         const primaryStage = billableStages[0];
         mainProviderFinished = true;
         mainFinishReason = primaryStage?.finishReason ?? null;
-        let generationFailure = detectAdultGenerationFailure(
-          primaryStage?.finishReason,
-          savedText,
-          targetResponseCharsRef,
-          visibleForLengthCheck
-        );
+        let generationFailure = isProviderRefusalFailure(confirmedProviderRefusal)
+          ? confirmedProviderRefusal
+          : detectAdultGenerationFailure(
+              primaryStage?.finishReason,
+              savedText,
+              targetResponseCharsRef,
+              visibleForLengthCheck
+            );
 
         if (
           generationFailure === "under_length" &&

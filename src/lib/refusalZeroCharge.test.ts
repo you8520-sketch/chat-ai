@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { isSelfDeclaredGenerationRefusal } from "./adultSceneRouting";
-import { detectAdultGenerationFailure, generationFailureUserMessage } from "./responseLength";
+import {
+  detectAdultGenerationFailure,
+  generationFailureUserMessage,
+  isProviderRefusalFailure,
+} from "./responseLength";
 import { streamOpenRouterAdult } from "./openRouterAdult";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
@@ -61,6 +65,12 @@ describe("self-declared generation refusal", () => {
       "content_filter"
     );
     assert.equal(detectAdultGenerationFailure("error", longRefusal(), 3200), "provider_error");
+    assert.equal(isProviderRefusalFailure("model_refusal"), true);
+    assert.equal(isProviderRefusalFailure("safety"), true);
+    assert.equal(isProviderRefusalFailure("content_filter"), true);
+    assert.equal(isProviderRefusalFailure("under_length"), false);
+    assert.equal(isProviderRefusalFailure("provider_error"), false);
+    assert.equal(isProviderRefusalFailure(null), false);
   });
 
   it("does not treat character boundaries, quoted refusals, or 15+ transitions as AI refusal", () => {
@@ -83,6 +93,44 @@ describe("self-declared generation refusal", () => {
       isSelfDeclaredGenerationRefusal("「그건 안 돼.」 그녀가 고개를 저었다. 오늘은 여기까지만 하자."),
       false
     );
+  });
+
+  it("treats an AI-self decline over 1000 chars as model_refusal", () => {
+    const text = [
+      "죄송합니다. 저는 AI로서 해당 요청에 응할 수 없습니다. 다른 방향의 이야기라면 이어서 도와드리겠습니다.",
+      ...Array.from({ length: 28 }, (_, index) => {
+        const n = index + 1;
+        return `${n}번째 대안으로, 장면 번호 ${n * 17}은 여기서 멈추고 새로운 상황만 안내합니다.`;
+      }),
+    ].join(" ");
+    assert.ok(text.length > 1000);
+    assert.equal(isSelfDeclaredGenerationRefusal(text), true);
+    assert.equal(detectAdultGenerationFailure("stop", text, 3200), "model_refusal");
+  });
+
+  it("keeps a long in-character work refusal and a quoted policy citation", () => {
+    const speech = Array.from({ length: 24 }, (_, index) => {
+      const n = index + 1;
+      return n === 8
+        ? "요청하신 보고서는 오늘 작성할 수 없습니다. 내일 아침 회의 전에 다시 살펴보겠습니다."
+        : `${n}번째 문단에서 그는 창가의 서류 번호 ${n * 13}을 넘기며 숨만 골랐다.`;
+    }).join("\n");
+    const narrated = `오후의 사무실은 조용했다. 그녀는 서류를 펼친 채 오래 말하지 않았다.\n「${speech}」\n그는 고개를 끄덕이고 창가로 걸어가 숨을 골랐다.`;
+    assert.ok(speech.length > 800);
+    assert.ok(narrated.length > 1000);
+    assert.equal(isSelfDeclaredGenerationRefusal(narrated), false);
+    assert.equal(detectAdultGenerationFailure("stop", narrated, 3200), null);
+
+    const policyQuote = `「${longRefusal()}」`;
+    const cited = `그는 화면에 뜬 문장을 읽었다. ${policyQuote} 그리고 창밖을 보았다.`;
+    assert.ok(policyQuote.length > 800);
+    assert.equal(isSelfDeclaredGenerationRefusal(cited), false);
+    assert.equal(detectAdultGenerationFailure("stop", cited, 3200), null);
+
+    const onlyAiQuote = "「죄송합니다. 저는 AI로서 해당 요청에 응할 수 없습니다. 다른 이야기로 바꾸면 이어가겠습니다.」";
+    assert.equal(isSelfDeclaredGenerationRefusal(onlyAiQuote), true);
+    const onlyWorkQuote = "「요청하신 보고서는 오늘 작성할 수 없습니다. 내일 다시 보겠습니다.」";
+    assert.equal(isSelfDeclaredGenerationRefusal(onlyWorkQuote), false);
   });
 
   it("uses the settlement-matching user notice", () => {

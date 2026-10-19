@@ -48,7 +48,10 @@ function longProse(seed: string): string {
 type Script =
   | { kind: "refusal"; transport: "openrouter" | "cheaperinference"; model: string; cost: number }
   | { kind: "native"; model: string; cost: number }
-  | { kind: "prose"; text: string; model: string };
+  | { kind: "prose"; text: string; model: string }
+  | { kind: "throw" };
+
+const HTML_STATUS_NOTE = "매 턴 HTML로 상태창을 출력한다.\n장소\n시간\n호감도";
 
 let script: Script = {
   kind: "refusal",
@@ -57,6 +60,7 @@ let script: Script = {
   cost: 0.0123,
 };
 let completionCalls = 0;
+let completionModels: string[] = [];
 let requestSerial = 0;
 
 function sseResponse(text: string, terminal: Record<string, unknown>, headers: Record<string, string>): Response {
@@ -78,6 +82,9 @@ function sseResponse(text: string, terminal: Record<string, unknown>, headers: R
 
 function scriptedResponse(): Response {
   completionCalls += 1;
+  if (script.kind === "throw") {
+    throw new Error("ECONNRESET");
+  }
   const id = `prov-req-${completionCalls}`;
   if (script.kind === "prose") {
     return sseResponse(
@@ -216,10 +223,21 @@ describe("production chat refusal settlement", () => {
     points.creditPoints(USER_ID, 20000, "PAID", "fixture paid");
     selected.setUserSelectedAI(db, USER_ID, models.GEMINI_4_ARGON_MODEL);
     sessionToken = auth.createSession(USER_ID);
-    globalThis.fetch = (async (input: RequestInfo | URL) => {
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url =
         typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-      if (url.includes("/chat/completions")) return scriptedResponse();
+      if (url.includes("/chat/completions")) {
+        let model = "";
+        if (typeof init?.body === "string") {
+          try {
+            model = String((JSON.parse(init.body) as { model?: unknown }).model ?? "");
+          } catch {
+            model = "";
+          }
+        }
+        completionModels.push(model);
+        return scriptedResponse();
+      }
       return new Response("{}", {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -481,5 +499,231 @@ describe("production chat refusal settlement", () => {
       .prepare("SELECT COUNT(*) AS n FROM point_logs WHERE user_id=? AND delta<0 AND reason LIKE '%환불%'")
       .get(USER_ID) as { n: number };
     assert.equal(refunds.n, 0);
+  });
+
+  it("AI-self decline over 1000 chars charges 0P and a character work line still charges", async () => {
+    const aiText = [
+      "죄송합니다. 저는 AI로서 해당 요청에 응할 수 없습니다. 다른 방향의 이야기라면 이어서 도와드리겠습니다.",
+      ...Array.from({ length: 28 }, (_, index) => {
+        const n = index + 1;
+        return `${n}번째 대안으로, 장면 번호 ${n * 17}은 여기서 멈추고 새로운 상황만 안내합니다.`;
+      }),
+    ].join(" ");
+    assert.ok(aiText.length > 1000);
+    const before = harness.balance();
+    const callsBefore = completionCalls;
+    script = { kind: "prose", text: aiText, model: "google/gemini-4-argon" };
+    const refusedChat = harness.newChat();
+    const refused = await harness.post({
+      characterId: CHARACTER_ID,
+      chatId: refusedChat,
+      message: "그 장면을 이어서 써 보자.",
+      clientRequestId: `ai-self-${++requestSerial}`,
+    });
+    const refusedRow = assistantRow(refusedChat);
+    assert.equal(
+      refused.events.find((event) => event.type === "error")?.error,
+      "이번 응답은 생성되지 않았으며 포인트는 차감되지 않았습니다."
+    );
+    assert.deepEqual(harness.balance(), before);
+    assert.equal(refusedRow?.content, "");
+    assert.equal(refusedRow?.generation_status, "failed");
+    assert.equal(completionCalls - callsBefore, 1);
+
+    const speech = Array.from({ length: 24 }, (_, index) => {
+      const n = index + 1;
+      return n === 8
+        ? "요청하신 보고서는 오늘 작성할 수 없습니다. 내일 아침 회의 전에 다시 살펴보겠습니다."
+        : `${n}번째 문단에서 그는 창가의 서류 번호 ${n * 13}을 넘기며 숨만 골랐다.`;
+    }).join("\n");
+    const narrated = `오후의 사무실은 조용했다. 그녀는 서류를 펼친 채 오래 말하지 않았다.\n「${speech}」\n그는 고개를 끄덕이고 창가로 걸어가 숨을 골랐다.`;
+    assert.ok(speech.length > 800);
+    const chargedBefore = harness.balance();
+    script = { kind: "prose", text: narrated, model: "google/gemini-4-argon" };
+    const workChat = harness.newChat();
+    const work = await harness.post({
+      characterId: CHARACTER_ID,
+      chatId: workChat,
+      message: "사무실 장면을 이어 가자.",
+      clientRequestId: `work-line-${++requestSerial}`,
+    });
+    const workRow = assistantRow(workChat);
+    assert.equal(work.events.some((event) => event.type === "done"), true);
+    assert.equal(workRow?.generation_status, "completed");
+    assert.match(workRow?.content ?? "", /요청하신 보고서는 오늘 작성할 수 없습니다/);
+    assert.ok(harness.balance().total < chargedBefore.total);
+  });
+
+  it("enabled HTML status window does not start a follow-up completion after refusal", async () => {
+    const policy = await import("@/lib/htmlVisualCardPolicy");
+    const resolved = policy.resolveHtmlVisualCardPolicyFromSources({
+      userNote: HTML_STATUS_NOTE,
+    });
+    assert.equal(resolved.enabled, true);
+
+    const prose = longProse("두 사람은 창가에 남아 이야기를 이어갔다.");
+    const proseBefore = completionModels.length;
+    const htmlLogs: string[] = [];
+    const originalLog = console.log;
+    console.log = (...args: unknown[]) => {
+      if (typeof args[0] === "string" && args[0].includes("[html-visual-card]")) {
+        htmlLogs.push(args[0]);
+      }
+      originalLog(...(args as Parameters<typeof console.log>));
+    };
+    try {
+    script = { kind: "prose", text: prose, model: "google/gemini-4-argon" };
+    const proseChat = harness.newChat();
+    const proseResult = await harness.post({
+      characterId: CHARACTER_ID,
+      chatId: proseChat,
+      message: "장면을 이어 가자.",
+      userNote: HTML_STATUS_NOTE,
+      clientRequestId: `html-prose-${++requestSerial}`,
+    });
+    const proseModels = completionModels.slice(proseBefore);
+    assert.equal(proseResult.events.some((event) => event.type === "done"), true);
+    assert.ok(proseModels.length >= 2, proseModels.join(","));
+    assert.match(proseModels[0] ?? "", /gemini-4-argon/);
+    assert.equal(htmlLogs.length > 0, true);
+
+    const aiText = [
+      "죄송합니다. 저는 AI로서 해당 요청에 응할 수 없습니다. 다른 방향의 이야기라면 이어서 도와드리겠습니다.",
+      ...Array.from({ length: 28 }, (_, index) => {
+        const n = index + 1;
+        return `${n}번째 대안으로, 장면 번호 ${n * 17}은 여기서 멈추고 새로운 상황만 안내합니다.`;
+      }),
+    ].join(" ");
+    const refusalBefore = completionModels.length;
+    const balanceBefore = harness.balance();
+    script = { kind: "prose", text: aiText, model: "google/gemini-4-argon" };
+    const refusalChat = harness.newChat();
+    const refusal = await harness.post({
+      characterId: CHARACTER_ID,
+      chatId: refusalChat,
+      message: "그 장면을 이어서 써 보자.",
+      userNote: HTML_STATUS_NOTE,
+      clientRequestId: `html-refusal-${++requestSerial}`,
+    });
+    const refusalModels = completionModels.slice(refusalBefore);
+    assert.equal(
+      refusal.events.find((event) => event.type === "error")?.error,
+      "이번 응답은 생성되지 않았으며 포인트는 차감되지 않았습니다."
+    );
+    assert.deepEqual(refusalModels, ["google/gemini-4-argon"]);
+    assert.equal(htmlLogs.length, 1);
+    assert.deepEqual(harness.balance(), balanceBefore);
+    assert.equal(assistantRow(refusalChat)?.content, "");
+    } finally {
+      console.log = originalLog;
+    }
+  });
+
+  it("adult-on admin room keeps effectiveAdultRp and still charges 0P for a refusal", async () => {
+    const auth = await import("@/lib/auth");
+    const points = await import("@/lib/points");
+    const selected = await import("@/lib/userSelectedAI");
+    const models = await import("@/lib/chatModels");
+    const session = await import("@/lib/chatSessionCreate");
+    const adminId = 88113;
+    harness.db()
+      .prepare("INSERT INTO users (id, email, nickname, pw_hash, is_admin) VALUES (?,?,?,?,?)")
+      .run(adminId, "refusal-admin@example.com", "관리", "x", 1);
+    points.creditPoints(adminId, 20000, "FREE", "admin free");
+    points.creditPoints(adminId, 20000, "PAID", "admin paid");
+    selected.setUserSelectedAI(harness.db(), adminId, models.GEMINI_4_ARGON_MODEL);
+    const previousToken = sessionToken;
+    sessionToken = auth.createSession(adminId);
+    const seen: boolean[] = [];
+    const originalLog = console.log;
+    console.log = (...args: unknown[]) => {
+      if (args[0] === "[/api/chat] routing decision" && args[1] && typeof args[1] === "object") {
+        seen.push(Boolean((args[1] as { effectiveAdultRp?: boolean }).effectiveAdultRp));
+      }
+      originalLog(...(args as Parameters<typeof console.log>));
+    };
+    try {
+      const before = points.getPointBalance(adminId);
+      const aiText = [
+        "죄송합니다. 저는 AI로서 해당 요청에 응할 수 없습니다. 다른 방향의 이야기라면 이어서 도와드리겠습니다.",
+        ...Array.from({ length: 28 }, (_, index) => {
+          const n = index + 1;
+          return `${n}번째 대안으로, 장면 번호 ${n * 17}은 여기서 멈추고 새로운 상황만 안내합니다.`;
+        }),
+      ].join(" ");
+      script = { kind: "prose", text: aiText, model: "google/gemini-4-argon" };
+      const chatId = session.createChatSession({
+        userId: adminId,
+        characterId: CHARACTER_ID,
+        greeting: "창가에서 천천히 고개를 돌렸다.",
+        adultHandoffEnabled: true,
+        mode: "nsfw",
+        __testOnGreetingSchedule: () => {},
+      });
+      const callsBefore = completionCalls;
+      const result = await harness.post({
+        characterId: CHARACTER_ID,
+        chatId,
+        message: "장면을 이어서 써 보자.",
+        adultHandoffEnabled: true,
+        clientRequestId: `adult-on-${++requestSerial}`,
+      });
+      assert.equal(seen.includes(true), true);
+      assert.equal(
+        result.events.find((event) => event.type === "error")?.error,
+        "이번 응답은 생성되지 않았으며 포인트는 차감되지 않았습니다."
+      );
+      assert.deepEqual(points.getPointBalance(adminId), before);
+      assert.equal(completionCalls - callsBefore, 1);
+      const row = harness.db()
+        .prepare(
+          `SELECT content, generation_status FROM messages
+           WHERE chat_id=? AND role='assistant' AND IFNULL(model,'')!='greeting'
+           ORDER BY id DESC LIMIT 1`
+        )
+        .get(chatId) as { content: string; generation_status: string };
+      assert.equal(row.content, "");
+      assert.equal(row.generation_status, "failed");
+    } finally {
+      console.log = originalLog;
+      sessionToken = previousToken;
+    }
+  });
+
+  it("a provider failure before usage does not write a settlement or a cost row", async () => {
+    const count = (sql: string, ...params: unknown[]) => {
+      try {
+        return (harness.db().prepare(sql).get(...params) as { n: number }).n;
+      } catch (error) {
+        if (String((error as Error).message).includes("no such table")) return 0;
+        throw error;
+      }
+    };
+    const before = harness.balance();
+    const callsBefore = completionCalls;
+    const ledgerBefore = count("SELECT COUNT(*) AS n FROM api_cost_ledger");
+    script = { kind: "throw" };
+    const chatId = harness.newChat();
+    const requestId = `pre-provider-${++requestSerial}`;
+    const result = await harness.post({
+      characterId: CHARACTER_ID,
+      chatId,
+      message: "장면을 이어 가자.",
+      clientRequestId: requestId,
+    });
+    assert.equal(result.status, 200);
+    assert.equal(result.events.some((event) => event.type === "done"), false);
+    assert.equal(
+      count("SELECT COUNT(*) AS n FROM chat_billing_settlements WHERE request_id=?", requestId),
+      0
+    );
+    assert.equal(count("SELECT COUNT(*) AS n FROM api_cost_ledger"), ledgerBefore);
+    assert.deepEqual(harness.balance(), before);
+    assert.equal(completionCalls - callsBefore, 1);
+    const row = assistantRow(chatId);
+    assert.notEqual(row?.generation_status, "completed");
+    const usage = JSON.parse(row?.usage ?? "{}") as { inputTokens?: number; outputTokens?: number };
+    assert.equal(usage.inputTokens, undefined);
+    assert.equal(usage.outputTokens, undefined);
   });
 });

@@ -377,6 +377,12 @@ export function isCatastrophicallyShortResponse(
   return false;
 }
 
+export function isProviderRefusalFailure(
+  reason: GenerationFailureReason | null | undefined
+): boolean {
+  return reason === "model_refusal" || reason === "safety" || reason === "content_filter";
+}
+
 export function detectAdultGenerationFailure(
   finishReason: string | undefined,
   text: string,
