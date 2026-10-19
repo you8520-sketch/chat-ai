@@ -146,6 +146,30 @@ operating model. It would truncate `deepseek-v4-flash-0731` (928 tokens for a
 5-key extract), which is exactly why the model migration matters for this
 decision.
 
+### Same input: old unbounded policy vs new limited policy
+
+Both policies run the identical prompt, model, temperature and parser. The only
+difference is the `max_tokens` field on the wire (`null` = field omitted =
+provider default, versus a concrete number).
+
+| | old policy (unbounded) | new policy (256 to 512 / 2048 to 3072) |
+|---|---|---|
+| wire body | no `max_tokens` field | `max_tokens: <per-widget budget>` |
+| provider-reported completion, operating model | 94 to 229 (measured) | 94 to 229 (measured) — unchanged, the budget is not binding |
+| provider-reported completion, `deepseek-v4-flash-0731` | 928 to 6279 (measured) | capped at the budget |
+| **success condition** | the response is never truncated by the client; it fails only on a provider error or an unparsable body | the response is truncated unless the visible JSON **plus** any provider-internal reasoning fits in the budget |
+| **failure condition** | provider error, or JSON that does not parse | the above, **plus** `finishReason=length` (a new failure mode introduced by the cap) |
+| failure consequence | no values persisted | no values persisted — identical, because `finishReason=length` was already treated as a parse failure |
+| detected how | `reasonCode=V3_PARSE_FAILED` / `V3_INITIAL_EMPTY` | the same, **plus** the new `likelyTruncated` diagnostic on the combined path |
+
+In other words, for every response that fits the budget the two policies are
+**observationally identical** — same prompt, same parse, same persisted values,
+same failure handling. The new policy differs only by (a) capping the
+worst-case bill, and (b) adding a truncation failure mode that the old policy
+could not have. The evaluation above shows the measured operating-model
+responses are 1.8x to 3.1x inside the cap, so (b) does not fire for a normal
+response.
+
 ### There is no repair path (PR #1677 review correction)
 
 An earlier draft of this document and the PR description stated that the
