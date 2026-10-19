@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /workspace
+set -a
+# shellcheck disable=SC1091
+source /tmp/b9/admin.env
+set +a
+export NODE_ENV=production
+export PLAYWRIGHT_PROD_SERVER=1
+: > /tmp/b9/paid-calls.log
+python3 - << 'PY'
+import json, shutil, subprocess
+from pathlib import Path
+qs = json.loads(Path("/tmp/b9/questions.json").read_text())
+jobs = [
+    ("t50-c2-gemini", "/tmp/b9/snap-50", "gemini-3.8-flash", qs["T50-C2"]),
+    ("t50-c2-sol", "/tmp/b9/snap-50", "gpt-6.1-sol", qs["T50-C2"]),
+    ("l500-a5-gemini", "/tmp/b9/snap-500", "gemini-3.8-flash", qs["A5-injury"]),
+    ("l500-a5-sol", "/tmp/b9/snap-500", "gpt-6.1-sol", qs["A5-injury"]),
+    ("l500-b3-gemini", "/tmp/b9/snap-500", "gemini-3.8-flash", qs["B3-seoyun"]),
+    ("l500-b3-sol", "/tmp/b9/snap-500", "gpt-6.1-sol", qs["B3-seoyun"]),
+]
+for job_id, snap, model, message in jobs:
+    data = Path(f"/tmp/b9/live-{job_id}")
+    if data.exists():
+        shutil.rmtree(data)
+    shutil.copytree(snap, data)
+    out = Path(f"/tmp/b9/out/live-{job_id}")
+    if out.exists():
+        shutil.rmtree(out)
+    out.mkdir(parents=True)
+    log = Path(f"/tmp/b9/out/live-{job_id}.log")
+    print(f"START {job_id}", flush=True)
+    proc = subprocess.run(
+        ["./node_modules/.bin/tsx", "/tmp/b9/one-turn.mts", str(data), model, message, str(out), "live"],
+        cwd="/workspace",
+        stdout=log.open("w"),
+        stderr=subprocess.STDOUT,
+    )
+    tail = log.read_text(errors="replace").strip().splitlines()
+    print(f"END {job_id} exit={proc.returncode} tail={tail[-1] if tail else ''}", flush=True)
+print("ALL_DONE", flush=True)
+PY

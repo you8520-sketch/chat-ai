@@ -1,0 +1,709 @@
+{
+  "label": "restored-count-panel",
+  "model": "gpt-6.1-sol",
+  "expectedWire": "gpt-6.1-sol",
+  "status": 200,
+  "blockedOtherFetches": 3,
+  "completionCalls": [
+    {
+      "model": "gpt-6-luna",
+      "bytes": 30773,
+      "url": "https://api.cheaperinference.com/v1/chat/completions"
+    },
+    {
+      "model": "gpt-6-luna",
+      "bytes": 4526,
+      "url": "https://api.cheaperinference.com/v1/chat/completions"
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "bytes": 34509,
+      "url": "https://api.cheaperinference.com/v1/chat/completions?x-ci-pr"
+    },
+    {
+      "model": "gpt-6-luna",
+      "bytes": 4526,
+      "url": "https://api.cheaperinference.com/v1/chat/completions"
+    },
+    {
+      "model": "gpt-6-luna",
+      "bytes": 4526,
+      "url": "https://api.cheaperinference.com/v1/chat/completions"
+    }
+  ],
+  "events": [
+    {
+      "seq": 1,
+      "kind": "stage",
+      "stage": "S0_db_after_preparation",
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 2,
+      "kind": "stage",
+      "stage": "P0_before_memory_panel_GET",
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 3,
+      "kind": "enter",
+      "fn": "reconcileSummarizedTurnCountFromTable",
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 4,
+      "kind": "chat_memories-write",
+      "sql": "UPDATE chat_memories SET recent_summary=?, used_chars=?, summarized_turn_count=?, global_projection_kind=NULL, global_source_fingerprint=NULL, global_covered_th",
+      "stack": [
+        "<anonymous> (src/lib/memory/memory-summary-persist.ts:458:7)",
+        "reconcileSummarizedTurnCountFromTable (src/lib/memory/memory-summary-persist.ts:460:6)",
+        "prepareMemoryPanelView (src/lib/memory/memory-backfill.ts:113:3)",
+        "GET (src/app/api/chat/memory/route.ts:114:3)"
+      ],
+      "before": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      },
+      "state": {
+        "recent_summary": {
+          "len": 30069,
+          "sha12": "d54835b47207",
+          "omitPrefix": false,
+          "firstBlock": "1~5"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 5,
+      "kind": "exit",
+      "fn": "reconcileSummarizedTurnCountFromTable",
+      "result": 495,
+      "stack": [
+        "prepareMemoryPanelView (src/lib/memory/memory-backfill.ts:113:3)",
+        "GET (src/app/api/chat/memory/route.ts:114:3)"
+      ],
+      "state": {
+        "recent_summary": {
+          "len": 30069,
+          "sha12": "d54835b47207",
+          "omitPrefix": false,
+          "firstBlock": "1~5"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 6,
+      "kind": "omission-trim",
+      "fn": "emergencyFallbackTrimLorebookSync",
+      "maxChars": 10000,
+      "input": {
+        "len": 30069,
+        "sha12": "d54835b47207",
+        "omitPrefix": false,
+        "firstBlock": "1~5"
+      },
+      "output": {
+        "len": 9826,
+        "sha12": "218628e9703a",
+        "omitPrefix": true,
+        "firstBlock": "336~340"
+      },
+      "stack": [
+        "resolveGlobalCurrentMemoryCore (src/lib/memory/memory-lorebook-resolve.ts:176:11)",
+        "resolveGlobalCurrentMemory (src/lib/memory/memory-lorebook-resolve.ts:47:20)",
+        "resolveLorebookFromRecords (src/lib/memory/memory-lorebook-resolve.ts:203:20)",
+        "syncAndCompressMemoryFromChat (src/lib/memory/memory-backfill.ts:145:26)",
+        "async GET (src/app/api/chat/memory/route.ts:137:18)"
+      ]
+    },
+    {
+      "seq": 7,
+      "kind": "chat_memories-write",
+      "sql": "UPDATE chat_memories SET recent_summary=?, archive_summary=?, membership_tier=?, used_chars=?, message_count=COALESCE(?, message_count), summarized_turn_count=C",
+      "stack": [
+        "updateChatMemory (src/lib/memory/memory-db.ts:84:5)",
+        "<anonymous> (src/lib/memory/memory-backfill.ts:182:7)",
+        "syncAndCompressMemoryFromChat (src/lib/memory/memory-backfill.ts:184:8)",
+        "async GET (src/app/api/chat/memory/route.ts:137:18)"
+      ],
+      "before": {
+        "recent_summary": {
+          "len": 30069,
+          "sha12": "d54835b47207",
+          "omitPrefix": false,
+          "firstBlock": "1~5"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      },
+      "state": {
+        "recent_summary": {
+          "len": 9826,
+          "sha12": "218628e9703a",
+          "omitPrefix": true,
+          "firstBlock": "336~340"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 8,
+      "kind": "omission-trim",
+      "fn": "emergencyFallbackTrimLorebookSync",
+      "maxChars": 10000,
+      "input": {
+        "len": 30069,
+        "sha12": "d54835b47207",
+        "omitPrefix": false,
+        "firstBlock": "1~5"
+      },
+      "output": {
+        "len": 9826,
+        "sha12": "218628e9703a",
+        "omitPrefix": true,
+        "firstBlock": "336~340"
+      },
+      "stack": [
+        "resolveGlobalCurrentMemoryCore (src/lib/memory/memory-lorebook-resolve.ts:176:11)",
+        "resolveGlobalCurrentMemory (src/lib/memory/memory-lorebook-resolve.ts:47:20)",
+        "GET (src/app/api/chat/memory/route.ts:174:26)"
+      ]
+    },
+    {
+      "seq": 9,
+      "kind": "resolver",
+      "fn": "resolveGlobalCurrentMemory",
+      "maxChars": 10000,
+      "excludeTurnStartGte": null,
+      "storedArgChars": 9826,
+      "projectionKind": "failure_fallback",
+      "source": "chat_turn_summaries",
+      "needsBackgroundCompact": true,
+      "rebuiltChars": 30069,
+      "storedChars": 9826,
+      "output": {
+        "len": 9826,
+        "sha12": "218628e9703a",
+        "omitPrefix": true,
+        "firstBlock": "336~340"
+      },
+      "stack": [
+        "GET (src/app/api/chat/memory/route.ts:174:26)"
+      ],
+      "state": {
+        "recent_summary": {
+          "len": 9826,
+          "sha12": "218628e9703a",
+          "omitPrefix": true,
+          "firstBlock": "336~340"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 10,
+      "kind": "panel-response",
+      "status": 200,
+      "displayed": {
+        "len": 9826,
+        "sha12": "218628e9703a",
+        "omitPrefix": true,
+        "firstBlock": "336~340"
+      }
+    },
+    {
+      "seq": 11,
+      "kind": "stage",
+      "stage": "P1_after_memory_panel_GET",
+      "state": {
+        "recent_summary": {
+          "len": 9826,
+          "sha12": "218628e9703a",
+          "omitPrefix": true,
+          "firstBlock": "336~340"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 12,
+      "kind": "blocked-other-fetch",
+      "url": "https://open.er-api.com/v6/latest/USD"
+    },
+    {
+      "seq": 13,
+      "kind": "blocked-other-fetch",
+      "url": "https://open.er-api.com/v6/latest/USD"
+    },
+    {
+      "seq": 14,
+      "kind": "enter",
+      "fn": "syncMemoryFromChat",
+      "state": {
+        "recent_summary": {
+          "len": 9826,
+          "sha12": "218628e9703a",
+          "omitPrefix": true,
+          "firstBlock": "336~340"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 15,
+      "kind": "exit",
+      "fn": "syncMemoryFromChat",
+      "result": false,
+      "state": {
+        "recent_summary": {
+          "len": 9826,
+          "sha12": "218628e9703a",
+          "omitPrefix": true,
+          "firstBlock": "336~340"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 16,
+      "kind": "blocked-other-fetch",
+      "url": "https://api.cheaperinference.com/v1/models"
+    },
+    {
+      "seq": 17,
+      "kind": "enter",
+      "fn": "prepareNonBlockingSummaryForMainRp",
+      "state": {
+        "recent_summary": {
+          "len": 9826,
+          "sha12": "218628e9703a",
+          "omitPrefix": true,
+          "firstBlock": "336~340"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 18,
+      "kind": "exit",
+      "fn": "prepareNonBlockingSummaryForMainRp",
+      "result": {
+        "summarizedThrough": 495,
+        "unsummarizedTurns": 5,
+        "pendingRange": "496~500",
+        "catchUpScheduled": false,
+        "deferredBoundarySealPending": true
+      },
+      "state": {
+        "recent_summary": {
+          "len": 9826,
+          "sha12": "218628e9703a",
+          "omitPrefix": true,
+          "firstBlock": "336~340"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 19,
+      "kind": "enter",
+      "fn": "buildMemoryContextForChat",
+      "state": {
+        "recent_summary": {
+          "len": 9826,
+          "sha12": "218628e9703a",
+          "omitPrefix": true,
+          "firstBlock": "336~340"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 20,
+      "kind": "omission-trim",
+      "fn": "emergencyFallbackTrimLorebookSync",
+      "maxChars": 10000,
+      "input": {
+        "len": 30069,
+        "sha12": "d54835b47207",
+        "omitPrefix": false,
+        "firstBlock": "1~5"
+      },
+      "output": {
+        "len": 9826,
+        "sha12": "218628e9703a",
+        "omitPrefix": true,
+        "firstBlock": "336~340"
+      },
+      "stack": [
+        "resolveGlobalCurrentMemoryCore (src/lib/memory/memory-lorebook-resolve.ts:176:11)",
+        "resolveGlobalCurrentMemory (src/lib/memory/memory-lorebook-resolve.ts:47:20)",
+        "buildMemoryContextForChat (src/lib/memory/memory-manager.ts:262:20)",
+        "POST (src/app/api/chat/route.ts:1802:40)"
+      ]
+    },
+    {
+      "seq": 21,
+      "kind": "resolver",
+      "fn": "resolveGlobalCurrentMemory",
+      "maxChars": 10000,
+      "excludeTurnStartGte": 496,
+      "storedArgChars": 9826,
+      "projectionKind": "failure_fallback",
+      "source": "chat_turn_summaries",
+      "needsBackgroundCompact": true,
+      "rebuiltChars": 30069,
+      "storedChars": 9826,
+      "output": {
+        "len": 9826,
+        "sha12": "218628e9703a",
+        "omitPrefix": true,
+        "firstBlock": "336~340"
+      },
+      "stack": [
+        "buildMemoryContextForChat (src/lib/memory/memory-manager.ts:262:20)",
+        "POST (src/app/api/chat/route.ts:1802:40)"
+      ],
+      "state": {
+        "recent_summary": {
+          "len": 9826,
+          "sha12": "218628e9703a",
+          "omitPrefix": true,
+          "firstBlock": "336~340"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 22,
+      "kind": "provider-send-blocked",
+      "wireModel": "gpt-6-luna",
+      "isMain": false,
+      "bytes": 30773,
+      "hasCurrentMemoryHeader": false,
+      "omitPrefixInRequest": false,
+      "firstBlockAfterHeader": null,
+      "state": {
+        "recent_summary": {
+          "len": 9826,
+          "sha12": "218628e9703a",
+          "omitPrefix": true,
+          "firstBlock": "336~340"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 23,
+      "kind": "exit",
+      "fn": "buildMemoryContextForChat",
+      "injection": {
+        "len": 9887,
+        "sha12": "329c9adc547e",
+        "omitPrefix": true,
+        "firstBlock": "336~340"
+      },
+      "recentChars": 9826,
+      "mediumTermChars": 0,
+      "state": {
+        "recent_summary": {
+          "len": 9826,
+          "sha12": "218628e9703a",
+          "omitPrefix": true,
+          "firstBlock": "336~340"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 24,
+      "kind": "contextBuilder",
+      "fn": "buildContext",
+      "longTermMemory": {
+        "len": 9887,
+        "sha12": "329c9adc547e",
+        "omitPrefix": true,
+        "firstBlock": "336~340"
+      },
+      "mediumTermMemoryBlock": {
+        "len": 0,
+        "sha12": "e3b0c44298fc",
+        "omitPrefix": false,
+        "firstBlock": null
+      },
+      "state": {
+        "recent_summary": {
+          "len": 9826,
+          "sha12": "218628e9703a",
+          "omitPrefix": true,
+          "firstBlock": "336~340"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 25,
+      "kind": "provider-send-blocked",
+      "wireModel": "gpt-6-luna",
+      "isMain": false,
+      "bytes": 4526,
+      "hasCurrentMemoryHeader": false,
+      "omitPrefixInRequest": false,
+      "firstBlockAfterHeader": null,
+      "state": {
+        "recent_summary": {
+          "len": 9826,
+          "sha12": "218628e9703a",
+          "omitPrefix": true,
+          "firstBlock": "336~340"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 26,
+      "kind": "provider-send-blocked",
+      "wireModel": "gpt-6.1-sol",
+      "isMain": true,
+      "bytes": 34509,
+      "hasCurrentMemoryHeader": true,
+      "omitPrefixInRequest": true,
+      "firstBlockAfterHeader": "336~340",
+      "state": {
+        "recent_summary": {
+          "len": 9826,
+          "sha12": "218628e9703a",
+          "omitPrefix": true,
+          "firstBlock": "336~340"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 27,
+      "kind": "provider-send-blocked",
+      "wireModel": "gpt-6-luna",
+      "isMain": false,
+      "bytes": 4526,
+      "hasCurrentMemoryHeader": false,
+      "omitPrefixInRequest": false,
+      "firstBlockAfterHeader": null,
+      "state": {
+        "recent_summary": {
+          "len": 9826,
+          "sha12": "218628e9703a",
+          "omitPrefix": true,
+          "firstBlock": "336~340"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 28,
+      "kind": "provider-send-blocked",
+      "wireModel": "gpt-6-luna",
+      "isMain": false,
+      "bytes": 4526,
+      "hasCurrentMemoryHeader": false,
+      "omitPrefixInRequest": false,
+      "firstBlockAfterHeader": null,
+      "state": {
+        "recent_summary": {
+          "len": 9826,
+          "sha12": "218628e9703a",
+          "omitPrefix": true,
+          "firstBlock": "336~340"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 29,
+      "kind": "stage",
+      "stage": "S_end_after_route_and_background_settle",
+      "state": {
+        "recent_summary": {
+          "len": 9826,
+          "sha12": "218628e9703a",
+          "omitPrefix": true,
+          "firstBlock": "336~340"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    }
+  ]
+}
