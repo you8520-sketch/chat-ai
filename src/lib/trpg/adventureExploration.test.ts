@@ -855,6 +855,32 @@ describe("adventure exploration (B2+B3)", () => {
     t.db.close();
   });
 
+  it("refuses a general submit that mixes a move with another action before any model call", async () => {
+    const t = await ghostTrainSession(POTION_STALL);
+    const campaignId = (t.db.prepare(`SELECT campaign_id AS id FROM trpg_participants WHERE id=?`).get(t.host) as { id: number }).id;
+    const beforeAp = t.state().apRemaining[String(t.host)];
+    const gmCalls = t.inputs.length;
+    const points = (t.db.prepare(`SELECT points FROM users WHERE id=1`).get() as { points: number }).points;
+    const body = "약장수로 이동한다. 상인에게 회복약을 산다.";
+    assert.throws(
+      () => submitTrpgAction(t.db, { campaignId, userId: 1, body }),
+      /일반 행동입니다/
+    );
+    assert.equal(t.inputs.length, gmCalls, "the refusal happens before the GM call");
+    assert.equal((t.db.prepare(`SELECT points FROM users WHERE id=1`).get() as { points: number }).points, points, "the refusal does not bill");
+    assert.equal(t.state().pending.length, 0, "no exploration command is priced");
+    assert.equal(t.state().apRemaining[String(t.host)], beforeAp, "AP is not spent");
+    const locked = t.db.prepare(`SELECT COUNT(*) AS n FROM trpg_action_submissions WHERE participant_id=? AND locked=1`).get(t.host) as { n: number };
+    assert.equal(locked.n, 0, "the action stays unlocked");
+    const phase = t.db.prepare(`SELECT phase FROM trpg_rounds WHERE campaign_id=? ORDER BY id DESC LIMIT 1`).get(campaignId) as { phase: string };
+    assert.equal(phase.phase, "ACTION_INPUT");
+
+    t.session.proposal = { inventoryAdd: ["회복약"], inventoryRemove: [], location: "" };
+    await t.play([], "상인에게 회복약을 산다.");
+    assert.equal(itemQty(t.db, [t.host], "회복약"), 1, "a later general purchase is kept");
+    t.db.close();
+  });
+
   it("buys another unit of an event reward by name on a general submit, and an authorized use consumes one", async () => {
     const t = await ghostTrainSession(POTION_STALL);
     t.session.face = 16;

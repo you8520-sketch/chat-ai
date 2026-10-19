@@ -28,6 +28,7 @@ export async function POST(req: Request, ctx: RouteCtx) {
       selectedStat: typeof body.selectedStat === "string" ? body.selectedStat : null,
       idempotencyKey: typeof body.idempotencyKey === "string" ? body.idempotencyKey : null,
       inputOrigin: parseTrpgInputOrigin(body.inputOrigin),
+      // Missing explorationCommands is a general submit. submitTrpgAction owns that distinction.
       explorationCommands: body.explorationCommands,
     });
     const campaign = loadTrpgSnapshot(gate.db, id, gate.user.id);

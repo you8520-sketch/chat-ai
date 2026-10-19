@@ -520,8 +520,17 @@ export function submitTrpgAction(
   const actionType = opts.actionType && isTrpgActionType(opts.actionType) ? opts.actionType : "free";
   const origin = parseTrpgInputOrigin(opts.inputOrigin);
   const mapped = loadExplorationState(db, opts.campaignId);
-  const pricedCommands =
-    commands.length > 0 ? commands : mapped ? explorationCommandsFromMovementBody(mapped.map, text) : [];
+  // Absent explorationCommands is a general submit. v2 does not turn that into an
+  // exploration submit when the body also carries a non-move action.
+  const explicitExploration = commands.length > 0;
+  const inferredMoves =
+    !explicitExploration && mapped ? explorationCommandsFromMovementBody(mapped.map, text) : [];
+  if (mapped?.version === 2 && inferredMoves.length > 0 && omitLiveMovementClauses(text)) {
+    throw new Error(
+      "탐험 대기열이 비어 있어 이 제출은 일반 행동입니다. 이동과 다른 행동을 한 번에 보내지 않습니다. 이동은 탐험 대기열에 넣고, 구매는 대기열을 비운 뒤 따로 보내세요. 입력은 그대로 두었습니다."
+    );
+  }
+  const pricedCommands = explicitExploration ? commands : inferredMoves;
   if (pricedCommands.length > 0) {
     db.transaction(() => {
       const prepared = prepareLockedExploration(db, {
