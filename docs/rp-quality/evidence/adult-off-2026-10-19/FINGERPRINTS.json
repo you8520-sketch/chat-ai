@@ -1,0 +1,104 @@
+{
+  "assembly_code_sha": "460adb6dde355220f659b0f9c85aeb33cc49d4c2",
+  "health_git_commit": "460adb6",
+  "effective_adult_rp": false,
+  "character_id": 18,
+  "persona_id": 1,
+  "greeting_sha256": "29e3149289586f303c3ffc120a299184163b162a78e46e4f264e87231f6d1d58",
+  "fx_krw_per_usd": 1365.7,
+  "output_token_assumption": 4000,
+  "prior_spend_krw": 62,
+  "eight_call_estimate_krw": 1270.95,
+  "combined_with_prior_krw": 1332.95,
+  "paid_posts": 0,
+  "rows": [
+    {
+      "scene": "romance",
+      "canonical_id": "gemini-3.8-flash",
+      "wire_model": "google/gemini-3.8-flash",
+      "provider": "openrouter",
+      "safe": true,
+      "adult_policy": false,
+      "intimacy": false,
+      "estimate_krw": 49.0,
+      "request_body_fingerprint": "4b682f5236df2ee53d2542200f147896b424a0b4b483b349c551e644f9af5a32"
+    },
+    {
+      "scene": "romance",
+      "canonical_id": "gpt-6.1-sol",
+      "wire_model": "gpt-6.1-sol",
+      "provider": "cheaperinference",
+      "safe": true,
+      "adult_policy": false,
+      "intimacy": false,
+      "estimate_krw": 130.07,
+      "request_body_fingerprint": "8fe2d61eccc21c23e5a946f0977a97cc47d10b2662550bd11d4ff1c74eeec434"
+    },
+    {
+      "scene": "romance",
+      "canonical_id": "claude-opus-5.5",
+      "wire_model": "claude-opus-5.5",
+      "provider": "cheaperinference",
+      "safe": true,
+      "adult_policy": false,
+      "intimacy": false,
+      "estimate_krw": 325.5,
+      "request_body_fingerprint": "2d793992d2b770fd662a36feb3e2785225c00757d355ef9de071b25b1cfe5b7d"
+    },
+    {
+      "scene": "romance",
+      "canonical_id": "gemini-4-argon",
+      "wire_model": "google/gemini-4-argon",
+      "provider": "openrouter",
+      "safe": true,
+      "adult_policy": false,
+      "intimacy": false,
+      "estimate_krw": 130.54,
+      "request_body_fingerprint": "6e5328b35a59b08095143db79d40dbbbeb5d3bde95933dc04690e07361242f7c"
+    },
+    {
+      "scene": "limit",
+      "canonical_id": "gemini-3.8-flash",
+      "wire_model": "google/gemini-3.8-flash",
+      "provider": "openrouter",
+      "safe": true,
+      "adult_policy": false,
+      "intimacy": false,
+      "estimate_krw": 49.05,
+      "request_body_fingerprint": "07a0d5114e7a1001c94dd2c7cc1afe70cb5200fafdbf7d38e51ebd87b148f031"
+    },
+    {
+      "scene": "limit",
+      "canonical_id": "gpt-6.1-sol",
+      "wire_model": "gpt-6.1-sol",
+      "provider": "cheaperinference",
+      "safe": true,
+      "adult_policy": false,
+      "intimacy": false,
+      "estimate_krw": 130.22,
+      "request_body_fingerprint": "f175596689753164f363332b589ccbf92bd1082fedacca8f216661a71f07fb90"
+    },
+    {
+      "scene": "limit",
+      "canonical_id": "claude-opus-5.5",
+      "wire_model": "claude-opus-5.5",
+      "provider": "cheaperinference",
+      "safe": true,
+      "adult_policy": false,
+      "intimacy": false,
+      "estimate_krw": 325.88,
+      "request_body_fingerprint": "5105dbc7c495dab05a11b7f90668c94c590d0f052cd6e7d55ba184eeb903aa52"
+    },
+    {
+      "scene": "limit",
+      "canonical_id": "gemini-4-argon",
+      "wire_model": "google/gemini-4-argon",
+      "provider": "openrouter",
+      "safe": true,
+      "adult_policy": false,
+      "intimacy": false,
+      "estimate_krw": 130.69,
+      "request_body_fingerprint": "f171b312c0364bb1feefe120ad1fb0edd1a3ee21f0449c18289dc6f76e03d481"
+    }
+  ]
+}
