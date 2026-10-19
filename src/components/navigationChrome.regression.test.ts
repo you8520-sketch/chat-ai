@@ -66,10 +66,13 @@ describe("E4-3A navigation chrome", () => {
     assert.match(read("src/app/layout.tsx"), /app-shell[^"]*pb-6 pt-4/);
   });
 
-  it("exposes settings and logout from 576px so no width loses account access", () => {
-    assert.match(profileMenu, /relative hidden min-\[576px\]:block/);
+  it("exposes settings, albums, safety filter and logout from the profile menu at every width", () => {
+    assert.match(profileMenu, /className="relative shrink-0"/);
+    assert.doesNotMatch(profileMenu, /min-\[576px\]:block/);
     assert.match(profileMenu, /aria-haspopup="menu"/);
     assert.match(profileMenu, /href="\/settings"/);
+    assert.match(profileMenu, /href="\/albums"/);
+    assert.match(profileMenu, /variant="profileMenu"/);
     assert.match(profileMenu, /LogoutButton/);
     assert.match(profileMenu, /sm:hidden[\s\S]{0,200}Array\.from\(nickname\.trim\(\)\)\[0\]/);
   });
@@ -84,8 +87,8 @@ describe("E4-3A navigation chrome", () => {
 
   it("keeps header chrome text at 11px or larger and notification counts capped at 99+", () => {
     const controls = read("src/components/UserPreferenceControls.tsx");
-    const headerToggle = controls.slice(controls.indexOf("function HeaderNsfwToggle"));
-    assert.doesNotMatch(headerToggle, /text-\[(?:9|10)px\]/);
+    const profileMenuToggle = controls.slice(controls.indexOf("function ProfileMenuSafetyRow"));
+    assert.doesNotMatch(profileMenuToggle, /text-\[(?:9|10)px\]/);
     for (const file of [
       "src/components/NotificationBell.tsx",
       "src/components/AnimatedPointsBadge.tsx",
@@ -103,15 +106,17 @@ describe("E4-3A navigation chrome", () => {
     assert.match(read("src/components/AnimatedPointsBadge.tsx"), /align="end"/);
   });
 
-  it("keeps the safety filter a single labelled 36px toggle with explicit ON/OFF state", () => {
+  it("keeps the profile-menu safety filter a single labelled 44px row with explicit ON/OFF state", () => {
     const controls = read("src/components/UserPreferenceControls.tsx");
-    const toggle = controls.slice(controls.indexOf("function HeaderNsfwToggle"));
+    const toggle = controls.slice(controls.indexOf("function ProfileMenuSafetyRow"));
     assert.equal((toggle.match(/<button/g) ?? []).length, 1);
-    assert.match(toggle, /aria-pressed=\{safetyFilterOn\}/);
-    assert.match(toggle, /aria-label="세이프티 필터"/);
-    assert.match(toggle, /min-h-9/);
+    assert.match(toggle, /role="menuitemcheckbox"/);
+    assert.match(toggle, /aria-checked=\{safetyFilterOn\}/);
+    assert.match(toggle, /세이프티 필터 \$\{stateLabel\}/);
+    assert.match(toggle, /min-h-11/);
     assert.match(toggle, /safetyFilterOn \? "ON" : "OFF"/);
     assert.match(toggle, /disabled=\{busy \|\| !canDisable\}/);
+    assert.doesNotMatch(read("src/components/Header.tsx"), /variant="header"/);
   });
 
   it("keeps header action hit areas at least 36px", () => {

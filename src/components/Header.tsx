@@ -11,7 +11,6 @@ import NotificationBell from "./NotificationBell";
 import PointsShopLink from "./PointsShopLink";
 import HeaderMainNavRow from "./HeaderMainNavRow";
 import HeaderProfileMenu from "./HeaderProfileMenu";
-import UserPreferenceControls from "./UserPreferenceControls";
 import ExpiringPointsPopup from "./ExpiringPointsPopup";
 import { getPointBalance } from "@/lib/points";
 import { canAccessPortoneCheckout } from "@/lib/portoneReviewerAccount";
@@ -59,13 +58,6 @@ export default async function Header({ user }: { user: User | null }) {
             {user ? (
               <>
                 <NotificationBell count={unreadCount} />
-                <UserPreferenceControls
-                  isAdult={!!user.is_adult}
-                  canDisableSafetyFilter={canAccessAdultContent(user)}
-                  nsfwOn={!!user.nsfw_on}
-                  pref={(user.pref as "female" | "male" | null) ?? null}
-                  variant="header"
-                />
                 <div className="flex min-w-0 items-center gap-0.5 max-[359px]:gap-0">
                   <AnimatedPointsBadge
                     initialPoints={pointBalance?.total ?? user.points}
@@ -82,7 +74,13 @@ export default async function Header({ user }: { user: User | null }) {
                     성인인증
                   </Link>
                 )}
-                <HeaderProfileMenu nickname={user.nickname} />
+                <HeaderProfileMenu
+                  nickname={user.nickname}
+                  isAdult={!!user.is_adult}
+                  canDisableSafetyFilter={canAccessAdultContent(user)}
+                  nsfwOn={!!user.nsfw_on}
+                  pref={(user.pref as "female" | "male" | null) ?? null}
+                />
               </>
             ) : (
               <>

@@ -1,4 +1,7 @@
-import { expect, test, type Page } from "@playwright/test";
+import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
+import { expect, test, type Page, type Route } from "@playwright/test";
+import { DEMO_USER_EMAIL } from "../../src/lib/demo";
 
 test.use({ launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
   ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {} });
@@ -6,6 +9,40 @@ test.use({ launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
 async function demoLogin(page: Page) {
   const response = await page.request.post("/api/auth/demo-login");
   expect(response.ok()).toBeTruthy();
+}
+
+async function dismissHomeNotice(page: Page) {
+  const dialog = page.locator('[role="dialog"][aria-labelledby="home-popup-notice-title"]');
+  if (await dialog.isVisible().catch(() => false)) {
+    await dialog.getByRole("button", { name: "확인", exact: true }).click();
+    await dialog.waitFor({ state: "hidden" });
+  }
+}
+
+async function openProfileMenu(page: Page) {
+  await page.getByRole("button", { name: "프로필 메뉴" }).click();
+  await expect(page.getByRole("menu")).toBeVisible();
+}
+
+/** Isolated Playwright DB only. Does not change the shared webServer admin allow-list. */
+function setDemoSafetyAccess(allowed: boolean): void {
+  const dir = process.env.PLAYWRIGHT_DATA_DIR;
+  if (!dir) throw new Error("PLAYWRIGHT_DATA_DIR is not set");
+  const db = new DatabaseSync(path.join(dir, "app.db"));
+  const updated = db
+    .prepare("UPDATE users SET is_admin = ? WHERE lower(email) = lower(?)")
+    .run(allowed ? 1 : 0, DEMO_USER_EMAIL);
+  db.close();
+  if (Number(updated.changes) !== 1) throw new Error("demo user was not updated");
+}
+
+async function loginAllowedAccount(page: Page) {
+  await demoLogin(page);
+  setDemoSafetyAccess(true);
+}
+
+function safetyToggle(page: Page) {
+  return page.locator('[role="menu"] [role="menuitemcheckbox"]');
 }
 
 test.describe("home notice dialog", () => {
@@ -215,6 +252,7 @@ async function headerControlMatrix(page: Page, expectShopLink: boolean) {
         const tag = `${width}px ${balance} badge ${badge}`;
         await page.setViewportSize({ width, height: 800 });
         await page.goto("/tab/ranking");
+        await dismissHomeNotice(page);
         await applyBalanceAndBadge(page, balance, badge);
         const m = await headerMetrics(page);
         expect(m.overlaps, `${tag} overlaps`).toEqual([]);
@@ -227,19 +265,13 @@ async function headerControlMatrix(page: Page, expectShopLink: boolean) {
           const bell = top.querySelector<HTMLElement>('button[aria-label^="알림"]')!.getBoundingClientRect();
           const points = top.querySelector<HTMLElement>('[aria-label^="보유 포인트"]')!;
           const pointsText = points.querySelector("span") ?? points;
-          const toggle = top.querySelector<HTMLElement>('button[aria-label="세이프티 필터"]')!;
+          const headerSafetyFilter = top.querySelector('button[aria-label="세이프티 필터"]');
           const shop = top.querySelector<HTMLElement>('a[href="/points"]');
-          const state = Array.from(toggle.querySelectorAll<HTMLElement>("span"))
-            .map((s) => s.textContent?.trim())
-            .find((t) => t === "ON" || t === "OFF");
           return {
             logoToBell: bell.left - logo.right,
             pointsText: pointsText.textContent,
             pointsClipped: points.scrollWidth > points.clientWidth + 1,
-            toggleHeight: toggle.getBoundingClientRect().height,
-            togglePressed: toggle.getAttribute("aria-pressed"),
-            toggleState: state ?? null,
-            toggleVisibleText: toggle.innerText.trim(),
+            headerSafetyFilter: headerSafetyFilter !== null,
             shopHref: shop?.getAttribute("href") ?? null,
             shopW: shop?.getBoundingClientRect().width ?? 0,
             shopH: shop?.getBoundingClientRect().height ?? 0,
@@ -248,15 +280,7 @@ async function headerControlMatrix(page: Page, expectShopLink: boolean) {
         expect(detail.logoToBell, `${tag} logo-to-bell gap`).toBeGreaterThanOrEqual(6);
         expect(detail.pointsText, `${tag} exact balance text`).toBe(balance);
         expect(detail.pointsClipped, `${tag} balance clipped`).toBe(false);
-        expect(detail.toggleHeight, `${tag} toggle height`).toBeGreaterThanOrEqual(36);
-        expect(detail.togglePressed, `${tag} toggle exposes state`).not.toBeNull();
-        expect(detail.toggleState, `${tag} toggle shows ON/OFF text`).toBe(detail.togglePressed === "true" ? "ON" : "OFF");
-        if (width >= 360) {
-          expect(detail.toggleVisibleText, `${tag} toggle label`).toContain("세이프티");
-        } else {
-          expect(detail.toggleVisibleText, `${tag} toggle compact label`).toContain("필터");
-          expect(detail.toggleVisibleText, `${tag} toggle compact label`).toMatch(/ON|OFF/);
-        }
+        expect(detail.headerSafetyFilter, `${tag} header safety filter removed`).toBe(false);
         if (expectShopLink) {
           expect(detail.shopHref, `${tag} charge link`).toBe("/points");
           expect(detail.shopW, `${tag} charge link width`).toBeGreaterThanOrEqual(36);
@@ -266,6 +290,181 @@ async function headerControlMatrix(page: Page, expectShopLink: boolean) {
     }
   }
 }
+
+test.describe("profile menu safety filter", () => {
+  for (const width of [320, 390, 1280] as const) {
+    test(`${width}px keeps the filter out of the header and once below albums in the menu`, async ({ page }) => {
+      await page.setViewportSize({ width, height: width === 1280 ? 800 : 844 });
+      await demoLogin(page);
+      await page.goto("/tab/ranking");
+      await dismissHomeNotice(page);
+      const headerHasFilter = await page.evaluate(
+        () => !!document.querySelector('header.site-header button[aria-label="세이프티 필터"]'),
+      );
+      expect(headerHasFilter).toBe(false);
+      await openProfileMenu(page);
+      const menu = page.getByRole("menu");
+      const order = await menu.evaluate((el) =>
+        Array.from(el.querySelectorAll('[role="menuitem"], [role="menuitemcheckbox"]')).map((node) =>
+          (node.textContent ?? "").trim().slice(0, 12),
+        ),
+      );
+      expect(order[0]).toContain("설정");
+      expect(order[1]).toContain("앨범");
+      expect(order[2]).toContain("세이프티");
+      await expect(menu.getByRole("menuitemcheckbox", { name: /세이프티 필터/ })).toHaveCount(1);
+    });
+  }
+
+  test("390px toggles OFF, keeps the menu open, and matches settings after reload", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await loginAllowedAccount(page);
+    await page.goto("/tab/ranking");
+    await dismissHomeNotice(page);
+    await openProfileMenu(page);
+    const toggle = page.getByRole("menuitemcheckbox", { name: /세이프티 필터 OFF/ });
+    await expect(toggle).toBeVisible();
+    await toggle.click();
+    await expect(page.getByRole("menu")).toBeVisible();
+    await expect(page.getByRole("menuitemcheckbox", { name: /세이프티 필터 ON/ })).toBeVisible();
+    await page.reload();
+    await dismissHomeNotice(page);
+    await openProfileMenu(page);
+    await expect(page.getByRole("menuitemcheckbox", { name: /세이프티 필터 ON/ })).toBeVisible();
+    await page.goto("/settings");
+    await expect(page.getByRole("switch", { name: "세이프티 필터" })).toHaveAttribute("aria-checked", "true");
+  });
+
+  test("a regular member cannot toggle the profile filter and no PATCH is sent", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const patches: string[] = [];
+    page.on("request", (request) => {
+      if (request.method() === "PATCH" && request.url().includes("/api/settings")) patches.push(request.url());
+    });
+    await demoLogin(page);
+    setDemoSafetyAccess(false);
+    await page.goto("/tab/ranking");
+    await dismissHomeNotice(page);
+    await openProfileMenu(page);
+    const toggle = safetyToggle(page);
+    await expect(toggle).toBeDisabled();
+    await expect(toggle).toHaveAttribute("aria-checked", "false");
+    await toggle.click({ force: true });
+    await page.waitForTimeout(300);
+    expect(patches).toEqual([]);
+    await expect(toggle).toHaveAttribute("aria-checked", "false");
+  });
+
+  test("closing and reopening during a delayed PATCH keeps one in-flight save", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    let release: (() => void) | null = null;
+    let patches = 0;
+    await page.route("**/api/settings", async (route: Route) => {
+      if (route.request().method() !== "PATCH") {
+        await route.continue();
+        return;
+      }
+      patches += 1;
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      await route.continue();
+    });
+    await loginAllowedAccount(page);
+    await page.goto("/tab/ranking");
+    await dismissHomeNotice(page);
+    await openProfileMenu(page);
+    await safetyToggle(page).click();
+    await expect(safetyToggle(page)).toBeDisabled();
+    await expect(safetyToggle(page)).toHaveAttribute("aria-checked", "true");
+    await page.keyboard.press("Escape");
+    await expect(page.locator('[role="menu"]')).toBeHidden();
+    await openProfileMenu(page);
+    await expect(safetyToggle(page)).toBeDisabled();
+    await expect(safetyToggle(page)).toHaveAttribute("aria-checked", "true");
+    await safetyToggle(page).click({ force: true });
+    expect(patches).toBe(1);
+    release?.();
+    await expect(safetyToggle(page)).toBeEnabled();
+    await expect(safetyToggle(page)).toHaveAttribute("aria-checked", "true");
+    expect(patches).toBe(1);
+    await page.goto("/settings");
+    await expect(page.getByRole("switch", { name: "세이프티 필터" })).toHaveAttribute("aria-checked", "true");
+  });
+
+  test("HTTP and network failures restore both directions and leave the control usable", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await loginAllowedAccount(page);
+    await page.goto("/tab/ranking");
+    await dismissHomeNotice(page);
+
+    const clearRoute = () => page.unroute("**/api/settings").catch(() => undefined);
+    const settle = async (checked: "true" | "false") => {
+      await clearRoute();
+      await openProfileMenu(page);
+      const toggle = safetyToggle(page);
+      if ((await toggle.getAttribute("aria-checked")) !== checked) {
+        await toggle.click();
+        await expect(toggle).toHaveAttribute("aria-checked", checked);
+        await expect(toggle).toBeEnabled();
+      }
+      await page.keyboard.press("Escape");
+    };
+    const fail = async (mode: "http" | "network", from: "true" | "false") => {
+      await clearRoute();
+      await page.route("**/api/settings", async (route: Route) => {
+        if (route.request().method() !== "PATCH") {
+          await route.continue();
+          return;
+        }
+        if (mode === "http") await route.fulfill({ status: 500, contentType: "application/json", body: "{}" });
+        else await route.abort("failed");
+      });
+      await openProfileMenu(page);
+      const toggle = safetyToggle(page);
+      await expect(toggle).toHaveAttribute("aria-checked", from);
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-checked", from);
+      await expect(toggle).toBeEnabled();
+      await page.keyboard.press("Escape");
+      await clearRoute();
+    };
+
+    await settle("true");
+    await fail("http", "true");
+    await settle("false");
+    await fail("http", "false");
+    await fail("network", "false");
+    await settle("true");
+    await fail("network", "true");
+    await settle("false");
+    await page.goto("/settings");
+    await expect(page.getByRole("switch", { name: "세이프티 필터" })).toHaveAttribute("aria-checked", "false");
+  });
+
+  for (const width of [320, 390, 1280] as const) {
+    test(`${width}px closed menu is hidden from Tab and the open row stays reachable`, async ({ page }) => {
+      await page.setViewportSize({ width, height: width === 1280 ? 800 : 844 });
+      await demoLogin(page);
+      await page.goto("/tab/ranking");
+      await dismissHomeNotice(page);
+      const menu = page.locator('[role="menu"]');
+      await expect(menu).toBeHidden();
+      await page.getByRole("button", { name: "프로필 메뉴" }).focus();
+      for (let i = 0; i < 8; i += 1) {
+        await page.keyboard.press("Tab");
+        const inside = await page.evaluate(() => {
+          const root = document.querySelector('[role="menu"]');
+          return !!(root && document.activeElement && root.contains(document.activeElement));
+        });
+        expect(inside, `${width}px tab ${i}`).toBe(false);
+      }
+      await openProfileMenu(page);
+      await page.keyboard.press("Tab");
+      await expect(page.getByRole("menuitem", { name: "설정" })).toBeFocused();
+    });
+  }
+});
 
 test.describe("compact mobile header", () => {
   test("below lg the header stays under 100px at every layout boundary and keeps one 64px row from lg", async ({ page }) => {
@@ -535,7 +734,7 @@ test.describe("compact mobile header with the charge shortcut", () => {
   test.skip(!PAYMENTS_BASE_URL, "needs a production server started with PORTONE_CHARGE_ENABLED=1 (set PLAYWRIGHT_PAYMENTS_BASE_URL)");
   test.use({ baseURL: PAYMENTS_BASE_URL });
 
-  test("payments ON: logo, bell, safety filter, balance and charge link never overlap or overflow", async ({ page }) => {
+  test("payments ON: logo, bell, balance and charge link never overlap or overflow", async ({ page }) => {
     await headerControlMatrix(page, true);
   });
 

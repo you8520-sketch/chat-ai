@@ -1,0 +1,27 @@
+
+> hav-chat@0.1.0 test:ui
+> playwright test tests/ui/site-chrome.spec.ts --grep profile menu safety
+
+(node:21396) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 10 tests using 1 worker
+
+(node:22091) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:22091) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:22091) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+[WebServer] [exchangeRate] fetch failed — using last known or fallback fetch failed
+  ✓   1 [chromium] › tests/ui/site-chrome.spec.ts:296:9 › profile menu safety filter › 320px keeps the filter out of the header and once below albums in the menu (766ms)
+  ✓   2 [chromium] › tests/ui/site-chrome.spec.ts:296:9 › profile menu safety filter › 390px keeps the filter out of the header and once below albums in the menu (460ms)
+  ✓   3 [chromium] › tests/ui/site-chrome.spec.ts:296:9 › profile menu safety filter › 1280px keeps the filter out of the header and once below albums in the menu (456ms)
+  ✓   4 [chromium] › tests/ui/site-chrome.spec.ts:319:7 › profile menu safety filter › 390px toggles OFF, keeps the menu open, and matches settings after reload (820ms)
+  ✓   5 [chromium] › tests/ui/site-chrome.spec.ts:338:7 › profile menu safety filter › a regular member cannot toggle the profile filter and no PATCH is sent (690ms)
+  ✓   6 [chromium] › tests/ui/site-chrome.spec.ts:358:7 › profile menu safety filter › closing and reopening during a delayed PATCH keeps one in-flight save (783ms)
+  ✓   7 [chromium] › tests/ui/site-chrome.spec.ts:395:7 › profile menu safety filter › HTTP and network failures restore both directions and leave the control usable (1.5s)
+  ✓   8 [chromium] › tests/ui/site-chrome.spec.ts:446:9 › profile menu safety filter › 320px closed menu is hidden from Tab and the open row stays reachable (426ms)
+  ✓   9 [chromium] › tests/ui/site-chrome.spec.ts:446:9 › profile menu safety filter › 390px closed menu is hidden from Tab and the open row stays reachable (466ms)
+  ✓  10 [chromium] › tests/ui/site-chrome.spec.ts:446:9 › profile menu safety filter › 1280px closed menu is hidden from Tab and the open row stays reachable (477ms)
+
+  10 passed (1.9m)
