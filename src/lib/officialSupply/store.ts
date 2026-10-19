@@ -167,6 +167,51 @@ export type OfficialReplacementRecord = {
   reviewedTextLockHash: string | null;
 };
 
+/** Append-only record of one explicit correction of a rejected representative review. */
+export type OfficialReplacementRereviewRecord = {
+  id: number;
+  draftKey: string;
+  slotKey: string;
+  candidateResultUrl: string;
+  candidateSha256: string;
+  baseResultUrl: string;
+  textLockHash: string | null;
+  appearanceLockHash: string;
+  previousStatus: string;
+  previousQa: OfficialAnchorQaReport;
+  previousReviewedBy: string | null;
+  previousReviewedTextLockHash: string | null;
+  newStatus: string;
+  newQa: OfficialAnchorQaReport;
+  reviewer: string;
+  correctionReason: string;
+  correctionEvidence: string;
+  actorId: number | null;
+  createdAt: string;
+};
+
+type RereviewRow = {
+  id: number;
+  draft_key: string;
+  slot_key: string;
+  candidate_result_url: string;
+  candidate_sha256: string;
+  base_result_url: string;
+  text_lock_hash: string | null;
+  appearance_lock_hash: string;
+  previous_status: string;
+  previous_qa_json: string;
+  previous_reviewed_by: string | null;
+  previous_reviewed_text_lock_hash: string | null;
+  new_status: string;
+  new_qa_json: string;
+  reviewer: string;
+  correction_reason: string;
+  correction_evidence: string;
+  actor_id: number | null;
+  created_at: string;
+};
+
 export class OfficialSupplyGateError extends Error {
   constructor(
     public readonly code: string,
@@ -294,6 +339,29 @@ export function ensureOfficialSupplySchema(db: Database.Database): void {
     );
     CREATE INDEX IF NOT EXISTS idx_official_supply_replacement_applies_draft
       ON official_supply_replacement_applies(draft_key, applied_at);
+    CREATE TABLE IF NOT EXISTS official_supply_replacement_rereviews (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      draft_key TEXT NOT NULL,
+      slot_key TEXT NOT NULL,
+      candidate_result_url TEXT NOT NULL,
+      candidate_sha256 TEXT NOT NULL,
+      base_result_url TEXT NOT NULL,
+      text_lock_hash TEXT,
+      appearance_lock_hash TEXT NOT NULL,
+      previous_status TEXT NOT NULL,
+      previous_qa_json TEXT NOT NULL,
+      previous_reviewed_by TEXT,
+      previous_reviewed_text_lock_hash TEXT,
+      new_status TEXT NOT NULL,
+      new_qa_json TEXT NOT NULL,
+      reviewer TEXT NOT NULL,
+      correction_reason TEXT NOT NULL,
+      correction_evidence TEXT NOT NULL,
+      actor_id INTEGER,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_official_supply_replacement_rereviews_slot
+      ON official_supply_replacement_rereviews(draft_key, slot_key, id);
   `);
   ensureOfficialSupplyColumn(db, "official_supply_assets", "approved_tag", "TEXT");
   ensureOfficialSupplyColumn(db, "official_supply_asset_replacements", "approved_tag", "TEXT");
@@ -2406,10 +2474,175 @@ export class OfficialSupplyStore {
     return { approved };
   }
 
+  /**
+   * Explicit correction of a rejected representative review on the SAME stored
+   * candidate. The default review stays closed on `rejected`; only this call
+   * reopens it, and only when the candidate file (URL + raw SHA-256), both
+   * Locks, the replaced URL and a passing moderation are all unchanged. The
+   * earlier rejection (QA, reviewer, Lock) and the correction are appended to
+   * `official_supply_replacement_rereviews` in the same transaction as the new
+   * status, so nothing about the earlier judgement is overwritten unrecorded.
+   * A new QA that still fails keeps the candidate `rejected`.
+   */
+  rereviewRepresentativeReplacement(
+    actor: OfficialAdminActor,
+    draftKey: string,
+    qa: OfficialAnchorQaReport,
+    inspected: { candidateUrl: string; candidateSha256: string },
+    reviewer: string,
+    correction: { reason: string; evidence: string }
+  ): { approved: boolean; rereviewId: number } {
+    const character = this.assertReplacementOperator(draftKey, actor);
+    this.assertTextLockCurrent(character);
+    if (!reviewer.trim()) throw new OfficialSupplyGateError("reviewer_required", "approver identity required");
+    if (!correction.reason.trim() || !correction.evidence.trim()) {
+      throw new OfficialSupplyGateError(
+        "rereview_correction_required",
+        `${draftKey} re-review needs the reason the earlier judgement is corrected and its new evidence`
+      );
+    }
+    if (character.stage !== "staged_private") {
+      throw new OfficialSupplyGateError(
+        "replacement_representative_forbidden",
+        `${draftKey} representative re-review is limited to staged_private characters`
+      );
+    }
+    const representative = this.representativeAsset(draftKey);
+    const asset = this.assertReplacementTargetAllowed(character, representative.slotKey);
+    const { replacement, inspectedUrl } = this.assertReviewableReplacement(
+      character,
+      asset,
+      inspected.candidateUrl,
+      "rejected"
+    );
+    const inspectedSha = inspected.candidateSha256.trim().toLowerCase();
+    if (!replacement.candidateSha256 || replacement.candidateSha256 !== inspectedSha) {
+      throw new OfficialSupplyGateError(
+        "replacement_review_stale",
+        `${draftKey}/${asset.slotKey} re-review does not match the stored candidate file`
+      );
+    }
+    if (replacement.kind !== "representative" || !replacement.qa || !replacement.appearanceLockHash) {
+      throw new OfficialSupplyGateError(
+        "rereview_no_prior_review",
+        `${draftKey}/${asset.slotKey} has no recorded representative review to correct`
+      );
+    }
+    if (replacement.reviewedTextLockHash !== character.textLockHash) {
+      throw new OfficialSupplyGateError(
+        "replacement_review_stale",
+        `${draftKey}/${asset.slotKey} the rejected review predates the current Text Lock`
+      );
+    }
+    if (this.moderationGateFor(replacement.moderation, draftKey, asset.slotKey) !== "pass") {
+      throw new OfficialSupplyGateError(
+        "rereview_moderation_rejected",
+        `${draftKey}/${asset.slotKey} moderation rejected this file; it cannot be re-reviewed`
+      );
+    }
+    const approved = isCompletePassingAnchorQa(qa);
+    const previousQaJson = JSON.stringify(replacement.qa);
+    const newQaJson = JSON.stringify(qa);
+    const save = this.db.transaction((): number => {
+      const info = this.db
+        .prepare(
+          `UPDATE official_supply_asset_replacements
+           SET status=?, qa_json=?, reviewed_by=?, reviewed_text_lock_hash=?, updated_at=datetime('now')
+           WHERE draft_key=? AND slot_key=? AND kind='representative' AND status='rejected'
+             AND candidate_result_url=? AND candidate_sha256=? AND appearance_lock_hash=?
+             AND base_result_url=? AND qa_json=? AND reviewed_by IS ? AND reviewed_text_lock_hash IS ?`
+        )
+        .run(
+          approved ? "approved" : "rejected",
+          newQaJson,
+          approved ? reviewer.trim() : null,
+          character.textLockHash,
+          draftKey,
+          asset.slotKey,
+          inspectedUrl,
+          inspectedSha,
+          character.appearanceLockHash,
+          asset.resultUrl,
+          previousQaJson,
+          replacement.reviewedBy,
+          replacement.reviewedTextLockHash
+        );
+      if (info.changes !== 1) {
+        throw new OfficialSupplyGateError(
+          "replacement_review_stale",
+          `${draftKey}/${asset.slotKey} re-review no longer matches the rejected candidate`
+        );
+      }
+      const history = this.db
+        .prepare(
+          `INSERT INTO official_supply_replacement_rereviews
+             (draft_key, slot_key, candidate_result_url, candidate_sha256, base_result_url, text_lock_hash,
+              appearance_lock_hash, previous_status, previous_qa_json, previous_reviewed_by,
+              previous_reviewed_text_lock_hash, new_status, new_qa_json, reviewer, correction_reason,
+              correction_evidence, actor_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'rejected', ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          draftKey,
+          asset.slotKey,
+          inspectedUrl,
+          inspectedSha,
+          replacement.baseResultUrl,
+          character.textLockHash,
+          character.appearanceLockHash,
+          previousQaJson,
+          replacement.reviewedBy,
+          replacement.reviewedTextLockHash,
+          approved ? "approved" : "rejected",
+          newQaJson,
+          reviewer.trim(),
+          correction.reason.trim(),
+          correction.evidence.trim(),
+          actor.id ?? null
+        );
+      return Number(history.lastInsertRowid);
+    });
+    return { approved, rereviewId: save() };
+  }
+
+  listReplacementRereviews(draftKey: string, slotKey?: string): OfficialReplacementRereviewRecord[] {
+    const rows = (
+      slotKey === undefined
+        ? this.db
+            .prepare("SELECT * FROM official_supply_replacement_rereviews WHERE draft_key=? ORDER BY id")
+            .all(draftKey)
+        : this.db
+            .prepare("SELECT * FROM official_supply_replacement_rereviews WHERE draft_key=? AND slot_key=? ORDER BY id")
+            .all(draftKey, slotKey)
+    ) as RereviewRow[];
+    return rows.map((row) => ({
+      id: row.id,
+      draftKey: row.draft_key,
+      slotKey: row.slot_key,
+      candidateResultUrl: row.candidate_result_url,
+      candidateSha256: row.candidate_sha256,
+      baseResultUrl: row.base_result_url,
+      textLockHash: row.text_lock_hash,
+      appearanceLockHash: row.appearance_lock_hash,
+      previousStatus: row.previous_status,
+      previousQa: JSON.parse(row.previous_qa_json) as OfficialAnchorQaReport,
+      previousReviewedBy: row.previous_reviewed_by,
+      previousReviewedTextLockHash: row.previous_reviewed_text_lock_hash,
+      newStatus: row.new_status,
+      newQa: JSON.parse(row.new_qa_json) as OfficialAnchorQaReport,
+      reviewer: row.reviewer,
+      correctionReason: row.correction_reason,
+      correctionEvidence: row.correction_evidence,
+      actorId: row.actor_id,
+      createdAt: row.created_at,
+    }));
+  }
+
   private assertReviewableReplacement(
     character: OfficialCharacterRecord,
     asset: OfficialAssetRecord,
-    expectedCandidateUrl: string
+    expectedCandidateUrl: string,
+    expectedStatus: "generated" | "rejected" = "generated"
   ): { replacement: OfficialReplacementRecord; inspectedUrl: string } {
     const { draftKey, slotKey } = asset;
     if (asset.status !== "approved" || !asset.resultUrl) {
@@ -2432,9 +2665,9 @@ export class OfficialSupplyStore {
       );
     }
     const replacement = this.getReplacement(draftKey, slotKey);
-    if (replacement.status !== "generated") {
+    if (replacement.status !== expectedStatus) {
       throw new OfficialSupplyGateError(
-        "replacement_not_generated",
+        expectedStatus === "generated" ? "replacement_not_generated" : "replacement_not_rejected",
         `${draftKey}/${slotKey} replacement is ${replacement.status}`
       );
     }

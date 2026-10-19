@@ -1280,3 +1280,156 @@ mock 기록의 provider POST 수는 각 단계의 `providerPosts`와 같았다. 
 vision owner 테스트는 `vision.runControl.test.ts`, 운영 연결은 `officialSupply.approvedAssetOperator.test.ts`의 moderation 실행이다. 둘 다 mock provider이고 네트워크로 나가지 않는다. 수정 전 로그는 정산 배열이 비어 있거나 앞선 HTTP 오류만 남고, 운영 보고의 provider POST가 0이다. 수정 후 vision 관련 테스트 45/45, 단계 명령 테스트 7/7, official-supply 전체 573/573, `npm run lint`(`typecheck:app`), `git diff --check`가 통과했다.
 
 미참조 파일 정리는 후속이다. `npm run test:regular`의 `SQLITE_BUSY` 실패(§23.8)는 이번에 다시 확인하지 않았고, 이번 변경으로 해결됐다고 보지 않는다.
+
+## 25. 대표 검수 정정 — 동일 후보의 명시적 재검수
+
+§23·§24의 운영 실행에서 대표 F(`rep-a1.webp`를 교체할 후보)는 `identifyingFeatures`가 불합격이라 `rejected`로 저장됐다. 14장 파일, URL, 원본 SHA, moderation(`clean`)은 그대로다. 나머지 13칸은 `approved`다. apply는 실행하지 않았고 운영 대표는 `rep-a1.webp`다.
+
+### 25.1 검수 판단의 정정
+
+그때 불합격 근거는 두 가지였다. 승인 흉터를 확인할 수 없다는 것과 왼손 약지가 프레임 밖이라는 것이다. 이 둘은 서로 다른 종류의 판단이라 같은 불합격 근거로 묶지 않는다.
+
+| 종류 | 대표 F에서의 해당 | 판단 |
+|---|---|---|
+| 명확하게 관찰되는 외형 불일치 | 성인 남성, 회청색 눈, 흑회색 머리, 흑철 갑옷, 검은 모피에서 불일치 없음. 승인 위치와 다른 위치의 흉터를 그려 넣은 것도 아님 | 불합격 근거 아님 |
+| 구도·의상에 가려 확인할 수 없는 특징 | 왼쪽 턱 아래 가는 흉터는 이 얼굴 창에서 분명하지 않다. 왼손 약지와 반지는 프레임 밖이다 | 확인 불가로 적는다. 통과 근거로도, 자동 불합격 근거로도 세지 않는다 |
+| 정지 이미지로 검증할 수 없는 설정 | 약지의 감각 저하(동상 후유증) | 판단에서 제외하고 note에 적는다 |
+
+- 턱·칼라 경계, 뺨의 짧은 선의 명암은 승인 흉터로 세지 않는다. 흉터가 정확히 구현됐다고 기록하지 않는다(§14·§16의 관찰과 같다).
+- 보이지 않는 특징을 모두 드러내는 것은 대표 승인 조건이 아니다. 대표 슬롯 계획(`기본 초상`: 정면, 검 손잡이)에는 흉터·약지를 보여야 한다는 요구가 없다.
+- 그러나 흉터가 승인 위치와 명확히 다른 곳에 있거나, 대표에서 반드시 보이기로 승인한 특징이 빠졌으면 자동 통과시키지 않는다. 그 경우 `ok: false`다.
+- 전역 QA 10항목과 `isCompletePassingAnchorQa`(모두 `ok: true`)는 바꾸지 않았다. `identifyingFeatures` 검사도 지우지 않았다. 바뀐 것은 이 항목을 적는 사람이 무엇을 불합격으로 세는지의 판단 기준이고, 그 판단은 검수 기록의 note와 정정 근거로 남는다.
+
+정정된 판단으로 `ok`를 정하는 것은 검수자(GPT/사용자)다. 코드와 이 문서가 `ok`를 채우지 않는다. 아래 §25.5는 기록 전 초안이고 운영에 기록하지 않았다.
+
+### 25.2 새 owner 동작
+
+기존 owner에 최소한으로 더했다. 별도 writer, SQL 우회, 새 상태값은 없다.
+
+- `OfficialSupplyStore.rereviewRepresentativeReplacement`: `rejected` 대표 후보를 같은 파일로 다시 검수한다. 기본 `reviewRepresentativeReplacement`는 `generated`만 받으므로 `rejected`는 계속 막힌다.
+- `official_supply_replacement_rereviews`: 추가 전용 기록 표. `ensureOfficialSupplySchema`가 `CREATE TABLE IF NOT EXISTS`로 만든다. 기존 표와 행은 바꾸지 않는다.
+- 단계 명령: `assets review --evidence <파일> --rereview`. 칸마다 `correction: { reason, evidence }`가 필요하다. `--rereview` 없이 `correction`이 있으면 거부한다.
+
+재검수가 열리는 조건은 모두 같아야 한다. 하나라도 다르면 쓰지 않고 거부한다.
+
+| 조건 | 거부 코드 |
+|---|---|
+| 공식 관리자 | `replacement_forbidden` |
+| `staged_private` | `replacement_representative_forbidden` |
+| 후보 상태가 `rejected` (`generated`·`approved`·`applied`는 아님) | `replacement_not_rejected` |
+| 같은 후보 URL | `replacement_review_stale` |
+| 같은 원본 SHA | `replacement_review_stale` |
+| 현재 Text Lock과 거절 당시 Text Lock이 같음 | `text_lock_stale` / `replacement_review_stale` |
+| 현재 Appearance Lock과 후보의 Lock이 같음 | `appearance_lock_stale` |
+| 교체 전 URL(`base_result_url`)이 현재 슬롯과 같음 | `replacement_base_stale` |
+| 이전 검수 기록(QA)이 있음 | `rereview_no_prior_review` |
+| moderation이 통과(`clean`/`adult_flagged`) | `rereview_moderation_rejected` / `moderation_missing` / `moderation_unavailable` |
+| 검수자와 정정 이유·새 근거가 있음 | `reviewer_required` / `rereview_correction_required` |
+
+- 상태 변경은 이전 상태를 조건으로 하는 UPDATE이고, 같은 트랜잭션에서 기록 행을 추가한다. 기록 쓰기가 실패하면 상태 변경도 되돌아간다.
+- 새 QA에 불합격 항목이 하나라도 있으면 상태는 `rejected`로 남고, 그 시도도 기록에 남는다. 이후 다시 정정해 통과시킬 수 있다. 각 시도의 이전 QA는 직전 상태다.
+- 기록 행은 이전 상태·QA·검수자·Text Lock, 새 상태·QA, 검수자, 정정 이유, 정정 근거, 관리자 id, 후보 URL·SHA, 교체 전 URL, 두 Lock을 가진다. 지우거나 고치는 경로는 없다.
+- moderation, 파일 저장, provider 호출은 하지 않는다. 대표 외 칸은 재검수 대상이 아니다(`--rereview`는 `rejected` 대표만 받는다).
+- 기존 apply는 그대로 `approved` + 두 Lock + 후보 URL·SHA를 다시 확인한다(`assertRepresentativeReviewCurrent`).
+- `assets status`에 `rereviews` 목록이 더해졌다.
+
+### 25.3 격리 DB 검증
+
+`officialSupply.representativeRereview.test.ts`(13건)는 격리 DB에서 실제 14장 파일을 반입하고, 네트워크를 막고(`fetch` 시도 0), 저장·moderation 호출 수를 센다. QA·검수자·정정 문구는 게이트 확인용이고 품질 승인이 아니다.
+
+| 요구 | 테스트 |
+|---|---|
+| 기본 review는 `rejected`를 계속 막는다 | 1 |
+| 같은 후보를 재검수하며 파일·URL·SHA·moderation·교체 전 URL·Lock이 유지된다 | 2 |
+| 이전 불합격 기록과 새 검수 기록이 함께 남는다 | 2, 3 |
+| 새 QA에 불합격 항목이 있으면 계속 `rejected`, 불완전한 QA는 통과 못 한다 | 3, 4 |
+| 권한 없음·검수자·정정 근거 없음 거부 | 5 |
+| 다른 URL·SHA·교체 전 URL·Appearance Lock·Text Lock 거부 | 6 |
+| moderation 거절·누락·unavailable 거부 | 7 |
+| `generated`·`approved`·`applied` 후보와 `staged_private`가 아닌 캐릭터 거부 | 8 |
+| 기록 쓰기 실패 시 상태가 되돌아간다 | 9 |
+| 나머지 13칸·캐릭터 행·supply·slot 상태 불변, 파일 저장 0, 재검수 뒤 14칸 dry-run이 통과 | 10 |
+| 단계 명령: `--rereview` 없이는 막힘, correction 필수, dry-run 쓰기 0, execute 기록, 상태 출력 | 11, 12, 13 |
+
+수정 전 같은 테스트는 13건 모두 실패한다(owner에 재검수 메서드가 없다). 수정 후 13/13이다.
+
+### 25.4 검증
+
+| 확인 | 결과 |
+|---|---|
+| `officialSupply.representativeRereview.test.ts` | 13/13 (수정 전 0/13) |
+| `src/lib/officialSupply/*.test.ts` 41개 파일을 파일마다 실행 | 전부 통과 |
+| `npm run lint` / `npm run typecheck:app` / `git diff --check` | 통과 |
+| `npm run typecheck` (전체) | 기존과 같은 3325줄. 이번에 바꾼 파일에서 새 오류 없음 |
+
+`src/lib/officialSupply/*.test.ts`를 한 프로세스에서 함께 실행하면 이 VM에서 세그폴트가 난다(`better-sqlite3` 네이티브). 이번 변경과 무관하게 확인하지 않았고, 파일마다 따로 실행했다. `npm run test:regular` 전체는 이번에 다시 돌리지 않았다.
+
+### 25.5 대표 재검수 증거 초안 (운영에 기록하지 않음)
+
+검수자가 정정된 판단으로 확정한 뒤에만 쓴다. `ok` 값과 note는 검수자가 정한다. `identifyingFeatures`와 `correction` 외의 9개 항목은 기존 시각 검수를 유지하므로 기존 note를 바꾸지 않는다. 그 note는 운영 DB의 저장된 이전 QA에서 읽기 전용으로 가져온다.
+
+```
+node -e 'const {DatabaseSync}=require("node:sqlite");const db=new DatabaseSync("/data/app.db",{readOnly:true});console.log(db.prepare("SELECT qa_json FROM official_supply_asset_replacements WHERE draft_key=? AND slot_key=?").get("pilot-rf-v4-02","rep").qa_json)'
+```
+
+```json
+{
+  "draftKey": "pilot-rf-v4-02",
+  "characterId": 51,
+  "isolatedProofOnly": false,
+  "reviewer": "gpt-visual-review",
+  "approvalEvidence": "<§25.1의 정정된 판단을 승인한 GPT/사용자 근거 위치>",
+  "slots": [
+    {
+      "slot": "rep",
+      "candidateUrl": "/uploads/official-pilot-rf-v4-02__rep-ext-6baa8d35-d1aa-4dfc-bf6e-04ead314cb2e.webp",
+      "candidateSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+      "correction": {
+        "reason": "이전 불합격은 확인할 수 없는 흉터와 프레임 밖 약지를 불일치로 세었다. 이 둘은 구도에 가려 확인할 수 없는 특징이고 약지 감각은 정지 이미지로 검증할 수 없는 설정이다. 명확한 불일치가 아니다.",
+        "evidence": "같은 파일(rep-f-raw.webp, 위 SHA)을 다시 보았다. 관찰되는 외형에 승인 외형과의 명확한 불일치가 없고, 승인 위치와 다른 곳의 흉터도 없다. 대표 슬롯 계획에 흉터·약지를 보여야 한다는 요구가 없다. 전역 QA 항목은 바꾸지 않았다."
+      },
+      "qa": {
+        "gender": { "ok": true, "note": "<기존 note>" },
+        "ageAppearance": { "ok": true, "note": "<기존 note>" },
+        "face": { "ok": true, "note": "<기존 note>" },
+        "hair": { "ok": true, "note": "<기존 note>" },
+        "eyes": { "ok": true, "note": "<기존 note>" },
+        "body": { "ok": true, "note": "<기존 note>" },
+        "identifyingFeatures": {
+          "ok": true,
+          "note": "관찰되는 특징에 명확한 불일치는 없다. 승인 흉터(왼쪽 턱 아래의 가는 흉터)는 이 구도의 얼굴 창에서 확인되지 않는다. 턱·칼라 경계의 명암은 승인 흉터로 세지 않았고 흉터가 구현됐다고 기록하지 않는다. 왼손 약지와 반지는 프레임 밖이라 확인하지 않았다. 약지의 감각 저하는 정지 이미지로 검증할 수 없어 판단에서 제외했다. 늑대 걸쇠·체인은 승인 외형에 없는 추가 장식이며 명시적 금지 근거가 없어 Lock 위반으로 단정하지 않는다."
+        },
+        "artStyle": { "ok": true, "note": "<기존 note>" },
+        "outfit": { "ok": true, "note": "<기존 note>" },
+        "cardCrop": { "ok": true, "note": "<기존 note>" }
+      }
+    }
+  ]
+}
+```
+
+검수자가 이 판단을 승인하지 않거나, 흉터 위치가 명확히 다르다고 보면 `identifyingFeatures`를 `ok: false`로 적는다. 그 시도도 기록에 남고 후보는 `rejected`다.
+
+### 25.6 승인 뒤 운영 명령 (아직 실행하지 않음)
+
+코드 검수·병합·배포 뒤, 컨테이너에서 `--admin-email you7410@gmail.com --character-id 51`로 실행한다. 새 표는 첫 단계 명령에서 자동으로 만들어진다. moderation은 다시 돌리지 않는다. 쓰기 전에는 WAL을 포함한 운영 DB 백업을 새로 만든다.
+
+```
+npm run official-supply:wolfgang-approved-source -- assets status --admin-email you7410@gmail.com --character-id 51
+npm run official-supply:wolfgang-approved-source -- assets review --admin-email you7410@gmail.com --character-id 51 --evidence <재검수 파일> --rereview
+npm run official-supply:wolfgang-approved-source -- assets review --admin-email you7410@gmail.com --character-id 51 --evidence <재검수 파일> --rereview --execute
+npm run official-supply:wolfgang-approved-source -- assets status --admin-email you7410@gmail.com --character-id 51
+npm run official-supply:wolfgang-approved-source -- assets apply --admin-email you7410@gmail.com --character-id 51
+npm run official-supply:wolfgang-approved-source -- assets apply --admin-email you7410@gmail.com --character-id 51 --execute
+npm run official-supply:wolfgang-approved-source -- assets status --admin-email you7410@gmail.com --character-id 51
+```
+
+- 첫 `status`는 대표가 `blocked`, 나머지 13칸이 `apply`, `applies`와 `rereviews`가 비어 있음을 확인한다.
+- 첫 `review --rereview`(dry-run)는 `recorded: []`이고 `planned`의 `allChecksOk`와 `correction`을 보여 준다. 쓰지 않는다.
+- `--execute`의 `recorded[0].approved`가 `true`이어야 apply로 넘어간다. `false`면 멈추고 보고한다.
+- `apply` dry-run은 14칸 `swapped`와 rollback 계획을 보여 준다. `apply --execute`는 `applyId`와 rollback 명령을 출력한다. rollback은 그 명령(`assets rollback --apply-id <applyId>`)만 쓴다.
+- apply 뒤 저장 상태(캐릭터 `assets`·`images`, 슬롯 상태, apply 기록)를 다시 읽고, 관리자 화면에서 비공개 상태와 14칸 순서·태그를 확인한다. 공개 전환, 알림, 소유자 변경, 새 이미지 생성, 유료 RP는 하지 않는다.
+
+### 25.7 검수 상태
+
+운영 재검수 기록과 apply는 실행하지 않았다. 후속 코드 검수 전에는 병합·배포하지 않는다. §25.5의 증거는 초안이고 검수자의 확정이 필요하다. 격리 테스트의 QA는 게이트 확인용이고 실제 품질 승인 기록이 아니다.
