@@ -154,21 +154,222 @@ describe("finance anomaly radar", () => {
             distinctApiKeyIds: 1,
             otherApiKeyCandidate: false,
             havExclusiveCostConfirmed: false,
-            productionKeyMapping: "unavailable",
+            productionKeyMapping: "ledger_intersection",
+            productionScope: {
+              known: true,
+              provenKeyCount: 1,
+              settledCount: 1,
+              settledMicroUsd: 8_000,
+              matchedLedgerCount: 0,
+              unmatchedLedgerCount: 1,
+              unmatchedSettledMicroUsd: 8_000,
+              unmatchedFirstAt: "2026-10-10T08:00:00.000Z",
+              unmatchedLastAt: "2026-10-16T08:00:00.000Z",
+              byModel: {
+                "gpt-6-luna": {
+                  settledCount: 1,
+                  unmatchedCount: 1,
+                  settledMicroUsd: 8_000,
+                  unmatchedMicroUsd: 8_000,
+                },
+              },
+            },
+            undeterminedUsage: {
+              settledCount: 0,
+              settledMicroUsd: 0,
+              keyCount: 0,
+              missingKeyIdSettledCount: 0,
+              missingKeyIdSettledMicroUsd: 0,
+              firstAt: null,
+              lastAt: null,
+              purpose: "unproven",
+            },
             cases: ["unmatched_luna"],
           },
         },
       }),
       pricing: pricing(),
+      now: new Date("2026-10-19T08:00:00.000Z"),
     });
     assert.equal(report.status, "WARNING");
     assert.equal(report.criticalCount, 0);
     assert.equal(report.anomalies.length, 1);
     assert.equal(report.anomalies[0]?.code, "FORWARD_UNMATCHED_REMOTE_SPEND");
+    assert.equal(report.anomalies[0]?.occurredAt, "2026-10-10T08:00:00.000Z");
     assert.match(report.anomalies[0]?.summary ?? "", /gpt-6-luna/);
     assert.match(report.anomalies[0]?.summary ?? "", /0\.008000 USD/);
     assert.match(report.anomalies[0]?.summary ?? "", /havExclusiveCostConfirmed=false/);
+    assert.match(report.anomalies[0]?.summary ?? "", /not backfilled/);
     assert.doesNotMatch(report.anomalies[0]?.summary ?? "", /3\.071719/);
+    assert.doesNotMatch(report.anomalies[0]?.summary ?? "", /approved test/);
+  });
+
+  it("does not treat undetermined keys as production ledger misses", () => {
+    const report = buildFinanceAnomalyReport({
+      summary: summary({
+        providerReconciliation: {
+          status: "mismatch",
+          forwardAudit: {
+            observedSince: "2026-10-03T12:00:00.000Z",
+            observationSource: "stored_watermark",
+            observationNote: "stored",
+            fetchStatus: "ok",
+            verificationStatus: "verified",
+            requestCount: 2,
+            settledCount: 2,
+            pendingCount: 0,
+            matchedLedgerCount: 0,
+            unmatchedLedgerCount: 2,
+            settledMicroUsd: 30_000,
+            matchedSettledMicroUsd: 0,
+            unmatchedSettledMicroUsd: 30_000,
+            unverifiableTimestampCount: 0,
+            unverifiableSettledCount: 0,
+            byModel: {},
+            distinctApiKeyIds: 2,
+            otherApiKeyCandidate: true,
+            havExclusiveCostConfirmed: false,
+            productionKeyMapping: "unmapped",
+            productionScope: {
+              known: true,
+              provenKeyCount: 0,
+              settledCount: 0,
+              settledMicroUsd: 0,
+              matchedLedgerCount: 0,
+              unmatchedLedgerCount: 0,
+              unmatchedSettledMicroUsd: 0,
+              unmatchedFirstAt: null,
+              unmatchedLastAt: null,
+              byModel: {},
+            },
+            undeterminedUsage: {
+              settledCount: 2,
+              settledMicroUsd: 30_000,
+              keyCount: 2,
+              missingKeyIdSettledCount: 0,
+              missingKeyIdSettledMicroUsd: 0,
+              firstAt: "2026-10-17T01:00:00.000Z",
+              lastAt: "2026-10-17T02:00:00.000Z",
+              purpose: "unproven",
+            },
+            cases: ["unmatched_luna", "other_key"],
+          },
+        },
+      }),
+      pricing: null,
+    });
+    assert.equal(
+      report.anomalies.some((row) => row.code === "FORWARD_UNMATCHED_REMOTE_SPEND"),
+      false
+    );
+    assert.equal(report.anomalies[0]?.code, "FORWARD_UNDETERMINED_USAGE_SOURCE");
+    assert.match(report.anomalies[0]?.summary ?? "", /unproven/);
+    assert.match(report.anomalies[0]?.summary ?? "", /not an approved test/);
+    assert.equal(report.anomalies[0]?.occurredAt, "2026-10-17T01:00:00.000Z");
+    assert.notEqual(report.status, "HEALTHY");
+  });
+
+  it("does not treat an unmapped key as a healthy zero", () => {
+    const report = buildFinanceAnomalyReport({
+      summary: summary({
+        providerReconciliation: {
+          status: "mismatch",
+          forwardAudit: {
+            observedSince: "2026-10-03T12:00:00.000Z",
+            observationSource: "stored_watermark",
+            observationNote: "stored",
+            fetchStatus: "ok",
+            verificationStatus: "verified",
+            requestCount: 1,
+            settledCount: 1,
+            pendingCount: 0,
+            matchedLedgerCount: 1,
+            unmatchedLedgerCount: 0,
+            settledMicroUsd: 4_000,
+            matchedSettledMicroUsd: 4_000,
+            unmatchedSettledMicroUsd: 0,
+            unverifiableTimestampCount: 0,
+            unverifiableSettledCount: 0,
+            byModel: {},
+            distinctApiKeyIds: 0,
+            otherApiKeyCandidate: false,
+            havExclusiveCostConfirmed: false,
+            productionKeyMapping: "unmapped",
+            productionScope: {
+              known: true,
+              provenKeyCount: 0,
+              settledCount: 0,
+              settledMicroUsd: 0,
+              matchedLedgerCount: 0,
+              unmatchedLedgerCount: 0,
+              unmatchedSettledMicroUsd: 0,
+              unmatchedFirstAt: null,
+              unmatchedLastAt: null,
+              byModel: {},
+            },
+            undeterminedUsage: {
+              settledCount: 0,
+              settledMicroUsd: 0,
+              keyCount: 0,
+              missingKeyIdSettledCount: 0,
+              missingKeyIdSettledMicroUsd: 0,
+              firstAt: null,
+              lastAt: null,
+              purpose: "unproven",
+            },
+            cases: ["matched_luna"],
+          },
+        },
+      }),
+      pricing: null,
+    });
+    assert.equal(report.anomalies[0]?.code, "FORWARD_UNDETERMINED_USAGE_SOURCE");
+    assert.equal(
+      report.anomalies.some((row) => row.code === "FORWARD_UNMATCHED_REMOTE_SPEND"),
+      false
+    );
+    assert.notEqual(report.status, "HEALTHY");
+  });
+
+  it("does not clear a stored snapshot that has no production-key classification", () => {
+    const report = buildFinanceAnomalyReport({
+      summary: summary({
+        providerReconciliation: {
+          status: "mismatch",
+          forwardAudit: {
+            observedSince: "2026-10-05T03:00:00.175Z",
+            observationSource: "stored_watermark",
+            observationNote: "stored",
+            fetchStatus: "ok",
+            verificationStatus: "verified",
+            requestCount: 5,
+            settledCount: 5,
+            pendingCount: 0,
+            matchedLedgerCount: 0,
+            unmatchedLedgerCount: 5,
+            settledMicroUsd: 50_000,
+            matchedSettledMicroUsd: 0,
+            unmatchedSettledMicroUsd: 50_000,
+            unverifiableTimestampCount: 0,
+            unverifiableSettledCount: 0,
+            byModel: {},
+            distinctApiKeyIds: 1,
+            otherApiKeyCandidate: false,
+            havExclusiveCostConfirmed: false,
+            productionKeyMapping: "unavailable",
+            cases: ["unmatched_luna"],
+          },
+        },
+      }),
+      pricing: null,
+    });
+    assert.equal(report.anomalies[0]?.code, "FORWARD_USAGE_SOURCE_UNCLASSIFIED");
+    assert.equal(
+      report.anomalies.some((row) => row.code === "FORWARD_UNMATCHED_REMOTE_SPEND"),
+      false
+    );
+    assert.notEqual(report.status, "HEALTHY");
+    assert.match(report.anomalies[0]?.summary ?? "", /not a clearance/);
   });
 
   it("does not report HEALTHY when forward timestamps are unverifiable", () => {

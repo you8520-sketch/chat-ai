@@ -1,6 +1,6 @@
 import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
 import type { AdminFinanceSummary } from "@/lib/adminFinance";
-import type { ForwardReconAudit } from "@/lib/forwardReconAudit";
+import { isLunaUsageModel, type ForwardReconAudit } from "@/lib/forwardReconAudit";
 import type { MainRpPricingObservabilityProjection } from "@/lib/mainRpPricingObservability";
 
 export type FinanceAnomalySeverity = "critical" | "warning";
@@ -10,6 +10,8 @@ export type FinanceAnomalyCode =
   | "UNRECONCILED_PROVIDER_SPEND"
   | "PROVIDER_RECONCILIATION_UNAVAILABLE"
   | "FORWARD_UNMATCHED_REMOTE_SPEND"
+  | "FORWARD_UNDETERMINED_USAGE_SOURCE"
+  | "FORWARD_USAGE_SOURCE_UNCLASSIFIED"
   | "FORWARD_RECON_FETCH_FAILURE"
   | "FORWARD_RECON_UNVERIFIED"
   | "FORWARD_RECON_CONFIG_INVALID"
@@ -28,6 +30,8 @@ export type FinanceAnomaly = {
   sourceRef: string;
   href: "/admin/finance" | "/admin/pricing";
   modelId: string | null;
+  /** Provider call time when this anomaly has one. Report generation time is not a call time. */
+  occurredAt?: string | null;
 };
 
 export type FinanceAnomalyReport = {
@@ -60,8 +64,8 @@ function reportStatus(anomalies: readonly FinanceAnomaly[]): FinanceAnomalyRepor
   return "HEALTHY";
 }
 
-function formatForwardModelBreakdown(audit: ForwardReconAudit): string {
-  const parts = Object.entries(audit.byModel)
+function formatForwardModelBreakdown(byModel: ForwardReconAudit["byModel"]): string {
+  const parts = Object.entries(byModel)
     .filter(([, row]) => row.unmatchedCount > 0)
     .sort((a, b) => b[1].unmatchedMicroUsd - a[1].unmatchedMicroUsd || b[1].unmatchedCount - a[1].unmatchedCount)
     .map(
@@ -121,27 +125,78 @@ function pushForwardReconAnomalies(anomalies: FinanceAnomaly[], audit: ForwardRe
     return;
   }
 
-  if (audit.unmatchedLedgerCount <= 0 || audit.unmatchedSettledMicroUsd <= 0) return;
+  const scope = audit.productionScope;
+  const scopeKnown = scope?.known === true;
+  if (!scopeKnown) {
+    if (audit.unmatchedLedgerCount > 0 && audit.unmatchedSettledMicroUsd > 0) {
+      anomalies.push({
+        id: "provider-reconciliation:forward-unclassified",
+        code: "FORWARD_USAGE_SOURCE_UNCLASSIFIED",
+        severity: "warning",
+        title: "Forward usage source is unclassified",
+        summary:
+          `${audit.observationNote} The stored forward audit has ${audit.unmatchedLedgerCount} ` +
+          `workspace-unmatched settled request(s) (${usdFromMicro(audit.unmatchedSettledMicroUsd)} USD) ` +
+          "but no production-key classification. That workspace total is not a production-miss count " +
+          "and it is not a clearance. havExclusiveCostConfirmed=false.",
+        sourceRef: `forward_unclassified:${audit.observedSince}:${audit.unmatchedLedgerCount}`,
+        href: "/admin/finance",
+        modelId: null,
+      });
+    }
+    return;
+  }
 
-  const keyNote = audit.otherApiKeyCandidate
-    ? " Forward window saw more than one API-key id; key-level audit is not applied because production key mapping is unavailable."
-    : " Production key mapping is unavailable, so remote workspace usage is not confirmed as HAV-exclusive cost.";
-  anomalies.push({
-    id: "provider-reconciliation:forward-unmatched",
-    code: "FORWARD_UNMATCHED_REMOTE_SPEND",
-    severity: "warning",
-    title: "New unmatched provider spend after observation baseline",
-    summary:
-      `${audit.observationNote} Period since ${audit.observedSince}: ` +
-      `${audit.unmatchedLedgerCount} settled remote request(s) are not linked to the local ledger ` +
-      `(${usdFromMicro(audit.unmatchedSettledMicroUsd)} USD confirmed remote settled; ` +
-      `${audit.matchedLedgerCount} linked). Models: ${formatForwardModelBreakdown(audit)}.` +
-      keyNote +
-      " havExclusiveCostConfirmed=false.",
-    sourceRef: `forward_unmatched:${audit.observedSince}:${audit.unmatchedLedgerCount}`,
-    href: "/admin/finance",
-    modelId: audit.cases.includes("unmatched_luna") ? "gpt-6-luna" : null,
-  });
+  if (scope.unmatchedLedgerCount > 0 && scope.unmatchedSettledMicroUsd > 0) {
+    const productionLuna = Object.entries(scope.byModel).some(
+      ([model, row]) => row.unmatchedCount > 0 && isLunaUsageModel(model)
+    );
+    anomalies.push({
+      id: "provider-reconciliation:forward-unmatched",
+      code: "FORWARD_UNMATCHED_REMOTE_SPEND",
+      severity: "warning",
+      title: "Unmatched production-key provider spend after observation baseline",
+      summary:
+        `${audit.observationNote} Period since ${audit.observedSince}: ` +
+        `${scope.unmatchedLedgerCount} settled request(s) on ${scope.provenKeyCount} production key(s) ` +
+        `proven by ledger request-id intersection are still absent from the local ledger ` +
+        `(${usdFromMicro(scope.unmatchedSettledMicroUsd)} USD). ` +
+        `First ${scope.unmatchedFirstAt ?? "unknown"}, last ${scope.unmatchedLastAt ?? "unknown"}. ` +
+        `Models: ${formatForwardModelBreakdown(scope.byModel)}. ` +
+        `Workspace unmatched is ${audit.unmatchedLedgerCount} and is not this production-miss total. ` +
+        "These rows are not backfilled. havExclusiveCostConfirmed=false.",
+      sourceRef: `forward_unmatched:${audit.observedSince}:${scope.unmatchedLedgerCount}`,
+      href: "/admin/finance",
+      modelId: productionLuna ? "gpt-6-luna" : null,
+      occurredAt: scope.unmatchedFirstAt,
+    });
+  }
+
+  const undetermined = audit.undeterminedUsage;
+  const undeterminedSettled =
+    (undetermined?.settledCount ?? 0) + (undetermined?.missingKeyIdSettledCount ?? 0);
+  const undeterminedMicro =
+    (undetermined?.settledMicroUsd ?? 0) + (undetermined?.missingKeyIdSettledMicroUsd ?? 0);
+  if (audit.productionKeyMapping === "unmapped" || (undeterminedSettled > 0 && undeterminedMicro > 0)) {
+    anomalies.push({
+      id: "provider-reconciliation:forward-undetermined-source",
+      code: "FORWARD_UNDETERMINED_USAGE_SOURCE",
+      severity: "warning",
+      title: "Undetermined usage source outside the production ledger",
+      summary:
+        `${audit.observationNote} ${undetermined?.settledCount ?? 0} settled request(s) on ` +
+        `${undetermined?.keyCount ?? 0} key id(s) have no ledger request-id intersection ` +
+        `(${usdFromMicro(undetermined?.settledMicroUsd ?? 0)} USD), and ` +
+        `${undetermined?.missingKeyIdSettledCount ?? 0} settled request(s) have no key id ` +
+        `(${usdFromMicro(undetermined?.missingKeyIdSettledMicroUsd ?? 0)} USD). ` +
+        "These are not production-ledger misses. Their purpose is unproven, not an approved test. " +
+        `Workspace unmatched remains ${audit.unmatchedLedgerCount}. havExclusiveCostConfirmed=false.`,
+      sourceRef: `forward_undetermined:${audit.observedSince}:${undeterminedSettled}`,
+      href: "/admin/finance",
+      modelId: null,
+      occurredAt: undetermined?.firstAt ?? null,
+    });
+  }
 }
 
 /**

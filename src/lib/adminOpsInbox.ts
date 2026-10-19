@@ -127,8 +127,8 @@ export function projectFinanceAnomalyIncidents(
     title: anomaly.title,
     summary: anomaly.summary,
     sourceRef: anomaly.sourceRef,
-    occurredAt: report.generatedAt,
-    ageMinutes: ageMinutes(nowMs, report.generatedAt),
+    occurredAt: anomaly.occurredAt?.trim() || report.generatedAt,
+    ageMinutes: ageMinutes(nowMs, anomaly.occurredAt?.trim() || report.generatedAt),
     href: anomaly.href,
   }));
 }

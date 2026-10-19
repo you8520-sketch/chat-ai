@@ -133,6 +133,10 @@ describe("forward recon audit fixtures", () => {
     assert.deepEqual(result.cases, ["matched_luna"]);
     assert.equal(result.matchedLedgerCount, 1);
     assert.equal(result.unmatchedLedgerCount, 0);
+    assert.equal(result.productionKeyMapping, "ledger_intersection");
+    assert.equal(result.productionScope.provenKeyCount, 1);
+    assert.equal(result.productionScope.unmatchedLedgerCount, 0);
+    assert.equal(result.undeterminedUsage.settledCount, 0);
     assert.equal(result.settledMicroUsd, 12_000);
     assert.equal(result.unmatchedSettledMicroUsd, 0);
     assert.equal(result.byModel["gpt-6-luna"]?.settledCount, 1);
@@ -154,7 +158,13 @@ describe("forward recon audit fixtures", () => {
     assert.equal(result.settledMicroUsd, 8_000);
     assert.equal(result.byModel["gpt-6-luna"]?.unmatchedCount, 1);
     assert.equal(result.havExclusiveCostConfirmed, false);
-    assert.equal(result.productionKeyMapping, "unavailable");
+    assert.equal(result.productionKeyMapping, "unmapped");
+    assert.equal(result.productionScope.known, true);
+    assert.equal(result.productionScope.unmatchedLedgerCount, 0);
+    assert.equal(result.undeterminedUsage.settledCount, 1);
+    assert.equal(result.undeterminedUsage.settledMicroUsd, 8_000);
+    assert.equal(result.undeterminedUsage.purpose, "unproven");
+    assert.equal(JSON.stringify(result).includes("key-a"), false);
   });
 
   it("distinguishes other-key calls without applying a key-level audit", () => {
@@ -166,7 +176,11 @@ describe("forward recon audit fixtures", () => {
     assert.ok(result.cases.includes("unmatched_luna"));
     assert.equal(result.distinctApiKeyIds, 2);
     assert.equal(result.otherApiKeyCandidate, true);
-    assert.equal(result.productionKeyMapping, "unavailable");
+    assert.equal(result.productionKeyMapping, "unmapped");
+    assert.equal(result.productionScope.unmatchedLedgerCount, 0);
+    assert.equal(result.undeterminedUsage.settledCount, 2);
+    assert.equal(result.undeterminedUsage.keyCount, 2);
+    assert.equal(result.unmatchedLedgerCount, 2);
     const raw = JSON.stringify(result);
     assert.equal(raw.includes("key-hav"), false);
     assert.equal(raw.includes("key-other"), false);
@@ -232,6 +246,9 @@ describe("forward recon audit fixtures", () => {
     assert.ok(stored);
     assert.equal(stored.havExclusiveCostConfirmed, false);
     assert.equal(stored.productionKeyMapping, "unavailable");
+    assert.equal(stored.productionScope.known, false);
+    assert.equal(stored.productionScope.unmatchedLedgerCount, 0);
+    assert.equal(stored.undeterminedUsage.purpose, "unproven");
     assert.equal(parseStoredForwardReconAudit("{not-json"), null);
   });
 
@@ -278,5 +295,99 @@ describe("forward recon audit fixtures", () => {
     assert.deepEqual(result.cases, ["zero_new_calls"]);
     assert.equal(result.verificationStatus, "verified");
     assert.equal(result.unverifiableTimestampCount, 0);
+  });
+
+  it("counts only ledger-proven production keys as production misses", () => {
+    const result = audit(
+      [
+        req("prod-linked", "2026-10-02 01:00:00", { apiKeyId: "key-secret-prod", billedMicroUsd: 4_000 }),
+        req("prod-miss", "2026-10-03 13:00:00", {
+          apiKeyId: "key-secret-prod",
+          model: "gemini-3.1-flash",
+          billedMicroUsd: 9_000,
+        }),
+        req("other-miss", "2026-10-03 13:05:00", {
+          apiKeyId: "key-secret-other",
+          billedMicroUsd: 20_000,
+        }),
+        req("missing-key", "2026-10-03 13:06:00", { apiKeyId: null, billedMicroUsd: 3_000 }),
+      ],
+      ["prod-linked"]
+    );
+    assert.equal(result.productionKeyMapping, "ledger_intersection");
+    assert.equal(result.productionScope.provenKeyCount, 1);
+    assert.equal(result.productionScope.unmatchedLedgerCount, 1);
+    assert.equal(result.productionScope.unmatchedSettledMicroUsd, 9_000);
+    assert.equal(result.productionScope.unmatchedFirstAt, "2026-10-03T13:00:00.000Z");
+    assert.equal(result.undeterminedUsage.settledCount, 1);
+    assert.equal(result.undeterminedUsage.settledMicroUsd, 20_000);
+    assert.equal(result.undeterminedUsage.keyCount, 1);
+    assert.equal(result.undeterminedUsage.missingKeyIdSettledCount, 1);
+    assert.equal(result.undeterminedUsage.missingKeyIdSettledMicroUsd, 3_000);
+    assert.equal(result.unmatchedLedgerCount, 3);
+    assert.equal(result.unmatchedSettledMicroUsd, 32_000);
+    assert.equal(result.havExclusiveCostConfirmed, false);
+    const raw = JSON.stringify(result);
+    assert.equal(raw.includes("key-secret-prod"), false);
+    assert.equal(raw.includes("key-secret-other"), false);
+    assert.equal(raw.includes("prod-miss"), false);
+    assert.equal(raw.includes("approved"), false);
+  });
+
+  it("does not clear an old production miss when the proving call is outside the window", () => {
+    const result = audit(
+      [
+        req("old-proof", "2026-10-02 01:00:00", { apiKeyId: "key-secret-prod" }),
+        req("still-open", "2026-10-03 15:00:00", { apiKeyId: "key-secret-prod", billedMicroUsd: 11_000 }),
+      ],
+      ["old-proof"]
+    );
+    assert.equal(result.productionScope.unmatchedLedgerCount, 1);
+    assert.equal(result.productionScope.unmatchedSettledMicroUsd, 11_000);
+    assert.equal(result.matchedLedgerCount, 0);
+  });
+
+  it("round-trips a classified audit and rejects an approved-test label", () => {
+    const built = audit(
+      [
+        req("prod-linked", "2026-10-03 13:00:00", { apiKeyId: "key-secret-prod" }),
+        req("prod-miss", "2026-10-03 14:00:00", { apiKeyId: "key-secret-prod", billedMicroUsd: 6_000 }),
+      ],
+      ["prod-linked"]
+    );
+    const stored = parseStoredForwardReconAudit(JSON.parse(JSON.stringify(built)));
+    assert.ok(stored);
+    assert.equal(stored.productionKeyMapping, "ledger_intersection");
+    assert.equal(stored.productionScope.known, true);
+    assert.equal(stored.productionScope.unmatchedLedgerCount, 1);
+    assert.equal(stored.productionScope.unmatchedFirstAt, built.productionScope.unmatchedFirstAt);
+    assert.equal(stored.havExclusiveCostConfirmed, false);
+
+    const forged = parseStoredForwardReconAudit({
+      ...JSON.parse(JSON.stringify(built)),
+      productionKeyMapping: "ledger_intersection",
+      undeterminedUsage: { ...built.undeterminedUsage, purpose: "approved_test" },
+    });
+    assert.ok(forged);
+    assert.equal(forged.productionKeyMapping, "unavailable");
+    assert.equal(forged.productionScope.known, false);
+    assert.equal(forged.productionScope.unmatchedLedgerCount, 0);
+    assert.equal(forged.unmatchedLedgerCount, built.unmatchedLedgerCount);
+  });
+
+  it("keeps a fetch failure from erasing a previous production miss", () => {
+    const previous = audit(
+      [
+        req("prod-linked", "2026-10-03 13:00:00", { apiKeyId: "key-secret-prod" }),
+        req("prod-miss", "2026-10-03 14:00:00", { apiKeyId: "key-secret-prod", billedMicroUsd: 6_000 }),
+      ],
+      ["prod-linked"]
+    );
+    const marked = markForwardReconFetchFailure(previous, "incomplete");
+    assert.equal(marked.fetchStatus, "incomplete");
+    assert.deepEqual(marked.cases, ["fetch_failure"]);
+    assert.equal(marked.productionScope.unmatchedLedgerCount, 1);
+    assert.equal(marked.productionScope.unmatchedSettledMicroUsd, 6_000);
+    assert.equal(marked.productionKeyMapping, "ledger_intersection");
   });
 });

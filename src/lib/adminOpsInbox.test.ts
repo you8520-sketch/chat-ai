@@ -309,6 +309,34 @@ describe("admin ops finance anomaly projection", () => {
     assert.equal(incidents[1]?.href, "/admin/pricing");
     assert.match(incidents[0]?.id ?? "", /^finance:/);
   });
+
+  it("uses the provider call time for a forward unmatched anomaly", () => {
+    const incidents = projectFinanceAnomalyIncidents(
+      {
+        generatedAt: "2026-10-19T08:00:00.000Z",
+        monthKey: "2026-10",
+        status: "WARNING",
+        criticalCount: 0,
+        warningCount: 1,
+        anomalies: [
+          {
+            id: "provider-reconciliation:forward-unmatched",
+            code: "FORWARD_UNMATCHED_REMOTE_SPEND",
+            severity: "warning",
+            title: "Unmatched production-key provider spend after observation baseline",
+            summary: "remaining production misses",
+            sourceRef: "forward_unmatched:2026-10-05T03:00:00.175Z:1",
+            href: "/admin/finance",
+            modelId: null,
+            occurredAt: "2026-10-10T08:00:00.000Z",
+          },
+        ],
+      },
+      new Date("2026-10-19T08:00:00.000Z")
+    );
+    assert.equal(incidents[0]?.occurredAt, "2026-10-10T08:00:00.000Z");
+    assert.equal(incidents[0]?.ageMinutes, 9 * 24 * 60);
+  });
 });
 
 describe("admin ops GitHub scheduled automation projection", () => {

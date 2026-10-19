@@ -16,8 +16,11 @@ import {
   buildForwardReconAudit,
   inspectObservedSinceEnv,
   markForwardReconFetchFailure,
+  mappingForProvenKeys,
+  proveProductionKeyIds,
   resolveForwardObservationBaseline,
   type ForwardReconAudit,
+  type ProductionKeyMappingStatus,
 } from "@/lib/forwardReconAudit";
 import { readProviderReconciliationState } from "@/lib/providerCostReconciliation";
 
@@ -108,6 +111,7 @@ export type AnonymousApiKeyGroup = {
   settledMicroUsd: number;
   byModel: Record<string, number>;
   byEndpoint: Record<string, number>;
+  sourceScope: "production_proven" | "undetermined_source";
 };
 
 export type AnonymousApiKeyGroups = {
@@ -122,7 +126,8 @@ export type AnonymousApiKeyGroups = {
     number: number;
     missing: number;
   };
-  productionKeyMapping: "unavailable";
+  provenKeyCount: number;
+  productionKeyMapping: ProductionKeyMappingStatus;
 };
 
 type RemoteCompareDeps = {
@@ -173,8 +178,10 @@ function increment(bucket: Record<string, number>, raw: string | null): void {
 function buildAnonymousApiKeyGroups(
   requests: CheaperInferenceUsageRequest[],
   settledMicroUsd: number,
-  settledCount: number
+  settledCount: number,
+  ledgerIds: ReadonlySet<string>
 ): AnonymousApiKeyGroups {
+  const provenKeys = proveProductionKeyIds(requests, ledgerIds);
   const byKey = new Map<
     string,
     { settledCount: number; settledMicroUsd: number; byModel: Record<string, number>; byEndpoint: Record<string, number> }
@@ -206,14 +213,17 @@ function buildAnonymousApiKeyGroups(
     increment(entry.byEndpoint, request.endpoint);
     byKey.set(keyId, entry);
   }
-  const groups = [...byKey.values()]
-    .sort((a, b) => b.settledMicroUsd - a.settledMicroUsd || b.settledCount - a.settledCount)
-    .map((entry, index) => ({
+  const groups = [...byKey.entries()]
+    .sort((a, b) => b[1].settledMicroUsd - a[1].settledMicroUsd || b[1].settledCount - a[1].settledCount)
+    .map(([keyId, entry], index) => ({
       ordinal: index + 1,
       settledCount: entry.settledCount,
       settledMicroUsd: entry.settledMicroUsd,
       byModel: entry.byModel,
       byEndpoint: entry.byEndpoint,
+      sourceScope: provenKeys.has(keyId)
+        ? ("production_proven" as const)
+        : ("undetermined_source" as const),
     }));
   const groupsSettledCount = groups.reduce((sum, row) => sum + row.settledCount, 0);
   const groupsSettledMicroUsd = groups.reduce((sum, row) => sum + row.settledMicroUsd, 0);
@@ -227,7 +237,8 @@ function buildAnonymousApiKeyGroups(
       groupsSettledCount + ungroupedSettledCount === settledCount &&
       groupsSettledMicroUsd + ungroupedSettledMicroUsd === settledMicroUsd,
     keyIdValueKinds,
-    productionKeyMapping: "unavailable",
+    provenKeyCount: provenKeys.size,
+    productionKeyMapping: mappingForProvenKeys(provenKeys.size, settledCount),
   };
 }
 
@@ -473,7 +484,8 @@ export async function compareProviderReconciliationRemote(
           apiKeyGroups: buildAnonymousApiKeyGroups(
             fetched.value.requests,
             remote.settledMicroUsd,
-            remote.settledCount
+            remote.settledCount,
+            local.ledgerIdsAny
           ),
         }
       : {}),
