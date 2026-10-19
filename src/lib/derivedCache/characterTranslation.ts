@@ -1,6 +1,6 @@
 import { getDb } from "@/lib/db";
 import type { CharacterChunk } from "@/types";
-import { serializeCharacterChunks } from "@/utils/characterParser";
+import { deserializeCharacterChunks, serializeCharacterChunks } from "@/utils/characterParser";
 import { loadOwnedWorldEnglishForCharacter } from "@/lib/derivedCache/ownedWorldEnglish";
 import { loadShareWorldEnglishForCharacter } from "@/lib/derivedCache/shareWorldEnglish";
 import {
@@ -8,6 +8,7 @@ import {
   enqueueWorldTranslationJob,
 } from "@/lib/derivedCache/worldTranslation";
 import {
+  classifyEnglishLayer,
   isTranslatableChunk,
   koreanChunksTranslationFingerprint,
   translateChunksToEnglish,
@@ -66,9 +67,75 @@ function resolveWorldEnglishForCharacter(characterId: number): WorldEnglishResol
   return { kind: "inline" };
 }
 
+function publishCharacterEnglishLayer(
+  characterId: number,
+  englishLayer: CharacterChunk[],
+  expectedTranslationFingerprint: string,
+  expectedSettingChunks: string
+): boolean {
+  const result = getDb()
+    .prepare(
+      `UPDATE characters SET setting_chunks_en=?, prompt_translation_hash=?
+       WHERE id=? AND setting_chunks=?`
+    )
+    .run(
+      JSON.stringify(englishLayer),
+      expectedTranslationFingerprint,
+      characterId,
+      expectedSettingChunks
+    );
+  return result.changes > 0;
+}
+
+/**
+ * Character layer is already CURRENT. Non-world English stays on disk.
+ * Owned/share world freshness still runs: pending/stale keeps the existing
+ * dependency, and a newer valid world English blob is copied with the same CAS.
+ */
+function refreshCurrentLinkedWorldEnglish(
+  characterId: number,
+  koreanChunks: CharacterChunk[],
+  storedEn: string
+): boolean {
+  const worldChunks = koreanChunks.filter(
+    (chunk) => isTranslatableChunk(chunk) && chunk.category === "world"
+  );
+  if (worldChunks.length === 0) return true;
+
+  const worldResolution = resolveWorldEnglishForCharacter(characterId);
+  if (worldResolution.kind === "pending") return false;
+  if (worldResolution.kind !== "current") return true;
+
+  const stored = deserializeCharacterChunks(storedEn);
+  const fresh = worldResolution.english;
+  const worldIds = new Set(worldChunks.map((chunk) => chunk.id));
+  const aligned = worldChunks.every((chunk) =>
+    stored.some((row) => row.id === chunk.id && row.content === fresh)
+  );
+  if (aligned) return true;
+
+  const next = stored
+    .filter((chunk) => chunk.category !== "world" || worldIds.has(chunk.id))
+    .map((chunk) => (worldIds.has(chunk.id) ? { ...chunk, content: fresh } : chunk));
+  for (const chunk of worldChunks) {
+    if (!next.some((row) => row.id === chunk.id)) {
+      next.push({ ...chunk, content: fresh });
+    }
+  }
+  return publishCharacterEnglishLayer(
+    characterId,
+    next,
+    koreanChunksTranslationFingerprint(koreanChunks),
+    serializeCharacterChunks(koreanChunks)
+  );
+}
+
 /**
  * Translate character chunks for background derived refresh.
- * Reuses immutable share/owned world English when CURRENT — never per-borrower retranslation.
+ * Skips provider work when classifyEnglishLayer is CURRENT for the rebuilt Korean
+ * chunks — same freshness owner as translateAndSaveCharacterPromptEn.
+ * A CURRENT layer still resolves owned/share world English. Non-world text is not
+ * sent again. Pending or stale linked worlds keep the existing dependency.
  */
 export async function translateCharacterChunksForDerivedRefresh(
   characterId: number,
@@ -77,6 +144,25 @@ export async function translateCharacterChunksForDerivedRefresh(
 ): Promise<boolean> {
   const translatable = koreanChunks.filter(isTranslatableChunk);
   if (translatable.length === 0) return true;
+
+  const stored = getDb()
+    .prepare(`SELECT setting_chunks_en, prompt_translation_hash FROM characters WHERE id=?`)
+    .get(characterId) as
+    | { setting_chunks_en?: string | null; prompt_translation_hash?: string | null }
+    | undefined;
+  if (
+    classifyEnglishLayer({
+      koreanChunks,
+      settingChunksEn: stored?.setting_chunks_en,
+      promptTranslationHash: stored?.prompt_translation_hash,
+    }) === "CURRENT"
+  ) {
+    return refreshCurrentLinkedWorldEnglish(
+      characterId,
+      koreanChunks,
+      stored?.setting_chunks_en ?? ""
+    );
+  }
 
   const expectedSettingChunks = serializeCharacterChunks(koreanChunks);
   const expectedTranslationFingerprint = koreanChunksTranslationFingerprint(koreanChunks);
@@ -117,19 +203,12 @@ export async function translateCharacterChunksForDerivedRefresh(
     translatedById
   );
 
-  const db = getDb();
-  const result = db
-    .prepare(
-      `UPDATE characters SET setting_chunks_en=?, prompt_translation_hash=?
-       WHERE id=? AND setting_chunks=?`
-    )
-    .run(
-      JSON.stringify(englishLayer),
-      expectedTranslationFingerprint,
-      characterId,
-      expectedSettingChunks
-    );
-  return result.changes > 0;
+  return publishCharacterEnglishLayer(
+    characterId,
+    englishLayer,
+    expectedTranslationFingerprint,
+    expectedSettingChunks
+  );
 }
 
 export function resolveWorldEnglishForCharacterForTests(characterId: number): WorldEnglishResolution {
