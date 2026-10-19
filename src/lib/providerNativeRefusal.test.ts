@@ -238,7 +238,7 @@ describe("provider-native model refusal delivery integrity", () => {
 
   it("generationFailureUserMessage(model_refusal) — neutral user copy", () => {
     const message = generationFailureUserMessage("model_refusal");
-    assert.match(message, /저장되지 않았/);
+    assert.equal(message, "이번 응답은 생성되지 않았으며 포인트는 차감되지 않았습니다.");
     assert.match(message, /포인트는 차감되지 않/);
     assert.doesNotMatch(message, /검열/);
     assert.doesNotMatch(message, /안전 정책/);

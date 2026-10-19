@@ -51,6 +51,7 @@ import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { getPointBalance, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
 import { chatSseUserChargeFromSettlement } from "@/lib/chatBillingPresentation";
 import {
+  readChatBillingSettlement,
   settleChatTurnBillingExactlyOnce,
   UNDER_RECOVERED_GENERATION_BLOCKED_MESSAGE,
   UNDER_RECOVERED_OUTCOME,
@@ -68,6 +69,7 @@ import {
 } from "@/lib/mainRpGenerationAdmission";
 import { resolveMainRpProviderAdmissionRequiredPoints } from "@/lib/mainRpProviderAdmission";
 import { recordMainGenerationProviderCost } from "@/lib/providerCostLedger";
+import { isProviderNativeRefusalSignal } from "@/lib/providerTermination";
 import { scheduleTargetedCheaperInferenceRequestReconciliation } from "@/lib/providerCostReconciliation";
 import {
   shouldPreparePublishedBillingFxSnapshot,
@@ -2815,6 +2817,48 @@ export async function POST(req: Request) {
       existingByRequest.assistantStatus === "ok" ||
       existingByRequest.assistantStatus === "completed_with_postprocess_error");
 
+  if (!alreadyCompletedTurn) {
+    const priorRefusalSettlement = readChatBillingSettlement(
+      db,
+      user.id,
+      chatRef.id,
+      clientRequestId
+    );
+    if (
+      priorRefusalSettlement &&
+      priorRefusalSettlement.outcome === "waived" &&
+      priorRefusalSettlement.requestedPoints === 0 &&
+      priorRefusalSettlement.settledPoints === 0
+    ) {
+      const replayStream = new ReadableStream({
+        start(controller) {
+          const safe = createDisconnectSafeSend(
+            (chunk) => controller.enqueue(chunk),
+            sseEncode
+          );
+          const stored = priorRefusalSettlement.assistantMessageId
+            ? (db
+                .prepare(`SELECT content FROM messages WHERE id=? AND chat_id=?`)
+                .get(priorRefusalSettlement.assistantMessageId, chatRef.id) as
+                | { content: string | null }
+                | undefined)
+            : undefined;
+          if ((stored?.content ?? "").trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
+            safe.send({ type: "reset" });
+          }
+          safe.send({
+            type: "error",
+            error: generationFailureUserMessage("model_refusal"),
+            messageId: priorRefusalSettlement.assistantMessageId,
+            requestId: clientRequestId,
+          });
+          safe.close(controller);
+        },
+      });
+      return new Response(replayStream, { headers: SSE_HEADERS });
+    }
+  }
+
   let generationLease: MainRpGenerationLeaseHandle | null = null;
   let requestPublishedFx: ShadowBillingExchangeRateSnapshot | null = null;
   if (!alreadyCompletedTurn) {
@@ -3301,6 +3345,43 @@ export async function POST(req: Request) {
           stopPostprocessHeartbeat();
           safe.close(controller);
           return;
+        }
+
+        if (
+          existingByRequest.assistantMessageId != null &&
+          (existingByRequest.assistantStatus === "failed" ||
+            existingByRequest.assistantStatus === "failed_partial")
+        ) {
+          const priorFailure = db
+            .prepare(`SELECT content, usage FROM messages WHERE id=? AND chat_id=?`)
+            .get(existingByRequest.assistantMessageId, chatRef.id) as
+            | { content: string | null; usage: string | null }
+            | undefined;
+          let replayModelRefusal = false;
+          if (priorFailure?.usage) {
+            try {
+              const parsed = JSON.parse(priorFailure.usage) as { generationFailure?: unknown };
+              replayModelRefusal = parsed.generationFailure === "model_refusal";
+            } catch {
+              replayModelRefusal = false;
+            }
+          }
+          if (replayModelRefusal) {
+            if ((priorFailure?.content ?? "").trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
+              send({ type: "reset" });
+            }
+            send({
+              type: "error",
+              error: generationFailureUserMessage("model_refusal"),
+              messageId: existingByRequest.assistantMessageId,
+              userMessageId,
+              requestId: clientRequestId,
+            });
+            clearPartialTimer();
+            stopPostprocessHeartbeat();
+            safe.close(controller);
+            return;
+          }
         }
 
         console.log("[/api/chat] routing decision", {
@@ -4446,18 +4527,84 @@ export async function POST(req: Request) {
         }
 
         if (generationFailure) {
+          const nativeRefusal = isProviderNativeRefusalSignal(primaryStage?.finishReason);
+          const hideRefusalBody = generationFailure === "model_refusal" && !nativeRefusal;
+          const persistedFailureText = hideRefusalBody
+            ? ""
+            : savedText || streamVisibleTextRef;
           console.warn("[/api/chat] generation failure — billing skipped", {
             generationFailure,
             finishReason: primaryStage?.finishReason,
             outputChars: savedText.length,
+            model: primaryStage?.responseModelId ?? primaryStage?.model ?? deliveredModelId ?? null,
+            provider: deliveredProvider,
+            upstreamCostUsd: primaryStage?.upstreamCostUsd ?? null,
+            cheaperInferenceBilledCostUsd: primaryStage?.cheaperInferenceBilledCostUsd ?? null,
+            providerRequestId: primaryStage?.providerRequestId ?? null,
             targetResponseChars: targetResponseCharsRef,
             routedTo: htmlFlashOnlyTurn ? "html-only" : "openrouter",
             flashHtmlError,
           });
+          if (primaryStage != null) {
+            try {
+              recordMainGenerationProviderCost({
+                chatId: chatRef.id,
+                assistantMessageId: persistedAssistantId,
+                generationSequence: currentTurnGenerationScope.generationSequence,
+                generationRequestId: currentTurnGenerationScope.generationRequestId,
+                provider: deliveredProvider,
+                model: primaryStage.responseModelId ?? primaryStage.model,
+                requestKind: "main-rp",
+                inputTokens: primaryStage.input,
+                outputTokens: primaryStage.output,
+                reasoningTokens: primaryStage.apiReasoningOutputTokens,
+                cacheReadTokens: primaryStage.cacheReadTokens,
+                cacheWriteTokens: primaryStage.cacheWriteTokens,
+                cheaperInferenceBilledCostUsd: primaryStage.cheaperInferenceBilledCostUsd,
+                upstreamCostUsd: primaryStage.upstreamCostUsd,
+                usageEstimated: primaryStage.estimated,
+                providerRequestId: primaryStage.providerRequestId,
+                outcome: "failed_with_usage",
+              });
+            } catch (mainCostErr) {
+              console.warn(
+                "[/api/chat] refusal provider cost record skipped:",
+                (mainCostErr as Error).message
+              );
+            }
+          }
           clearPartialTimer();
           stopPostprocessHeartbeat();
           try {
-            markAssistantFailed(db, persistedAssistantId, savedText || streamVisibleTextRef);
+            markAssistantFailed(db, persistedAssistantId, persistedFailureText);
+            if (generationFailure === "model_refusal") {
+              db.prepare(
+                `UPDATE messages SET usage=? WHERE id=? AND chat_id=?`
+              ).run(
+                JSON.stringify({
+                  generationFailure,
+                  finishReason: primaryStage?.finishReason ?? null,
+                  model:
+                    primaryStage?.responseModelId ?? primaryStage?.model ?? deliveredModelId ?? null,
+                  provider: deliveredProvider,
+                  upstreamCostUsd: primaryStage?.upstreamCostUsd ?? null,
+                  cheaperInferenceBilledCostUsd: primaryStage?.cheaperInferenceBilledCostUsd ?? null,
+                  providerRequestId: primaryStage?.providerRequestId ?? null,
+                }),
+                persistedAssistantId,
+                chatRef.id
+              );
+              settleChatTurnBillingExactlyOnce(db, {
+                userId: user.id,
+                chatId: chatRef.id,
+                requestId: clientRequestId,
+                assistantMessageId: persistedAssistantId,
+                requestedPoints: 0,
+                reason: `model_refusal · ${
+                  primaryStage?.responseModelId ?? primaryStage?.model ?? deliveredModelId ?? ""
+                }`,
+              });
+            }
             if (regenerateMessageId) {
               restoreAssistantFromAlternatesOnFailedRegen(db, regenerateMessageId, chatRef.id);
             }
@@ -4467,7 +4614,7 @@ export async function POST(req: Request) {
             /* ignore */
           }
           // 이미 스트리밍된 본문이 있으면 reset 금지 — 화면이 비었다가 에러만 남는 현상 방지
-          if (savedText.trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
+          if (persistedFailureText.trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
             send({ type: "reset" });
           }
           const errorMessage =

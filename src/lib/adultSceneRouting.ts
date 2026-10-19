@@ -1980,26 +1980,8 @@ function normalizedRefusalText(text: string): string {
   return text.replace(/\s+/g, " ").trim().toLowerCase();
 }
 
-/** Provider-policy refusal prose — not in-character RP dialogue. */
-function looksLikeProviderRefusalProse(text: string): boolean {
-  if (
-    /(?:요청에 (?:응할|따를) 수 없|도와드릴 수 없|작성할 수 없|제공할 수 없|해당 내용은|안전 정책|성적으로 노골적인 내용)/i.test(
-      text
-    )
-  ) {
-    return true;
-  }
-  // Contextual Korean provider refusals: policy/guideline + generate/write/provide
-  // inability in the same message (frozen B3). "안전 가이드라인" or standalone
-  // "생성할 수 없" alone must not match.
-  if (
-    /(?:안전 가이드라인|안전 정책).{0,120}?(?:생성|작성|제공)할 수 없/i.test(
-      text
-    )
-  ) {
-    return true;
-  }
-
+/** English provider-policy refusal prose. Kept separate from in-character quotes. */
+function matchesEnglishProviderRefusalProse(text: string): boolean {
   if (
     /i (?:can(?:not|'t)|won't|am unable to) (?:help|assist) with (?:this|that|your|the) (?:request|content|topic)/i.test(
       text
@@ -2052,6 +2034,114 @@ function looksLikeProviderRefusalProse(text: string): boolean {
   }
 
   return false;
+}
+
+/**
+ * Billing-grade self-declaration: the model says it cannot generate or fulfill
+ * this request. Broader routing keywords (해당 내용은, 안전 정책 alone,
+ * 작성할 수 없 inside dialogue) stay on the routing detector.
+ */
+function matchesEnglishSelfDeclaredGenerationRefusal(text: string): boolean {
+  if (
+    /i (?:can(?:not|'t)|won't|am unable to) (?:help|assist) with (?:this|that|your|the) (?:request|content|topic)/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
+  if (
+    /i (?:can(?:not|'t)|am unable to) comply with (?:this|your|the) request/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
+  if (
+    /i (?:can(?:not|'t)|am unable to) fulfill (?:this|your|the) request/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
+  if (/unable to fulfill (?:this|your|the)? request/i.test(text)) return true;
+  if (/i must decline (?:to )?(?:fulfill )?(?:this|your|the) request/i.test(text)) {
+    return true;
+  }
+  if (
+    /i (?:can(?:not|'t)|am unable to) participate in (?:this|the) (?:request|scenario)/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
+  if (
+    /i (?:can(?:not|'t)|am unable to) engage in (?:explicit|sexual|romantic)(?:\s|\/|-)*(?:role[- ]?play|content|scenarios?)/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
+  if (/unable to continue with (?:explicit|sexual) content/i.test(text)) return true;
+  if (
+    /(?:i am|i'm) programmed (?:not )?to (?:not )?take part in (?:romantic|sexual|explicit)/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+const KOREAN_SELF_DECLARED_GENERATION_REFUSAL =
+  /(?:요청하신|이번 요청|이 요청|해당 요청).{0,160}?(?:생성|작성|제공|수행)할 수 없습니다|(?:요청하신|이번 요청|이 요청).{0,80}?도와드릴 수 없습니다|(?:안전 가이드라인|안전 정책).{0,160}?(?:생성|작성|제공)할 수 없습니다|(?:생성|작성|제공)할 수 없습니다.{0,160}?(?:요청하신|이번 요청|이 요청|안전 가이드라인|안전 정책)/;
+
+function stripSpokenDialogue(text: string): string {
+  return text
+    .replace(/「[^」]{0,800}」/g, " ")
+    .replace(/『[^』]{0,800}』/g, " ")
+    .replace(/“[^”]{0,800}”/g, " ")
+    .replace(/"[^"\n]{0,800}"/g, " ");
+}
+
+function refusalLetterCount(text: string): number {
+  return (text.match(/[A-Za-z가-힣]/g) ?? []).length;
+}
+
+/**
+ * True when the model itself declares it cannot generate or fulfill the request.
+ * Quoted character lines and quoted refusal citations do not count when the
+ * surrounding prose is the actual reply.
+ */
+export function isSelfDeclaredGenerationRefusal(text: string | null | undefined): boolean {
+  const raw = (text ?? "").replace(/\s+/g, " ").trim();
+  if (!raw) return false;
+  const outsideDialogue = stripSpokenDialogue(raw).replace(/\s+/g, " ").trim();
+  const target = refusalLetterCount(outsideDialogue) >= 40 ? outsideDialogue : raw;
+  if (matchesEnglishSelfDeclaredGenerationRefusal(target)) return true;
+  return KOREAN_SELF_DECLARED_GENERATION_REFUSAL.test(target);
+}
+
+/** Provider-policy refusal prose — not in-character RP dialogue. */
+function looksLikeProviderRefusalProse(text: string): boolean {
+  if (
+    /(?:요청에 (?:응할|따를) 수 없|도와드릴 수 없|작성할 수 없|제공할 수 없|해당 내용은|안전 정책|성적으로 노골적인 내용)/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
+  // Contextual Korean provider refusals: policy/guideline + generate/write/provide
+  // inability in the same message (frozen B3). "안전 가이드라인" or standalone
+  // "생성할 수 없" alone must not match.
+  if (
+    /(?:안전 가이드라인|안전 정책).{0,120}?(?:생성|작성|제공)할 수 없/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
+
+  return matchesEnglishProviderRefusalProse(text);
 }
 
 /** Early stream prefix that likely continues into a provider refusal. */

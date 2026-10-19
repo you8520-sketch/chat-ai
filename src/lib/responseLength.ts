@@ -12,6 +12,7 @@ import { visibleAssistantDisplayCharCount, visibleAssistantDisplayText } from ".
 import { visibleAssistantDisplayKoreanWordCount } from "./koreanWordCount";
 import type { BilingualDialoguePolicy } from "@/lib/bilingualDialoguePolicy";
 import { buildLangCriticalRule } from "@/lib/bilingualDialoguePolicy";
+import { isSelfDeclaredGenerationRefusal } from "./adultSceneRouting";
 import { isProviderNativeRefusalSignal } from "./providerTermination";
 import { buildCompactTerminalLayoutRecencyLine } from "@/lib/webnovelOutputFormat";
 import {
@@ -258,7 +259,7 @@ const PROVIDER_ERROR_USER_MESSAGE =
   "AI 응답 생성 중 오류가 발생해 응답을 저장하지 않았습니다. 포인트는 차감되지 않았습니다. 다시 시도해 주세요.";
 
 const MODEL_REFUSAL_USER_MESSAGE =
-  "선택한 AI가 이번 응답을 생성하지 못했습니다. 응답은 저장되지 않았고 포인트는 차감되지 않았습니다.";
+  "이번 응답은 생성되지 않았으며 포인트는 차감되지 않았습니다.";
 
 export function generationFailureUserMessage(reason?: GenerationFailureReason | null): string {
   if (reason === "under_length") {
@@ -395,6 +396,10 @@ export function detectAdultGenerationFailure(
   }
   if (r === "ERROR") {
     return "provider_error";
+  }
+
+  if (isSelfDeclaredGenerationRefusal(text)) {
+    return "model_refusal";
   }
 
   const trimmed = text.trim();
