@@ -2007,19 +2007,21 @@ export async function POST(req: Request) {
     currentTurn: memorySourceEligibleCompletedTurns + 1,
   };
   const episodicSemanticRuntime = resolveEpisodicSemanticRuntime();
-  enterVerificationWireCapture({
+  const wireCaptureInput = {
     userId: user.id,
     characterId: ch.id,
     chatId: chat.id,
     turn: playableTurnCount + 1,
     requestId: clientRequestId,
-  });
-  const episodicSemantic = await resolveEpisodicSemanticQuery({
-    query: policyUserMessage,
-    contentRoute: effectiveAdultRp ? "nsfw" : "safe",
-    usableIndex: (model) => hasEpisodicSemanticIndexInScope(db, episodicRetrievalScope, model),
-    runtime: episodicSemanticRuntime,
-  });
+  };
+  const episodicSemantic = await enterVerificationWireCapture(wireCaptureInput, () =>
+    resolveEpisodicSemanticQuery({
+      query: policyUserMessage,
+      contentRoute: effectiveAdultRp ? "nsfw" : "safe",
+      usableIndex: (model) => hasEpisodicSemanticIndexInScope(db, episodicRetrievalScope, model),
+      runtime: episodicSemanticRuntime,
+    })
+  );
   const episodicMemory = getEpisodicMemoryForPrompt(db, {
     ...episodicRetrievalScope,
     currentUserMessage: policyUserMessage,
@@ -3215,17 +3217,9 @@ export async function POST(req: Request) {
   phaseAudit?.mark("T9_REQUEST_ASSEMBLY_DONE");
 
   const alreadyBilledForRequest = existingByRequest.alreadyBilled;
-  const wireCaptureInput = {
-    userId: user.id,
-    characterId: ch.id,
-    chatId: chat.id,
-    turn: playableTurnCount + 1,
-    requestId: clientRequestId,
-  };
 
   const stream = new ReadableStream({
     async start(controller) {
-      enterVerificationWireCapture(wireCaptureInput);
       const executeStream = async () => {
       const safe = createDisconnectSafeSend(
         (chunk) => controller.enqueue(chunk),
@@ -6804,21 +6798,23 @@ export async function POST(req: Request) {
       }
       };
 
-      if (rpDiagnosticCanary) {
-        await runWithDiagnosticContext(
-          {
-            bypassParagraphNormalize: rpDiagnosticBypassParagraphNormalize(
-              rpDiagnosticCanary.variant
-            ),
-            bypassDisplayParagraphGrouping: rpDiagnosticBypassDisplayGrouping(
-              rpDiagnosticCanary.variant
-            ),
-          },
-          executeStream
-        );
-      } else {
-        await executeStream();
-      }
+      await enterVerificationWireCapture(wireCaptureInput, async () => {
+        if (rpDiagnosticCanary) {
+          await runWithDiagnosticContext(
+            {
+              bypassParagraphNormalize: rpDiagnosticBypassParagraphNormalize(
+                rpDiagnosticCanary.variant
+              ),
+              bypassDisplayParagraphGrouping: rpDiagnosticBypassDisplayGrouping(
+                rpDiagnosticCanary.variant
+              ),
+            },
+            executeStream
+          );
+        } else {
+          await executeStream();
+        }
+      });
     },
   });
 

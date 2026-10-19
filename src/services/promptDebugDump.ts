@@ -676,17 +676,23 @@ export function resolveVerificationWireCaptureScope(
   return { ...input, requestId: input.requestId.trim(), runId, seq: 0 };
 }
 
-export function enterVerificationWireCapture(input: VerificationWireCaptureInput): void {
-  const scope = resolveVerificationWireCaptureScope(input);
-  if (!scope) return;
-  verificationWireStore.enterWith(scope);
+/**
+ * Binds capture to `fn` and to async work created inside it.
+ * A non-selected request exits any parent scope instead of inheriting it.
+ * The caller’s context is unchanged after `fn` returns or throws.
+ */
+export function enterVerificationWireCapture<T>(
+  input: VerificationWireCaptureInput,
+  fn: () => T
+): T {
+  return runWithVerificationWireCapture(resolveVerificationWireCaptureScope(input), fn);
 }
 
 export function runWithVerificationWireCapture<T>(
   scope: VerificationWireScope | null,
   fn: () => T
 ): T {
-  if (!scope) return fn();
+  if (!scope) return verificationWireStore.exit(fn);
   return verificationWireStore.run(scope, fn);
 }
 
