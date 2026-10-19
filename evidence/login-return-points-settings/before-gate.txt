@@ -1,0 +1,4 @@
+Base: origin/main 7a3cb9d438d36d73adb08f45204fce2aa6783bb1 (before fix on branch)
+GET /points (no session) -> location: /login
+GET /settings (no session) -> location: /login
+GET /chats (no session) -> location: /login?redirect=/chats

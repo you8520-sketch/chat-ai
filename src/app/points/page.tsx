@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PointsPage() {
   const user = await getSessionUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/login?redirect=/points");
 
   const usagePage = fetchUsageLogsPage(user.id, 1);
   const paidPage = fetchPaidCreditLogsPage(user.id, 1);
