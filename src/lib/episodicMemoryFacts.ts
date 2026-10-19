@@ -1596,13 +1596,23 @@ type EpisodicQueryLexicon = {
 
 const EMPTY_EPISODIC_QUERY_LEXICON: EpisodicQueryLexicon = { words: [], weights: [] };
 
-/** Lower-cased text the lexical lanes match: gloss, key fields and the evidence quote. */
-const EPISODIC_SEARCH_TEXT_SQL = `LOWER(COALESCE(fact_text, '') || char(10) || COALESCE(subject, '') || char(10)
-  || COALESCE(attribute, '') || char(10) || COALESCE(value, '') || char(10)
-  || COALESCE(CASE WHEN json_valid(metadata) THEN json_extract(metadata, '$.evidence.quote') END, ''))`;
+/**
+ * A query word found only in a row's verbatim evidence quote, not in the row's own content
+ * fields, counts at this fraction of its weight. The content (gloss and key fields) says what
+ * the memory is about; the quote is one sentence of narration that can contain a rare but
+ * incidental word, and a rare word alone does not make a row about the asked topic.
+ */
+const EPISODIC_QUOTE_ONLY_MATCH_WEIGHT = 0.25;
 
-function matchedQueryWordSql(forms: string[]): string {
-  return `(CASE WHEN ${forms.map(() => "search_text LIKE ?").join(" OR ")} THEN 1 ELSE 0 END)`;
+/** Lower-cased gloss and key fields — what a row says it is about. */
+const EPISODIC_CONTENT_TEXT_SQL = `LOWER(COALESCE(fact_text, '') || char(10) || COALESCE(subject, '') || char(10)
+  || COALESCE(attribute, '') || char(10) || COALESCE(value, ''))`;
+
+/** Lower-cased evidence quote, empty when the row has none. */
+const EPISODIC_QUOTE_TEXT_SQL = `LOWER(COALESCE(CASE WHEN json_valid(metadata) THEN json_extract(metadata, '$.evidence.quote') END, ''))`;
+
+function matchedQueryWordSql(forms: string[], column: string): string {
+  return `(CASE WHEN ${forms.map(() => `${column} LIKE ?`).join(" OR ")} THEN 1 ELSE 0 END)`;
 }
 
 function queryWordPatterns(words: string[][]): string[] {
@@ -1629,20 +1639,33 @@ function loadEpisodicQueryLexicon(
   if (words.length === 0) return EMPTY_EPISODIC_QUERY_LEXICON;
   const row = db
     .prepare(
-      `SELECT COUNT(*) AS n, ${words.map((forms, i) => `SUM(${matchedQueryWordSql(forms)}) AS df${i}`).join(", ")}
-         FROM (SELECT ${EPISODIC_SEARCH_TEXT_SQL} AS search_text
+      `SELECT COUNT(*) AS n,
+              ${words.map((forms, i) => `SUM(max(${matchedQueryWordSql(forms, "content_text")}, ${matchedQueryWordSql(forms, "quote_text")})) AS df${i}`).join(", ")}
+         FROM (SELECT ${EPISODIC_CONTENT_TEXT_SQL} AS content_text, ${EPISODIC_QUOTE_TEXT_SQL} AS quote_text
                  FROM episodic_memory_facts
                 WHERE ${where.join(" AND ")})`
     )
-    .get(...queryWordPatterns(words), ...params) as Record<string, number | null>;
+    .get(...words.flatMap((forms) => [...queryWordPatterns([forms]), ...queryWordPatterns([forms])]), ...params) as Record<
+    string,
+    number | null
+  >;
   const documentFrequencies = words.map((_, i) => Number(row[`df${i}`] ?? 0));
   return { words, weights: queryWordWeights(Number(row.n ?? 0), documentFrequencies) };
 }
 
-function matchedQueryWordIndexes(haystack: string, lexicon: EpisodicQueryLexicon): number[] {
-  const matched: number[] = [];
-  lexicon.words.forEach((forms, i) => {
-    if (forms.some((token) => tokenMatchesHaystack(haystack, token))) matched.push(i);
+/** Index of each query word the row shares, with whether the row's content (not just its quote) has it. */
+function matchedQueryWords(
+  content: string,
+  quote: string,
+  lexicon: EpisodicQueryLexicon
+): Array<{ index: number; inContent: boolean }> {
+  const matched: Array<{ index: number; inContent: boolean }> = [];
+  lexicon.words.forEach((forms, index) => {
+    if (forms.some((token) => tokenMatchesHaystack(content, token))) {
+      matched.push({ index, inContent: true });
+    } else if (forms.some((token) => tokenMatchesHaystack(quote, token))) {
+      matched.push({ index, inContent: false });
+    }
   });
   return matched;
 }
@@ -1651,23 +1674,36 @@ type FactSearchFields = Pick<EpisodicExtractedFact, "subject" | "attribute" | "v
   metadata?: string | null;
 };
 
-/** Relevance is judged against the text that would actually be injected: the gloss plus a verified row's verbatim quote. */
-function factSearchText(fact: FactSearchFields): string {
+/** The gloss and key fields, and separately a verified row's verbatim quote (the text that is actually injected). */
+function factSearchParts(fact: FactSearchFields): { content: string; quote: string } {
   const safeFactText = sanitizeRecalledMemoryFactText(fact.fact_text);
-  const quote = readVerifiedEvidence(fact.metadata)?.quote ?? "";
-  return `${fact.subject} ${fact.attribute} ${fact.value} ${safeFactText} ${quote}`.toLowerCase();
+  return {
+    content: `${fact.subject} ${fact.attribute} ${fact.value} ${safeFactText}`.toLowerCase(),
+    quote: (readVerifiedEvidence(fact.metadata)?.quote ?? "").toLowerCase(),
+  };
+}
+
+function factSearchText(fact: FactSearchFields): string {
+  const { content, quote } = factSearchParts(fact);
+  return `${content} ${quote}`;
 }
 
 /**
  * `matchedWords` is the relevance evidence (does the row share any query word); `relevance`
- * orders rows by how distinctive the shared words are, on the same 0..2 scale.
+ * orders rows by how distinctive the shared words are, on the same 0..2 scale. A word found
+ * only in the verbatim quote counts at EPISODIC_QUOTE_ONLY_MATCH_WEIGHT of its weight.
  */
 function weightedLexicalRelevance(
   fact: FactSearchFields,
   lexicon: EpisodicQueryLexicon
 ): { matchedWords: number; relevance: number } {
-  const matched = matchedQueryWordIndexes(factSearchText(fact), lexicon);
-  const weight = matched.reduce((sum, i) => sum + lexicon.weights[i]!, 0);
+  const { content, quote } = factSearchParts(fact);
+  const matched = matchedQueryWords(content, quote, lexicon);
+  const weight = matched.reduce(
+    (sum, { index, inContent }) =>
+      sum + lexicon.weights[index]! * (inContent ? 1 : EPISODIC_QUOTE_ONLY_MATCH_WEIGHT),
+    0
+  );
   return { matchedWords: matched.length, relevance: Math.min(2, weight) };
 }
 
@@ -2687,33 +2723,40 @@ function fetchEpisodicMemoryCandidateRows(
   let relevanceRows: EpisodicMemoryFactRecord[] = [];
   if (queryWords.length > 0) {
     const wordIndexes = queryWords.map((_, i) => i);
-    const idfSql = (i: number) => `ln(1 + (stats.n - stats.df${i} + 0.5) / (stats.df${i} + 0.5))`;
     // One statement: word frequencies over the whole recall scope, and the lane over rows
     // older than the recent lane, ranked by the summed idf of their words (proportional to
-    // the lexicon weights the final scorer uses) before recency. With plain matched-word
-    // counts, newer rows sharing a recurring name plus an incidental word fill the lane
-    // first. The LEFT JOIN keeps the frequencies when no older row matches.
-    // Tokens never contain the char(10) separator.
+    // the lexicon weights the final scorer uses, quote-only matches discounted the same way)
+    // before recency. With plain matched-word counts, newer rows sharing a recurring name
+    // plus an incidental word fill the lane first. The LEFT JOIN keeps the frequencies when
+    // no older row matches. Tokens never contain the char(10) separator.
+    const contentFlag = (i: number) => `c${i}`;
+    const quoteFlag = (i: number) => `q${i}`;
+    const anyFlag = (i: number) => `max(c${i}, q${i})`;
+    const idfSql = (i: number) => `ln(1 + (stats.n - stats.df${i} + 0.5) / (stats.df${i} + 0.5))`;
+    const laneWeightSql = (i: number) =>
+      `CASE WHEN ${contentFlag(i)} = 1 THEN 1 WHEN ${quoteFlag(i)} = 1 THEN ${EPISODIC_QUOTE_ONLY_MATCH_WEIGHT} ELSE 0 END * ${idfSql(i)}`;
     const rows = db
       .prepare(
         `WITH scoped AS MATERIALIZED (
-           SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}, ${EPISODIC_SEARCH_TEXT_SQL} AS search_text
+           SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS},
+                  ${EPISODIC_CONTENT_TEXT_SQL} AS content_text, ${EPISODIC_QUOTE_TEXT_SQL} AS quote_text
              FROM episodic_memory_facts
             WHERE ${input.scope.recallWhere.join(" AND ")}
          ),
          matched AS MATERIALIZED (
            SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS},
-                  ${queryWords.map((forms, i) => `${matchedQueryWordSql(forms)} AS m${i}`).join(", ")}
+                  ${queryWords.map((forms, i) => `${matchedQueryWordSql(forms, "content_text")} AS ${contentFlag(i)}`).join(", ")},
+                  ${queryWords.map((forms, i) => `${matchedQueryWordSql(forms, "quote_text")} AS ${quoteFlag(i)}`).join(", ")}
              FROM scoped
          ),
          stats AS MATERIALIZED (
-           SELECT COUNT(*) AS n, ${wordIndexes.map((i) => `COALESCE(SUM(m${i}), 0) AS df${i}`).join(", ")}
+           SELECT COUNT(*) AS n, ${wordIndexes.map((i) => `COALESCE(SUM(${anyFlag(i)}), 0) AS df${i}`).join(", ")}
              FROM matched
          ),
          lane AS (
-           SELECT matched.*, ${wordIndexes.map((i) => `m${i} * ${idfSql(i)}`).join(" + ")} AS lane_score
+           SELECT matched.*, ${wordIndexes.map(laneWeightSql).join(" + ")} AS lane_score
              FROM matched, stats
-            WHERE ${wordIndexes.map((i) => `m${i}`).join(" + ")} > 0
+            WHERE ${wordIndexes.map(anyFlag).join(" + ")} > 0
               AND (? IS NULL OR source_turn < ?)
             ORDER BY lane_score DESC, source_turn DESC, id DESC
             LIMIT ?
@@ -2725,6 +2768,7 @@ function fetchEpisodicMemoryCandidateRows(
       )
       .all(
         ...input.scope.recallParams,
+        ...queryWordPatterns(queryWords),
         ...queryWordPatterns(queryWords),
         minRecentTurn,
         minRecentTurn,

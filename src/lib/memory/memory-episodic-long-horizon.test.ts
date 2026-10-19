@@ -754,7 +754,7 @@ describe("QUOTE-ONLY rare word — a verbatim-only match must not outrank rows a
   const NIGHT_QUESTION = "같이 야간 당직 섰던 거 기억나?";
   const PLACES = ["가이딩실", "정비고", "상황실", "한강 둔치", "본부 옥상", "지하 사격장", "매점 앞", "구내식당"];
 
-  type SeedRow = { turn: number; attribute: string; factText: string; quote?: string };
+  type SeedRow = { turn: number; attribute: string; factText: string; quote?: string; claim?: boolean };
 
   function seedRows(db: Database.Database, rows: SeedRow[]): Map<string, number> {
     const insert = db.prepare(
@@ -762,10 +762,14 @@ describe("QUOTE-ONLY rare word — a verbatim-only match must not outrank rows a
         (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
        VALUES (1, ?, 'character', 'taehyung', ?, ?, 'normal', ?, ?)`
     );
+    const attributed = (factText: string) =>
+      /말했다\.$/.test(factText) ? factText : factText.replace(/다\.$/, "다고 말했다.");
     const ids = new Map<string, number>();
     for (const row of rows) {
+      // A verified scene quote makes a completed-occurrence gloss a historical event, which the
+      // 25-key reconcile cap never sees; a character claim stays a state-like row.
       const metadata = {
-        memory_evidence_type: "explicit_scene_event",
+        memory_evidence_type: row.claim ? "explicit_character_claim" : "explicit_scene_event",
         content_route: "safe",
         ...(row.quote
           ? {
@@ -773,7 +777,7 @@ describe("QUOTE-ONLY rare word — a verbatim-only match must not outrank rows a
                 role: "assistant",
                 message_id: row.turn,
                 quote: row.quote,
-                authority: "CURRENT_SCENE",
+                authority: row.claim ? "CHARACTER_CLAIM" : "CURRENT_SCENE",
                 match: "normalized_exact",
               },
             }
@@ -782,7 +786,13 @@ describe("QUOTE-ONLY rare word — a verbatim-only match must not outrank rows a
       ids.set(
         row.attribute,
         Number(
-          insert.run(row.turn, row.attribute, `${row.attribute}_v`, row.factText, JSON.stringify(metadata))
+          insert.run(
+            row.turn,
+            row.attribute,
+            `${row.attribute}_v`,
+            row.claim ? attributed(row.factText) : row.factText,
+            JSON.stringify(metadata)
+          )
             .lastInsertRowid
         )
       );
@@ -815,8 +825,9 @@ describe("QUOTE-ONLY rare word — a verbatim-only match must not outrank rows a
     },
   ];
 
-  function nightRows(turns: number[]): SeedRow[] {
+  function nightRows(turns: number[], claim = false): SeedRow[] {
     return turns.map((turn, i) => ({
+      claim,
       turn,
       attribute: `night_watch_${turn}`,
       factText: `태형과 렌은 ${PLACES[i % PLACES.length]}에서 야간 대기를 했다.`,
@@ -824,13 +835,18 @@ describe("QUOTE-ONLY rare word — a verbatim-only match must not outrank rows a
     }));
   }
 
-  function seedChat(nightTurns: number[], currentTurn: number) {
+  function seedChat(nightTurns: number[], currentTurn: number, opts: { decoyTurns?: number[]; claim?: boolean } = {}) {
     const db = createDb();
-    const skip = new Set([...nightTurns, ...DECOY_ROWS.map((row) => row.turn)]);
-    const ids = seedRows(db, [...DECOY_ROWS, ...nightRows(nightTurns), ...fillerRows(60, currentTurn - 1, skip)]);
+    const decoys = DECOY_ROWS.map((row, i) => ({
+      ...row,
+      claim: opts.claim,
+      turn: opts.decoyTurns?.[i] ?? row.turn,
+    }));
+    const skip = new Set([...nightTurns, ...decoys.map((row) => row.turn)]);
+    const ids = seedRows(db, [...decoys, ...nightRows(nightTurns, opts.claim), ...fillerRows(60, currentTurn - 1, skip)]);
     return {
       db,
-      decoyIds: DECOY_ROWS.map((row) => ids.get(row.attribute)!),
+      decoyIds: decoys.map((row) => ids.get(row.attribute)!),
       nightIds: nightTurns.map((turn) => ids.get(`night_watch_${turn}`)!),
     };
   }
@@ -867,9 +883,11 @@ describe("QUOTE-ONLY rare word — a verbatim-only match must not outrank rows a
     for (const id of decoyIds) assert.equal(inLane(id), false, `decoy ${id} must not hold a lane slot`);
   });
 
-  it("25-key priority: verbatim-only rows do not take reconcile slots from night rows", () => {
+  it("25-key priority: verbatim-only rows that reach the candidates do not take reconcile slots from night rows", () => {
     const olderNight = Array.from({ length: 36 }, (_, i) => 90 + i * 9);
-    const { db, decoyIds, nightIds } = seedChat(olderNight, 500);
+    // The decoys sit in the recent window, so they are candidates through the recent lane and only
+    // the reconcile preference decides which of the 27 matching state-like keys the cap keeps.
+    const { db, decoyIds, nightIds } = seedChat(olderNight, 500, { decoyTurns: [480, 485], claim: true });
     const result = recallAt(db, 500, NIGHT_QUESTION);
     const ranked = new Set(result.debug.filter((row) => row.final_rank != null).map((row) => row.id));
     assert.equal(nightIds.filter((id) => ranked.has(id)).length, 25);
