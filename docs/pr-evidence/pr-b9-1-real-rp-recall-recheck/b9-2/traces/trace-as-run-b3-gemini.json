@@ -1,0 +1,567 @@
+{
+  "label": "as-run-b3-gemini",
+  "model": "gemini-3.8-flash",
+  "expectedWire": "google/gemini-3.8-flash",
+  "status": 200,
+  "blockedOtherFetches": 2,
+  "completionCalls": [
+    {
+      "model": "gpt-6-luna",
+      "bytes": 30773,
+      "url": "https://api.cheaperinference.com/v1/chat/completions"
+    },
+    {
+      "model": "gpt-6-luna",
+      "bytes": 4526,
+      "url": "https://api.cheaperinference.com/v1/chat/completions"
+    },
+    {
+      "model": "google/gemini-3.8-flash",
+      "bytes": 34745,
+      "url": "https://openrouter.ai/api/v1/chat/completions"
+    },
+    {
+      "model": "gpt-6-luna",
+      "bytes": 4526,
+      "url": "https://api.cheaperinference.com/v1/chat/completions"
+    },
+    {
+      "model": "gpt-6-luna",
+      "bytes": 4526,
+      "url": "https://api.cheaperinference.com/v1/chat/completions"
+    }
+  ],
+  "events": [
+    {
+      "seq": 1,
+      "kind": "stage",
+      "stage": "S0_db_after_preparation",
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 0
+      }
+    },
+    {
+      "seq": 2,
+      "kind": "blocked-other-fetch",
+      "url": "https://open.er-api.com/v6/latest/USD"
+    },
+    {
+      "seq": 3,
+      "kind": "blocked-other-fetch",
+      "url": "https://open.er-api.com/v6/latest/USD"
+    },
+    {
+      "seq": 4,
+      "kind": "enter",
+      "fn": "syncMemoryFromChat",
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 0
+      }
+    },
+    {
+      "seq": 5,
+      "kind": "chat_memories-write",
+      "sql": "UPDATE chat_memories SET recent_summary=?, archive_summary=?, membership_tier=?, used_chars=?, message_count=COALESCE(?, message_count), summarized_turn_count=C",
+      "stack": [
+        "updateChatMemory (src/lib/memory/memory-db.ts:84:5)",
+        "syncMemoryFromChat (src/lib/memory/memory-backfill.ts:51:3)",
+        "POST (src/app/api/chat/route.ts:1531:5)"
+      ],
+      "before": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 0
+      },
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 6,
+      "kind": "enter",
+      "fn": "reconcileSummarizedTurnCountFromTable",
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 7,
+      "kind": "chat_memories-write",
+      "sql": "UPDATE chat_memories SET recent_summary=?, used_chars=?, summarized_turn_count=?, global_projection_kind=NULL, global_source_fingerprint=NULL, global_covered_th",
+      "stack": [
+        "<anonymous> (src/lib/memory/memory-summary-persist.ts:458:7)",
+        "reconcileSummarizedTurnCountFromTable (src/lib/memory/memory-summary-persist.ts:460:6)",
+        "syncMemoryFromChat (src/lib/memory/memory-backfill.ts:56:31)",
+        "POST (src/app/api/chat/route.ts:1531:5)"
+      ],
+      "before": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      },
+      "state": {
+        "recent_summary": {
+          "len": 30069,
+          "sha12": "d54835b47207",
+          "omitPrefix": false,
+          "firstBlock": "1~5"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 8,
+      "kind": "exit",
+      "fn": "reconcileSummarizedTurnCountFromTable",
+      "result": 495,
+      "stack": [
+        "syncMemoryFromChat (src/lib/memory/memory-backfill.ts:56:31)",
+        "POST (src/app/api/chat/route.ts:1531:5)"
+      ],
+      "state": {
+        "recent_summary": {
+          "len": 30069,
+          "sha12": "d54835b47207",
+          "omitPrefix": false,
+          "firstBlock": "1~5"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 9,
+      "kind": "exit",
+      "fn": "syncMemoryFromChat",
+      "result": true,
+      "state": {
+        "recent_summary": {
+          "len": 30069,
+          "sha12": "d54835b47207",
+          "omitPrefix": false,
+          "firstBlock": "1~5"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 10,
+      "kind": "enter",
+      "fn": "prepareNonBlockingSummaryForMainRp",
+      "state": {
+        "recent_summary": {
+          "len": 30069,
+          "sha12": "d54835b47207",
+          "omitPrefix": false,
+          "firstBlock": "1~5"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 11,
+      "kind": "exit",
+      "fn": "prepareNonBlockingSummaryForMainRp",
+      "result": {
+        "summarizedThrough": 495,
+        "unsummarizedTurns": 5,
+        "pendingRange": "496~500",
+        "catchUpScheduled": false,
+        "deferredBoundarySealPending": true
+      },
+      "state": {
+        "recent_summary": {
+          "len": 30069,
+          "sha12": "d54835b47207",
+          "omitPrefix": false,
+          "firstBlock": "1~5"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 12,
+      "kind": "enter",
+      "fn": "buildMemoryContextForChat",
+      "state": {
+        "recent_summary": {
+          "len": 30069,
+          "sha12": "d54835b47207",
+          "omitPrefix": false,
+          "firstBlock": "1~5"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 13,
+      "kind": "omission-trim",
+      "fn": "emergencyFallbackTrimLorebookSync",
+      "maxChars": 10000,
+      "input": {
+        "len": 30069,
+        "sha12": "d54835b47207",
+        "omitPrefix": false,
+        "firstBlock": "1~5"
+      },
+      "output": {
+        "len": 9826,
+        "sha12": "218628e9703a",
+        "omitPrefix": true,
+        "firstBlock": "336~340"
+      },
+      "stack": [
+        "resolveGlobalCurrentMemoryCore (src/lib/memory/memory-lorebook-resolve.ts:176:11)",
+        "resolveGlobalCurrentMemory (src/lib/memory/memory-lorebook-resolve.ts:47:20)",
+        "buildMemoryContextForChat (src/lib/memory/memory-manager.ts:262:20)",
+        "POST (src/app/api/chat/route.ts:1802:40)"
+      ]
+    },
+    {
+      "seq": 14,
+      "kind": "resolver",
+      "fn": "resolveGlobalCurrentMemory",
+      "maxChars": 10000,
+      "excludeTurnStartGte": 496,
+      "storedArgChars": 30069,
+      "projectionKind": "failure_fallback",
+      "source": "chat_turn_summaries",
+      "needsBackgroundCompact": true,
+      "rebuiltChars": 30069,
+      "storedChars": 30069,
+      "output": {
+        "len": 9826,
+        "sha12": "218628e9703a",
+        "omitPrefix": true,
+        "firstBlock": "336~340"
+      },
+      "stack": [
+        "buildMemoryContextForChat (src/lib/memory/memory-manager.ts:262:20)",
+        "POST (src/app/api/chat/route.ts:1802:40)"
+      ],
+      "state": {
+        "recent_summary": {
+          "len": 30069,
+          "sha12": "d54835b47207",
+          "omitPrefix": false,
+          "firstBlock": "1~5"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 15,
+      "kind": "provider-send-blocked",
+      "wireModel": "gpt-6-luna",
+      "isMain": false,
+      "bytes": 30773,
+      "hasCurrentMemoryHeader": false,
+      "omitPrefixInRequest": false,
+      "firstBlockAfterHeader": null,
+      "state": {
+        "recent_summary": {
+          "len": 30069,
+          "sha12": "d54835b47207",
+          "omitPrefix": false,
+          "firstBlock": "1~5"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 16,
+      "kind": "exit",
+      "fn": "buildMemoryContextForChat",
+      "injection": {
+        "len": 9887,
+        "sha12": "329c9adc547e",
+        "omitPrefix": true,
+        "firstBlock": "336~340"
+      },
+      "recentChars": 9826,
+      "mediumTermChars": 0,
+      "state": {
+        "recent_summary": {
+          "len": 30069,
+          "sha12": "d54835b47207",
+          "omitPrefix": false,
+          "firstBlock": "1~5"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 17,
+      "kind": "contextBuilder",
+      "fn": "buildContext",
+      "longTermMemory": {
+        "len": 9887,
+        "sha12": "329c9adc547e",
+        "omitPrefix": true,
+        "firstBlock": "336~340"
+      },
+      "mediumTermMemoryBlock": {
+        "len": 0,
+        "sha12": "e3b0c44298fc",
+        "omitPrefix": false,
+        "firstBlock": null
+      },
+      "state": {
+        "recent_summary": {
+          "len": 30069,
+          "sha12": "d54835b47207",
+          "omitPrefix": false,
+          "firstBlock": "1~5"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 18,
+      "kind": "provider-send-blocked",
+      "wireModel": "gpt-6-luna",
+      "isMain": false,
+      "bytes": 4526,
+      "hasCurrentMemoryHeader": false,
+      "omitPrefixInRequest": false,
+      "firstBlockAfterHeader": null,
+      "state": {
+        "recent_summary": {
+          "len": 30069,
+          "sha12": "d54835b47207",
+          "omitPrefix": false,
+          "firstBlock": "1~5"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 19,
+      "kind": "provider-send-blocked",
+      "wireModel": "google/gemini-3.8-flash",
+      "isMain": true,
+      "bytes": 34745,
+      "hasCurrentMemoryHeader": true,
+      "omitPrefixInRequest": true,
+      "firstBlockAfterHeader": "336~340",
+      "state": {
+        "recent_summary": {
+          "len": 30069,
+          "sha12": "d54835b47207",
+          "omitPrefix": false,
+          "firstBlock": "1~5"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 20,
+      "kind": "provider-send-blocked",
+      "wireModel": "gpt-6-luna",
+      "isMain": false,
+      "bytes": 4526,
+      "hasCurrentMemoryHeader": false,
+      "omitPrefixInRequest": false,
+      "firstBlockAfterHeader": null,
+      "state": {
+        "recent_summary": {
+          "len": 30069,
+          "sha12": "d54835b47207",
+          "omitPrefix": false,
+          "firstBlock": "1~5"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 21,
+      "kind": "provider-send-blocked",
+      "wireModel": "gpt-6-luna",
+      "isMain": false,
+      "bytes": 4526,
+      "hasCurrentMemoryHeader": false,
+      "omitPrefixInRequest": false,
+      "firstBlockAfterHeader": null,
+      "state": {
+        "recent_summary": {
+          "len": 30069,
+          "sha12": "d54835b47207",
+          "omitPrefix": false,
+          "firstBlock": "1~5"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 22,
+      "kind": "stage",
+      "stage": "S_end_after_route_and_background_settle",
+      "state": {
+        "recent_summary": {
+          "len": 30069,
+          "sha12": "d54835b47207",
+          "omitPrefix": false,
+          "firstBlock": "1~5"
+        },
+        "kind": null,
+        "covered": null,
+        "fingerprintStored": null,
+        "fingerprintComputed": null,
+        "fingerprintMatches": null,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    }
+  ]
+}

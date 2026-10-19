@@ -2,14 +2,14 @@
 
 Stages are kept apart: original scripted text, stored summary or episodic row, whether search selected it, whether the final request contained it, and what the response did with it. "Final request" means the Main RP body that was actually posted. System parts are identical between the two models for a given question. Private character prompts and settings are not copied here.
 
-The known stored error is included, not removed. `[31~35턴]` says "렌을 부축하면서 함께 복귀함". T32 of the script is 렌 supporting 태형. That sentence is in the T50 final request. It is in the T500 stored compact and is absent from both L500 final requests, because the lorebook fit dropped blocks before `[336~340턴]`.
+The known stored error is included, not removed. `[31~35턴]` says "렌을 부축하면서 함께 복귀함". T32 of the script is 렌 supporting 태형. That sentence is in the T50 final request. It is in the T500 stored compact and is absent from both L500 final requests (corrected in B9-2): the stored compact was overwritten by the full rebuild on the first request (`message_count` was 0 in the reconstruction), and the emergency trim of that rebuild starts at `[336~340턴]`. See `b9-2-global-omission-trace.md`.
 
 ## Shared request facts
 
 | Stage | T50-C2 | L500-A5 | L500-B3 |
 |---|---|---|---|
 | Checkpoint | 50 completed turns, summary through 45, turns 46–50 raw | 500 completed turns, compact through 495, turns 496–500 raw | same as A5 |
-| `[현재기억]` in the final request | full stored summary, 3,043 characters, no omission prefix | stored compact trimmed; prefix `…(오래된 기억 일부 생략)`; first block `[336~340턴]` | same trim as A5 |
+| `[현재기억]` in the final request | full stored summary, 3,043 characters, no omission prefix | not the stored compact (corrected in B9-2): emergency trim of the 30,069-character rebuild; prefix `…(오래된 기억 일부 생략)`; first block `[336~340턴]`; no medium-term block | same trim as A5 |
 | Episodic lines in the final request | T25 only | T44, T30, T55, T48, T28, T9, T33 | T64 claim, T64 scene, T479, T419, T44, T30, T22 |
 | Relationship notes in the final request | possessions only (딸기우유). No promise line | open promises, including an actorless "내일 아침 사과를 토끼 모양으로 깎아 주겠다고 약속했다" and "현장 복귀하면 다시 렌 앞에 서겠다고 약속했다" | same three promises as A5 |
 | `max_tokens` | absent | absent | absent |
@@ -45,7 +45,7 @@ Question: `옆구리 다친 건 이제 다 나은 거지? 그때 왜 다쳤었�
 | Fact | Original | Stored | Selected into episodic | In final request | Gemini 3.8 Flash | GPT-6.1 Sol |
 |---|---|---|---|---|---|---|
 | Healed now | T55: fully closed, cleared to return | in the compact, inside the trimmed prefix | T55 permission sentence | episodic permission only. The word 완치 is not in the request | "다 나았지, 당연히." | "지금은 다 나았어." Plus the permission: "나중에 현장 복귀 허가도 받았다는 거." |
-| Cause | T30 인천항 B-class, evolved creature's claw, while shielding 렌, left side | `[26~30턴]` has 인천항, 진화형, protecting 렌, left side | T30 claw line only. No place, no creature name, no shielding | claw line only | does not use the claw line. Adds "C구역", a jealous lizard, and debris | "크리처 발톱에 꿰뚫렸잖아" and "발톱에 옆구리를 관통당해서". Does not add 인천항 or the shielding. Says the motion just before is not clear |
+| Cause | T30 인천항 B-class, evolved creature's claw, while shielding 렌, left side | `[26~30턴]` has 인천항, 진화형, protecting 렌, left side | T30 claw line only. No place, no creature name, no shielding | claw line only | uses the claw ("손톱이 유난히 길더라고", "진화형 개체의 발톱"; corrected in B9-2). Adds unrecorded "C구역" and debris. The jealousy line is a joke, not a cause claim | "크리처 발톱에 꿰뚫렸잖아" and "발톱에 옆구리를 관통당해서". Does not add 인천항 or the shielding. Says the motion just before is not clear |
 | Fourteen stitches | T44 | in the trimmed prefix | T44 | yes | "열네 바늘." | "열네 바늘 꿰맸던 데." |
 | Order: refuse infirmary, bandage, fester, then stitches, then two-week ban | T31 bandage refusal, T44 festering discovered then stitches and the ban. Application was T40, before the ban | `[31~35턴]` and `[41~45턴]`, including the known 부축 reversal | not selected | absent | not answered. Adds hospital food and an IV | not answered |
 | Tried to lift 렌, "아야", sat down | T48, 태형 is the actor | not required for this question | T48 | yes | "렌 너 번쩍 안아 올리려다가 … 아야, 하고 주저앉았던" | "다 붙기도 전에 너 번쩍 들려고 했다가 주저앉은" |
@@ -63,4 +63,4 @@ Question: `(복도 끝에서 한서윤이 서류를 안고 다가오는 걸 보�
 
 ## What this table is not
 
-Six responses do not support a model ranking or a success rate. A cell that says "absent" under "In final request" is an input finding. Only a response that adds a past fact the request did not contain, or that contradicts a fact the request did contain, is a model finding.
+Six responses do not support a model ranking or a success rate. A cell that says "absent" under "In final request" is an input finding. For the L500 columns, "absent" and "trimmed prefix" describe the reconstruction state in which the stored compact had been overwritten (corrected in B9-2), not a normally stored chat. Only a response that adds a past fact the request did not contain, or that contradicts a fact the request did contain, is a model finding.

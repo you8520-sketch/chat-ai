@@ -1,0 +1,242 @@
+/**
+ * Fills an isolated B9 snapshot from the B7 audit export.
+ * No summary, extraction, or embedding provider calls.
+ * Stored summary text and the relationship ledger are copied as stored.
+ * Episodic rows are re-saved through the current reconcile owner.
+ */
+import { readFileSync } from "node:fs";
+import { getDb } from "@/lib/db";
+import { ensureEpisodicMemoryFactsTable, reconcileEpisodicMemoryFactsForGeneration } from "@/lib/episodicMemoryFacts";
+import { parseSharedEpisodicSection } from "@/lib/memory/memory-episodic-shared";
+import { getOrCreateChatMemory } from "@/lib/memory/memory-db";
+import { buildPrefixFingerprintThroughTurn } from "@/lib/memory/memory-global-checkpoint";
+import { resolveGlobalCurrentMemory } from "@/lib/memory/memory-lorebook-resolve";
+import { resolveMemoryBudgetFromCapacity } from "@/lib/memory/memory-capacity-shared";
+
+console.info = () => {};
+
+const horizon = Number(process.argv[2]);
+const b7Dir = process.argv[3] ?? "/tmp/b7eval";
+const knownKeysPath = process.argv[4];
+const knownQuotesPath = process.argv[5];
+if (!horizon || !knownKeysPath || !knownQuotesPath) {
+  throw new Error("usage: fill-snapshot.mts <N> <b7 dir> <known-keys> <known-quotes>");
+}
+
+const { TURNS } = (await import(`${b7Dir}/scenario.mts`)) as {
+  TURNS: Array<{ user: string; assistant: string }>;
+};
+const { fillerTurn } = (await import(`${b7Dir}/filler.mts`)) as {
+  fillerTurn: (turn: number) => { user: string; assistant: string };
+};
+
+type AuditRow = {
+  id: number;
+  source_turn: number;
+  category: string;
+  attribute: string;
+  importance: string;
+  fact_text: string;
+  evidence_type: string | null;
+  evidence_role: "user" | "assistant" | null;
+};
+const audit = JSON.parse(readFileSync(`${b7Dir}/audit/stored-T${horizon}.json`, "utf8")) as {
+  completed_turns: number;
+  global: {
+    projection_kind: string | null;
+    covered_through_turn: number | null;
+    summarized_turn_count: number;
+    recent_summary: string;
+    archive_summary: string;
+  };
+  relationship_ledger: {
+    honorifics: string[];
+    items: string[];
+    thoughts: string[];
+    promises: Array<{ text: string; deadline?: string }>;
+  };
+  episodic: AuditRow[];
+  summaries: Array<{ turn_number: number; turn_end: number; summary_kind: string; summary: string }>;
+};
+const knownKeys = JSON.parse(readFileSync(knownKeysPath, "utf8")) as Record<string, string>;
+const knownQuotes = JSON.parse(readFileSync(knownQuotesPath, "utf8")) as Record<string, string[]>;
+
+const NAME_SUBJECTS: Array<[RegExp, string]> = [
+  [/^(?:조?태형)/u, "taehyung"],
+  [/^(?:렌|사용자|유저)/u, "user"],
+  [/차세린/u, "cha_serin"],
+  [/문정자/u, "moon_jeongja"],
+  [/서다온/u, "seo_daon"],
+  [/유하람/u, "yu_haram"],
+  [/남궁현/u, "namgung_hyeon"],
+  [/박철/u, "park_cheol"],
+  [/염태오/u, "yeom_taeo"],
+  [/강민호/u, "kang_minho"],
+  [/한서윤|서윤/u, "han_seoyun"],
+  [/윤도겸/u, "yoon_dogyeom"],
+  [/백무진/u, "baek_mujin"],
+  [/오지환/u, "oh_jihwan"],
+];
+
+function subjectOf(row: AuditRow): string {
+  const known = knownKeys[row.fact_text];
+  if (known) return known.split(":")[1]!;
+  const head = row.fact_text.slice(0, 14);
+  if (row.evidence_role === "assistant" && /^렌/u.test(head)) return "ren_taehyung";
+  for (const [re, subject] of NAME_SUBJECTS) if (re.test(head)) return subject;
+  return "scene";
+}
+
+function bigrams(text: string): Set<string> {
+  const compact = text.replace(/[^가-힣a-z0-9]/giu, "");
+  const out = new Set<string>();
+  for (let i = 0; i + 1 < compact.length; i++) out.add(compact.slice(i, i + 2));
+  return out;
+}
+
+function spansOf(message: string): string[] {
+  const spans = new Set<string>();
+  for (const sentence of message.split(/(?<=[.!?…"])\s+/u)) {
+    const trimmed = sentence.trim().replace(/^"|"$/gu, "").trim();
+    if (trimmed) spans.add(trimmed);
+  }
+  for (const match of message.matchAll(/"([^"]{4,})"/gu)) spans.add(match[1]!.trim());
+  return [...spans];
+}
+
+function quoteFor(row: AuditRow, message: string): string {
+  const target = bigrams(row.fact_text);
+  const original = (knownQuotes[String(row.source_turn)] ?? []).filter((quote) => message.includes(quote));
+  let best = "";
+  let bestScore = -1;
+  for (const span of [...original, ...spansOf(message)]) {
+    const grams = bigrams(span);
+    let overlap = 0;
+    for (const gram of grams) if (target.has(gram)) overlap += 1;
+    const dice = (2 * overlap) / (grams.size + target.size || 1);
+    const score = original.includes(span) ? dice * 1.5 : dice;
+    if (score > bestScore) {
+      best = span;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+const db = getDb();
+ensureEpisodicMemoryFactsTable(db);
+const completedTurns = Math.min(horizon, audit.completed_turns);
+db.prepare("DELETE FROM messages WHERE id > 1").run();
+db.prepare("DELETE FROM episodic_memory_facts").run();
+db.prepare("DELETE FROM chat_turn_summaries").run();
+
+const insertMessage = db.prepare(
+  `INSERT INTO messages (id, chat_id, role, content, generation_status, model, user_message_id)
+   VALUES (?, 1, ?, ?, 'completed', 'synthetic-replay', ?)`
+);
+for (let turn = 1; turn <= completedTurns; turn++) {
+  const spec = turn <= TURNS.length ? TURNS[turn - 1]! : fillerTurn(turn);
+  insertMessage.run(turn * 2, "user", spec.user, null);
+  insertMessage.run(turn * 2 + 1, "assistant", spec.assistant, turn * 2);
+}
+
+const insertSummary = db.prepare(
+  `INSERT INTO chat_turn_summaries (chat_id, turn_number, turn_end, summary, summary_kind)
+   VALUES (1, ?, ?, ?, ?)`
+);
+let summariesInserted = 0;
+for (const summary of audit.summaries) {
+  if (summary.turn_end > completedTurns) continue;
+  insertSummary.run(summary.turn_number, summary.turn_end, summary.summary, summary.summary_kind);
+  summariesInserted += 1;
+}
+
+getOrCreateChatMemory(1, 1, 18, "free");
+const covered = audit.global.covered_through_turn;
+const fingerprint =
+  audit.global.projection_kind === "global_compact" && covered != null
+    ? buildPrefixFingerprintThroughTurn(1, covered)
+    : null;
+db.prepare(
+  `UPDATE chat_memories
+   SET recent_summary=?, archive_summary=?, summarized_turn_count=?,
+       global_projection_kind=?, global_covered_through_turn=?, global_source_fingerprint=?
+   WHERE chat_id=1`
+).run(
+  audit.global.recent_summary ?? "",
+  audit.global.archive_summary ?? "",
+  audit.global.summarized_turn_count ?? 0,
+  audit.global.projection_kind,
+  covered,
+  fingerprint
+);
+db.prepare("UPDATE chats SET memory_meta=? WHERE id=1").run(JSON.stringify(audit.relationship_ledger));
+
+const byTurn = new Map<number, AuditRow[]>();
+for (const row of audit.episodic) {
+  if (row.source_turn > completedTurns) continue;
+  byTurn.set(row.source_turn, [...(byTurn.get(row.source_turn) ?? []), row]);
+}
+let attempted = 0;
+let parseDropped = 0;
+for (let turn = 1; turn <= completedTurns; turn++) {
+  const rows = byTurn.get(turn) ?? [];
+  if (rows.length === 0) continue;
+  const spec = turn <= TURNS.length ? TURNS[turn - 1]! : fillerTurn(turn);
+  attempted += rows.length;
+  const parsed = parseSharedEpisodicSection(
+    {
+      extracted_facts: rows.map((row) => {
+        const role = row.evidence_role ?? "assistant";
+        return {
+          category: row.category,
+          subject: subjectOf(row),
+          attribute: row.attribute,
+          value: `b7_${row.id}`,
+          importance: row.importance,
+          fact_text: row.fact_text,
+          evidence_type: row.evidence_type ?? "explicit_scene_event",
+          evidence: { source_role: role, source_quote: quoteFor(row, role === "user" ? spec.user : spec.assistant) },
+          corrects: "",
+        };
+      }),
+    },
+    []
+  );
+  if (parsed.facts.length !== rows.length) parseDropped += rows.length - parsed.facts.length;
+  reconcileEpisodicMemoryFactsForGeneration(db, {
+    chatId: 1,
+    characterId: 18,
+    userId: 1,
+    sourceTurn: turn,
+    sourceUserMessageId: turn * 2,
+    sourceUserText: spec.user,
+    userPersona: "이름/호칭: 렌",
+    evidenceBinding: { userMessageId: turn * 2, assistantMessageId: turn * 2 + 1 },
+    metadata: { extraction: "shared_initial_per_turn", assistant_message_id: turn * 2 + 1, content_route: "safe" },
+    facts: parsed.facts,
+    isRegeneration: false,
+  });
+}
+
+const storedFacts = (db.prepare("SELECT COUNT(*) n FROM episodic_memory_facts").get() as { n: number }).n;
+const budget = resolveMemoryBudgetFromCapacity(10000);
+const resolved = resolveGlobalCurrentMemory(1, budget.lorebook);
+const knownError = audit.global.recent_summary.includes("렌을 부축") || audit.summaries.some((s) => s.summary.includes("렌을 부축"));
+console.log(
+  JSON.stringify({
+    horizon,
+    completedTurns,
+    messages: (db.prepare("SELECT COUNT(*) n FROM messages").get() as { n: number }).n,
+    summariesInserted,
+    attempted,
+    parseDropped,
+    storedFacts,
+    globalKind: resolved.projectionKind,
+    globalChars: resolved.text.length,
+    storedGlobalChars: (audit.global.recent_summary ?? "").length,
+    globalMatchesStored: resolved.text.trim() === (audit.global.recent_summary ?? "").trim(),
+    knownSummaryErrorPresent: knownError,
+    fingerprintSet: fingerprint != null,
+  })
+);
