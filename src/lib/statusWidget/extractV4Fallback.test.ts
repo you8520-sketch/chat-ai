@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { BACKGROUND_OPENROUTER_MODEL } from "@/lib/ai";
 import { OPENROUTER_DEEPSEEK_V4_FLASH_MODEL } from "@/lib/chatModels";
 import { CompatibleCompletionError } from "@/lib/openRouterCompletion";
 import { extractStatusWidgetValuesForTurn } from "./extract";
+import { resolveWidgetOutputSizeProxy } from "./extractNormalize";
+import { collectWidgetJsonKeys } from "./prompt";
 import type { ResolvedStatusWidgetTurn, StatusWidget } from "./types";
 
 const widget: StatusWidget = {
@@ -47,8 +50,12 @@ test("single-source V4 503 is terminal after one physical attempt", async () => 
     },
   });
 
-  assert.deepEqual(calls.map((call) => call.modelId), ["gpt-5.6-luna"]);
-  assert.equal(calls[0]?.maxTokens, undefined);
+  assert.deepEqual(calls.map((call) => call.modelId), [BACKGROUND_OPENROUTER_MODEL]);
+  assert.equal(
+    calls[0]?.maxTokens,
+    resolveWidgetOutputSizeProxy(widget, collectWidgetJsonKeys(widget))
+  );
+  assert.ok((calls[0]?.maxTokens ?? 0) > 0);
   assert.equal(
     calls.filter((call) => call.modelId === OPENROUTER_DEEPSEEK_V4_FLASH_MODEL).length,
     0
@@ -97,7 +104,7 @@ test("dual-source partial response preserves valid source without fallback", asy
   });
 
   assert.equal(calls.length, 1);
-  assert.equal(calls[0]?.modelId, "gpt-5.6-luna");
+  assert.equal(calls[0]?.modelId, BACKGROUND_OPENROUTER_MODEL);
   assert.equal(calls[0]?.requestKind, "background-status-widget-extract-combined");
   assert.equal(
     calls.filter((call) => call.modelId === OPENROUTER_DEEPSEEK_V4_FLASH_MODEL).length,

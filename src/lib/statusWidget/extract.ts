@@ -30,6 +30,8 @@ import {
   normalizeWidgetExtraction,
   isCombinedExtractLikelyTruncated,
   parseCombinedDualWidgetExtractResponse,
+  resolveCombinedDualWidgetExtractMaxTokens,
+  resolveWidgetOutputSizeProxy,
 } from "./extractNormalize";
 import {
   mergeStatusWidgetExtractUsages,
@@ -391,7 +393,7 @@ async function runExtractAttempt(opts: {
       [{ role: "user", content: opts.userBlock }],
       {
         requestKind: opts.requestKind,
-        maxTokens: undefined,
+        maxTokens: opts.maxTokens,
         temperature: opts.temperature,
         modelId: opts.modelId,
       }
@@ -672,12 +674,17 @@ async function extractStatusWidgetValuesForWidget(opts: {
   const models: string[] = [];
   const attemptUsages: StatusWidgetSourceExtractMeta["attemptUsages"] = [];
   const attemptDiagnostics: StatusWidgetExtractAttemptDiagnostic[] = [];
+  /** null = the repair/fallback budget is unbounded (see resolveBackgroundOutputBudget). */
   const repairMaxTokens: number | null = null;
   let apiCalls = 0;
 
   if (!opts.repairOnly) {
     const system = buildWidgetExtractSystem(opts.widget, keys, opts.source);
     const userBlock = buildWidgetExtractUserBlock(opts);
+    // Per-widget output budget: a 10-key structured extract must not bill for an
+    // unbounded completion. The repair/fallback kinds stay unbounded (see
+    // resolveBackgroundOutputBudget in src/lib/ai.ts).
+    const initialMaxTokens = resolveWidgetOutputSizeProxy(opts.widget, keys);
 
     const initial = await runExtractAttempt({
       system,
@@ -688,6 +695,7 @@ async function extractStatusWidgetValuesForWidget(opts: {
       attemptIndex: 1,
       modelId: primaryModelId,
       requestKind: "background-status-widget-extract",
+      maxTokens: initialMaxTokens,
       applyEchoFilter: false,
       caller,
       trace: opts.trace,
@@ -1050,7 +1058,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       previousUserValues: opts.previousValues?.user ?? null,
     });
 
-    const combinedMaxTokens: number | null = null;
+    const combinedMaxTokens = resolveCombinedDualWidgetExtractMaxTokens(charWidget, userWidget);
     let combinedText = "";
     let combinedUsage: TokenUsage | null = null;
     let combinedFailure: ReturnType<typeof extractAttemptFailure> | null = null;
@@ -1070,7 +1078,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         const res = await caller(system, [{ role: "user", content: userBlock }], {
           requestKind: "background-status-widget-extract-combined",
           modelId: primaryModelId,
-          maxTokens: undefined,
+          maxTokens: combinedMaxTokens,
         });
         combinedText = res.text ?? "";
         combinedUsage = res.usage ?? null;
