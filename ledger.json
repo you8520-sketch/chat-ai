@@ -351,7 +351,7 @@
       "title": "HERO: Human-profile Enhanced Retrieval Optimization Framework for Long-term Agent Memory",
       "version": "v1",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Long-term memory is crucial for personalized responses and long-horizon agent interactions. Existing methods often rely on LLMs to compress or rewrite dialogue histories and use the transformed memories as retrieval evidence. Despite the progress in organizing fragmented contexts, two major drawbacks persist: (1) information loss from compression, which discards fine-grained but later useful details, and (2) semantic drift from rewriting, which erodes the original tone and situated context. In this work, we propose a novel Human-profile Enhanced Retrieval Optimization framework for long-term a",
       "claimedAdvantage": "Experiments on two benchmark datasets show that HERO outperforms strong baselines on both factual and personalized reasoning, while providing more faithful access to raw dialogue evidence.",
       "applicableOwners": [
@@ -400,7 +400,7 @@
       "title": "MemUse: Moving Memory Evaluation from Direct QA to Natural Integration in Long-Term Human-AI Conversation",
       "version": "v1",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Memory systems for conversational LLMs are conventionally evaluated by direct, fact-seeking questions about prior dialogue (Direct QA): can the model recall fact X from a prior conversation? We tested whether higher Direct QA accuracy correlates with higher user satisfaction in a 4-month deployment (40 users, 1,872 sessions, 7 memory conditions). Existing-benchmark Direct QA varies from 19.7% to 70.1% across the 7 conditions, but satisfaction does not change. We hypothesize that existing benchmarks and user satisfaction are tracking different capabilities: benchmarks measure elicited retrieval",
       "claimedAdvantage": "",
       "applicableOwners": [
@@ -420,7 +420,7 @@
       "lastDecisionReason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
       "priorRejectionReason": null,
       "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
-      "cooldownUntil": "2027-01-10T07:22:23.484Z",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
       "evaluations": [
         {
           "cycleKey": "weekly-2026-W40",
@@ -458,6 +458,21 @@
           "version": "v1",
           "adapterFingerprint": null,
           "architectureFingerprint": "867f366b29a742b5",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        },
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": "v1",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
           "state": "WATCH",
           "decision": "WATCH_NO_BENCHMARK_HOOK",
           "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
@@ -575,7 +590,7 @@
       "title": "RuleMem: Active Rule Memory for Long-Term Conversational Agents",
       "version": "v1",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Question answering agents in long-term conversations must reason over massive, temporally dispersed dialogue histories. However, existing memory mechanisms primarily treat past information as \\textit{passively} stored facts, leading to semantic gaps and unreliable reasoning. To address this limitation, we propose RuleMem, a rule-based memory framework that induces reusable logical rules from historical interactions to \\textit{actively} guide both evidence retrieval and reasoning. Specifically, RuleMem constructs natural-language Horn clauses from conversations and validates them via a Rule Per",
       "claimedAdvantage": "3% relative improvement).",
       "applicableOwners": [
@@ -688,7 +703,7 @@
       "title": "MemForest: Efficient Agent Memory Management via EventTree Partitioning and Progressive Merging",
       "version": "v1",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Agent memory systems have demonstrated significant potential in long-term dialogue, personalized assistants, and video understanding. However, continuously accumulated memory introduces substantial storage and retrieval costs during inference. To address this issue, we propose \\textbf{MemForest}, a general memory compression framework adaptable to various agent memory systems. Specifically, MemForest partitions historical memory into event-centric units by leveraging global semantic similarity and local temporal continuity. For each unit, it constructs a maximum spanning tree, termed an EventT",
       "claimedAdvantage": "Furthermore, we introduce an anchor-guided propagation retrieval mechanism that retrieves relevant memory nodes from the temporal neighborhoods of key nodes, improving retrieval accuracy.",
       "applicableOwners": [
@@ -752,7 +767,7 @@
       "title": "BIO-MEMART: Biometric-Aware KV Cache Memory for Multi-User LLM Agents",
       "version": "v1",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "KV cache is evolving from a serving optimization into an external memory substrate for long-term LLM agents. In a shared multi-user deployment, however, reusable KV blocks introduce a missing access-control question: semantic relevance alone cannot determine whether a memory block is authorized for the current physical user. We propose Bio-MemArt, a biometric-aware KV-cache memory framework for multi-user LLM agents. Bio-MemArt attaches a normalized biometric template to each stored KV memory block, filters the shared memory pool with the current user's biometric probe, and then runs the origi",
       "claimedAdvantage": "",
       "applicableOwners": [
@@ -914,7 +929,7 @@
       "title": "SIMLIFE: Pattern Understanding for Long-Horizon Human-Agent Partnership",
       "version": "v2",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Understanding humans over long horizons requires agents to infer not only what people need in the moment, but also how routines form, why they repeat, and when they change. We introduce SimLife, a scalable platform for simulating long-term household life with rich visual observations, ground-truth action logs, and synthetic dialogues with audio. Built on SimLife, SimLife-BP evaluates long-context pattern understanding: the ability to infer latent behavioral rules from weeks or months of everyday observations. The benchmark contains 106 episodes averaging 15.49 hours and 38.57 in-game days, and",
       "claimedAdvantage": "",
       "applicableOwners": [
@@ -1301,7 +1316,7 @@
       "title": "SpeakerMem-R1: Speaker-Centered Dual-Track Memory for Multi-Party Dialogue",
       "version": "v2",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Long-term conversational memory in multi-party settings requires more than retrieving relevant content from long-term conversations: it must distinguish who said what, whom each statement concerns, how individuals perceive one another, what information is shared by the group, and how states change over time. Recent studies on multi-party dialogue benchmarks show that existing general-purpose LLM memory systems tend to lose person and group relations or struggle to integrate clues distributed across members, groups, and time. Together, these issues reveal two core bottlenecks: message attributi",
       "claimedAdvantage": "33%, the best reported result among the latest state-of-the-art frameworks.",
       "applicableOwners": [
@@ -1351,7 +1366,7 @@
       "title": "EnSIMem: Entity-Structured Indexing for Long-Term Agent Memory",
       "version": "v2",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "An agent that interacts with users over long periods must recall facts, preferences, events, and changes from a continuously growing interaction history. Existing memory systems often compress interactions into generic summaries or retrieve anonymous text chunks, making it difficult for an agent to identify the correct entity, property, and supporting evidence. We present EnSIMem, an entity-structured long-term memory architecture for an agent. During offline construction, the system organizes interactions into theme-coherent episodes and builds dialogue-grounded index entries of the form [ent",
       "claimedAdvantage": "",
       "applicableOwners": [
@@ -2197,7 +2212,7 @@
       "title": "Who Said What, and Will It Be Remembered? Evaluating Persistent Speaker Attribution Across Meetings",
       "version": "v1",
       "discoveredAt": "2026-10-01T09:27:12.035Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Speech transcripts used as long-term memory must preserve both words and stable speaker identities. Existing meeting-transcription metrics either ignore speakers or remap anonymous speakers independently in each recording, so they cannot measure whether the same person retains one identity across meetings. We evaluate persistent speaker attribution with Speaker Identified cpWER (SI-cpWER), which scores a corpus under one global speaker-ID assignment. The benchmark covers five commercial diarize-then-identify cascades, two open academic baselines, and ThyVoice on the full 129-meeting CHiME-8 NO",
       "claimedAdvantage": "",
       "applicableOwners": [
@@ -2219,7 +2234,7 @@
       "lastDecisionReason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
       "priorRejectionReason": null,
       "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
-      "cooldownUntil": "2027-01-10T07:22:23.484Z",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
       "evaluations": [
         {
           "cycleKey": "monthly-2026-10",
@@ -2250,6 +2265,21 @@
             "SCREENED",
             "WATCH"
           ]
+        },
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": "v1",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
         }
       ],
       "draftPrUrl": null
@@ -2262,7 +2292,7 @@
       "title": "MemFit: Efficient Long-Term Agentic Memory",
       "version": "v1",
       "discoveredAt": "2026-10-12T07:22:23.484Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Long-term memory systems for large language models (LLMs) have gained popularity for extending reasoning capabilities across applications. Current memory systems rely on LLM agents to organize and consolidate memory, resulting in costly, inefficient write operations. To address this limitation, we propose MemFit, a long-term memory system for conversational agents that reduces the cost and latency of memory operations. Unlike existing systems that rely on expensive LLM calls for memory construction or discard surface-level details through compression, MemFit stores each turn verbatim in an app",
       "claimedAdvantage": "Empirical results on three widely used benchmarks, LoCoMo, MemGallery, and LongMemEval-S, show that MemFit achieves state-of-the-art performance while reducing memory construction time and cost several-fold, providing a scalable and efficient solution for persistent agentic memory.",
       "applicableOwners": [
@@ -2310,7 +2340,7 @@
       "title": "APDMem: Agent-Controlled Progressive Disclosure for Query-Adaptive Long-Term Memory",
       "version": "v1",
       "discoveredAt": "2026-10-12T07:22:23.484Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Personalized LLM assistants must recover sparse evidence from long conversation histories across queries of varying complexity. We introduce APDMem (Agent-controlled Progressive Disclosure Memory), a hierarchical long-term memory architecture that applies progressive disclosure to memory retrieval. Rather than relying on a flat memory store or fixed retrieval granularity, APDMem represents conversation history as four progressively detailed layers: thematic summaries, personalized key facts, turn-level evidence notes, and raw messages. At inference time, a controller applies progressive disclo",
       "claimedAdvantage": "",
       "applicableOwners": [
@@ -2457,7 +2487,7 @@
       "title": "Lineage-Aware Memory Governance: A Derivation-Gated Framework for Privacy-Preserving Column-Level Access Control in Enterprise AI Agents",
       "version": "v1",
       "discoveredAt": "2026-10-12T07:22:23.484Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Enterprise AI agents that share a memory store face two unaddressed risks: sensitive data can leak through legitimately computed results the requester could not derive, and departments can silently compute a same-named key performance indicator (KPI) through conflicting logic. Existing agent-memory systems (e.g., MemGPT, Zep, A-MEM) gate retrieval by content, ownership, and role, not derivation, missing a cached insight that embeds a forbidden column. We introduce the Analytical Memory Unit (AMU), a memory schema that attaches a full derivation (lineage) graph to every cached result, gated by ",
       "claimedAdvantage": "",
       "applicableOwners": [
@@ -2506,7 +2536,7 @@
       "title": "AgentMemGate: Addressing Speculation Contamination in Conversational Assistant Memory",
       "version": "v1",
       "discoveredAt": "2026-10-12T07:22:23.484Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Conversational AI assistants with long-term memory extract facts from user messages into a store consulted in later conversations. A stated plan can enter that store as fact: a user who might move to Seattle may be recorded as already living there. We call this speculation contamination. Final-state memory benchmarks miss this error because they do not probe intermediate state and include few unresolved speculations. We present AgentMemGate, a write-time gate for profile-store memory that classifies extracted statements as speculation, completed event, correction, or other. Speculations remain",
       "claimedAdvantage": "",
       "applicableOwners": [
@@ -2528,7 +2558,7 @@
       "lastDecisionReason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
       "priorRejectionReason": null,
       "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
-      "cooldownUntil": "2027-01-10T07:22:23.484Z",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
       "evaluations": [
         {
           "cycleKey": "weekly-2026-W42",
@@ -2536,6 +2566,21 @@
           "version": "v1",
           "adapterFingerprint": null,
           "architectureFingerprint": "867f366b29a742b5",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        },
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": "v1",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
           "state": "WATCH",
           "decision": "WATCH_NO_BENCHMARK_HOOK",
           "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
@@ -2556,7 +2601,7 @@
       "title": "MINDSET: Energy-based Schema Evolution for Long Conversational Agent Memory",
       "version": "v1",
       "discoveredAt": "2026-10-12T07:22:23.484Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Long conversational agents have become essential in our daily lives. They must remember what was said long back in order to help us efficiently complete a task without needing the user to repeat instructions and context repeatedly. However, the main issue is that instructions and context change over time and so the agents must be able to adapt accordingly. A useful memory system should preserve both current and historical states, distinguish stale information from active knowledge, retrieve evidence appropriate to the query and avoid repeatedly invoking a large language model to rewrite prior ",
       "claimedAdvantage": "MINDSET obtains the highest observed LoCoMo answer F1 while significantly improving retrieval ranking (Recall@8, MRR and nDCG@8) over the second best method LightMem (p<0.",
       "applicableOwners": [
@@ -2605,7 +2650,7 @@
       "title": "Relevance Is Not Sufficiency: What Actually Closes the Evidence Gap in Long-Term Memory QA",
       "version": "v1",
       "discoveredAt": "2026-10-12T07:22:23.484Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "LLM agents that interact with a user across many sessions accumulate histories that exceed their context window, so they store past interactions in an external memory and answer each question from a small set of retrieved records. Existing memory systems rank records by lexical or embedding relevance, yet the top-ranked memories can each be relevant while jointly omitting a complementary fact that the answer requires, especially for multi-session and temporal questions. Drawing on the distinction between relevance and sufficiency in legal evidence scholarship, we recast memory retrieval as con",
       "claimedAdvantage": "Experiments on LoCoMo and LongMemEval-S show that BFR outperforms same-store adaptations of recent agent-memory systems in both answer quality and evidence coverage.",
       "applicableOwners": [
@@ -2654,7 +2699,7 @@
       "title": "HGP:An on-device personalized agent memory via hybrid graph storage",
       "version": "v1",
       "discoveredAt": "2026-10-12T07:22:23.484Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "LLM-based agents face challenges in personalized interactive tasks due to heterogeneous, multi-typed, and implicitly constrained long-term traces. Existing memory mechanisms struggle with accurate routing and retrieval, especially on-device where personalization is critical. Most methods use single-vector representations, blurring type distinctions and relational structure. We propose HGP, a hybrid graph memory framework. HGP employs a lightweight self-enhancement classifier for personalized memory routing and constructs episodic, semantic, and procedural memories as graphs. It also extracts w",
       "claimedAdvantage": "",
       "applicableOwners": [
@@ -2675,7 +2720,7 @@
       "lastDecisionReason": "the deterministic benchmark has no A/B hook for relationship_durable, episodic_facts yet",
       "priorRejectionReason": null,
       "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
-      "cooldownUntil": "2027-01-10T07:22:23.484Z",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
       "evaluations": [
         {
           "cycleKey": "weekly-2026-W42",
@@ -2683,6 +2728,21 @@
           "version": "v1",
           "adapterFingerprint": null,
           "architectureFingerprint": "867f366b29a742b5",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "the deterministic benchmark has no A/B hook for relationship_durable, episodic_facts yet",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        },
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": "v1",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
           "state": "WATCH",
           "decision": "WATCH_NO_BENCHMARK_HOOK",
           "reason": "the deterministic benchmark has no A/B hook for relationship_durable, episodic_facts yet",
@@ -2703,7 +2763,7 @@
       "title": "Stale, Misattributed, or Late: Where Personal Memory Fails Before Generation",
       "version": "v1",
       "discoveredAt": "2026-10-12T07:22:23.484Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Personal memory for language agents is usually judged by whether the final an- swer is correct. That score hides errors that arise before generation: the memory block may contain an obsolete value, a fact about the wrong person, or no use- ful fact before the serving deadline. We measure these failures directly. Using Personal Fact Memory (PFM) as a reference layer, we find that temporal validity is primarily a property of memory construction in our setting. On a controlled revision benchmark, serving only the active value of each correctly keyed slot eliminates observed stale exposure; withou",
       "claimedAdvantage": "",
       "applicableOwners": [
@@ -2753,7 +2813,7 @@
       "title": "Gated Memory: Admission-Controlled Memory Formation for Conversational AI",
       "version": "v1",
       "discoveredAt": "2026-10-12T07:22:23.484Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Personalized conversational AI relies on long-term memory systems that extract facts from user utterances and store them in persistent vector stores. Despite progress in retrieval, deduplication, and lifecycle management, the formation stage, the moment a fact is first written to storage has received almost no principled attention. We identify this as the binding constraint on memory quality in production systems. Critical contextual signals, such as the distinction between a permanent user attribute and a transient situation, exist only in the original utterance and are irreversibly lost the ",
       "claimedAdvantage": "6% relative improvement in LLM-judge accuracy over a strong baseline with identical retrieval and generation, establishing formation quality as a measurable constraint on memory performance.",
       "applicableOwners": [
@@ -2803,7 +2863,7 @@
       "title": "Event-Centric Memory with Query-Aware Graph Augmentation for Long-Term Conversational Agents",
       "version": "v1",
       "discoveredAt": "2026-10-12T07:22:23.484Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "For persistent and personalized conversational agents, memory systems can enable them to remember, update, and reason over long histories by storing past interactions and retrieving relevant information. Existing memory systems typically follow two paradigms: flat-structured memory and graph-based memory. The former is lightweight but leaves event relations and state updates implicit, while the latter explicitly models memory structure but incurs additional construction cost and introduces irrelevant relations over long histories. To address these limitations, we propose QGMem, a novel memory ",
       "claimedAdvantage": "To expose relational dependencies in the working memory and support conflict-aware reasoning, QGMem organizes the working memory as a local graph, which is then encoded as a graph token and provided to the LLM together with the textual working memory to improve evidence utilization during answer gen",
       "applicableOwners": [
@@ -2824,7 +2884,7 @@
       "lastDecisionReason": "the deterministic benchmark has no A/B hook for relationship_durable, episodic_facts yet",
       "priorRejectionReason": null,
       "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
-      "cooldownUntil": "2027-01-10T07:22:23.484Z",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
       "evaluations": [
         {
           "cycleKey": "weekly-2026-W42",
@@ -2832,6 +2892,21 @@
           "version": "v1",
           "adapterFingerprint": null,
           "architectureFingerprint": "867f366b29a742b5",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "the deterministic benchmark has no A/B hook for relationship_durable, episodic_facts yet",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        },
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": "v1",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
           "state": "WATCH",
           "decision": "WATCH_NO_BENCHMARK_HOOK",
           "reason": "the deterministic benchmark has no A/B hook for relationship_durable, episodic_facts yet",
@@ -2852,7 +2927,7 @@
       "title": "Temporal Evidence Forests for Long-Horizon Multi-Party Conversational Memory",
       "version": "v1",
       "discoveredAt": "2026-10-12T07:22:23.484Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Long-term memory has been widely adopted in LLM-based agents to support persistent interaction and personalized assistance. Long-term multi-party interactions, however, accumulate substantially more detailed information, with decisions repeatedly updated and states evolving across participants and interaction stages. Temporal structure is therefore crucial for tracing such memories: relevant information often appears densely within short intervals, while transitions among different states are anchored by a strict temporal order. Existing temporally aware memory frameworks primarily store time ",
       "claimedAdvantage": "Experiments on two long-term multi-party memory benchmarks demonstrate that T-Mem consistently outperforms competitive memory frameworks across LLMs, parameter settings, domains, and query types.",
       "applicableOwners": [
@@ -2901,7 +2976,7 @@
       "title": "Beyond the Final Embedding: Retrieving Memories from Token-Level Evidence",
       "version": "v1",
       "discoveredAt": "2026-10-12T07:22:23.484Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Memory-augmented assistants retrieve evidence from stored conversations and documents to answer queries. Most embedding-based retrievers compare single-vector representations of queries and memories, even when relevance depends on a small part of the content. Such local evidence can be matched to queries using the contextual token representations already computed by the same embedding models. Our method uses sparse token matching to improve retrieval without additional training. Each query token retrieves a small set of matching tokens across candidate memories. The matching scores are aggrega",
       "claimedAdvantage": "Our method uses sparse token matching to improve retrieval without additional training.",
       "applicableOwners": [
@@ -2933,6 +3008,446 @@
           "state": "WATCH",
           "decision": "WATCH_NO_EXPERIMENT_ADAPTER",
           "reason": "benchmarkable owner, but no lab experiment adapter is registered",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        }
+      ],
+      "draftPrUrl": null
+    },
+    "arxiv:2610.15710": {
+      "candidateKey": "arxiv:2610.15710",
+      "category": "memory_benchmark",
+      "sourceKind": "arxiv",
+      "sourceUrl": "https://arxiv.org/abs/2610.15710",
+      "title": "Suggested Is Not Superseded: A Pre-Registered Evaluation of a System-One Model as a Memory-Retirement Gate",
+      "version": "v1",
+      "discoveredAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "summary": "Long-term memory for assistants needs a gate that decides when a new utterance retires an old stored claim. Benchmark labels for this step mark a pair as changed or not, so they cannot tell a gate that acts on established change from one that acts on a hint. We write a task contract that separates the two (SUPERSEDED vs. NEEDS-CONFIRMATION vs. COMPATIBLE), label 500 test pairs built from STALE (change pairs plus same-user controls) with three LLM annotators and two human adjudicators (one author and a second annotator; provenance reported), and evaluate Jev, a typed \"System One\" decision model",
+      "claimedAdvantage": "",
+      "applicableOwners": [
+        "memory_benchmark"
+      ],
+      "expectedBenefit": "(unstated)",
+      "expectedCost": "infra: none",
+      "infraRequirements": [
+        "none"
+      ],
+      "privacyImplications": [
+        "none"
+      ],
+      "migrationRequirement": "none",
+      "state": "WATCH",
+      "lastDecision": "WATCH_NO_BENCHMARK_HOOK",
+      "lastDecisionReason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
+      "priorRejectionReason": null,
+      "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
+      "evaluations": [
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": "v1",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        }
+      ],
+      "draftPrUrl": null
+    },
+    "arxiv:2610.18052": {
+      "candidateKey": "arxiv:2610.18052",
+      "category": "memory_benchmark",
+      "sourceKind": "arxiv",
+      "sourceUrl": "https://arxiv.org/abs/2610.18052",
+      "title": "Can Agents Forget When Asked? A Benchmark for Memory Unlearning in LLM Agents",
+      "version": "v1",
+      "discoveredAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "summary": "Long-term memory has become a core component of large language model (LLM) agents. As agents accumulate personal information over long-term use, users increasingly ask them to delete sensitive or outdated facts. A memory system should honor such requests. It should remove exactly what was requested and keep the rest of its memory intact. However, existing memory benchmarks evaluate only memory writing, retrieval, and organization, so whether agents can forget at the user's explicit request remains under-evaluated. To address this gap, we propose Bemula, the first benchmark dedicated to memory ",
+      "claimedAdvantage": "",
+      "applicableOwners": [
+        "memory_benchmark"
+      ],
+      "expectedBenefit": "(unstated)",
+      "expectedCost": "infra: none",
+      "infraRequirements": [
+        "none"
+      ],
+      "privacyImplications": [
+        "none"
+      ],
+      "migrationRequirement": "none",
+      "state": "WATCH",
+      "lastDecision": "WATCH_NO_BENCHMARK_HOOK",
+      "lastDecisionReason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
+      "priorRejectionReason": null,
+      "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
+      "evaluations": [
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": "v1",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        }
+      ],
+      "draftPrUrl": null
+    },
+    "arxiv:2610.19366": {
+      "candidateKey": "arxiv:2610.19366",
+      "category": "temporal_memory",
+      "sourceKind": "arxiv",
+      "sourceUrl": "https://arxiv.org/abs/2610.19366",
+      "title": "Seeing, Maintaining, and Learning: The Evolution of Multimodal Agent Memory",
+      "version": "v1",
+      "discoveredAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "summary": "Multimodal models and agents have emerged to enable AI systems to learn from and interact with the real world more like humans by integrating information across multiple modalities. However, enabling multimodal agents to continually acquire useful information from complex, heterogeneous multimodal data remains a significant challenge as they move toward long-horizon tasks and lifelong settings. Addressing this challenge requires effective memory mechanisms that can maintain continuity across sessions, adapt to changing users and environments, and refine memory-management policies through accum",
+      "claimedAdvantage": "",
+      "applicableOwners": [
+        "episodic_facts",
+        "reranking_scoring"
+      ],
+      "expectedBenefit": "(unstated)",
+      "expectedCost": "infra: none",
+      "infraRequirements": [
+        "none"
+      ],
+      "privacyImplications": [
+        "none"
+      ],
+      "migrationRequirement": "none",
+      "state": "WATCH",
+      "lastDecision": "WATCH_INSUFFICIENT_EVIDENCE",
+      "lastDecisionReason": "no reproducible code or published benchmark behind the claim",
+      "priorRejectionReason": null,
+      "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
+      "evaluations": [
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": "v1",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
+          "state": "WATCH",
+          "decision": "WATCH_INSUFFICIENT_EVIDENCE",
+          "reason": "no reproducible code or published benchmark behind the claim",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        }
+      ],
+      "draftPrUrl": null
+    },
+    "arxiv:2610.19836": {
+      "candidateKey": "arxiv:2610.19836",
+      "category": "temporal_memory",
+      "sourceKind": "arxiv",
+      "sourceUrl": "https://arxiv.org/abs/2610.19836",
+      "title": "EGCForest: Structured Agent Memory Organization for Enterprise Group Chats",
+      "version": "v1",
+      "discoveredAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "summary": "Enterprise group chats record project progress, decisions, task ownership, and other organizational information valuable to enterprise agents. Reliable retrieval is challenging because evidence spans interleaved threads, channels, and time, with meaning and authority conditioned on the speaker. Neither RAG's independent chunk retrieval nor memory systems' summary-based consolidation can reliably recover such distributed evidence. We present EGCForest, a novel multi-view hierarchical memory framework for enterprise group chats. EGCForest organizes an immutable message log into three complementa",
+      "claimedAdvantage": "Experiments on three enterprise-chat benchmarks show that EGCForest consistently outperforms RAG and memory-system baselines, improving answer accuracy by up to 20.",
+      "applicableOwners": [
+        "episodic_facts",
+        "reranking_scoring"
+      ],
+      "expectedBenefit": "Experiments on three enterprise-chat benchmarks show that EGCForest consistently outperforms RAG and memory-system baselines, improving answer accuracy by up to 20.",
+      "expectedCost": "infra: none",
+      "infraRequirements": [
+        "none"
+      ],
+      "privacyImplications": [
+        "none"
+      ],
+      "migrationRequirement": "none",
+      "state": "WATCH",
+      "lastDecision": "WATCH_NO_EXPERIMENT_ADAPTER",
+      "lastDecisionReason": "benchmarkable owner, but no lab experiment adapter is registered",
+      "priorRejectionReason": null,
+      "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
+      "evaluations": [
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": "v1",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
+          "state": "WATCH",
+          "decision": "WATCH_NO_EXPERIMENT_ADAPTER",
+          "reason": "benchmarkable owner, but no lab experiment adapter is registered",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        }
+      ],
+      "draftPrUrl": null
+    },
+    "arxiv:2610.21405": {
+      "candidateKey": "arxiv:2610.21405",
+      "category": "rag_retrieval",
+      "sourceKind": "arxiv",
+      "sourceUrl": "https://arxiv.org/abs/2610.21405",
+      "title": "MemCut: Every Secret Leaves a Trail in the Long-Term Memory of LLM Agents",
+      "version": "v1",
+      "discoveredAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "summary": "Long-term memory has become a crucial component of large language model (LLM) agents, with most research focusing on retrieving relevant information accurately and efficiently. However, a dependable memory system must also forget sensitive user data upon request. To evaluate this capability, we introduce MemCut, a systematic benchmark for user-requested forgetting. Its 456 hand-designed secrets in long-horizon conversations have fully annotated evidence trails to test recovery after deletion, including from messages that never state the secrets directly. We propose two recovery metrics. Native",
+      "claimedAdvantage": "",
+      "applicableOwners": [
+        "lexical_retrieval",
+        "semantic_retrieval"
+      ],
+      "expectedBenefit": "(unstated)",
+      "expectedCost": "infra: none",
+      "infraRequirements": [
+        "none"
+      ],
+      "privacyImplications": [
+        "none"
+      ],
+      "migrationRequirement": "none",
+      "state": "WATCH",
+      "lastDecision": "WATCH_NO_EXPERIMENT_ADAPTER",
+      "lastDecisionReason": "benchmarkable owner, but no lab experiment adapter is registered",
+      "priorRejectionReason": null,
+      "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
+      "evaluations": [
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": "v1",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
+          "state": "WATCH",
+          "decision": "WATCH_NO_EXPERIMENT_ADAPTER",
+          "reason": "benchmarkable owner, but no lab experiment adapter is registered",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        }
+      ],
+      "draftPrUrl": null
+    },
+    "arxiv:2610.21900": {
+      "candidateKey": "arxiv:2610.21900",
+      "category": "temporal_memory",
+      "sourceKind": "arxiv",
+      "sourceUrl": "https://arxiv.org/abs/2610.21900",
+      "title": "TEM: Temporal State Tracking Memory for Large Language Model Agents",
+      "version": "v1",
+      "discoveredAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "summary": "An agent's memory must remain useful as information changes across conversations. A new fact may replace an earlier value without making that value irrelevant to a later question. We present Temporal State Tracking Memory (TEM), a training-free framework for tracking these changes. TEM stores facts as versioned records linked to their sources. It retrieves relevant versions, places them in source order and labels historical records before passing the evidence to the answer model. Event memory and original dialogue turns provide details missing from structured facts. We evaluated TEM on 420 que",
+      "claimedAdvantage": "",
+      "applicableOwners": [
+        "episodic_facts",
+        "reranking_scoring"
+      ],
+      "expectedBenefit": "(unstated)",
+      "expectedCost": "infra: none",
+      "infraRequirements": [
+        "none"
+      ],
+      "privacyImplications": [
+        "none"
+      ],
+      "migrationRequirement": "none",
+      "state": "WATCH",
+      "lastDecision": "WATCH_NO_EXPERIMENT_ADAPTER",
+      "lastDecisionReason": "benchmarkable owner, but no lab experiment adapter is registered",
+      "priorRejectionReason": null,
+      "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
+      "evaluations": [
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": "v1",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
+          "state": "WATCH",
+          "decision": "WATCH_NO_EXPERIMENT_ADAPTER",
+          "reason": "benchmarkable owner, but no lab experiment adapter is registered",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        }
+      ],
+      "draftPrUrl": null
+    },
+    "arxiv:2610.22959": {
+      "candidateKey": "arxiv:2610.22959",
+      "category": "rag_retrieval",
+      "sourceKind": "arxiv",
+      "sourceUrl": "https://arxiv.org/abs/2610.22959",
+      "title": "SAFE-Mem: Secure Agentic Memory with Fine-Grained Authority and Governance-Aware Retrieval",
+      "version": "v1",
+      "discoveredAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "summary": "Large language model (LLM) agents increasingly rely on persistent memory to support long-term reasoning and personalized interactions. However, information collected from external sources can introduce security risks when untrusted claims (i.e., atomic statements) are later treated as authorized preferences, policies, or permissions. Existing defenses typically rely on content-based filtering or coarse-grained provenance tracking, which either fail to prevent unauthorized memory use or block legitimate information, sacrificing memory utility. To address these limitations, we propose SAFE-Mem, ",
+      "claimedAdvantage": "To address these limitations, we propose SAFE-Mem, a fine-grained memory governance framework that improves security while preserving legitimate memory use.",
+      "applicableOwners": [
+        "lexical_retrieval",
+        "semantic_retrieval"
+      ],
+      "expectedBenefit": "To address these limitations, we propose SAFE-Mem, a fine-grained memory governance framework that improves security while preserving legitimate memory use.",
+      "expectedCost": "infra: none",
+      "infraRequirements": [
+        "none"
+      ],
+      "privacyImplications": [
+        "none"
+      ],
+      "migrationRequirement": "none",
+      "state": "WATCH",
+      "lastDecision": "WATCH_NO_EXPERIMENT_ADAPTER",
+      "lastDecisionReason": "benchmarkable owner, but no lab experiment adapter is registered",
+      "priorRejectionReason": null,
+      "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
+      "evaluations": [
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": "v1",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
+          "state": "WATCH",
+          "decision": "WATCH_NO_EXPERIMENT_ADAPTER",
+          "reason": "benchmarkable owner, but no lab experiment adapter is registered",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        }
+      ],
+      "draftPrUrl": null
+    },
+    "arxiv:2610.23598": {
+      "candidateKey": "arxiv:2610.23598",
+      "category": "temporal_memory",
+      "sourceKind": "arxiv",
+      "sourceUrl": "https://arxiv.org/abs/2610.23598",
+      "title": "RL-Guided Temporal Localization for Dual-Channel Retrieval in Long-Horizon Agent Memory",
+      "version": "v1",
+      "discoveredAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "summary": "Time-aware retrieval is crucial for long-horizon LLM agents to effectively leverage ever-growing long-term memory. Existing methods focus on lexical or semantic similarity, leading to target memories being crowded out by temporally mismatched yet semantically similar candidates. Even time-aware approaches inject temporal cues only during memory organization or answer generation, overlooking temporal constraints at the retrieval stage, where candidate selection occurs - the root cause of the displacement. Inspired by the temporal contiguity effect in human episodic memory, we propose TIDER (Tem",
+      "claimedAdvantage": "7B locator, TIDER achieves state-of-the-art accuracy on both long-horizon memory benchmarks - 61.",
+      "applicableOwners": [
+        "episodic_facts",
+        "reranking_scoring"
+      ],
+      "expectedBenefit": "7B locator, TIDER achieves state-of-the-art accuracy on both long-horizon memory benchmarks - 61.",
+      "expectedCost": "infra: gpu_inference",
+      "infraRequirements": [
+        "gpu_inference"
+      ],
+      "privacyImplications": [
+        "none"
+      ],
+      "migrationRequirement": "none",
+      "state": "REJECTED",
+      "lastDecision": "REJECTED_INFRA_COMPLEXITY",
+      "lastDecisionReason": "wholesale adoption needs gpu_inference; only a TypeScript-native port of the technique is evaluable",
+      "priorRejectionReason": "wholesale adoption needs gpu_inference; only a TypeScript-native port of the technique is evaluable",
+      "reevaluationCondition": "new release, or a TypeScript-native experiment adapter that removes the infra requirement",
+      "cooldownUntil": null,
+      "evaluations": [
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": "v1",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
+          "state": "REJECTED",
+          "decision": "REJECTED_INFRA_COMPLEXITY",
+          "reason": "wholesale adoption needs gpu_inference; only a TypeScript-native port of the technique is evaluable",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "REJECTED"
+          ]
+        }
+      ],
+      "draftPrUrl": null
+    },
+    "github:abnste/mewu_ai": {
+      "candidateKey": "github:abnste/mewu_ai",
+      "category": "conversational_memory",
+      "sourceKind": "github_repository",
+      "sourceUrl": "https://github.com/abnste/mewu_ai",
+      "title": "abnste/mewu_ai",
+      "version": "v1.0.1",
+      "discoveredAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "summary": "MewuAI 喵呜AI | Windows 开源 AI 截图标注软件：AI 圈选重点、截图问答、离线 OCR、原位翻译、录屏与视频标注。 Open-source AI screenshot annotation tool for Windows.",
+      "claimedAdvantage": "MewuAI 喵呜AI | Windows 开源 AI 截图标注软件：AI 圈选重点、截图问答、离线 OCR、原位翻译、录屏与视频标注。 Open-source AI screenshot annotation tool for Windows.",
+      "applicableOwners": [
+        "episodic_facts",
+        "rolling_summary",
+        "global_current_memory"
+      ],
+      "expectedBenefit": "MewuAI 喵呜AI | Windows 开源 AI 截图标注软件：AI 圈选重点、截图问答、离线 OCR、原位翻译、录屏与视频标注。 Open-source AI screenshot annotation tool for Windows.",
+      "expectedCost": "infra: none",
+      "infraRequirements": [
+        "none"
+      ],
+      "privacyImplications": [
+        "none"
+      ],
+      "migrationRequirement": "none",
+      "state": "WATCH",
+      "lastDecision": "WATCH_NO_BENCHMARK_HOOK",
+      "lastDecisionReason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+      "priorRejectionReason": null,
+      "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
+      "evaluations": [
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": "v1.0.1",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
           "stateTrail": [
             "RESEARCHED",
             "SCREENED",
@@ -3000,7 +3515,7 @@
       "title": "agentscope-ai/ReMe",
       "version": "v0.4.1.13",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "ReMe: Memory Management Kit for Agents - Remember Me, Refine Me.",
       "claimedAdvantage": "file-native durable memory with rebuildable BM25/embedding/wikilink indexes and scheduled consolidation",
       "applicableOwners": [
@@ -3108,6 +3623,106 @@
       ],
       "draftPrUrl": null
     },
+    "github:appitstudio/awesome-jev": {
+      "candidateKey": "github:appitstudio/awesome-jev",
+      "category": "conversational_memory",
+      "sourceKind": "github_repository",
+      "sourceUrl": "https://github.com/AppitStudio/awesome-jev",
+      "title": "AppitStudio/awesome-jev",
+      "version": null,
+      "discoveredAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "summary": "Curated Jev resources and runnable examples for typed AI decisions.",
+      "claimedAdvantage": "Curated Jev resources and runnable examples for typed AI decisions.",
+      "applicableOwners": [
+        "episodic_facts",
+        "rolling_summary",
+        "global_current_memory"
+      ],
+      "expectedBenefit": "Curated Jev resources and runnable examples for typed AI decisions.",
+      "expectedCost": "infra: none",
+      "infraRequirements": [
+        "none"
+      ],
+      "privacyImplications": [
+        "none"
+      ],
+      "migrationRequirement": "none",
+      "state": "WATCH",
+      "lastDecision": "WATCH_NO_BENCHMARK_HOOK",
+      "lastDecisionReason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+      "priorRejectionReason": null,
+      "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
+      "evaluations": [
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": null,
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        }
+      ],
+      "draftPrUrl": null
+    },
+    "github:bonigarcia/context-engineering": {
+      "candidateKey": "github:bonigarcia/context-engineering",
+      "category": "conversational_memory",
+      "sourceKind": "github_repository",
+      "sourceUrl": "https://github.com/bonigarcia/context-engineering",
+      "title": "bonigarcia/context-engineering",
+      "version": null,
+      "discoveredAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "summary": "Context Engineering: Build Consistent, Accurate, Predictable AI Systems",
+      "claimedAdvantage": "Context Engineering: Build Consistent, Accurate, Predictable AI Systems",
+      "applicableOwners": [
+        "episodic_facts",
+        "rolling_summary",
+        "global_current_memory"
+      ],
+      "expectedBenefit": "Context Engineering: Build Consistent, Accurate, Predictable AI Systems",
+      "expectedCost": "infra: none",
+      "infraRequirements": [
+        "none"
+      ],
+      "privacyImplications": [
+        "none"
+      ],
+      "migrationRequirement": "none",
+      "state": "WATCH",
+      "lastDecision": "WATCH_NO_BENCHMARK_HOOK",
+      "lastDecisionReason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+      "priorRejectionReason": null,
+      "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
+      "evaluations": [
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": null,
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        }
+      ],
+      "draftPrUrl": null
+    },
     "github:bytedance/deer-flow": {
       "candidateKey": "github:bytedance/deer-flow",
       "category": "conversational_memory",
@@ -3166,7 +3781,7 @@
       "title": "Collab-Gen/RoleMemo",
       "version": null,
       "discoveredAt": "2026-10-01T09:27:12.035Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "[EMNLP 2026] From Facts to Insights: A Persona-Driven Dual Memory Framework and Dataset for Role-Playing Agents",
       "claimedAdvantage": "role-playing memory benchmark separating factual cognition from persona-conditioned insight and evaluating character-consistent response quality",
       "applicableOwners": [
@@ -3186,7 +3801,7 @@
       "lastDecisionReason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
       "priorRejectionReason": null,
       "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
-      "cooldownUntil": "2027-01-10T07:22:23.484Z",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
       "evaluations": [
         {
           "cycleKey": "monthly-2026-10",
@@ -3224,6 +3839,21 @@
           "version": null,
           "adapterFingerprint": null,
           "architectureFingerprint": "867f366b29a742b5",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        },
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": null,
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
           "state": "WATCH",
           "decision": "WATCH_NO_BENCHMARK_HOOK",
           "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
@@ -3393,7 +4023,7 @@
       "title": "FlagOpen/FlagEmbedding",
       "version": "v1.4.2",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Retrieval and Retrieval-augmented LLMs",
       "claimedAdvantage": "BGE embedding/reranker family (bge-m3 is the approved semantic-lane model)",
       "applicableOwners": [
@@ -3442,7 +4072,7 @@
       "title": "geniesinc/Memora",
       "version": null,
       "discoveredAt": "2026-10-01T09:27:12.035Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Memora: A Long-Term Memory Benchmark for Personalized Agents",
       "claimedAdvantage": "personalized long-term memory benchmark that evaluates remembering/reasoning/recommending while penalizing obsolete or invalidated memories via forgetting-aware evidence",
       "applicableOwners": [
@@ -3462,7 +4092,7 @@
       "lastDecisionReason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
       "priorRejectionReason": null,
       "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
-      "cooldownUntil": "2027-01-10T07:22:23.484Z",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
       "evaluations": [
         {
           "cycleKey": "monthly-2026-10",
@@ -3508,6 +4138,21 @@
             "SCREENED",
             "WATCH"
           ]
+        },
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": null,
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
         }
       ],
       "draftPrUrl": null
@@ -3518,9 +4163,9 @@
       "sourceKind": "github_repository",
       "sourceUrl": "https://github.com/getzep/graphiti",
       "title": "getzep/graphiti",
-      "version": "v0.30.2",
+      "version": "v0.31.1",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Build Real-Time Knowledge Graphs for AI Agents",
       "claimedAdvantage": "bi-temporal knowledge graph with edge invalidation for superseded facts",
       "applicableOwners": [
@@ -3551,6 +4196,21 @@
           "version": "v0.30.2",
           "adapterFingerprint": null,
           "architectureFingerprint": "14ec3e4d22443188",
+          "state": "REJECTED",
+          "decision": "REJECTED_INFRA_COMPLEXITY",
+          "reason": "wholesale adoption needs graph_database, python_runtime; only a TypeScript-native port of the technique is evaluable",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "REJECTED"
+          ]
+        },
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": "v0.31.1",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
           "state": "REJECTED",
           "decision": "REJECTED_INFRA_COMPLEXITY",
           "reason": "wholesale adoption needs graph_database, python_runtime; only a TypeScript-native port of the technique is evaluable",
@@ -3621,7 +4281,7 @@
       "title": "HKUDS/LightRAG",
       "version": "v1.5.7",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "[EMNLP2025] LightRAG: Simple and Fast Retrieval-Augmented Generation",
       "claimedAdvantage": "dual-level (entity + theme) graph-augmented retrieval",
       "applicableOwners": [
@@ -3721,7 +4381,7 @@
       "title": "langchain-ai/langmem",
       "version": null,
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "",
       "claimedAdvantage": "background memory manager with semantic/episodic/procedural types",
       "applicableOwners": [
@@ -3772,7 +4432,7 @@
       "title": "letta-ai/letta",
       "version": "0.16.8",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Platform for stateful agents: AI with advanced memory that can learn and self-improve over time.",
       "claimedAdvantage": "self-editing core/archival memory blocks managed by the agent",
       "applicableOwners": [
@@ -3874,7 +4534,7 @@
       "title": "mem0ai/mem0",
       "version": "ts-v3.3.1",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "The Memory Layer for AI Agents - Drop-in memory infrastructure for AI agents and apps. Context that persists. Built for production.",
       "claimedAdvantage": "LLM-extracted add/update/delete memory ops with vector+graph recall (LoCoMo results)",
       "applicableOwners": [
@@ -3926,7 +4586,7 @@
       "title": "microsoft/graphrag",
       "version": "v3.3.0",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "A modular graph-based Retrieval-Augmented Generation (RAG) system",
       "claimedAdvantage": "community-summarized entity graph for global questions",
       "applicableOwners": [
@@ -4133,6 +4793,56 @@
       ],
       "draftPrUrl": null
     },
+    "github:oryx-labs/oryxos": {
+      "candidateKey": "github:oryx-labs/oryxos",
+      "category": "conversational_memory",
+      "sourceKind": "github_repository",
+      "sourceUrl": "https://github.com/oryx-labs/oryxos",
+      "title": "oryx-labs/oryxos",
+      "version": "v0.1.7-RELEASE",
+      "discoveredAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "summary": "OryxOS is an open-source Distributed AI Agent OS",
+      "claimedAdvantage": "OryxOS is an open-source Distributed AI Agent OS",
+      "applicableOwners": [
+        "episodic_facts",
+        "rolling_summary",
+        "global_current_memory"
+      ],
+      "expectedBenefit": "OryxOS is an open-source Distributed AI Agent OS",
+      "expectedCost": "infra: none",
+      "infraRequirements": [
+        "none"
+      ],
+      "privacyImplications": [
+        "none"
+      ],
+      "migrationRequirement": "none",
+      "state": "WATCH",
+      "lastDecision": "WATCH_NO_BENCHMARK_HOOK",
+      "lastDecisionReason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+      "priorRejectionReason": null,
+      "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
+      "evaluations": [
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": "v0.1.7-RELEASE",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        }
+      ],
+      "draftPrUrl": null
+    },
     "github:qwenlm/qwen3-embedding": {
       "candidateKey": "github:qwenlm/qwen3-embedding",
       "category": "embedding_model",
@@ -4141,7 +4851,7 @@
       "title": "QwenLM/Qwen3-Embedding",
       "version": null,
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "",
       "claimedAdvantage": "multilingual embedding + reranker models (MTEB)",
       "applicableOwners": [
@@ -4238,7 +4948,7 @@
       "title": "SalesforceAIResearch/AnchorBench",
       "version": null,
       "discoveredAt": "2026-10-01T09:27:12.035Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "",
       "claimedAdvantage": "long-horizon companion benchmark separating persona continuity from trajectory recall across role/boundary/value/style and evolving relationship state",
       "applicableOwners": [
@@ -4258,7 +4968,7 @@
       "lastDecisionReason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
       "priorRejectionReason": null,
       "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
-      "cooldownUntil": "2027-01-10T07:22:23.484Z",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
       "evaluations": [
         {
           "cycleKey": "monthly-2026-10",
@@ -4296,6 +5006,21 @@
           "version": null,
           "adapterFingerprint": null,
           "architectureFingerprint": "867f366b29a742b5",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        },
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": null,
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
           "state": "WATCH",
           "decision": "WATCH_NO_BENCHMARK_HOOK",
           "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
@@ -4366,7 +5091,7 @@
       "title": "snap-research/locomo",
       "version": null,
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "",
       "claimedAdvantage": "very long-term conversational memory benchmark (QA, event summarization)",
       "applicableOwners": [
@@ -4606,6 +5331,56 @@
       ],
       "draftPrUrl": null
     },
+    "github:thedotmack/claude-mem": {
+      "candidateKey": "github:thedotmack/claude-mem",
+      "category": "conversational_memory",
+      "sourceKind": "github_repository",
+      "sourceUrl": "https://github.com/thedotmack/claude-mem",
+      "title": "thedotmack/claude-mem",
+      "version": "v14.0.1",
+      "discoveredAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "summary": "Persistent Context Across Sessions for Every Agent –  Captures everything your agent does during sessions, compresses it with AI, and injects relevant context back into future sessions. Works with Claude Code, OpenClaw, Codex, Gemini, Hermes, Copilot, OpenCode + More",
+      "claimedAdvantage": "Persistent Context Across Sessions for Every Agent –  Captures everything your agent does during sessions, compresses it with AI, and injects relevant context back into future sessions. Works with Claude Code, OpenClaw, Codex, Gemini, Hermes, Copilot, OpenCode + More",
+      "applicableOwners": [
+        "episodic_facts",
+        "rolling_summary",
+        "global_current_memory"
+      ],
+      "expectedBenefit": "Persistent Context Across Sessions for Every Agent –  Captures everything your agent does during sessions, compresses it with AI, and injects relevant context back into future sessions. Works with Claude Code, OpenClaw, Codex, Gemini, Hermes, Copilot, OpenCode + More",
+      "expectedCost": "infra: none",
+      "infraRequirements": [
+        "none"
+      ],
+      "privacyImplications": [
+        "none"
+      ],
+      "migrationRequirement": "none",
+      "state": "WATCH",
+      "lastDecision": "WATCH_NO_BENCHMARK_HOOK",
+      "lastDecisionReason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+      "priorRejectionReason": null,
+      "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
+      "evaluations": [
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": "v14.0.1",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        }
+      ],
+      "draftPrUrl": null
+    },
     "github:toolsdk-ai/toolsdk-mcp-registry": {
       "candidateKey": "github:toolsdk-ai/toolsdk-mcp-registry",
       "category": "conversational_memory",
@@ -4662,9 +5437,9 @@
       "sourceKind": "github_repository",
       "sourceUrl": "https://github.com/topoteretes/cognee",
       "title": "topoteretes/cognee",
-      "version": "v1.6.3",
+      "version": "v1.6.5",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Cognee is the open-source AI memory platform for agents. Give your AI agents persistent long-term memory with small models for free",
       "claimedAdvantage": "ECL pipeline building a queryable memory graph",
       "applicableOwners": [
@@ -4733,6 +5508,71 @@
             "SCREENED",
             "REJECTED"
           ]
+        },
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": "v1.6.5",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
+          "state": "REJECTED",
+          "decision": "REJECTED_INFRA_COMPLEXITY",
+          "reason": "wholesale adoption needs python_runtime, graph_database, vector_database; only a TypeScript-native port of the technique is evaluable",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "REJECTED"
+          ]
+        }
+      ],
+      "draftPrUrl": null
+    },
+    "github:trpc-group/trpc-agent-python": {
+      "candidateKey": "github:trpc-group/trpc-agent-python",
+      "category": "conversational_memory",
+      "sourceKind": "github_repository",
+      "sourceUrl": "https://github.com/trpc-group/trpc-agent-python",
+      "title": "trpc-group/trpc-agent-python",
+      "version": "v1.2.0",
+      "discoveredAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "summary": "tRPC-Agent-Python provides an end-to-end foundation for agent building, orchestration, tool integration, session and long-term memory, service deployment, and observability, so you can ship reliable and extensible AI applications faster.",
+      "claimedAdvantage": "tRPC-Agent-Python provides an end-to-end foundation for agent building, orchestration, tool integration, session and long-term memory, service deployment, and observability, so you can ship reliable and extensible AI applications faster.",
+      "applicableOwners": [
+        "episodic_facts",
+        "rolling_summary",
+        "global_current_memory"
+      ],
+      "expectedBenefit": "tRPC-Agent-Python provides an end-to-end foundation for agent building, orchestration, tool integration, session and long-term memory, service deployment, and observability, so you can ship reliable and extensible AI applications faster.",
+      "expectedCost": "infra: none",
+      "infraRequirements": [
+        "none"
+      ],
+      "privacyImplications": [
+        "none"
+      ],
+      "migrationRequirement": "none",
+      "state": "WATCH",
+      "lastDecision": "WATCH_NO_BENCHMARK_HOOK",
+      "lastDecisionReason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+      "priorRejectionReason": null,
+      "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
+      "evaluations": [
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": "v1.2.0",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
         }
       ],
       "draftPrUrl": null
@@ -4743,9 +5583,9 @@
       "sourceKind": "github_repository",
       "sourceUrl": "https://github.com/vectorize-io/hindsight",
       "title": "vectorize-io/hindsight",
-      "version": "v0.10.3",
+      "version": "v1.0.0",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Hindsight: Agent Memory That Learns",
       "claimedAdvantage": "retain/recall/reflect memory with long-term benchmark evidence and explicit learning-oriented consolidation",
       "applicableOwners": [
@@ -4806,6 +5646,21 @@
           "version": "v0.10.3",
           "adapterFingerprint": null,
           "architectureFingerprint": "867f366b29a742b5",
+          "state": "REJECTED",
+          "decision": "REJECTED_INFRA_COMPLEXITY",
+          "reason": "wholesale adoption needs python_runtime; only a TypeScript-native port of the technique is evaluable",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "REJECTED"
+          ]
+        },
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": "v1.0.0",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
           "state": "REJECTED",
           "decision": "REJECTED_INFRA_COMPLEXITY",
           "reason": "wholesale adoption needs python_runtime; only a TypeScript-native port of the technique is evaluable",
@@ -4925,7 +5780,7 @@
       "title": "xiaowu0162/LongMemEval",
       "version": null,
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Benchmarking Chat Assistants on Long-Term Interactive Memory (ICLR 2025)",
       "claimedAdvantage": "long-term chat memory benchmark: temporal reasoning, knowledge updates, abstention",
       "applicableOwners": [
@@ -4945,7 +5800,7 @@
       "lastDecisionReason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
       "priorRejectionReason": null,
       "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
-      "cooldownUntil": "2027-01-10T07:22:23.484Z",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
       "evaluations": [
         {
           "cycleKey": "weekly-2026-W40",
@@ -4998,6 +5853,21 @@
           "version": null,
           "adapterFingerprint": null,
           "architectureFingerprint": "867f366b29a742b5",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        },
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": null,
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
           "state": "WATCH",
           "decision": "WATCH_NO_BENCHMARK_HOOK",
           "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
@@ -5018,7 +5888,7 @@
       "title": "xiaowu0162/LongMemEval-V2",
       "version": null,
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "Official repository for LongMemEval-V2",
       "claimedAdvantage": "agentic long-term memory benchmark: dynamic state, workflow knowledge, environment gotchas, and premise awareness",
       "applicableOwners": [
@@ -5038,7 +5908,7 @@
       "lastDecisionReason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
       "priorRejectionReason": null,
       "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
-      "cooldownUntil": "2027-01-10T07:22:23.484Z",
+      "cooldownUntil": "2027-01-17T06:14:10.468Z",
       "evaluations": [
         {
           "cycleKey": "weekly-2026-W40",
@@ -5091,6 +5961,21 @@
           "version": null,
           "adapterFingerprint": null,
           "architectureFingerprint": "867f366b29a742b5",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        },
+        {
+          "cycleKey": "weekly-2026-W43",
+          "evaluatedAt": "2026-10-19T06:14:10.468Z",
+          "version": null,
+          "adapterFingerprint": null,
+          "architectureFingerprint": "5be31fd6bd0c2fab",
           "state": "WATCH",
           "decision": "WATCH_NO_BENCHMARK_HOOK",
           "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
@@ -5161,7 +6046,7 @@
       "title": "Nomi official memory architecture/docs",
       "version": "docs-af06e90a153377dd",
       "discoveredAt": "2026-10-01T09:27:12.035Z",
-      "lastSeenAt": "2026-10-12T07:22:23.484Z",
+      "lastSeenAt": "2026-10-19T06:14:10.468Z",
       "summary": "https://nomi.ai/updates/ Mind Map 2.0: Bringing Nomi Memory Into View Mind Map 2.0 gives you visibility into a living, interactive representation of one portion of your Nomi’s knowledge. For the first time, you can explore one of Nomi’s memory structures and see how your Nomi connects different memories, concepts, and knowledge. Major Memory Update: Expanded Capacity, Enhanced Retention Today we're excited to announce the release of our latest memory system upgrade, bringing significant improvements to how Nomis remember and process your conversations. This update represents a series of techni",
       "claimedAdvantage": "layered short/medium/long-term memory with Identity Core and Mind Map high-level context",
       "applicableOwners": [
@@ -5688,6 +6573,155 @@
           {
             "modelId": "gpt-6.1-sol",
             "n15DeltaInputTokens": 5846,
+            "n15MediumTokens": 5844
+          }
+        ]
+      }
+    },
+    {
+      "cycleKey": "weekly-2026-W43",
+      "mode": "weekly",
+      "finishedAt": "2026-10-19T06:14:29.946Z",
+      "mainSha": "55c9ddbaf98ad967833f68a5fff1c3f7923fefb6",
+      "counts": {
+        "sourcesChecked": 4,
+        "sourcesFailed": 0,
+        "observations": 53,
+        "newCandidates": 14,
+        "skippedDuplicates": 26,
+        "evaluated": 27,
+        "watch": 23,
+        "reject": 4,
+        "benchmarked": 0,
+        "accept": 0,
+        "draftPrPackets": 0,
+        "paidProviderCalls": 0,
+        "httpCalls": 51
+      },
+      "baseline": {
+        "benchmarkFingerprint": "dd363ec0987fa481",
+        "cases": 35,
+        "evaluatedTurns": 33,
+        "promptTokensPerTurn": 519.7878787878788,
+        "invariantViolationCount": 0,
+        "metrics": {
+          "falseInjectionRate": {
+            "value": 0,
+            "status": "MEASURED",
+            "eligibleCases": 33,
+            "totalCases": 35
+          },
+          "falseMemoryRate": {
+            "value": 0,
+            "status": "MEASURED",
+            "eligibleCases": 6,
+            "totalCases": 35
+          },
+          "irrelevantInjectionRate": {
+            "value": 0,
+            "status": "MEASURED",
+            "eligibleCases": 1,
+            "totalCases": 35
+          },
+          "precision": {
+            "value": 1,
+            "status": "MEASURED",
+            "eligibleCases": 33,
+            "totalCases": 35
+          },
+          "staleStateRecallRate": {
+            "value": 0,
+            "status": "MEASURED",
+            "eligibleCases": 5,
+            "totalCases": 35
+          },
+          "correctionSupersessionAccuracy": {
+            "value": 1,
+            "status": "MEASURED",
+            "eligibleCases": 1,
+            "totalCases": 35
+          },
+          "relationshipRoleConsistency": {
+            "value": 1,
+            "status": "MEASURED",
+            "eligibleCases": 2,
+            "totalCases": 35
+          },
+          "candidateRecallAtK": {
+            "value": 0.9642857142857143,
+            "status": "MEASURED",
+            "eligibleCases": 28,
+            "totalCases": 35
+          },
+          "finalRecallAt8": {
+            "value": 0.9629629629629629,
+            "status": "MEASURED",
+            "eligibleCases": 27,
+            "totalCases": 35
+          },
+          "distinctiveUtteranceRecall": {
+            "value": 1,
+            "status": "MEASURED",
+            "eligibleCases": 1,
+            "totalCases": 35
+          }
+        },
+        "finalHitByCase": {
+          "boundary-5turn-01": true,
+          "callback-75turn-01": true,
+          "t300-01": true,
+          "t1000-01": true,
+          "semantic-paraphrase-KNOWN_GAP_BASELINE_REPRO-01": false,
+          "promise-01": true,
+          "betrayal-01": true,
+          "first-never-01": true,
+          "role-event-direction-01": true,
+          "same-turn-multi-event-01": true,
+          "latest-state-replacement-01": true,
+          "historical-repeat-events-01": true,
+          "irrelevant-critical-vs-relevant-normal-01": true,
+          "message-edit-01": true,
+          "trpg-quest-01": true,
+          "character-state-transition-01": true,
+          "location-ownership-transition-01": true,
+          "horizon-t6-01": true,
+          "horizon-t20-01": true,
+          "horizon-t100-01": true,
+          "horizon-t2000-01": true,
+          "relationship-role-consistency-01": true,
+          "npc-durable-state-01": true,
+          "distinctive-utterance-01": true,
+          "correction-supersession-01": true,
+          "continuity-reset-01": true,
+          "high-noise-distractors-01": true
+        }
+      },
+      "promptPackingSnapshot": {
+        "generatedAt": "2026-10-19T06:14:31.746Z",
+        "currentTurnFixture": 300,
+        "policyId": "summary5_raw4",
+        "rawRecentExchanges": 4,
+        "rollingSummaryInterval": 5,
+        "mediumTermBlockCount": 15,
+        "models": [
+          {
+            "modelId": "claude-opus-5.5",
+            "n15DeltaInputTokens": 5845,
+            "n15MediumTokens": 5844
+          },
+          {
+            "modelId": "gemini-3.8-flash",
+            "n15DeltaInputTokens": 5845,
+            "n15MediumTokens": 5844
+          },
+          {
+            "modelId": "gemini-4-argon",
+            "n15DeltaInputTokens": 5845,
+            "n15MediumTokens": 5844
+          },
+          {
+            "modelId": "gpt-6.1-sol",
+            "n15DeltaInputTokens": 5845,
             "n15MediumTokens": 5844
           }
         ]
