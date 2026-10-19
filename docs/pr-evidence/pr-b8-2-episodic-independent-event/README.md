@@ -221,7 +221,7 @@ The resolver issues one root query per `cover` with uncovered keys, plus a prima
 
 ### Static checks
 
-`git diff --check` clean; `npm run lint` and `npm run typecheck:app` pass (also at `f3d36428` alone).
+`git diff --check` clean on the working tree and on the PR merge-base (`0a086447`) through the final HEAD (after the evidence TAP trailing-whitespace fix). The Validate ops inbox workflow’s **Diff hygiene** step had failed on trailing spaces in `logs/tests/new-boundary-tests-{before,after}*.tap` and `round3-fixtures-on-492a1273.tap`; only line-end spaces were removed, with test counts and body text unchanged. `npm run lint` and `npm run typecheck:app` pass (also at `f3d36428` alone).
 
 ## Round 3 recap (unchanged; evidence reused)
 

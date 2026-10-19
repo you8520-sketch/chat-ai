@@ -3729,7 +3729,7 @@ TAP version 13
 #       semantic_similarity: undefined,
 #       composite_score: 0.4444444444444444,
 #       relevance_pass: false,
-#    
+#
 #    duplicate_reason: null,
 #       budget_reason: null,
 #       final_rank: null
@@ -307117,7 +307117,7 @@ ok 3 - B8-2 — B7 rows: a later, separate injury of the same key keeps the old 
         Expected values to be strictly deep-equal:
         + actual - expected
         ... Skipped lines
-        
+
           [
             [
               'explicit_scene_event',
@@ -307132,7 +307132,7 @@ ok 3 - B8-2 — B7 rows: a later, separate injury of the same key keeps the old 
               }
             ]
           ]
-        
+
       code: 'ERR_ASSERTION'
       name: 'AssertionError'
       expected:
@@ -307185,9 +307185,9 @@ ok 3 - B8-2 — B7 rows: a later, separate injury of the same key keeps the old 
       failureType: 'testCodeFailure'
       error: |-
         4 corrections: correction 3 resurfaced
-        
+
         true !== false
-        
+
       code: 'ERR_ASSERTION'
       name: 'AssertionError'
       expected: false
@@ -307211,9 +307211,9 @@ ok 3 - B8-2 — B7 rows: a later, separate injury of the same key keeps the old 
       failureType: 'testCodeFailure'
       error: |-
         4 corrections: correction 3 resurfaced
-        
+
         true !== false
-        
+
       code: 'ERR_ASSERTION'
       name: 'AssertionError'
       expected: false
@@ -307237,9 +307237,9 @@ ok 3 - B8-2 — B7 rows: a later, separate injury of the same key keeps the old 
       failureType: 'testCodeFailure'
       error: |-
         correction 1
-        
+
         undefined !== 30
-        
+
       code: 'ERR_ASSERTION'
       name: 'AssertionError'
       expected: 30
@@ -307266,9 +307266,9 @@ ok 3 - B8-2 — B7 rows: a later, separate injury of the same key keeps the old 
       failureType: 'testCodeFailure'
       error: |-
         correction 1
-        
+
         true !== false
-        
+
       code: 'ERR_ASSERTION'
       name: 'AssertionError'
       expected: false
@@ -307296,9 +307296,9 @@ ok 3 - B8-2 — B7 rows: a later, separate injury of the same key keeps the old 
       failureType: 'testCodeFailure'
       error: |-
         T500
-        
+
         true !== false
-        
+
       code: 'ERR_ASSERTION'
       name: 'AssertionError'
       expected: false

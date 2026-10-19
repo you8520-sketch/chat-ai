@@ -3729,7 +3729,7 @@ TAP version 13
 #       semantic_similarity: undefined,
 #       composite_score: 0.4444444444444444,
 #       relevance_pass: false,
-#    
+#
 #    duplicate_reason: null,
 #       budget_reason: null,
 #       final_rank: null
@@ -231943,7 +231943,7 @@ TAP version 13
 #       final_rank: 20
 #     },
 #     {
-#   
+#
 #     id: 100,
 #       candidate_lanes: [Array],
 #       relevance_score: 1,

@@ -61,10 +61,10 @@ ok 1 - classifyEpisodicFactTemporalNature
       error: |-
         Expected values to be strictly equal:
         + actual - expected
-        
+
         + 'historical_event'
         - 'unknown'
-        
+
       code: 'ERR_ASSERTION'
       name: 'AssertionError'
       expected: 'unknown'
@@ -195,14 +195,14 @@ ok 5 - episodic correction contract — server-side handle mapping
       error: |-
         Expected values to be strictly deep-equal:
         + actual - expected
-        
+
           {
         +   root_fact_id: 412,
         +   root_source_turn: 30,
             target_fact_id: 412,
             target_source_turn: 30
           }
-        
+
       code: 'ERR_ASSERTION'
       name: 'AssertionError'
       expected:
@@ -182637,7 +182637,7 @@ ok 9 - B8-2 — B7 rows: a later, separate injury of the same key keeps the old 
         Expected values to be strictly deep-equal:
         + actual - expected
         ... Skipped lines
-        
+
           [
             [
               'explicit_scene_event',
@@ -182652,7 +182652,7 @@ ok 9 - B8-2 — B7 rows: a later, separate injury of the same key keeps the old 
               }
             ]
           ]
-        
+
       code: 'ERR_ASSERTION'
       name: 'AssertionError'
       expected:
