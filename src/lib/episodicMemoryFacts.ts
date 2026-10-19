@@ -1963,6 +1963,7 @@ export type EpisodicLaneBudgets = {
 
 const EPISODIC_CANDIDATE_SELECT_COLUMNS = `id, chat_id, character_id, user_id, source_turn, source_user_message_id,
                 category, subject, attribute, value, importance, fact_text, metadata, created_at`;
+const EPISODIC_CANDIDATE_COLUMN_NAMES = EPISODIC_CANDIDATE_SELECT_COLUMNS.split(",").map((column) => column.trim());
 
 /** Canonical eligibility scope — base (freshness) and recall-eligible (minAge) from one owner. */
 export type EpisodicCandidateScope = {
@@ -2681,53 +2682,59 @@ function fetchEpisodicMemoryCandidateRows(
   const minRecentTurn =
     recentRows.length > 0 ? Math.min(...recentRows.map((row) => row.source_turn)) : null;
 
+  const queryWords = tokenizeQueryWords(input.currentUserMessage ?? "");
   let lexicon = EMPTY_EPISODIC_QUERY_LEXICON;
-  if (tokenizeQueryWords(input.currentUserMessage ?? "").length > 0) {
-    lexicon = loadEpisodicQueryLexicon(
-      db,
-      input.scope.recallWhere,
-      input.scope.recallParams,
-      input.currentUserMessage ?? ""
-    );
-    queryCount += 1;
-  }
   let relevanceRows: EpisodicMemoryFactRecord[] = [];
-  if (lexicon.words.length > 0 && budgets.relevance > 0) {
-    const relevanceWhere = [...input.scope.recallWhere];
-    const relevanceParams = [...input.scope.recallParams];
-    if (minRecentTurn != null) {
-      relevanceWhere.push("source_turn < ?");
-      relevanceParams.push(minRecentTurn);
-    }
-    const matchedWordSql = lexicon.words.map(matchedQueryWordSql);
-    // Rank by the weighted query words before recency, as the final scorer does:
-    // with plain matched-word counts, newer rows sharing one recurring name plus an
-    // incidental word fill the lane first. Tokens never contain the char(10) separator.
-    relevanceRows = (db
+  if (queryWords.length > 0) {
+    const wordIndexes = queryWords.map((_, i) => i);
+    const idfSql = (i: number) => `ln(1 + (stats.n - stats.df${i} + 0.5) / (stats.df${i} + 0.5))`;
+    // One statement: word frequencies over the whole recall scope, and the lane over rows
+    // older than the recent lane, ranked by the summed idf of their words (proportional to
+    // the lexicon weights the final scorer uses) before recency. With plain matched-word
+    // counts, newer rows sharing a recurring name plus an incidental word fill the lane
+    // first. The LEFT JOIN keeps the frequencies when no older row matches.
+    // Tokens never contain the char(10) separator.
+    const rows = db
       .prepare(
         `WITH scoped AS MATERIALIZED (
            SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}, ${EPISODIC_SEARCH_TEXT_SQL} AS search_text
              FROM episodic_memory_facts
-            WHERE ${relevanceWhere.join(" AND ")}
+            WHERE ${input.scope.recallWhere.join(" AND ")}
          ),
          matched AS MATERIALIZED (
            SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS},
-                  ${matchedWordSql.join(" + ")} AS matched_words,
-                  ${matchedWordSql.map((sql) => `${sql} * ?`).join(" + ")} AS weighted_words
+                  ${queryWords.map((forms, i) => `${matchedQueryWordSql(forms)} AS m${i}`).join(", ")}
              FROM scoped
+         ),
+         stats AS MATERIALIZED (
+           SELECT COUNT(*) AS n, ${wordIndexes.map((i) => `COALESCE(SUM(m${i}), 0) AS df${i}`).join(", ")}
+             FROM matched
+         ),
+         lane AS (
+           SELECT matched.*, ${wordIndexes.map((i) => `m${i} * ${idfSql(i)}`).join(" + ")} AS lane_score
+             FROM matched, stats
+            WHERE ${wordIndexes.map((i) => `m${i}`).join(" + ")} > 0
+              AND (? IS NULL OR source_turn < ?)
+            ORDER BY lane_score DESC, source_turn DESC, id DESC
+            LIMIT ?
          )
-         SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
-           FROM matched
-          WHERE matched_words > 0
-          ORDER BY weighted_words DESC, source_turn DESC, id DESC
-          LIMIT ?`
+         SELECT json_array(stats.n, ${wordIndexes.map((i) => `stats.df${i}`).join(", ")}) AS lexicon_stats,
+                ${EPISODIC_CANDIDATE_COLUMN_NAMES.map((column) => `lane.${column} AS ${column}`).join(", ")}
+           FROM stats LEFT JOIN lane ON 1 = 1
+          ORDER BY lane.lane_score DESC, lane.source_turn DESC, lane.id DESC`
       )
       .all(
-        ...relevanceParams,
-        ...queryWordPatterns(lexicon.words),
-        ...lexicon.words.flatMap((forms, i) => [...queryWordPatterns([forms]), lexicon.weights[i]!]),
+        ...input.scope.recallParams,
+        ...queryWordPatterns(queryWords),
+        minRecentTurn,
+        minRecentTurn,
         budgets.relevance
-      ) as EpisodicMemoryFactRecord[]).map(attachStoredEvidenceType);
+      ) as Array<EpisodicMemoryFactRecord & { lexicon_stats: string }>;
+    const [rowCount, ...documentFrequencies] = JSON.parse(rows[0]!.lexicon_stats) as number[];
+    lexicon = { words: queryWords, weights: queryWordWeights(rowCount!, documentFrequencies) };
+    relevanceRows = rows
+      .filter((row) => row.id != null)
+      .map(({ lexicon_stats: _stats, ...row }) => attachStoredEvidenceType(row));
     queryCount += 1;
     rowsFetched += relevanceRows.length;
   }
