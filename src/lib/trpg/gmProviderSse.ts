@@ -51,10 +51,13 @@ function consumeSseLine(line: string, onData: GmSseDataHandler): boolean {
   const data = line.slice(5).trim();
   if (!data) return false;
   if (data === "[DONE]") return true;
+  let payload: unknown;
   try {
-    onData(JSON.parse(data) as unknown);
+    payload = JSON.parse(data) as unknown;
   } catch {
-    // ignore malformed SSE JSON
+    // ignore malformed SSE JSON; consumer callback errors must propagate
+    return false;
   }
+  onData(payload);
   return false;
 }

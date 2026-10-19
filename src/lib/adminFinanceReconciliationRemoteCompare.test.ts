@@ -473,10 +473,48 @@ describe("admin finance reconciliation remote compare", () => {
       assert.equal(result.remote.settledCount, 4);
       assert.equal(result.remote.settledMicroUsd, 49_000);
       assert.equal(result.apiKeyGroups.totalsMatchRemoteSettled, true);
-      assert.equal(result.apiKeyGroups.productionKeyMapping, "unavailable");
+      assert.equal(result.apiKeyGroups.productionKeyMapping, "unmapped");
+      assert.equal(result.apiKeyGroups.provenKeyCount, 0);
+      assert.equal(result.apiKeyGroups.groups[0]!.sourceScope, "undetermined_source");
+      assert.equal(result.apiKeyGroups.groups[1]!.sourceScope, "undetermined_source");
       assert.equal(result.apiKeyGroups.groups[0]!.byModel["deepseek-v4-pro-0813"], 1);
       assert.equal(result.apiKeyGroups.groups[0]!.byEndpoint["/chat/completions"], 1);
       assertNoSecrets(result, ["key-hav", "key-other", "a-1", "a-2", "b-1", "c-1"]);
+    } finally {
+      d.close();
+    }
+  });
+
+  it("labels only a ledger-intersecting key as production-proven", async () => {
+    const d = db();
+    try {
+      recordBackgroundProviderCost(
+        {
+          provider: "cheaperinference",
+          model: "deepseek-v4-pro-0813",
+          requestKind: "background-trpg-gm",
+          providerRequestId: "a-1",
+          outcome: "success",
+          usageEstimated: true,
+          persistInTests: true,
+        },
+        d
+      );
+      const result = await compare(d, {
+        includeKeyGroups: true,
+        requests: [
+          settled("a-1", 10_000, "2026-10-02 01:00:00", { apiKeyId: "key-hav" }),
+          settled("a-2", 5_000, "2026-10-02 01:10:00", { apiKeyId: "key-hav" }),
+          settled("b-1", 30_000, "2026-10-02 02:00:00", { apiKeyId: "key-other" }),
+        ],
+      });
+      assert.equal(result.apiKeyGroups?.productionKeyMapping, "ledger_intersection");
+      assert.equal(result.apiKeyGroups?.provenKeyCount, 1);
+      assert.equal(result.apiKeyGroups?.groups[0]?.sourceScope, "undetermined_source");
+      assert.equal(result.apiKeyGroups?.groups[0]?.settledMicroUsd, 30_000);
+      assert.equal(result.apiKeyGroups?.groups[1]?.sourceScope, "production_proven");
+      assert.equal(result.apiKeyGroups?.groups[1]?.settledCount, 2);
+      assertNoSecrets(result, ["key-hav", "key-other", "a-1", "a-2", "b-1"]);
     } finally {
       d.close();
     }
@@ -549,6 +587,10 @@ describe("admin finance reconciliation remote compare", () => {
       assert.ok(result.forwardAudit.cases.includes("unmatched_luna"));
       assert.ok(result.forwardAudit.cases.includes("pending_settlement"));
       assert.equal(result.forwardAudit.havExclusiveCostConfirmed, false);
+      assert.equal(result.forwardAudit.productionKeyMapping, "ledger_intersection");
+      assert.equal(result.forwardAudit.productionScope.unmatchedLedgerCount, 1);
+      assert.equal(result.forwardAudit.productionScope.unmatchedSettledMicroUsd, 8_000);
+      assert.equal(result.forwardAudit.undeterminedUsage.settledCount, 0);
       assertNoSecrets(result, ["old-unmatched", "new-linked", "new-unmatched", "new-pending", "key-a"]);
     } finally {
       d.close();

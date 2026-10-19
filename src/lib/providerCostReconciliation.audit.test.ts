@@ -400,7 +400,10 @@ describe("provider cost reconciliation audit #1337", () => {
       assert.equal(withNew.forwardAudit?.unmatchedLedgerCount, 1);
       assert.equal(withNew.forwardAudit?.unmatchedSettledMicroUsd, 8_000);
       assert.equal(withNew.forwardAudit?.cases.includes("unmatched_luna"), true);
-      assert.deepEqual(anomalyCodes(withNew), ["FORWARD_UNMATCHED_REMOTE_SPEND"]);
+      assert.equal(withNew.forwardAudit?.productionKeyMapping, "unmapped");
+      assert.equal(withNew.forwardAudit?.productionScope.unmatchedLedgerCount, 0);
+      assert.equal(withNew.forwardAudit?.undeterminedUsage.missingKeyIdSettledCount, 1);
+      assert.deepEqual(anomalyCodes(withNew), ["FORWARD_UNDETERMINED_USAGE_SOURCE"]);
     } finally {
       d.close();
     }
