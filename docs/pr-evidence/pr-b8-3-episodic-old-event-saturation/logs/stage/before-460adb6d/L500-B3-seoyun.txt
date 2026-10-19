@@ -1,0 +1,57 @@
+== question: (복도 끝에서 한서윤이 서류를 안고 다가오는 걸 보고 태형의 소매를 잡아끈다) 저 사람 또 왔어.
+currentTurn=501 storedRows=441
+-- query words: stored rows containing the word (any form)
+  복도	0
+  끝에서	19
+  한서윤이	1
+  한서윤	1
+  서류를	1
+  서류	1
+  안고	0
+  다가오는	0
+  다가오	0
+  보고	7
+  태형의	413
+  태형	413
+  소매를	0
+  소매	0
+  잡아끈다	0
+  사람	81
+  왔어	0
+-- 1. stored rows
+  #34	T57	character:taehyung:response_to_cake	historical_event	guard=allowed	태형은 서윤이 복귀 축하로 보낸 케이크를 공용 테이블에 두고 한 조각도 먹지 않았다.
+			quote: 웃고는 있었지만 그는 끝내 한 조각도 먹지 않았다.
+			content=[태형] quote-only=[]
+  #39	T64	character:taehyung:rejected_company	historical_event	guard=allowed	태형은 구내식당에서 한서윤의 동석 제안을 거절했다.
+			quote: 태형은 예의 바르게 웃었지만 의자를 빼 주지는 않았다.
+			content=[한서윤,태형] quote-only=[]
+  #40	T64	character:taehyung:opinion_of_seoyun	unknown	guard=allowed	태형은 뒤에서 서류를 올리는 사람과 식사하고 싶지 않다고 말했다.
+			quote: 웃으면서 뒤에서 서류 올리는 사람이랑은 밥 같이 안 먹어.
+			content=[서류를,서류,태형,사람] quote-only=[]
+-- 2. candidates: 86 {"recent":55,"relevance":25,"milestone_critical":0,"milestone_important":6,"semantic":0}
+  #34	T57	CANDIDATE_MISS	lex=1
+  #39	T64	CANDIDATE_MISS	lex=2
+  #40	T64	relevance	lex=2
+-- 3. state reconciliation: 32 state-like allowed candidate rows (key cap 25); a row absent from the production resolved set was reconciled out, blocked or deduped
+  #40	T64	unknown	in resolved set
+-- 4. final ranking: resolved=73 ranked=70 injected=7
+  #40	T64	DROPPED(max_chars)	rank=31	rel=2.000	composite=8.044
+  top ranked:
+  rank=1	T479	rel=2.000	composite=8.476	injected	태형과 렌은 한강 둔치에서 함께 보고서를 작성했다.
+  rank=2	T476	rel=2.000	composite=8.444	injected	태형과 렌은 구내식당에서 야간 대기를 했다.
+  rank=3	T474	rel=2.000	composite=8.426	injected	태형은 렌과 함께 역 앞 분식집에서 저녁을 준비했다.
+  rank=4	T473	rel=2.000	composite=8.417	injected	정비팀 박철은 두 사람의 페어 호흡이 좋다고 말했다.
+  rank=5	T463	rel=2.000	composite=8.345	injected	태형은 골목 끝의 작은 균열을 확인하고 봉인반을 불렀다.
+  rank=6	T456	rel=2.000	composite=8.308	injected	렌과 태형은 비 오는 날 지하 사격장에서 C급 게이트 정리를 함께 했다.
+  rank=7	T448	rel=2.000	composite=8.274	max_chars	태형은 순찰 중 골목 끝에서 작은 균열을 확인하고 봉인반을 불렀다.
+  rank=8	T444	rel=2.000	composite=8.260	max_chars	태형은 작전 차량 안에서 라면에 계란과 파를 넣어 저녁을 준비했다.
+  rank=9	T440	rel=2.000	composite=8.247	max_chars	태형은 순찰 중 작은 균열을 확인하고 봉인반을 불렀다.
+  rank=10	T435	rel=2.000	composite=8.233	max_chars	연구국 인턴 서다온이 본부 옥상을 지나가며 두 사람의 호흡이 좋다고 말했다.
+-- 5. final Episodic block (1091 chars)
+- [T479] [AI 장면 서술 발췌] “두 사람은 한강 둔치에서 보고서 작성을 했다.”
+- [T476] [AI 장면 서술 발췌] “두 사람은 구내식당에서 야간 대기를 했다.”
+- [T474] [AI 장면 서술 발췌] “두 사람은 역 앞 분식집에서 저녁 준비를 했다.”
+- [T473] [캐릭터 발언(미확정 주장)] “정비팀 박철이 지나가다 "페어 호흡 좋네요"라고 한마디 던졌고, 태형은 괜히 어깨를 으쓱했다.”
+- [T463] [AI 장면 서술 발췌] “태형은 골목 끝에서 작은 균열을 확인하고 봉인반을 불렀다.”
+- [T456] [AI 장면 서술 발췌] “두 사람은 지하 사격장에서 C급 게이트 정리를 했다.”
+- [T449] [유저 입력 발췌] “교관 남궁현 씨가 오늘 우리 찾았대.”

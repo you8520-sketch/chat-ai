@@ -1,0 +1,131 @@
+== question: 같이 야간 당직 섰던 거 기억나?
+currentTurn=501 storedRows=441
+-- query words: stored rows containing the word (any form)
+  같이	2	weight=1.000
+  야간	15	weight=0.647
+  당직	0	weight=1.000
+  섰던	0	weight=1.000
+  기억나	0	weight=1.000
+-- 1. stored rows
+  #40	T64	character:taehyung:opinion_of_seoyun	unknown	guard=allowed	태형은 뒤에서 서류를 올리는 사람과 식사하고 싶지 않다고 말했다.
+			quote: 웃으면서 뒤에서 서류 올리는 사람이랑은 밥 같이 안 먹어.
+			content=[] quote-only=[같이]
+  #70	T114	character:taehyung:night_watch_behavior	historical_event	guard=allowed	태형은 야간 대기 중 상황실 의자에서 졸면서 무전을 지켰다.
+			quote: 태형은 상황실 의자에서 번갈아 졸며 무전을 지켰다.
+			content=[야간] quote-only=[]
+  #90	T129	character:cha_serin:comment_on_pair	unknown	guard=allowed	차세린은 두 사람의 호흡이 좋다고 말했다.
+			quote: 두 사람은 구내식당에서 야간 대기를 했다.
+			content=[] quote-only=[야간]
+  #106	T144	character:taehyung:action	historical_event	guard=allowed	태형과 렌은 가이딩실에서 야간 대기를 했다.
+			quote: 두 사람은 가이딩실에서 야간 대기를 했다.
+			content=[야간] quote-only=[]
+  #144	T182	character:taehyung:action	historical_event	guard=allowed	태형과 렌은 정비고에서 야간 대기를 했다.
+			quote: 두 사람은 정비고에서 야간 대기를 했다.
+			content=[야간] quote-only=[]
+  #189	T235	character:taehyung:action	historical_event	guard=allowed	태형은 야간 대기 중 상황실에서 무전을 지켰다.
+			quote: 태형은 상황실 의자에서 번갈아 졸며 무전을 지켰다.
+			content=[야간] quote-only=[]
+  #195	T242	character:taehyung:night_watch	historical_event	guard=allowed	태형은 야간 대기 중 상황실 의자에서 졸면서 무전을 지켰다.
+			quote: 태형은 상황실 의자에서 번갈아 졸며 무전을 지켰다.
+			content=[야간] quote-only=[]
+  #240	T280	character:taehyung:action	historical_event	guard=allowed	태형은 렌과 야간 대기를 하며 상황실에서 무전을 지켰다.
+			quote: 태형은 상황실 의자에서 번갈아 졸며 무전을 지켰다.
+			content=[야간] quote-only=[]
+  #254	T295	character:taehyung:night_watch_duty	historical_event	guard=allowed	태형은 상황실에서 졸면서 무전을 지켰다.
+			quote: 태형은 상황실 의자에서 번갈아 졸며 무전을 지켰다.
+			content=[] quote-only=[]
+  #298	T340	location:taehyung:night_watch	historical_event	guard=allowed	태형과 렌은 지하 사격장에서 야간 대기를 했다.
+			quote: 두 사람은 지하 사격장에서 야간 대기를 했다.
+			content=[야간] quote-only=[]
+  #308	T348	character:taehyung:night_watch	historical_event	guard=allowed	태형과 렌은 본부 옥상에서 야간 대기를 했다.
+			quote: 두 사람은 본부 옥상에서 야간 대기를 했다.
+			content=[야간] quote-only=[]
+  #330	T378	character:taehyung:action	historical_event	guard=allowed	태형은 한강 둔치에서 야간 대기 중 상황실 의자에서 졸며 무전을 지켰다.
+			quote: 태형은 상황실 의자에서 번갈아 졸며 무전을 지켰다.
+			content=[야간] quote-only=[]
+  #367	T416	character:taehyung:night_watch	historical_event	guard=allowed	태형은 상황실에서 무전을 지키며 야간 대기를 했다.
+			quote: 태형은 상황실 의자에서 번갈아 졸며 무전을 지켰다.
+			content=[야간] quote-only=[]
+  #375	T423	character:taehyung:action	historical_event	guard=allowed	태형은 매점 앞에서 야간 대기를 하며 상황실 의자에서 졸다 깨기를 반복하고 무전을 지켰다.
+			quote: 태형은 상황실 의자에서 번갈아 졸며 무전을 지켰다.
+			content=[야간] quote-only=[]
+  #397	T446	character:taehyung:action	historical_event	guard=allowed	태형은 야간 대기 중 렌이 건넨 캔커피를 받아 들었다.
+			quote: 렌이 건넨 캔커피를 받아 든 그는
+			content=[야간] quote-only=[]
+  #426	T476	character:taehyung:action	historical_event	guard=allowed	태형과 렌은 구내식당에서 야간 대기를 했다.
+			quote: 두 사람은 구내식당에서 야간 대기를 했다.
+			content=[야간] quote-only=[]
+  #436	T491	character:taehyung:action	historical_event	guard=allowed	태형은 야간 대기 중 상황실 의자에서 졸면서 무전을 지켰다.
+			quote: 태형은 상황실 의자에서 번갈아 졸며 무전을 지켰다.
+			content=[야간] quote-only=[]
+-- 2. candidates: 75 {"recent":55,"relevance":14,"milestone_critical":0,"milestone_important":6,"semantic":0}
+  #40	T64	relevance	lex=1
+  #70	T114	relevance	lex=1
+  #90	T129	relevance	lex=1
+  #106	T144	relevance	lex=1
+  #144	T182	relevance	lex=1
+  #189	T235	relevance	lex=1
+  #195	T242	relevance	lex=1
+  #240	T280	relevance	lex=1
+  #254	T295	CANDIDATE_MISS	lex=0
+  #298	T340	relevance	lex=1
+  #308	T348	relevance	lex=1
+  #330	T378	relevance	lex=1
+  #367	T416	relevance	lex=1
+  #375	T423	relevance	lex=1
+  #397	T446	recent	lex=1
+  #426	T476	recent	lex=1
+  #436	T491	recent	lex=1
+-- 3. state reconciliation: 28 state-like allowed candidate rows (key cap 25); a row absent from the production resolved set was reconciled out, blocked or deduped
+  #40	T64	unknown	in resolved set
+  #70	T114	historical_event	in resolved set
+  #90	T129	unknown	in resolved set
+  #106	T144	historical_event	in resolved set
+  #144	T182	historical_event	in resolved set
+  #189	T235	historical_event	in resolved set
+  #195	T242	historical_event	in resolved set
+  #240	T280	historical_event	in resolved set
+  #298	T340	historical_event	in resolved set
+  #308	T348	historical_event	in resolved set
+  #330	T378	historical_event	in resolved set
+  #367	T416	historical_event	in resolved set
+  #375	T423	historical_event	in resolved set
+  #397	T446	historical_event	in resolved set
+  #426	T476	historical_event	in resolved set
+  #436	T491	historical_event	in resolved set
+-- 4. final ranking: resolved=66 ranked=16 injected=7
+  #40	T64	DROPPED(max_chars)	rank=15	rel=0.250	composite=1.044
+  #70	T114	DROPPED(max_chars)	rank=14	rel=0.647	composite=2.638
+  #90	T129	DROPPED(max_chars)	rank=16	rel=0.162	composite=0.698
+  #106	T144	DROPPED(max_chars)	rank=13	rel=0.647	composite=2.642
+  #144	T182	DROPPED(max_chars)	rank=12	rel=0.647	composite=2.647
+  #189	T235	DROPPED(max_chars)	rank=11	rel=0.647	composite=2.658
+  #195	T242	DROPPED(max_chars)	rank=10	rel=0.647	composite=2.660
+  #240	T280	DROPPED(max_chars)	rank=9	rel=0.647	composite=2.671
+  #298	T340	DROPPED(max_chars)	rank=8	rel=0.647	composite=2.699
+  #308	T348	INJECTED#7	rank=7	rel=0.647	composite=2.704
+  #330	T378	INJECTED#6	rank=6	rel=0.647	composite=2.728
+  #367	T416	INJECTED#5	rank=5	rel=0.647	composite=2.779
+  #375	T423	INJECTED#4	rank=4	rel=0.647	composite=2.793
+  #397	T446	INJECTED#3	rank=3	rel=0.647	composite=2.855
+  #426	T476	INJECTED#2	rank=2	rel=0.647	composite=3.033
+  #436	T491	INJECTED#1	rank=1	rel=0.647	composite=3.255
+  top ranked:
+  rank=1	T491	rel=0.647	composite=3.255	injected	태형은 야간 대기 중 상황실 의자에서 졸면서 무전을 지켰다.
+  rank=2	T476	rel=0.647	composite=3.033	injected	태형과 렌은 구내식당에서 야간 대기를 했다.
+  rank=3	T446	rel=0.647	composite=2.855	injected	태형은 야간 대기 중 렌이 건넨 캔커피를 받아 들었다.
+  rank=4	T423	rel=0.647	composite=2.793	injected	태형은 매점 앞에서 야간 대기를 하며 상황실 의자에서 졸다 깨기를 반복하고 무전을 지켰다.
+  rank=5	T416	rel=0.647	composite=2.779	injected	태형은 상황실에서 무전을 지키며 야간 대기를 했다.
+  rank=6	T378	rel=0.647	composite=2.728	injected	태형은 한강 둔치에서 야간 대기 중 상황실 의자에서 졸며 무전을 지켰다.
+  rank=7	T348	rel=0.647	composite=2.704	injected	태형과 렌은 본부 옥상에서 야간 대기를 했다.
+  rank=8	T340	rel=0.647	composite=2.699	max_chars	태형과 렌은 지하 사격장에서 야간 대기를 했다.
+  rank=9	T280	rel=0.647	composite=2.671	max_chars	태형은 렌과 야간 대기를 하며 상황실에서 무전을 지켰다.
+  rank=10	T242	rel=0.647	composite=2.660	max_chars	태형은 야간 대기 중 상황실 의자에서 졸면서 무전을 지켰다.
+-- 5. final Episodic block (1061 chars)
+- [T491] [AI 장면 서술 발췌] “태형은 상황실 의자에서 번갈아 졸며 무전을 지켰다.”
+- [T476] [AI 장면 서술 발췌] “두 사람은 구내식당에서 야간 대기를 했다.”
+- [T446] [AI 장면 서술 발췌] “렌이 건넨 캔커피를 받아 든 그는”
+- [T423] [AI 장면 서술 발췌] “태형은 상황실 의자에서 번갈아 졸며 무전을 지켰다.”
+- [T416] [AI 장면 서술 발췌] “태형은 상황실 의자에서 번갈아 졸며 무전을 지켰다.”
+- [T378] [AI 장면 서술 발췌] “태형은 상황실 의자에서 번갈아 졸며 무전을 지켰다.”
+- [T348] [AI 장면 서술 발췌] “두 사람은 본부 옥상에서 야간 대기를 했다.”

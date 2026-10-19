@@ -1,3 +1,5 @@
+keeps the live 12000 authoring ceiling and rejects 12001/15k before any save
+character setting expansion readiness (no limit change, no provider)
 P12 SERVER_ONLY_THROWS_AFTER_RESTORE: plain server-only throws again after boundary
 custom server boot import boundary
 reconstructs the CheaperInference DeepSeek wire body without a provider call

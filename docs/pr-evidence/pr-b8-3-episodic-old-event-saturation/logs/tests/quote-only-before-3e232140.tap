@@ -978,16 +978,16 @@ TAP version 13
 #   selected_count: 8,
 #   selected_facts: [
 #     {
-#       source_turn: 71,
+#       source_turn: 485,
 #       category: 'character',
 #       subject: 'taehyung',
 #       attribute: 'accepted_offer',
 #       value: 'accepted_offer_v',
 #       importance: 'normal',
-#       fact_text: '태형은 렌의 제안을 받아들였다.'
+#       fact_text: '태형은 렌의 제안을 받아들였다고 말했다.'
 #     },
 #     {
-#       source_turn: 64,
+#       source_turn: 480,
 #       category: 'character',
 #       subject: 'taehyung',
 #       attribute: 'opinion_of_seoyun',
@@ -1002,7 +1002,7 @@ TAP version 13
 #       attribute: 'night_watch_405',
 #       value: 'night_watch_405_v',
 #       importance: 'normal',
-#       fact_text: '태형과 렌은 한강 둔치에서 야간 대기를 했다.'
+#       fact_text: '태형과 렌은 한강 둔치에서 야간 대기를 했다고 말했다.'
 #     },
 #     {
 #       source_turn: 396,
@@ -1011,7 +1011,7 @@ TAP version 13
 #       attribute: 'night_watch_396',
 #       value: 'night_watch_396_v',
 #       importance: 'normal',
-#       fact_text: '태형과 렌은 상황실에서 야간 대기를 했다.'
+#       fact_text: '태형과 렌은 상황실에서 야간 대기를 했다고 말했다.'
 #     },
 #     {
 #       source_turn: 387,
@@ -1020,7 +1020,7 @@ TAP version 13
 #       attribute: 'night_watch_387',
 #       value: 'night_watch_387_v',
 #       importance: 'normal',
-#       fact_text: '태형과 렌은 정비고에서 야간 대기를 했다.'
+#       fact_text: '태형과 렌은 정비고에서 야간 대기를 했다고 말했다.'
 #     },
 #     {
 #       source_turn: 378,
@@ -1029,7 +1029,7 @@ TAP version 13
 #       attribute: 'night_watch_378',
 #       value: 'night_watch_378_v',
 #       importance: 'normal',
-#       fact_text: '태형과 렌은 가이딩실에서 야간 대기를 했다.'
+#       fact_text: '태형과 렌은 가이딩실에서 야간 대기를 했다고 말했다.'
 #     },
 #     {
 #       source_turn: 369,
@@ -1038,7 +1038,7 @@ TAP version 13
 #       attribute: 'night_watch_369',
 #       value: 'night_watch_369_v',
 #       importance: 'normal',
-#       fact_text: '태형과 렌은 구내식당에서 야간 대기를 했다.'
+#       fact_text: '태형과 렌은 구내식당에서 야간 대기를 했다고 말했다.'
 #     },
 #     {
 #       source_turn: 360,
@@ -1047,7 +1047,7 @@ TAP version 13
 #       attribute: 'night_watch_360',
 #       value: 'night_watch_360_v',
 #       importance: 'normal',
-#       fact_text: '태형과 렌은 매점 앞에서 야간 대기를 했다.'
+#       fact_text: '태형과 렌은 매점 앞에서 야간 대기를 했다고 말했다.'
 #     }
 #   ],
 #   skipped_conflict_facts_count: 0,
@@ -1064,9 +1064,9 @@ TAP version 13
 #       candidate_lanes: [Array],
 #       relevance_score: 1,
 #       importance_score: 0,
-#       recency_score: 0.044543429844097995,
+#       recency_score: 0.5714285714285714,
 #       semantic_similarity: undefined,
-#       composite_score: 4.044543429844098,
+#       composite_score: 4.571428571428571,
 #       relevance_pass: true,
 #       duplicate_reason: null,
 #       budget_reason: null,
@@ -1077,9 +1077,9 @@ TAP version 13
 #       candidate_lanes: [Array],
 #       relevance_score: 1,
 #       importance_score: 0,
-#       recency_score: 0.043859649122807015,
+#       recency_score: 0.5,
 #       semantic_similarity: undefined,
-#       composite_score: 4.043859649122807,
+#       composite_score: 4.5,
 #       relevance_pass: true,
 #       duplicate_reason: null,
 #       budget_reason: null,
@@ -1519,19 +1519,6 @@ TAP version 13
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
-#       recency_score: 0.5714285714285714,
-#       semantic_similarity: undefined,
-#       composite_score: 0.5714285714285714,
-#       relevance_pass: false,
-#       duplicate_reason: null,
-#       budget_reason: null,
-#       final_rank: null
-#     },
-#     {
-#       id: 425,
-#       candidate_lanes: [Array],
-#       relevance_score: 0,
-#       importance_score: 0,
 #       recency_score: 0.5555555555555556,
 #       semantic_similarity: undefined,
 #       composite_score: 0.5555555555555556,
@@ -1541,7 +1528,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 424,
+#       id: 425,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1554,7 +1541,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 423,
+#       id: 424,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1567,7 +1554,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 422,
+#       id: 423,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1580,20 +1567,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 421,
-#       candidate_lanes: [Array],
-#       relevance_score: 0,
-#       importance_score: 0,
-#       recency_score: 0.5,
-#       semantic_similarity: undefined,
-#       composite_score: 0.5,
-#       relevance_pass: false,
-#       duplicate_reason: null,
-#       budget_reason: null,
-#       final_rank: null
-#     },
-#     {
-#       id: 420,
+#       id: 422,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1606,7 +1580,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 419,
+#       id: 421,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1619,7 +1593,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 418,
+#       id: 420,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1632,7 +1606,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 417,
+#       id: 419,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1645,7 +1619,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 416,
+#       id: 418,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1658,7 +1632,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 415,
+#       id: 417,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1671,7 +1645,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 414,
+#       id: 416,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1684,7 +1658,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 413,
+#       id: 415,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1697,7 +1671,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 412,
+#       id: 414,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1710,7 +1684,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 411,
+#       id: 413,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1723,7 +1697,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 410,
+#       id: 412,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1736,7 +1710,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 409,
+#       id: 411,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1749,7 +1723,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 408,
+#       id: 410,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1762,7 +1736,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 407,
+#       id: 409,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1775,7 +1749,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 406,
+#       id: 408,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1788,7 +1762,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 405,
+#       id: 407,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1801,7 +1775,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 404,
+#       id: 406,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1814,7 +1788,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 403,
+#       id: 405,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1827,7 +1801,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 402,
+#       id: 404,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1840,7 +1814,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 401,
+#       id: 403,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1853,7 +1827,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 400,
+#       id: 402,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1866,7 +1840,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 399,
+#       id: 401,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1879,7 +1853,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 398,
+#       id: 400,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1892,7 +1866,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 397,
+#       id: 399,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1905,7 +1879,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 396,
+#       id: 398,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1918,7 +1892,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 395,
+#       id: 397,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1931,7 +1905,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 394,
+#       id: 396,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1944,7 +1918,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 393,
+#       id: 395,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1957,7 +1931,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 392,
+#       id: 394,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1970,7 +1944,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 391,
+#       id: 393,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1983,7 +1957,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 390,
+#       id: 392,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -1996,7 +1970,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 389,
+#       id: 391,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -2009,7 +1983,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 388,
+#       id: 390,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -2022,7 +1996,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 387,
+#       id: 389,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -2035,7 +2009,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 386,
+#       id: 388,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -2048,7 +2022,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 385,
+#       id: 387,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -2061,7 +2035,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 384,
+#       id: 386,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -2074,7 +2048,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 383,
+#       id: 385,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -2087,7 +2061,7 @@ TAP version 13
 #       final_rank: null
 #     },
 #     {
-#       id: 382,
+#       id: 384,
 #       candidate_lanes: [Array],
 #       relevance_score: 0,
 #       importance_score: 0,
@@ -4207,8 +4181,8 @@ TAP version 13
     # Subtest: final ranking: unrelated verbatim-only rows rank after every night row
     not ok 1 - final ranking: unrelated verbatim-only rows rank after every night row
       ---
-      duration_ms: 26.507406
-      location: '/workspace/src/lib/memory/memory-episodic-long-horizon.test.ts:49:2502'
+      duration_ms: 27.51426
+      location: '/workspace/src/lib/memory/memory-episodic-long-horizon.test.ts:49:2870'
       failureType: 'testCodeFailure'
       error: 'decoy 1 rank 2 must follow every night row (worst 17)'
       code: 'ERR_ASSERTION'
@@ -4217,7 +4191,7 @@ TAP version 13
       actual: false
       operator: '=='
       stack: |-
-        TestContext.<anonymous> (/workspace/src/lib/memory/memory-episodic-long-horizon.test.ts:850:14)
+        TestContext.<anonymous> (/workspace/src/lib/memory/memory-episodic-long-horizon.test.ts:866:14)
         Test.runInAsyncScope (node:async_hooks:211:14)
         Test.run (node:internal/test_runner/test:979:25)
         Test.start (node:internal/test_runner/test:877:17)
@@ -4231,8 +4205,8 @@ TAP version 13
     # Subtest: candidate lane: verbatim-only rows do not take lane slots from night rows when the lane is full
     not ok 2 - candidate lane: verbatim-only rows do not take lane slots from night rows when the lane is full
       ---
-      duration_ms: 6.920064
-      location: '/workspace/src/lib/memory/memory-episodic-long-horizon.test.ts:49:3188'
+      duration_ms: 7.290517
+      location: '/workspace/src/lib/memory/memory-episodic-long-horizon.test.ts:49:3556'
       failureType: 'testCodeFailure'
       error: |-
         the relevance lane holds 25 night rows
@@ -4245,7 +4219,7 @@ TAP version 13
       actual: 23
       operator: 'strictEqual'
       stack: |-
-        TestContext.<anonymous> (/workspace/src/lib/memory/memory-episodic-long-horizon.test.ts:866:12)
+        TestContext.<anonymous> (/workspace/src/lib/memory/memory-episodic-long-horizon.test.ts:882:12)
         Test.runInAsyncScope (node:async_hooks:211:14)
         Test.run (node:internal/test_runner/test:979:25)
         Suite.processPendingSubtests (node:internal/test_runner/test:677:18)
@@ -4255,11 +4229,11 @@ TAP version 13
         async Suite.run (node:internal/test_runner/test:1358:7)
         async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
       ...
-    # Subtest: 25-key priority: verbatim-only rows do not take reconcile slots from night rows
-    not ok 3 - 25-key priority: verbatim-only rows do not take reconcile slots from night rows
+    # Subtest: 25-key priority: verbatim-only rows that reach the candidates do not take reconcile slots from night rows
+    not ok 3 - 25-key priority: verbatim-only rows that reach the candidates do not take reconcile slots from night rows
       ---
-      duration_ms: 12.004187
-      location: '/workspace/src/lib/memory/memory-episodic-long-horizon.test.ts:49:3893'
+      duration_ms: 14.297727
+      location: '/workspace/src/lib/memory/memory-episodic-long-horizon.test.ts:49:4261'
       failureType: 'testCodeFailure'
       error: |-
         Expected values to be strictly equal:
@@ -4272,7 +4246,7 @@ TAP version 13
       actual: 23
       operator: 'strictEqual'
       stack: |-
-        TestContext.<anonymous> (/workspace/src/lib/memory/memory-episodic-long-horizon.test.ts:875:12)
+        TestContext.<anonymous> (/workspace/src/lib/memory/memory-episodic-long-horizon.test.ts:893:12)
         Test.runInAsyncScope (node:async_hooks:211:14)
         Test.run (node:internal/test_runner/test:979:25)
         Suite.processPendingSubtests (node:internal/test_runner/test:677:18)
@@ -4283,17 +4257,17 @@ TAP version 13
     # Subtest: a verbatim-only clue still recalls the row when only name-only rows compete
     ok 4 - a verbatim-only clue still recalls the row when only name-only rows compete
       ---
-      duration_ms: 16.33411
+      duration_ms: 17.89611
       ...
     # Subtest: a verbatim-only clue plus a second matching word beats rows matching one common content word
     ok 5 - a verbatim-only clue plus a second matching word beats rows matching one common content word
       ---
-      duration_ms: 9.284103
+      duration_ms: 10.537265
       ...
     1..5
 not ok 1 - QUOTE-ONLY rare word — a verbatim-only match must not outrank rows about the asked topic
   ---
-  duration_ms: 71.777893
+  duration_ms: 78.223576
   type: 'suite'
   location: '/workspace/src/lib/memory/memory-episodic-long-horizon.test.ts:47:2644'
   failureType: 'subtestsFailed'
@@ -4308,4 +4282,4 @@ not ok 1 - QUOTE-ONLY rare word — a verbatim-only match must not outrank rows 
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 1269.006561
+# duration_ms 1261.534596
