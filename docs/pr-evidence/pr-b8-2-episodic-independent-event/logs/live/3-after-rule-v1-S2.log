@@ -1,0 +1,19 @@
+label=after model=gpt-6-luna link contract present: yes
+
+== S2 implicit correction (no 정정 keyword) (live turn T120)
+   user: 늑대한테 물린 거 아니잖아. 그때 창고 문에 왼팔이 끼여서 다친 거였어.
+   assistant: 에녹이 멋쩍게 웃었다. “…그랬던가. 문에 끼였던 거였지.”
+   offered candidates: C1=T30(T30 seed)
+   call: transportOk=true http=200 responseModel=? input=2535 (cacheRead=2362) output=40 cost=$0.000042 (billed) ≈0.063원
+   raw response: {"relationship":{"items":[],"itemsRemove":[],"promisesAdd":[],"promisesRemove":[]},"episodic":{"extracted_facts":[]}}
+   model corrects (raw): (no facts)
+   stored rows:
+     id=30 T30 injury=left_arm_bitten role=assistant authority=CURRENT_SCENE quote=“늑대가 에녹의 왼팔을 깊이 물어뜯었다.” correction=null
+   link to T30: not linked (expected linked, T30 offered as C1) -> FAIL
+   final block @T500 q="예전에 에녹 왼팔은 왜 다쳤었지?" T30 bite shown -> consistent with link
+     - [T30] [AI 장면 서술 발췌] “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+   final block @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?" T30 bite shown -> consistent with link
+     - [T30] [AI 장면 서술 발췌] “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+
+RESULT label=after calls=2 input=5077 output=80 cost≈0.392원 contract_failures=1
+TICKET TOTAL calls=3/12 cost≈0.699원/100원

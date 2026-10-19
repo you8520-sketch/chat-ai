@@ -1,4 +1,5 @@
 import { buildSharedInitialEpisodicSectionInstructions } from "@/lib/memory/memory-episodic-prompt";
+import { formatEpisodicCorrectionCandidatesBlock } from "@/lib/memory/memory-episodic-correction";
 import {
   buildCombinedDualWidgetExtractSystem,
   buildCombinedDualWidgetExtractUserBlock,
@@ -215,19 +216,24 @@ export function buildPostTurnSharedInitialUserBlock(input: PostTurnSharedInitial
     ? buildSharedSuggestionVoiceContext(input)
     : "";
   const activePromisesBlock = buildActivePromisesBlock(input);
+  const correctionCandidatesBlock = input.includeEpisodic
+    ? formatEpisodicCorrectionCandidatesBlock(input.episodicCorrectionCandidates)
+    : "";
 
   if (widgetBlock) {
     const rejectedDraftBlock =
       input.relationshipRegenContext?.previousAssistantMessage?.trim()
         ? `[REJECTED ASSISTANT DRAFT — RELATIONSHIP COMPARISON ONLY; NOT EPISODIC EVIDENCE]\n${input.relationshipRegenContext.previousAssistantMessage}`
         : "";
-    return [widgetBlock, rejectedDraftBlock, activePromisesBlock, voiceContext]
+    return [widgetBlock, rejectedDraftBlock, activePromisesBlock, correctionCandidatesBlock, voiceContext]
       .filter(Boolean)
       .join("\n\n");
   }
   // No widget consumer (status OFF). Always include the current turn so
   // suggestions-only work does not depend on the relationship section.
-  return [currentTurnBlock, activePromisesBlock, voiceContext].filter(Boolean).join("\n\n");
+  return [currentTurnBlock, activePromisesBlock, correctionCandidatesBlock, voiceContext]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 /** @internal tests — standalone combined flat-top contract must not appear in shared system. */

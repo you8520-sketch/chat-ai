@@ -1,0 +1,202 @@
+link contract present at this revision: no
+
+== A (event gloss) T30 AI scene injury, T120 user corrects the same event (corrects → T30)
+   stored enoch rows:
+     id=30 T30 injury=left_arm_bitten explicit_scene_event role=assistant authority=CURRENT_SCENE quote=“늑대가 에녹의 왼팔을 깊이 물어뜯었다.” correction=null
+     id=120 T120 injury=left_arm_caught_in_door explicit_user_statement role=user authority=USER_EXPLICIT quote=“늑대에게 물린 게 아니라 문에 팔이 끼인 거야.” correction=null
+-- A event @T500 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> PASS
+   - [T120] [유저 입력 발췌] “늑대에게 물린 게 아니라 문에 팔이 끼인 거야.”
+   (+0 filler lines)
+-- A event @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> PASS
+   - [T120] [유저 입력 발췌] “늑대에게 물린 게 아니라 문에 팔이 끼인 거야.”
+   (+0 filler lines)
+
+== B (event gloss) T200 user tells a separate same-key injury (corrects "")
+   stored enoch rows:
+     id=30 T30 injury=left_arm_bitten explicit_scene_event role=assistant authority=CURRENT_SCENE quote=“늑대가 에녹의 왼팔을 깊이 물어뜯었다.” correction=null
+     id=200 T200 injury=right_hand_cut explicit_user_statement role=user authority=USER_EXPLICIT quote=“어제 훈련하다 칼에 오른손을 베였잖아.” correction=null
+-- B event old cause @T500 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> FAIL
+   missing: “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+   - [T200] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+   (+0 filler lines)
+-- B event new injury @T500 q="에녹 오른손은 왜 다쳤었지?" -> PASS
+   - [T200] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+   (+0 filler lines)
+-- B event old cause @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> FAIL
+   missing: “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+   - [T200] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+   (+0 filler lines)
+-- B event new injury @T1000 q="에녹 오른손은 왜 다쳤었지?" -> PASS
+   - [T200] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+   (+0 filler lines)
+
+== C (event gloss) T30 corrected at T120, then a separate T312 injury told by AI scene
+   stored enoch rows:
+     id=30 T30 injury=left_arm_bitten explicit_scene_event role=assistant authority=CURRENT_SCENE quote=“늑대가 에녹의 왼팔을 깊이 물어뜯었다.” correction=null
+     id=120 T120 injury=left_arm_caught_in_door explicit_user_statement role=user authority=USER_EXPLICIT quote=“늑대에게 물린 게 아니라 문에 팔이 끼인 거야.” correction=null
+     id=312 T312 injury=sprained_right_ankle explicit_scene_event role=assistant authority=CURRENT_SCENE quote=“에녹은 계단에서 미끄러지며 오른쪽 발목을 접질렀다.” correction=null
+-- C event/AI scene corrected cause @T500 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> FAIL
+   missing: “늑대에게 물린 게 아니라 문에 팔이 끼인 거야.”
+   (+0 filler lines)
+-- C event/AI scene T312 @T500 q="예전에 에녹 발목은 왜 다쳤었지?" -> PASS
+   - [T312] [AI 장면 서술 발췌] “에녹은 계단에서 미끄러지며 오른쪽 발목을 접질렀다.”
+   (+0 filler lines)
+-- C event/AI scene corrected cause @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> FAIL
+   missing: “늑대에게 물린 게 아니라 문에 팔이 끼인 거야.”
+   (+0 filler lines)
+-- C event/AI scene T312 @T1000 q="예전에 에녹 발목은 왜 다쳤었지?" -> PASS
+   - [T312] [AI 장면 서술 발췌] “에녹은 계단에서 미끄러지며 오른쪽 발목을 접질렀다.”
+   (+0 filler lines)
+
+== C (event gloss) T30 corrected at T120, then a separate T312 injury told by user statement
+   stored enoch rows:
+     id=30 T30 injury=left_arm_bitten explicit_scene_event role=assistant authority=CURRENT_SCENE quote=“늑대가 에녹의 왼팔을 깊이 물어뜯었다.” correction=null
+     id=120 T120 injury=left_arm_caught_in_door explicit_user_statement role=user authority=USER_EXPLICIT quote=“늑대에게 물린 게 아니라 문에 팔이 끼인 거야.” correction=null
+     id=312 T312 injury=right_hand_cut explicit_user_statement role=user authority=USER_EXPLICIT quote=“어제 훈련하다 칼에 오른손을 베였잖아.” correction=null
+-- C event/user statement corrected cause @T500 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> FAIL
+   missing: “늑대에게 물린 게 아니라 문에 팔이 끼인 거야.”
+   - [T312] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+   (+0 filler lines)
+-- C event/user statement T312 @T500 q="에녹 오른손은 왜 다쳤었지?" -> PASS
+   - [T312] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+   (+0 filler lines)
+-- C event/user statement corrected cause @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> FAIL
+   missing: “늑대에게 물린 게 아니라 문에 팔이 끼인 거야.”
+   - [T312] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+   (+0 filler lines)
+-- C event/user statement T312 @T1000 q="에녹 오른손은 왜 다쳤었지?" -> PASS
+   - [T312] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+   (+0 filler lines)
+
+== A (state gloss) T30 AI scene injury, T120 user corrects the same event (corrects → T30)
+   stored enoch rows:
+     id=30 T30 injury=left_arm_bitten explicit_scene_event role=assistant authority=CURRENT_SCENE quote=“늑대가 에녹의 왼팔을 깊이 물어뜯었다.” correction=null
+     id=120 T120 injury=left_arm_caught_in_door explicit_user_statement role=user authority=USER_EXPLICIT quote=“늑대에게 물린 게 아니라 문에 팔이 끼인 거야.” correction=null
+-- A state @T500 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> PASS
+   - [T120] [유저 입력 발췌] “늑대에게 물린 게 아니라 문에 팔이 끼인 거야.”
+   (+0 filler lines)
+-- A state @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> PASS
+   - [T120] [유저 입력 발췌] “늑대에게 물린 게 아니라 문에 팔이 끼인 거야.”
+   (+0 filler lines)
+
+== B (state gloss) T200 user tells a separate same-key injury (corrects "")
+   stored enoch rows:
+     id=30 T30 injury=left_arm_bitten explicit_scene_event role=assistant authority=CURRENT_SCENE quote=“늑대가 에녹의 왼팔을 깊이 물어뜯었다.” correction=null
+     id=200 T200 injury=right_hand_cut explicit_user_statement role=user authority=USER_EXPLICIT quote=“어제 훈련하다 칼에 오른손을 베였잖아.” correction=null
+-- B state old cause @T500 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> FAIL
+   missing: “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+   - [T200] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+   (+0 filler lines)
+-- B state new injury @T500 q="에녹 오른손은 왜 다쳤었지?" -> PASS
+   - [T200] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+   (+0 filler lines)
+-- B state old cause @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> FAIL
+   missing: “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+   - [T200] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+   (+0 filler lines)
+-- B state new injury @T1000 q="에녹 오른손은 왜 다쳤었지?" -> PASS
+   - [T200] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+   (+0 filler lines)
+
+== C (state gloss) T30 corrected at T120, then a separate T312 injury told by AI scene
+   stored enoch rows:
+     id=30 T30 injury=left_arm_bitten explicit_scene_event role=assistant authority=CURRENT_SCENE quote=“늑대가 에녹의 왼팔을 깊이 물어뜯었다.” correction=null
+     id=120 T120 injury=left_arm_caught_in_door explicit_user_statement role=user authority=USER_EXPLICIT quote=“늑대에게 물린 게 아니라 문에 팔이 끼인 거야.” correction=null
+     id=312 T312 injury=sprained_right_ankle explicit_scene_event role=assistant authority=CURRENT_SCENE quote=“에녹은 계단에서 미끄러지며 오른쪽 발목을 접질렀다.” correction=null
+-- C state/AI scene corrected cause @T500 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> FAIL
+   missing: “늑대에게 물린 게 아니라 문에 팔이 끼인 거야.”
+   (+0 filler lines)
+-- C state/AI scene T312 @T500 q="예전에 에녹 발목은 왜 다쳤었지?" -> PASS
+   - [T312] [AI 장면 서술 발췌] “에녹은 계단에서 미끄러지며 오른쪽 발목을 접질렀다.”
+   (+0 filler lines)
+-- C state/AI scene corrected cause @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> FAIL
+   missing: “늑대에게 물린 게 아니라 문에 팔이 끼인 거야.”
+   (+0 filler lines)
+-- C state/AI scene T312 @T1000 q="예전에 에녹 발목은 왜 다쳤었지?" -> PASS
+   - [T312] [AI 장면 서술 발췌] “에녹은 계단에서 미끄러지며 오른쪽 발목을 접질렀다.”
+   (+0 filler lines)
+
+== C (state gloss) T30 corrected at T120, then a separate T312 injury told by user statement
+   stored enoch rows:
+     id=30 T30 injury=left_arm_bitten explicit_scene_event role=assistant authority=CURRENT_SCENE quote=“늑대가 에녹의 왼팔을 깊이 물어뜯었다.” correction=null
+     id=120 T120 injury=left_arm_caught_in_door explicit_user_statement role=user authority=USER_EXPLICIT quote=“늑대에게 물린 게 아니라 문에 팔이 끼인 거야.” correction=null
+     id=312 T312 injury=right_hand_cut explicit_user_statement role=user authority=USER_EXPLICIT quote=“어제 훈련하다 칼에 오른손을 베였잖아.” correction=null
+-- C state/user statement corrected cause @T500 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> FAIL
+   missing: “늑대에게 물린 게 아니라 문에 팔이 끼인 거야.”
+   - [T312] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+   (+0 filler lines)
+-- C state/user statement T312 @T500 q="에녹 오른손은 왜 다쳤었지?" -> PASS
+   - [T312] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+   (+0 filler lines)
+-- C state/user statement corrected cause @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> FAIL
+   missing: “늑대에게 물린 게 아니라 문에 팔이 끼인 거야.”
+   - [T312] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+   (+0 filler lines)
+-- C state/user statement T312 @T1000 q="에녹 오른손은 왜 다쳤었지?" -> PASS
+   - [T312] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+   (+0 filler lines)
+
+== D T30 filed as scene_event, correction filed as injury_cause (corrects → T30)
+   stored enoch rows:
+     id=30 T30 scene_event=left_arm_bitten explicit_scene_event role=assistant authority=CURRENT_SCENE quote=“늑대가 에녹의 왼팔을 깊이 물어뜯었다.” correction=null
+     id=120 T120 injury_cause=left_arm_caught_in_door explicit_user_statement role=user authority=USER_EXPLICIT quote=“늑대에게 물린 게 아니라 문에 팔이 끼인 거야.” correction=null
+-- D scene_event @T500 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> FAIL
+   must not appear: “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+   - [T30] [AI 장면 서술 발췌] “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+   - [T120] [유저 입력 발췌] “늑대에게 물린 게 아니라 문에 팔이 끼인 거야.”
+   (+0 filler lines)
+-- D scene_event @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> FAIL
+   must not appear: “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+   - [T30] [AI 장면 서술 발췌] “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+   - [T120] [유저 입력 발췌] “늑대에게 물린 게 아니라 문에 팔이 끼인 거야.”
+   (+0 filler lines)
+
+== D T30 filed as action, correction filed as injury_cause (corrects → T30)
+   stored enoch rows:
+     id=30 T30 action=left_arm_bitten explicit_scene_event role=assistant authority=CURRENT_SCENE quote=“늑대가 에녹의 왼팔을 깊이 물어뜯었다.” correction=null
+     id=120 T120 injury_cause=left_arm_caught_in_door explicit_user_statement role=user authority=USER_EXPLICIT quote=“늑대에게 물린 게 아니라 문에 팔이 끼인 거야.” correction=null
+-- D action @T500 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> FAIL
+   must not appear: “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+   - [T30] [AI 장면 서술 발췌] “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+   - [T120] [유저 입력 발췌] “늑대에게 물린 게 아니라 문에 팔이 끼인 거야.”
+   (+0 filler lines)
+-- D action @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> FAIL
+   must not appear: “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+   - [T30] [AI 장면 서술 발췌] “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+   - [T120] [유저 입력 발췌] “늑대에게 물린 게 아니라 문에 팔이 끼인 거야.”
+   (+0 filler lines)
+
+== E T30 real injury, T80 recovery (corrects "")
+   stored enoch rows:
+     id=30 T30 injury=left_arm_bitten explicit_scene_event role=assistant authority=CURRENT_SCENE quote=“늑대가 에녹의 왼팔을 깊이 물어뜯었다.” correction=null
+     id=80 T80 injury=left_arm_recovered explicit_scene_event role=assistant authority=CURRENT_SCENE quote=“치료를 마친 에녹의 왼팔은 완전히 회복되었다.” correction=null
+-- E @T500 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> PASS
+   - [T30] [AI 장면 서술 발췌] “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+   - [T80] [AI 장면 서술 발췌] “치료를 마친 에녹의 왼팔은 완전히 회복되었다.”
+   (+0 filler lines)
+-- E @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> PASS
+   - [T30] [AI 장면 서술 발췌] “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+   - [T80] [AI 장면 서술 발췌] “치료를 마친 에녹의 왼팔은 완전히 회복되었다.”
+   (+0 filler lines)
+
+== unclear target: the same correction words but corrects "" (nothing invalidated)
+   stored enoch rows:
+     id=30 T30 injury=left_arm_bitten explicit_scene_event role=assistant authority=CURRENT_SCENE quote=“늑대가 에녹의 왼팔을 깊이 물어뜯었다.” correction=null
+     id=120 T120 injury=left_arm_caught_in_door explicit_user_statement role=user authority=USER_EXPLICIT quote=“늑대에게 물린 게 아니라 문에 팔이 끼인 거야.” correction=null
+-- unclear @T500 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> FAIL
+   missing: “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+   - [T120] [유저 입력 발췌] “늑대에게 물린 게 아니라 문에 팔이 끼인 거야.”
+   (+0 filler lines)
+
+== F the correction turn deleted / its user source edited → T30 restored; T30 deleted → correction stands alone
+-- F correction deleted @T500 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> PASS
+   - [T30] [AI 장면 서술 발췌] “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+   (+0 filler lines)
+-- F correction user source edited @T500 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> PASS
+   - [T30] [AI 장면 서술 발췌] “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+   (+0 filler lines)
+-- F T30 deleted @T500 q="예전에 에녹 왼팔은 왜 다쳤었지?" -> PASS
+   - [T120] [유저 입력 발췌] “늑대에게 물린 게 아니라 문에 팔이 끼인 거야.”
+   (+0 filler lines)
+
+RESULT failures=17

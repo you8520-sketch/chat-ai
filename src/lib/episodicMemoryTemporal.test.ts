@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   classifyEpisodicFactTemporalNature,
+  isVerifiedFirstHandRecord,
   looksLikeCompletedHistoricalEvent,
 } from "@/lib/episodicMemoryTemporal";
 
@@ -179,6 +180,118 @@ describe("classifyEpisodicFactTemporalNature", () => {
         fact_text: "캐릭터의 정체가 상대에게 밝혀진 사실이 있다.",
       }),
       "unknown"
+    );
+  });
+});
+
+describe("verified scene occurrence under a free-form attribute", () => {
+  function verified(authority: string, role = "assistant"): string {
+    return JSON.stringify({
+      memory_evidence_type: "explicit_scene_event",
+      evidence: { role, message_id: 61, quote: "발톱이 태형의 왼쪽 옆구리를 꿰뚫었다.", authority, match: "normalized_exact" },
+    });
+  }
+  function classify(factText: string, metadata: string | null, overrides: Record<string, string> = {}) {
+    return classifyEpisodicFactTemporalNature({
+      category: "character",
+      attribute: "injury",
+      value: "v",
+      fact_text: factText,
+      evidence_type: "explicit_scene_event",
+      metadata,
+      ...overrides,
+    });
+  }
+
+  it("a verified past action or change is history whatever its key", () => {
+    for (const text of [
+      "태형은 진화형 크리처의 발톱에 왼쪽 옆구리를 찔렸다.",
+      "태형은 순찰 중 계단에서 미끄러져 오른쪽 발목을 접질렀다.",
+      "그날 태형의 왼쪽 옆구리는 열네 바늘 봉합되었다.",
+      "유저는 에녹의 요구를 거절했다.",
+    ]) {
+      assert.equal(classify(text, verified("CURRENT_SCENE")), "historical_event", text);
+    }
+    assert.equal(classify("유저는 문을 열었다.", verified("USER_EXPLICIT", "user")), "historical_event");
+  });
+
+  it("a legacy row, a character claim or another evidence type is not promoted", () => {
+    const text = "태형은 진화형 크리처의 발톱에 왼쪽 옆구리를 찔렸다.";
+    assert.equal(classify(text, null), "unknown");
+    assert.equal(classify(text, JSON.stringify({ memory_evidence_type: "explicit_scene_event" })), "unknown");
+    assert.equal(classify(text, verified("CHARACTER_CLAIM")), "unknown");
+    assert.equal(classify(text, verified("CURRENT_SCENE"), { evidence_type: "character_claim" }), "unknown");
+  });
+
+  it("the user's own verified statement that something happened is history like a scene record", () => {
+    const user = verified("USER_EXPLICIT", "user");
+    const statement = (fact_text: string, metadata: string | null = user, overrides: Record<string, string> = {}) => ({
+      category: "character",
+      attribute: "injury",
+      value: "v",
+      fact_text,
+      evidence_type: "explicit_user_statement",
+      metadata,
+      ...overrides,
+    });
+    const text = "에녹은 훈련 중 칼날에 오른손을 다쳤다.";
+    assert.equal(isVerifiedFirstHandRecord(statement(text)), true);
+    assert.equal(classifyEpisodicFactTemporalNature(statement(text)), "historical_event");
+    assert.equal(classifyEpisodicFactTemporalNature(statement("에녹은 오른손에 상처가 있다.")), "unknown");
+    assert.equal(classifyEpisodicFactTemporalNature(statement(text, null)), "unknown");
+    assert.equal(classifyEpisodicFactTemporalNature(statement(text, verified("CHARACTER_CLAIM", "user"))), "unknown");
+    assert.equal(classifyEpisodicFactTemporalNature(statement(text, verified("CURRENT_SCENE"))), "unknown");
+    assert.equal(
+      classifyEpisodicFactTemporalNature(statement("사용자는 딸기우유를 좋아하게 되었다.", user, { category: "preference", attribute: "favorite_drink" })),
+      "durable"
+    );
+  });
+
+  it("a standing value keeps latest-wins whoever narrated it, even glossed as a completed change", () => {
+    const user = verified("USER_EXPLICIT", "user");
+    for (const [attribute, text] of [
+      ["past_job", "유저는 카페에서 일했다."],
+      ["occupation", "유저는 구급대원으로 언급되었다."],
+      ["relationship_status", "유저와 에녹은 연인이 되었다."],
+      ["location", "유저는 서울로 이사했다."],
+      ["work_team", "박철은 정비팀 소속으로 언급되었다."],
+    ]) {
+      assert.equal(classify(text, user, { evidence_type: "explicit_user_statement", attribute }), "unknown", attribute);
+    }
+    for (const attribute of ["organization_role", "organization"]) {
+      assert.equal(classify("태형은 연구국 인턴으로 소개되었다.", verified("CURRENT_SCENE"), { attribute }), "unknown", attribute);
+    }
+    assert.equal(
+      classify("태형은 골목 끝에서 균열을 확인하고 봉인반을 불렀다.", verified("CURRENT_SCENE"), { attribute: "called_seal_team" }),
+      "historical_event"
+    );
+  });
+
+  it("state-shaped glosses keep latest-wins even with a verified source", () => {
+    for (const text of [
+      "태형은 권총 두 자루를 허리춤에 차고 다닌다.",
+      "붕대 가장자리가 누렇게 변해 있었다.",
+      "태형은 연구국 인턴이었다.",
+      "태형은 조리장으로 일한다.",
+      "태형은 지금도 통증을 느끼고 있다.",
+      "에녹은 카페 안쪽 자리에 앉아 있다.",
+      "태형은 내일 다시 오겠다.",
+      "태형은 오른쪽 발목을 치료 중이다.",
+      "옆구리에 상처가 없었다.",
+    ]) {
+      assert.equal(classify(text, verified("CURRENT_SCENE")), "unknown", text);
+    }
+  });
+
+  it("durable and temporary attributes keep their nature", () => {
+    const metadata = verified("CURRENT_SCENE");
+    assert.equal(
+      classify("사용자는 딸기우유를 좋아하게 되었다.", metadata, { category: "preference", attribute: "favorite_drink" }),
+      "durable"
+    );
+    assert.equal(
+      classify("태형은 순간 얼굴을 찡그렸다.", metadata, { attribute: "facial_expression" }),
+      "clearly_temporary"
     );
   });
 });

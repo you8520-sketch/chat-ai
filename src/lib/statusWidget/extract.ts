@@ -46,6 +46,7 @@ import {
   type PostTurnSharedInitialWidgetShapeDiagnostics,
 } from "@/lib/postTurnSharedInitial/widgetShapeDiagnostics";
 import type { SuggestedReplyItem } from "@/lib/suggestedReplies/types";
+import type { EpisodicCorrectionCandidate } from "@/lib/memory/memory-episodic-correction";
 import { mergeExtractedFacts, sanitizeExtractedFacts } from "./extractedFacts";
 import {
   logStatusWidgetLiveTrace,
@@ -782,6 +783,8 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   relationshipRegenContext?: { previousAssistantMessage: string } | null;
   /** Stored text of the canonical active promises for the shared relationship section. */
   activePromises: readonly string[];
+  /** Past episodic records the shared episodic section may name as corrected. */
+  episodicCorrectionCandidates?: readonly EpisodicCorrectionCandidate[];
 }): Promise<{
   values: ParsedStatusWidgetTurnValues;
   usage: TokenUsage | null;
@@ -942,6 +945,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       includeEpisodic: shareEpisodic,
       relationshipRegenContext: opts.relationshipRegenContext ?? null,
       activePromises: opts.activePromises,
+      episodicCorrectionCandidates: opts.episodicCorrectionCandidates,
     };
     const shared = await runPostTurnSharedInitial(
       sharedInput,
