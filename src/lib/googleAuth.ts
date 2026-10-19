@@ -1,18 +1,15 @@
 import "server-only";
 import { getDb } from "@/lib/db";
 import { consumePendingEmailSignup } from "@/lib/emailSignupVerification";
+import { sanitizeReturnPath } from "@/lib/safeReturnPath";
 import { grantSignupBonusOnce } from "@/lib/signupBonus";
-
-const SAFE_RETURN_PATH = /^\/(?!\/)[^?#]*$/;
 
 export function isGoogleAuthConfigured(): boolean {
   return Boolean(process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim());
 }
 
 export function sanitizeOAuthReturnTo(value: string | null | undefined, fallback = "/login"): string {
-  const trimmed = value?.trim() ?? "";
-  if (!trimmed || !SAFE_RETURN_PATH.test(trimmed)) return fallback;
-  return trimmed;
+  return sanitizeReturnPath(value, fallback);
 }
 
 export type GoogleUserInfo = {
