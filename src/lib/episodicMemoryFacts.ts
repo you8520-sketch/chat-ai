@@ -1582,6 +1582,71 @@ function countMatchedQueryWords(haystack: string, query: string): number {
   ).length;
 }
 
+/**
+ * Query words with how much each one tells rows of this chat apart. A word that most
+ * in-scope rows contain (a recurring character name) must not count as much as a word
+ * only the asked-about event contains, or every recent row that repeats the name ties
+ * with the old event and recency decides.
+ */
+type EpisodicQueryLexicon = {
+  words: string[][];
+  /** Aligned with `words`: BM25 idf over the scope, the rarest word present = 1. */
+  weights: number[];
+};
+
+const EMPTY_EPISODIC_QUERY_LEXICON: EpisodicQueryLexicon = { words: [], weights: [] };
+
+/** Lower-cased text the lexical lanes match: gloss, key fields and the evidence quote. */
+const EPISODIC_SEARCH_TEXT_SQL = `LOWER(COALESCE(fact_text, '') || char(10) || COALESCE(subject, '') || char(10)
+  || COALESCE(attribute, '') || char(10) || COALESCE(value, '') || char(10)
+  || COALESCE(CASE WHEN json_valid(metadata) THEN json_extract(metadata, '$.evidence.quote') END, ''))`;
+
+function matchedQueryWordSql(forms: string[]): string {
+  return `(CASE WHEN ${forms.map(() => "search_text LIKE ?").join(" OR ")} THEN 1 ELSE 0 END)`;
+}
+
+function queryWordPatterns(words: string[][]): string[] {
+  return words.flat().map((token) => `%${token.toLowerCase()}%`);
+}
+
+/** Words no in-scope row contains keep full weight; they can only match a row the SQL scan did not see. */
+function queryWordWeights(rowCount: number, documentFrequencies: number[]): number[] {
+  const idf = documentFrequencies.map((df) =>
+    df > 0 ? Math.log(1 + (rowCount - df + 0.5) / (df + 0.5)) : null
+  );
+  const present = idf.filter((value): value is number => value != null);
+  const max = present.length > 0 ? Math.max(...present) : 0;
+  return idf.map((value) => (value == null || max <= 0 ? 1 : value / max));
+}
+
+function loadEpisodicQueryLexicon(
+  db: Database.Database,
+  where: string[],
+  params: unknown[],
+  query: string
+): EpisodicQueryLexicon {
+  const words = tokenizeQueryWords(query);
+  if (words.length === 0) return EMPTY_EPISODIC_QUERY_LEXICON;
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS n, ${words.map((forms, i) => `SUM(${matchedQueryWordSql(forms)}) AS df${i}`).join(", ")}
+         FROM (SELECT ${EPISODIC_SEARCH_TEXT_SQL} AS search_text
+                 FROM episodic_memory_facts
+                WHERE ${where.join(" AND ")})`
+    )
+    .get(...queryWordPatterns(words), ...params) as Record<string, number | null>;
+  const documentFrequencies = words.map((_, i) => Number(row[`df${i}`] ?? 0));
+  return { words, weights: queryWordWeights(Number(row.n ?? 0), documentFrequencies) };
+}
+
+function matchedQueryWordIndexes(haystack: string, lexicon: EpisodicQueryLexicon): number[] {
+  const matched: number[] = [];
+  lexicon.words.forEach((forms, i) => {
+    if (forms.some((token) => tokenMatchesHaystack(haystack, token))) matched.push(i);
+  });
+  return matched;
+}
+
 type FactSearchFields = Pick<EpisodicExtractedFact, "subject" | "attribute" | "value" | "fact_text"> & {
   metadata?: string | null;
 };
@@ -1593,11 +1658,17 @@ function factSearchText(fact: FactSearchFields): string {
   return `${fact.subject} ${fact.attribute} ${fact.value} ${safeFactText} ${quote}`.toLowerCase();
 }
 
-function lexicalRelevance(
+/**
+ * `matchedWords` is the relevance evidence (does the row share any query word); `relevance`
+ * orders rows by how distinctive the shared words are, on the same 0..2 scale.
+ */
+function weightedLexicalRelevance(
   fact: FactSearchFields,
-  currentUserMessage: string
-): number {
-  return Math.min(2, countMatchedQueryWords(factSearchText(fact), currentUserMessage));
+  lexicon: EpisodicQueryLexicon
+): { matchedWords: number; relevance: number } {
+  const matched = matchedQueryWordIndexes(factSearchText(fact), lexicon);
+  const weight = matched.reduce((sum, i) => sum + lexicon.weights[i]!, 0);
+  return { matchedWords: matched.length, relevance: Math.min(2, weight) };
 }
 
 /** Same tokenizer/matcher as episodic ranking, for any free text (0..2). */
@@ -1605,7 +1676,7 @@ export function scoreTextLexicalRelevance(text: string, query: string): number {
   return Math.min(2, countMatchedQueryWords(text.toLowerCase(), query));
 }
 
-/** Existing-owner diagnostic — same tokenizer/scorer as production ranking. */
+/** Existing-owner diagnostic — same tokenizer and matched-word evidence as production ranking (unweighted 0..2). */
 export function inspectLexicalRelevanceForDebug(
   fact: Pick<EpisodicExtractedFact, "subject" | "attribute" | "value" | "fact_text">,
   query: string
@@ -1652,7 +1723,7 @@ export function inspectLexicalRelevanceForDebug(
         targetFactTextMatch: lengthFilterPass && tokenMatchesHaystack(factText, normalized),
       };
     }),
-    relevanceScore: lexicalRelevance(fact, query),
+    relevanceScore: Math.min(2, countMatchedQueryWords(haystack, query)),
     factSearchText: haystack,
   };
 }
@@ -1872,7 +1943,7 @@ export type EpisodicStateReconcileStats = {
 
 export type ReconcileGlobalStateLikeFactsOptions = {
   /**
-   * Spend the key-cap lookup budget on these rows first.
+   * Spend the key-cap lookup budget on these rows first, in the set's iteration order.
    * Overflow keys are still dropped — this only changes which 25 keys are reconciled.
    * Callers must not prefer semantic-only rows; that resurrects stale/false state.
    */
@@ -2373,8 +2444,10 @@ export function reconcileGlobalStateLikeFacts(
   };
   const preferRowIds = options?.preferRowIds;
   if (preferRowIds && preferRowIds.size > 0) {
-    for (const row of stateRows) {
-      if (preferRowIds.has(row.id)) pushStateKey(row);
+    const stateRowById = new Map(stateRows.map((row) => [row.id, row]));
+    for (const id of preferRowIds) {
+      const row = stateRowById.get(id);
+      if (row) pushStateKey(row);
     }
   }
   for (const row of stateRows) pushStateKey(row);
@@ -2501,6 +2574,7 @@ type EpisodicCandidateFetchResult = {
   laneById: Map<number, EpisodicCandidateLane[]>;
   /** Cosine similarity for every in-scope, hash-valid, same-model vector scanned. */
   semanticSimilarityById: Map<number, number>;
+  lexicon: EpisodicQueryLexicon;
 };
 
 function emptySemanticLaneStats(
@@ -2607,46 +2681,53 @@ function fetchEpisodicMemoryCandidateRows(
   const minRecentTurn =
     recentRows.length > 0 ? Math.min(...recentRows.map((row) => row.source_turn)) : null;
 
-  const queryWords = tokenizeQueryWords(input.currentUserMessage ?? "");
-  const tokens = queryWords.flat();
+  let lexicon = EMPTY_EPISODIC_QUERY_LEXICON;
+  if (tokenizeQueryWords(input.currentUserMessage ?? "").length > 0) {
+    lexicon = loadEpisodicQueryLexicon(
+      db,
+      input.scope.recallWhere,
+      input.scope.recallParams,
+      input.currentUserMessage ?? ""
+    );
+    queryCount += 1;
+  }
   let relevanceRows: EpisodicMemoryFactRecord[] = [];
-  if (tokens.length > 0 && budgets.relevance > 0) {
+  if (lexicon.words.length > 0 && budgets.relevance > 0) {
     const relevanceWhere = [...input.scope.recallWhere];
     const relevanceParams = [...input.scope.recallParams];
     if (minRecentTurn != null) {
       relevanceWhere.push("source_turn < ?");
       relevanceParams.push(minRecentTurn);
     }
-    const tokenPatterns = tokens.map((token) => `%${token.toLowerCase()}%`);
-    const matchedWordCount = queryWords
-      .map((forms) => `(CASE WHEN ${forms.map(() => "search_text LIKE ?").join(" OR ")} THEN 1 ELSE 0 END)`)
-      .join(" + ");
-    // Rank by matched query words before recency, as the final scorer does: with
-    // any-token matching alone, newer rows sharing one recurring name or filler
-    // word fill the lane first. Tokens never contain the char(10) separator.
+    const matchedWordSql = lexicon.words.map(matchedQueryWordSql);
+    // Rank by the weighted query words before recency, as the final scorer does:
+    // with plain matched-word counts, newer rows sharing one recurring name plus an
+    // incidental word fill the lane first. Tokens never contain the char(10) separator.
     relevanceRows = (db
       .prepare(
         `WITH scoped AS MATERIALIZED (
-           SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS},
-                  LOWER(COALESCE(fact_text, '') || char(10) || COALESCE(subject, '') || char(10)
-                    || COALESCE(attribute, '') || char(10) || COALESCE(value, '') || char(10)
-                    || COALESCE(CASE WHEN json_valid(metadata) THEN json_extract(metadata, '$.evidence.quote') END, '')
-                  ) AS search_text
+           SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}, ${EPISODIC_SEARCH_TEXT_SQL} AS search_text
              FROM episodic_memory_facts
             WHERE ${relevanceWhere.join(" AND ")}
          ),
          matched AS MATERIALIZED (
-           SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}, ${matchedWordCount} AS matched_words FROM scoped
+           SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS},
+                  ${matchedWordSql.join(" + ")} AS matched_words,
+                  ${matchedWordSql.map((sql) => `${sql} * ?`).join(" + ")} AS weighted_words
+             FROM scoped
          )
          SELECT ${EPISODIC_CANDIDATE_SELECT_COLUMNS}
            FROM matched
           WHERE matched_words > 0
-          ORDER BY matched_words DESC, source_turn DESC, id DESC
+          ORDER BY weighted_words DESC, source_turn DESC, id DESC
           LIMIT ?`
       )
-      .all(...relevanceParams, ...tokenPatterns, budgets.relevance) as EpisodicMemoryFactRecord[]).map(
-      attachStoredEvidenceType
-    );
+      .all(
+        ...relevanceParams,
+        ...queryWordPatterns(lexicon.words),
+        ...lexicon.words.flatMap((forms, i) => [...queryWordPatterns([forms]), lexicon.weights[i]!]),
+        budgets.relevance
+      ) as EpisodicMemoryFactRecord[]).map(attachStoredEvidenceType);
     queryCount += 1;
     rowsFetched += relevanceRows.length;
   }
@@ -2752,6 +2833,7 @@ function fetchEpisodicMemoryCandidateRows(
     rows: merged.rows,
     laneById: merged.laneById,
     semanticSimilarityById,
+    lexicon,
     stats: {
       queryCount,
       rowsFetched,
@@ -2884,6 +2966,7 @@ export function fetchEpisodicMemoryCandidatesForDebug(
     rows: [],
     laneById: new Map(),
     semanticSimilarityById: new Map(),
+    lexicon: EMPTY_EPISODIC_QUERY_LEXICON,
     stats: {
       queryCount: 0,
       rowsFetched: 0,
@@ -2969,11 +3052,12 @@ export function resolveEpisodicRerankingPolicy(
 function scoreFactForPrompt(
   fact: EpisodicMemoryFactRecord,
   currentMessage: string,
+  lexicon: EpisodicQueryLexicon,
   currentTurn: number | null,
   semantic: EpisodicSemanticEvidence | undefined,
   reranking: ResolvedEpisodicRerankingPolicy
 ) {
-  const relevance = lexicalRelevance(fact, currentMessage);
+  const { matchedWords, relevance } = weightedLexicalRelevance(fact, lexicon);
   const importance = IMPORTANCE_RANK[fact.importance] - 1;
   const age = Math.max(0, (currentTurn ?? fact.source_turn) - fact.source_turn);
   const recency = 1 / (1 + age / 20);
@@ -2990,7 +3074,7 @@ function scoreFactForPrompt(
   // or model similarity at or above the active config's threshold. Milestone
   // status alone never passes. Empty debug/admin queries retain browse behavior.
   const hasSceneQuery = currentMessage.trim().length > 0;
-  const passes = !hasSceneQuery || relevance > 0 || semanticPass;
+  const passes = !hasSceneQuery || matchedWords > 0 || semanticPass;
   return {
     relevance,
     importance,
@@ -3168,7 +3252,7 @@ export function getEpisodicMemoryForPrompt(
     const scope = buildEpisodicCandidateScope(db, input, env);
     if (!scope) return { facts: [], promptBlock: "", debug: [] };
 
-    const { rows, laneById, semanticSimilarityById } = fetchEpisodicMemoryCandidateRows(db, {
+    const { rows, laneById, semanticSimilarityById, lexicon } = fetchEpisodicMemoryCandidateRows(db, {
       scope,
       candidateLimit,
       currentUserMessage: input.currentUserMessage,
@@ -3261,12 +3345,17 @@ export function getEpisodicMemoryForPrompt(
     const currentMessage = input.currentUserMessage ?? "";
     const corrections = createEpisodicCorrectionResolver(db, scope);
     corrections.cover(uncontaminatedRows);
+    // The key cap is spent on the most query-distinctive rows first: a recurring name gives
+    // nearly every row some relevance, so candidate order alone hands the cap to recent rows.
+    const preferredRows = uncontaminatedRows
+      .map((row) => ({ row, lexical: weightedLexicalRelevance(row, lexicon) }))
+      .filter(
+        ({ row, lexical }) =>
+          Boolean(laneById.get(row.id)?.some(lanePrefersStateReconcileBudget)) || lexical.matchedWords > 0
+      )
+      .sort((a, b) => b.lexical.relevance - a.lexical.relevance);
     const preferRowIds = new Set<number>();
-    for (const row of uncontaminatedRows) {
-      const lanes = laneById.get(row.id);
-      const preferred =
-        Boolean(lanes?.some(lanePrefersStateReconcileBudget)) || lexicalRelevance(row, currentMessage) > 0;
-      if (!preferred) continue;
+    for (const { row } of preferredRows) {
       preferRowIds.add(row.id);
       preferRowIds.add(corrections.representativeOf(row).id);
     }
@@ -3345,6 +3434,7 @@ export function getEpisodicMemoryForPrompt(
         scoreFactForPrompt(
           fact,
           currentMessage,
+          lexicon,
           currentTurn,
           semanticEvidenceFor(fact),
           rerankingPolicy
@@ -3573,6 +3663,10 @@ export function inspectEpisodicMemoryFactsForDebug(
     };
   });
 
+  const lexicon =
+    rows.length > 0
+      ? loadEpisodicQueryLexicon(db, ["chat_id = ?"], [rows[0]!.chat_id], opts.currentUserMessage ?? "")
+      : EMPTY_EPISODIC_QUERY_LEXICON;
   const scoreById = new Map<number, ReturnType<typeof scoreFactForPrompt>>();
   const eligible = inspected
     .filter((fact) => !fact.blocked_reason && !fact.duplicate_reason)
@@ -3580,6 +3674,7 @@ export function inspectEpisodicMemoryFactsForDebug(
       const score = scoreFactForPrompt(
         fact,
         opts.currentUserMessage ?? "",
+        lexicon,
         currentTurn,
         undefined,
         resolveEpisodicRerankingPolicy()
