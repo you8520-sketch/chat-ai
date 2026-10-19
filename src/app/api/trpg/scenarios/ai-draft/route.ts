@@ -23,6 +23,7 @@ import {
 } from "@/lib/trpg/scenarioDraft";
 import {
   completeTrpgScenarioDraftJson,
+  TrpgAuthoringAdventureInvalidError,
   TrpgAuthoringEmptyError,
   isTrpgAuthoringTimeoutError,
   TrpgAuthoringTruncatedError,
@@ -171,6 +172,12 @@ export async function POST(req: Request) {
     if (e instanceof TrpgAuthoringEmptyError) {
       return NextResponse.json(
         { error: e.message, code: "SCENARIO_DRAFT_EMPTY" },
+        { status: 422 }
+      );
+    }
+    if (e instanceof TrpgAuthoringAdventureInvalidError) {
+      return NextResponse.json(
+        { error: e.message, code: e.code, issues: e.issues },
         { status: 422 }
       );
     }

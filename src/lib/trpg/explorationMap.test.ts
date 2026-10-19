@@ -78,7 +78,7 @@ describe("exploration map generation", () => {
     assert.equal(wire.includes(EXPLORATION_HIDDEN_EDGE), false);
     assert.equal(wire.includes("event-clue"), false);
     assert.equal(projected.ap, 3);
-    assert.equal(projected.risk, 0);
+    assert.equal(projected.legacy?.risk, 0);
   });
 
   it("refills action points on a new round, rejects a short budget, and reveals once", () => {
@@ -293,6 +293,7 @@ describe("exploration map generation", () => {
   it("keeps remember-round positions as fact and does not treat an unattempted exit as happened", () => {
     const remember = formatExplorationGmBlock({
       opening: false,
+      startName: EXPLORATION_ENTRANCE,
       seats: [
         { name: "현이", start: EXPLORATION_ARCHIVE_ROOM, end: EXPLORATION_ARCHIVE_ROOM, exits: [] },
         { name: "도윤", start: EXPLORATION_ENTRANCE, end: EXPLORATION_ENTRANCE, exits: [] },
@@ -300,11 +301,11 @@ describe("exploration map generation", () => {
         { name: "도윤봇", start: EXPLORATION_ENTRANCE, end: EXPLORATION_ENTRANCE, exits: [] },
       ],
       resultLines: [],
-      alarm: true,
-      risk: 6,
-      flags: [EXPLORATION_CLUE_FLAG, EXPLORATION_ALARM_FLAG],
+      legacy: { alarm: true, risk: 6, flags: [EXPLORATION_CLUE_FLAG, EXPLORATION_ALARM_FLAG] },
     });
     assert.match(remember, /override earlier narration/);
+    assert.match(remember, /Inventory on this map stays yours/);
+    assert.doesNotMatch(remember, /not a trade/);
     assert.match(remember, /현이 is in 기록실\. They did not move this round\./);
     assert.match(remember, /도윤 is in 현관홀\. They did not move this round\./);
     assert.match(remember, /Alarm is already on\. The exit latch condition is already met\./);
@@ -315,11 +316,10 @@ describe("exploration map generation", () => {
     assert.doesNotMatch(remember, /moved .*출구/);
     const shut = formatExplorationGmBlock({
       opening: false,
+      startName: EXPLORATION_ENTRANCE,
       seats: [{ name: "현이", start: EXPLORATION_ENTRANCE, end: EXPLORATION_ENTRANCE, exits: [] }],
       resultLines: [],
-      alarm: false,
-      risk: 0,
-      flags: [],
+      legacy: { alarm: false, risk: 0, flags: [] },
     });
     assert.match(shut, /Alarm is off\. The exit latch is still shut\./);
     assert.doesNotMatch(shut, /already met/);
@@ -327,14 +327,13 @@ describe("exploration map generation", () => {
     const entranceExits = visibleExplorationNeighbors(seeded, EXPLORATION_ENTRANCE);
     const opening = formatExplorationGmBlock({
       opening: true,
+      startName: EXPLORATION_ENTRANCE,
       seats: [
         { name: "현이", start: EXPLORATION_ENTRANCE, end: EXPLORATION_ENTRANCE, exits: entranceExits },
         { name: "도윤", start: EXPLORATION_ENTRANCE, end: EXPLORATION_ENTRANCE, exits: entranceExits },
       ],
       resultLines: [],
-      alarm: false,
-      risk: 0,
-      flags: [],
+      legacy: { alarm: false, risk: 0, flags: [] },
     });
     assert.equal(opening.split(`Open passages from ${EXPLORATION_ENTRANCE}: ${entranceExits.join(", ")}.`).length, 2);
     assert.doesNotMatch(opening, /At least two passages|may be atmosphere|Server flags/);
@@ -343,21 +342,19 @@ describe("exploration map generation", () => {
     }
     const arrived = formatExplorationGmBlock({
       opening: false,
+      startName: EXPLORATION_ENTRANCE,
       seats: [{ name: "현이", start: "북쪽복도", end: EXPLORATION_EXIT_ROOM, exits: [] }],
       resultLines: ["현이: moved 북쪽복도 → 출구."],
-      alarm: true,
-      risk: 7,
-      flags: [EXPLORATION_ALARM_FLAG],
+      legacy: { alarm: true, risk: 7, flags: [EXPLORATION_ALARM_FLAG] },
     });
     assert.match(arrived, /Only the people listed in 출구 are there\./);
     assert.doesNotMatch(arrived, /Nobody has reached 출구/);
     const moved = formatExplorationGmBlock({
       opening: false,
+      startName: EXPLORATION_ENTRANCE,
       seats: [{ name: "현이", start: EXPLORATION_ENTRANCE, end: "중앙홀", exits: [] }],
       resultLines: ["현이: moved 현관홀 → 중앙홀."],
-      alarm: false,
-      risk: 1,
-      flags: [],
+      legacy: { alarm: false, risk: 1, flags: [] },
     });
     assert.match(moved, /현이 started in 현관홀 and is now in 중앙홀\./);
     assert.match(moved, /현이: moved 현관홀 → 중앙홀\./);
@@ -366,8 +363,9 @@ describe("exploration map generation", () => {
     const brief = formatExplorationBotBrief({
       roomId: EXPLORATION_ENTRANCE,
       neighbors: visibleExplorationNeighbors(state, EXPLORATION_ENTRANCE),
+      startName: EXPLORATION_ENTRANCE,
       ap: 3,
-      alarm: false,
+      legacy: { alarm: false },
       party: [{ name: "서하", location: EXPLORATION_ENTRANCE }],
     });
     assert.match(brief, /You are in 현관홀/);

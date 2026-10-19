@@ -354,6 +354,7 @@ export default function TrpgCampaignRoom({
   explorationQueue = [],
   onQueueExploration,
   onRemoveExploration,
+  onClearExploration,
   onSetInventoryEquipped,
   onRetryBots,
   onRetryGm,
@@ -396,6 +397,7 @@ export default function TrpgCampaignRoom({
   explorationQueue?: readonly ExplorationCommand[];
   onQueueExploration?: (command: ExplorationCommand) => void;
   onRemoveExploration?: (index: number) => void;
+  onClearExploration?: () => void;
   onSetInventoryEquipped?: (entryId: string, equipped: boolean, slot?: TrpgEquipmentSlot | null) => void;
   onRetryBots: () => void;
   onRetryGm: () => void;
@@ -2374,6 +2376,7 @@ export default function TrpgCampaignRoom({
               locked={snap.myDraft?.locked === true}
               onQueue={onQueueExploration}
               onRemove={onRemoveExploration}
+              onClear={onClearExploration}
             />
           </div>
           <div
@@ -2386,6 +2389,7 @@ export default function TrpgCampaignRoom({
         </div>
         <TrpgCommandDock
           explorationSendReady={explorationQueue.length > 0 && snap.myDraft?.locked !== true}
+          onClearExplorationQueue={onClearExploration}
           snap={snap}
           actionType={actionType}
           actionBody={actionBody}

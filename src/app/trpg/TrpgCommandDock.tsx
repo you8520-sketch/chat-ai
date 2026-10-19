@@ -430,6 +430,7 @@ function ActionMode({
   onRetrySuggestions,
   onPickSuggestion,
   onSendAction,
+  onClearExplorationQueue,
   explorationSendReady = false,
   suggestionsRegionId,
   suggestionsRegionRef,
@@ -455,6 +456,7 @@ function ActionMode({
   onRetrySuggestions: () => void;
   onPickSuggestion: (suggestion: TrpgReplySuggestion) => void;
   onSendAction: () => void;
+  onClearExplorationQueue?: () => void;
   explorationSendReady?: boolean;
 }) {
   const viewerId = snap.viewerParticipantId;
@@ -600,9 +602,29 @@ function ActionMode({
         onChange={(event) => onActionBodyChange(event.target.value)}
         maxLength={TRPG_ACTION_MAX_CHARS}
         rows={4}
-        placeholder="무엇을 하는가"
+        placeholder={explorationSendReady ? "탐험 방식을 적는다" : "무엇을 하는가"}
         className="w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-base text-zinc-100 outline-none focus:border-violet-400/40"
       />
+      {actionInputVisible && explorationSendReady ? (
+        <div className="mt-2 flex flex-wrap items-center gap-2" data-exploration-method-note>
+          <p className="min-w-0 flex-1 break-keep text-xs leading-5 text-amber-100/90">
+            대기열의 이동·조사·사건만 처리됩니다. 이 글은 탐험 방식이며, 거래·구매·아이템 지급은 되지 않습니다.
+          </p>
+          <button
+            type="button"
+            className="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-white/15 px-3 text-xs text-zinc-200"
+            data-exploration-clear-queue
+            onClick={() => onClearExplorationQueue?.()}
+          >
+            대기열 비우기
+          </button>
+        </div>
+      ) : null}
+      {actionInputVisible && snap.exploration && !explorationSendReady ? (
+        <p className="mt-2 break-keep text-xs leading-5 text-zinc-400" data-exploration-general-note>
+          탐험 대기열이 비어 있습니다. 이 글은 거래와 구매를 포함한 일반 행동입니다.
+        </p>
+      ) : null}
       {!actionInputVisible ? (
         <p className="mt-2 text-xs text-zinc-500">장면이 끝나면 행동을 제출할 수 있습니다.</p>
       ) : null}
@@ -718,6 +740,7 @@ export default function TrpgCommandDock({
   onPickSuggestion,
   onSendAction,
   onSendParty,
+  onClearExplorationQueue,
   explorationSendReady = false,
   onSetInventoryEquipped,
   onOcclusionChange,
@@ -747,6 +770,7 @@ export default function TrpgCommandDock({
   onPickSuggestion: (suggestion: TrpgReplySuggestion) => void;
   onSendAction: () => void;
   onSendParty: () => void;
+  onClearExplorationQueue?: () => void;
   explorationSendReady?: boolean;
   onSetInventoryEquipped?: (entryId: string, equipped: boolean, slot?: TrpgEquipmentSlot | null) => void;
   onOcclusionChange: (occlusion: TrpgCommandDockOcclusion) => void;
@@ -1080,6 +1104,7 @@ export default function TrpgCommandDock({
                     onRetrySuggestions={onRetrySuggestions}
                     onPickSuggestion={onPickSuggestion}
                     onSendAction={onSendAction}
+                    onClearExplorationQueue={onClearExplorationQueue}
                     explorationSendReady={explorationSendReady}
                     suggestionsRegionId={suggestionsRegionId}
                     suggestionsRegionRef={suggestionsRegionRef}

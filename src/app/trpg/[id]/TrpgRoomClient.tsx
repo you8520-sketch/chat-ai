@@ -420,6 +420,7 @@ export default function TrpgRoomClient({
       actionType,
       inputOrigin,
       selectedStat,
+      // An empty queue omits explorationCommands. submitTrpgAction owns general versus exploration.
       ...(explorationQueue.length ? { explorationCommands: explorationQueue } : {}),
     });
     if (ok) clearUserInputDraft(trpgActionDraftKey(campaignId, roundNumber));
@@ -747,6 +748,7 @@ export default function TrpgRoomClient({
           onRemoveExploration={(index) =>
             setExplorationQueue((current) => current.filter((_, item) => item !== index))
           }
+          onClearExploration={() => setExplorationQueue([])}
           onSendParty={() => void sendParty()}
           onSetInventoryEquipped={(entryId, equipped, slot) =>
             void run(`/api/trpg/campaigns/${snap.id}/inventory`, {
