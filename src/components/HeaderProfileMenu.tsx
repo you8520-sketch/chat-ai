@@ -78,12 +78,12 @@ export default function HeaderProfileMenu({
         </svg>
       </button>
 
-      {open && (
-        <div
-          id={panelId}
-          role="menu"
-          className="absolute right-0 top-full z-50 mt-1.5 min-w-[12.5rem] overflow-hidden rounded-xl border border-white/10 bg-[#131626] py-1 shadow-xl shadow-black/40"
-        >
+      <div
+        id={panelId}
+        role="menu"
+        hidden={!open}
+        className="absolute right-0 top-full z-50 mt-1.5 min-w-[12.5rem] overflow-hidden rounded-xl border border-white/10 bg-[#131626] py-1 shadow-xl shadow-black/40"
+      >
           <Link
             href="/settings"
             role="menuitem"
@@ -110,8 +110,7 @@ export default function HeaderProfileMenu({
           <div className="border-t border-white/[0.06] px-3.5 py-2">
             <LogoutButton className="w-full text-left text-sm font-medium text-zinc-400 transition hover:text-white" />
           </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

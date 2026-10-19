@@ -196,6 +196,7 @@ export default function UserPreferenceControls({
   const [nsfwOn, setNsfwOn] = useState(initialNsfw);
   const [pref, setPref] = useState(initialPref);
   const [busy, setBusy] = useState(false);
+  const saveInFlight = useRef(false);
 
   useEffect(() => {
     setPref(initialPref);
@@ -207,24 +208,34 @@ export default function UserPreferenceControls({
 
   async function patch(body: object) {
     setBusy(true);
-    const res = await fetch("/api/settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    setBusy(false);
-    if (res.ok) router.refresh();
-    return res.ok;
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) router.refresh();
+      return res.ok;
+    } catch {
+      return false;
+    } finally {
+      setBusy(false);
+    }
   }
 
   const safetyFilterOn = !nsfwOn;
 
   async function toggleSafetyFilter() {
-    if (!canDisableSafetyFilter) return;
+    if (!canDisableSafetyFilter || saveInFlight.current) return;
+    saveInFlight.current = true;
     const nextSafetyOn = !safetyFilterOn;
     const previousNsfwOn = nsfwOn;
     setNsfwOn(!nextSafetyOn);
-    if (!(await patch({ nsfw_on: nextSafetyOn ? 0 : 1 }))) setNsfwOn(previousNsfwOn);
+    try {
+      if (!(await patch({ nsfw_on: nextSafetyOn ? 0 : 1 }))) setNsfwOn(previousNsfwOn);
+    } finally {
+      saveInFlight.current = false;
+    }
   }
 
   async function setPreference(p: TastePref) {
@@ -232,9 +243,15 @@ export default function UserPreferenceControls({
       router.push("/login");
       return;
     }
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
     const prev = pref;
     setPref(p);
-    if (!(await patch({ pref: p }))) setPref(prev);
+    try {
+      if (!(await patch({ pref: p }))) setPref(prev);
+    } finally {
+      saveInFlight.current = false;
+    }
   }
 
   if (variant === "profileMenu") {

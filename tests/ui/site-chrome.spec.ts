@@ -1,4 +1,7 @@
-import { expect, test, type Page } from "@playwright/test";
+import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
+import { expect, test, type Page, type Route } from "@playwright/test";
+import { DEMO_USER_EMAIL } from "../../src/lib/demo";
 
 test.use({ launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
   ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {} });
@@ -19,6 +22,27 @@ async function dismissHomeNotice(page: Page) {
 async function openProfileMenu(page: Page) {
   await page.getByRole("button", { name: "프로필 메뉴" }).click();
   await expect(page.getByRole("menu")).toBeVisible();
+}
+
+/** Isolated Playwright DB only. Does not change the shared webServer admin allow-list. */
+function setDemoSafetyAccess(allowed: boolean): void {
+  const dir = process.env.PLAYWRIGHT_DATA_DIR;
+  if (!dir) throw new Error("PLAYWRIGHT_DATA_DIR is not set");
+  const db = new DatabaseSync(path.join(dir, "app.db"));
+  const updated = db
+    .prepare("UPDATE users SET is_admin = ? WHERE lower(email) = lower(?)")
+    .run(allowed ? 1 : 0, DEMO_USER_EMAIL);
+  db.close();
+  if (Number(updated.changes) !== 1) throw new Error("demo user was not updated");
+}
+
+async function loginAllowedAccount(page: Page) {
+  await demoLogin(page);
+  setDemoSafetyAccess(true);
+}
+
+function safetyToggle(page: Page) {
+  return page.locator('[role="menu"] [role="menuitemcheckbox"]');
 }
 
 test.describe("home notice dialog", () => {
@@ -294,7 +318,7 @@ test.describe("profile menu safety filter", () => {
 
   test("390px toggles OFF, keeps the menu open, and matches settings after reload", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await demoLogin(page);
+    await loginAllowedAccount(page);
     await page.goto("/tab/ranking");
     await dismissHomeNotice(page);
     await openProfileMenu(page);
@@ -310,6 +334,136 @@ test.describe("profile menu safety filter", () => {
     await page.goto("/settings");
     await expect(page.getByRole("switch", { name: "세이프티 필터" })).toHaveAttribute("aria-checked", "true");
   });
+
+  test("a regular member cannot toggle the profile filter and no PATCH is sent", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const patches: string[] = [];
+    page.on("request", (request) => {
+      if (request.method() === "PATCH" && request.url().includes("/api/settings")) patches.push(request.url());
+    });
+    await demoLogin(page);
+    setDemoSafetyAccess(false);
+    await page.goto("/tab/ranking");
+    await dismissHomeNotice(page);
+    await openProfileMenu(page);
+    const toggle = safetyToggle(page);
+    await expect(toggle).toBeDisabled();
+    await expect(toggle).toHaveAttribute("aria-checked", "false");
+    await toggle.click({ force: true });
+    await page.waitForTimeout(300);
+    expect(patches).toEqual([]);
+    await expect(toggle).toHaveAttribute("aria-checked", "false");
+  });
+
+  test("closing and reopening during a delayed PATCH keeps one in-flight save", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    let release: (() => void) | null = null;
+    let patches = 0;
+    await page.route("**/api/settings", async (route: Route) => {
+      if (route.request().method() !== "PATCH") {
+        await route.continue();
+        return;
+      }
+      patches += 1;
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      await route.continue();
+    });
+    await loginAllowedAccount(page);
+    await page.goto("/tab/ranking");
+    await dismissHomeNotice(page);
+    await openProfileMenu(page);
+    await safetyToggle(page).click();
+    await expect(safetyToggle(page)).toBeDisabled();
+    await expect(safetyToggle(page)).toHaveAttribute("aria-checked", "true");
+    await page.keyboard.press("Escape");
+    await expect(page.locator('[role="menu"]')).toBeHidden();
+    await openProfileMenu(page);
+    await expect(safetyToggle(page)).toBeDisabled();
+    await expect(safetyToggle(page)).toHaveAttribute("aria-checked", "true");
+    await safetyToggle(page).click({ force: true });
+    expect(patches).toBe(1);
+    release?.();
+    await expect(safetyToggle(page)).toBeEnabled();
+    await expect(safetyToggle(page)).toHaveAttribute("aria-checked", "true");
+    expect(patches).toBe(1);
+    await page.goto("/settings");
+    await expect(page.getByRole("switch", { name: "세이프티 필터" })).toHaveAttribute("aria-checked", "true");
+  });
+
+  test("HTTP and network failures restore both directions and leave the control usable", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await loginAllowedAccount(page);
+    await page.goto("/tab/ranking");
+    await dismissHomeNotice(page);
+
+    const clearRoute = () => page.unroute("**/api/settings").catch(() => undefined);
+    const settle = async (checked: "true" | "false") => {
+      await clearRoute();
+      await openProfileMenu(page);
+      const toggle = safetyToggle(page);
+      if ((await toggle.getAttribute("aria-checked")) !== checked) {
+        await toggle.click();
+        await expect(toggle).toHaveAttribute("aria-checked", checked);
+        await expect(toggle).toBeEnabled();
+      }
+      await page.keyboard.press("Escape");
+    };
+    const fail = async (mode: "http" | "network", from: "true" | "false") => {
+      await clearRoute();
+      await page.route("**/api/settings", async (route: Route) => {
+        if (route.request().method() !== "PATCH") {
+          await route.continue();
+          return;
+        }
+        if (mode === "http") await route.fulfill({ status: 500, contentType: "application/json", body: "{}" });
+        else await route.abort("failed");
+      });
+      await openProfileMenu(page);
+      const toggle = safetyToggle(page);
+      await expect(toggle).toHaveAttribute("aria-checked", from);
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-checked", from);
+      await expect(toggle).toBeEnabled();
+      await page.keyboard.press("Escape");
+      await clearRoute();
+    };
+
+    await settle("true");
+    await fail("http", "true");
+    await settle("false");
+    await fail("http", "false");
+    await fail("network", "false");
+    await settle("true");
+    await fail("network", "true");
+    await settle("false");
+    await page.goto("/settings");
+    await expect(page.getByRole("switch", { name: "세이프티 필터" })).toHaveAttribute("aria-checked", "false");
+  });
+
+  for (const width of [320, 390, 1280] as const) {
+    test(`${width}px closed menu is hidden from Tab and the open row stays reachable`, async ({ page }) => {
+      await page.setViewportSize({ width, height: width === 1280 ? 800 : 844 });
+      await demoLogin(page);
+      await page.goto("/tab/ranking");
+      await dismissHomeNotice(page);
+      const menu = page.locator('[role="menu"]');
+      await expect(menu).toBeHidden();
+      await page.getByRole("button", { name: "프로필 메뉴" }).focus();
+      for (let i = 0; i < 8; i += 1) {
+        await page.keyboard.press("Tab");
+        const inside = await page.evaluate(() => {
+          const root = document.querySelector('[role="menu"]');
+          return !!(root && document.activeElement && root.contains(document.activeElement));
+        });
+        expect(inside, `${width}px tab ${i}`).toBe(false);
+      }
+      await openProfileMenu(page);
+      await page.keyboard.press("Tab");
+      await expect(page.getByRole("menuitem", { name: "설정" })).toBeFocused();
+    });
+  }
 });
 
 test.describe("compact mobile header", () => {

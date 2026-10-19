@@ -70,7 +70,6 @@ export default defineConfig({
           OPENROUTER_API_KEY: "",
           OPENAI_API_KEY: "",
           DISABLE_DERIVED_CACHE_WORKER: "1",
-          ADMIN_EMAILS: "demo@playai.local",
         },
         url: PROD_TEST_BASE_URL,
         reuseExistingServer: false,
