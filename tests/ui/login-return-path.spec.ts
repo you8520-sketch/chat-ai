@@ -71,26 +71,37 @@ test.describe("login return path", () => {
     expect(googleHref).toMatch(/^\/api\/auth\/google\?/);
   });
 
-  test("evidence: login gate and return at 390 and 1280", async ({ page }) => {
-    const artifactDir = "/opt/cursor/artifacts/login-return-points-settings";
+  test("evidence: login gate and return at 390 and 1280", async ({ page }, testInfo) => {
     for (const viewport of [
       { width: 390, height: 844, tag: "390" },
       { width: 1280, height: 800, tag: "1280" },
     ] as const) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.goto("/points");
-      await page.screenshot({ path: `${artifactDir}/after-points-login-gate-${viewport.tag}.png`, fullPage: true });
+      await page.screenshot({
+        path: testInfo.outputPath(`after-points-login-gate-${viewport.tag}.png`),
+        fullPage: true,
+      });
       await passwordLogin(page, DEMO_EMAIL, DEMO_PASSWORD);
       await expect(page).toHaveURL(/\/points$/);
-      await page.screenshot({ path: `${artifactDir}/after-points-landed-${viewport.tag}.png`, fullPage: true });
+      await page.screenshot({
+        path: testInfo.outputPath(`after-points-landed-${viewport.tag}.png`),
+        fullPage: true,
+      });
       await page.context().clearCookies();
       await page.request.post("/api/auth/demo-login");
       await page.context().clearCookies();
       await page.goto("/settings");
-      await page.screenshot({ path: `${artifactDir}/after-settings-login-gate-${viewport.tag}.png`, fullPage: true });
+      await page.screenshot({
+        path: testInfo.outputPath(`after-settings-login-gate-${viewport.tag}.png`),
+        fullPage: true,
+      });
       await passwordLogin(page, DEMO_EMAIL, DEMO_PASSWORD);
       await expect(page).toHaveURL(/\/settings$/);
-      await page.screenshot({ path: `${artifactDir}/after-settings-landed-${viewport.tag}.png`, fullPage: true });
+      await page.screenshot({
+        path: testInfo.outputPath(`after-settings-landed-${viewport.tag}.png`),
+        fullPage: true,
+      });
       await page.context().clearCookies();
       await page.request.post("/api/auth/demo-login");
       await page.context().clearCookies();
