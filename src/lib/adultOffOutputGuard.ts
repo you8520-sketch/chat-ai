@@ -13,7 +13,7 @@ export const ADULT_OFF_GUARD_WINDOW_CHARS = 36_000;
 export const ADULT_OFF_GUARD_WINDOW_OVERLAP_CHARS = 2_000;
 
 export function isAdultOffOutputGuardEnabled(
-  env: NodeJS.ProcessEnv = process.env
+  env: Record<string, string | undefined> = process.env
 ): boolean {
   const raw = env[ADULT_OFF_OUTPUT_GUARD_ENV]?.trim().toLowerCase();
   return raw === "1" || raw === "true";

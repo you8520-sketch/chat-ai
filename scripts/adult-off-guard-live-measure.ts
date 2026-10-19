@@ -381,12 +381,34 @@ async function main(): Promise<void> {
          FROM api_cost_ledger ORDER BY id ASC`
       )
       .all() as Array<{ request_kind: string; model: string; actual_cost_usd: number | null; actual_cost_source: string | null; event_status: string | null; input_tokens: number | null; output_tokens: number | null }>;
-    const ledgerUsd = ledger.reduce((sum, r) => sum + (r.actual_cost_usd ?? 0), 0);
+    const reportedUsd = ledger.reduce((sum, r) => sum + (r.actual_cost_usd ?? 0), 0);
     db.prepare("DELETE FROM api_cost_ledger").run();
 
     const main = captured.find((c) => c.kind === "main");
     const classifier = captured.filter((c) => c.kind === "classifier");
     const rawMain = main ? sseToRaw(main.responseText) : null;
+    const mainLedgerRow = ledger.find((r) => r.request_kind === "main-rp");
+    // 공급자가 비용을 보고하지 않은 호출(Sol/Opus)은 usage 토큰 × 카탈로그 단가로 추정해 누적에 반영한다.
+    let unreportedMainUsd = 0;
+    if (mainLedgerRow?.actual_cost_usd == null && rawMain?.usage) {
+      const u = (rawMain.usage as { usage?: Record<string, unknown> }).usage ?? {};
+      const details = (u.prompt_tokens_details ?? {}) as Record<string, number | undefined>;
+      const prompt = Number(u.prompt_tokens ?? 0);
+      const out = Number(u.completion_tokens ?? 0);
+      const cacheRead = details.cached_tokens ?? 0;
+      const cacheWrite =
+        details.cache_write_tokens ??
+        details.cache_creation_input_tokens ??
+        Number(u.cache_creation_input_tokens ?? 0);
+      const standard = Math.max(0, prompt - cacheRead - cacheWrite);
+      unreportedMainUsd =
+        (standard * rates.inputUsdPerM +
+          cacheRead * pricing.resolveCacheReadUsdPerM(rates) +
+          cacheWrite * pricing.resolveCacheWriteUsdPerM(rates) +
+          out * rates.outputUsdPerM) /
+        1_000_000;
+    }
+    const ledgerUsd = reportedUsd + unreportedMainUsd;
     const textEvents = events.filter((e) =>
       ["text", "delta", "content", "finalContent"].some((k) => typeof e.event[k] === "string")
     );
@@ -438,6 +460,8 @@ async function main(): Promise<void> {
       cost: {
         ledger,
         ledgerUsd,
+        reportedUsd,
+        usageEstimatedMainUsd: unreportedMainUsd,
         ledgerKrwEffective: costKrw,
         spentAfterKrw: spentKrw,
         usdKrwEffective,
