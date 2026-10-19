@@ -739,8 +739,9 @@ describe("cleanup owners and production wiring", () => {
     );
     assert.match(
       route,
-      /const episodicSemantic = await resolveEpisodicSemanticQuery\(\{\s*query: policyUserMessage,\s*contentRoute: effectiveAdultRp \? "nsfw" : "safe",\s*usableIndex: \(model\) => hasEpisodicSemanticIndexInScope\(db, episodicRetrievalScope, model\),\s*runtime: episodicSemanticRuntime,\s*\}\);/
+      /const episodicSemantic = await enterVerificationWireCapture\(wireCaptureInput, \(\) =>\s*resolveEpisodicSemanticQuery\(\{\s*query: policyUserMessage,\s*contentRoute: effectiveAdultRp \? "nsfw" : "safe",\s*usableIndex: \(model\) => hasEpisodicSemanticIndexInScope\(db, episodicRetrievalScope, model\),\s*runtime: episodicSemanticRuntime,\s*\}\)\s*\);/
     );
+    assert.match(route, /await enterVerificationWireCapture\(wireCaptureInput, async \(\) => \{/);
     assert.match(route, /semanticQuery: episodicSemantic\.query,/);
     assert.match(route, /episodicSemanticRuntime,/);
     assert.match(route, /episodicSemanticQueryReason: episodicSemantic\.reason,/);

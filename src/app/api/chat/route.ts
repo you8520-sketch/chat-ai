@@ -38,6 +38,7 @@ import {
   shouldRunCanonInjectionSideEffects,
 } from "@/lib/canonPlan/shadowD0";
 import { buildContext } from "@/services/contextBuilder";
+import { enterVerificationWireCapture } from "@/services/promptDebugDump";
 import { resolveNarrativePov } from "@/lib/narrativePov";
 import {
   assembleNextTurnContextBuildInput,
@@ -2006,12 +2007,21 @@ export async function POST(req: Request) {
     currentTurn: memorySourceEligibleCompletedTurns + 1,
   };
   const episodicSemanticRuntime = resolveEpisodicSemanticRuntime();
-  const episodicSemantic = await resolveEpisodicSemanticQuery({
-    query: policyUserMessage,
-    contentRoute: effectiveAdultRp ? "nsfw" : "safe",
-    usableIndex: (model) => hasEpisodicSemanticIndexInScope(db, episodicRetrievalScope, model),
-    runtime: episodicSemanticRuntime,
-  });
+  const wireCaptureInput = {
+    userId: user.id,
+    characterId: ch.id,
+    chatId: chat.id,
+    turn: playableTurnCount + 1,
+    requestId: clientRequestId,
+  };
+  const episodicSemantic = await enterVerificationWireCapture(wireCaptureInput, () =>
+    resolveEpisodicSemanticQuery({
+      query: policyUserMessage,
+      contentRoute: effectiveAdultRp ? "nsfw" : "safe",
+      usableIndex: (model) => hasEpisodicSemanticIndexInScope(db, episodicRetrievalScope, model),
+      runtime: episodicSemanticRuntime,
+    })
+  );
   const episodicMemory = getEpisodicMemoryForPrompt(db, {
     ...episodicRetrievalScope,
     currentUserMessage: policyUserMessage,
@@ -6788,21 +6798,23 @@ export async function POST(req: Request) {
       }
       };
 
-      if (rpDiagnosticCanary) {
-        await runWithDiagnosticContext(
-          {
-            bypassParagraphNormalize: rpDiagnosticBypassParagraphNormalize(
-              rpDiagnosticCanary.variant
-            ),
-            bypassDisplayParagraphGrouping: rpDiagnosticBypassDisplayGrouping(
-              rpDiagnosticCanary.variant
-            ),
-          },
-          executeStream
-        );
-      } else {
-        await executeStream();
-      }
+      await enterVerificationWireCapture(wireCaptureInput, async () => {
+        if (rpDiagnosticCanary) {
+          await runWithDiagnosticContext(
+            {
+              bypassParagraphNormalize: rpDiagnosticBypassParagraphNormalize(
+                rpDiagnosticCanary.variant
+              ),
+              bypassDisplayParagraphGrouping: rpDiagnosticBypassDisplayGrouping(
+                rpDiagnosticCanary.variant
+              ),
+            },
+            executeStream
+          );
+        } else {
+          await executeStream();
+        }
+      });
     },
   });
 
