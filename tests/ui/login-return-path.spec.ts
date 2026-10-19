@@ -14,6 +14,26 @@ async function passwordLogin(page: Page, email: string, password: string) {
   await page.getByRole("button", { name: "로그인", exact: true }).click();
 }
 
+const loginFormEmail = (page: Page) => page.locator("form").getByPlaceholder("이메일");
+
+async function expectLoginGateScreen(page: Page, redirectTarget: string) {
+  await expect(page).toHaveURL(`/login?redirect=${redirectTarget}`);
+  await expect(page.getByRole("heading", { name: "로그인" })).toBeVisible();
+  await expect(loginFormEmail(page)).toBeVisible();
+}
+
+async function expectPointsLanded(page: Page) {
+  await expect(page).toHaveURL(/\/points$/);
+  await expect(page.getByText("보유 포인트")).toBeVisible();
+  await expect(loginFormEmail(page)).toHaveCount(0);
+}
+
+async function expectSettingsLanded(page: Page) {
+  await expect(page).toHaveURL(/\/settings$/);
+  await expect(page.getByRole("heading", { name: "내 정보 · 설정" })).toBeVisible();
+  await expect(loginFormEmail(page)).toHaveCount(0);
+}
+
 test.describe("login return path", () => {
   test.beforeEach(async ({ page }) => {
     await page.request.post("/api/auth/demo-login");
@@ -78,12 +98,13 @@ test.describe("login return path", () => {
     ] as const) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.goto("/points");
+      await expectLoginGateScreen(page, "/points");
       await page.screenshot({
         path: testInfo.outputPath(`after-points-login-gate-${viewport.tag}.png`),
         fullPage: true,
       });
       await passwordLogin(page, DEMO_EMAIL, DEMO_PASSWORD);
-      await expect(page).toHaveURL(/\/points$/);
+      await expectPointsLanded(page);
       await page.screenshot({
         path: testInfo.outputPath(`after-points-landed-${viewport.tag}.png`),
         fullPage: true,
@@ -92,12 +113,13 @@ test.describe("login return path", () => {
       await page.request.post("/api/auth/demo-login");
       await page.context().clearCookies();
       await page.goto("/settings");
+      await expectLoginGateScreen(page, "/settings");
       await page.screenshot({
         path: testInfo.outputPath(`after-settings-login-gate-${viewport.tag}.png`),
         fullPage: true,
       });
       await passwordLogin(page, DEMO_EMAIL, DEMO_PASSWORD);
-      await expect(page).toHaveURL(/\/settings$/);
+      await expectSettingsLanded(page);
       await page.screenshot({
         path: testInfo.outputPath(`after-settings-landed-${viewport.tag}.png`),
         fullPage: true,
