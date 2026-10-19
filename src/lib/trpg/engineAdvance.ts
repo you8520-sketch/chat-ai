@@ -61,7 +61,6 @@ import {
   settleLedgerForCommit,
 } from "./campaignLedger";
 import {
-  composeExplorationSentences,
   displayExplorationAp,
   explorationCommandsFromMovementBody,
   explorationOwnsWorldFlags,
@@ -70,9 +69,8 @@ import {
   filterExplorationFlagsRemove,
   legalExplorationCommands,
   roomNameAfterCommands,
-  type ExplorationState,
+  splitV2ExplorationMethod,
 } from "./explorationMap";
-import { type ExplorationCommand } from "./explorationPublic";
 import {
   declaredMovementGoals,
   describeMovementGoal,
@@ -1462,10 +1460,20 @@ async function runGmForRound(
     {} as { resolutionOrder?: unknown }
   );
   const resolutionOrder = parseResolutionOrder(storedSnapshot);
+  const explorationForMethod = opts.regenerate ? null : loadExplorationState(db, opts.campaignId);
   const actions = sortByResolutionOrder(
     loadActionsForGm(db, opts.roundId, scenario.statDefs),
     resolutionOrder
-  );
+  ).map((action) => {
+    const split = splitV2ExplorationMethod(
+      explorationForMethod,
+      opts.roundId,
+      action.participantId,
+      action.body
+    );
+    if (!split) return action;
+    return { ...action, explorationCommandText: split.commandText, explorationMethod: split.method };
+  });
   const latestScene = previousNarration(db, opts.campaignId);
   const mechanics = opts.opening
     ? null
@@ -1814,40 +1822,10 @@ function dropUnpricedExplorationMoves(
   parsed.delta.location = current;
 }
 
-function normalizedActionText(value: string): string {
-  return value.replace(/\s+/g, " ").trim();
-}
-
-/** The submitted body is only the exploration sentences when the player sent no other action. */
-function submittedActionIsSeparate(
-  body: string,
-  state: ExplorationState,
-  fromRoomId: string,
-  commands: readonly ExplorationCommand[]
-): boolean {
-  const sentences = normalizedActionText(composeExplorationSentences(state.map, fromRoomId, commands));
-  const normalized = normalizedActionText(body);
-  if (!sentences) return normalized.length > 0;
-  return normalized !== sentences;
-}
-
-/** Item identities of v2 events the server has already granted. v1 has no event-reward policy. */
-function grantedEventRewardNames(state: ExplorationState): Set<string> {
-  if (state.version !== 2) return new Set();
-  const granted = new Set(state.grantedEventIds);
-  const names = new Set<string>();
-  for (const event of state.map.events) {
-    const item = event.item?.trim();
-    if (item && granted.has(event.id)) names.add(item);
-  }
-  return names;
-}
-
 function applyExplorationToParsed(
   parsed: ParsedTrpgGmOutput,
   adjustment: ExplorationCommitAdjustment,
-  sheetIds: readonly number[],
-  bodies: ReadonlyMap<number, string>
+  sheetIds: readonly number[]
 ): void {
   if (adjustment.openingLocation) {
     parsed.location = adjustment.openingLocation;
@@ -1857,31 +1835,16 @@ function applyExplorationToParsed(
     }
   }
   const eventRewards = adjustment.state.version === 2;
-  const grantedNames = grantedEventRewardNames(adjustment.state);
   const flags = new Set(parsed.delta.flagsAdd ?? []);
   for (const result of adjustment.results) {
     const patch = ensureDeltaPlayer(parsed.delta, result.participantId);
     if (result.location) patch.location = result.location;
+    // A v2 exploration command resolves movement, search, and events. Text submitted with it
+    // is how they explore. Grants come only from the server result, including move-only,
+    // a failed or empty search, a first entry, and a repeat entry.
     if (eventRewards && result.commands.length > 0) {
       const grantNow = new Set(result.items.map((item) => item.trim()).filter(Boolean));
-      const separate = submittedActionIsSeparate(
-        bodies.get(result.participantId) ?? "",
-        adjustment.state,
-        result.fromRoomId,
-        result.commands
-      );
-      // No separate submitted action: this resolution owns the grants, so only the server items remain.
-      // A separate action keeps its own grants, except the event reward itself.
-      if (result.eventResolved && !separate) {
-        patch.inventoryAdd = [];
-      } else if (patch.inventoryAdd?.length) {
-        const kept = patch.inventoryAdd.filter((name) => {
-          const trimmed = name.trim();
-          return !grantNow.has(trimmed) && !grantedNames.has(trimmed);
-        });
-        if (kept.length) patch.inventoryAdd = kept;
-        else delete patch.inventoryAdd;
-      }
+      delete patch.inventoryAdd;
       if (patch.inventoryRemove?.length && grantNow.size > 0) {
         const kept = patch.inventoryRemove.filter((name) => !grantNow.has(name.trim()));
         if (kept.length) patch.inventoryRemove = kept;
@@ -1965,8 +1928,7 @@ function commitPendingGmResult(
     applyExplorationToParsed(
       parsed,
       explorationCommit,
-      sheets.map((sheet) => sheet.participantId),
-      new Map(lockedSubs.map((sub) => [sub.participantId, sub.body]))
+      sheets.map((sheet) => sheet.participantId)
     );
   }
   const explorationState = opts.regenerate ? null : loadExplorationState(db, campaign.id);

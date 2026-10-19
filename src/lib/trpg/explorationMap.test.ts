@@ -304,6 +304,8 @@ describe("exploration map generation", () => {
       legacy: { alarm: true, risk: 6, flags: [EXPLORATION_CLUE_FLAG, EXPLORATION_ALARM_FLAG] },
     });
     assert.match(remember, /override earlier narration/);
+    assert.match(remember, /Inventory on this map stays yours/);
+    assert.doesNotMatch(remember, /not a trade/);
     assert.match(remember, /현이 is in 기록실\. They did not move this round\./);
     assert.match(remember, /도윤 is in 현관홀\. They did not move this round\./);
     assert.match(remember, /Alarm is already on\. The exit latch condition is already met\./);

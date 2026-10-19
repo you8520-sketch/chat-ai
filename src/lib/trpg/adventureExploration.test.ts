@@ -106,6 +106,22 @@ const ENTER_OFFICE: TrpgAdventure = {
   ],
 };
 
+const POTION_STALL: TrpgAdventure = {
+  start: "lane",
+  places: [
+    { key: "lane", name: "골목", summary: "좁은 골목.", role: "start" },
+    { key: "stall", name: "약장수", summary: "회복약을 늘어놓은 약장수.", role: "site" },
+    { key: "yard", name: "마당", summary: "빈 마당.", role: "goal" },
+  ],
+  links: [
+    { from: "lane", to: "stall" },
+    { from: "stall", to: "yard", opensBy: "dose" },
+  ],
+  events: [
+    { key: "dose", place: "stall", trigger: "enter", kind: "item", text: "약장수가 회복약 하나를 건넨다.", item: "회복약" },
+  ],
+};
+
 const SINGLE_STUDY: TrpgAdventure = {
   start: "study",
   places: [{ key: "study", name: "잠긴 서재", summary: "먼지 쌓인 책장과 식은 벽난로가 있는 서재.", role: "start" }],
@@ -740,6 +756,10 @@ describe("adventure exploration (B2+B3)", () => {
         submitTrpgAction(db, { campaignId, userId: 1, body, explorationCommands: commands });
         await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
       },
+      useItem: async (body: string) => {
+        submitTrpgAction(db, { campaignId, userId: 1, body, actionType: "use_item" });
+        await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+      },
     };
   }
 
@@ -792,17 +812,73 @@ describe("adventure exploration (B2+B3)", () => {
     t.db.close();
   });
 
-  it("keeps a grant the player submitted separately in the same round as a search, and a GM remove does not cancel the server reward", async () => {
+  it("does not turn exploration wording into a grant, and a later general action still buys", async () => {
     const t = await ghostTrainSession();
-    t.session.face = 16;
-    await t.play([{ op: "move", roomId: t.room("3호 객차") }, { op: "search", depth: "normal" }], "");
-    t.session.proposal = { inventoryAdd: ["차장 열쇠", "식은 찻잔"], inventoryRemove: ["차장 열쇠"], location: "" };
+    t.session.face = 1;
+    t.session.proposal = { inventoryAdd: ["찾아낸 서류철"], inventoryRemove: [], location: "" };
     await t.play(
-      [{ op: "move", roomId: t.room("식당칸") }, { op: "search", depth: "normal" }],
-      "상인에게 식은 찻잔을 산다."
+      [{ op: "move", roomId: t.room("3호 객차") }, { op: "search", depth: "normal" }],
+      "객차를 뒤진다."
     );
+    assert.equal(itemQty(t.db, [t.host], "찾아낸 서류철"), 0, "a failed search grants nothing the GM adds");
+
+    t.session.face = 16;
+    t.session.proposal = { inventoryAdd: ["젖은 승차권"], inventoryRemove: [], location: "" };
+    await t.play([{ op: "search", depth: "normal" }], "조심스럽게 살핀다.");
+    assert.deepEqual(t.state().revealedEventIds, ["ticket"], "the clue still fires");
+    assert.equal(itemQty(t.db, [t.host], "젖은 승차권"), 0, "a clue grants nothing the GM adds");
+
+    t.session.proposal = { inventoryAdd: ["식은 찻잔"], inventoryRemove: [], location: "" };
+    await t.play(
+      [{ op: "move", roomId: t.room("식당칸") }],
+      "일행과 함께 조심스럽게 앞으로 나아가 주변을 살핀다."
+    );
+    assert.equal(itemQty(t.db, [t.host], "식은 찻잔"), 0, "a move-only exploration submit does not grant the GM item");
+    const shown = t.inputs.at(-1)!.user;
+    const actionAt = shown.indexOf("[AUTHORITATIVE HUMAN PC ACTION");
+    const methodAt = shown.indexOf("[EXPLORATION METHOD — how they travel or search, not a trade or item change]");
+    assert.ok(methodAt > actionAt, "the method note is not the authoritative action");
+    assert.equal(
+      shown.slice(actionAt, methodAt).includes("일행과 함께 조심스럽게 앞으로 나아가 주변을 살핀다."),
+      false
+    );
+    assert.ok(shown.includes("일행과 함께 조심스럽게 앞으로 나아가 주변을 살핀다."));
+
+    t.session.proposal = { inventoryAdd: ["차장 열쇠", "식은 찻잔"], inventoryRemove: ["차장 열쇠"], location: "" };
+    await t.play([{ op: "search", depth: "normal" }], "객차를 뒤진다.");
     assert.equal(itemQty(t.db, [t.host], "차장 열쇠"), 1, "the server reward is granted once and the GM remove does not cancel it");
-    assert.equal(itemQty(t.db, [t.host], "식은 찻잔"), 1, "the separate submitted action's grant stays");
+    assert.equal(itemQty(t.db, [t.host], "식은 찻잔"), 0, "wording beside the search is not a purchase");
+
+    t.session.proposal = { inventoryAdd: ["식은 찻잔"], inventoryRemove: [], location: "" };
+    await t.play([], "상인에게 식은 찻잔을 산다.");
+    assert.equal(itemQty(t.db, [t.host], "식은 찻잔"), 1, "a general submit with an empty exploration queue keeps the purchase");
+    t.db.close();
+  });
+
+  it("buys another unit of an event reward by name on a general submit, and an authorized use consumes one", async () => {
+    const t = await ghostTrainSession(POTION_STALL);
+    t.session.face = 16;
+    t.session.proposal = { inventoryAdd: ["회복약", "여분 약"], inventoryRemove: ["회복약"], location: "" };
+    await t.play([{ op: "move", roomId: t.room("약장수") }], "일행과 함께 조심스럽게 앞으로 나아가 주변을 살핀다.");
+    assert.deepEqual(t.state().grantedEventIds, ["dose"]);
+    assert.equal(itemQty(t.db, [t.host], "회복약"), 1, "the enter reward is granted once");
+    assert.equal(itemQty(t.db, [t.host], "여분 약"), 0, "wording beside the move adds nothing");
+
+    t.session.proposal = { inventoryAdd: [], inventoryRemove: [], location: "" };
+    await t.play([{ op: "move", roomId: t.room("골목") }], "조심스럽게 살핀다.");
+    t.session.proposal = { inventoryAdd: ["회복약"], inventoryRemove: [], location: "" };
+    await t.play([{ op: "move", roomId: t.room("약장수") }], "객차를 뒤진다.");
+    assert.equal(itemQty(t.db, [t.host], "회복약"), 1, "re-entry does not grant the event reward again");
+
+    t.session.proposal = { inventoryAdd: ["회복약"], inventoryRemove: [], location: "" };
+    await t.play([], "상인에게 회복약을 산다.");
+    assert.equal(itemQty(t.db, [t.host], "회복약"), 2, "a general purchase of the same name increases the quantity");
+
+    t.db.prepare(`UPDATE trpg_character_sheets SET hp=? WHERE participant_id=?`).run(8, t.host);
+    t.session.proposal = { inventoryAdd: [], inventoryRemove: [], location: "" };
+    await t.useItem("회복약을 사용한다.");
+    assert.equal(itemQty(t.db, [t.host], "회복약"), 1, "an authorized use consumes one unit");
+    assert.ok(sheet(t.db, t.host).hp > 8, "the authorized use heals");
     t.db.close();
   });
 
@@ -881,8 +957,11 @@ describe("adventure exploration (B2+B3)", () => {
     assert.match(header, /saved flags/);
     assert.match(header, /next-round context/);
     assert.match(header, /story threads/);
-    assert.match(authority, /separate action the player submitted/);
-    assert.match(header, /separate action the player submitted/);
+    assert.match(authority, /Follow that block for event rewards/);
+    assert.match(header, /not a trade or item change/);
+    assert.match(header, /no exploration command keeps its own inventory/);
+    assert.doesNotMatch(authority, /separate action the player submitted/);
+    assert.doesNotMatch(header, /separate action the player submitted/);
     assert.match(header, /granted once/);
     t.db.close();
   });

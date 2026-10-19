@@ -61,6 +61,7 @@ export default function TrpgExplorationPanel({
   locked,
   onQueue,
   onRemove,
+  onClear,
   initiallyOpen = false,
 }: {
   exploration?: PublicExploration | null;
@@ -68,6 +69,7 @@ export default function TrpgExplorationPanel({
   locked: boolean;
   onQueue?: (command: ExplorationCommand) => void;
   onRemove?: (index: number) => void;
+  onClear?: () => void;
   /** Preview and tests only. The game room leaves this false so the panel starts collapsed. */
   initiallyOpen?: boolean;
 }) {
@@ -225,21 +227,36 @@ export default function TrpgExplorationPanel({
             {short ? " · 행동력이 부족합니다" : ""}. {hasMap ? "지도는" : "조사 버튼은"} 명령을 만들 뿐이고, 확정은 서버가 합니다.
           </p>
           {queue.length ? (
-            <ul className="space-y-1 text-sm">
-              {queue.map((command, index) => (
-                <li key={`${command.op}-${index}`} className="flex items-center justify-between gap-2">
-                  <span className="min-w-0 break-keep">
-                    {index + 1}. {commandLabel(exploration, command)}
-                  </span>
-                  <button type="button" className="min-h-11 shrink-0 px-2 text-xs text-zinc-300" onClick={() => onRemove?.(index)}>
-                    빼기
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-2" data-exploration-method-note>
+              <p className="break-keep text-xs leading-5 text-amber-100/90">
+                이 대기열은 이동·조사·사건만 처리합니다. 함께 적는 글은 탐험 방식이며, 거래·구매·아이템 지급은 되지 않습니다.
+              </p>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  className="min-h-11 rounded-xl border border-white/15 px-3 text-xs text-zinc-200"
+                  data-exploration-clear-queue
+                  onClick={() => onClear?.()}
+                >
+                  대기열 비우기
+                </button>
+              </div>
+              <ul className="space-y-1 text-sm">
+                {queue.map((command, index) => (
+                  <li key={`${command.op}-${index}`} className="flex items-center justify-between gap-2">
+                    <span className="min-w-0 break-keep">
+                      {index + 1}. {commandLabel(exploration, command)}
+                    </span>
+                    <button type="button" className="min-h-11 shrink-0 px-2 text-xs text-zinc-300" onClick={() => onRemove?.(index)}>
+                      빼기
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : (
-            <p className="text-xs text-zinc-500">
-              {hasMap ? "열린 길을 누르거나 조사하면" : "조사하면"} 이번 행동에 붙습니다. 자유 입력과 함께 보낼 수 있습니다.
+            <p className="break-keep text-xs leading-5 text-zinc-400" data-exploration-general-note>
+              {hasMap ? "열린 길을 누르거나 조사하면" : "조사하면"} 이번 탐험 행동에 붙습니다. 거래와 구매는 대기열을 비운 뒤 일반 행동으로 보냅니다.
             </p>
           )}
           {exploration.discoveries.length ? (

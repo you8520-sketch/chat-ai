@@ -1049,7 +1049,34 @@ function discoveryText(discovery: ExplorationDiscovery): string {
 }
 
 export const EXPLORATION_GM_HEADER =
-  "[EXPLORATION — server positions and this-round results. These override earlier narration, saved flags, next-round context, and story threads. Narrate only these positions as fact. Event rewards named here are granted once; do not add, remove, or repeat them. Do not invent another clue, secret passage, or a new human PC move, line, or decision. Inventory for a separate action the player submitted stays with you.]";
+  "[EXPLORATION — server positions and this-round results. These override earlier narration, saved flags, next-round context, and story threads. Narrate only these positions as fact. Event rewards named here are granted once by the server; do not add, remove, or repeat them. Do not invent another clue, secret passage, or a new human PC move, line, or decision. Words added beside an exploration command describe how they travel or search, not a trade or item change. An action with no exploration command keeps its own inventory.]";
+
+/** v1 has no event-reward grant policy, so its inventory stays with the GM. */
+const EXPLORATION_LEGACY_GM_HEADER =
+  "[EXPLORATION — server positions and this-round results. These override earlier narration, saved flags, next-round context, and story threads. Narrate only these positions as fact. Do not invent another clue, secret passage, or a new human PC move, line, or decision. Inventory on this map stays yours.]";
+
+/**
+ * v2 command submissions store the server sentences, then the player's method note.
+ * Returns null when this participant did not submit an exploration command.
+ */
+export function splitV2ExplorationMethod(
+  state: ExplorationState | null,
+  roundId: number,
+  participantId: number,
+  body: string
+): { commandText: string; method: string } | null {
+  if (!state || state.version !== 2) return null;
+  const pending = state.pending.find(
+    (row) => row.roundId === roundId && row.participantId === participantId && row.commands.length > 0
+  );
+  if (!pending) return null;
+  const sentences = composeExplorationSentences(state.map, pending.fromRoomId, pending.commands)
+    .replace(/\s+/g, " ")
+    .trim();
+  const text = body.replace(/\s+/g, " ").trim();
+  if (!sentences || !text.startsWith(sentences)) return null;
+  return { commandText: sentences, method: text.slice(sentences.length).trim() };
+}
 
 export type ExplorationSeatFact = {
   name: string;
@@ -1101,7 +1128,7 @@ export function formatExplorationGmBlock(opts: {
   const legacy = opts.legacy;
   const atExit = opts.seats.some((seat) => (seat.end.trim() || seat.start.trim()) === EXPLORATION_EXIT_ROOM);
   return [
-    EXPLORATION_GM_HEADER,
+    opts.legacy ? EXPLORATION_LEGACY_GM_HEADER : EXPLORATION_GM_HEADER,
     legacy ? `Risk ${legacy.risk}. Alarm: ${legacy.alarm ? "yes" : "no"}.` : "",
     opts.opening ? `The party begins in ${opts.startName}.` : "",
     ...positions,

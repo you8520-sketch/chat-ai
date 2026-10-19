@@ -123,7 +123,7 @@ type TrpgAdventure = {
 - 사건 효과: `clue` = 발견 기록, `item` = 기존 인벤토리 owner로 아이템 지급, `hazard` = 결과 줄만 기록(HP·판정 변경 없음, 위협 권한은 RFC §6 별도 단계). `opensBy` 가 가리키는 사건이 발동하면 해당 링크가 `revealedEdgeIds` 에 들어간다.
 - 발견 가능한 사실의 owner는 사건이다. 정본에 사건이 있으면 `serializeTrpgScenarioPlanForGm` 은 plan의 자유 `clues` 목록을 GM에 보내지 않고, GM은 서버가 발동한 사건만 EXPLORATION 블록으로 받는다. 사건 없는 계획(구 템플릿, 정본 없는 계획, 세계관 직접 시작)은 기존처럼 단서 목록을 받는다.
 - v2는 세계 플래그를 소유하지 않는다(`explorationOwnsWorldFlags`). v1의 경보·빗장·고정 플래그 필터는 v1 상태에만 적용된다.
-- **GM 권한 정렬 (#1656)**: 사건 효과의 소유자는 서버이고 GM은 서버가 준 결과를 서술한다. (1) `TRPG_GM_SYSTEM` 의 기존 문장 "Inventory, location, … remain yours unless they conflict with mechanics…" 에 `[EXPLORATION]` 이 준 위치·길·발견·아이템(실패한 조사의 부재 포함)을 같은 서버 정본으로 추가했다. 새 금지 절을 만들지 않고 기존 예외 목록을 넓혔다. (2) `EXPLORATION_GM_HEADER` 는 "earlier narration" 외에 저장된 flags·next-round context·story threads 보다 우선함을 밝힌다. (3) commit owner `applyExplorationToParsed` 는 v2에서만 사건 보상을 가른다. 제출 본문이 탐험 문장뿐이면(별도 행동 없음) 그 사건 해결의 GM `inventoryAdd` 는 버리고 서버 아이템만 한 번 더한다. 제출 본문에 별도 행동이 있으면 그 지급은 남기고, 이미 지급된 사건 아이템과 이번 서버 지급분(이름 목록이 아니라 사건 정본의 `item`)만 GM 추가·제거에서 뺀다. enter와 search가 같다. v1·비탐험·사건 없는 이동은 이 정책을 적용하지 않는다. `gm_secret`·`majorEvents` 는 배경 지식이므로 유지한다.
+- **GM 권한 정렬 (#1656)**: 사건 효과의 소유자는 서버이고 GM은 서버가 준 결과를 서술한다. (1) `TRPG_GM_SYSTEM` 의 기존 문장 "Inventory, location, … remain yours unless they conflict with mechanics…" 에 `[EXPLORATION]` 이 준 위치·길·발견·아이템(실패한 조사의 부재 포함)을 같은 서버 정본으로 추가했다. 새 금지 절을 만들지 않고 기존 예외 목록을 넓혔다. (2) `EXPLORATION_GM_HEADER` 는 "earlier narration" 외에 저장된 flags·next-round context·story threads 보다 우선함을 밝힌다. (3) v2 탐험 명령 제출과 일반 제출을 나눈다. 명령이 있으면 이동·조사·사건을 해결하고, 함께 적은 글은 탐험 방식이다. 그 제출의 지급은 서버 사건 결과뿐이며, 설명의 길이·문구·구두점이나 아이템 이름으로 권한이 바뀌지 않는다. search 성공·실패·무발견, enter 최초·재진입, 이동만 있는 제출이 같다. 이번 서버 보상은 GM 제거로 취소되지 않는다. 거래·구매·소모는 대기열을 비운 일반 제출에서 처리하고, 이전 사건 보상과 같은 이름도 구매할 수 있다. 화면은 제출 전에 이 구분을 안내한다. GM 입력은 탐험 방식 문장을 거래 행동으로 두지 않는다. 한 제출에 탐험과 거래를 같이 처리하는 혼합 행동은 보류한다. v1·비탐험의 기존 지급은 유지한다. `gm_secret`·`majorEvents` 는 배경 지식이므로 유지한다.
 - **한계**: flags·`nextRoundContext`·director 실마리의 자유 서술은 자연어라 구조적으로 걸러지지 않는다. 우선순위 선언은 모델 준수에 의존하며, 길 개방·아이템 지급을 모델이 따르는지의 실제 UI 실측은 여전히 부족하다.
 - AP·라운드·중복 가드·과금·권한은 바꾸지 않았다(이동 1, 조사 1, 정밀 조사 2, 라운드당 3).
 
@@ -167,4 +167,5 @@ type TrpgAdventure = {
 | 사건 정본 옆 plan `clues` GM 공급 | 좁힘 | 사건이 있으면 보내지 않음. 사건 없는 계획은 유지. writer·저장 데이터는 그대로 |
 | `gm_secret`·`majorEvents` 의 사건 위치 | FOLLOW-UP | 배경 지식으로 GM에 필요하므로 삭제하지 않음. 사건 결과 확정 권한만 서버로 분리(아래) |
 | 실패 서술의 사건 대상 파괴·길 봉쇄 | 좁힘 | 기존 권한 문장과 EXPLORATION 머리글을 일치. 서술 자체는 모델 준수에 의존(실측 부족) |
-| v2 사건 보상과 별도 제출 행동의 지급 | 수정함 | 제출 본문·사건 `item` 정본으로 구분. v1·비탐험은 기존 지급 |
+| v2 탐험 명령 제출의 지급 | 수정함 | 서버 사건 결과만 지급. 설명 문구·아이템 이름으로 풀지 않음. 일반 제출의 구매·제거·v1·비탐험은 유지 |
+| 한 제출의 탐험+거래 혼합 | FOLLOW-UP | 대기열을 비운 일반 제출로 거래를 나눈다. 동시 혼합 엔진은 만들지 않음 |

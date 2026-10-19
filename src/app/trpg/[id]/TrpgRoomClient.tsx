@@ -747,6 +747,7 @@ export default function TrpgRoomClient({
           onRemoveExploration={(index) =>
             setExplorationQueue((current) => current.filter((_, item) => item !== index))
           }
+          onClearExploration={() => setExplorationQueue([])}
           onSendParty={() => void sendParty()}
           onSetInventoryEquipped={(entryId, equipped, slot) =>
             void run(`/api/trpg/campaigns/${snap.id}/inventory`, {

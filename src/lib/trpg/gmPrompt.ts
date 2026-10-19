@@ -258,7 +258,7 @@ export const TRPG_GM_SYSTEM = `You are the TRPG Game Master. Korean novelistic n
 
 Rules:
 - You NEVER roll dice or change dice results. Use the provided roll outcomes exactly.
-- When [AUTHORITATIVE MECHANICS] is supplied, that packet is mechanics canon for SERVER_PREACTION (ongoing ticks/control), SERVER_RECOVERY (safe rest, authorized first aid, valid treatment-item HP heal), and FLASH_REFEREE (Flash-classified direct HP). Do not change those HP, heal, tick, ongoing add/remove/recovery, or dice numbers. If the packet marks GM_LEGACY_DIRECT, current-action HP is not mechanics-classified — you may write that current-action HP as before. Do not invent or overwrite SERVER_PREACTION / SERVER_RECOVERY / FLASH_REFEREE HP. When ENCOUNTER_AUTHORITY is present, only THREAT_STRIKE / ONGOING lines change HP: narrate each THREAT_STRIKE (hit or miss) as stated, and do not write HP loss for any other cause — peril without a strike line becomes position, time, pursuit or new obstacles. Realize classified results in fiction. Do not paste the packet, internal reasons, or hidden numbers into narration. Inventory, location, quests, NPCs, flags, and story progress remain yours unless they conflict with mechanics HP, ongoing effects, or item consumption — mechanics wins those conflicts. When [EXPLORATION] is supplied, its positions, passages, discoveries and item rewards (including none after a failed search or a clue) are server canon in the same way: narrate them, and do not move, open, shut, discover, or destroy anything it did not. An event reward named there is granted once and is not added, removed, or repeated by you; inventory for a separate action the player submitted stays yours. You may surface already-canon treatment opportunities; do not invent a specific cure that mechanics did not authorize.
+- When [AUTHORITATIVE MECHANICS] is supplied, that packet is mechanics canon for SERVER_PREACTION (ongoing ticks/control), SERVER_RECOVERY (safe rest, authorized first aid, valid treatment-item HP heal), and FLASH_REFEREE (Flash-classified direct HP). Do not change those HP, heal, tick, ongoing add/remove/recovery, or dice numbers. If the packet marks GM_LEGACY_DIRECT, current-action HP is not mechanics-classified — you may write that current-action HP as before. Do not invent or overwrite SERVER_PREACTION / SERVER_RECOVERY / FLASH_REFEREE HP. When ENCOUNTER_AUTHORITY is present, only THREAT_STRIKE / ONGOING lines change HP: narrate each THREAT_STRIKE (hit or miss) as stated, and do not write HP loss for any other cause — peril without a strike line becomes position, time, pursuit or new obstacles. Realize classified results in fiction. Do not paste the packet, internal reasons, or hidden numbers into narration. Inventory, location, quests, NPCs, flags, and story progress remain yours unless they conflict with mechanics HP, ongoing effects, or item consumption — mechanics wins those conflicts. When [EXPLORATION] is supplied, its positions, passages, discoveries and item rewards (including none after a failed search or a clue) are server canon in the same way: narrate them, and do not move, open, shut, discover, or destroy anything it did not. Follow that block for event rewards and for whether words beside an exploration command are a method note or an inventory action. You may surface already-canon treatment opportunities; do not invent a specific cure that mechanics did not authorize.
 - Honor supplied roll tiers exactly; realize outcomes in fiction per ROUND CRAFT below.
 - Resolve conflicting results in [RESOLUTION ORDER] when present. Acting first is not an automatic success. If that block is missing, use the listed action order. Later PCs react to what earlier resolved actions already did this round.
 - The campaign is a single linear timeline — no alternate worldlines, IF routes, or chat-style forks.
@@ -464,6 +464,10 @@ export function buildTrpgGmUserBlock(opts: {
     finalScore: number | null;
     dc: number | null;
     tier: string | null;
+    /** Server movement and search sentences, when this submission is a v2 exploration command. */
+    explorationCommandText?: string;
+    /** Player words beside that command. They describe the method, not an inventory action. */
+    explorationMethod?: string;
   }>;
 }): string {
   const actionBlock =
@@ -483,23 +487,28 @@ export function buildTrpgGmUserBlock(opts: {
               statValue: a.statValue,
             });
             const density = classifyTrpgActionInputDensity(a.body);
-            const canonical = a.body.trim();
+            const canonical = (a.explorationCommandText ?? a.body).trim();
             const actorKind = a.participantKind ?? "human";
             const actionLabel =
               actorKind === "human" ? TRPG_GM_LABEL_HUMAN_ACTION : TRPG_GM_LABEL_AI_ATTEMPT;
+            const method = a.explorationMethod?.trim()
+              ? `[EXPLORATION METHOD — how they travel or search, not a trade or item change]\n${a.explorationMethod.trim()}`
+              : "";
             const lines = opts.regenerate
               ? [
                   `[RESOLVED ACTION participantId=${a.participantId} name=${a.name} actorKind=${actorKind}]`,
                   `[CHECK already resolved d20=${a.d20 ?? "none"} tier=${a.tier ?? "none"}]`,
                   `${actionLabel}\n${canonical}`,
+                  method,
                   "This locked action already happened. Do not replace it or give the human PC a new choice.",
                 ]
               : [
                   `[ACTION participantId=${a.participantId} name=${a.name} actorKind=${actorKind} density=${density}]`,
                   `[CHECK ${checkWire}]`,
                   `${actionLabel}\n${canonical}`,
+                  method,
                 ];
-            return lines.join("\n");
+            return lines.filter(Boolean).join("\n");
           })
           .join("\n\n");
   const openingGoalClause =
