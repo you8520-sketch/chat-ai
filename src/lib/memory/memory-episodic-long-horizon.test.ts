@@ -656,6 +656,100 @@ describe("RELEVANCE lane — mid-history event behind recurring-name rows", () =
   });
 });
 
+describe("COMMON-NAME saturation — old event vs newer rows sharing the name and one incidental word", () => {
+  const EVENT_QUESTION =
+    "(복도 끝에서 한서윤이 서류를 안고 다가오는 걸 보고 태형의 소매를 잡아끈다) 저 사람 또 왔어.";
+  const NAME_FILLER = [
+    "태형은 골목 끝에서 작은 균열을 확인하고 봉인반을 불렀다.",
+    "태형은 순찰 일지에 지나간 사람 수를 적었다.",
+  ];
+
+  /** Every row is a distinct state-like key except lunch_partner, superseded at T80. */
+  function seedSaturatedChat(db: Database.Database, currentTurn: number) {
+    const insert = db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, ?, 'character', 'taehyung', ?, ?, 'normal', ?,
+               '{"memory_evidence_type":"explicit_scene_event","content_route":"safe"}')`
+    );
+    const add = (turn: number, attribute: string, factText: string) =>
+      Number(insert.run(turn, attribute, `${attribute}_${turn}`, factText).lastInsertRowid);
+    const refusalId = add(64, "rejected_company", "태형은 구내식당에서 한서윤의 동석 제안을 거절했다.");
+    const opinionId = add(64, "opinion_of_seoyun", "태형은 뒤에서 서류를 올리는 사람과 식사하고 싶지 않다고 말했다.");
+    const supersededLunchId = add(70, "lunch_partner", "태형은 한서윤과 점심을 먹기로 했다.");
+    add(80, "lunch_partner", "태형은 점심을 렌과 먹는다.");
+    for (let turn = 90; turn < currentTurn; turn++) {
+      add(turn, `patrol_note_${turn}`, NAME_FILLER[turn % NAME_FILLER.length]!);
+    }
+    return { refusalId, opinionId, supersededLunchId };
+  }
+
+  function recall(db: Database.Database, currentTurn: number, currentUserMessage: string) {
+    return getEpisodicMemoryForPrompt(db, { chatId: 1, currentTurn, currentUserMessage }, recallEnv);
+  }
+
+  function assertEveryInjectedRowIsLatestForItsKey(db: Database.Database, facts: { id: number }[]) {
+    const latestTurn = db.prepare(
+      `SELECT MAX(f2.source_turn) AS latest, f1.source_turn AS turn
+         FROM episodic_memory_facts f1
+         JOIN episodic_memory_facts f2
+           ON f2.chat_id = f1.chat_id AND f2.category = f1.category
+          AND f2.subject = f1.subject AND f2.attribute = f1.attribute
+        WHERE f1.id = ?`
+    );
+    for (const fact of facts) {
+      const row = latestTurn.get(fact.id) as { latest: number; turn: number };
+      assert.equal(row.turn, row.latest, `injected row ${fact.id} is not the latest state of its key`);
+    }
+  }
+
+  for (const currentTurn of [150, 500]) {
+    it(`currentTurn=${currentTurn}: the old event wins the relevance lane, the state-key cap and the final ranking`, () => {
+      const db = createDb();
+      const { refusalId, opinionId, supersededLunchId } = seedSaturatedChat(db, currentTurn);
+
+      const candidates = fetchEpisodicMemoryCandidatesForDebug(
+        db,
+        { chatId: 1, currentTurn, currentUserMessage: EVENT_QUESTION },
+        recallEnv
+      );
+      const candidateStateKeys = new Set(
+        candidates.rows
+          .filter((row) => classifyEpisodicFactTemporalNature(row) === "unknown")
+          .map((row) => `${row.category}:${row.subject}:${row.attribute}`)
+      );
+      assert.ok(candidateStateKeys.size > 25, `fixture must exceed the key cap, got ${candidateStateKeys.size}`);
+      assert.deepEqual(candidates.laneById.get(refusalId), ["relevance"]);
+      assert.deepEqual(candidates.laneById.get(opinionId), ["relevance"]);
+
+      const result = recall(db, currentTurn, EVENT_QUESTION);
+      const rankOf = (id: number) => result.debug.find((row) => row.id === id)?.final_rank ?? Infinity;
+      assert.ok(result.facts.some((fact) => fact.id === refusalId), "T64 refusal must be injected");
+      assert.ok(result.facts.some((fact) => fact.id === opinionId), "T64 opinion must be injected");
+      assert.ok(rankOf(opinionId) <= 2 && rankOf(refusalId) <= 2);
+      assert.equal(result.facts.some((fact) => fact.id === supersededLunchId), false);
+      assertEveryInjectedRowIsLatestForItsKey(db, result.facts);
+    });
+  }
+
+  it("a name-only question still recalls rows about that name, latest state only", () => {
+    const db = createDb();
+    const { supersededLunchId } = seedSaturatedChat(db, 500);
+    const result = recall(db, 500, "태형 기억나?");
+    assert.ok(result.facts.length > 0);
+    for (const fact of result.facts) assert.match(fact.fact_text, /태형/);
+    assert.equal(result.facts.some((fact) => fact.id === supersededLunchId), false);
+    assertEveryInjectedRowIsLatestForItsKey(db, result.facts);
+  });
+
+  it("an unrelated question does not surface the old event", () => {
+    const db = createDb();
+    const { refusalId, opinionId } = seedSaturatedChat(db, 500);
+    const result = recall(db, 500, "오늘 날씨 좋다.");
+    assert.equal(result.facts.some((fact) => fact.id === refusalId || fact.id === opinionId), false);
+  });
+});
+
 describe("CRITICAL vs IMPORTANT milestone priority", () => {
   it("T21 critical historical event survives 20 older important milestones", () => {
     const db = createDb();
