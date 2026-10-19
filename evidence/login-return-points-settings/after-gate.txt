@@ -1,7 +1,9 @@
 Base: origin/main 7a3cb9d438d36d73adb08f45204fce2aa6783bb1
-HEAD: (see PR) after fix
+Product gate (after fix):
 GET /points (no session) -> location: /login?redirect=/points
 GET /settings (no session) -> location: /login?redirect=/settings
 GET /chats (no session) -> location: /login?redirect=/chats
 
-Playwright (isolated DATA_DIR, prod webServer :3001): 7/7 passed — see /opt/cursor/artifacts/login-return-points-settings/playwright.txt
+Isolated prod Playwright (tests/ui/login-return-path.spec.ts, 7 cases):
+- Full log: playwright-run.txt (same directory, pinned to evidence commit in PR)
+- Viewport PNGs: after-*-{390,1280}.png (copied from Playwright testInfo.outputPath artifacts)
