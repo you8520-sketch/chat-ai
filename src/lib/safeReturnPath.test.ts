@@ -21,4 +21,19 @@ describe("sanitizeReturnPath", () => {
     assert.equal(sanitizeReturnPath("/chats#part", "/"), "/");
     assert.equal(sanitizeReturnPath("javascript:alert(1)", "/"), "/");
   });
+
+  test("falls back when the URL parser would leave https://hav.chat", () => {
+    const bypasses = [
+      "/\\evil.example/phish",
+      "/\t/evil.example/phish",
+      "/\n/evil.example/phish",
+      "/\r/evil.example/phish",
+    ];
+    for (const value of bypasses) {
+      assert.notEqual(new URL(value, "https://hav.chat").origin, "https://hav.chat");
+      assert.equal(sanitizeReturnPath(value, "/"), "/");
+    }
+    assert.equal(new URL("/chats", "https://hav.chat").origin, "https://hav.chat");
+    assert.equal(sanitizeReturnPath("/chats", "/"), "/chats");
+  });
 });
