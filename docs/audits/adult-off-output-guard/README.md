@@ -123,9 +123,25 @@
 - 원문 글자 수는 모델 출력 그대로다. Opus(3,006)와 Argon(2,376)은 3200 소프트 목표에 못 미쳤다. 출력 목표·상한은 바꾸지 않았다.
 - 사용자에게는 분류 완료 직후 본문이 한 번에 도착했다(첫 본문 이벤트가 분류 완료 후 1~2ms).
 
-## 5. 전체 테스트 비교
+## 5. 전체 테스트(`npm run test:regular`) 비교
 
-(아래 6절 참조)
+기준 SHA `a11da88c`(#1668 병합 직후)와 이 브랜치 코드 SHA `2dd29a6e`(이후 커밋은 문서만 변경)를 같은 머신에서 **순차 실행**(동시 부하 없음, 기준은 별도 worktree)했다. 전체 스위트는 `main`에서도 녹색이 아니다.
+
+| 실행 | 실패 리프 테스트 | 이 중 `SQLITE_BUSY*` | `SQLITE_BUSY*` 제외 |
+| --- | --- | --- | --- |
+| 기준 `a11da88c` | 294 | 31 | 263 |
+| 브랜치 1회차(`d631f0d7` + 실행 중 시험 파일 수정) | 283 | 19 | 264 |
+| 브랜치 2회차(정확히 `2dd29a6e`) | 324 | 62 | 262 |
+
+- `SQLITE_BUSY*` 제외 실패 중 **세 실행에 공통인 것이 260건**이다. 기준에 이미 있는 실패이며 이 변경과 무관한 기존 실패(`vitest` 미설치 import, 과금·길이 단언 불일치 등)다.
+- 실행마다 달라지는 것은 주로 `SQLITE_BUSY`(`database is locked`) 실패 건수다(31 / 19 / 62). 같은 SHA의 브랜치 두 실행에서도 건수가 다르다. 오류 코드로 분류한 근거이며, 재실행 통과만으로 "부하" 때문이라고 단정한 것이 아니다. 그래도 어떤 테스트가 어떤 잠금 충돌을 일으키는지는 규명하지 않았다.
+- **브랜치에만 나타난 실패** (기준에는 없음):
+  - `SQLITE_BUSY*`: `CheaperInference DeepSeek V4 Flash billing`(1·2회차 모두), `PR #174 follow-up — save / delete / provenance` 일부(1·2회차 모두, 번호는 회차마다 다름). 기준에서도 같은 파일의 다른 하위 시험(`7.`, `8.`)이 같은 오류로 실패했다.
+  - `ERR_ASSERTION`: 2회차에만 `investigationDiscovery.s3`의 `eligible investigation rules…`, `streamRevealConcurrent`의 `C6: background bypass…`(타이머 의존). 1회차에는 없었다. 이 변경이 건드린 코드(채팅 라우트, 분류기, 공급자 호출 헬퍼)와 직접 관련이 없고, 원인은 **규명하지 못했다**.
+- **기준에만 나타난 실패**: `regenerate keeps committed facts…`(2회 모두), `PR-S3 home live investigation path` 등(1회).
+- 위 두 목록에 나온 시험 파일 8개를 기준·브랜치 각각 단독으로 2회씩 실행하면 전부 통과했다(8개 파일 합계 `pass 114 / fail 0`, 4회). 이는 파일 단독 실행에서는 재현되지 않는다는 사실만 보여주며, 전체 실행 실패의 원인 규명이 아니다.
+- 이 변경이 새로 추가·수정한 시험(`adultOffOutputGuard.test.ts`, `adultOffOutputGuard.production.test.ts`, `adultOffGuardEvidence.test.ts`)과 건드린 공유 코드의 기존 시험(`openRouterCompletion*`, `auxProviderProvenance`, `publicUsageEconomicsBoundary`, `mainRpStrictFailure`, `refusalZeroCharge*`, `providerNativeRefusal`, `turnApiBudget`, `mainRpStartupDeadline`, `route.singleCallInvariant`)은 전체 실행 두 번 모두 통과했고 단독 실행에서도 통과했다.
+- 이 비교는 부하 영향을 분리하는 설계가 아니다. 완전한 해소를 위해서는 시험 파일별 DB 격리 또는 `--test-concurrency=1` 실행으로 같은 비교를 다시 해야 한다(FOLLOW-UP, 이번 변경 범위 밖).
 
 ## 6. 남은 한계 (보호 완료가 아니다)
 
