@@ -332,8 +332,8 @@ describe("P0-5 — Main RP failure terminates canonically (one external attempt,
     assert.match(failureWindow, /outputTokens:\s*primaryStage\.output/);
     assert.match(failureWindow, /upstreamCostUsd:\s*primaryStage\.upstreamCostUsd/);
     assert.match(failureWindow, /outcome:\s*"failed_with_usage"/);
-    const refusalAt = failureAt + failureWindow.indexOf('if (generationFailure === "model_refusal")');
-    assert.ok(failureWindow.includes('if (generationFailure === "model_refusal")'));
+    const refusalAt = failureAt + failureWindow.indexOf('if (isZeroChargeReplayFailure(generationFailure))');
+    assert.ok(failureWindow.includes('if (isZeroChargeReplayFailure(generationFailure))'));
     const refusalWindow = source.slice(refusalAt, refusalAt + 1400);
     assert.equal(
       (refusalWindow.match(/settleChatTurnBillingExactlyOnce\(/g) ?? []).length,
