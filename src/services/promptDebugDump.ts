@@ -1,5 +1,7 @@
+import { AsyncLocalStorage } from "async_hooks";
 import fs from "fs";
 import path from "path";
+import { getDataDir } from "@/lib/dataDir";
 import { estimateTokens } from "@/lib/tokenEstimate";
 import type { OpenRouterChatMessage } from "@/lib/openRouterClient";
 
@@ -587,6 +589,7 @@ export function dumpGeminiRequest(
   modelId: string,
   meta?: PromptDebugMeta
 ): void {
+  captureVerificationWire(body, meta);
   if (!isPromptDebugEnabled()) return;
   const sections = sectionsFromGeminiBody(body, meta);
   const payload = buildPayload("gemini", modelId, sections, body, meta);
@@ -597,10 +600,135 @@ export function dumpOpenRouterRequest(
   body: Record<string, unknown>,
   meta?: PromptDebugMeta
 ): void {
+  captureVerificationWire(body, meta);
   if (!isPromptDebugEnabled()) return;
   const model = String(body.model ?? "unknown");
   const messages = (body.messages ?? []) as OpenRouterChatMessage[];
   const sections = sectionsFromOpenRouterMessages(messages);
   const payload = buildPayload("openrouter", model, sections, body, meta);
   writeDebugFiles(payload);
+}
+
+/**
+ * Selected verification run only. Global PROMPT_DEBUG still overwrites
+ * debug/prompt_dump.txt. This path never writes that file and never logs the body.
+ */
+export type VerificationWireCaptureInput = {
+  userId: number;
+  characterId: number;
+  chatId: number;
+  turn: number;
+  requestId: string;
+};
+
+type VerificationWireScope = VerificationWireCaptureInput & {
+  runId: string;
+  seq: number;
+};
+
+const verificationWireStore = new AsyncLocalStorage<VerificationWireScope>();
+
+function verificationWireRunId(): string {
+  return process.env.RP_WIRE_CAPTURE_RUN?.trim() ?? "";
+}
+
+export function verificationWireCaptureDir(): string {
+  const configured = process.env.RP_WIRE_CAPTURE_DIR?.trim();
+  if (configured) return path.resolve(configured);
+  return path.join(getDataDir(), "private-wire-captures");
+}
+
+function safePathToken(value: string): string {
+  const cleaned = value.replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 80);
+  return cleaned || "unknown";
+}
+
+function pinnedChatId(runId: string, chatId: number): boolean {
+  const explicit = process.env.RP_WIRE_CAPTURE_CHAT_ID?.trim();
+  if (explicit) return explicit === String(chatId);
+  const pinPath = path.join(verificationWireCaptureDir(), safePathToken(runId), "chat-id");
+  try {
+    fs.mkdirSync(path.dirname(pinPath), { recursive: true });
+    fs.writeFileSync(pinPath, String(chatId), { encoding: "utf8", flag: "wx" });
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") return false;
+    try {
+      return fs.readFileSync(pinPath, "utf8").trim() === String(chatId);
+    } catch {
+      return false;
+    }
+  }
+}
+
+export function resolveVerificationWireCaptureScope(
+  input: VerificationWireCaptureInput
+): VerificationWireScope | null {
+  const runId = verificationWireRunId();
+  const userId = process.env.RP_WIRE_CAPTURE_USER_ID?.trim();
+  const characterId = process.env.RP_WIRE_CAPTURE_CHARACTER_ID?.trim();
+  if (!runId || !userId || !characterId) return null;
+  if (userId !== String(input.userId) || characterId !== String(input.characterId)) return null;
+  if (!Number.isInteger(input.chatId) || input.chatId <= 0) return null;
+  if (!Number.isInteger(input.turn) || input.turn <= 0) return null;
+  if (!input.requestId.trim()) return null;
+  if (!pinnedChatId(runId, input.chatId)) return null;
+  return { ...input, requestId: input.requestId.trim(), runId, seq: 0 };
+}
+
+export function enterVerificationWireCapture(input: VerificationWireCaptureInput): void {
+  const scope = resolveVerificationWireCaptureScope(input);
+  if (!scope) return;
+  verificationWireStore.enterWith(scope);
+}
+
+export function runWithVerificationWireCapture<T>(
+  scope: VerificationWireScope | null,
+  fn: () => T
+): T {
+  if (!scope) return fn();
+  return verificationWireStore.run(scope, fn);
+}
+
+function verificationWireStage(meta?: PromptDebugMeta): string {
+  const kind = meta?.requestKind?.trim() || meta?.stage?.trim() || "request";
+  if (/embedding/i.test(kind)) return "embedding";
+  if (/post-turn-shared-initial/i.test(kind)) return "luna";
+  if (/primary-stream|openrouter-stream|-stream$/i.test(kind)) return "main";
+  return safePathToken(kind);
+}
+
+/** Exact provider body for the selected run and chat. No-op for every other request. */
+export function captureVerificationWire(
+  body: Record<string, unknown>,
+  meta?: PromptDebugMeta
+): void {
+  const scope = verificationWireStore.getStore();
+  if (!scope) return;
+  try {
+    scope.seq += 1;
+    const dir = path.join(
+      verificationWireCaptureDir(),
+      safePathToken(scope.runId),
+      `chat-${scope.chatId}`,
+      `turn-${scope.turn}`
+    );
+    fs.mkdirSync(dir, { recursive: true });
+    const stage = verificationWireStage(meta);
+    const base = `${String(scope.seq).padStart(2, "0")}-${stage}--${safePathToken(scope.requestId)}`;
+    let filePath = path.join(dir, `${base}.json`);
+    let attempt = 1;
+    for (;;) {
+      try {
+        fs.writeFileSync(filePath, JSON.stringify(body), { encoding: "utf8", flag: "wx" });
+        return;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+        attempt += 1;
+        filePath = path.join(dir, `${base}-${attempt}.json`);
+      }
+    }
+  } catch (error) {
+    console.warn("[wire-capture] write failed:", (error as Error).message);
+  }
 }

@@ -38,6 +38,7 @@ import {
   shouldRunCanonInjectionSideEffects,
 } from "@/lib/canonPlan/shadowD0";
 import { buildContext } from "@/services/contextBuilder";
+import { enterVerificationWireCapture } from "@/services/promptDebugDump";
 import { resolveNarrativePov } from "@/lib/narrativePov";
 import {
   assembleNextTurnContextBuildInput,
@@ -2006,6 +2007,13 @@ export async function POST(req: Request) {
     currentTurn: memorySourceEligibleCompletedTurns + 1,
   };
   const episodicSemanticRuntime = resolveEpisodicSemanticRuntime();
+  enterVerificationWireCapture({
+    userId: user.id,
+    characterId: ch.id,
+    chatId: chat.id,
+    turn: playableTurnCount + 1,
+    requestId: clientRequestId,
+  });
   const episodicSemantic = await resolveEpisodicSemanticQuery({
     query: policyUserMessage,
     contentRoute: effectiveAdultRp ? "nsfw" : "safe",
@@ -3207,9 +3215,17 @@ export async function POST(req: Request) {
   phaseAudit?.mark("T9_REQUEST_ASSEMBLY_DONE");
 
   const alreadyBilledForRequest = existingByRequest.alreadyBilled;
+  const wireCaptureInput = {
+    userId: user.id,
+    characterId: ch.id,
+    chatId: chat.id,
+    turn: playableTurnCount + 1,
+    requestId: clientRequestId,
+  };
 
   const stream = new ReadableStream({
     async start(controller) {
+      enterVerificationWireCapture(wireCaptureInput);
       const executeStream = async () => {
       const safe = createDisconnectSafeSend(
         (chunk) => controller.enqueue(chunk),

@@ -1,6 +1,6 @@
 # #51 RP·에셋 전환 검증 준비
 
-14장 교체와 로그인한 상세·에디터·대표 미리보기 확인은 끝났다. 이 문서는 그 다음 유료 실행의 준비다. 이번 작성에서는 provider POST, 운영 대화 생성·변경, 원고·이미지 수정, 공개·알림을 하지 않았다.
+14장 교체와 로그인한 상세·에디터·대표 미리보기 확인은 끝났다. 이 문서는 그 다음 유료 실행의 준비다. 이번 작성과 이 보완에서는 완료 POST, 운영 대화 생성·변경, 원고·이미지 수정, 공개·알림을 하지 않았다. 가격 확인은 카탈로그 GET뿐이다. 격리 mock의 합성 응답은 RP 품질 증거가 아니다.
 
 편집 경로는 `/create?edit=51`이다. `/character/51/edit`는 라우트가 아니다.
 
@@ -74,7 +74,9 @@
 
 로어북을 빼고 잰 fixture 측정(23,869–23,907자, 21,483–21,517토큰)은 참고값이다. 그 문장은 이 4턴이 아니다.
 
-2–4턴은 응답이 없으므로 wire를 미리 확정하지 않는다. 실행 때 각 턴의 전송문은 기존 `PROMPT_DEBUG=1`이 `dumpOpenRouterRequest`로 남기는 `debug/prompt_dump.txt`와 `debug/token_breakdown.json`으로 보존한다. 운영의 현재 값은 `PROMPT_DEBUG=0`이라, 승인된 실행 구간에만 켜고 파일을 로컬 비공개 경로로 복사한 뒤 다시 끈다. 그 파일은 Git에 넣지 않는다.
+2–4턴의 본문은 응답이 생기기 전에는 확정하지 않는다. 실행 구간에 전역 `PROMPT_DEBUG`를 켜고 `debug/prompt_dump.txt`를 나중에 복사하는 계획은 쓰지 않는다. 그 파일과 `debug/token_breakdown.json`은 요청마다 덮어써지고, 메인·Luna·다른 채팅이 한 파일을 같이 쓴다. 전역 `PROMPT_DEBUG`의 동작은 그대로 두고, 실행 중에는 끈다.
+
+선택한 실행만 기존 dump owner가 따로 남긴다. 프로세스에 `RP_WIRE_CAPTURE_RUN`, `RP_WIRE_CAPTURE_USER_ID=1`, `RP_WIRE_CAPTURE_CHARACTER_ID=51`을 둔다. `RP_WIRE_CAPTURE_CHAT_ID`가 없으면 그 사용자·캐릭터의 첫 채팅만 고정하고 이후 채팅은 남기지 않는다. 새 채팅 id를 안 뒤에는 그 값을 넣어도 된다. 디렉터리는 `RP_WIRE_CAPTURE_DIR`이고, 비우면 `data/private-wire-captures`다. 이 경로는 Git에서 제외된다. 파일은 `{run}/chat-{chatId}/turn-{turn}/{순번}-{stage}--{requestId}.json`이다. stage는 `main`, `luna`, `embedding`이다. 같은 이름이 있으면 `-2`처럼 번호를 붙이고 덮어쓰지 않는다. 기록하는 본문은 provider 전송 직전 바디다. 조립 중간본을 최종 전송문으로 적지 않는다. 원문은 이 비공개 경로에만 두고 일반 로그와 공개 Git에는 넣지 않는다. 위 변수가 없는 일반 요청은 이 경로에 쓰지 않는다.
 
 ## 2. 고정 4턴
 
@@ -101,25 +103,44 @@
 
 브라우저가 호출하는 owner는 운영 `POST /api/chat`이다. 서버가 `buildContext` 뒤에 `streamOpenRouterAdult` → `assemblePrimaryRpRequest`로 본문을 만든 다음 한 번 전송한다. `gpt-6.1-sol`은 DeepSeek failover 대상이 아니다. 메인 RP는 시도 1회이고, 빈 스트림이나 거절도 같은 턴의 두 번째 완료 POST로 이어가지 않는다.
 
-RP 4턴과 provider POST 총수는 다르다. 캐릭터 51에는 상태창 정의가 있고, 새 채팅의 엔진 기본값은 `character_only`다. 메인 응답이 저장된 뒤에 `resolveStatusWidgetTurnValues`가 `gpt-6-luna` 공유 호출을 한 번 한다. 관계 메모, 추천 답장, episodic 구간은 그 호출에 실린다. 별도 관계 추출 POST로 다시 나가지 않는다. 이 준비의 mock 응답은 길이 가드에서 버려져 그 Luna 호출까지는 실행되지 않았다. 성공한 라이브 턴에서는 실행된다.
+RP 4턴과 provider POST 총수는 다르다. 캐릭터 51에는 상태창 정의가 있고, 새 채팅의 엔진 기본값은 `character_only`다. 메인 응답이 저장된 뒤에 `resolveStatusWidgetTurnValues`가 `gpt-6-luna` 공유 호출을 한 번 한다. 관계 메모, 추천 답장, episodic 구간은 그 호출에 실린다. 별도 관계 추출 POST로 다시 나가지 않는다. 상태창 스키마가 비거나 깨지면 수리 호출은 없다.
 
-에피소드 요약 봉인은 5턴 간격이고, 방금 끝난 창은 다음 요청에서 봉인된다. 4턴에서 멈추면 요약 완료 POST는 없다. 시맨틱 인덱스가 생기기 전 1턴 질의 임베딩은 `no_usable_index`로 나가지 않았다. 운영은 `EPISODIC_SEMANTIC_DISCOVERY_ENABLED=1`, 모델 `baai/bge-m3`다. 이후 턴에서 fact가 쓰이면 인덱스 또는 질의 임베딩 POST가 더 생길 수 있다. 그 단가는 `publishedModelPricing`에 없다. 비용이 비거나 실패하면 다음 호출을 하지 않는다.
+격리 사본과 mock provider로 저장 가능한 길이의 합성 응답을 넣어 1–3턴의 후처리까지 진행했다. 그 본문은 합성 응답이고 RP 품질 증거가 아니다. 4번 문장은 보내지 않았다. 완료 POST는 0이다. 같은 구간에 남은 외부 기록은 환율 GET 2회와 카탈로그 GET 1회뿐이었다.
 
-그래서 승인 범위는 메인 4회에 더해, 성공 턴마다 Luna 1회, 그리고 생길 수 있는 임베딩 POST다. 재생성, 재추첨, 원하는 태그를 입력에 넣는 일은 승인에 없다. 분량이 3200자에 못 미쳐도 같은 턴을 다시 호출하지 않는다. 출력 상한은 넣지 않는다.
+Luna 전송 직전 바디는 세 턴 모두 `model=gpt-6-luna`, `max_tokens=4096`, `temperature=0.4`, `stream=false`, `reasoning.effort=none`이다. 스키마 이름은 `post_turn_shared_initial`이다. 입력 트림 상한은 `BACKGROUND_MAX_INPUT_TOKENS` 12,000이고, 이 요청 종류는 그 상한 안에 든다. 메시지 본문 `estimateTokens`는 1턴 11,577, 2턴 11,878, 3턴 11,844다. mock usage의 20,000 입력 토큰은 요청 크기가 아니다. 출력 제한은 4,096토큰이다.
+
+에피소드 요약 봉인은 5턴 간격이고, 방금 끝난 창은 다음 요청에서 봉인된다. 4턴에서 멈추면 요약 완료 POST는 없다.
+
+임베딩은 OpenRouter `POST /api/v1/embeddings`, 모델 `baai/bge-m3`, 1024차원이다. 요청에는 `provider.zdr=true`, `data_collection=deny`가 들어가고 `dimensions` 필드는 보내지 않는다. 인덱스 잡은 `scheduleMemoryUpdate`가 fact 저장 뒤에 `runEpisodicSemanticIndexJob`을 호출할 때 돈다. 한 잡은 HTTP 요청 1개이고, 입력은 최대 `EPISODIC_SEMANTIC_INDEX_BATCH_SIZE` 16개다. fact마다 요청을 나누지 않는다. 대기 fact가 없으면 `idle`이고 요청은 0이다. 대상은 `content_route=safe`로 찍힌 fact뿐이다.
+
+질의 임베딩은 그 전에 `resolveEpisodicSemanticQuery`가 따로 입력 1개를 보낸다. 조건은 내용 경로가 `safe`이고, `hasEpisodicSemanticIndexInScope`가 참일 때다. 성인 방이면 경로는 `nsfw`라 `adult_scope_excluded`로 나가지 않는다. 이번 실행은 성인 방을 끈다. recall 최소 나이는 5턴이고 더 낮출 수 없다. 질의의 `currentTurn`은 끝난 플레이 턴 + 1이라, 1–4턴의 컷오프 `source_turn <= currentTurn - 5`는 음수다. 그래서 이 4턴 안에서는 fact가 있어도 질의는 `no_usable_index`이고 POST는 0이다. 격리 사본에서 source_turn 3인 fact 1건을 인덱싱한 뒤 currentTurn 4는 사용 가능한 인덱스가 없었고, currentTurn 8에서만 질의 바디 1건이 남았다. 그 8턴 질의는 이 4턴 대본이 아니다.
+
+격리 dev 서버는 `getDb`가 development에서 migrate를 다시 열면서 fact 트랜잭션 안에서 `cannot start a transaction within a transaction`으로 저장이 롤백됐다. `NODE_ENV=production`은 요청마다 migrate를 다시 하지 않으므로 이 중단은 운영 후처리 경로가 아니다. 인덱스 바디는 같은 owner를 mock으로 직접 호출해 쟀다. 입력 1개, fetch 0, 행 1이다.
+
+그래서 준비 범위의 호출 수는 메인 4, 성공 턴의 Luna 4, 질의 임베딩 0, 인덱스 임베딩 0–4다. 인덱스는 그 턴에 저장 가능한 safe fact가 새로 있을 때만 1회다. 재생성, 재추첨, 원하는 태그를 입력에 넣는 일은 범위에 없다. 분량이 3200자에 못 미쳐도 같은 턴을 다시 호출하지 않는다. 출력 상한은 넣지 않는다.
 
 ## 4. 견적
 
-1턴 측정 입력은 22,308토큰이다. 이후 턴은 저장된 응답만큼 입력이 커진다. 출력은 3200자 목표가 약 2,200토큰이고, 상한이 없으므로 메인 견적은 턴당 4,000출력 토큰까지를 본다. 4턴 입력 합은 약 111,000토큰으로 두고 cache 할인은 빼지 않는다. 단가는 `publishedModelPricing`의 `gpt-6.1-sol`이다.
+1턴 측정 입력은 22,308토큰이다. 격리 mock으로 다시 잰 1턴 직렬화 길이도 24,786자, `estimateTokens` 22,308이다. 2턴은 25,315, 3턴은 28,179다. 4턴은 보내지 않았다. 출력은 3200자 목표가 약 2,200토큰이고, 상한이 없으므로 메인 견적은 턴당 4,000출력 토큰까지를 본다. 4턴 입력 합은 약 111,000토큰으로 두고 cache 할인은 빼지 않는다.
 
-| 구분 | 계산 | 금액 |
-|---|---|---|
-| 메인 입력 4턴, cache 없음 | 약 111,000 × $2 / 1M | $0.23 |
-| 메인 출력 4 × 4,000토큰 | 16,000 × $10 / 1M | $0.16 |
-| 메인 합계 |  | 약 $0.39 |
-| Luna 4회 | `openRouterModelPricing` 폴백 입력 $0.07 / 1M, 출력 $0.35 / 1M. 라이브 카탈로그가 있으면 그 단가. 호출 크기는 미측정 | 메인 합계보다 작을 것으로 보나 미측정 |
-| 제안 중단선 | 누적 정산 후 다음 호출을 멈춤 | **$1.50** |
+가격은 호출마다 출처가 다르다.
 
-$1.50은 진행 중인 무제한 출력의 청구 상한이 아니다. 한 턴의 완료가 끝난 뒤 provider가 보고한 누적이 $1.50 이상이면 다음 POST를 하지 않는다. usage나 비용이 비어 있거나 생성이 실패하면 그 턴을 성공으로 적지 않고 멈춘다. 사용자 포인트 단가와 3200+ soft target은 바꾸지 않는다.
+- 메인 영수증·포인트 owner는 `publishedModelPricing`의 `gpt-6.1-sol`이다. 입력 $2 / 1M, 출력 $10 / 1M. 코드는 라이브 CI 할인을 이 영수증에 반영하지 않는다.
+- 메인·Luna의 provider 카탈로그는 2026-10-19 `GET https://api.cheaperinference.com/v1/models` HTTP 200이다. `pricing_checked_at`은 `2026-10-19T14:20:55.490Z`다. standard `chat/completions`, 할인 35%, threshold 272,000. `gpt-6-luna` 입력 $0.065 / 1M, 출력 $0.325 / 1M, cache read $0.0065, cache write $0.08125. `gpt-6.1-sol` 입력 $1.30 / 1M, 출력 $6.50 / 1M, cache read $0.065, cache write $1.625. `reference_*`는 이 응답에서 null이다. 코드 폴백 `CHEAPER_INFERENCE_GPT_6_LUNA_RATES`는 2026-09-25의 30% 스냅샷(입력 $0.07, 출력 $0.35)이고, 서버가 카탈로그를 갱신하면 Luna는 라이브 값이 이긴다.
+- 임베딩은 2026-10-19 `GET https://openrouter.ai/api/v1/embeddings/models` HTTP 200의 `baai/bge-m3`다. `pricing.prompt`는 `0.00000001` USD/token, 곧 $0.01 / 1M 입력, completion `0`, context 8,194다. 공개 채팅 모델 목록에는 없다. 이 값은 ZDR 전용 견적이 아니다. 정산 usage cost가 다르면 그 원장이 이긴다. 두 번째 단가를 만들지 않는다.
+
+| 구분 | 호출 수 | 계산 | 금액 |
+|---|---|---|---|
+| 메인, 영수증 list | 4 | 약 111,000 × $2 / 1M + 16,000 × $10 / 1M | 약 $0.39 |
+| 메인, CI 카탈로그 할인 | 4 | 같은 토큰 × $1.30 / $6.50 | 약 $0.25 |
+| Luna, 입력 상한·출력 상한 | 4 | 4 × 12,000 × $0.065 / 1M + 4 × 4,096 × $0.325 / 1M | 약 $0.008 |
+| 질의 임베딩 | 0 | 4턴 창은 min age 5 밖 | $0 |
+| 인덱스 임베딩 | 0–4 | 턴마다 최대 1요청, 입력 최대 16. $0.01 / 1M | $0.01 미만 |
+| 중단선 |  | 정산 뒤 다음 호출을 멈춤 | **$1.50** |
+
+$0.39는 포인트 기준의 계획 상한이다. $0.25와 $0.008은 카탈로그 단가를 측정 크기·출력 상한에 곱한 provider 견적이다. Luna 실제 출력은 4,096보다 작다. 인덱스 금액은 짧은 fact 문자열 기준이고, ZDR 정산이 카탈로그와 다르면 확정이 아니다.
+
+$1.50은 이미 시작한 무제한 출력의 보장 상한이 아니다. 진행 중인 메인 완료는 이 금액으로 멈추지 않는다. 메인 응답이 저장되면 그 요청 안의 Luna와, fact가 저장된 경우의 인덱스 임베딩은 정산을 기다리지 않고 이어진다. 이미 시작된 후처리를 중간에 끊는 스위치는 없다. 다음 사용자 턴은 별도 POST다. 직전 턴의 메인·Luna·임베딩 원장이 모두 실제 비용으로 정산되기 전에는 보내지 않는다. CI는 `billed_cost_usd`가 0보다 클 때 `cheaper_inference_billed`로 정산된다. 성공해도 그 필드가 없으면 `completed_without_exact_cost`이고 정산이 아니다. `started`도 기다린다. 정산 합이 $1.50 이상이면 다음 턴을 보내지 않는다. 3200+ soft target과 출력 상한 없음은 유지한다. 이번 준비에서 청구 구조 코드는 바꾸지 않는다.
 
 ## 5. 에셋 전환 증거
 
@@ -133,4 +154,6 @@ $1.50은 진행 중인 무제한 출력의 청구 상한이 아니다. 한 턴�
 
 ## 6. 승인안
 
-이번 문서는 아직 실행이 아니다. 승인되면 위 브라우저 경로로 새 채팅 4턴만 진행한다. 범위는 메인 `gpt-6.1-sol` 4회, 성공 턴의 `gpt-6-luna` 상태창 공유 호출, 그때 실제로 발생하는 임베딩 POST, 그리고 실행 구간의 `PROMPT_DEBUG=1` 보존이다. 누적 정산 $1.50, 비용 미확인, 실패 중 하나이면 다음 호출을 멈춘다. 이미지, 원고, 공개 상태는 그대로 둔다.
+이번 문서와 요청별 전송문 보존은 준비다. 유료 실행 승인과는 별개이고, 그 승인은 아직 없다. 준비만으로 4턴을 시작하지 않는다.
+
+유료 실행이 따로 승인되면 위 브라우저 경로로 새 채팅 4턴만 진행한다. 호출은 메인 `gpt-6.1-sol` 4회, 성공 턴의 `gpt-6-luna` 4회, 질의 임베딩 0회, 저장 가능한 safe fact가 있는 턴의 인덱스 임베딩 최대 4회다. 전송문은 `RP_WIRE_CAPTURE_*`로 요청마다 비공개 파일에 남긴다. `PROMPT_DEBUG`는 끄고 둔다. 누적 정산이 $1.50 이상이거나, 직전 턴의 원장에 실제 비용이 없거나, 생성이 실패하면 다음 사용자 턴을 보내지 않는다. 이미 시작된 그 턴의 후처리는 코드가 중간에 끊지 않는다. 이미지, 원고, 공개 상태는 그대로 둔다.

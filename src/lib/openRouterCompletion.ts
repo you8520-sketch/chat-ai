@@ -28,6 +28,7 @@ import {
   MOCK_INPUT_TOKENS,
   MOCK_OUTPUT_TOKENS,
 } from "@/lib/mockApiMode";
+import { captureVerificationWire } from "@/services/promptDebugDump";
 import {
   DeepSeekDeterministicProviderError,
   DeepSeekProviderFailoverError,
@@ -324,27 +325,6 @@ export async function callOpenRouterCompletion(opts: {
     })
   );
 
-  if (isMockApiMode()) {
-    const mockText = getMockResponseText();
-    return {
-      text: mockText,
-      usage: {
-        inputTokens: MOCK_INPUT_TOKENS,
-        outputTokens: MOCK_OUTPUT_TOKENS,
-        estimated: true,
-      },
-    };
-  }
-
-  const key = useCheaperInference
-    ? opts.cheaperInferenceApiKeyOverride?.trim() || resolveCheaperInferenceApiKey()
-    : resolveOpenRouterApiKey();
-  const endpoint = useCheaperInference
-    ? CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL
-    : OPENROUTER_CHAT_COMPLETIONS_URL;
-  const headers = useCheaperInference
-    ? buildCheaperInferenceHeaders(key)
-    : buildOpenRouterHeaders(key);
   const configuredMaxTokens =
     opts.maxTokens === null ? null : opts.maxTokens ?? 2048;
   const baseRequestBody = {
@@ -363,6 +343,26 @@ export async function callOpenRouterCompletion(opts: {
   const requestBody = useCheaperInference
     ? adaptCheaperInferenceChatBody(baseRequestBody)
     : baseRequestBody;
+  captureVerificationWire(requestBody, { requestKind: opts.requestKind, stage: opts.requestKind });
+  if (isMockApiMode()) {
+    return {
+      text: getMockResponseText(opts.requestKind),
+      usage: {
+        inputTokens: MOCK_INPUT_TOKENS,
+        outputTokens: MOCK_OUTPUT_TOKENS,
+        estimated: true,
+      },
+    };
+  }
+  const key = useCheaperInference
+    ? opts.cheaperInferenceApiKeyOverride?.trim() || resolveCheaperInferenceApiKey()
+    : resolveOpenRouterApiKey();
+  const endpoint = useCheaperInference
+    ? CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL
+    : OPENROUTER_CHAT_COMPLETIONS_URL;
+  const headers = useCheaperInference
+    ? buildCheaperInferenceHeaders(key)
+    : buildOpenRouterHeaders(key);
   const timeoutMs =
     opts.timeoutMs ?? resolveOpenRouterCompletionTimeoutMs(opts.requestKind);
   const logical = resolveDeepSeekLogicalModel(model);

@@ -8,6 +8,8 @@ import { parseOpenRouterUsage } from "@/lib/openRouterUsage";
 import { readCompatibleCompletionProviderRequestId } from "@/lib/openRouterCompletion";
 import { recordBackgroundProviderCost } from "@/lib/providerCostLedger";
 import { buildAuxProviderCallLogInput, logAuxProviderCall } from "@/lib/auxProviderProvenance";
+import { isMockApiMode } from "@/lib/mockApiMode";
+import { captureVerificationWire } from "@/services/promptDebugDump";
 
 /**
  * Canonical owner for the OpenRouter Embeddings API (`POST /api/v1/embeddings`).
@@ -171,6 +173,26 @@ export async function callOpenRouterEmbeddings(opts: {
     });
   }
 
+  const body = {
+    model,
+    input: [...inputs],
+    encoding_format: "float" as const,
+    ...(opts.requestDimensions != null ? { dimensions: opts.requestDimensions } : {}),
+    provider: OPENROUTER_EMBEDDINGS_PROVIDER_POLICY,
+  };
+  captureVerificationWire(body, { requestKind, stage: requestKind });
+  if (isMockApiMode()) {
+    return {
+      vectors: inputs.map(() => {
+        const vector = new Array<number>(dimensions).fill(0);
+        vector[0] = 1;
+        return vector;
+      }),
+      usage: { inputTokens: inputs.length, estimated: true },
+      responseModel: model,
+    };
+  }
+
   let key: string;
   try {
     key = opts.apiKey?.trim() || resolveOpenRouterApiKey();
@@ -180,14 +202,6 @@ export async function callOpenRouterEmbeddings(opts: {
       code: "missing_key",
     });
   }
-
-  const body = {
-    model,
-    input: [...inputs],
-    encoding_format: "float" as const,
-    ...(opts.requestDimensions != null ? { dimensions: opts.requestDimensions } : {}),
-    provider: OPENROUTER_EMBEDDINGS_PROVIDER_POLICY,
-  };
   logAuxProviderCall(buildAuxProviderCallLogInput({ model, messages: body.input, requestKind }));
 
   const fail = (
