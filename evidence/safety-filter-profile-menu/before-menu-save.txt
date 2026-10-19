@@ -1,0 +1,163 @@
+
+> hav-chat@0.1.0 test:ui
+> playwright test tests/ui/site-chrome.spec.ts --grep profile menu safety
+
+(node:20011) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 10 tests using 1 worker
+
+(node:20670) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:20670) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:20670) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+  ✓   1 [chromium] › tests/ui/site-chrome.spec.ts:294:9 › profile menu safety filter › 320px keeps the filter out of the header and once below albums in the menu (549ms)
+  ✓   2 [chromium] › tests/ui/site-chrome.spec.ts:294:9 › profile menu safety filter › 390px keeps the filter out of the header and once below albums in the menu (395ms)
+  ✓   3 [chromium] › tests/ui/site-chrome.spec.ts:294:9 › profile menu safety filter › 1280px keeps the filter out of the header and once below albums in the menu (420ms)
+  ✓   4 [chromium] › tests/ui/site-chrome.spec.ts:317:7 › profile menu safety filter › 390px toggles OFF, keeps the menu open, and matches settings after reload (756ms)
+  ✘   5 [chromium] › tests/ui/site-chrome.spec.ts:336:7 › profile menu safety filter › a regular member cannot toggle the profile filter and no PATCH is sent (5.4s)
+(node:20910) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:20910) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:20910) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+  ✘   6 [chromium] › tests/ui/site-chrome.spec.ts:355:7 › profile menu safety filter › closing and reopening during a delayed PATCH keeps one in-flight save (5.6s)
+(node:21026) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21026) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21026) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+  ✘   7 [chromium] › tests/ui/site-chrome.spec.ts:392:7 › profile menu safety filter › HTTP and network failures restore both directions and leave the control usable (5.8s)
+(node:21143) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21143) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21143) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+  ✓   8 [chromium] › tests/ui/site-chrome.spec.ts:443:9 › profile menu safety filter › 320px closed menu is hidden from Tab and the open row stays reachable (559ms)
+  ✓   9 [chromium] › tests/ui/site-chrome.spec.ts:443:9 › profile menu safety filter › 390px closed menu is hidden from Tab and the open row stays reachable (460ms)
+  ✓  10 [chromium] › tests/ui/site-chrome.spec.ts:443:9 › profile menu safety filter › 1280px closed menu is hidden from Tab and the open row stays reachable (507ms)
+
+
+  1) [chromium] › tests/ui/site-chrome.spec.ts:336:7 › profile menu safety filter › a regular member cannot toggle the profile filter and no PATCH is sent
+
+    Error: expect(locator).toBeDisabled() failed
+
+    Locator:  locator('[role="menu"] [role="menuitemcheckbox"]')
+    Expected: disabled
+    Received: enabled
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeDisabled" locator('[role="menu"] [role="menuitemcheckbox"]') with timeout 5000ms
+      - waiting for locator('[role="menu"] [role="menuitemcheckbox"]')
+        14 × locator resolved to <button type="button" title="세이프티 필터" aria-checked="false" role="menuitemcheckbox" aria-label="세이프티 필터 OFF" class="flex min-h-11 w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left text-sm font-medium text-zinc-200 transition hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-60">…</button>
+           - unexpected value "enabled"
+
+
+      345 |     await openProfileMenu(page);
+      346 |     const toggle = safetyToggle(page);
+    > 347 |     await expect(toggle).toBeDisabled();
+          |                          ^
+      348 |     await expect(toggle).toHaveAttribute("aria-checked", "false");
+      349 |     await toggle.click({ force: true });
+      350 |     await page.waitForTimeout(300);
+        at /workspace/tests/ui/site-chrome.spec.ts:347:26
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/site-chrome-profile-menu-s-ecf25-filter-and-no-PATCH-is-sent-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/site-chrome-profile-menu-s-ecf25-filter-and-no-PATCH-is-sent-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/site-chrome-profile-menu-s-ecf25-filter-and-no-PATCH-is-sent-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/site-chrome-profile-menu-s-ecf25-filter-and-no-PATCH-is-sent-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › tests/ui/site-chrome.spec.ts:355:7 › profile menu safety filter › closing and reopening during a delayed PATCH keeps one in-flight save
+
+    Error: expect(locator).toBeDisabled() failed
+
+    Locator:  locator('[role="menu"] [role="menuitemcheckbox"]')
+    Expected: disabled
+    Received: enabled
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeDisabled" locator('[role="menu"] [role="menuitemcheckbox"]') with timeout 5000ms
+      - waiting for locator('[role="menu"] [role="menuitemcheckbox"]')
+        14 × locator resolved to <button type="button" title="세이프티 필터" aria-checked="false" role="menuitemcheckbox" aria-label="세이프티 필터 OFF" class="flex min-h-11 w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left text-sm font-medium text-zinc-200 transition hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-60">…</button>
+           - unexpected value "enabled"
+
+
+      378 |     await expect(page.locator('[role="menu"]')).toBeHidden();
+      379 |     await openProfileMenu(page);
+    > 380 |     await expect(safetyToggle(page)).toBeDisabled();
+          |                                      ^
+      381 |     await expect(safetyToggle(page)).toHaveAttribute("aria-checked", "true");
+      382 |     await safetyToggle(page).click({ force: true });
+      383 |     expect(patches).toBe(1);
+        at /workspace/tests/ui/site-chrome.spec.ts:380:38
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/site-chrome-profile-menu-s-d81eb-CH-keeps-one-in-flight-save-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/site-chrome-profile-menu-s-d81eb-CH-keeps-one-in-flight-save-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/site-chrome-profile-menu-s-d81eb-CH-keeps-one-in-flight-save-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/site-chrome-profile-menu-s-d81eb-CH-keeps-one-in-flight-save-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [chromium] › tests/ui/site-chrome.spec.ts:392:7 › profile menu safety filter › HTTP and network failures restore both directions and leave the control usable
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  locator('[role="menu"] [role="menuitemcheckbox"]')
+    Expected: "false"
+    Received: "true"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" locator('[role="menu"] [role="menuitemcheckbox"]') with timeout 5000ms
+      - waiting for locator('[role="menu"] [role="menuitemcheckbox"]')
+        14 × locator resolved to <button type="button" title="세이프티 필터" aria-checked="true" role="menuitemcheckbox" aria-label="세이프티 필터 ON" class="flex min-h-11 w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left text-sm font-medium text-zinc-200 transition hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-60">…</button>
+           - unexpected value "true"
+
+
+      422 |     await openProfileMenu(page);
+      423 |     await safetyToggle(page).click();
+    > 424 |     await expect(safetyToggle(page)).toHaveAttribute("aria-checked", "false");
+          |                                      ^
+      425 |     await page.keyboard.press("Escape");
+      426 |       await fail("http", "false");
+      427 |     await fail("network", "false");
+        at /workspace/tests/ui/site-chrome.spec.ts:424:38
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/site-chrome-profile-menu-s-589fa-nd-leave-the-control-usable-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/site-chrome-profile-menu-s-589fa-nd-leave-the-control-usable-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/site-chrome-profile-menu-s-589fa-nd-leave-the-control-usable-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/site-chrome-profile-menu-s-589fa-nd-leave-the-control-usable-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3 failed
+    [chromium] › tests/ui/site-chrome.spec.ts:336:7 › profile menu safety filter › a regular member cannot toggle the profile filter and no PATCH is sent
+    [chromium] › tests/ui/site-chrome.spec.ts:355:7 › profile menu safety filter › closing and reopening during a delayed PATCH keeps one in-flight save
+    [chromium] › tests/ui/site-chrome.spec.ts:392:7 › profile menu safety filter › HTTP and network failures restore both directions and leave the control usable
+  7 passed (2.1m)

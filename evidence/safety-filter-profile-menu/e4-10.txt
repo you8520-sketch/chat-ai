@@ -1,0 +1,15 @@
+
+> hav-chat@0.1.0 test:ui
+> playwright test tests/ui/studio-layout.spec.ts --grep 667x375: folding the menu row
+
+
+Running 1 test using 1 worker
+
+(node:23182) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:23182) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [exchangeRate] fetch failed — using last known or fallback fetch failed
+  ✓  1 [chromium] › tests/ui/studio-layout.spec.ts:579:9 › E4-10 the second header row folds only while a short editor has the keyboard open › 667x375: folding the menu row shortens the measured header and keeps the first row (1.7s)
+
+  1 passed (1.8m)

@@ -1,0 +1,67 @@
+TAP version 13
+# Subtest: E4-3A navigation chrome
+    # Subtest: shows exactly one main-tab row at every width (inline from lg, strip below lg)
+    ok 1 - shows exactly one main-tab row at every width (inline from lg, strip below lg)
+      ---
+      duration_ms: 1.045276
+      ...
+    # Subtest: renders the strip row inside the sticky header so the rail geometry follows its height
+    ok 2 - renders the strip row inside the sticky header so the rail geometry follows its height
+      ---
+      duration_ms: 0.158529
+      ...
+    # Subtest: keeps every main-tab destination and no menu transition marker
+    ok 3 - keeps every main-tab destination and no menu transition marker
+      ---
+      duration_ms: 0.192348
+      ...
+    # Subtest: keeps the mobile bottom nav destinations, hides it from 576px, and honors the iOS safe area
+    ok 4 - keeps the mobile bottom nav destinations, hides it from 576px, and honors the iOS safe area
+      ---
+      duration_ms: 0.188956
+      ...
+    # Subtest: exposes settings, albums, safety filter and logout from the profile menu at every width
+    ok 5 - exposes settings, albums, safety filter and logout from the profile menu at every width
+      ---
+      duration_ms: 0.128464
+      ...
+    # Subtest: marks the active destination with aria-current in header, rail and bottom nav
+    ok 6 - marks the active destination with aria-current in header, rail and bottom nav
+      ---
+      duration_ms: 0.143741
+      ...
+    # Subtest: keeps header chrome text at 11px or larger and notification counts capped at 99+
+    ok 7 - keeps header chrome text at 11px or larger and notification counts capped at 99+
+      ---
+      duration_ms: 0.23922
+      ...
+    # Subtest: keeps the points tooltip inside the viewport by anchoring it to the chip's right edge
+    ok 8 - keeps the points tooltip inside the viewport by anchoring it to the chip's right edge
+      ---
+      duration_ms: 0.639645
+      ...
+    # Subtest: keeps the profile-menu safety filter a single labelled 44px row with explicit ON/OFF state
+    ok 9 - keeps the profile-menu safety filter a single labelled 44px row with explicit ON/OFF state
+      ---
+      duration_ms: 0.232937
+      ...
+    # Subtest: keeps header action hit areas at least 36px
+    ok 10 - keeps header action hit areas at least 36px
+      ---
+      duration_ms: 0.303795
+      ...
+    1..10
+ok 1 - E4-3A navigation chrome
+  ---
+  duration_ms: 4.140078
+  type: 'suite'
+  ...
+1..1
+# tests 10
+# suites 1
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 265.2405
