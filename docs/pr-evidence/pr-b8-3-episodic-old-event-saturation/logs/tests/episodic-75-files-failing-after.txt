@@ -1,0 +1,20 @@
+P12 SERVER_ONLY_THROWS_AFTER_RESTORE: plain server-only throws again after boundary
+custom server boot import boundary
+reconstructs the CheaperInference DeepSeek wire body without a provider call
+DeepSeek V4 Pro P0 deterministic primary payload audit
+verifies explicit-user provenance against the actual RAW user message
+status episodic source-of-truth and evidence boundaries
+latest fact wins for the same category subject attribute
+ranking prefers critical over important over normal
+older facts are injected when old enough
+getEpisodicMemoryForPrompt
+preserves psychological resolution, negation, and recovery events at save and recall
+episodic abstract psychological inference recall guard
+E1 normal facts insert
+E3 regen A=[fact1] → B=[fact2] final = fact2 only
+E4 regen A=[fact1] → B=[] final = none
+E5 duplicate finalize (same request_id) no extra delete/insert
+Phase B0 — episodic reconciliation (E1-E8)
+M1/M2/M5: LTM suppresses rejected D; prior batch preserved; LLM=0
+LTM re-summary eligibility after rewind (API=0)
+Phase B1-D2 FINAL HARDENING
