@@ -8,6 +8,7 @@ import {
   enqueueWorldTranslationJob,
 } from "@/lib/derivedCache/worldTranslation";
 import {
+  classifyEnglishLayer,
   isTranslatableChunk,
   koreanChunksTranslationFingerprint,
   translateChunksToEnglish,
@@ -68,6 +69,8 @@ function resolveWorldEnglishForCharacter(characterId: number): WorldEnglishResol
 
 /**
  * Translate character chunks for background derived refresh.
+ * Skips provider work when classifyEnglishLayer is CURRENT for the rebuilt Korean
+ * chunks — same freshness owner as translateAndSaveCharacterPromptEn.
  * Reuses immutable share/owned world English when CURRENT — never per-borrower retranslation.
  */
 export async function translateCharacterChunksForDerivedRefresh(
@@ -77,6 +80,21 @@ export async function translateCharacterChunksForDerivedRefresh(
 ): Promise<boolean> {
   const translatable = koreanChunks.filter(isTranslatableChunk);
   if (translatable.length === 0) return true;
+
+  const stored = getDb()
+    .prepare(`SELECT setting_chunks_en, prompt_translation_hash FROM characters WHERE id=?`)
+    .get(characterId) as
+    | { setting_chunks_en?: string | null; prompt_translation_hash?: string | null }
+    | undefined;
+  if (
+    classifyEnglishLayer({
+      koreanChunks,
+      settingChunksEn: stored?.setting_chunks_en,
+      promptTranslationHash: stored?.prompt_translation_hash,
+    }) === "CURRENT"
+  ) {
+    return true;
+  }
 
   const expectedSettingChunks = serializeCharacterChunks(koreanChunks);
   const expectedTranslationFingerprint = koreanChunksTranslationFingerprint(koreanChunks);
