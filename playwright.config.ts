@@ -36,6 +36,9 @@ export default defineConfig({
     baseURL: PROD_TEST_BASE_URL,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
+    ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+      ? { launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } }
+      : {}),
   },
   projects: [
     {
@@ -67,6 +70,7 @@ export default defineConfig({
           OPENROUTER_API_KEY: "",
           OPENAI_API_KEY: "",
           DISABLE_DERIVED_CACHE_WORKER: "1",
+          ADMIN_EMAILS: "demo@playai.local",
         },
         url: PROD_TEST_BASE_URL,
         reuseExistingServer: false,

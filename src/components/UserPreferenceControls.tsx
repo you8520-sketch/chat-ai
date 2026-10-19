@@ -10,7 +10,7 @@ type Props = {
   nsfwOn: boolean;
   pref: "female" | "male" | null;
   loggedIn?: boolean;
-  variant?: "sidebar" | "header" | "homeBanner" | "homeRow";
+  variant?: "sidebar" | "profileMenu" | "homeBanner" | "homeRow";
 };
 
 const PREF_OPTIONS = [
@@ -237,9 +237,9 @@ export default function UserPreferenceControls({
     if (!(await patch({ pref: p }))) setPref(prev);
   }
 
-  if (variant === "header") {
+  if (variant === "profileMenu") {
     return (
-      <HeaderNsfwToggle
+      <ProfileMenuSafetyRow
         canDisable={canDisableSafetyFilter}
         safetyFilterOn={safetyFilterOn}
         busy={busy}
@@ -307,7 +307,7 @@ export default function UserPreferenceControls({
   );
 }
 
-function HeaderNsfwToggle({
+function ProfileMenuSafetyRow({
   canDisable,
   safetyFilterOn,
   busy,
@@ -318,38 +318,41 @@ function HeaderNsfwToggle({
   busy: boolean;
   onToggle: () => void;
 }) {
+  const stateLabel = safetyFilterOn ? "ON" : "OFF";
   return (
     <button
       type="button"
-      onClick={onToggle}
-      disabled={busy || !canDisable}
-      aria-pressed={safetyFilterOn}
-      aria-label="세이프티 필터"
+      role="menuitemcheckbox"
+      aria-checked={safetyFilterOn}
+      aria-label={`세이프티 필터 ${stateLabel}`}
       title={canDisable ? "세이프티 필터" : "일반 회원은 세이프티 필터를 끌 수 없습니다"}
-      className="flex min-h-9 items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-2 text-[11px] font-medium text-zinc-300 transition hover:border-white/20 hover:bg-white/[0.07] disabled:cursor-not-allowed max-[359px]:gap-1 max-[359px]:px-1.5"
+      disabled={busy || !canDisable}
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggle();
+      }}
+      className="flex min-h-11 w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left text-sm font-medium text-zinc-200 transition hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
     >
-      <span>
-        <span className="inline min-[360px]:hidden sm:hidden">필터</span>
-        <span className="hidden min-[360px]:inline sm:hidden">세이프티</span>
-        <span className="hidden sm:inline">세이프티 필터</span>
-      </span>
-      <span
-        aria-hidden
-        className={`w-6 text-center font-bold tabular-nums ${safetyFilterOn ? "text-violet-200" : "text-amber-200"}`}
-      >
-        {safetyFilterOn ? "ON" : "OFF"}
-      </span>
-      <span
-        aria-hidden
-        className={`relative h-5 w-8 shrink-0 rounded-full transition-colors max-[399px]:hidden sm:w-9 ${
-          safetyFilterOn ? "bg-violet-500" : "bg-zinc-700"
-        } ${canDisable ? "" : "opacity-40"}`}
-      >
+      <span>세이프티 필터</span>
+      <span className="flex shrink-0 items-center gap-2">
         <span
-          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${
-            safetyFilterOn ? "left-[14px] sm:left-[18px]" : "left-0.5"
-          }`}
-        />
+          aria-hidden
+          className={`w-8 text-center text-xs font-bold tabular-nums ${safetyFilterOn ? "text-violet-200" : "text-amber-200"}`}
+        >
+          {stateLabel}
+        </span>
+        <span
+          aria-hidden
+          className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+            safetyFilterOn ? "bg-violet-500" : "bg-zinc-700"
+          } ${canDisable ? "" : "opacity-40"}`}
+        >
+          <span
+            className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${
+              safetyFilterOn ? "left-[22px]" : "left-0.5"
+            }`}
+          />
+        </span>
       </span>
     </button>
   );

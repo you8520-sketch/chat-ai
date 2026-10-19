@@ -3,13 +3,24 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import LogoutButton from "./LogoutButton";
+import UserPreferenceControls from "./UserPreferenceControls";
 
 type Props = {
   nickname: string;
+  isAdult: boolean;
+  canDisableSafetyFilter: boolean;
+  nsfwOn: boolean;
+  pref: "female" | "male" | null;
 };
 
-/** Desktop profile menu — 설정 · 로그아웃. 모바일은 하단 설정 탭 사용. */
-export default function HeaderProfileMenu({ nickname }: Props) {
+/** Profile menu — 설정 · 앨범 · 세이프티 필터 · 로그아웃 (모바일·데스크톱 공통). */
+export default function HeaderProfileMenu({
+  nickname,
+  isAdult,
+  canDisableSafetyFilter,
+  nsfwOn,
+  pref,
+}: Props) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -35,7 +46,7 @@ export default function HeaderProfileMenu({ nickname }: Props) {
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative hidden min-[576px]:block">
+    <div ref={rootRef} className="relative shrink-0">
       <button
         type="button"
         aria-haspopup="menu"
@@ -56,7 +67,7 @@ export default function HeaderProfileMenu({ nickname }: Props) {
         <svg
           viewBox="0 0 20 20"
           fill="currentColor"
-          className={`hidden h-3.5 w-3.5 shrink-0 text-zinc-500 transition sm:block ${open ? "rotate-180" : ""}`}
+          className={`h-3.5 w-3.5 shrink-0 text-zinc-500 transition ${open ? "rotate-180" : ""}`}
           aria-hidden
         >
           <path
@@ -71,7 +82,7 @@ export default function HeaderProfileMenu({ nickname }: Props) {
         <div
           id={panelId}
           role="menu"
-          className="absolute right-0 top-full z-50 mt-1.5 min-w-[10rem] overflow-hidden rounded-xl border border-white/10 bg-[#131626] py-1 shadow-xl shadow-black/40"
+          className="absolute right-0 top-full z-50 mt-1.5 min-w-[12.5rem] overflow-hidden rounded-xl border border-white/10 bg-[#131626] py-1 shadow-xl shadow-black/40"
         >
           <Link
             href="/settings"
@@ -89,6 +100,13 @@ export default function HeaderProfileMenu({ nickname }: Props) {
           >
             앨범
           </Link>
+          <UserPreferenceControls
+            variant="profileMenu"
+            isAdult={isAdult}
+            canDisableSafetyFilter={canDisableSafetyFilter}
+            nsfwOn={nsfwOn}
+            pref={pref}
+          />
           <div className="border-t border-white/[0.06] px-3.5 py-2">
             <LogoutButton className="w-full text-left text-sm font-medium text-zinc-400 transition hover:text-white" />
           </div>

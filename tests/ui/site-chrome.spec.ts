@@ -8,6 +8,19 @@ async function demoLogin(page: Page) {
   expect(response.ok()).toBeTruthy();
 }
 
+async function dismissHomeNotice(page: Page) {
+  const dialog = page.locator('[role="dialog"][aria-labelledby="home-popup-notice-title"]');
+  if (await dialog.isVisible().catch(() => false)) {
+    await dialog.getByRole("button", { name: "확인", exact: true }).click();
+    await dialog.waitFor({ state: "hidden" });
+  }
+}
+
+async function openProfileMenu(page: Page) {
+  await page.getByRole("button", { name: "프로필 메뉴" }).click();
+  await expect(page.getByRole("menu")).toBeVisible();
+}
+
 test.describe("home notice dialog", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
@@ -215,6 +228,7 @@ async function headerControlMatrix(page: Page, expectShopLink: boolean) {
         const tag = `${width}px ${balance} badge ${badge}`;
         await page.setViewportSize({ width, height: 800 });
         await page.goto("/tab/ranking");
+        await dismissHomeNotice(page);
         await applyBalanceAndBadge(page, balance, badge);
         const m = await headerMetrics(page);
         expect(m.overlaps, `${tag} overlaps`).toEqual([]);
@@ -227,19 +241,13 @@ async function headerControlMatrix(page: Page, expectShopLink: boolean) {
           const bell = top.querySelector<HTMLElement>('button[aria-label^="알림"]')!.getBoundingClientRect();
           const points = top.querySelector<HTMLElement>('[aria-label^="보유 포인트"]')!;
           const pointsText = points.querySelector("span") ?? points;
-          const toggle = top.querySelector<HTMLElement>('button[aria-label="세이프티 필터"]')!;
+          const headerSafetyFilter = top.querySelector('button[aria-label="세이프티 필터"]');
           const shop = top.querySelector<HTMLElement>('a[href="/points"]');
-          const state = Array.from(toggle.querySelectorAll<HTMLElement>("span"))
-            .map((s) => s.textContent?.trim())
-            .find((t) => t === "ON" || t === "OFF");
           return {
             logoToBell: bell.left - logo.right,
             pointsText: pointsText.textContent,
             pointsClipped: points.scrollWidth > points.clientWidth + 1,
-            toggleHeight: toggle.getBoundingClientRect().height,
-            togglePressed: toggle.getAttribute("aria-pressed"),
-            toggleState: state ?? null,
-            toggleVisibleText: toggle.innerText.trim(),
+            headerSafetyFilter: headerSafetyFilter !== null,
             shopHref: shop?.getAttribute("href") ?? null,
             shopW: shop?.getBoundingClientRect().width ?? 0,
             shopH: shop?.getBoundingClientRect().height ?? 0,
@@ -248,15 +256,7 @@ async function headerControlMatrix(page: Page, expectShopLink: boolean) {
         expect(detail.logoToBell, `${tag} logo-to-bell gap`).toBeGreaterThanOrEqual(6);
         expect(detail.pointsText, `${tag} exact balance text`).toBe(balance);
         expect(detail.pointsClipped, `${tag} balance clipped`).toBe(false);
-        expect(detail.toggleHeight, `${tag} toggle height`).toBeGreaterThanOrEqual(36);
-        expect(detail.togglePressed, `${tag} toggle exposes state`).not.toBeNull();
-        expect(detail.toggleState, `${tag} toggle shows ON/OFF text`).toBe(detail.togglePressed === "true" ? "ON" : "OFF");
-        if (width >= 360) {
-          expect(detail.toggleVisibleText, `${tag} toggle label`).toContain("세이프티");
-        } else {
-          expect(detail.toggleVisibleText, `${tag} toggle compact label`).toContain("필터");
-          expect(detail.toggleVisibleText, `${tag} toggle compact label`).toMatch(/ON|OFF/);
-        }
+        expect(detail.headerSafetyFilter, `${tag} header safety filter removed`).toBe(false);
         if (expectShopLink) {
           expect(detail.shopHref, `${tag} charge link`).toBe("/points");
           expect(detail.shopW, `${tag} charge link width`).toBeGreaterThanOrEqual(36);
@@ -266,6 +266,51 @@ async function headerControlMatrix(page: Page, expectShopLink: boolean) {
     }
   }
 }
+
+test.describe("profile menu safety filter", () => {
+  for (const width of [320, 390, 1280] as const) {
+    test(`${width}px keeps the filter out of the header and once below albums in the menu`, async ({ page }) => {
+      await page.setViewportSize({ width, height: width === 1280 ? 800 : 844 });
+      await demoLogin(page);
+      await page.goto("/tab/ranking");
+      await dismissHomeNotice(page);
+      const headerHasFilter = await page.evaluate(
+        () => !!document.querySelector('header.site-header button[aria-label="세이프티 필터"]'),
+      );
+      expect(headerHasFilter).toBe(false);
+      await openProfileMenu(page);
+      const menu = page.getByRole("menu");
+      const order = await menu.evaluate((el) =>
+        Array.from(el.querySelectorAll('[role="menuitem"], [role="menuitemcheckbox"]')).map((node) =>
+          (node.textContent ?? "").trim().slice(0, 12),
+        ),
+      );
+      expect(order[0]).toContain("설정");
+      expect(order[1]).toContain("앨범");
+      expect(order[2]).toContain("세이프티");
+      await expect(menu.getByRole("menuitemcheckbox", { name: /세이프티 필터/ })).toHaveCount(1);
+    });
+  }
+
+  test("390px toggles OFF, keeps the menu open, and matches settings after reload", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await demoLogin(page);
+    await page.goto("/tab/ranking");
+    await dismissHomeNotice(page);
+    await openProfileMenu(page);
+    const toggle = page.getByRole("menuitemcheckbox", { name: /세이프티 필터 OFF/ });
+    await expect(toggle).toBeVisible();
+    await toggle.click();
+    await expect(page.getByRole("menu")).toBeVisible();
+    await expect(page.getByRole("menuitemcheckbox", { name: /세이프티 필터 ON/ })).toBeVisible();
+    await page.reload();
+    await dismissHomeNotice(page);
+    await openProfileMenu(page);
+    await expect(page.getByRole("menuitemcheckbox", { name: /세이프티 필터 ON/ })).toBeVisible();
+    await page.goto("/settings");
+    await expect(page.getByRole("switch", { name: "세이프티 필터" })).toHaveAttribute("aria-checked", "true");
+  });
+});
 
 test.describe("compact mobile header", () => {
   test("below lg the header stays under 100px at every layout boundary and keeps one 64px row from lg", async ({ page }) => {
@@ -535,7 +580,7 @@ test.describe("compact mobile header with the charge shortcut", () => {
   test.skip(!PAYMENTS_BASE_URL, "needs a production server started with PORTONE_CHARGE_ENABLED=1 (set PLAYWRIGHT_PAYMENTS_BASE_URL)");
   test.use({ baseURL: PAYMENTS_BASE_URL });
 
-  test("payments ON: logo, bell, safety filter, balance and charge link never overlap or overflow", async ({ page }) => {
+  test("payments ON: logo, bell, balance and charge link never overlap or overflow", async ({ page }) => {
     await headerControlMatrix(page, true);
   });
 

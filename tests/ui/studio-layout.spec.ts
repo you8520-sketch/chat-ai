@@ -441,7 +441,6 @@ async function headerChrome(page: Page): Promise<HeaderChrome> {
     const wanted = [
       row?.querySelector('a[aria-label$="홈"]'),
       row?.querySelector('button[aria-label^="알림"]'),
-      row?.querySelector('button[aria-label="세이프티 필터"]'),
       row?.querySelector('[aria-label^="보유 포인트"]'),
       row?.querySelector('button[aria-label="프로필 메뉴"]'),
     ];
