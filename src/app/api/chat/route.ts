@@ -637,12 +637,18 @@ import {
   resolveRoomAdultModeEnabled,
 } from "@/lib/chatAdultHandoff";
 import {
+  buildAdultOffGuardUsageEvidence,
   createAdultOffOutputHold,
   evaluateAdultOffOutput,
   isAdultOffOutputGuardEnabled,
+  reusedAdultOffApprovalRecord,
   shouldApplyAdultOffOutputGuard,
+  summarizeAdultOffCheck,
+  type AdultOffCheckRecord,
+  type AdultOffCheckStage,
+  type AdultOffGuardDecision,
 } from "@/lib/adultOffOutputGuard";
-import { classifyAdultOffWindow } from "@/lib/adultOffOutputClassifier";
+import { createAdultOffClassifier } from "@/lib/adultOffOutputClassifier";
 
 const SSE_HEADERS = {
   "Content-Type": "text/event-stream; charset=utf-8",
@@ -3228,7 +3234,15 @@ export async function POST(req: Request) {
         (chunk) => controller.enqueue(chunk),
         sseEncode
       );
-      const send = wrapSendForPhaseAudit(safe.send, phaseAudit);
+      // 성인 OFF 검사 대상 턴은 모든 SSE 이벤트가 이 보류 함수를 지난다. 승인되지 않은 본문은
+      // 어떤 단계(스트리밍·후처리·HTML)에서 만들어져도 전달되지 않는다.
+      const adultOffGuardActive = shouldApplyAdultOffOutputGuard({
+        enabled: isAdultOffOutputGuardEnabled(),
+        effectiveAdultRp,
+      });
+      const deliverToClient = wrapSendForPhaseAudit(safe.send, phaseAudit);
+      const adultOffHold = adultOffGuardActive ? createAdultOffOutputHold(deliverToClient) : null;
+      const send = adultOffHold ? adultOffHold.send : deliverToClient;
       const postprocessHeartbeat = createStreamPostprocessHeartbeat((obj) => send(obj));
       // Immediate heartbeat — mobile clients otherwise sit on a dark/idle screen
       // while prompt assembly + model connect can take tens of seconds.
@@ -3250,15 +3264,23 @@ export async function POST(req: Request) {
       let sseDoneAttempted = false;
       let mainProviderFinished = false;
       let mainFinishReason: string | null = null;
-      const adultOffGuardActive = shouldApplyAdultOffOutputGuard({
-        enabled: isAdultOffOutputGuardEnabled(),
-        effectiveAdultRp,
-        mainRpProviderSkipped: htmlFlashOnlyTurn,
-      });
-      const adultOffHold = adultOffGuardActive ? createAdultOffOutputHold(send) : null;
-      const mainRpSend = adultOffHold ? adultOffHold.send : send;
-      let adultOffApproved = !adultOffGuardActive;
-      let adultOffGuardEvidence: Record<string, unknown> | null = null;
+      const adultOffClassifier = adultOffGuardActive
+        ? createAdultOffClassifier({
+            chatId: chatRef.id,
+            assistantMessageId: persistedAssistantId,
+            generationSequence: currentTurnGenerationScope.generationSequence,
+            generationRequestId: currentTurnGenerationScope.generationRequestId,
+          })
+        : null;
+      const adultOffChecks: AdultOffCheckRecord[] = [];
+      const adultOffBodyMayPersist = (text: string): boolean =>
+        !adultOffHold || adultOffHold.covers(text);
+      const adultOffPersistable = (text: string): string =>
+        adultOffBodyMayPersist(text) ? text : "";
+      const adultOffUsageEvidence = (): { adultOffGuard?: Record<string, unknown> } =>
+        adultOffGuardActive
+          ? { adultOffGuard: buildAdultOffGuardUsageEvidence(adultOffChecks) }
+          : {};
 
       const emitStreamTurnForensics = (assistantFinalizeStatus: string | null) => {
         if (!clientRequestId) return;
@@ -3326,21 +3348,22 @@ export async function POST(req: Request) {
       const failMainRpTurn = (input: {
         generationFailure: GenerationFailureReason;
         primaryStage: StageUsage | undefined;
-        bodyApproved: boolean;
         candidateText: string;
         outputChars: number;
         routedTo: string;
         flashHtmlError?: string | null;
         errorMessage: string;
-        failureEvidence?: Record<string, unknown>;
       }) => {
         const { generationFailure, primaryStage } = input;
         const nativeRefusal = isProviderNativeRefusalSignal(primaryStage?.finishReason);
         const hideRefusalBody = generationFailure === "model_refusal" && !nativeRefusal;
         const persistedFailureText =
-          !input.bodyApproved || hideRefusalBody || isSiteAdultOutputFailure(generationFailure)
+          !adultOffBodyMayPersist(input.candidateText) ||
+          hideRefusalBody ||
+          isSiteAdultOutputFailure(generationFailure)
             ? ""
             : input.candidateText;
+        adultOffHold?.discard();
         console.warn("[/api/chat] generation failure — billing skipped", {
           generationFailure,
           finishReason: primaryStage?.finishReason,
@@ -3397,7 +3420,7 @@ export async function POST(req: Request) {
                 upstreamCostUsd: primaryStage?.upstreamCostUsd ?? null,
                 cheaperInferenceBilledCostUsd: primaryStage?.cheaperInferenceBilledCostUsd ?? null,
                 providerRequestId: primaryStage?.providerRequestId ?? null,
-                ...(input.failureEvidence ?? {}),
+                ...adultOffUsageEvidence(),
               }),
               persistedAssistantId,
               chatRef.id
@@ -3435,8 +3458,47 @@ export async function POST(req: Request) {
         safe.close(controller);
       };
 
+      const runAdultOffCheck = async (
+        stage: AdultOffCheckStage,
+        candidates: readonly string[]
+      ): Promise<AdultOffGuardDecision> => {
+        const startedAt = Date.now();
+        const decision = await evaluateAdultOffOutput(candidates, adultOffClassifier!);
+        const record = summarizeAdultOffCheck(stage, decision, Date.now() - startedAt);
+        adultOffChecks.push(record);
+        console.info("[/api/chat] adult-off output guard", {
+          chatId: chatRef.id,
+          stage,
+          status: record.status,
+          reason: record.reason ?? null,
+          category: record.category ?? null,
+          checkedWindows: record.checkedWindows,
+          classifierCalls: record.classifierCalls,
+          checkMs: record.checkMs,
+        });
+        return decision;
+      };
+
+      const failAdultOffTurn = (
+        decision: Exclude<AdultOffGuardDecision, { status: "approved" }>,
+        input: { primaryStage: StageUsage | undefined }
+      ) => {
+        const generationFailure: GenerationFailureReason =
+          decision.status === "blocked" ? "adult_output_blocked" : "adult_output_check_failed";
+        failMainRpTurn({
+          generationFailure,
+          primaryStage: input.primaryStage,
+          candidateText: "",
+          outputChars: 0,
+          routedTo: "openrouter",
+          errorMessage: generationFailureUserMessage(generationFailure),
+        });
+      };
+
       let partialTimer: ReturnType<typeof setInterval> | null = setInterval(() => {
-        if (streamVisibleTextRef.trim()) persistPartialBestEffort(streamVisibleTextRef);
+        if (streamVisibleTextRef.trim() && adultOffBodyMayPersist(streamVisibleTextRef)) {
+          persistPartialBestEffort(streamVisibleTextRef);
+        }
       }, 800);
 
       let stopLeaseHeartbeat: (() => void) | undefined;
@@ -3467,6 +3529,7 @@ export async function POST(req: Request) {
                 keepInternal: showFullBillingReceipt,
               })
             : null;
+          adultOffHold?.release("");
           send({ type: "replace", text: content, instant: true });
           send({
             type: "done",
@@ -3575,7 +3638,7 @@ export async function POST(req: Request) {
           const shouldBufferGeneral =
             adultDeliveryPlan.fallbackPrepared && fallbackAdultContext != null;
           const streamGate = createInitialStreamBuffer(
-            mainRpSend,
+            send,
             shouldBufferGeneral
               ? adultRoutingConfig.initialStreamBufferChars
               : 0
@@ -3698,7 +3761,7 @@ export async function POST(req: Request) {
             streamGate.discard();
             const fallback = fallbackAdultContext!;
             const fallbackResult = await runStream({
-              send: mainRpSend,
+              send: send,
               system: fallback.systemPrompt,
               history: fallback.history,
               systemSplit: fallback.openRouterSystemSplit,
@@ -3804,75 +3867,32 @@ export async function POST(req: Request) {
           if (result.recoveryStage) stages.push(result.recoveryStage);
           if (adultOffHold) {
             if (isProviderRefusalFailure(confirmedProviderRefusal)) {
-              adultOffHold.discard();
               failMainRpTurn({
                 generationFailure: confirmedProviderRefusal,
                 primaryStage: selectBillableStages(stages, {
                   refusalFallbackDelivered: adultFallbackSucceeded,
                 })[0],
-                bodyApproved: false,
                 candidateText: "",
                 outputChars: result.text.length,
                 routedTo: "openrouter",
                 errorMessage: generationFailureUserMessage(confirmedProviderRefusal),
               });
               return;
-            } else {
-              const guardStartedAt = Date.now();
-              const decision = await evaluateAdultOffOutput(
-                [result.text, result.streamVisibleText ?? ""],
-                classifyAdultOffWindow
-              );
-              adultOffGuardEvidence = {
-                adultOffGuard: {
-                  status: decision.status,
-                  ...(decision.status === "blocked"
-                    ? { category: decision.category, confidence: decision.confidence }
-                    : {}),
-                  ...(decision.status === "check_failed" ? { reason: decision.reason } : {}),
-                  checkedWindows: decision.checkedWindows,
-                  checkMs: Date.now() - guardStartedAt,
-                  classifierCalls: decision.usages.map((u) => ({
-                    model: u.model,
-                    inputTokens: u.inputTokens,
-                    outputTokens: u.outputTokens,
-                    costUsd: u.costUsd,
-                    providerRequestId: u.providerRequestId,
-                    latencyMs: u.latencyMs,
-                  })),
-                },
-              };
-              console.info("[/api/chat] adult-off output guard", {
-                chatId: chatRef.id,
-                ...(adultOffGuardEvidence.adultOffGuard as Record<string, unknown>),
-              });
-              if (decision.status === "approved") {
-                adultOffApproved = true;
-                adultOffHold.release(result.streamVisibleText ?? result.text);
-              } else {
-                adultOffHold.discard();
-                failMainRpTurn({
-                  generationFailure:
-                    decision.status === "blocked"
-                      ? "adult_output_blocked"
-                      : "adult_output_check_failed",
-                  primaryStage: selectBillableStages(stages, {
-                    refusalFallbackDelivered: adultFallbackSucceeded,
-                  })[0],
-                  bodyApproved: false,
-                  candidateText: "",
-                  outputChars: 0,
-                  routedTo: "openrouter",
-                  errorMessage: generationFailureUserMessage(
-                    decision.status === "blocked"
-                      ? "adult_output_blocked"
-                      : "adult_output_check_failed"
-                  ),
-                  failureEvidence: adultOffGuardEvidence,
-                });
-                return;
-              }
             }
+            const preDecision = await runAdultOffCheck("pre_postprocess", [
+              result.text,
+              result.streamVisibleText ?? "",
+            ]);
+            if (preDecision.status !== "approved") {
+              failAdultOffTurn(preDecision, {
+                primaryStage: selectBillableStages(stages, {
+                  refusalFallbackDelivered: adultFallbackSucceeded,
+                })[0],
+              });
+              return;
+            }
+            adultOffHold.markApproved(result.text);
+            adultOffHold.approve(result.streamVisibleText ?? result.text);
           }
           fullText = result.text;
           streamVisibleTextRef = result.streamVisibleText ?? fullText;
@@ -3957,7 +3977,7 @@ export async function POST(req: Request) {
                 ? "[/api/chat] OpenRouter META_LEAKAGE_ABORT — billing skipped"
                 : "[/api/chat] OpenRouter DEGENERATION_ABORT — billing skipped"
             );
-            const partial = streamVisibleTextRef || fullText;
+            const partial = adultOffPersistable(streamVisibleTextRef || fullText);
             try {
               markAssistantFailed(db, persistedAssistantId, partial);
               if (regenerateMessageId) {
@@ -3984,7 +4004,11 @@ export async function POST(req: Request) {
             error: e,
           });
           try {
-            markAssistantFailed(db, persistedAssistantId, streamVisibleTextRef || fullText);
+            markAssistantFailed(
+              db,
+              persistedAssistantId,
+              adultOffPersistable(streamVisibleTextRef || fullText)
+            );
             if (regenerateMessageId) {
               restoreAssistantFromAlternatesOnFailedRegen(db, regenerateMessageId, chatRef.id);
             }
@@ -4207,7 +4231,7 @@ export async function POST(req: Request) {
           } catch {
             /* ignore */
           }
-          sendTrafficOverloadGracefulStream(send);
+          sendTrafficOverloadGracefulStream(deliverToClient);
           safe.close(controller);
           return;
         }
@@ -4219,7 +4243,11 @@ export async function POST(req: Request) {
             preview: savedText.slice(0, 120),
           });
           try {
-            markAssistantFailed(db, persistedAssistantId, streamVisibleTextRef || savedText);
+            markAssistantFailed(
+              db,
+              persistedAssistantId,
+              adultOffPersistable(streamVisibleTextRef || savedText)
+            );
             if (regenerateMessageId) {
               restoreAssistantFromAlternatesOnFailedRegen(db, regenerateMessageId, chatRef.id);
             }
@@ -4228,7 +4256,10 @@ export async function POST(req: Request) {
           } catch {
             /* ignore */
           }
-          if ((streamVisibleTextRef || savedText).trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
+          if (
+            adultOffPersistable(streamVisibleTextRef || savedText).trim().length <
+            CATASTROPHIC_MIN_RESPONSE_CHARS
+          ) {
             send({ type: "reset" });
           }
           send({ type: "error", error: DEGENERATION_USER_MESSAGE });
@@ -4752,7 +4783,6 @@ export async function POST(req: Request) {
           failMainRpTurn({
             generationFailure,
             primaryStage,
-            bodyApproved: adultOffApproved,
             candidateText: savedText || streamVisibleTextRef,
             outputChars: savedText.length,
             routedTo: htmlFlashOnlyTurn ? "html-only" : "openrouter",
@@ -5658,6 +5688,26 @@ export async function POST(req: Request) {
           "remove stray repeated quote marks at assistant output tail"
         );
 
+        // 최종 전달·저장 본문 게이트. 앞 단계(어휘 재작성·HTML·분량 보강·위생 정리)가 만든 최종 텍스트가
+        // 이미 승인된 본문에서 지우기만 해서 나온 것이면 승인을 이어받고, 새 글자가 생겼으면 다시 검사한다.
+        // 이 지점 이후에는 savedText 를 바꾸지 않으며, 사용량 기록·저장·정산은 모두 이 뒤에서 일어난다.
+        if (adultOffHold) {
+          if (adultOffHold.covers(savedText)) {
+            adultOffChecks.push(reusedAdultOffApprovalRecord("final"));
+          } else {
+            const finalDecision = await runAdultOffCheck("final", [savedText]);
+            if (finalDecision.status !== "approved") {
+              failAdultOffTurn(finalDecision, {
+                primaryStage: selectBillableStages(stages, {
+                  refusalFallbackDelivered: adultFallbackSucceeded,
+                })[0],
+              });
+              return;
+            }
+          }
+          adultOffHold.release(savedText, { instant: htmlFlashOnlyTurn });
+        }
+
         if (usageRecord.adultRouting) {
           usageRecord = {
             ...usageRecord,
@@ -5777,6 +5827,9 @@ export async function POST(req: Request) {
         let clientUsageRecord = serializeUsageForPublicClient(dbUsageRecord, {
           keepInternal: showFullBillingReceipt,
         });
+        if (adultOffGuardActive) {
+          dbUsageRecord = { ...dbUsageRecord, ...adultOffUsageEvidence() };
+        }
         if (oocSceneRenderTurn) {
           dbUsageRecord = mergeGenerationSemantics(dbUsageRecord, generationSemantics);
         }
@@ -6857,7 +6910,7 @@ export async function POST(req: Request) {
         clearPartialTimer();
         stopPostprocessHeartbeat();
         console.error("[/api/chat] SSE 파이프라인 오류:", (e as Error).message);
-        const partialOnError = streamVisibleTextRef || fullText;
+        const partialOnError = adultOffPersistable(streamVisibleTextRef || fullText);
         try {
           if (shouldMutateGenerationOnSsePipelineCatch(persistenceDiag.finalized)) {
             // Stream already persisted raw text — post-process failure should not lose it
@@ -6879,7 +6932,7 @@ export async function POST(req: Request) {
           /* ignore */
         }
         if (e instanceof GeminiTrafficOverloadError) {
-          sendTrafficOverloadGracefulStream(send);
+          sendTrafficOverloadGracefulStream(deliverToClient);
         } else if (e instanceof DegenerationAbortError || e instanceof MetaLeakageAbortError) {
           send({ type: "reset" });
           send({ type: "error", error: DEGENERATION_USER_MESSAGE });

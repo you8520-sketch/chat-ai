@@ -2,25 +2,33 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   ADULT_OFF_CLASSIFIER_SYSTEM_PROMPT,
+  AdultOffClassifierCallError,
   AdultOffClassifierOutputError,
   buildAdultOffClassifierUserMessage,
+  buildAdultOffGuardUsageEvidence,
   createAdultOffOutputHold,
   evaluateAdultOffOutput,
   isAdultOffOutputGuardEnabled,
+  isDerivedByDeletion,
   parseAdultOffClassifierOutput,
+  reusedAdultOffApprovalRecord,
   shouldApplyAdultOffOutputGuard,
   splitAdultOffGuardWindows,
+  summarizeAdultOffCheck,
   type AdultOffClassify,
+  type AdultOffClassifierUsage,
   type AdultOffClassifierVerdict,
 } from "@/lib/adultOffOutputGuard";
 
-const usage = {
+const usage: AdultOffClassifierUsage = {
   model: "stub",
   inputTokens: 10,
   outputTokens: 5,
   costUsd: 0.0001,
   providerRequestId: "stub-1",
   latencyMs: 1,
+  outcome: "ok",
+  httpStatus: null,
 };
 
 function verdictClassifier(verdict: AdultOffClassifierVerdict): AdultOffClassify {
@@ -48,12 +56,11 @@ describe("adult-off output guard gating", () => {
     assert.equal(isAdultOffOutputGuardEnabled({ ADULT_OFF_OUTPUT_GUARD_ENABLED: "true" }), true);
   });
 
-  it("applies only to adult-OFF main RP turns that call the provider", () => {
-    const base = { enabled: true, effectiveAdultRp: false, mainRpProviderSkipped: false };
+  it("applies to every adult-OFF turn, including HTML/flash-only turns", () => {
+    const base = { enabled: true, effectiveAdultRp: false };
     assert.equal(shouldApplyAdultOffOutputGuard(base), true);
     assert.equal(shouldApplyAdultOffOutputGuard({ ...base, enabled: false }), false);
     assert.equal(shouldApplyAdultOffOutputGuard({ ...base, effectiveAdultRp: true }), false);
-    assert.equal(shouldApplyAdultOffOutputGuard({ ...base, mainRpProviderSkipped: true }), false);
   });
 });
 
@@ -82,6 +89,13 @@ describe("adult-off classifier output parsing", () => {
       '{"decision":"maybe","category":"none","confidence":"high","first_paragraph":0}',
       '{"decision":"allow","category":"none","confidence":"sure","first_paragraph":-1}',
       '{"decision":"allow","category":"none","confidence":"high"}',
+      '{"decision":"allow","category":"none","confidence":"high","first_paragraph":3}',
+      '{"decision":"allow","category":"none","confidence":"high","first_paragraph":0}',
+      '{"decision":"allow","category":"none","confidence":"high","first_paragraph":-2}',
+      '{"decision":"allow","category":"none","confidence":"high","first_paragraph":-1,"note":"ok"}',
+      '{"decision":"restrict","category":"sexual_act","confidence":"high","first_paragraph":-1}',
+      '{"decision":"restrict","category":"sexual_act","confidence":"high","first_paragraph":1.5}',
+      '{"decision":"restrict","category":"sexual_act","confidence":"high","first_paragraph":"2"}',
     ];
     for (const raw of bad) {
       assert.throws(() => parseAdultOffClassifierOutput(raw), AdultOffClassifierOutputError, raw);
@@ -164,6 +178,168 @@ describe("adult-off candidate evaluation", () => {
   });
 });
 
+describe("adult-off verdict uncertainty and call accounting", () => {
+  const LOW_ALLOW: AdultOffClassifierVerdict = { ...ALLOW, confidence: "low" };
+
+  it("does not approve a low-confidence allow and never re-calls the classifier", async () => {
+    let calls = 0;
+    const classify: AdultOffClassify = async () => {
+      calls += 1;
+      return { verdict: LOW_ALLOW, usage };
+    };
+    const decision = await evaluateAdultOffOutput(["가볍게 입을 맞췄다."], classify);
+    assert.equal(decision.status, "check_failed");
+    if (decision.status === "check_failed") assert.equal(decision.reason, "low_confidence_allow");
+    assert.equal(calls, 1);
+    assert.equal(decision.classifierCalls, 1);
+  });
+
+  it("keeps approving medium-confidence allow and blocks low-confidence restrict", async () => {
+    const medium = await evaluateAdultOffOutput(
+      ["본문"],
+      verdictClassifier({ ...ALLOW, confidence: "medium" })
+    );
+    assert.equal(medium.status, "approved");
+    const lowRestrict = await evaluateAdultOffOutput(
+      ["본문"],
+      verdictClassifier({ ...RESTRICT, confidence: "low" })
+    );
+    assert.equal(lowRestrict.status, "blocked");
+  });
+
+  it("stops at the first unapproved window and reports how many calls actually ran", async () => {
+    const filler = "창가에 앉아 차를 마시며 이야기를 나눴다. ".repeat(3200);
+    const windows = splitAdultOffGuardWindows(filler);
+    assert.ok(windows.length >= 2);
+    let calls = 0;
+    const classify: AdultOffClassify = async () => {
+      calls += 1;
+      return { verdict: calls === 1 ? LOW_ALLOW : ALLOW, usage };
+    };
+    const decision = await evaluateAdultOffOutput([filler], classify);
+    assert.equal(decision.status, "check_failed");
+    assert.equal(calls, 1);
+  });
+
+  it("reports more than one classifier call for long text and for distinct candidates", async () => {
+    const filler = "창가에 앉아 차를 마시며 이야기를 나눴다. ".repeat(3200);
+    const windowCount = splitAdultOffGuardWindows(filler).length;
+    const long = await evaluateAdultOffOutput([filler], verdictClassifier(ALLOW));
+    assert.equal(long.status, "approved");
+    assert.equal(long.classifierCalls, windowCount);
+    assert.ok(long.classifierCalls >= 2);
+
+    const distinct = await evaluateAdultOffOutput(["원문", "정리 후 본문"], verdictClassifier(ALLOW));
+    assert.equal(distinct.classifierCalls, 2);
+  });
+
+  it("keeps usage already obtained when a call fails after the provider answered", async () => {
+    const failedUsage: AdultOffClassifierUsage = {
+      ...usage,
+      providerRequestId: "ci-req-timeout-keep",
+      outcome: "invalid_output",
+      costUsd: 0.0003,
+    };
+    const classify: AdultOffClassify = async () => {
+      throw new AdultOffClassifierCallError("bad", "invalid_output", failedUsage);
+    };
+    const decision = await evaluateAdultOffOutput(["본문"], classify);
+    assert.equal(decision.status, "check_failed");
+    if (decision.status === "check_failed") {
+      assert.equal(decision.reason, "invalid_classifier_output");
+    }
+    assert.equal(decision.classifierCalls, 1);
+    assert.equal(decision.checkedWindows, 0);
+    assert.deepEqual(decision.usages, [failedUsage]);
+  });
+
+  it("classifies http and timeout call failures as classifier_error with their usage", async () => {
+    for (const outcome of ["http_error", "timeout", "invalid_response_json"] as const) {
+      const failedUsage: AdultOffClassifierUsage = {
+        ...usage,
+        providerRequestId: outcome === "timeout" ? null : `req-${outcome}`,
+        outcome,
+        httpStatus: outcome === "http_error" ? 503 : null,
+        costUsd: null,
+      };
+      const classify: AdultOffClassify = async () => {
+        throw new AdultOffClassifierCallError(outcome, outcome, failedUsage);
+      };
+      const decision = await evaluateAdultOffOutput(["본문"], classify);
+      assert.equal(decision.status, "check_failed", outcome);
+      if (decision.status === "check_failed") assert.equal(decision.reason, "classifier_error");
+      assert.deepEqual(decision.usages, [failedUsage], outcome);
+    }
+  });
+});
+
+describe("adult-off deletion-derived approval reuse", () => {
+  it("accepts whitespace changes and deletions only", () => {
+    const approved = "첫 문장이다.\n\n둘째 문장이다. 셋째 문장이다.";
+    assert.equal(isDerivedByDeletion(approved, approved), true);
+    assert.equal(isDerivedByDeletion("첫 문장이다.\n둘째 문장이다.   셋째 문장이다.", approved), true);
+    assert.equal(isDerivedByDeletion("첫 문장이다. 셋째 문장이다.", approved), true);
+    assert.equal(isDerivedByDeletion("", approved), true);
+  });
+
+  it("rejects substitution, insertion and reordering so a rewrite is never covered", () => {
+    const approved = "그는 천천히 손을 잡았다. 그녀가 웃었다.";
+    assert.equal(isDerivedByDeletion("그는 천천히 손을 잡았다. 그녀가 웃었다. 새 문장.", approved), false);
+    assert.equal(isDerivedByDeletion("그는 천천히 손을 놓았다. 그녀가 웃었다.", approved), false);
+    assert.equal(isDerivedByDeletion("그녀가 웃었다. 그는 천천히 손을 잡았다.", approved), false);
+  });
+});
+
+describe("adult-off turn usage evidence", () => {
+  const approvedDecision = {
+    status: "approved" as const,
+    checkedWindows: 1,
+    classifierCalls: 1,
+    usages: [usage],
+  };
+
+  it("records approved turns with call count, cost and per-stage detail", () => {
+    const evidence = buildAdultOffGuardUsageEvidence([
+      summarizeAdultOffCheck("pre_postprocess", approvedDecision, 1200),
+      reusedAdultOffApprovalRecord("final"),
+    ]);
+    assert.equal(evidence.finalStatus, "approved");
+    assert.equal(evidence.classifierCalls, 1);
+    assert.equal(evidence.totalCheckMs, 1200);
+    assert.equal(evidence.moderationCostUsd, 0.0001);
+    assert.equal(evidence.lowConfidenceAllow, false);
+    const checks = evidence.checks as Array<{ stage: string; status: string }>;
+    assert.deepEqual(
+      checks.map((check) => [check.stage, check.status]),
+      [
+        ["pre_postprocess", "approved"],
+        ["final", "reused_approval"],
+      ]
+    );
+  });
+
+  it("records low-confidence uncertainty separately and keeps failed-call usage", () => {
+    const failedUsage: AdultOffClassifierUsage = { ...usage, outcome: "invalid_output" };
+    const evidence = buildAdultOffGuardUsageEvidence([
+      summarizeAdultOffCheck(
+        "final",
+        {
+          status: "check_failed",
+          reason: "low_confidence_allow",
+          checkedWindows: 1,
+          classifierCalls: 2,
+          usages: [usage, failedUsage],
+        },
+        900
+      ),
+    ]);
+    assert.equal(evidence.finalStatus, "check_failed");
+    assert.equal(evidence.lowConfidenceAllow, true);
+    assert.equal(evidence.classifierCalls, 2);
+    assert.equal(evidence.callsWithoutCost, 0);
+  });
+});
+
 describe("adult-off classifier prompt construction", () => {
   it("neutralizes review tags so the reply cannot close its own sandbox", () => {
     const message = buildAdultOffClassifierUserMessage(
@@ -191,45 +367,115 @@ describe("adult-off hold gate", () => {
     return { delivered, hold };
   }
 
-  it("holds every text-bearing event while passing status notices", () => {
+  it("passes genuine body-free notices and holds every other event", () => {
     const { delivered, hold } = collect();
-    hold.send({ type: "status", phase: "generating" });
+    hold.send({ type: "status", message: "생성 중…", generationUi: { label: "준비" } });
     hold.send({ type: "stream_heartbeat", phase: "postprocess" });
+    hold.send({ type: "turn_persisted", requestId: "r", chatId: 1, userMessageId: 2, messageId: 3 });
+    hold.send({ type: "reset" });
+    hold.send({ type: "error", error: "실패했습니다.", messageId: 3 });
     hold.send({ type: "delta", text: "미승인 본문 1" });
     hold.send({ type: "append", text: "미승인 본문 2" });
     hold.send({ type: "replace", text: "미승인 본문 3" });
     hold.send({ type: "custom_text", text: "미승인 본문 4" });
+    hold.send({ type: "done", finalContent: "미승인 본문 5" });
     assert.deepEqual(
       delivered.map((event) => event.type),
-      ["status", "stream_heartbeat"]
+      ["status", "stream_heartbeat", "turn_persisted", "reset", "error"]
     );
-    assert.equal(hold.heldEventCount(), 4);
+    assert.equal(hold.heldEventCount(), 5);
     assert.equal(hold.state(), "holding");
   });
 
-  it("releases only the approved text, once, then passes later events through", () => {
+  it("holds a status-typed event that carries a body field (unit counterexample)", () => {
+    const { delivered, hold } = collect();
+    hold.send({ type: "status", text: "UNREVIEWED_BODY_SENTINEL" });
+    hold.send({ type: "status", message: "생성 중…", text: "UNREVIEWED_BODY_SENTINEL" });
+    hold.send({ type: "status", message: "UNREVIEWED_BODY_SENTINEL" });
+    hold.send({ type: "status", message: "생성 중…", generationUi: { text: "UNREVIEWED_BODY_SENTINEL" } });
+    hold.send({ type: "stream_heartbeat", phase: "UNREVIEWED BODY", delta: "UNREVIEWED_BODY_SENTINEL" });
+    hold.send({ type: "turn_persisted", messageId: "UNREVIEWED_BODY_SENTINEL", content: "UNREVIEWED_BODY_SENTINEL" });
+    hold.send({ type: "phase_latency_audit", report: { nested: { content: "UNREVIEWED_BODY_SENTINEL" } } });
+    hold.send({ type: "error", error: "x", finalContent: "UNREVIEWED_BODY_SENTINEL" });
+    hold.send({ type: "reset", text: "UNREVIEWED_BODY_SENTINEL" });
+    assert.deepEqual(delivered, []);
+    assert.equal(hold.heldEventCount(), 9);
+    hold.approve("승인된 본문");
+    hold.release("승인된 본문");
+    assert.ok(!JSON.stringify(delivered).includes("UNREVIEWED_BODY_SENTINEL"));
+  });
+
+  it("delivers approved text immediately and only deletion-derived replace afterwards", () => {
     const { delivered, hold } = collect();
     hold.send({ type: "delta", text: "미승인 본문" });
-    hold.release("승인된 본문");
+    hold.approve("첫 문장이다.\n\n둘째 문장이다.");
+    hold.send({ type: "replace", text: "첫 문장이다.\n\n둘째 문장이다.", instant: true });
+    hold.send({ type: "replace", text: "첫 문장이다." });
+    hold.send({ type: "replace", text: "첫 문장이다. 새로 쓴 문장." });
+    hold.send({ type: "append", text: "첫 문장이다." });
+    hold.send({ type: "done", finalContent: "첫 문장이다." });
+    assert.deepEqual(
+      delivered.map((event) => [event.type, event.text]),
+      [
+        ["replace", "첫 문장이다.\n\n둘째 문장이다."],
+        ["replace", "첫 문장이다.\n\n둘째 문장이다."],
+        ["replace", "첫 문장이다."],
+      ]
+    );
+    assert.equal(hold.covers("첫 문장이다. 새로 쓴 문장."), false);
+    assert.equal(hold.covers("둘째 문장이다."), true);
+    assert.ok(!JSON.stringify(delivered).includes("새로 쓴"));
+    assert.ok(!JSON.stringify(delivered).includes("미승인"));
+  });
+
+  it("covers both candidates approved by one check", () => {
+    const { hold } = collect();
+    hold.markApproved("원문 후보");
+    hold.approve("스트림 후보");
+    assert.equal(hold.covers("원문 후보"), true);
+    assert.equal(hold.covers("스트림 후보"), true);
+    assert.equal(hold.covers("다른 후보"), false);
+  });
+
+  it("releases the final text once, skipping a duplicate of what was already shown", () => {
+    const { delivered, hold } = collect();
+    hold.send({ type: "delta", text: "미승인 본문" });
+    hold.approve("승인된 본문\n\n둘째");
+    hold.release("승인된 본문 둘째");
     hold.release("두 번째 방출");
     hold.send({ type: "delta", text: "후속" });
     assert.deepEqual(
       delivered.map((event) => [event.type, event.text]),
       [
-        ["replace", "승인된 본문"],
+        ["replace", "승인된 본문\n\n둘째"],
         ["delta", "후속"],
       ]
     );
     assert.ok(!JSON.stringify(delivered).includes("미승인"));
   });
 
-  it("never delivers text after discard", () => {
+  it("emits a changed final text as one instant replace when it differs from what was shown", () => {
+    const { delivered, hold } = collect();
+    hold.release("<div>카드</div>", { instant: true });
+    assert.deepEqual(delivered, [{ type: "replace", text: "<div>카드</div>", instant: true }]);
+  });
+
+  it("never delivers text after discard but keeps error and reset flowing", () => {
     const { delivered, hold } = collect();
     hold.send({ type: "delta", text: "차단될 본문" });
+    hold.approve("앞서 승인된 본문");
     hold.discard();
     hold.release("뒤늦은 방출");
+    hold.send({ type: "replace", text: "앞서 승인된 본문" });
     hold.send({ type: "replace", text: "뒤늦은 본문" });
+    hold.send({ type: "reset" });
+    hold.send({ type: "error", error: "차단됨" });
     assert.equal(hold.state(), "discarded");
-    assert.deepEqual(delivered, []);
+    assert.equal(hold.covers("앞서 승인된 본문"), false);
+    assert.deepEqual(
+      delivered.map((event) => event.type),
+      ["replace", "reset", "error"]
+    );
+    assert.equal(delivered[0].text, "앞서 승인된 본문");
   });
 });

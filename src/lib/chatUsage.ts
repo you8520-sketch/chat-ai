@@ -181,6 +181,8 @@ export type Usage = {
    * (including full billing receipt admins). Not used for billing or auto-continuation.
    */
   museAcceptance?: Record<string, unknown>;
+  /** 성인 OFF 독립 출력 검사 내부 증거(호출 수·결과·원가). 사용자 청구와 무관하며 클라이언트로 보내지 않는다. */
+  adultOffGuard?: Record<string, unknown>;
   /**
    * Admin/debug — which character prompt layer was assembled this turn.
    * Public receipt sanitization strips these fields.

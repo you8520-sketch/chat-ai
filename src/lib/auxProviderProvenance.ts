@@ -60,6 +60,7 @@ const KNOWN_OTHER_ASYNC_REQUEST_KINDS: ReadonlyArray<RegExp> = [
   /scene-boundary-jev-qa/i,
   /completion-integrity-jev-qa/i,
   /authorial-habit-jev-qa/i,
+  /adult-off-output-moderation/i,
 ];
 
 const LEDGER_FAMILY_OWNER_RULES: ReadonlyArray<readonly [RegExp, AuxProviderOwner]> = [
@@ -157,12 +158,18 @@ export type AuxProviderSuccessKey = {
   requestKind?: string | null;
 };
 
+/** 후보 본문·긴 본문 구간마다 분류를 여러 번 호출하도록 설계된 종류. 중복 호출 감시에서 제외한다. */
+const MULTI_CALL_BY_DESIGN_REQUEST_KINDS: ReadonlySet<string> = new Set([
+  "adult-off-output-moderation",
+]);
+
 /** Dev/test sentinel — surfaces duplicate successful aux calls for the same generation op. */
 export function buildAuxProviderSuccessKey(input: AuxProviderSuccessKey): string | null {
   const messageId = input.assistantMessageId;
   const generationSequence = input.generationSequence;
   const requestKind = input.requestKind?.trim();
   if (messageId == null || generationSequence == null || !requestKind) return null;
+  if (MULTI_CALL_BY_DESIGN_REQUEST_KINDS.has(requestKind)) return null;
   return `${messageId}:${generationSequence}:${requestKind}`;
 }
 

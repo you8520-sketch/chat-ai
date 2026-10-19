@@ -92,6 +92,8 @@ export class CompatibleCompletionError extends Error {
   readonly httpStatus: number | null;
   readonly finishReason: string | null;
   readonly usage: OpenRouterCompletionUsage | null;
+  /** 응답 헤더·본문에서 이미 확보한 공급자 요청 ID. 실패 응답에서도 보존한다. */
+  readonly providerRequestId: string | null;
 
   constructor(opts: {
     message: string;
@@ -99,13 +101,16 @@ export class CompatibleCompletionError extends Error {
     httpStatus?: number | null;
     finishReason?: string | null;
     usage?: OpenRouterCompletionUsage | null;
+    providerRequestId?: string | null;
+    cause?: unknown;
   }) {
-    super(opts.message);
+    super(opts.message, opts.cause === undefined ? undefined : { cause: opts.cause });
     this.name = "CompatibleCompletionError";
     this.provider = opts.provider;
     this.httpStatus = opts.httpStatus ?? null;
     this.finishReason = opts.finishReason ?? null;
     this.usage = opts.usage ?? null;
+    this.providerRequestId = opts.providerRequestId ?? opts.usage?.providerRequestId ?? null;
   }
 }
 
@@ -467,6 +472,10 @@ export async function callOpenRouterCompletion(opts: {
         actualProvider: useCheaperInference ? "cheaperinference" : "openrouter",
         actualModel: model,
         httpStatus: res.status,
+        providerRequestId: readCompatibleCompletionProviderRequestId({
+          provider: usedProvider,
+          headers: res.headers,
+        }),
         outcome: "failed_without_usage",
       });
     }
@@ -478,14 +487,53 @@ export async function callOpenRouterCompletion(opts: {
       message: `${providerLabel} ${res.status}: ${body.slice(0, 240)}`,
       provider: providerLabel,
       httpStatus: res.status,
+      providerRequestId: readCompatibleCompletionProviderRequestId({
+        provider: usedProvider,
+        headers: res.headers,
+      }),
     });
   }
 
-  const data = (await res.json()) as {
+  let data: {
     choices?: { message?: { content?: string }; finish_reason?: string }[];
     usage?: { prompt_tokens?: number; completion_tokens?: number };
     cheaper_inference?: { billing?: { billed_cost_usd?: unknown }; billed_cost_usd?: unknown };
   };
+  try {
+    data = (await res.json()) as typeof data;
+  } catch (error) {
+    // 본문을 읽지 못해도 헤더로 확보한 요청 ID는 원장과 호출자에게 남긴다.
+    const headerRequestId = readCompatibleCompletionProviderRequestId({
+      provider: usedProvider,
+      headers: res.headers,
+    });
+    const unreadableHandle =
+      ledgerBase != null
+        ? failoverHandles.get(
+            usedProvider === "openrouter" &&
+              useCheaperInference &&
+              isDeepSeekPrimaryCheaperInferenceModel(model)
+              ? 2
+              : 1
+          ) ?? singleAttemptHandle
+        : null;
+    if (unreadableHandle) {
+      persistProviderCostLedgerOutcome(unreadableHandle, {
+        actualProvider: usedProvider,
+        actualModel: usedModel,
+        httpStatus: res.status,
+        providerRequestId: headerRequestId,
+        outcome: "failed_without_usage",
+      });
+    }
+    throw new CompatibleCompletionError({
+      message: `[${providerLabel}] response body unreadable: ${(error as Error).message}`,
+      provider: providerLabel,
+      httpStatus: res.status,
+      providerRequestId: headerRequestId,
+      cause: error,
+    });
+  }
   const text = data.choices?.[0]?.message?.content?.trim() ?? "";
   const parsedUsage = parseCompatibleUsage({
     usage: data.usage,

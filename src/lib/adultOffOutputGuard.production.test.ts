@@ -397,10 +397,10 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
     assert.equal(row?.generation_status, "failed");
     const usage = JSON.parse(row?.usage ?? "{}") as {
       generationFailure?: string;
-      adultOffGuard?: { status?: string; checkedWindows?: number; classifierCalls?: unknown[] };
+      adultOffGuard?: { finalStatus?: string; classifierCalls?: number };
     };
     assert.equal(usage.generationFailure, input.expectedFailure);
-    assert.equal(usage.adultOffGuard?.status, input.expectedGuardStatus);
+    assert.equal(usage.adultOffGuard?.finalStatus, input.expectedGuardStatus);
     assert.doesNotMatch(row?.usage ?? "", new RegExp(RESTRICT_MARK));
 
     const apiBody = await harness.getMessageApi(row!.id);

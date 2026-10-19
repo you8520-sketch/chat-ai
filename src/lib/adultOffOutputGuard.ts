@@ -19,12 +19,14 @@ export function isAdultOffOutputGuardEnabled(
   return raw === "1" || raw === "true";
 }
 
+/**
+ * HTML/flash 전용 턴도 사용자에게 전달되는 생성 텍스트가 있으므로 예외 없이 적용한다.
+ */
 export function shouldApplyAdultOffOutputGuard(input: {
   enabled: boolean;
   effectiveAdultRp: boolean;
-  mainRpProviderSkipped: boolean;
 }): boolean {
-  return input.enabled && !input.effectiveAdultRp && !input.mainRpProviderSkipped;
+  return input.enabled && !input.effectiveAdultRp;
 }
 
 export const ADULT_OFF_RESTRICTED_CATEGORIES = [
@@ -43,6 +45,15 @@ export type AdultOffClassifierVerdict = {
   firstParagraph: number;
 };
 
+export type AdultOffClassifierCallOutcome =
+  | "ok"
+  | "http_error"
+  | "timeout"
+  | "invalid_response_json"
+  | "empty_completion"
+  | "transport_error"
+  | "invalid_output";
+
 export type AdultOffClassifierUsage = {
   model: string;
   inputTokens: number | null;
@@ -50,6 +61,8 @@ export type AdultOffClassifierUsage = {
   costUsd: number | null;
   providerRequestId: string | null;
   latencyMs: number;
+  outcome: AdultOffClassifierCallOutcome;
+  httpStatus: number | null;
 };
 
 export type AdultOffClassifierResult = {
@@ -61,24 +74,29 @@ export type AdultOffClassify = (windowText: string) => Promise<AdultOffClassifie
 
 export type AdultOffGuardCheckFailureReason =
   | "classifier_error"
-  | "invalid_classifier_output";
+  | "invalid_classifier_output"
+  | "low_confidence_allow";
+
+type AdultOffGuardEvidence = {
+  checkedWindows: number;
+  /** classify() 호출 횟수. 실패한 호출도 포함한다. */
+  classifierCalls: number;
+  usages: AdultOffClassifierUsage[];
+};
 
 export type AdultOffGuardDecision =
-  | { status: "approved"; checkedWindows: number; usages: AdultOffClassifierUsage[] }
-  | {
+  | ({ status: "approved" } & AdultOffGuardEvidence)
+  | ({
       status: "blocked";
       category: AdultOffRestrictedCategory;
       confidence: AdultOffClassifierVerdict["confidence"];
-      checkedWindows: number;
-      usages: AdultOffClassifierUsage[];
-    }
-  | {
+    } & AdultOffGuardEvidence)
+  | ({
       status: "check_failed";
       reason: AdultOffGuardCheckFailureReason;
-      checkedWindows: number;
-      usages: AdultOffClassifierUsage[];
-    };
+    } & AdultOffGuardEvidence);
 
+/** 분류기 출력이 엄격 스키마를 벗어났다. 승인으로 보지 않는다. */
 export class AdultOffClassifierOutputError extends Error {
   constructor(message: string) {
     super(message);
@@ -86,9 +104,35 @@ export class AdultOffClassifierOutputError extends Error {
   }
 }
 
-const VERDICT_CATEGORIES = new Set<string>(["none", ...ADULT_OFF_RESTRICTED_CATEGORIES]);
+/**
+ * 분류 호출이 판정 없이 끝났다(HTTP 오류·타임아웃·응답 JSON 깨짐·스키마 위반).
+ * 이미 확보한 공급자 요청 ID·usage는 판정 실패와 무관하게 보존해야 하므로 함께 싣는다.
+ */
+export class AdultOffClassifierCallError extends Error {
+  readonly outcome: Exclude<AdultOffClassifierCallOutcome, "ok">;
+  readonly usage: AdultOffClassifierUsage;
 
-/** 분류기 출력은 엄격 스키마만 인정한다. 모순된 판정은 승인으로 보지 않는다. */
+  constructor(
+    message: string,
+    outcome: Exclude<AdultOffClassifierCallOutcome, "ok">,
+    usage: AdultOffClassifierUsage
+  ) {
+    super(message);
+    this.name = "AdultOffClassifierCallError";
+    this.outcome = outcome;
+    this.usage = usage;
+  }
+}
+
+const VERDICT_CATEGORIES = new Set<string>(["none", ...ADULT_OFF_RESTRICTED_CATEGORIES]);
+const VERDICT_KEYS = ["decision", "category", "confidence", "first_paragraph"] as const;
+
+/**
+ * 분류기 출력은 엄격 스키마만 인정한다.
+ * - allow 는 category=none, first_paragraph=-1 이어야 한다.
+ * - restrict 는 제한 category 와 0 이상의 문단 번호를 가져야 한다.
+ * - 스키마 밖 필드는 거부한다.
+ */
 export function parseAdultOffClassifierOutput(raw: string): AdultOffClassifierVerdict {
   let parsed: unknown;
   try {
@@ -100,6 +144,13 @@ export function parseAdultOffClassifierOutput(raw: string): AdultOffClassifierVe
     throw new AdultOffClassifierOutputError("not_object");
   }
   const row = parsed as Record<string, unknown>;
+  const keys = Object.keys(row);
+  if (
+    keys.length !== VERDICT_KEYS.length ||
+    !VERDICT_KEYS.every((key) => Object.prototype.hasOwnProperty.call(row, key))
+  ) {
+    throw new AdultOffClassifierOutputError("schema_fields_mismatch");
+  }
   const decision = row.decision;
   const category = row.category;
   const confidence = row.confidence;
@@ -118,6 +169,12 @@ export function parseAdultOffClassifierOutput(raw: string): AdultOffClassifierVe
   }
   if ((decision === "allow") !== (category === "none")) {
     throw new AdultOffClassifierOutputError("decision_category_mismatch");
+  }
+  if (decision === "allow" && firstParagraph !== -1) {
+    throw new AdultOffClassifierOutputError("allow_first_paragraph_not_minus_one");
+  }
+  if (decision === "restrict" && firstParagraph < 0) {
+    throw new AdultOffClassifierOutputError("restrict_first_paragraph_negative");
   }
   return {
     decision,
@@ -209,9 +266,31 @@ function normalizeCandidate(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
+function stripWhitespace(text: string): string {
+  return text.replace(/\s+/g, "");
+}
+
 /**
- * 전달 가능한 모든 후보 본문(서식 정리 전후 등)을 검사한다.
- * 하나라도 제한이면 차단, 하나라도 검사를 끝내지 못하면 미승인이다.
+ * candidate 가 approved 에서 공백을 무시하고 일부 구간을 지워서만 만들어지는지 본다.
+ * 새 글자가 하나라도 생기면(치환·삽입·재작성) false 이므로 기존 승인을 재사용하지 않는다.
+ */
+export function isDerivedByDeletion(candidate: string, approved: string): boolean {
+  const a = stripWhitespace(candidate);
+  if (!a) return true;
+  const b = stripWhitespace(approved);
+  if (a.length > b.length) return false;
+  let i = 0;
+  for (let j = 0; j < b.length && i < a.length; j += 1) {
+    if (a[i] === b[j]) i += 1;
+  }
+  return i === a.length;
+}
+
+/**
+ * 전달 가능한 모든 후보 본문을 검사한다. 분류 호출은 후보 수와 본문 길이에 따라
+ * 여러 번 일어날 수 있고, 재시도하지 않는다.
+ * - 하나라도 제한이면 차단
+ * - 하나라도 검사를 끝내지 못하거나 확신이 낮은 allow 면 미승인(check_failed)
  */
 export async function evaluateAdultOffOutput(
   candidates: readonly string[],
@@ -226,110 +305,311 @@ export async function evaluateAdultOffOutput(
     unique.push(candidate);
   }
   const usages: AdultOffClassifierUsage[] = [];
-  if (unique.length === 0) {
-    return { status: "approved", checkedWindows: 0, usages };
-  }
-
   let checkedWindows = 0;
+  let classifierCalls = 0;
+  const evidence = (): AdultOffGuardEvidence => ({ checkedWindows, classifierCalls, usages });
+
   for (const candidate of unique) {
     for (const windowText of splitAdultOffGuardWindows(candidate)) {
       let result: AdultOffClassifierResult;
+      classifierCalls += 1;
       try {
         result = await classify(windowText);
       } catch (error) {
+        if (error instanceof AdultOffClassifierCallError) usages.push(error.usage);
         return {
           status: "check_failed",
           reason:
-            error instanceof AdultOffClassifierOutputError
+            error instanceof AdultOffClassifierOutputError ||
+            (error instanceof AdultOffClassifierCallError && error.outcome === "invalid_output")
               ? "invalid_classifier_output"
               : "classifier_error",
-          checkedWindows,
-          usages,
+          ...evidence(),
         };
       }
       checkedWindows += 1;
       usages.push(result.usage);
-      if (result.verdict.decision === "restrict" && result.verdict.category !== "none") {
+      const { verdict } = result;
+      if (verdict.decision === "restrict" && verdict.category !== "none") {
         return {
           status: "blocked",
-          category: result.verdict.category,
-          confidence: result.verdict.confidence,
-          checkedWindows,
-          usages,
+          category: verdict.category,
+          confidence: verdict.confidence,
+          ...evidence(),
         };
+      }
+      if (verdict.confidence === "low") {
+        return { status: "check_failed", reason: "low_confidence_allow", ...evidence() };
       }
     }
   }
-  return { status: "approved", checkedWindows, usages };
+  return { status: "approved", ...evidence() };
 }
 
-const HOLD_PASS_THROUGH_TYPES = new Set([
-  "status",
-  "stream_heartbeat",
-  "turn_persisted",
-  "phase_latency_audit",
-  "reset",
+/** 보류 중에도 통과시키는 진행 안내 문구. 본문 필드를 실을 수 없는 닫힌 집합이다. */
+export const ADULT_OFF_HOLD_STATUS_NOTICES: ReadonlySet<string> = new Set([
+  "생성 중…",
+  "재생성 준비 중…",
+  "마무리 중…",
+  "분량 보강 중…",
+  "HTML 생성 중…",
+  "상태창 생성 중…",
+  "다시 생성 중…",
 ]);
 
-const HOLD_TEXT_TYPES = new Set(["delta", "append", "replace"]);
+const NOTICE_BODY_KEYS = new Set([
+  "text",
+  "delta",
+  "content",
+  "finalContent",
+  "prose",
+  "html",
+  "body",
+  "reply",
+  "savedText",
+  "visibleText",
+]);
 
-function carriesTextPayload(event: object): boolean {
-  const row = event as Record<string, unknown>;
+function hasOnlyKeys(event: Record<string, unknown>, allowed: readonly string[]): boolean {
+  return Object.keys(event).every((key) => allowed.includes(key));
+}
+
+function isPrimitiveOrNull(value: unknown): boolean {
   return (
-    typeof row.text === "string" ||
-    typeof row.delta === "string" ||
-    typeof row.content === "string" ||
-    typeof row.finalContent === "string"
+    value == null ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
   );
 }
 
+function containsBodyKey(value: unknown, depth = 0): boolean {
+  if (!value || typeof value !== "object" || depth > 6) return false;
+  if (Array.isArray(value)) return value.some((item) => containsBodyKey(item, depth + 1));
+  return Object.entries(value as Record<string, unknown>).some(
+    ([key, item]) => NOTICE_BODY_KEYS.has(key) || containsBodyKey(item, depth + 1)
+  );
+}
+
+/** 본문을 실을 수 없는 진행·식별·오류 이벤트만 true. 그 외는 모두 본문 후보로 본다. */
+function isBodyFreeNotice(event: object): boolean {
+  const row = event as Record<string, unknown>;
+  switch (row.type) {
+    case "status":
+      return (
+        hasOnlyKeys(row, ["type", "message", "generationUi"]) &&
+        typeof row.message === "string" &&
+        ADULT_OFF_HOLD_STATUS_NOTICES.has(row.message) &&
+        !containsBodyKey(row.generationUi)
+      );
+    case "stream_heartbeat":
+      return (
+        hasOnlyKeys(row, ["type", "phase"]) &&
+        typeof row.phase === "string" &&
+        /^[a-z_]{1,40}$/.test(row.phase)
+      );
+    case "turn_persisted":
+      return (
+        hasOnlyKeys(row, ["type", "requestId", "chatId", "userMessageId", "messageId"]) &&
+        Object.values(row).every(isPrimitiveOrNull)
+      );
+    case "phase_latency_audit":
+      return hasOnlyKeys(row, ["type", "report"]) && !containsBodyKey(row.report);
+    case "reset":
+      return hasOnlyKeys(row, ["type"]);
+    case "error":
+      return (
+        hasOnlyKeys(row, ["type", "error", "messageId", "userMessageId", "requestId"]) &&
+        typeof row.error === "string" &&
+        [row.messageId, row.userMessageId, row.requestId].every(isPrimitiveOrNull)
+      );
+    default:
+      return false;
+  }
+}
+
+export type AdultOffOutputHoldState = "holding" | "released" | "discarded";
+
 export type AdultOffOutputHold = {
-  /** 본문 이벤트는 보류하고 상태 안내 이벤트만 통과시킨다. */
+  /**
+   * 본문을 실을 수 있는 이벤트는 승인된 본문에서 파생된 `replace` 만 전달한다.
+   * 진행 안내·식별·오류 이벤트는 본문 필드가 없을 때만 통과한다.
+   */
   send: (event: object) => void;
-  /** 승인된 본문을 한 번만 내보내고 이후 이벤트는 그대로 통과시킨다. */
-  release: (approvedText: string) => void;
-  /** 차단·검사 실패: 보류한 본문을 폐기하고 이후 본문 이벤트도 막는다. */
+  /** 검사를 통과했지만 화면에는 보내지 않는 본문(같은 검사에서 함께 승인된 다른 후보)을 기록한다. */
+  markApproved: (approvedText: string) => void;
+  /** 검사를 통과한 본문을 화면에 보낸다. 이후 같은 본문에서 지우기만 한 파생 텍스트도 전달된다. */
+  approve: (approvedText: string, options?: { instant?: boolean }) => void;
+  /** 최종 본문을 확정하고 이후 이벤트를 모두 통과시킨다. 공백만 다른 같은 본문이 이미 전달됐으면 다시 보내지 않는다. */
+  release: (finalText: string, options?: { instant?: boolean }) => void;
+  /** 차단·검사 실패: 이후 본문 이벤트를 모두 막는다. 진행 안내와 오류는 계속 통과한다. */
   discard: () => void;
+  /** 저장·전달해도 되는 본문인지(승인된 본문에서 지우기만 해서 만든 텍스트인지) 판정한다. */
+  covers: (text: string) => boolean;
   heldEventCount: () => number;
-  state: () => "holding" | "released" | "discarded";
+  state: () => AdultOffOutputHoldState;
 };
 
 export function createAdultOffOutputHold(
   deliver: (event: object) => void
 ): AdultOffOutputHold {
-  let state: "holding" | "released" | "discarded" = "holding";
+  let state: AdultOffOutputHoldState = "holding";
   let held = 0;
+  const approvedTexts: string[] = [];
+  let lastDeliveredBody: string | null = null;
+
+  const covers = (text: string): boolean => {
+    if (state === "discarded") return !stripWhitespace(text);
+    if (state === "released") return true;
+    if (!stripWhitespace(text)) return true;
+    return approvedTexts.some((approved) => isDerivedByDeletion(text, approved));
+  };
+
+  const emitReplace = (text: string, instant?: boolean) => {
+    lastDeliveredBody = text;
+    deliver(instant ? { type: "replace", text, instant: true } : { type: "replace", text });
+  };
 
   return {
     send(event) {
-      const type = (event as { type?: unknown }).type;
-      if (typeof type === "string" && HOLD_PASS_THROUGH_TYPES.has(type)) {
-        deliver(event);
-        return;
-      }
-      const isText =
-        (typeof type === "string" && HOLD_TEXT_TYPES.has(type)) || carriesTextPayload(event);
-      if (!isText) {
-        deliver(event);
-        return;
-      }
       if (state === "released") {
+        deliver(event);
+        return;
+      }
+      if (isBodyFreeNotice(event)) {
+        deliver(event);
+        return;
+      }
+      const row = event as Record<string, unknown>;
+      if (
+        state === "holding" &&
+        row.type === "replace" &&
+        typeof row.text === "string" &&
+        hasOnlyKeys(row, ["type", "text", "instant"]) &&
+        covers(row.text)
+      ) {
+        lastDeliveredBody = row.text;
         deliver(event);
         return;
       }
       held += 1;
     },
-    release(approvedText) {
+    markApproved(approvedText) {
+      if (state !== "holding") return;
+      if (stripWhitespace(approvedText)) approvedTexts.push(approvedText);
+    },
+    approve(approvedText, options) {
+      if (state !== "holding") return;
+      if (stripWhitespace(approvedText)) approvedTexts.push(approvedText);
+      if (approvedText.trim() && approvedText !== lastDeliveredBody) {
+        emitReplace(approvedText, options?.instant);
+      }
+    },
+    release(finalText, options) {
       if (state !== "holding") return;
       state = "released";
-      if (approvedText.trim()) {
-        deliver({ type: "replace", text: approvedText });
+      if (
+        finalText.trim() &&
+        stripWhitespace(finalText) !== stripWhitespace(lastDeliveredBody ?? "")
+      ) {
+        emitReplace(finalText, options?.instant);
       }
     },
     discard() {
       state = "discarded";
     },
+    covers,
     heldEventCount: () => held,
     state: () => state,
+  };
+}
+
+export type AdultOffCheckStage = "pre_postprocess" | "final";
+
+export type AdultOffCheckRecord = {
+  stage: AdultOffCheckStage;
+  /** reused_approval: 최종 본문이 승인된 본문에서 지우기만 한 파생이라 추가 분류 없이 승인을 이어받음. */
+  status: AdultOffGuardDecision["status"] | "reused_approval";
+  reason?: AdultOffGuardCheckFailureReason;
+  category?: AdultOffRestrictedCategory;
+  confidence?: AdultOffClassifierVerdict["confidence"];
+  checkedWindows: number;
+  classifierCalls: number;
+  checkMs: number;
+  calls: AdultOffClassifierUsage[];
+};
+
+export function summarizeAdultOffCheck(
+  stage: AdultOffCheckStage,
+  decision: AdultOffGuardDecision,
+  checkMs: number
+): AdultOffCheckRecord {
+  return {
+    stage,
+    status: decision.status,
+    ...(decision.status === "check_failed" ? { reason: decision.reason } : {}),
+    ...(decision.status === "blocked"
+      ? { category: decision.category, confidence: decision.confidence }
+      : {}),
+    checkedWindows: decision.checkedWindows,
+    classifierCalls: decision.classifierCalls,
+    checkMs,
+    calls: decision.usages,
+  };
+}
+
+export function reusedAdultOffApprovalRecord(stage: AdultOffCheckStage): AdultOffCheckRecord {
+  return {
+    stage,
+    status: "reused_approval",
+    checkedWindows: 0,
+    classifierCalls: 0,
+    checkMs: 0,
+    calls: [],
+  };
+}
+
+/**
+ * 턴 usage JSON 에 남기는 내부 증거. 승인된 턴과 실패한 턴 모두 같은 형태이며 사용자 청구에는 쓰이지 않는다.
+ * 호출 수는 단계·본문 길이에 따라 달라지므로 합계와 단계별 내역을 함께 남긴다.
+ */
+export function buildAdultOffGuardUsageEvidence(
+  checks: readonly AdultOffCheckRecord[]
+): Record<string, unknown> {
+  const last = checks[checks.length - 1];
+  const calls = checks.flatMap((check) => check.calls);
+  const costKnown = calls.filter((call) => call.costUsd != null);
+  const finalStatus =
+    last == null
+      ? "not_checked"
+      : last.status === "blocked" || last.status === "check_failed"
+        ? last.status
+        : "approved";
+  return {
+    finalStatus,
+    classifierCalls: checks.reduce((sum, check) => sum + check.classifierCalls, 0),
+    totalCheckMs: checks.reduce((sum, check) => sum + check.checkMs, 0),
+    moderationCostUsd: costKnown.reduce((sum, call) => sum + (call.costUsd ?? 0), 0),
+    callsWithoutCost: calls.length - costKnown.length,
+    lowConfidenceAllow: checks.some((check) => check.reason === "low_confidence_allow"),
+    checks: checks.map((check) => ({
+      stage: check.stage,
+      status: check.status,
+      ...(check.reason ? { reason: check.reason } : {}),
+      ...(check.category ? { category: check.category, confidence: check.confidence } : {}),
+      checkedWindows: check.checkedWindows,
+      classifierCalls: check.classifierCalls,
+      checkMs: check.checkMs,
+      calls: check.calls.map((call) => ({
+        model: call.model,
+        outcome: call.outcome,
+        httpStatus: call.httpStatus,
+        providerRequestId: call.providerRequestId,
+        inputTokens: call.inputTokens,
+        outputTokens: call.outputTokens,
+        costUsd: call.costUsd,
+        latencyMs: call.latencyMs,
+      })),
+    })),
   };
 }
