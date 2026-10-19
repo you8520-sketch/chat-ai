@@ -145,6 +145,15 @@ describe("google oauth host fragmentation", { concurrency: 1 }, () => {
         assert.equal(matched.headers.get("location"), "https://hav.chat/login?error=google_failed");
         assert.deepEqual(fetchUrls, ["https://oauth2.googleapis.com/token"]);
         assert.equal(cookieHeaders(matched).some((cookie) => cookie.startsWith("session=")), false);
+
+        cookieJar.set("oauth_return_to", "/\\evil.example/phish");
+        cookieJar.set("oauth_redirect_after", "/\t/evil.example/phish");
+        const bypass = await GET(
+          new Request("https://hav.chat/api/auth/google/callback?code=auth-code&state=other-state"),
+        );
+        assert.equal(bypass.status, 307);
+        assert.equal(bypass.headers.get("location"), "https://hav.chat/login?error=google_failed");
+        assert.equal(fetchUrls.length, 1);
       });
     } finally {
       globalThis.fetch = originalFetch;

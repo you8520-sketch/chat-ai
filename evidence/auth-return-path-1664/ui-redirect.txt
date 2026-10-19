@@ -1,0 +1,57 @@
+exit 0
+
+{
+  "before": {
+    "points": 2000,
+    "bonusLogs": 1
+  },
+  "after": {
+    "points": 2000,
+    "bonusLogs": 1
+  },
+  "results": [
+    {
+      "name": "backslash",
+      "encodedQuery": "%2F%5Cevil.example%2Fphish",
+      "host": "127.0.0.1:3711",
+      "path": "/",
+      "externalDuringCase": 0
+    },
+    {
+      "name": "tab",
+      "encodedQuery": "%2F%09%2Fevil.example%2Fphish",
+      "host": "127.0.0.1:3711",
+      "path": "/",
+      "externalDuringCase": 0
+    },
+    {
+      "name": "newline",
+      "encodedQuery": "%2F%0A%2Fevil.example%2Fphish",
+      "host": "127.0.0.1:3711",
+      "path": "/",
+      "externalDuringCase": 0
+    },
+    {
+      "name": "absolute",
+      "encodedQuery": "https%3A%2F%2Fevil.example%2Fphish",
+      "host": "127.0.0.1:3711",
+      "path": "/",
+      "externalDuringCase": 0
+    },
+    {
+      "name": "protocol-relative",
+      "encodedQuery": "%2F%2Fevil.example%2Fphish",
+      "host": "127.0.0.1:3711",
+      "path": "/",
+      "externalDuringCase": 0
+    },
+    {
+      "name": "chats",
+      "encodedQuery": "%2Fchats",
+      "host": "127.0.0.1:3711",
+      "path": "/chats",
+      "externalDuringCase": 0
+    }
+  ],
+  "externalHosts": []
+}

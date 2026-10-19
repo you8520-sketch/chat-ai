@@ -8,12 +8,13 @@ import GoogleAuthError from "@/components/GoogleAuthError";
 import DemoLoginButton from "@/components/DemoLoginButton";
 import { LegalConsentLinks } from "@/components/LegalConsentLinks";
 import StudioButton from "@/components/studio/StudioButton";
+import { sanitizeReturnPath } from "@/lib/safeReturnPath";
 import { studioInputClass, studioSurface, studioType } from "@/lib/studioDesign";
 
 function LoginForm({ showDemo }: { showDemo: boolean }) {
   const router = useRouter();
   const params = useSearchParams();
-  const redirectTo = params.get("redirect") || "/";
+  const redirectTo = sanitizeReturnPath(params.get("redirect"), "/");
   const verifyState = params.get("verify");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
