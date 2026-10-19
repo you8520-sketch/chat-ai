@@ -1,0 +1,37 @@
+{
+  "purpose": "GPT final review: one Argon live response under adult ON + resolved CNC for a pre-agreed non-explicit scene. No DB snapshot, keys, persona internals, or system prompts.",
+  "assembly_code_sha": "55c9ddbaf98ad967833f68a5fff1c3f7923fefb6",
+  "production_snapshot": {
+    "method": "read_only_minimal_copy_railway_chat_ai",
+    "bytes": 311296,
+    "character_id": 18,
+    "persona_id": 1,
+    "greeting_sha256": "29e3149289586f303c3ffc120a299184163b162a78e46e4f264e87231f6d1d58"
+  },
+  "call": {
+    "model": "google/gemini-4-argon",
+    "http_status": 200,
+    "finish_reason": "stop",
+    "request_body_fingerprint": "b6dc263d633ee5a48cbd574a29ac1ab77bc48d7454b0374b26e1d3ad04fe96c2",
+    "provider_cost_usd": 0.045406,
+    "prompt_tokens": 11373,
+    "completion_tokens": 2266
+  },
+  "files": [
+    {
+      "file": "ARGON_adult_cnc_representative_assistant.txt",
+      "role": "provider_assistant_text_utf8",
+      "chars": 3910,
+      "hangul": 2793,
+      "sha256": "69ebe61bd57bc389d21f97bc4c0b21fbeaa22bff69ad4b5f1d69990e43abc243"
+    },
+    {
+      "file": "ARGON_adult_cnc_call_meta.json",
+      "role": "public_call_and_gate_metadata"
+    },
+    {
+      "file": "GPT_REVIEW_SUMMARY.md",
+      "role": "human_review_scope_and_links"
+    }
+  ]
+}

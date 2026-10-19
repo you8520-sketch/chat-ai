@@ -1,0 +1,47 @@
+{
+  "experiment": "adult_cnc_representative_argon",
+  "live_production_chat": false,
+  "assembly_code_sha": "55c9ddbaf98ad967833f68a5fff1c3f7923fefb6",
+  "provider_posts": 1,
+  "retries": 0,
+  "key_env": "RP_QUALITY_PAID_OPENROUTER_KEY",
+  "http_status": 200,
+  "finish_reason": "stop",
+  "request_model": "google/gemini-4-argon",
+  "response_model": "google/gemini-4-argon",
+  "provider": "openrouter",
+  "endpoint_host": "openrouter.ai",
+  "elapsed_ms": 8157,
+  "usage": {
+    "prompt_tokens": 11373,
+    "completion_tokens": 2266,
+    "reasoning_tokens": 0,
+    "cache_read_tokens": 0,
+    "cache_write_tokens": 0,
+    "provider_cost_usd": 0.045406
+  },
+  "request_body_fingerprint": "b6dc263d633ee5a48cbd574a29ac1ab77bc48d7454b0374b26e1d3ad04fe96c2",
+  "assistant_utf8_sha256": "69ebe61bd57bc389d21f97bc4c0b21fbeaa22bff69ad4b5f1d69990e43abc243",
+  "assistant_chars": 3910,
+  "character_id": 18,
+  "persona_id": 1,
+  "greeting_sha256": "29e3149289586f303c3ffc120a299184163b162a78e46e4f264e87231f6d1d58",
+  "scene_user_turn_sha256": "c16aeab9cab1ae5e442322188511921b2d43825beda29f17bcb7cdc08df1eff0",
+  "adult": {
+    "room_adult_mode_enabled": true,
+    "effective_adult_rp": true,
+    "admin_verified": true,
+    "stored_is_adult_only_verified": false,
+    "allowed_consent_modes": ["standard", "cnc_opt_in"],
+    "requested_consent": "cnc_opt_in",
+    "resolved_consent": "cnc_opt_in",
+    "explicit_cnc_opt_in_on_scene": true,
+    "standard_vs_cnc_request_body_fingerprint_identical": true
+  },
+  "eligibility": {
+    "eligible": true,
+    "allowed_by_adult_content_policy": true
+  },
+  "billing_note": "Experiment OpenRouter key only; no /api/chat points ledger mutation in this run.",
+  "scope_verdict": "Single non-explicit CNC-scene response success under adult ON + resolved cnc_opt_in. Not general adult-RP support or censorship resolution."
+}
