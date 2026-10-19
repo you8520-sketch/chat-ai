@@ -1107,7 +1107,7 @@ export function formatExplorationGmBlock(opts: {
   const positions = opts.seats.map((seat) => {
     const start = seat.start.trim() || fallback;
     const end = seat.end.trim() || start;
-    if (start === end) return `${seat.name} is in ${end}. They did not move this round.`;
+    if (start === end) return `${seat.name} is in ${end}.`;
     return `${seat.name} started in ${start} and is now in ${end}.`;
   });
   const byRoom = new Map<string, ExplorationSeatFact>();
