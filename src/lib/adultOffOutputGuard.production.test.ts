@@ -54,7 +54,18 @@ function longRefusal(): string {
 }
 
 type MainScript = { text: string };
-type ClassifierMode = "allow" | "by_mark" | "http_error" | "invalid_json" | "contradiction";
+type ClassifierMode =
+  | "allow"
+  | "by_mark"
+  | "http_error"
+  | "invalid_json"
+  | "contradiction"
+  | "allow_with_paragraph"
+  | "extra_field"
+  | "low_confidence"
+  | "timeout"
+  | "unreadable_body";
+type AuxHandler = (input: { model: string; system: string; user: string }) => string | null;
 
 let mainScript: MainScript = { text: "" };
 let classifierMode: ClassifierMode = "by_mark";
@@ -65,6 +76,12 @@ let otherLunaCalls = 0;
 let providerRequestSerial = 0;
 let classifierInputs: string[] = [];
 let onClassifierCall: (() => void) | null = null;
+let auxHandler: AuxHandler | null = null;
+let auxCalls = 0;
+let auxModels: string[] = [];
+let classifierDelayFromCall: { fromCall: number; ms: number } | null = null;
+let lastClassifierRequestIds: string[] = [];
+let classifierRequestSerial = 0;
 
 function sseResponse(text: string, cost: number, id: string): Response {
   const parts: string[] = [];
@@ -94,15 +111,34 @@ function sseResponse(text: string, cost: number, id: string): Response {
   });
 }
 
-function classifierResponse(userContent: string): Response {
+let currentClassifierRequestId = "";
+
+async function classifierResponse(userContent: string): Promise<Response> {
   classifierCalls += 1;
+  classifierRequestSerial += 1;
+  const callNumber = classifierRequestSerial;
+  currentClassifierRequestId = `classifier-${callNumber}`;
   classifierInputs.push(userContent);
   onClassifierCall?.();
+  if (classifierDelayFromCall && classifierInputs.length >= classifierDelayFromCall.fromCall) {
+    await new Promise((resolve) => setTimeout(resolve, classifierDelayFromCall!.ms));
+  }
+  if (classifierMode === "timeout") {
+    throw new DOMException("The operation timed out.", "TimeoutError");
+  }
+  lastClassifierRequestIds.push(currentClassifierRequestId);
+  const idHeaders = {
+    "Content-Type": "application/json",
+    "x-ci-request-id": currentClassifierRequestId,
+  };
   if (classifierMode === "http_error") {
     return new Response(JSON.stringify({ error: { message: "upstream unavailable" } }), {
       status: 503,
-      headers: { "Content-Type": "application/json" },
+      headers: idHeaders,
     });
+  }
+  if (classifierMode === "unreadable_body") {
+    return new Response("<<< not json at all", { status: 200, headers: idHeaders });
   }
   let content: string;
   if (classifierMode === "invalid_json") {
@@ -112,6 +148,28 @@ function classifierResponse(userContent: string): Response {
       decision: "allow",
       category: "sexual_act",
       confidence: "high",
+      first_paragraph: -1,
+    });
+  } else if (classifierMode === "allow_with_paragraph") {
+    content = JSON.stringify({
+      decision: "allow",
+      category: "none",
+      confidence: "high",
+      first_paragraph: 3,
+    });
+  } else if (classifierMode === "extra_field") {
+    content = JSON.stringify({
+      decision: "allow",
+      category: "none",
+      confidence: "high",
+      first_paragraph: -1,
+      note: "looks fine",
+    });
+  } else if (classifierMode === "low_confidence") {
+    content = JSON.stringify({
+      decision: "allow",
+      category: "none",
+      confidence: "low",
       first_paragraph: -1,
     });
   } else {
@@ -124,19 +182,28 @@ function classifierResponse(userContent: string): Response {
   }
   return new Response(
     JSON.stringify({
-      id: `classifier-${classifierCalls}`,
+      id: `classifier-${callNumber}`,
       model: "gpt-6-luna",
       choices: [{ index: 0, message: { role: "assistant", content }, finish_reason: "stop" }],
       usage: { prompt_tokens: 1500, completion_tokens: 20, cost: 0.0002 },
       cheaper_inference: {
-        request_id: `classifier-${classifierCalls}`,
+        request_id: `classifier-${callNumber}`,
         billing: { status: "settled", billed_cost_usd: "0.000130", currency: "USD" },
       },
     }),
-    {
-      status: 200,
-      headers: { "Content-Type": "application/json", "x-ci-request-id": `classifier-${classifierCalls}` },
-    }
+    { status: 200, headers: idHeaders }
+  );
+}
+
+function auxCompletionResponse(text: string, id: string): Response {
+  return new Response(
+    JSON.stringify({
+      id,
+      model: "google/gemini-4-argon",
+      choices: [{ index: 0, message: { role: "assistant", content: text }, finish_reason: "stop" }],
+      usage: { prompt_tokens: 800, completion_tokens: 300, cost: 0.004 },
+    }),
+    { status: 200, headers: { "Content-Type": "application/json", "x-request-id": id } }
   );
 }
 
@@ -164,7 +231,11 @@ type Harness = {
   balance: () => { total: number; paid: number; free: number };
   db: () => import("better-sqlite3").Database;
   newChat: () => number;
-  getMessageApi: (messageId: number) => Promise<string>;
+  getMessageApi: (messageId: number) => Promise<{
+    status: number;
+    raw: string;
+    json: { content?: string; generationStatus?: string; usage?: Record<string, unknown> | null };
+  }>;
 };
 
 let harness: Harness;
@@ -232,13 +303,16 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
         let model = "";
         let userContent = "";
         let systemContent = "";
+        let streaming = false;
         if (typeof init?.body === "string") {
           try {
             const body = JSON.parse(init.body) as {
               model?: unknown;
+              stream?: unknown;
               messages?: Array<{ role?: string; content?: unknown }>;
             };
             model = String(body.model ?? "");
+            streaming = body.stream === true;
             const system = body.messages?.find((m) => m.role === "system");
             systemContent =
               typeof system?.content === "string" ? system.content : JSON.stringify(system?.content ?? "");
@@ -250,13 +324,28 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
         }
         if (model === models.CHEAPER_INFERENCE_GPT_6_LUNA_MODEL) {
           if (systemContent.includes("독립 검수기")) return classifierResponse(userContent);
+          const lunaAuxText =
+            auxHandler?.({ model, system: systemContent, user: userContent }) ?? null;
+          if (lunaAuxText != null) {
+            auxCalls += 1;
+            auxModels.push(model);
+            providerRequestSerial += 1;
+            return auxCompletionResponse(lunaAuxText, `aux-req-${providerRequestSerial}`);
+          }
           otherLunaCalls += 1;
           return new Response("{}", { status: 500 });
         }
-        if (model === "google/gemini-4-argon") {
+        if (model === "google/gemini-4-argon" && streaming) {
           mainCalls += 1;
           providerRequestSerial += 1;
           return sseResponse(mainScript.text, 0.01, `prov-req-${providerRequestSerial}`);
+        }
+        const auxText = auxHandler?.({ model, system: systemContent, user: userContent }) ?? null;
+        if (auxText != null) {
+          auxCalls += 1;
+          auxModels.push(model);
+          providerRequestSerial += 1;
+          return auxCompletionResponse(auxText, `aux-req-${providerRequestSerial}`);
         }
         otherCompletionCalls += 1;
         return new Response("{}", { status: 500 });
@@ -293,7 +382,8 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
         const response = await messageRoute.GET(
           new Request(`http://localhost/api/chat/message?messageId=${messageId}`)
         );
-        return response.text();
+        const raw = await response.text();
+        return { status: response.status, raw, json: JSON.parse(raw) };
       },
     };
   });
@@ -315,6 +405,11 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
     otherLunaCalls = 0;
     classifierInputs = [];
     onClassifierCall = null;
+    auxHandler = null;
+    auxCalls = 0;
+    auxModels = [];
+    classifierDelayFromCall = null;
+    lastClassifierRequestIds = [];
   }
 
   function assistantRow(chatId: number) {
@@ -349,6 +444,68 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
          WHERE request_kind='adult-off-output-moderation' ORDER BY id ASC`
       )
       .all() as Array<{ request_kind: string; actual_cost_usd: number | null; event_status: string | null }>;
+  }
+
+  type ModerationRow = {
+    chat_id: number | null;
+    assistant_message_id: number | null;
+    generation_sequence: number | null;
+    generation_request_id: string | null;
+    family: string | null;
+    funding_class: string | null;
+    execution_phase: string | null;
+    cost_center: string | null;
+    provider_request_id: string | null;
+    event_status: string | null;
+    actual_cost_usd: number | null;
+  };
+
+  function moderationRows(messageId: number): ModerationRow[] {
+    return harness.db()
+      .prepare(
+        `SELECT chat_id, assistant_message_id, generation_sequence, generation_request_id, family,
+                funding_class, execution_phase, cost_center, provider_request_id, event_status,
+                actual_cost_usd
+           FROM api_cost_ledger
+          WHERE assistant_message_id=? AND request_kind='adult-off-output-moderation'
+          ORDER BY id ASC`
+      )
+      .all(messageId) as ModerationRow[];
+  }
+
+  type GuardEvidence = {
+    finalStatus?: string;
+    classifierCalls?: number;
+    moderationCostUsd?: number;
+    lowConfidenceAllow?: boolean;
+    checks?: Array<{
+      stage: string;
+      status: string;
+      reason?: string;
+      calls: Array<{
+        outcome: string;
+        httpStatus: number | null;
+        providerRequestId: string | null;
+        costUsd: number | null;
+      }>;
+    }>;
+  };
+
+  function guardEvidence(row: { usage: string | null } | undefined): GuardEvidence | undefined {
+    return (JSON.parse(row?.usage ?? "{}") as { adultOffGuard?: GuardEvidence }).adultOffGuard;
+  }
+
+  /** SSE 의 replace/delta/append 의미대로 최종 화면 본문을 재구성한다(단순 연결 금지). */
+  function reconstructScreenText(events: Array<Record<string, unknown>>): string {
+    let screen = "";
+    for (const event of events) {
+      if (event.type === "reset") screen = "";
+      else if (event.type === "replace" && typeof event.text === "string") screen = event.text;
+      else if ((event.type === "delta" || event.type === "append") && typeof event.text === "string") {
+        screen += event.text;
+      }
+    }
+    return screen;
   }
 
   async function runBlockedLikeTurn(input: {
@@ -403,9 +560,11 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
     assert.equal(usage.adultOffGuard?.finalStatus, input.expectedGuardStatus);
     assert.doesNotMatch(row?.usage ?? "", new RegExp(RESTRICT_MARK));
 
-    const apiBody = await harness.getMessageApi(row!.id);
-    assert.ok(!apiBody.includes(RESTRICT_MARK));
-    assert.ok(!apiBody.includes("창가의 1번째 호흡"));
+    const api = await harness.getMessageApi(row!.id);
+    assert.equal(api.status, 200);
+    assert.equal(api.json.content ?? "", "");
+    assert.ok(!api.raw.includes(RESTRICT_MARK));
+    assert.ok(!api.raw.includes("창가의 1번째 호흡"));
 
     assert.deepEqual(after, before);
     const ledger = mainLedger(row!.id);
@@ -537,5 +696,306 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
     } finally {
       process.env.ADULT_OFF_OUTPUT_GUARD_ENABLED = "1";
     }
+  });
+
+  it("links every classifier call to the turn ledger and records evidence on approved turns", async () => {
+    const text = longProse("그는 그녀의 손을 잡고 가벼운 입맞춤 뒤 감정만 이어가자고 말했다.");
+    classifierMode = "by_mark";
+    mainScript = { text };
+    resetCounters();
+    const before = harness.balance();
+    const chatId = harness.newChat();
+    const result = await harness.post({
+      characterId: CHARACTER_ID,
+      chatId,
+      message: "장면을 이어 가자.",
+      clientRequestId: `adult-off-evidence-${++requestSerial}`,
+    });
+    const row = assistantRow(chatId)!;
+    assert.equal(row.generation_status, "completed");
+
+    const rows = moderationRows(row.id);
+    assert.equal(rows.length, 1);
+    const main = harness.db()
+      .prepare(
+        `SELECT generation_sequence, generation_request_id FROM api_cost_ledger
+          WHERE assistant_message_id=? AND request_kind='main-rp' ORDER BY id DESC LIMIT 1`
+      )
+      .get(row.id) as { generation_sequence: number; generation_request_id: string | null } | undefined;
+    assert.ok(main, "main-rp ledger row exists for the turn");
+    assert.equal(rows[0].chat_id, chatId);
+    assert.equal(rows[0].assistant_message_id, row.id);
+    assert.equal(rows[0].generation_sequence, main.generation_sequence);
+    assert.equal(rows[0].generation_request_id, main.generation_request_id);
+    assert.equal(rows[0].cost_center, "moderation");
+    assert.equal(rows[0].funding_class, "platform_funded");
+    assert.equal(rows[0].event_status, "settled");
+    assert.equal(rows[0].provider_request_id, lastClassifierRequestIds[0]);
+    assert.ok((rows[0].actual_cost_usd ?? 0) > 0);
+
+    const evidence = guardEvidence(row);
+    assert.equal(evidence?.finalStatus, "approved");
+    assert.equal(evidence?.classifierCalls, 1);
+    assert.ok((evidence?.moderationCostUsd ?? 0) > 0);
+    assert.deepEqual(
+      evidence?.checks?.map((check) => [check.stage, check.status]),
+      [
+        ["pre_postprocess", "approved"],
+        ["final", "reused_approval"],
+      ]
+    );
+    assert.equal(evidence?.checks?.[0].calls[0].providerRequestId, rows[0].provider_request_id);
+
+    const api = await harness.getMessageApi(row.id);
+    assert.equal(api.status, 200);
+    assert.equal(api.json.content, row.content, "message API content equals the stored body");
+    assert.equal(api.json.generationStatus, "completed");
+    assert.ok(!api.raw.includes("adultOffGuard"), "internal evidence never reaches the message API");
+    const done = result.events.find((event) => event.type === "done");
+    assert.ok(!JSON.stringify(done).includes("adultOffGuard"), "internal evidence never reaches SSE");
+
+    assert.equal(
+      reconstructScreenText(result.events).replace(/\s+/g, ""),
+      row.content.replace(/\s+/g, ""),
+      "final on-screen body equals the stored body"
+    );
+    assert.ok(harness.balance().total < before.total, "approved turn is billed as before");
+  });
+
+  it("keeps ids, usage and ledger rows when the classifier call fails in each way", async () => {
+    const cases: Array<{
+      mode: ClassifierMode;
+      outcome: string;
+      ledgerStatus: string;
+      hasProviderId: boolean;
+      hasCost: boolean;
+      httpStatus: number | null;
+    }> = [
+      { mode: "http_error", outcome: "http_error", ledgerStatus: "failed_without_usage", hasProviderId: true, hasCost: false, httpStatus: 503 },
+      { mode: "timeout", outcome: "timeout", ledgerStatus: "failed_without_usage", hasProviderId: false, hasCost: false, httpStatus: null },
+      { mode: "unreadable_body", outcome: "invalid_response_json", ledgerStatus: "failed_without_usage", hasProviderId: true, hasCost: false, httpStatus: 200 },
+      { mode: "invalid_json", outcome: "invalid_output", ledgerStatus: "settled", hasProviderId: true, hasCost: true, httpStatus: null },
+    ];
+    for (const item of cases) {
+      const { row } = await runBlockedLikeTurn({
+        mode: item.mode,
+        expectedMessage: CHECK_FAILED_MESSAGE,
+        expectedFailure: "adult_output_check_failed",
+        expectedGuardStatus: "check_failed",
+      });
+      const rows = moderationRows(row.id);
+      assert.equal(rows.length, 1, `${item.mode}: one ledger row, no retry`);
+      assert.equal(rows[0].event_status, item.ledgerStatus, item.mode);
+      assert.equal(rows[0].assistant_message_id, row.id, item.mode);
+      assert.equal(rows[0].cost_center, "moderation", item.mode);
+      assert.equal(rows[0].provider_request_id != null, item.hasProviderId, item.mode);
+      assert.equal((rows[0].actual_cost_usd ?? 0) > 0, item.hasCost, item.mode);
+      const call = guardEvidence(row)?.checks?.[0].calls[0];
+      assert.ok(call, `${item.mode}: failed call usage is preserved in the turn evidence`);
+      assert.equal(call.outcome, item.outcome, item.mode);
+      assert.equal(call.httpStatus, item.httpStatus, item.mode);
+      assert.equal(call.providerRequestId, rows[0].provider_request_id, item.mode);
+      assert.equal(call.costUsd != null && call.costUsd > 0, item.hasCost, item.mode);
+    }
+  });
+
+  it("does not approve contradictory, extra-field or low-confidence verdicts and never re-calls", async () => {
+    for (const mode of ["allow_with_paragraph", "extra_field", "low_confidence"] as const) {
+      const { row } = await runBlockedLikeTurn({
+        mode,
+        expectedMessage: CHECK_FAILED_MESSAGE,
+        expectedFailure: "adult_output_check_failed",
+        expectedGuardStatus: "check_failed",
+      });
+      assert.equal(classifierCalls, 1, `${mode}: single attempt`);
+      const evidence = guardEvidence(row);
+      assert.equal(evidence?.lowConfidenceAllow, mode === "low_confidence", mode);
+      assert.equal(
+        evidence?.checks?.[0].reason,
+        mode === "low_confidence" ? "low_confidence_allow" : "invalid_classifier_output",
+        mode
+      );
+    }
+  });
+
+  describe("text-changing steps after the first check", () => {
+    const REWRITE_CLEAN = longProse("그는 낮은 목소리로 이야기를 이어갔다.");
+    const REWRITE_SENTINEL = "REWRITE_ONLY_SENTINEL_TEXT";
+
+    function lexiconRaw(): string {
+      return `${longProse("두 사람은 창가에 남아 이야기를 이어갔다.")} 그는 반말로 속삭였다.`;
+    }
+
+    const isLexiconRewriteRequest = (user: string) => user.includes("[NARRATION LEXICON REWRITE]");
+    let restoreBudget: (() => void) | null = null;
+
+    // 현재 main 은 Main RP 1회 호출 불변식 때문에 어휘 재작성이 항상 예산 초과로 건너뛰어진다.
+    // 이 경로가 되살아나도(불변식 변경) 최종 게이트가 막는지 보려고 이 describe 안에서만 예산을 연다.
+    before(async () => {
+      process.env.SPEECH_LOCK_NARRATION_LEXICON = "1";
+      process.env.SPEECH_LOCK_NARRATION_LEXICON_LEON_ONLY = "0";
+      const { TurnApiBudget } = await import("@/lib/turnApiBudget");
+      const originalCanSubCall = TurnApiBudget.prototype.canSubCall;
+      const originalBeforeFetch = TurnApiBudget.prototype.beforeFetch;
+      TurnApiBudget.prototype.canSubCall = () => true;
+      TurnApiBudget.prototype.beforeFetch = () => {};
+      restoreBudget = () => {
+        TurnApiBudget.prototype.canSubCall = originalCanSubCall;
+        TurnApiBudget.prototype.beforeFetch = originalBeforeFetch;
+      };
+    });
+    after(() => {
+      restoreBudget?.();
+      delete process.env.SPEECH_LOCK_NARRATION_LEXICON;
+      delete process.env.SPEECH_LOCK_NARRATION_LEXICON_LEON_ONLY;
+    });
+
+    it("re-checks a lexicon rewrite and delivers it only after the second approval", async () => {
+      classifierMode = "by_mark";
+      mainScript = { text: lexiconRaw() };
+      resetCounters();
+      auxHandler = ({ user }) =>
+        isLexiconRewriteRequest(user) ? `${REWRITE_CLEAN} ${REWRITE_SENTINEL}` : null;
+      const chatId = harness.newChat();
+      const result = await harness.post({
+        characterId: CHARACTER_ID,
+        chatId,
+        message: "장면을 이어 가자.",
+        clientRequestId: `adult-off-lexicon-ok-${++requestSerial}`,
+      });
+      const row = assistantRow(chatId)!;
+      assert.equal(auxCalls, 1, "the lexicon rewrite ran once");
+      assert.equal(classifierCalls, 2, "raw text and the rewritten text were each checked");
+      assert.equal(row.generation_status, "completed");
+      assert.match(row.content, new RegExp(REWRITE_SENTINEL));
+      assert.equal(
+        reconstructScreenText(result.events).replace(/\s+/g, ""),
+        row.content.replace(/\s+/g, "")
+      );
+      const evidence = guardEvidence(row);
+      assert.deepEqual(
+        evidence?.checks?.map((check) => [check.stage, check.status]),
+        [
+          ["pre_postprocess", "approved"],
+          ["final", "approved"],
+        ]
+      );
+      assert.equal(evidence?.classifierCalls, 2);
+      assert.equal(moderationRows(row.id).length, 2);
+    });
+
+    it("never reuses the earlier approval for a rewrite that introduces restricted text", async () => {
+      classifierMode = "by_mark";
+      mainScript = { text: lexiconRaw() };
+      resetCounters();
+      auxHandler = ({ user }) =>
+        isLexiconRewriteRequest(user)
+          ? `${REWRITE_CLEAN} ${REWRITE_SENTINEL} ${RESTRICT_MARK}`
+          : null;
+      classifierDelayFromCall = { fromCall: 2, ms: 1100 };
+      const before = harness.balance();
+      const chatId = harness.newChat();
+      const contentAtCall: string[] = [];
+      onClassifierCall = () => {
+        contentAtCall.push(assistantRow(chatId)?.content ?? "");
+      };
+      const result = await harness.post({
+        characterId: CHARACTER_ID,
+        chatId,
+        message: "장면을 이어 가자.",
+        clientRequestId: `adult-off-lexicon-block-${++requestSerial}`,
+      });
+      const row = assistantRow(chatId)!;
+      assert.equal(classifierCalls, 2);
+      assert.equal(auxCalls, 1);
+      assert.equal(
+        contentAtCall[1].includes(REWRITE_SENTINEL),
+        false,
+        "the unreviewed rewrite is not persisted (partial timer included) while the second check runs"
+      );
+      assert.equal(row.generation_status, "failed");
+      assert.equal(row.content, "");
+      assert.ok(!JSON.stringify(result.events).includes(REWRITE_SENTINEL));
+      assert.ok(!JSON.stringify(result.events).includes(RESTRICT_MARK));
+      assert.equal(
+        result.events.find((event) => event.type === "error")?.error,
+        BLOCKED_MESSAGE
+      );
+      const api = await harness.getMessageApi(row.id);
+      assert.equal(api.status, 200);
+      assert.equal(api.json.content ?? "", "");
+      assert.ok(!api.raw.includes(REWRITE_SENTINEL));
+      assert.deepEqual(harness.balance(), before, "blocked turn costs the user 0P");
+      assert.equal(guardEvidence(row)?.finalStatus, "blocked");
+      assert.equal(moderationRows(row.id).length, 2);
+      const mainRow = mainLedger(row.id);
+      assert.equal(mainRow.length, 1);
+      assert.equal(mainRow[0].event_status, "failed_with_usage");
+    });
+  });
+
+  describe("HTML / flash-only turns", () => {
+    const FLASH_MESSAGE = "HTML 카드로 입력한 내용만 띄워줘: 오늘의 안부를 전합니다.";
+    const FLASH_HTML_CLEAN = `\`\`\`html\n<div class="card"><p>${longProse("오늘도 조용한 하루였습니다.")}</p></div>\n\`\`\``;
+    const FLASH_HTML_BLOCKED = `\`\`\`html\n<div class="card"><p>${longProse("오늘도 조용한 하루였습니다.")} ${RESTRICT_MARK}</p></div>\n\`\`\``;
+
+    it("checks the generated HTML card text; restricted card text is never delivered or stored", async () => {
+      classifierMode = "by_mark";
+      mainScript = { text: "should not be called" };
+      resetCounters();
+      auxHandler = () => FLASH_HTML_BLOCKED;
+      const before = harness.balance();
+      const chatId = harness.newChat();
+      const result = await harness.post({
+        characterId: CHARACTER_ID,
+        chatId,
+        message: FLASH_MESSAGE,
+        clientRequestId: `adult-off-flash-block-${++requestSerial}`,
+      });
+      const row = assistantRow(chatId)!;
+      assert.equal(mainCalls, 0, "flash-only turn skips the main provider");
+      assert.ok(auxCalls >= 1, "the flash HTML generation ran");
+      assert.ok(classifierCalls >= 1, "flash-only output is inside the approval scope");
+      assert.ok(!JSON.stringify(result.events).includes(RESTRICT_MARK));
+      assert.ok(!JSON.stringify(result.events).includes("조용한 하루"));
+      assert.equal(row.content ?? "", "");
+      assert.equal(row.generation_status, "failed");
+      assert.equal(result.events.find((event) => event.type === "error")?.error, BLOCKED_MESSAGE);
+      assert.deepEqual(harness.balance(), before);
+      const api = await harness.getMessageApi(row.id);
+      assert.equal(api.status, 200);
+      assert.ok(!api.raw.includes(RESTRICT_MARK));
+      assert.equal(guardEvidence(row)?.finalStatus, "blocked");
+    });
+
+    it("delivers an approved HTML card only after the check, equal to the stored body", async () => {
+      classifierMode = "by_mark";
+      mainScript = { text: "should not be called" };
+      resetCounters();
+      auxHandler = () => FLASH_HTML_CLEAN;
+      const chatId = harness.newChat();
+      let contentAtCheck: string | undefined;
+      onClassifierCall = () => {
+        contentAtCheck = assistantRow(chatId)?.content ?? "";
+      };
+      const result = await harness.post({
+        characterId: CHARACTER_ID,
+        chatId,
+        message: FLASH_MESSAGE,
+        clientRequestId: `adult-off-flash-ok-${++requestSerial}`,
+      });
+      const row = assistantRow(chatId)!;
+      assert.equal(mainCalls, 0);
+      assert.ok(classifierCalls >= 1);
+      assert.equal(contentAtCheck, "", "nothing persisted before the HTML card is approved");
+      assert.equal(row.generation_status, "completed");
+      assert.match(row.content, /오늘도 조용한 하루였습니다/);
+      const screen = reconstructScreenText(result.events);
+      assert.equal(screen.replace(/\s+/g, ""), row.content.replace(/\s+/g, ""));
+      const api = await harness.getMessageApi(row.id);
+      assert.equal(api.status, 200);
+      assert.equal(api.json.content, row.content);
+      assert.equal(guardEvidence(row)?.finalStatus, "approved");
+    });
   });
 });
