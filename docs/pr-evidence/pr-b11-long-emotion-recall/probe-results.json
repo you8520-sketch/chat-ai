@@ -1,0 +1,76 @@
+{
+  "base": "7b7a6f11053cfe922cdf58acb5c306434e1905f5",
+  "fixture": "PR #1564 Gate 2 synthetic T80 (not a production chat)",
+  "providerCalls": 0,
+  "costKrw": 0,
+  "semanticLane": "not run (no embeddings)",
+  "schema": "reconstructed; dump-cur.json stores source_turn, fact_text, metadata only",
+  "env": {
+    "EPISODIC_MEMORY_RECALL_ENABLED": "1",
+    "EPISODIC_MEMORY_MIN_AGE_TURNS": "5",
+    "currentTurn": 81
+  },
+  "lexicalMatchedWordCounts": {
+    "sceneA": { "skillGloss": 0, "reactionGloss": 2, "userQuoteText": 1 },
+    "sceneB": { "skillGloss": 1, "reactionGloss": 1, "userQuoteText": 0 }
+  },
+  "laneCountsBothScenes": {
+    "recent": 16,
+    "relevance": 0,
+    "milestone_critical": 0,
+    "milestone_important": 2,
+    "semantic": 0
+  },
+  "sceneA": {
+    "selectedCount": 2,
+    "injectedLines": [
+      "- [T1] [AI 장면 서술 발췌] “라이크는 입술을 깨물며 시선을 피했다.”",
+      "- [T1] [유저 입력 발췌] “솔직히 너 좀 아마추어 같아.”"
+    ],
+    "t1": [
+      {
+        "fact": "라이크는 아마추어 같다는 말에 상처받아 시선을 피했다.",
+        "rank": 1,
+        "relevance": 1.7895887159129127,
+        "wouldInject": true
+      },
+      {
+        "fact": "유저가 라이크의 검술 실력을 초보 수준이라고 평가했다.",
+        "rank": 2,
+        "relevance": 0.19739717897822817,
+        "wouldInject": true
+      }
+    ]
+  },
+  "sceneB": {
+    "selectedCount": 8,
+    "injectedLines": [
+      "- [T1] [AI 장면 서술 발췌] “라이크는 입술을 깨물며 시선을 피했다.”",
+      "- [T1] [유저 입력 발췌] “솔직히 너 좀 아마추어 같아.”",
+      "- [T40] [유저 입력 발췌] “미안, 우리 그만 헤어지자.”",
+      "- [T75] [AI 장면 서술 발췌] “라이크는 75번째 장작을 쌓았다.”",
+      "- [T72] [AI 장면 서술 발췌] “라이크는 72번째 장작을 쌓았다.”",
+      "- [T69] [AI 장면 서술 발췌] “라이크는 69번째 장작을 쌓았다.”",
+      "- [T66] [AI 장면 서술 발췌] “라이크는 66번째 장작을 쌓았다.”",
+      "- [T63] [AI 장면 서술 발췌] “라이크는 63번째 장작을 쌓았다.”"
+    ],
+    "t1": [
+      {
+        "fact": "라이크는 아마추어 같다는 말에 상처받아 시선을 피했다.",
+        "rank": 1,
+        "relevance": 0.012296564655116865,
+        "wouldInject": true,
+        "blocked": null,
+        "budget": null
+      },
+      {
+        "fact": "유저가 라이크의 검술 실력을 초보 수준이라고 평가했다.",
+        "rank": 2,
+        "relevance": 0.012296564655116865,
+        "wouldInject": true,
+        "blocked": null,
+        "budget": null
+      }
+    ]
+  }
+}
