@@ -285,7 +285,12 @@ function buildTrpgProviderRequest(model: string, body: Record<string, unknown>):
       },
     };
   }
-  return { provider: "cheaperinference", endpoint: CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, model, body };
+  const cheaperModel = resolveTrpgCheaperInferenceModel(model);
+  const cheaperBody = { ...body, model: cheaperModel };
+  return {
+    provider: "cheaperinference", endpoint: CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, model: cheaperModel,
+    body: body.stream === true ? adaptTrpgGmChatBody(cheaperBody) : adaptTrpgBotChatBody(cheaperBody),
+  };
 }
 
 /** Isolated GM request. Must not go through RP adaptCheaperInferenceChatBody. */
@@ -293,8 +298,8 @@ export function buildTrpgGmProviderRequest(input: {
   system: string;
   user: string;
 }): TrpgProviderRequest {
-  const model = resolveTrpgCheaperInferenceModel(TRPG_GM_MODEL);
-  return buildTrpgProviderRequest(model, adaptTrpgGmChatBody({
+  const model = TRPG_GM_MODEL;
+  return buildTrpgProviderRequest(model, {
       model,
       messages: [
         { role: "system", content: input.system },
@@ -304,7 +309,7 @@ export function buildTrpgGmProviderRequest(input: {
       temperature: 0.7,
       max_tokens: TRPG_GM_MAX_TOKENS,
       response_format: buildTrpgGmResponseFormat(),
-    }));
+    });
 }
 
 /** Bot-seat request, separate from GM narration. */
@@ -312,8 +317,8 @@ export function buildTrpgBotProviderRequest(input: {
   system: string;
   user: string;
 }): TrpgProviderRequest {
-  const model = resolveTrpgCheaperInferenceModel(TRPG_BOT_MODEL);
-  return buildTrpgProviderRequest(model, adaptTrpgBotChatBody({
+  const model = TRPG_BOT_MODEL;
+  return buildTrpgProviderRequest(model, {
       model,
       messages: [
         { role: "system", content: input.system },
@@ -322,7 +327,7 @@ export function buildTrpgBotProviderRequest(input: {
       stream: false,
       temperature: 0.85,
       max_tokens: TRPG_BOT_MAX_TOKENS,
-    }));
+    });
 }
 
 function buildTrpgProviderHeaders(request: TrpgProviderRequest, cheaperInferenceApiKeyOverride?: string) {

@@ -4,6 +4,18 @@ on:
   pull_request:
     paths:
       - ".github/workflows/validate-trpg-blueprint.yml"
+      - "src/lib/trpg/gmCall.ts"
+      - "src/lib/trpg/gmCall.test.ts"
+      - "src/lib/trpg/gmProviderCostLedger.test.ts"
+      - "src/lib/trpg/gmCompletionIntegrity.test.ts"
+      - "src/lib/trpg/gmProviderRetry.test.ts"
+      - "src/lib/trpg/gmStreamOrchestration.test.ts"
+      - "src/lib/trpg/trpgModelRouting.test.ts"
+      - "src/lib/openRouterConfig.ts"
+      - "src/lib/adminEffectiveRuntimeSettings.ts"
+      - "src/lib/adminEffectiveRuntimeSettings.test.ts"
+      - "src/lib/adminEffectiveRuntimeSettings.network.test.ts"
+      - "src/app/api/admin/runtime-settings/route.test.ts"
       - "src/lib/trpg/worldBlueprintArtifact.ts"
       - "src/lib/trpg/worldBlueprintGeneration.ts"
       - "src/lib/trpg/worldBlueprintPregen.test.ts"
@@ -62,6 +74,19 @@ jobs:
       - run: npm ci
       - name: Typecheck
         run: npm run typecheck:app
+      - name: TRPG transport, billing identity and runtime projection
+        run: >-
+          node --conditions=react-server --import tsx
+          --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1
+          src/lib/trpg/gmCall.test.ts
+          src/lib/trpg/gmProviderCostLedger.test.ts
+          src/lib/trpg/gmCompletionIntegrity.test.ts
+          src/lib/trpg/gmProviderRetry.test.ts
+          src/lib/trpg/gmStreamOrchestration.test.ts
+          src/lib/trpg/trpgModelRouting.test.ts
+          src/lib/adminEffectiveRuntimeSettings.test.ts
+          src/lib/adminEffectiveRuntimeSettings.network.test.ts
+          src/app/api/admin/runtime-settings/route.test.ts
       - name: Blueprint rollout status snapshot
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/trpg/blueprintRolloutStatus.test.ts
       - name: Admin blueprint warmup action
