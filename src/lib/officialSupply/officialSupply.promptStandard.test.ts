@@ -112,19 +112,12 @@ describe("official character prompt standard v1", () => {
       assert.doesNotMatch(draft.sections.relationshipsAndDrives, new RegExp(name));
       assert.ok(!draft.secrets.some((secret) => secret.includes(name)));
     }
-    assert.deepEqual(file.bible.otherRelationships.map((rel) => rel.target), ["에드릭", "테오", "노엘 벨로체"]);
-    assert.ok(file.bible.otherRelationships.length <= 3);
-    for (const rel of file.bible.otherRelationships) {
-      assert.match(rel.public, /공개된 접점/);
-      assert.equal(rel.privateOpinion, "");
-      assert.equal(rel.hidden, "");
-    }
+    assert.deepEqual(file.bible.otherRelationships, []);
   });
 
   it("keeps user identity and prior relationship persona-flexible", () => {
     const { file, draft } = compileLucian();
-    assert.match(draft.sections.relationshipsAndDrives, /유저 페르소나와 대화에서 명시된 설정을 우선/);
-    assert.match(draft.sections.relationshipsAndDrives, /유저 페르소나와 대화에서 명시된 설정을 우선/);
+    assert.doesNotMatch(draft.sections.relationshipsAndDrives, /유저 관계 원칙|유저 역할:|관계 진행:/);
     assert.doesNotMatch(file.bible.situation.userEntry, /가족·동료·연인·거래 상대|페르소나/);
     assert.doesNotMatch(draft.speech.traits, /유저의 이름·신분·성별·기존 관계는 페르소나/);
     assert.doesNotMatch(file.bible.greeting, /오늘 처음 만난|낯선 사람|처음 보는 당신/);
@@ -151,12 +144,12 @@ describe("official character prompt standard v1", () => {
     const systemPrompt = composeOfficialSystemPrompt(draft);
     assert.match(systemPrompt, /\[현재 상황 \/ 도입\]/);
     assert.match(systemPrompt, /증권거래소 지하 금고/);
-    assert.equal((systemPrompt.match(/증권거래소 지하 금고에서 경보가 울린 순간/g) ?? []).length, 1);
+    assert.equal((systemPrompt.match(/기본 도입은 경보가 울린 증권거래소 지하 금고다/g) ?? []).length, 1);
   });
 
   it("keeps compact public relationship copy persona-flexible", () => {
     const { draft } = compileLucian();
-    assert.match(draft.description, /기존 관계는 페르소나 설정을 따른다/);
+    assert.doesNotMatch(draft.description, /기존 관계는 페르소나 설정을 따른다/);
     assert.doesNotMatch(draft.description, /가능한 관계: 공범자이자 아슬아슬한 유혹자/);
     assert.doesNotMatch(draft.tagline, /손목을 잡고/);
   });
@@ -323,11 +316,11 @@ describe("official character prompt standard v1", () => {
     const source = fs.readFileSync(path.join(process.cwd(), "src/lib/officialSupply/authorPrompts.ts"), "utf8");
     assert.match(source, /장문을 RP 캐릭터 본문에 복제하지 않는다/);
     assert.match(source, /hobbies는 짧은 명사\/구 3~5개/);
-    assert.match(source, /기본은 persona-flexible/);
+    assert.match(source, /기본은 FREE/);
     assert.match(source, /출연진 전체를 채우지 않는다/);
     assert.match(source, /다른 공식 캐릭터를 관계 목록에 자동으로 채우지 않는다/);
     assert.doesNotMatch(source, /0~3명/);
-    assert.match(source, /행동 기반 변화 조건/);
+    assert.match(source, /관계 진행 공식은 쓰지 않는다/);
     assert.match(source, /획일적인 장문 합의/);
     assert.match(source, /이 캐릭터만의 욕망/);
   });
@@ -347,11 +340,9 @@ describe("official character prompt standard v1", () => {
     assert.match(source.appearanceBlock, /188cm/);
     assert.doesNotMatch(source.appearanceBlock, /얼굴:|연령대 인상:|기본 의상:/);
 
-    assert.match(draft.sections.relationshipsAndDrives, /유저 페르소나와 대화에서 명시된 설정을 우선/);
-    assert.match(draft.sections.relationshipsAndDrives, /관계 변화 조건:/);
-    assert.doesNotMatch(draft.sections.relationshipsAndDrives, /관계 진행:.*초기:.*→ 중기:.*→ 후기:/);
-    assert.match(draft.sections.relationshipsAndDrives, /배신과 적대는 가능한 결말/);
-    assert.match(draft.sections.relationshipsAndDrives, /기존 연인·동료·상관·라이벌/);
+    assert.match(draft.sections.relationshipsAndDrives, /사건 전제:/);
+    assert.match(draft.sections.relationshipsAndDrives, /자기 추진 —/);
+    assert.doesNotMatch(draft.sections.relationshipsAndDrives, /관계 변화 조건:|유저 관계 원칙:|배신과 적대는 가능한 결말|기존 연인·동료·상관·라이벌/);
     assert.doesNotMatch(draft.sections.relationshipsAndDrives, /카엘룸 폰 에테르노스\(공개\)/);
 
     assert.match(draft.adult.adultHookSummary, /취향: 억눌린 욕망의 짧은 폭발/);
@@ -414,10 +405,9 @@ describe("official character prompt standard v1", () => {
     assert.doesNotMatch(creatorComment, /하나의 도입 상황|이런 식으로 시작해 보세요/);
     assert.doesNotMatch(file.bible.situation.userEntry, /오늘 처음 만난|낯선 사람|처음 보는 당신|연인으로 시작한다|이미 연인/);
     assert.doesNotMatch(file.bible.greeting, /오늘 처음 만난|낯선 사람|처음 보는 당신|연인으로|약혼자/);
-    assert.match(draft.sections.relationshipsAndDrives, /정해진 호감 수치처럼 관계를 자동 진행하지 않는다/);
-    assert.match(draft.sections.relationshipsAndDrives, /어떤 관계도 자동으로 확정되지 않는다/);
-    assert.match(draft.sections.relationshipsAndDrives, /가족·동료·연인·상관 등 기존 관계가 있다면 그 관계의 신뢰와 갈등을 유지/);
-    assert.match(draft.description, /기존 관계는 페르소나 설정을 따른다/);
+    assert.equal(draft.sections.relationshipsAndDrives, "");
+    assert.doesNotMatch(draft.sections.relationshipsAndDrives, /정해진 호감 수치|어떤 관계도 자동으로 확정|유저 역할:|관계 진행:/);
+    assert.doesNotMatch(draft.description, /기존 관계는 페르소나 설정을 따른다/);
   });
 
   it("keeps the stored compact draft identical to the live compiler output", () => {
@@ -456,7 +446,8 @@ describe("official character prompt standard v1", () => {
     assert.doesNotMatch(draft.greeting, /당신을 믿어서가 아니라/);
     assert.match(draft.greeting, /다른 손은 코트 안쪽 장부 근처에 머물러 있었다/);
     assert.match(draft.description, /같은 탈출구 앞에 선다/);
-    assert.match(systemPrompt, /도주에 협력할지, 거리를 둘지, 갈라설지는 유저가 정한다/);
+    assert.doesNotMatch(systemPrompt, /도주에 협력할지, 거리를 둘지, 갈라설지는 유저가 정한다/);
+    assert.match(systemPrompt, /자금 흐름 추적/);
   });
 
   it("keeps ledger-evidence facts in secrets only, not in public or situation teasers", () => {

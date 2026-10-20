@@ -58,9 +58,7 @@ const LUCIAN_PRE_CHANGE_SHA256: Record<string, string> = {
   supportingNpcs: "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
   secrets: "6cdfebd6bb8f240f3a1faa762b134507679716cf93b3856fcc389a93a6c3b533",
   adult: "40c21aa4f887bf9e5385fe13f41aa9fa74f4f7c8d160ae34b1d38271779df4bd",
-  "sections.currentSituation": "feafd3390e20e4fb9b022fdbf56113112e2d227a4be7e69264b20c3588a50ec7",
-  "sections.characterCore": "0cc565bbc3308210cf864d4c9642db4382d8d02aab2fbc1a0d6959bd09c8496b",
-  "sections.relationshipsAndDrives": "d5a6ad171c815e727fc42988552cf061bbb737dba761f44d1ee3c9993ae4a4f4",
+  "sections.characterCore": "964d1e2f8d55aedf10f7ebe42f0aed5e8a64efcd585465bfee45d736024400d6",
   "sections.extraCanon": "12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126",
 };
 
@@ -150,7 +148,7 @@ describe("official shared world: bible -> projection -> drafts is one canon", ()
 });
 
 describe("official shared world: manuscripts keep what was not meant to change", () => {
-  it("Lucian keeps secrets, greeting, speech, core and relationships byte-identical to the pre-change manuscript", () => {
+  it("Lucian keeps secrets, greeting, speech and core byte-identical while dropping the user-relation essay", () => {
     const draft = loadCompiledOfficialCharacterSource("pilot-rf-03").draft;
     assert.equal(draft.promptStandard, "compact_rp_v1");
     const sha = (value: unknown): string => crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -160,6 +158,11 @@ describe("official shared world: manuscripts keep what was not meant to change",
         : draft[field as keyof OfficialCharacterDraft];
       assert.equal(sha(value), expected, `Lucian ${field} changed`);
     }
+    assert.equal(draft.sections.relationshipsAndDrives, "");
+    assert.match(draft.sections.currentSituation ?? "", /증권거래소 지하 금고/);
+    assert.match(draft.sections.characterCore, /자금 흐름 추적/);
+    assert.match(draft.sections.characterCore, /에테르 잔향 감응/);
+    assert.match(draft.sections.characterCore, /브로커/);
   });
 
   it("Wolfgang public sheet keeps identity, core and secrets from the c91 manuscript", () => {
@@ -210,7 +213,9 @@ describe("official shared world: manuscripts keep what was not meant to change",
     }
     assert.match(situation, /금지 마석/);
     assert.match(situation, /서명과 인장/);
-    assert.match(now.sections.relationshipsAndDrives ?? "", /유저의 이름·신분·성별/);
+    assert.match(now.sections.relationshipsAndDrives ?? "", /사건 전제:/);
+    assert.match(now.sections.relationshipsAndDrives ?? "", /자기 추진 —/);
+    assert.doesNotMatch(now.sections.relationshipsAndDrives ?? "", /유저의 이름·신분·성별|유저 역할:|관계 진행:/);
   });
 });
 
@@ -230,12 +235,9 @@ describe("official public intro and creator comment", () => {
   });
 
   it("does not repeat one recommended-role sentence across the two intros", () => {
-    const roleLine = (description: string): string =>
-      description.split("\n").find((line) => /어울립니다|모두 어울/.test(line)) ?? "";
-    const lucian = roleLine(loadCompiledOfficialCharacterSource("pilot-rf-03").draft.description);
-    const wolfgang = roleLine(loadCompiledOfficialCharacterSource("pilot-rf-02").draft.description);
-    assert.ok(lucian.length > 0);
-    assert.ok(wolfgang.length > 0);
+    const lucian = loadCompiledOfficialCharacterSource("pilot-rf-03").draft.description;
+    const wolfgang = loadCompiledOfficialCharacterSource("pilot-rf-02").draft.description;
+    assert.doesNotMatch(`${lucian}\n${wolfgang}`, /모두 어울|가능한 관계/);
     assert.notEqual(lucian, wolfgang);
   });
 });

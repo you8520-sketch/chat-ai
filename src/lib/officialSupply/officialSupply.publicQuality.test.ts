@@ -172,26 +172,20 @@ describe("official detailed intro + creator comment", () => {
       assert.deepEqual(qa.errors, [], `${file.draftKey}: ${JSON.stringify(qa.errors)}`);
       assert.match(comment, /지금 상황/);
       assert.match(comment, /추천 플레이 방향/);
-      assert.match(comment, /가능한 관계/);
+      assert.doesNotMatch(comment, /가능한 관계/);
       assert.doesNotMatch(comment, /하나의 도입 상황|이런 식으로 시작해 보세요|런타임|프롬프트/);
       assert.doesNotMatch(comment, /\[캐릭터 설정\]/);
       assert.doesNotMatch(comment, /(신뢰|호감|경계).{0,8}(낮음|높음|미정)/);
       assert.doesNotMatch(comment, /첫 장면에서는 목적 한 가지만|반응을 보세요|따라 누구와/);
       assert.doesNotMatch(comment, /고르세요|중에서 먼저|첫 수를 정해|선택지|에피소드/);
-      const choices = officialPlayStartChoices(draft);
-      assert.ok(choices.length >= 2 && choices.length <= 3, `${file.draftKey} choices ${JSON.stringify(choices)}`);
-      assert.ok(
-        choices.every((choice) => /(?:하기|할지|둘지|받을지|지킬지|풀지|좇을지|따를지|움직이기)$/.test(choice)),
-        `${file.draftKey} non-action ${JSON.stringify(choices)}`
-      );
-      assert.ok(!choices.some((choice) => file.brief.rpHook.includes(choice) && choice.length > 20));
+      assert.deepEqual(officialPlayStartChoices(draft), [], `${file.draftKey} no longer compiles a user-choice menu`);
       starts.add(comment.match(/추천 플레이 방향<\/b><br>([^<]+)/)?.[1] ?? "");
       assert.ok(!draft.description.includes(comment.replace(/<[^>]+>/g, "").trim()));
     }
     const lucian = sampleChars().find((file) => file.draftKey === "pilot-rf-03")!;
     assert.deepEqual(
       officialPlayStartChoices(compileOfficialDraftFromBible(lucian.bible, compileKeys(lucian))),
-      ["도주에 협력할지", "거리를 둘지"]
+      []
     );
     assert.equal(starts.size, 3);
   });
@@ -375,14 +369,8 @@ describe("Wolfgang GPT-authored public copy", () => {
       "금지 마석 사건과 연결된 당신의 처형 명령서에 자신의 인장이 찍힌 것을 발견한 북부대공이, 흑철 요새에서 당신과 문서의 진위를 확인하려 한다."
     );
     assert.equal(file.brief.relationshipTrope, "의심 속에서도 처형을 막는 보호자, 선택에 따라 깊어지는 신뢰");
-    assert.equal(
-      file.bible.userRelationship.initialView,
-      "금지 마석 사건의 관련자로 황실 처형 명령서에 이름이 적힌 인물. 서류의 진위가 불분명하므로 경계하지만 유죄라고 단정하지 않는다."
-    );
-    assert.equal(
-      file.bible.userRelationship.userRole,
-      "당신은 위조 처형 명령서의 진위를 확인할 수 있다. 기록을 조사할지, 명령을 공개할지, 봉인을 지킬지는 당신의 선택이다."
-    );
+    assert.equal(file.bible.userRelationship.initialView, "");
+    assert.equal(file.bible.userRelationship.userRole, "");
     const world = readJson<{ bible: OfficialWorldBible }>(path.join(PILOT_DIR, "world-bible.json"));
     const portfolio = world.bible.portfolio.find((item) => item.slot === 2);
     assert.equal(portfolio?.rpHook, file.brief.rpHook);
@@ -393,13 +381,14 @@ describe("Wolfgang GPT-authored public copy", () => {
     assert.equal(draft.hook.rpHook, file.brief.rpHook);
     assert.equal(draft.hook.relationshipTrope, file.brief.relationshipTrope);
     assert.equal(comment, file.bible.publicProfile.creatorComment);
-    assert.match(comment, /당신을 처형하라는 명령서에 자신의 인장이 찍힌 것을 발견한 북부대공/);
+    assert.match(comment, /처형 명령서에 이름이 올라 있고/);
+    assert.match(comment, /추천 플레이 방향/);
     assert.doesNotMatch(comment, /자신의 방식으로 확인할 수 있다|하나의 도입 상황|이런 식으로 시작해 보세요/);
     assert.doesNotMatch(comment, /진위를 자신의<\/p>/);
     assert.doesNotMatch(comment, /압송해 심문/);
     assert.doesNotMatch(comment, /정략적 혐오에서 맹목적 충성으로/);
-    assert.deepEqual(officialPlayStartChoices(draft), ["기록을 조사할지", "명령을 공개할지", "봉인을 지킬지"]);
-    assert.doesNotMatch(file.bible.userRelationship.initialView, /유죄라고 단정한다|이미 유죄/);
+    assert.deepEqual(officialPlayStartChoices(draft), []);
+    assert.doesNotMatch(comment, /기록을 조사할지|명령을 공개할지|봉인을 지킬지/);
     assert.equal(canonicalPrimaryTrope(file.brief.relationshipTrope), "보호자");
     assert.equal(canonicalPrimaryTrope(portfolio!.relationshipTrope), "보호자");
     const edric = readJson<PilotChar>(path.join(PILOT_DIR, "characters", "pilot-rf-06.json"));

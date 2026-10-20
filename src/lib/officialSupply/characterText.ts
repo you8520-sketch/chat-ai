@@ -29,7 +29,7 @@ export const OFFICIAL_TEXT_LENGTH_BANDS = {
   total: [6000, 8000],
   worldAndSituation: [1500, 3000],
   characterCore: [2500, 3500],
-  relationshipsAndDrives: [700, 1000],
+  relationshipsAndDrives: [0, 800],
   speech: [500, 900],
   supportingNpcs: [0, 600],
 } as const;
@@ -472,7 +472,6 @@ export function evaluateDraftSchema(draft: OfficialCharacterDraft): QaResult {
     greeting: draft.greeting,
     worldAndSituation: draft.sections.worldAndSituation,
     characterCore: draft.sections.characterCore,
-    relationshipsAndDrives: draft.sections.relationshipsAndDrives,
     archetype: draft.hook.archetype,
     relationshipTrope: draft.hook.relationshipTrope,
     occupation: draft.hook.occupation,

@@ -40,8 +40,6 @@ import { estimateTokens } from "@/lib/tokenEstimate";
 
 const PILOT_DIR = path.join(process.cwd(), "src/lib/officialSupply/pilot");
 const LEGACY_KEYS = ["pilot-rf-02", "pilot-rf-03"] as const;
-const FREE_PRINCIPLE_RE = /유저 관계 원칙: 유저의 이름·신분·성별과 유저-캐릭터 간 기존 관계는 유저 페르소나와 대화에서 명시된 설정을 우선한다\./;
-
 const squash = (text: string): string => text.replace(/\s+/g, "");
 const occurrences = (text: string, needle: string): number => text.split(needle).length - 1;
 const withoutEndStop = (text: string): string => text.trim().replace(/[.!?。！？]+$/u, "");
@@ -101,32 +99,27 @@ describe("official bible V2: three start types", () => {
     }
   });
 
-  it("FREE keeps the legacy principle and fixes nothing", () => {
+  it("FREE compiles no user-relation essay", () => {
     const free = candidateOf("free");
     assert.equal(free.bible.userRelationship.fixedFacts, "");
     assert.equal(free.bible.userRelationship.userDecides, "");
     const rel = compileRelationStartDraft(free).sections.relationshipsAndDrives;
-    assert.match(rel, FREE_PRINCIPLE_RE);
-    assert.doesNotMatch(rel, /고정 배경:|고정 관계:|유저가 정하는 것:/);
+    assert.doesNotMatch(rel, /유저 관계 원칙|유저가 정하는 것|첫인식:|유저 역할:|시작점:|관계 진행:|관계 변화 조건:/);
   });
 
-  it("ROLE_BOUND fixes only the role, RELATIONSHIP_BOUND fixes the relation; both leave user choice open", () => {
+  it("ROLE_BOUND and RELATIONSHIP_BOUND compile only the concrete fixed fact", () => {
     for (const [type, label] of [
-      ["role_bound", "고정 배경"],
-      ["relationship_bound", "고정 관계"],
+      ["role_bound", "사건 전제"],
+      ["relationship_bound", "고정된 관계"],
     ] as const) {
       const candidate = candidateOf(type);
       const rel = candidate.bible.userRelationship;
       const text = compileRelationStartDraft(candidate).sections.relationshipsAndDrives;
-      assert.ok(rel.fixedFacts && rel.userDecides, `${type} fixed/decides`);
+      assert.ok(rel.fixedFacts, `${type} fixedFacts`);
       assert.match(text, new RegExp(`${label}: `));
-      assert.match(text, /유저가 정하는 것: /);
-      assert.match(text, /성별/, `${type}: user gender stays free in the principle`);
+      assert.doesNotMatch(text, /유저가 정하는 것:|유저 관계 원칙:/);
       assert.equal(findForcedRelationOutcome([rel.fixedFacts ?? "", ...rel.progression, rel.startingPoint, rel.initialView]), null);
-      assert.doesNotMatch(text, FREE_PRINCIPLE_RE);
     }
-    const relationBound = compileRelationStartDraft(candidateOf("relationship_bound")).sections.relationshipsAndDrives;
-    assert.match(relationBound, /신뢰·호감·애정·화해의 결론이 아니다/);
   });
 
   it("a verbatim restatement of fixedFacts in the user-entry scene is dropped; other entries and legacy bibles are unchanged", () => {
@@ -158,11 +151,10 @@ describe("official bible V2: three start types", () => {
     }
   });
 
-  it("every progression names both a warming and a retreating condition, with no fixed-turn schedule", () => {
+  it("compiled relationship text does not list warming and retreating endings", () => {
     for (const candidate of candidates()) {
-      const joined = candidate.bible.userRelationship.progression.join("\n");
-      assert.match(joined, /신뢰|협력|가까워|화해|열/);
-      assert.match(joined, /멀어|제한|적대|결별|거리|이탈|회수|배신|의심/);
+      const text = compileRelationStartDraft(candidate).sections.relationshipsAndDrives;
+      assert.doesNotMatch(text, /관계 진행:|관계 변화 조건:|중기 갈등|장기 변화/);
       assert.equal(findForcedRelationOutcome(candidate.bible.userRelationship.progression), null);
     }
   });
@@ -183,7 +175,7 @@ describe("official bible V2: deterministic QA catches violations (negative contr
     assert.ok(codes(withRelation(free(), { fixedFacts: "두 사람은 어릴 적 같은 마을에서 자란 사이다." })).includes("bible_user_rel_free_fixed"));
     const empty = codes(withRelation(relationBound(), { fixedFacts: "", userDecides: "" }));
     assert.ok(empty.includes("bible_user_rel_fixed_missing"));
-    assert.ok(empty.includes("bible_user_rel_decides_missing"));
+    assert.equal(empty.includes("bible_user_rel_decides_missing"), false);
   });
 
   it("rejects an explicit invalid start type at the input boundary instead of demoting it to FREE", () => {
@@ -206,11 +198,11 @@ describe("official bible V2: deterministic QA catches violations (negative contr
     assert.ok(codes(forced).includes("bible_user_rel_forced_outcome"));
   });
 
-  it("rejects a one-directional progression", () => {
+  it("does not require a two-direction progression list", () => {
     const warmOnly = withRelation(free(), {
       progression: ["당신이 증거를 공유하면 신뢰가 쌓이고 협력이 깊어진다.", "당신이 곁에 머물면 호감이 커지고 의지하게 된다."],
     });
-    assert.ok(codes(warmOnly).includes("bible_progression_one_directional"));
+    assert.equal(codes(warmOnly).includes("bible_progression_one_directional"), false);
   });
 
   it("rejects a gendered user in the fixed facts", () => {
@@ -275,17 +267,18 @@ describe("official bible V2: 19-item checklist is a design aid, not output field
       "습관·비언어적 버릇": (b) => b.habits.habits[0],
       "능력·자원·한계": (b) => b.abilities[0]?.limit,
       "취미·기호·일상": (b) => b.habits.hobbies[0],
-      "유저에 대한 기본 인식": (b) => b.userRelationship.initialView,
-      "관계가 변하거나 물러서는 조건": (b) => b.userRelationship.progression.length >= 2,
       "사용자 없이도 스스로 하는 행동·선택": (b) => b.rpEngine.selfDrive?.ownMove,
-      "미해결 갈등과 성장·타락 가능성": (b) => b.rpEngine.mediumConflict && b.rpEngine.longTermChange,
     };
     for (const candidate of candidates()) {
       for (const [item, read] of Object.entries(owners)) {
         assert.ok(read(candidate.bible), `${candidate.key}: ${item}`);
       }
     }
-    assert.equal(Object.keys(owners).length + 3, ITEM_COUNT, "secrets, supporting characters and romance stay conditional");
+    assert.equal(
+      Object.keys(owners).length + 6,
+      ITEM_COUNT,
+      "user view, progression, secrets, supporting characters, unresolved conflict and romance stay optional"
+    );
   });
 
   it("the bonds user prompt sends only the planned type's rule, not all three", () => {
@@ -311,21 +304,24 @@ describe("official bible V2: 19-item checklist is a design aid, not output field
   });
 });
 
-describe("official bible V2: approved Lucian and the public Wolfgang sheet stay legacy", () => {
+describe("official bible V2: Lucian and Wolfgang omit user-relation essays", () => {
   for (const key of LEGACY_KEYS) {
-    it(`${key}: legacy bible has no V2 fields and still compiles to its stored Text Lock`, () => {
+    it(`${key}: compiled relationship text has no user-meta essay and matches the stored Text Lock`, () => {
       const stored = JSON.parse(fs.readFileSync(path.join(PILOT_DIR, "characters", `${key}.json`), "utf8")) as {
         bible: OfficialCharacterBible;
         draft: ReturnType<typeof compileOfficialDraftFromBible>;
       };
-      assert.equal(stored.bible.userRelationship.type, undefined);
-      assert.equal(stored.bible.rpEngine.selfDrive, undefined);
-      assert.equal(evaluateRelationBibleContract(stored.bible).errors.length, 0, "V2 contract is not applied to legacy bibles");
+      if (key === "pilot-rf-03") {
+        assert.equal(stored.bible.userRelationship.type, undefined);
+        assert.equal(stored.bible.rpEngine.selfDrive, undefined);
+      } else {
+        assert.equal(stored.bible.userRelationship.type, "role_bound");
+        assert.ok(stored.bible.rpEngine.selfDrive);
+      }
+      assert.equal(evaluateRelationBibleContract(stored.bible).errors.length, 0);
       const source = loadCompiledOfficialCharacterSource(key);
       const rel = source.draft.sections.relationshipsAndDrives;
-      assert.match(rel, FREE_PRINCIPLE_RE);
-      assert.equal(occurrences(rel, "유저 관계 원칙:"), 1);
-      assert.doesNotMatch(rel, /자기 추진|고정 배경:|고정 관계:|유저가 정하는 것:/);
+      assert.doesNotMatch(rel, /유저 관계 원칙:|유저가 정하는 것:|첫인식:|유저 역할:/);
       assert.equal(computeTextLockHash(source.draft), computeTextLockHash(stored.draft), `${key} Text Lock hash`);
     });
   }
@@ -358,12 +354,12 @@ describe("official bible V2: save and final RP wire carry the start type once, w
         ["selfDrive.goal", withoutEndStop(drive.goal)],
         ["selfDrive.ownMove", withoutEndStop(drive.ownMove)],
         ["selfDrive.setback", withoutEndStop(drive.setback)],
-        ["relationship progression", rel.progression[0]],
-        ...(type === "free" ? [] : ([["fixedFacts", rel.fixedFacts ?? ""], ["userDecides", rel.userDecides ?? ""]] as const)),
+        ...(type === "free" ? [] : ([["fixedFacts", rel.fixedFacts ?? ""]] as const)),
       ] as const) {
         assert.equal(occurrences(prompt, squash(text)), 1, `${type}: ${label} is injected exactly once`);
       }
-      assert.match(wire.systemPrompt, type === "free" ? FREE_PRINCIPLE_RE : /유저 관계 원칙: 아래 고정/);
+      if (type !== "free") assert.equal(occurrences(prompt, squash(rel.userDecides ?? "")), 0);
+      assert.doesNotMatch(wire.systemPrompt, /유저 관계 원칙:/);
     });
   }
 
@@ -372,7 +368,7 @@ describe("official bible V2: save and final RP wire carry the start type once, w
       const v2 = compileRelationStartDraft(candidate).sections.relationshipsAndDrives;
       const legacy = compileRelationStartDraft({ ...candidate, bible: withoutV2(candidate.bible) }).sections.relationshipsAndDrives;
       const delta = estimateTokens(v2) - estimateTokens(legacy);
-      assert.ok(delta > 0 && delta <= 450, `${candidate.key}: V2 adds ${delta} tokens to relationshipsAndDrives`);
+      assert.ok(delta <= 450, `${candidate.key}: V2 relationship delta ${delta} tokens`);
     }
   });
 });

@@ -26,7 +26,6 @@ import {
   computeAppearanceLockHash,
   renderAppearanceBlock,
 } from "@/lib/officialSupply/appearance";
-import { compileOfficialDraftFromBible } from "@/lib/officialSupply/bible";
 import {
   composeOfficialSystemPrompt,
   computeTextLockHash,
@@ -73,22 +72,10 @@ const PREVIOUS_SOURCE_FIXTURE = path.join(FIXTURE_DIR, "pilot-rf-02-approved-c91
 
 function previousLockDraft(): OfficialCharacterDraft {
   const file = JSON.parse(fs.readFileSync(PREVIOUS_SOURCE_FIXTURE, "utf8")) as {
-    draftKey: string;
-    bible: OfficialCharacterBible;
+    draft: OfficialCharacterDraft;
   };
-  const src = loadCompiledOfficialCharacterSource(SOURCE_KEY);
-  const compiled = compileOfficialDraftFromBible(file.bible, {
-    draftKey: file.draftKey,
-    worldKey: src.worldKey,
-    styleKey: src.draft.styleKey,
-    worldName: src.worldBible.name,
-    worldBible: src.worldBible,
-    hook: src.draft.hook,
-    genres: src.draft.genres,
-    audience: src.draft.audience,
-  });
   return {
-    ...compiled,
+    ...file.draft,
     draftKey: SUPPLY_KEY,
     styleKey: "romance_fantasy_v4",
   };

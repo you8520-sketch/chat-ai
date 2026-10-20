@@ -139,7 +139,8 @@ describe("official shared world owner — BEFORE vs AFTER", () => {
       personalSituation: file.bible.situation.personalSituation,
       userEntry: file.bible.situation.userEntry,
     });
-    assert.equal(LUCIAN_BEFORE_WORLD_PROJECTION, local);
+    assert.notEqual(local, LUCIAN_BEFORE_WORLD_PROJECTION);
+    assert.match(local, /기본 도입은 경보가 울린 증권거래소 지하 금고다/);
     assert.match(LUCIAN_BEFORE_WORLD_PROJECTION, /루시안은 메르카토르 골드 길드의 비밀 회계사/);
     assert.match(LUCIAN_BEFORE_WORLD_PROJECTION, /증권거래소 지하 금고에서 경보가 울린 순간/);
     assert.doesNotMatch(LUCIAN_BEFORE_WORLD_PROJECTION, /에테르노스 제국은/);

@@ -68,10 +68,7 @@ describe("official otherRelationships lorebook attach", () => {
     const authored = resolveOfficialCharacterLorebooks(source.sharedLorebook, file.characterLorebook);
     assert.equal(authored.length, 12);
     assert.equal(source.characterLorebook.some((entry) => entry.entryKey === "mercator_internal_dealings"), true);
-    assert.deepEqual(
-      file.bible.otherRelationships.map((rel) => rel.target),
-      ["에드릭", "테오", "노엘 벨로체"]
-    );
+    assert.deepEqual(file.bible.otherRelationships, []);
     assert.doesNotMatch(source.systemPrompt, /카엘룸|볼프강|율리우스|바스티안|세라피나|이노센트|에드릭|테오|노엘/);
   });
 
@@ -80,10 +77,27 @@ describe("official otherRelationships lorebook attach", () => {
     const dense = {
       ...file.bible,
       otherRelationships: [
-        ...file.bible.otherRelationships,
         {
           target: "볼프강 폰 발켄하임",
-          public: "북부 방벽의 군 지휘관. 필요한 군사 정보를 주고받는다.",
+          public: "북부 방벽의 군 지휘관. 마석 운송 장부를 놓고 조건을 흥정한다.",
+          privateOpinion: "",
+          hidden: "",
+        },
+        {
+          target: "카엘룸 폰 에테르노스",
+          public: "황실 유리온실의 관측 기록을 거래한 적이 있다.",
+          privateOpinion: "",
+          hidden: "",
+        },
+        {
+          target: "율리우스 클라인",
+          public: "학술원 금서의 반출 시각을 장부와 대조한다.",
+          privateOpinion: "",
+          hidden: "",
+        },
+        {
+          target: "바스티안 에반스",
+          public: "밸브 구역 청부의 대금과 퇴로를 중개한다.",
           privateOpinion: "",
           hidden: "",
         },
