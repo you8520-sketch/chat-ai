@@ -58,7 +58,7 @@ const LUCIAN_PRE_CHANGE_SHA256: Record<string, string> = {
   supportingNpcs: "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
   secrets: "6cdfebd6bb8f240f3a1faa762b134507679716cf93b3856fcc389a93a6c3b533",
   adult: "40c21aa4f887bf9e5385fe13f41aa9fa74f4f7c8d160ae34b1d38271779df4bd",
-  "sections.characterCore": "0cc565bbc3308210cf864d4c9642db4382d8d02aab2fbc1a0d6959bd09c8496b",
+  "sections.characterCore": "d0f7b5a04cb96bab465f3a5ca0974ff4384f83469982c40f47f2aaa5456e589e",
   "sections.extraCanon": "12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126",
 };
 

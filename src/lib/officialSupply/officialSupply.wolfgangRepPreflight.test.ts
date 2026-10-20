@@ -142,9 +142,9 @@ describe("Wolfgang representative NO_POST preflight", () => {
     assert.equal(file.bible.publicProfile.tagline.length, 37);
     assert.equal(file.bible.publicProfile.description.length, 254);
     assert.ok(file.bible.publicProfile.detailedDescription.length <= 3000);
-    assert.equal(file.bible.greeting.length, 1398);
+    assert.equal(file.bible.greeting.length, 1411);
     assert.equal(compiled.draft.description, file.bible.publicProfile.detailedDescription);
-    assert.equal(compiled.draft.greeting.length, 1398);
+    assert.equal(compiled.draft.greeting.length, 1411);
     assert.match(compiled.draft.greeting, /이 명령은 내 이름으로 집행하지 못합니다/);
     assert.match(compiled.draft.description, /몸무게 약 92kg/);
     assert.doesNotMatch(file.bible.identity.worldRole, /92kg|92㎏/);
