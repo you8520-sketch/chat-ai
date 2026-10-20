@@ -6361,6 +6361,7 @@ export default function ChatClient({
               insertDisabled={inputLocked}
               onInsert={requestShortcutInsert}
               onCloseFocus={() => inputRef.current?.focus()}
+              composerRef={inputRef}
             />
             <button
               type="button"
