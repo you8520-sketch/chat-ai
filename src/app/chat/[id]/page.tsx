@@ -18,7 +18,13 @@ import { collectUnlockedAssetUrlsFromMessages } from "@/lib/characterAssetUnlock
 import { projectAssetsForViewer } from "@/lib/mediaAccess";
 
 import { resolveClientAsyncRecordsFromMessageRow } from "@/lib/clientAsyncRecordRead";
-import { normalizeMessageVariants, serializeVariantsForClient, resolveActiveVariantContent } from "@/lib/messageAlternates";
+import { normalizeMessageVariants, serializeVariantsForClient } from "@/lib/messageAlternates";
+import { adultOffReadGuardAppliesForChat } from "@/lib/adultOffVisibleOutput";
+import { adultOffProofCarrier } from "@/lib/adultOffAuxApproval";
+import {
+  filterAdultOffStatusMeta,
+  presentAdultOffStoredRead,
+} from "@/lib/adultOffOutputGuard";
 import { resolveClientStatusMetaFlags } from "@/lib/statusMeta/displayPolicy";
 import {
   resolveClientSuggestedReplies,
@@ -315,25 +321,52 @@ export default async function ChatPage({
     )
   );
 
+  const adultOffReadGuard = adultOffReadGuardAppliesForChat({
+    user,
+    adultHandoffEnabled: chat.adult_handoff_enabled,
+  });
+
   const allMessages = rawMessages.map((m, idx) => {
     const { variants, activeVariant } = normalizeMessageVariants(m);
-    const variantMeta = serializeVariantsForClient(variants, activeVariant, {
-      keepInternalAdultRouting: showFullBillingReceipt,
-    });
     const rowUsage = m.usage ? (JSON.parse(m.usage) as Usage) : null;
     const activeUsage = variants[activeVariant]?.usage ?? rowUsage;
+    const { statusRecord, suggestedRepliesRecord } = resolveClientAsyncRecordsFromMessageRow(m);
+    const activeVariantSnapshot = variants[activeVariant];
+    const hasVariantStatusSnapshot = Object.prototype.hasOwnProperty.call(
+      activeVariantSnapshot ?? {},
+      "statusWidgetValues"
+    );
+    const storedStatusWidgetValues = hasVariantStatusSnapshot
+      ? (activeVariantSnapshot?.statusWidgetValues ?? null)
+      : parseStoredStatusWidgetValuesJson(m.status_widget_values_json);
+    const storedSuggested = resolveClientSuggestedReplies(suggestedRepliesRecord);
+    const applyAdultOffReadGuard = m.role === "assistant" && adultOffReadGuard;
+    const presented = presentAdultOffStoredRead({
+      applyGuard: applyAdultOffReadGuard,
+      rowContent: m.content,
+      variants,
+      activeVariant,
+      statusWidgetValues: storedStatusWidgetValues,
+      suggestedReplies: storedSuggested.suggestedReplies,
+      suggestedRepliesProof: adultOffProofCarrier(suggestedRepliesRecord?.adultOffGuard),
+    });
+    const variantMeta = serializeVariantsForClient(presented.variants, presented.activeVariant, {
+      keepInternalAdultRouting: showFullBillingReceipt,
+    });
     const oocFlags = readOocSceneClientFlags(activeUsage ?? rowUsage);
     const clientUsage = activeUsage
       ? serializeUsageForPublicClient(activeUsage, {
           keepInternal: showFullBillingReceipt,
         })
       : null;
-    const { statusRecord, suggestedRepliesRecord } = resolveClientAsyncRecordsFromMessageRow(m);
-    const activeContent = resolveActiveVariantContent({
-      content: m.content,
-      variants: variantMeta.variants,
-      activeVariant: variantMeta.activeVariant,
-    });
+    const activeContent = presented.content;
+    const suggestedRepliesFields = {
+      ...storedSuggested,
+      suggestedReplies: presented.suggestedReplies,
+      ...(presented.suggestedRepliesWithheld
+        ? { suggestedRepliesPending: false, suggestedRepliesFailed: true }
+        : {}),
+    };
     const pairedUserMessage =
       m.role === "assistant"
         ? [...rawMessages].slice(0, idx).reverse().find((row) => row.role === "user")?.content
@@ -351,15 +384,12 @@ export default async function ChatPage({
       markdownStatusWindowActive,
       statusWidgetActive,
     });
-    const activeVariantSnapshot = variants[activeVariant];
-    const hasVariantStatusSnapshot = Object.prototype.hasOwnProperty.call(
-      activeVariantSnapshot ?? {},
-      "statusWidgetValues"
+    const statusMeta = filterAdultOffStatusMeta(
+      applyAdultOffReadGuard,
+      activeUsage,
+      statusFlags.statusMeta,
+      adultOffProofCarrier(statusRecord?.adultOffGuard)
     );
-    const messageStatusWidgetValues = hasVariantStatusSnapshot
-      ? (activeVariantSnapshot?.statusWidgetValues ?? null)
-      : parseStoredStatusWidgetValuesJson(m.status_widget_values_json);
-    const suggestedRepliesFields = resolveClientSuggestedReplies(suggestedRepliesRecord);
     const billingChargeSummary =
       m.role === "assistant" &&
       shouldAttachClientBillingChargeSummary(activeUsage, m.generation_status)
@@ -391,12 +421,12 @@ export default async function ChatPage({
       variants: variantMeta.variants,
       activeVariant: variantMeta.activeVariant,
       variantCount: variantMeta.variantCount,
-      statusMeta: statusFlags.statusMeta,
+      statusMeta,
       statusMetaFormatSpec: statusRecord?.formatSpec ?? null,
       statusMetaPending: statusFlags.statusMetaPending,
       statusMetaRequested: statusFlags.statusMetaRequested,
       statusMetaFailed: statusFlags.statusMetaFailed,
-      statusWidgetValues: stripExtractedFactsForClient(messageStatusWidgetValues),
+      statusWidgetValues: stripExtractedFactsForClient(presented.statusWidgetValues),
       statusWidgetTurnActive: m.status_widget_turn_active === 1,
       ...suggestedRepliesFields,
       createdAt: m.created_at,

@@ -38,6 +38,7 @@ import {
   NumericHistoricalVariantReplayUnsupportedError,
   NumericVariantFrontierMovedError,
 } from "./types";
+import { AdultOffVariantUnapprovedError } from "@/lib/adultOffAuxApproval";
 
 type Db = Database.Database;
 
@@ -86,6 +87,11 @@ export type AtomicNumericVariantSwitchInput = {
   __testThrowAfterLtmInvalidate?: boolean;
   /** @internal test-only */
   __testThrowAfterLtmRebuild?: boolean;
+  /**
+   * 가드가 적용될 때만 라우트가 넘긴다.
+   * 숫자 투영과 본문 쓰기 전에, 트랜잭션이 읽은 variant가 승인되지 않으면 거절한다.
+   */
+  adultOffMayCommitVariant?: (variant: MessageVariant) => boolean;
 };
 
 export type AtomicNumericVariantSwitchApplied = {
@@ -212,6 +218,10 @@ export function executeAtomicNumericVariantSwitch(
       Number.isInteger(selected.generationSequence)
         ? selected.generationSequence
         : null;
+
+    if (input.adultOffMayCommitVariant && txnActive !== input.variantIndex && !input.adultOffMayCommitVariant(selected)) {
+      throw new AdultOffVariantUnapprovedError();
+    }
 
     if (txnActive === input.variantIndex) {
       return {

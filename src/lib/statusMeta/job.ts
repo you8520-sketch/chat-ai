@@ -7,7 +7,11 @@ import {
   resolveCurrentGenerationAsyncRecord,
   type AssistantGenerationScope,
 } from "@/lib/assistantGenerationScope";
-import { collectStatusMetaVisibleTexts } from "@/lib/adultOffOutputGuard";
+import type { AdultOffAuxApprovalProof } from "@/lib/adultOffAuxApproval";
+import {
+  adultOffApprovalProofForTexts,
+  collectStatusMetaVisibleTexts,
+} from "@/lib/adultOffOutputGuard";
 import {
   adultOffVisibleSurfaceNeedsReview,
   reviewAdultOffVisibleSurface,
@@ -155,7 +159,8 @@ function writeMeta(
   scope: AssistantGenerationScope,
   meta: StatusMeta,
   formatSpec?: string | null,
-  failed = false
+  failed = false,
+  approval?: AdultOffAuxApprovalProof
 ): void {
   const db = getDb();
   if (!isCurrentAssistantGeneration(scope, db)) {
@@ -176,6 +181,7 @@ function writeMeta(
     formatSpec: formatSpec ?? null,
     generationSequence: scope.generationSequence,
     generationRequestId: scope.generationRequestId,
+    ...(approval ? { adultOffGuard: approval } : {}),
   };
   db.prepare("UPDATE messages SET status_meta=? WHERE id=?").run(
     serializeStatusMetaRecord(record),
@@ -332,9 +338,9 @@ async function statusMetaMayBeExposed(
     generationScope: AssistantGenerationScope;
   },
   meta: StatusMeta
-): Promise<boolean> {
+): Promise<{ deliver: boolean; proof?: AdultOffAuxApprovalProof }> {
   const texts = collectStatusMetaVisibleTexts(meta);
-  if (!texts.length) return true;
+  if (!texts.length) return { deliver: true };
   try {
     const review = await reviewAdultOffVisibleSurface({
       chatId: opts.chatId,
@@ -344,10 +350,16 @@ async function statusMetaMayBeExposed(
       stage: "status_meta",
       texts,
     });
-    return review.deliver;
+    return {
+      deliver: review.deliver,
+      proof:
+        review.deliver && review.record?.status === "approved"
+          ? adultOffApprovalProofForTexts(texts)
+          : undefined,
+    };
   } catch (error) {
     console.error("[STATUS-META-ERROR] adult-off review failed", (error as Error).message);
-    return false;
+    return { deliver: false };
   }
 }
 
@@ -420,7 +432,16 @@ export function scheduleStatusMetaExtraction(opts: {
     };
     if (opts.adultOffDelivery === "approved" || !adultOffVisibleSurfaceNeedsReview(opts.chatId)) {
       try {
-        writeMeta(opts.messageId, opts.generationScope, meta, formatSpec, false);
+        writeMeta(
+          opts.messageId,
+          opts.generationScope,
+          meta,
+          formatSpec,
+          false,
+          opts.adultOffDelivery === "approved"
+            ? adultOffApprovalProofForTexts(collectStatusMetaVisibleTexts(meta))
+            : undefined
+        );
       } catch (e) {
         console.error("[STATUS-META-ERROR] prefilled table write failed", (e as Error).message);
       } finally {
@@ -430,13 +451,14 @@ export function scheduleStatusMetaExtraction(opts: {
     }
     void (async () => {
       try {
-        const deliver = await statusMetaMayBeExposed(opts, meta);
+        const exposure = await statusMetaMayBeExposed(opts, meta);
         writeMeta(
           opts.messageId,
           opts.generationScope,
-          deliver ? meta : { ...EMPTY_STATUS_META },
+          exposure.deliver ? meta : { ...EMPTY_STATUS_META },
           formatSpec,
-          false
+          false,
+          exposure.proof
         );
       } catch (e) {
         console.error("[STATUS-META-ERROR] prefilled table write failed", (e as Error).message);
@@ -456,10 +478,17 @@ export function scheduleStatusMetaExtraction(opts: {
   void (async () => {
     try {
       const meta = await runStatusMetaExtraction(opts);
-      const deliver = await statusMetaMayBeExposed(opts, meta);
-      const exposed = deliver ? meta : { ...EMPTY_STATUS_META };
-      const ok = deliver && statusMetaHasDisplayContent(exposed, formatSpec);
-      writeMeta(opts.messageId, opts.generationScope, exposed, formatSpec, !ok);
+      const exposure = await statusMetaMayBeExposed(opts, meta);
+      const exposed = exposure.deliver ? meta : { ...EMPTY_STATUS_META };
+      const ok = exposure.deliver && statusMetaHasDisplayContent(exposed, formatSpec);
+      writeMeta(
+        opts.messageId,
+        opts.generationScope,
+        exposed,
+        formatSpec,
+        !ok,
+        exposure.proof
+      );
       if (!ok) {
         console.error("[STATUS-META-ERROR] extraction finished without displayable meta", {
           messageId: opts.messageId,

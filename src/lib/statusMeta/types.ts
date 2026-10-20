@@ -1,5 +1,7 @@
 /** Server-side status window — extracted async, never model-generated */
 
+import { parseAdultOffAuxApproval, type AdultOffAuxApprovalProof } from "@/lib/adultOffAuxApproval";
+
 export type StatusMeta = {
 
   /** User formatSpec template — filled pipe-table markdown */
@@ -52,6 +54,9 @@ export type StatusMetaRecord = {
   generationSequence?: number;
 
   generationRequestId?: string | null;
+
+  /** 현재 정책에서 이 레코드의 표시 문자열을 승인했을 때만 남긴다. */
+  adultOffGuard?: AdultOffAuxApprovalProof;
 
 };
 
@@ -135,6 +140,8 @@ export function parseStatusMetaRecord(raw: string | null | undefined): StatusMet
 
     if (!parsed || typeof parsed !== "object") return null;
 
+    const adultOffGuard = parseAdultOffAuxApproval(parsed.adultOffGuard);
+
     return {
 
       meta: normalizeStatusMeta(parsed.meta ?? parsed),
@@ -162,6 +169,8 @@ export function parseStatusMetaRecord(raw: string | null | undefined): StatusMet
 
       generationRequestId:
         typeof parsed.generationRequestId === "string" ? parsed.generationRequestId : null,
+
+      ...(adultOffGuard ? { adultOffGuard } : {}),
 
     };
 

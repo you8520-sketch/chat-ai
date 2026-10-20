@@ -1268,10 +1268,16 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
       const api = await harness.getMessageApi(row.id);
       assert.equal(api.status, 200);
       assert.match(api.json.content ?? "", /손을 잡고/);
-      assert.ok(
-        api.raw.includes(RESTRICT_MARK),
-        "message API still returns the stored alternate; this revision does not rewrite that read contract"
-      );
+      assert.equal(api.json.activeVariant, (api.json.variantCount ?? 0) - 1);
+      assert.ok(api.raw.includes("입을 맞추고"), "the approved previous variant stays readable");
+      assert.ok(!api.raw.includes(RESTRICT_MARK), "unreviewed stored alternate is withheld on read");
+      const storedAfter = harness.db()
+        .prepare("SELECT content, alternates, usage FROM messages WHERE id=?")
+        .get(row.id) as { content: string; alternates: string; usage: string | null };
+      assert.ok(storedAfter.alternates.includes(RESTRICT_MARK), "stored original stays");
+      assert.ok(storedAfter.alternates.includes("입을 맞추고"));
+      assert.ok(!storedAfter.content.includes(RESTRICT_MARK));
+      assert.ok(storedAfter.usage);
     });
   });
 });

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   ADULT_OFF_CLASSIFIER_SYSTEM_PROMPT,
+  ADULT_OFF_GUARD_POLICY_VERSION,
   AdultOffClassifierCallError,
   AdultOffClassifierOutputError,
   buildAdultOffClassifierUserMessage,
@@ -567,7 +568,12 @@ describe("adult-off hold gate", () => {
       [
         {
           content: previous,
-          usage: { adultOffGuard: { approvedTextHashes: [adultOffApprovedTextHash(previous)] } },
+          usage: {
+            adultOffGuard: {
+              policyVersion: ADULT_OFF_GUARD_POLICY_VERSION,
+              approvedTextHashes: [adultOffApprovedTextHash(previous)],
+            },
+          },
           statusWidgetValues: { character: { 장소: "창가" } },
         },
         { content: unproven, usage: { cost: 1 } },
@@ -598,7 +604,13 @@ describe("adult-off hold gate", () => {
 describe("adult-off stored approval proof", () => {
   it("accepts only a stored hash of the exact text", () => {
     const text = "그는 동의한 것이 아니었다.";
-    const usage = { adultOffGuard: { finalStatus: "approved", approvedTextHashes: [adultOffApprovedTextHash(text)] } };
+    const usage = {
+      adultOffGuard: {
+        policyVersion: ADULT_OFF_GUARD_POLICY_VERSION,
+        finalStatus: "approved",
+        approvedTextHashes: [adultOffApprovedTextHash(text)],
+      },
+    };
     assert.equal(adultOffStoredUsageApprovesText(usage, text), true);
     assert.equal(adultOffStoredUsageApprovesText(usage, "그는 동의한 것이었다."), false);
     assert.equal(

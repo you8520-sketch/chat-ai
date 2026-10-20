@@ -26,6 +26,7 @@ import {
   NumericHistoricalVariantReplayUnsupportedError,
   NumericVariantFrontierMovedError,
 } from "@/lib/rpNumericState/types";
+import { AdultOffVariantUnapprovedError } from "@/lib/adultOffAuxApproval";
 
 type Db = Database.Database;
 
@@ -61,6 +62,11 @@ export type AtomicNonnumericVariantSwitchInput = {
   __testThrowAfterS4Activation?: boolean;
   /** @internal test-only */
   __testThrowAfterS4Reprojection?: boolean;
+  /**
+   * 가드가 적용될 때만 라우트가 넘긴다.
+   * 트랜잭션 안에서 선택된 variant가 승인되지 않으면 본문을 쓰기 전에 거절한다.
+   */
+  adultOffMayCommitVariant?: (variant: MessageVariant) => boolean;
 };
 
 export type AtomicNonnumericVariantSwitchApplied = {
@@ -175,6 +181,10 @@ export function executeAtomicNonnumericVariantSwitch(
         canonicalVariants: txnVariants,
         sourceTurn,
       };
+    }
+
+    if (input.adultOffMayCommitVariant && !input.adultOffMayCommitVariant(selected)) {
+      throw new AdultOffVariantUnapprovedError();
     }
 
     const laterCanonical = hasLaterCanonicalTurn(db, input.chatId, input.messageId);

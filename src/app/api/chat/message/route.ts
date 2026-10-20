@@ -6,7 +6,6 @@ import { assertMessageAccess } from "@/lib/chatAccess";
 import {
   editedMessageVariant,
   normalizeMessageVariants,
-  resolveActiveVariantContent,
   serializeVariantsForClient,
 } from "@/lib/messageAlternates";
 import {
@@ -32,6 +31,9 @@ import {
 } from "@/lib/statusWindowNotePolicy";
 import type { Usage } from "@/lib/chatUsage";
 import { readOocSceneClientFlags } from "@/lib/oocSceneRender";
+import { adultOffProofCarrier } from "@/lib/adultOffAuxApproval";
+import { adultOffReadGuardAppliesForChat } from "@/lib/adultOffVisibleOutput";
+import { presentAdultOffStoredRead } from "@/lib/adultOffOutputGuard";
 import { evaluateStatusWidgetTriggersBestEffort } from "@/lib/statusWidgetTriggers";
 import {
   executeAtomicManualEditCore,
@@ -87,7 +89,8 @@ export async function GET(req: Request) {
       `SELECT m.id, m.chat_id, m.role, m.content, m.model, m.usage, m.alternates, m.active_variant,
               m.status_meta, m.status_widget_values_json, m.status_widget_turn_active,
               m.suggested_replies_json,
-              m.generation_status, m.request_id, m.user_message_id, c.user_note
+              m.generation_status, m.request_id, m.user_message_id, c.user_note,
+              c.adult_handoff_enabled
        FROM messages m
        JOIN chats c ON c.id = m.chat_id
        WHERE m.id=? AND c.user_id=? AND m.role='assistant'`
@@ -110,6 +113,7 @@ export async function GET(req: Request) {
         request_id: string | null;
         user_message_id: number | null;
         user_note: string | null;
+        adult_handoff_enabled: number | null;
       }
     | undefined;
 
@@ -119,23 +123,48 @@ export async function GET(req: Request) {
 
   const keepInternalAdultRouting = keepInternalAdultRoutingForUser(user);
   const { variants, activeVariant } = normalizeMessageVariants(row);
-  const variantMeta = serializeVariantsForClient(variants, activeVariant, {
-    keepInternalAdultRouting,
-  });
   const rowUsage = row.usage ? (JSON.parse(row.usage) as Usage) : null;
   const activeUsage = variants[activeVariant]?.usage ?? rowUsage;
+  const { statusRecord, suggestedRepliesRecord } = resolveClientAsyncRecordsFromMessageRow(row);
+  const activeVariantSnapshot = variants[activeVariant];
+  const hasVariantStatusSnapshot = Object.prototype.hasOwnProperty.call(
+    activeVariantSnapshot ?? {},
+    "statusWidgetValues"
+  );
+  const storedStatusWidgetValues = hasVariantStatusSnapshot
+    ? (activeVariantSnapshot?.statusWidgetValues ?? null)
+    : parseStoredStatusWidgetValuesJson(row.status_widget_values_json);
+  const storedSuggested = resolveClientSuggestedReplies(suggestedRepliesRecord);
+  const applyAdultOffReadGuard = adultOffReadGuardAppliesForChat({
+    user,
+    adultHandoffEnabled: row.adult_handoff_enabled,
+  });
+  const presented = presentAdultOffStoredRead({
+    applyGuard: applyAdultOffReadGuard,
+    rowContent: row.content,
+    variants,
+    activeVariant,
+    statusWidgetValues: storedStatusWidgetValues,
+    suggestedReplies: storedSuggested.suggestedReplies,
+    suggestedRepliesProof: adultOffProofCarrier(suggestedRepliesRecord?.adultOffGuard),
+  });
+  const variantMeta = serializeVariantsForClient(presented.variants, presented.activeVariant, {
+    keepInternalAdultRouting,
+  });
   const oocFlags = readOocSceneClientFlags(activeUsage ?? rowUsage);
   const clientUsage = activeUsage
     ? serializeUsageForPublicClient(activeUsage, {
         keepInternal: keepInternalAdultRouting,
       })
     : null;
-  const activeContent = resolveActiveVariantContent({
-    content: row.content,
-    variants: variantMeta.variants,
-    activeVariant: variantMeta.activeVariant,
-  });
-  const { statusRecord, suggestedRepliesRecord } = resolveClientAsyncRecordsFromMessageRow(row);
+  const activeContent = presented.content;
+  const suggestedRepliesFields = {
+    ...storedSuggested,
+    suggestedReplies: presented.suggestedReplies,
+    ...(presented.suggestedRepliesWithheld
+      ? { suggestedRepliesPending: false, suggestedRepliesFailed: true }
+      : {}),
+  };
   const markdownStatusWindowActive = row.user_note
     ? markdownPipeTableStatusWindowActive(resolveUserNoteStatusWindowPolicy(row.user_note))
     : false;
@@ -145,15 +174,6 @@ export async function GET(req: Request) {
     userNote: row.user_note ?? undefined,
     markdownStatusWindowActive,
   });
-  const activeVariantSnapshot = variants[activeVariant];
-  const hasVariantStatusSnapshot = Object.prototype.hasOwnProperty.call(
-    activeVariantSnapshot ?? {},
-    "statusWidgetValues"
-  );
-  const messageStatusWidgetValues = hasVariantStatusSnapshot
-    ? (activeVariantSnapshot?.statusWidgetValues ?? null)
-    : parseStoredStatusWidgetValuesJson(row.status_widget_values_json);
-  const suggestedRepliesFields = resolveClientSuggestedReplies(suggestedRepliesRecord);
 
   return NextResponse.json({
     messageId: row.id,
@@ -165,7 +185,7 @@ export async function GET(req: Request) {
     variants: variantMeta.variants,
     activeVariant: variantMeta.activeVariant,
     variantCount: variantMeta.variantCount,
-    statusWidgetValues: stripExtractedFactsForClient(messageStatusWidgetValues),
+    statusWidgetValues: stripExtractedFactsForClient(presented.statusWidgetValues),
     statusWidgetTurnActive: row.status_widget_turn_active === 1,
     statusMetaPending: statusFlags.statusMetaPending,
     statusMetaRequested: statusFlags.statusMetaRequested,

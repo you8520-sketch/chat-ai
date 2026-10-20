@@ -7,6 +7,13 @@ import {
 } from "@/lib/assistantGenerationScope";
 import { loadMessageSuggestedReplies } from "@/lib/suggestedReplies/job";
 import { resolveClientSuggestedReplies } from "@/lib/suggestedReplies/parse";
+import { adultOffProofCarrier } from "@/lib/adultOffAuxApproval";
+import { adultOffReadGuardAppliesForChat } from "@/lib/adultOffVisibleOutput";
+import {
+  adultOffActiveVariantUsage,
+  adultOffStoredTextDisposition,
+  collectSuggestedReplyVisibleTexts,
+} from "@/lib/adultOffOutputGuard";
 
 /** Pure read/poll — never starts provider inference. */
 export async function GET(req: Request) {
@@ -22,12 +29,23 @@ export async function GET(req: Request) {
   const db = getDb();
   const row = db
     .prepare(
-      `SELECT m.suggested_replies_json, m.chat_id FROM messages m
-       JOIN chats c ON c.id = m.chat_id
-       WHERE m.id=? AND c.user_id=? AND m.role='assistant'`
+      `SELECT m.suggested_replies_json, m.chat_id, m.content, m.model, m.usage, m.alternates,
+              m.active_variant, c.adult_handoff_enabled
+         FROM messages m
+         JOIN chats c ON c.id = m.chat_id
+        WHERE m.id=? AND c.user_id=? AND m.role='assistant'`
     )
     .get(messageId, user.id) as
-    | { suggested_replies_json: string | null; chat_id: number }
+    | {
+        suggested_replies_json: string | null;
+        chat_id: number;
+        content: string;
+        model: string | null;
+        usage: string | null;
+        alternates: string | null;
+        active_variant: number | null;
+        adult_handoff_enabled: number | null;
+      }
     | undefined;
 
   if (!row) {
@@ -40,14 +58,30 @@ export async function GET(req: Request) {
     activeScope && asyncRecordMatchesGenerationScope(rawRecord, activeScope) ? rawRecord : null;
 
   const client = resolveClientSuggestedReplies(record);
+  const applyGuard = adultOffReadGuardAppliesForChat({
+    user,
+    adultHandoffEnabled: row.adult_handoff_enabled,
+  });
+  const replyTexts = collectSuggestedReplyVisibleTexts(client.suggestedReplies);
+  const proofs = [
+    adultOffActiveVariantUsage(row),
+    adultOffProofCarrier(record?.adultOffGuard),
+  ];
+  const repliesApproved =
+    !applyGuard ||
+    client.suggestedRepliesPending ||
+    replyTexts.every((text) =>
+      proofs.some((proof) => adultOffStoredTextDisposition(proof, text) === "approved")
+    );
+  const withheld = applyGuard && !client.suggestedRepliesPending && !repliesApproved;
 
   return NextResponse.json({
     messageId,
     chatId: row.chat_id,
     requested: client.suggestedRepliesRequested,
-    pending: client.suggestedRepliesPending,
-    failed: client.suggestedRepliesFailed,
-    replies: client.suggestedRepliesPending ? [] : client.suggestedReplies,
+    pending: withheld ? false : client.suggestedRepliesPending,
+    failed: withheld ? true : client.suggestedRepliesFailed,
+    replies: client.suggestedRepliesPending || withheld ? [] : client.suggestedReplies,
     extractedAt: record?.extractedAt ?? null,
   });
 }

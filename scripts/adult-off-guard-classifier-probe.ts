@@ -26,8 +26,11 @@ async function main(): Promise<void> {
   if (!process.env.CHEAPER_INFERENCE_API_KEY?.trim()) {
     throw new Error("CHEAPER_INFERENCE_API_KEY is required for the live classifier probe");
   }
-  const { classifyAdultOffWindow, ADULT_OFF_CLASSIFIER_MODEL } = await import(
+  const { createAdultOffClassifier, ADULT_OFF_CLASSIFIER_MODEL } = await import(
     "../src/lib/adultOffOutputClassifier"
+  );
+  const { ADULT_OFF_CLASSIFIER_SYSTEM_PROMPT, ADULT_OFF_GUARD_POLICY_VERSION } = await import(
+    "../src/lib/adultOffOutputGuard"
   );
   let usdKrw = Number(process.env.PROBE_USD_KRW ?? "");
   if (!(usdKrw > 0)) {
@@ -48,7 +51,13 @@ async function main(): Promise<void> {
     }
     const startedAt = Date.now();
     try {
-      const result = await classifyAdultOffWindow(sample.text);
+      const classify = createAdultOffClassifier({
+        chatId: 0,
+        assistantMessageId: 0,
+        generationSequence: 0,
+        generationRequestId: `adult-off-probe-${sample.id}`,
+      });
+      const result = await classify(sample.text);
       const costKrw = (result.usage.costUsd ?? 0) * effective;
       spentKrw += costKrw;
       rows.push({
@@ -56,6 +65,7 @@ async function main(): Promise<void> {
         group: sample.group,
         expected: sample.expected,
         note: sample.note,
+        text: sample.text,
         textChars: sample.text.length,
         verdict: result.verdict,
         match: result.verdict.decision === sample.expected,
@@ -68,6 +78,8 @@ async function main(): Promise<void> {
         id: sample.id,
         group: sample.group,
         expected: sample.expected,
+        note: sample.note,
+        text: sample.text,
         textChars: sample.text.length,
         error: error instanceof Error ? error.message.slice(0, 200) : String(error),
         wallMs: Date.now() - startedAt,
@@ -80,7 +92,10 @@ async function main(): Promise<void> {
   const latencies = scored.map((row) => Number(row.wallMs)).sort((a, b) => a - b);
   const report = {
     model: ADULT_OFF_CLASSIFIER_MODEL,
+    policyVersion: ADULT_OFF_GUARD_POLICY_VERSION,
+    promptChars: ADULT_OFF_CLASSIFIER_SYSTEM_PROMPT.length,
     usdKrwEffective: effective,
+    qualityScore: null,
     samples: ADULT_OFF_PROBE_SAMPLES.length,
     scored: scored.length,
     errors: rows.filter((row) => "error" in row).length,

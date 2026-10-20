@@ -1,3 +1,4 @@
+import { parseAdultOffAuxApproval } from "@/lib/adultOffAuxApproval";
 import {
   EMPTY_SUGGESTED_REPLIES_CLIENT,
   SUGGESTED_REPLY_COUNT,
@@ -303,12 +304,18 @@ export function parseSuggestedRepliesRecord(
             : undefined,
     };
 
+    const adultOffGuard = parseAdultOffAuxApproval(
+      (parsed as { adultOffGuard?: unknown }).adultOffGuard
+    );
+    const approvalFields = adultOffGuard ? { adultOffGuard } : {};
+
     if (storedRepliesHaveStaleLegacyKinds(rawReplies)) {
       return {
         replies: [],
         ...baseFields,
         pending: false,
         failed: true,
+        ...approvalFields,
       };
     }
 
@@ -321,6 +328,7 @@ export function parseSuggestedRepliesRecord(
       ...(parsed.terminalReason === "original_turn_ineligible"
         ? { terminalReason: parsed.terminalReason }
         : {}),
+      ...approvalFields,
     };
   } catch {
     return null;

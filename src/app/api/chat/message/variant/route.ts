@@ -5,7 +5,14 @@ import { assertMessageAccess } from "@/lib/chatAccess";
 import {
   normalizeMessageVariants,
   serializeVariantsForClient,
+  type MessageVariant,
 } from "@/lib/messageAlternates";
+import { AdultOffVariantUnapprovedError } from "@/lib/adultOffAuxApproval";
+import { adultOffReadGuardAppliesForChat } from "@/lib/adultOffVisibleOutput";
+import {
+  adultOffStoredVariantMayBecomeCanonical,
+  presentAdultOffStoredRead,
+} from "@/lib/adultOffOutputGuard";
 import {
   keepInternalAdultRoutingForUser,
   serializeUsageForPublicClient,
@@ -38,6 +45,43 @@ import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
 import { isCanonAdoptedScene, OOC_CANON_ADOPTION_COPY } from "@/lib/oocSceneRender";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
 import { resolveMemoryTier } from "@/lib/memory/memory-manager";
+
+function variantSwitchClientPayload(input: {
+  applyGuard: boolean;
+  variants: MessageVariant[];
+  activeVariant: number;
+  keepInternalAdultRouting: boolean;
+}) {
+  const selected = input.variants[input.activeVariant];
+  const usage = selected?.usage
+    ? serializeUsageForPublicClient(selected.usage, {
+        keepInternal: input.keepInternalAdultRouting,
+      })
+    : null;
+  if (!input.applyGuard || !selected) {
+    return {
+      ...serializeVariantsForClient(input.variants, input.activeVariant, {
+        keepInternalAdultRouting: input.keepInternalAdultRouting,
+      }),
+      content: selected?.content ?? "",
+      usage,
+    };
+  }
+  const presented = presentAdultOffStoredRead({
+    applyGuard: true,
+    rowContent: selected.content,
+    variants: input.variants,
+    activeVariant: input.activeVariant,
+    statusWidgetValues: selected.statusWidgetValues ?? null,
+  });
+  return {
+    ...serializeVariantsForClient(presented.variants, presented.activeVariant, {
+      keepInternalAdultRouting: input.keepInternalAdultRouting,
+    }),
+    content: presented.content,
+    usage,
+  };
+}
 
 /** 재생성 버전 선택 — ACTIVE SELECTED VARIANT == CANONICAL WORLDLINE */
 export async function PATCH(req: Request) {
@@ -101,19 +145,37 @@ export async function PATCH(req: Request) {
   // Numeric path MUST enter BEGIN IMMEDIATE — never trust pre-txn same-active.
   // Nonnumeric keeps the cheap same-active early return.
   const keepInternalAdultRouting = keepInternalAdultRoutingForUser(user);
+  const adultRow = db
+    .prepare("SELECT adult_handoff_enabled FROM chats WHERE id=?")
+    .get(msg.chat_id) as { adult_handoff_enabled: number | null } | undefined;
+  const applyAdultOffReadGuard = adultOffReadGuardAppliesForChat({
+    user,
+    adultHandoffEnabled: adultRow?.adult_handoff_enabled,
+  });
+  if (
+    applyAdultOffReadGuard &&
+    !adultOffStoredVariantMayBecomeCanonical(variants[variantIndex])
+  ) {
+    return NextResponse.json(
+      {
+        error: new AdultOffVariantUnapprovedError().message,
+        code: "adult_off_variant_unapproved",
+      },
+      { status: 409 }
+    );
+  }
+  const adultOffMayCommitVariant = applyAdultOffReadGuard
+    ? adultOffStoredVariantMayBecomeCanonical
+    : undefined;
   if (variantIndex === activeVariant && !numericEligible) {
-    const current = variants[activeVariant];
     return NextResponse.json({
       ok: true,
-      ...serializeVariantsForClient(variants, activeVariant, {
+      ...variantSwitchClientPayload({
+        applyGuard: applyAdultOffReadGuard,
+        variants,
+        activeVariant,
         keepInternalAdultRouting,
       }),
-      content: current.content,
-      usage: current.usage
-        ? serializeUsageForPublicClient(current.usage, {
-            keepInternal: keepInternalAdultRouting,
-          })
-        : null,
     });
   }
 
@@ -158,6 +220,7 @@ export async function PATCH(req: Request) {
         messageId,
         variantIndex,
         characterWidget,
+        adultOffMayCommitVariant,
         memory: {
           enabled: isMemoryFeatureEnabled(),
           tier: resolveMemoryTier(user),
@@ -201,6 +264,9 @@ export async function PATCH(req: Request) {
           { status: 409 }
         );
       }
+      if (e instanceof AdultOffVariantUnapprovedError) {
+        return NextResponse.json({ error: e.message, code: e.code }, { status: 409 });
+      }
       if (e instanceof S4VariantProvenanceInvalidError) {
         return NextResponse.json(
           {
@@ -223,7 +289,6 @@ export async function PATCH(req: Request) {
     // HTTP RESPONSE == COMMITTED DB CANONICAL STATE
     const responseVariants = atomicResult.canonicalVariants;
     const responseActive = atomicResult.activeVariant;
-    const responseSelected = responseVariants[responseActive]!;
 
     if (atomicResult.kind === "APPLIED") {
       recordPreferenceEvent({
@@ -262,15 +327,12 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json({
       ok: true,
-      ...serializeVariantsForClient(responseVariants, responseActive, {
+      ...variantSwitchClientPayload({
+        applyGuard: applyAdultOffReadGuard,
+        variants: responseVariants,
+        activeVariant: responseActive,
         keepInternalAdultRouting,
       }),
-      content: responseSelected.content,
-      usage: responseSelected.usage
-        ? serializeUsageForPublicClient(responseSelected.usage, {
-            keepInternal: keepInternalAdultRouting,
-          })
-        : null,
     });
   }
 
@@ -283,6 +345,7 @@ export async function PATCH(req: Request) {
       userId: msg.user_id,
       messageId,
       variantIndex,
+      adultOffMayCommitVariant,
     });
   } catch (e) {
     if (e instanceof NumericVariantFrontierMovedError) {
@@ -311,6 +374,9 @@ export async function PATCH(req: Request) {
         },
         { status: 409 }
       );
+    }
+    if (e instanceof AdultOffVariantUnapprovedError) {
+      return NextResponse.json({ error: e.message, code: e.code }, { status: 409 });
     }
     console.error(
       "[DerivedState] atomic nonnumeric variant switch failed:",
@@ -363,14 +429,11 @@ export async function PATCH(req: Request) {
 
   return NextResponse.json({
     ok: true,
-    ...serializeVariantsForClient(responseVariants, responseActive, {
+    ...variantSwitchClientPayload({
+      applyGuard: applyAdultOffReadGuard,
+      variants: responseVariants,
+      activeVariant: responseActive,
       keepInternalAdultRouting,
     }),
-    content: responseSelected.content,
-    usage: responseSelected.usage
-      ? serializeUsageForPublicClient(responseSelected.usage, {
-          keepInternal: keepInternalAdultRouting,
-        })
-      : null,
   });
 }

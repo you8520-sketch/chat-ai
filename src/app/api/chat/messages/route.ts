@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { filterOutMessageIds, purgeOrphanUserMessages } from "@/lib/chatMessageHygiene";
-import { normalizeMessageVariants, serializeVariantsForClient, resolveActiveVariantContent } from "@/lib/messageAlternates";
+import { normalizeMessageVariants, serializeVariantsForClient } from "@/lib/messageAlternates";
 import { resolveClientStatusMetaFlags } from "@/lib/statusMeta/displayPolicy";
 import {
   resolveClientSuggestedReplies,
@@ -30,6 +30,12 @@ import { getReportStatusesForMessages } from "@/lib/refund";
 import { shouldAttachClientBillingChargeSummary } from "@/lib/clientBillingChargeSummary";
 import { buildUserMessageBillingSummary } from "@/lib/messageBillingSummaryServer";
 import { collectStaleOocAdoptionIds, readOocSceneClientFlags } from "@/lib/oocSceneRender";
+import { adultOffReadGuardAppliesForChat } from "@/lib/adultOffVisibleOutput";
+import { adultOffProofCarrier } from "@/lib/adultOffAuxApproval";
+import {
+  filterAdultOffStatusMeta,
+  presentAdultOffStoredRead,
+} from "@/lib/adultOffOutputGuard";
 
 type DbMessageRow = {
   id: number;
@@ -55,26 +61,48 @@ function mapDbMessageForClient(
   userNote?: string,
   reportStatus: "none" | "pending" | "approved" | "rejected" = "none",
   keepInternalAdultRouting = false,
-  billingContext?: { userId: number; chatId: number }
+  billingContext?: { userId: number; chatId: number },
+  applyAdultOffReadGuard = false
 ) {
   const { variants, activeVariant } = normalizeMessageVariants(m);
-  const variantMeta = serializeVariantsForClient(variants, activeVariant, {
-    keepInternalAdultRouting,
-  });
   const rowUsage = m.usage ? (JSON.parse(m.usage) as Usage) : null;
   const activeUsage = variants[activeVariant]?.usage ?? rowUsage;
+  const { statusRecord, suggestedRepliesRecord } = resolveClientAsyncRecordsFromMessageRow(m);
+  const activeVariantSnapshot = variants[activeVariant];
+  const hasVariantStatusSnapshot = Object.prototype.hasOwnProperty.call(
+    activeVariantSnapshot ?? {},
+    "statusWidgetValues"
+  );
+  const storedStatusWidgetValues = hasVariantStatusSnapshot
+    ? (activeVariantSnapshot?.statusWidgetValues ?? null)
+    : parseStoredStatusWidgetValuesJson(m.status_widget_values_json);
+  const storedSuggested = resolveClientSuggestedReplies(suggestedRepliesRecord);
+  const presented = presentAdultOffStoredRead({
+    applyGuard: m.role === "assistant" && applyAdultOffReadGuard,
+    rowContent: m.content,
+    variants,
+    activeVariant,
+    statusWidgetValues: storedStatusWidgetValues,
+    suggestedReplies: storedSuggested.suggestedReplies,
+    suggestedRepliesProof: adultOffProofCarrier(suggestedRepliesRecord?.adultOffGuard),
+  });
+  const variantMeta = serializeVariantsForClient(presented.variants, presented.activeVariant, {
+    keepInternalAdultRouting,
+  });
   const oocFlags = readOocSceneClientFlags(activeUsage ?? rowUsage);
   const clientUsage = activeUsage
     ? serializeUsageForPublicClient(activeUsage, {
         keepInternal: keepInternalAdultRouting,
       })
     : null;
-  const { statusRecord, suggestedRepliesRecord } = resolveClientAsyncRecordsFromMessageRow(m);
-  const activeContent = resolveActiveVariantContent({
-    content: m.content,
-    variants: variantMeta.variants,
-    activeVariant: variantMeta.activeVariant,
-  });
+  const activeContent = presented.content;
+  const suggestedRepliesFields = {
+    ...storedSuggested,
+    suggestedReplies: presented.suggestedReplies,
+    ...(presented.suggestedRepliesWithheld
+      ? { suggestedRepliesPending: false, suggestedRepliesFailed: true }
+      : {}),
+  };
   const markdownStatusWindowActive = userNote
     ? markdownPipeTableStatusWindowActive(resolveUserNoteStatusWindowPolicy(userNote))
     : false;
@@ -84,15 +112,12 @@ function mapDbMessageForClient(
     userNote,
     markdownStatusWindowActive,
   });
-  const activeVariantSnapshot = variants[activeVariant];
-  const hasVariantStatusSnapshot = Object.prototype.hasOwnProperty.call(
-    activeVariantSnapshot ?? {},
-    "statusWidgetValues"
+  const statusMeta = filterAdultOffStatusMeta(
+    m.role === "assistant" && applyAdultOffReadGuard,
+    activeUsage,
+    statusFlags.statusMeta,
+    adultOffProofCarrier(statusRecord?.adultOffGuard)
   );
-  const messageStatusWidgetValues = hasVariantStatusSnapshot
-    ? (activeVariantSnapshot?.statusWidgetValues ?? null)
-    : parseStoredStatusWidgetValuesJson(m.status_widget_values_json);
-  const suggestedRepliesFields = resolveClientSuggestedReplies(suggestedRepliesRecord);
   const billingChargeSummary =
     billingContext &&
     m.role === "assistant" &&
@@ -126,11 +151,11 @@ function mapDbMessageForClient(
     variants: variantMeta.variants,
     activeVariant: variantMeta.activeVariant,
     variantCount: variantMeta.variantCount,
-    statusMeta: statusFlags.statusMeta,
+    statusMeta,
     statusMetaFormatSpec: statusRecord?.formatSpec ?? null,
     statusMetaPending: statusFlags.statusMetaPending,
     statusMetaRequested: statusFlags.statusMetaRequested,
-    statusWidgetValues: stripExtractedFactsForClient(messageStatusWidgetValues),
+    statusWidgetValues: stripExtractedFactsForClient(presented.statusWidgetValues),
     statusWidgetTurnActive: m.status_widget_turn_active === 1,
     ...suggestedRepliesFields,
     createdAt: m.created_at,
@@ -178,8 +203,10 @@ export async function GET(req: Request) {
 
   const db = getDb();
   const chat = db
-    .prepare("SELECT id, user_note FROM chats WHERE id=? AND user_id=?")
-    .get(chatId, user.id) as { id: number; user_note: string | null } | undefined;
+    .prepare("SELECT id, user_note, adult_handoff_enabled FROM chats WHERE id=? AND user_id=?")
+    .get(chatId, user.id) as
+    | { id: number; user_note: string | null; adult_handoff_enabled: number | null }
+    | undefined;
   if (!chat) return NextResponse.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
 
   let rawMessages = db
@@ -200,6 +227,10 @@ export async function GET(req: Request) {
     rawMessages.filter((m) => m.role === "assistant").map((m) => m.id)
   );
   const keepInternalAdultRouting = keepInternalAdultRoutingForUser(user);
+  const applyAdultOffReadGuard = adultOffReadGuardAppliesForChat({
+    user,
+    adultHandoffEnabled: chat.adult_handoff_enabled,
+  });
 
   const billingContext = { userId: user.id, chatId };
 
@@ -210,7 +241,8 @@ export async function GET(req: Request) {
         chat.user_note ?? undefined,
         reportStatusByMessageId.get(m.id) ?? "none",
         keepInternalAdultRouting,
-        billingContext
+        billingContext,
+        applyAdultOffReadGuard
       )
     ),
     rawMessages
@@ -235,7 +267,8 @@ export async function GET(req: Request) {
         chat.user_note ?? undefined,
         reportStatusByMessageId.get(r.id) ?? "none",
         keepInternalAdultRouting,
-        billingContext
+        billingContext,
+        applyAdultOffReadGuard
       )
     );
 
