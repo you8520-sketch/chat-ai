@@ -24,7 +24,7 @@ Running 3 tests using 1 worker
   ✘  3 [chromium] › tests/ui/chat-shortcuts.spec.ts:388:7 › personal chat shortcuts › synthetic composition without a trailing echo applies one backspace (6.3s)
 
 
-  1) [chromium] › tests/ui/chat-shortcuts.spec.ts:353:7 › personal chat shortcuts › keeps edits typed into the same form while save is in flight 
+  1) [chromium] › tests/ui/chat-shortcuts.spec.ts:353:7 › personal chat shortcuts › keeps edits typed into the same form while save is in flight
 
     Error: expect(locator).toHaveValue(expected) failed
 
@@ -61,7 +61,7 @@ Running 3 tests using 1 worker
 
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
-  2) [chromium] › tests/ui/chat-shortcuts.spec.ts:388:7 › personal chat shortcuts › synthetic composition without a trailing echo applies one backspace 
+  2) [chromium] › tests/ui/chat-shortcuts.spec.ts:388:7 › personal chat shortcuts › synthetic composition without a trailing echo applies one backspace
 
     Error: expect(locator).toHaveValue(expected) failed
 
@@ -101,6 +101,6 @@ Running 3 tests using 1 worker
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
   2 failed
-    [chromium] › tests/ui/chat-shortcuts.spec.ts:353:7 › personal chat shortcuts › keeps edits typed into the same form while save is in flight 
-    [chromium] › tests/ui/chat-shortcuts.spec.ts:388:7 › personal chat shortcuts › synthetic composition without a trailing echo applies one backspace 
+    [chromium] › tests/ui/chat-shortcuts.spec.ts:353:7 › personal chat shortcuts › keeps edits typed into the same form while save is in flight
+    [chromium] › tests/ui/chat-shortcuts.spec.ts:388:7 › personal chat shortcuts › synthetic composition without a trailing echo applies one backspace
   1 passed (1.6m)
