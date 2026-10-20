@@ -1,0 +1,9 @@
+{
+  "note": "GPT evaluator must not read this file until after blind scoring. Labels X/Y are arbitrary.",
+  "blindLabelX": "armA_current_separate_T1_bullets",
+  "blindLabelY": "armB_grouped_T1_scene_block",
+  "wireRequestSha256": {
+    "armA": "47aa63445a79506b17f32a3f4c7bbadc0f8aa758fe59544479993253d17761ff",
+    "armB": "fca4a547fb1adbff4ae64df66372f09aa47744d84d1956b871325cea3c7820ac"
+  }
+}

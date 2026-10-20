@@ -50,8 +50,11 @@
     "verified_on": "2026-10-20",
     "wire_sha256_reverified": true,
     "credential": "CHEAPER_INFERENCE_BENCHMARK_API_KEY",
-    "provider_calls": 0,
-    "stop_reason": "BENCHMARK_EQUALS_PRODUCTION",
-    "two_call_krw_upper_bound": 488
+    "benchmark_distinct_from_production": true,
+    "provider_calls": 2,
+    "stop_reason": null,
+    "two_call_krw_upper_bound": 488,
+    "two_call_krw_actual_published_rates": 131.4,
+    "result": "READY_FOR_GPT_REVIEW"
   }
 }

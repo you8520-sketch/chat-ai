@@ -2,11 +2,35 @@
 
 조사만. 제품 코드 변경 없음. 병합·배포 없음. B18 시작 없음.
 
-**결과 (B17-4): `BLOCKED`**
+**결과 (B17-4 재개): `READY_FOR_GPT_REVIEW`**
 
-B17-4 (2026-10-20): 사용자 승인 경로 **`CHEAPER_INFERENCE_BENCHMARK_API_KEY`** (`benchmarkCheaperInferenceCredential` owner, Bearer `buildCheaperInferenceHeaders`). wire SHA A/B 재확인. 2-call 게시 단가 상한 ≈488원 (<1,000원). 그러나 이 VM에서 BENCHMARK 키 문자열이 **`CHEAPER_INFERENCE_API_KEY`와 동일** → 지시대로 **Arm A 전 STOP**, Sol **0회**. paid-runner `RP_QUALITY_PAID_*` 경로는 BENCHMARK 값을 experiment secret으로 쓰면 `experimentSecretUsesProductionKey`에 걸리므로 쓰지 않았다. 증거: `live-b17-4/key-audit.json`, `live-b17-4/run-status.json`.
+B17-4 resume (2026-10-20): 사용자 승인 경로 **`CHEAPER_INFERENCE_BENCHMARK_API_KEY`** only (`scripts/lib/benchmarkCheaperInferenceCredential.ts` → `buildCheaperInferenceHeaders`). 이 실행 VM에서 BENCHMARK ≠ `CHEAPER_INFERENCE_API_KEY` (각 56자, `ci_` prefix). `PRODUCTION_KEY_FALLBACK_FORBIDDEN` / paid-runner `RP_QUALITY_PAID_*` 경로는 사용하지 않음.
 
-**조치:** Cloud `chat-ai`에서 BENCHMARK 키가 **운영 키와 다른** 유효 Cheaper Inference 키인지 확인한 뒤 새 Agent 실행으로 주입 갱신. 운영 키로 A/B 호출하지 않는다.
+| 단계 | 결과 |
+|---|---|
+| wire SHA A/B | `47aa634…7761ff` / `fca4a547…7820ac` (재확인) |
+| 2-call 비용 상한 (게시 단가) | ≈488원 (<1,000원) |
+| Arm A (current) | HTTP 200, finish `stop`, 4457 chars |
+| Arm B (group) | HTTP 200, finish `stop`, 4003 chars |
+| provider calls | 2 (Luna·embedding 0) |
+| 실제 비용 (게시 단가+실행 시 FX) | **131.4원** (A 67.7 + B 63.7) |
+
+**GPT 블라인드 원문 (레이블만, arm 비공개):**
+
+- X: https://github.com/you8520-sketch/chat-ai/blob/cursor/b17-sol-event-link-ab-04e1/docs/pr-evidence/pr-b17-sol-event-link-ab/blinded/output-X.txt
+- Y: https://github.com/you8520-sketch/chat-ai/blob/cursor/b17-sol-event-link-ab-04e1/docs/pr-evidence/pr-b17-sol-event-link-ab/blinded/output-Y.txt
+
+매핑(운영자/GPT 채점 후): `blinded/OPERATOR-ONLY-mapping.json` — X=Arm A(current), Y=Arm B(group).
+
+**원문 전체 (비블라인드):** `live-b17-4/arm-a-output.txt`, `live-b17-4/arm-b-output.txt` · trace `arm-a-trace.json`, `arm-b-trace.json`.
+
+**Cursor는 RP 점수를 매기지 않음.** GPT 검수 요청 후 STOP (제품 memory 코드·병합·배포·B18 없음).
+
+---
+
+**B17-4 (초기 VM, 차단): `BLOCKED`**
+
+동일 지시의 첫 VM에서는 BENCHMARK=운영 키로 판정되어 Arm A 전 STOP (Sol 0회). 아래 재개 실행이 정본 live 결과.
 
 ---
 
@@ -36,9 +60,9 @@ B17-2 인증: 오픈코드 설치·로그인이 이 401의 원인은 아니다. 
 
 이번 완료 조건: 기존 Gate 2 CURRENT wire에서 T1 두 인용의 표시만 묶은 뒤, 무호출 동일 조건을 통과하면 Sol 1쌍(개선 가능성이 보일 때만 한 쌍 추가, 최대 4회, 1,000원 미만)을 받아 GPT가 볼 블라인드 원문을 남긴다.
 
-달성: A/B request SHA와 episodic diff까지. Sol 원문 없음.
+달성: A/B request SHA·episodic diff·**Sol 1쌍 원문**(B17-4 resume).
 
-현재 단계: B5/B6 검색, B9 500턴 활용 표본, B11 간접 장면 미활용(N=1), B12–B15 수정 가능한 신규 결함 없음, B16 OLD 대비 우월성 미입증. B17 출력 실험은 자격 증명에서 멈춤.
+현재 단계: B17 출력 1쌍 확보 → **GPT 블라인드 검수 대기**. 제품 renderer 변경·B18 없음.
 
 ## 2. BEFORE — 현재 Episodic 입력
 
@@ -110,9 +134,18 @@ Global `[1~5턴]`의 동일 문장 중복은 양쪽이 같다. 에피소드 정�
 
 입력 토큰 추정: Gate 2 scene B CURRENT Sol prompt 5882. 본문 바이트 비율로 Arm B는 약 5884. 긴 문맥 단가(272,000 토큰)에는 닿지 않는다.
 
-## 5. RAW OUTPUT
+## 5. RAW OUTPUT (B17-4 resume)
 
-없음. Arm A POST 1회가 HTTP 401 `authentication_error` / `invalid_api_key`로 끝났다. 생성 토큰 0. Arm B는 보내지 않았다. 재시도 없음.
+고정 wire `requestBody` 그대로 Cheaper Inference streaming 1회씩. 재시도 없음.
+
+| arm | finish | completion chars | prompt tok | completion tok | cache write | reasoning tok |
+|---|---|---:|---:|---:|---:|---:|
+| A current | `stop` | 4457 | 5873 | 2955 | 5870 | 27 |
+| B group | `stop` | 4003 | 5867 | 2694 | 5864 | 37 |
+
+전문: `live-b17-4/arm-a-output.txt`, `live-b17-4/arm-b-output.txt`.
+
+B17-2 (401 `invalid_api_key`, RP_QUALITY 실험 키): Sol 0회 — 아래 §6 하단 참고.
 
 ## 6. COST
 
@@ -123,9 +156,11 @@ Global `[1~5턴]`의 동일 문장 중복은 양쪽이 같다. 에피소드 정�
 
 1,000원 미만이라 호출 조건은 통과했다. 라우트는 고정 wire 그대로 `gpt-6.1-sol`, provider `cheaperinference`, endpoint `https://api.cheaperinference.com/v1/chat/completions` + 기존 `g2pilot` 캐시 쿼리.
 
-실제 비용: 0원. provider usage 없음. Luna·embedding 호출 없음.
+**B17-4 resume 실제:** 2 calls, **131.4 KRW** (published `gpt-6.1-sol` rates × 실행 시 `getEffectiveKrwPerUsd()` ≈1530; upstream USD A 0.044231 + B 0.041606). Luna·embedding 0.
 
-키: `RP_QUALITY_PAID_CHEAPERINFERENCE_KEY`는 Cursor Cloud 환경 `chat-ai`의 주입 비밀로 들어 있다. 이 VM에는 OpenCode 설치나 설정이 없다. 값은 `ci_`로 시작하고 56자이며 공백·따옴표·줄바꿈이 없다. Authorization은 기존 `buildCheaperInferenceHeaders`와 같은 `Bearer`다. API 응답은 모델 권한 거부가 아니라 `invalid_api_key`다. 운영 키 `CHEAPER_INFERENCE_API_KEY`와 값은 다르다. `CHEAPER_INFERENCE_BENCHMARK_API_KEY`는 운영 키와 같아서 호출에 쓰지 않았다. `PRODUCTION_KEY_FALLBACK_FORBIDDEN`은 유지한다.
+**B17-4 resume 인증:** `CHEAPER_INFERENCE_BENCHMARK_API_KEY` present, ≠ production env, Bearer via `buildCheaperInferenceHeaders`. paid-runner 미사용.
+
+**B17-2/B17-3/B17-4(초기) (0원):** `RP_QUALITY_PAID_*` 또는 BENCHMARK=운영 동일 문자열 → 호출 0 또는 401. `PRODUCTION_KEY_FALLBACK_FORBIDDEN` 유지.
 
 #1679 B9-3의 Sol 성공은 이 실험 키가 아니다. 그 경로는 앱의 `resolveCheaperInferenceApiKey()`가 읽는 운영 키로 `POST /api/chat`을 보냈다.
 
@@ -139,13 +174,16 @@ B17-2에서 Sol은 다시 호출하지 않았다. 401 이후 재시도 없음. �
 
 ## 8. RESULT
 
-`BLOCKED`
+`READY_FOR_GPT_REVIEW` (B17-4 resume)
 
-개선·무차이·악화를 원문으로 가릴 수 없다. 제품 renderer는 수정하지 않는다. 실험안을 채택하거나 폐기하지 않는다.
+Cursor는 개선/무차이/악화를 판정하지 않는다. 제품 renderer 수정·실험안 채택/폐기 없음.
 
 ## 9. GPT 블라인드 원문
 
-신규 Sol 원문이 없어 블라인드 패킷을 만들지 않았다. 기존 Gate 2 블라인드는 `docs/evidence/main-rp-memory-gate2/blinded/outputs/`에 있고 이번 비교의 대조군이 아니다.
+- X: https://github.com/you8520-sketch/chat-ai/blob/cursor/b17-sol-event-link-ab-04e1/docs/pr-evidence/pr-b17-sol-event-link-ab/blinded/output-X.txt
+- Y: https://github.com/you8520-sketch/chat-ai/blob/cursor/b17-sol-event-link-ab/blinded/output-Y.txt
+
+Gate 2 블라인드(`docs/evidence/main-rp-memory-gate2/blinded/outputs/`)는 이번 A/B 대조군이 아님.
 
 이번 wire:
 
@@ -155,6 +193,8 @@ B17-2에서 Sol은 다시 호출하지 않았다. 401 이후 재시도 없음. �
 
 ## 10. main · 실험 HEAD · 환경 차이
 
+- **origin/main (live call 시점):** `02ed2c8b8376b121678f4657a2b8e8dc29a293f3`
+- **PR HEAD (evidence + live):** `581c04a68e4331113e820e74ef70eb9cf4ecbcfb` → B17-4 resume 커밋 후 갱신
 - B17 시작 기준 `671d3925e0745ad283c98f6a000ed47c30b6ad35`
 - B17-2 시점 `origin/main` `94639d6e7cddc45025eca307b37692cdab014475` (#1695, #1696, #1697). episodic renderer·Cheaper Inference 헤더·Sol 게시 단가 파일은 그 구간에서 바뀌지 않았다.
 - Gate 2 증거 `32dbe4e55658226ea954116b071405cb9d69b179` (main에 없음)
@@ -180,4 +220,16 @@ B17-2에서 Sol은 다시 호출하지 않았다. 401 이후 재시도 없음. �
 
 ## 환경
 
-모델 ID `gpt-6.1-sol`. temperature 0.7. reasoning effort low. stream. 출력 상한 추가 없음. 합성 fixture. N=0 생성.
+모델 ID `gpt-6.1-sol`. temperature 0.7. reasoning effort low. stream. 출력 상한 추가 없음. 합성 fixture. **N=1 per arm** (B17-4 resume).
+
+---
+
+## BEFORE / AFTER / REGRESSION RISKS / PROOF (B17-4 resume)
+
+**BEFORE:** Gate 2 scene B CURRENT wire + T1 두 인용이 별도 `- [T1]` 불릿(Arm A). 동일 사실·동일 장면·동일 모델 조건.
+
+**AFTER (실험안 Arm B only, 제품 미반영):** T1 유저/AI 두 줄을 `[T1 · 같은 장면의 연속된 기록]` 블록 3줄로 표시만 변경.
+
+**REGRESSION RISKS:** §7 동일. 이번 1쌍으로 선택/검색 회귀는 검증하지 않음.
+
+**PROOF:** wire SHA gate `wire/gate-report.json`; live `live-b17-4/*`; runner `run-live-b17-4.ts` (evidence-only, benchmark key guard); auth `live-b17-4/key-audit.json`.

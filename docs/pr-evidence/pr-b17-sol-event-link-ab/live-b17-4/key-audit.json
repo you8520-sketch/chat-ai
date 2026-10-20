@@ -1,32 +1,21 @@
 {
-  "verifiedAt": "2026-10-20T13:05:00.000Z",
-  "revision": "B17-4",
+  "verifiedAt": "2026-10-20T13:15:39.164Z",
+  "revision": "B17-4-resume",
   "approvedCredential": "CHEAPER_INFERENCE_BENCHMARK_API_KEY",
-  "credentialOwner": "scripts/lib/benchmarkCheaperInferenceCredential.ts",
   "wireSha256Verified": {
     "armA_requestBody": "47aa63445a79506b17f32a3f4c7bbadc0f8aa758fe59544479993253d17761ff",
     "armB_requestBody": "fca4a547fb1adbff4ae64df66372f09aa47744d84d1956b871325cea3c7820ac"
   },
-  "injection": {
-    "benchmarkKeyPresent": true,
-    "benchmarkKeyLength": 56,
-    "benchmarkKeyPrefix": "ci_",
-    "productionKeyPresent": true
-  },
   "comparisonToProduction": {
-    "equals_CHEAPER_INFERENCE_API_KEY": true
+    "equals_CHEAPER_INFERENCE_API_KEY": false
   },
   "authPath": {
-    "wouldUseBuildCheaperInferenceHeaders": true,
+    "buildCheaperInferenceHeaders": true,
     "authorizationScheme": "Bearer",
-    "paidRunnerDirectPath": "not_used",
-    "paidRunnerNote": "createIsolatedPaidRunnerLiveTransport treats any value equal to CHEAPER_INFERENCE_BENCHMARK_API_KEY as PRODUCTION_KEY_FALLBACK_FORBIDDEN; B17-4 uses the benchmark credential owner (same as manual smoke/bench scripts), not RP_QUALITY_PAID_*."
+    "paidRunnerDirectPath": "not_used"
   },
   "guards": {
-    "userMandate_stopIfBenchmarkEqualsProduction": "TRIGGERED",
-    "PRODUCTION_KEY_FALLBACK_FORBIDDEN": "not_bypassed"
-  },
-  "costPrecheckTwoCallsKrwPublishedUpperBound": 488,
-  "under1000Krw": true,
-  "paidProviderCallsAttempted": 0
+    "PRODUCTION_KEY_FALLBACK_FORBIDDEN": "maintained",
+    "userMandate_stopIfBenchmarkEqualsProduction": "not_triggered"
+  }
 }
