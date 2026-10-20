@@ -61,7 +61,7 @@ Legacy exact quote = B10-1 string `가이드님…감사…` only (0/6).
 
 **B-2** — `responses/t50-B-2.txt`
 
-- Eyewitness (auto missed): «**폭주의 문턱에서 센티넬이 느끼는 공포와 절망**이 어떤 것인지 태형은 **누구보다 잘 알고** 있었다» + death-scene framing despite «**네 뒤통수만 겨우 보였으니까**» / words not heard.
+- Eyewitness (auto missed): «거센 음파와 폭주 직전의 신경 과부하 속에서 **태형이 목격한 것은 쓰러져 가던 어린 센티넬의 희미한 그림자**와, 그를 붙들고 절박하게 손을 뻗던 렌의 뒷모습뿐이었다.» — death-moment sight asserted even though the original event places his arrival afterward. «**네 뒤통수만 겨우 보였으니까**» establishes he did not hear the last words, not that the supposed sighting is grounded.
 
 **B-3** — `responses/t50-B-3.txt`
 
