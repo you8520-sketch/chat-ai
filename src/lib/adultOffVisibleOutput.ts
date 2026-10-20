@@ -48,6 +48,26 @@ export function adultOffOutputGuardAppliesToChat(chatId: number): boolean {
   });
 }
 
+/** 저장된 본문을 읽을 때 가드를 적용하는지. 가드 OFF와 성인 ON은 false다. */
+export function adultOffReadGuardAppliesForChat(input: {
+  user: AdultAccessUser | null | undefined;
+  adultHandoffEnabled: unknown;
+}): boolean {
+  if (!isAdultOffOutputGuardEnabled()) return false;
+  const userAdultVerified = canAccessAdultContent(input.user);
+  const roomAdultModeEnabled = resolveRoomAdultModeEnabled({
+    persisted: input.adultHandoffEnabled,
+    userAdultVerified,
+  });
+  return shouldApplyAdultOffOutputGuard({
+    enabled: true,
+    effectiveAdultRp: resolveEffectiveAdultRp({
+      userAdultVerified,
+      roomAdultModeEnabled,
+    }),
+  });
+}
+
 /** 조회가 실패하면 검사 쪽으로 넘긴다. 가드가 꺼져 있으면 조회하지 않는다. */
 export function adultOffVisibleSurfaceNeedsReview(chatId: number): boolean {
   try {
