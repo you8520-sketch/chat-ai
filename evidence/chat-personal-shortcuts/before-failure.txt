@@ -1,0 +1,204 @@
+
+> hav-chat@0.1.0 test:ui
+> playwright test tests/ui/chat-shortcuts.spec.ts -g retries save|late list|failed list|starting a new draft|synthetic composition
+
+
+Running 5 tests using 1 worker
+
+(node:74605) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:74605) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [exchangeRate] fetch failed — using last known or fallback fetch failed
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 1, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 1, chatId: 1 }
+  ✘  1 [chromium] › tests/ui/chat-shortcuts.spec.ts:174:7 › personal chat shortcuts › retries save, favorite, and delete after network failure (6.7s)
+(node:74767) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:74767) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 2, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 2, chatId: 2 }
+  ✘  2 [chromium] › tests/ui/chat-shortcuts.spec.ts:233:7 › personal chat shortcuts › keeps a shortcut created before a late list response (6.0s)
+(node:74892) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:74892) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 3, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 3, chatId: 3 }
+  ✘  3 [chromium] › tests/ui/chat-shortcuts.spec.ts:264:7 › personal chat shortcuts › a failed list load is not an empty library (6.0s)
+(node:75014) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:75014) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 4, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 4, chatId: 4 }
+  ✘  4 [chromium] › tests/ui/chat-shortcuts.spec.ts:282:7 › personal chat shortcuts › starting a new draft during save keeps that draft (6.3s)
+(node:75133) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:75133) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 5, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 5, chatId: 5 }
+  ✓  5 [chromium] › tests/ui/chat-shortcuts.spec.ts:318:7 › personal chat shortcuts › synthetic composition inserts the committed Hangul text once (1.2s)
+
+
+  1) [chromium] › tests/ui/chat-shortcuts.spec.ts:174:7 › personal chat shortcuts › retries save, favorite, and delete after network failure
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByTestId('chat-shortcuts-notice')
+    Expected substring: "다시 저장"
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toContainText" getByTestId('chat-shortcuts-notice') with timeout 5000ms
+      - waiting for getByTestId('chat-shortcuts-notice')
+
+
+      210 |     await page.getByTestId("chat-shortcuts-content").fill("다시 저장");
+      211 |     await page.getByTestId("chat-shortcuts-save").click();
+    > 212 |     await expect(page.getByTestId("chat-shortcuts-notice")).toContainText("다시 저장");
+          |                                                             ^
+      213 |     await expect(page.getByTestId("chat-shortcuts-name")).toHaveValue("재시도");
+      214 |     await expect(page.getByTestId("chat-shortcuts-content")).toHaveValue("다시 저장");
+      215 |     await expect(page.getByTestId("chat-shortcuts-save")).toBeEnabled();
+        at /workspace/tests/ui/chat-shortcuts.spec.ts:212:61
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-personal-ch-f77ba-elete-after-network-failure-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/chat-shortcuts-personal-ch-f77ba-elete-after-network-failure-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-personal-ch-f77ba-elete-after-network-failure-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/chat-shortcuts-personal-ch-f77ba-elete-after-network-failure-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › tests/ui/chat-shortcuts.spec.ts:233:7 › personal chat shortcuts › keeps a shortcut created before a late list response
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText('단축어를 불러오는 중')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByText('단축어를 불러오는 중') with timeout 5000ms
+      - waiting for getByText('단축어를 불러오는 중')
+
+
+      250 |     });
+      251 |     await page.getByTestId("chat-shortcuts-open").click();
+    > 252 |     await expect(page.getByText("단축어를 불러오는 중")).toBeVisible();
+          |                                                 ^
+      253 |     await expect(page.getByText("저장한 단축어가 없습니다.")).toHaveCount(0);
+      254 |     await page.getByRole("button", { name: "새로 만들기" }).click();
+      255 |     await page.getByTestId("chat-shortcuts-name").fill("늦음");
+        at /workspace/tests/ui/chat-shortcuts.spec.ts:252:49
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-personal-ch-e7a44-before-a-late-list-response-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/chat-shortcuts-personal-ch-e7a44-before-a-late-list-response-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-personal-ch-e7a44-before-a-late-list-response-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/chat-shortcuts-personal-ch-e7a44-before-a-late-list-response-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [chromium] › tests/ui/chat-shortcuts.spec.ts:264:7 › personal chat shortcuts › a failed list load is not an empty library
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByTestId('chat-shortcuts-list-error')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByTestId('chat-shortcuts-list-error') with timeout 5000ms
+      - waiting for getByTestId('chat-shortcuts-list-error')
+
+
+      274 |     });
+      275 |     await page.getByTestId("chat-shortcuts-open").click();
+    > 276 |     await expect(page.getByTestId("chat-shortcuts-list-error")).toBeVisible();
+          |                                                                 ^
+      277 |     await expect(page.getByText("저장한 단축어가 없습니다.")).toHaveCount(0);
+      278 |     await page.getByTestId("chat-shortcuts-list-retry").click();
+      279 |     await expect(page.getByText("저장한 단축어가 없습니다.")).toBeVisible();
+        at /workspace/tests/ui/chat-shortcuts.spec.ts:276:65
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-personal-ch-912c3-oad-is-not-an-empty-library-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/chat-shortcuts-personal-ch-912c3-oad-is-not-an-empty-library-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-personal-ch-912c3-oad-is-not-an-empty-library-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/chat-shortcuts-personal-ch-912c3-oad-is-not-an-empty-library-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [chromium] › tests/ui/chat-shortcuts.spec.ts:282:7 › personal chat shortcuts › starting a new draft during save keeps that draft
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator: getByTestId('chat-shortcuts-name')
+    Expected: "두번째"
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toHaveValue" getByTestId('chat-shortcuts-name') with timeout 5000ms
+      - waiting for getByTestId('chat-shortcuts-name')
+
+
+      307 |     await page.getByTestId("chat-shortcuts-close").click();
+      308 |     await page.getByTestId("chat-shortcuts-open").click();
+    > 309 |     await expect(page.getByTestId("chat-shortcuts-name")).toHaveValue("두번째");
+          |                                                           ^
+      310 |     await expect(page.getByTestId("chat-shortcuts-save")).toBeDisabled();
+      311 |     expect(posts).toBe(1);
+      312 |     releasePost?.();
+        at /workspace/tests/ui/chat-shortcuts.spec.ts:309:59
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-personal-ch-a6f85-uring-save-keeps-that-draft-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/chat-shortcuts-personal-ch-a6f85-uring-save-keeps-that-draft-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-personal-ch-a6f85-uring-save-keeps-that-draft-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/chat-shortcuts-personal-ch-a6f85-uring-save-keeps-that-draft-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4 failed
+    [chromium] › tests/ui/chat-shortcuts.spec.ts:174:7 › personal chat shortcuts › retries save, favorite, and delete after network failure
+    [chromium] › tests/ui/chat-shortcuts.spec.ts:233:7 › personal chat shortcuts › keeps a shortcut created before a late list response
+    [chromium] › tests/ui/chat-shortcuts.spec.ts:264:7 › personal chat shortcuts › a failed list load is not an empty library
+    [chromium] › tests/ui/chat-shortcuts.spec.ts:282:7 › personal chat shortcuts › starting a new draft during save keeps that draft
+  1 passed (2.0m)

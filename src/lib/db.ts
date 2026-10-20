@@ -48,6 +48,7 @@ import { ensureDerivedCacheJobsTable } from "@/lib/derivedCache/jobs";
 import { ensureChatBillingSettlementSchema } from "@/lib/chatBillingSettlementSchema";
 import { ensureChatGenerationLeaseSchema } from "@/lib/chatGenerationLeaseSchema";
 import { ensureLocalUiFixtures, shouldInstallLocalUiFixtures } from "@/lib/localDevFixtures";
+import { ensureChatShortcutsSchema } from "@/lib/chatShortcuts";
 import { isRetryableRemoteSchemaError } from "@/lib/libsqlErrors";
 import { initializeRemoteSchema } from "@/lib/remoteSchemaBootstrap";
 import { ensureEmailSignupSchema } from "@/lib/emailSignupSchema";
@@ -1316,6 +1317,7 @@ function migrate(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_user_note_presets_user
       ON user_note_presets(user_id, created_at);
   `);
+  ensureChatShortcutsSchema(db);
   db.exec(`
     CREATE TABLE IF NOT EXISTS user_status_widget_presets (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
