@@ -39,14 +39,15 @@ The reply mixes a consoling frame (“만약 정 기억이 안 나서… 그냥 
 
 ### Case B — L500-B3 Gemini (comparison, normal Global)
 
-Stored compact (snap-500, read-only) includes the real 한서윤 report: she put her name on the 징계 통지서 보고자 line and 라이크 received three days of 근신. It does not contain 고발자, 전속, 특무, 백무진-ordered reassignment repeats, or “137일째”.
+Stored compact (snap-500, read-only) includes the real 한서윤 report: she put her name on the 징계 통지서 보고자 line and 라이크 received three days of 근신. Read-only checks on **Global `recent_summary` and the episodic rows cited for L500-B3** did not contain 고발자, 전속, 특무, 백무진-ordered reassignment repeats, or the literal string **137일째**.
 
 | Response move | Class |
 |---|---|
 | Corridor, sleeve pull, 한서윤 walking up with papers | current scene from the user turn — normal RP |
 | “밥도 안 먹는다고 내가 전에 말했던 것 같은데” | semantic restatement of episodic T64 (“서류 올리는 사람이랑은 밥 같이 안 먹어”), not an exact quote |
 | New form offered in this corridor | new current event — not a violation by itself |
-| “과거부터 몇 번이고 반복되어 온” transfer of 렌, plus 전속 해제 양식 and “137일째” | past (or duration) locked with no line in the stored compact or the episodic rows cited for this question |
+| “과거부터 몇 번이고 반복되어 온” transfer of 렌, plus 전속 해제 양식 | **Not found** in Global/Episodic stored rows checked on snap-500. Whether the **full** B9-3 final wire lacked every supporting phrase was **not re-proven in this B10 note** (full `main-request.json` is not in the repo). |
+| “137일째” (peaceful-day counter) | **Not found** as that literal in Global/Episodic stored rows checked. Medium-term blocks on the B9-3 capture **do** contain other “평화로운 N일째” counts (e.g. up to 126 in slim previews); extrapolation to 137 from injected medium/raw is **plausible** and **absence from the entire final input is not established here**. |
 | Report scene with “다정하게 괜찮다” and 고발자 칸 | extra dialogue and a label the stored sentence does not use; the underlying report/근신 fact is real |
 
 ### Case C — Sol on the same questions
@@ -66,7 +67,10 @@ Sol leaves the missing T50 quote unknown and does not narrate the death as somet
 
 Together with “불확실하면 추측” in the collaborative block, a model can treat an empty last-words slot as something it should fill rather than leave open. Sol did not. There is no ablation that isolates those sentences, so they stay a hypothesis.
 
-**Limit:** the original B9-1 wire JSON is not in the repo (private prompt). This note uses the B9-1 source map and README, which state the quote was absent from that request. A byte replay of that exact body was not rerun here.
+**Limits**
+
+- **T50 wire body:** the original B9-1 `main-request.json` is not in the repo (private prompt). This note uses the B9-1 source map and README, which state the quote was absent from that request. A byte replay of that exact body was not rerun here.
+- **Gemini vs Sol attribution:** for the same question, B9-1/B9-3 evidence shows **identical joined system memory** but **different request bytes**, **model-specific user-tail / output-instruction wrapping**, and **wire params** (e.g. Gemini `google-ai-studio` + `reasoning.exclude`; Sol `temperature` + cheaperinference cache query). This investigation **does not separate** “Gemini 3.8 Flash model behavior” from “prompt + tail + parameter interaction.” Sol’s compliance on T50 is consistent with the shared truth owner but is **not** a controlled ablation.
 
 ## AFTER
 
@@ -106,7 +110,7 @@ Nothing is deleted in this PR.
 - B9-1 source map `docs/pr-evidence/pr-b9-1-real-rp-recall-recheck/source-map.md` section C, and `responses/t50-c2-gemini.txt` / `t50-c2-sol.txt`.
 - Owner text and injection: `src/lib/historicalTruthPolicy.ts`, `src/services/contextBuilder.ts` (section push, then user-turn check).
 - 3.8 Flash is outside `isGemini31ProModel` (`src/lib/chatModels.ts`).
-- snap-500 `recent_summary` contains the 한서윤 보고자/사흘 근신 sentence and does not contain 전속, 특무, or 137. B9-3 response: #1679 `responses/l500-b3-gemini.txt` (not on this branch).
+- snap-500 `recent_summary` contains the 한서윤 보고자/사흘 근신 sentence and does not contain 전속, 특무, or the literal **137일째** (B10 sqlite read). B9-3 response text: #1679 `responses/l500-b3-gemini.txt` (not on this branch). B9-3 `captures/l500-b3-gemini.json` medium previews show “평화로운 N일째” counts but were not exhaustively searched for 137 in this note.
 - Local check: the T50 question matches `currentUserNeedsHistoricalTruthRecencyRef`.
 
 ## NEXT
