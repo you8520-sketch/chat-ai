@@ -4,7 +4,13 @@
 
 **결과: `BLOCKED`**
 
-무호출 wire 조건은 성립했다. Sol 생성은 시작되지 않았다. 실험용 Cheaper Inference 키가 `401 invalid_api_key`로 거절되었고, 프로덕션 키로의 대체는 기존 Gate 2 실행기가 금지한다. 자동 재시도 없음. 비용 0원.
+무호출 wire 조건은 성립했다. 정본은 저장해 둔 두 request JSON이다. 최초 `gate-report.json`의 `episodic_policy_same: false`는 섹션을 잘못 자른 스크립트 결과이고, 다시 비교한 판정은 통과다. Sol 생성은 시작되지 않았다.
+
+B17-2 인증: 오픈코드 설치·로그인이 이 401의 원인은 아니다. 거절된 값은 Cursor Cloud에 주입된 `RP_QUALITY_PAID_CHEAPERINFERENCE_KEY`이고, Cheaper Inference가 그 키 문자열을 `invalid_api_key`로 거절했다. 이 VM에는 OpenCode가 없다. 운영 키 자동 대체는 하지 않는다. 재호출 없음. 비용 0원.
+
+사용자 조치: Cursor Cloud 환경 `chat-ai`의 비밀 `RP_QUALITY_PAID_CHEAPERINFERENCE_KEY`를, 지금 유효하고 운영 키와 다른 Cheaper Inference 키로 바꾼다. 운영 키를 그 이름에 넣지 않는다. 오픈코드를 지우거나 다시 로그인할 필요는 없다. 오픈코드 설정 중에 Cheaper Inference 대시보드에서 그 실험 키를 지웠거나 재발급했다면, 새 실험 키만 같은 비밀 이름에 넣으면 된다.
+
+저장된 Arm A/B request는 그대로 다시 보낼 수 있다. SHA는 아래와 같다.
 
 최종 질문 — “같은 과거 사건의 유저 발언과 캐릭터 반응을 연결해 보여주는 것만으로, Sol이 오래전 감정을 더 자연스럽고 정확하게 기억하며 RP를 진행하는가?” — 에는 이번 호출의 원문이 없다. 과거 Gate 2 출력과의 비동시 비교는 통제 A/B가 아니다.
 
@@ -84,7 +90,7 @@ Arm B는 그 두 원문만 다음으로 바꾼다.
 
 인용 `솔직히 너 좀 아마추어 같아.` 와 `라이크는 입술을 깨물며 시선을 피했다.` 의 출현 횟수는 양쪽 시스템 텍스트에서 같다. B에서 유저 대사가 AI 서술보다 앞이고, 줄 라벨은 `유저 입력` / `AI 장면 서술`이다.
 
-Global `[1~5턴]`의 동일 문장 중복은 양쪽이 같다. 에피소드 정책 문장(`Use them only when relevant to the current scene.` 포함)은 양쪽이 같다. `gate-report.json`의 `episodic_policy_same: false`는 분할 지점을 `[T1 ·`로 잡아 T40 줄이 헤더 쪽에 포함된 스크립트 오류다. `wire/episodic-diff.txt`가 실제 diff다.
+Global `[1~5턴]`의 동일 문장 중복은 양쪽이 같다. 에피소드 정책 문장(`Use them only when relevant to the current scene.` 포함)은 양쪽이 같다. `gate-report.json`의 최초 스크립트는 `episodic_policy_same: false`, `gate_pass_structural: false`로 남겼다. 원인은 섹션 분리였다. Arm B를 `[T1 ·`에서 잘라 T40 줄이 정책 쪽에 들어갔다. 저장해 둔 두 JSON을 다시 비교하면, T1 두 줄의 문자열 교체 외 바이트는 같다. 정책 문장, Global, T40, 장작 기록, 다른 메시지가 그대로다. 정정 판정은 `corrected_judgment.gate_pass_structural: true`다. 처음의 false를 지워서 성공으로 바꾸지는 않았고 `original_script`에 남겨 두었다.
 
 입력 토큰 추정: Gate 2 scene B CURRENT Sol prompt 5882. 본문 바이트 비율로 Arm B는 약 5884. 긴 문맥 단가(272,000 토큰)에는 닿지 않는다.
 
@@ -103,7 +109,11 @@ Global `[1~5턴]`의 동일 문장 중복은 양쪽이 같다. 에피소드 정�
 
 실제 비용: 0원. provider usage 없음. Luna·embedding 호출 없음.
 
-키: `RP_QUALITY_PAID_CHEAPERINFERENCE_KEY`는 설정되어 있고 `CHEAPER_INFERENCE_API_KEY`와 값이 달랐다. API가 그 실험 키를 거절했다. `CHEAPER_INFERENCE_BENCHMARK_API_KEY`는 프로덕션 키와 동일해서, 기존 실행기의 `PRODUCTION_KEY_FALLBACK_FORBIDDEN`에 걸리면 쓰지 않았다.
+키: `RP_QUALITY_PAID_CHEAPERINFERENCE_KEY`는 Cursor Cloud 환경 `chat-ai`의 주입 비밀로 들어 있다. 이 VM에는 OpenCode 설치나 설정이 없다. 값은 `ci_`로 시작하고 56자이며 공백·따옴표·줄바꿈이 없다. Authorization은 기존 `buildCheaperInferenceHeaders`와 같은 `Bearer`다. API 응답은 모델 권한 거부가 아니라 `invalid_api_key`다. 운영 키 `CHEAPER_INFERENCE_API_KEY`와 값은 다르다. `CHEAPER_INFERENCE_BENCHMARK_API_KEY`는 운영 키와 같아서 호출에 쓰지 않았다. `PRODUCTION_KEY_FALLBACK_FORBIDDEN`은 유지한다.
+
+#1679 B9-3의 Sol 성공은 이 실험 키가 아니다. 그 경로는 앱의 `resolveCheaperInferenceApiKey()`가 읽는 운영 키로 `POST /api/chat`을 보냈다.
+
+B17-2에서 Sol은 다시 호출하지 않았다. 401 이후 재시도 없음. 독립된 유효 실험 키는 이 환경에 없다. OpenRouter 실험 키는 다른 provider라 이번 Cheaper Inference 경로의 대체로 쓰지 않았다.
 
 ## 7. REGRESSION RISKS
 
@@ -129,7 +139,8 @@ Global `[1~5턴]`의 동일 문장 중복은 양쪽이 같다. 에피소드 정�
 
 ## 10. main · 실험 HEAD · 환경 차이
 
-- 시작 기준 `origin/main` `671d3925e0745ad283c98f6a000ed47c30b6ad35`
+- B17 시작 기준 `671d3925e0745ad283c98f6a000ed47c30b6ad35`
+- B17-2 시점 `origin/main` `94639d6e7cddc45025eca307b37692cdab014475` (#1695, #1696, #1697). episodic renderer·Cheaper Inference 헤더·Sol 게시 단가 파일은 그 구간에서 바뀌지 않았다.
 - Gate 2 증거 `32dbe4e55658226ea954116b071405cb9d69b179` (main에 없음)
 - 실험 브랜치는 그 main에서 evidence 파일만 추가한다. 제품 소스는 그 SHA와 같다.
 
