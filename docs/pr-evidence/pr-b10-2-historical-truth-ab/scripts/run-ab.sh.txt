@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /workspace
+set -a
+# shellcheck disable=SC1091
+source /tmp/b9/admin.env
+set +a
+export NODE_ENV=production PLAYWRIGHT_PROD_SERVER=1
+
+BUDGET_KRW=500
+SRC="/tmp/b9-preserved/db/snap-50"
+ROOT="/tmp/b10-2"
+mkdir -p "$ROOT"
+: > "$ROOT/paid-main-rp.log"
+
+prep_data() {
+  local dest="$1"
+  rm -rf "$dest"
+  python3 - <<PY
+import shutil, os, stat
+from pathlib import Path
+shutil.copytree("$SRC", "$dest")
+for root, dirs, files in os.walk("$dest"):
+    for name in dirs + files:
+        os.chmod(os.path.join(root, name), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+os.chmod("$dest", stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH)
+PY
+}
+
+echo "=== dry AB validate ==="
+prep_data "$ROOT/dry-data"
+./node_modules/.bin/tsx "$ROOT/dry-validate-ab.mts" "$ROOT/dry-data" "$ROOT/dry-out"
+
+cumulative=0
+est_next=12  # conservative per T50 gemini from B9-1 ~10 KRW
+
+run_one() {
+  local variant="$1"
+  local rep="$2"
+  local run_id="t50-${variant}-${rep}"
+  local data="$ROOT/data-${run_id}"
+  local out="$ROOT/out/${run_id}"
+  if python3 -c "import sys; sys.exit(0 if float($cumulative)+float($est_next) <= $BUDGET_KRW else 1)"; then :; else
+    echo "STOP budget before $run_id cumulative=$cumulative" >&2
+    exit 2
+  fi
+  prep_data "$data"
+  echo "START $run_id" >&2
+  ./node_modules/.bin/tsx "$ROOT/t50-ab-one.mts" "$variant" "$data" "$out" "$run_id" \
+    > "$ROOT/out/${run_id}.stdout.txt" 2> "$ROOT/out/${run_id}.stderr.txt"
+  spent=$(python3 -c "
+import json
+from pathlib import Path
+m=json.loads(Path('$out/run-meta.json').read_text())
+u=m.get('usagePublic') or {}
+print(u.get('apiRawCostKrw') or 0)
+")
+  cumulative=$(python3 -c "print(round(float($cumulative)+float($spent),2))")
+  tail -1 "$ROOT/out/${run_id}.stdout.txt"
+  echo "END $run_id spent=${spent} cumulative=${cumulative}" >&2
+}
+
+mkdir -p "$ROOT/out"
+
+for rep in 1 2 3; do
+  run_one A "$rep"
+done
+
+python3 "$ROOT/classify-runs.py" "$ROOT/out" A > "$ROOT/a-classification.json"
+cat "$ROOT/a-classification.json"
+
+repro=$(python3 -c "import json; print(json.load(open('$ROOT/a-classification.json'))['anyReproduction'])")
+if [ "$repro" != "True" ] && [ "$repro" != "true" ]; then
+  echo "STOP: A did not reproduce — no B calls" >&2
+  exit 0
+fi
+
+for rep in 1 2 3; do
+  run_one B "$rep"
+done
+
+python3 "$ROOT/classify-runs.py" "$ROOT/out" B > "$ROOT/b-classification.json"
+echo ALL_DONE cumulative=${cumulative}KRW

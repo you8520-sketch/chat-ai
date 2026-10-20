@@ -1,0 +1,115 @@
+/** Dry capture T50 wire body and verify A/B differ by exactly one sentence. */
+import { createHash } from "node:crypto";
+import Module from "node:module";
+import { mkdirSync, writeFileSync } from "node:fs";
+
+const dataDir = process.argv[2] ?? "/tmp/b10-2/dry-data";
+const outDir = process.argv[3] ?? "/tmp/b10-2/dry-out";
+
+const OLD_SENT =
+  "유저의 독립적인 과거 빈칸은 장면을 해치지 않는 범위에서 가볍게 추정할 수 있다.";
+const NEW_SENT =
+  "유저가 과거의 구체적인 세부를 물을 때 독립 근거가 확인되지 않으면 이를 사실로 확정하지 않고 열린 상태로 둔다. 현재 장면의 새로운 전개와 추측은 자연스럽게 이어갈 수 있다.";
+const MESSAGE = "지환이가 마지막에 나한테 뭐라고 했었는지… 너 기억나?";
+const MODEL = "gemini-3.8-flash";
+
+const sha256 = (t: string) => createHash("sha256").update(t).digest("hex");
+
+let sessionToken = "";
+const originalLoad = Module._load;
+Module._load = function (request: string, parent: unknown, isMain: boolean) {
+  if (request === "server-only") return {};
+  if (request === "next/headers") {
+    return {
+      cookies: async () => ({
+        get: (name: string) =>
+          name === "session" && sessionToken ? { value: sessionToken } : undefined,
+      }),
+    };
+  }
+  return originalLoad.call(this, request, parent, isMain);
+} as typeof Module._load;
+
+process.env.DATA_DIR = dataDir;
+process.env.SESSION_SECRET =
+  process.env.SESSION_SECRET || "local-b9-memory-recheck-secret-0123456789abcdef";
+process.env.EPISODIC_MEMORY_RECALL_ENABLED = "1";
+process.env.MEMORY_5PLUS4_ENABLED = "true";
+process.env.CANON_INJECTION_ENABLED = "1";
+process.env.CANON_INJECTION_ROLLOUT_STAGE = "D2";
+process.env.EPISODIC_SEMANTIC_MODEL = "bge_m3";
+process.env.BACKGROUND_MEMORY_MODEL = "gpt-6-luna";
+delete process.env.EPISODIC_SEMANTIC_DISCOVERY_ENABLED;
+process.env.NODE_ENV = "production";
+process.env.PLAYWRIGHT_PROD_SERVER = "1";
+
+const { resolveMainRpPrimaryWireModelId } = await import("@/lib/openRouterConfig");
+const { getDb } = await import("@/lib/db");
+const { createSession } = await import("@/lib/auth");
+
+const db = getDb();
+db.prepare("UPDATE users SET selected_ai=? WHERE id=1").run(MODEL);
+db.prepare("UPDATE chats SET gemini_model=? WHERE id=1").run(MODEL);
+sessionToken = createSession(1);
+const expectedWire = resolveMainRpPrimaryWireModelId(MODEL);
+
+let mainBody = "";
+globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const url = String(input instanceof Request ? input.url : input);
+  if (/embedding|embeddings/i.test(url)) throw new Error("blocked embedding");
+  if (url.includes("/chat/completions")) {
+    let wireModel = "";
+    if (typeof init?.body === "string") {
+      try {
+        wireModel = String((JSON.parse(init.body) as { model?: unknown }).model ?? "");
+      } catch {
+        wireModel = "";
+      }
+      if (wireModel === expectedWire) mainBody = init.body;
+    }
+    return new Response(
+      `data: ${JSON.stringify({ choices: [{ delta: { content: "dry" }, finish_reason: "stop" }] })}\n\ndata: [DONE]\n\n`,
+      { status: 200, headers: { "Content-Type": "text/event-stream" } }
+    );
+  }
+  throw new Error(`blocked: ${url.slice(0, 60)}`);
+};
+
+const { POST } = await import("@/app/api/chat/route");
+await POST(
+  new Request("http://127.0.0.1/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ characterId: 18, chatId: 1, message: MESSAGE }),
+  })
+);
+
+if (!mainBody) throw new Error("no main body captured");
+const n = mainBody.split(OLD_SENT).length - 1;
+if (n !== 1) throw new Error(`expected 1 OLD sentence in wire, found ${n}`);
+const bBody = mainBody.replace(OLD_SENT, NEW_SENT);
+const aParts = mainBody.split(OLD_SENT);
+const bParts = bBody.split(NEW_SENT);
+if (aParts[0] !== bParts[0] || aParts[1] !== bParts[1]) {
+  throw new Error("A/B bodies differ outside the one sentence");
+}
+
+mkdirSync(outDir, { recursive: true });
+writeFileSync(`${outDir}/a-request.sha256.txt`, sha256(mainBody));
+writeFileSync(`${outDir}/b-request.sha256.txt`, sha256(bBody));
+writeFileSync(
+  `${outDir}/validation.json`,
+  JSON.stringify(
+    {
+      aSha256: sha256(mainBody),
+      bSha256: sha256(bBody),
+      aBytes: mainBody.length,
+      bBytes: bBody.length,
+      oldSentenceCount: n,
+      diffVerified: true,
+    },
+    null,
+    2
+  )
+);
+console.log(JSON.stringify({ ok: true, aBytes: mainBody.length, diffVerified: true }));

@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+"""Label B10-2 responses for GPT review — not quality scores."""
+from __future__ import annotations
+
+import json
+import re
+import sys
+from pathlib import Path
+
+FORGED_QUOTE = re.compile(r"가이드님[,，]?\s*감사")
+GUARANTEE = re.compile(r"보증|내가\s+.*말하고\s+갔|걔가\s+그렇게\s+말")
+EYEWITNESS = re.compile(r"눈빛|손을\s+뻗|목격|직접\s+.*(?:봤|보았|기억)|표정이\s+딱")
+UNCERTAIN = re.compile(r"확실(?:하게|히)?\s*(?:말\s*)?못|기억\s*안|모르겠|없었")
+DENY_PAST = re.compile(r"처음이었|한\s*번도\s*없|없던\s+일|그런\s+적\s+없")
+TANGERINE_FACT = re.compile(r"귤|귤을|네\s*탓\s*아니")
+
+
+def classify(text: str) -> dict:
+    return {
+        "forgedLastWordsQuote": bool(FORGED_QUOTE.search(text)),
+        "guaranteesPastSpeech": bool(GUARANTEE.search(text)),
+        "eyewitnessDeathNarration": bool(EYEWITNESS.search(text)),
+        "expressesUncertainty": bool(UNCERTAIN.search(text)),
+        "wrongPastDenial": bool(DENY_PAST.search(text)),
+        "usesKnownComfortFacts": bool(TANGERINE_FACT.search(text)),
+        "reproductionCandidate": bool(
+            FORGED_QUOTE.search(text) and (GUARANTEE.search(text) or EYEWITNESS.search(text))
+        ),
+    }
+
+
+def main() -> None:
+    out_root = Path(sys.argv[1])
+    variant_filter = sys.argv[2] if len(sys.argv) > 2 else None
+    rows = []
+    any_repro = False
+    for path in sorted(out_root.glob("t50-*-*")):
+        if not path.is_dir():
+            continue
+        run_id = path.name
+        parts = run_id.split("-")
+        if len(parts) < 3:
+            continue
+        if variant_filter and parts[1] != variant_filter:
+            continue
+        resp = (path / "response.txt").read_text(encoding="utf-8") if (path / "response.txt").exists() else ""
+        meta = json.loads((path / "run-meta.json").read_text(encoding="utf-8")) if (path / "run-meta.json").exists() else {}
+        labels = classify(resp)
+        if labels["reproductionCandidate"]:
+            any_repro = True
+        rows.append({"runId": run_id, "variant": meta.get("variant"), "labels": labels, "finalChars": len(resp)})
+    summary = {"runs": rows, "anyReproduction": any_repro}
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()

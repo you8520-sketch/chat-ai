@@ -1,0 +1,207 @@
+/**
+ * B10-2 T50-C2 A/B — Gemini 3.8 Flash only, one Main RP network call per run.
+ * usage: t50-ab-one.mts <A|B> <dataDir> <outDir> <runId>
+ */
+import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
+import Module from "node:module";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
+
+const variant = process.argv[2] as "A" | "B";
+const dataDir = process.argv[3]!;
+const outDir = process.argv[4]!;
+const runId = process.argv[5] ?? "run";
+if ((variant !== "A" && variant !== "B") || !dataDir || !outDir) {
+  throw new Error("usage: t50-ab-one.mts <A|B> <dataDir> <outDir> <runId>");
+}
+
+const MESSAGE =
+  process.env.B10_T50_MESSAGE ??
+  "지환이가 마지막에 나한테 뭐라고 했었는지… 너 기억나?";
+const MODEL = "gemini-3.8-flash";
+
+const OLD_SENT =
+  "유저의 독립적인 과거 빈칸은 장면을 해치지 않는 범위에서 가볍게 추정할 수 있다.";
+const NEW_SENT =
+  "유저가 과거의 구체적인 세부를 물을 때 독립 근거가 확인되지 않으면 이를 사실로 확정하지 않고 열린 상태로 둔다. 현재 장면의 새로운 전개와 추측은 자연스럽게 이어갈 수 있다.";
+
+const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
+
+let sessionToken = "";
+const originalLoad = Module._load;
+Module._load = function (request: string, parent: unknown, isMain: boolean) {
+  if (request === "server-only") return {};
+  if (request === "next/headers") {
+    return {
+      cookies: async () => ({
+        get: (name: string) =>
+          name === "session" && sessionToken ? { value: sessionToken } : undefined,
+      }),
+    };
+  }
+  return originalLoad.call(this, request, parent, isMain);
+} as typeof Module._load;
+
+process.env.DATA_DIR = dataDir;
+process.env.SESSION_SECRET =
+  process.env.SESSION_SECRET || "local-b9-memory-recheck-secret-0123456789abcdef";
+process.env.EPISODIC_MEMORY_RECALL_ENABLED = "1";
+process.env.MEMORY_5PLUS4_ENABLED = "true";
+process.env.CANON_INJECTION_ENABLED = "1";
+process.env.CANON_INJECTION_ROLLOUT_STAGE = "D2";
+process.env.EPISODIC_SEMANTIC_MODEL = "bge_m3";
+process.env.BACKGROUND_MEMORY_MODEL = "gpt-6-luna";
+delete process.env.EPISODIC_SEMANTIC_DISCOVERY_ENABLED;
+delete process.env.MOCK_MODE;
+delete process.env.PROMPT_DEBUG;
+process.env.NODE_ENV = "production";
+process.env.PLAYWRIGHT_PROD_SERVER = "1";
+
+const { resolveMainRpPrimaryWireModelId } = await import("@/lib/openRouterConfig");
+const { getDb } = await import("@/lib/db");
+const { createSession } = await import("@/lib/auth");
+
+const db = getDb();
+db.prepare("UPDATE users SET selected_ai=? WHERE id=1").run(MODEL);
+db.prepare("UPDATE chats SET gemini_model=? WHERE id=1").run(MODEL);
+sessionToken = createSession(1);
+
+const expectedWire = resolveMainRpPrimaryWireModelId(MODEL);
+const originalFetch = globalThis.fetch;
+let mainNetworkCalls = 0;
+let capturedMainBody = "";
+
+function applyVariant(bodyText: string): string {
+  if (variant === "A") return bodyText;
+  const n = bodyText.split(OLD_SENT).length - 1;
+  if (n !== 1) {
+    throw new Error(`B variant: expected exactly 1 OLD sentence in wire body, found ${n}`);
+  }
+  return bodyText.replace(OLD_SENT, NEW_SENT);
+}
+
+function validateAbDiff(aBody: string, bBody: string) {
+  const aParts = aBody.split(OLD_SENT);
+  const bParts = bBody.split(NEW_SENT);
+  if (aParts.length !== 2 || bParts.length !== 2) {
+    throw new Error("AB diff validation failed: split count");
+  }
+  if (aParts[0] !== bParts[0] || aParts[1] !== bParts[1]) {
+    throw new Error("AB diff validation failed: bodies differ outside the one sentence");
+  }
+}
+
+globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const url = String(input instanceof Request ? input.url : input);
+  if (/embedding|embeddings/i.test(url)) {
+    throw new Error(`blocked embedding: ${url.slice(0, 80)}`);
+  }
+  if (!url.includes("/chat/completions")) {
+    return originalFetch(input, init);
+  }
+  let bodyText = "";
+  let wireModel = "";
+  if (typeof init?.body === "string") {
+    bodyText = init.body;
+    try {
+      wireModel = String((JSON.parse(bodyText) as { model?: unknown }).model ?? "");
+    } catch {
+      wireModel = "";
+    }
+  }
+  const isMain = wireModel === expectedWire;
+  if (!isMain) {
+    return new Response(
+      `data: ${JSON.stringify({
+        choices: [{ delta: { content: "" }, finish_reason: "stop" }],
+        usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0 },
+      })}\n\ndata: [DONE]\n\n`,
+      { status: 200, headers: { "Content-Type": "text/event-stream" } }
+    );
+  }
+  if (mainNetworkCalls >= 1) {
+    throw new Error("blocked second main RP call");
+  }
+  const patched = applyVariant(bodyText);
+  capturedMainBody = patched;
+  mainNetworkCalls++;
+  appendFileSync(
+    "/tmp/b10-2/paid-main-rp.log",
+    `${new Date().toISOString()} ${runId} ${variant} sha256=${sha256(patched).slice(0, 16)}\n`
+  );
+  mkdirSync(outDir, { recursive: true });
+  writeFileSync(`${outDir}/main-request.sha256.txt`, sha256(patched));
+  return originalFetch(input, { ...init, body: patched });
+};
+
+const { POST } = await import("@/app/api/chat/route");
+const chatRes = await POST(
+  new Request("http://127.0.0.1/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ characterId: 18, chatId: 1, message: MESSAGE }),
+  })
+);
+const rawSse = await chatRes.text();
+
+const events: Array<Record<string, unknown>> = [];
+for (const line of rawSse.split("\n")) {
+  if (!line.startsWith("data:")) continue;
+  const payload = line.slice(5).trim();
+  if (!payload || payload === "[DONE]") continue;
+  try {
+    events.push(JSON.parse(payload) as Record<string, unknown>);
+  } catch {
+    // ignore
+  }
+}
+const done = [...events].reverse().find((e) => e.type === "done");
+const err = events.find((e) => e.type === "error");
+const finalContent = typeof done?.finalContent === "string" ? done.finalContent : "";
+const usage = (done?.usage ?? null) as Record<string, unknown> | null;
+
+if (chatRes.status !== 200 || err || !done || mainNetworkCalls !== 1) {
+  writeFileSync(`${outDir}/sse.txt`, rawSse);
+  throw new Error(`call failed status=${chatRes.status} err=${JSON.stringify(err)} main=${mainNetworkCalls}`);
+}
+
+const stage0 = Array.isArray(usage?.stages) ? (usage!.stages as unknown[])[0] : null;
+const providerRequestId =
+  stage0 && typeof stage0 === "object" && stage0 !== null && "providerRequestId" in stage0
+    ? String((stage0 as { providerRequestId?: unknown }).providerRequestId ?? "")
+    : String(done.requestId ?? "");
+
+mkdirSync(outDir, { recursive: true });
+writeFileSync(`${outDir}/response.txt`, finalContent);
+writeFileSync(
+  `${outDir}/run-meta.json`,
+  JSON.stringify(
+    {
+      runId,
+      variant,
+      model: MODEL,
+      expectedWire,
+      message: MESSAGE,
+      mainRequestSha256: sha256(capturedMainBody),
+      requestId: String(done.requestId ?? ""),
+      providerRequestId,
+      finishReason: usage?.finishReason ?? null,
+      finalChars: finalContent.length,
+      usagePublic: usage,
+      sentenceSwap: variant === "B" ? { old: OLD_SENT, new: NEW_SENT } : null,
+    },
+    null,
+    2
+  )
+);
+
+console.log(
+  JSON.stringify({
+    ok: true,
+    runId,
+    variant,
+    mainRequestSha256: sha256(capturedMainBody).slice(0, 16),
+    finalChars: finalContent.length,
+    apiRawCostKrw: usage?.apiRawCostKrw ?? null,
+  })
+);

@@ -1,0 +1,191 @@
+{
+  "runId": "t50-A-3",
+  "variant": "A",
+  "model": "gemini-3.8-flash",
+  "expectedWire": "google/gemini-3.8-flash",
+  "message": "지환이가 마지막에 나한테 뭐라고 했었는지… 너 기억나?",
+  "mainRequestSha256": "49475a3df82469187890340b873319cd008cf5eac7bec4a11eab119091fd0458",
+  "requestId": "srv_mvgbr6di_dk0ea4o3",
+  "providerRequestId": "srv_mvgbr6di_dk0ea4o3",
+  "finishReason": "stop",
+  "finalChars": 4403,
+  "usagePublic": {
+    "input": 13992,
+    "output": 2828,
+    "finishReason": "stop",
+    "savedOutputChars": 4402,
+    "model": "gemini-3.8-flash",
+    "provider": "openrouter",
+    "route": "safe",
+    "selectedAI": "gemini-3.8-flash",
+    "cost": 21,
+    "baseCost": 21,
+    "modelLabel": "Gemini 3.8 Flash",
+    "estimated": false,
+    "breakdown": [
+      {
+        "label": "최근 RAW: ~1,383 입력 토큰 추정 배분 · 739 chars · 5 exchanges",
+        "tokens": 1383,
+        "pct": 10
+      },
+      {
+        "label": "캐릭터 컨텍스트: ~5,874 입력 토큰 추정 배분 · 10,268 chars",
+        "tokens": 5874,
+        "pct": 42
+      },
+      {
+        "label": "시스템 프롬프트: ~4,320 입력 토큰 추정 배분",
+        "tokens": 4320,
+        "pct": 31
+      },
+      {
+        "label": "장기기억: ~1,782 입력 토큰 추정 배분",
+        "tokens": 1782,
+        "pct": 13
+      },
+      {
+        "label": "페르소나: ~633 입력 토큰 추정 배분",
+        "tokens": 633,
+        "pct": 5
+      }
+    ],
+    "breakdownAllocation": "estimated_section_allocation",
+    "rawHistoryHealth": {
+      "rawCompleteExchanges": 5,
+      "rawMessages": 10,
+      "rawChars": 739,
+      "rawInternalEstimate": 670,
+      "summaryInterval": 5,
+      "summarizedThroughTurn": 45,
+      "unsummarizedCompletedTurns": 5,
+      "realRawCompleteExchanges": 5,
+      "realRawMessages": 10,
+      "realRawChars": 739,
+      "openingPreludePresent": false,
+      "openingPreludeChars": 0,
+      "generalRouteBridgePresent": false,
+      "generalRouteBridgeChars": 0
+    },
+    "assembledPromptChars": {
+      "system": 22887,
+      "systemRules": 14176,
+      "characterSettings": 1299,
+      "dynamic": 7408,
+      "history": 2412,
+      "currentUser": 1580,
+      "total": 25299
+    },
+    "usedEnglishCharacterPrompt": false,
+    "characterPromptLanguage": "korean_fallback",
+    "stages": [
+      {
+        "stage": "Gemini 3.8 Flash",
+        "model": "google/gemini-3.8-flash",
+        "input": 13992,
+        "output": 2828,
+        "apiReportedInputTokens": 13992,
+        "apiOutputTokens": 2828,
+        "lengthRecoveryPasses": 0,
+        "savedOutputChars": 4361,
+        "estimated": false,
+        "finishReason": "stop",
+        "truncated": false,
+        "loopAborted": false,
+        "degenerationAborted": false,
+        "cacheReadTokens": 12777,
+        "standardInputTokens": 1215,
+        "upstreamCostUsd": 0.0062372625,
+        "responseModelId": "google/gemini-3.8-flash",
+        "cost": 21
+      }
+    ],
+    "apiInputTokens": 13992,
+    "apiOutputTokens": 2828,
+    "assembledInputTokens": 22775,
+    "cacheReadTokens": 12777,
+    "standardInputTokens": 1215,
+    "upstreamCostUsd": 0.0062372625,
+    "cacheReadLine": "12,777 (Google Gemini 자동 캐시 · 입력 ~90% 할인)",
+    "cacheRateSummary": "입력 $0.75/M · 캐시히트 25% · 출력 $3.75/M",
+    "cacheFamily": "google",
+    "exchangeRateKrwPerUsd": 1530,
+    "exchangeRateDateKey": "2026-10-20",
+    "exchangeRateMode": "daily_kst",
+    "exchangeRateSource": "fallback",
+    "apiRawCostKrw": 9.5,
+    "apiRawCostSource": "provider_reported",
+    "mainApiRawCostKrw": 9.5,
+    "statusWidgetExtractDiagnostics": {
+      "exhausted": true,
+      "usedFallback": false,
+      "attempts": [
+        {
+          "stage": "initial",
+          "modelId": "gpt-6-luna",
+          "httpStatus": null,
+          "finishReason": null,
+          "errorCode": "SyntaxError",
+          "reasonCode": "V3_EMPTY_OUTPUT",
+          "succeeded": false
+        }
+      ]
+    },
+    "shadowPricing": {
+      "pricingVersion": 1,
+      "billingReferenceInputUsdPerMillion": 0.375,
+      "billingReferenceOutputUsdPerMillion": 1.875,
+      "billingReferenceCostKrw": 16.1,
+      "billingReferenceCostUsd": 0.0105495,
+      "fxSnapshot": {
+        "dateKey": "2026-10-20",
+        "source": "emergency_fallback",
+        "baseUsdKrw": 1500,
+        "overseasFeeRate": 0.02,
+        "effectiveKrwPerUsd": 1530,
+        "locked": true
+      },
+      "providerListCostStatus": "reference_rates_unavailable",
+      "reserveStatus": "unavailable",
+      "actualTurnCostCoverage": "complete",
+      "actualProviderCostKrw": 9.5,
+      "actualCostUsd": 0.0062372625,
+      "actualCostSource": "provider_reported",
+      "modelId": "google/gemini-3.8-flash",
+      "provider": "openrouter",
+      "providerListCostKrw": 0,
+      "inputCostKrw": 0.7,
+      "outputCostKrw": 8.1,
+      "reasoningCostKrw": 0,
+      "cacheReadCostKrw": 0,
+      "cacheWriteCostKrw": 0,
+      "targetMargin": 0.55,
+      "minimumMarginFloor": 0.5,
+      "standardUserChargeKrw": 35.8,
+      "promoPercent": 0,
+      "finalShadowChargeKrw": 35.8,
+      "finalShadowPoints": 36,
+      "providerSavingsKrw": null,
+      "providerOverrunKrw": null,
+      "promoGivebackKrw": 0,
+      "netPricingBufferDeltaKrw": null,
+      "actualGrossProfitKrw": 26.3,
+      "actualRealizedMargin": 0.7,
+      "worstCasePromoMargin": null,
+      "marginFloorViolated": null
+    },
+    "billingContractDispatch": {
+      "billingContract": "legacy",
+      "billingContractReason": "phase1_billing_disabled",
+      "deliveredModelId": "google/gemini-3.8-flash",
+      "publishedBillingPhaseAttempted": null,
+      "publishedCandidateStatus": "not_attempted",
+      "publishedBlockReason": null,
+      "appliedFailClosedPolicy": null,
+      "pricingVersion": null,
+      "publishedFinalPoints": null,
+      "legacyFinalPoints": 21,
+      "settledDeductedPoints": 21
+    }
+  },
+  "sentenceSwap": null
+}
