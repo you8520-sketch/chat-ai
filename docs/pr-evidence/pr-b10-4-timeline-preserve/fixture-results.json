@@ -1,0 +1,93 @@
+{
+  "mainSha": "ad0c5e9b1f4c8c63a6527a03b59670b456d545eb",
+  "snapSource": "/tmp/b9-preserved/db/snap-50",
+  "sourceTurn21Len": 376,
+  "old": {
+    "turn21Len": 376,
+    "turn21Semantics": {
+      "renFirstOrSelfBlame": true,
+      "taehyungArrivalOrSitBeside": true,
+      "orderedRenThenTaehyung": false,
+      "deathOrJihwan": true,
+      "tangerineComfort": true,
+      "noInventedLastWords": true,
+      "noFabricatedNonWitness": true
+    },
+    "wire": {
+      "sha256": "acad78df2698149f238f9412e040c3cf389b5d69ec642ce9d03b6cff2d07c025",
+      "bytes": 27004,
+      "globalBlock": "[21~25턴] 임무 복귀 후 렌이 말없이 장비를 정리하자 태형은 말을 걸지 못하고 딸기우유를 건넸고, 렌은 조용히 받음. 렌이 태형에게 배정된 가이드와 탕후루를 먹을 필요 없다며 금요일 야시장 약속을 취소하자 태형은 오해를 풀려 했으나 렌은 돌아보지 않음. 이후 렌이 브리핑 내내 태형을 외면하고 윤도겸의 훈련 제안도 거절해 둘 사이가 서먹해짐. 가이딩 수치가 51%까지 떨어지자 렌은 “일이니까” 손을 잡았고, 수치는 78%까지 올랐으나 사과에도 관계는 풀리지 않음. 영등포 게이트 브레이크에서 열아홉 살 C급 센티넬 오지환이 폭주 직전 렌의 가이딩을 받지 못해 사망함. 렌이 자신의 탓이라며 주저앉자 태형은 아무것도 묻지 않고 곁을 지키며 귤을 건네고, “네 탓 아니야”라고 위로함.\n\n[26~30턴] 렌은 전날 태형에게 고맙다고 했지만 아직 화가 풀리지 않았고, 태형은 이를 받아들이며 측정기 수치 이상을 알려 연구국에 맡기도록 권함. 민호의 재보정으로 반응 지연이 측정기 오차 탓이며 렌의 잘못이 아님이 밝혀졌고, 이를 지켜본 태형은 조용히 물러남. 렌이 새 측정기로 임무를 마치자 태형은 딸기우유를 건네며 자신의 의식이라 했고, 렌의 감사에 놀람. 이후 인천항 B급 게이트에서 진화형 크리처를 상대하며 태형은 렌을 보호하다 왼쪽 옆구리를 다침. 렌의 접촉 가이딩으로 폭주 직전의 떨림은 가라앉았으나, 태형은 피를 흘리면서도 렌의 안부를 먼저 물음.\n\n[31~35턴] 태형은 옆구리 부상으로 피를 많이 흘렸지만 의무실을 거부하고 붕대만 감은 채 버팀. 피가 배어 나오는데도 D급 정리 임무에 따라나와 핑거스냅으로 크리처를 처치했고, 렌을 부축하면서 함께 복귀함. 절뚝이면서도 딸기우유를 사 빨대까지 꽂아 건네며 생환을 기념했고, 렌은 한숨 쉬면서 받아들임. 이후 생각이 있다며 나중에 제대로 ",
+      "semanticsGlobal": {
+        "renFirstOrSelfBlame": true,
+        "taehyungArrivalOrSitBeside": true,
+        "orderedRenThenTaehyung": true,
+        "deathOrJihwan": true,
+        "tangerineComfort": true,
+        "noInventedLastWords": true,
+        "noFabricatedNonWitness": true
+      },
+      "phrasePresent": {
+        "내려와": false,
+        "먼저": true,
+        "곁을 지키": true,
+        "주저앉": true,
+        "네 탓 아니": true,
+        "돌아오지 못했다": true
+      }
+    }
+  },
+  "new": {
+    "meta": {
+      "turn21Len": 399,
+      "globalLen": 3066,
+      "global21Excerpt": "[21~25턴] 임무 복귀 후 렌이 말없이 장비를 정리하자 태형은 말을 걸지 못하고 딸기우유를 건넸고, 렌은 조용히 받음. 렌이 태형에게 배정된 가이드와 탕후루를 먹을 필요 없다며 금요일 야시장 약속을 취소하자 태형은 오해를 풀려 했으나 렌은 돌아보지 않음. 이후 렌이 브리핑 내내 태형을 외면하고 윤도겸의 훈련 제안도 거절해 둘 사이가 서먹해짐. 가이딩 수치가 51%까지 떨어지자 렌은 “일이니까” 손을 잡았고, 수치는 78%까지 올랐으나 사과에도 관계는 풀리지 않음. 영등포 게이트 브레이크에서 열아홉 살 C급 센티넬 오지환이 폭주 직전 렌의 가이딩을 받지 못해 사망함. 렌이 자신의 탓이라며 비상계단에 먼저 주저앉자, 태형이 말없이 내려와 옆에 앉았다. 태형은 아무것도 묻지 않고 귤을 건네며 “네 탓 아니야”라고 위로했다.\n\n[26~30턴] 렌",
+      "semanticsSummary": {
+        "renFirstOrSelfBlame": true,
+        "taehyungArrivalOrSitBeside": true,
+        "orderedRenThenTaehyung": true,
+        "deathOrJihwan": true,
+        "tangerineComfort": true,
+        "noInventedLastWords": true,
+        "noFabricatedNonWitness": true
+      },
+      "semanticsGlobal": {
+        "renFirstOrSelfBlame": true,
+        "taehyungArrivalOrSitBeside": true,
+        "orderedRenThenTaehyung": true,
+        "deathOrJihwan": true,
+        "tangerineComfort": true,
+        "noInventedLastWords": true,
+        "noFabricatedNonWitness": true
+      }
+    },
+    "wire": {
+      "sha256": "bdcd1a1580df2b532fd203267a7c5c5733786f503d04f785c4781777750a7b3d",
+      "bytes": 27027,
+      "globalBlock": "[21~25턴] 임무 복귀 후 렌이 말없이 장비를 정리하자 태형은 말을 걸지 못하고 딸기우유를 건넸고, 렌은 조용히 받음. 렌이 태형에게 배정된 가이드와 탕후루를 먹을 필요 없다며 금요일 야시장 약속을 취소하자 태형은 오해를 풀려 했으나 렌은 돌아보지 않음. 이후 렌이 브리핑 내내 태형을 외면하고 윤도겸의 훈련 제안도 거절해 둘 사이가 서먹해짐. 가이딩 수치가 51%까지 떨어지자 렌은 “일이니까” 손을 잡았고, 수치는 78%까지 올랐으나 사과에도 관계는 풀리지 않음. 영등포 게이트 브레이크에서 열아홉 살 C급 센티넬 오지환이 폭주 직전 렌의 가이딩을 받지 못해 사망함. 렌이 자신의 탓이라며 비상계단에 먼저 주저앉자, 태형이 말없이 내려와 옆에 앉았다. 태형은 아무것도 묻지 않고 귤을 건네며 “네 탓 아니야”라고 위로했다.\n\n[26~30턴] 렌은 전날 태형에게 고맙다고 했지만 아직 화가 풀리지 않았고, 태형은 이를 받아들이며 측정기 수치 이상을 알려 연구국에 맡기도록 권함. 민호의 재보정으로 반응 지연이 측정기 오차 탓이며 렌의 잘못이 아님이 밝혀졌고, 이를 지켜본 태형은 조용히 물러남. 렌이 새 측정기로 임무를 마치자 태형은 딸기우유를 건네며 자신의 의식이라 했고, 렌의 감사에 놀람. 이후 인천항 B급 게이트에서 진화형 크리처를 상대하며 태형은 렌을 보호하다 왼쪽 옆구리를 다침. 렌의 접촉 가이딩으로 폭주 직전의 떨림은 가라앉았으나, 태형은 피를 흘리면서도 렌의 안부를 먼저 물음.\n\n[31~35턴] 태형은 옆구리 부상으로 피를 많이 흘렸지만 의무실을 거부하고 붕대만 감은 채 버팀. 피가 배어 나오는데도 D급 정리 임무에 따라나와 핑거스냅으로 크리처를 처치했고, 렌을 부축하면서 함께 복귀함. 절뚝이면서도 딸기우유를 사 빨대까지 꽂아 건네며 생환을 기념했고, 렌은 한숨 쉬면서 받아",
+      "semanticsGlobal": {
+        "renFirstOrSelfBlame": true,
+        "taehyungArrivalOrSitBeside": true,
+        "orderedRenThenTaehyung": true,
+        "deathOrJihwan": true,
+        "tangerineComfort": true,
+        "noInventedLastWords": true,
+        "noFabricatedNonWitness": true
+      },
+      "phrasePresent": {
+        "내려와": true,
+        "먼저": true,
+        "곁을 지키": true,
+        "주저앉": true,
+        "네 탓 아니": true,
+        "돌아오지 못했다": true
+      }
+    }
+  },
+  "lengthDelta": {
+    "turn21Chars": 23,
+    "globalChars": 23,
+    "wireBytes": 23
+  },
+  "b10_2_a_wire_sha256": "49475a3df82469187890340b873319cd008cf5eac7bec4a11eab119091fd0458",
+  "oldMatchesB10_2A": false
+}
