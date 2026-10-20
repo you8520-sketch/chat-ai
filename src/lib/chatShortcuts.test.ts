@@ -9,6 +9,7 @@ import {
   CHAT_SHORTCUT_INSERT_LOCKED_MESSAGE,
   CHAT_SHORTCUT_INSERT_TOO_LONG_MESSAGE,
   planChatShortcutInsert,
+  shortcutComposerChangeAfterComposition,
   validateChatShortcutDraft,
 } from "./chatShortcutComposer";
 import {
@@ -147,6 +148,32 @@ describe("mergeShortcutList", () => {
     const server = [{ id: 3, favorite: false, updatedAt: "2026-10-20 00:00:00" }];
     const merged = mergeShortcutList(server, new Map(), new Set([3]));
     assert.deepEqual(merged, []);
+  });
+});
+
+describe("shortcutComposerChangeAfterComposition", () => {
+  test("ignores only the armed composition echo, not a later edit with the same text", () => {
+    assert.deepEqual(
+      shortcutComposerChangeAfterComposition({
+        echoArmed: true,
+        inputType: "insertCompositionText",
+      }),
+      { echoArmed: false, ignoreChange: true }
+    );
+    assert.deepEqual(
+      shortcutComposerChangeAfterComposition({
+        echoArmed: true,
+        inputType: "deleteContentBackward",
+      }),
+      { echoArmed: false, ignoreChange: false }
+    );
+    assert.deepEqual(
+      shortcutComposerChangeAfterComposition({
+        echoArmed: false,
+        inputType: "insertCompositionText",
+      }),
+      { echoArmed: false, ignoreChange: false }
+    );
   });
 });
 

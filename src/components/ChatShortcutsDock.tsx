@@ -56,7 +56,8 @@ export function ChatShortcutsDock({
   const listOnceRef = useRef(false);
   const writesRef = useRef(new Map<number, ShortcutItem>());
   const deletesRef = useRef(new Set<number>());
-  const draftGenRef = useRef(0);
+  const draftSessionRef = useRef(0);
+  const draftVersionRef = useRef(0);
   const loadListRef = useRef<() => Promise<void>>(async () => {});
 
   const selected = items.find((item) => item.id === selectedId) ?? null;
@@ -107,11 +108,18 @@ export function ChatShortcutsDock({
   }
 
   function beginDraft(next: Draft, editing: number | null) {
-    draftGenRef.current += 1;
+    draftSessionRef.current += 1;
+    draftVersionRef.current += 1;
     setFormOpen(true);
     setEditingId(editing);
     setDraft(next);
     setNotice("");
+  }
+
+  function editDraft(key: keyof Draft, value: string) {
+    if (draft[key] === value) return;
+    draftVersionRef.current += 1;
+    setDraft((prev) => ({ ...prev, [key]: value }));
   }
 
   function rememberWrite(shortcut: ShortcutItem) {
@@ -128,7 +136,8 @@ export function ChatShortcutsDock({
     busyRef.current = true;
     setBusy(true);
     setNotice("");
-    const savedGen = draftGenRef.current;
+    const savedSession = draftSessionRef.current;
+    const savedVersion = draftVersionRef.current;
     const payload = {
       name: draft.name,
       description: draft.description,
@@ -144,7 +153,10 @@ export function ChatShortcutsDock({
       const data = (await res.json().catch(() => ({}))) as { error?: string; shortcut?: ShortcutItem };
       if (!res.ok || !data.shortcut) throw new Error(data.error || SAVE_FAILURE);
       rememberWrite(data.shortcut);
-      if (draftGenRef.current === savedGen) {
+      if (
+        draftSessionRef.current === savedSession &&
+        draftVersionRef.current === savedVersion
+      ) {
         setSelectedId(data.shortcut.id);
         setEditingId(null);
         setFormOpen(false);
@@ -152,7 +164,7 @@ export function ChatShortcutsDock({
         setNotice("");
       }
     } catch (error) {
-      if (draftGenRef.current === savedGen) {
+      if (draftSessionRef.current === savedSession) {
         const message = error instanceof Error && error.message ? error.message : SAVE_FAILURE;
         setNotice(message.includes("다시") ? message : SAVE_FAILURE);
       }
@@ -388,7 +400,7 @@ export function ChatShortcutsDock({
                   data-testid="chat-shortcuts-name"
                   value={draft.name}
                   maxLength={CHAT_SHORTCUT_NAME_MAX}
-                  onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))}
+                  onChange={(event) => editDraft("name", event.target.value)}
                   placeholder="이름"
                   className="w-full rounded-md border border-white/15 bg-[#1a1a1a] px-2 py-1 text-[12px] text-zinc-100"
                 />
@@ -397,7 +409,7 @@ export function ChatShortcutsDock({
                   value={draft.description}
                   maxLength={CHAT_SHORTCUT_DESCRIPTION_MAX}
                   onChange={(event) =>
-                    setDraft((prev) => ({ ...prev, description: event.target.value.replace(/[\r\n]/g, "") }))
+                    editDraft("description", event.target.value.replace(/[\r\n]/g, ""))
                   }
                   placeholder="한 줄 설명 (선택)"
                   className="w-full rounded-md border border-white/15 bg-[#1a1a1a] px-2 py-1 text-[12px] text-zinc-100"
@@ -406,7 +418,7 @@ export function ChatShortcutsDock({
                   data-testid="chat-shortcuts-content"
                   value={draft.content}
                   maxLength={CHAT_SHORTCUT_CONTENT_MAX}
-                  onChange={(event) => setDraft((prev) => ({ ...prev, content: event.target.value }))}
+                  onChange={(event) => editDraft("content", event.target.value)}
                   placeholder="내용"
                   rows={3}
                   className="w-full resize-none rounded-md border border-white/15 bg-[#1a1a1a] px-2 py-1 text-[12px] text-zinc-100"

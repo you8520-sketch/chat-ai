@@ -90,6 +90,21 @@ export function planChatShortcutInsert(input: {
   return { action: "apply", next, caret: start + insert.length };
 }
 
+/**
+ * compositionend 직후 브라우저가 같은 턴에 보내는 insertCompositionText echo만 무시한다.
+ * 확정 문자열과 값이 같다는 이유로는 판단하지 않는다. echo가 아니면 억제를 유지하지 않는다.
+ */
+export function shortcutComposerChangeAfterComposition(input: {
+  echoArmed: boolean;
+  inputType: string | null;
+}): { echoArmed: boolean; ignoreChange: boolean } {
+  if (!input.echoArmed) return { echoArmed: false, ignoreChange: false };
+  if (input.inputType === "insertCompositionText") {
+    return { echoArmed: false, ignoreChange: true };
+  }
+  return { echoArmed: false, ignoreChange: false };
+}
+
 function clampIndex(value: number, length: number): number {
   if (!Number.isFinite(value)) return length;
   return Math.min(length, Math.max(0, Math.trunc(value)));

@@ -239,7 +239,11 @@ import {
   resolveSendCustodyBackup,
   saveChatMessageDraft,
 } from "@/lib/userInputDraft";
-import { planChatShortcutInsert, type ChatShortcutInsertResult } from "@/lib/chatShortcutComposer";
+import {
+  planChatShortcutInsert,
+  shortcutComposerChangeAfterComposition,
+  type ChatShortcutInsertResult,
+} from "@/lib/chatShortcutComposer";
 import {
   clearChatStreamDraft,
   createClientRequestId,
@@ -1032,7 +1036,7 @@ export default function ChatClient({
   const shortcutCaretRef = useRef({ start: 0, end: 0 });
   const shortcutComposingRef = useRef(false);
   const pendingShortcutRef = useRef<string | null>(null);
-  const suppressShortcutInputValueRef = useRef<string | null>(null);
+  const shortcutCompositionEchoRef = useRef(false);
   const [hasMoreOlder, setHasMoreOlder] = useState(initialHasMoreOlder);
   const [hiddenTurnCount, setHiddenTurnCount] = useState(initialHiddenTurnCount);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -6265,13 +6269,17 @@ export default function ChatClient({
               value={input}
               maxLength={CHAT_MESSAGE_MAX}
               onChange={(e) => {
-                const echoed = suppressShortcutInputValueRef.current;
-                if (echoed != null && e.target.value === echoed) {
-                  suppressShortcutInputValueRef.current = null;
+                const native = e.nativeEvent;
+                const inputType = native instanceof InputEvent ? native.inputType : null;
+                const echo = shortcutComposerChangeAfterComposition({
+                  echoArmed: shortcutCompositionEchoRef.current,
+                  inputType,
+                });
+                shortcutCompositionEchoRef.current = echo.echoArmed;
+                if (echo.ignoreChange) {
                   rememberShortcutCaret(e.currentTarget);
                   return;
                 }
-                suppressShortcutInputValueRef.current = null;
                 setInput(e.target.value.slice(0, CHAT_MESSAGE_MAX));
                 rememberShortcutCaret(e.currentTarget);
               }}
@@ -6288,8 +6296,12 @@ export default function ChatClient({
                 const pending = pendingShortcutRef.current;
                 pendingShortcutRef.current = null;
                 if (!pending) return;
-                suppressShortcutInputValueRef.current = e.currentTarget.value;
+                shortcutCompositionEchoRef.current = true;
                 applyShortcutInsert(pending, e.currentTarget.value);
+                // echo가 같은 턴에 없으면 억제를 다음 편집까지 남기지 않는다.
+                queueMicrotask(() => {
+                  shortcutCompositionEchoRef.current = false;
+                });
               }}
               onKeyDown={(e) => {
                 if (

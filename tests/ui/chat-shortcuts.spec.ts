@@ -349,4 +349,80 @@ test.describe("personal chat shortcuts", () => {
     await expect(box).toHaveValue("안녕!");
     await expect(page.getByTestId("chat-shortcuts-composer-notice")).toHaveCount(0);
   });
+
+  test("keeps edits typed into the same form while save is in flight", async ({ page }) => {
+    await openChat(page);
+    let releasePost: (() => void) | null = null;
+    const gate = new Promise<void>((resolve) => {
+      releasePost = resolve;
+    });
+    let heldPost = false;
+    await page.route("**/api/chat/shortcuts**", async (route) => {
+      if (route.request().method() === "POST" && !heldPost) {
+        heldPost = true;
+        await gate;
+      }
+      await route.continue();
+    });
+    await page.getByTestId("chat-shortcuts-open").click();
+    await page.getByRole("button", { name: "새로 만들기" }).click();
+    await page.getByTestId("chat-shortcuts-name").fill("첫번째");
+    await page.getByTestId("chat-shortcuts-description").fill("설명하나");
+    await page.getByTestId("chat-shortcuts-content").fill("내용하나");
+    await page.getByTestId("chat-shortcuts-save").click();
+    await expect(page.getByTestId("chat-shortcuts-save")).toBeDisabled();
+    await page.getByTestId("chat-shortcuts-name").fill("첫번째-수정");
+    await page.getByTestId("chat-shortcuts-description").fill("설명둘");
+    await page.getByTestId("chat-shortcuts-content").fill("내용둘");
+    releasePost?.();
+    await expect(page.getByTestId("chat-shortcuts-name")).toHaveValue("첫번째-수정");
+    await expect(page.getByTestId("chat-shortcuts-description")).toHaveValue("설명둘");
+    await expect(page.getByTestId("chat-shortcuts-content")).toHaveValue("내용둘");
+    await expect(page.getByRole("button", { name: "첫번째 설명하나" })).toBeVisible();
+    await expect(page.getByTestId("chat-shortcuts-save")).toBeEnabled();
+    await page.getByTestId("chat-shortcuts-save").click();
+    await expect(page.getByTestId("chat-shortcuts-preview")).toContainText("내용둘");
+    await expect(page.getByRole("button", { name: "첫번째-수정 설명둘" })).toBeVisible();
+  });
+
+  test("synthetic composition without a trailing echo applies one backspace", async ({ page }) => {
+    await openChat(page);
+    await page.getByTestId("chat-shortcuts-open").click();
+    await page.getByRole("button", { name: "새로 만들기" }).click();
+    await page.getByTestId("chat-shortcuts-name").fill("지우기");
+    await page.getByTestId("chat-shortcuts-content").fill("!");
+    await page.getByTestId("chat-shortcuts-save").click();
+    await expect(page.getByTestId("chat-shortcuts-preview")).toContainText("!");
+
+    const box = composer(page);
+    await box.evaluate((el) => {
+      const textarea = el as HTMLTextAreaElement;
+      textarea.focus();
+      textarea.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
+    });
+    await page.getByTestId("chat-shortcuts-insert").click();
+    await expect(page.getByTestId("chat-shortcuts-composer-notice")).toContainText("한글 입력이 끝나면");
+    await box.evaluate((el) => {
+      const textarea = el as HTMLTextAreaElement;
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
+      setter?.call(textarea, "안녕");
+      textarea.setSelectionRange(2, 2);
+      textarea.dispatchEvent(
+        new InputEvent("input", { bubbles: true, data: "안녕", inputType: "insertCompositionText" })
+      );
+      textarea.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "안녕" }));
+    });
+    await expect(box).toHaveValue("안녕!");
+    await expect(page.getByTestId("chat-shortcuts-composer-notice")).toHaveCount(0);
+    await box.evaluate((el) => {
+      const textarea = el as HTMLTextAreaElement;
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
+      setter?.call(textarea, "안녕");
+      textarea.setSelectionRange(2, 2);
+      textarea.dispatchEvent(
+        new InputEvent("input", { bubbles: true, inputType: "deleteContentBackward" })
+      );
+    });
+    await expect(box).toHaveValue("안녕");
+  });
 });

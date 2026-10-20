@@ -1,0 +1,106 @@
+
+> hav-chat@0.1.0 test:ui
+> playwright test tests/ui/chat-shortcuts.spec.ts -g keeps edits typed into the same form|synthetic composition
+
+
+Running 3 tests using 1 worker
+
+(node:189077) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [exchangeRate] fetch failed — using last known or fallback fetch failed
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 1, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 1, chatId: 1 }
+  ✓  1 [chromium] › tests/ui/chat-shortcuts.spec.ts:319:7 › personal chat shortcuts › synthetic composition inserts the committed Hangul text once (1.8s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 2, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 2, chatId: 2 }
+  ✘  2 [chromium] › tests/ui/chat-shortcuts.spec.ts:353:7 › personal chat shortcuts › keeps edits typed into the same form while save is in flight (6.0s)
+(node:189199) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 3, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 3, chatId: 3 }
+  ✘  3 [chromium] › tests/ui/chat-shortcuts.spec.ts:388:7 › personal chat shortcuts › synthetic composition without a trailing echo applies one backspace (6.3s)
+
+
+  1) [chromium] › tests/ui/chat-shortcuts.spec.ts:353:7 › personal chat shortcuts › keeps edits typed into the same form while save is in flight 
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator: getByTestId('chat-shortcuts-description')
+    Expected: "설명둘"
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toHaveValue" getByTestId('chat-shortcuts-description') with timeout 5000ms
+      - waiting for getByTestId('chat-shortcuts-description')
+
+
+      377 |     releasePost?.();
+      378 |     await expect(page.getByTestId("chat-shortcuts-name")).toHaveValue("첫번째-수정");
+    > 379 |     await expect(page.getByTestId("chat-shortcuts-description")).toHaveValue("설명둘");
+          |                                                                  ^
+      380 |     await expect(page.getByTestId("chat-shortcuts-content")).toHaveValue("내용둘");
+      381 |     await expect(page.getByRole("button", { name: "첫번째", exact: true })).toBeVisible();
+      382 |     await expect(page.getByTestId("chat-shortcuts-save")).toBeEnabled();
+        at /workspace/tests/ui/chat-shortcuts.spec.ts:379:66
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-personal-ch-7e09a-orm-while-save-is-in-flight-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/chat-shortcuts-personal-ch-7e09a-orm-while-save-is-in-flight-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-personal-ch-7e09a-orm-while-save-is-in-flight-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/chat-shortcuts-personal-ch-7e09a-orm-while-save-is-in-flight-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › tests/ui/chat-shortcuts.spec.ts:388:7 › personal chat shortcuts › synthetic composition without a trailing echo applies one backspace 
+
+    Error: expect(locator).toHaveValue(expected) failed
+
+    Locator:  locator('textarea[placeholder*=\'메시지 입력\']')
+    Expected: "안녕"
+    Received: "안녕!"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveValue" locator('textarea[placeholder*=\'메시지 입력\']') with timeout 5000ms
+      - waiting for locator('textarea[placeholder*=\'메시지 입력\']')
+        14 × locator resolved to <textarea rows="2" maxlength="1500" placeholder="메시지 입력 · 지문은 * * 또는 ( ) · Ctrl+Enter 전송" class="min-h-[3.5rem] flex-1 resize-none rounded-lg border border-white/25 bg-[#1a1a1a] px-3 py-2.5 text-zinc-100 outline-none placeholder:text-zinc-400/80 focus:border-violet-400/60 focus:ring-1 focus:ring-violet-500/35 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[2.75rem] sm:py-2">안녕!</textarea>
+           - unexpected value "안녕!"
+
+
+      424 |       );
+      425 |     });
+    > 426 |     await expect(box).toHaveValue("안녕");
+          |                       ^
+      427 |   });
+      428 | });
+      429 |
+        at /workspace/tests/ui/chat-shortcuts.spec.ts:426:23
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-personal-ch-cac9e--echo-applies-one-backspace-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/chat-shortcuts-personal-ch-cac9e--echo-applies-one-backspace-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-personal-ch-cac9e--echo-applies-one-backspace-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/chat-shortcuts-personal-ch-cac9e--echo-applies-one-backspace-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    [chromium] › tests/ui/chat-shortcuts.spec.ts:353:7 › personal chat shortcuts › keeps edits typed into the same form while save is in flight 
+    [chromium] › tests/ui/chat-shortcuts.spec.ts:388:7 › personal chat shortcuts › synthetic composition without a trailing echo applies one backspace 
+  1 passed (1.6m)
