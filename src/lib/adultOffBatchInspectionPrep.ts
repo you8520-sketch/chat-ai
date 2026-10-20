@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import Database from "better-sqlite3";
 import type { Database as DatabaseType } from "better-sqlite3";
 import { parseAdultOffAuxApproval } from "@/lib/adultOffAuxApproval";
@@ -14,7 +16,7 @@ import {
   type AdultOffInspectionOutcome,
   type AdultOffInspectionTarget,
 } from "@/lib/adultOffOutputGuard";
-import { normalizeMessageVariants, variantToRowFields, type MessageVariant } from "@/lib/messageAlternates";
+import { normalizeMessageVariants, type MessageVariant } from "@/lib/messageAlternates";
 import { parseStatusMetaRecord } from "@/lib/statusMeta/types";
 import { statusMetaHasDisplayContent } from "@/lib/statusMeta/render";
 import { parseSuggestedRepliesRecord } from "@/lib/suggestedReplies/parse";
@@ -70,11 +72,29 @@ export type AdultOffAuxTextItem = {
 export type AdultOffAuxSurfaceSurvey = {
   displayStatusMetaMessages: number;
   suggestedReplyMessages: number;
+  displayWidgetMessages: number;
   variantWidgetTextCount: number;
   auxTextItems: number;
   auxItemsMissingV2Proof: number;
   auxItemsWithUnapprovedVisibleText: number;
+  auxUnreviewedVisibleTextCount: number;
   items: AdultOffAuxTextItem[];
+};
+
+export type AdultOffBodyInspectionSurvey = {
+  targets: number;
+  needsClassification: number;
+  reuseApproved: number;
+  reuseRestricted: number;
+  skipEmpty: number;
+  activeRowMirrorInconsistentMessages: number;
+  bodyUnreviewedTargets: number;
+};
+
+export type AdultOffBatchReadOnlySurvey = {
+  body: AdultOffBodyInspectionSurvey;
+  aux: Omit<AdultOffAuxSurfaceSurvey, "items">;
+  mirrorInconsistentMessageIds: number[];
 };
 
 export type AdultOffBatchRehearsalStats = {
@@ -212,6 +232,39 @@ export function planAdultOffBatchInspectionSummary(plan: readonly AdultOffInspec
   };
 }
 
+function stableUsageJson(usage: Record<string, unknown> | null): string {
+  return JSON.stringify(usage ?? null);
+}
+
+/** 활성 variant와 row canonical(content/model/usage) 미러. 불일치면 batch write 금지. */
+export function activeVariantMirrorsCanonicalRow(
+  row: AdultOffInspectionMessageRow,
+  variants: MessageVariant[],
+  activeVariant: number
+): boolean {
+  const active = variants[activeVariant];
+  if (!active) return false;
+  if (row.content !== active.content) return false;
+  if ((row.model ?? "") !== (active.model ?? "")) return false;
+  const rowUsage = parseUsageJson(row.usage);
+  const activeUsage = variantUsageObject(active);
+  return stableUsageJson(rowUsage) === stableUsageJson(activeUsage);
+}
+
+export function listActiveRowMirrorInconsistentMessageIds(
+  rows: readonly AdultOffInspectionMessageRow[]
+): number[] {
+  const ids: number[] = [];
+  for (const row of rows) {
+    if (row.role !== "assistant") continue;
+    const { variants, activeVariant } = normalizeMessageVariants(rowForVariantNormalization(row));
+    if (!activeVariantMirrorsCanonicalRow(row, variants, activeVariant)) {
+      ids.push(row.id);
+    }
+  }
+  return ids;
+}
+
 function fingerprintMatchesRow(
   row: AdultOffInspectionMessageRow,
   fingerprint: AdultOffTargetFingerprint,
@@ -224,6 +277,11 @@ function fingerprintMatchesRow(
   if (adultOffInspectionTextSha256(text) !== fingerprint.textSha256) return false;
   if (text !== expectedText) return false;
   return true;
+}
+
+function hadPersistedAlternates(row: AdultOffInspectionMessageRow): boolean {
+  const raw = row.alternates?.trim();
+  return Boolean(raw && raw !== "[]");
 }
 
 function usageWithoutAdultOffGuard(usage: Record<string, unknown> | null): Record<string, unknown> {
@@ -263,6 +321,10 @@ export function commitAdultOffInspectionIfFresh(
     const variant = variants[input.fingerprint.variantIndex];
     if (!variant) return "skipped_stale";
 
+    if (!activeVariantMirrorsCanonicalRow(row, variants, activeVariant)) {
+      return "skipped_stale";
+    }
+
     const priorUsage = variantUsageObject(variant);
     const applied = applyAdultOffStoredInspection(priorUsage, input.expectedText, input.outcome);
     if (!applied.wrote) return "skipped_noop";
@@ -280,38 +342,96 @@ export function commitAdultOffInspectionIfFresh(
       usage: applied.usage as MessageVariant["usage"],
     };
 
-    const alternatesJson =
-      nextVariants.length > 1 || row.alternates?.trim()
-        ? JSON.stringify(nextVariants)
-        : null;
-
     if (input.fingerprint.variantIndex === activeVariant) {
-      const fields = variantToRowFields(nextVariants, activeVariant);
-      db.prepare(
-        `UPDATE messages SET content=?, model=?, usage=?, alternates=?, active_variant=? WHERE id=?`
-      ).run(
-        fields.content,
-        fields.model,
-        fields.usage,
-        alternatesJson,
-        activeVariant,
+      const activeUsageJson = JSON.stringify(applied.usage);
+      if (hadPersistedAlternates(row)) {
+        db.prepare(`UPDATE messages SET usage=?, alternates=? WHERE id=?`).run(
+          activeUsageJson,
+          JSON.stringify(nextVariants),
+          input.fingerprint.messageId
+        );
+      } else {
+        db.prepare(`UPDATE messages SET usage=? WHERE id=?`).run(
+          activeUsageJson,
+          input.fingerprint.messageId
+        );
+      }
+    } else if (hadPersistedAlternates(row)) {
+      db.prepare(`UPDATE messages SET alternates=? WHERE id=?`).run(
+        JSON.stringify(nextVariants),
         input.fingerprint.messageId
       );
     } else {
-      db.prepare(`UPDATE messages SET alternates=? WHERE id=?`).run(
-        alternatesJson,
-        input.fingerprint.messageId
-      );
+      return "skipped_stale";
     }
     return "written";
   })();
 }
 
+function usageApprovesAllTexts(usage: unknown, texts: readonly string[]): boolean {
+  if (texts.length === 0) return true;
+  return texts.every((text) => adultOffStoredTextDisposition(usage, text) === "approved");
+}
+
 function auxProofApprovesTexts(proof: unknown, texts: readonly string[]): boolean {
   const parsed = parseAdultOffAuxApproval(proof);
   if (!parsed || parsed.policyVersion !== ADULT_OFF_GUARD_POLICY_VERSION) return false;
-  const carrier = { adultOffGuard: parsed };
-  return texts.every((text) => adultOffStoredTextDisposition(carrier, text) === "approved");
+  return usageApprovesAllTexts({ adultOffGuard: parsed }, texts);
+}
+
+function auxDisplayApproved(
+  activeUsage: unknown,
+  recordProof: unknown,
+  texts: readonly string[]
+): boolean {
+  const proofs =
+    recordProof == null ? [activeUsage] : [activeUsage, { adultOffGuard: recordProof }];
+  return texts.every((text) =>
+    proofs.some((proof) => adultOffStoredTextDisposition(proof, text) === "approved")
+  );
+}
+
+function auxHasV2ApprovalProof(
+  activeUsage: unknown,
+  recordProof: unknown,
+  texts: readonly string[]
+): boolean {
+  if (texts.length === 0) return true;
+  const parsed = parseAdultOffAuxApproval(recordProof);
+  if (parsed?.policyVersion === ADULT_OFF_GUARD_POLICY_VERSION && auxProofApprovesTexts(parsed, texts)) {
+    return true;
+  }
+  return usageApprovesAllTexts(activeUsage, texts);
+}
+
+function parseRowLevelStatusWidget(
+  raw: string | null | undefined
+): Parameters<typeof collectStatusWidgetVisibleTexts>[0] | null {
+  if (!raw?.trim()) return null;
+  try {
+    return JSON.parse(raw) as Parameters<typeof collectStatusWidgetVisibleTexts>[0];
+  } catch {
+    return null;
+  }
+}
+
+/** 사용자 표시 경로와 같은 row-level 위젯 fallback. */
+export function resolveDisplayedStatusWidgetTexts(
+  row: AdultOffInspectionMessageRow,
+  variants: MessageVariant[],
+  activeVariant: number
+): { texts: string[]; proofUsage: unknown } {
+  const active = variants[activeVariant];
+  const fromActive = collectStatusWidgetVisibleTexts(active?.statusWidgetValues);
+  if (fromActive.length > 0) {
+    return { texts: fromActive, proofUsage: active?.usage ?? null };
+  }
+  const legacy = parseRowLevelStatusWidget(row.status_widget_values_json);
+  const fromRow = collectStatusWidgetVisibleTexts(legacy);
+  if (fromRow.length > 0) {
+    return { texts: fromRow, proofUsage: rowActiveUsage(row) };
+  }
+  return { texts: [], proofUsage: active?.usage ?? null };
 }
 
 function rowActiveUsage(row: AdultOffInspectionMessageRow): Record<string, unknown> | null {
@@ -325,7 +445,9 @@ export function surveyAdultOffAuxSurfaces(
 ): AdultOffAuxSurfaceSurvey {
   let displayStatusMetaMessages = 0;
   let suggestedReplyMessages = 0;
+  let displayWidgetMessages = 0;
   let variantWidgetTextCount = 0;
+  let auxUnreviewedVisibleTextCount = 0;
   const items: AdultOffAuxTextItem[] = [];
 
   for (const row of rows) {
@@ -336,16 +458,18 @@ export function surveyAdultOffAuxSurfaces(
     if (metaRecord?.meta && statusMetaHasDisplayContent(metaRecord.meta)) {
       displayStatusMetaMessages += 1;
       const texts = collectStatusMetaVisibleTexts(metaRecord.meta);
-      const proof = metaRecord.adultOffGuard;
+      const recordProof = metaRecord.adultOffGuard;
+      const allTextsApprovedByProof = auxDisplayApproved(activeUsage, recordProof, texts);
+      if (!allTextsApprovedByProof) {
+        auxUnreviewedVisibleTextCount += texts.length;
+      }
       items.push({
         messageId: row.id,
         variantIndex: null,
         surface: "status_meta",
         texts,
-        hasV2ApprovalProof: Boolean(
-          proof && proof.policyVersion === ADULT_OFF_GUARD_POLICY_VERSION
-        ),
-        allTextsApprovedByProof: auxProofApprovesTexts(proof, texts),
+        hasV2ApprovalProof: auxHasV2ApprovalProof(activeUsage, recordProof, texts),
+        allTextsApprovedByProof,
       });
     }
 
@@ -353,72 +477,74 @@ export function surveyAdultOffAuxSurfaces(
     const replyTexts = collectSuggestedReplyVisibleTexts(repliesRecord?.replies ?? null);
     if (replyTexts.length > 0) {
       suggestedReplyMessages += 1;
-      const proof = repliesRecord?.adultOffGuard;
+      const recordProof = repliesRecord?.adultOffGuard;
+      const allTextsApprovedByProof = auxDisplayApproved(activeUsage, recordProof, replyTexts);
+      if (!allTextsApprovedByProof) {
+        auxUnreviewedVisibleTextCount += replyTexts.length;
+      }
       items.push({
         messageId: row.id,
         variantIndex: null,
         surface: "suggested_replies",
         texts: replyTexts,
-        hasV2ApprovalProof: Boolean(
-          proof && proof.policyVersion === ADULT_OFF_GUARD_POLICY_VERSION
-        ),
-        allTextsApprovedByProof: auxProofApprovesTexts(proof, replyTexts),
+        hasV2ApprovalProof: auxHasV2ApprovalProof(activeUsage, recordProof, replyTexts),
+        allTextsApprovedByProof,
       });
     }
 
     const { variants, activeVariant } = normalizeMessageVariants(rowForVariantNormalization(row));
-    variants.forEach((variant, index) => {
-      const widgetTexts = collectStatusWidgetVisibleTexts(variant.statusWidgetValues);
-      if (widgetTexts.length === 0) return;
-      variantWidgetTextCount += widgetTexts.length;
+    const displayed = resolveDisplayedStatusWidgetTexts(row, variants, activeVariant);
+    if (displayed.texts.length > 0) {
+      displayWidgetMessages += 1;
+      variantWidgetTextCount += displayed.texts.length;
+      const allTextsApprovedByProof = usageApprovesAllTexts(displayed.proofUsage, displayed.texts);
+      if (!allTextsApprovedByProof) {
+        auxUnreviewedVisibleTextCount += displayed.texts.length;
+      }
       items.push({
         messageId: row.id,
-        variantIndex: index,
+        variantIndex: activeVariant,
         surface: "status_widget",
-        texts: widgetTexts,
-        hasV2ApprovalProof: false,
-        allTextsApprovedByProof: widgetTexts.every(
-          (text) => adultOffStoredTextDisposition(variant.usage, text) === "approved"
-        ),
+        texts: displayed.texts,
+        hasV2ApprovalProof: usageApprovesAllTexts(displayed.proofUsage, displayed.texts),
+        allTextsApprovedByProof,
       });
-    });
-
-    const variantHasWidget = variants.some(
-      (variant) => collectStatusWidgetVisibleTexts(variant.statusWidgetValues).length > 0
-    );
-    if (!variantHasWidget && row.status_widget_values_json?.trim()) {
-      try {
-        const parsed = JSON.parse(row.status_widget_values_json) as unknown;
-        const legacyTexts = collectStatusWidgetVisibleTexts(
-          parsed as Parameters<typeof collectStatusWidgetVisibleTexts>[0]
-        );
-        if (legacyTexts.length > 0) {
-          variantWidgetTextCount += legacyTexts.length;
-          items.push({
-            messageId: row.id,
-            variantIndex: activeVariant,
-            surface: "status_widget",
-            texts: legacyTexts,
-            hasV2ApprovalProof: false,
-            allTextsApprovedByProof: legacyTexts.every(
-              (text) => adultOffStoredTextDisposition(activeUsage, text) === "approved"
-            ),
-          });
-        }
-      } catch {
-        // malformed legacy json — skip
-      }
     }
   }
 
   return {
     displayStatusMetaMessages,
     suggestedReplyMessages,
+    displayWidgetMessages,
     variantWidgetTextCount,
     auxTextItems: items.length,
     auxItemsMissingV2Proof: items.filter((item) => !item.hasV2ApprovalProof).length,
     auxItemsWithUnapprovedVisibleText: items.filter((item) => !item.allTextsApprovedByProof).length,
+    auxUnreviewedVisibleTextCount,
     items,
+  };
+}
+
+export function surveyAdultOffBatchReadOnly(
+  rows: readonly AdultOffInspectionMessageRow[]
+): AdultOffBatchReadOnlySurvey {
+  const plan = planAdultOffBatchInspection(rows);
+  const summary = planAdultOffBatchInspectionSummary(plan);
+  const mirrorInconsistentMessageIds = listActiveRowMirrorInconsistentMessageIds(rows);
+  const aux = surveyAdultOffAuxSurfaces(rows);
+  const { items: _items, ...auxCounts } = aux;
+  return {
+    body: {
+      targets: summary.targets,
+      needsClassification: summary.needsClassification,
+      reuseApproved: summary.reuseApproved,
+      reuseRestricted: summary.reuseRestricted,
+      skipEmpty: summary.skipEmpty,
+      activeRowMirrorInconsistentMessages: mirrorInconsistentMessageIds.length,
+      bodyUnreviewedTargets: summary.needsClassification,
+    },
+    aux: auxCounts,
+    mirrorInconsistentMessageIds,
   };
 }
 
@@ -505,12 +631,24 @@ export function runAdultOffBatchInspectionRehearsal(
   return stats;
 }
 
-/** SQLite 파일 일관 복사(WAL 포함). 운영 읽기 전용 소스 → 격리 리허설용. */
+/**
+ * SQLite `VACUUM INTO`로 일관 스냅샷 복사. 원본은 readonly만 사용하며
+ * checkpoint/WAL truncate/원본 데이터 변경 없음 (better-sqlite3 backup 미지원 환경 대응).
+ */
 export function copySqliteDatabaseForRehearsal(sourcePath: string, destPath: string): void {
-  const source = new Database(sourcePath, { fileMustExist: true });
+  const sourceResolved = path.resolve(sourcePath);
+  const destResolved = path.resolve(destPath);
+  if (sourceResolved === destResolved) {
+    throw new Error("copySqliteDatabaseForRehearsal: source and destination must differ");
+  }
+  if (fs.existsSync(destResolved)) {
+    throw new Error("copySqliteDatabaseForRehearsal: destination already exists");
+  }
+  fs.mkdirSync(path.dirname(destResolved), { recursive: true });
+
+  const source = new Database(sourcePath, { readonly: true, fileMustExist: true });
   try {
-    source.pragma("wal_checkpoint(TRUNCATE)");
-    const escapedDest = destPath.replace(/'/g, "''");
+    const escapedDest = destResolved.replace(/'/g, "''");
     source.exec(`VACUUM INTO '${escapedDest}'`);
   } finally {
     source.close();

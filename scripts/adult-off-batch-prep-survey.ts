@@ -10,9 +10,7 @@ import Database from "better-sqlite3";
 import { getDatabasePath, getRemoteDatabaseConfig } from "@/lib/dataDir";
 import {
   loadAssistantRowsForAdultOffInspection,
-  planAdultOffBatchInspection,
-  planAdultOffBatchInspectionSummary,
-  surveyAdultOffAuxSurfaces,
+  surveyAdultOffBatchReadOnly,
   sqliteIntegrityCheck,
 } from "@/lib/adultOffBatchInspectionPrep";
 import { ADULT_OFF_GUARD_POLICY_VERSION } from "@/lib/adultOffOutputGuard";
@@ -27,23 +25,15 @@ function main(): void {
   try {
     const integrity = sqliteIntegrityCheck(db);
     const rows = loadAssistantRowsForAdultOffInspection(db);
-    const plan = planAdultOffBatchInspection(rows);
-    const summary = planAdultOffBatchInspectionSummary(plan);
-    const aux = surveyAdultOffAuxSurfaces(rows);
+    const survey = surveyAdultOffBatchReadOnly(rows);
     const report = {
       databasePath: dbPath,
       integrity,
       policyVersion: ADULT_OFF_GUARD_POLICY_VERSION,
-      inspection: summary,
-      aux: {
-        displayStatusMetaMessages: aux.displayStatusMetaMessages,
-        suggestedReplyMessages: aux.suggestedReplyMessages,
-        variantWidgetTextCount: aux.variantWidgetTextCount,
-        auxTextItems: aux.auxTextItems,
-        auxItemsMissingV2Proof: aux.auxItemsMissingV2Proof,
-        auxItemsWithUnapprovedVisibleText: aux.auxItemsWithUnapprovedVisibleText,
-      },
-      note: "No message plaintext included. Use isolated copy + rehearsal tests before any paid batch.",
+      body: survey.body,
+      aux: survey.aux,
+      mirrorInconsistentMessageIdCount: survey.mirrorInconsistentMessageIds.length,
+      note: "No message plaintext included. Mirror inconsistencies require STOP before batch writes.",
     };
     console.log(JSON.stringify(report, null, 2));
   } finally {

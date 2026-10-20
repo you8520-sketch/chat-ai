@@ -19,12 +19,14 @@ import {
 } from "@/lib/adultOffOutputGuard";
 import { normalizeMessageVariants } from "@/lib/messageAlternates";
 import {
+  activeVariantMirrorsCanonicalRow,
   commitAdultOffInspectionIfFresh,
   copySqliteDatabaseForRehearsal,
   dedupeAdultOffClassificationTexts,
   fingerprintAdultOffInspectionTarget,
   planAdultOffBatchInspection,
   planAdultOffBatchInspectionSummary,
+  resolveDisplayedStatusWidgetTexts,
   runAdultOffBatchInspectionRehearsal,
   sqliteIntegrityCheck,
   surveyAdultOffAuxSurfaces,
@@ -412,5 +414,183 @@ describe("adult-off batch inspection prep", { concurrency: 1 }, () => {
       copied.close();
       fs.rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it("refuses unsafe copy paths and keeps WAL without checkpointing the source", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "adult-off-wal-"));
+    const sourcePath = path.join(dir, "live.db");
+    const destPath = path.join(dir, "rehearsal.db");
+    const walPath = `${sourcePath}-wal`;
+
+    const live = new Database(sourcePath);
+    live.pragma("journal_mode = WAL");
+    live.pragma("wal_autocheckpoint = 0");
+    live.exec("CREATE TABLE wal_probe (id INTEGER PRIMARY KEY, v TEXT NOT NULL)");
+    live.prepare("INSERT INTO wal_probe (v) VALUES (?)").run("snap_before_copy");
+    const walSizeBefore = fs.existsSync(walPath) ? fs.statSync(walPath).size : 0;
+    assert.ok(walSizeBefore > 0);
+
+    copySqliteDatabaseForRehearsal(sourcePath, destPath);
+
+    const walSizeAfter = fs.existsSync(walPath) ? fs.statSync(walPath).size : 0;
+    assert.ok(walSizeAfter >= walSizeBefore);
+
+    const copyDb = new Database(destPath, { readonly: true });
+    assert.equal(
+      (copyDb.prepare("SELECT v FROM wal_probe WHERE id=1").get() as { v: string }).v,
+      "snap_before_copy"
+    );
+    copyDb.close();
+
+    live.prepare("INSERT INTO wal_probe (v) VALUES (?)").run("after_copy");
+    assert.equal(
+      (live.prepare("SELECT COUNT(*) AS c FROM wal_probe").get() as { c: number }).c,
+      2
+    );
+    live.close();
+
+    assert.throws(() => copySqliteDatabaseForRehearsal(sourcePath, destPath));
+    assert.throws(() => copySqliteDatabaseForRehearsal(sourcePath, sourcePath));
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("skips stale commit when row canonical fields desync from alternates", () => {
+    const oldBody = "alternates에만 남은 이전 본문";
+    const newBody = "messages.content에만 반영된 새 본문";
+    const insert = db
+      .prepare(
+        `INSERT INTO messages (chat_id, role, content, model, usage, alternates, active_variant, generation_status)
+         VALUES (1, 'assistant', ?, 'gemini', ?, ?, 0, 'completed')`
+      )
+      .run(
+        newBody,
+        JSON.stringify({ cost: 99, model: "gemini" }),
+        JSON.stringify([
+          { content: oldBody, model: "gemini", usage: { cost: 12 }, created_at: "" },
+          { content: newBody, model: "gemini", usage: { cost: 99 }, created_at: "" },
+        ])
+      );
+    const messageId = Number(insert.lastInsertRowid);
+    const row = db
+      .prepare(
+        "SELECT id, role, content, model, usage, alternates, active_variant FROM messages WHERE id=?"
+      )
+      .get(messageId) as AdultOffInspectionMessageRow;
+    const { variants, activeVariant } = normalizeMessageVariants({
+      content: row.content,
+      model: row.model ?? "",
+      usage: row.usage ?? null,
+      alternates: row.alternates ?? null,
+      active_variant: row.active_variant ?? null,
+    });
+    assert.equal(activeVariantMirrorsCanonicalRow(row, variants, activeVariant), false);
+
+    const fingerprint = fingerprintAdultOffInspectionTarget(row, 0, oldBody);
+    assert.equal(
+      commitAdultOffInspectionIfFresh(db, {
+        fingerprint,
+        expectedText: oldBody,
+        outcome: "approved",
+      }),
+      "skipped_stale"
+    );
+
+    const after = db
+      .prepare("SELECT content, usage, alternates FROM messages WHERE id=?")
+      .get(messageId) as { content: string; usage: string; alternates: string };
+    assert.equal(after.content, newBody);
+    assert.equal(JSON.parse(after.usage).cost, 99);
+    assert.equal(JSON.parse(after.alternates)[0]?.content, oldBody);
+    assert.equal(JSON.parse(after.alternates)[0]?.usage?.adultOffGuard, undefined);
+  });
+
+  it("preserves empty alternates legacy shape when recording proof", () => {
+    const text = "레거시 단일 본문";
+    const insert = db
+      .prepare(
+        `INSERT INTO messages (chat_id, role, content, model, usage, alternates, active_variant, generation_status)
+         VALUES (1, 'assistant', ?, 'gemini', ?, '[]', 0, 'completed')`
+      )
+      .run(text, JSON.stringify({ cost: 7 }));
+    const messageId = Number(insert.lastInsertRowid);
+    const row = db
+      .prepare(
+        "SELECT id, role, content, model, usage, alternates, active_variant FROM messages WHERE id=?"
+      )
+      .get(messageId) as AdultOffInspectionMessageRow;
+    const fingerprint = fingerprintAdultOffInspectionTarget(row, 0, text);
+    assert.equal(
+      commitAdultOffInspectionIfFresh(db, {
+        fingerprint,
+        expectedText: text,
+        outcome: "approved",
+      }),
+      "written"
+    );
+    const after = db
+      .prepare("SELECT content, model, usage, alternates, active_variant FROM messages WHERE id=?")
+      .get(messageId) as {
+      content: string;
+      model: string;
+      usage: string;
+      alternates: string | null;
+      active_variant: number | null;
+    };
+    assert.equal(after.content, text);
+    assert.equal(after.model, "gemini");
+    assert.equal(after.alternates, "[]");
+    assert.equal(after.active_variant, 0);
+    assert.equal(JSON.parse(after.usage).cost, 7);
+    assert.equal(adultOffStoredTextDisposition(JSON.parse(after.usage), text), "approved");
+  });
+
+  it("uses row-level widget fallback and counts usage v2 proof on widgets", () => {
+    const widgetLine = "교실 복도";
+    const hash = adultOffApprovedTextHash(widgetLine);
+    const sharedUsage = {
+      cost: 3,
+      adultOffGuard: {
+        policyVersion: ADULT_OFF_GUARD_POLICY_VERSION,
+        approvedTextHashes: [hash],
+        restrictedTextHashes: [],
+      },
+    };
+    const row: AdultOffInspectionMessageRow = {
+      id: 501,
+      role: "assistant",
+      content: "본문",
+      model: "gemini",
+      usage: JSON.stringify(sharedUsage),
+      alternates: JSON.stringify([
+        {
+          content: "본문",
+          model: "gemini",
+          usage: sharedUsage,
+          created_at: "",
+          statusWidgetValues: null,
+        },
+      ]),
+      active_variant: 0,
+      status_widget_values_json: JSON.stringify({
+        character: { location: widgetLine },
+        user: null,
+      }),
+    };
+    const { variants, activeVariant } = normalizeMessageVariants({
+      content: row.content,
+      model: row.model ?? "",
+      usage: row.usage,
+      alternates: row.alternates,
+      active_variant: row.active_variant,
+    });
+    const displayed = resolveDisplayedStatusWidgetTexts(row, variants, activeVariant);
+    assert.deepEqual(displayed.texts, [widgetLine]);
+
+    const survey = surveyAdultOffAuxSurfaces([row]);
+    assert.equal(survey.displayWidgetMessages, 1);
+    const widgetItem = survey.items.find((item) => item.surface === "status_widget");
+    assert.equal(widgetItem?.hasV2ApprovalProof, true);
+    assert.equal(widgetItem?.allTextsApprovedByProof, true);
+    assert.equal(survey.auxUnreviewedVisibleTextCount, 0);
   });
 });
