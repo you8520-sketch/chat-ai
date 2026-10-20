@@ -1,0 +1,4 @@
+git diff --check: clean
+npm run lint (tsc -p tsconfig.app.json --noEmit): exit 0
+node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test src/lib/chatShortcuts.test.ts src/lib/chatShortcutPanelPlacement.test.ts: tests 18, pass 18, fail 0
+npm run build: exit 0 (code identical to 819902b9 apart from one doc comment; the Playwright run at 819902b9 also builds via npm run prod)

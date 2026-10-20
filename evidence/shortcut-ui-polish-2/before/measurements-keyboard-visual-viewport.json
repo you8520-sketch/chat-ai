@@ -1,0 +1,232 @@
+{
+  "closed-keyboard": {
+    "height": 375,
+    "offsetTop": 0,
+    "tag": "closed-keyboard",
+    "frame": {
+      "top": 38,
+      "bottom": 262,
+      "left": 84,
+      "right": 468,
+      "viewTop": 0,
+      "viewBottom": 375,
+      "composerTop": 266.21875,
+      "placement": null
+    },
+    "close": {
+      "top": 47,
+      "bottom": 79,
+      "left": 407,
+      "right": 455,
+      "viewTop": 0,
+      "viewBottom": 375,
+      "inView": true,
+      "hit": true
+    },
+    "insert": {
+      "top": 244.3125,
+      "bottom": 280.3125,
+      "left": 108,
+      "right": 328,
+      "viewTop": 0,
+      "viewBottom": 375,
+      "inView": true,
+      "hit": false
+    }
+  },
+  "keyboard-200": {
+    "height": 200,
+    "offsetTop": 0,
+    "tag": "keyboard-200",
+    "frame": {
+      "top": 38,
+      "bottom": 262,
+      "left": 84,
+      "right": 468,
+      "viewTop": 0,
+      "viewBottom": 200,
+      "composerTop": 266.21875,
+      "placement": null
+    },
+    "close": {
+      "top": 47,
+      "bottom": 79,
+      "left": 407,
+      "right": 455,
+      "viewTop": 0,
+      "viewBottom": 200,
+      "inView": true,
+      "hit": true
+    },
+    "insert": {
+      "top": 244.3125,
+      "bottom": 280.3125,
+      "left": 108,
+      "right": 328,
+      "viewTop": 0,
+      "viewBottom": 200,
+      "inView": false,
+      "hit": false
+    }
+  },
+  "keyboard-200-panned-60": {
+    "height": 200,
+    "offsetTop": 60,
+    "tag": "keyboard-200-panned-60",
+    "frame": {
+      "top": 38,
+      "bottom": 262,
+      "left": 84,
+      "right": 468,
+      "viewTop": 60,
+      "viewBottom": 260,
+      "composerTop": 266.21875,
+      "placement": null
+    },
+    "close": {
+      "top": 47,
+      "bottom": 79,
+      "left": 407,
+      "right": 455,
+      "viewTop": 60,
+      "viewBottom": 260,
+      "inView": false,
+      "hit": true
+    },
+    "insert": {
+      "top": 244.3125,
+      "bottom": 280.3125,
+      "left": 108,
+      "right": 328,
+      "viewTop": 60,
+      "viewBottom": 260,
+      "inView": false,
+      "hit": false
+    }
+  },
+  "keyboard-170-panned-90": {
+    "height": 170,
+    "offsetTop": 90,
+    "tag": "keyboard-170-panned-90",
+    "frame": {
+      "top": 38,
+      "bottom": 262,
+      "left": 84,
+      "right": 468,
+      "viewTop": 90,
+      "viewBottom": 260,
+      "composerTop": 266.21875,
+      "placement": null
+    },
+    "close": {
+      "top": 47,
+      "bottom": 79,
+      "left": 407,
+      "right": 455,
+      "viewTop": 90,
+      "viewBottom": 260,
+      "inView": false,
+      "hit": true
+    },
+    "insert": {
+      "top": 244.3125,
+      "bottom": 280.3125,
+      "left": 108,
+      "right": 328,
+      "viewTop": 90,
+      "viewBottom": 260,
+      "inView": false,
+      "hit": false
+    }
+  },
+  "form-keyboard-200-panned-60": {
+    "height": 200,
+    "offsetTop": 60,
+    "tag": "form-keyboard-200-panned-60",
+    "frame": {
+      "top": 38,
+      "bottom": 262,
+      "left": 84,
+      "right": 468,
+      "viewTop": 60,
+      "viewBottom": 260,
+      "composerTop": 266.21875,
+      "placement": null
+    },
+    "save": {
+      "top": 225,
+      "bottom": 261,
+      "left": 161,
+      "right": 457,
+      "viewTop": 60,
+      "viewBottom": 260,
+      "inView": false,
+      "hit": true
+    },
+    "cancel": {
+      "top": 225,
+      "bottom": 261,
+      "left": 95,
+      "right": 153,
+      "viewTop": 60,
+      "viewBottom": 260,
+      "inView": false,
+      "hit": true
+    },
+    "close": {
+      "top": 47,
+      "bottom": 79,
+      "left": 407,
+      "right": 455,
+      "viewTop": 60,
+      "viewBottom": 260,
+      "inView": false,
+      "hit": true
+    }
+  },
+  "form-keyboard-170": {
+    "height": 170,
+    "offsetTop": 0,
+    "tag": "form-keyboard-170",
+    "frame": {
+      "top": 38,
+      "bottom": 262,
+      "left": 84,
+      "right": 468,
+      "viewTop": 0,
+      "viewBottom": 170,
+      "composerTop": 266.21875,
+      "placement": null
+    },
+    "save": {
+      "top": 225,
+      "bottom": 261,
+      "left": 161,
+      "right": 457,
+      "viewTop": 0,
+      "viewBottom": 170,
+      "inView": false,
+      "hit": true
+    },
+    "cancel": {
+      "top": 225,
+      "bottom": 261,
+      "left": 95,
+      "right": 153,
+      "viewTop": 0,
+      "viewBottom": 170,
+      "inView": false,
+      "hit": true
+    },
+    "close": {
+      "top": 47,
+      "bottom": 79,
+      "left": 407,
+      "right": 455,
+      "viewTop": 0,
+      "viewBottom": 170,
+      "inView": true,
+      "hit": true
+    }
+  }
+}

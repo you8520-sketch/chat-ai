@@ -1,0 +1,35 @@
+{
+  "textarea": {
+    "top": 448.5,
+    "bottom": 532.5,
+    "height": 84,
+    "width": 175.328125
+  },
+  "frame": {
+    "top": 448.5,
+    "bottom": 532.5,
+    "height": 84,
+    "width": 175.328125
+  },
+  "open": {
+    "top": 530.25,
+    "bottom": 566.25,
+    "height": 36,
+    "width": 62,
+    "fontSize": "12px",
+    "marginTop": "-8px",
+    "marginBottom": "-8px",
+    "textBottom": 556.25
+  },
+  "toggle": {
+    "top": 532.25,
+    "bottom": 564.25,
+    "height": 32,
+    "width": 64.875,
+    "fontSize": "11px",
+    "marginTop": "-6px",
+    "marginBottom": "-6px",
+    "textBottom": 555.375
+  },
+  "gapToComposerFrame": -2.25
+}
