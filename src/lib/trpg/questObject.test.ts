@@ -150,17 +150,19 @@ describe("GM delta contract wording (#1541 PR-1)", () => {
     const injected = [
       TRPG_GM_SYSTEM,
       serializeCampaignDirectorInstructions(true),
-      serializeDirectorDeltaContract({ storyPhase: "INTRO", hasCompletedGoal: true, hasServerDiscovery: true }),
+      serializeDirectorDeltaContract({ storyPhase: "INTRO" }),
       serializeLocalSceneDeltaContract(),
     ].join("\n");
     assert.doesNotMatch(injected, /<<<DELTA>>>|<<<NARRATION>>>/);
     assert.equal((injected.match(/\[DIRECTOR DELTA CONTRACT\]/g) ?? []).length, 1);
     assert.equal((injected.match(/"questsAdd":\[\]/g) ?? []).length, 1);
-    assert.match(injected, /Judge that situation/);
+    assert.match(injected, /always include storyPhase as INTRO or the one adjacent step/);
+    assert.match(injected, /Include threadsAdd, threadsResolve, and endingConditionId when they apply/);
+    assert.match(injected, /this scene's fiction moved/);
+    assert.match(injected, /does not forbid another questsAdd when this scene creates a distinct new player-visible purpose/);
+    assert.doesNotMatch(injected, /leave it empty while a player goal is already active/);
+    assert.doesNotMatch(injected, /Judge that situation/);
     assert.doesNotMatch(injected, /Soft hint only/);
-    const quiet = serializeDirectorDeltaContract({ storyPhase: "INTRO" });
-    assert.doesNotMatch(quiet, /Judge that situation/);
-    assert.doesNotMatch(quiet, /"questsAdd":\[\]/);
   });
 });
 

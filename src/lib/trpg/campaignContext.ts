@@ -264,16 +264,8 @@ export function serializeCampaignDirectorInstructions(hasPlan: boolean): string 
 - Never skip INTRO to FINISHED in one hop unless the campaign is actually ending.`;
 }
 
-export function serializeDirectorDeltaContract(opts: {
-  storyPhase: TrpgStoryPhase;
-  hasCompletedGoal?: boolean;
-  hasServerDiscovery?: boolean;
-}): string {
-  const evidence = opts.hasCompletedGoal === true || opts.hasServerDiscovery === true;
-  const phase = evidence
-    ? `A completed player goal or a server-recorded discovery is already in this input. Judge that situation. If the fiction moved because of it, set storyPhase to ${opts.storyPhase} or the one adjacent step. Do not advance from the round count, and do not invent an event that is not already in this input.`
-    : `Set storyPhase to ${opts.storyPhase}, or one adjacent step only when this input already shows the fiction moved. Do not advance from the round count.`;
+export function serializeDirectorDeltaContract(opts: { storyPhase: TrpgStoryPhase }): string {
+  const { storyPhase } = opts;
   return `[DIRECTOR DELTA CONTRACT]
-Use the system OUTPUT delta shape. On that same delta include storyPhase, threadsAdd, threadsResolve, and endingConditionId when they apply. threadsAdd and threadsResolve name story threads; they do not create or complete player goals.
-${phase}`;
+Use the system OUTPUT delta shape. On that same delta always include storyPhase as ${storyPhase} or the one adjacent step. Advance only when this input already shows that this scene's fiction moved. Do not advance from the round count, and do not invent an event that is not already in this input. Include threadsAdd, threadsResolve, and endingConditionId when they apply. threadsAdd and threadsResolve name story threads; they do not create or complete player goals.`;
 }

@@ -928,6 +928,33 @@ describe("goal lifecycle: empty player goal recovery", () => {
       }),
       false
     );
+    assert.equal(
+      shouldRequestTrpgPlayerGoalRegistration({
+        opening: false,
+        regenerate: false,
+        campaignComplete: false,
+        activeGoalCount: 1,
+      }),
+      false
+    );
+    assert.equal(
+      shouldRequestTrpgPlayerGoalRegistration({
+        opening: false,
+        regenerate: false,
+        campaignComplete: false,
+        activeGoalCount: 2,
+      }),
+      false
+    );
+    assert.equal(
+      shouldRequestTrpgPlayerGoalRegistration({
+        opening: false,
+        regenerate: false,
+        campaignComplete: false,
+        activeGoalCount: 0,
+      }),
+      true
+    );
   });
 
   it("empty opening still leaves goals empty when the GM keeps returning questsAdd: []", async () => {

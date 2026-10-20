@@ -1563,8 +1563,6 @@ async function runGmForRound(
         serializeCampaignDirectorInstructions(true),
         serializeDirectorDeltaContract({
           storyPhase: campaignContext?.storyPhase ?? "INTRO",
-          hasCompletedGoal: goalLedger.goals.some((goal) => goal.status === "completed"),
-          hasServerDiscovery: (explorationForMethod?.revealedEventIds.length ?? 0) > 0,
         }),
         serializeCampaignDirectorState(campaignContext),
       ]

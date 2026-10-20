@@ -299,8 +299,10 @@ describe("TRPG sandbox director and plan security", () => {
     assert.match(planned[0] ?? "", /threadsAdd/);
     assert.match(planned[0] ?? "", /threadsResolve/);
     assert.match(planned[0] ?? "", /endingConditionId/);
-    assert.doesNotMatch(planned[0] ?? "", /"questsAdd":\[\]/);
+    assert.match(planned[0] ?? "", /always include storyPhase/);
+    assert.doesNotMatch(planned[0] ?? "", /Judge that situation/);
     assert.doesNotMatch(planned[0] ?? "", /Soft hint only/);
+    assert.doesNotMatch(planned[0] ?? "", /"questsAdd":\[\]/);
 
     const legacy: string[] = [];
     const legacyDeps: TrpgEngineDeps = {
