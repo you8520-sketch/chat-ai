@@ -1,4 +1,4 @@
-# B9-3 evidence: normal Global L500 real-RP recheck (prep only)
+# B9-3 evidence: normal Global L500 real-RP recheck (four live calls completed)
 
 This package documents a **four-call** Main RP rerun after **#1676** with a **healthy** L500 Global compact on the wire. **Prep** (dry capture) and **live execution** (four paid Main RP POSTs under a 1,000 KRW budget) are both recorded. No product code, merge, deploy, or production DB writes.
 
@@ -70,7 +70,7 @@ From `model-diffs.json`:
 3. One completion each; stub Luna/auxiliary as in B9-1 if the route still schedules them.
 4. Save responses under `responses/` in a follow-up evidence commit (same layout as B9-1).
 
-**STOP:** do not execute paid calls until GPT review and explicit spend approval.
+**Live run:** completed — see `LIVE-RUN.md`. **STOP:** Draft PR #1679 awaits GPT review; do not merge or extend scope (T50 / 1000-turn) without a new approval.
 
 ## Cost estimate (four captures, conservative)
 
@@ -82,9 +82,7 @@ Source file: `estimate-four-l500.json`. Label: **`precall_estimate_not_provider_
 | FX | **1560.6** KRW/USD planning upper bound (1530×1.02, as B9-1 precall). Live runs may use ~1360 API FX; Gemini may return provider-reported USD; Sol route may show `live_catalog_estimated` — those are **post-call** figures, not this table. |
 | Cache | **No** cache-read/write discount applied. |
 
-**Totals (four calls):** ≈ **0.237 USD**, ≈ **371 KRW** at 1560.6 FX (see per-row breakdown in JSON).
-
-After approval, compare provider usage fields to this estimate; do not treat the estimate as invoice.
+**Scenario total (four calls):** ≈ **0.237 USD**, ≈ **371 KRW** at 1560.6 FX. This is a planning scenario computed with **no output cap** on the wire: output tokens are the `aim_3200` assumption (2,880), not a `max_tokens` limit and not a confirmed provider invoice. Live route figures are in `LIVE-RUN.md`.
 
 ## How to reproduce captures (maintainers)
 

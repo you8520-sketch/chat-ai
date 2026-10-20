@@ -52,7 +52,7 @@ Neither answer is scored as “wrong” for omitting facts that were **not** in 
 | Lens | Gemini 3.8 Flash | GPT-6.1 Sol |
 |---|---|---|
 | Stored canon accuracy | Invokes past **report/고발** theme; adds new admin plot (렌 transfer paperwork) | Stays on corridor approach; no invented suspension quote |
-| Use of **injected** T64 | **Direct:** “서류 올리는 사람이랑은 밥도 안 먹는다” (character claim line) | **Not direct proof:** keeps distance and caution; does **not** restate cafeteria line or T64 quote |
+| Use of **injected** T64 | **Semantic restatement** of the recorded claim (not an exact quote): “서류 올리는 사람이랑은 밥도 안 먹는다고 내가 전에 말했던 것 같은데.” Stored line is “웃으면서 뒤에서 서류 올리는 사람이랑은 밥 같이 안 먹어.” | **Not proof of memory use:** corridor caution only; does not restate the cafeteria line |
 | Contradiction / invented past | Invents strategic reassignment forms not in request | Invents no T64 proof; cautious stance alone **not** counted as memory use |
 | Continuity / Korean RP | Long corridor + sleeve pull; sharp register shift | Shorter, restrained Korean; maintains records-room adjacency |
 
