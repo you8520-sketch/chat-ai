@@ -1,0 +1,11 @@
+{
+  "revision": "B17-4",
+  "status": "STOPPED_BEFORE_ARM_A",
+  "reason": "BENCHMARK_EQUALS_PRODUCTION",
+  "credentialEnv": "CHEAPER_INFERENCE_BENCHMARK_API_KEY",
+  "armAExecuted": false,
+  "armBExecuted": false,
+  "providerCalls": 0,
+  "estimatedCostKrw": 0,
+  "resultLabel": "BLOCKED"
+}

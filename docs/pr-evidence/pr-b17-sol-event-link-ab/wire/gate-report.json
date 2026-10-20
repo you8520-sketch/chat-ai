@@ -45,5 +45,13 @@
     "provider_calls": 0,
     "stop_reason": "PRODUCTION_KEY_FALLBACK_FORBIDDEN",
     "experiment_key_equals_production_cheaper_inference": true
+  },
+  "b17_4": {
+    "verified_on": "2026-10-20",
+    "wire_sha256_reverified": true,
+    "credential": "CHEAPER_INFERENCE_BENCHMARK_API_KEY",
+    "provider_calls": 0,
+    "stop_reason": "BENCHMARK_EQUALS_PRODUCTION",
+    "two_call_krw_upper_bound": 488
   }
 }

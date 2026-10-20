@@ -2,6 +2,14 @@
 
 조사만. 제품 코드 변경 없음. 병합·배포 없음. B18 시작 없음.
 
+**결과 (B17-4): `BLOCKED`**
+
+B17-4 (2026-10-20): 사용자 승인 경로 **`CHEAPER_INFERENCE_BENCHMARK_API_KEY`** (`benchmarkCheaperInferenceCredential` owner, Bearer `buildCheaperInferenceHeaders`). wire SHA A/B 재확인. 2-call 게시 단가 상한 ≈488원 (<1,000원). 그러나 이 VM에서 BENCHMARK 키 문자열이 **`CHEAPER_INFERENCE_API_KEY`와 동일** → 지시대로 **Arm A 전 STOP**, Sol **0회**. paid-runner `RP_QUALITY_PAID_*` 경로는 BENCHMARK 값을 experiment secret으로 쓰면 `experimentSecretUsesProductionKey`에 걸리므로 쓰지 않았다. 증거: `live-b17-4/key-audit.json`, `live-b17-4/run-status.json`.
+
+**조치:** Cloud `chat-ai`에서 BENCHMARK 키가 **운영 키와 다른** 유효 Cheaper Inference 키인지 확인한 뒤 새 Agent 실행으로 주입 갱신. 운영 키로 A/B 호출하지 않는다.
+
+---
+
 **결과 (B17-3): `BLOCKED`**
 
 B17-3 (2026-10-20): 사용자가 교체했다고 한 `RP_QUALITY_PAID_CHEAPERINFERENCE_KEY`가 이 실행 VM 프로세스에는 주입되어 있으나, 값이 `CHEAPER_INFERENCE_API_KEY`와 **동일**하다. `readPaidRunnerLiveInferenceKeys` → `assertPaidRunnerExperimentInferenceKeys` / `experimentSecretUsesProductionKey`가 **`PRODUCTION_KEY_FALLBACK_FORBIDDEN`** 을 반환한다. 운영 키로 실험 경로를 대체하지 않았고, **Arm A/B 유료 호출 0회**. wire `requestBody` SHA256은 Arm A/B 모두 기대값과 일치(아래 §4). 증거: `live-b17-3/key-audit.json`, `live-b17-3/run-status.json`.
