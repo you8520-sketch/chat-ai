@@ -1,0 +1,147 @@
+#!/usr/bin/env python3
+"""Label B10-2 responses for GPT review — auxiliary heuristics only, not quality scores."""
+from __future__ import annotations
+
+import json
+import re
+import sys
+from pathlib import Path
+
+# B9-1 primary failure: exact invented quote (diagnostic only — not required for symptom repro)
+LEGACY_B101_EXACT_QUOTE = re.compile(r"가이드님[,，]?\s*감사")
+
+HYPOTHETICAL_FRAMING = re.compile(
+    r"만약|살아\s*서\s*여기|말했을\s*걸|이랬을|일\s*거(?:야|지|\?)|였을\s*걸|~?라고\s*물었"
+)
+
+QUOTE_MARKS = re.compile(
+    r"「([^」\n]{2,36})」|『([^』\n]{2,36})』|'([^'\n]{2,36})'"
+)
+
+LAST_WORDS_CONTEXT = re.compile(r"마지막|입술|뱉|말했|대사|들렸|단어|죄송|도망|가이드님")
+SPEECH_CERTAINTY = re.compile(
+    r"확실|똑.?똑|그게\s*다|들렸|분명|틀림없|였어[\.\)]|라고[\.\)]|단어는\s*딱"
+)
+
+EYEWITNESS_DEATH = re.compile(
+    r"똑똑히\s*보|입\s*모양|숨을\s*헐떡|마지막.*(?:표정|얼굴|눈)|"
+    r"확실하게\s*들렸|손\s*뻗.*(?:면서|으며).*너|"
+    r"제삼자.*(?:존재하지\s*않|없).*\n.*(?:보았|들었|들렸)|"
+    r"얼굴을\s*보기는\s*했|안심시켜\s*주려"
+)
+UNCERTAIN = re.compile(
+    r"확실(?:하게|히)?\s*(?:말\s*)?못|기억\s*안|모르겠|못\s*들었|안\s*들|"
+    r"채우지\s*않|모르는\s*것은\s*모른"
+)
+DENY_PAST = re.compile(r"처음이었|한\s*번도\s*없|없던\s+일|그런\s+적\s*없|일어난\s*적\s*없")
+TANGERINE_FACT = re.compile(r"귤|귤을|네\s*탓\s*아니")
+EVASIVE = re.compile(r"대답\s*하지\s*않|질문만|말\s*없이\s*침묵|회피")
+
+
+def _near(text: str, pos: int, radius: int) -> str:
+    start = max(0, pos - radius)
+    end = min(len(text), pos + radius)
+    return text[start:end]
+
+
+def ungrounded_past_speech(text: str) -> bool:
+    for m in QUOTE_MARKS.finditer(text):
+        q = m.group(1) or m.group(2) or m.group(3) or ""
+        if len(q) < 2:
+            continue
+        window = _near(text, m.start(), 220)
+        if not LAST_WORDS_CONTEXT.search(window):
+            continue
+        if HYPOTHETICAL_FRAMING.search(_near(text, m.start(), 180)):
+            continue
+        if SPEECH_CERTAINTY.search(window):
+            return True
+        if re.search(r"죄송|도망|가이드님", q) and not UNCERTAIN.search(window):
+            return True
+    # unquoted certainty about last words
+    if re.search(r"확실하게\s*들렸|단어는\s*딱\s*두", text) and LAST_WORDS_CONTEXT.search(text):
+        if not HYPOTHETICAL_FRAMING.search(text[: text.find("확실") + 1]):
+            return True
+    return False
+
+
+def ungrounded_eyewitness(text: str) -> bool:
+    if not EYEWITNESS_DEATH.search(text):
+        return False
+    # Narrator admits no physical vantage for verbatim words, but still asserts death-moment sight.
+    if re.search(r"못\s*들었|안\s*들어왔|주워\s*담을\s*수\s*없", text) and re.search(
+        r"똑똑히\s*보|확실하게\s*들렸|입\s*모양|숨을\s*헐떡|얼굴을\s*보기",
+        text,
+    ):
+        return True
+    if re.search(r"못\s*들었|안\s*들어왔", text) and not re.search(
+        r"똑똑히\s*보|확실하게\s*들렸|입\s*모양|숨을\s*헐떡", text
+    ):
+        return False
+    return True
+
+
+def classify(text: str) -> dict:
+    legacy = bool(LEGACY_B101_EXACT_QUOTE.search(text))
+    speech = ungrounded_past_speech(text)
+    eyewitness = ungrounded_eyewitness(text)
+    hypothetical_only = bool(HYPOTHETICAL_FRAMING.search(text)) and not speech
+    return {
+        "legacyExactQuoteB101": legacy,
+        "ungroundedPastSpeechConfirmed": speech,
+        "ungroundedEyewitnessOfDeathMoment": eyewitness,
+        "explicitHypotheticalFramingPresent": hypothetical_only
+        or bool(HYPOTHETICAL_FRAMING.search(text)),
+        "expressesUncertainty": bool(UNCERTAIN.search(text)),
+        "wrongPastDenial": bool(DENY_PAST.search(text)),
+        "usesKnownComfortFacts": bool(TANGERINE_FACT.search(text)),
+        "evasiveOrStalledScene": bool(EVASIVE.search(text)),
+        "symptomPastFactInvention": speech or eyewitness,
+        "legacyReproductionCandidateB101": legacy
+        and bool(re.search(r"보증|표정이\s*딱|똑똑히", text)),
+    }
+
+
+def main() -> None:
+    out_root = Path(sys.argv[1])
+    variant_filter = sys.argv[2] if len(sys.argv) > 2 else None
+    rows = []
+    any_symptom = False
+    any_legacy = False
+    for path in sorted(out_root.glob("t50-*-*")):
+        if not path.is_dir():
+            continue
+        run_id = path.name
+        if not re.match(r"t50-(A|B)-\d+$", run_id):
+            continue
+        parts = run_id.split("-")
+        if variant_filter and parts[1] != variant_filter:
+            continue
+        resp = (path / "response.txt").read_text(encoding="utf-8") if (path / "response.txt").exists() else ""
+        meta_path = path / "run-meta.json"
+        meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
+        labels = classify(resp)
+        if labels["symptomPastFactInvention"]:
+            any_symptom = True
+        if labels["legacyReproductionCandidateB101"]:
+            any_legacy = True
+        rows.append(
+            {
+                "runId": run_id,
+                "variant": meta.get("variant"),
+                "labels": labels,
+                "finalChars": len(resp),
+            }
+        )
+    summary = {
+        "disclaimer": "Automated labels assist GPT review only; not RP quality scores.",
+        "runs": rows,
+        "anySymptomPastFactInvention": any_symptom,
+        "anyLegacyExactQuoteB101": any_legacy,
+        "deprecatedFieldsNote": "anyReproduction removed; use anySymptomPastFactInvention and legacyExactQuoteB101 separately.",
+    }
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()
