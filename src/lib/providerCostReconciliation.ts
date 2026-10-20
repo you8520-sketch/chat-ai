@@ -23,6 +23,10 @@ import {
   type ReconciledProviderCostOutcome,
 } from "@/lib/providerCostLedger";
 import { resolveActiveAssistantGenerationScopeFromRow } from "@/lib/assistantGenerationScope";
+import {
+  forwardRequestReviewKey, forwardSnapshotFingerprint, parseForwardReviewRecord, projectForwardReview,
+  type ForwardReviewProjection,
+} from "@/lib/forwardReconReview";
 
 /**
  * Canonical CheaperInference usage reconciliation owner.
@@ -60,6 +64,7 @@ export type ProviderReconciliationResult = {
   message: string;
   /** Forward-only usage audit since the observation baseline. Month totals stay authoritative. */
   forwardAudit?: ForwardReconAudit | null;
+  forwardOps?: ForwardReviewProjection | null;
 };
 
 type ReconciliationDeps = {
@@ -219,6 +224,9 @@ export function ensureProviderReconciliationStateTable(db: Database.Database): v
   if (!columns.has("forward_audit_json")) {
     db.exec("ALTER TABLE provider_cost_reconciliation_state ADD COLUMN forward_audit_json TEXT");
   }
+  if (!columns.has("forward_review_json")) {
+    db.exec("ALTER TABLE provider_cost_reconciliation_state ADD COLUMN forward_review_json TEXT");
+  }
 }
 
 export function readProviderReconciliationState(
@@ -229,6 +237,7 @@ export function readProviderReconciliationState(
     .prepare("SELECT * FROM provider_cost_reconciliation_state WHERE id = 1")
     .get() as Record<string, unknown> | undefined;
   if (!row) return null;
+  const forwardAudit = parseStoredForwardReconAudit(row.forward_audit_json);
   return {
     status: (row.status as ProviderReconciliationStatus) ?? "pending",
     provider: "cheaperinference",
@@ -249,8 +258,30 @@ export function readProviderReconciliationState(
     superseded: 0,
     skipped: 0,
     message: String(row.message ?? ""),
-    forwardAudit: parseStoredForwardReconAudit(row.forward_audit_json),
+    forwardAudit,
+    forwardOps: forwardAudit ? projectForwardReview(forwardAudit, parseForwardReviewRecord(row.forward_review_json)) : null,
   };
+}
+
+/** Review is an ops disposition only. Never writes costs, ledger rows or the observation cutoff. */
+export function reviewForwardUsageSnapshot(
+  db: Database.Database, expectedFingerprint: string, adminId: number, now = new Date()
+): ForwardReviewProjection {
+  ensureProviderReconciliationStateTable(db);
+  return db.transaction(() => {
+    const state = readProviderReconciliationState(db);
+    const audit = state?.forwardAudit;
+    if (!audit || !expectedFingerprint || forwardSnapshotFingerprint(audit) !== expectedFingerprint) {
+      throw new Error("감사 자료가 갱신됐거나 요청별 증거가 부족합니다. 새로고침 후 확인하세요.");
+    }
+    const stored = db.prepare("SELECT forward_review_json FROM provider_cost_reconciliation_state WHERE id=1").get() as { forward_review_json: string | null };
+    const prior = parseForwardReviewRecord(stored.forward_review_json);
+    const requestKeys = new Set(prior?.observedSince === audit.observedSince ? prior.requestKeys : []);
+    for (const row of audit.unmatchedRequests!) requestKeys.add(forwardRequestReviewKey(row));
+    const review = { observedSince: audit.observedSince!, reviewedAt: now.toISOString(), reviewedBy: adminId, requestKeys: [...requestKeys] };
+    db.prepare("UPDATE provider_cost_reconciliation_state SET forward_review_json=? WHERE id=1").run(JSON.stringify(review));
+    return projectForwardReview(audit, review);
+  })();
 }
 
 function persistForwardReconAudit(db: Database.Database, audit: ForwardReconAudit): void {

@@ -1,4 +1,5 @@
 import type { CheaperInferenceUsageRequest } from "@/lib/cheaperInferenceUsage";
+import { hashForwardRequestId } from "./forwardReconEvidence";
 
 /**
  * Forward-only CheaperInference usage audit after API-key rotation.
@@ -85,6 +86,15 @@ export type ForwardUndeterminedUsage = {
   purpose: "unproven";
 };
 
+/** Request witnesses for review only; no key material or second cost ledger. */
+export type ForwardUnmatchedRequest = {
+  requestHash: string;
+  model: string;
+  billedMicroUsd: number;
+  createdAt: string;
+  scope: "production" | "undetermined";
+};
+
 export type ForwardReconAudit = {
   observedSince: string | null;
   observationSource: ForwardObservationSource | null;
@@ -115,6 +125,8 @@ export type ForwardReconAudit = {
   productionScope: ForwardProductionScope;
   undeterminedUsage: ForwardUndeterminedUsage;
   cases: ForwardReconCase[];
+  /** Missing on old aggregate-only snapshots. Missing never means zero. */
+  unmatchedRequests?: ForwardUnmatchedRequest[];
 };
 
 const MODEL_UUID_RE =
@@ -418,6 +430,7 @@ export function buildForwardReconAudit(input: {
   const productionScope = blankProductionScope(true);
   productionScope.provenKeyCount = provenKeys.size;
   const undeterminedUsage = blankUndeterminedUsage();
+  const unmatchedRequests: ForwardUnmatchedRequest[] = [];
 
   for (const request of input.requests) {
     const createdMs = sqlOrIsoToUtcMs(request.createdAt);
@@ -477,6 +490,13 @@ export function buildForwardReconAudit(input: {
       bucket.unmatchedMicroUsd += request.billedMicroUsd;
       if (isLunaUsageModel(request.model)) unmatchedLuna += 1;
       const occurredAt = isoFromUsageTime(request.createdAt);
+      unmatchedRequests.push({
+        requestHash: hashForwardRequestId(request.requestId),
+        model: modelKey,
+        billedMicroUsd: request.billedMicroUsd,
+        createdAt: occurredAt!,
+        scope: productionKey ? "production" : "undetermined",
+      });
       if (productionKey) {
         productionScope.unmatchedLedgerCount += 1;
         productionScope.unmatchedSettledMicroUsd += request.billedMicroUsd;
@@ -536,6 +556,7 @@ export function buildForwardReconAudit(input: {
     productionKeyMapping: mappingForProvenKeys(provenKeys.size, settledCount),
     productionScope,
     undeterminedUsage,
+    unmatchedRequests,
     cases,
   };
 }
@@ -750,6 +771,9 @@ export function parseStoredForwardReconAudit(raw: unknown): ForwardReconAudit | 
     productionKeyMapping: classification.productionKeyMapping,
     productionScope: classification.productionScope,
     undeterminedUsage: classification.undeterminedUsage,
+    unmatchedRequests: Array.isArray(row.unmatchedRequests)
+      ? row.unmatchedRequests as ForwardUnmatchedRequest[]
+      : undefined,
     cases,
   };
 }

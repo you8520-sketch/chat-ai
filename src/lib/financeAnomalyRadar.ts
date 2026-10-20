@@ -1,6 +1,7 @@
 import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
 import type { AdminFinanceSummary } from "@/lib/adminFinance";
 import { isLunaUsageModel, type ForwardReconAudit } from "@/lib/forwardReconAudit";
+import type { ForwardReviewProjection } from "@/lib/forwardReconReview";
 import type { MainRpPricingObservabilityProjection } from "@/lib/mainRpPricingObservability";
 
 export type FinanceAnomalySeverity = "critical" | "warning";
@@ -75,7 +76,7 @@ function formatForwardModelBreakdown(byModel: ForwardReconAudit["byModel"]): str
   return parts.length > 0 ? parts.join("; ") : "no unmatched model rows";
 }
 
-function pushForwardReconAnomalies(anomalies: FinanceAnomaly[], audit: ForwardReconAudit): void {
+function pushForwardReconAnomalies(anomalies: FinanceAnomaly[], audit: ForwardReconAudit, review?: ForwardReviewProjection | null): void {
   if (audit.verificationStatus === "config_invalid") {
     anomalies.push({
       id: "provider-reconciliation:forward-config-invalid",
@@ -142,6 +143,28 @@ function pushForwardReconAnomalies(anomalies: FinanceAnomaly[], audit: ForwardRe
         sourceRef: `forward_unclassified:${audit.observedSince}:${audit.unmatchedLedgerCount}`,
         href: "/admin/finance",
         modelId: null,
+      });
+    }
+    return;
+  }
+
+  if (review?.available) {
+    for (const [group, production] of [[review.pendingProduction, true], [review.pendingUndetermined, false]] as const) {
+      if (group.count === 0) continue;
+      anomalies.push({
+        id: production ? "provider-reconciliation:forward-unmatched" : "provider-reconciliation:forward-undetermined-source",
+        code: production ? "FORWARD_UNMATCHED_REMOTE_SPEND" : "FORWARD_UNDETERMINED_USAGE_SOURCE",
+        severity: "warning",
+        title: production ? "미검토 운영 키 장부 누락" : "미검토 출처 미확정 사용량",
+        summary: `${group.count}건 / ${usdFromMicro(group.microUsd)} USD. ` +
+          (review.reviewedAt ? `마지막 보관 ${review.reviewedAt} 이후 추가됐거나 변경된 요청입니다. ` : "아직 검토·보관하지 않은 요청입니다. ") +
+          `첫 호출 ${group.firstAt}, 마지막 ${group.lastAt}. ` +
+          `과거 보관 미해결 ${review.reviewedUnresolved.count}건, 출처 확인된 실측 ${review.identifiedMeasurements.count}건은 별도 표시합니다. ` +
+          `공급자 전체 미연결 누적 ${audit.unmatchedLedgerCount}건은 그대로 보존됩니다.`,
+        sourceRef: `forward_${production ? "unmatched" : "undetermined"}:${audit.observedSince}:${group.count}`,
+        href: "/admin/finance",
+        modelId: Object.keys(group.byModel).some(isLunaUsageModel) ? "gpt-6-luna" : null,
+        occurredAt: group.firstAt,
       });
     }
     return;
@@ -223,7 +246,7 @@ export function buildFinanceAnomalyReport(params: {
   // is historical residue. Only the new window can raise a current recon warning.
   // An invalid cutoff is fail-closed: do not invent a substitute window.
   if (configInvalid) {
-    pushForwardReconAnomalies(anomalies, forward!);
+    pushForwardReconAnomalies(anomalies, forward!, reconciliation?.forwardOps);
     if (!forward?.observedSince && reconciliation?.status === "mismatch") {
       anomalies.push({
         id: "provider-reconciliation:mismatch",
@@ -240,7 +263,7 @@ export function buildFinanceAnomalyReport(params: {
       });
     }
   } else if (hasForwardBaseline) {
-    pushForwardReconAnomalies(anomalies, forward!);
+    pushForwardReconAnomalies(anomalies, forward!, reconciliation?.forwardOps);
     if (
       forward?.fetchStatus === "ok" &&
       reconciliation &&

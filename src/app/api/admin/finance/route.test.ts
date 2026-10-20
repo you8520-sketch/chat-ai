@@ -29,6 +29,7 @@ const ADMIN_USER_ID = 94002;
 let createSession: (userId: number) => string;
 let getDb: typeof import("@/lib/db").getDb;
 let GET: typeof import("./route").GET;
+let POSTForwardReview: typeof import("./forward-review/route").POST;
 
 function insertUser(id: number, email: string, isAdmin: number) {
   const db = getDb();
@@ -54,6 +55,7 @@ describe("admin finance GET reconciliation diagnose", () => {
       import("./route").then((route) => {
         GET = route.GET;
       }),
+      import("./forward-review/route").then((route) => { POSTForwardReview = route.POST; }),
     ]).then(() => {
       insertUser(NORMAL_USER_ID, "normal-finance-diag@example.com", 0);
       insertUser(ADMIN_USER_ID, "admin-finance-diag@example.com", 1);
@@ -62,6 +64,19 @@ describe("admin finance GET reconciliation diagnose", () => {
 
   beforeEach(() => {
     sessionToken = "";
+  });
+
+  it("requires admin authorization and a current fingerprint before recording a usage review", async () => {
+    const request = () => new Request("http://localhost/api/admin/finance/forward-review", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ snapshotFingerprint: "0".repeat(64) }),
+    });
+    assert.equal((await POSTForwardReview(request())).status, 403);
+    sessionToken = createSession(NORMAL_USER_ID);
+    assert.equal((await POSTForwardReview(request())).status, 403);
+    sessionToken = createSession(ADMIN_USER_ID);
+    assert.equal((await POSTForwardReview(new Request(request(), { body: "{}" }))).status, 400);
+    assert.equal((await POSTForwardReview(request())).status, 409);
   });
 
   after(() => {
