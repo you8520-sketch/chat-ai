@@ -71,7 +71,7 @@ export function parseForwardReviewRecord(value: unknown): ForwardReviewRecord | 
 }
 
 function group(): ForwardReviewGroup {
-  return { count: 0, microUsd: 0, firstAt: null, lastAt: null, byModel: Object.create(null) };
+  return { count: 0, microUsd: 0, firstAt: null, lastAt: null, byModel: {} };
 }
 
 function add(target: ForwardReviewGroup, row: ForwardUnmatchedRequest) {
@@ -79,10 +79,10 @@ function add(target: ForwardReviewGroup, row: ForwardUnmatchedRequest) {
   target.microUsd += row.billedMicroUsd;
   if (!target.firstAt || row.createdAt < target.firstAt) target.firstAt = row.createdAt;
   if (!target.lastAt || row.createdAt > target.lastAt) target.lastAt = row.createdAt;
-  const model = target.byModel[row.model] ?? { settledCount: 0, unmatchedCount: 0, settledMicroUsd: 0, unmatchedMicroUsd: 0 };
+  const model = Object.hasOwn(target.byModel, row.model) ? target.byModel[row.model] : { settledCount: 0, unmatchedCount: 0, settledMicroUsd: 0, unmatchedMicroUsd: 0 };
   model.settledCount++; model.unmatchedCount++;
   model.settledMicroUsd += row.billedMicroUsd; model.unmatchedMicroUsd += row.billedMicroUsd;
-  target.byModel[row.model] = model;
+  Object.defineProperty(target.byModel, row.model, { value: model, enumerable: true, configurable: true, writable: true });
 }
 
 export function projectForwardReview(audit: ForwardReconAudit, review: ForwardReviewRecord | null): ForwardReviewProjection {
