@@ -1,0 +1,52 @@
+{
+  "list": {
+    "top": 38,
+    "bottom": 262,
+    "left": 84,
+    "right": 468,
+    "viewTop": 0,
+    "viewBottom": 375,
+    "composerTop": 266.21875,
+    "placement": null
+  },
+  "preview": {
+    "top": 38,
+    "bottom": 262,
+    "left": 84,
+    "right": 468,
+    "viewTop": 0,
+    "viewBottom": 375,
+    "composerTop": 266.21875,
+    "placement": null
+  },
+  "form": {
+    "top": 38,
+    "bottom": 262,
+    "left": 84,
+    "right": 468,
+    "viewTop": 0,
+    "viewBottom": 375,
+    "composerTop": 266.21875,
+    "placement": null
+  },
+  "insert": {
+    "top": 244.3125,
+    "bottom": 280.3125,
+    "left": 108,
+    "right": 328,
+    "viewTop": 0,
+    "viewBottom": 375,
+    "inView": true,
+    "hit": false
+  },
+  "save": {
+    "top": 225,
+    "bottom": 261,
+    "left": 161,
+    "right": 457,
+    "viewTop": 0,
+    "viewBottom": 375,
+    "inView": true,
+    "hit": true
+  }
+}

@@ -25,7 +25,7 @@ import {
 import ChatEmotionPortraitPanel from "@/components/ChatEmotionPortraitPanel";
 import ChatSettingsPanel from "@/components/ChatSettingsPanel";
 import { SuggestedRepliesBar } from "@/components/SuggestedRepliesBar";
-import { ChatShortcutsDock } from "@/components/ChatShortcutsDock";
+import { COMPOSER_ROW_BUTTON_CLASS, ChatShortcutsDock } from "@/components/ChatShortcutsDock";
 import ChatRoomDisplayQuickRail from "@/components/ChatRoomDisplayQuickRail";
 import ChatImageGeneratorPanel from "@/components/ChatImageGeneratorPanel";
 import ChatRoomMobileMenu from "@/components/ChatRoomMobileMenu";
@@ -6194,11 +6194,11 @@ export default function ChatClient({
 
       <div
         ref={inputDockRef}
-        className={
+        className={`${
           leftLayout
             ? "sticky bottom-0 z-20 shrink-0 overflow-visible border-t border-white/5 bg-[#121212]/88 px-2 pt-0 pb-[max(0.375rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:-mt-2 sm:bg-[#121212] sm:px-0 sm:pt-0 sm:pb-2 sm:backdrop-blur-none"
             : `${CHAT_INPUT_DOCK_NO_PORTRAIT_CLASS} overflow-visible`
-        }
+        } has-[[data-placement=sheet]]:z-[60]`}
       >
         <FloatingPointsDeduction amount={floatDeductionAmount} trigger={floatDeductionTrigger} />
         <SitePromotionChatNotice promotion={selectedModelSitePromotion} />
@@ -6356,11 +6356,12 @@ export default function ChatClient({
               </button>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-[10px] leading-tight tabular-nums">
+          <div className="flex items-center gap-2 pt-1 text-[10px] leading-tight tabular-nums">
             <ChatShortcutsDock
               insertDisabled={inputLocked}
               onInsert={requestShortcutInsert}
               onCloseFocus={() => inputRef.current?.focus()}
+              composerRef={inputRef}
             />
             <button
               type="button"
@@ -6368,7 +6369,7 @@ export default function ChatClient({
               aria-checked={displayPrefs.showSuggestedReplies}
               aria-label="추천 메시지"
               onClick={handleSuggestedRepliesToggle}
-              className={`-my-1.5 h-8 shrink-0 rounded-md border px-2 text-[11px] font-semibold transition min-[576px]:my-0 min-[576px]:h-auto min-[576px]:px-1.5 min-[576px]:py-0.5 ${
+              className={`${COMPOSER_ROW_BUTTON_CLASS} ${
                 displayPrefs.showSuggestedReplies
                   ? "border-violet-400/50 bg-violet-500/15 text-violet-200"
                   : "border-white/10 bg-[#1a1a1a] text-zinc-500 hover:border-white/20 hover:text-zinc-300"

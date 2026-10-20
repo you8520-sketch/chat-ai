@@ -1,0 +1,128 @@
+
+> hav-chat@0.1.0 test:ui
+> playwright test tests/ui/chat-shortcuts-short-screen.spec.ts tests/ui/chat-shortcuts.spec.ts tests/ui/chat-shortcuts-design.spec.ts --reporter=list
+
+
+Running 28 tests using 1 worker
+
+(node:110821) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:110821) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 1, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 1, chatId: 1 }
+  ✓   1 [chromium] › tests/ui/chat-shortcuts-design.spec.ts:54:9 › personal shortcut UI design evidence › renders every shortcut state at 390 (1.8s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 2, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 2, chatId: 2 }
+  ✓   2 [chromium] › tests/ui/chat-shortcuts-design.spec.ts:77:9 › personal shortcut UI design evidence › renders loading, list error, save failure, and delete confirm at 390 (1.6s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 3, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 3, chatId: 3 }
+  ✓   3 [chromium] › tests/ui/chat-shortcuts-design.spec.ts:54:9 › personal shortcut UI design evidence › renders every shortcut state at 1280 (1.7s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 4, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 4, chatId: 4 }
+  ✓   4 [chromium] › tests/ui/chat-shortcuts-design.spec.ts:77:9 › personal shortcut UI design evidence › renders loading, list error, save failure, and delete confirm at 1280 (1.6s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 5, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 5, chatId: 5 }
+  ✓   5 [chromium] › tests/ui/chat-shortcuts-design.spec.ts:137:9 › personal shortcut UI layout contract › keeps the picked sentence, next actions, and composer visible at 390 (1.1s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 6, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 6, chatId: 6 }
+  ✓   6 [chromium] › tests/ui/chat-shortcuts-design.spec.ts:162:9 › personal shortcut UI layout contract › uses readable text and tap targets at 390 (1.1s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 7, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 7, chatId: 7 }
+  ✓   7 [chromium] › tests/ui/chat-shortcuts-design.spec.ts:137:9 › personal shortcut UI layout contract › keeps the picked sentence, next actions, and composer visible at 1280 (1.1s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 8, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 8, chatId: 8 }
+  ✓   8 [chromium] › tests/ui/chat-shortcuts-design.spec.ts:162:9 › personal shortcut UI layout contract › uses readable text and tap targets at 1280 (1.1s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 9, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 9, chatId: 9 }
+  ✓   9 [chromium] › tests/ui/chat-shortcuts-design.spec.ts:182:7 › personal shortcut UI layout contract › does not overflow at 320px (1.2s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 10, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 10, chatId: 10 }
+  ✓  10 [chromium] › tests/ui/chat-shortcuts-design.spec.ts:226:7 › personal shortcut form cancel › cancel closes the form and returns the selected shortcut actions (1.0s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 11, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 11, chatId: 11 }
+  ✓  11 [chromium] › tests/ui/chat-shortcuts-design.spec.ts:240:7 › personal shortcut form cancel › cancel during a held save keeps the form closed and still lists the saved shortcut (1.0s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 12, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 12, chatId: 12 }
+  ✓  12 [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:143:9 › shortcut button row under the composer › does not overlap the textarea and matches the adjacent button at 390 (1.0s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 13, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 13, chatId: 13 }
+  ✓  13 [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:143:9 › shortcut button row under the composer › does not overlap the textarea and matches the adjacent button at 320 (976ms)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 14, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 14, chatId: 14 }
+  ✓  14 [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:143:9 › shortcut button row under the composer › does not overlap the textarea and matches the adjacent button at 1280 (1.0s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 15, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 15, chatId: 15 }
+  ✓  15 [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:210:7 › shortcut panel on short screens (667x375) › keeps list, preview, and form inside the screen with actions reachable (1.5s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 16, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 16, chatId: 16 }
+  ✓  16 [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:246:7 › shortcut panel on short screens (667x375) › real viewport shrink when the keyboard opens keeps the panel on screen (1.5s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 17, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 17, chatId: 17 }
+  ✓  17 [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:272:7 › shortcut panel on short screens (667x375) › visualViewport keyboard simulation (resize and pan) keeps the panel on screen (1.8s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 18, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 18, chatId: 18 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 19, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 19, chatId: 19 }
+  ✓  18 [chromium] › tests/ui/chat-shortcuts.spec.ts:36:7 › personal chat shortcuts › saves, edits, favorites, inserts, and survives refresh without a chat call (2.4s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 20, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 20, chatId: 20 }
+  ✓  19 [chromium] › tests/ui/chat-shortcuts.spec.ts:86:7 › personal chat shortcuts › does not slice when the shortcut would overflow (1.0s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 21, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 21, chatId: 21 }
+  ✓  20 [chromium] › tests/ui/chat-shortcuts.spec.ts:100:7 › personal chat shortcuts › locks insert during send and restores the draft after failure (1.2s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 22, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 22, chatId: 22 }
+  ✓  21 [chromium] › tests/ui/chat-shortcuts.spec.ts:136:7 › personal chat shortcuts › evidence screenshots at 390 and 1280 (1.5s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 23, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 23, chatId: 23 }
+  ✓  22 [chromium] › tests/ui/chat-shortcuts.spec.ts:174:7 › personal chat shortcuts › retries save, favorite, and delete after network failure (1.5s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 24, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 24, chatId: 24 }
+  ✓  23 [chromium] › tests/ui/chat-shortcuts.spec.ts:233:7 › personal chat shortcuts › keeps a shortcut created before a late list response (1.0s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 25, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 25, chatId: 25 }
+  ✓  24 [chromium] › tests/ui/chat-shortcuts.spec.ts:264:7 › personal chat shortcuts › a failed list load is not an empty library (934ms)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 26, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 26, chatId: 26 }
+  ✓  25 [chromium] › tests/ui/chat-shortcuts.spec.ts:283:7 › personal chat shortcuts › starting a new draft during save keeps that draft (1.2s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 27, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 27, chatId: 27 }
+  ✓  26 [chromium] › tests/ui/chat-shortcuts.spec.ts:319:7 › personal chat shortcuts › synthetic composition inserts the committed Hangul text once (1.1s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 28, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 28, chatId: 28 }
+  ✓  27 [chromium] › tests/ui/chat-shortcuts.spec.ts:353:7 › personal chat shortcuts › keeps edits typed into the same form while save is in flight (1.2s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 29, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 29, chatId: 29 }
+  ✓  28 [chromium] › tests/ui/chat-shortcuts.spec.ts:388:7 › personal chat shortcuts › synthetic composition without a trailing echo applies one backspace (1.1s)
+
+  28 passed (2.2m)

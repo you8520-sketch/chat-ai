@@ -69,27 +69,17 @@ export function coerceUserRelationPlan(raw: unknown): OfficialUserRelationPlan {
   return { type: record.type, fixed };
 }
 
-const FREE_PRINCIPLE =
-  "유저 관계 원칙: 유저의 이름·신분·성별과 유저-캐릭터 간 기존 관계는 유저 페르소나와 대화에서 명시된 설정을 우선한다. 도입부가 관계를 명시적으로 고정하지 않는 한 현재 장면만 고정한다.";
-
-const ROLE_BOUND_PRINCIPLE =
-  "유저 관계 원칙: 아래 고정 배경만 확정이다. 유저의 이름·성별·외형·감정·말·행동과 그 밖의 인적 설정은 페르소나와 대화가 정하며, 페르소나에 이미 관계가 있으면 그것을 우선한다. 고정 배경은 신뢰·호감·애정·결말을 정하지 않는다.";
-
-const RELATIONSHIP_BOUND_PRINCIPLE =
-  "유저 관계 원칙: 아래 고정 관계·공동 과거만 확정이다. 관계가 있다는 사실은 신뢰·호감·애정·화해의 결론이 아니다. 유저의 이름·성별·외형·감정·말·행동과 아래 항목 밖의 설정은 페르소나와 대화가 정한다.";
-
-/** Compiled setting lines for the start type; legacy/FREE keeps the pre-existing single line. */
+/**
+ * Final RP wire carries only a concrete premise the scene cannot be understood without.
+ * Persona priority, what the user may decide, and lists of possible endings stay out:
+ * the shared chat runtime already owns player agency.
+ */
 export function compileUserRelationPrinciple(rel: OfficialUserRelationStart): string[] {
   const type = rel.type ?? "free";
   const fixed = rel.fixedFacts?.trim() ?? "";
-  const decides = rel.userDecides?.trim() ?? "";
-  if (type === "free" || !fixed) return [FREE_PRINCIPLE];
-  const principle = type === "role_bound" ? ROLE_BOUND_PRINCIPLE : RELATIONSHIP_BOUND_PRINCIPLE;
-  return [
-    principle,
-    `${type === "role_bound" ? "고정 배경" : "고정 관계"}: ${fixed}`,
-    decides ? `유저가 정하는 것: ${decides}` : "",
-  ].filter(Boolean);
+  if (type === "free" || !fixed) return [];
+  const label = type === "role_bound" ? "사건 전제" : "고정된 관계";
+  return [`${label}: ${fixed}`];
 }
 
 /**
@@ -112,11 +102,11 @@ function squashForMatch(text: string): string {
 }
 
 const TYPE_RULES: Record<OfficialUserRelationType, string> = {
-  free: "FREE — 유저 신분·직업·성격·과거 관계가 모두 열려 있다. fixedFacts·userDecides는 \"\"로 둔다. 초면으로 강제하지 말고, 페르소나에 이미 관계가 있으면 그것을 우선한다.",
+  free: "FREE — fixedFacts·userDecides·initialView·userRole·startingPoint·progression은 빈 문자열 또는 빈 배열로 둔다. 유저 정체·선택권·관계 발전을 설명하는 문장은 쓰지 않는다.",
   role_bound:
-    "ROLE_BOUND — 이야기 전제에 꼭 필요한 소속·역할·배경만 고정한다(예: 적국 첩자, 망국 후계자, 파견 감찰관). fixedFacts에 그 고정 사실만, userDecides에 성별·외형·감정·말·행동·나머지 인적 설정이 유저 몫임을 쓴다.",
+    "ROLE_BOUND — 사건을 이해하려면 꼭 필요한 소속·역할·배경 한 가지만 fixedFacts에 쓴다. userDecides·initialView·userRole·startingPoint·progression은 비운다. 유저가 정할 수 있는 항목을 나열하지 않는다.",
   relationship_bound:
-    "RELATIONSHIP_BOUND — 관계 또는 공동 과거를 고정한다(예: 약혼, 가문의 원수, 소꿉친구, 빙의). fixedFacts에 고정할 사실(관계 이름·공동 과거·공개 여부·빙의면 주체·지식·몸의 기존 관계)만, userDecides에 유저가 정할 사실(감정·기억의 세부·행동·결론)을 쓴다. 관계의 존재를 신뢰·호감·애정·화해의 결론과 같게 쓰지 않는다.",
+    "RELATIONSHIP_BOUND — 관계 또는 공동 과거 중 사건 이해에 필요한 사실만 fixedFacts에 쓴다. 그 사실을 신뢰·호감·애정·화해의 결론으로 쓰지 않는다. userDecides·initialView·userRole·startingPoint·progression은 비운다.",
 };
 
 /** Short plan lines for part1 / voice user prompts (the bonds system prompt carries the full rules). */
@@ -133,8 +123,8 @@ export function formatUserRelationPlanForPrompt(plan: OfficialUserRelationPlan |
 /** Bonds-system rules shared by every type; the type-specific rule travels in the bonds user prompt. */
 export function buildUserRelationAuthorRules(): string[] {
   return [
-    "- userRelationship.type·fixedFacts·userDecides는 입력의 '유저 관계 시작 유형' 규칙을 따른다(type은 입력값 그대로). 모든 유형에서 유저 성별은 자유이고, 고정 관계는 애정·신뢰·결말 강제가 아니다.",
-    `  fixedFacts ${USER_RELATION_FIXED_MAX}자 이내·userDecides ${USER_RELATION_DECIDES_MAX}자 이내. userRole은 "당신은 ~" 꼴로 읽히는 한 줄 라벨이며 fixedFacts를 되풀이하지 않는다(FREE는 '찾아온 방문자'처럼 열린 라벨).`,
+    "- userRelationship.type은 입력값 그대로 둔다. 최종 RP에 실을 문장은 fixedFacts뿐이고, 그것도 사건 이해에 필요한 구체적 사실일 때만 쓴다.",
+    `  fixedFacts는 ${USER_RELATION_FIXED_MAX}자 이내. userDecides·initialView·userRole·startingPoint는 "" , progression은 [] 가 기본이다. 유저 관계 원칙, 첫인식, 유저 역할, 시작점, 관계 진행, 가능한 결말 목록은 쓰지 않는다.`,
   ];
 }
 
@@ -145,10 +135,6 @@ export function formatUserRelationBondsRule(plan: OfficialUserRelationPlan | und
 
 const FORCED_OUTCOME_RE =
   /사랑에\s*빠(?:지게|진다|질\s*수밖에)|결국\s*(?:연인|사랑|서로를\s*사랑)|반드시\s*(?:사랑|연인|마음을\s*열|굴복|복종|화해)|굴복하게\s*(?:된다|되며)|복종하게\s*(?:된다|되며)|연인이\s*(?:된다|될\s*운명)|마음을\s*열게\s*(?:된다|되며)|\d+\s*턴\s*(?:후|뒤|이후|째|마다)|매\s*턴|턴마다/u;
-
-const RETREAT_RE =
-  /멀어|거리를\s*두|후퇴|적대|배신|의심|등을\s*돌|단절|결렬|이탈|파기|실망|불신|떠나|차단|냉각|악화|틀어|경계(?:가|를)?\s*(?:강|높|굳)/u;
-const ADVANCE_RE = /신뢰|협력|가까워|친밀|마음을\s*열|화해|호감|의지|동맹|연대|다가|풀어|열어|열린/u;
 
 export function userRelationTextOf(bible: {
   userRelationship: OfficialUserRelationStart & { initialView: string; startingPoint: string; progression: string[] };
@@ -199,7 +185,6 @@ export function evaluateUserRelationStart(input: {
     }
   } else {
     if (fixed.length < 20) errors.push(issue("bible_user_rel_fixed_missing", `${type} needs fixedFacts (>=20 chars) naming exactly what is fixed`));
-    if (decides.length < 15) errors.push(issue("bible_user_rel_decides_missing", `${type} needs userDecides (>=15 chars) naming what the user decides`));
     if (fixed.length > USER_RELATION_FIXED_MAX) errors.push(issue("bible_user_rel_fixed_long", `fixedFacts ${fixed.length} chars (> ${USER_RELATION_FIXED_MAX})`));
     if (decides.length > USER_RELATION_DECIDES_MAX) errors.push(issue("bible_user_rel_decides_long", `userDecides ${decides.length} chars (> ${USER_RELATION_DECIDES_MAX})`));
   }
@@ -214,14 +199,5 @@ export function evaluateUserRelationStart(input: {
     errors.push(issue("bible_user_rel_forced_outcome", `relationship text forces an outcome or a fixed-turn schedule: "${forced}"`));
   }
 
-  const steps = (rel.progression ?? []).filter((step) => step.trim());
-  if (steps.length < 2) {
-    errors.push(issue("bible_progression_directions", "progression needs at least 2 action-based change conditions"));
-  } else {
-    const joined = steps.join("\n");
-    if (!RETREAT_RE.test(joined) || !ADVANCE_RE.test(joined)) {
-      errors.push(issue("bible_progression_one_directional", "progression must include both a warming and a retreating/hostile change condition"));
-    }
-  }
   return qaResult(errors);
 }

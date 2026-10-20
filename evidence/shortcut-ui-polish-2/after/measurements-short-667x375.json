@@ -1,0 +1,52 @@
+{
+  "list": {
+    "top": 8,
+    "bottom": 367,
+    "left": 84,
+    "right": 532,
+    "viewTop": 0,
+    "viewBottom": 375,
+    "composerTop": 262.21875,
+    "placement": "sheet"
+  },
+  "preview": {
+    "top": 8,
+    "bottom": 346,
+    "left": 84,
+    "right": 532,
+    "viewTop": 0,
+    "viewBottom": 375,
+    "composerTop": 262.21875,
+    "placement": "sheet"
+  },
+  "form": {
+    "top": 8,
+    "bottom": 367,
+    "left": 84,
+    "right": 532,
+    "viewTop": 0,
+    "viewBottom": 375,
+    "composerTop": 262.21875,
+    "placement": "sheet"
+  },
+  "insert": {
+    "top": 290,
+    "bottom": 326,
+    "left": 108,
+    "right": 392,
+    "viewTop": 0,
+    "viewBottom": 375,
+    "inView": true,
+    "hit": true
+  },
+  "save": {
+    "top": 322,
+    "bottom": 358,
+    "left": 161,
+    "right": 521,
+    "viewTop": 0,
+    "viewBottom": 375,
+    "inView": true,
+    "hit": true
+  }
+}
