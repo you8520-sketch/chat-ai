@@ -1,0 +1,66 @@
+name: Validate adult-OFF output guard
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/adultOffOutputGuard*.ts"
+      - "src/lib/adultOffGuardEvidence.test.ts"
+      - "src/lib/adultOffGuardLiveCapture.test.ts"
+      - "src/lib/adultOffOutputClassifier.ts"
+      - "src/lib/adultOffVisibleOutput.ts"
+      - "src/lib/adultOffVisibleOutput.test.ts"
+      - "src/lib/turnTailWork.ts"
+      - "src/lib/suggestedReplies/job.ts"
+      - "src/lib/statusMeta/job.ts"
+      - "src/lib/openRouterCompletion*.ts"
+      - "src/lib/auxProviderProvenance*.ts"
+      - "src/lib/publicUsageEconomicsBoundary*.ts"
+      - "src/lib/chatUsage.ts"
+      - "src/lib/mainRpStrictFailure.test.ts"
+      - "src/lib/refusalZeroCharge*.test.ts"
+      - "src/app/api/chat/route.ts"
+      - "scripts/adult-off-guard-*.ts"
+      - "scripts/lib/adultOffGuard*.ts"
+      - ".github/workflows/validate-adult-off-output-guard.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck:app
+      - name: Guard unit and synthetic production regressions
+        run: >-
+          node --conditions=react-server --import tsx
+          --import ./src/lib/test/regularTestEgressPolicy.ts
+          --test
+          src/lib/adultOffOutputGuard.test.ts
+          src/lib/adultOffOutputGuard.production.test.ts
+          src/lib/adultOffGuardEvidence.test.ts
+          src/lib/adultOffGuardLiveCapture.test.ts
+          src/lib/adultOffVisibleOutput.test.ts
+      - name: Shared code touched by the guard
+        run: >-
+          node --conditions=react-server --import tsx
+          --import ./src/lib/test/regularTestEgressPolicy.ts
+          --test
+          src/lib/openRouterCompletion.requestIdContract.test.ts
+          src/lib/openRouterCompletion.cheaperInference.test.ts
+          src/lib/auxProviderProvenance.test.ts
+          src/lib/publicUsageEconomicsBoundary.test.ts
+          src/lib/mainRpStrictFailure.test.ts
+          src/lib/refusalZeroCharge.test.ts
+          src/lib/refusalZeroCharge.production.test.ts
+          src/lib/providerNativeRefusal.test.ts
+          src/lib/turnApiBudget.test.ts
+          src/lib/mainRpStartupDeadline.test.ts
+          src/app/api/chat/route.singleCallInvariant.test.ts

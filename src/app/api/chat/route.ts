@@ -17,7 +17,11 @@ import {
   sanitizeStreamArtifacts,
   detectAdultGenerationFailure,
   isProviderRefusalFailure,
+  isSiteAdultOutputFailure,
+  parseStoredZeroChargeFailure,
+  isZeroChargeReplayFailure,
   generationFailureUserMessage,
+  type GenerationFailureReason,
   htmlFlashFailureUserMessage,
   isCatastrophicallyShortResponse,
   CATASTROPHIC_MIN_RESPONSE_CHARS,
@@ -633,6 +637,27 @@ import {
   resolveEffectiveAdultRp,
   resolveRoomAdultModeEnabled,
 } from "@/lib/chatAdultHandoff";
+import {
+  adultOffStoredUsageApprovesText,
+  buildAdultOffGuardUsageEvidence,
+  collectStatusMetaVisibleTexts,
+  collectStatusWidgetVisibleTexts,
+  collectSuggestedReplyVisibleTexts,
+  createAdultOffOutputHold,
+  evaluateAdultOffOutput,
+  isAdultOffOutputGuardEnabled,
+  mergeAdultOffReplayApproval,
+  redactAdultOffVariantsForDelivery,
+  reusedAdultOffApprovalRecord,
+  shouldApplyAdultOffOutputGuard,
+  summarizeAdultOffCheck,
+  type AdultOffCheckRecord,
+  type AdultOffCheckStage,
+  type AdultOffGuardDecision,
+} from "@/lib/adultOffOutputGuard";
+import { createAdultOffClassifier } from "@/lib/adultOffOutputClassifier";
+import { trackTurnTailWork } from "@/lib/turnTailWork";
+import { rebalanceTableMarkdownWithFormatSpec } from "@/lib/statusMeta/formatSpec";
 
 const SSE_HEADERS = {
   "Content-Type": "text/event-stream; charset=utf-8",
@@ -2849,9 +2874,9 @@ export async function POST(req: Request) {
           );
           const stored = priorRefusalSettlement.assistantMessageId
             ? (db
-                .prepare(`SELECT content FROM messages WHERE id=? AND chat_id=?`)
+                .prepare(`SELECT content, usage FROM messages WHERE id=? AND chat_id=?`)
                 .get(priorRefusalSettlement.assistantMessageId, chatRef.id) as
-                | { content: string | null }
+                | { content: string | null; usage: string | null }
                 | undefined)
             : undefined;
           if ((stored?.content ?? "").trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
@@ -2859,7 +2884,9 @@ export async function POST(req: Request) {
           }
           safe.send({
             type: "error",
-            error: generationFailureUserMessage("model_refusal"),
+            error: generationFailureUserMessage(
+              parseStoredZeroChargeFailure(stored?.usage) ?? "model_refusal"
+            ),
             messageId: priorRefusalSettlement.assistantMessageId,
             requestId: clientRequestId,
           });
@@ -3225,7 +3252,15 @@ export async function POST(req: Request) {
         (chunk) => controller.enqueue(chunk),
         sseEncode
       );
-      const send = wrapSendForPhaseAudit(safe.send, phaseAudit);
+      // 성인 OFF 검사 대상 턴은 모든 SSE 이벤트가 이 보류 함수를 지난다. 승인되지 않은 본문은
+      // 어떤 단계(스트리밍·후처리·HTML)에서 만들어져도 전달되지 않는다.
+      const adultOffGuardActive = shouldApplyAdultOffOutputGuard({
+        enabled: isAdultOffOutputGuardEnabled(),
+        effectiveAdultRp,
+      });
+      const deliverToClient = wrapSendForPhaseAudit(safe.send, phaseAudit);
+      const adultOffHold = adultOffGuardActive ? createAdultOffOutputHold(deliverToClient) : null;
+      const send = adultOffHold ? adultOffHold.send : deliverToClient;
       const postprocessHeartbeat = createStreamPostprocessHeartbeat((obj) => send(obj));
       // Immediate heartbeat — mobile clients otherwise sit on a dark/idle screen
       // while prompt assembly + model connect can take tens of seconds.
@@ -3247,6 +3282,28 @@ export async function POST(req: Request) {
       let sseDoneAttempted = false;
       let mainProviderFinished = false;
       let mainFinishReason: string | null = null;
+      const adultOffClassifier = adultOffGuardActive
+        ? createAdultOffClassifier({
+            chatId: chatRef.id,
+            assistantMessageId: persistedAssistantId,
+            generationSequence: currentTurnGenerationScope.generationSequence,
+            generationRequestId: currentTurnGenerationScope.generationRequestId,
+          })
+        : null;
+      const adultOffChecks: AdultOffCheckRecord[] = [];
+      const adultOffBodyMayPersist = (text: string): boolean =>
+        !adultOffHold || adultOffHold.covers(text);
+      const adultOffPersistable = (text: string): string =>
+        adultOffBodyMayPersist(text) ? text : "";
+      const adultOffUsageEvidence = (): { adultOffGuard?: Record<string, unknown> } =>
+        adultOffGuardActive
+          ? {
+              adultOffGuard: buildAdultOffGuardUsageEvidence(
+                adultOffChecks,
+                adultOffHold?.approvedSnapshot() ?? []
+              ),
+            }
+          : {};
 
       const emitStreamTurnForensics = (assistantFinalizeStatus: string | null) => {
         if (!clientRequestId) return;
@@ -3306,8 +3363,165 @@ export async function POST(req: Request) {
         postprocessHeartbeat.stop();
       };
 
+      /**
+       * 생성 실패 턴의 단일 반환 경로. 공급자 사용량 원가는 항상 남기고, 공급자 거절과
+       * 사이트 수위 차단·검사 실패는 같은 0P `waived` 정산 한 곳으로 모은다.
+       * 승인되지 않은 본문은 어떤 경우에도 저장·전달하지 않는다.
+       */
+      const failMainRpTurn = (input: {
+        generationFailure: GenerationFailureReason;
+        primaryStage: StageUsage | undefined;
+        candidateText: string;
+        outputChars: number;
+        routedTo: string;
+        flashHtmlError?: string | null;
+        errorMessage: string;
+      }) => {
+        const { generationFailure, primaryStage } = input;
+        const nativeRefusal = isProviderNativeRefusalSignal(primaryStage?.finishReason);
+        const hideRefusalBody = generationFailure === "model_refusal" && !nativeRefusal;
+        const persistedFailureText =
+          !adultOffBodyMayPersist(input.candidateText) ||
+          hideRefusalBody ||
+          isSiteAdultOutputFailure(generationFailure)
+            ? ""
+            : input.candidateText;
+        adultOffHold?.discard();
+        console.warn("[/api/chat] generation failure — billing skipped", {
+          generationFailure,
+          finishReason: primaryStage?.finishReason,
+          outputChars: input.outputChars,
+          model: primaryStage?.responseModelId ?? primaryStage?.model ?? deliveredModelId ?? null,
+          provider: deliveredProvider,
+          upstreamCostUsd: primaryStage?.upstreamCostUsd ?? null,
+          cheaperInferenceBilledCostUsd: primaryStage?.cheaperInferenceBilledCostUsd ?? null,
+          providerRequestId: primaryStage?.providerRequestId ?? null,
+          targetResponseChars: targetResponseCharsRef,
+          routedTo: input.routedTo,
+          flashHtmlError: input.flashHtmlError ?? null,
+        });
+        if (primaryStage != null) {
+          try {
+            recordMainGenerationProviderCost({
+              chatId: chatRef.id,
+              assistantMessageId: persistedAssistantId,
+              generationSequence: currentTurnGenerationScope.generationSequence,
+              generationRequestId: currentTurnGenerationScope.generationRequestId,
+              provider: deliveredProvider,
+              model: primaryStage.responseModelId ?? primaryStage.model,
+              requestKind: "main-rp",
+              inputTokens: primaryStage.input,
+              outputTokens: primaryStage.output,
+              reasoningTokens: primaryStage.apiReasoningOutputTokens,
+              cacheReadTokens: primaryStage.cacheReadTokens,
+              cacheWriteTokens: primaryStage.cacheWriteTokens,
+              cheaperInferenceBilledCostUsd: primaryStage.cheaperInferenceBilledCostUsd,
+              upstreamCostUsd: primaryStage.upstreamCostUsd,
+              usageEstimated: primaryStage.estimated,
+              providerRequestId: primaryStage.providerRequestId,
+              outcome: "failed_with_usage",
+            });
+          } catch (mainCostErr) {
+            console.warn(
+              "[/api/chat] refusal provider cost record skipped:",
+              (mainCostErr as Error).message
+            );
+          }
+        }
+        clearPartialTimer();
+        stopPostprocessHeartbeat();
+        try {
+          markAssistantFailed(db, persistedAssistantId, persistedFailureText);
+          if (isZeroChargeReplayFailure(generationFailure)) {
+            db.prepare(`UPDATE messages SET usage=? WHERE id=? AND chat_id=?`).run(
+              JSON.stringify({
+                generationFailure,
+                finishReason: primaryStage?.finishReason ?? null,
+                model:
+                  primaryStage?.responseModelId ?? primaryStage?.model ?? deliveredModelId ?? null,
+                provider: deliveredProvider,
+                upstreamCostUsd: primaryStage?.upstreamCostUsd ?? null,
+                cheaperInferenceBilledCostUsd: primaryStage?.cheaperInferenceBilledCostUsd ?? null,
+                providerRequestId: primaryStage?.providerRequestId ?? null,
+                ...adultOffUsageEvidence(),
+              }),
+              persistedAssistantId,
+              chatRef.id
+            );
+            settleChatTurnBillingExactlyOnce(db, {
+              userId: user.id,
+              chatId: chatRef.id,
+              requestId: clientRequestId,
+              assistantMessageId: persistedAssistantId,
+              requestedPoints: 0,
+              reason: `${generationFailure} · ${
+                primaryStage?.responseModelId ?? primaryStage?.model ?? deliveredModelId ?? ""
+              }`,
+            });
+          }
+          if (regenerateMessageId) {
+            restoreAssistantFromAlternatesOnFailedRegen(db, regenerateMessageId, chatRef.id);
+          }
+          persistenceDiag.interrupted = true;
+          logStreamingPersistence(persistenceDiag);
+        } catch {
+          /* ignore */
+        }
+        // 이미 스트리밍된 본문이 있으면 reset 금지 — 화면이 비었다가 에러만 남는 현상 방지
+        if (persistedFailureText.trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
+          send({ type: "reset" });
+        }
+        send({
+          type: "error",
+          error: input.errorMessage,
+          messageId: persistedAssistantId,
+          userMessageId,
+          requestId: clientRequestId,
+        });
+        safe.close(controller);
+      };
+
+      const runAdultOffCheck = async (
+        stage: AdultOffCheckStage,
+        candidates: readonly string[]
+      ): Promise<AdultOffGuardDecision> => {
+        const startedAt = Date.now();
+        const decision = await evaluateAdultOffOutput(candidates, adultOffClassifier!);
+        const record = summarizeAdultOffCheck(stage, decision, Date.now() - startedAt);
+        adultOffChecks.push(record);
+        console.info("[/api/chat] adult-off output guard", {
+          chatId: chatRef.id,
+          stage,
+          status: record.status,
+          reason: record.reason ?? null,
+          category: record.category ?? null,
+          checkedWindows: record.checkedWindows,
+          classifierCalls: record.classifierCalls,
+          checkMs: record.checkMs,
+        });
+        return decision;
+      };
+
+      const failAdultOffTurn = (
+        decision: Exclude<AdultOffGuardDecision, { status: "approved" }>,
+        input: { primaryStage: StageUsage | undefined }
+      ) => {
+        const generationFailure: GenerationFailureReason =
+          decision.status === "blocked" ? "adult_output_blocked" : "adult_output_check_failed";
+        failMainRpTurn({
+          generationFailure,
+          primaryStage: input.primaryStage,
+          candidateText: "",
+          outputChars: 0,
+          routedTo: "openrouter",
+          errorMessage: generationFailureUserMessage(generationFailure),
+        });
+      };
+
       let partialTimer: ReturnType<typeof setInterval> | null = setInterval(() => {
-        if (streamVisibleTextRef.trim()) persistPartialBestEffort(streamVisibleTextRef);
+        if (streamVisibleTextRef.trim() && adultOffBodyMayPersist(streamVisibleTextRef)) {
+          persistPartialBestEffort(streamVisibleTextRef);
+        }
       }, 800);
 
       let stopLeaseHeartbeat: (() => void) | undefined;
@@ -3333,19 +3547,56 @@ export async function POST(req: Request) {
           const rawCompletedUsage = row?.usage
             ? (JSON.parse(row.usage) as Usage)
             : null;
+          let replayContent = content;
+          let replayWithheld = false;
+          if (adultOffHold && replayContent.trim()) {
+            const proven = adultOffStoredUsageApprovesText(rawCompletedUsage, replayContent);
+            if (!proven) {
+              const decision = await runAdultOffCheck("final", [replayContent]);
+              if (decision.status !== "approved") {
+                replayContent = "";
+                replayWithheld = true;
+              } else {
+                adultOffHold.markApproved(replayContent);
+                try {
+                  const nextUsage = mergeAdultOffReplayApproval(
+                    (rawCompletedUsage as unknown as Record<string, unknown> | null) ?? null,
+                    replayContent,
+                    adultOffChecks
+                  );
+                  db.prepare(`UPDATE messages SET usage=? WHERE id=? AND chat_id=?`).run(
+                    JSON.stringify(nextUsage),
+                    persistedAssistantId,
+                    chatRef.id
+                  );
+                } catch (error) {
+                  console.error(
+                    "[/api/chat] adult-off replay proof write failed",
+                    (error as Error).message
+                  );
+                }
+              }
+            }
+          }
           const usage = rawCompletedUsage
             ? serializeUsageForPublicClient(rawCompletedUsage, {
                 keepInternal: showFullBillingReceipt,
               })
             : null;
-          send({ type: "replace", text: content, instant: true });
+          if (replayWithheld && adultOffHold) {
+            adultOffHold.release("");
+            send({ type: "reset" });
+          } else {
+            adultOffHold?.release(replayContent);
+            send({ type: "replace", text: replayContent, instant: true });
+          }
           send({
             type: "done",
             chatId: chatRef.id,
             messageId: persistedAssistantId,
             userMessageId,
             requestId: clientRequestId,
-            finalContent: content,
+            finalContent: replayContent,
             usage,
             alreadyCompleted: true,
             ...readOocSceneClientFlags(rawCompletedUsage),
@@ -3369,22 +3620,14 @@ export async function POST(req: Request) {
             .get(existingByRequest.assistantMessageId, chatRef.id) as
             | { content: string | null; usage: string | null }
             | undefined;
-          let replayModelRefusal = false;
-          if (priorFailure?.usage) {
-            try {
-              const parsed = JSON.parse(priorFailure.usage) as { generationFailure?: unknown };
-              replayModelRefusal = parsed.generationFailure === "model_refusal";
-            } catch {
-              replayModelRefusal = false;
-            }
-          }
-          if (replayModelRefusal) {
+          const replayFailure = parseStoredZeroChargeFailure(priorFailure?.usage);
+          if (replayFailure) {
             if ((priorFailure?.content ?? "").trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
               send({ type: "reset" });
             }
             send({
               type: "error",
-              error: generationFailureUserMessage("model_refusal"),
+              error: generationFailureUserMessage(replayFailure),
               messageId: existingByRequest.assistantMessageId,
               userMessageId,
               requestId: clientRequestId,
@@ -3464,6 +3707,10 @@ export async function POST(req: Request) {
             : chatRef.id
               ? `chat-${chatRef.id}`
               : undefined;
+
+          if (adultOffHold) {
+            postprocessHeartbeat.start("postprocess");
+          }
 
           const runStream = async (input: {
             send: (obj: object) => void;
@@ -3573,7 +3820,7 @@ export async function POST(req: Request) {
             streamGate.discard();
             const fallback = fallbackAdultContext!;
             const fallbackResult = await runStream({
-              send,
+              send: send,
               system: fallback.systemPrompt,
               history: fallback.history,
               systemSplit: fallback.openRouterSystemSplit,
@@ -3670,17 +3917,46 @@ export async function POST(req: Request) {
               streamGate.flush();
             }
           }
-          fullText = result.text;
           confirmedProviderRefusal = detectAdultGenerationFailure(
             result.stage?.finishReason,
-            fullText,
+            result.text,
             targetResponseCharsRef
           );
+          stages.push(result.stage);
+          if (result.recoveryStage) stages.push(result.recoveryStage);
+          if (adultOffHold) {
+            if (isProviderRefusalFailure(confirmedProviderRefusal)) {
+              failMainRpTurn({
+                generationFailure: confirmedProviderRefusal,
+                primaryStage: selectBillableStages(stages, {
+                  refusalFallbackDelivered: adultFallbackSucceeded,
+                })[0],
+                candidateText: "",
+                outputChars: result.text.length,
+                routedTo: "openrouter",
+                errorMessage: generationFailureUserMessage(confirmedProviderRefusal),
+              });
+              return;
+            }
+            const preDecision = await runAdultOffCheck("pre_postprocess", [
+              result.text,
+              result.streamVisibleText ?? "",
+            ]);
+            if (preDecision.status !== "approved") {
+              failAdultOffTurn(preDecision, {
+                primaryStage: selectBillableStages(stages, {
+                  refusalFallbackDelivered: adultFallbackSucceeded,
+                })[0],
+              });
+              return;
+            }
+            adultOffHold.markApproved(result.text);
+            adultOffHold.approve(result.streamVisibleText ?? result.text);
+          }
+          fullText = result.text;
           streamVisibleTextRef = result.streamVisibleText ?? fullText;
           rawStreamTextRef = result.rawStreamText ?? fullText;
-          stages.push(result.stage);
           openRouterRemovalTraceSteps = result.removalTraceSteps;
-          if (result.recoveryStage) stages.push(result.recoveryStage);
           if (phaseAudit && result.stage) {
             const providerPrompt =
               result.stage.apiReportedInputTokens ?? result.stage.input ?? null;
@@ -3760,7 +4036,7 @@ export async function POST(req: Request) {
                 ? "[/api/chat] OpenRouter META_LEAKAGE_ABORT — billing skipped"
                 : "[/api/chat] OpenRouter DEGENERATION_ABORT — billing skipped"
             );
-            const partial = streamVisibleTextRef || fullText;
+            const partial = adultOffPersistable(streamVisibleTextRef || fullText);
             try {
               markAssistantFailed(db, persistedAssistantId, partial);
               if (regenerateMessageId) {
@@ -3787,7 +4063,11 @@ export async function POST(req: Request) {
             error: e,
           });
           try {
-            markAssistantFailed(db, persistedAssistantId, streamVisibleTextRef || fullText);
+            markAssistantFailed(
+              db,
+              persistedAssistantId,
+              adultOffPersistable(streamVisibleTextRef || fullText)
+            );
             if (regenerateMessageId) {
               restoreAssistantFromAlternatesOnFailedRegen(db, regenerateMessageId, chatRef.id);
             }
@@ -4010,7 +4290,7 @@ export async function POST(req: Request) {
           } catch {
             /* ignore */
           }
-          sendTrafficOverloadGracefulStream(send);
+          sendTrafficOverloadGracefulStream(deliverToClient);
           safe.close(controller);
           return;
         }
@@ -4022,7 +4302,11 @@ export async function POST(req: Request) {
             preview: savedText.slice(0, 120),
           });
           try {
-            markAssistantFailed(db, persistedAssistantId, streamVisibleTextRef || savedText);
+            markAssistantFailed(
+              db,
+              persistedAssistantId,
+              adultOffPersistable(streamVisibleTextRef || savedText)
+            );
             if (regenerateMessageId) {
               restoreAssistantFromAlternatesOnFailedRegen(db, regenerateMessageId, chatRef.id);
             }
@@ -4031,7 +4315,10 @@ export async function POST(req: Request) {
           } catch {
             /* ignore */
           }
-          if ((streamVisibleTextRef || savedText).trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
+          if (
+            adultOffPersistable(streamVisibleTextRef || savedText).trim().length <
+            CATASTROPHIC_MIN_RESPONSE_CHARS
+          ) {
             send({ type: "reset" });
           }
           send({ type: "error", error: DEGENERATION_USER_MESSAGE });
@@ -4552,108 +4839,18 @@ export async function POST(req: Request) {
         }
 
         if (generationFailure) {
-          const nativeRefusal = isProviderNativeRefusalSignal(primaryStage?.finishReason);
-          const hideRefusalBody = generationFailure === "model_refusal" && !nativeRefusal;
-          const persistedFailureText = hideRefusalBody
-            ? ""
-            : savedText || streamVisibleTextRef;
-          console.warn("[/api/chat] generation failure — billing skipped", {
+          failMainRpTurn({
             generationFailure,
-            finishReason: primaryStage?.finishReason,
+            primaryStage,
+            candidateText: savedText || streamVisibleTextRef,
             outputChars: savedText.length,
-            model: primaryStage?.responseModelId ?? primaryStage?.model ?? deliveredModelId ?? null,
-            provider: deliveredProvider,
-            upstreamCostUsd: primaryStage?.upstreamCostUsd ?? null,
-            cheaperInferenceBilledCostUsd: primaryStage?.cheaperInferenceBilledCostUsd ?? null,
-            providerRequestId: primaryStage?.providerRequestId ?? null,
-            targetResponseChars: targetResponseCharsRef,
             routedTo: htmlFlashOnlyTurn ? "html-only" : "openrouter",
             flashHtmlError,
+            errorMessage:
+              htmlFlashOnlyTurn && generationFailure === "under_length"
+                ? htmlFlashFailureUserMessage(flashHtmlError)
+                : generationFailureUserMessage(generationFailure),
           });
-          if (primaryStage != null) {
-            try {
-              recordMainGenerationProviderCost({
-                chatId: chatRef.id,
-                assistantMessageId: persistedAssistantId,
-                generationSequence: currentTurnGenerationScope.generationSequence,
-                generationRequestId: currentTurnGenerationScope.generationRequestId,
-                provider: deliveredProvider,
-                model: primaryStage.responseModelId ?? primaryStage.model,
-                requestKind: "main-rp",
-                inputTokens: primaryStage.input,
-                outputTokens: primaryStage.output,
-                reasoningTokens: primaryStage.apiReasoningOutputTokens,
-                cacheReadTokens: primaryStage.cacheReadTokens,
-                cacheWriteTokens: primaryStage.cacheWriteTokens,
-                cheaperInferenceBilledCostUsd: primaryStage.cheaperInferenceBilledCostUsd,
-                upstreamCostUsd: primaryStage.upstreamCostUsd,
-                usageEstimated: primaryStage.estimated,
-                providerRequestId: primaryStage.providerRequestId,
-                outcome: "failed_with_usage",
-              });
-            } catch (mainCostErr) {
-              console.warn(
-                "[/api/chat] refusal provider cost record skipped:",
-                (mainCostErr as Error).message
-              );
-            }
-          }
-          clearPartialTimer();
-          stopPostprocessHeartbeat();
-          try {
-            markAssistantFailed(db, persistedAssistantId, persistedFailureText);
-            if (generationFailure === "model_refusal") {
-              db.prepare(
-                `UPDATE messages SET usage=? WHERE id=? AND chat_id=?`
-              ).run(
-                JSON.stringify({
-                  generationFailure,
-                  finishReason: primaryStage?.finishReason ?? null,
-                  model:
-                    primaryStage?.responseModelId ?? primaryStage?.model ?? deliveredModelId ?? null,
-                  provider: deliveredProvider,
-                  upstreamCostUsd: primaryStage?.upstreamCostUsd ?? null,
-                  cheaperInferenceBilledCostUsd: primaryStage?.cheaperInferenceBilledCostUsd ?? null,
-                  providerRequestId: primaryStage?.providerRequestId ?? null,
-                }),
-                persistedAssistantId,
-                chatRef.id
-              );
-              settleChatTurnBillingExactlyOnce(db, {
-                userId: user.id,
-                chatId: chatRef.id,
-                requestId: clientRequestId,
-                assistantMessageId: persistedAssistantId,
-                requestedPoints: 0,
-                reason: `model_refusal · ${
-                  primaryStage?.responseModelId ?? primaryStage?.model ?? deliveredModelId ?? ""
-                }`,
-              });
-            }
-            if (regenerateMessageId) {
-              restoreAssistantFromAlternatesOnFailedRegen(db, regenerateMessageId, chatRef.id);
-            }
-            persistenceDiag.interrupted = true;
-            logStreamingPersistence(persistenceDiag);
-          } catch {
-            /* ignore */
-          }
-          // 이미 스트리밍된 본문이 있으면 reset 금지 — 화면이 비었다가 에러만 남는 현상 방지
-          if (persistedFailureText.trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
-            send({ type: "reset" });
-          }
-          const errorMessage =
-            htmlFlashOnlyTurn && generationFailure === "under_length"
-              ? htmlFlashFailureUserMessage(flashHtmlError)
-              : generationFailureUserMessage(generationFailure);
-          send({
-            type: "error",
-            error: errorMessage,
-            messageId: persistedAssistantId,
-            userMessageId,
-            requestId: clientRequestId,
-          });
-          safe.close(controller);
           return;
         }
         const persistedGenerationStatus = "completed" as const;
@@ -5439,6 +5636,24 @@ export async function POST(req: Request) {
           !htmlFlashOnlyTurn &&
           !oocSceneRenderTurn &&
           Boolean(savedText.trim());
+        let suggestedRepliesAdultOffDelivery: "approved" | "withheld" | undefined;
+        let statusMetaAdultOffDelivery: "approved" | "withheld" | undefined;
+        const ensureAdultOffBodyApproved = async (): Promise<boolean> => {
+          if (!adultOffHold || adultOffHold.covers(savedText)) return true;
+          const decision = await runAdultOffCheck("final", [savedText]);
+          if (decision.status !== "approved") {
+            failAdultOffTurn(decision, {
+              primaryStage: selectBillableStages(stages, {
+                refusalFallbackDelivered: adultFallbackSucceeded,
+              })[0],
+            });
+            return false;
+          }
+          adultOffHold.markApproved(savedText);
+          return true;
+        };
+        // 본문 차단이 확정되면 상태창 추출 등 유료 후처리를 시작하지 않는다.
+        if (!(await ensureAdultOffBodyApproved())) return;
         if (statusWidgetActive) {
           send({ type: "status", message: "상태창 생성 중…" });
           postprocessHeartbeat.setPhase("status_widget");
@@ -5549,6 +5764,68 @@ export async function POST(req: Request) {
           stripRepeatedTrailingQuoteMarks(savedText),
           "remove stray repeated quote marks at assistant output tail"
         );
+
+        // 최종 본문 게이트. 검사한 문자열과 정확히 같을 때만 승인을 재사용한다.
+        // 위젯이 본문을 바꾸면 여기서 다시 검사하고, 차단이면 이미 발생한 위젯 원장은 그대로 둔 채 0P로 끝낸다.
+        // 이 지점 이후에는 savedText 를 바꾸지 않으며, 사용량 기록·저장·정산은 모두 이 뒤에서 일어난다.
+        if (!(await ensureAdultOffBodyApproved())) return;
+        if (adultOffHold) {
+          const widgetTexts = collectStatusWidgetVisibleTexts(statusWidgetValuesPayload).filter(
+            (text) => !adultOffHold.covers(text)
+          );
+          if (widgetTexts.length) {
+            const widgetDecision = await runAdultOffCheck("status_widget", widgetTexts);
+            if (widgetDecision.status !== "approved") {
+              statusWidgetValuesPayload = null;
+            } else {
+              for (const text of widgetTexts) adultOffHold.markApproved(text);
+            }
+          }
+          const replyVisible = collectSuggestedReplyVisibleTexts(
+            widgetPrefetchedSuggestedReplies
+          );
+          const replyTexts = replyVisible.filter((text) => !adultOffHold.covers(text));
+          if (replyVisible.length && !replyTexts.length) {
+            suggestedRepliesAdultOffDelivery = "approved";
+          } else if (replyTexts.length) {
+            const replyDecision = await runAdultOffCheck("suggested_replies", replyTexts);
+            if (replyDecision.status !== "approved") {
+              suggestedRepliesAdultOffDelivery = "withheld";
+              widgetPrefetchedSuggestedReplies = [];
+            } else {
+              suggestedRepliesAdultOffDelivery = "approved";
+              for (const text of replyTexts) adultOffHold.markApproved(text);
+            }
+          }
+          const prefilledSource = capturedStatusTable?.trim() ?? "";
+          if (prefilledSource) {
+            const prefilledExact = rebalanceTableMarkdownWithFormatSpec(
+              prefilledSource,
+              statusWindowPolicyRef?.formatSpec ?? ""
+            );
+            const metaTexts = collectStatusMetaVisibleTexts({
+              tableMarkdown: prefilledExact,
+            }).filter((text) => !adultOffHold.covers(text));
+            if (!metaTexts.length) {
+              statusMetaAdultOffDelivery = "approved";
+              capturedStatusTable = prefilledExact;
+            } else {
+              const metaDecision = await runAdultOffCheck("status_meta", metaTexts);
+              if (metaDecision.status !== "approved") {
+                statusMetaAdultOffDelivery = "withheld";
+                capturedStatusTable = null;
+              } else {
+                statusMetaAdultOffDelivery = "approved";
+                capturedStatusTable = prefilledExact;
+                for (const text of metaTexts) adultOffHold.markApproved(text);
+              }
+            }
+          }
+          if (!adultOffChecks.some((check) => check.stage === "final")) {
+            adultOffChecks.push(reusedAdultOffApprovalRecord("final"));
+          }
+          adultOffHold.release(savedText, { instant: htmlFlashOnlyTurn });
+        }
 
         if (usageRecord.adultRouting) {
           usageRecord = {
@@ -5669,6 +5946,9 @@ export async function POST(req: Request) {
         let clientUsageRecord = serializeUsageForPublicClient(dbUsageRecord, {
           keepInternal: showFullBillingReceipt,
         });
+        if (adultOffGuardActive) {
+          dbUsageRecord = { ...dbUsageRecord, ...adultOffUsageEvidence() };
+        }
         if (oocSceneRenderTurn) {
           dbUsageRecord = mergeGenerationSemantics(dbUsageRecord, generationSemantics);
         }
@@ -5692,9 +5972,11 @@ export async function POST(req: Request) {
         };
 
         let aiMessageId: number;
+        let deliverySourceVariants: MessageVariant[] = [newVariant];
+        let deliverySourceActive = 0;
         let variantPayload = serializeVariantsForClient(
-          [newVariant],
-          0,
+          deliverySourceVariants,
+          deliverySourceActive,
           variantClientOpts
         );
         let snapshotVariantIndex = 0;
@@ -5779,9 +6061,11 @@ export async function POST(req: Request) {
             sourceMessageId: regenerateMessageId,
           };
           const appended = appendMessageVariant(prevVariants, newVariant);
+          deliverySourceVariants = appended.variants;
+          deliverySourceActive = appended.activeVariant;
           variantPayload = serializeVariantsForClient(
-            appended.variants,
-            appended.activeVariant,
+            deliverySourceVariants,
+            deliverySourceActive,
             variantClientOpts
           );
           snapshotVariantIndex = appended.activeVariant;
@@ -5817,9 +6101,11 @@ export async function POST(req: Request) {
               finalizeWrote = atomic.wrote;
               finalizedStatusJson = atomic.statusWidgetValuesJson;
               statusWidgetValuesPayload = atomic.statusWidgetValues;
+              deliverySourceVariants = atomic.variants;
+              deliverySourceActive = atomic.activeVariant;
               variantPayload = serializeVariantsForClient(
-                atomic.variants,
-                atomic.activeVariant,
+                deliverySourceVariants,
+                deliverySourceActive,
                 variantClientOpts
               );
               newVariant = {
@@ -5928,9 +6214,11 @@ export async function POST(req: Request) {
               finalizeWrote = atomic.wrote;
               finalizedStatusJson = atomic.statusWidgetValuesJson;
               statusWidgetValuesPayload = atomic.statusWidgetValues;
+              deliverySourceVariants = atomic.variants;
+              deliverySourceActive = atomic.activeVariant;
               variantPayload = serializeVariantsForClient(
-                atomic.variants,
-                atomic.activeVariant,
+                deliverySourceVariants,
+                deliverySourceActive,
                 variantClientOpts
               );
               newVariant = {
@@ -6425,6 +6713,7 @@ export async function POST(req: Request) {
               userNote: effectiveUserNote,
               formatSpec: statusWindowPolicyRef?.formatSpec ?? null,
               prefilledTableMarkdown: capturedStatusTable,
+              adultOffDelivery: statusMetaAdultOffDelivery,
             });
           } else {
             markMessageStatusMetaExtractionDisabled(aiMessageId, postTurnGenerationScope);
@@ -6484,6 +6773,7 @@ export async function POST(req: Request) {
             assistantProse: savedText,
             prefetchedReplies,
             sharedInitialAttemptConsumed: widgetPostTurnPhysicalAttempted,
+            adultOffDelivery: suggestedRepliesAdultOffDelivery,
           });
         };
         if (!suggestedRepliesGenerationEligible) {
@@ -6560,6 +6850,33 @@ export async function POST(req: Request) {
           });
         }
 
+        if (adultOffHold && statusWidgetValuesPayload) {
+          const unseenWidgetTexts = collectStatusWidgetVisibleTexts(
+            statusWidgetValuesPayload
+          ).filter((text) => !adultOffHold.covers(text));
+          if (unseenWidgetTexts.length) {
+            const widgetDecision = await runAdultOffCheck("status_widget", unseenWidgetTexts);
+            if (widgetDecision.status !== "approved") {
+              statusWidgetValuesPayload = null;
+            } else {
+              for (const text of unseenWidgetTexts) adultOffHold.markApproved(text);
+            }
+          }
+        }
+        if (adultOffHold) {
+          const redactedVariants = redactAdultOffVariantsForDelivery(
+            deliverySourceVariants,
+            deliverySourceActive,
+            (text) => adultOffHold.covers(text),
+            (text) => adultOffHold.markApproved(text)
+          );
+          variantPayload = serializeVariantsForClient(
+            redactedVariants,
+            deliverySourceActive,
+            variantClientOpts
+          );
+        }
+
         stopPostprocessHeartbeat();
         sseDoneAttempted = true;
         send({
@@ -6596,7 +6913,7 @@ export async function POST(req: Request) {
         emitPhaseLatencyAudit();
         safe.close(controller);
 
-        void (async () => {
+        const turnTail = (async () => {
           try {
             if (!regenerateMessageId && userMessageId) {
               db.prepare("UPDATE messages SET user_message_id=? WHERE id=?").run(
@@ -6745,11 +7062,12 @@ export async function POST(req: Request) {
             console.error("[/api/chat] 후처리 실패:", (e as Error).message);
           }
         })();
+        trackTurnTailWork(turnTail);
       } catch (e) {
         clearPartialTimer();
         stopPostprocessHeartbeat();
         console.error("[/api/chat] SSE 파이프라인 오류:", (e as Error).message);
-        const partialOnError = streamVisibleTextRef || fullText;
+        const partialOnError = adultOffPersistable(streamVisibleTextRef || fullText);
         try {
           if (shouldMutateGenerationOnSsePipelineCatch(persistenceDiag.finalized)) {
             // Stream already persisted raw text — post-process failure should not lose it
@@ -6771,7 +7089,7 @@ export async function POST(req: Request) {
           /* ignore */
         }
         if (e instanceof GeminiTrafficOverloadError) {
-          sendTrafficOverloadGracefulStream(send);
+          sendTrafficOverloadGracefulStream(deliverToClient);
         } else if (e instanceof DegenerationAbortError || e instanceof MetaLeakageAbortError) {
           send({ type: "reset" });
           send({ type: "error", error: DEGENERATION_USER_MESSAGE });

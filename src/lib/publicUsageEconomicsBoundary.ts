@@ -28,6 +28,7 @@ export const PUBLIC_USAGE_INTERNAL_TOP_LEVEL_KEYS = [
   "breakdownAllocation",
   "rawHistoryHealth",
   "museAcceptance",
+  "adultOffGuard",
   "adultRouting",
   "usedEnglishCharacterPrompt",
   "characterPromptLanguage",

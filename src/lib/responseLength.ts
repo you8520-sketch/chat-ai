@@ -250,7 +250,11 @@ export type GenerationFailureReason =
   | "content_filter"
   | "under_length"
   | "provider_error"
-  | "model_refusal";
+  | "model_refusal"
+  /** 사이트 수위 검사가 성인 수위 본문으로 판정해 전달을 막은 턴 (공급자 거절과 별개 원인). */
+  | "adult_output_blocked"
+  /** 사이트 수위 검사가 판정을 끝내지 못해 미검사 본문을 전달하지 않은 턴. */
+  | "adult_output_check_failed";
 
 const GENERATION_FAILURE_USER_MESSAGE =
   "AI가 묘사 수위 조절에 실패하여 생성이 중단되었습니다. 대화 방향을 살짝 바꿔서 다시 시도해 주세요.";
@@ -261,7 +265,19 @@ const PROVIDER_ERROR_USER_MESSAGE =
 const MODEL_REFUSAL_USER_MESSAGE =
   "이번 응답은 생성되지 않았으며 포인트는 차감되지 않았습니다.";
 
+const ADULT_OUTPUT_BLOCKED_USER_MESSAGE =
+  "이번 응답은 현재 방의 수위 기준을 넘어 전달하지 않았으며 포인트는 차감되지 않았습니다. 장면의 방향을 바꿔 다시 시도해 주세요.";
+
+const ADULT_OUTPUT_CHECK_FAILED_USER_MESSAGE =
+  "이번 응답은 수위 확인을 마치지 못해 전달하지 않았으며 포인트는 차감되지 않았습니다. 잠시 후 다시 시도해 주세요.";
+
 export function generationFailureUserMessage(reason?: GenerationFailureReason | null): string {
+  if (reason === "adult_output_blocked") {
+    return ADULT_OUTPUT_BLOCKED_USER_MESSAGE;
+  }
+  if (reason === "adult_output_check_failed") {
+    return ADULT_OUTPUT_CHECK_FAILED_USER_MESSAGE;
+  }
   if (reason === "under_length") {
     return "AI 응답이 비정상적으로 짧거나 비어 있어 저장하지 않았습니다. 포인트는 차감되지 않습니다. 다시 시도해 주세요.";
   }
@@ -379,8 +395,39 @@ export function isCatastrophicallyShortResponse(
 
 export function isProviderRefusalFailure(
   reason: GenerationFailureReason | null | undefined
-): boolean {
+): reason is "model_refusal" | "safety" | "content_filter" {
   return reason === "model_refusal" || reason === "safety" || reason === "content_filter";
+}
+
+/** 사이트 수위 검사가 전달을 막은 실패. 공급자 응답 거절(`isProviderRefusalFailure`)과 구분한다. */
+export function isSiteAdultOutputFailure(
+  reason: GenerationFailureReason | null | undefined
+): reason is "adult_output_blocked" | "adult_output_check_failed" {
+  return reason === "adult_output_blocked" || reason === "adult_output_check_failed";
+}
+
+/** 0P 정산(`waived`)을 남기고 같은 요청 재전송을 재생성 없이 되돌리는 실패. */
+export function isZeroChargeReplayFailure(
+  reason: GenerationFailureReason | null | undefined
+): boolean {
+  return reason === "model_refusal" || isSiteAdultOutputFailure(reason);
+}
+
+/** 실패 턴 메시지 `usage` JSON에 남긴 0P 실패 원인. 없거나 해당 없으면 null. */
+export function parseStoredZeroChargeFailure(
+  usageJson: string | null | undefined
+): GenerationFailureReason | null {
+  if (!usageJson) return null;
+  try {
+    const parsed = JSON.parse(usageJson) as { generationFailure?: unknown };
+    const reason = parsed.generationFailure;
+    return typeof reason === "string" &&
+      isZeroChargeReplayFailure(reason as GenerationFailureReason)
+      ? (reason as GenerationFailureReason)
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 export function detectAdultGenerationFailure(
