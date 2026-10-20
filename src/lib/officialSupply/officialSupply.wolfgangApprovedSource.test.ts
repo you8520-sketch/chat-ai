@@ -144,11 +144,11 @@ describe("Wolfgang approved persist source", () => {
   it("keeps the production Text Lock and Appearance Lock pins", () => {
     assert.equal(
       WOLFGANG_IN_PLACE_TARGET.previousTextLockHash,
-      "c91ba66ab5cd45976c53c4298a7c355fbb286e3f761758d3a6cd5ce14f993dc9"
+      "599854610891ee4e09224d1bec863501227157584b66068f0e1cab5e0e1ca89c"
     );
     assert.equal(
       WOLFGANG_IN_PLACE_TARGET.approvedTextLockHash,
-      "599854610891ee4e09224d1bec863501227157584b66068f0e1cab5e0e1ca89c"
+      "e22ba966bdeab1babb331bdc916fe43a0e0d4e8adb3f5f2ba32f969c28ba2af2"
     );
     assert.equal(
       WOLFGANG_IN_PLACE_TARGET.appearanceLockHash,

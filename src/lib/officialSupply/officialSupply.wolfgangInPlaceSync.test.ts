@@ -68,10 +68,10 @@ const SUPPLY_KEY = WOLFGANG_IN_PLACE_TARGET.supplyDraftKey;
 const SOURCE_KEY = WOLFGANG_IN_PLACE_TARGET.sourceDraftKey;
 const FIXTURE_DIR = path.join(process.cwd(), "src/lib/officialSupply/pilot/fixtures");
 const PILOT_SOURCE_DIR = path.join(process.cwd(), "src/lib/officialSupply/pilot");
-const PREVIOUS_SOURCE_FIXTURE = path.join(FIXTURE_DIR, "pilot-rf-02-approved-c91ba66a.source.json");
+const C91_HISTORICAL_SOURCE_FIXTURE = path.join(FIXTURE_DIR, "pilot-rf-02-approved-c91ba66a.source.json");
 
 function previousLockDraft(): OfficialCharacterDraft {
-  const file = JSON.parse(fs.readFileSync(PREVIOUS_SOURCE_FIXTURE, "utf8")) as {
+  const file = JSON.parse(fs.readFileSync(C91_HISTORICAL_SOURCE_FIXTURE, "utf8")) as {
     draft: OfficialCharacterDraft;
   };
   return {
@@ -86,7 +86,7 @@ function firstSentence(text: string): string {
 }
 
 function writeSyntheticApprovedSource(dest: string): void {
-  const base = JSON.parse(fs.readFileSync(PREVIOUS_SOURCE_FIXTURE, "utf8")) as {
+  const base = JSON.parse(fs.readFileSync(C91_HISTORICAL_SOURCE_FIXTURE, "utf8")) as {
     slot: number;
     draftKey: string;
     brief: unknown;
@@ -128,11 +128,13 @@ function installFrozenApprovedPilotDir(): string {
   writeSyntheticApprovedSource(path.join(dir, "characters", `${SOURCE_KEY}.json`));
   process.env.OFFICIAL_SUPPLY_PILOT_DIR = dir;
   const compiled = loadCompiledOfficialCharacterSource(SOURCE_KEY);
+  const syntheticPrevious = previousLockDraft();
   const targetPath = path.join(dir, "wolfgang-synthetic-target.json");
   fs.writeFileSync(
     targetPath,
     JSON.stringify({
       ...WOLFGANG_IN_PLACE_TARGET,
+      previousTextLockHash: computeTextLockHash(syntheticPrevious),
       approvedTextLockHash: computeTextLockHash(compiled.draft),
     })
   );
@@ -443,7 +445,7 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
   }
 
   function approvedFixtureSpeech(): { examples: string; forbidden: string; frequentPhrases: string[] } {
-    const previous = JSON.parse(fs.readFileSync(PREVIOUS_SOURCE_FIXTURE, "utf8")) as {
+    const previous = JSON.parse(fs.readFileSync(C91_HISTORICAL_SOURCE_FIXTURE, "utf8")) as {
       bible: { speech: { frequentPhrases?: string[] } };
     };
     return {
@@ -516,15 +518,31 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
     });
   }
 
-  it("fixture matches the production pre-change state (previous Text Lock, full-lock appearance)", () => {
-    const src = source();
-    const old = previousLockDraft();
-    assert.equal(computeTextLockHash(old), WOLFGANG_IN_PLACE_TARGET.previousTextLockHash);
-    assert.equal(computeTextLockHash(src.draft), wolfgangInPlaceTarget().approvedTextLockHash);
+  it("keeps the production Text Lock and Appearance Lock pins", () => {
     assert.equal(
-      WOLFGANG_IN_PLACE_TARGET.approvedTextLockHash,
+      WOLFGANG_IN_PLACE_TARGET.previousTextLockHash,
       "599854610891ee4e09224d1bec863501227157584b66068f0e1cab5e0e1ca89c"
     );
+    assert.equal(
+      WOLFGANG_IN_PLACE_TARGET.approvedTextLockHash,
+      "e22ba966bdeab1babb331bdc916fe43a0e0d4e8adb3f5f2ba32f969c28ba2af2"
+    );
+    assert.equal(
+      WOLFGANG_IN_PLACE_TARGET.appearanceLockHash,
+      "1c3ccd134203a6dea6ae869c27cc443c42ff5498d1d0130c6f9765407c24dcc3"
+    );
+  });
+
+  it("synthetic previous state matches the overridden previous Text Lock and approved appearance", () => {
+    const src = source();
+    const old = previousLockDraft();
+    assert.equal(computeTextLockHash(old), wolfgangInPlaceTarget().previousTextLockHash);
+    assert.notEqual(
+      wolfgangInPlaceTarget().previousTextLockHash,
+      WOLFGANG_IN_PLACE_TARGET.previousTextLockHash,
+      "mechanics tests use the c91 historical fixture, not the live supply manuscript"
+    );
+    assert.equal(computeTextLockHash(src.draft), wolfgangInPlaceTarget().approvedTextLockHash);
     assert.equal(computeAppearanceLockHash(src.appearanceLock), WOLFGANG_IN_PLACE_TARGET.appearanceLockHash);
     assert.equal(
       classifyStoredAppearanceAgainstApprovedLock(
@@ -564,7 +582,7 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
       "supply_text_lock",
     ]);
     assert.equal(preview.preflightSnapshot.supplyDraftKey, SUPPLY_KEY);
-    assert.equal(preview.preflightSnapshot.supplyTextLockHash, WOLFGANG_IN_PLACE_TARGET.previousTextLockHash);
+    assert.equal(preview.preflightSnapshot.supplyTextLockHash, wolfgangInPlaceTarget().previousTextLockHash);
     assert.equal(preview.preflightSnapshot.targetTextLockHash, wolfgangInPlaceTarget().approvedTextLockHash);
     assert.deepEqual(
       preview.lorebookPlan.map((item) => item.action),
@@ -944,7 +962,7 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
     db.prepare("UPDATE official_supply_characters SET text_lock_hash='deadbeef' WHERE draft_key=?").run(SUPPLY_KEY);
     await assertGateCode(dryRun(seed.characterId, adminId), "supply_text_lock_inconsistent");
     db.prepare("UPDATE official_supply_characters SET text_lock_hash=? WHERE draft_key=?").run(
-      WOLFGANG_IN_PLACE_TARGET.previousTextLockHash,
+      wolfgangInPlaceTarget().previousTextLockHash,
       SUPPLY_KEY
     );
 

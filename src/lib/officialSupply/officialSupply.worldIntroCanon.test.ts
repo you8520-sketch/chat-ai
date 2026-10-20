@@ -165,11 +165,13 @@ describe("official shared world: manuscripts keep what was not meant to change",
     assert.match(draft.sections.characterCore, /브로커/);
   });
 
-  it("Wolfgang public sheet keeps identity, core and secrets from the c91 manuscript", () => {
-    const approved = readJson<PilotFile>(path.join(PILOT_DIR, "fixtures", "pilot-rf-02-approved-c91ba66a.source.json"));
+  it("Wolfgang public sheet matches the GPT-approved Text Lock and keeps c91 identity facts", () => {
+    const c91Historical = readJson<PilotFile>(
+      path.join(PILOT_DIR, "fixtures", "pilot-rf-02-approved-c91ba66a.source.json")
+    );
     const now = loadCompiledOfficialCharacterSource("pilot-rf-02").draft;
-    const before = compileOfficialDraftFromBible(approved.bible, {
-      draftKey: approved.draftKey,
+    const before = compileOfficialDraftFromBible(c91Historical.bible, {
+      draftKey: c91Historical.draftKey,
       worldKey: now.worldKey,
       styleKey: now.styleKey,
       worldName: "에테르노스 제국",
@@ -179,16 +181,16 @@ describe("official shared world: manuscripts keep what was not meant to change",
     });
     assert.equal(
       WOLFGANG_IN_PLACE_TARGET.previousTextLockHash,
-      "c91ba66ab5cd45976c53c4298a7c355fbb286e3f761758d3a6cd5ce14f993dc9"
+      "599854610891ee4e09224d1bec863501227157584b66068f0e1cab5e0e1ca89c"
     );
     assert.equal(
       WOLFGANG_IN_PLACE_TARGET.approvedTextLockHash,
-      "599854610891ee4e09224d1bec863501227157584b66068f0e1cab5e0e1ca89c"
+      "e22ba966bdeab1babb331bdc916fe43a0e0d4e8adb3f5f2ba32f969c28ba2af2"
     );
-    assert.notEqual(
+    assert.equal(
       computeTextLockHash(now),
       WOLFGANG_IN_PLACE_TARGET.approvedTextLockHash,
-      "the public repo sheet is not the private r2 manuscript"
+      "the public repo sheet is the GPT-approved manuscript"
     );
     assert.deepEqual(now.secrets, before.secrets);
     assert.equal(now.sections.characterCore, before.sections.characterCore);
@@ -196,7 +198,7 @@ describe("official shared world: manuscripts keep what was not meant to change",
     for (const field of ["name", "gender", "age", "genres", "supportingNpcs"] as const) {
       assert.deepEqual(now[field], before[field], `Wolfgang ${field} changed`);
     }
-    assert.deepEqual(pilotFile("pilot-rf-02").bible.identity, approved.bible.identity);
+    assert.deepEqual(pilotFile("pilot-rf-02").bible.identity, c91Historical.bible.identity);
     assert.equal(now.tagline, "“당신의 처형 명령에 내 인장이 있습니다. 서명한 적은 없습니다.”");
     assert.notEqual(now.tagline, before.tagline);
     assert.ok(now.creatorComment);
