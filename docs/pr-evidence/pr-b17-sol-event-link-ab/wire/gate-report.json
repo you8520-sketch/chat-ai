@@ -38,5 +38,12 @@
   "krw_four_chars_as_tokens": 709.4,
   "experiment_key_set": true,
   "experiment_key_matches_production_env": [],
-  "calls_this_revision": 0
+  "calls_this_revision": 0,
+  "b17_3": {
+    "verified_on": "2026-10-20",
+    "wire_sha256_reverified": true,
+    "provider_calls": 0,
+    "stop_reason": "PRODUCTION_KEY_FALLBACK_FORBIDDEN",
+    "experiment_key_equals_production_cheaper_inference": true
+  }
 }

@@ -2,7 +2,15 @@
 
 조사만. 제품 코드 변경 없음. 병합·배포 없음. B18 시작 없음.
 
-**결과: `BLOCKED`**
+**결과 (B17-3): `BLOCKED`**
+
+B17-3 (2026-10-20): 사용자가 교체했다고 한 `RP_QUALITY_PAID_CHEAPERINFERENCE_KEY`가 이 실행 VM 프로세스에는 주입되어 있으나, 값이 `CHEAPER_INFERENCE_API_KEY`와 **동일**하다. `readPaidRunnerLiveInferenceKeys` → `assertPaidRunnerExperimentInferenceKeys` / `experimentSecretUsesProductionKey`가 **`PRODUCTION_KEY_FALLBACK_FORBIDDEN`** 을 반환한다. 운영 키로 실험 경로를 대체하지 않았고, **Arm A/B 유료 호출 0회**. wire `requestBody` SHA256은 Arm A/B 모두 기대값과 일치(아래 §4). 증거: `live-b17-3/key-audit.json`, `live-b17-3/run-status.json`.
+
+**필요 조치:** Cursor Cloud 환경 `chat-ai`에서 `RP_QUALITY_PAID_CHEAPERINFERENCE_KEY`를 **운영 키·벤치마크 키와 다른** 유효한 Cheaper Inference 실험 키로 설정한 뒤, **새 Cloud Agent 실행(또는 환경 스냅샷 재빌드)** 으로 주입을 갱신한다. 같은 문자열을 넣으면 B17-3과 동일하게 차단된다.
+
+---
+
+**이전 (B17-2): `BLOCKED`**
 
 무호출 wire 조건은 성립했다. 정본은 저장해 둔 두 request JSON이다. 최초 `gate-report.json`의 `episodic_policy_same: false`는 섹션을 잘못 자른 스크립트 결과이고, 다시 비교한 판정은 통과다. Sol 생성은 시작되지 않았다.
 
