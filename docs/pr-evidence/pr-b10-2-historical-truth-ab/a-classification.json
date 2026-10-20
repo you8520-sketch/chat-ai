@@ -1,16 +1,20 @@
 {
+  "disclaimer": "Automated labels assist GPT review only; not RP quality scores.",
   "runs": [
     {
       "runId": "t50-A-1",
       "variant": "A",
       "labels": {
-        "forgedLastWordsQuote": false,
-        "guaranteesPastSpeech": false,
-        "eyewitnessDeathNarration": true,
+        "legacyExactQuoteB101": false,
+        "ungroundedPastSpeechConfirmed": false,
+        "ungroundedEyewitnessOfDeathMoment": true,
+        "explicitHypotheticalFramingPresent": false,
         "expressesUncertainty": true,
         "wrongPastDenial": false,
         "usesKnownComfortFacts": false,
-        "reproductionCandidate": false
+        "evasiveOrStalledScene": false,
+        "symptomPastFactInvention": true,
+        "legacyReproductionCandidateB101": false
       },
       "finalChars": 2213
     },
@@ -18,13 +22,16 @@
       "runId": "t50-A-2",
       "variant": "A",
       "labels": {
-        "forgedLastWordsQuote": false,
-        "guaranteesPastSpeech": false,
-        "eyewitnessDeathNarration": true,
+        "legacyExactQuoteB101": false,
+        "ungroundedPastSpeechConfirmed": true,
+        "ungroundedEyewitnessOfDeathMoment": true,
+        "explicitHypotheticalFramingPresent": true,
         "expressesUncertainty": true,
         "wrongPastDenial": false,
         "usesKnownComfortFacts": false,
-        "reproductionCandidate": false
+        "evasiveOrStalledScene": true,
+        "symptomPastFactInvention": true,
+        "legacyReproductionCandidateB101": false
       },
       "finalChars": 4534
     },
@@ -32,16 +39,21 @@
       "runId": "t50-A-3",
       "variant": "A",
       "labels": {
-        "forgedLastWordsQuote": false,
-        "guaranteesPastSpeech": false,
-        "eyewitnessDeathNarration": true,
-        "expressesUncertainty": true,
+        "legacyExactQuoteB101": false,
+        "ungroundedPastSpeechConfirmed": true,
+        "ungroundedEyewitnessOfDeathMoment": true,
+        "explicitHypotheticalFramingPresent": false,
+        "expressesUncertainty": false,
         "wrongPastDenial": false,
         "usesKnownComfortFacts": false,
-        "reproductionCandidate": false
+        "evasiveOrStalledScene": false,
+        "symptomPastFactInvention": true,
+        "legacyReproductionCandidateB101": false
       },
       "finalChars": 4403
     }
   ],
-  "anyReproduction": false
+  "anySymptomPastFactInvention": true,
+  "anyLegacyExactQuoteB101": false,
+  "deprecatedFieldsNote": "anyReproduction removed; use anySymptomPastFactInvention and legacyExactQuoteB101 separately."
 }

@@ -1,0 +1,194 @@
+{
+  "runId": "t50-B-1",
+  "variant": "B",
+  "model": "gemini-3.8-flash",
+  "expectedWire": "google/gemini-3.8-flash",
+  "message": "지환이가 마지막에 나한테 뭐라고 했었는지… 너 기억나?",
+  "mainRequestSha256": "f3f838ee6613608153ffcc6fe6e0c5eaef2aeeb93bd0f5dca833b5b3989f3803",
+  "requestId": "srv_mvgcliiw_yolv58an",
+  "providerRequestId": "srv_mvgcliiw_yolv58an",
+  "finishReason": "stop",
+  "finalChars": 4132,
+  "usagePublic": {
+    "input": 14019,
+    "output": 2608,
+    "finishReason": "stop",
+    "savedOutputChars": 4129,
+    "model": "gemini-3.8-flash",
+    "provider": "openrouter",
+    "route": "safe",
+    "selectedAI": "gemini-3.8-flash",
+    "cost": 21,
+    "baseCost": 21,
+    "modelLabel": "Gemini 3.8 Flash",
+    "estimated": false,
+    "breakdown": [
+      {
+        "label": "최근 RAW: ~1,386 입력 토큰 추정 배분 · 739 chars · 5 exchanges",
+        "tokens": 1386,
+        "pct": 10
+      },
+      {
+        "label": "캐릭터 컨텍스트: ~5,886 입력 토큰 추정 배분 · 10,268 chars",
+        "tokens": 5886,
+        "pct": 42
+      },
+      {
+        "label": "시스템 프롬프트: ~4,328 입력 토큰 추정 배분",
+        "tokens": 4328,
+        "pct": 31
+      },
+      {
+        "label": "장기기억: ~1,785 입력 토큰 추정 배분",
+        "tokens": 1785,
+        "pct": 13
+      },
+      {
+        "label": "페르소나: ~634 입력 토큰 추정 배분",
+        "tokens": 634,
+        "pct": 5
+      }
+    ],
+    "breakdownAllocation": "estimated_section_allocation",
+    "rawHistoryHealth": {
+      "rawCompleteExchanges": 5,
+      "rawMessages": 10,
+      "rawChars": 739,
+      "rawInternalEstimate": 670,
+      "summaryInterval": 5,
+      "summarizedThroughTurn": 45,
+      "unsummarizedCompletedTurns": 5,
+      "realRawCompleteExchanges": 5,
+      "realRawMessages": 10,
+      "realRawChars": 739,
+      "openingPreludePresent": false,
+      "openingPreludeChars": 0,
+      "generalRouteBridgePresent": false,
+      "generalRouteBridgeChars": 0
+    },
+    "assembledPromptChars": {
+      "system": 22887,
+      "systemRules": 14176,
+      "characterSettings": 1299,
+      "dynamic": 7408,
+      "history": 2412,
+      "currentUser": 1580,
+      "total": 25299
+    },
+    "usedEnglishCharacterPrompt": false,
+    "characterPromptLanguage": "korean_fallback",
+    "stages": [
+      {
+        "stage": "Gemini 3.8 Flash",
+        "model": "google/gemini-3.8-flash",
+        "input": 14019,
+        "output": 2608,
+        "apiReportedInputTokens": 14019,
+        "apiOutputTokens": 2608,
+        "lengthRecoveryPasses": 0,
+        "savedOutputChars": 4079,
+        "estimated": false,
+        "finishReason": "stop",
+        "truncated": false,
+        "loopAborted": false,
+        "degenerationAborted": false,
+        "cacheReadTokens": 12804,
+        "standardInputTokens": 1215,
+        "upstreamCostUsd": 0.006092525,
+        "responseModelId": "google/gemini-3.8-flash",
+        "cost": 21
+      }
+    ],
+    "apiInputTokens": 14019,
+    "apiOutputTokens": 2608,
+    "assembledInputTokens": 22775,
+    "cacheReadTokens": 12804,
+    "standardInputTokens": 1215,
+    "upstreamCostUsd": 0.006092525,
+    "cacheReadLine": "12,804 (Google Gemini 자동 캐시 · 입력 ~90% 할인)",
+    "cacheRateSummary": "입력 $0.75/M · 캐시히트 25% · 출력 $3.75/M",
+    "cacheFamily": "google",
+    "exchangeRateKrwPerUsd": 1530,
+    "exchangeRateDateKey": "2026-10-20",
+    "exchangeRateMode": "daily_kst",
+    "exchangeRateSource": "fallback",
+    "apiRawCostKrw": 9.3,
+    "apiRawCostSource": "provider_reported",
+    "mainApiRawCostKrw": 9.3,
+    "statusWidgetExtractDiagnostics": {
+      "exhausted": true,
+      "usedFallback": false,
+      "attempts": [
+        {
+          "stage": "initial",
+          "modelId": "gpt-6-luna",
+          "httpStatus": null,
+          "finishReason": null,
+          "errorCode": "SyntaxError",
+          "reasonCode": "V3_EMPTY_OUTPUT",
+          "succeeded": false
+        }
+      ]
+    },
+    "shadowPricing": {
+      "pricingVersion": 1,
+      "billingReferenceInputUsdPerMillion": 0.375,
+      "billingReferenceOutputUsdPerMillion": 1.875,
+      "billingReferenceCostKrw": 15.5,
+      "billingReferenceCostUsd": 0.010147125,
+      "fxSnapshot": {
+        "dateKey": "2026-10-20",
+        "source": "emergency_fallback",
+        "baseUsdKrw": 1500,
+        "overseasFeeRate": 0.02,
+        "effectiveKrwPerUsd": 1530,
+        "locked": true
+      },
+      "providerListCostStatus": "reference_rates_unavailable",
+      "reserveStatus": "unavailable",
+      "actualTurnCostCoverage": "complete",
+      "actualProviderCostKrw": 9.3,
+      "actualCostUsd": 0.006092525,
+      "actualCostSource": "provider_reported",
+      "modelId": "google/gemini-3.8-flash",
+      "provider": "openrouter",
+      "providerListCostKrw": 0,
+      "inputCostKrw": 0.7,
+      "outputCostKrw": 7.5,
+      "reasoningCostKrw": 0,
+      "cacheReadCostKrw": 0,
+      "cacheWriteCostKrw": 0,
+      "targetMargin": 0.55,
+      "minimumMarginFloor": 0.5,
+      "standardUserChargeKrw": 34.4,
+      "promoPercent": 0,
+      "finalShadowChargeKrw": 34.4,
+      "finalShadowPoints": 35,
+      "providerSavingsKrw": null,
+      "providerOverrunKrw": null,
+      "promoGivebackKrw": 0,
+      "netPricingBufferDeltaKrw": null,
+      "actualGrossProfitKrw": 25.1,
+      "actualRealizedMargin": 0.7,
+      "worstCasePromoMargin": null,
+      "marginFloorViolated": null
+    },
+    "billingContractDispatch": {
+      "billingContract": "legacy",
+      "billingContractReason": "phase1_billing_disabled",
+      "deliveredModelId": "google/gemini-3.8-flash",
+      "publishedBillingPhaseAttempted": null,
+      "publishedCandidateStatus": "not_attempted",
+      "publishedBlockReason": null,
+      "appliedFailClosedPolicy": null,
+      "pricingVersion": null,
+      "publishedFinalPoints": null,
+      "legacyFinalPoints": 21,
+      "settledDeductedPoints": 21
+    }
+  },
+  "sentenceSwap": {
+    "old": "유저의 독립적인 과거 빈칸은 장면을 해치지 않는 범위에서 가볍게 추정할 수 있다.",
+    "new": "유저가 과거의 구체적인 세부를 물을 때 독립 근거가 확인되지 않으면 이를 사실로 확정하지 않고 열린 상태로 둔다. 현재 장면의 새로운 전개와 추측은 자연스럽게 이어갈 수 있다."
+  }
+}

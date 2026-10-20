@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /workspace
+# shellcheck disable=SC1091
+[ -f /tmp/b9/admin.env ] && source /tmp/b9/admin.env
+if [ -z "${OPENROUTER_API_KEY:-}" ] && [ -f .env.local ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source .env.local
+  set +a
+fi
+if [ -z "${OPENROUTER_API_KEY:-}" ]; then
+  echo "STOP: OPENROUTER_API_KEY not configured" >&2
+  exit 10
+fi
+export NODE_ENV=production PLAYWRIGHT_PROD_SERVER=1
+
+BUDGET_KRW=500
+SRC="/tmp/b9-preserved/db/snap-50"
+ROOT="/tmp/b10-2"
+EXPECTED_A_SHA="49475a3df82469187890340b873319cd008cf5eac7bec4a11eab119091fd0458"
+EXPECTED_B_SHA="f3f838ee6613608153ffcc6fe6e0c5eaef2aeeb93bd0f5dca833b5b3989f3803"
+export B10_EXPECT_A_SHA="$EXPECTED_A_SHA"
+export B10_EXPECT_B_SHA="$EXPECTED_B_SHA"
+
+prep_data() {
+  local dest="$1"
+  if [ -d "$dest" ]; then
+    chmod -R u+w "$dest" 2>/dev/null || true
+    rm -rf "$dest"
+  fi
+  python3 - <<PY
+import shutil, os, stat
+from pathlib import Path
+shutil.copytree("$SRC", "$dest")
+for root, dirs, files in os.walk("$dest"):
+    for name in dirs + files:
+        os.chmod(os.path.join(root, name), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+os.chmod("$dest", stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH)
+PY
+}
+
+echo "=== dry AB validate (no live OpenRouter) ==="
+prep_data "$ROOT/dry-data-recheck"
+./node_modules/.bin/tsx "$ROOT/dry-validate-ab.mts" "$ROOT/dry-data-recheck" "$ROOT/dry-out-recheck"
+python3 - <<PY
+import json
+from pathlib import Path
+v=json.loads(Path("$ROOT/dry-out-recheck/validation.json").read_text())
+assert v["diffVerified"] is True
+assert v["aSha256"]=="$EXPECTED_A_SHA", (v["aSha256"], "$EXPECTED_A_SHA")
+assert v["bSha256"]=="$EXPECTED_B_SHA", (v["bSha256"], "$EXPECTED_B_SHA")
+print("dry gate OK", v["aSha256"][:16], v["bSha256"][:16])
+PY
+
+cumulative=0
+est_next=12
+mkdir -p "$ROOT/out"
+
+run_one() {
+  local rep="$1"
+  local run_id="t50-B-${rep}"
+  local data="$ROOT/data-${run_id}"
+  local out="$ROOT/out/${run_id}"
+  if python3 -c "import sys; sys.exit(0 if float($cumulative)+float($est_next) <= $BUDGET_KRW else 1)"; then :; else
+    echo "STOP budget before $run_id cumulative=$cumulative" >&2
+    exit 2
+  fi
+  prep_data "$data"
+  echo "START $run_id" >&2
+  ./node_modules/.bin/tsx "$ROOT/t50-ab-one.mts" B "$data" "$out" "$run_id" \
+    > "$ROOT/out/${run_id}.stdout.txt" 2> "$ROOT/out/${run_id}.stderr.txt"
+  spent=$(python3 -c "
+import json
+from pathlib import Path
+m=json.loads(Path('$out/run-meta.json').read_text())
+u=m.get('usagePublic') or {}
+print(u.get('apiRawCostKrw') or 0)
+")
+  sha=$(python3 -c "from pathlib import Path; print(Path('$out/main-request.sha256.txt').read_text().strip())")
+  if [ "$sha" != "$EXPECTED_B_SHA" ]; then
+    echo "STOP: B wire sha mismatch got=$sha want=$EXPECTED_B_SHA" >&2
+    exit 3
+  fi
+  cumulative=$(python3 -c "print(round(float($cumulative)+float($spent),2))")
+  tail -1 "$ROOT/out/${run_id}.stdout.txt"
+  echo "END $run_id spent=${spent} cumulative=${cumulative}" >&2
+}
+
+for rep in 1 2 3; do
+  run_one "$rep"
+done
+
+python3 "$ROOT/classify-runs.py" "$ROOT/out" > "$ROOT/ab-classification.json"
+python3 "$ROOT/classify-runs.py" "$ROOT/out" B > "$ROOT/b-classification.json"
+echo "ALL_B_DONE cumulative=${cumulative}KRW"

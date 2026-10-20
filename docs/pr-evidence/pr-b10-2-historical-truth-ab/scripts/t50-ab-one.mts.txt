@@ -26,6 +26,12 @@ const NEW_SENT =
   "유저가 과거의 구체적인 세부를 물을 때 독립 근거가 확인되지 않으면 이를 사실로 확정하지 않고 열린 상태로 둔다. 현재 장면의 새로운 전개와 추측은 자연스럽게 이어갈 수 있다.";
 
 const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
+const EXPECTED_A_SHA =
+  process.env.B10_EXPECT_A_SHA ??
+  "49475a3df82469187890340b873319cd008cf5eac7bec4a11eab119091fd0458";
+const EXPECTED_B_SHA =
+  process.env.B10_EXPECT_B_SHA ??
+  "f3f838ee6613608153ffcc6fe6e0c5eaef2aeeb93bd0f5dca833b5b3989f3803";
 
 let sessionToken = "";
 const originalLoad = Module._load;
@@ -56,6 +62,9 @@ delete process.env.MOCK_MODE;
 delete process.env.PROMPT_DEBUG;
 process.env.NODE_ENV = "production";
 process.env.PLAYWRIGHT_PROD_SERVER = "1";
+if (!process.env.ADMIN_EMAILS?.trim()) {
+  process.env.ADMIN_EMAILS = "you7410@gmail.com";
+}
 
 const { resolveMainRpPrimaryWireModelId } = await import("@/lib/openRouterConfig");
 const { getDb } = await import("@/lib/db");
@@ -69,6 +78,7 @@ sessionToken = createSession(1);
 const expectedWire = resolveMainRpPrimaryWireModelId(MODEL);
 const originalFetch = globalThis.fetch;
 let mainNetworkCalls = 0;
+let openRouterCalls = 0;
 let capturedMainBody = "";
 
 function applyVariant(bodyText: string): string {
@@ -96,9 +106,13 @@ globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   if (/embedding|embeddings/i.test(url)) {
     throw new Error(`blocked embedding: ${url.slice(0, 80)}`);
   }
+  if (/openrouter\.ai/i.test(url) && !url.includes("/chat/completions")) {
+    throw new Error(`blocked openrouter non-main: ${url.slice(0, 100)}`);
+  }
   if (!url.includes("/chat/completions")) {
     return originalFetch(input, init);
   }
+  if (/openrouter\.ai/i.test(url)) openRouterCalls++;
   let bodyText = "";
   let wireModel = "";
   if (typeof init?.body === "string") {
@@ -123,6 +137,13 @@ globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     throw new Error("blocked second main RP call");
   }
   const patched = applyVariant(bodyText);
+  const patchedSha = sha256(patched);
+  if (variant === "A" && patchedSha !== EXPECTED_A_SHA) {
+    throw new Error(`A wire sha mismatch: got ${patchedSha} expected ${EXPECTED_A_SHA}`);
+  }
+  if (variant === "B" && patchedSha !== EXPECTED_B_SHA) {
+    throw new Error(`B wire sha mismatch: got ${patchedSha} expected ${EXPECTED_B_SHA}`);
+  }
   capturedMainBody = patched;
   mainNetworkCalls++;
   appendFileSync(
@@ -160,7 +181,8 @@ const err = events.find((e) => e.type === "error");
 const finalContent = typeof done?.finalContent === "string" ? done.finalContent : "";
 const usage = (done?.usage ?? null) as Record<string, unknown> | null;
 
-if (chatRes.status !== 200 || err || !done || mainNetworkCalls !== 1) {
+if (chatRes.status !== 200 || err || !done || mainNetworkCalls !== 1 || openRouterCalls !== 1) {
+  mkdirSync(outDir, { recursive: true });
   writeFileSync(`${outDir}/sse.txt`, rawSse);
   throw new Error(`call failed status=${chatRes.status} err=${JSON.stringify(err)} main=${mainNetworkCalls}`);
 }

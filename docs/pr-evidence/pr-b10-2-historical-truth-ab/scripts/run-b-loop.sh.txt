@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /workspace
+# shellcheck disable=SC1091
+[ -f /tmp/b9/admin.env ] && source /tmp/b9/admin.env
+export NODE_ENV=production PLAYWRIGHT_PROD_SERVER=1
+export B10_EXPECT_A_SHA="49475a3df82469187890340b873319cd008cf5eac7bec4a11eab119091fd0458"
+export B10_EXPECT_B_SHA="f3f838ee6613608153ffcc6fe6e0c5eaef2aeeb93bd0f5dca833b5b3989f3803"
+SRC="/tmp/b9-preserved/db/snap-50"
+ROOT="/tmp/b10-2"
+EXPECTED_B_SHA="$B10_EXPECT_B_SHA"
+
+prep_data() {
+  local dest="$1"
+  if [ -d "$dest" ]; then
+    chmod -R u+w "$dest" 2>/dev/null || true
+    rm -rf "$dest"
+  fi
+  python3 - <<PY
+import shutil, os, stat
+shutil.copytree("$SRC", "$dest")
+for root, dirs, files in os.walk("$dest"):
+    for name in dirs + files:
+        os.chmod(os.path.join(root, name), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+os.chmod("$dest", stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH)
+PY
+}
+
+cumulative=0
+for rep in 1 2 3; do
+  run_id="t50-B-${rep}"
+  data="$ROOT/data-${run_id}"
+  out="$ROOT/out/${run_id}"
+  prep_data "$data"
+  echo "START $run_id" >&2
+  ./node_modules/.bin/tsx "$ROOT/t50-ab-one.mts" B "$data" "$out" "$run_id" \
+    > "$out.stdout.txt" 2> "$out.stderr.txt"
+  sha=$(cat "$out/main-request.sha256.txt")
+  if [ "$sha" != "$EXPECTED_B_SHA" ]; then
+    echo "STOP B sha mismatch $sha" >&2
+    exit 3
+  fi
+  spent=$(python3 -c "import json; print(json.load(open('$out/run-meta.json')).get('usagePublic',{}).get('apiRawCostKrw',0))")
+  cumulative=$(python3 -c "print(round(float($cumulative)+float($spent),2))")
+  tail -1 "$out.stdout.txt"
+  echo "END $run_id spent=$spent cumulative=$cumulative" >&2
+done
+echo "ALL_B_DONE cumulative=${cumulative}KRW"
