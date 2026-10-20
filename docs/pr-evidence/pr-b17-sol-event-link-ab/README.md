@@ -17,8 +17,8 @@ B17-4 resume (2026-10-20): 사용자 승인 경로 **`CHEAPER_INFERENCE_BENCHMAR
 
 **GPT 블라인드 원문 (레이블만, arm 비공개):**
 
-- X: https://github.com/you8520-sketch/chat-ai/blob/cursor/b17-sol-event-link-ab-04e1/docs/pr-evidence/pr-b17-sol-event-link-ab/blinded/output-X.txt
-- Y: https://github.com/you8520-sketch/chat-ai/blob/cursor/b17-sol-event-link-ab-04e1/docs/pr-evidence/pr-b17-sol-event-link-ab/blinded/output-Y.txt
+- X: https://github.com/you8520-sketch/chat-ai/blob/e1bd5096/docs/pr-evidence/pr-b17-sol-event-link-ab/blinded/output-X.txt
+- Y: https://github.com/you8520-sketch/chat-ai/blob/e1bd5096/docs/pr-evidence/pr-b17-sol-event-link-ab/blinded/output-Y.txt
 
 매핑(운영자/GPT 채점 후): `blinded/OPERATOR-ONLY-mapping.json` — X=Arm A(current), Y=Arm B(group).
 
@@ -194,7 +194,7 @@ Gate 2 블라인드(`docs/evidence/main-rp-memory-gate2/blinded/outputs/`)는 �
 ## 10. main · 실험 HEAD · 환경 차이
 
 - **origin/main (live call 시점):** `02ed2c8b8376b121678f4657a2b8e8dc29a293f3`
-- **PR HEAD (evidence + live):** `581c04a68e4331113e820e74ef70eb9cf4ecbcfb` → B17-4 resume 커밋 후 갱신
+- **PR HEAD (evidence + live):** `e1bd5096` (B17-4 resume live pair)
 - B17 시작 기준 `671d3925e0745ad283c98f6a000ed47c30b6ad35`
 - B17-2 시점 `origin/main` `94639d6e7cddc45025eca307b37692cdab014475` (#1695, #1696, #1697). episodic renderer·Cheaper Inference 헤더·Sol 게시 단가 파일은 그 구간에서 바뀌지 않았다.
 - Gate 2 증거 `32dbe4e55658226ea954116b071405cb9d69b179` (main에 없음)
