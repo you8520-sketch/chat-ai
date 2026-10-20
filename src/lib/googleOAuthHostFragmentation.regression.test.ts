@@ -99,6 +99,13 @@ describe("google oauth host fragmentation", { concurrency: 1 }, () => {
         assert.ok(cookies.some((cookie) => cookie.startsWith("oauth_state=")));
         assert.ok(cookies.every((cookie) => !/domain=/i.test(cookie)));
         assert.equal(cookies.some((cookie) => cookie.startsWith("session=")), false);
+
+        const pointsStart = await GET(
+          new Request("https://hav.chat/api/auth/google?returnTo=/login&redirect=/points"),
+        );
+        const pointsCookies = cookieHeaders(pointsStart);
+        assert.ok(pointsCookies.some((cookie) => cookie.startsWith("oauth_redirect_after=%2Fpoints")));
+        assert.ok(pointsCookies.every((cookie) => !cookie.includes("%5C") && !cookie.includes("%09")));
       },
     );
   });

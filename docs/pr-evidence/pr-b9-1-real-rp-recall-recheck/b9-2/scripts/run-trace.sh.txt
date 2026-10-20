@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# usage: run-trace.sh <label> <source snapshot dir> <model> <question key> [sql applied to the copy before the run]
+set -euo pipefail
+label="$1"; src="$2"; model="$3"; qkey="$4"; prep_sql="${5:-}"
+cd /workspace
+set -a; source /tmp/b9/admin.env; set +a
+export NODE_ENV=production PLAYWRIGHT_PROD_SERVER=1
+data="/tmp/b9-2/data-$label"
+out="/tmp/b9-2/out/$label"
+rm -rf "$data" "$out"; mkdir -p "$out"
+cp -r "$src" "$data"; chmod -R u+w "$data"
+if [ -n "$prep_sql" ]; then
+  python3 -c "import sqlite3,sys; c=sqlite3.connect('$data/app.db'); c.execute(sys.argv[1]); c.commit()" "$prep_sql"
+  echo "$prep_sql" > "$out/prep-sql.txt"
+fi
+msg=$(python3 -c "import json;print(json.load(open('/tmp/b9/questions.json'))['$qkey'])")
+./node_modules/.bin/tsx /tmp/b9-2/trace.mts "$data" "$model" "$msg" "$out" "$label" > "$out/run.stdout.txt" 2> "$out/run.stderr.txt"
+tail -1 "$out/run.stdout.txt"

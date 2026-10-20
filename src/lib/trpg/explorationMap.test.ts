@@ -21,6 +21,7 @@ import {
   explorationRoomsReachable,
   filterExplorationFlagsAdd,
   filterExplorationFlagsRemove,
+  adventureExplorationState,
   formatExplorationBotBrief,
   formatExplorationGmBlock,
   generateExplorationMap,
@@ -306,8 +307,9 @@ describe("exploration map generation", () => {
     assert.match(remember, /override earlier narration/);
     assert.match(remember, /Inventory on this map stays yours/);
     assert.doesNotMatch(remember, /not a trade/);
-    assert.match(remember, /현이 is in 기록실\. They did not move this round\./);
-    assert.match(remember, /도윤 is in 현관홀\. They did not move this round\./);
+    assert.match(remember, /현이 is in 기록실\./);
+    assert.match(remember, /도윤 is in 현관홀\./);
+    assert.doesNotMatch(remember, /did not move/);
     assert.match(remember, /Alarm is already on\. The exit latch condition is already met\./);
     assert.match(remember, /Nobody has reached 출구\. Escape is not a fact\./);
     assert.doesNotMatch(remember, /can open/);
@@ -359,6 +361,82 @@ describe("exploration map generation", () => {
     assert.match(moved, /현이 started in 현관홀 and is now in 중앙홀\./);
     assert.match(moved, /현이: moved 현관홀 → 중앙홀\./);
     assert.match(moved, /Nobody has reached 출구/);
+    assert.doesNotMatch(moved, /did not move/);
+    const lane = adventureExplorationState(
+      {
+        start: "lane",
+        places: [
+          { key: "lane", name: "골목", summary: "좁은 골목.", role: "start" },
+          { key: "stall", name: "약장수", summary: "약장수.", role: "site" },
+        ],
+        links: [{ from: "lane", to: "stall" }],
+        events: [],
+      },
+      "position-fact"
+    );
+    const stayed = formatExplorationGmBlock({
+      opening: false,
+      startName: "골목",
+      seats: [{ name: "데모유저", start: "약장수", end: "약장수", exits: ["골목"] }],
+      resultLines: [],
+    });
+    assert.match(stayed, /데모유저 is in 약장수\./);
+    assert.doesNotMatch(stayed, /did not move/);
+    assert.doesNotMatch(stayed, /moved /);
+    const oneWay = settleExplorationActor({
+      state: lane,
+      name: "데모유저",
+      tier: null,
+      pending: {
+        roundId: 1,
+        participantId: 1,
+        fromRoomId: "lane",
+        spent: 1,
+        commands: [{ op: "move", roomId: "stall" }],
+      },
+    });
+    const oneWayBlock = formatExplorationGmBlock({
+      opening: false,
+      startName: "골목",
+      seats: [{ name: "데모유저", start: "골목", end: oneWay.result.location ?? "", exits: ["골목"] }],
+      resultLines: oneWay.result.lines,
+    });
+    assert.equal(oneWay.result.location, "약장수");
+    assert.deepEqual(oneWay.result.items, []);
+    assert.match(oneWayBlock, /데모유저 started in 골목 and is now in 약장수\./);
+    assert.match(oneWayBlock, /데모유저: moved 골목 → 약장수\./);
+    assert.doesNotMatch(oneWayBlock, /did not move/);
+    const roundTrip = settleExplorationActor({
+      state: lane,
+      name: "데모유저",
+      tier: null,
+      pending: {
+        roundId: 2,
+        participantId: 1,
+        fromRoomId: "stall",
+        spent: 2,
+        commands: [
+          { op: "move", roomId: "lane" },
+          { op: "move", roomId: "stall" },
+        ],
+      },
+    });
+    const roundTripBlock = formatExplorationGmBlock({
+      opening: false,
+      startName: "골목",
+      seats: [{ name: "데모유저", start: "약장수", end: roundTrip.result.location ?? "", exits: ["골목"] }],
+      resultLines: roundTrip.result.lines,
+    });
+    assert.equal(roundTrip.result.location, "약장수");
+    assert.deepEqual(roundTrip.result.items, []);
+    assert.deepEqual(
+      roundTrip.result.commands.flatMap((command) => (command.op === "move" ? [command.roomId] : [])),
+      ["lane", "stall"]
+    );
+    assert.match(roundTripBlock, /데모유저 is in 약장수\./);
+    assert.match(roundTripBlock, /데모유저: moved 약장수 → 골목 → 약장수\./);
+    assert.doesNotMatch(roundTripBlock, /did not move/);
+    assert.doesNotMatch(roundTripBlock, /started in 약장수 and is now in 약장수/);
     const state = emptyExplorationState("bot-brief");
     const brief = formatExplorationBotBrief({
       roomId: EXPLORATION_ENTRANCE,

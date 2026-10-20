@@ -43,6 +43,8 @@ import {
   updateMemoryRecordById,
 } from "./memory-turn-summary";
 import { updateLorebookForChat } from "./memory-manager";
+import { prepareMemoryPanelView, syncMemoryFromChat } from "./memory-backfill";
+import { updateChatMemory } from "./memory-db";
 
 const CHAT = 996001;
 const USER = 996002;
@@ -410,5 +412,104 @@ describe("HISTORICAL MUTATION MATRIX", () => {
     const cp = readCheckpoint();
     assert.equal(cp.projectionKind, null);
     assert.equal(cp.sourceFingerprint, null);
+  });
+});
+
+describe("COMPACT GLOBAL — count repair and panel read keep a healthy checkpoint", () => {
+  const opts = () => ({
+    userId: USER,
+    characterId: CHAR,
+    chatId: CHAT,
+    charName: "CheckpointChar",
+    tier: "free" as const,
+    memoryCapacity: MEMORY_CAPACITY_FIXED,
+  });
+
+  async function seedHealthyCompact(): Promise<{ text: string; fingerprint: string | null }> {
+    insertCompletedTurnsThrough(305);
+    insertBlocksThrough(300);
+    __setCompactCurrentMemoryTestOverride(async (input, max) => `COMPACT_${input.length}`.slice(0, max));
+    await runCompact();
+    __setCompactCurrentMemoryTestOverride(null);
+    updateChatMemory(CHAT, USER, CHAR, { message_count: 305 });
+    const row = getChatMemoryRow(CHAT)!;
+    assert.equal(row.global_projection_kind, "global_compact");
+    return { text: row.recent_summary, fingerprint: row.global_source_fingerprint };
+  }
+
+  function assertCompactIntact(before: { text: string; fingerprint: string | null }): void {
+    const row = getChatMemoryRow(CHAT)!;
+    assert.equal(row.recent_summary, before.text);
+    assert.equal(row.global_projection_kind, "global_compact");
+    assert.equal(row.global_source_fingerprint, before.fingerprint);
+    assert.equal(row.global_covered_through_turn, 300);
+    const resolved = resolveGlobalCurrentMemory(CHAT, MEMORY_CAPACITY_FIXED);
+    assert.equal(resolved.projectionKind, "global_compact");
+    assert.equal(resolved.text, before.text);
+    assert.equal(resolved.needsBackgroundCompact, false);
+  }
+
+  it("memory panel read does not replace a healthy compact with the full rebuild", async () => {
+    const before = await seedHealthyCompact();
+    prepareMemoryPanelView(opts());
+    assertCompactIntact(before);
+  });
+
+  it("legacy count sync (message_count 0) keeps a healthy compact", async () => {
+    const before = await seedHealthyCompact();
+    updateChatMemory(CHAT, USER, CHAR, { message_count: 0 });
+    assert.equal(syncMemoryFromChat(opts()), true);
+    assertCompactIntact(before);
+  });
+
+  it("count repair still corrects summarized_turn_count while keeping the compact", async () => {
+    const before = await seedHealthyCompact();
+    updateChatMemory(CHAT, USER, CHAR, { summarized_turn_count: 250 });
+    const repaired = reconcileSummarizedTurnCountFromTable({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      tier: "free",
+      playableTurnCount: 305,
+    });
+    assert.equal(repaired, 300);
+    assert.equal(getChatMemoryRow(CHAT)!.summarized_turn_count, 300);
+    assertCompactIntact(before);
+  });
+
+  it("a checkpoint whose fingerprint no longer matches is cleared and mirrored from records", async () => {
+    await seedHealthyCompact();
+    getDb()
+      .prepare("UPDATE chat_memories SET global_source_fingerprint=? WHERE chat_id=?")
+      .run("0".repeat(64), CHAT);
+    prepareMemoryPanelView(opts());
+    const row = getChatMemoryRow(CHAT)!;
+    assert.equal(row.global_projection_kind, null);
+    assert.equal(row.global_source_fingerprint, null);
+    assert.equal(row.global_covered_through_turn, null);
+    assert.equal(row.recent_summary, rebuildLorebookFromRecords(CHAT));
+  });
+
+  it("a source record removed behind the checkpoint invalidates it on count repair", async () => {
+    await seedHealthyCompact();
+    getDb()
+      .prepare("UPDATE chat_turn_summaries SET inactive=1 WHERE chat_id=? AND turn_number=41")
+      .run(CHAT);
+    prepareMemoryPanelView(opts());
+    const row = getChatMemoryRow(CHAT)!;
+    assert.equal(row.global_projection_kind, null);
+    assert.equal(row.global_covered_through_turn, null);
+    assert.equal(row.recent_summary, rebuildLorebookFromRecords(CHAT));
+  });
+
+  it("a user-saved manual Global survives the same panel read", async () => {
+    insertCompletedTurnsThrough(305);
+    insertBlocksThrough(300);
+    updateChatMemory(CHAT, USER, CHAR, { message_count: 305 });
+    await updateLorebookForChat(CHAT, USER, CHAR, "USER_MANUAL_GLOBAL_TEXT", "free", MEMORY_CAPACITY_FIXED);
+    prepareMemoryPanelView(opts());
+    const row = getChatMemoryRow(CHAT)!;
+    assert.equal(row.recent_summary, "USER_MANUAL_GLOBAL_TEXT");
+    assert.equal(row.global_projection_kind, "manual_global");
   });
 });

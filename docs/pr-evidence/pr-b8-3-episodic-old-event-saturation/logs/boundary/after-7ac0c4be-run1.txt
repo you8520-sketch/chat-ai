@@ -1,0 +1,147 @@
+{"scenario":"chain-1","horizon":500,"rows":480,"chainLength":1,"injectedChainIndex":[1],"quotedChainIndex":[1],"ok":true,"statementsPerCall":6,"firstMs":8.98,"avgMs":6.61}
+{"scenario":"chain-1","horizon":1000,"rows":980,"chainLength":1,"injectedChainIndex":[1],"quotedChainIndex":[1],"ok":true,"statementsPerCall":6,"firstMs":8.97,"avgMs":9.15}
+{"scenario":"chain-3","horizon":500,"rows":442,"chainLength":3,"injectedChainIndex":[3],"quotedChainIndex":[3],"ok":true,"statementsPerCall":6,"firstMs":5.68,"avgMs":5.53}
+{"scenario":"chain-3","horizon":1000,"rows":942,"chainLength":3,"injectedChainIndex":[3],"quotedChainIndex":[3],"ok":true,"statementsPerCall":6,"firstMs":8.71,"avgMs":8.4}
+{"scenario":"chain-4","horizon":500,"rows":423,"chainLength":4,"injectedChainIndex":[4],"quotedChainIndex":[4],"ok":true,"statementsPerCall":6,"firstMs":5.33,"avgMs":5.2}
+{"scenario":"chain-4","horizon":1000,"rows":923,"chainLength":4,"injectedChainIndex":[4],"quotedChainIndex":[4],"ok":true,"statementsPerCall":6,"firstMs":8.3,"avgMs":8.22}
+  stored chain:
+    id=30 T30 injury explicit_scene_event CURRENT_SCENE correction=null
+    id=120 T120 injury_cause explicit_user_statement USER_EXPLICIT correction={"target_fact_id":30,"target_source_turn":30,"root_fact_id":30,"root_source_turn":30}
+    id=121 T140 injury_cause explicit_user_statement USER_EXPLICIT correction={"target_fact_id":120,"target_source_turn":120,"root_fact_id":30,"root_source_turn":30}
+    id=122 T160 injury_cause explicit_user_statement USER_EXPLICIT correction={"target_fact_id":121,"target_source_turn":140,"root_fact_id":30,"root_source_turn":30}
+    id=123 T180 injury_cause explicit_user_statement USER_EXPLICIT correction={"target_fact_id":122,"target_source_turn":160,"root_fact_id":30,"root_source_turn":30}
+  final block @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?":
+    - [T180] [유저 입력 발췌] “그 부상은 사실 울타리에 다친 거야.”
+    (+7 filler lines)
+{"scenario":"chain-10","horizon":500,"rows":309,"chainLength":10,"injectedChainIndex":[10],"quotedChainIndex":[10],"ok":true,"statementsPerCall":6,"firstMs":4.78,"avgMs":4.71}
+{"scenario":"chain-10","horizon":1000,"rows":809,"chainLength":10,"injectedChainIndex":[10],"quotedChainIndex":[10],"ok":true,"statementsPerCall":6,"firstMs":7.73,"avgMs":7.46}
+  stored chain:
+    id=30 T30 injury explicit_scene_event CURRENT_SCENE correction=null
+    id=120 T120 injury_cause explicit_user_statement USER_EXPLICIT correction={"target_fact_id":30,"target_source_turn":30,"root_fact_id":30,"root_source_turn":30}
+    id=121 T140 injury_cause explicit_user_statement USER_EXPLICIT correction={"target_fact_id":120,"target_source_turn":120,"root_fact_id":30,"root_source_turn":30}
+    id=122 T160 injury_cause explicit_user_statement USER_EXPLICIT correction={"target_fact_id":121,"target_source_turn":140,"root_fact_id":30,"root_source_turn":30}
+    id=123 T180 injury_cause explicit_user_statement USER_EXPLICIT correction={"target_fact_id":122,"target_source_turn":160,"root_fact_id":30,"root_source_turn":30}
+    id=124 T200 injury_cause explicit_user_statement USER_EXPLICIT correction={"target_fact_id":123,"target_source_turn":180,"root_fact_id":30,"root_source_turn":30}
+    id=125 T220 injury_cause explicit_user_statement USER_EXPLICIT correction={"target_fact_id":124,"target_source_turn":200,"root_fact_id":30,"root_source_turn":30}
+    id=126 T240 injury_cause explicit_user_statement USER_EXPLICIT correction={"target_fact_id":125,"target_source_turn":220,"root_fact_id":30,"root_source_turn":30}
+    id=127 T260 injury_cause explicit_user_statement USER_EXPLICIT correction={"target_fact_id":126,"target_source_turn":240,"root_fact_id":30,"root_source_turn":30}
+    id=128 T280 injury_cause explicit_user_statement USER_EXPLICIT correction={"target_fact_id":127,"target_source_turn":260,"root_fact_id":30,"root_source_turn":30}
+    id=129 T300 injury_cause explicit_user_statement USER_EXPLICIT correction={"target_fact_id":128,"target_source_turn":280,"root_fact_id":30,"root_source_turn":30}
+  final block @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?":
+    - [T300] [유저 입력 발췌] “그 부상은 사실 녹슨 못에 다친 거야.”
+    (+7 filler lines)
+{"scenario":"one-correction-then-210-others","horizon":500,"rows":709,"chainLength":1,"injectedChainIndex":[1],"quotedChainIndex":[1],"ok":true,"statementsPerCall":6,"firstMs":7.41,"avgMs":6.6,"storedLinks":211}
+{"scenario":"one-correction-then-210-others","horizon":1000,"rows":1209,"chainLength":1,"injectedChainIndex":[1],"quotedChainIndex":[1],"ok":true,"statementsPerCall":6,"firstMs":11.17,"avgMs":9.9,"storedLinks":211}
+  stored:
+    id=30 T30 injury explicit_scene_event CURRENT_SCENE correction=null
+    id=120 T120 injury_cause explicit_user_statement USER_EXPLICIT correction={"target_fact_id":30,"target_source_turn":30,"root_fact_id":30,"root_source_turn":30}
+  final block @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?":
+    - [T120] [유저 입력 발췌] “그 부상은 사실 창틀에 다친 거야.”
+    (+7 filler lines)
+  marker 5 original resurfaced: false
+  final block @T1000 q="5번 표지석 글씨는 무슨 색이었지?":
+    - [T336] [유저 입력 발췌] “205번 표지석 글씨는 붉은색이 아니라 푸른색이야.”
+    - [T326] [유저 입력 발췌] “195번 표지석 글씨는 붉은색이 아니라 푸른색이야.”
+    - [T316] [유저 입력 발췌] “185번 표지석 글씨는 붉은색이 아니라 푸른색이야.”
+    - [T306] [유저 입력 발췌] “175번 표지석 글씨는 붉은색이 아니라 푸른색이야.”
+    - [T296] [유저 입력 발췌] “165번 표지석 글씨는 붉은색이 아니라 푸른색이야.”
+    - [T286] [유저 입력 발췌] “155번 표지석 글씨는 붉은색이 아니라 푸른색이야.”
+    - [T276] [유저 입력 발췌] “145번 표지석 글씨는 붉은색이 아니라 푸른색이야.”
+    - [T266] [유저 입력 발췌] “135번 표지석 글씨는 붉은색이 아니라 푸른색이야.”
+    (+0 filler lines)
+{"scenario":"large-chat-chain-10-plus-300-others","horizon":3000,"rows":10600,"chainLength":10,"injectedChainIndex":[10],"quotedChainIndex":[10],"ok":true,"statementsPerCall":6,"firstMs":76.17,"avgMs":64.77}
+  final block @T3000 q="예전에 에녹 왼팔은 왜 다쳤었지?":
+    - [T300] [유저 입력 발췌] “그 부상은 사실 녹슨 못에 다친 거야.”
+    (+7 filler lines)
+{"scenario":"narrator-scene-then-scene","gloss":"에녹은 늑대에게 물려 왼팔을 크게 다쳤다.","ok":true}
+  stored:
+    id=30 T30 injury explicit_scene_event CURRENT_SCENE correction=null
+    id=200 T200 injury explicit_scene_event CURRENT_SCENE correction=null
+  final block @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?":
+    - [T30] [AI 장면 서술 발췌] “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+    - [T200] [AI 장면 서술 발췌] “훈련용 칼날이 에녹의 오른손을 베었다.”
+    (+6 filler lines)
+  final block @T1000 q="에녹 오른손은 왜 다쳤었지?":
+    - [T200] [AI 장면 서술 발췌] “훈련용 칼날이 에녹의 오른손을 베었다.”
+    - [T30] [AI 장면 서술 발췌] “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+    (+6 filler lines)
+{"scenario":"narrator-scene-then-user","gloss":"에녹은 늑대에게 물려 왼팔을 크게 다쳤다.","ok":true}
+  stored:
+    id=30 T30 injury explicit_scene_event CURRENT_SCENE correction=null
+    id=200 T200 injury explicit_user_statement USER_EXPLICIT correction=null
+  final block @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?":
+    - [T30] [AI 장면 서술 발췌] “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+    - [T200] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+    (+6 filler lines)
+  final block @T1000 q="에녹 오른손은 왜 다쳤었지?":
+    - [T200] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+    - [T30] [AI 장면 서술 발췌] “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+    (+6 filler lines)
+{"scenario":"narrator-user-then-scene","gloss":"에녹은 늑대에게 물려 왼팔을 크게 다쳤다.","ok":true}
+  stored:
+    id=30 T30 injury explicit_user_statement USER_EXPLICIT correction=null
+    id=200 T200 injury explicit_scene_event CURRENT_SCENE correction=null
+  final block @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?":
+    - [T30] [유저 입력 발췌] “지난번에 늑대가 네 왼팔을 깊이 물어뜯었잖아.”
+    - [T200] [AI 장면 서술 발췌] “훈련용 칼날이 에녹의 오른손을 베었다.”
+    (+6 filler lines)
+  final block @T1000 q="에녹 오른손은 왜 다쳤었지?":
+    - [T200] [AI 장면 서술 발췌] “훈련용 칼날이 에녹의 오른손을 베었다.”
+    - [T30] [유저 입력 발췌] “지난번에 늑대가 네 왼팔을 깊이 물어뜯었잖아.”
+    (+6 filler lines)
+{"scenario":"narrator-user-then-user","gloss":"에녹은 늑대에게 물려 왼팔을 크게 다쳤다.","ok":true}
+  stored:
+    id=30 T30 injury explicit_user_statement USER_EXPLICIT correction=null
+    id=200 T200 injury explicit_user_statement USER_EXPLICIT correction=null
+  final block @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?":
+    - [T30] [유저 입력 발췌] “지난번에 늑대가 네 왼팔을 깊이 물어뜯었잖아.”
+    - [T200] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+    (+6 filler lines)
+  final block @T1000 q="에녹 오른손은 왜 다쳤었지?":
+    - [T200] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+    - [T30] [유저 입력 발췌] “지난번에 늑대가 네 왼팔을 깊이 물어뜯었잖아.”
+    (+6 filler lines)
+{"scenario":"narrator-scene-then-scene","gloss":"에녹의 왼팔에는 늑대에게 물린 상처가 남아 있다.","ok":true}
+  stored:
+    id=30 T30 injury explicit_scene_event CURRENT_SCENE correction=null
+    id=200 T200 injury explicit_scene_event CURRENT_SCENE correction=null
+  final block @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?":
+    - [T30] [AI 장면 서술 발췌] “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+    - [T200] [AI 장면 서술 발췌] “훈련용 칼날이 에녹의 오른손을 베었다.”
+    (+6 filler lines)
+  final block @T1000 q="에녹 오른손은 왜 다쳤었지?":
+    - [T200] [AI 장면 서술 발췌] “훈련용 칼날이 에녹의 오른손을 베었다.”
+    (+7 filler lines)
+{"scenario":"narrator-scene-then-user","gloss":"에녹의 왼팔에는 늑대에게 물린 상처가 남아 있다.","ok":true}
+  stored:
+    id=30 T30 injury explicit_scene_event CURRENT_SCENE correction=null
+    id=200 T200 injury explicit_user_statement USER_EXPLICIT correction=null
+  final block @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?":
+    - [T30] [AI 장면 서술 발췌] “늑대가 에녹의 왼팔을 깊이 물어뜯었다.”
+    - [T200] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+    (+6 filler lines)
+  final block @T1000 q="에녹 오른손은 왜 다쳤었지?":
+    - [T200] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+    (+7 filler lines)
+{"scenario":"narrator-user-then-scene","gloss":"에녹의 왼팔에는 늑대에게 물린 상처가 남아 있다.","ok":true}
+  stored:
+    id=30 T30 injury explicit_user_statement USER_EXPLICIT correction=null
+    id=200 T200 injury explicit_scene_event CURRENT_SCENE correction=null
+  final block @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?":
+    - [T30] [유저 입력 발췌] “지난번에 늑대가 네 왼팔을 깊이 물어뜯었잖아.”
+    - [T200] [AI 장면 서술 발췌] “훈련용 칼날이 에녹의 오른손을 베었다.”
+    (+6 filler lines)
+  final block @T1000 q="에녹 오른손은 왜 다쳤었지?":
+    - [T200] [AI 장면 서술 발췌] “훈련용 칼날이 에녹의 오른손을 베었다.”
+    (+7 filler lines)
+{"scenario":"narrator-user-then-user","gloss":"에녹의 왼팔에는 늑대에게 물린 상처가 남아 있다.","ok":true}
+  stored:
+    id=30 T30 injury explicit_user_statement USER_EXPLICIT correction=null
+    id=200 T200 injury explicit_user_statement USER_EXPLICIT correction=null
+  final block @T1000 q="예전에 에녹 왼팔은 왜 다쳤었지?":
+    - [T30] [유저 입력 발췌] “지난번에 늑대가 네 왼팔을 깊이 물어뜯었잖아.”
+    - [T200] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+    (+6 filler lines)
+  final block @T1000 q="에녹 오른손은 왜 다쳤었지?":
+    - [T200] [유저 입력 발췌] “어제 훈련하다 칼에 오른손을 베였잖아.”
+    (+7 filler lines)

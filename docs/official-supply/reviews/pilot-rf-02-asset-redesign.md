@@ -1429,6 +1429,7 @@ npm run official-supply:wolfgang-approved-source -- assets status --admin-email 
 - `--execute`의 `recorded[0].approved`가 `true`이어야 apply로 넘어간다. `false`면 멈추고 보고한다.
 - `apply` dry-run은 14칸 `swapped`와 rollback 계획을 보여 준다. `apply --execute`는 `applyId`와 rollback 명령을 출력한다. rollback은 그 명령(`assets rollback --apply-id <applyId>`)만 쓴다.
 - apply 뒤 저장 상태(캐릭터 `assets`·`images`, 슬롯 상태, apply 기록)를 다시 읽고, 관리자 화면에서 비공개 상태와 14칸 순서·태그를 확인한다. 공개 전환, 알림, 소유자 변경, 새 이미지 생성, 유료 RP는 하지 않는다.
+- 로그인한 편집기는 `/create?edit=51`이다. `/character/51/edit`는 없는 주소라 404이며, 그 주소 때문에 새 라우트를 만들지 않는다. 상세는 `/character/51`, 공식 목록은 `/admin/official-characters`다.
 
 ### 25.7 검수 상태
 

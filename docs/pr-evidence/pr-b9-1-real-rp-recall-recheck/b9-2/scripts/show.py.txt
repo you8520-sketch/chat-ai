@@ -1,0 +1,13 @@
+import json,sys
+d=json.load(open(sys.argv[1]))
+def fmt(s):
+    if not s or "recent_summary" not in s: return str(s)[:120]
+    r=s["recent_summary"]
+    return f"rs[len={r['len']} sha={r['sha12']} omit={r['omitPrefix']} first={r['firstBlock']}] kind={s['kind']} cov={s['covered']} fpMatch={s['fingerprintMatches']} sum={s['summarized_turn_count']} msg={s['message_count']}"
+for e in d["events"]:
+    k=e["kind"]
+    extra={x:e[x] for x in e if x not in("seq","kind","state","before","stack","fn")}
+    print(e["seq"],k,e.get("fn",""),json.dumps(extra,ensure_ascii=False)[:260])
+    if "before" in e: print("    before:",fmt(e["before"]))
+    if "state" in e: print("    state :",fmt(e["state"]))
+    if "stack" in e and k!="provider-send-blocked": print("    stack :",e["stack"][:3])

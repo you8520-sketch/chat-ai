@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /workspace
+set -a
+# shellcheck disable=SC1091
+source /tmp/b9/admin.env
+set +a
+export NODE_ENV=production PLAYWRIGHT_PROD_SERVER=1
+
+BASE="/tmp/b9-3"
+SRC="/tmp/b9-preserved/db/snap-500"
+PREP_SQL="UPDATE chat_memories SET message_count=500 WHERE chat_id=1"
+
+python3 - <<'PY'
+import json, shutil
+from pathlib import Path
+SRC = "/tmp/b9-preserved/db/snap-500"
+qs = json.loads(Path("/tmp/b9/questions.json").read_text())
+jobs = [
+    ("l500-a5-gemini", "gemini-3.8-flash", qs["A5-injury"]),
+    ("l500-a5-sol", "gpt-6.1-sol", qs["A5-injury"]),
+    ("l500-b3-gemini", "gemini-3.8-flash", qs["B3-seoyun"]),
+    ("l500-b3-sol", "gpt-6.1-sol", qs["B3-seoyun"]),
+]
+for job_id, model, message in jobs:
+    data = Path(f"/tmp/b9-3/data-{job_id}")
+    out = Path(f"/tmp/b9-3/out/{job_id}")
+    if data.exists():
+        shutil.rmtree(data)
+    if out.exists():
+        shutil.rmtree(out)
+    shutil.copytree(SRC, data)
+    import os, stat, sqlite3
+    for root, dirs, files in os.walk(data):
+        for name in dirs + files:
+            os.chmod(os.path.join(root, name), stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+    os.chmod(data, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH)
+    c = sqlite3.connect(str(data / "app.db"))
+    c.execute("UPDATE chat_memories SET message_count=500 WHERE chat_id=1")
+    c.commit()
+    c.close()
+    out.mkdir(parents=True)
+    print(f"READY {job_id}", flush=True)
+PY
+
+run_one() {
+  local job="$1" model="$2" msg="$3"
+  ./node_modules/.bin/tsx /tmp/b9-3/capture-l500.mts \
+    "/tmp/b9-3/data-${job}" "$model" "$msg" "/tmp/b9-3/out/${job}" "$job" \
+    > "/tmp/b9-3/out/${job}.stdout.txt" 2> "/tmp/b9-3/out/${job}.stderr.txt"
+  tail -1 "/tmp/b9-3/out/${job}.stdout.txt"
+}
+
+run_one l500-a5-gemini gemini-3.8-flash "$(python3 -c "import json;print(json.load(open('/tmp/b9/questions.json'))['A5-injury'])")"
+run_one l500-a5-sol gpt-6.1-sol "$(python3 -c "import json;print(json.load(open('/tmp/b9/questions.json'))['A5-injury'])")"
+run_one l500-b3-gemini gemini-3.8-flash "$(python3 -c "import json;print(json.load(open('/tmp/b9/questions.json'))['B3-seoyun'])")"
+run_one l500-b3-sol gpt-6.1-sol "$(python3 -c "import json;print(json.load(open('/tmp/b9/questions.json'))['B3-seoyun'])")"
+echo ALL_CAPTURES_DONE

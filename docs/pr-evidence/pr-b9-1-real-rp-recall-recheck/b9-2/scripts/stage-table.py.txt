@@ -1,0 +1,58 @@
+"""Render the staged Global-memory trace JSON files as a markdown table."""
+import json, sys
+
+def db(s):
+    if not s or "recent_summary" not in s:
+        return "-"
+    r = s["recent_summary"]
+    fp = {True: "match", False: "MISMATCH", None: "none"}[s["fingerprintMatches"]]
+    return (f"{r['len']} / {r['sha12']} / {s['kind'] or 'NULL'} / fp {fp} / "
+            f"covered {s['covered'] if s['covered'] is not None else 'NULL'} / msg_count {s['message_count']}")
+
+def first(events, pred):
+    return next((e for e in events if pred(e)), None)
+
+def render(path):
+    d = json.load(open(path))
+    ev = d["events"]
+    rows = []
+    rows.append(("DB after preparation", db(first(ev, lambda e: e.get("stage") == "S0_db_after_preparation")["state"]), ""))
+    if first(ev, lambda e: e.get("stage") == "P1_after_memory_panel_GET"):
+        rows.append(("Before memory panel GET", db(first(ev, lambda e: e.get("stage") == "P0_before_memory_panel_GET")["state"]), ""))
+        w = first(ev, lambda e: e["kind"] == "chat_memories-write" and "recent_summary=?, used_chars" in e["sql"])
+        rows.append(("After memory panel GET", db(first(ev, lambda e: e.get("stage") == "P1_after_memory_panel_GET")["state"]),
+                     "first writer: " + (w["stack"][1].split(" ")[0] + " <- " + w["stack"][2].split(" ")[0] if w else "none (no checkpoint write)")))
+    se = first(ev, lambda e: e["kind"] == "exit" and e["fn"] == "syncMemoryFromChat")
+    rows.append(("After syncMemoryFromChat", db(se["state"]), "returned " + str(se.get("result"))))
+    pe = first(ev, lambda e: e["kind"] == "exit" and e["fn"] == "prepareNonBlockingSummaryForMainRp")
+    rows.append(("After summary preparation", db(pe["state"]), "unsummarized " + str(pe["result"]["pendingRange"])))
+    rv = [e for e in ev if e["kind"] == "resolver"][-1]
+    o = rv["output"]
+    rows.append(("Resolver output (POST)", f"{o['len']} / {o['sha12']} / omit prefix {o['omitPrefix']} / first block {o['firstBlock']}",
+                 f"projectionKind {rv['projectionKind']}, needsBackgroundCompact {rv['needsBackgroundCompact']}, rebuilt {rv['rebuiltChars']}, stored {rv['storedChars']}, excludeTurnStartGte {rv['excludeTurnStartGte']}"))
+    mi = first(ev, lambda e: e["kind"] == "exit" and e["fn"] == "buildMemoryContextForChat")
+    i = mi["injection"]
+    rows.append(("Memory injection", f"{i['len']} / {i['sha12']} / omit prefix {i['omitPrefix']} / first block {i['firstBlock']}",
+                 f"recent {mi['recentChars']}, medium-term {mi['mediumTermChars']}"))
+    cb = first(ev, lambda e: e["kind"] == "contextBuilder")
+    l = cb["longTermMemory"]
+    rows.append(("contextBuilder longTermMemory", f"{l['len']} / {l['sha12']} / omit prefix {l['omitPrefix']} / first block {l['firstBlock']}",
+                 f"medium-term {cb['mediumTermMemoryBlock']['len']}"))
+    pm = first(ev, lambda e: e["kind"] == "provider-send-blocked" and e["isMain"])
+    rows.append(("Main request before send (blocked locally)", f"{pm['bytes']} bytes / header {pm['hasCurrentMemoryHeader']} / omit prefix {pm['omitPrefixInRequest']} / first block {pm['firstBlockAfterHeader']}", ""))
+    rows.append(("DB at end", db(first(ev, lambda e: e.get("stage") == "S_end_after_route_and_background_settle")["state"]), ""))
+    out = [f"### {d['label']}", "", "| Stage | Value (len / sha256-12 / kind / fingerprint vs computed / covered / message_count) | Note |", "|---|---|---|"]
+    for a, b, c in rows:
+        out.append(f"| {a} | {b} | {c} |")
+    om = [e for e in ev if e["kind"] == "omission-trim"]
+    if om:
+        e0 = om[0]
+        out.append("")
+        out.append("First omission prefix: `" + e0["fn"] + "` input " + str(e0["input"]["len"]) + " chars -> output " + str(e0["output"]["len"]) + " chars, first block " + str(e0["output"]["firstBlock"]) + "; call chain: " + " <- ".join(s.split(" ")[0] + " " + s.split("(")[-1].rstrip(")").replace("src/lib/memory/", "").replace("src/app/api/chat/", "") for s in e0["stack"][:3]))
+    else:
+        out.append("")
+        out.append("No omission prefix produced (`emergencyFallbackTrimLorebookSync` never called).")
+    out.append(f"\nCompletion calls seen by the local stub: {len(d['completionCalls'])} (models: {', '.join(c['model'] for c in d['completionCalls'])}); reached network: 0.")
+    return "\n".join(out)
+
+print("\n\n".join(render(p) for p in sys.argv[1:]))

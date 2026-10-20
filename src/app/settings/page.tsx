@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const user = await getSessionUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/login?redirect=/settings");
 
   const db = getDb();
   const balance = getPointBalance(user.id);

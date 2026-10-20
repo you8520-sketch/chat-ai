@@ -1,0 +1,525 @@
+{
+  "label": "fixed-normal-panel",
+  "model": "gpt-6.1-sol",
+  "expectedWire": "gpt-6.1-sol",
+  "status": 200,
+  "blockedOtherFetches": 3,
+  "completionCalls": [
+    {
+      "model": "gpt-6-luna",
+      "bytes": 4526,
+      "url": "https://api.cheaperinference.com/v1/chat/completions"
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "bytes": 39472,
+      "url": "https://api.cheaperinference.com/v1/chat/completions?x-ci-pr"
+    },
+    {
+      "model": "gpt-6-luna",
+      "bytes": 4526,
+      "url": "https://api.cheaperinference.com/v1/chat/completions"
+    },
+    {
+      "model": "gpt-6-luna",
+      "bytes": 4526,
+      "url": "https://api.cheaperinference.com/v1/chat/completions"
+    }
+  ],
+  "events": [
+    {
+      "seq": 1,
+      "kind": "stage",
+      "stage": "S0_db_after_preparation",
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 2,
+      "kind": "stage",
+      "stage": "P0_before_memory_panel_GET",
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 3,
+      "kind": "enter",
+      "fn": "reconcileSummarizedTurnCountFromTable",
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 4,
+      "kind": "exit",
+      "fn": "reconcileSummarizedTurnCountFromTable",
+      "result": 495,
+      "stack": [
+        "prepareMemoryPanelView (src/lib/memory/memory-backfill.ts:113:3)",
+        "GET (src/app/api/chat/memory/route.ts:114:3)"
+      ],
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 5,
+      "kind": "resolver",
+      "fn": "resolveGlobalCurrentMemory",
+      "maxChars": 10000,
+      "excludeTurnStartGte": null,
+      "storedArgChars": 9853,
+      "projectionKind": "global_compact",
+      "source": "chat_memories_recent_summary",
+      "needsBackgroundCompact": false,
+      "rebuiltChars": 30069,
+      "storedChars": 9853,
+      "output": {
+        "len": 9853,
+        "sha12": "2c760ac67ea0",
+        "omitPrefix": false,
+        "firstBlock": null
+      },
+      "stack": [
+        "GET (src/app/api/chat/memory/route.ts:174:26)"
+      ],
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 6,
+      "kind": "panel-response",
+      "status": 200,
+      "displayed": {
+        "len": 9853,
+        "sha12": "2c760ac67ea0",
+        "omitPrefix": false,
+        "firstBlock": null
+      }
+    },
+    {
+      "seq": 7,
+      "kind": "stage",
+      "stage": "P1_after_memory_panel_GET",
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 8,
+      "kind": "blocked-other-fetch",
+      "url": "https://open.er-api.com/v6/latest/USD"
+    },
+    {
+      "seq": 9,
+      "kind": "blocked-other-fetch",
+      "url": "https://open.er-api.com/v6/latest/USD"
+    },
+    {
+      "seq": 10,
+      "kind": "enter",
+      "fn": "syncMemoryFromChat",
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 11,
+      "kind": "exit",
+      "fn": "syncMemoryFromChat",
+      "result": false,
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 12,
+      "kind": "blocked-other-fetch",
+      "url": "https://api.cheaperinference.com/v1/models"
+    },
+    {
+      "seq": 13,
+      "kind": "enter",
+      "fn": "prepareNonBlockingSummaryForMainRp",
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 14,
+      "kind": "exit",
+      "fn": "prepareNonBlockingSummaryForMainRp",
+      "result": {
+        "summarizedThrough": 495,
+        "unsummarizedTurns": 5,
+        "pendingRange": "496~500",
+        "catchUpScheduled": false,
+        "deferredBoundarySealPending": true
+      },
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 15,
+      "kind": "enter",
+      "fn": "buildMemoryContextForChat",
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 16,
+      "kind": "resolver",
+      "fn": "resolveGlobalCurrentMemory",
+      "maxChars": 10000,
+      "excludeTurnStartGte": 496,
+      "storedArgChars": 9853,
+      "projectionKind": "global_compact",
+      "source": "chat_memories_recent_summary",
+      "needsBackgroundCompact": false,
+      "rebuiltChars": 30069,
+      "storedChars": 9853,
+      "output": {
+        "len": 9853,
+        "sha12": "2c760ac67ea0",
+        "omitPrefix": false,
+        "firstBlock": null
+      },
+      "stack": [
+        "buildMemoryContextForChat (src/lib/memory/memory-manager.ts:262:20)",
+        "POST (src/app/api/chat/route.ts:1802:40)"
+      ],
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 17,
+      "kind": "exit",
+      "fn": "buildMemoryContextForChat",
+      "injection": {
+        "len": 9914,
+        "sha12": "c033dc234573",
+        "omitPrefix": false,
+        "firstBlock": null
+      },
+      "recentChars": 9853,
+      "mediumTermChars": 4953,
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 18,
+      "kind": "contextBuilder",
+      "fn": "buildContext",
+      "longTermMemory": {
+        "len": 9914,
+        "sha12": "c033dc234573",
+        "omitPrefix": false,
+        "firstBlock": null
+      },
+      "mediumTermMemoryBlock": {
+        "len": 4953,
+        "sha12": "60f775faf5c2",
+        "omitPrefix": false,
+        "firstBlock": null
+      },
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 19,
+      "kind": "provider-send-blocked",
+      "wireModel": "gpt-6-luna",
+      "isMain": false,
+      "bytes": 4526,
+      "hasCurrentMemoryHeader": false,
+      "omitPrefixInRequest": false,
+      "firstBlockAfterHeader": null,
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 20,
+      "kind": "provider-send-blocked",
+      "wireModel": "gpt-6.1-sol",
+      "isMain": true,
+      "bytes": 39472,
+      "hasCurrentMemoryHeader": true,
+      "omitPrefixInRequest": false,
+      "firstBlockAfterHeader": null,
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 21,
+      "kind": "provider-send-blocked",
+      "wireModel": "gpt-6-luna",
+      "isMain": false,
+      "bytes": 4526,
+      "hasCurrentMemoryHeader": false,
+      "omitPrefixInRequest": false,
+      "firstBlockAfterHeader": null,
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 22,
+      "kind": "provider-send-blocked",
+      "wireModel": "gpt-6-luna",
+      "isMain": false,
+      "bytes": 4526,
+      "hasCurrentMemoryHeader": false,
+      "omitPrefixInRequest": false,
+      "firstBlockAfterHeader": null,
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    },
+    {
+      "seq": 23,
+      "kind": "stage",
+      "stage": "S_end_after_route_and_background_settle",
+      "state": {
+        "recent_summary": {
+          "len": 9853,
+          "sha12": "2c760ac67ea0",
+          "omitPrefix": false,
+          "firstBlock": null
+        },
+        "kind": "global_compact",
+        "covered": 495,
+        "fingerprintStored": "8fae71bfd31d",
+        "fingerprintComputed": "8fae71bfd31d",
+        "fingerprintMatches": true,
+        "summarized_turn_count": 495,
+        "message_count": 500
+      }
+    }
+  ]
+}

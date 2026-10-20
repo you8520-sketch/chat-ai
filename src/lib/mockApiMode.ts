@@ -17,8 +17,12 @@ export function getMockFinishReason(): string {
 const MOCK_BASE =
   "[테스트 응답] 렌이 당신을 바라보며 미소 짓습니다. (가짜 텍스트 200자)";
 
-/** 약 200자 mock 본문 */
-export function getMockResponseText(): string {
+/** 약 200자 mock 본문. Background request kinds can use a separate synthetic body. */
+export function getMockResponseText(requestKind?: string): string {
+  const background = process.env.MOCK_COMPLETION_RESPONSE_TEXT?.trim();
+  if (background && requestKind && /^background-/i.test(requestKind)) return background;
+  const override = process.env.MOCK_RESPONSE_TEXT?.trim();
+  if (override) return override;
   if (getMockFinishReason() === "MAX_TOKENS") {
     return `${MOCK_BASE.slice(0, 120)}…`;
   }

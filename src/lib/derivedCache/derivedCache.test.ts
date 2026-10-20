@@ -42,11 +42,17 @@ import {
   emptyAppearanceCompiled,
 } from "@/lib/appearanceCompiler";
 import {
+  classifyEnglishLayer,
   koreanChunksTranslationFingerprint,
   loadEnglishChunks,
   TRANSLATION_PLACEHOLDER_TOKENS,
 } from "@/lib/promptTranslation";
 import { translateCharacterChunksForDerivedRefresh } from "@/lib/derivedCache/characterTranslation";
+import {
+  enqueueCharacterDerivedRefreshJob,
+  forceRequeueCharacterDerivedRefreshJob,
+  FORCE_APPEARANCE_JOB_FLAG,
+} from "@/lib/derivedCache/characterEnqueue";
 import { loadOwnedWorldEnglishForCharacter } from "@/lib/derivedCache/ownedWorldEnglish";
 import {
   loadCurrentShareWorldEnglish,
@@ -444,6 +450,59 @@ function countDedicatedWorldTranslationCalls(bodies: string[], marker: string): 
     if (payload.includes(LONG_PROMPT.slice(0, 80))) return false;
     return countTranslationSegments(body) === 1;
   }).length;
+}
+
+function countTranslationProviderCalls(bodies: string[]): number {
+  return bodies.filter((body) => !isAppearanceFetchBody(body)).length;
+}
+
+function countAppearanceProviderCalls(bodies: string[]): number {
+  return bodies.filter((body) => isAppearanceFetchBody(body)).length;
+}
+
+function currentSkipCharacterBody(overrides: Record<string, unknown> = {}) {
+  return characterBody({
+    name: "반복번역",
+    ...overrides,
+  });
+}
+
+function latestCharacterJob(characterId: number): {
+  id: number;
+  status: string;
+  attempts: number;
+  source_fingerprint: string;
+  job_flags: string;
+} {
+  const row = getDb()
+    .prepare(
+      `SELECT id, status, attempts, source_fingerprint, job_flags
+       FROM derived_cache_jobs
+       WHERE entity_type='character' AND entity_id=?
+       ORDER BY id DESC LIMIT 1`
+    )
+    .get(characterId) as
+    | {
+        id: number;
+        status: string;
+        attempts: number;
+        source_fingerprint: string;
+        job_flags: string;
+      }
+    | undefined;
+  assert.ok(row, `job missing for character ${characterId}`);
+  return row!;
+}
+
+function reopenLatestCharacterJob(characterId: number): void {
+  const changed = getDb()
+    .prepare(
+      `UPDATE derived_cache_jobs
+       SET status='pending', locked_at=NULL, run_after=datetime('now'), last_error=''
+       WHERE entity_type='character' AND entity_id=? AND status IN ('done', 'failed', 'processing')`
+    )
+    .run(characterId);
+  assert.ok(changed.changes > 0, "expected a terminal/processing job to reopen");
 }
 
 function isAppearanceFetchBody(body: string): boolean {
@@ -1555,6 +1614,227 @@ describe("share world english consumer", () => {
   });
 });
 
+describe("CURRENT linked world english freshness", () => {
+  function seedCurrentLinkedCharacter(opts: {
+    userId: number;
+    koreanWorld: string;
+    worldId: number | null;
+    shareId: number | null;
+    identityEnglish: string;
+    worldEnglish: string;
+  }) {
+    const db = getDb();
+    const info = db
+      .prepare(
+        `INSERT INTO characters (
+           name, system_prompt, world, world_id, source_world_share_id, setting_chunks, creator_id, creator_name
+         ) VALUES ('c','prompt',?,?,?,'[]',?,'u')`
+      )
+      .run(opts.koreanWorld, opts.worldId, opts.shareId, opts.userId);
+    const characterId = Number(info.lastInsertRowid);
+    const chunks: CharacterChunk[] = [
+      {
+        id: "c-1",
+        characterId: String(characterId),
+        content: "identity",
+        category: "identity",
+        importance: "CRITICAL",
+        tokenCount: 5,
+        keywords: [],
+      },
+      {
+        id: "c-2",
+        characterId: String(characterId),
+        content: opts.koreanWorld,
+        category: "world",
+        importance: "CRITICAL",
+        tokenCount: 10,
+        keywords: [],
+      },
+    ];
+    const english: CharacterChunk[] = [
+      { ...chunks[0], content: opts.identityEnglish },
+      { ...chunks[1], content: opts.worldEnglish },
+    ];
+    const fingerprint = koreanChunksTranslationFingerprint(chunks);
+    db.prepare(
+      `UPDATE characters SET setting_chunks=?, setting_chunks_en=?, prompt_translation_hash=? WHERE id=?`
+    ).run(JSON.stringify(chunks), JSON.stringify(english), fingerprint, characterId);
+    return { characterId, chunks, fingerprint };
+  }
+
+  function storedEnglish(characterId: number) {
+    const row = getDb()
+      .prepare(
+        `SELECT setting_chunks_en, prompt_translation_hash FROM characters WHERE id=?`
+      )
+      .get(characterId) as { setting_chunks_en: string; prompt_translation_hash: string };
+    return {
+      chunks: deserializeCharacterChunks(row.setting_chunks_en),
+      fingerprint: row.prompt_translation_hash,
+    };
+  }
+
+  it("owned world English-only update copies the new blob and does not call Luna", async () => {
+    const userId = 93201;
+    process.env.DISABLE_DERIVED_CACHE_WORKER = "1";
+    process.env.CHEAPER_INFERENCE_API_KEY = "test";
+    seedUser(userId);
+    const koreanWorld = "소유 세계관 영어만 갱신 {{user}}";
+    const worldId = seedWorld(userId, koreanWorld);
+    const fp = worldContentFingerprint(koreanWorld);
+    getDb()
+      .prepare(`UPDATE worlds SET content_en=?, content_translation_fingerprint=? WHERE id=?`)
+      .run("NEW owned world EN {{user}}", fp, worldId);
+    const seeded = seedCurrentLinkedCharacter({
+      userId,
+      koreanWorld,
+      worldId,
+      shareId: null,
+      identityEnglish: "OLD identity EN",
+      worldEnglish: "OLD owned world EN",
+    });
+    const spy = installDeferredProviderFetch((body) =>
+      mockTranslationResponseForBody(body, "should-not-run")
+    );
+    try {
+      const ok = await translateCharacterChunksForDerivedRefresh(seeded.characterId, seeded.chunks);
+      assert.equal(ok, true);
+      assert.equal(spy.calls, 0, "OWNED_WORLD_EN_ONLY_LUNA=0");
+      const stored = storedEnglish(seeded.characterId);
+      assert.equal(stored.fingerprint, seeded.fingerprint);
+      assert.equal(stored.chunks.find((c) => c.category === "identity")?.content, "OLD identity EN");
+      assert.equal(
+        stored.chunks.find((c) => c.category === "world")?.content,
+        "NEW owned world EN {{user}}"
+      );
+    } finally {
+      spy.restore();
+    }
+  });
+
+  it("share world English-only update copies the new blob and does not call Luna", async () => {
+    const userId = 93202;
+    process.env.DISABLE_DERIVED_CACHE_WORKER = "1";
+    process.env.CHEAPER_INFERENCE_API_KEY = "test";
+    seedUser(userId);
+    const koreanWorld = "공유 세계관 영어만 갱신 {{user}}";
+    const worldId = seedWorld(userId, koreanWorld);
+    const db = getDb();
+    const shareSlug = `current-share-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const shareInsert = db
+      .prepare(
+        `INSERT INTO world_shares (share_slug, user_id, world_id, name, summary, content, content_en, content_translation_fingerprint)
+         VALUES (?, ?, ?, 'W', 's', ?, ?, ?)`
+      )
+      .run(
+        shareSlug,
+        userId,
+        worldId,
+        koreanWorld,
+        "NEW share world EN {{user}}",
+        worldContentFingerprint(koreanWorld)
+      );
+    const shareId = Number(shareInsert.lastInsertRowid);
+    const seeded = seedCurrentLinkedCharacter({
+      userId,
+      koreanWorld,
+      worldId: null,
+      shareId,
+      identityEnglish: "OLD identity EN",
+      worldEnglish: "OLD share world EN",
+    });
+    const spy = installDeferredProviderFetch((body) =>
+      mockTranslationResponseForBody(body, "should-not-run")
+    );
+    try {
+      const ok = await translateCharacterChunksForDerivedRefresh(seeded.characterId, seeded.chunks);
+      assert.equal(ok, true);
+      assert.equal(spy.calls, 0, "SHARE_WORLD_EN_ONLY_LUNA=0");
+      const stored = storedEnglish(seeded.characterId);
+      assert.equal(stored.fingerprint, seeded.fingerprint);
+      assert.equal(stored.chunks.find((c) => c.category === "identity")?.content, "OLD identity EN");
+      assert.equal(
+        stored.chunks.find((c) => c.category === "world")?.content,
+        "NEW share world EN {{user}}"
+      );
+    } finally {
+      spy.restore();
+    }
+  });
+
+  it("pending or stale linked world English keeps the dependency and does not call Luna", async () => {
+    process.env.DISABLE_DERIVED_CACHE_WORKER = "1";
+    process.env.CHEAPER_INFERENCE_API_KEY = "test";
+    const db = getDb();
+
+    const pendingUser = 93203;
+    seedUser(pendingUser);
+    const pendingKorean = "pending 세계관 {{user}}";
+    const pendingWorldId = seedWorld(pendingUser, pendingKorean);
+    db.prepare(
+      `UPDATE worlds SET content_en='', content_translation_fingerprint='' WHERE id=?`
+    ).run(pendingWorldId);
+    const pending = seedCurrentLinkedCharacter({
+      userId: pendingUser,
+      koreanWorld: pendingKorean,
+      worldId: pendingWorldId,
+      shareId: null,
+      identityEnglish: "OLD identity EN",
+      worldEnglish: "OLD pending world EN",
+    });
+
+    const staleUser = 93204;
+    seedUser(staleUser);
+    const staleKorean = "stale 세계관 {{user}}";
+    const staleWorldId = seedWorld(staleUser, staleKorean);
+    db.prepare(
+      `UPDATE worlds SET content_en=?, content_translation_fingerprint=? WHERE id=?`
+    ).run("STALE world EN", "not-the-fingerprint", staleWorldId);
+    const stale = seedCurrentLinkedCharacter({
+      userId: staleUser,
+      koreanWorld: staleKorean,
+      worldId: staleWorldId,
+      shareId: null,
+      identityEnglish: "OLD identity EN",
+      worldEnglish: "OLD stale world EN",
+    });
+
+    const spy = installDeferredProviderFetch((body) =>
+      mockTranslationResponseForBody(body, "should-not-run")
+    );
+    try {
+      const pendingOk = await translateCharacterChunksForDerivedRefresh(pending.characterId, pending.chunks);
+      const staleOk = await translateCharacterChunksForDerivedRefresh(stale.characterId, stale.chunks);
+      assert.equal(pendingOk, false);
+      assert.equal(staleOk, false);
+      assert.equal(spy.calls, 0, "PENDING_STALE_WORLD_LUNA=0");
+      assert.equal(
+        storedEnglish(pending.characterId).chunks.find((c) => c.category === "world")?.content,
+        "OLD pending world EN"
+      );
+      assert.equal(
+        storedEnglish(stale.characterId).chunks.find((c) => c.category === "identity")?.content,
+        "OLD identity EN"
+      );
+      const pendingJobs = db
+        .prepare(
+          `SELECT COUNT(*) AS c FROM derived_cache_jobs WHERE job_kind='world_translate' AND entity_id=?`
+        )
+        .get(pendingWorldId) as { c: number };
+      const staleJobs = db
+        .prepare(
+          `SELECT COUNT(*) AS c FROM derived_cache_jobs WHERE job_kind='world_translate' AND entity_id=?`
+        )
+        .get(staleWorldId) as { c: number };
+      assert.equal(pendingJobs.c, 1);
+      assert.equal(staleJobs.c, 1);
+    } finally {
+      spy.restore();
+    }
+  });
+});
+
 describe("appearance currentness", () => {
   it("R4 raw B after A compiled uses B raw not A compiled", () => {
     const rawA = "금발";
@@ -1597,5 +1877,255 @@ describe("job dedupe", () => {
       .prepare(`SELECT COUNT(*) AS c FROM derived_cache_jobs WHERE entity_id=?`)
       .get(entityId) as { c: number };
     assert.equal(count.c, 1);
+  });
+});
+
+describe("CURRENT english layer skip on character derived refresh", () => {
+  afterEach(() => {
+    process.env.DISABLE_DERIVED_CACHE_WORKER = "1";
+  });
+
+  async function seedCurrentTranslatedCharacter(userId: number, name: string) {
+    process.env.DISABLE_DERIVED_CACHE_WORKER = "1";
+    process.env.CHEAPER_INFERENCE_API_KEY = "test";
+    seedUser(userId);
+    const created = await createCharacterFromForm(
+      { id: userId, nickname: `user${userId}`, is_adult: 1 },
+      currentSkipCharacterBody({ name })
+    );
+    assert.equal(created.ok, true, created.ok ? undefined : created.error);
+    const characterId = (created as { id: number }).id;
+    const first = installDeferredProviderFetch();
+    try {
+      const processed = await processEntityJobWithDeferred(
+        { jobKind: "character_derived_refresh", entityType: "character", entityId: characterId },
+        first
+      );
+      assert.equal(processed, true);
+    } finally {
+      first.restore();
+    }
+    const row = loadCharacterRow(characterId);
+    const korean = deserializeCharacterChunks(row.setting_chunks ?? "[]");
+    assert.equal(
+      classifyEnglishLayer({
+        koreanChunks: korean,
+        settingChunksEn: row.setting_chunks_en,
+        promptTranslationHash: row.prompt_translation_hash,
+      }),
+      "CURRENT"
+    );
+    return {
+      characterId,
+      firstTranslationCalls: countTranslationProviderCalls(first.bodies),
+      firstAppearanceCalls: countAppearanceProviderCalls(first.bodies),
+      fingerprint: row.prompt_translation_hash ?? "",
+      firstJob: latestCharacterJob(characterId),
+    };
+  }
+
+  it("CURRENT translation + repeat refresh: additional translation POST is 0", async () => {
+    const seeded = await seedCurrentTranslatedCharacter(93101, "current-repeat");
+    assert.ok(seeded.firstTranslationCalls > 0);
+    assert.equal(seeded.firstJob.status, "done");
+
+    enqueueCharacterDerivedRefreshJob(getDb(), seeded.characterId);
+    assert.equal(latestCharacterJob(seeded.characterId).status, "done", "INSERT OR IGNORE keeps the done job");
+
+    reopenLatestCharacterJob(seeded.characterId);
+    const before = latestCharacterJob(seeded.characterId);
+    const spy = installDeferredProviderFetch();
+    try {
+      const processed = await processEntityJobWithDeferred(
+        {
+          jobKind: "character_derived_refresh",
+          entityType: "character",
+          entityId: seeded.characterId,
+        },
+        spy
+      );
+      assert.equal(processed, true);
+    } finally {
+      spy.restore();
+    }
+
+    const after = latestCharacterJob(seeded.characterId);
+    const row = loadCharacterRow(seeded.characterId);
+    const korean = deserializeCharacterChunks(row.setting_chunks ?? "[]");
+    assert.equal(row.prompt_translation_hash, seeded.fingerprint);
+    assert.equal(
+      classifyEnglishLayer({
+        koreanChunks: korean,
+        settingChunksEn: row.setting_chunks_en,
+        promptTranslationHash: row.prompt_translation_hash,
+      }),
+      "CURRENT"
+    );
+    assert.equal(countTranslationProviderCalls(spy.bodies), 0, "CURRENT_REPEAT_TRANSLATION_POSTS=0");
+    assert.equal(after.status, "done");
+    assert.equal(after.attempts, before.attempts + 1);
+  });
+
+  it("appearance-only force refresh keeps compile and does not retranslate CURRENT english", async () => {
+    const seeded = await seedCurrentTranslatedCharacter(93102, "force-appearance");
+    forceRequeueCharacterDerivedRefreshJob(getDb(), seeded.characterId, {
+      jobFlags: FORCE_APPEARANCE_JOB_FLAG,
+    });
+    const spy = installDeferredProviderFetch();
+    try {
+      const processed = await processEntityJobWithDeferred(
+        {
+          jobKind: "character_derived_refresh",
+          entityType: "character",
+          entityId: seeded.characterId,
+        },
+        spy
+      );
+      assert.equal(processed, true);
+    } finally {
+      spy.restore();
+    }
+    assert.ok(countAppearanceProviderCalls(spy.bodies) > 0, "force appearance still compiles");
+    assert.equal(countTranslationProviderCalls(spy.bodies), 0, "FORCE_APPEARANCE_TRANSLATION_POSTS=0");
+    const row = loadCharacterRow(seeded.characterId);
+    const korean = deserializeCharacterChunks(row.setting_chunks ?? "[]");
+    assert.equal(
+      classifyEnglishLayer({
+        koreanChunks: korean,
+        settingChunksEn: row.setting_chunks_en,
+        promptTranslationHash: row.prompt_translation_hash,
+      }),
+      "CURRENT"
+    );
+  });
+
+  it("retry after a persisted CURRENT layer does not bill translation again", async () => {
+    const seeded = await seedCurrentTranslatedCharacter(93103, "retry-current");
+    getDb()
+      .prepare(
+        `UPDATE derived_cache_jobs
+         SET status='pending', locked_at=NULL, run_after=datetime('now'), last_error='transient'
+         WHERE id=?`
+      )
+      .run(seeded.firstJob.id);
+    const spy = installDeferredProviderFetch();
+    try {
+      const processed = await processEntityJobWithDeferred(
+        {
+          jobKind: "character_derived_refresh",
+          entityType: "character",
+          entityId: seeded.characterId,
+        },
+        spy
+      );
+      assert.equal(processed, true);
+    } finally {
+      spy.restore();
+    }
+    assert.equal(countTranslationProviderCalls(spy.bodies), 0, "RETRY_CURRENT_TRANSLATION_POSTS=0");
+    assert.equal(latestCharacterJob(seeded.characterId).status, "done");
+  });
+
+  it("korean source change runs the needed translation", async () => {
+    const seeded = await seedCurrentTranslatedCharacter(93105, "source-change");
+    const updated = await updateCharacterFromForm(
+      { id: 93105, nickname: "user93105", is_adult: 1 },
+      seeded.characterId,
+      currentSkipCharacterBody({
+        name: "바뀐이름원문",
+        world: "완전히 다른 세계관 원문",
+      })
+    );
+    assert.equal(updated.ok, true);
+    const spy = installDeferredProviderFetch();
+    try {
+      const processed = await processEntityJobWithDeferred(
+        {
+          jobKind: "character_derived_refresh",
+          entityType: "character",
+          entityId: seeded.characterId,
+        },
+        spy
+      );
+      assert.equal(processed, true);
+    } finally {
+      spy.restore();
+    }
+    assert.ok(countTranslationProviderCalls(spy.bodies) > 0, "SOURCE_CHANGE_TRANSLATION_POSTS>0");
+    const row = loadCharacterRow(seeded.characterId);
+    const korean = deserializeCharacterChunks(row.setting_chunks ?? "[]");
+    assert.equal(
+      classifyEnglishLayer({
+        koreanChunks: korean,
+        settingChunksEn: row.setting_chunks_en,
+        promptTranslationHash: row.prompt_translation_hash,
+      }),
+      "CURRENT"
+    );
+    assert.notEqual(row.prompt_translation_hash, seeded.fingerprint);
+  });
+
+  it("stale or corrupt english is refreshed", async () => {
+    const seeded = await seedCurrentTranslatedCharacter(93106, "stale-layer");
+    getDb()
+      .prepare(`UPDATE characters SET prompt_translation_hash=? WHERE id=?`)
+      .run("stale-hash:v1", seeded.characterId);
+    reopenLatestCharacterJob(seeded.characterId);
+    const staleSpy = installDeferredProviderFetch();
+    try {
+      await processEntityJobWithDeferred(
+        {
+          jobKind: "character_derived_refresh",
+          entityType: "character",
+          entityId: seeded.characterId,
+        },
+        staleSpy
+      );
+    } finally {
+      staleSpy.restore();
+    }
+    assert.ok(countTranslationProviderCalls(staleSpy.bodies) > 0, "STALE_LAYER_TRANSLATION_POSTS>0");
+
+    const seededCorrupt = await seedCurrentTranslatedCharacter(93107, "corrupt-layer");
+    getDb()
+      .prepare(`UPDATE characters SET setting_chunks_en=? WHERE id=?`)
+      .run("not-json", seededCorrupt.characterId);
+    reopenLatestCharacterJob(seededCorrupt.characterId);
+    const corruptSpy = installDeferredProviderFetch();
+    try {
+      await processEntityJobWithDeferred(
+        {
+          jobKind: "character_derived_refresh",
+          entityType: "character",
+          entityId: seededCorrupt.characterId,
+        },
+        corruptSpy
+      );
+    } finally {
+      corruptSpy.restore();
+    }
+    assert.ok(countTranslationProviderCalls(corruptSpy.bodies) > 0, "CORRUPT_LAYER_TRANSLATION_POSTS>0");
+  });
+
+  it("english string alone does not skip; missing hash still translates", async () => {
+    const seeded = await seedCurrentTranslatedCharacter(93108, "hash-missing");
+    getDb()
+      .prepare(`UPDATE characters SET prompt_translation_hash='' WHERE id=?`)
+      .run(seeded.characterId);
+    reopenLatestCharacterJob(seeded.characterId);
+    const spy = installDeferredProviderFetch();
+    try {
+      await processEntityJobWithDeferred(
+        {
+          jobKind: "character_derived_refresh",
+          entityType: "character",
+          entityId: seeded.characterId,
+        },
+        spy
+      );
+    } finally {
+      spy.restore();
+    }
+    assert.ok(countTranslationProviderCalls(spy.bodies) > 0, "ENGLISH_WITHOUT_HASH_STILL_TRANSLATES");
   });
 });
