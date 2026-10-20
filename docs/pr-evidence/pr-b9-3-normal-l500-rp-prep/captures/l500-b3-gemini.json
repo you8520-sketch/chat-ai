@@ -1,0 +1,246 @@
+{
+  "jobId": "l500-b3-gemini",
+  "model": "gemini-3.8-flash",
+  "expectedWire": "google/gemini-3.8-flash",
+  "message": "(복도 끝에서 한서윤이 서류를 안고 다가오는 걸 보고 태형의 소매를 잡아끈다) 저 사람 또 왔어.",
+  "stages": {
+    "dbPrepared": {
+      "recentLen": 9853,
+      "recentSha12": "2c760ac67ea0",
+      "omitInStored": false,
+      "kind": "global_compact",
+      "covered": 495,
+      "fingerprintMatches": true,
+      "checkpointHealthy": true,
+      "summarized_turn_count": 495,
+      "message_count": 500
+    },
+    "beforePanel": {
+      "recentLen": 9853,
+      "recentSha12": "2c760ac67ea0",
+      "omitInStored": false,
+      "kind": "global_compact",
+      "covered": 495,
+      "fingerprintMatches": true,
+      "checkpointHealthy": true,
+      "summarized_turn_count": 495,
+      "message_count": 500
+    },
+    "afterPanel": {
+      "recentLen": 9853,
+      "recentSha12": "2c760ac67ea0",
+      "omitInStored": false,
+      "kind": "global_compact",
+      "covered": 495,
+      "fingerprintMatches": true,
+      "checkpointHealthy": true,
+      "summarized_turn_count": 495,
+      "message_count": 500
+    },
+    "panelDisplayed": {
+      "status": 200,
+      "len": 9853,
+      "sha12": "2c760ac67ea0",
+      "omitPrefix": false,
+      "manualGlobalMemory": false
+    },
+    "afterChat": {
+      "recentLen": 9853,
+      "recentSha12": "2c760ac67ea0",
+      "omitInStored": false,
+      "kind": "global_compact",
+      "covered": 495,
+      "fingerprintMatches": true,
+      "checkpointHealthy": true,
+      "summarized_turn_count": 495,
+      "message_count": 500
+    }
+  },
+  "chatMemoryWriteCount": 0,
+  "memoryInjection": {
+    "currentMemory": {
+      "len": 9853,
+      "sha256": "2c760ac67ea054247b02bba67ce1864b76f6037b28420e15940ee9a8ac325317",
+      "omitPrefix": false,
+      "hasIncheon": true,
+      "hasFourteenStitches": true,
+      "hasBuchukError": true,
+      "hasEvolvedCreature": true,
+      "hasSeoyunReport": true
+    },
+    "mediumTerm": {
+      "blockCount": 15,
+      "totalLen": 4670,
+      "turnRanges": [
+        "T421–425",
+        "T426–430",
+        "T431–435",
+        "T436–440",
+        "T441–445",
+        "T446–450",
+        "T451–455",
+        "T456–460",
+        "T461–465",
+        "T466–470",
+        "T471–475",
+        "T476–480",
+        "T481–485",
+        "T486–490",
+        "T491–495"
+      ],
+      "blocks": [
+        {
+          "turnStart": 421,
+          "turnEnd": 425,
+          "len": 268,
+          "sha12": "7793f104bbf6",
+          "preview": "서다온이 두 사람의 좋은 페어 호흡을 언급한 뒤, 렌과 라이크는 장비 점검을 마치고 111일째 평화로운 날을 기념하며 다음 날 만남을 약속함. 이어 렌이 유자차를 건네고 영화가 끝나면 쉬자고 제안해 함께 영화를 봄."
+        },
+        {
+          "turnStart": 426,
+          "turnEnd": 430,
+          "len": 296,
+          "sha12": "4427c7be44d8",
+          "preview": "렌은 C급 게이트 정리 중 캔커피를 건네며 끝나면 쉬자고 했고, 태형은 이를 받아 마시며 평화로운 날이 113일째라고 웃음. 이후 렌과 사격장 체력 훈련 및 장비 점검을 함께하며 보리차와 유자차를 받는 등 일상을 이"
+        },
+        {
+          "turnStart": 431,
+          "turnEnd": 435,
+          "len": 452,
+          "sha12": "421d5a590f6a",
+          "preview": "렌과 태형은 역 앞 분식집에서 야간 대기하며 무전을 지켰고, 교관 남궁현에게 페어 호흡이 좋다는 말을 들음. 렌이 건넨 캔커피를 마신 태형은 평화로운 날이 114일째라며 웃고, 은색 열쇠고리를 만지작거리며 다음 만남"
+        },
+        {
+          "turnStart": 436,
+          "turnEnd": 440,
+          "len": 319,
+          "sha12": "b044c72a283f",
+          "preview": "렌과 라이크는 한강 둔치에서 장비를 점검하고, 태형은 권총 탄창과 무전기 배터리를 확인함. 이후 렌이 신입 가이드 유하람이 둘을 찾았다고 전했으나, 용건은 밝혀지지 않은 채 브리핑실에서 영화를 봄. 매점 앞 할리갈리"
+        },
+        {
+          "turnStart": 441,
+          "turnEnd": 445,
+          "len": 382,
+          "sha12": "eb43e9c357fd",
+          "preview": "렌과 태형은 사격장에서 C급 게이트를 정리하고, 태형은 휘파람으로 남은 크리처 둘을 처리함. 신입 가이드 유하람이 둘의 페어 호흡을 칭찬했으며, 태형은 렌이 건넨 캔커피를 마시며 평화로운 날이 118일째라고 말하고 "
+        },
+        {
+          "turnStart": 446,
+          "turnEnd": 450,
+          "len": 336,
+          "sha12": "384fb7c0a6cd",
+          "preview": "렌은 야간 대기 중인 태형에게 캔커피를 건네고, 대기 후 쉬자고 제안함. 이후 함께 구내식당에서 가이딩 정기 측정을 해 수치가 80%대에 안정적으로 머무는 것을 확인하고, 렌은 D급 순찰에도 동행해 작은 균열을 발견"
+        },
+        {
+          "turnStart": 451,
+          "turnEnd": 455,
+          "len": 272,
+          "sha12": "887e09fbf481",
+          "preview": "라이크는 렌과 브리핑실에서 장비를 점검하고, 매점 앞에서 영화를 보고, 숙소에서 보드게임을 하며, 본부 뒤 정원을 산책하는 등 평화로운 시간을 보냄. 보드게임 중 태형이 종을 세게 쳐 망가뜨림. 렌이 핫초코를 건네며"
+        },
+        {
+          "turnStart": 456,
+          "turnEnd": 460,
+          "len": 363,
+          "sha12": "08f34ca6f154",
+          "preview": "비 오는 날 지하 사격장에서 렌과 태형이 C급 게이트를 정리했고, 태형은 남은 크리처 두 마리를 휘파람으로 묶어 마무리함. 이어 문정자의 용건을 궁금해한 날 자료실에서 함께 체력 훈련을 했고, 신입 시범 교육에서는 "
+        },
+        {
+          "turnStart": 461,
+          "turnEnd": 465,
+          "len": 217,
+          "sha12": "17e020b09096",
+          "preview": "렌과 태형은 가이딩 정기 측정에서 수치가 80%대로 안정적인 것을 확인하고, 이후 순찰 중 작은 균열을 발견해 봉인반을 불렀으며 함께 보고서도 작성함. 이어 한강 둔치에서 체력 훈련을 마침. 차세린과 염태오가 각각 "
+        },
+        {
+          "turnStart": 466,
+          "turnEnd": 470,
+          "len": 367,
+          "sha12": "7011d9971f66",
+          "preview": "렌은 장비 점검 중 유자차를 건네며 점검 후 쉬자고 했고, 태형은 이를 받아 마시며 평화로운 날이 126일째라고 말함. 이후 렌의 제안으로 매점 앞에서 영화를 보고 보리차를 나눴으며, 태형은 다음 날 아침 만날 시간"
+        },
+        {
+          "turnStart": 471,
+          "turnEnd": 475,
+          "len": 267,
+          "sha12": "7edf8ed841c1",
+          "preview": "렌과 태형은 자료실에서 C급 게이트를 정리하고, 태형은 남은 크리처 두 마리를 휘파람으로 묶어 처리함. 이후 정비고에서 체력 훈련을 하고, 작전 차량에서 신입들에게 가이딩 접촉 순서를 시연함. 렌이 건넨 음료를 마시"
+        },
+        {
+          "turnStart": 476,
+          "turnEnd": 480,
+          "len": 282,
+          "sha12": "e9aa3d5a07aa",
+          "preview": "렌과 태형은 야간 대기 중 무전을 지키고, 신입 가이드에게 페어 호흡이 좋다는 말을 들음. 이어 정기 가이딩 측정에서 수치가 80%대에 안정적으로 머물렀으며, 남궁현 교관이 두 사람을 찾았다는 소식이 있었으나 이유는"
+        },
+        {
+          "turnStart": 481,
+          "turnEnd": 485,
+          "len": 323,
+          "sha12": "af9edc3b555f",
+          "preview": "렌과 태형은 장비 점검, 저녁 준비, 정원 휴식, 산책을 함께하며 보리차 등 음료를 나누고 평온한 시간을 보냄. 정원에서는 할리갈리 종이 망가졌고, 사격장에서는 가로등이 켜질 때까지 걸음. 연구국 인턴 서다온, 리컨"
+        },
+        {
+          "turnStart": 486,
+          "turnEnd": 490,
+          "len": 282,
+          "sha12": "f6970f401b8f",
+          "preview": "렌이 C급 게이트 정리 후 쉬자며 유자차를 건네자, 라이크는 남은 크리처 둘을 휘파람으로 묶어 정리하고 차를 받음. 이후 정비고에서 보고서를 쓰고, 작전 차량에서 신입들에게 가이딩 접촉 순서를 시연했으며, 차세린이 "
+        },
+        {
+          "turnStart": 491,
+          "turnEnd": 495,
+          "len": 244,
+          "sha12": "c56e205b2466",
+          "preview": "렌과 태형은 구내식당에서 야간 대기를 하고, 다음 날 산책을 한 뒤 D급 순찰 중 작은 균열을 발견해 봉인반을 호출함. 이어 한강 둔치에서 보고서를 작성하고 핫초코를 나눴으며, 브리핑실에서 체력 훈련 후 함께 쉼. "
+        }
+      ]
+    },
+    "episodic": {
+      "len": 1081,
+      "sha256": "bf1939dc308a0fa1a06f6972c52e3ebfbc31f2f4e5437caac7b989bc948c3d06",
+      "turns": [
+        64,
+        64,
+        479,
+        419,
+        44,
+        30,
+        22
+      ]
+    },
+    "relationship": {
+      "len": 186,
+      "sha256": "50f3ea66e4833f90dace2eb21c9933af8ebe3f66a46b934c0b3e9383b67ecb65"
+    },
+    "facts": {
+      "question": "L500-B3 seoyun",
+      "global_seoyun_report_or_suspension": true,
+      "episodic_T64_claim": true,
+      "episodic_T64_scene": true,
+      "omit_prefix": false,
+      "medium_blocks_present": true
+    }
+  },
+  "requestMeta": {
+    "requestBytes": 39708,
+    "wireModel": "google/gemini-3.8-flash",
+    "systemJoinedLen": 35011,
+    "systemJoinedSha256": "b5a3ea35bbf2e393b64f563ab3f3f546a1a8586fdd607059324db9317cbc5c0e",
+    "temperature": null,
+    "top_p": null,
+    "reasoning": {
+      "effort": "low",
+      "exclude": true
+    },
+    "reasoning_effort": null,
+    "provider": {
+      "only": [
+        "google-ai-studio"
+      ],
+      "allow_fallbacks": false,
+      "require_parameters": true
+    },
+    "max_tokens": null
+  }
+}

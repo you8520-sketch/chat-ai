@@ -1,0 +1,227 @@
+#!/usr/bin/env python3
+"""Build B9-3 memory audit tables from capture-audit.json + main-request.json."""
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+import sys
+from pathlib import Path
+
+OMIT = "…(오래된 기억 일부 생략)"
+
+
+def sha256(text: str) -> str:
+    return hashlib.sha256(text.encode()).hexdigest()
+
+
+def sha12(text: str) -> str:
+    return sha256(text)[:12]
+
+
+def flatten_content(content) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for part in content:
+            if isinstance(part, dict) and part.get("type") == "text":
+                parts.append(str(part.get("text") or ""))
+            else:
+                parts.append(json.dumps(part, ensure_ascii=False))
+        return "\n\n".join(parts)
+    return str(content)
+
+
+def extract_block(text: str, start_marker: str, end_markers: list[str]) -> str:
+    start = text.find(start_marker)
+    if start < 0:
+        return ""
+    end = len(text)
+    for marker in end_markers:
+        pos = text.find(marker, start + len(start_marker))
+        if pos >= 0:
+            end = min(end, pos)
+    return text[start:end].strip()
+
+
+def parse_request(path: Path) -> dict:
+    raw = path.read_text(encoding="utf-8")
+    body = json.loads(raw)
+    system_text = "\n\n".join(
+        flatten_content(m.get("content"))
+        for m in body.get("messages", [])
+        if m.get("role") == "system"
+    )
+    recent_blocks = re.findall(r"\[최근 기억 · T(\d+)–(\d+)\][^\[]*", system_text)
+    current = extract_block(
+        system_text,
+        "[현재기억]",
+        ["[EPISODIC MEMORY", "[Memory —", "[RUNTIME STYLE]", "[Memory]\n\n[EPISODIC"],
+    )
+    current_body = re.sub(r"^\[현재기억\][^\n]*\n[^\n]*\n\n?", "", current, count=1).strip()
+    episodic = extract_block(
+        system_text,
+        "[EPISODIC MEMORY - RETRIEVED FACTS]",
+        ["[Memory —", "[RUNTIME STYLE]", "[USER PERSONA REFERENCE"],
+    )
+    relation = extract_block(system_text, "[Memory — 참고", ["[RUNTIME STYLE]", "[USER PERSONA"])
+    medium_chunks = []
+    for m in re.finditer(r"\[최근 기억 · T(\d+)–(\d+)\]\n([^\[]+)", system_text):
+        medium_chunks.append(
+            {
+                "turnStart": int(m.group(1)),
+                "turnEnd": int(m.group(2)),
+                "len": len(m.group(3)),
+                "sha12": sha12(m.group(3)),
+                "preview": m.group(3).strip()[:120].replace("\n", " "),
+            }
+        )
+    t_lines = re.findall(r"- \[T(\d+)\]", episodic)
+    return {
+        "requestBytes": len(raw),
+        "wireModel": body.get("model"),
+        "temperature": body.get("temperature"),
+        "top_p": body.get("top_p"),
+        "reasoning": body.get("reasoning"),
+        "reasoning_effort": body.get("reasoning_effort"),
+        "provider": body.get("provider"),
+        "max_tokens": body.get("max_tokens"),
+        "systemPartCount": sum(1 for m in body.get("messages", []) if m.get("role") == "system"),
+        "systemJoinedLen": len(system_text),
+        "systemJoinedSha256": sha256(system_text),
+        "currentMemory": {
+            "len": len(current_body),
+            "sha256": sha256(current_body),
+            "omitPrefix": OMIT in current_body,
+            "hasIncheon": "인천항" in current_body,
+            "hasFourteenStitches": "열네 바늘" in current_body,
+            "hasBuchukError": "렌을 부축" in current_body,
+            "hasEvolvedCreature": "진화형" in current_body and "크리처" in current_body,
+            "hasSeoyunReport": "한서윤" in current_body and ("보고" in current_body or "징계" in current_body or "사흘" in current_body),
+        },
+        "mediumTerm": {
+            "blockCount": len(medium_chunks),
+            "totalLen": sum(c["len"] for c in medium_chunks),
+            "turnRanges": [f"T{c['turnStart']}–{c['turnEnd']}" for c in medium_chunks],
+            "blocks": medium_chunks,
+        },
+        "episodic": {
+            "len": len(episodic),
+            "sha256": sha256(episodic),
+            "turns": [int(t) for t in t_lines],
+            "body": episodic,
+        },
+        "relationship": {"len": len(relation), "sha256": sha256(relation), "body": relation},
+    }
+
+
+def fact_checks(question: str, parsed: dict) -> dict:
+    cur = parsed["currentMemory"]
+    epi = set(parsed["episodic"]["turns"])
+    if "A5" in question or "부상" in question or "옆구리" in question:
+        return {
+            "question": "L500-A5 injury",
+            "global_incheon_injury_narrative": cur["hasIncheon"] and cur["hasEvolvedCreature"],
+            "global_fourteen_stitches": cur["hasFourteenStitches"],
+            "global_known_buchuk_error_present": cur["hasBuchukError"],
+            "episodic_T30_claw": 30 in epi,
+            "episodic_T44_stitches": 44 in epi,
+            "episodic_T55_return_permission": 55 in epi,
+            "episodic_T48_lift_and_sit": 48 in epi,
+            "omit_prefix": cur["omitPrefix"],
+            "medium_blocks_present": parsed["mediumTerm"]["blockCount"] > 0,
+        }
+    return {
+        "question": "L500-B3 seoyun",
+        "global_seoyun_report_or_suspension": cur["hasSeoyunReport"],
+        "episodic_T64_claim": any("T64" in line for line in parsed["episodic"]["body"].splitlines()) or 64 in epi,
+        "episodic_T64_scene": "의자" in parsed["episodic"]["body"] or "웃으면서" in parsed["episodic"]["body"],
+        "omit_prefix": cur["omitPrefix"],
+        "medium_blocks_present": parsed["mediumTerm"]["blockCount"] > 0,
+    }
+
+
+def main() -> None:
+    out_root = Path(sys.argv[1] if len(sys.argv) > 1 else "/tmp/b9-3/out")
+    jobs = ["l500-a5-gemini", "l500-a5-sol", "l500-b3-gemini", "l500-b3-sol"]
+    results = {}
+    for job in jobs:
+        audit_path = out_root / job / "capture-audit.json"
+        req_path = out_root / job / "main-request.json"
+        audit = json.loads(audit_path.read_text(encoding="utf-8"))
+        parsed = parse_request(req_path)
+        parsed["facts"] = fact_checks(audit.get("message") or job, parsed)
+        parsed["stages"] = audit["stages"]
+        parsed["chatMemoryWrites"] = len(audit.get("chatMemoryWrites") or [])
+        parsed["completionCalls"] = audit.get("completionCalls") or []
+        results[job] = parsed
+        # refresh audit file memory section (no full request in repo)
+        slim = {
+            "jobId": job,
+            "model": audit["model"],
+            "expectedWire": audit["expectedWire"],
+            "message": audit["message"],
+            "stages": audit["stages"],
+            "chatMemoryWriteCount": len(audit.get("chatMemoryWrites") or []),
+            "memoryInjection": {
+                k: {kk: vv for kk, vv in v.items() if kk != "body"}
+                if isinstance(v, dict)
+                else v
+                for k, v in parsed.items()
+                if k in ("currentMemory", "mediumTerm", "episodic", "relationship", "facts")
+            },
+            "requestMeta": {
+                "requestBytes": parsed["requestBytes"],
+                "wireModel": parsed["wireModel"],
+                "systemJoinedLen": parsed["systemJoinedLen"],
+                "systemJoinedSha256": parsed["systemJoinedSha256"],
+                "temperature": parsed["temperature"],
+                "top_p": parsed["top_p"],
+                "reasoning": parsed["reasoning"],
+                "reasoning_effort": parsed["reasoning_effort"],
+                "provider": parsed["provider"],
+                "max_tokens": parsed["max_tokens"],
+            },
+        }
+        (out_root / job / "memory-audit-slim.json").write_text(
+            json.dumps(slim, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+
+    # model diff within question pairs
+    diffs = {}
+    for qprefix, a, b in [
+        ("A5", "l500-a5-gemini", "l500-a5-sol"),
+        ("B3", "l500-b3-gemini", "l500-b3-sol"),
+    ]:
+        ga, gb = results[a], results[b]
+        diffs[qprefix] = {
+            "systemSha256_equal": ga["systemJoinedSha256"] == gb["systemJoinedSha256"],
+            "requestBytes": {a: ga["requestBytes"], b: gb["requestBytes"]},
+            "currentMemory_sha256_equal": ga["currentMemory"]["sha256"] == gb["currentMemory"]["sha256"],
+            "episodic_sha256_equal": ga["episodic"]["sha256"] == gb["episodic"]["sha256"],
+            "medium_equal": ga["mediumTerm"]["turnRanges"] == gb["mediumTerm"]["turnRanges"],
+            "wireParams": {
+                a: {
+                    "temperature": ga["temperature"],
+                    "top_p": ga["top_p"],
+                    "reasoning": ga["reasoning"],
+                    "reasoning_effort": ga["reasoning_effort"],
+                    "provider": ga["provider"],
+                },
+                b: {
+                    "temperature": gb["temperature"],
+                    "top_p": gb["top_p"],
+                    "reasoning": gb["reasoning"],
+                    "reasoning_effort": gb["reasoning_effort"],
+                    "provider": gb["provider"],
+                },
+            },
+        }
+    summary = {"captures": results, "modelDiffs": diffs}
+    (out_root / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(json.dumps({k: results[k]["facts"] for k in jobs}, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()

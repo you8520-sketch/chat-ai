@@ -1,0 +1,88 @@
+{
+  "scope": "B9-3: four paid Main RP calls after approval (L500-A5/B3 × Gemini/Sol)",
+  "fxKrwPerUsd": {
+    "conservative": 1560.6,
+    "note": "Planning upper bound (1530×1.02). Provider-reported USD and live FX (~1360) apply only after paid POST."
+  },
+  "totalEstimatedUsd": 0.237383,
+  "totalEstimatedKrwConservative": 370.5,
+  "label": "precall_estimate_not_provider_invoice",
+  "calls": [
+    {
+      "jobId": "l500-a5-gemini",
+      "wireModel": "google/gemini-3.8-flash",
+      "requestBytes": 39654,
+      "inputTokenEstimateMethod": "ceil(len(main-request.json) * 0.9) — src/lib/tokenEstimate.ts estimateTokensFromCharCount",
+      "inputChars": 39654,
+      "inputTokensEstimated": 35689,
+      "outputScenarioId": "aim_3200",
+      "outputScenarioNote": "UNIFIED_TIER_AIM_CHARS (3200) → ceil(3200*0.9)=2880 output tokens for planning; not max_tokens on wire; B9-1 12k assumption intentionally not used",
+      "outputTokensAssumed": 2880,
+      "ratesUsdPerMillion": {
+        "input": 0.375,
+        "output": 1.875,
+        "source": "publishedModelPricing billingReference* (uncached list)"
+      },
+      "cacheDiscountApplied": false,
+      "estimatedUsd": 0.018783,
+      "estimatedKrwAt1560_6": 29.3
+    },
+    {
+      "jobId": "l500-a5-sol",
+      "wireModel": "gpt-6.1-sol",
+      "requestBytes": 39472,
+      "inputTokenEstimateMethod": "ceil(len(main-request.json) * 0.9) — src/lib/tokenEstimate.ts estimateTokensFromCharCount",
+      "inputChars": 39472,
+      "inputTokensEstimated": 35525,
+      "outputScenarioId": "aim_3200",
+      "outputScenarioNote": "UNIFIED_TIER_AIM_CHARS (3200) → ceil(3200*0.9)=2880 output tokens for planning; not max_tokens on wire; B9-1 12k assumption intentionally not used",
+      "outputTokensAssumed": 2880,
+      "ratesUsdPerMillion": {
+        "input": 2.0,
+        "output": 10.0,
+        "source": "publishedModelPricing billingReference* (uncached list)"
+      },
+      "cacheDiscountApplied": false,
+      "estimatedUsd": 0.09985,
+      "estimatedKrwAt1560_6": 155.8
+    },
+    {
+      "jobId": "l500-b3-gemini",
+      "wireModel": "google/gemini-3.8-flash",
+      "requestBytes": 39708,
+      "inputTokenEstimateMethod": "ceil(len(main-request.json) * 0.9) — src/lib/tokenEstimate.ts estimateTokensFromCharCount",
+      "inputChars": 39708,
+      "inputTokensEstimated": 35738,
+      "outputScenarioId": "aim_3200",
+      "outputScenarioNote": "UNIFIED_TIER_AIM_CHARS (3200) → ceil(3200*0.9)=2880 output tokens for planning; not max_tokens on wire; B9-1 12k assumption intentionally not used",
+      "outputTokensAssumed": 2880,
+      "ratesUsdPerMillion": {
+        "input": 0.375,
+        "output": 1.875,
+        "source": "publishedModelPricing billingReference* (uncached list)"
+      },
+      "cacheDiscountApplied": false,
+      "estimatedUsd": 0.018802,
+      "estimatedKrwAt1560_6": 29.3
+    },
+    {
+      "jobId": "l500-b3-sol",
+      "wireModel": "gpt-6.1-sol",
+      "requestBytes": 39526,
+      "inputTokenEstimateMethod": "ceil(len(main-request.json) * 0.9) — src/lib/tokenEstimate.ts estimateTokensFromCharCount",
+      "inputChars": 39526,
+      "inputTokensEstimated": 35574,
+      "outputScenarioId": "aim_3200",
+      "outputScenarioNote": "UNIFIED_TIER_AIM_CHARS (3200) → ceil(3200*0.9)=2880 output tokens for planning; not max_tokens on wire; B9-1 12k assumption intentionally not used",
+      "outputTokensAssumed": 2880,
+      "ratesUsdPerMillion": {
+        "input": 2.0,
+        "output": 10.0,
+        "source": "publishedModelPricing billingReference* (uncached list)"
+      },
+      "cacheDiscountApplied": false,
+      "estimatedUsd": 0.099948,
+      "estimatedKrwAt1560_6": 156.0
+    }
+  ]
+}
