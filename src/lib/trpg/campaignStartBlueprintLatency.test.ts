@@ -112,6 +112,41 @@ function mockBlueprintComplete(goal: string) {
   });
 }
 
+/** Brace-balanced slice for `async function name(...) : Promise<{...}> { ... }`. */
+function extractAsyncFunctionBlock(source: string, functionName: string): string {
+  const start = source.indexOf(`async function ${functionName}`);
+  assert.ok(start >= 0, `missing async function ${functionName}`);
+  const headerMatch = source
+    .slice(start)
+    .match(new RegExp(`async function ${functionName}\\s*\\([\\s\\S]*?\\)\\s*:\\s*Promise<\\{[\\s\\S]*?\\}>\\s*\\{`));
+  assert.ok(headerMatch, `could not locate ${functionName} body opening brace`);
+  const openBrace = start + headerMatch.index! + headerMatch[0].length - 1;
+  let depth = 0;
+  for (let i = openBrace; i < source.length; i++) {
+    const ch = source[i];
+    if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return source.slice(start, i + 1);
+    }
+  }
+  throw new Error(`unbalanced braces for async function ${functionName}`);
+}
+
+function assertGmUsageRecordedBeforeCompletionIntegrity(runGmBlock: string): void {
+  const afterGmCall = runGmBlock.slice(runGmBlock.indexOf("await gmCall"));
+  const usageIdx = Math.min(
+    ...["appendGmRoundUsageForGeneration", "appendRoundUsage"]
+      .map((needle) => afterGmCall.indexOf(needle))
+      .filter((idx) => idx >= 0)
+  );
+  const integrityIdx = afterGmCall.indexOf("assessGmCompletionIntegrity");
+  assert.ok(
+    Number.isFinite(usageIdx) && integrityIdx > usageIdx,
+    "GM_USAGE_BEFORE_INTEGRITY_ORDER_PRESERVED=true"
+  );
+}
+
 function gmText(narration = "ok"): string {
   return buildTrpgGmStructuredWireText(narration, {
     players: [],
@@ -233,17 +268,17 @@ describe("campaign start sandbox blueprint latency (AFTER contract)", () => {
     assert.match(src, /semanticDone/);
     assert.match(src, /clearGmNarrationDraftForGeneration/);
     assert.doesNotMatch(src, /directorCall/);
-    const runGmIdx = src.indexOf("async function runGmForRound");
-    assert.ok(runGmIdx >= 0);
-    const runGmBody = src.slice(runGmIdx, runGmIdx + 8000);
-    const afterGmCall = runGmBody.slice(runGmBody.indexOf("await gmCall"));
-    const usageIdx = Math.min(
-      ...["appendGmRoundUsageForGeneration", "appendRoundUsage"]
-        .map((needle) => afterGmCall.indexOf(needle))
-        .filter((idx) => idx >= 0)
+    const runGmBlock = extractAsyncFunctionBlock(src, "runGmForRound");
+    assertGmUsageRecordedBeforeCompletionIntegrity(runGmBlock);
+    assert.throws(
+      () =>
+        assertGmUsageRecordedBeforeCompletionIntegrity(
+          `${runGmBlock.slice(0, runGmBlock.indexOf("await gmCall"))}await gmCall({});
+          assessGmCompletionIntegrity(text, { finishReason });
+          appendGmRoundUsageForGeneration(db, roundId, generationId, usage);`
+        ),
+      /GM_USAGE_BEFORE_INTEGRITY_ORDER_PRESERVED/
     );
-    const integrityIdx = afterGmCall.indexOf("assessGmCompletionIntegrity");
-    assert.ok(Number.isFinite(usageIdx) && integrityIdx > usageIdx, "GM_USAGE_BEFORE_INTEGRITY_ORDER_PRESERVED=true");
   });
 
   it("A — valid same-revision artifact: plan copied, GM 1, no campaign-start provider path", async () => {

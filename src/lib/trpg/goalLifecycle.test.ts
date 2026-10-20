@@ -15,7 +15,13 @@ import {
 } from "./engineAdvance";
 import { loadTrpgSnapshot } from "./engineSnapshot";
 import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
-import { TRPG_GM_SYSTEM, parseTrpgGmOutput } from "./gmPrompt";
+import {
+  TRPG_GM_RECORD_PLAYER_GOAL_TAIL,
+  TRPG_GM_SYSTEM,
+  buildTrpgGmUserBlock,
+  parseTrpgGmOutput,
+  shouldRequestTrpgPlayerGoalRegistration,
+} from "./gmPrompt";
 import { buildCampaignMemoryPrompt, buildTrpgBotMemoryBlock } from "./memory";
 import type { TrpgScenarioEncounter } from "./scenarioPlan";
 import { insertScenarioTemplate } from "./scenarioTemplates";
@@ -207,6 +213,30 @@ describe("goal lifecycle: first goal", () => {
     assert.deepEqual(loadCampaignLedger(db, campaignId).quests, []);
     assert.deepEqual(snapshot.goals, []);
     assert.ok(logs.warn.some((line) => line[0] === "[TRPG][goal] missing_after_opening"));
+    db.close();
+  });
+
+  it("empty opening: the next normal round asks for goal registration and a GM questsAdd is stored", async () => {
+    const db = memoryDb();
+    const { campaignId, hostId } = scenarioCampaign(db);
+    const seen: string[] = [];
+    const RECOVERY_GOAL = "부두 소문을 추적한다";
+    const deps = scriptedGm(
+      () => [hostId],
+      [{ location: "마레노 부두" }, { location: "마레노 부두", extra: { questsAdd: [RECOVERY_GOAL] } }, { location: "마레노 부두" }],
+      seen
+    );
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.match(seen[0]!, /record it in delta\.questsAdd/);
+    assert.doesNotMatch(seen[0]!, /There is no active player-visible goal yet/);
+    await play(db, campaignId, deps, "부두 게시판을 살핀다.");
+    assert.match(seen[1]!, /There is no active player-visible goal yet/);
+    assert.match(seen[1]!, new RegExp(TRPG_GM_RECORD_PLAYER_GOAL_TAIL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.doesNotMatch(seen[1]!, /\[OPENING SCENE/);
+    assert.deepEqual(goalsOf(db, campaignId).map((goal) => goal.title), [RECOVERY_GOAL]);
+    assert.deepEqual(loadTrpgSnapshot(db, campaignId, 1).goals?.map((goal) => goal.title), [RECOVERY_GOAL]);
+    await play(db, campaignId, deps, "항구를 돌아본다.");
+    assert.doesNotMatch(seen[2]!, /There is no active player-visible goal yet/);
     db.close();
   });
 });
@@ -783,7 +813,11 @@ describe("goal lifecycle: the goal update contract on the final wire", () => {
     assert.equal((seenUser[last]!.match(/^goals_done:/gm) ?? []).length, 1);
     assert.equal((seenUser[last]!.match(/^quests:/gm) ?? []).length, 1);
     assert.match(seenUser[last]!, new RegExp(`goals_done: ${REACH_GOAL}`));
-    assert.doesNotMatch(seenUser[last]!, /record it in delta\.questsAdd/, "only the opening is asked for a goal");
+    assert.doesNotMatch(
+      seenUser[last]!,
+      /There is no active player-visible goal yet/,
+      "a round with active goals does not ask for empty-state registration"
+    );
     assert.equal(seenSystem[last], TRPG_GM_SYSTEM);
     assert.match(TRPG_GM_SYSTEM, /it is a claim, not a confirmation/, "completion stays with the server");
     db.close();
@@ -821,6 +855,93 @@ describe("goal lifecycle: the goal update contract on the final wire", () => {
     await play(db, campaignId, deps, "등대 안을 둘러본다.");
     assert.deepEqual(loadCampaignLedger(db, campaignId).quests, ["부두 소문을 묻는다", "등대 위층의 등대지기를 만난다"]);
     assert.equal(byTitle(db, campaignId, REACH_GOAL)!.status, "completed");
+    db.close();
+  });
+});
+
+describe("goal lifecycle: empty player goal recovery", () => {
+  it("after the only active goal completes, the next normal round asks for registration and accepts a new questsAdd", async () => {
+    const db = memoryDb();
+    const { campaignId, hostId } = scenarioCampaign(db, { plan: false });
+    const seen: string[] = [];
+    const NEXT = "등대 위층을 조사한다";
+    const deps = scriptedGm(
+      () => [hostId],
+      [
+        { location: "마레노 부두", extra: { questsAdd: [{ title: REACH_GOAL, criterion: REACH }] } },
+        { location: LIGHTHOUSE },
+        { location: LIGHTHOUSE, extra: { questsAdd: [NEXT] } },
+      ],
+      seen
+    );
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    await play(db, campaignId, deps, "곶 끝의 등대로 이동한다.");
+    assert.doesNotMatch(seen[1]!, /There is no active player-visible goal yet/);
+    assert.equal(byTitle(db, campaignId, REACH_GOAL)!.status, "completed");
+    assert.deepEqual(loadCampaignLedger(db, campaignId).quests, []);
+    await play(db, campaignId, deps, "등대 안을 둘러본다.");
+    assert.match(seen[2]!, /There is no active player-visible goal yet/);
+    assert.equal(byTitle(db, campaignId, REACH_GOAL)!.status, "completed");
+    assert.equal(byTitle(db, campaignId, NEXT)!.status, "active");
+    assert.deepEqual(loadCampaignLedger(db, campaignId).quests, [NEXT]);
+    db.close();
+  });
+
+  it("regeneration and committed rewrite never include empty-state goal registration", () => {
+    const resolvedAction = {
+      participantId: 1,
+      name: "렌",
+      body: "부두를 살핀다.",
+      statKey: "int",
+      d20: 12,
+      finalScore: 14,
+      dc: 10,
+      tier: "SUCCESS",
+    };
+    const regenerateUser = buildTrpgGmUserBlock({
+      worldBrief: "world",
+      memoryBlock: "memory",
+      opening: false,
+      regenerate: true,
+      requestPlayerGoalRegistration: true,
+      committedNarration: "committed scene",
+      committedFacts: "quests: (none)",
+      actions: [resolvedAction],
+    });
+    assert.doesNotMatch(regenerateUser, /There is no active player-visible goal yet/);
+    assert.doesNotMatch(regenerateUser, /record it in delta\.questsAdd/);
+    assert.equal(
+      shouldRequestTrpgPlayerGoalRegistration({
+        opening: false,
+        regenerate: true,
+        campaignComplete: false,
+        activeGoalCount: 0,
+      }),
+      false
+    );
+    assert.equal(
+      shouldRequestTrpgPlayerGoalRegistration({
+        opening: false,
+        regenerate: false,
+        campaignComplete: true,
+        activeGoalCount: 0,
+      }),
+      false
+    );
+  });
+
+  it("empty opening still leaves goals empty when the GM keeps returning questsAdd: []", async () => {
+    const db = memoryDb();
+    const { campaignId, hostId } = scenarioCampaign(db);
+    const seen: string[] = [];
+    const deps = scriptedGm(() => [hostId], [{ location: "마레노 부두" }, { location: "마레노 부두" }], seen);
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    await play(db, campaignId, deps, "부두를 살핀다.");
+    assert.match(seen[1]!, /There is no active player-visible goal yet/);
+    assert.deepEqual(goalsOf(db, campaignId), []);
+    for (const hidden of [SPOILER_GOAL, SECRET, ENDING]) {
+      assert.ok(!goalsOf(db, campaignId).some((goal) => goal.title.includes(hidden)));
+    }
     db.close();
   });
 });
