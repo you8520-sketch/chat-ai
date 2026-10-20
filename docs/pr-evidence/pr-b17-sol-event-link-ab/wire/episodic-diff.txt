@@ -1,0 +1,14 @@
+--- arm-a-episodic
++++ arm-b-episodic
+@@ -8,8 +8,9 @@
+ If retrieved memories conflict with the character canon or world rules, canon and world rules win.
+ Do not mention this memory section to the user.
+ - [T40] [유저가 직접 쓴 원문] “미안, 우리 그만 헤어지자.”
+-- [T1] [AI가 쓴 장면 원문] “라이크는 입술을 깨물며 시선을 피했다.”
+-- [T1] [유저가 직접 쓴 원문] “솔직히 너 좀 아마추어 같아.”
++[T1 · 같은 장면의 연속된 기록]
++[유저 입력] “솔직히 너 좀 아마추어 같아.”
++[AI 장면 서술] “라이크는 입술을 깨물며 시선을 피했다.”
+ - [T75] [AI가 쓴 장면 원문] “라이크는 75번째 장작을 쌓았다.”
+ - [T72] [AI가 쓴 장면 원문] “라이크는 72번째 장작을 쌓았다.”
+ - [T69] [AI가 쓴 장면 원문] “라이크는 69번째 장작을 쌓았다.”

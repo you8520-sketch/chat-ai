@@ -1,0 +1,61 @@
+{
+  "checks": {
+    "only_system_part2_differs": true,
+    "quotes_exact": true,
+    "speaker_order": true,
+    "speaker_not_flipped_global": true,
+    "other_facts_kept": true,
+    "no_new_recall_order": true,
+    "no_forbidden_added": true,
+    "global_same": true,
+    "episodic_policy_same": false,
+    "budget_facts": {
+      "armA_bullets": 8,
+      "armB_dash_bullets": 6,
+      "other_kept": [
+        "- [T40] [유저가 직접 쓴 원문] “미안, 우리 그만 헤어지자.”",
+        "- [T75] [AI가 쓴 장면 원문] “라이크는 75번째 장작을 쌓았다.”",
+        "- [T72] [AI가 쓴 장면 원문] “라이크는 72번째 장작을 쌓았다.”",
+        "- [T69] [AI가 쓴 장면 원문] “라이크는 69번째 장작을 쌓았다.”",
+        "- [T66] [AI가 쓴 장면 원문] “라이크는 66번째 장작을 쌓았다.”",
+        "- [T63] [AI가 쓴 장면 원문] “라이크는 63번째 장작을 쌓았다.”"
+      ],
+      "epi_chars_a": 1043,
+      "epi_chars_b": 1041,
+      "fact_text_budget_note": "1000 counts rendered fact text; current total ~270; group header does not drop a fact because this wire is hand-edited and total stays under 1000"
+    },
+    "params": {
+      "model": "gpt-6.1-sol",
+      "temperature": 0.7,
+      "reasoning": {
+        "effort": "low"
+      },
+      "reasoning_effort": "low",
+      "stream": true
+    },
+    "no_max_tokens": true,
+    "model_route": {
+      "model": "gpt-6.1-sol",
+      "provider": "cheaperinference",
+      "endpoint": "https://api.cheaperinference.com/v1/chat/completions?x-ci-prompt-cache-scope=session&x-ci-prompt-cache-session=g2pilot",
+      "same": true
+    }
+  },
+  "sha256_request_a": "47aa63445a79506b17f32a3f4c7bbadc0f8aa758fe59544479993253d17761ff",
+  "sha256_request_b": "fca4a547fb1adbff4ae64df66372f09aa47744d84d1956b871325cea3c7820ac",
+  "json_bytes_a": 22153,
+  "json_bytes_b": 22161,
+  "system_sha_a": "4146b360bad89015ebbee7dd15c98c17d8c8d5abddf661dfb2b447e688b6c328",
+  "system_sha_b": "da3fd04b9f774359b4235e9422467957be9682a124f9371143ad3d49511aeb68",
+  "episodic_sha_a": "53cf72428a0bc36a637cf8f9a403bc912189b42fa4895156b36cff26ce5710a9",
+  "episodic_sha_b": "d3fd262a35c6663d5ca3bdd4be2efef36eb5dcf8f82452889e9e29922fba7dd2",
+  "delta_chars": 8,
+  "hist_prompt_tokens_arm_a": 5882,
+  "est_prompt_tokens_arm_b": 5884,
+  "usd_four_hist_prompt_6000out": 0.2871,
+  "krw_four_fx1700": 488.0,
+  "krw_four_chars_as_tokens": 709.4,
+  "experiment_key_set": true,
+  "experiment_key_matches_production_env": [],
+  "gate_pass_structural": false
+}
