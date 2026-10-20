@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import ForwardUsageReviewSection from "@/components/admin/ForwardUsageReviewSection";
 import type {
   AdminFinanceSummary,
   FinanceMonthlyAdjustments,
@@ -714,6 +715,7 @@ export default function AdminFinanceClient({
         </div>
       </section>
 
+      <ForwardUsageReviewSection reconciliation={summary.providerReconciliation} allowReview onReviewed={() => loadMonth(summary.monthKey)} />
       <section className="mt-6 rounded-2xl border border-violet-500/20 bg-violet-950/10 p-5">
         <h2 className="font-bold">AI 실제 원가</h2>
         <p className="mt-1 text-xs text-zinc-500">

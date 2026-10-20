@@ -13,6 +13,7 @@ import { getDb } from "@/lib/db";
 import { buildFinanceAnomalyReport } from "@/lib/financeAnomalyRadar";
 import { buildMainRpPricingObservabilityProjection } from "@/lib/mainRpPricingObservability";
 import AdminOpsInboxClient from "./AdminOpsInboxClient";
+import ForwardUsageReviewSection from "@/components/admin/ForwardUsageReviewSection";
 
 export const dynamic = "force-dynamic";
 
@@ -41,9 +42,14 @@ export default async function AdminOpsPage() {
   );
 
   return (
+    <>
     <AdminOpsInboxClient
       initialIncidents={incidents}
       stuckExecutionMinutes={ADMIN_OPS_STUCK_EXECUTION_MINUTES}
     />
+    <div className="mx-auto w-full max-w-6xl px-4 pb-8 text-zinc-100">
+      <ForwardUsageReviewSection reconciliation={financeSummary.providerReconciliation} />
+    </div>
+    </>
   );
 }
