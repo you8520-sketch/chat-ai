@@ -132,6 +132,29 @@ describe("campaignGoals", () => {
     assert.equal(activeGoalTitles(noFacts.goals).length, 12);
   });
 
+  it("an already active goal keeps a distinct new questsAdd, and a completed goal is not flipped back to active", () => {
+    const letter = goalWith({ title: "편지를 찾는다" });
+    const withAttic = applyGoalTransition(
+      [letter],
+      { questsAdd: ["다락을 살핀다", "편지를 찾는다"] },
+      { round: 4, placeMatches: exact }
+    );
+    assert.deepEqual(activeGoalTitles(withAttic.goals), ["편지를 찾는다", "다락을 살핀다"]);
+
+    const completed = goalWith({
+      id: "goal-1-1",
+      title: "도착",
+      status: "completed",
+      closedRound: 2,
+      evidence: { kind: "host_confirmed", round: 2, participantId: 1 },
+    });
+    const reAdded = applyGoalTransition([completed], { questsAdd: ["도착"] }, { round: 5, placeMatches: exact });
+    const arrivalRows = reAdded.goals.filter((goal) => goal.title === "도착");
+    assert.equal(arrivalRows.length, 2);
+    assert.equal(arrivalRows.find((goal) => goal.id === "goal-1-1")?.status, "completed");
+    assert.equal(arrivalRows.find((goal) => goal.id !== "goal-1-1")?.status, "active");
+  });
+
   it("projects only player-safe fields", () => {
     const goals = [
       goalWith({ title: "A", criterion: { type: "reach_location", place: "비밀 장소" }, claimedRound: 2 }),

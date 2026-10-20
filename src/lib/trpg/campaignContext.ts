@@ -264,18 +264,8 @@ export function serializeCampaignDirectorInstructions(hasPlan: boolean): string 
 - Never skip INTRO to FINISHED in one hop unless the campaign is actually ending.`;
 }
 
-export function serializeDirectorDeltaContract(opts: {
-  storyPhase: TrpgStoryPhase;
-  completedRounds?: number;
-}): string {
-  const rounds = opts.completedRounds ?? 0;
-  const hint =
-    rounds >= 3
-      ? `\nSoft hint only: ${rounds} completed scenes and the current 이야기 단계는 ${opts.storyPhase}. If the fiction already moved on, you MAY emit one adjacent step. Do not advance by count alone.`
-      : "";
+export function serializeDirectorDeltaContract(opts: { storyPhase: TrpgStoryPhase }): string {
+  const { storyPhase } = opts;
   return `[DIRECTOR DELTA CONTRACT]
-Every delta object must include the 이야기 단계 as the current value or one adjacent step.
-Include thread add/resolve lists and an endingConditionId when they apply.
-Example:
-{"players":[],"location":"","next_round_context":"","questsAdd":[],"questsRemove":[],"npcsAdd":[],"npcsRemove":[],"flagsAdd":[],"flagsRemove":[],"campaign_finished":false,"storyPhase":"${opts.storyPhase}","threadsAdd":[],"threadsResolve":[],"endingConditionId":""}${hint}`;
+Use the system OUTPUT delta shape. On that same delta always include storyPhase as ${storyPhase} or the one adjacent step. Advance only when this input already shows that this scene's fiction moved. Do not advance from the round count, and do not invent an event that is not already in this input. Include threadsAdd, threadsResolve, and endingConditionId when they apply. threadsAdd and threadsResolve name story threads; they do not create or complete player goals.`;
 }

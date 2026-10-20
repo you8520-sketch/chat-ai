@@ -295,10 +295,14 @@ describe("TRPG sandbox director and plan security", () => {
     await startTrpgCampaign(db, { campaignId: plannedId, userId: 1, deps: plannedDeps });
     assert.equal(planned.length, 1);
     assert.equal((planned[0]?.match(/\[DIRECTOR DELTA CONTRACT\]/g) ?? []).length, 1);
-    assert.equal((planned[0]?.match(/"storyPhase"/g) ?? []).length, 1);
+    assert.match(planned[0] ?? "", /storyPhase/);
     assert.match(planned[0] ?? "", /threadsAdd/);
     assert.match(planned[0] ?? "", /threadsResolve/);
     assert.match(planned[0] ?? "", /endingConditionId/);
+    assert.match(planned[0] ?? "", /always include storyPhase/);
+    assert.doesNotMatch(planned[0] ?? "", /Judge that situation/);
+    assert.doesNotMatch(planned[0] ?? "", /Soft hint only/);
+    assert.doesNotMatch(planned[0] ?? "", /"questsAdd":\[\]/);
 
     const legacy: string[] = [];
     const legacyDeps: TrpgEngineDeps = {
