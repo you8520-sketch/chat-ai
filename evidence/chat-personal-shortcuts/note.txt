@@ -1,0 +1,7 @@
+Base: origin/main d80005ac13704c8a640bfe51f1bd738a4a634f86
+Isolated Playwright prod server (tests/ui/chat-shortcuts.spec.ts): 4/4 passed.
+Log: playwright-run.txt
+Screenshots (Playwright testInfo.outputPath copies):
+- shortcuts-panel-390.png / shortcuts-panel-1280.png — preview before insert
+- shortcuts-composer-390.png / shortcuts-composer-1280.png — caret insert, panel closed
+Opening a chat room still schedules the existing suggested-reply extractor, which exits with NO_CHEAPER_INFERENCE_KEY. Shortcut CRUD/insert did not POST /api/chat.

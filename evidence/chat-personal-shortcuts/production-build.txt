@@ -10,9 +10,9 @@ jsx sandbox runtime -> /workspace/public/jsx-sandbox/runtime.js
    Linting and checking validity of types ...
    Collecting page data ...
    Generating static pages (0/123) ...
-   Generating static pages (30/123) 
-   Generating static pages (61/123) 
-   Generating static pages (92/123) 
+   Generating static pages (30/123)
+   Generating static pages (61/123)
+   Generating static pages (92/123)
  ✓ Generating static pages (123/123)
    Finalizing page optimization ...
    Collecting build traces ...
@@ -259,4 +259,3 @@ Route (app)                                           Size  First Load JS
 
 ○  (Static)   prerendered as static content
 ƒ  (Dynamic)  server-rendered on demand
-
