@@ -496,7 +496,19 @@ describe("movement authority: one definition of declared movement", () => {
       seats: [{ id: 1, at: "도킹 베이", body: "주 통로로 이동" }],
     });
     assert.equal(command.location, "주 통로");
-    for (const body of ["주 통로로 돌을 던지고 돌아온다.", "주 통로로 들어가는 데모유저를 지켜보며 출발한다."]) {
+    for (const body of ["주 통로로 은신하며 이동한다.", "주 통로로 달려 이동한다.", "주 통로로 잠시 후 이동한다."]) {
+      const moved = bind({
+        current: "도킹 베이",
+        gm: "주 통로",
+        seats: [{ id: 1, at: "도킹 베이", body }],
+      });
+      assert.equal(moved.location, "주 통로", body);
+    }
+    for (const body of [
+      "주 통로로 돌을 던지고 돌아온다.",
+      "주 통로로 들어가는 데모유저를 지켜보며 출발한다.",
+      "주 통로로 돌을 던진 후 이동한다.",
+    ]) {
       const stayed = bind({
         current: "도킹 베이",
         gm: "주 통로",

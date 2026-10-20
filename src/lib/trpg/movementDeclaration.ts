@@ -6,8 +6,9 @@ import { stripQuotedDialogue } from "./actionSemantics";
  * A declared movement is a clause that carries a live motion predicate. Its destination is the noun
  * phrase marked as the goal of that actor's motion (`X로`, `X에`, `X까지`, `X를 향해`, `X를 찾아가`).
  * The same marker does not become this actor's destination when it belongs to another predicate
- * (`주 통로로 돌을 던지고 돌아온다`) or to someone an attributive clause only describes
- * (`주 통로로 들어가는 데모유저를 지켜보며 출발한다`). Following that person (`뒤를 따라 이동`) does.
+ * (`주 통로로 돌을 던지고 돌아온다`, `돌을 던진 후 이동한다`) or to someone an attributive clause
+ * only describes (`주 통로로 들어가는 데모유저를 지켜보며 출발한다`). A manner of the same motion
+ * (`은신하며 이동한다`, `달려 이동한다`) keeps it. Following that person (`뒤를 따라 이동`) does.
  * A place that is only the source (`X에서`), a quoted line, or something negated or only wondered about
  * is not a destination. Destination identity and server persistence are decided by the campaign ledger
  * from this declaration; nothing here reads GM output.
@@ -70,9 +71,14 @@ const GOAL_PREDICATE_REACH = 8;
 const BARE_STEM_PROGRESSIVE = /^중/;
 /** The actor inherits an embedded destination only by following that person. */
 const FOLLOW_LINK = /^(?:따라|뒤따라|따라가|따라간|따라갈|따라오|따라온|따라왔)$/;
-/** Converb or final ending of a predicate that is not itself the travel. */
-const OTHER_PREDICATE_ENDING = /(?:고|며|면서|어서|아서|여서|려고|려)$/;
-/** Object of a posture converb (`몸을 낮추고`). It does not take the place goal away from the travel. */
+/**
+ * Connective ending of a non-travel predicate.
+ * Bare `려` is not one: `달려` is `달리-어`, while the intentive `-려` sits on a motion stem (`이동하려`).
+ */
+const OTHER_PREDICATE_ENDING = /(?:고|며|면서|어서|아서|여서|려고)$/;
+/** Closes a prior verb (`던진 후`). A time noun (`잠시 후`) is not a prior action. */
+const PRIOR_EVENT_CLOSER = /^(?:후|후에)$/;
+/** Theme of a posture converb (`몸을 낮추고`). It modifies the travel instead of owning the place. */
 const POSTURE_OBJECTS = new Set(["몸", "허리", "무릎", "고개", "자세", "어깨"]);
 const GOAL_WINDOW_WORDS = 3;
 
@@ -147,21 +153,33 @@ function hasFollowLink(words: readonly string[], from: number, to: number): bool
   return false;
 }
 
-function isPostureManner(words: readonly string[], index: number): boolean {
-  for (let cursor = index - 1; cursor >= Math.max(0, index - 3); cursor -= 1) {
-    const head = words[cursor]!.match(OBJECT_PARTICLE)?.[1];
-    if (head) return POSTURE_OBJECTS.has(head);
-    if (GOAL_PARTICLE.test(words[cursor]!) || OTHER_PREDICATE_ENDING.test(words[cursor]!)) break;
+function themeBetween(words: readonly string[], from: number, to: number): string | undefined {
+  for (let index = to - 1; index > from; index -= 1) {
+    const head = words[index]!.match(OBJECT_PARTICLE)?.[1];
+    if (head) return head;
   }
-  return false;
+  return undefined;
 }
 
-/** A non-travel predicate owns the goal marker, so a later motion cannot inherit it. */
-function consumesDirectional(words: readonly string[], index: number): boolean {
+/**
+ * An earlier action owns the place when it has its own theme (`돌을 던지고`, `돌을 던진`).
+ * A bare manner (`은신하며`, `달려`) and a posture theme (`몸을 낮추고`) modify the travel.
+ */
+function consumesDirectional(words: readonly string[], index: number, goalIndex: number): boolean {
   const word = words[index]!;
-  if (FOLLOW_LINK.test(word) || isMotionPredicate(word) || isAttributiveForm(words, index)) return false;
-  if (!OTHER_PREDICATE_ENDING.test(word)) return false;
-  return !isPostureManner(words, index);
+  if (FOLLOW_LINK.test(word) || isMotionPredicate(word)) return false;
+  const verbal = isAttributiveForm(words, index) || OTHER_PREDICATE_ENDING.test(word);
+  if (!verbal) return false;
+  const theme = themeBetween(words, goalIndex, index);
+  return theme !== undefined && !POSTURE_OBJECTS.has(theme);
+}
+
+/** `던진 후` finishes another action. `잠시 후` only times the same motion. */
+function closesPriorEvent(words: readonly string[], index: number): boolean {
+  if (!PRIOR_EVENT_CLOSER.test(words[index]!)) return false;
+  const previous = index - 1;
+  if (previous < 0 || isMotionPredicate(words[previous]!)) return false;
+  return isAttributiveForm(words, previous) || OTHER_PREDICATE_ENDING.test(words[previous]!);
 }
 
 /** True when `words[index]` is the predicate of a live motion rather than a mention of one. */
@@ -237,8 +255,9 @@ function predicateFollows(words: readonly string[], goalIndex: number, accept: (
       embedded = true;
       continue;
     }
+    if (closesPriorEvent(words, j)) return false;
     if (accept(j)) return !embedded || hasFollowLink(words, goalIndex + 1, j);
-    if (consumesDirectional(words, j)) return false;
+    if (consumesDirectional(words, j, goalIndex)) return false;
   }
   return false;
 }

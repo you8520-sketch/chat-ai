@@ -252,6 +252,69 @@ describe("companion movement uses the same fact as the server", () => {
     humanCommand.db.close();
   });
 
+  it("prices a manner of moving and does not inherit a throw that already finished", async () => {
+    for (const line of ["주 통로로 은신하며 이동한다.", "주 통로로 달려 이동한다."]) {
+      const bot = await play(line);
+      assert.equal(locationOf(bot.db, bot.botId), "주 통로", line);
+      assert.equal(loadExplorationState(bot.db, bot.campaignId)?.apRemaining[String(bot.botId)], 2);
+      assert.match(lockedRow(bot.db, bot.botId).body, /^주 통로로 이동한다\./);
+      assert.deepEqual(explorationLines(bot.gm).filter((row) => row.startsWith("서하")), [
+        "서하 started in 도킹 베이 and is now in 주 통로.",
+        "서하: moved 도킹 베이 → 주 통로.",
+      ]);
+      assert.equal(
+        loadTrpgSnapshot(bot.db, bot.campaignId, 1)?.sheets.find((card) => card.participantId === bot.botId)?.sheet.location,
+        "주 통로"
+      );
+      bot.db.close();
+
+      const human = await play("제자리에 서서 도킹 베이를 살핀다.", line);
+      assert.equal(locationOf(human.db, human.hostId), "주 통로", line);
+      assert.equal(locationOf(human.db, human.botId), "도킹 베이");
+      assert.equal(loadExplorationState(human.db, human.campaignId)?.apRemaining[String(human.hostId)], 2);
+      assert.match(lockedRow(human.db, human.hostId).body, /^주 통로로 이동한다\./);
+      assert.deepEqual(explorationLines(human.gm).filter((row) => row.startsWith("데모유저")), [
+        "데모유저 started in 도킹 베이 and is now in 주 통로.",
+        "데모유저: moved 도킹 베이 → 주 통로.",
+      ]);
+      assert.equal(
+        loadTrpgSnapshot(human.db, human.campaignId, 1)?.sheets.find((card) => card.participantId === human.hostId)?.sheet
+          .location,
+        "주 통로"
+      );
+      human.db.close();
+    }
+
+    const finished = "주 통로로 돌을 던진 후 이동한다.";
+    const botFinished = await play(finished);
+    assert.equal(locationOf(botFinished.db, botFinished.botId), "도킹 베이");
+    assert.equal(lockedRow(botFinished.db, botFinished.botId).body, finished);
+    assert.equal(loadExplorationState(botFinished.db, botFinished.campaignId)?.apRemaining[String(botFinished.botId)], undefined);
+    assert.deepEqual(explorationLines(botFinished.gm).filter((row) => row.startsWith("서하")), ["서하 is in 도킹 베이."]);
+    assert.equal(
+      loadTrpgSnapshot(botFinished.db, botFinished.campaignId, 1)?.sheets.find((card) => card.participantId === botFinished.botId)
+        ?.sheet.location,
+      "도킹 베이"
+    );
+    botFinished.db.close();
+
+    const humanFinished = await play("제자리에 서서 도킹 베이를 살핀다.", finished);
+    assert.equal(locationOf(humanFinished.db, humanFinished.hostId), "도킹 베이");
+    assert.equal(locationOf(humanFinished.db, humanFinished.botId), "도킹 베이");
+    assert.equal(lockedRow(humanFinished.db, humanFinished.hostId).body, finished);
+    assert.equal(
+      loadExplorationState(humanFinished.db, humanFinished.campaignId)?.apRemaining[String(humanFinished.hostId)],
+      undefined
+    );
+    assert.deepEqual(explorationLines(humanFinished.gm).filter((row) => row.startsWith("데모유저")), ["데모유저 is in 도킹 베이."]);
+    assert.equal(
+      loadTrpgSnapshot(humanFinished.db, humanFinished.campaignId, 1)?.sheets.find((card) => card.participantId === humanFinished.hostId)
+        ?.sheet.location,
+      "도킹 베이"
+    );
+    humanFinished.db.close();
+  });
+
   it("prices an explicit open adjacent move and leaves a watcher in place", async () => {
     const explicit = await play("주 통로로 이동한다.");
     assert.equal(locationOf(explicit.db, explicit.botId), "주 통로");

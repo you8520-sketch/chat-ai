@@ -35,6 +35,10 @@ describe("movement declaration — bot stay fallback", () => {
     assert.deepEqual(declaredMovementGoals("주 통로로 들어가는 데모유저를 지켜보며 출발한다."), []);
     assert.deepEqual(declaredMovementGoals("주 통로로 이동"), ["주 통로"]);
     assert.deepEqual(declaredMovementGoals("연구원들의 이동 흔적을 비춘다."), []);
+    assert.deepEqual(declaredMovementGoals("주 통로로 은신하며 이동한다."), ["주 통로"]);
+    assert.deepEqual(declaredMovementGoals("주 통로로 달려 이동한다."), ["주 통로"]);
+    assert.deepEqual(declaredMovementGoals("주 통로로 돌을 던진 후 이동한다."), []);
+    assert.deepEqual(declaredMovementGoals("주 통로로 잠시 후 이동한다."), ["주 통로"]);
   });
 
   it("drops only clauses that priced a destination and keeps cover prose", () => {
