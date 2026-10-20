@@ -315,7 +315,7 @@ describe("official bible V2: Lucian and Wolfgang omit user-relation essays", () 
         assert.equal(stored.bible.userRelationship.type, undefined);
         assert.equal(stored.bible.rpEngine.selfDrive, undefined);
       } else {
-        assert.equal(stored.bible.userRelationship.type, "role_bound");
+        assert.equal(stored.bible.userRelationship.type, "free");
         assert.ok(stored.bible.rpEngine.selfDrive);
       }
       assert.equal(evaluateRelationBibleContract(stored.bible).errors.length, 0);

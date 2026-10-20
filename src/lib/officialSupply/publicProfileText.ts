@@ -228,9 +228,7 @@ export function composeOfficialPublicDescription(input: OfficialPublicIntroInput
     `배경: ${publicBackground}`,
   ].join("\n");
 
-  const playHeader = input.userRole.trim()
-    ? OFFICIAL_PUBLIC_INTRO_SECTIONS.play
-    : OFFICIAL_PUBLIC_INTRO_SECTIONS.relation;
+  const playHeader = OFFICIAL_PUBLIC_INTRO_SECTIONS.play;
 
   return [
     worldHeader(input.worldName),
@@ -394,9 +392,14 @@ function draftPlayGuideParts(draft: OfficialCharacterDraft): {
   situation: string;
   start: string;
 } {
+  const choices = officialPlayStartChoices(draft);
+  const start =
+    choices.length > 0
+      ? choices.join(" · ")
+      : firstSentence(draft.hook.rpHook, 140) || firstSentence(draft.tagline, 80);
   return {
     situation: firstSentence(draft.hook.rpHook, 140) || firstSentence(draft.tagline, 80),
-    start: firstSentence(draft.hook.occupation, 80) || firstSentence(draft.tagline, 80),
+    start,
   };
 }
 

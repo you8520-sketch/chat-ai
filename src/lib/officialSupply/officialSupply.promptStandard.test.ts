@@ -144,7 +144,10 @@ describe("official character prompt standard v1", () => {
     const systemPrompt = composeOfficialSystemPrompt(draft);
     assert.match(systemPrompt, /\[현재 상황 \/ 도입\]/);
     assert.match(systemPrompt, /증권거래소 지하 금고/);
-    assert.equal((systemPrompt.match(/기본 도입은 경보가 울린 증권거래소 지하 금고다/g) ?? []).length, 1);
+    assert.equal(
+      (systemPrompt.match(/증권거래소 지하 금고에서 경보가 울린 순간, 루시안과 같은 탈출구 앞에 선다/g) ?? []).length,
+      1
+    );
   });
 
   it("keeps compact public relationship copy persona-flexible", () => {
@@ -340,8 +343,9 @@ describe("official character prompt standard v1", () => {
     assert.match(source.appearanceBlock, /188cm/);
     assert.doesNotMatch(source.appearanceBlock, /얼굴:|연령대 인상:|기본 의상:/);
 
-    assert.match(draft.sections.relationshipsAndDrives, /사건 전제:/);
+    assert.doesNotMatch(draft.sections.relationshipsAndDrives, /사건 전제:/);
     assert.match(draft.sections.relationshipsAndDrives, /자기 추진 —/);
+    assert.match(draft.sections.currentSituation ?? "", /처형 명령서/);
     assert.doesNotMatch(draft.sections.relationshipsAndDrives, /관계 변화 조건:|유저 관계 원칙:|배신과 적대는 가능한 결말|기존 연인·동료·상관·라이벌/);
     assert.doesNotMatch(draft.sections.relationshipsAndDrives, /카엘룸 폰 에테르노스\(공개\)/);
 

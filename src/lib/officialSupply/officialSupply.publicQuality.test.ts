@@ -245,6 +245,23 @@ describe("official detailed intro + creator comment", () => {
     );
   });
 
+  it("auto public intro uses the play section header when userRole is empty", () => {
+    const file = sampleChars().find((row) => row.draftKey === "pilot-rf-03")!;
+    const composed = composeOfficialPublicDescription({
+      worldName: "에테르노스 제국 (Aethernos Empire)",
+      rpHook: file.brief.rpHook,
+      relationshipTrope: file.brief.relationshipTrope,
+      identity: file.bible.identity,
+      appearance: file.bible.appearance,
+      personality: file.bible.personality,
+      abilities: file.bible.abilities,
+      situation: file.bible.situation,
+      userRole: "",
+    });
+    assert.match(composed, new RegExp(`\\[${OFFICIAL_PUBLIC_INTRO_SECTIONS.play}\\]`));
+    assert.doesNotMatch(composed, new RegExp(`\\[${OFFICIAL_PUBLIC_INTRO_SECTIONS.relation}\\]`));
+  });
+
   it("public intro evaluator rejects a one-paragraph pitch", () => {
     const pitch = composeOfficialPublicDescription;
     assert.ok(evaluateOfficialPublicDescription("황자가 온실에서 당신을 기다린다. 거래가 시작된다.").errors.length > 0);
