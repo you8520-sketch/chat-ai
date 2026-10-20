@@ -25,6 +25,7 @@ import {
 import ChatEmotionPortraitPanel from "@/components/ChatEmotionPortraitPanel";
 import ChatSettingsPanel from "@/components/ChatSettingsPanel";
 import { SuggestedRepliesBar } from "@/components/SuggestedRepliesBar";
+import { ChatShortcutsDock } from "@/components/ChatShortcutsDock";
 import ChatRoomDisplayQuickRail from "@/components/ChatRoomDisplayQuickRail";
 import ChatImageGeneratorPanel from "@/components/ChatImageGeneratorPanel";
 import ChatRoomMobileMenu from "@/components/ChatRoomMobileMenu";
@@ -238,6 +239,7 @@ import {
   resolveSendCustodyBackup,
   saveChatMessageDraft,
 } from "@/lib/userInputDraft";
+import { planChatShortcutInsert, type ChatShortcutInsertResult } from "@/lib/chatShortcutComposer";
 import {
   clearChatStreamDraft,
   createClientRequestId,
@@ -1027,6 +1029,9 @@ export default function ChatClient({
   const statusMetaPollStartedRef = useRef<Set<number>>(new Set());
   const suggestedRepliesPollStartedRef = useRef<Map<number, symbol>>(new Map());
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const shortcutCaretRef = useRef({ start: 0, end: 0 });
+  const shortcutComposingRef = useRef(false);
+  const pendingShortcutRef = useRef<string | null>(null);
   const [hasMoreOlder, setHasMoreOlder] = useState(initialHasMoreOlder);
   const [hiddenTurnCount, setHiddenTurnCount] = useState(initialHiddenTurnCount);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -1049,6 +1054,7 @@ export default function ChatClient({
   const [editSaving, setEditSaving] = useState(false);
   const [mode, setMode] = useState(initialMode);
   const [input, setInput] = useState(() => loadChatMessageDraft(character.id, initialChatId));
+  const [shortcutNotice, setShortcutNotice] = useState("");
   const [jsxSendRequest, setJsxSendRequest] = useState<string | null>(null);
   const jsxCatalog = initialJsxComponents;
   const jsxBridge = useMemo<JsxHostBridge>(
@@ -2121,6 +2127,65 @@ export default function ChatClient({
       inputRef.current?.focus();
     });
   }, []);
+
+  const rememberShortcutCaret = useCallback((el?: HTMLTextAreaElement | null) => {
+    const node = el ?? inputRef.current;
+    if (!node) return;
+    shortcutCaretRef.current = {
+      start: node.selectionStart ?? 0,
+      end: node.selectionEnd ?? 0,
+    };
+  }, []);
+
+  const applyShortcutInsert = useCallback((insert: string, draftOverride?: string): ChatShortcutInsertResult => {
+    const el = inputRef.current;
+    const draft = draftOverride ?? el?.value ?? "";
+    const live = el != null && document.activeElement === el;
+    const selectionStart = live
+      ? (el.selectionStart ?? shortcutCaretRef.current.start)
+      : shortcutCaretRef.current.start;
+    const selectionEnd = live
+      ? (el.selectionEnd ?? shortcutCaretRef.current.end)
+      : shortcutCaretRef.current.end;
+    const plan = planChatShortcutInsert({
+      composing: false,
+      locked: inputLocked,
+      draft,
+      selectionStart,
+      selectionEnd,
+      insert,
+      maxChars: CHAT_MESSAGE_MAX,
+    });
+    if (plan.action === "apply") {
+      setShortcutNotice("");
+      setInput(plan.next);
+      shortcutCaretRef.current = { start: plan.caret, end: plan.caret };
+      requestAnimationFrame(() => {
+        const node = inputRef.current;
+        if (!node) return;
+        node.focus();
+        node.setSelectionRange(plan.caret, plan.caret);
+      });
+      return plan;
+    }
+    setShortcutNotice(plan.action === "reject" ? plan.message : plan.message);
+    return plan;
+  }, [inputLocked]);
+
+  const requestShortcutInsert = useCallback((insert: string): ChatShortcutInsertResult => {
+    if (shortcutComposingRef.current) {
+      pendingShortcutRef.current = insert;
+      setShortcutNotice("한글 입력이 끝나면 단축어를 넣습니다.");
+      return planChatShortcutInsert({
+        composing: true,
+        draft: inputRef.current?.value ?? "",
+        selectionStart: shortcutCaretRef.current.start,
+        selectionEnd: shortcutCaretRef.current.end,
+        insert,
+      });
+    }
+    return applyShortcutInsert(insert);
+  }, [applyShortcutInsert]);
 
   /** Multi-tab: refresh global selected_ai on focus (server remains SoT for generation).
    * Read latest via ref so a focus/visibility sync never overwrites an optimistic
@@ -6188,12 +6253,35 @@ export default function ChatClient({
               컴포넌트가 채팅 전송을 요청했습니다. 아래 전송을 누르면 기존 채팅 경로로 전달됩니다.
             </p>
           ) : null}
+          {shortcutNotice ? (
+            <p role="status" data-testid="chat-shortcuts-composer-notice" className="text-[11px] text-amber-200">
+              {shortcutNotice}
+            </p>
+          ) : null}
           <div className="flex gap-1.5">
             <textarea
               ref={inputRef}
               value={input}
               maxLength={CHAT_MESSAGE_MAX}
-              onChange={(e) => setInput(e.target.value.slice(0, CHAT_MESSAGE_MAX))}
+              onChange={(e) => {
+                setInput(e.target.value.slice(0, CHAT_MESSAGE_MAX));
+                rememberShortcutCaret(e.currentTarget);
+              }}
+              onSelect={(e) => rememberShortcutCaret(e.currentTarget)}
+              onKeyUp={(e) => rememberShortcutCaret(e.currentTarget)}
+              onClick={(e) => rememberShortcutCaret(e.currentTarget)}
+              onBlur={(e) => rememberShortcutCaret(e.currentTarget)}
+              onCompositionStart={() => {
+                shortcutComposingRef.current = true;
+              }}
+              onCompositionEnd={(e) => {
+                shortcutComposingRef.current = false;
+                rememberShortcutCaret();
+                const pending = pendingShortcutRef.current;
+                pendingShortcutRef.current = null;
+                if (!pending) return;
+                applyShortcutInsert(pending, e.currentTarget.value);
+              }}
               onKeyDown={(e) => {
                 if (
                   e.key === "Enter" &&
@@ -6248,6 +6336,11 @@ export default function ChatClient({
             </div>
           </div>
           <div className="flex items-center gap-2 text-[10px] leading-tight tabular-nums">
+            <ChatShortcutsDock
+              insertDisabled={inputLocked}
+              onInsert={requestShortcutInsert}
+              onCloseFocus={() => inputRef.current?.focus()}
+            />
             <button
               type="button"
               role="switch"

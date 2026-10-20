@@ -1,0 +1,32 @@
+
+> hav-chat@0.1.0 test:ui
+> playwright test tests/ui/chat-shortcuts.spec.ts
+
+
+Running 4 tests using 1 worker
+
+(node:70870) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:70870) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 1, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 1, chatId: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 2, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 2, chatId: 2 }
+  ✓  1 [chromium] › tests/ui/chat-shortcuts.spec.ts:36:7 › personal chat shortcuts › saves, edits, favorites, inserts, and survives refresh without a chat call (2.6s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 3, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 3, chatId: 3 }
+  ✓  2 [chromium] › tests/ui/chat-shortcuts.spec.ts:86:7 › personal chat shortcuts › does not slice when the shortcut would overflow (1.0s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 4, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 4, chatId: 4 }
+  ✓  3 [chromium] › tests/ui/chat-shortcuts.spec.ts:100:7 › personal chat shortcuts › locks insert during send and restores the draft after failure (1.2s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 5, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 5, chatId: 5 }
+  ✓  4 [chromium] › tests/ui/chat-shortcuts.spec.ts:136:7 › personal chat shortcuts › evidence screenshots at 390 and 1280 (1.4s)
+
+  4 passed (1.6m)
