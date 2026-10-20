@@ -28,6 +28,8 @@ export type MovementGoal = {
   polarity: SpatialPolarity | undefined;
 };
 
+const SINO_MOTION_STEM = /^(?:이동|진입|입장|도착|출발|접근|통과|탈출|도망|후퇴|퇴각|복귀|귀환|침투|잠입|피신|대피|전진|질주|방문)$/;
+
 const MOTION_PREDICATES: readonly RegExp[] = [
   /^(?:이동|진입|입장|도착|출발|접근|통과|탈출|도망|후퇴|퇴각|복귀|귀환|침투|잠입|피신|대피|전진|질주|방문)/,
   /^향(?:하|해|한|했|할|함)/,
@@ -55,7 +57,12 @@ const GOAL_PARTICLE = /^(.+?)(?:으로|로|에|까지)$/;
 const OBJECT_PARTICLE = /^(.+?)(?:을|를)$/;
 const PHRASE_BOUNDARY = /(?:에서|에게|한테|부터|[을를와과]|하고|하며|하면|하러|하니|해서)$/;
 const OBJECT_GOAL_PREDICATE = /^(?:향(?:하|해|한|했|할|함)|찾아(?:가|간|갈|갔|오|온)|방문)/;
-const GOAL_PREDICATE_REACH = 3;
+/**
+ * Words after a goal particle that may still be the same motion.
+ * `주 통로로 진입하는 데모유저의 뒤를 따라 이동` keeps the verb five words later.
+ * A second goal particle still ends the window, so an earlier place cannot take a later destination.
+ */
+const GOAL_PREDICATE_REACH = 8;
 const GOAL_WINDOW_WORDS = 3;
 
 const INSIDE_WORDS = new Set(["내부", "안", "안쪽", "실내", "속", "상층", "하층", "지하"]);
@@ -106,10 +113,19 @@ function isAttributiveForm(words: readonly string[], index: number): boolean {
   return jongseong === 4;
 }
 
+/**
+ * A bare stem (`이동 흔적`) names the act; it does not perform it.
+ * `이동 중이다` is the same predicate with the progressive on the next word.
+ */
+function isBareMotionMention(words: readonly string[], index: number): boolean {
+  if (!SINO_MOTION_STEM.test(words[index]!)) return false;
+  return !/^중/.test(words[index + 1] ?? "");
+}
+
 /** True when `words[index]` is the predicate of a live motion rather than a mention of one. */
 function isMotionAt(words: readonly string[], index: number): boolean {
   const word = words[index]!;
-  if (!isMotionPredicate(word) || isAttributiveForm(words, index)) return false;
+  if (isBareMotionMention(words, index) || !isMotionPredicate(word) || isAttributiveForm(words, index)) return false;
   if (!DIRECTION_CONVERB.test(word)) return true;
   const end = Math.min(words.length, index + 1 + GOAL_PREDICATE_REACH);
   for (let next = index + 1; next < end; next += 1) {
@@ -174,7 +190,7 @@ function predicateFollows(words: readonly string[], goalIndex: number, accept: (
   for (let j = goalIndex + 1; j < end; j += 1) {
     const word = words[j]!;
     if (accept(j)) return true;
-    if (OBJECT_PARTICLE.test(word) || GOAL_PARTICLE.test(word)) return false;
+    if (GOAL_PARTICLE.test(word)) return false;
   }
   return false;
 }

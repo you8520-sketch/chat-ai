@@ -19,6 +19,20 @@ describe("movement declaration — bot stay fallback", () => {
     assert.equal(parseMovementDeclaration("출구를 향해 화살을 쏜다.").live, false);
   });
 
+  it("reads a follow into a named place and does not read a noun mention of moving", () => {
+    const follow =
+      "서하는 주 통로로 진입하는 데모유저의 뒤를 따라 이동하며, 손전등으로 바닥의 파편과 연구원들의 이동 흔적을 비추어 데모유저의 조사와 전진을 보조하려 했다.";
+    assert.deepEqual(declaredMovementGoals(follow), ["서하는 주 통로"]);
+    assert.equal(describeMovementGoal(declaredMovementGoals(follow)[0] ?? "").place, "통로");
+    assert.deepEqual(declaredMovementGoals("복도로 이동 중이다."), ["복도"]);
+    assert.deepEqual(declaredMovementGoals("주 통로로 이동한다."), ["주 통로"]);
+    assert.deepEqual(declaredMovementGoals("데모유저가 주 통로로 들어가는 것을 본다."), []);
+    assert.deepEqual(declaredMovementGoals('"주 통로로 이동하자." 하고 말한다.'), []);
+    assert.deepEqual(declaredMovementGoals("주 통로로 이동하지 않고 그 자리에 남는다."), []);
+    assert.deepEqual(declaredMovementGoals("제자리에 서서 도킹 베이를 비춘다."), []);
+    assert.deepEqual(declaredMovementGoals("등대로 이어지는 길을 따라 걸으며 주변을 살핀다."), []);
+  });
+
   it("drops only clauses that priced a destination and keeps cover prose", () => {
     assert.equal(
       omitLiveMovementClauses("출구로 이동한다. 권태현의 옆에서 방어선을 유지한다."),
