@@ -1,0 +1,115 @@
+{
+  "jobId": "l500-b3-sol",
+  "model": "gpt-6.1-sol",
+  "expectedWire": "gpt-6.1-sol",
+  "message": "(복도 끝에서 한서윤이 서류를 안고 다가오는 걸 보고 태형의 소매를 잡아끈다) 저 사람 또 왔어.",
+  "startedAt": "2026-10-20T06:01:50.038Z",
+  "finishedAt": "2026-10-20T06:03:09.492Z",
+  "mainRequestSha256": "921b1fdef995db4fe80f5e7aeaa0b8dcf7b41445b4b72f4718b3b6c4f52de56a",
+  "requestId": "srv_mvg9zuei_g968x7m0",
+  "providerRequestId": "04d11dc0-23a2-46a2-9886-11699ae7696a",
+  "finishReason": "stop",
+  "finalChars": 4046,
+  "mainNetworkCalls": 1,
+  "completionLog": [
+    {
+      "wireModel": "gpt-6-luna",
+      "bytes": 4526,
+      "network": false
+    },
+    {
+      "wireModel": "gpt-6.1-sol",
+      "bytes": 39526,
+      "network": true
+    },
+    {
+      "wireModel": "gpt-6-luna",
+      "bytes": 4526,
+      "network": false
+    },
+    {
+      "wireModel": "gpt-6-luna",
+      "bytes": 4526,
+      "network": false
+    },
+    {
+      "wireModel": "gpt-6-luna",
+      "bytes": 16222,
+      "network": false
+    }
+  ],
+  "stages": {
+    "dbPrepared": {
+      "recentLen": 9853,
+      "recentSha12": "2c760ac67ea0",
+      "omitInStored": false,
+      "kind": "global_compact",
+      "covered": 495,
+      "fingerprintMatches": true,
+      "checkpointHealthy": true,
+      "summarized_turn_count": 495,
+      "message_count": 500
+    },
+    "beforePanel": {
+      "recentLen": 9853,
+      "recentSha12": "2c760ac67ea0",
+      "omitInStored": false,
+      "kind": "global_compact",
+      "covered": 495,
+      "fingerprintMatches": true,
+      "checkpointHealthy": true,
+      "summarized_turn_count": 495,
+      "message_count": 500
+    },
+    "afterPanel": {
+      "recentLen": 9853,
+      "recentSha12": "2c760ac67ea0",
+      "omitInStored": false,
+      "kind": "global_compact",
+      "covered": 495,
+      "fingerprintMatches": true,
+      "checkpointHealthy": true,
+      "summarized_turn_count": 495,
+      "message_count": 500
+    },
+    "panelDisplayed": {
+      "status": 200,
+      "len": 9853,
+      "sha12": "2c760ac67ea0",
+      "omitPrefix": false,
+      "manualGlobalMemory": false
+    }
+  },
+  "costNotes": {
+    "providerInvoiceConfirmed": false,
+    "apiRawCostKrw": 111.4,
+    "apiRawCostSource": "live_catalog",
+    "shadowActualProviderCostKrw": 72.2,
+    "shadowActualCostUsd": 0.05315765,
+    "shadowActualCostSource": "live_catalog_estimated"
+  },
+  "tokens": {
+    "apiInputTokens": 22893,
+    "apiOutputTokens": 2485,
+    "apiReasoningOutputTokens": 30,
+    "cacheWriteTokens": 22890,
+    "cacheReadTokens": null
+  },
+  "usageSummary": {
+    "input": 22893,
+    "output": 2485,
+    "reasoning": 30,
+    "cacheWriteTokens": 22890,
+    "cacheReadTokens": null,
+    "finishReason": "stop",
+    "model": "gpt-6.1-sol",
+    "provider": "cheaperinference",
+    "apiRawCostKrw": 111.4,
+    "apiRawCostSource": "live_catalog",
+    "actualCostUsd": 0.05315765,
+    "actualCostSource": "live_catalog_estimated",
+    "actualProviderCostKrw": 72.2,
+    "exchangeRateKrwPerUsd": 1357.4103369600002,
+    "providerInvoiceConfirmed": false
+  }
+}

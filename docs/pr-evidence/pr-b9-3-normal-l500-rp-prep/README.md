@@ -1,8 +1,8 @@
 # B9-3 evidence: normal Global L500 real-RP recheck (prep only)
 
-This package prepares a **four-call** paid Main RP rerun after **#1676** so Global memory in a **healthy** L500 state is verified on the wire before anyone spends again. **No paid provider calls were made in B9-3.** No product code, merge, deploy, or production DB writes.
+This package documents a **four-call** Main RP rerun after **#1676** with a **healthy** L500 Global compact on the wire. **Prep** (dry capture) and **live execution** (four paid Main RP POSTs under a 1,000 KRW budget) are both recorded. No product code, merge, deploy, or production DB writes.
 
-Artifacts: per-job `captures/*.json` (panel stages + memory injection audit, no full prompts), `model-diffs.json`, `estimate-four-l500.json`, and replay scripts under `scripts/` (`.txt` suffix — run locally with admin env; secrets not in repo).
+Artifacts: prep `captures/*.json`, `model-diffs.json`, `estimate-four-l500.json`; live **`LIVE-RUN.md`**, **`responses/`**, **`live-meta/`**; replay scripts under `scripts/` (`.txt` — admin env not in repo).
 
 ## Baseline vs B9-1
 

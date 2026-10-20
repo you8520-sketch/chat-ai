@@ -1,0 +1,115 @@
+{
+  "jobId": "l500-b3-gemini",
+  "model": "gemini-3.8-flash",
+  "expectedWire": "google/gemini-3.8-flash",
+  "message": "(복도 끝에서 한서윤이 서류를 안고 다가오는 걸 보고 태형의 소매를 잡아끈다) 저 사람 또 왔어.",
+  "startedAt": "2026-10-20T06:01:11.049Z",
+  "finishedAt": "2026-10-20T06:01:48.631Z",
+  "mainRequestSha256": "c00206fd52bb40c47f9d51971b03c178de0da7cb8858bab966062aca84fbb34d",
+  "requestId": "srv_mvg9z0bm_quhlcu7a",
+  "providerRequestId": "srv_mvg9z0bm_quhlcu7a",
+  "finishReason": "stop",
+  "finalChars": 5692,
+  "mainNetworkCalls": 1,
+  "completionLog": [
+    {
+      "wireModel": "gpt-6-luna",
+      "bytes": 4526,
+      "network": false
+    },
+    {
+      "wireModel": "google/gemini-3.8-flash",
+      "bytes": 39708,
+      "network": true
+    },
+    {
+      "wireModel": "gpt-6-luna",
+      "bytes": 4526,
+      "network": false
+    },
+    {
+      "wireModel": "gpt-6-luna",
+      "bytes": 4526,
+      "network": false
+    },
+    {
+      "wireModel": "gpt-6-luna",
+      "bytes": 16309,
+      "network": false
+    }
+  ],
+  "stages": {
+    "dbPrepared": {
+      "recentLen": 9853,
+      "recentSha12": "2c760ac67ea0",
+      "omitInStored": false,
+      "kind": "global_compact",
+      "covered": 495,
+      "fingerprintMatches": true,
+      "checkpointHealthy": true,
+      "summarized_turn_count": 495,
+      "message_count": 500
+    },
+    "beforePanel": {
+      "recentLen": 9853,
+      "recentSha12": "2c760ac67ea0",
+      "omitInStored": false,
+      "kind": "global_compact",
+      "covered": 495,
+      "fingerprintMatches": true,
+      "checkpointHealthy": true,
+      "summarized_turn_count": 495,
+      "message_count": 500
+    },
+    "afterPanel": {
+      "recentLen": 9853,
+      "recentSha12": "2c760ac67ea0",
+      "omitInStored": false,
+      "kind": "global_compact",
+      "covered": 495,
+      "fingerprintMatches": true,
+      "checkpointHealthy": true,
+      "summarized_turn_count": 495,
+      "message_count": 500
+    },
+    "panelDisplayed": {
+      "status": 200,
+      "len": 9853,
+      "sha12": "2c760ac67ea0",
+      "omitPrefix": false,
+      "manualGlobalMemory": false
+    }
+  },
+  "costNotes": {
+    "providerInvoiceConfirmed": false,
+    "apiRawCostKrw": 13,
+    "apiRawCostSource": "provider_reported",
+    "shadowActualProviderCostKrw": 13,
+    "shadowActualCostUsd": 0.008484808333333333,
+    "shadowActualCostSource": "provider_reported"
+  },
+  "tokens": {
+    "apiInputTokens": 22047,
+    "apiOutputTokens": 3574,
+    "apiReasoningOutputTokens": null,
+    "cacheWriteTokens": null,
+    "cacheReadTokens": 20476
+  },
+  "usageSummary": {
+    "input": 22047,
+    "output": 3574,
+    "reasoning": null,
+    "cacheWriteTokens": null,
+    "cacheReadTokens": 20476,
+    "finishReason": "stop",
+    "model": "gemini-3.8-flash",
+    "provider": "openrouter",
+    "apiRawCostKrw": 13,
+    "apiRawCostSource": "provider_reported",
+    "actualCostUsd": 0.008484808333333333,
+    "actualCostSource": "provider_reported",
+    "actualProviderCostKrw": 13,
+    "exchangeRateKrwPerUsd": 1530,
+    "providerInvoiceConfirmed": false
+  }
+}

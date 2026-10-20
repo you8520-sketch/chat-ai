@@ -1,0 +1,115 @@
+{
+  "jobId": "l500-a5-gemini",
+  "model": "gemini-3.8-flash",
+  "expectedWire": "google/gemini-3.8-flash",
+  "message": "옆구리 다친 건 이제 다 나은 거지? 그때 왜 다쳤었지?",
+  "startedAt": "2026-10-20T05:59:32.189Z",
+  "finishedAt": "2026-10-20T06:00:00.144Z",
+  "mainRequestSha256": "d4494180a36b895b277728ec8454e96225719629329b6de1567d458b216d708a",
+  "requestId": "srv_mvg9ww1m_30aiatsg",
+  "providerRequestId": "srv_mvg9ww1m_30aiatsg",
+  "finishReason": "stop",
+  "finalChars": 3819,
+  "mainNetworkCalls": 1,
+  "completionLog": [
+    {
+      "wireModel": "gpt-6-luna",
+      "bytes": 4526,
+      "network": false
+    },
+    {
+      "wireModel": "google/gemini-3.8-flash",
+      "bytes": 39654,
+      "network": true
+    },
+    {
+      "wireModel": "gpt-6-luna",
+      "bytes": 4526,
+      "network": false
+    },
+    {
+      "wireModel": "gpt-6-luna",
+      "bytes": 4526,
+      "network": false
+    },
+    {
+      "wireModel": "gpt-6-luna",
+      "bytes": 16419,
+      "network": false
+    }
+  ],
+  "stages": {
+    "dbPrepared": {
+      "recentLen": 9853,
+      "recentSha12": "2c760ac67ea0",
+      "omitInStored": false,
+      "kind": "global_compact",
+      "covered": 495,
+      "fingerprintMatches": true,
+      "checkpointHealthy": true,
+      "summarized_turn_count": 495,
+      "message_count": 500
+    },
+    "beforePanel": {
+      "recentLen": 9853,
+      "recentSha12": "2c760ac67ea0",
+      "omitInStored": false,
+      "kind": "global_compact",
+      "covered": 495,
+      "fingerprintMatches": true,
+      "checkpointHealthy": true,
+      "summarized_turn_count": 495,
+      "message_count": 500
+    },
+    "afterPanel": {
+      "recentLen": 9853,
+      "recentSha12": "2c760ac67ea0",
+      "omitInStored": false,
+      "kind": "global_compact",
+      "covered": 495,
+      "fingerprintMatches": true,
+      "checkpointHealthy": true,
+      "summarized_turn_count": 495,
+      "message_count": 500
+    },
+    "panelDisplayed": {
+      "status": 200,
+      "len": 9853,
+      "sha12": "2c760ac67ea0",
+      "omitPrefix": false,
+      "manualGlobalMemory": false
+    }
+  },
+  "costNotes": {
+    "providerInvoiceConfirmed": false,
+    "apiRawCostKrw": 9.8,
+    "apiRawCostSource": "provider_reported",
+    "shadowActualProviderCostKrw": 9.8,
+    "shadowActualCostUsd": 0.006412275,
+    "shadowActualCostSource": "provider_reported"
+  },
+  "tokens": {
+    "apiInputTokens": 22017,
+    "apiOutputTokens": 2476,
+    "apiReasoningOutputTokens": null,
+    "cacheWriteTokens": null,
+    "cacheReadTokens": 20484
+  },
+  "usageSummary": {
+    "input": 22017,
+    "output": 2476,
+    "reasoning": null,
+    "cacheWriteTokens": null,
+    "cacheReadTokens": 20484,
+    "finishReason": "stop",
+    "model": "gemini-3.8-flash",
+    "provider": "openrouter",
+    "apiRawCostKrw": 9.8,
+    "apiRawCostSource": "provider_reported",
+    "actualCostUsd": 0.006412275,
+    "actualCostSource": "provider_reported",
+    "actualProviderCostKrw": 9.8,
+    "exchangeRateKrwPerUsd": 1530,
+    "providerInvoiceConfirmed": false
+  }
+}
