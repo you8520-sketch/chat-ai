@@ -1,9 +1,11 @@
-# B10-4: 사건 시간 순서 보존 — 최소 검증 (무호출)
+# B10-4: 사건 시간 순서 보존 — evidence + minimal fixture (무호출)
 
 Investigation + isolated fixture only. **No product change.** No paid provider call. No production DB write.
 
-**main:** `ad0c5e9b1f4c8c63a6527a03b59670b456d545eb`  
-**Snap:** B9-1 preserved `snap-50` (read-only source; fixture copies under `/tmp` only).  
+**Type:** evidence + minimal replay harness (not docs-only). Removed the standalone regex unit test; proof is `fixture-results.json` + this note.
+
+**Snap source:** B7 `stored-T50.json` replay via `fill-snapshot.mts` (same stored `[21~25]` text as B9-1 preserve). Local path: `B10_SNAP50_DIR` or `/tmp/b9-preserved/db/snap-50`. Canonical preserve SHA `8c8f5eb…` is not committed; rebuilt DB SHA on this VM is recorded in `fixture-results.json` (`snapDbSha256`).
+
 **T25 source (msg 51):** `비상계단 불빛 아래 주저앉은 렌 옆에, 태형이 말없이 내려와 앉았다.`
 
 ## BEFORE — owners (unchanged)
@@ -14,72 +16,78 @@ Investigation + isolated fixture only. **No product change.** No paid provider c
 | Pre-persist validation | `validateSummaryNarrative` in `memory-summary-integrity.ts` | Length / echo / empty only — **no** arrival-order gate |
 | Persist | `persistValidatedSummaryBatch` (`memory-summary-persist.ts`) | Storage owner |
 | Global rebuild | `rebuildLorebookFromRecords` (`memory-turn-summary.ts`) | Concat injectible rows → `recent_summary` |
-| Manual Global | `isManualGlobalActive` / seal path | User Global not overwritten by fixture patch (isolated DB only) |
 | Main RP assembly | `buildContext` (`contextBuilder.ts`) + `/api/chat` | Wire captured with provider `fetch` stubbed |
-
-No second prompt section was found that **contradicts** temporal-order instructions; system + user tails align on 인과/발생 순서.
 
 ## PROBLEM
 
-First stored `[21~25턴]` summary (row `turn_number=21`) drops the explicit arrival verb `내려와 앉았다` and compresses to `렌이 … 주저앉자 태형은 … 곁을 지키며`. Death, self-blame, tangerine, and `네 탓 아니야` remain. No 지환 last words in source or summary. No fabricated “did not witness” line was added in the fixture.
+First stored `[21~25턴]` summary (row `turn_number=21`) drops the explicit arrival verb `내려와 앉았다` and compresses to `렌이 … 주저앉자 태형은 … 곁을 지키며`. Death, self-blame, tangerine, and `네 탓 아니야` remain.
+
+**Prior fixture bug:** T50 question used `했었지` instead of B10-2 / B9-1 `했었는지`, so OLD wire SHA did not match frozen B10-2 A (`49475a3d…`). Fixed in harness only.
 
 ## ROOT CAUSE — **CASE A (+ generator uncertainty)**
 
-**Product path:** Generation prompts **already** require temporal order and participant direction (`memory-rolling-summary.ts` lines 87–89, 118–119, 336). Persist/Global/wire **faithfully relay** whatever text is stored. T25 loss is **compression wording**, not a missing pipeline stage or inverted persist logic.
+**Product path:** Generation prompts **already** require temporal order. Persist/Global/wire **relay** stored text. T25 loss is **compression wording**, not persist/wire defect.
 
-**Not proven:** a deterministic bug in the generation owner that *forces* dropping `내려와` on every run. That would need live Luna re-summaries (paid / stochastic). **Label:** `ROOT_CAUSE_UNCONFIRMED` for a code defect; **observed** cause for snap-50 = first summary model output choice under existing prompt.
+**Label:** `ROOT_CAUSE_UNCONFIRMED` for a deterministic generator code bug; **observed** on snap-50 = first summary model output under existing prompt.
 
-**Not in scope:** Gemini false eyewitness (B10-2/B10-3) — restoring arrival text in Global **does not** claim to fix model invention.
+**Not in scope:** Gemini false eyewitness (B10-2/B10-3). Restoring arrival text in Global **does not** claim to fix model invention.
 
-## AFTER — fixture only (isolated DB)
+## AFTER — fixture only (isolated DB copy)
 
-| Arm | `[21~25]` tail | Global / wire |
+| Arm | `[21~25]` tail | T25 block on stub wire |
 |---|---|---|
-| **OLD** | Unmodified snap row | `내려와` absent; `곁을 지키`, comfort, death present |
-| **NEW** | Same row with arrival clause patched per source | `내려와`, `먼저`, ordered ren→태형 in `[21~25]` block and stubbed T50 wire |
+| **OLD** | Stored snap row | `내려와` absent; `곁을 지키` present |
+| **NEW** | Patched arrival clause per source | `내려와`, `먼저` present |
 
-Harness: `run-timeline-fixture.mts` (subprocess wire capture per B10-2 pattern). Results: `fixture-results.json`.
+Harness: `run-timeline-fixture.mts` (B10-2-style wire capture; subprocess per arm for DB singleton). Requires **`ADMIN_EMAILS`** (no default, no personal email in repo). Isolated copy aligns user id 1 with the first `ADMIN_EMAILS` entry for the existing admin gate only.
+
+Results: `fixture-results.json`.
 
 ## REMOVED
 
-Nothing deleted.
+| Item | Note |
+|---|---|
+| `src/lib/memory/memory-b10-4-timeline-order-fixture.test.ts` | Hard-coded OLD/NEW regex semantics — not product regression |
+| Hard-coded `you7410@gmail.com` in harness | Use `ADMIN_EMAILS` or fail |
+| Wrong T50 question `했었지` | Restored B10-2 wording `했었는지` |
 
-| Item | Class | Note |
-|---|---|---|
-| Duplicate temporal-order prose in rolling summary | KEEP | Single owner; system + user reinforce, no conflict found |
-| `validateSummaryNarrative` | KEEP | No arrival validator added (would be new policy) |
-| B10-2 Historical Truth one-liner | KEEP rejected | Not reintroduced |
-| Episodic T25 death-only inject | KEEP | Aftermath still on Global; unchanged |
+No product code removed.
 
 ## PRESERVED
 
-Summary length targets, Global 10k policy, Medium/Episodic budgets, manual Global, user-edited summaries (fixture never touches preserve root), HISTORICAL_TRUTH block, no new negative eyewitness facts in NEW text.
+Summary length targets, Global policy, episodic path, B10-2 Historical Truth one-liner (rejected), HISTORICAL_TRUTH block, no new negative eyewitness lines in NEW text.
 
 ## REGRESSION RISKS (if a later **approved** summary-quality change)
 
-- Hard-coded arrival phrases per scene → rejected pattern for this track
+- Hard-coded arrival phrases per scene
 - Global bloat from mandatory negative eyewitness lines
-- Validator that rejects valid short compressions (`곁을 지키`) without improving order
+- Validator rejecting valid compressions without improving order
 
-## PROOF
-
-**Deterministic unit test:** `src/lib/memory/memory-b10-4-timeline-order-fixture.test.ts` (OLD vs NEW tail semantics).
-
-**Fixture (`fixture-results.json`, VM run on `ad0c5e9b`):**
+## PROOF (VM rerun after T50 + auth fix)
 
 | Check | OLD | NEW |
 |---|---|---|
-| `phrasePresent.내려와` (wire) | false | true |
-| `phrasePresent.먼저` (wire) | true | true |
-| `orderedRenThenTaehyung` (summary row) | false | true |
-| Death / comfort / no fabricated non-witness | pass | pass |
-| `turn21` chars | 376 | 399 (+23) |
+| T50 question | `…했었는지…` (B10-2) | same |
+| `oldMatchesB10_2A` | **true** | — |
+| Wire SHA-256 | `49475a3df82469187890340b873319cd008cf5eac7bec4a11eab119091fd0458` | `05600042ae77566d5d8930f03c0c874e11d03b8227f077e7dc5f24bda4c52643` |
+| Wire bytes | 27005 | 27028 (+23) |
+| Turn-21 summary chars | 376 | 399 (+23) |
 | Global chars | 3043 | 3066 (+23) |
-| Wire bytes | 27004 | 27027 (+23) |
+| T25 block `내려와` | false | true |
+| T25 block `먼저` | false | true |
+| Death / comfort in block | present | present |
 
-**Wire SHA:** Rebuilt stub wire on current main differs by 1 byte from B10-2 frozen A hash (`49475a3d…` → `acad78df…`); `[21~25]` OLD/NEW **content delta** matches intent (arrival clause only). Episodic inject unchanged (death line still present on wire via existing path).
+T25 phrase checks use **`[21~25턴]` block only**, not whole-wire regex (avoids later-batch `먼저` noise).
 
-**Semantic probe caveat:** Whole-wire `orderedRenThenTaehyung` on OLD can read true because `먼저` appears in **later** batches in the same body; row-level semantics correctly mark OLD tail false.
+**Reproduce (0 provider cost):**
+
+```bash
+# snap-50 under /tmp/b9-preserved/db/snap-50 (B7 fill-snapshot or B9 preserve)
+export ADMIN_EMAILS='…'   # required; not stored in evidence JSON
+export SESSION_SECRET=local-b9-memory-recheck-secret-0123456789abcdef
+node --conditions=react-server --import tsx \
+  docs/pr-evidence/pr-b10-4-timeline-preserve/run-timeline-fixture.mts
+```
 
 ## SYSTEM DELTA
 
@@ -88,10 +96,10 @@ Summary length targets, Global 10k policy, Medium/Episodic budgets, manual Globa
 | Turn-21 summary | +23 chars |
 | Global `recent_summary` | +23 chars |
 | T50 stub wire | +23 bytes |
-| Owners / branches | **0** code changes |
+| Product owners / branches | **0** |
 
 ## NEXT (one task — do not start here)
 
-If GPT approves a **paid** check: A/B Main RP on snap-50 with **only** isolated NEW summary (same question as B10-2) to see whether Gemini eyewitness rate moves — separate budget from B10-4.
+Paid A/B on snap-50 with NEW summary only to see if Gemini eyewitness rate moves — separate budget.
 
-**STOP.** No B10-5 auto-start. No merge/deploy from this agent.
+**STOP.** No B10-5. No merge/deploy from this agent.
