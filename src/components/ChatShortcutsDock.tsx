@@ -8,6 +8,11 @@ import {
   CHAT_SHORTCUT_NAME_MAX,
 } from "@/lib/chatShortcutComposer";
 import { compareShortcutRows, mergeShortcutList } from "@/lib/chatShortcutListSync";
+import {
+  PANEL_SHEET_COMPACT_PX,
+  computePanelPlacement,
+  type PanelPlacement,
+} from "@/lib/chatShortcutPanelPlacement";
 
 type ShortcutItem = {
   id: number;
@@ -28,10 +33,20 @@ const FAVORITE_FAILURE = "즐겨찾기를 바꾸지 못했습니다. 다시 시�
 const DELETE_FAILURE = "단축어를 삭제하지 못했습니다. 다시 시도해 주세요.";
 const LIST_FAILURE = "단축어 목록을 불러오지 못했습니다.";
 
-const DEFAULT_PLACEMENT = { lift: 4, maxHeight: "min(30rem, calc(100dvh - 18rem))" };
-const PANEL_MAX_PX = 480;
-const PANEL_MIN_PX = 224;
-const PANEL_TOP_RESERVE_PX = 72;
+const DEFAULT_PLACEMENT: PanelPlacement = { mode: "anchored", lift: 4, maxHeight: 480 };
+
+export const COMPOSER_ROW_BUTTON_CLASS =
+  "inline-flex h-9 shrink-0 items-center justify-center rounded-md border px-3 text-xs font-semibold leading-none transition min-[576px]:h-7 min-[576px]:px-2.5";
+
+function samePlacement(a: PanelPlacement, b: PanelPlacement) {
+  if (a.mode === "anchored" && b.mode === "anchored") {
+    return a.lift === b.lift && a.maxHeight === b.maxHeight;
+  }
+  if (a.mode === "sheet" && b.mode === "sheet") {
+    return a.top === b.top && a.left === b.left && a.width === b.width && a.maxHeight === b.maxHeight;
+  }
+  return false;
+}
 
 export function ChatShortcutsDock({
   insertDisabled,
@@ -120,21 +135,31 @@ export function ChatShortcutsDock({
         setPlacement(DEFAULT_PLACEMENT);
         return;
       }
-      const composerTop = composer.getBoundingClientRect().top;
-      const dockTop = root.getBoundingClientRect().top;
-      const lift = Math.max(0, Math.round(dockTop - composerTop)) + 4;
-      const available = Math.round(composerTop - PANEL_TOP_RESERVE_PX);
-      const maxHeight = `${Math.max(PANEL_MIN_PX, Math.min(PANEL_MAX_PX, available))}px`;
-      setPlacement((prev) =>
-        prev.lift === lift && prev.maxHeight === maxHeight ? prev : { lift, maxHeight }
-      );
+      const visual = window.visualViewport;
+      const next = computePanelPlacement({
+        composerTop: composer.getBoundingClientRect().top,
+        dockTop: root.getBoundingClientRect().top,
+        dockLeft: root.getBoundingClientRect().left,
+        viewport: {
+          top: visual?.offsetTop ?? 0,
+          left: visual?.offsetLeft ?? 0,
+          width: visual?.width ?? window.innerWidth,
+          height: visual?.height ?? window.innerHeight,
+        },
+      });
+      setPlacement((prev) => (samePlacement(prev, next) ? prev : next));
     };
     measure();
+    const visual = window.visualViewport;
     window.addEventListener("resize", measure);
-    window.visualViewport?.addEventListener("resize", measure);
+    visual?.addEventListener("resize", measure);
+    visual?.addEventListener("scroll", measure);
+    window.addEventListener("scroll", measure, true);
     return () => {
+      window.removeEventListener("scroll", measure, true);
       window.removeEventListener("resize", measure);
-      window.visualViewport?.removeEventListener("resize", measure);
+      visual?.removeEventListener("resize", measure);
+      visual?.removeEventListener("scroll", measure);
     };
   }, [open, composerRef]);
 
@@ -279,6 +304,7 @@ export function ChatShortcutsDock({
   }
 
   const hasDetail = selected != null || formOpen;
+  const compact = placement.mode === "sheet" && placement.maxHeight < PANEL_SHEET_COMPACT_PX;
   const nameCount = draft.name.length;
   const descriptionCount = draft.description.length;
   const contentCount = draft.content.length;
@@ -292,7 +318,7 @@ export function ChatShortcutsDock({
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((value) => !value)}
-        className={`-my-2 h-9 shrink-0 rounded-md border px-3 text-xs font-semibold transition min-[576px]:my-0 min-[576px]:h-7 min-[576px]:px-2.5 ${
+        className={`${COMPOSER_ROW_BUTTON_CLASS} ${
           open
             ? "border-violet-400/50 bg-violet-500/15 text-violet-200"
             : "border-white/10 bg-[#1a1a1a] text-zinc-300 hover:border-white/20 hover:text-white"
@@ -311,8 +337,22 @@ export function ChatShortcutsDock({
             event.stopPropagation();
             closePanel();
           }}
-          style={{ bottom: `calc(100% + ${placement.lift}px)`, maxHeight: placement.maxHeight }}
-          className="absolute left-0 z-30 flex w-[min(24rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-xl border border-white/15 bg-[#161616] shadow-2xl shadow-black/60"
+          data-placement={placement.mode}
+          style={
+            placement.mode === "sheet"
+              ? {
+                  top: placement.top,
+                  left: placement.left,
+                  width: placement.width,
+                  maxHeight: placement.maxHeight,
+                }
+              : { bottom: `calc(100% + ${placement.lift}px)`, maxHeight: placement.maxHeight }
+          }
+          className={`flex flex-col overflow-hidden rounded-xl border border-white/15 bg-[#161616] shadow-2xl shadow-black/60 ${
+            placement.mode === "sheet"
+              ? "absolute z-50"
+              : "absolute left-0 z-30 w-[min(24rem,calc(100vw-1.5rem))]"
+          }`}
         >
           <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
             <p className="min-w-0 truncate text-[13px] font-bold text-zinc-100">
@@ -343,9 +383,15 @@ export function ChatShortcutsDock({
             className={`overflow-y-auto overscroll-contain px-2.5 py-2 ${
               !hasDetail
                 ? "min-h-0 flex-1"
-                : formOpen
-                  ? "max-h-[5.5rem] min-h-[3.5rem] shrink"
-                  : "max-h-[9.5rem] min-h-[4.5rem] shrink"
+                : compact
+                  ? formOpen
+                    ? "hidden"
+                    : "max-h-[2.75rem] min-h-[2.75rem] shrink-0"
+                  : formOpen
+                    ? "max-h-[5.5rem] min-h-[3.5rem] shrink"
+                    : placement.mode === "sheet"
+                      ? "max-h-[6rem] min-h-[4.5rem] shrink"
+                      : "max-h-[9.5rem] min-h-[4.5rem] shrink"
             }`}
           >
             {listPhase === "loading" && items.length === 0 ? (
@@ -431,7 +477,7 @@ export function ChatShortcutsDock({
           </div>
           {hasDetail ? (
             <div className="min-h-0 shrink overflow-y-auto overscroll-contain border-t border-white/10 bg-[#121212] px-2.5 pt-2">
-              {selected && formOpen ? (
+              {selected && formOpen && !compact ? (
                 <div
                   data-testid="chat-shortcuts-preview"
                   className="flex items-baseline justify-between gap-2 rounded-lg border border-violet-400/30 bg-violet-500/5 px-3 py-2"
