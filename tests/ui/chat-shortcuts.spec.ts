@@ -170,4 +170,183 @@ test.describe("personal chat shortcuts", () => {
       });
     }
   });
+
+  test("retries save, favorite, and delete after network failure", async ({ page }) => {
+    await openChat(page);
+    let failSave = true;
+    let failFavorite = true;
+    let failDelete = true;
+    await page.route("**/api/chat/shortcuts**", async (route) => {
+      const method = route.request().method();
+      if (method === "POST" && failSave) {
+        failSave = false;
+        await route.abort("failed");
+        return;
+      }
+      if (method === "PATCH" && failFavorite) {
+        failFavorite = false;
+        await route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "즐겨찾기 실패" }),
+        });
+        return;
+      }
+      if (method === "DELETE" && failDelete) {
+        failDelete = false;
+        await route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "삭제 실패" }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.getByTestId("chat-shortcuts-open").click();
+    await page.getByRole("button", { name: "새로 만들기" }).click();
+    await page.getByTestId("chat-shortcuts-name").fill("재시도");
+    await page.getByTestId("chat-shortcuts-content").fill("다시 저장");
+    await page.getByTestId("chat-shortcuts-save").click();
+    await expect(page.getByTestId("chat-shortcuts-notice")).toContainText("다시 저장");
+    await expect(page.getByTestId("chat-shortcuts-name")).toHaveValue("재시도");
+    await expect(page.getByTestId("chat-shortcuts-content")).toHaveValue("다시 저장");
+    await expect(page.getByTestId("chat-shortcuts-save")).toBeEnabled();
+    await page.getByTestId("chat-shortcuts-save").click();
+    await expect(page.getByTestId("chat-shortcuts-preview")).toContainText("다시 저장");
+
+    await page.getByRole("button", { name: "재시도 즐겨찾기" }).click();
+    await expect(page.getByTestId("chat-shortcuts-notice")).toContainText("다시 시도");
+    await expect(page.getByRole("button", { name: "재시도 즐겨찾기" })).toBeEnabled();
+    await page.getByRole("button", { name: "재시도 즐겨찾기" }).click();
+    await expect(page.getByRole("button", { name: "재시도 즐겨찾기 해제" })).toBeVisible();
+
+    await page.getByTestId("chat-shortcuts-panel").getByRole("button", { name: "삭제" }).click();
+    await page.getByTestId("chat-shortcuts-delete-confirm").click();
+    await expect(page.getByTestId("chat-shortcuts-notice")).toContainText("다시 시도");
+    await expect(page.getByRole("button", { name: "★ 재시도" })).toBeVisible();
+    await page.getByTestId("chat-shortcuts-delete-confirm").click();
+    await expect(page.getByRole("button", { name: "★ 재시도" })).toHaveCount(0);
+  });
+
+  test("keeps a shortcut created before a late list response", async ({ page }) => {
+    await openChat(page);
+    let releaseGet: (() => void) | null = null;
+    const gate = new Promise<void>((resolve) => {
+      releaseGet = resolve;
+    });
+    await page.route("**/api/chat/shortcuts**", async (route) => {
+      if (route.request().method() === "GET") {
+        await gate;
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ shortcuts: [] }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+    await page.getByTestId("chat-shortcuts-open").click();
+    await expect(page.getByText("단축어를 불러오는 중")).toBeVisible();
+    await expect(page.getByText("저장한 단축어가 없습니다.")).toHaveCount(0);
+    await page.getByRole("button", { name: "새로 만들기" }).click();
+    await page.getByTestId("chat-shortcuts-name").fill("늦음");
+    await page.getByTestId("chat-shortcuts-content").fill("먼저 만든 문장");
+    await page.getByTestId("chat-shortcuts-save").click();
+    await expect(page.getByRole("button", { name: "늦음", exact: true })).toBeVisible();
+    releaseGet?.();
+    await expect(page.getByRole("button", { name: "늦음", exact: true })).toBeVisible();
+    await expect(page.getByText("저장한 단축어가 없습니다.")).toHaveCount(0);
+  });
+
+  test("a failed list load is not an empty library", async ({ page }) => {
+    await openChat(page);
+    let failGet = true;
+    await page.route("**/api/chat/shortcuts**", async (route) => {
+      if (route.request().method() === "GET" && failGet) {
+        failGet = false;
+        await route.abort("failed");
+        return;
+      }
+      await route.continue();
+    });
+    await page.getByTestId("chat-shortcuts-open").click();
+    await expect(page.getByTestId("chat-shortcuts-list-error")).toBeVisible();
+    await expect(page.getByText("저장한 단축어가 없습니다.")).toHaveCount(0);
+    await page.getByTestId("chat-shortcuts-list-retry").click();
+    await expect(page.getByTestId("chat-shortcuts-list-error")).toHaveCount(0);
+    await expect(page.getByText("단축어를 불러오는 중")).toHaveCount(0);
+  });
+
+  test("starting a new draft during save keeps that draft", async ({ page }) => {
+    await openChat(page);
+    let releasePost: (() => void) | null = null;
+    const gate = new Promise<void>((resolve) => {
+      releasePost = resolve;
+    });
+    let posts = 0;
+    await page.route("**/api/chat/shortcuts**", async (route) => {
+      if (route.request().method() === "POST") {
+        posts += 1;
+        await gate;
+        await route.continue();
+        return;
+      }
+      await route.continue();
+    });
+    await page.getByTestId("chat-shortcuts-open").click();
+    await page.getByRole("button", { name: "새로 만들기" }).click();
+    await page.getByTestId("chat-shortcuts-name").fill("첫번째");
+    await page.getByTestId("chat-shortcuts-content").fill("내용하나");
+    await page.getByTestId("chat-shortcuts-save").click();
+    await expect(page.getByTestId("chat-shortcuts-save")).toBeDisabled();
+    await page.getByRole("button", { name: "새로 만들기" }).click();
+    await page.getByTestId("chat-shortcuts-name").fill("두번째");
+    await page.getByTestId("chat-shortcuts-content").fill("내용둘");
+    await page.getByTestId("chat-shortcuts-close").click();
+    await page.getByTestId("chat-shortcuts-open").click();
+    await expect(page.getByTestId("chat-shortcuts-name")).toHaveValue("두번째");
+    await expect(page.getByTestId("chat-shortcuts-save")).toBeDisabled();
+    expect(posts).toBe(1);
+    releasePost?.();
+    await expect(page.getByTestId("chat-shortcuts-name")).toHaveValue("두번째");
+    await expect(page.getByRole("button", { name: "첫번째", exact: true })).toBeVisible();
+    await expect(page.getByTestId("chat-shortcuts-save")).toBeEnabled();
+  });
+
+  test("synthetic composition inserts the committed Hangul text once", async ({ page }) => {
+    await openChat(page);
+    await page.getByTestId("chat-shortcuts-open").click();
+    await page.getByRole("button", { name: "새로 만들기" }).click();
+    await page.getByTestId("chat-shortcuts-name").fill("조합");
+    await page.getByTestId("chat-shortcuts-content").fill("!");
+    await page.getByTestId("chat-shortcuts-save").click();
+    await expect(page.getByTestId("chat-shortcuts-preview")).toContainText("!");
+
+    const box = composer(page);
+    await box.evaluate((el) => {
+      const textarea = el as HTMLTextAreaElement;
+      textarea.focus();
+      textarea.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
+    });
+    await page.getByTestId("chat-shortcuts-insert").click();
+    await expect(page.getByTestId("chat-shortcuts-composer-notice")).toContainText("한글 입력이 끝나면");
+    await box.evaluate((el) => {
+      const textarea = el as HTMLTextAreaElement;
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
+      setter?.call(textarea, "안녕");
+      textarea.setSelectionRange(2, 2);
+      textarea.dispatchEvent(
+        new InputEvent("input", { bubbles: true, data: "안녕", inputType: "insertCompositionText" })
+      );
+      textarea.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "안녕" }));
+      textarea.dispatchEvent(
+        new InputEvent("input", { bubbles: true, data: "안녕", inputType: "insertCompositionText" })
+      );
+    });
+    await expect(box).toHaveValue("안녕!");
+    await expect(page.getByTestId("chat-shortcuts-composer-notice")).toHaveCount(0);
+  });
 });

@@ -6,7 +6,7 @@ jsx sandbox runtime -> /workspace/public/jsx-sandbox/runtime.js
    ▲ Next.js 15.5.25
 
    Creating an optimized production build ...
- ✓ Compiled successfully in 37.5s
+ ✓ Compiled successfully in 34.0s
    Linting and checking validity of types ...
    Collecting page data ...
    Generating static pages (0/123) ...
@@ -198,7 +198,7 @@ Route (app)                                           Size  First Load JS
 ├ ƒ /bookmarks                                       522 B         103 kB
 ├ ƒ /c/[slug]                                        522 B         103 kB
 ├ ƒ /character/[id]                                5.48 kB         155 kB
-├ ƒ /chat/[id]                                     97.1 kB         360 kB
+├ ƒ /chat/[id]                                     97.7 kB         360 kB
 ├ ƒ /chats                                          8.8 kB         130 kB
 ├ ƒ /create                                          46 kB         402 kB
 ├ ƒ /create/preview                                7.83 kB         149 kB

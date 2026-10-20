@@ -1,0 +1,5 @@
+Recovery follow-up on personal RP shortcuts.
+Before (current product, new cases): evidence/chat-personal-shortcuts/before-failure.txt — 4 failed, synthetic composition already passed.
+After: evidence/chat-personal-shortcuts/after-pass.txt — chat-shortcuts.spec.ts 9/9.
+Unit merge coverage is in src/lib/chatShortcuts.test.ts. typecheck:app and production build passed.
+Synthetic composition/input events are not a real IME session.

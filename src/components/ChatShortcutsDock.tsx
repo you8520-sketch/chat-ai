@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { ChatShortcutInsertResult } from "@/lib/chatShortcutComposer";
 import {
   CHAT_SHORTCUT_CONTENT_MAX,
   CHAT_SHORTCUT_DESCRIPTION_MAX,
   CHAT_SHORTCUT_NAME_MAX,
 } from "@/lib/chatShortcutComposer";
+import { compareShortcutRows, mergeShortcutList } from "@/lib/chatShortcutListSync";
 
 type ShortcutItem = {
   id: number;
@@ -18,8 +19,14 @@ type ShortcutItem = {
 };
 
 type Draft = { name: string; description: string; content: string };
+type ListPhase = "idle" | "loading" | "ready" | "error";
 
 const emptyDraft = (): Draft => ({ name: "", description: "", content: "" });
+
+const SAVE_FAILURE = "저장하지 못했습니다. 다시 저장해 주세요.";
+const FAVORITE_FAILURE = "즐겨찾기를 바꾸지 못했습니다. 다시 시도해 주세요.";
+const DELETE_FAILURE = "단축어를 삭제하지 못했습니다. 다시 시도해 주세요.";
+const LIST_FAILURE = "단축어 목록을 불러오지 못했습니다.";
 
 export function ChatShortcutsDock({
   insertDisabled,
@@ -40,109 +47,171 @@ export function ChatShortcutsDock({
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [listPhase, setListPhase] = useState<ListPhase>("idle");
+  const [listError, setListError] = useState("");
+
+  const busyRef = useRef(false);
+  const listFlightRef = useRef(false);
+  const listSeqRef = useRef(0);
+  const listOnceRef = useRef(false);
+  const writesRef = useRef(new Map<number, ShortcutItem>());
+  const deletesRef = useRef(new Set<number>());
+  const draftGenRef = useRef(0);
+  const loadListRef = useRef<() => Promise<void>>(async () => {});
 
   const selected = items.find((item) => item.id === selectedId) ?? null;
 
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    void (async () => {
+  async function loadList() {
+    if (listFlightRef.current) return;
+    listFlightRef.current = true;
+    const seq = ++listSeqRef.current;
+    setListPhase("loading");
+    setListError("");
+    try {
       const res = await fetch("/api/chat/shortcuts");
-      if (!res.ok || cancelled) return;
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error || LIST_FAILURE);
+      }
       const data = (await res.json()) as { shortcuts?: ShortcutItem[] };
-      if (!cancelled) setItems(data.shortcuts ?? []);
-    })();
-    return () => {
-      cancelled = true;
-    };
+      if (seq !== listSeqRef.current) return;
+      const server = Array.isArray(data.shortcuts) ? data.shortcuts : [];
+      const writes = new Map(writesRef.current);
+      const deletes = new Set(deletesRef.current);
+      setItems(mergeShortcutList(server, writes, deletes).sort(compareShortcutRows));
+      for (const [id, row] of writes) {
+        if (writesRef.current.get(id) === row) writesRef.current.delete(id);
+      }
+      for (const id of deletes) deletesRef.current.delete(id);
+      setListPhase("ready");
+    } catch (error) {
+      if (seq !== listSeqRef.current) return;
+      setListPhase("error");
+      setListError(error instanceof Error && error.message ? error.message : LIST_FAILURE);
+    } finally {
+      listFlightRef.current = false;
+    }
+  }
+
+  loadListRef.current = loadList;
+
+  useEffect(() => {
+    if (!open || listOnceRef.current) return;
+    listOnceRef.current = true;
+    void loadListRef.current();
   }, [open]);
 
   function closePanel() {
     setOpen(false);
-    setFormOpen(false);
-    setNotice("");
     onCloseFocus();
   }
 
+  function beginDraft(next: Draft, editing: number | null) {
+    draftGenRef.current += 1;
+    setFormOpen(true);
+    setEditingId(editing);
+    setDraft(next);
+    setNotice("");
+  }
+
+  function rememberWrite(shortcut: ShortcutItem) {
+    writesRef.current.set(shortcut.id, shortcut);
+    deletesRef.current.delete(shortcut.id);
+    setItems((prev) => {
+      const without = prev.filter((item) => item.id !== shortcut.id);
+      return [shortcut, ...without].sort(compareShortcutRows);
+    });
+  }
+
   async function saveDraft() {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     setNotice("");
+    const savedGen = draftGenRef.current;
     const payload = {
       name: draft.name,
       description: draft.description,
       content: draft.content,
     };
-    const res = await fetch(
-      editingId == null ? "/api/chat/shortcuts" : `/api/chat/shortcuts/${editingId}`,
-      {
-        method: editingId == null ? "POST" : "PATCH",
+    const targetId = editingId;
+    try {
+      const res = await fetch(targetId == null ? "/api/chat/shortcuts" : `/api/chat/shortcuts/${targetId}`, {
+        method: targetId == null ? "POST" : "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; shortcut?: ShortcutItem };
+      if (!res.ok || !data.shortcut) throw new Error(data.error || SAVE_FAILURE);
+      rememberWrite(data.shortcut);
+      if (draftGenRef.current === savedGen) {
+        setSelectedId(data.shortcut.id);
+        setEditingId(null);
+        setFormOpen(false);
+        setDraft(emptyDraft());
+        setNotice("");
       }
-    );
-    const data = (await res.json().catch(() => ({}))) as {
-      error?: string;
-      shortcut?: ShortcutItem;
-    };
-    setBusy(false);
-    if (!res.ok || !data.shortcut) {
-      setNotice(data.error || "단축어를 저장하지 못했습니다.");
-      return;
+    } catch (error) {
+      if (draftGenRef.current === savedGen) {
+        const message = error instanceof Error && error.message ? error.message : SAVE_FAILURE;
+        setNotice(message.includes("다시") ? message : SAVE_FAILURE);
+      }
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
     }
-    setItems((prev) => {
-      const without = prev.filter((item) => item.id !== data.shortcut!.id);
-      return [data.shortcut!, ...without].sort(sortShortcuts);
-    });
-    setSelectedId(data.shortcut.id);
-    setEditingId(null);
-    setFormOpen(false);
-    setDraft(emptyDraft());
   }
 
   async function toggleFavorite(item: ShortcutItem) {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     setNotice("");
-    const res = await fetch(`/api/chat/shortcuts/${item.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ favorite: !item.favorite }),
-    });
-    const data = (await res.json().catch(() => ({}))) as {
-      error?: string;
-      shortcut?: ShortcutItem;
-    };
-    setBusy(false);
-    if (!res.ok || !data.shortcut) {
-      setNotice(data.error || "즐겨찾기를 바꾸지 못했습니다.");
-      return;
+    try {
+      const res = await fetch(`/api/chat/shortcuts/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ favorite: !item.favorite }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; shortcut?: ShortcutItem };
+      if (!res.ok || !data.shortcut) throw new Error(data.error || FAVORITE_FAILURE);
+      rememberWrite(data.shortcut);
+    } catch (error) {
+      const message = error instanceof Error && error.message ? error.message : FAVORITE_FAILURE;
+      setNotice(message.includes("다시") ? message : FAVORITE_FAILURE);
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
     }
-    setItems((prev) =>
-      prev.map((row) => (row.id === data.shortcut!.id ? data.shortcut! : row)).sort(sortShortcuts)
-    );
   }
 
   async function remove(item: ShortcutItem) {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     setNotice("");
-    const res = await fetch(`/api/chat/shortcuts/${item.id}`, { method: "DELETE" });
-    const data = (await res.json().catch(() => ({}))) as { error?: string };
-    setBusy(false);
-    if (!res.ok) {
-      setNotice(data.error || "단축어를 삭제하지 못했습니다.");
-      return;
+    try {
+      const res = await fetch(`/api/chat/shortcuts/${item.id}`, { method: "DELETE" });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(data.error || DELETE_FAILURE);
+      deletesRef.current.add(item.id);
+      writesRef.current.delete(item.id);
+      setItems((prev) => prev.filter((row) => row.id !== item.id));
+      if (selectedId === item.id) setSelectedId(null);
+      setConfirmDeleteId(null);
+    } catch (error) {
+      const message = error instanceof Error && error.message ? error.message : DELETE_FAILURE;
+      setNotice(message.includes("다시") ? message : DELETE_FAILURE);
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
     }
-    setItems((prev) => prev.filter((row) => row.id !== item.id));
-    if (selectedId === item.id) setSelectedId(null);
-    setConfirmDeleteId(null);
   }
 
   function insertSelected() {
-    if (!selected) return;
+    if (!selected || busyRef.current) return;
     const result = onInsert(selected.content);
-    if (result.action === "defer") {
-      setNotice(result.message);
-      return;
-    }
+    if (result.action === "defer") return;
     if (result.action === "reject") {
       setNotice(result.message);
       return;
@@ -182,12 +251,7 @@ export function ChatShortcutsDock({
               <button
                 type="button"
                 className="rounded-md px-2 py-1 text-[11px] text-violet-200 hover:bg-white/5"
-                onClick={() => {
-                  setFormOpen(true);
-                  setEditingId(null);
-                  setDraft(emptyDraft());
-                  setNotice("");
-                }}
+                onClick={() => beginDraft(emptyDraft(), null)}
               >
                 새로 만들기
               </button>
@@ -202,9 +266,26 @@ export function ChatShortcutsDock({
             </div>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
-            {items.length === 0 ? (
+            {listPhase === "loading" && items.length === 0 ? (
+              <p className="text-[11px] text-zinc-400">단축어를 불러오는 중…</p>
+            ) : null}
+            {listPhase === "error" ? (
+              <p data-testid="chat-shortcuts-list-error" className="text-[11px] text-amber-200">
+                {listError || LIST_FAILURE}{" "}
+                <button
+                  type="button"
+                  data-testid="chat-shortcuts-list-retry"
+                  className="underline"
+                  onClick={() => void loadList()}
+                >
+                  다시 불러오기
+                </button>
+              </p>
+            ) : null}
+            {listPhase === "ready" && items.length === 0 ? (
               <p className="text-[11px] text-zinc-400">저장한 단축어가 없습니다.</p>
-            ) : (
+            ) : null}
+            {items.length > 0 ? (
               <ul className="space-y-1">
                 {items.map((item) => (
                   <li key={item.id} className="rounded-md border border-white/10 bg-black/20">
@@ -240,7 +321,7 @@ export function ChatShortcutsDock({
                   </li>
                 ))}
               </ul>
-            )}
+            ) : null}
             {selected ? (
               <div className="mt-2 rounded-md border border-violet-500/30 bg-violet-500/5 p-2" data-testid="chat-shortcuts-preview">
                 <p className="text-[11px] font-semibold text-violet-100">{selected.name}</p>
@@ -251,7 +332,7 @@ export function ChatShortcutsDock({
                   <button
                     type="button"
                     data-testid="chat-shortcuts-insert"
-                    disabled={insertDisabled}
+                    disabled={insertDisabled || busy}
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={insertSelected}
                     className="rounded-md bg-violet-600 px-2 py-1 text-[11px] font-semibold text-white disabled:opacity-40"
@@ -261,15 +342,16 @@ export function ChatShortcutsDock({
                   <button
                     type="button"
                     className="rounded-md border border-white/15 px-2 py-1 text-[11px] text-zinc-200"
-                    onClick={() => {
-                      setFormOpen(true);
-                      setEditingId(selected.id);
-                      setDraft({
-                        name: selected.name,
-                        description: selected.description,
-                        content: selected.content,
-                      });
-                    }}
+                    onClick={() =>
+                      beginDraft(
+                        {
+                          name: selected.name,
+                          description: selected.description,
+                          content: selected.content,
+                        },
+                        selected.id
+                      )
+                    }
                   >
                     수정
                   </button>
@@ -286,7 +368,7 @@ export function ChatShortcutsDock({
                     type="button"
                     data-testid="chat-shortcuts-delete-confirm"
                     disabled={busy}
-                    className="mt-2 text-[11px] text-rose-300 underline"
+                    className="mt-2 text-[11px] text-rose-300 underline disabled:opacity-40"
                     onClick={() => void remove(selected)}
                   >
                     이 단축어를 삭제합니다
@@ -349,11 +431,4 @@ export function ChatShortcutsDock({
       ) : null}
     </div>
   );
-}
-
-function sortShortcuts(a: ShortcutItem, b: ShortcutItem): number {
-  if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
-  const byTime = (b.updatedAt ?? "").localeCompare(a.updatedAt ?? "");
-  if (byTime !== 0) return byTime;
-  return b.id - a.id;
 }

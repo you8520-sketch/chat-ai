@@ -17,6 +17,7 @@ import {
   listChatShortcuts,
   updateChatShortcut,
 } from "./chatShortcuts";
+import { mergeShortcutList } from "./chatShortcutListSync";
 
 describe("planChatShortcutInsert", () => {
   test("inserts at the caret and keeps the surrounding draft", () => {
@@ -123,6 +124,29 @@ describe("chat shortcut ownership", () => {
       content: "가".repeat(CHAT_MESSAGE_MAX + 1),
     });
     assert.equal(parsed.ok, false);
+  });
+});
+
+describe("mergeShortcutList", () => {
+  test("keeps a local create when an older list response is empty", () => {
+    const created = {
+      id: 9,
+      favorite: false,
+      updatedAt: "2026-10-20 00:00:00",
+      name: "늦음",
+    };
+    const merged = mergeShortcutList(
+      [],
+      new Map([[created.id, created]]),
+      new Set()
+    );
+    assert.deepEqual(merged, [created]);
+  });
+
+  test("does not restore a row deleted while the list request was in flight", () => {
+    const server = [{ id: 3, favorite: false, updatedAt: "2026-10-20 00:00:00" }];
+    const merged = mergeShortcutList(server, new Map(), new Set([3]));
+    assert.deepEqual(merged, []);
   });
 });
 

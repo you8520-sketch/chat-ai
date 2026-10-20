@@ -1032,6 +1032,7 @@ export default function ChatClient({
   const shortcutCaretRef = useRef({ start: 0, end: 0 });
   const shortcutComposingRef = useRef(false);
   const pendingShortcutRef = useRef<string | null>(null);
+  const suppressShortcutInputValueRef = useRef<string | null>(null);
   const [hasMoreOlder, setHasMoreOlder] = useState(initialHasMoreOlder);
   const [hiddenTurnCount, setHiddenTurnCount] = useState(initialHiddenTurnCount);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -6264,6 +6265,13 @@ export default function ChatClient({
               value={input}
               maxLength={CHAT_MESSAGE_MAX}
               onChange={(e) => {
+                const echoed = suppressShortcutInputValueRef.current;
+                if (echoed != null && e.target.value === echoed) {
+                  suppressShortcutInputValueRef.current = null;
+                  rememberShortcutCaret(e.currentTarget);
+                  return;
+                }
+                suppressShortcutInputValueRef.current = null;
                 setInput(e.target.value.slice(0, CHAT_MESSAGE_MAX));
                 rememberShortcutCaret(e.currentTarget);
               }}
@@ -6276,10 +6284,11 @@ export default function ChatClient({
               }}
               onCompositionEnd={(e) => {
                 shortcutComposingRef.current = false;
-                rememberShortcutCaret();
+                rememberShortcutCaret(e.currentTarget);
                 const pending = pendingShortcutRef.current;
                 pendingShortcutRef.current = null;
                 if (!pending) return;
+                suppressShortcutInputValueRef.current = e.currentTarget.value;
                 applyShortcutInsert(pending, e.currentTarget.value);
               }}
               onKeyDown={(e) => {
