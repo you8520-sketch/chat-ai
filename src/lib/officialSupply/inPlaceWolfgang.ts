@@ -25,8 +25,8 @@ export const WOLFGANG_IN_PLACE_TARGET = {
   sourceDraftKey: "pilot-rf-02",
   supplyDraftKey: "pilot-rf-v4-02",
   characterName: "볼프강 폰 발켄하임",
-  previousTextLockHash: "c91ba66ab5cd45976c53c4298a7c355fbb286e3f761758d3a6cd5ce14f993dc9",
-  approvedTextLockHash: "599854610891ee4e09224d1bec863501227157584b66068f0e1cab5e0e1ca89c",
+  previousTextLockHash: "599854610891ee4e09224d1bec863501227157584b66068f0e1cab5e0e1ca89c",
+  approvedTextLockHash: "e22ba966bdeab1babb331bdc916fe43a0e0d4e8adb3f5f2ba32f969c28ba2af2",
   appearanceLockHash: "1c3ccd134203a6dea6ae869c27cc443c42ff5498d1d0130c6f9765407c24dcc3",
 } as const;
 
