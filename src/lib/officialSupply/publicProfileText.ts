@@ -388,18 +388,18 @@ export function officialPlayStartChoices(draft: OfficialCharacterDraft): string[
     .slice(0, 3);
 }
 
+function squashPlain(text: string): string {
+  return text.replace(/\s+/g, "").trim();
+}
+
 function draftPlayGuideParts(draft: OfficialCharacterDraft): {
   situation: string;
   start: string;
 } {
   const choices = officialPlayStartChoices(draft);
-  const start =
-    choices.length > 0
-      ? choices.join(" · ")
-      : firstSentence(draft.hook.rpHook, 140) || firstSentence(draft.tagline, 80);
   return {
     situation: firstSentence(draft.hook.rpHook, 140) || firstSentence(draft.tagline, 80),
-    start,
+    start: choices.length > 0 ? choices.join(" · ") : "",
   };
 }
 
@@ -411,10 +411,12 @@ export function composeOfficialCreatorComment(draft: OfficialCharacterDraft): st
   const authored = draft.creatorComment?.trim();
   if (authored) return authored;
   const parts = draftPlayGuideParts(draft);
-  return [
-    `<p><b>지금 상황</b><br>${escapeHtml(parts.situation)}</p>`,
-    `<p><b>추천 플레이 방향</b><br>${escapeHtml(parts.start)}</p>`,
-  ].join("\n");
+  const blocks = [`<p><b>지금 상황</b><br>${escapeHtml(parts.situation)}</p>`];
+  const start = parts.start.trim();
+  if (start && squashPlain(start) !== squashPlain(parts.situation)) {
+    blocks.push(`<p><b>추천 플레이 방향</b><br>${escapeHtml(start)}</p>`);
+  }
+  return blocks.join("\n");
 }
 
 
@@ -474,8 +476,8 @@ export function evaluateOfficialCreatorComment(comment: string, description: str
       message: "official creator comment may use only simple <p><b><br> markup",
     });
   }
-  if (!trimmed.includes("지금 상황") || !trimmed.includes("추천 플레이 방향")) {
-    errors.push({ code: "creator_comment_guide_missing", message: "creator comment must state the situation and a recommended play direction" });
+  if (!trimmed.includes("지금 상황")) {
+    errors.push({ code: "creator_comment_guide_missing", message: "creator comment must state the current situation" });
   }
   for (const section of [
     `[${OFFICIAL_PUBLIC_INTRO_SECTIONS.world}`,
@@ -495,7 +497,15 @@ export function evaluateOfficialCreatorComment(comment: string, description: str
   if (commentPlain.length >= 80 && introPlain.includes(commentPlain.slice(0, 80))) {
     errors.push({ code: "creator_comment_copy", message: "creator comment repeats the detailed intro lead" });
   }
-  if (!USER_CUE_RE.test(commentPlain) && !/당신|역할|추천|방향|첫 인사/.test(commentPlain)) {
+  const situationLine = trimmed.match(/지금 상황<\/b><br>([^<]+)/)?.[1] ?? "";
+  const startLine = trimmed.match(/추천 플레이 방향<\/b><br>([^<]+)/)?.[1] ?? "";
+  const hasPlayDirectionSection = trimmed.includes("추천 플레이 방향");
+  if (
+    !hasPlayDirectionSection &&
+    situationLine.trim().length >= 10
+  ) {
+    // Auto fallback with no concrete start choices: the situation block is the only guide.
+  } else if (!USER_CUE_RE.test(commentPlain) && !/당신|역할|추천|방향|첫 인사/.test(commentPlain)) {
     errors.push({ code: "creator_comment_no_play", message: "creator comment must recommend how to play the single greeting start" });
   }
   if (/(신뢰|호감|경계).{0,8}(낮음|높음|미정|\d)/.test(commentPlain)) {
@@ -516,9 +526,18 @@ export function evaluateOfficialCreatorComment(comment: string, description: str
       message: "creator comment must not imply selectable alternate starts or episodes; runtime has a single greeting",
     });
   }
-  const startLine = trimmed.match(/추천 플레이 방향<\/b><br>([^<]+)/)?.[1] ?? "";
-  if (!startLine.trim()) {
+  if (trimmed.includes("추천 플레이 방향") && !startLine.trim()) {
     errors.push({ code: "creator_comment_direction_missing", message: "creator comment must give a recommended play direction" });
+  }
+  if (
+    startLine.trim() &&
+    situationLine.trim() &&
+    squashPlain(situationLine) === squashPlain(startLine)
+  ) {
+    errors.push({
+      code: "creator_comment_play_direction_duplicate",
+      message: "recommended play direction must not repeat the situation line",
+    });
   }
   if (INTERNAL_PRODUCTION_PHRASE_RE.test(commentPlain)) {
     errors.push({

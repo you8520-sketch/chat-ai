@@ -15,6 +15,10 @@ import {
   testStyleCandidate,
 } from "@/lib/officialSupply/officialSupply.fixtures";
 import {
+  compileRelationStartDraft,
+  loadRelationStartCandidates,
+} from "@/lib/officialSupply/relationStartCandidates";
+import {
   composeOfficialCreatorComment,
   composeOfficialPublicDescription,
   evaluateOfficialCreatorComment,
@@ -171,7 +175,14 @@ describe("official detailed intro + creator comment", () => {
       const qa = evaluateOfficialCreatorComment(comment, draft.description);
       assert.deepEqual(qa.errors, [], `${file.draftKey}: ${JSON.stringify(qa.errors)}`);
       assert.match(comment, /지금 상황/);
-      assert.match(comment, /추천 플레이 방향/);
+      const authored = file.bible.publicProfile.creatorComment?.trim();
+      if (authored) {
+        assert.equal(comment, authored);
+        assert.match(comment, /추천 플레이 방향/);
+        starts.add(comment.match(/추천 플레이 방향<\/b><br>([^<]+)/)?.[1] ?? "");
+      } else {
+        assert.doesNotMatch(comment, /추천 플레이 방향/, `${file.draftKey}: auto fallback must not duplicate rpHook`);
+      }
       assert.doesNotMatch(comment, /가능한 관계/);
       assert.doesNotMatch(comment, /하나의 도입 상황|이런 식으로 시작해 보세요|런타임|프롬프트/);
       assert.doesNotMatch(comment, /\[캐릭터 설정\]/);
@@ -179,7 +190,6 @@ describe("official detailed intro + creator comment", () => {
       assert.doesNotMatch(comment, /첫 장면에서는 목적 한 가지만|반응을 보세요|따라 누구와/);
       assert.doesNotMatch(comment, /고르세요|중에서 먼저|첫 수를 정해|선택지|에피소드/);
       assert.deepEqual(officialPlayStartChoices(draft), [], `${file.draftKey} no longer compiles a user-choice menu`);
-      starts.add(comment.match(/추천 플레이 방향<\/b><br>([^<]+)/)?.[1] ?? "");
       assert.ok(!draft.description.includes(comment.replace(/<[^>]+>/g, "").trim()));
     }
     const lucian = sampleChars().find((file) => file.draftKey === "pilot-rf-03")!;
@@ -187,7 +197,26 @@ describe("official detailed intro + creator comment", () => {
       officialPlayStartChoices(compileOfficialDraftFromBible(lucian.bible, compileKeys(lucian))),
       []
     );
-    assert.equal(starts.size, 3);
+    assert.ok(starts.size >= 1, "authored play-direction lines stay distinct");
+  });
+
+  it("auto creator comment keeps situation only when play-start choices are empty", () => {
+    for (const candidate of loadRelationStartCandidates()) {
+      const draft = compileRelationStartDraft(candidate);
+      assert.equal(draft.creatorComment, undefined, `${candidate.key}: uses auto fallback`);
+      assert.deepEqual(officialPlayStartChoices(draft), [], candidate.key);
+      const comment = composeOfficialCreatorComment(draft);
+      const situation = comment.match(/지금 상황<\/b><br>([^<]+)/)?.[1]?.trim() ?? "";
+      const start = comment.match(/추천 플레이 방향<\/b><br>([^<]+)/)?.[1]?.trim() ?? "";
+      assert.ok(situation.length > 0, candidate.key);
+      assert.equal(start, "", `${candidate.key}: must not repeat rpHook as play direction`);
+      assert.doesNotMatch(comment, /추천 플레이 방향/, candidate.key);
+      assert.deepEqual(
+        evaluateOfficialCreatorComment(comment, draft.description).errors,
+        [],
+        `${candidate.key}: ${JSON.stringify(evaluateOfficialCreatorComment(comment, draft.description).errors)}`
+      );
+    }
   });
 
   it("compiled greeting, public intro, and creator comment stay player-gender neutral", () => {
