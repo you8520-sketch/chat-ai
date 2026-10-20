@@ -46,6 +46,11 @@ import {
   type StoredAppearanceIdentityClass,
 } from "@/lib/officialSupply/appearance";
 import {
+  applyLucianSupplyPlan,
+  planLucianSupply,
+  type LucianSupplyPlan,
+} from "@/lib/officialSupply/inPlaceLucian";
+import {
   applyWolfgangSupplyPlan,
   assertWolfgangStoredAppearanceCompatible,
   isWolfgangInPlaceSource,
@@ -146,6 +151,14 @@ export type OfficialInPlaceSyncResult = {
   };
   changedFields: string[];
   applied: boolean;
+  supplyTextLock?: {
+    supplyDraftHash: string;
+    supplyTextLockHash: string;
+    storedComputedTextLockHash: string;
+    targetTextLockHash: string;
+    consistent: boolean;
+    state: string;
+  };
 };
 
 type OfficialCharacterRow = {
@@ -598,6 +611,7 @@ function buildPreflightSnapshot(input: {
   lorebookPlan: readonly OfficialInPlaceLorebookPlan[];
   lorebookEntries: readonly OfficialWorldLorebookEntry[];
   wolfgangSupply: WolfgangSupplyPlan | null;
+  lucianSupply: LucianSupplyPlan | null;
 }): OfficialInPlacePreflightSnapshot {
   const parts = {
     characterId: input.characterId,
@@ -628,7 +642,14 @@ function buildPreflightSnapshot(input: {
           supplyTextLockHash: input.wolfgangSupply.expectedTextLockHash,
           targetTextLockHash: input.wolfgangSupply.nextTextLockHash,
         }
-      : {}),
+      : input.lucianSupply
+        ? {
+            supplyDraftKey: input.lucianSupply.supplyDraftKey,
+            supplyDraftHash: input.lucianSupply.supplyDraftHash,
+            supplyTextLockHash: input.lucianSupply.expectedTextLockHash,
+            targetTextLockHash: input.lucianSupply.nextTextLockHash,
+          }
+        : {}),
   };
   return { ...parts, token: snapshotToken(parts) };
 }
@@ -744,6 +765,7 @@ function inspectTarget(input: {
   lorebookPlan: OfficialInPlaceLorebookPlan[];
   supply: SupplyLink;
   wolfgangSupply: WolfgangSupplyPlan | null;
+  lucianSupply: LucianSupplyPlan | null;
   appearanceWrite: AppearanceWritePlan;
 } {
   const db = getDb();
@@ -802,6 +824,15 @@ function inspectTarget(input: {
         source,
       })
     : null;
+  const lucianSupply =
+    input.draftKey === LUCIAN_DRAFT_KEY && wolfgangSupply == null
+      ? planLucianSupply({
+          db,
+          characterId: row.id,
+          characterName: row.name,
+          source,
+        })
+      : null;
   const supply: SupplyLink = wolfgangSupply
     ? {
         draft_key: wolfgangSupply.supplyDraftKey,
@@ -900,6 +931,7 @@ function inspectTarget(input: {
     lorebookPlan,
     supply,
     wolfgangSupply,
+    lucianSupply,
     appearanceWrite,
   };
 }
@@ -910,8 +942,19 @@ function toResult(input: {
   applied: boolean;
   lorebookKeys?: string[];
 }): OfficialInPlaceSyncResult {
-  const { row, source, compiled, alias, attachedIds, beforeKeys, assetsJson, lorebookPlan, appearanceWrite, wolfgangSupply } =
-    input.inspected;
+  const {
+    row,
+    source,
+    compiled,
+    alias,
+    attachedIds,
+    beforeKeys,
+    assetsJson,
+    lorebookPlan,
+    appearanceWrite,
+    wolfgangSupply,
+    lucianSupply,
+  } = input.inspected;
   const preflightSnapshot = buildPreflightSnapshot({
     characterId: row.id,
     draftKey: source.draftKey,
@@ -923,7 +966,27 @@ function toResult(input: {
     lorebookPlan,
     lorebookEntries: source.resolvedLorebook,
     wolfgangSupply,
+    lucianSupply,
   });
+  const supplyTextLock = lucianSupply
+    ? {
+        supplyDraftHash: lucianSupply.supplyDraftHash,
+        supplyTextLockHash: lucianSupply.expectedTextLockHash,
+        storedComputedTextLockHash: lucianSupply.storedComputedTextLockHash,
+        targetTextLockHash: lucianSupply.nextTextLockHash,
+        consistent: lucianSupply.expectedTextLockHash === lucianSupply.storedComputedTextLockHash,
+        state: lucianSupply.state,
+      }
+    : wolfgangSupply
+      ? {
+          supplyDraftHash: sha256(wolfgangSupply.expectedDraftJson),
+          supplyTextLockHash: wolfgangSupply.expectedTextLockHash,
+          storedComputedTextLockHash: wolfgangSupply.expectedTextLockHash,
+          targetTextLockHash: wolfgangSupply.nextTextLockHash,
+          consistent: true,
+          state: wolfgangSupply.state,
+        }
+      : undefined;
   const after = {
     tagline: compiled.tagline,
     descriptionHash: sha256(compiled.description),
@@ -962,7 +1025,13 @@ function toResult(input: {
       ["creator_name", before.creatorName !== after.creatorName],
       ["lorebook", JSON.stringify(before.lorebookKeys) !== JSON.stringify(after.lorebookKeys)],
       ["appearance", appearanceWrite.replaceWithCompact],
-      ["supply_text_lock", wolfgangSupply?.state === "previous_lock"],
+      [
+        "supply_text_lock",
+        wolfgangSupply?.state === "previous_lock" ||
+          (lucianSupply != null &&
+            lucianSupply.state !== "already_synced" &&
+            lucianSupply.state !== "link_only"),
+      ],
     ] as const
   )
     .filter(([, changed]) => changed)
@@ -984,6 +1053,7 @@ function toResult(input: {
     after,
     changedFields,
     applied: input.applied,
+    ...(supplyTextLock ? { supplyTextLock } : {}),
   };
 }
 
@@ -992,7 +1062,7 @@ function applyGuardedCanonicalFields(input: {
   inspected: ReturnType<typeof inspectTarget>;
   testInjectFailure?: OfficialInPlaceTestInjectFailure;
 }): { id: number; entryKey: string }[] {
-  const { row, owner, source, compiled, alias, lorebookPlan, supply, appearanceWrite, wolfgangSupply } =
+  const { row, owner, source, compiled, alias, lorebookPlan, appearanceWrite, wolfgangSupply, lucianSupply } =
     input.inspected;
   const existingTriggers = sqliteTableExists(input.db, "status_widget_triggers")
     ? listCharacterStatusWidgetTriggers(input.db, row.id)
@@ -1144,21 +1214,8 @@ function applyGuardedCanonicalFields(input: {
 
     if (wolfgangSupply) {
       applyWolfgangSupplyPlan(input.db, wolfgangSupply);
-    } else if (sqliteTableExists(input.db, "official_supply_characters")) {
-      const supplyWrite = input.db
-        .prepare(
-          `UPDATE official_supply_characters
-           SET draft_json=?, staged_character_id=?, updated_at=datetime('now')
-           WHERE draft_key=?
-             AND (staged_character_id IS NULL OR staged_character_id=?)`
-        )
-        .run(JSON.stringify(source.draft), row.id, supply.draft_key, row.id);
-      if (supplyWrite.changes !== 1) {
-        throw new OfficialSupplyGateError(
-          "supply_write_mismatch",
-          `refusing to write draft_json onto ${supply.draft_key}; predecessor history must stay untouched`
-        );
-      }
+    } else if (lucianSupply) {
+      applyLucianSupplyPlan(input.db, lucianSupply);
     }
     return synced;
   });
