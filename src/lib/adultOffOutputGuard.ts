@@ -783,9 +783,88 @@ export function buildAdultOffGuardUsageEvidence(
   };
 }
 
+function readAdultOffGuardNumber(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function mergeAdultOffApprovedTextHashes(
+  priorHashes: unknown,
+  newlyVerifiedText: string
+): string[] {
+  const merged: string[] = [];
+  const seen = new Set<string>();
+  const push = (hash: string) => {
+    if (!hash || seen.has(hash)) return;
+    seen.add(hash);
+    merged.push(hash);
+  };
+  if (Array.isArray(priorHashes)) {
+    for (const item of priorHashes) {
+      if (typeof item === "string") push(item);
+    }
+  }
+  for (const hash of adultOffApprovedTextHashes([newlyVerifiedText])) push(hash);
+  return merged;
+}
+
+/** usage에 저장된 단계 기록만으로 집계를 다시 계산한다. 미확정 원가는 0으로 만들지 않는다. */
+function aggregateAdultOffGuardEvidenceFromStoredChecks(
+  mergedChecks: readonly unknown[]
+): Omit<ReturnType<typeof buildAdultOffGuardUsageEvidence>, "checks" | "approvedTextHashes"> {
+  let classifierCalls = 0;
+  let totalCheckMs = 0;
+  let moderationCostUsd = 0;
+  let callsWithoutCost = 0;
+  let lowConfidenceAllow = false;
+  const bodyChecks: Array<{ status: string }> = [];
+
+  for (const row of mergedChecks) {
+    if (!row || typeof row !== "object") continue;
+    const check = row as Record<string, unknown>;
+    classifierCalls += readAdultOffGuardNumber(check.classifierCalls);
+    totalCheckMs += readAdultOffGuardNumber(check.checkMs);
+    if (check.reason === "low_confidence_allow") lowConfidenceAllow = true;
+    const stage = typeof check.stage === "string" ? check.stage : "";
+    const status = typeof check.status === "string" ? check.status : "";
+    if (stage === "pre_postprocess" || stage === "final") {
+      bodyChecks.push({ status });
+    }
+    const calls = Array.isArray(check.calls) ? check.calls : [];
+    for (const call of calls) {
+      if (!call || typeof call !== "object") continue;
+      const costUsd = (call as { costUsd?: unknown }).costUsd;
+      if (costUsd == null) {
+        callsWithoutCost += 1;
+        continue;
+      }
+      if (typeof costUsd === "number" && Number.isFinite(costUsd)) {
+        moderationCostUsd += costUsd;
+      }
+    }
+  }
+
+  const lastBody = bodyChecks[bodyChecks.length - 1];
+  const finalStatus =
+    lastBody == null
+      ? "not_checked"
+      : lastBody.status === "blocked" || lastBody.status === "check_failed"
+        ? lastBody.status
+        : "approved";
+
+  return {
+    finalStatus,
+    classifierCalls,
+    totalCheckMs,
+    moderationCostUsd,
+    callsWithoutCost,
+    lowConfidenceAllow,
+  };
+}
+
 /**
  * 재전송에서 새로 승인된 문자열의 해시만 기존 usage에 더한다.
  * 정산 필드는 그대로 두고, 없던 승인을 만들어 내지 않는다.
+ * 감사 단계·호출 수·지연·알려진 원가는 병합된 checks에서 다시 합산한다.
  */
 export function mergeAdultOffReplayApproval(
   usage: Record<string, unknown> | null,
@@ -797,16 +876,21 @@ export function mergeAdultOffReplayApproval(
     prior.adultOffGuard && typeof prior.adultOffGuard === "object"
       ? (prior.adultOffGuard as Record<string, unknown>)
       : {};
-  const added = buildAdultOffGuardUsageEvidence(checks, [content]);
+  const addedEvidence = buildAdultOffGuardUsageEvidence(checks, [content]);
+  const addedChecks = Array.isArray(addedEvidence.checks) ? addedEvidence.checks : [];
   const priorChecks = Array.isArray(priorGuard.checks) ? priorGuard.checks : [];
-  const addedChecks = Array.isArray(added.checks) ? added.checks : [];
+  const mergedChecks = [...priorChecks, ...addedChecks];
+  const aggregated = aggregateAdultOffGuardEvidenceFromStoredChecks(mergedChecks);
   return {
     ...prior,
     adultOffGuard: {
       ...priorGuard,
-      ...added,
-      checks: [...priorChecks, ...addedChecks],
-      approvedTextHashes: added.approvedTextHashes,
+      ...aggregated,
+      checks: mergedChecks,
+      approvedTextHashes: mergeAdultOffApprovedTextHashes(
+        priorGuard.approvedTextHashes,
+        content
+      ),
     },
   };
 }

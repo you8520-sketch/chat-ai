@@ -619,4 +619,89 @@ describe("adult-off stored approval proof", () => {
     assert.equal(adultOffStoredUsageApprovesText(merged, text), true);
     assert.equal(adultOffStoredUsageApprovesText(merged, `${text} `), false);
   });
+
+  it("accumulates prior audit rows, costs, and hashes on replay merge", () => {
+    const approvedDecision = {
+      status: "approved" as const,
+      checkedWindows: 1,
+      classifierCalls: 1,
+      usages: [usage],
+    };
+    const priorBody = "그는 동의한 것이 아니었다.";
+    const replayBody = "그는 가볍게 입을 맞추고 그녀를 안았다.";
+    const unknownCostUsage: AdultOffClassifierUsage = {
+      ...usage,
+      providerRequestId: "stub-unknown-cost",
+      costUsd: null,
+    };
+    const priorEvidence = buildAdultOffGuardUsageEvidence(
+      [
+        summarizeAdultOffCheck("pre_postprocess", approvedDecision, 1000),
+        summarizeAdultOffCheck(
+          "final",
+          {
+            status: "approved",
+            checkedWindows: 1,
+            classifierCalls: 1,
+            usages: [unknownCostUsage],
+          },
+          2000
+        ),
+      ],
+      [priorBody]
+    );
+    const replayCheck = summarizeAdultOffCheck("final", approvedDecision, 500);
+    const merged = mergeAdultOffReplayApproval(
+      { cost: 40, model: "gemini", adultOffGuard: priorEvidence },
+      replayBody,
+      [replayCheck]
+    );
+    const guard = merged.adultOffGuard as {
+      checks?: unknown[];
+      classifierCalls?: number;
+      totalCheckMs?: number;
+      moderationCostUsd?: number;
+      callsWithoutCost?: number;
+      finalStatus?: string;
+      approvedTextHashes?: string[];
+    };
+    assert.equal(guard.checks?.length, 3);
+    assert.equal(guard.classifierCalls, 3);
+    assert.equal(guard.totalCheckMs, 3500);
+    assert.equal(guard.moderationCostUsd, 0.0002);
+    assert.equal(guard.callsWithoutCost, 1);
+    assert.equal(guard.finalStatus, "approved");
+    assert.deepEqual(guard.approvedTextHashes, [
+      adultOffApprovedTextHash(priorBody),
+      adultOffApprovedTextHash(replayBody),
+    ]);
+    assert.equal(merged.cost, 40);
+    assert.equal(adultOffStoredUsageApprovesText(merged, priorBody), true);
+    assert.equal(adultOffStoredUsageApprovesText(merged, replayBody), true);
+  });
+
+  it("builds replay audit from the new check when prior usage had no guard evidence", () => {
+    const text = "그는 가볍게 입을 맞추고 그녀를 안았다.";
+    const merged = mergeAdultOffReplayApproval(null, text, [
+      summarizeAdultOffCheck(
+        "final",
+        {
+          status: "approved",
+          checkedWindows: 1,
+          classifierCalls: 1,
+          usages: [usage],
+        },
+        400
+      ),
+    ]);
+    const guard = merged.adultOffGuard as {
+      classifierCalls?: number;
+      totalCheckMs?: number;
+      checks?: unknown[];
+    };
+    assert.equal(guard.checks?.length, 1);
+    assert.equal(guard.classifierCalls, 1);
+    assert.equal(guard.totalCheckMs, 400);
+    assert.equal(adultOffStoredUsageApprovesText(merged, text), true);
+  });
 });
