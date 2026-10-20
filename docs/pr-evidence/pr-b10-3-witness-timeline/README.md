@@ -3,7 +3,7 @@
 조사만. 제품 코드·프롬프트·DB 쓰기·유료 호출 없음.
 
 **main:** `1e8833ffe253d400332b487c36e2c98664f867cc`  
-**이 노트 SHA:** 커밋 후 `git rev-parse HEAD`  
+**이 노트:** `docs/pr-evidence/pr-b10-3-witness-timeline/README.md` (브랜치 `cursor/rp-b10-3-witness-order-9d27`)  
 **판정:** `CASE 5 — MIXED`
 
 눈빛·표정·손짓을 봤다는 Gemini 확정은, 최종 입력에 그 목격이 없어서도 난다.  
