@@ -101,6 +101,12 @@ function withApplyEnabled<T>(fn: () => T): T {
 }
 
 describe("Lucian #50 supply draft_json / Text Lock coupling", () => {
+  it("pins the current main compile Text Lock for pilot-rf-03", () => {
+    assert.equal(
+      computeTextLockHash(loadCompiledOfficialCharacterSource(LUCIAN_DRAFT_KEY).draft),
+      "c3fda3e51f981b31066f3707ac8b580235092632a85a5d543d935093ca0b742f"
+    );
+  });
   before(() => {
     installIsolatedTestDatabase();
   });
