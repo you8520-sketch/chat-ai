@@ -1,0 +1,6 @@
+Personal shortcut UI design pass on main cb30ab95 (after #1682 merge 1ee95125).
+before/: baseline product, tests/ui/chat-shortcuts-design.spec.ts states at 390x844, 1280x800, 320x568.
+after/: same spec, redesigned dock.
+before design-09-delete-confirm-*.png come from an earlier baseline run of the same scenario (same product code); the final-spec baseline run stops at the cancel step that only exists after the change.
+Logs: before-design-spec.txt (9 failed, 2 render-only passed), after-design-and-functional.txt (22/22), production-build.txt.
+Headless Chromium only; no real device or real IME.

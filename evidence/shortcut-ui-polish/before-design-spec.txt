@@ -1,0 +1,404 @@
+
+> hav-chat@0.1.0 test:ui
+> playwright test tests/ui/chat-shortcuts-design.spec.ts
+
+
+Running 11 tests using 1 worker
+
+(node:93522) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:93522) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [exchangeRate] fetch failed — using last known or fallback fetch failed
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 1, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 1, chatId: 1 }
+  ✓   1 [chromium] › tests/ui/chat-shortcuts-design.spec.ts:123:9 › personal shortcut UI design evidence › renders every shortcut state at 390 (2.2s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 2, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 2, chatId: 2 }
+  ✘   2 [chromium] › tests/ui/chat-shortcuts-design.spec.ts:146:9 › personal shortcut UI design evidence › renders loading, list error, save failure, and delete confirm at 390 (1.0m)
+(node:93646) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:93646) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 3, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 3, chatId: 3 }
+  ✓   3 [chromium] › tests/ui/chat-shortcuts-design.spec.ts:123:9 › personal shortcut UI design evidence › renders every shortcut state at 1280 (1.8s)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 4, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 4, chatId: 4 }
+  ✘   4 [chromium] › tests/ui/chat-shortcuts-design.spec.ts:146:9 › personal shortcut UI design evidence › renders loading, list error, save failure, and delete confirm at 1280 (1.0m)
+(node:93752) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:93752) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 5, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 5, chatId: 5 }
+  ✘   5 [chromium] › tests/ui/chat-shortcuts-design.spec.ts:206:9 › personal shortcut UI layout contract › keeps the picked sentence, next actions, and composer visible at 390 (6.2s)
+(node:93844) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:93844) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 6, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 6, chatId: 6 }
+  ✘   6 [chromium] › tests/ui/chat-shortcuts-design.spec.ts:231:9 › personal shortcut UI layout contract › uses readable text and tap targets at 390 (1.3s)
+(node:93918) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:93918) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 7, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 7, chatId: 7 }
+  ✘   7 [chromium] › tests/ui/chat-shortcuts-design.spec.ts:206:9 › personal shortcut UI layout contract › keeps the picked sentence, next actions, and composer visible at 1280 (6.3s)
+(node:93995) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:93995) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 8, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 8, chatId: 8 }
+  ✘   8 [chromium] › tests/ui/chat-shortcuts-design.spec.ts:231:9 › personal shortcut UI layout contract › uses readable text and tap targets at 1280 (1.3s)
+(node:94066) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:94066) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 9, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 9, chatId: 9 }
+  ✘   9 [chromium] › tests/ui/chat-shortcuts-design.spec.ts:251:7 › personal shortcut UI layout contract › does not overflow at 320px (1.4s)
+(node:94141) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:94141) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 10, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 10, chatId: 10 }
+  ✘  10 [chromium] › tests/ui/chat-shortcuts-design.spec.ts:295:7 › personal shortcut form cancel › cancel closes the form and returns the selected shortcut actions (6.2s)
+(node:94220) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:94220) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 11, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 11, chatId: 11 }
+  ✘  11 [chromium] › tests/ui/chat-shortcuts-design.spec.ts:309:7 › personal shortcut form cancel › cancel during a held save keeps the form closed and still lists the saved shortcut (1.0m)
+
+
+  1) [chromium] › tests/ui/chat-shortcuts-design.spec.ts:146:9 › personal shortcut UI design evidence › renders loading, list error, save failure, and delete confirm at 390
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByTestId('chat-shortcuts-cancel')
+
+
+      192 |       await shot(page, testInfo, `design-08-save-failure-${viewport.tag}`);
+      193 |
+    > 194 |       await page.getByTestId("chat-shortcuts-cancel").click();
+          |                                                       ^
+      195 |       await expect(page.getByTestId("chat-shortcuts-name")).toHaveCount(0);
+      196 |       await page.getByRole("button", { name: "자주 쓰는 문장 2 상황 2에 쓰는 한 줄 설명", exact: true }).click();
+      197 |       await page.getByTestId("chat-shortcuts-panel").getByRole("button", { name: "삭제" }).click();
+        at /workspace/tests/ui/chat-shortcuts-design.spec.ts:194:55
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-design-pers-44611-e-and-delete-confirm-at-390-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/chat-shortcuts-design-pers-44611-e-and-delete-confirm-at-390-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-design-pers-44611-e-and-delete-confirm-at-390-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/chat-shortcuts-design-pers-44611-e-and-delete-confirm-at-390-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › tests/ui/chat-shortcuts-design.spec.ts:146:9 › personal shortcut UI design evidence › renders loading, list error, save failure, and delete confirm at 1280
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByTestId('chat-shortcuts-cancel')
+
+
+      192 |       await shot(page, testInfo, `design-08-save-failure-${viewport.tag}`);
+      193 |
+    > 194 |       await page.getByTestId("chat-shortcuts-cancel").click();
+          |                                                       ^
+      195 |       await expect(page.getByTestId("chat-shortcuts-name")).toHaveCount(0);
+      196 |       await page.getByRole("button", { name: "자주 쓰는 문장 2 상황 2에 쓰는 한 줄 설명", exact: true }).click();
+      197 |       await page.getByTestId("chat-shortcuts-panel").getByRole("button", { name: "삭제" }).click();
+        at /workspace/tests/ui/chat-shortcuts-design.spec.ts:194:55
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-design-pers-03a41--and-delete-confirm-at-1280-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/chat-shortcuts-design-pers-03a41--and-delete-confirm-at-1280-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-design-pers-03a41--and-delete-confirm-at-1280-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/chat-shortcuts-design-pers-03a41--and-delete-confirm-at-1280-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [chromium] › tests/ui/chat-shortcuts-design.spec.ts:206:9 › personal shortcut UI layout contract › keeps the picked sentence, next actions, and composer visible at 390
+
+    Error: expect(locator).toBeInViewport() failed
+
+    Locator:  getByTestId('chat-shortcuts-preview')
+    Expected: in viewport
+    Received: viewport ratio 0
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeInViewport" getByTestId('chat-shortcuts-preview') with timeout 5000ms
+      - waiting for getByTestId('chat-shortcuts-preview')
+        14 × locator resolved to <div data-testid="chat-shortcuts-preview" class="mt-2 rounded-md border border-violet-500/30 bg-violet-500/5 p-2">…</div>
+           - unexpected value "viewport ratio 0"
+
+
+      210 |       await settle(page);
+      211 |
+    > 212 |       await expect(page.getByTestId("chat-shortcuts-preview")).toBeInViewport({ ratio: 1 });
+          |                                                                ^
+      213 |       await expect(page.getByTestId("chat-shortcuts-insert")).toBeInViewport({ ratio: 1 });
+      214 |       await expect(
+      215 |         panel(page).getByRole("button", { name: "수정" })
+        at /workspace/tests/ui/chat-shortcuts-design.spec.ts:212:64
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-design-pers-d3232-and-composer-visible-at-390-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/chat-shortcuts-design-pers-d3232-and-composer-visible-at-390-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-design-pers-d3232-and-composer-visible-at-390-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/chat-shortcuts-design-pers-d3232-and-composer-visible-at-390-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [chromium] › tests/ui/chat-shortcuts-design.spec.ts:231:9 › personal shortcut UI layout contract › uses readable text and tap targets at 390
+
+    Error: expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 12
+    Received:    10
+
+      237 |       await settle(page);
+      238 |
+    > 239 |       expect(await minimumTextSize(panel(page))).toBeGreaterThanOrEqual(12);
+          |                                                  ^
+      240 |       expect(await minimumTextSize(page.getByTestId("chat-shortcuts-open"))).toBeGreaterThanOrEqual(12);
+      241 |
+      242 |       const mobile = viewport.width < 576;
+        at /workspace/tests/ui/chat-shortcuts-design.spec.ts:239:50
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-design-pers-adf37-text-and-tap-targets-at-390-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/chat-shortcuts-design-pers-adf37-text-and-tap-targets-at-390-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-design-pers-adf37-text-and-tap-targets-at-390-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/chat-shortcuts-design-pers-adf37-text-and-tap-targets-at-390-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) [chromium] › tests/ui/chat-shortcuts-design.spec.ts:206:9 › personal shortcut UI layout contract › keeps the picked sentence, next actions, and composer visible at 1280
+
+    Error: expect(locator).toBeInViewport() failed
+
+    Locator:  getByTestId('chat-shortcuts-preview')
+    Expected: in viewport
+    Received: viewport ratio 0
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeInViewport" getByTestId('chat-shortcuts-preview') with timeout 5000ms
+      - waiting for getByTestId('chat-shortcuts-preview')
+        14 × locator resolved to <div data-testid="chat-shortcuts-preview" class="mt-2 rounded-md border border-violet-500/30 bg-violet-500/5 p-2">…</div>
+           - unexpected value "viewport ratio 0"
+
+
+      210 |       await settle(page);
+      211 |
+    > 212 |       await expect(page.getByTestId("chat-shortcuts-preview")).toBeInViewport({ ratio: 1 });
+          |                                                                ^
+      213 |       await expect(page.getByTestId("chat-shortcuts-insert")).toBeInViewport({ ratio: 1 });
+      214 |       await expect(
+      215 |         panel(page).getByRole("button", { name: "수정" })
+        at /workspace/tests/ui/chat-shortcuts-design.spec.ts:212:64
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-design-pers-1ea1a-nd-composer-visible-at-1280-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/chat-shortcuts-design-pers-1ea1a-nd-composer-visible-at-1280-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-design-pers-1ea1a-nd-composer-visible-at-1280-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/chat-shortcuts-design-pers-1ea1a-nd-composer-visible-at-1280-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6) [chromium] › tests/ui/chat-shortcuts-design.spec.ts:231:9 › personal shortcut UI layout contract › uses readable text and tap targets at 1280
+
+    Error: expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 12
+    Received:    10
+
+      237 |       await settle(page);
+      238 |
+    > 239 |       expect(await minimumTextSize(panel(page))).toBeGreaterThanOrEqual(12);
+          |                                                  ^
+      240 |       expect(await minimumTextSize(page.getByTestId("chat-shortcuts-open"))).toBeGreaterThanOrEqual(12);
+      241 |
+      242 |       const mobile = viewport.width < 576;
+        at /workspace/tests/ui/chat-shortcuts-design.spec.ts:239:50
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-design-pers-63c69-ext-and-tap-targets-at-1280-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/chat-shortcuts-design-pers-63c69-ext-and-tap-targets-at-1280-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-design-pers-63c69-ext-and-tap-targets-at-1280-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/chat-shortcuts-design-pers-63c69-ext-and-tap-targets-at-1280-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  7) [chromium] › tests/ui/chat-shortcuts-design.spec.ts:251:7 › personal shortcut UI layout contract › does not overflow at 320px
+
+    Error: expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 0.99
+    Received:    0
+
+      287 |     expect(formBox!.x).toBeGreaterThanOrEqual(0);
+      288 |     expect(formBox!.x + formBox!.width).toBeLessThanOrEqual(320);
+    > 289 |     expect(insertRatio).toBeGreaterThanOrEqual(0.99);
+          |                         ^
+      290 |     expect(clipped).toEqual([]);
+      291 |   });
+      292 | });
+        at /workspace/tests/ui/chat-shortcuts-design.spec.ts:289:25
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-design-pers-796c3--does-not-overflow-at-320px-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/chat-shortcuts-design-pers-796c3--does-not-overflow-at-320px-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-design-pers-796c3--does-not-overflow-at-320px-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/chat-shortcuts-design-pers-796c3--does-not-overflow-at-320px-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  8) [chromium] › tests/ui/chat-shortcuts-design.spec.ts:295:7 › personal shortcut form cancel › cancel closes the form and returns the selected shortcut actions
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  getByTestId('chat-shortcuts-insert')
+    Expected: 0
+    Received: 1
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" getByTestId('chat-shortcuts-insert') with timeout 5000ms
+      - waiting for getByTestId('chat-shortcuts-insert')
+        14 × locator resolved to 1 element
+           - unexpected value "1"
+
+
+      300 |     await panel(page).getByRole("button", { name: "수정" }).click();
+      301 |     await page.getByTestId("chat-shortcuts-name").fill("고치다 만 이름");
+    > 302 |     await expect(page.getByTestId("chat-shortcuts-insert")).toHaveCount(0);
+          |                                                             ^
+      303 |     await page.getByTestId("chat-shortcuts-cancel").click();
+      304 |     await expect(page.getByTestId("chat-shortcuts-name")).toHaveCount(0);
+      305 |     await expect(page.getByTestId("chat-shortcuts-insert")).toBeVisible();
+        at /workspace/tests/ui/chat-shortcuts-design.spec.ts:302:61
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-design-pers-704ea-e-selected-shortcut-actions-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/chat-shortcuts-design-pers-704ea-e-selected-shortcut-actions-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-design-pers-704ea-e-selected-shortcut-actions-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/chat-shortcuts-design-pers-704ea-e-selected-shortcut-actions-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  9) [chromium] › tests/ui/chat-shortcuts-design.spec.ts:309:7 › personal shortcut form cancel › cancel during a held save keeps the form closed and still lists the saved shortcut
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByTestId('chat-shortcuts-cancel')
+
+
+      327 |     await page.getByTestId("chat-shortcuts-save").click();
+      328 |     await expect(page.getByTestId("chat-shortcuts-save")).toBeDisabled();
+    > 329 |     await page.getByTestId("chat-shortcuts-cancel").click();
+          |                                                     ^
+      330 |     await expect(page.getByTestId("chat-shortcuts-name")).toHaveCount(0);
+      331 |     releasePost?.();
+      332 |     await expect(page.getByRole("button", { name: "취소 중 저장", exact: true })).toBeVisible();
+        at /workspace/tests/ui/chat-shortcuts-design.spec.ts:329:53
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-design-pers-d5378-ll-lists-the-saved-shortcut-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/chat-shortcuts-design-pers-d5378-ll-lists-the-saved-shortcut-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-design-pers-d5378-ll-lists-the-saved-shortcut-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/chat-shortcuts-design-pers-d5378-ll-lists-the-saved-shortcut-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  9 failed
+    [chromium] › tests/ui/chat-shortcuts-design.spec.ts:146:9 › personal shortcut UI design evidence › renders loading, list error, save failure, and delete confirm at 390
+    [chromium] › tests/ui/chat-shortcuts-design.spec.ts:146:9 › personal shortcut UI design evidence › renders loading, list error, save failure, and delete confirm at 1280
+    [chromium] › tests/ui/chat-shortcuts-design.spec.ts:206:9 › personal shortcut UI layout contract › keeps the picked sentence, next actions, and composer visible at 390
+    [chromium] › tests/ui/chat-shortcuts-design.spec.ts:231:9 › personal shortcut UI layout contract › uses readable text and tap targets at 390
+    [chromium] › tests/ui/chat-shortcuts-design.spec.ts:206:9 › personal shortcut UI layout contract › keeps the picked sentence, next actions, and composer visible at 1280
+    [chromium] › tests/ui/chat-shortcuts-design.spec.ts:231:9 › personal shortcut UI layout contract › uses readable text and tap targets at 1280
+    [chromium] › tests/ui/chat-shortcuts-design.spec.ts:251:7 › personal shortcut UI layout contract › does not overflow at 320px
+    [chromium] › tests/ui/chat-shortcuts-design.spec.ts:295:7 › personal shortcut form cancel › cancel closes the form and returns the selected shortcut actions
+    [chromium] › tests/ui/chat-shortcuts-design.spec.ts:309:7 › personal shortcut form cancel › cancel during a held save keeps the form closed and still lists the saved shortcut
+  2 passed (5.1m)
