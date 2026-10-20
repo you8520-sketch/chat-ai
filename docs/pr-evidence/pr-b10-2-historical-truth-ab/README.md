@@ -8,82 +8,75 @@ Controlled experiment on **B9-1 T50-C2**. Evidence and docs only — **no** chan
 
 - B10-1 (#1681): Gemini 3.8 Flash locked unrecorded past dialogue on T50-C2 (primary example: `가이드님, 감사했습니다.`). Sol withheld exact words.
 - Shared owner: `HISTORICAL_TRUTH_POLICY_BLOCK` in `src/lib/historicalTruthPolicy.ts`.
-- Hypothesis sentence (B): replace “독립적인 과거 빈칸… 가볍게 추정” on **wire only** — not a product change.
+- Hypothesis sentence (B): replace “독립적인 과거 빈칸… 가볍게 추정” on **wire only** — **not** a product change.
 
 ## PROBLEM
 
 Re-test whether Gemini still **invents past facts** (last words, death-moment eyewitness) on fixed T50 input, then compare one-line B wording.
 
-**GPT re-review (post #1683 draft):** Prior `anyReproduction: false` used a **narrow** B10-1 string match. That conflated “exact legacy quote missing” with “symptom absent.” Symptom **did** reproduce on A (see `evidence-table.md`).
+Narrow auto-classifier once implied “no reproduction”; GPT manual review on full responses shows **symptom reproduced on A 3/3 and B 3/3** (see `evidence-table.md`).
 
 ## HYPOTHESIS
 
-Wire-only replacement of one sentence in `HISTORICAL_TRUTH_POLICY_BLOCK` might reduce **groundless past confirmation** without breaking non-denial or normal scene invention.
+Wire-only replacement of one sentence might reduce **groundless past confirmation** without breaking non-denial or normal scene invention.
 
-| A (production) | B (wire experiment) |
+| A (production) | B (wire experiment — **not approved**) |
 |---|---|
 | `유저의 독립적인 과거 빈칸은 장면을 해치지 않는 범위에서 가볍게 추정할 수 있다.` | `유저가 과거의 구체적인 세부를 물을 때 독립 근거가 확인되지 않으면 이를 사실로 확정하지 않고 열린 상태로 둔다. 현재 장면의 새로운 전개와 추측은 자연스럽게 이어갈 수 있다.` |
 
 Non-denial rule unchanged. See `sentence-diff.md`.
 
-## AFTER (experiment outcome — not product)
+## AFTER (experiment outcome — **not product**)
 
-| Phase | Calls | Cost (apiRawCostKrw) | Notes |
-|---|---:|---:|---|
-| A | 3 | ~25.1 | Not re-run after re-review; artifacts unchanged |
-| B | 3 | ~23.7 | Fresh snap-50 each; SHA `f3f838ee…` verified pre-send |
+| Phase | Calls | Cost (apiRawCostKrw) |
+|---|---:|---:|
+| A | 3 | ~25.1 |
+| B | 3 | ~23.7 |
 
-**Classification (automated assist only):**
+**GPT manual (final):**
 
-- **A:** 3/3 `symptomPastFactInvention`; 0/3 `legacyExactQuoteB101`.
-- **B:** 2/3 `symptomPastFactInvention`; 0/3 legacy exact quote.
+| | False eyewitness (지환 last moment) | False last-word lock |
+|---|---|---|
+| A | 3/3 | 1/3 (A-3 only) |
+| B | **3/3** | 0/3 (B-1 vague guess ≠ confirmation) |
 
-**Interpretation:** Same **symptom class** reproduced on A. B shows **mixed** results on n=3 (one run with cleaner heuristics — `t50-B-2` — two still flagged). **Not** proof of a durable fix; **not** proof B is worse overall — GPT must read full texts.
+**B candidate verdict:** **Do not apply** to `historicalTruthPolicy.ts`. One-sentence wire swap did not remove the core failure mode on this sample.
+
+**Automated labels (preserved, separate):** A 3/3 `symptomPastFactInvention`; B **2/3** (B-2 false negative on eyewitness per GPT). Auto counts are **not** quality scores and **must not** be read as “B 1/3 improved.”
 
 ## REMOVED
 
-- Narrow classifier gate `anyReproduction` / `reproductionCandidate` (B10-1 exact quote + guarantee only).
-- Incorrect PR claim that A “did not reproduce” past-fact invention.
+- PR wording that treated B **2/3** auto flags as partial quality win.
+- Incorrect “A did not reproduce” narrative (superseded earlier in this PR thread).
 
-No product code or prompt owner text removed.
+No product code removed.
 
 ## PRESERVED
 
-- Experiment constraints: Gemini 3.8 only, char 18 / persona 1, SAFE/NORMAL, `summary5_raw4`, no `max_tokens` cap added.
-- A-run response bodies, request hashes, and live meta (immutable).
-- Non-denial historical-truth sentence in production code (unchanged).
+- All response bodies, request SHA-256, `live-meta/` token/cost rows.
+- Experiment constraints (Gemini 3.8, char 18 / persona 1, SAFE/NORMAL, `summary5_raw4`, no added `max_tokens`).
+- Production historical-truth owner text (unchanged).
 
-## REGRESSION RISKS (if B were promoted)
+## REGRESSION RISKS (if B were promoted despite result)
 
-- Stronger “do not confirm” wording → false “never happened” denials.
-- Shared owner affects all models; no Gemini-only fork.
-- B-2 shorter output / lower cost may correlate with less RP depth — not scored here; flag for GPT.
+- Shared owner blast radius; false “never happened” denials; no evidence B fixes eyewitness invention on T50.
 
 ## PROOF
 
 | Artifact | Path |
 |---|---|
-| Evidence table | `evidence-table.md` |
-| Classifier output | `a-classification.json`, `b-classification.json`, `ab-classification.json` |
-| Responses | `responses/t50-A-{1,2,3}.txt`, `responses/t50-B-{1,2,3}.txt` |
-| Request hash + usage | `live-meta/` |
-| Dry gate | `dry-gate/validation.json`, `validation-recheck.json` |
+| GPT + auto table | `evidence-table.md` |
+| Auto JSON only | `a-classification.json`, `b-classification.json`, `ab-classification.json` |
+| Responses | `responses/t50-{A,B}-{1,2,3}.txt` |
+| SHA / usage | `live-meta/`, `dry-gate/` |
 | Run log | `LIVE-RUN.md` |
-| B10-1 baseline | `docs/pr-evidence/pr-b9-1-real-rp-recall-recheck/responses/t50-c2-gemini.txt` |
-
-Classifier fields (see `scripts/classify-runs.py.txt`):
-
-- `legacyExactQuoteB101` — B10-1 exact string (diagnostic).
-- `ungroundedPastSpeechConfirmed` — quoted/certain last words **excluding** explicit “만약… 말했을” hypotheticals.
-- `ungroundedEyewitnessOfDeathMoment` — death-moment sight/hearing as fact.
-- `symptomPastFactInvention` — OR of the two error classes above.
 
 Full prompts and secrets are **not** in the repo.
 
 ## NEXT
 
-1. **GPT** reads `responses/*.txt` against the seven regression questions in the task brief.
-2. **Do not** merge wire wording into `historicalTruthPolicy.ts` from this PR alone.
-3. Optional follow-up: controlled re-run with byte-level wire archive; tighten dry harness network audit.
+1. **STOP** on B10-2 — no merge/deploy of B wording from this PR.
+2. **B10-3 (follow-up, separate):** Trace where canonical memory should encode “태형 did **not** eyewitness 지환’s last moment” — original T25/T32 → 5-turn summary → Global → final T50 wire. **Do not** pre-pick storage vs summary vs model owner; investigation only.
+3. No 1,000-turn expansion or memory-system redesign from #1683.
 
-**STOP** — Draft PR #1683 updated for GPT review; no deploy or merge.
+**STOP** — Draft PR #1683 documentation handoff complete.
