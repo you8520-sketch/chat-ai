@@ -150,11 +150,17 @@ describe("GM delta contract wording (#1541 PR-1)", () => {
     const injected = [
       TRPG_GM_SYSTEM,
       serializeCampaignDirectorInstructions(true),
-      serializeDirectorDeltaContract({ storyPhase: "investigation", completedRounds: 4 }),
+      serializeDirectorDeltaContract({ storyPhase: "INTRO", hasCompletedGoal: true, hasServerDiscovery: true }),
       serializeLocalSceneDeltaContract(),
     ].join("\n");
     assert.doesNotMatch(injected, /<<<DELTA>>>|<<<NARRATION>>>/);
     assert.equal((injected.match(/\[DIRECTOR DELTA CONTRACT\]/g) ?? []).length, 1);
+    assert.equal((injected.match(/"questsAdd":\[\]/g) ?? []).length, 1);
+    assert.match(injected, /Judge that situation/);
+    assert.doesNotMatch(injected, /Soft hint only/);
+    const quiet = serializeDirectorDeltaContract({ storyPhase: "INTRO" });
+    assert.doesNotMatch(quiet, /Judge that situation/);
+    assert.doesNotMatch(quiet, /"questsAdd":\[\]/);
   });
 });
 

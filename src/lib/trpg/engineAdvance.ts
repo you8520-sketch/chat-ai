@@ -1535,26 +1535,6 @@ async function runGmForRound(
   );
   const resolvedPlan = resolvedCampaignPlan(campaignContext);
   const scenarioPlanBlock = serializeTrpgScenarioPlanForGm(resolvedPlan, { npcs: scenarioNpcs });
-  const completedRounds = (
-    db
-      .prepare(
-        `SELECT COUNT(*) AS n FROM trpg_rounds
-         WHERE campaign_id=? AND phase IN ('ROUND_COMPLETE','CAMPAIGN_COMPLETE')`
-      )
-      .get(opts.campaignId) as { n: number } | undefined
-  )?.n ?? 0;
-  const storyDirectorBlock = resolvedPlan
-    ? [
-        serializeCampaignDirectorInstructions(true),
-        serializeDirectorDeltaContract({
-          storyPhase: campaignContext?.storyPhase ?? "INTRO",
-          completedRounds,
-        }),
-        serializeCampaignDirectorState(campaignContext),
-      ]
-        .filter(Boolean)
-        .join("\n\n")
-    : "";
   const localSceneProgress = campaignContext?.localSceneProgress;
   const localSceneBlock = localSceneProgress ? serializeLocalSceneStateForGm(localSceneProgress) : "";
   const localSceneDeltaContract = serializeLocalSceneDeltaContract();
@@ -1578,6 +1558,19 @@ async function runGmForRound(
       })
     : "";
   const goalLedger = loadCampaignLedger(db, opts.campaignId);
+  const storyDirectorBlock = resolvedPlan
+    ? [
+        serializeCampaignDirectorInstructions(true),
+        serializeDirectorDeltaContract({
+          storyPhase: campaignContext?.storyPhase ?? "INTRO",
+          hasCompletedGoal: goalLedger.goals.some((goal) => goal.status === "completed"),
+          hasServerDiscovery: (explorationForMethod?.revealedEventIds.length ?? 0) > 0,
+        }),
+        serializeCampaignDirectorState(campaignContext),
+      ]
+        .filter(Boolean)
+        .join("\n\n")
+    : "";
   const requestPlayerGoalRegistration = shouldRequestTrpgPlayerGoalRegistration({
     opening: opts.opening,
     regenerate: opts.regenerate,

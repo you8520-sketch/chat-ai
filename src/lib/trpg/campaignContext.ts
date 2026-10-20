@@ -266,16 +266,14 @@ export function serializeCampaignDirectorInstructions(hasPlan: boolean): string 
 
 export function serializeDirectorDeltaContract(opts: {
   storyPhase: TrpgStoryPhase;
-  completedRounds?: number;
+  hasCompletedGoal?: boolean;
+  hasServerDiscovery?: boolean;
 }): string {
-  const rounds = opts.completedRounds ?? 0;
-  const hint =
-    rounds >= 3
-      ? `\nSoft hint only: ${rounds} completed scenes and the current 이야기 단계는 ${opts.storyPhase}. If the fiction already moved on, you MAY emit one adjacent step. Do not advance by count alone.`
-      : "";
+  const evidence = opts.hasCompletedGoal === true || opts.hasServerDiscovery === true;
+  const phase = evidence
+    ? `A completed player goal or a server-recorded discovery is already in this input. Judge that situation. If the fiction moved because of it, set storyPhase to ${opts.storyPhase} or the one adjacent step. Do not advance from the round count, and do not invent an event that is not already in this input.`
+    : `Set storyPhase to ${opts.storyPhase}, or one adjacent step only when this input already shows the fiction moved. Do not advance from the round count.`;
   return `[DIRECTOR DELTA CONTRACT]
-Every delta object must include the 이야기 단계 as the current value or one adjacent step.
-Include thread add/resolve lists and an endingConditionId when they apply.
-Example:
-{"players":[],"location":"","next_round_context":"","questsAdd":[],"questsRemove":[],"npcsAdd":[],"npcsRemove":[],"flagsAdd":[],"flagsRemove":[],"campaign_finished":false,"storyPhase":"${opts.storyPhase}","threadsAdd":[],"threadsResolve":[],"endingConditionId":""}${hint}`;
+Use the system OUTPUT delta shape. On that same delta include storyPhase, threadsAdd, threadsResolve, and endingConditionId when they apply. threadsAdd and threadsResolve name story threads; they do not create or complete player goals.
+${phase}`;
 }
