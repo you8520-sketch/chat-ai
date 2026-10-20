@@ -1,0 +1,1043 @@
+
+> hav-chat@0.1.0 test:ui
+> playwright test tests/ui/chat-shortcuts-short-screen.spec.ts --reporter=list
+
+
+Running 6 tests using 1 worker
+
+(node:108270) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:108270) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [exchangeRate] fetch failed — using last known or fallback fetch failed
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 1, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 1, chatId: 1 }
+  ✘  1 [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:143:9 › shortcut button row under the composer › does not overlap the textarea and matches the adjacent button at 390 (1.8s)
+(node:108373) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:108373) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 2, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 2, chatId: 2 }
+  ✘  2 [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:143:9 › shortcut button row under the composer › does not overlap the textarea and matches the adjacent button at 320 (1.2s)
+(node:108445) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:108445) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 3, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 3, chatId: 3 }
+  ✘  3 [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:143:9 › shortcut button row under the composer › does not overlap the textarea and matches the adjacent button at 1280 (1.2s)
+(node:108521) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:108521) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 4, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 4, chatId: 4 }
+  ✘  4 [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:210:7 › shortcut panel on short screens (667x375) › keeps list, preview, and form inside the screen with actions reachable (1.8s)
+(node:108597) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:108597) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 5, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 5, chatId: 5 }
+  ✘  5 [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:246:7 › shortcut panel on short screens (667x375) › real viewport shrink when the keyboard opens keeps the panel on screen (1.8s)
+(node:108675) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:108675) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [SUGGESTED-REPLIES-ERROR] extract call failed NO_CHEAPER_INFERENCE_KEY
+[WebServer] [SUGGESTED-REPLIES] empty extraction result { messageId: 6, attempt: 1 }
+[WebServer] [SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies { messageId: 6, chatId: 6 }
+  ✘  6 [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:272:7 › shortcut panel on short screens (667x375) › visualViewport keyboard simulation (resize and pan) keeps the panel on screen (1.9s)
+
+
+  1) [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:143:9 › shortcut button row under the composer › does not overlap the textarea and matches the adjacent button at 390
+
+    Error: expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 0
+    Received:    -8
+
+      185 |       await page.screenshot({ path: testInfo.outputPath(`row-${viewport.width}.png`) });
+      186 |
+    > 187 |       expect.soft(Number.parseFloat(row.open.marginTop)).toBeGreaterThanOrEqual(0);
+          |                                                          ^
+      188 |       expect.soft(Number.parseFloat(row.toggle.marginTop)).toBeGreaterThanOrEqual(0);
+      189 |       expect.soft(row.open.top, "button stays below the textarea border").toBeGreaterThanOrEqual(row.textarea.bottom + 4);
+      190 |       expect.soft(gap, "gap to the composer border").toBeGreaterThanOrEqual(2);
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:187:58
+
+    Error: expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 0
+    Received:    -6
+
+      186 |
+      187 |       expect.soft(Number.parseFloat(row.open.marginTop)).toBeGreaterThanOrEqual(0);
+    > 188 |       expect.soft(Number.parseFloat(row.toggle.marginTop)).toBeGreaterThanOrEqual(0);
+          |                                                            ^
+      189 |       expect.soft(row.open.top, "button stays below the textarea border").toBeGreaterThanOrEqual(row.textarea.bottom + 4);
+      190 |       expect.soft(gap, "gap to the composer border").toBeGreaterThanOrEqual(2);
+      191 |       expect.soft(Math.abs(row.open.height - row.toggle.height)).toBeLessThanOrEqual(0.5);
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:188:60
+
+    Error: button stays below the textarea border
+
+    expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 818
+    Received:    808
+
+      187 |       expect.soft(Number.parseFloat(row.open.marginTop)).toBeGreaterThanOrEqual(0);
+      188 |       expect.soft(Number.parseFloat(row.toggle.marginTop)).toBeGreaterThanOrEqual(0);
+    > 189 |       expect.soft(row.open.top, "button stays below the textarea border").toBeGreaterThanOrEqual(row.textarea.bottom + 4);
+          |                                                                           ^
+      190 |       expect.soft(gap, "gap to the composer border").toBeGreaterThanOrEqual(2);
+      191 |       expect.soft(Math.abs(row.open.height - row.toggle.height)).toBeLessThanOrEqual(0.5);
+      192 |       expect.soft(Math.abs(row.open.top - row.toggle.top)).toBeLessThanOrEqual(0.5);
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:189:75
+
+    Error: gap to the composer border
+
+    expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 2
+    Received:    -6
+
+      188 |       expect.soft(Number.parseFloat(row.toggle.marginTop)).toBeGreaterThanOrEqual(0);
+      189 |       expect.soft(row.open.top, "button stays below the textarea border").toBeGreaterThanOrEqual(row.textarea.bottom + 4);
+    > 190 |       expect.soft(gap, "gap to the composer border").toBeGreaterThanOrEqual(2);
+          |                                                      ^
+      191 |       expect.soft(Math.abs(row.open.height - row.toggle.height)).toBeLessThanOrEqual(0.5);
+      192 |       expect.soft(Math.abs(row.open.top - row.toggle.top)).toBeLessThanOrEqual(0.5);
+      193 |       expect.soft(row.open.fontSize).toBe(row.toggle.fontSize);
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:190:54
+
+    Error: expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 0.5
+    Received:    4
+
+      189 |       expect.soft(row.open.top, "button stays below the textarea border").toBeGreaterThanOrEqual(row.textarea.bottom + 4);
+      190 |       expect.soft(gap, "gap to the composer border").toBeGreaterThanOrEqual(2);
+    > 191 |       expect.soft(Math.abs(row.open.height - row.toggle.height)).toBeLessThanOrEqual(0.5);
+          |                                                                  ^
+      192 |       expect.soft(Math.abs(row.open.top - row.toggle.top)).toBeLessThanOrEqual(0.5);
+      193 |       expect.soft(row.open.fontSize).toBe(row.toggle.fontSize);
+      194 |       expect.soft(Math.abs(row.open.textBottom - row.toggle.textBottom)).toBeLessThanOrEqual(0.5);
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:191:66
+
+    Error: expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 0.5
+    Received:    2
+
+      190 |       expect.soft(gap, "gap to the composer border").toBeGreaterThanOrEqual(2);
+      191 |       expect.soft(Math.abs(row.open.height - row.toggle.height)).toBeLessThanOrEqual(0.5);
+    > 192 |       expect.soft(Math.abs(row.open.top - row.toggle.top)).toBeLessThanOrEqual(0.5);
+          |                                                            ^
+      193 |       expect.soft(row.open.fontSize).toBe(row.toggle.fontSize);
+      194 |       expect.soft(Math.abs(row.open.textBottom - row.toggle.textBottom)).toBeLessThanOrEqual(0.5);
+      195 |       if (viewport.width < 576) expect.soft(row.open.height).toBeGreaterThanOrEqual(32);
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:192:60
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: "11px"
+    Received: "12px"
+
+      191 |       expect.soft(Math.abs(row.open.height - row.toggle.height)).toBeLessThanOrEqual(0.5);
+      192 |       expect.soft(Math.abs(row.open.top - row.toggle.top)).toBeLessThanOrEqual(0.5);
+    > 193 |       expect.soft(row.open.fontSize).toBe(row.toggle.fontSize);
+          |                                      ^
+      194 |       expect.soft(Math.abs(row.open.textBottom - row.toggle.textBottom)).toBeLessThanOrEqual(0.5);
+      195 |       if (viewport.width < 576) expect.soft(row.open.height).toBeGreaterThanOrEqual(32);
+      196 |
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:193:38
+
+    Error: expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 0.5
+    Received:    0.875
+
+      192 |       expect.soft(Math.abs(row.open.top - row.toggle.top)).toBeLessThanOrEqual(0.5);
+      193 |       expect.soft(row.open.fontSize).toBe(row.toggle.fontSize);
+    > 194 |       expect.soft(Math.abs(row.open.textBottom - row.toggle.textBottom)).toBeLessThanOrEqual(0.5);
+          |                                                                          ^
+      195 |       if (viewport.width < 576) expect.soft(row.open.height).toBeGreaterThanOrEqual(32);
+      196 |
+      197 |       const before = await toggle.getAttribute("aria-checked");
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:194:74
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-short-scree-f4d54--the-adjacent-button-at-390-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/chat-shortcuts-short-scree-f4d54--the-adjacent-button-at-390-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-short-scree-f4d54--the-adjacent-button-at-390-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/chat-shortcuts-short-scree-f4d54--the-adjacent-button-at-390-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:143:9 › shortcut button row under the composer › does not overlap the textarea and matches the adjacent button at 320
+
+    Error: expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 0
+    Received:    -8
+
+      185 |       await page.screenshot({ path: testInfo.outputPath(`row-${viewport.width}.png`) });
+      186 |
+    > 187 |       expect.soft(Number.parseFloat(row.open.marginTop)).toBeGreaterThanOrEqual(0);
+          |                                                          ^
+      188 |       expect.soft(Number.parseFloat(row.toggle.marginTop)).toBeGreaterThanOrEqual(0);
+      189 |       expect.soft(row.open.top, "button stays below the textarea border").toBeGreaterThanOrEqual(row.textarea.bottom + 4);
+      190 |       expect.soft(gap, "gap to the composer border").toBeGreaterThanOrEqual(2);
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:187:58
+
+    Error: expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 0
+    Received:    -6
+
+      186 |
+      187 |       expect.soft(Number.parseFloat(row.open.marginTop)).toBeGreaterThanOrEqual(0);
+    > 188 |       expect.soft(Number.parseFloat(row.toggle.marginTop)).toBeGreaterThanOrEqual(0);
+          |                                                            ^
+      189 |       expect.soft(row.open.top, "button stays below the textarea border").toBeGreaterThanOrEqual(row.textarea.bottom + 4);
+      190 |       expect.soft(gap, "gap to the composer border").toBeGreaterThanOrEqual(2);
+      191 |       expect.soft(Math.abs(row.open.height - row.toggle.height)).toBeLessThanOrEqual(0.5);
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:188:60
+
+    Error: button stays below the textarea border
+
+    expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 536.5
+    Received:    530.25
+
+      187 |       expect.soft(Number.parseFloat(row.open.marginTop)).toBeGreaterThanOrEqual(0);
+      188 |       expect.soft(Number.parseFloat(row.toggle.marginTop)).toBeGreaterThanOrEqual(0);
+    > 189 |       expect.soft(row.open.top, "button stays below the textarea border").toBeGreaterThanOrEqual(row.textarea.bottom + 4);
+          |                                                                           ^
+      190 |       expect.soft(gap, "gap to the composer border").toBeGreaterThanOrEqual(2);
+      191 |       expect.soft(Math.abs(row.open.height - row.toggle.height)).toBeLessThanOrEqual(0.5);
+      192 |       expect.soft(Math.abs(row.open.top - row.toggle.top)).toBeLessThanOrEqual(0.5);
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:189:75
+
+    Error: gap to the composer border
+
+    expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 2
+    Received:    -2.25
+
+      188 |       expect.soft(Number.parseFloat(row.toggle.marginTop)).toBeGreaterThanOrEqual(0);
+      189 |       expect.soft(row.open.top, "button stays below the textarea border").toBeGreaterThanOrEqual(row.textarea.bottom + 4);
+    > 190 |       expect.soft(gap, "gap to the composer border").toBeGreaterThanOrEqual(2);
+          |                                                      ^
+      191 |       expect.soft(Math.abs(row.open.height - row.toggle.height)).toBeLessThanOrEqual(0.5);
+      192 |       expect.soft(Math.abs(row.open.top - row.toggle.top)).toBeLessThanOrEqual(0.5);
+      193 |       expect.soft(row.open.fontSize).toBe(row.toggle.fontSize);
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:190:54
+
+    Error: expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 0.5
+    Received:    4
+
+      189 |       expect.soft(row.open.top, "button stays below the textarea border").toBeGreaterThanOrEqual(row.textarea.bottom + 4);
+      190 |       expect.soft(gap, "gap to the composer border").toBeGreaterThanOrEqual(2);
+    > 191 |       expect.soft(Math.abs(row.open.height - row.toggle.height)).toBeLessThanOrEqual(0.5);
+          |                                                                  ^
+      192 |       expect.soft(Math.abs(row.open.top - row.toggle.top)).toBeLessThanOrEqual(0.5);
+      193 |       expect.soft(row.open.fontSize).toBe(row.toggle.fontSize);
+      194 |       expect.soft(Math.abs(row.open.textBottom - row.toggle.textBottom)).toBeLessThanOrEqual(0.5);
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:191:66
+
+    Error: expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 0.5
+    Received:    2
+
+      190 |       expect.soft(gap, "gap to the composer border").toBeGreaterThanOrEqual(2);
+      191 |       expect.soft(Math.abs(row.open.height - row.toggle.height)).toBeLessThanOrEqual(0.5);
+    > 192 |       expect.soft(Math.abs(row.open.top - row.toggle.top)).toBeLessThanOrEqual(0.5);
+          |                                                            ^
+      193 |       expect.soft(row.open.fontSize).toBe(row.toggle.fontSize);
+      194 |       expect.soft(Math.abs(row.open.textBottom - row.toggle.textBottom)).toBeLessThanOrEqual(0.5);
+      195 |       if (viewport.width < 576) expect.soft(row.open.height).toBeGreaterThanOrEqual(32);
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:192:60
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: "11px"
+    Received: "12px"
+
+      191 |       expect.soft(Math.abs(row.open.height - row.toggle.height)).toBeLessThanOrEqual(0.5);
+      192 |       expect.soft(Math.abs(row.open.top - row.toggle.top)).toBeLessThanOrEqual(0.5);
+    > 193 |       expect.soft(row.open.fontSize).toBe(row.toggle.fontSize);
+          |                                      ^
+      194 |       expect.soft(Math.abs(row.open.textBottom - row.toggle.textBottom)).toBeLessThanOrEqual(0.5);
+      195 |       if (viewport.width < 576) expect.soft(row.open.height).toBeGreaterThanOrEqual(32);
+      196 |
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:193:38
+
+    Error: expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 0.5
+    Received:    0.875
+
+      192 |       expect.soft(Math.abs(row.open.top - row.toggle.top)).toBeLessThanOrEqual(0.5);
+      193 |       expect.soft(row.open.fontSize).toBe(row.toggle.fontSize);
+    > 194 |       expect.soft(Math.abs(row.open.textBottom - row.toggle.textBottom)).toBeLessThanOrEqual(0.5);
+          |                                                                          ^
+      195 |       if (viewport.width < 576) expect.soft(row.open.height).toBeGreaterThanOrEqual(32);
+      196 |
+      197 |       const before = await toggle.getAttribute("aria-checked");
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:194:74
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-short-scree-a1edb--the-adjacent-button-at-320-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/chat-shortcuts-short-scree-a1edb--the-adjacent-button-at-320-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-short-scree-a1edb--the-adjacent-button-at-320-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/chat-shortcuts-short-scree-a1edb--the-adjacent-button-at-320-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:143:9 › shortcut button row under the composer › does not overlap the textarea and matches the adjacent button at 1280
+
+    Error: button stays below the textarea border
+
+    expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 766
+    Received:    764
+
+      187 |       expect.soft(Number.parseFloat(row.open.marginTop)).toBeGreaterThanOrEqual(0);
+      188 |       expect.soft(Number.parseFloat(row.toggle.marginTop)).toBeGreaterThanOrEqual(0);
+    > 189 |       expect.soft(row.open.top, "button stays below the textarea border").toBeGreaterThanOrEqual(row.textarea.bottom + 4);
+          |                                                                           ^
+      190 |       expect.soft(gap, "gap to the composer border").toBeGreaterThanOrEqual(2);
+      191 |       expect.soft(Math.abs(row.open.height - row.toggle.height)).toBeLessThanOrEqual(0.5);
+      192 |       expect.soft(Math.abs(row.open.top - row.toggle.top)).toBeLessThanOrEqual(0.5);
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:189:75
+
+    Error: expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 0.5
+    Received:    8.25
+
+      189 |       expect.soft(row.open.top, "button stays below the textarea border").toBeGreaterThanOrEqual(row.textarea.bottom + 4);
+      190 |       expect.soft(gap, "gap to the composer border").toBeGreaterThanOrEqual(2);
+    > 191 |       expect.soft(Math.abs(row.open.height - row.toggle.height)).toBeLessThanOrEqual(0.5);
+          |                                                                  ^
+      192 |       expect.soft(Math.abs(row.open.top - row.toggle.top)).toBeLessThanOrEqual(0.5);
+      193 |       expect.soft(row.open.fontSize).toBe(row.toggle.fontSize);
+      194 |       expect.soft(Math.abs(row.open.textBottom - row.toggle.textBottom)).toBeLessThanOrEqual(0.5);
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:191:66
+
+    Error: expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 0.5
+    Received:    4.125
+
+      190 |       expect.soft(gap, "gap to the composer border").toBeGreaterThanOrEqual(2);
+      191 |       expect.soft(Math.abs(row.open.height - row.toggle.height)).toBeLessThanOrEqual(0.5);
+    > 192 |       expect.soft(Math.abs(row.open.top - row.toggle.top)).toBeLessThanOrEqual(0.5);
+          |                                                            ^
+      193 |       expect.soft(row.open.fontSize).toBe(row.toggle.fontSize);
+      194 |       expect.soft(Math.abs(row.open.textBottom - row.toggle.textBottom)).toBeLessThanOrEqual(0.5);
+      195 |       if (viewport.width < 576) expect.soft(row.open.height).toBeGreaterThanOrEqual(32);
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:192:60
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: "11px"
+    Received: "12px"
+
+      191 |       expect.soft(Math.abs(row.open.height - row.toggle.height)).toBeLessThanOrEqual(0.5);
+      192 |       expect.soft(Math.abs(row.open.top - row.toggle.top)).toBeLessThanOrEqual(0.5);
+    > 193 |       expect.soft(row.open.fontSize).toBe(row.toggle.fontSize);
+          |                                      ^
+      194 |       expect.soft(Math.abs(row.open.textBottom - row.toggle.textBottom)).toBeLessThanOrEqual(0.5);
+      195 |       if (viewport.width < 576) expect.soft(row.open.height).toBeGreaterThanOrEqual(32);
+      196 |
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:193:38
+
+    Error: expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 0.5
+    Received:    0.875
+
+      192 |       expect.soft(Math.abs(row.open.top - row.toggle.top)).toBeLessThanOrEqual(0.5);
+      193 |       expect.soft(row.open.fontSize).toBe(row.toggle.fontSize);
+    > 194 |       expect.soft(Math.abs(row.open.textBottom - row.toggle.textBottom)).toBeLessThanOrEqual(0.5);
+          |                                                                          ^
+      195 |       if (viewport.width < 576) expect.soft(row.open.height).toBeGreaterThanOrEqual(32);
+      196 |
+      197 |       const before = await toggle.getAttribute("aria-checked");
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:194:74
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-short-scree-d55c7-the-adjacent-button-at-1280-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/chat-shortcuts-short-scree-d55c7-the-adjacent-button-at-1280-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-short-scree-d55c7-the-adjacent-button-at-1280-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/chat-shortcuts-short-scree-d55c7-the-adjacent-button-at-1280-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:210:7 › shortcut panel on short screens (667x375) › keeps list, preview, and form inside the screen with actions reachable
+
+    Error: 입력창에 넣기 is not covered by another element
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      118 |   const result = await reach(locator);
+      119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+    > 120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+          |                                                                         ^
+      121 |   return result;
+      122 | }
+      123 |
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:120:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:222:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-short-scree-b4c42-reen-with-actions-reachable-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/chat-shortcuts-short-scree-b4c42-reen-with-actions-reachable-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-short-scree-b4c42-reen-with-actions-reachable-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/chat-shortcuts-short-scree-b4c42-reen-with-actions-reachable-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:246:7 › shortcut panel on short screens (667x375) › real viewport shrink when the keyboard opens keeps the panel on screen
+
+    Error: panel top stays inside the visible viewport
+
+    expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= -0.5
+    Received:    -87
+
+      108 |   const frame = await panelFrame(page);
+      109 |   const width = await page.evaluate(() => window.innerWidth);
+    > 110 |   expect.soft(frame.top, "panel top stays inside the visible viewport").toBeGreaterThanOrEqual(frame.viewTop - 0.5);
+          |                                                                         ^
+      111 |   expect.soft(frame.bottom, "panel bottom stays inside the visible viewport").toBeLessThanOrEqual(frame.viewBottom + 0.5);
+      112 |   expect.soft(frame.left).toBeGreaterThanOrEqual(-0.5);
+      113 |   expect.soft(frame.right).toBeLessThanOrEqual(width + 0.5);
+        at expectPanelInsideVisibleViewport (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:110:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:256:21
+
+    Error: 닫기 @250 is inside the visible viewport
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      117 | async function expectReachable(locator: Locator, label: string) {
+      118 |   const result = await reach(locator);
+    > 119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+          |                                                                         ^
+      120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+      121 |   return result;
+      122 | }
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:119:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:257:21
+
+    Error: 닫기 @250 is not covered by another element
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      118 |   const result = await reach(locator);
+      119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+    > 120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+          |                                                                         ^
+      121 |   return result;
+      122 | }
+      123 |
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:120:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:257:21
+
+    Error: panel top stays inside the visible viewport
+
+    expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= -0.5
+    Received:    -137
+
+      108 |   const frame = await panelFrame(page);
+      109 |   const width = await page.evaluate(() => window.innerWidth);
+    > 110 |   expect.soft(frame.top, "panel top stays inside the visible viewport").toBeGreaterThanOrEqual(frame.viewTop - 0.5);
+          |                                                                         ^
+      111 |   expect.soft(frame.bottom, "panel bottom stays inside the visible viewport").toBeLessThanOrEqual(frame.viewBottom + 0.5);
+      112 |   expect.soft(frame.left).toBeGreaterThanOrEqual(-0.5);
+      113 |   expect.soft(frame.right).toBeLessThanOrEqual(width + 0.5);
+        at expectPanelInsideVisibleViewport (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:110:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:256:21
+
+    Error: 닫기 @200 is inside the visible viewport
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      117 | async function expectReachable(locator: Locator, label: string) {
+      118 |   const result = await reach(locator);
+    > 119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+          |                                                                         ^
+      120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+      121 |   return result;
+      122 | }
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:119:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:257:21
+
+    Error: 닫기 @200 is not covered by another element
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      118 |   const result = await reach(locator);
+      119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+    > 120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+          |                                                                         ^
+      121 |   return result;
+      122 | }
+      123 |
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:120:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:257:21
+
+    Error: panel top stays inside the visible viewport
+
+    expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= -0.5
+    Received:    -151.21875
+
+      108 |   const frame = await panelFrame(page);
+      109 |   const width = await page.evaluate(() => window.innerWidth);
+    > 110 |   expect.soft(frame.top, "panel top stays inside the visible viewport").toBeGreaterThanOrEqual(frame.viewTop - 0.5);
+          |                                                                         ^
+      111 |   expect.soft(frame.bottom, "panel bottom stays inside the visible viewport").toBeLessThanOrEqual(frame.viewBottom + 0.5);
+      112 |   expect.soft(frame.left).toBeGreaterThanOrEqual(-0.5);
+      113 |   expect.soft(frame.right).toBeLessThanOrEqual(width + 0.5);
+        at expectPanelInsideVisibleViewport (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:110:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:256:21
+
+    Error: 닫기 @170 is inside the visible viewport
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      117 | async function expectReachable(locator: Locator, label: string) {
+      118 |   const result = await reach(locator);
+    > 119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+          |                                                                         ^
+      120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+      121 |   return result;
+      122 | }
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:119:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:257:21
+
+    Error: 닫기 @170 is not covered by another element
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      118 |   const result = await reach(locator);
+      119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+    > 120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+          |                                                                         ^
+      121 |   return result;
+      122 | }
+      123 |
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:120:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:257:21
+
+    Error: 저장 @170 is not covered by another element
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      118 |   const result = await reach(locator);
+      119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+    > 120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+          |                                                                         ^
+      121 |   return result;
+      122 | }
+      123 |
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:120:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:258:20
+
+    Error: 취소 @170 is not covered by another element
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      118 |   const result = await reach(locator);
+      119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+    > 120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+          |                                                                         ^
+      121 |   return result;
+      122 | }
+      123 |
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:120:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:259:22
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-short-scree-44520-s-keeps-the-panel-on-screen-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/chat-shortcuts-short-scree-44520-s-keeps-the-panel-on-screen-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-short-scree-44520-s-keeps-the-panel-on-screen-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/chat-shortcuts-short-scree-44520-s-keeps-the-panel-on-screen-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6) [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:272:7 › shortcut panel on short screens (667x375) › visualViewport keyboard simulation (resize and pan) keeps the panel on screen
+
+    Error: 입력창에 넣기 closed-keyboard is not covered by another element
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      118 |   const result = await reach(locator);
+      119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+    > 120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+          |                                                                         ^
+      121 |   return result;
+      122 | }
+      123 |
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:120:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:290:22
+
+    Error: panel bottom stays inside the visible viewport
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 200.5
+    Received:    262
+
+      109 |   const width = await page.evaluate(() => window.innerWidth);
+      110 |   expect.soft(frame.top, "panel top stays inside the visible viewport").toBeGreaterThanOrEqual(frame.viewTop - 0.5);
+    > 111 |   expect.soft(frame.bottom, "panel bottom stays inside the visible viewport").toBeLessThanOrEqual(frame.viewBottom + 0.5);
+          |                                                                               ^
+      112 |   expect.soft(frame.left).toBeGreaterThanOrEqual(-0.5);
+      113 |   expect.soft(frame.right).toBeLessThanOrEqual(width + 0.5);
+      114 |   return frame;
+        at expectPanelInsideVisibleViewport (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:111:79)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:288:21
+
+    Error: 입력창에 넣기 keyboard-200 is inside the visible viewport
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      117 | async function expectReachable(locator: Locator, label: string) {
+      118 |   const result = await reach(locator);
+    > 119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+          |                                                                         ^
+      120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+      121 |   return result;
+      122 | }
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:119:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:290:22
+
+    Error: 입력창에 넣기 keyboard-200 is not covered by another element
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      118 |   const result = await reach(locator);
+      119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+    > 120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+          |                                                                         ^
+      121 |   return result;
+      122 | }
+      123 |
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:120:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:290:22
+
+    Error: panel top stays inside the visible viewport
+
+    expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 59.5
+    Received:    38
+
+      108 |   const frame = await panelFrame(page);
+      109 |   const width = await page.evaluate(() => window.innerWidth);
+    > 110 |   expect.soft(frame.top, "panel top stays inside the visible viewport").toBeGreaterThanOrEqual(frame.viewTop - 0.5);
+          |                                                                         ^
+      111 |   expect.soft(frame.bottom, "panel bottom stays inside the visible viewport").toBeLessThanOrEqual(frame.viewBottom + 0.5);
+      112 |   expect.soft(frame.left).toBeGreaterThanOrEqual(-0.5);
+      113 |   expect.soft(frame.right).toBeLessThanOrEqual(width + 0.5);
+        at expectPanelInsideVisibleViewport (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:110:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:288:21
+
+    Error: panel bottom stays inside the visible viewport
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 260.5
+    Received:    262
+
+      109 |   const width = await page.evaluate(() => window.innerWidth);
+      110 |   expect.soft(frame.top, "panel top stays inside the visible viewport").toBeGreaterThanOrEqual(frame.viewTop - 0.5);
+    > 111 |   expect.soft(frame.bottom, "panel bottom stays inside the visible viewport").toBeLessThanOrEqual(frame.viewBottom + 0.5);
+          |                                                                               ^
+      112 |   expect.soft(frame.left).toBeGreaterThanOrEqual(-0.5);
+      113 |   expect.soft(frame.right).toBeLessThanOrEqual(width + 0.5);
+      114 |   return frame;
+        at expectPanelInsideVisibleViewport (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:111:79)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:288:21
+
+    Error: 닫기 keyboard-200-panned-60 is inside the visible viewport
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      117 | async function expectReachable(locator: Locator, label: string) {
+      118 |   const result = await reach(locator);
+    > 119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+          |                                                                         ^
+      120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+      121 |   return result;
+      122 | }
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:119:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:289:21
+
+    Error: 입력창에 넣기 keyboard-200-panned-60 is inside the visible viewport
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      117 | async function expectReachable(locator: Locator, label: string) {
+      118 |   const result = await reach(locator);
+    > 119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+          |                                                                         ^
+      120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+      121 |   return result;
+      122 | }
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:119:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:290:22
+
+    Error: 입력창에 넣기 keyboard-200-panned-60 is not covered by another element
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      118 |   const result = await reach(locator);
+      119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+    > 120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+          |                                                                         ^
+      121 |   return result;
+      122 | }
+      123 |
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:120:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:290:22
+
+    Error: panel top stays inside the visible viewport
+
+    expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 89.5
+    Received:    38
+
+      108 |   const frame = await panelFrame(page);
+      109 |   const width = await page.evaluate(() => window.innerWidth);
+    > 110 |   expect.soft(frame.top, "panel top stays inside the visible viewport").toBeGreaterThanOrEqual(frame.viewTop - 0.5);
+          |                                                                         ^
+      111 |   expect.soft(frame.bottom, "panel bottom stays inside the visible viewport").toBeLessThanOrEqual(frame.viewBottom + 0.5);
+      112 |   expect.soft(frame.left).toBeGreaterThanOrEqual(-0.5);
+      113 |   expect.soft(frame.right).toBeLessThanOrEqual(width + 0.5);
+        at expectPanelInsideVisibleViewport (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:110:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:288:21
+
+    Error: panel bottom stays inside the visible viewport
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 260.5
+    Received:    262
+
+      109 |   const width = await page.evaluate(() => window.innerWidth);
+      110 |   expect.soft(frame.top, "panel top stays inside the visible viewport").toBeGreaterThanOrEqual(frame.viewTop - 0.5);
+    > 111 |   expect.soft(frame.bottom, "panel bottom stays inside the visible viewport").toBeLessThanOrEqual(frame.viewBottom + 0.5);
+          |                                                                               ^
+      112 |   expect.soft(frame.left).toBeGreaterThanOrEqual(-0.5);
+      113 |   expect.soft(frame.right).toBeLessThanOrEqual(width + 0.5);
+      114 |   return frame;
+        at expectPanelInsideVisibleViewport (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:111:79)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:288:21
+
+    Error: 닫기 keyboard-170-panned-90 is inside the visible viewport
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      117 | async function expectReachable(locator: Locator, label: string) {
+      118 |   const result = await reach(locator);
+    > 119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+          |                                                                         ^
+      120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+      121 |   return result;
+      122 | }
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:119:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:289:21
+
+    Error: 입력창에 넣기 keyboard-170-panned-90 is inside the visible viewport
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      117 | async function expectReachable(locator: Locator, label: string) {
+      118 |   const result = await reach(locator);
+    > 119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+          |                                                                         ^
+      120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+      121 |   return result;
+      122 | }
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:119:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:290:22
+
+    Error: 입력창에 넣기 keyboard-170-panned-90 is not covered by another element
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      118 |   const result = await reach(locator);
+      119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+    > 120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+          |                                                                         ^
+      121 |   return result;
+      122 | }
+      123 |
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:120:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:290:22
+
+    Error: panel top stays inside the visible viewport
+
+    expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 59.5
+    Received:    38
+
+      108 |   const frame = await panelFrame(page);
+      109 |   const width = await page.evaluate(() => window.innerWidth);
+    > 110 |   expect.soft(frame.top, "panel top stays inside the visible viewport").toBeGreaterThanOrEqual(frame.viewTop - 0.5);
+          |                                                                         ^
+      111 |   expect.soft(frame.bottom, "panel bottom stays inside the visible viewport").toBeLessThanOrEqual(frame.viewBottom + 0.5);
+      112 |   expect.soft(frame.left).toBeGreaterThanOrEqual(-0.5);
+      113 |   expect.soft(frame.right).toBeLessThanOrEqual(width + 0.5);
+        at expectPanelInsideVisibleViewport (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:110:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:302:21
+
+    Error: panel bottom stays inside the visible viewport
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 260.5
+    Received:    262
+
+      109 |   const width = await page.evaluate(() => window.innerWidth);
+      110 |   expect.soft(frame.top, "panel top stays inside the visible viewport").toBeGreaterThanOrEqual(frame.viewTop - 0.5);
+    > 111 |   expect.soft(frame.bottom, "panel bottom stays inside the visible viewport").toBeLessThanOrEqual(frame.viewBottom + 0.5);
+          |                                                                               ^
+      112 |   expect.soft(frame.left).toBeGreaterThanOrEqual(-0.5);
+      113 |   expect.soft(frame.right).toBeLessThanOrEqual(width + 0.5);
+      114 |   return frame;
+        at expectPanelInsideVisibleViewport (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:111:79)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:302:21
+
+    Error: 저장 form-keyboard-200-panned-60 is inside the visible viewport
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      117 | async function expectReachable(locator: Locator, label: string) {
+      118 |   const result = await reach(locator);
+    > 119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+          |                                                                         ^
+      120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+      121 |   return result;
+      122 | }
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:119:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:303:20
+
+    Error: 취소 form-keyboard-200-panned-60 is inside the visible viewport
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      117 | async function expectReachable(locator: Locator, label: string) {
+      118 |   const result = await reach(locator);
+    > 119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+          |                                                                         ^
+      120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+      121 |   return result;
+      122 | }
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:119:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:304:22
+
+    Error: 닫기 form-keyboard-200-panned-60 is inside the visible viewport
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      117 | async function expectReachable(locator: Locator, label: string) {
+      118 |   const result = await reach(locator);
+    > 119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+          |                                                                         ^
+      120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+      121 |   return result;
+      122 | }
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:119:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:305:21
+
+    Error: panel bottom stays inside the visible viewport
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 170.5
+    Received:    262
+
+      109 |   const width = await page.evaluate(() => window.innerWidth);
+      110 |   expect.soft(frame.top, "panel top stays inside the visible viewport").toBeGreaterThanOrEqual(frame.viewTop - 0.5);
+    > 111 |   expect.soft(frame.bottom, "panel bottom stays inside the visible viewport").toBeLessThanOrEqual(frame.viewBottom + 0.5);
+          |                                                                               ^
+      112 |   expect.soft(frame.left).toBeGreaterThanOrEqual(-0.5);
+      113 |   expect.soft(frame.right).toBeLessThanOrEqual(width + 0.5);
+      114 |   return frame;
+        at expectPanelInsideVisibleViewport (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:111:79)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:302:21
+
+    Error: 저장 form-keyboard-170 is inside the visible viewport
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      117 | async function expectReachable(locator: Locator, label: string) {
+      118 |   const result = await reach(locator);
+    > 119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+          |                                                                         ^
+      120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+      121 |   return result;
+      122 | }
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:119:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:303:20
+
+    Error: 취소 form-keyboard-170 is inside the visible viewport
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      117 | async function expectReachable(locator: Locator, label: string) {
+      118 |   const result = await reach(locator);
+    > 119 |   expect.soft(result.inView, `${label} is inside the visible viewport`).toBe(true);
+          |                                                                         ^
+      120 |   expect.soft(result.hit, `${label} is not covered by another element`).toBe(true);
+      121 |   return result;
+      122 | }
+        at expectReachable (/workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:119:73)
+        at /workspace/tests/ui/chat-shortcuts-short-screen.spec.ts:304:22
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-short-scree-430dd-n-keeps-the-panel-on-screen-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/chat-shortcuts-short-scree-430dd-n-keeps-the-panel-on-screen-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/chat-shortcuts-short-scree-430dd-n-keeps-the-panel-on-screen-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/chat-shortcuts-short-scree-430dd-n-keeps-the-panel-on-screen-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6 failed
+    [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:143:9 › shortcut button row under the composer › does not overlap the textarea and matches the adjacent button at 390
+    [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:143:9 › shortcut button row under the composer › does not overlap the textarea and matches the adjacent button at 320
+    [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:143:9 › shortcut button row under the composer › does not overlap the textarea and matches the adjacent button at 1280
+    [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:210:7 › shortcut panel on short screens (667x375) › keeps list, preview, and form inside the screen with actions reachable
+    [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:246:7 › shortcut panel on short screens (667x375) › real viewport shrink when the keyboard opens keeps the panel on screen
+    [chromium] › tests/ui/chat-shortcuts-short-screen.spec.ts:272:7 › shortcut panel on short screens (667x375) › visualViewport keyboard simulation (resize and pan) keeps the panel on screen

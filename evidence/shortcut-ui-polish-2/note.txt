@@ -1,0 +1,27 @@
+Evidence for PR #1691 follow-up (button alignment + short-screen placement)
+
+Pinned product/spec commit: 819902b95cfee1f197e423c1383ce8002a416db2
+Baseline ("before"): product files at 5c48fa95 (ChatShortcutsDock.tsx, ChatClient.tsx stashed), new spec files present.
+All PNGs are Playwright page.screenshot() output after document.fonts.ready and two animation frames,
+taken in Chromium against an isolated production server (npm run test:ui), provider keys blank.
+
+Simulation vs real device
+- Real render in headless Chromium: 667x375 screen, button row at 390/320/1280.
+- SIMULATION of the on-screen keyboard (not a real device):
+  1) page.setViewportSize shrink to 250/200/170 high (models Android Chrome resize behaviour)
+  2) a stubbed window.visualViewport (EventTarget with height/offsetTop, resize+scroll events)
+     modelling iOS-style visual viewport shrink/pan while the layout viewport stays 375 high.
+- No real iOS/Android device or real soft keyboard was used. Real-device verification is still open.
+
+Findings on the baseline (measurements-*.json in before/)
+- 667x375 without keyboard: the panel top is 38px (not negative); the old 224px floor was NOT reproduced there
+  (composer top 266). It reproduces as soon as the visible height shrinks: panel top -87 (250 high),
+  -137 (200), -151 (170); 닫기 is then off screen.
+- 667x375 preview: 입력창에 넣기 (top 244, bottom 280) is clipped by the panel bottom (262) and fails the hit test.
+- Button row: 단축어 margin-top -8px, 추천 margin-top -6px, gap to composer frame -6px (390) / -2.25px (320) / 2px (1280);
+  heights 36 vs 32 (mobile), 28 vs 19.75 (desktop); font 12px vs 11px.
+
+After (measurements-*.json in after/)
+- Panel inside the visible viewport in every state; 닫기/입력창에 넣기/저장/취소 inside the viewport and hit-testable.
+- Button row: margins 0, gap 6px (390) / 8.62px (320) / 6px (1280), equal heights (36 mobile, 28 desktop), equal top, font 12px, text baselines equal.
+- Known limit: at 170-200px visible height the form body shows about one field row; save/cancel/close stay pinned and the browser scrolls a focused field into view.

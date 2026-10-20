@@ -1,0 +1,138 @@
+{
+  "height-250": {
+    "frame": {
+      "top": 8,
+      "bottom": 242,
+      "left": 84,
+      "right": 532,
+      "viewTop": 0,
+      "viewBottom": 250,
+      "composerTop": 137.21875,
+      "placement": "sheet"
+    },
+    "close": {
+      "top": 17,
+      "bottom": 49,
+      "left": 471,
+      "right": 519,
+      "viewTop": 0,
+      "viewBottom": 250,
+      "inView": true,
+      "hit": true
+    },
+    "save": {
+      "top": 197,
+      "bottom": 233,
+      "left": 161,
+      "right": 521,
+      "viewTop": 0,
+      "viewBottom": 250,
+      "inView": true,
+      "hit": true
+    },
+    "cancel": {
+      "top": 197,
+      "bottom": 233,
+      "left": 95,
+      "right": 153,
+      "viewTop": 0,
+      "viewBottom": 250,
+      "inView": true,
+      "hit": true
+    }
+  },
+  "height-200": {
+    "frame": {
+      "top": 8,
+      "bottom": 192,
+      "left": 84,
+      "right": 532,
+      "viewTop": 0,
+      "viewBottom": 200,
+      "composerTop": 87.21875,
+      "placement": "sheet"
+    },
+    "close": {
+      "top": 17,
+      "bottom": 49,
+      "left": 471,
+      "right": 519,
+      "viewTop": 0,
+      "viewBottom": 200,
+      "inView": true,
+      "hit": true
+    },
+    "save": {
+      "top": 147,
+      "bottom": 183,
+      "left": 161,
+      "right": 521,
+      "viewTop": 0,
+      "viewBottom": 200,
+      "inView": true,
+      "hit": true
+    },
+    "cancel": {
+      "top": 147,
+      "bottom": 183,
+      "left": 95,
+      "right": 153,
+      "viewTop": 0,
+      "viewBottom": 200,
+      "inView": true,
+      "hit": true
+    }
+  },
+  "height-170": {
+    "frame": {
+      "top": 7.78125,
+      "bottom": 161.78125,
+      "left": 84,
+      "right": 532,
+      "viewTop": 0,
+      "viewBottom": 170,
+      "composerTop": 77,
+      "placement": "sheet"
+    },
+    "close": {
+      "top": 16.78125,
+      "bottom": 48.78125,
+      "left": 471,
+      "right": 519,
+      "viewTop": 0,
+      "viewBottom": 170,
+      "inView": true,
+      "hit": true
+    },
+    "save": {
+      "top": 116.78125,
+      "bottom": 152.78125,
+      "left": 161,
+      "right": 521,
+      "viewTop": 0,
+      "viewBottom": 170,
+      "inView": true,
+      "hit": true
+    },
+    "cancel": {
+      "top": 116.78125,
+      "bottom": 152.78125,
+      "left": 95,
+      "right": 153,
+      "viewTop": 0,
+      "viewBottom": 170,
+      "inView": true,
+      "hit": true
+    }
+  },
+  "restored-375": {
+    "top": 8,
+    "bottom": 367,
+    "left": 84,
+    "right": 532,
+    "viewTop": 0,
+    "viewBottom": 375,
+    "composerTop": 262.21875,
+    "placement": "sheet"
+  }
+}

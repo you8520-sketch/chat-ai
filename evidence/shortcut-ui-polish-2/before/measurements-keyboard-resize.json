@@ -1,0 +1,138 @@
+{
+  "height-250": {
+    "frame": {
+      "top": -87,
+      "bottom": 137,
+      "left": 84,
+      "right": 468,
+      "viewTop": 0,
+      "viewBottom": 250,
+      "composerTop": 141.21875,
+      "placement": null
+    },
+    "close": {
+      "top": -78,
+      "bottom": -46,
+      "left": 407,
+      "right": 455,
+      "viewTop": 0,
+      "viewBottom": 250,
+      "inView": false,
+      "hit": false
+    },
+    "save": {
+      "top": 92,
+      "bottom": 128,
+      "left": 161,
+      "right": 457,
+      "viewTop": 0,
+      "viewBottom": 250,
+      "inView": true,
+      "hit": true
+    },
+    "cancel": {
+      "top": 92,
+      "bottom": 128,
+      "left": 95,
+      "right": 153,
+      "viewTop": 0,
+      "viewBottom": 250,
+      "inView": true,
+      "hit": true
+    }
+  },
+  "height-200": {
+    "frame": {
+      "top": -137,
+      "bottom": 87,
+      "left": 84,
+      "right": 468,
+      "viewTop": 0,
+      "viewBottom": 200,
+      "composerTop": 91.21875,
+      "placement": null
+    },
+    "close": {
+      "top": -128,
+      "bottom": -96,
+      "left": 407,
+      "right": 455,
+      "viewTop": 0,
+      "viewBottom": 200,
+      "inView": false,
+      "hit": false
+    },
+    "save": {
+      "top": 42,
+      "bottom": 78,
+      "left": 161,
+      "right": 457,
+      "viewTop": 0,
+      "viewBottom": 200,
+      "inView": true,
+      "hit": true
+    },
+    "cancel": {
+      "top": 42,
+      "bottom": 78,
+      "left": 95,
+      "right": 153,
+      "viewTop": 0,
+      "viewBottom": 200,
+      "inView": true,
+      "hit": true
+    }
+  },
+  "height-170": {
+    "frame": {
+      "top": -151.21875,
+      "bottom": 72.78125,
+      "left": 84,
+      "right": 468,
+      "viewTop": 0,
+      "viewBottom": 170,
+      "composerTop": 77,
+      "placement": null
+    },
+    "close": {
+      "top": -142.21875,
+      "bottom": -110.21875,
+      "left": 407,
+      "right": 455,
+      "viewTop": 0,
+      "viewBottom": 170,
+      "inView": false,
+      "hit": false
+    },
+    "save": {
+      "top": 27.78125,
+      "bottom": 63.78125,
+      "left": 161,
+      "right": 457,
+      "viewTop": 0,
+      "viewBottom": 170,
+      "inView": true,
+      "hit": false
+    },
+    "cancel": {
+      "top": 27.78125,
+      "bottom": 63.78125,
+      "left": 95,
+      "right": 153,
+      "viewTop": 0,
+      "viewBottom": 170,
+      "inView": true,
+      "hit": false
+    }
+  },
+  "restored-375": {
+    "top": 38,
+    "bottom": 262,
+    "left": 84,
+    "right": 468,
+    "viewTop": 0,
+    "viewBottom": 375,
+    "composerTop": 266.21875,
+    "placement": null
+  }
+}
