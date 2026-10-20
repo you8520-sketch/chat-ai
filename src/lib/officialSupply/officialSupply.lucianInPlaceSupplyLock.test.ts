@@ -238,6 +238,118 @@ describe("Lucian #50 supply draft_json / Text Lock coupling", () => {
     assert.equal(computeTextLockHash(JSON.parse(after.draft_json) as OfficialCharacterDraft), after.text_lock_hash);
   });
 
+  it("preflight token rejects apply when supply stage changes after dry-run", async () => {
+    const studio = createSiteManagedStudioAccount({
+      nickname: "로맨스 공식 스튜디오",
+      email: "lucian-lock-stage@site-managed.invalid",
+    });
+    const characterId = insertMinimalLucian(studio.id);
+    linkLiveShapedSupply(characterId);
+    const adminId = insertAdmin();
+    const preview = await syncOfficialCharacterInPlace({
+      admin: { ...ADMIN, id: adminId },
+      characterId,
+      draftKey: LUCIAN_DRAFT_KEY,
+      mode: "dry_run",
+    });
+    assert.equal(preview.preflightSnapshot.supplyStage, "asset_plan_locked");
+    getDb()
+      .prepare(`UPDATE official_supply_characters SET stage='staged_private' WHERE draft_key=?`)
+      .run(LUCIAN_DRAFT_KEY);
+
+    await withApplyEnabled(() =>
+      assert.rejects(
+        () =>
+          syncOfficialCharacterInPlace({
+            admin: { ...ADMIN, id: adminId },
+            characterId,
+            draftKey: LUCIAN_DRAFT_KEY,
+            mode: "apply",
+            preflightSnapshot: preview.preflightSnapshot,
+          }),
+        (error: unknown) =>
+          error instanceof OfficialSupplyGateError && error.code === "preflight_mismatch"
+      )
+    );
+  });
+
+  it("preflight token rejects apply when staged_character_id links after dry-run", async () => {
+    const studio = createSiteManagedStudioAccount({
+      nickname: "로맨스 공식 스튜디오",
+      email: "lucian-lock-link@site-managed.invalid",
+    });
+    const characterId = insertMinimalLucian(studio.id);
+    linkLiveShapedSupply(characterId);
+    const adminId = insertAdmin();
+    const preview = await syncOfficialCharacterInPlace({
+      admin: { ...ADMIN, id: adminId },
+      characterId,
+      draftKey: LUCIAN_DRAFT_KEY,
+      mode: "dry_run",
+    });
+    assert.equal(preview.preflightSnapshot.supplyStagedCharacterId, null);
+    getDb()
+      .prepare(`UPDATE official_supply_characters SET staged_character_id=? WHERE draft_key=?`)
+      .run(characterId, LUCIAN_DRAFT_KEY);
+
+    await withApplyEnabled(() =>
+      assert.rejects(
+        () =>
+          syncOfficialCharacterInPlace({
+            admin: { ...ADMIN, id: adminId },
+            characterId,
+            draftKey: LUCIAN_DRAFT_KEY,
+            mode: "apply",
+            preflightSnapshot: preview.preflightSnapshot,
+          }),
+        (error: unknown) =>
+          error instanceof OfficialSupplyGateError && error.code === "preflight_mismatch"
+      )
+    );
+  });
+
+  it("rolls back character and lorebook writes when supply write is aborted in the transaction", async () => {
+    const studio = createSiteManagedStudioAccount({
+      nickname: "로맨스 공식 스튜디오",
+      email: "lucian-lock-rollback@site-managed.invalid",
+    });
+    const characterId = insertMinimalLucian(studio.id);
+    linkLiveShapedSupply(characterId);
+    const adminId = insertAdmin();
+    const beforeTagline = (
+      getDb().prepare("SELECT tagline FROM characters WHERE id=?").get(characterId) as { tagline: string }
+    ).tagline;
+    const beforeSupply = supplyRow();
+    const preview = await syncOfficialCharacterInPlace({
+      admin: { ...ADMIN, id: adminId },
+      characterId,
+      draftKey: LUCIAN_DRAFT_KEY,
+      mode: "dry_run",
+    });
+
+    await withApplyEnabled(() =>
+      assert.rejects(
+        () =>
+          syncOfficialCharacterInPlace({
+            admin: { ...ADMIN, id: adminId },
+            characterId,
+            draftKey: LUCIAN_DRAFT_KEY,
+            mode: "apply",
+            preflightSnapshot: preview.preflightSnapshot,
+            testInjectFailure: "before_supply_write",
+          }),
+        (error: unknown) =>
+          error instanceof OfficialSupplyGateError && error.code === "test_injected_failure"
+      )
+    );
+
+    assert.equal(
+      (getDb().prepare("SELECT tagline FROM characters WHERE id=?").get(characterId) as { tagline: string }).tagline,
+      beforeTagline
+    );
+    assert.deepEqual(supplyRow(), beforeSupply);
+  });
+
   it("refuses apply when the supply row changes after dry-run preflight", async () => {
     const studio = createSiteManagedStudioAccount({
       nickname: "로맨스 공식 스튜디오",

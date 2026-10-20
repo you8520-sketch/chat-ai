@@ -71,7 +71,7 @@ import { composeExampleDialog } from "@/lib/speechCreatorFields";
 export const OFFICIAL_IN_PLACE_APPLY_ENV = "OFFICIAL_IN_PLACE_APPLY_ENABLED";
 
 export type OfficialInPlaceSyncMode = "dry_run" | "apply";
-export type OfficialInPlaceTestInjectFailure = "after_lorebook_write";
+export type OfficialInPlaceTestInjectFailure = "after_lorebook_write" | "before_supply_write";
 
 export type OfficialInPlacePreflightSnapshot = {
   characterId: number;
@@ -99,6 +99,8 @@ export type OfficialInPlacePreflightSnapshot = {
   supplyDraftHash?: string;
   supplyTextLockHash?: string;
   targetTextLockHash?: string;
+  supplyStage?: string;
+  supplyStagedCharacterId?: number | null;
   token: string;
 };
 
@@ -591,6 +593,8 @@ function snapshotToken(parts: Omit<OfficialInPlacePreflightSnapshot, "token">): 
       supplyDraftHash: parts.supplyDraftHash,
       supplyTextLockHash: parts.supplyTextLockHash,
       targetTextLockHash: parts.targetTextLockHash,
+      supplyStage: parts.supplyStage,
+      supplyStagedCharacterId: parts.supplyStagedCharacterId ?? null,
     })
   );
 }
@@ -648,6 +652,8 @@ function buildPreflightSnapshot(input: {
             supplyDraftHash: input.lucianSupply.supplyDraftHash,
             supplyTextLockHash: input.lucianSupply.expectedTextLockHash,
             targetTextLockHash: input.lucianSupply.nextTextLockHash,
+            supplyStage: input.lucianSupply.stage,
+            supplyStagedCharacterId: input.lucianSupply.expectedStagedCharacterId,
           }
         : {}),
   };
@@ -1211,6 +1217,13 @@ function applyGuardedCanonicalFields(input: {
       safeRuntimeCanon,
     });
     enqueueCharacterDerivedRefreshJob(input.db, row.id);
+
+    if (input.testInjectFailure === "before_supply_write") {
+      throw new OfficialSupplyGateError(
+        "test_injected_failure",
+        "injected failure before supply write"
+      );
+    }
 
     if (wolfgangSupply) {
       applyWolfgangSupplyPlan(input.db, wolfgangSupply);
