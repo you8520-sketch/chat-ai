@@ -1,5 +1,7 @@
 /** Background Flash — next-user RP suggestions (not widget extract). */
 
+import type { AdultOffAuxApprovalProof } from "@/lib/adultOffAuxApproval";
+
 export const SUGGESTED_REPLY_MIN_CHARS = 50;
 export const SUGGESTED_REPLY_MAX_CHARS = 150;
 export const SUGGESTED_REPLY_COUNT = 3;
@@ -59,6 +61,8 @@ export type SuggestedRepliesRecord = {
   terminalReason?: "original_turn_ineligible";
   generationSequence?: number;
   generationRequestId?: string | null;
+  /** 현재 정책에서 이 레코드의 표시 문자열을 승인했을 때만 남긴다. */
+  adultOffGuard?: AdultOffAuxApprovalProof;
 };
 
 export type SuggestedRepliesClientFields = {

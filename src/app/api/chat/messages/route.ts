@@ -31,6 +31,7 @@ import { shouldAttachClientBillingChargeSummary } from "@/lib/clientBillingCharg
 import { buildUserMessageBillingSummary } from "@/lib/messageBillingSummaryServer";
 import { collectStaleOocAdoptionIds, readOocSceneClientFlags } from "@/lib/oocSceneRender";
 import { adultOffReadGuardAppliesForChat } from "@/lib/adultOffVisibleOutput";
+import { adultOffProofCarrier } from "@/lib/adultOffAuxApproval";
 import {
   filterAdultOffStatusMeta,
   presentAdultOffStoredRead,
@@ -83,6 +84,7 @@ function mapDbMessageForClient(
     activeVariant,
     statusWidgetValues: storedStatusWidgetValues,
     suggestedReplies: storedSuggested.suggestedReplies,
+    suggestedRepliesProof: adultOffProofCarrier(suggestedRepliesRecord?.adultOffGuard),
   });
   const variantMeta = serializeVariantsForClient(presented.variants, presented.activeVariant, {
     keepInternalAdultRouting,
@@ -97,6 +99,9 @@ function mapDbMessageForClient(
   const suggestedRepliesFields = {
     ...storedSuggested,
     suggestedReplies: presented.suggestedReplies,
+    ...(presented.suggestedRepliesWithheld
+      ? { suggestedRepliesPending: false, suggestedRepliesFailed: true }
+      : {}),
   };
   const markdownStatusWindowActive = userNote
     ? markdownPipeTableStatusWindowActive(resolveUserNoteStatusWindowPolicy(userNote))
@@ -110,7 +115,8 @@ function mapDbMessageForClient(
   const statusMeta = filterAdultOffStatusMeta(
     m.role === "assistant" && applyAdultOffReadGuard,
     activeUsage,
-    statusFlags.statusMeta
+    statusFlags.statusMeta,
+    adultOffProofCarrier(statusRecord?.adultOffGuard)
   );
   const billingChargeSummary =
     billingContext &&

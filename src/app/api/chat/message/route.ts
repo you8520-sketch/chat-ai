@@ -31,6 +31,7 @@ import {
 } from "@/lib/statusWindowNotePolicy";
 import type { Usage } from "@/lib/chatUsage";
 import { readOocSceneClientFlags } from "@/lib/oocSceneRender";
+import { adultOffProofCarrier } from "@/lib/adultOffAuxApproval";
 import { adultOffReadGuardAppliesForChat } from "@/lib/adultOffVisibleOutput";
 import { presentAdultOffStoredRead } from "@/lib/adultOffOutputGuard";
 import { evaluateStatusWidgetTriggersBestEffort } from "@/lib/statusWidgetTriggers";
@@ -145,6 +146,7 @@ export async function GET(req: Request) {
     activeVariant,
     statusWidgetValues: storedStatusWidgetValues,
     suggestedReplies: storedSuggested.suggestedReplies,
+    suggestedRepliesProof: adultOffProofCarrier(suggestedRepliesRecord?.adultOffGuard),
   });
   const variantMeta = serializeVariantsForClient(presented.variants, presented.activeVariant, {
     keepInternalAdultRouting,
@@ -159,6 +161,9 @@ export async function GET(req: Request) {
   const suggestedRepliesFields = {
     ...storedSuggested,
     suggestedReplies: presented.suggestedReplies,
+    ...(presented.suggestedRepliesWithheld
+      ? { suggestedRepliesPending: false, suggestedRepliesFailed: true }
+      : {}),
   };
   const markdownStatusWindowActive = row.user_note
     ? markdownPipeTableStatusWindowActive(resolveUserNoteStatusWindowPolicy(row.user_note))

@@ -7,8 +7,12 @@ import {
   serializeVariantsForClient,
   type MessageVariant,
 } from "@/lib/messageAlternates";
+import { AdultOffVariantUnapprovedError } from "@/lib/adultOffAuxApproval";
 import { adultOffReadGuardAppliesForChat } from "@/lib/adultOffVisibleOutput";
-import { presentAdultOffStoredRead } from "@/lib/adultOffOutputGuard";
+import {
+  adultOffStoredVariantMayBecomeCanonical,
+  presentAdultOffStoredRead,
+} from "@/lib/adultOffOutputGuard";
 import {
   keepInternalAdultRoutingForUser,
   serializeUsageForPublicClient,
@@ -148,6 +152,21 @@ export async function PATCH(req: Request) {
     user,
     adultHandoffEnabled: adultRow?.adult_handoff_enabled,
   });
+  if (
+    applyAdultOffReadGuard &&
+    !adultOffStoredVariantMayBecomeCanonical(variants[variantIndex])
+  ) {
+    return NextResponse.json(
+      {
+        error: new AdultOffVariantUnapprovedError().message,
+        code: "adult_off_variant_unapproved",
+      },
+      { status: 409 }
+    );
+  }
+  const adultOffMayCommitVariant = applyAdultOffReadGuard
+    ? adultOffStoredVariantMayBecomeCanonical
+    : undefined;
   if (variantIndex === activeVariant && !numericEligible) {
     return NextResponse.json({
       ok: true,
@@ -201,6 +220,7 @@ export async function PATCH(req: Request) {
         messageId,
         variantIndex,
         characterWidget,
+        adultOffMayCommitVariant,
         memory: {
           enabled: isMemoryFeatureEnabled(),
           tier: resolveMemoryTier(user),
@@ -243,6 +263,9 @@ export async function PATCH(req: Request) {
           },
           { status: 409 }
         );
+      }
+      if (e instanceof AdultOffVariantUnapprovedError) {
+        return NextResponse.json({ error: e.message, code: e.code }, { status: 409 });
       }
       if (e instanceof S4VariantProvenanceInvalidError) {
         return NextResponse.json(
@@ -322,6 +345,7 @@ export async function PATCH(req: Request) {
       userId: msg.user_id,
       messageId,
       variantIndex,
+      adultOffMayCommitVariant,
     });
   } catch (e) {
     if (e instanceof NumericVariantFrontierMovedError) {
@@ -350,6 +374,9 @@ export async function PATCH(req: Request) {
         },
         { status: 409 }
       );
+    }
+    if (e instanceof AdultOffVariantUnapprovedError) {
+      return NextResponse.json({ error: e.message, code: e.code }, { status: 409 });
     }
     console.error(
       "[DerivedState] atomic nonnumeric variant switch failed:",

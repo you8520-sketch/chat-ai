@@ -5,7 +5,11 @@ import {
   resolveActiveAssistantGenerationScope,
   type AssistantGenerationScope,
 } from "@/lib/assistantGenerationScope";
-import { collectSuggestedReplyVisibleTexts } from "@/lib/adultOffOutputGuard";
+import type { AdultOffAuxApprovalProof } from "@/lib/adultOffAuxApproval";
+import {
+  adultOffApprovalProofForTexts,
+  collectSuggestedReplyVisibleTexts,
+} from "@/lib/adultOffOutputGuard";
 import {
   adultOffVisibleSurfaceNeedsReview,
   reviewAdultOffVisibleSurface,
@@ -79,7 +83,8 @@ function writeReplies(
   replies: SuggestedReplyItem[],
   failed = false,
   terminalReason?: SuggestedRepliesRecord["terminalReason"],
-  source: SuggestedRepliesRecordSource = "post-turn-shared"
+  source: SuggestedRepliesRecordSource = "post-turn-shared",
+  approval?: AdultOffAuxApprovalProof
 ): void {
   const db = getDb();
   if (!isCurrentAssistantGeneration(scope, db)) {
@@ -100,6 +105,7 @@ function writeReplies(
     ...(terminalReason ? { terminalReason } : {}),
     generationSequence: scope.generationSequence,
     generationRequestId: scope.generationRequestId,
+    ...(approval ? { adultOffGuard: approval } : {}),
   };
   db.prepare("UPDATE messages SET suggested_replies_json=? WHERE id=?").run(
     serializeSuggestedRepliesRecord(record),
@@ -200,9 +206,9 @@ async function repliesMayBeExposed(
     generationScope: AssistantGenerationScope;
   },
   replies: readonly SuggestedReplyItem[]
-): Promise<boolean> {
+): Promise<{ deliver: boolean; proof?: AdultOffAuxApprovalProof }> {
   const texts = collectSuggestedReplyVisibleTexts(replies);
-  if (!texts.length) return true;
+  if (!texts.length) return { deliver: true };
   try {
     const review = await reviewAdultOffVisibleSurface({
       chatId: opts.chatId,
@@ -212,13 +218,19 @@ async function repliesMayBeExposed(
       stage: "suggested_replies",
       texts,
     });
-    return review.deliver;
+    return {
+      deliver: review.deliver,
+      proof:
+        review.deliver && review.record?.status === "approved"
+          ? adultOffApprovalProofForTexts(texts)
+          : undefined,
+    };
   } catch (error) {
     console.error(
       "[SUGGESTED-REPLIES-ERROR] adult-off review failed",
       (error as Error).message
     );
-    return false;
+    return { deliver: false };
   }
 }
 
@@ -274,7 +286,10 @@ export function scheduleSuggestedRepliesExtraction(opts: {
           replies,
           replies.length === 0,
           undefined,
-          recordSource
+          recordSource,
+          opts.adultOffDelivery === "approved"
+            ? adultOffApprovalProofForTexts(collectSuggestedReplyVisibleTexts(replies))
+            : undefined
         );
       } catch (error) {
         console.error(
@@ -285,15 +300,16 @@ export function scheduleSuggestedRepliesExtraction(opts: {
       return;
     }
     void (async () => {
-      const deliver = await repliesMayBeExposed(opts, replies);
+      const exposure = await repliesMayBeExposed(opts, replies);
       try {
         writeReplies(
           opts.messageId,
           opts.generationScope,
-          deliver ? replies : [],
-          !deliver || replies.length === 0,
+          exposure.deliver ? replies : [],
+          !exposure.deliver || replies.length === 0,
           undefined,
-          recordSource
+          recordSource,
+          exposure.proof
         );
       } catch (error) {
         console.error(
@@ -317,16 +333,17 @@ export function scheduleSuggestedRepliesExtraction(opts: {
   void (async () => {
     try {
       const replies = await runSuggestedRepliesExtraction(opts);
-      const deliver = await repliesMayBeExposed(opts, replies);
-      const exposed = deliver ? replies : [];
-      const ok = deliver && suggestedRepliesHaveContent(exposed);
+      const exposure = await repliesMayBeExposed(opts, replies);
+      const exposed = exposure.deliver ? replies : [];
+      const ok = exposure.deliver && suggestedRepliesHaveContent(exposed);
       writeReplies(
         opts.messageId,
         opts.generationScope,
         exposed,
         !ok,
         undefined,
-        recordSource
+        recordSource,
+        exposure.proof
       );
       if (!ok) {
         console.error("[SUGGESTED-REPLIES-ERROR] extraction finished without 3 replies", {

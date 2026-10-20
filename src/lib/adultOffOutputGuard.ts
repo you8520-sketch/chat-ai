@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { AdultOffAuxApprovalProof } from "@/lib/adultOffAuxApproval";
 import { normalizeMessageVariants, resolveActiveVariantContent } from "./messageAlternates";
 
 /**
@@ -312,6 +313,25 @@ export function adultOffApprovedTextHashes(texts: readonly string[]): string[] {
     hashes.push(adultOffApprovedTextHash(text));
   }
   return hashes;
+}
+
+/** 실제로 승인된 보조 문자열만 현재 정책 해시로 남긴다. 빈 텍스트는 증명이 필요 없다. */
+export function adultOffApprovalProofForTexts(
+  texts: readonly string[]
+): AdultOffAuxApprovalProof | undefined {
+  const approvedTextHashes = adultOffApprovedTextHashes(texts);
+  if (approvedTextHashes.length === 0) return undefined;
+  return {
+    policyVersion: ADULT_OFF_GUARD_POLICY_VERSION,
+    approvedTextHashes,
+  };
+}
+
+function adultOffTextsApprovedByAnyProof(proofs: readonly unknown[], texts: readonly string[]): boolean {
+  if (texts.length === 0) return true;
+  return texts.every((text) =>
+    proofs.some((proof) => adultOffStoredTextDisposition(proof, text) === "approved")
+  );
 }
 
 type AdultOffGuardStored = {
@@ -632,7 +652,9 @@ export function presentAdultOffStoredRead<
   activeVariant: number;
   statusWidgetValues?: W;
   suggestedReplies?: readonly { text?: string }[] | null;
-}): AdultOffStoredReadPresentation<T, W> {
+  /** 보조 답장 레코드의 승인 증명. 본문 판정에는 쓰지 않는다. */
+  suggestedRepliesProof?: unknown;
+}): AdultOffStoredReadPresentation<T, W> & { suggestedRepliesWithheld: boolean } {
   const suggestedReplies = input.suggestedReplies ? [...input.suggestedReplies] : [];
   if (!input.applyGuard) {
     return {
@@ -651,6 +673,7 @@ export function presentAdultOffStoredRead<
       activeDisposition: "approved",
       statusWidgetValues: input.statusWidgetValues ?? null,
       suggestedReplies,
+      suggestedRepliesWithheld: false,
       withheld: false,
     };
   }
@@ -678,8 +701,10 @@ export function presentAdultOffStoredRead<
   const widgetApproved =
     messageWidgetTexts.length === 0 || adultOffTextsAreApproved(activeUsage, messageWidgetTexts);
   const replyTexts = collectSuggestedReplyVisibleTexts(suggestedReplies);
-  const repliesApproved =
-    replyTexts.length === 0 || adultOffTextsAreApproved(activeUsage, replyTexts);
+  const replyProofs =
+    input.suggestedRepliesProof == null ? [activeUsage] : [activeUsage, input.suggestedRepliesProof];
+  const repliesApproved = adultOffTextsApprovedByAnyProof(replyProofs, replyTexts);
+  const suggestedRepliesWithheld = replyTexts.length > 0 && !repliesApproved;
   return {
     content,
     variants,
@@ -687,6 +712,7 @@ export function presentAdultOffStoredRead<
     activeDisposition,
     statusWidgetValues: widgetApproved ? (input.statusWidgetValues ?? null) : null,
     suggestedReplies: repliesApproved ? suggestedReplies : [],
+    suggestedRepliesWithheld,
     withheld: activeDisposition !== "approved" || !widgetApproved || !repliesApproved,
   };
 }
@@ -694,11 +720,46 @@ export function presentAdultOffStoredRead<
 export function filterAdultOffStatusMeta<T extends AdultOffVisibleStatusMeta>(
   applyGuard: boolean,
   usage: unknown,
-  meta: T | null
+  meta: T | null,
+  auxiliaryProof?: unknown
 ): T | null {
   if (!applyGuard || !meta) return meta;
   const texts = collectStatusMetaVisibleTexts(meta);
-  return adultOffTextsAreApproved(usage, texts) ? meta : null;
+  const proofs = auxiliaryProof == null ? [usage] : [usage, auxiliaryProof];
+  return adultOffTextsApprovedByAnyProof(proofs, texts) ? meta : null;
+}
+
+/**
+ * 가드가 적용될 때 이 variant를 canonical 본문으로 확정할 수 있는지.
+ * 현재 정책의 승인 해시가 본문과 보이는 위젯 값 모두에 있어야 한다.
+ */
+export function adultOffStoredVariantMayBecomeCanonical(variant: {
+  content?: string;
+  usage?: unknown;
+  statusWidgetValues?: AdultOffVisibleStatusWidget | null;
+} | null | undefined): boolean {
+  if (!variant) return false;
+  const content = typeof variant.content === "string" ? variant.content : "";
+  if (adultOffStoredTextDisposition(variant.usage, content) !== "approved") return false;
+  const widgetTexts = collectStatusWidgetVisibleTexts(variant.statusWidgetValues);
+  return adultOffTextsAreApproved(variant.usage, widgetTexts);
+}
+
+export function adultOffActiveVariantUsage(row: {
+  content: string;
+  model: string | null;
+  usage: string | null;
+  alternates?: string | null;
+  active_variant?: number | null;
+}): unknown {
+  const { variants, activeVariant } = normalizeMessageVariants({
+    content: row.content,
+    model: row.model ?? "",
+    usage: row.usage,
+    alternates: row.alternates,
+    active_variant: row.active_variant,
+  });
+  return variants[activeVariant]?.usage ?? null;
 }
 
 export type AdultOffInspectionOutcome = "approved" | "restricted" | "unresolved";

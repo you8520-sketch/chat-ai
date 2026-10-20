@@ -20,6 +20,7 @@ import { projectAssetsForViewer } from "@/lib/mediaAccess";
 import { resolveClientAsyncRecordsFromMessageRow } from "@/lib/clientAsyncRecordRead";
 import { normalizeMessageVariants, serializeVariantsForClient } from "@/lib/messageAlternates";
 import { adultOffReadGuardAppliesForChat } from "@/lib/adultOffVisibleOutput";
+import { adultOffProofCarrier } from "@/lib/adultOffAuxApproval";
 import {
   filterAdultOffStatusMeta,
   presentAdultOffStoredRead,
@@ -347,6 +348,7 @@ export default async function ChatPage({
       activeVariant,
       statusWidgetValues: storedStatusWidgetValues,
       suggestedReplies: storedSuggested.suggestedReplies,
+      suggestedRepliesProof: adultOffProofCarrier(suggestedRepliesRecord?.adultOffGuard),
     });
     const variantMeta = serializeVariantsForClient(presented.variants, presented.activeVariant, {
       keepInternalAdultRouting: showFullBillingReceipt,
@@ -361,6 +363,9 @@ export default async function ChatPage({
     const suggestedRepliesFields = {
       ...storedSuggested,
       suggestedReplies: presented.suggestedReplies,
+      ...(presented.suggestedRepliesWithheld
+        ? { suggestedRepliesPending: false, suggestedRepliesFailed: true }
+        : {}),
     };
     const pairedUserMessage =
       m.role === "assistant"
@@ -382,7 +387,8 @@ export default async function ChatPage({
     const statusMeta = filterAdultOffStatusMeta(
       applyAdultOffReadGuard,
       activeUsage,
-      statusFlags.statusMeta
+      statusFlags.statusMeta,
+      adultOffProofCarrier(statusRecord?.adultOffGuard)
     );
     const billingChargeSummary =
       m.role === "assistant" &&
