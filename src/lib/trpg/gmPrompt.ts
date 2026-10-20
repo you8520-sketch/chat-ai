@@ -428,12 +428,39 @@ export function formatTrpgRegenerateCommittedFacts(opts: {
     .join("\n");
 }
 
+/** Shared instruction tail: GM records a player-visible quest in delta.questsAdd. */
+export const TRPG_GM_RECORD_PLAYER_GOAL_TAIL =
+  "record it in delta.questsAdd as a short player-visible goal (the PC need not accept it)";
+
+const TRPG_GM_OPENING_GOAL_OFFER = `, show one concrete event or opportunity the world offers and ${TRPG_GM_RECORD_PLAYER_GOAL_TAIL}`;
+
+export function shouldRequestTrpgPlayerGoalRegistration(opts: {
+  opening: boolean;
+  regenerate?: boolean;
+  campaignComplete: boolean;
+  activeGoalCount: number;
+}): boolean {
+  if (opts.opening || opts.regenerate || opts.campaignComplete) return false;
+  return opts.activeGoalCount === 0;
+}
+
+export function formatTrpgGmRoundHead(opts: { opening: boolean; requestPlayerGoalRegistration: boolean }): string {
+  if (opts.opening) {
+    return `[OPENING SCENE — describe the start${TRPG_GM_OPENING_GOAL_OFFER} and ask what they do. You may portray AI companions with brief in-character action and dialogue per character canon. Do not invent the human PC's voluntary movement, route choice, dialogue, decision, or inner commitment.]`;
+  }
+  if (opts.requestPlayerGoalRegistration) {
+    return `[RESOLVE THIS ROUND — There is no active player-visible goal yet. Ground the scene in this round's situation and show one concrete event or opportunity, then ${TRPG_GM_RECORD_PLAYER_GOAL_TAIL}. Do not quote GM secrets or copy scenario-plan goals or ending conditions verbatim.]`;
+  }
+  return "[RESOLVE THIS ROUND]";
+}
+
 export function buildTrpgGmUserBlock(opts: {
   worldBrief: string;
   gmSecret?: string;
   memoryBlock: string;
   opening: boolean;
   regenerate?: boolean;
+  requestPlayerGoalRegistration?: boolean;
   committedNarration?: string;
   committedFacts?: string;
   playerPersonas?: string;
@@ -511,8 +538,6 @@ export function buildTrpgGmUserBlock(opts: {
             return lines.filter(Boolean).join("\n");
           })
           .join("\n\n");
-  const openingGoalClause =
-    ", show one concrete event or opportunity the world offers and record it in delta.questsAdd as a short player-visible goal (the PC need not accept it)";
   const secret = opts.gmSecret?.trim() ?? "";
   const personas = opts.playerPersonas?.trim() ?? "";
   const sheets = opts.sheetCanon?.trim() ?? "";
@@ -546,9 +571,10 @@ export function buildTrpgGmUserBlock(opts: {
   return [
     opts.regenerate
       ? regenerateHead
-      : opts.opening
-        ? `[OPENING SCENE — describe the start${openingGoalClause} and ask what they do. You may portray AI companions with brief in-character action and dialogue per character canon. Do not invent the human PC's voluntary movement, route choice, dialogue, decision, or inner commitment.]`
-        : "[RESOLVE THIS ROUND]",
+      : formatTrpgGmRoundHead({
+          opening: opts.opening,
+          requestPlayerGoalRegistration: opts.requestPlayerGoalRegistration === true,
+        }),
     opts.worldBrief.trim() ? `[WORLD]\n${opts.worldBrief.trim()}` : "",
     opts.regenerate ? "" : (opts.scenarioPlanBlock?.trim() ?? ""),
     opts.regenerate ? "" : (opts.storyDirectorBlock?.trim() ?? ""),

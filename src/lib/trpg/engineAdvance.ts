@@ -106,7 +106,7 @@ import {
   npcsWithImages,
 } from "./scenarioNpcAssets";
 import { loadCampaignScenarioAssets, loadScenarioTemplate } from "./scenarioTemplates";
-import { summarizeGoalTransition, type TrpgGoalRoundFacts } from "./campaignGoals";
+import { activeGoalTitles, summarizeGoalTransition, type TrpgGoalRoundFacts } from "./campaignGoals";
 import {
   applyCampaignStoryProgress,
   applyLocalSceneProgressToContext,
@@ -124,7 +124,15 @@ import {
   serializeLocalSceneStateForGm,
 } from "./localSceneProgress";
 import { assertGmCompletionCanCommit, assessGmCompletionIntegrity, completionIntegrityStatusLabel } from "./gmCompletionIntegrity";
-import { buildTrpgGmUserBlock, formatTrpgRegenerateCommittedFacts, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_SYSTEM, type ParsedTrpgGmOutput } from "./gmPrompt";
+import {
+  buildTrpgGmUserBlock,
+  formatTrpgRegenerateCommittedFacts,
+  formatTrpgSheetCanon,
+  parseTrpgGmOutput,
+  shouldRequestTrpgPlayerGoalRegistration,
+  TRPG_GM_SYSTEM,
+  type ParsedTrpgGmOutput,
+} from "./gmPrompt";
 import { serializeTrpgScenarioPlanForGm } from "./scenarioPlan";
 import { parseScenarioNpcs, type TrpgScenarioNpc } from "./scenarioTypes";
 import { ensureCampaignDirectorContext } from "./sandboxDirector";
@@ -1569,12 +1577,20 @@ async function runGmForRound(
         ledger: loadCampaignLedger(db, opts.campaignId),
       })
     : "";
+  const goalLedger = loadCampaignLedger(db, opts.campaignId);
+  const requestPlayerGoalRegistration = shouldRequestTrpgPlayerGoalRegistration({
+    opening: opts.opening,
+    regenerate: opts.regenerate,
+    campaignComplete: campaign.status === "CAMPAIGN_COMPLETE",
+    activeGoalCount: activeGoalTitles(goalLedger.goals).length,
+  });
   const user = buildTrpgGmUserBlock({
     worldBrief: campaign.world_brief,
     gmSecret: campaign.gm_secret ?? "",
     memoryBlock: memory,
     opening: opts.opening,
     regenerate: opts.regenerate === true,
+    requestPlayerGoalRegistration,
     committedNarration,
     committedFacts,
     playerPersonas,
