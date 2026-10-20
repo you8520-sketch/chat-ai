@@ -19,13 +19,13 @@ const OPENING = buildTrpgGmStructuredWireText("시작 장면. 낡은 등불이 �
 const ROUND = buildTrpgGmStructuredWireText("렌이 문을 민다. 먼지 냄새가 난다.", {"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false});
 
 const previousFetch = globalThis.fetch;
-const previousKey = process.env.CHEAPER_INFERENCE_API_KEY;
+const previousKey = process.env.OPENROUTER_API_KEY;
 const previousMock = process.env.MOCK_MODE;
 
 afterEach(() => {
   globalThis.fetch = previousFetch;
-  if (previousKey === undefined) delete process.env.CHEAPER_INFERENCE_API_KEY;
-  else process.env.CHEAPER_INFERENCE_API_KEY = previousKey;
+  if (previousKey === undefined) delete process.env.OPENROUTER_API_KEY;
+  else process.env.OPENROUTER_API_KEY = previousKey;
   if (previousMock === undefined) delete process.env.MOCK_MODE;
   else process.env.MOCK_MODE = previousMock;
 });
@@ -68,7 +68,7 @@ function memoryDb(): Database.Database {
 
 function installProvider(handler: (call: number) => Response): { calls: number } {
   delete process.env.MOCK_MODE;
-  process.env.CHEAPER_INFERENCE_API_KEY = "test-trpg-gm-retry";
+  process.env.OPENROUTER_API_KEY = "test-trpg-gm-retry";
   const state = { calls: 0 };
   globalThis.fetch = (async () => {
     state.calls += 1;

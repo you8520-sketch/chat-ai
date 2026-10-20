@@ -36,20 +36,20 @@ function gmJson(narration: string, delta: Record<string, unknown> = VALID_DELTA)
 const INCIDENT_TRUNCATED_BEFORE_DELTA = `{"narration":"GM: 권태현이 ... 강이현이 환풍구로 이어지는 안전한 우회로를 확보했지만 ... 태현의 방벽 뒤에서 이현이 찾은 환풍구 발판으로 단숨에 도약해 빠져나갈지, 아니면 태현과`;
 
 const previousFetch = globalThis.fetch;
-const previousKey = process.env.CHEAPER_INFERENCE_API_KEY;
+const previousKey = process.env.OPENROUTER_API_KEY;
 const previousMock = process.env.MOCK_MODE;
 
 afterEach(() => {
   globalThis.fetch = previousFetch;
-  if (previousKey === undefined) delete process.env.CHEAPER_INFERENCE_API_KEY;
-  else process.env.CHEAPER_INFERENCE_API_KEY = previousKey;
+  if (previousKey === undefined) delete process.env.OPENROUTER_API_KEY;
+  else process.env.OPENROUTER_API_KEY = previousKey;
   if (previousMock === undefined) delete process.env.MOCK_MODE;
   else process.env.MOCK_MODE = previousMock;
 });
 
 function installGmSseStream(chunks: string[]): void {
   delete process.env.MOCK_MODE;
-  process.env.CHEAPER_INFERENCE_API_KEY = "test-gm-completion";
+  process.env.OPENROUTER_API_KEY = "test-gm-completion";
   globalThis.fetch = (async () =>
     new Response(mockReadableStreamFromText(chunks), {
       status: 200,
@@ -178,7 +178,7 @@ describe("gmCompletionIntegrity fixtures", () => {
     const bytes = new TextEncoder().encode(`${line}${usageLine}data: [DONE]\n\n`);
     const splitAt = line.indexOf('"delta"') + 3;
     delete process.env.MOCK_MODE;
-    process.env.CHEAPER_INFERENCE_API_KEY = "test-gm-completion";
+    process.env.OPENROUTER_API_KEY = "test-gm-completion";
     globalThis.fetch = (async () =>
       new Response(
         new ReadableStream<Uint8Array>({

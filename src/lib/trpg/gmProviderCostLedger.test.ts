@@ -19,7 +19,7 @@ const GM_TEXT = buildTrpgGmStructuredWireText("문이 열린다.", {
 });
 
 const previousFetch = globalThis.fetch;
-const previousKey = process.env.CHEAPER_INFERENCE_API_KEY;
+const previousKey = process.env.OPENROUTER_API_KEY;
 const previousMock = process.env.MOCK_MODE;
 const previousTestContext = process.env.NODE_TEST_CONTEXT;
 
@@ -69,7 +69,7 @@ describe("TRPG provider billing request id ledger", () => {
   before(async () => {
     process.env.NODE_TEST_CONTEXT = "1";
     delete process.env.MOCK_MODE;
-    process.env.CHEAPER_INFERENCE_API_KEY = "test-trpg-ledger";
+    process.env.OPENROUTER_API_KEY = "test-trpg-ledger";
     installIsolatedTestDatabase();
     ({ getDb } = await import("@/lib/db"));
     ensureProviderCostLedgerSchema(getDb());
@@ -77,8 +77,8 @@ describe("TRPG provider billing request id ledger", () => {
 
   after(() => {
     globalThis.fetch = previousFetch;
-    if (previousKey === undefined) delete process.env.CHEAPER_INFERENCE_API_KEY;
-    else process.env.CHEAPER_INFERENCE_API_KEY = previousKey;
+    if (previousKey === undefined) delete process.env.OPENROUTER_API_KEY;
+    else process.env.OPENROUTER_API_KEY = previousKey;
     if (previousMock === undefined) delete process.env.MOCK_MODE;
     else process.env.MOCK_MODE = previousMock;
     if (previousTestContext === undefined) delete process.env.NODE_TEST_CONTEXT;
@@ -94,21 +94,22 @@ describe("TRPG provider billing request id ledger", () => {
     globalThis.fetch = previousFetch;
   });
 
-  it("keeps the GM SSE billing id when it arrives after usage", async () => {
+  it("keeps the OpenRouter GM header id with SSE usage", async () => {
     installFetch(() =>
       sseResponse([
         {
           choices: [{ delta: { content: GM_TEXT }, finish_reason: null }],
           usage: { prompt_tokens: 11, completion_tokens: 7 },
         },
-        { choices: [{ delta: {} }], cheaper_inference: { request_id: "gm-late-id" } },
-      ])
+        { choices: [{ delta: {} }] },
+      ], { "x-request-id": "gm-late-id" })
     );
     await callTrpgGm({ system: "sys", user: "장면", timeoutMs: 5_000, persistProviderCostInTests: true });
     const rows = ledgerRows();
     assert.equal(rows.length, 1);
     assert.equal(rows[0]!.provider_request_id, "gm-late-id");
     assert.equal(rows[0]!.request_kind, "background-trpg-gm");
+    assert.equal(rows[0]!.provider, "openrouter");
     assert.equal(rows[0]!.input_tokens, 11);
     assert.equal(rows[0]!.output_tokens, 7);
     assert.equal(rows[0]!.event_status, "completed_without_exact_cost");
@@ -117,7 +118,7 @@ describe("TRPG provider billing request id ledger", () => {
     assert.equal(rows[0]!.attempt_ordinal, 1);
   });
 
-  it("keeps the GM SSE billing id when it arrives before usage and prefers the header", async () => {
+  it("prefers the OpenRouter header and ignores CheaperInference event ids", async () => {
     installFetch(() =>
       sseResponse(
         [
@@ -127,7 +128,7 @@ describe("TRPG provider billing request id ledger", () => {
           },
           { choices: [{ delta: {}, finish_reason: "stop" }], usage: { prompt_tokens: 4, completion_tokens: 3 } },
         ],
-        { "x-ci-request-id": "gm-header-id" }
+        { "x-request-id": "gm-header-id" }
       )
     );
     await callTrpgGm({ system: "sys", user: "장면", timeoutMs: 5_000, persistProviderCostInTests: true });
@@ -142,9 +143,9 @@ describe("TRPG provider billing request id ledger", () => {
       sseResponse([
         {
           choices: [{ delta: { content: GM_TEXT }, finish_reason: "stop" }],
-          cheaper_inference: { request_id: "gm-id-only" },
+          id: "chatcmpl-ignored",
         },
-      ])
+      ], { "x-request-id": "gm-id-only" })
     );
     await callTrpgGm({ system: "sys", user: "장면", timeoutMs: 5_000, persistProviderCostInTests: true });
     const rows = ledgerRows();
@@ -174,7 +175,7 @@ describe("TRPG provider billing request id ledger", () => {
       jsonResponse(
         { id: "chatcmpl-not-billing", choices: [{ message: { content: "먼저 나가지 마." } }] },
         200,
-        { "x-ci-request-id": "abcd1234-ICN" }
+        { "x-request-id": "abcd1234-ICN" }
       )
     );
     await callTrpgBot({ system: "sys", user: "행동", timeoutMs: 5_000, persistProviderCostInTests: true });
@@ -182,7 +183,7 @@ describe("TRPG provider billing request id ledger", () => {
     assert.equal(rows.length, 0);
   });
 
-  it("stores the Bot JSON billing id from the body when the header is absent", async () => {
+  it("ignores a different provider's body billing id when the OpenRouter header is absent", async () => {
     installFetch(() =>
       jsonResponse({
         id: "chatcmpl-ignored",
@@ -194,7 +195,7 @@ describe("TRPG provider billing request id ledger", () => {
     await callTrpgBot({ system: "sys", user: "행동", timeoutMs: 5_000, persistProviderCostInTests: true });
     const rows = ledgerRows();
     assert.equal(rows.length, 1);
-    assert.equal(rows[0]!.provider_request_id, "bot-body-id");
+    assert.equal(rows[0]!.provider_request_id, null);
     assert.equal(rows[0]!.event_status, "completed_without_exact_cost");
   });
 
@@ -206,7 +207,7 @@ describe("TRPG provider billing request id ledger", () => {
           usage: { prompt_tokens: 9, completion_tokens: 2 },
         },
         200,
-        { "x-ci-request-id": "bot-same-id" }
+        { "x-request-id": "bot-same-id" }
       )
     );
     await callTrpgBot({ system: "sys", user: "행동", timeoutMs: 5_000, persistProviderCostInTests: true });
@@ -220,14 +221,14 @@ describe("TRPG provider billing request id ledger", () => {
   it("keeps separate ids for a GM 5xx attempt and the successful retry", async () => {
     const seen = installFetch((call) => {
       if (call === 1) {
-        return jsonResponse({ cheaper_inference: { request_id: "gm-fail-1" } }, 502);
+        return jsonResponse({ error: "provider unavailable" }, 502, { "x-request-id": "gm-fail-1" });
       }
       return sseResponse(
         [
           { choices: [{ delta: { content: GM_TEXT } }], cheaper_inference: { request_id: "gm-body-ignored" } },
           { choices: [{ delta: {}, finish_reason: "stop" }], usage: { prompt_tokens: 5, completion_tokens: 4 } },
         ],
-        { "x-ci-request-id": "gm-ok-2" }
+        { "x-request-id": "gm-ok-2" }
       );
     });
     await callTrpgGm({ system: "sys", user: "장면", timeoutMs: 5_000, persistProviderCostInTests: true });
@@ -247,7 +248,7 @@ describe("TRPG provider billing request id ledger", () => {
   it("does not retry a Bot failure and still keeps that attempt id", async () => {
     const seen = installFetch(() =>
       jsonResponse({ cheaper_inference: { request_id: "bot-fail-1" } }, 500, {
-        "x-ci-request-id": "bot-fail-header",
+        "x-request-id": "bot-fail-header",
       })
     );
     await assert.rejects(
@@ -266,7 +267,7 @@ describe("TRPG provider billing request id ledger", () => {
     installFetch(() =>
       sseResponse(
         [{ choices: [{ delta: { content: "   " } }], usage: { prompt_tokens: 2, completion_tokens: 1 } }],
-        { "x-ci-request-id": "gm-empty-id" }
+        { "x-request-id": "gm-empty-id" }
       )
     );
     await assert.rejects(
@@ -288,7 +289,7 @@ describe("TRPG provider billing request id ledger", () => {
               controller.error(new Error("stream aborted"));
             },
           }),
-          { status: 200, headers: { "Content-Type": "text/event-stream", "x-ci-request-id": "gm-abort-header" } }
+          { status: 200, headers: { "Content-Type": "text/event-stream", "x-request-id": "gm-abort-header" } }
         )
     );
     await assert.rejects(
@@ -322,7 +323,7 @@ describe("TRPG provider billing request id ledger", () => {
               controller.error(new Error("stream aborted"));
             },
           }),
-          { status: 200, headers: { "Content-Type": "text/event-stream" } }
+          { status: 200, headers: { "Content-Type": "text/event-stream", "x-request-id": "gm-abort-body" } }
         )
     );
     await assert.rejects(
@@ -348,7 +349,7 @@ describe("TRPG provider billing request id ledger", () => {
         id: "bot-bad-json",
         response: new Response("not-json", {
           status: 200,
-          headers: { "content-type": "application/json", "x-ci-request-id": "bot-bad-json" },
+          headers: { "content-type": "application/json", "x-request-id": "bot-bad-json" },
         }),
         error: /JSON|Unexpected|token/i,
         status: "failed_without_usage",
@@ -362,7 +363,7 @@ describe("TRPG provider billing request id ledger", () => {
               controller.error(new Error("body read aborted"));
             },
           }),
-          { status: 200, headers: { "content-type": "application/json", "x-ci-request-id": "bot-read-abort" } }
+          { status: 200, headers: { "content-type": "application/json", "x-request-id": "bot-read-abort" } }
         ),
         error: /body read aborted/,
         status: "failed_without_usage",
@@ -372,7 +373,7 @@ describe("TRPG provider billing request id ledger", () => {
         id: "bot-json-null",
         response: new Response("null", {
           status: 200,
-          headers: { "content-type": "application/json", "x-ci-request-id": "bot-json-null" },
+          headers: { "content-type": "application/json", "x-request-id": "bot-json-null" },
         }),
         error: /null/,
         status: "failed_without_usage",
@@ -387,7 +388,7 @@ describe("TRPG provider billing request id ledger", () => {
             usage: { prompt_tokens: 3, completion_tokens: 1 },
           },
           200,
-          { "x-ci-request-id": "bot-nonstr-content" }
+          { "x-request-id": "bot-nonstr-content" }
         ),
         error: /trim/,
         status: "failed_with_usage",
@@ -421,9 +422,9 @@ describe("TRPG provider billing request id ledger", () => {
           id: "chatcmpl-not-billing",
           choices: [{ delta: { content: "문" } }],
           usage: { prompt_tokens: 6, completion_tokens: 2 },
-          cheaper_inference: { request_id: "gm-callback-id" },
+          id: "chatcmpl-ignored",
         },
-      ])
+      ], { "x-request-id": "gm-callback-id" })
     );
     await assert.rejects(
       () =>

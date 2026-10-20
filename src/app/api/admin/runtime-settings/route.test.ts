@@ -1,3 +1,4 @@
+import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
 import Module from "module";
 
 let sessionToken = "";
@@ -116,7 +117,7 @@ describe("admin runtime-settings GET", () => {
       };
     };
     assert.equal(body.mutationSupported, false);
-    assert.equal(body.mainRp.models.length, 5);
+    assert.equal(body.mainRp.models.length, MAIN_RP_MODEL_IDS.length);
     assert.equal(body.credentials.openRouterApiKeyConfigured, true);
     assert.equal(body.credentials.cheaperInferenceApiKeyConfigured, true);
     const raw = JSON.stringify(body);

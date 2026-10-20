@@ -1,6 +1,7 @@
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  GEMINI_38_FLASH_MODEL,
   isCheaperInferenceDeepSeekV4FlashModel,
   isCheaperInferenceDeepSeekV4ProModel,
   isCheaperInferenceModel,
@@ -12,6 +13,13 @@ import {
   CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
   resolveCheaperInferenceApiKey,
 } from "@/lib/cheaperInferenceConfig";
+import {
+  buildOpenRouterHeaders,
+  OPENROUTER_CHAT_COMPLETIONS_URL,
+  resolveMainRpOpenRouterRoutePolicy,
+  resolveRpOpenRouterModelId,
+} from "@/lib/openRouterConfig";
+import { OPENROUTER_RP_REASONING_GEMINI_37_38_FLASH } from "@/lib/openRouterClient";
 import { isMockApiMode } from "@/lib/mockApiMode";
 import { adaptTrpgBotChatBody, adaptTrpgGmChatBody, trpgProviderRequestContract } from "./gmClient";
 import type { TrpgModelUsage } from "./billing";
@@ -88,9 +96,13 @@ function recordTrpgProviderCost(
 }
 
 /** Header first, then cheaper_inference.request_id. Completion id and CDN ray are not billing ids. */
-function readTrpgBillingRequestId(headers: Headers | null | undefined, body?: unknown): string | null {
+function readTrpgBillingRequestId(
+  provider: TrpgProviderRequest["provider"],
+  headers: Headers | null | undefined,
+  body?: unknown
+): string | null {
   return readCompatibleCompletionProviderRequestId({
-    provider: "cheaperinference",
+    provider,
     headers: headers ?? null,
     body,
   });
@@ -241,25 +253,53 @@ function usageFromResponse(
   };
 }
 
-/** TRPG GM/bot transport is CheaperInference regardless of how Main RP routes the same model id. */
+/** Gemini shares Main RP's procurement policy; narration/structured output stays owned by TRPG. */
 export type TrpgProviderRequest = {
-  provider: "cheaperinference";
+  provider: "cheaperinference" | "openrouter";
   endpoint: string;
+  /** Delivered provider wire model, also used by usage and cost accounting. */
   model: string;
   body: Record<string, unknown>;
 };
+
+function buildTrpgProviderRequest(model: string, body: Record<string, unknown>): TrpgProviderRequest {
+  if (model === GEMINI_38_FLASH_MODEL) {
+    const wireModel = resolveRpOpenRouterModelId(model);
+    const policy = resolveMainRpOpenRouterRoutePolicy(wireModel);
+    if (!policy) throw new Error(`[TRPG] missing OpenRouter route policy for ${wireModel}`);
+    const adapted = { ...body };
+    delete adapted.reasoning_effort;
+    delete adapted.thinking;
+    return {
+      provider: "openrouter",
+      endpoint: OPENROUTER_CHAT_COMPLETIONS_URL,
+      model: wireModel,
+      body: {
+        ...adapted,
+        model: wireModel,
+        provider: policy.provider,
+        service_tier: policy.serviceTier,
+        reasoning: { ...OPENROUTER_RP_REASONING_GEMINI_37_38_FLASH },
+        include_reasoning: false,
+        ...(body.stream === true ? { stream_options: { include_usage: true } } : {}),
+      },
+    };
+  }
+  const cheaperModel = resolveTrpgCheaperInferenceModel(model);
+  const cheaperBody = { ...body, model: cheaperModel };
+  return {
+    provider: "cheaperinference", endpoint: CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, model: cheaperModel,
+    body: body.stream === true ? adaptTrpgGmChatBody(cheaperBody) : adaptTrpgBotChatBody(cheaperBody),
+  };
+}
 
 /** Isolated GM request. Must not go through RP adaptCheaperInferenceChatBody. */
 export function buildTrpgGmProviderRequest(input: {
   system: string;
   user: string;
 }): TrpgProviderRequest {
-  const model = resolveTrpgCheaperInferenceModel(TRPG_GM_MODEL);
-  return {
-    provider: "cheaperinference",
-    endpoint: CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
-    model,
-    body: adaptTrpgGmChatBody({
+  const model = TRPG_GM_MODEL;
+  return buildTrpgProviderRequest(model, {
       model,
       messages: [
         { role: "system", content: input.system },
@@ -269,8 +309,7 @@ export function buildTrpgGmProviderRequest(input: {
       temperature: 0.7,
       max_tokens: TRPG_GM_MAX_TOKENS,
       response_format: buildTrpgGmResponseFormat(),
-    }),
-  };
+    });
 }
 
 /** Bot-seat request, separate from GM narration. */
@@ -278,12 +317,8 @@ export function buildTrpgBotProviderRequest(input: {
   system: string;
   user: string;
 }): TrpgProviderRequest {
-  const model = resolveTrpgCheaperInferenceModel(TRPG_BOT_MODEL);
-  return {
-    provider: "cheaperinference",
-    endpoint: CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
-    model,
-    body: adaptTrpgBotChatBody({
+  const model = TRPG_BOT_MODEL;
+  return buildTrpgProviderRequest(model, {
       model,
       messages: [
         { role: "system", content: input.system },
@@ -292,8 +327,13 @@ export function buildTrpgBotProviderRequest(input: {
       stream: false,
       temperature: 0.85,
       max_tokens: TRPG_BOT_MAX_TOKENS,
-    }),
-  };
+    });
+}
+
+function buildTrpgProviderHeaders(request: TrpgProviderRequest, cheaperInferenceApiKeyOverride?: string) {
+  return request.provider === "openrouter"
+    ? buildOpenRouterHeaders()
+    : buildCheaperInferenceHeaders(resolveTrpgCheaperInferenceCredential(cheaperInferenceApiKeyOverride));
 }
 
 function resolveTrpgCheaperInferenceCredential(override?: string): string {
@@ -320,9 +360,7 @@ async function postTrpgChat(opts: {
   console.info(`[TRPG][${opts.role}] request_contract`, contract);
   const started = Date.now();
   const serializedBody = JSON.stringify(request.body);
-  const headers = buildCheaperInferenceHeaders(
-    resolveTrpgCheaperInferenceCredential(opts.cheaperInferenceApiKeyOverride)
-  );
+  const headers = buildTrpgProviderHeaders(request, opts.cheaperInferenceApiKeyOverride);
   const maxAttempts = maxProviderAttempts(opts.role);
   try {
     let previousHttpStatus: number | undefined;
@@ -342,7 +380,7 @@ async function postTrpgChat(opts: {
         body: serializedBody,
         signal: AbortSignal.timeout(opts.timeoutMs),
       });
-      const headerRequestId = readTrpgBillingRequestId(res.headers);
+      const headerRequestId = readTrpgBillingRequestId(request.provider, res.headers);
       let supplementalRequestId: string | null = null;
       let capturedUsage: TrpgModelUsage | undefined;
       let recordedThisAttempt = false;
@@ -367,7 +405,7 @@ async function postTrpgChat(opts: {
           throw readError;
         }
         if (!headerRequestId) {
-          supplementalRequestId = readTrpgBillingRequestId(undefined, parseJsonValue(errText));
+          supplementalRequestId = readTrpgBillingRequestId(request.provider, undefined, parseJsonValue(errText));
         }
         recordThisAttemptFailure();
         lastHttpError = attachTrpgCallFailureMeta(new Error(`[TRPG] ${res.status}: ${errText.slice(0, 240)}`), {
@@ -389,7 +427,7 @@ async function postTrpgChat(opts: {
       }
       try {
         if (!headerRequestId) {
-          supplementalRequestId = readTrpgBillingRequestId(undefined, data);
+          supplementalRequestId = readTrpgBillingRequestId(request.provider, undefined, data);
         }
         const payload = data as {
           choices?: { message?: { content?: string } }[];
@@ -460,6 +498,7 @@ function usageFromSsePayload(payload: unknown): StreamUsagePayload | undefined {
 }
 
 async function readGmProviderSseStream(opts: {
+  provider: TrpgProviderRequest["provider"];
   model: string;
   response: Response;
   callbacks?: TrpgGmStreamCallbacks;
@@ -506,7 +545,7 @@ async function readGmProviderSseStream(opts: {
 
   const onSsePayload = (payload: unknown) => {
     if (!opts.capture.providerRequestId) {
-      const fromEvent = readTrpgBillingRequestId(undefined, payload);
+      const fromEvent = readTrpgBillingRequestId(opts.provider, undefined, payload);
       if (fromEvent) opts.capture.providerRequestId = fromEvent;
     }
     const usage = usageFromSsePayload(payload);
@@ -595,9 +634,7 @@ async function postTrpgGmStream(opts: {
   };
   opts.callbacks?.onProviderTimings?.({ ...timings });
   const serializedBody = JSON.stringify(request.body);
-  const headers = buildCheaperInferenceHeaders(
-    resolveTrpgCheaperInferenceCredential(opts.cheaperInferenceApiKeyOverride)
-  );
+  const headers = buildTrpgProviderHeaders(request, opts.cheaperInferenceApiKeyOverride);
   const maxAttempts = GM_MAX_PROVIDER_ATTEMPTS;
   try {
     let previousHttpStatus: number | undefined;
@@ -624,7 +661,7 @@ async function postTrpgGmStream(opts: {
       });
       if (!res.ok) {
         const errText = await res.text().catch(() => "");
-        const failedRequestId = readTrpgBillingRequestId(res.headers, parseJsonValue(errText));
+        const failedRequestId = readTrpgBillingRequestId(request.provider, res.headers, parseJsonValue(errText));
         recordTrpgProviderCost("background-trpg-gm", request, {
           providerRequestId: failedRequestId,
           httpStatus: res.status,
@@ -643,11 +680,12 @@ async function postTrpgGmStream(opts: {
         throw lastHttpError;
       }
       const capture: TrpgProviderAttemptCapture = {
-        providerRequestId: readTrpgBillingRequestId(res.headers),
+        providerRequestId: readTrpgBillingRequestId(request.provider, res.headers),
       };
       let streamResult: Awaited<ReturnType<typeof readGmProviderSseStream>>;
       try {
         streamResult = await readGmProviderSseStream({
+          provider: request.provider,
           model: request.model,
           response: res,
           callbacks: opts.callbacks,

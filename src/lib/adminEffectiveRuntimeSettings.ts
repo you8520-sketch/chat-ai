@@ -58,6 +58,7 @@ import {
   type TrpgProviderRequest,
 } from "@/lib/trpg/gmCall";
 import { trpgProviderRequestContract } from "@/lib/trpg/gmClient";
+import { TRPG_BOT_MODEL, TRPG_GM_MODEL } from "@/lib/trpg/types";
 
 /**
  * Read-only projection of the effective runtime configuration.
@@ -321,7 +322,7 @@ function projectTrpgRole(
 ): TrpgRuntimeRow {
   return {
     workload,
-    canonicalModelId: request.model,
+    canonicalModelId: workload === "trpg_gm" ? TRPG_GM_MODEL : TRPG_BOT_MODEL,
     transportProvider: request.provider,
     endpointHost: endpointHost(request.endpoint),
     wireModelId: String(request.body.model),
