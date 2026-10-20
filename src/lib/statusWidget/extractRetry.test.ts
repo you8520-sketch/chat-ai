@@ -52,6 +52,28 @@ describe("status widget hard one-attempt contract", () => {
     assert.ok(result.values.character);
   });
 
+  it("preserves provider-reported reasoning usage through single extraction", async () => {
+    const result = await extract(async () => ({
+      text: validStatus(),
+      usage: {
+        inputTokens: 11049,
+        outputTokens: 6279,
+        estimated: false,
+        reasoningOutputTokens: 6000,
+        usageReportingEvidence: {
+          cacheRead: "unreported",
+          cacheWrite: "unreported",
+          reasoning: "reported_valid",
+        },
+      },
+    }));
+    assert.equal(result.meta.actualCallCount, 1);
+    assert.ok(result.values.character);
+    assert.equal(result.usage?.outputTokens, 6279);
+    assert.equal(result.usage?.reasoningOutputTokens, 6000);
+    assert.equal(result.usage?.usageReportingEvidence?.reasoning, "reported_valid");
+  });
+
   it("malformed JSON is terminal without repair or fallback", async () => {
     const kinds: string[] = [];
     const result = await extract(async (_system, _history, opts) => {
