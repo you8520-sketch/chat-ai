@@ -335,7 +335,7 @@ export const OFFICIAL_DESIGN_CHECKLIST_LINES = [
   "기본 스펙·외형 / 현재 신분·상황·생활 환경 / 성격 구조·판단 방식 / 욕망·목표·결핍 / 가치관·신념·금기 / 과거 형성 사건 / 내면 모순·외적 가면 /",
   "약점·두려움·방어기제·무너지는 조건 / 말투·호칭 / 습관·비언어적 버릇 / 능력·자원·한계 / 취미·기호·일상 / 유저에 대한 기본 인식 / 관계가 변하거나 물러서는 조건 /",
   "비밀(근거 있을 때만) / 주변 인물(필요할 때만) / 사용자 없이도 스스로 하는 행동·선택 / 미해결 갈등과 성장·타락 가능성 / 연애·친밀감(해당할 때만).",
-  "목표·선택·실패·결과·미해결 갈등은 형용사가 아니라 실제로 한 행동과 그 대가로 쓴다. 자동 사랑·굴복, 고정 턴 관계 진행, 제3자 강제 등장, 매 턴 속마음은 쓰지 않는다.",
+  "목표·선택·실패·결과·미해결 갈등은 형용사가 아니라 실제로 한 행동과 그 대가로 쓴다. 유저 인식·관계 변화 조건은 사건 이해에 필요한 구체적 사실이 있을 때만 적고, 없으면 비운다. 유저 선택권·관계 진행·결말 목록으로 분량을 채우지 않는다. 자동 사랑·굴복, 고정 턴 관계 진행, 제3자 강제 등장, 매 턴 속마음은 쓰지 않는다.",
 ] as const;
 
 export type CharacterBible1Input = {
@@ -368,9 +368,9 @@ export function buildCharacterBible1System(): string {
     "- abilities 2~4개: 캐릭터의 매력·권력·문제 해결 방식을 보여주는 능력만. 범위·한계/대가·대표 사용을 짧게 쓴다. 업무 매뉴얼처럼 장황하게 설명하지 않는다.",
     "- habits: hobbies는 짧은 명사/구 3~5개, habits는 반복 장면에 바로 쓸 행동 3~5개(비언어적 버릇 포함). likes/dislikes는 각 2~4개로 간결하게.",
     "- dailyLife 120~250자: 사건이 없을 때 무엇을 하며 시간을 보내는지 생활감만 남긴다.",
-    "- situation: 세계 관련 맥락 350~650자 + 개인 현재 상황 300~600자 + 유저 진입 단서 120~250자. 세계 설정집을 캐릭터 본문으로 복사하지 않는다.",
-    "  개인 현재 상황에는 이 인물이 사용자 없이도 지금 추구하는 일과 그 때문에 이미 생긴 대가를 포함한다. 유저 진입 단서는 입력의 '유저 관계 시작 유형'을 따른다.",
-    "  고정 관계·배경은 bonds 단계의 fixedFacts가 소유한다. 고정 유형이면 개인 현재 상황과 유저 진입 단서에서 그 고정 문장을 되풀이하지 않고, 진입 단서는 지금 장면에서 이 인물이 유저를 마주하는 모습(행동·태도)만 쓴다.",
+    "- situation: 세계 관련 맥락 350~650자 + 개인 현재 상황 300~600자 + 유저 진입 장면 40~180자. 세계 설정집을 캐릭터 본문으로 복사하지 않는다.",
+    "  개인 현재 상황에는 이 인물이 사용자 없이도 지금 추구하는 일과 그 때문에 이미 생긴 대가를 포함한다. 사건에 필요한 유저 역할·관계·배경은 bonds 단계 fixedFacts가 소유한다.",
+    "  유저 진입 장면은 기본 도입 장소·행동·태도만 쓴다. 다른 시점·장소 지정, 유저 선택권·페르소나 설명, OOC 규칙, 침묵·감정 해석 지침은 쓰지 않는다. fixedFacts 문장을 되풀이하지 않는다.",
     "- 캐릭터 runtime 핵심은 정체/성격/유저 인식/말투/관계 변화/과거 원인/습관·취미/가치관·금기/능력이다. 장문 외모·타 캐릭터 관계망·세계 설명은 각각 Appearance/Lorebook owner가 맡는다.",
     "- characterCore에 그대로 들어갈 문장으로 \"27세\"처럼 구조화된 나이와 같은 숫자를 반드시 명시한다(실제 나이로).",
     "",
@@ -538,18 +538,16 @@ export function buildCharacterBondsSystem(): string {
     "출력은 반드시 순수 JSON 한 개(코드펜스·설명 금지)다.",
     "",
     "관계·비밀·엔진 규칙:",
-    "- userRelationship: 기본은 persona-flexible(FREE)이다. 아래 유형 규칙을 따른다. 유저의 이름·성별·기존 관계는 고정 사실 밖에서 확정하지 않으며, 페르소나가 제시한 기존 관계가 있으면 우선한다. 성별 고정 호칭을 쓰지 않는다.",
+    "- userRelationship: 기본은 FREE다. 아래 유형 규칙을 따른다. 유저 관계 원칙, 첫인식, 유저 역할, 시작점, 관계 진행, 가능한 결말 목록은 최종 설정에 쓰지 않는다. 성별 고정 호칭을 쓰지 않는다.",
     ...buildUserRelationAuthorRules(),
-    "  initialView/startingPoint는 현재 장면에서의 태도와 이해관계 중심으로 쓴다.",
-    "  progression은 일정표가 아니라 행동 기반 변화 조건 2~4개다. 다가가는 조건과 물러서거나 적대로 돌아서는 조건을 모두 쓴다(협력·배신·적대·친밀·이탈·재회·역전). 자동 사랑·굴복·고정 턴 진행 금지.",
+    "  관계 진행 공식은 쓰지 않는다. 협력·배신·연애·이탈 같은 결말 목록으로 분량을 채우지 않는다.",
     "- otherRelationships: 이 캐릭터 자신의 사건·과거·목표·판단·행동을 실제로 바꾸는 인물만 기록한다. 없으면 [].",
     "  다른 공식 캐릭터를 관계 목록에 자동으로 채우지 않는다. 같은 세계관에 존재하거나 나중에 만날 수 있다는 이유만으로는 넣지 않는다.",
     "  인원 수를 채우는 목표는 없다. 출연진 전체를 채우지 않는다. 현재 RP와 무관한 인물을 넣지 않는다.",
     "  otherRelationships는 메인 시스템 프롬프트에 상시 주입하지 않는다. hidden은 로어북이나 새 비밀로 옮기지 않는다. 정말 필요한 비밀만 유지한다.",
     "- secrets: 캐릭터 자신이 알고 있으나 공개하지 않는 핵심 사실 중 RP progression·갈등·관계 변화에 실제 영향을 주는 것만 최대 3개. 필요한 비밀이 없으면 []이며 개수를 채우지 않는다. trivial 반전은 금지.",
-    "- rpEngine: immediateHook + repeatable 반드시 3개 이상(비사건성 일상 포함) + mediumConflict + longTermChange. 엔딩 고정 금지.",
-    "  selfDrive(유저 없이도 성립): goal=지금 스스로 추구하는 구체적 목표, ownMove=그 목표를 위해 스스로 택하는 다음 행동, setback=실패했을 때의 결과·대가. 세 값 모두 20자 이상이며 goal·ownMove에는 당신/유저를 쓰지 않는다.",
-    "  mediumConflict는 이 인물이 안고 있는 미해결 갈등의 씨앗, longTermChange는 성장·타락·관계 변화의 열린 가능성이다. selfDrive와 같은 문장을 되풀이하지 않는다. 둘 다 각각 2문장 이내.",
+    "- rpEngine: immediateHook + repeatable 반드시 3개 이상(비사건성 일상 포함). mediumConflict·longTermChange는 성격·과거·현재 상황에 없는 사건 사실일 때만 한 줄, 아니면 \"\". 유저 선택에 따른 결말 목록은 쓰지 않는다.",
+    "  selfDrive(유저 없이도 성립): goal=지금 스스로 추구하는 구체적 목표, ownMove=그 목표를 위해 스스로 택하는 다음 행동, setback=실패했을 때의 결과·대가. 세 값 모두 20자 이상이며 goal·ownMove에는 당신/유저를 쓰지 않는다. 이미 성격·과거·현재 상황에 있는 문장을 반복하지 않는다.",
     "- 출력 분량·문체·기억·자동 진행 같은 공통 RP 지시는 캐릭터 설정에 쓰지 않는다. 이 인물만의 판단·행동·대가만 쓴다.",
     "",
     "성인 섹션은 adultCandidate가 true일 때만 작성(허용값 그대로 사용):",
@@ -590,7 +588,7 @@ const BIBLE_1_SKELETON = `{"identity": {"name": "", "gender": "male", "age": 27,
 
 const VOICE_SKELETON_HEAD = `{"speech": {"register": "", "sentenceLength": "", "tempo": "", "vocabulary": "", "frequentPhrases": ["", ""], "rarePhrases": [""], "profanity": "", "humorStyle": "", "addressStyle": "", "hiddenEmotionStyle": "", "angryStyle": "", "intimateStyle": "", "keywords": ["", "", "", ""], "description": "", "examples": "대사1\\n대사2\\n대사3\\n대사4", "forbidden": ""}, "behaviorRules": ["", "", ""], "greeting": "", "publicProfile": {"tagline": "", "description": "", "tags": ["", "", "", ""]}, "npcs": [], "nsfw": `;
 
-const BONDS_SKELETON_HEAD = `{"userRelationship": {"type": "", "fixedFacts": "", "userDecides": "", "initialView": "", "userRole": "", "startingPoint": "", "progression": ["", ""]}, "otherRelationships": [], "secrets": [], "rpEngine": {"immediateHook": "", "repeatable": ["", "", ""], "mediumConflict": "", "longTermChange": "", "selfDrive": {"goal": "", "ownMove": "", "setback": ""}}, "nsfw": `;
+const BONDS_SKELETON_HEAD = `{"userRelationship": {"type": "", "fixedFacts": "", "userDecides": "", "initialView": "", "userRole": "", "startingPoint": "", "progression": []}, "otherRelationships": [], "secrets": [], "rpEngine": {"immediateHook": "", "repeatable": ["", "", ""], "mediumConflict": "", "longTermChange": "", "selfDrive": {"goal": "", "ownMove": "", "setback": ""}}, "nsfw": `;
 
 /** Shape mirrors the adult QA bands in `validateCharacterBible` (prefs 4-8, scenarios 2-3). */
 const ADULT_SECTION_SKELETON = `{"orientation": "", "hookSummary": "", "dialogueProfile": "", "consentModes": [""], "tone": "", "preferenceKeywords": ["", "", "", ""], "boundaries": [], "consentBehavior": "", "scenarioExamples": ["", ""]}`;

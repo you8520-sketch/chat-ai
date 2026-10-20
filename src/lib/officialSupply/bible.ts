@@ -1071,20 +1071,14 @@ export function validateCharacterBible(
   errors.push(...evaluateVoiceStructureContract(bible).errors);
 
   const rel = bible.userRelationship ?? { initialView: "", userRole: "", startingPoint: "", progression: [] };
-  if (!nonEmpty(rel.initialView) || !nonEmpty(rel.userRole) || !nonEmpty(rel.startingPoint)) {
-    errors.push(err("bible_user_rel_missing", "userRelationship needs initialView + userRole + startingPoint"));
-  }
   if (!Array.isArray(rel.progression) || rel.progression.some((step) => !nonEmpty(step))) {
-    errors.push(err("bible_progression_invalid", "userRelationship.progression must be action-based change conditions"));
+    errors.push(err("bible_progression_invalid", "userRelationship.progression entries must be non-empty when present"));
   }
 
   const engine = bible.rpEngine ?? { immediateHook: "", repeatable: [], mediumConflict: "", longTermChange: "" };
   if (!nonEmpty(engine.immediateHook)) errors.push(err("bible_hook_missing", "rpEngine.immediateHook is required"));
   if (!Array.isArray(engine.repeatable) || engine.repeatable.length < 3) {
     errors.push(err("bible_repeatable_missing", "rpEngine.repeatable needs ≥3 activities"));
-  }
-  if (!nonEmpty(engine.mediumConflict) || !nonEmpty(engine.longTermChange)) {
-    errors.push(err("bible_engine_missing", "rpEngine needs mediumConflict + longTermChange"));
   }
   errors.push(...evaluateRelationBibleContract(bible).errors);
 
@@ -1268,33 +1262,18 @@ export function compileOfficialDraftFromBible(
     userEntry: userEntryWithoutFixedRestatement(bible.situation.userEntry, bible.userRelationship.fixedFacts),
   };
   const selfDrive = bible.rpEngine.selfDrive;
-  const selfDriveText = selfDrive
-    ? `자기 추진 — 목표: ${cleanSentence(selfDrive.goal)} / 스스로 택하는 행동: ${cleanSentence(selfDrive.ownMove)} / 막힘·대가: ${cleanSentence(selfDrive.setback)}`
-    : "";
-  const actionChangeConditions = bible.userRelationship.progression
-    .map((step) => `· ${step}`)
-    .join("\n");
-  const relationshipsAndDrives = compactRpV1
-    ? joinParagraphs([
-        ...relationshipPrinciple,
-        `첫인식: ${bible.userRelationship.initialView}`,
-        `유저 역할: ${bible.userRelationship.userRole}`,
-        `시작점: ${bible.userRelationship.startingPoint}`,
-        `관계 진행: ${bible.userRelationship.progression.join(" → ")}`,
-        selfDriveText,
-        `중기 갈등: ${bible.rpEngine.mediumConflict}`,
-        `장기 변화: ${bible.rpEngine.longTermChange}`,
-      ])
-    : joinParagraphs([
-        ...relationshipPrinciple,
-        `첫인식: ${bible.userRelationship.initialView}`,
-        `유저 역할: ${bible.userRelationship.userRole}`,
-        `시작점: ${bible.userRelationship.startingPoint}`,
-        actionChangeConditions ? `관계 변화 조건:\n${actionChangeConditions}` : "",
-        selfDriveText,
-        `중기 갈등(선택 소재): ${bible.rpEngine.mediumConflict}`,
-        `장기 변화(선택 소재): ${bible.rpEngine.longTermChange}`,
-      ]);
+  const alreadyTold = [characterCore, bible.situation.personalSituation, situation.userEntry].join("\n");
+  const selfDriveLabels = { goal: "목표", ownMove: "스스로 택하는 행동", setback: "막힘·대가" } as const;
+  const selfDriveParts = selfDrive
+    ? (["goal", "ownMove", "setback"] as const)
+        .map((key) => {
+          const sentence = cleanSentence(selfDrive[key]);
+          return sentence && !alreadyTold.includes(sentence) ? `${selfDriveLabels[key]}: ${sentence}` : "";
+        })
+        .filter(nonEmpty)
+    : [];
+  const selfDriveText = selfDriveParts.length ? `자기 추진 — ${selfDriveParts.join(" / ")}` : "";
+  const relationshipsAndDrives = joinParagraphs([...relationshipPrinciple, selfDriveText]);
 
   const extraCanon = "";
 
