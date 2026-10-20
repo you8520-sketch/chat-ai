@@ -56,6 +56,7 @@ export type AdultOffInspectionPlanItem = {
 
 export type AdultOffBatchCommitResult =
   | "written"
+  | "written_variant_isolated"
   | "skipped_stale"
   | "skipped_noop"
   | "skipped_unresolved";
@@ -96,13 +97,53 @@ export type AdultOffBodyInspectionSurvey = {
   reuseRestricted: number;
   skipEmpty: number;
   activeRowMirrorInconsistentMessages: number;
+  structuralUsageMetadataMessages: number;
+  contentMismatchMessages: number;
+  modelMismatchMessages: number;
+  settlementMismatchMessages: number;
   bodyUnreviewedTargets: number;
+};
+
+export type AdultOffActiveRowMirrorSummary = {
+  inconsistentMessageIds: number[];
+  contentMismatchMessageIds: number[];
+  modelMismatchMessageIds: number[];
+  settlementMismatchMessageIds: number[];
+  structuralUsageMetadataMessages: number;
+};
+
+/**
+ * `messages.usage`에 없고 활성 variant usage에만 있는 내부 메타.
+ * 생성 경로는 public receipt sanitizer로 row usage에서 `adultRouting`을 빼고,
+ * variant usage와 `adult_route_meta_json`에만 남긴다.
+ */
+const VARIANT_ONLY_USAGE_METADATA_KEYS = ["adultRouting"] as const;
+
+/**
+ * 활성 variant usage에 없고 row usage에만 있는 정산 메타.
+ * `persistAssistantMessageFinalCharge`는 row usage에 항상 기록하고,
+ * request id가 활성 generation과 일치할 때만 variant usage에도 기록한다.
+ */
+const ROW_ONLY_USAGE_METADATA_KEYS = ["billingContractDispatch"] as const;
+
+export type AdultOffUsageMirrorAssessment = {
+  contentMatches: boolean;
+  modelMatches: boolean;
+  settlementMatches: boolean;
+  mirrors: boolean;
+  structuralMetadataOnly: boolean;
+  variantOnlyKeys: string[];
+  rowOnlyKeys: string[];
+  conflictingKeys: string[];
 };
 
 export type AdultOffBatchReadOnlySurvey = {
   body: AdultOffBodyInspectionSurvey;
   aux: Omit<AdultOffAuxSurfaceSurvey, "items">;
   mirrorInconsistentMessageIds: number[];
+  contentMismatchMessageIds: number[];
+  modelMismatchMessageIds: number[];
+  settlementMismatchMessageIds: number[];
 };
 
 export type AdultOffBatchRehearsalStats = {
@@ -112,6 +153,7 @@ export type AdultOffBatchRehearsalStats = {
   reuseRestricted: number;
   classified: number;
   written: number;
+  writtenVariantIsolated: number;
   skippedStale: number;
   skippedNoop: number;
   skippedUnresolved: number;
@@ -259,6 +301,70 @@ export function usageRecordsSemanticallyEqual(
   return JSON.stringify(sortJsonValue(left ?? null)) === JSON.stringify(sortJsonValue(right ?? null));
 }
 
+function usageWithoutAdultOffGuard(usage: Record<string, unknown> | null): Record<string, unknown> {
+  if (!usage) return {};
+  const { adultOffGuard: _omit, ...rest } = usage;
+  return rest;
+}
+
+function usageValueEqual(left: unknown, right: unknown): boolean {
+  return usageRecordsSemanticallyEqual(
+    { value: left as Record<string, unknown> | null },
+    { value: right as Record<string, unknown> | null }
+  );
+}
+
+/** 활성 variant와 row의 본문·모델·정산 usage. 위치 고정 메타만 구조적 차이로 둔다. */
+export function assessActiveVariantCanonicalMirror(
+  row: AdultOffInspectionMessageRow,
+  variants: MessageVariant[],
+  activeVariant: number
+): AdultOffUsageMirrorAssessment {
+  const active = variants[activeVariant];
+  const contentMatches = Boolean(active) && row.content === active.content;
+  const modelMatches = Boolean(active) && (row.model ?? "") === (active.model ?? "");
+  const rowUsage = usageWithoutAdultOffGuard(parseUsageJson(row.usage));
+  const variantUsage = usageWithoutAdultOffGuard(variantUsageObject(active));
+  const variantOnlyKeys: string[] = [];
+  const rowOnlyKeys: string[] = [];
+  const conflictingKeys: string[] = [];
+  const keys = new Set([...Object.keys(rowUsage), ...Object.keys(variantUsage)]);
+  for (const key of [...keys].sort()) {
+    const inRow = Object.prototype.hasOwnProperty.call(rowUsage, key);
+    const inVariant = Object.prototype.hasOwnProperty.call(variantUsage, key);
+    if (inRow && inVariant) {
+      if (!usageValueEqual(rowUsage[key], variantUsage[key])) conflictingKeys.push(key);
+      continue;
+    }
+    if (
+      inVariant &&
+      !inRow &&
+      (VARIANT_ONLY_USAGE_METADATA_KEYS as readonly string[]).includes(key)
+    ) {
+      variantOnlyKeys.push(key);
+      continue;
+    }
+    if (inRow && !inVariant && (ROW_ONLY_USAGE_METADATA_KEYS as readonly string[]).includes(key)) {
+      rowOnlyKeys.push(key);
+      continue;
+    }
+    conflictingKeys.push(key);
+  }
+  const settlementMatches = Boolean(active) && conflictingKeys.length === 0;
+  const mirrors = contentMatches && modelMatches && settlementMatches;
+  return {
+    contentMatches,
+    modelMatches,
+    settlementMatches,
+    mirrors,
+    structuralMetadataOnly:
+      mirrors && (variantOnlyKeys.length > 0 || rowOnlyKeys.length > 0),
+    variantOnlyKeys,
+    rowOnlyKeys,
+    conflictingKeys,
+  };
+}
+
 /** `listAdultOffInspectionTargets()`와 동일 — 비어 있지 않은 inspectable variant가 있는지. */
 export function assistantRowHasAdultOffInspectableContent(
   row: AdultOffInspectionMessageRow
@@ -276,40 +382,53 @@ export function assistantRowHasCanonicalContentWithoutInspectableVariant(
   return !assistantRowHasAdultOffInspectableContent(row);
 }
 
-/** 활성 variant와 row canonical(content/model/usage) 미러. 불일치면 batch write 금지. */
+/** 활성 variant와 row canonical 미러. 구조적 usage 메타 차이는 미러로 본다. */
 export function activeVariantMirrorsCanonicalRow(
   row: AdultOffInspectionMessageRow,
   variants: MessageVariant[],
   activeVariant: number
 ): boolean {
-  const active = variants[activeVariant];
-  if (!active) return false;
-  if (row.content !== active.content) return false;
-  if ((row.model ?? "") !== (active.model ?? "")) return false;
-  const rowUsage = parseUsageJson(row.usage);
-  const activeUsage = variantUsageObject(active);
-  return usageRecordsSemanticallyEqual(rowUsage, activeUsage);
+  return assessActiveVariantCanonicalMirror(row, variants, activeVariant).mirrors;
+}
+
+export function summarizeActiveRowMirror(
+  rows: readonly AdultOffInspectionMessageRow[]
+): AdultOffActiveRowMirrorSummary {
+  const inconsistentMessageIds: number[] = [];
+  const contentMismatchMessageIds: number[] = [];
+  const modelMismatchMessageIds: number[] = [];
+  const settlementMismatchMessageIds: number[] = [];
+  let structuralUsageMetadataMessages = 0;
+  for (const row of rows) {
+    if (row.role !== "assistant") continue;
+    if (assistantRowHasCanonicalContentWithoutInspectableVariant(row)) {
+      inconsistentMessageIds.push(row.id);
+      contentMismatchMessageIds.push(row.id);
+      continue;
+    }
+    if (!assistantRowHasAdultOffInspectableContent(row)) continue;
+    const { variants, activeVariant } = normalizeMessageVariants(rowForVariantNormalization(row));
+    const assessment = assessActiveVariantCanonicalMirror(row, variants, activeVariant);
+    if (assessment.structuralMetadataOnly) structuralUsageMetadataMessages += 1;
+    if (assessment.mirrors) continue;
+    inconsistentMessageIds.push(row.id);
+    if (!assessment.contentMatches) contentMismatchMessageIds.push(row.id);
+    if (!assessment.modelMatches) modelMismatchMessageIds.push(row.id);
+    if (!assessment.settlementMatches) settlementMismatchMessageIds.push(row.id);
+  }
+  return {
+    inconsistentMessageIds,
+    contentMismatchMessageIds,
+    modelMismatchMessageIds,
+    settlementMismatchMessageIds,
+    structuralUsageMetadataMessages,
+  };
 }
 
 export function listActiveRowMirrorInconsistentMessageIds(
   rows: readonly AdultOffInspectionMessageRow[]
 ): number[] {
-  const ids: number[] = [];
-  for (const row of rows) {
-    if (row.role !== "assistant") continue;
-    if (assistantRowHasCanonicalContentWithoutInspectableVariant(row)) {
-      ids.push(row.id);
-      continue;
-    }
-    if (!assistantRowHasAdultOffInspectableContent(row)) {
-      continue;
-    }
-    const { variants, activeVariant } = normalizeMessageVariants(rowForVariantNormalization(row));
-    if (!activeVariantMirrorsCanonicalRow(row, variants, activeVariant)) {
-      ids.push(row.id);
-    }
-  }
-  return ids;
+  return summarizeActiveRowMirror(rows).inconsistentMessageIds;
 }
 
 function fingerprintMatchesRow(
@@ -331,15 +450,22 @@ function hadPersistedAlternates(row: AdultOffInspectionMessageRow): boolean {
   return Boolean(raw && raw !== "[]");
 }
 
-function usageWithoutAdultOffGuard(usage: Record<string, unknown> | null): Record<string, unknown> {
-  if (!usage) return {};
-  const { adultOffGuard: _omit, ...rest } = usage;
-  return rest;
+function assertAdultOffProofDoesNotChangeUsage(
+  prior: Record<string, unknown> | null,
+  next: Record<string, unknown>
+): void {
+  if (
+    JSON.stringify(usageWithoutAdultOffGuard(prior)) !==
+    JSON.stringify(usageWithoutAdultOffGuard(next))
+  ) {
+    throw new Error("adult-off batch write would change settlement fields");
+  }
 }
 
 /**
- * variant usage에 해시를 기록하고, 활성 variant면 row content/model/usage 미러를 맞춘다.
- * fingerprint가 어긋나면 stale로 건너뛴다(재생성·variant 전환 경합).
+ * variant usage와, 본문이 같은 활성 row usage에 정책 해시만 더한다.
+ * row usage를 variant usage로 바꾸지 않는다. 본문·모델이 어긋나면 variant에만 기록한다.
+ * 정산 usage가 어긋나거나 fingerprint가 바뀌면 stale로 건너뛴다.
  */
 export function commitAdultOffInspectionIfFresh(
   db: DatabaseType,
@@ -368,50 +494,56 @@ export function commitAdultOffInspectionIfFresh(
     const variant = variants[input.fingerprint.variantIndex];
     if (!variant) return "skipped_stale";
 
-    if (!activeVariantMirrorsCanonicalRow(row, variants, activeVariant)) {
-      return "skipped_stale";
-    }
+    const mirror = assessActiveVariantCanonicalMirror(row, variants, activeVariant);
+    const targetIsActive = input.fingerprint.variantIndex === activeVariant;
+    if (targetIsActive && !mirror.settlementMatches) return "skipped_stale";
 
-    const priorUsage = variantUsageObject(variant);
-    const applied = applyAdultOffStoredInspection(priorUsage, input.expectedText, input.outcome);
-    if (!applied.wrote) return "skipped_noop";
+    const priorVariantUsage = variantUsageObject(variant);
+    const variantApplied = applyAdultOffStoredInspection(
+      priorVariantUsage,
+      input.expectedText,
+      input.outcome
+    );
+    const stampRowUsage = targetIsActive && mirror.contentMatches && mirror.modelMatches;
+    const priorRowUsage = parseUsageJson(row.usage);
+    const rowApplied = stampRowUsage
+      ? applyAdultOffStoredInspection(priorRowUsage, input.expectedText, input.outcome)
+      : null;
 
-    if (
-      JSON.stringify(usageWithoutAdultOffGuard(priorUsage)) !==
-      JSON.stringify(usageWithoutAdultOffGuard(applied.usage))
-    ) {
-      throw new Error("adult-off batch write would change settlement fields");
-    }
+    if (!variantApplied.wrote && !rowApplied?.wrote) return "skipped_noop";
+    assertAdultOffProofDoesNotChangeUsage(priorVariantUsage, variantApplied.usage);
+    if (rowApplied) assertAdultOffProofDoesNotChangeUsage(priorRowUsage, rowApplied.usage);
 
     const nextVariants = variants.slice();
     nextVariants[input.fingerprint.variantIndex] = {
       ...variant,
-      usage: applied.usage as MessageVariant["usage"],
+      usage: variantApplied.usage as MessageVariant["usage"],
     };
+    const persistedAlternates = hadPersistedAlternates(row);
 
-    if (input.fingerprint.variantIndex === activeVariant) {
-      const activeUsageJson = JSON.stringify(applied.usage);
-      if (hadPersistedAlternates(row)) {
-        db.prepare(`UPDATE messages SET usage=?, alternates=? WHERE id=?`).run(
-          activeUsageJson,
-          JSON.stringify(nextVariants),
-          input.fingerprint.messageId
-        );
-      } else {
-        db.prepare(`UPDATE messages SET usage=? WHERE id=?`).run(
-          activeUsageJson,
-          input.fingerprint.messageId
-        );
-      }
-    } else if (hadPersistedAlternates(row)) {
-      db.prepare(`UPDATE messages SET alternates=? WHERE id=?`).run(
+    if (!persistedAlternates) {
+      if (!stampRowUsage || !rowApplied) return "skipped_stale";
+      db.prepare(`UPDATE messages SET usage=? WHERE id=?`).run(
+        JSON.stringify(rowApplied.usage),
+        input.fingerprint.messageId
+      );
+      return "written";
+    }
+
+    if (stampRowUsage && rowApplied) {
+      db.prepare(`UPDATE messages SET usage=?, alternates=? WHERE id=?`).run(
+        JSON.stringify(rowApplied.usage),
         JSON.stringify(nextVariants),
         input.fingerprint.messageId
       );
-    } else {
-      return "skipped_stale";
+      return "written";
     }
-    return "written";
+
+    db.prepare(`UPDATE messages SET alternates=? WHERE id=?`).run(
+      JSON.stringify(nextVariants),
+      input.fingerprint.messageId
+    );
+    return targetIsActive ? "written_variant_isolated" : "written";
   })();
 }
 
@@ -606,7 +738,7 @@ export function surveyAdultOffBatchReadOnly(
 ): AdultOffBatchReadOnlySurvey {
   const plan = planAdultOffBatchInspection(rows);
   const summary = planAdultOffBatchInspectionSummary(plan);
-  const mirrorInconsistentMessageIds = listActiveRowMirrorInconsistentMessageIds(rows);
+  const mirror = summarizeActiveRowMirror(rows);
   const aux = surveyAdultOffAuxSurfaces(rows);
   const { items: _items, ...auxCounts } = aux;
   return {
@@ -616,11 +748,18 @@ export function surveyAdultOffBatchReadOnly(
       reuseApproved: summary.reuseApproved,
       reuseRestricted: summary.reuseRestricted,
       skipEmpty: summary.skipEmpty,
-      activeRowMirrorInconsistentMessages: mirrorInconsistentMessageIds.length,
+      activeRowMirrorInconsistentMessages: mirror.inconsistentMessageIds.length,
+      structuralUsageMetadataMessages: mirror.structuralUsageMetadataMessages,
+      contentMismatchMessages: mirror.contentMismatchMessageIds.length,
+      modelMismatchMessages: mirror.modelMismatchMessageIds.length,
+      settlementMismatchMessages: mirror.settlementMismatchMessageIds.length,
       bodyUnreviewedTargets: summary.needsClassification,
     },
     aux: auxCounts,
-    mirrorInconsistentMessageIds,
+    mirrorInconsistentMessageIds: mirror.inconsistentMessageIds,
+    contentMismatchMessageIds: mirror.contentMismatchMessageIds,
+    modelMismatchMessageIds: mirror.modelMismatchMessageIds,
+    settlementMismatchMessageIds: mirror.settlementMismatchMessageIds,
   };
 }
 
@@ -654,6 +793,7 @@ export function runAdultOffBatchInspectionRehearsal(
     reuseRestricted: summary.reuseRestricted,
     classified: 0,
     written: 0,
+    writtenVariantIsolated: 0,
     skippedStale: 0,
     skippedNoop: 0,
     skippedUnresolved: 0,
@@ -687,6 +827,9 @@ export function runAdultOffBatchInspectionRehearsal(
     switch (result) {
       case "written":
         stats.written += 1;
+        break;
+      case "written_variant_isolated":
+        stats.writtenVariantIsolated += 1;
         break;
       case "skipped_stale":
         stats.skippedStale += 1;
