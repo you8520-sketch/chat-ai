@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 /**
  * 성인 OFF Main RP 독립 출력 검사 — 순수 로직 owner.
  *
@@ -275,6 +277,82 @@ export function adultOffTextReusesApproval(
   return approved.some((item) => item === text);
 }
 
+/** 검사한 문자열 자체를 usage에 다시 넣지 않고, 정확한 일치만 나중에 증명한다. */
+export function adultOffApprovedTextHash(text: string): string {
+  return createHash("sha256").update(text, "utf8").digest("hex");
+}
+
+export function adultOffApprovedTextHashes(texts: readonly string[]): string[] {
+  const hashes: string[] = [];
+  const seen = new Set<string>();
+  for (const text of texts) {
+    if (!text.trim() || seen.has(text)) continue;
+    seen.add(text);
+    hashes.push(adultOffApprovedTextHash(text));
+  }
+  return hashes;
+}
+
+function adultOffGuardRecord(usage: unknown): { approvedTextHashes?: unknown } | null {
+  if (!usage || typeof usage !== "object") return null;
+  const guard = (usage as { adultOffGuard?: unknown }).adultOffGuard;
+  if (!guard || typeof guard !== "object") return null;
+  return guard as { approvedTextHashes?: unknown };
+}
+
+/**
+ * 저장된 usage가 이 문자열을 승인했다고 말할 수 있는지.
+ * finalStatus만으로는 부족하다. 승인 당시 문자열의 해시와 같을 때만 true.
+ */
+export function adultOffStoredUsageApprovesText(usage: unknown, text: string): boolean {
+  if (!text.trim()) return true;
+  const hashes = adultOffGuardRecord(usage)?.approvedTextHashes;
+  if (!Array.isArray(hashes)) return false;
+  const hash = adultOffApprovedTextHash(text);
+  return hashes.some((item) => item === hash);
+}
+
+export type AdultOffDeliveryVariant = {
+  content?: string;
+  usage?: unknown;
+  statusWidgetValues?: AdultOffVisibleStatusWidget | null;
+};
+
+/**
+ * SSE에 실리는 variant 목록. 활성 본문과 저장된 해시로 증명된 이전 문자열만 남긴다.
+ * 증명되지 않은 이전 본문·상태창 값은 승인 집합에 넣지 않고 비운다.
+ */
+export function redactAdultOffVariantsForDelivery<T extends AdultOffDeliveryVariant>(
+  variants: readonly T[],
+  activeVariant: number,
+  covers: (text: string) => boolean,
+  markApproved: (text: string) => void
+): T[] {
+  return variants.map((variant, index) => {
+    const content = typeof variant.content === "string" ? variant.content : "";
+    const contentApproved =
+      !content.trim() ||
+      covers(content) ||
+      (index !== activeVariant && adultOffStoredUsageApprovesText(variant.usage, content));
+    const widgetTexts = collectStatusWidgetVisibleTexts(variant.statusWidgetValues);
+    const widgetApproved =
+      widgetTexts.length === 0 ||
+      widgetTexts.every(
+        (text) => covers(text) || adultOffStoredUsageApprovesText(variant.usage, text)
+      );
+    if (contentApproved && content.trim()) markApproved(content);
+    if (widgetApproved) {
+      for (const text of widgetTexts) markApproved(text);
+    }
+    if (contentApproved && widgetApproved) return variant;
+    return {
+      ...variant,
+      content: contentApproved ? content : "",
+      statusWidgetValues: widgetApproved ? variant.statusWidgetValues : null,
+    };
+  });
+}
+
 /**
  * 전달 가능한 모든 후보 본문을 검사한다. 분류 호출은 후보 수와 본문 길이에 따라
  * 여러 번 일어날 수 있고, 재시도하지 않는다.
@@ -520,6 +598,8 @@ export type AdultOffOutputHold = {
   discard: () => void;
   /** 저장·전달해도 되는 본문인지. 검사한 문자열과 정확히 같을 때만 true. */
   covers: (text: string) => boolean;
+  /** 이 요청에서 승인된 문자열. usage 해시의 원본이며 응답에는 나가지 않는다. */
+  approvedSnapshot: () => readonly string[];
   heldEventCount: () => number;
   state: () => AdultOffOutputHoldState;
 };
@@ -597,6 +677,7 @@ export function createAdultOffOutputHold(
       state = "discarded";
     },
     covers,
+    approvedSnapshot: () => approvedTexts.slice(),
     heldEventCount: () => held,
     state: () => state,
   };
@@ -657,7 +738,8 @@ export function reusedAdultOffApprovalRecord(stage: AdultOffCheckStage): AdultOf
  * 호출 수는 단계·본문 길이에 따라 달라지므로 합계와 단계별 내역을 함께 남긴다.
  */
 export function buildAdultOffGuardUsageEvidence(
-  checks: readonly AdultOffCheckRecord[]
+  checks: readonly AdultOffCheckRecord[],
+  approvedTexts: readonly string[] = []
 ): Record<string, unknown> {
   const calls = checks.flatMap((check) => check.calls);
   const costKnown = calls.filter((call) => call.costUsd != null);
@@ -673,6 +755,7 @@ export function buildAdultOffGuardUsageEvidence(
         : "approved";
   return {
     finalStatus,
+    approvedTextHashes: adultOffApprovedTextHashes(approvedTexts),
     classifierCalls: checks.reduce((sum, check) => sum + check.classifierCalls, 0),
     totalCheckMs: checks.reduce((sum, check) => sum + check.checkMs, 0),
     moderationCostUsd: costKnown.reduce((sum, call) => sum + (call.costUsd ?? 0), 0),
@@ -697,5 +780,33 @@ export function buildAdultOffGuardUsageEvidence(
         latencyMs: call.latencyMs,
       })),
     })),
+  };
+}
+
+/**
+ * 재전송에서 새로 승인된 문자열의 해시만 기존 usage에 더한다.
+ * 정산 필드는 그대로 두고, 없던 승인을 만들어 내지 않는다.
+ */
+export function mergeAdultOffReplayApproval(
+  usage: Record<string, unknown> | null,
+  content: string,
+  checks: readonly AdultOffCheckRecord[]
+): Record<string, unknown> {
+  const prior = usage ?? {};
+  const priorGuard =
+    prior.adultOffGuard && typeof prior.adultOffGuard === "object"
+      ? (prior.adultOffGuard as Record<string, unknown>)
+      : {};
+  const added = buildAdultOffGuardUsageEvidence(checks, [content]);
+  const priorChecks = Array.isArray(priorGuard.checks) ? priorGuard.checks : [];
+  const addedChecks = Array.isArray(added.checks) ? added.checks : [];
+  return {
+    ...prior,
+    adultOffGuard: {
+      ...priorGuard,
+      ...added,
+      checks: [...priorChecks, ...addedChecks],
+      approvedTextHashes: added.approvedTextHashes,
+    },
   };
 }

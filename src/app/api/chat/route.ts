@@ -637,6 +637,7 @@ import {
   resolveRoomAdultModeEnabled,
 } from "@/lib/chatAdultHandoff";
 import {
+  adultOffStoredUsageApprovesText,
   buildAdultOffGuardUsageEvidence,
   collectStatusMetaVisibleTexts,
   collectStatusWidgetVisibleTexts,
@@ -644,6 +645,8 @@ import {
   createAdultOffOutputHold,
   evaluateAdultOffOutput,
   isAdultOffOutputGuardEnabled,
+  mergeAdultOffReplayApproval,
+  redactAdultOffVariantsForDelivery,
   reusedAdultOffApprovalRecord,
   shouldApplyAdultOffOutputGuard,
   summarizeAdultOffCheck,
@@ -3284,7 +3287,12 @@ export async function POST(req: Request) {
         adultOffBodyMayPersist(text) ? text : "";
       const adultOffUsageEvidence = (): { adultOffGuard?: Record<string, unknown> } =>
         adultOffGuardActive
-          ? { adultOffGuard: buildAdultOffGuardUsageEvidence(adultOffChecks) }
+          ? {
+              adultOffGuard: buildAdultOffGuardUsageEvidence(
+                adultOffChecks,
+                adultOffHold?.approvedSnapshot() ?? []
+              ),
+            }
           : {};
 
       const emitStreamTurnForensics = (assistantFinalizeStatus: string | null) => {
@@ -3529,20 +3537,56 @@ export async function POST(req: Request) {
           const rawCompletedUsage = row?.usage
             ? (JSON.parse(row.usage) as Usage)
             : null;
+          let replayContent = content;
+          let replayWithheld = false;
+          if (adultOffHold && replayContent.trim()) {
+            const proven = adultOffStoredUsageApprovesText(rawCompletedUsage, replayContent);
+            if (!proven) {
+              const decision = await runAdultOffCheck("final", [replayContent]);
+              if (decision.status !== "approved") {
+                replayContent = "";
+                replayWithheld = true;
+              } else {
+                adultOffHold.markApproved(replayContent);
+                try {
+                  const nextUsage = mergeAdultOffReplayApproval(
+                    (rawCompletedUsage as unknown as Record<string, unknown> | null) ?? null,
+                    replayContent,
+                    adultOffChecks
+                  );
+                  db.prepare(`UPDATE messages SET usage=? WHERE id=? AND chat_id=?`).run(
+                    JSON.stringify(nextUsage),
+                    persistedAssistantId,
+                    chatRef.id
+                  );
+                } catch (error) {
+                  console.error(
+                    "[/api/chat] adult-off replay proof write failed",
+                    (error as Error).message
+                  );
+                }
+              }
+            }
+          }
           const usage = rawCompletedUsage
             ? serializeUsageForPublicClient(rawCompletedUsage, {
                 keepInternal: showFullBillingReceipt,
               })
             : null;
-          adultOffHold?.release(content);
-          send({ type: "replace", text: content, instant: true });
+          if (replayWithheld && adultOffHold) {
+            adultOffHold.release("");
+            send({ type: "reset" });
+          } else {
+            adultOffHold?.release(replayContent);
+            send({ type: "replace", text: replayContent, instant: true });
+          }
           send({
             type: "done",
             chatId: chatRef.id,
             messageId: persistedAssistantId,
             userMessageId,
             requestId: clientRequestId,
-            finalContent: content,
+            finalContent: replayContent,
             usage,
             alreadyCompleted: true,
             ...readOocSceneClientFlags(rawCompletedUsage),
@@ -5918,9 +5962,11 @@ export async function POST(req: Request) {
         };
 
         let aiMessageId: number;
+        let deliverySourceVariants: MessageVariant[] = [newVariant];
+        let deliverySourceActive = 0;
         let variantPayload = serializeVariantsForClient(
-          [newVariant],
-          0,
+          deliverySourceVariants,
+          deliverySourceActive,
           variantClientOpts
         );
         let snapshotVariantIndex = 0;
@@ -6005,9 +6051,11 @@ export async function POST(req: Request) {
             sourceMessageId: regenerateMessageId,
           };
           const appended = appendMessageVariant(prevVariants, newVariant);
+          deliverySourceVariants = appended.variants;
+          deliverySourceActive = appended.activeVariant;
           variantPayload = serializeVariantsForClient(
-            appended.variants,
-            appended.activeVariant,
+            deliverySourceVariants,
+            deliverySourceActive,
             variantClientOpts
           );
           snapshotVariantIndex = appended.activeVariant;
@@ -6043,9 +6091,11 @@ export async function POST(req: Request) {
               finalizeWrote = atomic.wrote;
               finalizedStatusJson = atomic.statusWidgetValuesJson;
               statusWidgetValuesPayload = atomic.statusWidgetValues;
+              deliverySourceVariants = atomic.variants;
+              deliverySourceActive = atomic.activeVariant;
               variantPayload = serializeVariantsForClient(
-                atomic.variants,
-                atomic.activeVariant,
+                deliverySourceVariants,
+                deliverySourceActive,
                 variantClientOpts
               );
               newVariant = {
@@ -6154,9 +6204,11 @@ export async function POST(req: Request) {
               finalizeWrote = atomic.wrote;
               finalizedStatusJson = atomic.statusWidgetValuesJson;
               statusWidgetValuesPayload = atomic.statusWidgetValues;
+              deliverySourceVariants = atomic.variants;
+              deliverySourceActive = atomic.activeVariant;
               variantPayload = serializeVariantsForClient(
-                atomic.variants,
-                atomic.activeVariant,
+                deliverySourceVariants,
+                deliverySourceActive,
                 variantClientOpts
               );
               newVariant = {
@@ -6786,6 +6838,33 @@ export async function POST(req: Request) {
               personaId: resolvedPersonaId,
             },
           });
+        }
+
+        if (adultOffHold && statusWidgetValuesPayload) {
+          const unseenWidgetTexts = collectStatusWidgetVisibleTexts(
+            statusWidgetValuesPayload
+          ).filter((text) => !adultOffHold.covers(text));
+          if (unseenWidgetTexts.length) {
+            const widgetDecision = await runAdultOffCheck("status_widget", unseenWidgetTexts);
+            if (widgetDecision.status !== "approved") {
+              statusWidgetValuesPayload = null;
+            } else {
+              for (const text of unseenWidgetTexts) adultOffHold.markApproved(text);
+            }
+          }
+        }
+        if (adultOffHold) {
+          const redactedVariants = redactAdultOffVariantsForDelivery(
+            deliverySourceVariants,
+            deliverySourceActive,
+            (text) => adultOffHold.covers(text),
+            (text) => adultOffHold.markApproved(text)
+          );
+          variantPayload = serializeVariantsForClient(
+            redactedVariants,
+            deliverySourceActive,
+            variantClientOpts
+          );
         }
 
         stopPostprocessHeartbeat();

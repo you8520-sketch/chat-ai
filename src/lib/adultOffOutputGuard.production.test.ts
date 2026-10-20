@@ -1122,4 +1122,156 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
       assert.equal(moderationRows(row.id).length, 1);
     });
   });
+
+  describe("completed replay and regeneration done", () => {
+    const romance = longProse("그는 가볍게 입을 맞추고 그녀를 안았다.");
+
+    async function postTurn(chatId: number, requestId: string, message = "장면을 이어 가자.") {
+      return harness.post({
+        characterId: CHARACTER_ID,
+        chatId,
+        message,
+        clientRequestId: requestId,
+      });
+    }
+
+    it("checks a guard-off completed body on guard-on replay and does not show it when restricted", async () => {
+      delete process.env.ADULT_OFF_OUTPUT_GUARD_ENABLED;
+      try {
+        classifierMode = "by_mark";
+        mainScript = { text: `${romance} ${RESTRICT_MARK}` };
+        resetCounters();
+        const chatId = harness.newChat();
+        const requestId = `adult-off-replay-restricted-${++requestSerial}`;
+        const saved = await postTurn(chatId, requestId);
+        assert.ok(JSON.stringify(saved.events).includes(RESTRICT_MARK));
+        const before = harness.balance();
+        const row = assistantRow(chatId)!;
+        process.env.ADULT_OFF_OUTPUT_GUARD_ENABLED = "1";
+        resetCounters();
+        const replay = await postTurn(chatId, requestId);
+        assert.equal(mainCalls, 0, "replay does not start another main RP call");
+        assert.equal(classifierCalls, 1, "unproven stored body is checked once");
+        assert.deepEqual(harness.balance(), before, "replay does not charge again");
+        assert.ok(!JSON.stringify(replay.events).includes(RESTRICT_MARK));
+        const done = replay.events.find((event) => event.type === "done");
+        assert.equal(done?.type, "done");
+        assert.equal(done?.finalContent, "");
+        assert.equal(done?.alreadyCompleted, true);
+        const still = assistantRow(chatId)!;
+        assert.equal(still.generation_status, "completed");
+        assert.equal(still.content, row.content, "withheld replay does not rewrite the stored body");
+      } finally {
+        process.env.ADULT_OFF_OUTPUT_GUARD_ENABLED = "1";
+      }
+    });
+
+    it("delivers a guard-off clean body after one replay check, then reuses that proof", async () => {
+      delete process.env.ADULT_OFF_OUTPUT_GUARD_ENABLED;
+      try {
+        classifierMode = "by_mark";
+        mainScript = { text: romance };
+        resetCounters();
+        const chatId = harness.newChat();
+        const requestId = `adult-off-replay-clean-${++requestSerial}`;
+        await postTurn(chatId, requestId);
+        const stored = assistantRow(chatId)!.content;
+        const before = harness.balance();
+        process.env.ADULT_OFF_OUTPUT_GUARD_ENABLED = "1";
+        resetCounters();
+        const firstReplay = await postTurn(chatId, requestId);
+        assert.equal(mainCalls, 0);
+        assert.equal(classifierCalls, 1);
+        assert.equal(
+          firstReplay.events.find((event) => event.type === "done")?.finalContent,
+          stored
+        );
+        assert.deepEqual(harness.balance(), before);
+        resetCounters();
+        const secondReplay = await postTurn(chatId, requestId);
+        assert.equal(mainCalls, 0);
+        assert.equal(classifierCalls, 0, "the proven text is not classified again");
+        assert.equal(
+          secondReplay.events.find((event) => event.type === "done")?.finalContent,
+          stored
+        );
+        assert.deepEqual(harness.balance(), before);
+      } finally {
+        process.env.ADULT_OFF_OUTPUT_GUARD_ENABLED = "1";
+      }
+    });
+
+    it("replays a guard-on approved body with no classifier call and no second charge", async () => {
+      classifierMode = "by_mark";
+      mainScript = { text: romance };
+      resetCounters();
+      const chatId = harness.newChat();
+      const requestId = `adult-off-replay-proven-${++requestSerial}`;
+      const created = await postTurn(chatId, requestId);
+      const row = assistantRow(chatId)!;
+      assert.equal(created.events.some((event) => event.type === "done"), true);
+      const hashes = (
+        guardEvidence(row) as { approvedTextHashes?: string[] } | undefined
+      )?.approvedTextHashes;
+      assert.ok(hashes && hashes.length > 0);
+      const before = harness.balance();
+      resetCounters();
+      const replay = await postTurn(chatId, requestId);
+      assert.equal(mainCalls, 0);
+      assert.equal(classifierCalls, 0);
+      assert.deepEqual(harness.balance(), before);
+      assert.equal(replay.events.find((event) => event.type === "done")?.finalContent, row.content);
+      assert.equal(reconstructScreenText(replay.events), row.content);
+    });
+
+    it("delivers regeneration done without an unproven previous variant body", async () => {
+      classifierMode = "by_mark";
+      mainScript = { text: romance };
+      resetCounters();
+      const chatId = harness.newChat();
+      const created = await postTurn(chatId, `adult-off-regen-base-${++requestSerial}`);
+      assert.equal(created.events.some((event) => event.type === "done"), true);
+      const row = assistantRow(chatId)!;
+      const stored = harness.db()
+        .prepare("SELECT alternates, active_variant FROM messages WHERE id=?")
+        .get(row.id) as { alternates: string; active_variant: number | null };
+      const existing = JSON.parse(stored.alternates) as Array<Record<string, unknown>>;
+      const approved = existing[stored.active_variant ?? existing.length - 1]!;
+      const unproven = {
+        content: `이전 장면 ${RESTRICT_MARK}`,
+        model: approved.model,
+        usage: { cost: 1 },
+        created_at: "",
+      };
+      harness.db()
+        .prepare("UPDATE messages SET alternates=?, active_variant=? WHERE id=?")
+        .run(JSON.stringify([unproven, approved]), 1, row.id);
+      const before = harness.balance();
+      resetCounters();
+      mainScript = { text: longProse("그녀는 그의 손을 잡고 창가에 기대었다.") };
+      const regen = await harness.post({
+        characterId: CHARACTER_ID,
+        chatId,
+        regenerate: true,
+        targetAssistantMessageId: row.id,
+        clientRequestId: `adult-off-regen-${++requestSerial}`,
+      });
+      const done = regen.events.find((event) => event.type === "done");
+      const raw = JSON.stringify(regen.events);
+      assert.equal(mainCalls, 1);
+      assert.equal(done?.type, "done");
+      assert.match(String(done?.finalContent ?? ""), /손을 잡고/);
+      assert.ok(raw.includes("입을 맞추고"), "the proven previous variant stays in the done payload");
+      assert.ok(!raw.includes(RESTRICT_MARK));
+      assert.ok(!classifierInputs.some((input) => input.includes(RESTRICT_MARK)));
+      assert.ok(before.total - harness.balance().total > 0, "regeneration still settles once");
+      const api = await harness.getMessageApi(row.id);
+      assert.equal(api.status, 200);
+      assert.match(api.json.content ?? "", /손을 잡고/);
+      assert.ok(
+        api.raw.includes(RESTRICT_MARK),
+        "message API still returns the stored alternate; this revision does not rewrite that read contract"
+      );
+    });
+  });
 });

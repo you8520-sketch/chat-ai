@@ -6,6 +6,8 @@ import {
   AdultOffClassifierOutputError,
   buildAdultOffClassifierUserMessage,
   buildAdultOffGuardUsageEvidence,
+  adultOffApprovedTextHash,
+  adultOffStoredUsageApprovesText,
   adultOffTextReusesApproval,
   collectStatusMetaVisibleTexts,
   collectStatusWidgetVisibleTexts,
@@ -13,7 +15,9 @@ import {
   createAdultOffOutputHold,
   evaluateAdultOffOutput,
   isAdultOffOutputGuardEnabled,
+  mergeAdultOffReplayApproval,
   parseAdultOffClassifierOutput,
+  redactAdultOffVariantsForDelivery,
   reusedAdultOffApprovalRecord,
   shouldApplyAdultOffOutputGuard,
   splitAdultOffGuardWindows,
@@ -532,5 +536,87 @@ describe("adult-off hold gate", () => {
       ["replace", "reset", "error"]
     );
     assert.equal(delivered[0].text, "앞서 승인된 본문");
+  });
+
+  it("holds a regen done event while a previous variant body is outside the approval set", () => {
+    const { delivered, hold } = collect();
+    const current = "그는 가볍게 입을 맞추고 그녀를 안았다.";
+    const previous = "그는 동의한 것이 아니었다.";
+    hold.release(current);
+    hold.send({
+      type: "done",
+      finalContent: current,
+      usage: { cost: 12 },
+      variants: [
+        { content: previous, usage: { cost: 4 } },
+        { content: current, usage: { cost: 12 } },
+      ],
+      activeVariant: 1,
+    });
+    assert.equal(delivered.some((event) => event.type === "done"), false);
+    assert.ok(!JSON.stringify(delivered).includes(previous));
+  });
+
+  it("delivers regen done after unproven previous variant text is removed", () => {
+    const { delivered, hold } = collect();
+    const current = "그는 가볍게 입을 맞추고 그녀를 안았다.";
+    const previous = "그는 동의한 것이 아니었다.";
+    const unproven = "그는 동의한 것이었다.";
+    hold.release(current);
+    const variants = redactAdultOffVariantsForDelivery(
+      [
+        {
+          content: previous,
+          usage: { adultOffGuard: { approvedTextHashes: [adultOffApprovedTextHash(previous)] } },
+          statusWidgetValues: { character: { 장소: "창가" } },
+        },
+        { content: unproven, usage: { cost: 1 } },
+        { content: current, usage: { cost: 12 } },
+      ],
+      2,
+      (text) => hold.covers(text),
+      (text) => hold.markApproved(text)
+    );
+    hold.send({
+      type: "done",
+      finalContent: current,
+      usage: { cost: 12 },
+      variants,
+      activeVariant: 2,
+    });
+    const done = delivered.find((event) => event.type === "done");
+    assert.ok(done);
+    const serialized = JSON.stringify(done);
+    assert.ok(serialized.includes(current));
+    assert.ok(serialized.includes(previous));
+    assert.ok(!serialized.includes(unproven));
+    assert.ok(!serialized.includes("창가"));
+    assert.equal((done?.usage as { cost?: number }).cost, 12);
+  });
+});
+
+describe("adult-off stored approval proof", () => {
+  it("accepts only a stored hash of the exact text", () => {
+    const text = "그는 동의한 것이 아니었다.";
+    const usage = { adultOffGuard: { finalStatus: "approved", approvedTextHashes: [adultOffApprovedTextHash(text)] } };
+    assert.equal(adultOffStoredUsageApprovesText(usage, text), true);
+    assert.equal(adultOffStoredUsageApprovesText(usage, "그는 동의한 것이었다."), false);
+    assert.equal(
+      adultOffStoredUsageApprovesText({ adultOffGuard: { finalStatus: "approved" } }, text),
+      false
+    );
+  });
+
+  it("merges replay approval without replacing settlement fields", () => {
+    const text = "그는 가볍게 입을 맞추고 그녀를 안았다.";
+    const merged = mergeAdultOffReplayApproval(
+      { cost: 40, model: "gemini" },
+      text,
+      [reusedAdultOffApprovalRecord("final")]
+    );
+    assert.equal(merged.cost, 40);
+    assert.equal(merged.model, "gemini");
+    assert.equal(adultOffStoredUsageApprovesText(merged, text), true);
+    assert.equal(adultOffStoredUsageApprovesText(merged, `${text} `), false);
   });
 });
