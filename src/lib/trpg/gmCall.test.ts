@@ -21,16 +21,16 @@ import { TRPG_BOT_MAX_TOKENS, TRPG_BOT_MODEL, TRPG_GEMINI_FLASH_MAX_OUTPUT_TOKEN
 
 const GM_OK = buildTrpgGmStructuredWireText("문이 천천히 열린다.", {"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false});
 
-type CapturedRequest = { url: string; body: Record<string, unknown> };
+type CapturedRequest = { url: string; body: Record<string, unknown>; headers: Headers };
 
 const previousFetch = globalThis.fetch;
-const previousKey = process.env.CHEAPER_INFERENCE_API_KEY;
+const previousKey = process.env.OPENROUTER_API_KEY;
 const previousMock = process.env.MOCK_MODE;
 
 afterEach(() => {
   globalThis.fetch = previousFetch;
-  if (previousKey === undefined) delete process.env.CHEAPER_INFERENCE_API_KEY;
-  else process.env.CHEAPER_INFERENCE_API_KEY = previousKey;
+  if (previousKey === undefined) delete process.env.OPENROUTER_API_KEY;
+  else process.env.OPENROUTER_API_KEY = previousKey;
   if (previousMock === undefined) delete process.env.MOCK_MODE;
   else process.env.MOCK_MODE = previousMock;
 });
@@ -39,7 +39,7 @@ function installProvider(handler: (call: number, body: Record<string, unknown>) 
   calls: CapturedRequest[];
 } {
   delete process.env.MOCK_MODE;
-  process.env.CHEAPER_INFERENCE_API_KEY = "test-trpg-gm-retry";
+  process.env.OPENROUTER_API_KEY = "test-trpg-gm-retry";
   const calls: CapturedRequest[] = [];
   let n = 0;
   globalThis.fetch = (async (input, init) => {
@@ -47,7 +47,7 @@ function installProvider(handler: (call: number, body: Record<string, unknown>) 
     const url = String(input);
     const raw = String(init?.body ?? "");
     const body = JSON.parse(raw) as Record<string, unknown>;
-    calls.push({ url, body });
+    calls.push({ url, body, headers: new Headers(init?.headers) });
     return handler(n, body);
   }) as typeof fetch;
   return { calls };
@@ -88,7 +88,7 @@ function completion(text: string): Response {
 
 function assertGmStreamGemini(body: Record<string, unknown>): void {
   const contract = trpgProviderRequestContract(body);
-  assert.equal(contract.model, GEMINI_38_FLASH_MODEL);
+  assert.equal(contract.model, "google/gemini-3.8-flash");
   assert.equal(contract.thinkingType, "");
   assert.equal(contract.reasoningEffort, "low");
   assert.equal(contract.stream, true);
@@ -98,6 +98,23 @@ function assertGmStreamGemini(body: Record<string, unknown>): void {
 }
 
 describe("TRPG GM provider HTTP 5xx retry", () => {
+  it("uses the OpenRouter credential and never falls back to a CheaperInference key", async () => {
+    const previousCi = process.env.CHEAPER_INFERENCE_API_KEY;
+    try {
+      process.env.CHEAPER_INFERENCE_API_KEY = "fixture-ci-must-not-send";
+      const { calls } = installProvider(() => sseCompletion(GM_OK));
+      await callTrpgGm({ system: "sys", user: "장면", cheaperInferenceApiKeyOverride: "fixture-ci-override-must-not-send" });
+      assert.equal(calls[0]!.url, "https://openrouter.ai/api/v1/chat/completions");
+      assert.equal(calls[0]!.headers.get("authorization"), "Bearer test-trpg-gm-retry");
+      delete process.env.OPENROUTER_API_KEY;
+      await assert.rejects(() => callTrpgGm({ system: "sys", user: "장면" }), /NO_OPENROUTER_KEY/);
+      assert.equal(calls.length, 1);
+    } finally {
+      if (previousCi === undefined) delete process.env.CHEAPER_INFERENCE_API_KEY;
+      else process.env.CHEAPER_INFERENCE_API_KEY = previousCi;
+    }
+  });
+
   it("pins GM two-attempt / bot one-attempt transport constants", () => {
     assert.equal(GM_MAX_PROVIDER_ATTEMPTS, 2);
     assert.equal(BOT_MAX_PROVIDER_ATTEMPTS, 1);
@@ -116,14 +133,17 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
     assert.equal(gmCalls.length, 1);
     assert.equal(gmCalls[0]!.url, gmBuilt.endpoint);
     assert.deepEqual(gmCalls[0]!.body, gmBuilt.body);
-    assert.equal(gmBuilt.provider, "cheaperinference");
-    assert.equal(gmBuilt.model, GEMINI_38_FLASH_MODEL);
-    assert.equal(gmBuilt.body.model, GEMINI_38_FLASH_MODEL);
+    assert.equal(gmBuilt.provider, "openrouter");
+    assert.equal(gmBuilt.model, "google/gemini-3.8-flash");
+    assert.equal(gmBuilt.body.model, "google/gemini-3.8-flash");
     assert.equal(gmBuilt.body.stream, true);
     assert.equal(gmBuilt.body.temperature, 0.7);
     assert.equal(gmBuilt.body.max_tokens, TRPG_GM_MAX_TOKENS);
     assert.ok(gmBuilt.body.response_format);
-    assert.equal(gmBuilt.body.reasoning_effort, "low");
+    assert.deepEqual(gmBuilt.body.reasoning, { effort: "low", exclude: true });
+    assert.equal(gmBuilt.body.reasoning_effort, undefined);
+    assert.equal(gmBuilt.body.service_tier, "flex");
+    assert.deepEqual(gmBuilt.body.provider, { only: ["google-ai-studio"], allow_fallbacks: false, require_parameters: true });
     assert.equal(GM_MAX_PROVIDER_ATTEMPTS, 2);
 
     const botBuilt = buildTrpgBotProviderRequest({ system: "sys", user: "행동" });
@@ -134,12 +154,15 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
     assert.equal(botCalls.length, 1);
     assert.equal(botCalls[0]!.url, botBuilt.endpoint);
     assert.deepEqual(botCalls[0]!.body, botBuilt.body);
-    assert.equal(botBuilt.provider, "cheaperinference");
-    assert.equal(botBuilt.model, GEMINI_38_FLASH_MODEL);
+    assert.equal(botBuilt.provider, "openrouter");
+    assert.equal(botBuilt.model, "google/gemini-3.8-flash");
     assert.equal(botBuilt.body.stream, false);
     assert.equal(botBuilt.body.temperature, 0.85);
     assert.equal(botBuilt.body.max_tokens, TRPG_BOT_MAX_TOKENS);
-    assert.equal(botBuilt.body.reasoning_effort, "low");
+    assert.deepEqual(botBuilt.body.reasoning, { effort: "low", exclude: true });
+    assert.equal(botBuilt.body.reasoning_effort, undefined);
+    assert.equal(botBuilt.body.service_tier, "flex");
+    assert.deepEqual(botBuilt.body.provider, { only: ["google-ai-studio"], allow_fallbacks: false, require_parameters: true });
     assert.equal(BOT_MAX_PROVIDER_ATTEMPTS, 1);
   });
 
@@ -233,8 +256,8 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
     const { calls } = installProvider(() => sseCompletion(GM_OK));
     const result = await callTrpgGm({ system: "sys", user: "장면", timeoutMs: 5_000 });
     assert.equal(calls.length, 1);
-    assert.equal(calls[0]!.body.model, GEMINI_38_FLASH_MODEL);
-    assert.equal(result.usage?.modelId, GEMINI_38_FLASH_MODEL);
+    assert.equal(calls[0]!.body.model, "google/gemini-3.8-flash");
+    assert.equal(result.usage?.modelId, "google/gemini-3.8-flash");
   });
 
   it("Bot usage.modelId matches Gemini 3.8 Flash and sends model-max max_tokens", async () => {
@@ -243,12 +266,12 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
     );
     const result = await callTrpgBot({ system: "sys", user: "행동", timeoutMs: 5_000 });
     assert.equal(calls.length, 1);
-    assert.equal(calls[0]!.body.model, GEMINI_38_FLASH_MODEL);
-    assert.equal(result.usage?.modelId, GEMINI_38_FLASH_MODEL);
+    assert.equal(calls[0]!.body.model, "google/gemini-3.8-flash");
+    assert.equal(result.usage?.modelId, "google/gemini-3.8-flash");
     assert.equal(calls[0]!.body.stream, false);
-    assert.equal(calls[0]!.body.reasoning_effort, "low");
+    assert.equal(calls[0]!.body.reasoning_effort, undefined);
     assert.equal(calls[0]!.body.thinking, undefined);
-    assert.equal(calls[0]!.body.reasoning, undefined);
+    assert.deepEqual(calls[0]!.body.reasoning, { effort: "low", exclude: true });
     assert.equal(calls[0]!.body.max_tokens, TRPG_BOT_MAX_TOKENS);
     assert.equal(TRPG_BOT_MAX_TOKENS, TRPG_GEMINI_FLASH_MAX_OUTPUT_TOKENS);
     assert.equal(TRPG_GEMINI_FLASH_MAX_OUTPUT_TOKENS, 65_535);
@@ -266,7 +289,7 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
 describe("TRPG GM provider SSE stream semantics", () => {
   it("SSE_UTF8_REAL_BYTE_SPLIT_PASS through single streaming TextDecoder", async () => {
     delete process.env.MOCK_MODE;
-    process.env.CHEAPER_INFERENCE_API_KEY = "test-gm-stream";
+    process.env.OPENROUTER_API_KEY = "test-gm-stream";
     const korean = "한글 장면";
     const fullText = buildTrpgGmStructuredWireText(korean, { players: [] });
     const payload = JSON.stringify({ choices: [{ delta: { content: fullText } }] });
@@ -297,8 +320,8 @@ describe("TRPG GM provider SSE stream semantics", () => {
       assert.equal(result.usage?.inputTokens, 4);
     } finally {
       globalThis.fetch = previousFetch;
-      if (previousKey === undefined) delete process.env.CHEAPER_INFERENCE_API_KEY;
-      else process.env.CHEAPER_INFERENCE_API_KEY = previousKey;
+      if (previousKey === undefined) delete process.env.OPENROUTER_API_KEY;
+      else process.env.OPENROUTER_API_KEY = previousKey;
       if (previousMock === undefined) delete process.env.MOCK_MODE;
       else process.env.MOCK_MODE = previousMock;
     }
@@ -306,7 +329,7 @@ describe("TRPG GM provider SSE stream semantics", () => {
 
   it("SSE_DONE_TERMINATES_READ without waiting for hanging stream EOF", async () => {
     delete process.env.MOCK_MODE;
-    process.env.CHEAPER_INFERENCE_API_KEY = "test-gm-stream";
+    process.env.OPENROUTER_API_KEY = "test-gm-stream";
     const text = GM_OK;
     const contentLine = `data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`;
     const usageLine = `data: ${JSON.stringify({
@@ -336,8 +359,8 @@ describe("TRPG GM provider SSE stream semantics", () => {
       assert.equal(result.usage?.outputTokens, 6, "SSE_FINAL_USAGE_PRESERVED=true");
     } finally {
       globalThis.fetch = previousFetch;
-      if (previousKey === undefined) delete process.env.CHEAPER_INFERENCE_API_KEY;
-      else process.env.CHEAPER_INFERENCE_API_KEY = previousKey;
+      if (previousKey === undefined) delete process.env.OPENROUTER_API_KEY;
+      else process.env.OPENROUTER_API_KEY = previousKey;
       if (previousMock === undefined) delete process.env.MOCK_MODE;
       else process.env.MOCK_MODE = previousMock;
     }
@@ -345,7 +368,7 @@ describe("TRPG GM provider SSE stream semantics", () => {
 
   it("GM_FIRST_CONTENT_MEASURABLE vs GM_FIRST_NARRATION_MEASURABLE", async () => {
     delete process.env.MOCK_MODE;
-    process.env.CHEAPER_INFERENCE_API_KEY = "test-gm-stream";
+    process.env.OPENROUTER_API_KEY = "test-gm-stream";
     const text = GM_OK;
     const preKey = '{"narr';
     const rest = 'ation":"문이 천천히 열린다.","delta":{"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false}}';
@@ -390,8 +413,8 @@ describe("TRPG GM provider SSE stream semantics", () => {
       );
     } finally {
       globalThis.fetch = previousFetch;
-      if (previousKey === undefined) delete process.env.CHEAPER_INFERENCE_API_KEY;
-      else process.env.CHEAPER_INFERENCE_API_KEY = previousKey;
+      if (previousKey === undefined) delete process.env.OPENROUTER_API_KEY;
+      else process.env.OPENROUTER_API_KEY = previousKey;
       if (previousMock === undefined) delete process.env.MOCK_MODE;
       else process.env.MOCK_MODE = previousMock;
     }

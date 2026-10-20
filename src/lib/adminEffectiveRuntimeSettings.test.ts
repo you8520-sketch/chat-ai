@@ -134,7 +134,7 @@ describe("effective runtime settings projection", () => {
     assert.equal(gemini.serviceTier, routePolicy.serviceTier);
   });
 
-  it("C: TRPG Gemini 3.8 resolves to the CheaperInference request builder owner", () => {
+  it("C: TRPG Gemini 3.8 uses OpenRouter through its isolated request builder", () => {
     const projection = buildEffectiveRuntimeSettingsProjection();
     const [gm, bot] = projection.trpg.roles;
     assert.equal(gm?.workload, "trpg_gm");
@@ -144,12 +144,12 @@ describe("effective runtime settings projection", () => {
       [bot!, TRPG_BOT_MODEL, TRPG_BOT_MAX_TOKENS, BOT_MAX_PROVIDER_ATTEMPTS],
     ] as const) {
       assert.equal(row.canonicalModelId, resolveTrpgCheaperInferenceModel(model));
-      assert.equal(row.transportProvider, "cheaperinference");
-      assert.equal(row.endpointHost, new URL(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL).host);
-      assert.equal(row.wireModelId, resolveTrpgCheaperInferenceModel(model));
+      assert.equal(row.transportProvider, "openrouter");
+      assert.equal(row.endpointHost, new URL(OPENROUTER_CHAT_COMPLETIONS_URL).host);
+      assert.equal(row.wireModelId, resolveMainRpPrimaryWireModelId(model));
       assert.equal(
         row.requestContract.reasoningEffort,
-        applyCheaperInferenceModelReasoningPolicy({ model: row.wireModelId }).reasoning_effort
+        "low"
       );
       assert.equal(row.transportMaxTokens, maxTokens);
       assert.equal(row.transportMaxTokensKind, "provider_model_capability_ceiling");
@@ -160,16 +160,16 @@ describe("effective runtime settings projection", () => {
     assert.equal(gm!.requestContract.reasoningEffort, "low");
   });
 
-  it("D: the shared gemini-3.8-flash id keeps per-workload providers instead of one global provider", () => {
+  it("D: Gemini workloads share procurement while preserving distinct workload rows", () => {
     const projection = buildEffectiveRuntimeSettingsProjection();
     const entries = projection.workloadRoutingByModelId[GEMINI_38_FLASH_MODEL];
     assert.ok(entries);
     const byWorkload = new Map(entries.map((entry) => [entry.workload, entry]));
     assert.equal(byWorkload.get("main_rp")?.transportProvider, "openrouter");
-    assert.equal(byWorkload.get("trpg_gm")?.transportProvider, "cheaperinference");
-    assert.equal(byWorkload.get("trpg_bot")?.transportProvider, "cheaperinference");
-    assert.notEqual(byWorkload.get("main_rp")?.wireModelId, byWorkload.get("trpg_gm")?.wireModelId);
-    assert.equal(new Set(entries.map((entry) => entry.transportProvider)).size, 2);
+    assert.equal(byWorkload.get("trpg_gm")?.transportProvider, "openrouter");
+    assert.equal(byWorkload.get("trpg_bot")?.transportProvider, "openrouter");
+    assert.equal(byWorkload.get("main_rp")?.wireModelId, byWorkload.get("trpg_gm")?.wireModelId);
+    assert.equal(new Set(entries.map((entry) => entry.transportProvider)).size, 1);
     for (const [modelId, rows] of Object.entries(projection.workloadRoutingByModelId)) {
       assert.equal(new Set(rows.map((row) => row.workload)).size, rows.length, modelId);
     }

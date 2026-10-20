@@ -1,3 +1,4 @@
+import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
 import assert from "node:assert/strict";
 import { after, describe, it } from "node:test";
 
@@ -25,7 +26,7 @@ describe("effective runtime settings projection network side-effect", async () =
     const projection = buildEffectiveRuntimeSettingsProjection(
       new Date("2026-10-07T00:00:00.000Z")
     );
-    assert.equal(projection.mainRp.models.length, 5);
+    assert.equal(projection.mainRp.models.length, MAIN_RP_MODEL_IDS.length);
     assert.equal(projection.mutationSupported, false);
     assert.deepEqual(fetchCalls.slice(before), []);
   });

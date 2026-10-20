@@ -168,7 +168,7 @@ describe("TRPG GM stream orchestration", () => {
 
 describe("TRPG GM provider SSE stream transport", () => {
   const previousFetch = globalThis.fetch;
-  const previousKey = process.env.CHEAPER_INFERENCE_API_KEY;
+  const previousKey = process.env.OPENROUTER_API_KEY;
   const previousMock = process.env.MOCK_MODE;
 
   function installStreamResponse(chunks: string[]): void {
@@ -186,7 +186,7 @@ describe("TRPG GM provider SSE stream transport", () => {
 
   it("uses stream=true and records first-chunk timing", async () => {
     delete process.env.MOCK_MODE;
-    process.env.CHEAPER_INFERENCE_API_KEY = "test-gm-stream";
+    process.env.OPENROUTER_API_KEY = "test-gm-stream";
     const chunks = buildMockOpenRouterStreamChunks(GM_OK, "deepseek-v4-pro-0813");
     let sawStreamTrue = false;
     globalThis.fetch = (async (_input, init) => {
@@ -216,8 +216,8 @@ describe("TRPG GM provider SSE stream transport", () => {
       assert.ok(firstChunkMs != null && firstChunkMs >= 0, "GM_FIRST_CHUNK_MEASURABLE=true");
     } finally {
       globalThis.fetch = previousFetch;
-      if (previousKey === undefined) delete process.env.CHEAPER_INFERENCE_API_KEY;
-      else process.env.CHEAPER_INFERENCE_API_KEY = previousKey;
+      if (previousKey === undefined) delete process.env.OPENROUTER_API_KEY;
+      else process.env.OPENROUTER_API_KEY = previousKey;
       if (previousMock === undefined) delete process.env.MOCK_MODE;
       else process.env.MOCK_MODE = previousMock;
     }
@@ -225,7 +225,7 @@ describe("TRPG GM provider SSE stream transport", () => {
 
   it("SSE_NETWORK_SPLIT_PASS + UTF8 + CRLF + EOF tail + final usage", async () => {
     delete process.env.MOCK_MODE;
-    process.env.CHEAPER_INFERENCE_API_KEY = "test-gm-stream";
+    process.env.OPENROUTER_API_KEY = "test-gm-stream";
     const narration = buildTrpgGmStructuredWireText("한글 장면", { players: [] });
     const payload = JSON.stringify({ choices: [{ delta: { content: narration } }] });
     const crlfLine = `data: ${payload}\r\n\r\n`;
@@ -246,8 +246,8 @@ describe("TRPG GM provider SSE stream transport", () => {
       assert.equal(result.usage?.outputTokens, 6);
     } finally {
       globalThis.fetch = previousFetch;
-      if (previousKey === undefined) delete process.env.CHEAPER_INFERENCE_API_KEY;
-      else process.env.CHEAPER_INFERENCE_API_KEY = previousKey;
+      if (previousKey === undefined) delete process.env.OPENROUTER_API_KEY;
+      else process.env.OPENROUTER_API_KEY = previousKey;
       if (previousMock === undefined) delete process.env.MOCK_MODE;
       else process.env.MOCK_MODE = previousMock;
     }

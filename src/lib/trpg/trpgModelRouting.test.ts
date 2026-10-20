@@ -104,6 +104,7 @@ describe("TRPG production model routing (PR-A)", () => {
     assert.deepEqual(adaptCheaperInferenceChatBody(body), {
       model: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
       messages: [{ role: "user", content: "장면" }],
+      reasoning_effort: "none",
       thinking: { type: "disabled" },
     });
   });
