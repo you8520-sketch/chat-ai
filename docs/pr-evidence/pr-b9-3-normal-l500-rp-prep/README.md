@@ -59,7 +59,9 @@ From `model-diffs.json`:
 - **Request bytes differ** only by model-specific tail (output instruction / wire wrapper): A5 gemini 39654 vs sol 39472; B3 gemini 39708 vs sol 39526.
 - **Wire params:** Gemini — `provider.only google-ai-studio`, `reasoning.effort low`, `reasoning.exclude true`. Sol — `temperature 0.7`, `reasoning.effort low`, `reasoning_effort low`. Neither body sets `max_tokens`.
 
-## Planned paid execution (after GPT approval — not run here)
+## Execution plan (historical — completed)
+
+The bullets below are the **pre-live plan** written before the four paid POSTs. They are kept for audit traceability only; **do not treat this section as pending work.**
 
 1. Reuse the same preserve copy + `message_count=500` prep and B9-1 admin/session path.
 2. **Exactly four** Main RP POSTs (no T50, no 1000-turn eval, no summary/extract/embedding replay):
@@ -70,7 +72,7 @@ From `model-diffs.json`:
 3. One completion each; stub Luna/auxiliary as in B9-1 if the route still schedules them.
 4. Save responses under `responses/` in a follow-up evidence commit (same layout as B9-1).
 
-**Live run:** completed — see `LIVE-RUN.md`. **STOP:** Draft PR #1679 awaits GPT review; do not merge or extend scope (T50 / 1000-turn) without a new approval.
+**Outcome:** all four steps were executed; results and judgments are in **`LIVE-RUN.md`** and **`responses/`**. **STOP:** Draft PR #1679 awaits GPT review; do not merge or extend scope (T50 / 1000-turn) without a new approval.
 
 ## Cost estimate (four captures, conservative)
 
