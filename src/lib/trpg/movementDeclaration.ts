@@ -4,10 +4,13 @@ import { stripQuotedDialogue } from "./actionSemantics";
  * Owner of "what movement did this submission declare".
  *
  * A declared movement is a clause that carries a live motion predicate. Its destination is the noun
- * phrase marked as the goal of that motion (`X로`, `X에`, `X까지`, `X를 향해`, `X를 찾아가`), never a
- * place that is only the source (`X에서`), an object of another verb, a quoted line, or something the
- * player negated or only wondered about. Destination identity and server persistence are decided by the
- * campaign ledger from this declaration; nothing here reads GM output.
+ * phrase marked as the goal of that actor's motion (`X로`, `X에`, `X까지`, `X를 향해`, `X를 찾아가`).
+ * The same marker does not become this actor's destination when it belongs to another predicate
+ * (`주 통로로 돌을 던지고 돌아온다`) or to someone an attributive clause only describes
+ * (`주 통로로 들어가는 데모유저를 지켜보며 출발한다`). Following that person (`뒤를 따라 이동`) does.
+ * A place that is only the source (`X에서`), a quoted line, or something negated or only wondered about
+ * is not a destination. Destination identity and server persistence are decided by the campaign ledger
+ * from this declaration; nothing here reads GM output.
  */
 
 export type MovementDeclaration = {
@@ -58,11 +61,19 @@ const OBJECT_PARTICLE = /^(.+?)(?:을|를)$/;
 const PHRASE_BOUNDARY = /(?:에서|에게|한테|부터|[을를와과]|하고|하며|하면|하러|하니|해서)$/;
 const OBJECT_GOAL_PREDICATE = /^(?:향(?:하|해|한|했|할|함)|찾아(?:가|간|갈|갔|오|온)|방문)/;
 /**
- * Words after a goal particle that may still be the same motion.
- * `주 통로로 진입하는 데모유저의 뒤를 따라 이동` keeps the verb five words later.
- * A second goal particle still ends the window, so an earlier place cannot take a later destination.
+ * How far a goal may look for its own motion. Ownership, not this width, decides whether that
+ * motion is the actor's: another predicate or an attributive clause ends the search first.
+ * A second goal particle still ends it, so an earlier place cannot take a later destination.
  */
 const GOAL_PREDICATE_REACH = 8;
+/** A bare stem is a command only when nothing follows it, or the next word is the progressive `중`. */
+const BARE_STEM_PROGRESSIVE = /^중/;
+/** The actor inherits an embedded destination only by following that person. */
+const FOLLOW_LINK = /^(?:따라|뒤따라|따라가|따라간|따라갈|따라오|따라온|따라왔)$/;
+/** Converb or final ending of a predicate that is not itself the travel. */
+const OTHER_PREDICATE_ENDING = /(?:고|며|면서|어서|아서|여서|려고|려)$/;
+/** Object of a posture converb (`몸을 낮추고`). It does not take the place goal away from the travel. */
+const POSTURE_OBJECTS = new Set(["몸", "허리", "무릎", "고개", "자세", "어깨"]);
 const GOAL_WINDOW_WORDS = 3;
 
 const INSIDE_WORDS = new Set(["내부", "안", "안쪽", "실내", "속", "상층", "하층", "지하"]);
@@ -114,12 +125,43 @@ function isAttributiveForm(words: readonly string[], index: number): boolean {
 }
 
 /**
- * A bare stem (`이동 흔적`) names the act; it does not perform it.
- * `이동 중이다` is the same predicate with the progressive on the next word.
+ * `이동 흔적` names the act. `주 통로로 이동` and `이동 중이다` perform it.
+ * A bare stem with no following word is the short command; a following content word is a noun.
  */
 function isBareMotionMention(words: readonly string[], index: number): boolean {
   if (!SINO_MOTION_STEM.test(words[index]!)) return false;
-  return !/^중/.test(words[index + 1] ?? "");
+  const next = words[index + 1];
+  if (!next || BARE_STEM_PROGRESSIVE.test(next)) return false;
+  return true;
+}
+
+function isAttributiveMotion(words: readonly string[], index: number): boolean {
+  const word = words[index]!;
+  return isMotionPredicate(word) && isAttributiveForm(words, index) && !isBareMotionMention(words, index);
+}
+
+function hasFollowLink(words: readonly string[], from: number, to: number): boolean {
+  for (let index = from; index < to; index += 1) {
+    if (FOLLOW_LINK.test(words[index]!)) return true;
+  }
+  return false;
+}
+
+function isPostureManner(words: readonly string[], index: number): boolean {
+  for (let cursor = index - 1; cursor >= Math.max(0, index - 3); cursor -= 1) {
+    const head = words[cursor]!.match(OBJECT_PARTICLE)?.[1];
+    if (head) return POSTURE_OBJECTS.has(head);
+    if (GOAL_PARTICLE.test(words[cursor]!) || OTHER_PREDICATE_ENDING.test(words[cursor]!)) break;
+  }
+  return false;
+}
+
+/** A non-travel predicate owns the goal marker, so a later motion cannot inherit it. */
+function consumesDirectional(words: readonly string[], index: number): boolean {
+  const word = words[index]!;
+  if (FOLLOW_LINK.test(word) || isMotionPredicate(word) || isAttributiveForm(words, index)) return false;
+  if (!OTHER_PREDICATE_ENDING.test(word)) return false;
+  return !isPostureManner(words, index);
 }
 
 /** True when `words[index]` is the predicate of a live motion rather than a mention of one. */
@@ -187,10 +229,16 @@ function goalPhraseBefore(words: readonly string[], index: number, head: string)
 
 function predicateFollows(words: readonly string[], goalIndex: number, accept: (index: number) => boolean): boolean {
   const end = Math.min(words.length, goalIndex + 1 + GOAL_PREDICATE_REACH);
+  let embedded = false;
   for (let j = goalIndex + 1; j < end; j += 1) {
     const word = words[j]!;
-    if (accept(j)) return true;
     if (GOAL_PARTICLE.test(word)) return false;
+    if (isAttributiveMotion(words, j)) {
+      embedded = true;
+      continue;
+    }
+    if (accept(j)) return !embedded || hasFollowLink(words, goalIndex + 1, j);
+    if (consumesDirectional(words, j)) return false;
   }
   return false;
 }
