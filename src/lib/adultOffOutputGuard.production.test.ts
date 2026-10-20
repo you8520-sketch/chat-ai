@@ -998,4 +998,128 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
       assert.equal(guardEvidence(row)?.finalStatus, "approved");
     });
   });
+
+  describe("user-visible status widget values", () => {
+    const widgetJson = JSON.stringify({
+      version: 1,
+      name: "장면",
+      placement: "bottom",
+      htmlTemplate: "{{장소}}",
+      fields: [{ id: "장소", label: "장소", instruction: "현재 장소" }],
+    });
+    const body = longProse("그는 가볍게 입을 맞추고 그녀를 안았다.");
+
+    function widgetPayload(place: string): string {
+      return JSON.stringify({
+        character_values: { 장소: place },
+        user_values: {},
+        extracted_facts: [{ summary: "INTERNAL_MEMORY_SENTINEL" }],
+      });
+    }
+
+    before(() => {
+      harness.db().prepare("UPDATE characters SET status_widget_json=? WHERE id=?").run(
+        widgetJson,
+        CHARACTER_ID
+      );
+    });
+
+    after(() => {
+      harness.db().prepare("UPDATE characters SET status_widget_json='' WHERE id=?").run(CHARACTER_ID);
+    });
+
+    it("keeps approved romance and an approved widget value, and withholds only a restricted value", async () => {
+      classifierMode = "by_mark";
+      mainScript = { text: body };
+      resetCounters();
+      auxHandler = () => widgetPayload("창가 앞");
+      const cleanBefore = harness.balance();
+      const cleanChat = harness.newChat();
+      const clean = await harness.post({
+        characterId: CHARACTER_ID,
+        chatId: cleanChat,
+        message: "장면을 이어 가자.",
+        clientRequestId: `adult-off-widget-ok-${++requestSerial}`,
+      });
+      const cleanRow = assistantRow(cleanChat)!;
+      const cleanDelta = cleanBefore.total - harness.balance().total;
+      const cleanDone = clean.events.find((event) => event.type === "done");
+      assert.equal(cleanRow.generation_status, "completed");
+      assert.match(cleanRow.content, /입을 맞추고/);
+      assert.match(cleanRow.content, /안았다/);
+      assert.equal(
+        (cleanDone?.statusWidgetValues as { character?: { 장소?: string } } | null)?.character?.장소,
+        "창가 앞"
+      );
+      assert.ok(!JSON.stringify(clean.events).includes("INTERNAL_MEMORY_SENTINEL"));
+      assert.ok(!classifierInputs.some((input) => input.includes("INTERNAL_MEMORY_SENTINEL")));
+      const cleanEvidence = guardEvidence(cleanRow);
+      const widgetCheck = cleanEvidence?.checks?.find((check) => check.stage === "status_widget");
+      assert.equal(widgetCheck?.status, "approved");
+      assert.equal(widgetCheck?.classifierCalls, 1);
+      assert.ok((widgetCheck?.checkMs ?? -1) >= 0);
+      assert.equal(moderationRows(cleanRow.id).length, classifierCalls);
+      assert.ok(cleanDelta > 0);
+
+      resetCounters();
+      auxHandler = () => widgetPayload(`창가 앞 ${RESTRICT_MARK}`);
+      const auxBefore = harness.balance();
+      const auxChat = harness.newChat();
+      const aux = await harness.post({
+        characterId: CHARACTER_ID,
+        chatId: auxChat,
+        message: "장면을 이어 가자.",
+        clientRequestId: `adult-off-widget-block-${++requestSerial}`,
+      });
+      const auxRow = assistantRow(auxChat)!;
+      const auxDelta = auxBefore.total - harness.balance().total;
+      const stored = harness.db()
+        .prepare("SELECT status_widget_values_json FROM messages WHERE id=?")
+        .get(auxRow.id) as { status_widget_values_json: string | null };
+      const api = await harness.getMessageApi(auxRow.id);
+      assert.equal(auxRow.generation_status, "completed");
+      assert.equal(auxRow.content, cleanRow.content);
+      assert.equal(auxDelta, cleanDelta, "withholding the widget does not change body settlement");
+      assert.ok(!JSON.stringify(aux.events).includes(RESTRICT_MARK));
+      assert.ok(!(stored.status_widget_values_json ?? "").includes(RESTRICT_MARK));
+      assert.ok(!api.raw.includes(RESTRICT_MARK));
+      assert.match(api.json.content ?? "", /안았다/);
+      const auxEvidence = guardEvidence(auxRow);
+      assert.equal(auxEvidence?.finalStatus, "approved");
+      assert.equal(
+        auxEvidence?.checks?.find((check) => check.stage === "status_widget")?.status,
+        "blocked"
+      );
+      assert.equal(moderationRows(auxRow.id).length, classifierCalls);
+      assert.ok(moderationRows(auxRow.id).every((row) => (row.actual_cost_usd ?? 0) > 0));
+      const callsAtEnd = classifierCalls;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      assert.equal(classifierCalls, callsAtEnd, "no automatic re-check after the widget is withheld");
+    });
+
+    it("does not start widget extraction after the body block is confirmed", async () => {
+      classifierMode = "by_mark";
+      mainScript = { text: `${body} ${RESTRICT_MARK}` };
+      resetCounters();
+      auxHandler = () => widgetPayload("창가 앞");
+      const before = harness.balance();
+      const chatId = harness.newChat();
+      const result = await harness.post({
+        characterId: CHARACTER_ID,
+        chatId,
+        message: "장면을 이어 가자.",
+        clientRequestId: `adult-off-widget-body-block-${++requestSerial}`,
+      });
+      const row = assistantRow(chatId)!;
+      assert.equal(classifierCalls, 1, "the blocked body is not checked again and the widget is not checked");
+      assert.equal(auxCalls, 0, "widget extraction does not start after the body block");
+      assert.equal(otherCompletionCalls, 0);
+      assert.equal(otherLunaCalls, 0);
+      assert.equal(row.content, "");
+      assert.equal(row.generation_status, "failed");
+      assert.ok(!JSON.stringify(result.events).includes(RESTRICT_MARK));
+      assert.deepEqual(harness.balance(), before);
+      assert.equal(moderationRows(row.id).length, 1);
+    });
+  });
 });

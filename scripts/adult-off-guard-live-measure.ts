@@ -55,6 +55,7 @@ import {
   COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS,
   loadCanonicalRpQualificationFixture,
 } from "./lib/rpModelQualificationFixture";
+import { listOpenTurnTailWork } from "../src/lib/turnTailWork";
 
 const USER_ID = 91001;
 const CHARACTER_ID = 91002;
@@ -288,7 +289,7 @@ async function main(): Promise<void> {
       .all() as MeasuredLedgerRow[];
   const settleTurn = () =>
     capture.finish({
-      listOwners: () => route.listOpenTurnTailWork(),
+      listOwners: () => listOpenTurnTailWork(),
       readLedger,
       deadlineMs: SETTLE_TIMEOUT_MS,
     });

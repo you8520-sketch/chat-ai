@@ -7,6 +7,11 @@ import {
   resolveCurrentGenerationAsyncRecord,
   type AssistantGenerationScope,
 } from "@/lib/assistantGenerationScope";
+import { collectStatusMetaVisibleTexts } from "@/lib/adultOffOutputGuard";
+import {
+  adultOffVisibleSurfaceNeedsReview,
+  reviewAdultOffVisibleSurface,
+} from "@/lib/adultOffVisibleOutput";
 import { extractStatusMetaFromTurn } from "./extract";
 import {
   rebalanceTableMarkdownWithFormatSpec,
@@ -14,6 +19,7 @@ import {
 } from "./formatSpec";
 import { statusMetaHasDisplayContent } from "./render";
 import {
+  EMPTY_STATUS_META,
   isStatusMetaExtractionDisabledRecord,
   parseStatusMetaRecord,
   serializeStatusMetaRecord,
@@ -319,6 +325,40 @@ async function runStatusMetaExtraction(opts: {
   return lastMeta;
 }
 
+async function statusMetaMayBeExposed(
+  opts: {
+    messageId: number;
+    chatId: number;
+    generationScope: AssistantGenerationScope;
+  },
+  meta: StatusMeta
+): Promise<boolean> {
+  const texts = collectStatusMetaVisibleTexts(meta);
+  if (!texts.length) return true;
+  try {
+    const review = await reviewAdultOffVisibleSurface({
+      chatId: opts.chatId,
+      assistantMessageId: opts.messageId,
+      generationSequence: opts.generationScope.generationSequence,
+      generationRequestId: opts.generationScope.generationRequestId,
+      stage: "status_meta",
+      texts,
+    });
+    return review.deliver;
+  } catch (error) {
+    console.error("[STATUS-META-ERROR] adult-off review failed", (error as Error).message);
+    return false;
+  }
+}
+
+function writeWithheldStatusMeta(
+  messageId: number,
+  scope: AssistantGenerationScope,
+  formatSpec: string | null
+): void {
+  writeMeta(messageId, scope, { ...EMPTY_STATUS_META }, formatSpec, false);
+}
+
 /** Fire-and-forget — Flash sub-model, never blocks main RP generation */
 export function scheduleStatusMetaExtraction(opts: {
   messageId: number;
@@ -336,6 +376,11 @@ export function scheduleStatusMetaExtraction(opts: {
   formatSpec?: string | null;
   /** 모델 본문에서 분리한 pipe-table — Flash 대신 즉시 StatusMetaCard에 사용 */
   prefilledTableMarkdown?: string | null;
+  /**
+   * 동기 경로가 이 표 문자열을 이미 검사했을 때만 넘긴다.
+   * withheld 면 추출을 시작하지 않고 빈 메타만 저장한다.
+   */
+  adultOffDelivery?: "approved" | "withheld";
   __testExtract?: (attempt: number) => Promise<StatusMeta>;
   __testObservePreviousMeta?: (meta: StatusMeta | null) => void;
 }): void {
@@ -346,30 +391,59 @@ export function scheduleStatusMetaExtraction(opts: {
   const formatSpec = opts.formatSpec?.trim() || null;
   const prefilled = opts.prefilledTableMarkdown?.trim() || null;
 
-  if (prefilled && tableMarkdownHasContent(prefilled)) {
+  if (opts.adultOffDelivery === "withheld") {
     try {
-      writeMeta(
-        opts.messageId,
-        opts.generationScope,
-        {
-          tableMarkdown: rebalanceTableMarkdownWithFormatSpec(prefilled, formatSpec ?? ""),
-          datetime: "",
-          location: "",
-          relationship: "",
-          npcEmotion: "",
-          npcIntent: "",
-          nextObjective: "",
-          hiddenThought: "",
-          sceneSummary: "",
-        },
-        formatSpec,
-        false
-      );
+      writeWithheldStatusMeta(opts.messageId, opts.generationScope, formatSpec);
     } catch (e) {
-      console.error("[STATUS-META-ERROR] prefilled table write failed", (e as Error).message);
+      console.error("[STATUS-META-ERROR] withheld meta write failed", (e as Error).message);
     } finally {
       running.delete(jobKey);
     }
+    return;
+  }
+
+  if (prefilled && tableMarkdownHasContent(prefilled)) {
+    const tableMarkdown =
+      opts.adultOffDelivery === "approved"
+        ? prefilled.trim()
+        : rebalanceTableMarkdownWithFormatSpec(prefilled, formatSpec ?? "");
+    const meta: StatusMeta = {
+      tableMarkdown,
+      datetime: "",
+      location: "",
+      relationship: "",
+      npcEmotion: "",
+      npcIntent: "",
+      nextObjective: "",
+      hiddenThought: "",
+      sceneSummary: "",
+    };
+    if (opts.adultOffDelivery === "approved" || !adultOffVisibleSurfaceNeedsReview(opts.chatId)) {
+      try {
+        writeMeta(opts.messageId, opts.generationScope, meta, formatSpec, false);
+      } catch (e) {
+        console.error("[STATUS-META-ERROR] prefilled table write failed", (e as Error).message);
+      } finally {
+        running.delete(jobKey);
+      }
+      return;
+    }
+    void (async () => {
+      try {
+        const deliver = await statusMetaMayBeExposed(opts, meta);
+        writeMeta(
+          opts.messageId,
+          opts.generationScope,
+          deliver ? meta : { ...EMPTY_STATUS_META },
+          formatSpec,
+          false
+        );
+      } catch (e) {
+        console.error("[STATUS-META-ERROR] prefilled table write failed", (e as Error).message);
+      } finally {
+        running.delete(jobKey);
+      }
+    })();
     return;
   }
 
@@ -382,8 +456,10 @@ export function scheduleStatusMetaExtraction(opts: {
   void (async () => {
     try {
       const meta = await runStatusMetaExtraction(opts);
-      const ok = statusMetaHasDisplayContent(meta, formatSpec);
-      writeMeta(opts.messageId, opts.generationScope, meta, formatSpec, !ok);
+      const deliver = await statusMetaMayBeExposed(opts, meta);
+      const exposed = deliver ? meta : { ...EMPTY_STATUS_META };
+      const ok = deliver && statusMetaHasDisplayContent(exposed, formatSpec);
+      writeMeta(opts.messageId, opts.generationScope, exposed, formatSpec, !ok);
       if (!ok) {
         console.error("[STATUS-META-ERROR] extraction finished without displayable meta", {
           messageId: opts.messageId,

@@ -638,6 +638,9 @@ import {
 } from "@/lib/chatAdultHandoff";
 import {
   buildAdultOffGuardUsageEvidence,
+  collectStatusMetaVisibleTexts,
+  collectStatusWidgetVisibleTexts,
+  collectSuggestedReplyVisibleTexts,
   createAdultOffOutputHold,
   evaluateAdultOffOutput,
   isAdultOffOutputGuardEnabled,
@@ -649,6 +652,8 @@ import {
   type AdultOffGuardDecision,
 } from "@/lib/adultOffOutputGuard";
 import { createAdultOffClassifier } from "@/lib/adultOffOutputClassifier";
+import { trackTurnTailWork } from "@/lib/turnTailWork";
+import { rebalanceTableMarkdownWithFormatSpec } from "@/lib/statusMeta/formatSpec";
 
 const SSE_HEADERS = {
   "Content-Type": "text/event-stream; charset=utf-8",
@@ -668,13 +673,6 @@ function parseMessageIdInput(input: unknown): number | null {
   if (typeof input !== "string") return null;
   const n = Number(input.trim().replace(/^msg-/i, ""));
   return Number.isInteger(n) && n > 0 ? n : null;
-}
-
-/** Post-SSE tail still running for this process. The live probe awaits these owners. */
-const openTurnTailWork: Promise<void>[] = [];
-
-export function listOpenTurnTailWork(): readonly Promise<void>[] {
-  return openTurnTailWork;
 }
 
 export async function POST(req: Request) {
@@ -3536,7 +3534,7 @@ export async function POST(req: Request) {
                 keepInternal: showFullBillingReceipt,
               })
             : null;
-          adultOffHold?.release("");
+          adultOffHold?.release(content);
           send({ type: "replace", text: content, instant: true });
           send({
             type: "done",
@@ -5584,6 +5582,24 @@ export async function POST(req: Request) {
           !htmlFlashOnlyTurn &&
           !oocSceneRenderTurn &&
           Boolean(savedText.trim());
+        let suggestedRepliesAdultOffDelivery: "approved" | "withheld" | undefined;
+        let statusMetaAdultOffDelivery: "approved" | "withheld" | undefined;
+        const ensureAdultOffBodyApproved = async (): Promise<boolean> => {
+          if (!adultOffHold || adultOffHold.covers(savedText)) return true;
+          const decision = await runAdultOffCheck("final", [savedText]);
+          if (decision.status !== "approved") {
+            failAdultOffTurn(decision, {
+              primaryStage: selectBillableStages(stages, {
+                refusalFallbackDelivered: adultFallbackSucceeded,
+              })[0],
+            });
+            return false;
+          }
+          adultOffHold.markApproved(savedText);
+          return true;
+        };
+        // 본문 차단이 확정되면 상태창 추출 등 유료 후처리를 시작하지 않는다.
+        if (!(await ensureAdultOffBodyApproved())) return;
         if (statusWidgetActive) {
           send({ type: "status", message: "상태창 생성 중…" });
           postprocessHeartbeat.setPhase("status_widget");
@@ -5695,22 +5711,64 @@ export async function POST(req: Request) {
           "remove stray repeated quote marks at assistant output tail"
         );
 
-        // 최종 전달·저장 본문 게이트. 앞 단계(어휘 재작성·HTML·분량 보강·위생 정리)가 만든 최종 텍스트가
-        // 이미 승인된 본문에서 지우기만 해서 나온 것이면 승인을 이어받고, 새 글자가 생겼으면 다시 검사한다.
+        // 최종 본문 게이트. 검사한 문자열과 정확히 같을 때만 승인을 재사용한다.
+        // 위젯이 본문을 바꾸면 여기서 다시 검사하고, 차단이면 이미 발생한 위젯 원장은 그대로 둔 채 0P로 끝낸다.
         // 이 지점 이후에는 savedText 를 바꾸지 않으며, 사용량 기록·저장·정산은 모두 이 뒤에서 일어난다.
+        if (!(await ensureAdultOffBodyApproved())) return;
         if (adultOffHold) {
-          if (adultOffHold.covers(savedText)) {
-            adultOffChecks.push(reusedAdultOffApprovalRecord("final"));
-          } else {
-            const finalDecision = await runAdultOffCheck("final", [savedText]);
-            if (finalDecision.status !== "approved") {
-              failAdultOffTurn(finalDecision, {
-                primaryStage: selectBillableStages(stages, {
-                  refusalFallbackDelivered: adultFallbackSucceeded,
-                })[0],
-              });
-              return;
+          const widgetTexts = collectStatusWidgetVisibleTexts(statusWidgetValuesPayload).filter(
+            (text) => !adultOffHold.covers(text)
+          );
+          if (widgetTexts.length) {
+            const widgetDecision = await runAdultOffCheck("status_widget", widgetTexts);
+            if (widgetDecision.status !== "approved") {
+              statusWidgetValuesPayload = null;
+            } else {
+              for (const text of widgetTexts) adultOffHold.markApproved(text);
             }
+          }
+          const replyVisible = collectSuggestedReplyVisibleTexts(
+            widgetPrefetchedSuggestedReplies
+          );
+          const replyTexts = replyVisible.filter((text) => !adultOffHold.covers(text));
+          if (replyVisible.length && !replyTexts.length) {
+            suggestedRepliesAdultOffDelivery = "approved";
+          } else if (replyTexts.length) {
+            const replyDecision = await runAdultOffCheck("suggested_replies", replyTexts);
+            if (replyDecision.status !== "approved") {
+              suggestedRepliesAdultOffDelivery = "withheld";
+              widgetPrefetchedSuggestedReplies = [];
+            } else {
+              suggestedRepliesAdultOffDelivery = "approved";
+              for (const text of replyTexts) adultOffHold.markApproved(text);
+            }
+          }
+          const prefilledSource = capturedStatusTable?.trim() ?? "";
+          if (prefilledSource) {
+            const prefilledExact = rebalanceTableMarkdownWithFormatSpec(
+              prefilledSource,
+              statusWindowPolicyRef?.formatSpec ?? ""
+            );
+            const metaTexts = collectStatusMetaVisibleTexts({
+              tableMarkdown: prefilledExact,
+            }).filter((text) => !adultOffHold.covers(text));
+            if (!metaTexts.length) {
+              statusMetaAdultOffDelivery = "approved";
+              capturedStatusTable = prefilledExact;
+            } else {
+              const metaDecision = await runAdultOffCheck("status_meta", metaTexts);
+              if (metaDecision.status !== "approved") {
+                statusMetaAdultOffDelivery = "withheld";
+                capturedStatusTable = null;
+              } else {
+                statusMetaAdultOffDelivery = "approved";
+                capturedStatusTable = prefilledExact;
+                for (const text of metaTexts) adultOffHold.markApproved(text);
+              }
+            }
+          }
+          if (!adultOffChecks.some((check) => check.stage === "final")) {
+            adultOffChecks.push(reusedAdultOffApprovalRecord("final"));
           }
           adultOffHold.release(savedText, { instant: htmlFlashOnlyTurn });
         }
@@ -6593,6 +6651,7 @@ export async function POST(req: Request) {
               userNote: effectiveUserNote,
               formatSpec: statusWindowPolicyRef?.formatSpec ?? null,
               prefilledTableMarkdown: capturedStatusTable,
+              adultOffDelivery: statusMetaAdultOffDelivery,
             });
           } else {
             markMessageStatusMetaExtractionDisabled(aiMessageId, postTurnGenerationScope);
@@ -6652,6 +6711,7 @@ export async function POST(req: Request) {
             assistantProse: savedText,
             prefetchedReplies,
             sharedInitialAttemptConsumed: widgetPostTurnPhysicalAttempted,
+            adultOffDelivery: suggestedRepliesAdultOffDelivery,
           });
         };
         if (!suggestedRepliesGenerationEligible) {
@@ -6913,11 +6973,7 @@ export async function POST(req: Request) {
             console.error("[/api/chat] 후처리 실패:", (e as Error).message);
           }
         })();
-        openTurnTailWork.push(turnTail);
-        void turnTail.finally(() => {
-          const index = openTurnTailWork.indexOf(turnTail);
-          if (index >= 0) openTurnTailWork.splice(index, 1);
-        });
+        trackTurnTailWork(turnTail);
       } catch (e) {
         clearPartialTimer();
         stopPostprocessHeartbeat();

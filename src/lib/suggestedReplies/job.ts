@@ -5,6 +5,11 @@ import {
   resolveActiveAssistantGenerationScope,
   type AssistantGenerationScope,
 } from "@/lib/assistantGenerationScope";
+import { collectSuggestedReplyVisibleTexts } from "@/lib/adultOffOutputGuard";
+import {
+  adultOffVisibleSurfaceNeedsReview,
+  reviewAdultOffVisibleSurface,
+} from "@/lib/adultOffVisibleOutput";
 import { extractSuggestedRepliesFromTurn } from "./extract";
 import {
   parseSuggestedRepliesRecord,
@@ -188,6 +193,35 @@ async function runSuggestedRepliesExtraction(opts: {
   }
 }
 
+async function repliesMayBeExposed(
+  opts: {
+    messageId: number;
+    chatId: number;
+    generationScope: AssistantGenerationScope;
+  },
+  replies: readonly SuggestedReplyItem[]
+): Promise<boolean> {
+  const texts = collectSuggestedReplyVisibleTexts(replies);
+  if (!texts.length) return true;
+  try {
+    const review = await reviewAdultOffVisibleSurface({
+      chatId: opts.chatId,
+      assistantMessageId: opts.messageId,
+      generationSequence: opts.generationScope.generationSequence,
+      generationRequestId: opts.generationScope.generationRequestId,
+      stage: "suggested_replies",
+      texts,
+    });
+    return review.deliver;
+  } catch (error) {
+    console.error(
+      "[SUGGESTED-REPLIES-ERROR] adult-off review failed",
+      (error as Error).message
+    );
+    return false;
+  }
+}
+
 /** Fire-and-forget — Flash sub-model, never blocks main RP generation */
 export function scheduleSuggestedRepliesExtraction(opts: {
   messageId: number;
@@ -202,31 +236,72 @@ export function scheduleSuggestedRepliesExtraction(opts: {
   assistantProse: string;
   prefetchedReplies?: SuggestedReplyItem[] | null;
   sharedInitialAttemptConsumed?: boolean;
+  /**
+   * 동기 경로가 이 답장 문자열을 이미 검사했을 때만 넘긴다.
+   * withheld 면 추출을 다시 하지 않고 빈 결과만 저장한다.
+   */
+  adultOffDelivery?: "approved" | "withheld";
   __testExtract?: (attempt: number) => Promise<SuggestedReplyItem[]>;
 }): void {
   const physicalAttemptConsumed = opts.sharedInitialAttemptConsumed ?? false;
   const recordSource: SuggestedRepliesRecordSource = physicalAttemptConsumed
     ? "post-turn-shared"
     : "standalone-extract";
+  if (opts.adultOffDelivery === "withheld") {
+    try {
+      writeReplies(opts.messageId, opts.generationScope, [], true, undefined, recordSource);
+    } catch (error) {
+      console.error(
+        "[SUGGESTED-REPLIES-ERROR] withheld write failed",
+        (error as Error).message
+      );
+    }
+    return;
+  }
   if (physicalAttemptConsumed) {
     const replies = suggestedRepliesHaveContent(opts.prefetchedReplies)
       ? opts.prefetchedReplies!
       : [];
-    try {
-      writeReplies(
-        opts.messageId,
-        opts.generationScope,
-        replies,
-        replies.length === 0,
-        undefined,
-        recordSource
-      );
-    } catch (error) {
-      console.error(
-        "[SUGGESTED-REPLIES-ERROR] terminal shared write failed",
-        (error as Error).message
-      );
+    if (
+      opts.adultOffDelivery === "approved" ||
+      replies.length === 0 ||
+      !adultOffVisibleSurfaceNeedsReview(opts.chatId)
+    ) {
+      try {
+        writeReplies(
+          opts.messageId,
+          opts.generationScope,
+          replies,
+          replies.length === 0,
+          undefined,
+          recordSource
+        );
+      } catch (error) {
+        console.error(
+          "[SUGGESTED-REPLIES-ERROR] terminal shared write failed",
+          (error as Error).message
+        );
+      }
+      return;
     }
+    void (async () => {
+      const deliver = await repliesMayBeExposed(opts, replies);
+      try {
+        writeReplies(
+          opts.messageId,
+          opts.generationScope,
+          deliver ? replies : [],
+          !deliver || replies.length === 0,
+          undefined,
+          recordSource
+        );
+      } catch (error) {
+        console.error(
+          "[SUGGESTED-REPLIES-ERROR] terminal shared write failed",
+          (error as Error).message
+        );
+      }
+    })();
     return;
   }
   const jobKey = generationJobKey(opts.generationScope);
@@ -242,11 +317,13 @@ export function scheduleSuggestedRepliesExtraction(opts: {
   void (async () => {
     try {
       const replies = await runSuggestedRepliesExtraction(opts);
-      const ok = suggestedRepliesHaveContent(replies);
+      const deliver = await repliesMayBeExposed(opts, replies);
+      const exposed = deliver ? replies : [];
+      const ok = deliver && suggestedRepliesHaveContent(exposed);
       writeReplies(
         opts.messageId,
         opts.generationScope,
-        replies,
+        exposed,
         !ok,
         undefined,
         recordSource

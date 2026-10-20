@@ -284,7 +284,10 @@ describe("adult-OFF live capture — provider calls are kept from fetch start th
 
   it("wires the live measure script to the turn tail owner instead of a fixed sleep", () => {
     const source = readFileSync("scripts/adult-off-guard-live-measure.ts", "utf8");
+    const routeSource = readFileSync("src/app/api/chat/route.ts", "utf8");
     assert.match(source, /listOpenTurnTailWork/);
+    assert.match(source, /turnTailWork/);
+    assert.doesNotMatch(routeSource, /export function listOpenTurnTailWork/);
     assert.match(source, /commitMeasuredLedger/);
     assert.doesNotMatch(source, /teeJobs/);
     assert.doesNotMatch(source, /setTimeout\(resolve, 400\)/);

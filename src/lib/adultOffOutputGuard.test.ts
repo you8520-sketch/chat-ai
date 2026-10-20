@@ -6,10 +6,13 @@ import {
   AdultOffClassifierOutputError,
   buildAdultOffClassifierUserMessage,
   buildAdultOffGuardUsageEvidence,
+  adultOffTextReusesApproval,
+  collectStatusMetaVisibleTexts,
+  collectStatusWidgetVisibleTexts,
+  collectSuggestedReplyVisibleTexts,
   createAdultOffOutputHold,
   evaluateAdultOffOutput,
   isAdultOffOutputGuardEnabled,
-  isDerivedByDeletion,
   parseAdultOffClassifierOutput,
   reusedAdultOffApprovalRecord,
   shouldApplyAdultOffOutputGuard,
@@ -134,14 +137,14 @@ describe("adult-off candidate evaluation", () => {
     }
   });
 
-  it("checks every distinct candidate and de-duplicates whitespace-equal ones", async () => {
+  it("checks every exact string and does not collapse whitespace differences", async () => {
     const seen: string[] = [];
     const classify: AdultOffClassify = async (text) => {
       seen.push(text);
       return { verdict: ALLOW, usage };
     };
     await evaluateAdultOffOutput(["같은  본문", "같은 본문", "다른 본문"], classify);
-    assert.deepEqual(seen, ["같은  본문", "다른 본문"]);
+    assert.deepEqual(seen, ["같은  본문", "같은 본문", "다른 본문"]);
   });
 
   it("blocks when only the second candidate is restricted", async () => {
@@ -273,20 +276,45 @@ describe("adult-off verdict uncertainty and call accounting", () => {
   });
 });
 
-describe("adult-off deletion-derived approval reuse", () => {
-  it("accepts whitespace changes and deletions only", () => {
-    const approved = "첫 문장이다.\n\n둘째 문장이다. 셋째 문장이다.";
-    assert.equal(isDerivedByDeletion(approved, approved), true);
-    assert.equal(isDerivedByDeletion("첫 문장이다.\n둘째 문장이다.   셋째 문장이다.", approved), true);
-    assert.equal(isDerivedByDeletion("첫 문장이다. 셋째 문장이다.", approved), true);
-    assert.equal(isDerivedByDeletion("", approved), true);
+describe("adult-off exact approval reuse", () => {
+  it("reuses approval only for the exact checked string", () => {
+    const approved = ["그는 동의한 것이 아니었다."];
+    assert.equal(adultOffTextReusesApproval(approved[0], approved), true);
+    assert.equal(adultOffTextReusesApproval("", approved), true);
+    assert.equal(adultOffTextReusesApproval("   ", approved), true);
   });
 
-  it("rejects substitution, insertion and reordering so a rewrite is never covered", () => {
-    const approved = "그는 천천히 손을 잡았다. 그녀가 웃었다.";
-    assert.equal(isDerivedByDeletion("그는 천천히 손을 잡았다. 그녀가 웃었다. 새 문장.", approved), false);
-    assert.equal(isDerivedByDeletion("그는 천천히 손을 놓았다. 그녀가 웃었다.", approved), false);
-    assert.equal(isDerivedByDeletion("그녀가 웃었다. 그는 천천히 손을 잡았다.", approved), false);
+  it("does not treat a meaning-flipping deletion as the approved text", () => {
+    const approved = ["그는 동의한 것이 아니었다."];
+    assert.equal(adultOffTextReusesApproval("그는 동의한 것이었다.", approved), false);
+    assert.equal(adultOffTextReusesApproval("그는 동의한 것이 아니었다. ", approved), false);
+    assert.equal(adultOffTextReusesApproval("첫 문장이다.", ["첫 문장이다.\n\n둘째 문장이다."]), false);
+  });
+
+  it("collects only user-visible auxiliary strings", () => {
+    assert.deepEqual(
+      collectStatusWidgetVisibleTexts({
+        character: { 장소: "창가" },
+        user: { 기분: "" },
+        extracted_facts: [{ text: "기억 원문" }],
+      }),
+      ["창가"]
+    );
+    assert.deepEqual(
+      collectSuggestedReplyVisibleTexts([
+        { text: "그의 손을 잡았다." },
+        { text: "  " },
+      ]),
+      ["그의 손을 잡았다."]
+    );
+    assert.deepEqual(
+      collectStatusMetaVisibleTexts({
+        location: "창가",
+        hiddenThought: "",
+        tableMarkdown: "| 장소 |\n| 창가 |",
+      }),
+      ["| 장소 |\n| 창가 |", "창가"]
+    );
   });
 });
 
@@ -337,6 +365,29 @@ describe("adult-off turn usage evidence", () => {
     assert.equal(evidence.lowConfidenceAllow, true);
     assert.equal(evidence.classifierCalls, 2);
     assert.equal(evidence.callsWithoutCost, 0);
+  });
+
+  it("keeps body finalStatus approved when a later auxiliary check is blocked", () => {
+    const evidence = buildAdultOffGuardUsageEvidence([
+      summarizeAdultOffCheck("pre_postprocess", approvedDecision, 100),
+      summarizeAdultOffCheck("final", approvedDecision, 80),
+      summarizeAdultOffCheck(
+        "status_widget",
+        {
+          status: "blocked",
+          category: "sexual_act",
+          confidence: "high",
+          checkedWindows: 1,
+          classifierCalls: 1,
+          usages: [usage],
+        },
+        40
+      ),
+    ]);
+    assert.equal(evidence.finalStatus, "approved");
+    assert.equal(evidence.classifierCalls, 3);
+    const checks = evidence.checks as Array<{ stage: string; status: string }>;
+    assert.equal(checks.find((check) => check.stage === "status_widget")?.status, "blocked");
   });
 });
 
@@ -405,26 +456,25 @@ describe("adult-off hold gate", () => {
     assert.ok(!JSON.stringify(delivered).includes("UNREVIEWED_BODY_SENTINEL"));
   });
 
-  it("delivers approved text immediately and only deletion-derived replace afterwards", () => {
+  it("delivers only the exact approved string and not a deletion of it", () => {
     const { delivered, hold } = collect();
     hold.send({ type: "delta", text: "미승인 본문" });
-    hold.approve("첫 문장이다.\n\n둘째 문장이다.");
-    hold.send({ type: "replace", text: "첫 문장이다.\n\n둘째 문장이다.", instant: true });
+    hold.approve("그는 동의한 것이 아니었다.");
+    hold.send({ type: "replace", text: "그는 동의한 것이 아니었다.", instant: true });
+    hold.send({ type: "replace", text: "그는 동의한 것이었다." });
     hold.send({ type: "replace", text: "첫 문장이다." });
-    hold.send({ type: "replace", text: "첫 문장이다. 새로 쓴 문장." });
-    hold.send({ type: "append", text: "첫 문장이다." });
-    hold.send({ type: "done", finalContent: "첫 문장이다." });
+    hold.send({ type: "append", text: "그는 동의한 것이 아니었다." });
+    hold.send({ type: "done", finalContent: "그는 동의한 것이었다." });
     assert.deepEqual(
       delivered.map((event) => [event.type, event.text]),
       [
-        ["replace", "첫 문장이다.\n\n둘째 문장이다."],
-        ["replace", "첫 문장이다.\n\n둘째 문장이다."],
-        ["replace", "첫 문장이다."],
+        ["replace", "그는 동의한 것이 아니었다."],
+        ["replace", "그는 동의한 것이 아니었다."],
       ]
     );
-    assert.equal(hold.covers("첫 문장이다. 새로 쓴 문장."), false);
-    assert.equal(hold.covers("둘째 문장이다."), true);
-    assert.ok(!JSON.stringify(delivered).includes("새로 쓴"));
+    assert.equal(hold.covers("그는 동의한 것이 아니었다."), true);
+    assert.equal(hold.covers("그는 동의한 것이었다."), false);
+    assert.ok(!JSON.stringify(delivered).includes("것이었다."));
     assert.ok(!JSON.stringify(delivered).includes("미승인"));
   });
 
@@ -437,21 +487,26 @@ describe("adult-off hold gate", () => {
     assert.equal(hold.covers("다른 후보"), false);
   });
 
-  it("releases the final text once, skipping a duplicate of what was already shown", () => {
+  it("releases the exact final text once and still drops a different body afterwards", () => {
     const { delivered, hold } = collect();
     hold.send({ type: "delta", text: "미승인 본문" });
-    hold.approve("승인된 본문\n\n둘째");
-    hold.release("승인된 본문 둘째");
+    hold.approve("승인된 본문");
+    hold.release("승인된 본문");
     hold.release("두 번째 방출");
     hold.send({ type: "delta", text: "후속" });
+    hold.send({ type: "done", finalContent: "승인된 본문", usage: { cost: 1 } });
+    hold.send({ type: "done", finalContent: "그는 동의한 것이었다." });
     assert.deepEqual(
-      delivered.map((event) => [event.type, event.text]),
+      delivered.map((event) => [event.type, event.text ?? event.finalContent]),
       [
-        ["replace", "승인된 본문\n\n둘째"],
-        ["delta", "후속"],
+        ["replace", "승인된 본문"],
+        ["done", "승인된 본문"],
       ]
     );
+    assert.equal(hold.covers("그는 동의한 것이었다."), false);
     assert.ok(!JSON.stringify(delivered).includes("미승인"));
+    assert.ok(!JSON.stringify(delivered).includes("후속"));
+    assert.ok(!JSON.stringify(delivered).includes("것이었다"));
   });
 
   it("emits a changed final text as one instant replace when it differs from what was shown", () => {

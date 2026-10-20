@@ -262,28 +262,17 @@ export function splitAdultOffGuardWindows(
   return windows;
 }
 
-function normalizeCandidate(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
-}
-
-function stripWhitespace(text: string): string {
-  return text.replace(/\s+/g, "");
-}
-
 /**
- * candidate 가 approved 에서 공백을 무시하고 일부 구간을 지워서만 만들어지는지 본다.
- * 새 글자가 하나라도 생기면(치환·삽입·재작성) false 이므로 기존 승인을 재사용하지 않는다.
+ * 승인 재사용은 검사한 문자열과 전달 문자열이 코드포인트까지 같을 때만 한다.
+ * 공백 제거, 부분수열, 삭제로 만든 다른 문장은 같은 승인이 아니다.
+ * 빈 문자열과 공백만 있는 문자열은 화면에 보이는 생성 텍스트가 없으므로 검사 대상이 아니다.
  */
-export function isDerivedByDeletion(candidate: string, approved: string): boolean {
-  const a = stripWhitespace(candidate);
-  if (!a) return true;
-  const b = stripWhitespace(approved);
-  if (a.length > b.length) return false;
-  let i = 0;
-  for (let j = 0; j < b.length && i < a.length; j += 1) {
-    if (a[i] === b[j]) i += 1;
-  }
-  return i === a.length;
+export function adultOffTextReusesApproval(
+  text: string,
+  approved: readonly string[]
+): boolean {
+  if (!text.trim()) return true;
+  return approved.some((item) => item === text);
 }
 
 /**
@@ -299,9 +288,8 @@ export async function evaluateAdultOffOutput(
   const seen = new Set<string>();
   const unique: string[] = [];
   for (const candidate of candidates) {
-    const key = normalizeCandidate(candidate);
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
+    if (!candidate.trim() || seen.has(candidate)) continue;
+    seen.add(candidate);
     unique.push(candidate);
   }
   const usages: AdultOffClassifierUsage[] = [];
@@ -357,6 +345,17 @@ export const ADULT_OFF_HOLD_STATUS_NOTICES: ReadonlySet<string> = new Set([
   "다시 생성 중…",
 ]);
 
+/** 사용량·진단 트리는 생성 본문이 아니다. 본문 키 스캔에서 건너뛴다. */
+const BODY_SCAN_SKIP_KEYS = new Set([
+  "usage",
+  "report",
+  "pipeline",
+  "integrity",
+  "metrics",
+  "generationUi",
+  "promptRedacted",
+]);
+
 const NOTICE_BODY_KEYS = new Set([
   "text",
   "delta",
@@ -389,6 +388,81 @@ function containsBodyKey(value: unknown, depth = 0): boolean {
   return Object.entries(value as Record<string, unknown>).some(
     ([key, item]) => NOTICE_BODY_KEYS.has(key) || containsBodyKey(item, depth + 1)
   );
+}
+
+function collectBodyStrings(value: unknown, depth = 0, out: string[] = []): string[] {
+  if (!value || typeof value !== "object" || depth > 6) return out;
+  if (Array.isArray(value)) {
+    for (const item of value) collectBodyStrings(item, depth + 1, out);
+    return out;
+  }
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    if (BODY_SCAN_SKIP_KEYS.has(key)) continue;
+    if (NOTICE_BODY_KEYS.has(key) && typeof item === "string") out.push(item);
+    else collectBodyStrings(item, depth + 1, out);
+  }
+  return out;
+}
+
+export type AdultOffVisibleStatusWidget = {
+  character?: Record<string, string> | null;
+  user?: Record<string, string> | null;
+  extracted_facts?: unknown;
+};
+
+/** 상태창에서 사용자에게 보이는 값만. extracted_facts 와 필드 키는 포함하지 않는다. */
+export function collectStatusWidgetVisibleTexts(
+  values: AdultOffVisibleStatusWidget | null | undefined
+): string[] {
+  if (!values) return [];
+  const texts: string[] = [];
+  for (const side of [values.character, values.user]) {
+    if (!side) continue;
+    for (const value of Object.values(side)) {
+      if (typeof value === "string" && value.trim()) texts.push(value);
+    }
+  }
+  return texts;
+}
+
+/** 추천 답장에서 사용자에게 보이는 생성 문장만. 종류 라벨은 고정 UI 문구다. */
+export function collectSuggestedReplyVisibleTexts(
+  replies: readonly { text?: string }[] | null | undefined
+): string[] {
+  if (!replies) return [];
+  return replies
+    .map((reply) => reply.text ?? "")
+    .filter((text) => text.trim());
+}
+
+export type AdultOffVisibleStatusMeta = {
+  tableMarkdown?: string;
+  datetime?: string;
+  location?: string;
+  relationship?: string;
+  npcEmotion?: string;
+  npcIntent?: string;
+  nextObjective?: string;
+  hiddenThought?: string;
+  sceneSummary?: string;
+};
+
+/** 상태 메타 카드에 표시되는 문자열만. 기억·관계 원문은 넣지 않는다. */
+export function collectStatusMetaVisibleTexts(
+  meta: AdultOffVisibleStatusMeta | null | undefined
+): string[] {
+  if (!meta) return [];
+  return [
+    meta.tableMarkdown,
+    meta.datetime,
+    meta.location,
+    meta.relationship,
+    meta.npcEmotion,
+    meta.npcIntent,
+    meta.nextObjective,
+    meta.hiddenThought,
+    meta.sceneSummary,
+  ].filter((text): text is string => typeof text === "string" && text.trim().length > 0);
 }
 
 /** 본문을 실을 수 없는 진행·식별·오류 이벤트만 true. 그 외는 모두 본문 후보로 본다. */
@@ -438,13 +512,13 @@ export type AdultOffOutputHold = {
   send: (event: object) => void;
   /** 검사를 통과했지만 화면에는 보내지 않는 본문(같은 검사에서 함께 승인된 다른 후보)을 기록한다. */
   markApproved: (approvedText: string) => void;
-  /** 검사를 통과한 본문을 화면에 보낸다. 이후 같은 본문에서 지우기만 한 파생 텍스트도 전달된다. */
+  /** 검사를 통과한 본문을 화면에 보낸다. 이후에는 그 문자열과 같은 본문만 전달된다. */
   approve: (approvedText: string, options?: { instant?: boolean }) => void;
-  /** 최종 본문을 확정하고 이후 이벤트를 모두 통과시킨다. 공백만 다른 같은 본문이 이미 전달됐으면 다시 보내지 않는다. */
+  /** 검사를 통과한 최종 본문을 승인 집합에 넣고 한 번 보낸다. 이후 다른 본문은 통과시키지 않는다. */
   release: (finalText: string, options?: { instant?: boolean }) => void;
   /** 차단·검사 실패: 이후 본문 이벤트를 모두 막는다. 진행 안내와 오류는 계속 통과한다. */
   discard: () => void;
-  /** 저장·전달해도 되는 본문인지(승인된 본문에서 지우기만 해서 만든 텍스트인지) 판정한다. */
+  /** 저장·전달해도 되는 본문인지. 검사한 문자열과 정확히 같을 때만 true. */
   covers: (text: string) => boolean;
   heldEventCount: () => number;
   state: () => AdultOffOutputHoldState;
@@ -459,11 +533,13 @@ export function createAdultOffOutputHold(
   let lastDeliveredBody: string | null = null;
 
   const covers = (text: string): boolean => {
-    if (state === "discarded") return !stripWhitespace(text);
-    if (state === "released") return true;
-    if (!stripWhitespace(text)) return true;
-    return approvedTexts.some((approved) => isDerivedByDeletion(text, approved));
+    if (!text.trim()) return true;
+    if (state === "discarded") return false;
+    return adultOffTextReusesApproval(text, approvedTexts);
   };
+
+  const bodyEventIsApproved = (event: object): boolean =>
+    collectBodyStrings(event).every((text) => covers(text));
 
   const emitReplace = (text: string, instant?: boolean) => {
     lastDeliveredBody = text;
@@ -472,12 +548,12 @@ export function createAdultOffOutputHold(
 
   return {
     send(event) {
-      if (state === "released") {
+      if (isBodyFreeNotice(event)) {
         deliver(event);
         return;
       }
-      if (isBodyFreeNotice(event)) {
-        deliver(event);
+      if (state === "discarded") {
+        held += 1;
         return;
       }
       const row = event as Record<string, unknown>;
@@ -492,26 +568,28 @@ export function createAdultOffOutputHold(
         deliver(event);
         return;
       }
+      if (state === "released" && bodyEventIsApproved(event)) {
+        deliver(event);
+        return;
+      }
       held += 1;
     },
     markApproved(approvedText) {
-      if (state !== "holding") return;
-      if (stripWhitespace(approvedText)) approvedTexts.push(approvedText);
+      if (state === "discarded") return;
+      if (approvedText.trim()) approvedTexts.push(approvedText);
     },
     approve(approvedText, options) {
       if (state !== "holding") return;
-      if (stripWhitespace(approvedText)) approvedTexts.push(approvedText);
+      if (approvedText.trim()) approvedTexts.push(approvedText);
       if (approvedText.trim() && approvedText !== lastDeliveredBody) {
         emitReplace(approvedText, options?.instant);
       }
     },
     release(finalText, options) {
       if (state !== "holding") return;
+      if (finalText.trim()) approvedTexts.push(finalText);
       state = "released";
-      if (
-        finalText.trim() &&
-        stripWhitespace(finalText) !== stripWhitespace(lastDeliveredBody ?? "")
-      ) {
+      if (finalText.trim() && finalText !== lastDeliveredBody) {
         emitReplace(finalText, options?.instant);
       }
     },
@@ -524,11 +602,16 @@ export function createAdultOffOutputHold(
   };
 }
 
-export type AdultOffCheckStage = "pre_postprocess" | "final";
+export type AdultOffCheckStage =
+  | "pre_postprocess"
+  | "final"
+  | "status_widget"
+  | "suggested_replies"
+  | "status_meta";
 
 export type AdultOffCheckRecord = {
   stage: AdultOffCheckStage;
-  /** reused_approval: 최종 본문이 승인된 본문에서 지우기만 한 파생이라 추가 분류 없이 승인을 이어받음. */
+  /** reused_approval: 전달 문자열이 이미 검사한 문자열과 같아서 추가 분류 없이 승인을 이어받음. */
   status: AdultOffGuardDecision["status"] | "reused_approval";
   reason?: AdultOffGuardCheckFailureReason;
   category?: AdultOffRestrictedCategory;
@@ -576,14 +659,17 @@ export function reusedAdultOffApprovalRecord(stage: AdultOffCheckStage): AdultOf
 export function buildAdultOffGuardUsageEvidence(
   checks: readonly AdultOffCheckRecord[]
 ): Record<string, unknown> {
-  const last = checks[checks.length - 1];
   const calls = checks.flatMap((check) => check.calls);
   const costKnown = calls.filter((call) => call.costUsd != null);
+  const bodyChecks = checks.filter(
+    (check) => check.stage === "pre_postprocess" || check.stage === "final"
+  );
+  const lastBody = bodyChecks[bodyChecks.length - 1];
   const finalStatus =
-    last == null
+    lastBody == null
       ? "not_checked"
-      : last.status === "blocked" || last.status === "check_failed"
-        ? last.status
+      : lastBody.status === "blocked" || lastBody.status === "check_failed"
+        ? lastBody.status
         : "approved";
   return {
     finalStatus,
