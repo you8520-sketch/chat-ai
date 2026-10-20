@@ -20,16 +20,19 @@ import {
 import { normalizeMessageVariants } from "@/lib/messageAlternates";
 import {
   activeVariantMirrorsCanonicalRow,
+  assistantRowHasCanonicalContentWithoutInspectableVariant,
   commitAdultOffInspectionIfFresh,
   copySqliteDatabaseForRehearsal,
   dedupeAdultOffClassificationTexts,
   fingerprintAdultOffInspectionTarget,
+  listActiveRowMirrorInconsistentMessageIds,
   planAdultOffBatchInspection,
   planAdultOffBatchInspectionSummary,
   resolveDisplayedStatusWidgetTexts,
   runAdultOffBatchInspectionRehearsal,
   sqliteIntegrityCheck,
   surveyAdultOffAuxSurfaces,
+  usageRecordsSemanticallyEqual,
   type AdultOffInspectionMessageRow,
 } from "@/lib/adultOffBatchInspectionPrep";
 
@@ -151,6 +154,15 @@ describe("adult-off batch inspection prep", { concurrency: 1 }, () => {
       { ...twin, id: 100002 },
     ]);
     assert.equal(dedupeAdultOffClassificationTexts(duplicatePlan).length, 1);
+
+    const mirrorIds = listActiveRowMirrorInconsistentMessageIds(rows);
+    const emptyAssistantIds = rows
+      .filter((row) => row.role === "assistant" && !row.content.trim())
+      .map((row) => row.id);
+    assert.equal(emptyAssistantIds.length, 25);
+    for (const id of emptyAssistantIds) {
+      assert.equal(mirrorIds.includes(id), false);
+    }
   });
 
   it("records inspection on active variant and mirrors messages.usage", () => {
@@ -544,7 +556,7 @@ describe("adult-off batch inspection prep", { concurrency: 1 }, () => {
     assert.equal(adultOffStoredTextDisposition(JSON.parse(after.usage), text), "approved");
   });
 
-  it("uses row-level widget fallback and counts usage v2 proof on widgets", () => {
+  it("uses row-level widget fallback only when the active variant omits statusWidgetValues", () => {
     const widgetLine = "교실 복도";
     const hash = adultOffApprovedTextHash(widgetLine);
     const sharedUsage = {
@@ -567,7 +579,6 @@ describe("adult-off batch inspection prep", { concurrency: 1 }, () => {
           model: "gemini",
           usage: sharedUsage,
           created_at: "",
-          statusWidgetValues: null,
         },
       ]),
       active_variant: 0,
@@ -592,5 +603,123 @@ describe("adult-off batch inspection prep", { concurrency: 1 }, () => {
     assert.equal(widgetItem?.hasV2ApprovalProof, true);
     assert.equal(widgetItem?.allTextsApprovedByProof, true);
     assert.equal(survey.auxUnreviewedVisibleTextCount, 0);
+  });
+
+  it("does not row-fallback when active variant explicitly stores null statusWidgetValues", () => {
+    const widgetLine = "row json only";
+    const row: AdultOffInspectionMessageRow = {
+      id: 502,
+      role: "assistant",
+      content: "본문",
+      model: "gemini",
+      usage: JSON.stringify({ cost: 1 }),
+      alternates: JSON.stringify([
+        {
+          content: "본문",
+          model: "gemini",
+          usage: { cost: 1 },
+          created_at: "",
+          statusWidgetValues: null,
+        },
+      ]),
+      active_variant: 0,
+      status_widget_values_json: JSON.stringify({
+        character: { location: widgetLine },
+        user: null,
+      }),
+    };
+    const { variants, activeVariant } = normalizeMessageVariants({
+      content: row.content,
+      model: row.model ?? "",
+      usage: row.usage,
+      alternates: row.alternates,
+      active_variant: row.active_variant,
+    });
+    const displayed = resolveDisplayedStatusWidgetTexts(row, variants, activeVariant);
+    assert.deepEqual(displayed.texts, []);
+    assert.equal(surveyAdultOffAuxSurfaces([row]).displayWidgetMessages, 0);
+  });
+
+  it("counts inactive variant widgets separately from the displayed widget", () => {
+    const row: AdultOffInspectionMessageRow = {
+      id: 503,
+      role: "assistant",
+      content: "활성",
+      model: "gemini",
+      usage: JSON.stringify({ cost: 1 }),
+      alternates: JSON.stringify([
+        {
+          content: "활성",
+          model: "gemini",
+          usage: { cost: 1 },
+          created_at: "",
+          statusWidgetValues: { character: { mood: "활성 위젯" }, user: null },
+        },
+        {
+          content: "비활성",
+          model: "gemini",
+          usage: { cost: 2 },
+          created_at: "",
+          statusWidgetValues: { character: { mood: "비활성 위젯" }, user: null },
+        },
+      ]),
+      active_variant: 0,
+      status_widget_values_json: null,
+    };
+    const survey = surveyAdultOffAuxSurfaces([row]);
+    assert.equal(survey.displayWidgetMessages, 1);
+    assert.equal(survey.inactiveVariantWidgetMessages, 1);
+    assert.ok(survey.items.some((item) => item.surface === "status_widget_inactive"));
+  });
+
+  it("treats usage key order as equal but blocks settlement field drift", () => {
+    assert.equal(
+      usageRecordsSemanticallyEqual({ cost: 3, model: "gemini" }, { model: "gemini", cost: 3 }),
+      true
+    );
+    assert.equal(usageRecordsSemanticallyEqual({ cost: 3 }, { cost: 4 }), false);
+    const row: AdultOffInspectionMessageRow = {
+      id: 504,
+      role: "assistant",
+      content: "본문",
+      model: "gemini",
+      usage: JSON.stringify({ model: "gemini", cost: 9 }),
+      alternates: null,
+      active_variant: 0,
+    };
+    const { variants, activeVariant } = normalizeMessageVariants({
+      content: row.content,
+      model: row.model ?? "",
+      usage: row.usage,
+      alternates: row.alternates,
+      active_variant: row.active_variant,
+    });
+    variants[0] = {
+      ...variants[0]!,
+      usage: { cost: 9, model: "gemini" },
+    };
+    assert.equal(activeVariantMirrorsCanonicalRow(row, variants, activeVariant), true);
+
+    variants[0] = {
+      ...variants[0]!,
+      usage: { cost: 10, model: "gemini" },
+    };
+    assert.equal(activeVariantMirrorsCanonicalRow(row, variants, activeVariant), false);
+  });
+
+  it("flags canonical content without inspectable variants as mirror conflict", () => {
+    const row: AdultOffInspectionMessageRow = {
+      id: 505,
+      role: "assistant",
+      content: "row에만 남은 본문",
+      model: "gemini",
+      usage: JSON.stringify({ cost: 1 }),
+      alternates: JSON.stringify([
+        { content: "   ", model: "gemini", usage: { cost: 1 }, created_at: "" },
+      ]),
+      active_variant: 0,
+    };
+    assert.equal(assistantRowHasCanonicalContentWithoutInspectableVariant(row), true);
+    assert.deepEqual(listActiveRowMirrorInconsistentMessageIds([row]), [505]);
   });
 });

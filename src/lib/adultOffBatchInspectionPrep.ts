@@ -63,17 +63,25 @@ export type AdultOffBatchCommitResult =
 export type AdultOffAuxTextItem = {
   messageId: number;
   variantIndex: number | null;
-  surface: "status_meta" | "suggested_replies" | "status_widget";
+  surface: AdultOffAuxTextSurface;
   texts: string[];
   hasV2ApprovalProof: boolean;
   allTextsApprovedByProof: boolean;
 };
+
+export type AdultOffAuxTextSurface =
+  | "status_meta"
+  | "suggested_replies"
+  | "status_widget"
+  | "status_widget_inactive";
 
 export type AdultOffAuxSurfaceSurvey = {
   displayStatusMetaMessages: number;
   suggestedReplyMessages: number;
   displayWidgetMessages: number;
   variantWidgetTextCount: number;
+  inactiveVariantWidgetMessages: number;
+  inactiveVariantWidgetTextCount: number;
   auxTextItems: number;
   auxItemsMissingV2Proof: number;
   auxItemsWithUnapprovedVisibleText: number;
@@ -232,8 +240,40 @@ export function planAdultOffBatchInspectionSummary(plan: readonly AdultOffInspec
   };
 }
 
-function stableUsageJson(usage: Record<string, unknown> | null): string {
-  return JSON.stringify(usage ?? null);
+function sortJsonValue(value: unknown): unknown {
+  if (value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) return value.map(sortJsonValue);
+  const record = value as Record<string, unknown>;
+  const sorted: Record<string, unknown> = {};
+  for (const key of Object.keys(record).sort()) {
+    sorted[key] = sortJsonValue(record[key]);
+  }
+  return sorted;
+}
+
+/** JSON 키 순서와 무관하게 usage 객체 의미를 비교한다. */
+export function usageRecordsSemanticallyEqual(
+  left: Record<string, unknown> | null,
+  right: Record<string, unknown> | null
+): boolean {
+  return JSON.stringify(sortJsonValue(left ?? null)) === JSON.stringify(sortJsonValue(right ?? null));
+}
+
+/** `listAdultOffInspectionTargets()`와 동일 — 비어 있지 않은 inspectable variant가 있는지. */
+export function assistantRowHasAdultOffInspectableContent(
+  row: AdultOffInspectionMessageRow
+): boolean {
+  return listAdultOffInspectionTargets([row]).length > 0;
+}
+
+/**
+ * canonical 본문은 있는데 inspectable variant가 없음 — 정상 빈 행이 아니라 조사 대상.
+ */
+export function assistantRowHasCanonicalContentWithoutInspectableVariant(
+  row: AdultOffInspectionMessageRow
+): boolean {
+  if (!row.content.trim()) return false;
+  return !assistantRowHasAdultOffInspectableContent(row);
 }
 
 /** 활성 variant와 row canonical(content/model/usage) 미러. 불일치면 batch write 금지. */
@@ -248,7 +288,7 @@ export function activeVariantMirrorsCanonicalRow(
   if ((row.model ?? "") !== (active.model ?? "")) return false;
   const rowUsage = parseUsageJson(row.usage);
   const activeUsage = variantUsageObject(active);
-  return stableUsageJson(rowUsage) === stableUsageJson(activeUsage);
+  return usageRecordsSemanticallyEqual(rowUsage, activeUsage);
 }
 
 export function listActiveRowMirrorInconsistentMessageIds(
@@ -257,6 +297,13 @@ export function listActiveRowMirrorInconsistentMessageIds(
   const ids: number[] = [];
   for (const row of rows) {
     if (row.role !== "assistant") continue;
+    if (assistantRowHasCanonicalContentWithoutInspectableVariant(row)) {
+      ids.push(row.id);
+      continue;
+    }
+    if (!assistantRowHasAdultOffInspectableContent(row)) {
+      continue;
+    }
     const { variants, activeVariant } = normalizeMessageVariants(rowForVariantNormalization(row));
     if (!activeVariantMirrorsCanonicalRow(row, variants, activeVariant)) {
       ids.push(row.id);
@@ -415,16 +462,21 @@ function parseRowLevelStatusWidget(
   }
 }
 
-/** 사용자 표시 경로와 같은 row-level 위젯 fallback. */
+/**
+ * `mapDbMessageForClient` / messages GET와 동일한 위젯 선택.
+ * 활성 variant에 `statusWidgetValues` 키가 있으면(null 포함) row fallback 없음.
+ */
 export function resolveDisplayedStatusWidgetTexts(
   row: AdultOffInspectionMessageRow,
   variants: MessageVariant[],
   activeVariant: number
 ): { texts: string[]; proofUsage: unknown } {
   const active = variants[activeVariant];
-  const fromActive = collectStatusWidgetVisibleTexts(active?.statusWidgetValues);
-  if (fromActive.length > 0) {
-    return { texts: fromActive, proofUsage: active?.usage ?? null };
+  const hasVariantStatusSnapshot =
+    active != null && Object.prototype.hasOwnProperty.call(active, "statusWidgetValues");
+  if (hasVariantStatusSnapshot) {
+    const texts = collectStatusWidgetVisibleTexts(active.statusWidgetValues ?? null);
+    return { texts, proofUsage: active.usage ?? null };
   }
   const legacy = parseRowLevelStatusWidget(row.status_widget_values_json);
   const fromRow = collectStatusWidgetVisibleTexts(legacy);
@@ -447,6 +499,8 @@ export function surveyAdultOffAuxSurfaces(
   let suggestedReplyMessages = 0;
   let displayWidgetMessages = 0;
   let variantWidgetTextCount = 0;
+  let inactiveVariantWidgetMessages = 0;
+  let inactiveVariantWidgetTextCount = 0;
   let auxUnreviewedVisibleTextCount = 0;
   const items: AdultOffAuxTextItem[] = [];
 
@@ -510,6 +564,26 @@ export function surveyAdultOffAuxSurfaces(
         allTextsApprovedByProof,
       });
     }
+
+    variants.forEach((variant, index) => {
+      if (index === activeVariant) return;
+      const texts = collectStatusWidgetVisibleTexts(variant.statusWidgetValues);
+      if (texts.length === 0) return;
+      inactiveVariantWidgetMessages += 1;
+      inactiveVariantWidgetTextCount += texts.length;
+      const allTextsApprovedByProof = usageApprovesAllTexts(variant.usage, texts);
+      if (!allTextsApprovedByProof) {
+        auxUnreviewedVisibleTextCount += texts.length;
+      }
+      items.push({
+        messageId: row.id,
+        variantIndex: index,
+        surface: "status_widget_inactive",
+        texts,
+        hasV2ApprovalProof: usageApprovesAllTexts(variant.usage, texts),
+        allTextsApprovedByProof,
+      });
+    });
   }
 
   return {
@@ -517,6 +591,8 @@ export function surveyAdultOffAuxSurfaces(
     suggestedReplyMessages,
     displayWidgetMessages,
     variantWidgetTextCount,
+    inactiveVariantWidgetMessages,
+    inactiveVariantWidgetTextCount,
     auxTextItems: items.length,
     auxItemsMissingV2Proof: items.filter((item) => !item.hasV2ApprovalProof).length,
     auxItemsWithUnapprovedVisibleText: items.filter((item) => !item.allTextsApprovedByProof).length,
