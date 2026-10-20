@@ -24,7 +24,7 @@ Full responses: `responses/*.txt`. Per-call telemetry (no prompts): `live-meta/*
 
 **Cumulative route `apiRawCostKrw` sum:** ≈ **246.2 KRW** (under 1,000 KRW budget).  
 **Cumulative `actualProviderCostKrw` sum:** ≈ **167.2 KRW**.  
-Precall plan in `estimate-four-l500.json` (~371 KRW at 1560.6 FX, uncached) remains an upper-bound **estimate**, not billing.
+Precall plan in `estimate-four-l500.json` (~371 KRW at 1560.6 FX, uncached, `aim_3200` output assumption, **no output cap**) remains a **scenario estimate**, not a confirmed invoice.
 
 Paid Main RP network log: four lines in `/tmp/b9-3/paid-main-rp.log` (local only; not committed).
 
