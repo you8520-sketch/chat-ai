@@ -5,7 +5,13 @@ import Database from "better-sqlite3";
 import type { Database as DatabaseType } from "better-sqlite3";
 import { parseAdultOffAuxApproval } from "@/lib/adultOffAuxApproval";
 import {
+  asyncRecordMatchesGenerationScope,
+  resolveActiveAssistantGenerationScope,
+  type AssistantGenerationScope,
+} from "@/lib/assistantGenerationScope";
+import {
   ADULT_OFF_GUARD_POLICY_VERSION,
+  adultOffApprovalProofForTexts,
   adultOffApprovedTextHash,
   adultOffStoredTextDisposition,
   applyAdultOffStoredInspection,
@@ -13,13 +19,21 @@ import {
   collectStatusWidgetVisibleTexts,
   collectSuggestedReplyVisibleTexts,
   listAdultOffInspectionTargets,
+  type AdultOffGuardDecision,
   type AdultOffInspectionOutcome,
   type AdultOffInspectionTarget,
 } from "@/lib/adultOffOutputGuard";
 import { normalizeMessageVariants, type MessageVariant } from "@/lib/messageAlternates";
-import { parseStatusMetaRecord } from "@/lib/statusMeta/types";
+import {
+  ensureProviderCostLedgerSchema,
+  isLedgerEventCostExact,
+} from "@/lib/providerCostLedger";
+import { parseStatusMetaRecord, serializeStatusMetaRecord } from "@/lib/statusMeta/types";
 import { statusMetaHasDisplayContent } from "@/lib/statusMeta/render";
-import { parseSuggestedRepliesRecord } from "@/lib/suggestedReplies/parse";
+import {
+  parseSuggestedRepliesRecord,
+  serializeSuggestedRepliesRecord,
+} from "@/lib/suggestedReplies/parse";
 
 export type AdultOffInspectionMessageRow = {
   id: number;
@@ -848,6 +862,381 @@ export function runAdultOffBatchInspectionRehearsal(
   }
 
   return stats;
+}
+
+export const ADULT_OFF_BATCH_MODERATION_REQUEST_KIND = "adult-off-output-moderation";
+
+export type AdultOffAuxCommitResult =
+  | "written"
+  | "skipped_stale"
+  | "skipped_noop"
+  | "skipped_unresolved";
+
+export type AdultOffAuxSurfaceFingerprint = {
+  messageId: number;
+  surface: AdultOffAuxTextSurface;
+  variantIndex: number | null;
+  textsSha256: string;
+  generationSequence: number;
+  generationRequestId: string | null;
+  widgetSnapshotSha256: string | null;
+};
+
+export function fingerprintAdultOffAuxTexts(texts: readonly string[]): string {
+  return sha256Hex(texts.join("\u0000"));
+}
+
+export function widgetSnapshotSha256(values: unknown): string {
+  return sha256Hex(JSON.stringify(values ?? null));
+}
+
+export function adultOffGuardDecisionToInspectionOutcome(
+  decision: AdultOffGuardDecision
+): AdultOffInspectionOutcome {
+  switch (decision.status) {
+    case "approved":
+      return "approved";
+    case "blocked":
+      return "restricted";
+    case "check_failed":
+      return "unresolved";
+    default: {
+      const never: never = decision;
+      throw new Error(String(never));
+    }
+  }
+}
+
+function auxOutcomesAllowProof(outcomes: readonly AdultOffInspectionOutcome[]): boolean {
+  return outcomes.length > 0 && outcomes.every((outcome) => outcome === "approved");
+}
+
+function activeScopeForRow(
+  db: DatabaseType,
+  row: AdultOffInspectionMessageRow
+): AssistantGenerationScope | null {
+  return resolveActiveAssistantGenerationScope(row.id, db);
+}
+
+function scopeMatchesFingerprint(
+  scope: AssistantGenerationScope | null,
+  fingerprint: AdultOffAuxSurfaceFingerprint
+): boolean {
+  if (!scope) return false;
+  if (scope.generationSequence !== fingerprint.generationSequence) return false;
+  if (
+    fingerprint.generationRequestId &&
+    scope.generationRequestId &&
+    fingerprint.generationRequestId !== scope.generationRequestId
+  ) {
+    return false;
+  }
+  return true;
+}
+
+/** 배치 backfill용 — `surveyAdultOffAuxSurfaces` 항목의 stale 검증 fingerprint. */
+export function fingerprintAdultOffAuxSurveyItem(
+  row: AdultOffInspectionMessageRow,
+  item: AdultOffAuxTextItem,
+  db: DatabaseType
+): AdultOffAuxSurfaceFingerprint | null {
+  const texts = item.texts.filter((text) => text.trim());
+  if (texts.length === 0) return null;
+
+  switch (item.surface) {
+    case "status_meta": {
+      const record = parseStatusMetaRecord(row.status_meta ?? null);
+      if (!record || record.pending || record.failed) return null;
+      const visible = collectStatusMetaVisibleTexts(record.meta);
+      if (fingerprintAdultOffAuxTexts(visible) !== fingerprintAdultOffAuxTexts(texts)) {
+        return null;
+      }
+      const scope = activeScopeForRow(db, row);
+      const generationSequence =
+        record.generationSequence ?? scope?.generationSequence ?? 0;
+      return {
+        messageId: row.id,
+        surface: item.surface,
+        variantIndex: null,
+        textsSha256: fingerprintAdultOffAuxTexts(texts),
+        generationSequence,
+        generationRequestId: record.generationRequestId ?? scope?.generationRequestId ?? null,
+        widgetSnapshotSha256: null,
+      };
+    }
+    case "suggested_replies": {
+      const record = parseSuggestedRepliesRecord(row.suggested_replies_json ?? null);
+      if (!record || record.pending || record.failed) return null;
+      const visible = collectSuggestedReplyVisibleTexts(record.replies);
+      if (fingerprintAdultOffAuxTexts(visible) !== fingerprintAdultOffAuxTexts(texts)) {
+        return null;
+      }
+      const scope = activeScopeForRow(db, row);
+      const generationSequence =
+        record.generationSequence ?? scope?.generationSequence ?? 0;
+      return {
+        messageId: row.id,
+        surface: item.surface,
+        variantIndex: null,
+        textsSha256: fingerprintAdultOffAuxTexts(texts),
+        generationSequence,
+        generationRequestId: record.generationRequestId ?? scope?.generationRequestId ?? null,
+        widgetSnapshotSha256: null,
+      };
+    }
+    case "status_widget":
+    case "status_widget_inactive": {
+      if (item.variantIndex == null) return null;
+      const { variants } = normalizeMessageVariants(rowForVariantNormalization(row));
+      const variant = variants[item.variantIndex];
+      if (!variant) return null;
+      const visible = collectStatusWidgetVisibleTexts(variant.statusWidgetValues);
+      if (fingerprintAdultOffAuxTexts(visible) !== fingerprintAdultOffAuxTexts(texts)) {
+        return null;
+      }
+      const scope = activeScopeForRow(db, row);
+      if (!scope) return null;
+      return {
+        messageId: row.id,
+        surface: item.surface,
+        variantIndex: item.variantIndex,
+        textsSha256: fingerprintAdultOffAuxTexts(texts),
+        generationSequence: scope.generationSequence,
+        generationRequestId: scope.generationRequestId,
+        widgetSnapshotSha256: widgetSnapshotSha256(variant.statusWidgetValues),
+      };
+    }
+    default:
+      return null;
+  }
+}
+
+export function buildAdultOffBatchGenerationRequestId(runId: string, messageId: number): string {
+  return `adult-off-batch/${runId}/${messageId}`;
+}
+
+export type AdultOffBatchModerationSpend = {
+  settledUsd: number;
+  unknownCostEvents: number;
+  totalEvents: number;
+};
+
+/** `createAdultOffClassifier` scope.generationRequestId prefix 로 배치 moderation 비용 합산. */
+export function sumAdultOffBatchModerationSpend(
+  db: DatabaseType,
+  runId: string
+): AdultOffBatchModerationSpend {
+  ensureProviderCostLedgerSchema(db);
+  const prefix = `adult-off-batch/${runId}/%`;
+  const rows = db
+    .prepare(
+      `SELECT actual_cost_usd, actual_cost_source, event_status FROM api_cost_ledger
+       WHERE request_kind = ? AND generation_request_id LIKE ?`
+    )
+    .all(ADULT_OFF_BATCH_MODERATION_REQUEST_KIND, prefix) as Array<{
+    actual_cost_usd: number | null;
+    actual_cost_source: string | null;
+    event_status: string | null;
+  }>;
+  let settledUsd = 0;
+  let unknownCostEvents = 0;
+  for (const row of rows) {
+    if (isLedgerEventCostExact(row)) {
+      settledUsd += row.actual_cost_usd ?? 0;
+    } else {
+      unknownCostEvents += 1;
+    }
+  }
+  return { settledUsd, unknownCostEvents, totalEvents: rows.length };
+}
+
+export function commitAdultOffAuxStatusMetaIfFresh(
+  db: DatabaseType,
+  input: {
+    fingerprint: AdultOffAuxSurfaceFingerprint;
+    expectedTexts: readonly string[];
+    outcomes: readonly AdultOffInspectionOutcome[];
+  }
+): AdultOffAuxCommitResult {
+  if (input.fingerprint.surface !== "status_meta") return "skipped_stale";
+  if (!auxOutcomesAllowProof(input.outcomes)) return "skipped_unresolved";
+  if (input.expectedTexts.length !== input.outcomes.length) return "skipped_stale";
+  if (fingerprintAdultOffAuxTexts(input.expectedTexts) !== input.fingerprint.textsSha256) {
+    return "skipped_stale";
+  }
+
+  return db.transaction(() => {
+    const row = db
+      .prepare("SELECT id, status_meta FROM messages WHERE id=?")
+      .get(input.fingerprint.messageId) as { id: number; status_meta: string | null } | undefined;
+    if (!row) return "skipped_stale";
+    const record = parseStatusMetaRecord(row.status_meta);
+    if (!record || record.pending || record.failed) return "skipped_stale";
+    const visible = collectStatusMetaVisibleTexts(record.meta);
+    if (fingerprintAdultOffAuxTexts(visible) !== input.fingerprint.textsSha256) {
+      return "skipped_stale";
+    }
+    const scope = activeScopeForRow(db, {
+      id: row.id,
+      role: "assistant",
+      content: "",
+    });
+    if (!scopeMatchesFingerprint(scope, input.fingerprint)) return "skipped_stale";
+    if (!asyncRecordMatchesGenerationScope(record, scope!)) return "skipped_stale";
+    if (auxProofApprovesTexts(record.adultOffGuard, input.expectedTexts)) {
+      return "skipped_noop";
+    }
+    const proof = adultOffApprovalProofForTexts(input.expectedTexts);
+    if (!proof) return "skipped_unresolved";
+    const next: typeof record = { ...record, adultOffGuard: proof };
+    db.prepare("UPDATE messages SET status_meta=? WHERE id=?").run(
+      serializeStatusMetaRecord(next),
+      row.id
+    );
+    return "written";
+  })();
+}
+
+export function commitAdultOffAuxSuggestedRepliesIfFresh(
+  db: DatabaseType,
+  input: {
+    fingerprint: AdultOffAuxSurfaceFingerprint;
+    expectedTexts: readonly string[];
+    outcomes: readonly AdultOffInspectionOutcome[];
+  }
+): AdultOffAuxCommitResult {
+  if (input.fingerprint.surface !== "suggested_replies") return "skipped_stale";
+  if (!auxOutcomesAllowProof(input.outcomes)) return "skipped_unresolved";
+  if (input.expectedTexts.length !== input.outcomes.length) return "skipped_stale";
+  if (fingerprintAdultOffAuxTexts(input.expectedTexts) !== input.fingerprint.textsSha256) {
+    return "skipped_stale";
+  }
+
+  return db.transaction(() => {
+    const row = db
+      .prepare("SELECT id, suggested_replies_json FROM messages WHERE id=?")
+      .get(input.fingerprint.messageId) as
+      | { id: number; suggested_replies_json: string | null }
+      | undefined;
+    if (!row) return "skipped_stale";
+    const record = parseSuggestedRepliesRecord(row.suggested_replies_json);
+    if (!record || record.pending || record.failed) return "skipped_stale";
+    const visible = collectSuggestedReplyVisibleTexts(record.replies);
+    if (fingerprintAdultOffAuxTexts(visible) !== input.fingerprint.textsSha256) {
+      return "skipped_stale";
+    }
+    const scope = activeScopeForRow(db, {
+      id: row.id,
+      role: "assistant",
+      content: "",
+    });
+    if (!scopeMatchesFingerprint(scope, input.fingerprint)) return "skipped_stale";
+    if (!asyncRecordMatchesGenerationScope(record, scope!)) return "skipped_stale";
+    if (auxProofApprovesTexts(record.adultOffGuard, input.expectedTexts)) {
+      return "skipped_noop";
+    }
+    const proof = adultOffApprovalProofForTexts(input.expectedTexts);
+    if (!proof) return "skipped_unresolved";
+    const next = { ...record, adultOffGuard: proof };
+    db.prepare("UPDATE messages SET suggested_replies_json=? WHERE id=?").run(
+      serializeSuggestedRepliesRecord(next),
+      row.id
+    );
+    return "written";
+  })();
+}
+
+export function commitAdultOffAuxWidgetIfFresh(
+  db: DatabaseType,
+  input: {
+    fingerprint: AdultOffAuxSurfaceFingerprint;
+    expectedTexts: readonly string[];
+    outcomes: readonly AdultOffInspectionOutcome[];
+  }
+): AdultOffAuxCommitResult {
+  if (
+    input.fingerprint.surface !== "status_widget" &&
+    input.fingerprint.surface !== "status_widget_inactive"
+  ) {
+    return "skipped_stale";
+  }
+  if (!auxOutcomesAllowProof(input.outcomes)) return "skipped_unresolved";
+  if (input.fingerprint.variantIndex == null) return "skipped_stale";
+  if (input.expectedTexts.length !== input.outcomes.length) return "skipped_stale";
+  if (fingerprintAdultOffAuxTexts(input.expectedTexts) !== input.fingerprint.textsSha256) {
+    return "skipped_stale";
+  }
+
+  return db.transaction(() => {
+    const row = db
+      .prepare(
+        "SELECT id, role, content, model, usage, alternates, active_variant FROM messages WHERE id=?"
+      )
+      .get(input.fingerprint.messageId) as AdultOffInspectionMessageRow | undefined;
+    if (!row || row.role !== "assistant") return "skipped_stale";
+    const scope = activeScopeForRow(db, row);
+    if (!scopeMatchesFingerprint(scope, input.fingerprint)) return "skipped_stale";
+
+    const { variants, activeVariant } = normalizeMessageVariants(rowForVariantNormalization(row));
+    const variantIndex = input.fingerprint.variantIndex!;
+    const variant = variants[variantIndex];
+    if (!variant) return "skipped_stale";
+    if (widgetSnapshotSha256(variant.statusWidgetValues) !== input.fingerprint.widgetSnapshotSha256) {
+      return "skipped_stale";
+    }
+    const visible = collectStatusWidgetVisibleTexts(variant.statusWidgetValues);
+    if (fingerprintAdultOffAuxTexts(visible) !== input.fingerprint.textsSha256) {
+      return "skipped_stale";
+    }
+    if (usageApprovesAllTexts(variant.usage, input.expectedTexts)) {
+      return "skipped_noop";
+    }
+
+    let nextUsage = variantUsageObject(variant) ?? {};
+    for (let i = 0; i < input.expectedTexts.length; i += 1) {
+      const text = input.expectedTexts[i]!;
+      const outcome = input.outcomes[i]!;
+      if (outcome !== "approved") return "skipped_unresolved";
+      const applied = applyAdultOffStoredInspection(nextUsage, text, outcome);
+      assertAdultOffProofDoesNotChangeUsage(nextUsage, applied.usage);
+      nextUsage = applied.usage;
+    }
+
+    const nextVariants = variants.slice();
+    nextVariants[variantIndex] = {
+      ...variant,
+      usage: nextUsage as MessageVariant["usage"],
+    };
+    db.prepare("UPDATE messages SET alternates=? WHERE id=?").run(
+      JSON.stringify(nextVariants),
+      row.id
+    );
+    void activeVariant;
+    return "written";
+  })();
+}
+
+export function commitAdultOffAuxSurveyItemIfFresh(
+  db: DatabaseType,
+  input: {
+    fingerprint: AdultOffAuxSurfaceFingerprint;
+    expectedTexts: readonly string[];
+    outcomes: readonly AdultOffInspectionOutcome[];
+  }
+): AdultOffAuxCommitResult {
+  switch (input.fingerprint.surface) {
+    case "status_meta":
+      return commitAdultOffAuxStatusMetaIfFresh(db, input);
+    case "suggested_replies":
+      return commitAdultOffAuxSuggestedRepliesIfFresh(db, input);
+    case "status_widget":
+    case "status_widget_inactive":
+      return commitAdultOffAuxWidgetIfFresh(db, input);
+    default: {
+      const never: never = input.fingerprint.surface;
+      throw new Error(String(never));
+    }
+  }
 }
 
 /**

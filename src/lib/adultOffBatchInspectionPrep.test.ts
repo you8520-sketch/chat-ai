@@ -17,14 +17,21 @@ import {
   listAdultOffInspectionTargets,
   presentAdultOffStoredRead,
 } from "@/lib/adultOffOutputGuard";
+import { ensureProviderCostLedgerSchema } from "@/lib/providerCostLedger";
+import { serializeSuggestedRepliesRecord } from "@/lib/suggestedReplies/parse";
 import { normalizeMessageVariants } from "@/lib/messageAlternates";
 import {
   activeVariantMirrorsCanonicalRow,
   assessActiveVariantCanonicalMirror,
   assistantRowHasCanonicalContentWithoutInspectableVariant,
+  adultOffGuardDecisionToInspectionOutcome,
+  buildAdultOffBatchGenerationRequestId,
+  commitAdultOffAuxSuggestedRepliesIfFresh,
+  commitAdultOffAuxWidgetIfFresh,
   commitAdultOffInspectionIfFresh,
   copySqliteDatabaseForRehearsal,
   dedupeAdultOffClassificationTexts,
+  fingerprintAdultOffAuxSurveyItem,
   fingerprintAdultOffInspectionTarget,
   listActiveRowMirrorInconsistentMessageIds,
   planAdultOffBatchInspection,
@@ -32,6 +39,7 @@ import {
   resolveDisplayedStatusWidgetTexts,
   runAdultOffBatchInspectionRehearsal,
   sqliteIntegrityCheck,
+  sumAdultOffBatchModerationSpend,
   surveyAdultOffAuxSurfaces,
   usageRecordsSemanticallyEqual,
   type AdultOffInspectionMessageRow,
@@ -1004,6 +1012,178 @@ describe("adult-off batch inspection prep", { concurrency: 1 }, () => {
     });
     assert.equal(shown.content, text);
     assert.equal(shown.withheld, false);
+  });
+
+  it("maps guard decisions to inspection outcomes fail-closed", () => {
+    assert.equal(
+      adultOffGuardDecisionToInspectionOutcome({ status: "approved", checkedWindows: 1, classifierCalls: 1, usages: [] }),
+      "approved"
+    );
+    assert.equal(
+      adultOffGuardDecisionToInspectionOutcome({
+        status: "blocked",
+        category: "sexual_act",
+        confidence: "high",
+        checkedWindows: 1,
+        classifierCalls: 1,
+        usages: [],
+      }),
+      "restricted"
+    );
+    assert.equal(
+      adultOffGuardDecisionToInspectionOutcome({
+        status: "check_failed",
+        reason: "low_confidence_allow",
+        checkedWindows: 1,
+        classifierCalls: 1,
+        usages: [],
+      }),
+      "unresolved"
+    );
+  });
+
+  it("writes suggested reply proof only when all strings approved", () => {
+    const insert = db
+      .prepare(
+        `INSERT INTO messages (chat_id, role, content, model, usage, alternates, active_variant, generation_status, suggested_replies_json)
+         VALUES (1, 'assistant', '본문', 'gemini', '{}', '[]', 0, 'completed', ?)`
+      )
+      .run(
+        serializeSuggestedRepliesRecord({
+          replies: [
+            {
+              kind: "natural",
+              text: "첫 번째 추천 답장입니다. 지금 장면의 분위기를 유지하면서 자연스럽게 다음 행동으로 이어갑니다.",
+            },
+            {
+              kind: "twist",
+              text: "두 번째 추천 답장입니다. 예상 밖의 각도로 반응하되 개연성은 지키는 선택입니다.",
+            },
+            {
+              kind: "banter",
+              text: "세 번째 추천 답장입니다. 페르소나 말투로 가볍게 장난치거나 빈정거리는 반응입니다.",
+            },
+          ],
+          extractedAt: new Date().toISOString(),
+          source: "post-turn-shared",
+          generationSequence: 0,
+          generationRequestId: "req-a",
+        })
+      );
+    const messageId = Number(insert.lastInsertRowid);
+    const row = db
+      .prepare(
+        "SELECT id, role, content, model, usage, alternates, active_variant, suggested_replies_json, status_meta, status_widget_values_json FROM messages WHERE id=?"
+      )
+      .get(messageId) as import("@/lib/adultOffBatchInspectionPrep").AdultOffInspectionMessageRow;
+    const survey = surveyAdultOffAuxSurfaces([row]);
+    const item = survey.items.find((entry) => entry.surface === "suggested_replies");
+    assert.ok(item);
+    const fingerprint = fingerprintAdultOffAuxSurveyItem(row, item!, db);
+    assert.ok(fingerprint);
+    const partial = commitAdultOffAuxSuggestedRepliesIfFresh(db, {
+      fingerprint: fingerprint!,
+      expectedTexts: item!.texts,
+      outcomes: ["approved", "unresolved", "approved"],
+    });
+    assert.equal(partial, "skipped_unresolved");
+    const written = commitAdultOffAuxSuggestedRepliesIfFresh(db, {
+      fingerprint: fingerprint!,
+      expectedTexts: item!.texts,
+      outcomes: ["approved", "approved", "approved"],
+    });
+    assert.equal(written, "written");
+    const reread = db.prepare("SELECT suggested_replies_json FROM messages WHERE id=?").get(messageId) as {
+      suggested_replies_json: string;
+    };
+    const record = JSON.parse(reread.suggested_replies_json) as { adultOffGuard?: { policyVersion?: number } };
+    assert.equal(record.adultOffGuard?.policyVersion, ADULT_OFF_GUARD_POLICY_VERSION);
+  });
+
+  it("skips stale widget commit when snapshot changes", () => {
+    const widgetLine = "교실 복도";
+    const insert = db
+      .prepare(
+        `INSERT INTO messages (chat_id, role, content, model, usage, alternates, active_variant, generation_status, request_id)
+         VALUES (1, 'assistant', '본문', 'gemini', ?, ?, 0, 'completed', 'req-w')`
+      )
+      .run(
+        JSON.stringify({ cost: 2 }),
+        JSON.stringify([
+          {
+            content: "본문",
+            model: "gemini",
+            usage: { cost: 2 },
+            created_at: "",
+            statusWidgetValues: { character: { location: widgetLine }, user: null },
+          },
+        ])
+      );
+    const messageId = Number(insert.lastInsertRowid);
+    const row = db
+      .prepare(
+        "SELECT id, role, content, model, usage, alternates, active_variant, suggested_replies_json, status_meta, status_widget_values_json FROM messages WHERE id=?"
+      )
+      .get(messageId) as import("@/lib/adultOffBatchInspectionPrep").AdultOffInspectionMessageRow;
+    const survey = surveyAdultOffAuxSurfaces([row]);
+    const item = survey.items.find((entry) => entry.surface === "status_widget");
+    assert.ok(item);
+    const fingerprint = fingerprintAdultOffAuxSurveyItem(row, item!, db);
+    assert.ok(fingerprint);
+    db.prepare("UPDATE messages SET alternates=? WHERE id=?").run(
+      JSON.stringify([
+        {
+          content: "본문",
+          model: "gemini",
+          usage: { cost: 2 },
+          created_at: "",
+          statusWidgetValues: { character: { location: "다른 장소" }, user: null },
+        },
+      ]),
+      messageId
+    );
+    const staleRow = db
+      .prepare(
+        "SELECT id, role, content, model, usage, alternates, active_variant, suggested_replies_json, status_meta, status_widget_values_json FROM messages WHERE id=?"
+      )
+      .get(messageId) as import("@/lib/adultOffBatchInspectionPrep").AdultOffInspectionMessageRow;
+    const stale = commitAdultOffAuxWidgetIfFresh(db, {
+      fingerprint: fingerprint!,
+      expectedTexts: item!.texts,
+      outcomes: ["approved"],
+    });
+    assert.equal(stale, "skipped_stale");
+    void staleRow;
+  });
+
+  it("sums batch moderation spend from ledger prefix without treating unknown as zero", () => {
+    ensureProviderCostLedgerSchema(db);
+    const runId = "test-run-abc";
+    const req = buildAdultOffBatchGenerationRequestId(runId, 99);
+    db.prepare(
+      `INSERT INTO api_cost_ledger (
+         event_key, chat_id, assistant_message_id, family, funding_class, execution_phase,
+         attempt_ordinal, requested_provider, requested_model, provider, model, request_kind,
+         generation_request_id, event_status, exchange_rate_krw_per_usd, cost_krw, estimated,
+         actual_cost_usd, actual_cost_source, created_at
+       ) VALUES (?, 1, 99, 'background', 'platform_funded', 'sync_post_turn',
+         1, 'cheaperinference', 'gpt-6-luna', 'cheaperinference', 'gpt-6-luna', 'adult-off-output-moderation',
+         ?, 'settled', 1450, 0.29, 0, 0.0002, 'cheaper_inference_billed', datetime('now'))`
+    ).run(`evt-${runId}-1`, req);
+    db.prepare(
+      `INSERT INTO api_cost_ledger (
+         event_key, chat_id, assistant_message_id, family, funding_class, execution_phase,
+         attempt_ordinal, requested_provider, requested_model, provider, model, request_kind,
+         generation_request_id, event_status, exchange_rate_krw_per_usd, cost_krw, estimated,
+         actual_cost_usd, actual_cost_source, created_at
+       ) VALUES (?, 1, 99, 'background', 'platform_funded', 'sync_post_turn',
+         1, 'cheaperinference', 'gpt-6-luna', 'cheaperinference', 'gpt-6-luna', 'adult-off-output-moderation',
+         ?, 'completed_without_exact_cost', 1450, 0, 1, NULL, 'unavailable', datetime('now'))`
+    ).run(`evt-${runId}-2`, req);
+    const spend = sumAdultOffBatchModerationSpend(db, runId);
+    assert.equal(spend.totalEvents, 2);
+    assert.equal(spend.unknownCostEvents, 1);
+    assert.ok(spend.settledUsd > 0);
   });
 });
 
