@@ -29,6 +29,8 @@ export type CodeHealthAdminCard = {
   reportUrl: string | null;
   notes: string[];
   draftPrCreated?: boolean;
+  /** Monthly cleanup Draft PR URL recorded in the ledger; null when none was recorded. */
+  draftPrUrl?: string | null;
   eligibleCount?: number;
 };
 
@@ -79,6 +81,7 @@ function monthlyCard(report: MonthlyCleanupReport, runUrl: string | null): CodeH
     reportUrl: report.draftPr.url ?? report.githubRunUrl ?? runUrl,
     notes: report.notes.slice(0, 3),
     draftPrCreated: report.draftPr.created,
+    draftPrUrl: report.draftPr.url,
     eligibleCount: report.eligibleIds.length,
   };
 }

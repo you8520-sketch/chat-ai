@@ -4,9 +4,11 @@ import type {
 } from "@/lib/adminAutomationReports";
 import {
   buildScheduledAutomationHealthReport,
+  scanScheduledWorkflowDefinitions,
   type ScheduledAutomationHealthState,
   type ScheduledWorkflowDefinition,
 } from "@/lib/codeHealth/automationHealth";
+import { GITHUB_RUN_IGNORED_CONCLUSIONS } from "@/lib/adminAutomationStatus";
 
 /**
  * Registered-vs-displayed projection for the admin GitHub schedule list.
@@ -33,9 +35,13 @@ export type AutomationCoverageRow = {
   group: GithubScheduledAutomationGroup | null;
 };
 
+/**
+ * A workflow that no longer has a schedule on main. Its last scheduled run is
+ * history: nothing will run again to clear it, so it never needs action.
+ */
 export type AutomationCoverageUnregistered = {
   group: GithubScheduledAutomationGroup;
-  needsAction: boolean;
+  latestRunFailed: boolean;
 };
 
 export type AutomationCoverageView = {
@@ -43,6 +49,11 @@ export type AutomationCoverageView = {
   error: string | null;
   rows: AutomationCoverageRow[];
   unregistered: AutomationCoverageUnregistered[];
+  /** Registered workflows whose latest scheduled run failed. */
+  failedCount: number;
+  /** Registered workflows with no recent run or no run at all (cannot be confirmed healthy). */
+  unverifiedCount: number;
+  /** failedCount + unverifiedCount. */
   attentionCount: number;
 };
 
@@ -70,7 +81,7 @@ function latestMs(group: GithubScheduledAutomationGroup | null): number {
 function latestRunFailed(group: GithubScheduledAutomationGroup): boolean {
   if (group.latest.status !== "completed") return false;
   const conclusion = (group.latest.conclusion ?? "").toLowerCase();
-  return conclusion !== "" && conclusion !== "success" && conclusion !== "skipped";
+  return conclusion !== "" && !GITHUB_RUN_IGNORED_CONCLUSIONS.has(conclusion);
 }
 
 export function buildAutomationCoverage(params: {
@@ -84,6 +95,8 @@ export function buildAutomationCoverage(params: {
       error: params.github.error ?? "GitHub scheduled-run projection unavailable",
       rows: [],
       unregistered: [],
+      failedCount: 0,
+      unverifiedCount: 0,
       attentionCount: 0,
     };
   }
@@ -93,6 +106,8 @@ export function buildAutomationCoverage(params: {
       error: "등록된 schedule workflow 목록(.github/workflows)을 읽지 못했습니다.",
       rows: [],
       unregistered: [],
+      failedCount: 0,
+      unverifiedCount: 0,
       attentionCount: 0,
     };
   }
@@ -128,15 +143,23 @@ export function buildAutomationCoverage(params: {
   const registeredPaths = new Set(params.definitions.map((definition) => definition.path));
   const unregistered = params.github.groups
     .filter((group) => !registeredPaths.has(group.path))
-    .map((group) => ({ group, needsAction: latestRunFailed(group) }));
+    .map((group) => ({ group, latestRunFailed: latestRunFailed(group) }));
+
+  const failedCount = rows.filter((row) => row.state === "FAILED").length;
+  const unverifiedCount = rows.filter((row) => row.needsAction && row.state !== "FAILED").length;
 
   return {
     status: "OK",
     error: null,
     rows,
     unregistered,
-    attentionCount:
-      rows.filter((row) => row.needsAction).length +
-      unregistered.filter((row) => row.needsAction).length,
+    failedCount,
+    unverifiedCount,
+    attentionCount: failedCount + unverifiedCount,
   };
+}
+
+/** Workflow paths that still carry a schedule on main (empty when the registry is unreadable). */
+export function listRegisteredScheduleWorkflowPaths(repoRoot: string): ReadonlySet<string> {
+  return new Set(scanScheduledWorkflowDefinitions(repoRoot).map((definition) => definition.path));
 }

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireAdminUser } from "@/lib/adminAuth";
+import { listRegisteredScheduleWorkflowPaths } from "@/lib/adminAutomationCoverage";
 import { fetchGithubScheduledAutomationProjection } from "@/lib/adminAutomationReports";
 import {
   listAdminOpsIncidents,
@@ -36,7 +37,11 @@ export default async function AdminOpsPage() {
     [
       localIncidents,
       projectFinanceAnomalyIncidents(financeReport, now),
-      projectGithubAutomationIncidents(githubProjection, now),
+      projectGithubAutomationIncidents(
+        githubProjection,
+        now,
+        listRegisteredScheduleWorkflowPaths(process.cwd())
+      ),
     ],
     200
   );
