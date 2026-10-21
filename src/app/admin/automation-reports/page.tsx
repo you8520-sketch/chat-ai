@@ -1218,14 +1218,16 @@ export default async function AdminAutomationReportsPage() {
   const ttlReports = listMainRpCacheTtlReports(db, 12);
   const schedulers = listSchedulerRunOverview(db);
   const latestTtl = ttlReports[0] ?? null;
+  const scheduledWorkflowDefinitions = scanScheduledWorkflowDefinitions(process.cwd());
   const automationCoverage = buildAutomationCoverage({
-    definitions: scanScheduledWorkflowDefinitions(process.cwd()),
+    definitions: scheduledWorkflowDefinitions,
     github,
   });
   const dashboard = buildAutomationAttention({
     now: financeNow,
     github,
     coverage: automationCoverage,
+    registryDefinitions: scheduledWorkflowDefinitions,
     codeHealth,
     decisionRadar,
     memoryResearch,

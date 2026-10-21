@@ -112,6 +112,7 @@ function baseInput(
     now: NOW,
     github,
     coverage,
+    registryDefinitions: DEFINITIONS,
     codeHealth: {
       status: "OK",
       error: null,
@@ -389,6 +390,76 @@ describe("automation attention dashboard", () => {
           item.key === ATTENTION_KEY.workflow(DOMAIN_SSL_WORKFLOW_PATH)
       )
     );
+  });
+
+  it("keeps a fresh domain SSL failure actionable when the coverage join is unavailable", () => {
+    const item = buildAutomationAttention(
+      baseInput({
+        patch: {
+          coverage: {
+            status: "UNAVAILABLE",
+            error: "workflows dir missing",
+            rows: [],
+            unregistered: [],
+            failedCount: 0,
+            unverifiedCount: 0,
+            attentionCount: 0,
+          },
+          domainSsl: {
+            status: "OK",
+            error: null,
+            latest: {
+              state: "FAIL",
+              checkedAt: FRESH,
+              reason: "TLS handshake failed",
+              htmlUrl: "https://github.test/ssl-run",
+              runConclusion: "failure",
+              attempts: 1,
+              dns: { kind: "ok", addressCount: 1 },
+              tls: { kind: "error", retryable: false, reason: "bad cert" },
+              health: { kind: "skipped" },
+            },
+          },
+        },
+      })
+    ).byKey.get(ATTENTION_KEY.workflow(DOMAIN_SSL_WORKFLOW_PATH))!;
+    assert.equal(item.bucket, "ACTION");
+    assert.match(item.reasons[0]!, /TLS handshake failed/);
+  });
+
+  it("demotes an old domain SSL failure to unknown when the coverage join is unavailable", () => {
+    const item = buildAutomationAttention(
+      baseInput({
+        patch: {
+          coverage: {
+            status: "UNAVAILABLE",
+            error: "workflows dir missing",
+            rows: [],
+            unregistered: [],
+            failedCount: 0,
+            unverifiedCount: 0,
+            attentionCount: 0,
+          },
+          domainSsl: {
+            status: "OK",
+            error: null,
+            latest: {
+              state: "FAIL",
+              checkedAt: OLD,
+              reason: "TLS expired",
+              htmlUrl: "https://github.test/ssl-run-old",
+              runConclusion: "failure",
+              attempts: 1,
+              dns: { kind: "ok", addressCount: 1 },
+              tls: { kind: "error", retryable: false, reason: "expired" },
+              health: { kind: "skipped" },
+            },
+          },
+        },
+      })
+    ).byKey.get(ATTENTION_KEY.workflow(DOMAIN_SSL_WORKFLOW_PATH))!;
+    assert.equal(item.bucket, "UNKNOWN");
+    assert.equal(item.statusLabel, "최신 확인 필요");
   });
 
   it("does not promote an old ledger finding to action when the workflow registry is unreadable", () => {

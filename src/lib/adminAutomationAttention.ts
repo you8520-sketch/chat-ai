@@ -22,6 +22,10 @@ import {
   MEMORY_RESEARCH_WORKFLOW_PATH,
   type MemoryResearchAdminProjection,
 } from "@/lib/adminMemoryResearchReports";
+import {
+  definitionStaleAfterHours,
+  type ScheduledWorkflowDefinition,
+} from "@/lib/codeHealth/automationHealth";
 import type { CodeHealthAdminCard, CodeHealthAdminProjection } from "@/lib/codeHealth/reports";
 import {
   CODE_HEALTH_MONTHLY_WORKFLOW_PATH,
@@ -108,6 +112,8 @@ export type AttentionInput = {
   supplyDrafts: GithubSupplyAutoDraftProjection;
   schedulers: readonly SchedulerRunOverview[];
   finance: FinanceAnomalyReport;
+  /** Local schedule registry; used for artifact age when coverage join is unavailable. */
+  registryDefinitions?: readonly ScheduledWorkflowDefinition[];
 };
 
 type Signal = {
@@ -199,13 +205,32 @@ export function buildAutomationAttention(input: AttentionInput): AttentionDashbo
       ? input.coverage.rows.map((row) => [row.path, row.staleAfterHours * 3_600_000] as const)
       : []
   );
+  const definitionStaleMsByPath = new Map<string, number>(
+    (input.registryDefinitions ?? []).map(
+      (definition) =>
+        [definition.path, definitionStaleAfterHours(definition) * 3_600_000] as const
+    )
+  );
 
-  const isStale = (path: string, iso: string | null | undefined): boolean => {
+  const staleLimitMsForPath = (path: string): number | undefined =>
+    staleAfterMsByPath.get(path) ?? definitionStaleMsByPath.get(path);
+
+  /** Ledger/radar verdicts need a registry join to treat a dated result as current. */
+  const isScheduleLedgerStale = (path: string, iso: string | null | undefined): boolean => {
     const then = iso ? Date.parse(iso) : Number.NaN;
     if (!Number.isFinite(then)) return false;
     if (!registryFreshnessVerified) return true;
     const limit = staleAfterMsByPath.get(path);
     return limit != null && nowMs - then > limit;
+  };
+
+  /** Domain·SSL and similar artifacts: age vs schedule threshold even when coverage join failed. */
+  const isArtifactObservationStale = (path: string, iso: string | null | undefined): boolean => {
+    const then = iso ? Date.parse(iso) : Number.NaN;
+    if (!Number.isFinite(then)) return false;
+    const limit = staleLimitMsForPath(path);
+    if (limit == null) return false;
+    return nowMs - then > limit;
   };
   const workflowTitle = (path: string, fallback: string) => automationDisplayName(path, fallback);
   const addWorkflowSignal = (path: string, fallbackName: string, signal: Signal) =>
@@ -357,7 +382,7 @@ export function buildAutomationAttention(input: AttentionInput): AttentionDashbo
       return;
     }
     const verdict = auditStatusLabel(card.status);
-    if (isStale(path, card.ranAt)) {
+    if (isScheduleLedgerStale(path, card.ranAt)) {
       addWorkflowSignal(path, fallbackName, {
         ...base,
         bucket: "UNKNOWN",
@@ -420,7 +445,7 @@ export function buildAutomationAttention(input: AttentionInput): AttentionDashbo
         reason: "아직 조사 결과 기록이 없습니다.",
         technical: "latest.json EMPTY",
       });
-    } else if (isStale(path, run.ranAt)) {
+    } else if (isScheduleLedgerStale(path, run.ranAt)) {
       addWorkflowSignal(path, name, {
         ...base,
         bucket: "UNKNOWN",
@@ -556,7 +581,7 @@ export function buildAutomationAttention(input: AttentionInput): AttentionDashbo
         });
       }
     } else if (latest) {
-      if (isStale(path, latest.checkedAt)) {
+      if (isArtifactObservationStale(path, latest.checkedAt)) {
         addWorkflowSignal(path, name, {
           ...base,
           bucket: "UNKNOWN",

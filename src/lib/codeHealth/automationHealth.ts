@@ -151,6 +151,11 @@ function cronFallbackHours(crons: readonly string[]): number {
   return Math.min(...perCron);
 }
 
+/** Cron-based stale window when GitHub run gaps are unknown (registry join unavailable). */
+export function definitionStaleAfterHours(definition: ScheduledWorkflowDefinition): number {
+  return staleThresholdHours(definition, null).staleAfterHours;
+}
+
 function staleThresholdHours(
   definition: ScheduledWorkflowDefinition,
   group: GithubScheduledAutomationGroup | null
