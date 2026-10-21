@@ -229,7 +229,11 @@ export function buildAutomationAttention(input: AttentionInput): AttentionDashbo
     const then = iso ? Date.parse(iso) : Number.NaN;
     if (!Number.isFinite(then)) return false;
     const limit = staleLimitMsForPath(path);
-    if (limit == null) return false;
+    if (limit == null) {
+      // Same as the live page when scanScheduledWorkflowDefinitions() returns []:
+      // without a schedule owner we must not treat dated evidence as a current incident.
+      return true;
+    }
     return nowMs - then > limit;
   };
   const workflowTitle = (path: string, fallback: string) => automationDisplayName(path, fallback);

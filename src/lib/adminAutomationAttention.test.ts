@@ -427,6 +427,46 @@ describe("automation attention dashboard", () => {
     assert.match(item.reasons[0]!, /TLS handshake failed/);
   });
 
+  it("does not treat an old domain SSL failure as current when the workflow registry is empty", () => {
+    const dashboard = buildAutomationAttention(
+      baseInput({
+        patch: {
+          registryDefinitions: [],
+          coverage: {
+            status: "UNAVAILABLE",
+            error: "등록된 schedule workflow 목록(.github/workflows)을 읽지 못했습니다.",
+            rows: [],
+            unregistered: [],
+            failedCount: 0,
+            unverifiedCount: 0,
+            attentionCount: 0,
+          },
+          domainSsl: {
+            status: "OK",
+            error: null,
+            latest: {
+              state: "FAIL",
+              checkedAt: OLD,
+              reason: "TLS expired",
+              htmlUrl: "https://github.test/ssl-run-old",
+              runConclusion: "failure",
+              attempts: 1,
+              dns: { kind: "ok", addressCount: 1 },
+              tls: { kind: "error", retryable: false, reason: "expired" },
+              health: { kind: "skipped" },
+            },
+          },
+        },
+      })
+    );
+    const item = dashboard.byKey.get(ATTENTION_KEY.workflow(DOMAIN_SSL_WORKFLOW_PATH))!;
+    assert.equal(item.bucket, "UNKNOWN");
+    assert.equal(
+      dashboard.action.some((row) => row.key === ATTENTION_KEY.workflow(DOMAIN_SSL_WORKFLOW_PATH)),
+      false
+    );
+  });
+
   it("demotes an old domain SSL failure to unknown when the coverage join is unavailable", () => {
     const item = buildAutomationAttention(
       baseInput({
