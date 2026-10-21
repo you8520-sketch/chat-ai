@@ -72,6 +72,8 @@ import {
 
 export const dynamic = "force-dynamic";
 
+const UNVERIFIED_SUMMARY = "확인된 결과가 없어 정상으로 간주하지 않습니다.";
+
 const fmtDate = formatKstDateTime;
 
 function badgeClass(state: string): string {
@@ -1281,7 +1283,8 @@ export default async function AdminAutomationReportsPage() {
         id="report-post-deploy"
         title="배포 후 검증"
         item={itemFor(ATTENTION_KEY.postDeploy)}
-        fallbackLabel="정상"
+        fallbackLabel="미확인"
+        fallbackSummary={UNVERIFIED_SUMMARY}
         open={needsLook(ATTENTION_KEY.postDeploy)}
       >
         <PostDeployVerificationCard view={postDeploy} />
@@ -1291,7 +1294,8 @@ export default async function AdminAutomationReportsPage() {
         id="report-domain-ssl"
         title={automationDisplayName(DOMAIN_SSL_WORKFLOW_PATH, "Domain SSL Monitor")}
         item={itemFor(ATTENTION_KEY.workflow(DOMAIN_SSL_WORKFLOW_PATH))}
-        fallbackLabel="정상"
+        fallbackLabel="미확인"
+        fallbackSummary={UNVERIFIED_SUMMARY}
         open={needsLook(ATTENTION_KEY.workflow(DOMAIN_SSL_WORKFLOW_PATH))}
       >
         <DomainSslMonitorCard view={domainSsl} />
@@ -1301,7 +1305,8 @@ export default async function AdminAutomationReportsPage() {
         id="report-code-health-weekly"
         title={automationDisplayName(CODE_HEALTH_WEEKLY_WORKFLOW_PATH, "Weekly Code Health")}
         item={itemFor(ATTENTION_KEY.workflow(CODE_HEALTH_WEEKLY_WORKFLOW_PATH))}
-        fallbackLabel="정상"
+        fallbackLabel="미확인"
+        fallbackSummary={UNVERIFIED_SUMMARY}
         open={needsLook(ATTENTION_KEY.workflow(CODE_HEALTH_WEEKLY_WORKFLOW_PATH))}
       >
         <CodeHealthCard card={codeHealth.weekly} />
@@ -1311,7 +1316,8 @@ export default async function AdminAutomationReportsPage() {
         id="report-code-health-monthly"
         title={automationDisplayName(CODE_HEALTH_MONTHLY_WORKFLOW_PATH, "Monthly Cleanup")}
         item={itemFor(ATTENTION_KEY.workflow(CODE_HEALTH_MONTHLY_WORKFLOW_PATH))}
-        fallbackLabel="정상"
+        fallbackLabel="미확인"
+        fallbackSummary={UNVERIFIED_SUMMARY}
         open={needsLook(ATTENTION_KEY.workflow(CODE_HEALTH_MONTHLY_WORKFLOW_PATH))}
       >
         <CodeHealthCard card={codeHealth.monthly} />
@@ -1336,7 +1342,8 @@ export default async function AdminAutomationReportsPage() {
         id="report-decision-radar"
         title={automationDisplayName(DECISION_RADAR_WORKFLOW_PATH, "Weekly Decision Model Radar")}
         item={itemFor(ATTENTION_KEY.workflow(DECISION_RADAR_WORKFLOW_PATH))}
-        fallbackLabel="정상"
+        fallbackLabel="미확인"
+        fallbackSummary={UNVERIFIED_SUMMARY}
         open={needsLook(ATTENTION_KEY.workflow(DECISION_RADAR_WORKFLOW_PATH))}
       >
       <section className="mt-6 rounded-2xl border border-emerald-500/20 bg-emerald-950/10 p-5">
@@ -1496,7 +1503,8 @@ export default async function AdminAutomationReportsPage() {
         id="report-memory-research"
         title={automationDisplayName(MEMORY_RESEARCH_WORKFLOW_PATH, "Memory Research Cycle")}
         item={itemFor(ATTENTION_KEY.workflow(MEMORY_RESEARCH_WORKFLOW_PATH))}
-        fallbackLabel="정상"
+        fallbackLabel="미확인"
+        fallbackSummary={UNVERIFIED_SUMMARY}
         open={needsLook(ATTENTION_KEY.workflow(MEMORY_RESEARCH_WORKFLOW_PATH))}
       >
         <MemoryResearchCard projection={memoryResearch} runtime={memoryRuntime} />
