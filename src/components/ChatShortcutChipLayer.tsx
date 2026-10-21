@@ -2,8 +2,8 @@
 
 import { Fragment, useLayoutEffect, useRef, type RefObject } from "react";
 import {
+  SHORTCUT_CHIP_OPEN,
   findShortcutTokens,
-  shortcutChipLabelParts,
   type ShortcutChip,
 } from "@/lib/chatShortcutChips";
 
@@ -47,16 +47,21 @@ export function ChatShortcutChipLayer({
     if (token.start > cursor) {
       segments.push(<Fragment key={`t${cursor}`}>{value.slice(cursor, token.start)}</Fragment>);
     }
-    const parts = shortcutChipLabelParts(token.chip);
+    const openAt =
+      value[token.start] !== SHORTCUT_CHIP_OPEN && value[token.start + 1] === SHORTCUT_CHIP_OPEN
+        ? token.start + 1
+        : token.start;
+    const labelText = value.slice(openAt + 3, token.end - 1);
+    const removeAt = labelText.lastIndexOf("×");
     segments.push(
       <Fragment key={`c${token.start}`}>
-        {value.slice(token.start, token.start + 3)}
+        {value.slice(token.start, openAt + 3)}
         <span
           data-testid="chat-shortcut-chip"
           data-chip-name={token.chip.name}
           className="rounded-md bg-violet-500/30 shadow-[0_0_0_1px_rgba(167,139,250,0.6)]"
         >
-          {parts.lead}
+          {labelText.slice(0, removeAt)}
           <span
             role="button"
             tabIndex={-1}
@@ -67,9 +72,9 @@ export function ChatShortcutChipLayer({
             onClick={() => onRemove(token.start)}
           >
             <span aria-hidden className="absolute -inset-x-2 -inset-y-2" />
-            {parts.remove}
+            {labelText.slice(removeAt, removeAt + 1)}
           </span>
-          {parts.tail}
+          {labelText.slice(removeAt + 1)}
         </span>
         {value.slice(token.end - 1, token.end)}
       </Fragment>

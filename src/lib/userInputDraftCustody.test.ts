@@ -2,11 +2,20 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import fs from "node:fs";
 import {
+  CHAT_COMPOSER_STORAGE_MAX,
+  expandShortcutChips,
+  planShortcutChipInsert,
+  type ShortcutChip,
+} from "./chatShortcutChips";
+import {
   clearUserInputDraft,
+  loadChatMessageComposer,
   loadTrpgActionDraft,
   loadUserInputDraft,
   resolveSendCustodyBackup,
   resolveTrpgActionInitialBody,
+  saveChatMessageChips,
+  saveChatMessageDraft,
   saveTrpgActionDraft,
   saveUserInputDraft,
   trpgActionDraftKey,
@@ -245,5 +254,35 @@ describe("TRPG client custody wiring", () => {
     assert.doesNotMatch(effect, /setActionType\(/);
     assert.doesNotMatch(effect, /setInputOrigin\(/);
     assert.match(src, /Round composer state is owned by apply\(\)/);
+  });
+});
+
+describe("chat composer draft storage", () => {
+  it("keeps a chip token whose raw length exceeds the chat message limit", () => {
+    installSessionStorageStub();
+    const name = "가".repeat(30);
+    let value = "";
+    let chips: ShortcutChip[] = [];
+    for (let i = 0; i < 25; i += 1) {
+      const plan = planShortcutChipInsert({
+        composing: false,
+        value,
+        chips,
+        selectionStart: value.length,
+        selectionEnd: value.length,
+        source: { id: i + 1, name, favorite: false, content: "x" },
+      });
+      assert.equal(plan.action, "apply");
+      if (plan.action !== "apply") throw new Error("insert refused");
+      value = plan.value;
+      chips = plan.chips;
+    }
+    assert.ok(value.length > 1500);
+    assert.ok(value.length <= CHAT_COMPOSER_STORAGE_MAX);
+    saveChatMessageDraft(1, 2, value);
+    saveChatMessageChips(1, 2, value, chips);
+    const loaded = loadChatMessageComposer(1, 2);
+    assert.equal(loaded.value, value);
+    assert.equal(expandShortcutChips(loaded.value, loaded.chips), "x".repeat(25));
   });
 });

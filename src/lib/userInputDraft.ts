@@ -1,5 +1,6 @@
 import { CHAT_MESSAGE_MAX } from "@/lib/chatModels";
 import {
+  CHAT_COMPOSER_STORAGE_MAX,
   normalizeShortcutComposer,
   pruneShortcutChips,
   type ShortcutChip,
@@ -87,7 +88,7 @@ export function chatMessageDraftKey(characterId: number, chatId: number | null):
 }
 
 export function loadChatMessageDraft(characterId: number, chatId: number | null): string {
-  return loadUserInputDraft(chatMessageDraftKey(characterId, chatId), CHAT_MESSAGE_MAX);
+  return loadUserInputDraft(chatMessageDraftKey(characterId, chatId), CHAT_COMPOSER_STORAGE_MAX);
 }
 
 export function saveChatMessageDraft(
@@ -95,7 +96,7 @@ export function saveChatMessageDraft(
   chatId: number | null,
   text: string
 ): void {
-  saveUserInputDraft(chatMessageDraftKey(characterId, chatId), text, CHAT_MESSAGE_MAX);
+  saveUserInputDraft(chatMessageDraftKey(characterId, chatId), text, CHAT_COMPOSER_STORAGE_MAX);
 }
 
 function chatMessageChipsKey(characterId: number, chatId: number | null): string {
@@ -148,7 +149,11 @@ export function loadChatMessageComposer(
       chips = [];
     }
   }
-  return normalizeShortcutComposer(value, chips);
+  const normalized = normalizeShortcutComposer(value, chips);
+  if (normalized.chips.length === 0 && normalized.value.length > CHAT_MESSAGE_MAX) {
+    return { value: normalized.value.slice(0, CHAT_MESSAGE_MAX), chips: [] };
+  }
+  return normalized;
 }
 
 export function clearChatMessageDraft(characterId: number, chatId: number | null): void {
@@ -169,7 +174,7 @@ export function migrateChatMessageDraft(characterId: number, chatId: number): vo
     const pendingChipsKey = chatMessageChipsKey(characterId, null);
     const targetChipsKey = chatMessageChipsKey(characterId, chatId);
     if (!sessionStorage.getItem(targetKey)) {
-      sessionStorage.setItem(targetKey, pending.slice(0, CHAT_MESSAGE_MAX));
+      sessionStorage.setItem(targetKey, pending.slice(0, CHAT_COMPOSER_STORAGE_MAX));
       const pendingChips = sessionStorage.getItem(pendingChipsKey);
       if (pendingChips) sessionStorage.setItem(targetChipsKey, pendingChips);
     }

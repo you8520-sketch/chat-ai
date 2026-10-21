@@ -6555,11 +6555,14 @@ export default function ChatClient({
                       return;
                     }
                   }
-                  if (
-                    e.key === "Enter" &&
-                    (e.ctrlKey || e.metaKey) &&
-                    !e.nativeEvent.isComposing
-                  ) {
+                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                    // Same composition judgment as slash selection and chip keys.
+                    // A Hangul keydown can report isComposing false while keyCode is 229
+                    // or compositionend has not run yet.
+                    if (composing) {
+                      e.preventDefault();
+                      return;
+                    }
                     e.preventDefault();
                     if (!inputLocked && !generationNeedsModel) send();
                   }

@@ -60,7 +60,9 @@ describe("shortcut chip display vs sent text", () => {
   test("display value never contains the saved body; expansion restores it exactly", () => {
     const next = insert(EMPTY, AUTO, 0);
     assert.equal(next.value.includes("다음 장면"), false);
-    assert.equal(next.value.includes("★\u00A0자동"), true);
+    assert.equal(next.value.replace(/[\u2060\u2061\u200B\u200C\u2062\u2063\u2064]/g, "").includes("★\u00A0자동"), true);
+    assert.equal(next.value.includes("자\u2060동"), true);
+    assert.equal(next.value.startsWith("\u200B\u2060"), true);
     assert.equal(expandShortcutChips(next.value, next.chips), AUTO.content);
   });
 
@@ -193,6 +195,35 @@ describe("shortcut chip insertion", () => {
       source: GO,
     });
     assert.equal(plan.action, "reject");
+  });
+
+  test("word joiners do not consume the chip cap or the chat limit", () => {
+    const name = "가".repeat(30);
+    let state: State = EMPTY;
+    for (let i = 0; i < SHORTCUT_CHIP_LIMIT; i += 1) {
+      state = insert(state, { id: i + 1, name, favorite: false, content: "x" }, state.value.length);
+    }
+    assert.equal(state.chips.length, SHORTCUT_CHIP_LIMIT);
+    assert.equal(state.value.includes("가\u2060가"), true);
+    assert.ok(state.value.length > CHAT_MESSAGE_MAX);
+    assert.equal(expandShortcutChips(state.value, state.chips), "x".repeat(SHORTCUT_CHIP_LIMIT));
+    assert.equal(shortcutEditExceedsLimit(state.value, state.chips), false);
+  });
+
+  test("a chip saved before line-break joiners still restores", () => {
+    const chip: ShortcutChip = {
+      key: 0,
+      shortcutId: GO.id,
+      name: GO.name,
+      favorite: false,
+      content: GO.content,
+    };
+    const legacy = `\u2060\u200B\u200B\u00A0전투\u00A0진행\u00A0×\u00A0\u2061`;
+    assert.equal(findShortcutTokens(legacy, [chip]).length, 1);
+    const normalized = normalizeShortcutComposer(`앞${legacy}뒤`, [chip]);
+    assert.equal(expandShortcutChips(normalized.value, normalized.chips), `앞${GO.content}뒤`);
+    assert.equal(normalized.value.includes("전\u2060투"), true);
+    assert.equal(normalized.value.includes("\u200B\u2060"), true);
   });
 });
 

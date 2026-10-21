@@ -15,7 +15,10 @@ import { compareShortcutRows } from "@/lib/chatShortcutListSync";
  *   OPEN + two key digits + label + CLOSE
  *
  * OPEN/CLOSE/digits are zero-width characters, label is the visible "★ 이름 ×"
- * text (NBSP-joined so it never wraps inside). The saved shortcut body never
+ * text. NBSP glues the spaces, and a word joiner between every label character
+ * keeps the name and × on one line. A zero-width space before OPEN is a break
+ * opportunity, so a chip that fits the composer moves whole to the next line.
+ * The saved shortcut body never
  * enters the display value. It lives only in the chip table (snapshot taken at
  * selection time) and is substituted exactly once, by expandShortcutChips, when
  * the message is sent. No other module builds the sent text.
@@ -26,12 +29,26 @@ export const SHORTCUT_CHIP_CLOSE = "\u2061";
 const KEY_DIGITS = ["\u200B", "\u200C", "\u2062", "\u2063", "\u2064"] as const;
 const KEY_RADIX = KEY_DIGITS.length;
 export const SHORTCUT_CHIP_LIMIT = KEY_RADIX * KEY_RADIX;
+/**
+ * Session draft cap for the raw composer string. Word joiners inside chip labels
+ * are invisible and do not count toward CHAT_MESSAGE_MAX, but they are stored.
+ * Visible text stays within the chat limit; this only keeps reload from slicing
+ * a still-valid chip token.
+ */
+export const CHAT_COMPOSER_STORAGE_MAX = CHAT_MESSAGE_MAX * 2 + SHORTCUT_CHIP_LIMIT * 5;
 export const SHORTCUT_CHIP_LIMIT_MESSAGE = `단축어는 한 번에 ${SHORTCUT_CHIP_LIMIT}개까지 넣을 수 있습니다.`;
 export const SHORTCUT_EDIT_TOO_LONG_MESSAGE =
   "단축어를 펼친 전송 길이가 제한을 넘어 입력하지 못했습니다.";
 export const SHORTCUT_EMPTY_CONTENT_MESSAGE = "넣을 단축어 내용이 없습니다.";
 
 const NBSP = "\u00A0";
+/** Same character as OPEN. Between label characters it forbids a line break. */
+const WORD_JOINER = SHORTCUT_CHIP_OPEN;
+/**
+ * UAX #14 LB8 breaks after this, even before a word joiner. It is also key digit 0;
+ * it is a chip prefix only when OPEN is the next character.
+ */
+const CHIP_LINE_BREAK = "\u200B";
 const SENTINEL_PATTERN = /[\u2060\u2061\u200B\u200C\u2062\u2063\u2064]/g;
 const SENTINEL_TEST = /[\u2060\u2061\u200B\u200C\u2062\u2063\u2064]/;
 
@@ -53,22 +70,32 @@ export type ShortcutChipSource = {
 
 export type ShortcutChipToken = { start: number; end: number; chip: ShortcutChip };
 
+function plainLabel(chip: Pick<ShortcutChip, "name" | "favorite">): string {
+  const name = chip.name.replace(/\s+/g, NBSP);
+  return `${NBSP}${chip.favorite ? `★${NBSP}` : ""}${name}${NBSP}×${NBSP}`;
+}
+
+/** Word joiners between label characters. Hangul may otherwise break per syllable. */
+function gluedLabel(chip: Pick<ShortcutChip, "name" | "favorite">): string {
+  return [...plainLabel(chip)].join(WORD_JOINER);
+}
+
 export function shortcutChipLabelParts(chip: Pick<ShortcutChip, "name" | "favorite">): {
   lead: string;
   remove: string;
   tail: string;
 } {
-  const name = chip.name.replace(/\s+/g, NBSP);
+  const glued = gluedLabel(chip);
+  const removeAt = plainLabel(chip).lastIndexOf("×") * 2;
   return {
-    lead: `${NBSP}${chip.favorite ? `★${NBSP}` : ""}${name}${NBSP}`,
+    lead: glued.slice(0, removeAt),
     remove: "×",
-    tail: NBSP,
+    tail: glued.slice(removeAt + 1),
   };
 }
 
 function chipLabel(chip: ShortcutChip): string {
-  const { lead, remove, tail } = shortcutChipLabelParts(chip);
-  return `${lead}${remove}${tail}`;
+  return gluedLabel(chip);
 }
 
 function encodeKey(key: number): string {
@@ -83,7 +110,11 @@ function decodeKey(high: string | undefined, low: string | undefined): number | 
 }
 
 function encodeToken(chip: ShortcutChip): string {
-  return `${SHORTCUT_CHIP_OPEN}${encodeKey(chip.key)}${chipLabel(chip)}${SHORTCUT_CHIP_CLOSE}`;
+  return `${CHIP_LINE_BREAK}${SHORTCUT_CHIP_OPEN}${encodeKey(chip.key)}${chipLabel(chip)}${SHORTCUT_CHIP_CLOSE}`;
+}
+
+function visibleComposerLength(value: string): number {
+  return stripSentinels(value).length;
 }
 
 export function hasShortcutSentinel(value: string): boolean {
@@ -104,16 +135,26 @@ export function findShortcutTokens(
   const byKey = new Map(chips.map((chip) => [chip.key, chip]));
   let i = 0;
   while (i < value.length) {
-    if (value[i] === SHORTCUT_CHIP_OPEN) {
-      const key = decodeKey(value[i + 1], value[i + 2]);
+    const prefixed = value[i] === CHIP_LINE_BREAK && value[i + 1] === SHORTCUT_CHIP_OPEN;
+    const openAt = prefixed ? i + 1 : value[i] === SHORTCUT_CHIP_OPEN ? i : -1;
+    if (openAt >= 0) {
+      const key = decodeKey(value[openAt + 1], value[openAt + 2]);
       const chip = key == null ? undefined : byKey.get(key);
       if (chip) {
-        const label = chipLabel(chip);
-        const labelEnd = i + 3 + label.length;
-        if (value.startsWith(label, i + 3) && value[labelEnd] === SHORTCUT_CHIP_CLOSE) {
-          tokens.push({ start: i, end: labelEnd + 1, chip });
-          i = labelEnd + 1;
-          continue;
+        const glued = chipLabel(chip);
+        const plain = plainLabel(chip);
+        const label = value.startsWith(glued, openAt + 3)
+          ? glued
+          : value.startsWith(plain, openAt + 3)
+            ? plain
+            : null;
+        if (label) {
+          const labelEnd = openAt + 3 + label.length;
+          if (value[labelEnd] === SHORTCUT_CHIP_CLOSE) {
+            tokens.push({ start: prefixed ? i : openAt, end: labelEnd + 1, chip });
+            i = labelEnd + 1;
+            continue;
+          }
         }
       }
     }
@@ -225,8 +266,17 @@ export function normalizeShortcutComposer(
   chips: readonly ShortcutChip[]
 ): { value: string; chips: ShortcutChip[] } {
   if (!hasShortcutSentinel(value)) return { value, chips: [] };
-  const cleaned = sanitizeInserted(value, chips);
-  return { value: cleaned, chips: pruneShortcutChips(cleaned, chips) };
+  const tokens = findShortcutTokens(value, chips);
+  if (tokens.length === 0) return { value: stripSentinels(value), chips: [] };
+  let out = "";
+  let cursor = 0;
+  for (const token of tokens) {
+    out += stripSentinels(value.slice(cursor, token.start));
+    out += encodeToken(token.chip);
+    cursor = token.end;
+  }
+  out += stripSentinels(value.slice(cursor));
+  return { value: out, chips: pruneShortcutChips(out, chips) };
 }
 
 export function removeShortcutChipToken(input: {
@@ -370,7 +420,7 @@ export function planShortcutChipInsert(input: {
   const nextValue = `${value.slice(0, start)}${token}${value.slice(end)}`;
   const nextChips = [...table, chip];
   if (
-    nextValue.length > maxChars ||
+    visibleComposerLength(nextValue) > maxChars ||
     shortcutExpandedLength(nextValue, nextChips) > maxChars
   ) {
     return { action: "reject", message: CHAT_SHORTCUT_INSERT_TOO_LONG_MESSAGE };
@@ -387,7 +437,7 @@ export function shortcutEditExceedsLimit(
   chips: readonly ShortcutChip[],
   maxChars: number = CHAT_MESSAGE_MAX
 ): boolean {
-  return value.length > maxChars || shortcutExpandedLength(value, chips) > maxChars;
+  return visibleComposerLength(value) > maxChars || shortcutExpandedLength(value, chips) > maxChars;
 }
 
 export type ShortcutSlashMatch = { start: number; end: number; query: string };

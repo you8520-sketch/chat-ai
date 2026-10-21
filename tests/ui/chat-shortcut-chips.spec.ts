@@ -556,6 +556,52 @@ test.describe("slash autocomplete", () => {
     expect(posts).toHaveLength(0);
   });
 
+  test("Ctrl+Enter during composition does not send when isComposing is false", async ({ page }) => {
+    await openChat(page, DESKTOP);
+    const posts = await captureChatPosts(page);
+    const box = composer(page);
+    await box.click();
+    await page.keyboard.type("안녕");
+
+    const chord = (extra: { ctrlKey?: boolean; metaKey?: boolean; keyCode?: number }) =>
+      box.evaluate((el, init) => {
+        const event = new KeyboardEvent("keydown", {
+          key: "Enter",
+          code: "Enter",
+          ctrlKey: init.ctrlKey ?? false,
+          metaKey: init.metaKey ?? false,
+          keyCode: init.keyCode ?? 13,
+          bubbles: true,
+          cancelable: true,
+          isComposing: false,
+        });
+        el.dispatchEvent(event);
+      }, extra);
+
+    // Composition is open (ref true) but this keydown reports isComposing false.
+    await box.evaluate((el) => {
+      el.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
+    });
+    await chord({ ctrlKey: true });
+    await chord({ metaKey: true, keyCode: 229 });
+    await page.waitForTimeout(250);
+    expect(posts).toHaveLength(0);
+    await expect(box).toHaveValue("안녕");
+
+    await box.evaluate((el) => {
+      el.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "안녕" }));
+    });
+    // Composition ref is clear, but keyCode 229 still means an IME key.
+    await chord({ ctrlKey: true, keyCode: 229 });
+    await page.waitForTimeout(250);
+    expect(posts).toHaveLength(0);
+    await expect(box).toHaveValue("안녕");
+
+    await page.keyboard.press("Control+Enter");
+    await expect.poll(() => posts.length).toBe(1);
+    expect(posts[0]!.message).toBe("안녕");
+  });
+
   test("mouse click inserts a candidate without sending", async ({ page }) => {
     await openChat(page, DESKTOP);
     await seedSlashLibrary(page);
@@ -625,4 +671,108 @@ test.describe("composer layout with chips", () => {
       await expect(chips(page)).toHaveCount(1);
     });
   }
+
+  test("a chip that fits the line stays whole and the overlay breaks where the text does", async ({ page }) => {
+    for (const viewport of [
+      { width: 320, height: 640, tag: "320" },
+      { width: 390, height: 844, tag: "390" },
+      { width: 1280, height: 800, tag: "1280" },
+    ] as const) {
+      await openChat(page, viewport);
+      await createShortcut(page, { name: "자동", content: "본문자동", favorite: true });
+      await createShortcut(page, { name: "정리", content: "본문정리" });
+      await createShortcut(page, { name: "가".repeat(30), content: "긴본문" });
+
+      await composer(page).click();
+      await page.keyboard.type("오늘은 ");
+      await insertViaDock(page, /^★ 자동/);
+      await page.keyboard.type(" 그리고 ");
+      await insertViaDock(page, /^정리/);
+      await page.keyboard.type(" 부탁해 ");
+      await insertViaDock(page, /^가가가가/);
+      await page.keyboard.type(" 끝");
+      await composer(page).evaluate((el) => {
+        (el as HTMLTextAreaElement).scrollTop = 0;
+      });
+      await settle(page);
+
+      const report = await page.evaluate(() => {
+        const textarea = document.querySelector("textarea[placeholder*='메시지 입력']") as HTMLTextAreaElement;
+        const inner = document.querySelector("[data-testid='chat-shortcut-chip']")?.parentElement as HTMLElement;
+        const cs = getComputedStyle(textarea);
+        const contentWidth = textarea.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+        const hidden = /[\u2060\u2061\u200B\u200C\u2062\u2063\u2064]/g;
+
+        function linesOf(root: HTMLElement): string[] {
+          const range = document.createRange();
+          const lines: string[] = [];
+          let current = "";
+          let lastTop = -1;
+          const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+          let node = walker.nextNode();
+          while (node) {
+            const raw = node.textContent ?? "";
+            for (let i = 0; i < raw.length; i += 1) {
+              range.setStart(node, i);
+              range.setEnd(node, i + 1);
+              const top = Math.round(range.getBoundingClientRect().top);
+              if (lastTop !== -1 && Math.abs(top - lastTop) > 2) {
+                lines.push(current.replace(hidden, ""));
+                current = "";
+              }
+              current += raw[i];
+              lastTop = top;
+            }
+            node = walker.nextNode();
+          }
+          if (current) lines.push(current.replace(hidden, ""));
+          return lines;
+        }
+
+        const mirror = document.createElement("div");
+        mirror.style.position = "absolute";
+        mirror.style.visibility = "hidden";
+        mirror.style.whiteSpace = cs.whiteSpace;
+        mirror.style.overflowWrap = cs.overflowWrap;
+        mirror.style.wordBreak = cs.wordBreak;
+        mirror.style.font = cs.font;
+        mirror.style.lineHeight = cs.lineHeight;
+        mirror.style.width = `${contentWidth}px`;
+        document.body.appendChild(mirror);
+        for (const ch of [...textarea.value]) {
+          const span = document.createElement("span");
+          span.textContent = ch;
+          mirror.appendChild(span);
+        }
+        const mirrorLines = linesOf(mirror);
+        mirror.remove();
+
+        const chips = Array.from(document.querySelectorAll("[data-testid='chat-shortcut-chip']")).map((el) => {
+          const probe = document.createElement("span");
+          probe.style.font = cs.font;
+          probe.style.whiteSpace = "nowrap";
+          probe.style.position = "absolute";
+          probe.style.visibility = "hidden";
+          probe.textContent = (el.textContent ?? "").replace(hidden, "");
+          document.body.appendChild(probe);
+          const width = probe.getBoundingClientRect().width;
+          probe.remove();
+          return {
+            name: el.getAttribute("data-chip-name"),
+            lines: el.getClientRects().length,
+            fits: width <= contentWidth + 1,
+          };
+        });
+        return { mirrorLines, overlayLines: inner ? linesOf(inner) : [], chips, contentWidth };
+      });
+
+      expect(report.overlayLines, viewport.tag).toEqual(report.mirrorLines);
+      for (const chip of report.chips) {
+        if (chip.fits) expect(chip.lines, `${viewport.tag} ${chip.name}`).toBe(1);
+      }
+      const jungri = report.chips.find((chip) => chip.name === "정리");
+      expect(jungri?.fits, viewport.tag).toBe(true);
+      expect(jungri?.lines, viewport.tag).toBe(1);
+    }
+  });
 });
