@@ -1,5 +1,14 @@
 import type Database from "better-sqlite3";
 import type { GithubAutomationProjection } from "@/lib/adminAutomationReports";
+import {
+  automationDisplayName,
+  GITHUB_RUN_IGNORED_CONCLUSIONS,
+  githubRunConclusionLabel,
+  githubRunSeverity,
+  SCHEDULER_INCIDENT_STATES,
+  schedulerIncidentSeverity,
+  schedulerIncidentSummary,
+} from "@/lib/adminAutomationStatus";
 import type { FinanceAnomalyReport } from "@/lib/financeAnomalyRadar";
 import { buildOpenRouterContractWatchProjection } from "@/lib/openRouterContractWatch";
 import {
@@ -11,7 +20,6 @@ import {
   type PointChargeRefundAttemptState,
 } from "@/lib/pointChargeRefundAttempts";
 import { listSchedulerRunOverview } from "@/lib/schedulerRunRegistry";
-import type { SchedulerRunOverviewState } from "@/lib/schedulerRunShared";
 import { WEB_PUSH_MAX_ATTEMPTS } from "@/lib/webPush";
 import {
   ADMIN_OPS_STUCK_EXECUTION_MINUTES,
@@ -49,13 +57,6 @@ type WebPushOpsRow = {
   claimed_until: string | null;
 };
 
-const SCHEDULER_INCIDENT_STATES = new Set<SchedulerRunOverviewState>([
-  "FAILED",
-  "STALE",
-  "STALE_BLOCKED",
-  "MISSING",
-]);
-
 function parseSqliteUtcMs(value: string | null | undefined): number | null {
   const trimmed = value?.trim();
   if (!trimmed) return null;
@@ -87,33 +88,6 @@ function cleanReason(code: string, message: string, fallback: string): string {
   return parts.length > 0 ? parts.join(" · ") : fallback;
 }
 
-function schedulerIncidentSummary(
-  state: SchedulerRunOverviewState,
-  lastError: string
-): string {
-  if (lastError.trim()) return lastError.trim();
-  switch (state) {
-    case "FAILED":
-      return "스케줄 작업이 실패 상태로 남아 있습니다.";
-    case "STALE":
-      return "heartbeat가 canonical stale 기준을 넘었습니다. recovery 정책 판정 대상입니다.";
-    case "STALE_BLOCKED":
-      return "자동 stale reclaim이 허용되지 않는 작업이라 수동 확인이 필요합니다.";
-    case "MISSING":
-      return "registry 적용 이후 latest-due slot 실행 기록이 없습니다.";
-    default:
-      return "운영 확인이 필요한 스케줄 상태입니다.";
-  }
-}
-
-const GITHUB_AUTOMATION_IGNORED_CONCLUSIONS = new Set(["success", "neutral", "skipped"]);
-const GITHUB_AUTOMATION_CRITICAL_CONCLUSIONS = new Set([
-  "failure",
-  "timed_out",
-  "startup_failure",
-  "action_required",
-]);
-
 export function projectFinanceAnomalyIncidents(
   report: FinanceAnomalyReport,
   now: Date = new Date()
@@ -133,32 +107,42 @@ export function projectFinanceAnomalyIncidents(
   }));
 }
 
+/**
+ * `registeredWorkflowPaths` is the set of workflows that still have a schedule on
+ * main. A workflow without one has no next run that could clear its last failure,
+ * so that failure is history, not an open incident. An empty/omitted set means the
+ * registry could not be read, and nothing is filtered out.
+ */
 export function projectGithubAutomationIncidents(
   projection: GithubAutomationProjection,
-  now: Date = new Date()
+  now: Date = new Date(),
+  registeredWorkflowPaths?: ReadonlySet<string>
 ): AdminOpsIncident[] {
   if (projection.status !== "OK") return [];
   const nowMs = now.getTime();
   const incidents: AdminOpsIncident[] = [];
+  const filterRetired = registeredWorkflowPaths != null && registeredWorkflowPaths.size > 0;
 
   for (const group of projection.groups) {
+    if (filterRetired && !registeredWorkflowPaths.has(group.path)) continue;
     const run = group.latest;
     if (run.status !== "completed") continue;
     const conclusion = (run.conclusion ?? "").trim().toLowerCase();
-    if (!conclusion || GITHUB_AUTOMATION_IGNORED_CONCLUSIONS.has(conclusion)) continue;
+    if (!conclusion || GITHUB_RUN_IGNORED_CONCLUSIONS.has(conclusion)) continue;
 
-    const severity: AdminOpsIncidentSeverity =
-      GITHUB_AUTOMATION_CRITICAL_CONCLUSIONS.has(conclusion) ? "critical" : "warning";
+    const severity: AdminOpsIncidentSeverity = githubRunSeverity(conclusion);
     const occurredAt = run.updatedAt || run.createdAt;
+    const outcome = githubRunConclusionLabel(conclusion);
     incidents.push({
       id: `github_automation:${group.key}`,
       source: "github_automation",
       severity,
       state: conclusion.toUpperCase(),
-      title: `${group.name} · ${conclusion}`,
+      title: `${automationDisplayName(group.path, group.name)} · ${outcome}`,
       summary:
-        `최신 scheduled run #${run.runNumber}이 ${conclusion} 상태로 종료되었습니다. ` +
-        "자동 재실행은 하지 않으며 기존 자동화 보고서/워크플로에서 원인을 확인해야 합니다.",
+        `마지막 정기 실행 #${run.runNumber}이 '${outcome}'(${conclusion}) 상태로 끝났습니다. ` +
+        "GitHub 실행 자체의 결과이며 점검 내용의 판정이 아닙니다. " +
+        "자동 재실행은 하지 않으며 GitHub 실행 로그와 자동화 보고서에서 원인을 확인해야 합니다.",
       sourceRef: `${group.path} / run #${run.runNumber}`,
       occurredAt,
       ageMinutes: ageMinutes(nowMs, occurredAt),
@@ -205,8 +189,7 @@ export function listAdminOpsIncidents(
     incidents.push({
       id: `scheduler:${run.jobName}:${run.currentSlotKey}`,
       source: "scheduler",
-      severity:
-        run.state === "FAILED" || run.state === "STALE_BLOCKED" ? "critical" : "warning",
+      severity: schedulerIncidentSeverity(run.state),
       state: run.state,
       title: `${run.label} · ${run.state}`,
       summary: schedulerIncidentSummary(run.state, observed?.last_error ?? ""),

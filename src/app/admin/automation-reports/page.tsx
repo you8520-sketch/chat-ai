@@ -1,12 +1,18 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import {
+  AutomationAttentionList,
+  AutomationAttentionSummary,
+} from "@/components/admin/AutomationAttentionSection";
+import { AutomationReportFold } from "@/components/admin/AutomationReportFold";
 import { EffectiveRuntimeSettingsSection } from "@/components/admin/EffectiveRuntimeSettingsSection";
 import { requireAdminUser } from "@/lib/adminAuth";
 import { buildEffectiveRuntimeSettingsProjection } from "@/lib/adminEffectiveRuntimeSettings";
 import { buildAdminFinanceSummary, currentKstMonthKey } from "@/lib/adminFinance";
 import {
   fetchMemoryResearchAdminProjection,
+  MEMORY_RESEARCH_WORKFLOW_PATH,
   type MemoryResearchAdminProjection,
 } from "@/lib/adminMemoryResearchReports";
 import {
@@ -20,13 +26,27 @@ import {
   fetchPostDeployVerificationProjection,
 } from "@/lib/adminAutomationReports";
 import { GithubAutomationCoverageSection } from "@/components/admin/GithubAutomationCoverageSection";
+import { ATTENTION_KEY, buildAutomationAttention } from "@/lib/adminAutomationAttention";
 import { buildAutomationCoverage } from "@/lib/adminAutomationCoverage";
+import {
+  auditStatusLabel,
+  automationDisplayName,
+  decisionRadarStatusLabel,
+  formatKstDateTime,
+  schedulerStateLabel,
+} from "@/lib/adminAutomationStatus";
 import { scanScheduledWorkflowDefinitions } from "@/lib/codeHealth/automationHealth";
 import {
   fetchCodeHealthAdminProjection,
   formatCodeHealthDeltaLines,
   type CodeHealthAdminCard,
 } from "@/lib/codeHealth/reports";
+import {
+  CODE_HEALTH_MONTHLY_WORKFLOW_PATH,
+  CODE_HEALTH_WEEKLY_WORKFLOW_PATH,
+} from "@/lib/codeHealth/types";
+import { DECISION_RADAR_WORKFLOW_PATH } from "@/lib/decisionModelRadar";
+import { DOMAIN_SSL_WORKFLOW_PATH } from "@/lib/domainSslMonitor";
 import { getDb } from "@/lib/db";
 import { fetchDecisionRadarAdminProjection } from "@/lib/decisionModelRadarReports";
 import {
@@ -52,19 +72,9 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function fmtDate(value: string | null | undefined): string {
-  if (!value) return "기록 없음";
-  const parsed = new Date(value);
-  if (!Number.isFinite(parsed.getTime())) return value;
-  return new Intl.DateTimeFormat("ko-KR", {
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(parsed);
-}
+const UNVERIFIED_SUMMARY = "확인된 결과가 없어 정상으로 간주하지 않습니다.";
+
+const fmtDate = formatKstDateTime;
 
 function badgeClass(state: string): string {
   const normalized = state.toLowerCase();
@@ -134,6 +144,40 @@ function domainSslBadgeClass(state: DomainSslCheckState): string {
   }
 }
 
+/** Korean meaning first; the technical source value stays visible beside it. */
+function StateBadge({ label, raw, className }: { label: string; raw: string; className: string }) {
+  return (
+    <span className="flex flex-wrap items-center gap-1.5">
+      <span className={"rounded px-2 py-1 text-xs font-bold " + className}>{label}</span>
+      {raw !== label ? (
+        <span className="font-mono text-[10px] text-zinc-600">{raw}</span>
+      ) : null}
+    </span>
+  );
+}
+
+const DOMAIN_SSL_STATE_LABEL: Record<DomainSslCheckState | "UNAVAILABLE", string> = {
+  OK: "정상",
+  WARNING: "주의",
+  FAIL: "실패",
+  UNVERIFIED: "확인 불가",
+  UNAVAILABLE: "조회 불가",
+};
+
+const POST_DEPLOY_STATE_LABEL: Record<PostDeployVerificationState | "UNAVAILABLE", string> = {
+  VERIFIED: "검증 완료",
+  FAILED: "검증 실패",
+  UNVERIFIED: "검증 미완료",
+  SUPERSEDED: "이전 결과",
+  UNAVAILABLE: "조회 불가",
+};
+
+const PUBLIC_SMOKE_STATE_LABEL: Record<PublicSmokeState, string> = {
+  PASS: "통과",
+  FAIL: "실패",
+  UNVERIFIED: "미확인",
+};
+
 function DomainSslMonitorCard({ view }: { view: DomainSslMonitorView }) {
   const latest = view.latest;
   const badgeState = view.status === "UNAVAILABLE" ? "UNVERIFIED" : (latest?.state ?? "UNVERIFIED");
@@ -141,16 +185,18 @@ function DomainSslMonitorCard({ view }: { view: DomainSslMonitorView }) {
     <section className="mt-6 rounded-2xl border border-white/10 bg-[#11131a] p-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h2 className="text-lg font-black">도메인 / SSL 감시</h2>
+          <h2 className="text-lg font-black">도메인·SSL 감시</h2>
           <p className="mt-1 max-w-4xl text-xs leading-relaxed text-zinc-500">
             배포와 배포 사이에 hav.chat 의 DNS, TLS, /health 를 읽기 전용으로 확인합니다.
             Railway가 인증서를 발급·갱신합니다. 이 카드는 만료 임박 경고를 GitHub job 성공과
             따로 표시합니다. 배포 SHA 검증은 배포 검증 카드입니다.
           </p>
         </div>
-        <span className={"rounded px-2 py-1 text-xs font-bold " + domainSslBadgeClass(badgeState)}>
-          {view.status === "UNAVAILABLE" ? "UNAVAILABLE" : badgeState}
-        </span>
+        <StateBadge
+          label={DOMAIN_SSL_STATE_LABEL[view.status === "UNAVAILABLE" ? "UNAVAILABLE" : badgeState]}
+          raw={view.status === "UNAVAILABLE" ? "UNAVAILABLE" : badgeState}
+          className={domainSslBadgeClass(badgeState)}
+        />
       </div>
       {view.status === "UNAVAILABLE" ? (
         <p className="mt-3 text-sm text-amber-200">GitHub 조회 실패 · {view.error}</p>
@@ -199,7 +245,7 @@ function DomainSslMonitorCard({ view }: { view: DomainSslMonitorView }) {
           target="_blank"
           rel="noreferrer"
         >
-          GitHub 실행
+          GitHub 실행 원문 ↗
         </a>
       ) : null}
     </section>
@@ -220,14 +266,17 @@ function PostDeployVerificationCard({ view }: { view: PostDeployVerificationView
             PASS가 되지 않습니다.
           </p>
         </div>
-        <span
-          className={
-            "rounded px-2 py-1 text-xs font-bold " +
-            postDeployBadgeClass(view.status === "UNAVAILABLE" ? "UNVERIFIED" : (latest?.state ?? "UNVERIFIED"))
+        <StateBadge
+          label={
+            POST_DEPLOY_STATE_LABEL[
+              view.status === "UNAVAILABLE" ? "UNAVAILABLE" : (latest?.state ?? "UNVERIFIED")
+            ]
           }
-        >
-          {view.status === "UNAVAILABLE" ? "UNVERIFIED" : (latest?.state ?? "UNVERIFIED")}
-        </span>
+          raw={view.status === "UNAVAILABLE" ? "UNVERIFIED" : (latest?.state ?? "UNVERIFIED")}
+          className={postDeployBadgeClass(
+            view.status === "UNAVAILABLE" ? "UNVERIFIED" : (latest?.state ?? "UNVERIFIED")
+          )}
+        />
       </div>
       {view.status === "UNAVAILABLE" ? (
         <p className="mt-3 text-sm text-amber-200">GitHub 조회 실패 · {view.error}</p>
@@ -260,7 +309,7 @@ function PostDeployVerificationCard({ view }: { view: PostDeployVerificationView
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-bold text-zinc-200">공개 페이지</p>
             <span className={"rounded px-2 py-1 text-xs font-bold " + publicSmokeBadgeClass(latest.publicSmoke.state)}>
-              {latest.publicSmoke.state}
+              {PUBLIC_SMOKE_STATE_LABEL[latest.publicSmoke.state]}
             </span>
           </div>
           <p className="mt-2 text-xs text-zinc-400">
@@ -309,24 +358,6 @@ function PostDeployVerificationCard({ view }: { view: PostDeployVerificationView
   );
 }
 
-function codeHealthStatusLabel(status: CodeHealthAdminCard["status"]): string {
-  switch (status) {
-    case "SUCCESS":
-      return "SUCCESS";
-    case "WARNING":
-      return "WARNING";
-    case "FAILED":
-      return "FAILED";
-    case "EMPTY":
-      return "기록 없음";
-    case "UNAVAILABLE":
-      return "UNAVAILABLE";
-    default: {
-      const _exhaustive: never = status;
-      return _exhaustive;
-    }
-  }
-}
 
 function CodeHealthCard({ card }: { card: CodeHealthAdminCard }) {
   const counts = card.counts;
@@ -335,19 +366,28 @@ function CodeHealthCard({ card }: { card: CodeHealthAdminCard }) {
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="text-lg font-black text-cyan-200">
-            {card.kind === "weekly" ? "Weekly Code Health" : "Monthly Cleanup"}
+            {card.kind === "weekly" ? "주간 코드 상태 점검" : "월간 코드 정리 후보 점검"}
           </h2>
+          <p className="mt-0.5 font-mono text-[11px] text-cyan-300/60">
+            {card.kind === "weekly" ? "Weekly Code Health" : "Monthly Cleanup"}
+          </p>
           <p className="mt-1 text-xs leading-relaxed text-zinc-500">
             {card.kind === "weekly"
-              ? "주 1회 read-only 코드 헬스 감사입니다. production 코드를 수정하지 않으며, 분석기 결과는 삭제 증거가 아닙니다."
-              : "월 1회 이전 weekly 결과를 합쳐 cleanup candidate set만 만듭니다. 자동 merge하지 않습니다."}
+              ? "주 1회 읽기 전용 코드 점검입니다. 운영 코드를 수정하지 않으며, 분석기 결과는 삭제 증거가 아닙니다."
+              : "월 1회 이전 주간 결과를 합쳐 정리 후보만 만듭니다. 자동 병합하지 않습니다."}
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+            &apos;문제 발견&apos;은 점검이 찾아낸 항목이 있다는 뜻이며 GitHub 실행이 실패했다는 뜻이
+            아닙니다. 의심 항목은 확정된 사고가 아닙니다.
           </p>
         </div>
-        <span className={"rounded px-2 py-1 text-xs font-bold " + badgeClass(card.status)}>
-          {codeHealthStatusLabel(card.status)}
-        </span>
+        <StateBadge
+          label={auditStatusLabel(card.status)}
+          raw={card.status}
+          className={badgeClass(card.status)}
+        />
       </div>
-      <p className="mt-3 text-xs text-zinc-500">실행 시각 · {fmtDate(card.ranAt)}</p>
+      <p className="mt-3 text-xs text-zinc-500">마지막 점검 · {fmtDate(card.ranAt)} (KST)</p>
       {counts ? (
         <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
           <div className="rounded-xl bg-black/20 p-3">
@@ -355,33 +395,33 @@ function CodeHealthCard({ card }: { card: CodeHealthAdminCard }) {
             <p className="mt-1 font-bold">{counts.newFindings}</p>
           </div>
           <div className="rounded-xl bg-black/20 p-3">
-            <p className="text-[11px] text-zinc-500">resolved</p>
+            <p className="text-[11px] text-zinc-500">해결됨 (resolved)</p>
             <p className="mt-1 font-bold">{counts.resolved}</p>
           </div>
           <div className="rounded-xl bg-black/20 p-3">
-            <p className="text-[11px] text-zinc-500">SAFE_TO_DELETE</p>
+            <p className="text-[11px] text-zinc-500">삭제 가능 확인 (SAFE_TO_DELETE)</p>
             <p className="mt-1 font-bold">{counts.safeToDelete}</p>
           </div>
           <div className="rounded-xl bg-black/20 p-3">
-            <p className="text-[11px] text-zinc-500">REQUIRED_CLEANUP</p>
+            <p className="text-[11px] text-zinc-500">정리·수정 검토 필요 (REQUIRED_CLEANUP)</p>
             <p className="mt-1 font-bold">{counts.requiredCleanup}</p>
           </div>
           <div className="rounded-xl bg-black/20 p-3">
-            <p className="text-[11px] text-zinc-500">FOLLOW_UP</p>
+            <p className="text-[11px] text-zinc-500">후속 과제 (FOLLOW_UP)</p>
             <p className="mt-1 font-bold">{counts.followUp}</p>
           </div>
           <div className="rounded-xl bg-black/20 p-3">
-            <p className="text-[11px] text-zinc-500">duplicate owner</p>
+            <p className="text-[11px] text-zinc-500">중복 owner</p>
             <p className="mt-1 font-bold">{counts.duplicateOwners}</p>
           </div>
           <div className="rounded-xl bg-black/20 p-3">
-            <p className="text-[11px] text-zinc-500">unused file / export / dep</p>
+            <p className="text-[11px] text-zinc-500">미사용 파일 / export / 의존성</p>
             <p className="mt-1 font-bold">
               {counts.unusedFiles} / {counts.unusedExports} / {counts.unusedDependencies}
             </p>
           </div>
           <div className="rounded-xl bg-black/20 p-3">
-            <p className="text-[11px] text-zinc-500">obsolete flag/env · CI anomaly</p>
+            <p className="text-[11px] text-zinc-500">낡은 설정(env) · CI 이상</p>
             <p className="mt-1 font-bold">
               {counts.obsoleteFlagsEnvs} · {counts.runtimeCiAnomalies}
             </p>
@@ -398,19 +438,29 @@ function CodeHealthCard({ card }: { card: CodeHealthAdminCard }) {
       </div>
       {card.kind === "monthly" ? (
         <p className="mt-3 text-xs text-zinc-500">
-          cleanup Draft PR: {card.draftPrCreated ? "생성됨" : "없음"}
-          {card.eligibleCount != null ? ` · eligible ${card.eligibleCount}` : ""}
+          정리 Draft PR: {card.draftPrCreated ? "생성 기록 있음(열림 여부는 확인하지 않음)" : "없음"}
+          {card.eligibleCount != null ? ` · 정리 가능 후보 ${card.eligibleCount}` : ""}
         </p>
       ) : null}
       {card.githubRunUrl ? (
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap gap-2">
+          {card.draftPrUrl ? (
+            <a
+              href={card.draftPrUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-white/5"
+            >
+              정리 Draft PR ↗
+            </a>
+          ) : null}
           <a
             href={card.githubRunUrl}
             target="_blank"
             rel="noreferrer"
             className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-white/5"
           >
-            상세 GitHub run / report ↗
+            GitHub 실행 원문 ↗
           </a>
         </div>
       ) : null}
@@ -423,25 +473,25 @@ function FinanceAnomalyCard({ report }: { report: FinanceAnomalyReport }) {
     <section className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-950/10 p-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h2 className="text-lg font-black text-amber-200">Finance / Billing Anomaly Radar</h2>
+          <h2 className="text-lg font-black text-amber-200">재무·과금 이상 감시</h2>
+          <p className="mt-0.5 font-mono text-[11px] text-amber-300/60">Finance / Billing Anomaly Radar</p>
           <p className="mt-1 max-w-4xl text-xs leading-relaxed text-zinc-500">
             canonical finance ledger, provider reconciliation, 실제 Main RP economics와 최소 margin
             floor를 read-only로 비교합니다. 이 radar는 가격·route·billing을 자동 변경하지
             않습니다.
           </p>
         </div>
-        <span
+        <StateBadge
+          label={report.status === "HEALTHY" ? "정상" : report.status === "CRITICAL" ? "긴급" : "주의"}
+          raw={report.status}
           className={
-            "rounded px-2 py-1 text-xs font-bold " +
-            (report.status === "HEALTHY"
+            report.status === "HEALTHY"
               ? "bg-emerald-500/15 text-emerald-300"
               : report.status === "CRITICAL"
                 ? "bg-rose-500/15 text-rose-300"
-                : "bg-amber-500/15 text-amber-300")
+                : "bg-amber-500/15 text-amber-300"
           }
-        >
-          {report.status}
-        </span>
+        />
       </div>
       <p className="mt-3 text-xs text-zinc-500">
         {report.monthKey} · 계산 {fmtDate(report.generatedAt)} · critical {report.criticalCount} ·
@@ -500,6 +550,12 @@ function MemoryResearchCard({
 }) {
   const run = projection.run;
   const state = run?.status ?? projection.status;
+  const memoryStateLabel =
+    projection.status === "UNAVAILABLE"
+      ? "조회 불가"
+      : projection.status === "EMPTY" || !run
+        ? "실행 기록 없음"
+        : state;
   const readiness = run?.readiness;
   const promptPacking = run?.promptPackingAudit ?? null;
   const promptPackingTrend = run?.promptPackingTrend ?? null;
@@ -515,18 +571,19 @@ function MemoryResearchCard({
     <section className="mt-6 rounded-2xl border border-fuchsia-500/20 bg-fuchsia-950/10 p-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h2 className="text-lg font-black text-fuchsia-200">
-            Memory Research Cycle
-          </h2>
+          <h2 className="text-lg font-black text-fuchsia-200">기억력 개선 연구</h2>
+          <p className="mt-0.5 font-mono text-[11px] text-fuchsia-300/60">Memory Research Cycle</p>
           <p className="mt-1 max-w-4xl text-xs leading-relaxed text-zinc-500">
             메모리 기술 탐색 → owner 충돌 검사 → deterministic benchmark → case-port 계획을
             수행하는 정기 연구 자동화입니다. 이 화면은 durable research ledger를 read-only로
             표시하며 production memory를 수정하지 않습니다.
           </p>
         </div>
-        <span className={"rounded px-2 py-1 text-xs font-bold " + badgeClass(state)}>
-          {state}
-        </span>
+        <StateBadge
+          label={memoryStateLabel}
+          raw={state}
+          className={badgeClass(state)}
+        />
       </div>
 
       {run ? (
@@ -1161,44 +1218,33 @@ export default async function AdminAutomationReportsPage() {
   const ttlReports = listMainRpCacheTtlReports(db, 12);
   const schedulers = listSchedulerRunOverview(db);
   const latestTtl = ttlReports[0] ?? null;
+  const scheduledWorkflowDefinitions = scanScheduledWorkflowDefinitions(process.cwd());
   const automationCoverage = buildAutomationCoverage({
-    definitions: scanScheduledWorkflowDefinitions(process.cwd()),
+    definitions: scheduledWorkflowDefinitions,
     github,
   });
-  const githubFailures = automationCoverage.attentionCount;
-  const githubLookupProblems =
-    (github.status === "UNAVAILABLE" ? 1 : 0) +
-    (github.status === "OK" && automationCoverage.status === "UNAVAILABLE" ? 1 : 0) +
-    (supplyDrafts.status === "UNAVAILABLE" ? 1 : 0) +
-    (postDeploy.status === "UNAVAILABLE" ? 1 : 0);
-  const schedulerProblems = schedulers.filter((row) =>
+  const dashboard = buildAutomationAttention({
+    now: financeNow,
+    github,
+    coverage: automationCoverage,
+    registryDefinitions: scheduledWorkflowDefinitions,
+    codeHealth,
+    decisionRadar,
+    memoryResearch,
+    domainSsl,
+    postDeploy,
+    supplyDrafts,
+    schedulers,
+    finance: financeAnomalies,
+  });
+  const itemFor = (key: string) => dashboard.byKey.get(key) ?? null;
+  const needsLook = (key: string) => {
+    const item = itemFor(key);
+    return item != null && (item.bucket === "ACTION" || item.bucket === "UNKNOWN");
+  };
+  const schedulerNeedsLook = schedulers.some((row) =>
     ["FAILED", "STALE", "STALE_BLOCKED", "MISSING"].includes(row.state)
-  ).length;
-  const codeHealthProblems = [codeHealth.weekly.status, codeHealth.monthly.status].filter(
-    (status) => status === "WARNING" || status === "FAILED" || status === "UNAVAILABLE"
-  ).length;
-  const decisionRadarProblems =
-    decisionRadar.status === "UNAVAILABLE" ||
-    ["FAILED", "PARTIAL", "REVIEW_CANDIDATE"].includes(
-      decisionRadar.run?.status ?? ""
-    )
-      ? 1
-      : 0;
-  const memoryResearchProblems =
-    memoryResearch.status === "UNAVAILABLE" ||
-    memoryResearch.run?.baselinePromotionBlocked === true ||
-    memoryResearch.run?.productionTouched === true ||
-    memoryResearch.run?.promptPackingAudit?.status === "FAIL" ||
-    memoryResearch.freshnessStatus === "STALE_CYCLE" ||
-    memoryResearch.freshnessStatus === "PERSISTENCE_LAG"
-      ? 1
-      : 0;
-  const domainSslProblems =
-    domainSsl.status === "UNAVAILABLE" ||
-    domainSsl.latest?.state === "FAIL" ||
-    domainSsl.latest?.state === "WARNING"
-      ? 1
-      : 0;
+  );
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8 text-zinc-100">
@@ -1221,60 +1267,94 @@ export default async function AdminAutomationReportsPage() {
         </Link>
       </div>
 
-      <section className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-white/10 bg-[#11131a] p-4">
-          <p className="text-xs text-zinc-500">GitHub 정기 자동화</p>
-          <p className="mt-2 text-2xl font-black">
-            {automationCoverage.status === "OK"
-              ? automationCoverage.rows.length
-              : github.groups.length}
-            개
-          </p>
-          <p className="mt-1 text-xs text-zinc-600">
-            {automationCoverage.status === "OK"
-              ? "main에 등록된 schedule 기준"
-              : "최근 scheduled run 기준"}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-[#11131a] p-4">
-          <p className="text-xs text-zinc-500">사이트 내부 scheduler</p>
-          <p className="mt-2 text-2xl font-black">{schedulers.length}개</p>
-          <p className="mt-1 text-xs text-zinc-600">durable registry 기준</p>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-[#11131a] p-4">
-          <p className="text-xs text-zinc-500">확인 필요</p>
-          <p className="mt-2 text-2xl font-black text-amber-300">
-            {githubFailures +
-              githubLookupProblems +
-              schedulerProblems +
-              codeHealthProblems +
-              decisionRadarProblems +
-              memoryResearchProblems +
-              domainSslProblems +
-              financeAnomalies.anomalies.length +
-              supplyDrafts.drafts.length}건
-          </p>
-          <p className="mt-1 text-xs text-zinc-600">조회 장애·실패·기록 없음·stale 최신 상태</p>
-        </div>
-      </section>
+      <AutomationAttentionSummary
+        dashboard={dashboard}
+        githubWorkflowCount={
+          automationCoverage.status === "OK" ? automationCoverage.rows.length : null
+        }
+        schedulerCount={schedulers.length}
+      />
+      <AutomationAttentionList dashboard={dashboard} />
 
-      <EffectiveRuntimeSettingsSection projection={effectiveRuntime} />
-      <PostDeployVerificationCard view={postDeploy} />
-      <DomainSslMonitorCard view={domainSsl} />
+      <h2 className="mt-10 text-sm font-bold text-zinc-400">보고서 상세</h2>
+      <p className="mt-1 text-xs text-zinc-600">
+        조치가 필요하거나 확인이 안 된 보고서는 펼쳐져 있고, 정상·참고용 보고서는 접혀 있습니다.
+      </p>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <AutomationReportFold
+        id="report-post-deploy"
+        title="배포 후 검증"
+        item={itemFor(ATTENTION_KEY.postDeploy)}
+        fallbackLabel="미확인"
+        fallbackSummary={UNVERIFIED_SUMMARY}
+        open={needsLook(ATTENTION_KEY.postDeploy)}
+      >
+        <PostDeployVerificationCard view={postDeploy} />
+      </AutomationReportFold>
+
+      <AutomationReportFold
+        id="report-domain-ssl"
+        title={automationDisplayName(DOMAIN_SSL_WORKFLOW_PATH, "Domain SSL Monitor")}
+        item={itemFor(ATTENTION_KEY.workflow(DOMAIN_SSL_WORKFLOW_PATH))}
+        fallbackLabel="미확인"
+        fallbackSummary={UNVERIFIED_SUMMARY}
+        open={needsLook(ATTENTION_KEY.workflow(DOMAIN_SSL_WORKFLOW_PATH))}
+      >
+        <DomainSslMonitorCard view={domainSsl} />
+      </AutomationReportFold>
+
+      <AutomationReportFold
+        id="report-code-health-weekly"
+        title={automationDisplayName(CODE_HEALTH_WEEKLY_WORKFLOW_PATH, "Weekly Code Health")}
+        item={itemFor(ATTENTION_KEY.workflow(CODE_HEALTH_WEEKLY_WORKFLOW_PATH))}
+        fallbackLabel="미확인"
+        fallbackSummary={UNVERIFIED_SUMMARY}
+        open={needsLook(ATTENTION_KEY.workflow(CODE_HEALTH_WEEKLY_WORKFLOW_PATH))}
+      >
         <CodeHealthCard card={codeHealth.weekly} />
+      </AutomationReportFold>
+
+      <AutomationReportFold
+        id="report-code-health-monthly"
+        title={automationDisplayName(CODE_HEALTH_MONTHLY_WORKFLOW_PATH, "Monthly Cleanup")}
+        item={itemFor(ATTENTION_KEY.workflow(CODE_HEALTH_MONTHLY_WORKFLOW_PATH))}
+        fallbackLabel="미확인"
+        fallbackSummary={UNVERIFIED_SUMMARY}
+        open={needsLook(ATTENTION_KEY.workflow(CODE_HEALTH_MONTHLY_WORKFLOW_PATH))}
+      >
         <CodeHealthCard card={codeHealth.monthly} />
-      </div>
+      </AutomationReportFold>
 
-      <FinanceAnomalyCard report={financeAnomalies} />
+      <AutomationReportFold
+        id="report-finance"
+        title="비용·정산 이상 징후"
+        item={null}
+        fallbackLabel={financeAnomalies.anomalies.length ? "확인 필요" : "정상"}
+        fallbackSummary={
+          financeAnomalies.anomalies.length
+            ? `이상 징후 ${financeAnomalies.anomalies.length}건`
+            : "현재 감지된 이상 징후가 없습니다."
+        }
+        open={financeAnomalies.anomalies.length > 0}
+      >
+        <FinanceAnomalyCard report={financeAnomalies} />
+      </AutomationReportFold>
 
+      <AutomationReportFold
+        id="report-decision-radar"
+        title={automationDisplayName(DECISION_RADAR_WORKFLOW_PATH, "Weekly Decision Model Radar")}
+        item={itemFor(ATTENTION_KEY.workflow(DECISION_RADAR_WORKFLOW_PATH))}
+        fallbackLabel="미확인"
+        fallbackSummary={UNVERIFIED_SUMMARY}
+        open={needsLook(ATTENTION_KEY.workflow(DECISION_RADAR_WORKFLOW_PATH))}
+      >
       <section className="mt-6 rounded-2xl border border-emerald-500/20 bg-emerald-950/10 p-5">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <h2 className="text-lg font-black text-emerald-200">
-              Weekly Decision Model Radar
+              주간 의사결정 모델 조사
             </h2>
+            <p className="font-mono text-[11px] text-zinc-600">Weekly Decision Model Radar</p>
             <p className="mt-1 max-w-4xl text-xs leading-relaxed text-zinc-500">
               OpenRouter Decisions 신모델을 주 1회 자동 발견하고, 새/변경 후보만 현재 JEV 업무
               fixture로 비교합니다. 결과가 좋아도 production model pin은 자동 변경하지 않습니다.
@@ -1286,7 +1366,14 @@ export default async function AdminAutomationReportsPage() {
               badgeClass(decisionRadar.run?.status ?? decisionRadar.status)
             }
           >
-            {decisionRadar.run?.status ?? decisionRadar.status}
+            {decisionRadar.run
+              ? decisionRadarStatusLabel(decisionRadar.run.status)
+              : decisionRadar.status === "UNAVAILABLE"
+                ? "조회 불가"
+                : "실행 기록 없음"}
+            <span className="ml-1 font-mono text-[10px] font-normal opacity-70">
+              {decisionRadar.run?.status ?? decisionRadar.status}
+            </span>
           </span>
         </div>
 
@@ -1412,9 +1499,27 @@ export default async function AdminAutomationReportsPage() {
           </div>
         ) : null}
       </section>
+      </AutomationReportFold>
 
-      <MemoryResearchCard projection={memoryResearch} runtime={memoryRuntime} />
+      <AutomationReportFold
+        id="report-memory-research"
+        title={automationDisplayName(MEMORY_RESEARCH_WORKFLOW_PATH, "Memory Research Cycle")}
+        item={itemFor(ATTENTION_KEY.workflow(MEMORY_RESEARCH_WORKFLOW_PATH))}
+        fallbackLabel="미확인"
+        fallbackSummary={UNVERIFIED_SUMMARY}
+        open={needsLook(ATTENTION_KEY.workflow(MEMORY_RESEARCH_WORKFLOW_PATH))}
+      >
+        <MemoryResearchCard projection={memoryResearch} runtime={memoryRuntime} />
+      </AutomationReportFold>
 
+      <AutomationReportFold
+        id="report-cache-ttl"
+        title="월간 Opus 5.5 캐시 TTL 경제성"
+        item={null}
+        fallbackLabel="참고"
+        fallbackSummary={latestTtl ? ttlRecommendationLabel(latestTtl.recommendation) : "월간 보고서 없음"}
+        open={false}
+      >
       <section className="mt-6 rounded-2xl border border-violet-500/20 bg-violet-950/10 p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -1509,7 +1614,16 @@ export default async function AdminAutomationReportsPage() {
           </details>
         ) : null}
       </section>
+      </AutomationReportFold>
 
+      <AutomationReportFold
+        id="report-supplier-discovery"
+        title="독립 공급처 discovery"
+        item={null}
+        fallbackLabel="참고"
+        fallbackSummary={`후보 ${supplierDiscovery.candidates.length}건 · 후보 기록은 production provider registry가 아닙니다.`}
+        open={false}
+      >
       <section className="mt-6 rounded-2xl border border-teal-500/20 bg-teal-950/10 p-5">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
@@ -1536,7 +1650,28 @@ export default async function AdminAutomationReportsPage() {
           호출하지 않습니다.
         </p>
       </section>
+      </AutomationReportFold>
 
+      <AutomationReportFold
+        id="report-supply-drafts"
+        title="Main RP 공급망 Draft 검토 대기"
+        item={null}
+        fallbackLabel={
+          supplyDrafts.status !== "OK"
+            ? "조회 불가"
+            : supplyDrafts.drafts.length
+              ? "승인 대기"
+              : "정상"
+        }
+        fallbackSummary={
+          supplyDrafts.status !== "OK"
+            ? "Draft 목록을 읽지 못했습니다. 정상으로 간주하지 않습니다."
+            : supplyDrafts.drafts.length
+              ? `운영자 승인 대기 Draft PR ${supplyDrafts.drafts.length}건`
+              : "검토 대기 중인 Draft PR이 없습니다."
+        }
+        open={supplyDrafts.status !== "OK" || supplyDrafts.drafts.length > 0}
+      >
       <section className="mt-6 rounded-2xl border border-violet-500/20 bg-violet-950/10 p-5">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
@@ -1601,10 +1736,19 @@ export default async function AdminAutomationReportsPage() {
           </div>
         )}
       </section>
+      </AutomationReportFold>
 
       <GithubAutomationCoverageSection view={automationCoverage} formatDate={fmtDate} />
 
-      <section className="mt-8">
+      <AutomationReportFold
+        id="report-schedulers"
+        title="사이트 내부 자동 작업"
+        item={null}
+        fallbackLabel={schedulerNeedsLook ? "확인 필요" : "정상"}
+        fallbackSummary={`durable scheduler ${schedulers.length}개`}
+        open={schedulerNeedsLook}
+      >
+      <section className="px-4 pb-4">
         <h2 className="text-lg font-black">사이트 내부 자동 작업</h2>
         <p className="mt-1 text-xs text-zinc-500">
           Railway 프로세스의 durable scheduler registry를 그대로 읽습니다. 실행 결과를 고치거나
@@ -1635,7 +1779,10 @@ export default async function AdminAutomationReportsPage() {
                           "rounded px-2 py-1 text-[11px] font-bold " + badgeClass(row.state)
                         }
                       >
-                        {row.state}
+                        {schedulerStateLabel(row.state)}
+                        <span className="ml-1 font-mono text-[10px] font-normal opacity-70">
+                          {row.state}
+                        </span>
                       </span>
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-zinc-400">
@@ -1658,6 +1805,18 @@ export default async function AdminAutomationReportsPage() {
           </div>
         </div>
       </section>
+      </AutomationReportFold>
+
+      <AutomationReportFold
+        id="report-effective-runtime"
+        title="현재 적용 중인 런타임 설정"
+        item={null}
+        fallbackLabel="참고"
+        fallbackSummary="읽기 전용 참고 자료입니다. 이 화면에서 설정을 바꾸지 않습니다."
+        open={false}
+      >
+        <EffectiveRuntimeSettingsSection projection={effectiveRuntime} />
+      </AutomationReportFold>
     </main>
   );
 }
