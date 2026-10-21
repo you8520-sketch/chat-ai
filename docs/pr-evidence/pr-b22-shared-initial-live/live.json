@@ -1,0 +1,265 @@
+{
+  "model": "gpt-6-luna",
+  "temperature": 0.4,
+  "requestKind": "background-post-turn-shared-initial",
+  "scene": "synthetic SAFE fear disclosure; not a production user RP",
+  "characterName": "라이크",
+  "personaName": "렌",
+  "privateCardIncluded": false,
+  "statusWidgetIncluded": false,
+  "consumers": {
+    "mode": "relationship_only",
+    "includeRelationship": true,
+    "includeSuggestions": true,
+    "includeEpisodic": true
+  },
+  "system": "SHARED POST-TURN ENRICHMENT — produce suggested user reply options, durable relationship memory, durable episodic memory facts in one response.\nRequired sections and dynamic widget keys are enforced by the provider JSON schema on the wire.\nThis prompt supplies semantic meaning only.\n\nDo not include markdown fences or prose outside JSON.\nSUGGESTED REPLIES section — write the USER's next roleplay turn options.\nReturn in suggestedReplies.items exactly 3 objects: natural, twist, banter (one each).\nKorean only in text.\nWrite as the USER persona named in [USER] — match voice from [SUGGESTED REPLIES VOICE CONTEXT] when provided.\nEach text targets 50–150 characters including spaces and punctuation. Aim for one cohesive user RP turn, not filler padding.\nEach text MUST read like one user RP message the player can send as-is:\n- Combine one concise action or narration beat with at least one spoken line in double quotes in the same text.\n- Write the action or narration as plain Korean prose, then write the user's spoken line without a name prefix.\n- Keep every beat relevant to the current scene and relationship.\nKinds must differ in intent/action, not just tone:\n- natural: the most natural next user turn for this scene, relationship, and persona voice.\n- twist: plausible but non-obvious — witty angle, unexpected question, action shift, counter-offer, or negotiation.\n- banter: playful, teasing, dry, or sarcastic while staying in persona voice and the current scene.\nWrite as the USER persona. Do not write as the character/NPC.\nDo not continue the assistant's last line in the NPC's voice.\nNo OOC, no meta commentary, no numbering, no category titles inside text.\nDo not invent lore that contradicts the provided scene.\nDo not recommend irreversible decisions or actions the user persona has not taken.\nUse [SUGGESTED REPLIES VOICE CONTEXT] only for suggestedReplies voice/style — never as evidence for statusWidget field values.\nRELATIONSHIP section — durable relationship memory only, from this turn's prose.\nReturn these arrays; empty arrays are correct when nothing changed:\n- items: new/changed possessions only (\"name: item1, item2\"); gifts/transfers as \"from→to: item\" or the receiver's updated line.\n- itemsRemove: current possession lines that are no longer true (copy the previous line EXACTLY).\n- promisesAdd: newly made promises as [{ \"text\": \"...\", \"deadline\": \"...\" }].\n- promisesRemove: copy EXACTLY the [ACTIVE PROMISES] string(s) this turn's prose explicitly cancels, withdraws, fulfils, or expires. Unclear or several possible targets → []. Never remove another promise; a cancellation is never a promisesAdd.\nNever extract honorifics, nicknames, inner thoughts, emotion, relationship stage, speech style, gender, or current location.\nEPISODIC section — durable long-term memory (NOT status widget UI):\nStructured facts for long-term episodic memory:\n- Return facts in episodic.extracted_facts\n- Each item, if any, MUST be exactly: {\"category\":\"...\",\"subject\":\"...\",\"attribute\":\"...\",\"value\":\"...\",\"importance\":\"...\",\"fact_text\":\"...\",\"evidence_type\":\"...\",\"evidence\":{\"source_role\":\"user|assistant\",\"source_quote\":\"...\"}}\n- category MUST be one of: relationship, character, setting, item, preference, rule, quest, location, organization.\n- subject: short stable snake_case identifier for the entity that owns the fact. Reuse the same identifier for the same entity; never create duplicates.\n- attribute: concise snake_case property name. Reuse existing attribute names; do not invent synonyms.\n- value: concise current value, short, not a sentence, no spaces.\n- importance MUST be one of: critical, important, normal.\n- fact_text MUST be one complete Korean sentence understandable without surrounding conversation.\n- evidence_type MUST be one of: explicit_user_statement, explicit_scene_event, explicit_character_claim.\n- evidence_type means: explicit_user_statement = the CURRENT USER directly stated it; explicit_scene_event = a concrete observable action/event that actually occurs in the CURRENT RAW scene; explicit_character_claim = a character explicitly said/revealed/claimed it.\n- evidence.source_quote MUST be copied character-for-character (verbatim, one clause or sentence, at least 6 characters, never paraphrased or merged from separate places) from the [THIS TURN — USER] block (source_role=user) or the [THIS TURN — ASSISTANT] / [NEW CANONICAL ASSISTANT — CURRENT TURN] block (source_role=assistant). Never quote previous-turn, rejected-draft, canon or character-identity text. The server verifies the quote against the saved message and remembers ONLY that quote (fact_text is just a search gloss; anything in fact_text the quote does not itself say is never remembered), so choose the span that itself states who did what. A missing or non-verbatim quote discards the fact, and a verified quote never turns a character's claim into an objective fact.\n- Anything about the user's own words, actions, choices, consent, or personal past MUST quote the USER message (source_role=user); assistant narration of the user is not evidence for it. explicit_user_statement requires source_role=user; explicit_character_claim requires source_role=assistant. If no verbatim span supports the fact, omit it.\n- A pre-existing relationship/history involving the user (prior meeting, familiarity, shared event, promise, third-party knowledge such as \"X knows the user\" or \"send the user my regards\") is NOT an explicit_scene_event merely because the assistant narrated it. If only the character/assistant asserts it, preserve attribution as explicit_character_claim; if no durable value, omit it.\n- Never label the assistant's interpretation, deduction, guess, or scene improvisation as independent evidence. There is no assistant_inference evidence type.\n- Character/world canon is already owned by a higher-authority source and MUST NOT be copied into extracted_facts.\n- Episodic facts store concrete historical events, explicit durable facts, decisions, preferences, and disclosures.\n- Source-of-truth boundary: promises and their fulfillment/cancellation belong ONLY to the Relationship Durable Ledger. Ownership, possession, acquisition, loss, transfer, or gifting of items also belongs ONLY to that ledger. Never copy those into extracted_facts.\n- An item may appear only for durable lore about the item's nature/history/property that is not inventory, ownership, possession, acquisition, loss, or transfer.\n- Do NOT infer persistent personality or relationship stage from a single turn's actions, dialogue, or emotions.\n- Specifically, do NOT confirm attachment, possessiveness, jealousy, obsession, dominance, control, obedience, or psychopathy/aggression tendencies from a single turn.\n- If aggressive behavior is important for continuity, record it as an observable event, not as an abstract personality evaluation.\n- Stable personality/relationship facts are only allowed when there is an explicit user declaration, explicit mutual agreement, provided canon, or established durable fact.\n- Do not put raw dialogue quotes in fact_text (verbatim text belongs only in evidence.source_quote), and do not store promises or item-ledger data. When consequential speech (evaluation, insult, praise, nickname, confession, rejection, boundary statement, or shared phrase) materially affects future relationship continuity, record the historical significance in fact_text—not the full quote unless a very short distinctive phrase aids recall.\n- A character's unverified statement must use evidence_type=explicit_character_claim and fact_text must preserve attribution (for example, \"에녹은 자신이 길드원이라고 밝혔다.\"). Never rewrite a claim as an objective fact (forbidden: \"에녹은 길드원이다.\").\n- Extract ONLY NEW or CHANGED long-term facts likely useful in future conversations: concrete events, explicit facts, decisions, disclosures, durable preferences, rules, goals, important locations, organizations, major world changes. Specifically, record explicitly revealed durable character facts with their source, not inferred traits, rank, identity, awakening/progression state, diagnosis, or hidden setting conclusions.\n- Never extract greetings, jokes, filler, temporary emotions, transient combat states, one-time reactions, small talk, or information unlikely to matter later.\n- Forbidden examples:\n  - {\"category\":\"character\",\"subject\":\"enoch\",\"attribute\":\"personality_change\",\"value\":\"possessive\",\"importance\":\"important\",\"fact_text\":\"에녹은 유저에게 극단적인 소유욕을 가진 인물로 변했다.\"}\n  - {\"category\":\"relationship\",\"subject\":\"enoch_user\",\"attribute\":\"relationship_dynamic\",\"value\":\"domination\",\"importance\":\"important\",\"fact_text\":\"둘의 관계는 강압적인 지배 관계가 되었다.\"}\n- Allowed examples:\n  - {\"category\":\"character\",\"subject\":\"enoch\",\"attribute\":\"action\",\"value\":\"locked_door\",\"importance\":\"important\",\"fact_text\":\"에녹은 유저가 떠나려 하자 문을 잠그고 남으라고 요구했다.\",\"evidence_type\":\"explicit_scene_event\",\"evidence\":{\"source_role\":\"assistant\",\"source_quote\":\"에녹이 문을 잠갔다.\"}}\n  - {\"category\":\"character\",\"subject\":\"user\",\"attribute\":\"response\",\"value\":\"refused\",\"importance\":\"important\",\"fact_text\":\"유저는 에녹의 요구를 거절했다.\",\"evidence_type\":\"explicit_scene_event\",\"evidence\":{\"source_role\":\"user\",\"source_quote\":\"싫어, 나는 여기 남지 않을 거야.\"}}\n  - {\"category\":\"relationship\",\"subject\":\"user\",\"attribute\":\"relationship_proposal\",\"value\":\"proposed\",\"importance\":\"important\",\"fact_text\":\"유저는 에녹에게 연인이 되자고 제안했다.\",\"evidence_type\":\"explicit_user_statement\",\"evidence\":{\"source_role\":\"user\",\"source_quote\":\"나랑 사귀자.\"}}\n  - {\"category\":\"relationship\",\"subject\":\"enoch\",\"attribute\":\"relationship_response\",\"value\":\"accepted\",\"importance\":\"important\",\"fact_text\":\"에녹은 연인 제안을 명시적으로 수락했다.\",\"evidence_type\":\"explicit_scene_event\",\"evidence\":{\"source_role\":\"assistant\",\"source_quote\":\"그래, 오늘부터 연인이다.\"}}\n  - {\"category\":\"relationship\",\"subject\":\"enoch\",\"attribute\":\"claimed_prior_acquaintance\",\"value\":\"claimed\",\"importance\":\"normal\",\"fact_text\":\"에녹은 유저와 예전부터 알던 사이라고 주장했다.\",\"evidence_type\":\"explicit_character_claim\",\"evidence\":{\"source_role\":\"assistant\",\"source_quote\":\"우린 예전부터 알던 사이잖아.\"}}\n  - {\"category\":\"preference\",\"subject\":\"user\",\"attribute\":\"roleplay_preference\",\"value\":\"consensual_control\",\"importance\":\"important\",\"fact_text\":\"사용자는 상호 합의된 통제 역할극을 선호한다고 명시했다.\",\"evidence_type\":\"explicit_user_statement\",\"evidence\":{\"source_role\":\"user\",\"source_quote\":\"합의된 통제 역할극이 좋아.\"}}\n- If uncertain, omit it. If none, output exactly \"extracted_facts\": []. Maximum 3 facts.\n- corrects: \"\" by default. When the CURRENT USER explicitly says a [CORRECTABLE PAST RECORDS] entry got that same event wrong, record the corrected fact (explicit_user_statement quoting the user's correction, source_role=user) and copy that entry's handle. A new separate event, a recovery or later change, or an unclear target is never a correction. NEVER output an unlisted handle, source_turn, id, uuid, or timestamp.\nEpisodic current-turn evidence: current USER message + current canonical ASSISTANT prose only.\nCharacter identity / critical context = canon reference, NOT new episodic evidence.\n[PREVIOUS TURN ASSISTANT] blocks = status continuity only, NOT episodic evidence.",
+  "userBlock": "[THIS TURN — USER]\n나 열두 살 때 창고에 갇힌 뒤로, 닫힌 문 소리만 나도 숨이 막혀.\n\n[THIS TURN — ASSISTANT]\n라이크가 문고리에서 손을 떼고 한 걸음 물러섰다. \"열두 살 때 창고에 갇힌 거구나. 닫힌 문 소리에 숨이 막힌다는 말, 그냥 넘기지 않을게.\"\n\n[ACTIVE PROMISES — promisesRemove may only copy these]\n(none → promisesRemove [])\n\n[CORRECTABLE PAST RECORDS — episodic corrects may only copy one of these handles]\n(none → corrects \"\")",
+  "responseFormat": {
+    "type": "json_schema",
+    "json_schema": {
+      "name": "post_turn_shared_initial",
+      "strict": true,
+      "schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "suggestedReplies",
+          "relationship",
+          "episodic"
+        ],
+        "properties": {
+          "suggestedReplies": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 3,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "text"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "natural",
+                        "twist",
+                        "banter"
+                      ]
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "relationship": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "items",
+              "itemsRemove",
+              "promisesAdd",
+              "promisesRemove"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "itemsRemove": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "promisesAdd": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "text",
+                    "deadline"
+                  ],
+                  "properties": {
+                    "text": {
+                      "type": "string"
+                    },
+                    "deadline": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "promisesRemove": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "episodic": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "extracted_facts"
+            ],
+            "properties": {
+              "extracted_facts": {
+                "type": "array",
+                "minItems": 0,
+                "maxItems": 3,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "category",
+                    "subject",
+                    "attribute",
+                    "value",
+                    "importance",
+                    "fact_text",
+                    "evidence_type",
+                    "evidence",
+                    "corrects"
+                  ],
+                  "properties": {
+                    "category": {
+                      "type": "string",
+                      "enum": [
+                        "relationship",
+                        "character",
+                        "setting",
+                        "item",
+                        "preference",
+                        "rule",
+                        "quest",
+                        "location",
+                        "organization"
+                      ]
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "attribute": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "string"
+                    },
+                    "importance": {
+                      "type": "string",
+                      "enum": [
+                        "critical",
+                        "important",
+                        "normal"
+                      ]
+                    },
+                    "fact_text": {
+                      "type": "string"
+                    },
+                    "evidence_type": {
+                      "type": "string",
+                      "enum": [
+                        "explicit_user_statement",
+                        "explicit_scene_event",
+                        "explicit_character_claim"
+                      ]
+                    },
+                    "evidence": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "source_role",
+                        "source_quote"
+                      ],
+                      "properties": {
+                        "source_role": {
+                          "type": "string",
+                          "enum": [
+                            "user",
+                            "assistant"
+                          ]
+                        },
+                        "source_quote": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "corrects": {
+                      "type": "string",
+                      "enum": [
+                        "",
+                        "C1",
+                        "C2",
+                        "C3",
+                        "C4",
+                        "C5",
+                        "C6"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "providerText": "{\"episodic\":{\"extracted_facts\":[{\"attribute\":\"childhood_experience\",\"category\":\"character\",\"corrects\":\"\",\"evidence\":{\"source_quote\":\"나 열두 살 때 창고에 갇힌 뒤로, 닫힌 문 소리만 나도 숨이 막혀.\",\"source_role\":\"user\"},\"evidence_type\":\"explicit_user_statement\",\"fact_text\":\"사용자는 열두 살 때 창고에 갇힌 경험이 있으며, 이후 닫힌 문 소리에 숨이 막힌다고 밝혔다.\",\"importance\":\"important\",\"subject\":\"user\",\"value\":\"창고_갇힘\"}]},\"relationship\":{\"items\":[],\"itemsRemove\":[],\"promisesAdd\":[],\"promisesRemove\":[]},\"suggestedReplies\":{\"items\":[{\"kind\":\"natural\",\"text\":\"나는 잠시 숨을 고르고 문에서 떨어져 선다. \\\"그때 일을 자세히 말하고 싶진 않아. 그냥 문을 닫지 말아 줘.\\\"\"},{\"kind\":\"twist\",\"text\":\"문고리 대신 창문 쪽을 바라보며 조심스레 묻는다. \\\"혹시 여기서 나가는 길은 문 말고도 있어? 지금은 선택지가 있다는 것만 알아도 도움이 될 것 같아.\\\"\"},{\"kind\":\"banter\",\"text\":\"긴장을 감추려 애써 어깨를 으쓱한다. \\\"문이랑은 아직 화해할 생각 없어. 그러니까 오늘은 문 닫는 소리 없는 곳으로 안내해 줘.\\\"\"}]}}",
+  "transportOk": true,
+  "attempted": true,
+  "httpStatus": 200,
+  "finishReason": "stop",
+  "errorCode": null,
+  "usage": {
+    "inputTokens": 2938,
+    "outputTokens": 320,
+    "estimated": false,
+    "finishReason": "stop",
+    "billedUsd": 0.000342,
+    "responseModelId": null
+  },
+  "rawExtractedFactCount": 1,
+  "sanitizedFactCount": 1,
+  "parse": {
+    "present": true,
+    "valid": true,
+    "facts": [
+      {
+        "category": "character",
+        "subject": "user",
+        "attribute": "childhood_experience",
+        "value": "창고_갇힘",
+        "importance": "important",
+        "fact_text": "사용자는 열두 살 때 창고에 갇힌 경험이 있으며, 이후 닫힌 문 소리에 숨이 막힌다고 밝혔다.",
+        "evidence_type": "explicit_user_statement",
+        "evidence": {
+          "source_role": "user",
+          "source_quote": "나 열두 살 때 창고에 갇힌 뒤로, 닫힌 문 소리만 나도 숨이 막혀."
+        }
+      }
+    ]
+  },
+  "persisted": {
+    "inserted": 1,
+    "skipped": false,
+    "contentRoute": "safe"
+  }
+}
