@@ -103,6 +103,58 @@ critical: death, betrayal, binding promise, identity reveal, unique item gain/lo
 scope: party_observed if the party saw or heard it; actor_only for a private inner experience; public_world for an openly known world fact.
 Do not invent hidden GM secrets.`;
 
+export type TrpgSealedSummaryRow = {
+  roundStart: number;
+  roundEnd: number;
+  summary: string;
+};
+
+/**
+ * Fit sealed round summaries into the GM prompt budget without splitting a segment.
+ * When over budget, drop oldest complete summaries first and keep the newest.
+ */
+export function formatSealedSummariesForPrompt(
+  rows: readonly TrpgSealedSummaryRow[],
+  maxChars = TRPG_SEALED_PROMPT_MAX_CHARS
+): string {
+  const segments = rows
+    .map((row) => ({ ...row, text: row.summary.trim() }))
+    .filter((row) => row.text.length > 0);
+  if (segments.length === 0) return "";
+
+  const joinedLength = (picked: Array<{ text: string }>) => {
+    if (picked.length === 0) return 0;
+    return picked.reduce((total, seg, index) => total + seg.text.length + (index > 0 ? 1 : 0), 0);
+  };
+
+  if (joinedLength(segments) <= maxChars) {
+    return segments.map((seg) => seg.text).join("\n");
+  }
+
+  const picked: Array<{ text: string }> = [];
+  for (let index = segments.length - 1; index >= 0; index -= 1) {
+    const candidate = segments[index]!;
+    const trial = [candidate, ...picked];
+    if (joinedLength(trial) <= maxChars) {
+      picked.unshift(candidate);
+    }
+  }
+
+  if (picked.length === 0) {
+    const newest = segments[segments.length - 1]!;
+    if (newest.text.length <= maxChars) return newest.text;
+    return clipTrpgHeadTail(newest.text, maxChars);
+  }
+
+  return picked.map((seg) => seg.text).join("\n");
+}
+
+function sealedSummaryTextForPrompt(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  return formatSealedSummariesForPrompt([{ roundStart: 0, roundEnd: 0, summary: trimmed }]);
+}
+
 export function buildTrpgSealUserBlock(rounds: TrpgMemoryRound[]): string {
   const body = rounds
     .map((r) => {
@@ -139,7 +191,8 @@ export function buildTrpgMemoryPromptBlock(opts: {
       return `[ROUND ${r.roundNumber}]\n${acts}\n  GM: ${r.gmNarration}`;
     })
     .join("\n\n");
-  const sealed = clipTrpgChars(opts.sealedSummary.trim(), TRPG_SEALED_PROMPT_MAX_CHARS);
+  // Caller supplies budget-limited text (see loadSealedSummaries / formatSealedSummariesForPrompt).
+  const sealed = opts.sealedSummary.trim();
   return [
     "[TRPG STRUCTURED STATE — authoritative; do not contradict HP/items/location/flags]",
     `round=${opts.structured.roundNumber}`,
@@ -253,19 +306,28 @@ export function loadCompletedMemoryRounds(db: Database.Database, campaignId: num
   });
 }
 
-export function loadSealedSummaries(db: Database.Database, campaignId: number): string {
+export function loadSealedSummaryRows(db: Database.Database, campaignId: number): TrpgSealedSummaryRow[] {
   const rows = db
     .prepare(
-      `SELECT summary FROM trpg_round_summaries WHERE campaign_id=? ORDER BY round_start ASC`
+      `SELECT round_start, round_end, summary FROM trpg_round_summaries WHERE campaign_id=? ORDER BY round_start ASC`
     )
-    .all(campaignId) as Array<{ summary: string }>;
+    .all(campaignId) as Array<{ round_start: number; round_end: number; summary: string }>;
+  return rows.map((row) => ({
+    roundStart: row.round_start,
+    roundEnd: row.round_end,
+    summary: row.summary,
+  }));
+}
+
+export function loadSealedSummaries(db: Database.Database, campaignId: number): string {
+  const rows = loadSealedSummaryRows(db, campaignId);
   if (rows.length > 0) {
-    return rows.map((r) => r.summary.trim()).filter(Boolean).join("\n");
+    return formatSealedSummariesForPrompt(rows);
   }
   const mem = db
     .prepare(`SELECT recent_summary FROM trpg_campaign_memories WHERE campaign_id=?`)
     .get(campaignId) as { recent_summary: string } | undefined;
-  return mem?.recent_summary ?? "";
+  return sealedSummaryTextForPrompt(mem?.recent_summary ?? "");
 }
 
 export function loadSealedThrough(db: Database.Database, campaignId: number): number {
@@ -293,12 +355,12 @@ export function persistRoundSummary(
      VALUES (?,?,?,?)
      ON CONFLICT(campaign_id, round_start) DO UPDATE SET round_end=excluded.round_end, summary=excluded.summary`
   ).run(campaignId, roundStart, roundEnd, text);
-  const sealed = loadSealedSummaries(db, campaignId);
+  const sealed = formatSealedSummariesForPrompt(loadSealedSummaryRows(db, campaignId));
   db.prepare(
     `UPDATE trpg_campaign_memories
      SET recent_summary=?, sealed_round_count=?, updated_at=datetime('now')
      WHERE campaign_id=?`
-  ).run(clipTrpgChars(sealed, TRPG_SEALED_PROMPT_MAX_CHARS), roundEnd + 1, campaignId);
+  ).run(sealed, roundEnd + 1, campaignId);
 }
 
 export function buildCampaignMemoryQuery(
