@@ -35,7 +35,10 @@ import {
 import { countMemoryEligibleCompletedTurnsCore } from "./memory-turn-loader";
 import { resolveOocSceneRenderIntent } from "@/lib/oocSceneRender";
 import { syncMemoryEligibleTurnCount } from "./memory-reconcile";
-import { reconcileSharedEpisodicFactsForTurn } from "./memory-episodic-shared";
+import {
+  describeSharedEpisodicTurnOutcome,
+  reconcileSharedEpisodicFactsForTurn,
+} from "./memory-episodic-shared";
 import { runEpisodicSemanticIndexJob } from "./memory-episodic-semantic-jobs";
 import { buildMemoryContext } from "./memory-injector";
 import { ensureLorebookWithinBudget, trimLorebookToBudgetSync } from "./memory-lorebook-fit";
@@ -435,12 +438,13 @@ export async function scheduleMemoryUpdate(opts: {
     console.warn("[memory] relationship meta extract failed:", (e as Error).message);
   }
 
-  if (
-    opts.assistantMessageId &&
-    (opts.episodicSharedAttempted === true || isRegenerate)
-  ) {
+  const episodicReconcileRequested =
+    opts.assistantMessageId != null &&
+    (opts.episodicSharedAttempted === true || isRegenerate);
+  if (episodicReconcileRequested && opts.assistantMessageId) {
+    let episodicResult: ReturnType<typeof reconcileSharedEpisodicFactsForTurn> | null = null;
     try {
-      const episodicResult = reconcileSharedEpisodicFactsForTurn(getDb(), {
+      episodicResult = reconcileSharedEpisodicFactsForTurn(getDb(), {
         chatId: opts.chatId,
         userId: opts.userId,
         characterId: opts.characterId,
@@ -459,21 +463,40 @@ export async function scheduleMemoryUpdate(opts: {
         generationSequence: generationScope?.generationSequence,
         contentRoute: opts.route,
       });
-      if (process.env.NODE_ENV !== "production") {
-        console.info("[memory] shared episodic reconcile", {
-          chat_id: opts.chatId,
-          assistant_message_id: opts.assistantMessageId,
-          replaced: episodicResult.replaced,
-          inserted: episodicResult.inserted,
-          skipped: episodicResult.skipped,
-        });
-      }
     } catch (e) {
       console.warn("[memory] shared episodic reconcile failed:", (e as Error).message);
     }
     // Derived semantic sidecar only — runs after the canonical write committed;
     // gated by the semantic runtime and never throws.
-    await runEpisodicSemanticIndexJob({ db: getDb(), chatId: opts.chatId });
+    const indexResult = await runEpisodicSemanticIndexJob({ db: getDb(), chatId: opts.chatId });
+    console.info("[memory] shared episodic outcome", {
+      chat_id: opts.chatId,
+      assistant_message_id: opts.assistantMessageId,
+      regenerate: isRegenerate,
+      content_route: opts.route ?? null,
+      ...describeSharedEpisodicTurnOutcome({
+        reconcileCalled: true,
+        episodic: opts.sharedInitialEpisodic,
+        reconcile: episodicResult,
+      }),
+      index: {
+        status: indexResult.status,
+        requested: indexResult.requested,
+        written: indexResult.written,
+      },
+    });
+  } else if (opts.assistantMessageId) {
+    console.info("[memory] shared episodic outcome", {
+      chat_id: opts.chatId,
+      assistant_message_id: opts.assistantMessageId,
+      regenerate: false,
+      content_route: opts.route ?? null,
+      ...describeSharedEpisodicTurnOutcome({
+        reconcileCalled: false,
+        episodic: opts.sharedInitialEpisodic,
+        reconcile: null,
+      }),
+    });
   }
 
   if (isRegenerate && opts.assistantMessageId) {
