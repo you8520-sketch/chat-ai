@@ -18,6 +18,36 @@ export const TRPG_STORY_PHASES = [
 
 export type TrpgStoryPhase = (typeof TRPG_STORY_PHASES)[number];
 
+export const TRPG_STORY_PHASE_ADVANCE: Record<
+  Exclude<TrpgStoryPhase, "FINISHED">,
+  { next: TrpgStoryPhase; when: string }
+> = {
+  INTRO: {
+    next: "DEVELOPMENT",
+    when: "the opening situation has produced a concrete consequence beyond a mere round-trip or wait with no new fact: the resolved action or a server fact in this input changed the party's position, knowledge, relationships, or immediate risk",
+  },
+  DEVELOPMENT: {
+    next: "ESCALATION",
+    when: "a pressure, hazard, rival, or cost shown in this input has raised the stakes or narrowed the party's options",
+  },
+  ESCALATION: {
+    next: "CLIMAX_AVAILABLE",
+    when: "the decisive confrontation or way out is within reach in the fiction",
+  },
+  CLIMAX_AVAILABLE: {
+    next: "CLIMAX",
+    when: "the party has committed to the decisive confrontation or way out",
+  },
+  CLIMAX: {
+    next: "EPILOGUE",
+    when: "the core conflict is resolved by play",
+  },
+  EPILOGUE: {
+    next: "FINISHED",
+    when: "the aftermath has been played out",
+  },
+};
+
 export const TRPG_SCENARIO_DIFFICULTIES = ["easy", "normal", "hard", "deadly"] as const;
 export type TrpgScenarioDifficulty = (typeof TRPG_SCENARIO_DIFFICULTIES)[number];
 
@@ -689,6 +719,9 @@ export function isAllowedStoryPhaseTransition(
   opts?: { campaignFinished?: boolean; forcedEnd?: boolean }
 ): boolean {
   if (from === to) return true;
+  if (to === "FINISHED" && !opts?.campaignFinished && !opts?.forcedEnd) {
+    return false;
+  }
   if (opts?.campaignFinished || opts?.forcedEnd) {
     return to === "EPILOGUE" || to === "FINISHED" || storyPhaseIndex(to) >= storyPhaseIndex(from);
   }
