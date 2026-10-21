@@ -1,8 +1,13 @@
 import Module from "node:module";
 
+type ModuleLoader = {
+  _load(this: unknown, request: string, parent: unknown, isMain: boolean): unknown;
+};
+const moduleLoader = Module as unknown as ModuleLoader;
+
 let sessionToken = "";
-const originalLoad = Module._load;
-Module._load = function (request, parent, isMain) {
+const originalLoad = moduleLoader._load;
+moduleLoader._load = function (this: unknown, request: string, parent: unknown, isMain: boolean) {
   if (request === "server-only") return {};
   if (request === "next/headers") {
     return {
@@ -13,7 +18,7 @@ Module._load = function (request, parent, isMain) {
     };
   }
   return originalLoad.call(this, request, parent, isMain);
-} as typeof Module._load;
+};
 
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -93,7 +98,7 @@ describe("adult-off batch commits on the real read and variant-selection paths",
 
   after(() => {
     uninstallIsolatedTestDatabase();
-    Module._load = originalLoad;
+    moduleLoader._load = originalLoad;
     if (previousGuardFlag === undefined) delete process.env.ADULT_OFF_OUTPUT_GUARD_ENABLED;
     else process.env.ADULT_OFF_OUTPUT_GUARD_ENABLED = previousGuardFlag;
     fs.rmSync(workRoot, { recursive: true, force: true });
@@ -245,6 +250,8 @@ describe("adult-off batch commits on the real read and variant-selection paths",
         ADULT_OFF_BATCH_CAP_KRW: "100",
         ADULT_OFF_BATCH_APPROVE_PAID: "1",
         ADULT_OFF_BATCH_ALLOW_ISOLATED_PAID: "1",
+        ADULT_OFF_BATCH_USD_KRW: "1450",
+        ADULT_OFF_BATCH_APPROVED_RATES: "0.07/0.35",
         CHEAPER_INFERENCE_API_KEY: "dummy-not-a-real-key",
       },
       path.join(process.env.DATA_DIR!, "app.db"),
@@ -321,6 +328,8 @@ describe("adult-off batch commits on the real read and variant-selection paths",
         ADULT_OFF_BATCH_CAP_KRW: "100",
         ADULT_OFF_BATCH_APPROVE_PAID: "1",
         ADULT_OFF_BATCH_ALLOW_ISOLATED_PAID: "1",
+        ADULT_OFF_BATCH_USD_KRW: "1450",
+        ADULT_OFF_BATCH_APPROVED_RATES: "0.07/0.35",
         CHEAPER_INFERENCE_API_KEY: "dummy-not-a-real-key",
       },
       path.join(process.env.DATA_DIR!, "app.db"),

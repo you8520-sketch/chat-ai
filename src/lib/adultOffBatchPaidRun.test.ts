@@ -47,6 +47,7 @@ import {
   surveyAdultOffAuxSurfaces,
 } from "@/lib/adultOffBatchInspectionPrep";
 import { ensureProviderCostLedgerSchema } from "@/lib/providerCostLedger";
+import { resolveOpenRouterModelRates, type OpenRouterModelRates } from "@/lib/openRouterModelPricing";
 
 const REPO_ROOT = path.resolve(__dirname, "../..");
 const RESTRICTED_MARK = "ZZ_SYNTHETIC_BATCH_RESTRICTED";
@@ -64,6 +65,11 @@ type MockOptions = {
   onCall?: (call: { index: number; text: string; scope: AdultOffClassifierTurnScope }) => void | Promise<void>;
   verdict?: (text: string) => "allow" | "restrict" | "low";
 };
+
+/** 부모 프로세스의 공급자 키 등을 물려주지 않는 최소 자식 환경. */
+function childEnv(extra: Record<string, string>): NodeJS.ProcessEnv {
+  return { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", ...extra } as unknown as NodeJS.ProcessEnv;
+}
 
 function sha256File(file: string): string {
   return createHash("sha256").update(fs.readFileSync(file)).digest("hex");
@@ -121,6 +127,8 @@ describe("adult-off batch paid runner", { concurrency: 1 }, () => {
         ADULT_OFF_BATCH_CAP_KRW: cap,
         ADULT_OFF_BATCH_APPROVE_PAID: "1",
         ADULT_OFF_BATCH_ALLOW_ISOLATED_PAID: "1",
+        ADULT_OFF_BATCH_USD_KRW: "1450",
+        ADULT_OFF_BATCH_APPROVED_RATES: "0.07/0.35",
         CHEAPER_INFERENCE_API_KEY: "dummy-not-a-real-key",
         ...overrides,
       };
@@ -399,11 +407,16 @@ describe("adult-off batch paid runner", { concurrency: 1 }, () => {
         );
       }
       assert.equal(isLiveProductionDatabase(sc.dbPath, env), false);
-      const allowed = parseAdultOffBatchPaidRunConfig(
-        { ...sc.env(), RAILWAY_VOLUME_MOUNT_PATH: volume, ADULT_OFF_BATCH_ALLOW_PROD_WRITE: "1" },
-        symlink
+      const unmounted = { ...sc.env(), RAILWAY_VOLUME_MOUNT_PATH: volume, ADULT_OFF_BATCH_ALLOW_PROD_WRITE: "1" };
+      assert.throws(
+        () => parseAdultOffBatchPaidRunConfig(unmounted, symlink),
+        (error: unknown) =>
+          error instanceof AdultOffBatchConfigError && error.code === "persistent_state_volume_not_confirmed"
       );
+      const allowed = parseAdultOffBatchPaidRunConfig(unmounted, symlink, { isMountedVolume: () => true });
       assert.equal(allowed.liveProductionDb, true);
+      assert.equal(allowed.statePersistent, true);
+      assert.equal(allowed.stateDir, path.join(fs.realpathSync(volume), "private", "adult-off-batch"));
       const plan = parseAdultOffBatchPaidRunConfig(
         { RAILWAY_VOLUME_MOUNT_PATH: volume },
         symlink
@@ -975,6 +988,8 @@ const config = parseAdultOffBatchPaidRunConfig(
     ADULT_OFF_BATCH_CAP_KRW: "50",
     ADULT_OFF_BATCH_APPROVE_PAID: "1",
     ADULT_OFF_BATCH_ALLOW_ISOLATED_PAID: "1",
+    ADULT_OFF_BATCH_USD_KRW: "1450",
+    ADULT_OFF_BATCH_APPROVED_RATES: "0.07/0.35",
     CHEAPER_INFERENCE_API_KEY: "dummy-not-a-real-key",
   },
   dbPath,
@@ -1008,7 +1023,7 @@ main();
       const result = spawnSync(
         process.execPath,
         ["--conditions=react-server", "--import", "tsx", child, sc.dbPath, sc.stateDir],
-        { cwd: REPO_ROOT, env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "" }, encoding: "utf8" }
+        { cwd: REPO_ROOT, env: childEnv({}), encoding: "utf8" }
       );
       assert.equal(result.signal, "SIGKILL", `${result.stdout}${result.stderr}`);
       assert.equal(usageOf(sc.fx, id).adultOffGuard, undefined);
@@ -1173,6 +1188,12 @@ main();
       const prod = scenario("run-iso-prod", capKrw);
       const volume = path.join(prod.dir, "volume");
       fs.mkdirSync(volume);
+      const onVolume = (sc: Scenario, dbPath: string, overrides: Record<string, string | undefined> = {}) =>
+        parseAdultOffBatchPaidRunConfig(
+          { ...sc.env(overrides), RAILWAY_VOLUME_MOUNT_PATH: volume, ADULT_OFF_BATCH_CAP_KRW: capKrw },
+          dbPath,
+          { isMountedVolume: () => true }
+        );
       const liveDb = path.join(volume, "app.db");
       prod.fx.pragma("wal_checkpoint(TRUNCATE)");
       fs.copyFileSync(prod.dbPath, liveDb);
@@ -1187,28 +1208,27 @@ main();
       );
 
       const isolatedMock = mockClassifier(isolated);
-      const r1 = await run(isolated, isolatedMock);
+      const isolatedConfig = onVolume(isolated, isolated.dbPath);
+      const r1 = await executeAdultOffBatchPaidRun({
+        config: isolatedConfig,
+        openDatabase: () => new Database(isolated.dbPath, { fileMustExist: true }),
+        createClassifier: isolatedMock.createClassifier,
+      });
       assert.equal(r1.stopReason, "cap_reached");
       assert.equal(isolatedMock.calls.length, 4);
       const isolatedBytes = sha256File(isolated.dbPath);
 
       const prodMock = mockClassifier(prodLive);
       const r2 = await executeAdultOffBatchPaidRun({
-        config: parseAdultOffBatchPaidRunConfig(
-          {
-            ...prod.env(),
-            ADULT_OFF_BATCH_ALLOW_ISOLATED_PAID: undefined,
-            ADULT_OFF_BATCH_ALLOW_PROD_WRITE: "1",
-            ADULT_OFF_BATCH_CAP_KRW: capKrw,
-            RAILWAY_VOLUME_MOUNT_PATH: volume,
-          },
-          liveDb,
-          { stateDir: isolated.stateDir }
-        ),
+        config: onVolume(prod, liveDb, {
+          ADULT_OFF_BATCH_ALLOW_ISOLATED_PAID: undefined,
+          ADULT_OFF_BATCH_ALLOW_PROD_WRITE: "1",
+        }),
         openDatabase: () => new Database(liveDb, { fileMustExist: true }),
         createClassifier: prodMock.createClassifier,
       });
       assert.equal(r2.database.liveProductionDb, true);
+      assert.equal(isolatedConfig.stateDir, path.join(fs.realpathSync(volume), "private", "adult-off-batch"));
       assert.ok(Math.abs(r2.budget.settledKrwAtStart - 4 * KRW_PER_CALL) < 1e-9);
       assert.equal(r2.stopReason, "cap_reached");
       assert.equal(prodMock.calls.length, 0, "the shared cap, not the isolated proofs, decides what production may still pay for");
@@ -1227,9 +1247,356 @@ main();
         "isolated proofs were not copied into production"
       );
       assert.deepEqual(
-        loadAdultOffBatchState(isolated.stateDir).paidDatabases.map((entry) => entry.liveProductionDb),
+        loadAdultOffBatchState(isolatedConfig.stateDir).paidDatabases.map((entry) => entry.liveProductionDb),
         [false]
       );
+    });
+  });
+
+  describe("persistent state placement (synthetic production volume)", () => {
+    const mounted = () => true;
+    const unmounted = () => false;
+    const volumeConfig = (
+      sc: Scenario,
+      volume: string,
+      overrides: Record<string, string | undefined> = {},
+      isMountedVolume: (dir: string) => boolean = mounted
+    ) =>
+      parseAdultOffBatchPaidRunConfig(
+        { ...sc.env(overrides), RAILWAY_VOLUME_MOUNT_PATH: volume },
+        sc.dbPath,
+        { isMountedVolume }
+      );
+    const runOn = (
+      sc: Scenario,
+      config: AdultOffBatchPaidRunConfig,
+      classifier: ReturnType<typeof mockClassifier>,
+      resolveRates?: (model: string) => OpenRouterModelRates
+    ) =>
+      executeAdultOffBatchPaidRun({
+        config,
+        openDatabase: () => new Database(sc.dbPath, { fileMustExist: true }),
+        createClassifier: classifier.createClassifier,
+        resolveRates,
+      });
+    const refusedWith = (code: string) => (error: unknown) =>
+      error instanceof AdultOffBatchRunRefusedError && error.code === code;
+    const configErrorWith = (code: string) => (error: unknown) =>
+      error instanceof AdultOffBatchConfigError && error.code === code;
+
+    function liveVolumeScenario(runId: string, cap = "1500") {
+      const sc = scenario(runId, cap);
+      const volume = path.join(sc.dir, "data");
+      fs.mkdirSync(volume);
+      const liveDb = path.join(volume, "app.db");
+      sc.fx.pragma("wal_checkpoint(TRUNCATE)");
+      fs.copyFileSync(sc.dbPath, liveDb);
+      const fx = new Database(liveDb);
+      fx.pragma("busy_timeout = 5000");
+      openHandles.push(fx);
+      const live: Scenario = { ...sc, dbPath: liveDb, fx };
+      return { sc: live, volume };
+    }
+
+    it("places the one batch state under <volume>/private/adult-off-batch with owner-only permissions", () => {
+      const { sc, volume } = liveVolumeScenario("run-volume-shape");
+      const config = volumeConfig(sc, volume, { ADULT_OFF_BATCH_ALLOW_PROD_WRITE: "1" });
+      const expected = path.join(fs.realpathSync(volume), "private", "adult-off-batch");
+      assert.equal(config.liveProductionDb, true);
+      assert.equal(config.statePersistent, true);
+      assert.equal(config.stateDir, expected);
+      assert.equal(config.stateVolumeRoot, fs.realpathSync(volume));
+      assert.equal(
+        volumeConfig(sc, volume, { ADULT_OFF_BATCH_ALLOW_PROD_WRITE: "1" }).stateDir,
+        config.stateDir,
+        "same fixed path on every start"
+      );
+    });
+
+    it("refuses a live production execute when no mounted persistent volume is confirmed", () => {
+      const { sc, volume } = liveVolumeScenario("run-volume-unmounted");
+      assert.throws(
+        () => volumeConfig(sc, volume, { ADULT_OFF_BATCH_ALLOW_PROD_WRITE: "1" }, unmounted),
+        configErrorWith("persistent_state_volume_not_confirmed")
+      );
+      assert.equal(fs.existsSync(path.join(volume, "private")), false, "nothing is created before the refusal");
+      const plan = volumeConfig(sc, volume, { ADULT_OFF_BATCH_MODE: "plan" }, unmounted);
+      assert.equal(plan.statePersistent, false);
+    });
+
+    it("keeps isolated rehearsals on the home fallback and moves them to the volume only when one is mounted", () => {
+      const sc = scenario("run-isolated-placement");
+      const home = parseAdultOffBatchPaidRunConfig(sc.env(), sc.dbPath, { isMountedVolume: unmounted });
+      assert.equal(home.stateDir, defaultAdultOffBatchStateDir());
+      assert.equal(home.statePersistent, false);
+      const volume = path.join(sc.dir, "data");
+      fs.mkdirSync(volume);
+      const onVolume = parseAdultOffBatchPaidRunConfig(
+        { ...sc.env(), RAILWAY_VOLUME_MOUNT_PATH: volume },
+        sc.dbPath,
+        { isMountedVolume: mounted }
+      );
+      assert.equal(onVolume.stateDir, path.join(fs.realpathSync(volume), "private", "adult-off-batch"));
+    });
+
+    it("rejects an unsafe state directory: symlink, escape outside the volume, foreign permissions", async () => {
+      const { sc, volume } = liveVolumeScenario("run-volume-unsafe");
+      const outside = path.join(sc.dir, "outside");
+      fs.mkdirSync(outside);
+      const real = fs.realpathSync(volume);
+      const stateDir = path.join(real, "private", "adult-off-batch");
+
+      fs.mkdirSync(path.join(real, "private"));
+      fs.symlinkSync(outside, stateDir);
+      const mock = mockClassifier(sc);
+      const config = volumeConfig(sc, volume, { ADULT_OFF_BATCH_ALLOW_PROD_WRITE: "1" });
+      await assert.rejects(() => runOn(sc, config, mock), refusedWith("state_dir_unsafe"));
+      fs.unlinkSync(stateDir);
+      fs.rmSync(path.join(real, "private"), { recursive: true });
+
+      fs.symlinkSync(outside, path.join(real, "private"));
+      await assert.rejects(() => runOn(sc, config, mock), refusedWith("state_dir_unsafe"));
+      fs.unlinkSync(path.join(real, "private"));
+      assert.equal(mock.calls.length, 0);
+      assert.deepEqual(fs.readdirSync(outside), [], "nothing was written outside the volume");
+
+      fs.mkdirSync(stateDir, { recursive: true, mode: 0o777 });
+      fs.chmodSync(stateDir, 0o777);
+      await runOn(sc, config, mockClassifier(sc));
+      assert.equal(fs.statSync(stateDir).mode & 0o077, 0, "group/world access is removed");
+    });
+
+    it("recovers the single budget and state after a redeploy that wipes the home directory", async () => {
+      const capKrw = (KRW_PER_CALL + reserveFor("재배포 본문 0") + 0.01).toFixed(4);
+      const { sc, volume } = liveVolumeScenario("run-redeploy-a", capKrw);
+      for (let i = 0; i < 4; i += 1) insertAssistant(sc.fx, { content: `재배포 본문 ${i}` });
+      const savedHome = process.env.HOME;
+      const liveEnv = { ADULT_OFF_BATCH_ALLOW_PROD_WRITE: "1", ADULT_OFF_BATCH_CAP_KRW: capKrw };
+      try {
+        const first = mockClassifier(sc);
+        const r1 = await runOn(sc, volumeConfig(sc, volume, liveEnv), first);
+        assert.equal(r1.stopReason, "cap_reached");
+        assert.equal(first.calls.length, 2);
+        const spent = loadAdultOffBatchState(volumeConfig(sc, volume, liveEnv).stateDir!).settledKrw;
+        assert.ok(Math.abs(spent - 2 * KRW_PER_CALL) < 1e-9);
+
+        process.env.HOME = path.join(sc.dir, "fresh-container-home");
+        const redeployed = volumeConfig(sc, volume, { ...liveEnv, ADULT_OFF_BATCH_RUN_ID: "run-redeploy-b" });
+        assert.equal(redeployed.stateDir, volumeConfig(sc, volume, liveEnv).stateDir);
+        const second = mockClassifier(sc);
+        const r2 = await runOn(sc, redeployed, second);
+        assert.equal(second.calls.length, 0, "the cumulative budget survives the redeploy");
+        assert.equal(r2.stopReason, "cap_reached");
+        assert.ok(Math.abs(r2.budget.settledKrwAtStart - spent) < 1e-9);
+        assert.equal(fs.existsSync(path.join(process.env.HOME, ".hav-adult-off-batch")), false);
+
+        const bypass = mockClassifier(sc);
+        await assert.rejects(
+          () => runOn(sc, volumeConfig(sc, volume, { ...liveEnv, ADULT_OFF_BATCH_CAP_KRW: "50" }), bypass),
+          refusedWith("cap_increase_not_approved")
+        );
+        assert.equal(bypass.calls.length, 0);
+      } finally {
+        if (savedHome === undefined) delete process.env.HOME;
+        else process.env.HOME = savedHome;
+      }
+    });
+
+    it("keeps the in-flight unresolved STOP across a redeploy and never re-classifies automatically", async () => {
+      const { sc, volume } = liveVolumeScenario("run-redeploy-unresolved", "50");
+      const id = insertAssistant(sc.fx, { content: "재배포 뒤 판정 미확정 본문" });
+      const liveEnv = { ADULT_OFF_BATCH_ALLOW_PROD_WRITE: "1", ADULT_OFF_BATCH_CAP_KRW: "50" };
+      const stateDir = volumeConfig(sc, volume, liveEnv).stateDir!;
+      const requestId = "adult-off-batch/run-before-redeploy/1";
+      fs.mkdirSync(stateDir, { recursive: true, mode: 0o700 });
+      fs.writeFileSync(
+        path.join(stateDir, "batch.state.json"),
+        JSON.stringify({
+          version: 2,
+          settledKrw: 0,
+          maxObservedWindowKrw: 0,
+          callCount: 0,
+          nextCallSeq: 2,
+          approvedCapKrw: 50,
+          fxKrwPerUsd: 1450,
+          providerRates: { inputUsdPerM: 0.07, outputUsdPerM: 0.35, cacheWriteMultiplier: 1.25 },
+          runIds: ["run-before-redeploy"],
+          paidDatabases: [],
+          inFlight: { messageId: id, surface: "body", requestIds: [requestId], openRequestId: requestId, reservedKrw: 0.75 },
+          unresolved: null,
+          halted: null,
+          updatedAt: "",
+        })
+      );
+      insertLedger(sc.fx, requestId, { usd: 0.0003, messageId: id });
+      const savedHome = process.env.HOME;
+      try {
+        process.env.HOME = path.join(sc.dir, "fresh-container-home-2");
+        for (const runId of ["run-after-redeploy-1", "run-after-redeploy-2"]) {
+          const mock = mockClassifier(sc);
+          await assert.rejects(
+            () => runOn(sc, volumeConfig(sc, volume, { ...liveEnv, ADULT_OFF_BATCH_RUN_ID: runId }), mock),
+            refusedWith("interrupted_call_unresolved")
+          );
+          assert.equal(mock.calls.length, 0);
+        }
+        assert.equal(usageOf(sc.fx, id).adultOffGuard, undefined);
+        const state = loadAdultOffBatchState(stateDir);
+        assert.deepEqual(state.unresolved?.requestIds, [requestId]);
+        assert.ok(Math.abs(state.settledKrw - KRW_PER_CALL) < 1e-9, "the interrupted call is counted exactly once");
+      } finally {
+        if (savedHome === undefined) delete process.env.HOME;
+        else process.env.HOME = savedHome;
+      }
+    });
+  });
+
+  describe("pinned exchange rate and provider rates", () => {
+    const refusedWith = (code: string) => (error: unknown) =>
+      error instanceof AdultOffBatchRunRefusedError && error.code === code;
+    const configErrorWith = (code: string) => (error: unknown) =>
+      error instanceof AdultOffBatchConfigError && error.code === code;
+    const changedRates = (rates: Partial<OpenRouterModelRates>) => (model: string) => ({
+      ...resolveOpenRouterModelRates(model),
+      ...rates,
+    });
+
+    it("requires an explicit conservative USD/KRW inside the allowed band for execute", () => {
+      const sc = scenario("run-fx-config");
+      assert.throws(() => sc.config({ ADULT_OFF_BATCH_USD_KRW: undefined }), configErrorWith("missing_adult_off_batch_usd_krw"));
+      for (const bad of ["0.0001", "1", "1299.99", "3000.01", "1e6"]) {
+        assert.throws(
+          () => sc.config({ ADULT_OFF_BATCH_USD_KRW: bad }),
+          (error: unknown) =>
+            error instanceof AdultOffBatchConfigError &&
+            (error.code === "usd_krw_out_of_range" || error.code === "invalid_adult_off_batch_usd_krw"),
+          bad
+        );
+      }
+      assert.equal(sc.config({ ADULT_OFF_BATCH_USD_KRW: "1300" }).fxKrwPerUsd, 1300);
+      assert.equal(sc.config({ ADULT_OFF_BATCH_USD_KRW: "3000" }).fxKrwPerUsd, 3000);
+      assert.throws(
+        () => parseAdultOffBatchPaidRunConfig({ ADULT_OFF_BATCH_MODE: "plan", ADULT_OFF_BATCH_USD_KRW: "2" }, sc.dbPath),
+        configErrorWith("usd_krw_out_of_range"),
+        "PLAN_ONLY shows the same bound so a bad value is caught before execute"
+      );
+    });
+
+    it("pins the first execute's USD/KRW and refuses any other rate on resume, so spend cannot be lowered", async () => {
+      const capKrw = (KRW_PER_CALL + reserveFor("환율 본문 0") + 0.01).toFixed(4);
+      const sc = scenario("run-fx-pin", capKrw);
+      for (let i = 0; i < 3; i += 1) insertAssistant(sc.fx, { content: `환율 본문 ${i}` });
+      const first = mockClassifier(sc);
+      await run(sc, first);
+      assert.equal(first.calls.length, 2);
+      const before = loadAdultOffBatchState(sc.stateDir);
+      assert.equal(before.fxKrwPerUsd, 1450);
+
+      for (const lower of ["1300", "1400", "1449.99", "1451", "2500"]) {
+        const refused = mockClassifier(sc);
+        await assert.rejects(
+          () => run(sc, refused, { ADULT_OFF_BATCH_USD_KRW: lower }),
+          refusedWith("usd_krw_changed"),
+          lower
+        );
+        assert.equal(refused.calls.length, 0);
+      }
+      const after = loadAdultOffBatchState(sc.stateDir);
+      assert.equal(after.settledKrw, before.settledKrw);
+      assert.equal(after.fxKrwPerUsd, 1450);
+      assert.equal(after.approvedCapKrw, before.approvedCapKrw);
+    });
+
+    it("refuses a USD/KRW far below the rate already recorded in the cost ledger", async () => {
+      const sc = scenario("run-fx-ledger");
+      insertAssistant(sc.fx, { content: "원장 환율 본문" });
+      sc.fx.prepare("UPDATE api_cost_ledger SET exchange_rate_krw_per_usd = 1500").run();
+      insertLedger(sc.fx, "adult-off-batch/prev/1", { usd: 0.0003 });
+      sc.fx.prepare("UPDATE api_cost_ledger SET exchange_rate_krw_per_usd = 1500").run();
+      const mock = mockClassifier(sc);
+      await assert.rejects(
+        () => run(sc, mock, { ADULT_OFF_BATCH_USD_KRW: "1300" }),
+        refusedWith("usd_krw_below_ledger_rate")
+      );
+      assert.equal(mock.calls.length, 0);
+      assert.equal(loadAdultOffBatchState(sc.stateDir).fxKrwPerUsd, null, "a refused run pins nothing");
+      const ok = await run(sc, mockClassifier(sc), { ADULT_OFF_BATCH_USD_KRW: "1500" });
+      assert.equal(ok.stopReason, "completed");
+    });
+
+    it("needs the user's explicit rate approval and refuses a mismatch with the repository rate table", async () => {
+      const sc = scenario("run-rates-approval");
+      insertAssistant(sc.fx, { content: "단가 승인 본문" });
+      assert.throws(
+        () => sc.config({ ADULT_OFF_BATCH_APPROVED_RATES: undefined }),
+        configErrorWith("missing_approved_rates")
+      );
+      for (const bad of ["", "0.07", "0.07/", "a/b", "0/0.35", "-1/2", "0.07/0.35/1", "1e-3/2"]) {
+        assert.throws(
+          () => sc.config({ ADULT_OFF_BATCH_APPROVED_RATES: bad }),
+          configErrorWith("invalid_approved_rates"),
+          bad
+        );
+      }
+      const mock = mockClassifier(sc);
+      for (const mismatch of ["0.01/0.05", "0.07/0.05", "0.7/0.35"]) {
+        await assert.rejects(
+          () => run(sc, mock, { ADULT_OFF_BATCH_APPROVED_RATES: mismatch }),
+          refusedWith("provider_rates_not_approved"),
+          mismatch
+        );
+      }
+      assert.equal(mock.calls.length, 0);
+      assert.equal(loadAdultOffBatchState(sc.stateDir).providerRates, null);
+    });
+
+    it("stops when the provider unit price changes after the batch was approved, even if the new price is approved", async () => {
+      const capKrw = (KRW_PER_CALL + reserveFor("단가 본문 0") + 0.01).toFixed(4);
+      const sc = scenario("run-rates-change", capKrw);
+      for (let i = 0; i < 3; i += 1) insertAssistant(sc.fx, { content: `단가 본문 ${i}` });
+      const first = mockClassifier(sc);
+      await run(sc, first);
+      assert.equal(first.calls.length, 2);
+      const pinned = loadAdultOffBatchState(sc.stateDir);
+      assert.deepEqual(pinned.providerRates, { inputUsdPerM: 0.07, outputUsdPerM: 0.35, cacheWriteMultiplier: 1.25 });
+
+      const second = mockClassifier(sc);
+      await assert.rejects(
+        () =>
+          executeAdultOffBatchPaidRun({
+            config: sc.config({ ADULT_OFF_BATCH_APPROVED_RATES: "0.2/0.9", ADULT_OFF_BATCH_CAP_KRW: "50", ADULT_OFF_BATCH_CAP_RAISE_FROM_KRW: capKrw }),
+            openDatabase: () => new Database(sc.dbPath, { fileMustExist: true }),
+            createClassifier: second.createClassifier,
+            resolveRates: changedRates({ inputUsdPerM: 0.2, outputUsdPerM: 0.9 }),
+          }),
+        refusedWith("provider_rates_changed")
+      );
+      assert.equal(second.calls.length, 0);
+      assert.deepEqual(loadAdultOffBatchState(sc.stateDir).providerRates, pinned.providerRates);
+      assert.equal(loadAdultOffBatchState(sc.stateDir).settledKrw, pinned.settledKrw);
+    });
+
+    it("reports in PLAN_ONLY that provider rates must be re-checked and what to approve", () => {
+      const sc = scenario("run-plan-rates");
+      insertAssistant(sc.fx, { content: "계획 단가 본문" });
+      sc.fx.pragma("wal_checkpoint(TRUNCATE)");
+      const config = parseAdultOffBatchPaidRunConfig({ ADULT_OFF_BATCH_MODE: "plan" }, sc.dbPath, {
+        isMountedVolume: () => false,
+      });
+      const db = new Database(sc.dbPath, { readonly: true, fileMustExist: true });
+      try {
+        const report = buildAdultOffBatchPlanReport(db, config);
+        assert.equal(report.providerRates.recheckBeforeExecute, true);
+        assert.equal(report.providerRates.approveWith, "ADULT_OFF_BATCH_APPROVED_RATES=0.07/0.35");
+        assert.match(report.providerRates.source, /NOT consulted/);
+        assert.deepEqual(report.usdKrw.allowedRange, [1300, 3000]);
+        assert.equal(report.batchState.persistentVolumeConfirmed, false);
+        assert.equal(report.batchState.requiredForLiveDatabase, true);
+        assert.equal(report.batchState.existing, null);
+        assert.equal(JSON.stringify(report).includes("계획 단가"), false);
+      } finally {
+        db.close();
+      }
     });
   });
 
@@ -1371,13 +1738,11 @@ https.request = () => { record("https"); throw new Error("blocked by test https 
           ],
           {
             cwd: REPO_ROOT,
-            env: {
-              PATH: process.env.PATH ?? "",
-              HOME: process.env.HOME ?? "",
+            env: childEnv({
               DATA_DIR: dataDir,
               FETCH_GUARD_LOG: guard.log,
               ...(env as Record<string, string>),
-            },
+            }),
           }
         );
         let stdout = "";
@@ -1441,6 +1806,8 @@ https.request = () => { record("https"); throw new Error("blocked by test https 
         ADULT_OFF_BATCH_RUN_ID: "run-subproc",
         ADULT_OFF_BATCH_CAP_KRW: "10",
         ADULT_OFF_BATCH_APPROVE_PAID: "1",
+        ADULT_OFF_BATCH_USD_KRW: "1450",
+        ADULT_OFF_BATCH_APPROVED_RATES: "0.07/0.35",
         CHEAPER_INFERENCE_API_KEY: "dummy-not-a-real-key",
       } as Record<string, string | undefined>;
       const cases: Array<[string, Record<string, string | undefined>, string]> = [

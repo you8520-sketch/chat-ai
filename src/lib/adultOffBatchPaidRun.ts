@@ -21,7 +21,9 @@ import {
   ADULT_OFF_CLASSIFIER_MODEL,
   type AdultOffClassifierTurnScope,
 } from "@/lib/adultOffOutputClassifier";
-import { resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
+import { hasMountedPersistentVolume } from "@/lib/dataDir";
+import { ensureProviderCostLedgerSchema } from "@/lib/providerCostLedger";
+import { resolveOpenRouterModelRates, type OpenRouterModelRates } from "@/lib/openRouterModelPricing";
 import {
   ADULT_OFF_BATCH_MODERATION_REQUEST_KIND,
   adultOffGuardDecisionToInspectionOutcome,
@@ -53,6 +55,13 @@ const USD_TO_KRW_MARKUP = 1.02;
 const RUN_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$/;
 const POSITIVE_DECIMAL_PATTERN = /^\d+(\.\d+)?$/;
 const LIVE_PRODUCTION_DB_PATHS = ["/data/app.db"] as const;
+const DEFAULT_VOLUME_ROOT = "/data";
+/** 이보다 낮은 환율은 USD 실청구액을 원화로 과소계산할 수 있어 실행 전에 거부한다. */
+export const ADULT_OFF_BATCH_MIN_USD_KRW = 1300;
+export const ADULT_OFF_BATCH_MAX_USD_KRW = 3000;
+/** 최근 원장에 기록된 최고 환율 대비 허용 하한 비율. */
+const LEDGER_FX_FLOOR_RATIO = 0.95;
+const APPROVED_RATES_PATTERN = /^(\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/;
 
 export class AdultOffBatchConfigError extends Error {
   constructor(
@@ -86,6 +95,13 @@ export type AdultOffBatchPaidRunConfig = {
   stateDir: string | null;
   allowProdWrite: boolean;
   allowIsolatedPaid: boolean;
+  /** 사용자가 읽고 승인한 공급자 모델 요율(입력/출력 USD per 1M). execute에서 필수. */
+  approvedRates: { inputUsdPerM: number; outputUsdPerM: number } | null;
+  /** 상태·잠금 위치가 마운트된 영구 볼륨 안에 있는지. 운영 DB의 paid execute는 이것이 true여야 한다. */
+  statePersistent: boolean;
+  stateVolumeRoot: string | null;
+  /** 환경과 무관하게 계산된 상태 위치(실행 전에는 만들지 않는다). execute의 stateDir은 이 값이거나 테스트 이음새 값. */
+  statePlacementDir: string;
   /** 이미 승인된 CAP보다 큰 CAP을 쓰려면 직전 승인 CAP 값을 그대로 적어야 한다. */
   capRaiseFromKrw: number | null;
   /** 판정 없이 끊긴 호출을 운영자가 확인했음을 나타내는 첫 요청 ID. */
@@ -95,7 +111,43 @@ export type AdultOffBatchPaidRunConfig = {
 export type AdultOffBatchConfigOptions = {
   /** 테스트 전용 이음새. 운영 환경변수로는 상태 디렉터리를 바꿀 수 없다. */
   stateDir?: string;
+  /** 테스트 전용 이음새. 기본은 /proc/self/mountinfo 기반 영구 볼륨 판정. */
+  isMountedVolume?: (dir: string) => boolean;
 };
+
+export type AdultOffBatchStatePlacement = {
+  stateDir: string;
+  persistent: boolean;
+  volumeRoot: string | null;
+};
+
+/**
+ * 단일 state/lock 소유 위치. 영구 볼륨(/data 또는 RAILWAY_VOLUME_MOUNT_PATH)이 마운트돼 있으면
+ * 그 안의 `private/adult-off-batch`, 아니면 개발·격리 호스트용 고정 사용자 위치.
+ * 운영 DB의 paid execute는 앞의 경우만 허용한다.
+ */
+export function resolveAdultOffBatchStatePlacement(
+  env: Readonly<Record<string, string | undefined>>,
+  liveVolumeRoot: string | null,
+  isMountedVolume: (dir: string) => boolean = hasMountedPersistentVolume
+): AdultOffBatchStatePlacement {
+  const volumeRoot = liveVolumeRoot ?? (env.RAILWAY_VOLUME_MOUNT_PATH?.trim() || DEFAULT_VOLUME_ROOT);
+  try {
+    if (fs.existsSync(volumeRoot) && fs.statSync(volumeRoot).isDirectory()) {
+      const realRoot = fs.realpathSync(volumeRoot);
+      if (isMountedVolume(realRoot)) {
+        return {
+          stateDir: path.join(realRoot, "private", "adult-off-batch"),
+          persistent: true,
+          volumeRoot: realRoot,
+        };
+      }
+    }
+  } catch {
+    // fall through to the non-persistent placement
+  }
+  return { stateDir: defaultAdultOffBatchStateDir(), persistent: false, volumeRoot: null };
+}
 
 /** 하나의 승인 배치가 공유하는 고정 상태 위치. 환경변수·HOME·TMPDIR에 영향을 받지 않는다. */
 export function defaultAdultOffBatchStateDir(): string {
@@ -140,8 +192,8 @@ function readMode(env: Env): AdultOffBatchMode {
   );
 }
 
-/** 같은 파일(심볼릭 링크·상대 경로·hard link 포함)이 운영 볼륨 DB인지 inode 단위로 판정한다. */
-export function isLiveProductionDatabase(dbPath: string, env: Env = process.env): boolean {
+/** 같은 파일(심볼릭 링크·상대 경로·hard link 포함)이 운영 볼륨 DB이면 그 볼륨 디렉터리를, 아니면 null. */
+export function liveProductionVolumeRoot(dbPath: string, env: Env = process.env): string | null {
   const target = fs.statSync(dbPath);
   const targetReal = fs.realpathSync(dbPath);
   const candidates: string[] = [...LIVE_PRODUCTION_DB_PATHS];
@@ -150,13 +202,17 @@ export function isLiveProductionDatabase(dbPath: string, env: Env = process.env)
   for (const candidate of candidates) {
     try {
       const stat = fs.statSync(candidate);
-      if (stat.dev === target.dev && stat.ino === target.ino) return true;
-      if (fs.realpathSync(candidate) === targetReal) return true;
+      if (stat.dev === target.dev && stat.ino === target.ino) return path.dirname(candidate);
+      if (fs.realpathSync(candidate) === targetReal) return path.dirname(candidate);
     } catch {
       continue;
     }
   }
-  return false;
+  return null;
+}
+
+export function isLiveProductionDatabase(dbPath: string, env: Env = process.env): boolean {
+  return liveProductionVolumeRoot(dbPath, env) !== null;
 }
 
 /**
@@ -190,8 +246,14 @@ export function parseAdultOffBatchPaidRunConfig(
   const fxKrwPerUsd = readPositiveNumber(
     env,
     "ADULT_OFF_BATCH_USD_KRW",
-    ADULT_OFF_BATCH_DEFAULT_USD_KRW
+    mode === "execute" ? null : ADULT_OFF_BATCH_DEFAULT_USD_KRW
   );
+  if (fxKrwPerUsd < ADULT_OFF_BATCH_MIN_USD_KRW || fxKrwPerUsd > ADULT_OFF_BATCH_MAX_USD_KRW) {
+    throw new AdultOffBatchConfigError(
+      "usd_krw_out_of_range",
+      `ADULT_OFF_BATCH_USD_KRW must be between ${ADULT_OFF_BATCH_MIN_USD_KRW} and ${ADULT_OFF_BATCH_MAX_USD_KRW}`
+    );
+  }
   const reservePerWindowKrw = readPositiveNumber(
     env,
     "ADULT_OFF_BATCH_RESERVE_KRW_PER_WINDOW",
@@ -202,7 +264,10 @@ export function parseAdultOffBatchPaidRunConfig(
     throw new AdultOffBatchConfigError("database_missing", "database file does not exist");
   }
   const dbRealPath = fs.realpathSync(dbPath);
-  const liveProductionDb = isLiveProductionDatabase(dbPath, env);
+  const liveVolumeRoot = liveProductionVolumeRoot(dbPath, env);
+  const liveProductionDb = liveVolumeRoot !== null;
+  const placement = resolveAdultOffBatchStatePlacement(env, liveVolumeRoot, options.isMountedVolume);
+  let approvedRates: AdultOffBatchPaidRunConfig["approvedRates"] = null;
   const allowProdWrite = env.ADULT_OFF_BATCH_ALLOW_PROD_WRITE === "1";
 
   const capRaiseFromKrw =
@@ -237,7 +302,24 @@ export function parseAdultOffBatchPaidRunConfig(
         "ADULT_OFF_BATCH_APPROVE_PAID=1 is required for execute"
       );
     }
-    stateDir = path.resolve(options.stateDir ?? defaultAdultOffBatchStateDir());
+    const rawRates = env.ADULT_OFF_BATCH_APPROVED_RATES;
+    if (rawRates === undefined) {
+      throw new AdultOffBatchConfigError(
+        "missing_approved_rates",
+        "ADULT_OFF_BATCH_APPROVED_RATES=<inputUsdPerM>/<outputUsdPerM> is required; copy it from the PLAN_ONLY report after checking the provider's current rates"
+      );
+    }
+    const ratesMatch = APPROVED_RATES_PATTERN.exec(rawRates.trim());
+    const inputRate = ratesMatch ? Number(ratesMatch[1]) : NaN;
+    const outputRate = ratesMatch ? Number(ratesMatch[2]) : NaN;
+    if (!(inputRate > 0) || !(outputRate > 0) || !Number.isFinite(inputRate) || !Number.isFinite(outputRate)) {
+      throw new AdultOffBatchConfigError(
+        "invalid_approved_rates",
+        "ADULT_OFF_BATCH_APPROVED_RATES must look like 0.07/0.35 (finite positive numbers)"
+      );
+    }
+    approvedRates = { inputUsdPerM: inputRate, outputUsdPerM: outputRate };
+    stateDir = path.resolve(options.stateDir ?? placement.stateDir);
     if (!env.CHEAPER_INFERENCE_API_KEY?.trim()) {
       throw new AdultOffBatchConfigError(
         "missing_cheaper_inference_api_key",
@@ -248,6 +330,12 @@ export function parseAdultOffBatchPaidRunConfig(
       throw new AdultOffBatchConfigError(
         "prod_write_refused",
         "live production database requires ADULT_OFF_BATCH_ALLOW_PROD_WRITE=1"
+      );
+    }
+    if (liveProductionDb && !placement.persistent) {
+      throw new AdultOffBatchConfigError(
+        "persistent_state_volume_not_confirmed",
+        "the batch state and lock must live on a mounted persistent volume (/data); no mounted volume was detected"
       );
     }
     if (!liveProductionDb && !allowIsolatedPaid) {
@@ -270,6 +358,10 @@ export function parseAdultOffBatchPaidRunConfig(
     stateDir,
     allowProdWrite,
     allowIsolatedPaid,
+    approvedRates,
+    statePersistent: placement.persistent,
+    stateVolumeRoot: placement.volumeRoot,
+    statePlacementDir: placement.stateDir,
     capRaiseFromKrw,
     ackUnresolvedRequestId,
   };
@@ -363,11 +455,15 @@ function staticClassifierRequestBytes(): number {
  * 출력은 공급자에 보내는 max_tokens로 막혀 있다. 입력 단가는 캐시 쓰기 배율이 있으면 그 쪽을 쓴다.
  * 설정된 창당 최소 예약보다 작아지지 않는다.
  */
+export type AdultOffBatchPricing = Pick<AdultOffBatchPaidRunConfig, "fxKrwPerUsd" | "reservePerWindowKrw"> & {
+  rates?: OpenRouterModelRates;
+};
+
 export function adultOffBatchWindowReserveKrw(
   windowText: string,
-  pricing: Pick<AdultOffBatchPaidRunConfig, "fxKrwPerUsd" | "reservePerWindowKrw">
+  pricing: AdultOffBatchPricing
 ): number {
-  const rates = resolveOpenRouterModelRates(ADULT_OFF_CLASSIFIER_MODEL);
+  const rates = pricing.rates ?? resolveOpenRouterModelRates(ADULT_OFF_CLASSIFIER_MODEL);
   const inputBytes =
     staticClassifierRequestBytes() +
     Buffer.byteLength(buildAdultOffClassifierUserMessage(windowText), "utf8");
@@ -383,10 +479,7 @@ function windowsOfText(text: string): string[] {
 }
 
 /** 한 문자열의 모든 창을 끝까지 부르는 데 필요한 예약 상한 합계. */
-function adultOffBatchTextReserveKrw(
-  text: string,
-  pricing: Pick<AdultOffBatchPaidRunConfig, "fxKrwPerUsd" | "reservePerWindowKrw">
-): number {
+function adultOffBatchTextReserveKrw(text: string, pricing: AdultOffBatchPricing): number {
   return windowsOfText(text).reduce(
     (sum, windowText) => sum + adultOffBatchWindowReserveKrw(windowText, pricing),
     0
@@ -468,13 +561,39 @@ export type AdultOffBatchPlanReport = {
     note: string;
   };
   ledgerSpendToDate: { settledKrw: number; unknownCostEvents: number; totalEvents: number } | null;
+  /** 실제 유료 실행 직전에 공급자 요율을 사람이 다시 확인하고, 같은 값을 승인 변수로 되돌려 줘야 한다. */
+  providerRates: {
+    model: string;
+    inputUsdPerM: number;
+    outputUsdPerM: number;
+    cacheWriteMultiplier: number;
+    source: string;
+    recheckBeforeExecute: true;
+    approveWith: string;
+  };
+  usdKrw: { configured: number; allowedRange: [number, number]; note: string };
+  batchState: {
+    dir: string;
+    persistentVolumeConfirmed: boolean;
+    requiredForLiveDatabase: true;
+    existing: {
+      approvedCapKrw: number | null;
+      settledKrw: number;
+      pinnedUsdKrw: number | null;
+      pinnedRatesMatchCurrent: boolean | null;
+      unresolvedCall: boolean;
+      halted: boolean;
+    } | null;
+  };
 };
 
 /** 읽기 전용 DB 핸들에서만 쓴다. 유료 호출·DB 쓰기·상태 파일 쓰기 없음. */
 export function buildAdultOffBatchPlanReport(
   db: DatabaseType,
-  config: AdultOffBatchPaidRunConfig
+  config: AdultOffBatchPaidRunConfig,
+  resolveRates: (model: string) => OpenRouterModelRates = resolveOpenRouterModelRates
 ): AdultOffBatchPlanReport {
+  const rates = resolveRates(ADULT_OFF_CLASSIFIER_MODEL);
   const rows = loadAssistantRowsForAdultOffInspection(db);
   const work = collectAdultOffBatchWork(db, rows, { buildAuxFingerprints: true });
   const reserveEstimate = work.pendingWindows * config.reservePerWindowKrw;
@@ -482,7 +601,7 @@ export function buildAdultOffBatchPlanReport(
   let largestWindowBound = 0;
   for (const text of work.pendingTexts) {
     for (const windowText of windowsOfText(text)) {
-      const bound = adultOffBatchWindowReserveKrw(windowText, config);
+      const bound = adultOffBatchWindowReserveKrw(windowText, { ...config, rates });
       worstCaseBoundTotal += bound;
       largestWindowBound = Math.max(largestWindowBound, bound);
     }
@@ -531,8 +650,57 @@ export function buildAdultOffBatchPlanReport(
       note: "reserveEstimate is an average-based estimate, not a maximum; execute starts a call only if spent-so-far plus that call's own worst-case bound fits the cap, stops when an actual cost exceeds its bound, and fails closed on unknown cost",
     },
     ledgerSpendToDate,
+    providerRates: {
+      model: ADULT_OFF_CLASSIFIER_MODEL,
+      inputUsdPerM: rates.inputUsdPerM,
+      outputUsdPerM: rates.outputUsdPerM,
+      cacheWriteMultiplier: rates.cacheWriteMultiplier,
+      source:
+        "repository rate table (resolveOpenRouterModelRates); the live provider catalog is NOT consulted by this process",
+      recheckBeforeExecute: true,
+      approveWith: `ADULT_OFF_BATCH_APPROVED_RATES=${rates.inputUsdPerM}/${rates.outputUsdPerM}`,
+    },
+    usdKrw: {
+      configured: config.fxKrwPerUsd,
+      allowedRange: [ADULT_OFF_BATCH_MIN_USD_KRW, ADULT_OFF_BATCH_MAX_USD_KRW],
+      note: "execute needs an explicit conservative ADULT_OFF_BATCH_USD_KRW; it is pinned on the first execute and cannot be changed afterwards",
+    },
+    batchState: {
+      dir: config.stateDir ?? config.statePlacementDir,
+      persistentVolumeConfirmed: config.statePersistent,
+      requiredForLiveDatabase: true,
+      existing: readExistingBatchState(config.stateDir ?? config.statePlacementDir, rates),
+    },
   };
 }
+
+function readExistingBatchState(
+  stateDir: string,
+  rates: OpenRouterModelRates
+): AdultOffBatchPlanReport["batchState"]["existing"] {
+  if (!fs.existsSync(batchStatePath(stateDir))) return null;
+  try {
+    const state = loadAdultOffBatchState(stateDir);
+    return {
+      approvedCapKrw: state.approvedCapKrw,
+      settledKrw: state.settledKrw,
+      pinnedUsdKrw: state.fxKrwPerUsd,
+      pinnedRatesMatchCurrent: state.providerRates
+        ? sameRates(state.providerRates, pinnedRatesOf(rates))
+        : null,
+      unresolvedCall: state.unresolved !== null || state.inFlight !== null,
+      halted: state.halted !== null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export type AdultOffBatchPinnedRates = {
+  inputUsdPerM: number;
+  outputUsdPerM: number;
+  cacheWriteMultiplier: number;
+};
 
 export type AdultOffBatchInFlight = {
   messageId: number;
@@ -560,6 +728,10 @@ export type AdultOffBatchState = {
   callCount: number;
   nextCallSeq: number;
   approvedCapKrw: number | null;
+  /** 첫 execute가 고정한 환율. 이후 다른 값으로 지출을 다시 계산할 수 없다. */
+  fxKrwPerUsd: number | null;
+  /** 첫 execute가 고정한 공급자 모델 요율. 바뀌면 STOP. */
+  providerRates: AdultOffBatchPinnedRates | null;
   runIds: string[];
   paidDatabases: Array<{ realPath: string; liveProductionDb: boolean }>;
   /** 분류 호출이 시작된 뒤 판정이 DB에 commit되기 전까지만 남는다. 남아 있으면 판정 미확정이다. */
@@ -580,6 +752,8 @@ function emptyBatchState(): AdultOffBatchState {
     callCount: 0,
     nextCallSeq: 1,
     approvedCapKrw: null,
+    fxKrwPerUsd: null,
+    providerRates: null,
     runIds: [],
     paidDatabases: [],
     inFlight: null,
@@ -687,6 +861,61 @@ function parseCallMarker<T extends { messageId: number; surface: "body" | "aux";
   return value as T;
 }
 
+function parseRates(value: unknown): AdultOffBatchPinnedRates | null {
+  if (value == null) return null;
+  const record = value as Partial<AdultOffBatchPinnedRates>;
+  const positive = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n) && n > 0;
+  if (
+    !positive(record.inputUsdPerM) ||
+    !positive(record.outputUsdPerM) ||
+    !positive(record.cacheWriteMultiplier)
+  ) {
+    throw new AdultOffBatchRunRefusedError("state_invalid", "batch state provider rates failed validation");
+  }
+  return {
+    inputUsdPerM: record.inputUsdPerM,
+    outputUsdPerM: record.outputUsdPerM,
+    cacheWriteMultiplier: record.cacheWriteMultiplier,
+  };
+}
+
+function pinnedRatesOf(rates: OpenRouterModelRates): AdultOffBatchPinnedRates {
+  return {
+    inputUsdPerM: rates.inputUsdPerM,
+    outputUsdPerM: rates.outputUsdPerM,
+    cacheWriteMultiplier: rates.cacheWriteMultiplier,
+  };
+}
+
+function sameRates(a: AdultOffBatchPinnedRates, b: AdultOffBatchPinnedRates): boolean {
+  return (
+    a.inputUsdPerM === b.inputUsdPerM &&
+    a.outputUsdPerM === b.outputUsdPerM &&
+    a.cacheWriteMultiplier === b.cacheWriteMultiplier
+  );
+}
+
+/** 상태·잠금 디렉터리가 현재 사용자 소유의 비공개(0700) 실제 디렉터리이고, 영구 볼륨 안에 있는지 확인한다. */
+export function prepareAdultOffBatchStateDir(stateDir: string, volumeRoot: string | null): void {
+  const unsafe = (detail: string): AdultOffBatchRunRefusedError =>
+    new AdultOffBatchRunRefusedError("state_dir_unsafe", `batch state directory is not safe: ${detail}`);
+  const insideVolume = (candidate: string): boolean =>
+    !volumeRoot || candidate === volumeRoot || candidate.startsWith(volumeRoot + path.sep);
+  let existingAncestor = stateDir;
+  while (!fs.existsSync(existingAncestor)) existingAncestor = path.dirname(existingAncestor);
+  if (!insideVolume(fs.realpathSync(existingAncestor))) throw unsafe("resolves outside the persistent volume");
+  fs.mkdirSync(stateDir, { recursive: true, mode: 0o700 });
+  const stat = fs.lstatSync(stateDir);
+  if (stat.isSymbolicLink() || !stat.isDirectory()) throw unsafe("not a plain directory");
+  const uid = typeof process.getuid === "function" ? process.getuid() : null;
+  if (uid !== null && stat.uid !== uid) throw unsafe("owned by another user");
+  if ((stat.mode & 0o077) !== 0) {
+    fs.chmodSync(stateDir, 0o700);
+    if ((fs.lstatSync(stateDir).mode & 0o077) !== 0) throw unsafe("group/world accessible");
+  }
+  if (!insideVolume(fs.realpathSync(stateDir))) throw unsafe("resolves outside the persistent volume");
+}
+
 export function loadAdultOffBatchState(stateDir: string): AdultOffBatchState {
   const file = batchStatePath(stateDir);
   if (!fs.existsSync(file)) return emptyBatchState();
@@ -705,6 +934,7 @@ export function loadAdultOffBatchState(stateDir: string): AdultOffBatchState {
     !finite(parsed.callCount) ||
     !finite(parsed.nextCallSeq) ||
     !(parsed.approvedCapKrw === null || finite(parsed.approvedCapKrw)) ||
+    !(parsed.fxKrwPerUsd == null || (finite(parsed.fxKrwPerUsd) && parsed.fxKrwPerUsd > 0)) ||
     !isStringArray(parsed.runIds) ||
     !Array.isArray(parsed.paidDatabases)
   ) {
@@ -719,6 +949,8 @@ export function loadAdultOffBatchState(stateDir: string): AdultOffBatchState {
     callCount: parsed.callCount,
     nextCallSeq: parsed.nextCallSeq,
     approvedCapKrw: parsed.approvedCapKrw,
+    fxKrwPerUsd: parsed.fxKrwPerUsd ?? null,
+    providerRates: parseRates(parsed.providerRates),
     runIds: parsed.runIds,
     paidDatabases: parsed.paidDatabases,
     inFlight,
@@ -795,6 +1027,8 @@ export type AdultOffBatchExecuteInput = {
   openDatabase: () => DatabaseType;
   createClassifier: (scope: AdultOffClassifierTurnScope) => AdultOffClassify;
   closeDatabase?: boolean;
+  /** 테스트 이음새: 공급자 요율 조회. 기본은 저장소의 단일 요율 owner. */
+  resolveRates?: (model: string) => OpenRouterModelRates;
 };
 
 /**
@@ -811,6 +1045,7 @@ export async function executeAdultOffBatchPaidRun(
   }
   const runId = config.runId;
   const stateDir = config.stateDir;
+  prepareAdultOffBatchStateDir(stateDir, config.statePersistent ? config.stateVolumeRoot : null);
   const lock = acquireAdultOffBatchExecutionLock(stateDir, runId);
   let db: DatabaseType | null = null;
   try {
@@ -819,6 +1054,32 @@ export async function executeAdultOffBatchPaidRun(
       throw new AdultOffBatchRunRefusedError(
         "batch_halted",
         `the approved batch is halted (${state.halted.reason}); a new RUN_ID does not clear it, investigate first`
+      );
+    }
+    const rates = (input.resolveRates ?? resolveOpenRouterModelRates)(ADULT_OFF_CLASSIFIER_MODEL);
+    const currentRates = pinnedRatesOf(rates);
+    const approvedRates = config.approvedRates;
+    if (
+      !approvedRates ||
+      approvedRates.inputUsdPerM !== currentRates.inputUsdPerM ||
+      approvedRates.outputUsdPerM !== currentRates.outputUsdPerM
+    ) {
+      throw new AdultOffBatchRunRefusedError(
+        "provider_rates_not_approved",
+        `current ${ADULT_OFF_CLASSIFIER_MODEL} rates are ${currentRates.inputUsdPerM}/${currentRates.outputUsdPerM} USD per 1M; ` +
+          "the approved rates do not match, so the cost bound cannot be trusted"
+      );
+    }
+    if (state.providerRates && !sameRates(state.providerRates, currentRates)) {
+      throw new AdultOffBatchRunRefusedError(
+        "provider_rates_changed",
+        "provider rates differ from the ones pinned for this approved batch; STOP and re-approve the whole batch"
+      );
+    }
+    if (state.fxKrwPerUsd != null && state.fxKrwPerUsd !== config.fxKrwPerUsd) {
+      throw new AdultOffBatchRunRefusedError(
+        "usd_krw_changed",
+        `this batch is pinned to ${state.fxKrwPerUsd} KRW per USD; a different rate cannot be used to recompute spend`
       );
     }
     const approvedCap = state.approvedCapKrw;
@@ -832,6 +1093,21 @@ export async function executeAdultOffBatchPaidRun(
     db = input.openDatabase();
     db.pragma("busy_timeout = 5000");
     const database = db;
+    ensureProviderCostLedgerSchema(database);
+    const ledgerFx = (
+      database
+        .prepare(
+          "SELECT MAX(exchange_rate_krw_per_usd) AS fx FROM api_cost_ledger WHERE datetime(created_at) >= datetime('now', '-30 days')"
+        )
+        .get() as { fx: number | null } | undefined
+    )?.fx;
+    if (typeof ledgerFx === "number" && ledgerFx > 0 && config.fxKrwPerUsd < ledgerFx * LEDGER_FX_FLOOR_RATIO) {
+      throw new AdultOffBatchRunRefusedError(
+        "usd_krw_below_ledger_rate",
+        `ADULT_OFF_BATCH_USD_KRW=${config.fxKrwPerUsd} is more than ${Math.round((1 - LEDGER_FX_FLOOR_RATIO) * 100)}% below the recent ledger rate ${ledgerFx}`
+      );
+    }
+    const pricing: AdultOffBatchPricing = { ...config, rates };
     const halt = (reason: AdultOffBatchStopReason, detail: string): void => {
       state.halted = { reason, detail: detail.slice(0, 300), at: new Date().toISOString() };
       saveAdultOffBatchState(stateDir, state);
@@ -908,6 +1184,8 @@ export async function executeAdultOffBatchPaidRun(
     );
     state.nextCallSeq = Math.max(state.nextCallSeq, priorSpend.maxCallSeq + 1);
     state.approvedCapKrw = config.capKrw;
+    state.fxKrwPerUsd = config.fxKrwPerUsd;
+    state.providerRates = currentRates;
     if (!state.runIds.includes(runId)) {
       state.runIds = [...state.runIds, runId].slice(-MAX_RECORDED_RUN_IDS);
     }
@@ -983,7 +1261,7 @@ export async function executeAdultOffBatchPaidRun(
       async (windowText) => {
         const reason = haltedReason();
         if (reason) throw new BatchStopSignal(reason);
-        const reservedKrw = adultOffBatchWindowReserveKrw(windowText, config);
+        const reservedKrw = adultOffBatchWindowReserveKrw(windowText, pricing);
         if (state.settledKrw + reservedKrw > config.capKrw) {
           capSignalRaised = true;
           throw new BatchStopSignal("cap_reached");
@@ -1045,7 +1323,7 @@ export async function executeAdultOffBatchPaidRun(
         stopReason = haltedBefore;
         return null;
       }
-      if (state.settledKrw + adultOffBatchTextReserveKrw(text, config) > config.capKrw) {
+      if (state.settledKrw + adultOffBatchTextReserveKrw(text, pricing) > config.capKrw) {
         stopReason = "cap_reached";
         return null;
       }
