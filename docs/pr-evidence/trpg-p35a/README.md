@@ -8,7 +8,7 @@ When combined sealed summaries exceeded `TRPG_SEALED_PROMPT_MAX_CHARS` (2500), `
 
 ## Fix (owner: `src/lib/trpg/memory.ts`)
 
-- `formatSealedSummariesForPrompt`: drop **oldest complete** summary segments first; keep newest within budget; output remains chronological.
+- `formatSealedSummariesForPrompt`: keep a **contiguous suffix** from the newest sealed summary backward; stop when the next older segment no longer fits (no skipping a long middle to add a shorter older line); output remains chronological.
 - `loadSealedSummaries` / `persistRoundSummary` / `trpg_campaign_memories.recent_summary` use the same policy.
 - `trpg_round_summaries` rows are unchanged (no migration).
 

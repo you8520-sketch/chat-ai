@@ -83,6 +83,60 @@ describe("TRPG sealed summary prompt budget (#P3-5A)", () => {
     assert.ok(formatted.split("\n").length >= 1);
   });
 
+  it("does not skip a long middle summary to adopt a shorter older one (budget 10)", () => {
+    const rows: TrpgSealedSummaryRow[] = [
+      { roundStart: 0, roundEnd: 0, summary: "A" },
+      { roundStart: 1, roundEnd: 1, summary: "MIDDLE123" },
+      { roundStart: 2, roundEnd: 2, summary: "NEWEST" },
+    ];
+    const formatted = formatSealedSummariesForPrompt(rows, 10);
+    assert.equal(formatted, "NEWEST");
+    assert.doesNotMatch(formatted, /^A$/m);
+    assert.doesNotMatch(formatted, /MIDDLE123/);
+  });
+
+  it("head-tails an oversized newest summary instead of keeping only OLD (budget 10)", () => {
+    const rows: TrpgSealedSummaryRow[] = [
+      { roundStart: 0, roundEnd: 0, summary: "OLD" },
+      { roundStart: 1, roundEnd: 1, summary: "NEWEST_TOO_LONG" },
+    ];
+    const formatted = formatSealedSummariesForPrompt(rows, 10);
+    assert.match(formatted, /NEWES/);
+    assert.doesNotMatch(formatted, /^OLD$/);
+    assert.ok(Array.from(formatted).length <= 10);
+    assert.equal(formatSealedSummariesForPrompt([rows[1]!], 10), formatted);
+  });
+
+  function assertContiguousSuffix(rows: TrpgSealedSummaryRow[], formatted: string): void {
+    const lines = formatted.split("\n");
+    const indices = lines.map((line) => {
+      const hit = rows.findIndex((row) => row.summary === line);
+      assert.ok(hit >= 0, `unexpected line in output: ${line.slice(0, 40)}`);
+      return hit;
+    });
+    for (let i = 1; i < indices.length; i += 1) {
+      assert.equal(indices[i], indices[i - 1]! + 1, "output must be a contiguous time-ordered suffix");
+    }
+  }
+
+  it("20 short summaries: newest included, contiguous suffix, chronological, bounded, deterministic", () => {
+    const rows = syntheticRows(20, 180);
+    const formatted = formatSealedSummariesForPrompt(rows);
+    assert.match(formatted, /SYN_R19_/);
+    assertContiguousSuffix(rows, formatted);
+    assert.ok(Array.from(formatted).length <= TRPG_SEALED_PROMPT_MAX_CHARS);
+    assert.equal(formatted, formatSealedSummariesForPrompt(rows));
+  });
+
+  it("100 short summaries: newest included, contiguous suffix, chronological, bounded, deterministic", () => {
+    const rows = syntheticRows(100, 80);
+    const formatted = formatSealedSummariesForPrompt(rows);
+    assert.match(formatted, /SYN_R99_/);
+    assertContiguousSuffix(rows, formatted);
+    assert.ok(Array.from(formatted).length <= TRPG_SEALED_PROMPT_MAX_CHARS);
+    assert.equal(formatted, formatSealedSummariesForPrompt(rows));
+  });
+
   it("scales to long campaigns with bounded prompt size", () => {
     const rows = syntheticRows(100, 80);
     const formatted = formatSealedSummariesForPrompt(rows);

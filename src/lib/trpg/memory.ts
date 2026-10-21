@@ -111,7 +111,8 @@ export type TrpgSealedSummaryRow = {
 
 /**
  * Fit sealed round summaries into the GM prompt budget without splitting a segment.
- * When over budget, drop oldest complete summaries first and keep the newest.
+ * When over budget, keep a contiguous suffix (newest → older) and stop when the next
+ * older segment no longer fits — never skip a middle segment to add a shorter older one.
  */
 export function formatSealedSummariesForPrompt(
   rows: readonly TrpgSealedSummaryRow[],
@@ -131,19 +132,20 @@ export function formatSealedSummariesForPrompt(
     return segments.map((seg) => seg.text).join("\n");
   }
 
-  const picked: Array<{ text: string }> = [];
-  for (let index = segments.length - 1; index >= 0; index -= 1) {
+  const newest = segments[segments.length - 1]!;
+  if (newest.text.length > maxChars) {
+    return clipTrpgHeadTail(newest.text, maxChars);
+  }
+
+  const picked: Array<{ text: string }> = [newest];
+  for (let index = segments.length - 2; index >= 0; index -= 1) {
     const candidate = segments[index]!;
     const trial = [candidate, ...picked];
     if (joinedLength(trial) <= maxChars) {
       picked.unshift(candidate);
+    } else {
+      break;
     }
-  }
-
-  if (picked.length === 0) {
-    const newest = segments[segments.length - 1]!;
-    if (newest.text.length <= maxChars) return newest.text;
-    return clipTrpgHeadTail(newest.text, maxChars);
   }
 
   return picked.map((seg) => seg.text).join("\n");
