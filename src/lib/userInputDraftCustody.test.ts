@@ -185,11 +185,11 @@ describe("general RP client custody wiring", () => {
     assert.match(src, /Pre-bootstrap failure/);
     // send()'s HTTP-error path must not clear the stream draft anymore.
     const sendEarlyExit = src.match(
-      /handleStreamError\(res, aiIndex, \(\) => \{[\s\S]*?\}, text\);[\s\S]*?if \(earlyExit\) \{([\s\S]*?)\n      \}/
+      /handleStreamError\(res, aiIndex, \(\) => \{[\s\S]*?\}, composerSnapshot\);[\s\S]*?if \(earlyExit\) \{([\s\S]*?)\n      \}/
     );
     assert.ok(sendEarlyExit, "send earlyExit block must exist");
     assert.doesNotMatch(sendEarlyExit[1]!, /clearChatStreamDraft/);
-    assert.match(sendEarlyExit[1]!, /saveChatMessageDraft\(character\.id, chatId, text\)/);
+    assert.match(sendEarlyExit[1]!, /saveChatMessageDraft\(character\.id, chatId, composerSnapshot\.value\)/);
   });
 
   it("orphan stream drafts restore the composer without synthesizing turns", () => {
