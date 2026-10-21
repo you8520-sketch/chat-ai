@@ -1,0 +1,142 @@
+[
+  {
+    "slot": "rep",
+    "tag": "기본 초상",
+    "productionUrl": "https://hav.chat/uploads/official-pilot-rf-v4-02__rep-ext-6baa8d35-d1aa-4dfc-bf6e-04ead314cb2e.webp",
+    "repoFile": "images/rep-기본-초상.webp",
+    "expectedSha256FromSupplyStatus": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+    "downloadedSha256": "a95f9aca91a09a4bf1cd2e13bab5c0bd226f8972bb2bf60990a66891150f8032",
+    "sha256MatchesExpected": true,
+    "downloadOk": true
+  },
+  {
+    "slot": "sig1",
+    "tag": "지도를 짚음",
+    "productionUrl": "https://hav.chat/uploads/official-pilot-rf-v4-02__sig1-ext-6b53d049-b4c8-4457-bedd-72fa17c9b016.webp",
+    "repoFile": "images/sig1-지도를-짚음.webp",
+    "expectedSha256FromSupplyStatus": "e986403412b7754b520901afa97cc00e895ace0184542144383198f3506782f5",
+    "downloadedSha256": "e986403412b7754b520901afa97cc00e895ace0184542144383198f3506782f5",
+    "sha256MatchesExpected": true,
+    "downloadOk": true
+  },
+  {
+    "slot": "sig2",
+    "tag": "턱을 괴고 생각",
+    "productionUrl": "https://hav.chat/uploads/official-pilot-rf-v4-02__sig2-ext-32f097a5-e3f6-4b06-88b7-40c7829c8d41.webp",
+    "repoFile": "images/sig2-턱을-괴고-생각.webp",
+    "expectedSha256FromSupplyStatus": "3242bbadb72a6514314f9dd8ab425ad22e459358821c85b800215d4205f9bdb4",
+    "downloadedSha256": "3242bbadb72a6514314f9dd8ab425ad22e459358821c85b800215d4205f9bdb4",
+    "sha256MatchesExpected": true,
+    "downloadOk": true
+  },
+  {
+    "slot": "sig3",
+    "tag": "열쇠를 확인함",
+    "productionUrl": "https://hav.chat/uploads/official-pilot-rf-v4-02__sig3-ext-253da691-52bb-4cf2-a74c-88de990e612c.webp",
+    "repoFile": "images/sig3-열쇠를-확인함.webp",
+    "expectedSha256FromSupplyStatus": "b7df32fa69725fdfe86849dcd78bfbf6d8f4916f3bf5a6b8ecccb17ae50f8a19",
+    "downloadedSha256": "b7df32fa69725fdfe86849dcd78bfbf6d8f4916f3bf5a6b8ecccb17ae50f8a19",
+    "sha256MatchesExpected": true,
+    "downloadOk": true
+  },
+  {
+    "slot": "sig4",
+    "tag": "옅은 미소",
+    "productionUrl": "https://hav.chat/uploads/official-pilot-rf-v4-02__sig4-ext-2d768d87-88a0-4123-9be6-87a640929378.webp",
+    "repoFile": "images/sig4-옅은-미소.webp",
+    "expectedSha256FromSupplyStatus": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1",
+    "downloadedSha256": "fc14ebff70494e04ec9b148f5cd7c6236fec9b9613a9298f3db33fd6c8a24dc1",
+    "sha256MatchesExpected": true,
+    "downloadOk": true
+  },
+  {
+    "slot": "emo1",
+    "tag": "의심",
+    "productionUrl": "https://hav.chat/uploads/official-pilot-rf-v4-02__emo1-ext-bc8a6e2d-cc94-4409-a25b-e7e3aa0fbeb8.webp",
+    "repoFile": "images/emo1-의심.webp",
+    "expectedSha256FromSupplyStatus": "6f345d95b85a30850a954e4369f4aa9a7a9ccd978669643f41166fe5a7346a07",
+    "downloadedSha256": "6f345d95b85a30850a954e4369f4aa9a7a9ccd978669643f41166fe5a7346a07",
+    "sha256MatchesExpected": true,
+    "downloadOk": true
+  },
+  {
+    "slot": "emo2",
+    "tag": "분노",
+    "productionUrl": "https://hav.chat/uploads/official-pilot-rf-v4-02__emo2-ext-b63c5a1c-c0b7-45ad-9d34-85c4a08a8767.webp",
+    "repoFile": "images/emo2-분노.webp",
+    "expectedSha256FromSupplyStatus": "c4d38db0e3adfb59cf6fc2da8b79457636a90d64113c8b059ad30639d66d5db8",
+    "downloadedSha256": "c4d38db0e3adfb59cf6fc2da8b79457636a90d64113c8b059ad30639d66d5db8",
+    "sha256MatchesExpected": true,
+    "downloadOk": true
+  },
+  {
+    "slot": "emo3",
+    "tag": "진지함",
+    "productionUrl": "https://hav.chat/uploads/official-pilot-rf-v4-02__emo3-ext-4cfdc95f-8c6f-48ba-82ea-cb19cb19a491.webp",
+    "repoFile": "images/emo3-진지함.webp",
+    "expectedSha256FromSupplyStatus": "758e1f8d182ffdf229107eb83c0d7476e24c7f9c2d1de02ca3ab9bb19419643a",
+    "downloadedSha256": "758e1f8d182ffdf229107eb83c0d7476e24c7f9c2d1de02ca3ab9bb19419643a",
+    "sha256MatchesExpected": true,
+    "downloadOk": true
+  },
+  {
+    "slot": "emo4",
+    "tag": "당황",
+    "productionUrl": "https://hav.chat/uploads/official-pilot-rf-v4-02__emo4-ext-ec637480-9df5-463a-8923-48880e63d104.webp",
+    "repoFile": "images/emo4-당황.webp",
+    "expectedSha256FromSupplyStatus": "527086945e164458a773cd84eac1e69a4e07d19e8ed14af4eb1c4d8c257bf4d4",
+    "downloadedSha256": "527086945e164458a773cd84eac1e69a4e07d19e8ed14af4eb1c4d8c257bf4d4",
+    "sha256MatchesExpected": true,
+    "downloadOk": true
+  },
+  {
+    "slot": "emo5",
+    "tag": "편안함",
+    "productionUrl": "https://hav.chat/uploads/official-pilot-rf-v4-02__emo5-ext-43e442a4-5dab-47e2-9f70-3f564d2b1bb5.webp",
+    "repoFile": "images/emo5-편안함.webp",
+    "expectedSha256FromSupplyStatus": "ef87914c71865944cdb1b40a6417105b3a426f089769189648e9ff86036ab517",
+    "downloadedSha256": "ef87914c71865944cdb1b40a6417105b3a426f089769189648e9ff86036ab517",
+    "sha256MatchesExpected": true,
+    "downloadOk": true
+  },
+  {
+    "slot": "emo6",
+    "tag": "안도",
+    "productionUrl": "https://hav.chat/uploads/official-pilot-rf-v4-02__emo6-ext-b374c159-8842-4bb3-a4fd-0840e62ec655.webp",
+    "repoFile": "images/emo6-안도.webp",
+    "expectedSha256FromSupplyStatus": "f52f9f21046f7993a349e672b3326f2f5144bcb885badcf3181ad7326547e214",
+    "downloadedSha256": "f52f9f21046f7993a349e672b3326f2f5144bcb885badcf3181ad7326547e214",
+    "sha256MatchesExpected": true,
+    "downloadOk": true
+  },
+  {
+    "slot": "scene1",
+    "tag": "문서를 대조함",
+    "productionUrl": "https://hav.chat/uploads/official-pilot-rf-v4-02__scene1-ext-fe9d8e81-fc66-42f7-a6c7-7fd24df0dc92.webp",
+    "repoFile": "images/scene1-문서를-대조함.webp",
+    "expectedSha256FromSupplyStatus": "1150bf9d17b6e7720e3e020c5288be20e346a83468c633d7672a9796f1e6230c",
+    "downloadedSha256": "1150bf9d17b6e7720e3e020c5288be20e346a83468c633d7672a9796f1e6230c",
+    "sha256MatchesExpected": true,
+    "downloadOk": true
+  },
+  {
+    "slot": "scene2",
+    "tag": "기록을 맞춤",
+    "productionUrl": "https://hav.chat/uploads/official-pilot-rf-v4-02__scene2-ext-6697c6a9-7249-4514-a31c-ca7425107de5.webp",
+    "repoFile": "images/scene2-기록을-맞춤.webp",
+    "expectedSha256FromSupplyStatus": "0cb364a2eddfddf5196e1ab1f0da8deb20ca175b62cc996b3ac583cea674b3e5",
+    "downloadedSha256": "0cb364a2eddfddf5196e1ab1f0da8deb20ca175b62cc996b3ac583cea674b3e5",
+    "sha256MatchesExpected": true,
+    "downloadOk": true
+  },
+  {
+    "slot": "scene3",
+    "tag": "긴장",
+    "productionUrl": "https://hav.chat/uploads/official-pilot-rf-v4-02__scene3-ext-6f3ad821-0579-4171-9dfc-de2967c54b4a.webp",
+    "repoFile": "images/scene3-긴장.webp",
+    "expectedSha256FromSupplyStatus": "bd3a47bc70ac79ac2bbc9b9a92e93903680397f59265afd9bb1f02309433482c",
+    "downloadedSha256": "bd3a47bc70ac79ac2bbc9b9a92e93903680397f59265afd9bb1f02309433482c",
+    "sha256MatchesExpected": true,
+    "downloadOk": true
+  }
+]
