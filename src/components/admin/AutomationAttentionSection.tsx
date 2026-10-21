@@ -176,7 +176,7 @@ export function AutomationAttentionSummary({
   schedulerCount,
 }: {
   dashboard: AttentionDashboard;
-  githubWorkflowCount: number;
+  githubWorkflowCount: number | null;
   schedulerCount: number;
 }) {
   return (
@@ -212,7 +212,8 @@ export function AutomationAttentionSummary({
         />
       </div>
       <p className="mt-2 text-[11px] text-zinc-600">
-        GitHub 정기 자동화 {githubWorkflowCount}개(main 등록 기준) · 사이트 내부 scheduler{" "}
+        GitHub 정기 자동화{" "}
+        {githubWorkflowCount == null ? "목록 조회 불가" : `${githubWorkflowCount}개(main 등록 기준)`} · 사이트 내부 scheduler{" "}
         {schedulerCount}개(durable registry 기준)
       </p>
     </section>

@@ -1268,7 +1268,7 @@ export default async function AdminAutomationReportsPage() {
       <AutomationAttentionSummary
         dashboard={dashboard}
         githubWorkflowCount={
-          automationCoverage.status === "OK" ? automationCoverage.rows.length : github.groups.length
+          automationCoverage.status === "OK" ? automationCoverage.rows.length : null
         }
         schedulerCount={schedulers.length}
       />
