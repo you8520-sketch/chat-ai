@@ -21,7 +21,21 @@ import {
 import {
   detectRelationshipLedgerOwnedFact,
   getEpisodicMemoryForPrompt,
+  hasEpisodicSemanticIndexInScope,
 } from "@/lib/episodicMemoryFacts";
+import {
+  EPISODIC_FACT_EMBEDDINGS_TABLE,
+  ensureEpisodicFactEmbeddingSchema,
+  episodicFactContentHash,
+  episodicFactSemanticText,
+} from "@/lib/memory/memory-episodic-semantic-index";
+import { resolveEpisodicSemanticQuery } from "@/lib/memory/memory-episodic-semantic-jobs";
+import {
+  countingSyntheticEmbedder,
+  indexChatSynthetically,
+  SYNTHETIC_SEMANTIC_MODEL,
+  syntheticRuntime,
+} from "@/lib/memory/memory-episodic-semantic-synthetic.test";
 import { DEFAULT_STATUS_WIDGET } from "@/lib/statusWidget/defaultTemplate";
 import { extractStatusWidgetValuesForTurn } from "@/lib/statusWidget/extract";
 import type { ResolvedStatusWidgetTurn, StatusWidget } from "@/lib/statusWidget/types";
@@ -232,6 +246,121 @@ describe("shared initial episodic consumer", () => {
       .get(CHAT) as { metadata: string };
     const meta = JSON.parse(row.metadata) as { extraction?: string };
     assert.equal(meta.extraction, SHARED_EPISODIC_EXTRACTION);
+  });
+
+  it("B21 CASE1 SAFE shared reconcile stamps content_route and canonical source ownership", () => {
+    getDb().prepare("DELETE FROM episodic_memory_facts WHERE chat_id=?").run(CHAT);
+    const result = reconcileSharedEpisodicFactsForTurn(getDb(), {
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      assistantMessageId: 1001,
+      sourceUserMessageId: 1000,
+      sourceUserText: "커피에 시럽을 두 번 넣어.",
+      episodic: parseSharedEpisodicSection({ extracted_facts: [VALID_FACT] }),
+      isRegeneration: false,
+      contentRoute: "safe",
+    });
+    assert.equal(result.inserted, 1);
+    assert.equal(result.skipped, false);
+    const row = getDb()
+      .prepare(
+        `SELECT id, user_id, character_id, source_turn, source_user_message_id, fact_text, metadata
+         FROM episodic_memory_facts WHERE chat_id=?`
+      )
+      .get(CHAT) as {
+      id: number;
+      user_id: number;
+      character_id: number;
+      source_turn: number;
+      source_user_message_id: number;
+      fact_text: string;
+      metadata: string;
+    };
+    assert.equal(
+      (getDb()
+        .prepare("SELECT COUNT(*) AS c FROM episodic_memory_facts WHERE chat_id=?")
+        .get(CHAT) as { c: number }).c,
+      1
+    );
+    assert.equal(row.user_id, USER);
+    assert.equal(row.character_id, CHAR);
+    assert.equal(row.source_turn, 1);
+    assert.equal(row.source_user_message_id, 1000);
+    assert.equal(row.fact_text, VALID_FACT.fact_text);
+    const meta = JSON.parse(row.metadata) as {
+      extraction?: string;
+      content_route?: string;
+      assistant_message_id?: number;
+    };
+    assert.equal(meta.extraction, SHARED_EPISODIC_EXTRACTION);
+    assert.equal(meta.content_route, "safe");
+    assert.equal(meta.assistant_message_id, 1001);
+  });
+
+  it("B21 CASE2 SAFE shared fact indexes synthetically and resolves semantic retrieval", async () => {
+    const db = getDb();
+    ensureEpisodicFactEmbeddingSchema(db);
+    db.prepare(`DELETE FROM ${EPISODIC_FACT_EMBEDDINGS_TABLE} WHERE chat_id=?`).run(CHAT);
+    db.prepare("DELETE FROM episodic_memory_facts WHERE chat_id=?").run(CHAT);
+    reconcileSharedEpisodicFactsForTurn(db, {
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      assistantMessageId: 1001,
+      sourceUserMessageId: 1000,
+      sourceUserText: "커피에 시럽을 두 번 넣어.",
+      episodic: parseSharedEpisodicSection({ extracted_facts: [VALID_FACT] }),
+      isRegeneration: false,
+      contentRoute: "safe",
+    });
+    const factRow = db
+      .prepare("SELECT id, fact_text, metadata FROM episodic_memory_facts WHERE chat_id=?")
+      .get(CHAT) as { id: number; fact_text: string; metadata: string };
+    const semanticText = episodicFactSemanticText(factRow)!;
+    const expectedHash = episodicFactContentHash(semanticText);
+
+    const written = await indexChatSynthetically(db, CHAT);
+    assert.equal(written, 1);
+    const vector = db
+      .prepare(
+        `SELECT content_hash FROM ${EPISODIC_FACT_EMBEDDINGS_TABLE}
+         WHERE chat_id=? AND fact_id=? AND model_id=?`
+      )
+      .get(CHAT, factRow.id, SYNTHETIC_SEMANTIC_MODEL.modelId) as { content_hash: string };
+    assert.equal(vector.content_hash, expectedHash);
+
+    const recallInput = {
+      chatId: CHAT,
+      characterId: CHAR,
+      userId: USER,
+      currentTurn: 6,
+      currentUserMessage: "커피에 시럽 넣는 습관",
+      recentChatText: "unrelated recent",
+    };
+    const env = { EPISODIC_MEMORY_RECALL_ENABLED: "1" } as NodeJS.ProcessEnv;
+    assert.equal(
+      hasEpisodicSemanticIndexInScope(db, recallInput, SYNTHETIC_SEMANTIC_MODEL, env),
+      true
+    );
+    const queryEmbedder = countingSyntheticEmbedder();
+    const resolved = await resolveEpisodicSemanticQuery({
+      query: recallInput.currentUserMessage,
+      contentRoute: "safe",
+      usableIndex: (model) => hasEpisodicSemanticIndexInScope(db, recallInput, model, env),
+      runtime: syntheticRuntime(),
+      embed: queryEmbedder.embed,
+    });
+    assert.equal(resolved.reason, "ok");
+    assert.ok(resolved.query);
+
+    const recalled = getEpisodicMemoryForPrompt(
+      db,
+      { ...recallInput, semanticQuery: resolved.query },
+      env
+    );
+    assert.equal(recalled.facts.length, 1);
+    assert.equal(recalled.facts[0]!.fact_text, VALID_FACT.fact_text);
   });
 
   it("S8 regen old A → new B replaces facts", () => {
