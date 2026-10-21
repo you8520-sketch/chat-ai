@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { emptyCodeHealthCounts } from "@/lib/codeHealth/types";
 import {
   auditStatusLabel,
   automationDisplayName,
+  codeHealthLedgerActionReason,
   coverageStateLabel,
   decisionRadarStatusLabel,
   formatKstDateTime,
+  githubRunAutoAttentionCopy,
   githubRunConclusionLabel,
   githubRunSeverity,
   isGithubRunInProgress,
@@ -63,5 +66,22 @@ describe("admin automation status wording", () => {
 
   it("formats times in KST", () => {
     assert.match(formatKstDateTime("2026-10-12T09:20:00Z"), /(18|06):20/);
+  });
+
+  it("words ledger action reasons from actual counts, not a zero cleanup placeholder", () => {
+    assert.match(
+      codeHealthLedgerActionReason({ ...emptyCodeHealthCounts(), runtimeCiAnomalies: 2 }),
+      /CI·런타임 이상 징후 2건/
+    );
+    assert.doesNotMatch(
+      codeHealthLedgerActionReason({ ...emptyCodeHealthCounts(), runtimeCiAnomalies: 1 }),
+      /정리·수정 검토 필요 0건/
+    );
+  });
+
+  it("distinguishes queued runs from actively running runs in auto copy", () => {
+    assert.equal(githubRunAutoAttentionCopy("queued", 12).statusLabel, "대기 중");
+    assert.match(githubRunAutoAttentionCopy("queued", 12).reason, /아직 실행이 시작되지 않았습니다/);
+    assert.equal(githubRunAutoAttentionCopy("in_progress", 12).statusLabel, "실행 중");
   });
 });

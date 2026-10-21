@@ -1,4 +1,5 @@
 import type { AutomationCoverageState } from "@/lib/adminAutomationCoverage";
+import type { CodeHealthCounts } from "@/lib/codeHealth/types";
 import type { SchedulerRunOverviewState } from "@/lib/schedulerRunShared";
 
 /**
@@ -88,6 +89,43 @@ export function githubRunConclusionLabel(
 export function isGithubRunInProgress(status: string | null | undefined): boolean {
   const normalized = (status ?? "").trim().toLowerCase();
   return normalized === "in_progress" || normalized === "queued" || normalized === "waiting";
+}
+
+/** Copy for the attention dashboard when a GitHub run is queued or actively running. */
+export function githubRunAutoAttentionCopy(
+  status: string | null | undefined,
+  runNumber: number
+): { statusLabel: string; reason: string } {
+  const statusLabel = githubRunConclusionLabel(null, status);
+  const normalized = (status ?? "").trim().toLowerCase();
+  const waiting =
+    normalized === "queued" || normalized === "waiting" || normalized === "pending";
+  const reason = waiting
+    ? `정기 실행 #${runNumber}이 GitHub에서 ${statusLabel} 상태입니다. 아직 실행이 시작되지 않았습니다.`
+    : `정기 실행 #${runNumber}이 진행 중입니다. 결과가 나오면 상태가 갱신됩니다.`;
+  return { statusLabel, reason };
+}
+
+/** Plain-language reason for a Code Health ledger WARNING/FAILED (not a workflow run failure). */
+export function codeHealthLedgerActionReason(
+  counts: CodeHealthCounts | null | undefined,
+  notes: readonly string[] = []
+): string {
+  const findings: string[] = [];
+  if (counts && counts.requiredCleanup > 0) {
+    findings.push(`정리·수정 검토 필요 ${counts.requiredCleanup}건`);
+  }
+  if (counts && counts.runtimeCiAnomalies > 0) {
+    findings.push(`CI·런타임 이상 징후 ${counts.runtimeCiAnomalies}건`);
+  }
+  if (counts && counts.newFindings > 0 && findings.length === 0) {
+    findings.push(`신규 발견 ${counts.newFindings}건`);
+  }
+  const detail =
+    findings.length > 0
+      ? findings.join(", ")
+      : notes[0]?.trim() || "점검에서 조치 검토가 필요한 항목이 있습니다.";
+  return `${detail}. 의심 항목이며 보안 사고로 확정된 것이 아닙니다. 실행 실패와는 별개입니다.`;
 }
 
 export function coverageStateLabel(state: AutomationCoverageState): string {

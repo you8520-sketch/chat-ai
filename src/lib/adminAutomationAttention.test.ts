@@ -19,6 +19,7 @@ import type { CodeHealthAdminCard } from "@/lib/codeHealth/reports";
 import {
   CODE_HEALTH_MONTHLY_WORKFLOW_PATH,
   CODE_HEALTH_WEEKLY_WORKFLOW_PATH,
+  emptyCodeHealthCounts,
 } from "@/lib/codeHealth/types";
 import { DECISION_RADAR_WORKFLOW_PATH } from "@/lib/decisionModelRadar";
 import { DOMAIN_SSL_WORKFLOW_PATH } from "@/lib/domainSslMonitor";
@@ -168,8 +169,8 @@ describe("automation attention dashboard", () => {
         `missing ${def.path}`
       );
     }
-    assert.equal(dashboard.ok.length + dashboard.unknown.length, DEFINITIONS.length);
     assert.ok(dashboard.ok.length > 0);
+    assert.equal(dashboard.byKey.get(ATTENTION_KEY.postDeploy)!.bucket, "UNKNOWN");
   });
 
   it("separates OK, failed, not-run and stale workflows into different buckets", () => {
@@ -347,9 +348,120 @@ describe("automation attention dashboard", () => {
       ],
     });
     const dashboard = buildAutomationAttention(baseInput({ github: running }));
-    assert.equal(dashboard.byKey.get(ATTENTION_KEY.workflow(DOMAIN_SSL_WORKFLOW_PATH))!.bucket, "AUTO");
+    const active = dashboard.byKey.get(ATTENTION_KEY.workflow(DOMAIN_SSL_WORKFLOW_PATH))!;
+    assert.equal(active.bucket, "AUTO");
+    assert.equal(active.statusLabel, "실행 중");
     const idle = buildAutomationAttention(baseInput());
     assert.equal(idle.auto.length, 0);
+  });
+
+  it("labels queued GitHub runs as waiting, not as actively running", () => {
+    const def = DEFINITIONS.find((d) => d.path === DOMAIN_SSL_WORKFLOW_PATH)!;
+    const queued = githubFor({
+      [DOMAIN_SSL_WORKFLOW_PATH]: [
+        run(def, "2026-10-12T09:10:00Z", null, "queued"),
+        run(def, FRESH, "success"),
+      ],
+    });
+    const item = buildAutomationAttention(baseInput({ github: queued })).byKey.get(
+      ATTENTION_KEY.workflow(DOMAIN_SSL_WORKFLOW_PATH)
+    )!;
+    assert.equal(item.bucket, "AUTO");
+    assert.equal(item.statusLabel, "대기 중");
+    assert.match(item.reasons[0]!, /아직 실행이 시작되지 않았습니다/);
+  });
+
+  it("counts domain SSL and post-deploy with no result as unknown, not ok", () => {
+    const dashboard = buildAutomationAttention(
+      baseInput({
+        patch: {
+          domainSsl: { status: "OK", error: null, latest: null },
+          postDeploy: { status: "OK", error: null, latest: null, superseded: null },
+        },
+      })
+    );
+    assert.equal(dashboard.byKey.get(ATTENTION_KEY.postDeploy)!.bucket, "UNKNOWN");
+    assert.equal(dashboard.byKey.get(ATTENTION_KEY.workflow(DOMAIN_SSL_WORKFLOW_PATH))!.bucket, "UNKNOWN");
+    assert.ok(
+      dashboard.unknown.some(
+        (item) =>
+          item.key === ATTENTION_KEY.postDeploy ||
+          item.key === ATTENTION_KEY.workflow(DOMAIN_SSL_WORKFLOW_PATH)
+      )
+    );
+  });
+
+  it("does not promote an old ledger finding to action when the workflow registry is unreadable", () => {
+    const dashboard = buildAutomationAttention(
+      baseInput({
+        patch: {
+          coverage: {
+            status: "UNAVAILABLE",
+            error: "workflows dir missing",
+            rows: [],
+            unregistered: [],
+            failedCount: 0,
+            unverifiedCount: 0,
+            attentionCount: 0,
+          },
+          codeHealth: {
+            status: "OK",
+            error: null,
+            weekly: ledgerCard("weekly", {
+              status: "FAILED",
+              ranAt: OLD,
+              counts: { requiredCleanup: 8 } as CodeHealthAdminCard["counts"],
+            }),
+            monthly: ledgerCard("monthly"),
+          },
+          decisionRadar: {
+            status: "OK",
+            error: null,
+            githubRunUrl: null,
+            run: { status: "PARTIAL", ranAt: OLD },
+          } as unknown as AttentionInput["decisionRadar"],
+        },
+      })
+    );
+    const weekly = dashboard.byKey.get(ATTENTION_KEY.workflow(CODE_HEALTH_WEEKLY_WORKFLOW_PATH))!;
+    const radar = dashboard.byKey.get(ATTENTION_KEY.workflow(DECISION_RADAR_WORKFLOW_PATH))!;
+    assert.equal(weekly.bucket, "UNKNOWN");
+    assert.equal(radar.bucket, "UNKNOWN");
+    assert.equal(
+      dashboard.action.some(
+        (item) =>
+          item.key === ATTENTION_KEY.workflow(CODE_HEALTH_WEEKLY_WORKFLOW_PATH) ||
+          item.key === ATTENTION_KEY.workflow(DECISION_RADAR_WORKFLOW_PATH)
+      ),
+      false
+    );
+    assert.match(weekly.reasons[0]!, /schedule 목록을 확인하지 못해/);
+  });
+
+  it("describes Code Health WARNING from CI/runtime anomalies without a zero cleanup count", () => {
+    const item = buildAutomationAttention(
+      baseInput({
+        patch: {
+          codeHealth: {
+            status: "OK",
+            error: null,
+            weekly: ledgerCard("weekly", {
+              status: "WARNING",
+              counts: {
+                ...emptyCodeHealthCounts(),
+                requiredCleanup: 0,
+                runtimeCiAnomalies: 1,
+              },
+            }),
+            monthly: ledgerCard("monthly"),
+          },
+        },
+      })
+    ).byKey.get(ATTENTION_KEY.workflow(CODE_HEALTH_WEEKLY_WORKFLOW_PATH))!;
+    assert.equal(item.bucket, "ACTION");
+    const text = item.reasons.join(" ");
+    assert.match(text, /CI·런타임 이상 징후 1건/);
+    assert.doesNotMatch(text, /정리·수정 검토 필요 0건/);
   });
 
   it("links a supply Draft PR for approval and keeps lookup failure unknown", () => {

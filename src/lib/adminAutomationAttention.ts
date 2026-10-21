@@ -7,7 +7,9 @@ import type { AutomationCoverageView } from "@/lib/adminAutomationCoverage";
 import {
   auditStatusLabel,
   automationDisplayName,
+  codeHealthLedgerActionReason,
   decisionRadarStatusLabel,
+  githubRunAutoAttentionCopy,
   githubRunConclusionLabel,
   githubRunSeverity,
   isGithubRunInProgress,
@@ -191,16 +193,19 @@ export function buildAutomationAttention(input: AttentionInput): AttentionDashbo
   const nowMs = (input.now ?? new Date()).getTime();
   const subjects = new Map<string, Subject>();
   const githubDown = input.github.status === "UNAVAILABLE";
+  const registryFreshnessVerified = input.coverage.status === "OK";
   const staleAfterMsByPath = new Map<string, number>(
-    input.coverage.status === "OK"
+    registryFreshnessVerified
       ? input.coverage.rows.map((row) => [row.path, row.staleAfterHours * 3_600_000] as const)
       : []
   );
 
   const isStale = (path: string, iso: string | null | undefined): boolean => {
-    const limit = staleAfterMsByPath.get(path);
     const then = iso ? Date.parse(iso) : Number.NaN;
-    return limit != null && Number.isFinite(then) && nowMs - then > limit;
+    if (!Number.isFinite(then)) return false;
+    if (!registryFreshnessVerified) return true;
+    const limit = staleAfterMsByPath.get(path);
+    return limit != null && nowMs - then > limit;
   };
   const workflowTitle = (path: string, fallback: string) => automationDisplayName(path, fallback);
   const addWorkflowSignal = (path: string, fallbackName: string, signal: Signal) =>
@@ -254,12 +259,13 @@ export function buildAutomationAttention(input: AttentionInput): AttentionDashbo
             opsIncidentId: group ? `github_automation:${group.key}` : null,
           });
           if (latest && isGithubRunInProgress(latest.status)) {
+            const activity = githubRunAutoAttentionCopy(latest.status, latest.runNumber);
             addWorkflowSignal(row.path, row.name, {
               ...base,
               bucket: "AUTO",
               severity: "info",
-              statusLabel: "실행 중",
-              reason: `새 정기 실행 #${latest.runNumber}이 진행 중입니다. 결과가 나오면 상태가 갱신됩니다.`,
+              statusLabel: activity.statusLabel,
+              reason: activity.reason,
             });
           }
           break;
@@ -296,12 +302,13 @@ export function buildAutomationAttention(input: AttentionInput): AttentionDashbo
           break;
         case "OK":
           if (latest && isGithubRunInProgress(latest.status)) {
+            const activity = githubRunAutoAttentionCopy(latest.status, latest.runNumber);
             addWorkflowSignal(row.path, row.name, {
               ...base,
               bucket: "AUTO",
               severity: "info",
-              statusLabel: "실행 중",
-              reason: `정기 실행 #${latest.runNumber}이 진행 중입니다 (GitHub 실행 상태 기준).`,
+              statusLabel: activity.statusLabel,
+              reason: activity.reason,
             });
           } else {
             addWorkflowSignal(row.path, row.name, {
@@ -356,7 +363,9 @@ export function buildAutomationAttention(input: AttentionInput): AttentionDashbo
         bucket: "UNKNOWN",
         severity: "warning",
         statusLabel: "최신 확인 필요",
-        reason: `마지막 점검 결과(${verdict})는 ${ageLabel(nowMs, card.ranAt ?? "")} 기록이라 현재 상태로 보지 않습니다.`,
+        reason: !registryFreshnessVerified
+          ? "등록된 schedule 목록을 확인하지 못해 점검 결과의 최신 여부를 판단할 수 없습니다. 정상으로 간주하지 않습니다."
+          : `마지막 점검 결과(${verdict})는 ${ageLabel(nowMs, card.ranAt ?? "")} 기록이라 현재 상태로 보지 않습니다.`,
         technical: `ledger ${card.status}`,
       });
       return;
@@ -372,15 +381,12 @@ export function buildAutomationAttention(input: AttentionInput): AttentionDashbo
       });
       return;
     }
-    const required = card.counts?.requiredCleanup ?? 0;
     addWorkflowSignal(path, fallbackName, {
       ...base,
       bucket: "ACTION",
       severity: card.status === "FAILED" ? "critical" : "warning",
       statusLabel: verdict,
-      reason:
-        `점검에서 '정리·수정 검토 필요' ${required}건을 발견했습니다. ` +
-        "의심 항목이며 보안 사고로 확정된 것이 아닙니다. 실행 실패와는 별개입니다.",
+      reason: codeHealthLedgerActionReason(card.counts, card.notes),
       nextAction: "상세 보고서에서 항목과 근거를 확인하세요. 기존 기록은 지우거나 덮어쓰지 않습니다.",
       technical: `ledger ${card.status}`,
     });
@@ -420,7 +426,9 @@ export function buildAutomationAttention(input: AttentionInput): AttentionDashbo
         bucket: "UNKNOWN",
         severity: "warning",
         statusLabel: "최신 확인 필요",
-        reason: `마지막 조사 결과(${decisionRadarStatusLabel(run.status)})는 ${ageLabel(nowMs, run.ranAt)} 기록입니다.`,
+        reason: !registryFreshnessVerified
+          ? "등록된 schedule 목록을 확인하지 못해 조사 결과의 최신 여부를 판단할 수 없습니다. 정상으로 간주하지 않습니다."
+          : `마지막 조사 결과(${decisionRadarStatusLabel(run.status)})는 ${ageLabel(nowMs, run.ranAt)} 기록입니다.`,
         technical: run.status,
       });
     } else if (run.status === "FAILED" || run.status === "PARTIAL") {
@@ -586,6 +594,14 @@ export function buildAutomationAttention(input: AttentionInput): AttentionDashbo
           technical: "domain-ssl OK",
         });
       }
+    } else {
+      addWorkflowSignal(path, name, {
+        bucket: "UNKNOWN",
+        severity: "info",
+        statusLabel: "실행 기록 없음",
+        reason: "도메인·SSL 감시 결과가 없습니다. 정상으로 간주하지 않습니다.",
+        technical: "domain-ssl EMPTY",
+      });
     }
   }
 
@@ -647,6 +663,14 @@ export function buildAutomationAttention(input: AttentionInput): AttentionDashbo
           technical: "post-deploy VERIFIED / smoke PASS",
         });
       }
+    } else {
+      addSignal(subjects, ATTENTION_KEY.postDeploy, title, {
+        bucket: "UNKNOWN",
+        severity: "info",
+        statusLabel: "실행 기록 없음",
+        reason: "배포 검증 결과가 없습니다. 검증된 것으로 간주하지 않습니다.",
+        technical: "post-deploy EMPTY",
+      });
     }
   }
 
