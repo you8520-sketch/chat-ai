@@ -41,6 +41,8 @@ export type EpisodicSectionParse = {
   present: boolean;
   valid: boolean;
   facts: EpisodicExtractedFact[];
+  /** Model-returned `extracted_facts` length before validation; set only when the array was present. */
+  rawFactCount?: number;
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -175,8 +177,9 @@ export function parseSharedEpisodicSection(
   if (!Array.isArray(rawFacts)) {
     return { present: true, valid: false, facts: [] };
   }
-  if (rawFacts.length === 0) {
-    return { present: true, valid: true, facts: [] };
+  const rawFactCount = rawFacts.length;
+  if (rawFactCount === 0) {
+    return { present: true, valid: true, facts: [], rawFactCount };
   }
   const facts = sanitizeEpisodicExtractedFacts(rawFacts, {
     requireEvidence: true,
@@ -184,9 +187,42 @@ export function parseSharedEpisodicSection(
     correctionHandles: buildEpisodicCorrectionHandleMap(correctionCandidates),
   });
   if (facts.length === 0) {
-    return { present: true, valid: false, facts: [] };
+    return { present: true, valid: false, facts: [], rawFactCount };
   }
-  return { present: true, valid: true, facts };
+  return { present: true, valid: true, facts, rawFactCount };
+}
+
+export type SharedEpisodicTurnOutcome = {
+  /** A Shared Initial physical call carried the episodic section (or regeneration reconcile ran). */
+  reconcileCalled: boolean;
+  /** Parsed section handed to the memory layer; null when no usable parse reached it. */
+  sectionAvailable: boolean;
+  sectionPresent: boolean;
+  sectionValid: boolean;
+  rawFactCount: number | null;
+  validFactCount: number;
+  reconcile: { replaced: boolean; inserted: number; skipped: boolean } | null;
+};
+
+/**
+ * Counts and booleans only — never fact text, source quotes, or message bodies.
+ * Admin/ops log line owner for "why did this turn produce no episodic fact".
+ */
+export function describeSharedEpisodicTurnOutcome(input: {
+  reconcileCalled: boolean;
+  episodic: EpisodicSectionParse | null | undefined;
+  reconcile: { replaced: boolean; inserted: number; skipped: boolean } | null;
+}): SharedEpisodicTurnOutcome {
+  const episodic = input.episodic ?? null;
+  return {
+    reconcileCalled: input.reconcileCalled,
+    sectionAvailable: episodic !== null,
+    sectionPresent: episodic?.present === true,
+    sectionValid: episodic?.valid === true,
+    rawFactCount: episodic?.rawFactCount ?? null,
+    validFactCount: episodic?.facts.length ?? 0,
+    reconcile: input.reconcile,
+  };
 }
 
 export type ReconcileSharedEpisodicFactsInput = {
