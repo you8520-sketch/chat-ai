@@ -27,7 +27,7 @@ import {
 export const ADULT_OFF_CLASSIFIER_MODEL = CHEAPER_INFERENCE_GPT_6_LUNA_MODEL;
 export const ADULT_OFF_CLASSIFIER_REQUEST_KIND = "adult-off-output-moderation";
 export const ADULT_OFF_CLASSIFIER_TIMEOUT_MS = 25_000;
-const ADULT_OFF_CLASSIFIER_MAX_TOKENS = 200;
+export const ADULT_OFF_CLASSIFIER_MAX_TOKENS = 200;
 
 /** 분류 호출이 속한 턴의 원장 식별자. 현재 턴의 generation scope 에서 그대로 가져온다. */
 export type AdultOffClassifierTurnScope = {

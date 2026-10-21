@@ -55,7 +55,7 @@ function mountedPaths(): Set<string> {
   }
 }
 
-function hasMountedPersistentVolume(dir: string): boolean {
+export function hasMountedPersistentVolume(dir: string): boolean {
   const mounts = mountedPaths();
   if (mounts.size === 0) return false;
   let current = path.resolve(dir);
