@@ -4,6 +4,7 @@ import {
   applyStoryPhaseTransition,
   parseTrpgScenarioPlan,
   parseTrpgStoryPhase,
+  TRPG_STORY_PHASE_ADVANCE,
   type TrpgScenarioPlan,
   type TrpgStoryPhase,
 } from "./scenarioPlan";
@@ -217,7 +218,7 @@ export function applyCampaignStoryProgress(
   ]);
   const resolved = parseThreads([...ctx.resolvedThreads, ...resolve]);
   const endingStatus: TrpgEndingStatus = {
-    finished: opts.campaignFinished === true || ctx.endingStatus.finished || nextPhase === "FINISHED",
+    finished: opts.campaignFinished === true || ctx.endingStatus.finished,
     endingConditionId: opts.endingConditionId || ctx.endingStatus.endingConditionId,
     endingConditionText: ctx.endingStatus.endingConditionText,
   };
@@ -266,6 +267,10 @@ export function serializeCampaignDirectorInstructions(hasPlan: boolean): string 
 
 export function serializeDirectorDeltaContract(opts: { storyPhase: TrpgStoryPhase }): string {
   const { storyPhase } = opts;
+  const advance = storyPhase === "FINISHED" ? null : TRPG_STORY_PHASE_ADVANCE[storyPhase];
+  const phaseRule = advance
+    ? `The current phase is ${storyPhase}. Keep it, or move to ${advance.next} only when ${advance.when}. The resolved action and server facts in this input are the evidence; the round count never is. Do not invent an event only to change the phase.`
+    : `The current phase is ${storyPhase}. Keep it.`;
   return `[DIRECTOR DELTA CONTRACT]
-Use the system OUTPUT delta shape. On that same delta always include storyPhase as ${storyPhase} or the one adjacent step. Advance only when this input already shows that this scene's fiction moved. Do not advance from the round count, and do not invent an event that is not already in this input. Include threadsAdd, threadsResolve, and endingConditionId when they apply. threadsAdd and threadsResolve name story threads; they do not create or complete player goals.`;
+Use the system OUTPUT delta shape. On that same delta always include storyPhase. ${phaseRule} Include threadsAdd, threadsResolve, and endingConditionId when they apply. threadsAdd and threadsResolve name story threads; they do not create or complete player goals.`;
 }

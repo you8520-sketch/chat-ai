@@ -156,9 +156,9 @@ describe("GM delta contract wording (#1541 PR-1)", () => {
     assert.doesNotMatch(injected, /<<<DELTA>>>|<<<NARRATION>>>/);
     assert.equal((injected.match(/\[DIRECTOR DELTA CONTRACT\]/g) ?? []).length, 1);
     assert.equal((injected.match(/"questsAdd":\[\]/g) ?? []).length, 1);
-    assert.match(injected, /always include storyPhase as INTRO or the one adjacent step/);
+    assert.match(injected, /always include storyPhase\. The current phase is INTRO\. Keep it, or move to DEVELOPMENT only when/);
     assert.match(injected, /Include threadsAdd, threadsResolve, and endingConditionId when they apply/);
-    assert.match(injected, /this scene's fiction moved/);
+    assert.match(injected, /The resolved action and server facts in this input are the evidence; the round count never is/);
     assert.match(injected, /does not forbid another questsAdd when this scene creates a distinct new player-visible purpose/);
     assert.doesNotMatch(injected, /leave it empty while a player goal is already active/);
     assert.doesNotMatch(injected, /Judge that situation/);
