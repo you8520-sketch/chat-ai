@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
-import type { ChatShortcutInsertResult } from "@/lib/chatShortcutComposer";
+import type { ShortcutChipInsertResult, ShortcutChipSource } from "@/lib/chatShortcutChips";
 import {
   CHAT_SHORTCUT_CONTENT_MAX,
   CHAT_SHORTCUT_DESCRIPTION_MAX,
   CHAT_SHORTCUT_NAME_MAX,
+  validateChatShortcutDraft,
 } from "@/lib/chatShortcutComposer";
 import { compareShortcutRows, mergeShortcutList } from "@/lib/chatShortcutListSync";
 import {
@@ -14,7 +15,7 @@ import {
   type PanelPlacement,
 } from "@/lib/chatShortcutPanelPlacement";
 
-type ShortcutItem = {
+export type ChatShortcutListItem = {
   id: number;
   name: string;
   description: string;
@@ -24,7 +25,9 @@ type ShortcutItem = {
 };
 
 type Draft = { name: string; description: string; content: string };
-type ListPhase = "idle" | "loading" | "ready" | "error";
+type ShortcutItem = ChatShortcutListItem;
+export type ChatShortcutListPhase = "idle" | "loading" | "ready" | "error";
+type ListPhase = ChatShortcutListPhase;
 
 const emptyDraft = (): Draft => ({ name: "", description: "", content: "" });
 
@@ -53,11 +56,17 @@ export function ChatShortcutsDock({
   onInsert,
   onCloseFocus,
   composerRef,
+  loadRequested = false,
+  onListChange,
 }: {
   insertDisabled: boolean;
-  onInsert: (content: string) => ChatShortcutInsertResult;
+  onInsert: (source: ShortcutChipSource) => ShortcutChipInsertResult;
   onCloseFocus: () => void;
   composerRef?: RefObject<HTMLElement | null>;
+  /** The composer's slash menu needs the library without opening the panel. */
+  loadRequested?: boolean;
+  /** The dock stays the single owner of the list; the composer only reads it. */
+  onListChange?: (items: readonly ChatShortcutListItem[], phase: ChatShortcutListPhase) => void;
 }) {
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -68,7 +77,8 @@ export function ChatShortcutsDock({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [formOpen, setFormOpen] = useState(false);
-  const [notice, setNotice] = useState("");
+  const [notice, setNoticeText] = useState("");
+  const [noticeError, setNoticeError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [listPhase, setListPhase] = useState<ListPhase>("idle");
@@ -85,6 +95,16 @@ export function ChatShortcutsDock({
   const loadListRef = useRef<() => Promise<void>>(async () => {});
 
   const selected = items.find((item) => item.id === selectedId) ?? null;
+
+  function setNotice(text: string) {
+    setNoticeText(text);
+    setNoticeError(false);
+  }
+
+  function showError(text: string) {
+    setNoticeText(text);
+    setNoticeError(true);
+  }
 
   async function loadList() {
     if (listFlightRef.current) return;
@@ -121,10 +141,21 @@ export function ChatShortcutsDock({
   loadListRef.current = loadList;
 
   useEffect(() => {
-    if (!open || listOnceRef.current) return;
+    if (!open && !loadRequested) return;
+    if (listOnceRef.current) return;
     listOnceRef.current = true;
     void loadListRef.current();
-  }, [open]);
+  }, [open, loadRequested]);
+
+  useEffect(() => {
+    if (!loadRequested || !listOnceRef.current || listPhase !== "error") return;
+    void loadListRef.current();
+    // Retry once per request: a later failure waits for the next slash command.
+  }, [loadRequested]);
+
+  useEffect(() => {
+    onListChange?.(items, listPhase);
+  }, [items, listPhase, onListChange]);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -208,6 +239,13 @@ export function ChatShortcutsDock({
     setNotice("");
     const savedSession = draftSessionRef.current;
     const savedVersion = draftVersionRef.current;
+    const checked = validateChatShortcutDraft(draft, items.find((item) => item.id === editingId));
+    if (!checked.ok) {
+      showError(checked.error);
+      busyRef.current = false;
+      setBusy(false);
+      return;
+    }
     const payload = {
       name: draft.name,
       description: draft.description,
@@ -236,7 +274,7 @@ export function ChatShortcutsDock({
     } catch (error) {
       if (draftSessionRef.current === savedSession) {
         const message = error instanceof Error && error.message ? error.message : SAVE_FAILURE;
-        setNotice(message.includes("다시") ? message : SAVE_FAILURE);
+        showError(/[가-힣]/.test(message) ? message : SAVE_FAILURE);
       }
     } finally {
       busyRef.current = false;
@@ -260,7 +298,7 @@ export function ChatShortcutsDock({
       rememberWrite(data.shortcut);
     } catch (error) {
       const message = error instanceof Error && error.message ? error.message : FAVORITE_FAILURE;
-      setNotice(message.includes("다시") ? message : FAVORITE_FAILURE);
+      showError(message.includes("다시") ? message : FAVORITE_FAILURE);
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -283,7 +321,7 @@ export function ChatShortcutsDock({
       setConfirmDeleteId(null);
     } catch (error) {
       const message = error instanceof Error && error.message ? error.message : DELETE_FAILURE;
-      setNotice(message.includes("다시") ? message : DELETE_FAILURE);
+      showError(message.includes("다시") ? message : DELETE_FAILURE);
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -292,10 +330,15 @@ export function ChatShortcutsDock({
 
   function insertSelected() {
     if (!selected || busyRef.current) return;
-    const result = onInsert(selected.content);
+    const result = onInsert({
+      id: selected.id,
+      name: selected.name,
+      favorite: selected.favorite,
+      content: selected.content,
+    });
     if (result.action === "defer") return;
     if (result.action === "reject") {
-      setNotice(result.message);
+      showError(result.message);
       return;
     }
     setNotice("");
@@ -308,7 +351,7 @@ export function ChatShortcutsDock({
   const nameCount = draft.name.length;
   const descriptionCount = draft.description.length;
   const contentCount = draft.content.length;
-  const noticeIsFailure = notice !== "" && notice.includes("다시");
+  const noticeIsFailure = notice !== "" && noticeError;
 
   return (
     <div ref={rootRef} className="relative">
@@ -497,15 +540,21 @@ export function ChatShortcutsDock({
                 >
                   <div className="px-3 pt-2.5">
                     <p className="text-xs font-medium text-zinc-400">선택한 단축어</p>
-                    <p className="mt-0.5 flex items-baseline justify-between gap-2 text-sm font-bold text-violet-100">
-                      <span className="min-w-0 break-words">{selected.name}</span>
-                      <span className="shrink-0 text-xs font-medium tabular-nums text-zinc-400">
-                        {selected.content.length.toLocaleString()}자
-                      </span>
+                    <p
+                      data-testid="chat-shortcuts-preview-name"
+                      className="mt-0.5 break-words text-sm font-bold text-violet-100"
+                    >
+                      {selected.favorite ? "★ " : ""}
+                      {selected.name}
                     </p>
-                    <pre className="mt-1.5 max-h-[min(8rem,16dvh)] overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-black/30 px-2.5 py-2 font-sans text-[13px] leading-relaxed text-zinc-100">
-                      {selected.content}
-                    </pre>
+                    <p
+                      data-testid="chat-shortcuts-preview-description"
+                      className={`mt-1 break-words text-[13px] leading-relaxed ${
+                        selected.description ? "text-zinc-200" : "text-zinc-500"
+                      }`}
+                    >
+                      {selected.description || "설명이 없습니다. 수정에서 추가할 수 있어요."}
+                    </p>
                   </div>
                   <div className="sticky bottom-0 z-10 mt-2 rounded-b-lg bg-[#171321] px-3 pb-2.5 pt-1">
                     <div className="flex flex-wrap gap-1.5">

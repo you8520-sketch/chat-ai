@@ -99,11 +99,14 @@ export function updateChatShortcut(
   const existing = getOwnedShortcut(db, userId, shortcutId);
   if (!existing) return { ok: false, status: 404, error: "단축어를 찾을 수 없습니다." };
 
-  const nextDraft = validateChatShortcutDraft({
-    name: patch.name !== undefined ? patch.name : existing.name,
-    description: patch.description !== undefined ? patch.description : existing.description,
-    content: patch.content !== undefined ? patch.content : existing.content,
-  });
+  const nextDraft = validateChatShortcutDraft(
+    {
+      name: patch.name !== undefined ? patch.name : existing.name,
+      description: patch.description !== undefined ? patch.description : existing.description,
+      content: patch.content !== undefined ? patch.content : existing.content,
+    },
+    existing
+  );
   if (!nextDraft.ok) return { ok: false, status: 400, error: nextDraft.error };
 
   let favorite = existing.favorite;

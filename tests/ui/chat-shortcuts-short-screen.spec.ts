@@ -240,7 +240,7 @@ test.describe("shortcut panel on short screens (667x375)", () => {
     await expect(page.getByTestId("chat-shortcuts-preview")).toContainText("짧은 화면 저장");
     await page.getByTestId("chat-shortcuts-insert").click();
     await expect(panel(page)).toHaveCount(0);
-    await expect(composer(page)).toHaveValue(/1\. 오늘은/);
+    await expect(page.getByTestId("chat-shortcut-chip")).toHaveAttribute("data-chip-name", "짧은 화면 저장");
   });
 
   test("real viewport shrink when the keyboard opens keeps the panel on screen", async ({ page }, testInfo) => {

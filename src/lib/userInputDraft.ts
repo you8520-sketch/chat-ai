@@ -1,4 +1,10 @@
 import { CHAT_MESSAGE_MAX } from "@/lib/chatModels";
+import {
+  CHAT_COMPOSER_STORAGE_MAX,
+  normalizeShortcutComposer,
+  pruneShortcutChips,
+  type ShortcutChip,
+} from "@/lib/chatShortcutChips";
 
 /**
  * Canonical browser owner for UNSENT user-written text.
@@ -7,6 +13,9 @@ import { CHAT_MESSAGE_MAX } from "@/lib/chatModels";
  * - USER_INPUT_DRAFT_STORAGE_OWNER → load/save/clear primitives below (sessionStorage).
  * - USER_INPUT_SEND_CUSTODY_OWNER → resolveSendCustodyBackup (pure owner-map for the
  *   send → durable-bootstrap gap; no storage side effects).
+ * - Shortcut chips: the draft string holds only the chip display tokens; the chip table
+ *   (snapshot bodies) is stored beside it under `<draft key>:chips` and is read/written
+ *   only through the chat-message draft helpers below.
  * - TRPG_ACTION_SCOPE_OWNER → trpgActionDraftKey (campaign + round).
  * - TRPG_PARTY_SCOPE_OWNER → trpgPartyDraftKey (campaign).
  *
@@ -17,6 +26,7 @@ import { CHAT_MESSAGE_MAX } from "@/lib/chatModels";
  */
 
 export const CHAT_MESSAGE_DRAFT_PREFIX = "playai-chat-draft";
+const CHAT_MESSAGE_CHIPS_SUFFIX = ":chips";
 const TRPG_ACTION_DRAFT_PREFIX = "trpg-action-draft:v1";
 const TRPG_PARTY_DRAFT_PREFIX = "trpg-party-draft:v1";
 
@@ -78,7 +88,7 @@ export function chatMessageDraftKey(characterId: number, chatId: number | null):
 }
 
 export function loadChatMessageDraft(characterId: number, chatId: number | null): string {
-  return loadUserInputDraft(chatMessageDraftKey(characterId, chatId), CHAT_MESSAGE_MAX);
+  return loadUserInputDraft(chatMessageDraftKey(characterId, chatId), CHAT_COMPOSER_STORAGE_MAX);
 }
 
 export function saveChatMessageDraft(
@@ -86,12 +96,71 @@ export function saveChatMessageDraft(
   chatId: number | null,
   text: string
 ): void {
-  saveUserInputDraft(chatMessageDraftKey(characterId, chatId), text, CHAT_MESSAGE_MAX);
+  saveUserInputDraft(chatMessageDraftKey(characterId, chatId), text, CHAT_COMPOSER_STORAGE_MAX);
+}
+
+function chatMessageChipsKey(characterId: number, chatId: number | null): string {
+  return `${chatMessageDraftKey(characterId, chatId)}${CHAT_MESSAGE_CHIPS_SUFFIX}`;
+}
+
+function isShortcutChip(value: unknown): value is ShortcutChip {
+  if (!value || typeof value !== "object") return false;
+  const row = value as Record<string, unknown>;
+  return (
+    Number.isInteger(row.key) &&
+    Number.isInteger(row.shortcutId) &&
+    typeof row.name === "string" &&
+    typeof row.favorite === "boolean" &&
+    typeof row.content === "string"
+  );
+}
+
+/** Persists the chip table that belongs to the saved draft string. */
+export function saveChatMessageChips(
+  characterId: number,
+  chatId: number | null,
+  value: string,
+  chips: readonly ShortcutChip[]
+): void {
+  if (!isBrowser()) return;
+  const key = chatMessageChipsKey(characterId, chatId);
+  const used = pruneShortcutChips(value, chips);
+  try {
+    if (used.length === 0) sessionStorage.removeItem(key);
+    else sessionStorage.setItem(key, JSON.stringify(used));
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+/** Draft string plus its chip table, with anything that is no longer an intact chip dropped. */
+export function loadChatMessageComposer(
+  characterId: number,
+  chatId: number | null
+): { value: string; chips: ShortcutChip[] } {
+  const value = loadChatMessageDraft(characterId, chatId);
+  let chips: ShortcutChip[] = [];
+  const raw = readKey(chatMessageChipsKey(characterId, chatId));
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (Array.isArray(parsed)) chips = parsed.filter(isShortcutChip);
+    } catch {
+      chips = [];
+    }
+  }
+  const normalized = normalizeShortcutComposer(value, chips);
+  if (normalized.chips.length === 0 && normalized.value.length > CHAT_MESSAGE_MAX) {
+    return { value: normalized.value.slice(0, CHAT_MESSAGE_MAX), chips: [] };
+  }
+  return normalized;
 }
 
 export function clearChatMessageDraft(characterId: number, chatId: number | null): void {
   clearUserInputDraft(chatMessageDraftKey(characterId, chatId));
   clearUserInputDraft(chatMessageDraftKey(characterId, null));
+  clearUserInputDraft(chatMessageChipsKey(characterId, chatId));
+  clearUserInputDraft(chatMessageChipsKey(characterId, null));
 }
 
 /** 첫 메시지로 chatId가 생길 때 pending 초안을 해당 방으로 이전 */
@@ -102,10 +171,15 @@ export function migrateChatMessageDraft(characterId: number, chatId: number): vo
     const targetKey = chatMessageDraftKey(characterId, chatId);
     const pending = sessionStorage.getItem(pendingKey);
     if (!pending) return;
+    const pendingChipsKey = chatMessageChipsKey(characterId, null);
+    const targetChipsKey = chatMessageChipsKey(characterId, chatId);
     if (!sessionStorage.getItem(targetKey)) {
-      sessionStorage.setItem(targetKey, pending.slice(0, CHAT_MESSAGE_MAX));
+      sessionStorage.setItem(targetKey, pending.slice(0, CHAT_COMPOSER_STORAGE_MAX));
+      const pendingChips = sessionStorage.getItem(pendingChipsKey);
+      if (pendingChips) sessionStorage.setItem(targetChipsKey, pendingChips);
     }
     sessionStorage.removeItem(pendingKey);
+    sessionStorage.removeItem(pendingChipsKey);
   } catch {
     /* ignore */
   }
