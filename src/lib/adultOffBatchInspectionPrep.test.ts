@@ -1180,7 +1180,7 @@ describe("adult-off batch inspection prep", { concurrency: 1 }, () => {
          1, 'cheaperinference', 'gpt-6-luna', 'cheaperinference', 'gpt-6-luna', 'adult-off-output-moderation',
          ?, 'completed_without_exact_cost', 1450, 0, 1, NULL, 'unavailable', datetime('now'))`
     ).run(`evt-${runId}-2`, req);
-    const spend = sumAdultOffBatchModerationSpend(db, runId);
+    const spend = sumAdultOffBatchModerationSpend(db);
     assert.equal(spend.totalEvents, 2);
     assert.equal(spend.unknownCostEvents, 1);
     assert.ok(spend.settledUsd > 0);

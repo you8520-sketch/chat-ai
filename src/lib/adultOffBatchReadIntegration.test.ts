@@ -16,6 +16,7 @@ Module._load = function (request, parent, isMain) {
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -243,10 +244,11 @@ describe("adult-off batch commits on the real read and variant-selection paths",
         ADULT_OFF_BATCH_RUN_ID: "run-read-path",
         ADULT_OFF_BATCH_CAP_KRW: "100",
         ADULT_OFF_BATCH_APPROVE_PAID: "1",
-        ADULT_OFF_BATCH_STATE_DIR: path.join(workRoot, "state-read"),
+        ADULT_OFF_BATCH_ALLOW_ISOLATED_PAID: "1",
         CHEAPER_INFERENCE_API_KEY: "dummy-not-a-real-key",
       },
-      path.join(process.env.DATA_DIR!, "app.db")
+      path.join(process.env.DATA_DIR!, "app.db"),
+      { stateDir: path.join(workRoot, `state-${randomUUID()}`) }
     );
     const report = await executeAdultOffBatchPaidRun({
       config,
@@ -318,10 +320,11 @@ describe("adult-off batch commits on the real read and variant-selection paths",
         ADULT_OFF_BATCH_RUN_ID: "run-variant-path",
         ADULT_OFF_BATCH_CAP_KRW: "100",
         ADULT_OFF_BATCH_APPROVE_PAID: "1",
-        ADULT_OFF_BATCH_STATE_DIR: path.join(workRoot, "state-variant"),
+        ADULT_OFF_BATCH_ALLOW_ISOLATED_PAID: "1",
         CHEAPER_INFERENCE_API_KEY: "dummy-not-a-real-key",
       },
-      path.join(process.env.DATA_DIR!, "app.db")
+      path.join(process.env.DATA_DIR!, "app.db"),
+      { stateDir: path.join(workRoot, `state-${randomUUID()}`) }
     );
     const report = await executeAdultOffBatchPaidRun({
       config,

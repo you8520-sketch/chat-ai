@@ -6,19 +6,25 @@ import {
   ADULT_OFF_GUARD_POLICY_VERSION,
   ADULT_OFF_GUARD_WINDOW_CHARS,
   ADULT_OFF_GUARD_WINDOW_OVERLAP_CHARS,
+  ADULT_OFF_CLASSIFIER_JSON_SCHEMA,
+  ADULT_OFF_CLASSIFIER_SYSTEM_PROMPT,
   AdultOffClassifierCallError,
+  buildAdultOffClassifierUserMessage,
   adultOffApprovedTextHash,
   evaluateAdultOffOutput,
   splitAdultOffGuardWindows,
   type AdultOffClassify,
   type AdultOffInspectionOutcome,
 } from "@/lib/adultOffOutputGuard";
-import type { AdultOffClassifierTurnScope } from "@/lib/adultOffOutputClassifier";
-import { isLedgerEventCostExact } from "@/lib/providerCostLedger";
+import {
+  ADULT_OFF_CLASSIFIER_MAX_TOKENS,
+  ADULT_OFF_CLASSIFIER_MODEL,
+  type AdultOffClassifierTurnScope,
+} from "@/lib/adultOffOutputClassifier";
+import { resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
 import {
   ADULT_OFF_BATCH_MODERATION_REQUEST_KIND,
   adultOffGuardDecisionToInspectionOutcome,
-  adultOffBatchRunRequestPrefix,
   buildAdultOffBatchGenerationRequestId,
   commitAdultOffAuxSurveyItemIfFresh,
   commitAdultOffInspectionIfFresh,
@@ -27,6 +33,8 @@ import {
   planAdultOffBatchInspection,
   planAdultOffBatchInspectionSummary,
   readAdultOffBatchCallCost,
+  readAdultOffBatchLedgerRows,
+  summarizeAdultOffBatchLedgerRows,
   sumAdultOffBatchModerationSpend,
   surveyAdultOffAuxSurfaces,
   type AdultOffAuxSurfaceFingerprint,
@@ -37,6 +45,7 @@ import {
 
 export type AdultOffBatchMode = "plan" | "execute";
 
+/** 창당 최소 예약 비용. 호출 직전에 실제 입력 크기와 공급자 단가로 계산한 상한과 비교해 큰 쪽을 쓴다. */
 export const ADULT_OFF_BATCH_DEFAULT_RESERVE_KRW_PER_WINDOW = 0.45;
 export const ADULT_OFF_BATCH_DEFAULT_USD_KRW = 1450;
 const PLAN_DISPLAY_CAP_KRW = 1500;
@@ -76,7 +85,22 @@ export type AdultOffBatchPaidRunConfig = {
   reservePerWindowKrw: number;
   stateDir: string | null;
   allowProdWrite: boolean;
+  allowIsolatedPaid: boolean;
+  /** 이미 승인된 CAP보다 큰 CAP을 쓰려면 직전 승인 CAP 값을 그대로 적어야 한다. */
+  capRaiseFromKrw: number | null;
+  /** 판정 없이 끊긴 호출을 운영자가 확인했음을 나타내는 첫 요청 ID. */
+  ackUnresolvedRequestId: string | null;
 };
+
+export type AdultOffBatchConfigOptions = {
+  /** 테스트 전용 이음새. 운영 환경변수로는 상태 디렉터리를 바꿀 수 없다. */
+  stateDir?: string;
+};
+
+/** 하나의 승인 배치가 공유하는 고정 상태 위치. 환경변수·HOME·TMPDIR에 영향을 받지 않는다. */
+export function defaultAdultOffBatchStateDir(): string {
+  return path.join(os.userInfo().homedir, ".hav-adult-off-batch");
+}
 
 type Env = Readonly<Record<string, string | undefined>>;
 
@@ -141,7 +165,8 @@ export function isLiveProductionDatabase(dbPath: string, env: Env = process.env)
  */
 export function parseAdultOffBatchPaidRunConfig(
   env: Env,
-  dbPath: string
+  dbPath: string,
+  options: AdultOffBatchConfigOptions = {}
 ): AdultOffBatchPaidRunConfig {
   const mode = readMode(env);
   const rawRunId = env.ADULT_OFF_BATCH_RUN_ID;
@@ -180,6 +205,27 @@ export function parseAdultOffBatchPaidRunConfig(
   const liveProductionDb = isLiveProductionDatabase(dbPath, env);
   const allowProdWrite = env.ADULT_OFF_BATCH_ALLOW_PROD_WRITE === "1";
 
+  const capRaiseFromKrw =
+    env.ADULT_OFF_BATCH_CAP_RAISE_FROM_KRW === undefined
+      ? null
+      : readPositiveNumber(env, "ADULT_OFF_BATCH_CAP_RAISE_FROM_KRW", null);
+  const rawAck = env.ADULT_OFF_BATCH_ACK_UNRESOLVED_REQUEST_ID;
+  const ackUnresolvedRequestId = rawAck === undefined ? null : rawAck.trim() || null;
+  if (rawAck !== undefined && !ackUnresolvedRequestId) {
+    throw new AdultOffBatchConfigError(
+      "invalid_ack_unresolved_request_id",
+      "ADULT_OFF_BATCH_ACK_UNRESOLVED_REQUEST_ID must not be blank"
+    );
+  }
+  const allowIsolatedPaid = env.ADULT_OFF_BATCH_ALLOW_ISOLATED_PAID === "1";
+
+  if (env.ADULT_OFF_BATCH_STATE_DIR !== undefined) {
+    throw new AdultOffBatchConfigError(
+      "state_dir_not_configurable",
+      "ADULT_OFF_BATCH_STATE_DIR is no longer supported; the batch budget, state and lock have one fixed owner"
+    );
+  }
+
   let stateDir: string | null = null;
   if (mode === "execute") {
     if (!runId) {
@@ -191,14 +237,7 @@ export function parseAdultOffBatchPaidRunConfig(
         "ADULT_OFF_BATCH_APPROVE_PAID=1 is required for execute"
       );
     }
-    const rawStateDir = env.ADULT_OFF_BATCH_STATE_DIR?.trim();
-    if (!rawStateDir || !path.isAbsolute(rawStateDir)) {
-      throw new AdultOffBatchConfigError(
-        "invalid_state_dir",
-        "ADULT_OFF_BATCH_STATE_DIR must be an absolute path"
-      );
-    }
-    stateDir = path.resolve(rawStateDir);
+    stateDir = path.resolve(options.stateDir ?? defaultAdultOffBatchStateDir());
     if (!env.CHEAPER_INFERENCE_API_KEY?.trim()) {
       throw new AdultOffBatchConfigError(
         "missing_cheaper_inference_api_key",
@@ -209,6 +248,12 @@ export function parseAdultOffBatchPaidRunConfig(
       throw new AdultOffBatchConfigError(
         "prod_write_refused",
         "live production database requires ADULT_OFF_BATCH_ALLOW_PROD_WRITE=1"
+      );
+    }
+    if (!liveProductionDb && !allowIsolatedPaid) {
+      throw new AdultOffBatchConfigError(
+        "isolated_paid_not_a_completion_path",
+        "paid classification of a non-production database spends the shared budget but its proofs cannot be applied to production; set ADULT_OFF_BATCH_ALLOW_ISOLATED_PAID=1 only for a deliberate rehearsal"
       );
     }
   }
@@ -224,6 +269,9 @@ export function parseAdultOffBatchPaidRunConfig(
     reservePerWindowKrw,
     stateDir,
     allowProdWrite,
+    allowIsolatedPaid,
+    capRaiseFromKrw,
+    ackUnresolvedRequestId,
   };
 }
 
@@ -295,9 +343,54 @@ export function buildStoredDispositionIndex(
 }
 
 function windowCountForText(text: string): number {
-  if (!text.trim()) return 0;
-  return splitAdultOffGuardWindows(text, ADULT_OFF_GUARD_WINDOW_CHARS, ADULT_OFF_GUARD_WINDOW_OVERLAP_CHARS)
-    .length;
+  return windowsOfText(text).length;
+}
+
+const REQUEST_OVERHEAD_BYTES = 512;
+let staticRequestBytes: number | null = null;
+
+function staticClassifierRequestBytes(): number {
+  staticRequestBytes ??=
+    Buffer.byteLength(ADULT_OFF_CLASSIFIER_SYSTEM_PROMPT, "utf8") +
+    Buffer.byteLength(JSON.stringify(ADULT_OFF_CLASSIFIER_JSON_SCHEMA), "utf8") +
+    REQUEST_OVERHEAD_BYTES;
+  return staticRequestBytes;
+}
+
+/**
+ * 다음 분류 호출 하나가 넘을 수 없는 비용(KRW) 상한.
+ * 입력 토큰은 byte-level BPE가 바이트당 토큰 1개를 넘지 않는다는 점으로 상한을 잡고(요청 본문 UTF-8 바이트 수),
+ * 출력은 공급자에 보내는 max_tokens로 막혀 있다. 입력 단가는 캐시 쓰기 배율이 있으면 그 쪽을 쓴다.
+ * 설정된 창당 최소 예약보다 작아지지 않는다.
+ */
+export function adultOffBatchWindowReserveKrw(
+  windowText: string,
+  pricing: Pick<AdultOffBatchPaidRunConfig, "fxKrwPerUsd" | "reservePerWindowKrw">
+): number {
+  const rates = resolveOpenRouterModelRates(ADULT_OFF_CLASSIFIER_MODEL);
+  const inputBytes =
+    staticClassifierRequestBytes() +
+    Buffer.byteLength(buildAdultOffClassifierUserMessage(windowText), "utf8");
+  const inputUsdPerToken = (rates.inputUsdPerM * Math.max(1, rates.cacheWriteMultiplier)) / 1_000_000;
+  const outputUsdPerToken = rates.outputUsdPerM / 1_000_000;
+  const usd = inputBytes * inputUsdPerToken + ADULT_OFF_CLASSIFIER_MAX_TOKENS * outputUsdPerToken;
+  return Math.max(pricing.reservePerWindowKrw, adultOffUsdToKrw(usd, pricing.fxKrwPerUsd));
+}
+
+function windowsOfText(text: string): string[] {
+  if (!text.trim()) return [];
+  return splitAdultOffGuardWindows(text, ADULT_OFF_GUARD_WINDOW_CHARS, ADULT_OFF_GUARD_WINDOW_OVERLAP_CHARS);
+}
+
+/** 한 문자열의 모든 창을 끝까지 부르는 데 필요한 예약 상한 합계. */
+function adultOffBatchTextReserveKrw(
+  text: string,
+  pricing: Pick<AdultOffBatchPaidRunConfig, "fxKrwPerUsd" | "reservePerWindowKrw">
+): number {
+  return windowsOfText(text).reduce(
+    (sum, windowText) => sum + adultOffBatchWindowReserveKrw(windowText, pricing),
+    0
+  );
 }
 
 export type AdultOffBatchAuxWorkItem = {
@@ -367,6 +460,9 @@ export type AdultOffBatchPlanReport = {
   costEstimateKrw: {
     reservePerWindow: number;
     reserveEstimate: number;
+    /** 모든 대기 창을 입력 바이트 상한·max_tokens·공급자 단가로 계산한 이론상 최대치. 실제 지출은 이보다 훨씬 작다. */
+    worstCaseBoundTotal: number;
+    largestWindowBound: number;
     capKrw: number;
     reserveEstimateWithinCap: boolean;
     note: string;
@@ -382,18 +478,27 @@ export function buildAdultOffBatchPlanReport(
   const rows = loadAssistantRowsForAdultOffInspection(db);
   const work = collectAdultOffBatchWork(db, rows, { buildAuxFingerprints: true });
   const reserveEstimate = work.pendingWindows * config.reservePerWindowKrw;
+  let worstCaseBoundTotal = 0;
+  let largestWindowBound = 0;
+  for (const text of work.pendingTexts) {
+    for (const windowText of windowsOfText(text)) {
+      const bound = adultOffBatchWindowReserveKrw(windowText, config);
+      worstCaseBoundTotal += bound;
+      largestWindowBound = Math.max(largestWindowBound, bound);
+    }
+  }
   let ledgerSpendToDate: AdultOffBatchPlanReport["ledgerSpendToDate"] = null;
   const hasLedger = db
     .prepare("SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name='api_cost_ledger'")
     .get();
-  if (config.runId && hasLedger) {
+  if (hasLedger) {
     const columns = new Set(
       (db.prepare("PRAGMA table_info(api_cost_ledger)").all() as Array<{ name: string }>).map(
         (column) => column.name
       )
     );
     if (columns.has("generation_request_id") && columns.has("actual_cost_usd")) {
-      const spend = sumAdultOffBatchModerationSpendReadOnly(db, config.runId);
+      const spend = summarizeAdultOffBatchLedgerRows(readAdultOffBatchLedgerRows(db));
       ledgerSpendToDate = {
         settledKrw: adultOffUsdToKrw(spend.settledUsd, config.fxKrwPerUsd),
         unknownCostEvents: spend.unknownCostEvents,
@@ -419,62 +524,73 @@ export function buildAdultOffBatchPlanReport(
     costEstimateKrw: {
       reservePerWindow: config.reservePerWindowKrw,
       reserveEstimate: Math.round(reserveEstimate * 100) / 100,
+      worstCaseBoundTotal: Math.round(worstCaseBoundTotal * 100) / 100,
+      largestWindowBound: Math.round(largestWindowBound * 100) / 100,
       capKrw: config.capKrw,
       reserveEstimateWithinCap: reserveEstimate <= config.capKrw,
-      note: "reserve estimate is not a guaranteed maximum; execute stops on observed actual cost and fails closed on unknown cost",
+      note: "reserveEstimate is an average-based estimate, not a maximum; execute starts a call only if spent-so-far plus that call's own worst-case bound fits the cap, stops when an actual cost exceeds its bound, and fails closed on unknown cost",
     },
     ledgerSpendToDate,
   };
 }
 
-function sumAdultOffBatchModerationSpendReadOnly(db: DatabaseType, runId: string) {
-  const rows = db
-    .prepare(
-      `SELECT actual_cost_usd, actual_cost_source, event_status FROM api_cost_ledger
-       WHERE request_kind = ? AND instr(generation_request_id, ?) = 1`
-    )
-    .all(ADULT_OFF_BATCH_MODERATION_REQUEST_KIND, adultOffBatchRunRequestPrefix(runId)) as Array<{
-    actual_cost_usd: number | null;
-    actual_cost_source: string | null;
-    event_status: string | null;
-  }>;
-  let settledUsd = 0;
-  let unknownCostEvents = 0;
-  for (const row of rows) {
-    if (isLedgerEventCostExact(row)) settledUsd += row.actual_cost_usd ?? 0;
-    else unknownCostEvents += 1;
-  }
-  return { settledUsd, unknownCostEvents, totalEvents: rows.length };
-}
+export type AdultOffBatchInFlight = {
+  messageId: number;
+  surface: "body" | "aux";
+  requestIds: string[];
+  openRequestId: string | null;
+  reservedKrw: number;
+};
 
-export type AdultOffBatchRunState = {
-  version: 1;
-  runId: string;
+export type AdultOffBatchUnresolved = {
+  messageId: number;
+  surface: "body" | "aux";
+  requestIds: string[];
+  at: string;
+};
+
+/**
+ * 승인된 배치 하나가 갖는 단일 예산·상태. RUN_ID는 추적용 라벨일 뿐 예산을 나누지 않는다.
+ * 고정 위치의 파일 하나 + 같은 위치의 전역 잠금 하나 + 각 DB의 기존 원장(하한)으로 구성된다.
+ */
+export type AdultOffBatchState = {
+  version: 2;
   settledKrw: number;
   maxObservedWindowKrw: number;
   callCount: number;
   nextCallSeq: number;
-  inFlight: { requestId: string; reservedKrw: number } | null;
+  approvedCapKrw: number | null;
+  runIds: string[];
+  paidDatabases: Array<{ realPath: string; liveProductionDb: boolean }>;
+  /** 분류 호출이 시작된 뒤 판정이 DB에 commit되기 전까지만 남는다. 남아 있으면 판정 미확정이다. */
+  inFlight: AdultOffBatchInFlight | null;
+  /** 이전 실행이 판정 없이 끊긴 흔적. 운영자 확인 전에는 자동 재분류하지 않는다. */
+  unresolved: AdultOffBatchUnresolved | null;
   halted: { reason: string; detail: string; at: string } | null;
   updatedAt: string;
 };
 
-function emptyRunState(runId: string): AdultOffBatchRunState {
+const MAX_RECORDED_RUN_IDS = 50;
+
+function emptyBatchState(): AdultOffBatchState {
   return {
-    version: 1,
-    runId,
+    version: 2,
     settledKrw: 0,
     maxObservedWindowKrw: 0,
     callCount: 0,
     nextCallSeq: 1,
+    approvedCapKrw: null,
+    runIds: [],
+    paidDatabases: [],
     inFlight: null,
+    unresolved: null,
     halted: null,
     updatedAt: new Date(0).toISOString(),
   };
 }
 
-function runStatePath(stateDir: string, runId: string): string {
-  return path.join(stateDir, `${runId}.state.json`);
+function batchStatePath(stateDir: string): string {
+  return path.join(stateDir, "batch.state.json");
 }
 
 function lockPath(stateDir: string): string {
@@ -493,7 +609,7 @@ function isProcessAlive(pid: number): boolean {
 export type AdultOffBatchExecutionLock = { release(): void };
 
 /**
- * 상태 디렉터리 단위 전역 실행 잠금. RUN_ID가 같든 다르든 동시에 하나만 돈다.
+ * 고정 상태 위치 하나에 대한 전역 실행 잠금. RUN_ID가 같든 다르든 동시에 하나만 돈다.
  * 같은 호스트에서 죽은 PID의 잠금만 자동 회수하고, 그 외에는 사람이 확인할 때까지 거부한다.
  */
 export function acquireAdultOffBatchExecutionLock(
@@ -552,42 +668,68 @@ export function acquireAdultOffBatchExecutionLock(
   throw new AdultOffBatchRunRefusedError("concurrent_run_locked", "could not acquire execution lock");
 }
 
-export function loadAdultOffBatchRunState(stateDir: string, runId: string): AdultOffBatchRunState {
-  const file = runStatePath(stateDir, runId);
-  if (!fs.existsSync(file)) return emptyRunState(runId);
-  let parsed: Partial<AdultOffBatchRunState>;
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === "string");
+}
+
+function parseCallMarker<T extends { messageId: number; surface: "body" | "aux"; requestIds: string[] }>(
+  value: unknown
+): T | null {
+  if (value == null) return null;
+  const record = value as Partial<T>;
+  if (
+    typeof record.messageId !== "number" ||
+    (record.surface !== "body" && record.surface !== "aux") ||
+    !isStringArray(record.requestIds)
+  ) {
+    throw new AdultOffBatchRunRefusedError("state_invalid", "batch state call marker failed validation");
+  }
+  return value as T;
+}
+
+export function loadAdultOffBatchState(stateDir: string): AdultOffBatchState {
+  const file = batchStatePath(stateDir);
+  if (!fs.existsSync(file)) return emptyBatchState();
+  let parsed: Partial<AdultOffBatchState>;
   try {
-    parsed = JSON.parse(fs.readFileSync(file, "utf8")) as Partial<AdultOffBatchRunState>;
+    parsed = JSON.parse(fs.readFileSync(file, "utf8")) as Partial<AdultOffBatchState>;
   } catch {
-    throw new AdultOffBatchRunRefusedError("state_unreadable", "run state file is not valid JSON");
+    throw new AdultOffBatchRunRefusedError("state_unreadable", "batch state file is not valid JSON");
   }
   const finite = (value: unknown): value is number =>
     typeof value === "number" && Number.isFinite(value) && value >= 0;
   if (
-    parsed.version !== 1 ||
-    parsed.runId !== runId ||
+    parsed.version !== 2 ||
     !finite(parsed.settledKrw) ||
     !finite(parsed.maxObservedWindowKrw) ||
     !finite(parsed.callCount) ||
-    !finite(parsed.nextCallSeq)
+    !finite(parsed.nextCallSeq) ||
+    !(parsed.approvedCapKrw === null || finite(parsed.approvedCapKrw)) ||
+    !isStringArray(parsed.runIds) ||
+    !Array.isArray(parsed.paidDatabases)
   ) {
-    throw new AdultOffBatchRunRefusedError("state_invalid", "run state file failed validation");
+    throw new AdultOffBatchRunRefusedError("state_invalid", "batch state file failed validation");
   }
+  const inFlight = parseCallMarker<AdultOffBatchInFlight>(parsed.inFlight);
+  const unresolved = parseCallMarker<AdultOffBatchUnresolved>(parsed.unresolved);
   return {
-    version: 1,
-    runId,
+    version: 2,
     settledKrw: parsed.settledKrw,
     maxObservedWindowKrw: parsed.maxObservedWindowKrw,
     callCount: parsed.callCount,
     nextCallSeq: parsed.nextCallSeq,
-    inFlight: parsed.inFlight ?? null,
+    approvedCapKrw: parsed.approvedCapKrw,
+    runIds: parsed.runIds,
+    paidDatabases: parsed.paidDatabases,
+    inFlight,
+    unresolved,
     halted: parsed.halted ?? null,
     updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : new Date(0).toISOString(),
   };
 }
 
-function saveAdultOffBatchRunState(stateDir: string, state: AdultOffBatchRunState): void {
-  const file = runStatePath(stateDir, state.runId);
+function saveAdultOffBatchState(stateDir: string, state: AdultOffBatchState): void {
+  const file = batchStatePath(stateDir);
   const tmp = `${file}.${process.pid}.tmp`;
   state.updatedAt = new Date().toISOString();
   const fd = fs.openSync(tmp, "w", 0o600);
@@ -604,7 +746,8 @@ export type AdultOffBatchStopReason =
   | "completed"
   | "cap_reached"
   | "halted_unknown_cost"
-  | "halted_classifier_error";
+  | "halted_classifier_error"
+  | "halted_cost_exceeds_bound";
 
 export type AdultOffBatchExecuteReport = {
   status: "execute_finished" | "execute_stopped";
@@ -637,7 +780,7 @@ export type AdultOffBatchExecuteReport = {
     notApproved: number;
     fingerprintMissing: number;
   };
-  halted: AdultOffBatchRunState["halted"];
+  halted: AdultOffBatchState["halted"];
 };
 
 class BatchStopSignal extends Error {
@@ -656,7 +799,8 @@ export type AdultOffBatchExecuteInput = {
 
 /**
  * 유료 분류 + 원자 commit 실행기. 설정 검증이 끝난 execute 설정만 받는다.
- * 순서: 전역 잠금 → 상태·원장 복원 → DB open → 작업 목록·fingerprint 고정 → 호출 단위 예산 게이트.
+ * 순서: 전역 잠금 → 공유 상태 복원·CAP 정책 → DB open → 끊긴 호출 확인 → 원장 하한 → 작업 목록·fingerprint 고정
+ * → 호출 직전 예산 게이트(지출 + 그 호출의 상한 ≤ CAP).
  */
 export async function executeAdultOffBatchPaidRun(
   input: AdultOffBatchExecuteInput
@@ -670,32 +814,46 @@ export async function executeAdultOffBatchPaidRun(
   const lock = acquireAdultOffBatchExecutionLock(stateDir, runId);
   let db: DatabaseType | null = null;
   try {
-    const state = loadAdultOffBatchRunState(stateDir, runId);
+    const state = loadAdultOffBatchState(stateDir);
     if (state.halted) {
       throw new AdultOffBatchRunRefusedError(
-        "run_halted",
-        `run ${runId} is halted (${state.halted.reason}); investigate before using a new RUN_ID`
+        "batch_halted",
+        `the approved batch is halted (${state.halted.reason}); a new RUN_ID does not clear it, investigate first`
       );
     }
+    const approvedCap = state.approvedCapKrw;
+    if (approvedCap != null && config.capKrw > approvedCap && config.capRaiseFromKrw !== approvedCap) {
+      throw new AdultOffBatchRunRefusedError(
+        "cap_increase_not_approved",
+        `approved cap is ${approvedCap} KRW; raising it needs ADULT_OFF_BATCH_CAP_RAISE_FROM_KRW=${approvedCap}`
+      );
+    }
+
     db = input.openDatabase();
     db.pragma("busy_timeout = 5000");
     const database = db;
     const halt = (reason: AdultOffBatchStopReason, detail: string): void => {
       state.halted = { reason, detail: detail.slice(0, 300), at: new Date().toISOString() };
-      saveAdultOffBatchRunState(stateDir, state);
+      saveAdultOffBatchState(stateDir, state);
     };
-    const settleCall = (requestId: string, callError: unknown): void => {
+    const settleCall = (requestId: string, reservedKrw: number, callError: unknown): void => {
       const cost = readAdultOffBatchCallCost(database, requestId);
       const known = cost.totalEvents > 0 && cost.unknownCostEvents === 0 && cost.settledUsd > 0;
-      if (known) {
-        const costKrw = adultOffUsdToKrw(cost.settledUsd, config.fxKrwPerUsd);
-        state.settledKrw += costKrw;
-        state.maxObservedWindowKrw = Math.max(state.maxObservedWindowKrw, costKrw);
-        state.callCount += 1;
-        state.inFlight = null;
-        saveAdultOffBatchRunState(stateDir, state);
-      } else {
+      if (!known) {
         halt("halted_unknown_cost", `call ${requestId}: ledger cost unknown (events=${cost.totalEvents})`);
+        return;
+      }
+      const costKrw = adultOffUsdToKrw(cost.settledUsd, config.fxKrwPerUsd);
+      state.settledKrw += costKrw;
+      state.maxObservedWindowKrw = Math.max(state.maxObservedWindowKrw, costKrw);
+      state.callCount += 1;
+      if (state.inFlight?.openRequestId === requestId) state.inFlight.openRequestId = null;
+      saveAdultOffBatchState(stateDir, state);
+      if (costKrw > reservedKrw) {
+        halt(
+          "halted_cost_exceeds_bound",
+          `call ${requestId}: actual ${costKrw.toFixed(4)} KRW exceeded its ${reservedKrw.toFixed(4)} KRW bound`
+        );
         return;
       }
       const benign =
@@ -706,7 +864,16 @@ export async function executeAdultOffBatchPaidRun(
     };
 
     if (state.inFlight) {
-      settleCall(state.inFlight.requestId, null);
+      const interrupted = state.inFlight;
+      if (interrupted.openRequestId) settleCall(interrupted.openRequestId, Number.POSITIVE_INFINITY, null);
+      state.unresolved = {
+        messageId: interrupted.messageId,
+        surface: interrupted.surface,
+        requestIds: interrupted.requestIds,
+        at: new Date().toISOString(),
+      };
+      state.inFlight = null;
+      saveAdultOffBatchState(stateDir, state);
       if (state.halted) {
         throw new AdultOffBatchRunRefusedError(
           "interrupted_call_cost_unknown",
@@ -714,19 +881,37 @@ export async function executeAdultOffBatchPaidRun(
         );
       }
     }
-    const priorSpend = sumAdultOffBatchModerationSpend(database, runId);
+    if (state.unresolved) {
+      const firstId = state.unresolved.requestIds[0] ?? "";
+      if (!firstId || config.ackUnresolvedRequestId !== firstId) {
+        throw new AdultOffBatchRunRefusedError(
+          "interrupted_call_unresolved",
+          `a paid call (${state.unresolved.requestIds.join(", ")}) finished or was cut off without a stored verdict; ` +
+            `its cost is counted, but the same text would be paid for again. Inspect message ${state.unresolved.messageId} ` +
+            `and re-run with ADULT_OFF_BATCH_ACK_UNRESOLVED_REQUEST_ID=${firstId} to accept one re-classification`
+        );
+      }
+      state.unresolved = null;
+    }
+
+    const priorSpend = sumAdultOffBatchModerationSpend(database);
     if (priorSpend.unknownCostEvents > 0) {
-      halt("halted_unknown_cost", `ledger has ${priorSpend.unknownCostEvents} unknown-cost events for run`);
+      halt("halted_unknown_cost", `ledger has ${priorSpend.unknownCostEvents} unknown-cost batch events`);
       throw new AdultOffBatchRunRefusedError(
         "ledger_unknown_cost",
-        "ledger contains moderation events for this run with unknown cost"
+        "ledger contains batch moderation events with unknown cost"
       );
     }
     state.settledKrw = Math.max(
       state.settledKrw,
       adultOffUsdToKrw(priorSpend.settledUsd, config.fxKrwPerUsd)
     );
-    saveAdultOffBatchRunState(stateDir, state);
+    state.nextCallSeq = Math.max(state.nextCallSeq, priorSpend.maxCallSeq + 1);
+    state.approvedCapKrw = config.capKrw;
+    if (!state.runIds.includes(runId)) {
+      state.runIds = [...state.runIds, runId].slice(-MAX_RECORDED_RUN_IDS);
+    }
+    saveAdultOffBatchState(stateDir, state);
     const settledKrwAtStart = state.settledKrw;
 
     const rows = loadAssistantRowsForAdultOffInspection(database);
@@ -776,31 +961,54 @@ export async function executeAdultOffBatchPaidRun(
     let stopReason: AdultOffBatchStopReason | null = null;
     let capSignalRaised = false;
     let callsThisRun = 0;
+    let unit: { messageId: number; surface: "body" | "aux" } | null = null;
 
     const haltedReason = (): AdultOffBatchStopReason | null =>
       state.halted ? (state.halted.reason as AdultOffBatchStopReason) : null;
 
-    const reservePerWindow = (): number =>
-      Math.max(config.reservePerWindowKrw, state.maxObservedWindowKrw);
-
-    const assertMayCall = (): void => {
-      const reason = haltedReason();
-      if (reason) throw new BatchStopSignal(reason);
-      if (state.settledKrw + reservePerWindow() > config.capKrw) {
-        capSignalRaised = true;
-        throw new BatchStopSignal("cap_reached");
+    const beginUnit = (messageId: number, surface: "body" | "aux"): void => {
+      unit = { messageId, surface };
+    };
+    /** 판정이 commit까지 끝난 뒤에만 in-flight 표식을 지운다. */
+    const endUnit = (): void => {
+      unit = null;
+      if (state.inFlight && !state.halted) {
+        state.inFlight = null;
+        saveAdultOffBatchState(stateDir, state);
       }
     };
 
     const gatedClassifier =
       (chatId: number, assistantMessageId: number): AdultOffClassify =>
       async (windowText) => {
-        assertMayCall();
+        const reason = haltedReason();
+        if (reason) throw new BatchStopSignal(reason);
+        const reservedKrw = adultOffBatchWindowReserveKrw(windowText, config);
+        if (state.settledKrw + reservedKrw > config.capKrw) {
+          capSignalRaised = true;
+          throw new BatchStopSignal("cap_reached");
+        }
+        if (!unit) throw new Error("adult-off batch call started outside a work unit");
         const requestId = buildAdultOffBatchGenerationRequestId(runId, state.nextCallSeq);
         state.nextCallSeq += 1;
         callsThisRun += 1;
-        state.inFlight = { requestId, reservedKrw: reservePerWindow() };
-        saveAdultOffBatchRunState(stateDir, state);
+        state.inFlight ??= {
+          messageId: unit.messageId,
+          surface: unit.surface,
+          requestIds: [],
+          openRequestId: null,
+          reservedKrw: 0,
+        };
+        state.inFlight.requestIds.push(requestId);
+        state.inFlight.openRequestId = requestId;
+        state.inFlight.reservedKrw = reservedKrw;
+        if (!state.paidDatabases.some((entry) => entry.realPath === config.dbRealPath)) {
+          state.paidDatabases.push({
+            realPath: config.dbRealPath,
+            liveProductionDb: config.liveProductionDb,
+          });
+        }
+        saveAdultOffBatchState(stateDir, state);
         const classify = input.createClassifier({
           chatId,
           assistantMessageId,
@@ -814,7 +1022,7 @@ export async function executeAdultOffBatchPaidRun(
           callError = error;
           throw error;
         } finally {
-          settleCall(requestId, callError);
+          settleCall(requestId, reservedKrw, callError);
         }
       };
 
@@ -832,13 +1040,12 @@ export async function executeAdultOffBatchPaidRun(
         if (surface === "body") report.body.reusedStoredTexts += 1;
         return stored;
       }
-      const windows = windowCountForText(text);
       const haltedBefore = haltedReason();
       if (haltedBefore) {
         stopReason = haltedBefore;
         return null;
       }
-      if (state.settledKrw + windows * reservePerWindow() > config.capKrw) {
+      if (state.settledKrw + adultOffBatchTextReserveKrw(text, config) > config.capKrw) {
         stopReason = "cap_reached";
         return null;
       }
@@ -863,6 +1070,7 @@ export async function executeAdultOffBatchPaidRun(
     };
 
     for (const item of work.bodyItems) {
+      beginUnit(item.target.messageId, "body");
       const outcome = await classifyText(item.target.text, item.target.messageId, "body");
       if (!outcome) break;
       const result = commitAdultOffInspectionIfFresh(database, {
@@ -891,6 +1099,7 @@ export async function executeAdultOffBatchPaidRun(
           throw new Error(String(never));
         }
       }
+      endUnit();
     }
 
     if (!stopReason) {
@@ -899,6 +1108,7 @@ export async function executeAdultOffBatchPaidRun(
           report.aux.fingerprintMissing += 1;
           continue;
         }
+        beginUnit(aux.item.messageId, "aux");
         const outcomes: AdultOffInspectionOutcome[] = [];
         let stopped = false;
         for (const text of aux.texts) {
@@ -914,6 +1124,7 @@ export async function executeAdultOffBatchPaidRun(
         if (outcomes.length !== aux.texts.length || outcomes.some((o) => o !== "approved")) {
           if (outcomes.some((o) => o === "unresolved")) report.aux.skippedUnresolved += 1;
           else report.aux.notApproved += 1;
+          endUnit();
           continue;
         }
         const result = commitAdultOffAuxSurveyItemIfFresh(database, {
@@ -939,6 +1150,7 @@ export async function executeAdultOffBatchPaidRun(
             throw new Error(String(never));
           }
         }
+        endUnit();
       }
     }
 

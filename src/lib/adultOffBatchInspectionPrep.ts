@@ -1174,41 +1174,51 @@ export function fingerprintAdultOffAuxSurveyItem(
   }
 }
 
-/** 배치 한 번의 분류 호출 하나를 가리키는 원장 generation_request_id. */
+/** 승인된 배치 하나가 공유하는 원장 generation_request_id 접두사. RUN_ID와 무관하게 하나의 예산으로 합산한다. */
+export const ADULT_OFF_BATCH_REQUEST_PREFIX = "adult-off-batch/";
+
+/** 배치 분류 호출 하나를 가리키는 원장 generation_request_id. `runId`는 추적용 라벨이며 예산 경계가 아니다. */
 export function buildAdultOffBatchGenerationRequestId(
   runId: string,
-  callKey: number | string
+  callSeq: number
 ): string {
-  return `${adultOffBatchRunRequestPrefix(runId)}${callKey}`;
-}
-
-export function adultOffBatchRunRequestPrefix(runId: string): string {
-  return `adult-off-batch/${runId}/`;
+  return `${ADULT_OFF_BATCH_REQUEST_PREFIX}${runId}/${callSeq}`;
 }
 
 export type AdultOffBatchModerationSpend = {
   settledUsd: number;
   unknownCostEvents: number;
   totalEvents: number;
+  /** 원장에 남은 배치 호출 번호의 최댓값. 상태 파일이 없어도 번호가 겹치지 않게 한다. */
+  maxCallSeq: number;
 };
 
-type BatchLedgerRow = {
+export type AdultOffBatchLedgerRow = {
+  generation_request_id?: string | null;
   actual_cost_usd: number | null;
   actual_cost_source: string | null;
   event_status: string | null;
 };
 
-function summarizeBatchLedgerRows(rows: readonly BatchLedgerRow[]): AdultOffBatchModerationSpend {
+function batchCallSeqOf(requestId: string | null | undefined): number {
+  if (!requestId) return 0;
+  const seq = Number(requestId.slice(requestId.lastIndexOf("/") + 1));
+  return Number.isInteger(seq) && seq > 0 ? seq : 0;
+}
+
+export function summarizeAdultOffBatchLedgerRows(rows: readonly AdultOffBatchLedgerRow[]): AdultOffBatchModerationSpend {
   let settledUsd = 0;
   let unknownCostEvents = 0;
+  let maxCallSeq = 0;
   for (const row of rows) {
+    maxCallSeq = Math.max(maxCallSeq, batchCallSeqOf(row.generation_request_id));
     if (isLedgerEventCostExact(row)) {
       settledUsd += row.actual_cost_usd ?? 0;
     } else {
       unknownCostEvents += 1;
     }
   }
-  return { settledUsd, unknownCostEvents, totalEvents: rows.length };
+  return { settledUsd, unknownCostEvents, totalEvents: rows.length, maxCallSeq };
 }
 
 /** 한 분류 호출(generation_request_id 정확 일치)의 원장 비용. 행이 없으면 totalEvents=0. */
@@ -1219,26 +1229,26 @@ export function readAdultOffBatchCallCost(
   ensureProviderCostLedgerSchema(db);
   const rows = db
     .prepare(
-      `SELECT actual_cost_usd, actual_cost_source, event_status FROM api_cost_ledger
+      `SELECT generation_request_id, actual_cost_usd, actual_cost_source, event_status FROM api_cost_ledger
        WHERE request_kind = ? AND generation_request_id = ?`
     )
-    .all(ADULT_OFF_BATCH_MODERATION_REQUEST_KIND, generationRequestId) as BatchLedgerRow[];
-  return summarizeBatchLedgerRows(rows);
+    .all(ADULT_OFF_BATCH_MODERATION_REQUEST_KIND, generationRequestId) as AdultOffBatchLedgerRow[];
+  return summarizeAdultOffBatchLedgerRows(rows);
 }
 
-/** 한 RUN_ID 아래 모든 분류 호출의 원장 비용. prefix는 LIKE가 아니라 정확한 문자열 접두사로 맞춘다. */
-export function sumAdultOffBatchModerationSpend(
-  db: DatabaseType,
-  runId: string
-): AdultOffBatchModerationSpend {
+/** 이 DB 원장에 남은 모든 배치 분류 호출의 비용(RUN_ID 무관). prefix는 LIKE가 아니라 정확한 문자열 접두사로 맞춘다. */
+export function sumAdultOffBatchModerationSpend(db: DatabaseType): AdultOffBatchModerationSpend {
   ensureProviderCostLedgerSchema(db);
-  const rows = db
+  return summarizeAdultOffBatchLedgerRows(readAdultOffBatchLedgerRows(db));
+}
+
+export function readAdultOffBatchLedgerRows(db: DatabaseType): AdultOffBatchLedgerRow[] {
+  return db
     .prepare(
-      `SELECT actual_cost_usd, actual_cost_source, event_status FROM api_cost_ledger
+      `SELECT generation_request_id, actual_cost_usd, actual_cost_source, event_status FROM api_cost_ledger
        WHERE request_kind = ? AND instr(generation_request_id, ?) = 1`
     )
-    .all(ADULT_OFF_BATCH_MODERATION_REQUEST_KIND, adultOffBatchRunRequestPrefix(runId)) as BatchLedgerRow[];
-  return summarizeBatchLedgerRows(rows);
+    .all(ADULT_OFF_BATCH_MODERATION_REQUEST_KIND, ADULT_OFF_BATCH_REQUEST_PREFIX) as AdultOffBatchLedgerRow[];
 }
 
 function commitAdultOffAuxJsonRecordIfFresh(
