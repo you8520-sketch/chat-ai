@@ -344,6 +344,18 @@ export type OfficialReplacementStatus =
 
 export type QaCheck = { ok: boolean; note?: string };
 
+/**
+ * What a reviewer compared for `compositionIndependence`: the candidate file and every reference image
+ * it was compared against. Required on new representative reviews; stored inside the review's `qa_json`.
+ */
+export type CompositionReviewEvidence = {
+  candidateUrl: string;
+  candidateSha256: string;
+  references: Array<{ id: string; sha256: string }>;
+};
+
+export type CompositionQaCheck = QaCheck & { evidence?: CompositionReviewEvidence };
+
 export type OfficialAnchorQaReport = {
   gender: QaCheck;
   ageAppearance: QaCheck;
@@ -360,7 +372,7 @@ export type OfficialAnchorQaReport = {
    * The pose, gaze, head angle, camera, crop, and silhouette are not a clone of any style reference.
    * Optional only so reviews recorded before this check existed stay valid; new reviews supply it.
    */
-  compositionIndependence?: QaCheck;
+  compositionIndependence?: CompositionQaCheck;
 };
 
 export type OfficialVariationQaReport = {
@@ -370,7 +382,7 @@ export type OfficialVariationQaReport = {
   /** Smooth skin, large shading planes, clean lines, detail no denser than the style references. */
   artStyle: QaCheck;
   /** Composition follows the slot's shot plan, not a clone of a style reference or the representative card. */
-  compositionIndependence?: QaCheck;
+  compositionIndependence?: CompositionQaCheck;
 };
 
 /**
