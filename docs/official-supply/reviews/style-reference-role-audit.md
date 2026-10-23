@@ -116,4 +116,3 @@ Risks:
 - Representative to 13 slots: unchanged. Slots still use `identity_then_style` / `identity_and_style` with the approved representative as the sole image in the latter, so a faithful but over-similar representative still propagates into all 13. That makes the representative review the single gate that matters; keep it before slot generation.
 - 2.0 is not proven better for every character: one character, one slot, one sample per model. Before treating it as proven, run the same A/B on at least two other official characters with different style clusters and on one RP (landscape, `identity_and_style`) slot, within the cost cap, and have GPT or the user judge.
 - Cost: 2.0 is about 1.5x per representative call; the 13 landscape slots could differ.
-
