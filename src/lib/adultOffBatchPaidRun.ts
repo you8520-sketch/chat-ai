@@ -933,6 +933,8 @@ export type AdultOffBatchLockOptions = {
   now?: () => number;
   /** 테스트 이음새: 기존 잠금을 tombstone으로 옮긴 직후 호출된다(여기서 프로세스가 죽는 경우를 재현). */
   afterReclaimRename?: () => void;
+  /** `execution.lock`이 tombstone으로 옮겨진 직후(회수 경로). 획득이 끝까지 성공하지 못하면 guard를 남긴다. */
+  onExecutionLockMovedAside?: () => void;
 };
 
 type LockHolder = { pid?: unknown; host?: unknown; runId?: unknown; startedAt?: unknown; deploymentId?: unknown };
@@ -1011,6 +1013,7 @@ function reclaimExistingLock(stateDir: string, options: AdultOffBatchLockOptions
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
     throw error;
   }
+  options.onExecutionLockMovedAside?.();
   options.afterReclaimRename?.();
   const moved = fs.lstatSync(tombstone);
   if (moved.ino !== before.ino || moved.dev !== before.dev) {
@@ -1060,6 +1063,15 @@ export function acquireAdultOffBatchExecutionLock(
     }
     throw error;
   }
+  let lockMovedAsideWithoutAcquire = false;
+  let releaseGuard = true;
+  const reclaimOptions: AdultOffBatchLockOptions = {
+    ...options,
+    onExecutionLockMovedAside: () => {
+      lockMovedAsideWithoutAcquire = true;
+      options.onExecutionLockMovedAside?.();
+    },
+  };
   try {
     fs.writeSync(guardFd, JSON.stringify({ pid: process.pid, host: os.hostname(), at: new Date().toISOString() }));
     const body = JSON.stringify({
@@ -1084,12 +1096,16 @@ export function acquireAdultOffBatchExecutionLock(
       }
     };
     if (!tryCreate()) {
-      reclaimExistingLock(stateDir, options);
+      reclaimExistingLock(stateDir, reclaimOptions);
       if (!tryCreate()) throw refuseLocked("could not acquire execution lock");
     }
+    lockMovedAsideWithoutAcquire = false;
+  } catch (error) {
+    if (lockMovedAsideWithoutAcquire) releaseGuard = false;
+    throw error;
   } finally {
     fs.closeSync(guardFd);
-    fs.rmSync(guardFile, { force: true });
+    if (releaseGuard) fs.rmSync(guardFile, { force: true });
   }
   return {
     release() {

@@ -2856,20 +2856,28 @@ main();
       assert.deepEqual(tombstones(sc), []);
     });
 
-    it("refuses every later run after a process is killed right after moving the old lock aside", () => {
-      const sc = scenario("run-killed-reclaim");
-      const { file, pin } = foreignLock(sc);
-      const original = fs.readFileSync(file, "utf8");
-      const child = path.join(sc.dir, "kill-reclaim-child.ts");
+    const assertInterruptedReclaimLeavesGuard = (
+      sc: Scenario,
+      file: string,
+      pin: ReturnType<typeof foreignLock>["pin"],
+      original: string,
+      afterReclaimRename: string
+    ): void => {
+      const child = path.join(sc.dir, "reclaim-interrupt-child.ts");
       fs.writeFileSync(
         child,
         `import { acquireAdultOffBatchExecutionLock } from ${JSON.stringify(path.join(REPO_ROOT, "src/lib/adultOffBatchPaidRun.ts"))};
 
 const [stateDir] = process.argv.slice(2);
-acquireAdultOffBatchExecutionLock(stateDir, "killed-reclaim", {
-  foreignLockPin: ${JSON.stringify(pin)},
-  afterReclaimRename: () => process.kill(process.pid, "SIGKILL"),
-});
+try {
+  acquireAdultOffBatchExecutionLock(stateDir, "interrupted-reclaim", {
+    foreignLockPin: ${JSON.stringify(pin)},
+    afterReclaimRename: ${afterReclaimRename},
+  });
+} catch (error) {
+  console.error(error);
+  process.exit(1);
+}
 `
       );
       const result = spawnSync(
@@ -2877,19 +2885,49 @@ acquireAdultOffBatchExecutionLock(stateDir, "killed-reclaim", {
         ["--conditions=react-server", "--import", "tsx", child, sc.stateDir],
         { cwd: REPO_ROOT, env: childEnv({}), encoding: "utf8" }
       );
-      assert.equal(result.signal, "SIGKILL", `${result.stdout}${result.stderr}`);
+      assert.notEqual(result.status, 0, `${result.stdout}${result.stderr}`);
       assert.equal(fs.existsSync(file), false, "the old lock was already moved aside");
       assert.equal(tombstones(sc).length, 1);
       assert.equal(fs.readFileSync(path.join(sc.stateDir, tombstones(sc)[0]!), "utf8"), original);
-      assert.equal(fs.existsSync(path.join(sc.stateDir, "execution.lock.reclaim")), true);
+      assert.equal(
+        fs.existsSync(path.join(sc.stateDir, "execution.lock.reclaim")),
+        true,
+        "the guard must stay when reclaim moved the lock aside but acquisition did not finish"
+      );
 
       for (const options of [{}, { foreignLockPin: pin }]) {
         assert.throws(
-          () => acquireAdultOffBatchExecutionLock(sc.stateDir, "after-kill", options),
+          () => acquireAdultOffBatchExecutionLock(sc.stateDir, "after-interrupted-reclaim", options),
           refusedLocked
         );
         assert.equal(fs.existsSync(file), false, "nobody takes the lock behind the leftover guard");
       }
+    };
+
+    it("refuses every later run after a process is killed right after moving the old lock aside", () => {
+      const sc = scenario("run-killed-reclaim");
+      const { file, pin } = foreignLock(sc);
+      const original = fs.readFileSync(file, "utf8");
+      assertInterruptedReclaimLeavesGuard(
+        sc,
+        file,
+        pin,
+        original,
+        "() => process.kill(process.pid, \"SIGKILL\")"
+      );
+    });
+
+    it("refuses every later run after a thrown error right after moving the old lock aside", () => {
+      const sc = scenario("run-throw-reclaim");
+      const { file, pin } = foreignLock(sc);
+      const original = fs.readFileSync(file, "utf8");
+      assertInterruptedReclaimLeavesGuard(
+        sc,
+        file,
+        pin,
+        original,
+        "() => { throw new Error(\"reclaim interrupted after rename\"); }"
+      );
     });
 
     it("keeps a normal acquire and release working and leaves no guard behind", () => {
