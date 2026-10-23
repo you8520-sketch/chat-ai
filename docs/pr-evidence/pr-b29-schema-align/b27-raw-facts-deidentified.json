@@ -1,0 +1,202 @@
+[
+  {
+    "id": 1,
+    "case": "B1",
+    "idx": 0,
+    "category": "rule",
+    "subject": "볼프강",
+    "attribute": "진술서 취급",
+    "value": "렌이 허락하기 전까지 렌의 진술을 감찰관에게 전달하지 않도록 병사에게 명령했다.",
+    "importance": "important",
+    "evidence_type": "explicit_scene_event",
+    "source_role": "assistant",
+    "fact_text": "볼프강은 렌이 허락하기 전까지 진술을 감찰관에게 전달하지 말라고 명령했다.",
+    "source_quote": "“이 진술은 감찰관에게 전달하지 마라. 감찰관이 도착해서 요구하더라도 마찬가지다. 본인이 허락하기 전까지는 이 천막 밖으로 한 장도 나가지 않는다.”",
+    "dropReasons": [
+      "subject_not_ascii_snake_case",
+      "attribute_not_ascii_snake_case",
+      "value_has_whitespace",
+      "value_ends_with_punctuation"
+    ]
+  },
+  {
+    "id": 2,
+    "case": "B1",
+    "idx": 1,
+    "category": "rule",
+    "subject": "기록철 열람",
+    "attribute": "열람 조건",
+    "value": "렌은 기록철을 천막 안에서 열람할 수 있지만 필사할 수 없으며, 볼프강이 곁을 지킨다.",
+    "importance": "important",
+    "evidence_type": "explicit_scene_event",
+    "source_role": "assistant",
+    "fact_text": "볼프강은 렌에게 천막 안에서 기록철을 열람하도록 허락했으며 필사는 금지하고 곁에서 지키기로 했다.",
+    "source_quote": "“열람은 허락한다. 단, 이 천막 안에서만이다. 필사는 안 된다. 읽는 동안 내가 곁에 있겠다.”",
+    "dropReasons": [
+      "subject_not_ascii_snake_case",
+      "attribute_not_ascii_snake_case",
+      "value_has_whitespace",
+      "value_ends_with_punctuation"
+    ]
+  },
+  {
+    "id": 3,
+    "case": "B1",
+    "idx": 2,
+    "category": "setting",
+    "subject": "감찰관",
+    "attribute": "기록 사본 요구 권한",
+    "value": "규정상 오늘 밤 안에 기록의 사본을 요구할 권리가 있다.",
+    "importance": "important",
+    "evidence_type": "explicit_character_claim",
+    "source_role": "assistant",
+    "fact_text": "볼프강은 감찰관이 규정에 따라 오늘 밤 안에 기록 사본을 요구할 권리가 있다고 말했다.",
+    "source_quote": "“감찰관은 규정대로라면 오늘 밤 안에 기록의 사본을 요구할 권리가 있다.”",
+    "dropReasons": [
+      "subject_not_ascii_snake_case",
+      "attribute_not_ascii_snake_case",
+      "value_has_whitespace",
+      "value_ends_with_punctuation"
+    ]
+  },
+  {
+    "id": 4,
+    "case": "B2",
+    "idx": 0,
+    "category": "rule",
+    "subject": "볼프강",
+    "attribute": "진술 전달 제한",
+    "value": "렌이 허락하기 전까지 렌의 진술을 감찰관에게 전달하지 않도록 병사에게 명령했다.",
+    "importance": "important",
+    "evidence_type": "explicit_scene_event",
+    "source_role": "assistant",
+    "fact_text": "볼프강은 렌이 허락하기 전까지 진술을 감찰관에게 전달하지 말라고 병사에게 명령했다.",
+    "source_quote": "본인이 허락하기 전까지는 이 천막 밖으로 한 장도 나가지 않는다.",
+    "dropReasons": [
+      "subject_not_ascii_snake_case",
+      "attribute_not_ascii_snake_case",
+      "value_has_whitespace",
+      "value_ends_with_punctuation"
+    ]
+  },
+  {
+    "id": 5,
+    "case": "B2",
+    "idx": 1,
+    "category": "rule",
+    "subject": "기록철 열람",
+    "attribute": "열람 조건",
+    "value": "렌은 기록철을 천막 안에서 열람할 수 있지만 필사할 수 없으며, 새벽 보초 교대 전까지 금고에 돌려놓아야 한…",
+    "importance": "important",
+    "evidence_type": "explicit_scene_event",
+    "source_role": "assistant",
+    "fact_text": "볼프강은 렌의 기록철 열람을 허락했으며, 열람은 천막 안에서만 가능하고 필사는 금지되며 새벽 보초 교대 전까지 기록철을 금고에 돌려놓아야 한다.",
+    "source_quote": "열람은 허락한다. 단, 이 천막 안에서만이다. 필사는 안 된다.",
+    "dropReasons": [
+      "subject_not_ascii_snake_case",
+      "attribute_not_ascii_snake_case",
+      "value_has_whitespace",
+      "value_ends_with_punctuation"
+    ]
+  },
+  {
+    "id": 6,
+    "case": "B2",
+    "idx": 2,
+    "category": "setting",
+    "subject": "황실 감찰관",
+    "attribute": "기록 사본 요구 권한",
+    "value": "규정상 오늘 밤 안에 기록 사본을 요구할 권리가 있다.",
+    "importance": "important",
+    "evidence_type": "explicit_character_claim",
+    "source_role": "assistant",
+    "fact_text": "볼프강은 감찰관이 규정대로라면 오늘 밤 안에 기록의 사본을 요구할 권리가 있다고 말했다.",
+    "source_quote": "감찰관은 규정대로라면 오늘 밤 안에 기록의 사본을 요구할 권리가 있다.",
+    "dropReasons": [
+      "subject_not_ascii_snake_case",
+      "attribute_not_ascii_snake_case",
+      "value_has_whitespace",
+      "value_ends_with_punctuation"
+    ]
+  },
+  {
+    "id": 7,
+    "case": "A3",
+    "idx": 0,
+    "category": "rule",
+    "subject": "볼프강",
+    "attribute": "진술 전달",
+    "value": "렌이 허락하기 전까지 렌의 진술을 황실 감찰관에게 전달하지 말라고 병사에게 명령했다.",
+    "importance": "important",
+    "evidence_type": "explicit_scene_event",
+    "source_role": "assistant",
+    "fact_text": "볼프강은 렌의 허락 전까지 진술을 감찰관에게 전달하지 않도록 지시했다.",
+    "source_quote": "“이 진술은 감찰관에게 전달하지 마라. 감찰관이 도착해서 요구하더라도 마찬가지다. 본인이 허락하기 전까지는 이 천막 밖으로 한 장도 나가지 않는다.”",
+    "dropReasons": [
+      "subject_not_ascii_snake_case",
+      "attribute_not_ascii_snake_case",
+      "value_has_whitespace",
+      "value_ends_with_punctuation"
+    ]
+  },
+  {
+    "id": 8,
+    "case": "A3",
+    "idx": 1,
+    "category": "rule",
+    "subject": "기록철 열람",
+    "attribute": "조건",
+    "value": "렌은 지휘 천막 안에서 기록철을 열람할 수 있으나 필사는 금지되며, 새벽 보초 교대 전 기록철을 금고에 돌려…",
+    "importance": "important",
+    "evidence_type": "explicit_character_claim",
+    "source_role": "assistant",
+    "fact_text": "볼프강은 렌에게 천막 안에서의 기록철 열람을 허락했고 필사를 금했으며, 새벽 보초 교대 전 반환해야 한다고 밝혔다.",
+    "source_quote": "“열람은 허락한다. 단, 이 천막 안에서만이다. 필사는 안 된다.”",
+    "dropReasons": [
+      "subject_not_ascii_snake_case",
+      "attribute_not_ascii_snake_case",
+      "value_has_whitespace",
+      "value_ends_with_punctuation"
+    ]
+  },
+  {
+    "id": 9,
+    "case": "B3",
+    "idx": 0,
+    "category": "rule",
+    "subject": "볼프강",
+    "attribute": "진술 전달 제한",
+    "value": "렌이 허락하기 전까지 진술을 감찰관에게 전달하지 않도록 병사에게 명령했다.",
+    "importance": "important",
+    "evidence_type": "explicit_scene_event",
+    "source_role": "assistant",
+    "fact_text": "볼프강은 렌의 허락 전에는 진술을 감찰관에게 전달하지 말라고 명령했다.",
+    "source_quote": "이 진술은 감찰관에게 전달하지 마라. 감찰관이 도착해서 요구하더라도 마찬가지다. 본인이 허락하기 전까지는 이 천막 밖으로 한 장도 나가지 않는다.",
+    "dropReasons": [
+      "subject_not_ascii_snake_case",
+      "attribute_not_ascii_snake_case",
+      "value_has_whitespace",
+      "value_ends_with_punctuation"
+    ]
+  },
+  {
+    "id": 10,
+    "case": "B3",
+    "idx": 1,
+    "category": "rule",
+    "subject": "기록철 열람",
+    "attribute": "열람 조건",
+    "value": "렌은 지휘 천막 안에서 기록철을 열람할 수 있으나 필사는 할 수 없고, 새벽 보초 교대 전까지 기록철을 금고…",
+    "importance": "important",
+    "evidence_type": "explicit_scene_event",
+    "source_role": "assistant",
+    "fact_text": "볼프강은 렌에게 기록철의 천막 안 열람을 허락했으며 필사를 금하고 새벽 보초 교대 전 반납하도록 했다.",
+    "source_quote": "열람은 허락한다. 단, 이 천막 안에서만이다. 필사는 안 된다.",
+    "dropReasons": [
+      "subject_not_ascii_snake_case",
+      "attribute_not_ascii_snake_case",
+      "value_has_whitespace",
+      "value_ends_with_punctuation"
+    ]
+  }
+]

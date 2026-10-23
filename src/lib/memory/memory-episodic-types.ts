@@ -1,6 +1,18 @@
 /**
  * Episodic fact schema — memory layer owns types; status widget re-exports for compatibility.
  */
+
+/** Shared by strict JSON Schema (`buildSharedEpisodicSectionJsonSchema`) and `sanitizeEpisodicExtractedFacts`. */
+export const EPISODIC_FACT_SNAKE_CASE_JSON_PATTERN =
+  "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$";
+
+export const EPISODIC_FACT_IDENTIFIER_MAX_CHARS = 64;
+
+/** Concise token — no whitespace; trailing punctuation and sentence shape stay sanitizer-owned. */
+export const EPISODIC_FACT_VALUE_MAX_CHARS = 80;
+
+export const EPISODIC_FACT_VALUE_JSON_PATTERN = "^\\S+$";
+
 export type EpisodicFactCategory =
   | "relationship"
   | "character"
