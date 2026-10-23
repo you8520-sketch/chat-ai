@@ -1,6 +1,6 @@
 # Official image automation: style reference role, representative composition, and A/B readiness
 
-Status: `ROOT_CAUSE_UNCONFIRMED` at image level. The code and review-path causes below are confirmed and fixed in the canonical owners. No paid image was generated, because no safe authenticated path to a provider key exists in the Cloud environment (section 4). GPT and the user own every quality verdict (style fidelity, composition independence, approval); nothing here is a quality score.
+Status: Wolfgang representative A/B was run (1 call per model, 0 regenerations) and judged by the user and GPT directly: `gpt-image-2` is more faithful to the style references than `gpt-image-2.5-sunburst`. See sections 8 to 11. The `ROOT_CAUSE_FIXED` declaration still waits for GPT re-review of the model proposal and a wider (non-Wolfgang) check. Sections 1 to 7 are the earlier analysis and fixes (the dry-run and Railway wording in section 3/4 predates the run).
 
 ## 1. How the clone reached the representative and then 13 slots
 
@@ -82,3 +82,38 @@ Risks:
 - The Cluster B DNA still says `contrast: high`, `rendering: cel` and `skin: 매끈한 피부`. These are style data; confirm against the paid images whether they suit the 8 references.
 - Wolfgang's own `rep` pose text says "facing front"; it needs a scoped data fix after approval, not an edit here.
 - Prompt wording changes alter all future generations until the A/B is judged.
+
+## 8. A/B result (final judgment for this experiment)
+
+- Scope: Wolfgang #51 new representative, 1024x1536, quality medium, same approved manuscript, Appearance Lock, prompt (canonical SHA `4245452e…`), reference list (07, 04, 08) and settings for both arms; one call per model, no regeneration.
+- Judged by the user and GPT from the original images next to the references (Cursor did not score or approve):
+  - `gpt-image-2` follows the style references more faithfully.
+  - `gpt-image-2.5-sunburst` leans toward the GPT default look.
+- Cost (reported by the operator run): `gpt-image-2` $0.087504, `gpt-image-2.5-sunburst` $0.056784, total $0.144288 (about 202 KRW at 1,400/USD; under the 1,000 KRW cap). Sunburst was cheaper (about 0.65x) and faster.
+- Conclusion: Sunburst is cheaper and faster but fits the goal (reproduce the user's reference style) less well. `gpt-image-2` is the recommended default for official character automation. This is one character and one slot; it is not proof that 2.0 always wins (section 11).
+- The #1713 structure (independent rep composition, style-role separation, style-neutral detail clause, composition QA) is model independent and stays.
+
+## 9. Model owner investigation
+
+- Effective model today: `resolveOfficialAssetImageModel(env)` in `imageProfile.ts` delegated to `resolveChatImageGenerationModel`, i.e. `OPENAI_IMAGE_MODEL` or the code default `gpt-image-2` (`CHAT_IMAGE_GENERATION_DEFAULT_MODEL`). The code default has never been Sunburst (`git log -S` on the default shows only its introduction). Sunburst reached official assets through the production `OPENAI_IMAGE_MODEL` value (not readable from the Cloud VM; GPT confirmed the variable exists) and through the pinned one-off harnesses below.
+- Official call sites that read the one resolver: `runner.ts` (`composeOfficialSlotGeneration`, so the generation runner and the operator/overlay scripts), `qualityShotQa.ts` (`resolveLucianSig4ProofImageModel`), `scripts/official-supply-quality-shot-qa.ts`, `lockedSnapshotReconcileOperator.ts` (assembly only). No official source hardcodes a model id (guarded by `officialSupply.qa.test.ts`).
+- Chat owners sharing `OPENAI_IMAGE_MODEL`: `api/chat/image-generation/route.ts`, `api/chat/comic-generation/route.ts`, `scripts/run-cast-gpt-image-smoke.ts`. These must not change.
+- Duplicate owners (cleanup candidates, not changed except the env key): `scripts/wolfgang-asset-redesign-emo5-r2.ts`, `-emo-f-candidates.ts`, `-remaining-10.ts` each hardcode `gpt-image-2.5-sunburst` and pass `env: { OPENAI_IMAGE_MODEL }`; `-build-remaining-boards.ts` writes the string into an evidence JSON. They are executed one-off evidence harnesses: KEEP until the Wolfgang redesign evidence is archived, then classify for removal.
+- Conclusion: the single owner is `resolveOfficialAssetImageModel`, but it is coupled to the chat-wide env, so switching official assets via the env would also switch chat, comic and TRPG illustration.
+
+## 10. Minimal change to return official automation to gpt-image-2 (proposal: Draft PR #1717, stacked on this PR)
+
+- `imageProfile.ts`: `resolveOfficialAssetImageModel` = `OFFICIAL_ASSET_IMAGE_MODEL` (optional explicit override) or `OFFICIAL_ASSET_IMAGE_DEFAULT_MODEL = "gpt-image-2"`; it stops reading `OPENAI_IMAGE_MODEL`. One function, one file; chat resolver untouched.
+- Test and harness env keys renamed accordingly (13 officialSupply tests, the three pinned redesign scripts, the A/B script); one new owner test; the old "never owns a model id" guard narrowed to "only `imageProfile.ts` may".
+- Impact: official generation uses gpt-image-2 after deploy independent of the production `OPENAI_IMAGE_MODEL`. Stored assets and DB are not touched; new rows record `gpt-image-2`. Cost per representative call about 1.54x (measured); the existing 0.12 USD per-image reserve covers it, operator `--per-call-reserve-usd` values must be at least 0.10. Only the representative was measured; the landscape slots are not.
+- Rollback: set `OFFICIAL_ASSET_IMAGE_MODEL=gpt-image-2.5-sunburst` or revert.
+- Not applied to production; routing change waits for GPT re-review.
+
+## 11. Regression review
+
+- Over-similarity risk with 2.0: a model that follows references more closely can also copy face, gaze, pose and crop more closely, which is the original defect. The A/B prompt carries the #1713 independence rules and the rep head direction (`left_three_quarter`); whether 2.0 still clones the reference composition was judged by the user and GPT on this one image, not measured.
+- Is `compositionIndependence` enough? Not by itself. Findings: (1) it is a human attestation with a boolean and an optional note; nothing forces the reviewer to compare against the specific references used; (2) `scripts/official-supply-approve-anchor.ts` builds the whole QA report from one human "approve" decision and marks every key including `compositionIndependence` as pass with one shared note, so on that path it is a blanket pass; (3) there is no automated similarity signal. Recommended follow-up (not in this PR): require a per-key note for `compositionIndependence` that names which references were compared, have the review surface show the references next to the candidate, and consider an automated pre-filter (head-pose and crop comparison against the sent references) that only flags, never approves.
+- Representative to 13 slots: unchanged. Slots still use `identity_then_style` / `identity_and_style` with the approved representative as the sole image in the latter, so a faithful but over-similar representative still propagates into all 13. That makes the representative review the single gate that matters; keep it before slot generation.
+- 2.0 is not proven better for every character: one character, one slot, one sample per model. Before treating it as proven, run the same A/B on at least two other official characters with different style clusters and on one RP (landscape, `identity_and_style`) slot, within the cost cap, and have GPT or the user judge.
+- Cost: 2.0 is about 1.5x per representative call; the 13 landscape slots could differ.
+
