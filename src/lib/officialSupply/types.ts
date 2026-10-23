@@ -352,16 +352,25 @@ export type OfficialAnchorQaReport = {
   eyes: QaCheck;
   body: QaCheck;
   identifyingFeatures: QaCheck;
+  /** Smooth skin, large shading planes, clean lines, detail no denser than the style references. */
   artStyle: QaCheck;
   outfit: QaCheck;
   cardCrop: QaCheck;
+  /**
+   * The pose, gaze, head angle, camera, crop, and silhouette are not a clone of any style reference.
+   * Optional only so reviews recorded before this check existed stay valid; new reviews supply it.
+   */
+  compositionIndependence?: QaCheck;
 };
 
 export type OfficialVariationQaReport = {
   identityMatchesAnchor: QaCheck;
   expressionMatchesPlan: QaCheck;
   characterPresent: QaCheck;
+  /** Smooth skin, large shading planes, clean lines, detail no denser than the style references. */
   artStyle: QaCheck;
+  /** Composition follows the slot's shot plan, not a clone of a style reference or the representative card. */
+  compositionIndependence?: QaCheck;
 };
 
 /**

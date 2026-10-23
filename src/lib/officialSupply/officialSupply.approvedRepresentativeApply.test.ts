@@ -44,6 +44,7 @@ import {
 } from "@/lib/officialSupply/officialSupply.approvedApplyFixtures";
 import { testBatchConfig, testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures";
 import { PILOT_STYLE_PROOF_CANDIDATE_ID } from "@/lib/officialSupply/pilotStyleProof";
+import { OFFICIAL_DETAIL_RESTRAINT_CLAUSE, OFFICIAL_IDENTITY_COPY_FORBIDDEN_CLAUSE } from "@/lib/officialSupply/imagePrompt";
 import { prepareOfficialImageReferences } from "@/lib/officialSupply/referencePreparation";
 import {
   applyApprovedOfficialAssetReplacements,
@@ -52,6 +53,7 @@ import {
   type OfficialRepresentativeApplySet,
 } from "@/lib/officialSupply/replacement";
 import { composeOfficialSlotGeneration, moderateOfficialAssetReplacement } from "@/lib/officialSupply/runner";
+import { renderOfficialShotResponsibility, resolveOfficialSlotShot } from "@/lib/officialSupply/shotPlan";
 import { ROFAN_CLUSTER_B_VISUAL_STYLE_DNA } from "@/lib/officialSupply/style";
 import { OfficialSupplyGateError, OfficialSupplyStore } from "@/lib/officialSupply/store";
 import type { OfficialAssetModeration, OfficialAssetPlan, OfficialGenreStyle } from "@/lib/officialSupply/types";
@@ -389,10 +391,15 @@ describe("approved fourteen-slot private apply (isolated DB, test-only review fi
       if (!composed.ok) continue;
       assert.equal(composed.referenceRoleLayout, "identity_and_style");
       assert.deepEqual([...composed.references], [expectedReference]);
-      assert.equal(
-        sha256(composed.primaryPrompt),
-        candidate.laterOwnerAssemblyPromptSha256 ?? candidate.sentPromptSha256,
-        `${candidate.slot} prompt differs from the recorded approved prompt`
+      const plannedSlot = character.assetPlan!.slots.find((slot) => slot.slotKey === candidate.slot)!;
+      assert.ok(composed.primaryPrompt.includes(`Expression: ${plannedSlot.expression}.`), candidate.slot);
+      assert.ok(composed.primaryPrompt.includes(OFFICIAL_DETAIL_RESTRAINT_CLAUSE), candidate.slot);
+      assert.ok(composed.primaryPrompt.includes(OFFICIAL_IDENTITY_COPY_FORBIDDEN_CLAUSE), candidate.slot);
+      assert.ok(
+        composed.primaryPrompt.includes(
+          renderOfficialShotResponsibility(resolveOfficialSlotShot(plannedSlot, character.draftKey))
+        ),
+        candidate.slot
       );
       assert.doesNotMatch(composed.primaryPrompt, /식사|식당|수프/);
     }

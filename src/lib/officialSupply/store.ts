@@ -600,10 +600,19 @@ export const ANCHOR_QA_KEYS = [
   "cardCrop",
 ] as const satisfies ReadonlyArray<keyof OfficialAnchorQaReport>;
 
-/** Every anchor check is present and passing. A variation report never qualifies. */
+/** Checks every new operator review must record on top of the legacy keys. */
+export const COMPOSITION_QA_KEY = "compositionIndependence" as const satisfies
+  keyof OfficialAnchorQaReport & keyof OfficialVariationQaReport;
+
+/**
+ * Every anchor check is present and passing. A variation report never qualifies.
+ * `compositionIndependence` is required by new reviews (operator keys) but absent from reviews recorded
+ * earlier, so it only blocks when it was recorded as failing.
+ */
 export function isCompletePassingAnchorQa(qa: unknown): qa is OfficialAnchorQaReport {
   if (!qa || typeof qa !== "object") return false;
   const record = qa as Record<string, { ok?: unknown } | undefined>;
+  if (record[COMPOSITION_QA_KEY] && record[COMPOSITION_QA_KEY]?.ok !== true) return false;
   return ANCHOR_QA_KEYS.every((key) => record[key]?.ok === true);
 }
 

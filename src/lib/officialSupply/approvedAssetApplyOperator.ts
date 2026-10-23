@@ -21,6 +21,7 @@ import {
 } from "@/lib/officialSupply/runner";
 import {
   ANCHOR_QA_KEYS,
+  COMPOSITION_QA_KEY,
   OfficialSupplyGateError,
   VARIATION_QA_KEYS,
   type OfficialCharacterRecord,
@@ -480,7 +481,7 @@ export type ReviewEvidence = {
 
 function qaKeysFor(slot: string, target: ApprovedAssetOperatorTarget): readonly string[] {
   const kind = target.approvedPlan.slots.find((s) => s.slotKey === slot)?.kind;
-  return kind === "representative" ? ANCHOR_QA_KEYS : VARIATION_QA_KEYS;
+  return [...(kind === "representative" ? ANCHOR_QA_KEYS : VARIATION_QA_KEYS), COMPOSITION_QA_KEY];
 }
 
 /** Unfilled review form for the slots awaiting review; it cannot be submitted as is. */

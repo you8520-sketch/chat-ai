@@ -43,10 +43,12 @@ export const TEST_ONLY_REVIEWER = "test-fixture-reviewer-not-quality-approval";
 const PASS = { ok: true };
 export const anchorQa = (overrides: Partial<OfficialAnchorQaReport> = {}): OfficialAnchorQaReport => ({
   gender: PASS, ageAppearance: PASS, face: PASS, hair: PASS, eyes: PASS, body: PASS,
-  identifyingFeatures: PASS, artStyle: PASS, outfit: PASS, cardCrop: PASS, ...overrides,
+  identifyingFeatures: PASS, artStyle: PASS, outfit: PASS, cardCrop: PASS, compositionIndependence: PASS,
+  ...overrides,
 });
 export const variationQa = (): OfficialVariationQaReport => ({
   identityMatchesAnchor: PASS, expressionMatchesPlan: PASS, characterPresent: PASS, artStyle: PASS,
+  compositionIndependence: PASS,
 });
 
 export const STAGING_USER: SessionUser = { id: 8301, nickname: "approved-apply-staging", is_adult: 1 };

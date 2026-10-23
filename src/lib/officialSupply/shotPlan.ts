@@ -86,8 +86,10 @@ export const OFFICIAL_EXPRESSION_FAMILY_PROMPT: Record<OfficialExpressionFamily,
 
 const BACKGROUND_PROMPT: Record<OfficialBackgroundRole, string> = {
   simple: "simple, uncluttered background — no competing scene",
-  environment: "an identifiable environment behind the character (architecture, weather, or workplace cue)",
-  scene: "scene-first background: the place and incident must be readable, not a portrait backdrop",
+  environment:
+    "an identifiable environment behind the character, drawn as a few large simple shapes (one architecture, weather, or workplace cue) and no busier than the figure",
+  scene:
+    "scene-first background: the place and incident must be readable through large simple shapes, not a portrait backdrop and not dense fine detail",
 };
 
 /**
