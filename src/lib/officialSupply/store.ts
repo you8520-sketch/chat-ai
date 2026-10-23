@@ -667,6 +667,13 @@ function assertRepresentativeReviewEvidence(
   if (missing.length > 0) {
     throw new OfficialSupplyGateError("qa_incomplete", `${scope} review is missing QA checks: ${missing.join(", ")}`);
   }
+  const unexplained = ANCHOR_QA_KEYS.filter((key) => typeof qa[key]?.note !== "string" || !qa[key]?.note?.trim());
+  if (unexplained.length > 0) {
+    throw new OfficialSupplyGateError(
+      "qa_note_required",
+      `${scope} review needs a non-empty note for every QA check: ${unexplained.join(", ")}`
+    );
+  }
   assertCompositionReviewRecorded(qa, scope);
   const check = qa[COMPOSITION_QA_KEY]!;
   const fail = (code: string, message: string): never => {

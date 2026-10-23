@@ -42,9 +42,10 @@ export const TEST_ONLY_MODERATION: Extract<OfficialAssetModeration, { status: "c
 };
 export const TEST_ONLY_REVIEWER = "test-fixture-reviewer-not-quality-approval";
 const PASS = { ok: true };
+const NOTED_PASS = { ok: true, note: "checked against the candidate image" };
 export const anchorQa = (overrides: Partial<OfficialAnchorQaReport> = {}): OfficialAnchorQaReport => ({
-  gender: PASS, ageAppearance: PASS, face: PASS, hair: PASS, eyes: PASS, body: PASS,
-  identifyingFeatures: PASS, artStyle: PASS, outfit: PASS, cardCrop: PASS, compositionIndependence: PASS,
+  gender: NOTED_PASS, ageAppearance: NOTED_PASS, face: NOTED_PASS, hair: NOTED_PASS, eyes: NOTED_PASS, body: NOTED_PASS,
+  identifyingFeatures: NOTED_PASS, artStyle: NOTED_PASS, outfit: NOTED_PASS, cardCrop: NOTED_PASS, compositionIndependence: PASS,
   ...overrides,
 });
 /** A reviewed reference as the test reviewer cites it: id plus the file SHA-256 (pinned in the id when the id carries one). */
