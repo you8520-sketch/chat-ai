@@ -2417,6 +2417,197 @@ https.request = () => { record("https"); throw new Error("blocked by test https 
       });
     });
 
+    describe("confirmed quarantine cost is applied in one atomic state save", () => {
+      type KillMode = "before-write" | "before-rename" | "after-rename";
+
+      async function heldAndConfirmed(usd: number): Promise<Seed> {
+        const seed = await seedUnconfirmedCall(scenario(SEED_RUN_ID));
+        const report = await run(seed.sc, mockClassifier(seed.sc), approvalEnv(seed));
+        assert.equal(report.stopReason, "quarantine_pending");
+        seed.sc.fx
+          .prepare(
+            `UPDATE api_cost_ledger SET actual_cost_usd = ?, actual_cost_source = 'cheaper_inference_billed',
+               event_status = 'settled', provider_request_id = 'prov-synthetic-confirmed' WHERE generation_request_id = ?`
+          )
+          .run(usd, seed.requestId);
+        return seed;
+      }
+
+      /** 격리 비용을 확정 반영하는 상태 저장 한가운데서 실제 프로세스를 SIGKILL한다. */
+      function killDuringSettlement(seed: Seed, mode: KillMode): void {
+        const child = path.join(seed.sc.dir, `kill-settle-${mode}.ts`);
+        fs.writeFileSync(
+          child,
+          `import fs from "node:fs";
+import Database from ${JSON.stringify(path.join(REPO_ROOT, "node_modules/better-sqlite3"))};
+import { executeAdultOffBatchPaidRun, parseAdultOffBatchPaidRunConfig } from ${JSON.stringify(path.join(REPO_ROOT, "src/lib/adultOffBatchPaidRun.ts"))};
+
+const [dbPath, stateDir, mode] = process.argv.slice(2);
+const kill = () => process.kill(process.pid, "SIGKILL");
+const isState = (target) => String(target).endsWith("batch.state.json");
+const realOpen = fs.openSync;
+const realRename = fs.renameSync;
+fs.openSync = (target, ...rest) => {
+  if (mode === "before-write" && String(target).includes("batch.state.json.") && String(target).endsWith(".tmp")) kill();
+  return realOpen(target, ...rest);
+};
+fs.renameSync = (from, to) => {
+  if (isState(to) && mode === "before-rename") kill();
+  realRename(from, to);
+  if (isState(to) && mode === "after-rename") kill();
+};
+const config = parseAdultOffBatchPaidRunConfig(
+  {
+    ADULT_OFF_BATCH_MODE: "execute",
+    ADULT_OFF_BATCH_RUN_ID: "adult-off-c3-test",
+    ADULT_OFF_BATCH_CAP_KRW: "1500",
+    ADULT_OFF_BATCH_APPROVE_PAID: "1",
+    ADULT_OFF_BATCH_ALLOW_ISOLATED_PAID: "1",
+    ADULT_OFF_BATCH_USD_KRW: "1450",
+    ADULT_OFF_BATCH_APPROVED_RATES: "0.07/0.35",
+    CHEAPER_INFERENCE_API_KEY: "dummy-not-a-real-key",
+  },
+  dbPath,
+  { stateDir }
+);
+async function main() {
+  await executeAdultOffBatchPaidRun({
+    config,
+    openDatabase: () => new Database(dbPath, { fileMustExist: true }),
+    createClassifier: () => async () => {
+      throw new Error("no paid call may happen while settling a quarantined call");
+    },
+  });
+}
+main();
+`
+        );
+        seed.sc.fx.pragma("wal_checkpoint(TRUNCATE)");
+        const result = spawnSync(
+          process.execPath,
+          ["--conditions=react-server", "--import", "tsx", child, seed.sc.dbPath, seed.stateDir, mode],
+          { cwd: REPO_ROOT, env: childEnv({}), encoding: "utf8" }
+        );
+        assert.equal(result.signal, "SIGKILL", `${mode}: ${result.stdout}${result.stderr}`);
+      }
+
+      const ledgerRowCount = (seed: Seed): number =>
+        (seed.sc.fx.prepare("SELECT COUNT(*) AS n FROM api_cost_ledger WHERE generation_request_id = ?").get(seed.requestId) as { n: number }).n;
+
+      for (const mode of ["before-write", "before-rename"] as const) {
+        it(`keeps the quarantine and reserve untouched when killed ${mode === "before-write" ? "before the settlement save starts" : "after the temp file is written but before the rename"}, then applies the cost exactly once`, async () => {
+          const seed = await heldAndConfirmed(USD_PER_CALL);
+          const held = loadAdultOffBatchState(seed.stateDir);
+          const bytes = stateBytes(seed);
+          const rowsBefore = ledgerRowCount(seed);
+          const protectedBefore = protectedRows(seed);
+
+          killDuringSettlement(seed, mode);
+          assert.equal(stateBytes(seed), bytes, "the original quarantine, reserve and counters survive byte for byte");
+          assert.equal(loadAdultOffBatchState(seed.stateDir).unresolved?.quarantine?.reserveKrw, 10);
+
+          for (let attempt = 0; attempt < 2; attempt += 1) {
+            const mock = mockClassifier(seed.sc);
+            await assert.rejects(() => run(seed.sc, mock), refusedWith("interrupted_call_unresolved"));
+            assert.equal(mock.calls.length, 0);
+            const state = loadAdultOffBatchState(seed.stateDir);
+            assert.ok(Math.abs(state.settledKrw - held.settledKrw - KRW_PER_CALL) < 1e-9, `attempt ${attempt}: cost counted once`);
+            assert.equal(state.callCount, held.callCount + 1, `attempt ${attempt}: call counted once`);
+            assert.equal(state.unresolved?.quarantine, null);
+            assert.equal(state.halted, null);
+            assert.equal(state.approvedCapKrw, 1500);
+          }
+          assert.equal(ledgerRowCount(seed), rowsBefore, "no ledger row is created or re-settled");
+          assert.equal(protectedRows(seed), protectedBefore);
+        });
+      }
+
+      it("does not count the call twice when killed right after the atomic save, and still needs the ACK", async () => {
+        const seed = await heldAndConfirmed(USD_PER_CALL);
+        const held = loadAdultOffBatchState(seed.stateDir);
+        const rowsBefore = ledgerRowCount(seed);
+        const protectedBefore = protectedRows(seed);
+
+        killDuringSettlement(seed, "after-rename");
+        const saved = loadAdultOffBatchState(seed.stateDir);
+        assert.ok(Math.abs(saved.settledKrw - held.settledKrw - KRW_PER_CALL) < 1e-9);
+        assert.equal(saved.callCount, held.callCount + 1);
+        assert.equal(saved.unresolved?.quarantine, null, "cost, call count and reserve release land in the same save");
+        assert.deepEqual(saved.unresolved?.requestIds, [seed.requestId], "the call stays an unjudged unresolved target");
+        assert.equal(saved.halted, null);
+        const afterKill = stateBytes(seed);
+
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          const mock = mockClassifier(seed.sc);
+          await assert.rejects(() => run(seed.sc, mock), refusedWith("interrupted_call_unresolved"));
+          assert.equal(mock.calls.length, 0);
+          const state = loadAdultOffBatchState(seed.stateDir);
+          assert.equal(state.callCount, saved.callCount);
+          assert.ok(Math.abs(state.settledKrw - saved.settledKrw) < 1e-9);
+        }
+        assert.equal(
+          JSON.stringify({ ...JSON.parse(stateBytes(seed)), updatedAt: "" }),
+          JSON.stringify({ ...JSON.parse(afterKill), updatedAt: "" }),
+          "resuming without the ACK changes nothing"
+        );
+        assert.equal(ledgerRowCount(seed), rowsBefore);
+        assert.equal(protectedRows(seed), protectedBefore);
+      });
+
+      it("re-classifies only the acknowledged target, once, after the settlement", async () => {
+        const seed = await heldAndConfirmed(USD_PER_CALL);
+        const otherId = insertAssistant(seed.sc.fx, { content: "확정 뒤 새로 생긴 대기 본문" });
+        killDuringSettlement(seed, "after-rename");
+        const settled = loadAdultOffBatchState(seed.stateDir);
+        const mock = mockClassifier(seed.sc);
+        const report = await run(seed.sc, mock, { ADULT_OFF_BATCH_ACK_UNRESOLVED_REQUEST_ID: seed.requestId });
+        assert.equal(report.stopReason, "completed");
+        assert.equal(report.quarantine, null);
+        assert.equal(report.budget.heldQuarantineReserveKrw, 0);
+        assert.deepEqual(
+          mock.calls.map((call) => call.text).sort(),
+          [TARGET_TEXT, "확정 뒤 새로 생긴 대기 본문"].sort(),
+          "the target is re-classified once (both messages share the verdict) next to the unrelated pending text"
+        );
+        assert.equal(adultOffStoredTextDisposition(usageOf(seed.sc.fx, seed.targetId), TARGET_TEXT), "approved");
+        assert.equal(adultOffStoredTextDisposition(usageOf(seed.sc.fx, otherId), "확정 뒤 새로 생긴 대기 본문"), "approved");
+        const state = loadAdultOffBatchState(seed.stateDir);
+        assert.equal(state.unresolved, null);
+        assert.equal(state.callCount, settled.callCount + 2);
+        assert.ok(Math.abs(state.settledKrw - settled.settledKrw - 2 * KRW_PER_CALL) < 1e-9);
+        assert.equal(state.approvedCapKrw, 1500);
+      });
+
+      for (const mode of ["before-rename", "after-rename"] as const) {
+        it(`keeps cost, call count and halt in one save when the confirmed cost exceeds the reserve (killed ${mode})`, async () => {
+          const seed = await heldAndConfirmed(1);
+          const held = loadAdultOffBatchState(seed.stateDir);
+          const bytes = stateBytes(seed);
+          killDuringSettlement(seed, mode);
+          if (mode === "before-rename") {
+            assert.equal(stateBytes(seed), bytes, "no half-applied cost or halt");
+            assert.equal(loadAdultOffBatchState(seed.stateDir).halted, null);
+            const mock = mockClassifier(seed.sc);
+            await assert.rejects(() => run(seed.sc, mock), refusedWith("quarantine_cost_exceeds_reserve"));
+            assert.equal(mock.calls.length, 0);
+          }
+          const state = loadAdultOffBatchState(seed.stateDir);
+          assert.equal(state.halted?.reason, "halted_cost_exceeds_bound");
+          assert.equal(state.unresolved?.quarantine, null);
+          assert.equal(state.callCount, held.callCount + 1);
+          const costKrw = 1 * 1450 * 1.02;
+          assert.ok(Math.abs(state.settledKrw - held.settledKrw - costKrw) < 1e-6, "the full cost is counted exactly once");
+          assert.ok(Math.abs(state.maxObservedWindowKrw - costKrw) < 1e-6);
+
+          const after = stateBytes(seed);
+          const mock = mockClassifier(seed.sc);
+          await assert.rejects(() => run(seed.sc, mock), refusedWith("batch_halted"));
+          assert.equal(mock.calls.length, 0);
+          assert.equal(stateBytes(seed), after, "a halted batch is not changed or recounted by later runs");
+        });
+      }
+    });
+
     it("never overwrites a held quarantine when another call is interrupted", async () => {
       const seed = await seedUnconfirmedCall(scenario(SEED_RUN_ID));
       await run(seed.sc, mockClassifier(seed.sc), approvalEnv(seed));

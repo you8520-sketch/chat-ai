@@ -1417,16 +1417,20 @@ export async function executeAdultOffBatchPaidRun(
       );
     }
     const pricing: AdultOffBatchPricing = { ...config, rates };
-    const halt = (reason: AdultOffBatchStopReason, detail: string): void => {
+    const markHalted = (reason: AdultOffBatchStopReason, detail: string): void => {
       state.halted = { reason, detail: detail.slice(0, 300), at: new Date().toISOString() };
+    };
+    const halt = (reason: AdultOffBatchStopReason, detail: string): void => {
+      markHalted(reason, detail);
       saveAdultOffBatchState(stateDir, state);
     };
     const isCallCostKnown = (cost: AdultOffBatchModerationSpend): boolean =>
       cost.totalEvents > 0 && cost.unknownCostEvents === 0 && cost.settledUsd > 0;
-    const settleCall = (requestId: string, reservedKrw: number, callError: unknown): void => {
+    /** 한 호출의 확정 비용을 메모리 상태에 반영한다(저장은 호출자 몫). 비용·호출 수·초과 halt가 한 번의 저장으로 함께 나가게 한다. */
+    const applyCallSettlement = (requestId: string, reservedKrw: number, callError: unknown): void => {
       const cost = readAdultOffBatchCallCost(database, requestId);
       if (!isCallCostKnown(cost)) {
-        halt("halted_unknown_cost", `call ${requestId}: ledger cost unknown (events=${cost.totalEvents})`);
+        markHalted("halted_unknown_cost", `call ${requestId}: ledger cost unknown (events=${cost.totalEvents})`);
         return;
       }
       const costKrw = adultOffUsdToKrw(cost.settledUsd, config.fxKrwPerUsd);
@@ -1434,9 +1438,8 @@ export async function executeAdultOffBatchPaidRun(
       state.maxObservedWindowKrw = Math.max(state.maxObservedWindowKrw, costKrw);
       state.callCount += 1;
       if (state.inFlight?.openRequestId === requestId) state.inFlight.openRequestId = null;
-      saveAdultOffBatchState(stateDir, state);
       if (costKrw > reservedKrw) {
-        halt(
+        markHalted(
           "halted_cost_exceeds_bound",
           `call ${requestId}: actual ${costKrw.toFixed(4)} KRW exceeded its ${reservedKrw.toFixed(4)} KRW bound`
         );
@@ -1445,8 +1448,12 @@ export async function executeAdultOffBatchPaidRun(
       const benign =
         callError instanceof AdultOffClassifierCallError && callError.outcome === "invalid_output";
       if (callError && !benign) {
-        halt("halted_classifier_error", `call ${requestId}: ${(callError as Error).message ?? "error"}`);
+        markHalted("halted_classifier_error", `call ${requestId}: ${(callError as Error).message ?? "error"}`);
       }
+    };
+    const settleCall = (requestId: string, reservedKrw: number, callError: unknown): void => {
+      applyCallSettlement(requestId, reservedKrw, callError);
+      saveAdultOffBatchState(stateDir, state);
     };
 
     const rows = loadAssistantRowsForAdultOffInspection(database);
@@ -1527,7 +1534,8 @@ export async function executeAdultOffBatchPaidRun(
           );
         }
         if (ledgerState === "settled") {
-          settleCall(held.requestId, held.reserveKrw, null);
+          // 비용 반영·호출 수·예약액 해제·초과 halt를 메모리에서 모두 끝낸 뒤 한 번만 저장한다(중간 종료 시 이중 반영 방지).
+          applyCallSettlement(held.requestId, held.reserveKrw, null);
           state.unresolved.quarantine = null;
           saveAdultOffBatchState(stateDir, state);
           if (state.halted) {
