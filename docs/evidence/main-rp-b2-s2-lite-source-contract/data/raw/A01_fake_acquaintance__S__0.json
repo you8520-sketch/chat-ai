@@ -1,0 +1,46 @@
+{
+ "id": "A01_fake_acquaintance",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"여관 복도에서 라이크가 며칠 전 처음 만난 사이라는 렌의 기억과 달리 자신들은 오래전부터 알았다고 단언함. 렌이 근거를 요구하고 함께한 건 며칠뿐이라고 지적하자 라이크는 잠시 인정하면서도 주장을 거두지 않고, 렌이 그런 기억이 없다고 하자 기억 부재가 자신을 틀리게 하진 않는다고 답함. 렌은 서린에게 확인하기로 했으나 과거가 실제였는지는 유보함. 라이크는 확인을 막지 않았고, 같은 말을 반복하면서 확신보다 간절함을 드러냄. 렌은 답하지 않은 채 서린에게 물으려 함; 과거의 진위는 미해결임.\",\"items\":[{\"actor\":\"character\",\"kind\":\"claim\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"렌, 우린 오래전부터 알던 사이잖아.\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"서린한테도 물어볼까?\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"물어봐도 돼.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"그래, 서린한테 확인은 해보자.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"이번에는 확신보다 간절함이 희미하게 묻어났다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 3071,
+  "outputTokens": 392,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 3069,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000376,
+  "upstreamCostUsd": 0.000376,
+  "debugRawUsage": {
+   "completion_tokens": 392,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 3071,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 3069,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3463,
+   "cost": 0.000376,
+   "cost_details": {
+    "upstream_inference_cost": 0.000376
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "2646ef4d-0414-4292-9f8c-d1ad28d0a93e"
+ },
+ "billedUsd": 0.000376,
+ "ms": 8014,
+ "systemChars": 3460,
+ "userChars": 2342
+}

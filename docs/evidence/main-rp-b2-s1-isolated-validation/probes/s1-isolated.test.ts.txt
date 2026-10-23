@@ -1,0 +1,857 @@
+import Module from "module";
+
+const originalLoad = (Module as unknown as { _load: typeof Module._load })._load;
+(Module as unknown as { _load: typeof Module._load })._load = function (
+  request: string,
+  parent: NodeModule,
+  isMain: boolean
+) {
+  if (request === "server-only") return {};
+  return originalLoad(request, parent, isMain);
+} as typeof Module._load;
+
+import { readFileSync, writeFileSync } from "node:fs";
+import { after, before, describe, it } from "node:test";
+import { getDb } from "@/lib/db";
+import {
+  messagesToTurns,
+  rawRecentTurnsToHistory,
+  resolveLorebookExcludeFromTrimmedHistory,
+  resolveProviderRawPoolExchangeCount,
+} from "@/lib/hybridMemory";
+import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
+import { buildContext } from "@/services/contextBuilder";
+import { MEMORY_CAPACITY_FIXED } from "./memory-capacity-shared";
+import { getChatMemoryRow, getOrCreateChatMemory, updateChatMemory } from "./memory-db";
+import { buildMemoryContextForChat } from "./memory-manager";
+import * as rolling from "./memory-rolling-summary";
+import * as integrity from "./memory-summary-integrity";
+import * as mediumMod from "./memory-medium-term";
+import * as turnSummary from "./memory-turn-summary";
+import * as sourceBoundary from "./memory-source-boundary";
+import * as forkSnapshot from "./memory-fork-snapshot";
+import * as variantReconcile from "./memory-variant-switch-reconcile";
+import { resolveGlobalCurrentMemory } from "./memory-lorebook-resolve";
+import { EMPTY_OOC_SUMMARY_MARKER } from "./memory-summary-scope";
+
+const ARM = process.env.S1_ARM ?? "unknown";
+const OUT = process.env.S1_OUT ?? `/tmp/s1/out-${ARM}.json`;
+const FIXTURE_PATH = process.env.S1_FIXTURE!;
+const CASES_PATH = process.env.S1_CASES!;
+const ONLY = (process.env.S1_ONLY ?? "").split(",").filter(Boolean);
+const want = (name: string) => ONLY.length === 0 || ONLY.includes(name);
+
+type RealLunaWindow = {
+  turnStart: number;
+  turnEnd: number;
+  turns: { user: string; assistant: string }[];
+  lunaOutput: string;
+};
+const fixture = JSON.parse(readFileSync(FIXTURE_PATH, "utf8")) as {
+  charName: string;
+  userName: string;
+  windows: RealLunaWindow[];
+};
+const cases = JSON.parse(readFileSync(CASES_PATH, "utf8")) as {
+  id: string;
+  window: number;
+  summary: string;
+}[];
+
+const CHAT = 930601;
+const USER = 930602;
+const CHAR = 930603;
+const CHAT_FORK = 930604;
+const CHAR_NAME = fixture.charName;
+const USER_NAME = fixture.userName;
+const USER_PERSONA = `이름/호칭: ${USER_NAME}`;
+const TOTAL = fixture.windows.length;
+
+const hasS1 = typeof (integrity as any).diagnoseRollingSummaryGrounding === "function";
+const diagnose = (integrity as any).diagnoseRollingSummaryGrounding as
+  | undefined
+  | ((s: string, d: string, p?: string | null, c?: string | null) => string | null);
+const UNVERIFIABLE: readonly string[] = (integrity as any).UNVERIFIABLE_GROUNDING_FAILURES ?? [];
+const buildUnverifiedSealBlock = (mediumMod as any).buildUnverifiedSealBlock as
+  | undefined
+  | ((o: { chatId: number; excludeTurnStartGte?: number }) => { text: string; chars: number; blockCount: number });
+
+const R: Record<string, unknown> = { arm: ARM, hasS1 };
+
+function dialogueOf(window: RealLunaWindow): string {
+  return window.turns
+    .map((t, i) => `[${window.turnStart + i}턴]\n유저: ${t.user}\n${CHAR_NAME}: ${t.assistant}`)
+    .join("\n\n");
+}
+
+function cleanup() {
+  const db = getDb();
+  for (const chatId of [CHAT, CHAT_FORK]) {
+    db.prepare("DELETE FROM episodic_memory_facts WHERE chat_id=?").run(chatId);
+    db.prepare("DELETE FROM chat_turn_summaries WHERE chat_id=?").run(chatId);
+    db.prepare("DELETE FROM chat_memories WHERE chat_id=?").run(chatId);
+    db.prepare("DELETE FROM messages WHERE chat_id=?").run(chatId);
+    db.prepare("DELETE FROM chats WHERE id=?").run(chatId);
+  }
+  db.prepare("DELETE FROM users WHERE id=?").run(USER);
+  db.prepare("DELETE FROM characters WHERE id=?").run(CHAR);
+}
+
+type TurnSeed = { user: string; assistant: string };
+
+function seedTurns(turnList: TurnSeed[]): void {
+  cleanup();
+  const db = getDb();
+  db.prepare(`INSERT INTO users (id, email, nickname, pw_hash) VALUES (?,?,?,?)`).run(
+    USER,
+    `s1-${USER}@test.local`,
+    USER_NAME,
+    "x"
+  );
+  db.prepare(`INSERT INTO characters (id, name) VALUES (?,?)`).run(CHAR, CHAR_NAME);
+  db.prepare(`INSERT INTO chats (id, user_id, character_id, mode) VALUES (?,?,?,'safe')`).run(
+    CHAT,
+    USER,
+    CHAR
+  );
+  getOrCreateChatMemory(CHAT, USER, CHAR, "pro");
+  db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(
+    CHAT,
+    "assistant",
+    "인사.",
+    "greeting"
+  );
+  for (const turn of turnList) {
+    const userId = Number(
+      db
+        .prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`)
+        .run(CHAT, "user", turn.user, "user").lastInsertRowid
+    );
+    db.prepare(
+      `INSERT INTO messages (chat_id, role, content, model, user_message_id) VALUES (?,?,?,?,?)`
+    ).run(CHAT, "assistant", turn.assistant, "test", userId);
+  }
+  updateChatMemory(CHAT, USER, CHAR, { message_count: turnList.length, membership_tier: "pro" });
+  db.prepare(
+    `INSERT INTO messages (chat_id, role, content, model, generation_status) VALUES (?,?,?,'user','submitted')`
+  ).run(CHAT, "user", "다음 장면으로 넘어간다.");
+}
+
+function seedFixtureWindows(windowCount: number): void {
+  seedTurns(fixture.windows.slice(0, windowCount).flatMap((w) => w.turns));
+}
+
+type Stub = (windowStart: number, attempt: number) => string | Error;
+
+function installStub(stub: Stub) {
+  const callsPerStart = new Map<number, number>();
+  let totalCalls = 0;
+  rolling.__setSummarizeTurnBatchCallerForTests(async (_system, history) => {
+    const prompt = history.map((m) => m.content).join("\n");
+    const m = prompt.match(/\[(\d+)~(\d+)턴 원본 대화\]/);
+    const start = Number(m![1]);
+    const attempt = callsPerStart.get(start) ?? 0;
+    callsPerStart.set(start, attempt + 1);
+    totalCalls += 1;
+    const result = stub(start, attempt);
+    if (result instanceof Error) throw result;
+    return { text: result };
+  });
+  return { callsPerStart, calls: () => totalCalls };
+}
+
+async function sealAll(opts: {
+  persona?: string;
+  rounds?: number;
+  allowUnverified: boolean;
+}): Promise<number> {
+  let sealedRounds = 0;
+  for (let round = 0; round < (opts.rounds ?? TOTAL + 4); round++) {
+    const sealed = await rolling.processRollingSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: CHAR_NAME,
+      userPersona: opts.persona,
+      tier: "pro",
+      memoryCapacity: MEMORY_CAPACITY_FIXED,
+      allowUnverifiedSeal: opts.allowUnverified,
+    } as any);
+    if (!sealed) break;
+    sealedRounds += 1;
+  }
+  return sealedRounds;
+}
+
+function recordsOf() {
+  return turnSummary.listMemoryRecordsForChat(CHAT).filter((r) => !r.inactive);
+}
+function labelOf(r: { sealAuthority?: string | null }): string {
+  return (r as any).sealAuthority ?? "normal";
+}
+function frontierOf(turns: number): number {
+  return integrity.highestContiguousCompletedTurn(recordsOf(), turns);
+}
+
+async function buildWire(windowCount: number, persona: string | undefined) {
+  const turns = windowCount * 5;
+  const records = recordsOf();
+  const summarized = frontierOf(turns);
+  const rows = getDb()
+    .prepare(`SELECT role, content, model FROM messages WHERE chat_id=? ORDER BY id`)
+    .all(CHAT) as { role: "user" | "assistant"; content: string; model?: string }[];
+  const allTurns = messagesToTurns(rows);
+  const rawPool = resolveProviderRawPoolExchangeCount({
+    memoryFeatureEnabled: true,
+    completedTurns: turns,
+    summarizedTurnCount: summarized,
+  });
+  const rawHistory = rawRecentTurnsToHistory(allTurns, rawPool, {
+    summarizedTurnCount: summarized,
+    memoryFeatureEnabled: true,
+  });
+  const excludeTurnStartGte = resolveLorebookExcludeFromTrimmedHistory(allTurns, rawHistory);
+  const injection = await buildMemoryContextForChat({
+    chatId: CHAT,
+    userId: USER,
+    characterId: CHAR,
+    tier: "pro",
+    memoryCapacity: MEMORY_CAPACITY_FIXED,
+    userMessage: "다음 장면으로 넘어간다.",
+    excludeSummaryTurnStartGte: excludeTurnStartGte,
+    modelId: "deepseek-v4.1-flash",
+    provider: "cheaperinference",
+  });
+  const unverified = buildUnverifiedSealBlock
+    ? buildUnverifiedSealBlock({ chatId: CHAT, excludeTurnStartGte })
+    : { text: "", chars: 0, blockCount: 0 };
+  const built = buildContext({
+    charName: CHAR_NAME,
+    chunks: [],
+    userNickname: USER_NAME,
+    longTermMemory: injection.text,
+    mediumTermMemoryBlock: injection.mediumTermText,
+    unverifiedSummaryBlock: unverified.text,
+    archiveMemory: injection.archiveText,
+    shortTermHistory: rawHistory,
+    currentUserMessage: "다음 장면으로 넘어간다.",
+    nsfw: false,
+    provider: "cheaperinference",
+    modelId: "deepseek-v4.1-flash",
+    completedTurns: turns,
+    summarizedTurnCount: summarized,
+    chatId: CHAT,
+    userId: USER,
+  } as any);
+  const rawHistoryChars = rawHistory.reduce((n, m) => n + String(m.content).length, 0);
+  const sections = built.meta.trackedSections ?? [];
+  const sec = (id: string) => sections.find((s: any) => s.id === id)?.text ?? "";
+  const systemPrompt = built.systemPrompt as string;
+  const ltmRegion = systemPrompt.match(/<LONG_TERM_MEMORY>[\s\S]*?<\/LONG_TERM_MEMORY>/)?.[0] ?? "";
+  return {
+    records,
+    summarized,
+    excludeTurnStartGte,
+    current: sec("current-memory"),
+    medium: sec("medium-term-memory"),
+    unverifiedSection: sec("unverified-summary"),
+    ltmRegion,
+    systemPrompt,
+    estimatedSystemTokens: (built.meta as any).estimatedSystemTokens as number,
+    wrapperPresent: ltmRegion.length > 0,
+    rawHistoryMessages: rawHistory.length,
+    rawHistoryChars,
+    rawPool,
+    injection,
+    unverified,
+  };
+}
+
+const EVENTS: { key: string; start: number; needle: string }[] = [
+  { key: "sword_promise_user", start: 1, needle: "검을 갈아 주겠다고 약속" },
+  { key: "emotion_shy_1", start: 1, needle: "시선을 피함" },
+  { key: "romance_proposal", start: 6, needle: "연인이 되자고 제안" },
+  { key: "romance_acceptance_interpretive", start: 6, needle: "연인 관계를 시작하기로 함" },
+  { key: "sword_cancel_user", start: 11, needle: "약속을 취소하고 검은 자신이 직접 가겠다고" },
+  { key: "npc_seorin_action", start: 16, needle: "서린이 들어와" },
+  { key: "sister_claim_character", start: 21, needle: "예전부터 아는 사이라고 말했다" },
+  { key: "coffee_action", start: 26, needle: "커피를 저음" },
+  { key: "walk_together", start: 31, needle: "손을 잡고 함께 걸었음" },
+  { key: "breakup_user", start: 36, needle: "우리 그만 헤어지자" },
+];
+
+function locate(wire: Awaited<ReturnType<typeof buildWire>>, windowCount: number) {
+  const out: Record<string, string> = {};
+  for (const e of EVENTS) {
+    if (e.start + 4 > windowCount * 5) continue;
+    const inLtm = wire.ltmRegion.includes(e.needle);
+    const inUnverified = wire.unverifiedSection.includes(e.needle);
+    const inCurrent = wire.current.includes(e.needle) || wire.medium.includes(e.needle);
+    const windowSealed = wire.records.some((r) => r.turnStart === e.start);
+    const rawOwned = e.start >= wire.excludeTurnStartGte;
+    out[e.key] = inLtm
+      ? "established_past(LONG_TERM_MEMORY)"
+      : inUnverified
+        ? "unverified_block(outside wrapper)"
+        : inCurrent
+          ? "memory_section_no_wrapper"
+          : rawOwned
+            ? "raw_history_window"
+            : windowSealed
+              ? "sealed_but_absent_from_wire"
+              : "not_sealed(frontier_stalled)";
+  }
+  return out;
+}
+
+before(() => installIsolatedTestDatabase());
+after(() => {
+  rolling.__setSummarizeTurnBatchCallerForTests(null);
+  rolling.__setCompactCurrentMemoryTestOverride(null);
+  cleanup();
+  uninstallIsolatedTestDatabase();
+  writeFileSync(OUT, JSON.stringify(R, null, 1));
+});
+
+describe(`S1 isolated validation arm=${ARM}`, () => {
+  it("A. guards on the 16 real Luna windows (persona / no persona) + rejection reason", () => {
+    if (!want("A")) return;
+    const rows: unknown[] = [];
+    for (const persona of [USER_PERSONA, undefined]) {
+      for (const w of fixture.windows) {
+        const text = w.lunaOutput.replace(/\s+/g, " ").trim();
+        const dlg = dialogueOf(w);
+        const validate = integrity.validateSummaryNarrative(text, "main_canon");
+        const grounded = integrity.isRollingSummaryGroundedInDialogue(text, dlg, persona, CHAR_NAME);
+        const diag = diagnose ? diagnose(text, dlg, persona, CHAR_NAME) : null;
+        const withoutSequencing = text.replace(/(^|[.。]\s+|,\s*)이후\s+/g, "$1");
+        const groundedWithoutSequencing = integrity.isRollingSummaryGroundedInDialogue(
+          withoutSequencing,
+          dlg,
+          persona,
+          CHAR_NAME
+        );
+        rows.push({
+          persona: persona ? "persona" : "no_persona",
+          window: w.turnStart,
+          chars: text.length,
+          validateOk: validate.ok,
+          validateReason: validate.ok ? null : (validate as any).reason,
+          grounded,
+          diagnose: diag,
+          sequencingOnlyCause: !grounded && validate.ok && groundedWithoutSequencing,
+        });
+      }
+    }
+    R.A_guards16 = rows;
+  });
+
+  it("B. 104 counterexamples: guard verdict + S1 seal outcome class", () => {
+    if (!want("B")) return;
+    const XTAIL = " 두 사람은 밤이 깊도록 불가에서 장작을 정리하며 시간을 보냄.";
+    const derived = cases
+      .filter((c) => c.id.endsWith("|long"))
+      .map((c) => ({ id: c.id.replace(/\|long$/, "|xlong"), window: c.window, summary: c.summary + XTAIL }));
+    const rows = [...cases, ...derived].map((c) => {
+      const w = fixture.windows.find((x) => x.turnStart === c.window)!;
+      const dlg = dialogueOf(w);
+      const validate = integrity.validateSummaryNarrative(c.summary, "main_canon");
+      const grounded =
+        validate.ok &&
+        integrity.isRollingSummaryGroundedInDialogue(c.summary, dlg, USER_PERSONA, CHAR_NAME);
+      const diag = diagnose && validate.ok ? diagnose(c.summary, dlg, USER_PERSONA, CHAR_NAME) : null;
+      let outcome: string;
+      if (grounded) outcome = "normal_seal(established_past)";
+      else if (!validate.ok)
+        outcome = c.summary.length < 80 ? "invalid:too_short(<80,no_seal)" : "invalid(no_seal)";
+      else if (hasS1 && diag && UNVERIFIABLE.includes(diag)) outcome = "unverified_seal(S1)";
+      else outcome = "blocked(no_seal,frontier_stalls)";
+      const family = c.id.split("|")[0]!;
+      const legit = family === "scene-sequencing-ok" || family === "user-promise-ok";
+      return {
+        id: c.id,
+        family,
+        variant: c.id.split("|")[1],
+        window: c.window,
+        chars: c.summary.length,
+        legit,
+        grounded,
+        diagnose: diag,
+        outcome,
+      };
+    });
+    R.B_cases104 = rows;
+  });
+
+  for (const persona of [USER_PERSONA, undefined] as const) {
+    it(`C. 16-window seal pipeline (${persona ? "persona" : "no persona"}), allowUnverified=${hasS1}`, async () => {
+      if (!want("C")) return;
+      seedFixtureWindows(TOTAL);
+      const stub = installStub((start) => fixture.windows.find((w) => w.turnStart === start)!.lunaOutput);
+      const rounds = await sealAll({ persona, allowUnverified: hasS1 });
+      const records = recordsOf();
+      const memory = getOrCreateChatMemory(CHAT, USER, CHAR, "pro");
+      const perWindow = fixture.windows.map((w) => {
+        const rec = records.find((r) => r.turnStart === w.turnStart);
+        return {
+          window: w.turnStart,
+          sealed: !!rec,
+          label: rec ? labelOf(rec) : null,
+          chars: rec?.summary.length ?? null,
+          luna_calls: stub.callsPerStart.get(w.turnStart) ?? 0,
+        };
+      });
+      const key = `C_seal16_${persona ? "persona" : "nopersona"}`;
+      R[key] = {
+        rounds,
+        frontier: frontierOf(TOTAL * 5),
+        summarized_turn_count: memory.summarized_turn_count,
+        total_luna_calls: stub.calls(),
+        normal: perWindow.filter((p) => p.label === "normal").length,
+        unverified: perWindow.filter((p) => p.label === "unverified_summary").length,
+        unsealed: perWindow.filter((p) => !p.sealed).length,
+        stalledAt: perWindow.find((p) => !p.sealed)?.window ?? null,
+        perWindow,
+      };
+    });
+  }
+
+  for (const persona of [USER_PERSONA, undefined] as const) {
+    for (const windowCount of [6, 10, 16]) {
+      it(`D. final wire T${windowCount * 5} (${persona ? "persona" : "no persona"})`, async () => {
+        if (!want("D")) return;
+        seedFixtureWindows(windowCount);
+        const stub = installStub((start) => fixture.windows.find((w) => w.turnStart === start)!.lunaOutput);
+        await sealAll({ persona, allowUnverified: hasS1 });
+        const wire = await buildWire(windowCount, persona);
+        const mediumChars = wire.medium.length;
+        R[`D_wire_T${windowCount * 5}_${persona ? "persona" : "nopersona"}`] = {
+          sealedWindows: wire.records.length,
+          frontier: wire.summarized,
+          stalledAt: fixture.windows.slice(0, windowCount).find((w) => !wire.records.some((r) => r.turnStart === w.turnStart))?.turnStart ?? null,
+          wrapperPresent: wire.wrapperPresent,
+          events: locate(wire, windowCount),
+          chars: {
+            current_memory: wire.current.length,
+            medium: mediumChars,
+            unverified_section: wire.unverifiedSection.length,
+            ltm_region: wire.ltmRegion.length,
+            system_prompt: wire.systemPrompt.length,
+          },
+          estimatedSystemTokens: wire.estimatedSystemTokens,
+          rawHistory: { messages: wire.rawHistoryMessages, chars: wire.rawHistoryChars, pool: wire.rawPool },
+          totalWireChars: wire.systemPrompt.length + wire.rawHistoryChars,
+          lunaCalls: stub.calls(),
+          unverifiedBlockCount: wire.unverified.blockCount,
+          unverifiedSectionPreview: wire.unverifiedSection.slice(0, 600),
+          unverifiedInsideWrapper: wire.records
+            .filter((r) => (r as any).sealAuthority)
+            .some((r) => wire.ltmRegion.includes(r.summary.slice(0, 20))),
+        };
+      });
+    }
+  }
+});
+
+const G_CASE = cases.find((c) => c.id === "lover-hardcue-no-iHu|long" && c.window === 1);
+const G = G_CASE?.summary ?? "";
+const G2 = cases.find((c) => c.id === "mentor-family|long" && c.window === 1)?.summary ?? G;
+
+describe(`S1 non-bypass matrix arm=${ARM}`, () => {
+  const scenarios: {
+    key: string;
+    stub: Stub;
+    seed?: () => void;
+    mutateDuring?: () => void;
+    persona?: string;
+  }[] = [
+    { key: "grounding_only_x3", stub: () => G },
+    { key: "grounding_variants_x3", stub: (_s, a) => (a === 0 ? G : a === 1 ? G2 : G) },
+    { key: "grounding_then_provider_error", stub: (_s, a) => (a < 2 ? G : new Error("provider 503")) },
+    { key: "grounding_then_timeout", stub: (_s, a) => (a < 2 ? G : new Error("ETIMEDOUT")) },
+    { key: "provider_error_x3", stub: () => new Error("provider 503") },
+    { key: "timeout_x3", stub: () => new Error("ETIMEDOUT") },
+    { key: "empty_x3", stub: () => "" },
+    { key: "grounding_then_empty", stub: (_s, a) => (a === 1 ? "" : G) },
+    { key: "grounding_then_echo", stub: (_s, a) => (a === 2 ? "요약 대상 source 턴을 검토함." : G) },
+    { key: "echo_x3", stub: () => "요약 대상 source 턴을 검토함." },
+    { key: "ooc_marker_x3", stub: () => EMPTY_OOC_SUMMARY_MARKER },
+    { key: "too_short_invalid_x3", stub: () => "짧음" },
+    { key: "sparse_unanchored_x3", stub: () => "아무 일도 일어나지 않음." },
+    { key: "grounding_then_invalid_short", stub: (_s, a) => (a === 2 ? "짧음" : G) },
+    {
+      key: "stale_epoch_bump_during_summary",
+      stub: (_s, a) => {
+        if (a === 2) sourceBoundary.invalidateDerivedMemoryGeneration(CHAT);
+        return G;
+      },
+    },
+    {
+      key: "source_reset_boundary_during_summary",
+      stub: (_s, a) => {
+        if (a === 2) {
+          getDb()
+            .prepare(`UPDATE chat_memories SET memory_reset_after_message_id=1 WHERE chat_id=?`)
+            .run(CHAT);
+        }
+        return G;
+      },
+    },
+    {
+      key: "branch_window_IF_turn",
+      stub: () => G,
+      seed: () => {
+        getDb()
+          .prepare(
+            `UPDATE messages SET content='이건 IF 번외로 가볍게 이어서 이야기해 줘.' WHERE id=(SELECT id FROM messages WHERE chat_id=? AND role='user' AND model='user' ORDER BY id LIMIT 1 OFFSET 2)`
+          )
+          .run(CHAT);
+      },
+    },
+    {
+      key: "preference_window",
+      stub: () => G,
+      seed: () => {
+        getDb()
+          .prepare(
+            `UPDATE messages SET content='(OOC: 앞으로는 항상 반말로 짧게 대답해 줘.)' WHERE id=(SELECT id FROM messages WHERE chat_id=? AND role='user' AND model='user' ORDER BY id LIMIT 1 OFFSET 1)`
+          )
+          .run(CHAT);
+      },
+    },
+    {
+      key: "plain_ooc_turn_in_window",
+      stub: () => G,
+      seed: () => {
+        getDb()
+          .prepare(
+            `UPDATE messages SET content='(OOC: 글자 수 좀 늘려줘)' WHERE id=(SELECT id FROM messages WHERE chat_id=? AND role='user' AND model='user' ORDER BY id LIMIT 1 OFFSET 3)`
+          )
+          .run(CHAT);
+      },
+    },
+    {
+      key: "main_adopt_window",
+      stub: () => G,
+      seed: () => {
+        getDb()
+          .prepare(
+            `UPDATE messages SET content='(OOC: 이걸 본편으로 확정해 줘) 장작을 쌓자' WHERE id=(SELECT id FROM messages WHERE chat_id=? AND role='user' AND model='user' ORDER BY id LIMIT 1 OFFSET 2)`
+          )
+          .run(CHAT);
+      },
+    },
+  ];
+
+  for (const sc of scenarios) {
+    it(`E. ${sc.key}`, async () => {
+      if (!want("E")) return;
+      seedFixtureWindows(1);
+      sc.seed?.();
+      const stub = installStub(sc.stub);
+      const sealed = await rolling.processRollingSummaryBatch({
+        chatId: CHAT,
+        userId: USER,
+        characterId: CHAR,
+        charName: CHAR_NAME,
+        userPersona: USER_PERSONA,
+        tier: "pro",
+        memoryCapacity: MEMORY_CAPACITY_FIXED,
+        allowUnverifiedSeal: hasS1,
+      } as any);
+      const rec = recordsOf()[0];
+      (R.E_nonbypass as any) ??= {};
+      (R.E_nonbypass as any)[sc.key] = {
+        sealed,
+        luna_calls: stub.calls(),
+        record: rec ? { label: labelOf(rec), kind: rec.summaryKind, chars: rec.summary.length } : null,
+        lastError: (rolling as any).__getLastSummarizeTurnBatchError?.() ?? null,
+      };
+    });
+  }
+
+  it("E. incomplete window (4 turns) never calls the summarizer", async () => {
+    if (!want("E")) return;
+    seedTurns(fixture.windows[0]!.turns.slice(0, 4));
+    const stub = installStub(() => G);
+    const sealed = await rolling.processRollingSummaryBatch({
+      chatId: CHAT, userId: USER, characterId: CHAR, charName: CHAR_NAME, userPersona: USER_PERSONA,
+      tier: "pro", memoryCapacity: MEMORY_CAPACITY_FIXED, allowUnverifiedSeal: hasS1,
+    } as any);
+    (R.E_nonbypass as any) ??= {};
+    (R.E_nonbypass as any).incomplete_window_4_turns = {
+      sealed, luna_calls: stub.calls(), record: recordsOf()[0] ? "present" : null,
+    };
+  });
+
+  it("E. default (flag omitted) never seals unverified; regen never seals unverified", async () => {
+    if (!want("E")) return;
+    seedFixtureWindows(1);
+    const stub = installStub(() => G);
+    const sealedDefault = await rolling.processRollingSummaryBatch({
+      chatId: CHAT, userId: USER, characterId: CHAR, charName: CHAR_NAME, userPersona: USER_PERSONA,
+      tier: "pro", memoryCapacity: MEMORY_CAPACITY_FIXED,
+    } as any);
+    (R.E_nonbypass as any) ??= {};
+    (R.E_nonbypass as any).flag_omitted = {
+      sealed: sealedDefault, luna_calls: stub.calls(), record: recordsOf()[0] ? "present" : null,
+    };
+
+    // regen over a normal row with an ungrounded candidate keeps the normal row.
+    seedFixtureWindows(1);
+    installStub((start) => fixture.windows.find((w) => w.turnStart === start)!.lunaOutput);
+    await sealAll({ persona: USER_PERSONA, allowUnverified: hasS1, rounds: 1 });
+    const before = recordsOf()[0];
+    installStub(() => G);
+    const regenOk = await rolling.regenerateMemoryRecordBatch({
+      chatId: CHAT, userId: USER, characterId: CHAR, charName: CHAR_NAME, userPersona: USER_PERSONA,
+      tier: "pro", memoryCapacity: MEMORY_CAPACITY_FIXED, turnStart: 1,
+    } as any);
+    const after = recordsOf()[0];
+    (R.E_nonbypass as any).regen_ungrounded_over_normal_row = {
+      regenReturned: regenOk,
+      labelBefore: before ? labelOf(before) : null,
+      labelAfter: after ? labelOf(after) : null,
+      textUnchanged: before?.summary === after?.summary,
+    };
+  });
+});
+
+describe(`S1 lifecycle (fork / regen / edit / delete / variant reconcile / compaction) arm=${ARM}`, () => {
+  const LABELED_WINDOWS = new Set([0, 2, 4, 7]);
+  const normalText = (k: number) =>
+    `${k + 1}번째 구간에서 렌은 라이크와 함께 장작을 쌓고 시장 이야기를 나누었으며 라이크는 묵묵히 일을 이어 갔음. ` +
+    `렌은 다음 날 아침에 쓸 땔감을 미리 정리하자고 말했고 라이크는 고개를 끄덕였음. ` +
+    `두 사람은 불가에 앉아 오늘 있었던 일을 하나씩 되짚으며 천천히 시간을 보냈고 밤이 깊어질 때까지 대화를 이어 감. ` +
+    `구간 ${k + 1}의 마지막에 라이크는 장작더미 옆에 담요를 펴 두고 렌이 쉴 자리를 마련해 주었음. ` +
+    `렌과 라이크는 이 구간에서 계속 장작 일을 하며 별다른 사건 없이 평온한 하루를 보냈음. ` +
+    `라이크는 구간 ${k + 1} 동안 말수가 적었지만 렌이 건넨 따뜻한 차를 두 손으로 받아 천천히 마셨고 렌은 그런 라이크를 바라보며 조용히 웃었음. ` +
+    `두 사람은 다음 날 해야 할 일을 차례대로 나누고 불을 꺼 둔 뒤 각자 자리로 돌아가 잠을 청했음. ` +
+    `구간 ${k + 1}의 새벽에 라이크는 먼저 일어나 물을 길어 왔고 렌은 담요를 개어 한쪽에 쌓아 둔 다음 둘이 함께 조용히 아침 준비를 시작했음.`;
+  const WINDOW_COUNT = 30;
+
+  function lifecycleSeed() {
+    const turns: TurnSeed[] = [];
+    for (let k = 0; k < WINDOW_COUNT; k++) turns.push(...fixture.windows[k % 16]!.turns);
+    seedTurns(turns);
+    const labeledStarts: number[] = [];
+    const unverifiedTextByStart = new Map<number, string>();
+    installStub((start) => {
+      const k = (start - 1) / 5;
+      if (LABELED_WINDOWS.has(k % 16)) {
+        const w = fixture.windows[k % 16]!;
+        const lover = cases.find((c) => c.id === "lover-hardcue-no-iHu|long" && c.window === w.turnStart);
+        if (lover) {
+          const tagged = `${lover.summary} (구간 ${k + 1})`;
+          unverifiedTextByStart.set(start, tagged);
+          return tagged;
+        }
+      }
+      return normalText(k);
+    });
+    return { labeledStarts, unverifiedTextByStart };
+  }
+
+  it("F1. compaction / Global / Medium / stored mirror never contain unverified text", async () => {
+    if (!want("F")) return;
+    const compactInputs: string[] = [];
+    rolling.__setCompactCurrentMemoryTestOverride(async (existing, maxChars) => {
+      compactInputs.push(existing);
+      return existing
+        .split(/\n\n+/)
+        .map((b) => b.replace(/^\[\d+~\d+턴\]\s*/, "").slice(0, 120))
+        .join(" → ")
+        .slice(0, maxChars);
+    });
+    const { unverifiedTextByStart } = lifecycleSeed();
+    const rounds = await sealAll({ persona: USER_PERSONA, allowUnverified: hasS1, rounds: WINDOW_COUNT + 2 });
+    const records = recordsOf();
+    const labeled = records.filter((r) => (r as any).sealAuthority);
+    const unverifiedTexts = [...unverifiedTextByStart.values()];
+    const probes = unverifiedTexts.map((t) => t.replace(/\s+/g, " ").trim());
+    const memory = getChatMemoryRow(CHAT)!;
+    const resolved = resolveGlobalCurrentMemory(CHAT, 10000, { storedRecentSummary: memory.recent_summary });
+    const medium = mediumMod.buildMediumTermMemoryBlockForProjection({
+      chatId: CHAT,
+      blockCount: 15,
+      projectionKind: resolved.projectionKind,
+    });
+    const contains = (hay: string) => probes.filter((p) => hay.includes(p)).length;
+    const unverifiedBlock = buildUnverifiedSealBlock?.({ chatId: CHAT });
+    R.F1_compaction = {
+      rounds,
+      frontier: frontierOf(WINDOW_COUNT * 5),
+      records: records.length,
+      labeledRows: labeled.length,
+      unverifiedCandidateWindows: unverifiedTexts.length,
+      compactionCalls: compactInputs.length,
+      compactInputContainsUnverified: compactInputs.reduce((n, t) => n + contains(t), 0),
+      globalProjectionKind: resolved.projectionKind,
+      globalTextChars: resolved.text.length,
+      globalContainsUnverified: contains(resolved.text),
+      storedRecentSummaryContainsUnverified: contains(memory.recent_summary ?? ""),
+      mediumChars: medium.chars,
+      mediumContainsUnverified: contains(medium.text),
+      unverifiedBlockCount: unverifiedBlock?.blockCount ?? 0,
+      unverifiedBlockContainsAllLabeledProbes: unverifiedBlock
+        ? probes.filter((p) => unverifiedBlock.text.includes(p)).length
+        : 0,
+      probesTotal: probes.length,
+      episodicFactRows: (getDb().prepare(`SELECT COUNT(*) AS n FROM episodic_memory_facts WHERE chat_id=?`).get(CHAT) as any).n,
+      memoryMetaChanged: getChatMemoryRow(CHAT)?.memory_meta ?? null,
+    };
+  });
+
+  it("F2. wire at 150 turns (compacted Global): unverified stays outside the established-past wrapper", async () => {
+    if (!want("F")) return;
+    const wire = await buildWire(WINDOW_COUNT, USER_PERSONA);
+    const labeled = wire.records.filter((r) => (r as any).sealAuthority);
+    const probes = labeled.map((r) => r.summary);
+    R.F2_wire150 = {
+      projectionKind: resolveGlobalCurrentMemory(CHAT, 10000).projectionKind,
+      wrapperPresent: wire.wrapperPresent,
+      labeledRows: labeled.length,
+      probesInsideWrapper: probes.filter((p) => wire.ltmRegion.includes(p)).length,
+      probesInUnverifiedSection: probes.filter((p) => wire.unverifiedSection.includes(p)).length,
+      probesInRawOwnedRegion: labeled.filter((r) => r.turnStart >= wire.excludeTurnStartGte).length,
+      probesTotal: probes.length,
+      chars: {
+        current_memory: wire.current.length,
+        medium: wire.medium.length,
+        unverified: wire.unverifiedSection.length,
+        ltm_region: wire.ltmRegion.length,
+      },
+      estimatedSystemTokens: wire.estimatedSystemTokens,
+      rawHistory: { messages: wire.rawHistoryMessages, chars: wire.rawHistoryChars, pool: wire.rawPool },
+      excludeTurnStartGte: wire.excludeTurnStartGte,
+    };
+  });
+
+  it("F3. user edit clears the label; delete drops the row from the unverified block", async () => {
+    if (!want("F")) return;
+    const labeled = recordsOf().filter((r) => (r as any).sealAuthority);
+    if (labeled.length < 2) {
+      R.F3_edit_delete = { skipped: "fewer than 2 labeled rows", labeled: labeled.length };
+      return;
+    }
+    const target = labeled[0]!;
+    const del = labeled[1]!;
+    const editedText =
+      "렌이 직접 고친 기억: 렌과 라이크는 이 구간에서 장작을 쌓으며 서로의 안부를 물었고 렌이 다음 날 아침 일찍 떠나겠다고 말했음. 라이크는 말없이 고개를 끄덕임.";
+    const updated = turnSummary.updateMemoryRecordById(CHAT, target.id, editedText);
+    const unverifiedAfterEdit = buildUnverifiedSealBlock?.({ chatId: CHAT });
+    const global = turnSummary.rebuildLorebookFromRecords(CHAT);
+    const markedInactive = turnSummary.markMemoryRecordInactive(CHAT, del.id);
+    const unverifiedAfterDelete = buildUnverifiedSealBlock?.({ chatId: CHAT });
+    const globalAfterDelete = turnSummary.rebuildLorebookFromRecords(CHAT);
+    R.F3_edit_delete = {
+      labelAfterEdit: updated ? labelOf(updated) : null,
+      userEditedFlag: updated?.userEdited ?? null,
+      editedTextInGlobalRebuild: global.includes(editedText.slice(0, 20)),
+      editedTextInUnverifiedBlock: unverifiedAfterEdit?.text.includes(editedText.slice(0, 20)) ?? false,
+      deletedRowInUnverifiedBlock: unverifiedAfterDelete?.text.includes(del.summary) ?? false,
+      deletedRowInGlobalRebuild: globalAfterDelete.includes(del.summary),
+      markedInactive,
+    };
+  });
+
+  it("F4. variant-switch reconcile rewrites the Global mirror without unverified text", () => {
+    if (!want("F")) return;
+    const labeled = recordsOf().filter((r) => (r as any).sealAuthority);
+    const normal = recordsOf().find((r) => !(r as any).sealAuthority && r.turnStart > 100);
+    if (!normal) {
+      R.F4_variant_reconcile = { skipped: "no normal row beyond turn 100 (seal frontier stalled)", records: recordsOf().length };
+      return;
+    }
+    const probes = labeled.map((r) => r.summary);
+    const result = variantReconcile.reconcileMemoryAfterVariantSwitchCore(getDb() as any, {
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      tier: "pro",
+      memoryCapacity: MEMORY_CAPACITY_FIXED,
+      sourceTurn: normal.turnStart + 1,
+      enabled: true,
+    } as any);
+    const mirror = getChatMemoryRow(CHAT)?.recent_summary ?? "";
+    R.F4_variant_reconcile = {
+      attempted: result.attempted,
+      inactivated: result.inactivatedRecordIds.length,
+      labeledRowsRemaining: labeled.length,
+      mirrorChars: mirror.length,
+      mirrorContainsUnverified: probes.filter((p) => mirror.includes(p)).length,
+    };
+  });
+
+  it("F5. fork copies the label and a regen of a labeled row clears it only on a grounded result", async () => {
+    if (!want("F")) return;
+    seedFixtureWindows(TOTAL);
+    installStub((start) => fixture.windows.find((w) => w.turnStart === start)!.lunaOutput);
+    // Force window 1 to be labeled by sealing it with an ungrounded candidate first.
+    cleanup();
+    seedFixtureWindows(2);
+    installStub((start) => (start === 1 ? G : fixture.windows.find((w) => w.turnStart === start)!.lunaOutput));
+    await sealAll({ persona: USER_PERSONA, allowUnverified: hasS1, rounds: 3 });
+    const before = recordsOf().map((r) => ({ start: r.turnStart, label: labelOf(r) }));
+
+    const db = getDb();
+    db.prepare(`INSERT INTO chats (id, user_id, character_id, mode) VALUES (?,?,?,'safe')`).run(CHAT_FORK, USER, CHAR);
+    getOrCreateChatMemory(CHAT_FORK, USER, CHAR, "pro");
+    const srcMessages = db.prepare(`SELECT id, role, content, model, user_message_id FROM messages WHERE chat_id=? ORDER BY id`).all(CHAT) as any[];
+    const idMap = new Map<number, number>();
+    for (const m of srcMessages) {
+      const newId = Number(
+        db
+          .prepare(`INSERT INTO messages (chat_id, role, content, model, generation_status) VALUES (?,?,?,?,'completed')`)
+          .run(CHAT_FORK, m.role, m.content, m.model ?? "test").lastInsertRowid
+      );
+      idMap.set(m.id, newId);
+    }
+    const lastSrcId = srcMessages[srcMessages.length - 1].id as number;
+    const copied = forkSnapshot.copyForkTurnSummaries(db as any, {
+      sourceChatId: CHAT,
+      newChatId: CHAT_FORK,
+      forkTurnCount: 10,
+      forkMessageId: lastSrcId,
+      messageIdMap: idMap,
+    });
+    const forkRecords = turnSummary.listMemoryRecordsForChat(CHAT_FORK).filter((r) => !r.inactive);
+    const forkLabels = forkRecords.map((r) => ({ start: r.turnStart, label: labelOf(r) }));
+    const forkLorebook = turnSummary.rebuildLorebookFromRecords(CHAT_FORK);
+
+    // regen: ungrounded candidate keeps the labeled row; grounded candidate clears the label.
+    installStub(() => G);
+    const regenUngrounded = await rolling.regenerateMemoryRecordBatch({
+      chatId: CHAT, userId: USER, characterId: CHAR, charName: CHAR_NAME, userPersona: USER_PERSONA,
+      tier: "pro", memoryCapacity: MEMORY_CAPACITY_FIXED, turnStart: 1,
+    } as any);
+    const labelAfterUngroundedRegen = (() => { const r = recordsOf().find((x) => x.turnStart === 1); return r ? labelOf(r) : "absent"; })();
+    installStub((start) => fixture.windows.find((w) => w.turnStart === start)!.lunaOutput);
+    const regenGrounded = await rolling.regenerateMemoryRecordBatch({
+      chatId: CHAT, userId: USER, characterId: CHAR, charName: CHAR_NAME, userPersona: USER_PERSONA,
+      tier: "pro", memoryCapacity: MEMORY_CAPACITY_FIXED, turnStart: 1,
+    } as any);
+    const afterGrounded = recordsOf().find((r) => r.turnStart === 1);
+    R.F5_fork_regen = {
+      labelsBeforeFork: before,
+      copiedRows: copied,
+      forkLabels,
+      forkLorebookContainsUnverified: forkLorebook.includes(G.slice(0, 18)),
+      forkLorebookChars: forkLorebook.length,
+      regenUngroundedReturned: regenUngrounded,
+      labelAfterUngroundedRegen,
+      regenGroundedReturned: regenGrounded,
+      labelAfterGroundedRegen: afterGrounded ? labelOf(afterGrounded) : "absent",
+      textAfterGroundedRegen: afterGrounded?.summary.slice(0, 60) ?? null,
+    };
+  });
+
+  it("F6. fork route evidence SQL excludes unverified summaries (route query replica)", () => {
+    if (!want("F")) return;
+    const routeSql = readFileSync(`${process.cwd()}/src/app/api/chat/fork/route.ts`, "utf8");
+    R.F6_fork_route_sql_has_label_filter = /json_extract\(scope_payload, '\$\.sealAuthority'\)/.test(routeSql);
+  });
+});

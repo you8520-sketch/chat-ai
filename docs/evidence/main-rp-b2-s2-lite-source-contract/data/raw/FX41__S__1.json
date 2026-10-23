@@ -1,0 +1,46 @@
+{
+ "id": "FX41",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"ライ크는 41~45번째 장작을 차례로 쌓음. 그 외 변화나 관계 전환 없음.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":41,\"sourceRole\":\"assistant\",\"quote\":\"ライ크는 41번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":42,\"sourceRole\":\"assistant\",\"quote\":\"ライ크는 42번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":43,\"sourceRole\":\"assistant\",\"quote\":\"ライ크는 43번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":44,\"sourceRole\":\"assistant\",\"quote\":\"ライ크는 44번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":45,\"sourceRole\":\"assistant\",\"quote\":\"ライ크는 45번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 1986,
+  "outputTokens": 249,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1984,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000093,
+  "upstreamCostUsd": 0.000093,
+  "debugRawUsage": {
+   "completion_tokens": 249,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1986,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1984
+   },
+   "total_tokens": 2235,
+   "cost": 0.000093,
+   "cost_details": {
+    "upstream_inference_cost": 0.000093
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "e697b575-249b-4249-b45f-82e698625cb1"
+ },
+ "billedUsd": 0.000093,
+ "ms": 3350,
+ "systemChars": 3460,
+ "userChars": 617
+}

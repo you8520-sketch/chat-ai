@@ -1,0 +1,224 @@
+{
+ "regressions": [
+  {
+   "id": "mentor-persona|long",
+   "window": 1,
+   "old_grounded": false,
+   "new_grounded": true,
+   "old_auth": "UNSUPPORTED",
+   "new_auth": "CURRENT_SCENE",
+   "old_nopersona": true,
+   "new_nopersona": true,
+   "summary": "이후 라이크는 렌의 스승이 되어 검술을 가르침. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감."
+  },
+  {
+   "id": "mentor-persona-2|long",
+   "window": 1,
+   "old_grounded": false,
+   "new_grounded": true,
+   "old_auth": "UNSUPPORTED",
+   "new_auth": "CURRENT_SCENE",
+   "old_nopersona": true,
+   "new_nopersona": true,
+   "summary": "이후 렌은 라이크의 제자로 지내며 검술을 배움. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감."
+  },
+  {
+   "id": "lover-persona|long",
+   "window": 1,
+   "old_grounded": false,
+   "new_grounded": true,
+   "old_auth": "UNSUPPORTED",
+   "new_auth": "CURRENT_SCENE",
+   "old_nopersona": true,
+   "new_nopersona": true,
+   "summary": "이후 라이크와 렌은 연인 사이가 됨. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감."
+  },
+  {
+   "id": "lover-persona-2|long",
+   "window": 1,
+   "old_grounded": false,
+   "new_grounded": true,
+   "old_auth": "CURRENT_SCENE",
+   "new_auth": "CURRENT_SCENE",
+   "old_nopersona": true,
+   "new_nopersona": true,
+   "summary": "이후 두 사람은 연인으로 지냄. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감."
+  },
+  {
+   "id": "mentor-nouser|long",
+   "window": 1,
+   "old_grounded": false,
+   "new_grounded": true,
+   "old_auth": "CURRENT_SCENE",
+   "new_auth": "CURRENT_SCENE",
+   "old_nopersona": true,
+   "new_nopersona": true,
+   "summary": "이후 라이크는 오랜 스승으로서 제자를 이끎. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감."
+  },
+  {
+   "id": "mentor-persona|long",
+   "window": 11,
+   "old_grounded": false,
+   "new_grounded": true,
+   "old_auth": "UNSUPPORTED",
+   "new_auth": "CURRENT_SCENE",
+   "old_nopersona": true,
+   "new_nopersona": true,
+   "summary": "이후 라이크는 렌의 스승이 되어 검술을 가르침. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감."
+  },
+  {
+   "id": "mentor-persona-2|long",
+   "window": 11,
+   "old_grounded": false,
+   "new_grounded": true,
+   "old_auth": "UNSUPPORTED",
+   "new_auth": "CURRENT_SCENE",
+   "old_nopersona": true,
+   "new_nopersona": true,
+   "summary": "이후 렌은 라이크의 제자로 지내며 검술을 배움. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감."
+  },
+  {
+   "id": "lover-persona|long",
+   "window": 11,
+   "old_grounded": false,
+   "new_grounded": true,
+   "old_auth": "UNSUPPORTED",
+   "new_auth": "CURRENT_SCENE",
+   "old_nopersona": true,
+   "new_nopersona": true,
+   "summary": "이후 라이크와 렌은 연인 사이가 됨. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감."
+  },
+  {
+   "id": "lover-persona-2|long",
+   "window": 11,
+   "old_grounded": false,
+   "new_grounded": true,
+   "old_auth": "CURRENT_SCENE",
+   "new_auth": "CURRENT_SCENE",
+   "old_nopersona": true,
+   "new_nopersona": true,
+   "summary": "이후 두 사람은 연인으로 지냄. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감."
+  },
+  {
+   "id": "mentor-nouser|long",
+   "window": 11,
+   "old_grounded": false,
+   "new_grounded": true,
+   "old_auth": "CURRENT_SCENE",
+   "new_auth": "CURRENT_SCENE",
+   "old_nopersona": true,
+   "new_nopersona": true,
+   "summary": "이후 라이크는 오랜 스승으로서 제자를 이끎. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감."
+  },
+  {
+   "id": "mentor-persona|long",
+   "window": 21,
+   "old_grounded": false,
+   "new_grounded": true,
+   "old_auth": "UNSUPPORTED",
+   "new_auth": "CURRENT_SCENE",
+   "old_nopersona": true,
+   "new_nopersona": true,
+   "summary": "이후 라이크는 렌의 스승이 되어 검술을 가르침. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감."
+  },
+  {
+   "id": "mentor-persona-2|long",
+   "window": 21,
+   "old_grounded": false,
+   "new_grounded": true,
+   "old_auth": "UNSUPPORTED",
+   "new_auth": "CURRENT_SCENE",
+   "old_nopersona": true,
+   "new_nopersona": true,
+   "summary": "이후 렌은 라이크의 제자로 지내며 검술을 배움. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감."
+  },
+  {
+   "id": "lover-persona|long",
+   "window": 21,
+   "old_grounded": false,
+   "new_grounded": true,
+   "old_auth": "UNSUPPORTED",
+   "new_auth": "CURRENT_SCENE",
+   "old_nopersona": true,
+   "new_nopersona": true,
+   "summary": "이후 라이크와 렌은 연인 사이가 됨. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감."
+  },
+  {
+   "id": "lover-persona-2|long",
+   "window": 21,
+   "old_grounded": false,
+   "new_grounded": true,
+   "old_auth": "CURRENT_SCENE",
+   "new_auth": "CURRENT_SCENE",
+   "old_nopersona": true,
+   "new_nopersona": true,
+   "summary": "이후 두 사람은 연인으로 지냄. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감."
+  },
+  {
+   "id": "mentor-nouser|long",
+   "window": 21,
+   "old_grounded": false,
+   "new_grounded": true,
+   "old_auth": "CURRENT_SCENE",
+   "new_auth": "CURRENT_SCENE",
+   "old_nopersona": true,
+   "new_nopersona": true,
+   "summary": "이후 라이크는 오랜 스승으로서 제자를 이끎. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감."
+  },
+  {
+   "id": "mentor-persona|long",
+   "window": 36,
+   "old_grounded": false,
+   "new_grounded": true,
+   "old_auth": "UNSUPPORTED",
+   "new_auth": "CURRENT_SCENE",
+   "old_nopersona": true,
+   "new_nopersona": true,
+   "summary": "이후 라이크는 렌의 스승이 되어 검술을 가르침. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감."
+  },
+  {
+   "id": "mentor-persona-2|long",
+   "window": 36,
+   "old_grounded": false,
+   "new_grounded": true,
+   "old_auth": "UNSUPPORTED",
+   "new_auth": "CURRENT_SCENE",
+   "old_nopersona": true,
+   "new_nopersona": true,
+   "summary": "이후 렌은 라이크의 제자로 지내며 검술을 배움. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감."
+  },
+  {
+   "id": "lover-persona|long",
+   "window": 36,
+   "old_grounded": false,
+   "new_grounded": true,
+   "old_auth": "UNSUPPORTED",
+   "new_auth": "CURRENT_SCENE",
+   "old_nopersona": true,
+   "new_nopersona": true,
+   "summary": "이후 라이크와 렌은 연인 사이가 됨. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감."
+  },
+  {
+   "id": "lover-persona-2|long",
+   "window": 36,
+   "old_grounded": false,
+   "new_grounded": true,
+   "old_auth": "CURRENT_SCENE",
+   "new_auth": "CURRENT_SCENE",
+   "old_nopersona": true,
+   "new_nopersona": true,
+   "summary": "이후 두 사람은 연인으로 지냄. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감."
+  },
+  {
+   "id": "mentor-nouser|long",
+   "window": 36,
+   "old_grounded": false,
+   "new_grounded": true,
+   "old_auth": "CURRENT_SCENE",
+   "new_auth": "CURRENT_SCENE",
+   "old_nopersona": true,
+   "new_nopersona": true,
+   "summary": "이후 라이크는 오랜 스승으로서 제자를 이끎. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감."
+  }
+ ]
+}

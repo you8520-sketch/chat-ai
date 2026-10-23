@@ -1,0 +1,46 @@
+{
+ "id": "N13_journey_sequence",
+ "arm": "F",
+ "rep": 0,
+ "text": "렌과 라이크는 시장에서 며칠치 식량과 횃불 심지, 낡은 칼집 끈을 구입함. 렌이 짐을 고쳐 메자 라이크는 짐을 나눠 들겠다고 했고, 렌이 자루를 건네자 받아 여관까지 옮김. 렌이 서린에게 저녁을 묻자 서린은 남은 수프를 데워 주기로 했으며, 라이크는 사 온 빵을 둘 자리를 확인하고 자루를 카운터 옆에 내려놓음.",
+ "usage": {
+  "inputTokens": 2518,
+  "outputTokens": 132,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2516,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000247,
+  "upstreamCostUsd": 0.000247,
+  "debugRawUsage": {
+   "completion_tokens": 132,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2518,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2516,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2650,
+   "cost": 0.000247,
+   "cost_details": {
+    "upstream_inference_cost": 0.000247
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "c86559c1-3206-4d52-80e1-967fa2a65969"
+ },
+ "billedUsd": 0.000247,
+ "ms": 2425,
+ "systemChars": 2503,
+ "userChars": 1997
+}

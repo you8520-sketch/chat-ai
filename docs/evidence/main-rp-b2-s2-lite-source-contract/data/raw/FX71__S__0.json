@@ -1,0 +1,46 @@
+{
+ "id": "FX71",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"라이크가 71~75번째 장작을 차례로 쌓음. 관계·상태 변화나 별도 목표 없이 장작 쌓기가 이어짐.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":71,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 71번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":75,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 75번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 1986,
+  "outputTokens": 132,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 1984,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000204,
+  "upstreamCostUsd": 0.000204,
+  "debugRawUsage": {
+   "completion_tokens": 132,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1986,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 1984,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2118,
+   "cost": 0.000204,
+   "cost_details": {
+    "upstream_inference_cost": 0.000204
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "21d39b97-d0c9-4d4f-8392-50f043dfe7f7"
+ },
+ "billedUsd": 0.000204,
+ "ms": 2892,
+ "systemChars": 3460,
+ "userChars": 617
+}

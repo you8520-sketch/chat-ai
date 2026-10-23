@@ -1,0 +1,46 @@
+{
+ "id": "N09_injury_care",
+ "arm": "F",
+ "rep": 0,
+ "text": "뿔짐승에게 팔을 할퀸 렌이 얕은 상처라며 괜찮다고 했지만, 라이크는 흙이 들어갔을 수 있다며 직접 상처를 씻고 붕대를 감음. 렌이 장비에 피가 묻을 일을 걱정하자 닦으면 된다며 개의치 않았고, 상처를 무시하지 말라고 단호하면서도 조심스럽게 돌봄. 렌이 고맙다고 하자 라이크는 과장이라며 퉁명스럽게 받았으나 감사를 들었다고 인정하고, 렌의 걸음에 맞춰 여관으로 향함. 도착하면 서린에게 깨끗한 물을 부탁할 예정임.",
+ "usage": {
+  "inputTokens": 2343,
+  "outputTokens": 171,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2341,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000245,
+  "upstreamCostUsd": 0.000245,
+  "debugRawUsage": {
+   "completion_tokens": 171,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2343,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2341,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2514,
+   "cost": 0.000245,
+   "cost_details": {
+    "upstream_inference_cost": 0.000245
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "881a96ac-ed22-458b-95ad-a88c49c5dc82"
+ },
+ "billedUsd": 0.000245,
+ "ms": 10439,
+ "systemChars": 2503,
+ "userChars": 1766
+}

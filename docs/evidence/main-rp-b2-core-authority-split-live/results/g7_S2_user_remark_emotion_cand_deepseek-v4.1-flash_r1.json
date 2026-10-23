@@ -1,0 +1,41 @@
+{
+  "caseId": "g7_S2_user_remark_emotion_cand_deepseek-v4.1-flash_r1",
+  "wireCase": "g7_S2_user_remark_emotion_cand_deepseek-v4.1-flash",
+  "arm": "cand",
+  "sceneId": "S2_user_remark_emotion",
+  "modelId": "deepseek-v4.1-flash",
+  "wireModel": "deepseek-v4.1-flash",
+  "provider": "cheaperinference",
+  "postIndex": 8,
+  "startedAt": "2026-10-12T09:53:14.868Z",
+  "httpStatus": 200,
+  "requestId": null,
+  "ok": true,
+  "aborted": false,
+  "text": "라이크의 손이 멈췄다. 81번째로 올리려던 장작이 허공에서 잠깐 머물다가, 결국 반쯤 기운 채 내려와 장작더미 위에 비스듬히 걸렸다. 손바닥에 붙은 나무껍질 부스러기가 파닥거리며 떨어졌다.\n\n기억나냐는 물음이었다. 그 말이 끝난 뒤의 정적이 장작 패는 소리보다 컸다.\n\n라이크는 시선을 장작더미 쪽으로 둔 채였다. 처음 만난 날, 렌이 툭 던진 그 한마디는 짧았지만 정확했다. 검을 쥔 손이 굳어 있었고, 발 디딤이 어설펐고, 무엇보다 검이 날이 무뎠다. 그걸 훈련장 구석에서 지켜보던 사람이 아마추어 같다고 말했을 때, 라이크는 반박하지 못했다. 반박할 근거가 없었으니까. 그저 입술을 깨물고 시선을 피했던 것뿐이다.\n\n그런데 그 말을 지금, 이런 자리에서 꺼내다니.\n\n\"…기억합니다.\"\n\n대답은 짧았다. 하지만 곧바로 다음 말이 이어지지는 않았다. 라이크는 걸터앉은 장작을 다시 곧게 세워 올렸다. 손끝으로 나무의 결을 한 번 훑고 나서야 입을 열었다.\n\n\"그때는… 맞는 말이었습니다. 지금도 그 말이 틀렸다고 하기는 어렵고요.\"\n\n스스로 인정하는 목소리에는 변명이 섞이지 않았다. 부족함을 아는 사람의 말투였다. 그 대신 시선이 렌 쪽으로 조금 돌아왔다. 완전히 마주 보지는 않았지만, 옆얼굴에 걸린 시선은 분명히 렌을 향하고 있었다.\n\n\"그런데 왜 갑자기 그 얘기를 꺼내는 겁니까.\"\n\n질문이었다. 대답을 요구하는 게 아니라, 진짜 궁금해서 하는 질문. 장작을 쌓는 손은 다시 움직이기 시작했지만, 속도는 눈에 띄게 느려져 있었다. 하나를 쌓고, 결을 맞추고, 다음 것을 집어 드는 동작 사이에 평소보다 긴 숨이 들어갔다. 불 옆에 놓인 주전자에서는 김이 가늘게 올라오고 있었고, 타닥거리는 장작 소리가 두 사람 사이의 침묵을 메우고 있었다.\n\n\"그날 이후로 저는 계속 검을 갈았습니다. 아침마다, 밤마다. 아마추어라는 말을 다시 듣고 싶지 않아서가 아니라… 그 말이 틀렸다고, 언젠가 한 번은 말할 수 있는 사람이 되고 싶어서요.\"\n\n말을 마치고 라이크는 81번째 장작을 쌓았다. 이번에는 흔들리지 않았다. 제자리에 곧게 박혔다. 그리고 렌에게서 시선을 거두지 않은 채, 장작더미 위에 남은 나무껍질 조각 하나를 툭 쳐서 떨어뜨렸다.",
+  "usage": {
+    "prompt_tokens": 6379,
+    "completion_tokens": 804,
+    "total_tokens": 7183,
+    "prompt_tokens_details": {
+      "cached_tokens": 4608
+    },
+    "prompt_cache_hit_tokens": 4608,
+    "prompt_cache_miss_tokens": 1771
+  },
+  "resolvedModel": "deepseek-v4.1-flash",
+  "providerId": "c6aff091-130a-4b57-838d-eb1be221381f",
+  "finishReason": "stop",
+  "sawDone": true,
+  "reasoningChars": 0,
+  "firstByteMs": 1637,
+  "latencyMs": 9556,
+  "cost": {
+    "usdNoCacheDiscount": 0.0007196249999999999,
+    "usdWithCache": 0.000380937,
+    "reportedCost": null
+  },
+  "budgetedUsd": 0.0007196249999999999,
+  "cumulativeBudgetedKrw": 11.2,
+  "cursorQualityScore": null
+}

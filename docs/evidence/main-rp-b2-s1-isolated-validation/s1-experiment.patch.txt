@@ -1,0 +1,552 @@
+# S1 isolated experiment patch (diff 4d6862c7 #1591 head -> experiment). NOT applied to any product branch.
+diff --git a/src/app/api/chat/fork/route.ts b/src/app/api/chat/fork/route.ts
+index 3efad836..a9d07b1c 100644
+--- a/src/app/api/chat/fork/route.ts
++++ b/src/app/api/chat/fork/route.ts
+@@ -93,6 +93,7 @@ export async function POST(req: Request) {
+     .prepare(
+       `SELECT summary FROM chat_turn_summaries
+        WHERE chat_id=? AND turn_end IS NOT NULL AND turn_end <= ?
++         AND COALESCE(json_extract(scope_payload, '$.sealAuthority'), '') = ''
+        ORDER BY turn_number ASC`
+     )
+     .all(cId, memoryEligibleForkTurnCount) as { summary: string }[];
+diff --git a/src/lib/memory/memory-fork-snapshot.ts b/src/lib/memory/memory-fork-snapshot.ts
+index bc563579..776128b8 100644
+--- a/src/lib/memory/memory-fork-snapshot.ts
++++ b/src/lib/memory/memory-fork-snapshot.ts
+@@ -200,6 +200,7 @@ function rewindScopePayloadToFork(opts: {
+     sourceMessageIds: remappedSourceMessageIds.length > 0 ? remappedSourceMessageIds : undefined,
+     branchControlMutations: remappedMutations.length > 0 ? remappedMutations : undefined,
+     inactive: inactive === 1 ? true : parsed.inactive,
++    sealAuthority: parsed.sealAuthority,
+   };
+
+   return {
+diff --git a/src/lib/memory/memory-medium-term.ts b/src/lib/memory/memory-medium-term.ts
+index c177fcc9..c7dda8d4 100644
+--- a/src/lib/memory/memory-medium-term.ts
++++ b/src/lib/memory/memory-medium-term.ts
+@@ -2,6 +2,7 @@ import type { GlobalProjectionKind } from "./memory-global-projection";
+ import { RAW_HISTORY_COMPLETE_EXCHANGES, ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
+ import {
+   listPromptInjectibleMemoryRecords,
++  listUnverifiedSealRecords,
+   resolvePromptInjectibleMemoryRecordBody,
+   type MemoryRecordView,
+ } from "./memory-turn-summary";
+@@ -152,3 +153,32 @@ export function sealedSummaryRangesThrough(summarizedThrough: number): MediumTer
+   }
+   return ranges;
+ }
++
++export const UNVERIFIED_SUMMARY_RULE =
++  "아래 요약은 대화 원문과의 대조를 통과하지 못한 미확인 요약이다. 확정된 과거 사실이 아니다. 이 요약만을 근거로 사건이 있었다고 단정하거나 인물 관계를 정하지 말고, 장면 흐름 참고로만 사용하라.";
++
++/**
++ * Unverified-seal projection from chat_turn_summaries — rendered outside the established-past
++ * (Global / Medium) channel. Same ring size and RAW cutoff as Medium; read-only.
++ */
++export function buildUnverifiedSealBlock(opts: {
++  chatId: number;
++  blockCount?: number;
++  excludeTurnStartGte?: number;
++}): MediumTermMemoryAssembly {
++  const eligible = listUnverifiedSealRecords(opts.chatId, {
++    excludeTurnStartGte: opts.excludeTurnStartGte,
++  });
++  const blockCount = opts.blockCount ?? MEDIUM_TERM_BLOCK_COUNT;
++  if (eligible.length === 0 || blockCount <= 0) return EMPTY_MEDIUM_TERM;
++  const ring = eligible.slice(-Math.min(blockCount, eligible.length));
++  const text = ring
++    .map((record) => `[미확인 요약 · T${record.turnStart}–${record.turnEnd}]\n${record.summary.trim()}`)
++    .join("\n\n");
++  return {
++    text,
++    blockCount: ring.length,
++    chars: text.length,
++    turnRanges: ring.map((record) => ({ turnStart: record.turnStart, turnEnd: record.turnEnd })),
++  };
++}
+diff --git a/src/lib/memory/memory-rolling-summary.ts b/src/lib/memory/memory-rolling-summary.ts
+index 4f8149fb..077a015e 100644
+--- a/src/lib/memory/memory-rolling-summary.ts
++++ b/src/lib/memory/memory-rolling-summary.ts
+@@ -50,9 +50,10 @@ import type { ChatMemoryRow, MemoryTier } from "./memory-types";
+ import {
+   buildEmptyOocBatchPlaceholder,
+   earliestMissingBatchStart,
++  diagnoseRollingSummaryGrounding,
+   highestContiguousCompletedTurn,
+-  isRollingSummaryGroundedInDialogue,
+   resolveBatchStartForTurnNumber,
++  UNVERIFIABLE_GROUNDING_FAILURES,
+   validateSummaryNarrative,
+ } from "./memory-summary-integrity";
+ import {
+@@ -68,6 +69,7 @@ import {
+   type BranchStatus,
+   type MemorySummaryScope,
+   type ScopePayloadV1,
++  type SealAuthority,
+ } from "./memory-summary-scope";
+
+ /** Post-persist branch control ops, ordered by source turn (compose must not apply these). */
+@@ -293,8 +295,7 @@ export function __setPersistForceFailAfterBranchOpsForTests(fail: boolean): void
+   persistForceFailAfterBranchOpsForTests = fail;
+ }
+
+-/** @internal exported for unit tests */
+-export async function summarizeTurnBatch(opts: {
++export type SummarizeTurnBatchOptions = {
+   dialogue: string;
+   charName: string;
+   characterIdentity?: string | null;
+@@ -304,7 +305,23 @@ export async function summarizeTurnBatch(opts: {
+   userPersona?: string | null;
+   openingPrelude?: string | null;
+   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
+-}): Promise<string> {
++};
++
++export type SummarizeTurnBatchResult = {
++  text: string;
++  /** "unverified_summary" only when every attempt failed grounding on an unsupported assertion. */
++  sealAuthority?: SealAuthority;
++};
++
++/** @internal exported for unit tests */
++export async function summarizeTurnBatch(opts: SummarizeTurnBatchOptions): Promise<string> {
++  return (await summarizeTurnBatchWithAuthority(opts, { allowUnverifiedSeal: false })).text;
++}
++
++export async function summarizeTurnBatchWithAuthority(
++  opts: SummarizeTurnBatchOptions,
++  policy: { allowUnverifiedSeal: boolean }
++): Promise<SummarizeTurnBatchResult> {
+   const personaBlock = opts.userPersona?.trim()
+     ? `\n\n[유저 페르소나 — 성별·호칭·신체 묘사 절대 준수]\n${opts.userPersona.trim()}`
+     : "";
+@@ -339,6 +356,8 @@ export async function summarizeTurnBatch(opts: {
+     ((system, history, turnTrace, requestKind) =>
+       callBackgroundMemory(system, history, turnTrace, requestKind));
+
++  let lastUnsupported: string | null = null;
++  let onlyUnsupportedAssertionFailures = true;
+   for (let attempt = 0; attempt < 3; attempt++) {
+     try {
+       const { text } = await callLlm(
+@@ -349,16 +368,22 @@ export async function summarizeTurnBatch(opts: {
+       );
+       const first = finishSummary(text);
+       const narrative = validateSummaryNarrative(first, "main_canon");
+-      const grounded = narrative.ok
+-        ? isRollingSummaryGroundedInDialogue(
++      const groundingFailure = narrative.ok
++        ? diagnoseRollingSummaryGrounding(
+             narrative.text,
+             opts.dialogue,
+             opts.userPersona,
+             opts.charName
+           )
+-        : false;
++        : null;
++      const grounded = narrative.ok && groundingFailure === null;
+       if (narrative.ok && grounded) {
+-        return narrative.text;
++        return { text: narrative.text };
++      }
++      if (narrative.ok && groundingFailure && UNVERIFIABLE_GROUNDING_FAILURES.includes(groundingFailure)) {
++        lastUnsupported = narrative.text;
++      } else {
++        onlyUnsupportedAssertionFailures = false;
+       }
+       lastSummarizeTurnBatchError = narrative.ok
+         ? "SUMMARY_NOT_GROUNDED"
+@@ -373,6 +398,7 @@ export async function summarizeTurnBatch(opts: {
+         rejectedSummaryPreview: first.slice(0, 400),
+       });
+     } catch (e) {
++      onlyUnsupportedAssertionFailures = false;
+       const msg = (e as Error).message ?? String(e);
+       lastSummarizeTurnBatchError = msg.slice(0, 300);
+       console.warn(
+@@ -383,8 +409,12 @@ export async function summarizeTurnBatch(opts: {
+     }
+   }
+
++  if (policy.allowUnverifiedSeal && onlyUnsupportedAssertionFailures && lastUnsupported) {
++    return { text: lastUnsupported, sealAuthority: "unverified_summary" };
++  }
++
+   // Empty return preserves prior valid summary (caller must not overwrite with blank).
+-  return "";
++  return { text: "" };
+ }
+
+ function logLorebookCompact(opts: {
+@@ -560,6 +590,7 @@ type ComposedBatchScope =
+        * Typical: reopen_branch → close_active_branches (resume then close/adopt).
+        */
+       pendingBranchControlOps: PendingBranchControlOp[];
++      sealAuthority?: SealAuthority;
+     }
+   | { ok: false; reason: string; detail?: string | null };
+
+@@ -586,6 +617,8 @@ export async function composeBatchScopePayload(opts: {
+   existingRecord?: MemoryRecordView | null;
+   previousWasNoncanonOrBranch: boolean;
+   priorRecords: MemoryRecordView[];
++  /** Fresh live seal only; regen, migration and branch/preference windows never seal unverified. */
++  allowUnverifiedSeal?: boolean;
+ }): Promise<ComposedBatchScope> {
+   // Deterministic sole-closed reopen candidate (pending only — no DB mutation here).
+   const hasActivePriorBranch = opts.priorRecords.some(
+@@ -695,6 +728,7 @@ export async function composeBatchScopePayload(opts: {
+   let promotedBy: string | null = null;
+   let promotedAt: string | null = null;
+   let mainModelCalls = 0;
++  let sealAuthority: SealAuthority | undefined;
+
+   const existing = opts.existingRecord ?? null;
+   const adoptLocked =
+@@ -888,19 +922,36 @@ export async function composeBatchScopePayload(opts: {
+     const summaryStartTurn = mainEntries[0]!.turnIndex;
+     const summaryEndTurn = mainEntries[mainEntries.length - 1]!.turnIndex;
+     let narrative = "";
++    const plainMainSeal =
++      opts.allowUnverifiedSeal === true &&
++      opts.mode === "seal" &&
++      plan.primaryKind === "main_canon" &&
++      !plan.wantsBranchContinue &&
++      !plan.wantsBranchClose &&
++      !plan.wantsMainAdopt &&
++      plan.noncanonTurns.length === 0 &&
++      plan.preferenceTurns.length === 0 &&
++      !pendingSoleClosedReopenId &&
++      pendingBranchControlOps.length === 0 &&
++      Object.keys(scopes).length === 0;
+     try {
+       mainModelCalls = 1;
+-      narrative = await summarizeTurnBatch({
+-        dialogue,
+-        charName: opts.charName,
+-        characterIdentity: opts.characterIdentity,
+-        startTurn: summaryStartTurn,
+-        endTurn: summaryEndTurn,
+-        sourceTurnIndexes: mainEntries.map((entry) => entry.turnIndex),
+-        userPersona: opts.userPersona,
+-        openingPrelude: opts.openingPrelude,
+-        turnTrace: opts.turnTrace,
+-      });
++      const summarized = await summarizeTurnBatchWithAuthority(
++        {
++          dialogue,
++          charName: opts.charName,
++          characterIdentity: opts.characterIdentity,
++          startTurn: summaryStartTurn,
++          endTurn: summaryEndTurn,
++          sourceTurnIndexes: mainEntries.map((entry) => entry.turnIndex),
++          userPersona: opts.userPersona,
++          openingPrelude: opts.openingPrelude,
++          turnTrace: opts.turnTrace,
++        },
++        { allowUnverifiedSeal: plainMainSeal }
++      );
++      narrative = summarized.text;
++      sealAuthority = summarized.sealAuthority;
+     } catch (e) {
+       const msg = (e as Error).message ?? "";
+       const reason = /timeout|aborted|ETIMEDOUT/i.test(msg)
+@@ -1003,6 +1054,7 @@ export async function composeBatchScopePayload(opts: {
+     mainModelCalls,
+     pendingSoleClosedReopenId,
+     pendingBranchControlOps,
++    sealAuthority,
+   };
+ }
+
+@@ -1037,6 +1089,7 @@ async function persistComposedBatchScopes(opts: {
+     branchStatus: opts.composed.branchStatus,
+     promotedBy: opts.composed.promotedBy,
+     promotedAt: opts.composed.promotedAt,
++    ...(opts.composed.sealAuthority ? { sealAuthority: opts.composed.sealAuthority } : {}),
+   };
+
+   const memoryBeforePersist = getChatMemoryRow(opts.chatId);
+@@ -1305,6 +1358,8 @@ export async function processRollingSummaryBatch(opts: {
+   memoryCapacity: number;
+   userPersona?: string | null;
+   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
++  /** Live seal only: a window whose summary fails grounding on an unsupported assertion may seal as unverified. */
++  allowUnverifiedSeal?: boolean;
+ }): Promise<boolean> {
+   if (!isMemoryFeatureEnabled()) return false;
+   // Coalesce: panel backfill + "지금 생성하기" share one in-flight seal instead of
+@@ -1429,6 +1484,7 @@ export async function processRollingSummaryBatch(opts: {
+         existingRecord: null,
+         previousWasNoncanonOrBranch,
+         priorRecords,
++        allowUnverifiedSeal: opts.allowUnverifiedSeal === true,
+       });
+       if (!composed.ok) {
+         console.warn("[memory] SUMMARY_COMPOSE_FAILED", {
+diff --git a/src/lib/memory/memory-shadow-state.ts b/src/lib/memory/memory-shadow-state.ts
+index c154e6ab..337ba549 100644
+--- a/src/lib/memory/memory-shadow-state.ts
++++ b/src/lib/memory/memory-shadow-state.ts
+@@ -84,6 +84,7 @@ export function shadowRecordFromComposed(opts: {
+     userEdited: false,
+     charCount: displaySummary.length,
+     assistantMessageId: opts.assistantMessageId,
++    sealAuthority: null,
+   };
+ }
+
+diff --git a/src/lib/memory/memory-summary-integrity.ts b/src/lib/memory/memory-summary-integrity.ts
+index e847677f..16f0d793 100644
+--- a/src/lib/memory/memory-summary-integrity.ts
++++ b/src/lib/memory/memory-summary-integrity.ts
+@@ -350,27 +350,43 @@ function isShortSummaryAnchoredInDialogue(
+   return anchored.length >= ROLLING_SUMMARY_SHORT_ANCHOR_MIN_TOKENS;
+ }
+
+-/** Conservative source check for known certainty inflation before DB persistence. */
+-export function isRollingSummaryGroundedInDialogue(
++export type RollingSummaryGroundingFailure =
++  | "instruction_echo"
++  | "sparse_unanchored"
++  | "unsupported_user_linked_history"
++  | "unsupported_global_memory_loss"
++  | "uncertain_claim_as_fact";
++
++/**
++ * Failures where a well-formed, window-anchored summary asserts something the window does not
++ * support. Echo and sparse-unanchored candidates are not summaries of the window at all.
++ */
++export const UNVERIFIABLE_GROUNDING_FAILURES: readonly RollingSummaryGroundingFailure[] = [
++  "unsupported_user_linked_history",
++  "unsupported_global_memory_loss",
++  "uncertain_claim_as_fact",
++];
++
++export function diagnoseRollingSummaryGrounding(
+   summary: string,
+   dialogue: string,
+   userPersona?: string | null,
+   charName?: string | null
+-): boolean {
+-  if (isLikelySummaryInstructionEcho(summary)) return false;
++): RollingSummaryGroundingFailure | null {
++  if (isLikelySummaryInstructionEcho(summary)) return "instruction_echo";
+   if (
+     summary.length < ROLLING_SUMMARY_MIN_CHARS &&
+     !isShortSummaryAnchoredInDialogue(summary, dialogue, userPersona, charName)
+   ) {
+-    return false;
++    return "sparse_unanchored";
+   }
+
+   const source = splitDialogueSources(dialogue);
+   if (summaryInventsUnsupportedUserRelationship(summary, source, userPersona, charName)) {
+-    return false;
++    return "unsupported_user_linked_history";
+   }
+   if (STRONG_GLOBAL_MEMORY_LOSS.test(summary) && !STRONG_GLOBAL_MEMORY_LOSS.test(dialogue)) {
+-    return false;
++    return "unsupported_global_memory_loss";
+   }
+
+   const uncertainAssistantParts = source.assistant
+@@ -397,11 +413,21 @@ export function isRollingSummaryGroundedInDialogue(
+           !EPISTEMIC_MARKER.test(summaryPart)
+       )
+     ) {
+-      return false;
++      return "uncertain_claim_as_fact";
+     }
+   }
+
+-  return true;
++  return null;
++}
++
++/** Conservative source check for known certainty inflation before DB persistence. */
++export function isRollingSummaryGroundedInDialogue(
++  summary: string,
++  dialogue: string,
++  userPersona?: string | null,
++  charName?: string | null
++): boolean {
++  return diagnoseRollingSummaryGrounding(summary, dialogue, userPersona, charName) === null;
+ }
+
+ /** Validate LLM / fixture summary before persist. */
+diff --git a/src/lib/memory/memory-summary-scope.ts b/src/lib/memory/memory-summary-scope.ts
+index f21e19d6..604d8651 100644
+--- a/src/lib/memory/memory-summary-scope.ts
++++ b/src/lib/memory/memory-summary-scope.ts
+@@ -58,8 +58,20 @@ export type ScopePayloadV1 = {
+   /** Newest mutation last — pop from end on rollback. */
+   branchControlMutations?: BranchControlMutation[];
+   inactive?: boolean;
++  /**
++   * Seal authority. Absent = sealed after passing the grounding guard (guard pass is not truth verification).
++   * "unverified_summary" = sealed to advance the frontier after the guard rejected the window's summary
++   * three times for an unsupported assertion; the text is never established-past material.
++   */
++  sealAuthority?: SealAuthority;
+ };
+
++export type SealAuthority = "unverified_summary";
++
++export function isUnverifiedSealPayload(payload: ScopePayloadV1 | null | undefined): boolean {
++  return payload?.sealAuthority === "unverified_summary";
++}
++
+ export type TurnScopeClass =
+   | "main_rp"
+   | "meaningful_noncanon"
+diff --git a/src/lib/memory/memory-turn-summary.ts b/src/lib/memory/memory-turn-summary.ts
+index aa8263bc..30a3a547 100644
+--- a/src/lib/memory/memory-turn-summary.ts
++++ b/src/lib/memory/memory-turn-summary.ts
+@@ -24,6 +24,7 @@ import {
+   type BranchStatus,
+   type MemorySummaryScope,
+   type ScopePayloadV1,
++  type SealAuthority,
+   type SummaryKind,
+ } from "./memory-summary-scope";
+
+@@ -68,6 +69,8 @@ export type MemoryRecordView = {
+   userEdited: boolean;
+   charCount: number;
+   assistantMessageId: number | null;
++  /** Non-null: sealed to advance the frontier without passing the grounding guard — never established-past. */
++  sealAuthority: SealAuthority | null;
+ };
+
+ function clampRecord(text: string, max = MEMORY_RECORD_MAX_CHARS): string {
+@@ -113,6 +116,7 @@ function rowToViewOrNull(r: MemoryRecordRow): MemoryRecordView | null {
+     userEdited: r.user_edited === 1,
+     charCount: r.summary.length,
+     assistantMessageId: r.assistant_message_id ?? null,
++    sealAuthority: payload?.sealAuthority ?? null,
+   };
+ }
+
+@@ -146,6 +150,7 @@ function selectSql(): string {
+ /** Canonical prompt-injectible row predicate — Global rebuild + Medium share this owner. */
+ export function isPromptInjectibleMemoryRecord(record: MemoryRecordView): boolean {
+   if (record.inactive) return false;
++  if (record.sealAuthority) return false;
+   const scopedText = lorebookTextFromScopes(record.scopes, { branchStatus: record.branchStatus });
+   if (scopedText.trim()) return true;
+   return (
+@@ -192,6 +197,24 @@ export function listPromptInjectibleMemoryRecords(
+   return records;
+ }
+
++/**
++ * Unverified seals outside RAW — rendered outside the established-past (Global/Medium) channel.
++ * Mirrors listPromptInjectibleMemoryRecords' RAW cutoff semantics.
++ */
++export function listUnverifiedSealRecords(
++  chatId: number,
++  opts?: { excludeTurnStartGte?: number }
++): MemoryRecordView[] {
++  let records = listMemoryRecordsForChat(chatId).filter(
++    (record) => !record.inactive && !!record.sealAuthority && !!record.summary.trim()
++  );
++  const cutoff = opts?.excludeTurnStartGte;
++  if (cutoff != null && cutoff > 0) {
++    records = records.filter((record) => record.turnStart < cutoff);
++  }
++  return records;
++}
++
+ /** Injected lorebook — main_canon + active branch_canon + preference only. */
+ export function rebuildLorebookFromRecords(
+   chatId: number,
+@@ -270,7 +293,7 @@ export function updateMemoryRecordById(
+       delete scopes[previousKind];
+     }
+     scopes[nextKind] = text.trim();
+-    scopePayload = encodeScopePayload({ ...payload, scopes });
++    scopePayload = encodeScopePayload({ ...payload, scopes, sealAuthority: undefined });
+   }
+   db.prepare(
+     `UPDATE chat_turn_summaries SET summary=?, summary_kind=?, scope_payload=?, user_edited=1, updated_at=datetime('now') WHERE id=?`
+diff --git a/src/lib/memory/memory-variant-switch-reconcile.ts b/src/lib/memory/memory-variant-switch-reconcile.ts
+index c792e8eb..f27c34e5 100644
+--- a/src/lib/memory/memory-variant-switch-reconcile.ts
++++ b/src/lib/memory/memory-variant-switch-reconcile.ts
+@@ -109,6 +109,7 @@ function rowToView(r: MemoryRecordRow): MemoryRecordView {
+     userEdited: r.user_edited === 1,
+     charCount: r.summary.length,
+     assistantMessageId: r.assistant_message_id ?? null,
++    sealAuthority: payload?.sealAuthority ?? null,
+   };
+ }
+
+@@ -122,6 +123,7 @@ function listMemoryRecordsForChatDb(db: Db, chatId: number): MemoryRecordView[]
+ function rebuildLorebookFromRecordsDb(db: Db, chatId: number): string {
+   const records = listMemoryRecordsForChatDb(db, chatId).filter((r) => {
+     if (r.inactive) return false;
++    if (r.sealAuthority) return false;
+     const text = lorebookTextFromScopes(r.scopes, { branchStatus: r.branchStatus });
+     if (!text.trim()) {
+       return (
+diff --git a/src/services/contextBuilder.ts b/src/services/contextBuilder.ts
+index 930c0aed..292dc94f 100644
+--- a/src/services/contextBuilder.ts
++++ b/src/services/contextBuilder.ts
+@@ -177,6 +177,7 @@ import { renderCoreCanonBlock, renderCanonChunksBlock } from "@/lib/canonPlan/co
+ import { renderPrivateCharacterSecretBlock } from "@/lib/canonPlan/privateCharacterSecretRenderer";
+ import { selectActiveCanonChunks } from "@/lib/canonPlan/activeSelector";
+ import { selectArchiveChunksSelective } from "@/lib/memory/archiveSelective";
++import { UNVERIFIED_SUMMARY_RULE } from "@/lib/memory/memory-medium-term";
+ import {
+   createDeepSeekXmlBuffers,
+   flushDeepSeekXmlBuffers,
+@@ -711,6 +712,18 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
+     );
+   };
+
++  const unverifiedSummary = sanitizeRuntimePromptSource(input.unverifiedSummaryBlock);
++  const pushUnverifiedSummary = () => {
++    if (!unverifiedSummary) return;
++    pushSection(
++      "unverified-summary",
++      "[3a] Unverified summary",
++      "memory",
++      `${UNVERIFIED_SUMMARY_RULE}\n\n${unverifiedSummary}`,
++      "dynamic"
++    );
++  };
++
+   const pushCurrentMemory = (includeRelationshipMeta: boolean) => {
+     if (!memory && !(includeRelationshipMeta && memoryMeta)) return;
+     const memoryParts: string[] = ["[Memory]"];
+@@ -1054,6 +1067,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
+     if (memoryFeatureOn) {
+       pushMediumTermMemory();
+       pushCurrentMemory(false);
++      pushUnverifiedSummary();
+     }
+     pushEpisodicMemory();
+     pushTriggeredScenarioEvents();
+diff --git a/src/types.ts b/src/types.ts
+index 233db4c5..0020e0cc 100644
+--- a/src/types.ts
++++ b/src/types.ts
+@@ -57,6 +57,8 @@ export type ContextBuildInput = {
+   longTermMemory?: string | null;
+   /** Medium-term sealed summary blocks outside RAW */
+   mediumTermMemoryBlock?: string | null;
++  /** Sealed summaries that did not pass the grounding guard — never injected as established past. */
++  unverifiedSummaryBlock?: string | null;
+   /** archive_summary — identity/rules 아래 별도 주입 */
+   archiveMemory?: string | null;
+   shortTermHistory: ChatMsg[];

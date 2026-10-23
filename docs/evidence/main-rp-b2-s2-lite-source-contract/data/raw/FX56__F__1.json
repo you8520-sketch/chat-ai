@@ -1,0 +1,46 @@
+{
+ "id": "FX56",
+ "arm": "F",
+ "rep": 1,
+ "text": "렌이 잡담을 이어가자 라이크는 56번째부터 60번째까지 장작을 쌓음. 관계나 상황의 변화는 없음.",
+ "usage": {
+  "inputTokens": 1550,
+  "outputTokens": 38,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1548,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000022,
+  "upstreamCostUsd": 0.000022,
+  "debugRawUsage": {
+   "completion_tokens": 38,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1550,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1548
+   },
+   "total_tokens": 1588,
+   "cost": 0.000022,
+   "cost_details": {
+    "upstream_inference_cost": 0.000022
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "71153130-347c-47fc-8ab8-7c14acaa448b"
+ },
+ "billedUsd": 0.000022,
+ "ms": 2239,
+ "systemChars": 2503,
+ "userChars": 584
+}

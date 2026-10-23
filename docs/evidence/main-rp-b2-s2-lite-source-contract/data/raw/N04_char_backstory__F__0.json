@@ -1,0 +1,46 @@
+{
+ "id": "N04_char_backstory",
+ "arm": "F",
+ "rep": 0,
+ "text": "모닥불 곁에서 렌이 라이크의 침묵을 살피며 말을 건네자, 라이크는 처음으로 어린 시절 변방 검사였던 스승에게 검을 배웠다고 털어놓음. 스승은 검을 휘두르는 법보다 뽑지 않을 때를 먼저 가르쳤으며, 라이크는 어릴 적 그 가르침을 싫어했음. 렌이 스승을 잃었는지 묻자 라이크는 어린 시절 스승을 잃었다고 밝히되, 사건과 마지막 말은 말하고 싶지 않다며 선을 그음. 렌이 더 묻지 않겠다고 하자 라이크는 고마워하며, 스승을 지키지 못했다는 생각은 오래 남았지만 가르침까지 사라진 것은 아니라고 말함. 렌이 그 가르침을 지금도 지킨다고 하자 라이크는 장담할 수는 없어도 잊지 않았다고 답함. 조용히 들어준 렌에게 고마움을 표하며 굳은 어깨를 풀었고, 둘 사이의 침묵은 한결 덜 차가워짐.",
+ "usage": {
+  "inputTokens": 2406,
+  "outputTokens": 264,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2404,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000281,
+  "upstreamCostUsd": 0.000281,
+  "debugRawUsage": {
+   "completion_tokens": 264,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2406,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2404,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2670,
+   "cost": 0.000281,
+   "cost_details": {
+    "upstream_inference_cost": 0.000281
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "87bccf8b-88a2-4541-aff3-16a209c1fe4d"
+ },
+ "billedUsd": 0.000281,
+ "ms": 5220,
+ "systemChars": 2503,
+ "userChars": 1866
+}

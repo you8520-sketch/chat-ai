@@ -1,0 +1,46 @@
+{
+ "id": "FX11",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"라이크는 11~14번째 장작을 차례로 쌓음. 렌이 약속을 취소하고 검은 직접 가겠다고 하자, 라이크는 아쉬운 듯 어깨를 으쓱함. 약속은 취소됐으며 렌이 검을 직접 가져갈 예정임.\",\"items\":[{\"actor\":\"user\",\"kind\":\"event\",\"turn\":15,\"sourceRole\":\"user\",\"quote\":\"그 약속은 취소할게.\",\"relationshipState\":\"none\",\"eventStatus\":\"cancelled\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":15,\"sourceRole\":\"user\",\"quote\":\"검은 내가 직접 갈게.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":15,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 아쉬운 듯 어깨를 으쓱했다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 1999,
+  "outputTokens": 204,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 1997,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000228,
+  "upstreamCostUsd": 0.000228,
+  "debugRawUsage": {
+   "completion_tokens": 204,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1999,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 1997,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2203,
+   "cost": 0.000228,
+   "cost_details": {
+    "upstream_inference_cost": 0.000228
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "0099eaf1-fb99-45a3-aba8-00d965a60d7d"
+ },
+ "billedUsd": 0.000228,
+ "ms": 3392,
+ "systemChars": 3460,
+ "userChars": 634
+}

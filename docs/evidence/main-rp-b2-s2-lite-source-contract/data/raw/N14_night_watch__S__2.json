@@ -1,0 +1,46 @@
+{
+ "id": "N14_night_watch",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"밤샘 경계 중 렌이 졸자 라이크는 칼집을 받쳐 주고 자신의 담요를 덮어 줬으며, 아침엔 바람이 셌다고만 둘러댐. 렌이 담요를 돌려주며 고맙다고 하자 라이크는 다음엔 잠들지 말라고 했고, 렌은 라이크도 밤새 혼자 깨어 있었다고 지적함. 라이크는 둘 다 깨어 있는 편이 좋다며 렌이 따라오도록 걸음을 늦춤. 렌이 다음번엔 번갈아 쉬자고 제안했으나 라이크는 상황을 보겠다며 확답하지 않음. 담요는 라이크가 접어 든 채 둘은 여관으로 들어감.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"그는 말없이 어깨에 걸친 담요를 풀어 네 등에 덮어 주었다.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"“다음엔 잠들지 마.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"걸음은 네가 따라붙을 수 있도록 조금 느려졌다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"다음번엔 서로 번갈아 쉬자고 말한 뒤\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"“상황을 봐서.”\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2791,
+  "outputTokens": 401,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2789,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000357,
+  "upstreamCostUsd": 0.000357,
+  "debugRawUsage": {
+   "completion_tokens": 401,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2791,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2789,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3192,
+   "cost": 0.000357,
+   "cost_details": {
+    "upstream_inference_cost": 0.000357
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "8036bbaa-af4d-49d2-aefb-45c83ef3d5e0"
+ },
+ "billedUsd": 0.000357,
+ "ms": 7966,
+ "systemChars": 3460,
+ "userChars": 1825
+}

@@ -1,0 +1,46 @@
+{
+ "id": "A02_fake_sister_friend",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"비 오는 여관에서 렌과 라이크는 며칠간 함께 길을 걸어온 동행자로 식사를 시작함. 라이크가 렌의 얼굴이 낯익다고 하자 렌은 이유를 물었고, 누나 이야기를 꺼낸 적 없는데도 라이크가 누나와 예전부터 친구였다고 단언해 렌이 의심과 놀라움을 드러냄. 라이크는 이름을 착각한 게 아니라고 고수하면서 이유를 밝히지 않고 “지금은 묻지 마”라고 함. 렌이 설명을 요구하자 라이크는 놀랄 만한 말이었다고 인정하고, 렌을 알기 전부터 누나와 친구였다는 사실을 재확인함. 자세한 설명은 나중에 하겠다고 제안했으며, 누나와의 과거 관계와 그 배경은 미해결 상태임.\",\"items\":[{\"actor\":\"character\",\"kind\":\"claim\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"낯이 익어서.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"claim\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"네 누나는 예전부터 나와 친구였어.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"지금은 묻지 마.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"원한다면, 나중에 더 말하겠다.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2921,
+  "outputTokens": 366,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2919,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000356,
+  "upstreamCostUsd": 0.000356,
+  "debugRawUsage": {
+   "completion_tokens": 366,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2921,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2919,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3287,
+   "cost": 0.000356,
+   "cost_details": {
+    "upstream_inference_cost": 0.000356
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "49b91141-eca9-4aae-bd67-b0b44cce10f8"
+ },
+ "billedUsd": 0.000356,
+ "ms": 5038,
+ "systemChars": 3460,
+ "userChars": 2036
+}

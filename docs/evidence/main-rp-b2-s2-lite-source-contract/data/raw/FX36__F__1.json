@@ -1,0 +1,46 @@
+{
+ "id": "FX36",
+ "arm": "F",
+ "rep": 1,
+ "text": "렌과 라이크는 잡담이 이어지는 동안 라이크가 매번 장작을 쌓는 흐름을 반복함. 이후 렌이 사과하며 헤어지자고 하자, 라이크는 말없이 시선을 떨굼.",
+ "usage": {
+  "inputTokens": 1555,
+  "outputTokens": 59,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1553,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000029,
+  "upstreamCostUsd": 0.000029,
+  "debugRawUsage": {
+   "completion_tokens": 59,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1555,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1553
+   },
+   "total_tokens": 1614,
+   "cost": 0.000029,
+   "cost_details": {
+    "upstream_inference_cost": 0.000029
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "237f8df8-49a7-4eca-ad53-ebdf19b6d727"
+ },
+ "billedUsd": 0.000029,
+ "ms": 4446,
+ "systemChars": 2503,
+ "userChars": 589
+}

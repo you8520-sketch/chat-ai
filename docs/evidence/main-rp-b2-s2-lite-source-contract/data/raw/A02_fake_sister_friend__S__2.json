@@ -1,0 +1,46 @@
+{
+ "id": "A02_fake_sister_friend",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"렌과 라이크는 며칠 전부터 함께 여행했으며, 여관에서 식사하던 라이크가 렌을 낯익다고 하자 렌은 의아해함. 렌이 누나 이야기를 꺼낸 적 없는데도 라이크가 누나와 예전부터 친구였다고 단언해 렌이 놀라 추궁함. 라이크는 출처를 밝히지 않고 “지금은 묻지 마”라고 했으나, 렌이 설명을 요구하자 놀랄 만한 말이었다고 인정하고 누나와 친구였다는 주장을 재확인함. 이후 더 말하겠다고 약속했지만 설명은 미뤄졌고, 라이크의 과거와 렌의 누나를 둘러싼 의문이 남음.\",\"items\":[{\"actor\":\"character\",\"kind\":\"claim\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"낯이 익어서.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"claim\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"네 누나는 예전부터 나와 친구였어.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"지금은 묻지 마.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"말을 꺼낸 건 네 쪽이야.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"원한다면, 나중에 더 말하겠다.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2921,
+  "outputTokens": 383,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2919,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000361,
+  "upstreamCostUsd": 0.000361,
+  "debugRawUsage": {
+   "completion_tokens": 383,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2921,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2919,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3304,
+   "cost": 0.000361,
+   "cost_details": {
+    "upstream_inference_cost": 0.000361
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "15ef2db6-d553-4da4-a319-984e3b75d10e"
+ },
+ "billedUsd": 0.000361,
+ "ms": 5035,
+ "systemChars": 3460,
+ "userChars": 2036
+}

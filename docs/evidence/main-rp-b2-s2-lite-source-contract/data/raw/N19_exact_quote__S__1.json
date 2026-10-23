@@ -1,0 +1,46 @@
+{
+ "id": "N19_exact_quote",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"변방 여관에 도착한 렌과 라이크는 방 하나를 얻었고, 며칠간 함께 걸었지만 아직 말은 많지 않은 사이였음. 서린이 짐승 소문을 들어 북쪽 길을 경고하자, 일거리가 있으면 위험을 감수하겠다는 렌에게 라이크는 다른 길을 권하며 무턱대고 뛰어들지 말라고 했음. 렌은 자기 몫은 감당할 수 있다고 답했으나 더 말하지 않았고, 새벽에 북쪽 길로 가겠다고 하자 라이크는 막지 않고 “가겠다면 나도 간다”고 동행을 택함. 렌이 함께 갈 이유를 묻자 라이크는 “네가 돌아올 곳은 내가 지킨다”고 선언했고, 렌은 그 말에 먹먹함을 느낌. 두 사람은 북쪽 길로 출발함.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"“다른 길을 찾는 게 낫다.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"“가겠다면 나도 간다.”\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"“네가 돌아올 곳은 내가 지킨다.”\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 더 설명하지 않고 먼저 걸음을 옮겼다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2942,
+  "outputTokens": 381,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 2940,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000143,
+  "upstreamCostUsd": 0.000143,
+  "debugRawUsage": {
+   "completion_tokens": 381,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2942,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 2940
+   },
+   "total_tokens": 3323,
+   "cost": 0.000143,
+   "cost_details": {
+    "upstream_inference_cost": 0.000143
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "bf19d454-e282-424b-adcc-1db7f81ae890"
+ },
+ "billedUsd": 0.000143,
+ "ms": 4476,
+ "systemChars": 3460,
+ "userChars": 2072
+}

@@ -1,0 +1,172 @@
+import Module from "module";
+const originalLoad = (Module as unknown as { _load: typeof Module._load })._load;
+(Module as unknown as { _load: typeof Module._load })._load = function (request: string, parent: NodeModule, isMain: boolean) {
+  if (request === "server-only") return {};
+  return originalLoad(request, parent, isMain);
+} as typeof Module._load;
+
+import { it } from "node:test";
+import { createHash } from "node:crypto";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { MAIN_RP_USER_SELECTABLE_OPTIONS, selectedAIProvider } from "@/lib/chatModels";
+import { buildContext } from "@/services/contextBuilder";
+import {
+  applyCacheAndPrefillForTransport,
+  assemblePrimaryRpRequest,
+  buildOpenRouterMessages,
+  convertToOpenRouterFormat,
+  type OpenRouterMessageOpts,
+} from "@/lib/openRouterAdult";
+import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
+import { estimateTokens } from "@/lib/tokenEstimate";
+import {
+  buildCheaperInferenceChatCompletionsUrl,
+} from "@/lib/cheaperInferenceConfig";
+import { OPENROUTER_CHAT_COMPLETIONS_URL, resolveMainRpPrimaryWireModelId } from "@/lib/openRouterConfig";
+import {
+  candidateEpisodic,
+  candidateLedger,
+  candidateLtmPreamble,
+  candidateSummary,
+} from "./zz-g7-candidate";
+
+const IN = process.env.G7_IN ?? "/opt/cursor/artifacts/gate7/out";
+const OUT = process.env.G7_OUT ?? "/opt/cursor/artifacts/gate7/wire";
+const ARMS = ["cur", "cand"] as const;
+const WIRE_MODELS = new Set(["deepseek-v4.1-flash", "gemini-3.8-flash", "gpt-6.1-sol"]);
+const CHAR_NAME = "라이크";
+const PERSONA_NAME = "렌";
+const PERSONA_CARD = "이름/호칭: 렌\n성격: 조용함";
+const CHAR_CARD =
+  "라이크는 검술을 배우는 견습 검사다. 말수가 적고 자존심이 강하다. 처음 보는 사람에게는 예의를 갖춰 말한다.";
+const SESSION = "g7pilot";
+
+function sha(s: string): string {
+  return createHash("sha256").update(s).digest("hex");
+}
+
+it("g7 prepare: assemble final wire per arm x model x scene (no POST)", () => {
+  mkdirSync(OUT, { recursive: true });
+  const manifest: Record<string, unknown>[] = [];
+  for (const arm of ARMS) {
+    const dump = JSON.parse(readFileSync(`${IN}/dump-cur.json`, "utf8"));
+    const rawHistory = dump.rawHistory as { role: "user" | "assistant"; content: string }[];
+    for (const [sceneId, scene] of Object.entries(dump.scenes as Record<string, any>)) {
+      for (const model of MAIN_RP_USER_SELECTABLE_OPTIONS.filter((o) => WIRE_MODELS.has(o.id))) {
+        const wireModel = resolveMainRpPrimaryWireModelId(model.id);
+        const provider = selectedAIProvider(model.id);
+        const pm = scene.perModel[model.id];
+        const cand = arm === "cand";
+        const ledgerRaw: string = sceneId.startsWith("S1_") ? dump.legacyLedgerPrompt || "" : dump.ledgerPrompt || "";
+        const ledger = cand ? candidateLedger(ledgerRaw) : ledgerRaw;
+        const summary = cand ? candidateSummary(pm.currentMemoryText) : pm.currentMemoryText;
+        const episodic = cand ? candidateEpisodic(pm.episodicBlock || "") : pm.episodicBlock || "";
+        const built = buildContext({
+          charName: CHAR_NAME,
+          chunks: [
+            {
+              id: "g2-core",
+              characterId: "g2-fixture",
+              content: CHAR_CARD,
+              category: "identity" as const,
+              importance: "CRITICAL" as const,
+              tokenCount: CHAR_CARD.length,
+              keywords: [CHAR_NAME],
+            },
+          ],
+          userNickname: PERSONA_NAME,
+          userPersona: PERSONA_CARD,
+          longTermMemory: summary,
+          mediumTermMemoryBlock: pm.mediumTermText || "",
+          archiveMemory: pm.archiveText || "",
+          episodicMemoryBlock: episodic,
+          memoryMeta: ledger,
+          shortTermHistory: rawHistory,
+          currentUserMessage: scene.userMessage,
+          nsfw: false,
+          provider: provider === "cheaperinference" ? "openrouter" : provider,
+          modelId: wireModel,
+          completedTurns: 80,
+          summarizedTurnCount: dump.frontier,
+          targetResponseChars: UNIFIED_TIER_AIM_CHARS,
+          chatId: 990001,
+          userId: 990002,
+        } as never);
+        const transportProvider = provider === "cheaperinference" ? "cheaperinference" : "openrouter";
+        const messageOpts: OpenRouterMessageOpts = {
+          charName: CHAR_NAME,
+          personaName: PERSONA_NAME,
+          systemSplit: built.openRouterSystemSplit,
+          sessionId: SESSION,
+          ...(transportProvider === "cheaperinference" ? { transportProvider: "cheaperinference" as const } : {}),
+        };
+        const requestHistory = convertToOpenRouterFormat(built.history);
+        const base = buildOpenRouterMessages(built.systemPrompt, requestHistory, messageOpts);
+        const cached = applyCacheAndPrefillForTransport({ provider: transportProvider }, base, wireModel, CHAR_NAME, {
+          skipAssistantPrefill: false,
+        });
+        const assembled = assemblePrimaryRpRequest({
+          system: built.systemPrompt,
+          history: requestHistory,
+          modelId: wireModel,
+          targetResponseChars: UNIFIED_TIER_AIM_CHARS,
+          messageOpts,
+          stream: true,
+          messagesOverride: cached.messages,
+        });
+        const body = assembled.requestBody as Record<string, unknown>;
+        if (cand) {
+          const msgs = body.messages as { role: string; content: unknown }[];
+          for (const m of msgs) {
+            if (m.role !== "system") continue;
+            if (typeof m.content === "string") m.content = candidateLtmPreamble(m.content);
+            else if (Array.isArray(m.content)) {
+              for (const part of m.content as { text?: string }[]) {
+                if (typeof part.text === "string") part.text = candidateLtmPreamble(part.text);
+              }
+            }
+          }
+        }
+        const endpoint =
+          transportProvider === "cheaperinference"
+            ? buildCheaperInferenceChatCompletionsUrl({ promptCacheSession: SESSION })
+            : OPENROUTER_CHAT_COMPLETIONS_URL;
+        const messages = body.messages as { role: string; content: unknown }[];
+        const chars = messages.reduce(
+          (n, m) => n + (typeof m.content === "string" ? m.content.length : JSON.stringify(m.content).length),
+          0
+        );
+        const bodyJson = JSON.stringify(body);
+        const caseId = `g7_${sceneId}_${arm}_${model.id}`;
+        writeFileSync(
+          `${OUT}/${caseId}.json`,
+          JSON.stringify({ caseId, arm, sceneId, modelId: model.id, wireModel, provider: transportProvider, endpoint, requestBody: body }, null, 2)
+        );
+        const sysMsg = messages.find((m) => m.role === "system");
+        const sysText = typeof sysMsg?.content === "string" ? sysMsg.content : JSON.stringify(sysMsg?.content);
+        manifest.push({
+          caseId,
+          arm,
+          sceneId,
+          modelId: model.id,
+          wireModel,
+          provider: transportProvider,
+          endpoint: endpoint.replace(/\?.*$/, ""),
+          bodyKeys: Object.keys(body),
+          hasMaxTokens: "max_tokens" in body || "max_completion_tokens" in body,
+          messageRoles: messages.map((m) => m.role),
+          inputChars: chars,
+          estimatedInputTokens: estimateTokens(bodyJson),
+          ceilingInputTokens: bodyJson.length,
+          systemSha: sha(sysText),
+          bodySha: sha(bodyJson),
+          hasEpisodic: sysText.includes("[EPISODIC MEMORY"),
+          hasCurrentMemory: sysText.includes("[1~5턴]"),
+          trackedSections: (built.meta.trackedSections ?? []).map((s: any) => ({ id: s.id, chars: s.text.length })),
+        });
+      }
+    }
+  }
+  writeFileSync(`${OUT}/manifest.json`, JSON.stringify(manifest, null, 2));
+  console.log("G7_PREPARED", manifest.length);
+});

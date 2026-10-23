@@ -1,0 +1,46 @@
+{
+ "id": "N08_char_attributed_claim",
+ "arm": "F",
+ "rep": 0,
+ "text": "서린에게서 렌의 누나가 마을에서 렌을 찾았다는 말을 들은 라이크가 이를 전함. 렌은 처음 듣는 이야기라 놀라 이름과 생김새를 물었지만, 라이크는 서린에게 들은 건 그 말뿐이며 누나를 직접 봤는지도 확인하지 않았다고 밝힘. 렌이 소문의 사실 여부를 믿느냐고 묻자, 라이크는 서린이 그렇게 말했다는 사실만 믿고 진위는 모른다며 단정하지 말라고 함. 렌이 함께 여관에 들어가 서린에게 다시 묻고 직접 듣겠다고 하자, 라이크는 앞서지 않고 길을 비켜 동행하기로 함. 누나와 렌 사이 사정은 모르는 일이라 캐묻지 않으며, 서린의 말만 확인하기로 함.",
+ "usage": {
+  "inputTokens": 2208,
+  "outputTokens": 194,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2206,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000242,
+  "upstreamCostUsd": 0.000242,
+  "debugRawUsage": {
+   "completion_tokens": 194,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2208,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2206,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2402,
+   "cost": 0.000242,
+   "cost_details": {
+    "upstream_inference_cost": 0.000242
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "e1f1851a-9a14-4a52-97fd-a7beb9d28184"
+ },
+ "billedUsd": 0.000242,
+ "ms": 8037,
+ "systemChars": 2503,
+ "userChars": 1585
+}

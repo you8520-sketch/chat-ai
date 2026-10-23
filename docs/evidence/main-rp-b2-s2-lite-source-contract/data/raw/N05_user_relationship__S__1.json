@@ -1,0 +1,46 @@
+{
+ "id": "N05_user_relationship",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"렌이 여관 밖에서 라이크에게 연인이 되자고 고백하자, 라이크는 갑작스럽다며 당황했지만 거절하지 않음. 렌이 쉽게 한 말이 아니라고 밝히고 후회하지 않으며 천천히 알아가자고 하자, 라이크는 망설이다 렌의 손을 맞잡음. 렌이 오늘부터 연인이냐고 확인하자 라이크는 “……나쁘지 않아.”라고 답하고 손을 놓지 않음. 라이크는 연인 관계를 명시적으로 확답하진 않았으나, 제안을 받아들이는 쪽으로 마음이 누그러짐.\",\"items\":[{\"actor\":\"user\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"user\",\"quote\":\"우리 오늘부터 연인하자.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"“……갑자기군.”\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"너도 원한다면, 천천히 알아가면 돼.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"손가락이 조심스럽게 내 손을 감쌌다.\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"“……나쁘지 않아.”\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 2880,
+  "outputTokens": 360,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 2878,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000135,
+  "upstreamCostUsd": 0.000135,
+  "debugRawUsage": {
+   "completion_tokens": 360,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2880,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 2878
+   },
+   "total_tokens": 3240,
+   "cost": 0.000135,
+   "cost_details": {
+    "upstream_inference_cost": 0.000135
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "bd65ccd3-ccfb-4ae4-8cb3-f49c4f8ebed3"
+ },
+ "billedUsd": 0.000135,
+ "ms": 5315,
+ "systemChars": 3460,
+ "userChars": 2036
+}

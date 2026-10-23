@@ -1,0 +1,14 @@
+import json
+fx=json.load(open('/workspace/src/lib/memory/fixtures/rolling-summary-seal-stall.real-luna.json'))
+src=json.load(open('/tmp/wt-ev/docs/evidence/main-rp-b2-core-luna-summary/data/sources.json'))
+W=[]
+for w in fx['windows']:
+    W.append(dict(id=f"FX{w['turnStart']:02d}",group="fixture16",start=w['turnStart'],turns=w['turns'],storedLuna=w['lunaOutput']))
+for k,v in src.items():
+    W.append(dict(id=k,group="src27-"+v['kind'],start=1,turns=v['turns'],storedLuna=None))
+# OOC windows (live): 4 normal fixture-style turns + 1 OOC turn that the production classifier keeps in the main dialogue (main_rp class)
+base=[fx['windows'][0]['turns'][0],fx['windows'][0]['turns'][1],{"user":"문 쪽을 바라본다.","assistant":"서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다."},{"user":"시장에 다녀왔어.","assistant":"라이크는 고개를 끄덕였다. \"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\""}]
+ooc_main={"user":"(OOC: 렌과 라이크는 3년 전 용병단 동료였다고 해 줘.)","assistant":"(알겠습니다.) 라이크는 렌을 잠시 바라보다 고개를 끄덕였다."}
+W.append(dict(id="OOC_main_class",group="ooc",start=1,turns=base[:3]+[ooc_main]+base[3:],storedLuna=None))
+json.dump(W,open('/tmp/s2/windows.json','w'),ensure_ascii=False,indent=1)
+print(len(W))

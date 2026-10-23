@@ -1,0 +1,46 @@
+{
+ "id": "N15_gift",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"렌이 낡은 검집을 건네자 라이크는 처음엔 망설였지만, 렌이 억지로 쓸 필요 없다고 하자 선물을 거절하고 싶지 않다는 태도를 보이며 받아들임. 함께 크기를 확인해 검이 잘 맞는 것을 확인했고, 라이크는 검집을 허리에 고정해 편리하게 사용할 수 있게 됨. 렌이 앞으로도 잘 부탁한다고 하자 라이크도 같은 말로 화답함. 오래 알지는 않았지만 가볍게 넘기지 않았으며, 검집을 소중히 간직한 채 함께 길을 나섬.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"“……고맙다. 쓸 수 있겠어.”\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"“그래. 확인해 보지.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"그것을 버리거나 바꿀 마음이 없다는 건 분명했다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"“나도 잘 부탁한다.”\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 3093,
+  "outputTokens": 317,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 3091,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000354,
+  "upstreamCostUsd": 0.000354,
+  "debugRawUsage": {
+   "completion_tokens": 317,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 3093,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 3091,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3410,
+   "cost": 0.000354,
+   "cost_details": {
+    "upstream_inference_cost": 0.000354
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "0915ba4a-9ad0-4c5d-ac09-eddce6cf4ba2"
+ },
+ "billedUsd": 0.000354,
+ "ms": 4071,
+ "systemChars": 3460,
+ "userChars": 2284
+}

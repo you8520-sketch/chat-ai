@@ -1,0 +1,46 @@
+{
+ "id": "FX16",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"라이크는 연이어 장작을 쌓았고, 렌이 문 쪽을 바라보자 서린이 들어와 라이크에게 목례함.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":16,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 16번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":20,\"sourceRole\":\"assistant\",\"quote\":\"서린이 문을 열고 들어왔다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 1993,
+  "outputTokens": 128,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 1991,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000203,
+  "upstreamCostUsd": 0.000203,
+  "debugRawUsage": {
+   "completion_tokens": 128,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1993,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 1991,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2121,
+   "cost": 0.000203,
+   "cost_details": {
+    "upstream_inference_cost": 0.000203
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "e4029b71-5ed6-4070-815a-89b5451663c2"
+ },
+ "billedUsd": 0.000203,
+ "ms": 3145,
+ "systemChars": 3460,
+ "userChars": 631
+}

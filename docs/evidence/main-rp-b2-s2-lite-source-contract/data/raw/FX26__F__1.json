@@ -1,0 +1,46 @@
+{
+ "id": "FX26",
+ "arm": "F",
+ "rep": 1,
+ "text": "렌이 잡담을 건네자 라이크는 차례로 장작을 쌓았고, 렌이 커피를 마셨다고 하자 말없이 커피를 저음. 관계나 상태 변화는 드러나지 않음.",
+ "usage": {
+  "inputTokens": 1548,
+  "outputTokens": 57,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1546,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000028,
+  "upstreamCostUsd": 0.000028,
+  "debugRawUsage": {
+   "completion_tokens": 57,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1548,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1546
+   },
+   "total_tokens": 1605,
+   "cost": 0.000028,
+   "cost_details": {
+    "upstream_inference_cost": 0.000028
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "07b521ce-b0e1-4bc5-9a6a-7d6ef86db103"
+ },
+ "billedUsd": 0.000028,
+ "ms": 3563,
+ "systemChars": 2503,
+ "userChars": 582
+}

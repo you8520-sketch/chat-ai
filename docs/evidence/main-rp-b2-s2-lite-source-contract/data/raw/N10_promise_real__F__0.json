@@ -1,0 +1,46 @@
+{
+ "id": "N10_promise_real",
+ "arm": "F",
+ "rep": 0,
+ "text": "북쪽 숲길이 막혀 라이크가 동쪽 고개로 가자고 정했고, 렌은 새벽 북문에서 만나기로 약속함. 다음 날 해 뜨기 전 북문에 도착한 렌은 이미 기다리던 라이크에게 합류했으며, 검끈을 조여 맨 뒤 함께 문을 나섬. 라이크는 렌이 늦지 않았다고 말하고 앞서 길을 확인한 후 기다려 주었고, 두 사람은 동쪽 고개로 나란히 출발함.",
+ "usage": {
+  "inputTokens": 2335,
+  "outputTokens": 125,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2333,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.00023,
+  "upstreamCostUsd": 0.00023,
+  "debugRawUsage": {
+   "completion_tokens": 125,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2335,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2333,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2460,
+   "cost": 0.00023,
+   "cost_details": {
+    "upstream_inference_cost": 0.00023
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "e5ad8024-6fdf-4449-800d-aefac4b985c7"
+ },
+ "billedUsd": 0.00023,
+ "ms": 8474,
+ "systemChars": 2503,
+ "userChars": 1723
+}

@@ -1,0 +1,82 @@
+{
+ "P1_open_promises|deepseek-v4.1-flash|r1": {
+  "X": "cur",
+  "Y": "k2"
+ },
+ "P1_open_promises|deepseek-v4.1-flash|r2": {
+  "X": "k2",
+  "Y": "cur"
+ },
+ "P1_open_promises|deepseek-v4.1-flash|r3": {
+  "X": "cur",
+  "Y": "k2"
+ },
+ "P1_open_promises|gemini-3.8-flash|r1": {
+  "X": "k2",
+  "Y": "cur"
+ },
+ "P1_open_promises|gpt-6.1-sol|r1": {
+  "X": "k2",
+  "Y": "cur"
+ },
+ "P2_relationship_state|deepseek-v4.1-flash|r1": {
+  "X": "k2",
+  "Y": "cur"
+ },
+ "P2_relationship_state|deepseek-v4.1-flash|r2": {
+  "X": "cur",
+  "Y": "k2"
+ },
+ "P2_relationship_state|deepseek-v4.1-flash|r3": {
+  "X": "k2",
+  "Y": "cur"
+ },
+ "P2_relationship_state|gemini-3.8-flash|r1": {
+  "X": "k2",
+  "Y": "cur"
+ },
+ "P2_relationship_state|gpt-6.1-sol|r1": {
+  "X": "k2",
+  "Y": "cur"
+ },
+ "P3_cancelled_promise|deepseek-v4.1-flash|r1": {
+  "X": "k2",
+  "Y": "cur"
+ },
+ "P3_cancelled_promise|deepseek-v4.1-flash|r2": {
+  "X": "cur",
+  "Y": "k2"
+ },
+ "P3_cancelled_promise|deepseek-v4.1-flash|r3": {
+  "X": "cur",
+  "Y": "k2"
+ },
+ "P3_cancelled_promise|gemini-3.8-flash|r1": {
+  "X": "k2",
+  "Y": "cur"
+ },
+ "P3_cancelled_promise|gpt-6.1-sol|r1": {
+  "X": "k2",
+  "Y": "cur"
+ },
+ "P4_false_lifelong|deepseek-v4.1-flash|r1": {
+  "X": "k2",
+  "Y": "cur"
+ },
+ "P4_false_lifelong|deepseek-v4.1-flash|r2": {
+  "X": "cur",
+  "Y": "k2"
+ },
+ "P4_false_lifelong|deepseek-v4.1-flash|r3": {
+  "X": "k2",
+  "Y": "cur"
+ },
+ "P4_false_lifelong|gemini-3.8-flash|r1": {
+  "X": "k2",
+  "Y": "cur"
+ },
+ "P4_false_lifelong|gpt-6.1-sol|r1": {
+  "X": "k2",
+  "Y": "cur"
+ }
+}

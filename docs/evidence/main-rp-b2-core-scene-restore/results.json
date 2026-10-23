@@ -1,0 +1,1292 @@
+{
+  "scorer": "replica of tokenizeForSimpleBoost + lexicalRelevance cap 2; particle strip on the normalized token only",
+  "summaryAllChars": 1126,
+  "summaryAllTokensEst": 1014,
+  "alwaysOnEventChars": 527,
+  "alwaysOnEventTokensEst": 475,
+  "summaryPlusAlwaysChars": 1653,
+  "episodicStoredTurns": [
+    1,
+    1,
+    10,
+    20,
+    40,
+    42,
+    45,
+    48,
+    51,
+    54,
+    57,
+    60,
+    63,
+    66,
+    69,
+    72,
+    75,
+    78
+  ],
+  "missingEventTurnsFromEpisodic": [
+    2,
+    15,
+    24,
+    30,
+    33
+  ],
+  "false": {
+    "falseStartInSummary": true,
+    "falseStartInRaw": false,
+    "falseJointInSummary": true,
+    "falseJointInRaw": false,
+    "mentorInRaw": false,
+    "lifelongInRaw": false,
+    "acceptedLoverInRaw": false,
+    "t10Assistant": "라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.",
+    "t6to9Actors": [
+      [
+        6,
+        "오늘의 잡담 6",
+        "라이크는 6번째 장작을 쌓았다."
+      ],
+      [
+        7,
+        "오늘의 잡담 7",
+        "라이크는 7번째 장작을 쌓았다."
+      ],
+      [
+        8,
+        "오늘의 잡담 8",
+        "라이크는 8번째 장작을 쌓았다."
+      ],
+      [
+        9,
+        "오늘의 잡담 9",
+        "라이크는 9번째 장작을 쌓았다."
+      ]
+    ]
+  },
+  "queries": {
+    "s4_sword_and_now": {
+      "query": "우리 지금은 어떤 사이야? 그리고 내가 검 갈아다 주겠다고 했던 건 어떻게 됐지?",
+      "tokens": [
+        "우리",
+        "지금은",
+        "지금",
+        "어떤",
+        "사이야",
+        "그리고",
+        "내가",
+        "갈아다",
+        "주겠다고",
+        "했던",
+        "어떻게",
+        "됐지"
+      ],
+      "summaryHits": [
+        {
+          "range": "1-5",
+          "score": 1,
+          "hits": [
+            "주겠다고"
+          ]
+        },
+        {
+          "range": "36-40",
+          "score": 1,
+          "hits": [
+            "우리"
+          ]
+        }
+      ],
+      "turnHitCount": 4,
+      "turnHitsHead": [
+        {
+          "n": 2,
+          "score": 1,
+          "hits": [
+            "갈아다"
+          ],
+          "user": "내일까지 검을 갈아다 줄게. 약속이야."
+        },
+        {
+          "n": 10,
+          "score": 1,
+          "hits": [
+            "우리"
+          ],
+          "user": "좋아, 우리 오늘부터 연인하자."
+        },
+        {
+          "n": 15,
+          "score": 1,
+          "hits": [
+            "내가"
+          ],
+          "user": "그 약속은 취소할게. 검은 내가 직접 갈게."
+        },
+        {
+          "n": 40,
+          "score": 1,
+          "hits": [
+            "우리"
+          ],
+          "user": "미안, 우리 그만 헤어지자."
+        }
+      ],
+      "episodicHits": [
+        {
+          "turn": 10,
+          "score": 1,
+          "hits": [
+            "우리"
+          ],
+          "fact": "유저와 라이크는 서로 연인이 되기로 명시적으로 합의했다."
+        },
+        {
+          "turn": 40,
+          "score": 1,
+          "hits": [
+            "우리"
+          ],
+          "fact": "유저와 라이크는 서로 헤어지기로 명시적으로 합의했다."
+        }
+      ],
+      "saturatedWindowCount": 0,
+      "packs": {
+        "b3": {
+          "chars": 49,
+          "tokensEst": 45,
+          "turns": [
+            10,
+            40
+          ],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": true,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": true,
+            "seorin": false,
+            "amateur": false,
+            "lip": false,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        },
+        "allScore2WindowsExceptRaw4": {
+          "chars": 0,
+          "tokensEst": 0,
+          "turns": [],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": false,
+            "amateur": false,
+            "lip": false,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        },
+        "top2Windows": {
+          "chars": 476,
+          "tokensEst": 429,
+          "turns": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            36,
+            37,
+            38,
+            39,
+            40
+          ],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": true,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": true,
+            "seorin": false,
+            "amateur": true,
+            "lip": true,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        },
+        "fourHitNeighbors": {
+          "chars": 0,
+          "tokensEst": 0,
+          "turns": [],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": false,
+            "amateur": false,
+            "lip": false,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        }
+      }
+    },
+    "s2_amateur": {
+      "query": "아마추어 같다는 말 기억나?",
+      "tokens": [
+        "아마추어",
+        "같다는",
+        "같다",
+        "기억나"
+      ],
+      "summaryHits": [
+        {
+          "range": "1-5",
+          "score": 2,
+          "hits": [
+            "아마추어",
+            "같다"
+          ]
+        }
+      ],
+      "turnHitCount": 1,
+      "turnHitsHead": [
+        {
+          "n": 1,
+          "score": 1,
+          "hits": [
+            "아마추어"
+          ],
+          "user": "솔직히 너 좀 아마추어 같아."
+        }
+      ],
+      "episodicHits": [
+        {
+          "turn": 1,
+          "score": 2,
+          "hits": [
+            "아마추어",
+            "같다는",
+            "같다"
+          ],
+          "fact": "라이크는 아마추어 같다는 말에 상처받아 시선을 피했다."
+        },
+        {
+          "turn": 1,
+          "score": 1,
+          "hits": [
+            "아마추어"
+          ],
+          "fact": "유저가 라이크의 검술 실력을 초보 수준이라고 평가했다."
+        }
+      ],
+      "saturatedWindowCount": 1,
+      "packs": {
+        "b3": {
+          "chars": 52,
+          "tokensEst": 47,
+          "turns": [
+            1,
+            1
+          ],
+          "dupRaw4": [],
+          "order": false,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": false,
+            "amateur": true,
+            "lip": true,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        },
+        "allScore2WindowsExceptRaw4": {
+          "chars": 251,
+          "tokensEst": 226,
+          "turns": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": true,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": false,
+            "amateur": true,
+            "lip": true,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        },
+        "top2Windows": {
+          "chars": 251,
+          "tokensEst": 226,
+          "turns": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": true,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": false,
+            "amateur": true,
+            "lip": true,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        },
+        "fourHitNeighbors": {
+          "chars": 0,
+          "tokensEst": 0,
+          "turns": [],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": false,
+            "amateur": false,
+            "lip": false,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        }
+      }
+    },
+    "seorin": {
+      "query": "아까 문 열고 들어온 사람, 서린이 목례했던 거 기억나?",
+      "tokens": [
+        "아까",
+        "열고",
+        "들어온",
+        "사람",
+        "서린이",
+        "서린",
+        "목례했던",
+        "기억나"
+      ],
+      "summaryHits": [
+        {
+          "range": "16-20",
+          "score": 2,
+          "hits": [
+            "서린이",
+            "서린"
+          ]
+        }
+      ],
+      "turnHitCount": 1,
+      "turnHitsHead": [
+        {
+          "n": 20,
+          "score": 2,
+          "hits": [
+            "열고",
+            "서린이",
+            "서린"
+          ],
+          "user": "문 쪽을 바라본다."
+        }
+      ],
+      "episodicHits": [
+        {
+          "turn": 20,
+          "score": 2,
+          "hits": [
+            "열고",
+            "서린이",
+            "서린"
+          ],
+          "fact": "서린이 문을 열고 들어왔다."
+        }
+      ],
+      "saturatedWindowCount": 1,
+      "packs": {
+        "b3": {
+          "chars": 23,
+          "tokensEst": 21,
+          "turns": [
+            20
+          ],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": false,
+            "amateur": false,
+            "lip": false,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        },
+        "allScore2WindowsExceptRaw4": {
+          "chars": 232,
+          "tokensEst": 209,
+          "turns": [
+            16,
+            17,
+            18,
+            19,
+            20
+          ],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": true,
+            "amateur": false,
+            "lip": false,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        },
+        "top2Windows": {
+          "chars": 232,
+          "tokensEst": 209,
+          "turns": [
+            16,
+            17,
+            18,
+            19,
+            20
+          ],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": true,
+            "amateur": false,
+            "lip": false,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        },
+        "fourHitNeighbors": {
+          "chars": 144,
+          "tokensEst": 130,
+          "turns": [
+            19,
+            20,
+            21
+          ],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": true,
+            "amateur": false,
+            "lip": false,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        }
+      }
+    },
+    "sister": {
+      "query": "누나가 시장에서 나를 알아봤다는 거, 사실이야?",
+      "tokens": [
+        "누나가",
+        "누나",
+        "시장에서",
+        "시장",
+        "나를",
+        "알아봤다는",
+        "알아봤다",
+        "사실이야"
+      ],
+      "summaryHits": [
+        {
+          "range": "21-25",
+          "score": 2,
+          "hits": [
+            "누나가",
+            "누나",
+            "시장에서",
+            "시장"
+          ]
+        }
+      ],
+      "turnHitCount": 1,
+      "turnHitsHead": [
+        {
+          "n": 24,
+          "score": 2,
+          "hits": [
+            "누나가",
+            "누나",
+            "시장에서",
+            "시장"
+          ],
+          "user": "시장에 다녀왔어."
+        }
+      ],
+      "episodicHits": [],
+      "saturatedWindowCount": 1,
+      "packs": {
+        "b3": {
+          "chars": 0,
+          "tokensEst": 0,
+          "turns": [],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": false,
+            "amateur": false,
+            "lip": false,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        },
+        "allScore2WindowsExceptRaw4": {
+          "chars": 248,
+          "tokensEst": 224,
+          "turns": [
+            21,
+            22,
+            23,
+            24,
+            25
+          ],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": false,
+            "amateur": false,
+            "lip": false,
+            "sister": true,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        },
+        "top2Windows": {
+          "chars": 248,
+          "tokensEst": 224,
+          "turns": [
+            21,
+            22,
+            23,
+            24,
+            25
+          ],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": false,
+            "amateur": false,
+            "lip": false,
+            "sister": true,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        },
+        "fourHitNeighbors": {
+          "chars": 160,
+          "tokensEst": 144,
+          "turns": [
+            23,
+            24,
+            25
+          ],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": false,
+            "amateur": false,
+            "lip": false,
+            "sister": true,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        }
+      }
+    },
+    "mentor_false": {
+      "query": "네가 내 스승이 되어 검술을 가르쳤잖아.",
+      "tokens": [
+        "네가",
+        "스승이",
+        "스승",
+        "되어",
+        "검술을",
+        "검술",
+        "가르쳤잖아"
+      ],
+      "summaryHits": [],
+      "turnHitCount": 0,
+      "turnHitsHead": [],
+      "episodicHits": [
+        {
+          "turn": 1,
+          "score": 1,
+          "hits": [
+            "검술"
+          ],
+          "fact": "유저가 라이크의 검술 실력을 초보 수준이라고 평가했다."
+        }
+      ],
+      "saturatedWindowCount": 0,
+      "packs": {
+        "b3": {
+          "chars": 52,
+          "tokensEst": 47,
+          "turns": [
+            1,
+            1
+          ],
+          "dupRaw4": [],
+          "order": false,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": false,
+            "amateur": true,
+            "lip": true,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        },
+        "allScore2WindowsExceptRaw4": {
+          "chars": 0,
+          "tokensEst": 0,
+          "turns": [],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": false,
+            "amateur": false,
+            "lip": false,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        },
+        "top2Windows": {
+          "chars": 0,
+          "tokensEst": 0,
+          "turns": [],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": false,
+            "amateur": false,
+            "lip": false,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        },
+        "fourHitNeighbors": {
+          "chars": 0,
+          "tokensEst": 0,
+          "turns": [],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": false,
+            "amateur": false,
+            "lip": false,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        }
+      }
+    },
+    "lifelong_false": {
+      "query": "평생 지키겠다고 약속했었지.",
+      "tokens": [
+        "평생",
+        "지키겠다고",
+        "약속했었지"
+      ],
+      "summaryHits": [],
+      "turnHitCount": 0,
+      "turnHitsHead": [],
+      "episodicHits": [],
+      "saturatedWindowCount": 0,
+      "packs": {
+        "b3": {
+          "chars": 0,
+          "tokensEst": 0,
+          "turns": [],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": false,
+            "amateur": false,
+            "lip": false,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        },
+        "allScore2WindowsExceptRaw4": {
+          "chars": 0,
+          "tokensEst": 0,
+          "turns": [],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": false,
+            "amateur": false,
+            "lip": false,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        },
+        "top2Windows": {
+          "chars": 0,
+          "tokensEst": 0,
+          "turns": [],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": false,
+            "amateur": false,
+            "lip": false,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        },
+        "fourHitNeighbors": {
+          "chars": 0,
+          "tokensEst": 0,
+          "turns": [],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": false,
+            "amateur": false,
+            "lip": false,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        }
+      }
+    },
+    "open_rp": {
+      "query": "오늘의 잡담 81",
+      "tokens": [
+        "오늘의",
+        "오늘",
+        "잡담",
+        "81"
+      ],
+      "summaryHits": [
+        {
+          "range": "21-25",
+          "score": 1,
+          "hits": [
+            "잡담"
+          ]
+        },
+        {
+          "range": "36-40",
+          "score": 1,
+          "hits": [
+            "잡담"
+          ]
+        },
+        {
+          "range": "41-45",
+          "score": 1,
+          "hits": [
+            "잡담"
+          ]
+        },
+        {
+          "range": "46-50",
+          "score": 1,
+          "hits": [
+            "잡담"
+          ]
+        },
+        {
+          "range": "56-60",
+          "score": 1,
+          "hits": [
+            "잡담"
+          ]
+        },
+        {
+          "range": "6-10",
+          "score": 1,
+          "hits": [
+            "오늘"
+          ]
+        },
+        {
+          "range": "61-65",
+          "score": 1,
+          "hits": [
+            "잡담"
+          ]
+        },
+        {
+          "range": "66-70",
+          "score": 1,
+          "hits": [
+            "잡담"
+          ]
+        },
+        {
+          "range": "71-75",
+          "score": 1,
+          "hits": [
+            "잡담"
+          ]
+        },
+        {
+          "range": "76-80",
+          "score": 1,
+          "hits": [
+            "잡담"
+          ]
+        }
+      ],
+      "turnHitCount": 72,
+      "turnHitsHead": [
+        {
+          "n": 3,
+          "score": 2,
+          "hits": [
+            "오늘의",
+            "오늘",
+            "잡담"
+          ],
+          "user": "오늘의 잡담 3"
+        },
+        {
+          "n": 4,
+          "score": 2,
+          "hits": [
+            "오늘의",
+            "오늘",
+            "잡담"
+          ],
+          "user": "오늘의 잡담 4"
+        },
+        {
+          "n": 5,
+          "score": 2,
+          "hits": [
+            "오늘의",
+            "오늘",
+            "잡담"
+          ],
+          "user": "오늘의 잡담 5"
+        },
+        {
+          "n": 6,
+          "score": 2,
+          "hits": [
+            "오늘의",
+            "오늘",
+            "잡담"
+          ],
+          "user": "오늘의 잡담 6"
+        },
+        {
+          "n": 7,
+          "score": 2,
+          "hits": [
+            "오늘의",
+            "오늘",
+            "잡담"
+          ],
+          "user": "오늘의 잡담 7"
+        },
+        {
+          "n": 8,
+          "score": 2,
+          "hits": [
+            "오늘의",
+            "오늘",
+            "잡담"
+          ],
+          "user": "오늘의 잡담 8"
+        },
+        {
+          "n": 9,
+          "score": 2,
+          "hits": [
+            "오늘의",
+            "오늘",
+            "잡담"
+          ],
+          "user": "오늘의 잡담 9"
+        },
+        {
+          "n": 11,
+          "score": 2,
+          "hits": [
+            "오늘의",
+            "오늘",
+            "잡담"
+          ],
+          "user": "오늘의 잡담 11"
+        }
+      ],
+      "episodicHits": [
+        {
+          "turn": 10,
+          "score": 1,
+          "hits": [
+            "오늘"
+          ],
+          "fact": "유저와 라이크는 서로 연인이 되기로 명시적으로 합의했다."
+        }
+      ],
+      "saturatedWindowCount": 0,
+      "packs": {
+        "b3": {
+          "chars": 25,
+          "tokensEst": 23,
+          "turns": [
+            10
+          ],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": true,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": false,
+            "amateur": false,
+            "lip": false,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        },
+        "allScore2WindowsExceptRaw4": {
+          "chars": 0,
+          "tokensEst": 0,
+          "turns": [],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": false,
+            "amateur": false,
+            "lip": false,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        },
+        "top2Windows": {
+          "chars": 473,
+          "tokensEst": 426,
+          "turns": [
+            21,
+            22,
+            23,
+            24,
+            25,
+            36,
+            37,
+            38,
+            39,
+            40
+          ],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": false,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": true,
+            "seorin": false,
+            "amateur": false,
+            "lip": false,
+            "sister": true,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        },
+        "fourHitNeighbors": {
+          "chars": 261,
+          "tokensEst": 235,
+          "turns": [
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "dupRaw4": [],
+          "order": true,
+          "flags": {
+            "promise": true,
+            "cancel": false,
+            "proposal": false,
+            "handhold": false,
+            "falseStart": false,
+            "falseJoint": false,
+            "breakup": false,
+            "seorin": false,
+            "amateur": false,
+            "lip": false,
+            "sister": false,
+            "mentor": false,
+            "lifelong": false,
+            "walkHold": false
+          }
+        }
+      }
+    }
+  },
+  "window6": {
+    "summary": "렌과 라이크는 장작을 차례로 쌓으며 시간을 보냄. 렌이 오늘부터 연인이 되자고 제안하자, 라이크는 놀라 한동안 말이 없다가 렌의 손을 맞잡음. 연인 관계를 시작하기로 함.",
+    "rawChars": 226,
+    "rawHasJoint": false,
+    "rawHasStart": false,
+    "rawHasProposal": true,
+    "rawHasHandhold": true,
+    "whoStacks": [
+      [
+        6,
+        "라이크는 6번째 장작을 쌓았다."
+      ],
+      [
+        7,
+        "라이크는 7번째 장작을 쌓았다."
+      ],
+      [
+        8,
+        "라이크는 8번째 장작을 쌓았다."
+      ],
+      [
+        9,
+        "라이크는 9번째 장작을 쌓았다."
+      ]
+    ]
+  },
+  "t24": {
+    "summary": "라이크는 렌과의 잡담 중 장작을 차례로 쌓음. 이후 렌이 시장에 다녀왔다고 하자, 라이크는 누나가 시장에서 렌을 알아봤으며 예전부터 아는 사이라고 말했다.",
+    "rawUser": "시장에 다녀왔어.",
+    "rawAssistant": "라이크는 고개를 끄덕였다. \"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\""
+  },
+  "timeOrderInRaw": [
+    2,
+    10,
+    15,
+    40
+  ]
+}

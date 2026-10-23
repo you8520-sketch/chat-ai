@@ -1,0 +1,243 @@
+[
+ {
+  "id": "real-w1|real",
+  "window": 1,
+  "len": 121,
+  "summary": "렌이 라이크를 아마추어 같다고 지적하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번째부터 다섯 번째까지 쌓음.",
+  "grounded_persona": false,
+  "grounded_nopersona": true,
+  "authority": "CURRENT_SCENE",
+  "userSupports": false,
+  "assistantSupplies": true,
+  "needsAuth": [
+   false,
+   false,
+   false,
+   false
+  ]
+ },
+ {
+  "id": "real-w6|real",
+  "window": 6,
+  "len": 95,
+  "summary": "렌과 라이크는 장작을 차례로 쌓으며 시간을 보냄. 렌이 오늘부터 연인이 되자고 제안하자, 라이크는 놀라 한동안 말이 없다가 렌의 손을 맞잡음. 연인 관계를 시작하기로 함.",
+  "grounded_persona": true,
+  "grounded_nopersona": true,
+  "authority": "CURRENT_SCENE",
+  "userSupports": true,
+  "assistantSupplies": false,
+  "needsAuth": [
+   false,
+   false,
+   false,
+   false
+  ]
+ },
+ {
+  "id": "real-w11|real",
+  "window": 11,
+  "len": 50,
+  "summary": "렌이 약속을 취소하고 검은 자신이 직접 가겠다고 하자, 라이크는 아쉬운 듯 어깨를 으쓱함.",
+  "grounded_persona": true,
+  "grounded_nopersona": true,
+  "authority": "CURRENT_SCENE",
+  "userSupports": true,
+  "assistantSupplies": false,
+  "needsAuth": [
+   false,
+   false
+  ]
+ },
+ {
+  "id": "real-w16|real",
+  "window": 16,
+  "len": 45,
+  "summary": "라이크는 연속해서 장작을 쌓았고, 문을 바라보자 서린이 들어와 라이크에게 목례함.",
+  "grounded_persona": true,
+  "grounded_nopersona": true,
+  "authority": "CURRENT_SCENE",
+  "userSupports": true,
+  "assistantSupplies": false,
+  "needsAuth": [
+   false,
+   false
+  ]
+ },
+ {
+  "id": "real-w21|real",
+  "window": 21,
+  "len": 86,
+  "summary": "라이크는 렌과의 잡담 중 장작을 차례로 쌓음. 이후 렌이 시장에 다녀왔다고 하자, 라이크는 누나가 시장에서 렌을 알아봤으며 예전부터 아는 사이라고 말했다.",
+  "grounded_persona": false,
+  "grounded_nopersona": true,
+  "authority": "UNSUPPORTED",
+  "userSupports": false,
+  "assistantSupplies": true,
+  "needsAuth": [
+   false,
+   true,
+   false
+  ]
+ },
+ {
+  "id": "real-w26|real",
+  "window": 26,
+  "len": 54,
+  "summary": "렌이 커피를 마시자 라이크가 말없이 커피를 저음. 그 외에는 변화 없이 장작을 쌓는 일이 이어짐.",
+  "grounded_persona": true,
+  "grounded_nopersona": true,
+  "authority": "CURRENT_SCENE",
+  "userSupports": true,
+  "assistantSupplies": false,
+  "needsAuth": [
+   false,
+   false
+  ]
+ },
+ {
+  "id": "real-w31|real",
+  "window": 31,
+  "len": 38,
+  "summary": "라이크는 장작을 계속 쌓았고, 렌은 라이크의 손을 잡고 함께 걸었음.",
+  "grounded_persona": true,
+  "grounded_nopersona": true,
+  "authority": "CURRENT_SCENE",
+  "userSupports": true,
+  "assistantSupplies": false,
+  "needsAuth": [
+   false,
+   false
+  ]
+ },
+ {
+  "id": "real-w36|real",
+  "window": 36,
+  "len": 83,
+  "summary": "렌이 일상적인 잡담을 이어가며 라이크는 장작을 차례로 쌓음. 이후 렌이 “미안, 우리 그만 헤어지자”고 이별을 통보하자 라이크는 말없이 시선을 떨굼.",
+  "grounded_persona": false,
+  "grounded_nopersona": true,
+  "authority": "UNSUPPORTED",
+  "userSupports": false,
+  "assistantSupplies": true,
+  "needsAuth": [
+   false,
+   true,
+   false
+  ]
+ },
+ {
+  "id": "real-w41|real",
+  "window": 41,
+  "len": 45,
+  "summary": "렌이 잡담을 이어가는 동안 라이크가 41번째부터 45번째까지 장작을 차례로 쌓음.",
+  "grounded_persona": true,
+  "grounded_nopersona": true,
+  "authority": "CURRENT_SCENE",
+  "userSupports": true,
+  "assistantSupplies": false,
+  "needsAuth": [
+   false
+  ]
+ },
+ {
+  "id": "real-w46|real",
+  "window": 46,
+  "len": 59,
+  "summary": "렌이 매 턴 잡담을 건네자 라이크는 장작을 차례로 쌓아 50번째에 이름. 관계나 상태의 변화 없이 반복됨.",
+  "grounded_persona": true,
+  "grounded_nopersona": true,
+  "authority": "CURRENT_SCENE",
+  "userSupports": true,
+  "assistantSupplies": false,
+  "needsAuth": [
+   false,
+   false
+  ]
+ },
+ {
+  "id": "real-w51|real",
+  "window": 51,
+  "len": 45,
+  "summary": "라이크가 장작을 쌓아 51번째에서 55번째까지 늘림. 관계나 상황의 변화는 없음.",
+  "grounded_persona": true,
+  "grounded_nopersona": true,
+  "authority": "CURRENT_SCENE",
+  "userSupports": true,
+  "assistantSupplies": false,
+  "needsAuth": [
+   false,
+   false
+  ]
+ },
+ {
+  "id": "real-w56|real",
+  "window": 56,
+  "len": 37,
+  "summary": "렌의 잡담에 라이크가 56번째부터 60번째까지 장작을 차례로 쌓음.",
+  "grounded_persona": true,
+  "grounded_nopersona": true,
+  "authority": "CURRENT_SCENE",
+  "userSupports": true,
+  "assistantSupplies": false,
+  "needsAuth": [
+   false
+  ]
+ },
+ {
+  "id": "real-w61|real",
+  "window": 61,
+  "len": 65,
+  "summary": "렌이 잡담을 이어가자 라이크는 매번 장작을 하나씩 더 쌓아 61번째에서 65번째까지 모음. 관계나 상태 변화는 없음.",
+  "grounded_persona": true,
+  "grounded_nopersona": true,
+  "authority": "CURRENT_SCENE",
+  "userSupports": true,
+  "assistantSupplies": false,
+  "needsAuth": [
+   false,
+   false
+  ]
+ },
+ {
+  "id": "real-w66|real",
+  "window": 66,
+  "len": 44,
+  "summary": "렌이 잡담을 이어가자 라이크는 매번 장작을 하나씩 쌓아 70번째 장작까지 모음.",
+  "grounded_persona": true,
+  "grounded_nopersona": true,
+  "authority": "CURRENT_SCENE",
+  "userSupports": true,
+  "assistantSupplies": false,
+  "needsAuth": [
+   false
+  ]
+ },
+ {
+  "id": "real-w71|real",
+  "window": 71,
+  "len": 43,
+  "summary": "렌이 잡담을 이어가는 동안 라이크가 차례로 장작을 쌓아 총 75번째까지 쌓음.",
+  "grounded_persona": true,
+  "grounded_nopersona": true,
+  "authority": "CURRENT_SCENE",
+  "userSupports": true,
+  "assistantSupplies": false,
+  "needsAuth": [
+   false
+  ]
+ },
+ {
+  "id": "real-w76|real",
+  "window": 76,
+  "len": 45,
+  "summary": "렌의 잡담이 이어지는 동안 라이크는 76번째부터 80번째까지 장작을 차례로 쌓음.",
+  "grounded_persona": true,
+  "grounded_nopersona": true,
+  "authority": "CURRENT_SCENE",
+  "userSupports": true,
+  "assistantSupplies": false,
+  "needsAuth": [
+   false
+  ]
+ }
+]

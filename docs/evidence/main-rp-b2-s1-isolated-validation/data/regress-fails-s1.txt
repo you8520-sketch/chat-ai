@@ -1,0 +1,91 @@
+1b: sole-closed reopen rolls back when fail after branch ops
+A1-A3/main/B1-B2 → B1+B2 only
+A8 new fork chat row starts with empty memory and current_summary
+assistant material prose edit
+assistant-only canon-adopted source identity
+B1/empty_ooc/B2 → B1+B2 promoted; empty_ooc untouched
+B1/preference/B2 → B1+B2 promoted; preference untouched
+B2_1 noncanon continue promotes latest contiguous group to branch_canon
+B2_7 only latest contiguous noncanon segment selected for promotion
+B2/B6 two simultaneous boundary requests coalesce to one seal
+B4 seal succeeds => summarizedThrough advances to 5 at turn 6 boundary
+blocker-A: auto-reopen provenance rolls back on source turn delete
+blocker-D: resume → close keeps final closed; delete close then resume restores
+blocker-E: resume → main adopt closes A; adopt delete restores active via resume
+buildContext — English character settings
+buildContext — Qwen OpenRouter prose rules
+C1-7 fork insert omits current_summary parameter
+C1-R1 already-current V8 remote DB reaches convergence without migrate callback
+C2-like — physical current_summary absent runtime matrix
+C5 FORK_MEMORY_INIT: memory_archived_turns only (no current_summary mirror)
+C6 FORK_CHAT_INSERT: memory absent → new row PASS
+chats.current_summary C1 — deploy convergence reachability
+chats.current_summary C1 — runtime owner retirement
+chats.current_summary C2 fresh schema
+chats.current_summary C2 remote V8 lifecycle
+chats.current_summary C2 V8 physical retirement invariant
+chats.current_summary owner audit — post-C1 behavior
+chats legacy memory fallback audit — fork bootstrap
+chats.memory M1 drop-compat fork INSERT correction
+chats.memory M2 fresh schema
+chats.memory M2 → M1 rollback matrix (synthetic)
+chats.memory M2 remote V7 lifecycle
+chats.memory M2 V7 physical retirement invariant
+CM-F2 normal create and fork insert on fresh M2 DB
+CM-V7-1 requires chats exists and memory absent
+CM-V7-4 V6 present carrier → V7 migrate
+CM-V7-5 V6 absent carrier → V8 adopt
+CM-V7-6 V7 marker + recreated memory column repaired
+contextBuilder regenerate
+CS-A6 fork insert uses physical DEFAULT empty current_summary
+CS-F2 normal create and fork insert on fresh C2 DB
+CS-V8-1 requires chats exists and current_summary absent
+CS-V8-4 V7 present carrier → V8 migrate
+CS-V8-5 V7 absent carrier → V8 adopt
+CS-V8-6 V8 marker + recreated current_summary column repaired
+E: active C + unrelated B → B promotion 0; C only in LTM
+edits assistant-only turn without misattributing to prior user turn
+F: closed A + B1/B2 + bare 계속 → B only; A stays closed
+FORK_CREATE: insertForkChatRow on column-absent production DB
+FORK_INIT: initializeForkChatMemory on column-absent production DB
+fork INSERT placeholder count matches argument ordering
+G: B1/B2/B3 all promoted with same branch_id
+H: continue delete rolls back only selected promote group
+injects bilingual dialogue blocks when creator sets [BILINGUAL: zh+ko]
+injects Korean output language rule when useEnglishCharacterPrompt is true
+injects mandatory divergence block into dynamic system prompt
+injects unified OUTPUT LANG and foreign-mixing rule for OpenRouter Korean-only
+injects unified prose style XML bundle for Qwen3.7 Max
+invalidates sealed summary and reseals with new source prose
+last_compressed_at V6 physical retirement invariant
+last_compressed_at V6 remote lifecycle
+LC-V6-10 V4 direct → V6 drops last_compressed_at
+LC-V6-11 V3 direct → V6 convergence
+LC-V6-12 V2 legacy stack direct → V6 convergence
+LC-V6-13 fresh V6 remote DB: no-op migrations + invariant + marker
+LC-V6-1 V6 requires chat_memories exists and last_compressed_at absent
+LC-V6-6 V5 present carrier → V6 migrate drops column
+LC-V6-7 V5 absent carrier → V6 adopt without migrate
+LC-V6-8 V6 recreated NULL carrier → repair drop
+LC-V6-9 V6 recreated NON_NULL carrier → repair drop
+LEGACY-FAIL-A reproduced as FIXED: A/main/B/main/C → C only
+material user source edit invalidates sealed summary and allows reseal
+MEMORY_5PLUS4_ENABLED production references are 0
+MEMORY_COLUMN_ABSENT_CREATION: insertForkChatRow PASS
+MEMORY_COLUMN_PRESENT_CREATION: omit memory → DEFAULT empty
+memoryRelationshipTask generation-scoped regeneration
+memoryRelationshipTask lifecycle + async coverage
+mixed-A: turn6~10 main + turn11 explicit IF resume keeps both scopes
+mixed-C: middle resume splits 6~8 main and 9~10 branch
+P1-B seal-time narrow noncanon promotion
+Phase2 branch/noncanon contract B2_1-B2_10
+production fork INSERT omits memory and current_summary columns (16 placeholders)
+R1 — old skipped marker → provider-backed regenerate restores gen-scoped lifecycle
+R2 — old gen0 ledger preserved; regen gets gen1 succeeded marker
+R3 — old failed marker cleared; provider-backed regen succeeds for gen1
+seal-path blockers: atomicity / sole-closed e2e / single-active
+single memory policy owner
+src/lib/memory/memory-branch-noncanon-phase2.test.ts
+summary barrier B1-B7
+T13 — succeeded + zero physical rows stays partial at family level
+user message edit

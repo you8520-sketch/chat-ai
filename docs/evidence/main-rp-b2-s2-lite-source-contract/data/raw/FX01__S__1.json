@@ -1,0 +1,46 @@
+{
+ "id": "FX01",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"렌이 라이크를 아마추어 같다고 평가하자 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 웃음. 이후 라이크는 장작을 3개, 4개, 5개로 차례로 쌓음.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"…그래, 아직 부족하긴 하지.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"user\",\"quote\":\"내일까지 검을 갈아다 줄게. 약속이야.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 고개를 끄덕이며 작게 웃었다.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2012,
+  "outputTokens": 220,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 2010,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000084,
+  "upstreamCostUsd": 0.000084,
+  "debugRawUsage": {
+   "completion_tokens": 220,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2012,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 2010
+   },
+   "total_tokens": 2232,
+   "cost": 0.000084,
+   "cost_details": {
+    "upstream_inference_cost": 0.000084
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "0424df76-944b-4462-90c1-4f675ece64bc"
+ },
+ "billedUsd": 0.000084,
+ "ms": 4449,
+ "systemChars": 3460,
+ "userChars": 642
+}

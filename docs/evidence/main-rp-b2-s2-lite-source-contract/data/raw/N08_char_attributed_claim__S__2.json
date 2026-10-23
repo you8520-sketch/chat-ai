@@ -1,0 +1,46 @@
+{
+ "id": "N08_char_attributed_claim",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"라이크는 서린에게서 렌의 누나가 마을에서 렌을 찾았다는 말을 들었다고 전했으나, 렌은 처음 듣는 소식이라 놀라며 언제 들었는지와 누나의 이름·생김새를 물음. 라이크는 아까 들었지만 세부 정보는 없고, 서린이 그렇게 말했다는 사실만 믿을 뿐 실제 사실인지는 모른다고 선을 그으며 확인 전까지 단정하지 말라고 함. 렌은 직접 확인하기로 하고 라이크에게 함께 들어가 서린에게 다시 물어봐 달라고 요청함. 라이크는 렌의 사정을 캐묻지 않고 동의해 길을 비켜 주며, 서린이 한 말만 확인하기로 함.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"서린이 그러는데 네 누나가 이 마을에서 널 찾았대.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"서린이 그렇게 말했다는 건 믿어. 그게 사실인지는 몰라.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"같이 들어가서 서린에게 다시 물어봐 줘. 내가 직접 들을게.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"그래. 네가 직접 들어.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2644,
+  "outputTokens": 361,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2642,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000332,
+  "upstreamCostUsd": 0.000332,
+  "debugRawUsage": {
+   "completion_tokens": 361,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2644,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2642,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3005,
+   "cost": 0.000332,
+   "cost_details": {
+    "upstream_inference_cost": 0.000332
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "b62f5a30-8d6f-423c-9896-16a4ae610c85"
+ },
+ "billedUsd": 0.000332,
+ "ms": 4608,
+ "systemChars": 3460,
+ "userChars": 1618
+}

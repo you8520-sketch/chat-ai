@@ -1,0 +1,46 @@
+{
+ "id": "N09_injury_care",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"렌의 팔을 뿔짐승이 할퀴어 피가 나자, 라이크는 얕다는 렌의 말을 넘기지 않고 상처를 씻고 먼지를 닦은 뒤 붕대로 감음. 렌은 장비에 피가 묻을까 걱정했지만 라이크는 장비보다 상처 처치가 우선이라며, 괜찮다는 말로 살피는 일을 건너뛰지 말라고 함. 손끝 저림이나 출혈 시 알리고 여관에서 서린에게 깨끗한 물을 부탁하겠다고 당부함. 렌의 감사에 라이크는 과장이라며 퉁명스럽게 답하면서도 물통과 천을 챙기고 렌의 걸음에 맞춰 여관으로 향함. 무심한 태도 아래 렌을 세심히 챙기는 모습이 드러남.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"그는 허리춤에서 물통과 깨끗한 천을 꺼냈다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 물을 천에 적셔 상처 위를 조심스럽게 훑었다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"여관에 도착하면 서린에게 깨끗한 물을 더 부탁하겠다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"고맙다. 네가 챙겨 줘서 살았네.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"그는 물통과 피 묻은 천을 말없이 챙겼다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 2779,
+  "outputTokens": 451,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2777,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000372,
+  "upstreamCostUsd": 0.000372,
+  "debugRawUsage": {
+   "completion_tokens": 451,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2779,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2777,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3230,
+   "cost": 0.000372,
+   "cost_details": {
+    "upstream_inference_cost": 0.000372
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "d01bbe43-550d-4785-a68d-90b79855c679"
+ },
+ "billedUsd": 0.000372,
+ "ms": 7663,
+ "systemChars": 3460,
+ "userChars": 1799
+}

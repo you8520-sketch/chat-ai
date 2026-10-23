@@ -1,0 +1,46 @@
+{
+ "id": "N17_cancel_promise",
+ "arm": "F",
+ "rep": 0,
+ "text": "렌이 라이크의 검을 갈아 주겠다는 말을 바꾸고 직접 손질하겠다고 하자, 라이크는 잠시 아쉬워했으나 검과 숫돌을 내주고 이유를 캐묻지 않음. 렌이 다치지 말라는 당부를 가볍게 넘긴 뒤 숫돌만 빌려 쓰고 돌려놓겠다고 하자, 라이크는 물의 위치를 알려 줌. 렌이 검 손질을 마치면 바로 나가 해 지기 전에 마을을 떠나자고 정했고, 라이크도 동의해 먼저 떠나지 않고 준비를 기다림. 방값은 이미 치렀으며 라이크는 챙길 것이 별로 없다며 문가에서 렌을 기다림.",
+ "usage": {
+  "inputTokens": 2287,
+  "outputTokens": 173,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2285,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000242,
+  "upstreamCostUsd": 0.000242,
+  "debugRawUsage": {
+   "completion_tokens": 173,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2287,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2285,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2460,
+   "cost": 0.000242,
+   "cost_details": {
+    "upstream_inference_cost": 0.000242
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "1073450e-942b-4f75-a3ec-33d006c86e9a"
+ },
+ "billedUsd": 0.000242,
+ "ms": 10544,
+ "systemChars": 2503,
+ "userChars": 1675
+}

@@ -1,0 +1,93 @@
+{
+ "arm": "s1ctl",
+ "hasS1": true,
+ "F1_compaction": {
+  "rounds": 30,
+  "frontier": 150,
+  "records": 30,
+  "labeledRows": 8,
+  "unverifiedCandidateWindows": 8,
+  "compactionCalls": 1,
+  "compactInputContainsUnverified": 0,
+  "globalProjectionKind": "global_compact",
+  "globalTextChars": 3076,
+  "globalContainsUnverified": 0,
+  "storedRecentSummaryContainsUnverified": 0,
+  "mediumChars": 7560,
+  "mediumContainsUnverified": 0,
+  "unverifiedBlockCount": 8,
+  "unverifiedBlockContainsAllLabeledProbes": 8,
+  "probesTotal": 8,
+  "episodicFactRows": 0,
+  "memoryMetaChanged": null
+ },
+ "F2_wire150": {
+  "projectionKind": "global_compact",
+  "wrapperPresent": true,
+  "labeledRows": 8,
+  "probesInsideWrapper": 0,
+  "probesInUnverifiedSection": 4,
+  "probesInRawOwnedRegion": 4,
+  "probesTotal": 8,
+  "chars": {
+   "current_memory": 3147,
+   "medium": 0,
+   "unverified": 504,
+   "ltm_region": 3285
+  },
+  "estimatedSystemTokens": 9417,
+  "rawHistory": {
+   "messages": 8,
+   "chars": 108,
+   "pool": 4
+  },
+  "excludeTurnStartGte": 67
+ },
+ "F3_edit_delete": {
+  "labelAfterEdit": "normal",
+  "userEditedFlag": true,
+  "editedTextInGlobalRebuild": true,
+  "editedTextInUnverifiedBlock": false,
+  "deletedRowInUnverifiedBlock": false,
+  "deletedRowInGlobalRebuild": false,
+  "markedInactive": true
+ },
+ "F4_variant_reconcile": {
+  "attempted": true,
+  "inactivated": 1,
+  "labeledRowsRemaining": 6,
+  "mirrorChars": 10013,
+  "mirrorContainsUnverified": 0
+ },
+ "F5_fork_regen": {
+  "labelsBeforeFork": [
+   {
+    "start": 1,
+    "label": "unverified_summary"
+   },
+   {
+    "start": 6,
+    "label": "normal"
+   }
+  ],
+  "copiedRows": 2,
+  "forkLabels": [
+   {
+    "start": 1,
+    "label": "normal"
+   },
+   {
+    "start": 6,
+    "label": "normal"
+   }
+  ],
+  "forkLorebookContainsUnverified": true,
+  "forkLorebookChars": 184,
+  "regenUngroundedReturned": false,
+  "labelAfterUngroundedRegen": "unverified_summary",
+  "regenGroundedReturned": false,
+  "labelAfterGroundedRegen": "unverified_summary",
+  "textAfterGroundedRegen": "렌과 라이크는 예전부터 연인 사이였음. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시"
+ },
+ "F6_fork_route_sql_has_label_filter": true
+}

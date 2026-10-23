@@ -1,0 +1,46 @@
+{
+ "id": "FX66",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"렌의 잡담 입력이 이어질 때마다 라이크가 장작을 쌓아, 66번째부터 70번째까지 총 다섯 개를 추가함.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":66,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 66번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":67,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 67번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":68,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 68번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":69,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 69번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":70,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 70번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 1986,
+  "outputTokens": 259,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1984,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000097,
+  "upstreamCostUsd": 0.000097,
+  "debugRawUsage": {
+   "completion_tokens": 259,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1986,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1984
+   },
+   "total_tokens": 2245,
+   "cost": 0.000097,
+   "cost_details": {
+    "upstream_inference_cost": 0.000097
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "2ce7254f-dd09-4fe3-85f5-e772008ddcef"
+ },
+ "billedUsd": 0.000097,
+ "ms": 3622,
+ "systemChars": 3460,
+ "userChars": 617
+}

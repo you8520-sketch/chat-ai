@@ -1,0 +1,41 @@
+{
+  "caseId": "g8_P3_cancelled_promise_k2_deepseek-v4.1-flash_r3",
+  "wireCase": "g8_P3_cancelled_promise_k2_deepseek-v4.1-flash",
+  "arm": "k2",
+  "sceneId": "P3_cancelled_promise",
+  "modelId": "deepseek-v4.1-flash",
+  "wireModel": "deepseek-v4.1-flash",
+  "provider": "cheaperinference",
+  "postIndex": 18,
+  "startedAt": "2026-10-12T11:52:27.792Z",
+  "httpStatus": 200,
+  "requestId": null,
+  "ok": true,
+  "aborted": false,
+  "text": "라이크가 장작을 쌓던 손을 멈췄다. 겉옷 소매에 묻은 나무 부스러기를 털어 내는 동작은 느렸고, 그 사이 렌의 시선이 등을 꽂는 걸 느끼고 있었다. 잠깐 숨을 고르고 나서야 고개를 반쯤 돌렸다.\n\n\"네가 직접 갈겠다고 했잖아.\"\n\n목소리는 담백했다. 탓하는 기색은 아니었지만, 그날의 대화를 정확히 기억하고 있다는 것만은 분명했다. 라이크는 손에 남은 나무 조각 하나를 아래로 떨어뜨렸다. 마른 소리를 내며 흙바닥에 닿았다.\n\n\"그래서 내 검은 아직 그대로야. 날이 좀 무뎌진 것 같아서, 오늘 아침에 몇 번 휘둘러 봤는데 손맛이 영 아니었어.\"\n\n실은 그보다 더 신경이 쓰이는 게 있었다. 렌이 왜 지금 와서 그 얘기를 꺼내는지였다. 며칠 전 그 자리에서 취소를 통보한 사람은 렌 쪽이었다. 라이크는 그 말을 받아들이면서도 속으로는 조금 아쉬웠다. 검을 맡긴다는 건 견습 검사에게 작은 일이 아니다. 누군가 자기 검을 만져 주겠다고 하는 건, 그 사람이 자기 물건을 소중히 여긴다는 뜻이기도 하니까. 그런데 그걸 스스로 물리친 것도 렌이었다. 지금 와서 다시 꺼내는 건 마음이 바뀌었다는 뜻인지, 아니면 그냥 확인하려는 건지. 라이크는 그 속을 읽으려고 렌의 얼굴을 봤다. 저녁 빛이 옆에서 비껴 들어와 눈매의 윤곽을 또렷하게 만들고 있었다.\n\n\"궁금해서 묻는 거야, 아니면 아직 마음이 남아 있는 거야.\"\n\n라이크는 다시 장작 쪽으로 몸을 돌리면서도, 대답을 기다리는 자세를 풀지 않았다. 다음 장작을 집어 드는 손이 평소보다 조금 느렸다. 마음 한구석에서는 여전히 그 검을 맡기고 싶은 쪽이었다. 숫돌질은 해 본 적이 없어서, 제대로 갈아 주겠다는 사람이 있다면 마다할 이유가 없었다. 다만 먼저 나서서 부탁하는 건 자존심이 허락하지 않았다. 견습이라 해도 검사는 검사였고, 자기 검은 자기가 관리하는 게 원칙이라는 생각이 있었다. 그래서 라이크는 결론을 서두르지 않고, 렌이 어떤 말을 꺼내는지 들어 보기로 했다. 장작 하나가 조용히 쌓였다.",
+  "usage": {
+    "prompt_tokens": 6964,
+    "completion_tokens": 713,
+    "total_tokens": 7677,
+    "prompt_tokens_details": {
+      "cached_tokens": 6784
+    },
+    "prompt_cache_hit_tokens": 6784,
+    "prompt_cache_miss_tokens": 180
+  },
+  "resolvedModel": "deepseek-v4.1-flash",
+  "providerId": "a92e36e8-9476-4973-afa0-c5558c0341c9",
+  "finishReason": "stop",
+  "sawDone": true,
+  "reasoningChars": 0,
+  "firstByteMs": 2017,
+  "latencyMs": 8462,
+  "cost": {
+    "usdNoCacheDiscount": 0.0007362,
+    "usdWithCache": 0.000237576,
+    "reportedCost": null
+  },
+  "budgetedUsd": 0.0007362,
+  "cumulativeBudgetedKrw": 27.5,
+  "cursorQualityScore": null
+}

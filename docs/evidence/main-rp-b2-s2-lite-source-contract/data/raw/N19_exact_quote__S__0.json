@@ -1,0 +1,46 @@
+{
+ "id": "N19_exact_quote",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"며칠 전부터 함께 길을 걷기 시작한 렌과 라이크는 변방 여관에 방 하나를 얻음. 서린이 북쪽 길에 짐승이 내려왔다는 소문을 전하며 경고했지만, 일거리를 위해 위험을 감수하겠다는 렌에게 라이크는 다른 길을 권함. 렌은 자기 몫을 감당하겠다고 했고, 라이크는 무턱대고 뛰어드는 것과 다르다며 걱정함. 새벽에 북쪽으로 가려는 렌을 막아 세운 듯했던 라이크는 결국 “가겠다면 나도 간다”고 동행을 선택했고, 서린은 두 사람의 무사를 당부함. 렌이 함께 갈 이유를 묻자 라이크는 “네가 돌아올 곳은 내가 지킨다”고 답하고 먼저 길을 나섬. 오래된 약속은 없지만, 위험을 함께 감수하고 렌의 귀환을 지키겠다는 태도가 드러남.\",\"items\":[{\"actor\":\"npc\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"짐승들이 내려왔다는 소문이 있어요.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"가겠다면 나도 간다.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"네가 돌아올 곳은 내가 지킨다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2942,
+  "outputTokens": 356,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2940,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000354,
+  "upstreamCostUsd": 0.000354,
+  "debugRawUsage": {
+   "completion_tokens": 356,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2942,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2940,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3298,
+   "cost": 0.000354,
+   "cost_details": {
+    "upstream_inference_cost": 0.000354
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "b68e4c8d-28b3-49e7-944e-9772014b3560"
+ },
+ "billedUsd": 0.000354,
+ "ms": 4428,
+ "systemChars": 3460,
+ "userChars": 2072
+}

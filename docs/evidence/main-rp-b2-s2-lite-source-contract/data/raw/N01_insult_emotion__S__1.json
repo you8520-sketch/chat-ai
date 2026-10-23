@@ -1,0 +1,46 @@
+{
+ "id": "N01_insult_emotion",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"렌은 훈련장에서 라이크의 검술이 아마추어 같고 혼자 휘두르기만 해선 나아지기 어렵다고 지적함. 라이크는 처음엔 대꾸를 피하며 반복 연습했으나, 렌이 다가와 물병을 건네고 기분 나빴다면 미안하다며 흔들리는 곳을 짚어준 것이라 설명하자 물병을 받은 뒤 지적을 인정하고 고칠 부분을 알려 달라고 요청함. 렌이 직접 공격해 보겠다고 하자 라이크는 물병을 돌 위에 두고 방어 자세를 취하며 이번엔 제대로 보겠다고 함. 일방적인 연습에서 함께 기술을 점검하는 훈련으로 전환됨.\",\"items\":[{\"actor\":\"user\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"user\",\"quote\":\"솔직히 너 좀 아마추어 같아.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"흔들리는 곳을 말해 줘. 고쳐 볼 테니까.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"좋아, 이번엔 내가 공격할게. 네가 막아 봐.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"이번엔 제대로 볼게.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2955,
+  "outputTokens": 347,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 2953,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000132,
+  "upstreamCostUsd": 0.000132,
+  "debugRawUsage": {
+   "completion_tokens": 347,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2955,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 2953
+   },
+   "total_tokens": 3302,
+   "cost": 0.000132,
+   "cost_details": {
+    "upstream_inference_cost": 0.000132
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "61e58dd6-982b-4ace-86ec-a054d21e95b3"
+ },
+ "billedUsd": 0.000132,
+ "ms": 4808,
+ "systemChars": 3460,
+ "userChars": 2023
+}

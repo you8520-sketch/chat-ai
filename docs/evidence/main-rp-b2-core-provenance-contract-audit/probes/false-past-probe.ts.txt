@@ -1,0 +1,29 @@
+import Module from "module";
+const o=(Module as any)._load;(Module as any)._load=function(r:string,p:any,m:boolean){if(r==="server-only")return {};return o(r,p,m)};
+import { it } from "node:test";
+import { readFileSync, writeFileSync } from "node:fs";
+import { isRollingSummaryGroundedInDialogue } from "@/lib/memory/memory-summary-integrity";
+import { resolveMemorySourceAuthority, clauseNeedsUserAuthority, sourcesFromUserText } from "@/lib/memory/memory-source-authority";
+import * as S from "@/lib/sharedHistoryEvidence";
+const fx = JSON.parse(readFileSync("/workspace/src/lib/memory/fixtures/rolling-summary-seal-stall.real-luna.json","utf8"));
+const cases: {id:string; window:number; summary:string}[] = JSON.parse(readFileSync("/tmp/probe/cases.json","utf8"));
+it("probe",()=>{
+  const out:any[]=[];
+  for (const c of cases) {
+    const w = fx.windows.find((x:any)=>x.turnStart===c.window);
+    const dialogue = w.turns.map((t:any,i:number)=>`[${w.turnStart+i}턴]\n유저: ${t.user}\n라이크: ${t.assistant}`).join("\n\n");
+    const user = w.turns.map((t:any)=>t.user).join("\n");
+    const asst = w.turns.map((t:any)=>t.assistant).join("\n");
+    const sum=c.summary;
+    const auth = resolveMemorySourceAuthority(sum,{sources:sourcesFromUserText(user),personaName:"렌",charName:"라이크"}).kind;
+    out.push({id:c.id,window:c.window,len:sum.length,summary:sum,
+      grounded_persona:isRollingSummaryGroundedInDialogue(sum,dialogue,"이름/호칭: 렌","라이크"),
+      grounded_nopersona:isRollingSummaryGroundedInDialogue(sum,dialogue,undefined,"라이크"),
+      authority:auth,
+      userSupports:S.userTextSupportsPriorSharedHistoryClaim(sum,user),
+      assistantSupplies:S.assistantSuppliesUnsupportedSharedHistoryDetail(sum,asst,user),
+      needsAuth:S.splitSharedHistoryClauses(sum).map(cl=>clauseNeedsUserAuthority(cl,"렌")),
+    });
+  }
+  writeFileSync(process.env.OUT!,JSON.stringify(out,null,1));
+});

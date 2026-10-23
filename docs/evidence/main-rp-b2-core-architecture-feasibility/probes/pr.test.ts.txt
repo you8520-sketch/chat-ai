@@ -1,0 +1,675 @@
+/**
+ * Gate 1 deterministic-replay A/B harness (scratch, not committed to the product).
+ * Runs unchanged inside a worktree of OLD / B-1 / CURRENT and drives that version's own
+ * live owners: reconcileSharedEpisodicFactsForTurn -> getEpisodicMemoryForPrompt,
+ * processRollingSummaryBatch -> buildMemoryContextForChat, summarizeTurnBatch.
+ * Extractor and summarizer outputs are FIXED replays (no provider POST).
+ */
+import Module from "module";
+
+const originalLoad = (Module as unknown as { _load: typeof Module._load })._load;
+(Module as unknown as { _load: typeof Module._load })._load = function (
+  request: string,
+  parent: NodeModule,
+  isMain: boolean
+) {
+  if (request === "server-only") return {};
+  return originalLoad(request, parent, isMain);
+} as typeof Module._load;
+
+import { after, before, it } from "node:test";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { getDb } from "@/lib/db";
+import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
+import {
+  deleteEpisodicMemoryFactsByAssistantMessageIds,
+  getEpisodicMemoryForPrompt,
+} from "@/lib/episodicMemoryFacts";
+import { estimateTokens } from "@/lib/tokenEstimate";
+import { callBackgroundMemory } from "@/lib/ai";
+import {
+  parseSharedEpisodicSection,
+  reconcileSharedEpisodicFactsForTurn,
+} from "./memory-episodic-shared";
+import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
+import { buildMemoryContextForChat } from "./memory-manager";
+import {
+  __setSummarizeTurnBatchCallerForTests,
+  processRollingSummaryBatch,
+  summarizeTurnBatch,
+} from "./memory-rolling-summary";
+import { MEMORY_CAPACITY_FIXED } from "./memory-capacity-shared";
+import { listMemoryRecordsForChat } from "./memory-turn-summary";
+import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
+import {
+  messagesToTurns,
+  rawRecentTurnsToHistory,
+  resolveLorebookExcludeFromTrimmedHistory,
+  resolveProviderRawPoolExchangeCount,
+} from "@/lib/hybridMemory";
+import { formatMemoryMetaForPrompt } from "@/lib/chatMemory";
+import { normalizeRelationshipMetaDeltaFromJson } from "@/lib/relationshipMemoryTail";
+import {
+  loadChatRelationshipMeta,
+  mergeRelationshipMetaFromTurn,
+} from "./memory-relationship-meta";
+
+const PROMISE_TEXT = "내일까지 검을 갈아다 준다";
+const NAMES = { charName: "라이크", userName: "렌" };
+
+function ledgerPayload(turn: number): Record<string, unknown> | null {
+  if (turn === 2) {
+    return { items: [], itemsRemove: [], promisesAdd: [{ text: PROMISE_TEXT }], promisesRemove: [] };
+  }
+  if (turn === 15) {
+    return { items: [], itemsRemove: [], promisesAdd: [], promisesRemove: [PROMISE_TEXT] };
+  }
+  return null;
+}
+
+const VERSION = process.env.AB_VERSION ?? "unknown";
+const OUT_DIR = process.env.AB_OUT ?? "/tmp/ab-out";
+const PERSONA = "이름/호칭: 렌\n성격: 조용함";
+const CHAR_NAME = "라이크";
+const LINE = "솔직히 너 좀 아마추어 같아.";
+const REACTION_QUOTE = "라이크는 입술을 깨물며 시선을 피했다.";
+const CHECKPOINTS = [10, 30, 50, 80];
+const ENV = {
+  NODE_ENV: "development",
+  EPISODIC_MEMORY_RECALL_ENABLED: "1",
+  EPISODIC_MEMORY_MIN_AGE_TURNS: "5",
+} as NodeJS.ProcessEnv;
+
+type Fact = Record<string, unknown>;
+
+const USER_BY_TURN: Record<number, string> = {
+  1: LINE,
+  2: "내일까지 검을 갈아다 줄게. 약속이야.",
+  10: "좋아, 우리 오늘부터 연인하자.",
+  15: "그 약속은 취소할게. 검은 내가 직접 갈게.",
+  20: "문 쪽을 바라본다.",
+  24: "시장에 다녀왔어.",
+  30: "커피를 마셨어.",
+  33: "라이크와 함께 걷는다.",
+  40: "미안, 우리 그만 헤어지자.",
+};
+const ASSISTANT_BY_TURN: Record<number, string> = {
+  1: `${REACTION_QUOTE} "…그래, 아직 부족하긴 하지."`,
+  2: "라이크는 고개를 끄덕이며 작게 웃었다.",
+  10: "라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.",
+  15: "라이크는 아쉬운 듯 어깨를 으쓱했다.",
+  20: "서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.",
+  24: '라이크는 고개를 끄덕였다. "누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라."',
+  30: "라이크는 말없이 커피를 저었다.",
+  33: "렌은 라이크의 손을 잡고 걸음을 옮겼다.",
+  40: "라이크는 말없이 시선을 떨궜다.",
+};
+
+function userText(turn: number): string {
+  return USER_BY_TURN[turn] ?? `오늘의 잡담 ${turn}`;
+}
+function assistantText(turn: number): string {
+  return ASSISTANT_BY_TURN[turn] ?? `라이크는 ${turn}번째 장작을 쌓았다.`;
+}
+
+function fact(
+  base: Omit<Fact, "evidence_type" | "evidence" | "importance"> & { importance?: string },
+  evidenceType: string,
+  role: "user" | "assistant",
+  quote: string
+): Fact {
+  return {
+    importance: "important",
+    ...base,
+    evidence_type: evidenceType,
+    evidence: { source_role: role, source_quote: quote },
+  };
+}
+
+function extractorFacts(turn: number, gloss: "echo" | "paraphrase"): Fact[] {
+  switch (turn) {
+    case 1:
+      return [
+        fact(
+          {
+            category: "relationship",
+            subject: "user_laike",
+            attribute: "criticism",
+            value: "mild_insult",
+            fact_text:
+              gloss === "echo"
+                ? `유저가 라이크에게 "${LINE}"라고 말했다.`
+                : "유저가 라이크의 검술 실력을 초보 수준이라고 평가했다.",
+          },
+          "explicit_user_statement",
+          "user",
+          LINE
+        ),
+        fact(
+          {
+            category: "character",
+            subject: "laike",
+            attribute: "emotional_reaction",
+            value: "hurt_by_insult",
+            fact_text: "라이크는 아마추어 같다는 말에 상처받아 시선을 피했다.",
+          },
+          "explicit_scene_event",
+          "assistant",
+          REACTION_QUOTE
+        ),
+      ];
+    case 10:
+      return [
+        fact(
+          {
+            category: "relationship",
+            subject: "user_laike",
+            attribute: "relationship_status",
+            value: "lovers",
+            fact_text: "유저와 라이크는 서로 연인이 되기로 명시적으로 합의했다.",
+          },
+          "explicit_user_statement",
+          "user",
+          "좋아, 우리 오늘부터 연인하자."
+        ),
+      ];
+    case 20:
+      return [
+        fact(
+          {
+            category: "character",
+            subject: "seorin",
+            attribute: "action",
+            value: "entered_door",
+            fact_text: "서린이 문을 열고 들어왔다.",
+          },
+          "explicit_scene_event",
+          "assistant",
+          "서린이 문을 열고 들어왔다."
+        ),
+      ];
+    case 24:
+      return [
+        fact(
+          {
+            category: "relationship",
+            subject: "laike_sister",
+            attribute: "acquaintance",
+            value: "knew_user_before",
+            fact_text: "라이크의 누나는 유저와 예전부터 알고 지낸 사이다.",
+            importance: "normal",
+          },
+          "explicit_scene_event",
+          "assistant",
+          "누나가 시장에서 널 알아봤대."
+        ),
+      ];
+    case 30:
+      return [
+        fact(
+          {
+            category: "relationship",
+            subject: "user_laike",
+            attribute: "past_event",
+            value: "kissed_before",
+            fact_text: "유저와 라이크는 예전에 키스한 적이 있다.",
+            importance: "normal",
+          },
+          "explicit_scene_event",
+          "assistant",
+          "라이크는 말없이 커피를 저었다."
+        ),
+      ];
+    case 33:
+      return [
+        fact(
+          {
+            category: "character",
+            subject: "user",
+            attribute: "action",
+            value: "held_hand",
+            fact_text: "유저가 라이크의 손을 잡고 함께 걸었다.",
+            importance: "normal",
+          },
+          "explicit_scene_event",
+          "assistant",
+          "렌은 라이크의 손을 잡고 걸음을 옮겼다."
+        ),
+      ];
+    case 40:
+      return [
+        fact(
+          {
+            category: "relationship",
+            subject: "user_laike",
+            attribute: "relationship_status",
+            value: "broke_up",
+            fact_text: "유저와 라이크는 서로 헤어지기로 명시적으로 합의했다.",
+          },
+          "explicit_user_statement",
+          "user",
+          "미안, 우리 그만 헤어지자."
+        ),
+      ];
+    default:
+      if (turn > 40 && turn % 3 === 0) {
+        return [
+          fact(
+            {
+              category: "setting",
+              subject: `firewood_${turn}`,
+              attribute: "stacked",
+              value: `pile_${turn}`,
+              fact_text: `라이크는 ${turn}번째 장작 더미를 쌓았다.`,
+              importance: "normal",
+            },
+            "explicit_scene_event",
+            "assistant",
+            `라이크는 ${turn}번째 장작을 쌓았다.`
+          ),
+        ];
+      }
+      return [];
+  }
+}
+
+type Seeded = { userId: number; assistantId: number };
+
+let USER = 951001;
+let CHAR = 951003;
+let CHAT = 951002;
+
+function seedStatic(chatId: number, userId: number, charId: number) {
+  const db = getDb();
+  db.prepare(`INSERT INTO users (id, email, nickname, pw_hash) VALUES (?,?,?,?)`).run(
+    userId,
+    `ab-${userId}@test.local`,
+    "렌",
+    "x"
+  );
+  db.prepare(`INSERT INTO characters (id, name) VALUES (?,?)`).run(charId, CHAR_NAME);
+  db.prepare(`INSERT INTO chats (id, user_id, character_id, mode) VALUES (?,?,?,'safe')`).run(
+    chatId,
+    userId,
+    charId
+  );
+  getOrCreateChatMemory(chatId, userId, charId, "pro");
+  db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(
+    chatId,
+    "assistant",
+    "인사.",
+    "greeting"
+  );
+}
+
+function insertTurn(chatId: number, turn: number): Seeded {
+  const db = getDb();
+  const userId = Number(
+    db
+      .prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`)
+      .run(chatId, "user", userText(turn), "user").lastInsertRowid
+  );
+  const assistantId = Number(
+    db
+      .prepare(
+        `INSERT INTO messages (chat_id, role, content, model, user_message_id, generation_status) VALUES (?,?,?,?,?,'completed')`
+      )
+      .run(chatId, "assistant", assistantText(turn), "test", userId).lastInsertRowid
+  );
+  return { userId, assistantId };
+}
+
+function reconcileTurn(
+  chatId: number,
+  userId: number,
+  charId: number,
+  seeded: Seeded,
+  turn: number,
+  facts: Fact[],
+  isRegeneration = false
+) {
+  return reconcileSharedEpisodicFactsForTurn(getDb(), {
+    chatId,
+    userId,
+    characterId: charId,
+    assistantMessageId: seeded.assistantId,
+    sourceUserMessageId: seeded.userId,
+    sourceUserText: userText(turn),
+    userPersona: PERSONA,
+    episodic: parseSharedEpisodicSection({ extracted_facts: facts }),
+    isRegeneration,
+  } as never);
+}
+
+function extractiveFake(userContent: string): string {
+  const lines = [...userContent.matchAll(/^유저:\s*(.+)$/gm)].map((m) => m[1]!.trim());
+  let text = lines.join(" ");
+  if (text.length < 80) text = `${text} ${text}`.trim();
+  return text;
+}
+
+function recentRaw(chatId: number): string {
+  const rows = getDb()
+    .prepare(`SELECT content FROM messages WHERE chat_id=? ORDER BY id DESC LIMIT 8`)
+    .all(chatId) as { content: string }[];
+  return rows
+    .map((r) => r.content)
+    .reverse()
+    .join("\n");
+}
+
+const QUERIES: Record<string, string> = {
+  direct: "아마추어 같다는 말 기억나?",
+  indirect_name: '서린에게 라이크를 소개한다. "이쪽이 라이크야. 검술을 배우고 있어."',
+  indirect_no_overlap: "상인에게 이 검이 얼마냐고 물어본다.",
+  unrelated: "저녁은 뭐 먹을까?",
+  promise: "검 갈아다 준다는 약속은 어떻게 됐지?",
+  relationship: "우리 연인 사이 헤어지자 얘기 어떻게 됐지?",
+  door_npc: "서린이 문을 열고 들어왔던 일 기억나?",
+  bait_probe: "누나가 나를 알고 있었어? 키스한 적 있어? 손 잡았지? 예전부터 알던 사이야?",
+};
+
+async function memoryContext(chatId: number, userId: number, charId: number, q: string) {
+  return buildMemoryContextForChat({
+    chatId,
+    userId,
+    characterId: charId,
+    tier: "pro",
+    memoryCapacity: MEMORY_CAPACITY_FIXED,
+    userMessage: q,
+    excludeSummaryTurnStartGte: undefined,
+    modelId: "deepseek-v4.1-flash",
+    provider: "cheaperinference",
+  } as never);
+}
+
+type QueryResult = { block: string; chars: number; tokens: number };
+
+function runEpisodic(
+  chatId: number,
+  userId: number,
+  charId: number,
+  turn: number,
+  query: string,
+  longTermMemoryText: string
+): QueryResult {
+  const r = getEpisodicMemoryForPrompt(
+    getDb(),
+    {
+      chatId,
+      characterId: charId,
+      userId,
+      currentTurn: turn + 1,
+      currentUserMessage: query,
+      recentChatText: recentRaw(chatId),
+      longTermMemoryText,
+      dynamicMemoryTotalMaxChars: 10_000,
+    },
+    ENV
+  );
+  return { block: r.promptBlock, chars: r.promptBlock.length, tokens: estimateTokens(r.promptBlock) };
+}
+
+
+const MODELS_ALL: { id: string; provider: string }[] = [
+  { id: "deepseek-v4.1-flash", provider: "cheaperinference" },
+  { id: "gemini-3.8-flash", provider: "openrouter" },
+  { id: "gpt-6.1-sol", provider: "cheaperinference" },
+  { id: "claude-opus-5.5", provider: "cheaperinference" },
+];
+
+const MODELS = MODELS_ALL.slice(0, 1);
+
+const SCENES: Record<string, string> = {
+  A_direct_quote: "아마추어 같다는 말 기억나?",
+  B_npc_no_cue:
+    '렌은 약초 노점의 노파에게 다가가 말을 건다. "할머니, 이 근처에 묵을 만한 여관이 있을까요? 오늘 밤 안에 북문을 나가야 해서요." 노파가 라이크를 아래위로 훑어보더니 혀를 찬다. "저 젊은이, 허리춤에 찬 칼이 아깝구먼. 폼만 잡지 제대로 휘둘러 본 적은 없어 보이는데."',
+};
+
+
+import { readFileSync } from "node:fs";
+import { buildContext } from "@/services/contextBuilder";
+import { compactCurrentMemory } from "./memory-rolling-summary";
+
+const IN5 = "/opt/cursor/artifacts/gate5";
+const OUT5 = process.env.PR_OUT ?? "/opt/cursor/artifacts/gate5";
+const out: Record<string, unknown> = {};
+
+before(() => {
+  installIsolatedTestDatabase();
+  process.env.MEMORY_FEATURE_ENABLED = "1";
+});
+after(() => {
+  mkdirSync(OUT5, { recursive: true });
+  writeFileSync(`${OUT5}/${process.env.PR_FILE ?? "pr-results.json"}`, JSON.stringify(out, null, 2));
+  uninstallIsolatedTestDatabase();
+});
+
+const CHAR_CARD =
+  "라이크는 검술을 배우는 견습 검사다. 말수가 적고 자존심이 강하다. 처음 보는 사람에게는 예의를 갖춰 말한다.";
+const TERMS = ["아마추어", "입술을 깨물", "시선", "연인", "헤어", "누나", "키스", "포옹", "안아", "평생", "약속", "알던 사이", "예전부터", "친구였"];
+
+function wireFor(args: {
+  longTerm: string;
+  medium: string;
+  archive: string;
+  episodic: string;
+  ledger: string;
+  history: { role: "user" | "assistant"; content: string }[];
+  frontier: number;
+  userMessage: string;
+}) {
+  const built = buildContext({
+    charName: "라이크",
+    chunks: [
+      {
+        id: "g2-core",
+        characterId: "g2-fixture",
+        content: CHAR_CARD,
+        category: "identity" as const,
+        importance: "CRITICAL" as const,
+        tokenCount: CHAR_CARD.length,
+        keywords: ["라이크"],
+      },
+    ],
+    userNickname: "렌",
+    userPersona: "이름/호칭: 렌\n성격: 조용함",
+    longTermMemory: args.longTerm,
+    mediumTermMemoryBlock: args.medium,
+    archiveMemory: args.archive,
+    episodicMemoryBlock: args.episodic,
+    memoryMeta: args.ledger,
+    shortTermHistory: args.history,
+    currentUserMessage: args.userMessage,
+    nsfw: false,
+    provider: "openrouter",
+    modelId: "deepseek-v4.1-flash",
+    completedTurns: 80,
+    summarizedTurnCount: args.frontier,
+    targetResponseChars: 1000,
+    chatId: 990001,
+    userId: 990002,
+  } as never);
+  const sys = built.systemPrompt as string;
+  const tracked = ((built.meta as { trackedSections?: { id: string; text: string }[] }).trackedSections ?? []).map((s) => ({
+    id: s.id,
+    chars: s.text.length,
+    text: s.text,
+  }));
+  return { sys, tracked };
+}
+
+it("wire: Gate 2 80-turn fixture, candidates A/B/C through the real buildContext", () => {
+  const dump = JSON.parse(readFileSync(`${IN5}/dump-cur-real-luna.json`, "utf8"));
+  const v2 = JSON.parse(readFileSync(`${IN5}/v2-anchors.json`, "utf8")).windows as Record<string, any>;
+  const anchorLines: string[] = [];
+  const tagLines: string[] = [];
+  for (const [k, w] of Object.entries(v2)) {
+    const m = k.match(/^G2_(\d+)_(\d+)$/);
+    if (!m) continue;
+    const start = Number(m[1]);
+    for (const a of w.anchors ?? []) {
+      if (a.accepted) anchorLines.push(`T${start + a.turn - 1} ${a.rendered}`);
+    }
+    for (const t of w.tags ?? []) tagLines.push(`T${start + t.turn - 1} ${t.who}: ${t.state}`);
+  }
+  const anchorBlock = `[VERIFIED ANCHORS — 원문 인용, 서버 부여 출처]\n${anchorLines.join("\n")}`;
+  const tagBlock = `[감정 태그]\n${tagLines.join("\n")}`;
+  const perScene: Record<string, unknown> = {};
+  for (const sceneId of Object.keys(dump.scenes)) {
+    const sc = dump.scenes[sceneId];
+    const pm = sc.perModel["deepseek-v4.1-flash"];
+    const cands: Record<string, { longTerm: string; medium: string; archive: string; episodic: string; ledger: string }> = {
+      a_current: {
+        longTerm: pm.currentMemoryText,
+        medium: pm.mediumTermText || "",
+        archive: pm.archiveText || "",
+        episodic: pm.episodicBlock || "",
+        ledger: dump.ledgerPrompt || "",
+      },
+      b_verified_only: { longTerm: "", medium: "", archive: "", episodic: pm.episodicBlock || "", ledger: dump.ledgerPrompt || "" },
+      c_ext_anchors: {
+        longTerm: "",
+        medium: "",
+        archive: "",
+        episodic: [pm.episodicBlock || "", anchorBlock].filter(Boolean).join("\n"),
+        ledger: dump.ledgerPrompt || "",
+      },
+      c_anchors_plus_free_tags: {
+        longTerm: "",
+        medium: "",
+        archive: "",
+        episodic: [pm.episodicBlock || "", anchorBlock, tagBlock].filter(Boolean).join("\n"),
+        ledger: dump.ledgerPrompt || "",
+      },
+    };
+    const res: Record<string, unknown> = {};
+    for (const [cid, c] of Object.entries(cands)) {
+      const w = wireFor({
+        longTerm: c.longTerm,
+        medium: c.medium,
+        archive: c.archive,
+        episodic: c.episodic,
+        ledger: c.ledger,
+        history: dump.rawHistory,
+        frontier: dump.frontier,
+        userMessage: sc.userMessage,
+      });
+      const memoryText = w.tracked
+        .filter((s) => /memory|episodic|archive|medium|relationship|summary/i.test(s.id))
+        .map((s) => `<<${s.id}>>\n${s.text}`)
+        .join("\n");
+      const hits: Record<string, number> = {};
+      for (const t of TERMS) hits[t] = (memoryText.match(new RegExp(t, "g")) ?? []).length;
+      res[cid] = {
+        systemChars: w.sys.length,
+        systemTokensEst: estimateTokens(w.sys),
+        sections: w.tracked.map((s) => ({ id: s.id, chars: s.chars })),
+        memorySectionChars: memoryText.length,
+        memorySectionTokensEst: estimateTokens(memoryText),
+        termHitsInMemorySections: hits,
+        memoryText,
+      };
+    }
+    perScene[sceneId] = res;
+  }
+  out.wire = perScene;
+  out.anchorCountG2 = anchorLines.length;
+  out.tagCountG2 = tagLines.length;
+});
+
+it("ledger: unanchored LLM promise text renders in the final wire", async () => {
+  const chatId = CHAT + 20;
+  const userId = USER + 20;
+  const charId = CHAR + 20;
+  seedStatic(chatId, userId, charId);
+  const userMsg = "“내가 너한테 뭘 약속한 적도 없고, 우린 며칠 전부터 같이 다닌 게 전부야.”";
+  const asstMsg = "“내가 평생 지키겠다고 약속했잖아.” 라이크가 단정하듯 말했다.";
+  const u = insertTurn(chatId, 1);
+  const payload = {
+    items: [],
+    itemsRemove: [],
+    promisesAdd: [{ text: "라이크가 렌을 평생 지키겠다고 약속함" }],
+    promisesRemove: [],
+  };
+  const delta = normalizeRelationshipMetaDeltaFromJson(payload, userMsg, NAMES);
+  await mergeRelationshipMetaFromTurn({
+    chatId,
+    names: NAMES,
+    userMessage: userMsg,
+    assistantMessage: asstMsg,
+    route: "safe",
+    sharedInitialAttempted: true,
+    sharedInitialDelta: delta,
+    sharedInitialParsed: true,
+    sourceUserMessageId: u.userId,
+    assistantMessageId: u.assistantId,
+  } as never);
+  const ledger = formatMemoryMetaForPrompt(loadChatRelationshipMeta(chatId, NAMES)) ?? "";
+  const w = wireFor({
+    longTerm: "",
+    medium: "",
+    archive: "",
+    episodic: "",
+    ledger,
+    history: [],
+    frontier: 0,
+    userMessage: "안녕",
+  });
+  out.ledgerLeak = {
+    userMessageHasPromise: false,
+    deltaPromises: (delta as { promisesAdd?: unknown }).promisesAdd ?? null,
+    ledgerPrompt: ledger,
+    promiseRenderedInSystemPrompt: w.sys.includes("평생 지키겠다고 약속함"),
+    systemExcerpt: w.sys.slice(Math.max(0, w.sys.indexOf("평생 지키겠다") - 160), w.sys.indexOf("평생 지키겠다") + 120),
+  };
+});
+
+it("compaction: real Luna compactCurrentMemory over G2 summaries + 27 windows", async () => {
+  const dump = JSON.parse(readFileSync(`${IN5}/dump-cur-real-luna.json`, "utf8"));
+  const seal = JSON.parse(readFileSync("/opt/cursor/artifacts/gate4/seal-A.json", "utf8")) as Record<string, any>;
+  const lines: string[] = [];
+  for (const r of dump.records as { turnStart: number; turnEnd: number; summary: string }[]) {
+    lines.push(`[${r.turnStart}~${r.turnEnd}턴] ${r.summary}`);
+  }
+  const g2Chars = lines.join("\n").length;
+  let t = 81;
+  for (const [k, v] of Object.entries(seal)) {
+    if (!v.persisted) continue;
+    lines.push(`[${t}~${t + 4}턴] ${v.persisted}`);
+    t += 5;
+  }
+  const combined = lines.join("\n");
+  const budget = 6000;
+  const trace = { requestKind: "compaction-probe" } as never;
+  const first = await compactCurrentMemory(combined, budget, trace);
+  const KEYS: Record<string, RegExp> = {
+    amateur: /아마추어/,
+    lipBite: /입술/,
+    gazeAvoid: /시선/,
+    couple: /연인/,
+    breakup: /헤어|이별/,
+    sister: /누나/,
+    promise: /약속/,
+  };
+  const survive = (s: string) => Object.fromEntries(Object.entries(KEYS).map(([k, re]) => [k, re.test(s)]));
+  out.compaction = {
+    g2SummaryChars: g2Chars,
+    inputChars: combined.length,
+    firstOutputChars: first.length,
+    inputSurvive: survive(combined),
+    firstSurvive: survive(first),
+    firstHasTurnMarkers: /\[\d+~\d+턴\]/.test(first),
+    first,
+  };
+  const second = await compactCurrentMemory(first, 4000, trace);
+  (out.compaction as Record<string, unknown>).second = {
+    inputChars: first.length,
+    outputChars: second.length,
+    secondSurvive: survive(second),
+    second,
+  };
+});

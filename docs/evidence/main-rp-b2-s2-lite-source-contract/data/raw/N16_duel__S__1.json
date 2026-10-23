@@ -1,0 +1,46 @@
+{
+ "id": "N16_duel",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"렌이 광장에서 청년과 라이크의 대련을 지켜봄. 라이크는 실전 검을 내려놓고 목검으로 응수해 청년의 공격을 흘리며 발놀림을 지적하고, 나아진 점을 칭찬하면서도 반격을 과시하지 않고 공간을 내줌. 렌이 무심코 다가선 가운데 청년의 마지막 공격을 무장 해제로 막아 승리함. 패배를 인정한 청년을 일으키고 목검을 건네며 마지막 공격을 칭찬해 굳은 표정을 풀어줌. 라이크는 렌에게 대련이 끝났다고 알리고 여관 쪽으로 향할 준비를 함.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"허리의 검을 풀어 땅에 내려놓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"“발이 먼저 나갑니다.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"“좋아졌습니다.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"자신의 목검을 청년의 칼자루 아래에 걸었다.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"“마지막 공격은 좋았습니다.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"“끝났습니다.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 3024,
+  "outputTokens": 410,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 3022,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000153,
+  "upstreamCostUsd": 0.000153,
+  "debugRawUsage": {
+   "completion_tokens": 410,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 3024,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 3022
+   },
+   "total_tokens": 3434,
+   "cost": 0.000153,
+   "cost_details": {
+    "upstream_inference_cost": 0.000153
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "e0b8fc6c-4c9d-4ce8-9324-943c8e97e6b9"
+ },
+ "billedUsd": 0.000153,
+ "ms": 5574,
+ "systemChars": 3460,
+ "userChars": 2181
+}

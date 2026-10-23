@@ -1,0 +1,46 @@
+{
+ "id": "N19_exact_quote",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"렌은 변방 여관에서 며칠 전부터 함께 길을 걷기 시작한 라이크와 방 하나를 나눠 묵음. 서린이 짐승 소문을 들며 북쪽 길을 경고했으나, 렌은 일거리가 있으면 위험을 감수하겠다고 했고 라이크는 다른 길을 권함. 렌은 자기 몫은 감당할 수 있다며 맞섰지만, 새벽에 북쪽으로 가려 하자 라이크는 막지 않고 함께 가겠다고 함. 렌이 동행할 이유를 묻자 라이크는 “네가 돌아올 곳은 내가 지킨다”고 선언하고 먼저 길을 나섬. 오래된 기억이나 약속은 없는 사이지만, 라이크가 렌의 귀환을 지키려는 마음을 드러내며 관계에 무게가 더해짐.\",\"items\":[{\"actor\":\"npc\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"방은 하나 남았어요.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"npc\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"짐승들이 내려왔다는 소문이 있어요.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"가겠다면 나도 간다.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"네가 돌아올 곳은 내가 지킨다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2942,
+  "outputTokens": 360,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2940,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000356,
+  "upstreamCostUsd": 0.000356,
+  "debugRawUsage": {
+   "completion_tokens": 360,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2942,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2940,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3302,
+   "cost": 0.000356,
+   "cost_details": {
+    "upstream_inference_cost": 0.000356
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "c9478d2b-e9d9-4513-a19f-471a512eb4df"
+ },
+ "billedUsd": 0.000356,
+ "ms": 4606,
+ "systemChars": 3460,
+ "userChars": 2072
+}

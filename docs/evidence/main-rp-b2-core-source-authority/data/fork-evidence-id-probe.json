@@ -1,0 +1,28 @@
+{
+  "copied": 1,
+  "parent": {
+    "userMsg": 1,
+    "assistantMsg": 2
+  },
+  "fork": {
+    "userMsg": 3,
+    "assistantMsg": 4
+  },
+  "forkRow": {
+    "source_user_message_id": 3,
+    "metadata.assistant_message_id": 4,
+    "metadata.evidence.message_id": 1
+  },
+  "evidenceMessageBelongsToForkChat": false,
+  "readVerifiedEvidenceStillAccepts": true,
+  "quoteReverifiesAgainstForkMessage": {
+    "accepted": true,
+    "evidence": {
+      "role": "user",
+      "message_id": 3,
+      "quote": "미안, 우리 그만 헤어지자.",
+      "authority": "USER_EXPLICIT",
+      "match": "normalized_exact"
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+ "id": "FX51",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"렌이 잡담을 이어가는 동안 라이크는 매번 장작을 하나씩 쌓아 51번째부터 55번째까지 쌓음. 변화한 관계나 미해결 목표는 없음.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":51,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 51번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":55,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 55번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 1986,
+  "outputTokens": 140,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 1984,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000206,
+  "upstreamCostUsd": 0.000206,
+  "debugRawUsage": {
+   "completion_tokens": 140,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1986,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 1984,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2126,
+   "cost": 0.000206,
+   "cost_details": {
+    "upstream_inference_cost": 0.000206
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "37271611-e5f1-4fc7-acd7-d0ed93d8bc10"
+ },
+ "billedUsd": 0.000206,
+ "ms": 3114,
+ "systemChars": 3460,
+ "userChars": 617
+}

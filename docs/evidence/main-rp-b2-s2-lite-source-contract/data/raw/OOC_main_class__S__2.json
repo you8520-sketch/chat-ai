@@ -1,0 +1,46 @@
+{
+ "id": "OOC_main_class",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"렌이 라이크를 아마추어 같다고 평가하자 라이크는 아직 부족하다고 인정함. 렌은 내일까지 검을 갈아 주겠다고 약속했고 라이크는 이를 받아들이듯 웃음. 이후 서린이 문으로 들어와 라이크에게 목례함. 렌의 시장 방문 뒤 라이크는 누나가 시장에서 렌을 알아봤으며 예전부터 알던 사이라고 전함. 누나와 렌의 과거 관계는 라이크의 주장으로만 확인됨.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"…그래, 아직 부족하긴 하지.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"user\",\"quote\":\"내일까지 검을 갈아다 줄게. 약속이야.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"npc\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"서린이 문을 열고 들어왔다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"claim\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"누나가 시장에서 널 알아봤대.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 2066,
+  "outputTokens": 286,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 2064,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000106,
+  "upstreamCostUsd": 0.000106,
+  "debugRawUsage": {
+   "completion_tokens": 286,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2066,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 2064
+   },
+   "total_tokens": 2352,
+   "cost": 0.000106,
+   "cost_details": {
+    "upstream_inference_cost": 0.000106
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "e92e4284-918f-4b16-a45c-a041d3df2585"
+ },
+ "billedUsd": 0.000106,
+ "ms": 4295,
+ "systemChars": 3460,
+ "userChars": 733
+}

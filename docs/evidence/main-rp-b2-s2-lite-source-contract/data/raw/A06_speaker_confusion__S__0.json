@@ -1,0 +1,46 @@
+{
+ "id": "A06_speaker_confusion",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"함께 길을 걷기 시작한 지 며칠 된 렌이 라이크의 검술이 어설프다고 지적하자, 라이크는 처음엔 누구의 검술을 말하는지 혼동했으나 렌의 설명을 듣고 자기 발이 먼저 나가 상대에게 읽히기 쉬운 점을 받아들임. 렌의 지시에 따라 여관 밖에서 발을 고치고 어깨 힘을 빼 재차 자세를 잡은 뒤 검을 휘둘렀으며, 칼끝 흔들림이 줄어듦. 라이크는 다음엔 렌이 말하기 전에 고치겠다고 다짐하며 지적을 배우려는 태도를 보임.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"며칠 전부터 함께 길을 걷기 시작했을 뿐인 두 사람 사이로\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"user\",\"quote\":\"발이 먼저 나가고 어깨가 따라와. 상대가 읽기 쉬운 움직임이야.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"변명은 없었다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"그래. 말로만 듣지 말고 한 번 움직여 봐. 발부터 고쳐.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"다음엔 네가 말하기 전에 고치겠다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2592,
+  "outputTokens": 394,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2590,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000338,
+  "upstreamCostUsd": 0.000338,
+  "debugRawUsage": {
+   "completion_tokens": 394,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2592,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2590,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2986,
+   "cost": 0.000338,
+   "cost_details": {
+    "upstream_inference_cost": 0.000338
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "66da1d92-6dc1-4269-a99f-46cca0ef49fd"
+ },
+ "billedUsd": 0.000338,
+ "ms": 5148,
+ "systemChars": 3460,
+ "userChars": 1521
+}

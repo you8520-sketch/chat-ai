@@ -1,0 +1,46 @@
+{
+ "id": "FX71",
+ "arm": "F",
+ "rep": 0,
+ "text": "렌의 잡담에 라이크가 차례로 장작을 쌓아 71번째부터 75번째까지 모음.",
+ "usage": {
+  "inputTokens": 1550,
+  "outputTokens": 32,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 1548,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000136,
+  "upstreamCostUsd": 0.000136,
+  "debugRawUsage": {
+   "completion_tokens": 32,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1550,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 1548,
+    "cached_tokens": 0
+   },
+   "total_tokens": 1582,
+   "cost": 0.000136,
+   "cost_details": {
+    "upstream_inference_cost": 0.000136
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "627cdd9d-8f78-42d5-849c-d24497f04d4d"
+ },
+ "billedUsd": 0.000136,
+ "ms": 2127,
+ "systemChars": 2503,
+ "userChars": 584
+}

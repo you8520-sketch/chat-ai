@@ -1,0 +1,46 @@
+{
+ "id": "N16_duel",
+ "arm": "F",
+ "rep": 0,
+ "text": "광장에서 청년의 대련 요청을 받은 라이크는 실검 대신 연습용 목검을 들고 응함. 청년의 첫 공격을 흘린 뒤 발이 먼저 나간다고 짚고, 신중해진 연속 공격에는 균형을 무너뜨리면서도 파고들지 않고 “좋아졌습니다”라고 칭찬함. 렌이 지켜보다 마지막 공격에 무심코 한 발 다가서는 가운데, 라이크는 청년의 급습을 받아내 목검을 떨어뜨려 승부를 끝냄. 청년이 패배를 인정하자 손을 잡아 일으키고 목검을 건네며 마지막 공격도 좋았다고 격려함. 청년의 굳은 표정이 풀렸고, 라이크는 렌에게 “끝났습니다”라고 알린 뒤 여관으로 향할 채비를 함.",
+ "usage": {
+  "inputTokens": 2588,
+  "outputTokens": 201,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2586,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000275,
+  "upstreamCostUsd": 0.000275,
+  "debugRawUsage": {
+   "completion_tokens": 201,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2588,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2586,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2789,
+   "cost": 0.000275,
+   "cost_details": {
+    "upstream_inference_cost": 0.000275
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "70cf296d-c750-4355-adad-7d0de1face90"
+ },
+ "billedUsd": 0.000275,
+ "ms": 3569,
+ "systemChars": 2503,
+ "userChars": 2148
+}

@@ -1,0 +1,46 @@
+{
+ "id": "OOC_main_class",
+ "arm": "F",
+ "rep": 0,
+ "text": "렌이 라이크를 아마추어 같다고 평가하자, 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고 라이크는 웃으며 수락함. 이후 문으로 서린이 들어와 라이크에게 목례함. 렌이 시장에 다녀온 뒤, 라이크는 누나가 시장에서 렌을 알아봤으며 예전부터 알던 사이라고 전함.",
+ "usage": {
+  "inputTokens": 1630,
+  "outputTokens": 105,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 1628,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000166,
+  "upstreamCostUsd": 0.000166,
+  "debugRawUsage": {
+   "completion_tokens": 105,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1630,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 1628,
+    "cached_tokens": 0
+   },
+   "total_tokens": 1735,
+   "cost": 0.000166,
+   "cost_details": {
+    "upstream_inference_cost": 0.000166
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "7b7f825a-77ce-428a-8ad0-6415eebe5fa2"
+ },
+ "billedUsd": 0.000166,
+ "ms": 2524,
+ "systemChars": 2503,
+ "userChars": 700
+}
