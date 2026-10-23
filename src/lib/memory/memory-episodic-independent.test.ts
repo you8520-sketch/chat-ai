@@ -829,3 +829,103 @@ describe("B34 independent episodic — ledger identity and accounting", () => {
     assert.deepEqual(tables.map(count), before);
   });
 });
+
+const B34_LIVE_RUNS_URL = new URL(
+  "../../../docs/evidence/b34-pr1718/live-runs-detailed.jsonl",
+  import.meta.url
+);
+
+type B34LiveRun = { path: string; run: number; providerText: string; rawFactCount: number };
+
+function b34IndependentLiveRuns(): B34LiveRun[] {
+  return readFileSync(B34_LIVE_RUNS_URL, "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as B34LiveRun)
+    .filter((entry) => entry.path === "NEW_independent_episodic");
+}
+
+describe("B35 — B34 live provider output replayed through the canonical persist path", () => {
+  const runs = b34IndependentLiveRuns();
+
+  it("fixture holds the five captured live runs", () => {
+    assert.equal(runs.length, 5);
+  });
+
+  for (const index of [0, 1, 2, 3, 4]) {
+    it(`live run ${index + 1}: every verbatim-quoted event is stored (no owner/canonicalization drop)`, async () => {
+      const live = runs[index]!;
+      const turn = seedTurn();
+      const provider = fakeProvider(() => live.providerText);
+      await commit(turn, extraction(turn, provider));
+      assert.equal(factRows(turn.chatId).length, live.rawFactCount);
+    });
+  }
+});
+
+describe("B35 — attribute naming must not change whether the same event is stored", () => {
+  const ATTRIBUTES = [
+    "statement_consent",
+    "consent_to_statement_transfer",
+    "refused_statement_transfer",
+    "statement_transferred_refusal",
+    "statement_received_refusal",
+  ];
+
+  for (const attribute of ATTRIBUTES) {
+    it(`USER refusal to forward the statement is stored with attribute ${attribute}`, async () => {
+      const turn = seedTurn();
+      const provider = fakeProvider(() => episodicJson([{ ...REFUSAL_FACT, attribute }]));
+      await commit(turn, extraction(turn, provider));
+      assert.equal(factRows(turn.chatId).length, 1);
+    });
+  }
+
+  it("withdrawal of consent to disclose the record is stored even with a transfer attribute", async () => {
+    const turn = seedTurn();
+    const withdrawal = {
+      ...REFUSAL_FACT,
+      category: "character",
+      attribute: "record_disclosure_consent_transfer",
+      value: "consent_withdrawn",
+      fact_text: "렌은 기록을 황실 감찰관에게 공개하는 데 대한 동의를 철회했다.",
+    };
+    const provider = fakeProvider(() => episodicJson([withdrawal]));
+    await commit(turn, extraction(turn, provider));
+    assert.equal(factRows(turn.chatId).length, 1);
+  });
+
+  it("a transfer-attribute consent claim without a verifiable source quote is still rejected", async () => {
+    const turn = seedTurn();
+    const unsourced = {
+      ...FABRICATED_QUOTE_FACT,
+      attribute: "consent_to_statement_transfer",
+    };
+    const missingEvidence = {
+      ...REFUSAL_FACT,
+      attribute: "refused_statement_transfer",
+      evidence: undefined,
+    };
+    const provider = fakeProvider(() => episodicJson([unsourced, missingEvidence]));
+    await commit(turn, extraction(turn, provider));
+    assert.equal(factRows(turn.chatId).length, 0);
+  });
+
+  it("a real item handover stays owned by the Relationship Ledger and is not stored as an episodic fact", async () => {
+    const turn = seedTurn();
+    const handover = {
+      category: "item",
+      subject: "ren",
+      attribute: "item_transfer",
+      value: "silver_ring_to_wolfgang",
+      importance: "important",
+      fact_text: "렌은 은반지를 볼프강에게 건넸다.",
+      evidence_type: "explicit_scene_event",
+      evidence: { source_role: "assistant", source_quote: "볼프강은 렌의 손이 기록철 위에 얹히는 것을 말없이 지켜보았다." },
+      corrects: "",
+    };
+    const provider = fakeProvider(() => episodicJson([handover]));
+    await commit(turn, extraction(turn, provider));
+    assert.equal(factRows(turn.chatId).length, 0);
+  });
+});
