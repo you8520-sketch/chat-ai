@@ -1,0 +1,381 @@
+{
+  "generatedAt": "2026-10-23T14:16:08.802Z",
+  "dataKind": "SYNTHETIC fixture (not a real 1,000-turn RP)",
+  "minRecallAgeTurns": 5,
+  "providerCalls": 0,
+  "embeddingCalls": 0,
+  "perHorizonChats": [
+    {
+      "horizon": 50,
+      "ambientFacts": 24
+    },
+    {
+      "horizon": 500,
+      "ambientFacts": 249
+    },
+    {
+      "horizon": 1000,
+      "ambientFacts": 499
+    }
+  ],
+  "combinedChat": {
+    "turns": 1050,
+    "currentTurn": 1051,
+    "ambientFacts": 525
+  },
+  "notes": [
+    "promise history: recall query -> 1 line(s); unrelated query -> 0 line(s); episodic owner blocks promise facts: true"
+  ],
+  "candidateAb": [
+    {
+      "scenario": "C-refusal50",
+      "query": "내가 황실 감찰관에게 진술을 전달하는 문제에 대해 뭐라고 했었는지 기억해요?",
+      "baselineInjected": 2,
+      "baselineEventLines": 2,
+      "candidateInjected": 2,
+      "candidateEventLines": 2,
+      "targetInBaseline": true,
+      "targetInCandidate": true
+    },
+    {
+      "scenario": "C-relationship-change-then-new-state",
+      "query": "볼프강, 우리 둘은 지금 어떤 관계였죠? 동맹은 어떻게 됐어요?",
+      "baselineInjected": 8,
+      "baselineEventLines": 2,
+      "candidateInjected": 2,
+      "candidateEventLines": 2,
+      "targetInBaseline": true,
+      "targetInCandidate": true
+    },
+    {
+      "scenario": "C-event-and-followup-1000",
+      "query": "황실 밀서의 봉인을 누가 뜯었는지 기억해요?",
+      "baselineInjected": 3,
+      "baselineEventLines": 3,
+      "candidateInjected": 3,
+      "candidateEventLines": 3,
+      "targetInBaseline": true,
+      "targetInCandidate": true
+    },
+    {
+      "scenario": "C-time-order",
+      "query": "금고 열쇠는 어떻게 됐죠? 먼저 무슨 일이 있었고 그다음에 어떻게 됐나요?",
+      "baselineInjected": 2,
+      "baselineEventLines": 2,
+      "candidateInjected": 2,
+      "candidateEventLines": 2,
+      "targetInBaseline": true,
+      "targetInCandidate": true
+    },
+    {
+      "scenario": "C-invalidated-past-fact",
+      "query": "렌은 지금 어느 초소에 배치되어 있죠?",
+      "baselineInjected": 2,
+      "baselineEventLines": 2,
+      "candidateInjected": 1,
+      "candidateEventLines": 1,
+      "targetInBaseline": true,
+      "targetInCandidate": true
+    },
+    {
+      "scenario": "C-no-evidence-no-invention",
+      "query": "내가 볼프강에게 선물했던 은색 검에 대해 말해 봐요.",
+      "baselineInjected": 8,
+      "baselineEventLines": 2,
+      "candidateInjected": 0,
+      "candidateEventLines": 0,
+      "targetInBaseline": null,
+      "targetInCandidate": null
+    },
+    {
+      "scenario": "N-name-plus-unrelated",
+      "query": "볼프강, 오늘 저녁에는 따뜻한 수프가 있으면 좋겠어요.",
+      "baselineInjected": 8,
+      "baselineEventLines": 3,
+      "candidateInjected": 0,
+      "candidateEventLines": 0,
+      "targetInBaseline": null,
+      "targetInCandidate": null
+    },
+    {
+      "scenario": "V-name-plus-vague-reference",
+      "query": "볼프강, 그때 그 일 기억하죠?",
+      "baselineInjected": 8,
+      "baselineEventLines": 2,
+      "candidateInjected": 0,
+      "candidateEventLines": 0,
+      "targetInBaseline": null,
+      "targetInCandidate": null
+    }
+  ],
+  "reports": [
+    {
+      "scenario": "H50-refusal50",
+      "title": "USER explicit refusal 50 turns ago",
+      "currentTurn": 52,
+      "targetAgeTurns": 50,
+      "query": "내가 황실 감찰관에게 진술을 전달하는 문제에 대해 뭐라고 했었는지 기억해요?",
+      "expectation": "inject_target",
+      "stages": {
+        "storedInDb": true,
+        "inSqlCandidateSet": true,
+        "passedGuard": true,
+        "relevancePass": true,
+        "finalRank": 1,
+        "budgetReason": null,
+        "injected": true
+      },
+      "injectedLines": [
+        "- [T2] [유저 입력 발췌] “나는 내 진술을 황실 감찰관에게 전달하는 데 동의하지 않았어.”"
+      ],
+      "verdict": "PASS",
+      "firstFailureStage": null
+    },
+    {
+      "scenario": "H500-alliance500",
+      "title": "relationship change 500 turns ago (no later state)",
+      "currentTurn": 502,
+      "targetAgeTurns": 500,
+      "query": "볼프강, 우리 둘은 지금 어떤 관계였죠? 동맹은 어떻게 됐어요?",
+      "expectation": "inject_target",
+      "stages": {
+        "storedInDb": true,
+        "inSqlCandidateSet": true,
+        "passedGuard": true,
+        "relevancePass": true,
+        "finalRank": 1,
+        "budgetReason": null,
+        "injected": true
+      },
+      "injectedLines": [
+        "- [T2] [AI 장면 서술 발췌] “볼프강은 렌의 손을 맞잡고 동맹을 맺었다.”",
+        "- [T496] [캐릭터 발언(미확정 주장)] “볼프강은 에르나에게 물통을(를) 정리했다고 짧게 일렀다.”",
+        "- [T494] [캐릭터 발언(미확정 주장)] “볼프강은 한스에게 기록철을(를) 보고했다고 짧게 일렀다.”",
+        "- [T492] [캐릭터 발언(미확정 주장)] “볼프강은 부관에게 보급 장부을(를) 보고했다고 짧게 일렀다.”",
+        "- [T490] [캐릭터 발언(미확정 주장)] “볼프강은 요한에게 보급 장부을(를) 교대했다고 짧게 일렀다.”",
+        "- [T488] [캐릭터 발언(미확정 주장)] “볼프강은 부관에게 보급 장부을(를) 옮겼다고 짧게 일렀다.”",
+        "- [T486] [캐릭터 발언(미확정 주장)] “볼프강은 카를에게 밀랍 인장을(를) 기록했다고 짧게 일렀다.”",
+        "- [T484] [캐릭터 발언(미확정 주장)] “볼프강은 한스에게 물통을(를) 세어 보았다고 짧게 일렀다.”"
+      ],
+      "verdict": "PASS",
+      "firstFailureStage": null
+    },
+    {
+      "scenario": "H1000-seal1000",
+      "title": "important event 1000 turns ago",
+      "currentTurn": 1002,
+      "targetAgeTurns": 1000,
+      "query": "황실 밀서의 봉인을 누가 뜯었는지 기억해요?",
+      "expectation": "inject_target",
+      "stages": {
+        "storedInDb": true,
+        "inSqlCandidateSet": true,
+        "passedGuard": true,
+        "relevancePass": true,
+        "finalRank": 1,
+        "budgetReason": null,
+        "injected": true
+      },
+      "injectedLines": [
+        "- [T2] [캐릭터 발언(미확정 주장)] “황실 밀서의 봉인은 열람 전에 이미 한 번 뜯겨 있었다.”"
+      ],
+      "verdict": "PASS",
+      "firstFailureStage": null
+    },
+    {
+      "scenario": "C-refusal50",
+      "title": "50 turns ago USER explicit refusal (combined chat)",
+      "currentTurn": 1051,
+      "targetAgeTurns": 50,
+      "query": "내가 황실 감찰관에게 진술을 전달하는 문제에 대해 뭐라고 했었는지 기억해요?",
+      "expectation": "inject_target",
+      "stages": {
+        "storedInDb": true,
+        "inSqlCandidateSet": true,
+        "passedGuard": true,
+        "relevancePass": true,
+        "finalRank": 1,
+        "budgetReason": null,
+        "injected": true
+      },
+      "injectedLines": [
+        "- [T1001] [유저 입력 발췌] “나는 내 진술을 황실 감찰관에게 전달하는 데 동의하지 않았어.”",
+        "- [T51] [캐릭터 발언(미확정 주장)] “황실 밀서의 봉인은 열람 전에 이미 한 번 뜯겨 있었다.”"
+      ],
+      "verdict": "PASS",
+      "firstFailureStage": null
+    },
+    {
+      "scenario": "C-relationship-change-then-new-state",
+      "title": "alliance (T-500) then alliance ended (T-200): current relationship state",
+      "currentTurn": 1051,
+      "targetAgeTurns": 200,
+      "query": "볼프강, 우리 둘은 지금 어떤 관계였죠? 동맹은 어떻게 됐어요?",
+      "expectation": "inject_all_in_order",
+      "stages": {
+        "storedInDb": true,
+        "inSqlCandidateSet": true,
+        "passedGuard": true,
+        "relevancePass": true,
+        "finalRank": 1,
+        "budgetReason": null,
+        "injected": true
+      },
+      "injectedLines": [
+        "- [T851] [AI 장면 서술 발췌] “볼프강은 렌의 손을 뿌리치며 동맹을 끝냈다.”",
+        "- [T551] [AI 장면 서술 발췌] “볼프강은 렌의 손을 맞잡고 동맹을 맺었다.”",
+        "- [T1046] [캐릭터 발언(미확정 주장)] “볼프강은 한스에게 기록철을(를) 보고했다고 짧게 일렀다.”",
+        "- [T1044] [캐릭터 발언(미확정 주장)] “볼프강은 요한에게 지도을(를) 보고했다고 짧게 일렀다.”",
+        "- [T1042] [캐릭터 발언(미확정 주장)] “볼프강은 카를에게 신호 호각을(를) 기록했다고 짧게 일렀다.”",
+        "- [T1040] [캐릭터 발언(미확정 주장)] “볼프강은 에르나에게 밀랍 인장을(를) 기록했다고 짧게 일렀다.”",
+        "- [T1038] [캐릭터 발언(미확정 주장)] “볼프강은 요한에게 밀랍 인장을(를) 점검했다고 짧게 일렀다.”",
+        "- [T1036] [캐릭터 발언(미확정 주장)] “볼프강은 마르타에게 횃불 기름을(를) 옮겼다고 짧게 일렀다.”"
+      ],
+      "verdict": "PASS",
+      "firstFailureStage": null
+    },
+    {
+      "scenario": "C-event-and-followup-1000",
+      "title": "1000-turn-old event with a 700-turn-old follow-up",
+      "currentTurn": 1051,
+      "targetAgeTurns": 1000,
+      "query": "황실 밀서의 봉인을 누가 뜯었는지 기억해요?",
+      "expectation": "inject_all_in_order",
+      "stages": {
+        "storedInDb": true,
+        "inSqlCandidateSet": true,
+        "passedGuard": true,
+        "relevancePass": true,
+        "finalRank": 1,
+        "budgetReason": null,
+        "injected": true
+      },
+      "injectedLines": [
+        "- [T51] [캐릭터 발언(미확정 주장)] “황실 밀서의 봉인은 열람 전에 이미 한 번 뜯겨 있었다.”",
+        "- [T1001] [유저 입력 발췌] “나는 내 진술을 황실 감찰관에게 전달하는 데 동의하지 않았어.”",
+        "- [T351] [캐릭터 발언(미확정 주장)] “봉인을 뜯은 자는 서기관 카를이다.”"
+      ],
+      "verdict": "PASS",
+      "firstFailureStage": null
+    },
+    {
+      "scenario": "C-time-order",
+      "title": "two events in different order (key lost T-300, key found T-120)",
+      "currentTurn": 1051,
+      "targetAgeTurns": 300,
+      "query": "금고 열쇠는 어떻게 됐죠? 먼저 무슨 일이 있었고 그다음에 어떻게 됐나요?",
+      "expectation": "inject_all_in_order",
+      "stages": {
+        "storedInDb": true,
+        "inSqlCandidateSet": true,
+        "passedGuard": true,
+        "relevancePass": true,
+        "finalRank": 2,
+        "budgetReason": null,
+        "injected": true
+      },
+      "injectedLines": [
+        "- [T931] [AI 장면 서술 발췌] “병사가 마구간 짚더미에서 금고 열쇠를 찾아냈다.”",
+        "- [T751] [AI 장면 서술 발췌] “에르나는 금고 열쇠를 잃어버렸다.”"
+      ],
+      "verdict": "PASS",
+      "firstFailureStage": null
+    },
+    {
+      "scenario": "C-invalidated-past-fact",
+      "title": "past state no longer valid (post north T-400 superseded by south T-90)",
+      "currentTurn": 1051,
+      "targetAgeTurns": 90,
+      "query": "렌은 지금 어느 초소에 배치되어 있죠?",
+      "expectation": "inject_latest_only",
+      "stages": {
+        "storedInDb": true,
+        "inSqlCandidateSet": true,
+        "passedGuard": true,
+        "relevancePass": true,
+        "finalRank": 2,
+        "budgetReason": null,
+        "injected": true
+      },
+      "injectedLines": [
+        "- [T1001] [유저 입력 발췌] “나는 내 진술을 황실 감찰관에게 전달하는 데 동의하지 않았어.”",
+        "- [T961] [캐릭터 발언(미확정 주장)] “렌은 남쪽 초소로 재배치한다. 북쪽 배치는 철회한다.”"
+      ],
+      "verdict": "PASS",
+      "firstFailureStage": null
+    },
+    {
+      "scenario": "C-unrelated-query",
+      "title": "unrelated question must not pull old events",
+      "currentTurn": 1051,
+      "targetAgeTurns": 50,
+      "query": "오늘 저녁에는 따뜻한 수프가 있으면 좋겠어요. 날씨가 꽤 쌀쌀하네요.",
+      "expectation": "inject_none_of_targets",
+      "stages": {
+        "storedInDb": true,
+        "inSqlCandidateSet": true,
+        "passedGuard": true,
+        "relevancePass": false,
+        "finalRank": null,
+        "budgetReason": null,
+        "injected": false
+      },
+      "injectedLines": [],
+      "verdict": "PASS",
+      "firstFailureStage": null
+    },
+    {
+      "scenario": "C-no-evidence-no-invention",
+      "title": "question about something that never happened",
+      "currentTurn": 1051,
+      "targetAgeTurns": 0,
+      "query": "내가 볼프강에게 선물했던 은색 검에 대해 말해 봐요.",
+      "expectation": "inject_none_of_targets",
+      "stages": {
+        "storedInDb": true,
+        "inSqlCandidateSet": true,
+        "passedGuard": true,
+        "relevancePass": false,
+        "finalRank": null,
+        "budgetReason": null,
+        "injected": false
+      },
+      "injectedLines": [
+        "- [T851] [AI 장면 서술 발췌] “볼프강은 렌의 손을 뿌리치며 동맹을 끝냈다.”",
+        "- [T551] [AI 장면 서술 발췌] “볼프강은 렌의 손을 맞잡고 동맹을 맺었다.”",
+        "- [T1046] [캐릭터 발언(미확정 주장)] “볼프강은 한스에게 기록철을(를) 보고했다고 짧게 일렀다.”",
+        "- [T1044] [캐릭터 발언(미확정 주장)] “볼프강은 요한에게 지도을(를) 보고했다고 짧게 일렀다.”",
+        "- [T1042] [캐릭터 발언(미확정 주장)] “볼프강은 카를에게 신호 호각을(를) 기록했다고 짧게 일렀다.”",
+        "- [T1040] [캐릭터 발언(미확정 주장)] “볼프강은 에르나에게 밀랍 인장을(를) 기록했다고 짧게 일렀다.”",
+        "- [T1038] [캐릭터 발언(미확정 주장)] “볼프강은 요한에게 밀랍 인장을(를) 점검했다고 짧게 일렀다.”",
+        "- [T1036] [캐릭터 발언(미확정 주장)] “볼프강은 마르타에게 횃불 기름을(를) 옮겼다고 짧게 일렀다.”"
+      ],
+      "verdict": "FAIL",
+      "firstFailureStage": "irrelevant_memory_intrusion"
+    },
+    {
+      "scenario": "C-promise-then-cancel-150",
+      "title": "promise created T-150, cancelled T-140 (ledger owner; synthetic ledger events)",
+      "currentTurn": 1151,
+      "targetAgeTurns": 150,
+      "query": "그때 서쪽 능선에서 만나기로 한 약속은 어떻게 됐죠?",
+      "expectation": "inject_target",
+      "stages": {
+        "storedInDb": true,
+        "inSqlCandidateSet": true,
+        "passedGuard": true,
+        "relevancePass": true,
+        "finalRank": 1,
+        "budgetReason": null,
+        "injected": true
+      },
+      "injectedLines": [
+        "내일 해 뜨기 전에 서쪽 능선 초소에서 만나기로 약속 (제1001턴 약속 → 제1011턴 해제)"
+      ],
+      "verdict": "PASS",
+      "firstFailureStage": null
+    }
+  ],
+  "passCount": 10,
+  "failCount": 1
+}
