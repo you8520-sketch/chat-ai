@@ -32,6 +32,19 @@
  *                                                computed from request bytes, max_tokens and provider rates
  *   CHEAPER_INFERENCE_API_KEY                    required for execute
  *   DATA_DIR                                     sqlite directory
+ *
+ * One-time recovery approvals (each group needs ALL of its variables, copied exactly from the inspected evidence;
+ * leave them unset in every other run):
+ *   ADULT_OFF_BATCH_QUARANTINE_RUN_ID / _REQUEST_ID / _EVENT_KEY / _MESSAGE_ID
+ *     Isolate ONE interrupted call whose ledger row is still `started` with no cost and no provider request id.
+ *     The row is never edited or settled. A reserve (the recorded per-call bound, raised to the proven window bound at
+ *     a 2.5x cache-write multiplier) is held against the cap instead of 0 KRW, and that call's text is never sent again
+ *     from any message. The run reports `quarantine_pending` until real billing is confirmed through the existing cost
+ *     reconciliation; then the reserve is released and the usual ACK flow applies. Without a match nothing is changed.
+ *   ADULT_OFF_BATCH_RECLAIM_LOCK_HOST / _PID / _RUN_ID / _STARTED_AT
+ *     Take over an `execution.lock` left by a previous container. Every value must equal the lock file, the lock and
+ *     batch.state.json must be unchanged for 10 minutes, and the lock must not belong to the current deployment. Confirm
+ *     in Railway first that the old deployment is REMOVED. The old lock is moved to `execution.lock.reclaimed.*`, not deleted.
  */
 import Database from "better-sqlite3";
 import { getDatabasePath, getRemoteDatabaseConfig } from "@/lib/dataDir";

@@ -35,12 +35,14 @@ import {
   planAdultOffBatchInspection,
   planAdultOffBatchInspectionSummary,
   readAdultOffBatchCallCost,
+  readAdultOffBatchCallLedgerRows,
   readAdultOffBatchLedgerRows,
   summarizeAdultOffBatchLedgerRows,
   sumAdultOffBatchModerationSpend,
   surveyAdultOffAuxSurfaces,
   type AdultOffAuxSurfaceFingerprint,
   type AdultOffAuxTextItem,
+  type AdultOffBatchModerationSpend,
   type AdultOffInspectionMessageRow,
   type AdultOffInspectionPlanItem,
 } from "@/lib/adultOffBatchInspectionPrep";
@@ -62,6 +64,15 @@ export const ADULT_OFF_BATCH_MAX_USD_KRW = 3000;
 /** 최근 원장에 기록된 최고 환율 대비 허용 하한 비율. */
 const LEDGER_FX_FLOOR_RATIO = 0.95;
 const APPROVED_RATES_PATTERN = /^(\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/;
+const POSITIVE_INTEGER_PATTERN = /^[1-9]\d{0,15}$/;
+const EVENT_KEY_PATTERN = /^[A-Za-z0-9._:-]{8,128}$/;
+/** 다른 컨테이너의 잠금은 상태·잠금 파일이 이 시간 이상 변하지 않았을 때만 회수 후보가 된다. */
+export const ADULT_OFF_BATCH_FOREIGN_LOCK_QUIESCENT_MS = 10 * 60 * 1000;
+/**
+ * 미정산 호출 격리 예약액이 가정하는 최소 캐시 쓰기 배율. 계정 카탈로그의 캐시 쓰기 단가는 입력 단가의 2.5배이며,
+ * 코드 요율표의 1.25배보다 크다. 이 배율로 계산한 창 상한보다 작은 예약액은 받지 않는다.
+ */
+export const ADULT_OFF_BATCH_QUARANTINE_MIN_CACHE_WRITE_MULTIPLIER = 2.5;
 
 export class AdultOffBatchConfigError extends Error {
   constructor(
@@ -106,6 +117,24 @@ export type AdultOffBatchPaidRunConfig = {
   capRaiseFromKrw: number | null;
   /** 판정 없이 끊긴 호출을 운영자가 확인했음을 나타내는 첫 요청 ID. */
   ackUnresolvedRequestId: string | null;
+  /** 원장에 started·비용 미상으로 남은 호출 하나를 정확히 지목해 격리하는 일회성 승인. 4개 값이 모두 맞아야 한다. */
+  quarantineUnconfirmed: AdultOffBatchQuarantineApproval | null;
+  /** 다른 컨테이너가 남긴 잠금을 회수하는 일회성 승인. 잠금 파일의 4개 값이 정확히 같아야 한다. */
+  reclaimForeignLock: AdultOffBatchForeignLockPin | null;
+};
+
+export type AdultOffBatchQuarantineApproval = {
+  runId: string;
+  requestId: string;
+  eventKey: string;
+  messageId: number;
+};
+
+export type AdultOffBatchForeignLockPin = {
+  host: string;
+  pid: number;
+  runId: string;
+  startedAt: string;
 };
 
 export type AdultOffBatchConfigOptions = {
@@ -215,6 +244,69 @@ export function isLiveProductionDatabase(dbPath: string, env: Env = process.env)
   return liveProductionVolumeRoot(dbPath, env) !== null;
 }
 
+function readEnvGroup(env: Env, names: readonly string[], code: string): string[] | null {
+  const present = names.filter((name) => env[name] !== undefined);
+  if (present.length === 0) return null;
+  const values = names.map((name) => env[name]?.trim() ?? "");
+  if (present.length !== names.length || values.some((value) => !value)) {
+    throw new AdultOffBatchConfigError(code, `${names.join(", ")} must all be set, non-blank, and exact`);
+  }
+  return values;
+}
+
+function readQuarantineApproval(env: Env): AdultOffBatchQuarantineApproval | null {
+  const code = "invalid_quarantine_unconfirmed";
+  const group = readEnvGroup(
+    env,
+    [
+      "ADULT_OFF_BATCH_QUARANTINE_RUN_ID",
+      "ADULT_OFF_BATCH_QUARANTINE_REQUEST_ID",
+      "ADULT_OFF_BATCH_QUARANTINE_EVENT_KEY",
+      "ADULT_OFF_BATCH_QUARANTINE_MESSAGE_ID",
+    ],
+    code
+  );
+  if (!group) return null;
+  const [runId, requestId, eventKey, messageId] = group;
+  const requestMatch = /^adult-off-batch\/([^/]+)\/([1-9]\d{0,9})$/.exec(requestId);
+  if (
+    !RUN_ID_PATTERN.test(runId) ||
+    !requestMatch ||
+    requestMatch[1] !== runId ||
+    !EVENT_KEY_PATTERN.test(eventKey) ||
+    !POSITIVE_INTEGER_PATTERN.test(messageId)
+  ) {
+    throw new AdultOffBatchConfigError(
+      code,
+      "the quarantine approval must name RUN_ID, the exact adult-off-batch/<RUN_ID>/<seq> request id, the ledger event_key and the message id"
+    );
+  }
+  return { runId, requestId, eventKey, messageId: Number(messageId) };
+}
+
+function readForeignLockPin(env: Env): AdultOffBatchForeignLockPin | null {
+  const code = "invalid_reclaim_foreign_lock";
+  const group = readEnvGroup(
+    env,
+    [
+      "ADULT_OFF_BATCH_RECLAIM_LOCK_HOST",
+      "ADULT_OFF_BATCH_RECLAIM_LOCK_PID",
+      "ADULT_OFF_BATCH_RECLAIM_LOCK_RUN_ID",
+      "ADULT_OFF_BATCH_RECLAIM_LOCK_STARTED_AT",
+    ],
+    code
+  );
+  if (!group) return null;
+  const [host, pid, runId, startedAt] = group;
+  if (!POSITIVE_INTEGER_PATTERN.test(pid) || !RUN_ID_PATTERN.test(runId) || !Number.isFinite(Date.parse(startedAt))) {
+    throw new AdultOffBatchConfigError(
+      code,
+      "the lock reclaim approval must copy host, pid, run id and startedAt exactly from the inspected lock file"
+    );
+  }
+  return { host, pid: Number(pid), runId, startedAt };
+}
+
 /**
  * 모든 환경변수·경로 검증을 DB를 열기 전에 끝낸다.
  * 실패하면 유료 호출도, DB 쓰기도, 상태 파일 쓰기도 일어나지 않는다.
@@ -282,6 +374,8 @@ export function parseAdultOffBatchPaidRunConfig(
       "ADULT_OFF_BATCH_ACK_UNRESOLVED_REQUEST_ID must not be blank"
     );
   }
+  const quarantineUnconfirmed = readQuarantineApproval(env);
+  const reclaimForeignLock = readForeignLockPin(env);
   const allowIsolatedPaid = env.ADULT_OFF_BATCH_ALLOW_ISOLATED_PAID === "1";
 
   if (env.ADULT_OFF_BATCH_STATE_DIR !== undefined) {
@@ -364,6 +458,8 @@ export function parseAdultOffBatchPaidRunConfig(
     statePlacementDir: placement.stateDir,
     capRaiseFromKrw,
     ackUnresolvedRequestId,
+    quarantineUnconfirmed,
+    reclaimForeignLock,
   };
 }
 
@@ -584,6 +680,14 @@ export type AdultOffBatchPlanReport = {
       unresolvedCall: boolean;
       halted: boolean;
     } | null;
+    /** 격리 중인 미정산 호출. 같은 문자열 대상은 대기 목록에서 지워지지 않고 여기에 개수로 남는다. */
+    quarantine: {
+      requestId: string;
+      messageId: number;
+      reserveKrw: number;
+      bodyItemsRemaining: number;
+      auxItemsRemaining: number;
+    } | null;
   };
 };
 
@@ -670,6 +774,7 @@ export function buildAdultOffBatchPlanReport(
       persistentVolumeConfirmed: config.statePersistent,
       requiredForLiveDatabase: true,
       existing: readExistingBatchState(config.stateDir ?? config.statePlacementDir, rates),
+      quarantine: readPlanQuarantine(config.stateDir ?? config.statePlacementDir, work),
     },
   };
 }
@@ -696,6 +801,28 @@ function readExistingBatchState(
   }
 }
 
+function readPlanQuarantine(
+  stateDir: string,
+  work: AdultOffBatchWork
+): AdultOffBatchPlanReport["batchState"]["quarantine"] {
+  if (!fs.existsSync(batchStatePath(stateDir))) return null;
+  try {
+    const held = loadAdultOffBatchState(stateDir).unresolved?.quarantine;
+    if (!held) return null;
+    const hashes = new Set(held.textHashes);
+    return {
+      requestId: held.requestId,
+      messageId: held.messageId,
+      reserveKrw: held.reserveKrw,
+      bodyItemsRemaining: work.bodyItems.filter((item) => hashes.has(adultOffApprovedTextHash(item.target.text))).length,
+      auxItemsRemaining: work.auxItems.filter((aux) => aux.texts.some((text) => hashes.has(adultOffApprovedTextHash(text))))
+        .length,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export type AdultOffBatchPinnedRates = {
   inputUsdPerM: number;
   outputUsdPerM: number;
@@ -710,11 +837,27 @@ export type AdultOffBatchInFlight = {
   reservedKrw: number;
 };
 
+/**
+ * 원장에 started·비용 미상으로 남은 호출 하나를 운영자가 정확히 지목해 격리한 기록.
+ * 비용이 확정되기 전에는 `reserveKrw`가 실제 비용 대신 예산에 잡히고, 같은 문자열은 어느 메시지에서도 다시 분류하지 않는다.
+ */
+export type AdultOffBatchQuarantine = {
+  runId: string;
+  requestId: string;
+  eventKey: string;
+  messageId: number;
+  surface: "body" | "aux";
+  textHashes: string[];
+  reserveKrw: number;
+  at: string;
+};
+
 export type AdultOffBatchUnresolved = {
   messageId: number;
   surface: "body" | "aux";
   requestIds: string[];
   at: string;
+  quarantine: AdultOffBatchQuarantine | null;
 };
 
 /**
@@ -782,13 +925,126 @@ function isProcessAlive(pid: number): boolean {
 
 export type AdultOffBatchExecutionLock = { release(): void };
 
+export type AdultOffBatchLockOptions = {
+  /** 다른 컨테이너가 남긴 잠금 하나를 회수하는 일회성 승인. 없으면 같은 호스트의 죽은 PID 잠금만 회수한다. */
+  foreignLockPin?: AdultOffBatchForeignLockPin | null;
+  /** 테스트 이음새: 정지 시간 판정에 쓰는 현재 시각(ms). */
+  now?: () => number;
+};
+
+type LockHolder = { pid?: unknown; host?: unknown; runId?: unknown; startedAt?: unknown; deploymentId?: unknown };
+
+function lockReclaimGuardPath(stateDir: string): string {
+  return path.join(stateDir, "execution.lock.reclaim");
+}
+
+function refuseLocked(detail: string): AdultOffBatchRunRefusedError {
+  return new AdultOffBatchRunRefusedError("concurrent_run_locked", detail);
+}
+
+function isForeignLockApproved(
+  stateDir: string,
+  holder: LockHolder,
+  lockMtimeMs: number,
+  options: AdultOffBatchLockOptions
+): boolean {
+  const pin = options.foreignLockPin;
+  if (!pin) return false;
+  if (
+    holder.host !== pin.host ||
+    holder.pid !== pin.pid ||
+    holder.runId !== pin.runId ||
+    holder.startedAt !== pin.startedAt
+  ) {
+    return false;
+  }
+  const currentDeployment = process.env.RAILWAY_DEPLOYMENT_ID?.trim();
+  if (currentDeployment && holder.deploymentId === currentDeployment) return false;
+  const now = (options.now ?? Date.now)();
+  let latestChangeMs = lockMtimeMs;
+  try {
+    latestChangeMs = Math.max(latestChangeMs, fs.statSync(batchStatePath(stateDir)).mtimeMs);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") return false;
+  }
+  return now - latestChangeMs >= ADULT_OFF_BATCH_FOREIGN_LOCK_QUIESCENT_MS;
+}
+
+/**
+ * 기존 잠금 하나를 치우는 유일한 경로. 회수 보호 파일(wx)을 쥔 프로세스 하나만 진행하고,
+ * 읽은 잠금의 inode가 치운 파일과 같은지 확인한 뒤에만 tombstone으로 옮긴다(삭제하지 않는다).
+ * 회수 조건이 아니면 항상 거부한다.
+ */
+function reclaimExistingLock(stateDir: string, options: AdultOffBatchLockOptions): void {
+  const file = lockPath(stateDir);
+  const guardFile = lockReclaimGuardPath(stateDir);
+  let guardFd: number;
+  try {
+    guardFd = fs.openSync(guardFile, "wx", 0o600);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      throw refuseLocked("another process is reclaiming the execution lock");
+    }
+    throw error;
+  }
+  try {
+    fs.writeSync(guardFd, JSON.stringify({ pid: process.pid, host: os.hostname(), at: new Date().toISOString() }));
+    let before: fs.Stats;
+    let raw: string;
+    try {
+      before = fs.lstatSync(file);
+      raw = fs.readFileSync(file, "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+      throw error;
+    }
+    let holder: LockHolder = {};
+    try {
+      holder = JSON.parse(raw) as LockHolder;
+    } catch {
+      holder = {};
+    }
+    const sameHostDead =
+      holder.host === os.hostname() && typeof holder.pid === "number" && !isProcessAlive(holder.pid);
+    const foreignApproved =
+      holder.host !== os.hostname() && isForeignLockApproved(stateDir, holder, before.mtimeMs, options);
+    if (!sameHostDead && !foreignApproved) {
+      throw refuseLocked(
+        `another adult-off batch execution holds the lock (run ${typeof holder.runId === "string" ? holder.runId : "unknown"})`
+      );
+    }
+    const tombstone = `${file}.reclaimed.${Date.now()}.${process.pid}`;
+    try {
+      fs.renameSync(file, tombstone);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+      throw error;
+    }
+    const moved = fs.lstatSync(tombstone);
+    if (moved.ino !== before.ino || moved.dev !== before.dev) {
+      try {
+        fs.linkSync(tombstone, file);
+        fs.unlinkSync(tombstone);
+      } catch {
+        // the lock path was taken again; the moved file stays as the tombstone for inspection
+      }
+      throw refuseLocked("the execution lock changed while it was being reclaimed");
+    }
+  } finally {
+    fs.closeSync(guardFd);
+    fs.rmSync(guardFile, { force: true });
+  }
+}
+
 /**
  * 고정 상태 위치 하나에 대한 전역 실행 잠금. RUN_ID가 같든 다르든 동시에 하나만 돈다.
- * 같은 호스트에서 죽은 PID의 잠금만 자동 회수하고, 그 외에는 사람이 확인할 때까지 거부한다.
+ * 같은 호스트에서 죽은 PID의 잠금, 또는 운영자가 4개 값을 정확히 지목하고 상태가 정지돼 있는 다른 컨테이너의 잠금만
+ * 단 하나의 회수 경로(`reclaimExistingLock`)로 치운다. 그 외에는 사람이 확인할 때까지 거부한다.
  */
 export function acquireAdultOffBatchExecutionLock(
   stateDir: string,
-  runId: string
+  runId: string,
+  options: AdultOffBatchLockOptions = {}
 ): AdultOffBatchExecutionLock {
   fs.mkdirSync(stateDir, { recursive: true, mode: 0o700 });
   const file = lockPath(stateDir);
@@ -797,8 +1053,9 @@ export function acquireAdultOffBatchExecutionLock(
     host: os.hostname(),
     runId,
     startedAt: new Date().toISOString(),
+    deploymentId: process.env.RAILWAY_DEPLOYMENT_ID?.trim() || null,
   });
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  const tryCreate = (): AdultOffBatchExecutionLock | null => {
     try {
       const fd = fs.openSync(file, "wx", 0o600);
       try {
@@ -806,40 +1063,27 @@ export function acquireAdultOffBatchExecutionLock(
       } finally {
         fs.closeSync(fd);
       }
-      return {
-        release() {
-          try {
-            const held = JSON.parse(fs.readFileSync(file, "utf8")) as { pid?: number; runId?: string };
-            if (held.pid === process.pid && held.runId === runId) fs.unlinkSync(file);
-          } catch {
-            return;
-          }
-        },
-      };
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      let holder: { pid?: number; host?: string; runId?: string } = {};
-      try {
-        holder = JSON.parse(fs.readFileSync(file, "utf8")) as typeof holder;
-      } catch {
-        holder = {};
-      }
-      const reclaimable =
-        attempt === 0 &&
-        holder.host === os.hostname() &&
-        typeof holder.pid === "number" &&
-        !isProcessAlive(holder.pid);
-      if (reclaimable) {
-        fs.unlinkSync(file);
-        continue;
-      }
-      throw new AdultOffBatchRunRefusedError(
-        "concurrent_run_locked",
-        `another adult-off batch execution holds the lock (run ${holder.runId ?? "unknown"})`
-      );
+      if ((error as NodeJS.ErrnoException).code === "EEXIST") return null;
+      throw error;
     }
-  }
-  throw new AdultOffBatchRunRefusedError("concurrent_run_locked", "could not acquire execution lock");
+    return {
+      release() {
+        try {
+          const held = JSON.parse(fs.readFileSync(file, "utf8")) as { pid?: number; runId?: string };
+          if (held.pid === process.pid && held.runId === runId) fs.unlinkSync(file);
+        } catch {
+          return;
+        }
+      },
+    };
+  };
+  const created = tryCreate();
+  if (created) return created;
+  reclaimExistingLock(stateDir, options);
+  const reclaimed = tryCreate();
+  if (reclaimed) return reclaimed;
+  throw refuseLocked("could not acquire execution lock");
 }
 
 function isStringArray(value: unknown): value is string[] {
@@ -859,6 +1103,35 @@ function parseCallMarker<T extends { messageId: number; surface: "body" | "aux";
     throw new AdultOffBatchRunRefusedError("state_invalid", "batch state call marker failed validation");
   }
   return value as T;
+}
+
+function parseQuarantine(value: unknown): AdultOffBatchQuarantine | null {
+  if (value == null) return null;
+  const record = value as Partial<AdultOffBatchQuarantine>;
+  if (
+    typeof record.runId !== "string" ||
+    typeof record.requestId !== "string" ||
+    typeof record.eventKey !== "string" ||
+    typeof record.messageId !== "number" ||
+    (record.surface !== "body" && record.surface !== "aux") ||
+    !isStringArray(record.textHashes) ||
+    typeof record.reserveKrw !== "number" ||
+    !Number.isFinite(record.reserveKrw) ||
+    record.reserveKrw <= 0 ||
+    typeof record.at !== "string"
+  ) {
+    throw new AdultOffBatchRunRefusedError("state_invalid", "batch state quarantine record failed validation");
+  }
+  return {
+    runId: record.runId,
+    requestId: record.requestId,
+    eventKey: record.eventKey,
+    messageId: record.messageId,
+    surface: record.surface,
+    textHashes: record.textHashes,
+    reserveKrw: record.reserveKrw,
+    at: record.at,
+  };
 }
 
 function parseRates(value: unknown): AdultOffBatchPinnedRates | null {
@@ -941,7 +1214,13 @@ export function loadAdultOffBatchState(stateDir: string): AdultOffBatchState {
     throw new AdultOffBatchRunRefusedError("state_invalid", "batch state file failed validation");
   }
   const inFlight = parseCallMarker<AdultOffBatchInFlight>(parsed.inFlight);
-  const unresolved = parseCallMarker<AdultOffBatchUnresolved>(parsed.unresolved);
+  const unresolvedMarker = parseCallMarker<Omit<AdultOffBatchUnresolved, "quarantine">>(parsed.unresolved);
+  const unresolved: AdultOffBatchUnresolved | null = unresolvedMarker
+    ? {
+        ...unresolvedMarker,
+        quarantine: parseQuarantine((parsed.unresolved as { quarantine?: unknown }).quarantine),
+      }
+    : null;
   return {
     version: 2,
     settledKrw: parsed.settledKrw,
@@ -976,6 +1255,7 @@ function saveAdultOffBatchState(stateDir: string, state: AdultOffBatchState): vo
 
 export type AdultOffBatchStopReason =
   | "completed"
+  | "quarantine_pending"
   | "cap_reached"
   | "halted_unknown_cost"
   | "halted_classifier_error"
@@ -993,7 +1273,17 @@ export type AdultOffBatchExecuteReport = {
     paidWindowCalls: number;
     cumulativePaidWindowCalls: number;
     maxObservedWindowKrw: number;
+    /** 격리된 미정산 호출이 실제 비용 대신 예산에 잡고 있는 예약액. 비용이 확정되면 0이 된다. */
+    heldQuarantineReserveKrw: number;
   };
+  /** 아직 비용이 확정되지 않아 격리 중인 호출. 있으면 배치는 끝난 것이 아니다. */
+  quarantine: {
+    requestId: string;
+    eventKey: string;
+    messageId: number;
+    reserveKrw: number;
+    textHashes: number;
+  } | null;
   body: {
     classifiedTexts: number;
     reusedStoredTexts: number;
@@ -1002,6 +1292,7 @@ export type AdultOffBatchExecuteReport = {
     skippedStale: number;
     skippedNoop: number;
     skippedUnresolved: number;
+    quarantinedSkipped: number;
   };
   aux: {
     classifiedTexts: number;
@@ -1009,6 +1300,7 @@ export type AdultOffBatchExecuteReport = {
     skippedStale: number;
     skippedNoop: number;
     skippedUnresolved: number;
+    quarantinedSkipped: number;
     notApproved: number;
     fingerprintMissing: number;
   };
@@ -1046,7 +1338,7 @@ export async function executeAdultOffBatchPaidRun(
   const runId = config.runId;
   const stateDir = config.stateDir;
   prepareAdultOffBatchStateDir(stateDir, config.statePersistent ? config.stateVolumeRoot : null);
-  const lock = acquireAdultOffBatchExecutionLock(stateDir, runId);
+  const lock = acquireAdultOffBatchExecutionLock(stateDir, runId, { foreignLockPin: config.reclaimForeignLock });
   let db: DatabaseType | null = null;
   try {
     const state = loadAdultOffBatchState(stateDir);
@@ -1112,10 +1404,11 @@ export async function executeAdultOffBatchPaidRun(
       state.halted = { reason, detail: detail.slice(0, 300), at: new Date().toISOString() };
       saveAdultOffBatchState(stateDir, state);
     };
+    const isCallCostKnown = (cost: AdultOffBatchModerationSpend): boolean =>
+      cost.totalEvents > 0 && cost.unknownCostEvents === 0 && cost.settledUsd > 0;
     const settleCall = (requestId: string, reservedKrw: number, callError: unknown): void => {
       const cost = readAdultOffBatchCallCost(database, requestId);
-      const known = cost.totalEvents > 0 && cost.unknownCostEvents === 0 && cost.settledUsd > 0;
-      if (!known) {
+      if (!isCallCostKnown(cost)) {
         halt("halted_unknown_cost", `call ${requestId}: ledger cost unknown (events=${cost.totalEvents})`);
         return;
       }
@@ -1139,38 +1432,142 @@ export async function executeAdultOffBatchPaidRun(
       }
     };
 
+    const rows = loadAssistantRowsForAdultOffInspection(database);
+    const work = collectAdultOffBatchWork(database, rows, { buildAuxFingerprints: true });
+
+    /**
+     * 비용이 확정되지 않은 호출은 운영자가 4개 식별값을 정확히 지목하고 원장 행이 그와 일치할 때만 격리한다.
+     * 격리해도 원장 행은 건드리지 않고, 예약액은 호출 당시 상한과 증명된 창 상한 중 큰 값이다.
+     */
+    const quarantineInterruptedCall = (interrupted: AdultOffBatchInFlight, requestId: string): AdultOffBatchQuarantine => {
+      const approval = config.quarantineUnconfirmed;
+      if (!approval) {
+        throw new AdultOffBatchRunRefusedError(
+          "interrupted_call_cost_unknown",
+          `call ${requestId} was interrupted and its cost cannot be confirmed from the ledger; ` +
+            "nothing was changed. Only an explicit ADULT_OFF_BATCH_QUARANTINE_* approval naming this exact call can isolate it"
+        );
+      }
+      const mismatch = (detail: string): AdultOffBatchRunRefusedError =>
+        new AdultOffBatchRunRefusedError("quarantine_approval_mismatch", `quarantine approval refused: ${detail}`);
+      if (
+        approval.requestId !== requestId ||
+        approval.messageId !== interrupted.messageId ||
+        !state.runIds.includes(approval.runId)
+      ) {
+        throw mismatch("the approved run, request id and message id do not match the interrupted call");
+      }
+      const ledgerRows = readAdultOffBatchCallLedgerRows(database, requestId);
+      const row = ledgerRows.length === 1 ? ledgerRows[0] : null;
+      if (
+        !row ||
+        row.event_key !== approval.eventKey ||
+        row.assistant_message_id !== approval.messageId ||
+        row.event_status !== "started" ||
+        row.provider_request_id != null ||
+        row.actual_cost_usd != null
+      ) {
+        throw mismatch("the ledger row is not exactly one started, cost-less, provider-id-less event with the approved event_key and message id");
+      }
+      const texts =
+        interrupted.surface === "body"
+          ? work.bodyItems.filter((item) => item.target.messageId === interrupted.messageId).map((item) => item.target.text)
+          : work.auxItems.filter((aux) => aux.item.messageId === interrupted.messageId).flatMap((aux) => aux.texts);
+      if (texts.length === 0) throw mismatch("the interrupted target text is no longer a pending classification target");
+      const provenRates: OpenRouterModelRates = {
+        ...rates,
+        cacheWriteMultiplier: Math.max(
+          rates.cacheWriteMultiplier,
+          ADULT_OFF_BATCH_QUARANTINE_MIN_CACHE_WRITE_MULTIPLIER
+        ),
+      };
+      const windowBound = Math.max(
+        ...texts.flatMap((text) =>
+          windowsOfText(text).map((windowText) =>
+            adultOffBatchWindowReserveKrw(windowText, { ...pricing, rates: provenRates })
+          )
+        )
+      );
+      return {
+        runId: approval.runId,
+        requestId,
+        eventKey: approval.eventKey,
+        messageId: approval.messageId,
+        surface: interrupted.surface,
+        textHashes: [...new Set(texts.map((text) => adultOffApprovedTextHash(text)))],
+        reserveKrw: Math.max(interrupted.reservedKrw, windowBound),
+        at: new Date().toISOString(),
+      };
+    };
+
+    /** 확정된 격리 호출은 예약액을 실제 비용으로 바꾸고, 판정 없이 끝난 호출은 ACK 없이는 다시 분류하지 않는다. */
+    const reconcileUnresolved = (): void => {
+      if (state.unresolved?.quarantine) {
+        const held = state.unresolved.quarantine;
+        if (isCallCostKnown(readAdultOffBatchCallCost(database, held.requestId))) {
+          settleCall(held.requestId, held.reserveKrw, null);
+          state.unresolved.quarantine = null;
+          saveAdultOffBatchState(stateDir, state);
+          if (state.halted) {
+            throw new AdultOffBatchRunRefusedError(
+              "quarantine_cost_exceeds_reserve",
+              `the confirmed cost of ${held.requestId} exceeded its ${held.reserveKrw.toFixed(4)} KRW reserve; STOP and re-evaluate the budget`
+            );
+          }
+        }
+      }
+      if (state.unresolved && !state.unresolved.quarantine) {
+        const firstId = state.unresolved.requestIds[0] ?? "";
+        if (!firstId || config.ackUnresolvedRequestId !== firstId) {
+          throw new AdultOffBatchRunRefusedError(
+            "interrupted_call_unresolved",
+            `a paid call (${state.unresolved.requestIds.join(", ")}) finished or was cut off without a stored verdict; ` +
+              `its cost is counted, but the same text would be paid for again. Inspect message ${state.unresolved.messageId} ` +
+              `and re-run with ADULT_OFF_BATCH_ACK_UNRESOLVED_REQUEST_ID=${firstId} to accept one re-classification`
+          );
+        }
+        state.unresolved = null;
+      }
+    };
+
+    reconcileUnresolved();
     if (state.inFlight) {
+      if (state.unresolved?.quarantine) {
+        throw new AdultOffBatchRunRefusedError(
+          "interrupted_call_while_quarantined",
+          `another call was interrupted while ${state.unresolved.quarantine.requestId} is still quarantined; ` +
+            "nothing was changed. Resolve the quarantined call's billing first"
+        );
+      }
       const interrupted = state.inFlight;
-      if (interrupted.openRequestId) settleCall(interrupted.openRequestId, Number.POSITIVE_INFINITY, null);
+      const openRequestId = interrupted.openRequestId;
+      let quarantine: AdultOffBatchQuarantine | null = null;
+      if (openRequestId) {
+        if (isCallCostKnown(readAdultOffBatchCallCost(database, openRequestId))) {
+          settleCall(openRequestId, Number.POSITIVE_INFINITY, null);
+        } else {
+          quarantine = quarantineInterruptedCall(interrupted, openRequestId);
+        }
+      }
       state.unresolved = {
         messageId: interrupted.messageId,
         surface: interrupted.surface,
         requestIds: interrupted.requestIds,
         at: new Date().toISOString(),
+        quarantine,
       };
       state.inFlight = null;
       saveAdultOffBatchState(stateDir, state);
-      if (state.halted) {
-        throw new AdultOffBatchRunRefusedError(
-          "interrupted_call_cost_unknown",
-          "a previous call was interrupted and its cost cannot be confirmed from the ledger"
-        );
-      }
+      reconcileUnresolved();
     }
-    if (state.unresolved) {
-      const firstId = state.unresolved.requestIds[0] ?? "";
-      if (!firstId || config.ackUnresolvedRequestId !== firstId) {
-        throw new AdultOffBatchRunRefusedError(
-          "interrupted_call_unresolved",
-          `a paid call (${state.unresolved.requestIds.join(", ")}) finished or was cut off without a stored verdict; ` +
-            `its cost is counted, but the same text would be paid for again. Inspect message ${state.unresolved.messageId} ` +
-            `and re-run with ADULT_OFF_BATCH_ACK_UNRESOLVED_REQUEST_ID=${firstId} to accept one re-classification`
-        );
-      }
-      state.unresolved = null;
-    }
+    const heldQuarantine = state.unresolved?.quarantine ?? null;
+    const heldReserveKrw = heldQuarantine?.reserveKrw ?? 0;
+    const quarantinedHashes = new Set(heldQuarantine?.textHashes ?? []);
 
-    const priorSpend = sumAdultOffBatchModerationSpend(database);
+    const priorSpend = sumAdultOffBatchModerationSpend(
+      database,
+      heldQuarantine ? { requestId: heldQuarantine.requestId, eventKey: heldQuarantine.eventKey } : null
+    );
     if (priorSpend.unknownCostEvents > 0) {
       halt("halted_unknown_cost", `ledger has ${priorSpend.unknownCostEvents} unknown-cost batch events`);
       throw new AdultOffBatchRunRefusedError(
@@ -1192,8 +1589,6 @@ export async function executeAdultOffBatchPaidRun(
     saveAdultOffBatchState(stateDir, state);
     const settledKrwAtStart = state.settledKrw;
 
-    const rows = loadAssistantRowsForAdultOffInspection(database);
-    const work = collectAdultOffBatchWork(database, rows, { buildAuxFingerprints: true });
     const chatIdByMessage = new Map<number, number>();
     for (const row of database
       .prepare("SELECT id, chat_id FROM messages WHERE role='assistant'")
@@ -1213,6 +1608,14 @@ export async function executeAdultOffBatchPaidRun(
         paidWindowCalls: 0,
         cumulativePaidWindowCalls: state.callCount,
         maxObservedWindowKrw: state.maxObservedWindowKrw,
+        heldQuarantineReserveKrw: heldReserveKrw,
+      },
+      quarantine: heldQuarantine && {
+        requestId: heldQuarantine.requestId,
+        eventKey: heldQuarantine.eventKey,
+        messageId: heldQuarantine.messageId,
+        reserveKrw: heldQuarantine.reserveKrw,
+        textHashes: heldQuarantine.textHashes.length,
       },
       body: {
         classifiedTexts: 0,
@@ -1222,6 +1625,7 @@ export async function executeAdultOffBatchPaidRun(
         skippedStale: 0,
         skippedNoop: 0,
         skippedUnresolved: 0,
+        quarantinedSkipped: 0,
       },
       aux: {
         classifiedTexts: 0,
@@ -1229,6 +1633,7 @@ export async function executeAdultOffBatchPaidRun(
         skippedStale: 0,
         skippedNoop: 0,
         skippedUnresolved: 0,
+        quarantinedSkipped: 0,
         notApproved: 0,
         fingerprintMissing: 0,
       },
@@ -1262,7 +1667,7 @@ export async function executeAdultOffBatchPaidRun(
         const reason = haltedReason();
         if (reason) throw new BatchStopSignal(reason);
         const reservedKrw = adultOffBatchWindowReserveKrw(windowText, pricing);
-        if (state.settledKrw + reservedKrw > config.capKrw) {
+        if (state.settledKrw + heldReserveKrw + reservedKrw > config.capKrw) {
           capSignalRaised = true;
           throw new BatchStopSignal("cap_reached");
         }
@@ -1323,7 +1728,7 @@ export async function executeAdultOffBatchPaidRun(
         stopReason = haltedBefore;
         return null;
       }
-      if (state.settledKrw + adultOffBatchTextReserveKrw(text, pricing) > config.capKrw) {
+      if (state.settledKrw + heldReserveKrw + adultOffBatchTextReserveKrw(text, pricing) > config.capKrw) {
         stopReason = "cap_reached";
         return null;
       }
@@ -1348,6 +1753,10 @@ export async function executeAdultOffBatchPaidRun(
     };
 
     for (const item of work.bodyItems) {
+      if (quarantinedHashes.has(adultOffApprovedTextHash(item.target.text))) {
+        report.body.quarantinedSkipped += 1;
+        continue;
+      }
       beginUnit(item.target.messageId, "body");
       const outcome = await classifyText(item.target.text, item.target.messageId, "body");
       if (!outcome) break;
@@ -1384,6 +1793,10 @@ export async function executeAdultOffBatchPaidRun(
       for (const aux of work.auxItems) {
         if (!aux.fingerprint) {
           report.aux.fingerprintMissing += 1;
+          continue;
+        }
+        if (aux.texts.some((text) => quarantinedHashes.has(adultOffApprovedTextHash(text)))) {
+          report.aux.quarantinedSkipped += 1;
           continue;
         }
         beginUnit(aux.item.messageId, "aux");
@@ -1437,6 +1850,7 @@ export async function executeAdultOffBatchPaidRun(
     report.budget.cumulativePaidWindowCalls = state.callCount;
     report.budget.maxObservedWindowKrw = state.maxObservedWindowKrw;
     report.halted = state.halted;
+    if (!stopReason && heldQuarantine) stopReason = "quarantine_pending";
     if (stopReason) {
       report.status = "execute_stopped";
       report.stopReason = stopReason;

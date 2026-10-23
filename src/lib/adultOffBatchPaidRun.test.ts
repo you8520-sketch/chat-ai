@@ -42,6 +42,7 @@ import {
   type AdultOffBatchPaidRunConfig,
 } from "@/lib/adultOffBatchPaidRun";
 import {
+  buildAdultOffBatchGenerationRequestId,
   copySqliteDatabaseForRehearsal,
   loadAssistantRowsForAdultOffInspection,
   surveyAdultOffAuxSurfaces,
@@ -184,21 +185,29 @@ describe("adult-off batch paid runner", { concurrency: 1 }, () => {
   function insertLedger(
     fx: DatabaseType,
     requestId: string,
-    options: { usd: number | null; source?: string; status?: string; messageId?: number | null }
+    options: {
+      usd: number | null;
+      source?: string;
+      status?: string;
+      messageId?: number | null;
+      eventKey?: string;
+      providerRequestId?: string | null;
+    }
   ): void {
     fx.prepare(
       `INSERT INTO api_cost_ledger (
          event_key, chat_id, assistant_message_id, generation_sequence, family, funding_class,
          execution_phase, attempt_ordinal, requested_provider, requested_model, provider, model,
-         request_kind, generation_request_id, event_status, exchange_rate_krw_per_usd, cost_krw,
-         estimated, actual_cost_usd, actual_cost_source, created_at
+         request_kind, generation_request_id, provider_request_id, event_status, exchange_rate_krw_per_usd,
+         cost_krw, estimated, actual_cost_usd, actual_cost_source, created_at
        ) VALUES (?, 1, ?, 0, 'background', 'platform_funded', 'sync_post_turn', 1, 'cheaperinference',
-         'gpt-6-luna', 'cheaperinference', 'gpt-6-luna', 'adult-off-output-moderation', ?, ?, 1450,
+         'gpt-6-luna', 'cheaperinference', 'gpt-6-luna', 'adult-off-output-moderation', ?, ?, ?, 1450,
          0, 0, ?, ?, datetime('now'))`
     ).run(
-      randomUUID(),
+      options.eventKey ?? randomUUID(),
       options.messageId ?? null,
       requestId,
+      options.providerRequestId ?? null,
       options.status ?? "settled",
       options.usd,
       options.source ?? "cheaper_inference_billed"
@@ -1074,12 +1083,16 @@ main();
           error instanceof AdultOffBatchRunRefusedError && error.code === "interrupted_call_cost_unknown"
       );
       assert.equal(mock.calls.length, 0);
-      assert.ok(loadAdultOffBatchState(sc.stateDir).halted);
+      const stopped = loadAdultOffBatchState(sc.stateDir);
+      assert.equal(stopped.halted, null, "an unapproved STOP leaves the state recoverable instead of poisoning it");
+      assert.equal(stopped.inFlight?.openRequestId, requestId);
+      assert.equal(stopped.unresolved, null);
       await assert.rejects(
         () => run(sc, mock, { ADULT_OFF_BATCH_ACK_UNRESOLVED_REQUEST_ID: requestId }),
-        (error: unknown) => error instanceof AdultOffBatchRunRefusedError && error.code === "batch_halted"
+        (error: unknown) =>
+          error instanceof AdultOffBatchRunRefusedError && error.code === "interrupted_call_cost_unknown"
       );
-      assert.equal(mock.calls.length, 0);
+      assert.equal(mock.calls.length, 0, "an ACK never turns an unknown-cost call into permission to pay again");
     });
 
     it("clears the in-flight marker only after the verdict commit and leaves nothing unresolved on success", async () => {
@@ -1892,6 +1905,679 @@ https.request = () => { record("https"); throw new Error("blocked by test https 
       );
       assert.ok(loadAdultOffBatchState(sc.stateDir).halted);
       assert.equal(usageOf(sc.fx, id).adultOffGuard, undefined);
+    });
+  });
+
+  describe("unconfirmed call quarantine (#208 recovery)", () => {
+    const SEED_RUN_ID = "adult-off-c3-test";
+    const TARGET_TEXT = "격리 대상 본문";
+    const refusedWith = (code: string) => (error: unknown) =>
+      error instanceof AdultOffBatchRunRefusedError && error.code === code;
+    const configErrorWith = (code: string) => (error: unknown) =>
+      error instanceof AdultOffBatchConfigError && error.code === code;
+
+    type Seed = {
+      sc: Scenario;
+      config: AdultOffBatchPaidRunConfig;
+      stateDir: string;
+      runId: string;
+      requestId: string;
+      eventKey: string;
+      targetId: number;
+      duplicateId: number;
+      protectedIds: number[];
+      settledCalls: number;
+    };
+
+    const runConfig = (
+      sc: Scenario,
+      config: AdultOffBatchPaidRunConfig,
+      classifier: ReturnType<typeof mockClassifier>
+    ): Promise<AdultOffBatchExecuteReport> =>
+      executeAdultOffBatchPaidRun({
+        config,
+        openDatabase: () => new Database(sc.dbPath, { fileMustExist: true }),
+        createClassifier: classifier.createClassifier,
+      });
+
+    /** 정산이 끝난 호출·증명을 실제 실행기로 만든 뒤, 같은 상태 파일에 "started·비용 미상" 호출 하나를 남긴다. */
+    async function seedUnconfirmedCall(
+      sc: Scenario,
+      options: { config?: AdultOffBatchPaidRunConfig; targetText?: string; reservedKrw?: number } = {}
+    ): Promise<Seed> {
+      const config = options.config ?? sc.config();
+      const stateDir = config.stateDir!;
+      const plainIds = [0, 1, 2].map((i) => insertAssistant(sc.fx, { content: `정산 완료 본문 ${i}` }));
+      const variantId = insertAssistant(sc.fx, {
+        content: "정산 완료 행 본문",
+        alternates: [{ content: "정산 완료 variant 본문", model: "gemini", usage: { cost: 1 }, created_at: "" }],
+        activeVariant: 0,
+      });
+      const settled = mockClassifier(sc);
+      const first = await runConfig(sc, config, settled);
+      assert.equal(first.stopReason, "completed");
+      const targetText = options.targetText ?? TARGET_TEXT;
+      const targetId = insertAssistant(sc.fx, { content: targetText });
+      const duplicateId = insertAssistant(sc.fx, { content: targetText, chatId: 2 });
+      const state = loadAdultOffBatchState(stateDir);
+      const requestId = buildAdultOffBatchGenerationRequestId(SEED_RUN_ID, state.nextCallSeq);
+      const eventKey = randomUUID();
+      fs.writeFileSync(
+        path.join(stateDir, "batch.state.json"),
+        JSON.stringify({
+          ...state,
+          inFlight: {
+            messageId: targetId,
+            surface: "body",
+            requestIds: [requestId],
+            openRequestId: requestId,
+            reservedKrw: options.reservedKrw ?? 10,
+          },
+          nextCallSeq: state.nextCallSeq + 1,
+        })
+      );
+      insertLedger(sc.fx, requestId, {
+        usd: null,
+        source: "unavailable",
+        status: "started",
+        messageId: targetId,
+        eventKey,
+      });
+      return {
+        sc,
+        config,
+        stateDir,
+        runId: SEED_RUN_ID,
+        requestId,
+        eventKey,
+        targetId,
+        duplicateId,
+        protectedIds: [...plainIds, variantId],
+        settledCalls: settled.calls.length,
+      };
+    }
+
+    const approvalEnv = (seed: Seed, overrides: Record<string, string> = {}): Record<string, string> => ({
+      ADULT_OFF_BATCH_QUARANTINE_RUN_ID: seed.runId,
+      ADULT_OFF_BATCH_QUARANTINE_REQUEST_ID: seed.requestId,
+      ADULT_OFF_BATCH_QUARANTINE_EVENT_KEY: seed.eventKey,
+      ADULT_OFF_BATCH_QUARANTINE_MESSAGE_ID: String(seed.targetId),
+      ...overrides,
+    });
+
+    const stateBytes = (seed: Seed): string => fs.readFileSync(path.join(seed.stateDir, "batch.state.json"), "utf8");
+    const ledgerRow = (seed: Seed, requestId = seed.requestId): string =>
+      JSON.stringify(
+        seed.sc.fx.prepare("SELECT * FROM api_cost_ledger WHERE generation_request_id = ?").all(requestId)
+      );
+    const ledgerSettledRows = (seed: Seed): string =>
+      JSON.stringify(
+        seed.sc.fx
+          .prepare("SELECT * FROM api_cost_ledger WHERE generation_request_id != ? ORDER BY id")
+          .all(seed.requestId)
+      );
+    const protectedRows = (seed: Seed): string =>
+      JSON.stringify(
+        seed.sc.fx
+          .prepare(`SELECT * FROM messages WHERE id IN (${seed.protectedIds.join(",")}) ORDER BY id`)
+          .all()
+      );
+
+    it("fails closed on the old interrupted state until an exact approval exists, and never poisons the state meanwhile", async () => {
+      const seed = await seedUnconfirmedCall(scenario(SEED_RUN_ID));
+      const before = stateBytes(seed);
+      const blocked = mockClassifier(seed.sc);
+      await assert.rejects(() => run(seed.sc, blocked), refusedWith("interrupted_call_cost_unknown"));
+      await assert.rejects(
+        () => run(seed.sc, blocked, { ADULT_OFF_BATCH_ACK_UNRESOLVED_REQUEST_ID: seed.requestId }),
+        refusedWith("interrupted_call_cost_unknown")
+      );
+      assert.equal(blocked.calls.length, 0);
+      assert.equal(stateBytes(seed), before, "an unapproved STOP changes nothing");
+      assert.equal(loadAdultOffBatchState(seed.stateDir).halted, null);
+    });
+
+    it("quarantines exactly the approved call, holds its reserve, never re-calls the text and preserves every settled cost and proof", async () => {
+      const seed = await seedUnconfirmedCall(scenario(SEED_RUN_ID));
+      const { sc } = seed;
+      const otherId = insertAssistant(sc.fx, { content: "격리와 무관한 대기 본문" });
+      const pendingBefore = ledgerSettledRows(seed);
+      const quarantinedLedgerBefore = ledgerRow(seed);
+      const protectedBefore = protectedRows(seed);
+      const settledKrwBefore = loadAdultOffBatchState(seed.stateDir).settledKrw;
+
+      const mock = mockClassifier(sc);
+      const report = await run(sc, mock, approvalEnv(seed));
+
+      assert.equal(report.stopReason, "quarantine_pending", "a held quarantine is never reported as a finished batch");
+      assert.equal(report.status, "execute_stopped");
+      assert.deepEqual(
+        mock.calls.map((call) => call.text),
+        ["격리와 무관한 대기 본문"],
+        "only unrelated text is paid for; the quarantined target text is never sent again"
+      );
+      assert.equal(adultOffStoredTextDisposition(usageOf(sc.fx, otherId), "격리와 무관한 대기 본문"), "approved");
+      assert.equal(report.body.quarantinedSkipped, 2, "the same text on another message is skipped too");
+      assert.equal(usageOf(sc.fx, seed.targetId).adultOffGuard, undefined);
+      assert.equal(usageOf(sc.fx, seed.duplicateId).adultOffGuard, undefined);
+      assert.equal(report.quarantine?.requestId, seed.requestId);
+      assert.equal(report.quarantine?.reserveKrw, 10, "the existing 10 KRW per-call reserve, not 0");
+      assert.equal(report.budget.heldQuarantineReserveKrw, 10);
+
+      const state = loadAdultOffBatchState(seed.stateDir);
+      assert.equal(state.halted, null);
+      assert.equal(state.inFlight, null);
+      assert.deepEqual(state.unresolved?.requestIds, [seed.requestId]);
+      assert.equal(state.unresolved?.messageId, seed.targetId);
+      assert.equal(state.unresolved?.quarantine?.eventKey, seed.eventKey);
+      assert.ok(
+        Math.abs(state.settledKrw - settledKrwBefore - KRW_PER_CALL) < 1e-9,
+        "settled actual cost grows only by the one real call; the reserve is held separately"
+      );
+      assert.ok(Math.abs(report.budget.settledKrwAtEnd + report.budget.heldQuarantineReserveKrw - state.settledKrw - 10) < 1e-9);
+
+      assert.equal(ledgerRow(seed), quarantinedLedgerBefore, "the unconfirmed ledger row is left exactly as it was");
+      assert.equal(ledgerSettledRows(seed).startsWith(pendingBefore.slice(0, -1)), true, "earlier settled rows are untouched");
+      assert.equal(protectedRows(seed), protectedBefore, "settled proofs and isolated variant proofs are untouched");
+      for (const id of seed.protectedIds.slice(0, 3)) {
+        assert.equal(adultOffStoredTextDisposition(usageOf(sc.fx, id), `정산 완료 본문 ${seed.protectedIds.indexOf(id)}`), "approved");
+      }
+    });
+
+    it("counts the held reserve against the cap before every call and never bypasses it", async () => {
+      const probe = await seedUnconfirmedCall(scenario(SEED_RUN_ID));
+      const settledKrw = loadAdultOffBatchState(probe.stateDir).settledKrw;
+      const otherText = "예약액 때문에 못 부르는 본문";
+      const bound = reserveFor(otherText);
+
+      insertAssistant(probe.sc.fx, { content: otherText });
+      const tooTight = (settledKrw + 10 + bound - 0.01).toFixed(4);
+      const stopped = mockClassifier(probe.sc);
+      const r1 = await run(probe.sc, stopped, approvalEnv(probe, { ADULT_OFF_BATCH_CAP_KRW: tooTight }));
+      assert.equal(r1.stopReason, "cap_reached");
+      assert.equal(stopped.calls.length, 0, "settled + held reserve + this call's bound exceeds the cap");
+
+      const roomy = await seedUnconfirmedCall(scenario(SEED_RUN_ID));
+      insertAssistant(roomy.sc.fx, { content: otherText });
+      const fits = (loadAdultOffBatchState(roomy.stateDir).settledKrw + 10 + bound + 0.01).toFixed(4);
+      const allowed = mockClassifier(roomy.sc);
+      const r2 = await run(roomy.sc, allowed, approvalEnv(roomy, { ADULT_OFF_BATCH_CAP_KRW: fits }));
+      assert.equal(allowed.calls.length, 1);
+      assert.equal(r2.stopReason, "quarantine_pending");
+    });
+
+    it("accepts a reserve only as large as the proven window bound at the account cache-write multiplier", async () => {
+      const typical = await seedUnconfirmedCall(scenario(SEED_RUN_ID));
+      const r1 = await run(typical.sc, mockClassifier(typical.sc), approvalEnv(typical));
+      assert.equal(r1.quarantine?.reserveKrw, 10);
+      const rates = resolveOpenRouterModelRates("gpt-6-luna");
+      const accountBound = adultOffBatchWindowReserveKrw(TARGET_TEXT, {
+        ...PRICING,
+        rates: { ...rates, cacheWriteMultiplier: 2.5 },
+      });
+      assert.ok(accountBound <= 10, `a normal window's account-rate bound ${accountBound} fits in the 10 KRW reserve`);
+
+      const hugeText = "가".repeat(36_000);
+      const huge = await seedUnconfirmedCall(scenario(SEED_RUN_ID), { targetText: hugeText, reservedKrw: 0.45 });
+      const r2 = await run(huge.sc, mockClassifier(huge.sc), approvalEnv(huge));
+      const hugeBound = adultOffBatchWindowReserveKrw(hugeText, {
+        ...PRICING,
+        rates: { ...rates, cacheWriteMultiplier: 2.5 },
+      });
+      assert.ok(hugeBound > 10 && hugeBound > 0.45);
+      assert.ok(
+        (r2.quarantine?.reserveKrw ?? 0) >= hugeBound - 1e-9,
+        "a recorded bound below the proven window bound is raised, never trusted"
+      );
+    });
+
+    it("refuses any approval that is not exactly the interrupted call and leaves the state untouched", async () => {
+      const seed = await seedUnconfirmedCall(scenario(SEED_RUN_ID));
+      const before = stateBytes(seed);
+      const nextSeq = Number(seed.requestId.slice(seed.requestId.lastIndexOf("/") + 1)) + 1;
+      const wrong: Array<[string, Record<string, string>]> = [
+        ["event_key", { ADULT_OFF_BATCH_QUARANTINE_EVENT_KEY: randomUUID() }],
+        ["message id", { ADULT_OFF_BATCH_QUARANTINE_MESSAGE_ID: String(seed.duplicateId) }],
+        [
+          "request seq",
+          { ADULT_OFF_BATCH_QUARANTINE_REQUEST_ID: `adult-off-batch/${SEED_RUN_ID}/${nextSeq}` },
+        ],
+        [
+          "other run",
+          {
+            ADULT_OFF_BATCH_QUARANTINE_RUN_ID: "ghost-run-id",
+            ADULT_OFF_BATCH_QUARANTINE_REQUEST_ID: `adult-off-batch/ghost-run-id/${nextSeq - 1}`,
+          },
+        ],
+      ];
+      for (const [name, overrides] of wrong) {
+        const mock = mockClassifier(seed.sc);
+        await assert.rejects(
+          () => run(seed.sc, mock, approvalEnv(seed, overrides)),
+          refusedWith("quarantine_approval_mismatch"),
+          name
+        );
+        assert.equal(mock.calls.length, 0, name);
+        assert.equal(stateBytes(seed), before, name);
+      }
+
+      seed.sc.fx.prepare("UPDATE api_cost_ledger SET provider_request_id = 'prov-candidate' WHERE generation_request_id = ?").run(seed.requestId);
+      await assert.rejects(() => run(seed.sc, mockClassifier(seed.sc), approvalEnv(seed)), refusedWith("quarantine_approval_mismatch"));
+      seed.sc.fx.prepare("UPDATE api_cost_ledger SET provider_request_id = NULL WHERE generation_request_id = ?").run(seed.requestId);
+
+      insertLedger(seed.sc.fx, seed.requestId, { usd: null, source: "unavailable", status: "started", messageId: seed.targetId });
+      await assert.rejects(() => run(seed.sc, mockClassifier(seed.sc), approvalEnv(seed)), refusedWith("quarantine_approval_mismatch"));
+      assert.equal(stateBytes(seed), before);
+
+      for (const name of [
+        "ADULT_OFF_BATCH_QUARANTINE_RUN_ID",
+        "ADULT_OFF_BATCH_QUARANTINE_REQUEST_ID",
+        "ADULT_OFF_BATCH_QUARANTINE_EVENT_KEY",
+        "ADULT_OFF_BATCH_QUARANTINE_MESSAGE_ID",
+      ]) {
+        assert.throws(
+          () => seed.sc.config({ ...approvalEnv(seed), [name]: undefined }),
+          configErrorWith("invalid_quarantine_unconfirmed"),
+          `partial approval without ${name}`
+        );
+      }
+      assert.throws(
+        () => seed.sc.config(approvalEnv(seed, { ADULT_OFF_BATCH_QUARANTINE_REQUEST_ID: `adult-off-batch/other-run-xyz/${nextSeq - 1}` })),
+        configErrorWith("invalid_quarantine_unconfirmed")
+      );
+    });
+
+    it("keeps every other unknown-cost ledger event fail-closed even with a valid approval", async () => {
+      const seed = await seedUnconfirmedCall(scenario(SEED_RUN_ID));
+      insertLedger(seed.sc.fx, `adult-off-batch/${SEED_RUN_ID}/900`, {
+        usd: null,
+        source: "unavailable",
+        status: "started",
+        messageId: seed.duplicateId,
+      });
+      const mock = mockClassifier(seed.sc);
+      await assert.rejects(() => run(seed.sc, mock, approvalEnv(seed)), refusedWith("ledger_unknown_cost"));
+      assert.equal(mock.calls.length, 0);
+      assert.equal(loadAdultOffBatchState(seed.stateDir).halted?.reason, "halted_unknown_cost");
+    });
+
+    it("keeps quarantine, reserve and skipped text across a RUN_ID change, a restart and a wiped home, and ignores an ACK", async () => {
+      const seed = await seedUnconfirmedCall(scenario(SEED_RUN_ID));
+      const first = await run(seed.sc, mockClassifier(seed.sc), approvalEnv(seed));
+      assert.equal(first.stopReason, "quarantine_pending");
+      const settledKrw = loadAdultOffBatchState(seed.stateDir).settledKrw;
+      const quarantinedLedgerBefore = ledgerRow(seed);
+      insertAssistant(seed.sc.fx, { content: TARGET_TEXT, chatId: 3 });
+
+      const savedHome = process.env.HOME;
+      try {
+        process.env.HOME = path.join(seed.sc.dir, "fresh-container-home");
+        for (const runId of ["adult-off-c3-restart-1", "adult-off-c3-restart-2"]) {
+          const mock = mockClassifier(seed.sc);
+          const report = await run(seed.sc, mock, {
+            ADULT_OFF_BATCH_RUN_ID: runId,
+            ADULT_OFF_BATCH_ACK_UNRESOLVED_REQUEST_ID: seed.requestId,
+          });
+          assert.equal(report.stopReason, "quarantine_pending");
+          assert.equal(mock.calls.length, 0, "no automatic or ACK-driven re-call of the quarantined text");
+          assert.equal(report.body.quarantinedSkipped, 3);
+          assert.equal(report.quarantine?.reserveKrw, 10);
+          assert.ok(Math.abs(report.budget.settledKrwAtStart - settledKrw) < 1e-9, "the budget is not reset by a new RUN_ID");
+        }
+        const bypass = mockClassifier(seed.sc);
+        await assert.rejects(
+          () => run(seed.sc, bypass, { ADULT_OFF_BATCH_CAP_KRW: "1600" }),
+          refusedWith("cap_increase_not_approved")
+        );
+        assert.equal(bypass.calls.length, 0);
+      } finally {
+        if (savedHome === undefined) delete process.env.HOME;
+        else process.env.HOME = savedHome;
+      }
+      assert.equal(ledgerRow(seed), quarantinedLedgerBefore);
+      assert.ok(loadAdultOffBatchState(seed.stateDir).runIds.includes("adult-off-c3-restart-2"));
+    });
+
+    it("survives a redeploy on the persistent volume with the reserve still held", async () => {
+      const base = scenario(SEED_RUN_ID);
+      const volume = path.join(base.dir, "data");
+      fs.mkdirSync(volume);
+      const liveDb = path.join(volume, "app.db");
+      base.fx.pragma("wal_checkpoint(TRUNCATE)");
+      fs.copyFileSync(base.dbPath, liveDb);
+      const liveFx = new Database(liveDb);
+      liveFx.pragma("busy_timeout = 5000");
+      openHandles.push(liveFx);
+      const live: Scenario = { ...base, dbPath: liveDb, fx: liveFx };
+      const configOn = (overrides: Record<string, string | undefined> = {}) =>
+        parseAdultOffBatchPaidRunConfig(
+          {
+            ...live.env({ ADULT_OFF_BATCH_ALLOW_PROD_WRITE: "1", ...overrides }),
+            RAILWAY_VOLUME_MOUNT_PATH: volume,
+          },
+          liveDb,
+          { isMountedVolume: () => true }
+        );
+      const seed = await seedUnconfirmedCall(live, { config: configOn() });
+      assert.equal(seed.stateDir, path.join(fs.realpathSync(volume), "private", "adult-off-batch"));
+      await runConfig(live, configOn(approvalEnv(seed)), mockClassifier(live));
+
+      const savedHome = process.env.HOME;
+      try {
+        process.env.HOME = path.join(base.dir, "fresh-container-home");
+        const mock = mockClassifier(live);
+        const report = await runConfig(live, configOn({ ADULT_OFF_BATCH_RUN_ID: "adult-off-c3-redeploy" }), mock);
+        assert.equal(report.stopReason, "quarantine_pending");
+        assert.equal(mock.calls.length, 0);
+        assert.equal(report.budget.heldQuarantineReserveKrw, 10);
+      } finally {
+        if (savedHome === undefined) delete process.env.HOME;
+        else process.env.HOME = savedHome;
+      }
+    });
+
+    it("replaces the reserve with the real cost once billing is confirmed, without double counting, and then needs the usual ACK to re-classify", async () => {
+      const seed = await seedUnconfirmedCall(scenario(SEED_RUN_ID));
+      await run(seed.sc, mockClassifier(seed.sc), approvalEnv(seed));
+      const heldState = loadAdultOffBatchState(seed.stateDir);
+      const settledBefore = heldState.settledKrw;
+      assert.ok(heldState.unresolved?.quarantine);
+
+      seed.sc.fx
+        .prepare(
+          `UPDATE api_cost_ledger SET actual_cost_usd = ?, actual_cost_source = 'cheaper_inference_billed',
+             event_status = 'settled', provider_request_id = 'prov-confirmed-208' WHERE generation_request_id = ?`
+        )
+        .run(USD_PER_CALL, seed.requestId);
+
+      const blocked = mockClassifier(seed.sc);
+      await assert.rejects(() => run(seed.sc, blocked), refusedWith("interrupted_call_unresolved"));
+      assert.equal(blocked.calls.length, 0);
+      const settled = loadAdultOffBatchState(seed.stateDir);
+      assert.equal(settled.unresolved?.quarantine, null, "the reserve is released");
+      assert.ok(
+        Math.abs(settled.settledKrw - settledBefore - KRW_PER_CALL) < 1e-9,
+        "the confirmed cost is added once and the 10 KRW reserve is not added on top"
+      );
+      assert.equal(settled.callCount, heldState.callCount + 1);
+
+      const accepted = mockClassifier(seed.sc);
+      const report = await run(seed.sc, accepted, { ADULT_OFF_BATCH_ACK_UNRESOLVED_REQUEST_ID: seed.requestId });
+      assert.equal(report.stopReason, "completed");
+      assert.equal(report.budget.heldQuarantineReserveKrw, 0);
+      assert.equal(report.quarantine, null);
+      assert.equal(accepted.calls.length, 1, "one explicitly acknowledged re-classification, like any finished call without a verdict");
+    });
+
+    it("stops and halts when the confirmed cost exceeds the reserve, still counting the full cost", async () => {
+      const seed = await seedUnconfirmedCall(scenario(SEED_RUN_ID));
+      await run(seed.sc, mockClassifier(seed.sc), approvalEnv(seed));
+      const settledBefore = loadAdultOffBatchState(seed.stateDir).settledKrw;
+      seed.sc.fx
+        .prepare(
+          `UPDATE api_cost_ledger SET actual_cost_usd = 1, actual_cost_source = 'cheaper_inference_billed',
+             event_status = 'settled', provider_request_id = 'prov-expensive' WHERE generation_request_id = ?`
+        )
+        .run(seed.requestId);
+      const mock = mockClassifier(seed.sc);
+      await assert.rejects(() => run(seed.sc, mock), refusedWith("quarantine_cost_exceeds_reserve"));
+      assert.equal(mock.calls.length, 0);
+      const state = loadAdultOffBatchState(seed.stateDir);
+      assert.equal(state.halted?.reason, "halted_cost_exceeds_bound");
+      assert.ok(state.settledKrw - settledBefore > 1400, "the whole actual cost is counted");
+      await assert.rejects(() => run(seed.sc, mock), refusedWith("batch_halted"));
+    });
+
+    it("never overwrites a held quarantine when another call is interrupted", async () => {
+      const seed = await seedUnconfirmedCall(scenario(SEED_RUN_ID));
+      await run(seed.sc, mockClassifier(seed.sc), approvalEnv(seed));
+      const held = loadAdultOffBatchState(seed.stateDir);
+      const secondId = insertAssistant(seed.sc.fx, { content: "두 번째로 끊긴 본문" });
+      const secondRequestId = buildAdultOffBatchGenerationRequestId(SEED_RUN_ID, held.nextCallSeq);
+      fs.writeFileSync(
+        path.join(seed.stateDir, "batch.state.json"),
+        JSON.stringify({
+          ...held,
+          inFlight: {
+            messageId: secondId,
+            surface: "body",
+            requestIds: [secondRequestId],
+            openRequestId: secondRequestId,
+            reservedKrw: 10,
+          },
+          nextCallSeq: held.nextCallSeq + 1,
+        })
+      );
+      insertLedger(seed.sc.fx, secondRequestId, { usd: null, source: "unavailable", status: "started", messageId: secondId });
+      const before = stateBytes(seed);
+      const mock = mockClassifier(seed.sc);
+      await assert.rejects(() => run(seed.sc, mock), refusedWith("interrupted_call_while_quarantined"));
+      assert.equal(mock.calls.length, 0);
+      assert.equal(stateBytes(seed), before, "the quarantine and the second marker are both kept");
+    });
+
+    it("shows the quarantined target in PLAN_ONLY instead of hiding it", async () => {
+      const seed = await seedUnconfirmedCall(scenario(SEED_RUN_ID));
+      await run(seed.sc, mockClassifier(seed.sc), approvalEnv(seed));
+      const db = new Database(seed.sc.dbPath, { readonly: true, fileMustExist: true });
+      try {
+        const planConfig = parseAdultOffBatchPaidRunConfig(
+          { ...seed.sc.env(), ADULT_OFF_BATCH_MODE: "plan" },
+          seed.sc.dbPath
+        );
+        const plan = buildAdultOffBatchPlanReport(db, { ...planConfig, stateDir: seed.stateDir });
+        assert.deepEqual(plan.batchState.quarantine, {
+          requestId: seed.requestId,
+          messageId: seed.targetId,
+          reserveKrw: 10,
+          bodyItemsRemaining: 2,
+          auxItemsRemaining: 0,
+        });
+        assert.ok(plan.pendingClassification.uniqueTexts >= 1, "the quarantined text is still counted as pending");
+        assert.equal(plan.batchState.existing?.unresolvedCall, true);
+      } finally {
+        db.close();
+      }
+    });
+  });
+
+  describe("foreign-host stale lock recovery", () => {
+    const OLD_HOST = "railway-old-container";
+    const HOUR_MS = 60 * 60 * 1000;
+    const refusedLocked = (error: unknown) =>
+      error instanceof AdultOffBatchRunRefusedError && error.code === "concurrent_run_locked";
+
+    function foreignLock(sc: Scenario, overrides: Record<string, unknown> = {}) {
+      fs.mkdirSync(sc.stateDir, { recursive: true, mode: 0o700 });
+      const holder = {
+        pid: 4242,
+        host: OLD_HOST,
+        runId: "adult-off-c3-20261023",
+        startedAt: "2026-10-23T06:00:00.000Z",
+        ...overrides,
+      };
+      const file = path.join(sc.stateDir, "execution.lock");
+      fs.writeFileSync(file, JSON.stringify(holder));
+      const old = new Date(Date.now() - HOUR_MS);
+      fs.utimesSync(file, old, old);
+      const pin = {
+        host: holder.host as string,
+        pid: holder.pid as number,
+        runId: holder.runId as string,
+        startedAt: holder.startedAt as string,
+      };
+      return { file, holder, pin };
+    }
+
+    const tombstones = (sc: Scenario): string[] =>
+      fs.readdirSync(sc.stateDir).filter((name) => name.startsWith("execution.lock.reclaimed."));
+
+    it("reclaims a previous container's lock only with an exact pin on a quiescent state, keeping a tombstone", () => {
+      const sc = scenario("run-foreign-ok");
+      const { file, holder, pin } = foreignLock(sc);
+      fs.writeFileSync(path.join(sc.stateDir, "batch.state.json"), "{}");
+      const old = new Date(Date.now() - HOUR_MS);
+      fs.utimesSync(path.join(sc.stateDir, "batch.state.json"), old, old);
+      const original = fs.readFileSync(file, "utf8");
+
+      const lock = acquireAdultOffBatchExecutionLock(sc.stateDir, "run-foreign-ok", { foreignLockPin: pin });
+      const held = JSON.parse(fs.readFileSync(file, "utf8")) as { pid: number; host: string; runId: string };
+      assert.equal(held.pid, process.pid);
+      assert.equal(held.host, os.hostname());
+      assert.equal(held.runId, "run-foreign-ok");
+      const kept = tombstones(sc);
+      assert.equal(kept.length, 1, "the old lock is moved aside, never deleted");
+      assert.equal(fs.readFileSync(path.join(sc.stateDir, kept[0]!), "utf8"), original);
+      assert.equal(JSON.parse(original).host, holder.host);
+      assert.equal(fs.existsSync(path.join(sc.stateDir, "execution.lock.reclaim")), false, "the reclaim guard is released");
+      lock.release();
+      assert.equal(fs.existsSync(file), false);
+    });
+
+    it("refuses without a pin, with any mismatching pin field, with a fresh lock or state, and for a live or same-deployment holder", () => {
+      const sc = scenario("run-foreign-refused");
+      const { file, pin } = foreignLock(sc);
+      const original = fs.readFileSync(file, "utf8");
+      const attempt = (foreignLockPin: typeof pin | null) => () =>
+        acquireAdultOffBatchExecutionLock(sc.stateDir, "run-foreign-refused", { foreignLockPin });
+      const unchanged = (name: string): void => {
+        assert.equal(fs.readFileSync(file, "utf8"), original, name);
+        assert.deepEqual(tombstones(sc), [], name);
+      };
+
+      assert.throws(attempt(null), refusedLocked);
+      unchanged("no pin: a different host name alone never reclaims");
+      for (const [name, patch] of [
+        ["host", { host: "someone-else" }],
+        ["pid", { pid: 4243 }],
+        ["runId", { runId: "adult-off-c3-other" }],
+        ["startedAt", { startedAt: "2026-10-23T06:00:01.000Z" }],
+      ] as const) {
+        assert.throws(attempt({ ...pin, ...patch }), refusedLocked, name);
+        unchanged(name);
+      }
+
+      const fresh = new Date();
+      fs.utimesSync(file, fresh, fresh);
+      assert.throws(attempt(pin), refusedLocked);
+      unchanged("a lock that was just written may belong to an active run");
+      const old = new Date(Date.now() - HOUR_MS);
+      fs.utimesSync(file, old, old);
+
+      fs.writeFileSync(path.join(sc.stateDir, "batch.state.json"), "{}");
+      assert.throws(attempt(pin), refusedLocked);
+      unchanged("a state file written moments ago means an active run");
+      fs.unlinkSync(path.join(sc.stateDir, "batch.state.json"));
+
+      const savedDeployment = process.env.RAILWAY_DEPLOYMENT_ID;
+      try {
+        process.env.RAILWAY_DEPLOYMENT_ID = "dep-current";
+        const { file: sameDeploymentFile, pin: samePin } = foreignLock(sc, { deploymentId: "dep-current" });
+        assert.throws(attempt(samePin), refusedLocked);
+        assert.ok(fs.existsSync(sameDeploymentFile));
+      } finally {
+        if (savedDeployment === undefined) delete process.env.RAILWAY_DEPLOYMENT_ID;
+        else process.env.RAILWAY_DEPLOYMENT_ID = savedDeployment;
+      }
+
+      const live = foreignLock(sc, { pid: process.pid, host: os.hostname(), runId: "live-run-here" });
+      assert.throws(attempt(live.pin), refusedLocked);
+      assert.ok(fs.existsSync(live.file), "a live process on this host is never reclaimed, pin or not");
+      assert.deepEqual(tombstones(sc), []);
+    });
+
+    it("lets only one of several concurrent recoveries take the lock", async () => {
+      const sc = scenario("run-foreign-race");
+      const { pin } = foreignLock(sc);
+      const barrier = path.join(sc.dir, "go");
+      const child = path.join(sc.dir, "race-child.ts");
+      fs.writeFileSync(
+        child,
+        `import fs from "node:fs";
+import { acquireAdultOffBatchExecutionLock } from ${JSON.stringify(path.join(REPO_ROOT, "src/lib/adultOffBatchPaidRun.ts"))};
+
+const [stateDir, barrier, index] = process.argv.slice(2);
+const pin = ${JSON.stringify(pin)};
+async function main() {
+  fs.writeFileSync(barrier + ".ready." + index, "1");
+  while (!fs.existsSync(barrier)) await new Promise((resolve) => setTimeout(resolve, 2));
+  try {
+    const lock = acquireAdultOffBatchExecutionLock(stateDir, "race-run-" + index, { foreignLockPin: pin });
+    console.log("ACQUIRED");
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    lock.release();
+  } catch (error) {
+    console.log("REFUSED " + (error && error.code));
+  }
+}
+main();
+`
+      );
+      const workers = Array.from({ length: 6 }, (_, index) =>
+        new Promise<string>((resolve, reject) => {
+          const proc = spawn(
+            process.execPath,
+            ["--conditions=react-server", "--import", "tsx", child, sc.stateDir, barrier, String(index)],
+            { cwd: REPO_ROOT, env: childEnv({}) }
+          );
+          let out = "";
+          proc.stdout.on("data", (chunk) => (out += String(chunk)));
+          proc.stderr.on("data", (chunk) => (out += String(chunk)));
+          proc.on("error", reject);
+          proc.on("close", () => resolve(out.trim()));
+        })
+      );
+      const readyDeadline = Date.now() + 60_000;
+      while (
+        Array.from({ length: 6 }, (_, index) => fs.existsSync(`${barrier}.ready.${index}`)).includes(false)
+      ) {
+        assert.ok(Date.now() < readyDeadline, "every racing process must be ready before the start signal");
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      fs.writeFileSync(barrier, "go");
+      const outputs = await Promise.all(workers);
+      assert.equal(outputs.filter((out) => out === "ACQUIRED").length, 1, outputs.join(" | "));
+      assert.equal(outputs.filter((out) => out === "REFUSED concurrent_run_locked").length, 5, outputs.join(" | "));
+      assert.equal(tombstones(sc).length, 1);
+    });
+
+    it("keeps the same-host dead-PID reclaim on the same single guarded path", () => {
+      const sc = scenario("run-same-host-dead");
+      fs.mkdirSync(sc.stateDir, { recursive: true, mode: 0o700 });
+      const dead = spawnSync(process.execPath, ["-e", ""]);
+      const file = path.join(sc.stateDir, "execution.lock");
+      fs.writeFileSync(file, JSON.stringify({ pid: dead.pid, host: os.hostname(), runId: "ghost", startedAt: "" }));
+      const lock = acquireAdultOffBatchExecutionLock(sc.stateDir, "run-same-host-dead");
+      assert.equal(tombstones(sc).length, 1);
+      lock.release();
+    });
+
+    it("validates the lock reclaim approval before anything runs", () => {
+      const sc = scenario("run-lock-config");
+      const pinEnv = {
+        ADULT_OFF_BATCH_RECLAIM_LOCK_HOST: OLD_HOST,
+        ADULT_OFF_BATCH_RECLAIM_LOCK_PID: "4242",
+        ADULT_OFF_BATCH_RECLAIM_LOCK_RUN_ID: "adult-off-c3-20261023",
+        ADULT_OFF_BATCH_RECLAIM_LOCK_STARTED_AT: "2026-10-23T06:00:00.000Z",
+      };
+      assert.deepEqual(sc.config(pinEnv).reclaimForeignLock, {
+        host: OLD_HOST,
+        pid: 4242,
+        runId: "adult-off-c3-20261023",
+        startedAt: "2026-10-23T06:00:00.000Z",
+      });
+      assert.equal(sc.config().reclaimForeignLock, null);
+      for (const name of Object.keys(pinEnv)) {
+        assert.throws(
+          () => sc.config({ ...pinEnv, [name]: undefined }),
+          (error: unknown) => error instanceof AdultOffBatchConfigError && error.code === "invalid_reclaim_foreign_lock",
+          name
+        );
+      }
+      assert.throws(
+        () => sc.config({ ...pinEnv, ADULT_OFF_BATCH_RECLAIM_LOCK_PID: "0" }),
+        (error: unknown) => error instanceof AdultOffBatchConfigError && error.code === "invalid_reclaim_foreign_lock"
+      );
     });
   });
 });
