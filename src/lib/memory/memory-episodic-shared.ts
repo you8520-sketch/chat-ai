@@ -16,6 +16,12 @@ import {
   type EpisodicCorrectionCandidate,
 } from "./memory-episodic-correction";
 import type { EpisodicExtractedFact } from "./memory-episodic-types";
+import {
+  EPISODIC_FACT_IDENTIFIER_MAX_CHARS,
+  EPISODIC_FACT_SNAKE_CASE_JSON_PATTERN,
+  EPISODIC_FACT_VALUE_JSON_PATTERN,
+  EPISODIC_FACT_VALUE_MAX_CHARS,
+} from "./memory-episodic-types";
 import { isMemoryFeatureEnabled } from "./memory-feature";
 import { resolveEpisodicTurnEligibility, type TurnScopeClass } from "./memory-summary-scope";
 import {
@@ -121,9 +127,22 @@ export function buildSharedEpisodicSectionJsonSchema(): Record<string, unknown> 
           "organization",
         ],
       },
-      subject: { type: "string" },
-      attribute: { type: "string" },
-      value: { type: "string" },
+      subject: {
+        type: "string",
+        pattern: EPISODIC_FACT_SNAKE_CASE_JSON_PATTERN,
+        maxLength: EPISODIC_FACT_IDENTIFIER_MAX_CHARS,
+      },
+      attribute: {
+        type: "string",
+        pattern: EPISODIC_FACT_SNAKE_CASE_JSON_PATTERN,
+        maxLength: EPISODIC_FACT_IDENTIFIER_MAX_CHARS,
+      },
+      value: {
+        type: "string",
+        minLength: 1,
+        maxLength: EPISODIC_FACT_VALUE_MAX_CHARS,
+        pattern: EPISODIC_FACT_VALUE_JSON_PATTERN,
+      },
       importance: { type: "string", enum: ["critical", "important", "normal"] },
       fact_text: { type: "string" },
       evidence_type: {
