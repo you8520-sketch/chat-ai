@@ -223,10 +223,10 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
     billingReferenceLongContextCacheReadUsdPerMillion: 0.2,
     billingReferenceLongContextCacheWriteUsdPerMillion: 5,
     publishedLongContextMinPromptTokens: 272_000,
-    targetMargin: 0.45,
+    targetMargin: 0.4,
     minimumMarginFloor: 0.3,
-    pricingVersion: 1,
-    publishedAt: "2026-10-02T00:00:00.000Z",
+    pricingVersion: 2,
+    publishedAt: "2026-10-23T00:00:00.000Z",
   },
   "claude-opus-5.5": {
     modelId: "claude-opus-5.5",

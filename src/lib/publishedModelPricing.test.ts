@@ -212,7 +212,7 @@ describe("publishedModelPricing", () => {
     );
   });
 
-  it("GPT-6.1 Sol published official Standard at 45% target margin", () => {
+  it("GPT-6.1 Sol published official Standard at 40% target margin", () => {
     const p = getPublishedPricing("gpt-6.1-sol");
     assert.equal(p.modelId, "gpt-6.1-sol");
     assert.equal(p.billingReferenceInputUsdPerMillion, 2);
@@ -221,16 +221,19 @@ describe("publishedModelPricing", () => {
     assert.equal(p.billingReferenceOutputUsdPerMillion, 10);
     assert.equal(p.billingReferenceLongContextInputUsdPerMillion, 4);
     assert.equal(p.billingReferenceLongContextOutputUsdPerMillion, 15);
-    assert.equal(p.targetMargin, 0.45);
+    assert.equal(p.targetMargin, 0.4);
+    assert.equal(p.minimumMarginFloor, 0.3);
+    assert.equal(p.pricingVersion, 2);
     assert.equal(p.publishedLongContextMinPromptTokens, 272_000);
     const alias = getPublishedPricing("openai/gpt-6.1-sol");
     assert.equal(alias.modelId, "gpt-6.1-sol");
-    assert.equal(alias.targetMargin, 0.45);
+    assert.equal(alias.targetMargin, 0.4);
+    assert.equal(alias.pricingVersion, 2);
   });
 
-  it("non-Opus published catalog snapshots stay unchanged by the Opus 45% cleanup", () => {
+  it("unrelated published catalog snapshots stay unchanged by Opus and Sol margin changes", () => {
     const others = listExactPublishedCatalogEntries()
-      .filter((entry) => entry.canonicalModelId !== "claude-opus-5.5")
+      .filter((entry) => !["claude-opus-5.5", "gpt-6.1-sol"].includes(entry.canonicalModelId))
       .map((entry) => ({
         id: entry.canonicalModelId,
         target: entry.pricing.targetMargin,
@@ -256,7 +259,6 @@ describe("publishedModelPricing", () => {
       { id: "moonshotai/kimi-k3", target: 0.4, floor: 0.25, in: 3, out: 15, ver: 1 },
       { id: "deepseek-v4-flash-0731", target: 0.55, floor: 0.4, in: 0.098, out: 0.196, ver: 1 },
       { id: "gpt-5.6-luna", target: 0.5, floor: 0.35, in: 0.08, out: 0.48, ver: 1 },
-      { id: "gpt-6.1-sol", target: 0.45, floor: 0.3, in: 2, out: 10, ver: 1 },
     ]);
   });
 
