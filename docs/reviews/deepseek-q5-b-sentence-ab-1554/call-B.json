@@ -1,0 +1,17 @@
+{
+  "arm": "B_1554",
+  "model": "deepseek-v4.1-flash",
+  "route": "cheaperinference",
+  "endpoint": "POST /v1/chat/completions (non-stream)",
+  "httpStatus": 200,
+  "finishReason": "stop",
+  "promptTokens": 4513,
+  "completionTokens": 1027,
+  "billedUsd": 0.000646,
+  "requestId": "a6814047-ee3c-4d6f-9d9f-336b23ddddc4",
+  "rawChars": 1290,
+  "seconds": 9.584,
+  "bWireSha256": "fa6808f20d480c677d81e3d2c7ca1600d59304791095241ef103b848a15cf43c",
+  "rawFileSha256": "84e2b476b3770ad45d955fb3c9ceb414b720e237511e0a8d46c8dfc2ff712605",
+  "error": null
+}
