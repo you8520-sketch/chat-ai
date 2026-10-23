@@ -270,7 +270,7 @@ describe("official shot QA lucian-sig4 trial mode", () => {
     assert.ok(leaked.prompts.primaryPrompt.includes("세미 리얼") || leaked.prompts.primaryPrompt.includes("중저 대비"));
   });
 
-  it("fail-closes unknown OPENAI_IMAGE_MODEL and accepts supported GPT Image ids", () => {
+  it("fail-closes unknown OFFICIAL_ASSET_IMAGE_MODEL and accepts supported GPT Image ids", () => {
     assert.equal(isLucianSig4ProofSupportedImageModel("gpt-image-2"), true);
     assert.equal(isLucianSig4ProofSupportedImageModel("gpt-image-2-2026-04-21"), true);
     assert.equal(isLucianSig4ProofSupportedImageModel("gpt-image-2.5-sunburst"), true);
@@ -302,7 +302,7 @@ describe("official shot QA lucian-sig4 trial mode", () => {
         styleCandidateId: "rf-02",
         style: RF02.dna,
         styleSeed: CLUSTER_B_SEED,
-        env: { OPENAI_IMAGE_MODEL: model } as NodeJS.ProcessEnv,
+        env: { OFFICIAL_ASSET_IMAGE_MODEL: model } as unknown as NodeJS.ProcessEnv,
       });
       assert.equal(stopped.ok, false, model);
       if (stopped.ok) continue;
@@ -330,7 +330,7 @@ describe("official shot QA lucian-sig4 trial mode", () => {
         styleCandidateId: "rf-02",
         style: RF02.dna,
         styleSeed: CLUSTER_B_SEED,
-        env: { OPENAI_IMAGE_MODEL: model } as NodeJS.ProcessEnv,
+        env: { OFFICIAL_ASSET_IMAGE_MODEL: model } as unknown as NodeJS.ProcessEnv,
       });
       assert.equal(prepared.ok, true, model);
       if (!prepared.ok) continue;
@@ -714,7 +714,7 @@ describe("official shot QA lucian-sig4-style dual-reference prepare", () => {
       styleSeed: CLUSTER_B_SEED,
       canonicalStyleBytes: STYLE_BYTES,
       candidateStyleBytes: STYLE_BYTES,
-      env: { OPENAI_IMAGE_MODEL: "custom-image-x" } as NodeJS.ProcessEnv,
+      env: { OFFICIAL_ASSET_IMAGE_MODEL: "custom-image-x" } as unknown as NodeJS.ProcessEnv,
     });
     assert.equal(unknownModel.ok, false);
     if (!unknownModel.ok) {

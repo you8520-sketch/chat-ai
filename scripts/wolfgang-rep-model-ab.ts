@@ -180,7 +180,7 @@ function compose(model: string) {
     },
     slotKey: "rep",
     representativeUrl: null,
-    env: { OPENAI_IMAGE_MODEL: model },
+    env: { OFFICIAL_ASSET_IMAGE_MODEL: model },
   });
   if (!composed.ok) throw new Error(composed.error);
   if (composed.referenceRoleLayout !== "slot_default") throw new Error(`layout ${composed.referenceRoleLayout}`);

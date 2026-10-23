@@ -51,7 +51,7 @@ const ADMIN = { id: 8103, email: "official-admin@test.local", is_admin: 1 as con
 const STRANGER = { id: 8104, email: "stranger@test.local", is_admin: 0 as const };
 const FOLLOWER_ID = 8102;
 const SEED = { url: "/uploads/official-style-seed.webp", provenance: "platform_owned" as const, note: "owned seed" };
-const IMAGE_ENV = { OPENAI_IMAGE_MODEL: "gpt-image-2.5-flare" } as NodeJS.ProcessEnv;
+const IMAGE_ENV = { OFFICIAL_ASSET_IMAGE_MODEL: "gpt-image-2.5-flare" } as unknown as NodeJS.ProcessEnv;
 const TARGETS = ["sig4", "scene1", "scene2", "scene3"] as const;
 
 type FakeCall = {

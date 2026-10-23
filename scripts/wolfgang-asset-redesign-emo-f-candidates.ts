@@ -234,7 +234,7 @@ function composeSlot(slotId: SlotId) {
     character: wolfgangCharacter(ctx.draft, ctx.appearance, plan),
     style: ctx.style,
     representativeUrl: "https://hav.chat/uploads/official-pilot-rf-v4-02__rep-a1.webp",
-    env: { OPENAI_IMAGE_MODEL: MODEL },
+    env: { OFFICIAL_ASSET_IMAGE_MODEL: MODEL },
     samePersonIdentityStyleUrl: F_REFERENCE,
     slotKey: slot.slotKey,
   });

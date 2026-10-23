@@ -210,7 +210,7 @@ describe("official shot seed canonical identity", () => {
       },
       slotKey: "sig4",
       representativeUrl: "/uploads/official-pilot-rf-v4-03__rep-a1.webp",
-      env: { OPENAI_IMAGE_MODEL: "gpt-image-2.5-sunburst" },
+      env: { OFFICIAL_ASSET_IMAGE_MODEL: "gpt-image-2.5-sunburst" },
     });
     assert.equal(composed.ok, true);
     if (!composed.ok) return;

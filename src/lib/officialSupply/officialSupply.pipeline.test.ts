@@ -48,7 +48,7 @@ import type { OfficialSupplyBatchConfig } from "@/lib/officialSupply/store";
 const STAGING_USER: SessionUser = { id: 7001, nickname: "official-staging", is_adult: 1 };
 const OTHER_VIEWER = 7002;
 const SEED = { url: "/uploads/official-style-seed.webp", provenance: "platform_owned" as const, note: "owned seed" };
-const IMAGE_ENV = { OPENAI_IMAGE_MODEL: "gpt-image-2.5-flare" } as NodeJS.ProcessEnv;
+const IMAGE_ENV = { OFFICIAL_ASSET_IMAGE_MODEL: "gpt-image-2.5-flare" } as unknown as NodeJS.ProcessEnv;
 
 type FakeCall = {
   model: string;

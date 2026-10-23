@@ -49,7 +49,7 @@ const FIXTURE_PATH = path.join(
 );
 const SHA = "34608ea5a742119bc2922584fb079dac8f26266b";
 const SIBLING_KEY = "pilot-rf-v4-99";
-const ENV = { NEXTAUTH_URL: "https://hav.chat", OPENAI_IMAGE_MODEL: "gpt-image-2.5-sunburst" } as NodeJS.ProcessEnv;
+const ENV = { NEXTAUTH_URL: "https://hav.chat", OFFICIAL_ASSET_IMAGE_MODEL: "gpt-image-2.5-sunburst" } as unknown as NodeJS.ProcessEnv;
 
 function applyEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
   return {
