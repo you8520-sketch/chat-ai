@@ -432,6 +432,8 @@ function ActionMode({
   onSendAction,
   onClearExplorationQueue,
   explorationSendReady = false,
+  acceptItemNames = [],
+  onToggleAcceptItem,
   suggestionsRegionId,
   suggestionsRegionRef,
 }: {
@@ -458,8 +460,13 @@ function ActionMode({
   onSendAction: () => void;
   onClearExplorationQueue?: () => void;
   explorationSendReady?: boolean;
+  acceptItemNames?: readonly string[];
+  onToggleAcceptItem?: (name: string) => void;
 }) {
   const viewerId = snap.viewerParticipantId;
+  const itemOffers = snap.myItemOffers;
+  const draftLocked = snap.myDraft?.locked === true;
+  const acceptedNames = draftLocked ? (snap.myDraft?.acceptedItems ?? []) : acceptItemNames;
   const effectLabels = (snap.ongoingEffects ?? [])
     .filter((effect) => effect.participantId === viewerId)
     .map((effect) => effect.label);
@@ -597,6 +604,37 @@ function ActionMode({
       {showRest && treatable ? (
         <p className="mb-2 text-[10px] leading-4 text-zinc-500">{SAFE_REST_ONGOING_NOTICE}</p>
       ) : null}
+      {itemOffers && itemOffers.items.length > 0 ? (
+        <div className="mb-3" data-trpg-item-offers>
+          <p className="mb-1.5 text-xs text-zinc-500">
+            {draftLocked ? "받기로 한 물건" : "제안받은 물건 · 받을 것만 고르세요"}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {itemOffers.items.map((item) => {
+              const selected = acceptedNames.includes(item.name);
+              return (
+                <button
+                  key={item.name}
+                  type="button"
+                  data-trpg-item-offer={item.name}
+                  aria-pressed={selected}
+                  disabled={busy || draftLocked || !actionInputVisible}
+                  onClick={() => onToggleAcceptItem?.(item.name)}
+                  className={`inline-flex min-h-11 items-center rounded-full px-3 text-xs font-semibold disabled:opacity-60 ${
+                    selected
+                      ? "bg-emerald-600 text-white"
+                      : "border border-white/10 bg-white/5 text-zinc-300"
+                  }`}
+                >
+                  {selected ? "✓ " : ""}
+                  {item.name}
+                  {item.held > 0 ? ` · 보유 ${item.held}` : ""}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
       <textarea
         value={actionBody}
         onChange={(event) => onActionBodyChange(event.target.value)}
@@ -647,7 +685,11 @@ function ActionMode({
         </button>
         <button
           type="button"
-          disabled={busy || !actionInputVisible || (!actionBody.trim() && !explorationSendReady)}
+          disabled={
+            busy ||
+            !actionInputVisible ||
+            (!actionBody.trim() && !explorationSendReady && acceptItemNames.length === 0)
+          }
           onClick={onSendAction}
           className="inline-flex min-h-11 items-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
         >
@@ -742,6 +784,8 @@ export default function TrpgCommandDock({
   onSendParty,
   onClearExplorationQueue,
   explorationSendReady = false,
+  acceptItemNames = [],
+  onToggleAcceptItem,
   onSetInventoryEquipped,
   onOcclusionChange,
   sheetJsxCompiled = null,
@@ -772,6 +816,8 @@ export default function TrpgCommandDock({
   onSendParty: () => void;
   onClearExplorationQueue?: () => void;
   explorationSendReady?: boolean;
+  acceptItemNames?: readonly string[];
+  onToggleAcceptItem?: (name: string) => void;
   onSetInventoryEquipped?: (entryId: string, equipped: boolean, slot?: TrpgEquipmentSlot | null) => void;
   onOcclusionChange: (occlusion: TrpgCommandDockOcclusion) => void;
   /** Site-owned sheet compiled by the server through the shared JSX compiler; null → native. */
@@ -1106,6 +1152,8 @@ export default function TrpgCommandDock({
                     onSendAction={onSendAction}
                     onClearExplorationQueue={onClearExplorationQueue}
                     explorationSendReady={explorationSendReady}
+                    acceptItemNames={acceptItemNames}
+                    onToggleAcceptItem={onToggleAcceptItem}
                     suggestionsRegionId={suggestionsRegionId}
                     suggestionsRegionRef={suggestionsRegionRef}
                   />

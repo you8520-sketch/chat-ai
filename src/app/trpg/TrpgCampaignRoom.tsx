@@ -352,6 +352,8 @@ export default function TrpgCampaignRoom({
   onSendAction,
   onSendParty,
   explorationQueue = [],
+  acceptItemNames = [],
+  onToggleAcceptItem,
   onQueueExploration,
   onRemoveExploration,
   onClearExploration,
@@ -395,6 +397,8 @@ export default function TrpgCampaignRoom({
   onSendAction: () => void;
   onSendParty: () => void;
   explorationQueue?: readonly ExplorationCommand[];
+  acceptItemNames?: readonly string[];
+  onToggleAcceptItem?: (name: string) => void;
   onQueueExploration?: (command: ExplorationCommand) => void;
   onRemoveExploration?: (index: number) => void;
   onClearExploration?: () => void;
@@ -2390,6 +2394,8 @@ export default function TrpgCampaignRoom({
         <TrpgCommandDock
           explorationSendReady={explorationQueue.length > 0 && snap.myDraft?.locked !== true}
           onClearExplorationQueue={onClearExploration}
+          acceptItemNames={acceptItemNames}
+          onToggleAcceptItem={onToggleAcceptItem}
           snap={snap}
           actionType={actionType}
           actionBody={actionBody}
