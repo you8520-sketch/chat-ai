@@ -148,9 +148,10 @@ class FakeWorld {
 }
 
 const PASS = { ok: true };
+const NOTED_PASS = { ok: true, note: "checked against the candidate image" };
 const anchorQa = (overrides: Partial<OfficialAnchorQaReport> = {}): OfficialAnchorQaReport => ({
-  gender: PASS, ageAppearance: PASS, face: PASS, hair: PASS, eyes: PASS, body: PASS,
-  identifyingFeatures: PASS, artStyle: PASS, outfit: PASS, cardCrop: PASS, compositionIndependence: PASS, ...overrides,
+  gender: NOTED_PASS, ageAppearance: NOTED_PASS, face: NOTED_PASS, hair: NOTED_PASS, eyes: NOTED_PASS, body: NOTED_PASS,
+  identifyingFeatures: NOTED_PASS, artStyle: NOTED_PASS, outfit: NOTED_PASS, cardCrop: NOTED_PASS, compositionIndependence: PASS, ...overrides,
 });
 const variationQa = (overrides: Partial<OfficialVariationQaReport> = {}): OfficialVariationQaReport => ({
   identityMatchesAnchor: PASS, expressionMatchesPlan: PASS, characterPresent: PASS, artStyle: PASS, compositionIndependence: PASS, ...overrides,

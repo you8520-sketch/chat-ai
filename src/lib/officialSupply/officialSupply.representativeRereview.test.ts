@@ -33,7 +33,7 @@ import {
   type OfficialRepresentativeApplySet,
 } from "@/lib/officialSupply/replacement";
 import { moderateOfficialAssetReplacement } from "@/lib/officialSupply/runner";
-import { OfficialSupplyGateError, OfficialSupplyStore } from "@/lib/officialSupply/store";
+import { ANCHOR_QA_KEYS, OfficialSupplyGateError, OfficialSupplyStore } from "@/lib/officialSupply/store";
 import type { OfficialAnchorQaReport, OfficialAssetModeration } from "@/lib/officialSupply/types";
 import { installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/lib/test/isolatedTestDatabase";
 
@@ -235,6 +235,12 @@ describe("explicit re-review of a rejected representative (isolated DB)", () => 
       () => rawReview(anchorQa({ compositionIndependence: { ...compositionCheck(url, REP.rawSha256), evidence: { candidateUrl: url, candidateSha256: REP.rawSha256, references: [] } } })),
       expectGate("composition_evidence_required")
     );
+    const noted = (key: (typeof ANCHOR_QA_KEYS)[number], note: string | undefined) =>
+      withEvidence({ ...passingQa(), [key]: { ok: true, note } }, url, REP.rawSha256);
+    for (const key of ANCHOR_QA_KEYS) {
+      assert.throws(() => rawReview(noted(key, undefined)), expectGate("qa_note_required"));
+      assert.throws(() => rawReview(noted(key, "  ")), expectGate("qa_note_required"));
+    }
     assert.equal(repRow(staged.draftKey).status, "generated");
     const cloned = anchorQa({ compositionIndependence: { ok: false, note: "isolated gate: head angle and gaze copy a reference" } });
     assert.equal(reviewRep(staged.draftKey, url, cloned).approved, false);
@@ -326,6 +332,19 @@ describe("explicit re-review of a rejected representative (isolated DB)", () => 
     const { cardCrop: _cardCrop, ...incomplete } = passingQa();
     assert.throws(() => rereview(draftKey, url, incomplete as OfficialAnchorQaReport), expectGate("qa_incomplete"));
     assert.equal(repRow(draftKey).status, "rejected");
+  });
+
+  it("4b. a missing note on any general check cannot approve a re-review", async () => {
+    const { draftKey, url } = await rejectedRepresentative();
+    for (const key of ANCHOR_QA_KEYS) {
+      assert.throws(
+        () => rereview(draftKey, url, { ...passingQa(), [key]: { ok: true } }),
+        expectGate("qa_note_required")
+      );
+    }
+    assert.equal(repRow(draftKey).status, "rejected");
+    assert.equal(store.listReplacementRereviews(draftKey).length, 0);
+    assert.equal(rereview(draftKey, url, passingQa()).approved, true);
   });
 
   it("5. a missing correction reason or evidence, reviewer, or non-admin actor is refused", async () => {

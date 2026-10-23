@@ -116,7 +116,8 @@ function main(): void {
     );
   }
 
-  const { qa, reviewer } = anchorQaFromEvidenceFile(JSON.parse(fs.readFileSync(evidencePath, "utf8")), {
+  const evidenceBytes = fs.readFileSync(evidencePath);
+  const { qa, reviewer, approvalEvidence } = anchorQaFromEvidenceFile(JSON.parse(evidenceBytes.toString("utf8")), {
     draftKey,
     candidateUrl: representative.resultUrl,
     candidateSha256: representativeSha256(representative.resultUrl),
@@ -147,6 +148,8 @@ function main(): void {
       status: "ANCHOR_APPROVAL_COMPLETE",
       draftKey,
       reviewer,
+      approvalEvidence,
+      evidenceSha256: createHash("sha256").update(evidenceBytes).digest("hex"),
       stage: after.stage,
       representativeStatus: afterRep.status,
       resultUrl: afterRep.resultUrl,

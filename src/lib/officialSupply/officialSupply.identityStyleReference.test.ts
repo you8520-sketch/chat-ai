@@ -74,17 +74,18 @@ const SMILE_SIG4: OfficialAssetSlotPlan = {
 };
 
 const PASS = { ok: true };
+const NOTED_PASS = { ok: true, note: "checked against the candidate image" };
 const ANCHOR_QA: OfficialAnchorQaReport = {
-  gender: PASS,
-  ageAppearance: PASS,
-  face: PASS,
-  hair: PASS,
-  eyes: PASS,
-  body: PASS,
-  identifyingFeatures: PASS,
-  artStyle: PASS,
-  outfit: PASS,
-  cardCrop: PASS,
+  gender: NOTED_PASS,
+  ageAppearance: NOTED_PASS,
+  face: NOTED_PASS,
+  hair: NOTED_PASS,
+  eyes: NOTED_PASS,
+  body: NOTED_PASS,
+  identifyingFeatures: NOTED_PASS,
+  artStyle: NOTED_PASS,
+  outfit: NOTED_PASS,
+  cardCrop: NOTED_PASS,
   compositionIndependence: PASS,
 };
 

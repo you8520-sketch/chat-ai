@@ -652,7 +652,7 @@ describe("approved representative gates (isolated DB)", () => {
     const changedFile = { candidateUrl: changed.candidateResultUrl!, candidateSha256: sha256(otherPortrait) };
     assert.equal(changed.candidateSha256, changedFile.candidateSha256);
     assert.equal(
-      store.reviewRepresentativeReplacement(ADMIN, GATES, anchorQa({ face: { ok: false }, compositionIndependence: compositionCheck(changedFile.candidateUrl, changedFile.candidateSha256) }), changedFile, TEST_ONLY_REVIEWER)
+      store.reviewRepresentativeReplacement(ADMIN, GATES, anchorQa({ face: { ok: false, note: "face drifts from the approved identity" }, compositionIndependence: compositionCheck(changedFile.candidateUrl, changedFile.candidateSha256) }), changedFile, TEST_ONLY_REVIEWER)
         .approved,
       false
     );
