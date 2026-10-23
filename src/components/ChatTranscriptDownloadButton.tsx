@@ -78,10 +78,13 @@ export default function ChatTranscriptDownloadButton({ chatId, onError }: Props)
       }`}
     >
       <IconDownload className={`h-4 w-4 ${busy ? "animate-pulse" : ""}`} />
-      <span className="max-w-full px-0.5 text-center text-[9px] font-medium leading-[1.15] tracking-tight">
-        {busy ? "내려받는 중" : (
+      <span className="max-w-full text-center text-[8px] font-medium leading-[1.15] tracking-tight min-[576px]:px-0.5 min-[576px]:text-[9px]">
+        {busy ? (
+          "내려받는 중"
+        ) : (
           <>
-            전체 대화
+            <span className="min-[576px]:hidden">대화</span>
+            <span className="hidden min-[576px]:inline">전체 대화</span>
             <br />
             다운로드
           </>
