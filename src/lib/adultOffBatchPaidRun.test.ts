@@ -45,6 +45,7 @@ import {
   buildAdultOffBatchGenerationRequestId,
   copySqliteDatabaseForRehearsal,
   loadAssistantRowsForAdultOffInspection,
+  sumAdultOffBatchModerationSpend,
   surveyAdultOffAuxSurfaces,
 } from "@/lib/adultOffBatchInspectionPrep";
 import { ensureProviderCostLedgerSchema } from "@/lib/providerCostLedger";
@@ -2328,6 +2329,94 @@ https.request = () => { record("https"); throw new Error("blocked by test https 
       await assert.rejects(() => run(seed.sc, mock), refusedWith("batch_halted"));
     });
 
+    describe("quarantined ledger row is re-verified on every resume", () => {
+      async function held(): Promise<Seed> {
+        const seed = await seedUnconfirmedCall(scenario(SEED_RUN_ID));
+        const report = await run(seed.sc, mockClassifier(seed.sc), approvalEnv(seed));
+        assert.equal(report.stopReason, "quarantine_pending");
+        return seed;
+      }
+      const resumeRefused = async (seed: Seed, code: string): Promise<void> => {
+        const before = stateBytes(seed);
+        const mock = mockClassifier(seed.sc);
+        await assert.rejects(() => run(seed.sc, mock), refusedWith(code));
+        assert.equal(mock.calls.length, 0);
+        assert.equal(stateBytes(seed), before, "a refused resume changes no state");
+      };
+
+      it("resumes while the row is still exactly started, cost-less and provider-id-less", async () => {
+        const seed = await held();
+        const mock = mockClassifier(seed.sc);
+        const report = await run(seed.sc, mock);
+        assert.equal(report.stopReason, "quarantine_pending");
+        assert.equal(report.budget.heldQuarantineReserveKrw, 10);
+        assert.equal(mock.calls.length, 0);
+      });
+
+      it("stops when the row changed from started to failed_without_usage", async () => {
+        const seed = await held();
+        seed.sc.fx
+          .prepare("UPDATE api_cost_ledger SET event_status = 'failed_without_usage' WHERE generation_request_id = ?")
+          .run(seed.requestId);
+        await resumeRefused(seed, "quarantine_ledger_changed");
+      });
+
+      it("stops when the row gained a provider id or a different message id without a confirmed cost", async () => {
+        const seed = await held();
+        seed.sc.fx.prepare("UPDATE api_cost_ledger SET provider_request_id = 'prov-x' WHERE generation_request_id = ?").run(seed.requestId);
+        await resumeRefused(seed, "quarantine_ledger_changed");
+        seed.sc.fx.prepare("UPDATE api_cost_ledger SET provider_request_id = NULL, assistant_message_id = ? WHERE generation_request_id = ?").run(seed.duplicateId, seed.requestId);
+        await resumeRefused(seed, "quarantine_ledger_changed");
+      });
+
+      it("stops when the quarantined row was deleted", async () => {
+        const seed = await held();
+        seed.sc.fx.prepare("DELETE FROM api_cost_ledger WHERE generation_request_id = ?").run(seed.requestId);
+        await resumeRefused(seed, "quarantine_ledger_changed");
+      });
+
+      it("stops when a duplicate ledger row exists for the same request id", async () => {
+        const seed = await held();
+        insertLedger(seed.sc.fx, seed.requestId, {
+          usd: null,
+          source: "unavailable",
+          status: "started",
+          messageId: seed.targetId,
+        });
+        await resumeRefused(seed, "quarantine_ledger_changed");
+      });
+
+      it("keeps any other unknown-cost row fail-closed after the quarantine was established", async () => {
+        const seed = await held();
+        insertLedger(seed.sc.fx, `adult-off-batch/${SEED_RUN_ID}/901`, {
+          usd: null,
+          source: "unavailable",
+          status: "started",
+          messageId: seed.duplicateId,
+        });
+        const mock = mockClassifier(seed.sc);
+        await assert.rejects(() => run(seed.sc, mock), refusedWith("ledger_unknown_cost"));
+        assert.equal(mock.calls.length, 0);
+      });
+
+      it("never excludes a row from the unknown-cost count unless it is the exact unconfirmed row and a valid reserve is held", async () => {
+        const seed = await held();
+        const call = { requestId: seed.requestId, eventKey: seed.eventKey, messageId: seed.targetId };
+        assert.equal(sumAdultOffBatchModerationSpend(seed.sc.fx, call).unknownCostEvents, 0);
+        assert.equal(sumAdultOffBatchModerationSpend(seed.sc.fx, null).unknownCostEvents, 1);
+        assert.equal(sumAdultOffBatchModerationSpend(seed.sc.fx, { ...call, messageId: seed.duplicateId }).unknownCostEvents, 1);
+        assert.equal(sumAdultOffBatchModerationSpend(seed.sc.fx, { ...call, eventKey: randomUUID() }).unknownCostEvents, 1);
+        seed.sc.fx.prepare("UPDATE api_cost_ledger SET event_status = 'failed_with_usage' WHERE generation_request_id = ?").run(seed.requestId);
+        assert.equal(sumAdultOffBatchModerationSpend(seed.sc.fx, call).unknownCostEvents, 1);
+
+        const tampered = await held();
+        const state = JSON.parse(stateBytes(tampered));
+        state.unresolved.quarantine.reserveKrw = 0;
+        fs.writeFileSync(path.join(tampered.stateDir, "batch.state.json"), JSON.stringify(state));
+        await resumeRefused(tampered, "state_invalid");
+      });
+    });
+
     it("never overwrites a held quarantine when another call is interrupted", async () => {
       const seed = await seedUnconfirmedCall(scenario(SEED_RUN_ID));
       await run(seed.sc, mockClassifier(seed.sc), approvalEnv(seed));
@@ -2486,9 +2575,10 @@ https.request = () => { record("https"); throw new Error("blocked by test https 
       assert.deepEqual(tombstones(sc), []);
     });
 
-    it("lets only one of several concurrent recoveries take the lock", async () => {
-      const sc = scenario("run-foreign-race");
-      const { pin } = foreignLock(sc);
+    async function raceForLock(
+      sc: Scenario,
+      pin: { host: string; pid: number; runId: string; startedAt: string } | null
+    ): Promise<string[]> {
       const barrier = path.join(sc.dir, "go");
       const child = path.join(sc.dir, "race-child.ts");
       fs.writeFileSync(
@@ -2535,10 +2625,92 @@ main();
         await new Promise((resolve) => setTimeout(resolve, 20));
       }
       fs.writeFileSync(barrier, "go");
-      const outputs = await Promise.all(workers);
+      return Promise.all(workers);
+    }
+
+    it("lets only one of several concurrent recoveries take the lock", async () => {
+      const sc = scenario("run-foreign-race");
+      const { pin } = foreignLock(sc);
+      const outputs = await raceForLock(sc, pin);
       assert.equal(outputs.filter((out) => out === "ACQUIRED").length, 1, outputs.join(" | "));
       assert.equal(outputs.filter((out) => out === "REFUSED concurrent_run_locked").length, 5, outputs.join(" | "));
       assert.equal(tombstones(sc).length, 1);
+    });
+
+    it("lets only one of several concurrent first acquisitions take a fresh lock", async () => {
+      const sc = scenario("run-fresh-race");
+      fs.mkdirSync(sc.stateDir, { recursive: true, mode: 0o700 });
+      const outputs = await raceForLock(sc, null);
+      assert.equal(outputs.filter((out) => out === "ACQUIRED").length, 1, outputs.join(" | "));
+      assert.equal(outputs.filter((out) => out === "REFUSED concurrent_run_locked").length, 5, outputs.join(" | "));
+      assert.deepEqual(tombstones(sc), []);
+    });
+
+    it("refuses a first acquisition while a reclaim guard is left and creates no lock", () => {
+      const sc = scenario("run-guard-only");
+      fs.mkdirSync(sc.stateDir, { recursive: true, mode: 0o700 });
+      const guard = path.join(sc.stateDir, "execution.lock.reclaim");
+      fs.writeFileSync(guard, JSON.stringify({ pid: 999999, host: OLD_HOST, at: "2026-10-23T06:00:00.000Z" }));
+      assert.throws(
+        () => acquireAdultOffBatchExecutionLock(sc.stateDir, "run-guard-only"),
+        (error: unknown) => refusedLocked(error) && /operator must review/.test((error as Error).message)
+      );
+      assert.equal(fs.existsSync(path.join(sc.stateDir, "execution.lock")), false, "no lock is created behind the guard");
+      assert.equal(fs.existsSync(guard), true, "the interruption trace is kept for the operator");
+      const { pin } = foreignLock(sc);
+      assert.throws(
+        () => acquireAdultOffBatchExecutionLock(sc.stateDir, "run-guard-only", { foreignLockPin: pin }),
+        refusedLocked
+      );
+      assert.deepEqual(tombstones(sc), []);
+    });
+
+    it("refuses every later run after a process is killed right after moving the old lock aside", () => {
+      const sc = scenario("run-killed-reclaim");
+      const { file, pin } = foreignLock(sc);
+      const original = fs.readFileSync(file, "utf8");
+      const child = path.join(sc.dir, "kill-reclaim-child.ts");
+      fs.writeFileSync(
+        child,
+        `import { acquireAdultOffBatchExecutionLock } from ${JSON.stringify(path.join(REPO_ROOT, "src/lib/adultOffBatchPaidRun.ts"))};
+
+const [stateDir] = process.argv.slice(2);
+acquireAdultOffBatchExecutionLock(stateDir, "killed-reclaim", {
+  foreignLockPin: ${JSON.stringify(pin)},
+  afterReclaimRename: () => process.kill(process.pid, "SIGKILL"),
+});
+`
+      );
+      const result = spawnSync(
+        process.execPath,
+        ["--conditions=react-server", "--import", "tsx", child, sc.stateDir],
+        { cwd: REPO_ROOT, env: childEnv({}), encoding: "utf8" }
+      );
+      assert.equal(result.signal, "SIGKILL", `${result.stdout}${result.stderr}`);
+      assert.equal(fs.existsSync(file), false, "the old lock was already moved aside");
+      assert.equal(tombstones(sc).length, 1);
+      assert.equal(fs.readFileSync(path.join(sc.stateDir, tombstones(sc)[0]!), "utf8"), original);
+      assert.equal(fs.existsSync(path.join(sc.stateDir, "execution.lock.reclaim")), true);
+
+      for (const options of [{}, { foreignLockPin: pin }]) {
+        assert.throws(
+          () => acquireAdultOffBatchExecutionLock(sc.stateDir, "after-kill", options),
+          refusedLocked
+        );
+        assert.equal(fs.existsSync(file), false, "nobody takes the lock behind the leftover guard");
+      }
+    });
+
+    it("keeps a normal acquire and release working and leaves no guard behind", () => {
+      const sc = scenario("run-normal-lock");
+      const first = acquireAdultOffBatchExecutionLock(sc.stateDir, "run-normal-lock");
+      assert.equal(fs.existsSync(path.join(sc.stateDir, "execution.lock.reclaim")), false);
+      assert.throws(() => acquireAdultOffBatchExecutionLock(sc.stateDir, "run-normal-lock-2"), refusedLocked);
+      assert.equal(fs.existsSync(path.join(sc.stateDir, "execution.lock.reclaim")), false, "a clean refusal also releases the guard");
+      first.release();
+      assert.equal(fs.existsSync(path.join(sc.stateDir, "execution.lock")), false);
+      acquireAdultOffBatchExecutionLock(sc.stateDir, "run-normal-lock-3").release();
+      assert.deepEqual(tombstones(sc), []);
     });
 
     it("keeps the same-host dead-PID reclaim on the same single guarded path", () => {

@@ -28,6 +28,7 @@ import {
   ADULT_OFF_BATCH_MODERATION_REQUEST_KIND,
   adultOffGuardDecisionToInspectionOutcome,
   buildAdultOffBatchGenerationRequestId,
+  classifyAdultOffBatchQuarantinedCall,
   commitAdultOffAuxSurveyItemIfFresh,
   commitAdultOffInspectionIfFresh,
   fingerprintAdultOffAuxSurveyItem,
@@ -930,6 +931,8 @@ export type AdultOffBatchLockOptions = {
   foreignLockPin?: AdultOffBatchForeignLockPin | null;
   /** 테스트 이음새: 정지 시간 판정에 쓰는 현재 시각(ms). */
   now?: () => number;
+  /** 테스트 이음새: 기존 잠금을 tombstone으로 옮긴 직후 호출된다(여기서 프로세스가 죽는 경우를 재현). */
+  afterReclaimRename?: () => void;
 };
 
 type LockHolder = { pid?: unknown; host?: unknown; runId?: unknown; startedAt?: unknown; deploymentId?: unknown };
@@ -971,73 +974,69 @@ function isForeignLockApproved(
 }
 
 /**
- * 기존 잠금 하나를 치우는 유일한 경로. 회수 보호 파일(wx)을 쥔 프로세스 하나만 진행하고,
+ * 기존 잠금 하나를 치우는 유일한 경로. 호출자가 회수 보호 파일을 쥐고 있어야 한다.
  * 읽은 잠금의 inode가 치운 파일과 같은지 확인한 뒤에만 tombstone으로 옮긴다(삭제하지 않는다).
  * 회수 조건이 아니면 항상 거부한다.
  */
 function reclaimExistingLock(stateDir: string, options: AdultOffBatchLockOptions): void {
   const file = lockPath(stateDir);
-  const guardFile = lockReclaimGuardPath(stateDir);
-  let guardFd: number;
+  let before: fs.Stats;
+  let raw: string;
   try {
-    guardFd = fs.openSync(guardFile, "wx", 0o600);
+    before = fs.lstatSync(file);
+    raw = fs.readFileSync(file, "utf8");
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
-      throw refuseLocked("another process is reclaiming the execution lock");
-    }
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
     throw error;
   }
+  let holder: LockHolder = {};
   try {
-    fs.writeSync(guardFd, JSON.stringify({ pid: process.pid, host: os.hostname(), at: new Date().toISOString() }));
-    let before: fs.Stats;
-    let raw: string;
+    holder = JSON.parse(raw) as LockHolder;
+  } catch {
+    holder = {};
+  }
+  const sameHostDead =
+    holder.host === os.hostname() && typeof holder.pid === "number" && !isProcessAlive(holder.pid);
+  const foreignApproved =
+    holder.host !== os.hostname() && isForeignLockApproved(stateDir, holder, before.mtimeMs, options);
+  if (!sameHostDead && !foreignApproved) {
+    throw refuseLocked(
+      `another adult-off batch execution holds the lock (run ${typeof holder.runId === "string" ? holder.runId : "unknown"})`
+    );
+  }
+  const tombstone = `${file}.reclaimed.${Date.now()}.${process.pid}`;
+  try {
+    fs.renameSync(file, tombstone);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw error;
+  }
+  options.afterReclaimRename?.();
+  const moved = fs.lstatSync(tombstone);
+  if (moved.ino !== before.ino || moved.dev !== before.dev) {
     try {
-      before = fs.lstatSync(file);
-      raw = fs.readFileSync(file, "utf8");
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
-      throw error;
-    }
-    let holder: LockHolder = {};
-    try {
-      holder = JSON.parse(raw) as LockHolder;
+      fs.linkSync(tombstone, file);
+      fs.unlinkSync(tombstone);
     } catch {
-      holder = {};
+      // the lock path was taken again; the moved file stays as the tombstone for inspection
     }
-    const sameHostDead =
-      holder.host === os.hostname() && typeof holder.pid === "number" && !isProcessAlive(holder.pid);
-    const foreignApproved =
-      holder.host !== os.hostname() && isForeignLockApproved(stateDir, holder, before.mtimeMs, options);
-    if (!sameHostDead && !foreignApproved) {
-      throw refuseLocked(
-        `another adult-off batch execution holds the lock (run ${typeof holder.runId === "string" ? holder.runId : "unknown"})`
-      );
-    }
-    const tombstone = `${file}.reclaimed.${Date.now()}.${process.pid}`;
-    try {
-      fs.renameSync(file, tombstone);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
-      throw error;
-    }
-    const moved = fs.lstatSync(tombstone);
-    if (moved.ino !== before.ino || moved.dev !== before.dev) {
-      try {
-        fs.linkSync(tombstone, file);
-        fs.unlinkSync(tombstone);
-      } catch {
-        // the lock path was taken again; the moved file stays as the tombstone for inspection
-      }
-      throw refuseLocked("the execution lock changed while it was being reclaimed");
-    }
-  } finally {
-    fs.closeSync(guardFd);
-    fs.rmSync(guardFile, { force: true });
+    throw refuseLocked("the execution lock changed while it was being reclaimed");
+  }
+}
+
+function describeLeftoverGuard(guardFile: string): string {
+  try {
+    return fs.readFileSync(guardFile, "utf8").slice(0, 200);
+  } catch {
+    return "unreadable";
   }
 }
 
 /**
  * 고정 상태 위치 하나에 대한 전역 실행 잠금. RUN_ID가 같든 다르든 동시에 하나만 돈다.
+ * 잠금의 최초 생성과 회수는 모두 같은 보호 파일(`execution.lock.reclaim`, wx)을 먼저 쥔 프로세스 하나만 수행한다.
+ * 보호 파일은 정상 종료·정상 거부 때만 지워지므로, 남아 있으면 다른 프로세스가 진행 중이거나 회수가 중간에 끊긴 것이며
+ * 어느 쪽이든 자동 실행을 거부하고 운영자 검토를 요구한다(존재 여부를 먼저 보지 않고 wx 하나로 판정해 TOCTOU가 없다).
  * 같은 호스트에서 죽은 PID의 잠금, 또는 운영자가 4개 값을 정확히 지목하고 상태가 정지돼 있는 다른 컨테이너의 잠금만
  * 단 하나의 회수 경로(`reclaimExistingLock`)로 치운다. 그 외에는 사람이 확인할 때까지 거부한다.
  */
@@ -1048,42 +1047,60 @@ export function acquireAdultOffBatchExecutionLock(
 ): AdultOffBatchExecutionLock {
   fs.mkdirSync(stateDir, { recursive: true, mode: 0o700 });
   const file = lockPath(stateDir);
-  const body = JSON.stringify({
-    pid: process.pid,
-    host: os.hostname(),
-    runId,
-    startedAt: new Date().toISOString(),
-    deploymentId: process.env.RAILWAY_DEPLOYMENT_ID?.trim() || null,
-  });
-  const tryCreate = (): AdultOffBatchExecutionLock | null => {
-    try {
-      const fd = fs.openSync(file, "wx", 0o600);
-      try {
-        fs.writeSync(fd, body);
-      } finally {
-        fs.closeSync(fd);
-      }
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "EEXIST") return null;
-      throw error;
+  const guardFile = lockReclaimGuardPath(stateDir);
+  let guardFd: number;
+  try {
+    guardFd = fs.openSync(guardFile, "wx", 0o600);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      throw refuseLocked(
+        `execution.lock.reclaim exists (${describeLeftoverGuard(guardFile)}): another process is acquiring the lock, ` +
+          "or an earlier acquire/reclaim was interrupted. If no run is active, an operator must review the lock directory before any run"
+      );
     }
-    return {
-      release() {
+    throw error;
+  }
+  try {
+    fs.writeSync(guardFd, JSON.stringify({ pid: process.pid, host: os.hostname(), at: new Date().toISOString() }));
+    const body = JSON.stringify({
+      pid: process.pid,
+      host: os.hostname(),
+      runId,
+      startedAt: new Date().toISOString(),
+      deploymentId: process.env.RAILWAY_DEPLOYMENT_ID?.trim() || null,
+    });
+    const tryCreate = (): boolean => {
+      try {
+        const fd = fs.openSync(file, "wx", 0o600);
         try {
-          const held = JSON.parse(fs.readFileSync(file, "utf8")) as { pid?: number; runId?: string };
-          if (held.pid === process.pid && held.runId === runId) fs.unlinkSync(file);
-        } catch {
-          return;
+          fs.writeSync(fd, body);
+        } finally {
+          fs.closeSync(fd);
         }
-      },
+        return true;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "EEXIST") return false;
+        throw error;
+      }
     };
+    if (!tryCreate()) {
+      reclaimExistingLock(stateDir, options);
+      if (!tryCreate()) throw refuseLocked("could not acquire execution lock");
+    }
+  } finally {
+    fs.closeSync(guardFd);
+    fs.rmSync(guardFile, { force: true });
+  }
+  return {
+    release() {
+      try {
+        const held = JSON.parse(fs.readFileSync(file, "utf8")) as { pid?: number; runId?: string };
+        if (held.pid === process.pid && held.runId === runId) fs.unlinkSync(file);
+      } catch {
+        return;
+      }
+    },
   };
-  const created = tryCreate();
-  if (created) return created;
-  reclaimExistingLock(stateDir, options);
-  const reclaimed = tryCreate();
-  if (reclaimed) return reclaimed;
-  throw refuseLocked("could not acquire execution lock");
 }
 
 function isStringArray(value: unknown): value is string[] {
@@ -1457,15 +1474,9 @@ export async function executeAdultOffBatchPaidRun(
       ) {
         throw mismatch("the approved run, request id and message id do not match the interrupted call");
       }
-      const ledgerRows = readAdultOffBatchCallLedgerRows(database, requestId);
-      const row = ledgerRows.length === 1 ? ledgerRows[0] : null;
       if (
-        !row ||
-        row.event_key !== approval.eventKey ||
-        row.assistant_message_id !== approval.messageId ||
-        row.event_status !== "started" ||
-        row.provider_request_id != null ||
-        row.actual_cost_usd != null
+        classifyAdultOffBatchQuarantinedCall(readAdultOffBatchCallLedgerRows(database, requestId), approval) !==
+        "unconfirmed"
       ) {
         throw mismatch("the ledger row is not exactly one started, cost-less, provider-id-less event with the approved event_key and message id");
       }
@@ -1504,7 +1515,18 @@ export async function executeAdultOffBatchPaidRun(
     const reconcileUnresolved = (): void => {
       if (state.unresolved?.quarantine) {
         const held = state.unresolved.quarantine;
-        if (isCallCostKnown(readAdultOffBatchCallCost(database, held.requestId))) {
+        const ledgerState = classifyAdultOffBatchQuarantinedCall(
+          readAdultOffBatchCallLedgerRows(database, held.requestId),
+          held
+        );
+        if (ledgerState === "changed") {
+          throw new AdultOffBatchRunRefusedError(
+            "quarantine_ledger_changed",
+            `the ledger no longer shows ${held.requestId} as exactly one started, cost-less, provider-id-less row with the quarantined event_key and message id ` +
+              "(changed, deleted or duplicated); nothing was changed. Operator review is required"
+          );
+        }
+        if (ledgerState === "settled") {
           settleCall(held.requestId, held.reserveKrw, null);
           state.unresolved.quarantine = null;
           saveAdultOffBatchState(stateDir, state);
@@ -1566,7 +1588,9 @@ export async function executeAdultOffBatchPaidRun(
 
     const priorSpend = sumAdultOffBatchModerationSpend(
       database,
-      heldQuarantine ? { requestId: heldQuarantine.requestId, eventKey: heldQuarantine.eventKey } : null
+      heldQuarantine && heldReserveKrw > 0
+        ? { requestId: heldQuarantine.requestId, eventKey: heldQuarantine.eventKey, messageId: heldQuarantine.messageId }
+        : null
     );
     if (priorSpend.unknownCostEvents > 0) {
       halt("halted_unknown_cost", `ledger has ${priorSpend.unknownCostEvents} unknown-cost batch events`);

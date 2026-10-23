@@ -45,6 +45,8 @@
  *     Take over an `execution.lock` left by a previous container. Every value must equal the lock file, the lock and
  *     batch.state.json must be unchanged for 10 minutes, and the lock must not belong to the current deployment. Confirm
  *     in Railway first that the old deployment is REMOVED. The old lock is moved to `execution.lock.reclaimed.*`, not deleted.
+ *     Creating and reclaiming the lock both hold `execution.lock.reclaim` (wx). If that file is left behind, every run
+ *     is refused until an operator has reviewed the lock directory; it is never deleted automatically.
  */
 import Database from "better-sqlite3";
 import { getDatabasePath, getRemoteDatabaseConfig } from "@/lib/dataDir";

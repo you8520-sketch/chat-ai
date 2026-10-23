@@ -1210,7 +1210,33 @@ function batchCallSeqOf(requestId: string | null | undefined): number {
 }
 
 /** 운영자가 정확히 지목한 미정산 호출 하나. 비용이 확정되기 전까지만 unknown-cost 집계에서 빠지고, 별도 예약액이 대신한다. */
-export type AdultOffBatchQuarantinedCall = { requestId: string; eventKey: string };
+export type AdultOffBatchQuarantinedCall = { requestId: string; eventKey: string; messageId: number };
+
+/**
+ * 격리된 호출의 원장 상태. `unconfirmed`만 집계에서 제외할 수 있고, `settled`는 기존 정산 경로가 처리하며,
+ * 행이 없거나 중복이거나 식별값·상태가 달라졌으면 `changed`로 STOP한다.
+ */
+export type AdultOffBatchQuarantineLedgerState = "unconfirmed" | "settled" | "changed";
+
+export function classifyAdultOffBatchQuarantinedCall(
+  rows: readonly AdultOffBatchLedgerRow[],
+  call: AdultOffBatchQuarantinedCall
+): AdultOffBatchQuarantineLedgerState {
+  const row = rows.length === 1 ? rows[0]! : null;
+  if (
+    !row ||
+    row.generation_request_id !== call.requestId ||
+    row.event_key !== call.eventKey ||
+    row.assistant_message_id !== call.messageId
+  ) {
+    return "changed";
+  }
+  if (isLedgerEventCostExact(row) && (row.actual_cost_usd ?? 0) > 0) return "settled";
+  if (row.event_status === "started" && row.provider_request_id == null && row.actual_cost_usd == null) {
+    return "unconfirmed";
+  }
+  return "changed";
+}
 
 export function summarizeAdultOffBatchLedgerRows(
   rows: readonly AdultOffBatchLedgerRow[],
@@ -1223,11 +1249,7 @@ export function summarizeAdultOffBatchLedgerRows(
     maxCallSeq = Math.max(maxCallSeq, batchCallSeqOf(row.generation_request_id));
     if (isLedgerEventCostExact(row)) {
       settledUsd += row.actual_cost_usd ?? 0;
-    } else if (
-      quarantined &&
-      row.generation_request_id === quarantined.requestId &&
-      row.event_key === quarantined.eventKey
-    ) {
+    } else if (quarantined && classifyAdultOffBatchQuarantinedCall([row], quarantined) === "unconfirmed") {
       continue;
     } else {
       unknownCostEvents += 1;
@@ -1278,7 +1300,8 @@ export function sumAdultOffBatchModerationSpend(
 export function readAdultOffBatchLedgerRows(db: DatabaseType): AdultOffBatchLedgerRow[] {
   return db
     .prepare(
-      `SELECT generation_request_id, event_key, actual_cost_usd, actual_cost_source, event_status FROM api_cost_ledger
+      `SELECT generation_request_id, event_key, assistant_message_id, provider_request_id,
+              actual_cost_usd, actual_cost_source, event_status FROM api_cost_ledger
        WHERE request_kind = ? AND instr(generation_request_id, ?) = 1`
     )
     .all(ADULT_OFF_BATCH_MODERATION_REQUEST_KIND, ADULT_OFF_BATCH_REQUEST_PREFIX) as AdultOffBatchLedgerRow[];
