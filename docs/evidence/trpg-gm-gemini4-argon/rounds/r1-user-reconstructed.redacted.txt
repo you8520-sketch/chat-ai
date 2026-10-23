@@ -1,0 +1,117 @@
+[RESOLVE THIS ROUND]
+
+[WORLD]
+[REDACTED campaign-44 worldBrief]
+
+
+[TONE CONTEXT] No listed WORLD genres. Data only — follow the system TONE owner.
+
+[SCENARIO SHEET STATS — only these exist; pick from this list]
+- 힘 (str): 근접·완력·파괴  5–15
+- 민첩 (dex): 은신·선공·잔기술  5–15
+- 체력 (con): 지구력·HP  5–15
+- 지능 (int): 조사·지식·추론  5–15
+- 지혜 (wis): 통찰·감지·판단  5–15
+- 매력 (cha): 설득·사교·위압  5–15
+
+[PARTY SHEETS — canon; use these values for checks and competence]
+[PC 렌]
+힘 8(+1) · 민첩 8(+1) · 체력 8(+1) · 지능 7(+1) · 지혜 7(+1) · 매력 7(+1)
+[PC 권태현]
+힘 11(+3) · 민첩 9(+2) · 체력 7(+1) · 지능 5(+0) · 지혜 6(+0) · 매력 7(+1)
+[PC 강이현]
+힘 10(+2) · 민첩 10(+2) · 체력 5(+0) · 지능 8(+1) · 지혜 7(+1) · 매력 5(+0)
+
+[TRPG STRUCTURED STATE — authoritative; do not contradict HP/items/location/flags]
+round=1
+location=현관홀
+- 렌: HP 40/40 stats=cha:7,con:8,dex:8,int:7,str:8,wis:7
+- 권태현: HP 35/35 stats=cha:7,con:7,dex:9,int:5,str:11,wis:6
+- 강이현: HP 25/25 stats=cha:5,con:5,dex:10,int:8,str:10,wis:7
+quests: 센터 탈출: 봉쇄된 출구의 잠금을 해제하고 탈출한다
+[RECENT ROUNDS — RAW]
+[ROUND 0]
+  (행동 없음)
+  GM: 차갑고 묵직한 공기가 넥서스 지부 센터의 드넓은 현관홀 바닥에 무겁게 깔려 있었다. 천장을 받치고 선 육중한 기둥들 사이로 푸르스름한 비상 유도등만이 불길한 맥박처럼 미약하게 깜빡였다. 벽면에 매립된 방탄 패널과 마력 차단막 프레임은 기이할 정도로 고요했으나, 그 침묵 속에는 이미 센터의 방어 체계가 임계치 직전까지 조여들고 있다는 긴장감이 서려 있었다. 평소라면 수많은 현장 요원과 연구원, 가이드들이 분주히 오갔을 로비 구역은 텅 비어 있었다. 단단한 복합 강화 유리창 너머는 완전히 차단 격벽이 내려앉아 외부와의 시야를 완벽하게 차단하고 있었고, 안내 데스크의 단말기들은 일제히 황색 대기 신호만을 반복해서 띄우고 있었다.
+
+바닥재를 딛는 군화 소리가 멎자마자, 머리 위 환기구와 기계실 배관을 따라 낮고 둔탁한 진동이 울려 퍼졌다. 위잉, 하는 전기적 마찰음과 함께 공기 중에 희박하게 남아 있던 정제 에테리움 냄새가 순간 싸늘하게 가라앉았다. 아직 요란한 붉은 경보 사이렌이 본격적으로 터져 나온 것은 아니었지만, 시설 전체의 통제권이 비상 봉쇄 프로토콜로 넘어가기 직전이라는 사실만은 명확했다. 통로마다 설치된 유압식 보안 게이트의 래치가 덜컥거리며 맞물리는 소리가 저 멀리 복도 너머에서 메아리쳤다. 통제실의 주 전산망이 외부 침입이나 내부 이상을 감지하고 시설을 폐쇄하기 직전의 그 팽팽한 유예 상태였다.
+
+홀의 정면에는 기록실과 행정 구역으로 이어지는 두터운 금속 문이 반쯤 열린 채 멈춰 서 있었고, 오른쪽으로는 순환로와 보관실 방면으로 연결되는 우회 보행 통로가 길게 입을 벌리고 있었다. 벽면 상단에 박힌 상황 표시판의 활성 상태는 여전히 '경보 대기(Alarm: OFF)'를 가리키고 있었으나, 중앙 제어반 하단의 상태 창에는 주황색 경고등이 신경질적으로 점멸했다. 경보가 정식으로 발령되고 보안 등급이 갱신되지 않는 한, 시설 최심부와 외부를 잇는 비상 출구의 잠금 빗장은 결코 스스로 풀리지 않도록 물리적으로 고정되어 있었다. 즉, 지금의 이 기괴한 정적은 영원한 안전을 보장하는 것이 아니라, 오히려 탈출을 위해서는 살아 있는 방어 체계를 마주해야만 한다는 역설을 품고 있었다.
+
+권태현은 어깨에 걸치고 있던 묵직한 마체테의 무게중심을 툭 고쳐 잡으며 목덜미를 슬쩍 쓸어내렸다. 그의 잿빛이 도는 짙은 눈동자가 텅 빈 현관홀의 천장 모서리와 보안 카메라, 그리고 사방으로 뻗은 통로의 꺾임각을 능숙하게 훑었다. 목덜미에 길게 남은 거친 흉터 위로 푸른 비상등 불빛이 스치고 지나갔다. 거구의 체격에서 뿜어져 나오는 위압감에도 불구하고, 그의 입가에는 언제나처럼 위험의 냄새를 맡은 맹수 특유의 비릿하고 나른한 미소가 엷게 번졌다.
+
+[캐릭터에셋: 85|대화]
+
+권태현: "분위기 한번 더럽게 살벌하네. 들어오자마자 문짝부터 걸어 잠그려는 꼴이, 손님 대접할 생각은 애초에 없었나 본데."
+
+그는 낮게 으르렁거리듯 중얼거리며 주머니에서 장갑 낀 손을 빼내 주먹을 가볍게 쥐었다 폈다. 그의 손목에 감긴 S-기어의 표시창이 푸른 잔상을 남기며 깜빡였으나 마력 파동은 아직 평온을 유지하고 있었다. 태현은 고개를 비스듬히 꺾으며 홀 한가운데 서 있는 일행 쪽으로 시선을 던졌다. 위기 상황 속에서도 결코 숙이지 않는 오만함과, 오랜 현장 생존자만이 지닌 날 선 경계심이 그의 태도 전반에 고스란히 묻어났다. 그는 굳이 발소리를 숨기려 들지 않았지만, 바닥을 디딜 때마다 온몸의 근육이 즉각적인 돌파를 준비하듯 탄탄하게 긴장하고 있었다.
+
+권태현: "출구 빗장 걸린 꼬락서니를 봐. 경보가 한번 거하게 터져서 시스템이 뒤집어지기 전까진 저 문짝이 제 발로 열릴 일은 없겠어. 뭐, 얌전히 갇혀서 말라 죽을 게 아니라면 저 안쪽으로 뚫고 들어가는 수밖에 없겠지. 멍하니 서 있지 말고 정신 차려라."
+
+그의 말이 끝나기 무섭게, 홀 오른쪽 순환로 입구 부근의 배관 위에서 가벼운 금속 마찰음이 울렸다. 낡은 방독면을 목에 대충 걸어둔 강이현이 허리춤의 도구 파우치를 툭툭 치며 복도 모퉁이 벽면에서 천천히 걸어 나왔다. 자연스럽게 헝클어진 반곱슬 머리칼 아래로 드러난 갈색 눈동자는 겉보기에 장난기가 가득했으나, 그의 긴 손가락은 이미 허리춤의 접이식 소형 석궁 래치에 자연스럽게 닿아 있었다. 이현은 벽면에 설치된 비상 단말기의 잠금 슬롯과 배선 상태를 눈대중으로 훑어보며 가볍게 휘파람을 불었다.
+
+[캐릭터에셋: 86|대화]
+
+강이현: "와, 진짜 인정사정없네. 저 차단 밸브 내려앉는 속도 좀 봐. 10초만 늦었어도 발목 잘릴 뻔했잖아? 서비스가 아주 엉망진창이야. 저기 떡하니 버티고 있는 메인 통로는 기록실 쪽으로 빠지는 길이고, 저쪽 어두침침한 샛길은 보관실이랑 경보실 쪽 순환로인데 말이지."
+
+이현은 특유의 능글맞은 태도로 어깨를 으쓱해 보였지만, 그의 시선은 단 1초도 한곳에 고정되지 않고 현관홀의 기계적 약점들을 분석하고 있었다. 바닥의 균열, 배기구의 풍향, 벽면 단말기 뒤편으로 이어진 굵은 구리 케이블의 맥동까지 낱낱이 파악해 두려는 눈치였다. 그는 피식 웃으며 장갑 끝으로 턱을 긁적였다.
+
+강이현: "어차피 저 출구 잠금장치는 시설 보안 제어반이 발작을 일으켜야 풀리게 설계되어 있어. 안전제일주의자들이 만들어 놓은 탈출 프로토콜이라는 게 늘 이 모양이지. 결국 경보실 쪽 제어반을 건드리든가, 아니면 기록실을 털어서 비상 키카드를 찾아내든가 해야 저 빗장이 풀릴 텐데. 슬슬 선택을 하셔야겠어? 가만히 서서 비상등 색깔 바뀌는 거 구경만 할 생각은 아니지?"
+
+홀 안의 적막 위로 공조 시스템의 차가운 바람이 불어닥쳤다. 멀리서 들려오던 둔탁한 밸브 소리가 잦아들자, 중앙 로비의 황색 경고등만이 세 사람의 발치를 날카롭게 베어내듯 비추고 있었다. 출구의 빗장은 단단히 굳어 있고, 센터 내부로 이어지는 두 갈래의 통로는 침묵 속에서 입을 벌린 채 다음 발걸음을 재촉하고 있었다. 지금 이 순간, 텅 빈 현관홀의 싸늘한 공기 속에서 결정을 내려야만 했다.
+
+GM: 봉쇄 모드로 전환되기 직전의 정적 속에서 굳게 잠긴 출구의 빗장과 두 갈래 통로가 눈앞에 펼쳐져 있다. 일행이 발을 들이밀 첫 번째 경로는 어디인가?
+
+[RESOLUTION ORDER]
+1. 강이현 — 민첩 10
+2. 권태현 — 민첩 9
+3. 렌 — 민첩 8
+- Resolve conflicting action results in this order.
+- Acting first is not an automatic success. Dice results still decide success/failure.
+- Later actions may react to earlier resolved results.
+- Do not add actions a player did not declare.
+
+[EXPLORATION — server positions and this-round results. These override earlier narration. Narrate only these positions as fact. Do not invent another clue, item, secret passage, or a new human PC move, line, or decision.]
+Risk 0. Alarm: no.
+렌 is in 현관홀. They did not move this round.
+권태현 is in 현관홀. They did not move this round.
+강이현 is in 현관홀. They did not move this round.
+Alarm is off. The exit latch is still shut. Nobody has reached 출구.
+Describe the rooms they occupy. Visible passages may be atmosphere. Do not walk anyone down a passage they did not take.
+No exploration flags yet. Only the server confirms 위험 고조, 단서: 출구 빗장은 경보 후에만 풀린다, and 숨은 통로: 순환로와 현관홀이 연결되었다. Other world facts may still be recorded.
+
+[ACTION participantId=84 name=렌 actorKind=human density=BRIEF]
+[CHECK check_required d20=13 total=14 DC=9 tier=SUCCESS stat=지능(int) value=7 modifier=1]
+[AUTHORITATIVE HUMAN PC ACTION — canonical for this PC only]
+현관홀에서 엄호하며 기둥 뒤에 선다. 권현과 강이현을 확인한다.
+
+[ACTION participantId=86 name=강이현 actorKind=ai_character density=RICH]
+[CHECK check_required d20=2 total=3 DC=9 tier=FAILURE stat=지능(int) value=8 modifier=1]
+[AUTHORITATIVE AI PC ATTEMPT — actor-only]
+이현은 목에 걸린 방독면 스트랩을 손가락 끝으로 툭툭 튕기며 현관홀 바닥의 배선 덮개를 발끝으로 가볍게 짚었다. 차가운 유압 장치가 웅웅거리며 맞물리는 소리, 그리고 환기구에서 새어 나오는 희미한 바람의 결까지 놓치지 않고 훑어내리는 눈매엔 장난기가 흐르고 있었지만, 턱선은 미세하게 굳어 있었다. 렌이 기둥 뒤로 물러서며 사각을 확보하는 깔끔한 동작을 곁눈질로 확인한 그는, 허리춤에 찬 자물쇠 해제용 핀과 와이어 파우치 쪽으로 긴 손가락을 스쳤다.
+
+“좋아, 엄호 자세 아주 훌륭하고. 역시 실전파는 몸부터 움직인다니까.”
+
+그는 능청스레 턱짓하며, 황색 경고등이 번쩍이는 안내 데스크 하단과 벽면의 비상 단말기 배선반 쪽으로 발소리를 죽여 미끄러지듯 다가갔다. 기록실로 향하는 넓은 중앙 통로와 보관실 쪽 순환로로 이어지는 어두운 샛길 사이, 출구 빗장을 붙들고 있는 주 전력선과 비상 제어 회로의 흐름을 빠르게 파악해 둘 셈이었다.
+
+“출구 빗장에 엮인 전력 케이블이 어느 쪽으로 뻗어 있는지 딱 3초만 볼게. 경보실로 바로 찌를지, 기록실 들러서 권한부터 딸지 견적은 나와야 발을 떼지 않겠어?”
+
+<<<ACTION_TYPE>>>
+investigate
+
+<<<INTENT>>>
+강이현은 현관홀 비상 단말기와 안내 데스크의 노출된 배선반 및 제어 패널을 관찰하여, 잠긴 출구 빗장과 연결된 회로가 기록실 방면과 순환로(보관실/경보실) 방면 중 어느 쪽으로 이어져 있는지 확인하려 했다.
+
+[ACTION participantId=85 name=권태현 actorKind=ai_character density=BRIEF]
+[CHECK no_check reason=ordinary_free — realize the submitted action normally without a failure roll]
+[AUTHORITATIVE AI PC ATTEMPT — actor-only]
+권태현은 제자리에 서서 상황을 살핀다.
+
+[ROUND EXECUTION — binding]
+Apply [GM SCENE CRAFT — ADAPTIVE NARRATION] and [ROUND CRAFT] from system to the submitted actions above.
+Return JSON with narration and delta per system OUTPUT contract.
+[ROUND NARRATION BUDGET]
+Input density: MIXED
+Minimum new GM narration: 2600 Korean characters
+Target new GM narration: 3300–4300 Korean characters
+Finish at or above Minimum; TARGET is the normal complete-scene range.
