@@ -6,7 +6,7 @@ import { describe, it } from "node:test";
 
 import { CHAT_IMAGE_GENERATION_DEFAULT_MODEL } from "@/lib/chatImageGeneration";
 import { MAX_PROVIDER_ATTEMPTS } from "@/lib/openAiImageSafetyFallback";
-import { evaluateAppearanceLock } from "@/lib/officialSupply/appearance";
+import { computeAppearanceLockHash, evaluateAppearanceLock } from "@/lib/officialSupply/appearance";
 import { evaluateAssetPlan } from "@/lib/officialSupply/assetPlan";
 import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
 import {
@@ -275,6 +275,46 @@ describe("Wolfgang representative NO_POST preflight", () => {
     fs.writeFileSync(ARTIFACT_PATH, `${JSON.stringify(evidence, null, 2)}\n`);
     assert.equal(evidence.providerCalls, 0);
     assert.equal(evidence.paidPost, 0);
+  });
+
+  it("approved plan F gives the representative one head direction, in primary and strict fallback alike", () => {
+    const approved = JSON.parse(
+      fs.readFileSync(
+        path.join(process.cwd(), "src/lib/officialSupply/pilot/fixtures/pilot-rf-02-approved-asset-plan-f.json"),
+        "utf8"
+      )
+    ) as { assetPlan: OfficialAssetPlan };
+    const repPlan = slotOf(approved.assetPlan, "rep");
+    assert.equal(repPlan.pose, "갑옷을 입은 채 서서 한 손을 검 손잡이에 얹는다");
+    assert.deepEqual(evaluateAssetPlan(compiled.draft, approved.assetPlan).errors, []);
+    assert.equal(
+      computeAppearanceLockHash(compiled.appearanceLock),
+      "1c3ccd134203a6dea6ae869c27cc443c42ff5498d1d0130c6f9765407c24dcc3"
+    );
+    const shot = resolveOfficialSlotShot(repPlan, WOLFGANG_KEY);
+    assert.equal(shot.faceDirection, "left_three_quarter");
+    const composed = composeOfficialSlotGeneration({
+      character: wolfgangCharacter(approved.assetPlan),
+      style: {
+        styleKey: compiled.draft.styleKey,
+        genre: "로맨스 판타지",
+        stage: "style_locked",
+        candidates: [candidate],
+        approvedCandidateId: candidate.candidateId,
+        styleSeed,
+        proofAssetLimit: 1,
+      },
+      slotKey: "rep",
+      representativeUrl: null,
+      env: {},
+    });
+    assert.equal(composed.ok, true);
+    if (!composed.ok) return;
+    for (const prompt of [composed.primaryPrompt, composed.strictFallbackPrompt]) {
+      assert.match(prompt, /head turned left three-quarter view/);
+      assert.doesNotMatch(prompt, /정면|face toward camera|near-frontal/);
+      assert.match(prompt, new RegExp(`Pose: ${repPlan.pose}\\.`));
+    }
   });
 
   it("reports one-invocation POST ceiling without adding a Wolfgang retry owner", () => {
