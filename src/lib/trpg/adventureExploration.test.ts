@@ -706,7 +706,10 @@ describe("adventure exploration (B2+B3)", () => {
     ).n;
   }
 
-  async function ghostTrainSession(adventure: TrpgAdventure = GHOST_TRAIN) {
+  async function ghostTrainSession(
+    adventure: TrpgAdventure = GHOST_TRAIN,
+    opts?: { openingItemOffers?: readonly string[] }
+  ) {
     const db = memoryDb();
     const templateId = insertScenarioTemplate(db, 1, {
       title: "유령 기차",
@@ -753,10 +756,15 @@ describe("adventure exploration (B2+B3)", () => {
         };
       },
     };
+    if (opts?.openingItemOffers?.length) {
+      session.proposal.itemOffers = [...opts.openingItemOffers];
+    }
     await startTrpgCampaign(db, { campaignId, userId: 1, deps });
     const state = () => loadExplorationState(db, campaignId)!;
     return {
       db,
+      campaignId,
+      deps,
       host,
       inputs: session.inputs,
       session,
@@ -898,6 +906,49 @@ describe("adventure exploration (B2+B3)", () => {
     t.session.proposal = { inventoryAdd: [], inventoryRemove: [], itemOffers: [], location: "" };
     await t.play([], "", ["회복약"]);
     assert.equal(itemQty(t.db, [t.host], "회복약"), 1, "a later general purchase is kept once accepted");
+    t.db.close();
+  });
+
+  it("A. authorized use of a held unit plus acceptance of a new unit of the same name ends with quantity 1", async () => {
+    const t = await ghostTrainSession(POTION_STALL, { openingItemOffers: ["회복약"] });
+    await t.play([], "", ["회복약"]);
+    assert.equal(itemQty(t.db, [t.host], "회복약"), 1);
+    t.db.prepare(`UPDATE trpg_character_sheets SET hp=? WHERE participant_id=?`).run(8, t.host);
+    t.session.proposal = { inventoryAdd: [], inventoryRemove: [], itemOffers: ["회복약"], location: "" };
+    await t.play([], "상인과 거래를 마친다.");
+    const fromRound = latestRoundNumber(t.db, t.campaignId) - 1;
+    submitTrpgAction(t.db, {
+      campaignId: t.campaignId,
+      userId: 1,
+      body: "회복약을 사용한다.",
+      actionType: "use_item",
+      acceptItems: [{ name: "회복약", fromRound }],
+    });
+    await advanceTrpgCampaign(t.db, { campaignId: t.campaignId, userId: 1, deps: t.deps });
+    assert.equal(itemQty(t.db, [t.host], "회복약"), 1, "consume one held unit and accept one new unit of the same name");
+    t.db.close();
+  });
+
+  it("B. one commit stacks a v2 enter reward and player acceptance of the same name", async () => {
+    const t = await ghostTrainSession(POTION_STALL, { openingItemOffers: ["회복약"] });
+    t.session.face = 16;
+    t.session.proposal = { inventoryAdd: ["회복약"], inventoryRemove: [], itemOffers: [], location: "" };
+    await t.play([{ op: "move", roomId: t.room("약장수") }], "", ["회복약"]);
+    assert.equal(itemQty(t.db, [t.host], "회복약"), 2, "server enter reward + accepted offer are independent sources");
+    t.db.close();
+  });
+
+  it("C. a v2 enter reward is not doubled when the GM delta repeats the same item name", async () => {
+    const t = await ghostTrainSession(POTION_STALL, { openingItemOffers: ["회복약"] });
+    t.session.face = 16;
+    t.session.proposal = {
+      inventoryAdd: ["회복약", "회복약"],
+      inventoryRemove: [],
+      itemOffers: ["회복약"],
+      location: "",
+    };
+    await t.play([{ op: "move", roomId: t.room("약장수") }], "", ["회복약"]);
+    assert.equal(itemQty(t.db, [t.host], "회복약"), 2, "one server reward plus one acceptance, not a GM echo");
     t.db.close();
   });
 

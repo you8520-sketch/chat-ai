@@ -2,13 +2,16 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { buildTrpgGmUserBlock, formatTrpgItemOfferBlock, parseTrpgGmOutput, TRPG_GM_SYSTEM } from "./gmPrompt";
 import {
+  foldAcceptedInventoryGrants,
   grantAcceptedItems,
   normalizeTrpgItemOffers,
   resolveTrpgItemAcceptance,
   restoreCommittedHumanItemFacts,
   stripUnacceptedItemProposals,
 } from "./itemAcceptance";
-import type { TrpgStateDelta } from "./types";
+import { inventoryFromUnits, inventoryUnits } from "./inventory";
+import { mergeMechanicsOwnedDelta } from "./mechanicsMerge";
+import type { TrpgSheetSnapshot, TrpgStateDelta } from "./types";
 
 describe("item acceptance helpers", () => {
   it("normalizes offers once: trim, whitespace, length, dedupe, cap", () => {
@@ -44,6 +47,7 @@ describe("item acceptance helpers", () => {
       stripUnacceptedItemProposals(delta, humans);
       grantAcceptedItems(delta, new Map([[1, ["지도"]]]));
     }
+    foldAcceptedInventoryGrants(delta);
     assert.deepEqual(delta.players[0], { participantId: 1, itemOffers: ["지도"], inventoryAdd: ["지도"] });
     assert.deepEqual(delta.players[1], { participantId: 2, inventoryAdd: ["칼"] });
   });
@@ -91,6 +95,29 @@ describe("item acceptance helpers", () => {
     assert.match(user, /\[ITEMS ACCEPTED BY THIS PC — server-confirmed, now held\]\n열쇠/);
     assert.match(user, /NOT held, not accepted this round\]\n- participantId=1 name=렌: 지도/);
     assert.equal(formatTrpgItemOfferBlock([{ participantId: 1, name: "렌", items: [] }]), "");
+  });
+
+  it("stacks exploration reward and accepted grant of the same name as separate acquisitions", () => {
+    const sheet: TrpgSheetSnapshot = {
+      participantId: 1,
+      name: "렌",
+      playerName: "렌",
+      level: 1,
+      hp: 10,
+      maxHp: 25,
+      stats: { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8, res: 8 },
+      conditions: [],
+      inventory: [],
+      location: "",
+      modifiersNote: "",
+    };
+    const merged = mergeMechanicsOwnedDelta(
+      [sheet],
+      { players: [{ participantId: 1, inventoryAdd: ["회복약"], acceptedInventoryAdd: ["회복약"] }] },
+      null
+    );
+    assert.equal(merged.ok, true);
+    if (merged.ok) assert.deepEqual(inventoryUnits(merged.next[0]?.inventory ?? []), ["회복약", "회복약"]);
   });
 
   it("states the human item rule once in the system prompt", () => {

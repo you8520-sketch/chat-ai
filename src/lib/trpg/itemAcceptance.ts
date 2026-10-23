@@ -137,6 +137,7 @@ export function stripUnacceptedItemProposals(delta: TrpgStateDelta, humanSeatIds
   for (const patch of delta.players) {
     if (humanSeatIds.has(patch.participantId)) {
       delete patch.inventoryAdd;
+      delete patch.acceptedInventoryAdd;
       if (patch.itemOffers) patch.itemOffers = normalizeTrpgItemOffers(patch.itemOffers);
       if (!patch.itemOffers?.length) delete patch.itemOffers;
     } else {
@@ -146,20 +147,29 @@ export function stripUnacceptedItemProposals(delta: TrpgStateDelta, humanSeatIds
 }
 
 /**
- * Commit boundary, after server exploration results: appends this round's
- * server-validated acceptances. Same-name items stack through the normal
- * inventory merge (+1 per valid acquisition).
+ * Commit boundary, after server exploration results: records this round's
+ * server-validated acceptances separately from GM/exploration `inventoryAdd`
+ * so mechanics consume filtering does not block a legitimate acceptance grant.
  */
 export function grantAcceptedItems(delta: TrpgStateDelta, accepted: ReadonlyMap<number, readonly string[]>): void {
   for (const [participantId, items] of accepted) {
     if (items.length === 0) continue;
     const patch = ensureDeltaPlayer(delta, participantId);
-    const have = new Set(patch.inventoryAdd ?? []);
+    const have = new Set(patch.acceptedInventoryAdd ?? []);
     for (const name of items) {
       if (have.has(name)) continue;
-      patch.inventoryAdd = [...(patch.inventoryAdd ?? []), name];
+      patch.acceptedInventoryAdd = [...(patch.acceptedInventoryAdd ?? []), name];
       have.add(name);
     }
+  }
+}
+
+/** Fold acceptance grants into persisted `inventoryAdd` after merge (regen canon). */
+export function foldAcceptedInventoryGrants(delta: TrpgStateDelta): void {
+  for (const patch of delta.players) {
+    if (!patch.acceptedInventoryAdd?.length) continue;
+    patch.inventoryAdd = [...(patch.inventoryAdd ?? []), ...patch.acceptedInventoryAdd];
+    delete patch.acceptedInventoryAdd;
   }
 }
 
@@ -182,6 +192,7 @@ export function restoreCommittedHumanItemFacts(
     for (const row of live) {
       delete row.itemOffers;
       delete row.inventoryAdd;
+      delete row.acceptedInventoryAdd;
     }
     if (offers.length) patch.itemOffers = offers;
     if (added.length) patch.inventoryAdd = added;

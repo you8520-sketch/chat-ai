@@ -137,6 +137,7 @@ import {
 import {
   ensureDeltaPlayer,
   formatAcceptedItemsAction,
+  foldAcceptedInventoryGrants,
   grantAcceptedItems,
   loadCommittedItemOffersByParticipant,
   loadTrpgSeatItemOffers,
@@ -2079,6 +2080,7 @@ function commitPendingGmResult(
   const applied = mergeMechanicsOwnedDelta(sheets, boundLocation.delta, mechanics, {
     encounterAuthority: governedCampaign,
   });
+  foldAcceptedInventoryGrants(parsed.delta);
   const nextSheets = applied.ok ? applied.next : sheets;
   const persistMechanics = applied.ok || mechanics?.complete === true;
   const resolvedPlan = resolvedCampaignPlan(campaignContext);
