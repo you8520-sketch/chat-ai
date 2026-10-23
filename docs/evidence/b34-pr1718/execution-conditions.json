@@ -1,0 +1,11 @@
+{
+  "model": "gpt-6-luna",
+  "fixture": "src/lib/test/renWolfgangSafeFixture.ts (B32 렌/볼프강 SAFE wire)",
+  "userMessageChars": 118,
+  "assistantMessageChars": 3694,
+  "database": "installIsolatedTestDatabase() temp SQLite (not production)",
+  "credential": "CHEAPER_INFERENCE_BENCHMARK_API_KEY (distinct from production key)",
+  "memoryFeature": "MEMORY_FEATURE_ENABLED=1",
+  "runsPerPath": 5,
+  "codeHead": "f65c42e09fde958bc22985e322a417220052d8ba"
+}

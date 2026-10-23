@@ -387,19 +387,20 @@ describe("shared initial episodic consumer", () => {
     assert.equal(__getEpisodicExtractCallCountForTests(), 0);
   });
 
-  it("S16 status ON + memory ON → exactly one shared initial call with episodic", async () => {
+  it("S16 status ON + memory ON → exactly one shared initial call that never carries episodic", async () => {
     const calls: string[] = [];
-    await extractStatusWidgetValuesForTurn({
+    const systems: string[] = [];
+    const result = await extractStatusWidgetValuesForTurn({
       charName: "ShChar",
       personaName: "유저",
       userMessage: "커피에 시럽을 두 번 넣어.",
       assistantProse: "알겠어.",
       resolved: characterResolved(),
       shareRelationshipDelta: true,
-      shareEpisodic: true,
       coalesceSuggestedReplies: { enabled: false },
-      caller: async (_s, _h, opts) => {
+      caller: async (system, _h, opts) => {
         calls.push(opts.requestKind);
+        systems.push(system);
         return {
           text: JSON.stringify({
             ...sharedStatusWidgetPayload(),
@@ -409,13 +410,14 @@ describe("shared initial episodic consumer", () => {
               promisesAdd: [],
               promisesRemove: [],
             },
-            episodic: { extracted_facts: [VALID_FACT] },
           }),
           usage: { inputTokens: 1, outputTokens: 1, estimated: true },
         };
       },
     });
     assert.deepEqual(calls, [POST_TURN_SHARED_INITIAL_REQUEST_KIND]);
+    assert.doesNotMatch(systems[0]!, /EPISODIC section/);
+    assert.equal("sharedInitialEpisodic" in result.meta, false);
   });
 
   it("S2 status OFF deferred shared includes episodic", async () => {
@@ -496,8 +498,8 @@ describe("shared initial episodic consumer", () => {
     const route = readFileSync(new URL("../../app/api/chat/route.ts", import.meta.url), "utf8");
     const manager = readFileSync(new URL("./memory-manager.ts", import.meta.url), "utf8");
     assert.doesNotMatch(route, /INSERT INTO episodic_memory_facts/);
-    assert.match(route, /sharedInitialEpisodic/);
-    assert.match(route, /episodicSharedAttempted/);
+    assert.match(route, /startIndependentEpisodicExtraction/);
+    assert.match(route, /episodicExtraction,/);
     assert.match(manager, /reconcileSharedEpisodicFactsForTurn/);
   });
 });

@@ -40,6 +40,7 @@ import {
   reconcileSharedEpisodicFactsForTurn,
 } from "./memory-episodic-shared";
 import { runEpisodicSemanticIndexJob } from "./memory-episodic-semantic-jobs";
+import type { IndependentEpisodicOutcome } from "./memory-episodic-independent";
 import { buildMemoryContext } from "./memory-injector";
 import { ensureLorebookWithinBudget, trimLorebookToBudgetSync } from "./memory-lorebook-fit";
 import {
@@ -343,9 +344,12 @@ export async function scheduleMemoryUpdate(opts: {
   relationshipSharedAttempted?: boolean;
   relationshipSharedParsed?: boolean;
   relationshipSharedDelta?: import("@/lib/chatMemory").RelationshipMetaDelta | null;
-  /** Shared initial episodic section parse — memory layer persists after canonical finalize. */
-  sharedInitialEpisodic?: import("@/lib/memory/memory-episodic-shared").EpisodicSectionParse | null;
-  episodicSharedAttempted?: boolean;
+  /**
+   * Independent episodic inference started by the post-turn owner. Awaited only
+   * here so a regeneration never replaces stored facts before its own result
+   * (or an explicit rejection) is known.
+   */
+  episodicExtraction?: Promise<IndependentEpisodicOutcome>;
   generationScope?: AssistantGenerationScope;
 }): Promise<void> {
   const generationScope = opts.generationScope;
@@ -438,9 +442,15 @@ export async function scheduleMemoryUpdate(opts: {
     console.warn("[memory] relationship meta extract failed:", (e as Error).message);
   }
 
+  const episodicOutcome: IndependentEpisodicOutcome = opts.episodicExtraction
+    ? await opts.episodicExtraction
+    : { status: "not_requested" };
+  const episodicParse =
+    episodicOutcome.status === "extracted" ? episodicOutcome.episodic : null;
   const episodicReconcileRequested =
     opts.assistantMessageId != null &&
-    (opts.episodicSharedAttempted === true || isRegenerate);
+    episodicOutcome.status !== "rejected" &&
+    (episodicOutcome.status === "extracted" || isRegenerate);
   if (episodicReconcileRequested && opts.assistantMessageId) {
     let episodicResult: ReturnType<typeof reconcileSharedEpisodicFactsForTurn> | null = null;
     try {
@@ -452,8 +462,11 @@ export async function scheduleMemoryUpdate(opts: {
         sourceUserMessageId,
         sourceUserText: opts.userMessage,
         userPersona: opts.userPersona,
-        boundarySnapshot,
-        episodic: opts.sharedInitialEpisodic ?? {
+        boundarySnapshot:
+          episodicOutcome.status === "extracted"
+            ? (episodicOutcome.boundary ?? boundarySnapshot)
+            : boundarySnapshot,
+        episodic: episodicParse ?? {
           present: false,
           valid: false,
           facts: [],
@@ -461,6 +474,7 @@ export async function scheduleMemoryUpdate(opts: {
         isRegeneration: isRegenerate,
         requestId: generationScope?.generationRequestId ?? opts.turnTrace?.turnRequestId ?? null,
         generationSequence: generationScope?.generationSequence,
+        generationScope,
         contentRoute: opts.route,
       });
     } catch (e) {
@@ -474,9 +488,10 @@ export async function scheduleMemoryUpdate(opts: {
       assistant_message_id: opts.assistantMessageId,
       regenerate: isRegenerate,
       content_route: opts.route ?? null,
+      independent_status: episodicOutcome.status,
       ...describeSharedEpisodicTurnOutcome({
         reconcileCalled: true,
-        episodic: opts.sharedInitialEpisodic,
+        episodic: episodicParse,
         reconcile: episodicResult,
       }),
       index: {
@@ -491,9 +506,13 @@ export async function scheduleMemoryUpdate(opts: {
       assistant_message_id: opts.assistantMessageId,
       regenerate: false,
       content_route: opts.route ?? null,
+      independent_status: episodicOutcome.status,
+      ...(episodicOutcome.status === "rejected"
+        ? { independent_reject_reason: episodicOutcome.reason }
+        : {}),
       ...describeSharedEpisodicTurnOutcome({
         reconcileCalled: false,
-        episodic: opts.sharedInitialEpisodic,
+        episodic: episodicParse,
         reconcile: null,
       }),
     });

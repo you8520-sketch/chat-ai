@@ -34,6 +34,10 @@ import {
   type MemorySourceBoundary,
 } from "./memory-source-boundary";
 import { resolveMemorySourceTurnIdentityCore } from "./memory-turn-loader";
+import {
+  isCurrentAssistantGeneration,
+  type AssistantGenerationScope,
+} from "@/lib/assistantGenerationScope";
 
 export {
   resolveEpisodicEligibilityForSourceUserMessage,
@@ -257,6 +261,12 @@ export type ReconcileSharedEpisodicFactsInput = {
   isRegeneration: boolean;
   requestId?: string | null;
   generationSequence?: number;
+  /**
+   * Generation that produced `episodic`. When present, a write (including a
+   * regeneration replace) for any generation other than the message's current
+   * one is rejected before the DB is touched.
+   */
+  generationScope?: AssistantGenerationScope;
   /** Canonical per-turn content route of the source turn; stamped into fact metadata. */
   contentRoute?: Route;
 };
@@ -270,6 +280,16 @@ export function reconcileSharedEpisodicFactsForTurn(
   db: Database.Database,
   input: ReconcileSharedEpisodicFactsInput
 ): { replaced: boolean; inserted: number; skipped: boolean } {
+  if (input.generationScope && !isCurrentAssistantGeneration(input.generationScope, db)) {
+    console.info("STALE_GENERATION_RESULT_REJECTED", {
+      family: "episodic",
+      messageId: input.generationScope.assistantMessageId,
+      generationSequence: input.generationScope.generationSequence,
+      phase: "episodic_write",
+    });
+    return { replaced: false, inserted: 0, skipped: true };
+  }
+
   const boundary = input.boundarySnapshot ?? getMemorySourceBoundaryCore(db, input.chatId);
   if (
     !isMemoryWriteGuardCurrentCore(db, {

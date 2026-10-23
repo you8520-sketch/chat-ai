@@ -7,6 +7,7 @@ import { statusMetaHasDisplayContent } from "@/lib/statusMeta/render";
 import type { StatusMetaRecord } from "@/lib/statusMeta/types";
 import type { ProviderCostFamily, ProviderCostLedgerRow } from "@/lib/providerCostLedger";
 import type { MemoryRelationshipTaskRecord } from "@/lib/memory/memoryRelationshipTask";
+import { POST_TURN_EPISODIC_REQUEST_KIND } from "@/lib/postTurnSharedInitial/types";
 
 export type TurnAttributableAsyncFamily =
   | "suggested_replies_repair"
@@ -75,11 +76,16 @@ export function isTurnAttributableAsyncFamily(
   );
 }
 
-/** Count scoped physical shared-initial rows (sync or async execution phase). */
+/**
+ * Count scoped physical shared-initial rows (sync or async execution phase).
+ * The independent episodic call shares the family for cost attribution but is
+ * not a shared-initial consumer, so it never satisfies a consumer expectation.
+ */
 export function countPostTurnSharedInitialPhysicalRows(rows: ProviderCostLedgerRow[]): number {
   return rows.filter(
     (row) =>
       row.family === "post_turn_shared_initial" &&
+      row.request_kind !== POST_TURN_EPISODIC_REQUEST_KIND &&
       (row.execution_phase === "sync_post_turn" || row.execution_phase === "async_post_turn")
   ).length;
 }

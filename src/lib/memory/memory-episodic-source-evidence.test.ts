@@ -584,8 +584,10 @@ describe("B-1 Shared Initial episodic evidence gate (live reconcile path)", () =
           sourceUserMessageId: turn.userMessageId,
           relationshipSharedAttempted: true,
           relationshipSharedParsed: false,
-          sharedInitialEpisodic: parseSharedEpisodicSection({ extracted_facts: [fact()] }),
-          episodicSharedAttempted: true,
+          episodicExtraction: Promise.resolve({
+            status: "extracted" as const,
+            episodic: parseSharedEpisodicSection({ extracted_facts: [fact()] }),
+          }),
         });
       }
       assert.equal(rows(supported.chatId).length, 1, `${label}: supported`);
