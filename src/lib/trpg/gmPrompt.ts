@@ -8,6 +8,7 @@ import { statModifier } from "./stats";
 import { normalizeGoalCriterion } from "./campaignGoals";
 import { clipTrpgChars } from "./clip";
 import { parseLocalSceneProgressDelta } from "./localSceneProgress";
+import { parseLooseStoryProgressDeltaIndices } from "./storyProgress";
 import { isTrpgGmStructuredShape, parseTrpgGmStructuredJson } from "./gmStructuredOutput";
 import { TRPG_LEDGER_ITEM_MAX_CHARS, type TrpgStateDelta, type TrpgStatDefinition } from "./types";
 
@@ -199,6 +200,14 @@ function asDelta(raw: unknown, diagnostics?: TrpgGmParseDiagnostics): TrpgStateD
     parseLocalSceneProgressDelta(src.localScene) ??
     parseLocalSceneProgressDelta(src.local_scene);
   if (localScene) delta.localScene = localScene;
+  const occurredMajorEventIndices =
+    parseLooseStoryProgressDeltaIndices(src.occurredMajorEventIndices) ??
+    parseLooseStoryProgressDeltaIndices(src.occurred_major_event_indices);
+  if (occurredMajorEventIndices) delta.occurredMajorEventIndices = occurredMajorEventIndices;
+  const revealedClueIndices =
+    parseLooseStoryProgressDeltaIndices(src.revealedClueIndices) ??
+    parseLooseStoryProgressDeltaIndices(src.revealed_clue_indices);
+  if (revealedClueIndices) delta.revealedClueIndices = revealedClueIndices;
   return delta;
 }
 

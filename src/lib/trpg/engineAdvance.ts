@@ -1534,7 +1534,10 @@ async function runGmForRound(
     }))
   );
   const resolvedPlan = resolvedCampaignPlan(campaignContext);
-  const scenarioPlanBlock = serializeTrpgScenarioPlanForGm(resolvedPlan, { npcs: scenarioNpcs });
+  const scenarioPlanBlock = serializeTrpgScenarioPlanForGm(resolvedPlan, {
+    npcs: scenarioNpcs,
+    storyProgress: campaignContext?.storyProgress,
+  });
   const localSceneProgress = campaignContext?.localSceneProgress;
   const localSceneBlock = localSceneProgress ? serializeLocalSceneStateForGm(localSceneProgress) : "";
   const localSceneDeltaContract = serializeLocalSceneDeltaContract();
@@ -2194,6 +2197,8 @@ function commitPendingGmResult(
             threadsResolve: parsed.delta.threadsResolve,
             endingConditionId: parsed.delta.endingConditionId,
             campaignFinished: parsed.campaignFinished,
+            occurredMajorEventIndices: parsed.delta.occurredMajorEventIndices,
+            revealedClueIndices: parsed.delta.revealedClueIndices,
           });
         }
         persistCampaignContext(db, ctx);

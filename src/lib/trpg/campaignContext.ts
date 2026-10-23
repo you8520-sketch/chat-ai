@@ -18,6 +18,13 @@ import {
   type TrpgLocalSceneProgressDelta,
   type TrpgLocalSceneProgressV1,
 } from "./localSceneProgress";
+import {
+  emptyStoryProgress,
+  hasStoryProgressContent,
+  mergeStoryProgress,
+  parseStoryProgress,
+  type TrpgStoryProgress,
+} from "./storyProgress";
 
 export const TRPG_CAMPAIGN_SOURCE_MODES = ["none", "sandbox", "scenario"] as const;
 export type TrpgCampaignSourceMode = (typeof TRPG_CAMPAIGN_SOURCE_MODES)[number];
@@ -64,6 +71,7 @@ export type TrpgCampaignContext = {
   endingStatus: TrpgEndingStatus;
   directorError: string;
   localSceneProgress: TrpgLocalSceneProgressV1;
+  storyProgress: TrpgStoryProgress;
 };
 
 function parseMode(value: unknown): TrpgCampaignSourceMode {
@@ -99,6 +107,7 @@ export function emptyCampaignContext(campaignId: number): TrpgCampaignContext {
     endingStatus: { finished: false },
     directorError: "",
     localSceneProgress: emptyLocalSceneProgress(),
+    storyProgress: emptyStoryProgress(),
   };
 }
 
@@ -111,7 +120,7 @@ export function loadCampaignContext(db: Database.Database, campaignId: number): 
     .prepare(
       `SELECT campaign_id, source_mode, world_snapshot_json, scenario_snapshot_json, director_plan_json,
               story_phase, active_threads_json, resolved_threads_json, ending_status_json, director_error,
-              local_scene_progress_json
+              local_scene_progress_json, story_progress_json
        FROM trpg_campaign_context WHERE campaign_id=?`
     )
     .get(campaignId) as
@@ -127,6 +136,7 @@ export function loadCampaignContext(db: Database.Database, campaignId: number): 
         ending_status_json: string;
         director_error: string | null;
         local_scene_progress_json?: string | null;
+        story_progress_json?: string | null;
       }
     | undefined;
   if (!row) return null;
@@ -142,6 +152,7 @@ export function loadCampaignContext(db: Database.Database, campaignId: number): 
     endingStatus: parseJson(row.ending_status_json, { finished: false } as TrpgEndingStatus),
     directorError: row.director_error ?? "",
     localSceneProgress: parseLocalSceneProgress(row.local_scene_progress_json),
+    storyProgress: parseStoryProgress(parseJson(row.story_progress_json ?? null, null)),
   };
 }
 
@@ -150,8 +161,8 @@ export function persistCampaignContext(db: Database.Database, ctx: TrpgCampaignC
     `INSERT INTO trpg_campaign_context (
         campaign_id, source_mode, world_snapshot_json, scenario_snapshot_json, director_plan_json,
         story_phase, active_threads_json, resolved_threads_json, ending_status_json, director_error,
-        local_scene_progress_json, updated_at
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
+        local_scene_progress_json, story_progress_json, updated_at
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
       ON CONFLICT(campaign_id) DO UPDATE SET
         source_mode=excluded.source_mode,
         world_snapshot_json=excluded.world_snapshot_json,
@@ -163,6 +174,7 @@ export function persistCampaignContext(db: Database.Database, ctx: TrpgCampaignC
         ending_status_json=excluded.ending_status_json,
         director_error=excluded.director_error,
         local_scene_progress_json=excluded.local_scene_progress_json,
+        story_progress_json=excluded.story_progress_json,
         updated_at=datetime('now')`
   ).run(
     ctx.campaignId,
@@ -177,7 +189,8 @@ export function persistCampaignContext(db: Database.Database, ctx: TrpgCampaignC
     ctx.directorError,
     hasLocalSceneProgressContent(ctx.localSceneProgress)
       ? JSON.stringify(ctx.localSceneProgress)
-      : null
+      : null,
+    hasStoryProgressContent(ctx.storyProgress) ? JSON.stringify(ctx.storyProgress) : null
   );
 }
 
@@ -205,6 +218,8 @@ export function applyCampaignStoryProgress(
     threadsResolve?: string[];
     endingConditionId?: string;
     campaignFinished?: boolean;
+    occurredMajorEventIndices?: number[];
+    revealedClueIndices?: number[];
   }
 ): TrpgCampaignContext {
   const nextPhase = applyStoryPhaseTransition(ctx.storyPhase, opts.storyPhase, {
@@ -223,6 +238,7 @@ export function applyCampaignStoryProgress(
     endingConditionText: ctx.endingStatus.endingConditionText,
   };
   const plan = resolvedCampaignPlan(ctx);
+  const storyProgress = mergeStoryProgress(ctx.storyProgress, opts, plan);
   if (opts.endingConditionId && plan?.endingConditions.length) {
     const indexed = Number(opts.endingConditionId);
     if (Number.isInteger(indexed) && plan.endingConditions[indexed]) {
@@ -238,6 +254,7 @@ export function applyCampaignStoryProgress(
     activeThreads: active,
     resolvedThreads: resolved,
     endingStatus,
+    storyProgress,
   };
 }
 
@@ -272,5 +289,6 @@ export function serializeDirectorDeltaContract(opts: { storyPhase: TrpgStoryPhas
     ? `The current phase is ${storyPhase}. Keep it, or move to ${advance.next} only when ${advance.when}. The resolved action and server facts in this input are the evidence; the round count never is. Do not invent an event only to change the phase.`
     : `The current phase is ${storyPhase}. Keep it.`;
   return `[DIRECTOR DELTA CONTRACT]
-Use the system OUTPUT delta shape. On that same delta always include storyPhase. ${phaseRule} Include threadsAdd, threadsResolve, and endingConditionId when they apply. threadsAdd and threadsResolve name story threads; they do not create or complete player goals.`;
+Use the system OUTPUT delta shape. On that same delta always include storyPhase. ${phaseRule} Include threadsAdd, threadsResolve, and endingConditionId when they apply. threadsAdd and threadsResolve name story threads; they do not create or complete player goals.
+When a listed major event actually happens in narration (not mere foreshadowing), add its 0-based index from "현재 사용 가능한 주요 사건" to occurredMajorEventIndices. When a free clue (단서 list) is revealed to players in play, add its index to revealedClueIndices. Omit both fields when nothing is consumed this round. Adventure discoveries stay server-owned; do not use revealedClueIndices for them.`;
 }

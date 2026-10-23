@@ -70,7 +70,7 @@ describe("TRPG scenario plan", () => {
     assert.doesNotMatch(text, /SECRETPLAN/);
     assert.doesNotMatch(text, /"version"/);
     assert.doesNotMatch(text, /보스:/);
-    assert.match(text, /단서:\n- 끊긴 통신 기록/, "a plan without adventure events keeps its free clues");
+    assert.match(text, /단서:\n- \[0\] 끊긴 통신 기록/, "a plan without adventure events keeps its free clues");
   });
 
   it("counts plan text inside the existing scenario bundle budget", () => {

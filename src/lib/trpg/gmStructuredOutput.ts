@@ -50,6 +50,8 @@ export const TRPG_GM_STRUCTURED_RESPONSE_FORMAT = {
             threadsResolve: { type: "array" },
             endingConditionId: { type: "string" },
             encountersEnded: { type: "array" },
+            occurredMajorEventIndices: { type: "array" },
+            revealedClueIndices: { type: "array" },
           },
         },
       },

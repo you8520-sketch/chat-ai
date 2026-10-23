@@ -221,6 +221,10 @@ export type TrpgStateDelta = {
   encountersEnded?: string[];
   /** Optional local multi-round scene progress mutations. Omission is not deletion. */
   localScene?: TrpgLocalSceneProgressDelta;
+  /** 0-based indexes into frozen directorPlan.majorEvents that actually occurred in play. */
+  occurredMajorEventIndices?: number[];
+  /** 0-based indexes into frozen directorPlan.clues (non-Adventure) the GM revealed to players. */
+  revealedClueIndices?: number[];
 };
 
 export function assertNeverTrpg(x: never, label: string): never {
