@@ -21,6 +21,13 @@ describe("official asset image model owner", () => {
     assert.equal(resolveChatImageGenerationModel(env), "gpt-image-2.5-sunburst");
   });
 
+  it("does not let the official override change the chat model", () => {
+    const env = { [OFFICIAL_ASSET_IMAGE_MODEL_ENV]: "gpt-image-2.5-sunburst" } as unknown as NodeJS.ProcessEnv;
+    assert.equal(resolveOfficialAssetImageModel(env), "gpt-image-2.5-sunburst");
+    assert.equal(resolveChatImageGenerationModel(env), "gpt-image-2");
+    assert.equal(resolveChatImageGenerationModel({} as NodeJS.ProcessEnv), "gpt-image-2");
+  });
+
   it("changes only through the explicit official override", () => {
     const env = {
       OPENAI_IMAGE_MODEL: "gpt-image-2",
