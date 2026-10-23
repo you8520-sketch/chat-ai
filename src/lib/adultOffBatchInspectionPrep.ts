@@ -1195,6 +1195,9 @@ export type AdultOffBatchModerationSpend = {
 
 export type AdultOffBatchLedgerRow = {
   generation_request_id?: string | null;
+  event_key?: string | null;
+  assistant_message_id?: number | null;
+  provider_request_id?: string | null;
   actual_cost_usd: number | null;
   actual_cost_source: string | null;
   event_status: string | null;
@@ -1206,7 +1209,39 @@ function batchCallSeqOf(requestId: string | null | undefined): number {
   return Number.isInteger(seq) && seq > 0 ? seq : 0;
 }
 
-export function summarizeAdultOffBatchLedgerRows(rows: readonly AdultOffBatchLedgerRow[]): AdultOffBatchModerationSpend {
+/** 운영자가 정확히 지목한 미정산 호출 하나. 비용이 확정되기 전까지만 unknown-cost 집계에서 빠지고, 별도 예약액이 대신한다. */
+export type AdultOffBatchQuarantinedCall = { requestId: string; eventKey: string; messageId: number };
+
+/**
+ * 격리된 호출의 원장 상태. `unconfirmed`만 집계에서 제외할 수 있고, `settled`는 기존 정산 경로가 처리하며,
+ * 행이 없거나 중복이거나 식별값·상태가 달라졌으면 `changed`로 STOP한다.
+ */
+export type AdultOffBatchQuarantineLedgerState = "unconfirmed" | "settled" | "changed";
+
+export function classifyAdultOffBatchQuarantinedCall(
+  rows: readonly AdultOffBatchLedgerRow[],
+  call: AdultOffBatchQuarantinedCall
+): AdultOffBatchQuarantineLedgerState {
+  const row = rows.length === 1 ? rows[0]! : null;
+  if (
+    !row ||
+    row.generation_request_id !== call.requestId ||
+    row.event_key !== call.eventKey ||
+    row.assistant_message_id !== call.messageId
+  ) {
+    return "changed";
+  }
+  if (isLedgerEventCostExact(row) && (row.actual_cost_usd ?? 0) > 0) return "settled";
+  if (row.event_status === "started" && row.provider_request_id == null && row.actual_cost_usd == null) {
+    return "unconfirmed";
+  }
+  return "changed";
+}
+
+export function summarizeAdultOffBatchLedgerRows(
+  rows: readonly AdultOffBatchLedgerRow[],
+  quarantined: AdultOffBatchQuarantinedCall | null = null
+): AdultOffBatchModerationSpend {
   let settledUsd = 0;
   let unknownCostEvents = 0;
   let maxCallSeq = 0;
@@ -1214,6 +1249,8 @@ export function summarizeAdultOffBatchLedgerRows(rows: readonly AdultOffBatchLed
     maxCallSeq = Math.max(maxCallSeq, batchCallSeqOf(row.generation_request_id));
     if (isLedgerEventCostExact(row)) {
       settledUsd += row.actual_cost_usd ?? 0;
+    } else if (quarantined && classifyAdultOffBatchQuarantinedCall([row], quarantined) === "unconfirmed") {
+      continue;
     } else {
       unknownCostEvents += 1;
     }
@@ -1236,16 +1273,35 @@ export function readAdultOffBatchCallCost(
   return summarizeAdultOffBatchLedgerRows(rows);
 }
 
-/** 이 DB 원장에 남은 모든 배치 분류 호출의 비용(RUN_ID 무관). prefix는 LIKE가 아니라 정확한 문자열 접두사로 맞춘다. */
-export function sumAdultOffBatchModerationSpend(db: DatabaseType): AdultOffBatchModerationSpend {
+/** 한 분류 호출의 원장 행 전체(식별 필드 포함). 격리 승인이 가리킨 행과 정확히 같은지 확인하는 용도. */
+export function readAdultOffBatchCallLedgerRows(
+  db: DatabaseType,
+  generationRequestId: string
+): AdultOffBatchLedgerRow[] {
   ensureProviderCostLedgerSchema(db);
-  return summarizeAdultOffBatchLedgerRows(readAdultOffBatchLedgerRows(db));
+  return db
+    .prepare(
+      `SELECT generation_request_id, event_key, assistant_message_id, provider_request_id,
+              actual_cost_usd, actual_cost_source, event_status FROM api_cost_ledger
+       WHERE request_kind = ? AND generation_request_id = ?`
+    )
+    .all(ADULT_OFF_BATCH_MODERATION_REQUEST_KIND, generationRequestId) as AdultOffBatchLedgerRow[];
+}
+
+/** 이 DB 원장에 남은 모든 배치 분류 호출의 비용(RUN_ID 무관). prefix는 LIKE가 아니라 정확한 문자열 접두사로 맞춘다. */
+export function sumAdultOffBatchModerationSpend(
+  db: DatabaseType,
+  quarantined: AdultOffBatchQuarantinedCall | null = null
+): AdultOffBatchModerationSpend {
+  ensureProviderCostLedgerSchema(db);
+  return summarizeAdultOffBatchLedgerRows(readAdultOffBatchLedgerRows(db), quarantined);
 }
 
 export function readAdultOffBatchLedgerRows(db: DatabaseType): AdultOffBatchLedgerRow[] {
   return db
     .prepare(
-      `SELECT generation_request_id, actual_cost_usd, actual_cost_source, event_status FROM api_cost_ledger
+      `SELECT generation_request_id, event_key, assistant_message_id, provider_request_id,
+              actual_cost_usd, actual_cost_source, event_status FROM api_cost_ledger
        WHERE request_kind = ? AND instr(generation_request_id, ?) = 1`
     )
     .all(ADULT_OFF_BATCH_MODERATION_REQUEST_KIND, ADULT_OFF_BATCH_REQUEST_PREFIX) as AdultOffBatchLedgerRow[];
