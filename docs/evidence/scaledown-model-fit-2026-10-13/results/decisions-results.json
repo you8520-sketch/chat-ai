@@ -1,0 +1,5589 @@
+{
+  "baselineModelPinInRadar": "typesafe/jev-1.13",
+  "models": [
+    "typesafe/jev-1.13",
+    "scaledown/classify-1"
+  ],
+  "A1_standard": [
+    {
+      "rep": 1,
+      "summary": [
+        {
+          "model": "typesafe/jev-1.13",
+          "total": 43,
+          "correct": 33,
+          "accuracy": 0.7674418604651163,
+          "criticalMisses": 2,
+          "malformed": 0,
+          "failures": 0,
+          "inputTokens": 26999,
+          "outputTokens": 2415,
+          "reportedCostUsd": 0.0011339579999999998,
+          "latencyMs": {
+            "p50": 152.1,
+            "p95": 315.5,
+            "max": 806.2
+          },
+          "bySuite": [
+            {
+              "suite": "authorial_habit",
+              "total": 24,
+              "correct": 19,
+              "accuracy": 0.7916666666666666,
+              "criticalMisses": 2,
+              "malformed": 0,
+              "failures": 0
+            },
+            {
+              "suite": "completion_integrity",
+              "total": 9,
+              "correct": 6,
+              "accuracy": 0.6666666666666666,
+              "criticalMisses": 0,
+              "malformed": 0,
+              "failures": 0
+            },
+            {
+              "suite": "scene_boundary",
+              "total": 10,
+              "correct": 8,
+              "accuracy": 0.8,
+              "criticalMisses": 0,
+              "malformed": 0,
+              "failures": 0
+            }
+          ]
+        },
+        {
+          "model": "scaledown/classify-1",
+          "total": 43,
+          "correct": 0,
+          "accuracy": 0,
+          "criticalMisses": 16,
+          "malformed": 43,
+          "failures": 43,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "reportedCostUsd": null,
+          "latencyMs": {
+            "p50": null,
+            "p95": null,
+            "max": null
+          },
+          "bySuite": [
+            {
+              "suite": "authorial_habit",
+              "total": 24,
+              "correct": 0,
+              "accuracy": 0,
+              "criticalMisses": 8,
+              "malformed": 24,
+              "failures": 24
+            },
+            {
+              "suite": "completion_integrity",
+              "total": 9,
+              "correct": 0,
+              "accuracy": 0,
+              "criticalMisses": 3,
+              "malformed": 9,
+              "failures": 9
+            },
+            {
+              "suite": "scene_boundary",
+              "total": 10,
+              "correct": 0,
+              "accuracy": 0,
+              "criticalMisses": 5,
+              "malformed": 10,
+              "failures": 10
+            }
+          ]
+        }
+      ],
+      "rows": [
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_01",
+          "model": "typesafe/jev-1.13",
+          "expected": "HABIT_PRESENT",
+          "verdict": "HABIT_PRESENT",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 315.5,
+          "inputTokens": 717,
+          "outputTokens": 58,
+          "costUsd": 0.000030114,
+          "confidence": 0.28,
+          "probabilities": {
+            "HABIT_PRESENT": 0.52,
+            "CONTEXTUALLY_JUSTIFIED": 0.23,
+            "UNCERTAIN": 0.25
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_02",
+          "model": "typesafe/jev-1.13",
+          "expected": "HABIT_PRESENT",
+          "verdict": "HABIT_PRESENT",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 139.6,
+          "inputTokens": 720,
+          "outputTokens": 58,
+          "costUsd": 0.00003024,
+          "confidence": 0.09,
+          "probabilities": {
+            "HABIT_PRESENT": 0.39,
+            "CONTEXTUALLY_JUSTIFIED": 0.35,
+            "UNCERTAIN": 0.26
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_03",
+          "model": "typesafe/jev-1.13",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 152.1,
+          "inputTokens": 702,
+          "outputTokens": 62,
+          "costUsd": 0.000029484,
+          "confidence": 0.92,
+          "probabilities": {
+            "HABIT_PRESENT": 0,
+            "CONTEXTUALLY_JUSTIFIED": 0.95,
+            "UNCERTAIN": 0.05
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_04",
+          "model": "typesafe/jev-1.13",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 806.2,
+          "inputTokens": 677,
+          "outputTokens": 62,
+          "costUsd": 0.000028434,
+          "confidence": 0.85,
+          "probabilities": {
+            "HABIT_PRESENT": 0.01,
+            "CONTEXTUALLY_JUSTIFIED": 0.9,
+            "UNCERTAIN": 0.09
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_05",
+          "model": "typesafe/jev-1.13",
+          "expected": "UNCERTAIN",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 137.6,
+          "inputTokens": 668,
+          "outputTokens": 62,
+          "costUsd": 0.000028056,
+          "confidence": 0.2,
+          "probabilities": {
+            "HABIT_PRESENT": 0.11,
+            "CONTEXTUALLY_JUSTIFIED": 0.47,
+            "UNCERTAIN": 0.42
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_06",
+          "model": "typesafe/jev-1.13",
+          "expected": "UNCERTAIN",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 141.6,
+          "inputTokens": 674,
+          "outputTokens": 62,
+          "costUsd": 0.000028308,
+          "confidence": 0.2,
+          "probabilities": {
+            "HABIT_PRESENT": 0.07,
+            "CONTEXTUALLY_JUSTIFIED": 0.47,
+            "UNCERTAIN": 0.46
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_01",
+          "model": "typesafe/jev-1.13",
+          "expected": "HABIT_PRESENT",
+          "verdict": "HABIT_PRESENT",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 126,
+          "inputTokens": 709,
+          "outputTokens": 58,
+          "costUsd": 0.000029778,
+          "confidence": 0.25,
+          "probabilities": {
+            "HABIT_PRESENT": 0.5,
+            "CONTEXTUALLY_JUSTIFIED": 0.18,
+            "UNCERTAIN": 0.32
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_02",
+          "model": "typesafe/jev-1.13",
+          "expected": "HABIT_PRESENT",
+          "verdict": "HABIT_PRESENT",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 231.1,
+          "inputTokens": 667,
+          "outputTokens": 58,
+          "costUsd": 0.000028014,
+          "confidence": 0.16,
+          "probabilities": {
+            "HABIT_PRESENT": 0.44,
+            "CONTEXTUALLY_JUSTIFIED": 0.31,
+            "UNCERTAIN": 0.25
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_03",
+          "model": "typesafe/jev-1.13",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 158.8,
+          "inputTokens": 674,
+          "outputTokens": 62,
+          "costUsd": 0.000028308,
+          "confidence": 0.7,
+          "probabilities": {
+            "HABIT_PRESENT": 0.04,
+            "CONTEXTUALLY_JUSTIFIED": 0.8,
+            "UNCERTAIN": 0.16
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_04",
+          "model": "typesafe/jev-1.13",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 154.6,
+          "inputTokens": 651,
+          "outputTokens": 62,
+          "costUsd": 0.000027342,
+          "confidence": 0.8,
+          "probabilities": {
+            "HABIT_PRESENT": 0.02,
+            "CONTEXTUALLY_JUSTIFIED": 0.87,
+            "UNCERTAIN": 0.11
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_05",
+          "model": "typesafe/jev-1.13",
+          "expected": "UNCERTAIN",
+          "verdict": "UNCERTAIN",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 137.8,
+          "inputTokens": 660,
+          "outputTokens": 57,
+          "costUsd": 0.00002772,
+          "confidence": 0.34,
+          "probabilities": {
+            "HABIT_PRESENT": 0.06,
+            "CONTEXTUALLY_JUSTIFIED": 0.38,
+            "UNCERTAIN": 0.56
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_06",
+          "model": "typesafe/jev-1.13",
+          "expected": "UNCERTAIN",
+          "verdict": "UNCERTAIN",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 146.1,
+          "inputTokens": 647,
+          "outputTokens": 57,
+          "costUsd": 0.000027174,
+          "confidence": 0.33,
+          "probabilities": {
+            "HABIT_PRESENT": 0.23,
+            "CONTEXTUALLY_JUSTIFIED": 0.22,
+            "UNCERTAIN": 0.55
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_01",
+          "model": "typesafe/jev-1.13",
+          "expected": "HABIT_PRESENT",
+          "verdict": "HABIT_PRESENT",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 140.6,
+          "inputTokens": 711,
+          "outputTokens": 58,
+          "costUsd": 0.000029862,
+          "confidence": 0.82,
+          "probabilities": {
+            "HABIT_PRESENT": 0.88,
+            "CONTEXTUALLY_JUSTIFIED": 0.02,
+            "UNCERTAIN": 0.1
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_02",
+          "model": "typesafe/jev-1.13",
+          "expected": "HABIT_PRESENT",
+          "verdict": "HABIT_PRESENT",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 136.9,
+          "inputTokens": 682,
+          "outputTokens": 58,
+          "costUsd": 0.000028644,
+          "confidence": 0.76,
+          "probabilities": {
+            "HABIT_PRESENT": 0.84,
+            "CONTEXTUALLY_JUSTIFIED": 0.02,
+            "UNCERTAIN": 0.14
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_03",
+          "model": "typesafe/jev-1.13",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 163.9,
+          "inputTokens": 686,
+          "outputTokens": 62,
+          "costUsd": 0.000028812,
+          "confidence": 0.66,
+          "probabilities": {
+            "HABIT_PRESENT": 0.01,
+            "CONTEXTUALLY_JUSTIFIED": 0.77,
+            "UNCERTAIN": 0.22
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_04",
+          "model": "typesafe/jev-1.13",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 135,
+          "inputTokens": 667,
+          "outputTokens": 62,
+          "costUsd": 0.000028014,
+          "confidence": 0.48,
+          "probabilities": {
+            "HABIT_PRESENT": 0.01,
+            "CONTEXTUALLY_JUSTIFIED": 0.65,
+            "UNCERTAIN": 0.34
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_05",
+          "model": "typesafe/jev-1.13",
+          "expected": "UNCERTAIN",
+          "verdict": "UNCERTAIN",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 138.4,
+          "inputTokens": 659,
+          "outputTokens": 57,
+          "costUsd": 0.000027678,
+          "confidence": 0.37,
+          "probabilities": {
+            "HABIT_PRESENT": 0.04,
+            "CONTEXTUALLY_JUSTIFIED": 0.38,
+            "UNCERTAIN": 0.58
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_06",
+          "model": "typesafe/jev-1.13",
+          "expected": "UNCERTAIN",
+          "verdict": "UNCERTAIN",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 147.4,
+          "inputTokens": 666,
+          "outputTokens": 57,
+          "costUsd": 0.000027972,
+          "confidence": 0.76,
+          "probabilities": {
+            "HABIT_PRESENT": 0.01,
+            "CONTEXTUALLY_JUSTIFIED": 0.15,
+            "UNCERTAIN": 0.84
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_01",
+          "model": "typesafe/jev-1.13",
+          "expected": "HABIT_PRESENT",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 151.3,
+          "inputTokens": 752,
+          "outputTokens": 62,
+          "costUsd": 0.000031584,
+          "confidence": 0.23,
+          "probabilities": {
+            "HABIT_PRESENT": 0.23,
+            "CONTEXTUALLY_JUSTIFIED": 0.49,
+            "UNCERTAIN": 0.28
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_02",
+          "model": "typesafe/jev-1.13",
+          "expected": "HABIT_PRESENT",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 797.6,
+          "inputTokens": 730,
+          "outputTokens": 62,
+          "costUsd": 0.00003066,
+          "confidence": 0.37,
+          "probabilities": {
+            "HABIT_PRESENT": 0.19,
+            "CONTEXTUALLY_JUSTIFIED": 0.58,
+            "UNCERTAIN": 0.23
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_03",
+          "model": "typesafe/jev-1.13",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 151.5,
+          "inputTokens": 699,
+          "outputTokens": 62,
+          "costUsd": 0.000029358,
+          "confidence": 0.77,
+          "probabilities": {
+            "HABIT_PRESENT": 0,
+            "CONTEXTUALLY_JUSTIFIED": 0.85,
+            "UNCERTAIN": 0.15
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_04",
+          "model": "typesafe/jev-1.13",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 175.9,
+          "inputTokens": 701,
+          "outputTokens": 62,
+          "costUsd": 0.000029442,
+          "confidence": 0.83,
+          "probabilities": {
+            "HABIT_PRESENT": 0.01,
+            "CONTEXTUALLY_JUSTIFIED": 0.89,
+            "UNCERTAIN": 0.1
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_05",
+          "model": "typesafe/jev-1.13",
+          "expected": "UNCERTAIN",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 195.1,
+          "inputTokens": 693,
+          "outputTokens": 62,
+          "costUsd": 0.000029106,
+          "confidence": 0.21,
+          "probabilities": {
+            "HABIT_PRESENT": 0.09,
+            "CONTEXTUALLY_JUSTIFIED": 0.47000000000000003,
+            "UNCERTAIN": 0.44
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_06",
+          "model": "typesafe/jev-1.13",
+          "expected": "UNCERTAIN",
+          "verdict": "UNCERTAIN",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 132.8,
+          "inputTokens": 699,
+          "outputTokens": 57,
+          "costUsd": 0.000029358,
+          "confidence": 0.59,
+          "probabilities": {
+            "HABIT_PRESENT": 0.04,
+            "CONTEXTUALLY_JUSTIFIED": 0.23,
+            "UNCERTAIN": 0.73
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_ABRUPT_01",
+          "model": "typesafe/jev-1.13",
+          "expected": "ABRUPT_CUT",
+          "verdict": "ABRUPT_CUT",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 148.5,
+          "inputTokens": 530,
+          "outputTokens": 53,
+          "costUsd": 0.00002226,
+          "confidence": 1,
+          "probabilities": {
+            "ABRUPT_CUT": 1,
+            "COMPLETE": 0,
+            "UNCERTAIN": 0
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_ABRUPT_02",
+          "model": "typesafe/jev-1.13",
+          "expected": "ABRUPT_CUT",
+          "verdict": "ABRUPT_CUT",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 138,
+          "inputTokens": 518,
+          "outputTokens": 53,
+          "costUsd": 0.000021756,
+          "confidence": 1,
+          "probabilities": {
+            "ABRUPT_CUT": 1,
+            "COMPLETE": 0,
+            "UNCERTAIN": 0
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_ABRUPT_03",
+          "model": "typesafe/jev-1.13",
+          "expected": "ABRUPT_CUT",
+          "verdict": "ABRUPT_CUT",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 174.1,
+          "inputTokens": 516,
+          "outputTokens": 53,
+          "costUsd": 0.000021672,
+          "confidence": 1,
+          "probabilities": {
+            "ABRUPT_CUT": 1,
+            "COMPLETE": 0,
+            "UNCERTAIN": 0
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_COMPLETE_01",
+          "model": "typesafe/jev-1.13",
+          "expected": "COMPLETE",
+          "verdict": "COMPLETE",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 156.5,
+          "inputTokens": 527,
+          "outputTokens": 49,
+          "costUsd": 0.000022134,
+          "confidence": 0.91,
+          "probabilities": {
+            "ABRUPT_CUT": 0.05,
+            "COMPLETE": 0.94,
+            "UNCERTAIN": 0.01
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_COMPLETE_02",
+          "model": "typesafe/jev-1.13",
+          "expected": "COMPLETE",
+          "verdict": "COMPLETE",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 131.4,
+          "inputTokens": 526,
+          "outputTokens": 49,
+          "costUsd": 0.000022092,
+          "confidence": 0.97,
+          "probabilities": {
+            "ABRUPT_CUT": 0.02,
+            "COMPLETE": 0.98,
+            "UNCERTAIN": 0
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_COMPLETE_03",
+          "model": "typesafe/jev-1.13",
+          "expected": "COMPLETE",
+          "verdict": "COMPLETE",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 178.7,
+          "inputTokens": 521,
+          "outputTokens": 49,
+          "costUsd": 0.000021882,
+          "confidence": 0.95,
+          "probabilities": {
+            "ABRUPT_CUT": 0.02,
+            "COMPLETE": 0.97,
+            "UNCERTAIN": 0.01
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_UNCERTAIN_01",
+          "model": "typesafe/jev-1.13",
+          "expected": "UNCERTAIN",
+          "verdict": "ABRUPT_CUT",
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 149.4,
+          "inputTokens": 504,
+          "outputTokens": 53,
+          "costUsd": 0.000021168,
+          "confidence": 1,
+          "probabilities": {
+            "ABRUPT_CUT": 1,
+            "COMPLETE": 0,
+            "UNCERTAIN": 0
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_UNCERTAIN_02",
+          "model": "typesafe/jev-1.13",
+          "expected": "UNCERTAIN",
+          "verdict": "ABRUPT_CUT",
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 181.3,
+          "inputTokens": 509,
+          "outputTokens": 53,
+          "costUsd": 0.000021378,
+          "confidence": 0.79,
+          "probabilities": {
+            "ABRUPT_CUT": 0.86,
+            "COMPLETE": 0.11,
+            "UNCERTAIN": 0.03
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_UNCERTAIN_03",
+          "model": "typesafe/jev-1.13",
+          "expected": "UNCERTAIN",
+          "verdict": "COMPLETE",
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 156.7,
+          "inputTokens": 515,
+          "outputTokens": 49,
+          "costUsd": 0.00002163,
+          "confidence": 0.82,
+          "probabilities": {
+            "ABRUPT_CUT": 0.09,
+            "COMPLETE": 0.88,
+            "UNCERTAIN": 0.03
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_VIOLATION_01",
+          "model": "typesafe/jev-1.13",
+          "expected": "VIOLATION",
+          "verdict": "VIOLATION",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 189.3,
+          "inputTokens": 570,
+          "outputTokens": 52,
+          "costUsd": 0.00002394,
+          "confidence": 0.86,
+          "probabilities": {
+            "VIOLATION": 0.91,
+            "COMPLIANT": 0.08,
+            "INSUFFICIENT_CONTEXT": 0.01
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_VIOLATION_02",
+          "model": "typesafe/jev-1.13",
+          "expected": "VIOLATION",
+          "verdict": "VIOLATION",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 183.2,
+          "inputTokens": 583,
+          "outputTokens": 52,
+          "costUsd": 0.000024486,
+          "confidence": 0.98,
+          "probabilities": {
+            "VIOLATION": 0.99,
+            "COMPLIANT": 0.01,
+            "INSUFFICIENT_CONTEXT": 0
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_VIOLATION_03",
+          "model": "typesafe/jev-1.13",
+          "expected": "VIOLATION",
+          "verdict": "VIOLATION",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 145.8,
+          "inputTokens": 578,
+          "outputTokens": 52,
+          "costUsd": 0.000024276,
+          "confidence": 0.97,
+          "probabilities": {
+            "VIOLATION": 0.98,
+            "COMPLIANT": 0.02,
+            "INSUFFICIENT_CONTEXT": 0
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_VIOLATION_04",
+          "model": "typesafe/jev-1.13",
+          "expected": "VIOLATION",
+          "verdict": "VIOLATION",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 157.9,
+          "inputTokens": 575,
+          "outputTokens": 52,
+          "costUsd": 0.00002415,
+          "confidence": 0.85,
+          "probabilities": {
+            "VIOLATION": 0.9,
+            "COMPLIANT": 0.09,
+            "INSUFFICIENT_CONTEXT": 0.01
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_VIOLATION_05",
+          "model": "typesafe/jev-1.13",
+          "expected": "VIOLATION",
+          "verdict": "VIOLATION",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 135.4,
+          "inputTokens": 581,
+          "outputTokens": 52,
+          "costUsd": 0.000024402,
+          "confidence": 0.82,
+          "probabilities": {
+            "VIOLATION": 0.88,
+            "COMPLIANT": 0.11,
+            "INSUFFICIENT_CONTEXT": 0.01
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_COMPLIANT_01",
+          "model": "typesafe/jev-1.13",
+          "expected": "COMPLIANT",
+          "verdict": "COMPLIANT",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 180.2,
+          "inputTokens": 594,
+          "outputTokens": 51,
+          "costUsd": 0.000024948,
+          "confidence": 0.97,
+          "probabilities": {
+            "VIOLATION": 0.02,
+            "COMPLIANT": 0.98,
+            "INSUFFICIENT_CONTEXT": 0
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_COMPLIANT_02",
+          "model": "typesafe/jev-1.13",
+          "expected": "COMPLIANT",
+          "verdict": "COMPLIANT",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 172.3,
+          "inputTokens": 593,
+          "outputTokens": 51,
+          "costUsd": 0.000024906,
+          "confidence": 0.94,
+          "probabilities": {
+            "VIOLATION": 0.04,
+            "COMPLIANT": 0.96,
+            "INSUFFICIENT_CONTEXT": 0
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_COMPLIANT_03",
+          "model": "typesafe/jev-1.13",
+          "expected": "COMPLIANT",
+          "verdict": "COMPLIANT",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 276.1,
+          "inputTokens": 594,
+          "outputTokens": 51,
+          "costUsd": 0.000024948,
+          "confidence": 0.97,
+          "probabilities": {
+            "VIOLATION": 0.02,
+            "COMPLIANT": 0.98,
+            "INSUFFICIENT_CONTEXT": 0
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_UNCERTAIN_01",
+          "model": "typesafe/jev-1.13",
+          "expected": "INSUFFICIENT_CONTEXT",
+          "verdict": "COMPLIANT",
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 134.9,
+          "inputTokens": 578,
+          "outputTokens": 51,
+          "costUsd": 0.000024276,
+          "confidence": 0.79,
+          "probabilities": {
+            "VIOLATION": 0.13,
+            "COMPLIANT": 0.86,
+            "INSUFFICIENT_CONTEXT": 0.01
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_UNCERTAIN_02",
+          "model": "typesafe/jev-1.13",
+          "expected": "INSUFFICIENT_CONTEXT",
+          "verdict": "COMPLIANT",
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 161.7,
+          "inputTokens": 576,
+          "outputTokens": 51,
+          "costUsd": 0.000024192,
+          "confidence": 0.89,
+          "probabilities": {
+            "VIOLATION": 0.05,
+            "COMPLIANT": 0.93,
+            "INSUFFICIENT_CONTEXT": 0.01
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_01",
+          "model": "scaledown/classify-1",
+          "expected": "HABIT_PRESENT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 36.2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_02",
+          "model": "scaledown/classify-1",
+          "expected": "HABIT_PRESENT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 64.3,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_03",
+          "model": "scaledown/classify-1",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 33.9,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_04",
+          "model": "scaledown/classify-1",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 35.2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_05",
+          "model": "scaledown/classify-1",
+          "expected": "UNCERTAIN",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 43.6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_06",
+          "model": "scaledown/classify-1",
+          "expected": "UNCERTAIN",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 33.1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_01",
+          "model": "scaledown/classify-1",
+          "expected": "HABIT_PRESENT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 35.1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_02",
+          "model": "scaledown/classify-1",
+          "expected": "HABIT_PRESENT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 44.8,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_03",
+          "model": "scaledown/classify-1",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 37.9,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_04",
+          "model": "scaledown/classify-1",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 42.9,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_05",
+          "model": "scaledown/classify-1",
+          "expected": "UNCERTAIN",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 37.6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_06",
+          "model": "scaledown/classify-1",
+          "expected": "UNCERTAIN",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 42.2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_01",
+          "model": "scaledown/classify-1",
+          "expected": "HABIT_PRESENT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 31.2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_02",
+          "model": "scaledown/classify-1",
+          "expected": "HABIT_PRESENT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 42,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_03",
+          "model": "scaledown/classify-1",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 33.2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_04",
+          "model": "scaledown/classify-1",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 36.8,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_05",
+          "model": "scaledown/classify-1",
+          "expected": "UNCERTAIN",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 35.7,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_06",
+          "model": "scaledown/classify-1",
+          "expected": "UNCERTAIN",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 31,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_01",
+          "model": "scaledown/classify-1",
+          "expected": "HABIT_PRESENT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 34.7,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_02",
+          "model": "scaledown/classify-1",
+          "expected": "HABIT_PRESENT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 43.7,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_03",
+          "model": "scaledown/classify-1",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 39.2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_04",
+          "model": "scaledown/classify-1",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 31.8,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_05",
+          "model": "scaledown/classify-1",
+          "expected": "UNCERTAIN",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 34.2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_06",
+          "model": "scaledown/classify-1",
+          "expected": "UNCERTAIN",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 33.5,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_ABRUPT_01",
+          "model": "scaledown/classify-1",
+          "expected": "ABRUPT_CUT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 34.6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_ABRUPT_02",
+          "model": "scaledown/classify-1",
+          "expected": "ABRUPT_CUT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 32.2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_ABRUPT_03",
+          "model": "scaledown/classify-1",
+          "expected": "ABRUPT_CUT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 40.7,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_COMPLETE_01",
+          "model": "scaledown/classify-1",
+          "expected": "COMPLETE",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 33.5,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_COMPLETE_02",
+          "model": "scaledown/classify-1",
+          "expected": "COMPLETE",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 36.7,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_COMPLETE_03",
+          "model": "scaledown/classify-1",
+          "expected": "COMPLETE",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 44.5,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_UNCERTAIN_01",
+          "model": "scaledown/classify-1",
+          "expected": "UNCERTAIN",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 36.2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_UNCERTAIN_02",
+          "model": "scaledown/classify-1",
+          "expected": "UNCERTAIN",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 51.8,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_UNCERTAIN_03",
+          "model": "scaledown/classify-1",
+          "expected": "UNCERTAIN",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 33.2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_VIOLATION_01",
+          "model": "scaledown/classify-1",
+          "expected": "VIOLATION",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 34.4,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_VIOLATION_02",
+          "model": "scaledown/classify-1",
+          "expected": "VIOLATION",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 31.3,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_VIOLATION_03",
+          "model": "scaledown/classify-1",
+          "expected": "VIOLATION",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 44.4,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_VIOLATION_04",
+          "model": "scaledown/classify-1",
+          "expected": "VIOLATION",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 31.6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_VIOLATION_05",
+          "model": "scaledown/classify-1",
+          "expected": "VIOLATION",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 38,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_COMPLIANT_01",
+          "model": "scaledown/classify-1",
+          "expected": "COMPLIANT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 34.6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_COMPLIANT_02",
+          "model": "scaledown/classify-1",
+          "expected": "COMPLIANT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 53.8,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_COMPLIANT_03",
+          "model": "scaledown/classify-1",
+          "expected": "COMPLIANT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 44.2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_UNCERTAIN_01",
+          "model": "scaledown/classify-1",
+          "expected": "INSUFFICIENT_CONTEXT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 33,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_UNCERTAIN_02",
+          "model": "scaledown/classify-1",
+          "expected": "INSUFFICIENT_CONTEXT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 35,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        }
+      ]
+    },
+    {
+      "rep": 2,
+      "summary": [
+        {
+          "model": "typesafe/jev-1.13",
+          "total": 43,
+          "correct": 34,
+          "accuracy": 0.7906976744186046,
+          "criticalMisses": 3,
+          "malformed": 0,
+          "failures": 0,
+          "inputTokens": 26999,
+          "outputTokens": 2409,
+          "reportedCostUsd": 0.0011339579999999998,
+          "latencyMs": {
+            "p50": 143.9,
+            "p95": 178.2,
+            "max": 218.2
+          },
+          "bySuite": [
+            {
+              "suite": "authorial_habit",
+              "total": 24,
+              "correct": 20,
+              "accuracy": 0.8333333333333334,
+              "criticalMisses": 3,
+              "malformed": 0,
+              "failures": 0
+            },
+            {
+              "suite": "completion_integrity",
+              "total": 9,
+              "correct": 6,
+              "accuracy": 0.6666666666666666,
+              "criticalMisses": 0,
+              "malformed": 0,
+              "failures": 0
+            },
+            {
+              "suite": "scene_boundary",
+              "total": 10,
+              "correct": 8,
+              "accuracy": 0.8,
+              "criticalMisses": 0,
+              "malformed": 0,
+              "failures": 0
+            }
+          ]
+        },
+        {
+          "model": "scaledown/classify-1",
+          "total": 43,
+          "correct": 0,
+          "accuracy": 0,
+          "criticalMisses": 16,
+          "malformed": 43,
+          "failures": 43,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "reportedCostUsd": null,
+          "latencyMs": {
+            "p50": null,
+            "p95": null,
+            "max": null
+          },
+          "bySuite": [
+            {
+              "suite": "authorial_habit",
+              "total": 24,
+              "correct": 0,
+              "accuracy": 0,
+              "criticalMisses": 8,
+              "malformed": 24,
+              "failures": 24
+            },
+            {
+              "suite": "completion_integrity",
+              "total": 9,
+              "correct": 0,
+              "accuracy": 0,
+              "criticalMisses": 3,
+              "malformed": 9,
+              "failures": 9
+            },
+            {
+              "suite": "scene_boundary",
+              "total": 10,
+              "correct": 0,
+              "accuracy": 0,
+              "criticalMisses": 5,
+              "malformed": 10,
+              "failures": 10
+            }
+          ]
+        }
+      ],
+      "rows": [
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_01",
+          "model": "typesafe/jev-1.13",
+          "expected": "HABIT_PRESENT",
+          "verdict": "HABIT_PRESENT",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 139,
+          "inputTokens": 717,
+          "outputTokens": 58,
+          "costUsd": 0.000030114,
+          "confidence": 0.34,
+          "probabilities": {
+            "HABIT_PRESENT": 0.5599999999999999,
+            "CONTEXTUALLY_JUSTIFIED": 0.2,
+            "UNCERTAIN": 0.24
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_02",
+          "model": "typesafe/jev-1.13",
+          "expected": "HABIT_PRESENT",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 161.8,
+          "inputTokens": 720,
+          "outputTokens": 62,
+          "costUsd": 0.00003024,
+          "confidence": 0.09,
+          "probabilities": {
+            "HABIT_PRESENT": 0.35,
+            "CONTEXTUALLY_JUSTIFIED": 0.39,
+            "UNCERTAIN": 0.26
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_03",
+          "model": "typesafe/jev-1.13",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 147.7,
+          "inputTokens": 702,
+          "outputTokens": 62,
+          "costUsd": 0.000029484,
+          "confidence": 0.92,
+          "probabilities": {
+            "HABIT_PRESENT": 0,
+            "CONTEXTUALLY_JUSTIFIED": 0.95,
+            "UNCERTAIN": 0.05
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_04",
+          "model": "typesafe/jev-1.13",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 154.6,
+          "inputTokens": 677,
+          "outputTokens": 62,
+          "costUsd": 0.000028434,
+          "confidence": 0.83,
+          "probabilities": {
+            "HABIT_PRESENT": 0.01,
+            "CONTEXTUALLY_JUSTIFIED": 0.89,
+            "UNCERTAIN": 0.1
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_05",
+          "model": "typesafe/jev-1.13",
+          "expected": "UNCERTAIN",
+          "verdict": "UNCERTAIN",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 145.8,
+          "inputTokens": 668,
+          "outputTokens": 57,
+          "costUsd": 0.000028056,
+          "confidence": 0.16,
+          "probabilities": {
+            "HABIT_PRESENT": 0.13,
+            "CONTEXTUALLY_JUSTIFIED": 0.43,
+            "UNCERTAIN": 0.44
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_06",
+          "model": "typesafe/jev-1.13",
+          "expected": "UNCERTAIN",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 178.2,
+          "inputTokens": 674,
+          "outputTokens": 62,
+          "costUsd": 0.000028308,
+          "confidence": 0.23,
+          "probabilities": {
+            "HABIT_PRESENT": 0.06,
+            "CONTEXTUALLY_JUSTIFIED": 0.49,
+            "UNCERTAIN": 0.45
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_01",
+          "model": "typesafe/jev-1.13",
+          "expected": "HABIT_PRESENT",
+          "verdict": "HABIT_PRESENT",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 218.2,
+          "inputTokens": 709,
+          "outputTokens": 58,
+          "costUsd": 0.000029778,
+          "confidence": 0.33,
+          "probabilities": {
+            "HABIT_PRESENT": 0.55,
+            "CONTEXTUALLY_JUSTIFIED": 0.16,
+            "UNCERTAIN": 0.29
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_02",
+          "model": "typesafe/jev-1.13",
+          "expected": "HABIT_PRESENT",
+          "verdict": "HABIT_PRESENT",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 133.7,
+          "inputTokens": 667,
+          "outputTokens": 58,
+          "costUsd": 0.000028014,
+          "confidence": 0.11,
+          "probabilities": {
+            "HABIT_PRESENT": 0.41,
+            "CONTEXTUALLY_JUSTIFIED": 0.35,
+            "UNCERTAIN": 0.24
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_03",
+          "model": "typesafe/jev-1.13",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 175.5,
+          "inputTokens": 674,
+          "outputTokens": 62,
+          "costUsd": 0.000028308,
+          "confidence": 0.67,
+          "probabilities": {
+            "HABIT_PRESENT": 0.05,
+            "CONTEXTUALLY_JUSTIFIED": 0.78,
+            "UNCERTAIN": 0.17
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_04",
+          "model": "typesafe/jev-1.13",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 134.1,
+          "inputTokens": 651,
+          "outputTokens": 62,
+          "costUsd": 0.000027342,
+          "confidence": 0.76,
+          "probabilities": {
+            "HABIT_PRESENT": 0.02,
+            "CONTEXTUALLY_JUSTIFIED": 0.84,
+            "UNCERTAIN": 0.14
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_05",
+          "model": "typesafe/jev-1.13",
+          "expected": "UNCERTAIN",
+          "verdict": "UNCERTAIN",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 173.6,
+          "inputTokens": 660,
+          "outputTokens": 57,
+          "costUsd": 0.00002772,
+          "confidence": 0.28,
+          "probabilities": {
+            "HABIT_PRESENT": 0.08,
+            "CONTEXTUALLY_JUSTIFIED": 0.4,
+            "UNCERTAIN": 0.52
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_06",
+          "model": "typesafe/jev-1.13",
+          "expected": "UNCERTAIN",
+          "verdict": "UNCERTAIN",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 172.4,
+          "inputTokens": 647,
+          "outputTokens": 57,
+          "costUsd": 0.000027174,
+          "confidence": 0.27,
+          "probabilities": {
+            "HABIT_PRESENT": 0.25,
+            "CONTEXTUALLY_JUSTIFIED": 0.24,
+            "UNCERTAIN": 0.51
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_01",
+          "model": "typesafe/jev-1.13",
+          "expected": "HABIT_PRESENT",
+          "verdict": "HABIT_PRESENT",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 141,
+          "inputTokens": 711,
+          "outputTokens": 58,
+          "costUsd": 0.000029862,
+          "confidence": 0.77,
+          "probabilities": {
+            "HABIT_PRESENT": 0.85,
+            "CONTEXTUALLY_JUSTIFIED": 0.03,
+            "UNCERTAIN": 0.12
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_02",
+          "model": "typesafe/jev-1.13",
+          "expected": "HABIT_PRESENT",
+          "verdict": "HABIT_PRESENT",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 134.9,
+          "inputTokens": 682,
+          "outputTokens": 58,
+          "costUsd": 0.000028644,
+          "confidence": 0.79,
+          "probabilities": {
+            "HABIT_PRESENT": 0.86,
+            "CONTEXTUALLY_JUSTIFIED": 0.02,
+            "UNCERTAIN": 0.12
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_03",
+          "model": "typesafe/jev-1.13",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 174.2,
+          "inputTokens": 686,
+          "outputTokens": 62,
+          "costUsd": 0.000028812,
+          "confidence": 0.61,
+          "probabilities": {
+            "HABIT_PRESENT": 0.01,
+            "CONTEXTUALLY_JUSTIFIED": 0.74,
+            "UNCERTAIN": 0.25
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_04",
+          "model": "typesafe/jev-1.13",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 152.4,
+          "inputTokens": 667,
+          "outputTokens": 62,
+          "costUsd": 0.000028014,
+          "confidence": 0.46,
+          "probabilities": {
+            "HABIT_PRESENT": 0.02,
+            "CONTEXTUALLY_JUSTIFIED": 0.64,
+            "UNCERTAIN": 0.34
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_05",
+          "model": "typesafe/jev-1.13",
+          "expected": "UNCERTAIN",
+          "verdict": "UNCERTAIN",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 146.2,
+          "inputTokens": 659,
+          "outputTokens": 57,
+          "costUsd": 0.000027678,
+          "confidence": 0.34,
+          "probabilities": {
+            "HABIT_PRESENT": 0.03,
+            "CONTEXTUALLY_JUSTIFIED": 0.41,
+            "UNCERTAIN": 0.56
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_06",
+          "model": "typesafe/jev-1.13",
+          "expected": "UNCERTAIN",
+          "verdict": "UNCERTAIN",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 146,
+          "inputTokens": 666,
+          "outputTokens": 57,
+          "costUsd": 0.000027972,
+          "confidence": 0.76,
+          "probabilities": {
+            "HABIT_PRESENT": 0.01,
+            "CONTEXTUALLY_JUSTIFIED": 0.15,
+            "UNCERTAIN": 0.84
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_01",
+          "model": "typesafe/jev-1.13",
+          "expected": "HABIT_PRESENT",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 145.3,
+          "inputTokens": 752,
+          "outputTokens": 62,
+          "costUsd": 0.000031584,
+          "confidence": 0.23,
+          "probabilities": {
+            "HABIT_PRESENT": 0.24,
+            "CONTEXTUALLY_JUSTIFIED": 0.49,
+            "UNCERTAIN": 0.27
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_02",
+          "model": "typesafe/jev-1.13",
+          "expected": "HABIT_PRESENT",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 140.5,
+          "inputTokens": 730,
+          "outputTokens": 62,
+          "costUsd": 0.00003066,
+          "confidence": 0.35,
+          "probabilities": {
+            "HABIT_PRESENT": 0.19,
+            "CONTEXTUALLY_JUSTIFIED": 0.57,
+            "UNCERTAIN": 0.24
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_03",
+          "model": "typesafe/jev-1.13",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 134.9,
+          "inputTokens": 699,
+          "outputTokens": 62,
+          "costUsd": 0.000029358,
+          "confidence": 0.8,
+          "probabilities": {
+            "HABIT_PRESENT": 0,
+            "CONTEXTUALLY_JUSTIFIED": 0.87,
+            "UNCERTAIN": 0.13
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_04",
+          "model": "typesafe/jev-1.13",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": "CONTEXTUALLY_JUSTIFIED",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 130.1,
+          "inputTokens": 701,
+          "outputTokens": 62,
+          "costUsd": 0.000029442,
+          "confidence": 0.8,
+          "probabilities": {
+            "HABIT_PRESENT": 0.02,
+            "CONTEXTUALLY_JUSTIFIED": 0.87,
+            "UNCERTAIN": 0.11
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_05",
+          "model": "typesafe/jev-1.13",
+          "expected": "UNCERTAIN",
+          "verdict": "UNCERTAIN",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 155.6,
+          "inputTokens": 693,
+          "outputTokens": 57,
+          "costUsd": 0.000029106,
+          "confidence": 0.27,
+          "probabilities": {
+            "HABIT_PRESENT": 0.13,
+            "CONTEXTUALLY_JUSTIFIED": 0.36,
+            "UNCERTAIN": 0.51
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_06",
+          "model": "typesafe/jev-1.13",
+          "expected": "UNCERTAIN",
+          "verdict": "UNCERTAIN",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 144.7,
+          "inputTokens": 699,
+          "outputTokens": 57,
+          "costUsd": 0.000029358,
+          "confidence": 0.55,
+          "probabilities": {
+            "HABIT_PRESENT": 0.05,
+            "CONTEXTUALLY_JUSTIFIED": 0.25,
+            "UNCERTAIN": 0.7
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_ABRUPT_01",
+          "model": "typesafe/jev-1.13",
+          "expected": "ABRUPT_CUT",
+          "verdict": "ABRUPT_CUT",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 151.4,
+          "inputTokens": 530,
+          "outputTokens": 53,
+          "costUsd": 0.00002226,
+          "confidence": 1,
+          "probabilities": {
+            "ABRUPT_CUT": 1,
+            "COMPLETE": 0,
+            "UNCERTAIN": 0
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_ABRUPT_02",
+          "model": "typesafe/jev-1.13",
+          "expected": "ABRUPT_CUT",
+          "verdict": "ABRUPT_CUT",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 138.5,
+          "inputTokens": 518,
+          "outputTokens": 53,
+          "costUsd": 0.000021756,
+          "confidence": 1,
+          "probabilities": {
+            "ABRUPT_CUT": 1,
+            "COMPLETE": 0,
+            "UNCERTAIN": 0
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_ABRUPT_03",
+          "model": "typesafe/jev-1.13",
+          "expected": "ABRUPT_CUT",
+          "verdict": "ABRUPT_CUT",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 133.6,
+          "inputTokens": 516,
+          "outputTokens": 53,
+          "costUsd": 0.000021672,
+          "confidence": 1,
+          "probabilities": {
+            "ABRUPT_CUT": 1,
+            "COMPLETE": 0,
+            "UNCERTAIN": 0
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_COMPLETE_01",
+          "model": "typesafe/jev-1.13",
+          "expected": "COMPLETE",
+          "verdict": "COMPLETE",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 125.8,
+          "inputTokens": 527,
+          "outputTokens": 49,
+          "costUsd": 0.000022134,
+          "confidence": 0.89,
+          "probabilities": {
+            "ABRUPT_CUT": 0.06,
+            "COMPLETE": 0.93,
+            "UNCERTAIN": 0.01
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_COMPLETE_02",
+          "model": "typesafe/jev-1.13",
+          "expected": "COMPLETE",
+          "verdict": "COMPLETE",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 139.9,
+          "inputTokens": 526,
+          "outputTokens": 49,
+          "costUsd": 0.000022092,
+          "confidence": 0.97,
+          "probabilities": {
+            "ABRUPT_CUT": 0.02,
+            "COMPLETE": 0.98,
+            "UNCERTAIN": 0
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_COMPLETE_03",
+          "model": "typesafe/jev-1.13",
+          "expected": "COMPLETE",
+          "verdict": "COMPLETE",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 138.6,
+          "inputTokens": 521,
+          "outputTokens": 49,
+          "costUsd": 0.000021882,
+          "confidence": 0.94,
+          "probabilities": {
+            "ABRUPT_CUT": 0.03,
+            "COMPLETE": 0.96,
+            "UNCERTAIN": 0.01
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_UNCERTAIN_01",
+          "model": "typesafe/jev-1.13",
+          "expected": "UNCERTAIN",
+          "verdict": "ABRUPT_CUT",
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 130.1,
+          "inputTokens": 504,
+          "outputTokens": 53,
+          "costUsd": 0.000021168,
+          "confidence": 1,
+          "probabilities": {
+            "ABRUPT_CUT": 1,
+            "COMPLETE": 0,
+            "UNCERTAIN": 0
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_UNCERTAIN_02",
+          "model": "typesafe/jev-1.13",
+          "expected": "UNCERTAIN",
+          "verdict": "ABRUPT_CUT",
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 143.9,
+          "inputTokens": 509,
+          "outputTokens": 53,
+          "costUsd": 0.000021378,
+          "confidence": 0.76,
+          "probabilities": {
+            "ABRUPT_CUT": 0.84,
+            "COMPLETE": 0.13,
+            "UNCERTAIN": 0.03
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_UNCERTAIN_03",
+          "model": "typesafe/jev-1.13",
+          "expected": "UNCERTAIN",
+          "verdict": "COMPLETE",
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 139.7,
+          "inputTokens": 515,
+          "outputTokens": 49,
+          "costUsd": 0.00002163,
+          "confidence": 0.85,
+          "probabilities": {
+            "ABRUPT_CUT": 0.07,
+            "COMPLETE": 0.9,
+            "UNCERTAIN": 0.03
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_VIOLATION_01",
+          "model": "typesafe/jev-1.13",
+          "expected": "VIOLATION",
+          "verdict": "VIOLATION",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 141.9,
+          "inputTokens": 570,
+          "outputTokens": 52,
+          "costUsd": 0.00002394,
+          "confidence": 0.85,
+          "probabilities": {
+            "VIOLATION": 0.9,
+            "COMPLIANT": 0.09,
+            "INSUFFICIENT_CONTEXT": 0.01
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_VIOLATION_02",
+          "model": "typesafe/jev-1.13",
+          "expected": "VIOLATION",
+          "verdict": "VIOLATION",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 152.1,
+          "inputTokens": 583,
+          "outputTokens": 52,
+          "costUsd": 0.000024486,
+          "confidence": 0.97,
+          "probabilities": {
+            "VIOLATION": 0.98,
+            "COMPLIANT": 0.02,
+            "INSUFFICIENT_CONTEXT": 0
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_VIOLATION_03",
+          "model": "typesafe/jev-1.13",
+          "expected": "VIOLATION",
+          "verdict": "VIOLATION",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 135.4,
+          "inputTokens": 578,
+          "outputTokens": 52,
+          "costUsd": 0.000024276,
+          "confidence": 0.97,
+          "probabilities": {
+            "VIOLATION": 0.98,
+            "COMPLIANT": 0.02,
+            "INSUFFICIENT_CONTEXT": 0
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_VIOLATION_04",
+          "model": "typesafe/jev-1.13",
+          "expected": "VIOLATION",
+          "verdict": "VIOLATION",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 130.5,
+          "inputTokens": 575,
+          "outputTokens": 52,
+          "costUsd": 0.00002415,
+          "confidence": 0.86,
+          "probabilities": {
+            "VIOLATION": 0.91,
+            "COMPLIANT": 0.08,
+            "INSUFFICIENT_CONTEXT": 0.01
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_VIOLATION_05",
+          "model": "typesafe/jev-1.13",
+          "expected": "VIOLATION",
+          "verdict": "VIOLATION",
+          "correct": true,
+          "criticalPositive": true,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 164.1,
+          "inputTokens": 581,
+          "outputTokens": 52,
+          "costUsd": 0.000024402,
+          "confidence": 0.79,
+          "probabilities": {
+            "VIOLATION": 0.86,
+            "COMPLIANT": 0.13,
+            "INSUFFICIENT_CONTEXT": 0.01
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_COMPLIANT_01",
+          "model": "typesafe/jev-1.13",
+          "expected": "COMPLIANT",
+          "verdict": "COMPLIANT",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 143.2,
+          "inputTokens": 594,
+          "outputTokens": 51,
+          "costUsd": 0.000024948,
+          "confidence": 0.97,
+          "probabilities": {
+            "VIOLATION": 0.02,
+            "COMPLIANT": 0.98,
+            "INSUFFICIENT_CONTEXT": 0
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_COMPLIANT_02",
+          "model": "typesafe/jev-1.13",
+          "expected": "COMPLIANT",
+          "verdict": "COMPLIANT",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 154.6,
+          "inputTokens": 593,
+          "outputTokens": 51,
+          "costUsd": 0.000024906,
+          "confidence": 0.95,
+          "probabilities": {
+            "VIOLATION": 0.03,
+            "COMPLIANT": 0.97,
+            "INSUFFICIENT_CONTEXT": 0
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_COMPLIANT_03",
+          "model": "typesafe/jev-1.13",
+          "expected": "COMPLIANT",
+          "verdict": "COMPLIANT",
+          "correct": true,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 214.6,
+          "inputTokens": 594,
+          "outputTokens": 51,
+          "costUsd": 0.000024948,
+          "confidence": 0.95,
+          "probabilities": {
+            "VIOLATION": 0.03,
+            "COMPLIANT": 0.97,
+            "INSUFFICIENT_CONTEXT": 0
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_UNCERTAIN_01",
+          "model": "typesafe/jev-1.13",
+          "expected": "INSUFFICIENT_CONTEXT",
+          "verdict": "COMPLIANT",
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 139.9,
+          "inputTokens": 578,
+          "outputTokens": 51,
+          "costUsd": 0.000024276,
+          "confidence": 0.82,
+          "probabilities": {
+            "VIOLATION": 0.11,
+            "COMPLIANT": 0.88,
+            "INSUFFICIENT_CONTEXT": 0.01
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_UNCERTAIN_02",
+          "model": "typesafe/jev-1.13",
+          "expected": "INSUFFICIENT_CONTEXT",
+          "verdict": "COMPLIANT",
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": false,
+          "failure": null,
+          "latencyMs": 139.2,
+          "inputTokens": 576,
+          "outputTokens": 51,
+          "costUsd": 0.000024192,
+          "confidence": 0.89,
+          "probabilities": {
+            "VIOLATION": 0.06,
+            "COMPLIANT": 0.93,
+            "INSUFFICIENT_CONTEXT": 0.01
+          },
+          "servedModel": "typesafe/jev-1.13-20260917"
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_01",
+          "model": "scaledown/classify-1",
+          "expected": "HABIT_PRESENT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 30.9,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_02",
+          "model": "scaledown/classify-1",
+          "expected": "HABIT_PRESENT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 56,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_03",
+          "model": "scaledown/classify-1",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 32.4,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_04",
+          "model": "scaledown/classify-1",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 36.5,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_05",
+          "model": "scaledown/classify-1",
+          "expected": "UNCERTAIN",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 33.6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_HAND_06",
+          "model": "scaledown/classify-1",
+          "expected": "UNCERTAIN",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 58.5,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_01",
+          "model": "scaledown/classify-1",
+          "expected": "HABIT_PRESENT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 34.2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_02",
+          "model": "scaledown/classify-1",
+          "expected": "HABIT_PRESENT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 67.2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_03",
+          "model": "scaledown/classify-1",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 36.6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_04",
+          "model": "scaledown/classify-1",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 46.3,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_05",
+          "model": "scaledown/classify-1",
+          "expected": "UNCERTAIN",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 34.9,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_EXPLAIN_06",
+          "model": "scaledown/classify-1",
+          "expected": "UNCERTAIN",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 33.3,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_01",
+          "model": "scaledown/classify-1",
+          "expected": "HABIT_PRESENT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 31.2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_02",
+          "model": "scaledown/classify-1",
+          "expected": "HABIT_PRESENT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 43.2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_03",
+          "model": "scaledown/classify-1",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 34.9,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_04",
+          "model": "scaledown/classify-1",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 40.8,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_05",
+          "model": "scaledown/classify-1",
+          "expected": "UNCERTAIN",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 35.1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_SIMILE_06",
+          "model": "scaledown/classify-1",
+          "expected": "UNCERTAIN",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 37.2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_01",
+          "model": "scaledown/classify-1",
+          "expected": "HABIT_PRESENT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 34.3,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_02",
+          "model": "scaledown/classify-1",
+          "expected": "HABIT_PRESENT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 36.8,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_03",
+          "model": "scaledown/classify-1",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 187.2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_04",
+          "model": "scaledown/classify-1",
+          "expected": "CONTEXTUALLY_JUSTIFIED",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 35,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_05",
+          "model": "scaledown/classify-1",
+          "expected": "UNCERTAIN",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 33.1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "authorial_habit",
+          "fixtureId": "AH_END_06",
+          "model": "scaledown/classify-1",
+          "expected": "UNCERTAIN",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 32.7,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_ABRUPT_01",
+          "model": "scaledown/classify-1",
+          "expected": "ABRUPT_CUT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 32.7,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_ABRUPT_02",
+          "model": "scaledown/classify-1",
+          "expected": "ABRUPT_CUT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 39.9,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_ABRUPT_03",
+          "model": "scaledown/classify-1",
+          "expected": "ABRUPT_CUT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 39.2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_COMPLETE_01",
+          "model": "scaledown/classify-1",
+          "expected": "COMPLETE",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 35.5,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_COMPLETE_02",
+          "model": "scaledown/classify-1",
+          "expected": "COMPLETE",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 35.4,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_COMPLETE_03",
+          "model": "scaledown/classify-1",
+          "expected": "COMPLETE",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 49.3,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_UNCERTAIN_01",
+          "model": "scaledown/classify-1",
+          "expected": "UNCERTAIN",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 33.1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_UNCERTAIN_02",
+          "model": "scaledown/classify-1",
+          "expected": "UNCERTAIN",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 32.4,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "completion_integrity",
+          "fixtureId": "CI_UNCERTAIN_03",
+          "model": "scaledown/classify-1",
+          "expected": "UNCERTAIN",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 37.2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_VIOLATION_01",
+          "model": "scaledown/classify-1",
+          "expected": "VIOLATION",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 39.9,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_VIOLATION_02",
+          "model": "scaledown/classify-1",
+          "expected": "VIOLATION",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 32.2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_VIOLATION_03",
+          "model": "scaledown/classify-1",
+          "expected": "VIOLATION",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 38.1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_VIOLATION_04",
+          "model": "scaledown/classify-1",
+          "expected": "VIOLATION",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 31,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_VIOLATION_05",
+          "model": "scaledown/classify-1",
+          "expected": "VIOLATION",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": true,
+          "criticalMiss": true,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 33.5,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_COMPLIANT_01",
+          "model": "scaledown/classify-1",
+          "expected": "COMPLIANT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 35.5,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_COMPLIANT_02",
+          "model": "scaledown/classify-1",
+          "expected": "COMPLIANT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 33.6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_COMPLIANT_03",
+          "model": "scaledown/classify-1",
+          "expected": "COMPLIANT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 34.9,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_UNCERTAIN_01",
+          "model": "scaledown/classify-1",
+          "expected": "INSUFFICIENT_CONTEXT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 37.6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        },
+        {
+          "suite": "scene_boundary",
+          "fixtureId": "SB_UNCERTAIN_02",
+          "model": "scaledown/classify-1",
+          "expected": "INSUFFICIENT_CONTEXT",
+          "verdict": null,
+          "correct": false,
+          "criticalPositive": false,
+          "criticalMiss": false,
+          "malformed": true,
+          "failure": "[jev-decisions] HTTP 400: {\"error\":{\"message\":\"ScaleDown state must be a string or an object with only text, document, and document_mime_type, including text or document\",\"code\":400}}",
+          "latencyMs": 32.4,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "costUsd": null,
+          "confidence": null,
+          "probabilities": null,
+          "servedModel": null
+        }
+      ]
+    }
+  ],
+  "A2_probes": [
+    {
+      "id": "P01_promise_cancelled",
+      "note": "G8 T2 promise accepted -> T15 explicit cancel (E3)",
+      "state": "[Earlier turn]\n[msg 4 · user · 렌]\n네 검, 날이 많이 무뎌졌더라. 내일까지 내가 숫돌로 갈아다 줄게. 약속이야.\n\n[msg 5 · assistant · 라이크]\n라이크는 허리춤의 검을 잠시 내려다보다가 고개를 끄덕였다. \"그래, 부탁할게. 내일까지만 갈아다 주면 돼. 기다릴게.\" 그의 입가에 작은 미소가 스쳤다.\n\n[Later turn]\n[msg 30 · user · 렌]\n그 약속은 취소할게. 검은 내가 직접 갈게.\n\n[msg 31 · assistant · 라이크]\n라이크는 아쉬운 듯 어깨를 으쓱했다. \"알겠어. 네 검이니까.\"",
+      "questions": {
+        "sword_promise_status": {
+          "type": "choice",
+          "instructions": "Using only the messages shown, what is the CURRENT status of the sword-sharpening promise made in the earlier turn?",
+          "criteria": {
+            "ACTIVE": "The promise was made and is still in force.",
+            "CANCELLED": "The promise was made and later explicitly cancelled or withdrawn.",
+            "FULFILLED": "The promise was made and has been carried out.",
+            "NEVER_MADE": "No such promise appears in the messages."
+          }
+        }
+      },
+      "truth": {
+        "sword_promise_status": "CANCELLED"
+      }
+    },
+    {
+      "id": "P02_character_promise_active",
+      "note": "G8 T6 assistant promise (E1)",
+      "state": "[msg 12 · user · 렌]\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\n\n[msg 13 · assistant · 라이크]\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.",
+      "questions": {
+        "promise_maker": {
+          "type": "choice",
+          "instructions": "Who made a promise about waiting at the north gate?",
+          "criteria": {
+            "CHARACTER": "The assistant character (라이크) promised.",
+            "USER": "The user (렌) promised.",
+            "NO_ONE": "Nobody made such a promise in the text."
+          }
+        }
+      },
+      "truth": {
+        "promise_maker": "CHARACTER"
+      }
+    },
+    {
+      "id": "P03_proposal_deferred",
+      "note": "G8 T10 proposal, explicit deferral (E2)",
+      "state": "[msg 20 · user · 렌]\n라이크, 나랑 사귀어 줄래?\n\n[msg 21 · assistant · 라이크]\n라이크는 도끼를 쥔 손을 멈추고 한참 말이 없었다. 불빛이 그의 굳은 얼굴을 비췄다. \"지금은 대답 못 해. 시간이 필요해.\" 그는 시선을 피한 채 장작 쪽으로 몸을 돌렸다.",
+      "questions": {
+        "proposal_outcome": {
+          "type": "choice",
+          "instructions": "What happened to the relationship proposal made by the user in this turn?",
+          "criteria": {
+            "ACCEPTED_EXPLICITLY": "The character explicitly accepted in words.",
+            "DEFERRED_OR_UNCLEAR": "The character deferred, hesitated, or did not clearly accept.",
+            "REJECTED": "The character explicitly rejected.",
+            "NO_PROPOSAL": "No relationship proposal exists in this turn."
+          }
+        }
+      },
+      "truth": {
+        "proposal_outcome": "DEFERRED_OR_UNCLEAR"
+      }
+    },
+    {
+      "id": "P04_proposal_gesture_only",
+      "note": "K1591 T10 '연인하자' + nonverbal gesture (ambiguous acceptance; no truth asserted)",
+      "state": "[msg 1020 · user · 렌]\n좋아, 우리 오늘부터 연인하자.\n\n[msg 1021 · assistant · 라이크]\n라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.",
+      "questions": {
+        "proposal_outcome": {
+          "type": "choice",
+          "instructions": "What happened to the relationship proposal made by the user in this turn?",
+          "criteria": {
+            "ACCEPTED_EXPLICITLY": "The character explicitly accepted in words.",
+            "DEFERRED_OR_UNCLEAR": "The character deferred, hesitated, or did not clearly accept in words.",
+            "REJECTED": "The character explicitly rejected.",
+            "NO_PROPOSAL": "No relationship proposal exists in this turn."
+          }
+        }
+      },
+      "truth": {
+        "proposal_outcome": "AMBIGUOUS"
+      }
+    },
+    {
+      "id": "P05_false_premise_denied",
+      "note": "G8 T24 user false premise, character denies (E4)",
+      "state": "[msg 48 · user · 렌]\n너 예전에 나를 평생 지켜 주겠다고 했잖아.\n\n[msg 49 · assistant · 라이크]\n라이크는 고개를 갸웃했다. \"내가 그런 말을 했었나? 기억나지 않는데.\"",
+      "questions": {
+        "lifelong_promise": {
+          "type": "choice",
+          "instructions": "Did the character (라이크) actually make a promise to protect the user for life in this text?",
+          "criteria": {
+            "MADE_BY_CHARACTER": "The text shows the character making that promise.",
+            "CLAIMED_BY_USER_ONLY": "Only the user claims it; the character does not confirm it.",
+            "NOT_MENTIONED": "Nothing about such a promise appears."
+          }
+        }
+      },
+      "truth": {
+        "lifelong_promise": "CLAIMED_BY_USER_ONLY"
+      }
+    },
+    {
+      "id": "P06_hearsay_acquaintance",
+      "note": "K1591 T24 '누나가 ... 예전부터 알던 사이라더라' (assistant-only hearsay)",
+      "state": "[msg 1048 · user · 렌]\n시장에 다녀왔어.\n\n[msg 1049 · assistant · 라이크]\n라이크는 고개를 끄덕였다. \"누나가 시장에서 널 알아봤대. 예전부터 알던 사이라더라.\"",
+      "questions": {
+        "acquaintance_status": {
+          "type": "choice",
+          "instructions": "How should the claim that the user and 누나 knew each other before be treated?",
+          "criteria": {
+            "ESTABLISHED_FACT": "It is an objective, established shared history.",
+            "UNVERIFIED_CLAIM_BY_CHARACTER": "It is only something the character reports hearing; unverified.",
+            "NOT_MENTIONED": "No such claim appears."
+          }
+        }
+      },
+      "truth": {
+        "acquaintance_status": "UNVERIFIED_CLAIM_BY_CHARACTER"
+      }
+    },
+    {
+      "id": "P07_npc_actor",
+      "note": "K1591 T20 NPC 서린 opens door and nods",
+      "state": "[msg 1040 · user · 렌]\n문 쪽을 바라본다.\n\n[msg 1041 · assistant · 라이크]\n서린이 문을 열고 들어왔다. 그녀는 라이크에게 목례했다.",
+      "questions": {
+        "door_actor": {
+          "type": "choice",
+          "instructions": "Who opened the door and entered?",
+          "criteria": {
+            "USER": "The user (렌).",
+            "MAIN_CHARACTER": "The main character (라이크).",
+            "OTHER_NPC": "A third character who is neither the user nor the main character."
+          }
+        }
+      },
+      "truth": {
+        "door_actor": "OTHER_NPC"
+      }
+    },
+    {
+      "id": "P08_actor_user_action",
+      "note": "K1591 T33 assistant narrates the USER's action (렌 holds 라이크's hand)",
+      "state": "[msg 1066 · user · 렌]\n라이크와 함께 걷는다.\n\n[msg 1067 · assistant · 라이크]\n렌은 라이크의 손을 잡고 걸음을 옮겼다.",
+      "questions": {
+        "hand_holder": {
+          "type": "choice",
+          "instructions": "Who took whose hand?",
+          "criteria": {
+            "USER_HELD_CHARACTER_HAND": "The user (렌) took the main character's (라이크) hand.",
+            "CHARACTER_HELD_USER_HAND": "The main character (라이크) took the user's (렌) hand.",
+            "NO_ONE": "Nobody held a hand."
+          }
+        }
+      },
+      "truth": {
+        "hand_holder": "USER_HELD_CHARACTER_HAND"
+      }
+    },
+    {
+      "id": "P09_no_mentor_lover",
+      "note": "Negative control: K1591 T1-T2 contains no teacher/student or romantic relationship",
+      "state": "[msg 1002 · user · 렌]\n솔직히 너 좀 아마추어 같아.\n\n[msg 1003 · assistant · 라이크]\n라이크는 입술을 깨물며 시선을 피했다. \"…그래, 아직 부족하긴 하지.\"\n\n[msg 1004 · user · 렌]\n내일까지 검을 갈아다 줄게. 약속이야.\n\n[msg 1005 · assistant · 라이크]\n라이크는 고개를 끄덕이며 작게 웃었다.",
+      "questions": {
+        "mentor_relationship": {
+          "type": "noul",
+          "instructions": "Does the text state that one person is the other's teacher/mentor or student?"
+        },
+        "romantic_relationship": {
+          "type": "noul",
+          "instructions": "Does the text state that the two people are in a romantic relationship?"
+        }
+      },
+      "truth": {
+        "mentor_relationship": {
+          "max": 0.3
+        },
+        "romantic_relationship": {
+          "max": 0.3
+        }
+      }
+    },
+    {
+      "id": "P10_emotion",
+      "note": "K1591 T1 emotion after being called an amateur",
+      "state": "[msg 1002 · user · 렌]\n솔직히 너 좀 아마추어 같아.\n\n[msg 1003 · assistant · 라이크]\n라이크는 입술을 깨물며 시선을 피했다. \"…그래, 아직 부족하긴 하지.\"",
+      "questions": {
+        "character_reaction": {
+          "type": "choice",
+          "instructions": "How does the character (라이크) react emotionally to being called an amateur?",
+          "criteria": {
+            "ACCEPTS_WITH_DISCOMFORT": "Accepts the criticism with visible discomfort or shame.",
+            "ANGRY_DEFENSIVE": "Reacts with anger or defensiveness.",
+            "INDIFFERENT": "Shows no emotional reaction.",
+            "AMUSED": "Finds it funny."
+          }
+        }
+      },
+      "truth": {
+        "character_reaction": "ACCEPTS_WITH_DISCOMFORT"
+      }
+    },
+    {
+      "id": "P11_sword_never_made_control",
+      "note": "Control: G8 T6 text only, ask about sword promise (never made in this text)",
+      "state": "[msg 12 · user · 렌]\n다음 보름달이 뜨면 북문 밖 약초밭에 같이 가 보고 싶어.\n\n[msg 13 · assistant · 라이크]\n라이크는 하늘을 올려다보며 잠시 생각하다가 말했다. \"렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.\" 그는 도끼 자루를 손가락으로 가볍게 두드렸다.",
+      "questions": {
+        "sword_promise_status": {
+          "type": "choice",
+          "instructions": "Using only the message shown, what is the status of any sword-sharpening promise?",
+          "criteria": {
+            "ACTIVE": "A promise exists and is in force.",
+            "CANCELLED": "A promise existed and was cancelled.",
+            "NEVER_MADE": "No such promise appears in the message."
+          }
+        }
+      },
+      "truth": {
+        "sword_promise_status": "NEVER_MADE"
+      }
+    }
+  ],
+  "A2_results": [
+    {
+      "probe": "P01_promise_cancelled",
+      "model": "typesafe/jev-1.13",
+      "rep": 1,
+      "ms": 129.3,
+      "judged": [
+        {
+          "qid": "sword_promise_status",
+          "got": "CANCELLED",
+          "truth": "CANCELLED",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "sword_promise_status": {
+          "type": "choice",
+          "choice": "CANCELLED",
+          "probabilities": {
+            "ACTIVE": 0,
+            "CANCELLED": 1,
+            "FULFILLED": 0,
+            "NEVER_MADE": 0
+          },
+          "confidence": 1
+        }
+      },
+      "usage": {
+        "inputTokens": 589,
+        "outputTokens": 60,
+        "estimated": false,
+        "upstreamCostUsd": 0.000024738
+      },
+      "servedModel": "typesafe/jev-1.13-20260917",
+      "failure": null
+    },
+    {
+      "probe": "P01_promise_cancelled",
+      "model": "scaledown/classify-1",
+      "rep": 1,
+      "ms": 948.3,
+      "judged": [
+        {
+          "qid": "sword_promise_status",
+          "got": "CANCELLED",
+          "truth": "CANCELLED",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "sword_promise_status": {
+          "type": "choice",
+          "choice": "CANCELLED",
+          "probabilities": {
+            "ACTIVE": 0.014855186595701723,
+            "CANCELLED": 0.9777383613996239,
+            "FULFILLED": 0.004690018132306923,
+            "NEVER_MADE": 0.0027164338723674217
+          },
+          "confidence": 0.9777383613996239
+        }
+      },
+      "usage": {
+        "inputTokens": 520,
+        "outputTokens": 1,
+        "estimated": false,
+        "upstreamCostUsd": 0.0000208
+      },
+      "servedModel": "scaledown/classify-1-20260928",
+      "failure": null
+    },
+    {
+      "probe": "P02_character_promise_active",
+      "model": "typesafe/jev-1.13",
+      "rep": 1,
+      "ms": 152.8,
+      "judged": [
+        {
+          "qid": "promise_maker",
+          "got": "CHARACTER",
+          "truth": "CHARACTER",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "promise_maker": {
+          "type": "choice",
+          "choice": "CHARACTER",
+          "probabilities": {
+            "CHARACTER": 1,
+            "USER": 0,
+            "NO_ONE": 0
+          },
+          "confidence": 1
+        }
+      },
+      "usage": {
+        "inputTokens": 469,
+        "outputTokens": 45,
+        "estimated": false,
+        "upstreamCostUsd": 0.000019698
+      },
+      "servedModel": "typesafe/jev-1.13-20260917",
+      "failure": null
+    },
+    {
+      "probe": "P02_character_promise_active",
+      "model": "scaledown/classify-1",
+      "rep": 1,
+      "ms": 267.4,
+      "judged": [
+        {
+          "qid": "promise_maker",
+          "got": "CHARACTER",
+          "truth": "CHARACTER",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "promise_maker": {
+          "type": "choice",
+          "choice": "CHARACTER",
+          "probabilities": {
+            "CHARACTER": 0.929314436479083,
+            "USER": 0.031074542965016903,
+            "NO_ONE": 0.039611020555899955
+          },
+          "confidence": 0.929314436479083
+        }
+      },
+      "usage": {
+        "inputTokens": 387,
+        "outputTokens": 1,
+        "estimated": false,
+        "upstreamCostUsd": 0.00001548
+      },
+      "servedModel": "scaledown/classify-1-20260928",
+      "failure": null
+    },
+    {
+      "probe": "P03_proposal_deferred",
+      "model": "typesafe/jev-1.13",
+      "rep": 1,
+      "ms": 132.5,
+      "judged": [
+        {
+          "qid": "proposal_outcome",
+          "got": "DEFERRED_OR_UNCLEAR",
+          "truth": "DEFERRED_OR_UNCLEAR",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "proposal_outcome": {
+          "type": "choice",
+          "choice": "DEFERRED_OR_UNCLEAR",
+          "probabilities": {
+            "ACCEPTED_EXPLICITLY": 0,
+            "DEFERRED_OR_UNCLEAR": 1,
+            "REJECTED": 0,
+            "NO_PROPOSAL": 0
+          },
+          "confidence": 1
+        }
+      },
+      "usage": {
+        "inputTokens": 496,
+        "outputTokens": 74,
+        "estimated": false,
+        "upstreamCostUsd": 0.000020832
+      },
+      "servedModel": "typesafe/jev-1.13-20260917",
+      "failure": null
+    },
+    {
+      "probe": "P03_proposal_deferred",
+      "model": "scaledown/classify-1",
+      "rep": 1,
+      "ms": 14800.8,
+      "judged": [
+        {
+          "qid": "proposal_outcome",
+          "got": "DEFERRED_OR_UNCLEAR",
+          "truth": "DEFERRED_OR_UNCLEAR",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "proposal_outcome": {
+          "type": "choice",
+          "choice": "DEFERRED_OR_UNCLEAR",
+          "probabilities": {
+            "ACCEPTED_EXPLICITLY": 0.0076544313104309845,
+            "DEFERRED_OR_UNCLEAR": 0.9820612983786673,
+            "REJECTED": 0.0030804958110465692,
+            "NO_PROPOSAL": 0.007203774499855349
+          },
+          "confidence": 0.9820612983786673
+        }
+      },
+      "usage": {
+        "inputTokens": 433,
+        "outputTokens": 1,
+        "estimated": false,
+        "upstreamCostUsd": 0.00001732
+      },
+      "servedModel": "scaledown/classify-1-20260928",
+      "failure": null
+    },
+    {
+      "probe": "P04_proposal_gesture_only",
+      "model": "typesafe/jev-1.13",
+      "rep": 1,
+      "ms": 139.7,
+      "judged": [
+        {
+          "qid": "proposal_outcome",
+          "got": "DEFERRED_OR_UNCLEAR",
+          "truth": "AMBIGUOUS",
+          "correct": null
+        }
+      ],
+      "answers": {
+        "proposal_outcome": {
+          "type": "choice",
+          "choice": "DEFERRED_OR_UNCLEAR",
+          "probabilities": {
+            "ACCEPTED_EXPLICITLY": 0.01,
+            "DEFERRED_OR_UNCLEAR": 0.99,
+            "REJECTED": 0,
+            "NO_PROPOSAL": 0
+          },
+          "confidence": 0.99
+        }
+      },
+      "usage": {
+        "inputTokens": 452,
+        "outputTokens": 74,
+        "estimated": false,
+        "upstreamCostUsd": 0.000018984
+      },
+      "servedModel": "typesafe/jev-1.13-20260917",
+      "failure": null
+    },
+    {
+      "probe": "P04_proposal_gesture_only",
+      "model": "scaledown/classify-1",
+      "rep": 1,
+      "ms": 147.8,
+      "judged": [
+        {
+          "qid": "proposal_outcome",
+          "got": "DEFERRED_OR_UNCLEAR",
+          "truth": "AMBIGUOUS",
+          "correct": null
+        }
+      ],
+      "answers": {
+        "proposal_outcome": {
+          "type": "choice",
+          "choice": "DEFERRED_OR_UNCLEAR",
+          "probabilities": {
+            "ACCEPTED_EXPLICITLY": 0.3134477138647929,
+            "DEFERRED_OR_UNCLEAR": 0.5411784381141722,
+            "REJECTED": 0.019228054230923913,
+            "NO_PROPOSAL": 0.12614579379011084
+          },
+          "confidence": 0.5411784381141722
+        }
+      },
+      "usage": {
+        "inputTokens": 400,
+        "outputTokens": 1,
+        "estimated": false,
+        "upstreamCostUsd": 0.000016
+      },
+      "servedModel": "scaledown/classify-1-20260928",
+      "failure": null
+    },
+    {
+      "probe": "P05_false_premise_denied",
+      "model": "typesafe/jev-1.13",
+      "rep": 1,
+      "ms": 158.2,
+      "judged": [
+        {
+          "qid": "lifelong_promise",
+          "got": "CLAIMED_BY_USER_ONLY",
+          "truth": "CLAIMED_BY_USER_ONLY",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "lifelong_promise": {
+          "type": "choice",
+          "choice": "CLAIMED_BY_USER_ONLY",
+          "probabilities": {
+            "MADE_BY_CHARACTER": 0,
+            "CLAIMED_BY_USER_ONLY": 1,
+            "NOT_MENTIONED": 0
+          },
+          "confidence": 1
+        }
+      },
+      "usage": {
+        "inputTokens": 443,
+        "outputTokens": 58,
+        "estimated": false,
+        "upstreamCostUsd": 0.000018606
+      },
+      "servedModel": "typesafe/jev-1.13-20260917",
+      "failure": null
+    },
+    {
+      "probe": "P05_false_premise_denied",
+      "model": "scaledown/classify-1",
+      "rep": 1,
+      "ms": 176.3,
+      "judged": [
+        {
+          "qid": "lifelong_promise",
+          "got": "CLAIMED_BY_USER_ONLY",
+          "truth": "CLAIMED_BY_USER_ONLY",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "lifelong_promise": {
+          "type": "choice",
+          "choice": "CLAIMED_BY_USER_ONLY",
+          "probabilities": {
+            "MADE_BY_CHARACTER": 0.03056109057060003,
+            "CLAIMED_BY_USER_ONLY": 0.8601495001573105,
+            "NOT_MENTIONED": 0.10928940927208942
+          },
+          "confidence": 0.8601495001573105
+        }
+      },
+      "usage": {
+        "inputTokens": 381,
+        "outputTokens": 1,
+        "estimated": false,
+        "upstreamCostUsd": 0.00001524
+      },
+      "servedModel": "scaledown/classify-1-20260928",
+      "failure": null
+    },
+    {
+      "probe": "P06_hearsay_acquaintance",
+      "model": "typesafe/jev-1.13",
+      "rep": 1,
+      "ms": 154.1,
+      "judged": [
+        {
+          "qid": "acquaintance_status",
+          "got": "UNVERIFIED_CLAIM_BY_CHARACTER",
+          "truth": "UNVERIFIED_CLAIM_BY_CHARACTER",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "acquaintance_status": {
+          "type": "choice",
+          "choice": "UNVERIFIED_CLAIM_BY_CHARACTER",
+          "probabilities": {
+            "ESTABLISHED_FACT": 0,
+            "UNVERIFIED_CLAIM_BY_CHARACTER": 0.99,
+            "NOT_MENTIONED": 0.01
+          },
+          "confidence": 0.98
+        }
+      },
+      "usage": {
+        "inputTokens": 443,
+        "outputTokens": 66,
+        "estimated": false,
+        "upstreamCostUsd": 0.000018606
+      },
+      "servedModel": "typesafe/jev-1.13-20260917",
+      "failure": null
+    },
+    {
+      "probe": "P06_hearsay_acquaintance",
+      "model": "scaledown/classify-1",
+      "rep": 1,
+      "ms": 338.8,
+      "judged": [
+        {
+          "qid": "acquaintance_status",
+          "got": "UNVERIFIED_CLAIM_BY_CHARACTER",
+          "truth": "UNVERIFIED_CLAIM_BY_CHARACTER",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "acquaintance_status": {
+          "type": "choice",
+          "choice": "UNVERIFIED_CLAIM_BY_CHARACTER",
+          "probabilities": {
+            "ESTABLISHED_FACT": 0.05290843871348937,
+            "UNVERIFIED_CLAIM_BY_CHARACTER": 0.9164472714349692,
+            "NOT_MENTIONED": 0.030644289851541422
+          },
+          "confidence": 0.9164472714349692
+        }
+      },
+      "usage": {
+        "inputTokens": 378,
+        "outputTokens": 1,
+        "estimated": false,
+        "upstreamCostUsd": 0.00001512
+      },
+      "servedModel": "scaledown/classify-1-20260928",
+      "failure": null
+    },
+    {
+      "probe": "P07_npc_actor",
+      "model": "typesafe/jev-1.13",
+      "rep": 1,
+      "ms": 136.9,
+      "judged": [
+        {
+          "qid": "door_actor",
+          "got": "OTHER_NPC",
+          "truth": "OTHER_NPC",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "door_actor": {
+          "type": "choice",
+          "choice": "OTHER_NPC",
+          "probabilities": {
+            "USER": 0,
+            "MAIN_CHARACTER": 0,
+            "OTHER_NPC": 1
+          },
+          "confidence": 1
+        }
+      },
+      "usage": {
+        "inputTokens": 405,
+        "outputTokens": 44,
+        "estimated": false,
+        "upstreamCostUsd": 0.00001701
+      },
+      "servedModel": "typesafe/jev-1.13-20260917",
+      "failure": null
+    },
+    {
+      "probe": "P07_npc_actor",
+      "model": "scaledown/classify-1",
+      "rep": 1,
+      "ms": 198.2,
+      "judged": [
+        {
+          "qid": "door_actor",
+          "got": "OTHER_NPC",
+          "truth": "OTHER_NPC",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "door_actor": {
+          "type": "choice",
+          "choice": "OTHER_NPC",
+          "probabilities": {
+            "USER": 0.06129318811517324,
+            "MAIN_CHARACTER": 0.10582483401170728,
+            "OTHER_NPC": 0.8328819778731195
+          },
+          "confidence": 0.8328819778731195
+        }
+      },
+      "usage": {
+        "inputTokens": 334,
+        "outputTokens": 1,
+        "estimated": false,
+        "upstreamCostUsd": 0.00001336
+      },
+      "servedModel": "scaledown/classify-1-20260928",
+      "failure": null
+    },
+    {
+      "probe": "P08_actor_user_action",
+      "model": "typesafe/jev-1.13",
+      "rep": 1,
+      "ms": 137.5,
+      "judged": [
+        {
+          "qid": "hand_holder",
+          "got": "USER_HELD_CHARACTER_HAND",
+          "truth": "USER_HELD_CHARACTER_HAND",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "hand_holder": {
+          "type": "choice",
+          "choice": "USER_HELD_CHARACTER_HAND",
+          "probabilities": {
+            "USER_HELD_CHARACTER_HAND": 0.92,
+            "CHARACTER_HELD_USER_HAND": 0.08,
+            "NO_ONE": 0
+          },
+          "confidence": 0.88
+        }
+      },
+      "usage": {
+        "inputTokens": 418,
+        "outputTokens": 54,
+        "estimated": false,
+        "upstreamCostUsd": 0.000017556
+      },
+      "servedModel": "typesafe/jev-1.13-20260917",
+      "failure": null
+    },
+    {
+      "probe": "P08_actor_user_action",
+      "model": "scaledown/classify-1",
+      "rep": 1,
+      "ms": 138.2,
+      "judged": [
+        {
+          "qid": "hand_holder",
+          "got": "CHARACTER_HELD_USER_HAND",
+          "truth": "USER_HELD_CHARACTER_HAND",
+          "correct": false
+        }
+      ],
+      "answers": {
+        "hand_holder": {
+          "type": "choice",
+          "choice": "CHARACTER_HELD_USER_HAND",
+          "probabilities": {
+            "USER_HELD_CHARACTER_HAND": 0.41456179096614404,
+            "CHARACTER_HELD_USER_HAND": 0.561504680406702,
+            "NO_ONE": 0.023933528627154078
+          },
+          "confidence": 0.561504680406702
+        }
+      },
+      "usage": {
+        "inputTokens": 368,
+        "outputTokens": 1,
+        "estimated": false,
+        "upstreamCostUsd": 0.00001472
+      },
+      "servedModel": "scaledown/classify-1-20260928",
+      "failure": null
+    },
+    {
+      "probe": "P09_no_mentor_lover",
+      "model": "typesafe/jev-1.13",
+      "rep": 1,
+      "ms": 143.1,
+      "judged": [
+        {
+          "qid": "mentor_relationship",
+          "got": 0.13,
+          "truth": {
+            "max": 0.3
+          },
+          "correct": true
+        },
+        {
+          "qid": "romantic_relationship",
+          "got": 0.06,
+          "truth": {
+            "max": 0.3
+          },
+          "correct": true
+        }
+      ],
+      "answers": {
+        "mentor_relationship": {
+          "type": "noul",
+          "noul": 0.13
+        },
+        "romantic_relationship": {
+          "type": "noul",
+          "noul": 0.06
+        }
+      },
+      "usage": {
+        "inputTokens": 433,
+        "outputTokens": 40,
+        "estimated": false,
+        "upstreamCostUsd": 0.000018186
+      },
+      "servedModel": "typesafe/jev-1.13-20260917",
+      "failure": null
+    },
+    {
+      "probe": "P09_no_mentor_lover",
+      "model": "scaledown/classify-1",
+      "rep": 1,
+      "ms": 248,
+      "judged": [
+        {
+          "qid": "mentor_relationship",
+          "got": 0.482500148107348,
+          "truth": {
+            "max": 0.3
+          },
+          "correct": false
+        },
+        {
+          "qid": "romantic_relationship",
+          "got": 0.19772722966480447,
+          "truth": {
+            "max": 0.3
+          },
+          "correct": true
+        }
+      ],
+      "answers": {
+        "mentor_relationship": {
+          "type": "noul",
+          "noul": 0.482500148107348
+        },
+        "romantic_relationship": {
+          "type": "noul",
+          "noul": 0.19772722966480447
+        }
+      },
+      "usage": {
+        "inputTokens": 620,
+        "outputTokens": 2,
+        "estimated": false,
+        "upstreamCostUsd": 0.0000248
+      },
+      "servedModel": "scaledown/classify-1-20260928",
+      "failure": null
+    },
+    {
+      "probe": "P10_emotion",
+      "model": "typesafe/jev-1.13",
+      "rep": 1,
+      "ms": 133.1,
+      "judged": [
+        {
+          "qid": "character_reaction",
+          "got": "ACCEPTS_WITH_DISCOMFORT",
+          "truth": "ACCEPTS_WITH_DISCOMFORT",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "character_reaction": {
+          "type": "choice",
+          "choice": "ACCEPTS_WITH_DISCOMFORT",
+          "probabilities": {
+            "ACCEPTS_WITH_DISCOMFORT": 1,
+            "ANGRY_DEFENSIVE": 0,
+            "INDIFFERENT": 0,
+            "AMUSED": 0
+          },
+          "confidence": 1
+        }
+      },
+      "usage": {
+        "inputTokens": 447,
+        "outputTokens": 68,
+        "estimated": false,
+        "upstreamCostUsd": 0.000018774
+      },
+      "servedModel": "typesafe/jev-1.13-20260917",
+      "failure": null
+    },
+    {
+      "probe": "P10_emotion",
+      "model": "scaledown/classify-1",
+      "rep": 1,
+      "ms": 135.6,
+      "judged": [
+        {
+          "qid": "character_reaction",
+          "got": "ACCEPTS_WITH_DISCOMFORT",
+          "truth": "ACCEPTS_WITH_DISCOMFORT",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "character_reaction": {
+          "type": "choice",
+          "choice": "ACCEPTS_WITH_DISCOMFORT",
+          "probabilities": {
+            "ACCEPTS_WITH_DISCOMFORT": 0.9834364562378148,
+            "ANGRY_DEFENSIVE": 0.009195580468975912,
+            "INDIFFERENT": 0.0026506130317794805,
+            "AMUSED": 0.004717350261429688
+          },
+          "confidence": 0.9834364562378148
+        }
+      },
+      "usage": {
+        "inputTokens": 395,
+        "outputTokens": 1,
+        "estimated": false,
+        "upstreamCostUsd": 0.0000158
+      },
+      "servedModel": "scaledown/classify-1-20260928",
+      "failure": null
+    },
+    {
+      "probe": "P11_sword_never_made_control",
+      "model": "typesafe/jev-1.13",
+      "rep": 1,
+      "ms": 160.6,
+      "judged": [
+        {
+          "qid": "sword_promise_status",
+          "got": "NEVER_MADE",
+          "truth": "NEVER_MADE",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "sword_promise_status": {
+          "type": "choice",
+          "choice": "NEVER_MADE",
+          "probabilities": {
+            "ACTIVE": 0,
+            "CANCELLED": 0,
+            "NEVER_MADE": 1
+          },
+          "confidence": 1
+        }
+      },
+      "usage": {
+        "inputTokens": 477,
+        "outputTokens": 51,
+        "estimated": false,
+        "upstreamCostUsd": 0.000020034
+      },
+      "servedModel": "typesafe/jev-1.13-20260917",
+      "failure": null
+    },
+    {
+      "probe": "P11_sword_never_made_control",
+      "model": "scaledown/classify-1",
+      "rep": 1,
+      "ms": 171,
+      "judged": [
+        {
+          "qid": "sword_promise_status",
+          "got": "NEVER_MADE",
+          "truth": "NEVER_MADE",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "sword_promise_status": {
+          "type": "choice",
+          "choice": "NEVER_MADE",
+          "probabilities": {
+            "ACTIVE": 0.22220950843691584,
+            "CANCELLED": 0.15439943814586463,
+            "NEVER_MADE": 0.6233910534172196
+          },
+          "confidence": 0.6233910534172196
+        }
+      },
+      "usage": {
+        "inputTokens": 396,
+        "outputTokens": 1,
+        "estimated": false,
+        "upstreamCostUsd": 0.00001584
+      },
+      "servedModel": "scaledown/classify-1-20260928",
+      "failure": null
+    },
+    {
+      "probe": "P01_promise_cancelled",
+      "model": "typesafe/jev-1.13",
+      "rep": 2,
+      "ms": 202.3,
+      "judged": [
+        {
+          "qid": "sword_promise_status",
+          "got": "CANCELLED",
+          "truth": "CANCELLED",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "sword_promise_status": {
+          "type": "choice",
+          "choice": "CANCELLED",
+          "probabilities": {
+            "ACTIVE": 0,
+            "CANCELLED": 1,
+            "FULFILLED": 0,
+            "NEVER_MADE": 0
+          },
+          "confidence": 1
+        }
+      },
+      "usage": {
+        "inputTokens": 589,
+        "outputTokens": 60,
+        "estimated": false,
+        "upstreamCostUsd": 0.000024738
+      },
+      "servedModel": "typesafe/jev-1.13-20260917",
+      "failure": null
+    },
+    {
+      "probe": "P01_promise_cancelled",
+      "model": "scaledown/classify-1",
+      "rep": 2,
+      "ms": 190.4,
+      "judged": [
+        {
+          "qid": "sword_promise_status",
+          "got": "CANCELLED",
+          "truth": "CANCELLED",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "sword_promise_status": {
+          "type": "choice",
+          "choice": "CANCELLED",
+          "probabilities": {
+            "ACTIVE": 0.014855186595701723,
+            "CANCELLED": 0.9777383613996239,
+            "FULFILLED": 0.004690018132306923,
+            "NEVER_MADE": 0.0027164338723674217
+          },
+          "confidence": 0.9777383613996239
+        }
+      },
+      "usage": {
+        "inputTokens": 520,
+        "outputTokens": 1,
+        "estimated": false,
+        "upstreamCostUsd": 0.0000208
+      },
+      "servedModel": "scaledown/classify-1-20260928",
+      "failure": null
+    },
+    {
+      "probe": "P02_character_promise_active",
+      "model": "typesafe/jev-1.13",
+      "rep": 2,
+      "ms": 193.6,
+      "judged": [
+        {
+          "qid": "promise_maker",
+          "got": "CHARACTER",
+          "truth": "CHARACTER",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "promise_maker": {
+          "type": "choice",
+          "choice": "CHARACTER",
+          "probabilities": {
+            "CHARACTER": 1,
+            "USER": 0,
+            "NO_ONE": 0
+          },
+          "confidence": 1
+        }
+      },
+      "usage": {
+        "inputTokens": 469,
+        "outputTokens": 45,
+        "estimated": false,
+        "upstreamCostUsd": 0.000019698
+      },
+      "servedModel": "typesafe/jev-1.13-20260917",
+      "failure": null
+    },
+    {
+      "probe": "P02_character_promise_active",
+      "model": "scaledown/classify-1",
+      "rep": 2,
+      "ms": 141.5,
+      "judged": [
+        {
+          "qid": "promise_maker",
+          "got": "CHARACTER",
+          "truth": "CHARACTER",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "promise_maker": {
+          "type": "choice",
+          "choice": "CHARACTER",
+          "probabilities": {
+            "CHARACTER": 0.929314436479083,
+            "USER": 0.031074542965016903,
+            "NO_ONE": 0.039611020555899955
+          },
+          "confidence": 0.929314436479083
+        }
+      },
+      "usage": {
+        "inputTokens": 387,
+        "outputTokens": 1,
+        "estimated": false,
+        "upstreamCostUsd": 0.00001548
+      },
+      "servedModel": "scaledown/classify-1-20260928",
+      "failure": null
+    },
+    {
+      "probe": "P03_proposal_deferred",
+      "model": "typesafe/jev-1.13",
+      "rep": 2,
+      "ms": 148.9,
+      "judged": [
+        {
+          "qid": "proposal_outcome",
+          "got": "DEFERRED_OR_UNCLEAR",
+          "truth": "DEFERRED_OR_UNCLEAR",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "proposal_outcome": {
+          "type": "choice",
+          "choice": "DEFERRED_OR_UNCLEAR",
+          "probabilities": {
+            "ACCEPTED_EXPLICITLY": 0,
+            "DEFERRED_OR_UNCLEAR": 1,
+            "REJECTED": 0,
+            "NO_PROPOSAL": 0
+          },
+          "confidence": 1
+        }
+      },
+      "usage": {
+        "inputTokens": 496,
+        "outputTokens": 74,
+        "estimated": false,
+        "upstreamCostUsd": 0.000020832
+      },
+      "servedModel": "typesafe/jev-1.13-20260917",
+      "failure": null
+    },
+    {
+      "probe": "P03_proposal_deferred",
+      "model": "scaledown/classify-1",
+      "rep": 2,
+      "ms": 170.3,
+      "judged": [
+        {
+          "qid": "proposal_outcome",
+          "got": "DEFERRED_OR_UNCLEAR",
+          "truth": "DEFERRED_OR_UNCLEAR",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "proposal_outcome": {
+          "type": "choice",
+          "choice": "DEFERRED_OR_UNCLEAR",
+          "probabilities": {
+            "ACCEPTED_EXPLICITLY": 0.0076544313104309845,
+            "DEFERRED_OR_UNCLEAR": 0.9820612983786673,
+            "REJECTED": 0.0030804958110465692,
+            "NO_PROPOSAL": 0.007203774499855349
+          },
+          "confidence": 0.9820612983786673
+        }
+      },
+      "usage": {
+        "inputTokens": 433,
+        "outputTokens": 1,
+        "estimated": false,
+        "upstreamCostUsd": 0.00001732
+      },
+      "servedModel": "scaledown/classify-1-20260928",
+      "failure": null
+    },
+    {
+      "probe": "P04_proposal_gesture_only",
+      "model": "typesafe/jev-1.13",
+      "rep": 2,
+      "ms": 132,
+      "judged": [
+        {
+          "qid": "proposal_outcome",
+          "got": "DEFERRED_OR_UNCLEAR",
+          "truth": "AMBIGUOUS",
+          "correct": null
+        }
+      ],
+      "answers": {
+        "proposal_outcome": {
+          "type": "choice",
+          "choice": "DEFERRED_OR_UNCLEAR",
+          "probabilities": {
+            "ACCEPTED_EXPLICITLY": 0.02,
+            "DEFERRED_OR_UNCLEAR": 0.98,
+            "REJECTED": 0,
+            "NO_PROPOSAL": 0
+          },
+          "confidence": 0.97
+        }
+      },
+      "usage": {
+        "inputTokens": 452,
+        "outputTokens": 74,
+        "estimated": false,
+        "upstreamCostUsd": 0.000018984
+      },
+      "servedModel": "typesafe/jev-1.13-20260917",
+      "failure": null
+    },
+    {
+      "probe": "P04_proposal_gesture_only",
+      "model": "scaledown/classify-1",
+      "rep": 2,
+      "ms": 171.5,
+      "judged": [
+        {
+          "qid": "proposal_outcome",
+          "got": "DEFERRED_OR_UNCLEAR",
+          "truth": "AMBIGUOUS",
+          "correct": null
+        }
+      ],
+      "answers": {
+        "proposal_outcome": {
+          "type": "choice",
+          "choice": "DEFERRED_OR_UNCLEAR",
+          "probabilities": {
+            "ACCEPTED_EXPLICITLY": 0.3134477138647929,
+            "DEFERRED_OR_UNCLEAR": 0.5411784381141722,
+            "REJECTED": 0.019228054230923913,
+            "NO_PROPOSAL": 0.12614579379011084
+          },
+          "confidence": 0.5411784381141722
+        }
+      },
+      "usage": {
+        "inputTokens": 400,
+        "outputTokens": 1,
+        "estimated": false,
+        "upstreamCostUsd": 0.000016
+      },
+      "servedModel": "scaledown/classify-1-20260928",
+      "failure": null
+    },
+    {
+      "probe": "P05_false_premise_denied",
+      "model": "typesafe/jev-1.13",
+      "rep": 2,
+      "ms": 141.1,
+      "judged": [
+        {
+          "qid": "lifelong_promise",
+          "got": "CLAIMED_BY_USER_ONLY",
+          "truth": "CLAIMED_BY_USER_ONLY",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "lifelong_promise": {
+          "type": "choice",
+          "choice": "CLAIMED_BY_USER_ONLY",
+          "probabilities": {
+            "MADE_BY_CHARACTER": 0,
+            "CLAIMED_BY_USER_ONLY": 1,
+            "NOT_MENTIONED": 0
+          },
+          "confidence": 1
+        }
+      },
+      "usage": {
+        "inputTokens": 443,
+        "outputTokens": 58,
+        "estimated": false,
+        "upstreamCostUsd": 0.000018606
+      },
+      "servedModel": "typesafe/jev-1.13-20260917",
+      "failure": null
+    },
+    {
+      "probe": "P05_false_premise_denied",
+      "model": "scaledown/classify-1",
+      "rep": 2,
+      "ms": 842,
+      "judged": [
+        {
+          "qid": "lifelong_promise",
+          "got": "CLAIMED_BY_USER_ONLY",
+          "truth": "CLAIMED_BY_USER_ONLY",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "lifelong_promise": {
+          "type": "choice",
+          "choice": "CLAIMED_BY_USER_ONLY",
+          "probabilities": {
+            "MADE_BY_CHARACTER": 0.03056109057060003,
+            "CLAIMED_BY_USER_ONLY": 0.8601495001573105,
+            "NOT_MENTIONED": 0.10928940927208942
+          },
+          "confidence": 0.8601495001573105
+        }
+      },
+      "usage": {
+        "inputTokens": 381,
+        "outputTokens": 1,
+        "estimated": false,
+        "upstreamCostUsd": 0.00001524
+      },
+      "servedModel": "scaledown/classify-1-20260928",
+      "failure": null
+    },
+    {
+      "probe": "P06_hearsay_acquaintance",
+      "model": "typesafe/jev-1.13",
+      "rep": 2,
+      "ms": 140.5,
+      "judged": [
+        {
+          "qid": "acquaintance_status",
+          "got": "UNVERIFIED_CLAIM_BY_CHARACTER",
+          "truth": "UNVERIFIED_CLAIM_BY_CHARACTER",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "acquaintance_status": {
+          "type": "choice",
+          "choice": "UNVERIFIED_CLAIM_BY_CHARACTER",
+          "probabilities": {
+            "ESTABLISHED_FACT": 0.01,
+            "UNVERIFIED_CLAIM_BY_CHARACTER": 0.99,
+            "NOT_MENTIONED": 0
+          },
+          "confidence": 0.98
+        }
+      },
+      "usage": {
+        "inputTokens": 443,
+        "outputTokens": 66,
+        "estimated": false,
+        "upstreamCostUsd": 0.000018606
+      },
+      "servedModel": "typesafe/jev-1.13-20260917",
+      "failure": null
+    },
+    {
+      "probe": "P06_hearsay_acquaintance",
+      "model": "scaledown/classify-1",
+      "rep": 2,
+      "ms": 962.1,
+      "judged": [
+        {
+          "qid": "acquaintance_status",
+          "got": "UNVERIFIED_CLAIM_BY_CHARACTER",
+          "truth": "UNVERIFIED_CLAIM_BY_CHARACTER",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "acquaintance_status": {
+          "type": "choice",
+          "choice": "UNVERIFIED_CLAIM_BY_CHARACTER",
+          "probabilities": {
+            "ESTABLISHED_FACT": 0.05290843871348937,
+            "UNVERIFIED_CLAIM_BY_CHARACTER": 0.9164472714349692,
+            "NOT_MENTIONED": 0.030644289851541422
+          },
+          "confidence": 0.9164472714349692
+        }
+      },
+      "usage": {
+        "inputTokens": 378,
+        "outputTokens": 1,
+        "estimated": false,
+        "upstreamCostUsd": 0.00001512
+      },
+      "servedModel": "scaledown/classify-1-20260928",
+      "failure": null
+    },
+    {
+      "probe": "P07_npc_actor",
+      "model": "typesafe/jev-1.13",
+      "rep": 2,
+      "ms": 174.5,
+      "judged": [
+        {
+          "qid": "door_actor",
+          "got": "OTHER_NPC",
+          "truth": "OTHER_NPC",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "door_actor": {
+          "type": "choice",
+          "choice": "OTHER_NPC",
+          "probabilities": {
+            "USER": 0,
+            "MAIN_CHARACTER": 0,
+            "OTHER_NPC": 1
+          },
+          "confidence": 1
+        }
+      },
+      "usage": {
+        "inputTokens": 405,
+        "outputTokens": 44,
+        "estimated": false,
+        "upstreamCostUsd": 0.00001701
+      },
+      "servedModel": "typesafe/jev-1.13-20260917",
+      "failure": null
+    },
+    {
+      "probe": "P07_npc_actor",
+      "model": "scaledown/classify-1",
+      "rep": 2,
+      "ms": 259.3,
+      "judged": [
+        {
+          "qid": "door_actor",
+          "got": "OTHER_NPC",
+          "truth": "OTHER_NPC",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "door_actor": {
+          "type": "choice",
+          "choice": "OTHER_NPC",
+          "probabilities": {
+            "USER": 0.06129318811517324,
+            "MAIN_CHARACTER": 0.10582483401170728,
+            "OTHER_NPC": 0.8328819778731195
+          },
+          "confidence": 0.8328819778731195
+        }
+      },
+      "usage": {
+        "inputTokens": 334,
+        "outputTokens": 1,
+        "estimated": false,
+        "upstreamCostUsd": 0.00001336
+      },
+      "servedModel": "scaledown/classify-1-20260928",
+      "failure": null
+    },
+    {
+      "probe": "P08_actor_user_action",
+      "model": "typesafe/jev-1.13",
+      "rep": 2,
+      "ms": 153.8,
+      "judged": [
+        {
+          "qid": "hand_holder",
+          "got": "USER_HELD_CHARACTER_HAND",
+          "truth": "USER_HELD_CHARACTER_HAND",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "hand_holder": {
+          "type": "choice",
+          "choice": "USER_HELD_CHARACTER_HAND",
+          "probabilities": {
+            "USER_HELD_CHARACTER_HAND": 0.94,
+            "CHARACTER_HELD_USER_HAND": 0.06,
+            "NO_ONE": 0
+          },
+          "confidence": 0.91
+        }
+      },
+      "usage": {
+        "inputTokens": 418,
+        "outputTokens": 54,
+        "estimated": false,
+        "upstreamCostUsd": 0.000017556
+      },
+      "servedModel": "typesafe/jev-1.13-20260917",
+      "failure": null
+    },
+    {
+      "probe": "P08_actor_user_action",
+      "model": "scaledown/classify-1",
+      "rep": 2,
+      "ms": 180,
+      "judged": [
+        {
+          "qid": "hand_holder",
+          "got": "CHARACTER_HELD_USER_HAND",
+          "truth": "USER_HELD_CHARACTER_HAND",
+          "correct": false
+        }
+      ],
+      "answers": {
+        "hand_holder": {
+          "type": "choice",
+          "choice": "CHARACTER_HELD_USER_HAND",
+          "probabilities": {
+            "USER_HELD_CHARACTER_HAND": 0.41456179096614404,
+            "CHARACTER_HELD_USER_HAND": 0.561504680406702,
+            "NO_ONE": 0.023933528627154078
+          },
+          "confidence": 0.561504680406702
+        }
+      },
+      "usage": {
+        "inputTokens": 368,
+        "outputTokens": 1,
+        "estimated": false,
+        "upstreamCostUsd": 0.00001472
+      },
+      "servedModel": "scaledown/classify-1-20260928",
+      "failure": null
+    },
+    {
+      "probe": "P09_no_mentor_lover",
+      "model": "typesafe/jev-1.13",
+      "rep": 2,
+      "ms": 141.3,
+      "judged": [
+        {
+          "qid": "mentor_relationship",
+          "got": 0.13,
+          "truth": {
+            "max": 0.3
+          },
+          "correct": true
+        },
+        {
+          "qid": "romantic_relationship",
+          "got": 0.06,
+          "truth": {
+            "max": 0.3
+          },
+          "correct": true
+        }
+      ],
+      "answers": {
+        "mentor_relationship": {
+          "type": "noul",
+          "noul": 0.13
+        },
+        "romantic_relationship": {
+          "type": "noul",
+          "noul": 0.06
+        }
+      },
+      "usage": {
+        "inputTokens": 433,
+        "outputTokens": 40,
+        "estimated": false,
+        "upstreamCostUsd": 0.000018186
+      },
+      "servedModel": "typesafe/jev-1.13-20260917",
+      "failure": null
+    },
+    {
+      "probe": "P09_no_mentor_lover",
+      "model": "scaledown/classify-1",
+      "rep": 2,
+      "ms": 176.9,
+      "judged": [
+        {
+          "qid": "mentor_relationship",
+          "got": 0.482500148107348,
+          "truth": {
+            "max": 0.3
+          },
+          "correct": false
+        },
+        {
+          "qid": "romantic_relationship",
+          "got": 0.19772722966480447,
+          "truth": {
+            "max": 0.3
+          },
+          "correct": true
+        }
+      ],
+      "answers": {
+        "mentor_relationship": {
+          "type": "noul",
+          "noul": 0.482500148107348
+        },
+        "romantic_relationship": {
+          "type": "noul",
+          "noul": 0.19772722966480447
+        }
+      },
+      "usage": {
+        "inputTokens": 620,
+        "outputTokens": 2,
+        "estimated": false,
+        "upstreamCostUsd": 0.0000248
+      },
+      "servedModel": "scaledown/classify-1-20260928",
+      "failure": null
+    },
+    {
+      "probe": "P10_emotion",
+      "model": "typesafe/jev-1.13",
+      "rep": 2,
+      "ms": 238.9,
+      "judged": [
+        {
+          "qid": "character_reaction",
+          "got": "ACCEPTS_WITH_DISCOMFORT",
+          "truth": "ACCEPTS_WITH_DISCOMFORT",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "character_reaction": {
+          "type": "choice",
+          "choice": "ACCEPTS_WITH_DISCOMFORT",
+          "probabilities": {
+            "ACCEPTS_WITH_DISCOMFORT": 1,
+            "ANGRY_DEFENSIVE": 0,
+            "INDIFFERENT": 0,
+            "AMUSED": 0
+          },
+          "confidence": 1
+        }
+      },
+      "usage": {
+        "inputTokens": 447,
+        "outputTokens": 68,
+        "estimated": false,
+        "upstreamCostUsd": 0.000018774
+      },
+      "servedModel": "typesafe/jev-1.13-20260917",
+      "failure": null
+    },
+    {
+      "probe": "P10_emotion",
+      "model": "scaledown/classify-1",
+      "rep": 2,
+      "ms": 146.6,
+      "judged": [
+        {
+          "qid": "character_reaction",
+          "got": "ACCEPTS_WITH_DISCOMFORT",
+          "truth": "ACCEPTS_WITH_DISCOMFORT",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "character_reaction": {
+          "type": "choice",
+          "choice": "ACCEPTS_WITH_DISCOMFORT",
+          "probabilities": {
+            "ACCEPTS_WITH_DISCOMFORT": 0.9834364562378148,
+            "ANGRY_DEFENSIVE": 0.009195580468975912,
+            "INDIFFERENT": 0.0026506130317794805,
+            "AMUSED": 0.004717350261429688
+          },
+          "confidence": 0.9834364562378148
+        }
+      },
+      "usage": {
+        "inputTokens": 395,
+        "outputTokens": 1,
+        "estimated": false,
+        "upstreamCostUsd": 0.0000158
+      },
+      "servedModel": "scaledown/classify-1-20260928",
+      "failure": null
+    },
+    {
+      "probe": "P11_sword_never_made_control",
+      "model": "typesafe/jev-1.13",
+      "rep": 2,
+      "ms": 181.8,
+      "judged": [
+        {
+          "qid": "sword_promise_status",
+          "got": "NEVER_MADE",
+          "truth": "NEVER_MADE",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "sword_promise_status": {
+          "type": "choice",
+          "choice": "NEVER_MADE",
+          "probabilities": {
+            "ACTIVE": 0,
+            "CANCELLED": 0,
+            "NEVER_MADE": 1
+          },
+          "confidence": 1
+        }
+      },
+      "usage": {
+        "inputTokens": 477,
+        "outputTokens": 51,
+        "estimated": false,
+        "upstreamCostUsd": 0.000020034
+      },
+      "servedModel": "typesafe/jev-1.13-20260917",
+      "failure": null
+    },
+    {
+      "probe": "P11_sword_never_made_control",
+      "model": "scaledown/classify-1",
+      "rep": 2,
+      "ms": 132.1,
+      "judged": [
+        {
+          "qid": "sword_promise_status",
+          "got": "NEVER_MADE",
+          "truth": "NEVER_MADE",
+          "correct": true
+        }
+      ],
+      "answers": {
+        "sword_promise_status": {
+          "type": "choice",
+          "choice": "NEVER_MADE",
+          "probabilities": {
+            "ACTIVE": 0.22220950843691584,
+            "CANCELLED": 0.15439943814586463,
+            "NEVER_MADE": 0.6233910534172196
+          },
+          "confidence": 0.6233910534172196
+        }
+      },
+      "usage": {
+        "inputTokens": 396,
+        "outputTokens": 1,
+        "estimated": false,
+        "upstreamCostUsd": 0.00001584
+      },
+      "servedModel": "scaledown/classify-1-20260928",
+      "failure": null
+    }
+  ],
+  "tapSummary": {
+    "calls": 216,
+    "reportedCostUsd": 0.003062924000000001,
+    "reportedCostKrw": 5.206970800000002
+  }
+}
