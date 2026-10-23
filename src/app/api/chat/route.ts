@@ -152,6 +152,7 @@ import { maybeRewriteNarrationLexicon } from "@/lib/speechLock";
 import { isMockApiMode, logMockModeOnce } from "@/lib/mockApiMode";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
 import { shouldRequestEpisodicInSharedInitial } from "@/lib/memory/memory-episodic-shared";
+import { startIndependentEpisodicExtraction } from "@/lib/memory/memory-episodic-independent";
 import { parseAssets, chatAssets } from "@/lib/characterAssets";
 import { sanitizeEmotionTagInText, stripEmotionTagsForDisplay } from "@/lib/emotionTag";
 import { sanitizeCharacterGenres } from "@/lib/characterGenres";
@@ -5615,18 +5616,15 @@ export async function POST(req: Request) {
         let widgetSharedRelationshipDelta:
           | import("@/lib/chatMemory").RelationshipMetaDelta
           | null = null;
-        let widgetSharedEpisodic:
-          | import("@/lib/memory/memory-episodic-shared").EpisodicSectionParse
-          | null = null;
         /** status OFF: run the shared post-turn inference AFTER SSE done (background). */
         let deferPostTurnShared = false;
-        const shareEpisodicInSharedInitial = shouldRequestEpisodicInSharedInitial({
+        const episodicExtractionEligible = shouldRequestEpisodicInSharedInitial({
           userMessage: messageText,
           db,
           chatId: chatRef.id,
           sourceUserMessageId: userMessageId,
         });
-        const episodicCorrectionCandidates = shareEpisodicInSharedInitial
+        const episodicCorrectionCandidates = episodicExtractionEligible
           ? listEpisodicCorrectionCandidates(db, {
               ...episodicRetrievalScope,
               currentUserMessage: messageText,
@@ -5685,13 +5683,11 @@ export async function POST(req: Request) {
             // Whole-turn owner: also carry the durable relationship delta in the
             // same Luna inference when memory is enabled.
             shareRelationshipDelta: isMemoryFeatureEnabled(),
-            shareEpisodic: shareEpisodicInSharedInitial,
             relationshipRegenContext:
               regenerateMessageId && rejectedAssistantDraft
                 ? { previousAssistantMessage: rejectedAssistantDraft }
                 : null,
             activePromises: activePromiseTexts,
-            episodicCorrectionCandidates,
           });
           savedText = widgetResolved.prose;
           statusWidgetValuesPayload = widgetResolved.values;
@@ -5706,7 +5702,6 @@ export async function POST(req: Request) {
           widgetPostTurnPhysicalAttempted = widgetResolved.postTurnPhysicalAttempted;
           widgetSharedRelationshipUsable = widgetResolved.sharedInitialRelationshipUsable;
           widgetSharedRelationshipDelta = widgetResolved.sharedInitialRelationshipDelta;
-          widgetSharedEpisodic = widgetResolved.sharedInitialEpisodic;
           if (showFullBillingReceipt && widgetResolved.widgetExtractDiagnostics) {
             usageRecord = {
               ...usageRecord,
@@ -6915,6 +6910,24 @@ export async function POST(req: Request) {
 
         const turnTail = (async () => {
           try {
+            // Independent episodic inference: starts after SSE done and runs
+            // concurrently with the Shared Initial call and relationship merge.
+            // It never rejects; the memory layer persists it behind the
+            // generation/epoch guards.
+            const episodicExtraction = shouldCommitCanonicalTurnState(generationSemantics)
+              ? startIndependentEpisodicExtraction({
+                  eligible: episodicExtractionEligible,
+                  chatId: chatRef.id,
+                  assistantMessageId: aiMessageId,
+                  sourceUserMessageId: userMessageId ?? null,
+                  generationScope: postTurnGenerationScope,
+                  charName: ch.name,
+                  personaName: personaDisplayName,
+                  userMessage: messageText,
+                  assistantProse: savedText,
+                  correctionCandidates: episodicCorrectionCandidates,
+                })
+              : undefined;
             if (!regenerateMessageId && userMessageId) {
               db.prepare("UPDATE messages SET user_message_id=? WHERE id=?").run(
                 userMessageId,
@@ -6998,7 +7011,6 @@ export async function POST(req: Request) {
                   primaryModelId: BACKGROUND_OPENROUTER_MODEL,
                   includeSuggestions: suggestedRepliesGenerationEligible,
                   includeRelationship: isMemoryFeatureEnabled(),
-                  includeEpisodic: shareEpisodicInSharedInitial,
                   userPersona: backgroundPersonaIdentity,
                   personaDescription,
                   personaSpeechExamples: selectedPersona?.speech_examples ?? null,
@@ -7007,7 +7019,6 @@ export async function POST(req: Request) {
                       ? rejectedAssistantDraft
                       : null,
                   activePromises: activePromiseTexts,
-                  episodicCorrectionCandidates,
                 },
                 undefined,
                 ledgerContext
@@ -7023,9 +7034,6 @@ export async function POST(req: Request) {
                   widgetPrefetchedSuggestedReplies = sharedConsumers.parsed.suggestedReplies;
                   widgetPrefetchedSuggestedRepliesAssistantProseHash =
                     hashAssistantProseForSuggestionPrefetch(savedText);
-                }
-                if (shareEpisodicInSharedInitial && sharedConsumers.parsed?.episodic) {
-                  widgetSharedEpisodic = sharedConsumers.parsed.episodic;
                 }
               }
               scheduleRepliesIfEligible();
@@ -7053,8 +7061,7 @@ export async function POST(req: Request) {
               relationshipSharedParsed: widgetSharedRelationshipUsable,
               relationshipSharedDelta: widgetSharedRelationshipDelta,
               relationshipSharedAttempted: widgetPostTurnPhysicalAttempted,
-              sharedInitialEpisodic: widgetSharedEpisodic,
-              episodicSharedAttempted: widgetPostTurnPhysicalAttempted && shareEpisodicInSharedInitial,
+              episodicExtraction,
               generationScope: postTurnGenerationScope,
             });
             }

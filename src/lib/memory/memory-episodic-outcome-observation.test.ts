@@ -113,8 +113,9 @@ async function runTurn(opts: {
       sourceUserMessageId: turn.userMessageId,
       relationshipSharedAttempted: true,
       relationshipSharedParsed: false,
-      sharedInitialEpisodic: opts.episodic,
-      episodicSharedAttempted: opts.episodicSharedAttempted,
+      episodicExtraction: opts.episodicSharedAttempted
+        ? Promise.resolve({ status: "extracted" as const, episodic: opts.episodic })
+        : undefined,
       route: "safe",
     });
   } finally {

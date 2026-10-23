@@ -38,7 +38,6 @@ import {
 import { resolvePostTurnSharedInitialMode } from "@/lib/postTurnSharedInitial/parse";
 import { isStatusWidgetContextSafeForSuggestedRepliesCoalesce } from "@/lib/postTurnSharedInitial/coalesceVisibility";
 import { hashAssistantProseForSuggestionPrefetch } from "@/lib/postTurnSharedInitial/prefetch";
-import type { EpisodicSectionParse } from "@/lib/memory/memory-episodic-shared";
 import { runPostTurnSharedInitial } from "@/lib/postTurnSharedInitial/run";
 import type { PostTurnSharedInitialParseResult } from "@/lib/postTurnSharedInitial/types";
 import {
@@ -46,7 +45,6 @@ import {
   type PostTurnSharedInitialWidgetShapeDiagnostics,
 } from "@/lib/postTurnSharedInitial/widgetShapeDiagnostics";
 import type { SuggestedReplyItem } from "@/lib/suggestedReplies/types";
-import type { EpisodicCorrectionCandidate } from "@/lib/memory/memory-episodic-correction";
 import { mergeExtractedFacts, sanitizeExtractedFacts } from "./extractedFacts";
 import {
   logStatusWidgetLiveTrace,
@@ -138,8 +136,6 @@ export type StatusWidgetTurnExtractMeta = {
    */
   sharedInitialRelationshipDelta?: import("@/lib/chatMemory").RelationshipMetaDelta | null;
   sharedInitialRelationshipUsable?: boolean;
-  /** Parsed episodic section from shared initial (independent of widget/relationship). */
-  sharedInitialEpisodic?: EpisodicSectionParse | null;
   /** Shared Luna transport — only when post-turn shared initial ran. */
   sharedInitialTransportStatus?: "success" | "failed" | "not_attempted";
   /** Top-level JSON.parse on shared response — not reached when transport failed. */
@@ -777,14 +773,10 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   coalesceSuggestedReplies?: { enabled: boolean };
   /** When true, the shared initial call also carries the durable relationship delta. */
   shareRelationshipDelta?: boolean;
-  /** When true, the shared initial call also carries top-level episodic facts. */
-  shareEpisodic?: boolean;
   /** Regen: rejected assistant draft for the shared relationship section. */
   relationshipRegenContext?: { previousAssistantMessage: string } | null;
   /** Stored text of the canonical active promises for the shared relationship section. */
   activePromises: readonly string[];
-  /** Past episodic records the shared episodic section may name as corrected. */
-  episodicCorrectionCandidates?: readonly EpisodicCorrectionCandidate[];
 }): Promise<{
   values: ParsedStatusWidgetTurnValues;
   usage: TokenUsage | null;
@@ -821,7 +813,6 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     postTurnPhysicalAttempted: false,
     sharedInitialRelationshipDelta: null,
     sharedInitialRelationshipUsable: false,
-    sharedInitialEpisodic: null,
     sharedInitialTransportStatus: "not_attempted",
     sharedInitialSerializationStatus: "not_reached",
     sharedInitialSemanticStatus: "not_reached",
@@ -877,7 +868,6 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   let sharedInitialRelationshipUsable = false;
   let sharedInitialRelationshipDelta: import("@/lib/chatMemory").RelationshipMetaDelta | null =
     null;
-  let sharedInitialEpisodic: EpisodicSectionParse | null = null;
   let sharedInitialTransportStatus: "success" | "failed" | "not_attempted" =
     "not_attempted";
   let sharedInitialSerializationStatus: "ok" | "failed" | "not_reached" =
@@ -903,14 +893,10 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   // active (suggested replies and/or relationship memory), so a normal turn never
   // issues more than one auxiliary Luna provider call.
   const shareRelationshipDelta = opts.shareRelationshipDelta === true;
-  const shareEpisodic = opts.shareEpisodic === true;
   const shareSuggestedReplies =
     opts.coalesceSuggestedReplies?.enabled === true &&
     isStatusWidgetContextSafeForSuggestedRepliesCoalesce(opts.resolved);
-  if (
-    sharedMode &&
-    (shareSuggestedReplies || shareRelationshipDelta || shareEpisodic)
-  ) {
+  if (sharedMode && (shareSuggestedReplies || shareRelationshipDelta)) {
     const syncLedgerContext =
       opts.trace?.chatId != null && opts.trace?.messageId != null
         ? buildPlatformSyncTurnLedgerContext({
@@ -942,10 +928,9 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       primaryModelId,
       includeSuggestions: shareSuggestedReplies,
       includeRelationship: shareRelationshipDelta,
-      includeEpisodic: shareEpisodic,
+      includeEpisodic: false,
       relationshipRegenContext: opts.relationshipRegenContext ?? null,
       activePromises: opts.activePromises,
-      episodicCorrectionCandidates: opts.episodicCorrectionCandidates,
     };
     const shared = await runPostTurnSharedInitial(
       sharedInput,
@@ -1025,9 +1010,6 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         prefetchedSuggestedRepliesAssistantProseHash = hashAssistantProseForSuggestionPrefetch(
           opts.assistantProse
         );
-      }
-      if (shareEpisodic && sharedInitialParsed?.episodic) {
-        sharedInitialEpisodic = sharedInitialParsed.episodic;
       }
     }
   }
@@ -1476,7 +1458,6 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       postTurnPhysicalAttempted: actualCallCount > 0,
       sharedInitialRelationshipDelta,
       sharedInitialRelationshipUsable,
-      sharedInitialEpisodic,
       sharedInitialTransportStatus,
       sharedInitialSerializationStatus,
       sharedInitialSchemaStatus,
