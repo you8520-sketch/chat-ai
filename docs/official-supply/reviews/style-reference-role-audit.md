@@ -29,18 +29,27 @@ Dry-run on this checkout (`NODE_TEST_CONTEXT=1`, public sheet; production reads 
 
 - New representative, `1024x1536`, quality `medium`, webp compression 88, `n=1`, opaque, `POST /v1/images/edits`.
 - Shot from the character's own identity: `left_three_quarter / eye_level / bust`.
-- Identical primary prompt (SHA `bfd38b51…`) and references for both arms; models `gpt-image-2` and `gpt-image-2.5-sunburst`.
+- Identical primary prompt and references for both arms. Canonical SHA before the run: `4245452eb05dc13608927efd0fafd8ceac80678d80daee4d14fe2f85d6ce1269`, enforced in the script (a different SHA stops the run before any provider call). Earlier values: `bfd38b51…` was an intermediate dry-run written into this document before the last prompt edit and is not reproducible at any commit; `2f3b6e96…` is the dry-run of `08f678bf`, which differs from the canonical SHA only in the pose line (below).
+- One direction in the prompt: the approved rep pose says "정면을 향해 서서" while the shot owner sets `left_three_quarter`. The plan owner is `pilot-rf-02-approved-asset-plan-f.json` (locked; edited nowhere). For the experiment only, the script replaces that pose in memory with "갑옷을 입은 채 서서 한 손을 검 손잡이에 얹는다" (action and prop kept) and fails if the approved pose text ever changes. The rep `poseFamily: sit` is a table default that is not rendered into the prompt. A permanent fix is a locked-plan revision (follow-up, not done here).
+- Same SHA from the public sheet and from the frozen approved `c91ba66a` source (checked with `OFFICIAL_SUPPLY_PILOT_DIR`); the `08f678bf` build differs only in the pose line (diffed). The image prompt reads only name, age, Appearance Lock (`1c3ccd13…`) and the rep expression/pose/outfit, which are identical in all of them.
+- Models: `gpt-image-2` (A) then `gpt-image-2.5-sunburst` (B).
 - Images sent in this order, selected once by purpose from the 8 references, style role only: 1) `07` face, skin, hair, dense gold embroidery, line weight; 2) `04` fur, chain and metal highlights; 3) `08` constant line weight and jacket ornament near the face. Not sent: `03` (the clone origin), `01`/`02` (open-shirt skin-forward), `05`/`06` (white hair), and the apocalypse 2.0 examples.
 - Prepared sizes: 1024x1536 for all three (`preparedSha256` values are in the dry-run JSON).
 
 Comparison items for GPT or the user, from the paid originals next to the three references: line fidelity, skin shading and smooth coloring, natural density of hair, costume and metal, character identity, independence of face, pose and composition from the references, cost and call time per model.
 
-## 4. Railway key path: STOP
+## 4. Railway key path: STOP (re-checked once on 2026-10-23)
 
-- The Cloud VM has no `OPENAI_API_KEY`. `RAILWAY_SSH_*` are 11-byte stubs. `HAV_RAILWAY_SSH_KEY` holds an OpenSSH private key.
-- `railway` CLI 5.71.0 `whoami`/`status` with the injected `RAILWAY_TOKEN`: "Unauthorized". The token is rejected by the Railway API both as an account and as a project token. There is no logged-in session.
-- `railway ssh` goes through the same authenticated CLI session, so the SSH key alone is not a usable path into the container (not bypassed). The Railway MCP server needs an interactive OAuth that timed out.
-- Existing operator pattern for later: `scripts/railway-precall-final-wire.sh` runs a PR overlay inside the container from a throwaway `/tmp` directory with `railway ssh -i`. The same shape works for this script (overlay `scripts/wolfgang-rep-model-ab.ts` plus the three reference files under `docs/.../reattach-2026-10-17/`, run `post --out /tmp/...`, the key stays in the container's `process.env`, no DB, no registered image, no deploy, no restart). It needs a valid Railway login on the operator machine or a working token in the Cloud secrets. No authentication was bypassed and no production file was touched.
+- The Cloud VM has no `OPENAI_API_KEY`. The injected `RAILWAY_TOKEN` is still rejected by `railway whoami` (as `RAILWAY_TOKEN` and as `RAILWAY_API_TOKEN`: "Unauthorized"). No other login session exists, so `railway ssh` is unavailable. No token or SSH-key creation was retried; auth investigation stops here.
+- Railway MCP OAuth (confirmed by GPT) lists the service and `OPENAI_API_KEY` but cannot run container commands, so it does not unblock the A/B.
+- Needed from the user, not via chat: either a working Railway login for the Work browser path, or `OPENAI_API_KEY` as a Cursor Cloud secret (the script reads only `process.env`; a Cloud secret key is then used on this VM instead of Railway).
+
+Container execution design (`scripts/wolfgang-rep-model-ab-railway.sh`, one-off; classify for cleanup after the evidence is archived):
+
+- Builds an overlay from PR HEAD (changed non-test `.ts` files since the `origin/main` merge-base, the three reference webp files, the approved plan fixture) and unpacks it over a copy of `/app/src`, `/app/scripts` in a throwaway `/tmp` dir with `/app/node_modules` linked. `/app` itself, the data volume, the DB and registered assets are not written.
+- The script refuses to run unless the prompt carries the PR-only markers (rep head-direction line, the "do not inherit reference camera/head/gaze/crop/hand" line, the new detail clause, the new hair rendering) and every owner file (`imagePrompt`, `shotPlan`, `style`, `runner`, `referencePreparation`, `imageProfile`, `openAiImageEdit`) hashes to the PR HEAD blob from `--owners-manifest`.
+- Simulation without Railway: overlay on a checkout of the merge-base main produced the canonical SHA `4245452e…`; copying only the script into a plain main tree stopped with "prompt lacks PR owner markers" (fail closed).
+- Cost gate: key never printed; before call 1 the reserve is 0.12 USD; call 2 starts only if `spent + max(0.06 USD, first measured cost x 2)` is within the 0.35 USD budget and below 90% of 1,000 KRW at a conservative 1,500 KRW/USD. A missing first-call cost halts before call 2. `callOpenAiImageEdit` prices usage at gpt-image-2 token rates for every model, so the 2.5 provider bill is checked against the provider dashboard after the run. Simulated with a stubbed provider: normal usage runs both arms (0.102 USD), an expensive first call skips call 2 (projected 841 KRW), missing usage halts.
 
 ## 5. Public reference originals (read only; nothing deleted)
 
