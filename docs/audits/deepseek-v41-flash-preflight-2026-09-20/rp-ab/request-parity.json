@@ -1,0 +1,855 @@
+{
+  "generatedAt": "2026-09-21T01:07:09.787Z",
+  "fixtures": [
+    {
+      "fixtureId": "A_daily",
+      "label": "일상 대화 / 티키타카",
+      "transportProvider": "cheaperinference",
+      "preAdapt": {
+        "changedKeys": [
+          "messages",
+          "model"
+        ],
+        "messageOrderingDiff": {
+          "identical": false,
+          "firstDivergence": "index 0: pro=system:|:[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDAR flash=system:|:[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDAR"
+        }
+      },
+      "finalRequest": {
+        "changedKeys": [
+          "messages",
+          "model",
+          "thinking"
+        ],
+        "reasoningControls": {
+          "pro": {
+            "thinking": {
+              "type": "disabled"
+            },
+            "reasoning_effort": "none",
+            "reasoning": null
+          },
+          "flash": {
+            "thinking": null,
+            "reasoning_effort": "none",
+            "reasoning": null
+          }
+        },
+        "sampling": {
+          "pro": {
+            "temperature": 0.92,
+            "top_p": 0.92,
+            "max_tokens": null
+          },
+          "flash": {
+            "temperature": 0.92,
+            "top_p": 0.92,
+            "max_tokens": null
+          }
+        }
+      },
+      "adapterAdaptationKeyDiff": {
+        "pro": {
+          "removed": [
+            "frequency_penalty",
+            "include_reasoning",
+            "presence_penalty",
+            "reasoning"
+          ],
+          "added": [
+            "reasoning_effort",
+            "thinking"
+          ],
+          "changed": []
+        },
+        "flash": {
+          "removed": [
+            "frequency_penalty",
+            "include_reasoning",
+            "presence_penalty",
+            "reasoning"
+          ],
+          "added": [
+            "reasoning_effort"
+          ],
+          "changed": []
+        }
+      },
+      "systemPrompt": {
+        "proChars": 7710,
+        "flashChars": 7683,
+        "charDelta": 27
+      },
+      "historyMessages": {
+        "pro": 1,
+        "flash": 1
+      },
+      "targetResponseChars": 3200
+    },
+    {
+      "fixtureId": "B_emotion",
+      "label": "감정 관계 continuity",
+      "transportProvider": "cheaperinference",
+      "preAdapt": {
+        "changedKeys": [
+          "messages",
+          "model"
+        ],
+        "messageOrderingDiff": {
+          "identical": false,
+          "firstDivergence": "index 0: pro=system:|:[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDAR flash=system:|:[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDAR"
+        }
+      },
+      "finalRequest": {
+        "changedKeys": [
+          "messages",
+          "model",
+          "thinking"
+        ],
+        "reasoningControls": {
+          "pro": {
+            "thinking": {
+              "type": "disabled"
+            },
+            "reasoning_effort": "none",
+            "reasoning": null
+          },
+          "flash": {
+            "thinking": null,
+            "reasoning_effort": "none",
+            "reasoning": null
+          }
+        },
+        "sampling": {
+          "pro": {
+            "temperature": 0.92,
+            "top_p": 0.92,
+            "max_tokens": null
+          },
+          "flash": {
+            "temperature": 0.92,
+            "top_p": 0.92,
+            "max_tokens": null
+          }
+        }
+      },
+      "adapterAdaptationKeyDiff": {
+        "pro": {
+          "removed": [
+            "frequency_penalty",
+            "include_reasoning",
+            "presence_penalty",
+            "reasoning"
+          ],
+          "added": [
+            "reasoning_effort",
+            "thinking"
+          ],
+          "changed": []
+        },
+        "flash": {
+          "removed": [
+            "frequency_penalty",
+            "include_reasoning",
+            "presence_penalty",
+            "reasoning"
+          ],
+          "added": [
+            "reasoning_effort"
+          ],
+          "changed": []
+        }
+      },
+      "systemPrompt": {
+        "proChars": 7710,
+        "flashChars": 7683,
+        "charDelta": 27
+      },
+      "historyMessages": {
+        "pro": 3,
+        "flash": 3
+      },
+      "targetResponseChars": 3200
+    },
+    {
+      "fixtureId": "C_action",
+      "label": "액션 / 전투",
+      "transportProvider": "cheaperinference",
+      "preAdapt": {
+        "changedKeys": [
+          "messages",
+          "model"
+        ],
+        "messageOrderingDiff": {
+          "identical": false,
+          "firstDivergence": "index 0: pro=system:|:[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDAR flash=system:|:[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDAR"
+        }
+      },
+      "finalRequest": {
+        "changedKeys": [
+          "messages",
+          "model",
+          "thinking"
+        ],
+        "reasoningControls": {
+          "pro": {
+            "thinking": {
+              "type": "disabled"
+            },
+            "reasoning_effort": "none",
+            "reasoning": null
+          },
+          "flash": {
+            "thinking": null,
+            "reasoning_effort": "none",
+            "reasoning": null
+          }
+        },
+        "sampling": {
+          "pro": {
+            "temperature": 0.92,
+            "top_p": 0.92,
+            "max_tokens": null
+          },
+          "flash": {
+            "temperature": 0.92,
+            "top_p": 0.92,
+            "max_tokens": null
+          }
+        }
+      },
+      "adapterAdaptationKeyDiff": {
+        "pro": {
+          "removed": [
+            "frequency_penalty",
+            "include_reasoning",
+            "presence_penalty",
+            "reasoning"
+          ],
+          "added": [
+            "reasoning_effort",
+            "thinking"
+          ],
+          "changed": []
+        },
+        "flash": {
+          "removed": [
+            "frequency_penalty",
+            "include_reasoning",
+            "presence_penalty",
+            "reasoning"
+          ],
+          "added": [
+            "reasoning_effort"
+          ],
+          "changed": []
+        }
+      },
+      "systemPrompt": {
+        "proChars": 7710,
+        "flashChars": 7683,
+        "charDelta": 27
+      },
+      "historyMessages": {
+        "pro": 1,
+        "flash": 1
+      },
+      "targetResponseChars": 3200
+    },
+    {
+      "fixtureId": "D_lore",
+      "label": "장기 lore consistency",
+      "transportProvider": "cheaperinference",
+      "preAdapt": {
+        "changedKeys": [
+          "messages",
+          "model"
+        ],
+        "messageOrderingDiff": {
+          "identical": false,
+          "firstDivergence": "index 0: pro=system:|:[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDAR flash=system:|:[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDAR"
+        }
+      },
+      "finalRequest": {
+        "changedKeys": [
+          "messages",
+          "model",
+          "thinking"
+        ],
+        "reasoningControls": {
+          "pro": {
+            "thinking": {
+              "type": "disabled"
+            },
+            "reasoning_effort": "none",
+            "reasoning": null
+          },
+          "flash": {
+            "thinking": null,
+            "reasoning_effort": "none",
+            "reasoning": null
+          }
+        },
+        "sampling": {
+          "pro": {
+            "temperature": 0.92,
+            "top_p": 0.92,
+            "max_tokens": null
+          },
+          "flash": {
+            "temperature": 0.92,
+            "top_p": 0.92,
+            "max_tokens": null
+          }
+        }
+      },
+      "adapterAdaptationKeyDiff": {
+        "pro": {
+          "removed": [
+            "frequency_penalty",
+            "include_reasoning",
+            "presence_penalty",
+            "reasoning"
+          ],
+          "added": [
+            "reasoning_effort",
+            "thinking"
+          ],
+          "changed": []
+        },
+        "flash": {
+          "removed": [
+            "frequency_penalty",
+            "include_reasoning",
+            "presence_penalty",
+            "reasoning"
+          ],
+          "added": [
+            "reasoning_effort"
+          ],
+          "changed": []
+        }
+      },
+      "systemPrompt": {
+        "proChars": 7787,
+        "flashChars": 7760,
+        "charDelta": 27
+      },
+      "historyMessages": {
+        "pro": 3,
+        "flash": 3
+      },
+      "targetResponseChars": 3200
+    },
+    {
+      "fixtureId": "E_impersonation",
+      "label": "user impersonation 방지",
+      "transportProvider": "cheaperinference",
+      "preAdapt": {
+        "changedKeys": [
+          "messages",
+          "model"
+        ],
+        "messageOrderingDiff": {
+          "identical": false,
+          "firstDivergence": "index 0: pro=system:|:[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDAR flash=system:|:[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDAR"
+        }
+      },
+      "finalRequest": {
+        "changedKeys": [
+          "messages",
+          "model",
+          "thinking"
+        ],
+        "reasoningControls": {
+          "pro": {
+            "thinking": {
+              "type": "disabled"
+            },
+            "reasoning_effort": "none",
+            "reasoning": null
+          },
+          "flash": {
+            "thinking": null,
+            "reasoning_effort": "none",
+            "reasoning": null
+          }
+        },
+        "sampling": {
+          "pro": {
+            "temperature": 0.92,
+            "top_p": 0.92,
+            "max_tokens": null
+          },
+          "flash": {
+            "temperature": 0.92,
+            "top_p": 0.92,
+            "max_tokens": null
+          }
+        }
+      },
+      "adapterAdaptationKeyDiff": {
+        "pro": {
+          "removed": [
+            "frequency_penalty",
+            "include_reasoning",
+            "presence_penalty",
+            "reasoning"
+          ],
+          "added": [
+            "reasoning_effort",
+            "thinking"
+          ],
+          "changed": []
+        },
+        "flash": {
+          "removed": [
+            "frequency_penalty",
+            "include_reasoning",
+            "presence_penalty",
+            "reasoning"
+          ],
+          "added": [
+            "reasoning_effort"
+          ],
+          "changed": []
+        }
+      },
+      "systemPrompt": {
+        "proChars": 7710,
+        "flashChars": 7683,
+        "charDelta": 27
+      },
+      "historyMessages": {
+        "pro": 1,
+        "flash": 1
+      },
+      "targetResponseChars": 3200
+    },
+    {
+      "fixtureId": "F_speech_lock",
+      "label": "character speech lock",
+      "transportProvider": "cheaperinference",
+      "preAdapt": {
+        "changedKeys": [
+          "messages",
+          "model"
+        ],
+        "messageOrderingDiff": {
+          "identical": false,
+          "firstDivergence": "index 0: pro=system:|:[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDAR flash=system:|:[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDAR"
+        }
+      },
+      "finalRequest": {
+        "changedKeys": [
+          "messages",
+          "model",
+          "thinking"
+        ],
+        "reasoningControls": {
+          "pro": {
+            "thinking": {
+              "type": "disabled"
+            },
+            "reasoning_effort": "none",
+            "reasoning": null
+          },
+          "flash": {
+            "thinking": null,
+            "reasoning_effort": "none",
+            "reasoning": null
+          }
+        },
+        "sampling": {
+          "pro": {
+            "temperature": 0.92,
+            "top_p": 0.92,
+            "max_tokens": null
+          },
+          "flash": {
+            "temperature": 0.92,
+            "top_p": 0.92,
+            "max_tokens": null
+          }
+        }
+      },
+      "adapterAdaptationKeyDiff": {
+        "pro": {
+          "removed": [
+            "frequency_penalty",
+            "include_reasoning",
+            "presence_penalty",
+            "reasoning"
+          ],
+          "added": [
+            "reasoning_effort",
+            "thinking"
+          ],
+          "changed": []
+        },
+        "flash": {
+          "removed": [
+            "frequency_penalty",
+            "include_reasoning",
+            "presence_penalty",
+            "reasoning"
+          ],
+          "added": [
+            "reasoning_effort"
+          ],
+          "changed": []
+        }
+      },
+      "systemPrompt": {
+        "proChars": 7710,
+        "flashChars": 7683,
+        "charDelta": 27
+      },
+      "historyMessages": {
+        "pro": 1,
+        "flash": 1
+      },
+      "targetResponseChars": 3200
+    },
+    {
+      "fixtureId": "G_long_memory",
+      "label": "긴 context memory",
+      "transportProvider": "cheaperinference",
+      "preAdapt": {
+        "changedKeys": [
+          "messages",
+          "model"
+        ],
+        "messageOrderingDiff": {
+          "identical": false,
+          "firstDivergence": "index 0: pro=system:|:[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDAR flash=system:|:[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDAR"
+        }
+      },
+      "finalRequest": {
+        "changedKeys": [
+          "messages",
+          "model",
+          "thinking"
+        ],
+        "reasoningControls": {
+          "pro": {
+            "thinking": {
+              "type": "disabled"
+            },
+            "reasoning_effort": "none",
+            "reasoning": null
+          },
+          "flash": {
+            "thinking": null,
+            "reasoning_effort": "none",
+            "reasoning": null
+          }
+        },
+        "sampling": {
+          "pro": {
+            "temperature": 0.92,
+            "top_p": 0.92,
+            "max_tokens": null
+          },
+          "flash": {
+            "temperature": 0.92,
+            "top_p": 0.92,
+            "max_tokens": null
+          }
+        }
+      },
+      "adapterAdaptationKeyDiff": {
+        "pro": {
+          "removed": [
+            "frequency_penalty",
+            "include_reasoning",
+            "presence_penalty",
+            "reasoning"
+          ],
+          "added": [
+            "reasoning_effort",
+            "thinking"
+          ],
+          "changed": []
+        },
+        "flash": {
+          "removed": [
+            "frequency_penalty",
+            "include_reasoning",
+            "presence_penalty",
+            "reasoning"
+          ],
+          "added": [
+            "reasoning_effort"
+          ],
+          "changed": []
+        }
+      },
+      "systemPrompt": {
+        "proChars": 7710,
+        "flashChars": 7683,
+        "charDelta": 27
+      },
+      "historyMessages": {
+        "pro": 13,
+        "flash": 13
+      },
+      "targetResponseChars": 3200
+    },
+    {
+      "fixtureId": "H_long_output",
+      "label": "2500/3500자 장문",
+      "transportProvider": "cheaperinference",
+      "preAdapt": {
+        "changedKeys": [
+          "messages",
+          "model"
+        ],
+        "messageOrderingDiff": {
+          "identical": false,
+          "firstDivergence": "index 0: pro=system:|:[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDAR flash=system:|:[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDAR"
+        }
+      },
+      "finalRequest": {
+        "changedKeys": [
+          "messages",
+          "model",
+          "thinking"
+        ],
+        "reasoningControls": {
+          "pro": {
+            "thinking": {
+              "type": "disabled"
+            },
+            "reasoning_effort": "none",
+            "reasoning": null
+          },
+          "flash": {
+            "thinking": null,
+            "reasoning_effort": "none",
+            "reasoning": null
+          }
+        },
+        "sampling": {
+          "pro": {
+            "temperature": 0.92,
+            "top_p": 0.92,
+            "max_tokens": null
+          },
+          "flash": {
+            "temperature": 0.92,
+            "top_p": 0.92,
+            "max_tokens": null
+          }
+        }
+      },
+      "adapterAdaptationKeyDiff": {
+        "pro": {
+          "removed": [
+            "frequency_penalty",
+            "include_reasoning",
+            "presence_penalty",
+            "reasoning"
+          ],
+          "added": [
+            "reasoning_effort",
+            "thinking"
+          ],
+          "changed": []
+        },
+        "flash": {
+          "removed": [
+            "frequency_penalty",
+            "include_reasoning",
+            "presence_penalty",
+            "reasoning"
+          ],
+          "added": [
+            "reasoning_effort"
+          ],
+          "changed": []
+        }
+      },
+      "systemPrompt": {
+        "proChars": 7710,
+        "flashChars": 7683,
+        "charDelta": 27
+      },
+      "historyMessages": {
+        "pro": 1,
+        "flash": 1
+      },
+      "targetResponseChars": 3500
+    },
+    {
+      "fixtureId": "I_regen",
+      "label": "regeneration",
+      "transportProvider": "cheaperinference",
+      "preAdapt": {
+        "changedKeys": [
+          "messages",
+          "model"
+        ],
+        "messageOrderingDiff": {
+          "identical": false,
+          "firstDivergence": "index 0: pro=system:|:[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDAR flash=system:|:[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDAR"
+        }
+      },
+      "finalRequest": {
+        "changedKeys": [
+          "messages",
+          "model",
+          "thinking"
+        ],
+        "reasoningControls": {
+          "pro": {
+            "thinking": {
+              "type": "disabled"
+            },
+            "reasoning_effort": "none",
+            "reasoning": null
+          },
+          "flash": {
+            "thinking": null,
+            "reasoning_effort": "none",
+            "reasoning": null
+          }
+        },
+        "sampling": {
+          "pro": {
+            "temperature": 0.92,
+            "top_p": 0.92,
+            "max_tokens": null
+          },
+          "flash": {
+            "temperature": 0.92,
+            "top_p": 0.92,
+            "max_tokens": null
+          }
+        }
+      },
+      "adapterAdaptationKeyDiff": {
+        "pro": {
+          "removed": [
+            "frequency_penalty",
+            "include_reasoning",
+            "presence_penalty",
+            "reasoning"
+          ],
+          "added": [
+            "reasoning_effort",
+            "thinking"
+          ],
+          "changed": []
+        },
+        "flash": {
+          "removed": [
+            "frequency_penalty",
+            "include_reasoning",
+            "presence_penalty",
+            "reasoning"
+          ],
+          "added": [
+            "reasoning_effort"
+          ],
+          "changed": []
+        }
+      },
+      "systemPrompt": {
+        "proChars": 7710,
+        "flashChars": 7683,
+        "charDelta": 27
+      },
+      "historyMessages": {
+        "pro": 2,
+        "flash": 2
+      },
+      "targetResponseChars": 3200
+    },
+    {
+      "fixtureId": "J_adult_fixture",
+      "label": "adult-mode 허용 범위 fixture",
+      "transportProvider": "cheaperinference",
+      "preAdapt": {
+        "changedKeys": [
+          "messages",
+          "model"
+        ],
+        "messageOrderingDiff": {
+          "identical": false,
+          "firstDivergence": "index 0: pro=system:|:[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDAR flash=system:|:[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDAR"
+        }
+      },
+      "finalRequest": {
+        "changedKeys": [
+          "messages",
+          "model",
+          "thinking"
+        ],
+        "reasoningControls": {
+          "pro": {
+            "thinking": {
+              "type": "disabled"
+            },
+            "reasoning_effort": "none",
+            "reasoning": null
+          },
+          "flash": {
+            "thinking": null,
+            "reasoning_effort": "none",
+            "reasoning": null
+          }
+        },
+        "sampling": {
+          "pro": {
+            "temperature": 0.92,
+            "top_p": 0.92,
+            "max_tokens": null
+          },
+          "flash": {
+            "temperature": 0.92,
+            "top_p": 0.92,
+            "max_tokens": null
+          }
+        }
+      },
+      "adapterAdaptationKeyDiff": {
+        "pro": {
+          "removed": [
+            "frequency_penalty",
+            "include_reasoning",
+            "presence_penalty",
+            "reasoning"
+          ],
+          "added": [
+            "reasoning_effort",
+            "thinking"
+          ],
+          "changed": []
+        },
+        "flash": {
+          "removed": [
+            "frequency_penalty",
+            "include_reasoning",
+            "presence_penalty",
+            "reasoning"
+          ],
+          "added": [
+            "reasoning_effort"
+          ],
+          "changed": []
+        }
+      },
+      "systemPrompt": {
+        "proChars": 7901,
+        "flashChars": 7874,
+        "charDelta": 27
+      },
+      "historyMessages": {
+        "pro": 1,
+        "flash": 1
+      },
+      "targetResponseChars": 3200
+    }
+  ]
+}
