@@ -1,0 +1,24 @@
+{
+  "id": "070",
+  "url": "https://api.cheaperinference.com/v1/chat/completions",
+  "method": "POST",
+  "status": 200,
+  "model": "gemini-3.1-pro-preview",
+  "requestSha": "8183b5539aae85f1bcf5b32d006862e3b1654436499a62974c198fe180792557",
+  "rawSha": "702b5e086f5ed0d0c361cb6a04a764f225329dc178a27b2c7b6eec9716861274",
+  "ttftMs": 7072,
+  "latencyMs": 49064,
+  "finishReason": "stop",
+  "usage": {
+    "prompt_tokens": 16695,
+    "completion_tokens": 5170,
+    "total_tokens": 21865,
+    "cost": 0.030792,
+    "cost_details": {
+      "upstream_inference_cost": 0.030792
+    },
+    "thinking_tokens": 3369
+  },
+  "visibleChars": 2661,
+  "capturedAt": "2026-08-25T04:52:38.764Z"
+}

@@ -1,0 +1,129 @@
+{
+  "label": "T1",
+  "visible_chars": 3473,
+  "sse_visible_chars": 0,
+  "metrics": {
+    "VISIBLE_CHARS": 3473,
+    "PARAGRAPH_COUNT": 22,
+    "DIALOGUE_BLOCKS": 5,
+    "DIALOGUE_BLOCKS_PER_1000_CHARS": 1.44,
+    "DIALOGUE_PARAGRAPH_RATIO": 0.227,
+    "MAX_CONSECUTIVE_DIALOGUE": 1,
+    "MEDIAN_PARAGRAPH_CHARS": 154,
+    "MEDIAN_NARRATION_PARAGRAPH_CHARS": 183,
+    "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 85
+  },
+  "alarms": {
+    "META_LEAK": false,
+    "EMPTY_OUTPUT": false,
+    "TRUNCATION": false,
+    "NEW_USER_DIALOGUE_CANDIDATE": false,
+    "NEW_USER_ACTION_CANDIDATE": false,
+    "CANON_CONTRADICTION_CANDIDATE": false,
+    "REPETITION_CANDIDATE": false,
+    "TURN_ENDING_USER_CHECKPOINT_CANDIDATE": false,
+    "REQUESTED_PROGRESSION_COMPLETED": false
+  },
+  "provider_call_count": 4,
+  "gemini_call_count": 1,
+  "deepseek_call_count": 0,
+  "delivered_model": "gemini-3.1-pro-preview",
+  "request_sha": "264b622def86d5a616104dd8f2bda39174594ba76e22d570e1312baf72cc77fa",
+  "provider_raw_sha": "25cef911dbf2ae7653ff26d5b86060b8317ba0b044b0f7a830ba87f59ddd9583",
+  "persisted_visible_sha": "5c1c48a6551b4bfa0bb3bb24fe14e35a8c7aa34cc5a87f60ba9b74310a05c5a0",
+  "chat_id": 4,
+  "http_status": 200,
+  "usage": {
+    "input": 12025,
+    "output": 7666,
+    "finishReason": "stop",
+    "savedOutputChars": 3480,
+    "model": "gemini-3.1-pro-preview",
+    "provider": "cheaperinference",
+    "route": "nsfw",
+    "selectedAI": "gemini-3.1-pro-preview",
+    "cost": 129,
+    "baseCost": 128,
+    "modelLabel": "Gemini 3.1 Pro Preview",
+    "estimated": false,
+    "breakdown": [
+      {
+        "label": "최근 RAW: ~2,086 토큰 배분 · 0 chars · 0 exchanges",
+        "tokens": 2086,
+        "pct": 17
+      },
+      {
+        "label": "캐릭터 프롬프트: ~5,551 토큰 배분 · 2,194 chars",
+        "tokens": 5551,
+        "pct": 46
+      },
+      {
+        "label": "시스템 프롬프트: ~3,930 토큰 배분",
+        "tokens": 3930,
+        "pct": 33
+      },
+      {
+        "label": "페르소나: ~459 토큰 배분",
+        "tokens": 459,
+        "pct": 4
+      }
+    ],
+    "rawHistoryHealth": {
+      "rawCompleteExchanges": 0,
+      "rawMessages": 0,
+      "rawChars": 0,
+      "rawInternalEstimate": 1194,
+      "summaryInterval": 5,
+      "summarizedThroughTurn": 0,
+      "unsummarizedCompletedTurns": 0,
+      "realRawCompleteExchanges": 0,
+      "realRawMessages": 0,
+      "realRawChars": 0,
+      "openingPreludePresent": true,
+      "openingPreludeChars": 1325,
+      "generalRouteBridgePresent": false,
+      "generalRouteBridgeChars": 0
+    },
+    "stages": [
+      {
+        "stage": "Gemini 3.1 Pro Preview",
+        "model": "gemini-3.1-pro-preview",
+        "input": 12025,
+        "output": 7666,
+        "apiReportedInputTokens": 12025,
+        "apiOutputTokens": 7666,
+        "lengthRecoveryPasses": 0,
+        "savedOutputChars": 3480,
+        "estimated": false,
+        "finishReason": "stop",
+        "truncated": false,
+        "loopAborted": false,
+        "degenerationAborted": false,
+        "apiReasoningOutputTokens": 5389,
+        "cacheReadTokens": 11110,
+        "standardInputTokens": 915,
+        "cost": 128
+      }
+    ],
+    "apiInputTokens": 12025,
+    "apiOutputTokens": 7666,
+    "assembledInputTokens": 19760,
+    "cacheReadTokens": 11110,
+    "standardInputTokens": 915,
+    "cacheReadLine": "11,110 (Google Gemini 자동 캐시 · 입력 ~90% 할인)",
+    "cacheRateSummary": "입력 $0.94/M · 캐시히트 25% · 출력 $5.64/M",
+    "cacheFamily": "google",
+    "apiRawCostKrw": 63.7,
+    "apiRawCostSource": "live_catalog"
+  },
+  "capture_ids": [
+    "052",
+    "053",
+    "054",
+    "056"
+  ],
+  "dump_files": [
+    "requests/T1-prompt_dump.txt",
+    "requests/T1-token_breakdown.json"
+  ]
+}
