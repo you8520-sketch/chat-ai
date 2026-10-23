@@ -26,6 +26,7 @@ import {
 import {
   ADMIN,
   anchorQa,
+  compositionCheck,
   APPROVED_PLAN,
   CANDIDATES,
   candidateBytes,
@@ -169,7 +170,12 @@ async function moderate(draftKey: string, slotKey: string, moderation: OfficialA
   await moderateOfficialAssetReplacement({ store, moderator: ports.moderator }, draftKey, slotKey);
 }
 
-function review(draftKey: string, candidate: ManifestCandidate, url: string, qa = anchorQa()) {
+function review(
+  draftKey: string,
+  candidate: ManifestCandidate,
+  url: string,
+  qa = anchorQa({ compositionIndependence: compositionCheck(url, candidate.rawSha256) })
+) {
   if (candidate.slot === "rep") {
     return store.reviewRepresentativeReplacement(
       ADMIN,
@@ -330,7 +336,10 @@ describe("approved fourteen-slot private apply (isolated DB, test-only review fi
       assert.equal(active.status, "approved");
       assert.equal(store.getReplacement(MAIN, candidate.slot).status, "applied");
     }
-    assert.deepEqual(store.getAsset(MAIN, "rep").qa, anchorQa());
+    assert.deepEqual(
+      store.getAsset(MAIN, "rep").qa,
+      anchorQa({ compositionIndependence: compositionCheck(candidateUrls.get("rep")!, REP.rawSha256) })
+    );
     const character = store.getCharacter(MAIN);
     assert.deepEqual(character.assetPlan, APPROVED_PLAN);
     assert.deepEqual(
@@ -643,7 +652,7 @@ describe("approved representative gates (isolated DB)", () => {
     const changedFile = { candidateUrl: changed.candidateResultUrl!, candidateSha256: sha256(otherPortrait) };
     assert.equal(changed.candidateSha256, changedFile.candidateSha256);
     assert.equal(
-      store.reviewRepresentativeReplacement(ADMIN, GATES, anchorQa({ face: { ok: false } }), changedFile, TEST_ONLY_REVIEWER)
+      store.reviewRepresentativeReplacement(ADMIN, GATES, anchorQa({ face: { ok: false }, compositionIndependence: compositionCheck(changedFile.candidateUrl, changedFile.candidateSha256) }), changedFile, TEST_ONLY_REVIEWER)
         .approved,
       false
     );

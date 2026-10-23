@@ -18,6 +18,7 @@ import type { OfficialAssetModerator, OfficialAssetStorage, OfficialImageOps } f
 import { stageOfficialCharacterPrivately } from "@/lib/officialSupply/staging";
 import type { OfficialSupplyStore } from "@/lib/officialSupply/store";
 import type {
+  CompositionQaCheck,
   OfficialAnchorQaReport,
   OfficialAppearanceLock,
   OfficialAssetModeration,
@@ -46,6 +47,25 @@ export const anchorQa = (overrides: Partial<OfficialAnchorQaReport> = {}): Offic
   identifyingFeatures: PASS, artStyle: PASS, outfit: PASS, cardCrop: PASS, compositionIndependence: PASS,
   ...overrides,
 });
+/** A reviewed reference as the test reviewer cites it: id plus the file SHA-256 (pinned in the id when the id carries one). */
+export function citedReference(id: string, fallbackSha = "c".repeat(64)): { id: string; sha256: string } {
+  const pinned = /^official-review-candidate:([0-9a-f]{64}):/.exec(id)?.[1];
+  return { id, sha256: pinned ?? fallbackSha };
+}
+
+/** Composition check with the comparison basis a representative review must carry. */
+export function compositionCheck(
+  candidateUrl: string,
+  candidateSha256: string,
+  referenceIds: readonly string[] = ["official-review-candidate:" + "d".repeat(64) + ":docs/official-supply/reviews/assets/ref-a.webp"]
+): CompositionQaCheck {
+  return {
+    ok: true,
+    note: "head angle, gaze, crop and hand position differ from every compared reference",
+    evidence: { candidateUrl, candidateSha256, references: referenceIds.map((id) => citedReference(id)) },
+  };
+}
+
 export const variationQa = (): OfficialVariationQaReport => ({
   identityMatchesAnchor: PASS, expressionMatchesPlan: PASS, characterPresent: PASS, artStyle: PASS,
   compositionIndependence: PASS,

@@ -116,3 +116,13 @@ Risks:
 - Representative to 13 slots: unchanged. Slots still use `identity_then_style` / `identity_and_style` with the approved representative as the sole image in the latter, so a faithful but over-similar representative still propagates into all 13. That makes the representative review the single gate that matters; keep it before slot generation.
 - 2.0 is not proven better for every character: one character, one slot, one sample per model. Before treating it as proven, run the same A/B on at least two other official characters with different style clusters and on one RP (landscape, `identity_and_style`) slot, within the cost cap, and have GPT or the user judge.
 - Cost: 2.0 is about 1.5x per representative call; the 13 landscape slots could differ.
+
+## 12. Representative approval now requires real review evidence
+
+Section 11 finding (2) is fixed in this PR; the blanket pass is removed, not documented.
+
+- `scripts/official-supply-approve-anchor.ts` no longer builds QA from one approval string (`humanApprovalQa()` removed). It requires `OFFICIAL_ANCHOR_REVIEW_EVIDENCE_FILE`: a per-check judgement file with an explicit `ok` and note for every anchor key and for `compositionIndependence`, a reviewer, and approval evidence. The file is bound to the stored candidate (URL and the actual file SHA-256).
+- `compositionIndependence` carries `evidence`: the candidate URL and SHA-256 plus the references compared (id and SHA-256). Parsing reuses the existing `runApprovedAssetReview` evidence path (`explicitQaFromEvidence`, `approvedAssetApplyOperator.ts`).
+- `store.ts` (`assertRepresentativeReviewEvidence`) enforces this on every representative review path (generated anchor, external replacement, re-review). Missing checks: `qa_incomplete`. Missing composition judgement or basis: `composition_review_required` / `composition_evidence_required`. Evidence that does not match the reviewed candidate or the references sent (anchor): `composition_evidence_mismatch`. A failed `compositionIndependence` records a rejection and blocks approval.
+- Legacy stored QA stays valid at apply time (`isCompletePassingAnchorQa` unchanged: the composition key is optional but must pass when present). No DB migration; evidence lives in the existing `qa_json`.
+- Limits: the generated-anchor candidate SHA is verified by the script (file bytes), the store checks URL and format; reference SHAs are byte-verified only when pinned in the id; `reviewVariation` / `reviewReplacement` have no evidence requirement yet (follow-up).
