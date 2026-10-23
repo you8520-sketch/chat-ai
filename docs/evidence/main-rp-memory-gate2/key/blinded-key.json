@@ -1,0 +1,32 @@
+{
+ "A_direct_quote|deepseek-v4.1-flash": {
+  "X": "old",
+  "Y": "cur",
+  "Z": "b1"
+ },
+ "A_direct_quote|gemini-3.8-flash": {
+  "X": "old",
+  "Y": "cur",
+  "Z": "b1"
+ },
+ "A_direct_quote|gpt-6.1-sol": {
+  "X": "cur",
+  "Y": "old",
+  "Z": "b1"
+ },
+ "B_npc_no_cue|deepseek-v4.1-flash": {
+  "X": "cur",
+  "Y": "b1",
+  "Z": "old"
+ },
+ "B_npc_no_cue|gemini-3.8-flash": {
+  "X": "cur",
+  "Y": "old",
+  "Z": "b1"
+ },
+ "B_npc_no_cue|gpt-6.1-sol": {
+  "X": "b1",
+  "Y": "old",
+  "Z": "cur"
+ }
+}

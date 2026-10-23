@@ -1,0 +1,44 @@
+{
+  "caseId": "g2_A_direct_quote_old_deepseek-v4.1-flash",
+  "arm": "old",
+  "sceneId": "A_direct_quote",
+  "modelId": "deepseek-v4.1-flash",
+  "wireModel": "deepseek-v4.1-flash",
+  "provider": "cheaperinference",
+  "postIndex": 1,
+  "startedAt": "2026-10-11T13:11:50.369Z",
+  "httpStatus": 200,
+  "requestId": null,
+  "ok": true,
+  "aborted": false,
+  "text": "장작을 쌓던 손이 멈췄다. 라이크는 마지막으로 올려둔 장작 조각의 각진 모서리를 손끝으로 훑다가, 팔을 내리고 몸을 반쯤 돌렸다. 불빛이 옆얼굴을 타고 흘렀지만 눈은 렌 쪽으로 완전히 오지 않았다. 어깨선이 미세하게 굳는 게 먼저 보였고, 그다음에 턱이 조금 당겨졌다.\n\n기억난다. 그 말이 어디서 나왔는지도, 어떤 목소리였는지도. 그날 라이크는 대답을 못 했다. 지금도 대답이 바로 나오지는 않았다. 대신 검을 쥐던 오른손이 허리춤 근처에서 주먹을 쥐었다 펴졌다. 손바닥에 남은 장작 부스러기가 바닥으로 떨어졌다.\n\n\"…기억하지.\"\n\n짧게 나왔다. 목소리에 힘을 넣지 않으려는 게 오히려 더 드러났다. 라이크는 시선을 벽 쪽에 두었다가, 천천히 렌에게로 옮겼다. 눈꼬리가 살짝 내려가 있었지만 그게 화난 건지 체념인지 알기 어려웠다.\n\n\"그 말, 틀렸다고 생각한 적은 없어. 그때는.\"\n\n장작 더미에서 타닥 소리가 났다. 라이크는 한 발짝 물러서서 벽에 등을 기대듯 서고, 팔짱 대신 두 손을 허리 뒤로 모았다. 검을 다루는 사람 특유의 자세였다. 무언가를 감추거나, 버티거나, 준비할 때 나오는 버릇.\n\n\"그 뒤로 검은 내가 갈았어. 약속도 취소했고.\"\n\n말은 담담했지만 그 담담함이 오히려 오래 눌러둔 것을 꺼내는 방식처럼 들렸다. 라이크는 잠깐 숨을 골랐다. 불빛이 흔들릴 때마다 그림자가 그의 눈 밑을 지나갔다.\n\n\"네가 왜 그 얘기를 지금 꺼내는지는 모르겠어. 근데.\"\n\n여기서 한 번 끊었다. 끊는 사이에 렌을 똑바로 봤다. 시선이 흔들리지 않았다. 이번엔 피하지 않았다.\n\n\"기억나? 라고 물으면, 나는 기억난다고밖에 못 해. 그건 사실이었으니까.\"\n\n허리 뒤에 모았던 손 중 하나가 앞으로 나와, 검집 없이 벽에 세워둔 검의 자루를 스쳤다. 손끝이 자루의 감긴 천을 아주 천천히 훑었다. 검을 갈던 밤, 갈고 또 갈았는데도 손에 감이 오지 않던 감각을 몸이 아직 기억하고 있는 것 같았다.\n\n\"그리고 지금도, 완전히 아니라고는 못 하겠어.\"\n\n그는 그 말을 끝까지 뱉고 나서 입을 다물었다. 다문 입꼬리가 미세하게 내려갔다. 스스로에게 실망한 사람의 얼굴이었다. 장작 화로의 온기가 발치까지 올라왔지만, 라이크는 한 걸음도 더 다가오지 않았다. 대신 검의 자루에서 손을 떼고, 벽에 기대둔 몸을 반쯤 일으켰다. 완전히 물러서는 것도, 완전히 다가서는 것도 아닌 거리. 그가 늘 서는 자리였다.\n\n\"렌. 너는 그 말을 어떻게 기억해.\"\n\n되묻는 목소리가 낮았다. 대답을 요구하는 게 아니라, 자기 안에 오래 남은 문장을 상대의 입에서 한 번 더 듣고 싶은 사람처럼. 라이크는 렌의 대답이 나올 자리를 비워두고, 시선만 조용히 붙들었다. 화로가 다시 한 번 타닥, 하고 속삭였다.",
+  "usage": {
+    "prompt_tokens": 6506,
+    "completion_tokens": 1015,
+    "total_tokens": 7521,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 518,
+      "audio_tokens": 0,
+      "reasoning_tokens": 0,
+      "rejected_prediction_tokens": 973
+    }
+  },
+  "resolvedModel": "deepseek-v4.1-flash",
+  "providerId": "chatcmpl-de10a59aaf8048cfa249a8e4033f954d",
+  "finishReason": "stop",
+  "sawDone": true,
+  "reasoningChars": 0,
+  "firstByteMs": 5808,
+  "latencyMs": 8244,
+  "cost": {
+    "usdNoCacheDiscount": 0.00079245,
+    "usdWithCache": 0.00079245,
+    "reportedCost": null
+  },
+  "budgetedUsd": 0.00079245,
+  "cumulativeBudgetedKrw": 1.3,
+  "cursorQualityScore": null
+}
