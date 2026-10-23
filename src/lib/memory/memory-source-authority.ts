@@ -10,7 +10,7 @@
  */
 import {
   looksLikeHardPriorSharedUserRelationship,
-  looksLikePriorSharedUserHistory,
+  looksLikePriorSharedHistoryClaim,
   splitSharedHistoryClauses,
   userSharedHistoryEvidenceUnits,
   userUnitCoversClaim,
@@ -72,7 +72,7 @@ export function clauseNeedsUserAuthority(
 ): boolean {
   if (isAttributedMemoryClaim(clause)) return false;
   const retrospective =
-    looksLikePriorSharedUserHistory(clause) || looksLikeHardPriorSharedUserRelationship(clause);
+    looksLikePriorSharedHistoryClaim(clause) || looksLikeHardPriorSharedUserRelationship(clause);
   const family = hasFamilyParticipant(clause);
   if (mentionsUser(clause, personaName) && (retrospective || family)) return true;
   return category === "relationship" && (retrospective || family);
