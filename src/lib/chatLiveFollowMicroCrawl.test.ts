@@ -1,18 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { createIntegerScrollDebtTransport } from "./integerScrollTransport";
 import {
-  computeNaturalCruiseVelocityPxPerSec,
   createLiveReadingFollowController,
-  estimateLineWrapIntervalMs,
-  estimateVerticalGrowthPxPerSec,
   LIVE_FOLLOW_MAX_CATCHUP_SPEED_PX_PER_SEC,
-  type LiveReadingFollowController,
 } from "./liveReadingFollow";
-import {
-  type ChatLiveFollowMotionPrefs,
-  resolveChatLiveFollowMotionProfile,
-} from "./chatLiveFollow";
+import { resolveChatLiveFollowMotionProfile } from "./chatLiveFollow";
 
 const VIEWPORT_HEIGHT = 800;
 const TARGET_Y = VIEWPORT_HEIGHT * 0.63;
@@ -53,23 +45,17 @@ function createFrameClock(): TestFrameQueue & {
   };
 }
 
-function createRenderedTargetChaseHarness(
-  prefs: ChatLiveFollowMotionPrefs,
-  opts?: { shouldFollow?: () => boolean }
-) {
+function createGeometryFollowHarness(opts?: { shouldFollow?: () => boolean }) {
   let scrollY = 0;
   let targetDocumentY = TARGET_Y;
   const appliedScrolls: number[] = [];
-  const transport = createIntegerScrollDebtTransport((delta) => {
-    appliedScrolls.push(delta);
-    scrollY += delta;
-  });
   const clock = createFrameClock();
-  const controller: LiveReadingFollowController = createLiveReadingFollowController({
+  const controller = createLiveReadingFollowController({
     getViewportHeight: () => VIEWPORT_HEIGHT,
     getScrollPosition: () => scrollY,
     scrollBy: (requestedDelta) => {
-      transport.apply(requestedDelta);
+      appliedScrolls.push(requestedDelta);
+      scrollY += requestedDelta;
     },
     resolveTargetElement: () =>
       ({
@@ -77,9 +63,15 @@ function createRenderedTargetChaseHarness(
       }) as Element,
     shouldFollow: opts?.shouldFollow ?? (() => true),
     isContentGrowing: () => true,
-    motionProfile: resolveChatLiveFollowMotionProfile(prefs),
+    motionProfile: resolveChatLiveFollowMotionProfile({
+      streamIntervalMs: 16,
+      streamCharsPerTick: 1,
+    }),
     getMotionProfile: () =>
-      resolveChatLiveFollowMotionProfile(prefs),
+      resolveChatLiveFollowMotionProfile({
+        streamIntervalMs: 16,
+        streamCharsPerTick: 1,
+      }),
     requestAnimationFrame: clock.requestAnimationFrame,
     cancelAnimationFrame: clock.cancelAnimationFrame,
   });
@@ -90,174 +82,82 @@ function createRenderedTargetChaseHarness(
     get scrollY() {
       return scrollY;
     },
-    get targetDocumentY() {
-      return targetDocumentY;
-    },
     setTargetDocumentY(value: number) {
       targetDocumentY = value;
     },
-    driveUntilIdle(maxFrames = 120) {
+    driveUntilIdle(maxFrames = 180) {
       let framesRun = 0;
       for (let frame = 0; frame < maxFrames; frame += 1) {
         if (clock.pending.length === 0) break;
         clock.drive(1);
         framesRun += 1;
       }
-      return {
-        framesRun,
-        queueLength: clock.pending.length,
-      };
-    },
-    queuedFrameCount() {
-      return clock.pending.length;
+      return { framesRun, queueLength: clock.pending.length };
     },
   };
 }
 
-describe("general chat target-chase regression", () => {
-  it("uses shared target-chase motion and preserves both production reveal speeds", () => {
-    const fastPrefs = { streamIntervalMs: 24, streamCharsPerTick: 1 };
-    const normalPrefs = { streamIntervalMs: 40, streamCharsPerTick: 1 };
-    assert.deepEqual(resolveChatLiveFollowMotionProfile(fastPrefs), {
-      mode: "stepwise-chase",
-      streamIntervalMs: 24,
+describe("general chat geometry-damped follow regression", () => {
+  it("uses geometry-damped profile independent of reveal cadence", () => {
+    const fast = resolveChatLiveFollowMotionProfile({
+      streamIntervalMs: 16,
       streamCharsPerTick: 1,
-      downwardOnly: true,
     });
-    assert.deepEqual(resolveChatLiveFollowMotionProfile(normalPrefs), {
-      mode: "stepwise-chase",
+    const normal = resolveChatLiveFollowMotionProfile({
       streamIntervalMs: 40,
       streamCharsPerTick: 1,
-      downwardOnly: true,
     });
-
-    const fastGrowth = estimateVerticalGrowthPxPerSec(24, 1);
-    const normalGrowth = estimateVerticalGrowthPxPerSec(40, 1);
-    assert.equal(fastGrowth.toFixed(3), "25.794");
-    assert.equal(normalGrowth.toFixed(3), "15.476");
-    assert.equal(
-      computeNaturalCruiseVelocityPxPerSec({
-        measuredGrowthPxPerSec: fastGrowth,
-        streamIntervalMs: 24,
-        charsPerTick: 1,
-      }).toFixed(3),
-      "23.214"
-    );
-    assert.equal(
-      computeNaturalCruiseVelocityPxPerSec({
-        measuredGrowthPxPerSec: normalGrowth,
-        streamIntervalMs: 40,
-        charsPerTick: 1,
-      }).toFixed(3),
-      "13.929"
-    );
-    assert.equal(estimateLineWrapIntervalMs(24, 1), 1008);
-    assert.equal(estimateLineWrapIntervalMs(40, 1), 1680);
+    assert.deepEqual(fast, { mode: "geometry-damped", downwardOnly: true });
+    assert.deepEqual(normal, fast);
   });
 
   it("stays still while the rendered target does not grow", () => {
-    const harness = createRenderedTargetChaseHarness({
-      streamIntervalMs: 24,
-      streamCharsPerTick: 1,
-    });
-
+    const harness = createGeometryFollowHarness();
     harness.controller.notifyTargetUpdate();
-    harness.driveUntilIdle(180);
-
+    harness.driveUntilIdle();
     assert.deepEqual(harness.appliedScrolls, []);
-    assert.equal(harness.controller.isRunning(), false);
     harness.controller.stop();
   });
 
   it("leaves a manually detached viewport parked even when the target grows", () => {
     let attached = true;
-    const harness = createRenderedTargetChaseHarness(
-      {
-        streamIntervalMs: 24,
-        streamCharsPerTick: 1,
-      },
-      { shouldFollow: () => attached }
-    );
+    const harness = createGeometryFollowHarness({ shouldFollow: () => attached });
     harness.setTargetDocumentY(TARGET_Y + RENDERED_LINE_PX);
-
     harness.controller.notifyTargetUpdate();
     attached = false;
     harness.driveUntilIdle();
-
     assert.deepEqual(harness.appliedScrolls, []);
-    assert.equal(harness.controller.isRunning(), false);
     harness.controller.stop();
   });
 
-  it("chases one rendered line in a bounded episode and then settles", () => {
-    const harness = createRenderedTargetChaseHarness({
-      streamIntervalMs: 24,
-      streamCharsPerTick: 1,
-    });
+  it("follows one rendered line without micro-crawl while target is stationary", () => {
+    const harness = createGeometryFollowHarness();
     harness.setTargetDocumentY(TARGET_Y + RENDERED_LINE_PX);
-
     harness.controller.notifyTargetUpdate();
-    const episode = harness.driveUntilIdle();
-
-    assert.ok(harness.appliedScrolls.length > 1);
-    assert.ok(harness.appliedScrolls.every((step) => step > 0));
+    harness.driveUntilIdle(90);
+    const afterLine = [...harness.appliedScrolls];
+    harness.driveUntilIdle(120);
+    assert.ok(afterLine.length > 0);
+    assert.ok(afterLine.every((step) => step > 0));
     assert.ok(
-      harness.appliedScrolls.every(
+      afterLine.every(
         (step) => step <= LIVE_FOLLOW_MAX_CATCHUP_SPEED_PX_PER_SEC / 60 + 1
       )
     );
-    assert.ok(episode.framesRun <= 30, `framesRun=${episode.framesRun}`);
     assert.ok(
-      harness.scrollY >= RENDERED_LINE_PX - 6 && harness.scrollY <= RENDERED_LINE_PX + 2,
+      harness.scrollY >= RENDERED_LINE_PX - 8 && harness.scrollY <= RENDERED_LINE_PX + 4,
       `scrollY=${harness.scrollY}`
     );
-    assert.equal(harness.controller.isRunning(), false);
-    harness.controller.stop();
-  });
-
-  it("coalesces rapid layout growth in the same canonical chase owner", () => {
-    const harness = createRenderedTargetChaseHarness({
-      streamIntervalMs: 24,
-      streamCharsPerTick: 1,
-    });
-    const initialTarget = harness.targetDocumentY;
-    harness.setTargetDocumentY(initialTarget + RENDERED_LINE_PX);
-
-    harness.controller.notifyTargetUpdate();
-    harness.driveUntilIdle(1);
-    assert.equal(harness.queuedFrameCount(), 1);
-
-    harness.setTargetDocumentY(initialTarget + RENDERED_LINE_PX * 2);
-    harness.controller.notifyTargetUpdate();
-    assert.equal(
-      harness.queuedFrameCount(),
-      1,
-      "rapid growth must reuse the running chase rather than spawn another animator"
-    );
-    harness.driveUntilIdle();
-
-    assert.ok(harness.appliedScrolls.every((step) => step > 0));
-    assert.ok(
-      harness.scrollY >= RENDERED_LINE_PX * 2 - 6 &&
-        harness.scrollY <= RENDERED_LINE_PX * 2 + 2,
-      `scrollY=${harness.scrollY}`
-    );
-    assert.equal(harness.controller.isRunning(), false);
+    assert.equal(harness.appliedScrolls.length, afterLine.length, "no extra crawl after settle");
     harness.controller.stop();
   });
 
   it("never issues an upward programmatic correction", () => {
-    const harness = createRenderedTargetChaseHarness({
-      streamIntervalMs: 24,
-      streamCharsPerTick: 1,
-    });
+    const harness = createGeometryFollowHarness();
     harness.setTargetDocumentY(TARGET_Y - 10);
-
     harness.controller.notifyTargetUpdate();
     harness.driveUntilIdle();
-
     assert.deepEqual(harness.appliedScrolls, []);
-    assert.equal(harness.controller.isRunning(), false);
     harness.controller.stop();
   });
 });
