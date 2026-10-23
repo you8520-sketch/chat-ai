@@ -1209,8 +1209,23 @@ function batchCallSeqOf(requestId: string | null | undefined): number {
   return Number.isInteger(seq) && seq > 0 ? seq : 0;
 }
 
-/** 운영자가 정확히 지목한 미정산 호출 하나. 비용이 확정되기 전까지만 unknown-cost 집계에서 빠지고, 별도 예약액이 대신한다. */
-export type AdultOffBatchQuarantinedCall = { requestId: string; eventKey: string; messageId: number };
+/**
+ * 비용이 확정되지 않은 채 원장에 남을 수 있는 두 상태. `started`는 응답 확인 전에 끊긴 호출, `failed_without_usage`는
+ * 로컬에서 실패 처리됐지만 공급자 쪽 정산 여부를 모르는 호출이다. 어느 쪽이든 공급자 요청 ID와 비용은 없다.
+ */
+export const ADULT_OFF_BATCH_QUARANTINE_LEDGER_STATUSES = ["started", "failed_without_usage"] as const;
+export type AdultOffBatchQuarantineLedgerStatus = (typeof ADULT_OFF_BATCH_QUARANTINE_LEDGER_STATUSES)[number];
+
+/**
+ * 운영자가 정확히 지목한 미정산 호출. 비용이 확정되기 전까지만 unknown-cost 집계에서 빠지고, 별도 예약액이 대신한다.
+ * `ledgerStatus`를 생략하면 `started`(기존 격리 기록과의 호환)로 본다.
+ */
+export type AdultOffBatchQuarantinedCall = {
+  requestId: string;
+  eventKey: string;
+  messageId: number;
+  ledgerStatus?: AdultOffBatchQuarantineLedgerStatus;
+};
 
 /**
  * 격리된 호출의 원장 상태. `unconfirmed`만 집계에서 제외할 수 있고, `settled`는 기존 정산 경로가 처리하며,
@@ -1232,7 +1247,11 @@ export function classifyAdultOffBatchQuarantinedCall(
     return "changed";
   }
   if (isLedgerEventCostExact(row) && (row.actual_cost_usd ?? 0) > 0) return "settled";
-  if (row.event_status === "started" && row.provider_request_id == null && row.actual_cost_usd == null) {
+  if (
+    row.event_status === (call.ledgerStatus ?? "started") &&
+    row.provider_request_id == null &&
+    row.actual_cost_usd == null
+  ) {
     return "unconfirmed";
   }
   return "changed";
@@ -1240,7 +1259,7 @@ export function classifyAdultOffBatchQuarantinedCall(
 
 export function summarizeAdultOffBatchLedgerRows(
   rows: readonly AdultOffBatchLedgerRow[],
-  quarantined: AdultOffBatchQuarantinedCall | null = null
+  quarantined: readonly AdultOffBatchQuarantinedCall[] = []
 ): AdultOffBatchModerationSpend {
   let settledUsd = 0;
   let unknownCostEvents = 0;
@@ -1249,7 +1268,7 @@ export function summarizeAdultOffBatchLedgerRows(
     maxCallSeq = Math.max(maxCallSeq, batchCallSeqOf(row.generation_request_id));
     if (isLedgerEventCostExact(row)) {
       settledUsd += row.actual_cost_usd ?? 0;
-    } else if (quarantined && classifyAdultOffBatchQuarantinedCall([row], quarantined) === "unconfirmed") {
+    } else if (quarantined.some((call) => classifyAdultOffBatchQuarantinedCall([row], call) === "unconfirmed")) {
       continue;
     } else {
       unknownCostEvents += 1;
@@ -1291,7 +1310,7 @@ export function readAdultOffBatchCallLedgerRows(
 /** 이 DB 원장에 남은 모든 배치 분류 호출의 비용(RUN_ID 무관). prefix는 LIKE가 아니라 정확한 문자열 접두사로 맞춘다. */
 export function sumAdultOffBatchModerationSpend(
   db: DatabaseType,
-  quarantined: AdultOffBatchQuarantinedCall | null = null
+  quarantined: readonly AdultOffBatchQuarantinedCall[] = []
 ): AdultOffBatchModerationSpend {
   ensureProviderCostLedgerSchema(db);
   return summarizeAdultOffBatchLedgerRows(readAdultOffBatchLedgerRows(db), quarantined);

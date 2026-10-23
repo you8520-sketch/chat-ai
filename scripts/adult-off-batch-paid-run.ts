@@ -33,14 +33,24 @@
  *   CHEAPER_INFERENCE_API_KEY                    required for execute
  *   DATA_DIR                                     sqlite directory
  *
+ * Each batch classifier call is a single attempt with a 60 s client timeout (ADULT_OFF_BATCH_CLASSIFIER_TIMEOUT_MS); the
+ * synchronous chat guard keeps its own 25 s limit. A failed call is never retried automatically and prints one structured
+ * line (outcome, HTTP status, whether a response was received, elapsed ms) to stderr and into the report.
+ *
  * One-time recovery approvals (each group needs ALL of its variables, copied exactly from the inspected evidence;
  * leave them unset in every other run):
- *   ADULT_OFF_BATCH_QUARANTINE_RUN_ID / _REQUEST_ID / _EVENT_KEY / _MESSAGE_ID
- *     Isolate ONE interrupted call whose ledger row is still `started` with no cost and no provider request id.
- *     The row is never edited or settled. A reserve (the recorded per-call bound, raised to the proven window bound at
- *     a 2.5x cache-write multiplier) is held against the cap instead of 0 KRW, and that call's text is never sent again
- *     from any message. The run reports `quarantine_pending` until real billing is confirmed through the existing cost
- *     reconciliation; then the reserve is released and the usual ACK flow applies. Without a match nothing is changed.
+ *   ADULT_OFF_BATCH_QUARANTINE_RUN_ID / _REQUEST_ID / _EVENT_KEY / _MESSAGE_ID  [+ optional _LEDGER_STATUS]
+ *     Isolate ONE interrupted call whose ledger row is a single cost-less, provider-id-less `started` event (default) or
+ *     `failed_without_usage` event (set ADULT_OFF_BATCH_QUARANTINE_LEDGER_STATUS=failed_without_usage; the row must match
+ *     exactly). The row is never edited or settled. A reserve (the recorded per-call bound, raised to the proven window
+ *     bound at a 2.5x cache-write multiplier) is held against the cap instead of 0 KRW, and that call's text is never sent
+ *     again from any message. Several calls can be quarantined one approval at a time; their reserves add up against the
+ *     same cap and each is settled on its own. The run reports `quarantine_pending` until real billing of every held call
+ *     is confirmed through the existing cost reconciliation; then each reserve is released and the usual ACK flow applies.
+ *     If the batch is halted as `halted_unknown_cost` because of exactly that call (halt detail, in-flight marker, request
+ *     id, event_key and message id all agree, no other unknown-cost event exists, settled + all reserves fit the cap), the
+ *     same approval enrolls the quarantine and clears ONLY that halt in a single state save. Any other halt stays.
+ *     Without a match nothing is changed.
  *   ADULT_OFF_BATCH_RECLAIM_LOCK_HOST / _PID / _RUN_ID / _STARTED_AT
  *     Take over an `execution.lock` left by a previous container. Every value must equal the lock file, the lock and
  *     batch.state.json must be unchanged for 10 minutes, and the lock must not belong to the current deployment. Confirm
@@ -90,6 +100,7 @@ async function main(): Promise<void> {
       config,
       openDatabase: () => new Database(config.dbPath, { fileMustExist: true }),
       createClassifier: createAdultOffClassifier,
+      onClassifierFailure: (failure) => console.error(JSON.stringify({ event: "adult_off_batch_classifier_failure", ...failure })),
     });
     console.log(JSON.stringify(report, null, 2));
     if (report.status === "execute_stopped") process.exitCode = 1;
