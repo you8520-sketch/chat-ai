@@ -33,6 +33,7 @@ import {
   STRANGER,
   TEST_ONLY_REVIEWER,
   TestPorts,
+  compositionCheck,
 } from "@/lib/officialSupply/officialSupply.approvedApplyFixtures";
 import { testBatchConfig, testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures";
 import { OfficialSupplyGateError, OfficialSupplyStore } from "@/lib/officialSupply/store";
@@ -197,7 +198,14 @@ function evidence(overrides: Partial<ReviewEvidence> = {}): ReviewEvidence {
       slot: slot.slot,
       candidateUrl: slot.candidateUrl!,
       candidateSha256: slot.candidateSha256,
-      qa: Object.fromEntries(Object.keys(slot.qa).map((key) => [key, { ok: true, note: `${slot.slot} ${key} isolated check` }])),
+      qa: Object.fromEntries(
+        Object.keys(slot.qa).map((key) => [
+          key,
+          key === "compositionIndependence"
+            ? { ...compositionCheck(slot.candidateUrl!, slot.candidateSha256), note: `${slot.slot} ${key} isolated check` }
+            : { ok: true, note: `${slot.slot} ${key} isolated check` },
+        ])
+      ),
     })),
     ...overrides,
   };

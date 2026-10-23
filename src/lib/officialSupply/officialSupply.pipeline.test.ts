@@ -1,4 +1,5 @@
 import { ROFAN_V4_PRODUCTION_BATCH_CONFIG } from "@/lib/officialSupply/pilotProduction";
+import { withAnchorCompositionEvidence } from "@/lib/officialSupply/officialSupply.anchorEvidenceFixtures";
 import { buildClusterBRofanStyleSeed } from "@/lib/officialSupply/userOwnedRofanStyleRefs";
 import { PILOT_STYLE_PROOF_BATCH_CONFIG } from "@/lib/officialSupply/pilotStyleProof";
 import assert from "node:assert/strict";
@@ -11,7 +12,7 @@ import { installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/li
 import { createCharacterFromForm, parseCharacterFormBody, type SessionUser } from "@/lib/characterFormSave";
 import { canAccessCharacter, listableWhere, type CharacterAccessRow } from "@/lib/characterVisibility";
 import { getCharacterRepresentativeImageUrl, isWideInlineAsset, parseAssets } from "@/lib/characterAssets";
-import { OfficialSupplyGateError, OfficialSupplyStore } from "@/lib/officialSupply/store";
+import { ANCHOR_QA_KEYS, isCompletePassingAnchorQa, OfficialSupplyGateError, OfficialSupplyStore } from "@/lib/officialSupply/store";
 import {
   moderateOfficialAssetSlot,
   OfficialImageTransportError,
@@ -133,18 +134,19 @@ class FakeWorld {
 }
 
 const PASS = { ok: true };
+const NOTED_PASS = { ok: true, note: "checked against the candidate image" };
 const anchorQa = (overrides: Partial<OfficialAnchorQaReport> = {}): OfficialAnchorQaReport => ({
-  gender: PASS, ageAppearance: PASS, face: PASS, hair: PASS, eyes: PASS, body: PASS,
-  identifyingFeatures: PASS, artStyle: PASS, outfit: PASS, cardCrop: PASS, ...overrides,
+  gender: NOTED_PASS, ageAppearance: NOTED_PASS, face: NOTED_PASS, hair: NOTED_PASS, eyes: NOTED_PASS, body: NOTED_PASS,
+  identifyingFeatures: NOTED_PASS, artStyle: NOTED_PASS, outfit: NOTED_PASS, cardCrop: NOTED_PASS, compositionIndependence: PASS, ...overrides,
 });
 const variationQa = (overrides: Partial<OfficialVariationQaReport> = {}): OfficialVariationQaReport => ({
-  identityMatchesAnchor: PASS, expressionMatchesPlan: PASS, characterPresent: PASS, artStyle: PASS, ...overrides,
+  identityMatchesAnchor: PASS, expressionMatchesPlan: PASS, characterPresent: PASS, artStyle: PASS, compositionIndependence: PASS, ...overrides,
 });
 
 /** Canonical order: moderation first (via the moderator port), then the visual review. */
 async function reviewAnchorModerated(world: FakeWorld, draftKey: string, qa = anchorQa()) {
   await moderateOfficialAssetSlot({ store, moderator: world.moderator }, draftKey, "rep");
-  return store.reviewAnchor(draftKey, qa, "owner");
+  return store.reviewAnchor(draftKey, withAnchorCompositionEvidence(store, draftKey, qa), "owner");
 }
 
 async function reviewVariationModerated(world: FakeWorld, draftKey: string, slotKey: string, qa = variationQa()) {
@@ -748,6 +750,131 @@ describe("representative anchor goes through the canonical moderation owner", ()
     return world;
   }
 
+  describe("approval needs real review evidence (no blanket approve)", () => {
+    const clean: OfficialAssetModeration = { status: "checked", adultFlagged: false, moderationReject: false, reason: "" };
+
+    async function readyAnchor(key: string) {
+      const world = await generatedAnchor(key, uniqueDraft(key, HWANG_VOCAB, "레온하르트"));
+      world.nextModeration.push(clean);
+      await moderateOfficialAssetSlot({ store, moderator: world.moderator }, key, "rep");
+      return world;
+    }
+    const gate = (code: string) => (e: unknown) => e instanceof OfficialSupplyGateError && e.code === code;
+    const untouched = (key: string) => {
+      assert.equal(store.representativeAsset(key).status, "generated");
+      assert.equal(store.getCharacter(key).stage, "asset_plan_locked");
+    };
+
+    it("an all-pass report with no composition basis cannot approve", async () => {
+      await readyAnchor("ev-blanket");
+      assert.throws(() => store.reviewAnchor("ev-blanket", anchorQa(), "owner"), gate("composition_evidence_required"));
+      assert.throws(
+        () => store.reviewAnchor("ev-blanket", anchorQa({ compositionIndependence: { ok: true, note: "approved" } }), "owner"),
+        gate("composition_evidence_required")
+      );
+      assert.throws(
+        () => store.reviewAnchor("ev-blanket", anchorQa({ compositionIndependence: undefined }), "owner"),
+        gate("composition_review_required")
+      );
+      untouched("ev-blanket");
+    });
+
+    it("a report missing any anchor check cannot approve", async () => {
+      await readyAnchor("ev-partial");
+      const { cardCrop: _cardCrop, ...partial } = withAnchorCompositionEvidence(store, "ev-partial", anchorQa());
+      assert.throws(() => store.reviewAnchor("ev-partial", partial as OfficialAnchorQaReport, "owner"), gate("qa_incomplete"));
+      untouched("ev-partial");
+    });
+
+    it("every anchor check needs its own note when the store is called directly", async () => {
+      await readyAnchor("ev-notes");
+      const complete = withAnchorCompositionEvidence(store, "ev-notes", anchorQa());
+      for (const key of ANCHOR_QA_KEYS) {
+        for (const note of [undefined, "", "   "]) {
+          assert.throws(
+            () => store.reviewAnchor("ev-notes", { ...complete, [key]: { ok: true, note } }, "owner"),
+            gate("qa_note_required"),
+            `${key} with note ${JSON.stringify(note)}`
+          );
+        }
+      }
+      assert.throws(
+        () => store.reviewAnchor("ev-notes", { ...complete, face: { ok: false } }, "owner"),
+        gate("qa_note_required")
+      );
+      untouched("ev-notes");
+      assert.equal(store.reviewAnchor("ev-notes", complete, "owner").approved, true);
+    });
+
+    it("evidence must name this candidate, exactly the references that were sent, and pinned SHA-256s", async () => {
+      await readyAnchor("ev-bound");
+      const good = withAnchorCompositionEvidence(store, "ev-bound", anchorQa());
+      const evidence = good.compositionIndependence!.evidence!;
+      const withEvidence = (next: typeof evidence) =>
+        anchorQa({ compositionIndependence: { ...good.compositionIndependence!, evidence: next } });
+      assert.throws(
+        () => store.reviewAnchor("ev-bound", withEvidence({ ...evidence, candidateUrl: "/uploads/other.webp" }), "owner"),
+        gate("composition_evidence_mismatch")
+      );
+      assert.throws(
+        () =>
+          store.reviewAnchor(
+            "ev-bound",
+            withEvidence({ ...evidence, references: [{ id: "/uploads/never-sent.webp", sha256: "e".repeat(64) }, ...evidence.references.slice(1)] }),
+            "owner"
+          ),
+        gate("composition_evidence_mismatch")
+      );
+      assert.throws(
+        () =>
+          store.reviewAnchor(
+            "ev-bound",
+            withEvidence({ ...evidence, references: [...evidence.references, { id: "/uploads/never-sent.webp", sha256: "e".repeat(64) }] }),
+            "owner"
+          ),
+        gate("composition_evidence_mismatch")
+      );
+      assert.throws(
+        () => store.reviewAnchor("ev-bound", withEvidence({ ...evidence, references: [] }), "owner"),
+        gate("composition_evidence_required")
+      );
+      assert.throws(
+        () => store.reviewAnchor("ev-bound", withEvidence({ ...evidence, candidateSha256: "not-a-sha" }), "owner"),
+        gate("composition_evidence_required")
+      );
+      untouched("ev-bound");
+      const sent = evidence.references.find((r) => r.id.startsWith("official-review-candidate:"));
+      if (sent) {
+        const tampered = evidence.references.map((r) => (r.id === sent.id ? { ...r, sha256: "f".repeat(64) } : r));
+        assert.throws(() => store.reviewAnchor("ev-bound", withEvidence({ ...evidence, references: tampered }), "owner"), gate("composition_evidence_mismatch"));
+      }
+      assert.equal(store.reviewAnchor("ev-bound", good, "owner").approved, true);
+    });
+
+    it("a recorded composition failure blocks approval and keeps its evidence", async () => {
+      await readyAnchor("ev-clone");
+      const cloned = withAnchorCompositionEvidence(
+        store,
+        "ev-clone",
+        anchorQa({ compositionIndependence: { ok: false, note: "head angle and gaze copy reference 1" } })
+      );
+      assert.equal(store.reviewAnchor("ev-clone", cloned, "owner").approved, false);
+      assert.equal(store.representativeAsset("ev-clone").status, "rejected");
+      assert.equal(store.getCharacter("ev-clone").stage, "asset_plan_locked");
+      const stored = store.representativeAsset("ev-clone").qa as OfficialAnchorQaReport;
+      assert.equal(stored.compositionIndependence?.ok, false);
+      assert.ok(stored.compositionIndependence?.evidence?.references.length);
+    });
+
+    it("reviews recorded before the composition check stay valid at apply time", () => {
+      const { compositionIndependence: _legacy, ...legacy } = anchorQa();
+      assert.equal(isCompletePassingAnchorQa(legacy), true);
+      const noNotes = Object.fromEntries(ANCHOR_QA_KEYS.map((key) => [key, { ok: true }]));
+      assert.equal(isCompletePassingAnchorQa(noNotes), true);
+      assert.equal(isCompletePassingAnchorQa(anchorQa({ compositionIndependence: { ok: false } })), false);
+    });
+  });
+
   it("SFW: hard reject fails anchor approval even when all 10 visual checks pass; RP generation and staging stay blocked", async () => {
     const world = await generatedAnchor("rep-sfw", uniqueDraft("rep-sfw", HWANG_VOCAB, "레온하르트"));
     world.nextModeration.push(HARD_REJECT);
@@ -771,7 +898,7 @@ describe("representative anchor goes through the canonical moderation owner", ()
 
   it("moderation unavailable is explicit: approval is refused (not a clean pass) until moderation is re-run", async () => {
     const world = await generatedAnchor("rep-unavail", uniqueDraft("rep-unavail", HWANG_VOCAB, "레온하르트"));
-    await assert.rejects(async () => store.reviewAnchor("rep-unavail", anchorQa(), "owner"), (e: OfficialSupplyGateError) => e.code === "moderation_missing");
+    await assert.rejects(async () => store.reviewAnchor("rep-unavail", withAnchorCompositionEvidence(store, "rep-unavail", anchorQa()), "owner"), (e: OfficialSupplyGateError) => e.code === "moderation_missing");
     world.nextModeration.push({ status: "unavailable", reason: "asset vision moderation unavailable" });
     await assert.rejects(reviewAnchorModerated(world, "rep-unavail"), (e: OfficialSupplyGateError) => e.code === "moderation_unavailable");
     assert.equal(store.representativeAsset("rep-unavail").status, "generated");

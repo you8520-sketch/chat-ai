@@ -22,6 +22,10 @@ import {
   evaluateSupportingNpcs,
   mergeQa,
 } from "@/lib/officialSupply/characterText";
+import {
+  parseOfficialApprovedAssetReference,
+  resolveOfficialGenerationReferencePlan,
+} from "@/lib/officialSupply/generationReferences";
 import { officialImageProfileForSlot } from "@/lib/officialSupply/imageProfile";
 import { mapOfficialPublicAssetSlots } from "@/lib/officialSupply/publicAssetMap";
 import { evaluatePortfolioBalance, type OfficialPortfolioPolicy } from "@/lib/officialSupply/research";
@@ -600,11 +604,120 @@ export const ANCHOR_QA_KEYS = [
   "cardCrop",
 ] as const satisfies ReadonlyArray<keyof OfficialAnchorQaReport>;
 
-/** Every anchor check is present and passing. A variation report never qualifies. */
+/** Check every new review must record on top of the legacy keys (composition is not a clone of a reference). */
+export const COMPOSITION_QA_KEY = "compositionIndependence" as const satisfies
+  keyof OfficialAnchorQaReport & keyof OfficialVariationQaReport;
+
+/**
+ * Every anchor check is present and passing. A variation report never qualifies.
+ * `compositionIndependence` is required when a review is recorded (`assertCompositionReviewRecorded`) but
+ * absent from reviews recorded earlier, so at apply time it only blocks when recorded as failing.
+ */
 export function isCompletePassingAnchorQa(qa: unknown): qa is OfficialAnchorQaReport {
   if (!qa || typeof qa !== "object") return false;
   const record = qa as Record<string, { ok?: unknown } | undefined>;
+  if (record[COMPOSITION_QA_KEY] && record[COMPOSITION_QA_KEY]?.ok !== true) return false;
   return ANCHOR_QA_KEYS.every((key) => record[key]?.ok === true);
+}
+
+/** A new review must state whether composition is independent; a missing answer is not an approval or a rejection. */
+function assertCompositionReviewRecorded(
+  qa: OfficialAnchorQaReport | OfficialVariationQaReport,
+  scope: string
+): void {
+  if (typeof qa[COMPOSITION_QA_KEY]?.ok !== "boolean") {
+    throw new OfficialSupplyGateError(
+      "composition_review_required",
+      `${scope} review must record ${COMPOSITION_QA_KEY} (composition is not a clone of a style reference)`
+    );
+  }
+}
+
+const SHA256_HEX = /^[0-9a-f]{64}$/;
+const REVIEW_CANDIDATE_REFERENCE = /^official-review-candidate:([0-9a-f]{64}):/;
+
+/** Reference ids that already carry the file's SHA-256 (review-candidate and approved-asset tokens). */
+function pinnedReferenceSha256(id: string): string | null {
+  const candidate = REVIEW_CANDIDATE_REFERENCE.exec(id)?.[1];
+  if (candidate) return candidate;
+  try {
+    return parseOfficialApprovedAssetReference(id)?.sha256 ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A representative review is the only gate before 13 slots inherit the face. It must therefore carry the
+ * full anchor checklist (no key left out) and a composition judgement with its comparison basis: the
+ * candidate (URL + SHA-256) and every reference image it was compared against. A reviewer's blanket
+ * "approve" is not a QA report.
+ */
+function assertRepresentativeReviewEvidence(
+  qa: OfficialAnchorQaReport,
+  scope: string,
+  bound: {
+    candidateUrl: string;
+    candidateSha256?: string;
+    /** Exactly the reference ids the generator sent; absent when the candidate is an external file. */
+    sentReferenceIds?: readonly string[];
+  }
+): void {
+  const missing = ANCHOR_QA_KEYS.filter((key) => typeof qa[key]?.ok !== "boolean");
+  if (missing.length > 0) {
+    throw new OfficialSupplyGateError("qa_incomplete", `${scope} review is missing QA checks: ${missing.join(", ")}`);
+  }
+  const unexplained = ANCHOR_QA_KEYS.filter((key) => typeof qa[key]?.note !== "string" || !qa[key]?.note?.trim());
+  if (unexplained.length > 0) {
+    throw new OfficialSupplyGateError(
+      "qa_note_required",
+      `${scope} review needs a non-empty note for every QA check: ${unexplained.join(", ")}`
+    );
+  }
+  assertCompositionReviewRecorded(qa, scope);
+  const check = qa[COMPOSITION_QA_KEY]!;
+  const fail = (code: string, message: string): never => {
+    throw new OfficialSupplyGateError(code, `${scope} ${COMPOSITION_QA_KEY}: ${message}`);
+  };
+  if (!check.note?.trim()) fail("composition_evidence_required", "a note explaining the judgement is required");
+  const evidence = check.evidence;
+  if (!evidence || typeof evidence !== "object") {
+    return fail("composition_evidence_required", "comparison evidence (candidate and references) is required");
+  }
+  if (evidence.candidateUrl !== bound.candidateUrl) {
+    fail("composition_evidence_mismatch", "evidence names a different candidate file than the one being reviewed");
+  }
+  const candidateSha = String(evidence.candidateSha256 ?? "").trim().toLowerCase();
+  if (!SHA256_HEX.test(candidateSha)) fail("composition_evidence_required", "candidate SHA-256 is required");
+  if (bound.candidateSha256 && candidateSha !== bound.candidateSha256.trim().toLowerCase()) {
+    fail("composition_evidence_mismatch", "evidence SHA-256 differs from the stored candidate file");
+  }
+  const references = Array.isArray(evidence.references) ? evidence.references : [];
+  if (references.length === 0) fail("composition_evidence_required", "at least one compared reference is required");
+  const ids = new Set<string>();
+  for (const reference of references) {
+    const id = typeof reference?.id === "string" ? reference.id.trim() : "";
+    if (!id || !SHA256_HEX.test(String(reference?.sha256 ?? "").trim().toLowerCase())) {
+      fail("composition_evidence_required", "every reference needs an id and a SHA-256");
+    }
+    if (ids.has(id)) fail("composition_evidence_required", `reference ${id} is listed twice`);
+    const pinned = pinnedReferenceSha256(id);
+    if (pinned && pinned !== String(reference.sha256).trim().toLowerCase()) {
+      fail("composition_evidence_mismatch", `reference ${id} SHA-256 differs from the one pinned in its id`);
+    }
+    ids.add(id);
+  }
+  if (bound.sentReferenceIds) {
+    const sent = new Set(bound.sentReferenceIds);
+    const unsent = [...ids].filter((id) => !sent.has(id));
+    const uncompared = [...sent].filter((id) => !ids.has(id));
+    if (unsent.length > 0 || uncompared.length > 0) {
+      fail(
+        "composition_evidence_mismatch",
+        `compared references must be exactly the ones sent (not sent: ${unsent.length}, not compared: ${uncompared.length})`
+      );
+    }
+  }
 }
 
 function variationQaPasses(qa: OfficialVariationQaReport): boolean {
@@ -1564,6 +1677,15 @@ export class OfficialSupplyStore {
     if (rep.status !== "generated") {
       throw new OfficialSupplyGateError("anchor_not_generated", `representative is ${rep.status}`);
     }
+    const sentReferences = resolveOfficialGenerationReferencePlan({
+      kind: "representative",
+      styleSeed: this.getStyle(character.styleKey).styleSeed,
+      representativeUrl: null,
+    });
+    assertRepresentativeReviewEvidence(qa, `${draftKey}/representative`, {
+      candidateUrl: rep.resultUrl ?? "",
+      sentReferenceIds: sentReferences.ok ? sentReferences.plan.references : undefined,
+    });
     const approved = this.moderationGate(rep) === "pass" && anchorQaPasses(qa);
     const tx = this.db.transaction(() => {
       this.db
@@ -1591,6 +1713,7 @@ export class OfficialSupplyStore {
     if (character.stage !== "anchor_approved") {
       throw new OfficialSupplyGateError("character_stage", `draft ${draftKey} is ${character.stage}`);
     }
+    assertCompositionReviewRecorded(qa, `${draftKey}/${slotKey}`);
     const asset = this.getAsset(draftKey, slotKey);
     if (asset.kind === "representative") {
       throw new OfficialSupplyGateError("use_anchor_review", "the representative is reviewed through ANCHOR_APPROVAL");
@@ -2373,6 +2496,7 @@ export class OfficialSupplyStore {
   ): { approved: boolean } {
     const character = this.assertReplacementOperator(draftKey, actor);
     this.assertTextLockCurrent(character);
+    assertCompositionReviewRecorded(qa, `${draftKey}/${slotKey}`);
     const asset = this.assertReplacementTargetAllowed(character, slotKey);
     if (asset.kind === "representative") {
       throw new OfficialSupplyGateError(
@@ -2430,6 +2554,7 @@ export class OfficialSupplyStore {
     const character = this.assertReplacementOperator(draftKey, actor);
     this.assertTextLockCurrent(character);
     if (!reviewer.trim()) throw new OfficialSupplyGateError("reviewer_required", "approver identity required");
+    assertCompositionReviewRecorded(qa, `${draftKey}/representative`);
     const representative = this.representativeAsset(draftKey);
     const asset = this.assertReplacementTargetAllowed(character, representative.slotKey);
     const { replacement, inspectedUrl } = this.assertReviewableReplacement(
@@ -2444,6 +2569,10 @@ export class OfficialSupplyStore {
         `${draftKey}/${asset.slotKey} review does not match the stored candidate file`
       );
     }
+    assertRepresentativeReviewEvidence(qa, `${draftKey}/representative`, {
+      candidateUrl: inspectedUrl,
+      candidateSha256: inspectedSha,
+    });
     const approved =
       this.moderationGateFor(replacement.moderation, draftKey, asset.slotKey) === "pass" &&
       isCompletePassingAnchorQa(qa);
@@ -2495,6 +2624,7 @@ export class OfficialSupplyStore {
     const character = this.assertReplacementOperator(draftKey, actor);
     this.assertTextLockCurrent(character);
     if (!reviewer.trim()) throw new OfficialSupplyGateError("reviewer_required", "approver identity required");
+    assertCompositionReviewRecorded(qa, `${draftKey}/representative`);
     if (!correction.reason.trim() || !correction.evidence.trim()) {
       throw new OfficialSupplyGateError(
         "rereview_correction_required",
@@ -2522,6 +2652,10 @@ export class OfficialSupplyStore {
         `${draftKey}/${asset.slotKey} re-review does not match the stored candidate file`
       );
     }
+    assertRepresentativeReviewEvidence(qa, `${draftKey}/representative`, {
+      candidateUrl: inspectedUrl,
+      candidateSha256: inspectedSha,
+    });
     if (replacement.kind !== "representative" || !replacement.qa || !replacement.appearanceLockHash) {
       throw new OfficialSupplyGateError(
         "rereview_no_prior_review",

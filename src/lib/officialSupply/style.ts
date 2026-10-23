@@ -33,13 +33,8 @@ export const DOMESTIC_ROFAN_STYLE_DIRECTION = [
  * Cluster B — graphic domestic rofan webtoon target (crisp lines, high contrast, saturated accents).
  * Applied only when the approved style seed declares `styleCluster: cluster_b_graphic`.
  */
-export const ROFAN_CLUSTER_B_GRAPHIC_STYLE_DIRECTION = [
-  "Prefer crisp, readable linework and graphic cel-shading over painterly blending or semi-realistic softness.",
-  "Use stronger saturation and clean hue separation in the target character's canonical colors; the references demonstrate vivid accent handling, not a mandatory shared palette.",
-  "Sharper youthful face readability on mobile cards — clean skin highlight structure, not muted beige-gold wash.",
-  "Ornament and metal details should read as clear graphic silhouettes; backgrounds stay flatter and cleaner so the face wins.",
-  "Avoid heavy mature realism, low-contrast noble haze, or soft airbrush that hides facial structure.",
-].join(" ");
+export const ROFAN_CLUSTER_B_GRAPHIC_STYLE_DIRECTION =
+  "Prefer crisp, readable linework and graphic cel-shading over painterly blending or semi-realistic softness. Saturation, contrast, face readability, ornament density, and background simplicity are owned by the style DNA, the shot responsibility, and the supplied references.";
 
 /** Structured DNA override for Cluster B representative generation (identity still from Appearance Lock). */
 export const ROFAN_CLUSTER_B_VISUAL_STYLE_DNA: VisualStyleDna = {
@@ -49,7 +44,7 @@ export const ROFAN_CLUSTER_B_VISUAL_STYLE_DNA: VisualStyleDna = {
   lineDensity: "medium",
   rendering: "cel",
   skinRendering: "매끈한 피부에 작고 선명한 하이라이트, 부드러운 에어브러시 번짐보다 그래픽 명암",
-  hairRendering: "큰 덩어리 단위로 묶인 머리칼과 굵고 선명한 소수의 윤광 하이라이트 띠, 낱가닥 묘사 없음",
+  hairRendering: "큰 덩어리 단위로 묶인 머리칼과 굵고 선명한 윤광 하이라이트 띠, 낱가닥은 참고 이미지가 보이는 만큼만",
   bodyProportion: "8등신, 체격·어깨·목선으로 성숙함은 전달하되 얼굴은 젊고 깨끗한 인상",
   costumeComplexity: "medium",
   palette: "Appearance Lock의 캐릭터 고유 색상을 그대로 유지하면서 색면 분리·명암 대비·포인트 채도를 선명하게 처리한다. 레퍼런스의 블랙·골드·레드·블루는 색 처리 방식의 예시이며 모든 캐릭터에 강제하는 공통 팔레트가 아니다.",

@@ -1,56 +1,49 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
+import fs from "node:fs";
+
+import { filenameFromUploadUrl, resolveExistingUploadPath } from "@/lib/uploadStorage";
+import { anchorQaFromEvidenceFile } from "@/lib/officialSupply/approvedAssetApplyOperator";
 import { officialImageProfileForSlot } from "@/lib/officialSupply/imageProfile";
 import { officialModerationVerdict } from "@/lib/officialSupply/moderation";
 import { OfficialSupplyStore } from "@/lib/officialSupply/store";
-import type { OfficialAnchorQaReport } from "@/lib/officialSupply/types";
 
 const LIVE_ENV = "OFFICIAL_ANCHOR_APPROVAL_LIVE";
 const TARGET_ENV = "OFFICIAL_ANCHOR_DRAFT_KEY";
 const DECISION_ENV = "OFFICIAL_ANCHOR_REVIEW_DECISION";
-const NOTE_ENV = "OFFICIAL_ANCHOR_REVIEW_NOTE";
-const REVIEWER_ENV = "OFFICIAL_ANCHOR_REVIEWER";
+const EVIDENCE_ENV = "OFFICIAL_ANCHOR_REVIEW_EVIDENCE_FILE";
+
+function representativeSha256(url: string): string {
+  const name = filenameFromUploadUrl(url);
+  const local = name ? resolveExistingUploadPath(name) : null;
+  if (!local) stop(`representative file for ${url} is not in local upload storage; review it where the file lives`);
+  return createHash("sha256").update(fs.readFileSync(local!)).digest("hex");
+}
 
 function stop(message: string): never {
   throw new Error(`ANCHOR_APPROVAL STOP: ${message}`);
 }
 
-function humanApprovalQa(note: string): OfficialAnchorQaReport {
-  const pass = { ok: true, note };
-  return {
-    gender: pass,
-    ageAppearance: pass,
-    face: pass,
-    hair: pass,
-    eyes: pass,
-    body: pass,
-    identifyingFeatures: pass,
-    artStyle: pass,
-    outfit: pass,
-    cardCrop: pass,
-  };
-}
-
 function main(): void {
   if (process.env[LIVE_ENV] !== "1") {
     console.log(
-      `[official-anchor-approval] NOT_RUN: set ${LIVE_ENV}=1 with ${TARGET_ENV} and ${DECISION_ENV}=approve after human review`
+      `[official-anchor-approval] NOT_RUN: set ${LIVE_ENV}=1 with ${TARGET_ENV}, ${DECISION_ENV}=approve and ${EVIDENCE_ENV} after human review`
     );
     return;
   }
 
   const draftKey = process.env[TARGET_ENV]?.trim() ?? "";
   const decision = process.env[DECISION_ENV]?.trim() ?? "";
-  const reviewer = process.env[REVIEWER_ENV]?.trim() || "project-owner";
-  const reviewNote =
-    process.env[NOTE_ENV]?.trim() ||
-    "Project owner visually approved this representative as the canonical anchor.";
+  const evidencePath = process.env[EVIDENCE_ENV]?.trim() ?? "";
 
   if (!draftKey) stop(`${TARGET_ENV} is required`);
   if (decision !== "approve") {
     stop(`${DECISION_ENV} must be exactly "approve"; got ${decision || "(empty)"}`);
   }
-  if (!reviewer) stop("reviewer is required");
+  if (!evidencePath) {
+    stop(`${EVIDENCE_ENV} is required: a review evidence file with every QA check, its note and the composition comparison basis`);
+  }
 
   const store = new OfficialSupplyStore();
   const character = store.getCharacter(draftKey);
@@ -123,7 +116,12 @@ function main(): void {
     );
   }
 
-  const qa = humanApprovalQa(reviewNote);
+  const evidenceBytes = fs.readFileSync(evidencePath);
+  const { qa, reviewer, approvalEvidence } = anchorQaFromEvidenceFile(JSON.parse(evidenceBytes.toString("utf8")), {
+    draftKey,
+    candidateUrl: representative.resultUrl,
+    candidateSha256: representativeSha256(representative.resultUrl),
+  });
   const result = store.reviewAnchor(draftKey, qa, reviewer);
   const after = store.getCharacter(draftKey);
   const afterRep = store.representativeAsset(draftKey);
@@ -150,6 +148,8 @@ function main(): void {
       status: "ANCHOR_APPROVAL_COMPLETE",
       draftKey,
       reviewer,
+      approvalEvidence,
+      evidenceSha256: createHash("sha256").update(evidenceBytes).digest("hex"),
       stage: after.stage,
       representativeStatus: afterRep.status,
       resultUrl: afterRep.resultUrl,

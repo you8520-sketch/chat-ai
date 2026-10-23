@@ -7,6 +7,7 @@ import { after, before, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
 import { renderChatImageStyleFidelityContract } from "@/lib/chatImageVisualIdentity";
 import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
+import { withAnchorCompositionEvidence } from "@/lib/officialSupply/officialSupply.anchorEvidenceFixtures";
 import {
   officialGenerationReferenceRoleLayout,
   resolveOfficialGenerationReferencePlan,
@@ -73,17 +74,19 @@ const SMILE_SIG4: OfficialAssetSlotPlan = {
 };
 
 const PASS = { ok: true };
+const NOTED_PASS = { ok: true, note: "checked against the candidate image" };
 const ANCHOR_QA: OfficialAnchorQaReport = {
-  gender: PASS,
-  ageAppearance: PASS,
-  face: PASS,
-  hair: PASS,
-  eyes: PASS,
-  body: PASS,
-  identifyingFeatures: PASS,
-  artStyle: PASS,
-  outfit: PASS,
-  cardCrop: PASS,
+  gender: NOTED_PASS,
+  ageAppearance: NOTED_PASS,
+  face: NOTED_PASS,
+  hair: NOTED_PASS,
+  eyes: NOTED_PASS,
+  body: NOTED_PASS,
+  identifyingFeatures: NOTED_PASS,
+  artStyle: NOTED_PASS,
+  outfit: NOTED_PASS,
+  cardCrop: NOTED_PASS,
+  compositionIndependence: PASS,
 };
 
 type Sent = {
@@ -391,7 +394,7 @@ describe("runner pre-send input for the local F candidate", () => {
       compiled.draft.draftKey,
       "rep"
     );
-    assert.equal(store.reviewAnchor(compiled.draft.draftKey, ANCHOR_QA, "owner").approved, true);
+    assert.equal(store.reviewAnchor(compiled.draft.draftKey, withAnchorCompositionEvidence(store, compiled.draft.draftKey, ANCHOR_QA), "owner").approved, true);
 
     const conflictKey = "identity-style-conflict";
     lockDraft(

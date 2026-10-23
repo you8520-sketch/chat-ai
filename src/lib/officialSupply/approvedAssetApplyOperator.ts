@@ -21,6 +21,7 @@ import {
 } from "@/lib/officialSupply/runner";
 import {
   ANCHOR_QA_KEYS,
+  COMPOSITION_QA_KEY,
   OfficialSupplyGateError,
   VARIATION_QA_KEYS,
   type OfficialCharacterRecord,
@@ -30,6 +31,7 @@ import {
 import type {
   OfficialAnchorQaReport,
   OfficialAssetPlan,
+  CompositionQaCheck,
   OfficialVariationQaReport,
   QaCheck,
 } from "@/lib/officialSupply/types";
@@ -70,7 +72,7 @@ export type SlotStatus = {
   reason: string | null;
 };
 
-const FIXTURE_RE = /test[-_ ]?fixture|not[-_ ]?quality[-_ ]?approval/i;
+export const FIXTURE_RE = /test[-_ ]?fixture|not[-_ ]?quality[-_ ]?approval/i;
 
 function gate(code: string, message: string): never {
   throw new OfficialSupplyGateError(code, message);
@@ -472,15 +474,88 @@ export type ReviewEvidence = {
     slot: string;
     candidateUrl: string;
     candidateSha256: string;
-    qa: Record<string, QaCheck>;
+    qa: Record<string, CompositionQaCheck>;
     /** Only read with `rereview`: why the earlier rejected judgement of this same file is corrected. */
     correction?: { reason: string; evidence: string };
   }>;
 };
 
+/**
+ * The one reader of a reviewer's QA evidence: every key needs an explicit ok and a note, and the
+ * composition check keeps its comparison evidence for the store gate. Nothing is filled in on the
+ * reviewer's behalf.
+ */
+export function explicitQaFromEvidence(
+  keys: readonly string[],
+  raw: Record<string, CompositionQaCheck> | undefined,
+  label: string,
+  fail: (message: string) => never
+): Record<string, CompositionQaCheck> {
+  const extra = Object.keys(raw ?? {}).filter((key) => !keys.includes(key));
+  if (extra.length > 0) fail(`${label} has unknown QA checks ${extra.join(",")}`);
+  const qa: Record<string, CompositionQaCheck> = {};
+  for (const key of keys) {
+    const check = raw?.[key];
+    if (!check || typeof check.ok !== "boolean" || typeof check.note !== "string" || !check.note.trim()) {
+      fail(`${label}.${key} needs an explicit ok and a note`);
+    }
+    if (FIXTURE_RE.test(check!.note!)) fail(`${label}.${key} note is a test fixture`);
+    qa[key] = {
+      ok: check!.ok,
+      note: check!.note!.trim(),
+      ...(key === COMPOSITION_QA_KEY && check!.evidence ? { evidence: check!.evidence } : {}),
+    };
+  }
+  return qa;
+}
+
+/** Evidence file for the first review of a generated representative (`official-supply-approve-anchor.ts`). */
+export type AnchorReviewEvidenceFile = {
+  draftKey: string;
+  reviewer: string;
+  approvalEvidence: string;
+  candidateUrl: string;
+  candidateSha256: string;
+  qa: Record<string, CompositionQaCheck>;
+};
+
+/**
+ * Turns a reviewer's evidence file into the anchor QA report the store records. Nothing is defaulted: an
+ * approval string without per-check judgements, notes and the composition comparison basis is refused,
+ * and the file must name the stored candidate (URL) and the SHA-256 of its actual bytes.
+ */
+export function anchorQaFromEvidenceFile(
+  raw: unknown,
+  actual: { draftKey: string; candidateUrl: string; candidateSha256: string }
+): { qa: OfficialAnchorQaReport; reviewer: string; approvalEvidence: string } {
+  const fail = (message: string): never => gate("operator_review_evidence", message);
+  const evidence = raw as Partial<AnchorReviewEvidenceFile> | null;
+  if (!evidence || typeof evidence !== "object") fail("anchor review evidence must be a JSON object");
+  if (evidence!.draftKey !== actual.draftKey) fail("evidence targets another draft");
+  for (const text of [evidence!.reviewer, evidence!.approvalEvidence]) {
+    if (typeof text !== "string" || !text.trim()) fail("reviewer and approvalEvidence are required");
+    if (FIXTURE_RE.test(text as string)) fail("test-fixture approvals are not review evidence");
+  }
+  if (evidence!.candidateUrl !== actual.candidateUrl) fail("evidence does not name the stored representative");
+  if (String(evidence!.candidateSha256 ?? "").trim().toLowerCase() !== actual.candidateSha256) {
+    fail("evidence SHA-256 differs from the representative file");
+  }
+  const qa = explicitQaFromEvidence(
+    [...ANCHOR_QA_KEYS, COMPOSITION_QA_KEY],
+    evidence!.qa,
+    "representative",
+    fail
+  );
+  return {
+    qa: qa as unknown as OfficialAnchorQaReport,
+    reviewer: (evidence!.reviewer as string).trim(),
+    approvalEvidence: (evidence!.approvalEvidence as string).trim(),
+  };
+}
+
 function qaKeysFor(slot: string, target: ApprovedAssetOperatorTarget): readonly string[] {
   const kind = target.approvedPlan.slots.find((s) => s.slotKey === slot)?.kind;
-  return kind === "representative" ? ANCHOR_QA_KEYS : VARIATION_QA_KEYS;
+  return [...(kind === "representative" ? ANCHOR_QA_KEYS : VARIATION_QA_KEYS), COMPOSITION_QA_KEY];
 }
 
 /** Unfilled review form for the slots awaiting review; it cannot be submitted as is. */
@@ -497,7 +572,14 @@ export function approvedAssetReviewTemplate(target: ApprovedAssetOperatorTarget)
         slot: s.slot,
         candidateUrl: s.candidateUrl,
         candidateSha256: s.rawSha256,
-        qa: Object.fromEntries(qaKeysFor(s.slot, target).map((key) => [key, { ok: null, note: "" }])),
+        qa: Object.fromEntries(
+          qaKeysFor(s.slot, target).map((key) => [
+            key,
+            key === COMPOSITION_QA_KEY
+              ? { ok: null, note: "", evidence: { candidateUrl: s.candidateUrl, candidateSha256: s.rawSha256, references: [] } }
+              : { ok: null, note: "" },
+          ])
+        ),
       })),
   };
 }
@@ -531,7 +613,7 @@ export function runApprovedAssetReview(
   const seen = new Set<string>();
   const planned: Array<{
     slot: string;
-    qa: Record<string, QaCheck>;
+    qa: Record<string, CompositionQaCheck>;
     candidateUrl: string;
     candidateSha256: string;
     correction: { reason: string; evidence: string } | null;
@@ -573,17 +655,7 @@ export function runApprovedAssetReview(
       }
     }
     const keys = qaKeysFor(entry.slot, target);
-    const extra = Object.keys(entry.qa ?? {}).filter((key) => !keys.includes(key));
-    if (extra.length > 0) fail(`${entry.slot} has unknown QA checks ${extra.join(",")}`);
-    const qa: Record<string, QaCheck> = {};
-    for (const key of keys) {
-      const check = entry.qa?.[key];
-      if (!check || typeof check.ok !== "boolean" || typeof check.note !== "string" || !check.note.trim()) {
-        fail(`${entry.slot}.${key} needs an explicit ok and a note`);
-      }
-      if (FIXTURE_RE.test(check!.note!)) fail(`${entry.slot}.${key} note is a test fixture`);
-      qa[key] = { ok: check!.ok, note: check!.note!.trim() };
-    }
+    const qa = explicitQaFromEvidence(keys, entry.qa, entry.slot, fail);
     planned.push({
       slot: entry.slot,
       qa,
