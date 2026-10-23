@@ -5,6 +5,8 @@ import { applyCampaignStoryProgress } from "./campaignContext";
 import { finalizeGmRoundForGeneration } from "./gmGenerationLease";
 import { applyStoryPhaseTransition, TRPG_STORY_PHASE_ADVANCE } from "./scenarioPlan";
 import type { TrpgCampaignContext } from "./campaignContext";
+import { emptyLocalSceneProgress } from "./localSceneProgress";
+import { emptyStoryProgress } from "./storyProgress";
 
 function epilogueContext(): TrpgCampaignContext {
   return {
@@ -30,6 +32,8 @@ function epilogueContext(): TrpgCampaignContext {
     resolvedThreads: [],
     endingStatus: { finished: false },
     directorError: "",
+    localSceneProgress: emptyLocalSceneProgress(),
+    storyProgress: emptyStoryProgress(),
   };
 }
 
