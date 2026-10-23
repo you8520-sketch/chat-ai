@@ -412,6 +412,16 @@ if (cmd === "ingest") {
       break;
     }
   }
+} else if (cmd === "replay") {
+  // Diagnostic: replay one external turn on a DB COPY with the external assistant text as the
+  // stubbed model output, to read the route's removal trace for that turn (no Main RP call).
+  const t = Number(args[0]);
+  stubAssistantText = externalAssistant(t);
+  const result = await postTurn(chatId, externalUser(t), `replay-T${t}`);
+  const assistant = lastAssistant(chatId);
+  logLine(
+    `replay T${t} status=${result.status} extChars=${externalAssistant(t).length} storedChars=${assistant?.content.length ?? 0}`
+  );
 } else if (cmd === "probe") {
   const [label, questionFile] = args as [string, string];
   const question = readFileSync(questionFile, "utf8").trim();
