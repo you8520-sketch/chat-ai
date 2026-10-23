@@ -1,0 +1,1219 @@
+[memory] 5턴 기억 기록 chat=1 turns=146-150 (277ch → lorebook 9254/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  mode: 'daily_kst',
+  source_turn: 151,
+  replaced_source_turn: false,
+[replay] T151 shared=ok episodic_req=true rel=true barrier=150 episodic_rows=117 summaries=30
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 152,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T152 shared=ok episodic_req=true rel=true barrier=150 episodic_rows=117 summaries=30
+[replay] T153 shared=ok episodic_req=true rel=true barrier=150 episodic_rows=117 summaries=30
+  source_turn: 154,
+  replaced_source_turn: false,
+[replay] T154 shared=ok episodic_req=true rel=true barrier=150 episodic_rows=119 summaries=30
+  source_turn: 155,
+  replaced_source_turn: false,
+[replay] T155 shared=ok episodic_req=true rel=true barrier=150 episodic_rows=121 summaries=30
+[memory] 5턴 기억 기록 chat=1 turns=151-155 (280ch → lorebook 9547/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 156,
+  replaced_source_turn: false,
+[replay] T156 shared=ok episodic_req=true rel=true barrier=155 episodic_rows=123 summaries=31
+[replay] T157 shared=ok episodic_req=true rel=true barrier=155 episodic_rows=123 summaries=31
+  source_turn: 158,
+  replaced_source_turn: false,
+[replay] T158 shared=ok episodic_req=true rel=true barrier=155 episodic_rows=124 summaries=31
+[replay] T159 shared=ok episodic_req=true rel=true barrier=155 episodic_rows=124 summaries=31
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 160,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T160 shared=ok episodic_req=true rel=true barrier=155 episodic_rows=124 summaries=31
+[memory] 5턴 기억 기록 chat=1 turns=156-160 (215ch → lorebook 9775/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 161,
+  replaced_source_turn: false,
+[replay] T161 shared=ok episodic_req=true rel=true barrier=160 episodic_rows=126 summaries=32
+[replay] T162 shared=ok episodic_req=true rel=true barrier=160 episodic_rows=126 summaries=32
+[replay] T163 shared=ok episodic_req=true rel=true barrier=160 episodic_rows=126 summaries=32
+  source_turn: 164,
+  replaced_source_turn: false,
+[replay] T164 shared=ok episodic_req=true rel=true barrier=160 episodic_rows=127 summaries=32
+[replay] T165 shared=ok episodic_req=true rel=true barrier=160 episodic_rows=127 summaries=32
+[memory] 5턴 기억 기록 chat=1 turns=161-165 (200ch → lorebook 9988/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T166 shared=ok episodic_req=true rel=true barrier=165 episodic_rows=127 summaries=33
+  source_turn: 167,
+  replaced_source_turn: false,
+[replay] T167 shared=ok episodic_req=true rel=true barrier=165 episodic_rows=129 summaries=33
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 168,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+  source_turn: 168,
+  replaced_source_turn: false,
+[replay] T168 shared=ok episodic_req=true rel=true barrier=165 episodic_rows=130 summaries=33
+[replay] T169 shared=ok episodic_req=true rel=true barrier=165 episodic_rows=130 summaries=33
+  source_turn: 170,
+  replaced_source_turn: false,
+[replay] T170 shared=ok episodic_req=true rel=true barrier=165 episodic_rows=132 summaries=33
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'full_rebuild',
+  coveredThroughBefore: null,
+  coveredThroughAfter: 170,
+[memory] 5턴 기억 기록 chat=1 turns=166-170 (311ch → lorebook 6489/10000ch compact=full_rebuild reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 171,
+  replaced_source_turn: false,
+[replay] T171 shared=ok episodic_req=true rel=true barrier=170 episodic_rows=134 summaries=34
+  source_turn: 172,
+  replaced_source_turn: false,
+[replay] T172 shared=ok episodic_req=true rel=true barrier=170 episodic_rows=136 summaries=34
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 173,
+  reason: 'evidence_quote_not_in_message',
+  source_turn: 173,
+  replaced_source_turn: false,
+[replay] T173 shared=ok episodic_req=true rel=true barrier=170 episodic_rows=137 summaries=34
+[replay] T174 shared=ok episodic_req=true rel=true barrier=170 episodic_rows=137 summaries=34
+[replay] T175 shared=ok episodic_req=true rel=true barrier=170 episodic_rows=137 summaries=34
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 170,
+  coveredThroughAfter: 175,
+[memory] 5턴 기억 기록 chat=1 turns=171-175 (284ch → lorebook 6786/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 176,
+  replaced_source_turn: false,
+[replay] T176 shared=ok episodic_req=true rel=true barrier=175 episodic_rows=140 summaries=35
+[replay] T177 shared=ok episodic_req=true rel=true barrier=175 episodic_rows=140 summaries=35
+  source_turn: 178,
+  replaced_source_turn: false,
+[replay] T178 shared=ok episodic_req=true rel=true barrier=175 episodic_rows=142 summaries=35
+[replay] T179 shared=ok episodic_req=true rel=true barrier=175 episodic_rows=142 summaries=35
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 180,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+  source_turn: 180,
+  replaced_source_turn: false,
+[replay] T180 shared=ok episodic_req=true rel=true barrier=175 episodic_rows=143 summaries=35
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 175,
+  coveredThroughAfter: 180,
+[memory] 5턴 기억 기록 chat=1 turns=176-180 (216ch → lorebook 7015/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T181 shared=ok episodic_req=true rel=true barrier=180 episodic_rows=143 summaries=36
+  source_turn: 182,
+  replaced_source_turn: false,
+[replay] T182 shared=ok episodic_req=true rel=true barrier=180 episodic_rows=145 summaries=36
+[replay] T183 shared=ok episodic_req=true rel=true barrier=180 episodic_rows=145 summaries=36
+  source_turn: 184,
+  replaced_source_turn: false,
+[replay] T184 shared=ok episodic_req=true rel=true barrier=180 episodic_rows=146 summaries=36
+[replay] T185 shared=ok episodic_req=true rel=true barrier=180 episodic_rows=146 summaries=36
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 180,
+  coveredThroughAfter: 185,
+[memory] 5턴 기억 기록 chat=1 turns=181-185 (354ch → lorebook 7382/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 186,
+  replaced_source_turn: false,
+[replay] T186 shared=ok episodic_req=true rel=true barrier=185 episodic_rows=147 summaries=37
+[replay] T187 shared=ok episodic_req=true rel=true barrier=185 episodic_rows=147 summaries=37
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 188,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T188 shared=ok episodic_req=true rel=true barrier=185 episodic_rows=147 summaries=37
+  source_turn: 189,
+  replaced_source_turn: false,
+[replay] T189 shared=ok episodic_req=true rel=true barrier=185 episodic_rows=150 summaries=37
+[replay] T190 shared=ok episodic_req=true rel=true barrier=185 episodic_rows=150 summaries=37
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 185,
+  coveredThroughAfter: 190,
+[memory] 5턴 기억 기록 chat=1 turns=186-190 (296ch → lorebook 7691/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T191 shared=ok episodic_req=true rel=true barrier=190 episodic_rows=150 summaries=38
+  source_turn: 192,
+  replaced_source_turn: false,
+[replay] T192 shared=ok episodic_req=true rel=true barrier=190 episodic_rows=152 summaries=38
+[replay] T193 shared=ok episodic_req=true rel=true barrier=190 episodic_rows=152 summaries=38
+  source_turn: 194,
+  replaced_source_turn: false,
+[replay] T194 shared=ok episodic_req=true rel=true barrier=190 episodic_rows=154 summaries=38
+  source_turn: 195,
+  replaced_source_turn: false,
+[replay] T195 shared=ok episodic_req=true rel=true barrier=190 episodic_rows=156 summaries=38
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 190,
+  coveredThroughAfter: 195,
+[memory] 5턴 기억 기록 chat=1 turns=191-195 (289ch → lorebook 7993/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 196,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T196 shared=ok episodic_req=true rel=true barrier=195 episodic_rows=156 summaries=39
+[replay] T197 shared=ok episodic_req=true rel=true barrier=195 episodic_rows=156 summaries=39
+[replay] T198 shared=ok episodic_req=true rel=true barrier=195 episodic_rows=156 summaries=39
+  source_turn: 199,
+  replaced_source_turn: false,
+[replay] T199 shared=ok episodic_req=true rel=true barrier=195 episodic_rows=158 summaries=39
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 200,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T200 shared=ok episodic_req=true rel=true barrier=195 episodic_rows=158 summaries=39
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 195,
+  coveredThroughAfter: 200,
+[memory] 5턴 기억 기록 chat=1 turns=196-200 (301ch → lorebook 8307/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T201 shared=ok episodic_req=true rel=true barrier=200 episodic_rows=158 summaries=40
+  source_turn: 202,
+  replaced_source_turn: false,
+[replay] T202 shared=ok episodic_req=true rel=true barrier=200 episodic_rows=160 summaries=40
+[replay] T203 shared=ok episodic_req=true rel=true barrier=200 episodic_rows=160 summaries=40
+  source_turn: 204,
+  replaced_source_turn: false,
+[replay] T204 shared=ok episodic_req=true rel=true barrier=200 episodic_rows=163 summaries=40
+[replay] T205 shared=ok episodic_req=true rel=true barrier=200 episodic_rows=163 summaries=40
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 200,
+  coveredThroughAfter: 205,
+[memory] 5턴 기억 기록 chat=1 turns=201-205 (288ch → lorebook 8608/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T206 shared=ok episodic_req=true rel=true barrier=205 episodic_rows=163 summaries=41
+[replay] T207 shared=ok episodic_req=true rel=true barrier=205 episodic_rows=163 summaries=41
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 208,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+  source_turn: 208,
+  replaced_source_turn: false,
+[replay] T208 shared=ok episodic_req=true rel=true barrier=205 episodic_rows=164 summaries=41
+  source_turn: 209,
+  replaced_source_turn: false,
+[replay] T209 shared=ok episodic_req=true rel=true barrier=205 episodic_rows=167 summaries=41
+[replay] T210 shared=ok episodic_req=true rel=true barrier=205 episodic_rows=167 summaries=41
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 205,
+  coveredThroughAfter: 210,
+[memory] 5턴 기억 기록 chat=1 turns=206-210 (223ch → lorebook 8844/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T211 shared=ok episodic_req=true rel=true barrier=210 episodic_rows=167 summaries=42
+[replay] T212 shared=ok episodic_req=true rel=true barrier=210 episodic_rows=167 summaries=42
+  source_turn: 213,
+  replaced_source_turn: false,
+[replay] T213 shared=ok episodic_req=true rel=true barrier=210 episodic_rows=168 summaries=42
+  source_turn: 214,
+  replaced_source_turn: false,
+[replay] T214 shared=ok episodic_req=true rel=true barrier=210 episodic_rows=170 summaries=42
+[replay] T215 shared=ok episodic_req=true rel=true barrier=210 episodic_rows=170 summaries=42
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 210,
+  coveredThroughAfter: 215,
+[memory] 5턴 기억 기록 chat=1 turns=211-215 (264ch → lorebook 9121/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T216 shared=ok episodic_req=true rel=true barrier=215 episodic_rows=170 summaries=43
+[replay] T217 shared=ok episodic_req=true rel=true barrier=215 episodic_rows=170 summaries=43
+  source_turn: 218,
+  replaced_source_turn: false,
+[replay] T218 shared=ok episodic_req=true rel=true barrier=215 episodic_rows=172 summaries=43
+  source_turn: 219,
+  replaced_source_turn: false,
+[replay] T219 shared=ok episodic_req=true rel=true barrier=215 episodic_rows=174 summaries=43
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 220,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T220 shared=ok episodic_req=true rel=true barrier=215 episodic_rows=174 summaries=43
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 215,
+  coveredThroughAfter: 220,
+[memory] 5턴 기억 기록 chat=1 turns=216-220 (255ch → lorebook 9389/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T221 shared=ok episodic_req=true rel=true barrier=220 episodic_rows=174 summaries=44
+  source_turn: 222,
+  replaced_source_turn: false,
+[replay] T222 shared=ok episodic_req=true rel=true barrier=220 episodic_rows=175 summaries=44
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 223,
+  reason: 'assistant_evidence_cannot_authorize_user_action',
+  source_turn: 223,
+  replaced_source_turn: false,
+[replay] T223 shared=ok episodic_req=true rel=true barrier=220 episodic_rows=176 summaries=44
+  source_turn: 224,
+  replaced_source_turn: false,
+[replay] T224 shared=ok episodic_req=true rel=true barrier=220 episodic_rows=178 summaries=44
+[replay] T225 shared=ok episodic_req=true rel=true barrier=220 episodic_rows=178 summaries=44
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 220,
+  coveredThroughAfter: 225,
+[memory] 5턴 기억 기록 chat=1 turns=221-225 (247ch → lorebook 9649/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 226,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T226 shared=ok episodic_req=true rel=true barrier=225 episodic_rows=178 summaries=45
+[replay] T227 shared=ok episodic_req=true rel=true barrier=225 episodic_rows=178 summaries=45
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 228,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+  source_turn: 228,
+  replaced_source_turn: false,
+[replay] T228 shared=ok episodic_req=true rel=true barrier=225 episodic_rows=180 summaries=45
+  source_turn: 229,
+  replaced_source_turn: false,
+[replay] T229 shared=ok episodic_req=true rel=true barrier=225 episodic_rows=181 summaries=45
+  source_turn: 230,
+  replaced_source_turn: false,
+[replay] T230 shared=ok episodic_req=true rel=true barrier=225 episodic_rows=183 summaries=45
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 225,
+  coveredThroughAfter: 230,
+[memory] 5턴 기억 기록 chat=1 turns=226-230 (277ch → lorebook 9939/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T231 shared=ok episodic_req=true rel=true barrier=230 episodic_rows=183 summaries=46
+  source_turn: 232,
+  replaced_source_turn: false,
+[replay] T232 shared=ok episodic_req=true rel=true barrier=230 episodic_rows=185 summaries=46
+[replay] T233 shared=ok episodic_req=true rel=true barrier=230 episodic_rows=185 summaries=46
+  source_turn: 234,
+  replaced_source_turn: false,
+[replay] T234 shared=ok episodic_req=true rel=true barrier=230 episodic_rows=188 summaries=46
+  source_turn: 235,
+  replaced_source_turn: false,
+[replay] T235 shared=ok episodic_req=true rel=true barrier=230 episodic_rows=190 summaries=46
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 230,
+  coveredThroughAfter: 235,
+[memory] 5턴 기억 기록 chat=1 turns=231-235 (327ch → lorebook 7046/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T236 shared=ok episodic_req=true rel=true barrier=235 episodic_rows=190 summaries=47
+[replay] T237 shared=ok episodic_req=true rel=true barrier=235 episodic_rows=190 summaries=47
+[replay] T238 shared=ok episodic_req=true rel=true barrier=235 episodic_rows=190 summaries=47
+  source_turn: 239,
+  replaced_source_turn: false,
+[replay] T239 shared=ok episodic_req=true rel=true barrier=235 episodic_rows=192 summaries=47
+  source_turn: 240,
+  replaced_source_turn: false,
+[replay] T240 shared=ok episodic_req=true rel=true barrier=235 episodic_rows=194 summaries=47
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 235,
+  coveredThroughAfter: 240,
+[memory] 5턴 기억 기록 chat=1 turns=236-240 (267ch → lorebook 7326/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T241 shared=ok episodic_req=true rel=true barrier=240 episodic_rows=194 summaries=48
+  source_turn: 242,
+  replaced_source_turn: false,
+[replay] T242 shared=ok episodic_req=true rel=true barrier=240 episodic_rows=196 summaries=48
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 243,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T243 shared=ok episodic_req=true rel=true barrier=240 episodic_rows=196 summaries=48
+  source_turn: 244,
+  replaced_source_turn: false,
+[replay] T244 shared=ok episodic_req=true rel=true barrier=240 episodic_rows=198 summaries=48
+  source_turn: 245,
+  replaced_source_turn: false,
+[replay] T245 shared=ok episodic_req=true rel=true barrier=240 episodic_rows=200 summaries=48
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 240,
+  coveredThroughAfter: 245,
+[memory] 5턴 기억 기록 chat=1 turns=241-245 (284ch → lorebook 7623/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 246,
+  replaced_source_turn: false,
+[replay] T246 shared=ok episodic_req=true rel=true barrier=245 episodic_rows=202 summaries=49
+  source_turn: 247,
+  replaced_source_turn: false,
+[replay] T247 shared=ok episodic_req=true rel=true barrier=245 episodic_rows=204 summaries=49
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 248,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T248 shared=ok episodic_req=true rel=true barrier=245 episodic_rows=204 summaries=49
+  source_turn: 249,
+  replaced_source_turn: false,
+[replay] T249 shared=ok episodic_req=true rel=true barrier=245 episodic_rows=206 summaries=49
+  source_turn: 250,
+  replaced_source_turn: false,
+[replay] T250 shared=ok episodic_req=true rel=true barrier=245 episodic_rows=207 summaries=49
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 245,
+  coveredThroughAfter: 250,
+[memory] 5턴 기억 기록 chat=1 turns=246-250 (310ch → lorebook 7946/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T251 shared=ok episodic_req=true rel=true barrier=250 episodic_rows=207 summaries=50
+  source_turn: 252,
+  replaced_source_turn: false,
+[replay] T252 shared=ok episodic_req=true rel=true barrier=250 episodic_rows=209 summaries=50
+[replay] T253 shared=ok episodic_req=true rel=true barrier=250 episodic_rows=209 summaries=50
+  source_turn: 254,
+  replaced_source_turn: false,
+[replay] T254 shared=ok episodic_req=true rel=true barrier=250 episodic_rows=210 summaries=50
+  source_turn: 255,
+  replaced_source_turn: false,
+[replay] T255 shared=ok episodic_req=true rel=true barrier=250 episodic_rows=212 summaries=50
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 250,
+  coveredThroughAfter: 255,
+[memory] 5턴 기억 기록 chat=1 turns=251-255 (299ch → lorebook 8258/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 256,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+  source_turn: 256,
+  replaced_source_turn: false,
+[replay] T256 shared=ok episodic_req=true rel=true barrier=255 episodic_rows=213 summaries=51
+[replay] T257 shared=ok episodic_req=true rel=true barrier=255 episodic_rows=213 summaries=51
+[replay] T258 shared=ok episodic_req=true rel=true barrier=255 episodic_rows=213 summaries=51
+[replay] T259 shared=ok episodic_req=true rel=true barrier=255 episodic_rows=213 summaries=51
+  source_turn: 260,
+  replaced_source_turn: false,
+[replay] T260 shared=ok episodic_req=true rel=true barrier=255 episodic_rows=215 summaries=51
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 255,
+  coveredThroughAfter: 260,
+[memory] 5턴 기억 기록 chat=1 turns=256-260 (251ch → lorebook 8522/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 261,
+  replaced_source_turn: false,
+[replay] T261 shared=ok episodic_req=true rel=true barrier=260 episodic_rows=217 summaries=52
+[replay] T262 shared=ok episodic_req=true rel=true barrier=260 episodic_rows=217 summaries=52
+[replay] T263 shared=ok episodic_req=true rel=true barrier=260 episodic_rows=217 summaries=52
+  source_turn: 264,
+  replaced_source_turn: false,
+[replay] T264 shared=ok episodic_req=true rel=true barrier=260 episodic_rows=218 summaries=52
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 265,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+  source_turn: 265,
+  replaced_source_turn: false,
+[replay] T265 shared=ok episodic_req=true rel=true barrier=260 episodic_rows=220 summaries=52
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 260,
+  coveredThroughAfter: 265,
+[memory] 5턴 기억 기록 chat=1 turns=261-265 (296ch → lorebook 8831/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 266,
+  replaced_source_turn: false,
+[replay] T266 shared=ok episodic_req=true rel=true barrier=265 episodic_rows=221 summaries=53
+  source_turn: 267,
+  replaced_source_turn: false,
+[replay] T267 shared=ok episodic_req=true rel=true barrier=265 episodic_rows=224 summaries=53
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 268,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 268,
+  reason: 'evidence_quote_not_in_message',
+  source_turn: 268,
+  replaced_source_turn: false,
+[replay] T268 shared=ok episodic_req=true rel=true barrier=265 episodic_rows=225 summaries=53
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 269,
+  reason: 'assistant_evidence_cannot_authorize_user_action',
+  source_turn: 269,
+  replaced_source_turn: false,
+[replay] T269 shared=ok episodic_req=true rel=true barrier=265 episodic_rows=227 summaries=53
+  source_turn: 270,
+  replaced_source_turn: false,
+[replay] T270 shared=ok episodic_req=true rel=true barrier=265 episodic_rows=229 summaries=53
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 265,
+  coveredThroughAfter: 270,
+[memory] 5턴 기억 기록 chat=1 turns=266-270 (294ch → lorebook 9138/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 271,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+  source_turn: 271,
+  replaced_source_turn: false,
+[replay] T271 shared=ok episodic_req=true rel=true barrier=270 episodic_rows=230 summaries=54
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 272,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+  source_turn: 272,
+  replaced_source_turn: false,
+[replay] T272 shared=ok episodic_req=true rel=true barrier=270 episodic_rows=231 summaries=54
+[replay] T273 shared=ok episodic_req=true rel=true barrier=270 episodic_rows=231 summaries=54
+[replay] T274 shared=ok episodic_req=true rel=true barrier=270 episodic_rows=231 summaries=54
+  source_turn: 275,
+  replaced_source_turn: false,
+[replay] T275 shared=ok episodic_req=true rel=true barrier=270 episodic_rows=234 summaries=54
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 270,
+  coveredThroughAfter: 275,
+[memory] 5턴 기억 기록 chat=1 turns=271-275 (319ch → lorebook 9470/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 276,
+  replaced_source_turn: false,
+[replay] T276 shared=ok episodic_req=true rel=true barrier=275 episodic_rows=236 summaries=55
+  source_turn: 277,
+  replaced_source_turn: false,
+[replay] T277 shared=ok episodic_req=true rel=true barrier=275 episodic_rows=239 summaries=55
+[replay] T278 shared=ok episodic_req=true rel=true barrier=275 episodic_rows=239 summaries=55
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 279,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T279 shared=ok episodic_req=true rel=true barrier=275 episodic_rows=239 summaries=55
+  source_turn: 280,
+  replaced_source_turn: false,
+[replay] T280 shared=ok episodic_req=true rel=true barrier=275 episodic_rows=241 summaries=55
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 275,
+  coveredThroughAfter: 280,
+[memory] 5턴 기억 기록 chat=1 turns=276-280 (306ch → lorebook 9789/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T281 shared=ok episodic_req=true rel=true barrier=280 episodic_rows=241 summaries=56
+  source_turn: 282,
+  replaced_source_turn: false,
+[replay] T282 shared=ok episodic_req=true rel=true barrier=280 episodic_rows=243 summaries=56
+  source_turn: 283,
+  replaced_source_turn: false,
+[replay] T283 shared=ok episodic_req=true rel=true barrier=280 episodic_rows=244 summaries=56
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 284,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+  source_turn: 284,
+  replaced_source_turn: false,
+[replay] T284 shared=ok episodic_req=true rel=true barrier=280 episodic_rows=245 summaries=56
+  source_turn: 285,
+  replaced_source_turn: false,
+[replay] T285 shared=ok episodic_req=true rel=true barrier=280 episodic_rows=247 summaries=56
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 280,
+  coveredThroughAfter: 285,
+[memory] 5턴 기억 기록 chat=1 turns=281-285 (338ch → lorebook 8057/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T286 shared=ok episodic_req=true rel=true barrier=285 episodic_rows=247 summaries=57
+  source_turn: 287,
+  replaced_source_turn: false,
+[replay] T287 shared=ok episodic_req=true rel=true barrier=285 episodic_rows=249 summaries=57
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 288,
+  reason: 'assistant_evidence_cannot_authorize_user_action',
+[replay] T288 shared=ok episodic_req=true rel=true barrier=285 episodic_rows=249 summaries=57
+  source_turn: 289,
+  replaced_source_turn: false,
+[replay] T289 shared=ok episodic_req=true rel=true barrier=285 episodic_rows=250 summaries=57
+[replay] T290 shared=ok episodic_req=true rel=true barrier=285 episodic_rows=250 summaries=57
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 285,
+  coveredThroughAfter: 290,
+[memory] 5턴 기억 기록 chat=1 turns=286-290 (335ch → lorebook 8405/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T291 shared=ok episodic_req=true rel=true barrier=290 episodic_rows=250 summaries=58
+  source_turn: 292,
+  replaced_source_turn: false,
+[replay] T292 shared=ok episodic_req=true rel=true barrier=290 episodic_rows=252 summaries=58
+[replay] T293 shared=ok episodic_req=true rel=true barrier=290 episodic_rows=252 summaries=58
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 294,
+  reason: 'assistant_evidence_cannot_authorize_user_action',
+  source_turn: 294,
+  replaced_source_turn: false,
+[replay] T294 shared=ok episodic_req=true rel=true barrier=290 episodic_rows=253 summaries=58
+  source_turn: 295,
+  replaced_source_turn: false,
+[replay] T295 shared=ok episodic_req=true rel=true barrier=290 episodic_rows=255 summaries=58
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 290,
+  coveredThroughAfter: 295,
+[memory] 5턴 기억 기록 chat=1 turns=291-295 (298ch → lorebook 8716/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 296,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T296 shared=ok episodic_req=true rel=true barrier=295 episodic_rows=255 summaries=59
+  source_turn: 297,
+  replaced_source_turn: false,
+[replay] T297 shared=ok episodic_req=true rel=true barrier=295 episodic_rows=258 summaries=59
+[replay] T298 shared=ok episodic_req=true rel=true barrier=295 episodic_rows=258 summaries=59
+[replay] T299 shared=ok episodic_req=true rel=true barrier=295 episodic_rows=258 summaries=59
+[replay] T300 shared=ok episodic_req=true rel=true barrier=295 episodic_rows=258 summaries=59
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 295,
+  coveredThroughAfter: 300,
+[memory] 5턴 기억 기록 chat=1 turns=296-300 (374ch → lorebook 9103/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 301,
+  replaced_source_turn: false,
+[replay] T301 shared=ok episodic_req=true rel=true barrier=300 episodic_rows=260 summaries=60
+  source_turn: 302,
+  replaced_source_turn: false,
+[replay] T302 shared=ok episodic_req=true rel=true barrier=300 episodic_rows=262 summaries=60
+[replay] T303 shared=ok episodic_req=true rel=true barrier=300 episodic_rows=262 summaries=60
+  source_turn: 304,
+  replaced_source_turn: false,
+[replay] T304 shared=ok episodic_req=true rel=true barrier=300 episodic_rows=264 summaries=60
+  source_turn: 305,
+  replaced_source_turn: false,
+[replay] T305 shared=ok episodic_req=true rel=true barrier=300 episodic_rows=266 summaries=60
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 300,
+  coveredThroughAfter: 305,
+[memory] 5턴 기억 기록 chat=1 turns=301-305 (303ch → lorebook 9419/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T306 shared=ok episodic_req=true rel=true barrier=305 episodic_rows=266 summaries=61
+  source_turn: 307,
+  replaced_source_turn: false,
+[replay] T307 shared=ok episodic_req=true rel=true barrier=305 episodic_rows=267 summaries=61
+[replay] T308 shared=ok episodic_req=true rel=true barrier=305 episodic_rows=267 summaries=61
+[replay] T309 shared=ok episodic_req=true rel=true barrier=305 episodic_rows=267 summaries=61
+[replay] T310 shared=ok episodic_req=true rel=true barrier=305 episodic_rows=267 summaries=61
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 305,
+  coveredThroughAfter: 310,
+[memory] 5턴 기억 기록 chat=1 turns=306-310 (294ch → lorebook 9726/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 311,
+  replaced_source_turn: false,
+[replay] T311 shared=ok episodic_req=true rel=true barrier=310 episodic_rows=269 summaries=62
+  source_turn: 312,
+  replaced_source_turn: false,
+[replay] T312 shared=ok episodic_req=true rel=true barrier=310 episodic_rows=271 summaries=62
+  source_turn: 313,
+  replaced_source_turn: false,
+[replay] T313 shared=ok episodic_req=true rel=true barrier=310 episodic_rows=274 summaries=62
+  source_turn: 314,
+  replaced_source_turn: false,
+[replay] T314 shared=ok episodic_req=true rel=true barrier=310 episodic_rows=275 summaries=62
+  source_turn: 315,
+  replaced_source_turn: false,
+[replay] T315 shared=ok episodic_req=true rel=true barrier=310 episodic_rows=276 summaries=62
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 310,
+  coveredThroughAfter: 315,
+[memory] 5턴 기억 기록 chat=1 turns=311-315 (225ch → lorebook 9964/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 316,
+  replaced_source_turn: false,
+[replay] T316 shared=ok episodic_req=true rel=true barrier=315 episodic_rows=279 summaries=63
+[replay] T317 shared=ok episodic_req=true rel=true barrier=315 episodic_rows=279 summaries=63
+  source_turn: 318,
+  replaced_source_turn: false,
+[replay] T318 shared=ok episodic_req=true rel=true barrier=315 episodic_rows=281 summaries=63
+  source_turn: 319,
+  replaced_source_turn: false,
+[replay] T319 shared=ok episodic_req=true rel=true barrier=315 episodic_rows=282 summaries=63
+  source_turn: 320,
+  replaced_source_turn: false,
+[replay] T320 shared=ok episodic_req=true rel=true barrier=315 episodic_rows=284 summaries=63
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 315,
+  coveredThroughAfter: 320,
+[memory] 5턴 기억 기록 chat=1 turns=316-320 (245ch → lorebook 9811/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 321,
+  replaced_source_turn: false,
+[replay] T321 shared=ok episodic_req=true rel=true barrier=320 episodic_rows=285 summaries=64
+  source_turn: 322,
+  replaced_source_turn: false,
+[replay] T322 shared=ok episodic_req=true rel=true barrier=320 episodic_rows=287 summaries=64
+  source_turn: 323,
+  replaced_source_turn: false,
+[replay] T323 shared=ok episodic_req=true rel=true barrier=320 episodic_rows=289 summaries=64
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 324,
+  reason: 'assistant_evidence_cannot_authorize_user_action',
+  source_turn: 324,
+  replaced_source_turn: false,
+[replay] T324 shared=ok episodic_req=true rel=true barrier=320 episodic_rows=290 summaries=64
+[replay] T325 shared=ok episodic_req=true rel=true barrier=320 episodic_rows=290 summaries=64
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 320,
+  coveredThroughAfter: 325,
+[memory] 5턴 기억 기록 chat=1 turns=321-325 (271ch → lorebook 9962/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T326 shared=ok episodic_req=true rel=true barrier=325 episodic_rows=290 summaries=65
+[replay] T327 shared=ok episodic_req=true rel=true barrier=325 episodic_rows=290 summaries=65
+  source_turn: 328,
+  replaced_source_turn: false,
+[replay] T328 shared=ok episodic_req=true rel=true barrier=325 episodic_rows=292 summaries=65
+[replay] T329 shared=ok episodic_req=true rel=true barrier=325 episodic_rows=292 summaries=65
+[replay] T330 shared=ok episodic_req=true rel=true barrier=325 episodic_rows=292 summaries=65
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 325,
+  coveredThroughAfter: 330,
+[memory] 5턴 기억 기록 chat=1 turns=326-330 (288ch → lorebook 9215/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 331,
+  replaced_source_turn: false,
+[replay] T331 shared=ok episodic_req=true rel=true barrier=330 episodic_rows=293 summaries=66
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 332,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+  source_turn: 332,
+  replaced_source_turn: false,
+[replay] T332 shared=ok episodic_req=true rel=true barrier=330 episodic_rows=294 summaries=66
+  source_turn: 333,
+  replaced_source_turn: false,
+[replay] T333 shared=ok episodic_req=true rel=true barrier=330 episodic_rows=295 summaries=66
+[replay] T334 shared=ok episodic_req=true rel=true barrier=330 episodic_rows=295 summaries=66
+  source_turn: 335,
+  replaced_source_turn: false,
+[replay] T335 shared=ok episodic_req=true rel=true barrier=330 episodic_rows=297 summaries=66
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 330,
+  coveredThroughAfter: 335,
+[memory] 5턴 기억 기록 chat=1 turns=331-335 (299ch → lorebook 9527/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 336,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T336 shared=ok episodic_req=true rel=true barrier=335 episodic_rows=297 summaries=67
+[replay] T337 shared=ok episodic_req=true rel=true barrier=335 episodic_rows=297 summaries=67
+[replay] T338 shared=ok episodic_req=true rel=true barrier=335 episodic_rows=297 summaries=67
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 339,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T339 shared=ok episodic_req=true rel=true barrier=335 episodic_rows=297 summaries=67
+  source_turn: 340,
+  replaced_source_turn: false,
+[replay] T340 shared=ok episodic_req=true rel=true barrier=335 episodic_rows=300 summaries=67
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 335,
+  coveredThroughAfter: 340,
+[memory] 5턴 기억 기록 chat=1 turns=336-340 (296ch → lorebook 9836/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T341 shared=ok episodic_req=true rel=true barrier=340 episodic_rows=300 summaries=68
+  source_turn: 342,
+  replaced_source_turn: false,
+[replay] T342 shared=ok episodic_req=true rel=true barrier=340 episodic_rows=301 summaries=68
+  source_turn: 343,
+  replaced_source_turn: false,
+[replay] T343 shared=ok episodic_req=true rel=true barrier=340 episodic_rows=303 summaries=68
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 344,
+  reason: 'assistant_evidence_cannot_authorize_user_action',
+  source_turn: 344,
+  replaced_source_turn: false,
+[replay] T344 shared=ok episodic_req=true rel=true barrier=340 episodic_rows=305 summaries=68
+[replay] T345 shared=ok episodic_req=true rel=true barrier=340 episodic_rows=305 summaries=68
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 340,
+  coveredThroughAfter: 345,
+[memory] 5턴 기억 기록 chat=1 turns=341-345 (253ch → lorebook 9937/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 346,
+  replaced_source_turn: false,
+[replay] T346 shared=ok episodic_req=true rel=true barrier=345 episodic_rows=307 summaries=69
+[replay] T347 shared=ok episodic_req=true rel=true barrier=345 episodic_rows=307 summaries=69
+  source_turn: 348,
+  replaced_source_turn: false,
+[replay] T348 shared=ok episodic_req=true rel=true barrier=345 episodic_rows=309 summaries=69
+[replay] T349 shared=ok episodic_req=true rel=true barrier=345 episodic_rows=309 summaries=69
+  source_turn: 350,
+  replaced_source_turn: false,
+[replay] T350 shared=ok episodic_req=true rel=true barrier=345 episodic_rows=310 summaries=69
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 345,
+  coveredThroughAfter: 350,
+[memory] 5턴 기억 기록 chat=1 turns=346-350 (282ch → lorebook 9971/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 351,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T351 shared=ok episodic_req=true rel=true barrier=350 episodic_rows=310 summaries=70
+[replay] T352 shared=ok episodic_req=true rel=true barrier=350 episodic_rows=310 summaries=70
+[replay] T353 shared=ok episodic_req=true rel=true barrier=350 episodic_rows=310 summaries=70
+[replay] T354 shared=ok episodic_req=true rel=true barrier=350 episodic_rows=310 summaries=70
+  source_turn: 355,
+  replaced_source_turn: false,
+[replay] T355 shared=ok episodic_req=true rel=true barrier=350 episodic_rows=312 summaries=70
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 350,
+  coveredThroughAfter: 355,
+[memory] 5턴 기억 기록 chat=1 turns=351-355 (291ch → lorebook 9972/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 356,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T356 shared=ok episodic_req=true rel=true barrier=355 episodic_rows=312 summaries=71
+  source_turn: 357,
+  replaced_source_turn: false,
+[replay] T357 shared=ok episodic_req=true rel=true barrier=355 episodic_rows=313 summaries=71
+  source_turn: 358,
+  replaced_source_turn: false,
+[replay] T358 shared=ok episodic_req=true rel=true barrier=355 episodic_rows=315 summaries=71
+[replay] T359 shared=ok episodic_req=true rel=true barrier=355 episodic_rows=315 summaries=71
+  source_turn: 360,
+  replaced_source_turn: false,
+[replay] T360 shared=ok episodic_req=true rel=true barrier=355 episodic_rows=317 summaries=71
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 355,
+  coveredThroughAfter: 360,
+[memory] 5턴 기억 기록 chat=1 turns=356-360 (269ch → lorebook 9964/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T361 shared=ok episodic_req=true rel=true barrier=360 episodic_rows=317 summaries=72
+  source_turn: 362,
+  replaced_source_turn: false,
+[replay] T362 shared=ok episodic_req=true rel=true barrier=360 episodic_rows=319 summaries=72
+[replay] T363 shared=ok episodic_req=true rel=true barrier=360 episodic_rows=319 summaries=72
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 364,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T364 shared=ok episodic_req=true rel=true barrier=360 episodic_rows=319 summaries=72
+  source_turn: 365,
+  replaced_source_turn: false,
+[replay] T365 shared=ok episodic_req=true rel=true barrier=360 episodic_rows=322 summaries=72
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 360,
+  coveredThroughAfter: 365,
+[memory] 5턴 기억 기록 chat=1 turns=361-365 (273ch → lorebook 9963/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T366 shared=ok episodic_req=true rel=true barrier=365 episodic_rows=322 summaries=73
+[replay] T367 shared=ok episodic_req=true rel=true barrier=365 episodic_rows=322 summaries=73
+[replay] T368 shared=ok episodic_req=true rel=true barrier=365 episodic_rows=322 summaries=73
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 369,
+  reason: 'evidence_quote_not_in_message',
+[replay] T369 shared=ok episodic_req=true rel=true barrier=365 episodic_rows=322 summaries=73
+  source_turn: 370,
+  replaced_source_turn: false,
+[replay] T370 shared=ok episodic_req=true rel=true barrier=365 episodic_rows=323 summaries=73
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 365,
+  coveredThroughAfter: 370,
+[memory] 5턴 기억 기록 chat=1 turns=366-370 (217ch → lorebook 9947/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 371,
+  replaced_source_turn: false,
+[replay] T371 shared=ok episodic_req=true rel=true barrier=370 episodic_rows=325 summaries=74
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 372,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T372 shared=ok episodic_req=true rel=true barrier=370 episodic_rows=325 summaries=74
+[replay] T373 shared=ok episodic_req=true rel=true barrier=370 episodic_rows=325 summaries=74
+[replay] T374 shared=ok episodic_req=true rel=true barrier=370 episodic_rows=325 summaries=74
+  source_turn: 375,
+  replaced_source_turn: false,
+[replay] T375 shared=ok episodic_req=true rel=true barrier=370 episodic_rows=327 summaries=74
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 370,
+  coveredThroughAfter: 375,
+[memory] 5턴 기억 기록 chat=1 turns=371-375 (363ch → lorebook 9950/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 376,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+  source_turn: 376,
+  replaced_source_turn: false,
+[replay] T376 shared=ok episodic_req=true rel=true barrier=375 episodic_rows=328 summaries=75
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 377,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+  source_turn: 377,
+  replaced_source_turn: false,
+[replay] T377 shared=ok episodic_req=true rel=true barrier=375 episodic_rows=329 summaries=75
+  source_turn: 378,
+  replaced_source_turn: false,
+[replay] T378 shared=ok episodic_req=true rel=true barrier=375 episodic_rows=331 summaries=75
+  source_turn: 379,
+  replaced_source_turn: false,
+[replay] T379 shared=ok episodic_req=true rel=true barrier=375 episodic_rows=333 summaries=75
+  source_turn: 380,
+  replaced_source_turn: false,
+[replay] T380 shared=ok episodic_req=true rel=true barrier=375 episodic_rows=334 summaries=75
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 375,
+  coveredThroughAfter: 380,
+[memory] 5턴 기억 기록 chat=1 turns=376-380 (331ch → lorebook 9950/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T381 shared=ok episodic_req=true rel=true barrier=380 episodic_rows=334 summaries=76
+  source_turn: 382,
+  replaced_source_turn: false,
+[replay] T382 shared=ok episodic_req=true rel=true barrier=380 episodic_rows=336 summaries=76
+[replay] T383 shared=ok episodic_req=true rel=true barrier=380 episodic_rows=336 summaries=76
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 384,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T384 shared=ok episodic_req=true rel=true barrier=380 episodic_rows=336 summaries=76
+[replay] T385 shared=ok episodic_req=true rel=true barrier=380 episodic_rows=336 summaries=76
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 380,
+  coveredThroughAfter: 385,
+[memory] 5턴 기억 기록 chat=1 turns=381-385 (249ch → lorebook 9937/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 386,
+  replaced_source_turn: false,
+[replay] T386 shared=ok episodic_req=true rel=true barrier=385 episodic_rows=338 summaries=77
+[replay] T387 shared=ok episodic_req=true rel=true barrier=385 episodic_rows=338 summaries=77
+[replay] T388 shared=ok episodic_req=true rel=true barrier=385 episodic_rows=338 summaries=77
+[replay] T389 shared=ok episodic_req=true rel=true barrier=385 episodic_rows=338 summaries=77
+[replay] T390 shared=ok episodic_req=true rel=true barrier=385 episodic_rows=338 summaries=77
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 385,
+  coveredThroughAfter: 390,
+[memory] 5턴 기억 기록 chat=1 turns=386-390 (298ch → lorebook 9936/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T391 shared=ok episodic_req=true rel=true barrier=390 episodic_rows=338 summaries=78
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 392,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T392 shared=ok episodic_req=true rel=true barrier=390 episodic_rows=338 summaries=78
+  source_turn: 393,
+  replaced_source_turn: false,
+[replay] T393 shared=ok episodic_req=true rel=true barrier=390 episodic_rows=341 summaries=78
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 394,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+  source_turn: 394,
+  replaced_source_turn: false,
+[replay] T394 shared=ok episodic_req=true rel=true barrier=390 episodic_rows=342 summaries=78
+[replay] T395 shared=ok episodic_req=true rel=true barrier=390 episodic_rows=342 summaries=78
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 390,
+  coveredThroughAfter: 395,
+[memory] 5턴 기억 기록 chat=1 turns=391-395 (241ch → lorebook 9933/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 396,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T396 shared=ok episodic_req=true rel=true barrier=395 episodic_rows=342 summaries=79
+[replay] T397 shared=ok episodic_req=true rel=true barrier=395 episodic_rows=342 summaries=79
+  source_turn: 398,
+  replaced_source_turn: false,
+[replay] T398 shared=ok episodic_req=true rel=true barrier=395 episodic_rows=344 summaries=79
+  source_turn: 399,
+  replaced_source_turn: false,
+[replay] T399 shared=ok episodic_req=true rel=true barrier=395 episodic_rows=346 summaries=79
+  source_turn: 400,
+  replaced_source_turn: false,
+[replay] T400 shared=ok episodic_req=true rel=true barrier=395 episodic_rows=348 summaries=79
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 395,
+  coveredThroughAfter: 400,
+[memory] 5턴 기억 기록 chat=1 turns=396-400 (242ch → lorebook 9978/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 401,
+  replaced_source_turn: false,
+[replay] T401 shared=ok episodic_req=true rel=true barrier=400 episodic_rows=350 summaries=80
+  source_turn: 402,
+  replaced_source_turn: false,
+[replay] T402 shared=ok episodic_req=true rel=true barrier=400 episodic_rows=352 summaries=80
+  source_turn: 403,
+  replaced_source_turn: false,
+[replay] T403 shared=ok episodic_req=true rel=true barrier=400 episodic_rows=354 summaries=80
+  source_turn: 404,
+  replaced_source_turn: false,
+[replay] T404 shared=ok episodic_req=true rel=true barrier=400 episodic_rows=356 summaries=80
+[replay] T405 shared=ok episodic_req=true rel=true barrier=400 episodic_rows=356 summaries=80
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 400,
+  coveredThroughAfter: 405,
+[memory] 5턴 기억 기록 chat=1 turns=401-405 (288ch → lorebook 9988/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 406,
+  replaced_source_turn: false,
+[replay] T406 shared=ok episodic_req=true rel=true barrier=405 episodic_rows=358 summaries=81
+  source_turn: 407,
+  replaced_source_turn: false,
+[replay] T407 shared=ok episodic_req=true rel=true barrier=405 episodic_rows=360 summaries=81
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 408,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+  source_turn: 408,
+  replaced_source_turn: false,
+[replay] T408 shared=ok episodic_req=true rel=true barrier=405 episodic_rows=361 summaries=81
+  source_turn: 409,
+  replaced_source_turn: false,
+[replay] T409 shared=ok episodic_req=true rel=true barrier=405 episodic_rows=362 summaries=81
+[replay] T410 shared=ok episodic_req=true rel=true barrier=405 episodic_rows=362 summaries=81
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 405,
+  coveredThroughAfter: 410,
+[memory] 5턴 기억 기록 chat=1 turns=406-410 (330ch → lorebook 9944/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 411,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T411 shared=ok episodic_req=true rel=true barrier=410 episodic_rows=362 summaries=82
+  source_turn: 412,
+  replaced_source_turn: false,
+[replay] T412 shared=ok episodic_req=true rel=true barrier=410 episodic_rows=363 summaries=82
+[replay] T413 shared=ok episodic_req=true rel=true barrier=410 episodic_rows=363 summaries=82
+  source_turn: 414,
+  replaced_source_turn: false,
+[replay] T414 shared=ok episodic_req=true rel=true barrier=410 episodic_rows=364 summaries=82
+  source_turn: 415,
+  replaced_source_turn: false,
+[replay] T415 shared=ok episodic_req=true rel=true barrier=410 episodic_rows=366 summaries=82
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 410,
+  coveredThroughAfter: 415,
+[memory] 5턴 기억 기록 chat=1 turns=411-415 (257ch → lorebook 9962/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 416,
+  replaced_source_turn: false,
+[replay] T416 shared=ok episodic_req=true rel=true barrier=415 episodic_rows=368 summaries=83
+[replay] T417 shared=ok episodic_req=true rel=true barrier=415 episodic_rows=368 summaries=83
+  source_turn: 418,
+  replaced_source_turn: false,
+[replay] T418 shared=ok episodic_req=true rel=true barrier=415 episodic_rows=370 summaries=83
+  source_turn: 419,
+  replaced_source_turn: false,
+[replay] T419 shared=ok episodic_req=true rel=true barrier=415 episodic_rows=372 summaries=83
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 420,
+  reason: 'evidence_quote_not_in_message',
+  source_turn: 420,
+  replaced_source_turn: false,
+[replay] T420 shared=ok episodic_req=true rel=true barrier=415 episodic_rows=374 summaries=83
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 415,
+  coveredThroughAfter: 420,
+[memory] 5턴 기억 기록 chat=1 turns=416-420 (275ch → lorebook 9959/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T421 shared=ok episodic_req=true rel=true barrier=420 episodic_rows=374 summaries=84
+[replay] T422 shared=ok episodic_req=true rel=true barrier=420 episodic_rows=374 summaries=84
+  source_turn: 423,
+  replaced_source_turn: false,
+[replay] T423 shared=ok episodic_req=true rel=true barrier=420 episodic_rows=375 summaries=84
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 424,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T424 shared=ok episodic_req=true rel=true barrier=420 episodic_rows=375 summaries=84
+[replay] T425 shared=ok episodic_req=true rel=true barrier=420 episodic_rows=375 summaries=84
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 420,
+  coveredThroughAfter: 425,
+[memory] 5턴 기억 기록 chat=1 turns=421-425 (266ch → lorebook 9990/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T426 shared=ok episodic_req=true rel=true barrier=425 episodic_rows=375 summaries=85
+  source_turn: 427,
+  replaced_source_turn: false,
+[replay] T427 shared=ok episodic_req=true rel=true barrier=425 episodic_rows=377 summaries=85
+  source_turn: 428,
+  replaced_source_turn: false,
+[replay] T428 shared=ok episodic_req=true rel=true barrier=425 episodic_rows=379 summaries=85
+[replay] T429 shared=ok episodic_req=true rel=true barrier=425 episodic_rows=379 summaries=85
+  source_turn: 430,
+  replaced_source_turn: false,
+[replay] T430 shared=ok episodic_req=true rel=true barrier=425 episodic_rows=381 summaries=85
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 425,
+  coveredThroughAfter: 430,
+[memory] 5턴 기억 기록 chat=1 turns=426-430 (294ch → lorebook 9991/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T431 shared=ok episodic_req=true rel=true barrier=430 episodic_rows=381 summaries=86
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 432,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+  source_turn: 432,
+  replaced_source_turn: false,
+[replay] T432 shared=ok episodic_req=true rel=true barrier=430 episodic_rows=382 summaries=86
+[replay] T433 shared=ok episodic_req=true rel=true barrier=430 episodic_rows=382 summaries=86
+  source_turn: 434,
+  replaced_source_turn: false,
+[replay] T434 shared=ok episodic_req=true rel=true barrier=430 episodic_rows=383 summaries=86
+  source_turn: 435,
+  replaced_source_turn: false,
+[replay] T435 shared=ok episodic_req=true rel=true barrier=430 episodic_rows=385 summaries=86
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 430,
+  coveredThroughAfter: 435,
+[memory] 5턴 기억 기록 chat=1 turns=431-435 (450ch → lorebook 9973/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 436,
+  replaced_source_turn: false,
+[replay] T436 shared=ok episodic_req=true rel=true barrier=435 episodic_rows=387 summaries=87
+[replay] T437 shared=ok episodic_req=true rel=true barrier=435 episodic_rows=387 summaries=87
+  source_turn: 438,
+  replaced_source_turn: false,
+[replay] T438 shared=ok episodic_req=true rel=true barrier=435 episodic_rows=389 summaries=87
+[replay] T439 shared=ok episodic_req=true rel=true barrier=435 episodic_rows=389 summaries=87
+  source_turn: 440,
+  replaced_source_turn: false,
+[replay] T440 shared=ok episodic_req=true rel=true barrier=435 episodic_rows=390 summaries=87
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 435,
+  coveredThroughAfter: 440,
+[memory] 5턴 기억 기록 chat=1 turns=436-440 (317ch → lorebook 9973/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 441,
+  replaced_source_turn: false,
+[replay] T441 shared=ok episodic_req=true rel=true barrier=440 episodic_rows=392 summaries=88
+[replay] T442 shared=ok episodic_req=true rel=true barrier=440 episodic_rows=392 summaries=88
+  source_turn: 443,
+  replaced_source_turn: false,
+[replay] T443 shared=ok episodic_req=true rel=true barrier=440 episodic_rows=394 summaries=88
+  source_turn: 444,
+  replaced_source_turn: false,
+[replay] T444 shared=ok episodic_req=true rel=true barrier=440 episodic_rows=396 summaries=88
+[replay] T445 shared=ok episodic_req=true rel=true barrier=440 episodic_rows=396 summaries=88
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 440,
+  coveredThroughAfter: 445,
+[memory] 5턴 기억 기록 chat=1 turns=441-445 (380ch → lorebook 9974/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 446,
+  replaced_source_turn: false,
+[replay] T446 shared=ok episodic_req=true rel=true barrier=445 episodic_rows=397 summaries=89
+  source_turn: 447,
+  replaced_source_turn: false,
+[replay] T447 shared=ok episodic_req=true rel=true barrier=445 episodic_rows=400 summaries=89
+  source_turn: 448,
+  replaced_source_turn: false,
+[replay] T448 shared=ok episodic_req=true rel=true barrier=445 episodic_rows=401 summaries=89
+  source_turn: 449,
+  replaced_source_turn: false,
+[replay] T449 shared=ok episodic_req=true rel=true barrier=445 episodic_rows=403 summaries=89
+[replay] T450 shared=ok episodic_req=true rel=true barrier=445 episodic_rows=403 summaries=89
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 445,
+  coveredThroughAfter: 450,
+[memory] 5턴 기억 기록 chat=1 turns=446-450 (334ch → lorebook 9959/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 451,
+  replaced_source_turn: false,
+[replay] T451 shared=ok episodic_req=true rel=true barrier=450 episodic_rows=405 summaries=90
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 452,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+  source_turn: 452,
+  replaced_source_turn: false,
+[replay] T452 shared=ok episodic_req=true rel=true barrier=450 episodic_rows=406 summaries=90
+[replay] T453 shared=ok episodic_req=true rel=true barrier=450 episodic_rows=406 summaries=90
+  source_turn: 454,
+  replaced_source_turn: false,
+[replay] T454 shared=ok episodic_req=true rel=true barrier=450 episodic_rows=408 summaries=90
+[replay] T455 shared=ok episodic_req=true rel=true barrier=450 episodic_rows=408 summaries=90
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 450,
+  coveredThroughAfter: 455,
+[memory] 5턴 기억 기록 chat=1 turns=451-455 (270ch → lorebook 9999/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 456,
+  replaced_source_turn: false,
+[replay] T456 shared=ok episodic_req=true rel=true barrier=455 episodic_rows=410 summaries=91
+[replay] T457 shared=ok episodic_req=true rel=true barrier=455 episodic_rows=410 summaries=91
+[replay] T458 shared=ok episodic_req=true rel=true barrier=455 episodic_rows=410 summaries=91
+[replay] T459 shared=ok episodic_req=true rel=true barrier=455 episodic_rows=410 summaries=91
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 460,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T460 shared=ok episodic_req=true rel=true barrier=455 episodic_rows=410 summaries=91
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 455,
+  coveredThroughAfter: 460,
+[memory] 5턴 기억 기록 chat=1 turns=456-460 (361ch → lorebook 9992/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T461 shared=ok episodic_req=true rel=true barrier=460 episodic_rows=410 summaries=92
+  source_turn: 462,
+  replaced_source_turn: false,
+[replay] T462 shared=ok episodic_req=true rel=true barrier=460 episodic_rows=411 summaries=92
+  source_turn: 463,
+  replaced_source_turn: false,
+[replay] T463 shared=ok episodic_req=true rel=true barrier=460 episodic_rows=413 summaries=92
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 464,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T464 shared=ok episodic_req=true rel=true barrier=460 episodic_rows=413 summaries=92
+[replay] T465 shared=ok episodic_req=true rel=true barrier=460 episodic_rows=413 summaries=92
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 460,
+  coveredThroughAfter: 465,
+[memory] 5턴 기억 기록 chat=1 turns=461-465 (215ch → lorebook 9963/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 466,
+  replaced_source_turn: false,
+[replay] T466 shared=ok episodic_req=true rel=true barrier=465 episodic_rows=414 summaries=93
+  source_turn: 467,
+  replaced_source_turn: false,
+[replay] T467 shared=ok episodic_req=true rel=true barrier=465 episodic_rows=416 summaries=93
+  source_turn: 468,
+  replaced_source_turn: false,
+[replay] T468 shared=ok episodic_req=true rel=true barrier=465 episodic_rows=418 summaries=93
+[replay] T469 shared=ok episodic_req=true rel=true barrier=465 episodic_rows=418 summaries=93
+[replay] T470 shared=ok episodic_req=true rel=true barrier=465 episodic_rows=418 summaries=93
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 465,
+  coveredThroughAfter: 470,
+[memory] 5턴 기억 기록 chat=1 turns=466-470 (365ch → lorebook 9965/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T471 shared=ok episodic_req=true rel=true barrier=470 episodic_rows=418 summaries=94
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 472,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+  source_turn: 472,
+  replaced_source_turn: false,
+[replay] T472 shared=ok episodic_req=true rel=true barrier=470 episodic_rows=419 summaries=94
+  source_turn: 473,
+  replaced_source_turn: false,
+[replay] T473 shared=ok episodic_req=true rel=true barrier=470 episodic_rows=421 summaries=94
+  source_turn: 474,
+  replaced_source_turn: false,
+[replay] T474 shared=ok episodic_req=true rel=true barrier=470 episodic_rows=423 summaries=94
+  source_turn: 475,
+  replaced_source_turn: false,
+[replay] T475 shared=ok episodic_req=true rel=true barrier=470 episodic_rows=425 summaries=94
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 470,
+  coveredThroughAfter: 475,
+[memory] 5턴 기억 기록 chat=1 turns=471-475 (265ch → lorebook 9963/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 476,
+  replaced_source_turn: false,
+[replay] T476 shared=ok episodic_req=true rel=true barrier=475 episodic_rows=427 summaries=95
+[replay] T477 shared=ok episodic_req=true rel=true barrier=475 episodic_rows=427 summaries=95
+[replay] T478 shared=ok episodic_req=true rel=true barrier=475 episodic_rows=427 summaries=95
+  source_turn: 479,
+  replaced_source_turn: false,
+[replay] T479 shared=ok episodic_req=true rel=true barrier=475 episodic_rows=430 summaries=95
+  source_turn: 480,
+  replaced_source_turn: false,
+[replay] T480 shared=ok episodic_req=true rel=true barrier=475 episodic_rows=431 summaries=95
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 475,
+  coveredThroughAfter: 480,
+[memory] 5턴 기억 기록 chat=1 turns=476-480 (280ch → lorebook 9962/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 481,
+  replaced_source_turn: false,
+[replay] T481 shared=ok episodic_req=true rel=true barrier=480 episodic_rows=433 summaries=96
+[replay] T482 shared=ok episodic_req=true rel=true barrier=480 episodic_rows=433 summaries=96
+[replay] T483 shared=ok episodic_req=true rel=true barrier=480 episodic_rows=433 summaries=96
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 484,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T484 shared=ok episodic_req=true rel=true barrier=480 episodic_rows=433 summaries=96
+[replay] T485 shared=ok episodic_req=true rel=true barrier=480 episodic_rows=433 summaries=96
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 480,
+  coveredThroughAfter: 485,
+[memory] 5턴 기억 기록 chat=1 turns=481-485 (321ch → lorebook 9965/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T486 shared=ok episodic_req=true rel=true barrier=485 episodic_rows=433 summaries=97
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 487,
+  reason: 'evidence_quote_not_in_message',
+[replay] T487 shared=ok episodic_req=true rel=true barrier=485 episodic_rows=433 summaries=97
+  source_turn: 488,
+  replaced_source_turn: false,
+[replay] T488 shared=ok episodic_req=true rel=true barrier=485 episodic_rows=435 summaries=97
+[replay] T489 shared=ok episodic_req=true rel=true barrier=485 episodic_rows=435 summaries=97
+[replay] T490 shared=ok episodic_req=true rel=true barrier=485 episodic_rows=435 summaries=97
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 485,
+  coveredThroughAfter: 490,
+[memory] 5턴 기억 기록 chat=1 turns=486-490 (280ch → lorebook 9965/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 491,
+  replaced_source_turn: false,
+[replay] T491 shared=ok episodic_req=true rel=true barrier=490 episodic_rows=437 summaries=98
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 492,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T492 shared=ok episodic_req=true rel=true barrier=490 episodic_rows=437 summaries=98
+[replay] T493 shared=ok episodic_req=true rel=true barrier=490 episodic_rows=437 summaries=98
+[replay] T494 shared=ok episodic_req=true rel=true barrier=490 episodic_rows=437 summaries=98
+[replay] T495 shared=ok episodic_req=true rel=true barrier=490 episodic_rows=437 summaries=98
+GLOBAL_COMPACT_EXECUTION {
+  mode: 'incremental_append',
+  coveredThroughBefore: 490,
+  coveredThroughAfter: 495,
+[memory] 5턴 기억 기록 chat=1 turns=491-495 (242ch → lorebook 9853/10000ch compact=incremental_append reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  source_turn: 496,
+  replaced_source_turn: false,
+[replay] T496 shared=ok episodic_req=true rel=true barrier=495 episodic_rows=439 summaries=99
+[replay] T497 shared=ok episodic_req=true rel=true barrier=495 episodic_rows=439 summaries=99
+  source_turn: 498,
+  replaced_source_turn: false,
+[replay] T498 shared=ok episodic_req=true rel=true barrier=495 episodic_rows=441 summaries=99
+[replay] T499 shared=ok episodic_req=true rel=true barrier=495 episodic_rows=441 summaries=99
+EPISODIC_EVIDENCE_REJECTED {
+  source_turn: 500,
+  reason: 'assistant_evidence_cannot_authorize_user_linked_history',
+[replay] T500 shared=ok episodic_req=true rel=true barrier=495 episodic_rows=441 summaries=99

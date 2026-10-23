@@ -1,0 +1,22 @@
+{"qid":"L500-A4-stone","currentTurn":501,"semantic_reason":"ok","candidates":73,"lanes":{"recent":55,"relevance":17,"milestone_critical":0,"milestone_important":1,"semantic":0},"injected":6}
+T4	INJECTED#3	lanes=relevance	composite=5.039	rel=1.000	sem=0.452	item:blue_riftstone_fragment:engraving	푸른 균열석 조각의 표면에는 'G-117'이라는 각인이 새겨져 있다.
+T25	INJECTED#2	lanes=relevance	composite=5.040	rel=1.000	sem=0.316	character:oh_jihwan:death_event	영등포 게이트 브레이크에서 C급 센티넬 오지환이 사망했다.
+T27	CANDIDATE_MISS	lanes=-	composite=-	rel=-	sem=-	character:taehyung:action	태형은 렌이 측정기를 돌려받는 모습을 지켜본 뒤 조용히 자리를 떴다.
+T95	CANDIDATE_MISS	lanes=-	composite=-	rel=-	sem=-	character:taehyung:action	태형은 렌과 정비고에서 체력 훈련을 하고 운동장 다섯 바퀴를 돌았다.
+T118	CANDIDATE_MISS	lanes=-	composite=-	rel=-	sem=-	character:taehyung:training_event	태형은 렌과 체력 훈련을 하며 운동장 다섯 바퀴를 돌았다.
+T178	CANDIDATE_MISS	lanes=-	composite=-	rel=-	sem=-	character:taehyung:training_activity	태형은 숙소 거실에서 체력 훈련을 하고 운동장 다섯 바퀴를 돌았다.
+T186	CANDIDATE_MISS	lanes=-	composite=-	rel=-	sem=-	character:taehyung:action	태형은 운동장 다섯 바퀴를 달린 뒤 벤치에서 쉬었다.
+T246	CANDIDATE_MISS	lanes=-	composite=-	rel=-	sem=-	character:taehyung:action	태형은 본부 옥상에서 체력 훈련을 하고 운동장 다섯 바퀴를 돌았다.
+T261	CANDIDATE_MISS	lanes=-	composite=-	rel=-	sem=-	character:taehyung:training_event	태형은 본부 옥상에서 체력 훈련을 한 뒤 운동장 다섯 바퀴를 돌았다.
+T276	CANDIDATE_MISS	lanes=-	composite=-	rel=-	sem=-	character:taehyung:action	태형은 한강 둔치에서 체력 훈련을 하며 운동장을 다섯 바퀴 돌았다.
+T314	CANDIDATE_MISS	lanes=-	composite=-	rel=-	sem=-	character:taehyung:training_event	태형은 체력 훈련 중 운동장 다섯 바퀴를 돌았다.
+T344	CANDIDATE_MISS	lanes=-	composite=-	rel=-	sem=-	character:taehyung:action	태형은 렌과 체력 훈련을 하며 운동장 다섯 바퀴를 돌았다.
+T382	CANDIDATE_MISS	lanes=-	composite=-	rel=-	sem=-	character:taehyung:training	태형은 본부 뒤 정원에서 체력 훈련 중 운동장을 다섯 바퀴 돌았다.
+T480	DROPPED(unranked)	lanes=recent	composite=0.488	rel=0.000	sem=0.305	character:taehyung:training	태형은 렌과 함께 운동장에서 다섯 바퀴를 돌며 체력 훈련을 했다.
+-- injected
+#1	T75	lanes=relevance	composite=5.045	rel=1.000	sem=0.336	A급 게이트 작전은 사상자 없이 끝났다.
+#2	T25	lanes=relevance	composite=5.040	rel=1.000	sem=0.316	영등포 게이트 브레이크에서 C급 센티넬 오지환이 사망했다.
+#3	T4	lanes=relevance	composite=5.039	rel=1.000	sem=0.452	푸른 균열석 조각의 표면에는 'G-117'이라는 각인이 새겨져 있다.
+#4	T456	lanes=recent	composite=4.308	rel=1.000	sem=0.392	렌과 태형은 비 오는 날 지하 사격장에서 C급 게이트 정리를 함께 했다.
+#5	T418	lanes=relevance	composite=4.194	rel=1.000	sem=0.386	태형은 C급 게이트 정리 중 남은 크리처 두 마리를 휘파람으로 묶어 정리했다.
+#6	T403	lanes=relevance	composite=4.169	rel=1.000	sem=0.386	태형은 C급 게이트 정리 중 남은 크리처 두 마리를 휘파람으로 묶어 정리했다.

@@ -1,0 +1,50 @@
+# Global compaction calls in the isolated replay ledger (T1-500), with the latest sealed block at call time
+created_at	kind	input_tokens	output_tokens	krw	latest_sealed_block_start
+2026-10-17 10:38:34	background-lorebook-compact	7224	4390	2.74	166
+2026-10-17 10:39:05	background-lorebook-compact-retry	11672	4380	3.23	166
+2026-10-17 10:44:01	background-lorebook-compact	7096	4695	2.86	231
+2026-10-17 10:44:34	background-lorebook-compact-retry	11849	4761	3.42	231
+2026-10-17 10:48:48	background-lorebook-compact	7014	5435	3.18	281
+2026-10-17 10:49:21	background-lorebook-compact-retry	12507	5421	3.78	281
+2026-10-17 10:52:31	background-lorebook-compact	7089	6538	3.68	316
+2026-10-17 10:53:42	background-lorebook-compact	6940	6694	3.73	321
+2026-10-17 10:54:37	background-lorebook-compact	7053	6155	3.5	326
+2026-10-17 10:56:20	background-lorebook-compact	6965	6713	3.74	341
+2026-10-17 10:57:32	background-lorebook-compact	7064	6868	3.82	346
+2026-10-17 10:58:38	background-lorebook-compact	7093	6879	3.83	351
+2026-10-17 10:59:47	background-lorebook-compact	7080	6844	3.81	356
+2026-10-17 11:00:53	background-lorebook-compact	7072	6823	3.8	361
+2026-10-17 11:01:56	background-lorebook-compact	7044	6815	3.79	366
+2026-10-17 11:03:06	background-lorebook-compact	7116	6894	3.84	371
+2026-10-17 11:04:15	background-lorebook-compact	7108	6890	3.83	376
+2026-10-17 11:05:35	background-lorebook-compact	7045	6837	3.8	381
+2026-10-17 11:06:43	background-lorebook-compact	7037	6986	3.87	386
+2026-10-17 11:07:48	background-lorebook-compact	7005	6788	3.78	391
+2026-10-17 11:08:56	background-lorebook-compact	7003	6770	3.77	396
+2026-10-17 11:10:02	background-lorebook-compact	7066	6850	3.81	401
+2026-10-17 11:11:13	background-lorebook-compact	7096	6888	3.83	406
+2026-10-17 11:12:16	background-lorebook-compact	6937	6746	3.75	411
+2026-10-17 11:13:30	background-lorebook-compact	6964	6748	3.76	416
+2026-10-17 11:14:30	background-lorebook-compact	6959	6800	3.78	421
+2026-10-17 11:15:40	background-lorebook-compact	7076	6729	3.76	426
+2026-10-17 11:16:50	background-lorebook-compact	7188	6938	3.86	431
+2026-10-17 11:17:57	background-lorebook-compact	7076	6904	3.84	436
+2026-10-17 11:19:02	background-lorebook-compact	7128	6938	3.86	441
+2026-10-17 11:20:08	background-lorebook-compact	7086	6848	3.81	446
+2026-10-17 11:21:12	background-lorebook-compact	7051	6868	3.82	451
+2026-10-17 11:22:21	background-lorebook-compact	7140	6934	3.86	456
+2026-10-17 11:23:24	background-lorebook-compact	7032	6820	3.79	461
+2026-10-17 11:24:34	background-lorebook-compact	7116	6894	3.84	466
+2026-10-17 11:25:38	background-lorebook-compact	7043	6836	3.8	471
+2026-10-17 11:26:40	background-lorebook-compact	7052	6846	3.81	476
+2026-10-17 11:27:40	background-lorebook-compact	7083	6883	3.83	481
+2026-10-17 11:28:45	background-lorebook-compact	7055	6866	3.82	486
+2026-10-17 11:29:46	background-lorebook-compact	7040	6822	3.8	491
+
+# Ledger totals by request kind (T1-500 replay, excludes eval turns)
+background-lorebook-compact	37	137.81
+background-post-turn-shared-initial	500	56.43
+background-memory-extract	99	24.84
+background-lorebook-compact-retry	3	10.43
+background-memory-episodic-embedding	258	0.13
+total		229.64
