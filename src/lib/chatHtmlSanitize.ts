@@ -83,8 +83,8 @@ const VISUAL_CARD_ALLOWED_ATTR = ["style", "class"] as const;
 /** 메인 모델·Flash HTML — 문서/head 누출 제거, body/card fragment만 유지 */
 export function stripLeakedDocumentMarkup(text: string): string {
   let out = text.trim();
-  const bodyMatch = out.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i);
-  if (bodyMatch?.[1]) out = bodyMatch[1].trim();
+  // Unwrap in place: prose before/after an embedded document must survive (saved text feeds memory).
+  out = out.replace(/<body\b[^>]*>([\s\S]*?)<\/body>/i, (_full, inner: string) => inner);
 
   out = out.replace(/<!DOCTYPE[^>]*>/gi, "");
   out = out.replace(/<script\b[\s\S]*?<\/script>/gi, "");
