@@ -323,7 +323,7 @@ describe("runner pre-send input for the local F candidate", () => {
       },
       workerId: "identity-style",
       now: () => 1_700_000_000_000,
-      env: { OPENAI_IMAGE_MODEL: "gpt-image-2.5-sunburst" },
+      env: { OFFICIAL_ASSET_IMAGE_MODEL: "gpt-image-2.5-sunburst" },
       ...extra,
     };
   }
@@ -425,7 +425,7 @@ describe("runner pre-send input for the local F candidate", () => {
       style: store.getStyle(compiled.draft.styleKey),
       slotKey: "sig4",
       representativeUrl: liveRep,
-      env: { OPENAI_IMAGE_MODEL: "gpt-image-2.5-sunburst" },
+      env: { OFFICIAL_ASSET_IMAGE_MODEL: "gpt-image-2.5-sunburst" },
       samePersonIdentityStyleUrl: F_REFERENCE,
     });
     assert.equal(composed.ok, true);

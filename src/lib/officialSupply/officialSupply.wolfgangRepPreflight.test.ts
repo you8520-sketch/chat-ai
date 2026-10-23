@@ -195,7 +195,7 @@ describe("Wolfgang representative NO_POST preflight", () => {
     assert.equal(composed.model, CHAT_IMAGE_GENERATION_DEFAULT_MODEL);
     assert.equal(composed.model, "gpt-image-2");
     assert.equal(resolveOfficialAssetImageModel({}), "gpt-image-2");
-    assert.equal(resolveOfficialAssetImageModel({ OPENAI_IMAGE_MODEL: "gpt-image-2.5-sunburst" }), "gpt-image-2.5-sunburst");
+    assert.equal(resolveOfficialAssetImageModel({ OFFICIAL_ASSET_IMAGE_MODEL: "gpt-image-2.5-sunburst" }), "gpt-image-2.5-sunburst");
     assert.equal(composed.profile.aspect, "2:3");
     assert.equal(composed.profile.size, OFFICIAL_REPRESENTATIVE_IMAGE_PROFILE.size);
     assert.equal(composed.profile.size, "1024x1536");
@@ -278,7 +278,7 @@ describe("Wolfgang representative NO_POST preflight", () => {
   });
 
   it("reports one-invocation POST ceiling without adding a Wolfgang retry owner", () => {
-    const liveModel = resolveOfficialAssetImageModel({ OPENAI_IMAGE_MODEL: "gpt-image-2.5-sunburst" });
+    const liveModel = resolveOfficialAssetImageModel({ OFFICIAL_ASSET_IMAGE_MODEL: "gpt-image-2.5-sunburst" });
     assert.equal(liveModel, "gpt-image-2.5-sunburst");
     assert.notEqual(liveModel, CHAT_IMAGE_GENERATION_DEFAULT_MODEL);
     assert.equal(isLucianSig4ProofSupportedImageModel(liveModel), true);
@@ -295,7 +295,7 @@ describe("Wolfgang representative NO_POST preflight", () => {
       },
       slotKey: "rep",
       representativeUrl: null,
-      env: { OPENAI_IMAGE_MODEL: "gpt-image-2.5-sunburst" },
+      env: { OFFICIAL_ASSET_IMAGE_MODEL: "gpt-image-2.5-sunburst" },
     });
     assert.equal(composed.ok, true);
     if (!composed.ok) return;

@@ -67,7 +67,7 @@ import { installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/li
  * are not an image-quality approval of these files, and no row written here
  * leaves the temporary database.
  */
-const IMAGE_ENV = { OPENAI_IMAGE_MODEL: "gpt-image-2.5-sunburst" } as unknown as NodeJS.ProcessEnv;
+const IMAGE_ENV = { OFFICIAL_ASSET_IMAGE_MODEL: "gpt-image-2.5-sunburst" } as unknown as NodeJS.ProcessEnv;
 const REPRESENTATIVE_SET: OfficialRepresentativeApplySet = {
   nextAssetPlan: APPROVED_PLAN,
   generationReference: "representative_identity_and_style",

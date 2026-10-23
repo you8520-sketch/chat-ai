@@ -1,4 +1,3 @@
-import { resolveChatImageGenerationModel } from "@/lib/chatImageGeneration";
 import type { OpenAiImageQuality } from "@/lib/openAiImageEdit";
 import type { OfficialAssetSlotKind } from "@/lib/officialSupply/types";
 
@@ -71,10 +70,20 @@ export function evaluateOfficialImageDimensions(
   return width === profile.width && height === profile.height ? "exact" : "reject";
 }
 
+export const OFFICIAL_ASSET_IMAGE_MODEL_ENV = "OFFICIAL_ASSET_IMAGE_MODEL";
+
 /**
- * The official pipeline never owns an image model id. The effective model is
- * always the canonical chat image resolver (OPENAI_IMAGE_MODEL override first).
+ * Wolfgang representative A/B (2026-10-23): GPT Image 2 followed the user's style references more
+ * faithfully than 2.5 Sunburst, which drifts toward the GPT default look. Official assets therefore
+ * default to gpt-image-2 regardless of the chat-wide OPENAI_IMAGE_MODEL.
+ */
+export const OFFICIAL_ASSET_IMAGE_DEFAULT_MODEL = "gpt-image-2";
+
+/**
+ * The single model owner for official character asset generation. Chat, comic and TRPG illustration keep
+ * `resolveChatImageGenerationModel` (OPENAI_IMAGE_MODEL); this path ignores that variable and changes
+ * only through the explicit OFFICIAL_ASSET_IMAGE_MODEL override.
  */
 export function resolveOfficialAssetImageModel(env: NodeJS.ProcessEnv = process.env): string {
-  return resolveChatImageGenerationModel(env);
+  return env[OFFICIAL_ASSET_IMAGE_MODEL_ENV]?.trim() || OFFICIAL_ASSET_IMAGE_DEFAULT_MODEL;
 }
