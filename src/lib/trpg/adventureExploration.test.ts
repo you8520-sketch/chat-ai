@@ -700,6 +700,12 @@ describe("adventure exploration (B2+B3)", () => {
     db.close();
   });
 
+  function latestRoundNumber(db: Database.Database, campaignId: number): number {
+    return (
+      db.prepare(`SELECT MAX(round_number) AS n FROM trpg_rounds WHERE campaign_id=?`).get(campaignId) as { n: number }
+    ).n;
+  }
+
   async function ghostTrainSession(adventure: TrpgAdventure = GHOST_TRAIN) {
     const db = memoryDb();
     const templateId = insertScenarioTemplate(db, 1, {
@@ -717,7 +723,11 @@ describe("adventure exploration (B2+B3)", () => {
       db,
       host,
       face: 1,
-      proposal: { inventoryAdd: [] as string[], inventoryRemove: [] as string[], location: "" },
+      proposal: {
+        inventoryAdd: [],
+        inventoryRemove: [],
+        location: "",
+      } as { inventoryAdd: string[]; inventoryRemove: string[]; itemOffers?: string[]; location: string },
       inputs: [] as Array<{ system: string; user: string }>,
     };
     const deps: TrpgEngineDeps = {
@@ -733,6 +743,7 @@ describe("adventure exploration (B2+B3)", () => {
               participantId: host,
               inventoryAdd: session.proposal.inventoryAdd,
               inventoryRemove: session.proposal.inventoryRemove,
+              itemOffers: session.proposal.itemOffers,
             }],
             location: session.proposal.location || here,
             next_round_context: "다음",
@@ -752,8 +763,9 @@ describe("adventure exploration (B2+B3)", () => {
       state,
       names: () => sheet(db, host).inventory.map((item) => item.name),
       room: (name: string) => keyOf(state(), name),
-      play: async (commands: unknown, body: string) => {
-        submitTrpgAction(db, { campaignId, userId: 1, body, explorationCommands: commands });
+      play: async (commands: unknown, body: string, accept: string[] = []) => {
+        const acceptItems = accept.map((name) => ({ name, fromRound: latestRoundNumber(db, campaignId) - 1 }));
+        submitTrpgAction(db, { campaignId, userId: 1, body, explorationCommands: commands, acceptItems });
         await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
       },
       useItem: async (body: string) => {
@@ -806,9 +818,12 @@ describe("adventure exploration (B2+B3)", () => {
     assert.equal(itemQty(t.db, [t.host], "차장 열쇠"), 1, "searching again does not grant it twice");
     assert.deepEqual(t.state().grantedEventIds, ["conductor_key"]);
 
-    t.session.proposal = { inventoryAdd: ["식은 찻잔"], inventoryRemove: [], location: "" };
+    t.session.proposal = { inventoryAdd: ["식은 찻잔"], inventoryRemove: [], itemOffers: ["식은 찻잔"], location: "" };
     await t.play([], "찻잔 하나를 챙긴다.");
-    assert.equal(itemQty(t.db, [t.host], "식은 찻잔"), 1, "bookkeeping outside a search stays with the GM");
+    assert.equal(itemQty(t.db, [t.host], "식은 찻잔"), 0, "a GM inventoryAdd for a human PC is a proposal, not ownership");
+    t.session.proposal = { inventoryAdd: [], inventoryRemove: [], itemOffers: [], location: "" };
+    await t.play([], "", ["식은 찻잔"]);
+    assert.equal(itemQty(t.db, [t.host], "식은 찻잔"), 1, "the player's acceptance of the offer grants it");
     t.db.close();
   });
 
@@ -849,9 +864,12 @@ describe("adventure exploration (B2+B3)", () => {
     assert.equal(itemQty(t.db, [t.host], "차장 열쇠"), 1, "the server reward is granted once and the GM remove does not cancel it");
     assert.equal(itemQty(t.db, [t.host], "식은 찻잔"), 0, "wording beside the search is not a purchase");
 
-    t.session.proposal = { inventoryAdd: ["식은 찻잔"], inventoryRemove: [], location: "" };
+    t.session.proposal = { inventoryAdd: ["식은 찻잔"], inventoryRemove: [], itemOffers: ["식은 찻잔"], location: "" };
     await t.play([], "상인에게 식은 찻잔을 산다.");
-    assert.equal(itemQty(t.db, [t.host], "식은 찻잔"), 1, "a general submit with an empty exploration queue keeps the purchase");
+    assert.equal(itemQty(t.db, [t.host], "식은 찻잔"), 0, "a purchase is offered first and not held yet");
+    t.session.proposal = { inventoryAdd: [], inventoryRemove: [], itemOffers: [], location: "" };
+    await t.play([], "", ["식은 찻잔"]);
+    assert.equal(itemQty(t.db, [t.host], "식은 찻잔"), 1, "a general submit with an empty exploration queue keeps the purchase once accepted");
     t.db.close();
   });
 
@@ -875,9 +893,11 @@ describe("adventure exploration (B2+B3)", () => {
     const phase = t.db.prepare(`SELECT phase FROM trpg_rounds WHERE campaign_id=? ORDER BY id DESC LIMIT 1`).get(campaignId) as { phase: string };
     assert.equal(phase.phase, "ACTION_INPUT");
 
-    t.session.proposal = { inventoryAdd: ["회복약"], inventoryRemove: [], location: "" };
+    t.session.proposal = { inventoryAdd: ["회복약"], inventoryRemove: [], itemOffers: ["회복약"], location: "" };
     await t.play([], "상인에게 회복약을 산다.");
-    assert.equal(itemQty(t.db, [t.host], "회복약"), 1, "a later general purchase is kept");
+    t.session.proposal = { inventoryAdd: [], inventoryRemove: [], itemOffers: [], location: "" };
+    await t.play([], "", ["회복약"]);
+    assert.equal(itemQty(t.db, [t.host], "회복약"), 1, "a later general purchase is kept once accepted");
     t.db.close();
   });
 
@@ -896,9 +916,12 @@ describe("adventure exploration (B2+B3)", () => {
     await t.play([{ op: "move", roomId: t.room("약장수") }], "객차를 뒤진다.");
     assert.equal(itemQty(t.db, [t.host], "회복약"), 1, "re-entry does not grant the event reward again");
 
-    t.session.proposal = { inventoryAdd: ["회복약"], inventoryRemove: [], location: "" };
+    t.session.proposal = { inventoryAdd: ["회복약"], inventoryRemove: [], itemOffers: ["회복약"], location: "" };
     await t.play([], "상인에게 회복약을 산다.");
-    assert.equal(itemQty(t.db, [t.host], "회복약"), 2, "a general purchase of the same name increases the quantity");
+    assert.equal(itemQty(t.db, [t.host], "회복약"), 1, "the offered unit is not held until accepted");
+    t.session.proposal = { inventoryAdd: [], inventoryRemove: [], itemOffers: [], location: "" };
+    await t.play([], "", ["회복약"]);
+    assert.equal(itemQty(t.db, [t.host], "회복약"), 2, "an accepted purchase of the same name increases the quantity");
 
     t.db.prepare(`UPDATE trpg_character_sheets SET hp=? WHERE participant_id=?`).run(8, t.host);
     t.session.proposal = { inventoryAdd: [], inventoryRemove: [], location: "" };
@@ -911,9 +934,12 @@ describe("adventure exploration (B2+B3)", () => {
   it("grants an enter reward once, ignores an extra reward with no separate action, and does not grant it again on re-entry", async () => {
     const t = await ghostTrainSession(ENTER_OFFICE);
     t.session.face = 16;
-    t.session.proposal = { inventoryAdd: ["붕대"], inventoryRemove: [], location: "" };
+    t.session.proposal = { inventoryAdd: ["붕대"], inventoryRemove: [], itemOffers: ["붕대"], location: "" };
     await t.play([], "붕대를 건네받는다.");
-    assert.equal(itemQty(t.db, [t.host], "붕대"), 1, "a grant before any event stays");
+    assert.equal(itemQty(t.db, [t.host], "붕대"), 0, "a GM grant before any event is only an offer");
+    t.session.proposal = { inventoryAdd: [], inventoryRemove: [], itemOffers: [], location: "" };
+    await t.play([], "", ["붕대"]);
+    assert.equal(itemQty(t.db, [t.host], "붕대"), 1, "an accepted grant before any event stays");
 
     t.session.proposal = {
       inventoryAdd: ["봉인 도장", "여분 도장"],
@@ -935,7 +961,7 @@ describe("adventure exploration (B2+B3)", () => {
     t.db.close();
   });
 
-  it("keeps a GM inventory grant in a legacy exploration campaign", async () => {
+  it("turns a GM grant into an offer in a legacy exploration campaign, and acceptance grants it", async () => {
     const db = memoryDb();
     const templateId = insertScenarioTemplate(db, 1, {
       title: "옛 시설",
@@ -955,7 +981,7 @@ describe("adventure exploration (B2+B3)", () => {
       rollDie: () => 2,
       gmCall: async () => ({
         text: buildTrpgGmStructuredWireText("현관이 이어진다. GM: 무엇을 하겠는가.", {
-          players: [{ participantId: host, inventoryAdd: grant }],
+          players: [{ participantId: host, inventoryAdd: grant, itemOffers: grant }],
           location: "현관홀",
           next_round_context: "다음",
           campaign_finished: false,
@@ -967,7 +993,16 @@ describe("adventure exploration (B2+B3)", () => {
     grant = ["손전등"];
     submitTrpgAction(db, { campaignId, userId: 1, body: "", explorationCommands: [{ op: "search", depth: "normal" }] });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
-    assert.equal(itemQty(db, [host], "손전등"), 1, "v1 does not take the v2 event-reward grant policy");
+    assert.equal(itemQty(db, [host], "손전등"), 0, "a GM grant to a human PC in v1 is an offer, not ownership");
+    grant = [];
+    submitTrpgAction(db, {
+      campaignId,
+      userId: 1,
+      body: "",
+      acceptItems: [{ name: "손전등", fromRound: latestRoundNumber(db, campaignId) - 1 }],
+    });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(itemQty(db, [host], "손전등"), 1, "v1 grants an offered item once the player accepts it");
     db.close();
   });
 
@@ -992,7 +1027,7 @@ describe("adventure exploration (B2+B3)", () => {
     t.db.close();
   });
 
-  it("leaves GM inventory bookkeeping alone in a campaign without exploration", async () => {
+  it("owns a GM-offered item only after the player accepts it in a campaign without exploration", async () => {
     const db = memoryDb();
     const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "현이", viewerUserId: 1 });
     saveTrpgSheet(db, { campaignId, userId: 1, name: "현이", stats: EVEN_STATS });
@@ -1003,7 +1038,7 @@ describe("adventure exploration (B2+B3)", () => {
       rollD20: () => 1,
       gmCall: async () => ({
         text: buildTrpgGmStructuredWireText("상인이 열쇠를 건넨다. GM: 무엇을 하겠는가.", {
-          players: [{ participantId: host, inventoryAdd: grant }],
+          players: [{ participantId: host, inventoryAdd: grant, itemOffers: grant }],
           location: "시장",
           next_round_context: "다음",
           campaign_finished: false,
@@ -1014,7 +1049,16 @@ describe("adventure exploration (B2+B3)", () => {
     grant = ["놋쇠 열쇠"];
     submitTrpgAction(db, { campaignId, userId: 1, body: "상인을 살펴보며 조사한다." });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
-    assert.equal(itemQty(db, [host], "놋쇠 열쇠"), 1);
+    assert.equal(itemQty(db, [host], "놋쇠 열쇠"), 0, "inspecting or receiving a GM offer does not own the item");
+    grant = [];
+    submitTrpgAction(db, {
+      campaignId,
+      userId: 1,
+      body: "",
+      acceptItems: [{ name: "놋쇠 열쇠", fromRound: latestRoundNumber(db, campaignId) - 1 }],
+    });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(itemQty(db, [host], "놋쇠 열쇠"), 1, "the accepted offer is owned");
     db.close();
   });
 

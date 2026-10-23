@@ -10,6 +10,7 @@ import { clipTrpgChars } from "./clip";
 import { parseLocalSceneProgressDelta } from "./localSceneProgress";
 import { parseLooseStoryProgressDeltaIndices } from "./storyProgress";
 import { isTrpgGmStructuredShape, parseTrpgGmStructuredJson } from "./gmStructuredOutput";
+import { normalizeTrpgItemOffers } from "./itemAcceptance";
 import { TRPG_LEDGER_ITEM_MAX_CHARS, type TrpgStateDelta, type TrpgStatDefinition } from "./types";
 
 /** GM user-block labels — actor authority boundaries for round resolution. */
@@ -147,6 +148,8 @@ function asDelta(raw: unknown, diagnostics?: TrpgGmParseDiagnostics): TrpgStateD
     if (Array.isArray(row.inventoryRemove)) {
       patch.inventoryRemove = row.inventoryRemove.filter((x): x is string => typeof x === "string");
     }
+    const itemOffers = normalizeTrpgItemOffers(row.itemOffers);
+    if (itemOffers.length) patch.itemOffers = itemOffers;
     if (typeof row.location === "string") patch.location = row.location;
     players.push(patch);
   }
@@ -267,7 +270,7 @@ export const TRPG_GM_SYSTEM = `You are the TRPG Game Master. Korean novelistic n
 
 Rules:
 - You NEVER roll dice or change dice results. Use the provided roll outcomes exactly.
-- When [AUTHORITATIVE MECHANICS] is supplied, that packet is mechanics canon for SERVER_PREACTION (ongoing ticks/control), SERVER_RECOVERY (safe rest, authorized first aid, valid treatment-item HP heal), and FLASH_REFEREE (Flash-classified direct HP). Do not change those HP, heal, tick, ongoing add/remove/recovery, or dice numbers. If the packet marks GM_LEGACY_DIRECT, current-action HP is not mechanics-classified — you may write that current-action HP as before. Do not invent or overwrite SERVER_PREACTION / SERVER_RECOVERY / FLASH_REFEREE HP. When ENCOUNTER_AUTHORITY is present, only THREAT_STRIKE / ONGOING lines change HP: narrate each THREAT_STRIKE (hit or miss) as stated, and do not write HP loss for any other cause — peril without a strike line becomes position, time, pursuit or new obstacles. Realize classified results in fiction. Do not paste the packet, internal reasons, or hidden numbers into narration. Inventory, location, quests, NPCs, flags, and story progress remain yours unless they conflict with mechanics HP, ongoing effects, or item consumption — mechanics wins those conflicts. When [EXPLORATION] is supplied, its positions, passages, discoveries and item rewards (including none after a failed search or a clue) are server canon in the same way: narrate them, and do not move, open, shut, discover, or destroy anything it did not. Follow that block for event rewards and for whether words beside an exploration command are a method note or an inventory action. You may surface already-canon treatment opportunities; do not invent a specific cure that mechanics did not authorize.
+- When [AUTHORITATIVE MECHANICS] is supplied, that packet is mechanics canon for SERVER_PREACTION (ongoing ticks/control), SERVER_RECOVERY (safe rest, authorized first aid, valid treatment-item HP heal), and FLASH_REFEREE (Flash-classified direct HP). Do not change those HP, heal, tick, ongoing add/remove/recovery, or dice numbers. If the packet marks GM_LEGACY_DIRECT, current-action HP is not mechanics-classified — you may write that current-action HP as before. Do not invent or overwrite SERVER_PREACTION / SERVER_RECOVERY / FLASH_REFEREE HP. When ENCOUNTER_AUTHORITY is present, only THREAT_STRIKE / ONGOING lines change HP: narrate each THREAT_STRIKE (hit or miss) as stated, and do not write HP loss for any other cause — peril without a strike line becomes position, time, pursuit or new obstacles. Realize classified results in fiction. Do not paste the packet, internal reasons, or hidden numbers into narration. Location, quests, NPCs, flags, and story progress remain yours unless they conflict with mechanics HP, ongoing effects, or item consumption — mechanics wins those conflicts. A human PC gains an item only from [EXPLORATION] rewards or [ITEMS ACCEPTED BY THIS PC]: put anything offered to one in that player's delta itemOffers, never inventoryAdd (AI companion seats only). An offer stays unheld until accepted on a later turn; an unaccepted offer is not a refusal. When [EXPLORATION] is supplied, its positions, passages, discoveries and item rewards (including none after a failed search or a clue) are server canon in the same way: narrate them, and do not move, open, shut, discover, or destroy anything it did not. Follow that block for event rewards and for whether words beside an exploration command are a method note or an inventory action. You may surface already-canon treatment opportunities; do not invent a specific cure that mechanics did not authorize.
 - Honor supplied roll tiers exactly; realize outcomes in fiction per ROUND CRAFT below.
 - Resolve conflicting results in [RESOLUTION ORDER] when present. Acting first is not an automatic success. If that block is missing, use the listed action order. Later PCs react to what earlier resolved actions already did this round.
 - The campaign is a single linear timeline — no alternate worldlines, IF routes, or chat-style forks.
@@ -326,7 +329,7 @@ Let tonal shifts arise from the fiction and character voice.
 
 [OUTPUT]
 Respond as JSON with exactly two top-level keys: narration (Korean prose per ROUND NARRATION BUDGET; last beat is 1–2 GM: sentences on immediate unresolved pressure) and delta (state changes object). The API enforces this schema.
-Example delta shape: {"players":[{"participantId":1,"hp":20,"conditions":[],"inventoryAdd":[],"inventoryRemove":[],"location":""}],"location":"","next_round_context":"","questsAdd":[],"questsRemove":[],"npcsAdd":[],"npcsRemove":[],"flagsAdd":[],"flagsRemove":[],"campaign_finished":false,"localScene":{}}
+Example delta shape: {"players":[{"participantId":1,"hp":20,"conditions":[],"inventoryAdd":[],"inventoryRemove":[],"itemOffers":[],"location":""}],"location":"","next_round_context":"","questsAdd":[],"questsRemove":[],"npcsAdd":[],"npcsRemove":[],"flagsAdd":[],"flagsRemove":[],"campaign_finished":false,"localScene":{}}
 questsAdd items are player-visible goals (no secrets): a string of at most 80 characters, e.g. "등대 조사: 사라진 어선의 단서를 찾는다", or {"title":"...","criterion":{"type":"reach_location","place":"곶 끝의 등대"}} / {"criterion":{"type":"end_encounter","encounterId":"<[id] of an approved threat>"}} when the goal ends by arriving at a place or by ending an approved threat; without a criterion the server never confirms it as done. The empty questsAdd in the shape is the field: fill it when the round head asks for a goal. An already active player goal does not forbid another questsAdd when this scene creates a distinct new player-visible purpose; do not add one merely to fill the example. questsRemove copies an exact existing quest string and only removes it. questsClaimDone copies an exact active quest string you narrate as resolved; it is a claim, not a confirmation.
 `;
 
@@ -404,6 +407,20 @@ export function formatTrpgActionCheckWire(opts: {
   return `check_required d20=${opts.d20} total=${opts.finalScore} DC=${opts.dc} tier=${opts.tier} stat=${label}${valueBit}`;
 }
 
+export function formatTrpgItemOfferBlock(
+  seats: ReadonlyArray<{ participantId: number; name: string; items: readonly string[] }>
+): string {
+  const lines = seats
+    .filter((seat) => seat.items.length > 0)
+    .map((seat) => `- participantId=${seat.participantId} name=${seat.name}: ${seat.items.join(", ")}`);
+  if (lines.length === 0) return "";
+  return [
+    "[ITEM OFFERS — offered last round, NOT held, not accepted this round]",
+    ...lines,
+    "The player did not accept these this round. That is not a refusal; the offer may be made again. Do not narrate them as held or used.",
+  ].join("\n");
+}
+
 export function formatTrpgRegenerateCommittedFacts(opts: {
   sheets: readonly {
     name: string;
@@ -418,7 +435,12 @@ export function formatTrpgRegenerateCommittedFacts(opts: {
     npcs: readonly string[];
     worldFlags: readonly string[];
   };
+  /** Committed offers, per human seat. Offers are not held until that player accepts. */
+  itemOffers?: ReadonlyArray<{ name: string; items: readonly string[] }>;
 }): string {
+  const offers = (opts.itemOffers ?? [])
+    .filter((seat) => seat.items.length > 0)
+    .map((seat) => `- ${seat.name} was offered (not held): ${seat.items.join(", ")}`);
   const seats = opts.sheets
     .map((sheet) => {
       const items = sheet.inventory.length > 0 ? sheet.inventory.join(", ") : "(none)";
@@ -428,6 +450,7 @@ export function formatTrpgRegenerateCommittedFacts(opts: {
     .join("\n");
   return [
     seats,
+    ...offers,
     `campaign location: ${opts.ledger.location || "(none)"}`,
     `quests: ${opts.ledger.quests.join(", ") || "(none)"}`,
     `npcs: ${opts.ledger.npcs.join(", ") || "(none)"}`,
@@ -504,7 +527,11 @@ export function buildTrpgGmUserBlock(opts: {
     explorationCommandText?: string;
     /** Player words beside that command. They describe the method, not an inventory action. */
     explorationMethod?: string;
+    /** Items this human PC accepted this round. Server-validated against the previous round's offers. */
+    acceptedItems?: readonly string[];
   }>;
+  /** Previous-round offers still unaccepted, per human seat. Not held. */
+  itemOfferBlock?: string;
 }): string {
   const actionBlock =
     opts.actions.length === 0
@@ -530,12 +557,16 @@ export function buildTrpgGmUserBlock(opts: {
             const method = a.explorationMethod?.trim()
               ? `[EXPLORATION METHOD — how they travel or search, not a trade or item change]\n${a.explorationMethod.trim()}`
               : "";
+            const accepted = a.acceptedItems?.length
+              ? `[ITEMS ACCEPTED BY THIS PC — server-confirmed, now held]\n${a.acceptedItems.join(", ")}`
+              : "";
             const lines = opts.regenerate
               ? [
                   `[RESOLVED ACTION participantId=${a.participantId} name=${a.name} actorKind=${actorKind}]`,
                   `[CHECK already resolved d20=${a.d20 ?? "none"} tier=${a.tier ?? "none"}]`,
                   `${actionLabel}\n${canonical}`,
                   method,
+                  accepted,
                   "This locked action already happened. Do not replace it or give the human PC a new choice.",
                 ]
               : [
@@ -543,6 +574,7 @@ export function buildTrpgGmUserBlock(opts: {
                   `[CHECK ${checkWire}]`,
                   `${actionLabel}\n${canonical}`,
                   method,
+                  accepted,
                 ];
             return lines.filter(Boolean).join("\n");
           })
@@ -603,6 +635,7 @@ export function buildTrpgGmUserBlock(opts: {
     opts.resolutionOrderBlock?.trim() ?? "",
     opts.regenerate ? "" : (opts.explorationBlock?.trim() ?? ""),
     actionBlock,
+    opts.itemOfferBlock?.trim() ?? "",
     opts.mechanicsPacket?.trim() ?? "",
     opts.characterAssetCatalog?.trim() ?? "",
     opts.scenarioAssetPrompt?.trim() ?? "",

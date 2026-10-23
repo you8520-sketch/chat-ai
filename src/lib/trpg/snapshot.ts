@@ -132,7 +132,11 @@ export type TrpgCampaignSnapshot = {
     actionType: TrpgActionType | null;
     selectedStat: string | null;
     locked: boolean;
+    /** Server-confirmed items this seat accepted with the locked submission. */
+    acceptedItems?: string[];
   } | null;
+  /** Own-seat offers from the previous committed round. Offers are not held; `held` is the current quantity. */
+  myItemOffers?: { fromRound: number; items: Array<{ name: string; held: number }> } | null;
   currentRolls: TrpgPublicRoll[];
   resolutionOrder?: TrpgResolutionOrderEntry[];
   /** Participant ids with completed server adjudication (roll, no-roll, or skipped). */
