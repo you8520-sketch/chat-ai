@@ -14,11 +14,13 @@ import {
   evaluateAdultOffOutput,
   splitAdultOffGuardWindows,
   type AdultOffClassify,
+  type AdultOffClassifierCallOutcome,
   type AdultOffInspectionOutcome,
 } from "@/lib/adultOffOutputGuard";
 import {
   ADULT_OFF_CLASSIFIER_MAX_TOKENS,
   ADULT_OFF_CLASSIFIER_MODEL,
+  type AdultOffClassifierOptions,
   type AdultOffClassifierTurnScope,
 } from "@/lib/adultOffOutputClassifier";
 import { hasMountedPersistentVolume } from "@/lib/dataDir";
@@ -26,6 +28,7 @@ import { ensureProviderCostLedgerSchema } from "@/lib/providerCostLedger";
 import { resolveOpenRouterModelRates, type OpenRouterModelRates } from "@/lib/openRouterModelPricing";
 import {
   ADULT_OFF_BATCH_MODERATION_REQUEST_KIND,
+  ADULT_OFF_BATCH_QUARANTINE_LEDGER_STATUSES,
   adultOffGuardDecisionToInspectionOutcome,
   buildAdultOffBatchGenerationRequestId,
   classifyAdultOffBatchQuarantinedCall,
@@ -44,6 +47,8 @@ import {
   type AdultOffAuxSurfaceFingerprint,
   type AdultOffAuxTextItem,
   type AdultOffBatchModerationSpend,
+  type AdultOffBatchQuarantinedCall,
+  type AdultOffBatchQuarantineLedgerStatus,
   type AdultOffInspectionMessageRow,
   type AdultOffInspectionPlanItem,
 } from "@/lib/adultOffBatchInspectionPrep";
@@ -74,6 +79,12 @@ export const ADULT_OFF_BATCH_FOREIGN_LOCK_QUIESCENT_MS = 10 * 60 * 1000;
  * 코드 요율표의 1.25배보다 크다. 이 배율로 계산한 창 상한보다 작은 예약액은 받지 않는다.
  */
 export const ADULT_OFF_BATCH_QUARANTINE_MIN_CACHE_WRITE_MULTIPLIER = 2.5;
+/**
+ * 일괄 검사 분류 호출 하나의 클라이언트 타임아웃. 동기 출력 검사(25초)와 달리 사용자를 기다리게 하지 않으므로 더 길게 둔다.
+ * 운영 원장의 정상 호출은 최대 19초였고, 공급자 게이트웨이는 5xx·전송 실패를 한 번 재시도한 뒤 다른 경로로 넘어가므로
+ * 25초 안팎에서 끝나는 정상 응답이 있다. 호출은 여전히 단일 시도이며 자동 재시도하지 않는다.
+ */
+export const ADULT_OFF_BATCH_CLASSIFIER_TIMEOUT_MS = 60_000;
 
 export class AdultOffBatchConfigError extends Error {
   constructor(
@@ -118,7 +129,10 @@ export type AdultOffBatchPaidRunConfig = {
   capRaiseFromKrw: number | null;
   /** 판정 없이 끊긴 호출을 운영자가 확인했음을 나타내는 첫 요청 ID. */
   ackUnresolvedRequestId: string | null;
-  /** 원장에 started·비용 미상으로 남은 호출 하나를 정확히 지목해 격리하는 일회성 승인. 4개 값이 모두 맞아야 한다. */
+  /**
+   * 원장에 비용 미상으로 남은 호출 하나를 정확히 지목해 격리하는 일회성 승인. 4개 값이 모두 맞아야 한다.
+   * 배치가 그 호출 때문에 `halted_unknown_cost`로 멈춘 상태라면 같은 승인이 그 정지 하나만 해제한다.
+   */
   quarantineUnconfirmed: AdultOffBatchQuarantineApproval | null;
   /** 다른 컨테이너가 남긴 잠금을 회수하는 일회성 승인. 잠금 파일의 4개 값이 정확히 같아야 한다. */
   reclaimForeignLock: AdultOffBatchForeignLockPin | null;
@@ -129,6 +143,8 @@ export type AdultOffBatchQuarantineApproval = {
   requestId: string;
   eventKey: string;
   messageId: number;
+  /** 원장 행이 지금 어느 미정산 상태인지에 대한 운영자의 확인. 생략하면 `started`. */
+  ledgerStatus: AdultOffBatchQuarantineLedgerStatus;
 };
 
 export type AdultOffBatchForeignLockPin = {
@@ -267,7 +283,23 @@ function readQuarantineApproval(env: Env): AdultOffBatchQuarantineApproval | nul
     ],
     code
   );
-  if (!group) return null;
+  const rawLedgerStatus = env.ADULT_OFF_BATCH_QUARANTINE_LEDGER_STATUS?.trim();
+  if (!group) {
+    if (env.ADULT_OFF_BATCH_QUARANTINE_LEDGER_STATUS !== undefined) {
+      throw new AdultOffBatchConfigError(
+        code,
+        "ADULT_OFF_BATCH_QUARANTINE_LEDGER_STATUS is only valid together with the four ADULT_OFF_BATCH_QUARANTINE_* identifiers"
+      );
+    }
+    return null;
+  }
+  const ledgerStatus = (rawLedgerStatus ?? "started") as AdultOffBatchQuarantineLedgerStatus;
+  if (!ADULT_OFF_BATCH_QUARANTINE_LEDGER_STATUSES.includes(ledgerStatus)) {
+    throw new AdultOffBatchConfigError(
+      code,
+      `ADULT_OFF_BATCH_QUARANTINE_LEDGER_STATUS must be one of ${ADULT_OFF_BATCH_QUARANTINE_LEDGER_STATUSES.join(", ")}`
+    );
+  }
   const [runId, requestId, eventKey, messageId] = group;
   const requestMatch = /^adult-off-batch\/([^/]+)\/([1-9]\d{0,9})$/.exec(requestId);
   if (
@@ -282,7 +314,7 @@ function readQuarantineApproval(env: Env): AdultOffBatchQuarantineApproval | nul
       "the quarantine approval must name RUN_ID, the exact adult-off-batch/<RUN_ID>/<seq> request id, the ledger event_key and the message id"
     );
   }
-  return { runId, requestId, eventKey, messageId: Number(messageId) };
+  return { runId, requestId, eventKey, messageId: Number(messageId), ledgerStatus };
 }
 
 function readForeignLockPin(env: Env): AdultOffBatchForeignLockPin | null {
@@ -679,16 +711,20 @@ export type AdultOffBatchPlanReport = {
       pinnedUsdKrw: number | null;
       pinnedRatesMatchCurrent: boolean | null;
       unresolvedCall: boolean;
+      /** 판정 없이 끊긴 호출 수와 그중 비용 미확정으로 예산에 예약액이 잡힌 합계. */
+      unresolvedCalls: number;
+      heldReserveKrw: number;
       halted: boolean;
     } | null;
-    /** 격리 중인 미정산 호출. 같은 문자열 대상은 대기 목록에서 지워지지 않고 여기에 개수로 남는다. */
-    quarantine: {
+    /** 격리 중인 미정산 호출들. 같은 문자열 대상은 대기 목록에서 지워지지 않고 여기에 개수로 남는다. */
+    quarantines: Array<{
       requestId: string;
       messageId: number;
+      ledgerStatus: AdultOffBatchQuarantineLedgerStatus;
       reserveKrw: number;
       bodyItemsRemaining: number;
       auxItemsRemaining: number;
-    } | null;
+    }>;
   };
 };
 
@@ -775,7 +811,7 @@ export function buildAdultOffBatchPlanReport(
       persistentVolumeConfirmed: config.statePersistent,
       requiredForLiveDatabase: true,
       existing: readExistingBatchState(config.stateDir ?? config.statePlacementDir, rates),
-      quarantine: readPlanQuarantine(config.stateDir ?? config.statePlacementDir, work),
+      quarantines: readPlanQuarantines(config.stateDir ?? config.statePlacementDir, work),
     },
   };
 }
@@ -794,7 +830,9 @@ function readExistingBatchState(
       pinnedRatesMatchCurrent: state.providerRates
         ? sameRates(state.providerRates, pinnedRatesOf(rates))
         : null,
-      unresolvedCall: state.unresolved !== null || state.inFlight !== null,
+      unresolvedCall: state.unresolved.length > 0 || state.inFlight !== null,
+      unresolvedCalls: state.unresolved.length,
+      heldReserveKrw: heldReserveOf(state),
       halted: state.halted !== null,
     };
   } catch {
@@ -802,25 +840,27 @@ function readExistingBatchState(
   }
 }
 
-function readPlanQuarantine(
+function readPlanQuarantines(
   stateDir: string,
   work: AdultOffBatchWork
-): AdultOffBatchPlanReport["batchState"]["quarantine"] {
-  if (!fs.existsSync(batchStatePath(stateDir))) return null;
+): AdultOffBatchPlanReport["batchState"]["quarantines"] {
+  if (!fs.existsSync(batchStatePath(stateDir))) return [];
   try {
-    const held = loadAdultOffBatchState(stateDir).unresolved?.quarantine;
-    if (!held) return null;
-    const hashes = new Set(held.textHashes);
-    return {
-      requestId: held.requestId,
-      messageId: held.messageId,
-      reserveKrw: held.reserveKrw,
-      bodyItemsRemaining: work.bodyItems.filter((item) => hashes.has(adultOffApprovedTextHash(item.target.text))).length,
-      auxItemsRemaining: work.auxItems.filter((aux) => aux.texts.some((text) => hashes.has(adultOffApprovedTextHash(text))))
-        .length,
-    };
+    return heldQuarantinesOf(loadAdultOffBatchState(stateDir)).map((held) => {
+      const hashes = new Set(held.textHashes);
+      return {
+        requestId: held.requestId,
+        messageId: held.messageId,
+        ledgerStatus: held.ledgerStatus,
+        reserveKrw: held.reserveKrw,
+        bodyItemsRemaining: work.bodyItems.filter((item) => hashes.has(adultOffApprovedTextHash(item.target.text))).length,
+        auxItemsRemaining: work.auxItems.filter((aux) =>
+          aux.texts.some((text) => hashes.has(adultOffApprovedTextHash(text)))
+        ).length,
+      };
+    });
   } catch {
-    return null;
+    return [];
   }
 }
 
@@ -839,7 +879,7 @@ export type AdultOffBatchInFlight = {
 };
 
 /**
- * 원장에 started·비용 미상으로 남은 호출 하나를 운영자가 정확히 지목해 격리한 기록.
+ * 원장에 비용 미상으로 남은 호출 하나를 운영자가 정확히 지목해 격리한 기록.
  * 비용이 확정되기 전에는 `reserveKrw`가 실제 비용 대신 예산에 잡히고, 같은 문자열은 어느 메시지에서도 다시 분류하지 않는다.
  */
 export type AdultOffBatchQuarantine = {
@@ -848,12 +888,19 @@ export type AdultOffBatchQuarantine = {
   eventKey: string;
   messageId: number;
   surface: "body" | "aux";
+  /** 격리 당시 원장 행의 미정산 상태. 이 상태가 그대로일 때만 비용 미확정으로 본다. */
+  ledgerStatus: AdultOffBatchQuarantineLedgerStatus;
   textHashes: string[];
   reserveKrw: number;
   at: string;
 };
 
-export type AdultOffBatchUnresolved = {
+/**
+ * 판정 없이 끊긴 호출 하나. `quarantine`이 있으면 비용이 아직 확정되지 않아 예약액이 예산에 잡혀 있고,
+ * 없으면 비용은 이미 반영됐으며 운영자 ACK 없이는 같은 문자열을 다시 분류하지 않는다.
+ * 호출마다 따로 쌓이고 따로 정산된다.
+ */
+export type AdultOffBatchUnresolvedCall = {
   messageId: number;
   surface: "body" | "aux";
   requestIds: string[];
@@ -880,8 +927,8 @@ export type AdultOffBatchState = {
   paidDatabases: Array<{ realPath: string; liveProductionDb: boolean }>;
   /** 분류 호출이 시작된 뒤 판정이 DB에 commit되기 전까지만 남는다. 남아 있으면 판정 미확정이다. */
   inFlight: AdultOffBatchInFlight | null;
-  /** 이전 실행이 판정 없이 끊긴 흔적. 운영자 확인 전에는 자동 재분류하지 않는다. */
-  unresolved: AdultOffBatchUnresolved | null;
+  /** 이전 실행이 판정 없이 끊긴 호출들(오래된 순). 운영자 확인 전에는 자동 재분류하지 않는다. */
+  unresolved: AdultOffBatchUnresolvedCall[];
   halted: { reason: string; detail: string; at: string } | null;
   updatedAt: string;
 };
@@ -901,9 +948,26 @@ function emptyBatchState(): AdultOffBatchState {
     runIds: [],
     paidDatabases: [],
     inFlight: null,
-    unresolved: null,
+    unresolved: [],
     halted: null,
     updatedAt: new Date(0).toISOString(),
+  };
+}
+
+function heldQuarantinesOf(state: Pick<AdultOffBatchState, "unresolved">): AdultOffBatchQuarantine[] {
+  return state.unresolved.flatMap((call) => (call.quarantine ? [call.quarantine] : []));
+}
+
+function heldReserveOf(state: Pick<AdultOffBatchState, "unresolved">): number {
+  return heldQuarantinesOf(state).reduce((sum, held) => sum + held.reserveKrw, 0);
+}
+
+function quarantinedCallOf(held: AdultOffBatchQuarantine): AdultOffBatchQuarantinedCall {
+  return {
+    requestId: held.requestId,
+    eventKey: held.eventKey,
+    messageId: held.messageId,
+    ledgerStatus: held.ledgerStatus,
   };
 }
 
@@ -1147,6 +1211,10 @@ function parseQuarantine(value: unknown): AdultOffBatchQuarantine | null {
     typeof record.eventKey !== "string" ||
     typeof record.messageId !== "number" ||
     (record.surface !== "body" && record.surface !== "aux") ||
+    !(
+      record.ledgerStatus === undefined ||
+      ADULT_OFF_BATCH_QUARANTINE_LEDGER_STATUSES.includes(record.ledgerStatus)
+    ) ||
     !isStringArray(record.textHashes) ||
     typeof record.reserveKrw !== "number" ||
     !Number.isFinite(record.reserveKrw) ||
@@ -1161,10 +1229,31 @@ function parseQuarantine(value: unknown): AdultOffBatchQuarantine | null {
     eventKey: record.eventKey,
     messageId: record.messageId,
     surface: record.surface,
+    ledgerStatus: record.ledgerStatus ?? "started",
     textHashes: record.textHashes,
     reserveKrw: record.reserveKrw,
     at: record.at,
   };
+}
+
+function parseUnresolvedCall(value: unknown): AdultOffBatchUnresolvedCall {
+  const marker = parseCallMarker<Omit<AdultOffBatchUnresolvedCall, "quarantine">>(value);
+  if (!marker) {
+    throw new AdultOffBatchRunRefusedError("state_invalid", "batch state unresolved call failed validation");
+  }
+  return {
+    messageId: marker.messageId,
+    surface: marker.surface,
+    requestIds: marker.requestIds,
+    at: typeof marker.at === "string" ? marker.at : new Date(0).toISOString(),
+    quarantine: parseQuarantine((value as { quarantine?: unknown }).quarantine),
+  };
+}
+
+/** 예전 상태 파일은 미정산 호출 하나를 객체로 저장했다. 같은 내용을 한 칸짜리 목록으로 읽는다. */
+function parseUnresolvedCalls(value: unknown): AdultOffBatchUnresolvedCall[] {
+  if (value == null) return [];
+  return (Array.isArray(value) ? value : [value]).map(parseUnresolvedCall);
 }
 
 function parseRates(value: unknown): AdultOffBatchPinnedRates | null {
@@ -1247,13 +1336,7 @@ export function loadAdultOffBatchState(stateDir: string): AdultOffBatchState {
     throw new AdultOffBatchRunRefusedError("state_invalid", "batch state file failed validation");
   }
   const inFlight = parseCallMarker<AdultOffBatchInFlight>(parsed.inFlight);
-  const unresolvedMarker = parseCallMarker<Omit<AdultOffBatchUnresolved, "quarantine">>(parsed.unresolved);
-  const unresolved: AdultOffBatchUnresolved | null = unresolvedMarker
-    ? {
-        ...unresolvedMarker,
-        quarantine: parseQuarantine((parsed.unresolved as { quarantine?: unknown }).quarantine),
-      }
-    : null;
+  const unresolved = parseUnresolvedCalls(parsed.unresolved);
   return {
     version: 2,
     settledKrw: parsed.settledKrw,
@@ -1306,17 +1389,20 @@ export type AdultOffBatchExecuteReport = {
     paidWindowCalls: number;
     cumulativePaidWindowCalls: number;
     maxObservedWindowKrw: number;
-    /** 격리된 미정산 호출이 실제 비용 대신 예산에 잡고 있는 예약액. 비용이 확정되면 0이 된다. */
+    /** 격리된 미정산 호출들이 실제 비용 대신 예산에 잡고 있는 예약액의 합. 모두 확정되면 0이 된다. */
     heldQuarantineReserveKrw: number;
   };
-  /** 아직 비용이 확정되지 않아 격리 중인 호출. 있으면 배치는 끝난 것이 아니다. */
-  quarantine: {
+  /** 아직 비용이 확정되지 않아 격리 중인 호출들. 하나라도 있으면 배치는 끝난 것이 아니다. */
+  quarantines: Array<{
     requestId: string;
     eventKey: string;
     messageId: number;
+    ledgerStatus: AdultOffBatchQuarantineLedgerStatus;
     reserveKrw: number;
     textHashes: number;
-  } | null;
+  }>;
+  /** 이번 실행에서 분류 호출이 실패한 사례. 원문·키 없이 결과 분류·HTTP 상태·응답 수신 여부·경과 시간만 담는다. */
+  classifierFailures: AdultOffBatchClassifierFailure[];
   body: {
     classifiedTexts: number;
     reusedStoredTexts: number;
@@ -1340,6 +1426,33 @@ export type AdultOffBatchExecuteReport = {
   halted: AdultOffBatchState["halted"];
 };
 
+export type AdultOffBatchClassifierFailure = {
+  requestId: string;
+  outcome: Exclude<AdultOffClassifierCallOutcome, "ok">;
+  httpStatus: number | null;
+  /** 공급자 응답(헤더 이상)을 받았는지. timeout·transport_error는 받지 못한 경우다. */
+  responseReceived: boolean;
+  elapsedMs: number;
+  timeoutMs: number;
+};
+
+function adultOffBatchResponseReceived(error: AdultOffClassifierCallError): boolean {
+  switch (error.outcome) {
+    case "timeout":
+    case "transport_error":
+      return false;
+    case "http_error":
+    case "invalid_response_json":
+    case "empty_completion":
+    case "invalid_output":
+      return true;
+    default: {
+      const never: never = error.outcome;
+      throw new Error(String(never));
+    }
+  }
+}
+
 class BatchStopSignal extends Error {
   constructor(readonly reason: AdultOffBatchStopReason) {
     super(reason);
@@ -1347,10 +1460,53 @@ class BatchStopSignal extends Error {
   }
 }
 
+/**
+ * `halted_unknown_cost` 정지를 풀 수 있는 유일한 경우: 정지 사유가 운영자가 정확히 지목한 호출 하나의 비용 미상이고,
+ * 그 호출이 상태 파일에 끊긴 호출로 남아 있을 때. 여기서는 상태만으로 판단할 수 있는 조건만 보고, 원장 행·예산·다른 미정산 비용은
+ * 호출자가 DB를 연 뒤 같은 저장 한 번 직전에 다시 확인한다. 어느 조건이든 어긋나면 상태를 건드리지 않고 거부한다.
+ */
+function assertHaltRecoveryApproved(
+  state: AdultOffBatchState,
+  halted: NonNullable<AdultOffBatchState["halted"]>,
+  approval: AdultOffBatchQuarantineApproval | null
+): void {
+  if (!approval) {
+    throw new AdultOffBatchRunRefusedError(
+      "batch_halted",
+      `the approved batch is halted (${halted.reason}); a new RUN_ID does not clear it, investigate first`
+    );
+  }
+  const refuse = (detail: string): AdultOffBatchRunRefusedError =>
+    new AdultOffBatchRunRefusedError(
+      "halted_recovery_mismatch",
+      `the approved batch is halted (${halted.reason}) and the quarantine approval cannot clear it: ${detail}; nothing was changed`
+    );
+  if (halted.reason !== "halted_unknown_cost") {
+    throw refuse("only a halted_unknown_cost stop can ever be cleared, and only for the one call that caused it");
+  }
+  if (!halted.detail.startsWith(`call ${approval.requestId}: ledger cost unknown`)) {
+    throw refuse("the halt was not caused by the unknown cost of the approved request id");
+  }
+  const interrupted = state.inFlight;
+  if (
+    !interrupted ||
+    interrupted.openRequestId !== approval.requestId ||
+    interrupted.messageId !== approval.messageId ||
+    !state.runIds.includes(approval.runId)
+  ) {
+    throw refuse("the state file does not show the approved call as the one open in-flight call");
+  }
+  if (heldQuarantinesOf(state).some((held) => held.requestId === approval.requestId)) {
+    throw refuse("the approved call is already quarantined");
+  }
+}
+
 export type AdultOffBatchExecuteInput = {
   config: AdultOffBatchPaidRunConfig;
   openDatabase: () => DatabaseType;
-  createClassifier: (scope: AdultOffClassifierTurnScope) => AdultOffClassify;
+  createClassifier: (scope: AdultOffClassifierTurnScope, options: AdultOffClassifierOptions) => AdultOffClassify;
+  /** 분류 호출이 실패할 때마다 그 즉시 비공개 실행 로그로 내보낼 수 있게 하는 구독점. 본문 보고서에도 같은 내용이 남는다. */
+  onClassifierFailure?: (failure: AdultOffBatchClassifierFailure) => void;
   closeDatabase?: boolean;
   /** 테스트 이음새: 공급자 요율 조회. 기본은 저장소의 단일 요율 owner. */
   resolveRates?: (model: string) => OpenRouterModelRates;
@@ -1375,12 +1531,8 @@ export async function executeAdultOffBatchPaidRun(
   let db: DatabaseType | null = null;
   try {
     const state = loadAdultOffBatchState(stateDir);
-    if (state.halted) {
-      throw new AdultOffBatchRunRefusedError(
-        "batch_halted",
-        `the approved batch is halted (${state.halted.reason}); a new RUN_ID does not clear it, investigate first`
-      );
-    }
+    const haltBeforeRecovery = state.halted;
+    if (haltBeforeRecovery) assertHaltRecoveryApproved(state, haltBeforeRecovery, config.quarantineUnconfirmed);
     const rates = (input.resolveRates ?? resolveOpenRouterModelRates)(ADULT_OFF_CLASSIFIER_MODEL);
     const currentRates = pinnedRatesOf(rates);
     const approvedRates = config.approvedRates;
@@ -1497,11 +1649,16 @@ export async function executeAdultOffBatchPaidRun(
       ) {
         throw mismatch("the approved run, request id and message id do not match the interrupted call");
       }
+      if (heldQuarantinesOf(state).some((held) => held.requestId === requestId)) {
+        throw mismatch("the interrupted call is already quarantined");
+      }
       if (
         classifyAdultOffBatchQuarantinedCall(readAdultOffBatchCallLedgerRows(database, requestId), approval) !==
         "unconfirmed"
       ) {
-        throw mismatch("the ledger row is not exactly one started, cost-less, provider-id-less event with the approved event_key and message id");
+        throw mismatch(
+          `the ledger row is not exactly one ${approval.ledgerStatus}, cost-less, provider-id-less event with the approved event_key and message id`
+        );
       }
       const texts =
         interrupted.surface === "body"
@@ -1528,33 +1685,38 @@ export async function executeAdultOffBatchPaidRun(
         eventKey: approval.eventKey,
         messageId: approval.messageId,
         surface: interrupted.surface,
+        ledgerStatus: approval.ledgerStatus,
         textHashes: [...new Set(texts.map((text) => adultOffApprovedTextHash(text)))],
         reserveKrw: Math.max(interrupted.reservedKrw, windowBound),
         at: new Date().toISOString(),
       };
     };
 
-    /** 확정된 격리 호출은 예약액을 실제 비용으로 바꾸고, 판정 없이 끝난 호출은 ACK 없이는 다시 분류하지 않는다. */
+    /**
+     * 격리된 호출마다 원장을 따로 확인한다. 확정된 호출은 예약액을 실제 비용으로 바꾸고(호출 하나당 저장 한 번),
+     * 아직 미정산인 다른 호출의 격리는 그대로 둔다. 판정 없이 끝난 호출은 호출마다 ACK 없이는 다시 분류하지 않는다.
+     */
     const reconcileUnresolved = (): void => {
-      if (state.unresolved?.quarantine) {
-        const held = state.unresolved.quarantine;
+      for (const call of state.unresolved) {
+        const held = call.quarantine;
+        if (!held) continue;
         const ledgerState = classifyAdultOffBatchQuarantinedCall(
           readAdultOffBatchCallLedgerRows(database, held.requestId),
-          held
+          quarantinedCallOf(held)
         );
         if (ledgerState === "changed") {
           throw new AdultOffBatchRunRefusedError(
             "quarantine_ledger_changed",
-            `the ledger no longer shows ${held.requestId} as exactly one started, cost-less, provider-id-less row with the quarantined event_key and message id ` +
+            `the ledger no longer shows ${held.requestId} as exactly one ${held.ledgerStatus}, cost-less, provider-id-less row with the quarantined event_key and message id ` +
               "(changed, deleted or duplicated); nothing was changed. Operator review is required"
           );
         }
         if (ledgerState === "settled") {
           // 비용 반영·호출 수·예약액 해제·초과 halt를 메모리에서 모두 끝낸 뒤 한 번만 저장한다(중간 종료 시 이중 반영 방지).
           applyCallSettlement(held.requestId, held.reserveKrw, null);
-          state.unresolved.quarantine = null;
+          call.quarantine = null;
           saveAdultOffBatchState(stateDir, state);
-          if (state.halted) {
+          if (state.halted && state.halted !== haltBeforeRecovery) {
             throw new AdultOffBatchRunRefusedError(
               "quarantine_cost_exceeds_reserve",
               `the confirmed cost of ${held.requestId} exceeded its ${held.reserveKrw.toFixed(4)} KRW reserve; STOP and re-evaluate the budget`
@@ -1562,60 +1724,89 @@ export async function executeAdultOffBatchPaidRun(
           }
         }
       }
-      if (state.unresolved && !state.unresolved.quarantine) {
-        const firstId = state.unresolved.requestIds[0] ?? "";
-        if (!firstId || config.ackUnresolvedRequestId !== firstId) {
-          throw new AdultOffBatchRunRefusedError(
-            "interrupted_call_unresolved",
-            `a paid call (${state.unresolved.requestIds.join(", ")}) finished or was cut off without a stored verdict; ` +
-              `its cost is counted, but the same text would be paid for again. Inspect message ${state.unresolved.messageId} ` +
-              `and re-run with ADULT_OFF_BATCH_ACK_UNRESOLVED_REQUEST_ID=${firstId} to accept one re-classification`
-          );
-        }
-        state.unresolved = null;
+      const awaitingAck = state.unresolved.filter((call) => !call.quarantine);
+      if (awaitingAck.length === 0) return;
+      const next = awaitingAck[0]!;
+      const firstId = next.requestIds[0] ?? "";
+      if (!firstId || config.ackUnresolvedRequestId !== firstId) {
+        throw new AdultOffBatchRunRefusedError(
+          "interrupted_call_unresolved",
+          `a paid call (${next.requestIds.join(", ")}) finished or was cut off without a stored verdict; ` +
+            `its cost is counted, but the same text would be paid for again. Inspect message ${next.messageId} ` +
+            `and re-run with ADULT_OFF_BATCH_ACK_UNRESOLVED_REQUEST_ID=${firstId} to accept one re-classification`
+        );
+      }
+      state.unresolved = state.unresolved.filter((call) => call !== next);
+      if (awaitingAck.length > 1) {
+        saveAdultOffBatchState(stateDir, state);
+        const following = awaitingAck[1]!;
+        throw new AdultOffBatchRunRefusedError(
+          "interrupted_call_unresolved",
+          `the acknowledgement for ${firstId} was recorded; another call (${following.requestIds.join(", ")}) also finished without a stored verdict. ` +
+            `Re-run with ADULT_OFF_BATCH_ACK_UNRESOLVED_REQUEST_ID=${following.requestIds[0] ?? ""} to accept its re-classification`
+        );
       }
     };
 
     reconcileUnresolved();
     if (state.inFlight) {
-      if (state.unresolved?.quarantine) {
-        throw new AdultOffBatchRunRefusedError(
-          "interrupted_call_while_quarantined",
-          `another call was interrupted while ${state.unresolved.quarantine.requestId} is still quarantined; ` +
-            "nothing was changed. Resolve the quarantined call's billing first"
-        );
-      }
       const interrupted = state.inFlight;
       const openRequestId = interrupted.openRequestId;
       let quarantine: AdultOffBatchQuarantine | null = null;
       if (openRequestId) {
         if (isCallCostKnown(readAdultOffBatchCallCost(database, openRequestId))) {
+          if (haltBeforeRecovery) {
+            throw new AdultOffBatchRunRefusedError(
+              "halted_recovery_mismatch",
+              `${openRequestId} now has a settled cost in the ledger, so it is not an unconfirmed call; nothing was changed. ` +
+                "Reconcile it through the existing settlement path, not through a halt recovery"
+            );
+          }
           settleCall(openRequestId, Number.POSITIVE_INFINITY, null);
         } else {
           quarantine = quarantineInterruptedCall(interrupted, openRequestId);
         }
       }
-      state.unresolved = {
+      state.unresolved.push({
         messageId: interrupted.messageId,
         surface: interrupted.surface,
         requestIds: interrupted.requestIds,
         at: new Date().toISOString(),
         quarantine,
-      };
+      });
       state.inFlight = null;
+      if (haltBeforeRecovery) {
+        // 격리 등록·예약액 추가·정지 해제는 아래 저장 한 번으로만 함께 나간다. 하나라도 어긋나면 저장 없이 거부한다.
+        const refuse = (detail: string): AdultOffBatchRunRefusedError =>
+          new AdultOffBatchRunRefusedError("halted_recovery_mismatch", `${detail}; nothing was changed`);
+        if (JSON.stringify(state.halted) !== JSON.stringify(haltBeforeRecovery)) {
+          throw refuse("the halt changed while the approved call was being verified");
+        }
+        const recoverySpend = sumAdultOffBatchModerationSpend(database, heldQuarantinesOf(state).map(quarantinedCallOf));
+        if (recoverySpend.unknownCostEvents > 0) {
+          throw refuse(
+            `the ledger still has ${recoverySpend.unknownCostEvents} other unknown-cost batch events besides the approved call`
+          );
+        }
+        const settledAfterKrw = Math.max(
+          state.settledKrw,
+          adultOffUsdToKrw(recoverySpend.settledUsd, config.fxKrwPerUsd)
+        );
+        if (settledAfterKrw + heldReserveOf(state) > config.capKrw) {
+          throw refuse(
+            `settled ${settledAfterKrw.toFixed(4)} KRW plus the held reserves ${heldReserveOf(state).toFixed(4)} KRW would exceed the ${config.capKrw} KRW cap`
+          );
+        }
+        state.halted = null;
+      }
       saveAdultOffBatchState(stateDir, state);
       reconcileUnresolved();
     }
-    const heldQuarantine = state.unresolved?.quarantine ?? null;
-    const heldReserveKrw = heldQuarantine?.reserveKrw ?? 0;
-    const quarantinedHashes = new Set(heldQuarantine?.textHashes ?? []);
+    const heldQuarantines = heldQuarantinesOf(state);
+    const heldReserveKrw = heldReserveOf(state);
+    const quarantinedHashes = new Set(heldQuarantines.flatMap((held) => held.textHashes));
 
-    const priorSpend = sumAdultOffBatchModerationSpend(
-      database,
-      heldQuarantine && heldReserveKrw > 0
-        ? { requestId: heldQuarantine.requestId, eventKey: heldQuarantine.eventKey, messageId: heldQuarantine.messageId }
-        : null
-    );
+    const priorSpend = sumAdultOffBatchModerationSpend(database, heldQuarantines.map(quarantinedCallOf));
     if (priorSpend.unknownCostEvents > 0) {
       halt("halted_unknown_cost", `ledger has ${priorSpend.unknownCostEvents} unknown-cost batch events`);
       throw new AdultOffBatchRunRefusedError(
@@ -1658,13 +1849,15 @@ export async function executeAdultOffBatchPaidRun(
         maxObservedWindowKrw: state.maxObservedWindowKrw,
         heldQuarantineReserveKrw: heldReserveKrw,
       },
-      quarantine: heldQuarantine && {
-        requestId: heldQuarantine.requestId,
-        eventKey: heldQuarantine.eventKey,
-        messageId: heldQuarantine.messageId,
-        reserveKrw: heldQuarantine.reserveKrw,
-        textHashes: heldQuarantine.textHashes.length,
-      },
+      quarantines: heldQuarantines.map((held) => ({
+        requestId: held.requestId,
+        eventKey: held.eventKey,
+        messageId: held.messageId,
+        ledgerStatus: held.ledgerStatus,
+        reserveKrw: held.reserveKrw,
+        textHashes: held.textHashes.length,
+      })),
+      classifierFailures: [],
       body: {
         classifiedTexts: 0,
         reusedStoredTexts: 0,
@@ -1740,17 +1933,32 @@ export async function executeAdultOffBatchPaidRun(
           });
         }
         saveAdultOffBatchState(stateDir, state);
-        const classify = input.createClassifier({
-          chatId,
-          assistantMessageId,
-          generationSequence: 0,
-          generationRequestId: requestId,
-        });
+        const classify = input.createClassifier(
+          {
+            chatId,
+            assistantMessageId,
+            generationSequence: 0,
+            generationRequestId: requestId,
+          },
+          { timeoutMs: ADULT_OFF_BATCH_CLASSIFIER_TIMEOUT_MS }
+        );
         let callError: unknown = null;
         try {
           return await classify(windowText);
         } catch (error) {
           callError = error;
+          if (error instanceof AdultOffClassifierCallError) {
+            const failure: AdultOffBatchClassifierFailure = {
+              requestId,
+              outcome: error.outcome,
+              httpStatus: error.usage.httpStatus,
+              responseReceived: adultOffBatchResponseReceived(error),
+              elapsedMs: error.usage.latencyMs,
+              timeoutMs: ADULT_OFF_BATCH_CLASSIFIER_TIMEOUT_MS,
+            };
+            report.classifierFailures.push(failure);
+            input.onClassifierFailure?.(failure);
+          }
           throw error;
         } finally {
           settleCall(requestId, reservedKrw, callError);
@@ -1898,7 +2106,7 @@ export async function executeAdultOffBatchPaidRun(
     report.budget.cumulativePaidWindowCalls = state.callCount;
     report.budget.maxObservedWindowKrw = state.maxObservedWindowKrw;
     report.halted = state.halted;
-    if (!stopReason && heldQuarantine) stopReason = "quarantine_pending";
+    if (!stopReason && heldQuarantines.length > 0) stopReason = "quarantine_pending";
     if (stopReason) {
       report.status = "execute_stopped";
       report.stopReason = stopReason;

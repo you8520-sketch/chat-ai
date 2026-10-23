@@ -26,6 +26,7 @@ import {
  */
 export const ADULT_OFF_CLASSIFIER_MODEL = CHEAPER_INFERENCE_GPT_6_LUNA_MODEL;
 export const ADULT_OFF_CLASSIFIER_REQUEST_KIND = "adult-off-output-moderation";
+/** 사용자 응답을 막고 기다리는 동기 출력 검사의 기본 상한. 일괄 검사는 호출자가 더 긴 값을 명시해 넘긴다. */
 export const ADULT_OFF_CLASSIFIER_TIMEOUT_MS = 25_000;
 export const ADULT_OFF_CLASSIFIER_MAX_TOKENS = 200;
 
@@ -119,11 +120,23 @@ function toCallError(error: unknown, startedAt: number): AdultOffClassifierCallE
   );
 }
 
+export type AdultOffClassifierOptions = {
+  /** 호출 하나의 클라이언트 타임아웃. 생략하면 동기 출력 검사 기본값(25초). */
+  timeoutMs?: number;
+};
+
 /**
  * 한 턴의 분류 함수를 만든다. 성공뿐 아니라 HTTP 오류·타임아웃·응답 JSON 깨짐·스키마 위반에서도
  * 확보한 공급자 요청 ID와 usage 를 AdultOffClassifierCallError 에 실어 던진다.
  */
-export function createAdultOffClassifier(scope: AdultOffClassifierTurnScope): AdultOffClassify {
+export function createAdultOffClassifier(
+  scope: AdultOffClassifierTurnScope,
+  options: AdultOffClassifierOptions = {}
+): AdultOffClassify {
+  const timeoutMs = options.timeoutMs ?? ADULT_OFF_CLASSIFIER_TIMEOUT_MS;
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    throw new RangeError("adult-off classifier timeoutMs must be a finite positive number");
+  }
   const ledgerContext = buildAdultOffClassifierLedgerContext(scope);
   return async (windowText): Promise<AdultOffClassifierResult> => {
     const startedAt = Date.now();
@@ -137,7 +150,7 @@ export function createAdultOffClassifier(scope: AdultOffClassifierTurnScope): Ad
         maxTokens: ADULT_OFF_CLASSIFIER_MAX_TOKENS,
         disableReasoning: true,
         requestKind: ADULT_OFF_CLASSIFIER_REQUEST_KIND,
-        timeoutMs: ADULT_OFF_CLASSIFIER_TIMEOUT_MS,
+        timeoutMs,
         ledgerContext,
         responseFormat: {
           type: "json_schema",
