@@ -54,12 +54,11 @@ const APPROVED_ASSET_PLAN_PATH = "src/lib/officialSupply/pilot/fixtures/pilot-rf
 const EXPECTED_PRIMARY_PROMPT_SHA256 = "4245452eb05dc13608927efd0fafd8ceac80678d80daee4d14fe2f85d6ce1269";
 
 /**
- * The approved rep pose line says "정면을 향해 서서" while the shot owner decides the head direction
- * (left_three_quarter for this identity). Experiment-only, in-memory: the direction phrase is dropped
- * so the prompt carries one direction. The locked asset plan, DB and registered assets are not edited.
+ * The approved rep pose carries no facing direction: the shot owner decides the head direction
+ * (left_three_quarter for this identity). The run stops if the approved plan's pose ever changes, so the
+ * canonical primary prompt SHA keeps meaning the same prompt.
  */
-const APPROVED_REP_POSE = "갑옷을 입은 채 정면을 향해 서서 한 손을 검 손잡이에 얹는다";
-const EXPERIMENT_REP_POSE = "갑옷을 입은 채 서서 한 손을 검 손잡이에 얹는다";
+const APPROVED_REP_POSE = "갑옷을 입은 채 서서 한 손을 검 손잡이에 얹는다";
 
 /**
  * Files whose PR revision must be the code that actually runs. On Railway the repo is an overlay over
@@ -143,15 +142,8 @@ function compose(model: string) {
     assetPlan: OfficialAssetPlan;
   };
   const approvedRep = approvedPlan.assetPlan.slots.find((slot) => slot.slotKey === "rep");
-  if (approvedRep?.pose !== APPROVED_REP_POSE) throw new Error("approved rep pose changed; re-review the pose override");
-  const pilot = {
-    assetPlan: {
-      ...approvedPlan.assetPlan,
-      slots: approvedPlan.assetPlan.slots.map((slot) =>
-        slot.slotKey === "rep" ? { ...slot, pose: EXPERIMENT_REP_POSE } : slot
-      ),
-    } satisfies OfficialAssetPlan,
-  };
+  if (approvedRep?.pose !== APPROVED_REP_POSE) throw new Error("approved rep pose changed; re-check the canonical prompt SHA");
+  const pilot = { assetPlan: approvedPlan.assetPlan };
   const character: OfficialCharacterRecord = {
     draftKey: WOLFGANG_KEY,
     batchKey: "pilot-romance-fantasy-04-cluster-b",
@@ -278,7 +270,7 @@ async function buildRequestEvidence() {
       primaryPromptSha256,
       canonicalPrimaryPromptSha256: EXPECTED_PRIMARY_PROMPT_SHA256 || null,
       ownerFingerprints: ownerFingerprints(),
-      poseOverride: { from: APPROVED_REP_POSE, to: EXPERIMENT_REP_POSE, scope: "in-memory, experiment only" },
+      approvedRepPose: APPROVED_REP_POSE,
       strictFallbackPromptSha256: sha256(first!.composed.strictFallbackPrompt),
       references,
       excludedFromInputs: ["apocalypse 2.0 examples (reattach manifest items 09-11)", "reference 03 (clone origin)"],
