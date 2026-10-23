@@ -61,6 +61,28 @@ describe("B29 episodic schema ↔ sanitizer contract", () => {
     assert.equal(item.properties.value?.maxLength, 80);
   });
 
+  it("shared regex patterns accept ASCII identifiers and reject Korean or spaced identifiers", () => {
+    const snake = new RegExp(EPISODIC_FACT_SNAKE_CASE_JSON_PATTERN);
+    const valueToken = new RegExp(EPISODIC_FACT_VALUE_JSON_PATTERN);
+    assert.ok(snake.test("enoch"));
+    assert.ok(snake.test("wolfgang"));
+    assert.ok(snake.test("consent_decision"));
+    assert.ok(!snake.test("볼프강"));
+    assert.ok(!snake.test("진술 전달"));
+    assert.ok(!snake.test("기록철 열람"));
+    assert.ok(valueToken.test("locked_door"));
+    assert.ok(valueToken.test("withheld_transmission_consent"));
+    assert.ok(!valueToken.test("has space inside"));
+    assert.ok(!valueToken.test("렌이 허락하기 전까지"));
+  });
+
+  it("sanitizer rejects whitespace value; allows concise ASCII token", () => {
+    const spaced = { ...VALID_FACT, value: "has space inside" };
+    assert.equal(sanitizeEpisodicExtractedFacts([spaced], { requireEvidence: true }).length, 0);
+    const ascii = { ...VALID_FACT, value: "refused_transfer" };
+    assert.equal(sanitizeEpisodicExtractedFacts([ascii], { requireEvidence: true }).length, 1);
+  });
+
   it("valid ASCII fact passes sanitizer and parse", () => {
     assert.equal(sanitizeEpisodicExtractedFacts([VALID_FACT], { requireEvidence: true }).length, 1);
     const parsed = parseSharedEpisodicSection({ extracted_facts: [VALID_FACT] });
