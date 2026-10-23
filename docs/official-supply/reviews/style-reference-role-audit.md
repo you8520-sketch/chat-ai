@@ -1,67 +1,75 @@
-# Official image automation: style reference role and composition audit
+# Official image automation: style reference role, representative composition, and A/B readiness
 
-Status: `ROOT_CAUSE_UNCONFIRMED` at image level. Three prompt and review defects are confirmed in code and fixed in the canonical owners. Their effect on generated images, and the `gpt-image-2` vs `gpt-image-2.5-sunburst` A/B, were NOT measured: this environment has no `OPENAI_API_KEY`.
+Status: `ROOT_CAUSE_UNCONFIRMED` at image level. The code and review-path causes below are confirmed and fixed in the canonical owners. No paid image was generated, because no safe authenticated path to a provider key exists in the Cloud environment (section 4). GPT and the user own every quality verdict (style fidelity, composition independence, approval); nothing here is a quality score.
 
-GPT and the user own the quality verdict (style similarity, composition independence, approval). Nothing here is a quality score.
+## 1. How the clone reached the representative and then 13 slots
 
-## Real request path (current main `b079c3b6`)
+Evidence: `pilot-rf-02-asset-redesign.md` sections 13 to 23 and `reattach-2026-10-17/manifest.json`.
 
-- Transport: Images API `POST /v1/images/edits`, multipart `image[]`, `n=1`, `background=opaque`, webp compression 88, no `input_fidelity` (must be omitted for `gpt-image-2`). Owner: `src/lib/openAiImageEdit.ts`.
-- Model: `resolveChatImageGenerationModel` (`OPENAI_IMAGE_MODEL`; default `gpt-image-2`; production env `gpt-image-2.5-sunburst`). Quality `medium`; 1024x1536 rep, 1536x1024 RP slots (`imageProfile.ts`).
-- References: `prepareOfficialImageReferences` (rotate, fit inside 1536, webp q90, SHA-checked `official-review-candidate:` / `official-approved-asset:` tokens). Roles come from `resolveOfficialGenerationReferencePlan` and the prompt layout from `imagePrompt.ts`.
-- Wolfgang #51 slots use the `representative_identity_and_style` policy: the approved rep is the only image sent for the 13 non-rep slots, and style DNA is not rendered in that layout.
-- The prompt never contained "ultra detailed" or "intricate textures". The over-detail pressure came from the wording below.
+- Origin: representative candidate F was an in-place edit of reference 03 made by out-of-pipeline harness scripts (`wolfgang-f-edit.ts.txt`). It never went through `composeOfficialSlotGeneration`, so the shot plan, the style-role bans and the prompt owners did not see it. The manifest marks all 8 user references `usedAsWolfgangGenerationReference: false`.
+- Adoption: the review text recorded that head angle, gaze and large face placement are "close to original 3" and filed that as a separate, non-blocking item. The document then adopted F as "the person and style baseline for the next production" (still not an operator approval or QA pass of the live representative).
+- Propagation: the 13 RP candidates were generated with F as the only image (`variation_identity_and_style`, token `official-review-candidate:<F sha>`), with the style DNA not rendered in that layout. Every slot therefore inherited F's face, its line and texture density, and its background density.
+- Production state: the live `#51` representative is unchanged; applying F to it was never executed. The apply path exists (`registerExternalOfficialAssetReplacement` then `reviewRepresentativeReplacement` with anchor QA, then `applyApprovedOfficialAssetReplacements`) and tests use fixture reviews that say `test-fixture-not-quality-approval`.
+- Why review did not catch it: anchor QA had 10 identity/crop/style keys and no composition key; `artStyle` is a pass/fail on style likeness, so a clone scores well on it. Similarity to the reference was written as prose, outside the gate.
+- Shot plan versus references: `rep` was fixed to `front / eye_level / bust`. The user's references are mostly frontal or frontal-leaning busts (03, 01, 08 and partly 07), so the shot plan agreed with them and gave the model no independent signal to leave the reference composition. The slot's own pose text for Wolfgang `rep` also says "facing front" while the shot line owns face direction; that is character data and is reported, not edited.
 
-## Findings (cause classes)
+## 2. Changes (same canonical owners, no new system)
 
-- A, model: not measurable here. `input_fidelity` is always high on `gpt-image-2`, so it cannot explain a delivery difference by itself.
-- B, reference delivery: references are delivered as real image inputs. The rep was an in-place edit of `ref_03` made in an out-of-pipeline harness and then adopted, which is the origin of the cloned composition. Every later slot inherits that rep as sole identity and style source.
-- C, prompt assembly (fixed):
-  - `OFFICIAL_STYLE_USE_CLAUSE` asked for "material detail" and "overall polish".
-  - `OFFICIAL_STYLE_COPY_FORBIDDEN_CLAUSE` banned identity but not gaze, head angle, camera, crop, silhouette or expression.
-  - The identity+style layout drops style DNA, so no text bounded line, texture or background density.
-  - Shot table background wording asked for readable environments without a density limit.
-- D, role mixing (fixed): the style ban lacked composition, and the identity ban lacked gaze and silhouette.
+- `shotPlan.ts`: the representative keeps the eye-level bust card crop, but with a draft key its head direction (`front`, `left_three_quarter`, `right_three_quarter`) rotates by canonical identity, like every other slot family. No reference image is read, nothing is fixed to 3/4, `profile` is excluded for card readability, and without a draft key the table default is unchanged. The representative shot line now says "Do not inherit any reference image's camera, head angle, gaze, crop, or hand position".
+- `imagePrompt.ts`: `OFFICIAL_DETAIL_RESTRAINT_CLAUSE` is rewritten to be style-neutral. It follows the supplied image's own line weight, coloring and detail density, forbids finer lines, noise, grain or material texture than the image shows, and keeps the same level of ornament, embroidery and background the image shows. The earlier "smooth skin / large shading planes / simplified metal / background no busier than the figure" wording is removed from the common owner. The representative rule also states that SHOT RESPONSIBILITY owns face direction and the Pose line owns action, so a pose phrase cannot override the head direction.
+- `style.ts` (style data): `ROFAN_CLUSTER_B_GRAPHIC_STYLE_DIRECTION` is reduced to the one rule the DNA does not carry (graphic cel-shading over painterly softness). Saturation, face readability, ornament density and background simplicity were duplicated by the DNA, the shot owner and the common clause. `hairRendering` no longer says "no individual strands"; it says strands only as far as the references show them (the user's references show strand-level hair with gloss).
+- `shotPlan.ts` backgrounds: `environment` and `scene` keep their identifiable-place requirement and defer density to "the style image's own background density".
+- Review path (`store.ts`): every new review method (`reviewAnchor`, `reviewVariation`, `reviewReplacement`, `reviewRepresentativeReplacement`, `rereviewRepresentativeReplacement`) refuses a report with no `compositionIndependence` answer (`composition_review_required`), and a recorded `ok: false` rejects. The operator form already lists the key. Apply time (`isCompletePassingAnchorQa`) keeps accepting reviews recorded before this key existed; a recorded failure still blocks. An externally generated representative therefore goes through the same existing approval path and now needs this answer.
 
-## Change
+## 3. Request evidence and A/B readiness
 
-- `imagePrompt.ts`: new `OFFICIAL_DETAIL_RESTRAINT_CLAUSE` (one owner, used inside `OFFICIAL_STYLE_USE_CLAUSE` and in the identity+style rule); style-use wording lists rendering traits only; copy-ban extended with composition and "compose independently even if less similar"; identity copy-ban adds gaze and silhouette. No angle is hardcoded.
-- `shotPlan.ts`: environment/scene background wording requires a readable place through a few large simple shapes, no busier than the figure.
-- Review path (`types.ts`, `store.ts`, `approvedAssetApplyOperator.ts`): `compositionIndependence` added to the anchor and variation QA. New operator reviews must record it. Reviews recorded before this change remain valid (the key is optional at apply time) but a recorded failure blocks. `artStyle` is documented as smooth skin, large shading planes, clean lines, detail no denser than the references.
-- Removed: "material detail", "overall polish" wording; the duplicate Image 2 camera/framing ban is kept only because existing tests pin it.
+`scripts/wolfgang-rep-model-ab.ts` (one file, same `composeOfficialSlotGeneration` + `prepareOfficialImageReferences` + `callOpenAiImageEdit` owners as the earlier Wolfgang harnesses). `preflight` makes zero provider calls. `post` needs `WOLFGANG_REP_AB_LIVE=1`, refuses a second run into the same `--out`, makes one call per model with no fallback, retry or vision, halts on a 0.35 USD budget (about 490 KRW; anything at or above 1,000 KRW is refused), and records time, cost, request id and raw SHA.
 
-## BEFORE / AFTER (representative style rule)
+Dry-run on this checkout (`NODE_TEST_CONTEXT=1`, public sheet; production reads the approved private Wolfgang source on the data volume and checks the same Appearance Lock hash `1c3ccd13…`):
 
-BEFORE: `Use the supplied image(s) solely for drawing/rendering language, facial illustration treatment, coloring, lighting, hair rendering density, material detail, detail density, and overall polish. ... Do not copy ... pose, or background.`
+- New representative, `1024x1536`, quality `medium`, webp compression 88, `n=1`, opaque, `POST /v1/images/edits`.
+- Shot from the character's own identity: `left_three_quarter / eye_level / bust`.
+- Identical primary prompt (SHA `bfd38b51…`) and references for both arms; models `gpt-image-2` and `gpt-image-2.5-sunburst`.
+- Images sent in this order, selected once by purpose from the 8 references, style role only: 1) `07` face, skin, hair, dense gold embroidery, line weight; 2) `04` fur, chain and metal highlights; 3) `08` constant line weight and jacket ornament near the face. Not sent: `03` (the clone origin), `01`/`02` (open-shirt skin-forward), `05`/`06` (white hair), and the apocalypse 2.0 examples.
+- Prepared sizes: 1024x1536 for all three (`preparedSha256` values are in the dry-run JSON).
 
-AFTER: `Use the supplied image(s) solely for line weight and density, flat color planes and shading shapes, skin coloring, hair and costume material rendering, light and color mood, and detail distribution. Keep detail no denser than the supplied style image: ... Do not copy ... pose, gaze, head angle, expression, camera, crop, silhouette, or background. Compose this shot independently of the reference even if the result looks less similar.`
+Comparison items for GPT or the user, from the paid originals next to the three references: line fidelity, skin shading and smooth coloring, natural density of hair, costume and metal, character identity, independence of face, pose and composition from the references, cost and call time per model.
 
-Identity+style (Wolfgang #51 slots) gains the detail ceiling and the gaze/silhouette ban; reference list and order are unchanged.
+## 4. Railway key path: STOP
 
-## Preserved
+- The Cloud VM has no `OPENAI_API_KEY`. `RAILWAY_SSH_*` are 11-byte stubs. `HAV_RAILWAY_SSH_KEY` holds an OpenSSH private key.
+- `railway` CLI 5.71.0 `whoami`/`status` with the injected `RAILWAY_TOKEN`: "Unauthorized". The token is rejected by the Railway API both as an account and as a project token. There is no logged-in session.
+- `railway ssh` goes through the same authenticated CLI session, so the SSH key alone is not a usable path into the container (not bypassed). The Railway MCP server needs an interactive OAuth that timed out.
+- Existing operator pattern for later: `scripts/railway-precall-final-wire.sh` runs a PR overlay inside the container from a throwaway `/tmp` directory with `railway ssh -i`. The same shape works for this script (overlay `scripts/wolfgang-rep-model-ab.ts` plus the three reference files under `docs/.../reattach-2026-10-17/`, run `post --out /tmp/...`, the key stays in the container's `process.env`, no DB, no registered image, no deploy, no restart). It needs a valid Railway login on the operator machine or a working token in the Cloud secrets. No authentication was bypassed and no production file was touched.
 
-14-slot plan and shot table, identity lock, gender and visual-age locks, reference plan modes and order, timeout/strict-fallback path (same `referenceRule` in both prompts), approved assets, legacy QA records, apply-time SHA checks.
+## 5. Public reference originals (read only; nothing deleted)
 
-## Regression risks
+The repository `you8520-sketch/chat-ai` is PUBLIC. `public/` is also served by the live site with no gate on this path, so those files are reachable at `https://hav.chat/official-supply/style-seeds/...` as well.
 
-- Prompt wording changes alter every future generation. The test that pinned the historical Wolfgang sig1 prompt hash was changed to structural checks (slot expression, shot responsibility, identity ban, detail ceiling, reference list), because the recorded hash is of the old prompt.
-- The detail ceiling could flatten intentional ornament; judge on images.
-- Operator reviews now need one more key; templates already list it.
+- Runtime-required public paths (reader: `referencePreparation.platformPublicReferencePath` accepts only `/official-supply/style-seeds/` under `public/`; writers: none after the commits of 2026-09-27):
+  - `romance-fantasy-cluster-b-v1/primary/b7, b13, b5` are the production representative style references, and `b3`, `b17`, `holdout/b6, b10, b11, b14` are listed in the bundle manifest and used by tests and proofs.
+  - `romance-fantasy-user-owned-v1/` (`p1` to `p5`, `h1` to `h3`) is the legacy v3 proof bundle (`pilotStyleProof.ts`, tests); `p1`, `p2`, `p3`, `h1` are blocked from Cluster B generation.
+  - Style seed URLs of this form are stored in the database, so removing or renaming these files breaks stored seeds and production generation.
+- Not read by runtime code: `docs/official-supply/reviews/assets/wolfgang-asset-redesign/reattach-2026-10-17/` (11 files, 3.5 MB: the 8 references, the 2.0 source PNG, two apocalypse results). Readers are only the manifest, review text, `.ts.txt` harness copies and the review-candidate token owner (`REVIEW_CANDIDATE_ROOT = docs/official-supply/reviews/assets`), which this A/B script also uses.
+- Byte duplicates: reference `01` equals public `p5`, `05` equals `p3`; public `p2` equals `b5`, `p4` equals `b11`.
+- Move to private storage later (needs a private review-asset root first, then repoint tokens and the A/B script): references `02`, `03`, `04`, `06`, `07`, `08` and `01`/`05` copies in docs; the 3 comparison files `09`, `10`, `11`.
+- Removable from the public repo without touching production behavior after the owner agrees: `09`, `10`, `11` (diagnostic only; cited by prose and the manifest).
+- Must stay public until a private reader exists: everything under `public/official-supply/style-seeds/`.
+- Git history: the blobs stay in the pack (and in every clone, fork or GitHub-cached PR ref) after removal from `HEAD`. Erasing them needs a history rewrite and force-push of `main`, invalidates open PR refs and does not remove third-party clones. Not done, not approved.
 
-## Proof
+## 6. Before / after at prompt level (representative, Wolfgang)
 
-- `src/lib/officialSupply/*.test.ts`: 604 pass, 0 fail after the change (baseline 597 pass). The new `officialSupply.styleReferenceRole.test.ts` fails 7/7 against the old owners and passes after.
-- `git diff --check`, `npm run lint`, `npm run typecheck:app` clean. Full `tsc --noEmit` errors are the known test-file ones.
-- No AFTER images and no side-by-side exist: no paid call was made.
+BEFORE: rep `front / eye_level / bust`; style rule asks for "material detail" and "overall polish"; common clause dictates smooth skin, simplified metal and a quiet background for every style; the style direction repeats the DNA; pose "facing front" and shot owner not tied together.
 
-## Paid A/B plan (not run)
+AFTER: rep head direction from character identity (`left_three_quarter` for Wolfgang); the common rule defers to the references and names no style; style-specific rules stay in Cluster B data and no longer forbid strands; shot and pose ownership stated in the rep rule; background density defers to the reference.
 
-Conditions: Wolfgang #51 `sig4`, `identity_and_style` layout with the approved rep as the real image input (or a purpose-picked subset of the 8 refs for the style role only; never the apocalypse diagnostic images), identical prompt, `1536x1024`, quality `medium`, webp 88, `n=1`, one call per model.
+## 7. Preserved and risks
 
-Cost cap: recorded sunburst calls cost about USD 0.030 each (`assets/wolfgang-asset-redesign/*`). Even at 3x for three references, two calls are about USD 0.18, roughly 250 KRW, under the 1,000 KRW cap. Blocker is only the missing `OPENAI_API_KEY`.
+Preserved: the 14-slot plan, identity, gender and visual-age locks, reference roles and the real `image[]` order (`composed.references` order equals the prepared and posted order), primary and strict fallback sharing one rule block, existing QA records, SHA checks, provider and model routing, billing.
 
-Model recommendation: none. Per the brief, no provider, model routing or billing change is made; decide after the A/B images are reviewed by GPT and the user.
+Risks:
 
-## Notice
-
-The user's style reference images are already in this public repository (`public/official-supply/style-seeds/...`, `docs/official-supply/reviews/assets/wolfgang-asset-redesign/reattach-2026-10-17/`). This PR adds no new copies.
+- Rotated representative direction changes every future official representative; check that the canonical scar (left jaw, under the chin) stays readable at this head direction.
+- The Cluster B DNA still says `contrast: high`, `rendering: cel` and `skin: 매끈한 피부`. These are style data; confirm against the paid images whether they suit the 8 references.
+- Wolfgang's own `rep` pose text says "facing front"; it needs a scoped data fix after approval, not an edit here.
+- Prompt wording changes alter all future generations until the A/B is judged.

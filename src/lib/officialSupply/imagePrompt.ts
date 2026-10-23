@@ -115,15 +115,16 @@ export const OFFICIAL_SHOT_POSE_EXPRESSION_OWNER_CLAUSE = [
 ].join(" ");
 
 /**
- * Detail ceiling shared by every reference layout. The style source decides how much detail exists;
- * the model must not add finer lines, grain, or texture than the supplied image shows.
+ * Detail rule shared by every reference layout. It names no style: the supplied image decides line weight,
+ * coloring, shading, and how much ornament or background exists. Style-specific cel-shading and skin rules
+ * belong to the style DNA / style seed data, not here.
  */
 export const OFFICIAL_DETAIL_RESTRAINT_CLAUSE =
-  "Keep detail no denser than the supplied style image: smooth skin, large clear shading planes, clean linework, hair and fur as big masses, simplified metal and fabric, and a background no busier than the figure. Do not add finer lines, grain, or texture than the image shows.";
+  "Match the supplied style image's own line weight, coloring, and detail density. Add no finer lines, noise, grain, or material texture than the image itself shows, and keep the same level of ornament, embroidery, and background detail the image shows (its density, not its content).";
 
 /** Shared style-use clause — used by representative STYLE ONLY and Image 2 STYLE ONLY. */
 export const OFFICIAL_STYLE_USE_CLAUSE = [
-  "Use the supplied image(s) solely for line weight and density, flat color planes and shading shapes, skin coloring, hair and costume material rendering, light and color mood, and detail distribution.",
+  "Use the supplied image(s) solely for line weight and density, coloring and shading method, skin coloring, hair and costume material rendering, light and color mood, and detail distribution.",
   OFFICIAL_DETAIL_RESTRAINT_CLAUSE,
 ].join(" ");
 
@@ -156,6 +157,7 @@ function representativeStyleReferenceRule(styleSeed: StyleReference | null | und
     OFFICIAL_STYLE_USE_CLAUSE,
     "Create a brand-new original person.",
     OFFICIAL_STYLE_COPY_FORBIDDEN_CLAUSE,
+    OFFICIAL_SHOT_POSE_EXPRESSION_OWNER_CLAUSE,
     OFFICIAL_IDENTITY_LOCK_OWNER_CLAUSE,
     ...clusterBStyleReferenceExtras(styleSeed),
   ].join(" ");

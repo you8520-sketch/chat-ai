@@ -135,10 +135,10 @@ class FakeWorld {
 const PASS = { ok: true };
 const anchorQa = (overrides: Partial<OfficialAnchorQaReport> = {}): OfficialAnchorQaReport => ({
   gender: PASS, ageAppearance: PASS, face: PASS, hair: PASS, eyes: PASS, body: PASS,
-  identifyingFeatures: PASS, artStyle: PASS, outfit: PASS, cardCrop: PASS, ...overrides,
+  identifyingFeatures: PASS, artStyle: PASS, outfit: PASS, cardCrop: PASS, compositionIndependence: PASS, ...overrides,
 });
 const variationQa = (overrides: Partial<OfficialVariationQaReport> = {}): OfficialVariationQaReport => ({
-  identityMatchesAnchor: PASS, expressionMatchesPlan: PASS, characterPresent: PASS, artStyle: PASS, ...overrides,
+  identityMatchesAnchor: PASS, expressionMatchesPlan: PASS, characterPresent: PASS, artStyle: PASS, compositionIndependence: PASS, ...overrides,
 });
 
 /** Canonical order: moderation first (via the moderator port), then the visual review. */

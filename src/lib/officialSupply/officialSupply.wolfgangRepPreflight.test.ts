@@ -32,7 +32,7 @@ import {
 } from "@/lib/officialSupply/qualityShotQa";
 import { resolveOfficialGenerationReferencePlan } from "@/lib/officialSupply/generationReferences";
 import { composeOfficialSlotGeneration } from "@/lib/officialSupply/runner";
-import { resolveOfficialSlotShot } from "@/lib/officialSupply/shotPlan";
+import { renderOfficialShotResponsibility, resolveOfficialSlotShot } from "@/lib/officialSupply/shotPlan";
 import type { OfficialCharacterRecord } from "@/lib/officialSupply/store";
 import { ROFAN_CLUSTER_B_VISUAL_STYLE_DNA } from "@/lib/officialSupply/style";
 import type { OfficialAssetPlan, OfficialAssetSlotPlan } from "@/lib/officialSupply/types";
@@ -213,9 +213,10 @@ describe("Wolfgang representative NO_POST preflight", () => {
     assert.doesNotMatch(composed.primaryPrompt, /수갑|압송|플레이어와 함께/);
     assert.equal(officialImageSubjectRuleForSlot(slotOf(plan, "rep")).includes("exactly one foreground person"), true);
     const shot = resolveOfficialSlotShot(slotOf(plan, "rep"), WOLFGANG_KEY);
-    assert.equal(shot.faceDirection, "front");
+    assert.ok(["front", "left_three_quarter", "right_three_quarter"].includes(shot.faceDirection));
     assert.equal(shot.cameraAngle, "eye_level");
     assert.equal(shot.distance, "bust");
+    assert.ok(composed.primaryPrompt.includes(renderOfficialShotResponsibility(shot)));
 
     assert.equal(ROFAN_V4_PRODUCTION_BATCH_CONFIG.maxAttemptsPerSlot, 2);
     assert.equal(ROFAN_V4_PRODUCTION_BATCH_CONFIG.reservePerImageUsd, 0.12);

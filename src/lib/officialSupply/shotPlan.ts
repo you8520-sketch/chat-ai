@@ -87,14 +87,16 @@ export const OFFICIAL_EXPRESSION_FAMILY_PROMPT: Record<OfficialExpressionFamily,
 const BACKGROUND_PROMPT: Record<OfficialBackgroundRole, string> = {
   simple: "simple, uncluttered background — no competing scene",
   environment:
-    "an identifiable environment behind the character, drawn as a few large simple shapes (one architecture, weather, or workplace cue) and no busier than the figure",
+    "an identifiable environment behind the character (architecture, weather, or workplace cue), drawn at the style image's own background density",
   scene:
-    "scene-first background: the place and incident must be readable through large simple shapes, not a portrait backdrop and not dense fine detail",
+    "scene-first background: the place and incident must be readable, drawn at the style image's own background density, not a portrait backdrop",
 };
 
 /**
  * Fixed 14-slot shot table. Representative stays a card bust; every other slot
- * is a different cut of the same person.
+ * is a different cut of the same person. The `rep` row is the default only: with a draft key the
+ * representative's head direction comes from the character's own identity (see
+ * `resolveRepresentativeCardShot`), never from the style references.
  */
 export const OFFICIAL_SLOT_SHOT_PLAN: Readonly<Record<string, OfficialSlotShotResponsibility>> = {
   rep: {
@@ -278,8 +280,33 @@ function rotateItems<T>(items: readonly T[], offset: number): T[] {
   return items.slice(shift).concat(items.slice(0, shift));
 }
 
+/** Card-safe head directions: the face stays readable in the upper third of a 2:3 card. */
+const REPRESENTATIVE_CARD_FACE_DIRECTIONS = [
+  "front",
+  "left_three_quarter",
+  "right_three_quarter",
+] as const satisfies readonly OfficialFaceDirection[];
+
 /**
- * Resolve the shot for a slot. Representative stays the card bust.
+ * The representative keeps the eye-level bust card crop, but its head direction is derived from the
+ * canonical character identity, like every other slot family. A fixed front card matched the dominant
+ * composition of typical style references, so nothing told the model to leave them. No reference image
+ * is read here.
+ */
+function resolveRepresentativeCardShot(
+  base: OfficialSlotShotResponsibility,
+  draftKey: string
+): OfficialSlotShotResponsibility {
+  const seed = officialShotSeed(draftKey);
+  return {
+    ...base,
+    faceDirection: REPRESENTATIVE_CARD_FACE_DIRECTIONS[seed % REPRESENTATIVE_CARD_FACE_DIRECTIONS.length]!,
+  };
+}
+
+/**
+ * Resolve the shot for a slot. Representative stays the card bust; with a draft key its head direction
+ * rotates by canonical identity.
  * Signature / emotion / scene families rotate by canonical semantic draft
  * identity so two official characters do not share the same 14-slot storyboard.
  */
@@ -292,8 +319,11 @@ export function resolveOfficialSlotShot(
     planned && planned.kind === slot.kind
       ? planned
       : { ...KIND_FALLBACK[slot.kind], slotKey: slot.slotKey, kind: slot.kind };
-  if (!draftKey || slot.kind === "representative") {
+  if (!draftKey) {
     return { ...base, slotKey: slot.slotKey, kind: slot.kind };
+  }
+  if (slot.kind === "representative") {
+    return { ...resolveRepresentativeCardShot(base, draftKey), slotKey: slot.slotKey, kind: slot.kind };
   }
   const familyKeys = KIND_FAMILY_KEYS[slot.kind];
   const familyShots = familyKeys.map((key) => OFFICIAL_SLOT_SHOT_PLAN[key]!);
@@ -313,7 +343,9 @@ export function renderOfficialShotResponsibility(shot: OfficialSlotShotResponsib
     `${OFFICIAL_FACE_PROMPT[shot.faceDirection]}; ${OFFICIAL_CAMERA_PROMPT[shot.cameraAngle]}; ${DISTANCE_PROMPT[shot.distance]}.`,
     `Background: ${BACKGROUND_PROMPT[shot.background]}.`,
     "This cut must look different from the other slots in face direction, camera, and framing.",
-    "Do not inherit the representative card's camera, head angle, crop, or hand position.",
+    shot.kind === "representative"
+      ? "Do not inherit any reference image's camera, head angle, gaze, crop, or hand position."
+      : "Do not inherit the representative card's camera, head angle, crop, or hand position.",
     "SHOT CHANGE MUST NOT CHANGE IDENTITY: same face structure, hair, eyes, marks, age, and body type as the IDENTITY LOCK.",
   ].join(" ");
 }

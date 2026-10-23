@@ -600,20 +600,33 @@ export const ANCHOR_QA_KEYS = [
   "cardCrop",
 ] as const satisfies ReadonlyArray<keyof OfficialAnchorQaReport>;
 
-/** Checks every new operator review must record on top of the legacy keys. */
+/** Check every new review must record on top of the legacy keys (composition is not a clone of a reference). */
 export const COMPOSITION_QA_KEY = "compositionIndependence" as const satisfies
   keyof OfficialAnchorQaReport & keyof OfficialVariationQaReport;
 
 /**
  * Every anchor check is present and passing. A variation report never qualifies.
- * `compositionIndependence` is required by new reviews (operator keys) but absent from reviews recorded
- * earlier, so it only blocks when it was recorded as failing.
+ * `compositionIndependence` is required when a review is recorded (`assertCompositionReviewRecorded`) but
+ * absent from reviews recorded earlier, so at apply time it only blocks when recorded as failing.
  */
 export function isCompletePassingAnchorQa(qa: unknown): qa is OfficialAnchorQaReport {
   if (!qa || typeof qa !== "object") return false;
   const record = qa as Record<string, { ok?: unknown } | undefined>;
   if (record[COMPOSITION_QA_KEY] && record[COMPOSITION_QA_KEY]?.ok !== true) return false;
   return ANCHOR_QA_KEYS.every((key) => record[key]?.ok === true);
+}
+
+/** A new review must state whether composition is independent; a missing answer is not an approval or a rejection. */
+function assertCompositionReviewRecorded(
+  qa: OfficialAnchorQaReport | OfficialVariationQaReport,
+  scope: string
+): void {
+  if (typeof qa[COMPOSITION_QA_KEY]?.ok !== "boolean") {
+    throw new OfficialSupplyGateError(
+      "composition_review_required",
+      `${scope} review must record ${COMPOSITION_QA_KEY} (composition is not a clone of a style reference)`
+    );
+  }
 }
 
 function variationQaPasses(qa: OfficialVariationQaReport): boolean {
@@ -1569,6 +1582,7 @@ export class OfficialSupplyStore {
       throw new OfficialSupplyGateError("character_stage", `draft ${draftKey} is ${character.stage}`);
     }
     if (!reviewer.trim()) throw new OfficialSupplyGateError("reviewer_required", "approver identity required");
+    assertCompositionReviewRecorded(qa, `${draftKey}/representative`);
     const rep = this.representativeAsset(draftKey);
     if (rep.status !== "generated") {
       throw new OfficialSupplyGateError("anchor_not_generated", `representative is ${rep.status}`);
@@ -1600,6 +1614,7 @@ export class OfficialSupplyStore {
     if (character.stage !== "anchor_approved") {
       throw new OfficialSupplyGateError("character_stage", `draft ${draftKey} is ${character.stage}`);
     }
+    assertCompositionReviewRecorded(qa, `${draftKey}/${slotKey}`);
     const asset = this.getAsset(draftKey, slotKey);
     if (asset.kind === "representative") {
       throw new OfficialSupplyGateError("use_anchor_review", "the representative is reviewed through ANCHOR_APPROVAL");
@@ -2382,6 +2397,7 @@ export class OfficialSupplyStore {
   ): { approved: boolean } {
     const character = this.assertReplacementOperator(draftKey, actor);
     this.assertTextLockCurrent(character);
+    assertCompositionReviewRecorded(qa, `${draftKey}/${slotKey}`);
     const asset = this.assertReplacementTargetAllowed(character, slotKey);
     if (asset.kind === "representative") {
       throw new OfficialSupplyGateError(
@@ -2439,6 +2455,7 @@ export class OfficialSupplyStore {
     const character = this.assertReplacementOperator(draftKey, actor);
     this.assertTextLockCurrent(character);
     if (!reviewer.trim()) throw new OfficialSupplyGateError("reviewer_required", "approver identity required");
+    assertCompositionReviewRecorded(qa, `${draftKey}/representative`);
     const representative = this.representativeAsset(draftKey);
     const asset = this.assertReplacementTargetAllowed(character, representative.slotKey);
     const { replacement, inspectedUrl } = this.assertReviewableReplacement(
@@ -2504,6 +2521,7 @@ export class OfficialSupplyStore {
     const character = this.assertReplacementOperator(draftKey, actor);
     this.assertTextLockCurrent(character);
     if (!reviewer.trim()) throw new OfficialSupplyGateError("reviewer_required", "approver identity required");
+    assertCompositionReviewRecorded(qa, `${draftKey}/representative`);
     if (!correction.reason.trim() || !correction.evidence.trim()) {
       throw new OfficialSupplyGateError(
         "rereview_correction_required",

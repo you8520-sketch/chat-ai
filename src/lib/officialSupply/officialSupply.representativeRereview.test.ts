@@ -202,6 +202,21 @@ after(() => {
 });
 
 describe("explicit re-review of a rejected representative (isolated DB)", () => {
+  it("0. an externally registered representative needs a composition-independence answer; a failed one rejects it", async () => {
+    const staged = await stage();
+    const { url } = await register(staged.draftKey, "rep");
+    await moderate(staged.draftKey, "rep");
+    const { compositionIndependence: _omitted, ...legacyQa } = passingQa();
+    assert.throws(
+      () => reviewRep(staged.draftKey, url, legacyQa as OfficialAnchorQaReport),
+      expectGate("composition_review_required")
+    );
+    assert.equal(repRow(staged.draftKey).status, "generated");
+    const cloned = anchorQa({ compositionIndependence: { ok: false, note: "isolated gate: head angle and gaze copy a reference" } });
+    assert.equal(reviewRep(staged.draftKey, url, cloned).approved, false);
+    assert.equal(repRow(staged.draftKey).status, "rejected");
+  });
+
   it("1. the default review keeps blocking a rejected candidate", async () => {
     const { draftKey, url } = await rejectedRepresentative();
     assert.throws(() => reviewRep(draftKey, url, passingQa()), expectGate("replacement_not_generated"));

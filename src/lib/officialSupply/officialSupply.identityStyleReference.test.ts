@@ -84,6 +84,7 @@ const ANCHOR_QA: OfficialAnchorQaReport = {
   artStyle: PASS,
   outfit: PASS,
   cardCrop: PASS,
+  compositionIndependence: PASS,
 };
 
 type Sent = {

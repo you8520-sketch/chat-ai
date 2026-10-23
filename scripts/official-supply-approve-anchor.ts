@@ -28,6 +28,7 @@ function humanApprovalQa(note: string): OfficialAnchorQaReport {
     artStyle: pass,
     outfit: pass,
     cardCrop: pass,
+    compositionIndependence: pass,
   };
 }
 

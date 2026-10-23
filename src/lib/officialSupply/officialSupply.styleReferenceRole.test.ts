@@ -11,6 +11,7 @@ import {
   OFFICIAL_STYLE_USE_CLAUSE,
   type OfficialReferenceRoleLayout,
 } from "@/lib/officialSupply/imagePrompt";
+import { ROFAN_CLUSTER_B_GRAPHIC_STYLE_DIRECTION, ROFAN_CLUSTER_B_VISUAL_STYLE_DNA } from "@/lib/officialSupply/style";
 import { testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures";
 import {
   OFFICIAL_SLOT_SHOT_PLAN,
@@ -29,6 +30,14 @@ import { buildClusterBRofanStyleSeed } from "@/lib/officialSupply/userOwnedRofan
 const PILOT_JSON = path.join(process.cwd(), "src/lib/officialSupply/pilot/characters/pilot-rf-03.json");
 const COMPOSITION_TERMS = ["gaze", "head angle", "camera", "crop", "silhouette"] as const;
 const OVER_DETAIL_PHRASES = [/material detail/i, /overall polish/i, /ultra[- ]detailed/i, /intricate/i] as const;
+const STYLE_SPECIFIC_SIMPLIFICATION = [
+  /smooth skin/i,
+  /shading planes/i,
+  /simplified/i,
+  /no busier/i,
+  /big masses/i,
+  /cel[- ]shad/i,
+] as const;
 
 function pilotPrompts(slotKey: string, layout: OfficialReferenceRoleLayout) {
   const lucian = loadCompiledOfficialCharacterSource("pilot-rf-03");
@@ -85,16 +94,73 @@ describe("official style reference role", () => {
     assert.ok(OFFICIAL_STYLE_USE_CLAUSE.includes(OFFICIAL_DETAIL_RESTRAINT_CLAUSE));
   });
 
-  it("the shot table asks environment and scene slots for a readable but simple background", () => {
+  it("the common detail rule follows the reference and carries no style-specific simplification", () => {
+    assert.match(OFFICIAL_DETAIL_RESTRAINT_CLAUSE, /own line weight, coloring, and detail density/);
+    assert.match(OFFICIAL_DETAIL_RESTRAINT_CLAUSE, /no finer lines, noise, grain/i);
+    assert.match(OFFICIAL_DETAIL_RESTRAINT_CLAUSE, /keep the same level of ornament, embroidery, and background/i);
+    for (const pattern of STYLE_SPECIFIC_SIMPLIFICATION) {
+      assert.doesNotMatch(OFFICIAL_STYLE_USE_CLAUSE, pattern);
+      assert.doesNotMatch(OFFICIAL_DETAIL_RESTRAINT_CLAUSE, pattern);
+    }
+    assert.doesNotMatch(OFFICIAL_STYLE_USE_CLAUSE, /wolfgang|볼프강|black|검은|fur|모피/i);
+  });
+
+  it("style-specific cel/skin rules stay in Cluster B style data and follow the reference density", () => {
+    assert.equal(ROFAN_CLUSTER_B_VISUAL_STYLE_DNA.rendering, "cel");
+    assert.match(ROFAN_CLUSTER_B_VISUAL_STYLE_DNA.skinRendering, /매끈한 피부/);
+    assert.doesNotMatch(ROFAN_CLUSTER_B_VISUAL_STYLE_DNA.hairRendering, /낱가닥 묘사 없음/);
+    assert.match(ROFAN_CLUSTER_B_VISUAL_STYLE_DNA.hairRendering, /참고 이미지가 보이는 만큼/);
+    assert.match(ROFAN_CLUSTER_B_GRAPHIC_STYLE_DIRECTION, /graphic cel-shading over painterly/);
+    for (const duplicated of [/stronger saturation/i, /Sharper youthful/i, /Ornament and metal/i, /heavy mature realism/i]) {
+      assert.doesNotMatch(ROFAN_CLUSTER_B_GRAPHIC_STYLE_DIRECTION, duplicated);
+    }
+  });
+
+  it("a non-Cluster-B seed gets the common rule without any Cluster B simplification", () => {
+    const lucian = loadCompiledOfficialCharacterSource("pilot-rf-03");
+    const plan = (JSON.parse(fs.readFileSync(PILOT_JSON, "utf8")) as { assetPlan: OfficialAssetPlan }).assetPlan;
+    const { primaryPrompt } = buildOfficialAssetPrompts({
+      draft: lucian.draft,
+      appearance: lucian.appearanceLock,
+      style: testStyleCandidate("c1").dna,
+      styleSeed: { url: "/uploads/own-style.webp", provenance: "platform_owned", note: "own" },
+      slot: plan.slots.find((slot) => slot.slotKey === "rep")!,
+    });
+    assert.ok(primaryPrompt.includes(OFFICIAL_DETAIL_RESTRAINT_CLAUSE));
+    assert.doesNotMatch(primaryPrompt, /graphic cel-shading|clear graphic shapes/);
+  });
+
+  it("background wording defers density to the style image instead of dictating it", () => {
     const withBackground = Object.values(OFFICIAL_SLOT_SHOT_PLAN).filter((shot) => shot.background !== "simple");
     assert.ok(withBackground.length >= 6);
     for (const shot of withBackground) {
       const rendered = renderOfficialShotResponsibility(shot);
-      assert.match(rendered, /large simple shapes/, shot.slotKey);
-      assert.doesNotMatch(rendered, /must be readable, not a portrait backdrop\./, shot.slotKey);
+      assert.match(rendered, /style image's own background density/, shot.slotKey);
+      assert.doesNotMatch(rendered, /no busier|large simple shapes|few large/, shot.slotKey);
     }
-    const { prompts, slot, draftKey } = pilotPrompts("scene1", "identity_and_style");
-    assert.ok(prompts.primaryPrompt.includes(renderOfficialShotResponsibility(resolveOfficialSlotShot(slot, draftKey))));
+  });
+
+  it("the representative head direction comes from character identity and is not read from references", () => {
+    const withSeed = (url: string) => {
+      const lucian = loadCompiledOfficialCharacterSource("pilot-rf-03");
+      const plan = (JSON.parse(fs.readFileSync(PILOT_JSON, "utf8")) as { assetPlan: OfficialAssetPlan }).assetPlan;
+      return buildOfficialAssetPrompts({
+        draft: lucian.draft,
+        appearance: lucian.appearanceLock,
+        style: testStyleCandidate("c1").dna,
+        styleSeed: { url, provenance: "platform_owned", note: "seed" },
+        slot: plan.slots.find((slot) => slot.slotKey === "rep")!,
+      }).primaryPrompt;
+    };
+    const shotLine = (prompt: string) => /SHOT RESPONSIBILITY[^\n]*?(?=\nREFERENCE)/.exec(prompt)?.[0];
+    assert.equal(shotLine(withSeed("/uploads/a.webp")), shotLine(withSeed("/uploads/b.webp")));
+    assert.match(shotLine(withSeed("/uploads/a.webp"))!, /Do not inherit any reference image's camera, head angle, gaze/);
+    const heads = new Set(
+      ["pilot-rf-01", "pilot-rf-03", "pilot-rf-05", "pilot-rf-07"].map(
+        (key) => resolveOfficialSlotShot({ slotKey: "rep", kind: "representative" }, key).faceDirection
+      )
+    );
+    assert.ok(heads.size >= 2);
   });
 
   it("review keeps legacy 10/4-key reports valid but blocks a recorded composition failure", () => {

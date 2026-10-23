@@ -150,10 +150,10 @@ class FakeWorld {
 const PASS = { ok: true };
 const anchorQa = (overrides: Partial<OfficialAnchorQaReport> = {}): OfficialAnchorQaReport => ({
   gender: PASS, ageAppearance: PASS, face: PASS, hair: PASS, eyes: PASS, body: PASS,
-  identifyingFeatures: PASS, artStyle: PASS, outfit: PASS, cardCrop: PASS, ...overrides,
+  identifyingFeatures: PASS, artStyle: PASS, outfit: PASS, cardCrop: PASS, compositionIndependence: PASS, ...overrides,
 });
 const variationQa = (overrides: Partial<OfficialVariationQaReport> = {}): OfficialVariationQaReport => ({
-  identityMatchesAnchor: PASS, expressionMatchesPlan: PASS, characterPresent: PASS, artStyle: PASS, ...overrides,
+  identityMatchesAnchor: PASS, expressionMatchesPlan: PASS, characterPresent: PASS, artStyle: PASS, compositionIndependence: PASS, ...overrides,
 });
 
 let batchSeq = 0;
@@ -382,7 +382,16 @@ describe("A. candidate isolation", () => {
     const rejectWorld = new FakeWorld();
     assert.equal((await runOfficialAssetReplacement(rejectWorld.deps(store), draftKey, "scene1")).status, "generated");
     await moderateOfficialAssetReplacement({ store, moderator: rejectWorld.moderator }, draftKey, "scene1");
-    assert.equal(reviewCurrent(draftKey, "scene1", variationQa({ artStyle: { ok: false } })).approved, false);
+    const { compositionIndependence: _omitted, ...withoutComposition } = variationQa();
+    assert.throws(
+      () => reviewCurrent(draftKey, "scene1", withoutComposition as OfficialVariationQaReport),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "composition_review_required"
+    );
+    assert.equal(store.getReplacement(draftKey, "scene1").status, "generated");
+    assert.equal(
+      reviewCurrent(draftKey, "scene1", variationQa({ compositionIndependence: { ok: false, note: "cloned pose" } })).approved,
+      false
+    );
     assert.equal(store.getReplacement(draftKey, "scene1").status, "rejected");
     assert.equal(store.getAsset(draftKey, "scene1").status, "approved");
     assert.equal(store.getAsset(draftKey, "scene1").resultUrl, `/uploads/official-${draftKey}__scene1-a1.webp`);
