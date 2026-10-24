@@ -56,7 +56,7 @@ C owner audit: persistence verifies the quote and writes server-owned evidence a
 
 Public regressions cover ordinary military/administrative `draft`, quoted and mixed-language dialogue, short and long prose, explicit English self-review, streaming chunks splitting `draft`, send/regen/continue histories, episodic persistence/recall/regeneration, explicit noncanon exclusion, OOC controls, manual memory projection, source evidence, historical truth, HTML preservation, and export.
 
-Validation results are recorded in `validation.json`. The existing C5 trim test depends on the absent, untracked `data/luna-user-tail-length-c5-cache.json`; it fails with the same `ENOENT` on base and implementation. The new self-review fixture passes without that cache. Unrelated suite failures are reported separately and are outside B38.
+Validation results are recorded in `validation.json`. The existing C5 trim test depends on the absent, untracked `data/luna-user-tail-length-c5-cache.json`; it fails with the same `ENOENT` on base and implementation. The new self-review fixture passes without that cache. The full canonical suite was invoked but stopped after unrelated billing/UI/config/fixture failures. It did not complete; there are no final full-suite counts and no full-suite pass claim. Observed failure titles are recorded separately and were not repaired in B38.
 
 ## Live comparison / cost
 
