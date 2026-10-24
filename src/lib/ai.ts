@@ -312,6 +312,43 @@ export function resolveBackgroundMaxInputTokens(requestKind: string): number {
   return BACKGROUND_MAX_INPUT_TOKENS;
 }
 
+/**
+ * Background kinds that keep a full (untrimmed) prompt and run with reasoning
+ * disabled. Output budget is decided separately by resolveBackgroundOutputBudget.
+ */
+const DISABLE_REASONING_BACKGROUND_REQUEST_KINDS =
+  /background-memory|background-lorebook-compact|background-status-meta-extract|background-suggested-replies-extract|background-status-widget-extract/i;
+
+/**
+ * Background kinds whose output budget is unbounded (provider default).
+ *
+ * The status-widget *initial* and *combined* kinds are deliberately excluded:
+ * those two carry a per-widget output budget so a 10-key structured extract
+ * cannot bill for an unbounded completion. Their repair / fallback /
+ * volatile-echo-fix siblings stay unbounded so a failed initial extract can
+ * still recover with a full-length answer.
+ */
+const UNBOUNDED_BACKGROUND_OUTPUT_REQUEST_KINDS =
+  /background-memory|background-lorebook-compact|background-status-meta-extract|background-suggested-replies-extract|background-status-widget-extract-(?:repair|fallback|volatile-echo-fix)/i;
+
+/**
+ * Output budget for a background request kind.
+ *
+ * - `null` means unbounded (the provider's own default is used).
+ * - An explicit `explicitMaxTokens` always wins over the request-kind default.
+ */
+export function resolveBackgroundOutputBudget(
+  requestKind: string,
+  explicitMaxTokens?: number
+): number | null {
+  if (UNBOUNDED_BACKGROUND_OUTPUT_REQUEST_KINDS.test(requestKind)) return null;
+  const explicit =
+    typeof explicitMaxTokens === "number" && Number.isFinite(explicitMaxTokens) && explicitMaxTokens > 0
+      ? Math.round(explicitMaxTokens)
+      : null;
+  return explicit ?? resolveBackgroundMaxOutputTokens(requestKind);
+}
+
 export function resolveBackgroundMaxOutputTokens(requestKind: string): number {
   if (/background-lorebook-compact/i.test(requestKind)) return 3500;
   // V4 Flash reports internal reasoning inside completion_tokens, so leave
@@ -410,9 +447,7 @@ async function callGeminiOnce(
   }
   const requestKind = opts?.requestKind ?? "generateContent";
   const unboundedNoReasoningRequest =
-    /background-memory|background-lorebook-compact|background-status-meta-extract|background-suggested-replies-extract|background-status-widget-extract/i.test(
-      requestKind
-    );
+    DISABLE_REASONING_BACKGROUND_REQUEST_KINDS.test(requestKind);
   let effectiveSystem = system;
   let effectiveHistory = history;
   if (
@@ -431,7 +466,7 @@ async function callGeminiOnce(
     effectiveSystem = trimmed.system;
     effectiveHistory = trimmed.history;
   }
-  if (process.env.NODE_ENV !== "production" && /background-memory|background-lorebook-compact|background-status-meta-extract|background-suggested-replies-extract|background-status-widget-extract/i.test(requestKind)) {
+  if (process.env.NODE_ENV !== "production" && DISABLE_REASONING_BACKGROUND_REQUEST_KINDS.test(requestKind)) {
     console.log("[background-memory] compatible API request", {
       model: modelId,
       provider: isCheaperInferenceModel(modelId)
@@ -449,9 +484,7 @@ async function callGeminiOnce(
     history: effectiveHistory,
     model: modelId,
     temperature: opts?.temperature ?? 0.3,
-    maxTokens: unboundedNoReasoningRequest
-      ? null
-      : opts?.maxTokens ?? resolveBackgroundMaxOutputTokens(requestKind),
+    maxTokens: resolveBackgroundOutputBudget(requestKind, opts?.maxTokens),
     disableReasoning: unboundedNoReasoningRequest,
     requestKind,
     timeoutMs: /background-html-visual-card/i.test(requestKind) ? 240_000 : undefined,

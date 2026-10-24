@@ -551,6 +551,14 @@ These exact strings were returned for the previous turn. Do NOT copy them as thi
 ${lines.join("\n")}`;
 }
 
+/**
+ * Per-source output budget for a single-source status-widget extract.
+ *
+ * Wired as the `maxTokens` of the `background-status-widget-extract` request
+ * (see src/lib/statusWidget/extract.ts). 256 tokens covers a plain 5-key
+ * widget; the budget grows with the field count and with free-text fields
+ * (inner state / narration) and is clamped to [256, 512].
+ */
 export function resolveWidgetOutputSizeProxy(widget: StatusWidget, keys: string[]): number {
   const fieldCount = Math.max(keys.length, widget.fields.length);
   let freeTextHeavy = 0;
@@ -574,7 +582,7 @@ export const STATUS_WIDGET_V4_FLASH_MAX_OUTPUT_TOKENS = 3072;
  * clamped to [2048, 3072] so a reasoning model still has room for final JSON.
  *
  * Rationale:
- * - Global background-status-widget-extract default stays 512 for single paths.
+ * - Single paths use resolveWidgetOutputSizeProxy (256–512) per source.
  * - Actual billing uses consumed tokens, not the maxTokens request.
  */
 export function resolveCombinedDualWidgetExtractMaxTokens(
