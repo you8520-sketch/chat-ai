@@ -1,4 +1,5 @@
 import type { TrpgActionType } from "./actionTypes";
+import { isCommittedItemConsumption } from "./actionSemantics";
 
 const BASIC_FIRST_AID_RE =
   /응급처치|응급\s*처치|상처를\s*묶|상처를\s*압박|지혈|상처를\s*치료|first\s*aid/i;
@@ -8,7 +9,6 @@ const SAFE_REST_RE =
   /휴식한다|휴식하며|휴식을\s*취|안전한\s*곳에서[\s\S]{0,16}휴식|안전한\s*곳에서\s*쉰|야영하며\s*몸을\s*추스르|잠깐\s*숨을\s*돌린|숨을\s*돌린다|\brest\b/i;
 const TREATMENT_ITEM_NAME_RE =
   /구급키트|붕대|회복약|해독제|치료제|medkit|bandage|antidote|potion|포션/i;
-const ITEM_USE_RE = /사용|쓴다|꺼낸|바른|먹|투여|바르/i;
 const CANON_HEAL_RE = /치유 주문|회복 마법|힐링 스펠|대치유|healing (?:spell|magic)|회복 능력/i;
 
 export const CONTEXTUAL_FIRST_AID_DRAFT = "상처를 응급처치한다.";
@@ -78,7 +78,7 @@ export function isTreatmentItemIntent(
 ): boolean {
   const item = findExplicitTreatmentItem(body, sourceInventory, extraKnown);
   if (!item) return false;
-  return ITEM_USE_RE.test(body) || /사용한다|쓴다/.test(body);
+  return isCommittedItemConsumption(body);
 }
 
 export function isStatusTreatmentOnly(body: string): boolean {

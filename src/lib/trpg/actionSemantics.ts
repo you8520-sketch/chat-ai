@@ -14,7 +14,7 @@ export function stripQuotedDialogue(body: string): string {
     .trim();
 }
 
-const INVESTIGATION = /수색|뒤지|훔치|조사한다|살핀다|살피|훑|확인한다|기척|탐색|숨은/;
+const INVESTIGATION = /수색|뒤지|훔치|조사한다|살핀다|살피|훑|확인한다|기척|탐색|숨은|암호/;
 const CHALLENGE =
   /문을?\s|창문을?\s|화물|조준|석궁|때리|치며|달리|뛰어|돌진|막는다|막으려|막아|가로막|방어|집어|던지|부순|연다|민다|뽑는다|베|찌르|잠근|휘두|메고|꽂|파고들|주먹|내지르|억지로|딴다|칼을|은신|숨는|숨어서|몰래/;
 
@@ -64,6 +64,104 @@ function hasActorPhysicalEntry(text: string): boolean {
     return false;
   }
   return true;
+}
+
+/**
+ * Verbal conditional connective inside one clause. Nouns such as 장면/반면 do not match:
+ * the gate is 만약, 다면/라면/거든, or a verb stem plus (으)면.
+ */
+const CONDITIONAL_CONNECTIVE =
+  /만약|조건이\s*맞으면|상황에\s*따라|(?:있|없|하|되|오|가|보|치|리|나|자|두|르|맞|싶|쫓)(?:으)?면|다면|라면|거든/;
+
+const NEGATED_PREDICATE = /(?:지\s*않|지\s*못|지\s*말|않는다|않다|안\s+[가-힣]{1,12}다|못\s+[가-힣]{1,12}다)\s*$/;
+
+/** Consumption is the clause's final predicate. 사용법/사용설명 are nouns. */
+const ITEM_CONSUMPTION_PREDICATE =
+  /(?:사용(?!법|설명|자|처|량)(?:한다|하고|하며|해서|했다|함|해)?|먹(?:는다|고|으며|었다|어)?|마신(?:다)?|마셔|바른다|바르고|발라|꺼낸다|꺼내|투여(?:한다|하고)?|쓴다|써서)\s*$/;
+
+export type ActionClauseKind = "conditional" | "declined" | "act" | "empty";
+
+function actionClauses(body: string): string[] {
+  const text = normalizeBody(body);
+  if (!text) return [];
+  return text
+    .split(/(?<=[.!?。！？])\s+/u)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function visibleClause(clause: string): string {
+  return stripQuotedDialogue(clause)
+    .replace(/[.!?。！？]+$/g, "")
+    .trim();
+}
+
+/** The committed predicate, after a negated adverb such as 설득하지 않고. */
+function positiveActSpan(visible: string): string {
+  const adverb = visible.match(/지\s*않(?:고|으며|아서|어서)\s+([\s\S]+)$/);
+  const rest = adverb?.[1]?.trim() ?? "";
+  if (rest && !NEGATED_PREDICATE.test(rest)) return rest;
+  return visible;
+}
+
+export function classifyActionClause(clause: string): { kind: ActionClauseKind; span: string } {
+  const visible = visibleClause(clause);
+  if (!visible) return { kind: "empty", span: "" };
+  if (CONDITIONAL_CONNECTIVE.test(visible)) return { kind: "conditional", span: "" };
+  const adverb = visible.match(/지\s*않(?:고|으며|아서|어서)\s+([\s\S]+)$/);
+  if (adverb) {
+    const rest = adverb[1]?.trim() ?? "";
+    if (rest && !NEGATED_PREDICATE.test(rest)) return { kind: "act", span: rest };
+  }
+  if (NEGATED_PREDICATE.test(visible)) return { kind: "declined", span: "" };
+  return { kind: "act", span: positiveActSpan(visible) };
+}
+
+/** Clauses the human actually performs. Conditional, negated, and quoted-only text is omitted. */
+export function committedActionText(body: string): string {
+  const spans = actionClauses(body)
+    .map((clause) => classifyActionClause(clause))
+    .filter((clause) => clause.kind === "act" && clause.span)
+    .map((clause) => clause.span);
+  return normalizeBody(spans.join(" "));
+}
+
+/** Every clause is a condition and at least one condition is present. */
+export function isConditionalCommitment(body: string): boolean {
+  const clauses = actionClauses(body);
+  if (clauses.length === 0) return false;
+  const kinds = clauses.map((clause) => classifyActionClause(clause).kind);
+  return kinds.every((kind) => kind === "conditional" || kind === "empty") && kinds.includes("conditional");
+}
+
+/** The human refused the act and committed nothing else. Quoted speech stays talk. */
+export function isDeclinedCommitment(body: string): boolean {
+  const text = normalizeBody(body);
+  if (!text || committedActionText(text)) return false;
+  if (isConditionalCommitment(text)) return false;
+  return actionClauses(text).some((clause) => classifyActionClause(clause).kind === "declined");
+}
+
+export function isCommittedItemConsumption(body: string): boolean {
+  const committed = committedActionText(body)
+    .replace(/^\*+|\*+$/g, "")
+    .replace(/[.!?。！？]+$/g, "")
+    .trim();
+  if (!committed) return false;
+  return ITEM_CONSUMPTION_PREDICATE.test(committed);
+}
+
+/** GM note for clauses that must not be narrated as done or charged. */
+export function uncommittedActionWire(body: string): string | null {
+  const held = actionClauses(body).filter((clause) => {
+    const kind = classifyActionClause(clause).kind;
+    return kind === "conditional" || kind === "declined";
+  });
+  const quoted = /[「『"“]/.test(body) && stripQuotedDialogue(body) !== normalizeBody(body);
+  if (held.length === 0 && !quoted) return null;
+  const bits = held.map((clause) => clause.replace(/[.!?。！？]+$/g, "").trim());
+  if (quoted) bits.push("quoted speech");
+  return `uncommitted=${bits.join(" || ")} — do not narrate these as completed acts, and do not spend items or HP for them`;
 }
 
 export function hasChallengeSignal(body: string): boolean {

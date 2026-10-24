@@ -427,7 +427,6 @@ export default function TrpgRoomClient({
       body: actionBody,
       actionType,
       inputOrigin,
-      selectedStat,
       // An empty queue omits explorationCommands. submitTrpgAction owns general versus exploration.
       ...(explorationQueue.length ? { explorationCommands: explorationQueue } : {}),
       ...(acceptItems.length ? { acceptItems } : {}),

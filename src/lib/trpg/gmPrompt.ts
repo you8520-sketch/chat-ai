@@ -4,6 +4,7 @@ import {
   formatTrpgRoundNarrationBudget,
 } from "./gmNarrationBudget";
 import type { TrpgActionCheckReason } from "./actionCheck";
+import { uncommittedActionWire } from "./actionSemantics";
 import { statModifier } from "./stats";
 import { normalizeGoalCriterion } from "./campaignGoals";
 import { clipTrpgChars } from "./clip";
@@ -394,6 +395,12 @@ export function formatTrpgActionCheckWire(opts: {
     if (reason === "safe_rest") {
       return "no_check reason=safe_rest — rest proceeds without a roll";
     }
+    if (reason === "conditional_hold") {
+      return "no_check reason=conditional_hold — the human PC stated a condition, not a completed act; do not narrate that act as already done";
+    }
+    if (reason === "declined_act") {
+      return "no_check reason=declined_act — the human PC did not perform that act; do not narrate it as done and do not spend items or HP for it";
+    }
     if (reason === "flavor" || reason === "ordinary_free" || reason === "support_setup" || reason === "ordinary_item_use") {
       return `no_check reason=${reason} — realize the submitted action normally without a failure roll`;
     }
@@ -560,6 +567,8 @@ export function buildTrpgGmUserBlock(opts: {
             const accepted = a.acceptedItems?.length
               ? `[ITEMS ACCEPTED BY THIS PC — server-confirmed, now held]\n${a.acceptedItems.join(", ")}`
               : "";
+            const uncommitted = uncommittedActionWire(a.body);
+            const held = uncommitted ? `[UNCOMMITTED ${uncommitted}]` : "";
             const lines = opts.regenerate
               ? [
                   `[RESOLVED ACTION participantId=${a.participantId} name=${a.name} actorKind=${actorKind}]`,
@@ -567,6 +576,7 @@ export function buildTrpgGmUserBlock(opts: {
                   `${actionLabel}\n${canonical}`,
                   method,
                   accepted,
+                  held,
                   "This locked action already happened. Do not replace it or give the human PC a new choice.",
                 ]
               : [
@@ -575,6 +585,7 @@ export function buildTrpgGmUserBlock(opts: {
                   `${actionLabel}\n${canonical}`,
                   method,
                   accepted,
+                  held,
                 ];
             return lines.filter(Boolean).join("\n");
           })
