@@ -36,4 +36,17 @@ describe("stripLeakedDocumentMarkup", () => {
     assert.match(out, /card body/);
     assert.match(out, /<div/);
   });
+
+  it("keeps prose before and after an embedded html document", () => {
+    const raw =
+      "앞선 서사 문단.\n\n" +
+      '<!DOCTYPE html><html><head><meta charset="utf-8"><style>.x{color:red}</style></head>' +
+      '<body><div class="card">card body</div></body></html>\n\n' +
+      "뒤따르는 서사 문단.";
+    const out = stripLeakedDocumentMarkup(raw);
+    assert.match(out, /앞선 서사 문단\./);
+    assert.match(out, /뒤따르는 서사 문단\./);
+    assert.match(out, /card body/);
+    assert.doesNotMatch(out, /<\/?(?:html|head|body|style|meta)\b|<!DOCTYPE/i);
+  });
 });

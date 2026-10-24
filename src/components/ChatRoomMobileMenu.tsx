@@ -9,6 +9,7 @@ type Props = {
   onDisplayPrefsChange: (prefs: ChatDisplayPrefs) => void;
   settingsPanel: ReactNode;
   bookmarksPanel: ReactNode;
+  downloadPanel: ReactNode;
 };
 
 /** md 미만: ... 버튼을 눌렀을 때 우측 세로 레일에 표시·설정·북마크를 함께 배치 */
@@ -17,6 +18,7 @@ export default function ChatRoomMobileMenu({
   onDisplayPrefsChange,
   settingsPanel,
   bookmarksPanel,
+  downloadPanel,
 }: Props) {
   const [open, setOpen] = useState(false);
 
@@ -65,6 +67,7 @@ export default function ChatRoomMobileMenu({
             />
             {settingsPanel}
             {bookmarksPanel}
+            {downloadPanel}
           </aside>
         </div>
       ) : null}

@@ -36,6 +36,7 @@ import { ChatShortcutSlashMenu, slashOptionId } from "@/components/ChatShortcutS
 import ChatRoomDisplayQuickRail from "@/components/ChatRoomDisplayQuickRail";
 import ChatImageGeneratorPanel from "@/components/ChatImageGeneratorPanel";
 import ChatRoomMobileMenu from "@/components/ChatRoomMobileMenu";
+import ChatTranscriptDownloadButton from "@/components/ChatTranscriptDownloadButton";
 import ChatAssetAlbumModal, { IconAlbum } from "@/components/ChatAssetAlbumModal";
 import {
   CHAT_BACK_FALLBACK_DELAY_MS,
@@ -5816,6 +5817,9 @@ export default function ChatClient({
             onDisplayPrefsChange={handleDisplayPrefsChange}
             settingsPanel={renderSettingsPanel("rail")}
             bookmarksPanel={<BookmarksPanel variant="rail" />}
+            downloadPanel={
+              <ChatTranscriptDownloadButton chatId={chatId} onError={setToastMsg} />
+            }
           />
         </div>
       </div>
@@ -6708,6 +6712,7 @@ export default function ChatClient({
         />
         {renderSettingsPanel("rail")}
         <BookmarksPanel variant="rail" />
+        <ChatTranscriptDownloadButton chatId={chatId} onError={setToastMsg} />
       </aside>
 
       {/* Message-toolbar image button opens this host panel (no duplicate rail trigger). */}
