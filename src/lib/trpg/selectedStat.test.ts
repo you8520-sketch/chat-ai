@@ -168,10 +168,10 @@ describe("selectedStat live owner", () => {
     assert.doesNotMatch(pick, /setSelectedStat/);
   });
 
-  it("B/H/I. send includes selectedStat and clears the local draft only after success", () => {
+  it("B/H/I. send omits selectedStat and clears the local draft only after success", () => {
     const client = readFileSync("src/app/trpg/[id]/TrpgRoomClient.tsx", "utf8");
     const send = client.slice(client.indexOf("async function sendAction"), client.indexOf("const requestSuggestions"));
-    assert.match(send, /selectedStat,/);
+    assert.doesNotMatch(send, /selectedStat/);
     assert.match(send, /if \(ok\) clearUserInputDraft\(trpgActionDraftKey\(campaignId, roundNumber\)\)/);
     assert.doesNotMatch(send, /clearUserInputDraft\([\s\S]*if \(ok\)/);
     const route = readFileSync("src/app/api/trpg/campaigns/[id]/action/route.ts", "utf8");
@@ -181,7 +181,7 @@ describe("selectedStat live owner", () => {
     assert.doesNotMatch(engine, /normalizeTrpgSelectedStat/);
     assert.match(
       engine,
-      /upsertLockedAction\(db, opts\.roundId, bot\.id, body, parseTrpgBotAction\(body\)\.actionType, null, "bot_model"\)/
+      /upsertLockedAction\(db, opts\.roundId, bot\.id, spoken, parseTrpgBotAction\(spoken\)\.actionType, null, "bot_model"\)/
     );
   });
 

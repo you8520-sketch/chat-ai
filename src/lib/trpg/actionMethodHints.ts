@@ -32,6 +32,7 @@ export const ACTION_METHOD_STAT_HINTS: Record<string, readonly string[]> = {
     "창",
     "근접",
     "힘껏",
+    "힘",
     "연결부",
     "파쇄",
     "베어",

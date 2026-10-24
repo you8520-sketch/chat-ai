@@ -1,15 +1,23 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { committedActionText, uncommittedActionWire } from "./actionSemantics";
 import { resolveTrpgActionCheckDecision } from "./actionCheck";
 import { pickStatForActionDetailed, resolveServerHumanActionType } from "./actionTypes";
-import { formatTrpgActionCheckWire } from "./gmPrompt";
+import { buildTrpgGmUserBlock, formatTrpgActionCheckWire } from "./gmPrompt";
+import { isTreatmentItemIntent } from "./mechanicsIntent";
+import { healOwnerKind } from "./mechanicsValidate";
 import { DEFAULT_TRPG_STAT_DEFS } from "./stats";
 
 const defs = DEFAULT_TRPG_STAT_DEFS;
 
 function judge(body: string) {
   const actionType = resolveServerHumanActionType(body);
-  const stat = pickStatForActionDetailed({ actionType, selectedStat: null, body, defs });
+  const stat = pickStatForActionDetailed({
+    actionType,
+    selectedStat: null,
+    body: committedActionText(body),
+    defs,
+  });
   const check = resolveTrpgActionCheckDecision({ body, actionType });
   return { actionType, stat: stat.statKey, reason: stat.reason, needsCheck: check.needsCheck, check: check.reason };
 }
@@ -88,6 +96,126 @@ describe("free-text human adjudication", () => {
       }),
       /not a completed act/
     );
+  });
+
+  it("keeps reading, refusal, quotation, and a condition off the committed act", () => {
+    const read = judge("회복약 사용법을 읽는다");
+    assert.equal(read.actionType, "free");
+    assert.equal(read.needsCheck, false);
+    assert.notEqual(read.check, "ordinary_item_use");
+    assert.equal(isTreatmentItemIntent("회복약 사용법을 읽는다", ["회복약"]), false);
+    assert.equal(healOwnerKind({ body: "회복약 사용법을 읽는다", sourceInventory: ["회복약"] }), "none");
+
+    const used = judge("회복약을 사용한다");
+    assert.equal(used.actionType, "use_item");
+    assert.equal(used.check, "ordinary_item_use");
+    assert.equal(isTreatmentItemIntent("회복약을 사용한다", ["회복약"]), true);
+    assert.equal(healOwnerKind({ body: "회복약을 사용한다", sourceInventory: ["회복약"] }), "item");
+
+    const declined = judge("상대방을 설득하지 않는다");
+    assert.notEqual(declined.actionType, "persuade");
+    assert.equal(declined.needsCheck, false);
+    assert.equal(declined.check, "declined_act");
+    assert.notEqual(declined.stat, "cha");
+
+    const quoted = judge("「지금 공격하고 설득한다」");
+    assert.notEqual(quoted.actionType, "attack");
+    assert.notEqual(quoted.actionType, "persuade");
+    assert.equal(quoted.check, "talk");
+    assert.equal(quoted.needsCheck, false);
+
+    const instead = judge("설득하지 않고 경비를 공격한다");
+    assert.equal(instead.actionType, "attack");
+    assert.equal(instead.needsCheck, true);
+    assert.equal(instead.stat, "str");
+
+    const mixed = judge("만약 적이 도망치면 쫓는다. 지금은 경비를 공격한다.");
+    assert.equal(mixed.actionType, "attack");
+    assert.equal(mixed.needsCheck, true);
+    assert.equal(mixed.stat, "str");
+    assert.match(uncommittedActionWire("만약 적이 도망치면 쫓는다. 지금은 경비를 공격한다.") ?? "", /쫓는다/);
+
+    const only = judge("만약 적이 도망치면 쫓는다");
+    assert.equal(only.actionType, "free");
+    assert.equal(only.needsCheck, false);
+    assert.equal(only.check, "conditional_hold");
+
+    const unknown = judge("문이 잠겨 있으면 힘으로 부순다.");
+    assert.equal(unknown.needsCheck, false);
+    assert.equal(unknown.check, "conditional_hold");
+    assert.equal(unknown.actionType, "free");
+
+    const smash = judge("잠긴 문을 힘으로 부순다");
+    assert.equal(smash.needsCheck, true);
+    assert.notEqual(smash.check, "conditional_hold");
+    assert.equal(smash.stat, "str");
+
+    const scene = judge("장면을 살핀다");
+    assert.notEqual(scene.check, "conditional_hold");
+    const contrast = judge("반면 문을 민다");
+    assert.notEqual(contrast.check, "conditional_hold");
+
+    const defend = judge("방패로 공격을 가로막는다");
+    assert.equal(defend.actionType, "defend");
+    assert.equal(defend.needsCheck, true);
+    assert.equal(defend.stat, "con");
+  });
+
+  it("tells the GM which clause was not performed", () => {
+    const mixed = "만약 적이 도망치면 쫓는다. 지금은 경비를 공격한다.";
+    const judged = judge(mixed);
+    const block = (regenerate: boolean) =>
+      buildTrpgGmUserBlock({
+        worldBrief: "폐허",
+        memoryBlock: "",
+        opening: false,
+        regenerate,
+        actions: [
+          {
+            participantId: 1,
+            name: "렌",
+            body: mixed,
+            needsCheck: judged.needsCheck,
+            checkReason: judged.check,
+            statKey: judged.stat,
+            d20: 14,
+            finalScore: 16,
+            dc: 12,
+            tier: "SUCCESS",
+          },
+        ],
+      });
+    for (const text of [block(false), block(true)]) {
+      assert.match(text, /\[UNCOMMITTED uncommitted=만약 적이 도망치면 쫓는다/);
+      assert.match(text, /지금은 경비를 공격한다/);
+      assert.doesNotMatch(text, /conditional_hold/);
+    }
+    assert.match(block(false), /check_required/);
+
+    const refused = "상대방을 설득하지 않는다";
+    const refusedJudge = judge(refused);
+    const refusedWire = buildTrpgGmUserBlock({
+      worldBrief: "폐허",
+      memoryBlock: "",
+      opening: false,
+      actions: [
+        {
+          participantId: 1,
+          name: "렌",
+          body: refused,
+          needsCheck: refusedJudge.needsCheck,
+          checkReason: refusedJudge.check,
+          statKey: refusedJudge.stat,
+          d20: null,
+          finalScore: null,
+          dc: null,
+          tier: null,
+        },
+      ],
+    });
+    assert.match(refusedWire, /reason=declined_act/);
+    assert.match(refusedWire, /\[UNCOMMITTED uncommitted=상대방을 설득하지 않는다/);
+    assert.doesNotMatch(refusedWire, /check_required/);
   });
 
   it("a client-shaped attack type is not required for an obvious blow", () => {

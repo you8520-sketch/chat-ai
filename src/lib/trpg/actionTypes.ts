@@ -1,4 +1,4 @@
-import { isConditionalCommitment } from "./actionSemantics";
+import { committedActionText, isCommittedItemConsumption } from "./actionSemantics";
 import type { TrpgStatDefinition } from "./types";
 import {
   actionMethodStatKeys,
@@ -122,9 +122,9 @@ function pickMethodStat(opts: {
 
 /** Human free text. The client does not choose the type. Bots keep their own parser. */
 export function resolveServerHumanActionType(body: string): TrpgActionType {
-  const text = body.replace(/\s+/g, " ").trim();
-  if (!text || isConditionalCommitment(text)) return "free";
-  if (/회복약|구급키트|붕대|해독제|치료제/.test(text) && /사용|먹|바른|꺼낸/.test(text)) return "use_item";
+  const text = committedActionText(body);
+  if (!text) return "free";
+  if (/회복약|구급키트|붕대|해독제|치료제/.test(text) && isCommittedItemConsumption(text)) return "use_item";
   if (/응급처치|지혈|중독 상태|마비 상태|상태이상을 치료|상태를 치료|상태를 완화/.test(text)) return "support";
   if (/눈을\s*피|몰래|은신|들키지|기척을\s*죽/.test(text)) return "stealth";
   if (/설득|협상|회유|달래/.test(text)) return "persuade";
