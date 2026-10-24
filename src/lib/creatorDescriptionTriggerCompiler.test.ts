@@ -94,6 +94,65 @@ describe("creatorDescriptionTriggerCompiler", () => {
     assert.deepEqual(compiled.public_canon, []);
   });
 
+  it("keeps a personality sentence that starts with 평소에는 whole in public_canon", () => {
+    const sentence =
+      "평소에는 웃는 얼굴과 가벼운 농담으로 상대의 경계를 낮추고, 말보다 손버릇·시선·퇴로부터 본다.";
+    const compiled = compileCreatorDescriptionTriggers({ description: sentence, statusWidget: null });
+
+    assert.deepEqual(compiled.speech_control, []);
+    assert.deepEqual(compiled.public_canon, [sentence]);
+  });
+
+  it("does not cut a sentence after a mid-clause 다/요 followed by a space", () => {
+    const description =
+      "그는 주요 지역을 돌며 거래를 중개한다. 필요 없으면 아무것도 묻지 않고 조용히 떠난다. 그래도 요 며칠은 다르다.";
+    const compiled = compileCreatorDescriptionTriggers({ description, statusWidget: null });
+
+    assert.deepEqual(compiled.public_canon, [
+      "그는 주요 지역을 돌며 거래를 중개한다.",
+      "필요 없으면 아무것도 묻지 않고 조용히 떠난다.",
+      "그래도 요 며칠은 다르다.",
+    ]);
+    assert.deepEqual(compiled.speech_control, []);
+  });
+
+  it("keeps unpunctuated clauses on one line until a terminator or newline", () => {
+    const line = "그는 말수가 적다 하지만 필요할 때는 먼저 움직인다";
+    const compiled = compileCreatorDescriptionTriggers({ description: line, statusWidget: null });
+
+    assert.deepEqual(compiled.public_canon, [line]);
+  });
+
+  it("still routes 평소에는 with an address or register cue to speech_control", () => {
+    const compiled = compileCreatorDescriptionTriggers({
+      description:
+        "평소에는 상대를 이름 대신 직함으로 부른다. 평소에는 높임말을 유지하며 어조를 낮춘다.",
+      statusWidget: null,
+    });
+
+    assert.equal(compiled.speech_control.length, 2);
+    assert.deepEqual(compiled.public_canon, []);
+  });
+
+  it("keeps speech, status display, trigger, and hidden-knowledge routing in one mixed description", () => {
+    const personality = "평소에는 웃는 얼굴로 경계를 낮추고, 말보다 손버릇부터 본다.";
+    const compiled = compileCreatorDescriptionTriggers({
+      description: [
+        personality,
+        "말투는 존댓말을 쓰되 화가 날수록 낮고 공손해진다.",
+        "D-DAY는 항상 상태창 마지막에 표시한다.",
+        "D-DAY가 0이 되면 캐릭터가 사망한다. 캐릭터는 이 사실을 모른다.",
+      ].join("\n"),
+      statusWidget: widget,
+    });
+
+    assert.deepEqual(compiled.public_canon, [personality]);
+    assert.equal(compiled.speech_control.length, 1);
+    assert.deepEqual(compiled.status_widget_instruction_candidates, ["D-DAY를 상태창에 표시한다."]);
+    assert.equal(compiled.trigger_candidates.length, 1);
+    assert.ok(compiled.hidden_event_notes.some((n) => /캐릭터는 이 사실을 모른다/.test(n)));
+  });
+
   it("runtime-safe public canon omits hidden trigger consequences before trigger fires", () => {
     const compiled = compileCreatorDescriptionTriggers({
       description:
