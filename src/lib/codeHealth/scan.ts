@@ -745,17 +745,217 @@ export function scanDbFields(files: ScannedFile[]): CodeHealthCandidate[] {
   return out;
 }
 
+type TextRange = { start: number; end: number };
+
+const CRITICAL_SECRET_PROBE_RE =
+  /sk-or-|sk-ant-|AKIA[0-9A-Z]{16}|-----BEGIN (?:RSA )?PRIVATE KEY-----/g;
+
+const SYNTHETIC_SECRET_MARKERS = [
+  "canary",
+  "lookalike",
+  "secretvalue",
+  "not-a-real",
+  "not-real",
+  "dummy",
+  "fixture",
+  "test-key",
+  "test-openrouter",
+  "test-dummy",
+  "openrouter-key-fixture",
+  "[redacted]",
+  "redacted]",
+];
+
+function rangeContains(ranges: TextRange[], index: number): boolean {
+  return ranges.some((range) => index >= range.start && index < range.end);
+}
+
+function couldStartRegexLiteral(text: string, slashPos: number): boolean {
+  let i = slashPos - 1;
+  while (i >= 0 && /\s/.test(text[i]!)) i--;
+  if (i < 0) return true;
+  const ch = text[i]!;
+  if (/[([{,;:?=!&|+\-*%^~<>]/.test(ch)) return true;
+  if (ch === ")") return true;
+  if (ch === "}") return false;
+  if (/[\w$]/.test(ch)) return false;
+  const before = text.slice(0, slashPos).trimEnd();
+  return /\b(return|throw|case|typeof|void|delete|await|yield|of|in|instanceof)$/.test(before);
+}
+
+/** Ranges of `/.../` regex literals (not division) for TS/JS source text. */
+function findRegexLiteralRanges(text: string): TextRange[] {
+  const ranges: TextRange[] = [];
+  let state: "code" | "single" | "double" | "template" | "lineComment" | "blockComment" = "code";
+  let i = 0;
+  while (i < text.length) {
+    const ch = text[i]!;
+    const next = text[i + 1];
+    if (state === "lineComment") {
+      if (ch === "\n") state = "code";
+      i += 1;
+      continue;
+    }
+    if (state === "blockComment") {
+      if (ch === "*" && next === "/") {
+        state = "code";
+        i += 2;
+        continue;
+      }
+      i += 1;
+      continue;
+    }
+    if (state === "single") {
+      if (ch === "\\") {
+        i += 2;
+        continue;
+      }
+      if (ch === "'") state = "code";
+      i += 1;
+      continue;
+    }
+    if (state === "double") {
+      if (ch === "\\") {
+        i += 2;
+        continue;
+      }
+      if (ch === '"') state = "code";
+      i += 1;
+      continue;
+    }
+    if (state === "template") {
+      if (ch === "\\") {
+        i += 2;
+        continue;
+      }
+      if (ch === "`") state = "code";
+      i += 1;
+      continue;
+    }
+    if (ch === "/" && next === "/") {
+      state = "lineComment";
+      i += 2;
+      continue;
+    }
+    if (ch === "/" && next === "*") {
+      state = "blockComment";
+      i += 2;
+      continue;
+    }
+    if (ch === "'") {
+      state = "single";
+      i += 1;
+      continue;
+    }
+    if (ch === '"') {
+      state = "double";
+      i += 1;
+      continue;
+    }
+    if (ch === "`") {
+      state = "template";
+      i += 1;
+      continue;
+    }
+    if (ch === "/" && couldStartRegexLiteral(text, i)) {
+      const start = i;
+      i += 1;
+      while (i < text.length) {
+        const rc = text[i]!;
+        if (rc === "\\") {
+          i += 2;
+          continue;
+        }
+        if (rc === "/") {
+          i += 1;
+          while (i < text.length && /[gimsuy]/.test(text[i]!)) i += 1;
+          ranges.push({ start, end: i });
+          break;
+        }
+        if (rc === "\n") {
+          i = start + 1;
+          break;
+        }
+        i += 1;
+      }
+      continue;
+    }
+    i += 1;
+  }
+  return ranges;
+}
+
+function isRegexPatternFragment(value: string): boolean {
+  return /\[/.test(value) || /\+$/.test(value) || /\(\?:/.test(value);
+}
+
+function hasSyntheticSecretMarker(value: string): boolean {
+  const lower = value.toLowerCase();
+  return SYNTHETIC_SECRET_MARKERS.some((marker) => lower.includes(marker));
+}
+
+function extractEmbeddedCredential(text: string, start: number): string | null {
+  const slice = text.slice(start);
+  if (slice.startsWith("-----BEGIN")) {
+    const endMarker = slice.includes("RSA PRIVATE KEY-----")
+      ? "-----END RSA PRIVATE KEY-----"
+      : "-----END PRIVATE KEY-----";
+    const end = slice.indexOf(endMarker);
+    if (end < 0) return slice.match(/^-----BEGIN (?:RSA )?PRIVATE KEY-----/)?.[0] ?? null;
+    return slice.slice(0, end + endMarker.length);
+  }
+  if (slice.startsWith("AKIA")) {
+    const match = slice.match(/^AKIA[0-9A-Z]{16}/);
+    return match?.[0] ?? null;
+  }
+  if (slice.startsWith("sk-ant-")) {
+    const match = slice.match(/^sk-ant-[A-Za-z0-9_-]+/);
+    return match?.[0] ?? null;
+  }
+  if (slice.startsWith("sk-or-")) {
+    const match = slice.match(/^sk-or-v1-[A-Za-z0-9_-]+/) ?? slice.match(/^sk-or-[A-Za-z0-9_-]+/);
+    return match?.[0] ?? null;
+  }
+  return null;
+}
+
+function embeddedCredentialLooksReal(value: string): boolean {
+  if (!value || isRegexPatternFragment(value) || hasSyntheticSecretMarker(value)) return false;
+  if (value.startsWith("-----BEGIN") && value.includes("PRIVATE KEY-----")) return true;
+  if (/^AKIA[0-9A-Z]{16}$/.test(value)) return true;
+  if (value.startsWith("sk-ant-")) {
+    return value.length >= 40 && /^sk-ant-[A-Za-z0-9_-]+$/.test(value);
+  }
+  if (value.startsWith("sk-or-v1-")) {
+    const token = value.slice("sk-or-v1-".length);
+    return token.length >= 32 && /^[A-Za-z0-9_-]+$/.test(token);
+  }
+  if (value.startsWith("sk-or-")) {
+    const token = value.slice("sk-or-".length);
+    return token.length >= 24 && /^[A-Za-z0-9_-]+$/.test(token);
+  }
+  return false;
+}
+
+function fileContainsPlausibleEmbeddedCredential(text: string): boolean {
+  const regexRanges = findRegexLiteralRanges(text);
+  const probe = new RegExp(CRITICAL_SECRET_PROBE_RE.source, "g");
+  let match: RegExpExecArray | null;
+  while ((match = probe.exec(text)) !== null) {
+    const index = match.index;
+    if (rangeContains(regexRanges, index)) continue;
+    const credential = extractEmbeddedCredential(text, index);
+    if (credential && embeddedCredentialLooksReal(credential)) return true;
+  }
+  return false;
+}
+
 export function scanCriticalSecrets(files: ScannedFile[]): CodeHealthCandidate[] {
   const out: CodeHealthCandidate[] = [];
-  const openRouterPrefix = "sk-or";
-  const anthropicPrefix = "sk-ant";
-  const secretRe = new RegExp(
-    `(?:${openRouterPrefix}-|${anthropicPrefix}-|AKIA[0-9A-Z]{16}|-----BEGIN (?:RSA )?PRIVATE KEY-----)`
-  );
   for (const file of files) {
     if (file.relPath.startsWith("src/lib/codeHealth/")) continue;
     if (file.relPath.includes(".env") || !SOURCE_EXT.has(path.extname(file.relPath))) continue;
-    if (!secretRe.test(file.text)) continue;
+    if (!fileContainsPlausibleEmbeddedCredential(file.text)) continue;
     out.push(
       makeCandidate({
         kind: "critical_bugfix",

@@ -116,6 +116,97 @@ describe("code health classification", () => {
     assert.deepEqual(hits, []);
   });
 
+  it("ignores regex redaction patterns and test canaries but keeps realistic embedded credentials", () => {
+    const deterministicOpenRouter =
+      "sk-or-v1-deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+    const deterministicAnthropic =
+      "sk-ant-api03-deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef00";
+    const deterministicAws = "AKIAIOSFODNN7EXAMPLE";
+    const pem = `-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF8PbnGy0AHB7M
+-----END RSA PRIVATE KEY-----`;
+    const falsePositiveFixtures: Array<{ relPath: string; text: string }> = [
+      {
+        relPath: "scripts/lib/gemini38AxisLiveCompare.ts",
+        text: `const errorText = body.slice(0, 500).replace(/sk-or-[A-Za-z0-9_-]+/g, "[REDACTED]");\n`,
+      },
+      {
+        relPath: "src/lib/decisionModelRadar.ts",
+        text: `const sanitized = detail.replace(/sk-or-[A-Za-z0-9_-]+/g, "[redacted]");\n`,
+      },
+      {
+        relPath: "src/lib/decisionModelRadar.test.ts",
+        text:
+          'const message = format("Bearer sk-or-secretvalue");\n' +
+          'assert.doesNotMatch(message, /sk-or-secretvalue/);\n',
+      },
+      {
+        relPath: "src/app/api/admin/runtime-settings/route.test.ts",
+        text: 'const key = "sk-or-v1-runtime-route-canary-0001";\n',
+      },
+      {
+        relPath: "src/lib/adminEffectiveRuntimeSettings.test.ts",
+        text: 'const env = { OPENROUTER_API_KEY: "sk-or-v1-runtime-projection-canary-0001" };\n',
+      },
+      {
+        relPath: "src/lib/rpQualityPaidRunner.test.ts",
+        text: 'process.env.OPENROUTER_API_KEY = "sk-or-production-lookalike-0001";\n',
+      },
+    ];
+    assert.deepEqual(
+      scanCriticalSecrets(
+        falsePositiveFixtures.map((fixture) => ({
+          ...fixture,
+          absPath: `/tmp/${fixture.relPath}`,
+        }))
+      ),
+      []
+    );
+
+    const realisticHits = scanCriticalSecrets([
+      {
+        relPath: "src/lib/leak.ts",
+        absPath: "/tmp/leak.ts",
+        text: `export const key = "${deterministicOpenRouter}";\n`,
+      },
+      {
+        relPath: "src/lib/leak.test.ts",
+        absPath: "/tmp/leak.test.ts",
+        text: `const anthropic = "${deterministicAnthropic}";\n`,
+      },
+      {
+        relPath: "src/services/deploy.ts",
+        absPath: "/tmp/deploy.ts",
+        text: `const accessKeyId = "${deterministicAws}";\n`,
+      },
+      {
+        relPath: "src/lib/ssl.ts",
+        absPath: "/tmp/ssl.ts",
+        text: `const pem = ${JSON.stringify(pem)};\n`,
+      },
+    ]);
+    assert.equal(realisticHits.length, 4);
+    assert.ok(realisticHits.every((hit) => hit.kind === "critical_bugfix"));
+  });
+
+  it("does not flag the eight known 2026-10-19 weekly false positives on current main", () => {
+    const files = walkSourceFiles(process.cwd());
+    const flagged = new Set(scanCriticalSecrets(files).map((hit) => hit.path));
+    const knownFalsePositives = [
+      "scripts/lib/gemini38AxisLiveCompare.ts",
+      "src/app/api/admin/runtime-settings/route.test.ts",
+      "src/lib/adminEffectiveRuntimeSettings.test.ts",
+      "src/lib/decisionModelRadar.test.ts",
+      "src/lib/decisionModelRadar.ts",
+      "src/lib/rpQualityPaidRunner.test.ts",
+      "src/lib/rpQualityPaidRunnerLive.test.ts",
+      "src/lib/rpQualityPaidRunnerLiveDispatch.test.ts",
+    ];
+    for (const relPath of knownFalsePositives) {
+      assert.equal(flagged.has(relPath), false, relPath);
+    }
+  });
+
   it("marks critical findings as REQUIRED_CLEANUP / BUGFIX and never as auto-patch", () => {
     const classified = classifyCandidate(
       unusedFileCandidate({
