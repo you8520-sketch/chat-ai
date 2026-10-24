@@ -1,0 +1,10 @@
+{
+  "revision": "B17-3",
+  "status": "STOPPED_BEFORE_ARM_A",
+  "reason": "PRODUCTION_KEY_FALLBACK_FORBIDDEN",
+  "armAExecuted": false,
+  "armBExecuted": false,
+  "providerCalls": 0,
+  "estimatedCostKrw": 0,
+  "resultLabel": "BLOCKED"
+}

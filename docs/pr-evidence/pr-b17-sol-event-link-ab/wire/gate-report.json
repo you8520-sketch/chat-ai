@@ -1,0 +1,60 @@
+{
+  "corrected_judgment": {
+    "episodic_policy_same": true,
+    "gate_pass_structural": true,
+    "method": "The two saved request bodies are equal except one string replacement of the two T1 bullets.",
+    "verified_on": "2026-10-20",
+    "reason": "The first script set episodic_policy_same false because it split arm B at the new '[T1 ·' header, so the unchanged T40 bullet was left inside the compared slice. A direct replace-check shows the episodic policy lines, Global, T40, woodpile lines, and every other message byte are identical."
+  },
+  "original_script": {
+    "checks": {
+      "only_system_part2_differs": true,
+      "quotes_exact": true,
+      "speaker_order": true,
+      "speaker_not_flipped_global": true,
+      "other_facts_kept": true,
+      "no_new_recall_order": true,
+      "no_forbidden_added": true,
+      "global_same": true,
+      "episodic_policy_same": false,
+      "episodic_policy_same_note": "Script artifact. See corrected_judgment."
+    },
+    "gate_pass_structural": false,
+    "gate_pass_structural_note": "False only because episodic_policy_same was computed with the wrong split. The other structural checks in this object were already true."
+  },
+  "sha256_request_a": "47aa63445a79506b17f32a3f4c7bbadc0f8aa758fe59544479993253d17761ff",
+  "sha256_request_b": "fca4a547fb1adbff4ae64df66372f09aa47744d84d1956b871325cea3c7820ac",
+  "json_bytes_a": 22153,
+  "json_bytes_b": 22161,
+  "system_sha_a": "4146b360bad89015ebbee7dd15c98c17d8c8d5abddf661dfb2b447e688b6c328",
+  "system_sha_b": "da3fd04b9f774359b4235e9422467957be9682a124f9371143ad3d49511aeb68",
+  "episodic_sha_a": "53cf72428a0bc36a637cf8f9a403bc912189b42fa4895156b36cff26ce5710a9",
+  "episodic_sha_b": "d3fd262a35c6663d5ca3bdd4be2efef36eb5dcf8f82452889e9e29922fba7dd2",
+  "delta_chars": 8,
+  "hist_prompt_tokens_arm_a": 5882,
+  "est_prompt_tokens_arm_b": 5884,
+  "usd_four_hist_prompt_6000out": 0.2871,
+  "krw_four_fx1700": 488.0,
+  "krw_four_chars_as_tokens": 709.4,
+  "experiment_key_set": true,
+  "experiment_key_matches_production_env": [],
+  "calls_this_revision": 0,
+  "b17_3": {
+    "verified_on": "2026-10-20",
+    "wire_sha256_reverified": true,
+    "provider_calls": 0,
+    "stop_reason": "PRODUCTION_KEY_FALLBACK_FORBIDDEN",
+    "experiment_key_equals_production_cheaper_inference": true
+  },
+  "b17_4": {
+    "verified_on": "2026-10-20",
+    "wire_sha256_reverified": true,
+    "credential": "CHEAPER_INFERENCE_BENCHMARK_API_KEY",
+    "benchmark_distinct_from_production": true,
+    "provider_calls": 2,
+    "stop_reason": null,
+    "two_call_krw_upper_bound": 488,
+    "two_call_krw_actual_published_rates": 131.4,
+    "result": "READY_FOR_GPT_REVIEW"
+  }
+}
