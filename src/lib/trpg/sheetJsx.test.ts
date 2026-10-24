@@ -219,30 +219,21 @@ describe("TRPG sandboxed JSX sheet", () => {
     });
   });
 
-  it("E. non-treatable conditions stay display-only; stat clicks only select a key", () => {
+  it("E. non-treatable conditions stay display-only; stats are not selection buttons", () => {
     const surface = surfaceFor(card(1, "렌", true), true);
-    const statCalls: string[] = [];
-    const g = globalThis as { setTrpgSelectedStat?: unknown };
-    const prev = g.setTrpgSelectedStat;
-    g.setTrpgSelectedStat = (key: string) => statCalls.push(key);
-    try {
-      withDraftSpy((calls) => {
-        const tree = loadSheet()(JSON.parse(JSON.stringify(surface)));
-        const clickable = clickables(tree);
-        assert.equal(clickable.length, 5);
-        const drafts = clickable.filter(
-          (el) => "data-trpg-inventory-item" in el.props || "data-trpg-condition-draft" in el.props
-        );
-        assert.equal(drafts.length, 3);
-        const stats = find(tree, "data-trpg-stat");
-        assert.equal(stats.length, 2);
-        (stats[0]?.props.onClick as () => void)();
-        assert.deepEqual(statCalls, ["str"]);
-        assert.equal(calls.length, 0);
-      });
-    } finally {
-      g.setTrpgSelectedStat = prev;
-    }
+    withDraftSpy((calls) => {
+      const tree = loadSheet()(JSON.parse(JSON.stringify(surface)));
+      const clickable = clickables(tree);
+      assert.equal(clickable.length, 3);
+      const drafts = clickable.filter(
+        (el) => "data-trpg-inventory-item" in el.props || "data-trpg-condition-draft" in el.props
+      );
+      assert.equal(drafts.length, 3);
+      const stats = find(tree, "data-trpg-stat");
+      assert.equal(stats.length, 2);
+      assert.equal(stats[0]?.props.onClick, undefined);
+      assert.equal(calls.length, 0);
+    });
     assert.equal(surface.effects.find((effect) => effect.label === "출혈")?.draft, null);
   });
 

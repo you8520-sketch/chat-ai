@@ -394,6 +394,9 @@ export function formatTrpgActionCheckWire(opts: {
     if (reason === "safe_rest") {
       return "no_check reason=safe_rest — rest proceeds without a roll";
     }
+    if (reason === "conditional_hold") {
+      return "no_check reason=conditional_hold — the human PC stated a condition, not a completed act; do not narrate that act as already done";
+    }
     if (reason === "flavor" || reason === "ordinary_free" || reason === "support_setup" || reason === "ordinary_item_use") {
       return `no_check reason=${reason} — realize the submitted action normally without a failure roll`;
     }

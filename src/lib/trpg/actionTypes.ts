@@ -1,6 +1,9 @@
+import { isConditionalCommitment } from "./actionSemantics";
 import type { TrpgStatDefinition } from "./types";
 import {
+  actionMethodStatKeys,
   compatibleStatsForAction,
+  projectMethodStat,
   scoreActionMethodHints,
 } from "./actionMethodHints";
 
@@ -99,21 +102,35 @@ function pickMethodStat(opts: {
 }): { statKey: string; reason: StatSelectionReason } | null {
   const text = opts.body.trim();
   if (!text || opts.defs.length === 0) return null;
-  const compatible = new Set(compatibleStatsForAction(opts.actionType));
+  const unrestricted = opts.actionType == null || opts.actionType === "free";
+  const keys = unrestricted ? actionMethodStatKeys() : [...compatibleStatsForAction(opts.actionType)];
   let bestKey = "";
   let bestScore = 0;
-  for (const def of opts.defs) {
-    if (!compatible.has(def.key)) continue;
-    const score = scoreActionMethodHints(text, def.key);
+  for (const key of keys) {
+    const score = scoreActionMethodHints(text, key);
     if (score > bestScore) {
       bestScore = score;
-      bestKey = def.key;
+      bestKey = key;
     }
   }
-  if (bestScore > 0 && bestKey) {
-    return { statKey: bestKey, reason: "method" };
-  }
-  return null;
+  if (bestScore <= 0 || !bestKey) return null;
+  const projected = projectMethodStat(bestKey, opts.defs);
+  if (!projected) return null;
+  if (!unrestricted && !compatibleStatsForAction(opts.actionType).includes(projected)) return null;
+  return { statKey: projected, reason: "method" };
+}
+
+/** Human free text. The client does not choose the type. Bots keep their own parser. */
+export function resolveServerHumanActionType(body: string): TrpgActionType {
+  const text = body.replace(/\s+/g, " ").trim();
+  if (!text || isConditionalCommitment(text)) return "free";
+  if (/회복약|구급키트|붕대|해독제|치료제/.test(text) && /사용|먹|바른|꺼낸/.test(text)) return "use_item";
+  if (/응급처치|지혈|중독 상태|마비 상태|상태이상을 치료|상태를 치료|상태를 완화/.test(text)) return "support";
+  if (/눈을\s*피|몰래|은신|들키지|기척을\s*죽/.test(text)) return "stealth";
+  if (/설득|협상|회유|달래/.test(text)) return "persuade";
+  if (/가로막|방어한다|막는다|막아/.test(text)) return "defend";
+  if (/벤다|베어|찌르|휘두|때린|공격|돌진|주먹/.test(text)) return "attack";
+  return "free";
 }
 
 /** A stored key is an override only when it is one of the scenario's current stat defs. */

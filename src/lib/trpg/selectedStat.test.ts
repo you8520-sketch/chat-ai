@@ -185,17 +185,11 @@ describe("selectedStat live owner", () => {
     );
   });
 
-  it("E/F/G/P/Q. SELF selects a stat; PARTY has no handler; chips can return to automatic", () => {
+  it("E/F/G/P/Q. the action dock does not offer a stat or action-type override", () => {
     const dock = readFileSync("src/app/trpg/TrpgCommandDock.tsx", "utf8");
-    const select = dock.slice(dock.indexOf("function selectStat"), dock.indexOf("const selfSurface"));
-    assert.match(select, /onSelectedStatChange\(key\)/);
-    assert.match(select, /openTrpgCommandDockMode\(current, "action"/);
-    assert.doesNotMatch(select, /onActionTypeChange|onActionBodyChange|onInputOriginChange|onSendAction/);
-    assert.match(dock, /onSelectedStatChange\(null\)/);
-    assert.match(dock, /onClick=\{\(\) => onActionTypeChange\(kind\)\}/);
-    assert.match(dock, /onTrpgSelectedStat=\{onFillAction \? onTrpgSelectedStat : null\}/);
-    assert.match(dock, /onFillAction=\{null\}/);
+    assert.doesNotMatch(dock, /data-trpg-stat-selector|data-trpg-action-chip|function selectStat/);
     assert.match(dock, /onSelectStat=\{null\}/);
+    assert.match(dock, /data-trpg-item-offers/);
     assert.doesNotMatch(dock, /fetch\(|\/action[`'"]/);
   });
 
@@ -258,11 +252,11 @@ describe("selectedStat live owner", () => {
       selected_stat: string | null;
       locked: number;
     };
-    assert.equal(stored.selected_stat, "cha");
+    assert.equal(stored.selected_stat, null, "a client stat does not override the server");
     assert.equal(stored.locked, 1);
     const snap = loadTrpgSnapshot(db, campaignId, 1);
     assert.equal(snap?.myDraft?.locked, true);
-    assert.equal(snap?.myDraft?.selectedStat, "cha");
+    assert.equal(snap?.myDraft?.selectedStat, null);
     const round = loadLatestRound(db, campaignId)!;
     const ctx = ensureRoundAdjudicationContext(db, {
       campaignId,
@@ -279,7 +273,7 @@ describe("selectedStat live owner", () => {
     const roll = db.prepare(`SELECT stat_key FROM trpg_dice_rolls WHERE round_id=?`).get(round.id) as
       | { stat_key: string }
       | undefined;
-    assert.equal(roll?.stat_key, "cha");
+    assert.equal(roll?.stat_key, "str");
     db.close();
   });
 });

@@ -2,6 +2,7 @@ import type { TrpgActionType } from "./actionTypes";
 import {
   classifyChallengeKind,
   hasChallengeSignal,
+  isConditionalCommitment,
   stripQuotedDialogue,
 } from "./actionSemantics";
 import {
@@ -65,7 +66,8 @@ export type TrpgActionCheckReason =
   | "ordinary_free"
   | "routine_traversal"
   | "routine_competence"
-  | "no_meaningful_uncertainty";
+  | "no_meaningful_uncertainty"
+  | "conditional_hold";
 
 export type TrpgActionCheckDecision = {
   needsCheck: boolean;
@@ -266,6 +268,9 @@ export function resolveTrpgActionCheckDecision(opts: {
   const intent = (opts.intent ?? "").trim();
   if (isSafeRestIntent(body) || (intent && isSafeRestIntent(intent))) {
     return { needsCheck: false, reason: "safe_rest" };
+  }
+  if (isConditionalCommitment(body)) {
+    return { needsCheck: false, reason: "conditional_hold" };
   }
   const actionType = opts.actionType ?? null;
   const statValue = opts.statValue ?? null;

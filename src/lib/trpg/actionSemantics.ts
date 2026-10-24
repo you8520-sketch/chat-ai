@@ -14,7 +14,7 @@ export function stripQuotedDialogue(body: string): string {
     .trim();
 }
 
-const INVESTIGATION = /수색|뒤지|훔치|조사한다|살핀다|살피|훑|확인한다|기척|탐색|숨은/;
+const INVESTIGATION = /수색|뒤지|훔치|조사한다|살핀다|살피|훑|확인한다|기척|탐색|숨은|암호/;
 const CHALLENGE =
   /문을?\s|창문을?\s|화물|조준|석궁|때리|치며|달리|뛰어|돌진|막는다|막으려|막아|가로막|방어|집어|던지|부순|연다|민다|뽑는다|베|찌르|잠근|휘두|메고|꽂|파고들|주먹|내지르|억지로|딴다|칼을|은신|숨는|숨어서|몰래/;
 
@@ -64,6 +64,11 @@ function hasActorPhysicalEntry(text: string): boolean {
     return false;
   }
   return true;
+}
+
+/** A stated condition, not a completed voluntary act. */
+export function isConditionalCommitment(body: string): boolean {
+  return /조건이\s*맞으면|만약|상황에\s*따라/.test(normalizeBody(body));
 }
 
 export function hasChallengeSignal(body: string): boolean {
