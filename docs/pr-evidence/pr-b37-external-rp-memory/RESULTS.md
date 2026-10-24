@@ -81,4 +81,12 @@ Anchor-sheet match, mechanically read (not an RP quality score). "abstain" = ans
 ## Not covered
 
 T150+ checks, ON/OFF at T110 (free retrieval probes only), original-voice fidelity, and any read of
-raw RP quality. See the PR description for FOLLOW-UP items.
+raw RP quality.
+
+## Next memory / RP batch — priority investigation (not changed in this PR)
+
+Recorded from the external 100-turn run and the GPT review. No prompt, regex, or schema change here.
+
+1. T80 one-off side episode is a real user-specified scene, and the next user turn treats it as past memory. It is missing from the T76–T80 summary and from episodic facts, so "did that episode happen" recall fails. Next step: find the loss stage on a small deterministic fixture.
+2. T99: the trailing self-critique gate blocks the ordinary English word "draft" inside story prose (military conscription). That is a text-policy false positive in the live gate owner, not a word ban to extend.
+3. One Main RP answer treated a character's self-claimed real name as established canon. Storage kept it as a character claim; the over-claim is model consumption / provenance, not proof the stored fact was mislabeled.
