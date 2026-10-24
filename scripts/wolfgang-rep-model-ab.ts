@@ -32,17 +32,98 @@ import { callOpenAiImageEdit, OpenAiImageError } from "@/lib/openAiImageEdit";
  * stops at `approved_source_missing`, and NODE_TEST_CONTEXT=1 uses the public sheet for a dry run only. `post` needs
  * WOLFGANG_REP_AB_LIVE=1 and refuses to run twice into the same --out.
  *
- * The same composed prompt, reference list, order, size and API settings are sent to both models.
- * The reference subset is chosen once from the user's 8 Wolfgang style references and rides the
- * existing style-seed owner (url + styleOnlyVisualReferences, max 3). The 2.0 apocalypse examples
- * are never inputs.
+ * The same composed prompt, reference list, order, size and API settings are sent to each selected
+ * model arm (default: both A/B). Optional `--arm gpt-image-2` and `--refs 07,04` select a single
+ * paid call and a 1–3 reference subset from the purpose-picked catalog (default 07,04,08). The
+ * reference subset rides the existing style-seed owner (url + styleOnlyVisualReferences, max 3).
+ * The 2.0 apocalypse examples are never inputs.
  */
 const WOLFGANG_KEY = "pilot-rf-02";
 const REFERENCE_ROOT = "docs/official-supply/reviews/assets/wolfgang-asset-redesign/reattach-2026-10-17";
-const MODELS = [
+const DEFAULT_MODELS = [
   { arm: "A", model: "gpt-image-2" },
   { arm: "B", model: "gpt-image-2.5-sunburst" },
 ] as const;
+
+export type WolfgangRepAbModelArm = (typeof DEFAULT_MODELS)[number];
+
+export type WolfgangRepAbReferenceEntry = {
+  key: string;
+  file: string;
+  sha256: string;
+  purpose: string;
+};
+
+/** Allowed style-reference keys under reattach-2026-10-17 (purpose-picked subset). */
+export const WOLFGANG_REP_AB_REFERENCE_CATALOG: Record<string, Omit<WolfgangRepAbReferenceEntry, "key">> = {
+  "07": {
+    file: "07-eval_style.webp",
+    sha256: "a16790562b7b785fe3bac7d2bd33146d949a35c536e3ccb53627a25ed3481c5d",
+    purpose: "face, skin, hair and dense gold embroidery rendering; line weight",
+  },
+  "04": {
+    file: "04-eval_style.webp",
+    sha256: "3c0326588b3a0942dacaa15526a894f1d88b823976b5396e96f33a55c22441a8",
+    purpose: "fur, chain and metal highlight rendering",
+  },
+  "08": {
+    file: "08-eval_style.webp",
+    sha256: "587b71baf0a90df413c35ceeed5dbc256e61f90b497b8800d700fb212f75159b",
+    purpose: "constant line weight and jacket ornament next to the face",
+  },
+};
+
+const DEFAULT_REFERENCE_KEYS = ["07", "04", "08"] as const;
+
+export type WolfgangRepAbRunConfig = {
+  models: readonly WolfgangRepAbModelArm[];
+  referenceKeys: readonly string[];
+};
+
+export function referenceEntriesForKeys(keys: readonly string[]): WolfgangRepAbReferenceEntry[] {
+  return keys.map((key) => {
+    const entry = WOLFGANG_REP_AB_REFERENCE_CATALOG[key];
+    if (!entry) throw new Error(`unknown reference key: ${key}`);
+    return { key, ...entry };
+  });
+}
+
+export function parseWolfgangRepAbArgv(argv: readonly string[]): WolfgangRepAbRunConfig {
+  let armModel: string | null = null;
+  let refsArg: string | null = null;
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+    if (token === "--arm") {
+      armModel = argv[index + 1] ?? null;
+      if (!armModel) throw new Error("--arm needs a model id");
+      index += 1;
+      continue;
+    }
+    if (token === "--refs") {
+      refsArg = argv[index + 1] ?? null;
+      if (!refsArg) throw new Error("--refs needs a comma-separated key list");
+      index += 1;
+    }
+  }
+  const models: WolfgangRepAbModelArm[] = armModel
+    ? (() => {
+        const match = DEFAULT_MODELS.find((item) => item.model === armModel);
+        if (!match) throw new Error(`unknown --arm model: ${armModel}`);
+        return [match];
+      })()
+    : [...DEFAULT_MODELS];
+  const referenceKeys = refsArg
+    ? refsArg
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean)
+    : [...DEFAULT_REFERENCE_KEYS];
+  if (referenceKeys.length < 1 || referenceKeys.length > 3) {
+    throw new Error("--refs must list 1–3 reference keys");
+  }
+  referenceEntriesForKeys(referenceKeys);
+  return { models, referenceKeys };
+}
 const APPEARANCE_LOCK_HASH = "1c3ccd134203a6dea6ae869c27cc443c42ff5498d1d0130c6f9765407c24dcc3";
 const APPROVED_ASSET_PLAN_PATH = "src/lib/officialSupply/pilot/fixtures/pilot-rf-02-approved-asset-plan-f.json";
 /**
@@ -98,30 +179,13 @@ const SECOND_CALL_PRICE_UNCERTAINTY = 2;
  * Purpose-picked subset. ref_03 is excluded on purpose: the earlier representative was an in-place
  * edit of it, so it carries exactly the composition this experiment must not reproduce.
  */
-const REFERENCE_SELECTION = [
-  {
-    file: "07-eval_style.webp",
-    sha256: "a16790562b7b785fe3bac7d2bd33146d949a35c536e3ccb53627a25ed3481c5d",
-    purpose: "face, skin, hair and dense gold embroidery rendering; line weight",
-  },
-  {
-    file: "04-eval_style.webp",
-    sha256: "3c0326588b3a0942dacaa15526a894f1d88b823976b5396e96f33a55c22441a8",
-    purpose: "fur, chain and metal highlight rendering",
-  },
-  {
-    file: "08-eval_style.webp",
-    sha256: "587b71baf0a90df413c35ceeed5dbc256e61f90b497b8800d700fb212f75159b",
-    purpose: "constant line weight and jacket ornament next to the face",
-  },
-] as const;
-
 function sha256(buffer: Buffer | string): string {
   return createHash("sha256").update(buffer).digest("hex");
 }
 
-function styleSeed(): StyleReference {
-  const [primary, ...companions] = REFERENCE_SELECTION.map((item) => ({
+function styleSeed(referenceKeys: readonly string[]): StyleReference {
+  const selection = referenceEntriesForKeys(referenceKeys);
+  const [primary, ...companions] = selection.map((item) => ({
     url: officialReviewCandidateReference(`${REFERENCE_ROOT}/${item.file}`, item.sha256),
     provenance: "platform_owned" as const,
     note: `STYLE ONLY — ${item.purpose}`,
@@ -134,7 +198,7 @@ function styleSeed(): StyleReference {
   };
 }
 
-function compose(model: string) {
+function compose(model: string, referenceKeys: readonly string[]) {
   const compiled = loadCompiledOfficialCharacterSource(WOLFGANG_KEY);
   const lockHash = computeAppearanceLockHash(compiled.appearanceLock);
   if (lockHash !== APPEARANCE_LOCK_HASH) throw new Error(`Appearance Lock drifted: ${lockHash}`);
@@ -167,7 +231,7 @@ function compose(model: string) {
       stage: "style_locked",
       candidates: [candidate],
       approvedCandidateId: candidate.candidateId,
-      styleSeed: styleSeed(),
+      styleSeed: styleSeed(referenceKeys),
       proofAssetLimit: 1,
     },
     slotKey: "rep",
@@ -181,7 +245,8 @@ function compose(model: string) {
   return { composed, shot: resolveOfficialSlotShot(repSlot, WOLFGANG_KEY) };
 }
 
-async function preparedEvidence(references: readonly string[]) {
+async function preparedEvidence(references: readonly string[], referenceKeys: readonly string[]) {
+  const selection = referenceEntriesForKeys(referenceKeys);
   const prepared = await prepareOfficialImageReferences([...references], {});
   return Promise.all(
     prepared.map(async (dataUrl, index) => {
@@ -190,7 +255,8 @@ async function preparedEvidence(references: readonly string[]) {
       return {
         imageIndex: index + 1,
         token: references[index],
-        purpose: REFERENCE_SELECTION[index]?.purpose,
+        referenceKey: selection[index]?.key ?? null,
+        purpose: selection[index]?.purpose,
         preparedSha256: sha256(bytes),
         preparedBytes: bytes.length,
         width: meta.width ?? null,
@@ -200,8 +266,8 @@ async function preparedEvidence(references: readonly string[]) {
   );
 }
 
-function assertCostCap(budgetUsd: number): void {
-  const reserveKrw = RESERVE_PER_CALL_USD * MODELS.length * KRW_PER_USD;
+function assertCostCap(budgetUsd: number, modelCount: number): void {
+  const reserveKrw = RESERVE_PER_CALL_USD * modelCount * KRW_PER_USD;
   if (budgetUsd * KRW_PER_USD >= HARD_CAP_KRW * CAP_SAFETY_FRACTION) throw new Error("budget is too close to the 1,000 KRW cap");
   if (reserveKrw >= HARD_CAP_KRW * CAP_SAFETY_FRACTION) throw new Error("reserved cost is too close to the 1,000 KRW cap");
 }
@@ -236,8 +302,8 @@ function assertPrOwnersRan(prompt: string): void {
   }
 }
 
-async function buildRequestEvidence() {
-  const arms = MODELS.map((arm) => ({ ...arm, ...compose(arm.model) }));
+async function buildRequestEvidence(config: WolfgangRepAbRunConfig) {
+  const arms = config.models.map((arm) => ({ ...arm, ...compose(arm.model, config.referenceKeys) }));
   const [first] = arms;
   for (const arm of arms) {
     if (arm.composed.primaryPrompt !== first!.composed.primaryPrompt) throw new Error("prompt differs between arms");
@@ -251,7 +317,7 @@ async function buildRequestEvidence() {
   if (EXPECTED_PRIMARY_PROMPT_SHA256 && primaryPromptSha256 !== EXPECTED_PRIMARY_PROMPT_SHA256) {
     throw new Error(`primary prompt SHA ${primaryPromptSha256} is not the canonical ${EXPECTED_PRIMARY_PROMPT_SHA256}`);
   }
-  const references = await preparedEvidence(first!.composed.references);
+  const references = await preparedEvidence(first!.composed.references, config.referenceKeys);
   return {
     arms,
     evidence: {
@@ -259,6 +325,7 @@ async function buildRequestEvidence() {
       appearanceLockHash: APPEARANCE_LOCK_HASH,
       slotKey: "rep",
       referenceRoleLayout: first!.composed.referenceRoleLayout,
+      referenceKeys: [...config.referenceKeys],
       shot: first!.shot,
       size: first!.composed.profile.size,
       quality: OFFICIAL_ASSET_DEFAULT_QUALITY,
@@ -266,7 +333,7 @@ async function buildRequestEvidence() {
       background: "opaque",
       n: 1,
       endpoint: "POST /v1/images/edits (multipart image[] in listed order)",
-      models: MODELS.map((m) => ({ arm: m.arm, model: m.model })),
+      models: config.models.map((m) => ({ arm: m.arm, model: m.model })),
       primaryPromptSha256,
       canonicalPrimaryPromptSha256: EXPECTED_PRIMARY_PROMPT_SHA256 || null,
       ownerFingerprints: ownerFingerprints(),
@@ -291,7 +358,8 @@ function outDir(): string {
 
 async function preflight(): Promise<void> {
   const out = outDir();
-  const { arms, evidence } = await buildRequestEvidence();
+  const config = parseWolfgangRepAbArgv(process.argv);
+  const { arms, evidence } = await buildRequestEvidence(config);
   fs.writeFileSync(path.join(out, "rep-prompt.txt"), `${arms[0]!.composed.primaryPrompt}\n`);
   fs.writeFileSync(path.join(out, "preflight.json"), `${JSON.stringify(evidence, null, 2)}\n`);
   console.log(JSON.stringify({ status: "PREFLIGHT", providerPosts: 0, out, primaryPromptSha256: evidence.primaryPromptSha256 }));
@@ -308,11 +376,12 @@ async function post(): Promise<void> {
   if (process.env.WOLFGANG_REP_AB_LIVE !== "1") throw new Error("set WOLFGANG_REP_AB_LIVE=1 for the paid run");
   if (!process.env.OPENAI_API_KEY?.trim()) throw new Error("OPENAI_API_KEY is empty in this process");
   const budgetUsd = Number(process.env.WOLFGANG_REP_AB_BUDGET_USD ?? DEFAULT_BUDGET_USD);
-  assertCostCap(budgetUsd);
+  const config = parseWolfgangRepAbArgv(process.argv);
+  assertCostCap(budgetUsd, config.models.length);
   const out = outDir();
   const ledgerPath = path.join(out, "ledger.json");
   if (fs.existsSync(ledgerPath)) throw new Error("ledger exists: this A/B was already sent; no re-draw");
-  const { arms, evidence } = await buildRequestEvidence();
+  const { arms, evidence } = await buildRequestEvidence(config);
   const prompt = arms[0]!.composed.primaryPrompt;
   const prepared = await prepareOfficialImageReferences([...arms[0]!.composed.references], {});
   const ledger: { budgetUsd: number; spentUsd: number; haltedReason: string | null; arms: Record<string, unknown> } = {
@@ -370,7 +439,9 @@ async function main(): Promise<void> {
   const mode = process.argv[2];
   if (mode === "preflight") return preflight();
   if (mode === "post") return post();
-  throw new Error("usage: wolfgang-rep-model-ab.ts preflight|post [--out DIR]");
+  throw new Error(
+    "usage: wolfgang-rep-model-ab.ts preflight|post [--out DIR] [--arm MODEL] [--refs 07,04,08]"
+  );
 }
 
 if (process.argv[1]?.endsWith("wolfgang-rep-model-ab.ts")) {
