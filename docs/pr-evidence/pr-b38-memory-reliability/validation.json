@@ -1,0 +1,44 @@
+{
+  "base_sha": "70194d359f3b03a435702af267dfb1540077cc8f",
+  "implementation_sha": "994a8f71ac9103e81d276ef856e218961176a36c",
+  "checks": {
+    "git_diff_check": "PASS",
+    "npm_run_lint": "PASS",
+    "npm_run_typecheck_app": "PASS",
+    "npm_run_build": "PASS"
+  },
+  "focused": {
+    "test_files": 12,
+    "tests": 156,
+    "pass": 155,
+    "fail": 1,
+    "failure": "Existing C5 cache fixture ENOENT; same on base. New self-review case passes.",
+    "missing_fixture": "data/luna-user-tail-length-c5-cache.json",
+    "new_cases": 15,
+    "new_cases_pass": 15
+  },
+  "base_with_new_tests": {
+    "tests": 53,
+    "pass": 44,
+    "fail": 9,
+    "new_behavior_regression_failures": 8,
+    "existing_missing_cache_failures": 1
+  },
+  "regular_suite": {
+    "command": "npm run test:regular -- --test-concurrency=4",
+    "status": "RUNNING",
+    "note": "Canonical react-server/tsx/regularTestEgressPolicy contract; production paid-provider keys stripped by policy. Results to be updated before handoff."
+  },
+  "api": {
+    "successful_live_generations": 0,
+    "estimated_new_inference_cost_krw": 0,
+    "blocker": "HTTP 401 User not found via environment proxy; no usage returned",
+    "account_billing_queried": false
+  },
+  "privacy": {
+    "private_source_publication_scan": "PASS",
+    "complete_source_messages_or_120_char_source_spans_found": 0,
+    "private_name_matches_in_changed_files": 0
+  },
+  "production_mutations": false
+}

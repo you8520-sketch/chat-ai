@@ -1,0 +1,75 @@
+{
+  "base_sha": "70194d359f3b03a435702af267dfb1540077cc8f",
+  "implementation_sha": "994a8f71ac9103e81d276ef856e218961176a36c",
+  "source": {
+    "type": "external_source_excerpts_not_b37_saved_outputs",
+    "messages": 24,
+    "jsonl_sha256": "98d4a7d29f40442416535bd5b926d7326c06dde8a3969d932a94a2ea3a20c01b",
+    "private_content_committed": false
+  },
+  "A": {
+    "status": "ROOT_CAUSE_FIXED",
+    "scope_before": "plain_ooc",
+    "scope_after": "main_rp",
+    "summary_input_has_t80_before": false,
+    "summary_input_has_t80_after": true,
+    "episodic_eligible_before": false,
+    "episodic_eligible_after": true,
+    "summary_provider": "controlled_stub",
+    "live_model_recall_verified": false,
+    "explicit_noncanon_recall_fixed": false
+  },
+  "B": {
+    "status": "ROOT_CAUSE_FIXED",
+    "trim_before": "UNSAFE_TO_TRIM",
+    "trim_after": "CLEAN",
+    "original_chars": 12645,
+    "before_route": {
+      "generation_status": "failed",
+      "done": false,
+      "provider_stub_requests": 1
+    },
+    "after_route": {
+      "generation_status": "completed",
+      "done": true,
+      "final_sse_equals_db": true,
+      "saved_chars": 12632,
+      "ordinary_draft_occurrences": 2,
+      "provider_stub_requests": 1
+    },
+    "source_to_saved_difference": "13 whitespace deletions; no non-whitespace loss",
+    "new_output_cap": false
+  },
+  "C": {
+    "status": "ROOT_CAUSE_UNCONFIRMED",
+    "extractor_candidate": "controlled",
+    "original_source_quote_verified": true,
+    "stored_claims_before": 1,
+    "stored_claims_after": 1,
+    "stored_authority": "CHARACTER_CLAIM",
+    "retrieved_origin_label_preserved": true,
+    "original_b37_overclaim_reproduced": false,
+    "production_code_changed": false
+  },
+  "live_comparison": {
+    "model": "google/gemini-3.8-flash",
+    "price_usd_per_m_input": 0.825,
+    "price_usd_per_m_output": 4.125,
+    "successful_live_generations": 0,
+    "attempt_outcomes": [
+      "DNS failure before provider",
+      "HTTP 401 User not found via inherited environment proxy"
+    ],
+    "second_comparison_answer_requested": false,
+    "provider_token_usage": null,
+    "estimated_new_inference_cost_krw": 0,
+    "billing_independently_queried": false
+  },
+  "limitations": [
+    "No original B37 DB, wire, or recall outputs",
+    "No original character/persona cards",
+    "No live recall improvement claim",
+    "No T150+ verification",
+    "Explicit noncanon recall is follow-up"
+  ]
+}
