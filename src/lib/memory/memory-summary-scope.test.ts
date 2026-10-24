@@ -11,6 +11,7 @@ import {
   buildPreferenceSummaryFromTurns,
   classifyMemoryBatchScopes,
   classifyMemoryTurnScope,
+  selectEpisodicEligibleTurnEntries,
   lorebookTextFromScopes,
   MEMORY_SCOPE_NEVER_TOUCHES_GLOBAL_CANON,
   shouldAdoptMainCanon,
@@ -62,6 +63,23 @@ after(() => {
 
 
 describe("memory summary scope classification", () => {
+  it("keeps a new RP episode with character-setting instructions eligible for summary and episodic", () => {
+    // Synthetic scene directive; private external RP text must never enter fixtures.
+    const user = "[OOC: 현재 에피소드 중단. 새 에피소드 시작. 캐릭터 설정과 세계관을 참고해 축제에서 선물을 건네는 장면을 서술해.]";
+    assert.equal(classifyMemoryTurnScope(user), "main_rp");
+    const entries = [{ turnIndex: 80, turn: { user, assistant: "축제에서 선물을 건넸다." } }];
+    assert.deepEqual(classifyMemoryBatchScopes(entries).mainTurns, entries);
+    assert.deepEqual(selectEpisodicEligibleTurnEntries(entries), entries);
+  });
+
+  it("keeps explicit noncanon scene resets out of main and episodic", () => {
+    const user = "[OOC: 새 에피소드 시작. 비정사 외전으로 캐릭터 설정을 참고해 축제를 서술해.]";
+    assert.equal(classifyMemoryTurnScope(user), "meaningful_noncanon");
+    const entries = [{ turnIndex: 80, turn: { user, assistant: "외전 축제에서 선물을 건넸다." } }];
+    assert.deepEqual(classifyMemoryBatchScopes(entries).noncanonTurns, entries);
+    assert.deepEqual(selectEpisodicEligibleTurnEntries(entries), []);
+  });
+
   it("meaningful IF/copy-pasta is saved as noncanon", () => {
     assert.equal(
       classifyMemoryTurnScope("(OOC: 현대 회사원 IF 카피페로 진행해)"),

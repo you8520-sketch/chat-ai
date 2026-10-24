@@ -52,6 +52,41 @@ async function runToClient(stream: () => AsyncGenerator<string, TokenUsage>) {
   return events;
 }
 
+for (const mode of ["send", "regen", "continue"] as const) {
+  test(`ordinary draft survives ${mode} streaming and finalize unchanged`, async () => {
+    const prose = `${RP}\n\n${RP}\n\n징집 담당자는 draft 공고를 접었다. 그는 창문을 닫고 다음 지원자의 서류를 확인했다.`;
+    const events: object[] = [];
+    let calls = 0;
+    const history = mode === "send"
+      ? [{ role: "user" as const, content: "장면을 진행해." }]
+      : [
+          { role: "user" as const, content: "장면을 진행해." },
+          ...(mode === "continue" ? [{ role: "assistant" as const, content: RP }] : []),
+          { role: "user" as const, content: mode === "regen" ? "마지막 응답을 다시 써줘." : "이어서 써줘." },
+        ];
+    const result = await streamOpenRouterAdultToClient(
+      (event) => events.push(event),
+      "You are a character.",
+      history,
+      "google/gemini-3.8-flash",
+      `draft-${mode}`,
+      null,
+      { allowOpenRouterUnderLengthRecovery: false },
+      undefined,
+      () => {
+        calls += 1;
+        const split = prose.indexOf("draft") + 2;
+        return yieldParts([prose.slice(0, split), prose.slice(split)]);
+      }
+    );
+    assert.equal(calls, 1);
+    assert.equal(result.text, prose);
+    assert.equal(result.rawStreamText, prose);
+    assert.equal(replayClientText(events), result.text);
+    assert.equal(typesOf(events).includes("reset"), false);
+  });
+}
+
 test("first pass forwards live appends instead of one end dump", async () => {
   const t0 = Date.now();
   let lastYieldAt = 0;

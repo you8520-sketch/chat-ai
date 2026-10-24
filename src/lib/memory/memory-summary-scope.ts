@@ -268,6 +268,10 @@ export function classifyMemoryTurnScope(
 
   const intent = classifyChatOocIntent(t);
   if (intent === "none") return "main_rp";
+  // The scene router has already identified a new RP episode. Instructions to
+  // use character settings/style are scene input, not a plain OOC adjustment.
+  // Explicit noncanon and branch controls above keep their existing precedence.
+  if (intent === "rp_scene_reset") return "main_rp";
 
   if (intent === "rp_unrelated") {
     if (MEANINGFUL_NONCANON_RE.test(t)) return "meaningful_noncanon";

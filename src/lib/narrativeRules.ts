@@ -460,7 +460,6 @@ const TRAILING_SELF_CRITIQUE_MARKERS: { id: string; re: RegExp }[] = [
   { id: "must_not", re: /\bMust not\b/i },
   { id: "current_approx", re: /\bcurrent\s*~?\s*\d{3,5}\b/i },
   { id: "lets_output", re: /\bLet's output\b/i },
-  { id: "draft", re: /\bdraft\b/i },
   { id: "remove_dot", re: /\bRemove\./ },
   { id: "foreign_prohibited", re: /\bforeign prohibited\b/i },
   { id: "diesmal", re: /\bdiesmal\??/i },
@@ -496,7 +495,7 @@ function isSelfCritiqueChunk(chunk: string): boolean {
   if (hangul > t.length * 0.35) return false;
   return (
     TRAILING_SELF_CRITIQUE_MARKERS.some((m) => m.re.test(t)) ||
-    /\b(?:Need|Ensure|Let's|Must|We can|Remove|draft|final must|okay\.|chars)\b/i.test(t)
+    /\b(?:Need|Ensure|Let's|Must|We can|Remove|final must|okay\.|chars)\b/i.test(t)
   );
 }
 
