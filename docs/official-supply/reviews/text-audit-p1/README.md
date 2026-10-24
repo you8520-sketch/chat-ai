@@ -12,8 +12,9 @@
 
 | 파일 | 내용 |
 | --- | --- |
-| `CANDIDATES.md` | 두 캐릭터의 개선 후보 전체: 항목별 이유, 기존 canon 근거, BEFORE/AFTER 전문(인사말·크리에이터 코멘트 포함) |
+| `CANDIDATES.md` | (r2) 두 캐릭터의 개선 후보 전체. 루시안 인사말은 장면 속도·문장 자연스러움을 우선해 의도적으로 짧음(872자, 게이트 700–1800 안, 편집 목표 ~1350보다 짧음): 항목별 이유, 기존 canon 근거, BEFORE/AFTER 전문(인사말·크리에이터 코멘트 포함) |
 | `METRICS.md` | 길이·토큰 추정·중복 횟수·Text Lock 영향 표, 게이트 결과 |
+| `TEST_DIFF_ANALYSIS.md` | PR #1725 전체 테스트 추가 실패 24건의 이름·원인 비교, 공유 DB 간섭 증거, FOLLOW-UP |
 | `COMPILER_FIX_PROOF.md` | 공통 컴파일 버그의 원인·수정·전후 증거 |
 | `BONDS_RECAP_PROPOSAL.md` | `buildPart1Recap` 최소 설계 제안(이번 PR 미반영) |
 | `manuscripts/original-*.review.md` | 현행 원고 전체(공식 `official-supply:review-character` 출력: 공개 소개, 인사말, 시스템 프롬프트, 말투, 비밀 등) |
@@ -28,8 +29,9 @@
 
 ## 읽는 순서
 
-1. `COMPILER_FIX_PROOF.md` (원고와 무관한 공통 버그)
-2. `CANDIDATES.md` (원고 후보 — GPT 문학 검수 대상)
-3. `METRICS.md`, `BONDS_RECAP_PROPOSAL.md`
+1. `TEST_DIFF_ANALYSIS.md` (#1725 테스트 차이 원인)
+2. `COMPILER_FIX_PROOF.md` (원고와 무관한 공통 버그)
+3. `CANDIDATES.md` (원고 후보 r2 — GPT 문학 검수 대상)
+4. `METRICS.md`, `BONDS_RECAP_PROPOSAL.md`(FOLLOW-UP, 이번 PR 생성 입력 미변경)
 
 Cursor는 문학 점수를 매기지 않습니다. 게이트 통과는 형식·계약 검사일 뿐 문학적 승인이 아닙니다.

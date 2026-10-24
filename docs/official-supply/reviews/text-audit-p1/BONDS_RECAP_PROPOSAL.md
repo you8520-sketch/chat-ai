@@ -1,4 +1,6 @@
-# Bonds 입력(`buildPart1Recap`) 최소 설계 제안 — 이번 PR에는 미반영
+# FOLLOW-UP — Bonds 입력(`buildPart1Recap`) 최소 설계 제안 (이번 PR·후속 PR 모두 생성 입력 미변경)
+
+> 상태: 과거 사건이 recap에서 빠진다는 점은 코드로 확인된 사실입니다. 그러나 비밀 오류의 직접 원인은 미확정이므로 이번 PR에서 생성 입력을 바꾸지 않고, 이 설계는 FOLLOW-UP으로 보존합니다.
 
 ## 현재 (main)
 
