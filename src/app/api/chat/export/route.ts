@@ -7,7 +7,9 @@ import {
   buildTranscriptFilename,
   generateTranscriptChunks,
   type TranscriptHeader,
+  type TranscriptStatusContext,
 } from "@/lib/chatTranscriptExport";
+import { getPublicPersonaById } from "@/lib/userPersonas";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +18,12 @@ type ChatExportRow = {
   title: string | null;
   adult_handoff_enabled: number | null;
   selected_persona_id: number | null;
+  user_note: string | null;
+  status_widget_stack_order: string | null;
+  status_widget_display_mode: string | null;
   character_name: string | null;
+  character_widget_json: string | null;
+  character_allow_user_override: number | null;
 };
 
 /**
@@ -35,7 +42,10 @@ export async function GET(req: Request) {
   const db = getDb();
   const chat = db
     .prepare(
-      `SELECT c.id, c.title, c.adult_handoff_enabled, c.selected_persona_id, ch.name AS character_name
+      `SELECT c.id, c.title, c.adult_handoff_enabled, c.selected_persona_id, c.user_note,
+              c.status_widget_stack_order, c.status_widget_display_mode,
+              ch.name AS character_name, ch.status_widget_json AS character_widget_json,
+              ch.status_widget_allow_user_override AS character_allow_user_override
        FROM chats c LEFT JOIN characters ch ON ch.id = c.character_id
        WHERE c.id=? AND c.user_id=?`
     )
@@ -43,22 +53,40 @@ export async function GET(req: Request) {
   if (!chat) return NextResponse.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
 
   const persona = chat.selected_persona_id
-    ? (db
-        .prepare("SELECT name FROM user_personas WHERE id=? AND user_id=?")
-        .get(chat.selected_persona_id, user.id) as { name: string | null } | undefined)
-    : undefined;
+    ? getPublicPersonaById(user.id, chat.selected_persona_id)
+    : null;
 
   const header: TranscriptHeader = {
     characterName: chat.character_name?.trim() || "캐릭터",
     chatTitle: chat.title ?? "",
     personaName: persona?.name?.trim() || user.nickname || "",
   };
+  const statusContext: TranscriptStatusContext = {
+    userNote: chat.user_note ?? "",
+    personaDescription: persona?.description ?? "",
+    characterWidgetJson: chat.character_widget_json ?? "",
+    personaWidgetJson: persona?.active_status_widget_json ?? "",
+    characterAllowUserOverride: chat.character_allow_user_override !== 0,
+    statusWidgetStackOrder: chat.status_widget_stack_order,
+    statusWidgetDisplayMode: chat.status_widget_display_mode,
+    profileNames: {
+      characterName: chat.character_name,
+      personaName: persona?.name,
+      fallbackNickname: user.nickname,
+    },
+  };
   const applyAdultOffReadGuard = adultOffReadGuardAppliesForChat({
     user,
     adultHandoffEnabled: chat.adult_handoff_enabled,
   });
 
-  const chunks = generateTranscriptChunks({ db, chatId: chat.id, header, applyAdultOffReadGuard });
+  const chunks = generateTranscriptChunks({
+    db,
+    chatId: chat.id,
+    header,
+    applyAdultOffReadGuard,
+    statusContext,
+  });
   const encoder = new TextEncoder();
   const body = new ReadableStream<Uint8Array>({
     pull(controller) {

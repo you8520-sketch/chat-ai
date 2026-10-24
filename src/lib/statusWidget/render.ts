@@ -59,6 +59,30 @@ export function renderStatusWidgetHtml(
   return sanitizeChatVisualCardHtml(html);
 }
 
+/**
+ * 위젯 카드에 실제로 채워지는 값만 줄글로 옮긴다.
+ * HTML 템플릿, JSX, 필드 지시문, 수치 정의, extracted_facts 는 포함하지 않는다.
+ */
+export function formatRenderedStatusWidgetText(
+  widget: StatusWidget,
+  values: StatusWidgetValues,
+  names?: StatusWidgetProfileNames | null
+): string {
+  const lines: string[] = [];
+  for (const field of widget.fields) {
+    const value = expandStatusWidgetProfilePlaceholders(
+      resolveWidgetFieldValue(field, values),
+      names
+    ).trim();
+    if (!value || value === "—" || value === "-" || isWidgetPlaceholderValue(value)) continue;
+    const label = expandStatusWidgetProfilePlaceholders(field.label, names).trim();
+    lines.push(label ? `${label}: ${value}` : value);
+  }
+  if (lines.length === 0) return "";
+  const title = expandStatusWidgetProfilePlaceholders(widget.name, names).trim();
+  return title ? `${title}\n${lines.join("\n")}` : lines.join("\n");
+}
+
 export function renderStatusWidgetsForTurn(
   items: Array<{
     source: "character" | "user";

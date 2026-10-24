@@ -9,11 +9,14 @@ import {
 } from "./adultOffOutputGuard";
 import {
   TRANSCRIPT_EMPTY_ASSISTANT_PLACEHOLDER,
+  TRANSCRIPT_STATUS_META_HEADING,
+  TRANSCRIPT_STATUS_WIDGET_HEADING,
   buildAttachmentDisposition,
   buildTranscriptFilename,
   formatTranscriptHeader,
   generateTranscriptChunks,
   type TranscriptHeader,
+  type TranscriptStatusContext,
 } from "./chatTranscriptExport";
 
 const HEADER: TranscriptHeader = {
@@ -34,7 +37,12 @@ function makeDb() {
       usage TEXT,
       alternates TEXT,
       active_variant INTEGER,
-      generation_status TEXT
+      generation_status TEXT,
+      status_meta TEXT,
+      status_widget_values_json TEXT NOT NULL DEFAULT '',
+      status_widget_turn_active INTEGER NOT NULL DEFAULT 0,
+      suggested_replies_json TEXT,
+      request_id TEXT
     );
   `);
   return db;
@@ -49,12 +57,48 @@ type Row = {
   alternates?: unknown;
   activeVariant?: number | null;
   status?: string | null;
+  statusMeta?: unknown;
+  statusWidgetValues?: unknown;
 };
+
+const VISIBLE_TABLE = "| 항목 | 값 |\n| --- | --- |\n| 장소 | 항구 |";
+
+const CHARACTER_WIDGET = {
+  version: 1,
+  name: "전투",
+  htmlTemplate: "<div>PRIVATE_HTML_TEMPLATE</div>",
+  fields: [{ id: "place", label: "장소", instruction: "PRIVATE_WIDGET_INSTRUCTION" }],
+  placement: "bottom" as const,
+};
+
+const STATUS_CONTEXT: TranscriptStatusContext = {
+  userNote: "",
+  personaDescription: "",
+  characterWidgetJson: JSON.stringify(CHARACTER_WIDGET),
+  personaWidgetJson: "",
+  characterAllowUserOverride: true,
+  statusWidgetStackOrder: "character_first",
+  statusWidgetDisplayMode: "creator",
+  profileNames: { characterName: "라이크", personaName: "렌" },
+};
+
+function visibleStatusRecord(tableMarkdown: string) {
+  return {
+    meta: { tableMarkdown },
+    extractedAt: "PRIVATE_EXTRACTED_AT",
+    source: "background-deepseek",
+    formatSpec: "PRIVATE_FORMAT_SPEC",
+    generationRequestId: "PRIVATE_GENERATION_REQUEST",
+    generationSequence: 0,
+  };
+}
 
 function insert(db: Database.Database, row: Row) {
   db.prepare(
-    `INSERT INTO messages (chat_id, role, content, model, usage, alternates, active_variant, generation_status)
-     VALUES (?,?,?,?,?,?,?,?)`
+    `INSERT INTO messages (
+       chat_id, role, content, model, usage, alternates, active_variant, generation_status,
+       status_meta, status_widget_values_json
+     ) VALUES (?,?,?,?,?,?,?,?,?,?)`
   ).run(
     row.chatId,
     row.role,
@@ -63,14 +107,16 @@ function insert(db: Database.Database, row: Row) {
     row.usage ? JSON.stringify(row.usage) : null,
     row.alternates ? JSON.stringify(row.alternates) : null,
     row.activeVariant ?? null,
-    row.status ?? "completed"
+    row.status ?? "completed",
+    row.statusMeta ? JSON.stringify(row.statusMeta) : null,
+    row.statusWidgetValues ? JSON.stringify(row.statusWidgetValues) : ""
   );
 }
 
 function exportAll(
   db: Database.Database,
   chatId: number,
-  opts: { guard?: boolean; batchRows?: number } = {}
+  opts: { guard?: boolean; batchRows?: number; status?: TranscriptStatusContext | null } = {}
 ): string {
   return [
     ...generateTranscriptChunks({
@@ -78,6 +124,7 @@ function exportAll(
       chatId,
       header: HEADER,
       applyAdultOffReadGuard: opts.guard ?? false,
+      statusContext: opts.status === undefined ? null : opts.status,
       batchRows: opts.batchRows,
     }),
   ].join("");
@@ -236,6 +283,134 @@ describe("chat transcript export", () => {
       name
     );
   });
+
+  it("appends the status card and widget values the chat screen shows, not stored private fields", () => {
+    const db = makeDb();
+    insert(db, { chatId: 1, role: "user", content: "지금 어디야?" });
+    insert(db, {
+      chatId: 1,
+      role: "assistant",
+      content: "항구에 서 있다.",
+      statusMeta: visibleStatusRecord(VISIBLE_TABLE),
+      statusWidgetValues: {
+        character: { place: "항구" },
+        extracted_facts: [{ fact_text: "PRIVATE_EXTRACTED_FACT" }],
+      },
+      alternates: [
+        {
+          content: "항구에 서 있다.",
+          model: "m",
+          created_at: "",
+          usage: null,
+          relationshipMetaAfter: { note: "PRIVATE_RELATIONSHIP_LEDGER" },
+        },
+      ],
+      activeVariant: 0,
+    });
+    const out = exportAll(db, 1, { status: STATUS_CONTEXT });
+    assert.match(out, /항구에 서 있다\.\n\n\[상태 위젯\]\n전투\n장소: 항구\n\n\[상태창\]\n\| 항목 \| 값 \|/);
+    assert.ok(out.includes("장소 | 항구"));
+    for (const hidden of [
+      "PRIVATE_EXTRACTED_FACT",
+      "PRIVATE_HTML_TEMPLATE",
+      "PRIVATE_WIDGET_INSTRUCTION",
+      "PRIVATE_EXTRACTED_AT",
+      "PRIVATE_FORMAT_SPEC",
+      "PRIVATE_GENERATION_REQUEST",
+      "PRIVATE_RELATIONSHIP_LEDGER",
+      "background-deepseek",
+      "extracted_facts",
+    ]) {
+      assert.equal(out.includes(hidden), false, hidden);
+    }
+  });
+
+  it("keeps another variant's status and a hidden widget off the transcript", () => {
+    const db = makeDb();
+    insert(db, { chatId: 1, role: "user", content: "질문" });
+    insert(db, {
+      chatId: 1,
+      role: "assistant",
+      content: "둘째 본문",
+      statusMeta: { ...visibleStatusRecord(VISIBLE_TABLE), generationSequence: 1 },
+      statusWidgetValues: { character: { place: "행 저장값" } },
+      alternates: [
+        {
+          content: "첫째 본문",
+          model: "m",
+          created_at: "",
+          statusWidgetValues: { character: { place: "첫째 위젯" } },
+        },
+        {
+          content: "둘째 본문",
+          model: "m",
+          created_at: "",
+          statusWidgetValues: { character: { place: "둘째 위젯" } },
+        },
+      ],
+      activeVariant: 1,
+    });
+    const shown = exportAll(db, 1, { status: STATUS_CONTEXT });
+    assert.ok(shown.includes("둘째 본문"));
+    assert.ok(shown.includes("장소: 둘째 위젯"));
+    assert.ok(shown.includes(TRANSCRIPT_STATUS_META_HEADING));
+    assert.equal(shown.includes("첫째 본문"), false);
+    assert.equal(shown.includes("첫째 위젯"), false);
+    assert.equal(shown.includes("행 저장값"), false);
+
+    const hidden = exportAll(db, 1, {
+      status: { ...STATUS_CONTEXT, statusWidgetDisplayMode: "hidden" },
+    });
+    assert.equal(hidden.includes(TRANSCRIPT_STATUS_WIDGET_HEADING), false);
+    assert.equal(hidden.includes("둘째 위젯"), false);
+    assert.ok(hidden.includes(TRANSCRIPT_STATUS_META_HEADING));
+  });
+
+  it("withholds unapproved status text under the adult-off read guard and drops a status card the screen hides", () => {
+    const unapprovedTable = VISIBLE_TABLE.replace("항구", "미승인장소");
+    const db = makeDb();
+    insert(db, { chatId: 1, role: "user", content: "q1" });
+    insert(db, {
+      chatId: 1,
+      role: "assistant",
+      content: "승인된 본문",
+      statusMeta: visibleStatusRecord(unapprovedTable),
+      statusWidgetValues: { character: { place: "미승인위젯" } },
+      alternates: [{
+        content: "승인된 본문",
+        model: "m",
+        created_at: "",
+        usage: {
+          cost: 1,
+          adultOffGuard: {
+            policyVersion: ADULT_OFF_GUARD_POLICY_VERSION,
+            approvedTextHashes: [adultOffApprovedTextHash("승인된 본문")],
+            restrictedTextHashes: [],
+          },
+        },
+      }],
+      activeVariant: 0,
+    });
+    const guarded = exportAll(db, 1, { guard: true, status: STATUS_CONTEXT });
+    assert.ok(guarded.includes("승인된 본문"));
+    assert.equal(guarded.includes("미승인장소"), false);
+    assert.equal(guarded.includes("미승인위젯"), false);
+    assert.equal(guarded.includes(TRANSCRIPT_STATUS_META_HEADING), false);
+    assert.equal(guarded.includes(TRANSCRIPT_STATUS_WIDGET_HEADING), false);
+
+    const fenced = makeDb();
+    insert(fenced, { chatId: 1, role: "user", content: "q" });
+    insert(fenced, {
+      chatId: 1,
+      role: "assistant",
+      content: "본문\n\n```html\n<div>보이는 카드</div>\n```",
+      statusMeta: visibleStatusRecord(VISIBLE_TABLE),
+    });
+    const htmlTurn = exportAll(fenced, 1, { status: STATUS_CONTEXT });
+    assert.ok(htmlTurn.includes("보이는 카드"));
+    assert.equal(htmlTurn.includes(TRANSCRIPT_STATUS_META_HEADING), false);
+    assert.equal(htmlTurn.includes("장소 | 항구"), false);
+  });
 });
 
 describe("/api/chat/export route contract", () => {
@@ -251,6 +426,8 @@ describe("/api/chat/export route contract", () => {
     assert.match(source, /WHERE c\.id=\? AND c\.user_id=\?/);
     assert.match(source, /status: 404/);
     assert.match(source, /adultOffReadGuardAppliesForChat/);
+    assert.match(source, /getPublicPersonaById/);
+    assert.doesNotMatch(source, /secret_description|getPersonaById\(/);
   });
 
   it("is read-only and does not persist the file", () => {
@@ -260,5 +437,9 @@ describe("/api/chat/export route contract", () => {
     }
     assert.match(source, /no-store/);
     assert.match(source, /ReadableStream/);
+    assert.match(lib, /stripExtractedFactsForClient/);
+    assert.match(lib, /filterAdultOffStatusMeta/);
+    assert.match(lib, /resolveClientStatusMetaFlags/);
+    assert.match(lib, /formatRenderedStatusWidgetText/);
   });
 });
