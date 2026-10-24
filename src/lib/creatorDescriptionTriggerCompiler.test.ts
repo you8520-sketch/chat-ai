@@ -134,6 +134,29 @@ describe("creatorDescriptionTriggerCompiler", () => {
     assert.deepEqual(compiled.public_canon, []);
   });
 
+  it("does not treat generic 대답한다 / 답한다 / 부른다 action narration after 평소에는 as a speech rule", () => {
+    const lines = [
+      "평소에는 위협에는 침묵으로 대답한다.",
+      "평소에는 도발에 주먹으로 답한다.",
+      "평소에는 폭풍을 부른다.",
+      "평소에는 말수가 적고 질문에 짧게 대답한다.",
+    ];
+    const compiled = compileCreatorDescriptionTriggers({ description: lines.join("\n"), statusWidget: null });
+
+    assert.deepEqual(compiled.speech_control, []);
+    assert.deepEqual(compiled.public_canon, lines);
+  });
+
+  it("still routes a 평소에는 address-term rule to speech_control", () => {
+    const compiled = compileCreatorDescriptionTriggers({
+      description: "평소에는 상대를 이름 대신 직함으로 부른다.",
+      statusWidget: null,
+    });
+
+    assert.equal(compiled.speech_control.length, 1);
+    assert.deepEqual(compiled.public_canon, []);
+  });
+
   it("keeps speech, status display, trigger, and hidden-knowledge routing in one mixed description", () => {
     const personality = "평소에는 웃는 얼굴로 경계를 낮추고, 말보다 손버릇부터 본다.";
     const compiled = compileCreatorDescriptionTriggers({
