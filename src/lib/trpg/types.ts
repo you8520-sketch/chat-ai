@@ -191,8 +191,13 @@ export type TrpgStateDelta = {
     participantId: number;
     hp?: number;
     conditions?: string[];
+    /** Applied to AI companion seats only. A human PC gains items through `itemOffers` plus player acceptance. */
     inventoryAdd?: string[];
+    /** Commit-boundary only: server-validated player acceptances. Applied after mechanics consume filtering. */
+    acceptedInventoryAdd?: string[];
     inventoryRemove?: string[];
+    /** Items offered to a human PC. Proposal only; ownership needs that player's acceptance next round. */
+    itemOffers?: string[];
     location?: string;
   }>;
   location?: string;

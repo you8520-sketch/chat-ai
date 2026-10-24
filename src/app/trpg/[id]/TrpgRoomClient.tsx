@@ -119,8 +119,10 @@ export default function TrpgRoomClient({
     )
   );
   const [explorationQueue, setExplorationQueue] = useState<ExplorationCommand[]>([]);
+  const [acceptItemNames, setAcceptItemNames] = useState<string[]>([]);
   useEffect(() => {
     setExplorationQueue([]);
+    setAcceptItemNames([]);
   }, [snap.round.number, snap.myDraft?.locked]);
   const [suggestions, setSuggestions] = useState<TrpgReplySuggestion[]>([]);
   const [suggestionsBusy, setSuggestionsBusy] = useState(false);
@@ -415,6 +417,12 @@ export default function TrpgRoomClient({
   async function sendAction() {
     const campaignId = snap.id;
     const roundNumber = snap.round.number;
+    const offers = snap.myItemOffers;
+    const acceptItems = offers
+      ? offers.items
+          .filter((item) => acceptItemNames.includes(item.name))
+          .map((item) => ({ name: item.name, fromRound: offers.fromRound }))
+      : [];
     const ok = await run(`/api/trpg/campaigns/${campaignId}/action`, {
       body: actionBody,
       actionType,
@@ -422,6 +430,7 @@ export default function TrpgRoomClient({
       selectedStat,
       // An empty queue omits explorationCommands. submitTrpgAction owns general versus exploration.
       ...(explorationQueue.length ? { explorationCommands: explorationQueue } : {}),
+      ...(acceptItems.length ? { acceptItems } : {}),
     });
     if (ok) clearUserInputDraft(trpgActionDraftKey(campaignId, roundNumber));
   }
@@ -744,6 +753,12 @@ export default function TrpgRoomClient({
           }}
           onSendAction={() => void sendAction()}
           explorationQueue={explorationQueue}
+          acceptItemNames={acceptItemNames}
+          onToggleAcceptItem={(name) =>
+            setAcceptItemNames((current) =>
+              current.includes(name) ? current.filter((item) => item !== name) : [...current, name]
+            )
+          }
           onQueueExploration={(command) => setExplorationQueue((current) => [...current, command])}
           onRemoveExploration={(index) =>
             setExplorationQueue((current) => current.filter((_, item) => item !== index))

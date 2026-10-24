@@ -1,6 +1,8 @@
 import type Database from "better-sqlite3";
 import { isTrpgActionType, type TrpgActionType } from "./actionTypes";
 import { loadSheetSnapshots } from "./engineSheets";
+import { inventoryQuantity } from "./inventory";
+import { loadTrpgSeatItemOffers, parseStoredAcceptedItems } from "./itemAcceptance";
 import { botGenerationInFlight } from "./botGenerationLease";
 import { gmGenerationInFlight as gmLeaseInFlight, gmStaleReclaimEligible } from "./gmGenerationLease";
 import { parseProcessStartedAtMs } from "./processTimer";
@@ -309,11 +311,17 @@ export function loadTrpgSnapshot(
   const mySub = round && viewer
     ? (db
         .prepare(
-          `SELECT body, action_type, selected_stat, locked
+          `SELECT body, action_type, selected_stat, locked, accepted_items_json
            FROM trpg_action_submissions WHERE round_id=? AND participant_id=?`
         )
         .get(round.id, viewer.id) as
-        | { body: string; action_type: string | null; selected_stat: string | null; locked: number }
+        | {
+            body: string;
+            action_type: string | null;
+            selected_stat: string | null;
+            locked: number;
+            accepted_items_json: string | null;
+          }
         | undefined)
     : undefined;
 
@@ -354,6 +362,20 @@ export function loadTrpgSnapshot(
       humanUserIds: parts.filter((p) => p.kind === "human" && p.user_id).map((p) => p.user_id!),
     })
   );
+  const myOffers =
+    round && viewer && phase === "ACTION_INPUT"
+      ? loadTrpgSeatItemOffers(db, campaignId, round.round_number, viewer.id)
+      : null;
+  const mySheet = myOffers ? loadSheetSnapshots(db, campaignId).find((sheet) => sheet.participantId === viewer?.id) : null;
+  const myItemOffers = myOffers
+    ? {
+        fromRound: myOffers.fromRound,
+        items: myOffers.items.map((name) => ({
+          name,
+          held: mySheet ? inventoryQuantity(mySheet.inventory, name) : 0,
+        })),
+      }
+    : null;
   const myActionType =
     mySub?.action_type && isTrpgActionType(mySub.action_type) ? mySub.action_type : null;
   const gmNarrationDraft =
@@ -407,8 +429,10 @@ export function loadTrpgSnapshot(
           actionType: myActionType as TrpgActionType | null,
           selectedStat: mySub?.selected_stat ?? null,
           locked: mySub?.locked === 1,
+          acceptedItems: parseStoredAcceptedItems(mySub?.accepted_items_json)?.items ?? [],
         }
       : null,
+    myItemOffers,
     currentRolls,
     participantAdjudicationOutcomes,
     adjudicatedParticipantIds,

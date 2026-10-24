@@ -34,7 +34,7 @@ function clampPx(value: number): number {
   return Math.ceil(value);
 }
 
-function hangulObjectParticle(name: string): "을" | "를" {
+export function hangulObjectParticle(name: string): "을" | "를" {
   const last = Array.from(name).at(-1) ?? "";
   const code = last.charCodeAt(0);
   if (code < 0xac00 || code > 0xd7a3) return "을";

@@ -207,6 +207,7 @@ export function ensureTrpgTables(db: Database.Database): void {
   addColumn("trpg_campaign_state", "goals_json", "TEXT");
   addColumn("trpg_participants", "persona_json", "TEXT NOT NULL DEFAULT ''");
   addColumn("trpg_action_submissions", "input_origin", "TEXT NOT NULL DEFAULT 'manual'");
+  addColumn("trpg_action_submissions", "accepted_items_json", "TEXT");
   addColumn("trpg_rounds", "billing_breakdown_json", "TEXT");
   addColumn("trpg_rounds", "pending_gm_result_json", "TEXT");
   addColumn("trpg_rounds", "bot_generation_id", "TEXT");

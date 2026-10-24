@@ -19,6 +19,7 @@ export async function POST(req: Request, ctx: RouteCtx) {
       idempotencyKey?: unknown;
       inputOrigin?: unknown;
       explorationCommands?: unknown;
+      acceptItems?: unknown;
     };
     submitTrpgAction(gate.db, {
       campaignId: id,
@@ -30,6 +31,7 @@ export async function POST(req: Request, ctx: RouteCtx) {
       inputOrigin: parseTrpgInputOrigin(body.inputOrigin),
       // Missing explorationCommands is a general submit. submitTrpgAction owns that distinction.
       explorationCommands: body.explorationCommands,
+      acceptItems: body.acceptItems,
     });
     const campaign = loadTrpgSnapshot(gate.db, id, gate.user.id);
     if (!campaign) throw new Error("캠페인을 찾을 수 없습니다.");

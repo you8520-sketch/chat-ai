@@ -276,13 +276,14 @@ function scripted(texts: string[]): { deps: TrpgEngineDeps; captured: { gm: stri
   return { deps, captured };
 }
 
-function play(db: Database.Database, campaignId: number, deps: TrpgEngineDeps) {
+function play(db: Database.Database, campaignId: number, deps: TrpgEngineDeps, accept: string[] = []) {
   submitTrpgAction(db, { campaignId, userId: 1, body: "골목 입구에서 망을 본다.", actionType: "free" });
   submitTrpgAction(db, {
     campaignId,
     userId: 2,
     body: "주운 황동 열쇠를 들고 폐창고로 들어가 철제 서류함을 찾아 확인한다.",
     actionType: "investigate",
+    acceptItems: accept.map((name) => ({ name, fromRound: 0 })),
   });
   return advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
 }
@@ -300,13 +301,13 @@ describe("regenerate keeps committed facts in the published scene", () => {
     const committed = "현이 철제 서류함을 열고 세관 밀수 원본 장부를 챙겼다. GM: 무엇을 하겠는가?";
     const inverted = "서하가 서류함에서 세관 밀수 원본 장부를 꺼내 품에 넣었다. GM: 무엇을 하겠는가?";
     const { deps, captured } = scripted([
-      wire("오프닝. GM: 무엇을 하겠는가?", ids),
+      wire("오프닝. GM: 무엇을 하겠는가?", ids, { [hyunId]: { itemOffers: [LEDGER] } }),
       wire(committed, ids, { [hyunId]: { inventoryAdd: [LEDGER] } }),
       wire(inverted, ids, { [seohaId]: { inventoryAdd: [LEDGER] } }),
       wire("다음 장면. GM: 무엇을 하겠는가?", ids),
     ]);
     await startTrpgCampaign(db, { campaignId, userId: 1, deps });
-    await play(db, campaignId, deps);
+    await play(db, campaignId, deps, [LEDGER]);
     assert.deepEqual(itemsOf(db, campaignId)["현"], [LEDGER]);
     assert.equal(loadTrpgSnapshot(db, campaignId, 1)?.currentNarration, committed);
 
@@ -365,14 +366,14 @@ describe("regenerate keeps committed facts in the published scene", () => {
     const { campaignId, ids, hyunId } = party(db);
     const rewritten = "현이 장부를 품에 넣고 창고 문을 돌아본다. GM: 무엇을 하겠는가?";
     const { deps, captured } = scripted([
-      wire("오프닝. GM: 무엇을 하겠는가?", ids),
+      wire("오프닝. GM: 무엇을 하겠는가?", ids, { [hyunId]: { itemOffers: [LEDGER] } }),
       wire("현이 철제 서류함을 열고 세관 밀수 원본 장부를 챙겼다. GM: 무엇을 하겠는가?", ids, {
         [hyunId]: { inventoryAdd: [LEDGER] },
       }),
       wire(rewritten, ids, { [hyunId]: { inventoryAdd: [LEDGER] } }),
     ]);
     await startTrpgCampaign(db, { campaignId, userId: 1, deps });
-    await play(db, campaignId, deps);
+    await play(db, campaignId, deps, [LEDGER]);
     await regenerateTrpgNarration(db, { campaignId, userId: 1, deps });
     const regenPrompt = captured.gm.at(-1) ?? "";
     assert.match(regenPrompt, /COMMITTED SCENE/);
@@ -399,14 +400,14 @@ describe("regenerate keeps committed facts in the published scene", () => {
     const { campaignId, ids, hyunId } = party(db);
     const proseOnly = "서하가 장부를 낚아채 품에 넣었다. GM: 무엇을 하겠는가?";
     const { deps } = scripted([
-      wire("오프닝. GM: 무엇을 하겠는가?", ids),
+      wire("오프닝. GM: 무엇을 하겠는가?", ids, { [hyunId]: { itemOffers: [LEDGER] } }),
       wire("현이 철제 서류함을 열고 세관 밀수 원본 장부를 챙겼다. GM: 무엇을 하겠는가?", ids, {
         [hyunId]: { inventoryAdd: [LEDGER] },
       }),
       wire(proseOnly, ids, { [hyunId]: { inventoryAdd: [LEDGER] } }),
     ]);
     await startTrpgCampaign(db, { campaignId, userId: 1, deps });
-    await play(db, campaignId, deps);
+    await play(db, campaignId, deps, [LEDGER]);
     await regenerateTrpgNarration(db, { campaignId, userId: 1, deps });
     assert.equal(loadTrpgSnapshot(db, campaignId, 1)?.currentNarration, proseOnly);
     assert.deepEqual(itemsOf(db, campaignId)["현"], [LEDGER]);
@@ -430,7 +431,7 @@ describe("regenerate keeps committed facts in the published scene", () => {
       botCall: async () => ({ text: "조용히 주변을 살핀다." }),
       gmCall: async (req) => {
         call += 1;
-        if (call === 1) return { text: wire("오프닝. GM: 무엇을 하겠는가?", ids), usage };
+        if (call === 1) return { text: wire("오프닝. GM: 무엇을 하겠는가?", ids, { [hyunId]: { itemOffers: [LEDGER] } }), usage };
         if (call === 2) {
           return {
             text: wire("현이 철제 서류함을 열고 세관 밀수 원본 장부를 챙겼다. GM: 무엇을 하겠는가?", ids, {
@@ -454,7 +455,7 @@ describe("regenerate keeps committed facts in the published scene", () => {
       },
     };
     await startTrpgCampaign(db, { campaignId, userId: 1, deps });
-    await play(db, campaignId, deps);
+    await play(db, campaignId, deps, [LEDGER]);
     const beforeRewrite = getPointBalanceOnDb(db, 1).total;
     await regenerateTrpgNarration(db, { campaignId, userId: 1, deps });
     const afterRewrite = getPointBalanceOnDb(db, 1).total;
@@ -503,13 +504,13 @@ describe("regenerate keeps committed facts in the published scene", () => {
       botCall: async () => ({ text: "조용히 주변을 살핀다." }),
       gmCall: async () => {
         call += 1;
-        if (call === 1) return { text: wire("오프닝. GM: 무엇을 하겠는가?", ids), usage };
+        if (call === 1) return { text: wire("오프닝. GM: 무엇을 하겠는가?", ids, { [hyunId]: { itemOffers: [LEDGER] } }), usage };
         if (call === 2) return { text: wire(scene, ids, { [hyunId]: { inventoryAdd: [LEDGER] } }), usage };
         return { text: wire(`  ${scene}  `, ids), usage };
       },
     };
     await startTrpgCampaign(db, { campaignId, userId: 1, deps });
-    await play(db, campaignId, deps);
+    await play(db, campaignId, deps, [LEDGER]);
     const roundId = (
       db.prepare(`SELECT id FROM trpg_rounds WHERE campaign_id=? AND round_number=1`).get(campaignId) as { id: number }
     ).id;

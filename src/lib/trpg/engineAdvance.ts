@@ -126,6 +126,7 @@ import {
 import { assertGmCompletionCanCommit, assessGmCompletionIntegrity, completionIntegrityStatusLabel } from "./gmCompletionIntegrity";
 import {
   buildTrpgGmUserBlock,
+  formatTrpgItemOfferBlock,
   formatTrpgRegenerateCommittedFacts,
   formatTrpgSheetCanon,
   parseTrpgGmOutput,
@@ -133,6 +134,21 @@ import {
   TRPG_GM_SYSTEM,
   type ParsedTrpgGmOutput,
 } from "./gmPrompt";
+import {
+  ensureDeltaPlayer,
+  formatAcceptedItemsAction,
+  foldAcceptedInventoryGrants,
+  grantAcceptedItems,
+  loadCommittedItemOffersByParticipant,
+  loadTrpgSeatItemOffers,
+  parseStoredAcceptedItems,
+  parseTrpgAcceptItemsRequest,
+  resolveTrpgItemAcceptance,
+  restoreCommittedHumanItemFacts,
+  serializeAcceptedItems,
+  stripUnacceptedItemProposals,
+  type TrpgAcceptedItems,
+} from "./itemAcceptance";
 import { serializeTrpgScenarioPlanForGm } from "./scenarioPlan";
 import { parseScenarioNpcs, type TrpgScenarioNpc } from "./scenarioTypes";
 import { ensureCampaignDirectorContext } from "./sandboxDirector";
@@ -511,6 +527,7 @@ export function submitTrpgAction(
     idempotencyKey?: string | null;
     inputOrigin?: TrpgInputOrigin | null;
     explorationCommands?: unknown;
+    acceptItems?: unknown;
   }
 ): void {
   const parts = loadParticipants(db, opts.campaignId);
@@ -522,8 +539,13 @@ export function submitTrpgAction(
     throw new Error("지금은 행동을 제출할 수 없습니다.");
   }
   const commands = readExplorationCommands(opts.explorationCommands);
-  const text = opts.body.replace(/\s+/g, " ").trim();
-  if (!text && commands.length === 0) throw new Error("행동을 입력하세요.");
+  const accepted = resolveTrpgItemAcceptance(
+    loadTrpgSeatItemOffers(db, opts.campaignId, round.round_number, me.id),
+    parseTrpgAcceptItemsRequest(opts.acceptItems)
+  );
+  const typed = opts.body.replace(/\s+/g, " ").trim();
+  if (!typed && commands.length === 0 && !accepted) throw new Error("행동을 입력하세요.");
+  const text = typed || (accepted && commands.length === 0 ? formatAcceptedItemsAction(accepted.items) : "");
   assertTrpgActionMaxChars(text);
   const actionType = opts.actionType && isTrpgActionType(opts.actionType) ? opts.actionType : "free";
   const origin = parseTrpgInputOrigin(opts.inputOrigin);
@@ -558,7 +580,8 @@ export function submitTrpgAction(
         opts.selectedStat ?? null,
         "human",
         opts.idempotencyKey,
-        origin
+        origin,
+        accepted
       );
       saveExplorationState(db, opts.campaignId, prepared.state);
     })();
@@ -572,7 +595,8 @@ export function submitTrpgAction(
       opts.selectedStat ?? null,
       "human",
       opts.idempotencyKey,
-      origin
+      origin,
+      accepted
     );
   }
   const humanActors = actorsForRound(db, parts, round.id).filter((a) => a.kind === "human");
@@ -590,7 +614,8 @@ function upsertLockedAction(
   selectedStat: string | null,
   source: TrpgActionSource,
   idempotencyKey?: string | null,
-  inputOrigin: TrpgInputOrigin = "manual"
+  inputOrigin: TrpgInputOrigin = "manual",
+  accepted: TrpgAcceptedItems | null = null
 ): void {
   const existing = db
     .prepare(`SELECT id, locked FROM trpg_action_submissions WHERE round_id=? AND participant_id=?`)
@@ -600,19 +625,20 @@ function upsertLockedAction(
     return;
   }
   const origin = source === "human" ? inputOrigin : "manual";
+  const acceptedJson = source === "human" ? serializeAcceptedItems(accepted) : null;
   if (existing) {
     db.prepare(
       `UPDATE trpg_action_submissions
-       SET body=?, action_type=?, selected_stat=?, locked=1, source=?, idempotency_key=?, input_origin=?, updated_at=datetime('now')
+       SET body=?, action_type=?, selected_stat=?, locked=1, source=?, idempotency_key=?, input_origin=?, accepted_items_json=?, updated_at=datetime('now')
        WHERE id=?`
-    ).run(body, actionType, selectedStat, source, idempotencyKey ?? null, origin, existing.id);
+    ).run(body, actionType, selectedStat, source, idempotencyKey ?? null, origin, acceptedJson, existing.id);
     return;
   }
   db.prepare(
     `INSERT INTO trpg_action_submissions
-      (round_id, participant_id, body, action_type, selected_stat, locked, source, idempotency_key, input_origin)
-     VALUES (?,?,?,?,?,1,?,?,?)`
-  ).run(roundId, participantId, body, actionType, selectedStat, source, idempotencyKey ?? null, origin);
+      (round_id, participant_id, body, action_type, selected_stat, locked, source, idempotency_key, input_origin, accepted_items_json)
+     VALUES (?,?,?,?,?,1,?,?,?,?)`
+  ).run(roundId, participantId, body, actionType, selectedStat, source, idempotencyKey ?? null, origin, acceptedJson);
 }
 
 export type AdvanceTrpgCampaignOpts = {
@@ -1548,6 +1574,28 @@ async function runGmForRound(
           | undefined
       )?.narration ?? "")
     : "";
+  const roundNumberForOffers = (
+    db.prepare(`SELECT round_number FROM trpg_rounds WHERE id=?`).get(opts.roundId) as
+      | { round_number: number }
+      | undefined
+  )?.round_number;
+  const itemOfferBlock =
+    opts.opening || opts.regenerate || roundNumberForOffers == null
+      ? ""
+      : formatTrpgItemOfferBlock(
+          participants
+            .filter((p) => p.kind === "human")
+            .map((p) => {
+              const offered = loadTrpgSeatItemOffers(db, opts.campaignId, roundNumberForOffers, p.id)?.items ?? [];
+              const taken = new Set(actions.find((action) => action.participantId === p.id)?.acceptedItems ?? []);
+              return {
+                participantId: p.id,
+                name: p.display_name,
+                items: offered.filter((name) => !taken.has(name)),
+              };
+            })
+        );
+  const committedItemOffers = opts.regenerate ? loadCommittedItemOffersByParticipant(db, opts.roundId) : null;
   const committedFacts = opts.regenerate
     ? formatTrpgRegenerateCommittedFacts({
         sheets: sheets.map((sheet) => ({
@@ -1558,6 +1606,9 @@ async function runGmForRound(
           inventory: inventoryUnits(sheet.inventory),
         })),
         ledger: loadCampaignLedger(db, opts.campaignId),
+        itemOffers: participants
+          .filter((p) => committedItemOffers?.has(p.id))
+          .map((p) => ({ name: p.display_name, items: committedItemOffers?.get(p.id) ?? [] })),
       })
     : "";
   const goalLedger = loadCampaignLedger(db, opts.campaignId);
@@ -1616,6 +1667,7 @@ async function runGmForRound(
           })),
         }),
     actions,
+    itemOfferBlock,
   });
   const gmCall = opts.deps?.gmCall ?? callTrpgGm;
   let stage: TrpgFailureStage = "provider_call";
@@ -1793,17 +1845,6 @@ function observeThreatShadow(build: () => string | null): void {
   }
 }
 
-function ensureDeltaPlayer(
-  delta: ParsedTrpgGmOutput["delta"],
-  participantId: number
-): ParsedTrpgGmOutput["delta"]["players"][number] {
-  const existing = delta.players.find((row) => row.participantId === participantId);
-  if (existing) return existing;
-  const created: ParsedTrpgGmOutput["delta"]["players"][number] = { participantId };
-  delta.players.push(created);
-  return created;
-}
-
 function explorationMoveWasRejected(error: unknown): boolean {
   const message = error instanceof Error ? error.message : "";
   return (
@@ -1886,6 +1927,26 @@ function applyExplorationToParsed(
   }
 }
 
+function acceptedItemsBySeat(
+  db: Database.Database,
+  campaignId: number,
+  roundNumber: number,
+  submissions: ReadonlyArray<{ participantId: number; acceptedItemsJson: string | null }>,
+  humanSeatIds: ReadonlySet<number>
+): Map<number, string[]> {
+  const bySeat = new Map<number, string[]>();
+  for (const sub of submissions) {
+    if (!humanSeatIds.has(sub.participantId)) continue;
+    const stored = parseStoredAcceptedItems(sub.acceptedItemsJson);
+    if (!stored) continue;
+    const offers = loadTrpgSeatItemOffers(db, campaignId, roundNumber, sub.participantId);
+    if (!offers || offers.fromRound !== stored.fromRound) continue;
+    const valid = stored.items.filter((name) => offers.items.includes(name));
+    if (valid.length > 0) bySeat.set(sub.participantId, valid);
+  }
+  return bySeat;
+}
+
 function commitPendingGmResult(
   db: Database.Database,
   opts: {
@@ -1917,7 +1978,8 @@ function commitPendingGmResult(
   const openRoutes = campaignContext?.localSceneProgress.openRoutes ?? [];
   const lockedSubs = db
     .prepare(
-      `SELECT s.id, s.participant_id AS participantId, s.body, s.action_type AS actionType, s.source, r.tier
+      `SELECT s.id, s.participant_id AS participantId, s.body, s.action_type AS actionType, s.source,
+              s.accepted_items_json AS acceptedItemsJson, r.tier
        FROM trpg_action_submissions s
        LEFT JOIN trpg_dice_rolls r ON r.submission_id = s.id
        WHERE s.round_id=? AND s.locked=1 ORDER BY s.id ASC`
@@ -1928,8 +1990,18 @@ function commitPendingGmResult(
     body: string;
     actionType: string | null;
     source: string | null;
+    acceptedItemsJson: string | null;
     tier: string | null;
   }>;
+  const humanSeatIds = new Set(
+    loadParticipants(db, campaign.id)
+      .filter((participant) => participant.kind === "human")
+      .map((participant) => participant.id)
+  );
+  const roundNumber = (
+    db.prepare(`SELECT round_number FROM trpg_rounds WHERE id=?`).get(opts.roundId) as { round_number: number }
+  ).round_number;
+  stripUnacceptedItemProposals(parsed.delta, humanSeatIds);
   const explorationCommit = opts.regenerate
     ? null
     : planExplorationCommit(db, {
@@ -1949,6 +2021,9 @@ function commitPendingGmResult(
       explorationCommit,
       sheets.map((sheet) => sheet.participantId)
     );
+  }
+  if (!opts.regenerate) {
+    grantAcceptedItems(parsed.delta, acceptedItemsBySeat(db, campaign.id, roundNumber, lockedSubs, humanSeatIds));
   }
   const explorationState = opts.regenerate ? null : loadExplorationState(db, campaign.id);
   if (explorationState) {
@@ -2005,11 +2080,9 @@ function commitPendingGmResult(
   const applied = mergeMechanicsOwnedDelta(sheets, boundLocation.delta, mechanics, {
     encounterAuthority: governedCampaign,
   });
+  foldAcceptedInventoryGrants(parsed.delta);
   const nextSheets = applied.ok ? applied.next : sheets;
   const persistMechanics = applied.ok || mechanics?.complete === true;
-  const roundNumber = (
-    db.prepare(`SELECT round_number FROM trpg_rounds WHERE id=?`).get(opts.roundId) as { round_number: number }
-  ).round_number;
   const resolvedPlan = resolvedCampaignPlan(campaignContext);
   const endedProposals = parsed.delta.encountersEnded;
   const encounterEnding =
@@ -2030,11 +2103,6 @@ function commitPendingGmResult(
     : (opts.postGmOngoingSeeds ?? []);
   let postGmOngoingResult = { candidates: 0, promoted: 0, deduped: 0 };
   let stage: TrpgFailureStage = "ledger_apply";
-  const humanSeatIds = new Set(
-    loadParticipants(db, campaign.id)
-      .filter((participant) => participant.kind === "human")
-      .map((participant) => participant.id)
-  );
   const endLocationBySeat = new Map(
     (persistMechanics ? nextSheets : sheets).map((sheet) => [sheet.participantId, sheet.location])
   );
@@ -2118,6 +2186,7 @@ function commitPendingGmResult(
         committedDelta = undefined;
       }
     }
+    restoreCommittedHumanItemFacts(parsed.delta, committedDelta, humanSeatIds);
     const canon = regenerateOutputInvertsCommittedCanon({
       delta: parsed.delta,
       location: parsed.location ?? undefined,
@@ -2561,7 +2630,7 @@ function loadActionsForGm(
   return (
     db
       .prepare(
-        `SELECT s.id AS submission_id, s.participant_id, p.display_name AS name, p.kind, s.body, s.action_type, r.stat_key, r.d20, r.final_score, r.dc, r.tier,
+        `SELECT s.id AS submission_id, s.participant_id, p.display_name AS name, p.kind, s.body, s.action_type, s.accepted_items_json, r.stat_key, r.d20, r.final_score, r.dc, r.tier,
                 (
                   SELECT st.value FROM trpg_character_stats st
                   JOIN trpg_character_sheets sh ON sh.id = st.sheet_id
@@ -2580,6 +2649,7 @@ function loadActionsForGm(
       kind: string;
       body: string;
       action_type: string | null;
+      accepted_items_json: string | null;
       stat_key: string | null;
       stat_value: number | null;
       d20: number | null;
@@ -2614,6 +2684,8 @@ function loadActionsForGm(
       finalScore: a.final_score,
       dc: a.dc,
       tier: a.tier,
+      acceptedItems:
+        participantKind === "human" ? parseStoredAcceptedItems(a.accepted_items_json)?.items : undefined,
     };
   });
 }

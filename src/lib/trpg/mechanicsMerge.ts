@@ -154,6 +154,12 @@ export function mergeMechanicsOwnedDelta(
         if (t) cur.inventory = addInventoryItem(cur.inventory, t);
       }
     }
+    if (patch.acceptedInventoryAdd) {
+      for (const item of patch.acceptedInventoryAdd) {
+        const t = item.trim();
+        if (t) cur.inventory = addInventoryItem(cur.inventory, t);
+      }
+    }
     if (patch.inventoryRemove) {
       for (const item of patch.inventoryRemove) {
         const t = item.trim();
