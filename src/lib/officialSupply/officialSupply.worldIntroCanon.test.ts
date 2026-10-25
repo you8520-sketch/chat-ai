@@ -82,8 +82,8 @@ function worldBible(): OfficialWorldBible {
 
 const squash = (text: string): string => text.replace(/\s+/g, "");
 
-/** Mirrors the sentence boundary of `compileCreatorDescriptionTriggers`, which may route a fragment to the private speech block. */
-const COMPILER_SENTENCE_BOUNDARY = /(?<=[.!?。！？다요])\s+/;
+/** Mirrors the sentence boundary of `compileCreatorDescriptionTriggers`: a sentence must reach the wire whole, never as fragments. */
+const COMPILER_SENTENCE_BOUNDARY = /(?<=[.!?。！？])\s+/;
 
 function occurrences(text: string, needle: string): number {
   return text.split(needle).length - 1;
@@ -303,6 +303,9 @@ describe("official shared world: save and final RP wire are lossless", () => {
       assert.equal(characterSettingSourceOverflowChars(input), 0);
 
       const { chunks } = loadCharacterChunksForPromptReadOnly(row, "기록관", "기록관");
+      const privateSpeechControlBlock = buildPrivateSpeechControlBlock(
+        parseCreatorDescriptionCompiled(row.creator_compiled_description_json)
+      );
       const built = buildContext({
         charName: source.draft.name,
         chunks,
@@ -312,9 +315,7 @@ describe("official shared world: save and final RP wire are lossless", () => {
         systemPrompt: row.system_prompt,
         world: row.world,
         exampleDialog: row.example_dialog ?? "",
-        privateSpeechControlBlock: buildPrivateSpeechControlBlock(
-          parseCreatorDescriptionCompiled(row.creator_compiled_description_json)
-        ),
+        privateSpeechControlBlock,
         shortTermHistory: [],
         currentUserMessage: "상황을 알려 줘.",
         nsfw: false,
@@ -343,6 +344,17 @@ describe("official shared world: save and final RP wire are lossless", () => {
           .flatMap((line) => line.split(COMPILER_SENTENCE_BOUNDARY))
           .filter((piece) => piece.trim() && !wire.includes(squash(piece)));
         assert.deepEqual(missing, [], `${key}: ${label} reached the final system prompt`);
+      }
+      const privateBlock = squash(privateSpeechControlBlock);
+      for (const piece of draft.sections.characterCore
+        .split(/\n/)
+        .flatMap((line) => line.split(COMPILER_SENTENCE_BOUNDARY))
+        .filter((p) => p.trim())) {
+        assert.equal(
+          privateBlock.includes(squash(piece).slice(0, 12)),
+          false,
+          `${key}: character core prose is not routed into the private speech block`
+        );
       }
       for (const secret of draft.secrets) {
         assert.ok(wire.includes(squash(secret).slice(0, 24)), `${key}: secret reached the final system prompt`);
