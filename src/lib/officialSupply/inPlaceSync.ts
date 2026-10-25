@@ -116,7 +116,7 @@ const COMPILE_REFRESH_SNAPSHOT_FIELDS = [
 function compileRefreshPlan(db: Database.Database, admin: SessionUser, characterId: number) {
   const row = db.prepare("SELECT * FROM characters WHERE id=?").get(characterId) as CompileRefreshRow | undefined;
   if (!row) throw new OfficialSupplyGateError("character_missing", `character ${characterId} not found`);
-  if (!canAdminManageOfficialCharacter(admin, row)) {
+  if (!canAdminManageOfficialCharacter(admin, row, db)) {
     throw new OfficialSupplyGateError("not_official_manageable", "공식 관리 캐릭터만 컴파일할 수 있습니다.");
   }
   const triggers = listCharacterStatusWidgetTriggers(db, characterId);
