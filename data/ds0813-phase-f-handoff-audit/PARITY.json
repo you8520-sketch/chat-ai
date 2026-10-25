@@ -1,0 +1,34 @@
+{
+  "SYSTEM_SHA": "75695e164771f9a8a20c65b39442fc2200c4eab75516f9747dd7c7013d85c2b3",
+  "HISTORY_SHA": "d0a309ce2bfa25a041711cad6c0349b6b0878b95f9c40492e730de0ff6299e76",
+  "CURRENT_USER_SHA": "f1814a3aa6946b0ff339e0577b8d2130729cafec6b0c42a77cc369f41e379750",
+  "HANDOFF_PACKET_SHA": "a07aefe951e484db54bbca8813273c1d3e59f6806f4bdeca660079b3a92e49f9",
+  "FINAL_MESSAGES_SHA": "2da61b056642fca93fa8a97f8e1f5e945aefadcf25153cd6a87a8562d78054bd",
+  "OUTBOUND_CONFIG": {
+    "model": "deepseek-v4-pro-0813",
+    "temperature": 0.92,
+    "top_p": 0.92,
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_effort": "none",
+    "max_tokens": "OMITTED",
+    "stream": true,
+    "KEYS": [
+      "messages",
+      "model",
+      "reasoning_effort",
+      "stream",
+      "stream_options",
+      "temperature",
+      "thinking",
+      "top_p"
+    ]
+  },
+  "PRECEDING_GEMINI_ASSISTANT_CHARS": [
+    2775,
+    2798
+  ],
+  "HANDOFF_RAW_TURNS": 2,
+  "MESSAGES_IDENTICAL_ACROSS_H1_H2_H3": true
+}
