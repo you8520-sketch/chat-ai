@@ -1,0 +1,43 @@
+{
+  "model": "deepseek-v4-flash-0731",
+  "mode": "fill_empty",
+  "requestedFields": [
+    "title",
+    "startingSituation",
+    "centralConflict",
+    "goal",
+    "endingConditions"
+  ],
+  "maxTokens": 1800,
+  "temperature": 0.3,
+  "finishReason": "stop",
+  "outputTokens": 181,
+  "latencyMs": 8811,
+  "rawTopLevelKeys": [
+    "title",
+    "startingSituation",
+    "centralConflict",
+    "goal",
+    "endingConditions"
+  ],
+  "missingRequestedKeys": [],
+  "wrongTypeFields": [],
+  "emptyRequiredFields": [],
+  "schemaKeyContamination": {},
+  "repetitionDetected": false,
+  "success": true,
+  "setName": "FIRST5",
+  "rep": 1,
+  "inputTokens": 1171,
+  "schemaErrors": 0,
+  "requestedFieldRawTypes": {
+    "title": "string",
+    "startingSituation": "string",
+    "centralConflict": "string",
+    "goal": "string",
+    "endingConditions": "array<string>"
+  },
+  "repeatedListLoop": {},
+  "fillOrReplaceLine": "fill_or_replace_fields=title,startingSituation,centralConflict,goal,endingConditions",
+  "source": "copied from existing /opt/cursor/artifacts/fieldset-ab measurement; no new provider call"
+}

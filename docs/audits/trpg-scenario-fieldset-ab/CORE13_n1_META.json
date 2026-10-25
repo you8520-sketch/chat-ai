@@ -1,0 +1,76 @@
+{
+  "model": "deepseek-v4-flash-0731",
+  "mode": "fill_empty",
+  "requestedFields": [
+    "title",
+    "summary",
+    "startingSituation",
+    "centralConflict",
+    "goal",
+    "secret",
+    "endingConditions",
+    "majorEvents",
+    "clues",
+    "startLocation",
+    "startInventory",
+    "difficulty",
+    "climax"
+  ],
+  "maxTokens": 1800,
+  "temperature": 0.3,
+  "finishReason": "length",
+  "outputTokens": 1800,
+  "latencyMs": 136017,
+  "rawTopLevelKeys": [
+    "title",
+    "summary",
+    "startingSituation",
+    "centralConflict",
+    "goal",
+    "secret",
+    "endingConditions",
+    "majorEvents",
+    "clues",
+    "startLocation",
+    "startInventory"
+  ],
+  "missingRequestedKeys": [
+    "difficulty",
+    "climax"
+  ],
+  "wrongTypeFields": [
+    "startInventory"
+  ],
+  "emptyRequiredFields": [],
+  "schemaKeyContamination": {},
+  "repetitionDetected": true,
+  "success": false,
+  "setName": "CORE13",
+  "rep": 1,
+  "inputTokens": 1170,
+  "schemaErrors": 3,
+  "requestedFieldRawTypes": {
+    "title": "string",
+    "summary": "string",
+    "startingSituation": "string",
+    "centralConflict": "string",
+    "goal": "string",
+    "secret": "string",
+    "endingConditions": "array<string>",
+    "majorEvents": "array<string>",
+    "clues": "array<string>",
+    "startLocation": "string",
+    "startInventory": "other",
+    "difficulty": "missing",
+    "climax": "missing"
+  },
+  "repeatedListLoop": {
+    "startInventory": {
+      "flagged": true,
+      "reason": "identical_item_x59",
+      "repeatedPrefix": "구명망치"
+    }
+  },
+  "fillOrReplaceLine": "fill_or_replace_fields=title,summary,startingSituation,centralConflict,goal,secret,endingConditions,majorEvents,clues,startLocation,startInventory,difficulty,climax",
+  "source": "copied from existing /opt/cursor/artifacts/fieldset-ab measurement; no new provider call"
+}
