@@ -1,0 +1,23 @@
+{
+  "model": "deepseek-v4-pro-0813",
+  "reasoning_effort": "none",
+  "stream": true,
+  "stream_options": {
+    "include_usage": true
+  },
+  "temperature": 0.7,
+  "thinking": {
+    "type": "disabled"
+  },
+  "KEYS": [
+    "messages",
+    "model",
+    "reasoning_effort",
+    "stream",
+    "stream_options",
+    "temperature",
+    "thinking"
+  ],
+  "HAS_MESSAGES": true,
+  "MESSAGE_COUNT": 3
+}
