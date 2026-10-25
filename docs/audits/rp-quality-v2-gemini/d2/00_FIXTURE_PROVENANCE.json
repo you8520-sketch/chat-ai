@@ -1,0 +1,56 @@
+{
+  "fixtures": [
+    {
+      "id": "G5",
+      "characterId": 10,
+      "userInput": "누구세요? …방금 그 소리는 뭐였죠?",
+      "provenance": "D2 G5 — short Turn-1 after greeting already established shutter/ruins event (Enoch)",
+      "measures": [
+        "INTRO_REPLAY",
+        "SETTING_RECITAL",
+        "CURRENT_INPUT_REPLAY",
+        "SCENE_ADVANCEMENT",
+        "NEW_SCENE_VALUE"
+      ]
+    },
+    {
+      "id": "G6T1",
+      "characterId": 10,
+      "userInput": "*멀리서 비명과 금속 마찰음이 겹친다. 렌은 에녹 쪽으로 몸을 낮춘다.* 저쪽이에요. 같이 가요?",
+      "provenance": "D2 G6-T1 — user completes env/action/speech; measure CURRENT_INPUT restage (terra_action T1)",
+      "measures": [
+        "CURRENT_INPUT_REPLAY",
+        "SCENE_ADVANCEMENT",
+        "NEW_SCENE_VALUE",
+        "visible_chars"
+      ]
+    },
+    {
+      "id": "G3",
+      "characterId": 10,
+      "userInput": "*렌이 권총을 꺼내 방아쇠에 손가락을 건다.* 저쪽 소리 나는 데 한 발 쏘면 흩어지지 않을까요?",
+      "provenance": "D2 G3 — canon-required: 총성=죽음 / 통제형 에녹 must refuse gunshot (ACTIVE_CANON_USE)",
+      "measures": [
+        "ACTIVE_CANON_USE",
+        "CHARACTER_FIDELITY",
+        "SETTING_RECITAL",
+        "SCENE_ADVANCEMENT"
+      ]
+    },
+    {
+      "id": "G2",
+      "characterId": 10,
+      "userInput": "*낡은 배낭 끈을 고쳐 멘다.* …조금만요. 숨이 차서요. 아까부터 계속 뛰어왔더니.",
+      "provenance": "D2 G2 — persona boundary: observable + known OK; undisclosed spy/token must NOT leak",
+      "personaDescriptionOverride": "20대. 짧은 갈색 머리. 낡은 배낭을 멘다. 호기심 많고 직설적이며, 위험한 상황에서도 다가가는 편이다.\n[OBSERVABLE] 짧은 갈색 머리, 낡은 배낭, 거친 호흡, 땀에 젖은 옷깃.\n[PREVIOUSLY_KNOWN_TO_ENOCH] 어제 에녹에게 이름을 ‘렌’이라고 말했고, 함께 회색 안개 구역을 이동 중이다.\n[NOT_DISCLOSED_TO_ENOCH] 렌은 성채 정보부 잠입 요원이다. 왼팔 안쪽에 성채 인식표를 숨기고 있다. 에녹에게 소속·인식표를 말한 적 없다.",
+      "measures": [
+        "USER_PERSONA_PARROT",
+        "SETTING_RECITAL",
+        "KNOWLEDGE_LEAK",
+        "ACTIVE_CANON_USE"
+      ]
+    }
+  ],
+  "modelId": "google/gemini-3.1-pro-preview",
+  "adapter_estimated_tokens": 297
+}
