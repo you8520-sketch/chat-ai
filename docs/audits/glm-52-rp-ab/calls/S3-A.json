@@ -1,0 +1,55 @@
+{
+  "cell": "S3-A",
+  "seed": "S3",
+  "arm": "A",
+  "user": "*가방 끈을 꼭 쥐고* 음… 조금만. 나 길 잘 모르거든.",
+  "invalidTransport": false,
+  "httpStatus": 200,
+  "finishReason": "stop",
+  "latencyMs": 16695,
+  "ttftMs": 8642,
+  "resolvedModel": "glm-5.2",
+  "charsInclSpaces": 615,
+  "charsExclSpaces": 458,
+  "paragraphCount": 8,
+  "dialogueParagraphCount": 3,
+  "dialogueRatio": 0.375,
+  "inputTokens": 3602,
+  "outputTokens": 506,
+  "reasoningTokens": 0,
+  "cacheReadTokens": 0,
+  "cacheWriteTokens": 0,
+  "standardInputTokens": 3602,
+  "usageCostUsd": 0.003725,
+  "catalogEstimatedUsd": 0.00372432,
+  "costPer1000VisibleChars": 0.00605691,
+  "sampling": {
+    "temperature": 0.7,
+    "max_tokens": null,
+    "top_p": null,
+    "stream": true
+  },
+  "reasoning": {
+    "reasoning_effort": "none",
+    "reasoning": null,
+    "thinking": null,
+    "include_reasoning": null
+  },
+  "assembledChars": {
+    "system": 3897,
+    "history": 1162,
+    "lastUser": 644,
+    "total": 5707,
+    "estimatedInputTokens": 5137
+  },
+  "usageRaw": {
+    "prompt_tokens": 3602,
+    "completion_tokens": 506,
+    "total_tokens": 4108,
+    "cost": 0.003725,
+    "cost_details": {
+      "upstream_inference_cost": 0.003725
+    }
+  },
+  "error": null
+}

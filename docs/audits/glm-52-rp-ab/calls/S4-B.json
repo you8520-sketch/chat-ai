@@ -1,0 +1,55 @@
+{
+  "cell": "S4-B",
+  "seed": "S4",
+  "arm": "B",
+  "user": "*물병을 꺼내 내민다* …목마르면 마셔. 나 괜찮으니까.",
+  "invalidTransport": false,
+  "httpStatus": 200,
+  "finishReason": "stop",
+  "latencyMs": 83636,
+  "ttftMs": 5972,
+  "resolvedModel": "glm-5.2",
+  "charsInclSpaces": 7327,
+  "charsExclSpaces": 5512,
+  "paragraphCount": 44,
+  "dialogueParagraphCount": 14,
+  "dialogueRatio": 0.318,
+  "inputTokens": 5594,
+  "outputTokens": 5944,
+  "reasoningTokens": 0,
+  "cacheReadTokens": 0,
+  "cacheWriteTokens": 0,
+  "standardInputTokens": 5594,
+  "usageCostUsd": 0.014269,
+  "catalogEstimatedUsd": 0.01751776,
+  "costPer1000VisibleChars": 0.00194745,
+  "sampling": {
+    "temperature": 0.7,
+    "max_tokens": null,
+    "top_p": null,
+    "stream": true
+  },
+  "reasoning": {
+    "reasoning_effort": "none",
+    "reasoning": null,
+    "thinking": null,
+    "include_reasoning": null
+  },
+  "assembledChars": {
+    "system": 6399,
+    "history": 1162,
+    "lastUser": 848,
+    "total": 8413,
+    "estimatedInputTokens": 7572
+  },
+  "usageRaw": {
+    "prompt_tokens": 5594,
+    "completion_tokens": 5944,
+    "total_tokens": 11538,
+    "cost": 0.014269,
+    "cost_details": {
+      "upstream_inference_cost": 0.014269
+    }
+  },
+  "error": null
+}
