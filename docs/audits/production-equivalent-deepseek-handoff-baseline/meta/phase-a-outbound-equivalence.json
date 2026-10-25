@@ -1,0 +1,186 @@
+{
+  "REQUEST_621_SHA": "85ae4e16ba3e002dc1dcd84911f3263c68679904e5d3316a0f365fd084003731",
+  "REQUEST_621_SHA_EXPECTED": "85ae4e16ba3e002dc1dcd84911f3263c68679904e5d3316a0f365fd084003731",
+  "REQUEST_621_SHA_MATCHES_FROZEN": true,
+  "TRUE_PRODUCTION_HANDOFF_REQUEST_SHA": "5e3c7ff903600bb5fbad38cf0131e9928e733e28ef170b5bf2ae95bd2caa9de0",
+  "PRODUCTION_OUTBOUND_EQUIVALENT_TO_621": false,
+  "MESSAGES_BYTE_IDENTICAL": true,
+  "TRUE_OFF_HANDOFF_ACTIVE": true,
+  "THINKING_VALUE": {
+    "type": "disabled"
+  },
+  "REASONING_EFFORT_VALUE": "none",
+  "T1_PRIMARY_STYLE_EXEMPLAR_PRESENT": true,
+  "T1": {
+    "present": true,
+    "ROLE": "assistant",
+    "WIRE_POSITION": 2,
+    "SOURCE_CHARS": 3473,
+    "TRANSPORTED_CHARS": 3473,
+    "BYTE_IDENTICAL": true
+  },
+  "T2_PRIMARY_STYLE_EXEMPLAR_PRESENT": true,
+  "T2": {
+    "present": true,
+    "ROLE": "assistant",
+    "WIRE_POSITION": 4,
+    "SOURCE_CHARS": 3173,
+    "TRANSPORTED_CHARS": 3173,
+    "BYTE_IDENTICAL": true
+  },
+  "T3_GEMINI_GOLD_PRESENT": false,
+  "GEMINI_REFUSAL_PRESENT": false,
+  "owners": {
+    "DEEPSEEK_STYLE_REMINDER_ACTIVE": true,
+    "HANDOFF_CONTINUATION_OWNER_ACTIVE": true,
+    "INTIMACY_OWNER_ACTIVE": true,
+    "USER_TAIL_3200_ACTIVE": true,
+    "TERMINAL_DIALOGUE_OWNER_ACTIVE": false,
+    "CREATOR_OPENING_AS_ASSISTANT_STYLE_EXEMPLAR": false,
+    "CREATOR_OPENING_REMAP_PRESENT": true
+  },
+  "CONTACT_ACTOR_EXTRACTION_BUG": true,
+  "SCENE_CONTINUITY_PREVIOUS_ACTION_ACTOR": "손이",
+  "field_diff": [
+    {
+      "FIELD": "model",
+      "REQUEST_621": "deepseek-v4-pro-0813",
+      "TRUE_PRODUCTION": "deepseek-v4-pro-0813",
+      "EQUAL": true
+    },
+    {
+      "FIELD": "messages",
+      "REQUEST_621": {
+        "count": 6,
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ]
+      },
+      "TRUE_PRODUCTION": {
+        "count": 6,
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ]
+      },
+      "EQUAL": true
+    },
+    {
+      "FIELD": "temperature",
+      "REQUEST_621": 0.92,
+      "TRUE_PRODUCTION": 0.92,
+      "EQUAL": true
+    },
+    {
+      "FIELD": "top_p",
+      "REQUEST_621": 0.92,
+      "TRUE_PRODUCTION": 0.92,
+      "EQUAL": true
+    },
+    {
+      "FIELD": "max_tokens",
+      "REQUEST_621": null,
+      "TRUE_PRODUCTION": null,
+      "EQUAL": true
+    },
+    {
+      "FIELD": "stream",
+      "REQUEST_621": true,
+      "TRUE_PRODUCTION": true,
+      "EQUAL": true
+    },
+    {
+      "FIELD": "stream_options",
+      "REQUEST_621": {
+        "include_usage": true
+      },
+      "TRUE_PRODUCTION": {
+        "include_usage": true
+      },
+      "EQUAL": true
+    },
+    {
+      "FIELD": "thinking",
+      "REQUEST_621": {
+        "type": "disabled"
+      },
+      "TRUE_PRODUCTION": {
+        "type": "disabled"
+      },
+      "EQUAL": true
+    },
+    {
+      "FIELD": "reasoning_effort",
+      "REQUEST_621": null,
+      "TRUE_PRODUCTION": "none",
+      "EQUAL": false
+    },
+    {
+      "FIELD": "OTHER_FIELDS",
+      "REQUEST_621": [],
+      "TRUE_PRODUCTION": [],
+      "EQUAL": true
+    }
+  ],
+  "message_level_diff": [
+    {
+      "INDEX": 0,
+      "ROLE_621": "system",
+      "ROLE_PROD": "system",
+      "CHARS_621": 18272,
+      "CHARS_PROD": 18272,
+      "EQUAL": true
+    },
+    {
+      "INDEX": 1,
+      "ROLE_621": "user",
+      "ROLE_PROD": "user",
+      "CHARS_621": 297,
+      "CHARS_PROD": 297,
+      "EQUAL": true
+    },
+    {
+      "INDEX": 2,
+      "ROLE_621": "assistant",
+      "ROLE_PROD": "assistant",
+      "CHARS_621": 3473,
+      "CHARS_PROD": 3473,
+      "EQUAL": true
+    },
+    {
+      "INDEX": 3,
+      "ROLE_621": "user",
+      "ROLE_PROD": "user",
+      "CHARS_621": 332,
+      "CHARS_PROD": 332,
+      "EQUAL": true
+    },
+    {
+      "INDEX": 4,
+      "ROLE_621": "assistant",
+      "ROLE_PROD": "assistant",
+      "CHARS_621": 3173,
+      "CHARS_PROD": 3173,
+      "EQUAL": true
+    },
+    {
+      "INDEX": 5,
+      "ROLE_621": "user",
+      "ROLE_PROD": "user",
+      "CHARS_621": 2426,
+      "CHARS_PROD": 2426,
+      "EQUAL": true
+    }
+  ],
+  "unexpected_message_diff": false,
+  "scene_controls_applied": false
+}
