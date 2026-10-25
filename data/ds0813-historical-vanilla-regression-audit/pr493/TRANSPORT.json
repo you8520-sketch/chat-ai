@@ -1,0 +1,34 @@
+{
+  "provider": "cheaperinference",
+  "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+  "source_model": "gemini-3.7-flash",
+  "target_model": "deepseek-v4-pro-0813",
+  "true_off": {
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_effort": "none",
+    "do_not_send": [
+      "enable_thinking",
+      "reasoning",
+      "include_reasoning"
+    ]
+  },
+  "frozen_body_keys": [
+    "messages",
+    "model",
+    "reasoning_effort",
+    "stream",
+    "stream_options",
+    "temperature",
+    "thinking"
+  ],
+  "gemini_body_keys": [
+    "messages",
+    "model",
+    "reasoning_effort",
+    "stream",
+    "stream_options",
+    "temperature"
+  ]
+}
