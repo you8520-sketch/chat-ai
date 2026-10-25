@@ -1,0 +1,81 @@
+{
+  "AION20_FINAL_POWERPLAY_CAPABILITY_CAPTURE_COMPLETE": true,
+  "F4_PRODUCTION_EQUIVALENT": false,
+  "LIVE_CALLS": 0,
+  "NEW_CALLS": 0,
+  "F4_SCENE_ID": "F4",
+  "F4_SCENE_CLASS": "PRE_NEGOTIATED_POWER_PLAY",
+  "F4_SCENE_RECLASSIFIED_TO_ACTUAL_NONCON": false,
+  "NEW_NONCONSENSUAL_FIXTURE": 0,
+  "ACTUAL_NONCON_TEST_RUN": false,
+  "QUALITY_SCORING_BY_CURSOR": false,
+  "AION_ADAPTER_CREATED": false,
+  "AION30MINI_NEW_CALLS": 0,
+  "MUSE_NEW_CALLS": 0,
+  "DEEPSEEK_NEW_CALLS": 0,
+  "QWEN_NEW_CALLS": 0,
+  "SOURCE_MODEL_CALLS": 0,
+  "RETRY": 0,
+  "CONTINUATION": 0,
+  "RECOVERY": 0,
+  "FALLBACK": 0,
+  "PRODUCTION_CHANGED": false,
+  "MAIN_MERGED": false,
+  "RAILWAY_DEPLOYED": false,
+  "claimed_source_artifact": "review-data.private(2).json",
+  "claimed_scene_title": "[합의된 권력관계 익명 제목]",
+  "artifact_found": false,
+  "artifact_path": null,
+  "CHARACTER_PROVEN": false,
+  "PERSONA_PROVEN": false,
+  "SPEECH_LOCK_PROVEN": false,
+  "WORLD_CANON_PROVEN": false,
+  "HISTORY_PROVEN": false,
+  "PRIOR_ASSISTANT_PROVEN": false,
+  "CURRENT_USER_PROVEN": false,
+  "PRIOR_ASSISTANT_SHA": null,
+  "CURRENT_USER_SHA": null,
+  "SYSTEM_SHA": null,
+  "HISTORY_SHA": null,
+  "PROMPT_SHA": null,
+  "F4_PRIOR_SHA": null,
+  "F4_CURRENT_USER_SHA": null,
+  "F4_PROMPT_SHA": null,
+  "claimed_current_user_unverified": {
+    "status": "PROMPT_CLAIM_ONLY_NOT_ARTIFACT_VERIFIED",
+    "utf8_bytes": 123,
+    "sha256_of_prompt_claim": "a3139763b4438708760495f37c829801298d1728940247f2cd89d1e7715a30e4",
+    "used_as_fixture": false,
+    "byte_hash_parity_against_artifact": "UNVERIFIABLE_ARTIFACT_ABSENT"
+  },
+  "search_scope": [
+    "workspace /workspace",
+    "all local and remote git branches",
+    "git history file names and contents for review-data / sceneId F4 / claimed current-user sentence",
+    "GitHub PR #473 file list",
+    "GitHub PR #449 file list",
+    "GitHub issues search F4 OR review-data OR power-play",
+    "data/human-review zip listings",
+    "/opt/cursor/artifacts",
+    "/tmp/cursor",
+    "home uploads"
+  ],
+  "near_misses_rejected": [
+    {
+      "id": "consensual_power_play",
+      "where": "scripts/lib/adult-handoff-production-fixture.ts @ 7a164f6621e01daeac15f6632f7f398c4b5c5b9e",
+      "why_not_f4": "scene id is consensual_power_play not F4; currentUser is a different Korean sentence; history is harness-generated; character is 서이안/윤재 synthetic production harness, not recovered F4 source"
+    },
+    {
+      "id": "muse12-noncon-fiction-probe",
+      "where": "cursor/muse12-noncon-fiction-probe-9ec2",
+      "why_not_f4": "invented 카엘/미르 actual-noncon probe; not sceneId F4; forbidden as new non-consensual fixture"
+    },
+    {
+      "id": "FIXTURE_A_LIKE_REN",
+      "where": "docs/audits/aion-adult-handoff-capability/fixtures",
+      "why_not_f4": "consensual Like/Ren adult handoff; different current user; not F4"
+    }
+  ],
+  "stop_reason": "Required production-equivalent pieces for F4 (character, persona, Speech Lock, world canon, history, prior assistant, current user) are not present as a recoverable artifact. Missing pieces were not guessed. Live calls not run."
+}
