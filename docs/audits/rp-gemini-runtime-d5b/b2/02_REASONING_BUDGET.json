@@ -1,0 +1,23 @@
+{
+  "phase": "D5-B2",
+  "status": "NOT_APPLICABLE",
+  "reason": "Production already uses the lowest officially supported effort (low). No lower supported effort; no official reasoning.max_tokens control.",
+  "supported_reasoning_controls": {
+    "fetched_from": "GET /api/v1/models → google/gemini-3.1-pro-preview.reasoning",
+    "mandatory": true,
+    "supported_efforts": [
+      "high",
+      "medium",
+      "low"
+    ],
+    "default_effort": "medium",
+    "production_effort": "low",
+    "lower_supported_than_production": null,
+    "supports_reasoning_max_tokens": false,
+    "note": "minimal/none not in supported_efforts; mandatory=true forbids none. Model reasoning object omits supports_max_tokens → no official bounded reasoning cap."
+  },
+  "REASONING_STABILITY": "NOT_APPLICABLE",
+  "api_calls_this_run": 0,
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN"
+}

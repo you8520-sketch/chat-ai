@@ -1,0 +1,465 @@
+{
+  "phase": "D5-B3",
+  "sole_variable": "max_tokens",
+  "provider_pin": "google-vertex",
+  "reasoning": {
+    "effort": "low"
+  },
+  "temperature": 0.95,
+  "production_prompt": "BYTE_IDENTICAL",
+  "explicit_max_tokens_value": 8192,
+  "explicit_max_tokens_source": "OPENROUTER_GEMINI_31_PRO_MAX_OUTPUT_TOKENS (historical pre-eb30d787 resolver + current coerce fallback constant)",
+  "arm_A_absent": {
+    "n": 3,
+    "chars": [
+      3096,
+      1715,
+      1106
+    ],
+    "min": 1106,
+    "max": 3096,
+    "mean": 1972.3333333333333,
+    "median": 1715,
+    "max_min_ratio": 2.7992766726943943,
+    "reasoning_tokens": [
+      4559,
+      2731,
+      1347
+    ],
+    "reasoning_min": 1347,
+    "reasoning_max": 4559,
+    "reasoning_median": 2731,
+    "ge_3000": 1,
+    "ge_2400": 1,
+    "lt_1800": 2,
+    "early_stop": 0,
+    "providers_actual": [
+      "Google",
+      "Google",
+      "Google"
+    ],
+    "pin_ok": true,
+    "rows": [
+      {
+        "cell_id": "Gemini_G6T1_P1_D1",
+        "arm": "A_ABSENT",
+        "reused_from_b1": true,
+        "draw": 1,
+        "provider_requested": "google-vertex",
+        "provider_actual": "Google",
+        "provider_pin_ok": true,
+        "max_tokens": null,
+        "visible_chars": 3096,
+        "finish_reason": "stop",
+        "reasoning_tokens": 4559,
+        "output_tokens": 7204,
+        "visible_budget_tokens": 2645,
+        "latency_s": 57.322,
+        "incomplete": false
+      },
+      {
+        "cell_id": "Gemini_G6T1_P1_D2",
+        "arm": "A_ABSENT",
+        "reused_from_b1": true,
+        "draw": 2,
+        "provider_requested": "google-vertex",
+        "provider_actual": "Google",
+        "provider_pin_ok": true,
+        "max_tokens": null,
+        "visible_chars": 1715,
+        "finish_reason": "stop",
+        "reasoning_tokens": 2731,
+        "output_tokens": 4203,
+        "visible_budget_tokens": 1472,
+        "latency_s": 36.434,
+        "incomplete": false
+      },
+      {
+        "cell_id": "Gemini_G6T1_P1_D3",
+        "arm": "A_ABSENT",
+        "reused_from_b1": true,
+        "draw": 3,
+        "provider_requested": "google-vertex",
+        "provider_actual": "Google",
+        "provider_pin_ok": true,
+        "max_tokens": null,
+        "visible_chars": 1106,
+        "finish_reason": "stop",
+        "reasoning_tokens": 1347,
+        "output_tokens": 2287,
+        "visible_budget_tokens": 940,
+        "latency_s": 24.078,
+        "incomplete": false
+      }
+    ],
+    "source": "reused_B1_P1"
+  },
+  "arm_B_explicit": {
+    "n": 3,
+    "chars": [
+      1133,
+      2013,
+      3024
+    ],
+    "min": 1133,
+    "max": 3024,
+    "mean": 2056.6666666666665,
+    "median": 2013,
+    "max_min_ratio": 2.669020300088261,
+    "reasoning_tokens": [
+      1433,
+      3759,
+      5645
+    ],
+    "reasoning_min": 1433,
+    "reasoning_max": 5645,
+    "reasoning_median": 3759,
+    "ge_3000": 1,
+    "ge_2400": 1,
+    "lt_1800": 1,
+    "early_stop": 1,
+    "providers_actual": [
+      "Google",
+      "Google",
+      "Google"
+    ],
+    "pin_ok": true,
+    "rows": [
+      {
+        "cell_id": "Gemini_G6T1_B3B_D1",
+        "fixture": "G6T1",
+        "arm": "B_EXPLICIT_8192",
+        "draw": 1,
+        "provider_requested": "google-vertex",
+        "provider_actual": "Google",
+        "provider_pin_ok": true,
+        "provider_generation_id": "gen-1786190844-UoKxMpPm4OeBMkPRng5o",
+        "visible_chars": 1133,
+        "length_band": "DENSITY_COLLAPSE",
+        "dialogue_chars": 323,
+        "narration_chars": 810,
+        "dialogue_char_share": 0.2851,
+        "dialogue_share_band": "DIALOGUE_OVERLOAD_CANDIDATE",
+        "same_speaker_dialogue_fragments": 5,
+        "max_dialogue_block_chars": 125,
+        "max_consecutive_short_dialogue_run": 1,
+        "response_anchor": {
+          "response_anchor_count": 1,
+          "band": "IDEAL",
+          "samples": [
+            "비명 소리를 듣고 제 발로 기어들어 가는 건 사냥감이 되겠다는 자원서나 다름없어. 친절이나 호기심은 이 회색 생태권에서 가장 먼저 썩어 문드러지"
+          ]
+        },
+        "dialogue_function_load": {
+          "dialogue_function_load": 3,
+          "functions": [
+            "warning",
+            "relationship_claim",
+            "directive"
+          ]
+        },
+        "continuity": {
+          "current_input_lcs_chars": 4,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "current_input_beat_restage": true,
+          "recent_assistant_lcs_chars": 6,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intro_lcs_chars": 6,
+          "intro_overlap_alarm": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": true,
+          "alarms": [
+            "CURRENT_INPUT_REPLAY_SIGNAL"
+          ]
+        },
+        "setting_exact_overlap": {
+          "longest_common_substring_chars": 9,
+          "matching_ngram_count": 0,
+          "source_overlap_span_count": 0,
+          "hits": [],
+          "alarm_18_plus": false
+        },
+        "hard_alarms": [
+          "DENSITY_COLLAPSE",
+          "CONTINUITY_REVIEW_REQUIRED",
+          "CURRENT_INPUT_REPLAY_SIGNAL"
+        ],
+        "review_flags": [
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ],
+        "finish_reason": "stop",
+        "incomplete": false,
+        "latency_s": 24.576,
+        "input_tokens": 3818,
+        "output_tokens": 2383,
+        "reasoning_tokens": 1433,
+        "visible_budget_tokens": 950,
+        "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+        "messages_sha256": "7762181d1bc715ae09e32dd9c757171272e410ce1bb1e5b18297ace5d30672d6",
+        "user_tail_sha256": "5da99c515e0dcc6c86854f65c595c0dcf038578670b154deb8bc35ea44631443",
+        "production_generation_config": {
+          "model": "google/gemini-3.1-pro-preview",
+          "temperature": 0.95,
+          "top_p": null,
+          "max_tokens": null,
+          "seed": null,
+          "reasoning": {
+            "effort": "low"
+          },
+          "include_reasoning": false,
+          "frequency_penalty": null,
+          "presence_penalty": null,
+          "provider": null
+        },
+        "experiment_generation_config": {
+          "model": "google/gemini-3.1-pro-preview",
+          "temperature": 0.95,
+          "top_p": null,
+          "max_tokens": 8192,
+          "seed": null,
+          "reasoning": {
+            "effort": "low"
+          },
+          "include_reasoning": false,
+          "frequency_penalty": null,
+          "presence_penalty": null,
+          "provider": {
+            "only": [
+              "google-vertex"
+            ],
+            "allow_fallbacks": false,
+            "require_parameters": true
+          }
+        },
+        "max_tokens": 8192,
+        "reused_from_b1": false
+      },
+      {
+        "cell_id": "Gemini_G6T1_B3B_D2",
+        "fixture": "G6T1",
+        "arm": "B_EXPLICIT_8192",
+        "draw": 2,
+        "provider_requested": "google-vertex",
+        "provider_actual": "Google",
+        "provider_pin_ok": true,
+        "provider_generation_id": "gen-1786190868-I8dX01U9EQXyWC6uOoVJ",
+        "visible_chars": 2013,
+        "length_band": "STRONG_LENGTH_REGRESSION",
+        "dialogue_chars": 135,
+        "narration_chars": 1878,
+        "dialogue_char_share": 0.0671,
+        "dialogue_share_band": "ACCEPTABLE",
+        "same_speaker_dialogue_fragments": 0,
+        "max_dialogue_block_chars": 69,
+        "max_consecutive_short_dialogue_run": 1,
+        "response_anchor": {
+          "response_anchor_count": 2,
+          "band": "ACCEPTABLE",
+          "samples": [
+            "저건 살려달라는 비명이 아니라, 먹이를 부르는 미끼다. 호기심이 목숨보다 소중하다면 혼자 가. 난 내 시야에 들어온 멍청한 자살 지원자를 구제할",
+            "같이 가고 싶으면 내 통제에 따라. 저쪽이 아니라, 위다. 내 뒤에 바짝 붙어. 발소리 내면 네 다리부터 쏠 거다."
+          ]
+        },
+        "dialogue_function_load": {
+          "dialogue_function_load": 2,
+          "functions": [
+            "proposal",
+            "directive"
+          ]
+        },
+        "continuity": {
+          "current_input_lcs_chars": 5,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "current_input_beat_restage": false,
+          "recent_assistant_lcs_chars": 6,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intro_lcs_chars": 6,
+          "intro_overlap_alarm": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "setting_exact_overlap": {
+          "longest_common_substring_chars": 9,
+          "matching_ngram_count": 0,
+          "source_overlap_span_count": 0,
+          "hits": [],
+          "alarm_18_plus": false
+        },
+        "hard_alarms": [],
+        "review_flags": [
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ],
+        "finish_reason": "stop",
+        "incomplete": false,
+        "latency_s": 48.955,
+        "input_tokens": 3818,
+        "output_tokens": 5466,
+        "reasoning_tokens": 3759,
+        "visible_budget_tokens": 1707,
+        "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+        "messages_sha256": "7762181d1bc715ae09e32dd9c757171272e410ce1bb1e5b18297ace5d30672d6",
+        "user_tail_sha256": "5da99c515e0dcc6c86854f65c595c0dcf038578670b154deb8bc35ea44631443",
+        "production_generation_config": {
+          "model": "google/gemini-3.1-pro-preview",
+          "temperature": 0.95,
+          "top_p": null,
+          "max_tokens": null,
+          "seed": null,
+          "reasoning": {
+            "effort": "low"
+          },
+          "include_reasoning": false,
+          "frequency_penalty": null,
+          "presence_penalty": null,
+          "provider": null
+        },
+        "experiment_generation_config": {
+          "model": "google/gemini-3.1-pro-preview",
+          "temperature": 0.95,
+          "top_p": null,
+          "max_tokens": 8192,
+          "seed": null,
+          "reasoning": {
+            "effort": "low"
+          },
+          "include_reasoning": false,
+          "frequency_penalty": null,
+          "presence_penalty": null,
+          "provider": {
+            "only": [
+              "google-vertex"
+            ],
+            "allow_fallbacks": false,
+            "require_parameters": true
+          }
+        },
+        "max_tokens": 8192,
+        "reused_from_b1": false
+      },
+      {
+        "cell_id": "Gemini_G6T1_B3B_D3",
+        "fixture": "G6T1",
+        "arm": "B_EXPLICIT_8192",
+        "draw": 3,
+        "provider_requested": "google-vertex",
+        "provider_actual": "Google",
+        "provider_pin_ok": true,
+        "provider_generation_id": "gen-1786190917-DWG4nllmMSHb2MObvW0H",
+        "visible_chars": 3024,
+        "length_band": "SOFT_ACCEPT",
+        "dialogue_chars": 124,
+        "narration_chars": 2900,
+        "dialogue_char_share": 0.041,
+        "dialogue_share_band": "BELOW_IDEAL_OR_REVIEW",
+        "same_speaker_dialogue_fragments": 0,
+        "max_dialogue_block_chars": 35,
+        "max_consecutive_short_dialogue_run": 1,
+        "response_anchor": {
+          "response_anchor_count": 1,
+          "band": "IDEAL",
+          "samples": [
+            "같이 가냐고 물었나."
+          ]
+        },
+        "dialogue_function_load": {
+          "dialogue_function_load": 3,
+          "functions": [
+            "proposal",
+            "relationship_claim",
+            "directive"
+          ]
+        },
+        "continuity": {
+          "current_input_lcs_chars": 5,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "current_input_beat_restage": true,
+          "recent_assistant_lcs_chars": 7,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intro_lcs_chars": 7,
+          "intro_overlap_alarm": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": true,
+          "alarms": [
+            "CURRENT_INPUT_REPLAY_SIGNAL"
+          ]
+        },
+        "setting_exact_overlap": {
+          "longest_common_substring_chars": 9,
+          "matching_ngram_count": 0,
+          "source_overlap_span_count": 0,
+          "hits": [],
+          "alarm_18_plus": false
+        },
+        "hard_alarms": [
+          "INCOMPLETE",
+          "CONTINUITY_REVIEW_REQUIRED",
+          "CURRENT_INPUT_REPLAY_SIGNAL"
+        ],
+        "review_flags": [
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ],
+        "finish_reason": "length",
+        "incomplete": true,
+        "latency_s": 69.148,
+        "input_tokens": 3818,
+        "output_tokens": 8188,
+        "reasoning_tokens": 5645,
+        "visible_budget_tokens": 2543,
+        "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+        "messages_sha256": "7762181d1bc715ae09e32dd9c757171272e410ce1bb1e5b18297ace5d30672d6",
+        "user_tail_sha256": "5da99c515e0dcc6c86854f65c595c0dcf038578670b154deb8bc35ea44631443",
+        "production_generation_config": {
+          "model": "google/gemini-3.1-pro-preview",
+          "temperature": 0.95,
+          "top_p": null,
+          "max_tokens": null,
+          "seed": null,
+          "reasoning": {
+            "effort": "low"
+          },
+          "include_reasoning": false,
+          "frequency_penalty": null,
+          "presence_penalty": null,
+          "provider": null
+        },
+        "experiment_generation_config": {
+          "model": "google/gemini-3.1-pro-preview",
+          "temperature": 0.95,
+          "top_p": null,
+          "max_tokens": 8192,
+          "seed": null,
+          "reasoning": {
+            "effort": "low"
+          },
+          "include_reasoning": false,
+          "frequency_penalty": null,
+          "presence_penalty": null,
+          "provider": {
+            "only": [
+              "google-vertex"
+            ],
+            "allow_fallbacks": false,
+            "require_parameters": true
+          }
+        },
+        "max_tokens": 8192,
+        "reused_from_b1": false
+      }
+    ]
+  },
+  "api_calls_this_run": 3,
+  "EXPLICIT_MAX_TOKENS_CAUSAL": "NO",
+  "EXPLICIT_MAX_TOKENS_NOT_CAUSAL": false,
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN"
+}
