@@ -1,0 +1,172 @@
+{
+  "baseline_sha": "55b893e76b28f1de8fdcc0442cfe5e834f23f9ce",
+  "implementation_sha": "d4c3316ab592518d149fdacf00cd63911239a5be",
+  "test_contract": "node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test",
+  "new_regression_before": {
+    "tests": 20,
+    "pass": 6,
+    "fail": 14
+  },
+  "new_regression_after": {
+    "tests": 20,
+    "pass": 20,
+    "fail": 0
+  },
+  "related": {
+    "results": {
+      "tests": 390,
+      "pass": 379,
+      "fail": 11
+    },
+    "files": [
+      "src/lib/memory/memory-noncanon-recall.test.ts",
+      "src/lib/memory/memory-medium-term.test.ts",
+      "src/lib/memory/memory-manual-global-coexist.test.ts",
+      "src/lib/memory/memory-prompt-injectible-parity.test.ts",
+      "src/lib/memory/memory-noncanon-promotion.test.ts",
+      "src/lib/memory/memory-branch-noncanon-phase2.test.ts",
+      "src/lib/memory/memory-scene-reset-canonicality.test.ts",
+      "src/lib/memory/memory-episodic-source-evidence.test.ts",
+      "src/lib/memory/memory-episodic-scope-regression.test.ts",
+      "src/lib/memory/memory-regen-scope.test.ts",
+      "src/lib/memory/memory-stale-write-race.test.ts",
+      "src/lib/memory/memory-rolling-summary.fallback.test.ts",
+      "src/lib/memory/memory-summary-persist.test.ts",
+      "src/lib/memory/memory-episodic-independent.test.ts",
+      "src/lib/memory/memory-medium-term-prompt-budget-audit.test.ts",
+      "src/lib/memory/memory-5plus4-phase-semantics.test.ts",
+      "src/lib/memory/memory-relationship-provenance.test.ts",
+      "src/lib/memoryCoverageInvariant.test.ts",
+      "src/lib/memoryCoverageReconcile.test.ts",
+      "src/lib/continueNarrative.regenerate.test.ts",
+      "src/lib/continueNarrative.autoContinue.test.ts",
+      "src/lib/chatTranscriptExport.test.ts",
+      "src/lib/chatHtmlSanitize.test.ts",
+      "src/lib/openRouterAdult.liveStream.test.ts",
+      "src/lib/narrativeRules.test.ts",
+      "src/lib/oocSceneRender.test.ts",
+      "src/services/contextBuilder.memoryCoverage.test.ts",
+      "src/services/contextBuilder.regenerate.test.ts",
+      "src/services/contextBuilder.cacheBoundary.test.ts"
+    ]
+  },
+  "supplemental": {
+    "results": {
+      "tests": 43,
+      "pass": 40,
+      "fail": 3
+    },
+    "files": [
+      "src/lib/historicalTruthPolicy.test.ts",
+      "src/lib/memory/memory-source-edit-invalidation.test.ts",
+      "src/lib/memory/memory-global-checkpoint-lifecycle.test.ts"
+    ]
+  },
+  "unique_final_tests": {
+    "tests": 433,
+    "pass": 419,
+    "fail": 14,
+    "new_failures": 0,
+    "baseline_reproduced_failures": 14
+  },
+  "baseline_failure_verification": {
+    "files": [
+      "src/lib/memory/memory-branch-noncanon-phase2.test.ts",
+      "src/lib/memory/memory-noncanon-promotion.test.ts",
+      "src/services/contextBuilder.regenerate.test.ts",
+      "src/lib/memory/memory-source-edit-invalidation.test.ts"
+    ],
+    "failures": [
+      {
+        "name": "B2_1 noncanon continue promotes latest contiguous group to branch_canon",
+        "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+        "reproduced_on_exact_main": true
+      },
+      {
+        "name": "B2_7 only latest contiguous noncanon segment selected for promotion",
+        "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+        "reproduced_on_exact_main": true
+      },
+      {
+        "name": "LEGACY-FAIL-A reproduced as FIXED: A/main/B/main/C → C only",
+        "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+        "reproduced_on_exact_main": true
+      },
+      {
+        "name": "A1-A3/main/B1-B2 → B1+B2 only",
+        "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+        "reproduced_on_exact_main": true
+      },
+      {
+        "name": "B1/preference/B2 → B1+B2 promoted; preference untouched",
+        "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+        "reproduced_on_exact_main": true
+      },
+      {
+        "name": "B1/empty_ooc/B2 → B1+B2 promoted; empty_ooc untouched",
+        "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+        "reproduced_on_exact_main": true
+      },
+      {
+        "name": "E: active C + unrelated B → B promotion 0; C only in LTM",
+        "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+        "reproduced_on_exact_main": true
+      },
+      {
+        "name": "F: closed A + B1/B2 + bare 계속 → B only; A stays closed",
+        "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+        "reproduced_on_exact_main": true
+      },
+      {
+        "name": "G: B1/B2/B3 all promoted with same branch_id",
+        "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+        "reproduced_on_exact_main": true
+      },
+      {
+        "name": "H: continue delete rolls back only selected promote group",
+        "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+        "reproduced_on_exact_main": true
+      },
+      {
+        "name": "injects mandatory divergence block into dynamic system prompt",
+        "error": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /REGENERATE — MANDATORY DIVERGENCE/i. Input:",
+        "reproduced_on_exact_main": true
+      },
+      {
+        "name": "invalidates sealed summary and reseals with new source prose",
+        "error": "TypeError: releaseLlm is not a function",
+        "reproduced_on_exact_main": true
+      },
+      {
+        "name": "material user source edit invalidates sealed summary and allows reseal",
+        "error": "TypeError: releaseLlm is not a function",
+        "reproduced_on_exact_main": true
+      },
+      {
+        "name": "edits assistant-only turn without misattributing to prior user turn",
+        "error": "TypeError: releaseLlm is not a function",
+        "reproduced_on_exact_main": true
+      }
+    ],
+    "scope": "Existing promotion fixtures report waiting for canon freeze; regenerate expects a missing divergence header; source-edit deferred LLM fixture raises releaseLlm TypeError. Same failures on main; owners unchanged."
+  },
+  "checks": {
+    "git_diff_check": "PASS",
+    "npm_run_build": "PASS",
+    "npm_run_lint": "PASS (app tsc)",
+    "npm_run_typecheck_app": "PASS",
+    "sequence": "build completed before lint then app typecheck; isolated local DATA_DIR and blank provider/remote DB credentials for build"
+  },
+  "not_run": [
+    "full regular suite",
+    "known failing full test typecheck",
+    "C5 absent cache artifact reconstruction",
+    "new live provider comparisons",
+    "100-turn paid replay",
+    "T150/300/500/1000 actual model memory"
+  ],
+  "provider_calls": 0,
+  "api_cost_krw": 0,
+  "live_model_verification": "BLOCKED_AUTH",
+  "production_writes": 0
+}

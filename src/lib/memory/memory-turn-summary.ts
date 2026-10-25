@@ -259,6 +259,23 @@ export function listMemoryRecordsForChat(chatId: number): MemoryRecordView[] {
   return rows.map(rowToViewOrNull).filter((view): view is MemoryRecordView => view != null);
 }
 
+/** Read-only historical candidates. Never changes Global/Medium's canonical eligibility. */
+export function listNoncanonRecallRecords(
+  chatId: number,
+  opts?: { excludeTurnStartGte?: number }
+): Array<{ record: MemoryRecordView; scope: "noncanon" | "closed_branch"; text: string }> {
+  return listMemoryRecordsForChat(chatId).flatMap<{ record: MemoryRecordView; scope: "noncanon" | "closed_branch"; text: string }>((record) => {
+    if (record.inactive ||
+        (opts?.excludeTurnStartGte != null && record.turnEnd >= opts.excludeTurnStartGte)) return [];
+    const noncanon = record.scopes.noncanon?.trim();
+    const closed = record.branchStatus === "closed" ? record.scopes.branch_canon?.trim() : "";
+    return [
+      ...(noncanon ? [{ record, scope: "noncanon" as const, text: noncanon }] : []),
+      ...(closed ? [{ record, scope: "closed_branch" as const, text: closed }] : []),
+    ];
+  });
+}
+
 /** @deprecated listMemoryRecordsForChat 사용 */
 export function listTurnSummariesForChat(chatId: number): {
   id: number;
