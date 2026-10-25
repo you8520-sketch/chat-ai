@@ -1,0 +1,13 @@
+```html
+<div style="max-width:520px;margin:20px auto;padding:0 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif;color:#1f2937;">
+  <section style="background:#ffffff;border:1px solid #e5e7eb;border-radius:18px;box-shadow:0 8px 24px rgba(30,41,59,.08);overflow:hidden;">
+    <div style="padding:18px 20px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);border-bottom:1px solid #c7d2fe;">
+      <div style="font-size:12px;font-weight:700;letter-spacing:.08em;color:#4f46e5;margin-bottom:6px;">NOTICE</div>
+      <h2 style="margin:0;font-size:22px;line-height:1.35;color:#1e1b4b;">오늘의 일정</h2>
+    </div>
+    <div style="padding:22px 20px;font-size:16px;line-height:1.7;">
+      <p style="margin:0;">19:00 정원 미팅 — 지각 금지</p>
+    </div>
+  </section>
+</div>
+```
