@@ -53,11 +53,28 @@ function snapshot(
 ): MainRpPricingApplicationSnapshot {
   return {
     modelId: "gemini-3.7-flash",
+    canonicalCatalogKey: "gemini-3.7-flash",
     candidateFingerprint: "fp-current",
     pricingVersion: 2,
     publishedAt: "2026-09-20T00:00:00.000Z",
     currentTargetMargin: 0.55,
     commercialPricingOwner: "target_margin",
+    publishedPricingGuard: {
+      modelId: "gemini-3.7-flash",
+      commercialPricingOwner: "target_margin",
+      billingReferenceInputUsdPerMillion: 0.375,
+      billingReferenceOutputUsdPerMillion: 1.875,
+      billingReferenceCacheReadUsdPerMillion: null,
+      billingReferenceCacheWriteUsdPerMillion: null,
+      targetMargin: 0.55,
+      minimumMarginFloor: 0.5,
+      pricingVersion: 2,
+      publishedAt: "2026-09-20T00:00:00.000Z",
+      pricingApplicability: null,
+      publishedBaseTierMaxPromptTokens: null,
+      promo: null,
+      marketBenchmark: null,
+    },
     liveApplicability: "LIVE_PUBLISHED",
     sitePromotionActive: false,
     officialPromotionCount: 0,
@@ -93,8 +110,51 @@ describe("Phase B2E read-only pricing application plan", () => {
     assert.equal(plan.currentTargetMargin, 0.55);
     assert.equal(plan.proposedTargetMargin, 0.5);
     assert.equal(plan.publishedAtInstruction, "SET_AT_APPLICATION_COMMIT");
+    assert.deepEqual(plan.manifest, {
+      ownerModule: "src/lib/publishedModelPricing.ts",
+      catalogKey: "gemini-3.7-flash",
+      expectedBefore: snapshot().publishedPricingGuard,
+      allowedChanges: {
+        targetMargin: 0.5,
+        pricingVersion: 3,
+        publishedAt: "SET_AT_APPLICATION_COMMIT",
+      },
+      preserveFields: [
+        "modelId",
+        "commercialPricingOwner",
+        "billingReferenceInputUsdPerMillion",
+        "billingReferenceOutputUsdPerMillion",
+        "billingReferenceCacheReadUsdPerMillion",
+        "billingReferenceCacheWriteUsdPerMillion",
+        "minimumMarginFloor",
+        "pricingApplicability",
+        "publishedBaseTierMaxPromptTokens",
+        "promo",
+        "marketBenchmark",
+      ],
+    });
     assert.equal(plan.preview.representativeCurrentPoints, 60);
     assert.equal(plan.preview.representativeCandidatePoints, 55);
+  });
+
+  it("manifest limits the future source edit to targetMargin, pricingVersion, and publishedAt", () => {
+    const plan = buildMainRpPricingApplicationPlanFromSnapshot({
+      record: record(),
+      snapshot: snapshot(),
+      latestRecordIdForModel: 10,
+    });
+    assert.equal(plan.status, "READY");
+    assert.ok(plan.manifest);
+    assert.deepEqual(Object.keys(plan.manifest.allowedChanges).sort(), [
+      "pricingVersion",
+      "publishedAt",
+      "targetMargin",
+    ]);
+    assert.equal(
+      plan.manifest.expectedBefore.billingReferenceInputUsdPerMillion,
+      0.375
+    );
+    assert.equal(plan.manifest.expectedBefore.minimumMarginFloor, 0.5);
   });
 
   it("non-approved records never produce an application-ready plan", () => {
@@ -104,6 +164,7 @@ describe("Phase B2E read-only pricing application plan", () => {
       latestRecordIdForModel: 10,
     });
     assert.equal(plan.status, "HOLD_NOT_APPROVED");
+    assert.equal(plan.manifest, null);
   });
 
   it("older APPROVED occurrence cannot become READY again after a newer occurrence exists", () => {
@@ -202,6 +263,7 @@ describe("Phase B2E read-only pricing application plan", () => {
     });
     assert.equal(plan.status, "HOLD_UNSUPPORTED_COMMERCIAL_OWNER");
     assert.equal(plan.ownerModule, null);
+    assert.equal(plan.manifest, null);
     assert.equal(plan.nextPricingVersion, null);
   });
 
