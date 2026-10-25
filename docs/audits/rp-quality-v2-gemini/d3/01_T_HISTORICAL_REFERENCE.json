@@ -1,0 +1,49 @@
+{
+  "note": "T = D2 terminal_system arm B — not re-called in D3",
+  "source": "docs/audits/rp-quality-v2-gemini/d2/",
+  "wording_sha256": "0646850abc442dd6fb79b805df9eac6ca05c9a53506b675d0b607c4eff18f09e",
+  "d2_stage1_excerpt": [
+    {
+      "cell_id": "Gemini_G5_A",
+      "fixture": "G5",
+      "arm": "A",
+      "visible_chars_no_ws": 1500,
+      "length_band": "DENSITY_COLLAPSE"
+    },
+    {
+      "cell_id": "Gemini_G5_B",
+      "fixture": "G5",
+      "arm": "B",
+      "visible_chars_no_ws": 2672,
+      "length_band": "REVIEW_REQUIRED"
+    },
+    {
+      "cell_id": "Gemini_G6T1_A",
+      "fixture": "G6T1",
+      "arm": "A",
+      "visible_chars_no_ws": 2608,
+      "length_band": "REVIEW_REQUIRED"
+    },
+    {
+      "cell_id": "Gemini_G6T1_B",
+      "fixture": "G6T1",
+      "arm": "B",
+      "visible_chars_no_ws": 658,
+      "length_band": "DENSITY_COLLAPSE"
+    },
+    {
+      "cell_id": "Gemini_G3_A",
+      "fixture": "G3",
+      "arm": "A",
+      "visible_chars_no_ws": 1123,
+      "length_band": "DENSITY_COLLAPSE"
+    },
+    {
+      "cell_id": "Gemini_G3_B",
+      "fixture": "G3",
+      "arm": "B",
+      "visible_chars_no_ws": 819,
+      "length_band": "DENSITY_COLLAPSE"
+    }
+  ]
+}

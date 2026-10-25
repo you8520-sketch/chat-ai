@@ -1,0 +1,52 @@
+{
+  "fingerprints": [
+    {
+      "cell_id": "Gemini_G6T1_A",
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "messages_sha256": "7762181d1bc715ae09e32dd9c757171272e410ce1bb1e5b18297ace5d30672d6",
+      "user_tail_sha256": "5da99c515e0dcc6c86854f65c595c0dcf038578670b154deb8bc35ea44631443",
+      "placement": "absent",
+      "insert_marker": null
+    },
+    {
+      "cell_id": "Gemini_G6T1_C",
+      "system_sha256": "feb9851d8754ad9ddb432d0cd1e20ed85d2a3ec27e53bc5bce364fa4ebcabc30",
+      "messages_sha256": "c28d675d61a3a16c0dfa61e052ecdc47e1422c9e597636d14c5b369c30f1c344",
+      "user_tail_sha256": "5da99c515e0dcc6c86854f65c595c0dcf038578670b154deb8bc35ea44631443",
+      "placement": "context_boundary",
+      "insert_marker": "[OUTPUT LAYOUT]"
+    },
+    {
+      "cell_id": "Gemini_G5_A",
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "messages_sha256": "1c218ac9cad20e905aaf2dcb31d63edae7427fdaa6437e8acb38b3af0bfdbbc6",
+      "user_tail_sha256": "c2829f3e9bad018eb12261750fde550c7f88d15e6b3351994354c302caedc95a",
+      "placement": "absent",
+      "insert_marker": null
+    },
+    {
+      "cell_id": "Gemini_G5_C",
+      "system_sha256": "feb9851d8754ad9ddb432d0cd1e20ed85d2a3ec27e53bc5bce364fa4ebcabc30",
+      "messages_sha256": "3eb54cf166ffa126d2952cfa7173ea168a35a54ad6ca0e4b7c0a0e5a84e958c6",
+      "user_tail_sha256": "c2829f3e9bad018eb12261750fde550c7f88d15e6b3351994354c302caedc95a",
+      "placement": "context_boundary",
+      "insert_marker": "[OUTPUT LAYOUT]"
+    },
+    {
+      "cell_id": "Gemini_G3_A",
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "messages_sha256": "834122ce41e65cb9c2d9f46218a899bf5182bc3daec345403bf3c1cc160151ad",
+      "user_tail_sha256": "2adaefdf29d0184cc4e5575815b3865fbc8c28a39f1ccc085ef05dd21306998b",
+      "placement": "absent",
+      "insert_marker": null
+    },
+    {
+      "cell_id": "Gemini_G3_C",
+      "system_sha256": "feb9851d8754ad9ddb432d0cd1e20ed85d2a3ec27e53bc5bce364fa4ebcabc30",
+      "messages_sha256": "92c362bae0d62c233382138d4844bdeab3b64e3b3b2b7e41d5962c0ab55c883b",
+      "user_tail_sha256": "2adaefdf29d0184cc4e5575815b3865fbc8c28a39f1ccc085ef05dd21306998b",
+      "placement": "context_boundary",
+      "insert_marker": "[OUTPUT LAYOUT]"
+    }
+  ]
+}

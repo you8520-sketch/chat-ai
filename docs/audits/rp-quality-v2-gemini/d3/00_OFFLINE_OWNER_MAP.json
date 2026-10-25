@@ -1,0 +1,196 @@
+{
+  "phase": "D3-0",
+  "api_calls": 0,
+  "modelId": "google/gemini-3.1-pro-preview",
+  "baseline_main_note": "branch from origin/main at start",
+  "wording_bytes_sha256": "0646850abc442dd6fb79b805df9eac6ca05c9a53506b675d0b607c4eff18f09e",
+  "adapter_estimated_tokens": 297,
+  "offline_owner_map": "PASS",
+  "context_boundary_preserves_other_sections": true,
+  "continuity_current_d2_placement": "SYSTEM_TAIL",
+  "context_boundary_insertion_point": "before [OUTPUT LAYOUT] / rule-output-layout-recency",
+  "length_owner_position": "user-tail USER_TAIL_LENGTH_OWNER_SENTENCE",
+  "user_terminal_owner_position": "layout line + length sentence after [CURRENT USER INPUT] body",
+  "system_section_order": [
+    {
+      "order_index": 0,
+      "id": "openrouter-korean-prose-top",
+      "label": "[TOP] OpenRouter Korean prose",
+      "category": "systemRules",
+      "role": "system",
+      "marker": "[CANON / SCOPE / KNOWLEDGE]",
+      "estimated_tokens": 738,
+      "text_chars": 819,
+      "head": "[CANON / SCOPE / KNOWLEDGE] === 설정 적용 우선순위 === 1. CHARACTER CANON · WORLD CANON",
+      "semantic_owner": "CANON_SCOPE_RULES"
+    },
+    {
+      "order_index": 1,
+      "id": "runtime-prompt-contamination-guard",
+      "label": "[TOP] Runtime prompt contamination guard",
+      "category": "systemRules",
+      "role": "system",
+      "marker": "[PRIVATE OUTPUT HYGIENE]",
+      "estimated_tokens": 799,
+      "text_chars": 887,
+      "head": "[PRIVATE OUTPUT HYGIENE] 비공개 통제문과 시스템 블록을 본문에 언급하지 마라. - 말투/레지스터 규칙은 자연스러운 대사 문체",
+      "semantic_owner": "OTHER_SYSTEM"
+    },
+    {
+      "order_index": 2,
+      "id": "no-godmodding",
+      "label": "[0a] No godmodding (user agency)",
+      "category": "systemRules",
+      "role": "system",
+      "marker": "[USER CONTROL — COLLABORATIVE INTERACTIVE]",
+      "estimated_tokens": 409,
+      "text_chars": 454,
+      "head": "[USER CONTROL — COLLABORATIVE INTERACTIVE] USER_PERSONA, creator/scenario canon",
+      "semantic_owner": "AGENCY"
+    },
+    {
+      "order_index": 3,
+      "id": "character-core-identity",
+      "label": "[2] Structured character canon (every turn)",
+      "category": "characterSetting",
+      "role": "system",
+      "marker": "[CHARACTER CANON — 에녹 MAY KNOW & ROLEPLAY]",
+      "estimated_tokens": 363,
+      "text_chars": 403,
+      "head": "[CHARACTER CANON — 에녹 MAY KNOW & ROLEPLAY] [EXAMPLE DIALOG — STYLE ONLY] 예시대화는 말",
+      "semantic_owner": "CANON_SCOPE_RULES"
+    },
+    {
+      "order_index": 4,
+      "id": "identity-and-rules",
+      "label": "[0] Identity & Rules (absolute)",
+      "category": "persona",
+      "role": "system",
+      "marker": "[IDENTITY_AND_RULES]",
+      "estimated_tokens": 262,
+      "text_chars": 291,
+      "head": "[IDENTITY_AND_RULES] The following defines the USER's roleplay persona (NOT the",
+      "semantic_owner": "PERSONA"
+    },
+    {
+      "order_index": 5,
+      "id": "prose-style-xml-bundle",
+      "label": "[1.4] Prose style policy (XML)",
+      "category": "systemRules",
+      "role": "system",
+      "marker": "[WEBNOVEL OUTPUT FORMAT]",
+      "estimated_tokens": 1572,
+      "text_chars": 1746,
+      "head": "[WEBNOVEL OUTPUT FORMAT] 서술·행동에 마크다운/RP 표기(*, **, (), [], {})를 쓰지 않는다. 「」는 세계 내 ",
+      "semantic_owner": "COMMON_PROSE"
+    },
+    {
+      "order_index": 6,
+      "id": "rule-output-layout-recency",
+      "label": "Output layout recency (Korean webnovel paragraph breaks)",
+      "category": "systemRules",
+      "role": "system",
+      "marker": "[OUTPUT LAYOUT]",
+      "estimated_tokens": 670,
+      "text_chars": 744,
+      "head": "[OUTPUT LAYOUT] [SEMANTIC PARAGRAPHING] 같은 인물, 같은 장소, 같은 순간, 같은 중심 반응에 속하는 연속 지문",
+      "semantic_owner": "OUTPUT_LAYOUT"
+    },
+    {
+      "order_index": 7,
+      "id": "user-persona-reference-owner",
+      "label": "User persona reference owner (current-turn gender and naming)",
+      "category": "systemRules",
+      "role": "system",
+      "marker": "[USER PERSONA REFERENCE OWNER — CURRENT TURN]",
+      "estimated_tokens": 545,
+      "text_chars": 605,
+      "head": "[USER PERSONA REFERENCE OWNER — CURRENT TURN] [B]는 AI 담당 캐릭터가 아니라 사용자가 선택한 페르소나다",
+      "semantic_owner": "PERSONA"
+    },
+    {
+      "order_index": 8,
+      "id": "narrative-pov-owner",
+      "label": "Narrative POV owner (current-response terminal lock)",
+      "category": "systemRules",
+      "role": "system",
+      "marker": "[NARRATIVE POV OWNER: THIRD PERSON]",
+      "estimated_tokens": 543,
+      "text_chars": 603,
+      "head": "[NARRATIVE POV OWNER: THIRD PERSON] [CURRENT RESPONSE POV SWITCH — ABSOLUTE] 이 응",
+      "semantic_owner": "DYNAMIC_TAIL_OWNER"
+    }
+  ],
+  "authority_answers": {
+    "1_length_owner": {
+      "location": "USER_TAIL (after current user input)",
+      "constant": "USER_TAIL_LENGTH_OWNER_SENTENCE",
+      "file": "src/lib/responseLength.ts",
+      "in_system_for_openrouter": false,
+      "present_on_final_user_message": true
+    },
+    "2_scene_continue_owner": {
+      "note": "No single dedicated 'continue scene' system section; scene continuity is implied by history + prose/layout. Layout owner = rule-output-layout-recency.",
+      "primary_execution_owner": "rule-output-layout-recency → [OUTPUT LAYOUT]",
+      "order_index": 6
+    },
+    "3_terminal_user_instruction_after_input": {
+      "present": true,
+      "layout_tail": true,
+      "length_tail": true,
+      "excerpt_tail": "ep narrating the user.\n[유저 지문/행동 — 캐릭터가 관찰 가능]\n멀리서 비명과 금속 마찰음이 겹친다. 렌은 에녹 쪽으로 몸을 낮춘다.\n[유저 대사]\n저쪽이에요.같이 가요?\n\n레이아웃: 지문과 \"…\" 대사 사이 빈 줄(\\n\\n) 필수 — 지문 줄 끝에 대사 붙이지 말 것.\n\n이번 응답은 한국어 3,200~4,200자 범위의 하나의 밀도 있는 장면으로 전개한다. 현재 상호작용을 요약하거나 성급히 닫지 말고, 관찰·행동·대사·감각·심리가 서로 다음 변화를 일으키도록 충분히 전개한다."
+    },
+    "4_d2_continuity_vs_owners": {
+      "d2_placement": "SYSTEM_TAIL (after narrative-pov-owner / final system sections)",
+      "relative_to_output_layout": "AFTER [OUTPUT LAYOUT]",
+      "relative_to_user_length_owner": "BEFORE user-tail length (system vs user role)"
+    },
+    "5_system_last_section": {
+      "id": "narrative-pov-owner",
+      "label": "Narrative POV owner (current-response terminal lock)",
+      "marker": "[NARRATIVE POV OWNER: THIRD PERSON]",
+      "order_index": 8
+    },
+    "6_content_vs_prose_boundary": {
+      "note": "Production OpenRouter places prose-style-xml-bundle BEFORE volatile memory. Content-interpretation boundary for D3 C is therefore defined as immediately before [OUTPUT LAYOUT] (after active canon / private secret / status / speech), not before early prose.",
+      "prose_order_index": 5,
+      "persona_order_index": 4,
+      "memory_order_indices": [],
+      "output_layout_order_index": 6,
+      "d3_c_insert": "immediately before [OUTPUT LAYOUT] (section rule-output-layout-recency)"
+    }
+  },
+  "fingerprints": {
+    "absent": {
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "messages_sha256": "7762181d1bc715ae09e32dd9c757171272e410ce1bb1e5b18297ace5d30672d6",
+      "system_token_estimate": 5912,
+      "user_tail_sha256": "5da99c515e0dcc6c86854f65c595c0dcf038578670b154deb8bc35ea44631443",
+      "injected": false,
+      "insert_marker": null,
+      "continuity_index": -1,
+      "output_layout_index": 4612
+    },
+    "terminal_system": {
+      "system_sha256": "a46ec85d16d1389b8560975f1063c6d39c576f18bf47045c1879cd9ac7a6c355",
+      "messages_sha256": "c898320339a8c8f2225110e70bacf39b54ea9d600b259a58c8ab341a8963f13b",
+      "system_token_estimate": 6210,
+      "user_tail_sha256": "5da99c515e0dcc6c86854f65c595c0dcf038578670b154deb8bc35ea44631443",
+      "injected": true,
+      "insert_marker": "SYSTEM_TAIL",
+      "continuity_index": 6570,
+      "output_layout_index": 4612
+    },
+    "context_boundary": {
+      "system_sha256": "feb9851d8754ad9ddb432d0cd1e20ed85d2a3ec27e53bc5bce364fa4ebcabc30",
+      "messages_sha256": "c28d675d61a3a16c0dfa61e052ecdc47e1422c9e597636d14c5b369c30f1c344",
+      "system_token_estimate": 6210,
+      "user_tail_sha256": "5da99c515e0dcc6c86854f65c595c0dcf038578670b154deb8bc35ea44631443",
+      "injected": true,
+      "insert_marker": "[OUTPUT LAYOUT]",
+      "continuity_index": 4612,
+      "output_layout_index": 4943
+    }
+  },
+  "final_user_message_chars": 571
+}
