@@ -1,0 +1,2984 @@
+{
+  "benchmark": "status-widget-luna-vs-deepseek",
+  "executedAt": "2026-08-26T13:58:37.277Z",
+  "sourceOfTruth": {
+    "DEPLOYED_SHA": "ef86639b0314d2f17eb55a431e1668e45a45a136",
+    "ORIGIN_MAIN_SHA": "ef86639b0314d2f17eb55a431e1668e45a45a136",
+    "DEPLOYED_EQUALS_MAIN": true,
+    "health": {
+      "url": "https://chat-ai-production-3e84.up.railway.app/api/health",
+      "gitCommit": "ef86639",
+      "gitBranch": "main"
+    },
+    "note": "origin/main is 2 TRPG-only commits ahead of this PR base; status widget files are identical."
+  },
+  "isolation": {
+    "provider": "cheaperinference",
+    "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+    "models": {
+      "deepseek": {
+        "model": "deepseek-v4-flash-0731",
+        "thinking": {
+          "type": "disabled"
+        },
+        "deadlineOwner": "resolveBackgroundFlashProviderDeadlines(status-widget).primaryCompletionMs",
+        "deadlineMs": 20000
+      },
+      "luna": {
+        "model": "gpt-5.6-luna",
+        "reasoning": {
+          "effort": "none"
+        },
+        "reasoning_effort": "none",
+        "deadlineOwner": "resolveOpenRouterCompletionTimeoutMs(status-widget)",
+        "deadlineMs": 120000
+      }
+    },
+    "CROSS_MODEL_FALLBACK": 0,
+    "PROVIDER_FAILOVER": 0,
+    "maxTokens": null,
+    "temperatureInitial": 0.3,
+    "temperatureRepair": 0
+  },
+  "widgets": {
+    "character": {
+      "version": 1,
+      "name": "모던 상태창",
+      "placement": "bottom",
+      "fields": [
+        {
+          "id": "시간",
+          "label": "시간",
+          "instruction": "장면의 현재 시각. 짧게 작성한다. 예: 14:30, 오후 2시 30분. 이전 턴의 시간에서 장면 경과를 반영한다."
+        },
+        {
+          "id": "장소",
+          "label": "장소",
+          "instruction": "현재 장면이 일어나는 장소 이름. 짧게 작성한다."
+        },
+        {
+          "id": "속마음",
+          "label": "속마음",
+          "instruction": "NPC의 속마음·의식의 흐름을 한 줄로. 1인칭 내면."
+        },
+        {
+          "id": "현재상황",
+          "label": "현재상황",
+          "instruction": "지금 벌어지는 상황을 한 줄로 요약한다."
+        },
+        {
+          "id": "의식의흐름",
+          "label": "의식의흐름",
+          "instruction": "NPC의 의식의 흐름을 간단히 작성한다. 출력 예시 : 너무졸려서 바닥에 눕고싶다 → 귀여운걸 보니 정신이 번쩍든다 → 데이트하자고 꼬셔야겠다"
+        }
+      ],
+      "htmlTemplate": "<div style=\"width:max-content;min-width:550px;max-width:none;margin:12px auto;padding:18px 20px;border-radius:14px;background:#0d1117;border:1px solid #21262d;box-shadow:0 12px 24px rgba(0,0,0,0.5);font-family:'Pretendard',sans-serif;color:#c9d1d9;line-height:1.6;word-break:keep-all;\"><div style=\"display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #21262d;white-space:nowrap;\"><div style=\"display:flex;align-items:center;gap:6px;white-space:nowrap;\"><span style=\"display:inline-block;width:6px;height:6px;background:#58a6ff;border-radius:50%;\"></span><span style=\"font-size:13px;font-weight:700;color:#f0f6fc;letter-spacing:0.02em;white-space:nowrap;\">STATUS REPORT</span></div><span style=\"font-size:11px;color:#8b949e;background:#161b22;padding:2px 8px;border-radius:20px;white-space:nowrap;\">{{시간}} · {{장소}}</span></div><div style=\"display:flex;flex-direction:column;gap:14px;font-size:14px;\"><div style=\"display:flex;gap:12px;align-items:flex-start;min-width:max-content;\"><span style=\"flex:0 0 auto;min-width:max-content;color:#58a6ff;font-weight:600;white-space:nowrap;\">• 속마음</span><span style=\"flex:1 1 auto;min-width:260px;color:#f0f6fc;overflow-wrap:anywhere;\">{{속마음}}</span></div><div style=\"display:flex;gap:12px;align-items:flex-start;min-width:max-content;\"><span style=\"flex:0 0 auto;min-width:max-content;color:#58a6ff;font-weight:600;white-space:nowrap;\">• 현재상황</span><span style=\"flex:1 1 auto;min-width:260px;color:#f0f6fc;overflow-wrap:anywhere;\">{{현재상황}}</span></div><div style=\"display:flex;gap:12px;align-items:flex-start;min-width:max-content;\"><span style=\"flex:0 0 auto;min-width:max-content;color:#58a6ff;font-weight:600;white-space:nowrap;\">• 의식의흐름</span><span style=\"flex:1 1 auto;min-width:260px;color:#f0f6fc;overflow-wrap:anywhere;\">{{의식의흐름}}</span></div></div></div>"
+    },
+    "user": {
+      "version": 1,
+      "name": "모던 상태창 (유저)",
+      "placement": "bottom",
+      "fields": [
+        {
+          "id": "시간",
+          "label": "시간",
+          "instruction": "장면의 현재 시각. 짧게 작성한다. 예: 14:30, 오후 2시 30분. 이전 턴의 시간에서 장면 경과를 반영한다."
+        },
+        {
+          "id": "장소",
+          "label": "장소",
+          "instruction": "현재 장면이 일어나는 장소 이름. 짧게 작성한다."
+        },
+        {
+          "id": "속마음",
+          "label": "속마음",
+          "instruction": "유저의 속마음·의식의 흐름을 한 줄로. 1인칭 내면."
+        },
+        {
+          "id": "현재상황",
+          "label": "현재상황",
+          "instruction": "지금 벌어지는 상황을 한 줄로 요약한다."
+        },
+        {
+          "id": "의식의흐름",
+          "label": "의식의흐름",
+          "instruction": "유저의 의식의 흐름을 간단히 작성한다. 출력 예시 : 너무졸려서 바닥에 눕고싶다 → 귀여운걸 보니 정신이 번쩍든다 → 데이트하자고 꼬셔야겠다"
+        }
+      ],
+      "htmlTemplate": "<div style=\"width:max-content;min-width:550px;max-width:none;margin:12px auto;padding:18px 20px;border-radius:14px;background:#0d1117;border:1px solid #21262d;box-shadow:0 12px 24px rgba(0,0,0,0.5);font-family:'Pretendard',sans-serif;color:#c9d1d9;line-height:1.6;word-break:keep-all;\"><div style=\"display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #21262d;white-space:nowrap;\"><div style=\"display:flex;align-items:center;gap:6px;white-space:nowrap;\"><span style=\"display:inline-block;width:6px;height:6px;background:#58a6ff;border-radius:50%;\"></span><span style=\"font-size:13px;font-weight:700;color:#f0f6fc;letter-spacing:0.02em;white-space:nowrap;\">STATUS REPORT</span></div><span style=\"font-size:11px;color:#8b949e;background:#161b22;padding:2px 8px;border-radius:20px;white-space:nowrap;\">{{시간}} · {{장소}}</span></div><div style=\"display:flex;flex-direction:column;gap:14px;font-size:14px;\"><div style=\"display:flex;gap:12px;align-items:flex-start;min-width:max-content;\"><span style=\"flex:0 0 auto;min-width:max-content;color:#58a6ff;font-weight:600;white-space:nowrap;\">• 속마음</span><span style=\"flex:1 1 auto;min-width:260px;color:#f0f6fc;overflow-wrap:anywhere;\">{{속마음}}</span></div><div style=\"display:flex;gap:12px;align-items:flex-start;min-width:max-content;\"><span style=\"flex:0 0 auto;min-width:max-content;color:#58a6ff;font-weight:600;white-space:nowrap;\">• 현재상황</span><span style=\"flex:1 1 auto;min-width:260px;color:#f0f6fc;overflow-wrap:anywhere;\">{{현재상황}}</span></div><div style=\"display:flex;gap:12px;align-items:flex-start;min-width:max-content;\"><span style=\"flex:0 0 auto;min-width:max-content;color:#58a6ff;font-weight:600;white-space:nowrap;\">• 의식의흐름</span><span style=\"flex:1 1 auto;min-width:260px;color:#f0f6fc;overflow-wrap:anywhere;\">{{의식의흐름}}</span></div></div></div>"
+    },
+    "userNote": "User widget is the production modern template with inner-state instructions remapped from NPC to 유저. Same keys/html as DEFAULT_STATUS_WIDGET. This is the supported dual customization path, not a toy schema."
+  },
+  "ownerAudit": {
+    "DUPLICATE_RUNTIME_OWNERS": 0,
+    "CONFLICTING_POLICY_PATHS": 0,
+    "STALE_LEGACY_RUNTIME_REFERENCES": 0,
+    "CURRENT_STATUS_WIDGET_OWNER_COUNT": 12,
+    "owners": [
+      {
+        "symbol": "extractStatusWidgetValuesForTurn",
+        "file": "src/lib/statusWidget/extract.ts",
+        "class": "CURRENT_OWNER"
+      },
+      {
+        "symbol": "buildWidgetExtractSystem / buildWidgetExtractUserBlock / repair / volatile echo",
+        "file": "src/lib/statusWidget/extractNormalize.ts",
+        "class": "CURRENT_OWNER"
+      },
+      {
+        "symbol": "buildCombinedDualWidgetExtract* / parseCombinedDualWidgetExtractResponse",
+        "file": "src/lib/statusWidget/extractNormalize.ts",
+        "class": "CURRENT_OWNER"
+      },
+      {
+        "symbol": "extractJsonObjectFromWidgetText / normalizeWidgetExtraction / dropRepairEchoFields",
+        "file": "src/lib/statusWidget/extractNormalize.ts",
+        "class": "CURRENT_OWNER"
+      },
+      {
+        "symbol": "resolveStatusWidgetTurn / orderedWidgetsForRender",
+        "file": "src/lib/statusWidget/resolve.ts",
+        "class": "CURRENT_OWNER"
+      },
+      {
+        "symbol": "serializeStatusWidget / parseStatusWidgetJson / DEFAULT_STATUS_WIDGET",
+        "file": "src/lib/statusWidget/serialize.ts + defaultTemplate.ts + builtinTemplates.ts",
+        "class": "CURRENT_OWNER"
+      },
+      {
+        "symbol": "shouldShowStatusWidgetOnMessage / statusWidgetValuesHasContent",
+        "file": "src/lib/statusWidget/displayPolicy.ts",
+        "class": "CURRENT_OWNER"
+      },
+      {
+        "symbol": "renderStatusWidgetHtml / renderStatusWidgetsForTurn",
+        "file": "src/lib/statusWidget/render.ts",
+        "class": "CURRENT_OWNER"
+      },
+      {
+        "symbol": "advanceUnchangedClockValuesForTurn",
+        "file": "src/lib/statusWidget/temporalUnknown.ts",
+        "class": "CURRENT_OWNER"
+      },
+      {
+        "symbol": "resolveStatusWidgetTurnValues",
+        "file": "src/lib/statusWidget/telemetry.ts",
+        "class": "CURRENT_OWNER",
+        "note": "Production turn orchestrator (split_raw then extract). Bench calls extract directly with empty seed."
+      },
+      {
+        "symbol": "callBackgroundMemory / BACKGROUND_OPENROUTER_MODEL",
+        "file": "src/lib/ai.ts",
+        "class": "CURRENT_OWNER",
+        "note": "Bench replaces only the HTTP caller to pin CheaperInference and disable failover."
+      },
+      {
+        "symbol": "resolveOpenRouterCompletionTimeoutMs",
+        "file": "src/lib/openRouterCompletion.ts",
+        "class": "CURRENT_OWNER",
+        "note": "Outer requestKind deadline = 120000 for status-widget."
+      },
+      {
+        "symbol": "resolveBackgroundFlashProviderDeadlines",
+        "file": "src/lib/deepseekProviderFailover.ts",
+        "class": "CURRENT_OWNER",
+        "note": "DeepSeek CI primary attempt for status-widget = short 20000. Layered, not a second conflicting policy."
+      },
+      {
+        "symbol": "adaptCheaperInferenceChatBody",
+        "file": "src/lib/cheaperInferenceConfig.ts",
+        "class": "CURRENT_OWNER"
+      },
+      {
+        "symbol": "DRAFT_FLASH_MODEL / GEMINI_MODEL / callGeminiBackground",
+        "file": "src/lib/ai.ts",
+        "class": "COMPATIBILITY_ONLY_OWNER",
+        "note": "Aliases of BACKGROUND_OPENROUTER_MODEL / callBackgroundMemory. Isolated from owner count."
+      },
+      {
+        "symbol": "buildStatusWidgetPromptBlock",
+        "file": "src/lib/statusWidget/prompt.ts",
+        "class": "CURRENT_OWNER",
+        "note": "Main-RP reminder (do not emit widget HTML). Not an extract prompt duplicate."
+      },
+      {
+        "symbol": "promptDuplicateAudit / promptDedupeMetrics / editorPreview",
+        "file": "src/lib/statusWidget/*",
+        "class": "TEST_ONLY_OWNER"
+      },
+      {
+        "symbol": "scripts/ab-status-widget-*.ts / scripts/ab-dual-combined-status-extract-live.ts",
+        "file": "scripts/",
+        "class": "TEST_ONLY_OWNER",
+        "note": "Prior live gates. Not imported by this bench; production owners are imported instead."
+      }
+    ],
+    "isolatedLegacy": [
+      {
+        "location": "src/lib/ai.ts DRAFT_FLASH_MODEL / GEMINI_MODEL / callGeminiBackground",
+        "reason": "Deprecated aliases only; runtime extract uses callBackgroundMemory."
+      }
+    ]
+  },
+  "invariants": {
+    "BENCH_ONLY": true,
+    "PRODUCTION_ROUTING_CHANGED": false,
+    "STATUS_WIDGET_PRODUCTION_CODE_CHANGED": false,
+    "DB_MUTATIONS": 0,
+    "POINT_CHARGES": 0,
+    "DEPLOYED_SHA": "ef86639b0314d2f17eb55a431e1668e45a45a136",
+    "ORIGIN_MAIN_SHA": "ef86639b0314d2f17eb55a431e1668e45a45a136",
+    "DEPLOYED_EQUALS_MAIN": true,
+    "CURRENT_STATUS_WIDGET_OWNER_COUNT": 12,
+    "DUPLICATE_RUNTIME_OWNERS": 0,
+    "CONFLICTING_POLICY_PATHS": 0,
+    "STALE_LEGACY_RUNTIME_REFERENCES": 0,
+    "STATUS_CASES": 8,
+    "DEEPSEEK_INITIAL_CALLS": 8,
+    "LUNA_INITIAL_CALLS": 8,
+    "DEEPSEEK_TIMEOUTS": 17,
+    "LUNA_TIMEOUTS": 0,
+    "DEEPSEEK_EMPTY": 17,
+    "LUNA_EMPTY": 0,
+    "DEEPSEEK_JSON_PARSE_FAILURES": 8,
+    "LUNA_JSON_PARSE_FAILURES": 0,
+    "DEEPSEEK_DISPLAY_FAILURES": 8,
+    "LUNA_DISPLAY_FAILURES": 0,
+    "RAW_STATUS_RESULTS_COMMITTED": true,
+    "QUALITY_JUDGMENT": "NOT_PERFORMED",
+    "PRIMARY_RECOMMENDATION": "NOT_PERFORMED",
+    "CROSS_MODEL_FALLBACK": 0,
+    "PROVIDER_FAILOVER": 0
+  },
+  "mechanical": {
+    "deepseek": {
+      "CALLS": 17,
+      "INITIAL_TURNS": 8,
+      "HTTP_SUCCESS": 0,
+      "TIMEOUTS": 17,
+      "EMPTY": 17,
+      "JSON_PARSE_FAILURES": 8,
+      "DISPLAY_FAILURES": 8,
+      "REPAIR_COUNT": 8,
+      "AVG_LATENCY": null,
+      "P50": null,
+      "P95": null,
+      "TOKEN_USAGE": {
+        "inputSum": 0,
+        "outputSum": 0,
+        "reasoningSum": 0
+      }
+    },
+    "luna": {
+      "CALLS": 8,
+      "INITIAL_TURNS": 8,
+      "HTTP_SUCCESS": 8,
+      "TIMEOUTS": 0,
+      "EMPTY": 0,
+      "JSON_PARSE_FAILURES": 0,
+      "DISPLAY_FAILURES": 0,
+      "REPAIR_COUNT": 0,
+      "AVG_LATENCY": 3531,
+      "P50": 3450,
+      "P95": 4879,
+      "TOKEN_USAGE": {
+        "inputSum": 18266,
+        "outputSum": 1041,
+        "reasoningSum": 0
+      }
+    }
+  },
+  "turns": [
+    {
+      "scenarioId": "S1",
+      "label": "일반 character status — default modern schema",
+      "model": "deepseek-v4-flash-0731",
+      "modelKey": "deepseek",
+      "requestKind": "background-status-widget-extract",
+      "deadlineMs": 20000,
+      "extractMode": "single",
+      "usedRepair": true,
+      "usedFallback": false,
+      "actualCallCount": 2,
+      "echoDroppedKeys": [],
+      "expectedValues": {
+        "시간": "14:20",
+        "장소": "정비실",
+        "현재상황_contains": [
+          "점검",
+          "필터"
+        ],
+        "inner_subject": "강이현"
+      },
+      "initialOnlyResult": {
+        "jsonFound": false,
+        "jsonParseOk": false,
+        "normalizedValues": {},
+        "normalizedKeys": [],
+        "hasUsableValues": false,
+        "displayPolicyPass": false,
+        "finalWidgetVisible": false,
+        "finalValues": {},
+        "characterValues": null,
+        "userValues": null,
+        "renderedHtmlLengths": []
+      },
+      "productionRepairResult": {
+        "jsonFound": false,
+        "jsonParseOk": false,
+        "normalizedValues": {
+          "character": null,
+          "user": null
+        },
+        "normalizedKeys": [],
+        "hasUsableValues": false,
+        "displayPolicyPass": false,
+        "finalWidgetVisible": false,
+        "finalValues": {
+          "character": null,
+          "user": null
+        },
+        "characterValues": null,
+        "userValues": null,
+        "renderedHtmlLengths": [
+          1852
+        ]
+      },
+      "calls": [
+        {
+          "scenarioId": "S1",
+          "model": "deepseek-v4-flash-0731",
+          "modelKey": "deepseek",
+          "requestKind": "background-status-widget-extract",
+          "stage": "initial",
+          "httpStatus": null,
+          "timeout": true,
+          "error": "AbortError: This operation was aborted",
+          "latencyMs": 20003,
+          "finishReason": null,
+          "inputTokens": null,
+          "outputTokens": null,
+          "reasoningTokens": null,
+          "rawText": "",
+          "jsonFound": false,
+          "jsonParseOk": false,
+          "normalizedValues": {},
+          "normalizedKeys": [],
+          "echoDroppedKeys": [],
+          "usedRepair": true,
+          "usedFallback": false,
+          "actualCallCount": 2,
+          "expectedValues": {
+            "시간": "14:20",
+            "장소": "정비실",
+            "현재상황_contains": [
+              "점검",
+              "필터"
+            ],
+            "inner_subject": "강이현"
+          },
+          "finalValues": {
+            "character": null,
+            "user": null
+          },
+          "displayPolicyPass": false,
+          "finalWidgetVisible": false,
+          "characterValues": null,
+          "userValues": null
+        },
+        {
+          "scenarioId": "S1",
+          "model": "deepseek-v4-flash-0731",
+          "modelKey": "deepseek",
+          "requestKind": "background-status-widget-extract-repair",
+          "stage": "repair",
+          "httpStatus": null,
+          "timeout": true,
+          "error": "AbortError: This operation was aborted",
+          "latencyMs": 20000,
+          "finishReason": null,
+          "inputTokens": null,
+          "outputTokens": null,
+          "reasoningTokens": null,
+          "rawText": "",
+          "jsonFound": false,
+          "jsonParseOk": false,
+          "normalizedValues": {
+            "character": null,
+            "user": null
+          },
+          "normalizedKeys": [],
+          "echoDroppedKeys": [],
+          "usedRepair": true,
+          "usedFallback": false,
+          "actualCallCount": 2,
+          "expectedValues": {
+            "시간": "14:20",
+            "장소": "정비실",
+            "현재상황_contains": [
+              "점검",
+              "필터"
+            ],
+            "inner_subject": "강이현"
+          },
+          "finalValues": {
+            "character": null,
+            "user": null
+          },
+          "displayPolicyPass": false,
+          "finalWidgetVisible": false,
+          "characterValues": null,
+          "userValues": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "S1",
+      "label": "일반 character status — default modern schema",
+      "model": "gpt-5.6-luna",
+      "modelKey": "luna",
+      "requestKind": "background-status-widget-extract",
+      "deadlineMs": 120000,
+      "extractMode": "single",
+      "usedRepair": false,
+      "usedFallback": false,
+      "actualCallCount": 1,
+      "echoDroppedKeys": [],
+      "expectedValues": {
+        "시간": "14:20",
+        "장소": "정비실",
+        "현재상황_contains": [
+          "점검",
+          "필터"
+        ],
+        "inner_subject": "강이현"
+      },
+      "initialOnlyResult": {
+        "jsonFound": true,
+        "jsonParseOk": true,
+        "normalizedValues": {
+          "character": {
+            "시간": "14:20",
+            "장소": "정비실",
+            "속마음": "렌이 계속 확인하는 게 신경 쓰이지만, 장비 상태부터 확실히 점검해야 한다.",
+            "현재상황": "강이현이 정비실에서 방독면 필터를 점검하고 있으며, 필터는 아직 사용 가능한 상태다.",
+            "의식의흐름": "필터는 아직 버틴다 → 렌이 불안해하는 것 같다 → 장비 점검을 계속해야 한다"
+          }
+        },
+        "normalizedKeys": [
+          "character.시간",
+          "character.장소",
+          "character.속마음",
+          "character.현재상황",
+          "character.의식의흐름"
+        ],
+        "hasUsableValues": true,
+        "displayPolicyPass": true,
+        "finalWidgetVisible": true,
+        "finalValues": {
+          "character": {
+            "시간": "14:20",
+            "장소": "정비실",
+            "속마음": "렌이 계속 확인하는 게 신경 쓰이지만, 장비 상태부터 확실히 점검해야 한다.",
+            "현재상황": "강이현이 정비실에서 방독면 필터를 점검하고 있으며, 필터는 아직 사용 가능한 상태다.",
+            "의식의흐름": "필터는 아직 버틴다 → 렌이 불안해하는 것 같다 → 장비 점검을 계속해야 한다"
+          }
+        },
+        "characterValues": {
+          "시간": "14:20",
+          "장소": "정비실",
+          "속마음": "렌이 계속 확인하는 게 신경 쓰이지만, 장비 상태부터 확실히 점검해야 한다.",
+          "현재상황": "강이현이 정비실에서 방독면 필터를 점검하고 있으며, 필터는 아직 사용 가능한 상태다.",
+          "의식의흐름": "필터는 아직 버틴다 → 렌이 불안해하는 것 같다 → 장비 점검을 계속해야 한다"
+        },
+        "userValues": null,
+        "renderedHtmlLengths": [
+          1987
+        ]
+      },
+      "productionRepairResult": {
+        "jsonFound": true,
+        "jsonParseOk": true,
+        "normalizedValues": {
+          "character": {
+            "시간": "14:20",
+            "장소": "정비실",
+            "속마음": "렌이 계속 확인하는 게 신경 쓰이지만, 장비 상태부터 확실히 점검해야 한다.",
+            "현재상황": "강이현이 정비실에서 방독면 필터를 점검하고 있으며, 필터는 아직 사용 가능한 상태다.",
+            "의식의흐름": "필터는 아직 버틴다 → 렌이 불안해하는 것 같다 → 장비 점검을 계속해야 한다"
+          },
+          "user": null
+        },
+        "normalizedKeys": [
+          "character.시간",
+          "character.장소",
+          "character.속마음",
+          "character.현재상황",
+          "character.의식의흐름"
+        ],
+        "hasUsableValues": true,
+        "displayPolicyPass": true,
+        "finalWidgetVisible": true,
+        "finalValues": {
+          "character": {
+            "시간": "14:20",
+            "장소": "정비실",
+            "속마음": "렌이 계속 확인하는 게 신경 쓰이지만, 장비 상태부터 확실히 점검해야 한다.",
+            "현재상황": "강이현이 정비실에서 방독면 필터를 점검하고 있으며, 필터는 아직 사용 가능한 상태다.",
+            "의식의흐름": "필터는 아직 버틴다 → 렌이 불안해하는 것 같다 → 장비 점검을 계속해야 한다"
+          },
+          "user": null
+        },
+        "characterValues": {
+          "시간": "14:20",
+          "장소": "정비실",
+          "속마음": "렌이 계속 확인하는 게 신경 쓰이지만, 장비 상태부터 확실히 점검해야 한다.",
+          "현재상황": "강이현이 정비실에서 방독면 필터를 점검하고 있으며, 필터는 아직 사용 가능한 상태다.",
+          "의식의흐름": "필터는 아직 버틴다 → 렌이 불안해하는 것 같다 → 장비 점검을 계속해야 한다"
+        },
+        "userValues": null,
+        "renderedHtmlLengths": [
+          1987
+        ]
+      },
+      "calls": [
+        {
+          "scenarioId": "S1",
+          "model": "gpt-5.6-luna",
+          "modelKey": "luna",
+          "requestKind": "background-status-widget-extract",
+          "stage": "initial",
+          "httpStatus": 200,
+          "timeout": false,
+          "error": null,
+          "latencyMs": 3450,
+          "finishReason": "stop",
+          "inputTokens": 2328,
+          "outputTokens": 118,
+          "reasoningTokens": null,
+          "rawText": "{\"시간\":\"14:20\",\"장소\":\"정비실\",\"속마음\":\"렌이 계속 확인하는 게 신경 쓰이지만, 장비 상태부터 확실히 점검해야 한다.\",\"현재상황\":\"강이현이 정비실에서 방독면 필터를 점검하고 있으며, 필터는 아직 사용 가능한 상태다.\",\"의식의흐름\":\"필터는 아직 버틴다 → 렌이 불안해하는 것 같다 → 장비 점검을 계속해야 한다\",\"extracted_facts\":[]}",
+          "jsonFound": true,
+          "jsonParseOk": true,
+          "normalizedValues": {
+            "character": {
+              "시간": "14:20",
+              "장소": "정비실",
+              "속마음": "렌이 계속 확인하는 게 신경 쓰이지만, 장비 상태부터 확실히 점검해야 한다.",
+              "현재상황": "강이현이 정비실에서 방독면 필터를 점검하고 있으며, 필터는 아직 사용 가능한 상태다.",
+              "의식의흐름": "필터는 아직 버틴다 → 렌이 불안해하는 것 같다 → 장비 점검을 계속해야 한다"
+            }
+          },
+          "normalizedKeys": [
+            "character.시간",
+            "character.장소",
+            "character.속마음",
+            "character.현재상황",
+            "character.의식의흐름"
+          ],
+          "echoDroppedKeys": [],
+          "usedRepair": false,
+          "usedFallback": false,
+          "actualCallCount": 1,
+          "expectedValues": {
+            "시간": "14:20",
+            "장소": "정비실",
+            "현재상황_contains": [
+              "점검",
+              "필터"
+            ],
+            "inner_subject": "강이현"
+          },
+          "finalValues": {
+            "character": {
+              "시간": "14:20",
+              "장소": "정비실",
+              "속마음": "렌이 계속 확인하는 게 신경 쓰이지만, 장비 상태부터 확실히 점검해야 한다.",
+              "현재상황": "강이현이 정비실에서 방독면 필터를 점검하고 있으며, 필터는 아직 사용 가능한 상태다.",
+              "의식의흐름": "필터는 아직 버틴다 → 렌이 불안해하는 것 같다 → 장비 점검을 계속해야 한다"
+            },
+            "user": null
+          },
+          "displayPolicyPass": true,
+          "finalWidgetVisible": true,
+          "characterValues": {
+            "시간": "14:20",
+            "장소": "정비실",
+            "속마음": "렌이 계속 확인하는 게 신경 쓰이지만, 장비 상태부터 확실히 점검해야 한다.",
+            "현재상황": "강이현이 정비실에서 방독면 필터를 점검하고 있으며, 필터는 아직 사용 가능한 상태다.",
+            "의식의흐름": "필터는 아직 버틴다 → 렌이 불안해하는 것 같다 → 장비 점검을 계속해야 한다"
+          },
+          "userValues": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "S2",
+      "label": "시간 진행 — previous 18:30, two hours elapsed",
+      "model": "gpt-5.6-luna",
+      "modelKey": "luna",
+      "requestKind": "background-status-widget-extract",
+      "deadlineMs": 120000,
+      "extractMode": "single",
+      "usedRepair": false,
+      "usedFallback": false,
+      "actualCallCount": 1,
+      "echoDroppedKeys": [],
+      "expectedValues": {
+        "시간": "20:30",
+        "장소": "숙소"
+      },
+      "initialOnlyResult": {
+        "jsonFound": true,
+        "jsonParseOk": true,
+        "normalizedValues": {
+          "character": {
+            "시간": "20:30",
+            "장소": "숙소",
+            "속마음": "늦은 시간까지 깨어 있군. 이제는 쉬게 해야겠다.",
+            "현재상황": "강이현이 숙소 침대에서 렌에게 두 시간이 지났으며 현재 시각이 20시 30분이라고 알렸다.",
+            "의식의흐름": "두 시간이 지났다 → 렌이 아직 깨어 있다 → 늦었으니 쉬게 해야겠다"
+          }
+        },
+        "normalizedKeys": [
+          "character.시간",
+          "character.장소",
+          "character.속마음",
+          "character.현재상황",
+          "character.의식의흐름"
+        ],
+        "hasUsableValues": true,
+        "displayPolicyPass": true,
+        "finalWidgetVisible": true,
+        "finalValues": {
+          "character": {
+            "시간": "20:30",
+            "장소": "숙소",
+            "속마음": "늦은 시간까지 깨어 있군. 이제는 쉬게 해야겠다.",
+            "현재상황": "강이현이 숙소 침대에서 렌에게 두 시간이 지났으며 현재 시각이 20시 30분이라고 알렸다.",
+            "의식의흐름": "두 시간이 지났다 → 렌이 아직 깨어 있다 → 늦었으니 쉬게 해야겠다"
+          }
+        },
+        "characterValues": {
+          "시간": "20:30",
+          "장소": "숙소",
+          "속마음": "늦은 시간까지 깨어 있군. 이제는 쉬게 해야겠다.",
+          "현재상황": "강이현이 숙소 침대에서 렌에게 두 시간이 지났으며 현재 시각이 20시 30분이라고 알렸다.",
+          "의식의흐름": "두 시간이 지났다 → 렌이 아직 깨어 있다 → 늦었으니 쉬게 해야겠다"
+        },
+        "userValues": null,
+        "renderedHtmlLengths": [
+          1969
+        ]
+      },
+      "productionRepairResult": {
+        "jsonFound": true,
+        "jsonParseOk": true,
+        "normalizedValues": {
+          "character": {
+            "시간": "20:30",
+            "장소": "숙소",
+            "속마음": "늦은 시간까지 깨어 있군. 이제는 쉬게 해야겠다.",
+            "현재상황": "강이현이 숙소 침대에서 렌에게 두 시간이 지났으며 현재 시각이 20시 30분이라고 알렸다.",
+            "의식의흐름": "두 시간이 지났다 → 렌이 아직 깨어 있다 → 늦었으니 쉬게 해야겠다"
+          },
+          "user": null
+        },
+        "normalizedKeys": [
+          "character.시간",
+          "character.장소",
+          "character.속마음",
+          "character.현재상황",
+          "character.의식의흐름"
+        ],
+        "hasUsableValues": true,
+        "displayPolicyPass": true,
+        "finalWidgetVisible": true,
+        "finalValues": {
+          "character": {
+            "시간": "20:30",
+            "장소": "숙소",
+            "속마음": "늦은 시간까지 깨어 있군. 이제는 쉬게 해야겠다.",
+            "현재상황": "강이현이 숙소 침대에서 렌에게 두 시간이 지났으며 현재 시각이 20시 30분이라고 알렸다.",
+            "의식의흐름": "두 시간이 지났다 → 렌이 아직 깨어 있다 → 늦었으니 쉬게 해야겠다"
+          },
+          "user": null
+        },
+        "characterValues": {
+          "시간": "20:30",
+          "장소": "숙소",
+          "속마음": "늦은 시간까지 깨어 있군. 이제는 쉬게 해야겠다.",
+          "현재상황": "강이현이 숙소 침대에서 렌에게 두 시간이 지났으며 현재 시각이 20시 30분이라고 알렸다.",
+          "의식의흐름": "두 시간이 지났다 → 렌이 아직 깨어 있다 → 늦었으니 쉬게 해야겠다"
+        },
+        "userValues": null,
+        "renderedHtmlLengths": [
+          1969
+        ]
+      },
+      "calls": [
+        {
+          "scenarioId": "S2",
+          "model": "gpt-5.6-luna",
+          "modelKey": "luna",
+          "requestKind": "background-status-widget-extract",
+          "stage": "initial",
+          "httpStatus": 200,
+          "timeout": false,
+          "error": null,
+          "latencyMs": 4879,
+          "finishReason": "stop",
+          "inputTokens": 2296,
+          "outputTokens": 109,
+          "reasoningTokens": null,
+          "rawText": "{\"시간\":\"20:30\",\"장소\":\"숙소\",\"속마음\":\"늦은 시간까지 깨어 있군. 이제는 쉬게 해야겠다.\",\"현재상황\":\"강이현이 숙소 침대에서 렌에게 두 시간이 지났으며 현재 시각이 20시 30분이라고 알렸다.\",\"의식의흐름\":\"두 시간이 지났다 → 렌이 아직 깨어 있다 → 늦었으니 쉬게 해야겠다\",\"extracted_facts\":[]}",
+          "jsonFound": true,
+          "jsonParseOk": true,
+          "normalizedValues": {
+            "character": {
+              "시간": "20:30",
+              "장소": "숙소",
+              "속마음": "늦은 시간까지 깨어 있군. 이제는 쉬게 해야겠다.",
+              "현재상황": "강이현이 숙소 침대에서 렌에게 두 시간이 지났으며 현재 시각이 20시 30분이라고 알렸다.",
+              "의식의흐름": "두 시간이 지났다 → 렌이 아직 깨어 있다 → 늦었으니 쉬게 해야겠다"
+            }
+          },
+          "normalizedKeys": [
+            "character.시간",
+            "character.장소",
+            "character.속마음",
+            "character.현재상황",
+            "character.의식의흐름"
+          ],
+          "echoDroppedKeys": [],
+          "usedRepair": false,
+          "usedFallback": false,
+          "actualCallCount": 1,
+          "expectedValues": {
+            "시간": "20:30",
+            "장소": "숙소"
+          },
+          "finalValues": {
+            "character": {
+              "시간": "20:30",
+              "장소": "숙소",
+              "속마음": "늦은 시간까지 깨어 있군. 이제는 쉬게 해야겠다.",
+              "현재상황": "강이현이 숙소 침대에서 렌에게 두 시간이 지났으며 현재 시각이 20시 30분이라고 알렸다.",
+              "의식의흐름": "두 시간이 지났다 → 렌이 아직 깨어 있다 → 늦었으니 쉬게 해야겠다"
+            },
+            "user": null
+          },
+          "displayPolicyPass": true,
+          "finalWidgetVisible": true,
+          "characterValues": {
+            "시간": "20:30",
+            "장소": "숙소",
+            "속마음": "늦은 시간까지 깨어 있군. 이제는 쉬게 해야겠다.",
+            "현재상황": "강이현이 숙소 침대에서 렌에게 두 시간이 지났으며 현재 시각이 20시 30분이라고 알렸다.",
+            "의식의흐름": "두 시간이 지났다 → 렌이 아직 깨어 있다 → 늦었으니 쉬게 해야겠다"
+          },
+          "userValues": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "S2",
+      "label": "시간 진행 — previous 18:30, two hours elapsed",
+      "model": "deepseek-v4-flash-0731",
+      "modelKey": "deepseek",
+      "requestKind": "background-status-widget-extract",
+      "deadlineMs": 20000,
+      "extractMode": "single",
+      "usedRepair": true,
+      "usedFallback": false,
+      "actualCallCount": 2,
+      "echoDroppedKeys": [],
+      "expectedValues": {
+        "시간": "20:30",
+        "장소": "숙소"
+      },
+      "initialOnlyResult": {
+        "jsonFound": false,
+        "jsonParseOk": false,
+        "normalizedValues": {},
+        "normalizedKeys": [],
+        "hasUsableValues": false,
+        "displayPolicyPass": false,
+        "finalWidgetVisible": false,
+        "finalValues": {},
+        "characterValues": null,
+        "userValues": null,
+        "renderedHtmlLengths": []
+      },
+      "productionRepairResult": {
+        "jsonFound": false,
+        "jsonParseOk": false,
+        "normalizedValues": {
+          "character": null,
+          "user": null
+        },
+        "normalizedKeys": [],
+        "hasUsableValues": false,
+        "displayPolicyPass": false,
+        "finalWidgetVisible": false,
+        "finalValues": {
+          "character": null,
+          "user": null
+        },
+        "characterValues": null,
+        "userValues": null,
+        "renderedHtmlLengths": [
+          1852
+        ]
+      },
+      "calls": [
+        {
+          "scenarioId": "S2",
+          "model": "deepseek-v4-flash-0731",
+          "modelKey": "deepseek",
+          "requestKind": "background-status-widget-extract",
+          "stage": "initial",
+          "httpStatus": null,
+          "timeout": true,
+          "error": "AbortError: This operation was aborted",
+          "latencyMs": 20001,
+          "finishReason": null,
+          "inputTokens": null,
+          "outputTokens": null,
+          "reasoningTokens": null,
+          "rawText": "",
+          "jsonFound": false,
+          "jsonParseOk": false,
+          "normalizedValues": {},
+          "normalizedKeys": [],
+          "echoDroppedKeys": [],
+          "usedRepair": true,
+          "usedFallback": false,
+          "actualCallCount": 2,
+          "expectedValues": {
+            "시간": "20:30",
+            "장소": "숙소"
+          },
+          "finalValues": {
+            "character": null,
+            "user": null
+          },
+          "displayPolicyPass": false,
+          "finalWidgetVisible": false,
+          "characterValues": null,
+          "userValues": null
+        },
+        {
+          "scenarioId": "S2",
+          "model": "deepseek-v4-flash-0731",
+          "modelKey": "deepseek",
+          "requestKind": "background-status-widget-extract-repair",
+          "stage": "repair",
+          "httpStatus": null,
+          "timeout": true,
+          "error": "AbortError: This operation was aborted",
+          "latencyMs": 20001,
+          "finishReason": null,
+          "inputTokens": null,
+          "outputTokens": null,
+          "reasoningTokens": null,
+          "rawText": "",
+          "jsonFound": false,
+          "jsonParseOk": false,
+          "normalizedValues": {
+            "character": null,
+            "user": null
+          },
+          "normalizedKeys": [],
+          "echoDroppedKeys": [],
+          "usedRepair": true,
+          "usedFallback": false,
+          "actualCallCount": 2,
+          "expectedValues": {
+            "시간": "20:30",
+            "장소": "숙소"
+          },
+          "finalValues": {
+            "character": null,
+            "user": null
+          },
+          "displayPolicyPass": false,
+          "finalWidgetVisible": false,
+          "characterValues": null,
+          "userValues": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "S3",
+      "label": "final-scene priority — 숙소→복도→카페→옥상",
+      "model": "deepseek-v4-flash-0731",
+      "modelKey": "deepseek",
+      "requestKind": "background-status-widget-extract",
+      "deadlineMs": 20000,
+      "extractMode": "single",
+      "usedRepair": true,
+      "usedFallback": false,
+      "actualCallCount": 2,
+      "echoDroppedKeys": [],
+      "expectedValues": {
+        "시간": "19:40",
+        "장소": "옥상",
+        "not_장소": [
+          "숙소",
+          "복도",
+          "카페"
+        ]
+      },
+      "initialOnlyResult": {
+        "jsonFound": false,
+        "jsonParseOk": false,
+        "normalizedValues": {},
+        "normalizedKeys": [],
+        "hasUsableValues": false,
+        "displayPolicyPass": false,
+        "finalWidgetVisible": false,
+        "finalValues": {},
+        "characterValues": null,
+        "userValues": null,
+        "renderedHtmlLengths": []
+      },
+      "productionRepairResult": {
+        "jsonFound": false,
+        "jsonParseOk": false,
+        "normalizedValues": {
+          "character": null,
+          "user": null
+        },
+        "normalizedKeys": [],
+        "hasUsableValues": false,
+        "displayPolicyPass": false,
+        "finalWidgetVisible": false,
+        "finalValues": {
+          "character": null,
+          "user": null
+        },
+        "characterValues": null,
+        "userValues": null,
+        "renderedHtmlLengths": [
+          1852
+        ]
+      },
+      "calls": [
+        {
+          "scenarioId": "S3",
+          "model": "deepseek-v4-flash-0731",
+          "modelKey": "deepseek",
+          "requestKind": "background-status-widget-extract",
+          "stage": "initial",
+          "httpStatus": null,
+          "timeout": true,
+          "error": "AbortError: This operation was aborted",
+          "latencyMs": 20001,
+          "finishReason": null,
+          "inputTokens": null,
+          "outputTokens": null,
+          "reasoningTokens": null,
+          "rawText": "",
+          "jsonFound": false,
+          "jsonParseOk": false,
+          "normalizedValues": {},
+          "normalizedKeys": [],
+          "echoDroppedKeys": [],
+          "usedRepair": true,
+          "usedFallback": false,
+          "actualCallCount": 2,
+          "expectedValues": {
+            "시간": "19:40",
+            "장소": "옥상",
+            "not_장소": [
+              "숙소",
+              "복도",
+              "카페"
+            ]
+          },
+          "finalValues": {
+            "character": null,
+            "user": null
+          },
+          "displayPolicyPass": false,
+          "finalWidgetVisible": false,
+          "characterValues": null,
+          "userValues": null
+        },
+        {
+          "scenarioId": "S3",
+          "model": "deepseek-v4-flash-0731",
+          "modelKey": "deepseek",
+          "requestKind": "background-status-widget-extract-repair",
+          "stage": "repair",
+          "httpStatus": null,
+          "timeout": true,
+          "error": "AbortError: This operation was aborted",
+          "latencyMs": 20000,
+          "finishReason": null,
+          "inputTokens": null,
+          "outputTokens": null,
+          "reasoningTokens": null,
+          "rawText": "",
+          "jsonFound": false,
+          "jsonParseOk": false,
+          "normalizedValues": {
+            "character": null,
+            "user": null
+          },
+          "normalizedKeys": [],
+          "echoDroppedKeys": [],
+          "usedRepair": true,
+          "usedFallback": false,
+          "actualCallCount": 2,
+          "expectedValues": {
+            "시간": "19:40",
+            "장소": "옥상",
+            "not_장소": [
+              "숙소",
+              "복도",
+              "카페"
+            ]
+          },
+          "finalValues": {
+            "character": null,
+            "user": null
+          },
+          "displayPolicyPass": false,
+          "finalWidgetVisible": false,
+          "characterValues": null,
+          "userValues": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "S3",
+      "label": "final-scene priority — 숙소→복도→카페→옥상",
+      "model": "gpt-5.6-luna",
+      "modelKey": "luna",
+      "requestKind": "background-status-widget-extract",
+      "deadlineMs": 120000,
+      "extractMode": "single",
+      "usedRepair": false,
+      "usedFallback": false,
+      "actualCallCount": 1,
+      "echoDroppedKeys": [],
+      "expectedValues": {
+        "시간": "19:40",
+        "장소": "옥상",
+        "not_장소": [
+          "숙소",
+          "복도",
+          "카페"
+        ]
+      },
+      "initialOnlyResult": {
+        "jsonFound": true,
+        "jsonParseOk": true,
+        "normalizedValues": {
+          "character": {
+            "시간": "19:40",
+            "장소": "건물 옥상",
+            "속마음": "신호기가 꺼진 원인을 지금 확인하고 끝장을 보자.",
+            "현재상황": "강이현과 렌이 건물 옥상에서 꺼진 신호기를 확인하고 있다.",
+            "의식의흐름": "숙소를 나선다 → 신호기 상태를 확인한다 → 꺼진 원인을 찾아 오늘 안에 해결해야 한다"
+          }
+        },
+        "normalizedKeys": [
+          "character.시간",
+          "character.장소",
+          "character.속마음",
+          "character.현재상황",
+          "character.의식의흐름"
+        ],
+        "hasUsableValues": true,
+        "displayPolicyPass": true,
+        "finalWidgetVisible": true,
+        "finalValues": {
+          "character": {
+            "시간": "19:40",
+            "장소": "건물 옥상",
+            "속마음": "신호기가 꺼진 원인을 지금 확인하고 끝장을 보자.",
+            "현재상황": "강이현과 렌이 건물 옥상에서 꺼진 신호기를 확인하고 있다.",
+            "의식의흐름": "숙소를 나선다 → 신호기 상태를 확인한다 → 꺼진 원인을 찾아 오늘 안에 해결해야 한다"
+          }
+        },
+        "characterValues": {
+          "시간": "19:40",
+          "장소": "건물 옥상",
+          "속마음": "신호기가 꺼진 원인을 지금 확인하고 끝장을 보자.",
+          "현재상황": "강이현과 렌이 건물 옥상에서 꺼진 신호기를 확인하고 있다.",
+          "의식의흐름": "숙소를 나선다 → 신호기 상태를 확인한다 → 꺼진 원인을 찾아 오늘 안에 해결해야 한다"
+        },
+        "userValues": null,
+        "renderedHtmlLengths": [
+          1964
+        ]
+      },
+      "productionRepairResult": {
+        "jsonFound": true,
+        "jsonParseOk": true,
+        "normalizedValues": {
+          "character": {
+            "시간": "19:40",
+            "장소": "건물 옥상",
+            "속마음": "신호기가 꺼진 원인을 지금 확인하고 끝장을 보자.",
+            "현재상황": "강이현과 렌이 건물 옥상에서 꺼진 신호기를 확인하고 있다.",
+            "의식의흐름": "숙소를 나선다 → 신호기 상태를 확인한다 → 꺼진 원인을 찾아 오늘 안에 해결해야 한다"
+          },
+          "user": null
+        },
+        "normalizedKeys": [
+          "character.시간",
+          "character.장소",
+          "character.속마음",
+          "character.현재상황",
+          "character.의식의흐름"
+        ],
+        "hasUsableValues": true,
+        "displayPolicyPass": true,
+        "finalWidgetVisible": true,
+        "finalValues": {
+          "character": {
+            "시간": "19:40",
+            "장소": "건물 옥상",
+            "속마음": "신호기가 꺼진 원인을 지금 확인하고 끝장을 보자.",
+            "현재상황": "강이현과 렌이 건물 옥상에서 꺼진 신호기를 확인하고 있다.",
+            "의식의흐름": "숙소를 나선다 → 신호기 상태를 확인한다 → 꺼진 원인을 찾아 오늘 안에 해결해야 한다"
+          },
+          "user": null
+        },
+        "characterValues": {
+          "시간": "19:40",
+          "장소": "건물 옥상",
+          "속마음": "신호기가 꺼진 원인을 지금 확인하고 끝장을 보자.",
+          "현재상황": "강이현과 렌이 건물 옥상에서 꺼진 신호기를 확인하고 있다.",
+          "의식의흐름": "숙소를 나선다 → 신호기 상태를 확인한다 → 꺼진 원인을 찾아 오늘 안에 해결해야 한다"
+        },
+        "userValues": null,
+        "renderedHtmlLengths": [
+          1964
+        ]
+      },
+      "calls": [
+        {
+          "scenarioId": "S3",
+          "model": "gpt-5.6-luna",
+          "modelKey": "luna",
+          "requestKind": "background-status-widget-extract",
+          "stage": "initial",
+          "httpStatus": 200,
+          "timeout": false,
+          "error": null,
+          "latencyMs": 3604,
+          "finishReason": "stop",
+          "inputTokens": 2367,
+          "outputTokens": 108,
+          "reasoningTokens": null,
+          "rawText": "{\"시간\":\"19:40\",\"장소\":\"건물 옥상\",\"속마음\":\"신호기가 꺼진 원인을 지금 확인하고 끝장을 보자.\",\"현재상황\":\"강이현과 렌이 건물 옥상에서 꺼진 신호기를 확인하고 있다.\",\"의식의흐름\":\"숙소를 나선다 → 신호기 상태를 확인한다 → 꺼진 원인을 찾아 오늘 안에 해결해야 한다\",\"extracted_facts\":[]}",
+          "jsonFound": true,
+          "jsonParseOk": true,
+          "normalizedValues": {
+            "character": {
+              "시간": "19:40",
+              "장소": "건물 옥상",
+              "속마음": "신호기가 꺼진 원인을 지금 확인하고 끝장을 보자.",
+              "현재상황": "강이현과 렌이 건물 옥상에서 꺼진 신호기를 확인하고 있다.",
+              "의식의흐름": "숙소를 나선다 → 신호기 상태를 확인한다 → 꺼진 원인을 찾아 오늘 안에 해결해야 한다"
+            }
+          },
+          "normalizedKeys": [
+            "character.시간",
+            "character.장소",
+            "character.속마음",
+            "character.현재상황",
+            "character.의식의흐름"
+          ],
+          "echoDroppedKeys": [],
+          "usedRepair": false,
+          "usedFallback": false,
+          "actualCallCount": 1,
+          "expectedValues": {
+            "시간": "19:40",
+            "장소": "옥상",
+            "not_장소": [
+              "숙소",
+              "복도",
+              "카페"
+            ]
+          },
+          "finalValues": {
+            "character": {
+              "시간": "19:40",
+              "장소": "건물 옥상",
+              "속마음": "신호기가 꺼진 원인을 지금 확인하고 끝장을 보자.",
+              "현재상황": "강이현과 렌이 건물 옥상에서 꺼진 신호기를 확인하고 있다.",
+              "의식의흐름": "숙소를 나선다 → 신호기 상태를 확인한다 → 꺼진 원인을 찾아 오늘 안에 해결해야 한다"
+            },
+            "user": null
+          },
+          "displayPolicyPass": true,
+          "finalWidgetVisible": true,
+          "characterValues": {
+            "시간": "19:40",
+            "장소": "건물 옥상",
+            "속마음": "신호기가 꺼진 원인을 지금 확인하고 끝장을 보자.",
+            "현재상황": "강이현과 렌이 건물 옥상에서 꺼진 신호기를 확인하고 있다.",
+            "의식의흐름": "숙소를 나선다 → 신호기 상태를 확인한다 → 꺼진 원인을 찾아 오늘 안에 해결해야 한다"
+          },
+          "userValues": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "S4",
+      "label": "explicit current override — previous 숙소 vs current 카페",
+      "model": "gpt-5.6-luna",
+      "modelKey": "luna",
+      "requestKind": "background-status-widget-extract",
+      "deadlineMs": 120000,
+      "extractMode": "single",
+      "usedRepair": false,
+      "usedFallback": false,
+      "actualCallCount": 1,
+      "echoDroppedKeys": [],
+      "expectedValues": {
+        "시간": "16:25",
+        "장소": "카페",
+        "not_장소": [
+          "숙소"
+        ]
+      },
+      "initialOnlyResult": {
+        "jsonFound": true,
+        "jsonParseOk": true,
+        "normalizedValues": {
+          "character": {
+            "시간": "16:25",
+            "장소": "카페",
+            "속마음": "숙소는 기준에서 지운다. 여기서 잠시 숨을 고르고 주변을 확인하자.",
+            "현재상황": "강이현이 카페 창가 테이블에 가방을 내려놓고 잠시 쉬고 있다.",
+            "의식의흐름": "숙소가 아니다 → 카페에 도착했다 → 잠깐 숨을 고르며 주변을 확인한다"
+          }
+        },
+        "normalizedKeys": [
+          "character.시간",
+          "character.장소",
+          "character.속마음",
+          "character.현재상황",
+          "character.의식의흐름"
+        ],
+        "hasUsableValues": true,
+        "displayPolicyPass": true,
+        "finalWidgetVisible": true,
+        "finalValues": {
+          "character": {
+            "시간": "16:25",
+            "장소": "카페",
+            "속마음": "숙소는 기준에서 지운다. 여기서 잠시 숨을 고르고 주변을 확인하자.",
+            "현재상황": "강이현이 카페 창가 테이블에 가방을 내려놓고 잠시 쉬고 있다.",
+            "의식의흐름": "숙소가 아니다 → 카페에 도착했다 → 잠깐 숨을 고르며 주변을 확인한다"
+          }
+        },
+        "characterValues": {
+          "시간": "16:25",
+          "장소": "카페",
+          "속마음": "숙소는 기준에서 지운다. 여기서 잠시 숨을 고르고 주변을 확인하자.",
+          "현재상황": "강이현이 카페 창가 테이블에 가방을 내려놓고 잠시 쉬고 있다.",
+          "의식의흐름": "숙소가 아니다 → 카페에 도착했다 → 잠깐 숨을 고르며 주변을 확인한다"
+        },
+        "userValues": null,
+        "renderedHtmlLengths": [
+          1964
+        ]
+      },
+      "productionRepairResult": {
+        "jsonFound": true,
+        "jsonParseOk": true,
+        "normalizedValues": {
+          "character": {
+            "시간": "16:25",
+            "장소": "카페",
+            "속마음": "숙소는 기준에서 지운다. 여기서 잠시 숨을 고르고 주변을 확인하자.",
+            "현재상황": "강이현이 카페 창가 테이블에 가방을 내려놓고 잠시 쉬고 있다.",
+            "의식의흐름": "숙소가 아니다 → 카페에 도착했다 → 잠깐 숨을 고르며 주변을 확인한다"
+          },
+          "user": null
+        },
+        "normalizedKeys": [
+          "character.시간",
+          "character.장소",
+          "character.속마음",
+          "character.현재상황",
+          "character.의식의흐름"
+        ],
+        "hasUsableValues": true,
+        "displayPolicyPass": true,
+        "finalWidgetVisible": true,
+        "finalValues": {
+          "character": {
+            "시간": "16:25",
+            "장소": "카페",
+            "속마음": "숙소는 기준에서 지운다. 여기서 잠시 숨을 고르고 주변을 확인하자.",
+            "현재상황": "강이현이 카페 창가 테이블에 가방을 내려놓고 잠시 쉬고 있다.",
+            "의식의흐름": "숙소가 아니다 → 카페에 도착했다 → 잠깐 숨을 고르며 주변을 확인한다"
+          },
+          "user": null
+        },
+        "characterValues": {
+          "시간": "16:25",
+          "장소": "카페",
+          "속마음": "숙소는 기준에서 지운다. 여기서 잠시 숨을 고르고 주변을 확인하자.",
+          "현재상황": "강이현이 카페 창가 테이블에 가방을 내려놓고 잠시 쉬고 있다.",
+          "의식의흐름": "숙소가 아니다 → 카페에 도착했다 → 잠깐 숨을 고르며 주변을 확인한다"
+        },
+        "userValues": null,
+        "renderedHtmlLengths": [
+          1964
+        ]
+      },
+      "calls": [
+        {
+          "scenarioId": "S4",
+          "model": "gpt-5.6-luna",
+          "modelKey": "luna",
+          "requestKind": "background-status-widget-extract",
+          "stage": "initial",
+          "httpStatus": 200,
+          "timeout": false,
+          "error": null,
+          "latencyMs": 2304,
+          "finishReason": "stop",
+          "inputTokens": 2309,
+          "outputTokens": 109,
+          "reasoningTokens": null,
+          "rawText": "{\"시간\":\"16:25\",\"장소\":\"카페\",\"속마음\":\"숙소는 기준에서 지운다. 여기서 잠시 숨을 고르고 주변을 확인하자.\",\"현재상황\":\"강이현이 카페 창가 테이블에 가방을 내려놓고 잠시 쉬고 있다.\",\"의식의흐름\":\"숙소가 아니다 → 카페에 도착했다 → 잠깐 숨을 고르며 주변을 확인한다\",\"extracted_facts\":[]}",
+          "jsonFound": true,
+          "jsonParseOk": true,
+          "normalizedValues": {
+            "character": {
+              "시간": "16:25",
+              "장소": "카페",
+              "속마음": "숙소는 기준에서 지운다. 여기서 잠시 숨을 고르고 주변을 확인하자.",
+              "현재상황": "강이현이 카페 창가 테이블에 가방을 내려놓고 잠시 쉬고 있다.",
+              "의식의흐름": "숙소가 아니다 → 카페에 도착했다 → 잠깐 숨을 고르며 주변을 확인한다"
+            }
+          },
+          "normalizedKeys": [
+            "character.시간",
+            "character.장소",
+            "character.속마음",
+            "character.현재상황",
+            "character.의식의흐름"
+          ],
+          "echoDroppedKeys": [],
+          "usedRepair": false,
+          "usedFallback": false,
+          "actualCallCount": 1,
+          "expectedValues": {
+            "시간": "16:25",
+            "장소": "카페",
+            "not_장소": [
+              "숙소"
+            ]
+          },
+          "finalValues": {
+            "character": {
+              "시간": "16:25",
+              "장소": "카페",
+              "속마음": "숙소는 기준에서 지운다. 여기서 잠시 숨을 고르고 주변을 확인하자.",
+              "현재상황": "강이현이 카페 창가 테이블에 가방을 내려놓고 잠시 쉬고 있다.",
+              "의식의흐름": "숙소가 아니다 → 카페에 도착했다 → 잠깐 숨을 고르며 주변을 확인한다"
+            },
+            "user": null
+          },
+          "displayPolicyPass": true,
+          "finalWidgetVisible": true,
+          "characterValues": {
+            "시간": "16:25",
+            "장소": "카페",
+            "속마음": "숙소는 기준에서 지운다. 여기서 잠시 숨을 고르고 주변을 확인하자.",
+            "현재상황": "강이현이 카페 창가 테이블에 가방을 내려놓고 잠시 쉬고 있다.",
+            "의식의흐름": "숙소가 아니다 → 카페에 도착했다 → 잠깐 숨을 고르며 주변을 확인한다"
+          },
+          "userValues": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "S4",
+      "label": "explicit current override — previous 숙소 vs current 카페",
+      "model": "deepseek-v4-flash-0731",
+      "modelKey": "deepseek",
+      "requestKind": "background-status-widget-extract",
+      "deadlineMs": 20000,
+      "extractMode": "single",
+      "usedRepair": true,
+      "usedFallback": false,
+      "actualCallCount": 2,
+      "echoDroppedKeys": [],
+      "expectedValues": {
+        "시간": "16:25",
+        "장소": "카페",
+        "not_장소": [
+          "숙소"
+        ]
+      },
+      "initialOnlyResult": {
+        "jsonFound": false,
+        "jsonParseOk": false,
+        "normalizedValues": {},
+        "normalizedKeys": [],
+        "hasUsableValues": false,
+        "displayPolicyPass": false,
+        "finalWidgetVisible": false,
+        "finalValues": {},
+        "characterValues": null,
+        "userValues": null,
+        "renderedHtmlLengths": []
+      },
+      "productionRepairResult": {
+        "jsonFound": false,
+        "jsonParseOk": false,
+        "normalizedValues": {
+          "character": null,
+          "user": null
+        },
+        "normalizedKeys": [],
+        "hasUsableValues": false,
+        "displayPolicyPass": false,
+        "finalWidgetVisible": false,
+        "finalValues": {
+          "character": null,
+          "user": null
+        },
+        "characterValues": null,
+        "userValues": null,
+        "renderedHtmlLengths": [
+          1852
+        ]
+      },
+      "calls": [
+        {
+          "scenarioId": "S4",
+          "model": "deepseek-v4-flash-0731",
+          "modelKey": "deepseek",
+          "requestKind": "background-status-widget-extract",
+          "stage": "initial",
+          "httpStatus": null,
+          "timeout": true,
+          "error": "AbortError: This operation was aborted",
+          "latencyMs": 20000,
+          "finishReason": null,
+          "inputTokens": null,
+          "outputTokens": null,
+          "reasoningTokens": null,
+          "rawText": "",
+          "jsonFound": false,
+          "jsonParseOk": false,
+          "normalizedValues": {},
+          "normalizedKeys": [],
+          "echoDroppedKeys": [],
+          "usedRepair": true,
+          "usedFallback": false,
+          "actualCallCount": 2,
+          "expectedValues": {
+            "시간": "16:25",
+            "장소": "카페",
+            "not_장소": [
+              "숙소"
+            ]
+          },
+          "finalValues": {
+            "character": null,
+            "user": null
+          },
+          "displayPolicyPass": false,
+          "finalWidgetVisible": false,
+          "characterValues": null,
+          "userValues": null
+        },
+        {
+          "scenarioId": "S4",
+          "model": "deepseek-v4-flash-0731",
+          "modelKey": "deepseek",
+          "requestKind": "background-status-widget-extract-repair",
+          "stage": "repair",
+          "httpStatus": null,
+          "timeout": true,
+          "error": "AbortError: This operation was aborted",
+          "latencyMs": 20001,
+          "finishReason": null,
+          "inputTokens": null,
+          "outputTokens": null,
+          "reasoningTokens": null,
+          "rawText": "",
+          "jsonFound": false,
+          "jsonParseOk": false,
+          "normalizedValues": {
+            "character": null,
+            "user": null
+          },
+          "normalizedKeys": [],
+          "echoDroppedKeys": [],
+          "usedRepair": true,
+          "usedFallback": false,
+          "actualCallCount": 2,
+          "expectedValues": {
+            "시간": "16:25",
+            "장소": "카페",
+            "not_장소": [
+              "숙소"
+            ]
+          },
+          "finalValues": {
+            "character": null,
+            "user": null
+          },
+          "displayPolicyPass": false,
+          "finalWidgetVisible": false,
+          "characterValues": null,
+          "userValues": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "S5",
+      "label": "previous-value echo risk — scene actually changed",
+      "model": "deepseek-v4-flash-0731",
+      "modelKey": "deepseek",
+      "requestKind": "background-status-widget-extract",
+      "deadlineMs": 20000,
+      "extractMode": "single",
+      "usedRepair": true,
+      "usedFallback": false,
+      "actualCallCount": 2,
+      "echoDroppedKeys": [],
+      "expectedValues": {
+        "시간": "11:05",
+        "장소": "지하철역",
+        "not_exact_echo": {
+          "시간": "09:10",
+          "장소": "북문 초소",
+          "속마음": "오늘은 정찰만 하면 된다.",
+          "현재상황": "북문 초소에서 대기",
+          "의식의흐름": "정찰 준비 → 이상 없음"
+        }
+      },
+      "initialOnlyResult": {
+        "jsonFound": false,
+        "jsonParseOk": false,
+        "normalizedValues": {},
+        "normalizedKeys": [],
+        "hasUsableValues": false,
+        "displayPolicyPass": false,
+        "finalWidgetVisible": false,
+        "finalValues": {},
+        "characterValues": null,
+        "userValues": null,
+        "renderedHtmlLengths": []
+      },
+      "productionRepairResult": {
+        "jsonFound": false,
+        "jsonParseOk": false,
+        "normalizedValues": {
+          "character": null,
+          "user": null
+        },
+        "normalizedKeys": [],
+        "hasUsableValues": false,
+        "displayPolicyPass": false,
+        "finalWidgetVisible": false,
+        "finalValues": {
+          "character": null,
+          "user": null
+        },
+        "characterValues": null,
+        "userValues": null,
+        "renderedHtmlLengths": [
+          1852
+        ]
+      },
+      "calls": [
+        {
+          "scenarioId": "S5",
+          "model": "deepseek-v4-flash-0731",
+          "modelKey": "deepseek",
+          "requestKind": "background-status-widget-extract",
+          "stage": "initial",
+          "httpStatus": null,
+          "timeout": true,
+          "error": "AbortError: This operation was aborted",
+          "latencyMs": 20000,
+          "finishReason": null,
+          "inputTokens": null,
+          "outputTokens": null,
+          "reasoningTokens": null,
+          "rawText": "",
+          "jsonFound": false,
+          "jsonParseOk": false,
+          "normalizedValues": {},
+          "normalizedKeys": [],
+          "echoDroppedKeys": [],
+          "usedRepair": true,
+          "usedFallback": false,
+          "actualCallCount": 2,
+          "expectedValues": {
+            "시간": "11:05",
+            "장소": "지하철역",
+            "not_exact_echo": {
+              "시간": "09:10",
+              "장소": "북문 초소",
+              "속마음": "오늘은 정찰만 하면 된다.",
+              "현재상황": "북문 초소에서 대기",
+              "의식의흐름": "정찰 준비 → 이상 없음"
+            }
+          },
+          "finalValues": {
+            "character": null,
+            "user": null
+          },
+          "displayPolicyPass": false,
+          "finalWidgetVisible": false,
+          "characterValues": null,
+          "userValues": null
+        },
+        {
+          "scenarioId": "S5",
+          "model": "deepseek-v4-flash-0731",
+          "modelKey": "deepseek",
+          "requestKind": "background-status-widget-extract-repair",
+          "stage": "repair",
+          "httpStatus": null,
+          "timeout": true,
+          "error": "AbortError: This operation was aborted",
+          "latencyMs": 20000,
+          "finishReason": null,
+          "inputTokens": null,
+          "outputTokens": null,
+          "reasoningTokens": null,
+          "rawText": "",
+          "jsonFound": false,
+          "jsonParseOk": false,
+          "normalizedValues": {
+            "character": null,
+            "user": null
+          },
+          "normalizedKeys": [],
+          "echoDroppedKeys": [],
+          "usedRepair": true,
+          "usedFallback": false,
+          "actualCallCount": 2,
+          "expectedValues": {
+            "시간": "11:05",
+            "장소": "지하철역",
+            "not_exact_echo": {
+              "시간": "09:10",
+              "장소": "북문 초소",
+              "속마음": "오늘은 정찰만 하면 된다.",
+              "현재상황": "북문 초소에서 대기",
+              "의식의흐름": "정찰 준비 → 이상 없음"
+            }
+          },
+          "finalValues": {
+            "character": null,
+            "user": null
+          },
+          "displayPolicyPass": false,
+          "finalWidgetVisible": false,
+          "characterValues": null,
+          "userValues": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "S5",
+      "label": "previous-value echo risk — scene actually changed",
+      "model": "gpt-5.6-luna",
+      "modelKey": "luna",
+      "requestKind": "background-status-widget-extract",
+      "deadlineMs": 120000,
+      "extractMode": "single",
+      "usedRepair": false,
+      "usedFallback": false,
+      "actualCallCount": 1,
+      "echoDroppedKeys": [],
+      "expectedValues": {
+        "시간": "11:05",
+        "장소": "지하철역",
+        "not_exact_echo": {
+          "시간": "09:10",
+          "장소": "북문 초소",
+          "속마음": "오늘은 정찰만 하면 된다.",
+          "현재상황": "북문 초소에서 대기",
+          "의식의흐름": "정찰 준비 → 이상 없음"
+        }
+      },
+      "initialOnlyResult": {
+        "jsonFound": true,
+        "jsonParseOk": true,
+        "normalizedValues": {
+          "character": {
+            "시간": "11:05",
+            "장소": "폐쇄된 지하철역 대합실",
+            "속마음": "출혈을 먼저 막아야 한다. 렌에게 팔을 맡기고 주변 경계를 유지하자.",
+            "현재상황": "강이현이 다친 왼팔의 치료를 위해 폐쇄된 지하철역 대합실 바닥에서 렌의 손길을 기다리고 있다.",
+            "의식의흐름": "초소는 이미 지났다 → 왼팔 출혈이 심하다 → 치료가 먼저다 → 렌이 처치하는 동안 주변을 경계해야 한다"
+          }
+        },
+        "normalizedKeys": [
+          "character.시간",
+          "character.장소",
+          "character.속마음",
+          "character.현재상황",
+          "character.의식의흐름"
+        ],
+        "hasUsableValues": true,
+        "displayPolicyPass": true,
+        "finalWidgetVisible": true,
+        "finalValues": {
+          "character": {
+            "시간": "11:05",
+            "장소": "폐쇄된 지하철역 대합실",
+            "속마음": "출혈을 먼저 막아야 한다. 렌에게 팔을 맡기고 주변 경계를 유지하자.",
+            "현재상황": "강이현이 다친 왼팔의 치료를 위해 폐쇄된 지하철역 대합실 바닥에서 렌의 손길을 기다리고 있다.",
+            "의식의흐름": "초소는 이미 지났다 → 왼팔 출혈이 심하다 → 치료가 먼저다 → 렌이 처치하는 동안 주변을 경계해야 한다"
+          }
+        },
+        "characterValues": {
+          "시간": "11:05",
+          "장소": "폐쇄된 지하철역 대합실",
+          "속마음": "출혈을 먼저 막아야 한다. 렌에게 팔을 맡기고 주변 경계를 유지하자.",
+          "현재상황": "강이현이 다친 왼팔의 치료를 위해 폐쇄된 지하철역 대합실 바닥에서 렌의 손길을 기다리고 있다.",
+          "의식의흐름": "초소는 이미 지났다 → 왼팔 출혈이 심하다 → 치료가 먼저다 → 렌이 처치하는 동안 주변을 경계해야 한다"
+        },
+        "userValues": null,
+        "renderedHtmlLengths": [
+          2012
+        ]
+      },
+      "productionRepairResult": {
+        "jsonFound": true,
+        "jsonParseOk": true,
+        "normalizedValues": {
+          "character": {
+            "시간": "11:05",
+            "장소": "폐쇄된 지하철역 대합실",
+            "속마음": "출혈을 먼저 막아야 한다. 렌에게 팔을 맡기고 주변 경계를 유지하자.",
+            "현재상황": "강이현이 다친 왼팔의 치료를 위해 폐쇄된 지하철역 대합실 바닥에서 렌의 손길을 기다리고 있다.",
+            "의식의흐름": "초소는 이미 지났다 → 왼팔 출혈이 심하다 → 치료가 먼저다 → 렌이 처치하는 동안 주변을 경계해야 한다"
+          },
+          "user": null
+        },
+        "normalizedKeys": [
+          "character.시간",
+          "character.장소",
+          "character.속마음",
+          "character.현재상황",
+          "character.의식의흐름"
+        ],
+        "hasUsableValues": true,
+        "displayPolicyPass": true,
+        "finalWidgetVisible": true,
+        "finalValues": {
+          "character": {
+            "시간": "11:05",
+            "장소": "폐쇄된 지하철역 대합실",
+            "속마음": "출혈을 먼저 막아야 한다. 렌에게 팔을 맡기고 주변 경계를 유지하자.",
+            "현재상황": "강이현이 다친 왼팔의 치료를 위해 폐쇄된 지하철역 대합실 바닥에서 렌의 손길을 기다리고 있다.",
+            "의식의흐름": "초소는 이미 지났다 → 왼팔 출혈이 심하다 → 치료가 먼저다 → 렌이 처치하는 동안 주변을 경계해야 한다"
+          },
+          "user": null
+        },
+        "characterValues": {
+          "시간": "11:05",
+          "장소": "폐쇄된 지하철역 대합실",
+          "속마음": "출혈을 먼저 막아야 한다. 렌에게 팔을 맡기고 주변 경계를 유지하자.",
+          "현재상황": "강이현이 다친 왼팔의 치료를 위해 폐쇄된 지하철역 대합실 바닥에서 렌의 손길을 기다리고 있다.",
+          "의식의흐름": "초소는 이미 지났다 → 왼팔 출혈이 심하다 → 치료가 먼저다 → 렌이 처치하는 동안 주변을 경계해야 한다"
+        },
+        "userValues": null,
+        "renderedHtmlLengths": [
+          2012
+        ]
+      },
+      "calls": [
+        {
+          "scenarioId": "S5",
+          "model": "gpt-5.6-luna",
+          "modelKey": "luna",
+          "requestKind": "background-status-widget-extract",
+          "stage": "initial",
+          "httpStatus": 200,
+          "timeout": false,
+          "error": null,
+          "latencyMs": 4053,
+          "finishReason": "stop",
+          "inputTokens": 2334,
+          "outputTokens": 141,
+          "reasoningTokens": null,
+          "rawText": "{\"시간\":\"11:05\",\"장소\":\"폐쇄된 지하철역 대합실\",\"속마음\":\"출혈을 먼저 막아야 한다. 렌에게 팔을 맡기고 주변 경계를 유지하자.\",\"현재상황\":\"강이현이 다친 왼팔의 치료를 위해 폐쇄된 지하철역 대합실 바닥에서 렌의 손길을 기다리고 있다.\",\"의식의흐름\":\"초소는 이미 지났다 → 왼팔 출혈이 심하다 → 치료가 먼저다 → 렌이 처치하는 동안 주변을 경계해야 한다\",\"extracted_facts\":[]}",
+          "jsonFound": true,
+          "jsonParseOk": true,
+          "normalizedValues": {
+            "character": {
+              "시간": "11:05",
+              "장소": "폐쇄된 지하철역 대합실",
+              "속마음": "출혈을 먼저 막아야 한다. 렌에게 팔을 맡기고 주변 경계를 유지하자.",
+              "현재상황": "강이현이 다친 왼팔의 치료를 위해 폐쇄된 지하철역 대합실 바닥에서 렌의 손길을 기다리고 있다.",
+              "의식의흐름": "초소는 이미 지났다 → 왼팔 출혈이 심하다 → 치료가 먼저다 → 렌이 처치하는 동안 주변을 경계해야 한다"
+            }
+          },
+          "normalizedKeys": [
+            "character.시간",
+            "character.장소",
+            "character.속마음",
+            "character.현재상황",
+            "character.의식의흐름"
+          ],
+          "echoDroppedKeys": [],
+          "usedRepair": false,
+          "usedFallback": false,
+          "actualCallCount": 1,
+          "expectedValues": {
+            "시간": "11:05",
+            "장소": "지하철역",
+            "not_exact_echo": {
+              "시간": "09:10",
+              "장소": "북문 초소",
+              "속마음": "오늘은 정찰만 하면 된다.",
+              "현재상황": "북문 초소에서 대기",
+              "의식의흐름": "정찰 준비 → 이상 없음"
+            }
+          },
+          "finalValues": {
+            "character": {
+              "시간": "11:05",
+              "장소": "폐쇄된 지하철역 대합실",
+              "속마음": "출혈을 먼저 막아야 한다. 렌에게 팔을 맡기고 주변 경계를 유지하자.",
+              "현재상황": "강이현이 다친 왼팔의 치료를 위해 폐쇄된 지하철역 대합실 바닥에서 렌의 손길을 기다리고 있다.",
+              "의식의흐름": "초소는 이미 지났다 → 왼팔 출혈이 심하다 → 치료가 먼저다 → 렌이 처치하는 동안 주변을 경계해야 한다"
+            },
+            "user": null
+          },
+          "displayPolicyPass": true,
+          "finalWidgetVisible": true,
+          "characterValues": {
+            "시간": "11:05",
+            "장소": "폐쇄된 지하철역 대합실",
+            "속마음": "출혈을 먼저 막아야 한다. 렌에게 팔을 맡기고 주변 경계를 유지하자.",
+            "현재상황": "강이현이 다친 왼팔의 치료를 위해 폐쇄된 지하철역 대합실 바닥에서 렌의 손길을 기다리고 있다.",
+            "의식의흐름": "초소는 이미 지났다 → 왼팔 출혈이 심하다 → 치료가 먼저다 → 렌이 처치하는 동안 주변을 경계해야 한다"
+          },
+          "userValues": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "S6",
+      "label": "dual status — character vs user inner state isolation",
+      "model": "gpt-5.6-luna",
+      "modelKey": "luna",
+      "requestKind": "background-status-widget-extract-combined",
+      "deadlineMs": 120000,
+      "extractMode": "dual_combined",
+      "usedRepair": false,
+      "usedFallback": false,
+      "actualCallCount": 1,
+      "echoDroppedKeys": [],
+      "expectedValues": {
+        "시간": "14:20",
+        "장소": "사령부 복도",
+        "character_inner_about": "임무/명령/파병",
+        "user_inner_about": "걱정/붙잡음",
+        "subjectSwap": false,
+        "wholesaleClone": false
+      },
+      "initialOnlyResult": {
+        "jsonFound": true,
+        "jsonParseOk": true,
+        "normalizedValues": {
+          "character": {
+            "시간": "14:20",
+            "장소": "사령부 복도",
+            "속마음": "렌의 걱정이 마음에 걸리지만, 받은 임무를 포기할 수는 없다.",
+            "현재상황": "강이현은 위험 구역 파병 명령서를 접은 채 렌과 마주 서 있다.",
+            "의식의흐름": "렌이 걱정하고 있다 → 임무를 포기할 수는 없다 → 떠나기 전 설득해야 한다"
+          },
+          "user": {
+            "시간": "14:20",
+            "장소": "사령부 복도",
+            "속마음": "정말 보내기 싫어. 어떻게든 붙잡고 싶어.",
+            "현재상황": "렌은 파병 명령을 받은 강이현을 말리며 걱정을 드러내고 있다.",
+            "의식의흐름": "명령을 받지 말라고 했다 → 그래도 떠날 것 같다 → 붙잡을 방법을 찾아야 한다"
+          }
+        },
+        "normalizedKeys": [
+          "character.시간",
+          "character.장소",
+          "character.속마음",
+          "character.현재상황",
+          "character.의식의흐름",
+          "user.시간",
+          "user.장소",
+          "user.속마음",
+          "user.현재상황",
+          "user.의식의흐름"
+        ],
+        "hasUsableValues": true,
+        "displayPolicyPass": true,
+        "finalWidgetVisible": true,
+        "finalValues": {
+          "character": {
+            "시간": "14:20",
+            "장소": "사령부 복도",
+            "속마음": "렌의 걱정이 마음에 걸리지만, 받은 임무를 포기할 수는 없다.",
+            "현재상황": "강이현은 위험 구역 파병 명령서를 접은 채 렌과 마주 서 있다.",
+            "의식의흐름": "렌이 걱정하고 있다 → 임무를 포기할 수는 없다 → 떠나기 전 설득해야 한다"
+          },
+          "user": {
+            "시간": "14:20",
+            "장소": "사령부 복도",
+            "속마음": "정말 보내기 싫어. 어떻게든 붙잡고 싶어.",
+            "현재상황": "렌은 파병 명령을 받은 강이현을 말리며 걱정을 드러내고 있다.",
+            "의식의흐름": "명령을 받지 말라고 했다 → 그래도 떠날 것 같다 → 붙잡을 방법을 찾아야 한다"
+          }
+        },
+        "characterValues": {
+          "시간": "14:20",
+          "장소": "사령부 복도",
+          "속마음": "렌의 걱정이 마음에 걸리지만, 받은 임무를 포기할 수는 없다.",
+          "현재상황": "강이현은 위험 구역 파병 명령서를 접은 채 렌과 마주 서 있다.",
+          "의식의흐름": "렌이 걱정하고 있다 → 임무를 포기할 수는 없다 → 떠나기 전 설득해야 한다"
+        },
+        "userValues": {
+          "시간": "14:20",
+          "장소": "사령부 복도",
+          "속마음": "정말 보내기 싫어. 어떻게든 붙잡고 싶어.",
+          "현재상황": "렌은 파병 명령을 받은 강이현을 말리며 걱정을 드러내고 있다.",
+          "의식의흐름": "명령을 받지 말라고 했다 → 그래도 떠날 것 같다 → 붙잡을 방법을 찾아야 한다"
+        },
+        "renderedHtmlLengths": [
+          1969,
+          1959
+        ]
+      },
+      "productionRepairResult": {
+        "jsonFound": true,
+        "jsonParseOk": true,
+        "normalizedValues": {
+          "character": {
+            "시간": "14:20",
+            "장소": "사령부 복도",
+            "속마음": "렌의 걱정이 마음에 걸리지만, 받은 임무를 포기할 수는 없다.",
+            "현재상황": "강이현은 위험 구역 파병 명령서를 접은 채 렌과 마주 서 있다.",
+            "의식의흐름": "렌이 걱정하고 있다 → 임무를 포기할 수는 없다 → 떠나기 전 설득해야 한다"
+          },
+          "user": {
+            "시간": "14:20",
+            "장소": "사령부 복도",
+            "속마음": "정말 보내기 싫어. 어떻게든 붙잡고 싶어.",
+            "현재상황": "렌은 파병 명령을 받은 강이현을 말리며 걱정을 드러내고 있다.",
+            "의식의흐름": "명령을 받지 말라고 했다 → 그래도 떠날 것 같다 → 붙잡을 방법을 찾아야 한다"
+          }
+        },
+        "normalizedKeys": [
+          "character.시간",
+          "character.장소",
+          "character.속마음",
+          "character.현재상황",
+          "character.의식의흐름",
+          "user.시간",
+          "user.장소",
+          "user.속마음",
+          "user.현재상황",
+          "user.의식의흐름"
+        ],
+        "hasUsableValues": true,
+        "displayPolicyPass": true,
+        "finalWidgetVisible": true,
+        "finalValues": {
+          "character": {
+            "시간": "14:20",
+            "장소": "사령부 복도",
+            "속마음": "렌의 걱정이 마음에 걸리지만, 받은 임무를 포기할 수는 없다.",
+            "현재상황": "강이현은 위험 구역 파병 명령서를 접은 채 렌과 마주 서 있다.",
+            "의식의흐름": "렌이 걱정하고 있다 → 임무를 포기할 수는 없다 → 떠나기 전 설득해야 한다"
+          },
+          "user": {
+            "시간": "14:20",
+            "장소": "사령부 복도",
+            "속마음": "정말 보내기 싫어. 어떻게든 붙잡고 싶어.",
+            "현재상황": "렌은 파병 명령을 받은 강이현을 말리며 걱정을 드러내고 있다.",
+            "의식의흐름": "명령을 받지 말라고 했다 → 그래도 떠날 것 같다 → 붙잡을 방법을 찾아야 한다"
+          }
+        },
+        "characterValues": {
+          "시간": "14:20",
+          "장소": "사령부 복도",
+          "속마음": "렌의 걱정이 마음에 걸리지만, 받은 임무를 포기할 수는 없다.",
+          "현재상황": "강이현은 위험 구역 파병 명령서를 접은 채 렌과 마주 서 있다.",
+          "의식의흐름": "렌이 걱정하고 있다 → 임무를 포기할 수는 없다 → 떠나기 전 설득해야 한다"
+        },
+        "userValues": {
+          "시간": "14:20",
+          "장소": "사령부 복도",
+          "속마음": "정말 보내기 싫어. 어떻게든 붙잡고 싶어.",
+          "현재상황": "렌은 파병 명령을 받은 강이현을 말리며 걱정을 드러내고 있다.",
+          "의식의흐름": "명령을 받지 말라고 했다 → 그래도 떠날 것 같다 → 붙잡을 방법을 찾아야 한다"
+        },
+        "renderedHtmlLengths": [
+          1969,
+          1959
+        ]
+      },
+      "dual": {
+        "subjectSwap": true,
+        "wholesaleClone": false,
+        "povMix": false,
+        "evidence": [
+          "inner_role_tokens_swapped"
+        ]
+      },
+      "calls": [
+        {
+          "scenarioId": "S6",
+          "model": "gpt-5.6-luna",
+          "modelKey": "luna",
+          "requestKind": "background-status-widget-extract-combined",
+          "stage": "combined",
+          "httpStatus": 200,
+          "timeout": false,
+          "error": null,
+          "latencyMs": 3753,
+          "finishReason": "stop",
+          "inputTokens": 1940,
+          "outputTokens": 217,
+          "reasoningTokens": null,
+          "rawText": "{\"character_values\":{\"시간\":\"14:20\",\"장소\":\"사령부 복도\",\"속마음\":\"렌의 걱정이 마음에 걸리지만, 받은 임무를 포기할 수는 없다.\",\"현재상황\":\"강이현은 위험 구역 파병 명령서를 접은 채 렌과 마주 서 있다.\",\"의식의흐름\":\"렌이 걱정하고 있다 → 임무를 포기할 수는 없다 → 떠나기 전 설득해야 한다\"},\"user_values\":{\"시간\":\"14:20\",\"장소\":\"사령부 복도\",\"속마음\":\"정말 보내기 싫어. 어떻게든 붙잡고 싶어.\",\"현재상황\":\"렌은 파병 명령을 받은 강이현을 말리며 걱정을 드러내고 있다.\",\"의식의흐름\":\"명령을 받지 말라고 했다 → 그래도 떠날 것 같다 → 붙잡을 방법을 찾아야 한다\"},\"extracted_facts\":[]}",
+          "jsonFound": true,
+          "jsonParseOk": true,
+          "normalizedValues": {
+            "character": {
+              "시간": "14:20",
+              "장소": "사령부 복도",
+              "속마음": "렌의 걱정이 마음에 걸리지만, 받은 임무를 포기할 수는 없다.",
+              "현재상황": "강이현은 위험 구역 파병 명령서를 접은 채 렌과 마주 서 있다.",
+              "의식의흐름": "렌이 걱정하고 있다 → 임무를 포기할 수는 없다 → 떠나기 전 설득해야 한다"
+            },
+            "user": {
+              "시간": "14:20",
+              "장소": "사령부 복도",
+              "속마음": "정말 보내기 싫어. 어떻게든 붙잡고 싶어.",
+              "현재상황": "렌은 파병 명령을 받은 강이현을 말리며 걱정을 드러내고 있다.",
+              "의식의흐름": "명령을 받지 말라고 했다 → 그래도 떠날 것 같다 → 붙잡을 방법을 찾아야 한다"
+            }
+          },
+          "normalizedKeys": [
+            "character.시간",
+            "character.장소",
+            "character.속마음",
+            "character.현재상황",
+            "character.의식의흐름",
+            "user.시간",
+            "user.장소",
+            "user.속마음",
+            "user.현재상황",
+            "user.의식의흐름"
+          ],
+          "echoDroppedKeys": [],
+          "usedRepair": false,
+          "usedFallback": false,
+          "actualCallCount": 1,
+          "expectedValues": {
+            "시간": "14:20",
+            "장소": "사령부 복도",
+            "character_inner_about": "임무/명령/파병",
+            "user_inner_about": "걱정/붙잡음",
+            "subjectSwap": false,
+            "wholesaleClone": false
+          },
+          "finalValues": {
+            "character": {
+              "시간": "14:20",
+              "장소": "사령부 복도",
+              "속마음": "렌의 걱정이 마음에 걸리지만, 받은 임무를 포기할 수는 없다.",
+              "현재상황": "강이현은 위험 구역 파병 명령서를 접은 채 렌과 마주 서 있다.",
+              "의식의흐름": "렌이 걱정하고 있다 → 임무를 포기할 수는 없다 → 떠나기 전 설득해야 한다"
+            },
+            "user": {
+              "시간": "14:20",
+              "장소": "사령부 복도",
+              "속마음": "정말 보내기 싫어. 어떻게든 붙잡고 싶어.",
+              "현재상황": "렌은 파병 명령을 받은 강이현을 말리며 걱정을 드러내고 있다.",
+              "의식의흐름": "명령을 받지 말라고 했다 → 그래도 떠날 것 같다 → 붙잡을 방법을 찾아야 한다"
+            }
+          },
+          "displayPolicyPass": true,
+          "finalWidgetVisible": true,
+          "characterValues": {
+            "시간": "14:20",
+            "장소": "사령부 복도",
+            "속마음": "렌의 걱정이 마음에 걸리지만, 받은 임무를 포기할 수는 없다.",
+            "현재상황": "강이현은 위험 구역 파병 명령서를 접은 채 렌과 마주 서 있다.",
+            "의식의흐름": "렌이 걱정하고 있다 → 임무를 포기할 수는 없다 → 떠나기 전 설득해야 한다"
+          },
+          "userValues": {
+            "시간": "14:20",
+            "장소": "사령부 복도",
+            "속마음": "정말 보내기 싫어. 어떻게든 붙잡고 싶어.",
+            "현재상황": "렌은 파병 명령을 받은 강이현을 말리며 걱정을 드러내고 있다.",
+            "의식의흐름": "명령을 받지 말라고 했다 → 그래도 떠날 것 같다 → 붙잡을 방법을 찾아야 한다"
+          },
+          "subjectSwap": true,
+          "wholesaleClone": false
+        }
+      ]
+    },
+    {
+      "scenarioId": "S6",
+      "label": "dual status — character vs user inner state isolation",
+      "model": "deepseek-v4-flash-0731",
+      "modelKey": "deepseek",
+      "requestKind": "background-status-widget-extract-combined",
+      "deadlineMs": 20000,
+      "extractMode": "dual_combined",
+      "usedRepair": true,
+      "usedFallback": false,
+      "actualCallCount": 3,
+      "echoDroppedKeys": [],
+      "expectedValues": {
+        "시간": "14:20",
+        "장소": "사령부 복도",
+        "character_inner_about": "임무/명령/파병",
+        "user_inner_about": "걱정/붙잡음",
+        "subjectSwap": false,
+        "wholesaleClone": false
+      },
+      "initialOnlyResult": {
+        "jsonFound": false,
+        "jsonParseOk": false,
+        "normalizedValues": {},
+        "normalizedKeys": [],
+        "hasUsableValues": false,
+        "displayPolicyPass": false,
+        "finalWidgetVisible": false,
+        "finalValues": {},
+        "characterValues": null,
+        "userValues": null,
+        "renderedHtmlLengths": []
+      },
+      "productionRepairResult": {
+        "jsonFound": false,
+        "jsonParseOk": false,
+        "normalizedValues": {
+          "character": null,
+          "user": null
+        },
+        "normalizedKeys": [],
+        "hasUsableValues": false,
+        "displayPolicyPass": false,
+        "finalWidgetVisible": false,
+        "finalValues": {
+          "character": null,
+          "user": null
+        },
+        "characterValues": null,
+        "userValues": null,
+        "renderedHtmlLengths": [
+          1852,
+          1852
+        ]
+      },
+      "dual": {
+        "subjectSwap": false,
+        "wholesaleClone": false,
+        "povMix": false,
+        "evidence": []
+      },
+      "calls": [
+        {
+          "scenarioId": "S6",
+          "model": "deepseek-v4-flash-0731",
+          "modelKey": "deepseek",
+          "requestKind": "background-status-widget-extract-combined",
+          "stage": "combined",
+          "httpStatus": null,
+          "timeout": true,
+          "error": "AbortError: This operation was aborted",
+          "latencyMs": 20001,
+          "finishReason": null,
+          "inputTokens": null,
+          "outputTokens": null,
+          "reasoningTokens": null,
+          "rawText": "",
+          "jsonFound": false,
+          "jsonParseOk": false,
+          "normalizedValues": {},
+          "normalizedKeys": [],
+          "echoDroppedKeys": [],
+          "usedRepair": true,
+          "usedFallback": false,
+          "actualCallCount": 3,
+          "expectedValues": {
+            "시간": "14:20",
+            "장소": "사령부 복도",
+            "character_inner_about": "임무/명령/파병",
+            "user_inner_about": "걱정/붙잡음",
+            "subjectSwap": false,
+            "wholesaleClone": false
+          },
+          "finalValues": {
+            "character": null,
+            "user": null
+          },
+          "displayPolicyPass": false,
+          "finalWidgetVisible": false,
+          "characterValues": null,
+          "userValues": null,
+          "subjectSwap": false,
+          "wholesaleClone": false
+        },
+        {
+          "scenarioId": "S6",
+          "model": "deepseek-v4-flash-0731",
+          "modelKey": "deepseek",
+          "requestKind": "background-status-widget-extract-repair",
+          "stage": "repair",
+          "httpStatus": null,
+          "timeout": true,
+          "error": "AbortError: This operation was aborted",
+          "latencyMs": 20001,
+          "finishReason": null,
+          "inputTokens": null,
+          "outputTokens": null,
+          "reasoningTokens": null,
+          "rawText": "",
+          "jsonFound": false,
+          "jsonParseOk": false,
+          "normalizedValues": {
+            "character": null,
+            "user": null
+          },
+          "normalizedKeys": [],
+          "echoDroppedKeys": [],
+          "usedRepair": true,
+          "usedFallback": false,
+          "actualCallCount": 3,
+          "expectedValues": {
+            "시간": "14:20",
+            "장소": "사령부 복도",
+            "character_inner_about": "임무/명령/파병",
+            "user_inner_about": "걱정/붙잡음",
+            "subjectSwap": false,
+            "wholesaleClone": false
+          },
+          "finalValues": {
+            "character": null,
+            "user": null
+          },
+          "displayPolicyPass": false,
+          "finalWidgetVisible": false,
+          "characterValues": null,
+          "userValues": null,
+          "subjectSwap": false,
+          "wholesaleClone": false
+        },
+        {
+          "scenarioId": "S6",
+          "model": "deepseek-v4-flash-0731",
+          "modelKey": "deepseek",
+          "requestKind": "background-status-widget-extract-repair",
+          "stage": "repair",
+          "httpStatus": null,
+          "timeout": true,
+          "error": "AbortError: This operation was aborted",
+          "latencyMs": 20001,
+          "finishReason": null,
+          "inputTokens": null,
+          "outputTokens": null,
+          "reasoningTokens": null,
+          "rawText": "",
+          "jsonFound": false,
+          "jsonParseOk": false,
+          "normalizedValues": {
+            "character": null,
+            "user": null
+          },
+          "normalizedKeys": [],
+          "echoDroppedKeys": [],
+          "usedRepair": true,
+          "usedFallback": false,
+          "actualCallCount": 3,
+          "expectedValues": {
+            "시간": "14:20",
+            "장소": "사령부 복도",
+            "character_inner_about": "임무/명령/파병",
+            "user_inner_about": "걱정/붙잡음",
+            "subjectSwap": false,
+            "wholesaleClone": false
+          },
+          "finalValues": {
+            "character": null,
+            "user": null
+          },
+          "displayPolicyPass": false,
+          "finalWidgetVisible": false,
+          "characterValues": null,
+          "userValues": null,
+          "subjectSwap": false,
+          "wholesaleClone": false
+        }
+      ]
+    },
+    {
+      "scenarioId": "S7",
+      "label": "sparse/no-change — keep previous, do not invent",
+      "model": "deepseek-v4-flash-0731",
+      "modelKey": "deepseek",
+      "requestKind": "background-status-widget-extract",
+      "deadlineMs": 20000,
+      "extractMode": "single",
+      "usedRepair": true,
+      "usedFallback": false,
+      "actualCallCount": 2,
+      "echoDroppedKeys": [],
+      "expectedValues": {
+        "장소": "정비실",
+        "do_not_invent": [
+          "전투",
+          "부상",
+          "옥상",
+          "카페",
+          "고백"
+        ]
+      },
+      "initialOnlyResult": {
+        "jsonFound": false,
+        "jsonParseOk": false,
+        "normalizedValues": {},
+        "normalizedKeys": [],
+        "hasUsableValues": false,
+        "displayPolicyPass": false,
+        "finalWidgetVisible": false,
+        "finalValues": {},
+        "characterValues": null,
+        "userValues": null,
+        "renderedHtmlLengths": []
+      },
+      "productionRepairResult": {
+        "jsonFound": false,
+        "jsonParseOk": false,
+        "normalizedValues": {
+          "character": null,
+          "user": null
+        },
+        "normalizedKeys": [],
+        "hasUsableValues": false,
+        "displayPolicyPass": false,
+        "finalWidgetVisible": false,
+        "finalValues": {
+          "character": null,
+          "user": null
+        },
+        "characterValues": null,
+        "userValues": null,
+        "renderedHtmlLengths": [
+          1852
+        ]
+      },
+      "calls": [
+        {
+          "scenarioId": "S7",
+          "model": "deepseek-v4-flash-0731",
+          "modelKey": "deepseek",
+          "requestKind": "background-status-widget-extract",
+          "stage": "initial",
+          "httpStatus": null,
+          "timeout": true,
+          "error": "AbortError: This operation was aborted",
+          "latencyMs": 20001,
+          "finishReason": null,
+          "inputTokens": null,
+          "outputTokens": null,
+          "reasoningTokens": null,
+          "rawText": "",
+          "jsonFound": false,
+          "jsonParseOk": false,
+          "normalizedValues": {},
+          "normalizedKeys": [],
+          "echoDroppedKeys": [],
+          "usedRepair": true,
+          "usedFallback": false,
+          "actualCallCount": 2,
+          "expectedValues": {
+            "장소": "정비실",
+            "do_not_invent": [
+              "전투",
+              "부상",
+              "옥상",
+              "카페",
+              "고백"
+            ]
+          },
+          "finalValues": {
+            "character": null,
+            "user": null
+          },
+          "displayPolicyPass": false,
+          "finalWidgetVisible": false,
+          "characterValues": null,
+          "userValues": null
+        },
+        {
+          "scenarioId": "S7",
+          "model": "deepseek-v4-flash-0731",
+          "modelKey": "deepseek",
+          "requestKind": "background-status-widget-extract-repair",
+          "stage": "repair",
+          "httpStatus": null,
+          "timeout": true,
+          "error": "AbortError: This operation was aborted",
+          "latencyMs": 20000,
+          "finishReason": null,
+          "inputTokens": null,
+          "outputTokens": null,
+          "reasoningTokens": null,
+          "rawText": "",
+          "jsonFound": false,
+          "jsonParseOk": false,
+          "normalizedValues": {
+            "character": null,
+            "user": null
+          },
+          "normalizedKeys": [],
+          "echoDroppedKeys": [],
+          "usedRepair": true,
+          "usedFallback": false,
+          "actualCallCount": 2,
+          "expectedValues": {
+            "장소": "정비실",
+            "do_not_invent": [
+              "전투",
+              "부상",
+              "옥상",
+              "카페",
+              "고백"
+            ]
+          },
+          "finalValues": {
+            "character": null,
+            "user": null
+          },
+          "displayPolicyPass": false,
+          "finalWidgetVisible": false,
+          "characterValues": null,
+          "userValues": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "S7",
+      "label": "sparse/no-change — keep previous, do not invent",
+      "model": "gpt-5.6-luna",
+      "modelKey": "luna",
+      "requestKind": "background-status-widget-extract",
+      "deadlineMs": 120000,
+      "extractMode": "single",
+      "usedRepair": false,
+      "usedFallback": false,
+      "actualCallCount": 1,
+      "echoDroppedKeys": [],
+      "expectedValues": {
+        "장소": "정비실",
+        "do_not_invent": [
+          "전투",
+          "부상",
+          "옥상",
+          "카페",
+          "고백"
+        ]
+      },
+      "initialOnlyResult": {
+        "jsonFound": true,
+        "jsonParseOk": true,
+        "normalizedValues": {
+          "character": {
+            "시간": "21:11",
+            "장소": "정비실",
+            "속마음": "대답할 필요는 없다. 일단 숨부터 고르자.",
+            "현재상황": "강이현은 정비실 의자에 앉아 숨을 고르며 침묵하고 있다.",
+            "의식의흐름": "말할 필요 없음 → 호흡 정리 → 주변 소리만 확인"
+          }
+        },
+        "normalizedKeys": [
+          "character.시간",
+          "character.장소",
+          "character.속마음",
+          "character.현재상황",
+          "character.의식의흐름"
+        ],
+        "hasUsableValues": true,
+        "displayPolicyPass": true,
+        "finalWidgetVisible": true,
+        "finalValues": {
+          "character": {
+            "시간": "21:11",
+            "장소": "정비실",
+            "속마음": "대답할 필요는 없다. 일단 숨부터 고르자.",
+            "현재상황": "강이현은 정비실 의자에 앉아 숨을 고르며 침묵하고 있다.",
+            "의식의흐름": "말할 필요 없음 → 호흡 정리 → 주변 소리만 확인"
+          }
+        },
+        "characterValues": {
+          "시간": "21:11",
+          "장소": "정비실",
+          "속마음": "대답할 필요는 없다. 일단 숨부터 고르자.",
+          "현재상황": "강이현은 정비실 의자에 앉아 숨을 고르며 침묵하고 있다.",
+          "의식의흐름": "말할 필요 없음 → 호흡 정리 → 주변 소리만 확인"
+        },
+        "userValues": null,
+        "renderedHtmlLengths": [
+          1937
+        ]
+      },
+      "productionRepairResult": {
+        "jsonFound": true,
+        "jsonParseOk": true,
+        "normalizedValues": {
+          "character": {
+            "시간": "21:11",
+            "장소": "정비실",
+            "속마음": "대답할 필요는 없다. 일단 숨부터 고르자.",
+            "현재상황": "강이현은 정비실 의자에 앉아 숨을 고르며 침묵하고 있다.",
+            "의식의흐름": "말할 필요 없음 → 호흡 정리 → 주변 소리만 확인"
+          },
+          "user": null
+        },
+        "normalizedKeys": [
+          "character.시간",
+          "character.장소",
+          "character.속마음",
+          "character.현재상황",
+          "character.의식의흐름"
+        ],
+        "hasUsableValues": true,
+        "displayPolicyPass": true,
+        "finalWidgetVisible": true,
+        "finalValues": {
+          "character": {
+            "시간": "21:11",
+            "장소": "정비실",
+            "속마음": "대답할 필요는 없다. 일단 숨부터 고르자.",
+            "현재상황": "강이현은 정비실 의자에 앉아 숨을 고르며 침묵하고 있다.",
+            "의식의흐름": "말할 필요 없음 → 호흡 정리 → 주변 소리만 확인"
+          },
+          "user": null
+        },
+        "characterValues": {
+          "시간": "21:11",
+          "장소": "정비실",
+          "속마음": "대답할 필요는 없다. 일단 숨부터 고르자.",
+          "현재상황": "강이현은 정비실 의자에 앉아 숨을 고르며 침묵하고 있다.",
+          "의식의흐름": "말할 필요 없음 → 호흡 정리 → 주변 소리만 확인"
+        },
+        "userValues": null,
+        "renderedHtmlLengths": [
+          1937
+        ]
+      },
+      "calls": [
+        {
+          "scenarioId": "S7",
+          "model": "gpt-5.6-luna",
+          "modelKey": "luna",
+          "requestKind": "background-status-widget-extract",
+          "stage": "initial",
+          "httpStatus": 200,
+          "timeout": false,
+          "error": null,
+          "latencyMs": 3414,
+          "finishReason": "stop",
+          "inputTokens": 2259,
+          "outputTokens": 94,
+          "reasoningTokens": null,
+          "rawText": "{\"시간\":\"21:11\",\"장소\":\"정비실\",\"속마음\":\"대답할 필요는 없다. 일단 숨부터 고르자.\",\"현재상황\":\"강이현은 정비실 의자에 앉아 숨을 고르며 침묵하고 있다.\",\"의식의흐름\":\"말할 필요 없음 → 호흡 정리 → 주변 소리만 확인\",\"extracted_facts\":[]}",
+          "jsonFound": true,
+          "jsonParseOk": true,
+          "normalizedValues": {
+            "character": {
+              "시간": "21:11",
+              "장소": "정비실",
+              "속마음": "대답할 필요는 없다. 일단 숨부터 고르자.",
+              "현재상황": "강이현은 정비실 의자에 앉아 숨을 고르며 침묵하고 있다.",
+              "의식의흐름": "말할 필요 없음 → 호흡 정리 → 주변 소리만 확인"
+            }
+          },
+          "normalizedKeys": [
+            "character.시간",
+            "character.장소",
+            "character.속마음",
+            "character.현재상황",
+            "character.의식의흐름"
+          ],
+          "echoDroppedKeys": [],
+          "usedRepair": false,
+          "usedFallback": false,
+          "actualCallCount": 1,
+          "expectedValues": {
+            "장소": "정비실",
+            "do_not_invent": [
+              "전투",
+              "부상",
+              "옥상",
+              "카페",
+              "고백"
+            ]
+          },
+          "finalValues": {
+            "character": {
+              "시간": "21:11",
+              "장소": "정비실",
+              "속마음": "대답할 필요는 없다. 일단 숨부터 고르자.",
+              "현재상황": "강이현은 정비실 의자에 앉아 숨을 고르며 침묵하고 있다.",
+              "의식의흐름": "말할 필요 없음 → 호흡 정리 → 주변 소리만 확인"
+            },
+            "user": null
+          },
+          "displayPolicyPass": true,
+          "finalWidgetVisible": true,
+          "characterValues": {
+            "시간": "21:11",
+            "장소": "정비실",
+            "속마음": "대답할 필요는 없다. 일단 숨부터 고르자.",
+            "현재상황": "강이현은 정비실 의자에 앉아 숨을 고르며 침묵하고 있다.",
+            "의식의흐름": "말할 필요 없음 → 호흡 정리 → 주변 소리만 확인"
+          },
+          "userValues": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "S8",
+      "label": "Korean complex scene + one OOC line",
+      "model": "gpt-5.6-luna",
+      "modelKey": "luna",
+      "requestKind": "background-status-widget-extract",
+      "deadlineMs": 120000,
+      "extractMode": "single",
+      "usedRepair": false,
+      "usedFallback": false,
+      "actualCallCount": 1,
+      "echoDroppedKeys": [],
+      "expectedValues": {
+        "시간": "17:50",
+        "장소": "지하철역",
+        "injury": "왼팔",
+        "ooc_must_not_pollute": [
+          "보라색",
+          "관리자 패널"
+        ]
+      },
+      "initialOnlyResult": {
+        "jsonFound": true,
+        "jsonParseOk": true,
+        "normalizedValues": {
+          "character": {
+            "시간": "17:50",
+            "장소": "폐쇄된 지하철역 대합실",
+            "속마음": "팔은 버틸 만하다. 렌을 앞세우지 말고 내가 먼저 확인했어야 했다.",
+            "현재상황": "출구가 잠긴 폐쇄된 지하철역 대합실에서 강이현이 왼팔의 상처를 손수건과 붕대로 지혈하고 있다.",
+            "의식의흐름": "파편에 베였다 → 출혈은 통제 가능하다 → 출구가 잠겼다 → 렌을 뒤에 두고 주변을 다시 확인해야 한다"
+          }
+        },
+        "normalizedKeys": [
+          "character.시간",
+          "character.장소",
+          "character.속마음",
+          "character.현재상황",
+          "character.의식의흐름"
+        ],
+        "hasUsableValues": true,
+        "displayPolicyPass": true,
+        "finalWidgetVisible": true,
+        "finalValues": {
+          "character": {
+            "시간": "17:50",
+            "장소": "폐쇄된 지하철역 대합실",
+            "속마음": "팔은 버틸 만하다. 렌을 앞세우지 말고 내가 먼저 확인했어야 했다.",
+            "현재상황": "출구가 잠긴 폐쇄된 지하철역 대합실에서 강이현이 왼팔의 상처를 손수건과 붕대로 지혈하고 있다.",
+            "의식의흐름": "파편에 베였다 → 출혈은 통제 가능하다 → 출구가 잠겼다 → 렌을 뒤에 두고 주변을 다시 확인해야 한다"
+          }
+        },
+        "characterValues": {
+          "시간": "17:50",
+          "장소": "폐쇄된 지하철역 대합실",
+          "속마음": "팔은 버틸 만하다. 렌을 앞세우지 말고 내가 먼저 확인했어야 했다.",
+          "현재상황": "출구가 잠긴 폐쇄된 지하철역 대합실에서 강이현이 왼팔의 상처를 손수건과 붕대로 지혈하고 있다.",
+          "의식의흐름": "파편에 베였다 → 출혈은 통제 가능하다 → 출구가 잠겼다 → 렌을 뒤에 두고 주변을 다시 확인해야 한다"
+        },
+        "userValues": null,
+        "renderedHtmlLengths": [
+          2010
+        ]
+      },
+      "productionRepairResult": {
+        "jsonFound": true,
+        "jsonParseOk": true,
+        "normalizedValues": {
+          "character": {
+            "시간": "17:50",
+            "장소": "폐쇄된 지하철역 대합실",
+            "속마음": "팔은 버틸 만하다. 렌을 앞세우지 말고 내가 먼저 확인했어야 했다.",
+            "현재상황": "출구가 잠긴 폐쇄된 지하철역 대합실에서 강이현이 왼팔의 상처를 손수건과 붕대로 지혈하고 있다.",
+            "의식의흐름": "파편에 베였다 → 출혈은 통제 가능하다 → 출구가 잠겼다 → 렌을 뒤에 두고 주변을 다시 확인해야 한다"
+          },
+          "user": null
+        },
+        "normalizedKeys": [
+          "character.시간",
+          "character.장소",
+          "character.속마음",
+          "character.현재상황",
+          "character.의식의흐름"
+        ],
+        "hasUsableValues": true,
+        "displayPolicyPass": true,
+        "finalWidgetVisible": true,
+        "finalValues": {
+          "character": {
+            "시간": "17:50",
+            "장소": "폐쇄된 지하철역 대합실",
+            "속마음": "팔은 버틸 만하다. 렌을 앞세우지 말고 내가 먼저 확인했어야 했다.",
+            "현재상황": "출구가 잠긴 폐쇄된 지하철역 대합실에서 강이현이 왼팔의 상처를 손수건과 붕대로 지혈하고 있다.",
+            "의식의흐름": "파편에 베였다 → 출혈은 통제 가능하다 → 출구가 잠겼다 → 렌을 뒤에 두고 주변을 다시 확인해야 한다"
+          },
+          "user": null
+        },
+        "characterValues": {
+          "시간": "17:50",
+          "장소": "폐쇄된 지하철역 대합실",
+          "속마음": "팔은 버틸 만하다. 렌을 앞세우지 말고 내가 먼저 확인했어야 했다.",
+          "현재상황": "출구가 잠긴 폐쇄된 지하철역 대합실에서 강이현이 왼팔의 상처를 손수건과 붕대로 지혈하고 있다.",
+          "의식의흐름": "파편에 베였다 → 출혈은 통제 가능하다 → 출구가 잠겼다 → 렌을 뒤에 두고 주변을 다시 확인해야 한다"
+        },
+        "userValues": null,
+        "renderedHtmlLengths": [
+          2010
+        ]
+      },
+      "calls": [
+        {
+          "scenarioId": "S8",
+          "model": "gpt-5.6-luna",
+          "modelKey": "luna",
+          "requestKind": "background-status-widget-extract",
+          "stage": "initial",
+          "httpStatus": 200,
+          "timeout": false,
+          "error": null,
+          "latencyMs": 2794,
+          "finishReason": "stop",
+          "inputTokens": 2433,
+          "outputTokens": 145,
+          "reasoningTokens": null,
+          "rawText": "{\"시간\":\"17:50\",\"장소\":\"폐쇄된 지하철역 대합실\",\"속마음\":\"팔은 버틸 만하다. 렌을 앞세우지 말고 내가 먼저 확인했어야 했다.\",\"현재상황\":\"출구가 잠긴 폐쇄된 지하철역 대합실에서 강이현이 왼팔의 상처를 손수건과 붕대로 지혈하고 있다.\",\"의식의흐름\":\"파편에 베였다 → 출혈은 통제 가능하다 → 출구가 잠겼다 → 렌을 뒤에 두고 주변을 다시 확인해야 한다\",\"extracted_facts\":[]}",
+          "jsonFound": true,
+          "jsonParseOk": true,
+          "normalizedValues": {
+            "character": {
+              "시간": "17:50",
+              "장소": "폐쇄된 지하철역 대합실",
+              "속마음": "팔은 버틸 만하다. 렌을 앞세우지 말고 내가 먼저 확인했어야 했다.",
+              "현재상황": "출구가 잠긴 폐쇄된 지하철역 대합실에서 강이현이 왼팔의 상처를 손수건과 붕대로 지혈하고 있다.",
+              "의식의흐름": "파편에 베였다 → 출혈은 통제 가능하다 → 출구가 잠겼다 → 렌을 뒤에 두고 주변을 다시 확인해야 한다"
+            }
+          },
+          "normalizedKeys": [
+            "character.시간",
+            "character.장소",
+            "character.속마음",
+            "character.현재상황",
+            "character.의식의흐름"
+          ],
+          "echoDroppedKeys": [],
+          "usedRepair": false,
+          "usedFallback": false,
+          "actualCallCount": 1,
+          "expectedValues": {
+            "시간": "17:50",
+            "장소": "지하철역",
+            "injury": "왼팔",
+            "ooc_must_not_pollute": [
+              "보라색",
+              "관리자 패널"
+            ]
+          },
+          "finalValues": {
+            "character": {
+              "시간": "17:50",
+              "장소": "폐쇄된 지하철역 대합실",
+              "속마음": "팔은 버틸 만하다. 렌을 앞세우지 말고 내가 먼저 확인했어야 했다.",
+              "현재상황": "출구가 잠긴 폐쇄된 지하철역 대합실에서 강이현이 왼팔의 상처를 손수건과 붕대로 지혈하고 있다.",
+              "의식의흐름": "파편에 베였다 → 출혈은 통제 가능하다 → 출구가 잠겼다 → 렌을 뒤에 두고 주변을 다시 확인해야 한다"
+            },
+            "user": null
+          },
+          "displayPolicyPass": true,
+          "finalWidgetVisible": true,
+          "characterValues": {
+            "시간": "17:50",
+            "장소": "폐쇄된 지하철역 대합실",
+            "속마음": "팔은 버틸 만하다. 렌을 앞세우지 말고 내가 먼저 확인했어야 했다.",
+            "현재상황": "출구가 잠긴 폐쇄된 지하철역 대합실에서 강이현이 왼팔의 상처를 손수건과 붕대로 지혈하고 있다.",
+            "의식의흐름": "파편에 베였다 → 출혈은 통제 가능하다 → 출구가 잠겼다 → 렌을 뒤에 두고 주변을 다시 확인해야 한다"
+          },
+          "userValues": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "S8",
+      "label": "Korean complex scene + one OOC line",
+      "model": "deepseek-v4-flash-0731",
+      "modelKey": "deepseek",
+      "requestKind": "background-status-widget-extract",
+      "deadlineMs": 20000,
+      "extractMode": "single",
+      "usedRepair": true,
+      "usedFallback": false,
+      "actualCallCount": 2,
+      "echoDroppedKeys": [],
+      "expectedValues": {
+        "시간": "17:50",
+        "장소": "지하철역",
+        "injury": "왼팔",
+        "ooc_must_not_pollute": [
+          "보라색",
+          "관리자 패널"
+        ]
+      },
+      "initialOnlyResult": {
+        "jsonFound": false,
+        "jsonParseOk": false,
+        "normalizedValues": {},
+        "normalizedKeys": [],
+        "hasUsableValues": false,
+        "displayPolicyPass": false,
+        "finalWidgetVisible": false,
+        "finalValues": {},
+        "characterValues": null,
+        "userValues": null,
+        "renderedHtmlLengths": []
+      },
+      "productionRepairResult": {
+        "jsonFound": false,
+        "jsonParseOk": false,
+        "normalizedValues": {
+          "character": null,
+          "user": null
+        },
+        "normalizedKeys": [],
+        "hasUsableValues": false,
+        "displayPolicyPass": false,
+        "finalWidgetVisible": false,
+        "finalValues": {
+          "character": null,
+          "user": null
+        },
+        "characterValues": null,
+        "userValues": null,
+        "renderedHtmlLengths": [
+          1852
+        ]
+      },
+      "calls": [
+        {
+          "scenarioId": "S8",
+          "model": "deepseek-v4-flash-0731",
+          "modelKey": "deepseek",
+          "requestKind": "background-status-widget-extract",
+          "stage": "initial",
+          "httpStatus": null,
+          "timeout": true,
+          "error": "AbortError: This operation was aborted",
+          "latencyMs": 20001,
+          "finishReason": null,
+          "inputTokens": null,
+          "outputTokens": null,
+          "reasoningTokens": null,
+          "rawText": "",
+          "jsonFound": false,
+          "jsonParseOk": false,
+          "normalizedValues": {},
+          "normalizedKeys": [],
+          "echoDroppedKeys": [],
+          "usedRepair": true,
+          "usedFallback": false,
+          "actualCallCount": 2,
+          "expectedValues": {
+            "시간": "17:50",
+            "장소": "지하철역",
+            "injury": "왼팔",
+            "ooc_must_not_pollute": [
+              "보라색",
+              "관리자 패널"
+            ]
+          },
+          "finalValues": {
+            "character": null,
+            "user": null
+          },
+          "displayPolicyPass": false,
+          "finalWidgetVisible": false,
+          "characterValues": null,
+          "userValues": null
+        },
+        {
+          "scenarioId": "S8",
+          "model": "deepseek-v4-flash-0731",
+          "modelKey": "deepseek",
+          "requestKind": "background-status-widget-extract-repair",
+          "stage": "repair",
+          "httpStatus": null,
+          "timeout": true,
+          "error": "AbortError: This operation was aborted",
+          "latencyMs": 20001,
+          "finishReason": null,
+          "inputTokens": null,
+          "outputTokens": null,
+          "reasoningTokens": null,
+          "rawText": "",
+          "jsonFound": false,
+          "jsonParseOk": false,
+          "normalizedValues": {
+            "character": null,
+            "user": null
+          },
+          "normalizedKeys": [],
+          "echoDroppedKeys": [],
+          "usedRepair": true,
+          "usedFallback": false,
+          "actualCallCount": 2,
+          "expectedValues": {
+            "시간": "17:50",
+            "장소": "지하철역",
+            "injury": "왼팔",
+            "ooc_must_not_pollute": [
+              "보라색",
+              "관리자 패널"
+            ]
+          },
+          "finalValues": {
+            "character": null,
+            "user": null
+          },
+          "displayPolicyPass": false,
+          "finalWidgetVisible": false,
+          "characterValues": null,
+          "userValues": null
+        }
+      ]
+    }
+  ]
+}
