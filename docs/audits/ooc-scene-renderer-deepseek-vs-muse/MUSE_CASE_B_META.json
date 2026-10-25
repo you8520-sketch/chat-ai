@@ -1,0 +1,22 @@
+{
+  "caseId": "B",
+  "title": "character_voice",
+  "requestedModel": "muse-spark-1.2",
+  "resolvedModel": "muse-spark-1.2",
+  "visibleChars": 5092,
+  "paragraphs": 57,
+  "paragraphsPer1000": 11.194,
+  "inputTokens": 10031,
+  "outputTokens": 3919,
+  "reasoningTokens": null,
+  "ttftMs": 10148,
+  "latencyMs": 43498,
+  "upstreamCostUsd": 0.015466,
+  "finishReason": "stop",
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "fallback": 0,
+  "rawFile": "MUSE_CASE_B.txt",
+  "textSha256": "beb814e420d23536defa5070ae1f596967d15b5aa1c06f1bf4e72292017cbdf1"
+}

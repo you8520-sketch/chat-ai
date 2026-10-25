@@ -1,0 +1,22 @@
+{
+  "caseId": "C",
+  "title": "serious_explicit_adult",
+  "requestedModel": "deepseek-v4-pro-0813",
+  "resolvedModel": "deepseek-v4-pro-0813",
+  "visibleChars": 3567,
+  "paragraphs": 28,
+  "paragraphsPer1000": 7.85,
+  "inputTokens": 12514,
+  "outputTokens": 9910,
+  "reasoningTokens": null,
+  "ttftMs": 110292,
+  "latencyMs": 131357,
+  "upstreamCostUsd": 0.006396,
+  "finishReason": "stop",
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "fallback": 0,
+  "rawFile": "DEEPSEEK_CASE_C.txt",
+  "textSha256": "806c82859c49605b3f00f630c7f7121a0cc6267468712183710617838ead0cc3"
+}
