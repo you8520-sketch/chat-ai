@@ -1,0 +1,136 @@
+{
+  "T1_GEMINI": {
+    "VISIBLE_CHARS": 3473,
+    "PARAGRAPH_COUNT": 22,
+    "DIALOGUE_BLOCKS": 5,
+    "DIALOGUE_BLOCKS_PER_1000_CHARS": 1.44,
+    "DIALOGUE_PARAGRAPH_RATIO": 0.227,
+    "MAX_CONSECUTIVE_DIALOGUE": 1,
+    "MEDIAN_PARAGRAPH_CHARS": 154,
+    "MEDIAN_NARRATION_PARAGRAPH_CHARS": 183,
+    "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 85
+  },
+  "T2_GEMINI": {
+    "VISIBLE_CHARS": 3173,
+    "PARAGRAPH_COUNT": 24,
+    "DIALOGUE_BLOCKS": 5,
+    "DIALOGUE_BLOCKS_PER_1000_CHARS": 1.576,
+    "DIALOGUE_PARAGRAPH_RATIO": 0.208,
+    "MAX_CONSECUTIVE_DIALOGUE": 1,
+    "MEDIAN_PARAGRAPH_CHARS": 139,
+    "MEDIAN_NARRATION_PARAGRAPH_CHARS": 154,
+    "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 51
+  },
+  "T3_GEMINI_GOLD": {
+    "VISIBLE_CHARS": 2651,
+    "PARAGRAPH_COUNT": 23,
+    "DIALOGUE_BLOCKS": 5,
+    "DIALOGUE_BLOCKS_PER_1000_CHARS": 1.886,
+    "DIALOGUE_PARAGRAPH_RATIO": 0.217,
+    "MAX_CONSECUTIVE_DIALOGUE": 1,
+    "MEDIAN_PARAGRAPH_CHARS": 108,
+    "MEDIAN_NARRATION_PARAGRAPH_CHARS": 136.5,
+    "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 29
+  },
+  "T3_DEEPSEEK_A_625_CI": {
+    "VISIBLE_CHARS": 2863,
+    "PARAGRAPH_COUNT": 17,
+    "DIALOGUE_BLOCKS": 5,
+    "DIALOGUE_BLOCKS_PER_1000_CHARS": 1.746,
+    "DIALOGUE_PARAGRAPH_RATIO": 0.294,
+    "MAX_CONSECUTIVE_DIALOGUE": 1,
+    "MEDIAN_PARAGRAPH_CHARS": 217,
+    "MEDIAN_NARRATION_PARAGRAPH_CHARS": 232,
+    "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 15
+  },
+  "T3_DEEPSEEK_A_OPENROUTER": {
+    "VISIBLE_CHARS": 2380,
+    "PARAGRAPH_COUNT": 21,
+    "DIALOGUE_BLOCKS": 10,
+    "DIALOGUE_BLOCKS_PER_1000_CHARS": 4.202,
+    "DIALOGUE_PARAGRAPH_RATIO": 0.476,
+    "MAX_CONSECUTIVE_DIALOGUE": 1,
+    "MEDIAN_PARAGRAPH_CHARS": 72,
+    "MEDIAN_NARRATION_PARAGRAPH_CHARS": 207,
+    "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 19
+  },
+  "T3_DEEPSEEK_H1_OPENROUTER": {
+    "VISIBLE_CHARS": 3812,
+    "PARAGRAPH_COUNT": 34,
+    "DIALOGUE_BLOCKS": 14,
+    "DIALOGUE_BLOCKS_PER_1000_CHARS": 3.673,
+    "DIALOGUE_PARAGRAPH_RATIO": 0.412,
+    "MAX_CONSECUTIVE_DIALOGUE": 1,
+    "MEDIAN_PARAGRAPH_CHARS": 98.5,
+    "MEDIAN_NARRATION_PARAGRAPH_CHARS": 177,
+    "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 26.5
+  },
+  "dialogue_attribution": {
+    "A_OPENROUTER": {
+      "SOURCE_USER_QUOTED_DIALOGUE_COUNT": 0
+    },
+    "H1_OPENROUTER": 1
+  },
+  "t2_replay": {
+    "A_OPENROUTER": {
+      "T2_REPLAY_CANDIDATE": true,
+      "replay_topic_ids": [
+        "FIRST_KISS"
+      ],
+      "topic_hits": [
+        {
+          "topic_id": "WHY_LOOKING",
+          "topic_label": "why he was looking",
+          "t2_present": true,
+          "response_present": false,
+          "replay_candidate": false
+        },
+        {
+          "topic_id": "FOOD_HUNGER",
+          "topic_label": "food/hunger conversation",
+          "t2_present": true,
+          "response_present": false,
+          "replay_candidate": false
+        },
+        {
+          "topic_id": "FIRST_KISS",
+          "topic_label": "first kiss interpretation",
+          "t2_present": true,
+          "response_present": true,
+          "replay_candidate": true
+        }
+      ]
+    },
+    "H1_OPENROUTER": {
+      "T2_REPLAY_CANDIDATE": true,
+      "replay_topic_ids": [
+        "WHY_LOOKING",
+        "FOOD_HUNGER",
+        "FIRST_KISS"
+      ],
+      "topic_hits": [
+        {
+          "topic_id": "WHY_LOOKING",
+          "topic_label": "why he was looking",
+          "t2_present": true,
+          "response_present": true,
+          "replay_candidate": true
+        },
+        {
+          "topic_id": "FOOD_HUNGER",
+          "topic_label": "food/hunger conversation",
+          "t2_present": true,
+          "response_present": true,
+          "replay_candidate": true
+        },
+        {
+          "topic_id": "FIRST_KISS",
+          "topic_label": "first kiss interpretation",
+          "t2_present": true,
+          "response_present": true,
+          "replay_candidate": true
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,184 @@
+{
+  "TOTAL_PROVIDER_CALLS": 1,
+  "DELIVERED_PROVIDER": "openrouter",
+  "OPENROUTER_MODEL": "deepseek/deepseek-v4-pro-0813",
+  "CI_ATTEMPTED": false,
+  "OPENROUTER_HTTP_STATUS": 200,
+  "A_REQUEST_SHA": "d155d08328ba7903846799feb6a05f3d239631b4593d72a607d60d6f0ecf26d2",
+  "A_OPENROUTER_REQUEST_SHA": "0eb5ad147fadc36defda7b58e846b5b765e01fecda7ba402bbb2ee428b3b75a4",
+  "A_OPENROUTER_RAW_SHA": "209403b705fb3a56d88a44b8a451734ea75a2fb9d46e664d6de2ca3347f3b0f9",
+  "OPENROUTER_MATCHED_CONTROL_ONLY_DELTA_IS_REMINDER": true,
+  "DELIVERED_FINISH_REASON": "stop",
+  "DELIVERED_USAGE_PRESENT": true,
+  "DELIVERED_ENDS_COMPLETE_SENTENCE": true,
+  "PRODUCTION_WOULD_DELIVER_RESPONSE": true,
+  "A_OPENROUTER_VISIBLE_CHARS": 2380,
+  "A_OPENROUTER_VS_PRIMARY_LENGTH_RATIO": 0.7162,
+  "A_OPENROUTER_VS_GEMINI_GOLD_LENGTH_RATIO": 0.8978,
+  "SOURCE_USER_QUOTED_DIALOGUE_COUNT": 0,
+  "T2_REPLAY_CANDIDATE": true,
+  "T2_REPLAY_TOPIC_IDS": [
+    "FIRST_KISS"
+  ],
+  "USER_AGENCY_OWNER_ACTUALLY_ACTIVE": true,
+  "OWNER_SCANNER_FALSE_NEGATIVE": true,
+  "CONTACT_ACTOR_EXTRACTION_BUG": true,
+  "elapsed_ms": 43657,
+  "H1_OPENROUTER_REQUEST_SHA": "d32e7085ccab8d00227fa25a5ee9e40e8e09b699f61e29cd88c9b98d2af8f70b",
+  "body_keys_equal": true,
+  "message_count_equal": true,
+  "role_order_equal": true,
+  "messages_0_to_4_byte_identical": true,
+  "system_byte_identical": true,
+  "t1_t2_exemplars_byte_identical": true,
+  "a_has_style_reminder": true,
+  "h1_lacks_style_reminder": true,
+  "last_user_equal_after_reminder_strip": true,
+  "REMINDER_CHARS_DELTA": 279,
+  "model": "deepseek/deepseek-v4-pro-0813",
+  "temperature": 0.92,
+  "top_p": 0.92,
+  "stream": true,
+  "reasoning": {
+    "effort": "none",
+    "exclude": true
+  },
+  "comparison": {
+    "T1_GEMINI": {
+      "VISIBLE_CHARS": 3473,
+      "PARAGRAPH_COUNT": 22,
+      "DIALOGUE_BLOCKS": 5,
+      "DIALOGUE_BLOCKS_PER_1000_CHARS": 1.44,
+      "DIALOGUE_PARAGRAPH_RATIO": 0.227,
+      "MAX_CONSECUTIVE_DIALOGUE": 1,
+      "MEDIAN_PARAGRAPH_CHARS": 154,
+      "MEDIAN_NARRATION_PARAGRAPH_CHARS": 183,
+      "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 85
+    },
+    "T2_GEMINI": {
+      "VISIBLE_CHARS": 3173,
+      "PARAGRAPH_COUNT": 24,
+      "DIALOGUE_BLOCKS": 5,
+      "DIALOGUE_BLOCKS_PER_1000_CHARS": 1.576,
+      "DIALOGUE_PARAGRAPH_RATIO": 0.208,
+      "MAX_CONSECUTIVE_DIALOGUE": 1,
+      "MEDIAN_PARAGRAPH_CHARS": 139,
+      "MEDIAN_NARRATION_PARAGRAPH_CHARS": 154,
+      "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 51
+    },
+    "T3_GEMINI_GOLD": {
+      "VISIBLE_CHARS": 2651,
+      "PARAGRAPH_COUNT": 23,
+      "DIALOGUE_BLOCKS": 5,
+      "DIALOGUE_BLOCKS_PER_1000_CHARS": 1.886,
+      "DIALOGUE_PARAGRAPH_RATIO": 0.217,
+      "MAX_CONSECUTIVE_DIALOGUE": 1,
+      "MEDIAN_PARAGRAPH_CHARS": 108,
+      "MEDIAN_NARRATION_PARAGRAPH_CHARS": 136.5,
+      "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 29
+    },
+    "T3_DEEPSEEK_A_625_CI": {
+      "VISIBLE_CHARS": 2863,
+      "PARAGRAPH_COUNT": 17,
+      "DIALOGUE_BLOCKS": 5,
+      "DIALOGUE_BLOCKS_PER_1000_CHARS": 1.746,
+      "DIALOGUE_PARAGRAPH_RATIO": 0.294,
+      "MAX_CONSECUTIVE_DIALOGUE": 1,
+      "MEDIAN_PARAGRAPH_CHARS": 217,
+      "MEDIAN_NARRATION_PARAGRAPH_CHARS": 232,
+      "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 15
+    },
+    "T3_DEEPSEEK_A_OPENROUTER": {
+      "VISIBLE_CHARS": 2380,
+      "PARAGRAPH_COUNT": 21,
+      "DIALOGUE_BLOCKS": 10,
+      "DIALOGUE_BLOCKS_PER_1000_CHARS": 4.202,
+      "DIALOGUE_PARAGRAPH_RATIO": 0.476,
+      "MAX_CONSECUTIVE_DIALOGUE": 1,
+      "MEDIAN_PARAGRAPH_CHARS": 72,
+      "MEDIAN_NARRATION_PARAGRAPH_CHARS": 207,
+      "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 19
+    },
+    "T3_DEEPSEEK_H1_OPENROUTER": {
+      "VISIBLE_CHARS": 3812,
+      "PARAGRAPH_COUNT": 34,
+      "DIALOGUE_BLOCKS": 14,
+      "DIALOGUE_BLOCKS_PER_1000_CHARS": 3.673,
+      "DIALOGUE_PARAGRAPH_RATIO": 0.412,
+      "MAX_CONSECUTIVE_DIALOGUE": 1,
+      "MEDIAN_PARAGRAPH_CHARS": 98.5,
+      "MEDIAN_NARRATION_PARAGRAPH_CHARS": 177,
+      "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 26.5
+    },
+    "dialogue_attribution": {
+      "A_OPENROUTER": {
+        "SOURCE_USER_QUOTED_DIALOGUE_COUNT": 0
+      },
+      "H1_OPENROUTER": 1
+    },
+    "t2_replay": {
+      "A_OPENROUTER": {
+        "T2_REPLAY_CANDIDATE": true,
+        "replay_topic_ids": [
+          "FIRST_KISS"
+        ],
+        "topic_hits": [
+          {
+            "topic_id": "WHY_LOOKING",
+            "topic_label": "why he was looking",
+            "t2_present": true,
+            "response_present": false,
+            "replay_candidate": false
+          },
+          {
+            "topic_id": "FOOD_HUNGER",
+            "topic_label": "food/hunger conversation",
+            "t2_present": true,
+            "response_present": false,
+            "replay_candidate": false
+          },
+          {
+            "topic_id": "FIRST_KISS",
+            "topic_label": "first kiss interpretation",
+            "t2_present": true,
+            "response_present": true,
+            "replay_candidate": true
+          }
+        ]
+      },
+      "H1_OPENROUTER": {
+        "T2_REPLAY_CANDIDATE": true,
+        "replay_topic_ids": [
+          "WHY_LOOKING",
+          "FOOD_HUNGER",
+          "FIRST_KISS"
+        ],
+        "topic_hits": [
+          {
+            "topic_id": "WHY_LOOKING",
+            "topic_label": "why he was looking",
+            "t2_present": true,
+            "response_present": true,
+            "replay_candidate": true
+          },
+          {
+            "topic_id": "FOOD_HUNGER",
+            "topic_label": "food/hunger conversation",
+            "t2_present": true,
+            "response_present": true,
+            "replay_candidate": true
+          },
+          {
+            "topic_id": "FIRST_KISS",
+            "topic_label": "first kiss interpretation",
+            "t2_present": true,
+            "response_present": true,
+            "replay_candidate": true
+          }
+        ]
+      }
+    }
+  },
+  "H1_CAUSAL_PRIOR": "INCONCLUSIVE_PROVIDER_CONFOUND",
+  "STOP_FOR_HUMAN_REVIEW": true
+}

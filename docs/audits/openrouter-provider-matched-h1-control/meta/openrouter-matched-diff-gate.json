@@ -1,0 +1,23 @@
+{
+  "OPENROUTER_MATCHED_CONTROL_ONLY_DELTA_IS_REMINDER": true,
+  "A_OPENROUTER_REQUEST_SHA": "0eb5ad147fadc36defda7b58e846b5b765e01fecda7ba402bbb2ee428b3b75a4",
+  "H1_OPENROUTER_REQUEST_SHA": "d32e7085ccab8d00227fa25a5ee9e40e8e09b699f61e29cd88c9b98d2af8f70b",
+  "body_keys_equal": true,
+  "message_count_equal": true,
+  "role_order_equal": true,
+  "messages_0_to_4_byte_identical": true,
+  "system_byte_identical": true,
+  "t1_t2_exemplars_byte_identical": true,
+  "a_has_style_reminder": true,
+  "h1_lacks_style_reminder": true,
+  "last_user_equal_after_reminder_strip": true,
+  "REMINDER_CHARS_DELTA": 279,
+  "model": "deepseek/deepseek-v4-pro-0813",
+  "temperature": 0.92,
+  "top_p": 0.92,
+  "stream": true,
+  "reasoning": {
+    "effort": "none",
+    "exclude": true
+  }
+}
