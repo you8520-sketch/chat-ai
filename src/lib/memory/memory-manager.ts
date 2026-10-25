@@ -80,12 +80,19 @@ const RECALL_QUESTION = /기억|회상|상기|알려|말해|무슨|무엇|어떤
 const FACT_CHECK_PREDICATE = /사실|실제|진짜|맞(?:아|는|았|지|나)|확정|확인|유효|편입|반영|적용|인정|(?:본편|정사)(?:인(?=\s|가|지)|이야|이었|였|야)/;
 const FACT_CHECK_REQUEST = /(?:[?？]|(?:거|건|것)(?:야|지|니|인가(?:요)?)|(?:인가|나요|니|지요)|(?:확인해|알려|말해)\s*(?:줘|주세요))[\s.!。]*$/;
 const HYPOTHETICAL_QUERY = /만약|가정(?:하|해)|(?:라고|다고)\s*(?:치|보)면|[가-힣]+(?:다면|라면|더라면|으면|이면)(?=$|[\s,.!?？])/;
+// "기록이 없으면 없다고 해도 돼" permits abstention. It is not a what-if scene.
+const ABSENCE_PERMISSION = /없다고\s*해도|없다고\s*해|없어도\s*돼|없는\s*걸로/;
+
+function isHypotheticalSceneQuery(query: string): boolean {
+  const source = ABSENCE_PERMISSION.test(query) ? query.replace(/없으면/g, " ") : query;
+  return HYPOTHETICAL_QUERY.test(source);
+}
 const SCENE_CREATION_OBJECT = /새(?:로운)?|새로|장면|에피소드|이야기|상황/;
 const SCENE_CREATION_REQUEST = /(?:써|작성해|만들어|묘사해|연출해|그려|진행해|이어가)\s*(?:줘|주세요|줄래|주실래|봐|볼(?:래|까)|줄\s*수\s*있(?:어|을까))?[\s.!?。？]*$/;
 const RECALL_META_WORD = /^(?:예전에?|지난번|지난|이전|과거에?|그때|아까|본편(?:과|에|에서|에서도)?|별개로?|무관하게|에서|에서는|으로|관련된?|진행했던|했던|있었(?:어|지|는지)|했(?:어|지|는지)|유효하지|기억(?:해|나|하지|해줘)?|회상|상기|알려줘|말해줘|무슨|무엇을?|어떤|누가|누구|어디|어떻게|뭐|일이?|사건(?:에서|을|이|은)?|에피소드(?:에서|를|가)?|장면(?:에서|을|이)?|그|그것|우리|what|who|where|happened|did|in|that|the|last|time|previous|earlier|before|recall|remember)$/i;
 
 function isExplicitNoncanonHistoryQuestion(query: string): boolean {
-  if (!NONCANON_RECALL_SCOPE.test(query) || HYPOTHETICAL_QUERY.test(query) ||
+  if (!NONCANON_RECALL_SCOPE.test(query) || isHypotheticalSceneQuery(query) ||
       (SCENE_CREATION_OBJECT.test(query) && SCENE_CREATION_REQUEST.test(query))) return false;
   // Two speech acts: recalling a past event, or checking an assertion about an
   // explicitly named IF. A fact/adoption question need not say "예전" or "기억".

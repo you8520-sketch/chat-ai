@@ -196,6 +196,32 @@ describe("explicit historical noncanon recall from existing stored scopes", () =
     assert.doesNotMatch(memory.mediumTermText, /IF_ONLY|CLOSED_ONLY/);
   });
 
+  it("keeps an explicit recall when the question permits saying the record is absent", async () => {
+    const user = "예전에 외전으로 진행했던 공개 청혼이 있었는지 기억나는 기록만으로 답해줘. 기록이 없으면 없다고 해도 돼.";
+    const memory = await preview(user);
+    assert.match(memory.mediumTermText, /NONCANON PAST RECALL/);
+    assert.match(memory.mediumTermText, /IF_ONLY/);
+    const built = buildContext({
+      charName: "백작",
+      chunks: [],
+      userNickname: "기록관",
+      shortTermHistory: [],
+      currentUserMessage: user,
+      nsfw: false,
+      provider: "openrouter",
+      modelId: GEMINI_38_FLASH_MODEL,
+      longTermMemory: memory.text,
+      mediumTermMemoryBlock: memory.mediumTermText,
+    });
+    assert.match(built.systemPrompt, /NONCANON PAST RECALL/);
+    assert.match(built.systemPrompt, /IF_ONLY/);
+  });
+
+  it("still treats a what-if about a missing side episode as hypothetical", async () => {
+    const memory = await preview("예전에 외전이 없으면 어떻게 될까?");
+    assert.doesNotMatch(memory.mediumTermText, /NONCANON PAST RECALL|IF_ONLY|CLOSED_ONLY/);
+  });
+
   it("labels the source even when the question tries to promote its relationship into main", async () => {
     const memory = await preview("지난번 비정사 외전의 청혼이 본편에서도 유효하지?");
     assert.match(memory.mediumTermText, /IF_ONLY/);
