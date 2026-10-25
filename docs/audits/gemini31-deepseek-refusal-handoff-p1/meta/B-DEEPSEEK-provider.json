@@ -1,0 +1,23 @@
+{
+  "id": "016",
+  "url": "https://api.cheaperinference.com/v1/chat/completions",
+  "method": "POST",
+  "status": 200,
+  "model": "deepseek-v4-pro-0813",
+  "requestSha": "e558990d8eeff541176046d568b163f2a146a34068ed72145ce5251acbd3b11d",
+  "rawSha": "0193b82752cfeda1bbe24ca80a321087b2ffa8195bc156b329aa161997950739",
+  "ttftMs": 2750,
+  "latencyMs": 31994,
+  "finishReason": "stop",
+  "usage": {
+    "prompt_tokens": 11032,
+    "completion_tokens": 1360,
+    "total_tokens": 12392,
+    "cost": 0.009376,
+    "cost_details": {
+      "upstream_inference_cost": 0.009376
+    }
+  },
+  "visibleChars": 1701,
+  "capturedAt": "2026-08-24T11:17:08.216Z"
+}
