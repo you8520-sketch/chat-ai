@@ -67,11 +67,11 @@ function hasActorPhysicalEntry(text: string): boolean {
 }
 
 /**
- * Verbal conditional connective inside one clause. Nouns such as 장면/반면 do not match:
- * the gate is 만약, 다면/라면/거든, or a verb stem plus (으)면.
+ * Verbal conditional connective inside one clause. Nouns such as 장면/반면 do not match.
+ * `(으)면` is conditional; `면서` is a simultaneous conjunct and stays an act.
  */
 const CONDITIONAL_CONNECTIVE =
-  /만약|조건이\s*맞으면|상황에\s*따라|(?:있|없|하|되|오|가|보|치|리|나|자|두|르|맞|싶|쫓)(?:으)?면|다면|라면|거든/;
+  /만약|조건이\s*맞으면|상황에\s*따라|(?:있|없|하|되|오|가|보|치|리|나|자|두|르|맞|싶|쫓)(?:으)?면(?!서)|다면|라면|거든/;
 
 const NEGATED_PREDICATE = /(?:지\s*않|지\s*못|지\s*말|않는다|않다|안\s+[가-힣]{1,12}다|못\s+[가-힣]{1,12}다)\s*$/;
 
@@ -142,13 +142,31 @@ export function isDeclinedCommitment(body: string): boolean {
   return actionClauses(text).some((clause) => classifyActionClause(clause).kind === "declined");
 }
 
-function clauseConsumesItem(span: string): boolean {
-  const committed = span
+function clauseSurface(span: string): string {
+  return span
     .replace(/^\*+|\*+$/g, "")
     .replace(/[.!?。！？]+$/g, "")
     .trim();
+}
+
+function clauseConsumesItem(span: string): boolean {
+  const committed = clauseSurface(span);
   if (!committed) return false;
   return ITEM_CONSUMPTION_PREDICATE.test(committed);
+}
+
+/**
+ * Text governed by the clause's consumption predicate: the final conjunct only.
+ * `회복약을 바라보면서 붕대를 사용한다` → `붕대를`, not the earlier mention.
+ */
+const PRIOR_CONJUNCT = /(?:면서|며|다가|(?<=[가-힣])고)\s+/u;
+
+export function consumptionObjectSpan(span: string): string {
+  const surface = clauseSurface(span);
+  const predicate = surface.match(ITEM_CONSUMPTION_PREDICATE);
+  const governed = predicate ? surface.slice(0, surface.length - predicate[0].length).trim() : surface;
+  const parts = governed.split(PRIOR_CONJUNCT).map((part) => part.trim()).filter(Boolean);
+  return parts[parts.length - 1] ?? governed;
 }
 
 /** Act spans whose predicate is item consumption. Mention and refusal clauses are omitted. */

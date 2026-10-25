@@ -2,6 +2,7 @@ import type { TrpgActionType } from "./actionTypes";
 import {
   classifyChallengeKind,
   committedActionText,
+  committedItemConsumptionSpans,
   hasChallengeSignal,
   isCommittedItemConsumption,
   isConditionalCommitment,
@@ -235,7 +236,8 @@ function isOrdinaryPreparation(text: string): boolean {
 }
 
 function resolveItemUseDecision(body: string, intent: string, consumptionBody: string): TrpgActionCheckDecision {
-  const visible = visibleActorActionText(consumptionBody);
+  const consumed = committedItemConsumptionSpans(consumptionBody).join(" ");
+  const visible = consumed || visibleActorActionText(consumptionBody);
   if (visible) {
     if (isHazardousItemUse(visible)) {
       const kind = classifyChallengeKind(visible);

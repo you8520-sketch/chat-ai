@@ -226,6 +226,8 @@ describe("committed-clause adjudication through submit, dice, inventory, and GM 
         { body: "회복약을 사용한다. 붕대를 살펴본다.", inventory: ["붕대", "회복약"], potion: 0, bandage: 1, hp: 14 },
         { body: "붕대를 사용하지 않는다. 회복약을 사용한다.", inventory: ["회복약", "붕대"], potion: 0, bandage: 1, hp: 14 },
         { body: "회복약 사용법을 읽는다. 붕대를 사용한다.", inventory: ["붕대", "회복약"], potion: 1, bandage: 0, hp: 14 },
+        { body: "회복약을 바라보면서 붕대를 사용한다.", inventory: ["회복약", "붕대"], potion: 1, bandage: 0, hp: 14 },
+        { body: "회복약을 바라보면서 붕대를 사용한다.", inventory: ["붕대", "회복약"], potion: 1, bandage: 0, hp: 14 },
       ];
       for (const sample of cases) {
         const table = await openTable();
@@ -268,6 +270,31 @@ describe("committed-clause adjudication through submit, dice, inventory, and GM 
       const afterRegen = hostSheet(table.db, table.campaignId);
       assert.equal(afterRegen.hp, 14);
       assert.deepEqual(inventoryUnits(afterRegen.inventory), []);
+
+      const door = await openTable();
+      pinHost(door.db, door.hostId, 10, ["회복약", "붕대"]);
+      const doorBody = "회복약을 사용한다. 잠긴 철문을 힘껏 부순다.";
+      submitTrpgAction(door.db, { campaignId: door.campaignId, userId: 1, body: doorBody });
+      const doorStored = latestAction(door.db, door.campaignId);
+      assert.equal(doorStored.action_type, "use_item");
+      assert.equal(doorStored.selected_stat, null);
+      await advanceTrpgCampaign(door.db, { campaignId: door.campaignId, userId: 1, deps: door.deps });
+      const doorAfter = hostSheet(door.db, door.campaignId);
+      assert.equal(doorAfter.hp, 14);
+      assert.deepEqual(inventoryUnits(doorAfter.inventory), ["붕대"]);
+      assert.equal(rollRows(door.db, doorStored.id).length, 0);
+      const doorWire = door.users.at(-1) ?? "";
+      assert.match(doorWire, /ordinary_item_use/);
+      assert.match(doorWire, /unadjudicated=잠긴 철문을 힘껏 부순다/);
+      assert.doesNotMatch(doorWire, /check_required/);
+      await regenerateTrpgNarration(door.db, { campaignId: door.campaignId, userId: 1, deps: door.deps });
+      const doorRegen = door.users.at(-1) ?? "";
+      assert.match(doorRegen, /unadjudicated=잠긴 철문을 힘껏 부순다/);
+      const doorAfterRegen = hostSheet(door.db, door.campaignId);
+      assert.equal(doorAfterRegen.hp, 14);
+      assert.deepEqual(inventoryUnits(doorAfterRegen.inventory), ["붕대"]);
+      assert.equal(rollRows(door.db, doorStored.id).length, 0);
+      door.db.close();
       table.db.close();
     });
   });

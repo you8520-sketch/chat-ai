@@ -1,5 +1,5 @@
 import type { TrpgActionType } from "./actionTypes";
-import { committedItemConsumptionSpans } from "./actionSemantics";
+import { committedItemConsumptionSpans, consumptionObjectSpan } from "./actionSemantics";
 
 const BASIC_FIRST_AID_RE =
   /응급처치|응급\s*처치|상처를\s*묶|상처를\s*압박|지혈|상처를\s*치료|first\s*aid/i;
@@ -79,14 +79,41 @@ export function findExplicitTreatmentItem(
   return itemNamedIn(body, sourceInventory, extraKnown);
 }
 
-/** Item named inside a clause the player actually used. Inventory order cannot pair a mention with another clause's verb. */
+function rightmostOwnedTreatmentItem(
+  text: string,
+  sourceInventory: readonly string[],
+  extraKnown: readonly string[]
+): string | null {
+  let bestName = "";
+  let bestIndex = -1;
+  for (const item of sourceInventory) {
+    const trimmed = item.trim();
+    if (!trimmed) continue;
+    if (!isTreatmentItemName(trimmed) && !extraKnown.includes(trimmed)) continue;
+    const index = text.lastIndexOf(trimmed);
+    if (index < 0) continue;
+    if (index > bestIndex || (index === bestIndex && trimmed.length > bestName.length)) {
+      bestName = trimmed;
+      bestIndex = index;
+    }
+  }
+  if (bestName) return bestName;
+  const mentioned = [...text.matchAll(new RegExp(TREATMENT_ITEM_NAME_RE.source, "gi"))].at(-1)?.[0];
+  if (!mentioned) return null;
+  const found = sourceInventory.find(
+    (row) => row.includes(mentioned) || mentioned.includes(row.trim())
+  );
+  return found?.trim() || null;
+}
+
+/** Item that is the object of a committed consumption predicate. Earlier mentions in the same clause are not spent. */
 export function findCommittedTreatmentItem(
   body: string,
   sourceInventory: readonly string[],
   extraKnown: readonly string[] = []
 ): string | null {
   for (const span of committedItemConsumptionSpans(body)) {
-    const named = itemNamedIn(span, sourceInventory, extraKnown);
+    const named = rightmostOwnedTreatmentItem(consumptionObjectSpan(span), sourceInventory, extraKnown);
     if (named) return named;
   }
   return null;

@@ -3,7 +3,7 @@ import {
   computeTrpgGmNarrationBudget,
   formatTrpgRoundNarrationBudget,
 } from "./gmNarrationBudget";
-import type { TrpgActionCheckReason } from "./actionCheck";
+import { resolveTrpgActionCheckDecision, type TrpgActionCheckReason } from "./actionCheck";
 import { resolveServerHumanActionType } from "./actionTypes";
 import {
   committedItemConsumptionSpans,
@@ -498,17 +498,17 @@ export function formatTrpgGmRoundHead(opts: { opening: boolean; requestPlayerGoa
   return "[RESOLVE THIS ROUND]";
 }
 
-const UNADJUDICATED_SIBLING_TYPES = new Set(["attack", "defend", "persuade", "stealth", "support"]);
-
 /**
  * One submission still resolves as one action. When that action is an item use,
- * other committed challenge clauses were not rolled. Tell the GM not to close them.
+ * sibling clauses that would themselves need a check were not rolled.
+ * Ordinary no-check clauses stay out of this note.
  */
 function unadjudicatedSiblingWire(body: string): string | null {
   if (committedItemConsumptionSpans(body).length === 0) return null;
-  const siblings = otherCommittedActSpans(body).filter((span) =>
-    UNADJUDICATED_SIBLING_TYPES.has(resolveServerHumanActionType(span))
-  );
+  const siblings = otherCommittedActSpans(body).filter((span) => {
+    const actionType = resolveServerHumanActionType(span);
+    return resolveTrpgActionCheckDecision({ body: span, actionType }).needsCheck;
+  });
   if (siblings.length === 0) return null;
   return `unadjudicated=${siblings.join(" || ")} — server resolved only the item use; do not narrate these as success or failure`;
 }

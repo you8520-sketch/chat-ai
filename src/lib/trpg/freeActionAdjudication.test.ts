@@ -134,6 +134,14 @@ describe("free-text human adjudication", () => {
     assert.equal(findCommittedTreatmentItem("회복약을 사용한다. 붕대를 살펴본다.", bothOrders), "회복약");
     assert.equal(findCommittedTreatmentItem("붕대를 사용하지 않는다. 회복약을 사용한다.", bothOrders), "회복약");
     assert.equal(findCommittedTreatmentItem("회복약 사용법을 읽는다. 붕대를 사용한다.", [...bothOrders].reverse()), "붕대");
+    const whileLooking = "회복약을 바라보면서 붕대를 사용한다.";
+    const whileJudged = judge(whileLooking);
+    assert.equal(whileJudged.actionType, "use_item");
+    assert.equal(whileJudged.check, "ordinary_item_use");
+    assert.equal(findCommittedTreatmentItem(whileLooking, bothOrders), "붕대");
+    assert.equal(findCommittedTreatmentItem(whileLooking, [...bothOrders].reverse()), "붕대");
+    assert.equal(findCommittedTreatmentItem("「회복약을 사용한다」", bothOrders), null);
+    assert.equal(findCommittedTreatmentItem("중독 상태를 치료한다", ["해독제"]), null);
     const compoundWire = buildTrpgGmUserBlock({
       worldBrief: "폐허",
       memoryBlock: "",
@@ -158,6 +166,49 @@ describe("free-text human adjudication", () => {
     assert.match(compoundWire, /ordinary_item_use/);
     assert.match(compoundWire, /unadjudicated=경비를 공격한다/);
     assert.match(compoundWire, /do not narrate these as success or failure/);
+    const nodWire = buildTrpgGmUserBlock({
+      worldBrief: "폐허",
+      memoryBlock: "",
+      opening: false,
+      actions: [
+        {
+          participantId: 1,
+          name: "렌",
+          body: "회복약을 사용한다. 고개를 끄덕인다.",
+          needsCheck: false,
+          checkReason: "ordinary_item_use",
+          statKey: "none",
+          d20: null,
+          finalScore: null,
+          dc: null,
+          tier: null,
+        },
+      ],
+    });
+    assert.doesNotMatch(nodWire, /unadjudicated=/);
+    const doorWire = buildTrpgGmUserBlock({
+      worldBrief: "폐허",
+      memoryBlock: "",
+      opening: false,
+      regenerate: true,
+      actions: [
+        {
+          participantId: 1,
+          name: "렌",
+          body: "회복약을 사용한다. 잠긴 철문을 힘껏 부순다.",
+          needsCheck: false,
+          checkReason: "ordinary_item_use",
+          statKey: "none",
+          d20: null,
+          finalScore: null,
+          dc: null,
+          tier: null,
+        },
+      ],
+    });
+    assert.match(doorWire, /ordinary_item_use|d20=none/);
+    assert.match(doorWire, /unadjudicated=잠긴 철문을 힘껏 부순다/);
+    assert.match(doorWire, /do not narrate these as success or failure/);
 
     const declined = judge("상대방을 설득하지 않는다");
     assert.notEqual(declined.actionType, "persuade");
