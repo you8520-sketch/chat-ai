@@ -1,0 +1,64 @@
+{
+  "cell": "S1-B",
+  "seed": "S1",
+  "arm": "B",
+  "armName": "QWEN_COMMON_PROSE_OUTPUT",
+  "user": "나는 렌이라고… 본 기억이 안 나는데… 나 알아?",
+  "invalidTransport": false,
+  "httpStatus": 200,
+  "finishReason": "stop",
+  "latencyMs": 311662,
+  "ttftMs": 3203,
+  "resolvedModel": "qwen-3-8-max",
+  "charsInclSpaces": 3651,
+  "charsExclSpaces": 2699,
+  "paragraphCount": 40,
+  "dialogueParagraphCount": 18,
+  "dialogueRatio": 0.45,
+  "inputTokens": 4131,
+  "outputTokens": 16014,
+  "reasoningTokens": 0,
+  "cacheReadTokens": 0,
+  "cacheWriteTokens": 0,
+  "standardInputTokens": 4131,
+  "usageCostUsd": 0.071833,
+  "upstreamInferenceCostUsd": 0.071833,
+  "catalogEstimatedUsd": 0.0730422,
+  "catalogVsSettledDiffered": true,
+  "costPer1000VisibleChars": 0.01967488,
+  "sampling": {
+    "temperature": 0.7,
+    "max_tokens": null,
+    "top_p": null,
+    "stream": true
+  },
+  "reasoning": {
+    "reasoning_effort": "none",
+    "reasoning": null,
+    "thinking": null,
+    "include_reasoning": null
+  },
+  "assembledChars": {
+    "system": 6463,
+    "history": 1162,
+    "lastUser": 815,
+    "total": 8444,
+    "estimatedInputTokens": 7600
+  },
+  "reasoningTextChars": 33467,
+  "usageRaw": {
+    "prompt_tokens": 4131,
+    "completion_tokens": 16014,
+    "total_tokens": 20145,
+    "cost": 0.071833,
+    "cost_details": {
+      "upstream_inference_cost": 0.071833
+    }
+  },
+  "promptTokensDetails": null,
+  "completionTokensDetails": null,
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "error": null
+}

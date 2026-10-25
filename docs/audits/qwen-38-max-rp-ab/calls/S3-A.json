@@ -1,0 +1,64 @@
+{
+  "cell": "S3-A",
+  "seed": "S3",
+  "arm": "A",
+  "armName": "QWEN_VANILLA_STYLE",
+  "user": "*가방 끈을 꼭 쥐고* 음… 조금만. 나 길 잘 모르거든.",
+  "invalidTransport": false,
+  "httpStatus": 200,
+  "finishReason": "stop",
+  "latencyMs": 72471,
+  "ttftMs": 2862,
+  "resolvedModel": "qwen-3-8-max",
+  "charsInclSpaces": 568,
+  "charsExclSpaces": 415,
+  "paragraphCount": 11,
+  "dialogueParagraphCount": 5,
+  "dialogueRatio": 0.455,
+  "inputTokens": 2712,
+  "outputTokens": 2948,
+  "reasoningTokens": 0,
+  "cacheReadTokens": 0,
+  "cacheWriteTokens": 0,
+  "standardInputTokens": 2712,
+  "usageCostUsd": 0.01376,
+  "upstreamInferenceCostUsd": 0.01376,
+  "catalogEstimatedUsd": 0.0161784,
+  "catalogVsSettledDiffered": true,
+  "costPer1000VisibleChars": 0.02422535,
+  "sampling": {
+    "temperature": 0.7,
+    "max_tokens": null,
+    "top_p": null,
+    "stream": true
+  },
+  "reasoning": {
+    "reasoning_effort": "none",
+    "reasoning": null,
+    "thinking": null,
+    "include_reasoning": null
+  },
+  "assembledChars": {
+    "system": 3961,
+    "history": 1162,
+    "lastUser": 644,
+    "total": 5771,
+    "estimatedInputTokens": 5194
+  },
+  "reasoningTextChars": 7932,
+  "usageRaw": {
+    "prompt_tokens": 2712,
+    "completion_tokens": 2948,
+    "total_tokens": 5660,
+    "cost": 0.01376,
+    "cost_details": {
+      "upstream_inference_cost": 0.01376
+    }
+  },
+  "promptTokensDetails": null,
+  "completionTokensDetails": null,
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "error": null
+}

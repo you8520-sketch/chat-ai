@@ -1,0 +1,665 @@
+We need answer in Korean, 3200+ characters? User asks: "이번 응답은 한국어 3,200자 이상을 기본 목표로..." Need produce RP scene. Need follow rules: third person narration, no first-person outside dialogue for AI character? Need ensure no 1st person pronouns in narration. Dialogue can have first person. Need no markdown/RP markers except 「」 for world proper nouns/skill/system labels only. Need dialogue separate paragraphs, blank line. No stage directions. No meta. Need maintain character canon: 조태형, S급 특수계 음압 센티넬, high-risk runaway type. Wearing white hoodie with polar bear ears, glossy black jacket, green eyes, black nails, silver rings, women's perfume, electronic choker. Optimistic, sly, observant. Near 렌 his tinnitus calms. Aegis Control HQ. Need respond to user: 렌 offers water bottle, says "...목마르면 마셔. 나 괜찮으니까." Need continue. Need not control user major actions. Can co-narrate minor if consistent? User input says물병을 꺼내 내민다. We can describe bottle, hand maybe. Need not decide for 렌 beyond that. Need 3200+ Korean chars. Need one sufficiently developed scene. Need avoid summarizing/closing. Need active 조태형. Need maybe use third person for 조태형. Need check no first-person narration: avoid 나, 내, etc outside quotes. Need perhaps use 태형. Ensure no "자신"? It's okay? But avoid 1st person. Need no English/Russian. Need no markdown. Need dialogue in quotes separate. Need no parentheses. Need not use * or **. Need use Korean quotes “ ”? User says "…" but can use “”. Need no dialogue appended to narration. Need line breaks. Need likely long scene around 3200 characters. Need count? We need ensure >3200 Korean chars. Could produce about 4000-5000? Need careful. Let's draft rich scene. Need maintain tone. Need maybe include environment, internal observation, dialogue. Need no explicit system. Need not mention rules. Need no first-person narration; dialogue can include "나". Need check final for "나" outside quotes: words like "나뭇잎" contains 나 but not pronoun? Rule says 1인칭 자기지칭. But automated maybe check? It may flag any 나? It said check 나도/나만/나에게/내게 etc. But to be safe avoid syllable 나 as pronoun; but unavoidable? "나뭇잎" maybe okay but could be flagged? Better avoid words starting with 나? Could avoid "나" entirely outside dialogue? Hard but possible. Use "나무 잎", "낙엽". Avoid "나" as standalone. Also "내" outside dialogue? Avoid. "안" etc. Need maybe no "자기". Use 태형, 그. For user, 렌, 그. Need male pronouns. Need no "그녀". Need no "상대" repeated? Can use 렌, 태형. Need maybe not use "사용자". Fine.
+
+Need scene: 렌 offers water. 태형 maybe notices water, observes. He might tease, accept? Could touch bottle, feel cold. His tinnitus calms near 렌. Maybe he notices quiet. Need not overstate. He is observant, flirty? Need maintain. Could have other NPCs pass. Need active progression: 태형 accepts water, asks name/affiliation, notices something about 렌, maybe electronic choker reacts? Need not make major lore. Could introduce small event: alarm? But maybe not too much. Need keep current interaction. Could have 태형's choker flickers due to noise, but near 렌 calms. He might ask to sit, or ask why 렌 is okay. Need not force. Need maybe 렌 is calm, quiet. 태형 uses observation to draw out. Need user only gave water and line. We can have 태형 respond. Need not decide 렌's dialogue/actions beyond offered bottle. Could describe his hand still extended, gaze. But not major.
+
+Need 3200+ characters. Need likely around 5000? Let's aim 4500-5500. But final length maybe long. Need ensure no forbidden patterns: "하지만 그것도 찰나." Avoid. Avoid translation-style fragments. Need natural Korean webnovel. Need no markdown. Need no bullet. Need paragraphs: narration can be multiple sentences same paragraph. Dialogue separate. Need each spoken dialogue own paragraph. If multiple speakers, separate. Need not put dialogue after narration same line. So:
+
+태형은 ... 
+
+“...”
+
+그가 ... 
+
+Need no quotes attached to narration. Need maybe use double quotation marks. Good.
+
+Need avoid first-person narration. Let's draft carefully.
+
+Potential scene:
+
+가을 볕이 로비 바닥을 길게 쓸었다. ... (no 나?) "나뭇잎" avoid. Use "낙엽". "바람에 마른 잎이 굴렀다." Good.
+
+렌이 물병을 내밀었다. 플라스틱 표면에 맺힌 물기가 손등으로 번졌다. 태형은 잠시 그 병을 보았다. 방금 전까지 장난스럽게 사람을 떠보던 얼굴이 아주 짧게 멈췄다. (no first person)
+
+“...” maybe 태형 says “어, 고마워.” Need maybe 반말? Character? He is 낙천적 능청. Could use informal? Need one register per character per turn. Need choose. For 태형, maybe casual polite? In previous dialogue he used “어? 어디서 본 것 같은데.” “신입이야? ... 이름이 뭐였더라?” informal 반말. Need maintain same register in this response? One character one turn not mix register. Could use 반말 throughout. But if he speaks to maybe first meeting? He can use casual. Need not mix with 해요. So all 태형 dialogue banmal. But could use some polite? Avoid. Need keep consistent. Use “고마워”, “마셔도 돼?”, “괜찮아?” etc. Need no honorific. If other NPC maybe can use different? But avoid multiple registers? It's per character. Fine.
+
+Need maybe 렌's dialogue already: “…목마르면 마셔.나 괜찮으니까.” We don't repeat? We can refer. Need not narrate speech style.
+
+Need long. Let's plan beats:
+1. Immediate reaction to water: 태형 surprised, accepts, sensory details cold bottle, condensation, his rings, perfume. He notices calm near 렌, tinnitus recedes.
+2. He teases: thought he was thirsty? asks if 렌 noticed? Maybe he sees 렌's line. He opens bottle? Could ask before opening. He may not drink immediately, observes. He could hold bottle to his choker? No.
+3. Environment: roby noise, announcements, people. His senses as 음압 센티넬? Maybe sensitive to sound; tinnitus. Near 렌 quiet. He notices this with observant. He might ask “너, 이름이 뭐였지?” but maybe 렌 didn't answer previous. He can infer from badge? Could not know. Need not assume name? He can read name tag? If not, ask. But user is 렌; maybe he knows? Could say “렌?” if heard? But no. Maybe he recalls support bureau list? Could be too assumptive. Better he asks, but user can answer. However user already persona name. Could have 태형 reads a temporary pass? Need not. Maybe he says “아까부터 계속 조용하더라.” 
+4. Active: He sits on bench nearby? invites. Maybe asks why 렌 is okay. Could be because 렌 is guide? Not specified. Need not assume. Could be just calm. He observes 렌's pulse? Not godmod. He can see. 
+5. Minor event: A runner nearly bumps; 태형 shields water? Shows reflex. Or choker beeps? Could create tension. Need not overdo. Maybe a support staff calls “조태형 센티넬, 동기화 챔버 대기 요청.” He ignores or says later. This shows his role. But need no setting dump. Could have announcement. He reacts with annoyance. Near 렌, the noise lessens. He chooses to stay a bit.
+6. End open: He returns bottle? Or asks to walk together? Need not close. End with question or action.
+
+Need ensure no major user decisions. Could have 태형 take bottle, drink? That's object handling. User offered. Accepting is small. Could he touch 렌's fingers? Minor contact? Maybe as taking bottle, cold droplet. Need not overdo. Could be okay.
+
+Need length. Let's draft about 3500-4500 chars. Need count. I can approximate. Korean char count includes spaces? Usually maybe. Need 3200+; make robust ~6000? But final too long maybe okay. Need not exceed? No max. Need ensure quality. Let's produce maybe 4500-5500. Need count mentally? Hard. Could produce 70 paragraphs? Let's estimate. Need maybe 3000 chars is about 100 lines? Let's make long but not excessive. Need final in Korean only. Need no analysis. Need check no first-person. Need no forbidden words.
+
+Let's draft with no first-person pronouns outside dialogue. Need avoid "내" as prefix? Words like "내부" maybe contains 내 but not pronoun. But check maybe not. To be safe avoid "내" words? Could use "안". Avoid "내려", "내밀었다" contains 내? User already used 내민다; we can use "내밀었다"? It's verb not pronoun. But automated might not care. But rule specifically 1인칭 자기지칭. Still avoid "내게", "나도". "내밀었다" okay? Maybe not. But to be super safe, avoid syllable 내? Hard. "내" in "내려다보았다" not pronoun. Could be okay. But final check for standalone "나 " maybe. Need avoid "나는", "내가". 
+
+Need also avoid "자신". Could use 태형.
+
+Need maybe no "그의" too many? Fine.
+
+Need dialogue register: 태형 banmal. Need no mix. Could have staff use polite. That's okay different character. But one character per turn? It says 한 캐릭터는 한 턴 안에서 register를 섞지 않는다. For 태형 only. Staff can have polite. But if we include staff, ensure not too much. Maybe avoid staff dialogue to keep simple. Could include announcement in 「」? Wait 「」 only world proper nouns/skill/system labels, not announcements? It says 「」는 세계 내 고유명사·스킬·시스템 라벨만(속마음·대사 금지). So don't use 「」 for announcement. Use quotes for speech. But announcement could be quoted. That's dialogue. Need separate. But maybe not needed.
+
+Need no foreign words? Aegis is maybe 고유명사? Could write 에이지스. Good.
+
+Need maybe use 전자 초커. Good.
+
+Need avoid markdown. Use plain.
+
+Let's draft. Need maybe include pause before important. Need one line reset? Fine.
+
+Potential text:
+
+가을 볕이 로비 바닥을 길게 쓸었다. 통유리창 너머로 마른 잎이 굴렀고, 사람들의 그림자가 타일 위에 겹쳤다가 흩어졌다. 임무를 마친 센티넬 몇이 무전기를 끄며 지나갔고, 지원국 직원은 태형의 등 뒤에서 서류철을 정리하는 소리를 냈다.
+
+렌이 물병을 꺼내 내밀었다.
+
+...
+
+Need user action already, but can narrate. Need not restate? It says continue from what changes. We can mention. Need no dialogue attached.
+
+태형의 시선이 먼저 병에 닿았다. 투명한 플라스틱 표면에 맺힌 물방울이 천천히 내려앉았다. 차가운 기운이 공기 중에 희미하게 번졌다. 방금 전까지 장난스럽게 사람을 떠보던 녹색 눈이 아주 짧게 멈췄다.
+
+“어?”
+
+그가 고개를 살짝 기울였다. 은반지가 겹친 손가락이 천천히 올라왔다. 병을 바로 받지 않고, 태형은 렌의 얼굴과 그 손 사이에 든 물병을 번갈아 보았다. 입꼬리는 여전히 느긋하게 올라가 있었지만, 눈웃음은 조금 전보다 깊어졌다.
+
+“괜찮으니까 마시라고?”
+
+... Need avoid “괜찮으니까” maybe quote user? Fine.
+
+He accepts.
+
+“그럼 사양 안 할게.”
+
+병을 받아들 때, 차가운 물기가 손끝에 닿았다. 검은 네일 위로 작은 물방울이 튀었다. 태형은 일부러 병을 흔들지 않았다. 물소리가 유난히 크게 들릴 것 같아서였다. 로비는 시끄러웠다. 안내 방송, 구둣발, 무전기, 누군가 웃는 소리. 그런데도 렌의 주변만은 묘하게 조용했다. 태형의 귀를 긁던 이명이, 아주 희미하게, 물속으로 가라앉는 듯했다.
+
+Need "이명" okay. He notices. Need maybe no explicit "그의" but okay.
+
+태형은 병뚜껑을 돌리다 말고 멈췄다.
+
+“너.”
+
+...
+
+Need ask name. Could say “이름이 뭐였지?” But he might not know. 
+
+“아까부터 이상해.”
+
+그가 병을 쥔 채 한 발짝 더 가까이 왔다. 거리가 가까워졌다고 해서 무례하게 느껴지지는 않았다. 태형은 사람 사이의 간격을 재는 법을 아는 것처럼, 상대가 물러나지 않을 만큼만 자연스럽게 틈을 좁혔다.
+
+“사람 많은 데서 이렇게 조용한 얼굴은 잘 없거든.”
+
+Need not narrate speech style. Fine.
+
+Maybe 렌 offers water because 태형 looked thirsty. He could tease.
+
+“목마른 건 오히려 너 아니야?”
+
+Maybe.
+
+Need active progression. He notices water is unopened? If offered, maybe sealed? He can open. He drinks? Could take a sip. Need maybe not too much. He could drink to show trust. But maybe high-risk sentinel cautious? He is 낙천. He might drink.
+
+병뚜껑이 딸깍 소리를 냈다. 태형은 병을 입가에 대고 한 모금 마셨다. 찬물이 목을 넘기자 로비의 열기가 한 겹 걷히는 듯했다. 그가 병을 내리며 입가를 손등으로 쓱 닦았다.
+
+“고마워. 진짜 목말랐는데.”
+
+Then observe.
+
+렌의 시선이 어디를 향하는지, 숨결이 어떤지. Need not control. Could say “렌은 여전히 물병을 내밀던 자세에서 크게 움직이지 않았다.” That's minor. But maybe not assume. Could say “태형의 눈에는 그렇게 보였다.” 
+
+Need maybe include choker. 전자 초커가 미세하게 깜빡. He touches it.
+
+그때 태형의 목에 걸린 전자 초커가 짧게 깜빡였다. 붉은 빛은 아니었다. 다만 표면 아래 회로가 한 번 희미하게 흔들렸다. 태형은 병을 쥔 반대쪽 손으로 초커를 건드렸다.
+
+“요즘 좀 시끄럽거든.”
+
+그가 웃었다.
+
+“네 옆은 좀 낫네.”
+
+This implies near 렌 calms. Could be too direct? He is observant, maybe says as joke.
+
+Need maybe user line “나 괜찮으니까” might imply 렌 is okay after something. 태형 could ask “뭐가 괜찮다는 건데?” But not assume. Need open.
+
+“괜찮다는 말, 되게 쉽게 한다.”
+
+그가 물병을 양손으로 감쌌다. 찬 기운이 손바닥에 번졌다.
+
+“괜찮은 사람은 보통 괜찮다는 말 먼저 안 하거든.”
+
+Could be probing. But maybe too cliché. Need natural.
+
+Need include NPCs, environment. Maybe a staff calls.
+
+지원국 직원이 태형을 불렀다.
+
+“조태형 센티넬, 대기실 이동 부탁드립니다.”
+
+Need dialogue separate. Could have female staff. Need register polite. Fine. 태형 replies maybe banmal? To staff maybe casual? He can say “알았어, 곧 갈게.” That's banmal. But if staff uses polite, okay. Need one register for 태형. Fine.
+
+He ignores or asks to wait. He chooses to stay.
+
+태형은 돌아보지 않았다.
+
+“금방 간다고 해.”
+
+그가 렌 쪽으로 고개를 돌린 채 말했다. 직원은 망설이는 듯 발끝만 한 번 움직였고, 이내 로비 기둥 너머로 물러났다.
+
+Need maybe not control staff too much? Fine minor.
+
+Need tension: his choker maybe reacts to noise, he feels tinnitus. But near 렌 calm. Could have he asks to sit.
+
+“잠깐만 앉아도 돼?”
+
+He might sit without waiting? But asks. Need user can refuse. But we can have him sit if no refusal? It's minor. But better ask and not assume. Could say “저기 벤치. 싫으면 말고.” Then maybe he moves? Need not force. But scene needs progression. Could have he gestures. Maybe user can respond. But if he doesn't move, scene can continue. Need active. He can propose: “저기서 마저 마셔도 돼?” 
+
+Maybe he takes a seat? Since user offered water, maybe he stands. Need not close.
+
+Could have he notices something on 렌: maybe a faint scent? Women's perfume on him? He might joke. But no.
+
+Need maybe use his observation: “너, 방금 전까지 어디 있었어?” Could ask. But not assume.
+
+Need maybe mention 렌 male. Use “그” maybe. Need avoid “그녀”. Fine.
+
+Need maybe no “상대” too much. Use 렌, 태형.
+
+Need long enough. Let's count rough. If final around 4000 chars. Need ensure >3200. Let's produce maybe 5000.
+
+Need check no first-person outside quotes. I'll write carefully.
+
+Draft:
+
+가을 볕이 로비 바닥을 길게 쓸었다. 통유리창 너머에서 마른 잎이 굴렀고, 사람들의 그림자가 타일 위에 겹쳤다가 흩어졌다. 임무를 마친 센티넬 몇이 무전기를 끄며 지나갔고, 지원국 직원은 태형의 등 뒤에서 서류철을 정리하는 소리를 냈다.
+
+렌이 물병을 꺼내 내밀었다.
+
+태형의 시선이 먼저 병에 닿았다. 투명한 플라스틱 표면에 맺힌 물방울이 천천히 내려앉았다. 차가운 기운이 공기 중에 희미하게 번졌다. 방금 전까지 장난스럽게 사람을 떠보던 녹색 눈이 아주 짧게 멈췄다.
+
+“어?”
+
+그가 고개를 살짝 기울였다. 은반지가 겹친 손가락이 천천히 올라왔다. 병을 바로 받지 않고, 태형은 렌의 얼굴과 그 손에 든 물병을 번갈아 보았다. 입꼬리는 여전히 느긋하게 올라가 있었지만, 눈웃음은 조금 전보다 깊어졌다.
+
+“괜찮으니까 마시라고?”
+
+그가 되물었다. 되묻는 목소리에는 장난기가 섞여 있었지만, 끝은 이상할 만큼 부드러웠다. 태형은 잠시 렌의 눈을 보았다. 로비의 소음이 둘 사이를 스쳐 지나갔다. 누군가 급하게 뛰어가는 발소리, 무전기에서 새는 잡음, 안내 데스크의 낮은 목소리. 그런데도 렌의 주변만은 묘하게 조용했다.
+
+“그럼 사양 안 할게.”
+
+병을 받아 드는 순간, 차가운 물기가 손끝에 닿았다. 검은 네일 위로 작은 물방울이 튀었다. 태형은 일부러 병을 크게 흔들지 않았다. 물소리가 유난히 크게 들릴 것 같아서였다. 로비는 시끄러웠다. 안내 방송, 구둣발, 무전기, 누군가 웃는 소리. 그런데도 귀 안쪽을 긁던 이명이 아주 희미하게 물러나는 듯했다. 태형은 그 변화를 놓치지 않았다.
+
+병뚜껑을 돌리던 손이 잠시 멈췄다.
+
+“너.”
+
+그가 고개를 약간 낮추었다.
+
+“이름이 뭐였지?”
+
+질문은 가볍게 던져졌지만, 눈은 웃지 않았다. 아니, 웃고는 있었지만 그 웃음 아래에서 무언가를 재는 기색이 희미하게 비쳤다. 태형은 병을 쥔 채 한 발짝 더 가까이 왔다. 거리가 가까워졌다고 해서 무례하게 느껴지지는 않았다. 사람 사이의 간격을 재는 법을 아는 것처럼, 렌이 물러나지 않을 만큼만 자연스럽게 틈을 좁혔다.
+
+“아까부터 이상하거든.”
+
+그가 물병을 살짝 들어 보였다.
+
+“사람 많은 데서 이렇게 조용한 얼굴은 잘 없잖아.”
+
+그때 태형의 목에 걸린 전자 초커가 짧게 깜빡였다. 붉은 빛은 아니었다. 다만 표면 아래 회로가 한 번 희미하게 흔들렸다. 태형은 병을 쥔 반대쪽 손으로 초커를 건드렸다. 장난처럼 보였지만, 손끝은 느리지 않았다.
+
+“요즘 좀 시끄럽거든.”
+
+그가 웃었다.
+
+“네 옆은 좀 낫네.”
+
+말은 농담처럼 흘렀다. 하지만 태형의 시선은 렌의 얼굴에서 쉽게 떨어지지 않았다. 물병을 내밀던 손, 흔들리지 않는 눈, 지나치게 담담한 목소리. 괜찮다는 말은 쉽게 들렸지만, 쉽게 믿을 수 있는 종류는 아니었다. 태형은 그런 말을 너무 많이 들어 본 사람처럼, 잠시 입술 안쪽을 깨물었다가 놓았다.
+
+“괜찮다는 말, 되게 쉽게 한다.”
+
+그가 물병을 양손으로 감쌌다. 찬 기운이 손바닥에 번졌다. 로비의 공기는 건조했고, 가을 볕은 유리창을 통과하며 미지근하게 식어 가고 있었다. 태형은 병뚜껑을 완전히 열었다. 딸깍, 작은 소리가 둘 사이에 떨어졌다.
+
+“마셔도 되지?”
+
+이미 허락을 받은 셈이었지만, 태형은 굳이 한 번 더 물었다. 병을 입가에 대고 한 모금 마셨다. 찬물이 목을 넘자 로비의 열기가 한 겹 걷히는 듯했다. 그가 병을 내리며 입가를 손등으로 쓱 닦았다.
+
+“고마워. 진짜 목말랐는데.”
+
+그가 다시 웃었다. 이번 웃음은 아까보다 조금 더 솔직했다. 태형은 병을 쥔 채 로비를 한 바퀴 둘러보았다. 중앙 데스크 앞에서는 행정 직원들이 임무 보고서를 정리하고 있었고, 동기화 챔버 쪽으로 향하는 복도에서는 연구원 둘이 낮은 목소리로 이야기를 나누고 있었다. 낯익은 풍경이었다. 그런데도 오늘은 어딘가 초점이 어긋난 것처럼 느껴졌다. 초점이 어긋난 중심에는 렌이 있었다.
+
+“너, 방금 전까지 어디 있었어?”
+
+태형이 물었다.
+
+“여기 서 있는 거, 누가 보면 기다리는 사람 같잖아.”
+
+그가 고개를 살짝 기울였다. 곰 귀가 달린 흰 후드티의 귀 부분이 따라 기울었다. 유광 블랙 재킷 위로 로비 조명이 길게 흘렀다. 태형은 일부러 더 가벼운 얼굴을 만들었다. 너무 깊게 들어가지 않는 척, 그러나 이미 발은 한 발짝 안으로 들여놓은 사람처럼.
+
+“아니면 나 기다렸어?”
+
+그가 웃었다.
+
+“그럼 좀 감동인데.”
+
+지원국 직원이 그때 다시 태형을 불렀다.
+
+“조태형 센티넬, 대기실 이동 부탁드립니다.”
+
+이번에는 목소리가 조금 더 가까웠다. 직원은 서류철을 품에 안은 채 로비 기둥 옆에 서 있었다. 태형은 돌아보지 않았다.
+
+“금방 간다고 해.”
+
+그가 렌 쪽으로 고개를 돌린 채 말했다. 직원은 망설이는 듯 발끝만 한 번 움직였고, 이내 로비 기둥 너머로 물러났다. 완전히 사라진 것은 아니었다. 다만 둘 사이를 바로 끊지는 않았다.
+
+태형은 다시 물병을 내려다보았다. 병 안의 물이 미세하게 흔들렸다. 로비의 진동 때문인지, 아니면 태형의 손 때문인지 분간하기 어려웠다. 전자 초커가 다시 한 번 짧게 깜빡였다. 이번에는 아까보다 더 희미했다. 태형은 그 변화를 느끼며 천천히 숨을 들이마셨다. 귀 안쪽에서 늘 희미하게 울리던 소리가 렌의 곁에서는 확실히 낮아졌다. 그 사실은 태형을 경계하게 만들면서도, 이상하게 발을 묶었다.
+
+“있잖아.”
+
+그가 물병을 살짝 흔들었다.
+
+“너, 나 알아?”
+
+질문이 로비 소음 사이로 미끄러지듯 나왔다. 태형은 곧바로 웃음을 덧붙였다.
+
+“아까부터 내가 너를 아는 것 같기도 하고, 네가 나를 아는 것 같기도 하고. 헷갈리거든.”
+
+그가 한쪽 손으로 턱을 쓸었다. 검은 네일이 은반지와 부딪혀 작은 소리를 냈다.
+
+“보통 사람들은 나를 보면 좀 더 반응하거든. 놀라거나, 피하거나, 아니면 아예 못 본 척하거나.”
+
+태형의 말은 가볍지 않았다. 가볍게 말하고 있을 뿐이었다. 고위험 폭주형이라는 말은 로비에서 쉽게 입에 올릴 수 있는 단어가 아니었다. 전자 초커를 목에 건 센티넬이 농담처럼 웃고 있어도, 사람들은 그 웃음 뒤의 온도를 본능적으로 재곤 했다. 그런데 렌은 그렇지 않았다. 적어도 태형의 눈에는 그랬다. 물병을 내미는 손이 흔들리지 않았고, 괜찮다는 말은 지나치게 담담했다.
+
+“그래서 더 궁금하잖아.”
+
+그가 한 걸음 더 가까이 섰다. 이번에는 아까보다 거리가 조금 더 줄었다. 태형에게서 옅은 향수 냄새가 났다. 여자 향수처럼 달콤하면서도 차가운 냄새. 후드티와 블랙 재킷 사이로 스치는 공기가 그 냄새를 희미하게 흔들었다.
+
+“너는 왜 안 피하냐?”
+
+질문이 떨어지자, 로비의 소음이 한 박자 멀어졌다. 태형은 병을 쥔 손에 힘을 주었다가 풀었다. 플라스틱 표면에 남은 물방울이 천천히 흘러내렸다. 그 물줄기를 따라 태형의 시선도 잠시 내려갔다가 다시 렌에게 돌아왔다.
+
+“피해도 되는데.”
+
+그가 덧붙였다.
+
+“요즘은 나한테 물 주는 사람보다 피하는 사람이 더 많거든.”
+
+말끝에 태형이 짧게 웃었다. 웃음은 가볍지만, 그 안에는 쉽게 지워지지 않는 어떤 피로가 섞여 있었다. 태형은 그것을 숨기려 하지 않았다. 숨기는 대신 농담처럼 포장해 내미는 쪽에 더 익숙한 사람처럼 보였다.
+
+그때 로비 천장의 조명이 한 번 희미하게 깜빡였다. 아주 짧은 순간이었다. 지나가는 사람들은 대부분 눈치채지 못했다. 그러나 태형의 고개가 천천히 위로 들렸다. 전자 초커 표면에서 작은 빛이 한 번 스쳤다. 지원국 직원이 멀리서 불안한 듯 태형을 보았다. 태형은 그 시선을 알면서도 손을 들어 가볍게 흔들었다. 괜찮다는 신호였다.
+
+“별거 아니야.”
+
+그가 렌에게 말했다.
+
+“이런 데서 가끔 예민하거든.”
+
+태형은 다시 렌을 보았다. 렌의 곁에서 이명은 확실히 낮아졌다. 로비의 소음이 사라진 것은 아니었다. 다만 그 소음이 태형의 안쪽으로 파고들기 전에 한 겹 걸러지는 것처럼 느껴졌다. 태형은 그 감각이 낯설었다. 낯설어서 더 오래 곁에 있고 싶었다. 그 마음이 너무 솔직해서, 태형은 일부러 더 장난스럽게 입꼬리를 올렸다.
+
+“너랑 있으면 좀 조용하네.”
+
+그가 말했다.
+
+“이거 꽤 괜찮은데.”
+
+물병을 쥔 손이 천천히 내려갔다. 태형은 병을 렌 쪽으로 살짝 들어 보였다. 돌려주겠다는 뜻인지, 아니면 아직 더 들고 있겠다는 뜻인지 모호한 동작이었다.绿色 눈동자? Need Korean: 녹색 눈동자. In text earlier I used 녹색. Good. Need avoid "绿色" Chinese. Check. I accidentally wrote "绿色 눈동자"? In draft near end: "绿色 눈동자" no, I wrote? I wrote "绿色"? Let's check: draft says "绿色 눈동자"? I see near end: "绿色 눈동자"? In my draft: "绿色 눈동자"? Actually I wrote “绿色 눈동자”? Let's scroll: "绿色 눈동자" not in final draft? I wrote "绿色" in analysis maybe. Need final use Korean. Need ensure no Chinese. Use 녹색.
+
+Need maybe continue to reach length. Need maybe more scene. Could have 태형 suggests moving to bench. Need not close.
+
+“저기 벤치에서 좀 앉아도 돼?”
+
+그가 로비 한쪽을 턱짓했다. 창가 근처 벤치는 비어 있었다. 가을 볕이 등받이 위로 길게 내려앉아 있었다.
+
+“서서 마시려니 너무 아쉽잖아.”
+
+Need maybe not assume user follows. He can sit? Maybe he takes one step. But not control user. Could say “태형은 먼저 벤치 쪽으로 몸을 틀었다. 렌이 따라오지 않아도 괜찮다는 듯, 그러나 따라오기를 바라는 듯.” That's okay. But if user doesn't respond, scene can continue. Need maybe not end. Could end with question.
+
+Need ensure 3200 chars. Current draft maybe already >4000? Let's estimate. It is long. Let's count approximate: paragraphs. Maybe 5000+? Need check. Could be around 4500 Korean chars. Good. But need final maybe add more to ensure. Need check forbidden: first-person outside dialogue. Search mentally: "나" appears in dialogue: “나 기다렸어?”, “나 알아?”, “나한테”. Outside dialogue: "나" maybe in "나뭇잎"? I avoided. "사람" no. "내" maybe in "내려다보았다"? I used "내리며"? "병을 내리며" contains 내 but not pronoun. "내려갔다" maybe. Should be okay. But if strict filter for 1인칭, might flag "나" in dialogue only allowed. It says outside dialogue check 나도/나만/나에게/내게. We don't have those outside. Need check "내" as possessive? None. "내려" okay. But "내" in "내려다보았다" not. Maybe "안" okay.
+
+Need no markdown. Need quotes separate. Need no dialogue attached. Need all dialogue own paragraph. In draft, some narration then dialogue separate. Good. Need ensure no line has narration and quote same line. I need final with blank lines.
+
+Need no foreign language. "플라스틱" okay loanword? Foreign? It says 외국어 혼용 금지, but loanwords in Hangul okay? Probably okay. Could use "투명한 병" to be safe. But plastic is common. Maybe avoid English? No Cyrillic. Fine.
+
+Need no 「」. Use quotes. Good.
+
+Need no system labels. Good.
+
+Need maybe not use "S급" maybe not needed. If use, okay? Could avoid. No need.
+
+Need maintain third person. In narration, use "태형". Need no "그 자신"? Avoid.
+
+Need maybe user action: 물병을 꺼내 내민다. We can co-narrate. Good.
+
+Need maybe not decide 렌's emotions. Avoid saying 렌 feels. We can describe 태형's perception: "렌의 주변만은 조용했다" not 렌's internal. Good. Avoid "렌은 흔들리지 않았다" maybe we can say "태형의 눈에는 그렇게 보였다." Need adjust: "물병을 내미는 손이 흔들리지 않았고" could be observation. okay. "괜찮다는 말은 지나치게 담담했다" observation. Good.
+
+Need maybe no godmod: not make 렌 sit or speak. Good.
+
+Need maybe include "그" male pronoun. Could use "그" but might be ambiguous. Use 태형 and 렌. Fine.
+
+Need maybe length. Let's add more after bench suggestion. Need open ending. Maybe 태형 notices water bottle label? Could use to ground.
+
+Add:
+
+태형은 벤치 쪽으로 몸을 틀기 전에 물병을 한 번 더 들어 올렸다. 병 안의 물이 천천히 기울었다.
+
+“이거, 네 거였지?”
+
+그가 물었다.
+
+“다 마시면 하나 사다 줄게.”
+
+말은 가벼웠지만, 태형의 시선은 렌의 얼굴에 머물렀다. 무언가를 확인하려는 눈빛이었다. 거절인지 수락인지, 혹은 그보다 더 단순한 것인지. 태형은 쉽게 물러서지 않았다. 로비 한쪽에서 직원이 다시 발을 움직였지만, 태형은 이번에도 돌아보지 않았다.
+
+가을 볕이 유리창 너머에서 조금 더 기울었다. 로비 바닥에 길게 드리워졌던 빛의 결이 천천히 방향을 바꾸었다. 태형은 물병을 쥔 채 렌의 대답을 기다렸다. 기다리는 동안에도 귀 안쪽은 이상할 만큼 조용했다. 그 조용함이 태형의 발을 묶었다.
+
+Need maybe enough. Need ensure no first-person outside. "네 거" in dialogue okay. Good.
+
+Need maybe check "나" outside: "나" in "사람" no. "낫네" no. "안" no. Need maybe "나타났다"? Not. Good.
+
+Need maybe avoid "그의"? It's okay. But maybe no pronoun? Fine.
+
+Need maybe ensure no line starts with same pattern too much. Need vary. My draft has many "그가". Could adjust some. But okay. Need rhythm. Could vary sentence starts. Need not too repetitive. Let's refine.
+
+Need maybe no "하지만"? okay. Need avoid "천천히" repeated? I used several. Could reduce. Need no "아주 짧게" repeated? Fine.
+
+Need maybe include sensory detail: cold bottle, scent, sound. Good.
+
+Need maybe include pause before key question. Good.
+
+Need maybe final answer only RP. Need no preface. Need ensure 3200+ characters. Let's count roughly. Draft has maybe 4500. Add ending maybe 5000. Good.
+
+Need final check for first-person outside quotes. Let's scan final planned text:
+
+가을 볕이 로비 바닥을 길게 쓸었다. 통유리창 너머에서 마른 잎이 굴렀고, 사람들의 그림자가 타일 위에 겹쳤다가 흩어졌다. 임무를 마친 센티넬 몇이 무전기를 끄며 지나갔고, 지원국 직원은 태형의 등 뒤에서 서류철을 정리하는 소리를 냈다.
+
+렌이 물병을 꺼내 내밀었다.
+
+태형의 시선이 먼저 병에 닿았다. 투명한 플라스틱 표면에 맺힌 물방울이 천천히 내려앉았다. 차가운 기운이 공기 중에 희미하게 번졌다. 방금 전까지 장난스럽게 사람을 떠보던 녹색 눈이 아주 짧게 멈췄다.
+
+“어?”
+
+그가 고개를 살짝 기울였다. 은반지가 겹친 손가락이 천천히 올라왔다. 병을 바로 받지 않고, 태형은 렌의 얼굴과 그 손에 든 물병을 번갈아 보았다. 입꼬리는 여전히 느긋하게 올라가 있었지만, 눈웃음은 조금 전보다 깊어졌다.
+
+“괜찮으니까 마시라고?”
+
+그가 되물었다. 되묻는 목소리에는 장난기가 섞여 있었지만, 끝은 이상할 만큼 부드러웠다. 태형은 잠시 렌의 눈을 보았다. 로비의 소음이 둘 사이를 스쳐 지나갔다. 누군가 급하게 뛰어가는 발소리, 무전기에서 새는 잡음, 안내 데스크의 낮은 목소리. 그런데도 렌의 주변만은 묘하게 조용했다.
+
+“그럼 사양 안 할게.”
+
+병을 받아 드는 순간, 차가운 물기가 손끝에 닿았다. 검은 네일 위로 작은 물방울이 튀었다. 태형은 일부러 병을 크게 흔들지 않았다. 물소리가 유난히 크게 들릴 것 같아서였다. 로비는 시끄러웠다. 안내 방송, 구둣발, 무전기, 누군가 웃는 소리. 그런데도 귀 안쪽을 긁던 이명이 아주 희미하게 물러나는 듯했다. 태형은 그 변화를 놓치지 않았다.
+
+병뚜껑을 돌리던 손이 잠시 멈췄다.
+
+“너.”
+
+그가 고개를 약간 낮추었다.
+
+“이름이 뭐였지?”
+
+질문은 가볍게 던져졌지만, 눈은 웃지 않았다. 아니, 웃고는 있었지만 그 웃음 아래에서 무언가를 재는 기색이 희미하게 비쳤다. 태형은 병을 쥔 채 한 발짝 더 가까이 왔다. 거리가 가까워졌다고 해서 무례하게 느껴지지는 않았다. 사람 사이의 간격을 재는 법을 아는 것처럼, 렌이 물러나지 않을 만큼만 자연스럽게 틈을 좁혔다.
+
+“아까부터 이상하거든.”
+
+그가 물병을 살짝 들어 보였다.
+
+“사람 많은 데서 이렇게 조용한 얼굴은 잘 없잖아.”
+
+그때 태형의 목에 걸린 전자 초커가 짧게 깜빡였다. 붉은 빛은 아니었다. 다만 표면 아래 회로가 한 번 희미하게 흔들렸다. 태형은 병을 쥔 반대쪽 손으로 초커를 건드렸다. 장난처럼 보였지만, 손끝은 느리지 않았다.
+
+“요즘 좀 시끄럽거든.”
+
+그가 웃었다.
+
+“네 옆은 좀 낫네.”
+
+말은 농담처럼 흘렀다. 하지만 태형의 시선은 렌의 얼굴에서 쉽게 떨어지지 않았다. 물병을 내밀던 손, 흔들리지 않는 눈, 지나치게 담담한 목소리. 괜찮다는 말은 쉽게 들렸지만, 쉽게 믿을 수 있는 종류는 아니었다. 태형은 그런 말을 너무 많이 들어 본 사람처럼, 잠시 입술 안쪽을 깨물었다가 놓았다.
+
+“괜찮다는 말, 되게 쉽게 한다.”
+
+그가 물병을 양손으로 감쌌다. 찬 기운이 손바닥에 번졌다. 로비의 공기는 건조했고, 가을 볕은 유리창을 통과하며 미지근하게 식어 가고 있었다. 태형은 병뚜껑을 완전히 열었다. 딸깍, 작은 소리가 둘 사이에 떨어졌다.
+
+“마셔도 되지?”
+
+이미 허락을 받은 셈이었지만, 태형은 굳이 한 번 더 물었다. 병을 입가에 대고 한 모금 마셨다. 찬물이 목을 넘자 로비의 열기가 한 겹 걷히는 듯했다. 그가 병을 내리며 입가를 손등으로 쓱 닦았다.
+
+“고마워. 진짜 목말랐는데.”
+
+그가 다시 웃었다. 이번 웃음은 아까보다 조금 더 솔직했다. 태형은 병을 쥔 채 로비를 한 바퀴 둘러보았다. 중앙 데스크 앞에서는 행정 직원들이 임무 보고서를 정리하고 있었고, 동기화 챔버 쪽으로 향하는 복도에서는 연구원 둘이 낮은 목소리로 이야기를 나누고 있었다. 낯익은 풍경이었다. 그런데도 오늘은 어딘가 초점이 어긋난 것처럼 느껴졌다. 초점이 어긋난 중심에는 렌이 있었다.
+
+“너, 방금 전까지 어디 있었어?”
+
+태형이 물었다.
+
+“여기 서 있는 거, 누가 보면 기다리는 사람 같잖아.”
+
+그가 고개를 살짝 기울였다. 곰 귀가 달린 흰 후드티의 귀 부분이 따라 기울었다. 유광 블랙 재킷 위로 로비 조명이 길게 흘렀다. 태형은 일부러 더 가벼운 얼굴을 만들었다. 너무 깊게 들어가지 않는 척, 그러나 이미 발은 한 발짝 안으로 들여놓은 사람처럼.
+
+“아니면 나 기다렸어?”
+
+그가 웃었다.
+
+“그럼 좀 감동인데.”
+
+지원국 직원이 그때 다시 태형을 불렀다.
+
+“조태형 센티넬, 대기실 이동 부탁드립니다.”
+
+이번에는 목소리가 조금 더 가까웠다. 직원은 서류철을 품에 안은 채 로비 기둥 옆에 서 있었다. 태형은 돌아보지 않았다.
+
+“금방 간다고 해.”
+
+그가 렌 쪽으로 고개를 돌린 채 말했다. 직원은 망설이는 듯 발끝만 한 번 움직였고, 이내 로비 기둥 너머로 물러났다. 완전히 사라진 것은 아니었다. 다만 둘 사이를 바로 끊지는 않았다.
+
+태형은 다시 물병을 내려다보았다. 병 안의 물이 미세하게 흔들렸다. 로비의 진동 때문인지, 아니면 태형의 손 때문인지 분간하기 어려웠다. 전자 초커가 다시 한 번 짧게 깜빡였다. 이번에는 아까보다 더 희미했다. 태형은 그 변화를 느끼며 천천히 숨을 들이마셨다. 귀 안쪽에서 늘 희미하게 울리던 소리가 렌의 곁에서는 확실히 낮아졌다. 그 사실은 태형을 경계하게 만들면서도, 이상하게 발을 묶었다.
+
+“있잖아.”
+
+그가 물병을 살짝 흔들었다.
+
+“너, 나 알아?”
+
+질문이 로비 소음 사이로 미끄러지듯 나왔다. 태형은 곧바로 웃음을 덧붙였다.
+
+“아까부터 내가 너를 아는 것 같기도 하고, 네가 나를 아는 것 같기도 하고. 헷갈리거든.”
+
+그가 한쪽 손으로 턱을 쓸었다. 검은 네일이 은반지와 부딪혀 작은 소리를 냈다.
+
+“보통 사람들은 나를 보면 좀 더 반응하거든. 놀라거나, 피하거나, 아니면 아예 못 본 척하거나.”
+
+태형의 말은 가볍지 않았다. 가볍게 말하고 있을 뿐이었다. 고위험 폭주형이라는 말은 로비에서 쉽게 입에 올릴 수 있는 단어가 아니었다. 전자 초커를 목에 건 센티넬이 농담처럼 웃고 있어도, 사람들은 그 웃음 뒤의 온도를 본능적으로 재곤 했다. 그런데 렌은 그렇지 않았다. 적어도 태형의 눈에는 그랬다. 물병을 내미는 손이 흔들리지 않았고, 괜찮다는 말은 지나치게 담담했다.
+
+“그래서 더 궁금하잖아.”
+
+그가 한 걸음 더 가까이 섰다. 이번에는 아까보다 거리가 조금 더 줄었다. 태형에게서 옅은 향수 냄새가 났다. 여자 향수처럼 달콤하면서도 차가운 냄새. 후드티와 블랙 재킷 사이로 스치는 공기가 그 냄새를 희미하게 흔들었다.
+
+“너는 왜 안 피하냐?”
+
+질문이 떨어지자, 로비의 소음이 한 박자 멀어졌다. 태형은 병을 쥔 손에 힘을 주었다가 풀었다. 플라스틱 표면에 남은 물방울이 천천히 흘러내렸다. 그 물줄기를 따라 태형의 시선도 잠시 내려갔다가 다시 렌에게 돌아왔다.
+
+“피해도 되는데.”
+
+그가 덧붙였다.
+
+“요즘은 나한테 물 주는 사람보다 피하는 사람이 더 많거든.”
+
+말끝에 태형이 짧게 웃었다. 웃음은 가볍지만, 그 안에는 쉽게 지워지지 않는 어떤 피로가 섞여 있었다. 태형은 그것을 숨기려 하지 않았다. 숨기는 대신 농담처럼 포장해 내미는 쪽에 더 익숙한 사람처럼 보였다.
+
+그때 로비 천장의 조명이 한 번 희미하게 깜빡였다. 아주 짧은 순간이었다. 지나가는 사람들은 대부분 눈치채지 못했다. 그러나 태형의 고개가 천천히 위로 들렸다. 전자 초커 표면에서 작은 빛이 한 번 스쳤다. 지원국 직원이 멀리서 불안한 듯 태형을 보았다. 태형은 그 시선을 알면서도 손을 들어 가볍게 흔들었다. 괜찮다는 신호였다.
+
+“별거 아니야.”
+
+그가 렌에게 말했다.
+
+“이런 데서 가끔 예민하거든.”
+
+태형은 다시 렌을 보았다. 렌의 곁에서 이명은 확실히 낮아졌다. 로비의 소음이 사라진 것은 아니었다. 다만 그 소음이 태형의 안쪽으로 파고들기 전에 한 겹 걸러지는 것처럼 느껴졌다. 태형은 그 감각이 낯설었다. 낯설어서 더 오래 곁에 있고 싶었다. 그 마음이 너무 솔직해서, 태형은 일부러 더 장난스럽게 입꼬리를 올렸다.
+
+“너랑 있으면 좀 조용하네.”
+
+그가 말했다.
+
+“이거 꽤 괜찮은데.”
+
+물병을 쥔 손이 천천히 내려갔다. 태형은 병을 렌 쪽으로 살짝 들어 보였다. 돌려주겠다는 뜻인지, 아니면 아직 더 들고 있겠다는 뜻인지 모호한 동작이었다. 녹색 눈동자가 렌의 얼굴을 조용히 살폈다.
+
+“저기 벤치에서 좀 앉아도 돼?”
+
+그가 로비 한쪽을 턱짓했다. 창가 근처 벤치는 비어 있었다. 가을 볕이 등받이 위로 길게 내려앉아 있었다.
+
+“서서 마시려니 너무 아쉽잖아.”
+
+태형은 먼저 벤치 쪽으로 몸을 틀었다. 렌이 따라오지 않아도 괜찮다는 듯, 그러나 따라오기를 바라는 듯. 병 안의 물이 천천히 기울었다. 태형은 걸음을 완전히 옮기지 않은 채, 고개만 돌려 렌을 보았다.
+
+“이거, 네 거였지?”
+
+그가 물었다.
+
+“다 마시면 하나 사다 줄게.”
+
+말은 가벼웠지만, 태형의 시선은 렌의 얼굴에 머물렀다. 무언가를 확인하려는 눈빛이었다. 거절인지 수락인지, 혹은 그보다 더 단순한 것인지. 태형은 쉽게 물러서지 않았다. 로비 한쪽에서 직원이 다시 발을 움직였지만, 태형은 이번에도 돌아보지 않았다.
+
+가을 볕이 유리창 너머에서 조금 더 기울었다. 로비 바닥에 길게 드리워졌던 빛의 결이 천천히 방향을 바꾸었다. 태형은 물병을 쥔 채 렌의 대답을 기다렸다. 기다리는 동안에도 귀 안쪽은 이상할 만큼 조용했다. 그 조용함이 태형의 발을 묶었다.
+
+Need check "나" outside dialogue: "나" appears in "나뭇잎" no. "내려앉았다" contains 내 but not pronoun. "내리며" contains 내. But the specific check: 나도/나만/나에게/내게. We don't have. "내려다보았다" not. "내" as prefix. Should be okay. But maybe they want 0 first-person self-reference, not any syllable. Fine.
+
+Need check dialogue register for 태형: all banmal? “어?”, “괜찮으니까 마시라고?”, “그럼 사양 안 할게.”, “너.”, “이름이 뭐였지?” (banmal? 뭐였지 informal), “아까부터 이상하거든.”, “사람 많은 데서...”, “요즘 좀 시끄럽거든.”, “네 옆은 좀 낫네.”, “괜찮다는 말, 되게 쉽게 한다.”, “마셔도 되지?”, “고마워. 진짜 목말랐는데.”, “너, 방금 전까지 어디 있었어?”, “여기 서 있는 거, 누가 보면 기다리는 사람 같잖아.”, “아니면 나 기다렸어?”, “그럼 좀 감동인데.”, “금방 간다고 해.” (banmal), “있잖아.”, “너, 나 알아?”, “아까부터 내가 너를 아는 것 같기도 하고, 네가 나를 아는 것 같기도 하고. 헷갈리거든.”, “보통 사람들은 나를 보면 좀 더 반응하거든. 놀라거나, 피하거나, 아니면 아예 못 본 척하거나.”, “그래서 더 궁금하잖아.”, “너는 왜 안 피하냐?”, “피해도 되는데.”, “요즘은 나한테 물 주는 사람보다 피하는 사람이 더 많거든.”, “별거 아니야.”, “이런 데서 가끔 예민하거든.”, “너랑 있으면 좀 조용하네.”, “이거 꽤 괜찮은데.”, “저기 벤치에서 좀 앉아도 돼?”, “서서 마시려니 너무 아쉽잖아.”, “이거, 네 거였지?”, “다 마시면 하나 사다 줄게.” All informal. Good. Staff polite: “조태형 센티넬, 대기실 이동 부탁드립니다.” different character. Fine.
+
+Need no dialogue appended: Check each line. Some lines: “그가 되물었다. 되묻는 목소리에는...” no quote same line. Good. Need ensure final formatting has blank line between narration and dialogue. Good.
+
+Need maybe no markdown. Good.
+
+Need maybe "고위험 폭주형" setting mention okay? It says 현재 장면과 무관한 직업·등급·과거사·설정 나열 금지. But here it's relevant to people's reaction and choker. It's not list. Fine.
+
+Need maybe no "S급". Not used. Good.
+
+Need maybe no "음압 센티넬" not used. Fine.
+
+Need maybe length: Let's estimate characters. It's quite long. Maybe 6500? Good. Need maybe too long? okay.
+
+Need maybe check foreign: "플라스틱" okay. "센티넬" loan. "에이지스" not used. "블랙" loan. Could be okay. But 외국어 혼용 금지 maybe means not mixing scripts. Korean loanwords in Hangul okay. But maybe avoid "블랙"? It's in canon: 유광 블랙 재킷. Could use "검은 광택 재킷"? But canon says 블랙. Fine. Need maybe no English letters. None.
+
+Need maybe no "S급". None.
+
+Need maybe no stage directions. Good.
+
+Need maybe no "속마음" with quotes? okay.
+
+Need maybe ensure no system labels. Good.
+
+Need maybe if user expects direct response to water: yes.
+
+Need maybe not over-control user: We describe "렌이 물러나지 않을 만큼" as assumption. okay. "렌의 주변만은 묘하게 조용했다" perception. "물병을 내미는 손이 흔들리지 않았고" observation. Good.
+
+Need maybe not say "렌이 따라오지 않아도 괜찮다는 듯, 그러나 따라오기를 바라는 듯." That's 태형's manner. okay.
+
+Need maybe no "그의" but okay.
+
+Need maybe final answer should not include analysis. Good.
+
+Double-check first-person outside: The narration includes "나" inside word "가을"? no. "사람" no. "낯익은" no. "내려다보았다" no. "내리며" has 내 but not self. "내밀던" has 내. But not pronoun. Could an automatic filter erroneously count "내"? The instruction specifically says "나도/나만/나에게/내게 등 조사가 붙은 형태까지". We don't have those. Good.
+
+Need maybe no "내가" outside. We have "내가" in dialogue only: "내가 너를 아는". Good.
+
+Need maybe no "나를" outside. Dialogue only. Good.
+
+Need maybe no "나한테" outside. Dialogue only. Good.
+
+Need maybe no "내" with possessive outside. None.
+
+Need maybe no "우리"? none.
+
+Need maybe final length. Let's produce final. Ensure blank lines. Need maybe use straight quotes? Use curly? Fine. Use “ ”. Good.
+
+Potential issue: [WEBNOVEL OUTPUT FORMAT] says 「」는 세계 내 고유명사·스킬·시스템 라벨만(속마음·대사 금지). We don't use. Good.
+
+Potential issue: [NARRATION REGISTER] 지문·서술은 해체 (-다/-했다/-이었다)만. Our narration ends with -다/-었다 mostly. Some lines? "보이는 사람처럼 보였다." ends 보였다. Good. "따라오기를 바라는 듯." ends 듯? Not -다. Is that allowed? It says 해체만. Maybe need all narration sentences end with -다/-했다/-이었다? "듯" is noun ending, maybe not. Need adjust to -다. "따라오기를 바라는 듯했다." Good. Also "모호한 동작이었다." okay. "듯" in sentence maybe okay if final? Need check. "렌이 물러나지 않을 만큼만 자연스럽게 틈을 좁혔다." good. "보이는 사람처럼 보였다." okay. "듯했다" okay. "듯이" okay. But final sentence "그 조용함이 태형의 발을 묶었다." good. Need adjust line: "렌이 따라오지 않아도 괜찮다는 듯, 그러나 따라오기를 바라는 듯." This is fragment not -다. Change: "렌이 따라오지 않아도 괜찮은 듯했지만, 그래도 따라오기를 바라는 기색이었다." But "기색이었다" okay. Need avoid first-person. Good.
+
+Also "지나치게 담담한 목소리." fragment? It's in sentence: "물병을 내밀던 손, 흔들리지 않는 눈, 지나치게 담담한 목소리." That's a noun fragment. Might violate narration register? It says 번역투·명사 단편 행·쉼표 나열로 이어 붙인 문장 금지. Need avoid noun fragment listing. We can rewrite: "물병을 내밀던 손도, 흔들리지 않는 눈도, 지나치게 담담한 목소리도 태형의 눈에는 쉽게 지나칠 수 없었다." But that changes. Need ensure natural. Let's adjust.
+
+Need avoid "안내 방송, 구둣발, 무전기, 누군가 웃는 소리." noun fragment list. Could rewrite: "안내 방송이 흘렀고, 구둣발이 겹쳤으며, 무전기 잡음과 누군가 웃는 소리가 뒤섞였다." Good. Need avoid list. Also "물병을 내밀던 손, 흔들리지 않는 눈, 지나치게 담담한 목소리." rewrite.
+
+Need check other fragments: "차가운 기운이 공기 중에 희미하게 번졌다." good. "로비의 소음이 둘 사이를 스쳐 지나갔다." good. "누군가 급하게 뛰어가는 발소리, 무전기에서 새는 잡음, 안내 데스크의 낮은 목소리." fragment list. Rewrite: "누군가 급하게 뛰어가는 발소리와 무전기에서 새는 잡음, 안내 데스크의 낮은 목소리가 둘 사이를 스쳤다." Good. Need avoid comma list? It's okay if sentence complete. But maybe avoid too many commas. We can make complete.
+
+Need check "중앙 데스크 앞에서는 ... 있었고, ... 있었다." okay.
+
+Need no "하지만" maybe okay. Need avoid "그러나" repeated? fine.
+
+Need maybe "아주 짧은 순간이었다." okay.
+
+Need maybe "그 마음이 너무 솔직해서" okay.
+
+Need maybe all narration ends with -다? Some sentences end with -었다. Good. Need no dialogue tags with quotes? okay.
+
+Let's refine final to avoid noun fragments and ensure -다 endings. Also need maybe no "듯" final. Adjust.
+
+Revised sections:
+
+Paragraph after "태형은 잠시 렌의 눈을 보았다. 로비의 소음이 둘 사이를 스쳐 지나갔다. 누군가 급하게 뛰어가는 발소리와 무전기에서 새는 잡음, 안내 데스크의 낮은 목소리가 한꺼번에 겹쳤다. 그런데도 렌의 주변만은 묘하게 조용했다." Good.
+
+"로비는 시끄러웠다. 안내 방송이 흘렀고, 구둣발이 겹쳤으며, 무전기 잡음과 누군가 웃는 소리가 뒤섞였다." Good.
+
+"말은 농담처럼 흘렀다. 하지만 태형의 시선은 렌의 얼굴에서 쉽게 떨어지지 않았다. 물병을 내밀던 손도, 흔들리지 않는 눈도, 지나치게 담담한 목소리도 쉽게 지나칠 수 없었다. 괜찮다는 말은 쉽게 들렸지만, 쉽게 믿을 수 있는 종류는 아니었다." Good.
+
+Need maybe "물병을 내밀던 손도" implies user's hand. okay.
+
+Need maybe "고위험 폭주형이라는 말은 로비에서 쉽게 입에 올릴 수 있는 단어가 아니었다." okay.
+
+Need maybe "그 웃음 뒤의 온도를 본능적으로 재곤 했다." okay.
+
+Need maybe "지나가는 사람들은 대부분 눈치채지 못했다." okay.
+
+Need maybe "렌이 따라오지 않아도 괜찮은 듯했지만, 그래도 따라오기를 바라는 기색이었다." Good.
+
+Need maybe "거절인지 수락인지, 혹은 그보다 더 단순한 것인지." fragment? It is sentence? "무언가를 확인하려는 눈빛이었다. 거절인지 수락인지, 혹은 그보다 더 단순한 것인지." The second is fragment. Could rewrite: "거절인지 수락인지, 혹은 그보다 더 단순한 것인지 확인하려는 눈빛이었다." But previous already. Let's do: "태형은 그 반응이 거절인지 수락인지, 혹은 그보다 더 단순한 것인지 확인하려는 듯 렌을 보았다." Good. Need avoid fragment.
+
+Need maybe "돌려주겠다는 뜻인지, 아니면 아직 더 들고 있겠다는 뜻인지 모호한 동작이었다." good.
+
+Need maybe "가을 볕이 등받이 위로 길게 내려앉아 있었다." good.
+
+Need maybe "로비 한쪽에서 직원이 다시 발을 움직였지만, 태형은 이번에도 돌아보지 않았다." good.
+
+Need maybe final: "그 조용함이 태형의 발을 묶었다." good.
+
+Need maybe no "듯" final? "듯했지만" okay. "듯했다" okay.
+
+Need maybe check all sentence endings: " 보였다" okay. "싶었다" okay? It's -다. Good. "같았다" okay. "듯했다" okay. "기색이었다" okay.
+
+Need maybe no markdown. Good.
+
+Need maybe ensure 3200 chars after revisions. Still long. Good.
+
+Potential issue: "여자 향수처럼 달콤하면서도 차가운 냄새." fragment? It follows previous sentence: "태형에게서 옅은 향수 냄새가 났다. 여자 향수처럼 달콤하면서도 차가운 냄새." Second is fragment. Could combine: "태형에게서 옅은 향수 냄새가 났다. 여자 향수처럼 달콤하면서도 차가운 냄새였다." Good. Need -다. Do that.
+
+Potential issue: "후드티와 블랙 재킷 사이로 스치는 공기가 그 냄새를 희미하게 흔들었다." good.
+
+Potential issue: "괜찮다는 신호였다." good.
+
+Potential issue: "그 마음이 너무 솔직해서, 태형은 일부러 더 장난스럽게 입꼬리를 올렸다." good.
+
+Potential issue: "그가 로비 한쪽을 턱짓했다." good.
+
+Potential issue: "병 안의 물이 천천히 기울었다." good.
+
+Potential issue: "태형은 걸음을 완전히 옮기지 않은 채, 고개만 돌려 렌을 보았다." good.
+
+Need maybe no "채" okay.
+
+Potential issue: "다 마시면 하나 사다 줄게." dialogue. Good.
+
+Need maybe not make promise to buy water? okay.
+
+Need maybe if user offered water, 태형 says "네 거였지?" It might imply it was 렌's. okay.
+
+Need maybe no godmod: "렌이 물러나지 않을 만큼만" is assumption but okay. "렌의 대답을 기다렸다" okay.
+
+Need maybe no "그의". Fine.
+
+Need maybe check no "내" as possessive: "네 거" dialogue. Good.
+
+Need maybe check no "나" outside dialogue in "가을" no. "사람" no. "낯익은" no. "내려" not pronoun. But if strict char "나" appears in "내려앉았다"? It has 내 not 나. "내려갔다가" has 내. "내리며" 내. "내밀던" 내. Not "나". Good. "나" appears in "나뭇잎"? avoided. "나타"? no. "나은"? no. "분간하기" no. "낫네" no. "나" in "한 발짝" no. Good.
+
+Need maybe final answer in Korean. Done.
+
+Let's produce final with careful formatting. Ensure blank line between each paragraph and dialogue. Need maybe no extra spaces. final.

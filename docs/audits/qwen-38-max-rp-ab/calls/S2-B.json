@@ -1,0 +1,64 @@
+{
+  "cell": "S2-B",
+  "seed": "S2",
+  "arm": "B",
+  "armName": "QWEN_COMMON_PROSE_OUTPUT",
+  "user": "같이 갈래? *두리번*",
+  "invalidTransport": false,
+  "httpStatus": 200,
+  "finishReason": "stop",
+  "latencyMs": 269173,
+  "ttftMs": 4874,
+  "resolvedModel": "qwen-3-8-max",
+  "charsInclSpaces": 3900,
+  "charsExclSpaces": 2887,
+  "paragraphCount": 42,
+  "dialogueParagraphCount": 16,
+  "dialogueRatio": 0.381,
+  "inputTokens": 4146,
+  "outputTokens": 12660,
+  "reasoningTokens": 0,
+  "cacheReadTokens": 0,
+  "cacheWriteTokens": 0,
+  "standardInputTokens": 4146,
+  "usageCostUsd": 0.055348,
+  "upstreamInferenceCostUsd": 0.055348,
+  "catalogEstimatedUsd": 0.0589764,
+  "catalogVsSettledDiffered": true,
+  "costPer1000VisibleChars": 0.01419179,
+  "sampling": {
+    "temperature": 0.7,
+    "max_tokens": null,
+    "top_p": null,
+    "stream": true
+  },
+  "reasoning": {
+    "reasoning_effort": "none",
+    "reasoning": null,
+    "thinking": null,
+    "include_reasoning": null
+  },
+  "assembledChars": {
+    "system": 6463,
+    "history": 1162,
+    "lastUser": 830,
+    "total": 8459,
+    "estimatedInputTokens": 7614
+  },
+  "reasoningTextChars": 29142,
+  "usageRaw": {
+    "prompt_tokens": 4146,
+    "completion_tokens": 12660,
+    "total_tokens": 16806,
+    "cost": 0.055348,
+    "cost_details": {
+      "upstream_inference_cost": 0.055348
+    }
+  },
+  "promptTokensDetails": null,
+  "completionTokensDetails": null,
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "error": null
+}
