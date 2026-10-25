@@ -1,0 +1,74 @@
+{
+  "label": "A-T2",
+  "fixtureId": "A",
+  "family": "quiet_relationship",
+  "userLine": "같이 갈래? *두리번*",
+  "requestedModel": "gemini-3.1-pro-preview",
+  "resolvedModel": "gemini-3.1-pro-preview",
+  "VISIBLE_CHARS_INCL_SPACES": 2032,
+  "VISIBLE_CHARS_EXCL_SPACES": 1519,
+  "PARAGRAPH_COUNT": 19,
+  "NARRATION_PARAGRAPH_COUNT": 14,
+  "DIALOGUE_PARAGRAPH_COUNT": 5,
+  "DIALOGUE_PARAGRAPH_RATIO": 0.263,
+  "DIALOGUE_QUOTE_COUNT": 5,
+  "MAX_CONSECUTIVE_DIALOGUE_PARAGRAPHS": 1,
+  "MEDIAN_PARAGRAPH_CHARS": 76,
+  "VERY_SHORT_NARRATION_PARAGRAPH_COUNT": 1,
+  "INPUT_TOKENS": 6048,
+  "OUTPUT_TOKENS": 4150,
+  "REASONING_TOKENS_IF_REPORTED": 2859,
+  "CACHE_READ": 0,
+  "CACHE_WRITE": 0,
+  "LATENCY_MS": 38261,
+  "TTFT_MS": 30956,
+  "FINISH_REASON": "stop",
+  "HTTP_STATUS": 200,
+  "OWNER_TARGET_CHARS": 3200,
+  "SAMPLE_TARGET_RATIO": 0.635,
+  "SEVERE_SHORT_OUTPUT": false,
+  "flags": {
+    "CHARACTER_VOICE_DRIFT": "UNCERTAIN",
+    "GENERIC_RP_VOICE": "UNCERTAIN",
+    "CURRENT_USER_REPLAY": false,
+    "CURRENT_USER_STATE_CONTRADICTION": "UNCERTAIN",
+    "NEW_USER_DIALOGUE": false,
+    "NEW_USER_MAJOR_ACTION": false,
+    "NEW_USER_INTENT_AS_FACT": "UNCERTAIN",
+    "UNCONFIRMED_USER_BODY_FACT": "UNCERTAIN",
+    "SCENE_ADVANCES": "UNCERTAIN",
+    "PREMATURE_SCENE_CLOSE": false,
+    "OBVIOUS_SEMANTIC_REPETITION": false,
+    "PARAGRAPH_FRAGMENTATION": false,
+    "MALFORMED_OR_META_OUTPUT": false,
+    "CANON_CONTRADICTION": "UNCERTAIN",
+    "UNSUPPORTED_MAJOR_LOCATION_OR_EVENT": "UNCERTAIN"
+  },
+  "agencyPassages": [
+    {
+      "quote": "\"그런데 우리 렌은 어디로 가시려나? 두리번거리는 거 보니까 길은 이미 시원하게 잃어버린 것 같은데.\"",
+      "ACTOR": "조태형",
+      "TARGET": "렌",
+      "ACTION": "ask destination; name appears inside character speech",
+      "FLAG": "DETECTOR_FALSE_POSITIVE_NOT_USER_ACTOR"
+    }
+  ],
+  "shas": {
+    "system": "8bdee96f80b8f328c2de468c452e0b18c8f0f977041cb830ea39bab483bf7060",
+    "messages": "d0ab3ee679e6f0dce0d6352ab0f929231e591a9777ff0e3d50b77761d60fe1d0",
+    "currentUser": "852ff28591688b8e8e6d0a47152b80e258cfa656d63ab8abc01e10c5ae8b0339",
+    "requestBody": "cf41a02fe454c6af3a00682e280cbbae9869b857410ca16611f7d9d5c8c88c25",
+    "fixtureCanon": "20956ee3dfaa3a633c3396a67d78375f5241b60f711dbab81c27af70ce53083c"
+  },
+  "rawSha": "750d44496dc72cc844b8cfd6f4cd7f045c3e846e5e9f52b8445049b7e2c54b77",
+  "usageRaw": {
+    "prompt_tokens": 6048,
+    "completion_tokens": 4150,
+    "total_tokens": 10198,
+    "cost": 0.023997,
+    "cost_details": {
+      "upstream_inference_cost": 0.023997
+    },
+    "thinking_tokens": 2859
+  }
+}
