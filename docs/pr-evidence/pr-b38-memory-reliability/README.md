@@ -1,7 +1,8 @@
 # B38 — episode admission and narrative `draft`
 
 Base: `70194d359f3b03a435702af267dfb1540077cc8f` (includes the requested B37 merge `d3f964fb`).
-Implementation: `994a8f71ac9103e81d276ef856e218961176a36c`.
+Initial implementation: `994a8f71ac9103e81d276ef856e218961176a36c`.
+GPT re-review implementation: `7324188b04916fdd91e496686175cef3fd656b7b` (review base `b02bc58f8b8ddbccab49a32fcd09b55d0f4630e7`).
 
 ## BEFORE / PROBLEM
 
@@ -15,11 +16,31 @@ The user supplied 24 external USER/assistant source messages: T14–16, T76–81
 
 ## AFTER
 
-`classifyMemoryTurnScope` now honors the existing `rp_scene_reset` classification before applying plain OOC adjustment keywords. Explicit noncanon, branch control, and preference rules retain their earlier precedence. Summary and episodic consumers already share this owner; no second classifier was added.
+`classifyMemoryTurnScope` first consumes canonical isolation from `resolveOocSceneRenderIntent`. Isolated samples stay excluded OOC; meaningful noncanon/history retains its noncanon scope. Ordinary branch/adoption/preference controls remain, and non-isolated `rp_scene_reset` is honored before plain OOC adjustment keywords. Summary and episodic consumers share this scope owner; isolation patterns remain only in the existing scene-render owner.
 
 Source interpretation matters: T80 requests a new episode in the existing world; T81 explicitly retains it as a past memory while returning to the prior scene. The source does not explicitly declare noncanon. This repair admits that source as a new RP episode. It does **not** promote stored noncanon records or establish legal marriage from a proposal. Explicitly noncanon scenes still stay outside main/Episodic injection.
 
 `draft` alone is removed from both the trim anchor list and chunk corroboration regex. Existing explicit output-planning/self-review signals and the separate RP meta detector remain. There is no replacement word ban or output-length change.
+
+## GPT re-review — explicit noncanon resets
+
+The reviewed HEAD incorrectly treated an explicit isolated reset as canonical. The exact public PR-comment case and separate `본편과 별개` / `샘플 장면` cases reproduced `main_rp`, Episodic eligibility, and canonical generation metadata before this correction.
+
+`classifyChatOocIntent` still owns scene control. `oocSceneRender.ts` independently owns canonicality: a reset itself requests a scene, but requires strong isolation to become a noncanonical render. Ordinary resets and resets with only weak hints remain canonical. Explicit `비정사` / `정사 아님` declarations now live in the strong-isolation list rather than the weak list. Hard-stop semantics are preserved.
+
+Memory scope consumes that existing predicate before branch-continuation or plain-OOC heuristics. It adds no isolation regex. The existing record filter, episodic request/persistence gates, `filterCanonicalMessageRows` reader and `shouldCommitCanonicalTurnState` now agree. Existing adopted-assistant exceptions remain covered by scene-render regressions.
+
+| Case | Reviewed HEAD | Re-review fix |
+| --- | --- | --- |
+| Exact comment case / only `본편과 별개` / only `샘플 장면` reset | main RP, Episodic eligible, canonical | excluded OOC, Episodic ineligible, noncanonical |
+| `비정사 외전` reset | noncanon scope but canonical generation | noncanon scope and noncanonical generation |
+| T80-like reset without isolation | main RP / eligible / canonical | unchanged |
+| Regenerate an isolated reset | canonical source could remain canonical | source re-evaluated; isolation inherited on further regen |
+| Continue after a legacy isolated pair | isolated pair could enter history | existing canonical-history reader excludes it; main return remains valid |
+
+New deterministic file: `src/lib/memory/memory-scene-reset-canonicality.test.ts`. Same fixtures: before **3 pass / 10 fail**, after **13 pass / 0 fail**. The full direct regression collection is **226 pass / 1 fail** across 16 files; the one failure remains the pre-existing absent C5 cache. Lint, app typecheck and build pass. Build and final typechecks were run sequentially after resolving an initial `.next/types` generation overlap. The unrelated full suite was not rerun. No GitHub CI success is claimed.
+
+A provider-free check of the original private source (same published JSONL hash) confirms T80 remains `main_rp` / Episodic eligible / canonical, and T99 remains `CLEAN` with identical text. No route replay, 100-turn run, paid call, new prompt, schema or production write. T14 remains `ROOT_CAUSE_UNCONFIRMED`. See `review-canonicality.json` for aggregate evidence. Earlier private route evidence and its availability limitations are unchanged.
 
 ## REMOVED
 

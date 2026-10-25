@@ -1,0 +1,110 @@
+{
+  "review_base_sha": "b02bc58f8b8ddbccab49a32fcd09b55d0f4630e7",
+  "implementation_sha": "7324188b04916fdd91e496686175cef3fd656b7b",
+  "status": "ROOT_CAUSE_FIXED",
+  "canonical_isolation_owner": "src/lib/oocSceneRender.ts:resolveOocSceneRenderIntent",
+  "memory_scope_consumer": "src/lib/memory/memory-summary-scope.ts:classifyMemoryTurnScope",
+  "new_test_file": "src/lib/memory/memory-scene-reset-canonicality.test.ts",
+  "same_new_fixtures": {
+    "before": {
+      "tests": 13,
+      "pass": 3,
+      "fail": 10
+    },
+    "after": {
+      "tests": 13,
+      "pass": 13,
+      "fail": 0
+    }
+  },
+  "direct_regression": {
+    "files": 16,
+    "tests": 227,
+    "pass": 226,
+    "fail": 1,
+    "failure": "Existing C5 test ENOENT: data/luna-user-tail-length-c5-cache.json"
+  },
+  "original_source_check": {
+    "sourceJsonlSha256": "98d4a7d29f40442416535bd5b926d7326c06dde8a3969d932a94a2ea3a20c01b",
+    "t80": {
+      "scope": "main_rp",
+      "episodic": true,
+      "canonical": true
+    },
+    "t99": {
+      "trim": "CLEAN",
+      "unchanged": true
+    },
+    "providerCalls": 0
+  },
+  "checks": {
+    "diff_check": "PASS",
+    "lint": "PASS",
+    "typecheck_app": "PASS",
+    "build": "PASS"
+  },
+  "scope": {
+    "provider_calls": 0,
+    "new_inference_cost_krw": 0,
+    "full_suite_rerun": false,
+    "production_writes": false,
+    "merge": false,
+    "deploy": false,
+    "t14_overclaim_status": "ROOT_CAUSE_UNCONFIRMED"
+  },
+  "cases": [
+    {
+      "case": "exact PR-comment reset",
+      "scope_before": "main_rp",
+      "scope_after": "plain_ooc",
+      "canonical_before": true,
+      "canonical_after": false,
+      "episodic_before": true,
+      "episodic_after": false
+    },
+    {
+      "case": "only main-independent marker (본편과 별개)",
+      "scope_before": "main_rp",
+      "scope_after": "plain_ooc",
+      "canonical_before": true,
+      "canonical_after": false,
+      "episodic_before": true,
+      "episodic_after": false
+    },
+    {
+      "case": "only sample-scene marker (샘플 장면)",
+      "scope_before": "main_rp",
+      "scope_after": "plain_ooc",
+      "canonical_before": true,
+      "canonical_after": false,
+      "episodic_before": true,
+      "episodic_after": false
+    },
+    {
+      "case": "explicit 비정사 외전 reset",
+      "scope_before": "meaningful_noncanon",
+      "scope_after": "meaningful_noncanon",
+      "canonical_before": true,
+      "canonical_after": false,
+      "episodic_before": false,
+      "episodic_after": false
+    },
+    {
+      "case": "ordinary T80-like reset",
+      "scope_before": "main_rp",
+      "scope_after": "main_rp",
+      "canonical_before": true,
+      "canonical_after": true,
+      "episodic_before": true,
+      "episodic_after": true
+    }
+  ],
+  "preserved": [
+    "T99 word handling",
+    "B37 export and embedded HTML preservation",
+    "explicit return to main",
+    "adopted assistant exceptions",
+    "regen/continuation canonicality",
+    "source attribution"
+  ]
+}

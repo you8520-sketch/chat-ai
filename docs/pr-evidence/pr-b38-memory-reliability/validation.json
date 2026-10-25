@@ -66,5 +66,44 @@
     "complete_source_messages_or_120_char_source_spans_found": 0,
     "private_name_matches_in_changed_files": 0
   },
-  "production_mutations": false
+  "production_mutations": false,
+  "gpt_re_review": {
+    "review_base_sha": "b02bc58f8b8ddbccab49a32fcd09b55d0f4630e7",
+    "implementation_sha": "7324188b04916fdd91e496686175cef3fd656b7b",
+    "same_new_fixtures": {
+      "before": {
+        "tests": 13,
+        "pass": 3,
+        "fail": 10
+      },
+      "after": {
+        "tests": 13,
+        "pass": 13,
+        "fail": 0
+      }
+    },
+    "direct_regression": {
+      "files": 16,
+      "tests": 227,
+      "pass": 226,
+      "fail": 1,
+      "failure": "Existing C5 test ENOENT: data/luna-user-tail-length-c5-cache.json"
+    },
+    "checks": {
+      "diff_check": "PASS",
+      "lint": "PASS",
+      "typecheck_app": "PASS",
+      "build": "PASS"
+    },
+    "scope": {
+      "provider_calls": 0,
+      "new_inference_cost_krw": 0,
+      "full_suite_rerun": false,
+      "production_writes": false,
+      "merge": false,
+      "deploy": false,
+      "t14_overclaim_status": "ROOT_CAUSE_UNCONFIRMED"
+    },
+    "proof_file": "review-canonicality.json"
+  }
 }
