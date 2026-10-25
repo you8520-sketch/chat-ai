@@ -1,9 +1,18 @@
 # P2 compile-refresh UI evidence
 
-스크린샷은 **로컬 dev 서버**(`http://localhost:3000`)에서 `seed-ui-demo.ts`로 시드한 #50/#51 fixture에 대해 **실제 관리자 API**(`/api/admin/official-characters*`) 응답을 받아, `AdminOfficialCharactersClient.tsx`와 동일한 Tailwind 마크업으로 렌더한 뒤 Playwright로 캡처했습니다.
+## Static markup replicas (`p2-ui-*.png`)
+
+**정적 재현 자료입니다.** live React 하이드레이션이 아니라 `AdminOfficialCharactersClient.tsx`와 동일한 Tailwind 마크업에 **실제 관리자 API** 응답 JSON을 채워 Playwright로 캡처했습니다. Next dev HMR/headless Chromium 번들 파싱 이슈를 피하기 위한 1차 증거이며, 버튼·섹션·미리보기 필드 구조는 프로덕션 클라이언트와 맞춥니다.
 
 - 운영 DB 미사용 · 유료 호출 없음
-- `api-preview-51.json`: #51 `operation=recompile` dry_run 실측
+- `api-preview-51.json`: 격리 fixture `#51` `operation=recompile` `mode=dry_run` 실측
 - `api-apply-without-preflight.json`: 미리보기 없이 apply 시 거절 응답
 
-Playwright headless Chromium은 Next dev HMR `layout.js` eval에서 간헐적 파싱 오류가 있어, 본문 React 하이드레이션 대신 API 기반 정적 렌더를 사용했습니다. 버튼 라벨·섹션 구조·미리보기 필드는 프로덕션 관리자 클라이언트와 동일합니다.
+## Live React (`p2-react-*.png`)
+
+**실제 `AdminOfficialCharactersClient` 화면**에서 캡처했습니다. `capture-react-ui.mjs` + `seed-prod-ui-demo.ts`(격리 `DATA_DIR`) 또는 워크스페이스 dev 시드(`p2-ui-admin@test.local`)로 로그인한 뒤 `/admin/official-characters`에서 #51 **컴파일 미리보기** 버튼 → API → 결과 패널까지 동작을 확인합니다.
+
+## HTTP 검증 (운영 DB 없음)
+
+- `src/app/api/admin/official-characters/sync/route.test.ts`: `NODE_ENV=development`에서 `POST` recompile dry_run → **200**
+- 수동: `POST /api/admin/official-characters/sync` with session cookie (동일 격리 시드)

@@ -75,9 +75,16 @@
     "npm_run_build": "PASS",
     "sequence": "build completed before lint, then app typecheck; isolated DATA_DIR with blank provider and remote DB credentials for build"
   },
+  "http_dry_run_verification": {
+    "root_cause": "development getDb() re-ran migrate() inside PRAGMA query_only; nested getDb from canAdminManageOfficialCharacter triggered SQLITE_READONLY on notice_reads INSERT",
+    "fix_owner": "src/lib/db.ts (skip migrate when query_only=1); compileRefreshPlan passes db into canAdminManageOfficialCharacter",
+    "dev_localhost_3000": { "status": 200, "operation": "recompile", "mode": "dry_run", "characterId": 51 },
+    "prod_build_localhost_3002": { "status": 200, "operation": "recompile", "mode": "dry_run", "characterId": 51 },
+    "route_test": "src/app/api/admin/official-characters/sync/route.test.ts PASS under NODE_ENV=development"
+  },
   "ui_evidence": {
     "folder": "docs/pr-evidence/official-character-p2-compile-refresh/ui",
-    "screenshots": [
+    "static_markup_replica": [
       "p2-ui-desktop-01-buttons.png",
       "p2-ui-desktop-02-compile-preview.png",
       "p2-ui-desktop-03-apply-confirm-or-result.png",
@@ -85,8 +92,14 @@
       "p2-ui-mobile-01-buttons.png",
       "p2-ui-mobile-02-compile-preview.png"
     ],
+    "live_react": [
+      "p2-react-desktop-01-buttons.png",
+      "p2-react-desktop-02-compile-preview.png",
+      "p2-react-mobile-01-buttons.png",
+      "p2-react-mobile-02-compile-preview.png"
+    ],
     "api_fixture": "api-preview-51.json",
-    "note": "Isolated #51 production-shaped fixture; markup mirrors AdminOfficialCharactersClient"
+    "capture": "capture-react-ui.mjs against production build (localhost:3002) + seed-prod-ui-demo.ts on isolated DATA_DIR"
   },
   "not_performed": [
     "production DB investigation/application",
