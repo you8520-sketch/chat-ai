@@ -4,6 +4,7 @@
  */
 import type { DialogueTurn } from "@/lib/hybridMemory";
 import { classifyChatOocIntent } from "@/lib/chatOocPriority";
+import { resolveOocSceneRenderIntent } from "@/lib/oocSceneRender";
 import { extractOocSnippets } from "@/lib/userImpersonationPolicy";
 import { MEMORY_RECORD_MAX_CHARS } from "./memory-constants";
 
@@ -253,6 +254,12 @@ export function classifyMemoryTurnScope(
 ): TurnScopeClass {
   const t = userMessage.trim();
   if (!t) return "plain_ooc";
+
+  // Canonical isolation belongs to the scene-render owner, including resets.
+  // Keep meaningful IF/history scopes; ephemeral samples are excluded OOC.
+  if (resolveOocSceneRenderIntent(t)) {
+    return MEANINGFUL_NONCANON_RE.test(t) ? "meaningful_noncanon" : "plain_ooc";
+  }
 
   if (MAIN_ADOPT_RE.test(t)) return "main_adopt";
   if (BRANCH_CLOSE_RE.test(t)) return "branch_close";
