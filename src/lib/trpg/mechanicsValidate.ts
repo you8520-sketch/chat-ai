@@ -36,11 +36,12 @@ import {
   safeRestHealAmount,
 } from "./mechanicsDice";
 import {
+  findCommittedTreatmentItem,
   findExplicitTreatmentItem,
   hasCanonHealingCapability,
   isBasicFirstAidIntent,
   isHealingIntentAction as intentHeal,
-  isTreatmentItemIntent,
+  isHpHealingItem,
   mentionsHealingItem,
 } from "./mechanicsIntent";
 import {
@@ -208,8 +209,9 @@ export function healOwnerKind(opts: {
   const inventory = opts.sourceInventory ?? [];
   const extra = [...(opts.startInventory ?? [])];
   if (hasCanonHealingCapability(opts.specialRules ?? "", opts.body)) return "canon";
+  const committedItem = findCommittedTreatmentItem(opts.body, inventory, extra);
+  if (committedItem && isHpHealingItem(committedItem)) return "item";
   const owned = findExplicitTreatmentItem(opts.body, inventory, extra);
-  if (owned && isTreatmentItemIntent(opts.body, inventory, extra)) return "item";
   if (mentionsHealingItem(opts.body, extra) && !owned && !isBasicFirstAidIntent(opts.body)) {
     return "none";
   }

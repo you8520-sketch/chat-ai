@@ -22,7 +22,7 @@ import {
   toModelUsageCalls,
   type TrpgRoundUsageEntry,
 } from "./roundUsage";
-import { isTrpgActionType, pickStatForAction } from "./actionTypes";
+import { isTrpgActionType, pickStatForAction, resolveServerHumanActionType } from "./actionTypes";
 import { TrpgAdventureCanonError } from "./adventure";
 import { logTrpgMechanicsCheckTelemetry } from "./mechanicsObservability";
 import {
@@ -547,7 +547,7 @@ export function submitTrpgAction(
   if (!typed && commands.length === 0 && !accepted) throw new Error("행동을 입력하세요.");
   const text = typed || (accepted && commands.length === 0 ? formatAcceptedItemsAction(accepted.items) : "");
   assertTrpgActionMaxChars(text);
-  const actionType = opts.actionType && isTrpgActionType(opts.actionType) ? opts.actionType : "free";
+  const actionType = resolveServerHumanActionType(text);
   const origin = parseTrpgInputOrigin(opts.inputOrigin);
   const mapped = loadExplorationState(db, opts.campaignId);
   // Absent explorationCommands is a general submit. v2 does not turn that into an
@@ -577,7 +577,7 @@ export function submitTrpgAction(
         me.id,
         prepared.body,
         prepared.actionType,
-        opts.selectedStat ?? null,
+        null,
         "human",
         opts.idempotencyKey,
         origin,
@@ -592,7 +592,7 @@ export function submitTrpgAction(
       me.id,
       text,
       actionType,
-      opts.selectedStat ?? null,
+      null,
       "human",
       opts.idempotencyKey,
       origin,

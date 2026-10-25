@@ -13,12 +13,8 @@ import {
 import JsxComponentSandbox, { type JsxSandboxStatus } from "@/components/JsxComponentSandbox";
 import type { JsxTrpgActionDraftRequest, JsxTrpgSelectedStatRequest } from "@/lib/jsxComponent/hostBridge";
 import { JSX_SANDBOX_AUTO_HEIGHT_MIN_PX } from "@/lib/jsxComponent/limits";
-import {
-  TRPG_VISIBLE_ACTION_TYPES,
-  actionTypeLabelKo,
-  isTrpgVisibleActionType,
-  type TrpgActionType,
-} from "@/lib/trpg/actionTypes";
+import { actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
+import { trpgRollOutcomeLabel } from "@/lib/trpg/actionCardUi";
 import {
   RECOVERY_DISCOVERY_HINT,
   SAFE_REST_COOLDOWN_HINT,
@@ -46,7 +42,6 @@ import {
   type TrpgCommandDockOcclusion,
 } from "@/lib/trpg/commandDock";
 import { partyDetailedSheetCards, viewerSelfSheetCard } from "@/lib/trpg/partySheetPresentation";
-import { statModifier } from "@/lib/trpg/stats";
 import { replyStanceLabelKo, type TrpgInputOrigin, type TrpgReplySuggestion } from "@/lib/trpg/replySuggestionShared";
 import {
   compactConditions,
@@ -484,74 +479,15 @@ function ActionMode({
   const rest = snap.safeRest;
   const showRest = Boolean(rest?.available && hp < maxHp);
   const showHint = snap.showRecoveryHint === true;
-  const explicitStat = snap.statDefs.some((def) => def.key === selectedStat) ? selectedStat : null;
+  const myRoll = snap.currentRolls.find((roll) => roll.participantId === viewerId) ?? null;
+  const adjudication = viewerId != null ? snap.participantAdjudicationOutcomes?.[viewerId] : undefined;
+  const rollStat = myRoll ? snap.statDefs.find((def) => def.key === myRoll.statKey) : undefined;
 
   return (
     <div data-trpg-next-action>
       <p className="mb-3 text-sm text-zinc-400">
-        세계 안에서 무엇을 할지 적으세요. 유저끼리 대화는 「유저 채팅」입니다.
+        세계 안에서 무엇을 할지 적으세요. 능력치와 주사위는 서버가 정합니다. 유저끼리 대화는 「유저 채팅」입니다.
       </p>
-      {!isTrpgVisibleActionType(actionType) ? (
-        <p className="mb-2 text-xs text-zinc-400">선택한 유형: {actionTypeLabelKo(actionType)}</p>
-      ) : null}
-      <div className="mb-3" data-trpg-stat-selector>
-        <p className="mb-1.5 text-xs text-zinc-500">판정 능력치</p>
-        <div className="flex flex-wrap gap-1.5">
-          <button
-            type="button"
-            data-trpg-stat-choice="auto"
-            aria-pressed={explicitStat == null}
-            onClick={() => onSelectedStatChange(null)}
-            className={`inline-flex min-h-11 items-center rounded-full px-3 text-xs font-semibold ${
-              explicitStat == null
-                ? "bg-violet-600 text-white"
-                : "border border-white/10 bg-white/5 text-zinc-300"
-            }`}
-          >
-            자동
-          </button>
-          {snap.statDefs.map((def) => {
-            const value = selfSheet?.stats[def.key];
-            const mod = typeof value === "number" ? statModifier(value) : null;
-            const selected = explicitStat === def.key;
-            const caption =
-              typeof value === "number" && mod != null
-                ? `${def.label} ${value} (${mod >= 0 ? `+${mod}` : String(mod)})`
-                : def.label;
-            return (
-              <button
-                key={def.key}
-                type="button"
-                data-trpg-stat-choice={def.key}
-                aria-pressed={selected}
-                onClick={() => onSelectedStatChange(def.key)}
-                className={`inline-flex min-h-11 items-center rounded-full px-3 text-xs font-semibold ${
-                  selected ? "bg-violet-600 text-white" : "border border-white/10 bg-white/5 text-zinc-300"
-                }`}
-              >
-                {caption}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      <div className="mb-3 flex flex-wrap gap-1.5">
-        {TRPG_VISIBLE_ACTION_TYPES.map((kind) => (
-          <button
-            key={kind}
-            type="button"
-            data-trpg-action-chip={kind}
-            onClick={() => onActionTypeChange(kind)}
-            className={`inline-flex min-h-11 items-center rounded-full px-3 text-xs font-semibold ${
-              actionType === kind
-                ? "bg-violet-600 text-white"
-                : "border border-white/10 bg-white/5 text-zinc-300"
-            }`}
-          >
-            {actionTypeLabelKo(kind)}
-          </button>
-        ))}
-      </div>
       {showHint ? <p className="mb-2 text-[10px] leading-4 text-zinc-500">{RECOVERY_DISCOVERY_HINT}</p> : null}
       {showHint && rest?.blockedReason === "cooldown" ? (
         <p className="mb-2 text-[10px] leading-4 text-zinc-500">{SAFE_REST_COOLDOWN_HINT}</p>
@@ -634,6 +570,15 @@ function ActionMode({
             })}
           </div>
         </div>
+      ) : null}
+      {myRoll ? (
+        <p className="mb-2 text-xs text-zinc-300" data-trpg-server-check>
+          {`서버 판정 · ${rollStat?.label ?? myRoll.statKey} · ${trpgRollOutcomeLabel(myRoll.tier)}`}
+        </p>
+      ) : adjudication === "no_roll" ? (
+        <p className="mb-2 text-xs text-zinc-400" data-trpg-server-check>
+          서버 판정 · 주사위 없음
+        </p>
       ) : null}
       <textarea
         value={actionBody}
@@ -1017,11 +962,6 @@ export default function TrpgCommandDock({
     setView((current) => openTrpgCommandDockMode(current, "action", presentationBusy));
   }
 
-  function selectStat(key: string) {
-    onSelectedStatChange(key);
-    setView((current) => openTrpgCommandDockMode(current, "action", presentationBusy));
-  }
-
   const selfSurface = selfCard
     ? buildTrpgSheetSurface(selfCard, {
         statDefs: snap.statDefs,
@@ -1173,7 +1113,7 @@ export default function TrpgCommandDock({
                       renderer={selfRenderer}
                       onJsxFailed={onSheetJsxFailed}
                       onFillAction={fillAction}
-                      onSelectStat={selectStat}
+                      onSelectStat={null}
                     />
                   </div>
                 ) : (

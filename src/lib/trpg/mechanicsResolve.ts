@@ -13,7 +13,7 @@ import {
   type DiceRng,
   DEFAULT_DICE_RNG,
 } from "./mechanicsDice";
-import { findExplicitTreatmentItem, isHpHealingItem, isSafeRestIntent } from "./mechanicsIntent";
+import { findCommittedTreatmentItem, isHpHealingItem, isSafeRestIntent } from "./mechanicsIntent";
 import {
   authorizedHealClass,
   evaluateSafeRestEligibility,
@@ -1017,7 +1017,7 @@ function applyHealToSheet(opts: {
   amount = hpAfter - opts.hp;
   opts.targetSheet.hp = hpAfter;
   if (amount > 0 && owner === "item") {
-    const item = findExplicitTreatmentItem(
+    const item = findCommittedTreatmentItem(
       opts.actor.body,
       inventoryItemNames(opts.sourceSheet.inventory),
       opts.startInventory

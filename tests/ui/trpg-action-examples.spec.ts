@@ -6,11 +6,35 @@ type ExampleGeometry = {
   firstVisibleInPanel: boolean;
   windowScrollY: number;
   panelScrollTop: number;
+  panelScrollHeight: number;
+  panelClientHeight: number;
   toggleChecked: string | null;
   itemCount: number;
   busy: boolean;
   error: boolean;
 };
+
+/** Keep the command-dock panel short so examples overflow and auto-reveal would scroll if not detached. */
+async function tightenActionPanelForScrollTest(page: Page) {
+  await page.addStyleTag({
+    content: "[data-trpg-command-dock-panel]{max-height:9rem!important}",
+  });
+}
+
+/** Mark manual panel ownership before async examples land; returns the scrollTop the user chose. */
+async function detachPanelFollowAtTop(page: Page, input: "wheel" | "touchmove"): Promise<number> {
+  return page.evaluate((kind) => {
+    const panel = document.querySelector("[data-trpg-command-dock-panel]");
+    if (!(panel instanceof HTMLElement)) return 0;
+    if (kind === "wheel") {
+      panel.dispatchEvent(new WheelEvent("wheel", { deltaY: 48, bubbles: true }));
+    } else {
+      panel.dispatchEvent(new TouchEvent("touchmove", { bubbles: true, cancelable: true }));
+    }
+    panel.scrollTop = 0;
+    return panel.scrollTop;
+  }, input);
+}
 
 async function openActionExamples(
   page: Page,
@@ -63,6 +87,8 @@ async function measureExamples(page: Page): Promise<ExampleGeometry> {
       ),
       windowScrollY: window.scrollY,
       panelScrollTop: panel instanceof HTMLElement ? panel.scrollTop : 0,
+      panelScrollHeight: panel instanceof HTMLElement ? panel.scrollHeight : 0,
+      panelClientHeight: panel instanceof HTMLElement ? panel.clientHeight : 0,
       toggleChecked: toggle?.getAttribute("aria-checked") ?? null,
       itemCount: document.querySelectorAll("[data-trpg-reply-stance]").length,
       busy: Boolean(document.querySelector('[data-trpg-action-suggestions-status="busy"]')),
@@ -112,19 +138,16 @@ test.describe("TRPG action example panel visibility", () => {
   test("manual panel scroll is not overridden when results arrive", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await openActionExamples(page, "async");
+    await tightenActionPanelForScrollTest(page);
     await expect(page.locator('[data-trpg-action-suggestions-status="busy"]')).toBeVisible();
     await page.waitForTimeout(80);
-    await page.evaluate(() => {
-      const panel = document.querySelector("[data-trpg-command-dock-panel]");
-      if (!(panel instanceof HTMLElement)) return;
-      panel.dispatchEvent(new WheelEvent("wheel", { deltaY: -40, bubbles: true }));
-      panel.scrollTop = 0;
-    });
+    const manualScrollTop = await detachPanelFollowAtTop(page, "wheel");
     await page.locator("[data-trpg-reply-stance]").first().waitFor({ state: "attached" });
     await page.waitForTimeout(500);
     const after = await measureExamples(page);
     expect(after.itemCount).toBeGreaterThan(0);
-    expect(after.panelScrollTop).toBeLessThan(40);
+    expect(after.panelScrollHeight).toBeGreaterThan(after.panelClientHeight);
+    expect(after.panelScrollTop).toBeLessThanOrEqual(manualScrollTop + 2);
     expect(after.firstVisibleInPanel).toBe(false);
   });
 
@@ -140,38 +163,32 @@ test.describe("TRPG action example panel visibility", () => {
   test("normal-motion wheel during smooth reveal keeps the user's panel scroll", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await openActionExamples(page, "async", { reducedMotion: "no-preference" });
+    await tightenActionPanelForScrollTest(page);
     await expect(page.locator('[data-trpg-action-suggestions-status="busy"]')).toBeVisible();
     await page.waitForTimeout(80);
-    await page.evaluate(() => {
-      const panel = document.querySelector("[data-trpg-command-dock-panel]");
-      if (!(panel instanceof HTMLElement)) return;
-      panel.dispatchEvent(new WheelEvent("wheel", { deltaY: -80, bubbles: true }));
-      panel.scrollTop = 0;
-    });
+    const manualScrollTop = await detachPanelFollowAtTop(page, "wheel");
     await page.locator("[data-trpg-reply-stance]").first().waitFor({ state: "attached" });
     await page.waitForTimeout(850);
     const after = await measureExamples(page);
     expect(after.itemCount).toBeGreaterThan(0);
-    expect(after.panelScrollTop).toBeLessThan(40);
+    expect(after.panelScrollHeight).toBeGreaterThan(after.panelClientHeight);
+    expect(after.panelScrollTop).toBeLessThanOrEqual(manualScrollTop + 2);
     expect(after.firstVisibleInPanel).toBe(false);
   });
 
   test("normal-motion touchmove during smooth reveal keeps the user's panel scroll", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openActionExamples(page, "async", { reducedMotion: "no-preference" });
+    await tightenActionPanelForScrollTest(page);
     await expect(page.locator('[data-trpg-action-suggestions-status="busy"]')).toBeVisible();
     await page.waitForTimeout(80);
-    await page.evaluate(() => {
-      const panel = document.querySelector("[data-trpg-command-dock-panel]");
-      if (!(panel instanceof HTMLElement)) return;
-      panel.dispatchEvent(new TouchEvent("touchmove", { bubbles: true, cancelable: true }));
-      panel.scrollTop = 0;
-    });
+    const manualScrollTop = await detachPanelFollowAtTop(page, "touchmove");
     await page.locator("[data-trpg-reply-stance]").first().waitFor({ state: "attached" });
     await page.waitForTimeout(850);
     const after = await measureExamples(page);
     expect(after.itemCount).toBeGreaterThan(0);
-    expect(after.panelScrollTop).toBeLessThan(40);
+    expect(after.panelScrollHeight).toBeGreaterThan(after.panelClientHeight);
+    expect(after.panelScrollTop).toBeLessThanOrEqual(manualScrollTop + 2);
     expect(after.firstVisibleInPanel).toBe(false);
   });
 

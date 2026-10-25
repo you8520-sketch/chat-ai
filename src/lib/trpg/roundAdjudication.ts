@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import { resolveTrpgActionCheckDecision, type TrpgActionCheckReason } from "./actionCheck";
 import { actionReferencesOpenRoute } from "./actionCheckContext";
 import { resolveTrpgAdjudicationDifficulty } from "./adjudicationDifficulty";
+import { committedActionText } from "./actionSemantics";
 import { resolveTrpgCanonicalAttempt } from "./canonicalAttempt";
 import { pickStatForActionDetailed } from "./actionTypes";
 import { resolveTrpgRoll, rollServerD20 } from "./dice";
@@ -221,10 +222,11 @@ export function adjudicateCanonicalSubmission(
   });
   const checkBody = resolved.canonicalAttempt;
   const actionType = resolved.actionType;
+  const committedBody = committedActionText(checkBody);
   const statSelection = pickStatForActionDetailed({
     actionType,
     selectedStat: sub.selected_stat,
-    body: checkBody,
+    body: committedBody,
     defs: scenario.statDefs,
   });
   const statKey = statSelection.statKey;
@@ -273,7 +275,7 @@ export function adjudicateCanonicalSubmission(
     anchorDc: scenario.diceRules.dc,
     actionType,
     checkReason: decision.reason,
-    intent: checkBody,
+    intent: committedBody || checkBody,
     statValue,
   });
   const d20 = opts.deps?.rollD20?.() ?? rollServerD20();

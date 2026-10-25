@@ -1,7 +1,12 @@
 import type { TrpgActionType } from "./actionTypes";
 import {
   classifyChallengeKind,
+  committedActionText,
+  committedItemConsumptionSpans,
   hasChallengeSignal,
+  isCommittedItemConsumption,
+  isConditionalCommitment,
+  isDeclinedCommitment,
   stripQuotedDialogue,
 } from "./actionSemantics";
 import {
@@ -30,7 +35,6 @@ const ASK =
 
 const TREATMENT = /응급처치|치료|치유|지혈|해독|중독|출혈|마비/;
 const THERAPEUTIC_ITEM = /구급키트|붕대|회복약|해독제|치료제|medkit|bandage|antidote|potion|포션/i;
-const ITEM_USE = /사용|쓴다|꺼낸|바른|먹|투여|바르|사용한다/;
 const HOSTILE_OR_PRECISION_APPLICATION =
   /억지로|강제로|정밀|조준|위험|폭발|저항하는|(?:적|형체|상대|목표)(?:에게|을|를)?.{0,16}(?:투여|주입|던(?:지|져|진))/;
 const HAZARDOUS_OFFENSIVE_ITEM =
@@ -65,7 +69,9 @@ export type TrpgActionCheckReason =
   | "ordinary_free"
   | "routine_traversal"
   | "routine_competence"
-  | "no_meaningful_uncertainty";
+  | "no_meaningful_uncertainty"
+  | "conditional_hold"
+  | "declined_act";
 
 export type TrpgActionCheckDecision = {
   needsCheck: boolean;
@@ -204,15 +210,15 @@ function isDangerousItemApplication(text: string): boolean {
   return kind === "hazard" || kind === "contested";
 }
 
-function isOrdinaryTherapeuticItemUse(text: string): boolean {
+function isOrdinaryTherapeuticItemUse(text: string, consumptionBody = text): boolean {
   const normalized = normalizeBody(text);
-  if (!ITEM_USE.test(normalized) || !THERAPEUTIC_ITEM.test(normalized)) return false;
+  if (!isCommittedItemConsumption(consumptionBody) || !THERAPEUTIC_ITEM.test(normalized)) return false;
   return !isDangerousItemApplication(normalized);
 }
 
-function isSkillTreatmentWithoutItem(text: string): boolean {
+function isSkillTreatmentWithoutItem(text: string, consumptionBody = text): boolean {
   const normalized = normalizeBody(text);
-  if (THERAPEUTIC_ITEM.test(normalized) && ITEM_USE.test(normalized)) return false;
+  if (THERAPEUTIC_ITEM.test(normalized) && isCommittedItemConsumption(consumptionBody)) return false;
   return (
     isBasicFirstAidIntent(normalized) ||
     isStatusTreatmentOnly(normalized) ||
@@ -229,8 +235,9 @@ function isOrdinaryPreparation(text: string): boolean {
   return ORDINARY_PREP.test(text);
 }
 
-function resolveItemUseDecision(body: string, intent: string): TrpgActionCheckDecision {
-  const visible = visibleActorActionText(body);
+function resolveItemUseDecision(body: string, intent: string, consumptionBody: string): TrpgActionCheckDecision {
+  const consumed = committedItemConsumptionSpans(consumptionBody).join(" ");
+  const visible = consumed || visibleActorActionText(consumptionBody);
   if (visible) {
     if (isHazardousItemUse(visible)) {
       const kind = classifyChallengeKind(visible);
@@ -238,10 +245,10 @@ function resolveItemUseDecision(body: string, intent: string): TrpgActionCheckDe
       if (kind === "hazard") return { needsCheck: true, reason: "hazard" };
       return { needsCheck: true, reason: "challenge" };
     }
-    if (isOrdinaryTherapeuticItemUse(visible)) {
+    if (isOrdinaryTherapeuticItemUse(visible, consumptionBody)) {
       return { needsCheck: false, reason: "ordinary_item_use" };
     }
-    if (isSkillTreatmentWithoutItem(visible)) {
+    if (isSkillTreatmentWithoutItem(visible, consumptionBody)) {
       return { needsCheck: true, reason: "challenge" };
     }
   }
@@ -251,6 +258,9 @@ function resolveItemUseDecision(body: string, intent: string): TrpgActionCheckDe
   const intentReason = intent ? resolveIntentDisambiguation(body, intent) : null;
   if (intentReason && isHazardousItemUse(intent)) {
     return { needsCheck: true, reason: intentReason };
+  }
+  if (!isCommittedItemConsumption(consumptionBody)) {
+    return { needsCheck: false, reason: "no_meaningful_uncertainty" };
   }
   return { needsCheck: false, reason: "ordinary_item_use" };
 }
@@ -262,24 +272,35 @@ export function resolveTrpgActionCheckDecision(opts: {
   localScene?: TrpgLocalSceneProgressV1 | null;
   statValue?: number | null;
 }): TrpgActionCheckDecision {
-  const body = normalizeBody(opts.body);
-  const intent = (opts.intent ?? "").trim();
+  const raw = normalizeBody(opts.body);
+  const committed = committedActionText(raw);
+  const intentRaw = (opts.intent ?? "").trim();
+  if (!committed) {
+    if (isConditionalCommitment(raw) || (intentRaw && isConditionalCommitment(intentRaw))) {
+      return { needsCheck: false, reason: "conditional_hold" };
+    }
+    if (raw && (isDeclinedCommitment(raw) || (intentRaw && isDeclinedCommitment(intentRaw)))) {
+      return { needsCheck: false, reason: "declined_act" };
+    }
+  }
+  const body = committed || raw;
+  const intent = intentRaw ? committedActionText(intentRaw) || (isConditionalCommitment(intentRaw) || isDeclinedCommitment(intentRaw) ? "" : intentRaw) : "";
   if (isSafeRestIntent(body) || (intent && isSafeRestIntent(intent))) {
     return { needsCheck: false, reason: "safe_rest" };
   }
   const actionType = opts.actionType ?? null;
   const statValue = opts.statValue ?? null;
   if (actionType && EXPLICIT_ALWAYS_ROLL_TYPES.has(actionType)) {
-    const visibleRisk = resolveVisibleActorRisk(opts.body);
+    const visibleRisk = resolveVisibleActorRisk(body);
     if (visibleRisk) return { needsCheck: true, reason: visibleRisk };
-    const intentReason = intent ? resolveIntentDisambiguation(opts.body, intent) : null;
+    const intentReason = intent ? resolveIntentDisambiguation(body, intent) : null;
     if (intentReason) return { needsCheck: true, reason: intentReason };
     return { needsCheck: true, reason: "explicit_resolution" };
   }
-  if (isRoutineOpenRouteTraversal({ body: opts.body, localScene: opts.localScene })) {
+  if (isRoutineOpenRouteTraversal({ body, localScene: opts.localScene })) {
     return { needsCheck: false, reason: "routine_traversal" };
   }
-  if (isBlockedRouteTraversalAttempt({ body: opts.body, localScene: opts.localScene })) {
+  if (isBlockedRouteTraversalAttempt({ body, localScene: opts.localScene })) {
     return { needsCheck: true, reason: "challenge" };
   }
   if ((actionType === "free" || actionType == null) && isRoutineEnvironmentalAction(body)) {
@@ -296,21 +317,21 @@ export function resolveTrpgActionCheckDecision(opts: {
     return { needsCheck: false, reason: "routine_competence" };
   }
   if (actionType && EXPLICIT_CONTEXTUAL_ROLL_TYPES.has(actionType)) {
-    const visibleRisk = resolveVisibleActorRisk(opts.body);
+    const visibleRisk = resolveVisibleActorRisk(body);
     if (visibleRisk) return { needsCheck: true, reason: visibleRisk };
-    const intentReason = intent ? resolveIntentDisambiguation(opts.body, intent) : null;
+    const intentReason = intent ? resolveIntentDisambiguation(body, intent) : null;
     if (intentReason) return { needsCheck: true, reason: intentReason };
     return { needsCheck: true, reason: "explicit_resolution" };
   }
 
-  const visibleRisk = resolveVisibleActorRisk(opts.body);
+  const visibleRisk = resolveVisibleActorRisk(body);
 
   if (actionType === "support") {
     if (visibleRisk) return { needsCheck: true, reason: visibleRisk };
-    if (isTalkOnlyAction(opts.body)) return { needsCheck: false, reason: "support_setup" };
-    const intentReason = resolveIntentDisambiguation(opts.body, intent);
+    if (isTalkOnlyAction(body)) return { needsCheck: false, reason: "support_setup" };
+    const intentReason = resolveIntentDisambiguation(body, intent);
     if (intentReason) return { needsCheck: true, reason: intentReason };
-    if (isHarmlessFlavorAction(opts.body)) return { needsCheck: false, reason: "flavor" };
+    if (isHarmlessFlavorAction(body)) return { needsCheck: false, reason: "flavor" };
     if (isRoutineExpertPreparationTask(body) && !hasRealChallengeContext(body)) {
       return { needsCheck: true, reason: "challenge" };
     }
@@ -319,18 +340,18 @@ export function resolveTrpgActionCheckDecision(opts: {
   }
 
   if (actionType === "use_item") {
-    return resolveItemUseDecision(body, intent);
+    return resolveItemUseDecision(body, intent, raw);
   }
 
   if (visibleRisk) return { needsCheck: true, reason: visibleRisk };
-  const intentReason = resolveIntentDisambiguation(opts.body, intent);
+  const intentReason = resolveIntentDisambiguation(body, intent);
   if (intentReason) return { needsCheck: true, reason: intentReason };
-  if (isTalkOnlyAction(opts.body)) return { needsCheck: false, reason: "talk" };
-  if (isHarmlessFlavorAction(opts.body)) return { needsCheck: false, reason: "flavor" };
+  if (isTalkOnlyAction(body)) return { needsCheck: false, reason: "talk" };
+  if (isHarmlessFlavorAction(body)) return { needsCheck: false, reason: "flavor" };
   if (isOrdinaryPreparation(body)) return { needsCheck: false, reason: "ordinary_free" };
   if (
     hasMeaningfulUncertainty({
-      body: opts.body,
+      body,
       actionType,
       intent,
       localScene: opts.localScene,
