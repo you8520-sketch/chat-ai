@@ -75,6 +75,12 @@
     "npm_run_build": "PASS",
     "sequence": "build completed before lint, then app typecheck; isolated DATA_DIR with blank provider and remote DB credentials for build"
   },
+  "destructive_seed_guard": {
+    "owner": "src/lib/test/isolatedTestDatabase.ts assertDestructiveTestDatabaseAllowed",
+    "seed_module": "src/lib/test/officialSupplyCompileRefreshHttpSeed.ts",
+    "guard_test": "src/lib/test/officialSupplyCompileRefreshHttpSeed.guard.test.ts 3/3",
+    "refuses": "workspace data/, /data, mounted volumes, remote Turso; NODE_TEST_CONTEXT alone is not sufficient"
+  },
   "http_dry_run_verification": {
     "root_cause": "development getDb() re-ran migrate() inside PRAGMA query_only; nested getDb from canAdminManageOfficialCharacter triggered SQLITE_READONLY on notice_reads INSERT",
     "fix_owner": "src/lib/db.ts (skip migrate when query_only=1); compileRefreshPlan passes db into canAdminManageOfficialCharacter",

@@ -1,15 +1,18 @@
 /**
  * Seeds isolated DATA_DIR for production UI capture (not production DB).
- * Run: DATA_DIR=/tmp/... NODE_TEST_CONTEXT=1 tsx --conditions=react-server docs/pr-evidence/official-character-p2-compile-refresh/seed-prod-ui-demo.ts
+ * Run: DATA_DIR=/tmp/... tsx --conditions=react-server docs/pr-evidence/official-character-p2-compile-refresh/seed-prod-ui-demo.ts
+ * Refuses workspace data/, /data, mounted volumes, and remote DB before any DELETE.
  */
 import { hashPassword } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { seedWolfgang51ForHttpTest } from "@/lib/officialSupply/officialSupplyCompileRefreshHttpSeed";
+import { assertDestructiveTestDatabaseAllowed } from "@/lib/test/isolatedTestDatabase";
+import { seedWolfgang51ForHttpTest } from "@/lib/test/officialSupplyCompileRefreshHttpSeed";
 
 const ADMIN_EMAIL = "p2-ui-admin@test.local";
 const ADMIN_PW = "p2-ui-demo-pass";
 
 function main() {
+  assertDestructiveTestDatabaseAllowed();
   const db = getDb();
   const pw = hashPassword(ADMIN_PW);
   db.prepare("DELETE FROM users WHERE email=?").run(ADMIN_EMAIL);

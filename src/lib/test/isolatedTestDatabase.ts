@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { getDatabasePath, getRemoteDatabaseConfig } from "@/lib/dataDir";
+import { getDataDir, getDatabasePath, getRemoteDatabaseConfig, hasMountedPersistentVolume } from "@/lib/dataDir";
 
 export const ISOLATED_TEST_DB_REQUIRED = "ISOLATED_TEST_DB_REQUIRED";
 const ISOLATED_DIR_PREFIX = "habby-test-db-";
@@ -50,14 +50,7 @@ function refuse(detail: string): never {
  * NODE_ENV, DRY_RUN_ONLY, and caller booleans are not evidence.
  */
 export function assertIsolatedTestDatabaseActive(): void {
-  try {
-    if (getRemoteDatabaseConfig()) {
-      refuse("remote Turso/libSQL is configured");
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    refuse(`remote database config is unsafe (${message})`);
-  }
+  refuseRemoteDatabaseConfig();
 
   if (!tempDataDir) {
     refuse("installIsolatedTestDatabase has not activated a temp directory");
@@ -113,5 +106,52 @@ export function assertIsolatedTestDatabaseActive(): void {
     if (path.resolve(mainFile) !== databasePath) {
       refuse("open database is not the isolated file");
     }
+  }
+}
+
+function refuseRemoteDatabaseConfig(): void {
+  try {
+    if (getRemoteDatabaseConfig()) {
+      refuse("remote Turso/libSQL is configured");
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    refuse(`remote database config is unsafe (${message})`);
+  }
+}
+
+/**
+ * Fail-closed gate for destructive test seeds (broad DELETE/INSERT). Uses the installed
+ * isolated temp dir when active; otherwise requires DATA_DIR under os.tmpdir() and rejects
+ * workspace data/, /data, and mounted persistent volumes. NODE_TEST_CONTEXT alone is not evidence.
+ */
+export function assertDestructiveTestDatabaseAllowed(): void {
+  if (tempDataDir) {
+    assertIsolatedTestDatabaseActive();
+    return;
+  }
+
+  refuseRemoteDatabaseConfig();
+
+  const dataDir = path.resolve(getDataDir());
+  const workspaceData = path.resolve(process.cwd(), "data");
+  if (dataDir === workspaceData) {
+    refuse("DATA_DIR is the workspace data directory");
+  }
+  if (dataDir === path.resolve("/data")) {
+    refuse("DATA_DIR is the production volume path /data");
+  }
+  if (hasMountedPersistentVolume(dataDir)) {
+    refuse("DATA_DIR is on a mounted persistent volume");
+  }
+
+  const tmpRoot = path.resolve(os.tmpdir());
+  if (!isInsideDirectory(tmpRoot, dataDir)) {
+    refuse("DATA_DIR must be under os.tmpdir() unless installIsolatedTestDatabase() is active");
+  }
+
+  const databasePath = path.resolve(getDatabasePath());
+  if (!isInsideDirectory(dataDir, databasePath) || path.basename(databasePath) !== "app.db") {
+    refuse("getDatabasePath is not app.db under DATA_DIR");
   }
 }
