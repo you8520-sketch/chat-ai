@@ -65,6 +65,6 @@ main과 #1725의 위 owner를 비교했다. 이 영역의 의도된 차이는 #1
 
 기존 저장 compiler의 분류 결과가 바뀌므로 public_canon/speech_control 이외의 JSON 부분도 정식 결과로 재생성될 수 있다. 원고·실제 위젯·트리거 행은 유지한다. 미리보기는 두 분류의 이동과 전체 JSON 해시를 제공한다. 이후 compiler 변경으로 목표 JSON/청크가 달라지면 fingerprint가 달라져 새로운 미리보기가 필요하다. 파생 캐시가 미리보기 뒤 바뀌어도 CAS가 거절할 수 있다.
 
-실제 운영 적용, 브라우저 버튼 조작, 유료 모델 응답은 실행하지 않았다. 최종 wire는 기존 request adapter를 조립한 결정적 증거이며 실제 모델의 문학적 품질 승인으로 간주하지 않는다. API 비용은 0원이다. 수정 파일·검증 명령·정확한 결과는 `validation.json`에 기록한다. 관련 없는 전체 테스트 장애는 고치거나 우회하지 않았다.
+실제 운영 적용·유료 모델 응답은 실행하지 않았다. **UI 증거**는 `ui/` PNG(데스크톱·모바일)와 `api-preview-51.json`(격리 fixture `#51` dry_run 실측)을 포함한다. 캡처 절차는 `ui/README.md`, `capture-ui-screenshots.mjs`를 참고한다. Next dev HMR 번들은 headless Chromium에서 간헐적 파싱 오류가 있어, 스크린샷은 `AdminOfficialCharactersClient`와 동일 마크업에 **실제 `recompileOfficialCharacterInPlace` JSON**을 채워 렌더했다. 최종 wire는 기존 request adapter를 조립한 결정적 증거이며 실제 모델의 문학적 품질 승인으로 간주하지 않는다. API 비용은 0원이다. 수정 파일·검증 명령·정확한 결과는 `validation.json`에 기록한다. 관련 없는 전체 테스트 장애는 고치거나 우회하지 않았다.
 
 **별도 Draft PR 제출 후 STOP. 병합·배포·운영 DB 쓰기 금지.**

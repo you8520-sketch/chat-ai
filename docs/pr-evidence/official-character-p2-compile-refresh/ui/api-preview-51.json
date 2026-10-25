@@ -1,0 +1,39 @@
+{
+  "operation": "recompile",
+  "mode": "dry_run",
+  "characterId": 51,
+  "applied": false,
+  "changedFields": [
+    "creator_compiled_description_json",
+    "setting_chunks"
+  ],
+  "preflightSnapshot": {
+    "operation": "recompile",
+    "characterId": 51,
+    "token": "a8b51ed9c356d70327d34a8e3d5ffceba856214e04de9b54ae3a9f79ef9df9c0",
+    "appliedToken": "9f95317831739f8658736794beba1f9715483f7a4196bc9ff448be43d9cf8f43"
+  },
+  "beforeJsonHash": "4fb5309416be7e5550f6e994d729fed5c599c785313661599f32203d0753cdf7",
+  "afterJsonHash": "c7245d52a1c00e11f0700be5c53b9d7d29ee2f21df4aa79f4366218710907027",
+  "publicCanon": {
+    "added": [
+      "주요 지역은 제국 수도 '아르카디아', 서부 해상 무역권 '벨로체', 북부 방벽 요새 '발켄하임', 남부 곡창지대 '플로라'이다."
+    ],
+    "removed": [
+      "주요",
+      "지역은 제국 수도 '아르카디아', 서부 해상 무역권 '벨로체', 북부 방벽 요새 '발켄하임', 남부 곡창지대 '플로라'이다."
+    ]
+  },
+  "speechControl": {
+    "added": [],
+    "removed": []
+  },
+  "derived": {
+    "chunksChanged": true,
+    "englishBefore": "CURRENT",
+    "englishAfter": "STALE",
+    "sourceFingerprintBefore": "561d45dbb4930ee9f4e5963a30a6f20e1ba48dca47ad6cbe86bdccbe446224f6:v1",
+    "sourceFingerprintAfter": "fdfd911510cb4fe2ca9d2317b65214661e60a8daaff2fdfa18d9263ca615f66a:v1",
+    "backgroundJobEnqueued": false
+  }
+}

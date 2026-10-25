@@ -21,8 +21,8 @@
     "fail": 20
   },
   "compile_refresh_after": {
-    "tests": 20,
-    "pass": 20,
+    "tests": 21,
+    "pass": 21,
     "fail": 0,
     "test_names": [
       "#50: preserves approved stored text/locks/assets while refreshing canon through chunks to wire",
@@ -44,7 +44,8 @@
       "rejects a comment edit even when the compiled result is already current",
       "rolls compiled JSON back if the chunk write fails in the same transaction",
       "discards old derived jobs without appearance compilation or translation",
-      "retains existing administrator/apply gates"
+      "retains existing administrator/apply gates",
+      "#51 production shape: admin preview/apply; ordinary admin-owned rows stay blocked"
     ]
   },
   "related_final": {
@@ -74,10 +75,22 @@
     "npm_run_build": "PASS",
     "sequence": "build completed before lint, then app typecheck; isolated DATA_DIR with blank provider and remote DB credentials for build"
   },
+  "ui_evidence": {
+    "folder": "docs/pr-evidence/official-character-p2-compile-refresh/ui",
+    "screenshots": [
+      "p2-ui-desktop-01-buttons.png",
+      "p2-ui-desktop-02-compile-preview.png",
+      "p2-ui-desktop-03-apply-confirm-or-result.png",
+      "p2-ui-desktop-04-compile-failure.png",
+      "p2-ui-mobile-01-buttons.png",
+      "p2-ui-mobile-02-compile-preview.png"
+    ],
+    "api_fixture": "api-preview-51.json",
+    "note": "Isolated #51 production-shaped fixture; markup mirrors AdminOfficialCharactersClient"
+  },
   "not_performed": [
     "production DB investigation/application",
     "paid provider calls",
-    "browser interaction with admin buttons",
     "unrelated full-suite/test-typecheck repairs",
     "new image generation",
     "text/bible/Text Lock approval changes"
