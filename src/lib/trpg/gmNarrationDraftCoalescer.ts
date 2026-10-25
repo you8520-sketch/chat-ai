@@ -3,7 +3,7 @@ import {
   saveGmNarrationDraftForGeneration,
   type GmProviderTimings,
 } from "./gmNarrationDraft";
-import { stripTrpgAssetControlMarkers } from "./gmSceneAssets";
+import { stripMalformedTrpgAssetControlMarkers } from "./gmSceneAssets";
 
 /** Coalesced draft refresh — aligned with snapshot poll cadence, not per provider token. */
 export const GM_NARRATION_DRAFT_COALESCE_MS = 400;
@@ -16,6 +16,8 @@ export type GmNarrationDraftCoalescerOpts = {
   generationId: string;
   providerTimings?: () => GmProviderTimings | undefined;
   onStaleDiscard?: () => void;
+  /** Canonical draft sanitizer — default keeps valid closed markers, strips malformed only. */
+  draftSanitize?: (text: string) => string;
 };
 
 /** In-memory narration owner; SQLite writes are coalesced and token-fenced. */
@@ -57,9 +59,10 @@ export class GmNarrationDraftCoalescer {
     this.maybeFlush(false);
   }
 
-  /** Live draft prose only — asset markers resolve on canonical commit. */
+  /** Live draft: keep eligible closed markers; strip malformed/unclosed fragments only. */
   private draftTextForPersist(): string {
-    return stripTrpgAssetControlMarkers(this.latestText);
+    const sanitize = this.opts.draftSanitize ?? stripMalformedTrpgAssetControlMarkers;
+    return sanitize(this.latestText);
   }
 
   maybeFlush(force: boolean): boolean {
