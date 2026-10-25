@@ -8,14 +8,14 @@ import { WOLFGANG_IN_PLACE_TARGET } from "@/lib/officialSupply/inPlaceWolfgang";
 import { OfficialSupplyStore } from "@/lib/officialSupply/store";
 import { composeExampleDialog, parseSpeechCreatorFromBody } from "@/lib/speechCreatorFields";
 import { koreanChunksTranslationFingerprint } from "@/lib/promptTranslation";
-import { assertDestructiveTestDatabaseAllowed } from "@/lib/test/isolatedTestDatabase";
+import { assertIsolatedTestDatabaseActive } from "@/lib/test/isolatedTestDatabase";
 import { serializeCharacterChunks } from "@/utils/characterParser";
 
 const ADMIN_ID = 95101;
 
-/** Destructive HTTP/route/UI test seed — refuses non-isolated database paths before any DELETE. */
+/** Destructive HTTP/route test seed — requires installIsolatedTestDatabase() before any DELETE. */
 export function seedWolfgang51ForHttpTest(): void {
-  assertDestructiveTestDatabaseAllowed();
+  assertIsolatedTestDatabaseActive();
   const db = getDb();
   new OfficialSupplyStore(db);
   db.exec(`DELETE FROM official_supply_characters; DELETE FROM characters WHERE id=51; DELETE FROM worlds;`);

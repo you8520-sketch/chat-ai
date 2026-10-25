@@ -10,9 +10,9 @@
 
 ## Live React (`p2-react-*.png`)
 
-**실제 `AdminOfficialCharactersClient` 화면**에서 캡처했습니다. `capture-react-ui.mjs` + `seed-prod-ui-demo.ts`(격리 `DATA_DIR`) 또는 워크스페이스 dev 시드(`p2-ui-admin@test.local`)로 로그인한 뒤 `/admin/official-characters`에서 #51 **컴파일 미리보기** 버튼 → API → 결과 패널까지 동작을 확인합니다.
+**실제 `AdminOfficialCharactersClient` 화면**에서 캡처했습니다 (production build + 격리 DB, 일회성 캡처 완료). `/admin/official-characters`에서 #51 **컴파일 미리보기** → API → 결과 패널. 재캡처용 수동 DB 시드 스크립트는 PR에서 제거했습니다.
 
 ## HTTP 검증 (운영 DB 없음)
 
-- `src/app/api/admin/official-characters/sync/route.test.ts`: `NODE_ENV=development`에서 `POST` recompile dry_run → **200**
-- 수동: `POST /api/admin/official-characters/sync` with session cookie (동일 격리 시드)
+- `src/app/api/admin/official-characters/sync/route.test.ts`: `installIsolatedTestDatabase()` + `NODE_ENV=development`에서 `POST` recompile dry_run → **200**
+- HTTP 시드: `src/lib/test/officialSupplyCompileRefreshHttpSeed.ts` — `assertIsolatedTestDatabaseActive()` 통과 후에만 DELETE
