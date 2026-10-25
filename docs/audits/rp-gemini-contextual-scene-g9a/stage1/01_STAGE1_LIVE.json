@@ -1,0 +1,585 @@
+{
+  "phase": "G9A-STAGE1-LIVE",
+  "api_calls": 8,
+  "target_calls": 8,
+  "fixtures": [
+    "N1S",
+    "N2"
+  ],
+  "sole_variable": "CONTEXTUAL_SCENE_DYNAMICS_ONLY",
+  "cells": [
+    {
+      "cell_id": "Gemini_N1S_A_D1",
+      "fixture": "N1S",
+      "arm": "A",
+      "draw": 1,
+      "visible_chars": 3357,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 99.992,
+      "tokens": {
+        "prompt": 4161,
+        "completion": 9494,
+        "total": 13655
+      },
+      "dialogue_char_share": 0.0474,
+      "narration_char_share": 0.9526,
+      "response_anchor": {
+        "response_anchor_count": 3,
+        "band": "OVERLOAD"
+      },
+      "continuity": {
+        "current_input_lcs_chars": 8,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [],
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "canon_data_sha256": "01518f0e9144e5ae3411867171671b76db812f392ef138458c48029257cdea2e",
+      "history_sha256": "367347643dbbb46879710afb35a78600e8db1a9b5d930dd4717221878250c1d0",
+      "user_tail_sha256": "9e0790c35ee937a7771b5239e75a704eef8276d590e58b40f51dc35a672bbf59",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      },
+      "human_pending": false,
+      "human_score": {
+        "total": 66,
+        "quiet": "FAIL",
+        "threat": true,
+        "scene_value": 3,
+        "agency": "ALLOWED_CONTINUITY",
+        "severe": false,
+        "restage": "PASS",
+        "dial_u": 7,
+        "anchors": 3
+      }
+    },
+    {
+      "cell_id": "Gemini_N1S_A_D2",
+      "fixture": "N1S",
+      "arm": "A",
+      "draw": 2,
+      "visible_chars": 2270,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 66.523,
+      "tokens": {
+        "prompt": 4161,
+        "completion": 4526,
+        "total": 8687
+      },
+      "dialogue_char_share": 0.0604,
+      "narration_char_share": 0.9396,
+      "response_anchor": {
+        "response_anchor_count": 3,
+        "band": "OVERLOAD"
+      },
+      "continuity": {
+        "current_input_lcs_chars": 8,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [],
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "canon_data_sha256": "01518f0e9144e5ae3411867171671b76db812f392ef138458c48029257cdea2e",
+      "history_sha256": "367347643dbbb46879710afb35a78600e8db1a9b5d930dd4717221878250c1d0",
+      "user_tail_sha256": "9e0790c35ee937a7771b5239e75a704eef8276d590e58b40f51dc35a672bbf59",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      },
+      "human_pending": false,
+      "human_score": {
+        "total": 53,
+        "quiet": "FAIL",
+        "threat": false,
+        "scene_value": 4,
+        "agency": "ALLOWED_CONTINUITY",
+        "severe": false,
+        "restage": "FAIL",
+        "dial_u": 5,
+        "anchors": 3
+      }
+    },
+    {
+      "cell_id": "Gemini_N1S_C_D1",
+      "fixture": "N1S",
+      "arm": "C",
+      "draw": 1,
+      "visible_chars": 1474,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 36.903,
+      "tokens": {
+        "prompt": 4219,
+        "completion": 2589,
+        "total": 6808
+      },
+      "dialogue_char_share": 0.0706,
+      "narration_char_share": 0.9294,
+      "response_anchor": {
+        "response_anchor_count": 2,
+        "band": "ACCEPTABLE"
+      },
+      "continuity": {
+        "current_input_lcs_chars": 6,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [
+        "DENSITY_COLLAPSE"
+      ],
+      "system_sha256": "1d71dde62b92ea68efa2ff21807b52d1a4e8bb807b33d46d904e2c6bbc6483a5",
+      "canon_data_sha256": "01518f0e9144e5ae3411867171671b76db812f392ef138458c48029257cdea2e",
+      "history_sha256": "367347643dbbb46879710afb35a78600e8db1a9b5d930dd4717221878250c1d0",
+      "user_tail_sha256": "9e0790c35ee937a7771b5239e75a704eef8276d590e58b40f51dc35a672bbf59",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      },
+      "human_pending": false,
+      "human_score": {
+        "total": 71,
+        "quiet": "PASS",
+        "threat": false,
+        "scene_value": 7,
+        "agency": "ALLOWED_CONTINUITY",
+        "severe": false,
+        "restage": "PASS",
+        "dial_u": 8,
+        "anchors": 2
+      }
+    },
+    {
+      "cell_id": "Gemini_N1S_C_D2",
+      "fixture": "N1S",
+      "arm": "C",
+      "draw": 2,
+      "visible_chars": 3992,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 108.853,
+      "tokens": {
+        "prompt": 4219,
+        "completion": 10317,
+        "total": 14536
+      },
+      "dialogue_char_share": 0.0353,
+      "narration_char_share": 0.9647,
+      "response_anchor": {
+        "response_anchor_count": 2,
+        "band": "ACCEPTABLE"
+      },
+      "continuity": {
+        "current_input_lcs_chars": 6,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [],
+      "system_sha256": "1d71dde62b92ea68efa2ff21807b52d1a4e8bb807b33d46d904e2c6bbc6483a5",
+      "canon_data_sha256": "01518f0e9144e5ae3411867171671b76db812f392ef138458c48029257cdea2e",
+      "history_sha256": "367347643dbbb46879710afb35a78600e8db1a9b5d930dd4717221878250c1d0",
+      "user_tail_sha256": "9e0790c35ee937a7771b5239e75a704eef8276d590e58b40f51dc35a672bbf59",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      },
+      "human_pending": false,
+      "human_score": {
+        "total": 66,
+        "quiet": "FAIL",
+        "threat": false,
+        "scene_value": 3,
+        "agency": "ALLOWED_CONTINUITY",
+        "severe": false,
+        "restage": "PASS",
+        "dial_u": 6,
+        "anchors": 2
+      }
+    },
+    {
+      "cell_id": "Gemini_N2_A_D1",
+      "fixture": "N2",
+      "arm": "A",
+      "draw": 1,
+      "visible_chars": 1555,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 47.663,
+      "tokens": {
+        "prompt": 4154,
+        "completion": 2681,
+        "total": 6835
+      },
+      "dialogue_char_share": 0.1466,
+      "narration_char_share": 0.8534,
+      "response_anchor": {
+        "response_anchor_count": 3,
+        "band": "OVERLOAD"
+      },
+      "continuity": {
+        "current_input_lcs_chars": 3,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [
+        "DENSITY_COLLAPSE"
+      ],
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "canon_data_sha256": "01518f0e9144e5ae3411867171671b76db812f392ef138458c48029257cdea2e",
+      "history_sha256": "4936ef557c348cf52d9b38c0980d71e88eb670ba3875847716c7a810f3ed2117",
+      "user_tail_sha256": "8be5f323de8e51b0be7c21f1265af8da126555f9045a300e8b1f243dc012a55b",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      },
+      "human_pending": false,
+      "human_score": {
+        "total": 79,
+        "world": 8,
+        "auton": 8,
+        "scene_value": 8,
+        "agency": "ALLOWED_CONTINUITY",
+        "severe": false,
+        "restage": "PASS",
+        "dial_u": 8,
+        "anchors": 3
+      }
+    },
+    {
+      "cell_id": "Gemini_N2_A_D2",
+      "fixture": "N2",
+      "arm": "A",
+      "draw": 2,
+      "visible_chars": 540,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 28.949,
+      "tokens": {
+        "prompt": 4154,
+        "completion": 1768,
+        "total": 5922
+      },
+      "dialogue_char_share": 0.1593,
+      "narration_char_share": 0.8407,
+      "response_anchor": {
+        "response_anchor_count": 3,
+        "band": "OVERLOAD"
+      },
+      "continuity": {
+        "current_input_lcs_chars": 3,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [
+        "DENSITY_COLLAPSE"
+      ],
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "canon_data_sha256": "01518f0e9144e5ae3411867171671b76db812f392ef138458c48029257cdea2e",
+      "history_sha256": "4936ef557c348cf52d9b38c0980d71e88eb670ba3875847716c7a810f3ed2117",
+      "user_tail_sha256": "8be5f323de8e51b0be7c21f1265af8da126555f9045a300e8b1f243dc012a55b",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      },
+      "human_pending": false,
+      "human_score": {
+        "total": 62,
+        "world": 5,
+        "auton": 5,
+        "scene_value": 5,
+        "agency": "MODERATE",
+        "severe": false,
+        "restage": "PASS",
+        "dial_u": 7,
+        "anchors": 3
+      }
+    },
+    {
+      "cell_id": "Gemini_N2_C_D1",
+      "fixture": "N2",
+      "arm": "C",
+      "draw": 1,
+      "visible_chars": 5112,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 122.187,
+      "tokens": {
+        "prompt": 4212,
+        "completion": 12692,
+        "total": 16904
+      },
+      "dialogue_char_share": 0.0409,
+      "narration_char_share": 0.9591,
+      "response_anchor": {
+        "response_anchor_count": 5,
+        "band": "OVERLOAD"
+      },
+      "continuity": {
+        "current_input_lcs_chars": 4,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [],
+      "system_sha256": "1d71dde62b92ea68efa2ff21807b52d1a4e8bb807b33d46d904e2c6bbc6483a5",
+      "canon_data_sha256": "01518f0e9144e5ae3411867171671b76db812f392ef138458c48029257cdea2e",
+      "history_sha256": "4936ef557c348cf52d9b38c0980d71e88eb670ba3875847716c7a810f3ed2117",
+      "user_tail_sha256": "8be5f323de8e51b0be7c21f1265af8da126555f9045a300e8b1f243dc012a55b",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      },
+      "human_pending": false,
+      "human_score": {
+        "total": 84,
+        "world": 10,
+        "auton": 10,
+        "scene_value": 9,
+        "agency": "ALLOWED_CONTINUITY",
+        "severe": false,
+        "restage": "PASS",
+        "dial_u": 6,
+        "anchors": 5
+      }
+    },
+    {
+      "cell_id": "Gemini_N2_C_D2",
+      "fixture": "N2",
+      "arm": "C",
+      "draw": 2,
+      "visible_chars": 4718,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 95.7,
+      "tokens": {
+        "prompt": 4212,
+        "completion": 9555,
+        "total": 13767
+      },
+      "dialogue_char_share": 0.1098,
+      "narration_char_share": 0.8902,
+      "response_anchor": {
+        "response_anchor_count": 7,
+        "band": "OVERLOAD"
+      },
+      "continuity": {
+        "current_input_lcs_chars": 4,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [],
+      "system_sha256": "1d71dde62b92ea68efa2ff21807b52d1a4e8bb807b33d46d904e2c6bbc6483a5",
+      "canon_data_sha256": "01518f0e9144e5ae3411867171671b76db812f392ef138458c48029257cdea2e",
+      "history_sha256": "4936ef557c348cf52d9b38c0980d71e88eb670ba3875847716c7a810f3ed2117",
+      "user_tail_sha256": "8be5f323de8e51b0be7c21f1265af8da126555f9045a300e8b1f243dc012a55b",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      },
+      "human_pending": false,
+      "human_score": {
+        "total": 85,
+        "world": 9,
+        "auton": 9,
+        "scene_value": 9,
+        "agency": "ALLOWED_CONTINUITY",
+        "severe": false,
+        "restage": "PASS",
+        "dial_u": 8,
+        "anchors": 7
+      }
+    }
+  ],
+  "human_review": {
+    "G8_Agency_V2": {
+      "old_severe_B": 3,
+      "new_severe_B": 1,
+      "reclassified": [
+        "N2_B_D1 SEVERE→ALLOWED_CONTINUITY",
+        "N1_B_D1 SEVERE→MODERATE+REPLAY"
+      ]
+    },
+    "FIXTURE_DOMAIN_BIAS": "YES",
+    "GENRE_IS_NOT_SCENE_INTENSITY": "CONFIRMED",
+    "sole_variable": "CONTEXTUAL_SCENE_DYNAMICS_ONLY",
+    "N1S": {
+      "A_chars": [
+        3357,
+        2270
+      ],
+      "C_chars": [
+        1474,
+        3992
+      ],
+      "A_median": 2813.5,
+      "C_median": 2733.0,
+      "quiet_fidelity": "A 0/2 · C 1/2",
+      "auto_threat": "A 1/2 · C 0/2",
+      "scene_value_mean": "A 3.5 · C 5.0",
+      "human_mean": "A 59.5 · C 68.5",
+      "agency_severe_C": 0,
+      "user_replay_fail_C": 0,
+      "quiet_fidelity_pass": "FAIL"
+    },
+    "N2": {
+      "A_chars": [
+        1555,
+        540
+      ],
+      "C_chars": [
+        5112,
+        4718
+      ],
+      "world_motion": "A 6.5 · C 9.5 PASS",
+      "autonomy": "A 6.5 · C 9.5 PASS",
+      "scene_value": "A 6.5 · C 9.0 PASS",
+      "dialogue_usability": "A 7.5 · C 7.0 FAIL non-inferior",
+      "anchors_C": "5 / 7 OVERLOAD FAIL",
+      "human_mean": "A 70.5 · C 84.5",
+      "agency_severe_C": 0,
+      "world_motion_pass": "PASS"
+    },
+    "N3": "NOT_RUN",
+    "severe_decision_takeover_C": 0,
+    "classification": "CONTEXTUAL_SCENE_DYNAMICS_FAIL",
+    "failure_notes": [
+      "N1S quiet fidelity not sealed (only C_D1 PASS; C_D2 canon-lecture filler)",
+      "N2 world motion clearly improved but response-anchor OVERLOAD (5–7) and dialogue usability slightly inferior",
+      "N3 gated off"
+    ],
+    "production_wire": "NOT_RUN",
+    "merge": "NOT_RUN"
+  },
+  "n3": "NOT_RUN",
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN"
+}
