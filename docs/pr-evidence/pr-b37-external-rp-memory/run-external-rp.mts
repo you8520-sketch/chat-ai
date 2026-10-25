@@ -240,19 +240,6 @@ function completedTurns(chatId: number): number {
   ).n;
 }
 
-const LEAK_GATE_FALSE_POSITIVES = new Set([99]);
-const neutralizeDraftToken = (text: string) =>
-  text.replace(/\bDRAFT\b/g, "CONSCRIPTION").replace(/\bDraft\b/g, "Conscription");
-
-function dropFailedTurnRows(chatId: number) {
-  const d = db();
-  d.prepare(
-    `DELETE FROM messages WHERE chat_id=? AND id > (
-       SELECT COALESCE(MAX(id),0) FROM messages WHERE chat_id=? AND generation_status='completed'
-     )`
-  ).run(chatId, chatId);
-}
-
 function labelExternalRow(messageId: number) {
   const row = db().prepare("SELECT alternates FROM messages WHERE id=?").get(messageId) as {
     alternates: string | null;
@@ -362,16 +349,7 @@ if (cmd === "ingest") {
     const t = turn + 1;
     const before = spentUsd();
     stubAssistantText = externalAssistant(t);
-    let result = await postTurn(chatId, externalUser(t), `ingest-T${t}`);
-    if (result.error && LEAK_GATE_FALSE_POSITIVES.has(t)) {
-      // HAV's trailing self-critique gate (`trimTrailingVisibleSelfCritique`) hard-blocks any
-      // English "draft" in the last 45% of an output (here: military conscription, 2 tokens).
-      // The external text is story content, so retry with that token replaced and record it.
-      dropFailedTurnRows(chatId);
-      stubAssistantText = neutralizeDraftToken(externalAssistant(t));
-      result = await postTurn(chatId, externalUser(t), `ingest-T${t}-gate-workaround`);
-      logLine(`T${t} LEAK_GATE_FALSE_POSITIVE_WORKAROUND draft->conscription retryOk=${!result.error}`);
-    }
+    const result = await postTurn(chatId, externalUser(t), `ingest-T${t}`);
     if (result.error || result.status !== 200) {
       logLine(`T${t} FAILED status=${result.status} error=${JSON.stringify(result.error ?? null).slice(0, 300)} raw=${result.raw}`);
       process.exit(2);

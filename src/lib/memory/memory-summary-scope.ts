@@ -4,6 +4,7 @@
  */
 import type { DialogueTurn } from "@/lib/hybridMemory";
 import { classifyChatOocIntent } from "@/lib/chatOocPriority";
+import { resolveOocSceneRenderIntent } from "@/lib/oocSceneRender";
 import { extractOocSnippets } from "@/lib/userImpersonationPolicy";
 import { MEMORY_RECORD_MAX_CHARS } from "./memory-constants";
 
@@ -254,6 +255,12 @@ export function classifyMemoryTurnScope(
   const t = userMessage.trim();
   if (!t) return "plain_ooc";
 
+  // Canonical isolation belongs to the scene-render owner, including resets.
+  // Keep meaningful IF/history scopes; ephemeral samples are excluded OOC.
+  if (resolveOocSceneRenderIntent(t)) {
+    return MEANINGFUL_NONCANON_RE.test(t) ? "meaningful_noncanon" : "plain_ooc";
+  }
+
   if (MAIN_ADOPT_RE.test(t)) return "main_adopt";
   if (BRANCH_CLOSE_RE.test(t)) return "branch_close";
 
@@ -268,6 +275,10 @@ export function classifyMemoryTurnScope(
 
   const intent = classifyChatOocIntent(t);
   if (intent === "none") return "main_rp";
+  // The scene router has already identified a new RP episode. Instructions to
+  // use character settings/style are scene input, not a plain OOC adjustment.
+  // Explicit noncanon and branch controls above keep their existing precedence.
+  if (intent === "rp_scene_reset") return "main_rp";
 
   if (intent === "rp_unrelated") {
     if (MEANINGFUL_NONCANON_RE.test(t)) return "meaningful_noncanon";

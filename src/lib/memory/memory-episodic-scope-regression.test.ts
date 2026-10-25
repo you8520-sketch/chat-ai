@@ -167,6 +167,30 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("SCOPE episodic memory eligibility", () => {
+  it("new scene settings reach episodic storage, recall, and regeneration", () => {
+    const userText = "[OOC: 새 에피소드 시작. 세계관과 캐릭터 설정을 참고해 축제 장면을 진행해.]";
+    const assistantText = "인물은 축제 광장에서 푸른 불꽃놀이를 지켜보았다.";
+    const { userId, assistantId, turn } = insertTurn(userText, assistantText);
+    const facts: EpisodicExtractedFact[] = [{
+      category: "character", subject: "festival_visitor", attribute: "witnessed_fireworks", value: "plaza_fireworks",
+      importance: "important", fact_text: assistantText,
+      evidence_type: "explicit_scene_event",
+      evidence: { source_role: "assistant", source_quote: assistantText },
+    }];
+    assert.equal(shouldRequestEpisodicInSharedInitial({
+      userMessage: userText, memoryFeatureEnabled: true, db: getDb(), chatId: CHAT,
+      sourceUserMessageId: userId,
+    }), true);
+    assert.equal(reconcile({ userId, assistantId, userText, facts }).inserted, 1);
+    assert.equal(reconcile({ userId, assistantId, userText, facts, isRegeneration: true }).inserted, 1);
+    assert.equal(episodicCount(turn), 1);
+    const recalled = getEpisodicMemoryForPrompt(getDb(), {
+      chatId: CHAT, userId: USER, characterId: CHAR, currentTurn: 30,
+      currentUserMessage: "축제 광장에서 푸른 불꽃놀이를 지켜보았지?", minAgeTurns: 0,
+    });
+    assert.match(recalled.promptBlock, /푸른 불꽃놀이/);
+  });
+
   it("SCOPE-1 normal main RP — request true / persist true", () => {
     const { userId, assistantId } = insertTurn(NORMAL_MAIN_MSG);
     const db = getDb();

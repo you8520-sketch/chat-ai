@@ -71,10 +71,10 @@ const FINALIZED_SUCCESS_STATUSES = new Set([
 ]);
 
 const STRONG_ISOLATION =
-  /본편과\s*별개|본편과\s*무관|RP와\s*별개|알피와\s*별개|(?:RP|알피|본편)에(?:는)?\s*반영하지|기억(?:이나|\/|과)?\s*설정에(?:는)?\s*반영하지|실제\s*진행은\s*아니|비정사로|샘플\s*장면|예시\s*장면|가정\s*상황으로|IF\s*상황으로/i;
+  /본편과\s*별개|본편과\s*무관|RP와\s*별개|알피와\s*별개|(?:RP|알피|본편)에(?:는)?\s*반영하지|기억(?:이나|\/|과)?\s*설정에(?:는)?\s*반영하지|실제\s*진행은\s*아니|비정사|정사\s*아님|샘플\s*장면|예시\s*장면|가정\s*상황으로|IF\s*상황으로/i;
 
 const WEAK_ISOLATION =
-  /가정하면|만약|샘플|예시|가정\s*상황|반영하지\s*마|비정사|정사\s*아님|what[\s-]*if/i;
+  /가정하면|만약|샘플|예시|가정\s*상황|반영하지\s*마|what[\s-]*if/i;
 
 const RENDER_SIGNAL =
   /한\s*장면\s*(?:보여|써|묘사)|장면으로\s*(?:써|보여|출력|묘사)|한\s*번\s*(?:써|보여|묘사)|어떻게\s*되는지\s*보여|반응을\s*장면으로|상황을\s*출력|장면을\s*(?:써|보여|출력)|(?:장면|상황|반응|경우).{0,24}(?:써줘|보여줘|묘사해줘|출력해줘)|(?:써줘|보여줘|묘사해줘|출력해줘).{0,16}(?:장면|상황)/i;
@@ -99,23 +99,25 @@ function countMatches(re: RegExp, text: string): number {
 }
 
 /**
- * Fail-closed: isolation + render required. Scene-reset / hard-stop / current-RP
- * continuation without strong isolation stay on existing OOC/RP semantics.
+ * Isolation + render required. A reset requests a scene, not canonical adoption:
+ * explicit isolation still wins. Ordinary resets stay canonical, hard stops stay
+ * control-only, and weak hints alone never turn a reset into an isolated render.
  */
 export function resolveOocSceneRenderIntent(userMessage: string): boolean {
   const trimmed = userMessage.trim();
   if (!trimmed || !messageHasOocMarkers(trimmed)) return false;
 
   const intent = classifyChatOocIntent(trimmed);
-  if (intent === "rp_scene_reset" || intent === "rp_hard_stop") return false;
+  if (intent === "rp_hard_stop") return false;
 
   const scan = collectOocSceneRenderScanText(trimmed);
   if (!scan) return false;
 
   const strong = countMatches(STRONG_ISOLATION, scan);
   const weak = countMatches(WEAK_ISOLATION, scan);
-  const render = RENDER_SIGNAL.test(scan);
+  const render = intent === "rp_scene_reset" || RENDER_SIGNAL.test(scan);
   if (!render) return false;
+  if (intent === "rp_scene_reset") return strong >= 1;
   if (CURRENT_RP_CONTINUATION.test(scan) && strong === 0) return false;
   if (strong >= 1) return true;
   if (weak >= 2) return true;

@@ -6,6 +6,30 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 describe("trimTrailingVisibleSelfCritique", () => {
+  for (const ending of [
+    "징집 공고에는 draft라는 단어가 적혀 있었다. 그는 서류를 접고 경비실로 돌아갔다.",
+    "The clerk filed the draft before closing the office.",
+    '그가 물었다. "Is this the final draft?" 직원은 아직 초안이라고 대답했다.',
+    "그는 DRAFT 표지를 넘겼다. Draft라는 글자 아래에 새로운 명령이 기다리고 있었다.",
+  ]) {
+    for (const body of ["문이 열렸다.", "창문에 빗물이 흘렀다. ".repeat(350)]) {
+      it(`preserves ordinary draft prose (${body.length} chars, ${ending.slice(0, 20)})`, () => {
+        const prose = `${body}\n\n${ending}`;
+        const r = trimTrailingVisibleSelfCritique(prose);
+        assert.equal(r.status, "CLEAN");
+        assert.equal(r.text, prose);
+      });
+    }
+  }
+
+  it("still trims an English draft self-review with explicit output-planning signals", () => {
+    const body = "그는 창가에 기대어 조용히 숨을 골랐다. ".repeat(220).trimEnd();
+    const prose = `${body}\n\nDraft review. Need output only. Ensure 3200-4200 Korean chars. Let's output the final response.`;
+    const r = trimTrailingVisibleSelfCritique(prose);
+    assert.equal(r.status, "TRIMMED");
+    assert.equal(r.text, body);
+  });
+
   it("trims C5 trailing English self-critique suffix only", () => {
     const cache = JSON.parse(
       readFileSync(resolve(process.cwd(), "data/luna-user-tail-length-c5-cache.json"), "utf8")
