@@ -1,0 +1,118 @@
+{
+  "PACKET_BUILDER_OWNER": {
+    "assemble": "buildSceneContinuityPacket",
+    "extract": "extractHandoffContinuityFromAssistantText",
+    "file": "src/lib/adultSceneRouting.ts",
+    "call_site": "src/app/api/chat/route.ts priorAssistantForHandoff + storedUserMessage"
+  },
+  "PACKET_CURRENT_USER_RECONCILIATION_EXISTS": false,
+  "PACKET_CURRENT_USER_RECONCILIATION_OWNER": null,
+  "RECONCILIATION_PARTIAL_HOOKS_ONLY": [
+    "location regex also scans currentUserText, but current user has no 호텔|침실|침대|거실|소파|벽|복도|욕실|방 안|창문 앞|카페|옥상 match for '문을 닫고'",
+    "contact-direction hook only if user writes 내 허리/어깨/손목 감싸… — not present",
+    "sceneReset path drops physical continuity — not this STANDARD adult handoff"
+  ],
+  "PACKET_LOCATION_VALID": "INVALID",
+  "PACKET_UNFINISHED_ACTION_VALID": "INVALID",
+  "PACKET_SPEECH_STATE_VALID": "INVALID",
+  "PACKET_INVALID_FIELDS": ["location", "unfinishedAction", "currentSpeechState"],
+  "STALE_PACKET_FIELDS": ["location", "unfinishedAction", "currentSpeechState"],
+  "FIELDS": [
+    {
+      "FIELD": "previousSceneMode",
+      "EXPECTED_SEMANTIC_TYPE": "routing scene mode",
+      "ACTUAL_VALUE": "normal",
+      "SOURCE_TEXT": "priorModelRouteState.currentSceneMode / default",
+      "SOURCE_TURN": "route state before handoff",
+      "SOURCE_ACTOR": "router",
+      "BUILDER/EXTRACTOR_OWNER": "buildSceneContinuityPacket",
+      "CURRENT_USER_OVERRIDES_IT": false,
+      "STALE_AFTER_CURRENT_USER": false,
+      "VALID": "VALID"
+    },
+    {
+      "FIELD": "sexualContextActive",
+      "EXPECTED_SEMANTIC_TYPE": "boolean adult-context flag",
+      "ACTUAL_VALUE": true,
+      "SOURCE_TEXT": "sceneClassification.sexualContextActive from current adult input",
+      "SOURCE_TURN": "CURRENT_USER",
+      "SOURCE_ACTOR": "classifier",
+      "BUILDER/EXTRACTOR_OWNER": "buildSceneContinuityPacket",
+      "CURRENT_USER_OVERRIDES_IT": true,
+      "STALE_AFTER_CURRENT_USER": false,
+      "VALID": "VALID"
+    },
+    {
+      "FIELD": "activeConsentMode",
+      "EXPECTED_SEMANTIC_TYPE": "consent mode enum",
+      "ACTUAL_VALUE": "standard",
+      "SOURCE_TEXT": "requestedConsentMode / fixture this_run_consent",
+      "SOURCE_TURN": "CURRENT_USER fixture",
+      "SOURCE_ACTOR": "router",
+      "BUILDER/EXTRACTOR_OWNER": "buildSceneContinuityPacket",
+      "CURRENT_USER_OVERRIDES_IT": true,
+      "STALE_AFTER_CURRENT_USER": false,
+      "VALID": "VALID"
+    },
+    {
+      "FIELD": "location",
+      "EXPECTED_SEMANTIC_TYPE": "actual physical/logical scene location",
+      "ACTUAL_VALUE": "벽면의 안내판을 훑고 지나갔다",
+      "SOURCE_TEXT": "렌의 시선은 정처 없이 허공과 벽면의 안내판을 훑고 지나갔다.",
+      "SOURCE_TURN": "GEMINI_T2",
+      "SOURCE_ACTOR": "assistant (Gemini) narrating user gaze",
+      "BUILDER/EXTRACTOR_OWNER": "extractHandoffContinuityFromAssistantText location regex /(?:호텔|침실|침대|거실|소파|벽|복도|욕실|방\\s*안|창문\\s*앞|카페|옥상)/ — matched 벽, then took 24 chars of the narration clause",
+      "CURRENT_USER_OVERRIDES_IT": false,
+      "STALE_AFTER_CURRENT_USER": true,
+      "VALID": "INVALID"
+    },
+    {
+      "FIELD": "charactersPresent",
+      "EXPECTED_SEMANTIC_TYPE": "names present in scene",
+      "ACTUAL_VALUE": ["라이크", "렌"],
+      "SOURCE_TEXT": "[ch.name, personaDisplayName]",
+      "SOURCE_TURN": "route assembly",
+      "SOURCE_ACTOR": "router",
+      "BUILDER/EXTRACTOR_OWNER": "buildSceneContinuityPacket",
+      "CURRENT_USER_OVERRIDES_IT": false,
+      "STALE_AFTER_CURRENT_USER": false,
+      "VALID": "VALID"
+    },
+    {
+      "FIELD": "currentPov",
+      "EXPECTED_SEMANTIC_TYPE": "active narration POV",
+      "ACTUAL_VALUE": "third_person",
+      "SOURCE_TEXT": "contextBuildInput.narrativePov",
+      "SOURCE_TURN": "request",
+      "SOURCE_ACTOR": "router",
+      "BUILDER/EXTRACTOR_OWNER": "buildSceneContinuityPacket",
+      "CURRENT_USER_OVERRIDES_IT": false,
+      "STALE_AFTER_CURRENT_USER": false,
+      "VALID": "VALID"
+    },
+    {
+      "FIELD": "unfinishedAction",
+      "EXPECTED_SEMANTIC_TYPE": "still-relevant unfinished action AFTER current user turn",
+      "ACTUAL_VALUE": "이 기묘한 침묵과 편안함을 조금이라도 더 길게 끌고 가고 싶다는 욕심이, 그의 능글맞은 태도 아래 은밀하게 도사리고 있었다.",
+      "SOURCE_TEXT": "same sentence — last sentence of GEMINI_T2",
+      "SOURCE_TURN": "GEMINI_T2",
+      "SOURCE_ACTOR": "assistant (Gemini) internal-desire prose for 태형",
+      "BUILDER/EXTRACTOR_OWNER": "extractHandoffContinuityFromAssistantText unfinished regex miss → lastSentence fallback slice(0,160)",
+      "CURRENT_USER_OVERRIDES_IT": false,
+      "STALE_AFTER_CURRENT_USER": true,
+      "VALID": "INVALID"
+    },
+    {
+      "FIELD": "currentSpeechState",
+      "EXPECTED_SEMANTIC_TYPE": "still-unresolved conversational state",
+      "ACTUAL_VALUE": "같이 갈래?",
+      "SOURCE_TEXT": "그리고 이어진 나지막한 제안.\\n\\\"같이 갈래?\\\"",
+      "SOURCE_TURN": "USER_TURN_2 echoed inside GEMINI_T2",
+      "SOURCE_ACTOR": "user T2, first quoted span in last assistant text",
+      "BUILDER/EXTRACTOR_OWNER": "extractHandoffContinuityFromAssistantText first /[「\\\"“]([^」\\\"”]{2,40})[」\\\"”]/",
+      "CURRENT_USER_OVERRIDES_IT": false,
+      "STALE_AFTER_CURRENT_USER": true,
+      "VALID": "INVALID"
+    }
+  ]
+}
