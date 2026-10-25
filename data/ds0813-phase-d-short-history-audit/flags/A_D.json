@@ -1,0 +1,19 @@
+{
+  "REFUSAL_PRESENT": false,
+  "META_LEAK": false,
+  "SYSTEM_PROMPT_LEAK": false,
+  "EXACT_SENTENCE_DUPLICATION": false,
+  "CURRENT_USER_DIALOGUE_ECHO": false,
+  "NEW_USER_DIALOGUE_BEYOND_CURRENT_INPUT": false,
+  "NEW_USER_INTENTIONAL_ACTION_BEYOND_CURRENT_INPUT": false,
+  "USER_MAJOR_CHOICE_AUTHORED": false,
+  "USER_CONSENT_OR_REFUSAL_AUTHORED": false,
+  "NEW_CHARACTER_CANON_FACT": false,
+  "NEW_DYNAMIC_NUMERIC_STATE_WITHOUT_SOURCE": false,
+  "NEW_EXTERNAL_NPC": false,
+  "UNRELATED_EVENT": false,
+  "PREMATURE_SCENE_CLOSE": false,
+  "OUTPUT_TRUNCATED": false,
+  "NOTE_INVOLUNTARY_USER_PHYSIOLOGY_NOT_AGENCY": "breathing / tremble / flush / involuntary movement / physiological arousal / reflexive body response are not flagged as agency violations",
+  "INPUT_QUOTES": []
+}

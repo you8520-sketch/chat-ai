@@ -1,0 +1,28 @@
+{
+  "R": {
+    "checks": {
+      "USER_TAIL_COUNT": true,
+      "DENSE_SHORT_HISTORY_COUNT": true,
+      "SYSTEM_LENGTH_ADAPTER_COUNT": true,
+      "HISTORICAL_SINGLE_CALL_COUNT": true,
+      "ENV_HEAVY_ABSENT": true,
+      "USER_TAIL_TERMINAL": true,
+      "ORDER_OK": true,
+      "DENSE_NOT_IN_SYSTEM": true
+    },
+    "failed": []
+  },
+  "A": {
+    "checks": {
+      "USER_TAIL_COUNT": true,
+      "DENSE_SHORT_HISTORY_COUNT": true,
+      "SYSTEM_LENGTH_ADAPTER_COUNT": true,
+      "HISTORICAL_SINGLE_CALL_COUNT": true,
+      "ENV_HEAVY_ABSENT": true,
+      "USER_TAIL_TERMINAL": true,
+      "ORDER_OK": true,
+      "DENSE_NOT_IN_SYSTEM": true
+    },
+    "failed": []
+  }
+}
