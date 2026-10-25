@@ -1,0 +1,87 @@
+{
+  "source": "isolated approved-source-equivalent fixtures; stale JSON is a minimal fault fixture, not production DB capture",
+  "hash_notes": {
+    "storedManuscriptHash": "SHA256 of saved system_prompt only; all protected fields are separately compared in full row snapshots",
+    "textLockHash": "computed approved-source fixture lock; Wolfgang matches the existing pinned approved lock"
+  },
+  "before": [
+    {
+      "characterId": 50,
+      "manuscriptHash": "644cf0172ac8415089bcdafe25f50308d9e02e95ef3bf39887db50f4bea61bce",
+      "compiledJsonHash": "2e9e7c27f57b732b19d3cc0dd2919152e7db9a6e8ba03c4c2873d2cd5137eae9",
+      "fullBehaviorInPublicCanon": false,
+      "source": "stored-output fault fixture before refresh; not a production DB capture"
+    },
+    {
+      "characterId": 51,
+      "manuscriptHash": "0a3b4b512be3fcdc866b2984c00b8d58ba3351f61365392091545b3c9e81a30b",
+      "compiledJsonHash": "4fb5309416be7e5550f6e994d729fed5c599c785313661599f32203d0753cdf7",
+      "fullBehaviorInPublicCanon": null,
+      "source": "stored-output fault fixture before refresh; not a production DB capture"
+    }
+  ],
+  "after": [
+    {
+      "characterId": 50,
+      "draftKey": "pilot-rf-03",
+      "textLockHash": "c3fda3e51f981b31066f3707ac8b580235092632a85a5d543d935093ca0b742f",
+      "storedManuscriptHash": "644cf0172ac8415089bcdafe25f50308d9e02e95ef3bf39887db50f4bea61bce",
+      "beforeJsonHash": "2e9e7c27f57b732b19d3cc0dd2919152e7db9a6e8ba03c4c2873d2cd5137eae9",
+      "afterJsonHash": "ff6c7d0860f0b81d4549a8ef566c13327f9e1e5f44211c55e154451e81c83eef",
+      "changedFields": [
+        "creator_compiled_description_json",
+        "setting_chunks"
+      ],
+      "derived": {
+        "chunksChanged": true,
+        "englishBefore": "CURRENT",
+        "englishAfter": "STALE",
+        "sourceFingerprintBefore": "4520e9a5222b76180bc322cfea651f4abf550a347d76a103b8dfb0382a7f8356:v1",
+        "sourceFingerprintAfter": "dc58a58bae93c0184f6a8f12e5da3c63c7ed210ffa0d19c644dd920eb2f65d45:v1",
+        "backgroundJobEnqueued": false
+      },
+      "publicCanonAdded": 1,
+      "publicCanonRemoved": 1,
+      "speechControlAdded": 0,
+      "speechControlRemoved": 1,
+      "wireHash": "62516c7ed6d246cd8c95a34bc3a28d13c1622e95a40e38ed8bd3af4eb354174e",
+      "preservedSourceAndLocks": true,
+      "imageSlots": 14,
+      "repeatedApplySqlChanges": 0,
+      "source": "isolated approved-source-equivalent fixture, not production DB"
+    },
+    {
+      "characterId": 51,
+      "draftKey": "pilot-rf-02",
+      "textLockHash": "e22ba966bdeab1babb331bdc916fe43a0e0d4e8adb3f5f2ba32f969c28ba2af2",
+      "storedManuscriptHash": "0a3b4b512be3fcdc866b2984c00b8d58ba3351f61365392091545b3c9e81a30b",
+      "beforeJsonHash": "4fb5309416be7e5550f6e994d729fed5c599c785313661599f32203d0753cdf7",
+      "afterJsonHash": "c7245d52a1c00e11f0700be5c53b9d7d29ee2f21df4aa79f4366218710907027",
+      "changedFields": [
+        "creator_compiled_description_json",
+        "setting_chunks"
+      ],
+      "derived": {
+        "chunksChanged": true,
+        "englishBefore": "CURRENT",
+        "englishAfter": "STALE",
+        "sourceFingerprintBefore": "561d45dbb4930ee9f4e5963a30a6f20e1ba48dca47ad6cbe86bdccbe446224f6:v1",
+        "sourceFingerprintAfter": "fdfd911510cb4fe2ca9d2317b65214661e60a8daaff2fdfa18d9263ca615f66a:v1",
+        "backgroundJobEnqueued": false
+      },
+      "publicCanonAdded": 1,
+      "publicCanonRemoved": 2,
+      "speechControlAdded": 0,
+      "speechControlRemoved": 0,
+      "wireHash": "16a6ec3a6e0cf1a421a27ef99dba710c90b8e38bf631031ca7990ff0866d4627",
+      "preservedSourceAndLocks": true,
+      "imageSlots": 14,
+      "repeatedApplySqlChanges": 0,
+      "source": "isolated approved-source-equivalent fixture, not production DB"
+    }
+  ],
+  "provider_calls": 0,
+  "api_cost_krw": 0,
+  "production_queries": 0,
+  "production_writes": 0
+}

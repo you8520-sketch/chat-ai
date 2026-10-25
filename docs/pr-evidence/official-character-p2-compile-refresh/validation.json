@@ -1,0 +1,96 @@
+{
+  "main_sha": "55b893e76b28f1de8fdcc0442cfe5e834f23f9ce",
+  "approved_pr1725_head": "ea98b31b61283764fea3d24134fcb84512876054",
+  "implementation_sha": "ee794d440d706d39997b3a14703d80e0e0794da2",
+  "stack_base": "cursor/creator-description-sentence-compile-d9a9",
+  "regular_test_contract": "node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test",
+  "compiler_on_latest_main": {
+    "tests": 20,
+    "pass": 15,
+    "fail": 5
+  },
+  "compiler_on_pr1725": {
+    "tests": 20,
+    "pass": 20,
+    "fail": 0,
+    "evidence": "included unchanged compiler tests in final related suite"
+  },
+  "compile_refresh_before_on_pr1725": {
+    "tests": 20,
+    "pass": 0,
+    "fail": 20
+  },
+  "compile_refresh_after": {
+    "tests": 20,
+    "pass": 20,
+    "fail": 0,
+    "test_names": [
+      "#50: preserves approved stored text/locks/assets while refreshing canon through chunks to wire",
+      "#51: preserves approved stored text/locks/assets while refreshing canon through chunks to wire",
+      "rejects edits to description after preflight",
+      "rejects edits to world after preflight",
+      "rejects edits to system_prompt after preflight",
+      "rejects edits to creator_raw_description after preflight",
+      "rejects edits to gender after preflight",
+      "rejects edits to example_dialog after preflight",
+      "rejects edits to speech_profile after preflight",
+      "rejects edits to creator_comment after preflight",
+      "rejects edits to creator_compiled_description_json after preflight",
+      "rejects edits to status_widget_json after preflight",
+      "rejects edits to setting_chunks after preflight",
+      "rejects concurrent trigger or approved Text Lock edits without further writes",
+      "freshly previews a current result as a no-op and ignores chat/like counter churn",
+      "uses the current stored manuscript and preserves real speech/status/trigger/secret handling",
+      "rejects a comment edit even when the compiled result is already current",
+      "rolls compiled JSON back if the chunk write fails in the same transaction",
+      "discards old derived jobs without appearance compilation or translation",
+      "retains existing administrator/apply gates"
+    ]
+  },
+  "related_final": {
+    "tests": 174,
+    "pass": 174,
+    "fail": 0
+  },
+  "related_files": [
+    "src/lib/officialSupply/officialSupply.compileRefresh.test.ts",
+    "src/lib/creatorDescriptionTriggerCompiler.test.ts",
+    "src/lib/characterFormSave.compiledDescription.test.ts",
+    "src/lib/characterChunks.safeCanon.test.ts",
+    "src/lib/officialSupply/officialSupply.adminOwnedManagement.test.ts",
+    "src/lib/officialSupply/officialSupply.wolfgangInPlaceSync.test.ts",
+    "src/lib/officialSupply/officialSupply.lucianInPlaceSupplyLock.test.ts",
+    "src/lib/officialSupply/officialSupply.lockedSnapshotReconcile.test.ts",
+    "src/lib/officialSupply/officialSupply.worldIntroCanon.test.ts",
+    "src/lib/officialSupply/officialSupply.sharedWorld.test.ts",
+    "src/lib/promptTranslation.test.ts",
+    "src/lib/promptTranslation.backfillGate.test.ts",
+    "src/lib/derivedCache/derivedCache.test.ts"
+  ],
+  "checks": {
+    "git_diff_check": "PASS",
+    "npm_run_lint": "PASS (app tsc)",
+    "npm_run_typecheck_app": "PASS",
+    "npm_run_build": "PASS",
+    "sequence": "build completed before lint, then app typecheck; isolated DATA_DIR with blank provider and remote DB credentials for build"
+  },
+  "not_performed": [
+    "production DB investigation/application",
+    "paid provider calls",
+    "browser interaction with admin buttons",
+    "unrelated full-suite/test-typecheck repairs",
+    "new image generation",
+    "text/bible/Text Lock approval changes"
+  ],
+  "expected_operational_write_allowlist": [
+    "characters.creator_compiled_description_json",
+    "characters.setting_chunks"
+  ],
+  "preserved_translation_columns": [
+    "characters.setting_chunks_en",
+    "characters.prompt_translation_hash"
+  ],
+  "new_derived_jobs": 0,
+  "api_cost_krw": 0,
+  "production_writes": 0
+}
