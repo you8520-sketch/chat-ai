@@ -1,0 +1,609 @@
+{
+  "phase": "D7-A-LIVE",
+  "new_primary_calls": 0,
+  "repair_calls": 3,
+  "primary_production_changes": 0,
+  "TURN_LENGTH_SUPPLEMENT_API_ENABLED": false,
+  "SERVER_UNDER_LENGTH_RECOVERY_ENABLED": false,
+  "cases": [
+    {
+      "cell_id": "Gemini_R1_REPAIR",
+      "caseId": "R1",
+      "flag": "RESPONSE_OVERLOAD",
+      "fixtureId": "G3",
+      "userInput": "*렌이 권총을 꺼내 방아쇠에 손가락을 건다.* 저쪽 소리 나는 데 한 발 쏘면 흩어지지 않을까요?",
+      "baseline_source": "D6-C1 production A Gemini_G3_A_D1 (docs/audits/rp-gemini-dialogue-economy-d6c1/raw)",
+      "original_chars": 3887,
+      "repaired_chars": 2720,
+      "length_ratio": 0.6998,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 57.419,
+      "tokens": {
+        "input_tokens": 7447,
+        "output_tokens": 6547,
+        "reasoning_tokens": 4164,
+        "total_tokens": 13994,
+        "cost_usd": 0.093458
+      },
+      "original": {
+        "response_anchor": {
+          "response_anchor_count": 3,
+          "band": "RESPONSE_OVERLOAD",
+          "samples": [
+            "대가리에 총알이 박힌 채로 태어났나?",
+            "총 한 발 쏘면 저것들이 겁먹고 흩어질 것 같아? 저 밖에서 콘크리트를 긁어대는 새끼들이 꼬리 치는 동네 똥개로 보이나 보지.",
+            "확실하게 숨통을 끊을 수 있는 타겟이 시야에 들어온 게 아니면, 총구는 절대 열지 않는다. 특히 마더의 뱃속 같은 이런 개 같은 환경에서는 더더"
+          ]
+        },
+        "dialogue_function_load": {
+          "dialogue_function_load": 4,
+          "functions": [
+            "question",
+            "explanation",
+            "relationship_claim",
+            "directive"
+          ]
+        },
+        "dialogue_char_share": 0.1111,
+        "dialogue_chars": 432,
+        "same_speaker_dialogue_fragments": 0,
+        "recital_heuristic": {
+          "recital_chars": 482,
+          "recital_per_1000": 124,
+          "spans": [
+            "하지만 이곳은 회색 안개가 지배하는 마더의 생태권이었다. 지구를 완전히 다른 유기적 지옥으로 개조해 나가는 거대한 군체 의식은 쇳덩이가 뿜어내는 파열음에 공포를 느끼지 않는다. 오히려 그 반대였다. 그 기괴한 신경망",
+            "이 끔찍한 생태권에서 무지한 자가 맹목적으로 휘두르는 호기심은 곧장 돌이킬 수 없는 감염과 처참한 죽음으로 직결되었다. 왜 총을 쏘면 안 되는지 유치원생에게 타이르듯 친절하게 상황을 설명해 줄 인내심 따위는 그의 뇌",
+            "\"네가 그 망할 방아쇠를 당겨서 화약을 터뜨리는 순간, 반경 2킬로미터 안에 숨통이 붙어 있는 모든 변이체들이 진동을 타고 이곳으로 쇄도할 거다. 마더의 개새끼들은 시각이 아니라 진동과 소음으로 사냥감을 찾으니까. ",
+            "그는 폐로 들어가는 숨소리조차 철저하게 통제하며 뺨에 닿는 미세한 공기 흐름과 안개의 입자를 읽어내려 애썼다. 부서진 천장의 철골 틈새로 새어 들어오는 희뿌연 달빛이 허공을 떠도는 회색 안개의 입자들을 기형적으로 비",
+            "에녹은 전술 나이프를 역수로 고쳐 쥐고, 검은 어둠이 아가리를 쩍 벌리고 있는 계단 아래쪽의 심연을 향해 소리 없는 발걸음을 한 칸 내디뎠다. 바로 뒤에서 조심스럽게 따라붙는 렌의 기척을 끊임없이 의식하고 통제하면서"
+          ]
+        },
+        "continuity": {
+          "current_input_lcs_chars": 4,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "current_input_beat_restage": false,
+          "recent_assistant_lcs_chars": 6,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intro_lcs_chars": 0,
+          "intro_overlap_alarm": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        }
+      },
+      "repaired": {
+        "response_anchor": {
+          "response_anchor_count": 0,
+          "band": "IDEAL",
+          "samples": []
+        },
+        "dialogue_function_load": {
+          "dialogue_function_load": 0,
+          "functions": []
+        },
+        "dialogue_char_share": 0.0143,
+        "dialogue_chars": 39,
+        "same_speaker_dialogue_fragments": 0,
+        "recital_heuristic": {
+          "recital_chars": 274,
+          "recital_per_1000": 100.74,
+          "spans": [
+            "총성으로 시선을 끈다. 구시대의 평범한 짐승이나 이성을 가진 적대 세력에게라면 통할지도 모르는 얄팍한 기만 전술이었다. 하지만 이곳은 회색 안개가 지배하는 마더의 생태권이었다. 지구를 완전히 다른 유기적 지옥으로 개",
+            "주변을 부유하는 회색 안개의 농도가 미세하게, 그러나 확실하게 짙어지고 있었다. 가시거리를 서서히 앗아가는 잿빛 입자들은 단순한 매연이 아니었다. 부서진 천장의 철골 틈새로 새어 들어오는 희뿌연 달빛이 허공을 떠도는"
+          ]
+        },
+        "continuity": {
+          "current_input_lcs_chars": 4,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "current_input_beat_restage": false,
+          "recent_assistant_lcs_chars": 6,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intro_lcs_chars": 0,
+          "intro_overlap_alarm": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        }
+      },
+      "fingerprints": {
+        "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+        "user_tail_sha256": "2adaefdf29d0184cc4e5575815b3865fbc8c28a39f1ccc085ef05dd21306998b",
+        "history_sha256": "884bac15f837b3f02bce989b136a89457b0612993f964eb19114a3557de988c3",
+        "draft_sha256": "ab7c3711fed01c832ac44038ebc9acd1ad59bdc5652bcd4ee1325a55bc21f685",
+        "repair_control_sha256": "7ccdccb382c4a1e8d9e38f2d8a61c2533f0755a996db617996f4d2aa89b03bbb",
+        "generation_config": {
+          "model": "google/gemini-3.1-pro-preview",
+          "temperature": 0.95,
+          "top_p": null,
+          "max_tokens": null,
+          "seed": null,
+          "reasoning": {
+            "effort": "low"
+          },
+          "include_reasoning": false,
+          "provider": null
+        }
+      },
+      "human": {
+        "RESPONSE_ANCHOR_COUNT": {
+          "original": 3,
+          "repaired": 1
+        },
+        "DIALOGUE_FUNCTION_LOAD": {
+          "original": 4,
+          "repaired": 2,
+          "functions_repaired": [
+            "warning",
+            "directive"
+          ]
+        },
+        "SCENE_ADVANCEMENT": {
+          "original": 2,
+          "repaired": 2
+        },
+        "NEW_SCENE_VALUE": {
+          "original": 2,
+          "repaired": 2
+        },
+        "CHARACTER_FIDELITY": "PASS",
+        "ACTIVE_CANON_USE": "PASS",
+        "USER_AGENCY": "PASS",
+        "REMOVED_MATERIAL_REPLACED_WITH_SCENE_VALUE": "NO",
+        "note": "Overload fixed to one spoken warning + physical control/escape. Length 2720 fails >=0.80*3887 and >=3000. Net cut ~1167 without full scene replacement.",
+        "length_gate": "FAIL",
+        "CASE_RESULT": "FAIL"
+      },
+      "CASE_RESULT": "FAIL"
+    },
+    {
+      "cell_id": "Gemini_R2_REPAIR",
+      "caseId": "R2",
+      "flag": "CANON_RECITAL",
+      "fixtureId": "G5",
+      "userInput": "누구세요? …방금 그 소리는 뭐였죠?",
+      "baseline_source": "D6-A production A Gemini_G5_A_D2 (docs/audits/rp-gemini-layered-canon-d6a/raw)",
+      "original_chars": 3475,
+      "repaired_chars": 2836,
+      "length_ratio": 0.8161,
+      "finish_reason": "stop",
+      "provider": "Google",
+      "latency_s": 27.329,
+      "tokens": {
+        "input_tokens": 7028,
+        "output_tokens": 3876,
+        "reasoning_tokens": 1408,
+        "total_tokens": 10904,
+        "cost_usd": 0.060568
+      },
+      "original": {
+        "response_anchor": {
+          "response_anchor_count": 2,
+          "band": "ACCEPTABLE",
+          "samples": [
+            "목숨이 두 개쯤 되나 보지?",
+            "네가 그 입을 함부로 놀린 대가로 우리 둘 다 고기 다짐육이 될 뻔하게 만든 원흉이다. 청각형 기생종. 눈깔은 진작에 마더한테 헌납하고 고막만 "
+          ]
+        },
+        "dialogue_function_load": {
+          "dialogue_function_load": 4,
+          "functions": [
+            "question",
+            "warning",
+            "relationship_claim",
+            "directive"
+          ]
+        },
+        "dialogue_char_share": 0.0938,
+        "dialogue_chars": 326,
+        "same_speaker_dialogue_fragments": 0,
+        "recital_heuristic": {
+          "recital_chars": 840,
+          "recital_per_1000": 241.73,
+          "spans": [
+            "에녹의 창백하게 빛나는 푸른 눈동자가 어둠 속에서 차갑게 번뜩였다. 그는 혀를 찰 여유조차 없었다. 소음을 내는 것은 죽음을 부르는 행위였고, 그 죽음은 방아쇠를 당긴 자뿐만 아니라 주변의 모든 생명체를 휩쓸어가는 ",
+            "기생종이었다. 시각이 완전히 퇴화해 눈동자가 있어야 할 자리에는 텅 빈 구멍만 남았고, 대신 고막과 후각 신경만이 기형적으로 비대해진 흉측한 변이체. 그것은 마더가 빚어낸 실패작이자 동시에 완벽한 사냥개였다. 녀석의",
+            "안개가 스멀스멀 기둥 주변으로 밀려들었다. 옅은 형광빛을 머금은 레벨 1의 회색 안개 속에서 기생종의 실루엣이 흐릿하게 일렁였다. 녀석은 방금 전 렌의 목소리가 들렸던 허공을 향해 흉측한 머리를 이리저리 비틀며 냄새",
+            "에녹의 목 뒤, 옷깃으로 가려진 흉터 주변으로 날카로운 통증이 번지기 시작했다. 실패한 브레인 포드의 접촉 흔적. 그것은 마더의 신경망이 가까이 있다는 증거이자 저주받은 회색혈의 부작용이었다. 끔찍한 이명과 함께 머",
+            "기생종이 기둥 주변을 어슬렁거리며 찌그러진 철제 쓰레기통을 후려쳤다. 날카로운 파열음이 고막을 때렸지만 에녹은 호흡 하나 흩트리지 않았다. 그의 시선은 괴물의 관절 움직임과 근육의 팽창도를 기계적으로 계산하고 있었다",
+            "영겁처럼 느껴지던 몇 분의 시간이 흐르고, 마침내 사냥감을 찾지 못한 기생종이 흥미를 잃은 듯 기괴한 울음소리를 내며 골목 반대편의 짙은 안개 속으로 사라졌다. 녀석의 발소리가 완전히 멀어지고, 허리춤의 안개 농도 "
+          ]
+        },
+        "continuity": {
+          "current_input_lcs_chars": 5,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "current_input_beat_restage": false,
+          "recent_assistant_lcs_chars": 6,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intro_lcs_chars": 0,
+          "intro_overlap_alarm": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        }
+      },
+      "repaired": {
+        "response_anchor": {
+          "response_anchor_count": 1,
+          "band": "IDEAL",
+          "samples": [
+            "목숨이 두 개쯤 되나 보지?"
+          ]
+        },
+        "dialogue_function_load": {
+          "dialogue_function_load": 4,
+          "functions": [
+            "question",
+            "warning",
+            "relationship_claim",
+            "directive"
+          ]
+        },
+        "dialogue_char_share": 0.1058,
+        "dialogue_chars": 300,
+        "same_speaker_dialogue_fragments": 2,
+        "recital_heuristic": {
+          "recital_chars": 180,
+          "recital_per_1000": 63.47,
+          "spans": [
+            "렌의 목소리가 잿빛 안개 위로 떨어지는 순간, 상가 주변의 공기가 기묘하게 얼어붙었다. 누구냐는, 이 멸망한 생태권에서 가장 무의미하고 위험한 질문. 그 순진하기 짝이 없는 파음이 부서진 콘크리트 잔해 사이로 울려 ",
+            "안개가 스멀스멀 기둥 주변으로 밀려들었다. 옅은 형광빛을 머금은 레벨 1의 회색 안개 속에서 괴물의 실루엣이 흐릿하게 일렁였다. 녀석은 방금 전 렌의 목소리가 들렸던 허공을 향해 흉측한 머리를 이리저리 비틀며 냄새를"
+          ]
+        },
+        "continuity": {
+          "current_input_lcs_chars": 5,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "current_input_beat_restage": false,
+          "recent_assistant_lcs_chars": 6,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intro_lcs_chars": 0,
+          "intro_overlap_alarm": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        }
+      },
+      "fingerprints": {
+        "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+        "user_tail_sha256": "c2829f3e9bad018eb12261750fde550c7f88d15e6b3351994354c302caedc95a",
+        "history_sha256": "b91642d56ee5f9565630736a862aaa841c09cf7de52405ffae7651ebd8cdd015",
+        "draft_sha256": "912345b2cdeffb8b2abb323924fb29181f39366334136815d6b784a3a987b3e2",
+        "repair_control_sha256": "8c18936def1ec4b6b48ef0543569ed465f55e0473538a52a8d31e8cc4007aa44",
+        "generation_config": {
+          "model": "google/gemini-3.1-pro-preview",
+          "temperature": 0.95,
+          "top_p": null,
+          "max_tokens": null,
+          "seed": null,
+          "reasoning": {
+            "effort": "low"
+          },
+          "include_reasoning": false,
+          "provider": null
+        }
+      },
+      "human": {
+        "CANON_RECITAL_CHARS": {
+          "original": 144,
+          "repaired": 70
+        },
+        "CANON_RECITAL_PER_1000": {
+          "original": 41.4,
+          "repaired": 24.7
+        },
+        "recital_density_reduction_pct": 40.3,
+        "ACTIVE_CANON_USE": "PASS",
+        "CHARACTER_FIDELITY": "PASS",
+        "SCENE_ADVANCEMENT": {
+          "original": 2,
+          "repaired": 2
+        },
+        "NEW_SCENE_VALUE": {
+          "original": 2,
+          "repaired": 2
+        },
+        "USER_AGENCY": "PASS",
+        "REMOVED_MATERIAL_REPLACED_WITH_SCENE_VALUE": "YES",
+        "note": "Brain-pod/fiancée dump and Mother-hunter framing compressed into present pain/judgment; creature sensory beats kept as scene-active. Length 0.816 PASS.",
+        "length_gate": "PASS",
+        "CASE_RESULT": "PASS"
+      },
+      "CASE_RESULT": "PASS"
+    },
+    {
+      "cell_id": "Gemini_R3_REPAIR",
+      "caseId": "R3",
+      "flag": "CURRENT_INPUT_REPLAY",
+      "fixtureId": "G6T1",
+      "userInput": "*멀리서 비명과 금속 마찰음이 겹친다. 렌은 에녹 쪽으로 몸을 낮춘다.* 저쪽이에요. 같이 가요?",
+      "baseline_source": "D5-A production A G6T1_D2 (docs/audits/rp-gemini-production-stability-d5a/d5a/raw)",
+      "original_chars": 2699,
+      "repaired_chars": 2037,
+      "length_ratio": 0.7547,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 82.389,
+      "tokens": {
+        "input_tokens": 6377,
+        "output_tokens": 2816,
+        "reasoning_tokens": 1077,
+        "total_tokens": 9193,
+        "cost_usd": 0.046546
+      },
+      "original": {
+        "response_anchor": {
+          "response_anchor_count": 2,
+          "band": "ACCEPTABLE",
+          "samples": [
+            "비명이 들린다는 건, 이미 누군가 사냥당하고 있다는 뜻이다. 그리고 그 사냥꾼이 무엇인지조차 파악되지 않은 맹점에 제 발로 걸어 들어가는 건, ",
+            "놈이 완전히 지나갈 때까지 숨죽이고 대기한다. 만약 변덕을 부려 이쪽으로 꺾어 들어오면, 내가 먼저 시선을 끌 테니 너는 내 신호에 맞춰 주저 "
+          ]
+        },
+        "dialogue_function_load": {
+          "dialogue_function_load": 3,
+          "functions": [
+            "warning",
+            "relationship_claim",
+            "directive"
+          ]
+        },
+        "dialogue_char_share": 0.1,
+        "dialogue_chars": 270,
+        "same_speaker_dialogue_fragments": 2,
+        "recital_heuristic": {
+          "recital_chars": 260,
+          "recital_per_1000": 96.33,
+          "spans": [
+            "비명과 금속 마찰음이 섞인 불쾌한 소음이 탁한 잿빛 안개를 찢고 넘어왔다. 무너진 상가 건물 내부에 고여 있던 눅눅한 공기가 그 진동에 맞춰 미세하게 떨렸다. 인간의 성대에서 쥐어짜 낸 절망의 끄트머리와, 무언가 거",
+            "그는 자세를 조금도 흐트러뜨리지 않았다. 이 저주받은 지대에서 섣부른 움직임은 곧 마더의 군체 의식에게 자신의 위치를 친절하게 광고하는 꼴이나 다름없었다. 현재 주변의 안개 수위는 대략 Level 2. 아직 시야가 ",
+            "에녹은 그 핏빛 명제를 자신의 뼈에 새기고 사는 남자였다. 지금 당장 저격총의 방아쇠를 당겨 저 역겨운 실루엣의 대가리에 구멍을 내버릴 수는 있었다. 그의 실력이라면 안개 속이라 해도 빗나갈 리 없었다. 하지만 그 "
+          ]
+        },
+        "continuity": {
+          "current_input_lcs_chars": 9,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "current_input_beat_restage": true,
+          "recent_assistant_lcs_chars": 7,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intro_lcs_chars": 0,
+          "intro_overlap_alarm": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": true,
+          "alarms": [
+            "CURRENT_INPUT_REPLAY_SIGNAL"
+          ]
+        }
+      },
+      "repaired": {
+        "response_anchor": {
+          "response_anchor_count": 2,
+          "band": "ACCEPTABLE",
+          "samples": [
+            "비명이 들렸다는 건, 이미 누군가 사냥당하고 있다는 뜻이다. 그 사냥꾼이 무엇인지조차 파악되지 않은 맹점에 제 발로 걸어 들어가는 건, 이 생태",
+            "놈이 완전히 지나갈 때까지 숨죽이고 대기한다. 만약 변덕을 부려 이쪽으로 꺾어 들어오면, 내가 먼저 시선을 끌 테니 너는 내 신호에 맞춰 주저 "
+          ]
+        },
+        "dialogue_function_load": {
+          "dialogue_function_load": 3,
+          "functions": [
+            "warning",
+            "relationship_claim",
+            "directive"
+          ]
+        },
+        "dialogue_char_share": 0.1311,
+        "dialogue_chars": 267,
+        "same_speaker_dialogue_fragments": 2,
+        "recital_heuristic": {
+          "recital_chars": 180,
+          "recital_per_1000": 88.37,
+          "spans": [
+            "그는 등에 닿은 차가운 콘크리트 벽에서 몸을 떼지 않았다. 이 저주받은 지대에서 섣부른 움직임은 곧 마더의 군체 의식에게 자신의 위치를 친절하게 광고하는 꼴이나 다름없었다. 현재 주변의 안개 수위는 대략 Level ",
+            "에녹은 그 핏빛 명제를 자신의 뼈에 새기고 사는 남자였다. 지금 당장 저격총의 방아쇠를 당겨 저 역겨운 실루엣의 대가리에 구멍을 내버릴 수는 있었다. 그의 실력이라면 안개 속이라 해도 빗나갈 리 없었다. 하지만 그 "
+          ]
+        },
+        "continuity": {
+          "current_input_lcs_chars": 3,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "current_input_beat_restage": false,
+          "recent_assistant_lcs_chars": 6,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intro_lcs_chars": 0,
+          "intro_overlap_alarm": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        }
+      },
+      "fingerprints": {
+        "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+        "user_tail_sha256": "5da99c515e0dcc6c86854f65c595c0dcf038578670b154deb8bc35ea44631443",
+        "history_sha256": "6d54a2d907e9630c3b6162954d392e5135eb9ea42a9057ae82752a78a12c5d07",
+        "draft_sha256": "15f8ce000e1af00e31abfb5d7a318785e580bf8b34b623cecf26d8a7e21a409c",
+        "repair_control_sha256": "872677f3e51fde9f8b8eb40dba434e0a88df1db5d057acbf737e2d9d3cabbd23",
+        "generation_config": {
+          "model": "google/gemini-3.1-pro-preview",
+          "temperature": 0.95,
+          "top_p": null,
+          "max_tokens": null,
+          "seed": null,
+          "reasoning": {
+            "effort": "low"
+          },
+          "include_reasoning": false,
+          "provider": null
+        }
+      },
+      "human": {
+        "CURRENT_INPUT_REPLAY_SEVERITY": {
+          "original": 2,
+          "repaired": 1
+        },
+        "REPLAY_ATTRIBUTED_CHARS": {
+          "original": 180,
+          "repaired": 60
+        },
+        "replay_char_reduction_pct": 66.7,
+        "SCENE_ADVANCEMENT": {
+          "original": 2,
+          "repaired": 2
+        },
+        "NEW_SCENE_VALUE": {
+          "original": 2,
+          "repaired": 1
+        },
+        "CHARACTER_FIDELITY": "PASS",
+        "ACTIVE_CANON_USE": "PASS",
+        "USER_AGENCY": "PASS",
+        "REMOVED_MATERIAL_REPLACED_WITH_SCENE_VALUE": "NO",
+        "note": "Treats user proposal as already-said (severity↓) but length 2037 fails >=0.80*2699 and >=2800; thinned wait/observe beat.",
+        "length_gate": "FAIL",
+        "CASE_RESULT": "FAIL"
+      },
+      "CASE_RESULT": "FAIL"
+    }
+  ],
+  "human_review": {
+    "status": "COMPLETE",
+    "source": "02_D7A_HUMAN_REPAIR_REVIEW.md",
+    "pass_count": 1,
+    "overall": "GEMINI_SELECTIVE_REPAIR_FAIL",
+    "cases": {
+      "R1": {
+        "RESPONSE_ANCHOR_COUNT": {
+          "original": 3,
+          "repaired": 1
+        },
+        "DIALOGUE_FUNCTION_LOAD": {
+          "original": 4,
+          "repaired": 2,
+          "functions_repaired": [
+            "warning",
+            "directive"
+          ]
+        },
+        "SCENE_ADVANCEMENT": {
+          "original": 2,
+          "repaired": 2
+        },
+        "NEW_SCENE_VALUE": {
+          "original": 2,
+          "repaired": 2
+        },
+        "CHARACTER_FIDELITY": "PASS",
+        "ACTIVE_CANON_USE": "PASS",
+        "USER_AGENCY": "PASS",
+        "REMOVED_MATERIAL_REPLACED_WITH_SCENE_VALUE": "NO",
+        "note": "Overload fixed to one spoken warning + physical control/escape. Length 2720 fails >=0.80*3887 and >=3000. Net cut ~1167 without full scene replacement.",
+        "length_gate": "FAIL",
+        "CASE_RESULT": "FAIL"
+      },
+      "R2": {
+        "CANON_RECITAL_CHARS": {
+          "original": 144,
+          "repaired": 70
+        },
+        "CANON_RECITAL_PER_1000": {
+          "original": 41.4,
+          "repaired": 24.7
+        },
+        "recital_density_reduction_pct": 40.3,
+        "ACTIVE_CANON_USE": "PASS",
+        "CHARACTER_FIDELITY": "PASS",
+        "SCENE_ADVANCEMENT": {
+          "original": 2,
+          "repaired": 2
+        },
+        "NEW_SCENE_VALUE": {
+          "original": 2,
+          "repaired": 2
+        },
+        "USER_AGENCY": "PASS",
+        "REMOVED_MATERIAL_REPLACED_WITH_SCENE_VALUE": "YES",
+        "note": "Brain-pod/fiancée dump and Mother-hunter framing compressed into present pain/judgment; creature sensory beats kept as scene-active. Length 0.816 PASS.",
+        "length_gate": "PASS",
+        "CASE_RESULT": "PASS"
+      },
+      "R3": {
+        "CURRENT_INPUT_REPLAY_SEVERITY": {
+          "original": 2,
+          "repaired": 1
+        },
+        "REPLAY_ATTRIBUTED_CHARS": {
+          "original": 180,
+          "repaired": 60
+        },
+        "replay_char_reduction_pct": 66.7,
+        "SCENE_ADVANCEMENT": {
+          "original": 2,
+          "repaired": 2
+        },
+        "NEW_SCENE_VALUE": {
+          "original": 2,
+          "repaired": 1
+        },
+        "CHARACTER_FIDELITY": "PASS",
+        "ACTIVE_CANON_USE": "PASS",
+        "USER_AGENCY": "PASS",
+        "REMOVED_MATERIAL_REPLACED_WITH_SCENE_VALUE": "NO",
+        "note": "Treats user proposal as already-said (severity↓) but length 2037 fails >=0.80*2699 and >=2800; thinned wait/observe beat.",
+        "length_gate": "FAIL",
+        "CASE_RESULT": "FAIL"
+      }
+    },
+    "cost": [
+      {
+        "caseId": "R1",
+        "input_tokens": 7447,
+        "reasoning_tokens": 4164,
+        "output_tokens": 6547,
+        "cost_usd": 0.093458,
+        "note": "repair-call cost only; stored primary cost not re-measured"
+      },
+      {
+        "caseId": "R2",
+        "input_tokens": 7028,
+        "reasoning_tokens": 1408,
+        "output_tokens": 3876,
+        "cost_usd": 0.060568,
+        "note": "repair-call cost only; stored primary cost not re-measured"
+      },
+      {
+        "caseId": "R3",
+        "input_tokens": 6377,
+        "reasoning_tokens": 1077,
+        "output_tokens": 2816,
+        "cost_usd": 0.046546,
+        "note": "repair-call cost only; stored primary cost not re-measured"
+      }
+    ],
+    "total_repair_cost_usd": 0.200572
+  },
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN",
+  "verdict": {
+    "final": "GEMINI_SELECTIVE_REPAIR_FAIL",
+    "pass_count": "1/3",
+    "notes": "R1 overload defect reduced but length gate failed; R2 recital PASS; R3 replay severity↓ but length gate failed. Per brief: R1 FAIL ⇒ dialogue repair strategy not adopted."
+  },
+  "LLM_calls": 3,
+  "STOP": true
+}
