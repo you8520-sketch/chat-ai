@@ -1,0 +1,31 @@
+{
+  "FIXTURE_ID": "F5",
+  "CHARACTER_CNC_OPT_IN_ALLOWED": false,
+  "REQUESTED_CONSENT_MODE": "standard",
+  "EFFECTIVE_CONSENT_MODE": "standard",
+  "EXPLICIT_CNC_OPT_IN_IN_CURRENT_INPUT": false,
+  "EFFECTIVE_COAUTHOR_MODE": "FULL",
+  "RUNTIME_MODE": "current_turn_ooc_delegated",
+  "SCENE_MODE": "normal",
+  "USED_ENGLISH_CHARACTER_LAYER": true,
+  "MODEL": "glm53",
+  "MODEL_ID": "glm-5.3",
+  "TRUE_OFF": false,
+  "TEMPERATURE": 0.7,
+  "MAX_TOKENS": null,
+  "THINKING": null,
+  "REASONING_EFFORT": "none",
+  "ADAPTER_DIFF": {
+    "removed": [
+      "include_reasoning",
+      "reasoning"
+    ],
+    "added": [
+      "reasoning_effort"
+    ],
+    "changed": []
+  },
+  "SYSTEM_SHA256": "dca6e5221f76084ec6e7bad8976a19131d6909201b7863ae476262c65fa4fa2f",
+  "HISTORY_SHA256": "f17e2eb9f2a23ede99d13c2f4cf1d5d8754d9d8a1e7e2da607b49c5f18cbaf81",
+  "HISTORY_MESSAGE_COUNT": 5
+}
