@@ -1,0 +1,16 @@
+{
+  "HTTP_STATUS": 200,
+  "SSE_DONE_OBSERVED": false,
+  "FINISH_REASON": null,
+  "USAGE_PRESENT": false,
+  "RAW_CHARS": 0,
+  "ENDS_AT_COMPLETE_SENTENCE": false,
+  "COLLECTOR_ERROR": null,
+  "leftover_flushed": false,
+  "elapsed_ms": 5802,
+  "BASELINE_STREAM_VALID": false,
+  "TOTAL_PROVIDER_CALLS_THIS_EXPERIMENT": 1,
+  "usage": null,
+  "request_sha": "85ae4e16ba3e002dc1dcd84911f3263c68679904e5d3316a0f365fd084003731",
+  "provider_raw_sha": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

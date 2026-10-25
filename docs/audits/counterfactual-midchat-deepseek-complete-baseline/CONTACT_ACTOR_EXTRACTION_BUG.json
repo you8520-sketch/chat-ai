@@ -1,0 +1,18 @@
+{
+  "CONTACT_ACTOR_EXTRACTION_BUG": true,
+  "SCENE_CONTINUITY_PREVIOUS_ACTION_ACTOR": "손이",
+  "packet_source": "PR #621 meta/counterfactual-continuity-packet.json (copied read-only)",
+  "packet": {
+    "previousSceneMode": "romantic",
+    "sexualContextActive": false,
+    "activeConsentMode": "standard",
+    "charactersPresent": ["라이크", "렌"],
+    "currentPov": "third_person",
+    "previousActionActor": "손이",
+    "previousActionTarget": "렌",
+    "contactDirection": "손이 → 렌 contact"
+  },
+  "malformed_because": "\"손이\" is a body-part noun, not a character actor",
+  "fix_in_this_experiment": false,
+  "note": "Read-only secondary bug. Do not mix continuity extraction repair with style causal testing."
+}

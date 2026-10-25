@@ -1,0 +1,24 @@
+{
+  "BASELINE_STREAM_VALID": false,
+  "HTTP_STATUS": 200,
+  "SSE_DONE_OBSERVED": false,
+  "FINISH_REASON": null,
+  "USAGE_PRESENT": false,
+  "RAW_CHARS": 0,
+  "ENDS_AT_COMPLETE_SENTENCE": false,
+  "COLLECTOR_ERROR": null,
+  "leftover_flushed": false,
+  "elapsed_ms": 5802,
+  "TOTAL_PROVIDER_CALLS_THIS_EXPERIMENT": 1,
+  "owners": {
+    "DEEPSEEK_STYLE_REMINDER_ACTIVE": true,
+    "HANDOFF_CONTINUATION_OWNER_ACTIVE": true,
+    "INTIMACY_OWNER_ACTIVE": true,
+    "USER_TAIL_3200_ACTIVE": true,
+    "TERMINAL_DIALOGUE_OWNER_ACTIVE": false,
+    "CREATOR_OPENING_AS_ASSISTANT_STYLE_EXEMPLAR": false,
+    "CREATOR_OPENING_REMAP_PRESENT": true
+  },
+  "DEEPSEEK_PROVIDER_CALLS": 1,
+  "note": "Incomplete provider stream — no style experiment"
+}
