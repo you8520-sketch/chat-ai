@@ -1,0 +1,180 @@
+{
+  "clauses": [
+    {
+      "id": "P01",
+      "source": "NARRATION REGISTER",
+      "text": "지문·서술은 해체(-다/-했다/-이었다)만",
+      "status": "PRESERVED_EXACT",
+      "note": "byte-identical opening line",
+      "k": "K1"
+    },
+    {
+      "id": "P02",
+      "source": "NARRATION REGISTER",
+      "text": "번역투·명사 단편 행·쉼표 나열로 이어 붙인 문장 금지",
+      "status": "PRESERVED_MERGED",
+      "note": "M1 — folded into RHYTHM short-sentence owner",
+      "k": "K2"
+    },
+    {
+      "id": "P03",
+      "source": "NARRATION REGISTER",
+      "text": "말줄임 ... 은 망설임·끊김·여운이 실제 있을 때만. ...... 금지",
+      "status": "PRESERVED_EXACT",
+      "note": "unchanged"
+    },
+    {
+      "id": "P04",
+      "source": "SCENE FLOW",
+      "text": "장면의 성격에 맞춰 속도를 조절하되 calm/tension/combat는 분량 수준을 의미하지 않는다",
+      "status": "PRESERVED_EXACT",
+      "note": "calm != short preserved",
+      "k": "K13"
+    },
+    {
+      "id": "P05",
+      "source": "SCENE FLOW",
+      "text": "평온한 장면도 짧게 요약하지 않고 … 변화로 전개한다",
+      "status": "PRESERVED_MERGED",
+      "note": "M2 primary owner — merged with IMMERSIVE quiet-scene clause",
+      "k": "K13"
+    },
+    {
+      "id": "P06",
+      "source": "RHYTHM",
+      "text": "같은 문장 시작형 반복 금지 / 시작점 변경",
+      "status": "PRESERVED_EXACT",
+      "note": "unchanged",
+      "k": "K3"
+    },
+    {
+      "id": "P07",
+      "source": "RHYTHM",
+      "text": "짧은 문장·파편은 강조일 때만 / 습관적 연타 금지 / 번역체 단문 연속 금지",
+      "status": "PRESERVED_MERGED",
+      "note": "M1 — consolidated with P02 into one concise owner",
+      "k": "K2,K4"
+    },
+    {
+      "id": "P08",
+      "source": "RHYTHM",
+      "text": "문장 길이 리듬과 문단 분리는 별개다",
+      "status": "PRESERVED_EXACT",
+      "note": "unchanged"
+    },
+    {
+      "id": "P09",
+      "source": "SENSATION",
+      "text": "1~2채널 깊게 / 구체성 / 질감·공간·온도·소리·대비·방향·거리",
+      "status": "UNCHANGED",
+      "note": "FROZEN — sensation block byte-identical",
+      "k": "K5"
+    },
+    {
+      "id": "P10",
+      "source": "IMMERSIVE",
+      "text": "초점 인물 체험 밀착 / 생각·연상·기억·오해·감정·판단 연결",
+      "status": "PRESERVED_EXACT",
+      "note": "unchanged",
+      "k": "K6"
+    },
+    {
+      "id": "P11",
+      "source": "IMMERSIVE",
+      "text": "이미 잡힌 생각·해석·관계 결론을 다른 비유로 반복 증명하지 않음",
+      "status": "PRESERVED_EXACT",
+      "note": "M3 KEEP SEPARATE — repetition owner",
+      "k": "K8-rep"
+    },
+    {
+      "id": "P12",
+      "source": "IMMERSIVE",
+      "text": "분위기·관계·이해·긴장·결과를 바꾸는 디테일만 / 평범한 이동 압축",
+      "status": "PRESERVED_EXACT",
+      "note": "unchanged"
+    },
+    {
+      "id": "P13",
+      "source": "IMMERSIVE",
+      "text": "대사 = 캐릭터·관계·상황 / 설정 브리핑 금지",
+      "status": "UNCHANGED",
+      "note": "FROZEN dialogue quality",
+      "k": "K9,K10"
+    },
+    {
+      "id": "P14",
+      "source": "IMMERSIVE",
+      "text": "이유 없는 질문 연타 금지 / 침묵·본업·퇴장 허용",
+      "status": "UNCHANGED",
+      "note": "FROZEN",
+      "k": "K11"
+    },
+    {
+      "id": "P15",
+      "source": "IMMERSIVE",
+      "text": "이유 없는 첫 만남 특별취급 금지 (정본·친화·사건·명시 인연 예외)",
+      "status": "UNCHANGED",
+      "note": "FROZEN",
+      "k": "K12"
+    },
+    {
+      "id": "P16",
+      "source": "IMMERSIVE",
+      "text": "이미 드러난 감정/관계 의미를 추상 정답 해설로 다시 쓰지 않음",
+      "status": "PRESERVED_EXACT",
+      "note": "M3 KEEP SEPARATE — tell-after-show owner",
+      "k": "K8-tell"
+    },
+    {
+      "id": "P17",
+      "source": "IMMERSIVE",
+      "text": "행동 목록·신체 부위 목록·소품 조작 목록처럼 쓰지 않음",
+      "status": "PRESERVED_EXACT",
+      "note": "unchanged",
+      "k": "K7"
+    },
+    {
+      "id": "P18",
+      "source": "IMMERSIVE",
+      "text": "평온한 장면도 대화·내면·관계·분위기·결과로 전개 / 미세 행동·반복 해설로 분량 채우지 않음",
+      "status": "PRESERVED_MERGED",
+      "note": "M2 — removed from IMMERSIVE; meaning folded into SCENE FLOW primary wording (anti-summary + change-driven progress + no padding)",
+      "k": "K13"
+    },
+    {
+      "id": "P19",
+      "source": "IMMERSIVE",
+      "text": "최근 서술 문체 참고 / 이전 길이 모방 금지 / 현재 길이 지시 우선",
+      "status": "PRESERVED_EXACT",
+      "note": "unchanged",
+      "k": "K14"
+    },
+    {
+      "id": "P20",
+      "source": "WEBNOVEL BREATH",
+      "text": "중요 순간 직전 pause / 전환·분기 reset",
+      "status": "UNCHANGED",
+      "note": "FROZEN — C2-S NOT_RUN"
+    },
+    {
+      "id": "P21",
+      "source": "19+ INTIMACY",
+      "text": "NSFW voice / relationship continuity",
+      "status": "UNCHANGED",
+      "note": "NSFW block untouched (outside prose style body)",
+      "k": "K15"
+    }
+  ],
+  "checks": {
+    "m1_owner_present": true,
+    "m1_no_orphan_register_line": true,
+    "m2_primary_in_scene_flow": true,
+    "m2_removed_from_immersive": true,
+    "m3_rep_kept": true,
+    "m3_tell_kept": true,
+    "breath_unchanged": true,
+    "sensation_unchanged": true,
+    "no_new_literary_boosters": true
+  },
+  "gate": "PASS"
+}

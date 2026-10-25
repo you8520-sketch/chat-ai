@@ -1,0 +1,33 @@
+{
+  "note": "Reveal only after scoring seal",
+  "blindMap": {
+    "Gemini_Q": {
+      "X": "B",
+      "Y": "A"
+    },
+    "Gemini_D": {
+      "X": "A",
+      "Y": "B"
+    },
+    "Gemini_T": {
+      "X": "B",
+      "Y": "A"
+    },
+    "DeepSeek_Q": {
+      "X": "A",
+      "Y": "B"
+    },
+    "DeepSeek_D": {
+      "X": "A",
+      "Y": "B"
+    },
+    "DeepSeek_T": {
+      "X": "A",
+      "Y": "B"
+    }
+  },
+  "arm_meanings": {
+    "A": "production PROSE_STYLE_SECTION",
+    "B": "PROSE_STYLE_SECTION_C2_MICRO (M1+M2 only)"
+  }
+}
