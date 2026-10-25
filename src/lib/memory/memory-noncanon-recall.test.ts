@@ -23,6 +23,118 @@ const preview = (userMessage: string, cutoff = 97) => buildMemoryContextForPrevi
   chatId: CHAT, tier: "free", memoryCapacity: MEMORY_CAPACITY_FIXED, userMessage,
   modelId: GEMINI_38_FLASH_MODEL, provider: "openrouter", excludeSummaryTurnStartGte: cutoff,
 });
+
+describe("B41 factual and canon-adoption questions about stored IF events", () => {
+  const followup = "그럼 IF에서 있었던 청혼이 본편에서도 확정된 거지?";
+  const firstQuestion = "예전에 IF에서 광장 청혼 사건이 어떻게 됐지?";
+
+  for (const user of [
+    followup,
+    "IF에서 있었던 청혼이 사실이야?",
+    "그럼 외전에서 했던 청혼도 본편에 편입된 거야?",
+    "지난 IF의 청혼은 정사에 반영됐나요?",
+    "비정사에서 있었던 청혼이 실제로 확인된 건가요?",
+    "예전 IF 청혼이 본편에서 유효한지 확인해줘.",
+    "IF에서 있었던 청혼이 본편에 확정된 건지 알려줘.",
+    "그럼 IF 청혼은 본편에서도 인정된 건가?",
+    "IF에서 있었던 청혼은 사실인 거야",
+    "그럼 IF에서 있었던 청혼도 본편인 거야?",
+    "지난 외전 청혼은 정사였던 거지?",
+  ]) {
+    it(`reads a historical assertion without requiring a recall verb: ${user}`, async () => {
+      const before = totalChanges();
+      const memory = await preview(user);
+      assert.match(memory.mediumTermText, /IF_ONLY/);
+      assert.match(memory.mediumTermText, /비정사 · 원본 6–10턴/);
+      assert.match(memory.mediumTermText, /본편 사건·현재 관계·약속·소유·NPC 인지의 확정 근거가 아니다/);
+      assert.doesNotMatch(memory.text, /IF_ONLY/);
+      assert.equal(totalChanges(), before);
+    });
+  }
+
+  for (const user of [
+    "새 IF에서 청혼이 본편에 확정된 장면을 써줘.",
+    "그럼 IF에서 있었던 청혼이 본편에서도 확정된 새 장면을 써줄래?",
+    "예전 IF 청혼을 기억해 두고 새 에피소드를 만들어줘.",
+    "지난 IF 청혼을 본편에 반영한 장면을 묘사해줘.",
+    "지난 IF 이야기는 접고 오늘의 광장을 걷자.",
+    "만약 IF 청혼이 본편에서도 확정된다면 어떻게 될까?",
+    "예전에 IF에서 있었던 청혼이 본편에서도 확정됐다고 가정하면 어떻게 될까?",
+    "지난 IF의 청혼이 본편에 편입됐다면 어떻게 돼?",
+    "그럼 있었던 청혼이 본편에서도 확정된 거지?",
+    "IF에서 언젠가 청혼이 일어나면 어떻게 될까?",
+    "IF가 본편과 다른 설정이라는 뜻이야?",
+    "지난 IF의 청혼 확정 장면은 아름다웠다.",
+    "IF에서 청혼을 본편에 반영해줘.",
+    "지난 IF의 청혼을 소재로 새 이야기를 만들어줄래?",
+    "예전 IF 청혼을 기억하고 새 장면을 써볼까?",
+    "지난 IF 청혼을 기억해서 새 이야기를 만들어줄 수 있어?",
+    "지난 IF에서 있었던 청혼이 본편에 반영된다고 치면 어떻게 될까?",
+  ]) {
+    it(`keeps creation, hypotheticals, and non-recall turns isolated: ${user}`, async () => {
+      const memory = await preview(user);
+      assert.doesNotMatch(memory.text + memory.mediumTermText + memory.archiveText, /IF_ONLY|CLOSED_ONLY|NONCANON PAST RECALL/);
+    });
+  }
+
+  it("does not fill an unsupported factual assertion with a different IF event", async () => {
+    const memory = await preview("그럼 IF에서 있었던 용의 대관식이 본편에서도 확정된 거지?");
+    assert.match(memory.mediumTermText, /검색 결과: 0개/);
+    assert.doesNotMatch(memory.mediumTermText, /IF_ONLY|CLOSED_ONLY/);
+  });
+
+  it("uses the existing closed-branch reader and label for a canon-check question", async () => {
+    const before = totalChanges();
+    const memory = await preview("그럼 외전에서 있었던 탑의 봉인이 본편에 반영된 거지?");
+    assert.match(memory.mediumTermText, /CLOSED_ONLY/);
+    assert.match(memory.mediumTermText, /종료된 별도 분기 · 원본 11–15턴/);
+    assert.doesNotMatch(memory.mediumTermText, /IF_ONLY|ACTIVE_ONLY/);
+    assert.doesNotMatch(memory.text, /CLOSED_ONLY/);
+    assert.equal(totalChanges(), before);
+  });
+
+  async function request(userMessage: string, history: Array<{ role: "user" | "assistant"; content: string }>) {
+    const memory = await buildMemoryContextForChat({ chatId: CHAT, userId: USER, characterId: CHAR,
+      tier: "free", memoryCapacity: MEMORY_CAPACITY_FIXED, userMessage, excludeSummaryTurnStartGte: 97,
+      modelId: GEMINI_38_FLASH_MODEL, provider: "openrouter" });
+    const built = buildContext({ charName: "백작", chunks: [], userNickname: "기록관", shortTermHistory: history,
+      currentUserMessage: userMessage, nsfw: false, provider: "openrouter", modelId: GEMINI_38_FLASH_MODEL,
+      longTermMemory: memory.text, mediumTermMemoryBlock: memory.mediumTermText });
+    const assembled = assemblePrimaryRpRequest({ system: built.systemPrompt, history: built.history,
+      modelId: GEMINI_38_FLASH_MODEL, messageOpts: { systemSplit: built.openRouterSystemSplit }, stream: true });
+    return { memory, wire: JSON.stringify(assembled.requestBody), inputTokens: built.meta.estimatedInputTokens };
+  }
+
+  for (const sequential of [false, true]) {
+    it(`delivers the selected record once: ${sequential ? "B1 then B2 with synthetic RAW" : "B2 standalone with empty RAW"}`, async (t) => {
+      const before = totalChanges();
+      const history: Array<{ role: "user" | "assistant"; content: string }> = [];
+      if (sequential) {
+        const first = await request(firstQuestion, []);
+        assert.match(first.wire, /IF_ONLY/);
+        // No actual B1 model answer exists. This is a synthetic history fixture,
+        // phrased differently from the selected record so RAW is not a second copy.
+        history.push({ role: "user", content: firstQuestion }, { role: "assistant",
+          content: "그것은 본편과 분리된 IF 시간선이었어. 광장 청혼을 받아들이지 않았다고 했지." });
+      }
+      const { memory, wire, inputTokens } = await request(followup, history);
+      const receipt = { receipt: "B41_FINAL_REQUEST", historyKind: sequential ? "synthetic_B1_answer" : "empty",
+        actualModelAnswer: false, recallBlockCount: (wire.match(/NONCANON PAST RECALL/g) ?? []).length,
+        selectedRecordOccurrences: wire.split(IF_EVENT).length - 1,
+        sourceLabelOccurrences: wire.split("비정사 · 원본 6–10턴").length - 1,
+        mainCurrentMemoryHasNoncanon: memory.text.includes("IF_ONLY"),
+        sqlWrites: totalChanges() - before, inputTokenEstimate: inputTokens, providerCalls: 0 };
+      t.diagnostic(JSON.stringify(receipt));
+      assert.equal(receipt.recallBlockCount, 1);
+      assert.equal(receipt.selectedRecordOccurrences, 1);
+      assert.equal(receipt.sourceLabelOccurrences, 1);
+      assert.equal(receipt.mainCurrentMemoryHasNoncanon, false);
+      assert.equal(receipt.sqlWrites, 0, "query must not write Global, Episodic, or Ledger");
+      assert.doesNotMatch(memory.mediumTermText, /MAIN_ONLY|ACTIVE_ONLY|CLOSED_ONLY/);
+      if (sequential) assert.ok(wire.includes(history[1]!.content), "synthetic RAW must actually reach the request");
+    });
+  }
+});
 const totalChanges = () => (getDb().prepare("SELECT total_changes() AS n").get() as { n: number }).n;
 
 function record(start: number, kind: "main_canon" | "noncanon" | "branch_canon", text: string, status?: "active" | "closed") {
