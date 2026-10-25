@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { committedActionText, uncommittedActionWire } from "./actionSemantics";
+import { committedActionText, isCommittedItemConsumption, uncommittedActionWire } from "./actionSemantics";
 import { resolveTrpgActionCheckDecision } from "./actionCheck";
 import { pickStatForActionDetailed, resolveServerHumanActionType } from "./actionTypes";
 import { buildTrpgGmUserBlock, formatTrpgActionCheckWire } from "./gmPrompt";
@@ -111,6 +111,21 @@ describe("free-text human adjudication", () => {
     assert.equal(used.check, "ordinary_item_use");
     assert.equal(isTreatmentItemIntent("회복약을 사용한다", ["회복약"]), true);
     assert.equal(healOwnerKind({ body: "회복약을 사용한다", sourceInventory: ["회복약"] }), "item");
+
+    const usedThenNod = judge("회복약을 사용한다. 고개를 끄덕인다.");
+    assert.equal(usedThenNod.actionType, "use_item");
+    assert.equal(usedThenNod.check, "ordinary_item_use");
+    assert.equal(isCommittedItemConsumption("회복약을 사용한다. 고개를 끄덕인다."), true);
+    assert.equal(isTreatmentItemIntent("회복약을 사용한다. 고개를 끄덕인다.", ["회복약"]), true);
+
+    const refusedPotion = judge("회복약을 사용하지 않는다. 고개를 끄덕인다.");
+    assert.equal(isCommittedItemConsumption("회복약을 사용하지 않는다. 고개를 끄덕인다."), false);
+    assert.equal(isTreatmentItemIntent("회복약을 사용하지 않는다. 고개를 끄덕인다.", ["회복약"]), false);
+    assert.notEqual(refusedPotion.check, "ordinary_item_use");
+
+    const compoundUseAttack = judge("회복약을 사용한다. 경비를 공격한다.");
+    assert.equal(compoundUseAttack.actionType, "use_item");
+    assert.equal(isCommittedItemConsumption("회복약을 사용한다. 경비를 공격한다."), true);
 
     const declined = judge("상대방을 설득하지 않는다");
     assert.notEqual(declined.actionType, "persuade");

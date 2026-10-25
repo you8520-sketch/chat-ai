@@ -209,15 +209,15 @@ function isDangerousItemApplication(text: string): boolean {
   return kind === "hazard" || kind === "contested";
 }
 
-function isOrdinaryTherapeuticItemUse(text: string): boolean {
+function isOrdinaryTherapeuticItemUse(text: string, consumptionBody = text): boolean {
   const normalized = normalizeBody(text);
-  if (!isCommittedItemConsumption(normalized) || !THERAPEUTIC_ITEM.test(normalized)) return false;
+  if (!isCommittedItemConsumption(consumptionBody) || !THERAPEUTIC_ITEM.test(normalized)) return false;
   return !isDangerousItemApplication(normalized);
 }
 
-function isSkillTreatmentWithoutItem(text: string): boolean {
+function isSkillTreatmentWithoutItem(text: string, consumptionBody = text): boolean {
   const normalized = normalizeBody(text);
-  if (THERAPEUTIC_ITEM.test(normalized) && isCommittedItemConsumption(normalized)) return false;
+  if (THERAPEUTIC_ITEM.test(normalized) && isCommittedItemConsumption(consumptionBody)) return false;
   return (
     isBasicFirstAidIntent(normalized) ||
     isStatusTreatmentOnly(normalized) ||
@@ -234,8 +234,8 @@ function isOrdinaryPreparation(text: string): boolean {
   return ORDINARY_PREP.test(text);
 }
 
-function resolveItemUseDecision(body: string, intent: string): TrpgActionCheckDecision {
-  const visible = visibleActorActionText(body);
+function resolveItemUseDecision(body: string, intent: string, consumptionBody: string): TrpgActionCheckDecision {
+  const visible = visibleActorActionText(consumptionBody);
   if (visible) {
     if (isHazardousItemUse(visible)) {
       const kind = classifyChallengeKind(visible);
@@ -243,10 +243,10 @@ function resolveItemUseDecision(body: string, intent: string): TrpgActionCheckDe
       if (kind === "hazard") return { needsCheck: true, reason: "hazard" };
       return { needsCheck: true, reason: "challenge" };
     }
-    if (isOrdinaryTherapeuticItemUse(visible)) {
+    if (isOrdinaryTherapeuticItemUse(visible, consumptionBody)) {
       return { needsCheck: false, reason: "ordinary_item_use" };
     }
-    if (isSkillTreatmentWithoutItem(visible)) {
+    if (isSkillTreatmentWithoutItem(visible, consumptionBody)) {
       return { needsCheck: true, reason: "challenge" };
     }
   }
@@ -257,7 +257,7 @@ function resolveItemUseDecision(body: string, intent: string): TrpgActionCheckDe
   if (intentReason && isHazardousItemUse(intent)) {
     return { needsCheck: true, reason: intentReason };
   }
-  if (!isCommittedItemConsumption(body)) {
+  if (!isCommittedItemConsumption(consumptionBody)) {
     return { needsCheck: false, reason: "no_meaningful_uncertainty" };
   }
   return { needsCheck: false, reason: "ordinary_item_use" };
@@ -338,7 +338,7 @@ export function resolveTrpgActionCheckDecision(opts: {
   }
 
   if (actionType === "use_item") {
-    return resolveItemUseDecision(body, intent);
+    return resolveItemUseDecision(body, intent, raw);
   }
 
   if (visibleRisk) return { needsCheck: true, reason: visibleRisk };

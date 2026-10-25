@@ -648,7 +648,8 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     });
     await expect(dock).toHaveAttribute("data-trpg-command-dock-mode", "action");
     await expect(dock.locator("textarea")).toHaveValue("붕대를 사용한다.");
-    await expect(dock.getByText("선택한 유형: 도구")).toBeVisible();
+    await expect(dock.locator("[data-trpg-stat-selector]")).toHaveCount(0);
+    await expect(dock.locator("[data-trpg-action-chip]")).toHaveCount(0);
     expect(actionPosts).toEqual([]);
 
     frame = await openSelf();
@@ -674,6 +675,8 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     const frame = page.frameLocator("iframe[title='내 시트']");
     await expect(frame.getByText("HP 25/25")).toBeVisible();
     await expect(frame.locator("[data-trpg-stat='str']")).toBeVisible();
+    await page.locator("[data-trpg-command-dock-tab='action']").click();
+    await expect(dock).toHaveAttribute("data-trpg-command-dock-mode", "action");
     await expect(dock.locator("[data-trpg-stat-selector]")).toHaveCount(0);
     await expect(dock.locator("[data-trpg-action-chip]")).toHaveCount(0);
     await expect(dock.locator("textarea")).toHaveValue("");
@@ -719,8 +722,8 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     await page.waitForTimeout(400);
     await expect(dock).toHaveAttribute("data-trpg-command-dock-mode", "party");
     await page.locator("[data-trpg-command-dock-tab='action']").click();
-    await expect(dock.locator("[data-trpg-stat-choice='auto']")).toHaveAttribute("aria-pressed", "true");
-    await expect(dock.locator("[data-trpg-stat-choice='cha']")).toHaveAttribute("aria-pressed", "false");
+    await expect(dock).toHaveAttribute("data-trpg-command-dock-mode", "action");
+    await expect(dock.locator("[data-trpg-stat-selector]")).toHaveCount(0);
     await expect(dock.locator("textarea")).not.toHaveValue(/파티원 시트/);
     await page.locator("[data-trpg-command-dock-tab='ooc']").click();
     await expect(dock.getByPlaceholder("유저에게 메시지 보내기")).toHaveValue("");

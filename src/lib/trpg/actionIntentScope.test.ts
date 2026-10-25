@@ -173,6 +173,39 @@ describe("committed-clause adjudication through submit, dice, inventory, and GM 
       assert.equal(afterUse.hp, 14);
       assert.deepEqual(inventoryUnits(afterUse.inventory), []);
 
+      pinHost(table.db, table.hostId, 10, ["회복약"]);
+      submitTrpgAction(table.db, {
+        campaignId: table.campaignId,
+        userId: 1,
+        body: "회복약을 사용한다. 고개를 끄덕인다.",
+        actionType: "attack",
+        selectedStat: "str",
+      });
+      const nodUse = latestAction(table.db, table.campaignId);
+      assert.equal(nodUse.action_type, "use_item");
+      assert.equal(nodUse.selected_stat, null);
+      await advanceTrpgCampaign(table.db, { campaignId: table.campaignId, userId: 1, deps: table.deps });
+      const nodWire = table.users.at(-1) ?? "";
+      assert.match(nodWire, /ordinary_item_use/);
+      assert.match(nodWire, /회복약을 사용한다/);
+      assert.equal(rollRows(table.db, nodUse.id).length, 0);
+      const afterNodUse = hostSheet(table.db, table.campaignId);
+      assert.equal(afterNodUse.hp, 14);
+      assert.deepEqual(inventoryUnits(afterNodUse.inventory), []);
+
+      submitTrpgAction(table.db, {
+        campaignId: table.campaignId,
+        userId: 1,
+        body: "회복약을 사용하지 않는다. 고개를 끄덕인다.",
+      });
+      const refusedUse = latestAction(table.db, table.campaignId);
+      assert.equal(refusedUse.action_type, "free");
+      await advanceTrpgCampaign(table.db, { campaignId: table.campaignId, userId: 1, deps: table.deps });
+      assert.doesNotMatch(table.users.at(-1) ?? "", /ordinary_item_use/);
+      const afterRefused = hostSheet(table.db, table.campaignId);
+      assert.equal(afterRefused.hp, 14);
+      assert.deepEqual(inventoryUnits(afterRefused.inventory), []);
+
       await regenerateTrpgNarration(table.db, { campaignId: table.campaignId, userId: 1, deps: table.deps });
       const regenWire = table.users.at(-1) ?? "";
       assert.match(regenWire, /회복약을 사용한다/);

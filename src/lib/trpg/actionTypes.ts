@@ -124,7 +124,7 @@ function pickMethodStat(opts: {
 export function resolveServerHumanActionType(body: string): TrpgActionType {
   const text = committedActionText(body);
   if (!text) return "free";
-  if (/회복약|구급키트|붕대|해독제|치료제/.test(text) && isCommittedItemConsumption(text)) return "use_item";
+  if (/회복약|구급키트|붕대|해독제|치료제/.test(text) && isCommittedItemConsumption(body)) return "use_item";
   if (/응급처치|지혈|중독 상태|마비 상태|상태이상을 치료|상태를 치료|상태를 완화/.test(text)) return "support";
   if (/눈을\s*피|몰래|은신|들키지|기척을\s*죽/.test(text)) return "stealth";
   if (/설득|협상|회유|달래/.test(text)) return "persuade";

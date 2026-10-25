@@ -142,13 +142,21 @@ export function isDeclinedCommitment(body: string): boolean {
   return actionClauses(text).some((clause) => classifyActionClause(clause).kind === "declined");
 }
 
-export function isCommittedItemConsumption(body: string): boolean {
-  const committed = committedActionText(body)
+function clauseConsumesItem(span: string): boolean {
+  const committed = span
     .replace(/^\*+|\*+$/g, "")
     .replace(/[.!?。！？]+$/g, "")
     .trim();
   if (!committed) return false;
   return ITEM_CONSUMPTION_PREDICATE.test(committed);
+}
+
+/** True when any committed act clause ends in an item-consumption predicate (not usage-instruction nouns). */
+export function isCommittedItemConsumption(body: string): boolean {
+  return actionClauses(body).some((clause) => {
+    const { kind, span } = classifyActionClause(clause);
+    return kind === "act" && span && clauseConsumesItem(span);
+  });
 }
 
 /** GM note for clauses that must not be narrated as done or charged. */
