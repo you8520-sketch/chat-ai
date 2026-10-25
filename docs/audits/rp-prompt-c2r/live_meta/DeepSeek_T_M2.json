@@ -1,0 +1,56 @@
+{
+  "cell_id": "DeepSeek_T_M2",
+  "fixture": "T",
+  "arm": "M2",
+  "modelKey": "DeepSeek",
+  "modelId": "deepseek/deepseek-v4-pro",
+  "resolved_model": "deepseek/deepseek-v4-pro",
+  "character_id": 10,
+  "user_input": "*멀리서 비명과 금속 마찰음이 겹친다. 렌은 에녹 쪽으로 몸을 낮춘다.* 저쪽이에요. 같이 가요?",
+  "provenance": "C2-R Stage1 — same T fixture as C2 (terra_action T1 / d2-enoch card)",
+  "prose_arm_tokens": 1449,
+  "system_sha256": "d8c8afdc22be2fd0c9dc73dd357ffef8688ad41e2ed5c459b6d7f7e4e3dd3e89",
+  "last_user_sha256": "a3a4cd27f5d5ce60435417746c37bdef84338124d13c824b67be776a052ae347",
+  "protectedOk": {
+    "layout_A_present": true,
+    "arm_marker": true,
+    "arm_prose": true,
+    "production_absent_when_not_A": true,
+    "canon_top": true,
+    "no_godmodding": true
+  },
+  "finish_reason": "stop",
+  "saw_done": true,
+  "latency_s": 32.072,
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "transport_reissue": 0,
+  "usage": {
+    "input_tokens": 4641,
+    "cached_input_tokens": null,
+    "visible_output_tokens": 1129
+  },
+  "PROVIDER_RAW": {
+    "visible_chars": 1132,
+    "total_paragraphs": 25,
+    "dialogue_paragraphs": 9,
+    "narration_paragraphs": 16,
+    "approx_sentences": 76
+  },
+  "FINAL_DISPLAY": {
+    "visible_chars": 1132,
+    "total_paragraphs": 25,
+    "dialogue_paragraphs": 9,
+    "narration_paragraphs": 16,
+    "approx_sentences": 76
+  },
+  "agency_severe": 0,
+  "incomplete": false,
+  "metadata_leak": false,
+  "input_echo_regression": false,
+  "language_regression": false,
+  "scene_density_collapse": false,
+  "raw_hash": "f75906578f6b96a65c227422e8526adb281088fdd9d747eb5ea3a671dc480d9b",
+  "final_hash": "f75906578f6b96a65c227422e8526adb281088fdd9d747eb5ea3a671dc480d9b"
+}
