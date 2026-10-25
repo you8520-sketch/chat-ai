@@ -5,6 +5,7 @@ import * as inPlace from "./inPlaceSync";
 import { getDb } from "@/lib/db";
 import { installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/lib/test/isolatedTestDatabase";
 import { loadCompiledOfficialCharacterSource } from "./compiledOfficialSource";
+import { canAdminManageOfficialCharacter } from "@/lib/officialAdminAccess";
 import { WOLFGANG_IN_PLACE_TARGET } from "./inPlaceWolfgang";
 import { buildOfficialCharacterFormBody, computeTextLockHash } from "./characterText";
 import { OfficialSupplyStore } from "./store";
@@ -41,6 +42,11 @@ function seed(id: number, draftKey: string) {
   const db = getDb();
   const source = loadCompiledOfficialCharacterSource(draftKey);
   if (id === 51) assert.equal(computeTextLockHash(source.draft), WOLFGANG_IN_PLACE_TARGET.approvedTextLockHash);
+  const isWolfgangProduction = id === 51;
+  const official = isWolfgangProduction ? 0 : 1;
+  const visibility = isWolfgangProduction ? "private" : "public";
+  const supplyDraftKey = isWolfgangProduction ? WOLFGANG_IN_PLACE_TARGET.supplyDraftKey : draftKey;
+  const supplyStage = isWolfgangProduction ? "staged_private" : "published";
   const body = buildOfficialCharacterFormBody({ draft: source.draft, appearanceBlock: source.appearanceBlock, assets: [] });
   const compiled = buildCompiledCreatorDescriptionForSave({
     description: String(body.description), world: String(body.world), systemPrompt: String(body.system_prompt),
@@ -67,19 +73,45 @@ function seed(id: number, draftKey: string) {
     (id,name,tagline,description,greeting,system_prompt,world,world_id,example_dialog,creator_comment,
      creator_id,creator_name,official,visibility,moderation_status,nsfw,gender,assets,images,
      creator_raw_description,creator_compiled_description_json,creator_canon_plan_json,appearance_raw,appearance_compiled,speech_profile)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,'public','approved',?,?,?,?,?,?,?,?,?,?)`).run(
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
     id, source.draft.name, body.tagline, body.description, body.greeting, body.system_prompt, body.world, worldId,
     composeExampleDialog(parseSpeechCreatorFromBody(body)), body.creator_comment,
-    admin.id, "운영 공식", body.nsfw ? 1 : 0, body.gender,
+    admin.id, isWolfgangProduction ? "로맨스 공식계정" : "운영 공식", official, visibility, "approved", body.nsfw ? 1 : 0, body.gender,
     JSON.stringify(Array.from({ length: 14 }, (_, i) => ({ url: `/u/p2-${id}-${i}.webp`, tag: `slot${i}`, approved: true }))),
     JSON.stringify([`/u/p2-${id}-0.webp`]), compiled.creatorRawDescription,
     serializeCreatorDescriptionCompiled(stale), '{"approved_plan":"preserve"}', source.appearanceBlock,
     '{"locked_appearance":"preserve-even-if-not-current"}', '{"creator_speech_traits":"preserve exact saved speech"}'
   );
   db.prepare("INSERT INTO character_lorebook_attachments (character_id,lorebook_id,position) VALUES (?,?,0)").run(id, lorebookId);
-  db.prepare(`INSERT INTO official_supply_characters
-    (draft_key,batch_key,world_key,style_key,stage,draft_json,text_lock_hash,staged_character_id)
-    VALUES (?,'approved',?,'approved','published',?,?,?)`).run(draftKey, source.worldKey, JSON.stringify(source.draft), computeTextLockHash(source.draft), id);
+  const textLockHash = isWolfgangProduction
+    ? WOLFGANG_IN_PLACE_TARGET.approvedTextLockHash
+    : computeTextLockHash(source.draft);
+  if (isWolfgangProduction) {
+    db.prepare(`INSERT INTO official_supply_characters
+      (draft_key,batch_key,world_key,style_key,stage,draft_json,text_lock_hash,appearance_json,appearance_lock_hash,asset_plan_json,is_style_proof,staging_claim,staged_character_id)
+      VALUES (?,'approved',?,'romance_fantasy_v4',?,?,?,?,?,'{"slots":[]}',1,?,?)`).run(
+      supplyDraftKey,
+      source.worldKey,
+      supplyStage,
+      JSON.stringify(source.draft),
+      textLockHash,
+      JSON.stringify(source.appearanceLock ?? {}),
+      WOLFGANG_IN_PLACE_TARGET.appearanceLockHash,
+      `claim-${supplyDraftKey}`,
+      id
+    );
+  } else {
+    db.prepare(`INSERT INTO official_supply_characters
+      (draft_key,batch_key,world_key,style_key,stage,draft_json,text_lock_hash,staged_character_id)
+      VALUES (?,'approved',?,'approved',?,?,?,?)`).run(
+      supplyDraftKey,
+      source.worldKey,
+      supplyStage,
+      JSON.stringify(source.draft),
+      textLockHash,
+      id
+    );
+  }
   const korean = loadCharacterChunksReadOnly(row(id));
   const english = korean.filter((c) => c.category !== "speech").map((c) => ({ ...c, content: "Old cached translation." }));
   db.prepare("UPDATE characters SET setting_chunks=?,setting_chunks_en=?,prompt_translation_hash=? WHERE id=?").run(
@@ -88,7 +120,7 @@ function seed(id: number, draftKey: string) {
   const chatId = Number(db.prepare("INSERT INTO chats (user_id,character_id,mode,memory_meta) VALUES (?,?,'safe',?)").run(admin.id,id,'{"relationship":"preserve"}').lastInsertRowid);
   db.prepare("INSERT INTO messages (chat_id,role,content,model) VALUES (?,'assistant','기존 대화 보존','test')").run(chatId);
   db.prepare("INSERT INTO chat_memories (chat_id,user_id,character_id,recent_summary) VALUES (?,?,?,'기존 기억 보존')").run(chatId,admin.id,id);
-  return { source, body, compiled };
+  return { source, body, compiled, greeting: body.greeting, supplyDraftKey, supplyStage };
 }
 
 function immutableState() {
@@ -138,9 +170,25 @@ after(() => { delete process.env[inPlace.OFFICIAL_IN_PLACE_APPLY_ENV]; });
 describe("official compile-only refresh", () => {
   for (const [id, key] of [[50, "pilot-rf-03"], [51, "pilot-rf-02"]] as const) {
     it(`#${id}: preserves approved stored text/locks/assets while refreshing canon through chunks to wire`, async (t) => {
-      const { source, compiled } = seed(id, key);
+      const seeded = seed(id, key);
+      const { source, compiled } = seeded;
       const unchanged = immutableState();
       const before = row(id);
+      if (id === 51) {
+        assert.equal(before.official, 0);
+        assert.equal(before.visibility, "private");
+        assert.equal(before.creator_id, admin.id);
+        assert.equal(before.greeting, seeded.greeting);
+        assert.equal(canAdminManageOfficialCharacter(admin, before), true);
+        const supply = getDb().prepare("SELECT draft_key, stage, text_lock_hash FROM official_supply_characters WHERE staged_character_id=?").get(id) as {
+          draft_key: string;
+          stage: string;
+          text_lock_hash: string;
+        };
+        assert.equal(supply.draft_key, WOLFGANG_IN_PLACE_TARGET.supplyDraftKey);
+        assert.equal(supply.stage, "staged_private");
+        assert.equal(supply.text_lock_hash, WOLFGANG_IN_PLACE_TARGET.approvedTextLockHash);
+      }
       if (id === 50) assert.match(wire(id).privateBlock, /말보다/);
       t.diagnostic(`P2_BEFORE ${JSON.stringify({
         characterId: id, manuscriptHash: hash(before.system_prompt),
@@ -315,5 +363,40 @@ describe("official compile-only refresh", () => {
     const preview = await refresh(50, "dry_run");
     delete process.env[inPlace.OFFICIAL_IN_PLACE_APPLY_ENV];
     await assert.rejects(() => refresh(50, "apply", preview.preflightSnapshot), (e: any) => e.code === "apply_disabled");
+  });
+
+  it("#51 production shape: admin preview/apply; ordinary admin-owned rows stay blocked", async () => {
+    seed(51, "pilot-rf-02");
+    const before = row(51);
+    assert.equal(canAdminManageOfficialCharacter(admin, before), true);
+    const preview = await refresh(51, "dry_run");
+    assert.notEqual(preview.beforeJsonHash, preview.afterJsonHash);
+    const applied = await refresh(51, "apply", preview.preflightSnapshot);
+    assert.equal(applied.applied, true);
+    assert.equal(row(51).official, 0);
+    assert.equal(row(51).visibility, "private");
+    assert.equal(row(51).greeting, before.greeting);
+
+    const regularAdminOwned = Number(getDb().prepare(
+      `INSERT INTO characters (name,tagline,description,greeting,system_prompt,world,creator_id,creator_name,official,visibility,moderation_status,assets)
+       VALUES ('관리자 일반','한줄','설명','인사','시스템','세계',?,'운영',0,'public','approved','[]')`
+    ).run(admin.id).lastInsertRowid);
+    const foreignLinked = Number(getDb().prepare(
+      `INSERT INTO characters (name,tagline,description,greeting,system_prompt,world,creator_id,creator_name,official,visibility,moderation_status,assets)
+       VALUES ('타인 연결','한줄','설명','인사','시스템','세계',95002,'소비자',0,'private','approved','[]')`
+    ).run().lastInsertRowid);
+    getDb().prepare("INSERT INTO users (id,email,nickname,pw_hash,is_adult,is_admin) VALUES (95002,'consumer@test.local','소비자','x',1,0)").run();
+    getDb().prepare(
+      `INSERT INTO official_supply_characters (draft_key,batch_key,world_key,style_key,stage,draft_json,text_lock_hash,staging_claim,staged_character_id)
+       VALUES ('other-draft','b','w','s','staged_private','{}','tl','claim',?)`
+    ).run(foreignLinked);
+
+    for (const blockedId of [regularAdminOwned, foreignLinked]) {
+      assert.equal(canAdminManageOfficialCharacter(admin, row(blockedId)), false, `character ${blockedId}`);
+      await assert.rejects(
+        () => refresh(blockedId, "dry_run"),
+        (e: any) => e.code === "not_official_manageable"
+      );
+    }
   });
 });

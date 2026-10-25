@@ -82,33 +82,14 @@ export const OFFICIAL_IN_PLACE_APPLY_ENV = "OFFICIAL_IN_PLACE_APPLY_ENABLED";
 
 export type OfficialInPlaceSyncMode = "dry_run" | "apply";
 
-export type OfficialCompileRefreshSnapshot = {
-  operation: "recompile";
-  characterId: number;
-  token: string;
-  appliedToken: string;
-};
-
-export type OfficialCompileRefreshResult = {
-  operation: "recompile";
-  mode: OfficialInPlaceSyncMode;
-  characterId: number;
-  applied: boolean;
-  changedFields: string[];
-  preflightSnapshot: OfficialCompileRefreshSnapshot;
-  beforeJsonHash: string;
-  afterJsonHash: string;
-  publicCanon: { added: string[]; removed: string[] };
-  speechControl: { added: string[]; removed: string[] };
-  derived: {
-    chunksChanged: boolean;
-    englishBefore: ReturnType<typeof classifyEnglishLayer>;
-    englishAfter: ReturnType<typeof classifyEnglishLayer>;
-    sourceFingerprintBefore: string;
-    sourceFingerprintAfter: string;
-    backgroundJobEnqueued: false;
-  };
-};
+export type {
+  OfficialCompileRefreshResult,
+  OfficialCompileRefreshSnapshot,
+} from "@/lib/officialSupply/inPlaceCompileRefreshTypes";
+import type {
+  OfficialCompileRefreshResult,
+  OfficialCompileRefreshSnapshot,
+} from "@/lib/officialSupply/inPlaceCompileRefreshTypes";
 
 type CompileRefreshRow = OfficialCharacterRow & CharacterSettingRow & {
   setting_chunks: string;

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { LUCIAN_CANONICAL_NAME, LUCIAN_DEFAULT_DISPLAY_CREATOR_NAME } from "@/lib/officialDisplayCreatorName";
-import type { OfficialCompileRefreshResult } from "@/lib/officialSupply/inPlaceSync";
+import type { OfficialCompileRefreshResult } from "@/lib/officialSupply/inPlaceCompileRefreshTypes";
 
 type OfficialRow = {
   id: number;
@@ -183,7 +183,9 @@ export default function AdminOfficialCharactersClient() {
                     }
                   />
                 </label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-2">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">전체 원고 동기화 (승인 공급 원고)</p>
+                  <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     className="rounded-lg bg-violet-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
@@ -216,6 +218,9 @@ export default function AdminOfficialCharactersClient() {
                   >
                     같은 ID로 적용
                   </button>
+                  </div>
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">저장 원고 유지 · 컴파일만 갱신</p>
+                  <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     className="rounded-lg border border-white/15 px-3 py-1 text-xs text-zinc-200 disabled:opacity-50"
@@ -242,6 +247,7 @@ export default function AdminOfficialCharactersClient() {
                   >
                     전체 설정 수정
                   </a>
+                  </div>
                 </div>
               </div>
             </div>
