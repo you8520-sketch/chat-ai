@@ -2387,8 +2387,12 @@ export function getDb(): Database.Database {
       throw error;
     }
   } else if (process.env.NODE_ENV === "development") {
-    // HMR 시 연결은 유지되지만 migrate 코드는 갱신될 수 있음
-    migrate(global.__db);
+    // HMR 시 연결은 유지되지만 migrate 코드는 갱신될 수 있음.
+    // query_only(컴파일 미리보기 등) 중에는 migrate의 INSERT/ALTER가 SQLITE_READONLY를 유발한다.
+    const queryOnlyRow = global.__db.prepare("PRAGMA query_only").get() as { query_only?: number } | undefined;
+    if (queryOnlyRow?.query_only !== 1) {
+      migrate(global.__db);
+    }
   }
   return global.__db;
 }

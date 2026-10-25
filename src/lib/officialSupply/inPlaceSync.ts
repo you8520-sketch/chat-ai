@@ -8,7 +8,17 @@ import {
   type SessionUser,
 } from "@/lib/characterFormSave";
 import { parseAssets } from "@/lib/characterAssets";
-import { buildAndSaveCharacterChunks } from "@/lib/characterChunks";
+import {
+  buildAndSaveCharacterChunks,
+  buildCharacterChunksFromSafeRuntimeCanon,
+  casPublishCharacterSettingChunks,
+  type CharacterSettingRow,
+} from "@/lib/characterChunks";
+import { deserializeCharacterChunks, serializeCharacterChunks } from "@/utils/characterParser";
+import { parseCreatorDescriptionCompiled } from "@/lib/creatorDescriptionTriggerCompiler";
+import { classifyEnglishLayer } from "@/lib/promptTranslation";
+import { characterCanonicalSourceFingerprintFromRow } from "@/lib/derivedCache/characterSourceFingerprint";
+import { resolveExampleDialogForPrompt } from "@/lib/narrationFewShotTemplates";
 import { normalizeAppearanceRaw, replaceAppearanceInSetting } from "@/lib/appearanceCompiler";
 import { resolveAppearancePromptText } from "@/lib/derivedCache/appearanceCurrentness";
 import { listCharacterStatusWidgetTriggers } from "@/lib/statusWidgetTriggers";
@@ -71,6 +81,164 @@ import { composeExampleDialog } from "@/lib/speechCreatorFields";
 export const OFFICIAL_IN_PLACE_APPLY_ENV = "OFFICIAL_IN_PLACE_APPLY_ENABLED";
 
 export type OfficialInPlaceSyncMode = "dry_run" | "apply";
+
+export type {
+  OfficialCompileRefreshResult,
+  OfficialCompileRefreshSnapshot,
+} from "@/lib/officialSupply/inPlaceCompileRefreshTypes";
+import type {
+  OfficialCompileRefreshResult,
+  OfficialCompileRefreshSnapshot,
+} from "@/lib/officialSupply/inPlaceCompileRefreshTypes";
+
+type CompileRefreshRow = OfficialCharacterRow & CharacterSettingRow & {
+  setting_chunks: string;
+  setting_chunks_en: string;
+  prompt_translation_hash: string;
+  content_kind: string;
+} & Record<string, unknown>;
+
+// Source, compiler inputs, existing output, and derived CAS inputs. Activity counters
+// are deliberately excluded: a chat/like is not a manuscript edit.
+const COMPILE_REFRESH_SNAPSHOT_FIELDS = [
+  "id", "name", "gender", "tagline", "description", "greeting", "system_prompt", "world",
+  "world_id", "source_world_share_id", "lorebook_id", "creator_id", "creator_name",
+  "official", "visibility", "moderation_status", "comments_enabled", "nsfw", "participant_min_age",
+  "adult_status", "adult_dialogue_profile", "adult_consent_modes_json",
+  "example_dialog", "speech_profile", "creator_comment", "creator_raw_description",
+  "creator_compiled_description_json", "creator_canon_plan_json", "status_window_prompt",
+  "status_widget_json", "jsx_components_json", "recommended_writing_style",
+  "narration_style_instructions", "appearance_raw", "appearance_compiled",
+  "appearance_compiled_source_hash", "appearance_compiled_version", "assets", "images",
+  "setting_chunks", "setting_chunks_en", "prompt_translation_hash", "content_kind",
+] as const;
+
+function compileRefreshPlan(db: Database.Database, admin: SessionUser, characterId: number) {
+  const row = db.prepare("SELECT * FROM characters WHERE id=?").get(characterId) as CompileRefreshRow | undefined;
+  if (!row) throw new OfficialSupplyGateError("character_missing", `character ${characterId} not found`);
+  if (!canAdminManageOfficialCharacter(admin, row, db)) {
+    throw new OfficialSupplyGateError("not_official_manageable", "공식 관리 캐릭터만 컴파일할 수 있습니다.");
+  }
+  const triggers = listCharacterStatusWidgetTriggers(db, characterId);
+  // This path consumes only the live saved form, never a pilot/bible candidate.
+  const compiled = buildCompiledCreatorDescriptionForSave({
+    description: row.description ?? "",
+    world: row.world ?? "",
+    systemPrompt: row.system_prompt ?? "",
+    statusWidgetJson: row.status_widget_json ?? "",
+    statusWidgetTriggers: triggers,
+  }, triggers);
+  const nextRow = { ...row, creator_compiled_description_json: compiled.compiledDescriptionJson };
+  const chunks = buildCharacterChunksFromSafeRuntimeCanon(characterId, {
+    name: row.name,
+    gender: resolveCharacterGender(row.gender),
+    safeRuntimeCanon: replaceAppearanceInSetting(compiled.safeRuntimeCanon, storedAppearancePrompt(row)),
+    exampleDialog: resolveExampleDialogForPrompt(row.example_dialog, row.name),
+  });
+  const chunksJson = serializeCharacterChunks(chunks);
+  const changedFields: string[] = [];
+  if (row.creator_compiled_description_json !== compiled.compiledDescriptionJson) {
+    changedFields.push("creator_compiled_description_json");
+  }
+  if (row.setting_chunks !== chunksJson) changedFields.push("setting_chunks");
+
+  const before = parseCreatorDescriptionCompiled(row.creator_compiled_description_json);
+  const movement = (oldLines: string[], newLines: string[]) => ({
+    added: newLines.filter((line) => !oldLines.includes(line)),
+    removed: oldLines.filter((line) => !newLines.includes(line)),
+  });
+  const supplyLocks = sqliteTableExists(db, "official_supply_characters")
+    ? db.prepare(`SELECT draft_key, stage, draft_json, text_lock_hash, staged_character_id
+                  FROM official_supply_characters WHERE staged_character_id=? ORDER BY draft_key`).all(characterId)
+    : [];
+  const tokenFor = (snapshotRow: CompileRefreshRow) => sha256(JSON.stringify({
+    operation: "recompile",
+    fields: COMPILE_REFRESH_SNAPSHOT_FIELDS.map((key) => [key, snapshotRow[key] ?? null]),
+    triggers,
+    supplyLocks,
+    lorebookIds: listCharacterCreatorLorebookAttachmentIds(db, characterId),
+    targetJson: compiled.compiledDescriptionJson,
+    targetChunks: chunksJson,
+  }));
+  const englishState = (koreanChunks: typeof chunks) => classifyEnglishLayer({
+    koreanChunks,
+    settingChunksEn: row.setting_chunks_en,
+    promptTranslationHash: row.prompt_translation_hash,
+  });
+  const result: OfficialCompileRefreshResult = {
+    operation: "recompile", mode: "dry_run", characterId, applied: false, changedFields,
+    preflightSnapshot: {
+      operation: "recompile", characterId,
+      token: tokenFor(row),
+      appliedToken: tokenFor({ ...nextRow, setting_chunks: chunksJson }),
+    },
+    beforeJsonHash: sha256(row.creator_compiled_description_json ?? ""),
+    afterJsonHash: sha256(compiled.compiledDescriptionJson),
+    publicCanon: movement(before?.public_canon ?? [], compiled.compiledDescription.public_canon),
+    speechControl: movement(before?.speech_control ?? [], compiled.compiledDescription.speech_control),
+    derived: {
+      chunksChanged: row.setting_chunks !== chunksJson,
+      englishBefore: englishState(deserializeCharacterChunks(row.setting_chunks)),
+      englishAfter: englishState(chunks),
+      sourceFingerprintBefore: characterCanonicalSourceFingerprintFromRow(row),
+      sourceFingerprintAfter: characterCanonicalSourceFingerprintFromRow(nextRow),
+      backgroundJobEnqueued: false,
+    },
+  };
+  return { row, nextRow, compiled, chunks, result };
+}
+
+/** Refresh derived classification only; share the normal save compiler and chunk/currentness owners. */
+export async function recompileOfficialCharacterInPlace(input: {
+  admin: SessionUser;
+  characterId: number;
+  mode: OfficialInPlaceSyncMode;
+  preflightSnapshot?: OfficialCompileRefreshSnapshot;
+}): Promise<OfficialCompileRefreshResult> {
+  if (!isOfficialAdminActor(input.admin)) {
+    throw new OfficialSupplyGateError("admin_required", "공식 캐릭터 동기화는 관리자만 실행할 수 있습니다.");
+  }
+  const db = getDb();
+  if (input.mode === "dry_run") {
+    return withSqliteQueryOnly(db, () => compileRefreshPlan(db, input.admin, input.characterId).result);
+  }
+  if (!isOfficialInPlaceApplyEnabled()) {
+    throw new OfficialSupplyGateError("apply_disabled", `${OFFICIAL_IN_PLACE_APPLY_ENV} is not 1`);
+  }
+  if (input.preflightSnapshot?.operation !== "recompile" || !input.preflightSnapshot.token) {
+    throw new OfficialSupplyGateError("preflight_required", "컴파일 미리보기를 먼저 실행하세요.");
+  }
+  return db.transaction((): OfficialCompileRefreshResult => {
+    // Re-read and compare inside the writer transaction, including speech/comment
+    // edits and current derived blobs. No gap between preflight validation and CAS.
+    const plan = compileRefreshPlan(db, input.admin, input.characterId);
+    const currentToken = plan.result.preflightSnapshot.token;
+    const exactReplay = plan.result.changedFields.length === 0 &&
+      input.preflightSnapshot!.appliedToken === currentToken;
+    if (input.preflightSnapshot!.token !== currentToken && !exactReplay) {
+      throw new OfficialSupplyGateError("preflight_mismatch", "저장 입력이 변경되었습니다. 컴파일 미리보기를 다시 실행하세요.");
+    }
+    if (plan.result.changedFields.length === 0) return { ...plan.result, mode: "apply" };
+    if (plan.result.changedFields.includes("creator_compiled_description_json")) {
+      const updated = db.prepare(`UPDATE characters SET creator_compiled_description_json=?
+        WHERE id=? AND COALESCE(creator_compiled_description_json,'')=?`).run(
+        plan.compiled.compiledDescriptionJson, input.characterId, plan.row.creator_compiled_description_json ?? ""
+      );
+      if (updated.changes !== 1) throw new OfficialSupplyGateError("preflight_mismatch", "컴파일 결과가 변경되었습니다.");
+    }
+    if (plan.result.derived.chunksChanged && !casPublishCharacterSettingChunks(input.characterId, {
+      expectedExistingSettingChunks: plan.row.setting_chunks,
+      rebuiltChunks: plan.chunks,
+      canonicalRow: plan.nextRow,
+    })) {
+      throw new OfficialSupplyGateError("preflight_mismatch", "파생 청크가 변경되었습니다.");
+    }
+    // Keep English blobs: existing translation currentness rejects stale hashes;
+    // existing derived jobs compare the new canonical fingerprint and cannot publish
+    // old canon. Do not enqueue the broader appearance/paid-translation job here.
+    return { ...plan.result, mode: "apply", applied: true };
+  }).immediate();
+}
 export type OfficialInPlaceTestInjectFailure = "after_lorebook_write" | "before_supply_write";
 
 export type OfficialInPlacePreflightSnapshot = {
