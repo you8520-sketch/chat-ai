@@ -1,0 +1,130 @@
+{
+  "H2_REPLACEMENT_VALID": true,
+  "diffGate": {
+    "H2_OR_ONLY_DELTA_IS_PARAGRAPH_CLAUSE_REMOVAL": true,
+    "H2_OPENROUTER_REQUEST_SHA": "78d8bf065a808224e4e41aae53e69d8c508db5813f10716addf9401bc180a642",
+    "A_OPENROUTER_REQUEST_SHA": "0eb5ad147fadc36defda7b58e846b5b765e01fecda7ba402bbb2ee428b3b75a4",
+    "H2_FROZEN_FILE_SHA256": "6a5bb460ee99405d22ba4be05e809fe03fdcfbfb45efd9d54f307b2c09977fac",
+    "REMOVED_CHARS": 92,
+    "body_keys_equal": true,
+    "message_count": 6,
+    "model": "deepseek/deepseek-v4-pro-0813"
+  },
+  "validity": {
+    "HTTP_STATUS": 200,
+    "FINISH_REASON": "stop",
+    "USAGE_PRESENT": true,
+    "VISIBLE_CHARS": 3805,
+    "ENDS_COMPLETE_SENTENCE": true,
+    "RAW_SHA": "7836311e6ecb8d4125dbb5cb201baf79ccf2890c58922a01d569c5b98e7fe2f5",
+    "NON_EMPTY": true,
+    "H2_REPLACEMENT_VALID": true
+  },
+  "comparison": {
+    "T1_GEMINI": {
+      "VISIBLE_CHARS": 3473,
+      "PARAGRAPH_COUNT": 22,
+      "DIALOGUE_BLOCKS": 5,
+      "DIALOGUE_BLOCKS_PER_1000_CHARS": 1.44,
+      "DIALOGUE_PARAGRAPH_RATIO": 0.227,
+      "MAX_CONSECUTIVE_DIALOGUE": 1,
+      "MEDIAN_PARAGRAPH_CHARS": 154,
+      "MEDIAN_NARRATION_PARAGRAPH_CHARS": 183,
+      "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 85
+    },
+    "T2_GEMINI": {
+      "VISIBLE_CHARS": 3173,
+      "PARAGRAPH_COUNT": 24,
+      "DIALOGUE_BLOCKS": 5,
+      "DIALOGUE_BLOCKS_PER_1000_CHARS": 1.576,
+      "DIALOGUE_PARAGRAPH_RATIO": 0.208,
+      "MAX_CONSECUTIVE_DIALOGUE": 1,
+      "MEDIAN_PARAGRAPH_CHARS": 139,
+      "MEDIAN_NARRATION_PARAGRAPH_CHARS": 154,
+      "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 51
+    },
+    "T3_GEMINI_GOLD": {
+      "VISIBLE_CHARS": 2651,
+      "PARAGRAPH_COUNT": 23,
+      "DIALOGUE_BLOCKS": 5,
+      "DIALOGUE_BLOCKS_PER_1000_CHARS": 1.886,
+      "DIALOGUE_PARAGRAPH_RATIO": 0.217,
+      "MAX_CONSECUTIVE_DIALOGUE": 1,
+      "MEDIAN_PARAGRAPH_CHARS": 108,
+      "MEDIAN_NARRATION_PARAGRAPH_CHARS": 136.5,
+      "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 29
+    },
+    "A_629_OPENROUTER": {
+      "VISIBLE_CHARS": 2380,
+      "PARAGRAPH_COUNT": 21,
+      "DIALOGUE_BLOCKS": 10,
+      "DIALOGUE_BLOCKS_PER_1000_CHARS": 4.202,
+      "DIALOGUE_PARAGRAPH_RATIO": 0.476,
+      "MAX_CONSECUTIVE_DIALOGUE": 1,
+      "MEDIAN_PARAGRAPH_CHARS": 72,
+      "MEDIAN_NARRATION_PARAGRAPH_CHARS": 207,
+      "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 19
+    },
+    "H1_626_OPENROUTER": {
+      "VISIBLE_CHARS": 3812,
+      "PARAGRAPH_COUNT": 34,
+      "DIALOGUE_BLOCKS": 14,
+      "DIALOGUE_BLOCKS_PER_1000_CHARS": 3.673,
+      "DIALOGUE_PARAGRAPH_RATIO": 0.412,
+      "MAX_CONSECUTIVE_DIALOGUE": 1,
+      "MEDIAN_PARAGRAPH_CHARS": 98.5,
+      "MEDIAN_NARRATION_PARAGRAPH_CHARS": 177,
+      "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 26.5
+    },
+    "H2_REPLACEMENT_OPENROUTER": {
+      "VISIBLE_CHARS": 3805,
+      "PARAGRAPH_COUNT": 26,
+      "DIALOGUE_BLOCKS": 10,
+      "DIALOGUE_BLOCKS_PER_1000_CHARS": 2.628,
+      "DIALOGUE_PARAGRAPH_RATIO": 0.385,
+      "MAX_CONSECUTIVE_DIALOGUE": 1,
+      "MEDIAN_PARAGRAPH_CHARS": 199.5,
+      "MEDIAN_NARRATION_PARAGRAPH_CHARS": 233.5,
+      "MEDIAN_DIALOGUE_PARAGRAPH_CHARS": 20
+    },
+    "dialogue": {
+      "H2_REPLACEMENT": {
+        "SOURCE_USER_QUOTED_DIALOGUE_COUNT": 1,
+        "NEW_USER_PERSONA_DIALOGUE_CANDIDATE_COUNT": 0
+      }
+    },
+    "t2_replay": {
+      "H2_REPLACEMENT": {
+        "T2_REPLAY_CANDIDATE": true,
+        "replay_topic_ids": [
+          "FIRST_KISS"
+        ],
+        "topic_hits": [
+          {
+            "topic_id": "WHY_LOOKING",
+            "topic_label": "why he was looking",
+            "t2_present": true,
+            "response_present": false,
+            "replay_candidate": false
+          },
+          {
+            "topic_id": "FOOD_HUNGER",
+            "topic_label": "food/hunger conversation",
+            "t2_present": true,
+            "response_present": false,
+            "replay_candidate": false
+          },
+          {
+            "topic_id": "FIRST_KISS",
+            "topic_label": "first kiss interpretation",
+            "t2_present": true,
+            "response_present": true,
+            "replay_candidate": true
+          }
+        ]
+      }
+    },
+    "REQUESTED_PROGRESSION_COMPLETED": true
+  },
+  "STOP_FOR_HUMAN_REVIEW": true
+}

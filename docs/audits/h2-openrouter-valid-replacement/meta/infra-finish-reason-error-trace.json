@@ -1,0 +1,26 @@
+{
+  "SOURCE": "#630 H2 production failover path (CI 502 → OpenRouter backup)",
+  "FINISH_REASON_ERROR_OWNER": "OpenRouter SSE emitted finish_reason=error on backup stream; detectAdultGenerationFailure() does not treat finish_reason=error as failure; audit script PRODUCTION_WOULD_DELIVER_RESPONSE = non-empty sanitized text only",
+  "FINISH_REASON_ERROR_TREATED_AS_PROVIDER_FAILURE": false,
+  "PARTIAL_ERROR_STREAM_PERSISTED_BY_PRODUCTION": true,
+  "RECOVERY_OR_FAILOVER_AFTER_VISIBLE_ERROR": false,
+  "evidence": {
+    "DELIVERED_FINISH_REASON": "error",
+    "DELIVERED_HTTP": 200,
+    "PRODUCTION_WOULD_DELIVER_RESPONSE": true,
+    "ENDS_COMPLETE_SENTENCE": false,
+    "VISIBLE_CHARS": 1357,
+    "detectAdultGenerationFailure_result": null,
+    "isCatastrophicallyShortResponse": false,
+    "RECOVERY_SUB_CALLS_ENABLED": false,
+    "raw_ends_mid_sentence": true,
+    "raw_tail_preview": "성기 모양을 따라 움켜쥐고, 그때마다 쾌감이 척추를 타고 치솟았다. 굵고"
+  },
+  "code_owners": {
+    "stream_accepts_error_with_body": "src/lib/openRouterAdult.ts — non-empty fullText returned when finishReason=error",
+    "generation_gate": "src/lib/responseLength.ts detectAdultGenerationFailure — no finish_reason=error branch",
+    "route_persist_on_null_failure": "src/app/api/chat/route.ts — generationFailure null → normal persist path",
+    "audit_script_gate": "docs/audits/h2-minimal-handoff-style-reminder/scripts/run-h2-baseline.ts — wouldDeliver = trim().length > 0"
+  },
+  "NO_PRODUCTION_CHANGE": true
+}
