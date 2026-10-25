@@ -1,0 +1,102 @@
+{
+  "source": "GET https://api.cheaperinference.com/v1/models",
+  "exact_model_id": "deepseek-v4-pro-0813",
+  "entry": {
+    "id": "deepseek-v4-pro-0813",
+    "aliases": [],
+    "object": "model",
+    "owned_by": "DeepSeek",
+    "provider": "DeepSeek",
+    "type": "text",
+    "endpoint": "/v1/chat/completions",
+    "capabilities": {
+      "vision": false,
+      "video": false,
+      "reasoning": true,
+      "streaming": true,
+      "image_generation": false
+    },
+    "is_free": false,
+    "available_until": null,
+    "pricing": {
+      "currency": "USD",
+      "input_per_million": "0.308000",
+      "cache_read_input_per_million": "0.020680",
+      "cache_write_input_per_million": "0.308000",
+      "output_per_million": "0.609000",
+      "image_output_per_million": null,
+      "media_input_unit_price": null,
+      "media_unit_price": null,
+      "media_unit": null,
+      "resolution_prices": {},
+      "reference_resolution_prices": {},
+      "image_pricing_unit": "token",
+      "discount_percent": "30.00",
+      "input_token_price_threshold": null,
+      "above_threshold": null
+    }
+  },
+  "named_capability_flags": {
+    "vision": false,
+    "video": false,
+    "reasoning": true,
+    "streaming": true,
+    "image_generation": false
+  },
+  "field_support": {
+    "enable_thinking": {
+      "catalog_capability": false,
+      "openapi_chat_property": false,
+      "openapi_anywhere": false,
+      "docs_chat_forwarded": false,
+      "existing_adapter_evidence": false,
+      "probe_allowed": false
+    },
+    "thinking": {
+      "catalog_capability": false,
+      "openapi_chat_property": false,
+      "openapi_messages_property": true,
+      "docs_chat_forwarded": false,
+      "existing_adapter_evidence": true,
+      "note": "Current RP adapter sends thinking={type:disabled}. Style Track S1 already showed this is not proven off."
+    },
+    "reasoning_effort": {
+      "catalog_capability": false,
+      "openapi_chat_property": false,
+      "openapi_anywhere": false,
+      "docs_chat_forwarded": false,
+      "existing_adapter_evidence": true,
+      "note": "TRPG isolated 0813 adapters add reasoning_effort=none because thinking.disabled alone does not turn reasoning off.",
+      "probe_allowed": true
+    },
+    "reasoning": {
+      "catalog_capability": false,
+      "openapi_chat_property": true,
+      "docs_chat_forwarded": true,
+      "existing_adapter_evidence": true,
+      "note": "CI chat schema lists reasoning; docs say it is forwarded. RP DeepSeek adapter currently deletes it. Luna/Terra adapter sends reasoning.effort=none.",
+      "probe_allowed": true
+    },
+    "include_reasoning": {
+      "catalog_capability": false,
+      "openapi_chat_property": false,
+      "openapi_anywhere": false,
+      "existing_adapter_evidence": false,
+      "probe_allowed": false
+    }
+  },
+  "chat_completion_top_level_properties": [
+    "max_completion_tokens",
+    "max_tokens",
+    "messages",
+    "model",
+    "reasoning",
+    "response_format",
+    "stream",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_p"
+  ],
+  "chat_completion_additional_properties": true
+}
