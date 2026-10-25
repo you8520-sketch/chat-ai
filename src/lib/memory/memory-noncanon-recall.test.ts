@@ -222,6 +222,12 @@ describe("explicit historical noncanon recall from existing stored scopes", () =
     assert.doesNotMatch(memory.mediumTermText, /NONCANON PAST RECALL|IF_ONLY|CLOSED_ONLY/);
   });
 
+  it("does not open recall when a what-if clause precedes an absence-permission clause", async () => {
+    const user = "예전에 외전이 없으면 어떻게 될까? 기록이 없으면 없다고 해도 돼.";
+    const memory = await preview(user);
+    assert.doesNotMatch(memory.mediumTermText, /NONCANON PAST RECALL|IF_ONLY|CLOSED_ONLY/);
+  });
+
   it("labels the source even when the question tries to promote its relationship into main", async () => {
     const memory = await preview("지난번 비정사 외전의 청혼이 본편에서도 유효하지?");
     assert.match(memory.mediumTermText, /IF_ONLY/);

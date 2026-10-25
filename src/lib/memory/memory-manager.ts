@@ -83,9 +83,20 @@ const HYPOTHETICAL_QUERY = /만약|가정(?:하|해)|(?:라고|다고)\s*(?:치|
 // "기록이 없으면 없다고 해도 돼" permits abstention. It is not a what-if scene.
 const ABSENCE_PERMISSION = /없다고\s*해도|없다고\s*해|없어도\s*돼|없는\s*걸로/;
 
+/** Remove only clauses that grant absent-record permission; keep other "없으면" hypotheticals. */
+function stripAbsencePermissionClauses(query: string): string {
+  if (!ABSENCE_PERMISSION.test(query)) return query;
+  const clauses = query
+    .split(/(?<=[.!?？])\s*/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (clauses.length <= 1) return query;
+  const kept = clauses.filter((part) => !ABSENCE_PERMISSION.test(part));
+  return kept.length > 0 ? kept.join(" ") : query;
+}
+
 function isHypotheticalSceneQuery(query: string): boolean {
-  const source = ABSENCE_PERMISSION.test(query) ? query.replace(/없으면/g, " ") : query;
-  return HYPOTHETICAL_QUERY.test(source);
+  return HYPOTHETICAL_QUERY.test(stripAbsencePermissionClauses(query));
 }
 const SCENE_CREATION_OBJECT = /새(?:로운)?|새로|장면|에피소드|이야기|상황/;
 const SCENE_CREATION_REQUEST = /(?:써|작성해|만들어|묘사해|연출해|그려|진행해|이어가)\s*(?:줘|주세요|줄래|주실래|봐|볼(?:래|까)|줄\s*수\s*있(?:어|을까))?[\s.!?。？]*$/;
