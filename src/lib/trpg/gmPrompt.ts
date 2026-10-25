@@ -4,7 +4,12 @@ import {
   formatTrpgRoundNarrationBudget,
 } from "./gmNarrationBudget";
 import type { TrpgActionCheckReason } from "./actionCheck";
-import { uncommittedActionWire } from "./actionSemantics";
+import { resolveServerHumanActionType } from "./actionTypes";
+import {
+  committedItemConsumptionSpans,
+  otherCommittedActSpans,
+  uncommittedActionWire,
+} from "./actionSemantics";
 import { statModifier } from "./stats";
 import { normalizeGoalCriterion } from "./campaignGoals";
 import { clipTrpgChars } from "./clip";
@@ -493,6 +498,21 @@ export function formatTrpgGmRoundHead(opts: { opening: boolean; requestPlayerGoa
   return "[RESOLVE THIS ROUND]";
 }
 
+const UNADJUDICATED_SIBLING_TYPES = new Set(["attack", "defend", "persuade", "stealth", "support"]);
+
+/**
+ * One submission still resolves as one action. When that action is an item use,
+ * other committed challenge clauses were not rolled. Tell the GM not to close them.
+ */
+function unadjudicatedSiblingWire(body: string): string | null {
+  if (committedItemConsumptionSpans(body).length === 0) return null;
+  const siblings = otherCommittedActSpans(body).filter((span) =>
+    UNADJUDICATED_SIBLING_TYPES.has(resolveServerHumanActionType(span))
+  );
+  if (siblings.length === 0) return null;
+  return `unadjudicated=${siblings.join(" || ")} — server resolved only the item use; do not narrate these as success or failure`;
+}
+
 export function buildTrpgGmUserBlock(opts: {
   worldBrief: string;
   gmSecret?: string;
@@ -568,7 +588,8 @@ export function buildTrpgGmUserBlock(opts: {
               ? `[ITEMS ACCEPTED BY THIS PC — server-confirmed, now held]\n${a.acceptedItems.join(", ")}`
               : "";
             const uncommitted = uncommittedActionWire(a.body);
-            const held = uncommitted ? `[UNCOMMITTED ${uncommitted}]` : "";
+            const sibling = unadjudicatedSiblingWire(a.body);
+            const held = [uncommitted, sibling].filter(Boolean).map((note) => `[UNCOMMITTED ${note}]`).join("\n");
             const lines = opts.regenerate
               ? [
                   `[RESOLVED ACTION participantId=${a.participantId} name=${a.name} actorKind=${actorKind}]`,

@@ -151,12 +151,25 @@ function clauseConsumesItem(span: string): boolean {
   return ITEM_CONSUMPTION_PREDICATE.test(committed);
 }
 
+/** Act spans whose predicate is item consumption. Mention and refusal clauses are omitted. */
+export function committedItemConsumptionSpans(body: string): string[] {
+  return actionClauses(body)
+    .map((clause) => classifyActionClause(clause))
+    .filter((clause) => clause.kind === "act" && clause.span && clauseConsumesItem(clause.span))
+    .map((clause) => clause.span);
+}
+
+/** Committed acts that are not themselves an item-consumption predicate. */
+export function otherCommittedActSpans(body: string): string[] {
+  return actionClauses(body)
+    .map((clause) => classifyActionClause(clause))
+    .filter((clause) => clause.kind === "act" && clause.span && !clauseConsumesItem(clause.span))
+    .map((clause) => clause.span);
+}
+
 /** True when any committed act clause ends in an item-consumption predicate (not usage-instruction nouns). */
 export function isCommittedItemConsumption(body: string): boolean {
-  return actionClauses(body).some((clause) => {
-    const { kind, span } = classifyActionClause(clause);
-    return kind === "act" && span && clauseConsumesItem(span);
-  });
+  return committedItemConsumptionSpans(body).length > 0;
 }
 
 /** GM note for clauses that must not be narrated as done or charged. */

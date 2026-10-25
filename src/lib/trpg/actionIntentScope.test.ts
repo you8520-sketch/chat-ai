@@ -218,6 +218,60 @@ describe("committed-clause adjudication through submit, dice, inventory, and GM 
     });
   });
 
+  it("spends only the item named in the consumption clause, and does not let the GM close an unrolled attack", async () => {
+    await withReferee(async () => {
+      const cases: Array<{ body: string; inventory: string[]; potion: number; bandage: number; hp: number }> = [
+        { body: "회복약을 살펴본다. 붕대를 사용한다.", inventory: ["회복약", "붕대"], potion: 1, bandage: 0, hp: 14 },
+        { body: "회복약을 살펴본다. 붕대를 사용한다.", inventory: ["붕대", "회복약"], potion: 1, bandage: 0, hp: 14 },
+        { body: "회복약을 사용한다. 붕대를 살펴본다.", inventory: ["붕대", "회복약"], potion: 0, bandage: 1, hp: 14 },
+        { body: "붕대를 사용하지 않는다. 회복약을 사용한다.", inventory: ["회복약", "붕대"], potion: 0, bandage: 1, hp: 14 },
+        { body: "회복약 사용법을 읽는다. 붕대를 사용한다.", inventory: ["붕대", "회복약"], potion: 1, bandage: 0, hp: 14 },
+      ];
+      for (const sample of cases) {
+        const table = await openTable();
+        pinHost(table.db, table.hostId, 10, sample.inventory);
+        submitTrpgAction(table.db, { campaignId: table.campaignId, userId: 1, body: sample.body });
+        const stored = latestAction(table.db, table.campaignId);
+        assert.equal(stored.action_type, "use_item", sample.body);
+        assert.equal(stored.selected_stat, null);
+        await advanceTrpgCampaign(table.db, { campaignId: table.campaignId, userId: 1, deps: table.deps });
+        const after = hostSheet(table.db, table.campaignId);
+        const units = inventoryUnits(after.inventory);
+        assert.equal(units.filter((name) => name === "회복약").length, sample.potion, sample.body);
+        assert.equal(units.filter((name) => name === "붕대").length, sample.bandage, sample.body);
+        assert.equal(after.hp, sample.hp, sample.body);
+        assert.equal(rollRows(table.db, stored.id).length, 0);
+        table.db.close();
+      }
+
+      const table = await openTable();
+      pinHost(table.db, table.hostId, 10, ["회복약"]);
+      const body = "회복약을 사용한다. 경비를 공격한다.";
+      submitTrpgAction(table.db, { campaignId: table.campaignId, userId: 1, body });
+      const stored = latestAction(table.db, table.campaignId);
+      assert.equal(stored.action_type, "use_item");
+      await advanceTrpgCampaign(table.db, { campaignId: table.campaignId, userId: 1, deps: table.deps });
+      const wire = table.users.at(-1) ?? "";
+      assert.match(wire, /ordinary_item_use/);
+      assert.match(wire, /AUTHORITATIVE HUMAN PC ACTION/);
+      assert.match(wire, /회복약을 사용한다\. 경비를 공격한다\./);
+      assert.match(wire, /unadjudicated=경비를 공격한다/);
+      assert.doesNotMatch(wire, /check_required/);
+      assert.equal(rollRows(table.db, stored.id).length, 0);
+      const after = hostSheet(table.db, table.campaignId);
+      assert.equal(after.hp, 14);
+      assert.deepEqual(inventoryUnits(after.inventory), []);
+      await regenerateTrpgNarration(table.db, { campaignId: table.campaignId, userId: 1, deps: table.deps });
+      const regen = table.users.at(-1) ?? "";
+      assert.match(regen, /unadjudicated=경비를 공격한다/);
+      assert.match(regen, /ordinary_item_use|d20=none/);
+      const afterRegen = hostSheet(table.db, table.campaignId);
+      assert.equal(afterRegen.hp, 14);
+      assert.deepEqual(inventoryUnits(afterRegen.inventory), []);
+      table.db.close();
+    });
+  });
+
   it("a refused or quoted persuade does not roll, and a real persuade rolls charm", async () => {
     await withReferee(async () => {
       const table = await openTable();

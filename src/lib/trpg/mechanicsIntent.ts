@@ -1,5 +1,5 @@
 import type { TrpgActionType } from "./actionTypes";
-import { isCommittedItemConsumption } from "./actionSemantics";
+import { committedItemConsumptionSpans } from "./actionSemantics";
 
 const BASIC_FIRST_AID_RE =
   /응급처치|응급\s*처치|상처를\s*묶|상처를\s*압박|지혈|상처를\s*치료|first\s*aid/i;
@@ -51,19 +51,19 @@ export function mentionsHealingItem(body: string, extraKnown: readonly string[] 
   return extraKnown.some((item) => item.trim() && body.includes(item.trim()));
 }
 
-export function findExplicitTreatmentItem(
-  body: string,
+function itemNamedIn(
+  text: string,
   sourceInventory: readonly string[],
-  extraKnown: readonly string[] = []
+  extraKnown: readonly string[]
 ): string | null {
   for (const item of sourceInventory) {
     const name = item.trim();
     if (!name) continue;
-    if (body.includes(name) && (isTreatmentItemName(name) || extraKnown.includes(name))) {
+    if (text.includes(name) && (isTreatmentItemName(name) || extraKnown.includes(name))) {
       return name;
     }
   }
-  const mentioned = body.match(TREATMENT_ITEM_NAME_RE)?.[0];
+  const mentioned = text.match(TREATMENT_ITEM_NAME_RE)?.[0];
   if (!mentioned) return null;
   const found = sourceInventory.find(
     (row) => row.includes(mentioned) || mentioned.includes(row.trim())
@@ -71,14 +71,33 @@ export function findExplicitTreatmentItem(
   return found?.trim() || null;
 }
 
+export function findExplicitTreatmentItem(
+  body: string,
+  sourceInventory: readonly string[],
+  extraKnown: readonly string[] = []
+): string | null {
+  return itemNamedIn(body, sourceInventory, extraKnown);
+}
+
+/** Item named inside a clause the player actually used. Inventory order cannot pair a mention with another clause's verb. */
+export function findCommittedTreatmentItem(
+  body: string,
+  sourceInventory: readonly string[],
+  extraKnown: readonly string[] = []
+): string | null {
+  for (const span of committedItemConsumptionSpans(body)) {
+    const named = itemNamedIn(span, sourceInventory, extraKnown);
+    if (named) return named;
+  }
+  return null;
+}
+
 export function isTreatmentItemIntent(
   body: string,
   sourceInventory: readonly string[] = [],
   extraKnown: readonly string[] = []
 ): boolean {
-  const item = findExplicitTreatmentItem(body, sourceInventory, extraKnown);
-  if (!item) return false;
-  return isCommittedItemConsumption(body);
+  return findCommittedTreatmentItem(body, sourceInventory, extraKnown) != null;
 }
 
 export function isStatusTreatmentOnly(body: string): boolean {
@@ -105,8 +124,8 @@ export function isHealingIntentAction(
     return isBasicFirstAidIntent(body);
   }
   if (isBasicFirstAidIntent(body)) return true;
-  const item = findExplicitTreatmentItem(body, sourceInventory, extraKnown);
-  if (item && isTreatmentItemIntent(body, sourceInventory, extraKnown) && isHpHealingItem(item)) return true;
+  const item = findCommittedTreatmentItem(body, sourceInventory, extraKnown);
+  if (item && isHpHealingItem(item)) return true;
   if (GENERIC_HEAL_RE.test(body) && (actionType === "support" || actionType === "use_item" || actionType === "free")) {
     return true;
   }
