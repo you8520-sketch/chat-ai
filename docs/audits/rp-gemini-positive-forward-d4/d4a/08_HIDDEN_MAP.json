@@ -1,0 +1,22 @@
+{
+  "note": "Reveal only after human/agent scoring seal",
+  "model": "google/gemini-3.1-pro-preview",
+  "blindMap": {
+    "G5": {
+      "P": "B",
+      "Q": "A"
+    },
+    "G6T1": {
+      "P": "B",
+      "Q": "A"
+    },
+    "G3": {
+      "P": "B",
+      "Q": "A"
+    }
+  },
+  "arm_meanings": {
+    "A": "production USER_TAIL_LENGTH_OWNER_SENTENCE",
+    "B": "D4A_POSITIVE_FORWARD_LENGTH_OWNER (replace only)"
+  }
+}
