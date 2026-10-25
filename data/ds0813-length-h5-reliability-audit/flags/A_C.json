@@ -1,0 +1,16 @@
+{
+  "REFUSAL_PRESENT": false,
+  "META_LEAK": false,
+  "SYSTEM_PROMPT_LEAK": false,
+  "EXACT_SENTENCE_DUPLICATION": false,
+  "NEW_USER_DIALOGUE_AUTHORED": true,
+  "NEW_USER_INTENTIONAL_ACTION_AUTHORED": false,
+  "USER_MAJOR_CHOICE_AUTHORED": false,
+  "NEW_USER_BACKSTORY_INVENTED": false,
+  "NEW_CHARACTER_CANON_INVENTED": false,
+  "NEW_EXTERNAL_NPC_INTRODUCED": false,
+  "UNRELATED_EVENT_INTRODUCED": false,
+  "OUTPUT_TRUNCATED": false,
+  "NOTE_INVOLUNTARY_USER_PHYSIOLOGY_NOT_AGENCY": "tremble / breathing / involuntary body / physiological arousal are not flagged as agency violations",
+  "USER_INPUT_ECHO_SPAN": "문을 닫고 가까이 다가온다. 합의된 성인 장면을 이어간다. 옷을 천천히 "
+}
