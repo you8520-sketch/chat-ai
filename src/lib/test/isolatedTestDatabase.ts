@@ -181,4 +181,3 @@ function refuseRemoteDatabaseConfig(): void {
     refuse(`remote database config is unsafe (${message})`);
   }
 }
-
