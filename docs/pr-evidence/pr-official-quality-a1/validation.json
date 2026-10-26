@@ -1,0 +1,34 @@
+{
+  "baseSHA": "ba14f3d76441a13b1fa92c501abe2c66ca039209",
+  "providerCalls": 0,
+  "actualSpend": 0,
+  "before": {
+    "tests": 8,
+    "pass": 1,
+    "fail": 7,
+    "note": "Exact main plus new direct regression tests. Three generation defects and absence of four review-evidence checks. No automatic semantic contradiction detection is claimed."
+  },
+  "after": {
+    "relatedTests": 209,
+    "pass": 209,
+    "fail": 0,
+    "finalChangedPass": 97,
+    "finalChangedAuthorRevisionBudgetTests": 97
+  },
+  "commands": {
+    "regular": "TMPDIR=/var/tmp node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test [10 files listed in README]",
+    "lint": "pass (app TypeScript contract)",
+    "typecheck:app": "pass",
+    "typecheck": {
+      "baseDiagnostics": 2339,
+      "headDiagnostics": 2339,
+      "normalizedAdded": 0,
+      "normalizedRemoved": 0,
+      "note": "Full suite includes repository-wide existing test typing failures. App-only checks pass separately."
+    },
+    "build": "pass; isolated DATA_DIR, paid-provider and remote-DB variables blank, synthetic SESSION_SECRET >=32 chars",
+    "git diff --check": "pass"
+  },
+  "isolation": "Existing isolatedTestDatabase with TMPDIR=/var/tmp (root overlay); /tmp is tmpfs and intentionally refused by current owner.",
+  "initialBuildAttempt": "Rejected a too-short synthetic build-only SESSION_SECRET; corrected the test environment and reran successfully. No application auth settings changed."
+}

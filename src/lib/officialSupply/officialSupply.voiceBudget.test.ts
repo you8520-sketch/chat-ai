@@ -88,6 +88,9 @@ function buildVoice(adult: boolean, npcCount: 0 | 1 | 2, tier: Tier): Record<str
     publicProfile: {
       tagline: floor ? "황궁의 방패, 경계 너머의 충성" : "당신에게 등을 맡길지 고민하는 근위 기사단장",
       description: floor ? CONTRACT_PITCH : `${CONTRACT_PITCH}${PITCH_EXTRA}`,
+      // Length-only synthetic payload at the new prose targets; no literary score.
+      detailedDescription: "가".repeat(tier === "floor" ? 600 : 1000),
+      creatorComment: "나".repeat(tier === "floor" ? 150 : 250),
       tags: floor ? ["기사", "궁정", "호위", "충성"] : ["로맨스판타지", "기사단장", "경계에서 신뢰로", "무심한 다정", "궁정 암투"],
     },
     npcs,
@@ -173,9 +176,9 @@ describe("Voice output budget feasibility (deterministic, no provider)", () => {
     }
   });
 
-  it("the largest valid Voice stays far below the Voice maxTokens, so truncation is fail-closed headroom", () => {
+  it("the largest target-size Voice including public manuscripts retains output headroom", () => {
     const largest = Math.max(...fixtures().map((f) => estimateTokens(JSON.stringify(f.voice, null, 2))));
-    assert.ok(largest * 2 < OFFICIAL_AUTHOR_MAX_TOKENS.character_bible_voice, `${largest} est tokens`);
+    assert.ok(largest < OFFICIAL_AUTHOR_MAX_TOKENS.character_bible_voice * 0.85, `${largest} est tokens`);
   });
 
   it("the final Voice prompt keeps every field band and the adult-consistent template", () => {

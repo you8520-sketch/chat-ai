@@ -89,6 +89,56 @@ function lorebookBlock(title: string, entries: readonly OfficialWorldLorebookEnt
   ];
 }
 
+/** Evidence, never a semantic verdict or a canon rewrite. Rebuilt from the current source. */
+export function buildOfficialCanonReviewEvidence(bible: OfficialCharacterBible, draft: OfficialCharacterDraft) {
+  const sources = {
+    identity: bible.identity,
+    personality: bible.personality,
+    values: bible.values,
+    worldContext: bible.situation.worldContext,
+    backstory: bible.backstory.events,
+    abilities: bible.abilities,
+    currentSituation: bible.situation,
+    selfDrive: bible.rpEngine.selfDrive ?? null,
+    behaviorRules: bible.behaviorRules,
+    secrets: bible.secrets,
+    publicProfile: bible.publicProfile,
+    greeting: bible.greeting,
+  };
+  // Only exact preservation is mechanically testable. Paraphrase, causal grounding,
+  // attribution and contradictory truth claims remain explicit editorial questions.
+  const checks = bible.behaviorRules.flatMap((rule, index) =>
+    rule.split(/(?<=[.!?。！？])\s+/u).filter(Boolean).map(text => ({
+      sourcePath: `behaviorRules[${index}]`, text,
+      compiledPath: "speech.traits",
+      preservation: draft.speech.traits.includes(text) ? "EXACT_PRESENT" : "REVIEW_REQUIRED",
+    }))
+  );
+  return {
+    status: "REQUIRES_GPT_REVIEW" as const,
+    semanticVerdict: null,
+    sources,
+    compiled: {
+      sharedWorld: draft.sections.worldAndSituation,
+      characterCore: draft.sections.characterCore,
+      currentSituation: draft.sections.currentSituation ?? draft.sections.worldAndSituation,
+      selfDrive: draft.sections.relationshipsAndDrives,
+      speechTraits: draft.speech.traits,
+      description: draft.description,
+      creatorComment: composeOfficialCreatorComment(draft),
+      greeting: draft.greeting,
+      secrets: draft.secrets,
+    },
+    preservationChecks: checks,
+    unresolved: [
+      { topic: "canon_provenance", status: "REQUIRES_GPT_REVIEW", question: "관찰된 사실 / 인물의 주장 / 미확정 비밀 / 확정 canon을 원문별로 구분하고 서로 충돌하는지 검수. 서명·인장의 실재와 진위, 인물의 부인은 같은 명제가 아니다." },
+      { topic: "self_drive_grounding", status: bible.rpEngine.selfDrive ? "REQUIRES_GPT_REVIEW" : "MISSING_SOURCE", question: "goal·ownMove·setback이 과거의 선택, 현재 사건, 능력의 한계·대가에 근거하는가? 이름을 바꿔도 성립하는 목표인가?" },
+      { topic: "independent_facts", status: "REQUIRES_GPT_REVIEW", question: "중복 제거·재작성 전후 독립 행동 원칙과 사실이 남았는가? EXACT_PRESENT는 의미 정합성 승인이나 중복 제거 허가가 아니다." },
+      { topic: "public_scene_agency", status: "REQUIRES_GPT_REVIEW", question: "공개 소개·코멘트·greeting이 같은 시작 상황이며 가능한 행동 2~3개를 제안하는가? 유저 감정·선택·결말, 비밀의 정답을 확정하지 않는가?" },
+    ],
+  };
+}
+
 export function buildOfficialCharacterReviewReport(
   draftKey = "pilot-rf-03",
   outputPath = officialCharacterReviewRelativePath(draftKey)
@@ -267,6 +317,12 @@ export function buildOfficialCharacterReviewReport(
     "",
     "## VISUAL APPEARANCE LOCK — IMAGE/IDENTITY OWNER, NOT CHARACTER CORE",
     fullVisualAppearance,
+    "",
+    "## CANON / INFORMATION PRESERVATION — UNRESOLVED EDITORIAL EVIDENCE",
+    "This is not automatic semantic approval. Source wording is preserved; no claim is promoted to fact.",
+    "```json",
+    JSON.stringify(buildOfficialCanonReviewEvidence(file.bible, draft), null, 2),
+    "```",
     "",
   ].join("\n");
 }

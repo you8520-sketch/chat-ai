@@ -19,6 +19,7 @@
  *   --step=consistency-fix        offline: manifest-declared world-consistency repairs
  *   --npc-relation-repair         (characters/character) opt-in: one targeted call repairs relation-only NPC defects; caps each character at OFFICIAL_CHARACTER_CALL_CAP calls
  */
+import { buildOfficialCanonReviewEvidence } from "@/lib/officialSupply/characterReview";
 import fs from "node:fs";
 import path from "node:path";
 import { loadEnvLocal } from "./load-env-local";
@@ -630,8 +631,14 @@ type CharFile = {
   provenances: OfficialAuthorProvenance[];
   revisions?: CharRevision[];
   charCount: number;
+  /** Source/compiled evidence only; not a literary or semantic pass. */
+  canonReview?: ReturnType<typeof buildOfficialCanonReviewEvidence>;
   quarantined?: boolean;
 };
+
+function writeCharacterFile(file: CharFile): void {
+  writeJson(charPath(file.slot), { ...file, canonReview: buildOfficialCanonReviewEvidence(file.bible, file.draft) });
+}
 
 function compileForBrief(bible: OfficialCharacterBible, brief: PortfolioBriefInput): OfficialCharacterDraft {
   return compileOfficialDraftFromBible(bible, {
@@ -794,7 +801,7 @@ async function generateOneCharacter(
         provenances,
         charCount: officialSubstantiveCharCount(draft),
       };
-      writeJson(charPath(brief.slot), file);
+      writeCharacterFile(file);
       console.log(`[pilot] slot ${brief.slot} ${brief.name} ok (${file.charCount} chars, attempt ${attempt})`);
       return file;
     },
@@ -967,7 +974,7 @@ async function stepAppearance(modelId: string, maxAttempts: number, onlySlot?: n
         looks.push(
           `${file.bible.identity.name}: ${lock.identity.hairColor} ${lock.identity.hairLength}, ${lock.identity.eyeColor}, ${lock.identity.heightCm}cm`
         );
-        writeJson(charPath(brief.slot), { ...file, appearance: lock });
+        writeCharacterFile({ ...file, appearance: lock });
         console.log(`[pilot] appearance slot ${brief.slot} ok (attempt ${attempt})`);
       },
     });
@@ -1036,7 +1043,7 @@ async function planOneCharacterScenes(input: {
           { step: "assetplan", fields: ["assetPlan"], reasons: ["scene planner collapse (portfolio)"], at: provenance.createdAt, provenance },
         ],
       };
-      writeJson(charPath(file.slot), next);
+      writeCharacterFile(next);
       console.log(`[pilot] assetplan slot ${file.slot} ok (attempt ${attempt})`);
       return next;
     },
@@ -1123,7 +1130,7 @@ async function stepVoiceFix(modelId: string, maxAttempts: number): Promise<void>
         const draft = assertBibleAndDraft(bible, brief);
         const provenance = provenanceFor(completion, attempt);
         recordRun(file.draftKey, "character_bible_voice", provenance);
-        writeJson(charPath(brief.slot), {
+        writeCharacterFile({
           ...file,
           bible,
           draft,
@@ -1173,7 +1180,7 @@ async function stepAdultFix(modelId: string, maxAttempts: number, onlySlot?: num
         }
         const provenance = provenanceFor(completion, attempt);
         recordRun(draftKey, "adult_profile", provenance);
-        writeJson(charPath(brief.slot), {
+        writeCharacterFile({
           ...file,
           bible,
           draft,
@@ -1410,7 +1417,7 @@ function stepPublicFix(): void {
     const bible: OfficialCharacterBible = { ...file.bible, publicProfile: { ...profile, tagline, tags } };
     const draft = assertBibleAndDraft(bible, file.brief);
     const fields = [tagline !== profile.tagline ? "tagline" : "", JSON.stringify(tags) !== JSON.stringify(profile.tags) ? "tags" : ""].filter(Boolean);
-    writeJson(charPath(brief.slot), {
+    writeCharacterFile({
       ...file,
       bible,
       draft,
@@ -1453,7 +1460,7 @@ function stepRelationshipRepair(): void {
       n.renamed.length ? `canonical targets: ${n.renamed.map((r) => `${r.from}→${r.to}`).join(", ")}` : "",
       n.dropped.length ? `dropped: ${n.dropped.map((d) => `${d.target} (${d.code})`).join(", ")}` : "",
     ].filter(Boolean);
-    writeJson(charPath(file.slot), {
+    writeCharacterFile({
       ...file,
       bible,
       draft,
@@ -1518,7 +1525,7 @@ function stepConsistencyFix(): void {
     }
     worldFile.bible.portfolio = worldFile.bible.portfolio.map((b) => (b.slot === slot ? fixed.brief : b));
     writeJson(WORLD_PATH, worldFile);
-    writeJson(charPath(slot), {
+    writeCharacterFile({
       ...file,
       brief: fixed.brief,
       bible: fixed.bible,
