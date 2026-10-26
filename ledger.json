@@ -3513,9 +3513,9 @@
       "sourceKind": "github_repository",
       "sourceUrl": "https://github.com/agentscope-ai/ReMe",
       "title": "agentscope-ai/ReMe",
-      "version": "v0.4.1.13",
+      "version": "v0.4.2.0",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
       "summary": "ReMe: Memory Management Kit for Agents - Remember Me, Refine Me.",
       "claimedAdvantage": "file-native durable memory with rebuildable BM25/embedding/wikilink indexes and scheduled consolidation",
       "applicableOwners": [
@@ -3561,6 +3561,21 @@
           "version": "v0.4.1.13",
           "adapterFingerprint": null,
           "architectureFingerprint": "6b8a7a44c1570d4c",
+          "state": "REJECTED",
+          "decision": "REJECTED_INFRA_COMPLEXITY",
+          "reason": "wholesale adoption needs python_runtime; only a TypeScript-native port of the technique is evaluable",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "REJECTED"
+          ]
+        },
+        {
+          "cycleKey": "weekly-2026-W44",
+          "evaluatedAt": "2026-10-26T06:14:20.206Z",
+          "version": "v0.4.2.0",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "91c40499a97169bb",
           "state": "REJECTED",
           "decision": "REJECTED_INFRA_COMPLEXITY",
           "reason": "wholesale adoption needs python_runtime; only a TypeScript-native port of the technique is evaluable",
@@ -3673,6 +3688,106 @@
       ],
       "draftPrUrl": null
     },
+    "github:asymptote-labs/agent-beacon": {
+      "candidateKey": "github:asymptote-labs/agent-beacon",
+      "category": "conversational_memory",
+      "sourceKind": "github_repository",
+      "sourceUrl": "https://github.com/Asymptote-Labs/agent-beacon",
+      "title": "Asymptote-Labs/agent-beacon",
+      "version": "v1.3.46",
+      "discoveredAt": "2026-10-26T06:14:20.206Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
+      "summary": "The cross-harness, self-improving memory layer for AI agents. Join our community: https://discord.com/invite/zdNChS2fBu",
+      "claimedAdvantage": "The cross-harness, self-improving memory layer for AI agents. Join our community: https://discord.com/invite/zdNChS2fBu",
+      "applicableOwners": [
+        "episodic_facts",
+        "rolling_summary",
+        "global_current_memory"
+      ],
+      "expectedBenefit": "The cross-harness, self-improving memory layer for AI agents. Join our community: https://discord.com/invite/zdNChS2fBu",
+      "expectedCost": "infra: none",
+      "infraRequirements": [
+        "none"
+      ],
+      "privacyImplications": [
+        "none"
+      ],
+      "migrationRequirement": "none",
+      "state": "WATCH",
+      "lastDecision": "WATCH_NO_BENCHMARK_HOOK",
+      "lastDecisionReason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+      "priorRejectionReason": null,
+      "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
+      "cooldownUntil": "2027-01-24T06:14:20.206Z",
+      "evaluations": [
+        {
+          "cycleKey": "weekly-2026-W44",
+          "evaluatedAt": "2026-10-26T06:14:20.206Z",
+          "version": "v1.3.46",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "91c40499a97169bb",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        }
+      ],
+      "draftPrUrl": null
+    },
+    "github:atomantic/portos": {
+      "candidateKey": "github:atomantic/portos",
+      "category": "conversational_memory",
+      "sourceKind": "github_repository",
+      "sourceUrl": "https://github.com/atomantic/PortOS",
+      "title": "atomantic/PortOS",
+      "version": "v2.104.0",
+      "discoveredAt": "2026-10-26T06:14:20.206Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
+      "summary": "Self-hosted, Self-Improving, Federated Everything App — dev management, agent orchestration, persistent mind, digital twin, second brain, and creative pipeline from a single dashboard over Tailscale to port the user into the OS",
+      "claimedAdvantage": "Self-hosted, Self-Improving, Federated Everything App — dev management, agent orchestration, persistent mind, digital twin, second brain, and creative pipeline from a single dashboard over Tailscale to port the user into the OS",
+      "applicableOwners": [
+        "episodic_facts",
+        "rolling_summary",
+        "global_current_memory"
+      ],
+      "expectedBenefit": "Self-hosted, Self-Improving, Federated Everything App — dev management, agent orchestration, persistent mind, digital twin, second brain, and creative pipeline from a single dashboard over Tailscale to port the user into the OS",
+      "expectedCost": "infra: none",
+      "infraRequirements": [
+        "none"
+      ],
+      "privacyImplications": [
+        "none"
+      ],
+      "migrationRequirement": "none",
+      "state": "WATCH",
+      "lastDecision": "WATCH_NO_BENCHMARK_HOOK",
+      "lastDecisionReason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+      "priorRejectionReason": null,
+      "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
+      "cooldownUntil": "2027-01-24T06:14:20.206Z",
+      "evaluations": [
+        {
+          "cycleKey": "weekly-2026-W44",
+          "evaluatedAt": "2026-10-26T06:14:20.206Z",
+          "version": "v2.104.0",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "91c40499a97169bb",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        }
+      ],
+      "draftPrUrl": null
+    },
     "github:bonigarcia/context-engineering": {
       "candidateKey": "github:bonigarcia/context-engineering",
       "category": "conversational_memory",
@@ -3681,7 +3796,7 @@
       "title": "bonigarcia/context-engineering",
       "version": null,
       "discoveredAt": "2026-10-19T06:14:10.468Z",
-      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
       "summary": "Context Engineering: Build Consistent, Accurate, Predictable AI Systems",
       "claimedAdvantage": "Context Engineering: Build Consistent, Accurate, Predictable AI Systems",
       "applicableOwners": [
@@ -3703,7 +3818,7 @@
       "lastDecisionReason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
       "priorRejectionReason": null,
       "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
-      "cooldownUntil": "2027-01-17T06:14:10.468Z",
+      "cooldownUntil": "2027-01-24T06:14:20.206Z",
       "evaluations": [
         {
           "cycleKey": "weekly-2026-W43",
@@ -3711,6 +3826,21 @@
           "version": null,
           "adapterFingerprint": null,
           "architectureFingerprint": "5be31fd6bd0c2fab",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        },
+        {
+          "cycleKey": "weekly-2026-W44",
+          "evaluatedAt": "2026-10-26T06:14:20.206Z",
+          "version": null,
+          "adapterFingerprint": null,
+          "architectureFingerprint": "91c40499a97169bb",
           "state": "WATCH",
           "decision": "WATCH_NO_BENCHMARK_HOOK",
           "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
@@ -3781,7 +3911,7 @@
       "title": "Collab-Gen/RoleMemo",
       "version": null,
       "discoveredAt": "2026-10-01T09:27:12.035Z",
-      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
       "summary": "[EMNLP 2026] From Facts to Insights: A Persona-Driven Dual Memory Framework and Dataset for Role-Playing Agents",
       "claimedAdvantage": "role-playing memory benchmark separating factual cognition from persona-conditioned insight and evaluating character-consistent response quality",
       "applicableOwners": [
@@ -3801,7 +3931,7 @@
       "lastDecisionReason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
       "priorRejectionReason": null,
       "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
-      "cooldownUntil": "2027-01-17T06:14:10.468Z",
+      "cooldownUntil": "2027-01-24T06:14:20.206Z",
       "evaluations": [
         {
           "cycleKey": "monthly-2026-10",
@@ -3862,6 +3992,71 @@
             "SCREENED",
             "WATCH"
           ]
+        },
+        {
+          "cycleKey": "weekly-2026-W44",
+          "evaluatedAt": "2026-10-26T06:14:20.206Z",
+          "version": null,
+          "adapterFingerprint": null,
+          "architectureFingerprint": "91c40499a97169bb",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        }
+      ],
+      "draftPrUrl": null
+    },
+    "github:cortexkit/aft": {
+      "candidateKey": "github:cortexkit/aft",
+      "category": "conversational_memory",
+      "sourceKind": "github_repository",
+      "sourceUrl": "https://github.com/cortexkit/aft",
+      "title": "cortexkit/aft",
+      "version": "v0.62.0",
+      "discoveredAt": "2026-10-26T06:14:20.206Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
+      "summary": "Give your agent a proper IDE and OS. The sensorimotor cortex for coding agents (OpenCode + Pi), part of CortexKit: symbol-aware edits, semantic search, code health, fast grep/glob, bash compression, background tasks, PTY.",
+      "claimedAdvantage": "Give your agent a proper IDE and OS. The sensorimotor cortex for coding agents (OpenCode + Pi), part of CortexKit: symbol-aware edits, semantic search, code health, fast grep/glob, bash compression, background tasks, PTY.",
+      "applicableOwners": [
+        "episodic_facts",
+        "rolling_summary",
+        "global_current_memory"
+      ],
+      "expectedBenefit": "Give your agent a proper IDE and OS. The sensorimotor cortex for coding agents (OpenCode + Pi), part of CortexKit: symbol-aware edits, semantic search, code health, fast grep/glob, bash compression, background tasks, PTY.",
+      "expectedCost": "infra: none",
+      "infraRequirements": [
+        "none"
+      ],
+      "privacyImplications": [
+        "none"
+      ],
+      "migrationRequirement": "none",
+      "state": "WATCH",
+      "lastDecision": "WATCH_NO_BENCHMARK_HOOK",
+      "lastDecisionReason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+      "priorRejectionReason": null,
+      "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
+      "cooldownUntil": "2027-01-24T06:14:20.206Z",
+      "evaluations": [
+        {
+          "cycleKey": "weekly-2026-W44",
+          "evaluatedAt": "2026-10-26T06:14:20.206Z",
+          "version": "v0.62.0",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "91c40499a97169bb",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
         }
       ],
       "draftPrUrl": null
@@ -3904,6 +4099,56 @@
           "version": "v0.6.0",
           "adapterFingerprint": null,
           "architectureFingerprint": "14ec3e4d22443188",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        }
+      ],
+      "draftPrUrl": null
+    },
+    "github:dfkhelper/token-goat": {
+      "candidateKey": "github:dfkhelper/token-goat",
+      "category": "conversational_memory",
+      "sourceKind": "github_repository",
+      "sourceUrl": "https://github.com/DFKHelper/token-goat",
+      "title": "DFKHelper/token-goat",
+      "version": "v2.9.32",
+      "discoveredAt": "2026-10-26T06:14:20.206Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
+      "summary": "Token burn reducer and focus keeper for Claude Code, Codex, Copilot, Gemini CLI, and more: surgical read hints, PDF/Office/CSV/markdown file interception, 255+ filter & interception rules, compact manifest injection, image shrinking, cache and compact skills, cache MCP calls, prompt injection protections, and much more.",
+      "claimedAdvantage": "Token burn reducer and focus keeper for Claude Code, Codex, Copilot, Gemini CLI, and more: surgical read hints, PDF/Office/CSV/markdown file interception, 255+ filter & interception rules, compact manifest injection, image shrinking, cache and compact skills, cache MCP calls, prompt injection protections, and much more.",
+      "applicableOwners": [
+        "episodic_facts",
+        "rolling_summary",
+        "global_current_memory"
+      ],
+      "expectedBenefit": "Token burn reducer and focus keeper for Claude Code, Codex, Copilot, Gemini CLI, and more: surgical read hints, PDF/Office/CSV/markdown file interception, 255+ filter & interception rules, compact manifest injection, image shrinking, cache and compact skills, cache MCP calls, prompt injection protections, and much more.",
+      "expectedCost": "infra: none",
+      "infraRequirements": [
+        "none"
+      ],
+      "privacyImplications": [
+        "none"
+      ],
+      "migrationRequirement": "none",
+      "state": "WATCH",
+      "lastDecision": "WATCH_NO_BENCHMARK_HOOK",
+      "lastDecisionReason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+      "priorRejectionReason": null,
+      "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
+      "cooldownUntil": "2027-01-24T06:14:20.206Z",
+      "evaluations": [
+        {
+          "cycleKey": "weekly-2026-W44",
+          "evaluatedAt": "2026-10-26T06:14:20.206Z",
+          "version": "v2.9.32",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "91c40499a97169bb",
           "state": "WATCH",
           "decision": "WATCH_NO_BENCHMARK_HOOK",
           "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
@@ -4023,7 +4268,7 @@
       "title": "FlagOpen/FlagEmbedding",
       "version": "v1.4.2",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
       "summary": "Retrieval and Retrieval-augmented LLMs",
       "claimedAdvantage": "BGE embedding/reranker family (bge-m3 is the approved semantic-lane model)",
       "applicableOwners": [
@@ -4072,7 +4317,7 @@
       "title": "geniesinc/Memora",
       "version": null,
       "discoveredAt": "2026-10-01T09:27:12.035Z",
-      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
       "summary": "Memora: A Long-Term Memory Benchmark for Personalized Agents",
       "claimedAdvantage": "personalized long-term memory benchmark that evaluates remembering/reasoning/recommending while penalizing obsolete or invalidated memories via forgetting-aware evidence",
       "applicableOwners": [
@@ -4092,7 +4337,7 @@
       "lastDecisionReason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
       "priorRejectionReason": null,
       "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
-      "cooldownUntil": "2027-01-17T06:14:10.468Z",
+      "cooldownUntil": "2027-01-24T06:14:20.206Z",
       "evaluations": [
         {
           "cycleKey": "monthly-2026-10",
@@ -4153,6 +4398,21 @@
             "SCREENED",
             "WATCH"
           ]
+        },
+        {
+          "cycleKey": "weekly-2026-W44",
+          "evaluatedAt": "2026-10-26T06:14:20.206Z",
+          "version": null,
+          "adapterFingerprint": null,
+          "architectureFingerprint": "91c40499a97169bb",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
         }
       ],
       "draftPrUrl": null
@@ -4163,9 +4423,9 @@
       "sourceKind": "github_repository",
       "sourceUrl": "https://github.com/getzep/graphiti",
       "title": "getzep/graphiti",
-      "version": "v0.31.1",
+      "version": "v0.31.2",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
       "summary": "Build Real-Time Knowledge Graphs for AI Agents",
       "claimedAdvantage": "bi-temporal knowledge graph with edge invalidation for superseded facts",
       "applicableOwners": [
@@ -4211,6 +4471,21 @@
           "version": "v0.31.1",
           "adapterFingerprint": null,
           "architectureFingerprint": "5be31fd6bd0c2fab",
+          "state": "REJECTED",
+          "decision": "REJECTED_INFRA_COMPLEXITY",
+          "reason": "wholesale adoption needs graph_database, python_runtime; only a TypeScript-native port of the technique is evaluable",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "REJECTED"
+          ]
+        },
+        {
+          "cycleKey": "weekly-2026-W44",
+          "evaluatedAt": "2026-10-26T06:14:20.206Z",
+          "version": "v0.31.2",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "91c40499a97169bb",
           "state": "REJECTED",
           "decision": "REJECTED_INFRA_COMPLEXITY",
           "reason": "wholesale adoption needs graph_database, python_runtime; only a TypeScript-native port of the technique is evaluable",
@@ -4281,7 +4556,7 @@
       "title": "HKUDS/LightRAG",
       "version": "v1.5.7",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
       "summary": "[EMNLP2025] LightRAG: Simple and Fast Retrieval-Augmented Generation",
       "claimedAdvantage": "dual-level (entity + theme) graph-augmented retrieval",
       "applicableOwners": [
@@ -4381,7 +4656,7 @@
       "title": "langchain-ai/langmem",
       "version": null,
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
       "summary": "",
       "claimedAdvantage": "background memory manager with semantic/episodic/procedural types",
       "applicableOwners": [
@@ -4432,7 +4707,7 @@
       "title": "letta-ai/letta",
       "version": "0.16.8",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
       "summary": "Platform for stateful agents: AI with advanced memory that can learn and self-improve over time.",
       "claimedAdvantage": "self-editing core/archival memory blocks managed by the agent",
       "applicableOwners": [
@@ -4534,7 +4809,7 @@
       "title": "mem0ai/mem0",
       "version": "ts-v3.3.1",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
       "summary": "The Memory Layer for AI Agents - Drop-in memory infrastructure for AI agents and apps. Context that persists. Built for production.",
       "claimedAdvantage": "LLM-extracted add/update/delete memory ops with vector+graph recall (LoCoMo results)",
       "applicableOwners": [
@@ -4586,7 +4861,7 @@
       "title": "microsoft/graphrag",
       "version": "v3.3.0",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
       "summary": "A modular graph-based Retrieval-Augmented Generation (RAG) system",
       "claimedAdvantage": "community-summarized entity graph for global questions",
       "applicableOwners": [
@@ -4851,7 +5126,7 @@
       "title": "QwenLM/Qwen3-Embedding",
       "version": null,
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
       "summary": "",
       "claimedAdvantage": "multilingual embedding + reranker models (MTEB)",
       "applicableOwners": [
@@ -4948,7 +5223,7 @@
       "title": "SalesforceAIResearch/AnchorBench",
       "version": null,
       "discoveredAt": "2026-10-01T09:27:12.035Z",
-      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
       "summary": "",
       "claimedAdvantage": "long-horizon companion benchmark separating persona continuity from trajectory recall across role/boundary/value/style and evolving relationship state",
       "applicableOwners": [
@@ -4968,7 +5243,7 @@
       "lastDecisionReason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
       "priorRejectionReason": null,
       "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
-      "cooldownUntil": "2027-01-17T06:14:10.468Z",
+      "cooldownUntil": "2027-01-24T06:14:20.206Z",
       "evaluations": [
         {
           "cycleKey": "monthly-2026-10",
@@ -5021,6 +5296,21 @@
           "version": null,
           "adapterFingerprint": null,
           "architectureFingerprint": "5be31fd6bd0c2fab",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        },
+        {
+          "cycleKey": "weekly-2026-W44",
+          "evaluatedAt": "2026-10-26T06:14:20.206Z",
+          "version": null,
+          "adapterFingerprint": null,
+          "architectureFingerprint": "91c40499a97169bb",
           "state": "WATCH",
           "decision": "WATCH_NO_BENCHMARK_HOOK",
           "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
@@ -5083,6 +5373,55 @@
       ],
       "draftPrUrl": null
     },
+    "github:skaiworldwide-oss/agensgraph": {
+      "candidateKey": "github:skaiworldwide-oss/agensgraph",
+      "category": "graph_memory",
+      "sourceKind": "github_repository",
+      "sourceUrl": "https://github.com/skaiworldwide-oss/agensgraph",
+      "title": "skaiworldwide-oss/agensgraph",
+      "version": "v2.18.6.0",
+      "discoveredAt": "2026-10-26T06:14:20.206Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
+      "summary": "AgensGraph, a high performance transactional graph database based on PostgreSQL",
+      "claimedAdvantage": "AgensGraph, a high performance transactional graph database based on PostgreSQL",
+      "applicableOwners": [
+        "relationship_durable",
+        "episodic_facts"
+      ],
+      "expectedBenefit": "AgensGraph, a high performance transactional graph database based on PostgreSQL",
+      "expectedCost": "infra: graph_database",
+      "infraRequirements": [
+        "graph_database"
+      ],
+      "privacyImplications": [
+        "none"
+      ],
+      "migrationRequirement": "none",
+      "state": "REJECTED",
+      "lastDecision": "REJECTED_INFRA_COMPLEXITY",
+      "lastDecisionReason": "wholesale adoption needs graph_database; only a TypeScript-native port of the technique is evaluable",
+      "priorRejectionReason": "wholesale adoption needs graph_database; only a TypeScript-native port of the technique is evaluable",
+      "reevaluationCondition": "new release, or a TypeScript-native experiment adapter that removes the infra requirement",
+      "cooldownUntil": null,
+      "evaluations": [
+        {
+          "cycleKey": "weekly-2026-W44",
+          "evaluatedAt": "2026-10-26T06:14:20.206Z",
+          "version": "v2.18.6.0",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "91c40499a97169bb",
+          "state": "REJECTED",
+          "decision": "REJECTED_INFRA_COMPLEXITY",
+          "reason": "wholesale adoption needs graph_database; only a TypeScript-native port of the technique is evaluable",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "REJECTED"
+          ]
+        }
+      ],
+      "draftPrUrl": null
+    },
     "github:snap-research/locomo": {
       "candidateKey": "github:snap-research/locomo",
       "category": "memory_benchmark",
@@ -5091,7 +5430,7 @@
       "title": "snap-research/locomo",
       "version": null,
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
       "summary": "",
       "claimedAdvantage": "very long-term conversational memory benchmark (QA, event summarization)",
       "applicableOwners": [
@@ -5437,9 +5776,9 @@
       "sourceKind": "github_repository",
       "sourceUrl": "https://github.com/topoteretes/cognee",
       "title": "topoteretes/cognee",
-      "version": "v1.6.5",
+      "version": "v1.6.6rc1",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
       "summary": "Cognee is the open-source AI memory platform for agents. Give your AI agents persistent long-term memory with small models for free",
       "claimedAdvantage": "ECL pipeline building a queryable memory graph",
       "applicableOwners": [
@@ -5523,6 +5862,21 @@
             "SCREENED",
             "REJECTED"
           ]
+        },
+        {
+          "cycleKey": "weekly-2026-W44",
+          "evaluatedAt": "2026-10-26T06:14:20.206Z",
+          "version": "v1.6.6rc1",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "91c40499a97169bb",
+          "state": "REJECTED",
+          "decision": "REJECTED_INFRA_COMPLEXITY",
+          "reason": "wholesale adoption needs python_runtime, graph_database, vector_database; only a TypeScript-native port of the technique is evaluable",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "REJECTED"
+          ]
         }
       ],
       "draftPrUrl": null
@@ -5583,9 +5937,9 @@
       "sourceKind": "github_repository",
       "sourceUrl": "https://github.com/vectorize-io/hindsight",
       "title": "vectorize-io/hindsight",
-      "version": "v1.0.0",
+      "version": "v1.1.0",
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
       "summary": "Hindsight: Agent Memory That Learns",
       "claimedAdvantage": "retain/recall/reflect memory with long-term benchmark evidence and explicit learning-oriented consolidation",
       "applicableOwners": [
@@ -5661,6 +6015,21 @@
           "version": "v1.0.0",
           "adapterFingerprint": null,
           "architectureFingerprint": "5be31fd6bd0c2fab",
+          "state": "REJECTED",
+          "decision": "REJECTED_INFRA_COMPLEXITY",
+          "reason": "wholesale adoption needs python_runtime; only a TypeScript-native port of the technique is evaluable",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "REJECTED"
+          ]
+        },
+        {
+          "cycleKey": "weekly-2026-W44",
+          "evaluatedAt": "2026-10-26T06:14:20.206Z",
+          "version": "v1.1.0",
+          "adapterFingerprint": null,
+          "architectureFingerprint": "91c40499a97169bb",
           "state": "REJECTED",
           "decision": "REJECTED_INFRA_COMPLEXITY",
           "reason": "wholesale adoption needs python_runtime; only a TypeScript-native port of the technique is evaluable",
@@ -5780,7 +6149,7 @@
       "title": "xiaowu0162/LongMemEval",
       "version": null,
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
       "summary": "Benchmarking Chat Assistants on Long-Term Interactive Memory (ICLR 2025)",
       "claimedAdvantage": "long-term chat memory benchmark: temporal reasoning, knowledge updates, abstention",
       "applicableOwners": [
@@ -5800,7 +6169,7 @@
       "lastDecisionReason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
       "priorRejectionReason": null,
       "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
-      "cooldownUntil": "2027-01-17T06:14:10.468Z",
+      "cooldownUntil": "2027-01-24T06:14:20.206Z",
       "evaluations": [
         {
           "cycleKey": "weekly-2026-W40",
@@ -5868,6 +6237,21 @@
           "version": null,
           "adapterFingerprint": null,
           "architectureFingerprint": "5be31fd6bd0c2fab",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        },
+        {
+          "cycleKey": "weekly-2026-W44",
+          "evaluatedAt": "2026-10-26T06:14:20.206Z",
+          "version": null,
+          "adapterFingerprint": null,
+          "architectureFingerprint": "91c40499a97169bb",
           "state": "WATCH",
           "decision": "WATCH_NO_BENCHMARK_HOOK",
           "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
@@ -5888,7 +6272,7 @@
       "title": "xiaowu0162/LongMemEval-V2",
       "version": null,
       "discoveredAt": "2026-09-28T06:54:24.371Z",
-      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
       "summary": "Official repository for LongMemEval-V2",
       "claimedAdvantage": "agentic long-term memory benchmark: dynamic state, workflow knowledge, environment gotchas, and premise awareness",
       "applicableOwners": [
@@ -5908,7 +6292,7 @@
       "lastDecisionReason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
       "priorRejectionReason": null,
       "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
-      "cooldownUntil": "2027-01-17T06:14:10.468Z",
+      "cooldownUntil": "2027-01-24T06:14:20.206Z",
       "evaluations": [
         {
           "cycleKey": "weekly-2026-W40",
@@ -5979,6 +6363,71 @@
           "state": "WATCH",
           "decision": "WATCH_NO_BENCHMARK_HOOK",
           "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        },
+        {
+          "cycleKey": "weekly-2026-W44",
+          "evaluatedAt": "2026-10-26T06:14:20.206Z",
+          "version": null,
+          "adapterFingerprint": null,
+          "architectureFingerprint": "91c40499a97169bb",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)",
+          "stateTrail": [
+            "RESEARCHED",
+            "SCREENED",
+            "WATCH"
+          ]
+        }
+      ],
+      "draftPrUrl": null
+    },
+    "github:ydyhello/awesome-vlm-streaming-video": {
+      "candidateKey": "github:ydyhello/awesome-vlm-streaming-video",
+      "category": "conversational_memory",
+      "sourceKind": "github_repository",
+      "sourceUrl": "https://github.com/ydyhello/Awesome-VLM-Streaming-Video",
+      "title": "ydyhello/Awesome-VLM-Streaming-Video",
+      "version": null,
+      "discoveredAt": "2026-10-26T06:14:20.206Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
+      "summary": "📚 A curated collection of papers and open-source code repositories dedicated to the application of Vision-Language Models (VLMs) for streaming video.",
+      "claimedAdvantage": "📚 A curated collection of papers and open-source code repositories dedicated to the application of Vision-Language Models (VLMs) for streaming video.",
+      "applicableOwners": [
+        "episodic_facts",
+        "rolling_summary",
+        "global_current_memory"
+      ],
+      "expectedBenefit": "📚 A curated collection of papers and open-source code repositories dedicated to the application of Vision-Language Models (VLMs) for streaming video.",
+      "expectedCost": "infra: none",
+      "infraRequirements": [
+        "none"
+      ],
+      "privacyImplications": [
+        "none"
+      ],
+      "migrationRequirement": "none",
+      "state": "WATCH",
+      "lastDecision": "WATCH_NO_BENCHMARK_HOOK",
+      "lastDecisionReason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
+      "priorRejectionReason": null,
+      "reevaluationCondition": "new release/version, new experiment adapter, or 90-day cooldown",
+      "cooldownUntil": "2027-01-24T06:14:20.206Z",
+      "evaluations": [
+        {
+          "cycleKey": "weekly-2026-W44",
+          "evaluatedAt": "2026-10-26T06:14:20.206Z",
+          "version": null,
+          "adapterFingerprint": null,
+          "architectureFingerprint": "91c40499a97169bb",
+          "state": "WATCH",
+          "decision": "WATCH_NO_BENCHMARK_HOOK",
+          "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet",
           "stateTrail": [
             "RESEARCHED",
             "SCREENED",
@@ -6046,7 +6495,7 @@
       "title": "Nomi official memory architecture/docs",
       "version": "docs-af06e90a153377dd",
       "discoveredAt": "2026-10-01T09:27:12.035Z",
-      "lastSeenAt": "2026-10-19T06:14:10.468Z",
+      "lastSeenAt": "2026-10-26T06:14:20.206Z",
       "summary": "https://nomi.ai/updates/ Mind Map 2.0: Bringing Nomi Memory Into View Mind Map 2.0 gives you visibility into a living, interactive representation of one portion of your Nomi’s knowledge. For the first time, you can explore one of Nomi’s memory structures and see how your Nomi connects different memories, concepts, and knowledge. Major Memory Update: Expanded Capacity, Enhanced Retention Today we're excited to announce the release of our latest memory system upgrade, bringing significant improvements to how Nomis remember and process your conversations. This update represents a series of techni",
       "claimedAdvantage": "layered short/medium/long-term memory with Identity Core and Mind Map high-level context",
       "applicableOwners": [
@@ -6698,6 +7147,155 @@
       },
       "promptPackingSnapshot": {
         "generatedAt": "2026-10-19T06:14:31.746Z",
+        "currentTurnFixture": 300,
+        "policyId": "summary5_raw4",
+        "rawRecentExchanges": 4,
+        "rollingSummaryInterval": 5,
+        "mediumTermBlockCount": 15,
+        "models": [
+          {
+            "modelId": "claude-opus-5.5",
+            "n15DeltaInputTokens": 5845,
+            "n15MediumTokens": 5844
+          },
+          {
+            "modelId": "gemini-3.8-flash",
+            "n15DeltaInputTokens": 5845,
+            "n15MediumTokens": 5844
+          },
+          {
+            "modelId": "gemini-4-argon",
+            "n15DeltaInputTokens": 5845,
+            "n15MediumTokens": 5844
+          },
+          {
+            "modelId": "gpt-6.1-sol",
+            "n15DeltaInputTokens": 5845,
+            "n15MediumTokens": 5844
+          }
+        ]
+      }
+    },
+    {
+      "cycleKey": "weekly-2026-W44",
+      "mode": "weekly",
+      "finishedAt": "2026-10-26T06:15:37.770Z",
+      "mainSha": "c726811a8c181769c8a84fa90d85a4461e1b15af",
+      "counts": {
+        "sourcesChecked": 4,
+        "sourcesFailed": 1,
+        "observations": 25,
+        "newCandidates": 6,
+        "skippedDuplicates": 9,
+        "evaluated": 16,
+        "watch": 11,
+        "reject": 5,
+        "benchmarked": 0,
+        "accept": 0,
+        "draftPrPackets": 0,
+        "paidProviderCalls": 0,
+        "httpCalls": 52
+      },
+      "baseline": {
+        "benchmarkFingerprint": "dd363ec0987fa481",
+        "cases": 35,
+        "evaluatedTurns": 33,
+        "promptTokensPerTurn": 519.7878787878788,
+        "invariantViolationCount": 0,
+        "metrics": {
+          "falseInjectionRate": {
+            "value": 0,
+            "status": "MEASURED",
+            "eligibleCases": 33,
+            "totalCases": 35
+          },
+          "falseMemoryRate": {
+            "value": 0,
+            "status": "MEASURED",
+            "eligibleCases": 6,
+            "totalCases": 35
+          },
+          "irrelevantInjectionRate": {
+            "value": 0,
+            "status": "MEASURED",
+            "eligibleCases": 1,
+            "totalCases": 35
+          },
+          "precision": {
+            "value": 1,
+            "status": "MEASURED",
+            "eligibleCases": 33,
+            "totalCases": 35
+          },
+          "staleStateRecallRate": {
+            "value": 0,
+            "status": "MEASURED",
+            "eligibleCases": 5,
+            "totalCases": 35
+          },
+          "correctionSupersessionAccuracy": {
+            "value": 1,
+            "status": "MEASURED",
+            "eligibleCases": 1,
+            "totalCases": 35
+          },
+          "relationshipRoleConsistency": {
+            "value": 1,
+            "status": "MEASURED",
+            "eligibleCases": 2,
+            "totalCases": 35
+          },
+          "candidateRecallAtK": {
+            "value": 0.9642857142857143,
+            "status": "MEASURED",
+            "eligibleCases": 28,
+            "totalCases": 35
+          },
+          "finalRecallAt8": {
+            "value": 0.9629629629629629,
+            "status": "MEASURED",
+            "eligibleCases": 27,
+            "totalCases": 35
+          },
+          "distinctiveUtteranceRecall": {
+            "value": 1,
+            "status": "MEASURED",
+            "eligibleCases": 1,
+            "totalCases": 35
+          }
+        },
+        "finalHitByCase": {
+          "boundary-5turn-01": true,
+          "callback-75turn-01": true,
+          "t300-01": true,
+          "t1000-01": true,
+          "semantic-paraphrase-KNOWN_GAP_BASELINE_REPRO-01": false,
+          "promise-01": true,
+          "betrayal-01": true,
+          "first-never-01": true,
+          "role-event-direction-01": true,
+          "same-turn-multi-event-01": true,
+          "latest-state-replacement-01": true,
+          "historical-repeat-events-01": true,
+          "irrelevant-critical-vs-relevant-normal-01": true,
+          "message-edit-01": true,
+          "trpg-quest-01": true,
+          "character-state-transition-01": true,
+          "location-ownership-transition-01": true,
+          "horizon-t6-01": true,
+          "horizon-t20-01": true,
+          "horizon-t100-01": true,
+          "horizon-t2000-01": true,
+          "relationship-role-consistency-01": true,
+          "npc-durable-state-01": true,
+          "distinctive-utterance-01": true,
+          "correction-supersession-01": true,
+          "continuity-reset-01": true,
+          "high-noise-distractors-01": true
+        }
+      },
+      "promptPackingSnapshot": {
+        "generatedAt": "2026-10-26T06:15:39.293Z",
         "currentTurnFixture": 300,
         "policyId": "summary5_raw4",
         "rawRecentExchanges": 4,
