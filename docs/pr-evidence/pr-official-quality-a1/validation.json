@@ -24,7 +24,8 @@
       "headDiagnostics": 2339,
       "normalizedAdded": 0,
       "normalizedRemoved": 0,
-      "note": "Full suite includes repository-wide existing test typing failures. App-only checks pass separately."
+      "note": "Full suite includes repository-wide existing test typing failures. App-only checks pass separately.",
+      "normalization": "Root paths, diagnostic positions and order of identical quoted union members. One characterAssets.test.ts Pick union renders orientation/representativeRank in reversed order; diagnostic is otherwise identical."
     },
     "build": "pass; isolated DATA_DIR, paid-provider and remote-DB variables blank, synthetic SESSION_SECRET >=32 chars",
     "git diff --check": "pass"

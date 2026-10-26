@@ -63,7 +63,7 @@ This PR does not apply Lucian selfDrive, decide Wolfgang's seal authenticity, re
 - Isolated DB save/read/chunks/final `buildContext` proof uses the existing `buildRelationStartWire` and `isolatedTestDatabase`; no runner or shared DB test infrastructure was added. `/tmp` is tmpfs and refused by the existing mounted-volume guard; `TMPDIR=/var/tmp` uses the root overlay and the original guard unchanged.
 - `input-before.json` / `input-after.json`: exact final transport system/user input for one existing public fixture, plus returned public profile. **OFFLINE MOCK**, not a new generated manuscript or model result.
 - `input-metrics.json`: four existing fixture input comparisons. `canon-review-fixtures.json` and `canon-review-existing-sources.json`: per-character source/compiled evidence. All sources were already public repository fixtures; no Elin RP, user persona or private wire is included.
-- `validation.json`: checks and limitations. Full `npm run typecheck` is not green on main: **2339** diagnostics on base and head, identical after normalizing root paths and line positions (0 added / 0 removed). The app-only contract is separate.
+- `validation.json`: checks and limitations. Full `npm run typecheck` is not green on main: **2339** diagnostics on base and head, identical after normalizing root paths, line positions and identical type-union member ordering (0 added / 0 removed). The app-only contract is separate.
 
 Regular execution contract:
 
