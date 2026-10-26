@@ -9,6 +9,7 @@ import {
 } from "./adultOffOutputGuard";
 import {
   TRANSCRIPT_EMPTY_ASSISTANT_PLACEHOLDER,
+  TRANSCRIPT_GREETING_HEADING,
   TRANSCRIPT_STATUS_META_HEADING,
   TRANSCRIPT_STATUS_WIDGET_HEADING,
   buildAttachmentDisposition,
@@ -210,6 +211,32 @@ describe("chat transcript export", () => {
     assert.ok(!out.includes("마지막(응답 대기)"));
     assert.ok(out.includes(`[턴 1]\n첫 질문\n---\n${TRANSCRIPT_EMPTY_ASSISTANT_PLACEHOLDER}\n`));
     assert.ok(out.includes("[턴 2]\n둘째 질문\n---\n부분 응답\n"));
+  });
+
+  it("exports greeting prose when the adult-off read guard is on", () => {
+    const db = makeDb();
+    insert(db, { chatId: 1, role: "assistant", content: "어서 와.", model: "greeting" });
+    insert(db, { chatId: 1, role: "user", content: "안녕" });
+    insert(db, { chatId: 1, role: "assistant", content: "미검수 assistant" });
+    const out = exportAll(db, 1, { guard: true });
+    assert.ok(out.includes(`${TRANSCRIPT_GREETING_HEADING}\n어서 와.`));
+    assert.ok(!out.includes("미검수 assistant"));
+  });
+
+  it("omits user-edited greeting from TXT export under the read guard", () => {
+    const db = makeDb();
+    const edited = "편집된 인사";
+    insert(db, {
+      chatId: 1,
+      role: "assistant",
+      content: edited,
+      model: "greeting",
+      alternates: [{ content: edited, model: "greeting", usage: null, created_at: "" }],
+      activeVariant: 0,
+    });
+    const out = exportAll(db, 1, { guard: true });
+    assert.ok(!out.includes(edited));
+    assert.ok(!out.includes(TRANSCRIPT_GREETING_HEADING));
   });
 
   it("applies the adult-off read guard exactly like the chat screen", () => {

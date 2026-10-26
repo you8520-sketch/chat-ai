@@ -153,6 +153,8 @@ function presentAssistant(
       rowContent: row.content,
       variants,
       activeVariant,
+      messageModel: row.model,
+      storedAlternates: row.alternates,
       statusWidgetValues: storedStatusWidgetValues(row, activeSnapshot),
     });
     if (row.model === "greeting" || !statusContext) {
