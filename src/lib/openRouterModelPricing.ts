@@ -236,11 +236,10 @@ const GEMINI_31_PRO_GOOGLE_AI_STUDIO_FALLBACK_RATES: OpenRouterModelRates = {
 };
 
 /**
- * Conservative post-intro fallback for the pinned Google AI Studio Flex route.
- * Google documents the underlying 3.7/3.8 Standard price doubling on 2027-01-01;
- * OpenRouter currently lists Flex at half of Standard before the same 50% intro
- * discount. Runtime provider-reported USD and Supply Radar endpoint evidence
- * remain authoritative; future Flex availability/pricing is not assumed.
+ * Google AI Studio Flex list used by Main RP `resolveOpenRouterModelRates`
+ * for `google/gemini-3.7-flash` and `google/gemini-3.8-flash`.
+ * These numbers match Google's post-intro Flex row ($0.75 / $3.75 / $0.075).
+ * TRPG 3.8 Flex billing does not use this row during the intro window.
  */
 const GEMINI_37_38_FLASH_GOOGLE_AI_STUDIO_FALLBACK_RATES: OpenRouterModelRates = {
   family: "google",
@@ -251,6 +250,24 @@ const GEMINI_37_38_FLASH_GOOGLE_AI_STUDIO_FALLBACK_RATES: OpenRouterModelRates =
   cacheWriteMultiplier: 1,
   explicitCacheInjection: false,
 };
+
+/**
+ * Gemini 3.8 Flash Flex intro — Google Flex row through 2026-12-31.
+ * OpenRouter Google AI Studio Flex lists the same discounted $0.375 / $1.875 / $0.0375.
+ * https://ai.google.dev/gemini-api/docs/pricing
+ */
+const GEMINI_38_FLASH_FLEX_INTRO_RATES: OpenRouterModelRates = {
+  family: "google",
+  label: "OpenRouter · Google AI Studio Flex intro fallback",
+  inputUsdPerM: 0.375,
+  outputUsdPerM: 1.875,
+  cacheReadUsdPerM: 0.0375,
+  cacheWriteMultiplier: 1,
+  explicitCacheInjection: false,
+};
+
+/** First instant of Google's post-intro Gemini 3.8 Flex row (UTC calendar date). */
+export const TRPG_GEMINI_38_FLASH_FLEX_POST_INTRO_AT = "2027-01-01T00:00:00.000Z";
 
 /**
  * OpenRouter Standard intro fallback for Gemini 4 Argon.
@@ -267,8 +284,12 @@ const GEMINI_4_ARGON_STANDARD_FALLBACK_RATES: OpenRouterModelRates = {
   explicitCacheInjection: false,
 };
 
-/** TRPG GM Flex tier — half of Standard intro before the same 50% intro discount. */
-const GEMINI_4_ARGON_FLEX_FALLBACK_RATES: OpenRouterModelRates = {
+/**
+ * TRPG GM Flex intro — Google Flex row through 2026-11-30.
+ * OpenRouter Google AI Studio Flex lists $1 / $5 / $0.05 (50% off $2 / $10 / $0.10).
+ * https://ai.google.dev/gemini-api/docs/pricing
+ */
+const GEMINI_4_ARGON_FLEX_INTRO_RATES: OpenRouterModelRates = {
   family: "google",
   label: "OpenRouter · Google AI Studio Flex intro fallback",
   inputUsdPerM: 1,
@@ -278,10 +299,59 @@ const GEMINI_4_ARGON_FLEX_FALLBACK_RATES: OpenRouterModelRates = {
   explicitCacheInjection: false,
 };
 
-/** Token fallback rates for TRPG GM (Flex). Main RP Gemini 4 billing keeps Standard fallback. */
-export function resolveTrpgGmOpenRouterModelRates(modelId?: string | null): OpenRouterModelRates {
+/**
+ * TRPG GM Flex after the intro — Google Flex row starting 2026-12-01.
+ * OpenRouter lists the undiscounted Flex strike price as $2 / $10 / $0.10.
+ */
+const GEMINI_4_ARGON_FLEX_POST_INTRO_RATES: OpenRouterModelRates = {
+  family: "google",
+  label: "OpenRouter · Google AI Studio Flex post-intro fallback",
+  inputUsdPerM: 2,
+  outputUsdPerM: 10,
+  cacheReadUsdPerM: 0.1,
+  cacheWriteMultiplier: 1,
+  explicitCacheInjection: false,
+};
+
+/** First instant of Google's post-intro Gemini 4 Argon Flex row (UTC calendar date). */
+export const TRPG_GEMINI_4_ARGON_FLEX_POST_INTRO_AT = "2026-12-01T00:00:00.000Z";
+
+function isGemini38FlashFlexModel(modelId: string): boolean {
+  const id = modelId.trim().toLowerCase();
+  return id === "gemini-3.8-flash" || id === "google/gemini-3.8-flash";
+}
+
+/**
+ * TRPG Flex token fallback. Main RP keeps `resolveOpenRouterModelRates`.
+ * Provider-reported USD still wins at the charge site when present.
+ * Cutover instants follow Google's published calendar dates at UTC midnight,
+ * matching `GOOGLE_FLASH_STANDARD_POST_INTRO_EFFECTIVE_AT`.
+ */
+export function resolveTrpgOpenRouterFlexFallbackRates(
+  modelId?: string | null,
+  now: Date = new Date()
+): OpenRouterModelRates {
+  const at = now.getTime();
   if (isGemini4ArgonModel(modelId ?? "")) {
-    return GEMINI_4_ARGON_FLEX_FALLBACK_RATES;
+    return at >= Date.parse(TRPG_GEMINI_4_ARGON_FLEX_POST_INTRO_AT)
+      ? GEMINI_4_ARGON_FLEX_POST_INTRO_RATES
+      : GEMINI_4_ARGON_FLEX_INTRO_RATES;
+  }
+  if (isGemini38FlashFlexModel(modelId ?? "")) {
+    return at >= Date.parse(TRPG_GEMINI_38_FLASH_FLEX_POST_INTRO_AT)
+      ? GEMINI_37_38_FLASH_GOOGLE_AI_STUDIO_FALLBACK_RATES
+      : GEMINI_38_FLASH_FLEX_INTRO_RATES;
+  }
+  return resolveOpenRouterModelRates(modelId);
+}
+
+/** Token fallback rates for TRPG GM (Flex). Main RP Gemini 4 billing keeps Standard fallback. */
+export function resolveTrpgGmOpenRouterModelRates(
+  modelId?: string | null,
+  now: Date = new Date()
+): OpenRouterModelRates {
+  if (isGemini4ArgonModel(modelId ?? "")) {
+    return resolveTrpgOpenRouterFlexFallbackRates(modelId, now);
   }
   return resolveOpenRouterModelRates(modelId);
 }

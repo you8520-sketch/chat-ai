@@ -18,6 +18,9 @@ import {
   openRouterUsdCostFromRates,
   resolveOpenRouterModelRates,
   resolveTrpgGmOpenRouterModelRates,
+  resolveTrpgOpenRouterFlexFallbackRates,
+  TRPG_GEMINI_38_FLASH_FLEX_POST_INTRO_AT,
+  TRPG_GEMINI_4_ARGON_FLEX_POST_INTRO_AT,
 } from "@/lib/openRouterModelPricing";
 import {
   computeTrpgRoundPoints,
@@ -28,16 +31,23 @@ import {
 import { resolveTrpgProviderCost } from "./roundEconomics";
 import { isTrpgGmBillableModel } from "./trpgGmModelIdentity";
 import {
+  computeTrpgPublishedMarginChargePoints,
   explainTrpgPublishedMarginCharge,
   resolveTrpgCallUpstreamCostUsd,
 } from "./trpgPublishedMarginCharge";
+
+const INTRO_AT = new Date("2026-10-26T12:00:00.000Z");
+const ARGON_POST_AT = new Date(TRPG_GEMINI_4_ARGON_FLEX_POST_INTRO_AT);
+const ARGON_LAST_INTRO_AT = new Date(Date.parse(TRPG_GEMINI_4_ARGON_FLEX_POST_INTRO_AT) - 1);
+const FLASH_POST_AT = new Date(TRPG_GEMINI_38_FLASH_FLEX_POST_INTRO_AT);
+const FLASH_LAST_INTRO_AT = new Date(Date.parse(TRPG_GEMINI_38_FLASH_FLEX_POST_INTRO_AT) - 1);
 
 const SAMPLE: Pick<TrpgModelUsage, "inputTokens" | "outputTokens"> = {
   inputTokens: 10_000,
   outputTokens: 2_000,
 };
 
-function flexUsd(call: TrpgModelUsage): number {
+function flexUsd(call: TrpgModelUsage, now: Date = INTRO_AT): number {
   return openRouterUsdCostFromRates(
     {
       promptTokens: call.inputTokens,
@@ -46,7 +56,7 @@ function flexUsd(call: TrpgModelUsage): number {
       cacheWriteTokens: call.cacheWriteTokens,
       modelId: call.modelId,
     },
-    resolveTrpgGmOpenRouterModelRates(call.modelId)
+    resolveTrpgOpenRouterFlexFallbackRates(call.modelId, now)
   ).usdCost;
 }
 
@@ -61,8 +71,8 @@ describe("TRPG published-margin billing", () => {
   it("charges wire and canonical Gemini 4 GM at 55% on Flex-estimated cost", () => {
     for (const modelId of [GEMINI_4_ARGON_MODEL, OPENROUTER_GEMINI_4_ARGON_MODEL] as const) {
       const call: TrpgModelUsage = { modelId, ...SAMPLE };
-      const upstream = flexUsd(call);
-      const points = computeTrpgRoundPoints([call]);
+      const upstream = flexUsd(call, INTRO_AT);
+      const points = computeTrpgPublishedMarginChargePoints(call, INTRO_AT);
       assert.equal(points, expectedPublishedPoints(upstream, modelId));
       const explained = explainTrpgPublishedMarginCharge(call);
       assert.ok(explained);
@@ -87,29 +97,46 @@ describe("TRPG published-margin billing", () => {
 
   it("separates GM Flex cost from Main RP Standard list fallback", () => {
     const call: TrpgModelUsage = { modelId: OPENROUTER_GEMINI_4_ARGON_MODEL, ...SAMPLE };
-    const flex = flexUsd(call);
+    const flex = flexUsd(call, INTRO_AT);
     const standard = openRouterUsdCostFromRates({
       promptTokens: call.inputTokens,
       outputTokens: call.outputTokens,
       modelId: OPENROUTER_GEMINI_4_ARGON_MODEL,
     }).usdCost;
     assert.ok(flex < standard);
-    assert.equal(resolveTrpgGmOpenRouterModelRates(call.modelId).inputUsdPerM, 1);
+    assert.equal(resolveTrpgGmOpenRouterModelRates(call.modelId, INTRO_AT).inputUsdPerM, 1);
     assert.equal(resolveOpenRouterModelRates(OPENROUTER_GEMINI_4_ARGON_MODEL).inputUsdPerM, 2);
+    assert.equal(resolveOpenRouterModelRates(OPENROUTER_GEMINI_4_ARGON_MODEL).outputUsdPerM, 10);
   });
 
   it("applies published 55% to bot Gemini 3.8 Flash", () => {
     const call: TrpgModelUsage = { modelId: GEMINI_38_FLASH_MODEL, ...SAMPLE };
-    const upstream = resolveTrpgCallUpstreamCostUsd(call).upstreamCostUsd;
-    assert.equal(computeTrpgRoundPoints([call]), expectedPublishedPoints(upstream, call.modelId));
+    const upstream = resolveTrpgCallUpstreamCostUsd(call, INTRO_AT).upstreamCostUsd;
+    assert.equal(
+      computeTrpgPublishedMarginChargePoints(call, INTRO_AT),
+      expectedPublishedPoints(upstream, call.modelId)
+    );
     assert.equal(getTargetMargin(GEMINI_38_FLASH_MODEL), 0.55);
   });
 
   it("estimates bot canonical and wire ids at the same OpenRouter 3.8 Flex fallback rates", () => {
     for (const modelId of [GEMINI_38_FLASH_MODEL, OPENROUTER_GEMINI_38_FLASH_MODEL] as const) {
       const call: TrpgModelUsage = { modelId, ...SAMPLE };
-      const upstream = resolveTrpgCallUpstreamCostUsd(call).upstreamCostUsd;
+      const upstream = resolveTrpgCallUpstreamCostUsd(call, INTRO_AT).upstreamCostUsd;
+      const intro = resolveTrpgOpenRouterFlexFallbackRates(OPENROUTER_GEMINI_38_FLASH_MODEL, INTRO_AT);
+      assert.equal(intro.inputUsdPerM, 0.375);
+      assert.equal(intro.outputUsdPerM, 1.875);
+      assert.equal(intro.cacheReadUsdPerM, 0.0375);
       const flexDirect = openRouterUsdCostFromRates(
+        {
+          promptTokens: call.inputTokens,
+          outputTokens: call.outputTokens,
+          modelId: OPENROUTER_GEMINI_38_FLASH_MODEL,
+        },
+        intro
+      ).usdCost;
+      assert.equal(upstream, flexDirect);
+      const mainRpList = openRouterUsdCostFromRates(
         {
           promptTokens: call.inputTokens,
           outputTokens: call.outputTokens,
@@ -117,7 +144,7 @@ describe("TRPG published-margin billing", () => {
         },
         resolveOpenRouterModelRates(OPENROUTER_GEMINI_38_FLASH_MODEL)
       ).usdCost;
-      assert.equal(upstream, flexDirect);
+      assert.ok(flexDirect < mainRpList);
       const genericCanonical = openRouterUsdCostFromRates({
         promptTokens: call.inputTokens,
         outputTokens: call.outputTokens,
@@ -131,22 +158,22 @@ describe("TRPG published-margin billing", () => {
   });
 
   it("charges TRPG_BOT_USAGE_FALLBACK with 3.8 Flex estimate, not generic OpenRouter rates", () => {
-    const upstream = resolveTrpgCallUpstreamCostUsd(TRPG_BOT_USAGE_FALLBACK).upstreamCostUsd;
+    const upstream = resolveTrpgCallUpstreamCostUsd(TRPG_BOT_USAGE_FALLBACK, INTRO_AT).upstreamCostUsd;
     const flex = openRouterUsdCostFromRates(
       {
         promptTokens: TRPG_BOT_USAGE_FALLBACK.inputTokens,
         outputTokens: TRPG_BOT_USAGE_FALLBACK.outputTokens,
         modelId: OPENROUTER_GEMINI_38_FLASH_MODEL,
       },
-      resolveOpenRouterModelRates(OPENROUTER_GEMINI_38_FLASH_MODEL)
+      resolveTrpgOpenRouterFlexFallbackRates(OPENROUTER_GEMINI_38_FLASH_MODEL, INTRO_AT)
     ).usdCost;
     assert.equal(upstream, flex);
     assert.equal(
-      computeTrpgRoundPoints([TRPG_BOT_USAGE_FALLBACK]),
+      computeTrpgPublishedMarginChargePoints(TRPG_BOT_USAGE_FALLBACK, INTRO_AT),
       expectedPublishedPoints(upstream, TRPG_BOT_USAGE_FALLBACK.modelId)
     );
     const economics = resolveTrpgProviderCost([TRPG_BOT_USAGE_FALLBACK]);
-    assert.equal(economics.providerCostUsd, upstream);
+    assert.equal(economics.providerCostUsd, Math.round(upstream * 1e6) / 1e6);
     assert.equal(economics.costSource, "estimated");
   });
 
@@ -160,7 +187,10 @@ describe("TRPG published-margin billing", () => {
     const withoutCache = flexUsd({ ...call, cacheReadTokens: undefined });
     const withCache = flexUsd(call);
     assert.ok(withCache < withoutCache);
-    assert.equal(computeTrpgRoundPoints([call]), expectedPublishedPoints(withCache, call.modelId));
+    assert.equal(
+      computeTrpgPublishedMarginChargePoints(call, INTRO_AT),
+      expectedPublishedPoints(withCache, call.modelId)
+    );
   });
 
   it("returns zero points for failed calls with no tokens", () => {
@@ -179,6 +209,52 @@ describe("TRPG published-margin billing", () => {
       computeTrpgRoundPoints([TRPG_GM_USAGE_FALLBACK, TRPG_BOT_USAGE_FALLBACK]),
       computeTrpgRoundPoints([TRPG_GM_USAGE_FALLBACK]) + computeTrpgRoundPoints([TRPG_BOT_USAGE_FALLBACK])
     );
+  });
+
+  it("switches GM and bot Flex fallbacks on the published intro end instants", () => {
+    for (const modelId of [GEMINI_4_ARGON_MODEL, OPENROUTER_GEMINI_4_ARGON_MODEL] as const) {
+      const intro = resolveTrpgOpenRouterFlexFallbackRates(modelId, ARGON_LAST_INTRO_AT);
+      const post = resolveTrpgOpenRouterFlexFallbackRates(modelId, ARGON_POST_AT);
+      assert.equal(intro.inputUsdPerM, 1);
+      assert.equal(intro.outputUsdPerM, 5);
+      assert.equal(intro.cacheReadUsdPerM, 0.05);
+      assert.equal(post.inputUsdPerM, 2);
+      assert.equal(post.outputUsdPerM, 10);
+      assert.equal(post.cacheReadUsdPerM, 0.1);
+      const call: TrpgModelUsage = { modelId, ...SAMPLE, cacheReadTokens: 4_000 };
+      const introUsd = resolveTrpgCallUpstreamCostUsd(call, ARGON_LAST_INTRO_AT).upstreamCostUsd;
+      const postUsd = resolveTrpgCallUpstreamCostUsd(call, ARGON_POST_AT).upstreamCostUsd;
+      assert.ok(postUsd > introUsd);
+      assert.equal(
+        computeTrpgPublishedMarginChargePoints(call, ARGON_POST_AT),
+        expectedPublishedPoints(postUsd, modelId)
+      );
+    }
+    for (const modelId of [GEMINI_38_FLASH_MODEL, OPENROUTER_GEMINI_38_FLASH_MODEL] as const) {
+      const intro = resolveTrpgOpenRouterFlexFallbackRates(modelId, FLASH_LAST_INTRO_AT);
+      const post = resolveTrpgOpenRouterFlexFallbackRates(modelId, FLASH_POST_AT);
+      assert.equal(intro.inputUsdPerM, 0.375);
+      assert.equal(intro.outputUsdPerM, 1.875);
+      assert.equal(intro.cacheReadUsdPerM, 0.0375);
+      assert.equal(post.inputUsdPerM, 0.75);
+      assert.equal(post.outputUsdPerM, 3.75);
+      assert.equal(post.cacheReadUsdPerM, 0.075);
+      const call: TrpgModelUsage = { modelId, inputTokens: 8_000, outputTokens: 500, cacheReadTokens: 2_000 };
+      const introUsd = resolveTrpgCallUpstreamCostUsd(call, FLASH_LAST_INTRO_AT).upstreamCostUsd;
+      const postUsd = resolveTrpgCallUpstreamCostUsd(call, FLASH_POST_AT).upstreamCostUsd;
+      assert.equal(postUsd, introUsd * 2);
+      assert.equal(explainTrpgPublishedMarginCharge(call, FLASH_POST_AT)?.targetMargin, 0.55);
+    }
+    const priced: TrpgModelUsage = {
+      modelId: OPENROUTER_GEMINI_38_FLASH_MODEL,
+      inputTokens: 1_000,
+      outputTokens: 100,
+      upstreamCostUsd: 0.004,
+    };
+    assert.equal(resolveTrpgCallUpstreamCostUsd(priced, FLASH_POST_AT).upstreamSource, "provider");
+    assert.equal(resolveTrpgCallUpstreamCostUsd(priced, FLASH_POST_AT).upstreamCostUsd, 0.004);
+    assert.equal(resolveOpenRouterModelRates(OPENROUTER_GEMINI_38_FLASH_MODEL).inputUsdPerM, 0.75);
+    assert.equal(resolveOpenRouterModelRates(OPENROUTER_GEMINI_4_ARGON_MODEL).inputUsdPerM, 2);
   });
 
   it("documents effective margin near published target on estimated GM cost", () => {

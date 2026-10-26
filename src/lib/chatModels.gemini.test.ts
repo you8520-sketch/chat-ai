@@ -186,7 +186,10 @@ describe("Gemini route-rate compatibility", () => {
     const trpgGmPolicy = resolveTrpgGmOpenRouterRoutePolicy(OPENROUTER_GEMINI_4_ARGON_MODEL);
     assert.ok(trpgGmPolicy);
     assert.equal(trpgGmPolicy.serviceTier, "flex");
-    const trpgGmRates = resolveTrpgGmOpenRouterModelRates(GEMINI_4_ARGON_MODEL);
+    const trpgGmRates = resolveTrpgGmOpenRouterModelRates(
+      GEMINI_4_ARGON_MODEL,
+      new Date("2026-10-26T00:00:00.000Z")
+    );
     assert.equal(trpgGmRates.inputUsdPerM, 1);
     assert.equal(trpgGmRates.outputUsdPerM, 5);
     assert.equal(trpgGmRates.cacheReadUsdPerM, 0.05);

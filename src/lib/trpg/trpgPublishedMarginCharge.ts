@@ -1,5 +1,5 @@
 import { resolveRpOpenRouterModelId } from "@/lib/openRouterConfig";
-import { openRouterUsdCostFromRates, resolveTrpgGmOpenRouterModelRates } from "@/lib/openRouterModelPricing";
+import { openRouterUsdCostFromRates, resolveTrpgOpenRouterFlexFallbackRates } from "@/lib/openRouterModelPricing";
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import {
   ceilPublishedChargePoints,
@@ -9,7 +9,6 @@ import {
 import { canonicalizePublishedModelId } from "@/lib/publishedModelAliases";
 import { resolvePublishedPricingExact } from "@/lib/publishedModelPricing";
 import type { TrpgModelUsage } from "./billing";
-import { isTrpgGmBillableModel } from "./trpgGmModelIdentity";
 
 export type TrpgPublishedMarginChargeBreakdown = {
   requestedModelId: string;
@@ -23,10 +22,7 @@ export type TrpgPublishedMarginChargeBreakdown = {
   points: number;
 };
 
-function resolveTrpgRateEstimateUsd(call: TrpgModelUsage): number {
-  const rateOverride = isTrpgGmBillableModel(call.modelId)
-    ? resolveTrpgGmOpenRouterModelRates(call.modelId)
-    : undefined;
+function resolveTrpgRateEstimateUsd(call: TrpgModelUsage, now: Date): number {
   const wireModelId = resolveRpOpenRouterModelId(call.modelId);
   return openRouterUsdCostFromRates(
     {
@@ -36,28 +32,32 @@ function resolveTrpgRateEstimateUsd(call: TrpgModelUsage): number {
       cacheWriteTokens: call.cacheWriteTokens,
       modelId: wireModelId,
     },
-    rateOverride
+    resolveTrpgOpenRouterFlexFallbackRates(wireModelId, now)
   ).usdCost;
 }
 
 /** Provider USD cost — actual usage.cost first, else tier-appropriate OpenRouter fallback rates. */
-export function resolveTrpgCallUpstreamCostUsd(call: TrpgModelUsage): {
+export function resolveTrpgCallUpstreamCostUsd(
+  call: TrpgModelUsage,
+  now: Date = new Date()
+): {
   upstreamCostUsd: number;
   upstreamSource: "provider" | "estimated";
 } {
   if (call.upstreamCostUsd != null && call.upstreamCostUsd > 0) {
     return { upstreamCostUsd: call.upstreamCostUsd, upstreamSource: "provider" };
   }
-  return { upstreamCostUsd: resolveTrpgRateEstimateUsd(call), upstreamSource: "estimated" };
+  return { upstreamCostUsd: resolveTrpgRateEstimateUsd(call, now), upstreamSource: "estimated" };
 }
 
 export function explainTrpgPublishedMarginCharge(
-  call: TrpgModelUsage
+  call: TrpgModelUsage,
+  now: Date = new Date()
 ): TrpgPublishedMarginChargeBreakdown | null {
   if (call.inputTokens <= 0 && call.outputTokens <= 0) return null;
   const resolved = resolvePublishedPricingExact(call.modelId);
   if (!resolved) return null;
-  const { upstreamCostUsd, upstreamSource } = resolveTrpgCallUpstreamCostUsd(call);
+  const { upstreamCostUsd, upstreamSource } = resolveTrpgCallUpstreamCostUsd(call, now);
   if (!(upstreamCostUsd > 0)) return null;
   const fx = resolveBillingExchangeRateSnapshot().effectiveKrwPerUsd;
   const rawCostKrw = roundKrwTenths(convertUsdToKrwPure(upstreamCostUsd, fx));
@@ -77,8 +77,11 @@ export function explainTrpgPublishedMarginCharge(
 }
 
 /** User charge points — published target margin on actual/estimated provider USD cost. */
-export function computeTrpgPublishedMarginChargePoints(call: TrpgModelUsage): number {
-  return explainTrpgPublishedMarginCharge(call)?.points ?? 0;
+export function computeTrpgPublishedMarginChargePoints(
+  call: TrpgModelUsage,
+  now: Date = new Date()
+): number {
+  return explainTrpgPublishedMarginCharge(call, now)?.points ?? 0;
 }
 
 export function trpgPublishedTargetMarginPercent(modelId: string): number {
