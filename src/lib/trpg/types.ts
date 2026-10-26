@@ -36,10 +36,6 @@ export const TRPG_LEDGER_ITEM_MAX_CHARS = 80;
 export type TrpgGoalCriterion =
   | { type: "reach_location"; place: string }
   | { type: "end_encounter"; encounterId: string };
-/** Same target as Cheaper Inference DeepSeek V4 Pro RP (`CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_GROSS_MARGIN`). */
-export const TRPG_GM_GROSS_MARGIN = 0.65;
-/** Bot-seat Pro call — same 65% as RP Pro. Not Flash. */
-export const TRPG_BOT_GROSS_MARGIN = 0.65;
 export const TRPG_BOT_MODEL = GEMINI_38_FLASH_MODEL;
 export const TRPG_ACTION_MAX_CHARS = 1500;
 /** Host-written party bonds, applied before campaign start. */

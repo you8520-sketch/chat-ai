@@ -2,7 +2,8 @@ import type { TrpgCampaignSnapshot, TrpgPublicAction, TrpgPublicLog, TrpgPublicR
 import { idlePresentation, type RoundPresentationState } from "./roundPresentation";
 import type { TrpgReplySuggestion } from "./replySuggestionShared";
 import { DEFAULT_TRPG_STAT_DEFS, pointPoolFor } from "./stats";
-import { DEFAULT_TRPG_BILLING_MODE, DEFAULT_TRPG_DICE_RULES, TRPG_GM_GROSS_MARGIN } from "./types";
+import { DEFAULT_TRPG_BILLING_MODE, DEFAULT_TRPG_DICE_RULES, TRPG_BOT_MODEL, TRPG_GM_MODEL } from "./types";
+import { trpgPublishedTargetMarginPercent } from "./trpgPublishedMarginCharge";
 
 export const SCROLL_FOLLOW_LAB_HUMAN_ID = 47;
 export const SCROLL_FOLLOW_LAB_BOT1_ID = 49;
@@ -352,8 +353,8 @@ export function buildScrollFollowLabSnapshot(opts?: {
     lastBilledPoints: null,
     partyHumanCount: 1,
     partyBotCount: 2,
-    gmGrossMargin: TRPG_GM_GROSS_MARGIN,
-    botGrossMargin: TRPG_GM_GROSS_MARGIN,
+    gmGrossMargin: trpgPublishedTargetMarginPercent(TRPG_GM_MODEL) / 100,
+    botGrossMargin: trpgPublishedTargetMarginPercent(TRPG_BOT_MODEL) / 100,
     partyChat: [],
     canRerollRoundNumber: null,
     narrationRerolling: false,

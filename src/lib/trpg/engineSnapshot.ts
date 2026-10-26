@@ -57,8 +57,8 @@ import { loadGmNarrationDraft } from "./gmNarrationDraft";
 import { parseTrpgStartFailureJson, sanitizeTrpgFailureHint } from "./startFailure";
 import {
   DEFAULT_TRPG_BILLING_MODE,
-  TRPG_BOT_GROSS_MARGIN,
-  TRPG_GM_GROSS_MARGIN,
+  TRPG_BOT_MODEL,
+  TRPG_GM_MODEL,
   isTrpgRoundPhase,
   type TrpgBillingMode,
   type TrpgParticipantKind,
@@ -66,6 +66,7 @@ import {
   type TrpgRoundPhase,
   type TrpgSuccessTier,
 } from "./types";
+import { trpgPublishedTargetMarginPercent } from "./trpgPublishedMarginCharge";
 
 function sheetConfirmed(revision: number | undefined): boolean {
   // Picking a companion writes a sheet (revision may still be 0). That is enough to start.
@@ -465,8 +466,8 @@ export function loadTrpgSnapshot(
     lastBilledPoints: lastBilled?.billed_points ?? null,
     partyHumanCount: parts.filter((p) => p.kind === "human").length,
     partyBotCount: parts.filter((p) => p.kind === "ai_character").length,
-    gmGrossMargin: TRPG_GM_GROSS_MARGIN,
-    botGrossMargin: TRPG_BOT_GROSS_MARGIN,
+    gmGrossMargin: trpgPublishedTargetMarginPercent(TRPG_GM_MODEL) / 100,
+    botGrossMargin: trpgPublishedTargetMarginPercent(TRPG_BOT_MODEL) / 100,
     partyChat: opts?.includePartyChat === false ? [] : loadTrpgPartyChat(db, campaignId, viewerUserId),
     canRerollRoundNumber: resolveCanRerollRoundNumber(db, {
       campaignId,

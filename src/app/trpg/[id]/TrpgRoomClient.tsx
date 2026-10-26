@@ -44,7 +44,8 @@ import {
   snapshotCompareState,
   TRPG_SNAPSHOT_POLL_MS,
 } from "@/lib/trpg/snapshotObserver";
-import { DEFAULT_TRPG_BILLING_MODE, TRPG_GM_GROSS_MARGIN, TRPG_RELATIONSHIP_MAX_CHARS, TRPG_ACTION_MAX_CHARS, TRPG_PARTY_CHAT_MAX_CHARS, type TrpgBillingMode } from "@/lib/trpg/types";
+import { DEFAULT_TRPG_BILLING_MODE, TRPG_GM_MODEL, TRPG_RELATIONSHIP_MAX_CHARS, TRPG_ACTION_MAX_CHARS, TRPG_PARTY_CHAT_MAX_CHARS, type TrpgBillingMode } from "@/lib/trpg/types";
+import { trpgPublishedTargetMarginPercent } from "@/lib/trpg/trpgPublishedMarginCharge";
 import {
   clearUserInputDraft,
   loadTrpgActionDraft,
@@ -822,7 +823,7 @@ export default function TrpgRoomClient({
         ) : null}
         <p className="text-xs leading-relaxed text-zinc-500">
           봇이 있으면 호출이 두 번입니다. 봇은 캐릭터 카드로 행동을 쓰고, GM은 장면을 씁니다.
-          마진은 둘 다 {Math.round(TRPG_GM_GROSS_MARGIN * 100)}%이며 실제 토큰은 사람만 냅니다.
+          마진은 둘 다 {trpgPublishedTargetMarginPercent(TRPG_GM_MODEL)}%이며 실제 토큰은 사람만 냅니다.
           GM 서술은 3,000자를 넘기며, 캐릭터마다 분량을 주고 마지막에 GM 상황 설명을 넣습니다. 상한은 없습니다.
           캠페인 사실(HP·아이템·퀘스트·플래그)은 DB가 원본이고, 최근 3라운드만 원문으로 넣습니다.
           채팅처럼 분기할 수 없습니다. 한 타임라인만 앞으로 갑니다.
