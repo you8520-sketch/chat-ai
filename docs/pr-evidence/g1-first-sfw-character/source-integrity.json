@@ -1,0 +1,90 @@
+{
+  "sourceSHA": "1414abf105ab2ef8e7a387530125cbf28628a82a",
+  "originalCharacterFiles": 10,
+  "allUnchanged": true,
+  "productionDbRead": false,
+  "productionDbWrite": false,
+  "productionTextLockRead": false,
+  "characterRegistration": false,
+  "note": "Git source integrity only; not a new live production DB/Text Lock audit.",
+  "files": [
+    {
+      "path": "src/lib/officialSupply/pilot/characters/pilot-rf-01.json",
+      "sha256AtSourceCommit": "b7ea596ed68e67e53e9004fb0b1720f0a9acde41ba33b382638bd63567453cb3",
+      "sha256Current": "b7ea596ed68e67e53e9004fb0b1720f0a9acde41ba33b382638bd63567453cb3",
+      "unchanged": true
+    },
+    {
+      "path": "src/lib/officialSupply/pilot/characters/pilot-rf-02.json",
+      "sha256AtSourceCommit": "83583e6aa2f43ef530030d6152018ba1cb0be7a37cb657727246f8fbac5b7267",
+      "sha256Current": "83583e6aa2f43ef530030d6152018ba1cb0be7a37cb657727246f8fbac5b7267",
+      "unchanged": true
+    },
+    {
+      "path": "src/lib/officialSupply/pilot/characters/pilot-rf-03.json",
+      "sha256AtSourceCommit": "b128f60947889c14fbc33ffdbf92d13795cf9c7d21aed9790dc068dc0706f330",
+      "sha256Current": "b128f60947889c14fbc33ffdbf92d13795cf9c7d21aed9790dc068dc0706f330",
+      "unchanged": true
+    },
+    {
+      "path": "src/lib/officialSupply/pilot/characters/pilot-rf-04.json",
+      "sha256AtSourceCommit": "3e4364483a2c5680a39689e48ffdf40238742d87aa0bebb8e7aadd1654d80650",
+      "sha256Current": "3e4364483a2c5680a39689e48ffdf40238742d87aa0bebb8e7aadd1654d80650",
+      "unchanged": true
+    },
+    {
+      "path": "src/lib/officialSupply/pilot/characters/pilot-rf-05.json",
+      "sha256AtSourceCommit": "1e661bded68f55eea7966189d204278ee71d87a7677f2d2bb1ed763edbb2803b",
+      "sha256Current": "1e661bded68f55eea7966189d204278ee71d87a7677f2d2bb1ed763edbb2803b",
+      "unchanged": true
+    },
+    {
+      "path": "src/lib/officialSupply/pilot/characters/pilot-rf-06.json",
+      "sha256AtSourceCommit": "86d2dddaeea70ccfd8c974124b2e6d052f1a831fa5552aae11c5900b3eaaaa58",
+      "sha256Current": "86d2dddaeea70ccfd8c974124b2e6d052f1a831fa5552aae11c5900b3eaaaa58",
+      "unchanged": true
+    },
+    {
+      "path": "src/lib/officialSupply/pilot/characters/pilot-rf-07.json",
+      "sha256AtSourceCommit": "053c631b10c74063aadbe0baa5787119c3af11b0f8885db6f03cd07001dff2d5",
+      "sha256Current": "053c631b10c74063aadbe0baa5787119c3af11b0f8885db6f03cd07001dff2d5",
+      "unchanged": true
+    },
+    {
+      "path": "src/lib/officialSupply/pilot/characters/pilot-rf-08.json",
+      "sha256AtSourceCommit": "4a60e9ea46378b78d4ae0eae276b54ff97c89258de5432f7fb4c202a7741cd56",
+      "sha256Current": "4a60e9ea46378b78d4ae0eae276b54ff97c89258de5432f7fb4c202a7741cd56",
+      "unchanged": true
+    },
+    {
+      "path": "src/lib/officialSupply/pilot/characters/pilot-rf-09.json",
+      "sha256AtSourceCommit": "8306595847a0af58d733d98a813b978fda2e2fa3baede9e54d77821da666c05d",
+      "sha256Current": "8306595847a0af58d733d98a813b978fda2e2fa3baede9e54d77821da666c05d",
+      "unchanged": true
+    },
+    {
+      "path": "src/lib/officialSupply/pilot/characters/pilot-rf-10.json",
+      "sha256AtSourceCommit": "6e32aec59c08dcef865d7d3b37b05c5b092330e002d74452e79df60b6f6d7856",
+      "sha256Current": "6e32aec59c08dcef865d7d3b37b05c5b092330e002d74452e79df60b6f6d7856",
+      "unchanged": true
+    },
+    {
+      "path": "src/lib/officialSupply/pilot/world-bible.json",
+      "sha256AtSourceCommit": "b062b7e491a59eb50c18c73c2fbe9f5109595e0445b6ae6f73b599360321e332",
+      "sha256Current": "b062b7e491a59eb50c18c73c2fbe9f5109595e0445b6ae6f73b599360321e332",
+      "unchanged": true
+    },
+    {
+      "path": "src/lib/officialSupply/pilot/manifest.json",
+      "sha256AtSourceCommit": "2411f4039dd649028bcec70f69c7753249884a793a2307b8f1285f278720261c",
+      "sha256Current": "2411f4039dd649028bcec70f69c7753249884a793a2307b8f1285f278720261c",
+      "unchanged": true
+    },
+    {
+      "path": "src/lib/officialSupply/pilot/fixtures/pilot-rf-02-approved-text-lock-draft.json",
+      "sha256AtSourceCommit": "7111d95a5187582ca800113214580985f61a49788d7853402a74526dd61e5d38",
+      "sha256Current": "7111d95a5187582ca800113214580985f61a49788d7853402a74526dd61e5d38",
+      "unchanged": true
+    }
+  ]
+}

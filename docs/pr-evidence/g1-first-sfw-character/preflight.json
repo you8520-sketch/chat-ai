@@ -1,0 +1,76 @@
+{
+  "status": "BLOCKED_AUTH",
+  "sourceSHA": "1414abf105ab2ef8e7a387530125cbf28628a82a",
+  "observedAtUtc": "2026-10-26T15:16:32.137Z",
+  "observedAtKst": "2026-10-27T00:16:32.137000+09:00",
+  "production": {
+    "sha": "1414abf105ab2ef8e7a387530125cbf28628a82a",
+    "deploymentId": "43624b64-9578-4fcf-8119-7bd400486c3a",
+    "status": "SUCCESS",
+    "serviceState": "online",
+    "mutated": false
+  },
+  "isolatedWorktree": "evidence/g1-first-sfw-measurement",
+  "owner": "official-supply-pilot-author.ts -> generateOfficialCharacterBible -> liveOfficialAuthorTransport -> callBackgroundMemory -> callOpenRouterCompletion",
+  "resolvedModel": "gpt-6-luna",
+  "resolvedProvider": "cheaperinference",
+  "mockMode": false,
+  "credentialReadiness": "Cloud metadata ready; actual catalog authorization rejected; generation authorization untested",
+  "catalogPreflight": {
+    "at": "2026-10-26T15:16:32.137Z",
+    "model": "gpt-6-luna",
+    "provider": "cheaperinference",
+    "refreshed": false,
+    "catalog": null,
+    "requests": [
+      {
+        "url": "https://api.cheaperinference.com/v1/models",
+        "method": "GET",
+        "status": 401
+      }
+    ],
+    "modelCalls": 0,
+    "actualCost": 0,
+    "runtime": "Node native --use-env-proxy with inherited session proxy; canonical pricing/auth owner unchanged"
+  },
+  "pricing": {
+    "liveVerified": false,
+    "estimatedTotalKrw": null,
+    "repositoryFallbackRates": {
+      "family": "openai",
+      "label": "Cheaper Inference · OpenAI automatic cache",
+      "inputUsdPerM": 0.07,
+      "outputUsdPerM": 0.35,
+      "cacheReadMultiplier": 0.1,
+      "cacheWriteMultiplier": 1.25,
+      "explicitCacheInjection": false
+    },
+    "fallbackUsedToAuthorizeSpend": false
+  },
+  "plannedCandidate": {
+    "label": "기존 콘셉트의 신규 생성 원고 실측 (미실행)",
+    "slot": 7,
+    "name": "테오",
+    "age": 28,
+    "gender": "male",
+    "adultCandidate": false,
+    "occupation": "황실 마도공학 현장 총책임자",
+    "source": "world-bible.json existing pilot portfolio; repository review checklist remains unapproved; production publication status not queried",
+    "actualCharacterGenerated": false
+  },
+  "execution": {
+    "inferenceCalls": 0,
+    "catalogRequests": 1,
+    "providerRetries": 0,
+    "workflowRetries": 0,
+    "generatedManuscript": null,
+    "compiledMainRpPrompt": null,
+    "inputTokens": null,
+    "outputTokens": null,
+    "providerUsage": null,
+    "actualInferenceCostUsd": 0,
+    "actualInferenceCostKrw": 0,
+    "qaStatus": "NOT_RUN_NO_GENERATED_MANUSCRIPT"
+  },
+  "stopReason": "Canonical live pricing catalog GET returned HTTP 401; actual price and generation authorization could not be established. No chat-completion attempt, provider/model switch, credential replacement, or alternate auth route followed."
+}
