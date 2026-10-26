@@ -32,8 +32,9 @@ import {
   resolveMainRpOpenRouterRoutePolicy,
   resolveOpenRouterModelId,
   resolveRpOpenRouterModelId,
+  resolveTrpgGmOpenRouterRoutePolicy,
 } from "@/lib/openRouterConfig";
-import { resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
+import { resolveOpenRouterModelRates, resolveTrpgGmOpenRouterModelRates } from "@/lib/openRouterModelPricing";
 
 describe("Gemini Main RP routing", () => {
   it("retires 3.1/3.7 from the picker and normalizes old selections to 3.8", () => {
@@ -168,7 +169,7 @@ describe("Gemini route-rate compatibility", () => {
     assert.equal(isGemini4ArgonModel(OPENROUTER_GEMINI_4_ARGON_MODEL), true);
     assert.equal(isGeminiChatOpenRouterModel(GEMINI_4_ARGON_MODEL), true);
     assert.equal(isGeminiFlashOpenRouterModel(GEMINI_4_ARGON_MODEL), false);
-    assert.equal(isCheaperInferenceModel(GEMINI_4_ARGON_MODEL), false);
+    assert.equal(isCheaperInferenceModel(GEMINI_4_ARGON_MODEL), true);
     assert.equal(
       resolveOpenRouterModelId(GEMINI_4_ARGON_MODEL),
       OPENROUTER_GEMINI_4_ARGON_MODEL
@@ -182,6 +183,13 @@ describe("Gemini route-rate compatibility", () => {
     assert.equal(rates.inputUsdPerM, 2);
     assert.equal(rates.outputUsdPerM, 10);
     assert.equal(rates.cacheReadUsdPerM, 0.1);
+    const trpgGmPolicy = resolveTrpgGmOpenRouterRoutePolicy(OPENROUTER_GEMINI_4_ARGON_MODEL);
+    assert.ok(trpgGmPolicy);
+    assert.equal(trpgGmPolicy.serviceTier, "flex");
+    const trpgGmRates = resolveTrpgGmOpenRouterModelRates(GEMINI_4_ARGON_MODEL);
+    assert.equal(trpgGmRates.inputUsdPerM, 1);
+    assert.equal(trpgGmRates.outputUsdPerM, 5);
+    assert.equal(trpgGmRates.cacheReadUsdPerM, 0.05);
   });
 
   it("default remains DeepSeek V4.1 Flash", () => {

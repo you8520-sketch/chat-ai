@@ -2,6 +2,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   GEMINI_38_FLASH_MODEL,
+  GEMINI_4_ARGON_MODEL,
   isCheaperInferenceDeepSeekV4FlashModel,
   isCheaperInferenceDeepSeekV4ProModel,
   isCheaperInferenceModel,
@@ -18,8 +19,12 @@ import {
   OPENROUTER_CHAT_COMPLETIONS_URL,
   resolveMainRpOpenRouterRoutePolicy,
   resolveRpOpenRouterModelId,
+  resolveTrpgGmOpenRouterRoutePolicy,
 } from "@/lib/openRouterConfig";
-import { OPENROUTER_RP_REASONING_GEMINI_37_38_FLASH } from "@/lib/openRouterClient";
+import {
+  OPENROUTER_RP_REASONING_GEMINI_37_38_FLASH,
+  OPENROUTER_RP_REASONING_GEMINI_4_ARGON,
+} from "@/lib/openRouterClient";
 import { isMockApiMode } from "@/lib/mockApiMode";
 import { adaptTrpgBotChatBody, adaptTrpgGmChatBody, trpgProviderRequestContract } from "./gmClient";
 import type { TrpgModelUsage } from "./billing";
@@ -262,28 +267,50 @@ export type TrpgProviderRequest = {
   body: Record<string, unknown>;
 };
 
+function buildTrpgOpenRouterGeminiRequest(
+  canonicalModel: string,
+  body: Record<string, unknown>,
+  reasoning: typeof OPENROUTER_RP_REASONING_GEMINI_37_38_FLASH,
+  resolvePolicy: (wireModel: string) => ReturnType<typeof resolveMainRpOpenRouterRoutePolicy>
+): TrpgProviderRequest {
+  const wireModel = resolveRpOpenRouterModelId(canonicalModel);
+  const policy = resolvePolicy(wireModel);
+  if (!policy) throw new Error(`[TRPG] missing OpenRouter route policy for ${wireModel}`);
+  const adapted = { ...body };
+  delete adapted.reasoning_effort;
+  delete adapted.thinking;
+  return {
+    provider: "openrouter",
+    endpoint: OPENROUTER_CHAT_COMPLETIONS_URL,
+    model: wireModel,
+    body: {
+      ...adapted,
+      model: wireModel,
+      provider: policy.provider,
+      service_tier: policy.serviceTier,
+      reasoning: { ...reasoning },
+      include_reasoning: false,
+      ...(body.stream === true ? { stream_options: { include_usage: true } } : {}),
+    },
+  };
+}
+
 function buildTrpgProviderRequest(model: string, body: Record<string, unknown>): TrpgProviderRequest {
   if (model === GEMINI_38_FLASH_MODEL) {
-    const wireModel = resolveRpOpenRouterModelId(model);
-    const policy = resolveMainRpOpenRouterRoutePolicy(wireModel);
-    if (!policy) throw new Error(`[TRPG] missing OpenRouter route policy for ${wireModel}`);
-    const adapted = { ...body };
-    delete adapted.reasoning_effort;
-    delete adapted.thinking;
-    return {
-      provider: "openrouter",
-      endpoint: OPENROUTER_CHAT_COMPLETIONS_URL,
-      model: wireModel,
-      body: {
-        ...adapted,
-        model: wireModel,
-        provider: policy.provider,
-        service_tier: policy.serviceTier,
-        reasoning: { ...OPENROUTER_RP_REASONING_GEMINI_37_38_FLASH },
-        include_reasoning: false,
-        ...(body.stream === true ? { stream_options: { include_usage: true } } : {}),
-      },
-    };
+    return buildTrpgOpenRouterGeminiRequest(
+      model,
+      body,
+      OPENROUTER_RP_REASONING_GEMINI_37_38_FLASH,
+      resolveMainRpOpenRouterRoutePolicy
+    );
+  }
+  if (model === GEMINI_4_ARGON_MODEL) {
+    return buildTrpgOpenRouterGeminiRequest(
+      model,
+      body,
+      OPENROUTER_RP_REASONING_GEMINI_4_ARGON,
+      resolveTrpgGmOpenRouterRoutePolicy
+    );
   }
   const cheaperModel = resolveTrpgCheaperInferenceModel(model);
   const cheaperBody = { ...body, model: cheaperModel };

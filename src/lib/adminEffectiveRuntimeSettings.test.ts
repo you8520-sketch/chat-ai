@@ -6,6 +6,8 @@ import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   GEMINI_38_FLASH_MODEL,
+  GEMINI_4_ARGON_MODEL,
+  OPENROUTER_GEMINI_4_ARGON_MODEL,
   MAIN_RP_MODEL_IDS,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
   OPENROUTER_GEMINI_31_PRO_MODEL,
@@ -24,6 +26,7 @@ import {
   OPENROUTER_CHAT_COMPLETIONS_URL,
   resolveMainRpOpenRouterRoutePolicy,
   resolveMainRpPrimaryWireModelId,
+  resolveTrpgGmOpenRouterRoutePolicy,
 } from "@/lib/openRouterConfig";
 import { resolvePublishedPricingExact } from "@/lib/publishedModelPricing";
 import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
@@ -134,7 +137,7 @@ describe("effective runtime settings projection", () => {
     assert.equal(gemini.serviceTier, routePolicy.serviceTier);
   });
 
-  it("C: TRPG Gemini 3.8 uses OpenRouter through its isolated request builder", () => {
+  it("C: TRPG GM Gemini 4 Argon and bot Gemini 3.8 use OpenRouter through the isolated request builder", () => {
     const projection = buildEffectiveRuntimeSettingsProjection();
     const [gm, bot] = projection.trpg.roles;
     assert.equal(gm?.workload, "trpg_gm");
@@ -146,7 +149,12 @@ describe("effective runtime settings projection", () => {
       assert.equal(row.canonicalModelId, resolveTrpgCheaperInferenceModel(model));
       assert.equal(row.transportProvider, "openrouter");
       assert.equal(row.endpointHost, new URL(OPENROUTER_CHAT_COMPLETIONS_URL).host);
-      assert.equal(row.wireModelId, resolveMainRpPrimaryWireModelId(model));
+      assert.equal(
+        row.wireModelId,
+        model === TRPG_GM_MODEL
+          ? OPENROUTER_GEMINI_4_ARGON_MODEL
+          : resolveMainRpPrimaryWireModelId(model)
+      );
       assert.equal(
         row.requestContract.reasoningEffort,
         "low"
@@ -156,20 +164,34 @@ describe("effective runtime settings projection", () => {
       assert.equal(row.isProseLengthCeiling, false);
       assert.equal(row.maxProviderAttempts, attempts);
     }
-    assert.equal(TRPG_GM_MODEL, GEMINI_38_FLASH_MODEL);
+    assert.equal(TRPG_GM_MODEL, GEMINI_4_ARGON_MODEL);
+    assert.equal(TRPG_BOT_MODEL, GEMINI_38_FLASH_MODEL);
     assert.equal(gm!.requestContract.reasoningEffort, "low");
+    assert.equal(gm!.wireModelId, OPENROUTER_GEMINI_4_ARGON_MODEL);
+    const gmPolicy = resolveTrpgGmOpenRouterRoutePolicy(gm!.wireModelId);
+    assert.ok(gmPolicy);
+    assert.equal(gmPolicy.serviceTier, "flex");
+    const mainRpArgon = resolveMainRpOpenRouterRoutePolicy(OPENROUTER_GEMINI_4_ARGON_MODEL);
+    assert.ok(mainRpArgon);
+    assert.equal(mainRpArgon.serviceTier, "default");
   });
 
-  it("D: Gemini workloads share procurement while preserving distinct workload rows", () => {
+  it("D: Gemini workloads share OpenRouter transport while GM uses Argon Flex", () => {
     const projection = buildEffectiveRuntimeSettingsProjection();
-    const entries = projection.workloadRoutingByModelId[GEMINI_38_FLASH_MODEL];
-    assert.ok(entries);
-    const byWorkload = new Map(entries.map((entry) => [entry.workload, entry]));
-    assert.equal(byWorkload.get("main_rp")?.transportProvider, "openrouter");
-    assert.equal(byWorkload.get("trpg_gm")?.transportProvider, "openrouter");
-    assert.equal(byWorkload.get("trpg_bot")?.transportProvider, "openrouter");
-    assert.equal(byWorkload.get("main_rp")?.wireModelId, byWorkload.get("trpg_gm")?.wireModelId);
-    assert.equal(new Set(entries.map((entry) => entry.transportProvider)).size, 1);
+    const flashEntries = projection.workloadRoutingByModelId[GEMINI_38_FLASH_MODEL];
+    assert.ok(flashEntries);
+    const flashByWorkload = new Map(flashEntries.map((entry) => [entry.workload, entry]));
+    assert.equal(flashByWorkload.get("main_rp")?.transportProvider, "openrouter");
+    assert.equal(flashByWorkload.get("trpg_bot")?.transportProvider, "openrouter");
+    assert.equal(flashByWorkload.get("trpg_gm"), undefined);
+    const argonEntries = projection.workloadRoutingByModelId[GEMINI_4_ARGON_MODEL];
+    assert.ok(argonEntries);
+    assert.equal(argonEntries.some((entry) => entry.workload === "trpg_gm"), true);
+    assert.equal(
+      argonEntries.find((entry) => entry.workload === "trpg_gm")?.wireModelId,
+      OPENROUTER_GEMINI_4_ARGON_MODEL
+    );
+    assert.equal(new Set(flashEntries.map((entry) => entry.transportProvider)).size, 1);
     for (const [modelId, rows] of Object.entries(projection.workloadRoutingByModelId)) {
       assert.equal(new Set(rows.map((row) => row.workload)).size, rows.length, modelId);
     }

@@ -266,6 +266,26 @@ const GEMINI_4_ARGON_STANDARD_FALLBACK_RATES: OpenRouterModelRates = {
   explicitCacheInjection: false,
 };
 
+/** TRPG GM Flex tier — half of Standard intro before the same 50% intro discount. */
+const GEMINI_4_ARGON_FLEX_FALLBACK_RATES: OpenRouterModelRates = {
+  family: "google",
+  label: "OpenRouter · Google AI Studio Flex intro fallback",
+  inputUsdPerM: 1,
+  outputUsdPerM: 5,
+  cacheReadUsdPerM: 0.05,
+  cacheWriteMultiplier: 1,
+  explicitCacheInjection: false,
+};
+
+/** Token fallback rates for TRPG GM (Flex). Main RP Gemini 4 billing keeps Standard fallback. */
+export function resolveTrpgGmOpenRouterModelRates(modelId?: string | null): OpenRouterModelRates {
+  const id = (modelId ?? "").trim().toLowerCase();
+  if (id === "google/gemini-4-argon" || id === "gemini-4-argon") {
+    return GEMINI_4_ARGON_FLEX_FALLBACK_RATES;
+  }
+  return resolveOpenRouterModelRates(modelId);
+}
+
 /** Qwen3.7 Max — OpenRouter list (prompt cache supported) */
 const QWEN_37_MAX_RATES: OpenRouterModelRates = {
   family: "unknown",
@@ -620,14 +640,17 @@ export function openRouterNormalizedUsdCostFromRates(opts: {
 }
 
 /** OpenRouter USD API 원가 — 모델별 cache read/write 단가 분리 */
-export function openRouterUsdCostFromRates(opts: {
-  promptTokens: number;
-  outputTokens: number;
-  cacheReadTokens?: number;
-  cacheWriteTokens?: number;
-  modelId?: string | null;
-}): OpenRouterBillingBreakdown {
-  const rates = resolveOpenRouterModelRates(opts.modelId);
+export function openRouterUsdCostFromRates(
+  opts: {
+    promptTokens: number;
+    outputTokens: number;
+    cacheReadTokens?: number;
+    cacheWriteTokens?: number;
+    modelId?: string | null;
+  },
+  ratesOverride?: OpenRouterModelRates
+): OpenRouterBillingBreakdown {
+  const rates = ratesOverride ?? resolveOpenRouterModelRates(opts.modelId);
   const promptTokens = Math.max(0, opts.promptTokens);
   const cacheRead = Math.max(0, opts.cacheReadTokens ?? 0);
   const cacheWrite = Math.max(0, opts.cacheWriteTokens ?? 0);

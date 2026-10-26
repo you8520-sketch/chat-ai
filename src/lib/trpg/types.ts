@@ -1,11 +1,11 @@
 /** Isolated TRPG runtime — not used by 1:1 character chat. */
 
-import { GEMINI_38_FLASH_MODEL } from "@/lib/chatModels";
+import { GEMINI_4_ARGON_MODEL, GEMINI_38_FLASH_MODEL } from "@/lib/chatModels";
 import type { TrpgInventoryEntry } from "./inventory";
 import type { TrpgLocalSceneProgressDelta } from "./localSceneProgress";
 import type { TrpgStoryPhase } from "./scenarioPlan";
 
-export const TRPG_GM_MODEL = GEMINI_38_FLASH_MODEL;
+export const TRPG_GM_MODEL = GEMINI_4_ARGON_MODEL;
 export const TRPG_MAX_SLOTS = 4;
 /** Each AI companion is its own model call, so bots stay at two. */
 export const TRPG_MAX_BOTS = 2;

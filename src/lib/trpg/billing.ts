@@ -1,6 +1,10 @@
-import { GEMINI_38_FLASH_MODEL } from "@/lib/chatModels";
+import { GEMINI_4_ARGON_MODEL, GEMINI_38_FLASH_MODEL } from "@/lib/chatModels";
+import {
+  openRouterUsdCostFromRates,
+  resolveTrpgGmOpenRouterModelRates,
+} from "@/lib/openRouterModelPricing";
 import { computeOpenRouterTurnBilling } from "@/lib/points";
-import { DEFAULT_TRPG_BILLING_MODE, type TrpgBillingMode } from "./types";
+import { DEFAULT_TRPG_BILLING_MODE, TRPG_GM_MODEL, type TrpgBillingMode } from "./types";
 
 export type TrpgShare = { userId: number; points: number };
 
@@ -14,9 +18,9 @@ export type TrpgModelUsage = {
   upstreamCostUsd?: number;
 };
 
-/** Typical GM scene when the provider omits usage — Gemini 3.8 Flash 65% still applies. */
+/** Typical GM scene when the provider omits usage — Gemini 4 Argon Flex + 65% margin. */
 export const TRPG_GM_USAGE_FALLBACK: TrpgModelUsage = {
-  modelId: GEMINI_38_FLASH_MODEL,
+  modelId: GEMINI_4_ARGON_MODEL,
   inputTokens: 10_000,
   outputTokens: 3_500,
 };
@@ -31,18 +35,43 @@ export const TRPG_BOT_USAGE_FALLBACK: TrpgModelUsage = {
 /**
  * Round charge = sum of actual model calls at RP Pro 65% (GM + bot-seat Gemini 3.8 Flash).
  */
-export function computeTrpgRoundPoints(calls: TrpgModelUsage[]): number {
-  let total = 0;
-  for (const call of calls) {
-    if (call.inputTokens <= 0 && call.outputTokens <= 0) continue;
-    const billed = computeOpenRouterTurnBilling({
-      modelId: call.modelId,
-      inputTokens: call.inputTokens,
+function trpgGmUpstreamUsdEstimate(call: TrpgModelUsage): number {
+  const rates = resolveTrpgGmOpenRouterModelRates(call.modelId);
+  return openRouterUsdCostFromRates(
+    {
+      promptTokens: call.inputTokens,
       outputTokens: call.outputTokens,
       cacheReadTokens: call.cacheReadTokens,
       cacheWriteTokens: call.cacheWriteTokens,
-    });
-    total += Math.max(0, billed.total);
+      modelId: call.modelId,
+    },
+    rates
+  ).usdCost;
+}
+
+function computeTrpgCallPoints(call: TrpgModelUsage): number {
+  if (call.inputTokens <= 0 && call.outputTokens <= 0) return 0;
+  const upstreamCostUsd =
+    call.modelId === TRPG_GM_MODEL
+      ? call.upstreamCostUsd != null && call.upstreamCostUsd > 0
+        ? call.upstreamCostUsd
+        : trpgGmUpstreamUsdEstimate(call)
+      : call.upstreamCostUsd;
+  const billed = computeOpenRouterTurnBilling({
+    modelId: call.modelId,
+    inputTokens: call.inputTokens,
+    outputTokens: call.outputTokens,
+    cacheReadTokens: call.cacheReadTokens,
+    cacheWriteTokens: call.cacheWriteTokens,
+    upstreamCostUsd,
+  });
+  return Math.max(0, billed.total);
+}
+
+export function computeTrpgRoundPoints(calls: TrpgModelUsage[]): number {
+  let total = 0;
+  for (const call of calls) {
+    total += computeTrpgCallPoints(call);
   }
   return total;
 }
