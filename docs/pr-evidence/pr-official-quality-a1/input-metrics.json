@@ -123,5 +123,7 @@
         }
       ]
     }
-  ]
+  ],
+  "receiptVersion": "ARCHIVED_INITIAL_A1",
+  "sourceSHA": "2e76acbbc7f10a4f26e217514e63dbf3323d8646"
 }
