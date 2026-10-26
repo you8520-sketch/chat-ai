@@ -1,0 +1,129 @@
+{
+  "method": "existing estimateTokens char heuristic, not provider usage",
+  "actualProviderCalls": 0,
+  "actualCost": 0,
+  "rows": [
+    {
+      "fixture": "relation-start-free",
+      "providerCallsBefore": 3,
+      "providerCallsAfter": 3,
+      "estimatedInputTokensBefore": 10414,
+      "estimatedInputTokensAfter": 16016,
+      "stages": [
+        {
+          "task": "character_bible_1",
+          "beforeChars": 4197,
+          "afterChars": 4197,
+          "beforeEstimatedInputTokens": 3779,
+          "afterEstimatedInputTokens": 3779
+        },
+        {
+          "task": "character_bible_voice",
+          "beforeChars": 3679,
+          "afterChars": 7630,
+          "beforeEstimatedInputTokens": 3312,
+          "afterEstimatedInputTokens": 6868
+        },
+        {
+          "task": "character_bible_bonds",
+          "beforeChars": 3691,
+          "afterChars": 5964,
+          "beforeEstimatedInputTokens": 3323,
+          "afterEstimatedInputTokens": 5369
+        }
+      ]
+    },
+    {
+      "fixture": "relation-start-relationship-bound",
+      "providerCallsBefore": 3,
+      "providerCallsAfter": 3,
+      "estimatedInputTokensBefore": 10769,
+      "estimatedInputTokensAfter": 16332,
+      "stages": [
+        {
+          "task": "character_bible_1",
+          "beforeChars": 4299,
+          "afterChars": 4299,
+          "beforeEstimatedInputTokens": 3870,
+          "afterEstimatedInputTokens": 3870
+        },
+        {
+          "task": "character_bible_voice",
+          "beforeChars": 3817,
+          "afterChars": 7786,
+          "beforeEstimatedInputTokens": 3437,
+          "afterEstimatedInputTokens": 7009
+        },
+        {
+          "task": "character_bible_bonds",
+          "beforeChars": 3845,
+          "afterChars": 6057,
+          "beforeEstimatedInputTokens": 3462,
+          "afterEstimatedInputTokens": 5453
+        }
+      ]
+    },
+    {
+      "fixture": "relation-start-role-bound",
+      "providerCallsBefore": 3,
+      "providerCallsAfter": 3,
+      "estimatedInputTokensBefore": 10602,
+      "estimatedInputTokensAfter": 15495,
+      "stages": [
+        {
+          "task": "character_bible_1",
+          "beforeChars": 4239,
+          "afterChars": 4239,
+          "beforeEstimatedInputTokens": 3816,
+          "afterEstimatedInputTokens": 3816
+        },
+        {
+          "task": "character_bible_voice",
+          "beforeChars": 3772,
+          "afterChars": 7241,
+          "beforeEstimatedInputTokens": 3396,
+          "afterEstimatedInputTokens": 6518
+        },
+        {
+          "task": "character_bible_bonds",
+          "beforeChars": 3765,
+          "afterChars": 5733,
+          "beforeEstimatedInputTokens": 3390,
+          "afterEstimatedInputTokens": 5161
+        }
+      ]
+    },
+    {
+      "fixture": "relation-start-role-bound-field",
+      "providerCallsBefore": 3,
+      "providerCallsAfter": 3,
+      "estimatedInputTokensBefore": 10820,
+      "estimatedInputTokensAfter": 16461,
+      "stages": [
+        {
+          "task": "character_bible_1",
+          "beforeChars": 4371,
+          "afterChars": 4371,
+          "beforeEstimatedInputTokens": 3935,
+          "afterEstimatedInputTokens": 3935
+        },
+        {
+          "task": "character_bible_voice",
+          "beforeChars": 3795,
+          "afterChars": 7768,
+          "beforeEstimatedInputTokens": 3417,
+          "afterEstimatedInputTokens": 6993
+        },
+        {
+          "task": "character_bible_bonds",
+          "beforeChars": 3852,
+          "afterChars": 6146,
+          "beforeEstimatedInputTokens": 3468,
+          "afterEstimatedInputTokens": 5533
+        }
+      ]
+    }
+  ],
+  "receiptVersion": "ARCHIVED_INITIAL_A1",
+  "sourceSHA": "2e76acbbc7f10a4f26e217514e63dbf3323d8646"
+}

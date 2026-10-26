@@ -526,6 +526,16 @@ export const CHARACTER_VOICE_SCHEMA: Record<string, unknown> = {
   },
 };
 
+/** Revisions cannot apply public manuscripts, so they must not pay to regenerate them. */
+export function characterVoiceRevisionSchema(): Record<string, unknown> {
+  const schema = structuredClone(CHARACTER_VOICE_SCHEMA);
+  const properties = schema.properties as Record<string, Record<string, unknown>>;
+  const profile = properties.publicProfile.properties as Record<string, unknown>;
+  delete profile.detailedDescription;
+  delete profile.creatorComment;
+  return schema;
+}
+
 export const CHARACTER_BONDS_SCHEMA: Record<string, unknown> = {
   type: "object",
   properties: {

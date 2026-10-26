@@ -127,8 +127,8 @@ describe("official otherRelationships lorebook attach", () => {
     assert.match(system, /같은 세계관에 존재하거나 나중에 만날 수 있다는 이유만으로는 넣지 않는다/);
     assert.match(system, /인원 수를 채우는 목표는 없다/);
     assert.doesNotMatch(system, /0~3명/);
-    assert.match(user, /자동으로 채우지 않는다/);
-    assert.match(user, /없으면 \[\]/);
+    assert.match(`${system}\n${user}`, /자동으로 채우지 않는다/);
+    assert.match(`${system}\n${user}`, /없으면 \[\]/);
   });
 
   it("author bonds prompt allows zero secrets and does not seed secret slots", () => {

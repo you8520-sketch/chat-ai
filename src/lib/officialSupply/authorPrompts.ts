@@ -411,10 +411,14 @@ export type CharacterVoiceInput = {
   age: number;
   adultCandidate: boolean;
   speechDirection: string;
-  /** Part1 recap (identity + personality + backstory essence, ~600자). */
+  /** Selected complete Part1 facts with compact labels; no clause clipping. */
   part1Recap: string;
   /** 0~3; brief may demand specific NPCs. */
   npcDemand: string;
+  /** Source appearance + shared-world context, for the actual public manuscripts. */
+  publicContext?: string;
+  /** Canonical targeted revision omits public manuscripts it cannot apply. */
+  includePublicManuscripts?: boolean;
   userRelation?: OfficialUserRelationPlan;
   /** Market fit brief — the public card is built on its relationship + conflict. */
   marketFit?: OfficialMarketFitBrief | null;
@@ -457,7 +461,7 @@ export function buildNpcRelationRepairUser(input: NpcRelationRepairInput): strin
   ].join("\n");
 }
 
-export function buildCharacterVoiceSystem(): string {
+export function buildCharacterVoiceSystem(includePublicManuscripts = true): string {
   return [
     "너는 롤플레잉 말투·오프닝의 장인이다. 캐릭터 바이블의 목소리 부분(말투·규칙·그리팅·공개 프로필·NPC)만 쓴다.",
     "출력은 반드시 순수 JSON 한 개(코드펜스·설명 금지)다.",
@@ -475,17 +479,19 @@ export function buildCharacterVoiceSystem(): string {
     "- 편집 목표는 약 1500자다. 저장 상한 2000자와 Main RP 출력 한도는 바꾸지 않으며, 700자를 넘는 기존 유효 오프닝을 탈락시키지 않는다.",
     "- 장소·상황·분위기·캐릭터 행동·목소리·유저가 그 자리에 있는 최소 단서·반응 여지.",
     "- 캐릭터의 대사를 따옴표로 최소 1줄 넣고, 유저를 '당신'으로 지칭한다.",
-    "- 유저 쪽 지칭은 성별 중립적으로 유지한다. 당신·상대·목격자·계약자·방문객·동행자·협상 상대처럼 역할과 상황으로 표현한다.",
+    "- 유저 쪽 지칭은 성별 중립적으로 유지한다. 당신·상대·목격자·계약자·방문객·동행자·협상 상대처럼 역할과 상황으로 표현한다. 아가씨/도련님/왕자비/신부 같은 성별 고정 호칭은 쓰지 않는다. 캐릭터 본인 성별 표현은 유지한다.",
     "- 유저 관계 시작 유형이 role_bound·relationship_bound면 오프닝·tagline·pitch는 고정 사실만 드러내고 유저의 성별·감정·행동·결말은 확정하지 않는다.",
-    "- 캐릭터 본인의 성별 표현은 유지하되, 유저 페르소나의 성별·성정체성·연애 포지션은 런타임에서 정해지므로 생성 단계에서 고정하지 않는다.",
     "- 오프닝은 하나다. 에피소드/선택 시작을 만들지 않는다.",
-    "- 유저 쪽 성별·호칭은 고정하지 않는다. 여자/남자/여성/남성/아가씨/도련님/왕자비/신부로 유저를 부르지 않는다.",
-    "- 유저 지칭은 당신, 상대, 침입자, 목격자, 계약자, 방문객, 낯선 사람, 동행자, 협상 상대, 플레이어처럼 중성어만 쓴다. 캐릭터 본인 성별은 유지한다.",
     "- 소개문·자기소개·세계관 설명 덤프 금지. 이후 RP 문체의 스타일 앵커가 되는 웹소설형 출력.",
     "- 같은 문장·묘사를 반복해 분량을 채우지 않는다.",
     "",
     `공개 프로필: tagline은 반드시 50자 이내 훅 한 줄. description은 반드시 ${Q.publicDescription.min}자 이상 ${Q.publicDescription.max}자 이하`,
-    "이 description은 카드용 짧은 pitch다. 상세 소개 본문은 컴파일러가 따로 만든다. 세계관 설정집이나 HTML을 쓰지 않는다.",
+    ...(includePublicManuscripts ? [
+      "description은 시장 훅 검수용 짧은 pitch다. 실제 공개 화면 원고는 detailedDescription과 creatorComment이며 pitch를 복사하지 않는다.",
+      "detailedDescription: 600~1000자 목표, 저장 상한 3000자. [세계관 설정]·[캐릭터 설정]·[플레이 포인트]·[도입 상황] 아래 자연스러운 한국어 문단으로 쓴다. 외형:·성격: 표지와 이름·나이(세)·키(cm)는 유지한다.",
+      "세계의 필수 배경, 외형·성격·과거의 흔적, 현재 입장과 실제 만남의 갈등을 연결한다. 설정집·공통 RP 지시·비밀의 정답을 옮기지 않는다. 주어진 사실이 인물의 주장/의혹이면 그 출처와 미확정 상태를 유지한다.",
+      "creatorComment: 150~250자 목표, <p><b>지금 상황</b><br>...</p><p><b>추천 플레이 방향</b><br>...</p>만 사용한다. greeting에서 실제로 가능한 행동 2~3개와 이 인물의 즐길 거리를 제안하되 다른 시작 장면이나 관계 결말을 만들지 않는다. 소개 반복과 유저 감정·행동 확정을 피한다.",
+    ] : ["description은 시장 훅 검수용 짧은 pitch다. 이번 보정에서는 detailedDescription·creatorComment를 출력하지 않는다. 기존 공개 원고는 유지한다."]),
     "pitch(캐릭터·관계·경험·갈등 중 2개 이상, 비밀 노출 금지). 유저를 '당신'으로 부르며 어떤 관계/경험인지 드러낸다.",
     "- tagline은 분위기 문구가 아니라 '이 캐릭터가 당신에게 누구이고 지금 무슨 문제가 있는지'가 한눈에 보이는 관계 훅.",
     "  세계관 고유명사는 최대 2개, 장르 독자가 바로 아는 역할 어휘(황자·기사단장·청부업자 등)를 쓴다.",
@@ -506,14 +512,15 @@ export function buildCharacterVoiceUser(input: CharacterVoiceInput): string {
     `말투 방향: ${input.speechDirection}`,
     `성인 후보: ${input.adultCandidate ? "예" : "아니오"}`,
     `NPC 요구: ${input.npcDemand}`,
-    ...formatUserRelationPlanForPrompt(input.userRelation),
+    ...formatUserRelationPlanForPrompt(input.userRelation).slice(0, 1),
     ...(input.marketFit ? ["", ...formatMarketFitForPrompt(input.marketFit)] : []),
     "",
     "전반부 요약:",
     input.part1Recap,
+    ...(input.publicContext ? ["공개 원고용 외형·세계:", input.publicContext] : []),
     "",
-    "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. npcs는 실제 반복 역할이 필요할 때만 1~2명 추가하고, 필요 없으면 []를 유지한다.",
-    characterVoiceSkeleton(input.adultCandidate),
+    "출력 틀:",
+    characterVoiceSkeleton(input.adultCandidate, input.includePublicManuscripts ?? true),
     input.feedback?.trim() ? `이전 시도 반려 사유(반드시 수정):\n${input.feedback.trim()}` : "",
   ].join("\n");
 }
@@ -525,7 +532,7 @@ export type CharacterBondsInput = {
   adultCandidate: boolean;
   /** Other playable characters for relationship design (name — public role). */
   castList: string[];
-  /** Part1 recap (identity + personality + backstory essence, ~600자). */
+  /** Selected complete Part1 facts with compact labels; no clause clipping. */
   part1Recap: string;
   userRelation?: OfficialUserRelationPlan;
   /** Previous attempt rejection reasons (QA codes) — must be fixed this time. */
@@ -538,16 +545,15 @@ export function buildCharacterBondsSystem(): string {
     "출력은 반드시 순수 JSON 한 개(코드펜스·설명 금지)다.",
     "",
     "관계·비밀·엔진 규칙:",
-    "- userRelationship: 기본은 FREE다. 아래 유형 규칙을 따른다. 유저 관계 원칙, 첫인식, 유저 역할, 시작점, 관계 진행, 가능한 결말 목록은 최종 설정에 쓰지 않는다. 성별 고정 호칭을 쓰지 않는다.",
+    "- userRelationship: 기본은 FREE이며 입력 유형 규칙을 따른다. 유저 성별 고정 호칭과 관계 진행·결말 공식은 쓰지 않는다.",
     ...buildUserRelationAuthorRules(),
-    "  관계 진행 공식은 쓰지 않는다. 협력·배신·연애·이탈 같은 결말 목록으로 분량을 채우지 않는다.",
     "- otherRelationships: 이 캐릭터 자신의 사건·과거·목표·판단·행동을 실제로 바꾸는 인물만 기록한다. 없으면 [].",
     "  다른 공식 캐릭터를 관계 목록에 자동으로 채우지 않는다. 같은 세계관에 존재하거나 나중에 만날 수 있다는 이유만으로는 넣지 않는다.",
     "  인원 수를 채우는 목표는 없다. 출연진 전체를 채우지 않는다. 현재 RP와 무관한 인물을 넣지 않는다.",
     "  otherRelationships는 메인 시스템 프롬프트에 상시 주입하지 않는다. hidden은 로어북이나 새 비밀로 옮기지 않는다. 정말 필요한 비밀만 유지한다.",
     "- secrets: 캐릭터 자신이 알고 있으나 공개하지 않는 핵심 사실 중 RP progression·갈등·관계 변화에 실제 영향을 주는 것만 최대 3개. 필요한 비밀이 없으면 []이며 개수를 채우지 않는다. trivial 반전은 금지.",
     "- rpEngine: immediateHook + repeatable 반드시 3개 이상(비사건성 일상 포함). mediumConflict·longTermChange는 성격·과거·현재 상황에 없는 사건 사실일 때만 한 줄, 아니면 \"\". 유저 선택에 따른 결말 목록은 쓰지 않는다.",
-    "  selfDrive(유저 없이도 성립): goal=지금 스스로 추구하는 구체적 목표, ownMove=그 목표를 위해 스스로 택하는 다음 행동, setback=실패했을 때의 결과·대가. 세 값 모두 20자 이상이며 goal·ownMove에는 당신/유저를 쓰지 않는다. 이미 성격·과거·현재 상황에 있는 문장을 반복하지 않는다.",
+    "  Part1의 과거 사건→당시 선택→현재 흔적, 능력의 한계·대가를 근거로 비밀·갈등·selfDrive를 설계한다. 인물의 주장·관찰·미확정 진실을 구분하고 의혹을 확정 canon으로 바꾸지 않는다.\n  selfDrive(유저 없이도 성립): goal=지금 스스로 추구하는 구체적 목표, ownMove=그 목표를 위해 스스로 택하는 다음 행동, setback=실패했을 때의 결과·대가. 세 값 모두 20자 이상이며 goal·ownMove에는 당신/유저를 쓰지 않는다. 이미 성격·과거·현재 상황에 있는 문장을 반복하지 않는다.",
     "- 출력 분량·문체·기억·자동 진행 같은 공통 RP 지시는 캐릭터 설정에 쓰지 않는다. 이 인물만의 판단·행동·대가만 쓴다.",
     "",
     "성인 섹션은 adultCandidate가 true일 때만 작성(허용값 그대로 사용):",
@@ -570,15 +576,13 @@ export function buildCharacterBondsUser(input: CharacterBondsInput): string {
     ...formatUserRelationBondsRule(input.userRelation),
     `성인 후보: ${input.adultCandidate ? "예" : "아니오"}`,
     input.castList.length
-      ? `다른 공식 캐릭터는 관계 자동 채움 대상이 아니다. 이 인물의 사건·과거·목표에 실제로 필요없으면 otherRelationships에 넣지 않는다: ${input.castList.join(" / ")}`
-      : "다른 공식 캐릭터를 관계 목록에 자동으로 채우지 않는다. otherRelationships는 이 인물의 사건·과거·목표에 실제로 필요한 경우만 기록하고 없으면 [].",
+      ? `참고 출연진(자동 관계 채움 금지): ${input.castList.join(" / ")}`
+      : "",
     "",
     "전반부 요약:",
     input.part1Recap,
     "",
-    input.adultCandidate
-      ? "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. otherRelationships는 이 인물의 사건·과거·목표를 바꾸는 인물만 넣고 없으면 []; 성인 후보이므로 nsfw는 true, adultSection은 틀의 모든 키를 실제 내용으로 채운다."
-      : "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. otherRelationships는 이 인물의 사건·과거·목표를 바꾸는 인물만 넣고 없으면 []; 성인 후보가 아니면 adultSection은 null.",
+    "출력 틀:",
     characterBondsSkeleton(input.adultCandidate),
     input.feedback?.trim() ? `이전 시도 반려 사유(반드시 수정):\n${input.feedback.trim()}` : "",
   ].join("\n");
@@ -586,7 +590,7 @@ export function buildCharacterBondsUser(input: CharacterBondsInput): string {
 
 const BIBLE_1_SKELETON = `{"identity": {"name": "", "gender": "male", "age": 27, "apparentAge": "", "heightCm": 184, "species": "인간", "occupation": "", "socialPosition": "", "affiliation": "", "worldRole": ""}, "appearance": {"faceShape": "", "eyes": "", "eyeColor": "", "hairColor": "", "hairstyle": "", "hairLength": "", "skin": "", "build": "", "musculature": "", "distinguishingFeatures": "", "usualExpression": "", "defaultOutfit": "", "accessories": "", "impression": ""}, "personality": {"keywords": ["", "", "", "", ""], "behavioral": ""}, "contradiction": "", "values": {"desires": ["", ""], "fears": ["", ""], "coreValues": ["", ""], "nonNegotiable": [""]}, "backstory": {"events": [{"event": "", "choice": "", "residue": ""}, {"event": "", "choice": "", "residue": ""}]}, "abilities": [{"name": "", "scope": "", "level": "", "limit": "", "cost": "", "usage": ""}, {"name": "", "scope": "", "level": "", "limit": "", "cost": "", "usage": ""}], "habits": {"hobbies": ["", "", ""], "habits": ["", "", ""], "likes": ["", ""], "dislikes": ["", ""]}, "dailyLife": "", "situation": {"worldContext": "", "personalSituation": "", "userEntry": ""}}`;
 
-const VOICE_SKELETON_HEAD = `{"speech": {"register": "", "sentenceLength": "", "tempo": "", "vocabulary": "", "frequentPhrases": ["", ""], "rarePhrases": [""], "profanity": "", "humorStyle": "", "addressStyle": "", "hiddenEmotionStyle": "", "angryStyle": "", "intimateStyle": "", "keywords": ["", "", "", ""], "description": "", "examples": "대사1\\n대사2\\n대사3\\n대사4", "forbidden": ""}, "behaviorRules": ["", "", ""], "greeting": "", "publicProfile": {"tagline": "", "description": "", "tags": ["", "", "", ""]}, "npcs": [], "nsfw": `;
+const VOICE_SKELETON_HEAD = (includePublicManuscripts: boolean) => `{"speech": {"register": "", "sentenceLength": "", "tempo": "", "vocabulary": "", "frequentPhrases": ["", ""], "rarePhrases": [""], "profanity": "", "humorStyle": "", "addressStyle": "", "hiddenEmotionStyle": "", "angryStyle": "", "intimateStyle": "", "keywords": ["", "", "", ""], "description": "", "examples": "대사1\\n대사2\\n대사3\\n대사4", "forbidden": ""}, "behaviorRules": ["", "", ""], "greeting": "", "publicProfile": {"tagline": "", "description": "", ${includePublicManuscripts ? '"detailedDescription": "", "creatorComment": "", ' : ""}"tags": ["", "", "", ""]}, "npcs": [], "nsfw": `;
 
 const BONDS_SKELETON_HEAD = `{"userRelationship": {"type": "", "fixedFacts": "", "userDecides": "", "initialView": "", "userRole": "", "startingPoint": "", "progression": []}, "otherRelationships": [], "secrets": [], "rpEngine": {"immediateHook": "", "repeatable": ["", "", ""], "mediumConflict": "", "longTermChange": "", "selfDrive": {"goal": "", "ownMove": "", "setback": ""}}, "nsfw": `;
 
@@ -594,8 +598,8 @@ const BONDS_SKELETON_HEAD = `{"userRelationship": {"type": "", "fixedFacts": "",
 const ADULT_SECTION_SKELETON = `{"orientation": "", "hookSummary": "", "dialogueProfile": "", "consentModes": [""], "tone": "", "preferenceKeywords": ["", "", "", ""], "boundaries": [], "consentBehavior": "", "scenarioExamples": ["", ""]}`;
 
 /** The manifest's adultCandidate owns the nsfw/adultSection defaults the model is shown. */
-function characterVoiceSkeleton(adultCandidate: boolean): string {
-  return `${VOICE_SKELETON_HEAD}${adultCandidate}}`;
+function characterVoiceSkeleton(adultCandidate: boolean, includePublicManuscripts: boolean): string {
+  return `${VOICE_SKELETON_HEAD(includePublicManuscripts)}${adultCandidate}}`;
 }
 
 function characterBondsSkeleton(adultCandidate: boolean): string {
