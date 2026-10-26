@@ -994,7 +994,6 @@ export function computeOpenRouterTurnCost(
       modelId,
       cacheReadTokens: cache?.cacheReadTokens,
       cacheWriteTokens: cache?.cacheWriteTokens,
-      upstreamCostUsd: opts?.billingBasis?.upstreamCostUsd,
     }) * getEffectiveKrwPerUsd()
   );
   return openRouterTokenOnlyTurnCost(chargePoints(costKrw), inputTokens, modelId);
