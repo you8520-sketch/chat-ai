@@ -1,6 +1,6 @@
-import { GEMINI_38_FLASH_MODEL } from "@/lib/chatModels";
-import { computeOpenRouterTurnBilling } from "@/lib/points";
+import { GEMINI_4_ARGON_MODEL, GEMINI_38_FLASH_MODEL } from "@/lib/chatModels";
 import { DEFAULT_TRPG_BILLING_MODE, type TrpgBillingMode } from "./types";
+import { computeTrpgPublishedMarginChargePoints } from "./trpgPublishedMarginCharge";
 
 export type TrpgShare = { userId: number; points: number };
 
@@ -14,9 +14,9 @@ export type TrpgModelUsage = {
   upstreamCostUsd?: number;
 };
 
-/** Typical GM scene when the provider omits usage — Gemini 3.8 Flash 65% still applies. */
+/** Typical GM scene when the provider omits usage — Gemini 4 Argon Flex + published target margin. */
 export const TRPG_GM_USAGE_FALLBACK: TrpgModelUsage = {
-  modelId: GEMINI_38_FLASH_MODEL,
+  modelId: GEMINI_4_ARGON_MODEL,
   inputTokens: 10_000,
   outputTokens: 3_500,
 };
@@ -29,20 +29,12 @@ export const TRPG_BOT_USAGE_FALLBACK: TrpgModelUsage = {
 };
 
 /**
- * Round charge = sum of actual model calls at RP Pro 65% (GM + bot-seat Gemini 3.8 Flash).
+ * Round charge = sum of per-call provider USD cost at each model's published target gross margin.
  */
 export function computeTrpgRoundPoints(calls: TrpgModelUsage[]): number {
   let total = 0;
   for (const call of calls) {
-    if (call.inputTokens <= 0 && call.outputTokens <= 0) continue;
-    const billed = computeOpenRouterTurnBilling({
-      modelId: call.modelId,
-      inputTokens: call.inputTokens,
-      outputTokens: call.outputTokens,
-      cacheReadTokens: call.cacheReadTokens,
-      cacheWriteTokens: call.cacheWriteTokens,
-    });
-    total += Math.max(0, billed.total);
+    total += computeTrpgPublishedMarginChargePoints(call);
   }
   return total;
 }

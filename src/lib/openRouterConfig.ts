@@ -168,6 +168,27 @@ export function resolveMainRpOpenRouterRoutePolicy(
   };
 }
 
+/**
+ * TRPG GM OpenRouter route policy — Flex for Gemini 4 Argon only.
+ * Main RP Gemini 4 keeps `resolveMainRpOpenRouterRoutePolicy` (Standard tier).
+ */
+export function resolveTrpgGmOpenRouterRoutePolicy(
+  modelId: string
+): MainRpOpenRouterRoutePolicy | null {
+  const resolved = resolveRpOpenRouterModelId(modelId);
+  if (resolved === OPENROUTER_GEMINI_4_ARGON_MODEL) {
+    return {
+      provider: {
+        only: ["google-ai-studio"],
+        allow_fallbacks: false,
+        require_parameters: true,
+      },
+      serviceTier: "flex",
+    };
+  }
+  return resolveMainRpOpenRouterRoutePolicy(resolved);
+}
+
 export function resolveOpenRouterApiKey(): string {
   const key = process.env.OPENROUTER_API_KEY?.trim();
   if (!key) {

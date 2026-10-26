@@ -1,9 +1,9 @@
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
-import { openRouterUsdCostDetailed } from "@/lib/billingRawCost";
 import { convertUsdToKrw, resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import { openRouterUsdCostFromRates } from "@/lib/openRouterModelPricing";
 import { DEFAULT_TRPG_BILLING_MODE, type TrpgBillingMode } from "./types";
 import type { TrpgModelUsage } from "./billing";
+import { resolveTrpgCallUpstreamCostUsd } from "./trpgPublishedMarginCharge";
 
 export type TrpgProviderCostSource = "actual" | "estimated";
 
@@ -60,14 +60,8 @@ export function parseProviderUsageCostUsd(usage: unknown): number | undefined {
 }
 
 function estimateCallUsd(call: TrpgModelUsage): number {
-  const fromRates = openRouterUsdCostDetailed({
-    promptTokens: call.inputTokens,
-    outputTokens: call.outputTokens,
-    cacheReadTokens: call.cacheReadTokens,
-    cacheWriteTokens: call.cacheWriteTokens,
-    modelId: call.modelId,
-  });
-  if (fromRates > 0) return fromRates;
+  const upstream = resolveTrpgCallUpstreamCostUsd(call).upstreamCostUsd;
+  if (upstream > 0) return upstream;
   const fallback = openRouterUsdCostFromRates({
     promptTokens: Math.max(1, call.inputTokens),
     outputTokens: Math.max(1, call.outputTokens),
