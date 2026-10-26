@@ -19,7 +19,6 @@
  *   --step=consistency-fix        offline: manifest-declared world-consistency repairs
  *   --npc-relation-repair         (characters/character) opt-in: one targeted call repairs relation-only NPC defects; caps each character at OFFICIAL_CHARACTER_CALL_CAP calls
  */
-import { buildOfficialCanonReviewEvidence } from "@/lib/officialSupply/characterReview";
 import fs from "node:fs";
 import path from "node:path";
 import { loadEnvLocal } from "./load-env-local";
@@ -631,13 +630,14 @@ type CharFile = {
   provenances: OfficialAuthorProvenance[];
   revisions?: CharRevision[];
   charCount: number;
-  /** Source/compiled evidence only; not a literary or semantic pass. */
-  canonReview?: ReturnType<typeof buildOfficialCanonReviewEvidence>;
   quarantined?: boolean;
 };
 
 function writeCharacterFile(file: CharFile): void {
-  writeJson(charPath(file.slot), { ...file, canonReview: buildOfficialCanonReviewEvidence(file.bible, file.draft) });
+  // Old A1 candidates may carry this derived cache. Discard it on the next normal save;
+  // read-only characterReview.ts remains the sole evidence owner. No eager rewrite.
+  const { canonReview: _discarded, ...source } = file as CharFile & { canonReview?: unknown };
+  writeJson(charPath(file.slot), source);
 }
 
 function compileForBrief(bible: OfficialCharacterBible, brief: PortfolioBriefInput): OfficialCharacterDraft {

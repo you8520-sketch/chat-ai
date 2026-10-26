@@ -74,6 +74,7 @@ import {
 } from "@/lib/officialSupply/characterText";
 import {
   composeOfficialCreatorComment,
+  publicAppearanceFacts,
   evaluateOfficialCreatorComment,
   evaluateOfficialPlayerGenderNeutral,
   evaluateOfficialPublicDescription,
@@ -1122,30 +1123,43 @@ export async function generateOfficialCharacterBible(input: {
   };
 }
 
-/** Selected factual fields, not a copy of the bible. Never cut a causal chain mid-clause. */
-function buildPart1Recap(half1: Record<string, unknown>): string {
+/** Lossless selected facts, with compact labels instead of repeated JSON keys/escaping. */
+function buildPart1Recap(half1: Record<string, unknown>, includeEntry = true): string {
   const identity = isRecord(half1.identity) ? half1.identity : {};
   const personality = isRecord(half1.personality) ? half1.personality : {};
   const values = isRecord(half1.values) ? half1.values : {};
   const situation = isRecord(half1.situation) ? half1.situation : {};
   const backstory = isRecord(half1.backstory) ? half1.backstory : {};
-  return JSON.stringify({
-    identity: { occupation: identity.occupation, socialPosition: identity.socialPosition, affiliation: identity.affiliation, worldRole: identity.worldRole },
-    behavioral: personality.behavioral,
-    contradiction: half1.contradiction,
-    values: { desires: values.desires, coreValues: values.coreValues, nonNegotiable: values.nonNegotiable },
-    past: backstory.events,
-    abilities: (Array.isArray(half1.abilities) ? half1.abilities : []).filter(isRecord).map(a => ({
-      name: a.name, scope: a.scope, limit: a.limit, cost: a.cost,
-    })),
-    current: { personalSituation: situation.personalSituation, userEntry: situation.userEntry },
-  });
+  const fact = (label: string, ...raw: unknown[]): string => {
+    const texts = [...new Set(raw.filter(isNonEmptyString))];
+    return texts.length ? `${label}: ${texts.join(" / ")}` : "";
+  };
+  return [
+    [fact("직업", identity.occupation), fact("신분", identity.socialPosition), fact("소속", identity.affiliation), fact("역할", identity.worldRole)].filter(Boolean).join(" / "),
+    fact("성격·행동", personality.behavioral),
+    fact("모순", half1.contradiction),
+    fact("욕망", ...strArray(values.desires)),
+    fact("가치", ...strArray(values.coreValues)),
+    fact("금기", ...strArray(values.nonNegotiable)),
+    ...(Array.isArray(backstory.events) ? backstory.events : []).filter(isRecord).map((event, i) =>
+      [fact(`과거${i + 1}`, event.event), fact("당시 선택", event.choice), fact("현재 흔적", event.residue)].filter(Boolean).join(" → ")
+    ),
+    ...(Array.isArray(half1.abilities) ? half1.abilities : []).filter(isRecord).map((ability, i) =>
+      [fact(`능력${i + 1}`, ability.name), fact("범위", ability.scope), fact("한계", ability.limit), fact("대가", ability.cost)].filter(Boolean).join(" / ")
+    ),
+    fact("현재 상황", situation.personalSituation),
+    includeEntry ? fact("진입", situation.userEntry) : "",
+  ].filter(Boolean).join("\n");
 }
 
-/** Looks/world are needed for public prose, but are not repeated in the shared recap. */
+/** Reuse the public appearance owner; image-only anatomy/grooming fields are not prose input. */
 function buildPublicWritingContext(source: Record<string, unknown>, worldContext: string): string {
   const identity = isRecord(source.identity) ? source.identity : {};
-  return JSON.stringify({ heightCm: identity.heightCm, appearance: source.appearance, worldContext });
+  const appearance = isRecord(source.appearance) ? source.appearance : {};
+  const looks = Object.fromEntries(Object.entries(appearance).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
+  const facts = publicAppearanceFacts({ ...looks, impression: looks.impression ?? "" }, true);
+  if (looks.defaultOutfit && !facts.some(text => text.includes(looks.defaultOutfit))) facts.push(`복식: ${looks.defaultOutfit}`);
+  return [`키: ${identity.heightCm ?? ""}cm`, ...facts, `세계: ${worldContext}`].join("\n");
 }
 
 function assertGeneratedPublicManuscripts(voice: Record<string, unknown>, name: string): void {
@@ -1202,8 +1216,7 @@ export async function reviseOfficialCharacterVoice(input: {
     user: buildCharacterVoiceUser({
       ...input.voice,
       includePublicManuscripts: false,
-      part1Recap: buildPart1Recap(current as unknown as Record<string, unknown>),
-      publicContext: buildPublicWritingContext(current as unknown as Record<string, unknown>, current.situation?.worldContext ?? ""),
+      part1Recap: buildPart1Recap(current as unknown as Record<string, unknown>, input.fields.includes("greeting") || input.fields.includes("publicDescription")),
       feedback: [...input.reasons, ...keep].join("\n"),
     }),
     schemaName: "official_character_bible_voice",

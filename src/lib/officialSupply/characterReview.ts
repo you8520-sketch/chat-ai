@@ -52,7 +52,7 @@ type PilotCharFile = {
   };
   bible: OfficialCharacterBible;
   characterLorebook?: OfficialWorldLorebookEntry[];
-  appearance: OfficialAppearanceLock;
+  appearance?: OfficialAppearanceLock;
   draft?: OfficialCharacterDraft;
 };
 
@@ -167,8 +167,8 @@ export function buildOfficialCharacterReviewReport(
     },
   });
 
-  const runtimeAppearance = renderRuntimeAppearanceBlock(file.appearance);
-  const fullVisualAppearance = renderAppearanceBlock(file.appearance);
+  const runtimeAppearance = file.appearance ? renderRuntimeAppearanceBlock(file.appearance) : "";
+  const fullVisualAppearance = file.appearance ? renderAppearanceBlock(file.appearance) : "(appearance lock not authored; narrative review only)";
   const systemPrompt = composeOfficialSystemPrompt(draft, runtimeAppearance);
   const creatorComment = composeOfficialCreatorComment(draft);
   const approvedLocal = file.characterLorebook ?? [];

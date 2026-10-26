@@ -411,7 +411,7 @@ export type CharacterVoiceInput = {
   age: number;
   adultCandidate: boolean;
   speechDirection: string;
-  /** Selected Part1 causal facts; complete strings, no silent 1200-char cut. */
+  /** Selected complete Part1 facts with compact labels; no clause clipping. */
   part1Recap: string;
   /** 0~3; brief may demand specific NPCs. */
   npcDemand: string;
@@ -479,9 +479,8 @@ export function buildCharacterVoiceSystem(includePublicManuscripts = true): stri
     "- 편집 목표는 약 1500자다. 저장 상한 2000자와 Main RP 출력 한도는 바꾸지 않으며, 700자를 넘는 기존 유효 오프닝을 탈락시키지 않는다.",
     "- 장소·상황·분위기·캐릭터 행동·목소리·유저가 그 자리에 있는 최소 단서·반응 여지.",
     "- 캐릭터의 대사를 따옴표로 최소 1줄 넣고, 유저를 '당신'으로 지칭한다.",
-    "- 유저 쪽 지칭은 성별 중립적으로 유지한다. 당신·상대·목격자·계약자·방문객·동행자·협상 상대처럼 역할과 상황으로 표현한다. 아가씨/도련님/왕자비/신부 같은 성별 고정 호칭은 쓰지 않는다.",
+    "- 유저 쪽 지칭은 성별 중립적으로 유지한다. 당신·상대·목격자·계약자·방문객·동행자·협상 상대처럼 역할과 상황으로 표현한다. 아가씨/도련님/왕자비/신부 같은 성별 고정 호칭은 쓰지 않는다. 캐릭터 본인 성별 표현은 유지한다.",
     "- 유저 관계 시작 유형이 role_bound·relationship_bound면 오프닝·tagline·pitch는 고정 사실만 드러내고 유저의 성별·감정·행동·결말은 확정하지 않는다.",
-    "- 캐릭터 본인의 성별 표현은 유지하되, 유저 페르소나의 성별·성정체성·연애 포지션은 런타임에서 정해지므로 생성 단계에서 고정하지 않는다.",
     "- 오프닝은 하나다. 에피소드/선택 시작을 만들지 않는다.",
     "- 소개문·자기소개·세계관 설명 덤프 금지. 이후 RP 문체의 스타일 앵커가 되는 웹소설형 출력.",
     "- 같은 문장·묘사를 반복해 분량을 채우지 않는다.",
@@ -513,14 +512,14 @@ export function buildCharacterVoiceUser(input: CharacterVoiceInput): string {
     `말투 방향: ${input.speechDirection}`,
     `성인 후보: ${input.adultCandidate ? "예" : "아니오"}`,
     `NPC 요구: ${input.npcDemand}`,
-    ...formatUserRelationPlanForPrompt(input.userRelation),
+    ...formatUserRelationPlanForPrompt(input.userRelation).slice(0, 1),
     ...(input.marketFit ? ["", ...formatMarketFitForPrompt(input.marketFit)] : []),
     "",
     "전반부 요약:",
     input.part1Recap,
-    ...(input.publicContext ? ["공개 원고용 원본 외형·세계(요약과 중복하지 않음):", input.publicContext] : []),
+    ...(input.publicContext ? ["공개 원고용 외형·세계:", input.publicContext] : []),
     "",
-    "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. npcs는 실제 반복 역할이 필요할 때만 1~2명 추가하고, 필요 없으면 []를 유지한다.",
+    "출력 틀:",
     characterVoiceSkeleton(input.adultCandidate, input.includePublicManuscripts ?? true),
     input.feedback?.trim() ? `이전 시도 반려 사유(반드시 수정):\n${input.feedback.trim()}` : "",
   ].join("\n");
@@ -533,7 +532,7 @@ export type CharacterBondsInput = {
   adultCandidate: boolean;
   /** Other playable characters for relationship design (name — public role). */
   castList: string[];
-  /** Selected Part1 causal facts; complete strings, no silent 1200-char cut. */
+  /** Selected complete Part1 facts with compact labels; no clause clipping. */
   part1Recap: string;
   userRelation?: OfficialUserRelationPlan;
   /** Previous attempt rejection reasons (QA codes) — must be fixed this time. */
@@ -546,9 +545,8 @@ export function buildCharacterBondsSystem(): string {
     "출력은 반드시 순수 JSON 한 개(코드펜스·설명 금지)다.",
     "",
     "관계·비밀·엔진 규칙:",
-    "- userRelationship: 기본은 FREE다. 아래 유형 규칙을 따른다. 유저 관계 원칙, 첫인식, 유저 역할, 시작점, 관계 진행, 가능한 결말 목록은 최종 설정에 쓰지 않는다. 성별 고정 호칭을 쓰지 않는다.",
+    "- userRelationship: 기본은 FREE이며 입력 유형 규칙을 따른다. 유저 성별 고정 호칭과 관계 진행·결말 공식은 쓰지 않는다.",
     ...buildUserRelationAuthorRules(),
-    "  관계 진행 공식은 쓰지 않는다. 협력·배신·연애·이탈 같은 결말 목록으로 분량을 채우지 않는다.",
     "- otherRelationships: 이 캐릭터 자신의 사건·과거·목표·판단·행동을 실제로 바꾸는 인물만 기록한다. 없으면 [].",
     "  다른 공식 캐릭터를 관계 목록에 자동으로 채우지 않는다. 같은 세계관에 존재하거나 나중에 만날 수 있다는 이유만으로는 넣지 않는다.",
     "  인원 수를 채우는 목표는 없다. 출연진 전체를 채우지 않는다. 현재 RP와 무관한 인물을 넣지 않는다.",
@@ -578,15 +576,13 @@ export function buildCharacterBondsUser(input: CharacterBondsInput): string {
     ...formatUserRelationBondsRule(input.userRelation),
     `성인 후보: ${input.adultCandidate ? "예" : "아니오"}`,
     input.castList.length
-      ? `다른 공식 캐릭터는 관계 자동 채움 대상이 아니다. 이 인물의 사건·과거·목표에 실제로 필요없으면 otherRelationships에 넣지 않는다: ${input.castList.join(" / ")}`
-      : "다른 공식 캐릭터를 관계 목록에 자동으로 채우지 않는다. otherRelationships는 이 인물의 사건·과거·목표에 실제로 필요한 경우만 기록하고 없으면 [].",
+      ? `참고 출연진(자동 관계 채움 금지): ${input.castList.join(" / ")}`
+      : "",
     "",
     "전반부 요약:",
     input.part1Recap,
     "",
-    input.adultCandidate
-      ? "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. otherRelationships는 이 인물의 사건·과거·목표를 바꾸는 인물만 넣고 없으면 []; 성인 후보이므로 nsfw는 true, adultSection은 틀의 모든 키를 실제 내용으로 채운다."
-      : "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. otherRelationships는 이 인물의 사건·과거·목표를 바꾸는 인물만 넣고 없으면 []; 성인 후보가 아니면 adultSection은 null.",
+    "출력 틀:",
     characterBondsSkeleton(input.adultCandidate),
     input.feedback?.trim() ? `이전 시도 반려 사유(반드시 수정):\n${input.feedback.trim()}` : "",
   ].join("\n");

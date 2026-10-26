@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { after, before, describe, it } from "node:test";
+import { after, before, describe, it, mock } from "node:test";
 import * as review from "@/lib/officialSupply/characterReview";
 import { compileRelationStartDraft, loadRelationStartCandidates } from "@/lib/officialSupply/relationStartCandidates";
 import { buildOfficialCharacterFormBody, computeTextLockHash } from "@/lib/officialSupply/characterText";
@@ -9,6 +9,173 @@ import { buildRelationStartWire } from "@/lib/officialSupply/relationStartWire";
 import { installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/lib/test/isolatedTestDatabase";
 import { getDb } from "@/lib/db";
 import { evaluateRelationBibleContract } from "@/lib/officialSupply/bible";
+import fs from "node:fs";
+import {
+  generateOfficialCharacterBible, reviseOfficialCharacterVoice, createAuthorCostReport,
+  withAuthorAccounting, withOfficialAuthorCallBudget, OfficialAuthorCallBudget,
+  OfficialAuthorTruncatedError, OFFICIAL_CHARACTER_CALL_CAP, recordWorkflowRetry,
+  type OfficialAuthorTransport, type OfficialAuthorRawCompletion,
+} from "@/lib/officialSupply/author";
+import { estimateTokens } from "@/lib/tokenEstimate";
+
+type Candidate = ReturnType<typeof loadRelationStartCandidates>[number];
+type AuthorInput = Parameters<OfficialAuthorTransport["completeJson"]>[0];
+const mockCompletion = (data: unknown): OfficialAuthorRawCompletion => ({
+  text: typeof data === "string" ? data : JSON.stringify(data), model: "OFFLINE_MOCK",
+  inputTokens: 10, outputTokens: 20, costUsd: 0.01, providerRequestId: null,
+});
+function authoredFixture(c: Candidate) {
+  const draft = compileRelationStartDraft(c);
+  return { ...c.bible, publicProfile: {
+    ...c.bible.publicProfile, detailedDescription: draft.description,
+    creatorComment: composeOfficialCreatorComment(draft),
+  } };
+}
+function generationInput(c: Candidate, transport: OfficialAuthorTransport) {
+  return {
+    transport,
+    part1: { brief: c.brief, worldName: "테스트 세계", worldContext: c.bible.situation.worldContext, siblingSketches: [] },
+    voice: { name: c.bible.identity.name, age: c.bible.identity.age, adultCandidate: false, speechDirection: c.brief.speechDirection, npcDemand: "없음", userRelation: c.brief.userRelation, marketFit: c.brief.marketFit },
+    bonds: { name: c.bible.identity.name, age: c.bible.identity.age, adultCandidate: false, rpHook: c.brief.rpHook, castList: [], userRelation: c.brief.userRelation },
+  };
+}
+
+describe("A1 GPT review: input reuse and unchanged retry/accounting", () => {
+  it("rebuilds read-only review from pre-image source and ignores an obsolete embedded canonReview", () => {
+    const filePath = `${process.cwd()}/src/lib/officialSupply/pilot/characters/pilot-rf-03.json`;
+    const source = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    delete source.appearance;
+    source.canonReview = { status: "STALE_EMBEDDED_EVIDENCE_SENTINEL" };
+    const original = fs.readFileSync;
+    const stub = mock.method(fs, "readFileSync", ((...args: Parameters<typeof fs.readFileSync>) => {
+      if (String(args[0]) === filePath) return JSON.stringify(source);
+      return original(...args);
+    }) as typeof fs.readFileSync);
+    try {
+      const report = review.buildOfficialCharacterReviewReport("pilot-rf-03");
+      assert.ok(report.includes("appearance lock not authored; narrative review only"));
+      assert.ok(report.includes("REQUIRES_GPT_REVIEW"));
+      assert.ok(!report.includes("STALE_EMBEDDED_EVIDENCE_SENTINEL"));
+    } finally { stub.mock.restore(); }
+  });
+
+  it("reduces all four fixture inputs without losing selected complete causal facts", async () => {
+    const initial = JSON.parse(fs.readFileSync("docs/pr-evidence/pr-official-quality-a1/input-metrics.json", "utf8"));
+    for (const c of loadRelationStartCandidates()) {
+      const calls: AuthorInput[] = [];
+      const authored = authoredFixture(c);
+      const transport: OfficialAuthorTransport = { label: "offline", async completeJson(input) { calls.push(input); return mockCompletion(authored); } };
+      const { bible } = await generateOfficialCharacterBible(generationInput(c, transport));
+      assert.equal(calls.length, 3);
+      const old = initial.rows.find((r: { fixture: string }) => r.fixture === c.key);
+      const now = calls.reduce((n, call) => n + estimateTokens(`${call.system}\n${call.user}`), 0);
+      assert.ok(now < old.estimatedInputTokensAfter, `${c.key}: ${now} < ${old.estimatedInputTokensAfter}`);
+      const facts = [
+        ...c.bible.backstory.events.flatMap(e => [e.event, e.choice, e.residue]),
+        ...c.bible.abilities.flatMap(a => [a.name, a.scope, a.limit, a.cost]),
+        ...c.bible.values.desires, ...c.bible.values.coreValues, ...c.bible.values.nonNegotiable,
+        c.bible.personality.behavioral, c.bible.contradiction, c.bible.situation.personalSituation, c.bible.situation.userEntry,
+      ].filter(Boolean);
+      for (const call of calls.slice(1)) for (const fact of facts) {
+        assert.ok(call.user.includes(fact) || call.user.includes(JSON.stringify(fact).slice(1, -1)), `${call.task}: lost ${fact}`);
+      }
+      assert.equal(bible.publicProfile.detailedDescription, authored.publicProfile.detailedDescription);
+      assert.equal(bible.publicProfile.creatorComment, authored.publicProfile.creatorComment);
+    }
+  });
+
+  it("omits public-only world/looks in targeted revisions while preserving untouched manuscripts", async () => {
+    for (const fields of [["speech"], ["tags"], ["greeting"]] as const) {
+      const c = structuredClone(loadRelationStartCandidates()[0]);
+      const current = authoredFixture(c);
+      current.appearance.eyeColor = "PUBLIC_LOOKS_ONLY_SENTINEL";
+      current.situation.worldContext = "PUBLIC_WORLD_ONLY_SENTINEL";
+      current.situation.userEntry = "OPENING_ENTRY_ONLY_SENTINEL";
+      const calls: AuthorInput[] = [];
+      const transport: OfficialAuthorTransport = { label: "offline-revision", async completeJson(input) { calls.push(input); return mockCompletion(current); } };
+      const { bible } = await reviseOfficialCharacterVoice({ transport, bible: current, voice: generationInput(c, transport).voice, fields, reasons: ["synthetic QA correction"] });
+      assert.equal(calls.length, 1);
+      assert.ok(!calls[0].user.includes("PUBLIC_LOOKS_ONLY_SENTINEL"));
+      assert.ok(!calls[0].user.includes("PUBLIC_WORLD_ONLY_SENTINEL"));
+      assert.equal(calls[0].user.includes("OPENING_ENTRY_ONLY_SENTINEL"), fields[0] === "greeting");
+      assert.equal(bible.publicProfile.detailedDescription, current.publicProfile.detailedDescription);
+      assert.equal(bible.publicProfile.creatorComment, current.publicProfile.creatorComment);
+      assert.deepEqual(bible.backstory, current.backstory);
+      assert.deepEqual(bible.rpEngine.selfDrive, current.rpEngine.selfDrive);
+    }
+  });
+
+  it("keeps complete long causal clauses and late facts instead of restoring a character cap", async () => {
+    const c = structuredClone(loadRelationStartCandidates()[0]);
+    c.bible.backstory.events[0].event += " 서로 다른 증언의 출처를 기록했다.".repeat(100);
+    c.bible.backstory.events[0].residue += " 인물은 진위를 모른다고 말했다.";
+    c.bible.appearance.eyes += " 오른쪽 눈은 다쳤으나 완전히 실명한 것은 아니다.";
+    const authored = authoredFixture(c);
+    const calls: AuthorInput[] = [];
+    await generateOfficialCharacterBible(generationInput(c, { label: "offline-long", async completeJson(input) { calls.push(input); return mockCompletion(authored); } }));
+    for (const call of calls.slice(1)) {
+      assert.ok(call.user.includes(c.bible.backstory.events[0].event));
+      assert.ok(call.user.includes(c.bible.backstory.events[0].residue));
+      assert.ok(call.user.includes(c.bible.situation.userEntry));
+    }
+    assert.ok(calls[1].user.includes(c.bible.appearance.eyes));
+  });
+
+  for (const defect of ["missing", "html", "malformed", "provider", "truncated"] as const) {
+    it(`audits the existing outer retry after ${defect} Voice: Part1 reruns, paid mock attempts count once`, async () => {
+      const c = loadRelationStartCandidates()[0];
+      const data = authoredFixture(c);
+      const report = createAuthorCostReport();
+      const budget = new OfficialAuthorCallBudget(OFFICIAL_CHARACTER_CALL_CAP);
+      const tasks: string[] = [];
+      let firstVoice = true;
+      const inner: OfficialAuthorTransport = { label: "offline-cost-audit", async completeJson(input) {
+        tasks.push(input.task);
+        if (input.task === "character_bible_voice" && firstVoice) {
+          firstVoice = false;
+          if (defect === "provider") throw new Error("synthetic provider failure without usage");
+          if (defect === "truncated") throw new OfficialAuthorTruncatedError(input.task, mockCompletion(data));
+          if (defect === "malformed") return mockCompletion("{not-json");
+          return mockCompletion({ ...data, publicProfile: { ...data.publicProfile, detailedDescription: defect === "missing" ? "" : `<p>${data.publicProfile.detailedDescription}</p>` } });
+        }
+        return mockCompletion(data);
+      } };
+      // Mirrors the audited pilot runWorkflowStep attempts; no product retry owner is added.
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        if (attempt > 1) recordWorkflowRetry(report);
+        const transport = withOfficialAuthorCallBudget(withAuthorAccounting(inner, report, { draftKey: c.key, workflowAttempt: attempt }), budget);
+        try { await generateOfficialCharacterBible(generationInput(c, transport)); break; }
+        catch (error) { if (attempt === 3) throw error; }
+      }
+      assert.deepEqual(tasks, ["character_bible_1", "character_bible_voice", "character_bible_1", "character_bible_voice", "character_bible_bonds"]);
+      assert.equal(report.physicalAttempts, 5);
+      assert.equal(report.workflowRetries, 1);
+      assert.equal(budget.used, 5);
+      assert.equal(report.failedProviderAttempts, ["provider", "truncated"].includes(defect) ? 1 : 0);
+      assert.equal(report.lines[1].costUsd, defect === "provider" ? null : 0.01);
+      assert.ok(Math.abs(report.billedCostUsd - (defect === "provider" ? 0.04 : 0.05)) < 1e-9);
+    });
+  }
+
+  it("three persistent manuscript failures consume six calls, no Bonds, and exhaust the unchanged opt-in cap", async () => {
+    const c = loadRelationStartCandidates()[0];
+    const data = authoredFixture(c);
+    data.publicProfile.creatorComment = "";
+    const report = createAuthorCostReport();
+    const budget = new OfficialAuthorCallBudget(OFFICIAL_CHARACTER_CALL_CAP);
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      if (attempt > 1) recordWorkflowRetry(report);
+      const inner: OfficialAuthorTransport = { label: "offline-persistent", async completeJson() { return mockCompletion(data); } };
+      const transport = withOfficialAuthorCallBudget(withAuthorAccounting(inner, report, { draftKey: c.key, workflowAttempt: attempt }), budget);
+      await assert.rejects(() => generateOfficialCharacterBible(generationInput(c, transport)), /author_public_manuscript_invalid/);
+    }
+    assert.equal(report.physicalAttempts, 6);
+    assert.equal(report.workflowRetries, 2);
+    assert.equal(report.lines.some(l => l.task === "character_bible_bonds"), false);
+    assert.equal(budget.used, 6);
+    assert.throws(() => budget.consume("character_bible_1"), /budget 6 exhausted/);
+  });
+});
 
 describe("A1 canon review evidence (synthetic mutations of existing fixture)", () => {
   before(() => installIsolatedTestDatabase());

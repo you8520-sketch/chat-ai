@@ -170,17 +170,23 @@ function labeledFact(label: string, ...parts: Array<string | undefined>): string
 }
 
 /** Public identifying looks: 3–5 labeled complete phrases from canonical fields. */
-export function publicAppearanceFacts(appearance: OfficialPublicIntroInput["appearance"]): string[] {
+export function publicAppearanceFacts(appearance: OfficialPublicIntroInput["appearance"], preserveSource = false): string[] {
+  const fact = preserveSource
+    ? (label: string, ...parts: Array<string | undefined>) => {
+        const body = parts.filter(nonEmpty).join(", ");
+        return body ? `${label}: ${body}` : "";
+      }
+    : labeledFact;
   const facts = [
-    labeledFact("머리", appearance.hairColor, appearance.hairstyle),
-    labeledFact("눈", appearance.eyeColor, appearance.eyes),
-    labeledFact("피부", appearance.skin),
-    labeledFact("체형", appearance.build),
-    labeledFact("특징", appearance.distinguishingFeatures),
-    labeledFact("복식", appearance.defaultOutfit),
+    fact("머리", appearance.hairColor, appearance.hairstyle),
+    fact("눈", appearance.eyeColor, appearance.eyes),
+    fact("피부", appearance.skin),
+    fact("체형", appearance.build),
+    fact("특징", appearance.distinguishingFeatures),
+    fact("복식", appearance.defaultOutfit),
   ].filter(nonEmpty);
-  if (facts.length < 3 && appearance.accessories) facts.push(labeledFact("소품", appearance.accessories));
-  if (facts.length < 3 && appearance.impression) facts.push(labeledFact("인상", appearance.impression));
+  if (facts.length < 3 && appearance.accessories) facts.push(fact("소품", appearance.accessories));
+  if (facts.length < 3 && appearance.impression) facts.push(fact("인상", appearance.impression));
   return facts.slice(0, 5);
 }
 

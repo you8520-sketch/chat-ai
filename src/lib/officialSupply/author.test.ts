@@ -1269,7 +1269,6 @@ describe("official author adapter", () => {
       assert.equal(voiceTemplate.nsfw, false);
       assert.equal(bondsTemplate.nsfw, false);
       assert.equal(bondsTemplate.adultSection, null);
-      assert.match(bondsUser, /adultSection은 null/);
     });
 
     it("the model's own nsfw output is never overwritten by the server", () => {
