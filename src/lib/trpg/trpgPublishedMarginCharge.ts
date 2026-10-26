@@ -1,3 +1,4 @@
+import { resolveRpOpenRouterModelId } from "@/lib/openRouterConfig";
 import { openRouterUsdCostFromRates, resolveTrpgGmOpenRouterModelRates } from "@/lib/openRouterModelPricing";
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import {
@@ -26,13 +27,14 @@ function resolveTrpgRateEstimateUsd(call: TrpgModelUsage): number {
   const rateOverride = isTrpgGmBillableModel(call.modelId)
     ? resolveTrpgGmOpenRouterModelRates(call.modelId)
     : undefined;
+  const wireModelId = resolveRpOpenRouterModelId(call.modelId);
   return openRouterUsdCostFromRates(
     {
       promptTokens: call.inputTokens,
       outputTokens: call.outputTokens,
       cacheReadTokens: call.cacheReadTokens,
       cacheWriteTokens: call.cacheWriteTokens,
-      modelId: call.modelId,
+      modelId: wireModelId,
     },
     rateOverride
   ).usdCost;

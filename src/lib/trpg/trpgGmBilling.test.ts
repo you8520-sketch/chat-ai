@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   GEMINI_38_FLASH_MODEL,
   GEMINI_4_ARGON_MODEL,
+  OPENROUTER_GEMINI_38_FLASH_MODEL,
   OPENROUTER_GEMINI_4_ARGON_MODEL,
 } from "@/lib/chatModels";
 import { computeOpenRouterTurnBilling } from "@/lib/points";
@@ -102,6 +103,51 @@ describe("TRPG published-margin billing", () => {
     const upstream = resolveTrpgCallUpstreamCostUsd(call).upstreamCostUsd;
     assert.equal(computeTrpgRoundPoints([call]), expectedPublishedPoints(upstream, call.modelId));
     assert.equal(getTargetMargin(GEMINI_38_FLASH_MODEL), 0.55);
+  });
+
+  it("estimates bot canonical and wire ids at the same OpenRouter 3.8 Flex fallback rates", () => {
+    for (const modelId of [GEMINI_38_FLASH_MODEL, OPENROUTER_GEMINI_38_FLASH_MODEL] as const) {
+      const call: TrpgModelUsage = { modelId, ...SAMPLE };
+      const upstream = resolveTrpgCallUpstreamCostUsd(call).upstreamCostUsd;
+      const flexDirect = openRouterUsdCostFromRates(
+        {
+          promptTokens: call.inputTokens,
+          outputTokens: call.outputTokens,
+          modelId: OPENROUTER_GEMINI_38_FLASH_MODEL,
+        },
+        resolveOpenRouterModelRates(OPENROUTER_GEMINI_38_FLASH_MODEL)
+      ).usdCost;
+      assert.equal(upstream, flexDirect);
+      const genericCanonical = openRouterUsdCostFromRates({
+        promptTokens: call.inputTokens,
+        outputTokens: call.outputTokens,
+        modelId: GEMINI_38_FLASH_MODEL,
+      }).usdCost;
+      assert.ok(
+        flexDirect > genericCanonical,
+        "billing must use 3.8 Flex fallback, not generic OpenRouter rates on canonical slug"
+      );
+    }
+  });
+
+  it("charges TRPG_BOT_USAGE_FALLBACK with 3.8 Flex estimate, not generic OpenRouter rates", () => {
+    const upstream = resolveTrpgCallUpstreamCostUsd(TRPG_BOT_USAGE_FALLBACK).upstreamCostUsd;
+    const flex = openRouterUsdCostFromRates(
+      {
+        promptTokens: TRPG_BOT_USAGE_FALLBACK.inputTokens,
+        outputTokens: TRPG_BOT_USAGE_FALLBACK.outputTokens,
+        modelId: OPENROUTER_GEMINI_38_FLASH_MODEL,
+      },
+      resolveOpenRouterModelRates(OPENROUTER_GEMINI_38_FLASH_MODEL)
+    ).usdCost;
+    assert.equal(upstream, flex);
+    assert.equal(
+      computeTrpgRoundPoints([TRPG_BOT_USAGE_FALLBACK]),
+      expectedPublishedPoints(upstream, TRPG_BOT_USAGE_FALLBACK.modelId)
+    );
+    const economics = resolveTrpgProviderCost([TRPG_BOT_USAGE_FALLBACK]);
+    assert.equal(economics.providerCostUsd, upstream);
+    assert.equal(economics.costSource, "estimated");
   });
 
   it("honors cache-read tokens in GM Flex estimates", () => {

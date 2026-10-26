@@ -310,7 +310,8 @@ describe("TRPG command dock", () => {
     assert.doesNotMatch(client, /DeepSeek V4 Pro/);
     assert.doesNotMatch(client, /Flash는 쓰지/);
     assert.doesNotMatch(client, /Gemini/);
-    assert.match(client, /trpgPublishedTargetMarginPercent/);
+    assert.match(client, /snap\.gmGrossMargin/);
+    assert.match(client, /snap\.botGrossMargin/);
   });
 
   it("collapses ACTION during narration and restores it when action input returns", () => {
