@@ -70,7 +70,10 @@ describe("TRPG production model routing (PR-A)", () => {
 
   it("resolveTrpgCheaperInferenceModel preserves configured models without DeepSeek fallback", () => {
     assert.equal(resolveTrpgCheaperInferenceModel(TRPG_BOT_MODEL), GEMINI_38_FLASH_MODEL);
-    assert.equal(resolveTrpgCheaperInferenceModel(TRPG_GM_MODEL), GEMINI_4_ARGON_MODEL);
+    assert.throws(
+      () => resolveTrpgCheaperInferenceModel(TRPG_GM_MODEL),
+      /unsupported Cheaper Inference model/
+    );
     assert.throws(
       () => resolveTrpgCheaperInferenceModel("unknown-model"),
       /unsupported Cheaper Inference model/

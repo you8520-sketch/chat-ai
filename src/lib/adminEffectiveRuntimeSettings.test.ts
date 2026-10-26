@@ -146,7 +146,7 @@ describe("effective runtime settings projection", () => {
       [gm!, TRPG_GM_MODEL, TRPG_GM_MAX_TOKENS, GM_MAX_PROVIDER_ATTEMPTS],
       [bot!, TRPG_BOT_MODEL, TRPG_BOT_MAX_TOKENS, BOT_MAX_PROVIDER_ATTEMPTS],
     ] as const) {
-      assert.equal(row.canonicalModelId, resolveTrpgCheaperInferenceModel(model));
+      assert.equal(row.canonicalModelId, model);
       assert.equal(row.transportProvider, "openrouter");
       assert.equal(row.endpointHost, new URL(OPENROUTER_CHAT_COMPLETIONS_URL).host);
       assert.equal(

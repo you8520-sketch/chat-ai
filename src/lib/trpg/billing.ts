@@ -4,7 +4,8 @@ import {
   resolveTrpgGmOpenRouterModelRates,
 } from "@/lib/openRouterModelPricing";
 import { computeOpenRouterTurnBilling } from "@/lib/points";
-import { DEFAULT_TRPG_BILLING_MODE, TRPG_GM_MODEL, type TrpgBillingMode } from "./types";
+import { DEFAULT_TRPG_BILLING_MODE, type TrpgBillingMode } from "./types";
+import { isTrpgGmBillableModel } from "./trpgGmModelIdentity";
 
 export type TrpgShare = { userId: number; points: number };
 
@@ -51,12 +52,11 @@ function trpgGmUpstreamUsdEstimate(call: TrpgModelUsage): number {
 
 function computeTrpgCallPoints(call: TrpgModelUsage): number {
   if (call.inputTokens <= 0 && call.outputTokens <= 0) return 0;
-  const upstreamCostUsd =
-    call.modelId === TRPG_GM_MODEL
-      ? call.upstreamCostUsd != null && call.upstreamCostUsd > 0
-        ? call.upstreamCostUsd
-        : trpgGmUpstreamUsdEstimate(call)
-      : call.upstreamCostUsd;
+  const upstreamCostUsd = isTrpgGmBillableModel(call.modelId)
+    ? call.upstreamCostUsd != null && call.upstreamCostUsd > 0
+      ? call.upstreamCostUsd
+      : trpgGmUpstreamUsdEstimate(call)
+    : call.upstreamCostUsd;
   const billed = computeOpenRouterTurnBilling({
     modelId: call.modelId,
     inputTokens: call.inputTokens,

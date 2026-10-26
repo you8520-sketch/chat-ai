@@ -179,7 +179,7 @@ describe("rp product quality baseline", () => {
     assert.equal(TRPG_GM_MODEL, GEMINI_4_ARGON_MODEL);
     assert.equal(TRPG_BOT_MODEL, GEMINI_38_FLASH_MODEL);
     assert.equal(isCheaperInferenceModel(GEMINI_38_FLASH_MODEL), true);
-    assert.equal(isCheaperInferenceModel(GEMINI_4_ARGON_MODEL), true);
+    assert.equal(isCheaperInferenceModel(GEMINI_4_ARGON_MODEL), false);
     const contract = buildQualityEvaluationContract();
     assert.deepEqual(
       [...contract.benchmarkModels].sort(),

@@ -2,8 +2,9 @@ import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
 import { openRouterUsdCostDetailed } from "@/lib/billingRawCost";
 import { convertUsdToKrw, resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import { openRouterUsdCostFromRates, resolveTrpgGmOpenRouterModelRates } from "@/lib/openRouterModelPricing";
-import { DEFAULT_TRPG_BILLING_MODE, TRPG_GM_MODEL, type TrpgBillingMode } from "./types";
+import { DEFAULT_TRPG_BILLING_MODE, type TrpgBillingMode } from "./types";
 import type { TrpgModelUsage } from "./billing";
+import { isTrpgGmBillableModel } from "./trpgGmModelIdentity";
 
 export type TrpgProviderCostSource = "actual" | "estimated";
 
@@ -60,8 +61,12 @@ export function parseProviderUsageCostUsd(usage: unknown): number | undefined {
 }
 
 function estimateCallUsd(call: TrpgModelUsage): number {
-  const gmFlexRates =
-    call.modelId === TRPG_GM_MODEL ? resolveTrpgGmOpenRouterModelRates(call.modelId) : undefined;
+  if (call.upstreamCostUsd != null && call.upstreamCostUsd > 0) {
+    return call.upstreamCostUsd;
+  }
+  const gmFlexRates = isTrpgGmBillableModel(call.modelId)
+    ? resolveTrpgGmOpenRouterModelRates(call.modelId)
+    : undefined;
   const fromRates =
     gmFlexRates != null
       ? openRouterUsdCostFromRates(

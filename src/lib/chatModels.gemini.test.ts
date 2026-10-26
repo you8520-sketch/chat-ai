@@ -169,7 +169,7 @@ describe("Gemini route-rate compatibility", () => {
     assert.equal(isGemini4ArgonModel(OPENROUTER_GEMINI_4_ARGON_MODEL), true);
     assert.equal(isGeminiChatOpenRouterModel(GEMINI_4_ARGON_MODEL), true);
     assert.equal(isGeminiFlashOpenRouterModel(GEMINI_4_ARGON_MODEL), false);
-    assert.equal(isCheaperInferenceModel(GEMINI_4_ARGON_MODEL), true);
+    assert.equal(isCheaperInferenceModel(GEMINI_4_ARGON_MODEL), false);
     assert.equal(
       resolveOpenRouterModelId(GEMINI_4_ARGON_MODEL),
       OPENROUTER_GEMINI_4_ARGON_MODEL

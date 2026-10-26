@@ -3,6 +3,7 @@
  * @see https://openrouter.ai/docs/guides/best-practices/prompt-caching
  * @see https://api-docs.deepseek.com/quick_start/pricing (DeepSeek V4 Pro cache hit)
  */
+import { isGemini4ArgonModel } from "@/lib/chatModels";
 import { resolveCheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing";
 
 export type OpenRouterCacheFamily = "anthropic" | "deepseek" | "google" | "openai" | "unknown";
@@ -279,8 +280,7 @@ const GEMINI_4_ARGON_FLEX_FALLBACK_RATES: OpenRouterModelRates = {
 
 /** Token fallback rates for TRPG GM (Flex). Main RP Gemini 4 billing keeps Standard fallback. */
 export function resolveTrpgGmOpenRouterModelRates(modelId?: string | null): OpenRouterModelRates {
-  const id = (modelId ?? "").trim().toLowerCase();
-  if (id === "google/gemini-4-argon" || id === "gemini-4-argon") {
+  if (isGemini4ArgonModel(modelId ?? "")) {
     return GEMINI_4_ARGON_FLEX_FALLBACK_RATES;
   }
   return resolveOpenRouterModelRates(modelId);
