@@ -9,8 +9,6 @@ on:
       - "src/lib/adultOffOutputClassifier.ts"
       - "src/lib/adultOffVisibleOutput.ts"
       - "src/lib/adultOffVisibleOutput.test.ts"
-      - "src/lib/adultOffBatchInspectionPrep.ts"
-      - "src/lib/adultOffBatchInspectionPrep.test.ts"
       - "src/lib/turnTailWork.ts"
       - "src/lib/suggestedReplies/job.ts"
       - "src/lib/statusMeta/job.ts"
@@ -50,7 +48,6 @@ jobs:
           src/lib/adultOffGuardEvidence.test.ts
           src/lib/adultOffGuardLiveCapture.test.ts
           src/lib/adultOffVisibleOutput.test.ts
-          src/lib/adultOffBatchInspectionPrep.test.ts
       - name: Shared code touched by the guard
         run: >-
           node --conditions=react-server --import tsx

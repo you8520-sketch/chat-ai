@@ -1,6 +1,5 @@
 {
   "extends": "./tsconfig.json",
-  "files": ["scripts/adult-off-batch-paid-run.ts"],
   "include": [
     "next-env.d.ts",
     "next.config.ts",
