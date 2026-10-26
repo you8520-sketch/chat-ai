@@ -200,6 +200,7 @@ describe("explicit historical noncanon recall from existing stored scopes", () =
     "예전에 외전으로 진행했던 공개 청혼이 있었는지 기억나는 기록만으로 답해줘. 기록이 없으면 없다고 해도 돼.",
     "예전에 외전으로 진행했던 공개 청혼이 있었는지 기억나는 기록만으로 답해줘 기록이 없으면 없다고 해도 돼",
     "예전에 외전으로 진행했던 공개 청혼이 있었는지 기억나는 기록만으로 답해줘, 기록이 없으면 없다고 해도 돼",
+    "예전에 외전으로 진행했던 공개 청혼이 있었는지 기억나는 기록만으로 답해줘. 기록이 없으면, 없다고 해도 돼.",
   ]) {
     it(`keeps an explicit recall when absence is permitted: ${user}`, async () => {
       const memory = await preview(user);
@@ -237,6 +238,7 @@ describe("explicit historical noncanon recall from existing stored scopes", () =
     "예전에 외전이 없으면 어떻게 될까?",
     "예전에 외전이 없으면 어떻게 될까? 기록이 없으면 없다고 해도 돼.",
     "예전에 외전이 없으면 어떻게 될까 기록이 없으면 없다고 해도 돼",
+    "예전에 외전이 없으면 어떻게 될까? 기록이 없으면, 없다고 해도 돼.",
   ]) {
     it(`keeps a leading what-if closed when absence is also permitted: ${user}`, async () => {
       const memory = await preview(user);

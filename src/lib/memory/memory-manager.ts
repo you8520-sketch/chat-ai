@@ -85,7 +85,10 @@ const ABSENCE_PERMISSION = /없다고\s*해도|없다고\s*해|없어도\s*돼|�
 
 /** Drop only the "없으면" that introduces an absent-record permission phrase. */
 function neutralizeAbsencePermissionCondition(query: string): string {
-  return query.replace(new RegExp(`없으면(?=\\s*(?:${ABSENCE_PERMISSION.source}))`, "g"), " ");
+  return query.replace(
+    new RegExp(`없으면(?=\\s*,?\\s*(?:${ABSENCE_PERMISSION.source}))`, "g"),
+    " "
+  );
 }
 
 function isHypotheticalSceneQuery(query: string): boolean {
