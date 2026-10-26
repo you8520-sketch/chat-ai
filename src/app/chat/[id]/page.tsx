@@ -347,6 +347,7 @@ export default async function ChatPage({
       variants,
       activeVariant,
       messageModel: m.model,
+      storedAlternates: m.alternates,
       statusWidgetValues: storedStatusWidgetValues,
       suggestedReplies: storedSuggested.suggestedReplies,
       suggestedRepliesProof: adultOffProofCarrier(suggestedRepliesRecord?.adultOffGuard),

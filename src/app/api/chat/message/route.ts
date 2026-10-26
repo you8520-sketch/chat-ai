@@ -145,6 +145,7 @@ export async function GET(req: Request) {
     variants,
     activeVariant,
     messageModel: row.model,
+    storedAlternates: row.alternates,
     statusWidgetValues: storedStatusWidgetValues,
     suggestedReplies: storedSuggested.suggestedReplies,
     suggestedRepliesProof: adultOffProofCarrier(suggestedRepliesRecord?.adultOffGuard),
@@ -240,9 +241,11 @@ export async function PATCH(req: Request) {
   if (isGreetingMessage(msg)) {
     const variant = editedMessageVariant({ content: text, model: "greeting", usage: null });
     const materialProseChange = isMaterialProseEdit(msg.content, text);
+    const alternatesJson = JSON.stringify([variant]);
     const invalidatedSuggestedReplyAssistantMessageIds = db.transaction(() => {
-      db.prepare("UPDATE messages SET content=?, alternates=NULL, active_variant=0 WHERE id=?").run(
+      db.prepare("UPDATE messages SET content=?, alternates=?, active_variant=0 WHERE id=?").run(
         text,
+        alternatesJson,
         id
       );
       return invalidateSuggestedRepliesForSourceEditCore(db, {

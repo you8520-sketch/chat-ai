@@ -53,12 +53,31 @@ describe("adult-off stored read", () => {
       applyGuard: true,
       rowContent: greeting,
       messageModel: "greeting",
+      storedAlternates: null,
       variants: [{ content: greeting, usage: null }],
       activeVariant: 0,
     });
     assert.equal(presented.content, greeting);
     assert.equal(presented.activeDisposition, "unreviewed");
     assert.equal(presented.withheld, false);
+  });
+
+  it("withholds user-edited greeting that stored alternates after PATCH", () => {
+    const edited = "사용자가 바꾼 인사말";
+    const alternates = JSON.stringify([
+      { content: edited, model: "greeting", usage: null, created_at: "" },
+    ]);
+    const presented = presentAdultOffStoredRead({
+      applyGuard: true,
+      rowContent: edited,
+      messageModel: "greeting",
+      storedAlternates: alternates,
+      variants: [{ content: edited, usage: null }],
+      activeVariant: 0,
+    });
+    assert.equal(presented.content, "");
+    assert.equal(presented.activeDisposition, "unreviewed");
+    assert.equal(presented.withheld, true);
   });
 
   it("still hides greeting body when a current-policy restricted hash is stored", () => {
@@ -74,6 +93,7 @@ describe("adult-off stored read", () => {
       applyGuard: true,
       rowContent: greeting,
       messageModel: "greeting",
+      storedAlternates: null,
       variants: [{ content: greeting, usage }],
       activeVariant: 0,
     });

@@ -389,17 +389,33 @@ export function adultOffStoredUsageApprovesText(usage: unknown, text: string): b
 }
 
 /**
- * Assistant 본문 표시 여부. `model=greeting`은 캐릭터/창작 검수 경로에서 이미 노출된
- * 고정 인사말이며 Luna 출력 가드 대상이 아니다. 제한 해시가 있으면 그대로 숨긴다.
+ * 채팅 생성 시 넣은 캐릭터 인사말 원본. 사용자 PATCH는 alternates JSON을 남긴다.
+ * (assistant 수동 편집과 같은 writer — Luna 승인 해시는 만들지 않는다.)
+ */
+export function greetingRowIsCharacterSuppliedCopy(
+  messageModel: string | null | undefined,
+  storedAlternates: string | null | undefined
+): boolean {
+  if (messageModel !== "greeting") return false;
+  const raw = storedAlternates?.trim() ?? "";
+  return raw === "" || raw === "[]";
+}
+
+/**
+ * Assistant 본문 표시 여부. Luna 출력 가드는 AI 생성 턴(SSE·저장 usage 증명)용이다.
+ * 검수된 캐릭터 인사말 원본(alternates 없음)만 read 면제. 제한 해시는 항상 숨긴다.
  */
 export function adultOffStoredAssistantBodyVisible(
   usage: unknown,
   text: string,
-  messageModel: string | null | undefined
+  messageModel: string | null | undefined,
+  storedAlternates?: string | null
 ): boolean {
   const disposition = adultOffStoredTextDisposition(usage, text);
   if (disposition === "restricted") return false;
-  if (messageModel === "greeting") return Boolean(text.trim());
+  if (greetingRowIsCharacterSuppliedCopy(messageModel, storedAlternates)) {
+    return Boolean(text.trim());
+  }
   return disposition === "approved";
 }
 
@@ -669,8 +685,10 @@ export function presentAdultOffStoredRead<
   suggestedReplies?: readonly { text?: string }[] | null;
   /** 보조 답장 레코드의 승인 증명. 본문 판정에는 쓰지 않는다. */
   suggestedRepliesProof?: unknown;
-  /** messages.model — greeting 본문은 출력 가드 면제(제한 해시는 유지). */
+  /** messages.model — greeting 원본(alternates 없음)만 read 면제. */
   messageModel?: string | null;
+  /** messages.alternates 원문 — normalize 전에 greeting 편집 여부 판별. */
+  storedAlternates?: string | null;
 }): AdultOffStoredReadPresentation<T, W> & { suggestedRepliesWithheld: boolean } {
   const suggestedReplies = input.suggestedReplies ? [...input.suggestedReplies] : [];
   if (!input.applyGuard) {
@@ -700,7 +718,8 @@ export function presentAdultOffStoredRead<
     const bodyVisible = adultOffStoredAssistantBodyVisible(
       variant.usage,
       stored,
-      input.messageModel
+      input.messageModel,
+      input.storedAlternates
     );
     const widgetTexts = collectStatusWidgetVisibleTexts(variant.statusWidgetValues);
     const widgetApproved =
@@ -720,7 +739,8 @@ export function presentAdultOffStoredRead<
   const bodyVisible = adultOffStoredAssistantBodyVisible(
     activeUsage,
     candidate,
-    input.messageModel
+    input.messageModel,
+    input.storedAlternates
   );
   const content = bodyVisible ? candidate : "";
   const messageWidgetTexts = collectStatusWidgetVisibleTexts(input.statusWidgetValues);

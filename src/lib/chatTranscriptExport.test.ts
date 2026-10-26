@@ -223,6 +223,22 @@ describe("chat transcript export", () => {
     assert.ok(!out.includes("미검수 assistant"));
   });
 
+  it("omits user-edited greeting from TXT export under the read guard", () => {
+    const db = makeDb();
+    const edited = "편집된 인사";
+    insert(db, {
+      chatId: 1,
+      role: "assistant",
+      content: edited,
+      model: "greeting",
+      alternates: [{ content: edited, model: "greeting", usage: null, created_at: "" }],
+      activeVariant: 0,
+    });
+    const out = exportAll(db, 1, { guard: true });
+    assert.ok(!out.includes(edited));
+    assert.ok(!out.includes(TRANSCRIPT_GREETING_HEADING));
+  });
+
   it("applies the adult-off read guard exactly like the chat screen", () => {
     const approved = "그는 가볍게 입을 맞추고 그녀를 안았다.";
     const unreviewed = "검수되지 않은 본문 SECRET";
