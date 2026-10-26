@@ -6,7 +6,8 @@
 | --- | --- |
 | 측정 main | `ba14f3d76441a13b1fa92c501abe2c66ca039209` |
 | 재사용한 P1 후보 | `433acb5c2263288adf0d1bbee2a73ad7fdc74300` `docs/official-supply/reviews/text-audit-p1/` |
-| 이 패키지의 추가 문장 | 볼프강 제작자 코멘트 「지금 상황」만 지정 중립문 |
+| 이 패키지의 추가 문장 | 볼프강: 서명·인장 중립 통일 + 핵심 보고 행동 원칙 + 제작자 코멘트 중립문 |
+| 볼프강 문장 diff 상세 | `WOLFGANG-R2-SENTENCE-FIXES.md` |
 
 문학적 점수는 없다. 아래 숫자는 현재 main owner를 격리 DB에서 다시 실행한 결과다. 토크나이저는 호출하지 않았다. 글자 수·UTF-8 바이트만 실측이다.
 
@@ -66,39 +67,34 @@ selfDrive goal/ownMove에 `당신` 없음. 코멘트는 세 갈래를 모두 허
 | secrets[1] | **원문 유지** | 보급 판단과 병력 명단 버릇의 연결을 삭제하지 않음 |
 | speech examples | 6줄. 분노는 날짜·서명·인계 시각. 당황은 용건으로 돌림. 친밀은 식사·난로. `내 얼굴을 봐`와 겹치는 탄약 대사 제외 | `angryStyle` / `hiddenEmotionStyle` / `intimateStyle`. 난로는 기존 인사말 |
 | behaviorRules 장갑·명단 | 삭제 | 성격·습관·비밀 #2에 버릇이 남음. 와이어 `장갑 잠금쇠` 2→1, `병력 명단` 4→3 |
-| tagline·greeting·세계·과거 사건·외형·description | 불변 | greeting 1411, tagline 37, description 1554, relationships 293 |
-| creator comment | 지정 문장으로 교체 | 아래 |
+| 서명·인장 표현 | personalSituation, immediateHook, greeting 서술, detailedDescription 「현재/도입」, selfDrive goal, pitch description | 전지적 진위 단정 → 「보이는 흔적」+ 주장. `WOLFGANG-R2-SENTENCE-FIXES.md` |
+| behaviorRules | `불안해도 핵심 보고는 미루지 않는다.` 1줄 추가 | 장갑·명단 중복 규칙은 재추가하지 않음 |
+| tagline·세계·과거·외형·대사 6줄·비밀 #2 | 불변 | greeting 1411→1444, tagline 37, description 1554→1601, relationships 293 |
+| creator comment | 지정 중립문 | 아래 |
 
 제작자 코멘트 「지금 상황」:
 
 `처형 명령서에는 볼프강의 서명과 인장으로 보이는 흔적이 남아 있지만, 그는 자신이 내린 명령이 아니라고 말합니다.`
 
-이 문장은 서명을 진품으로도 위조로도 단정하지 않고, 명령 주체를 정하지 않는다. 「그가 말했다」까지만 적는다. P1 r2 문장(`인장이 찍혀 있지만…`)은 이 패키지에서 이 문장으로 바뀌었고, 그 때문에 P1에 적힌 후보 해시 `06c8595f…`는 **폐기**한다.
-
-### 삭제되며 다른 필드에 없는 문장
-
-행동 규칙에서 빠진 `이를 감추려 말수를 줄이지만, 핵심 보고는 미루지 않는다`는 후보 바이블과 AFTER 와이어에 없다. 장갑·명단 버릇과 별개다. r2를 유지하면서 이 한 절은 정보로 남지 않는다. 복원 여부는 GPT 판단이며, 이 패키지는 그 절을 다시 넣지 않았다.
+이 문장은 서명을 진품으로도 위조로도 단정하지 않고, 명령 주체를 정하지 않는다. 「그가 말했다」까지만 적는다.
 
 ### Text Lock
 
 - BEFORE `e22ba966bdeab1babb331bdc916fe43a0e0d4e8adb3f5f2ba32f969c28ba2af2` (승인 핀과 동일)
-- AFTER `d60bda95100fc9219d6fee29e9743404d87209612fb4117d358d01c5801c238b`
+- AFTER `c5f89bea34af3c46a2a2904cc90ad6367975e34de7f8a17f389bbb005444fd76`
 
 ### RP 시스템 프롬프트
 
-- 글자 17566 → 17558. UTF-8 바이트 38117 → 38099. 토크나이저 없음.
-- 저장 system prompt 문자 5157 → 5154.
+- 글자 17566 → 17613. UTF-8 바이트 38117 → 38232. 토크나이저 없음.
+- 저장 system prompt 문자 5157 → 5186.
 - greeting·tagline·creator comment는 시스템 프롬프트에 없다.
 - diff: `DIFF-pilot-rf-02.system.diff`.
 
-### 공개 페이지에서 그대로인 상충
+### 서명·인장 표현 정합 (후보 기준)
 
-상세 소개 「현재 상황」은 후보에서도 `서명도 인장도 볼프강의 것이다. 정작 그는 명령을 내린 적이 없다.`
-「도입 상황」은 `인장이 찍혔으나 자신이 서명하지 않은`.
-인사말은 `정갈한 서명 아래 … 인영은 그의 것이었다. 하지만 그는 명령을 내린 적이 없었다.`
-태그라인은 인물의 주장(`내 인장이 있습니다. 서명한 적은 없습니다.`)으로 유지.
+공개 description·greeting·creatorComment·detailedDescription 「현재/도입」·`situation.personalSituation`·`immediateHook`은 모두 「보이는 흔적」과 볼프강의 부인(주장)을 구분한다. 태그라인·대사의 1인칭 주장은 유지.
 
-코멘트만 중립이다. 상세 소개·인사말의 상충은 이 후보가 고치지 않는다.
+후보 바이블에서 `서명도 인장도`, `인영은 그의 것`, `인장을 훔친`, `정작 그는 명령`, `위조된 지휘`(goal) → **0건** (`WOLFGANG-R2-SENTENCE-FIXES.md`).
 
 ### 게이트
 
@@ -108,9 +104,8 @@ selfDrive goal/ownMove에 `당신` 없음. 코멘트는 세 갈래를 모두 허
 
 1. 처형 명령서의 서명이 볼프강 자필인지, 위조인지.
 2. 인장이 그의 것인지, 도용인지.
-3. 실제 명령자가 누구인지. `인장을 훔친 자`는 현행 상세 소개에 가설로 남아 있고, 후보가 그 문장을 지우거나 확정하지 않는다.
+3. 실제 명령자가 누구인지. 후보는 출처·제작자를 확정하지 않는다.
 4. 비밀 #2 삭제 여부. 후보는 유지.
-5. 볼프강 행동 규칙의 `핵심 보고는 미루지 않는다`를 복구할지.
 
 루시안 후보는 이 결정과 분리되어 있다.
 
@@ -120,7 +115,7 @@ selfDrive goal/ownMove에 `당신` 없음. 코멘트는 세 갈래를 모두 허
 
 1. GPT가 이 패키지 원문(후보 바이블 + 공개 JSON + 와이어 diff)을 승인한다.
 2. 루시안: `pilot/characters/pilot-rf-03.json`의 bible을 후보로 교체. 기존 in-place **전체** sync가 저장된 description/greeting/tagline/creator comment/system prompt와 supply `text_lock_hash`를 새 해시로 맞춘다. `#50` official·public·승인, 이미지 14슬롯, 로어북, 채팅은 그 sync의 기존 보존 규칙에 맡긴다. 해시 불일치 시 기존 게이트가 거절한다.
-3. 볼프강: 영구 파일 `DATA_DIR/official-supply/approved/pilot-rf-02.source.json`과 `WOLFGANG_IN_PLACE_TARGET.approvedTextLockHash`를 **같은 변경**에서 새 해시 `d60bda95…`로 맞춘다. 핀만 바꾸거나 파일만 바꾸면 `assertWolfgangApprovedLocks`가 기동을 거절한다. 공급 키는 `pilot-rf-v4-02`, 캐릭터는 `#51`, `official=0` / `private` / `approved` 유지. 그 다음 기존 in-place 전체 sync.
+3. 볼프강: 영구 파일 `DATA_DIR/official-supply/approved/pilot-rf-02.source.json`과 `WOLFGANG_IN_PLACE_TARGET.approvedTextLockHash`를 **같은 변경**에서 새 해시 `c5f89bea…`로 맞춘다. 핀만 바꾸거나 파일만 바꾸면 `assertWolfgangApprovedLocks`가 기동을 거절한다. 공급 키는 `pilot-rf-v4-02`, 캐릭터는 `#51`, `official=0` / `private` / `approved` 유지. 그 다음 기존 in-place 전체 sync.
 4. 롤백: 이전 바이블 바이트와 이전 해시(`c3fda3e5…`, `e22ba966…`)로 같은 owner를 되돌린다. 이미지·로어북 행은 이 경로의 대상이 아니다.
 5. 반영 후 검증: 저장 원고 해시 = 새 Text Lock, 같은 입력으로 전체 sync를 다시 실행하면 no-op, 공개 페이지 tagline/greeting/comment가 이 패키지 AFTER와 일치, description의 볼프강 상충 문장은 승인 범위에 없으면 그대로인지 확인.
 
@@ -129,7 +124,8 @@ selfDrive goal/ownMove에 `당신` 없음. 코멘트는 세 갈래를 모두 허
 ## 파일
 
 - `candidates/pilot-rf-03.candidate.bible.json`
-- `candidates/pilot-rf-02.candidate.bible.json` (코멘트 중립문 반영)
+- `candidates/pilot-rf-02.candidate.bible.json` (서명·인장 통일 + 핵심 보고 규칙)
+- `WOLFGANG-R2-SENTENCE-FIXES.md`
 - `wire/*.before.public.json`, `wire/*.after.public.json` — 공개 페이지로 저장되는 네 필드
 - `wire/*.system.txt` — 동일 페르소나 `기록관`, 유저 메시지 `상황을 알려 줘.`, 완료 턴 0의 Main RP 시스템 프롬프트
 - `DIFF-pilot-rf-03.system.diff`, `DIFF-pilot-rf-02.system.diff`
