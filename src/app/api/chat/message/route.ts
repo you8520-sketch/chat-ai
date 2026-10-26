@@ -144,6 +144,7 @@ export async function GET(req: Request) {
     rowContent: row.content,
     variants,
     activeVariant,
+    messageModel: row.model,
     statusWidgetValues: storedStatusWidgetValues,
     suggestedReplies: storedSuggested.suggestedReplies,
     suggestedRepliesProof: adultOffProofCarrier(suggestedRepliesRecord?.adultOffGuard),

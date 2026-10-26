@@ -388,6 +388,21 @@ export function adultOffStoredUsageApprovesText(usage: unknown, text: string): b
   return adultOffStoredTextDisposition(usage, text) === "approved";
 }
 
+/**
+ * Assistant 본문 표시 여부. `model=greeting`은 캐릭터/창작 검수 경로에서 이미 노출된
+ * 고정 인사말이며 Luna 출력 가드 대상이 아니다. 제한 해시가 있으면 그대로 숨긴다.
+ */
+export function adultOffStoredAssistantBodyVisible(
+  usage: unknown,
+  text: string,
+  messageModel: string | null | undefined
+): boolean {
+  const disposition = adultOffStoredTextDisposition(usage, text);
+  if (disposition === "restricted") return false;
+  if (messageModel === "greeting") return Boolean(text.trim());
+  return disposition === "approved";
+}
+
 export type AdultOffDeliveryVariant = {
   content?: string;
   usage?: unknown;
@@ -654,6 +669,8 @@ export function presentAdultOffStoredRead<
   suggestedReplies?: readonly { text?: string }[] | null;
   /** 보조 답장 레코드의 승인 증명. 본문 판정에는 쓰지 않는다. */
   suggestedRepliesProof?: unknown;
+  /** messages.model — greeting 본문은 출력 가드 면제(제한 해시는 유지). */
+  messageModel?: string | null;
 }): AdultOffStoredReadPresentation<T, W> & { suggestedRepliesWithheld: boolean } {
   const suggestedReplies = input.suggestedReplies ? [...input.suggestedReplies] : [];
   if (!input.applyGuard) {
@@ -680,14 +697,18 @@ export function presentAdultOffStoredRead<
 
   const variants = input.variants.map((variant) => {
     const stored = typeof variant.content === "string" ? variant.content : "";
-    const disposition = adultOffStoredTextDisposition(variant.usage, stored);
+    const bodyVisible = adultOffStoredAssistantBodyVisible(
+      variant.usage,
+      stored,
+      input.messageModel
+    );
     const widgetTexts = collectStatusWidgetVisibleTexts(variant.statusWidgetValues);
     const widgetApproved =
       widgetTexts.length === 0 || adultOffTextsAreApproved(variant.usage, widgetTexts);
-    if (disposition === "approved" && widgetApproved) return variant;
+    if (bodyVisible && widgetApproved) return variant;
     return {
       ...variant,
-      content: disposition === "approved" ? stored : "",
+      content: bodyVisible ? stored : "",
       statusWidgetValues: widgetApproved ? variant.statusWidgetValues : null,
     };
   });
@@ -696,7 +717,12 @@ export function presentAdultOffStoredRead<
   const activeUsage = active?.usage;
   const candidate = activeStored.trim() ? activeStored : input.rowContent;
   const activeDisposition = adultOffStoredTextDisposition(activeUsage, candidate);
-  const content = activeDisposition === "approved" ? candidate : "";
+  const bodyVisible = adultOffStoredAssistantBodyVisible(
+    activeUsage,
+    candidate,
+    input.messageModel
+  );
+  const content = bodyVisible ? candidate : "";
   const messageWidgetTexts = collectStatusWidgetVisibleTexts(input.statusWidgetValues);
   const widgetApproved =
     messageWidgetTexts.length === 0 || adultOffTextsAreApproved(activeUsage, messageWidgetTexts);
@@ -713,7 +739,7 @@ export function presentAdultOffStoredRead<
     statusWidgetValues: widgetApproved ? (input.statusWidgetValues ?? null) : null,
     suggestedReplies: repliesApproved ? suggestedReplies : [],
     suggestedRepliesWithheld,
-    withheld: activeDisposition !== "approved" || !widgetApproved || !repliesApproved,
+    withheld: !bodyVisible || !widgetApproved || !repliesApproved,
   };
 }
 

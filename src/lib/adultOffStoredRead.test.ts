@@ -47,6 +47,41 @@ describe("adult-off stored read", () => {
     );
   });
 
+  it("shows creator greeting without Luna approval when the guard is on", () => {
+    const greeting = "창가에서 천천히 고개를 돌렸다.";
+    const presented = presentAdultOffStoredRead({
+      applyGuard: true,
+      rowContent: greeting,
+      messageModel: "greeting",
+      variants: [{ content: greeting, usage: null }],
+      activeVariant: 0,
+    });
+    assert.equal(presented.content, greeting);
+    assert.equal(presented.activeDisposition, "unreviewed");
+    assert.equal(presented.withheld, false);
+  });
+
+  it("still hides greeting body when a current-policy restricted hash is stored", () => {
+    const greeting = "제한된 인사말 본문";
+    const usage = {
+      adultOffGuard: {
+        policyVersion: ADULT_OFF_GUARD_POLICY_VERSION,
+        approvedTextHashes: [],
+        restrictedTextHashes: [adultOffApprovedTextHash(greeting)],
+      },
+    };
+    const presented = presentAdultOffStoredRead({
+      applyGuard: true,
+      rowContent: greeting,
+      messageModel: "greeting",
+      variants: [{ content: greeting, usage }],
+      activeVariant: 0,
+    });
+    assert.equal(presented.content, "");
+    assert.equal(presented.activeDisposition, "restricted");
+    assert.equal(presented.withheld, true);
+  });
+
   it("does not let an empty withheld variant fall back to row.content", () => {
     const presented = presentAdultOffStoredRead({
       applyGuard: true,
