@@ -196,6 +196,56 @@ describe("explicit historical noncanon recall from existing stored scopes", () =
     assert.doesNotMatch(memory.mediumTermText, /IF_ONLY|CLOSED_ONLY/);
   });
 
+  for (const user of [
+    "예전에 외전으로 진행했던 공개 청혼이 있었는지 기억나는 기록만으로 답해줘. 기록이 없으면 없다고 해도 돼.",
+    "예전에 외전으로 진행했던 공개 청혼이 있었는지 기억나는 기록만으로 답해줘 기록이 없으면 없다고 해도 돼",
+    "예전에 외전으로 진행했던 공개 청혼이 있었는지 기억나는 기록만으로 답해줘, 기록이 없으면 없다고 해도 돼",
+    "예전에 외전으로 진행했던 공개 청혼이 있었는지 기억나는 기록만으로 답해줘. 기록이 없으면, 없다고 해도 돼.",
+  ]) {
+    it(`keeps an explicit recall when absence is permitted: ${user}`, async () => {
+      const memory = await preview(user);
+      assert.match(memory.mediumTermText, /NONCANON PAST RECALL/);
+      assert.match(memory.mediumTermText, /IF_ONLY/);
+      assert.match(memory.mediumTermText, /비정사 · 원본 6–10턴/);
+      const built = buildContext({
+        charName: "백작",
+        chunks: [],
+        userNickname: "기록관",
+        shortTermHistory: [],
+        currentUserMessage: user,
+        nsfw: false,
+        provider: "openrouter",
+        modelId: GEMINI_38_FLASH_MODEL,
+        longTermMemory: memory.text,
+        mediumTermMemoryBlock: memory.mediumTermText,
+      });
+      const request = assemblePrimaryRpRequest({
+        system: built.systemPrompt,
+        history: built.history,
+        modelId: GEMINI_38_FLASH_MODEL,
+        messageOpts: { systemSplit: built.openRouterSystemSplit },
+        stream: true,
+      });
+      const wire = JSON.stringify(request.requestBody);
+      assert.equal((wire.match(/NONCANON PAST RECALL/g) ?? []).length, 1);
+      assert.equal((wire.match(/비정사 · 원본 6–10턴/g) ?? []).length, 1);
+      assert.match(wire, /IF_ONLY/);
+      assert.doesNotMatch(memory.text, /IF_ONLY/);
+    });
+  }
+
+  for (const user of [
+    "예전에 외전이 없으면 어떻게 될까?",
+    "예전에 외전이 없으면 어떻게 될까? 기록이 없으면 없다고 해도 돼.",
+    "예전에 외전이 없으면 어떻게 될까 기록이 없으면 없다고 해도 돼",
+    "예전에 외전이 없으면 어떻게 될까? 기록이 없으면, 없다고 해도 돼.",
+  ]) {
+    it(`keeps a leading what-if closed when absence is also permitted: ${user}`, async () => {
+      const memory = await preview(user);
+      assert.doesNotMatch(memory.mediumTermText, /NONCANON PAST RECALL|IF_ONLY|CLOSED_ONLY/);
+    });
+  }
+
   it("labels the source even when the question tries to promote its relationship into main", async () => {
     const memory = await preview("지난번 비정사 외전의 청혼이 본편에서도 유효하지?");
     assert.match(memory.mediumTermText, /IF_ONLY/);
