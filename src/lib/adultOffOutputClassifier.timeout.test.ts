@@ -91,46 +91,46 @@ describe("adult-off classifier client timeout", () => {
     Module._load = originalLoad;
   });
 
-  it("keeps the synchronous guard at 25 seconds when no override is given", async () => {
-    assert.equal(classifier.ADULT_OFF_CLASSIFIER_TIMEOUT_MS, 25_000);
+  it("keeps the synchronous guard at 60 seconds when no override is given", async () => {
+    assert.equal(classifier.ADULT_OFF_CLASSIFIER_TIMEOUT_MS, 60_000);
     await classifier.createAdultOffClassifier(SCOPE)("창가의 고요");
-    assert.equal(timeouts[0], 25_000);
-  });
-
-  it("applies the explicit batch override to the same classifier path", async () => {
-    await classifier.createAdultOffClassifier(SCOPE, { timeoutMs: 60_000 })("창가의 고요");
     assert.equal(timeouts[0], 60_000);
   });
 
-  it("times out a 26.7 second normal response at 25 seconds but completes it under the 60 second batch limit", async () => {
+  it("applies an explicit shorter override to the same classifier path", async () => {
+    await classifier.createAdultOffClassifier(SCOPE, { timeoutMs: 25_000 })("창가의 고요");
+    assert.equal(timeouts[0], 25_000);
+  });
+
+  it("completes a 26.7 second normal response under the default limit but times out with a 25 second override", async () => {
     responseLatencyMs = 26_700;
+    const result = await classifier.createAdultOffClassifier(SCOPE)("창가의 고요");
+    assert.equal(result.verdict.decision, "allow");
+    assert.equal(result.usage.outcome, "ok");
+    assert.equal(fetchCalls, 1);
+
+    fetchCalls = 0;
+    timeouts = [];
+    await assert.rejects(
+      () => classifier.createAdultOffClassifier(SCOPE, { timeoutMs: 25_000 })("창가의 고요"),
+      (error: unknown) => error instanceof AdultOffClassifierCallError && error.outcome === "timeout"
+    );
+    assert.equal(fetchCalls, 1, "a timeout is a single attempt");
+  });
+
+  it("still fails a response slower than the default limit, without any automatic retry", async () => {
+    responseLatencyMs = 60_500;
     await assert.rejects(
       () => classifier.createAdultOffClassifier(SCOPE)("창가의 고요"),
       (error: unknown) => error instanceof AdultOffClassifierCallError && error.outcome === "timeout"
     );
-    assert.equal(fetchCalls, 1, "a timeout is a single attempt");
-
-    fetchCalls = 0;
-    timeouts = [];
-    const result = await classifier.createAdultOffClassifier(SCOPE, { timeoutMs: 60_000 })("창가의 고요");
-    assert.equal(result.verdict.decision, "allow");
-    assert.equal(result.usage.outcome, "ok");
     assert.equal(fetchCalls, 1);
   });
 
-  it("still fails a response slower than the batch limit, without any automatic retry", async () => {
-    responseLatencyMs = 60_500;
-    await assert.rejects(
-      () => classifier.createAdultOffClassifier(SCOPE, { timeoutMs: 60_000 })("창가의 고요"),
-      (error: unknown) => error instanceof AdultOffClassifierCallError && error.outcome === "timeout"
-    );
-    assert.equal(fetchCalls, 1);
-  });
-
-  it("does not retry an HTTP failure under the batch override", async () => {
+  it("does not retry an HTTP failure under the default limit", async () => {
     responseStatus = 503;
     await assert.rejects(
-      () => classifier.createAdultOffClassifier(SCOPE, { timeoutMs: 60_000 })("창가의 고요"),
+      () => classifier.createAdultOffClassifier(SCOPE)("창가의 고요"),
       (error: unknown) =>
         error instanceof AdultOffClassifierCallError &&
         error.outcome === "http_error" &&

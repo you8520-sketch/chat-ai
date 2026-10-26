@@ -26,8 +26,8 @@ import {
  */
 export const ADULT_OFF_CLASSIFIER_MODEL = CHEAPER_INFERENCE_GPT_6_LUNA_MODEL;
 export const ADULT_OFF_CLASSIFIER_REQUEST_KIND = "adult-off-output-moderation";
-/** 사용자 응답을 막고 기다리는 동기 출력 검사의 기본 상한. 일괄 검사는 호출자가 더 긴 값을 명시해 넘긴다. */
-export const ADULT_OFF_CLASSIFIER_TIMEOUT_MS = 25_000;
+/** 사용자 응답을 막고 기다리는 동기 출력 검사의 기본 상한. CheaperInference Luna 라우팅 지연이 25초를 넘을 수 있다. */
+export const ADULT_OFF_CLASSIFIER_TIMEOUT_MS = 60_000;
 export const ADULT_OFF_CLASSIFIER_MAX_TOKENS = 200;
 
 /** 분류 호출이 속한 턴의 원장 식별자. 현재 턴의 generation scope 에서 그대로 가져온다. */
@@ -121,7 +121,7 @@ function toCallError(error: unknown, startedAt: number): AdultOffClassifierCallE
 }
 
 export type AdultOffClassifierOptions = {
-  /** 호출 하나의 클라이언트 타임아웃. 생략하면 동기 출력 검사 기본값(25초). */
+  /** 호출 하나의 클라이언트 타임아웃. 생략하면 동기 출력 검사 기본값(60초). */
   timeoutMs?: number;
 };
 
