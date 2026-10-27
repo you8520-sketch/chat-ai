@@ -15,6 +15,7 @@ import {
   type SyncActualCostCoverage,
 } from "@/lib/syncExtractActualCost";
 import type { ActualCostSource } from "@/lib/shadowPricing";
+import { mergeUsageReportingEvidence } from "@/lib/usageReportingEvidence";
 
 /** 상태창 추출 전용 — 공용 TokenUsage에 modelId/callCount를 넣지 않는다. */
 export type StatusWidgetExtractBillingMeta = {
@@ -153,6 +154,9 @@ export function mergeStatusWidgetExtractUsages(usages: TokenUsage[]): TokenUsage
   if (usages.length === 0) return null;
   let inputTokens = 0;
   let outputTokens = 0;
+  let reasoningOutputTokens = 0;
+  let hasReasoningOutputTokens = false;
+  let usageReportingEvidence: TokenUsage["usageReportingEvidence"];
   let estimated = false;
   let upstreamCostUsd = 0;
   let hasUpstream = false;
@@ -174,6 +178,15 @@ export function mergeStatusWidgetExtractUsages(usages: TokenUsage[]): TokenUsage
         : 1;
     inputTokens += nonNegativeFinite(u.inputTokens);
     outputTokens += nonNegativeFinite(u.outputTokens);
+    // Reasoning is a subset of completion usage, not an additional output charge.
+    if (u.reasoningOutputTokens != null) {
+      reasoningOutputTokens += nonNegativeFinite(u.reasoningOutputTokens);
+      hasReasoningOutputTokens = true;
+    }
+    usageReportingEvidence = mergeUsageReportingEvidence(
+      usageReportingEvidence,
+      u.usageReportingEvidence
+    );
     cacheReadTokens += nonNegativeFinite(u.cacheReadTokens);
     cacheWriteTokens += nonNegativeFinite(u.cacheWriteTokens);
     if (u.estimated) estimated = true;
@@ -205,6 +218,8 @@ export function mergeStatusWidgetExtractUsages(usages: TokenUsage[]): TokenUsage
     inputTokens,
     outputTokens,
     estimated,
+    ...(hasReasoningOutputTokens ? { reasoningOutputTokens } : {}),
+    ...(usageReportingEvidence ? { usageReportingEvidence } : {}),
     ...(hasApiReported ? { apiReportedInputTokens } : {}),
     ...(hasUpstream ? { upstreamCostUsd } : {}),
     ...(hasCiBilled ? { cheaperInferenceBilledCostUsd } : {}),

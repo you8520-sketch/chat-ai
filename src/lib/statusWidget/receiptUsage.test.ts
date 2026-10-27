@@ -77,6 +77,74 @@ describe("statusWidget receiptUsage", () => {
     assert.equal(merged?.syncExtractCiBilledCallCount, 1);
   });
 
+  it("preserves reasoning totals and reporting evidence across nested aggregates", () => {
+    const first = mergeStatusWidgetExtractUsages([
+      {
+        inputTokens: 100,
+        outputTokens: 50,
+        estimated: false,
+        reasoningOutputTokens: 30,
+        usageReportingEvidence: {
+          cacheRead: "reported_valid",
+          cacheWrite: "unreported",
+          reasoning: "reported_valid",
+        },
+      },
+      { inputTokens: 80, outputTokens: 40, estimated: false, reasoningOutputTokens: 20 },
+    ]);
+    assert.ok(first);
+    const merged = mergeStatusWidgetExtractUsages([
+      first,
+      {
+        inputTokens: 10,
+        outputTokens: 5,
+        estimated: false,
+        usageReportingEvidence: {
+          cacheRead: "unreported",
+          cacheWrite: "reported_valid",
+          reasoning: "reported_invalid",
+        },
+      },
+    ]);
+    assert.equal(merged?.outputTokens, 95);
+    assert.equal(merged?.reasoningOutputTokens, 50);
+    assert.equal(merged?.syncExtractPhysicalCallCount, 3);
+    assert.deepEqual(merged?.usageReportingEvidence, {
+      cacheRead: "reported_valid",
+      cacheWrite: "reported_valid",
+      reasoning: "reported_invalid",
+    });
+  });
+
+  it("does not infer reasoning from completion totals or invent reporting evidence", () => {
+    const merged = mergeStatusWidgetExtractUsages([
+      { inputTokens: 11049, outputTokens: 6279, estimated: false },
+    ]);
+    assert.equal(merged?.outputTokens, 6279);
+    assert.equal(merged?.reasoningOutputTokens, undefined);
+    assert.equal(merged?.usageReportingEvidence, undefined);
+    assert.equal(mergeStatusWidgetExtractUsages([]), null);
+  });
+
+  it("preserves explicitly reported zero reasoning without adding output tokens", () => {
+    const merged = mergeStatusWidgetExtractUsages([
+      {
+        inputTokens: 10,
+        outputTokens: 5,
+        estimated: false,
+        reasoningOutputTokens: 0,
+        usageReportingEvidence: {
+          cacheRead: "unreported",
+          cacheWrite: "unreported",
+          reasoning: "reported_valid",
+        },
+      },
+    ]);
+    assert.equal(merged?.outputTokens, 5);
+    assert.equal(merged?.reasoningOutputTokens, 0);
+    assert.equal(merged?.usageReportingEvidence?.reasoning, "reported_valid");
+  });
+
   it("mergeStatusWidgetExtractUsages sums CI billed across calls", () => {
     const merged = mergeStatusWidgetExtractUsages([
       { inputTokens: 100, outputTokens: 50, estimated: false, cheaperInferenceBilledCostUsd: 0.001 },
