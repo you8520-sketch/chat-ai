@@ -1,11 +1,5 @@
 import "server-only";
 
-import { CHEAPER_INFERENCE_GPT_6_LUNA_MODEL } from "@/lib/chatModels";
-import {
-  CompatibleCompletionError,
-  callOpenRouterCompletion,
-} from "@/lib/openRouterCompletion";
-import type { ProviderCostLedgerContext } from "@/lib/providerCostLedger";
 import {
   ADULT_OFF_CLASSIFIER_JSON_SCHEMA,
   ADULT_OFF_CLASSIFIER_SCHEMA_NAME,
@@ -19,16 +13,26 @@ import {
   type AdultOffClassifierResult,
   type AdultOffClassifierUsage,
 } from "@/lib/adultOffOutputGuard";
+import {
+  finalizeProviderCostAttempt,
+  startProviderCostAttempt,
+  type ProviderCostFinalizeInput,
+  type ProviderCostLedgerContext,
+  type ProviderCostPhysicalAttemptHandle,
+} from "@/lib/providerCostLedger";
 
 /**
  * 성인 OFF 출력 검사용 독립 분류 모델. Main RP 모델과 호출·컨텍스트를 공유하지 않는다.
  * 단일 시도다: 실패는 자동 재시도하지 않고 호출자가 미승인으로 처리한다.
+ * 전송은 공식 OpenAI Chat Completions 한 곳이다.
  */
-export const ADULT_OFF_CLASSIFIER_MODEL = CHEAPER_INFERENCE_GPT_6_LUNA_MODEL;
+export const ADULT_OFF_CLASSIFIER_MODEL = "gpt-6-luna";
+export const ADULT_OFF_CLASSIFIER_PROVIDER = "openai";
 export const ADULT_OFF_CLASSIFIER_REQUEST_KIND = "adult-off-output-moderation";
-/** 사용자 응답을 막고 기다리는 동기 출력 검사의 기본 상한. CheaperInference Luna 라우팅 지연이 25초를 넘을 수 있다. */
+/** 사용자 응답을 막고 기다리는 동기 출력 검사의 기본 상한. */
 export const ADULT_OFF_CLASSIFIER_TIMEOUT_MS = 60_000;
 export const ADULT_OFF_CLASSIFIER_MAX_TOKENS = 200;
+const OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
 
 /** 분류 호출이 속한 턴의 원장 식별자. 현재 턴의 generation scope 에서 그대로 가져온다. */
 export type AdultOffClassifierTurnScope = {
@@ -54,16 +58,52 @@ export function buildAdultOffClassifierLedgerContext(
     fundingClass: "platform_funded",
     executionPhase: "sync_post_turn",
     jobAttemptOrdinal: 1,
-    requestedProvider: "cheaperinference",
+    requestedProvider: ADULT_OFF_CLASSIFIER_PROVIDER,
     requestedModel: ADULT_OFF_CLASSIFIER_MODEL,
     requestKind: ADULT_OFF_CLASSIFIER_REQUEST_KIND,
     costCenter: "moderation",
   };
 }
 
+type OfficialChatUsage = {
+  prompt_tokens?: unknown;
+  completion_tokens?: unknown;
+  prompt_tokens_details?: { cached_tokens?: unknown; cache_write_tokens?: unknown };
+  completion_tokens_details?: { reasoning_tokens?: unknown };
+};
+
+type OfficialChatBody = {
+  id?: unknown;
+  choices?: Array<{ message?: { content?: unknown }; finish_reason?: unknown }>;
+  usage?: OfficialChatUsage;
+  billing?: { billed_cost_usd?: unknown };
+};
+
 function isTimeoutLike(error: unknown): boolean {
   const name = (error as { name?: unknown } | null)?.name;
   return name === "TimeoutError" || name === "AbortError";
+}
+
+function finiteToken(value: unknown): number | null {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return Math.trunc(parsed);
+}
+
+function headerRequestId(headers: Headers): string | null {
+  const raw = headers.get("x-request-id") ?? headers.get("openai-request-id");
+  const trimmed = raw?.trim();
+  return trimmed ? trimmed.slice(0, 120) : null;
+}
+
+/** Official billing only. A missing amount stays null; token prices are not a billed cost. */
+function officialBilledCostUsd(body: OfficialChatBody | null): number | null {
+  const raw = body?.billing?.billed_cost_usd;
+  if (typeof raw === "number" && Number.isFinite(raw) && raw >= 0) return raw;
+  if (typeof raw === "string" && raw.trim() && Number.isFinite(Number(raw)) && Number(raw) >= 0) {
+    return Number(raw);
+  }
+  return null;
 }
 
 function failureUsage(input: {
@@ -87,37 +127,42 @@ function failureUsage(input: {
   };
 }
 
-function toCallError(error: unknown, startedAt: number): AdultOffClassifierCallError {
-  if (error instanceof CompatibleCompletionError) {
-    const usage = error.usage;
-    const timedOut = isTimeoutLike(error.cause);
-    const outcome: Exclude<AdultOffClassifierCallOutcome, "ok"> = timedOut
-      ? "timeout"
-      : usage
-        ? "empty_completion"
-        : error.httpStatus != null && error.httpStatus >= 400
-          ? "http_error"
-          : "invalid_response_json";
-    return new AdultOffClassifierCallError(
-      error.message,
-      outcome,
-      failureUsage({
-        startedAt,
-        outcome,
-        httpStatus: error.httpStatus,
-        providerRequestId: error.providerRequestId,
-        inputTokens: usage?.inputTokens,
-        outputTokens: usage?.outputTokens,
-        costUsd: usage?.cheaperInferenceBilledCostUsd ?? usage?.upstreamCostUsd,
-      })
-    );
+function beginLedger(scope: AdultOffClassifierTurnScope): ProviderCostPhysicalAttemptHandle | null {
+  try {
+    const attempt = startProviderCostAttempt(buildAdultOffClassifierLedgerContext(scope));
+    return attempt.deduplicated ? null : attempt;
+  } catch (error) {
+    console.warn("[adult-off-classifier] ledger start skipped:", (error as Error).message);
+    return null;
   }
-  const outcome = isTimeoutLike(error) ? "timeout" : "transport_error";
-  return new AdultOffClassifierCallError(
-    (error as Error | undefined)?.message ?? String(error),
-    outcome,
-    failureUsage({ startedAt, outcome, httpStatus: null, providerRequestId: null })
-  );
+}
+
+function settleLedger(
+  attempt: ProviderCostPhysicalAttemptHandle | null,
+  input: ProviderCostFinalizeInput
+): void {
+  if (!attempt) return;
+  try {
+    finalizeProviderCostAttempt(attempt, input);
+  } catch (error) {
+    console.warn("[adult-off-classifier] ledger finalize skipped:", (error as Error).message);
+  }
+}
+
+function reportedTokens(usage: OfficialChatUsage | undefined): {
+  inputTokens: number | null;
+  outputTokens: number | null;
+  cacheReadTokens: number | null;
+  cacheWriteTokens: number | null;
+  reasoningTokens: number | null;
+} {
+  return {
+    inputTokens: finiteToken(usage?.prompt_tokens),
+    outputTokens: finiteToken(usage?.completion_tokens),
+    cacheReadTokens: finiteToken(usage?.prompt_tokens_details?.cached_tokens),
+    cacheWriteTokens: finiteToken(usage?.prompt_tokens_details?.cache_write_tokens),
+    reasoningTokens: finiteToken(usage?.completion_tokens_details?.reasoning_tokens),
+  };
 }
 
 export type AdultOffClassifierOptions = {
@@ -137,50 +182,203 @@ export function createAdultOffClassifier(
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
     throw new RangeError("adult-off classifier timeoutMs must be a finite positive number");
   }
-  const ledgerContext = buildAdultOffClassifierLedgerContext(scope);
   return async (windowText): Promise<AdultOffClassifierResult> => {
     const startedAt = Date.now();
-    let completion: Awaited<ReturnType<typeof callOpenRouterCompletion>>;
-    try {
-      completion = await callOpenRouterCompletion({
-        system: ADULT_OFF_CLASSIFIER_SYSTEM_PROMPT,
-        history: [{ role: "user", content: buildAdultOffClassifierUserMessage(windowText) }],
-        model: ADULT_OFF_CLASSIFIER_MODEL,
-        temperature: 0,
-        maxTokens: ADULT_OFF_CLASSIFIER_MAX_TOKENS,
-        disableReasoning: true,
-        requestKind: ADULT_OFF_CLASSIFIER_REQUEST_KIND,
-        timeoutMs,
-        ledgerContext,
-        responseFormat: {
-          type: "json_schema",
-          json_schema: {
-            name: ADULT_OFF_CLASSIFIER_SCHEMA_NAME,
-            strict: true,
-            schema: ADULT_OFF_CLASSIFIER_JSON_SCHEMA as unknown as Record<string, unknown>,
-          },
+    const attempt = beginLedger(scope);
+    const apiKey = process.env.OPENAI_API_KEY?.trim();
+    if (!apiKey) {
+      const outcome = "transport_error" as const;
+      settleLedger(attempt, {
+        actualProvider: ADULT_OFF_CLASSIFIER_PROVIDER,
+        actualModel: ADULT_OFF_CLASSIFIER_MODEL,
+        outcome: "failed_without_usage",
+      });
+      throw new AdultOffClassifierCallError(
+        "OPENAI_API_KEY is not configured",
+        outcome,
+        failureUsage({ startedAt, outcome, httpStatus: null, providerRequestId: null })
+      );
+    }
+
+    const body = {
+      model: ADULT_OFF_CLASSIFIER_MODEL,
+      temperature: 0,
+      max_completion_tokens: ADULT_OFF_CLASSIFIER_MAX_TOKENS,
+      reasoning_effort: "none",
+      messages: [
+        { role: "system", content: ADULT_OFF_CLASSIFIER_SYSTEM_PROMPT },
+        { role: "user", content: buildAdultOffClassifierUserMessage(windowText) },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: ADULT_OFF_CLASSIFIER_SCHEMA_NAME,
+          strict: true,
+          schema: ADULT_OFF_CLASSIFIER_JSON_SCHEMA,
         },
+      },
+    };
+
+    let response: Response;
+    try {
+      response = await fetch(OPENAI_CHAT_COMPLETIONS_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (error) {
-      throw toCallError(error, startedAt);
+      const outcome = isTimeoutLike(error) ? "timeout" : "transport_error";
+      settleLedger(attempt, {
+        actualProvider: ADULT_OFF_CLASSIFIER_PROVIDER,
+        actualModel: ADULT_OFF_CLASSIFIER_MODEL,
+        outcome: "failed_without_usage",
+      });
+      throw new AdultOffClassifierCallError(
+        (error as Error | undefined)?.message ?? String(error),
+        outcome,
+        failureUsage({ startedAt, outcome, httpStatus: null, providerRequestId: null })
+      );
     }
-    const usage = completion.usage;
-    const base = {
+
+    const requestId = headerRequestId(response.headers);
+    let raw: string;
+    try {
+      raw = await response.text();
+    } catch (error) {
+      const outcome: Exclude<AdultOffClassifierCallOutcome, "ok"> = isTimeoutLike(error)
+        ? "timeout"
+        : "transport_error";
+      settleLedger(attempt, {
+        actualProvider: ADULT_OFF_CLASSIFIER_PROVIDER,
+        actualModel: ADULT_OFF_CLASSIFIER_MODEL,
+        httpStatus: response.status,
+        providerRequestId: requestId,
+        outcome: "failed_without_usage",
+      });
+      throw new AdultOffClassifierCallError(
+        (error as Error | undefined)?.message ?? String(error),
+        outcome,
+        failureUsage({
+          startedAt,
+          outcome,
+          httpStatus: response.status,
+          providerRequestId: requestId,
+        })
+      );
+    }
+    let parsed: OfficialChatBody | null = null;
+    if (raw.trim()) {
+      try {
+        parsed = JSON.parse(raw) as OfficialChatBody;
+      } catch {
+        parsed = null;
+      }
+    }
+
+    if (!response.ok) {
+      settleLedger(attempt, {
+        actualProvider: ADULT_OFF_CLASSIFIER_PROVIDER,
+        actualModel: ADULT_OFF_CLASSIFIER_MODEL,
+        httpStatus: response.status,
+        providerRequestId: requestId,
+        outcome: "failed_without_usage",
+      });
+      throw new AdultOffClassifierCallError(
+        `OpenAI ${response.status}: ${raw.slice(0, 240)}`,
+        "http_error",
+        failureUsage({
+          startedAt,
+          outcome: "http_error",
+          httpStatus: response.status,
+          providerRequestId: requestId,
+        })
+      );
+    }
+
+    if (!parsed) {
+      settleLedger(attempt, {
+        actualProvider: ADULT_OFF_CLASSIFIER_PROVIDER,
+        actualModel: ADULT_OFF_CLASSIFIER_MODEL,
+        httpStatus: response.status,
+        providerRequestId: requestId,
+        outcome: "failed_without_usage",
+      });
+      throw new AdultOffClassifierCallError(
+        "OpenAI response body unreadable",
+        "invalid_response_json",
+        failureUsage({
+          startedAt,
+          outcome: "invalid_response_json",
+          httpStatus: response.status,
+          providerRequestId: requestId,
+        })
+      );
+    }
+
+    const tokens = reportedTokens(parsed.usage);
+    const billedCostUsd = officialBilledCostUsd(parsed);
+    const content = parsed.choices?.[0]?.message?.content;
+    const text = typeof content === "string" ? content.trim() : "";
+    const ledgerTokens = {
+      inputTokens: tokens.inputTokens ?? undefined,
+      outputTokens: tokens.outputTokens ?? undefined,
+      cacheReadTokens: tokens.cacheReadTokens ?? undefined,
+      cacheWriteTokens: tokens.cacheWriteTokens ?? undefined,
+      reasoningTokens: tokens.reasoningTokens ?? undefined,
+      upstreamCostUsd: billedCostUsd ?? undefined,
+      providerRequestId: requestId,
+      httpStatus: response.status,
+    };
+
+    if (!text) {
+      settleLedger(attempt, {
+        actualProvider: ADULT_OFF_CLASSIFIER_PROVIDER,
+        actualModel: ADULT_OFF_CLASSIFIER_MODEL,
+        ...ledgerTokens,
+        outcome: tokens.inputTokens == null ? "failed_without_usage" : "failed_with_usage",
+      });
+      throw new AdultOffClassifierCallError(
+        "OpenAI empty completion",
+        "empty_completion",
+        failureUsage({
+          startedAt,
+          outcome: "empty_completion",
+          httpStatus: response.status,
+          providerRequestId: requestId,
+          inputTokens: tokens.inputTokens,
+          outputTokens: tokens.outputTokens,
+          costUsd: billedCostUsd,
+        })
+      );
+    }
+
+    settleLedger(attempt, {
+      actualProvider: ADULT_OFF_CLASSIFIER_PROVIDER,
+      actualModel: ADULT_OFF_CLASSIFIER_MODEL,
+      ...ledgerTokens,
+      outcome: "success",
+    });
+
+    const usageBase = {
       model: ADULT_OFF_CLASSIFIER_MODEL,
-      inputTokens: usage.inputTokens ?? null,
-      outputTokens: usage.outputTokens ?? null,
-      costUsd: usage.cheaperInferenceBilledCostUsd ?? usage.upstreamCostUsd ?? null,
-      providerRequestId: usage.providerRequestId ?? null,
+      inputTokens: tokens.inputTokens,
+      outputTokens: tokens.outputTokens,
+      costUsd: billedCostUsd,
+      providerRequestId: requestId,
       latencyMs: Date.now() - startedAt,
       httpStatus: null,
     };
     try {
-      const verdict = parseAdultOffClassifierOutput(completion.text);
-      return { verdict, usage: { ...base, outcome: "ok" } };
+      const verdict = parseAdultOffClassifierOutput(text);
+      return { verdict, usage: { ...usageBase, outcome: "ok" } };
     } catch (error) {
       if (error instanceof AdultOffClassifierOutputError) {
         throw new AdultOffClassifierCallError(error.message, "invalid_output", {
-          ...base,
+          ...usageBase,
           outcome: "invalid_output",
         });
       }
