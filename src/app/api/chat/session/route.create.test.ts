@@ -46,7 +46,10 @@ function seed(): void {
 }
 
 describe("POST /api/chat/session explicit create", () => {
+  const previousNodeEnv = process.env.NODE_ENV;
+
   before(() => {
+    process.env.NODE_ENV = "development";
     installIsolatedTestDatabase();
     return Promise.all([
       import("@/lib/auth").then((auth) => {
@@ -65,6 +68,8 @@ describe("POST /api/chat/session explicit create", () => {
     global.__db?.close();
     global.__db = undefined;
     uninstallIsolatedTestDatabase();
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
     Module._load = originalLoad;
   });
 
