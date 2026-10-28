@@ -250,7 +250,7 @@ export type OfficialSharedWorldLibraryRow = {
 export function officialDraftUsesSharedWorld(
   draft: Pick<OfficialCharacterDraft, "promptStandard" | "sections">
 ): boolean {
-  return draft.promptStandard === "compact_rp_v1" || Boolean(draft.sections.currentSituation?.trim());
+  return draft.promptStandard === "compact_rp_v1" || draft.promptStandard === "compact_rp_v2" || Boolean(draft.sections.currentSituation?.trim());
 }
 
 export function findOfficialSharedWorldLibraryRow(

@@ -6,7 +6,6 @@ import { describe, it } from "node:test";
 import { parseCharacterFormBody, type SessionUser } from "@/lib/characterFormSave";
 import {
   OFFICIAL_AUTHOR_SNAPSHOT_VERSION,
-  OFFICIAL_AUTHOR_TEMPLATE_VERSION,
   stripPromptTierLabel,
   validatePilotAppearance,
   validatePilotAssetPlan,
@@ -142,7 +141,8 @@ describe("official pilot content (romance fantasy 01)", () => {
     assert.equal(m.slots, 10);
     assert.equal(m.adultCandidates, 4);
     assert.equal(m.genre, "로맨스 판타지");
-    assert.equal(m.templateVersion, OFFICIAL_AUTHOR_TEMPLATE_VERSION);
+    // This committed batch is historical; new author templates must not relabel its provenance.
+    assert.equal(m.templateVersion, "pilot-rf-01/v3");
     assert.equal(m.snapshotVersion, OFFICIAL_AUTHOR_SNAPSHOT_VERSION);
   });
 

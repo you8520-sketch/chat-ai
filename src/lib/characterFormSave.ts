@@ -1,5 +1,6 @@
 import { canUseCreatorTools } from "@/lib/adultVerification";
 import { getDb } from "@/lib/db";
+import { isAdminUser } from "@/lib/isAdminUser";
 import { canAdminManageOfficialCharacter, isOfficialAdminActor } from "@/lib/officialAdminAccess";
 import {
   normalizeOfficialDisplayCreatorName,
@@ -159,6 +160,7 @@ export type SessionUser = {
   is_adult: number;
   email?: string;
   is_admin?: number;
+  account_kind?: string | null;
 };
 
 export type CharacterFormSaveOptions = {
@@ -305,17 +307,26 @@ function representativePublishError(
 function finalizeAssetsForSave(
   assets: CharacterAsset[],
   rawAssets: unknown,
-  userId: number,
+  user: SessionUser,
   context: {
+    contentKind: ContentKind;
+    officialManaged?: boolean;
     nsfw: boolean;
     visibility: CharacterVisibility;
     characterId?: number | null;
   }
 ): { ok: true; assets: CharacterAsset[] } | { ok: false; error: string; status: 400 } {
+  if (assets.length === 0) {
+    // `user` comes from the authenticated session, never from the form body.
+    if (!context.officialManaged && context.contentKind === "character" && context.visibility === "private" && isAdminUser({ ...user, email: user.email ?? "" })) {
+      return { ok: true, assets: [] };
+    }
+    return { ok: false, error: "감정 에셋 이미지를 1장 이상 업로드해 주세요.", status: 400 };
+  }
   const rawList = Array.isArray(rawAssets) ? rawAssets : [];
   const selectionError = representativeSelectionError(rawList);
   if (selectionError) return { ok: false, error: selectionError, status: 400 };
-  const bound = bindTrustedCharacterMedia(assets, userId, {
+  const bound = bindTrustedCharacterMedia(assets, user.id, {
     nsfw: context.nsfw,
     characterId: context.characterId ?? null,
   });
@@ -437,6 +448,8 @@ export function parseCharacterFormBody(
   b: Record<string, unknown>,
   user: SessionUser,
   options?: {
+    /** Trusted editor mode, derived by the save owner; never read from the form body. */
+    officialManaged?: boolean;
     existingParticipantMinAge?: number | null;
     requireStructuredAge?: boolean;
     trustedStoredSimulationVisualSubjectsJson?: string;
@@ -759,12 +772,10 @@ export function parseCharacterFormBody(
     simulationVisualSubjectsJson = preparedVisual.json;
   }
 
-  if (assets.length === 0) {
-    return { ok: false, error: "감정 에셋 이미지를 1장 이상 업로드해 주세요.", status: 400 };
-  }
-
   const requestedVisibility = parseVisibility(b.visibility);
-  const finalized = finalizeAssetsForSave(assets, b.assets, user.id, {
+  const finalized = finalizeAssetsForSave(assets, b.assets, user, {
+    contentKind,
+    officialManaged: options?.officialManaged,
     nsfw,
     visibility: requestedVisibility,
     characterId: options?.characterId ?? null,
@@ -1288,6 +1299,7 @@ export async function updateCharacterFromForm(
   }
 
   const parsed = parseCharacterFormBody(b, user, {
+    officialManaged: row.official === 1 || officialAdmin,
     existingParticipantMinAge: row.participant_min_age,
     requireStructuredAge: false,
     trustedStoredSimulationVisualSubjectsJson: row.simulation_visual_subjects_json,
@@ -1620,10 +1632,6 @@ export async function updateCharacterPublicProfileFromForm(
   }
 
   let assets = parseAssetsFromFormBody(b.assets);
-  if (assets.length === 0) {
-    return { ok: false as const, error: "감정 에셋 이미지를 1장 이상 업로드해 주세요.", status: 400 };
-  }
-
   const contentKind = parseContentKind(row.content_kind);
   const submittedVisualField = extractVisualSubjectsFromBody(b);
   let visualSubjectsJson = row.simulation_visual_subjects_json;
@@ -1672,7 +1680,9 @@ export async function updateCharacterPublicProfileFromForm(
     legacyExplicitStatus: parseExplicitAdultStatus(row.adult_status),
   });
   const requestedVisibility = parseVisibility(b.visibility);
-  const finalized = finalizeAssetsForSave(assets, b.assets, user.id, {
+  const finalized = finalizeAssetsForSave(assets, b.assets, user, {
+    contentKind,
+    officialManaged: row.official === 1 || officialAdmin,
     nsfw,
     visibility: requestedVisibility,
     characterId,
