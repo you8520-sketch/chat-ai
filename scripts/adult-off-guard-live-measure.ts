@@ -191,6 +191,19 @@ type Estimate = {
 };
 
 async function main(): Promise<void> {
+  if (process.env.LIVE_MEASURE_SCENE === "p49b") {
+    const { runAdultOffP49bScene } = await import("./lib/adultOffP49bScene");
+    await runAdultOffP49bScene({
+      setSessionToken: (token) => {
+        sessionToken = token;
+      },
+      realFetch,
+      restoreModuleLoad: () => {
+        Module._load = originalLoad;
+      },
+    });
+    return;
+  }
   const startedIso = new Date().toISOString();
   installIsolatedTestDatabase();
   delete process.env.MOCK_MODE;
