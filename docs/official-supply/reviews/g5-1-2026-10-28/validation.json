@@ -1,5 +1,5 @@
 {
-  "gitSha": "84141567920715e5dc34d2332d088bfd2e13efd7",
+  "gitSha": "23317c30a96c3ea821b58c73fddb2fe2eebae564",
   "candidates": [
     {
       "key": "g5-modern-comedy",
@@ -68,6 +68,45 @@
       "voiceRepairs": 1,
       "userRelationType": "free",
       "textLock": "f357fd98b77c2397fedaf88b3abc40fc333ce011620c44f76ef5a27d53d4c373"
+    },
+    {
+      "key": "g5-modern-comedy-c",
+      "name": "최하늘 (영수증 부자)",
+      "genre": "현대/일상",
+      "direction": {
+        "genre": "현대/일상",
+        "tone": "light",
+        "humor": "central",
+        "pacing": "dialogue",
+        "nameWordplay": "nickname"
+      },
+      "briefGate": [
+        {
+          "source": "world_portfolio",
+          "errors": [
+            "name name_sibling_duplicate: 박수진 (양쪽말) / 박수진 (회의록 개그) share a given name"
+          ]
+        },
+        {
+          "source": "replacement",
+          "errors": []
+        }
+      ],
+      "bibleQaOk": true,
+      "tagQaOk": true,
+      "draftQaOk": false,
+      "relationQaOk": true,
+      "lorebookQaOk": true,
+      "bibleQa": [],
+      "tagQa": [],
+      "draftQa": [
+        "sfw_public_text_has_adult_terms: all-ages public text contains adult terms"
+      ],
+      "relationQa": [],
+      "lorebookQa": [],
+      "voiceRepairs": 1,
+      "userRelationType": "free",
+      "textLock": "e8f5fd658d8a198be684bd06af3295f6acaa33d109d61cdfbf3768656440b8db"
     }
   ],
   "runFailure": null
