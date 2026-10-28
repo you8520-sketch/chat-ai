@@ -194,9 +194,9 @@ async function play(provider: string, humanBody = "숨을 고르며 주변을 �
 describe("companion movement uses the same fact as the server", () => {
   it("prices 쇄도 and a body dash from 남쪽복도 through 경보실 toward 출구 (P3-5G R11)", async () => {
     const R11_BODY =
-      "강이현은 수증기에 시야가 흐려진 복도에서도 주저하지 않고 경보실 문턱으로 몸을 던지며 출구 쪽으로 쇄도했다.";
+      "이현은 쥐고 있던 접이식 석궁을 몸 안쪽으로 바짝 당겨 붙이며, 남쪽복도의 배관 엄폐물을 박차고 경보실 문턱으로 몸을 던졌다. 붉은 레이저가 빗겨나간 바닥의 기름막과 파편을 날렵하게 타고 넘어, 렌이 확보해 둔 출구 방향의 기둥 그늘을 향해 지체 없이 쇄도했다.";
     const R11_INTENT =
-      "강이현은 남쪽복도에서 경보실 문턱으로 진입한 뒤 출구 방향으로 쇄도해 현과 합류하려 했다.";
+      "강이현은 렌의 신호에 맞춰 남쪽복도에서 경보실로 이동한 뒤 사선 공백을 틈타 렌이 확보한 출구 방면 엄폐물로 합류하려 했다.";
     const provider = `${R11_BODY}\n\n<<<INTENT>>>\n${R11_INTENT}`;
     assert.deepEqual(evaluateAdventure(FACILITY_SPINE).issues, []);
     const db = memoryDb();
@@ -253,7 +253,6 @@ describe("companion movement uses the same fact as the server", () => {
     );
     assert.deepEqual(beforeFixExpectation, [
       { op: "move", roomId: "alarm_room" },
-      { op: "move", roomId: "exit" },
       { op: "move", roomId: "exit" },
     ]);
     assert.notEqual(locationOf(db, botId), "남쪽복도");

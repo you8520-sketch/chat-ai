@@ -28,6 +28,24 @@ describe("movement declaration — bot stay fallback", () => {
     );
     assert.deepEqual(declaredMovementGoals("주 통로로 돌을 던지고 돌아온다."), []);
     assert.deepEqual(declaredMovementGoals("주 통로로 돌을 던진 후 이동한다."), []);
+    for (const line of [
+      "돌을 출구로 던졌다.",
+      "시선을 경보실로 던졌다.",
+      "탄환을 출구로 날렸다.",
+      "출구로 돌을 던졌다.",
+    ]) {
+      assert.deepEqual(declaredMovementGoals(line), [], line);
+      assert.equal(parseMovementDeclaration(line).live, false, line);
+    }
+  });
+
+  it("reads campaign #44 R11 body motion without pricing propelled objects", () => {
+    const r11 =
+      "이현은 쥐고 있던 접이식 석궁을 몸 안쪽으로 바짝 당겨 붙이며, 남쪽복도의 배관 엄폐물을 박차고 경보실 문턱으로 몸을 던졌다. 붉은 레이저가 빗겨나간 바닥의 기름막과 파편을 날렵하게 타고 넘어, 렌이 확보해 둔 출구 방향의 기둥 그늘을 향해 지체 없이 쇄도했다.";
+    const goals = declaredMovementGoals(r11);
+    assert.ok(goals.some((goal) => goal.includes("경보실")));
+    assert.ok(goals.some((goal) => goal.includes("출구")));
+    assert.equal(parseMovementDeclaration(r11).live, true);
   });
 
   it("reads a follow into a named place and does not read a noun mention of moving", () => {
