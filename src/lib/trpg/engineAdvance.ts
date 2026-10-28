@@ -61,10 +61,8 @@ import {
   settleLedgerForCommit,
 } from "./campaignLedger";
 import {
-  logBotExplorationLockDiagnostic,
+  emitBotExplorationLockDiagnosticSafe,
   explorationRejectCode,
-  proseIntentMoveRoomIds,
-  resolveCanonicalFromRoomId,
   type BotExplorationLockOutcome,
 } from "./botExplorationLockDiagnostic";
 import {
@@ -1339,6 +1337,7 @@ async function generateBotActions(
     let lockOutcome: BotExplorationLockOutcome = "original-locked";
     let fallbackBranch = "no-declared-moves";
     let firstRejectCode: string | null = null;
+    let retryRejectCode: string | null = null;
     let legalRoomIds: string[] = [];
     if (declared.length > 0) {
       try {
@@ -1407,6 +1406,7 @@ async function generateBotActions(
           } catch (retryError) {
             if (!explorationMoveWasRejected(retryError)) throw retryError;
             fallbackBranch = "retry-throw";
+            retryRejectCode = explorationRejectCode(retryError);
             lockOutcome = "stay-fallback";
             spoken = stayWatchingInPlace(bot.display_name);
             upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
@@ -1430,19 +1430,17 @@ async function generateBotActions(
       upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model");
     }
     if (latestMap) {
-      const { proseMoveRoomIds, intentMoveRoomIds } = proseIntentMoveRoomIds(latestMap.map, text);
-      logBotExplorationLockDiagnostic({
+      emitBotExplorationLockDiagnosticSafe(latestMap.map, text, {
         campaignId: opts.campaign.id,
         roundId: opts.roundId,
         participantId: bot.id,
-        fromRoomId: resolveCanonicalFromRoomId(latestMap.map, self?.location ?? ""),
-        declaredRoomIds,
-        proseMoveRoomIds,
-        intentMoveRoomIds,
+        fromLocationLabel: self?.location ?? "",
+        declaredRoomIdsRaw: declaredRoomIds,
+        legalRoomIdsRaw: legalRoomIds,
         firstRejectCode,
-        legalRoomIds,
         fallbackBranch,
         outcome: lockOutcome,
+        retryRejectCode,
       });
     }
     adjudicateSubmissionForParticipant(db, {

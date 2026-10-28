@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it, mock } from "node:test";
 import Database from "better-sqlite3";
 import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet, writeSheet } from "./engineCreate";
 import { advanceTrpgCampaign, startTrpgCampaign, submitTrpgAction, type TrpgEngineDeps } from "./engineAdvance";
@@ -17,7 +17,11 @@ import { ensureTrpgTables } from "./schema";
 import { insertScenarioTemplate } from "./scenarioTemplates";
 import { insertParticipant } from "./store";
 import { TRPG_ACTION_MAX_CHARS } from "./types";
-import type { BotExplorationLockDiagnostic } from "./botExplorationLockDiagnostic";
+import {
+  BOT_EXPLORATION_LOG_UNKNOWN_ROOM,
+  botExplorationProseIntentAudit,
+  type BotExplorationLockDiagnostic,
+} from "./botExplorationLockDiagnostic";
 
 const PLAN = {
   startingSituation: "닫힌 시설의 현관에 도착한다",
@@ -146,6 +150,8 @@ describe("bot exploration stay fallback", () => {
     assert.equal(lockLog.fallbackBranch, "full-lock");
     assert.deepEqual(lockLog.declaredRoomIds, [fork]);
     assert.equal(lockLog.firstRejectCode, null);
+    assert.equal(lockLog.retryRejectCode, null);
+    assert.equal(lockLog.diagnosticFailureCode, null);
     assert.equal(locationOf(db, botId), fork);
     assert.equal(locationOf(db, hostId), EXPLORATION_ENTRANCE);
     assert.match(lockedBody(db, botId), new RegExp(`${fork}.+이동한다`));
@@ -167,6 +173,8 @@ describe("bot exploration stay fallback", () => {
     assert.equal(lockLog.fallbackBranch, "priced-empty");
     assert.deepEqual(lockLog.legalRoomIds, []);
     assert.equal(lockLog.firstRejectCode, "disconnected");
+    assert.equal(lockLog.retryRejectCode, null);
+    assert.equal(lockLog.diagnosticFailureCode, null);
     assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
     assert.equal(locationOf(db, hostId), EXPLORATION_ENTRANCE);
     assert.equal(lockedBody(db, botId), "서하은 제자리에 서서 상황을 살핀다.");
@@ -386,6 +394,65 @@ describe("bot exploration stay fallback", () => {
     assert.equal(locationOf(db, botId), "남쪽복도");
     assert.equal(lockedBody(db, botId), "서하은 제자리에 서서 상황을 살핀다.");
     assert.equal(loadExplorationState(db, campaignId)?.apRemaining[String(botId)], undefined);
+    db.close();
+  });
+
+  it("redacts unknown destination strings from lock diagnostics", async () => {
+    const db = memoryDb();
+    const secretPlace = "비공식비밀기지";
+    let botLine = `${secretPlace}로 이동한다.`;
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    const diag = captureLockDiagnostics();
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    diag.restore();
+    const lockLog = diag.logs.at(-1);
+    assert.ok(lockLog);
+    assert.deepEqual(lockLog.declaredRoomIds, [BOT_EXPLORATION_LOG_UNKNOWN_ROOM]);
+    assert.equal(JSON.stringify(lockLog).includes(secretPlace), false);
+    assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
+    assert.equal(lockedBody(db, botId), "서하은 제자리에 서서 상황을 살핀다.");
+    db.close();
+  });
+
+  it("keeps round outcomes when prose/intent audit throws", async () => {
+    const db = memoryDb();
+    let botLine = "출구로 이동한다.";
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    const audit = mock.method(botExplorationProseIntentAudit, "readMoveRoomIds", () => {
+      throw new Error("audit failed");
+    });
+    const diag = captureLockDiagnostics();
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    diag.restore();
+    audit.mock.restore();
+    const lockLog = diag.logs.at(-1);
+    assert.ok(lockLog);
+    assert.equal(lockLog.diagnosticFailureCode, "audit_parse_failed");
+    assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
+    assert.equal(lockedBody(db, botId), "서하은 제자리에 서서 상황을 살핀다.");
+    assert.equal(latestRound(db, campaignId).phase, "ACTION_INPUT");
+    db.close();
+  });
+
+  it("keeps round outcomes when lock diagnostic logging throws", async () => {
+    const db = memoryDb();
+    let botLine = "출구로 이동한다.";
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    const originalInfo = console.info;
+    console.info = (label: unknown, payload?: unknown) => {
+      if (label === "[trpg-bot-exploration-lock]") {
+        throw new Error("log sink failed");
+      }
+      originalInfo.call(console, label, payload);
+    };
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    console.info = originalInfo;
+    assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
+    assert.equal(lockedBody(db, botId), "서하은 제자리에 서서 상황을 살핀다.");
+    assert.equal(latestRound(db, campaignId).phase, "ACTION_INPUT");
     db.close();
   });
 
