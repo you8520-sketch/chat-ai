@@ -61,6 +61,11 @@ import {
   settleLedgerForCommit,
 } from "./campaignLedger";
 import {
+  emitBotExplorationLockDiagnosticSafe,
+  explorationRejectCode,
+  type BotExplorationLockOutcome,
+} from "./botExplorationLockDiagnostic";
+import {
   composeExplorationSentences,
   displayExplorationAp,
   explorationCommandsFromMovementBody,
@@ -72,6 +77,7 @@ import {
   roomNameAfterCommands,
   splitV2ExplorationMethod,
 } from "./explorationMap";
+import type { ExplorationCommand } from "./explorationPublic";
 import {
   declaredMovementGoals,
   describeMovementGoal,
@@ -1326,7 +1332,13 @@ async function generateBotActions(
     );
     const latestMap = loadExplorationState(db, opts.campaign.id);
     const declared = latestMap ? explorationCommandsFromMovementBody(latestMap.map, body) : [];
+    const declaredRoomIds = moveCommandRoomIds(declared);
     let spoken = body;
+    let lockOutcome: BotExplorationLockOutcome = "original-locked";
+    let fallbackBranch = "no-declared-moves";
+    let firstRejectCode: string | null = null;
+    let retryRejectCode: string | null = null;
+    let legalRoomIds: string[] = [];
     if (declared.length > 0) {
       try {
         spoken = db.transaction(() => {
@@ -1342,8 +1354,12 @@ async function generateBotActions(
           saveExplorationState(db, opts.campaign.id, prepared.state);
           return prepared.body;
         })();
+        lockOutcome = "move-locked";
+        fallbackBranch = "full-lock";
+        legalRoomIds = declaredRoomIds;
       } catch (error) {
         if (!explorationMoveWasRejected(error)) throw error;
+        firstRejectCode = explorationRejectCode(error);
         const fromRoomId = self?.location ?? "";
         const priced = latestMap
           ? legalExplorationCommands({
@@ -1353,6 +1369,7 @@ async function generateBotActions(
               apRemaining: displayExplorationAp(latestMap, bot.id, roundNumber),
             })
           : [];
+        legalRoomIds = moveCommandRoomIds(priced);
         const remainder = independentBotRemainder({
           body,
           here: latestMap ? roomNameAfterCommands(latestMap.map, fromRoomId, priced) : fromRoomId,
@@ -1368,6 +1385,7 @@ async function generateBotActions(
         const retryFreeText =
           usableRemainder && Array.from(combined).length <= TRPG_ACTION_MAX_CHARS ? usableRemainder : "";
         if (priced.length > 0) {
+          fallbackBranch = "partial-retry";
           try {
             spoken = db.transaction(() => {
               const prepared = prepareLockedExploration(db, {
@@ -1384,8 +1402,12 @@ async function generateBotActions(
               saveExplorationState(db, opts.campaign.id, prepared.state);
               return prepared.body;
             })();
+            lockOutcome = "move-locked";
           } catch (retryError) {
             if (!explorationMoveWasRejected(retryError)) throw retryError;
+            fallbackBranch = "retry-throw";
+            retryRejectCode = explorationRejectCode(retryError);
+            lockOutcome = "stay-fallback";
             spoken = stayWatchingInPlace(bot.display_name);
             upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
           }
@@ -1393,15 +1415,33 @@ async function generateBotActions(
           usableRemainder &&
           (!latestMap || explorationCommandsFromMovementBody(latestMap.map, usableRemainder).length === 0)
         ) {
+          fallbackBranch = "priced-empty-remainder";
+          lockOutcome = "original-locked";
           spoken = usableRemainder;
           upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model");
         } else {
+          fallbackBranch = "priced-empty";
+          lockOutcome = "stay-fallback";
           spoken = stayWatchingInPlace(bot.display_name);
           upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
         }
       }
     } else {
       upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model");
+    }
+    if (latestMap) {
+      emitBotExplorationLockDiagnosticSafe(latestMap.map, text, {
+        campaignId: opts.campaign.id,
+        roundId: opts.roundId,
+        participantId: bot.id,
+        fromLocationLabel: self?.location ?? "",
+        declaredRoomIdsRaw: declaredRoomIds,
+        legalRoomIdsRaw: legalRoomIds,
+        firstRejectCode,
+        fallbackBranch,
+        outcome: lockOutcome,
+        retryRejectCode,
+      });
     }
     adjudicateSubmissionForParticipant(db, {
       campaignId: opts.campaign.id,
@@ -1850,6 +1890,10 @@ function observeThreatShadow(build: () => string | null): void {
   } catch (error) {
     console.warn("[trpg-threat-shadow] evaluation_failed", error instanceof Error ? error.message : error);
   }
+}
+
+function moveCommandRoomIds(commands: readonly ExplorationCommand[]): string[] {
+  return commands.filter((command) => command.op === "move").map((command) => command.roomId);
 }
 
 function explorationMoveWasRejected(error: unknown): boolean {
