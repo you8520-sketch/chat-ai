@@ -8,25 +8,32 @@
  * summary prompt must exclude, so the reference is silently dropped.
  *
  * Design: inside the existing rolling-summary owner, run ONE small structured
- * extraction over the batch's opening region (first turn USER + the leading
- * ASSISTANT paragraphs) and prepend a single bounded timeline line to the
- * summary body. Prepending to `summary` keeps every downstream consumer
- * (Recent Narrative / Stored History / Global rebuild / Global compact /
- * manual Global) consistent without a second metadata channel.
+ * extraction over the candidate turn regions in the batch and prepend a single
+ * bounded timeline line to the summary body. Prepending to `summary` keeps
+ * every downstream consumer (Recent Narrative / Stored History / Global rebuild /
+ * Global compact / manual Global) consistent without a second metadata channel.
  *
  * Guards:
  * - No new table, no new memory system, no work-specific patterns.
- * - Anchors are grounded in a verbatim ASSISTANT quote, never in OOC text.
- * - New-episode starts and event cancellations are NOT anchors.
+ * - One provider call per batch. At most two candidate turns share that call.
+ * - label must be supported by its ASSISTANT quote. resumePoint must be
+ *   supported by performed ASSISTANT narration outside that quote.
+ * - Unrealized USER OOC, recollection mistaken for a return, and cancellation
+ *   mistaken for past-ification are rejected, never repaired.
+ * - The existing summary body is never shortened to make room for the line.
  * - Extraction failure/empty output = today's behaviour, byte-identical.
  */
 
-import { messageHasOocMarkers } from "@/lib/chatOocPriority";
-import { clampMemoryRecordSummary } from "./memory-summary-clamp";
+import { detectOocSceneReset } from "@/lib/chatOocPriority";
+import { classifyMemoryTurnScope } from "./memory-summary-scope";
 
 export const TIMELINE_ANCHOR_REQUEST_KIND = "background-memory-timeline-anchor";
 export const TIMELINE_ANCHOR_LINE_MAX_CHARS = 120;
 export const TIMELINE_ANCHOR_MAX_ITEMS = 2;
+/** One structured call per batch, shared by every candidate turn. */
+export const TIMELINE_ANCHOR_MAX_CALLS = 1;
+/** Candidate turns packed into that single call. Later turns wait for another batch. */
+export const TIMELINE_ANCHOR_MAX_CANDIDATE_TURNS = 2;
 
 /** Leading-region budgets. The goal is a framing decision, not a re-summary. */
 const OPENING_USER_MAX_CHARS = 900;
@@ -55,10 +62,11 @@ export type BatchOpeningRegion = {
   paragraphs: number;
 };
 
-/** First `[N턴]\n유저: ...\n<speaker>: ...` block of the formatted batch. */
-export function extractBatchOpeningRegion(dialogue: string): BatchOpeningRegion | null {
-  const block = (dialogue ?? "").split(/\n\n(?=\[\d+턴\]\n유저: )/)[0] ?? "";
-  const match = block.match(/^\s*\[\d+턴\]\s*\n유저:\s*([\s\S]*?)\n[^:\n]+:\s*([\s\S]*)$/);
+const TURN_BLOCK_SPLIT = /\n\n(?=\[\d+턴\]\n유저: )/;
+const TURN_BLOCK_PARSE = /^\s*\[\d+턴\]\s*\n유저:\s*([\s\S]*?)\n[^:\n]+:\s*([\s\S]*)$/;
+
+function regionFromTurnBlock(block: string): BatchOpeningRegion | null {
+  const match = block.match(TURN_BLOCK_PARSE);
   if (!match) return null;
   const userText = (match[1] ?? "").trim().slice(0, OPENING_USER_MAX_CHARS);
   const assistantFull = (match[2] ?? "").trim();
@@ -77,28 +85,68 @@ export function extractBatchOpeningRegion(dialogue: string): BatchOpeningRegion 
   return { userText, assistantText, paragraphs: paragraphs.length };
 }
 
+/** First `[N턴]\n유저: ...\n<speaker>: ...` block of the formatted batch. */
+export function extractBatchOpeningRegion(dialogue: string): BatchOpeningRegion | null {
+  const block = (dialogue ?? "").split(TURN_BLOCK_SPLIT)[0] ?? "";
+  return regionFromTurnBlock(block);
+}
+
+/**
+ * Candidate turns anywhere in the formatted batch, in order, capped at
+ * {@link TIMELINE_ANCHOR_MAX_CANDIDATE_TURNS} and the original opening budget.
+ */
+export function selectTimelineAnchorRegions(dialogue: string): BatchOpeningRegion[] {
+  const selected: BatchOpeningRegion[] = [];
+  let chars = 0;
+  const budget = OPENING_USER_MAX_CHARS + OPENING_ASSISTANT_MAX_CHARS;
+  for (const block of (dialogue ?? "").split(TURN_BLOCK_SPLIT)) {
+    const region = regionFromTurnBlock(block);
+    if (!isTimelineAnchorCandidate(region)) continue;
+    const cost = region!.userText.length + region!.assistantText.length;
+    if (selected.length >= TIMELINE_ANCHOR_MAX_CANDIDATE_TURNS) break;
+    if (selected.length > 0 && chars + cost > budget) break;
+    selected.push(region!);
+    chars += cost;
+  }
+  return selected;
+}
+
 /**
  * Generic retrospective framing markers (language-level, not work-specific).
- * Only consulted in the leading region; a miss means no extra call and no
+ * Only consulted on a candidate turn; a miss means no extra call and no
  * behaviour change, so a narrow marker set costs recall, not correctness.
  */
 const RETROSPECTIVE_FRAMING =
   /한때|예전에|과거|이전에|흩어진\s*지|지\s*오래였|되돌아|돌아가|기억으로\s*남|이미\s*있었던|이미\s*일어난|earlier|previously|in\s+the\s+past|long\s+ago/i;
 
-/** A batch is a candidate only when the opening region can carry a timeline frame. */
+/** Cancellation / correction. These are not "the event remains past". */
+const EVENT_CANCEL_RE = /없던\s*일|취소|무효|정정|다시\s*써/;
+
+/**
+ * A turn is a candidate only when the existing scope owner still treats it as
+ * main RP, it is not a new episode or an IF return, and the ASSISTANT leading
+ * narration itself frames something as already past. Bare OOC (style, UI,
+ * length) does not spend a call.
+ */
 export function isTimelineAnchorCandidate(region: BatchOpeningRegion | null): boolean {
-  if (!region) return false;
-  if (messageHasOocMarkers(region.userText)) return true;
+  if (!region?.assistantText) return false;
+  const user = region.userText;
+  if (classifyMemoryTurnScope(user) !== "main_rp") return false;
+  if (detectOocSceneReset(user)) return false;
+  if (EVENT_CANCEL_RE.test(user)) return false;
   return RETROSPECTIVE_FRAMING.test(region.assistantText);
 }
 
-export function buildTimelineAnchorExtractionMessages(region: BatchOpeningRegion): {
+export function buildTimelineAnchorExtractionMessages(
+  region: BatchOpeningRegion | readonly BatchOpeningRegion[]
+): {
   system: string;
   user: string;
 } {
+  const regions = Array.isArray(region) ? region : [region];
   const system = `[시간선 앵커 추출]
-아래는 RP 배치 첫 턴의 USER 메시지와 ASSISTANT 응답 앞부분이다.
-이 배치가 (1) 이미 일어난 과거 사건을 과거로 남긴 채 참조하는지, (2) 이야기를 이전 시점으로 되돌려 재개하는지 판정한다.
+아래는 이 5턴 배치에서 고른 구간의 USER 메시지와 ASSISTANT 응답 앞부분이다. 배치의 첫 턴이 아닐 수 있다.
+이 구간이 (1) 이미 일어난 과거 사건을 과거로 남긴 채 참조하는지, (2) 이야기를 이전 시점으로 되돌려 재개하는지 판정한다.
 
 판단 규칙:
 - ASSISTANT의 실현된 서술에 근거가 있어야 한다. USER의 OOC/지시는 판단 근거로만 사용하고, OOC 명령문 자체를 사건으로 저장하지 않는다.
@@ -117,7 +165,12 @@ export function buildTimelineAnchorExtractionMessages(region: BatchOpeningRegion
 - sourceQuote: ASSISTANT 원문에서 문자 그대로 복사한 6자 이상의 절 또는 문장. USER/OOC 원문에서 가져오지 않는다.
 - resume_from_earlier_point일 때만 resumePoint에 재개 지점을 30자 이내로 쓴다. 그 외에는 빈 문자열.
 - timelineAnchors는 최대 2개, 없으면 [].`;
-  const user = `[USER 원문 — OOC는 판단 근거이며 저장 대상이 아님]\n${region.userText}\n\n[ASSISTANT 원문]\n${region.assistantText}`;
+  const user = regions
+    .map(
+      (item, index) =>
+        `[구간 ${index + 1}]\n[USER 원문 — OOC는 판단 근거이며 저장 대상이 아님]\n${item.userText}\n\n[ASSISTANT 원문]\n${item.assistantText}`
+    )
+    .join("\n\n");
   return { system, user };
 }
 
@@ -151,10 +204,60 @@ export function parseTimelineAnchorJson(raw: string): unknown[] | null {
   return null;
 }
 
+const CONTENT_PARTICLE =
+  /(?:으로|에서|에게|한테|까지|부터|처럼|하고|이며|이자|과|와|은|는|이|가|을|를|의|도|만|로|에)$/u;
+
+/** Function words that do not identify an event or a place. */
+const ANCHOR_FUNCTION_WORDS = new Set([
+  "이후",
+  "직후",
+  "이전",
+  "당시",
+  "지금",
+  "현재",
+  "다시",
+  "상황",
+  "장면",
+  "시점",
+  "재개",
+  "과거",
+  "사건",
+  "이미",
+  "있던",
+  "있는",
+  "그리고",
+]);
+
+function contentStems(text: string): string[] {
+  const parts = text
+    .normalize("NFKC")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(/[^0-9A-Za-z가-힣]+/u)
+    .filter(Boolean);
+  const stems: string[] = [];
+  for (const part of parts) {
+    const stem = part.replace(CONTENT_PARTICLE, "");
+    if (stem.length < 2 || ANCHOR_FUNCTION_WORDS.has(stem)) continue;
+    stems.push(stem);
+  }
+  return stems;
+}
+
+function stemsOccurIn(stems: readonly string[], evidence: string): boolean {
+  if (!stems.length) return false;
+  const hay = evidence.replace(/\s+/g, "");
+  return stems.every((stem) => hay.includes(stem));
+}
+
+function quoteOutside(assistantText: string, quote: string): string {
+  const normalizedQuote = quote.replace(/\s+/g, " ").trim();
+  return assistantText.replace(/\s+/g, " ").split(normalizedQuote).join(" ");
+}
+
 /**
- * Keep only anchors that are structurally valid AND grounded in the ASSISTANT
- * text. Anything else (fabricated quote, OOC quote, new episode, cancellation,
- * invented relationship) is dropped rather than corrected by hand.
+ * Keep only anchors whose quote, label, and resume point are supported by the
+ * performed ASSISTANT narration. Invalid items are dropped, never rewritten.
  */
 export function verifyTimelineAnchors(
   items: unknown[] | null,
@@ -172,14 +275,23 @@ export function verifyTimelineAnchors(
     const label = typeof rec.label === "string" ? rec.label.replace(/\s+/g, " ").trim() : "";
     if (!label || label.length > 40 || /OOC/i.test(label)) continue;
     if (seen.has(label)) continue;
-    const asOf = rec.asOf;
-    if (asOf !== "past") continue;
+    if (rec.asOf !== "past") continue;
     const quote = typeof rec.sourceQuote === "string" ? rec.sourceQuote.trim() : "";
-    if (quote.length < 6) continue;
-    // Verbatim grounding, whitespace-tolerant on both sides only.
-    if (!source.includes(quote.replace(/\s+/g, " ").trim())) continue;
-    const resumePointRaw = typeof rec.resumePoint === "string" ? rec.resumePoint.replace(/\s+/g, " ").trim() : "";
-    if (mode === "resume_from_earlier_point" && (!resumePointRaw || resumePointRaw.length > 40)) continue;
+    const normalizedQuote = quote.replace(/\s+/g, " ").trim();
+    if (normalizedQuote.length < 6 || !source.includes(normalizedQuote)) continue;
+    if (EVENT_CANCEL_RE.test(normalizedQuote) || EVENT_CANCEL_RE.test(label)) continue;
+    if (!stemsOccurIn(contentStems(label), normalizedQuote)) continue;
+    const resumePointRaw =
+      typeof rec.resumePoint === "string" ? rec.resumePoint.replace(/\s+/g, " ").trim() : "";
+    if (mode === "resume_from_earlier_point") {
+      if (!resumePointRaw || resumePointRaw.length > 40) continue;
+      if (EVENT_CANCEL_RE.test(resumePointRaw)) continue;
+      const resumeStems = contentStems(resumePointRaw);
+      if (!stemsOccurIn(resumeStems, source)) continue;
+      const supportedOutside = stemsOccurIn(resumeStems, quoteOutside(source, normalizedQuote));
+      const recollection = /떠올|회상|추억|기억했|생각났/.test(normalizedQuote);
+      if (recollection && !supportedOutside) continue;
+    }
     seen.add(label);
     out.push({
       mode,
@@ -224,9 +336,8 @@ export function formatTimelineAnchorLine(anchors: TimelineAnchor[]): string {
 }
 
 /**
- * Prepend the timeline line inside the existing summary budget.
- * Returns the summary unchanged when there is nothing to add, when the summary
- * already states the anchor, or when the budget cannot hold both.
+ * Prepend the timeline line only when the untouched summary and the line both
+ * fit in the budget. Otherwise return the summary byte-for-byte.
  */
 export function prependTimelineAnchorLine(
   summary: string,
@@ -241,11 +352,7 @@ export function prependTimelineAnchorLine(
   });
   const line = formatTimelineAnchorLine(remaining);
   if (!line) return summary;
-  const proseBudget = maxChars - line.length - 1;
-  // The anchor is optional; the summary's minimum length is not.
-  if (proseBudget < 80) return summary;
-  const prose = clampMemoryRecordSummary(text, proseBudget, 80);
-  // Never trade the summary itself for an anchor.
-  if (prose.length < 80 || prose.length + line.length + 1 > maxChars) return summary;
-  return `${line} ${prose}`;
+  const combined = `${line} ${text}`;
+  if (combined.length > maxChars) return summary;
+  return combined;
 }

@@ -392,6 +392,7 @@ async function callGeminiOnce(
     jobId?: string | null;
     responseFormat?: import("@/lib/openRouterCompletion").OpenRouterCompletionResponseFormat;
     cheaperInferenceApiKeyOverride?: string;
+    timeoutMs?: number;
   }
 ): Promise<{ text: string; usage: TokenUsage }> {
   if (
@@ -454,7 +455,9 @@ async function callGeminiOnce(
       : opts?.maxTokens ?? resolveBackgroundMaxOutputTokens(requestKind),
     disableReasoning: unboundedNoReasoningRequest,
     requestKind,
-    timeoutMs: /background-html-visual-card/i.test(requestKind) ? 240_000 : undefined,
+    timeoutMs:
+      opts?.timeoutMs ??
+      (/background-html-visual-card/i.test(requestKind) ? 240_000 : undefined),
     ledgerContext: opts?.ledgerContext,
     jobId: opts?.jobId ?? null,
     responseFormat: opts?.responseFormat,
@@ -505,6 +508,7 @@ export async function callBackgroundMemory(
     ledgerContext?: ProviderCostLedgerContext;
     jobId?: string | null;
     responseFormat?: import("@/lib/openRouterCompletion").OpenRouterCompletionResponseFormat;
+    timeoutMs?: number;
   }
 ): Promise<{ text: string; usage: TokenUsage }> {
   const explicitModelId = opts?.modelId?.trim();
@@ -524,6 +528,7 @@ export async function callBackgroundMemory(
           }
         : undefined,
       responseFormat: opts?.responseFormat,
+      timeoutMs: opts?.timeoutMs,
     });
   return call(modelId);
 }

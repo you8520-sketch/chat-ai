@@ -15,10 +15,9 @@ import {
 import { clampMemoryRecordSummary } from "./memory-summary-clamp";
 import {
   buildTimelineAnchorExtractionMessages,
-  extractBatchOpeningRegion,
-  isTimelineAnchorCandidate,
   parseTimelineAnchorJson,
   prependTimelineAnchorLine,
+  selectTimelineAnchorRegions,
   TIMELINE_ANCHOR_REQUEST_KIND,
   verifyTimelineAnchors,
   type TimelineAnchor,
@@ -306,19 +305,20 @@ export function __setTimelineAnchorCallerForTests(
 }
 
 /**
- * Optional timeline anchors for a batch. Runs at most one small structured
- * extraction over the opening region; failures and timeouts degrade to no
- * anchors so the summary behaves exactly as before.
+ * Optional timeline anchors for a batch. At most one structured extraction.
+ * The provider call uses the existing AbortSignal timeout. The race only
+ * releases the seal if that call does not settle; it does not replace the abort.
+ * Failures leave the summary unchanged.
  */
 const TIMELINE_ANCHOR_EXTRACTION_TIMEOUT_MS = 20_000;
 
 async function resolveTimelineAnchorsForBatch(dialogue: string): Promise<TimelineAnchor[]> {
-  const region = extractBatchOpeningRegion(dialogue);
-  if (!isTimelineAnchorCandidate(region)) return [];
-  const { system, user } = buildTimelineAnchorExtractionMessages(region!);
+  const regions = selectTimelineAnchorRegions(dialogue);
+  if (!regions.length) return [];
+  const { system, user } = buildTimelineAnchorExtractionMessages(regions);
+  const assistantText = regions.map((region) => region.assistantText).join("\n\n");
   let timer: ReturnType<typeof setTimeout> | null = null;
   try {
-    // The anchor is optional; the seal must never wait on it indefinitely.
     const timeout = new Promise<null>((resolve) => {
       timer = setTimeout(() => resolve(null), TIMELINE_ANCHOR_EXTRACTION_TIMEOUT_MS);
     });
@@ -329,12 +329,13 @@ async function resolveTimelineAnchorsForBatch(dialogue: string): Promise<Timelin
             system,
             [{ role: "user", content: user }],
             undefined,
-            TIMELINE_ANCHOR_REQUEST_KIND
+            TIMELINE_ANCHOR_REQUEST_KIND,
+            { timeoutMs: TIMELINE_ANCHOR_EXTRACTION_TIMEOUT_MS }
           ).then((r) => r.text),
       timeout,
     ]);
     if (raw == null) return [];
-    return verifyTimelineAnchors(parseTimelineAnchorJson(raw), region!.assistantText);
+    return verifyTimelineAnchors(parseTimelineAnchorJson(raw), assistantText);
   } catch {
     return [];
   } finally {
