@@ -1,0 +1,15 @@
+[memory] 5턴 기억 기록 chat=1 turns=76-80 (294ch → lorebook 5214/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+  mode: 'daily_kst',
+[replay] T81 shared=ok episodic_req=true rel=true barrier=80 episodic_rows=45 summaries=16
+  source_turn: 82,
+  replaced_source_turn: false,
+[replay] T82 shared=ok episodic_req=true rel=true barrier=80 episodic_rows=46 summaries=16
+[replay] T83 shared=ok episodic_req=true rel=true barrier=80 episodic_rows=46 summaries=16
+[replay] T84 shared=ok episodic_req=true rel=true barrier=80 episodic_rows=46 summaries=16
+[replay] T85 shared=ok episodic_req=true rel=true barrier=80 episodic_rows=46 summaries=16
+[memory] 5턴 기억 기록 chat=1 turns=81-85 (318ch → lorebook 5543/10000ch compact=none reason=SUMMARY_SUCCESS mainCalls=1 postManualEditCalls=0
+[replay] T86 shared=ok episodic_req=true rel=true barrier=85 episodic_rows=46 summaries=17
+[replay] T87 shared=ok episodic_req=true rel=true barrier=85 episodic_rows=46 summaries=17
+[replay] T88 shared=ok episodic_req=true rel=true barrier=85 episodic_rows=46 summaries=17
+[replay] T89 shared=ok episodic_req=true rel=true barrier=85 episodic_rows=46 summaries=17
+[replay] T90 shared=ok episodic_req=true rel=true barrier=85 episodic_rows=46 summaries=17

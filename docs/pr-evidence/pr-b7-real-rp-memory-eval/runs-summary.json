@@ -1,0 +1,4288 @@
+[
+ {
+  "qid": "L150-A4-stone",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 2256,
+  "chars_no_space": 1665,
+  "main_rp_krw": 5.98,
+  "main_rp_input_tokens": 18465,
+  "main_rp_output_tokens": 1490,
+  "run_total_krw": 7.01,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "150",
+   "summarized_through": "145",
+   "next_pending_summary_range": "146~150",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "39",
+   "episodic_injected_count": "4",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 10147,
+  "global_chars": 9027,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T75] [AI 장면 서술 발췌] “작전은 사상자 없이 끝났다.”",
+   "- [T25] [AI 장면 서술 발췌] “영등포 게이트 브레이크에서 C급 센티넬 오지환이 돌아오지 못했다.”",
+   "- [T4] [AI 장면 서술 발췌] “손톱만 한 푸른 균열석 조각 표면에 'G-117'이라는 각인이 선명했다.”",
+   "- [T94] [AI 장면 서술 발췌] “태형은 남은 크리처 두 마리를 휘파람으로 묶어 정리했다.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [
+     "G-117",
+     "균열석"
+    ],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "G-117"
+    ]
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "페어"
+    ],
+    "output": []
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [
+     "지환"
+    ],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "민호"
+    ]
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "봉합",
+     "완치",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [],
+    "output": []
+   }
+  }
+ },
+ {
+  "qid": "L150-A5-injury",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 3154,
+  "chars_no_space": 2293,
+  "main_rp_krw": 7.32,
+  "main_rp_input_tokens": 18492,
+  "main_rp_output_tokens": 2029,
+  "run_total_krw": 8.23,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "150",
+   "summarized_through": "145",
+   "next_pending_summary_range": "146~150",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "40",
+   "episodic_injected_count": "7",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 10305,
+  "global_chars": 9027,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T44] [AI 장면 서술 발췌] “그날 태형의 왼쪽 옆구리는 정식으로 열네 바늘 봉합되었다.”",
+   "- [T30] [AI 장면 서술 발췌] “발톱이 태형의 왼쪽 옆구리를 꿰뚫었다.”",
+   "- [T55] [AI 장면 서술 발췌] “오늘부터 현장 복귀 허가합니다.”",
+   "- [T48] [AI 장면 서술 발췌] “그는 옆구리 실밥도 잊은 채 렌을 번쩍 들어 올리려다 \"아야\" 하고 주저앉았다.”",
+   "- [T33] [AI 장면 서술 발췌] “태형은 옆구리를 감싼 채로도 핑거스냅 한 번에 D급 크리처를 정리했다.”",
+   "- [T28] [캐릭터 발언(미확정 주장)] “임무 끝나면 이거지. 내 나름의 의식이야.”",
+   "- [T9] [캐릭터 발언(미확정 주장)] “임무 끝나면 이거지. 내 나름의 의식이야.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "페어"
+    ],
+    "output": [
+     "페어"
+    ]
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "봉합",
+     "완치",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [
+     "옆구리",
+     "봉합",
+     "열네 바늘"
+    ],
+    "relationship": [],
+    "raw_history": [
+     "옆구리"
+    ],
+    "output": [
+     "옆구리",
+     "봉합",
+     "열네 바늘"
+    ]
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [],
+    "output": []
+   }
+  }
+ },
+ {
+  "qid": "L150-A6-milk-count",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 3585,
+  "chars_no_space": 2593,
+  "main_rp_krw": 8.06,
+  "main_rp_input_tokens": 18368,
+  "main_rp_output_tokens": 2320,
+  "run_total_krw": 8.99,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "150",
+   "summarized_through": "145",
+   "next_pending_summary_range": "146~150",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "38",
+   "episodic_injected_count": "4",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "provider_error",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 10115,
+  "global_chars": 9027,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T28] [캐릭터 발언(미확정 주장)] “임무 끝나면 이거지. 내 나름의 의식이야.”",
+   "- [T9] [캐릭터 발언(미확정 주장)] “임무 끝나면 이거지. 내 나름의 의식이야.”",
+   "- [T58] [AI 장면 서술 발췌] “태형은 핑거스냅으로 마지막 잔해를 정리했다.”",
+   "- [T58] [유저 입력 발췌] “복귀 후 첫 합동 임무를 끝낸다”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "근신"
+    ]
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "페어"
+    ],
+    "output": [
+     "페어"
+    ]
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "봉합",
+     "완치",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [
+     "딸기우유"
+    ],
+    "output": [
+     "딸기우유"
+    ]
+   }
+  }
+ },
+ {
+  "qid": "L150-B3-seoyun",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 6516,
+  "chars_no_space": 4786,
+  "main_rp_krw": 12.93,
+  "main_rp_input_tokens": 18518,
+  "main_rp_output_tokens": 4218,
+  "run_total_krw": 14.31,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "150",
+   "summarized_through": "145",
+   "next_pending_summary_range": "146~150",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "43",
+   "episodic_injected_count": "7",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "36",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 10291,
+  "global_chars": 9027,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T146] [AI 장면 서술 발췌] “태형은 골목 끝에서 작은 균열을 확인하고 봉인반을 불렀다.”",
+   "- [T131] [AI 장면 서술 발췌] “태형은 골목 끝에서 작은 균열을 확인하고 봉인반을 불렀다.”",
+   "- [T116] [AI 장면 서술 발췌] “태형은 골목 끝에서 작은 균열을 확인하고 봉인반을 불렀다.”",
+   "- [T146] [AI 장면 서술 발췌] “두 사람은 한강 둔치에서 D급 순찰을 했다.”",
+   "- [T144] [AI 장면 서술 발췌] “두 사람은 가이딩실에서 야간 대기를 했다.”",
+   "- [T130] [캐릭터 발언(미확정 주장)] “오늘이 14일째 평화로운 날이네”",
+   "- [T130] [AI 장면 서술 발췌] “두 사람은 가이딩실에서 산책을 했다.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "서윤"
+    ],
+    "output": [
+     "서윤",
+     "근신"
+    ]
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "페어"
+    ],
+    "output": [
+     "페어"
+    ]
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "봉합",
+     "완치",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "옆구리"
+    ]
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [],
+    "output": [
+     "딸기우유"
+    ]
+   }
+  }
+ },
+ {
+  "qid": "L150-C1-text",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 2698,
+  "chars_no_space": 1980,
+  "main_rp_krw": 6.63,
+  "main_rp_input_tokens": 18266,
+  "main_rp_output_tokens": 1766,
+  "run_total_krw": 7.41,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "150",
+   "summarized_through": "145",
+   "next_pending_summary_range": "146~150",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "38",
+   "episodic_injected_count": "1",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 9961,
+  "global_chars": 9027,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T22] [유저 입력 발췌] “금요일 야시장은 안 가.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "페어"
+    ],
+    "output": []
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "봉합",
+     "완치",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "옆구리"
+    ]
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [
+     "야시장"
+    ],
+    "relationship": [],
+    "raw_history": [
+     "야시장"
+    ],
+    "output": [
+     "야시장",
+     "탕후루"
+    ]
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [],
+    "output": [
+     "딸기우유"
+    ]
+   }
+  }
+ },
+ {
+  "qid": "L500-A4-stone",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 3007,
+  "chars_no_space": 2201,
+  "main_rp_krw": 7.28,
+  "main_rp_input_tokens": 22047,
+  "main_rp_output_tokens": 1895,
+  "run_total_krw": 12.19,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "500",
+   "summarized_through": "495",
+   "next_pending_summary_range": "496~500",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "44",
+   "episodic_injected_count": "6",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "10",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 16105,
+  "global_chars": 9916,
+  "medium_ranges": [
+   "T421-425",
+   "T426-430",
+   "T431-435",
+   "T436-440",
+   "T441-445",
+   "T446-450",
+   "T451-455",
+   "T456-460",
+   "T461-465",
+   "T466-470",
+   "T471-475",
+   "T476-480",
+   "T481-485",
+   "T486-490",
+   "T491-495"
+  ],
+  "episodic_injected": [
+   "- [T75] [AI 장면 서술 발췌] “작전은 사상자 없이 끝났다.”",
+   "- [T25] [AI 장면 서술 발췌] “영등포 게이트 브레이크에서 C급 센티넬 오지환이 돌아오지 못했다.”",
+   "- [T4] [AI 장면 서술 발췌] “손톱만 한 푸른 균열석 조각 표면에 'G-117'이라는 각인이 선명했다.”",
+   "- [T456] [AI 장면 서술 발췌] “두 사람은 지하 사격장에서 C급 게이트 정리를 했다.”",
+   "- [T418] [AI 장면 서술 발췌] “태형은 남은 크리처 두 마리를 휘파람으로 묶어 정리했다.”",
+   "- [T403] [AI 장면 서술 발췌] “태형은 남은 크리처 두 마리를 휘파람으로 묶어 정리했다.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [
+     "G-117",
+     "균열석"
+    ],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "G-117",
+     "균열석"
+    ]
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [
+     "옥상",
+     "페어"
+    ],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "페어"
+    ],
+    "output": []
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [
+     "지환"
+    ],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "민호"
+    ]
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "완치",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "옆구리"
+    ]
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "딸기우유"
+    ]
+   }
+  }
+ },
+ {
+  "qid": "L500-A5-injury",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 4283,
+  "chars_no_space": 3141,
+  "main_rp_krw": 9.41,
+  "main_rp_input_tokens": 21973,
+  "main_rp_output_tokens": 2745,
+  "run_total_krw": 14.27,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "500",
+   "summarized_through": "495",
+   "next_pending_summary_range": "496~500",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "38",
+   "episodic_injected_count": "6",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 16104,
+  "global_chars": 9916,
+  "medium_ranges": [
+   "T421-425",
+   "T426-430",
+   "T431-435",
+   "T436-440",
+   "T441-445",
+   "T446-450",
+   "T451-455",
+   "T456-460",
+   "T461-465",
+   "T466-470",
+   "T471-475",
+   "T476-480",
+   "T481-485",
+   "T486-490",
+   "T491-495"
+  ],
+  "episodic_injected": [
+   "- [T44] [AI 장면 서술 발췌] “그날 태형의 왼쪽 옆구리는 정식으로 열네 바늘 봉합되었다.”",
+   "- [T55] [AI 장면 서술 발췌] “오늘부터 현장 복귀 허가합니다.”",
+   "- [T48] [AI 장면 서술 발췌] “그는 옆구리 실밥도 잊은 채 렌을 번쩍 들어 올리려다 \"아야\" 하고 주저앉았다.”",
+   "- [T33] [AI 장면 서술 발췌] “태형은 옆구리를 감싼 채로도 핑거스냅 한 번에 D급 크리처를 정리했다.”",
+   "- [T28] [캐릭터 발언(미확정 주장)] “임무 끝나면 이거지. 내 나름의 의식이야.”",
+   "- [T9] [캐릭터 발언(미확정 주장)] “임무 끝나면 이거지. 내 나름의 의식이야.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [
+     "옥상",
+     "페어"
+    ],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "페어"
+    ],
+    "output": [
+     "페어"
+    ]
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "완치",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [
+     "옆구리",
+     "봉합",
+     "열네 바늘"
+    ],
+    "relationship": [],
+    "raw_history": [
+     "옆구리"
+    ],
+    "output": [
+     "옆구리",
+     "완치",
+     "열네 바늘"
+    ]
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "딸기우유"
+    ]
+   }
+  }
+ },
+ {
+  "qid": "L500-A6-milk-count",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 3465,
+  "chars_no_space": 2527,
+  "main_rp_krw": 8.11,
+  "main_rp_input_tokens": 21848,
+  "main_rp_output_tokens": 2242,
+  "run_total_krw": 12.7,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "500",
+   "summarized_through": "495",
+   "next_pending_summary_range": "496~500",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "37",
+   "episodic_injected_count": "3",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 15911,
+  "global_chars": 9916,
+  "medium_ranges": [
+   "T421-425",
+   "T426-430",
+   "T431-435",
+   "T436-440",
+   "T441-445",
+   "T446-450",
+   "T451-455",
+   "T456-460",
+   "T461-465",
+   "T466-470",
+   "T471-475",
+   "T476-480",
+   "T481-485",
+   "T486-490",
+   "T491-495"
+  ],
+  "episodic_injected": [
+   "- [T28] [캐릭터 발언(미확정 주장)] “임무 끝나면 이거지. 내 나름의 의식이야.”",
+   "- [T9] [캐릭터 발언(미확정 주장)] “임무 끝나면 이거지. 내 나름의 의식이야.”",
+   "- [T58] [유저 입력 발췌] “복귀 후 첫 합동 임무를 끝낸다”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "근신"
+    ]
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [
+     "옥상",
+     "페어"
+    ],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "페어"
+    ],
+    "output": [
+     "페어"
+    ]
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "완치",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "옆구리"
+    ]
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "딸기우유"
+    ],
+    "output": [
+     "딸기우유"
+    ]
+   }
+  }
+ },
+ {
+  "qid": "L500-B3-seoyun",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 5320,
+  "chars_no_space": 3896,
+  "main_rp_krw": 10.95,
+  "main_rp_input_tokens": 22042,
+  "main_rp_output_tokens": 3340,
+  "run_total_krw": 15.82,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "500",
+   "summarized_through": "495",
+   "next_pending_summary_range": "496~500",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "52",
+   "episodic_injected_count": "7",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "45",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 16159,
+  "global_chars": 9916,
+  "medium_ranges": [
+   "T421-425",
+   "T426-430",
+   "T431-435",
+   "T436-440",
+   "T441-445",
+   "T446-450",
+   "T451-455",
+   "T456-460",
+   "T461-465",
+   "T466-470",
+   "T471-475",
+   "T476-480",
+   "T481-485",
+   "T486-490",
+   "T491-495"
+  ],
+  "episodic_injected": [
+   "- [T463] [AI 장면 서술 발췌] “태형은 골목 끝에서 작은 균열을 확인하고 봉인반을 불렀다.”",
+   "- [T440] [AI 장면 서술 발췌] “태형은 골목 끝에서 작은 균열을 확인하고 봉인반을 불렀다.”",
+   "- [T380] [AI 장면 서술 발췌] “태형은 골목 끝에서 작은 균열을 확인하고 봉인반을 불렀다.”",
+   "- [T342] [AI 장면 서술 발췌] “태형은 골목 끝에서 작은 균열을 확인하고 봉인반을 불렀다.”",
+   "- [T267] [AI 장면 서술 발췌] “태형은 골목 끝에서 작은 균열을 확인하고 봉인반을 불렀다.”",
+   "- [T357] [AI 장면 서술 발췌] “태형은 골목 끝에서 작은 균열을 확인하고 봉인반을 불렀다.”",
+   "- [T10] [AI 장면 서술 발췌] “승인 없는 능력 사용이었다.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "서윤"
+    ],
+    "output": [
+     "서윤",
+     "근신"
+    ]
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [
+     "옥상",
+     "페어"
+    ],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "페어"
+    ],
+    "output": [
+     "페어"
+    ]
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "완치",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   }
+  }
+ },
+ {
+  "qid": "L500-C1-text",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 4089,
+  "chars_no_space": 3007,
+  "main_rp_krw": 9.02,
+  "main_rp_input_tokens": 21778,
+  "main_rp_output_tokens": 2599,
+  "run_total_krw": 13.78,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "500",
+   "summarized_through": "495",
+   "next_pending_summary_range": "496~500",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "37",
+   "episodic_injected_count": "1",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 15806,
+  "global_chars": 9916,
+  "medium_ranges": [
+   "T421-425",
+   "T426-430",
+   "T431-435",
+   "T436-440",
+   "T441-445",
+   "T446-450",
+   "T451-455",
+   "T456-460",
+   "T461-465",
+   "T466-470",
+   "T471-475",
+   "T476-480",
+   "T481-485",
+   "T486-490",
+   "T491-495"
+  ],
+  "episodic_injected": [
+   "- [T22] [유저 입력 발췌] “금요일 야시장은 안 가.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [
+     "옥상",
+     "페어"
+    ],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "페어"
+    ],
+    "output": [
+     "배정받은 가이드",
+     "페어"
+    ]
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "완치",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [
+     "야시장"
+    ],
+    "relationship": [],
+    "raw_history": [
+     "야시장"
+    ],
+    "output": [
+     "야시장",
+     "탕후루"
+    ]
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   }
+  }
+ },
+ {
+  "qid": "T30-A1",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 5608,
+  "chars_no_space": 4118,
+  "main_rp_krw": 10.76,
+  "main_rp_input_tokens": 13533,
+  "main_rp_output_tokens": 3566,
+  "run_total_krw": 12.15,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "30",
+   "summarized_through": "25",
+   "next_pending_summary_range": "26~30",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "17",
+   "episodic_injected_count": "8",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "7",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 3024,
+  "global_chars": 1868,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T19] [AI 장면 서술 발췌] “태형은 렌이 손을 내밀지 않고 거리를 둔 채 방사형 가이딩만 하는 것을 의아하게 바라보았다.”",
+   "- [T10] [AI 장면 서술 발췌] “승인 없는 능력 사용이었다.”",
+   "- [T22] [유저 입력 발췌] “금요일 야시장은 안 가.”",
+   "- [T3] [캐릭터 발언(미확정 주장)] “과일은 후식 코너에 귤 있어.”",
+   "- [T13] [AI 장면 서술 발췌] “그는 귤을 까서 반을 렌에게 내밀었다.”",
+   "- [T9] [캐릭터 발언(미확정 주장)] “임무 끝나면 이거지. 내 나름의 의식이야.”",
+   "- [T3] [캐릭터 발언(미확정 주장)] “제육은 맛있고, 생선은 피해.”",
+   "- [T10] [AI 장면 서술 발췌] “갇혀 있던 시민 일곱 명이 계단 위로 빠져나왔다.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "근신"
+    ],
+    "output": [
+     "서윤",
+     "근신"
+    ]
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "output": []
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "옆구리"
+    ],
+    "output": [
+     "옆구리"
+    ]
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [
+     "야시장"
+    ],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [
+     "딸기우유"
+    ],
+    "output": []
+   }
+  }
+ },
+ {
+  "qid": "T30-B1",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 4859,
+  "chars_no_space": 3555,
+  "main_rp_krw": 9.64,
+  "main_rp_input_tokens": 13332,
+  "main_rp_output_tokens": 3134,
+  "run_total_krw": 10.79,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "30",
+   "summarized_through": "25",
+   "next_pending_summary_range": "26~30",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "17",
+   "episodic_injected_count": "2",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 2724,
+  "global_chars": 1868,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T22] [유저 입력 발췌] “금요일 야시장은 안 가.”",
+   "- [T9] [캐릭터 발언(미확정 주장)] “임무 끝나면 이거지. 내 나름의 의식이야.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "배정받은 가이드"
+    ],
+    "output": [
+     "배정받은 가이드"
+    ]
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "지환"
+    ]
+   },
+   "E5_npc_help": {
+    "global": [],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "output": []
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "옆구리"
+    ],
+    "output": [
+     "옆구리"
+    ]
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [
+     "야시장"
+    ],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "야시장"
+    ]
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [
+     "딸기우유"
+    ],
+    "output": [
+     "딸기우유"
+    ]
+   }
+  }
+ },
+ {
+  "qid": "T30-C1",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 3935,
+  "chars_no_space": 2885,
+  "main_rp_krw": 8.12,
+  "main_rp_input_tokens": 13260,
+  "main_rp_output_tokens": 2548,
+  "run_total_krw": 9.26,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "30",
+   "summarized_through": "25",
+   "next_pending_summary_range": "26~30",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "17",
+   "episodic_injected_count": "1",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 2674,
+  "global_chars": 1868,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T22] [유저 입력 발췌] “금요일 야시장은 안 가.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "배정받은 가이드"
+    ]
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "output": []
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "옆구리"
+    ],
+    "output": [
+     "옆구리"
+    ]
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [
+     "야시장"
+    ],
+    "relationship": [],
+    "raw_history": [
+     "야시장"
+    ],
+    "output": [
+     "야시장",
+     "탕후루"
+    ]
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [
+     "딸기우유"
+    ],
+    "output": []
+   }
+  }
+ },
+ {
+  "qid": "T50-A2",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 3514,
+  "chars_no_space": 2583,
+  "main_rp_krw": 7.47,
+  "main_rp_input_tokens": 13979,
+  "main_rp_output_tokens": 2300,
+  "run_total_krw": 8.75,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "50",
+   "summarized_through": "45",
+   "next_pending_summary_range": "46~50",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "30",
+   "episodic_injected_count": "3",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 4047,
+  "global_chars": 3106,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T44] [AI 장면 서술 발췌] “그날 태형의 왼쪽 옆구리는 정식으로 열네 바늘 봉합되었다.”",
+   "- [T30] [AI 장면 서술 발췌] “발톱이 태형의 왼쪽 옆구리를 꿰뚫었다.”",
+   "- [T33] [AI 장면 서술 발췌] “태형은 옆구리를 감싼 채로도 핑거스냅 한 번에 D급 크리처를 정리했다.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "페어"
+    ],
+    "output": [
+     "페어"
+    ]
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "봉합",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [
+     "옆구리",
+     "봉합",
+     "열네 바늘"
+    ],
+    "relationship": [],
+    "raw_history": [
+     "옆구리",
+     "봉합"
+    ],
+    "output": [
+     "옆구리",
+     "봉합",
+     "열네 바늘"
+    ]
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [
+     "딸기우유"
+    ],
+    "output": []
+   }
+  }
+ },
+ {
+  "qid": "T50-A3",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 3586,
+  "chars_no_space": 2620,
+  "main_rp_krw": 7.54,
+  "main_rp_input_tokens": 13892,
+  "main_rp_output_tokens": 2330,
+  "run_total_krw": 8.4,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "50",
+   "summarized_through": "45",
+   "next_pending_summary_range": "46~50",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "30",
+   "episodic_injected_count": "1",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 3915,
+  "global_chars": 3106,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T22] [유저 입력 발췌] “금요일 야시장은 안 가.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "페어"
+    ],
+    "output": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ]
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "봉합",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "옆구리",
+     "봉합"
+    ],
+    "output": [
+     "옆구리",
+     "봉합"
+    ]
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [
+     "야시장"
+    ],
+    "relationship": [],
+    "raw_history": [
+     "야시장"
+    ],
+    "output": [
+     "야시장",
+     "탕후루"
+    ]
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [
+     "딸기우유"
+    ],
+    "output": [
+     "딸기우유"
+    ]
+   }
+  }
+ },
+ {
+  "qid": "T50-B2",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 2975,
+  "chars_no_space": 2182,
+  "main_rp_krw": 6.39,
+  "main_rp_input_tokens": 13966,
+  "main_rp_output_tokens": 1871,
+  "run_total_krw": 7.46,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "50",
+   "summarized_through": "45",
+   "next_pending_summary_range": "46~50",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "30",
+   "episodic_injected_count": "2",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 3984,
+  "global_chars": 3106,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T44] [AI 장면 서술 발췌] “그날 태형의 왼쪽 옆구리는 정식으로 열네 바늘 봉합되었다.”",
+   "- [T27] [AI 장면 서술 발췌] “그날 밤을 꼬박 새워 측정기를 재보정했고”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "옥상",
+     "페어"
+    ],
+    "output": [
+     "옥상",
+     "페어"
+    ]
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [
+     "재보정"
+    ],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "봉합",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [
+     "옆구리",
+     "봉합",
+     "열네 바늘"
+    ],
+    "relationship": [],
+    "raw_history": [
+     "옆구리",
+     "봉합"
+    ],
+    "output": [
+     "옆구리"
+    ]
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "야시장"
+    ]
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [
+     "딸기우유"
+    ],
+    "output": []
+   }
+  }
+ },
+ {
+  "qid": "T50-C2-r2",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 3473,
+  "chars_no_space": 2552,
+  "main_rp_krw": 7.21,
+  "main_rp_input_tokens": 13979,
+  "main_rp_output_tokens": 2186,
+  "run_total_krw": 8.11,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "50",
+   "summarized_through": "45",
+   "next_pending_summary_range": "46~50",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "30",
+   "episodic_injected_count": "1",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 3941,
+  "global_chars": 3106,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T25] [AI 장면 서술 발췌] “영등포 게이트 브레이크에서 C급 센티넬 오지환이 돌아오지 못했다.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "페어"
+    ],
+    "output": [
+     "페어"
+    ]
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [
+     "지환"
+    ],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "지환"
+    ]
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "봉합",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "옆구리",
+     "봉합"
+    ],
+    "output": [
+     "옆구리",
+     "봉합",
+     "열네 바늘"
+    ]
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [
+     "딸기우유"
+    ],
+    "output": []
+   }
+  }
+ },
+ {
+  "qid": "T50-C2-r3",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 3854,
+  "chars_no_space": 2825,
+  "main_rp_krw": 7.42,
+  "main_rp_input_tokens": 13979,
+  "main_rp_output_tokens": 2412,
+  "run_total_krw": 8.47,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "50",
+   "summarized_through": "45",
+   "next_pending_summary_range": "46~50",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "30",
+   "episodic_injected_count": "1",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 3941,
+  "global_chars": 3106,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T25] [AI 장면 서술 발췌] “영등포 게이트 브레이크에서 C급 센티넬 오지환이 돌아오지 못했다.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "페어"
+    ],
+    "output": [
+     "페어"
+    ]
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [
+     "지환"
+    ],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "봉합",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "옆구리",
+     "봉합"
+    ],
+    "output": [
+     "옆구리"
+    ]
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [
+     "딸기우유"
+    ],
+    "output": []
+   }
+  }
+ },
+ {
+  "qid": "T50-C2-r4",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 3191,
+  "chars_no_space": 2342,
+  "main_rp_krw": 6.49,
+  "main_rp_input_tokens": 13979,
+  "main_rp_output_tokens": 2046,
+  "run_total_krw": 7.35,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "50",
+   "summarized_through": "45",
+   "next_pending_summary_range": "46~50",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "30",
+   "episodic_injected_count": "1",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 3941,
+  "global_chars": 3106,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T25] [AI 장면 서술 발췌] “영등포 게이트 브레이크에서 C급 센티넬 오지환이 돌아오지 못했다.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "페어"
+    ],
+    "output": [
+     "페어"
+    ]
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [
+     "지환"
+    ],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "지환"
+    ]
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "민호",
+     "오차"
+    ]
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "봉합",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "옆구리",
+     "봉합"
+    ],
+    "output": [
+     "옆구리",
+     "봉합"
+    ]
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [
+     "딸기우유"
+    ],
+    "output": []
+   }
+  }
+ },
+ {
+  "qid": "T50-C2-sol",
+  "model": "gpt-6.1-sol",
+  "generation_status": "completed",
+  "chars": 4030,
+  "chars_no_space": 2916,
+  "main_rp_krw": 54.2,
+  "main_rp_input_tokens": 14565,
+  "main_rp_output_tokens": 2481,
+  "run_total_krw": 55.11,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "50",
+   "summarized_through": "45",
+   "next_pending_summary_range": "46~50",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "30",
+   "episodic_injected_count": "1",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 3941,
+  "global_chars": 3106,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T25] [AI 장면 서술 발췌] “영등포 게이트 브레이크에서 C급 센티넬 오지환이 돌아오지 못했다.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "페어"
+    ],
+    "output": []
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [
+     "지환"
+    ],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "지환"
+    ]
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "봉합",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "옆구리",
+     "봉합"
+    ],
+    "output": [
+     "옆구리",
+     "봉합"
+    ]
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [
+     "딸기우유"
+    ],
+    "output": []
+   }
+  }
+ },
+ {
+  "qid": "T50-C2",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 3176,
+  "chars_no_space": 2316,
+  "main_rp_krw": 6.88,
+  "main_rp_input_tokens": 13979,
+  "main_rp_output_tokens": 2056,
+  "run_total_krw": 7.67,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "50",
+   "summarized_through": "45",
+   "next_pending_summary_range": "46~50",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "30",
+   "episodic_injected_count": "1",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 3941,
+  "global_chars": 3106,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T25] [AI 장면 서술 발췌] “영등포 게이트 브레이크에서 C급 센티넬 오지환이 돌아오지 못했다.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "페어"
+    ],
+    "output": [
+     "페어"
+    ]
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [
+     "지환"
+    ],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "지환"
+    ]
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "오차"
+    ]
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "봉합",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "옆구리",
+     "봉합"
+    ],
+    "output": [
+     "옆구리",
+     "봉합"
+    ]
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [
+     "딸기우유"
+    ],
+    "output": []
+   }
+  }
+ },
+ {
+  "qid": "T80-A4",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 2920,
+  "chars_no_space": 2142,
+  "main_rp_krw": 6.49,
+  "main_rp_input_tokens": 15236,
+  "main_rp_output_tokens": 1875,
+  "run_total_krw": 7.33,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "80",
+   "summarized_through": "75",
+   "next_pending_summary_range": "76~80",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "31",
+   "episodic_injected_count": "3",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 5996,
+  "global_chars": 4972,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T75] [AI 장면 서술 발췌] “작전은 사상자 없이 끝났다.”",
+   "- [T25] [AI 장면 서술 발췌] “영등포 게이트 브레이크에서 C급 센티넬 오지환이 돌아오지 못했다.”",
+   "- [T4] [AI 장면 서술 발췌] “손톱만 한 푸른 균열석 조각 표면에 'G-117'이라는 각인이 선명했다.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [
+     "G-117",
+     "균열석"
+    ],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "G-117",
+     "균열석"
+    ]
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "페어"
+    ]
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [
+     "지환"
+    ],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "민호"
+    ]
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "봉합",
+     "완치",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "옆구리"
+    ]
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [],
+    "output": [
+     "딸기우유"
+    ]
+   }
+  }
+ },
+ {
+  "qid": "T80-A5",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 4073,
+  "chars_no_space": 2966,
+  "main_rp_krw": 8.33,
+  "main_rp_input_tokens": 15300,
+  "main_rp_output_tokens": 2606,
+  "run_total_krw": 9.28,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "80",
+   "summarized_through": "75",
+   "next_pending_summary_range": "76~80",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "31",
+   "episodic_injected_count": "7",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 6210,
+  "global_chars": 4972,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T44] [AI 장면 서술 발췌] “그날 태형의 왼쪽 옆구리는 정식으로 열네 바늘 봉합되었다.”",
+   "- [T30] [AI 장면 서술 발췌] “발톱이 태형의 왼쪽 옆구리를 꿰뚫었다.”",
+   "- [T55] [AI 장면 서술 발췌] “오늘부터 현장 복귀 허가합니다.”",
+   "- [T48] [AI 장면 서술 발췌] “그는 옆구리 실밥도 잊은 채 렌을 번쩍 들어 올리려다 \"아야\" 하고 주저앉았다.”",
+   "- [T33] [AI 장면 서술 발췌] “태형은 옆구리를 감싼 채로도 핑거스냅 한 번에 D급 크리처를 정리했다.”",
+   "- [T28] [캐릭터 발언(미확정 주장)] “임무 끝나면 이거지. 내 나름의 의식이야.”",
+   "- [T9] [캐릭터 발언(미확정 주장)] “임무 끝나면 이거지. 내 나름의 의식이야.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "지환"
+    ]
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "봉합",
+     "완치",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [
+     "옆구리",
+     "봉합",
+     "열네 바늘"
+    ],
+    "relationship": [],
+    "raw_history": [
+     "옆구리"
+    ],
+    "output": [
+     "옆구리",
+     "봉합",
+     "열네 바늘"
+    ]
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [],
+    "output": [
+     "딸기우유"
+    ]
+   }
+  }
+ },
+ {
+  "qid": "T80-A6",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 3459,
+  "chars_no_space": 2524,
+  "main_rp_krw": 7.27,
+  "main_rp_input_tokens": 15176,
+  "main_rp_output_tokens": 2197,
+  "run_total_krw": 7.98,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "80",
+   "summarized_through": "75",
+   "next_pending_summary_range": "76~80",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "31",
+   "episodic_injected_count": "4",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 6020,
+  "global_chars": 4972,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T28] [캐릭터 발언(미확정 주장)] “임무 끝나면 이거지. 내 나름의 의식이야.”",
+   "- [T9] [캐릭터 발언(미확정 주장)] “임무 끝나면 이거지. 내 나름의 의식이야.”",
+   "- [T58] [AI 장면 서술 발췌] “태형은 핑거스냅으로 마지막 잔해를 정리했다.”",
+   "- [T58] [유저 입력 발췌] “복귀 후 첫 합동 임무를 끝낸다”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "페어"
+    ]
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "봉합",
+     "완치",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "옆구리"
+    ]
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "탕후루"
+    ]
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [
+     "딸기우유"
+    ],
+    "output": [
+     "딸기우유"
+    ]
+   }
+  }
+ },
+ {
+  "qid": "T80-A7",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 3339,
+  "chars_no_space": 2436,
+  "main_rp_krw": 7.2,
+  "main_rp_input_tokens": 15081,
+  "main_rp_output_tokens": 2172,
+  "run_total_krw": 8.15,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "80",
+   "summarized_through": "75",
+   "next_pending_summary_range": "76~80",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "31",
+   "episodic_injected_count": "1",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 5882,
+  "global_chars": 4972,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T69] [유저 입력 발췌] “백무진 국장님이 오늘 브리핑에서 우리 페어 칭찬했어.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [],
+    "episodic": [
+     "페어"
+    ],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "옥상",
+     "페어"
+    ]
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "민호",
+     "오차"
+    ]
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "봉합",
+     "완치",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "옆구리",
+     "열네 바늘"
+    ]
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [],
+    "output": [
+     "딸기우유"
+    ]
+   }
+  }
+ },
+ {
+  "qid": "T80-B3",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 5424,
+  "chars_no_space": 3974,
+  "main_rp_krw": 10.46,
+  "main_rp_input_tokens": 15337,
+  "main_rp_output_tokens": 3435,
+  "run_total_krw": 11.6,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "80",
+   "summarized_through": "75",
+   "next_pending_summary_range": "76~80",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "31",
+   "episodic_injected_count": "8",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "22",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 6214,
+  "global_chars": 4972,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T64] [AI 장면 서술 발췌] “태형은 예의 바르게 웃었지만 의자를 빼 주지는 않았다.”",
+   "- [T64] [캐릭터 발언(미확정 주장)] “웃으면서 뒤에서 서류 올리는 사람이랑은 밥 같이 안 먹어.”",
+   "- [T16] [캐릭터 발언(미확정 주장)] “국장 쪽 사람이야.”",
+   "- [T44] [AI 장면 서술 발췌] “그날 태형의 왼쪽 옆구리는 정식으로 열네 바늘 봉합되었다.”",
+   "- [T35] [캐릭터 발언(미확정 주장)] “국장이 너를 자기 직속 유닛으로 데려가고 싶어 해.”",
+   "- [T10] [AI 장면 서술 발췌] “승인 없는 능력 사용이었다.”",
+   "- [T55] [AI 장면 서술 발췌] “오늘부터 현장 복귀 허가합니다.”",
+   "- [T22] [유저 입력 발췌] “금요일 야시장은 안 가.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "서윤"
+    ],
+    "output": [
+     "서윤",
+     "근신"
+    ]
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "페어"
+    ]
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "봉합",
+     "완치",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [
+     "옆구리",
+     "봉합",
+     "열네 바늘"
+    ],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [
+     "야시장"
+    ],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [],
+    "output": [
+     "딸기우유"
+    ]
+   }
+  }
+ },
+ {
+  "qid": "T80-C3",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 2346,
+  "chars_no_space": 1725,
+  "main_rp_krw": 5.49,
+  "main_rp_input_tokens": 15217,
+  "main_rp_output_tokens": 1497,
+  "run_total_krw": 6.33,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "80",
+   "summarized_through": "75",
+   "next_pending_summary_range": "76~80",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "31",
+   "episodic_injected_count": "5",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 6079,
+  "global_chars": 4972,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T27] [캐릭터 발언(미확정 주장)] “측정기 오차 때문에 반응이 늦었던 거예요.”",
+   "- [T27] [AI 장면 서술 발췌] “그날 밤을 꼬박 새워 측정기를 재보정했고”",
+   "- [T68] [AI 장면 서술 발췌] “그는 렌이 잠든 걸 확인하고 측정기 기록을 대신 정리했다.”",
+   "- [T59] [AI 장면 서술 발췌] “렌의 손이 닿자 측정기 숫자가 88%까지 올라갔다.”",
+   "- [T27] [AI 장면 서술 발췌] “태형이 조용히 자리를 떴다.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [
+     "재보정",
+     "오차"
+    ],
+    "relationship": [],
+    "raw_history": [
+     "민호"
+    ],
+    "output": [
+     "민호",
+     "오차"
+    ]
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "봉합",
+     "완치",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [],
+    "output": []
+   }
+  }
+ },
+ {
+  "qid": "T90-A4",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 1683,
+  "chars_no_space": 1242,
+  "main_rp_krw": 4.41,
+  "main_rp_input_tokens": 15664,
+  "main_rp_output_tokens": 1052,
+  "run_total_krw": 5.54,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "90",
+   "summarized_through": "85",
+   "next_pending_summary_range": "86~90",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "31",
+   "episodic_injected_count": "3",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "0",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 6676,
+  "global_chars": 5606,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T75] [AI 장면 서술 발췌] “작전은 사상자 없이 끝났다.”",
+   "- [T25] [AI 장면 서술 발췌] “영등포 게이트 브레이크에서 C급 센티넬 오지환이 돌아오지 못했다.”",
+   "- [T4] [AI 장면 서술 발췌] “손톱만 한 푸른 균열석 조각 표면에 'G-117'이라는 각인이 선명했다.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [
+     "G-117",
+     "균열석"
+    ],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "G-117",
+     "균열석"
+    ]
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "페어"
+    ],
+    "output": []
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [
+     "지환"
+    ],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": [
+     "민호"
+    ]
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "봉합",
+     "완치",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [],
+    "output": []
+   }
+  }
+ },
+ {
+  "qid": "T90-B3",
+  "model": "gemini-3.8-flash",
+  "generation_status": "completed",
+  "chars": 5638,
+  "chars_no_space": 4108,
+  "main_rp_krw": 10.93,
+  "main_rp_input_tokens": 15756,
+  "main_rp_output_tokens": 3608,
+  "run_total_krw": 11.95,
+  "memory_health": {
+   "memory_policy": "summary5_raw4",
+   "completed_playable_turns": "90",
+   "summarized_through": "85",
+   "next_pending_summary_range": "86~90",
+   "real_raw_complete_exchanges": "5",
+   "opening_in_raw": "false",
+   "bridge_in_raw": "false",
+   "episodic_candidate_count": "31",
+   "episodic_injected_count": "8",
+   "episodic_duplicate_blocked_count": "0",
+   "episodic_budget_blocked_count": "22",
+   "episodic_semantic_runtime_enabled": "true",
+   "episodic_semantic_runtime_model": "baai/bge-m3",
+   "episodic_semantic_runtime_reason": "null",
+   "episodic_semantic_query_reason": "ok",
+   "status_extract_call_count": "0"
+  },
+  "memory_block_chars": 6894,
+  "global_chars": 5606,
+  "medium_ranges": [],
+  "episodic_injected": [
+   "- [T64] [AI 장면 서술 발췌] “태형은 예의 바르게 웃었지만 의자를 빼 주지는 않았다.”",
+   "- [T64] [캐릭터 발언(미확정 주장)] “웃으면서 뒤에서 서류 올리는 사람이랑은 밥 같이 안 먹어.”",
+   "- [T16] [캐릭터 발언(미확정 주장)] “국장 쪽 사람이야.”",
+   "- [T44] [AI 장면 서술 발췌] “그날 태형의 왼쪽 옆구리는 정식으로 열네 바늘 봉합되었다.”",
+   "- [T35] [캐릭터 발언(미확정 주장)] “국장이 너를 자기 직속 유닛으로 데려가고 싶어 해.”",
+   "- [T10] [AI 장면 서술 발췌] “승인 없는 능력 사용이었다.”",
+   "- [T55] [AI 장면 서술 발췌] “오늘부터 현장 복귀 허가합니다.”",
+   "- [T22] [유저 입력 발췌] “금요일 야시장은 안 가.”"
+  ],
+  "presence": {
+   "E1_clue_stone": {
+    "global": [
+     "G-117",
+     "균열석"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E2_npc_betrayal": {
+    "global": [
+     "서윤",
+     "근신"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "서윤"
+    ],
+    "output": [
+     "서윤"
+    ]
+   },
+   "E3_relationship_break_and_repair": {
+    "global": [
+     "배정받은 가이드",
+     "옥상",
+     "페어"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [
+     "페어"
+    ],
+    "output": [
+     "페어"
+    ]
+   },
+   "E4_loss_and_comfort": {
+    "global": [
+     "지환"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E5_npc_help": {
+    "global": [
+     "민호",
+     "재보정",
+     "오차"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E6_injury_treatment_recovery": {
+    "global": [
+     "옆구리",
+     "봉합",
+     "완치",
+     "열네 바늘"
+    ],
+    "medium": [],
+    "episodic": [
+     "옆구리",
+     "봉합",
+     "열네 바늘"
+    ],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E7_promise_cancelled": {
+    "global": [
+     "야시장",
+     "탕후루"
+    ],
+    "medium": [],
+    "episodic": [
+     "야시장"
+    ],
+    "relationship": [],
+    "raw_history": [],
+    "output": []
+   },
+   "E8_repeated_strawberry_milk": {
+    "global": [
+     "딸기우유"
+    ],
+    "medium": [],
+    "episodic": [],
+    "relationship": [
+     "딸기우유"
+    ],
+    "raw_history": [],
+    "output": []
+   }
+  }
+ }
+]

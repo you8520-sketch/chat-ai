@@ -1,0 +1,13 @@
+{"qid":"L500-A5-injury","currentTurn":501,"semantic_reason":"ok","candidates":63,"lanes":{"recent":55,"relevance":7,"milestone_critical":0,"milestone_important":1,"semantic":0},"injected":6}
+T30	RECONCILED_OUT	lanes=relevance+semantic	composite=-	rel=-	sem=-	character:taehyung:injury	태형은 진화형 크리처의 발톱에 왼쪽 옆구리를 찔렸다.
+T33	INJECTED#4	lanes=relevance	composite=4.041	rel=1.000	sem=0.434	character:taehyung:action	태형은 부상 상태에서도 D급 크리처를 정리했다.
+T44	INJECTED#1	lanes=relevance+semantic	composite=7.391	rel=1.000	sem=0.587	character:taehyung:injury_treatment	태형은 왼쪽 옆구리 상처를 열네 바늘로 봉합받았다.
+T48	INJECTED#3	lanes=relevance+semantic	composite=6.203	rel=1.000	sem=0.540	character:taehyung:injury_reaction	태형은 렌을 들어 올리려다 옆구리 통증에 주저앉았다.
+T55	INJECTED#2	lanes=relevance+semantic	composite=6.300	rel=1.000	sem=0.564	character:taehyung:medical_recovery	태형은 왼쪽 옆구리 부상에서 완전히 회복되어 현장 복귀 허가를 받았다.
+-- injected
+#1	T44	lanes=relevance+semantic	composite=7.391	rel=1.000	sem=0.587	태형은 왼쪽 옆구리 상처를 열네 바늘로 봉합받았다.
+#2	T55	lanes=relevance+semantic	composite=6.300	rel=1.000	sem=0.564	태형은 왼쪽 옆구리 부상에서 완전히 회복되어 현장 복귀 허가를 받았다.
+#3	T48	lanes=relevance+semantic	composite=6.203	rel=1.000	sem=0.540	태형은 렌을 들어 올리려다 옆구리 통증에 주저앉았다.
+#4	T33	lanes=relevance	composite=4.041	rel=1.000	sem=0.434	태형은 부상 상태에서도 D급 크리처를 정리했다.
+#5	T28	lanes=relevance	composite=4.041	rel=1.000	sem=0.342	태형은 임무가 끝난 뒤 딸기우유를 건네는 것을 자신만의 의식이라고 말했다.
+#6	T9	lanes=relevance	composite=4.039	rel=1.000	sem=0.333	태형은 임무가 끝나면 딸기우유를 마시는 것을 자신만의 의식이라고 말했다.

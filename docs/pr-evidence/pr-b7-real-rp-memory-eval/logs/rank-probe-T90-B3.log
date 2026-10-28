@@ -1,0 +1,12 @@
+{"qid":"T90-B3","currentTurn":91,"semantic_reason":"ok","candidates":46,"lanes":{"recent":46,"relevance":0,"milestone_critical":0,"milestone_important":1,"semantic":0},"injected":8}
+T57	DROPPED(max_facts)	lanes=recent	composite=4.370	rel=1.000	sem=0.453	character:taehyung:response_to_cake	태형은 서윤이 복귀 축하로 보낸 케이크를 공용 테이블에 두고 한 조각도 먹지 않았다.
+T64	INJECTED#1	lanes=recent+semantic	composite=10.502	rel=2.000	sem=0.519	character:taehyung:rejected_company	태형은 구내식당에서 한서윤의 동석 제안을 거절했다.
+-- injected
+#1	T64	lanes=recent+semantic	composite=10.502	rel=2.000	sem=0.519	태형은 구내식당에서 한서윤의 동석 제안을 거절했다.
+#2	T64	lanes=recent+semantic	composite=10.441	rel=2.000	sem=0.504	태형은 뒤에서 서류를 올리는 사람과 식사하고 싶지 않다고 말했다.
+#3	T16	lanes=recent+semantic	composite=10.288	rel=2.000	sem=0.519	태형은 윤도겸이 국장 쪽 사람이라고 말했다.
+#4	T44	lanes=recent+semantic	composite=7.433	rel=1.000	sem=0.534	태형은 왼쪽 옆구리 상처를 열네 바늘로 봉합받았다.
+#5	T35	lanes=recent+semantic	composite=7.293	rel=1.000	sem=0.508	태형은 국장이 사용자를 자기 직속 유닛으로 데려가고 싶어 한다고 말했다.
+#6	T10	lanes=recent+milestone_important	composite=7.198	rel=1.000	sem=0.460	태형은 승인 없이 능력을 사용해 지하철역 계단에 갇힌 시민 일곱 명을 구조했다.
+#7	T55	lanes=recent+semantic	composite=6.539	rel=1.000	sem=0.545	태형은 왼쪽 옆구리 부상에서 완전히 회복되어 현장 복귀 허가를 받았다.
+#12	T22	lanes=recent	composite=5.225	rel=1.000	sem=0.331	렌은 태형에게 금요일 야시장에 가지 않겠다고 말하고 배정받은 가이드와 탕후루를 먹을 필요가 없다고 했다.

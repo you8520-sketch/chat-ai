@@ -1,0 +1,8 @@
+{"qid":"T80-A6","currentTurn":81,"semantic_reason":"ok","candidates":44,"lanes":{"recent":44,"relevance":0,"milestone_critical":0,"milestone_important":1,"semantic":0},"injected":4}
+T9	INJECTED#2	lanes=recent+semantic	composite=10.792	rel=2.000	sem=0.644	character:taehyung:ritual	태형은 임무가 끝나면 딸기우유를 마시는 것을 자신만의 의식이라고 말했다.
+T28	INJECTED#1	lanes=recent+semantic	composite=10.911	rel=2.000	sem=0.659	character:taehyung:mission_completion_ritual	태형은 임무가 끝난 뒤 딸기우유를 건네는 것을 자신만의 의식이라고 말했다.
+-- injected
+#1	T28	lanes=recent+semantic	composite=10.911	rel=2.000	sem=0.659	태형은 임무가 끝난 뒤 딸기우유를 건네는 것을 자신만의 의식이라고 말했다.
+#2	T9	lanes=recent+semantic	composite=10.792	rel=2.000	sem=0.644	태형은 임무가 끝나면 딸기우유를 마시는 것을 자신만의 의식이라고 말했다.
+#3	T58	lanes=recent	composite=4.465	rel=1.000	sem=0.466	태형은 핑거스냅으로 임무 현장의 마지막 잔해를 정리했다.
+#4	T58	lanes=recent	composite=4.465	rel=1.000	sem=0.413	태형과 렌은 복귀 후 첫 합동 임무를 마쳤다.

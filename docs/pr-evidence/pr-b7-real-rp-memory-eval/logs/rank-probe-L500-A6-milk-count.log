@@ -1,0 +1,7 @@
+{"qid":"L500-A6-milk-count","currentTurn":501,"semantic_reason":"ok","candidates":60,"lanes":{"recent":55,"relevance":4,"milestone_critical":0,"milestone_important":1,"semantic":0},"injected":3}
+T9	INJECTED#2	lanes=relevance+semantic	composite=10.614	rel=2.000	sem=0.644	character:taehyung:ritual	태형은 임무가 끝나면 딸기우유를 마시는 것을 자신만의 의식이라고 말했다.
+T28	INJECTED#1	lanes=relevance+semantic	composite=10.677	rel=2.000	sem=0.659	character:taehyung:mission_completion_ritual	태형은 임무가 끝난 뒤 딸기우유를 건네는 것을 자신만의 의식이라고 말했다.
+-- injected
+#1	T28	lanes=relevance+semantic	composite=10.677	rel=2.000	sem=0.659	태형은 임무가 끝난 뒤 딸기우유를 건네는 것을 자신만의 의식이라고 말했다.
+#2	T9	lanes=relevance+semantic	composite=10.614	rel=2.000	sem=0.644	태형은 임무가 끝나면 딸기우유를 마시는 것을 자신만의 의식이라고 말했다.
+#3	T58	lanes=relevance	composite=4.043	rel=1.000	sem=0.413	태형과 렌은 복귀 후 첫 합동 임무를 마쳤다.
