@@ -19,6 +19,17 @@ describe("movement declaration — bot stay fallback", () => {
     assert.equal(parseMovementDeclaration("출구를 향해 화살을 쏜다.").live, false);
   });
 
+  it("reads a body dash and exit rush as live movement without reviving an object throw", () => {
+    assert.deepEqual(declaredMovementGoals("경보실 문턱으로 몸을 던졌다."), ["경보실 문턱"]);
+    assert.deepEqual(declaredMovementGoals("출구 방향으로 쇄도했다."), ["출구 방향"]);
+    assert.deepEqual(
+      declaredMovementGoals("강이현은 경보실 문턱으로 몸을 던지며 출구 쪽으로 쇄도했다."),
+      ["강이현은 경보실 문턱", "던지며 출구 쪽"]
+    );
+    assert.deepEqual(declaredMovementGoals("주 통로로 돌을 던지고 돌아온다."), []);
+    assert.deepEqual(declaredMovementGoals("주 통로로 돌을 던진 후 이동한다."), []);
+  });
+
   it("reads a follow into a named place and does not read a noun mention of moving", () => {
     const follow =
       "서하는 주 통로로 진입하는 데모유저의 뒤를 따라 이동하며, 손전등으로 바닥의 파편과 연구원들의 이동 흔적을 비추어 데모유저의 조사와 전진을 보조하려 했다.";

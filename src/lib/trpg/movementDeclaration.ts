@@ -32,10 +32,11 @@ export type MovementGoal = {
   polarity: SpatialPolarity | undefined;
 };
 
-const SINO_MOTION_STEM = /^(?:이동|진입|입장|도착|출발|접근|통과|탈출|도망|후퇴|퇴각|복귀|귀환|침투|잠입|피신|대피|전진|질주|방문)$/;
+const SINO_MOTION_STEM = /^(?:이동|진입|입장|도착|출발|접근|통과|탈출|도망|후퇴|퇴각|복귀|귀환|침투|잠입|피신|대피|전진|질주|쇄도|방문)$/;
 
 const MOTION_PREDICATES: readonly RegExp[] = [
-  /^(?:이동|진입|입장|도착|출발|접근|통과|탈출|도망|후퇴|퇴각|복귀|귀환|침투|잠입|피신|대피|전진|질주|방문)/,
+  /^(?:이동|진입|입장|도착|출발|접근|통과|탈출|도망|후퇴|퇴각|복귀|귀환|침투|잠입|피신|대피|전진|질주|쇄도|방문)/,
+  /^(?:던지|던졌|던져|날리|날렸|날린)/,
   /^향(?:하|해|한|했|할|함)/,
   /^(?:나가|나간|나갈|나갔|나아|나선|나서|나와|나온)/,
   /^(?:들어(?:가|간|갈|갔|서|선|오|온)|돌아(?:가|간|갈|갔|오|온|왔)|올라(?:가|간|갈|갔|서|선|오|온)|내려(?:가|간|갈|갔|서|선|오|온)|다가(?:가|간|갈|서|선|오|온)|찾아(?:가|간|갈|갔|오|온)|넘어(?:가|간|갈|서|오|온)|건너(?:가|간|갈|서|오|온)|지나(?:가|간|서|쳐|오)|빠져(?:나|들)|걸어(?:가|간|갈|서|나|들|올|내|오)|뛰어(?:가|간|들|나|올|내|넘)|달려(?:가|간|들|나|오|내)|기어(?:가|간|들|나)|헤엄쳐|날아(?:가|간))/,
@@ -161,13 +162,23 @@ function themeBetween(words: readonly string[], from: number, to: number): strin
   return undefined;
 }
 
+/** `돌을 던지고` throws at a place; `몸을 던졌다` hurls the actor toward it. */
+function isPropelledObjectThrow(words: readonly string[], index: number, goalIndex: number): boolean {
+  const word = words[index]!;
+  if (!/^(?:던지|던졌|던져|날리|날렸|날린)/.test(word)) return false;
+  const theme = themeBetween(words, goalIndex, index);
+  return theme !== undefined && !POSTURE_OBJECTS.has(theme);
+}
+
 /**
  * An earlier action owns the place when it has its own theme (`돌을 던지고`, `돌을 던진`).
  * A bare manner (`은신하며`, `달려`) and a posture theme (`몸을 낮추고`) modify the travel.
  */
 function consumesDirectional(words: readonly string[], index: number, goalIndex: number): boolean {
   const word = words[index]!;
-  if (FOLLOW_LINK.test(word) || isMotionPredicate(word)) return false;
+  if (FOLLOW_LINK.test(word)) return false;
+  if (isPropelledObjectThrow(words, index, goalIndex)) return true;
+  if (isMotionPredicate(word)) return false;
   const verbal = isAttributiveForm(words, index) || OTHER_PREDICATE_ENDING.test(word);
   if (!verbal) return false;
   const theme = themeBetween(words, goalIndex, index);
@@ -256,8 +267,8 @@ function predicateFollows(words: readonly string[], goalIndex: number, accept: (
       continue;
     }
     if (closesPriorEvent(words, j)) return false;
-    if (accept(j)) return !embedded || hasFollowLink(words, goalIndex + 1, j);
     if (consumesDirectional(words, j, goalIndex)) return false;
+    if (accept(j)) return !embedded || hasFollowLink(words, goalIndex + 1, j);
   }
   return false;
 }
