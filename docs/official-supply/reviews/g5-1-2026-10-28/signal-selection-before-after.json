@@ -1,0 +1,384 @@
+{
+  "note": "BEFORE = PRIMARY ids from saved G5 live prompts; AFTER = selectMarketSignals post G5-1C",
+  "before": {
+    "comedyCall03": [
+      "kr-07",
+      "kr-08",
+      "kr-13",
+      "kr-15",
+      "kr-14",
+      "kr-27"
+    ],
+    "horrorCall16": [
+      "kr-07",
+      "kr-08",
+      "kr-13",
+      "kr-15",
+      "kr-14",
+      "kr-27"
+    ]
+  },
+  "after": {
+    "comedy": {
+      "primary": [
+        {
+          "id": "global-08",
+          "genre": "현대/일상",
+          "region": "GLOBAL"
+        }
+      ],
+      "supporting": [
+        {
+          "id": "kr-07",
+          "genre": "판타지",
+          "region": "KR"
+        },
+        {
+          "id": "kr-08",
+          "genre": "판타지",
+          "region": "KR"
+        },
+        {
+          "id": "global-09",
+          "genre": "판타지",
+          "region": "GLOBAL"
+        },
+        {
+          "id": "kr-13",
+          "genre": "현대 판타지",
+          "region": "KR"
+        },
+        {
+          "id": "kr-15",
+          "genre": "무협",
+          "region": "KR"
+        },
+        {
+          "id": "global-04",
+          "genre": "인외",
+          "region": "GLOBAL"
+        },
+        {
+          "id": "global-07",
+          "genre": "공포/추리",
+          "region": "GLOBAL"
+        },
+        {
+          "id": "kr-14",
+          "genre": "아포칼립스",
+          "region": "KR"
+        }
+      ]
+    },
+    "horror": {
+      "primary": [
+        {
+          "id": "global-07",
+          "genre": "공포/추리",
+          "region": "GLOBAL"
+        }
+      ],
+      "supporting": [
+        {
+          "id": "kr-07",
+          "genre": "판타지",
+          "region": "KR"
+        },
+        {
+          "id": "kr-08",
+          "genre": "판타지",
+          "region": "KR"
+        },
+        {
+          "id": "global-08",
+          "genre": "현대/일상",
+          "region": "GLOBAL"
+        },
+        {
+          "id": "global-09",
+          "genre": "판타지",
+          "region": "GLOBAL"
+        },
+        {
+          "id": "kr-13",
+          "genre": "현대 판타지",
+          "region": "KR"
+        },
+        {
+          "id": "kr-15",
+          "genre": "무협",
+          "region": "KR"
+        },
+        {
+          "id": "global-04",
+          "genre": "인외",
+          "region": "GLOBAL"
+        },
+        {
+          "id": "kr-14",
+          "genre": "아포칼립스",
+          "region": "KR"
+        }
+      ]
+    },
+    "rofan": {
+      "primary": [
+        {
+          "id": "kr-04",
+          "genre": "로맨스 판타지",
+          "region": "KR"
+        },
+        {
+          "id": "kr-12",
+          "genre": "로맨스 판타지",
+          "region": "KR"
+        },
+        {
+          "id": "kr-37",
+          "genre": "로맨스 판타지",
+          "region": "KR"
+        },
+        {
+          "id": "kr-39",
+          "genre": "로맨스 판타지",
+          "region": "KR"
+        },
+        {
+          "id": "kr-19",
+          "genre": "로맨스 판타지",
+          "region": "KR"
+        },
+        {
+          "id": "kr-28",
+          "genre": "로맨스 판타지",
+          "region": "KR"
+        },
+        {
+          "id": "kr-34",
+          "genre": "로맨스 판타지",
+          "region": "KR"
+        },
+        {
+          "id": "kr-35",
+          "genre": "로맨스 판타지",
+          "region": "KR"
+        },
+        {
+          "id": "kr-41",
+          "genre": "로맨스 판타지",
+          "region": "KR"
+        },
+        {
+          "id": "kr-01",
+          "genre": "로맨스",
+          "region": "KR"
+        },
+        {
+          "id": "kr-02",
+          "genre": "로맨스",
+          "region": "KR"
+        },
+        {
+          "id": "kr-03",
+          "genre": "로맨스",
+          "region": "KR"
+        },
+        {
+          "id": "kr-06",
+          "genre": "현대/일상",
+          "region": "KR"
+        },
+        {
+          "id": "kr-07",
+          "genre": "판타지",
+          "region": "KR"
+        },
+        {
+          "id": "kr-08",
+          "genre": "판타지",
+          "region": "KR"
+        },
+        {
+          "id": "kr-18",
+          "genre": "성인 스토리",
+          "region": "KR"
+        },
+        {
+          "id": "kr-25",
+          "genre": "로맨스",
+          "region": "KR"
+        },
+        {
+          "id": "kr-33",
+          "genre": "로맨스",
+          "region": "KR"
+        },
+        {
+          "id": "kr-38",
+          "genre": "로맨스",
+          "region": "KR"
+        },
+        {
+          "id": "kr-40",
+          "genre": "판타지",
+          "region": "KR"
+        },
+        {
+          "id": "kr-05",
+          "genre": "현대/일상",
+          "region": "KR"
+        },
+        {
+          "id": "kr-11",
+          "genre": "오메가버스",
+          "region": "KR"
+        },
+        {
+          "id": "kr-13",
+          "genre": "현대 판타지",
+          "region": "KR"
+        },
+        {
+          "id": "kr-15",
+          "genre": "무협",
+          "region": "KR"
+        },
+        {
+          "id": "kr-17",
+          "genre": "시즌 로맨스",
+          "region": "KR"
+        },
+        {
+          "id": "kr-21",
+          "genre": "로맨스",
+          "region": "KR"
+        },
+        {
+          "id": "kr-22",
+          "genre": "로맨스",
+          "region": "KR"
+        },
+        {
+          "id": "kr-23",
+          "genre": "판타지",
+          "region": "KR"
+        },
+        {
+          "id": "kr-26",
+          "genre": "현대/일상",
+          "region": "KR"
+        },
+        {
+          "id": "kr-29",
+          "genre": "BL",
+          "region": "KR"
+        },
+        {
+          "id": "kr-31",
+          "genre": "로맨스",
+          "region": "KR"
+        },
+        {
+          "id": "kr-36",
+          "genre": "로맨스",
+          "region": "KR"
+        },
+        {
+          "id": "kr-09",
+          "genre": "센티넬버스",
+          "region": "KR"
+        },
+        {
+          "id": "kr-10",
+          "genre": "센티넬버스",
+          "region": "KR"
+        },
+        {
+          "id": "kr-14",
+          "genre": "아포칼립스",
+          "region": "KR"
+        },
+        {
+          "id": "kr-16",
+          "genre": "GL",
+          "region": "KR"
+        },
+        {
+          "id": "kr-24",
+          "genre": "인외",
+          "region": "KR"
+        },
+        {
+          "id": "kr-27",
+          "genre": "스포츠",
+          "region": "KR"
+        },
+        {
+          "id": "kr-30",
+          "genre": "센티넬버스",
+          "region": "KR"
+        }
+      ],
+      "supporting": [
+        {
+          "id": "global-10",
+          "genre": "로맨스 판타지",
+          "region": "GLOBAL"
+        },
+        {
+          "id": "global-03",
+          "genre": "로맨스 판타지",
+          "region": "GLOBAL"
+        },
+        {
+          "id": "global-01",
+          "genre": "로맨스",
+          "region": "GLOBAL"
+        },
+        {
+          "id": "global-08",
+          "genre": "현대/일상",
+          "region": "GLOBAL"
+        },
+        {
+          "id": "global-11",
+          "genre": "로맨스",
+          "region": "GLOBAL"
+        },
+        {
+          "id": "global-14",
+          "genre": "로맨스",
+          "region": "GLOBAL"
+        },
+        {
+          "id": "global-15",
+          "genre": "컴패니언",
+          "region": "GLOBAL"
+        },
+        {
+          "id": "global-02",
+          "genre": "로맨스",
+          "region": "GLOBAL"
+        }
+      ]
+    },
+    "schoolEmpty": [
+      "PRIMARY(대상 시장 신호, 우선 사용):",
+      "- (이 장르에 사용 가능한 originality-eligible 시장 신호가 없음. 장르·문체·캐스트 의도로 기획하고, SUPPORTING은 충돌하면 버린다.)",
+      "SUPPORTING(보조 참고, 대상 시장 신호와 충돌하면 버린다):"
+    ]
+  },
+  "comedyLinesAfter": [
+    "PRIMARY(대상 시장 신호, 우선 사용):",
+    "- [global-08] · 현대/일상 · 트로프 angst family drama · 원형 rich best friend / tyrant father · 훅 구조 \"emotionally charged hook with a powerful, difficult figure\" · (top)",
+    "SUPPORTING(보조 참고, 대상 시장 신호와 충돌하면 버린다):",
+    "- [kr-07] · 판타지 · 장치 호감도·스탯·주사위 판정 · 훅 구조 \"게임형 스탯과 판정이 붙은 RP\" · (top)",
+    "- [kr-08] · 판타지 · 장치 한 세계관 속 다수 인물 · 훅 구조 \"하나의 세계관 안에서 여러 인물과 서사를 만든다\" · (top)",
+    "- [global-09] · 판타지 · 장치 shared persistent world with guild/party · 훅 구조 \"a whole guild or academy world instead of one persona\" · (mid)",
+    "- [kr-13] · 현대 판타지 · 트로프 헌신적 파트너 · 원형 여성 헌터 파트너 · 장치 각성자·게이트 · 훅 구조 \"게이트가 도시를 뒤덮은 세계에서 헌터로 활동한다\" · (mid)",
+    "- [kr-15] · 무협 · 원형 떠돌이 무인 · 장치 정파·사파 세력 · 훅 구조 \"정파·사파·낭인 중 길을 골라 강호를 누빈다\" · (mid)",
+    "- [global-04] · 인외 · 원형 vampire / demi-human · 장치 non-human biology · 훅 구조 \"a non-human partner with different rules of life\" · (niche, 성인 수요)",
+    "- [global-07] · 공포/추리 · 원형 detective · 장치 mystery investigation · 훅 구조 \"an investigation partner with their own secret\" · (niche)",
+    "- [kr-14] · 아포칼립스 · 트로프 유사 가족·느린 신뢰 · 원형 생존자 무리 · 장치 자원 부족 생존 · 훅 구조 \"붕괴 수년 후 경계심 많은 생존자 무리와 만난다\" · (niche)"
+  ]
+}

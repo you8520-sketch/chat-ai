@@ -350,11 +350,22 @@ describe("market signal input by genre", () => {
   });
 
   it("leaves romance-frame genres and the default selection untouched", () => {
-    const unfiltered = ids(selectMarketSignals(snapshot, POLICY, "공포/추리"));
-    assert.ok(unfiltered.includes("kr-05"));
+    const unfiltered = selectMarketSignals(snapshot, POLICY, "공포/추리");
+    assert.deepEqual(
+      unfiltered.primary.map((s) => s.signalId),
+      ["global-07"]
+    );
+    assert.ok(unfiltered.supporting.some((s) => s.signalId === "kr-01"), "off-genre romance may remain supporting only");
     for (const genre of ["로맨스", "로맨스 판타지", "BL", "GL", "HL"]) {
       assert.equal(resolveOfficialAuthoringPlan({ genre }).profile.excludeRomanceLedSignals, false, genre);
     }
+  });
+
+  it("genre-matched PRIMARY for non-rofan; fantasy tops no longer pose as 현대/일상 primary", () => {
+    const comedy = selectMarketSignals(snapshot, POLICY, "현대/일상", { excludeRomanceLed: true });
+    assert.ok(comedy.primary.every((s) => s.genre === "현대/일상"));
+    assert.ok(!comedy.primary.some((s) => s.signalId === "kr-07" || s.signalId === "kr-08"));
+    assert.ok(comedy.primary.some((s) => s.signalId === "global-08"));
   });
 
   it("classifies romance-led signals by genre label or romantic relationship structure", () => {

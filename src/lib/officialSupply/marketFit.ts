@@ -2,13 +2,17 @@
  * Official-supply market fit owner.
  *
  * One path from the committed research snapshot to portfolio planning:
- *   snapshot signals → `selectMarketSignals` (locale-first, IP-eligible only)
+ *   snapshot signals → `selectMarketSignals` (genre-fit PRIMARY; rofan keeps locale-first)
  *   → world/portfolio prompts → per-character `OfficialMarketFitBrief`
  *   → Portfolio Brief → Character Bible.
  *
  * Locale/priority come from the batch manifest (`OfficialBatchMarketPolicy`),
  * never from a global runtime constant. Everything here is deterministic —
  * no LLM judge, no scores: review rows carry observable facts for a human.
+ *
+ * Non-rofan PRIMARY is same-genre only (domestic preferred, then other regions).
+ * Off-genre popular KR rows (e.g. fantasy tops) must not pose as that genre's
+ * market-1 signals. Rofan (`로맨스 판타지`) keeps the pre-G5-1C locale-first set.
  */
 import type { OfficialCharacterBible, OfficialWorldBible } from "@/lib/officialSupply/bible";
 import type { ResearchSignal, ResearchSnapshot } from "@/lib/officialSupply/research";
@@ -115,6 +119,43 @@ export function isRomanceLedSignal(signal: Pick<ResearchSignal, "genre" | "relat
   );
 }
 
+/**
+ * Rofan keeps the historical locale-first PRIMARY bag (all domestic eligible rows,
+ * genre-sorted inside). Every other genre uses genre-matched PRIMARY only.
+ * Kept as a string here so `marketFit` does not import `genreProfile` (cycle).
+ */
+const LOCALE_FIRST_PRIMARY_GENRE = "로맨스 판타지";
+
+function selectLocaleFirstPrimary(
+  local: ResearchSignal[],
+  other: ResearchSignal[],
+  policy: OfficialBatchMarketPolicy,
+  genre: string
+): MarketSignalSelection {
+  const [primarySet, supportingSet] = policy.marketPriority === "domestic_first" ? [local, other] : [other, local];
+  return {
+    primary: rankSignals(primarySet, genre).map((s) => digest(s, "primary")),
+    supporting: rankSignals(supportingSet, genre)
+      .slice(0, policy.maxSupportingSignals)
+      .map((s) => digest(s, "supporting")),
+    excluded: [],
+  };
+}
+
+/** Same-genre rows only; preferred region first, then the other region; popularity inside each. */
+function selectGenreMatchedPrimary(
+  local: ResearchSignal[],
+  other: ResearchSignal[],
+  policy: OfficialBatchMarketPolicy,
+  genre: string
+): ResearchSignal[] {
+  const localMatch = local.filter((s) => s.genre === genre);
+  const otherMatch = other.filter((s) => s.genre === genre);
+  const [preferred, fallback] =
+    policy.marketPriority === "domestic_first" ? [localMatch, otherMatch] : [otherMatch, localMatch];
+  return [...rankSignals(preferred, genre), ...rankSignals(fallback, genre)];
+}
+
 export function selectMarketSignals(
   snapshot: ResearchSnapshot,
   policy: OfficialBatchMarketPolicy,
@@ -127,15 +168,26 @@ export function selectMarketSignals(
   const eligible = snapshot.signals.filter((s) => s.originalityEligible && !(opts.excludeRomanceLed && isRomanceLedSignal(s)));
   const local = eligible.filter((s) => s.region === policy.signalRegion);
   const other = eligible.filter((s) => s.region !== policy.signalRegion);
-  const [primarySet, supportingSet] = policy.marketPriority === "domestic_first" ? [local, other] : [other, local];
+
+  if (genre === LOCALE_FIRST_PRIMARY_GENRE) {
+    const legacy = selectLocaleFirstPrimary(local, other, policy, genre);
+    return { ...legacy, excluded };
+  }
+
+  const matched = selectGenreMatchedPrimary(local, other, policy, genre);
+  const primaryIds = new Set(matched.map((s) => s.signalId));
+  const leftover = eligible.filter((s) => !primaryIds.has(s.signalId));
   return {
-    primary: rankSignals(primarySet, genre).map((s) => digest(s, "primary")),
-    supporting: rankSignals(supportingSet, genre)
+    primary: matched.map((s) => digest(s, "primary")),
+    supporting: rankSignals(leftover, genre)
       .slice(0, policy.maxSupportingSignals)
       .map((s) => digest(s, "supporting")),
     excluded,
   };
 }
+
+const NO_GENRE_SIGNAL_LINE =
+  "- (이 장르에 사용 가능한 originality-eligible 시장 신호가 없음. 장르·문체·캐스트 의도로 기획하고, SUPPORTING은 충돌하면 버린다.)";
 
 /** Trope-level prompt lines (signalId-tagged so briefs can cite them). */
 export function formatMarketSignalLines(selection: MarketSignalSelection): string[] {
@@ -153,7 +205,7 @@ export function formatMarketSignalLines(selection: MarketSignalSelection): strin
       .join(" · ");
   return [
     "PRIMARY(대상 시장 신호, 우선 사용):",
-    ...selection.primary.map((s) => `- ${line(s)}`),
+    ...(selection.primary.length > 0 ? selection.primary.map((s) => `- ${line(s)}`) : [NO_GENRE_SIGNAL_LINE]),
     selection.supporting.length ? "SUPPORTING(보조 참고, 대상 시장 신호와 충돌하면 버린다):" : "",
     ...selection.supporting.map((s) => `- ${line(s)}`),
   ].filter(Boolean);

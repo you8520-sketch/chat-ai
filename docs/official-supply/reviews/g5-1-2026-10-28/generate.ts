@@ -105,8 +105,8 @@ const RESPONSES_DIR = path.join(OUT_DIR, "provider-responses");
 const KRW_PER_USD = 1500;
 const UPPER_USD_PER_M_INPUT = 0.5;
 const UPPER_USD_PER_M_OUTPUT = 1.0;
-/** G5-1B: comedy used 13 calls; horror-dry may use up to 15 more → hard cap 28. */
-const CALL_CAP = 28;
+/** G5-1C: 21 calls used; +10 for one new modern-comedy compare → hard cap 31. */
+const CALL_CAP = 31;
 const MAX_VOICE_REPAIRS = 2;
 const DEFAULT_MAX_KRW = 1000;
 
@@ -150,6 +150,19 @@ const SPECS: readonly Spec[] = [
       "전체 이용자 대상 건조한 블랙코미디 공포·추리 캐릭터 1명. 연애 구도 없이 의뢰인·목격자·동료로 엮이는 관계. 사건은 실제로 있고 유머는 건조하게.",
     replanDirection:
       "남성. 연애 구도 없는 건조한 블랙코미디 공포·추리. 사건을 스스로 움직이는 인물. 유지 캐릭터와 목표·첫 사건·말투·유저 역학·유머 방식이 겹치지 않게.",
+  },
+  {
+    key: "g5-modern-comedy-c",
+    genre: "현대/일상",
+    worldKey: "g5-modern-daily-c-v1",
+    styleKey: "modern_daily_v1",
+    direction: { genre: "현대/일상", tone: "light", humor: "central", pacing: "dialogue", nameWordplay: "nickname" },
+    gender: "female",
+    audience: "all",
+    castIntent:
+      "전체 이용자 대상 현대 한국 일상 코미디 캐릭터 1명. 연애 구도 없이 이웃·동료·룸메이트처럼 일상에서 엮이는 관계. 별명이 붙은 인물.",
+    replanDirection:
+      "여성. 연애 구도 없는 가벼운 일상 코미디. 별명(괄호 별칭)에 행동으로 생긴 이유가 있다. 유지 캐릭터와 목표·첫 사건·말투·유저 역학·유머 방식이 겹치지 않게.",
   },
 ];
 
