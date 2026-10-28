@@ -1,8 +1,8 @@
 # G5-1 / G5-1B handoff — genre-generic official character authoring core
 
-Issue: https://github.com/you8520-sketch/chat-ai/issues/1746  
-Draft PR: https://github.com/you8520-sketch/chat-ai/pull/1748  
-GPT mid-review: issue comment `6472189151` on HEAD `5617280b`  
+Issue: https://github.com/you8520-sketch/chat-ai/issues/1746
+Draft PR: https://github.com/you8520-sketch/chat-ai/pull/1748
+GPT mid-review: issue comment `6472189151` on HEAD `5617280b`
 This evidence SHA: see latest commit on `cursor/g5-1-genre-profile-d9a9`
 
 Status: **Draft. Two non-rofan live manuscripts + runner cleanup. Cursor does not score manuscripts. GPT re-review requested. STOP.**
