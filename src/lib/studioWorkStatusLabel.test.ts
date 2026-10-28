@@ -7,6 +7,7 @@ import {
   studioWorkModerationChipLabel,
 } from "@/lib/studioWorkStatusLabel";
 import { moderationLabel } from "@/lib/characterVisibility";
+import { isAdminUser } from "@/lib/isAdminUser";
 
 const base = {
   ownerIsAdmin: true,
@@ -18,10 +19,38 @@ const base = {
   images: "[]",
 };
 
+describe("isAdminUser (studio card gate)", () => {
+  it("honors ADMIN_EMAILS and excludes portone reviewer even when is_admin=1", () => {
+    const prev = process.env.ADMIN_EMAILS;
+    process.env.ADMIN_EMAILS = "ops@example.com";
+    try {
+      assert.equal(isAdminUser({ email: "ops@example.com", is_admin: 0 }), true);
+      assert.equal(isAdminUser({ email: "other@example.com", is_admin: 0 }), false);
+      assert.equal(
+        isAdminUser({ email: "ops@example.com", is_admin: 1, account_kind: "portone_reviewer" }),
+        false,
+      );
+    } finally {
+      if (prev === undefined) delete process.env.ADMIN_EMAILS;
+      else process.env.ADMIN_EMAILS = prev;
+    }
+  });
+});
+
 describe("studioWorkModerationChipLabel", () => {
-  it("shows draft copy for admin private character drafts without images", () => {
+  it("shows draft copy for admin private character drafts without images when moderation is approved", () => {
     assert.equal(studioWorkModerationChipLabel(base), ADMIN_IMAGELESS_PRIVATE_DRAFT_CHIP);
     assert.ok(isAdminImagelessPrivateCharacterDraft(base));
+  });
+
+  it("keeps pending and rejected moderation labels on image-less admin private drafts", () => {
+    for (const moderation of ["pending", "rejected"] as const) {
+      assert.equal(
+        studioWorkModerationChipLabel({ ...base, moderation }),
+        moderationLabel(moderation),
+      );
+      assert.equal(isAdminImagelessPrivateCharacterDraft({ ...base, moderation }), false);
+    }
   });
 
   it("keeps canonical moderation labels for everyone else", () => {

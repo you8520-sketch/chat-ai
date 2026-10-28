@@ -38,7 +38,7 @@
 ## PROOF
 
 - 동일한 G2 직접 회귀 **main: 4 PASS / 13 FAIL → G2: 17 PASS / 0 FAIL**.
-- 격리 SQLite에서 최초 원고와 자동 보정 후보를 각각 생성 → 로드 → full 수정 → 공개 정보 수정 → 이미지 후첨부했다. 원문·말투·소개·코멘트·세계관·로어북·ID·저장 대화가 유지됐다. pending 이미지는 공개 거부, trusted moderation 완료 후 기존 공개 경로가 작동했다. 이때도 official=0이다. DB `approved`는 GPT 원고 승인과 무관하며, 스튜디오 카드는 이미지 없는 관리자 private 초안에 `비공개 초안 · 이미지 미등록` 칩을 표시한다(`studioWorkStatusLabel.ts`).
+- 격리 SQLite에서 최초 원고와 자동 보정 후보를 각각 생성 → 로드 → full 수정 → 공개 정보 수정 → 이미지 후첨부했다. 원문·말투·소개·코멘트·세계관·로어북·ID·저장 대화가 유지됐다. pending 이미지는 공개 거부, trusted moderation 완료 후 기존 공개 경로가 작동했다. 이때도 official=0이다. DB `approved`는 GPT 원고 승인과 무관하며, 스�udio 카드는 `isAdminUser(user)`일 때만, moderation이 `approved`인 이미지 없는 관리자 private 초안에 `비공개 초안 · 이미지 미등록` 칩을 표시한다(`pending`/`rejected`는 기존 검수 문구 유지). AFTER 목록 스크린샷: `ui/after-list-390.png`, `ui/after-list-1440.png`.
 - 정상 사용자/위조 body 권한/reviewer/simulation/이미지 없는 public·link 거부. 공식 row의 이미지 제거 거부.
 - 실제 G1 4번째 provider 응답을 오프라인 재생: 기존 194자 유지 + 명시적 실패 + 기존 settled 비용 `$0.000968` 집계 유지. 요청 필드별 누락/빈 값도 검증했다.
 - 관련 회귀 초기 실행은 747개 중 746 PASS, 과거 manifest와 현재 템플릿 버전의 동일성을 가정한 테스트 1개 FAIL이었다. 과거 provenance 보존으로 테스트를 바로잡은 후 핵심 author/pilot/G1/품질 owner **123/123 PASS**, 마지막 저장·에셋·공식 관리 회귀 **92/92 PASS**다.

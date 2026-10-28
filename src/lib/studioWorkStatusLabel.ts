@@ -28,10 +28,12 @@ export function isAdminImagelessPrivateCharacterDraft(input: {
   isSimulation: boolean;
   official: number;
   visibility: CharacterVisibility;
+  moderation: ModerationStatus;
   assets?: string | null;
   images?: string | null;
 }): boolean {
   if (!input.ownerIsAdmin) return false;
+  if (input.moderation !== "approved") return false;
   if (input.isSimulation) return false;
   if (input.official !== 0) return false;
   if (input.visibility !== "private") return false;

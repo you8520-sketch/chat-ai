@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { shouldHideAdultListings } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
+import { isAdminUser } from "@/lib/isAdminUser";
 import { getDb } from "@/lib/db";
 import MyCharacterCard, { type MyCharacterRow } from "@/components/MyCharacterCard";
 import StudioButton from "@/components/studio/StudioButton";
@@ -43,7 +44,7 @@ export default async function MyCharactersPage() {
       ) : (
         <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-0 sm:grid-cols-3 lg:grid-cols-5">
           {chars.map((c) => (
-            <MyCharacterCard key={c.id} c={c} blurNsfw={blurNsfw} ownerIsAdmin={Boolean(user.is_admin)} />
+            <MyCharacterCard key={c.id} c={c} blurNsfw={blurNsfw} ownerIsAdmin={isAdminUser(user)} />
           ))}
         </div>
       )}
