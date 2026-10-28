@@ -80,6 +80,7 @@ import {
   evaluateOfficialPublicDescription,
 } from "@/lib/officialSupply/publicProfileText";
 import { isOfficialImageSubjects } from "@/lib/officialSupply/imageSubjects";
+import { evaluateUserRelationPremise } from "@/lib/officialSupply/userRelationStart";
 import { coerceMarketFitBrief } from "@/lib/officialSupply/marketFit";
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import {
@@ -1058,6 +1059,11 @@ export async function generateOfficialCharacterBible(input: {
   npcRelationRepairs: OfficialAuthorRawCompletion[];
 }> {
   const userRelation = canonicalUserRelationPlan(input);
+  const premise = evaluateUserRelationPremise(userRelation.type, [
+    input.part1.brief.rpHook, input.part1.brief.marketFit?.userRelationship ?? "",
+    input.part1.brief.marketFit?.differentiationTwist ?? "",
+  ]);
+  if (!premise.ok) throw new OfficialSupplyGateError("author_user_relation_mismatch", premise.errors.map(e => e.message).join("; "), premise);
   const first = await input.transport.completeJson({
     task: "character_bible_1",
     system: buildCharacterBible1System(),
@@ -1117,7 +1123,7 @@ export async function generateOfficialCharacterBible(input: {
     userRelationType: userRelation.type,
   });
   return {
-    bible: { ...bible, promptStandard: "compact_rp_v1" },
+    bible: { ...bible, promptStandard: "compact_rp_v2" },
     completions: [first, second, third],
     npcRelationRepairs,
   };
@@ -1215,6 +1221,10 @@ export async function reviseOfficialCharacterVoice(input: {
     system: buildCharacterVoiceSystem(false),
     user: buildCharacterVoiceUser({
       ...input.voice,
+      userRelation: input.voice.userRelation ?? {
+        type: current.userRelationship?.type ?? "free",
+        fixed: current.userRelationship?.fixedFacts ?? "",
+      },
       includePublicManuscripts: false,
       part1Recap: buildPart1Recap(current as unknown as Record<string, unknown>, input.fields.includes("greeting") || input.fields.includes("publicDescription")),
       feedback: [...input.reasons, ...keep].join("\n"),
@@ -1225,17 +1235,41 @@ export async function reviseOfficialCharacterVoice(input: {
   });
   const voiceHalf = parseAuthorJson(completion.text, "character_bible_voice");
   if (!isRecord(voiceHalf)) throw new OfficialSupplyGateError("author_shape_invalid", "character_bible_voice: object required");
-  const self = current as unknown as Record<string, unknown>;
-  const fresh = assembleOfficialCharacterBible(self, { ...voiceHalf, npcs: current.npcs }, self);
+  const profile = isRecord(voiceHalf.publicProfile) ? voiceHalf.publicProfile : {};
+  const speech = isRecord(voiceHalf.speech) ? voiceHalf.speech : {};
+  const missing: string[] = [];
+  if (input.fields.includes("greeting") && !isNonEmptyString(voiceHalf.greeting)) missing.push("greeting");
+  if (input.fields.includes("publicDescription") && !isNonEmptyString(profile.description)) missing.push("publicProfile.description");
+  if (input.fields.includes("tags") && (!Array.isArray(profile.tags) || profile.tags.length === 0 || !profile.tags.every(isNonEmptyString))) missing.push("publicProfile.tags");
+  if (input.fields.includes("speech")) {
+    if (!isNonEmptyString(speech.description)) missing.push("speech.description");
+    // A selected speech revision must preserve every populated speech field.
+    for (const [key, value] of Object.entries(current.speech)) {
+      const replacement = speech[key];
+      const invalidString = typeof value === "string" &&
+        (replacement === undefined ? Boolean(value.trim()) : typeof replacement !== "string" || (Boolean(value.trim()) && !replacement.trim()));
+      const invalidArray = Array.isArray(value) &&
+        (replacement === undefined ? value.length > 0 : !Array.isArray(replacement) || !replacement.every(isNonEmptyString) || (value.length > 0 && replacement.length === 0));
+      if (invalidString || invalidArray) {
+        missing.push(`speech.${key}`);
+      }
+    }
+  }
+  if (missing.length) {
+    throw new OfficialSupplyGateError("author_voice_revision_incomplete", `character_bible_voice: requested fields missing or empty: ${missing.join(", ")}`);
+  }
   const next: OfficialCharacterBible = {
     ...current,
-    greeting: input.fields.includes("greeting") ? fresh.greeting : current.greeting,
+    greeting: input.fields.includes("greeting") ? String(voiceHalf.greeting) : current.greeting,
     publicProfile: {
       ...current.publicProfile,
-      description: input.fields.includes("publicDescription") ? fresh.publicProfile.description : current.publicProfile.description,
-      tags: input.fields.includes("tags") ? fresh.publicProfile.tags : current.publicProfile.tags,
+      description: input.fields.includes("publicDescription") ? String(profile.description) : current.publicProfile.description,
+      tags: input.fields.includes("tags") ? strArray(profile.tags) : current.publicProfile.tags,
     },
-    speech: input.fields.includes("speech") ? { ...fresh.speech } : current.speech,
+    speech: input.fields.includes("speech") ? {
+      ...current.speech,
+      ...Object.fromEntries(Object.keys(current.speech).filter(key => speech[key] !== undefined).map(key => [key, speech[key]])),
+    } : current.speech,
   };
   return { bible: next, completion };
 }
@@ -1417,8 +1451,8 @@ export function assembleOfficialCharacterBible(
       ...(opts.userRelationType
         ? {
             type: opts.userRelationType,
-            fixedFacts: opts.userRelationType === "free" ? "" : String(userRelationship.fixedFacts ?? "").trim(),
-            userDecides: opts.userRelationType === "free" ? "" : String(userRelationship.userDecides ?? "").trim(),
+            fixedFacts: String(userRelationship.fixedFacts ?? "").trim(),
+            userDecides: String(userRelationship.userDecides ?? "").trim(),
           }
         : {}),
       initialView: String(userRelationship.initialView ?? ""),

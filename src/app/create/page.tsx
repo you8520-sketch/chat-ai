@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { canUseCreatorTools } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
+import { resolveOfficialCharacterEditorAccess } from "@/lib/officialAdminAccess";
+import { isAdminUser } from "@/lib/isAdminUser";
 import { getDb } from "@/lib/db";
 import { resolveViewerDisplayNameForUser } from "@/lib/viewerDisplayName";
 import { isActivePartnerCreator } from "@/lib/partnerTier";
@@ -34,7 +36,13 @@ export default async function CreatePage({
       />
     );
   }
-  const creatorIsPartner = isActivePartnerCreator(getDb(), user.id);
+  const db = getDb();
+  const creatorIsPartner = isActivePartnerCreator(db, user.id);
+  const editRow = editCharacterId == null ? null : db.prepare(
+    "SELECT id, creator_id, official FROM characters WHERE id=?"
+  ).get(editCharacterId) as { id: number; creator_id: number | null; official: number } | undefined;
+  const adminCanSavePrivateDraft = isAdminUser(user) &&
+    (editCharacterId == null || resolveOfficialCharacterEditorAccess(user, editRow) === "owner");
 
   return (
     <CreateCharacter
@@ -43,6 +51,7 @@ export default async function CreatePage({
       creatorDisplayName={user.nickname}
       creatorIsPartner={creatorIsPartner}
       userId={user.id}
+      adminCanSavePrivateDraft={adminCanSavePrivateDraft}
       initialContentKind={kind === "simulation" ? "simulation" : "character"}
       initialWorldId={
         initialWorldId != null && Number.isFinite(initialWorldId) && initialWorldId > 0

@@ -246,6 +246,7 @@ export default function CreateCharacter({
   creatorDisplayName = "제작자",
   creatorIsPartner = false,
   userId,
+  adminCanSavePrivateDraft = false,
   initialContentKind = "character",
   initialWorldId = null,
   initialWorldBorrowId = null,
@@ -255,6 +256,7 @@ export default function CreateCharacter({
   creatorDisplayName?: string;
   creatorIsPartner?: boolean;
   userId: number;
+  adminCanSavePrivateDraft?: boolean;
   initialContentKind?: ContentKind;
   initialWorldId?: number | null;
   initialWorldBorrowId?: number | null;
@@ -289,7 +291,7 @@ export default function CreateCharacter({
     weight_kg: "",
     world_public_name: "",
     world_public: false,
-    visibility: "public" as "public" | "link" | "private",
+    visibility: (adminCanSavePrivateDraft ? "private" : "public") as "public" | "link" | "private",
     narration_style_instructions: "",
     comments_enabled: true,
     creator_comment: "",
@@ -525,9 +527,10 @@ export default function CreateCharacter({
     form.speech_contextual_registers,
   );
 
+  const imageOptional = adminCanSavePrivateDraft && form.content_kind === "character" && form.visibility === "private";
   const createRequirements = useMemo(
     () => ({
-      hasAsset: assets.length >= 1 && files.length === 0,
+      hasAsset: (imageOptional || assets.length >= 1) && files.length === 0,
       hasMinAiText: substantiveAiLearningTotal >= AI_LEARNING_MIN,
       hasGender: form.content_kind === "simulation" || !!form.gender,
       hasGreeting: !!form.greeting.trim(),
@@ -536,6 +539,7 @@ export default function CreateCharacter({
     [
       assets.length,
       files.length,
+      imageOptional,
       substantiveAiLearningTotal,
       form.gender,
       form.content_kind,
@@ -586,7 +590,7 @@ export default function CreateCharacter({
     },
     {
       id: "assets",
-      label: files.length > 0 ? "이미지 업로드·태깅 완료" : "감정 에셋 이미지 1장",
+      label: files.length > 0 ? "이미지 업로드·태깅 완료" : imageOptional ? "감정 에셋 이미지 (나중에 추가 가능)" : "감정 에셋 이미지 1장",
       done: createRequirements.hasAsset,
       tabLabel: PAGE_TAB_LABEL.create,
     },
@@ -1387,7 +1391,7 @@ export default function CreateCharacter({
       failField("선택한 이미지를 먼저 「업로드 · 태깅」을 실행한 뒤, 가리기 설정을 확인해 주세요.", "assets");
       return;
     }
-    if (assets.length === 0) {
+    if (assets.length === 0 && !imageOptional) {
       failField("감정 에셋 이미지를 1장 이상 업로드해 주세요.", "assets");
       return;
     }
@@ -2382,12 +2386,15 @@ export default function CreateCharacter({
                 </div>
               </section>
 
+              {imageOptional && (
+                <p className="text-sm text-zinc-400">관리자 비공개 초안은 이미지 없이 저장할 수 있어요. 공개하려면 검수를 마친 대표 이미지를 추가해 주세요.</p>
+              )}
               {/* 2. 감정 에셋 (비공개) */}
               <section className={sectionMuted}>
                 <SectionHeader
                   step={stepOf("assets")}
                   title="감정 에셋 이미지"
-                  requirement="required"
+                  requirement={imageOptional ? "optional" : "required"}
                   visibility="private"
                   aside={
                     <span className="text-xs font-semibold tabular-nums text-zinc-300">

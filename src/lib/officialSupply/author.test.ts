@@ -602,7 +602,7 @@ describe("official author adapter", () => {
         })
       )
     );
-    assert.equal(bible.promptStandard, "compact_rp_v1");
+    assert.equal(bible.promptStandard, "compact_rp_v2");
     assert.equal(validatePilotBible(bible, { adultExpected: false }).ok, true);
   });
 
@@ -1501,7 +1501,7 @@ describe("official author adapter", () => {
       voice: { name: "카엘", age: 27, adultCandidate: false, speechDirection: "단호", npcDemand: "없음" },
       bonds: { name: "카엘", age: 27, rpHook: "순찰", adultCandidate: false, castList: [] },
     });
-    assert.equal(bible.promptStandard, "compact_rp_v1");
+    assert.equal(bible.promptStandard, "compact_rp_v2");
   });
 
   it("duplicate greetings and hooks are detected across siblings", () => {

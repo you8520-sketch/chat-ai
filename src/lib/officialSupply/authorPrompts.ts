@@ -49,7 +49,7 @@ export const OFFICIAL_AUTHOR_QUALITY_CONTRACT = {
 
 const Q = OFFICIAL_AUTHOR_QUALITY_CONTRACT;
 
-export const OFFICIAL_AUTHOR_TEMPLATE_VERSION = "pilot-rf-01/v3";
+export const OFFICIAL_AUTHOR_TEMPLATE_VERSION = "pilot-rf-01/v4";
 export const OFFICIAL_AUTHOR_SNAPSHOT_VERSION = "market-research-snapshot-2026-09.json";
 
 export type OfficialAuthorTask =
@@ -214,7 +214,7 @@ function marketFitRuleLines(m: WorldMarketInput): string[] {
     "- differentiationTwist: 인기 트로프 + 고유 차별점(역할 역전·직업 충돌·과거 사건·정치적 이해관계·특이 능력·유저와의 비대칭 정보 중 1개 이상).",
     `- marketRole은 proven·proven_twist·experimental 중 하나. 이번 배치 구성: ${mix}.`,
     "- userRelationship: 상품 기획용 관계 역학이다. 사전 관계를 반드시 고정하는 필드가 아니다. 오프닝이 특정 관계를 핵심 전제로 삼을 때만 고정하고, 그 외에는 현재 장면의 이해관계·긴장·거리로 쓴다.",
-    "- userRelation.type: free(기본)·role_bound(이야기 전제에 꼭 필요한 유저 소속·역할만 고정)·relationship_bound(관계·공동 과거 고정). 오프닝이 꼭 필요로 할 때만 bound 유형을 쓰고 fixed에 고정할 사실 한 줄을 쓴다. 어떤 유형에서도 유저 성별·애정·결말은 고정하지 않는다.",
+    "- userRelation.type: free(기본)·role_bound(이야기 전제에 꼭 필요한 유저 소속·역할만 고정)·relationship_bound(관계·공동 과거 고정). 도입 사건에 유저의 특정 능력·역할이 필수면 role_bound로 두고 fixed에 필요한 사실만 쓴다. 기존 관계·공동 과거가 필수일 때만 relationship_bound다. 어떤 유형에서도 유저 성별·애정·결말은 고정하지 않는다.",
     "- oneLineConflict: '현재 유저-캐릭터 역학 + 지금의 갈등 + 대화할 이유'를 한 문장으로. persona-flexible 카드에서는 가족/연인/상관/초면 같은 사전 관계를 단정하지 않는다.",
     "  세계관 고유명사 없이 대상 시장 독자가 바로 아는 역할 어휘로 쓴다.",
     `- namingProfile은 "${m.namingProfile}" (${NAMING_PROFILES[m.namingProfile].guidance})`,
@@ -359,13 +359,13 @@ export function buildCharacterBible1System(): string {
     "- identity: gender는 male·female·other 중 브리프 지정값 그대로, age는 브리프 나이 정수 그대로, heightCm은 140~220 정수.",
     "- appearance: 이미지/Appearance owner용 원본이다. 얼굴형·눈매·눈동자·머리색·헤어·길이·피부·키·체형·특징·표정·복장·소품을 250~500자로 기록하되, 이 장문을 RP 캐릭터 본문에 복제하지 않는다.",
     "- personality.keywords: 5~8개. personality.behavioral 450~700자:",
-    "  키워드 나열로 끝내지 말고 평상시·낯선 사람·가까운 사람·분노·불안·당황·애정·갈등에서 실제로 무엇을 하는지 행동으로 쓴다.",
+    "  평상시·위기·가까운 상대 앞에서 실제로 하는 행동을 쓴다. 기존 결핍과 모순이 개인적 관심·애정 앞에서 어떤 고유한 망설임이나 선택으로 드러나는지 보여주되 관계 단계나 결말을 정하지 않는다.",
     "- contradiction: 내적 모순 1개 이상. 장점+단점 나열이 아니라 RP 갈등·변화의 원인이 되는 모순.",
     "- values: desires 1~2·fears 1~2·coreValues 2~3·nonNegotiable 1~2. 행동을 예측할 수 있을 만큼 구체적으로.",
     "  desires는 결핍·내적 욕구, fears 각 항목은 두려움과 그때 나오는 방어 행동(또는 무너지는 조건)을 함께 쓴다.",
     "- backstory: 현재 성격/행동을 만든 formative event 1~2개, 총 350~700자. 연대기 금지.",
     "  각 사건은 사건 → 당시 선택 → 현재 행동에 남은 흔적만 남긴다. 현재에 영향 없는 사건은 삭제.",
-    "- abilities 2~4개: 캐릭터의 매력·권력·문제 해결 방식을 보여주는 능력만. 범위·한계/대가·대표 사용을 짧게 쓴다. 업무 매뉴얼처럼 장황하게 설명하지 않는다.",
+    "- abilities 2~4개: 캐릭터의 매력·권력·문제 해결 방식을 보여주는 능력만. 범위·숙련도·한계/대가·대표 사용을 짧게 쓴다. 계약의 목표·인물의 약속과 실제 보장 가능한 결과를 구별하고, 위험·한계와 모순되는 생존 보장을 canon으로 쓰지 않는다.",
     "- habits: hobbies는 짧은 명사/구 3~5개, habits는 반복 장면에 바로 쓸 행동 3~5개(비언어적 버릇 포함). likes/dislikes는 각 2~4개로 간결하게.",
     "- dailyLife 120~250자: 사건이 없을 때 무엇을 하며 시간을 보내는지 생활감만 남긴다.",
     "- situation: 세계 관련 맥락 350~650자 + 개인 현재 상황 300~600자 + 유저 진입 장면 40~180자. 세계 설정집을 캐릭터 본문으로 복사하지 않는다.",

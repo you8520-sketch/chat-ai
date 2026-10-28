@@ -115,7 +115,7 @@ export function formatUserRelationPlanForPrompt(plan: OfficialUserRelationPlan |
   return [
     `유저 관계 시작 유형: ${p.type}${p.fixed ? ` — 고정: ${p.fixed}` : ""}`,
     p.type === "free"
-      ? "유저 정체·관계를 확정하지 않는다(페르소나 우선)."
+      ? "유저의 필수 능력·신분·관계를 전제하지 않는다. 필수 역할이 있는 브리프는 role_bound로 기획한다."
       : "고정 사실만 확정하고 유저 성별·감정·행동·결말은 확정하지 않는다. 고정 관계는 애정·신뢰를 뜻하지 않는다.",
   ];
 }
@@ -155,6 +155,16 @@ function issue(code: string, message: string): QaIssue {
   return { code, message };
 }
 
+/** Explicit mandatory user ability/role in authored premise text, before compilation.
+ * This is deliberately a bounded language check, not a semantic classifier.
+ */
+export function evaluateUserRelationPremise(type: OfficialUserRelationType, texts: readonly string[]): QaResult {
+  if (type !== "free") return qaResult([]);
+  const mandatory = /(?:당신|유저|사용자)(?:의|만이|만|은|는|이|가)?[^.!?。！？\n]{0,60}(?:(?:능력|공명|혈통|신분|소속|역할)[^.!?。！？\n]{0,35}(?:없이는|없인|뿐|필수|유일)|(?:없이는|없인)[^.!?。！？\n]{0,20}(?:불가능|할 수 없))|(?:가능한|멈출 수 있는|살릴 수 있는)[^.!?。！？\n]{0,15}(?:건|것은|자는)[^.!?。！？\n]{0,10}(?:당신|유저|사용자)[^.!?。！？\n]{0,20}(?:뿐|유일)/u;
+  const hit = texts.find(text => mandatory.test(text));
+  return qaResult(hit ? [issue("bible_user_rel_free_premise", "FREE premise requires a specific user ability/role; declare only the required fact as ROLE_BOUND or remove that prerequisite")] : []);
+}
+
 /**
  * Deterministic start-type contract. Runs only for bibles that declare a
  * `type` (new authoring); legacy bibles keep the checks they always had.
@@ -169,6 +179,7 @@ export function evaluateUserRelationStart(input: {
     progression: string[];
   };
   forcedOutcomeTexts?: readonly string[];
+  premiseTexts?: readonly string[];
 }): QaResult {
   const errors: QaIssue[] = [];
   const rel = input.userRelationship;
@@ -178,6 +189,7 @@ export function evaluateUserRelationStart(input: {
     return qaResult(errors);
   }
   const fixed = rel.fixedFacts?.trim() ?? "";
+  errors.push(...evaluateUserRelationPremise(type, input.premiseTexts ?? []).errors);
   const decides = rel.userDecides?.trim() ?? "";
   if (type === "free") {
     if (fixed || decides) {

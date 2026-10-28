@@ -18,6 +18,7 @@ import {
 import {
   qaResult,
   type OfficialCharacterDraft,
+  type OfficialCharacterPromptStandard,
   type OfficialSupportingNpc,
   type OfficialWorldLorebookEntry,
   type QaIssue,
@@ -277,7 +278,7 @@ export type BibleSelfDrive = { goal: string; ownMove: string; setback: string };
 
 export type OfficialCharacterBible = {
   /** New official characters use the compact RP prompt standard; absent = legacy pilot source. */
-  promptStandard?: "compact_rp_v1";
+  promptStandard?: OfficialCharacterPromptStandard;
   /** Legacy-standard manuscripts that still use the shared world + per-character currentSituation split. */
   usesSharedWorld?: true;
   identity: {
@@ -841,6 +842,12 @@ export function evaluateRelationBibleContract(bible: OfficialCharacterBible): Qa
   errors.push(
     ...evaluateUserRelationStart({
       userRelationship: bible.userRelationship,
+      premiseTexts: [
+        ...bible.abilities.flatMap(ability => [ability.scope, ability.level, ability.limit, ability.cost, ability.usage]),
+        bible.situation.personalSituation, bible.situation.userEntry, bible.greeting,
+        bible.publicProfile.tagline, bible.publicProfile.description, bible.publicProfile.detailedDescription ?? "",
+        bible.publicProfile.creatorComment ?? "", bible.rpEngine.immediateHook,
+      ],
       forcedOutcomeTexts: [bible.rpEngine?.mediumConflict ?? "", bible.rpEngine?.longTermChange ?? "", ...driveTexts],
     }).errors
   );
@@ -939,8 +946,8 @@ export function validateCharacterBible(
 ): QaResult {
   const errors: QaIssue[] = [];
   const warnings: QaIssue[] = [];
-  const compactRpV1 = bible.promptStandard === "compact_rp_v1";
-  if (bible.promptStandard != null && !compactRpV1) {
+  const compactRp = bible.promptStandard === "compact_rp_v1" || bible.promptStandard === "compact_rp_v2";
+  if (bible.promptStandard != null && !compactRp) {
     errors.push(err("bible_prompt_standard", `unsupported promptStandard: ${String(bible.promptStandard)}`));
   }
 
@@ -1013,8 +1020,8 @@ export function validateCharacterBible(
   checkCount(values.nonNegotiable, 1, 2, "bible_non_negotiable");
 
   const events = bible.backstory?.events ?? [];
-  const minBackstoryEvents = compactRpV1 ? 1 : 2;
-  const maxBackstoryEvents = compactRpV1 ? 2 : 4;
+  const minBackstoryEvents = compactRp ? 1 : 2;
+  const maxBackstoryEvents = compactRp ? 2 : 4;
   if (events.length < minBackstoryEvents || events.length > maxBackstoryEvents) {
     errors.push(err("bible_backstory_events", `formative events ${minBackstoryEvents}-${maxBackstoryEvents} required, got ${events.length}`));
   } else {
@@ -1031,7 +1038,7 @@ export function validateCharacterBible(
   }
 
   const abilities = bible.abilities ?? [];
-  const maxAbilities = compactRpV1 ? 4 : 6;
+  const maxAbilities = compactRp ? 4 : 6;
   if (abilities.length < 2 || abilities.length > maxAbilities) {
     errors.push(err("bible_ability_count", `abilities 2-${maxAbilities} required, got ${abilities.length}`));
   } else {
@@ -1048,19 +1055,19 @@ export function validateCharacterBible(
   }
 
   const habits = bible.habits ?? { hobbies: [], habits: [], likes: [], dislikes: [] };
-  checkCount(habits.hobbies, compactRpV1 ? 3 : 2, compactRpV1 ? 5 : 4, "bible_hobbies");
-  checkCount(habits.habits, compactRpV1 ? 3 : 2, 5, "bible_habit_list");
-  checkCount(habits.likes, compactRpV1 ? 2 : 3, compactRpV1 ? 4 : 6, "bible_likes");
-  checkCount(habits.dislikes, compactRpV1 ? 2 : 3, compactRpV1 ? 4 : 6, "bible_dislikes");
-  if (compactRpV1) {
+  checkCount(habits.hobbies, compactRp ? 3 : 2, compactRp ? 5 : 4, "bible_hobbies");
+  checkCount(habits.habits, compactRp ? 3 : 2, 5, "bible_habit_list");
+  checkCount(habits.likes, compactRp ? 2 : 3, compactRp ? 4 : 6, "bible_likes");
+  checkCount(habits.dislikes, compactRp ? 2 : 3, compactRp ? 4 : 6, "bible_dislikes");
+  if (compactRp) {
     for (const hobby of habits.hobbies) {
       if (hobby.length > 24) errors.push(err("bible_hobby_too_long", `compact hobby anchor too long: ${hobby}`));
     }
   }
 
   const daily = bible.dailyLife ?? "";
-  const dailyMin = compactRpV1 ? 120 : 200;
-  const dailyMax = compactRpV1 ? 250 : 400;
+  const dailyMin = compactRp ? 120 : 200;
+  const dailyMax = compactRp ? 250 : 400;
   if (daily.length < dailyMin) errors.push(err("bible_daily_thin", `dailyLife ${daily.length} chars (< ${dailyMin})`));
   else if (daily.length > dailyMax) warnings.push(warn("bible_daily_band", `dailyLife ${daily.length} chars (> ${dailyMax})`));
 
@@ -1204,8 +1211,8 @@ export function compileOfficialDraftFromBible(
 ): OfficialCharacterDraft {
   const id = bible.identity;
   const task = "bible_compile";
-  const compactRpV1 = bible.promptStandard === "compact_rp_v1";
-  const sharedWorldSplit = compactRpV1 || bible.usesSharedWorld === true;
+  const compactRp = bible.promptStandard === "compact_rp_v1" || bible.promptStandard === "compact_rp_v2";
+  const sharedWorldSplit = compactRp || bible.usesSharedWorld === true;
 
   const tagline = bible.publicProfile.tagline.trim();
   if (!tagline || tagline.length > 50) {
@@ -1245,7 +1252,9 @@ export function compileOfficialDraftFromBible(
     .map((ability) => {
       const limit = [ability.limit, ability.cost].filter(nonEmpty).join(" / ");
       const usage = cleanSentence(ability.usage);
-      return `· ${ability.name}: ${cleanSentence(ability.scope)}${limit ? ` [한계·대가: ${limit}]` : ""}${usage ? ` — ${usage}` : ""}`;
+      const level = cleanSentence(ability.level);
+      const proficiency = bible.promptStandard === "compact_rp_v2" && level && !ability.scope.includes(level) ? ` [숙련·권한: ${level}]` : "";
+      return `· ${ability.name}: ${cleanSentence(ability.scope)}${proficiency}${limit ? ` [한계·대가: ${limit}]` : ""}${usage ? ` — ${usage}` : ""}`;
     })
     .join("\n");
   const habitsText = [
@@ -1324,11 +1333,11 @@ export function compileOfficialDraftFromBible(
           .join("\n"),
       };
 
-  const effectiveRpHook = compactRpV1 ? bible.rpEngine.immediateHook : keys.hook.rpHook;
+  const effectiveRpHook = compactRp ? bible.rpEngine.immediateHook : keys.hook.rpHook;
 
   return {
     draftKey: keys.draftKey,
-    ...(compactRpV1 ? { promptStandard: "compact_rp_v1" as const } : {}),
+    ...(compactRp ? { promptStandard: bible.promptStandard } : {}),
     worldKey: keys.worldKey,
     styleKey: keys.styleKey,
     name: id.name,
@@ -1343,7 +1352,7 @@ export function compileOfficialDraftFromBible(
       abilities: bible.abilities,
       situation,
       userRole: bible.userRelationship.userRole,
-      personaFlexible: compactRpV1,
+      personaFlexible: compactRp,
       fixedRelation:
         bible.userRelationship.type && bible.userRelationship.type !== "free"
           ? bible.userRelationship.fixedFacts
@@ -1383,8 +1392,8 @@ export function compileOfficialDraftFromBible(
       forbidden: bible.speech.forbidden,
     },
     supportingNpcs: bible.npcs,
-    hook: compactRpV1 ? { ...keys.hook, rpHook: effectiveRpHook } : keys.hook,
-    secrets: compactRpV1 ? [...bible.secrets] : [...bible.secrets, ...hiddenRels],
+    hook: compactRp ? { ...keys.hook, rpHook: effectiveRpHook } : keys.hook,
+    secrets: compactRp ? [...bible.secrets] : [...bible.secrets, ...hiddenRels],
     adult: adult as OfficialCharacterDraft["adult"],
     ...(bible.publicProfile.creatorComment?.trim()
       ? { creatorComment: bible.publicProfile.creatorComment.trim() }

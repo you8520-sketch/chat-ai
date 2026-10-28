@@ -182,11 +182,11 @@ export type OfficialCharacterSpeech = {
   forbidden: string;
 };
 
-export type OfficialCharacterPromptStandard = "compact_rp_v1";
+export type OfficialCharacterPromptStandard = "compact_rp_v1" | "compact_rp_v2";
 
 export type OfficialCharacterDraft = {
   draftKey: string;
-  /** New official characters use compact_rp_v1; absent means pre-standard pilot content. */
+  /** New official characters use compact_rp_v2 (ability proficiency retained); absent means pre-standard pilot content. */
   promptStandard?: OfficialCharacterPromptStandard;
   worldKey: string;
   styleKey: string;

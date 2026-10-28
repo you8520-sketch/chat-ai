@@ -1,0 +1,15 @@
+{
+  "sourceCommit": "22b798b5704d7ed2b19b92cd2c4b56692bf2993c",
+  "files": {
+    "automatic-final-reconstructed.json": "3bb84d5dc0578d76ba659095012f84681bce919c533b3d5f37c321ec4de532f9",
+    "compiled-first.json": "ccce0fa0041a3a031a87511aff6cf17bde55ac49d15ce82106a891822b331f59",
+    "cost-usage.json": "9215bea408a1d7d69461d190e3d7194863e458a9c6ad03ae2c651623a27e23a0",
+    "first-generation.json": "fbb17d7132ff1cb257d1ef6f7ca0ec74a08b677fe2d6047d6d467cbf8a0e4946",
+    "first-manuscript.md": "28ef8321abb8dec0184be05639b36406a26c5d021826eed569cde9452f6eb96f",
+    "inputs/brief.json": "cf2f1b7f7b7f110f2034381f407656078b446be6da7f2c78d48dd3081a073f2f",
+    "inputs/world-bible.json": "b062b7e491a59eb50c18c73c2fbe9f5109595e0445b6ae6f73b599360321e332",
+    "preservation-first.json": "a51a66467dce88a6e00591d795733b17daf3c90f4b352b5caca3d36de0702bac",
+    "provider-responses/call-04.json": "74f40594bf81958f9281c97751638c3d79e83202f1452c71c313aee04e1e6970",
+    "provider-responses/call-05.json": "a09cab186b9894db7116cd648480f9ddec8ffd4cc6717ecf6c912de02dcc5aae"
+  }
+}

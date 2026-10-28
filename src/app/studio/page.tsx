@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { canUseCreatorTools, shouldHideAdultListings } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
+import { isAdminUser } from "@/lib/isAdminUser";
 import { getDb } from "@/lib/db";
 import AdultVerifyGate from "@/components/AdultVerifyGate";
 import StudioClient from "@/components/StudioClient";
@@ -59,6 +60,7 @@ export default async function StudioPage() {
         lorebooks={lorebooks}
         blurNsfw={blurNsfw}
         creatorId={user.id}
+        ownerIsAdmin={isAdminUser(user)}
       />
     </Suspense>
   );

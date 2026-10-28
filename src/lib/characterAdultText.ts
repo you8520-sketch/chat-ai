@@ -39,10 +39,17 @@ export function findAdultTermsInText(raw: string): string[] {
   if (!text.trim()) return [];
   const hits = new Set<string>();
   const normalized = normalizeCommentTextForModeration(text);
+  // Keep Korean verb morphology before moderation removes spaces/punctuation.
+  // Only the unambiguous negative construction is exempt; noun + particles
+  // and obfuscated spellings still use the existing adult-term matcher.
+  const withoutNegativeSee = text.replace(/보지(?:는|도)?\s*(?=않|못|말(?:아|고|라|자|았))/gu, "보다 ");
   for (const word of ADULT_SUBSTRINGS) {
     const needle = normalizeCommentTextForModeration(word);
     if (!needle) continue;
-    if (normalized.includes(needle)) hits.add(word);
+    const haystack = word === "보지"
+      ? normalizeCommentTextForModeration(withoutNegativeSee)
+      : normalized;
+    if (haystack.includes(needle)) hits.add(word);
   }
   const english = text.match(ADULT_ENGLISH_RE);
   if (english) hits.add(english[0].toLowerCase());

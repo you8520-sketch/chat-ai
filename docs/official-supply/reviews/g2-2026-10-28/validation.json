@@ -1,0 +1,92 @@
+{
+  "baselineCommit": "9405606e504dce4f9de88e69b0aed68b1a33e92d",
+  "reviewBase": "7e88efe1",
+  "directBefore": {
+    "tests": 17,
+    "pass": 4,
+    "fail": 13,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "directAfter": {
+    "tests": 17,
+    "pass": 17,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "relatedInitial": {
+    "tests": 747,
+    "pass": 746,
+    "fail": 1,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "correctedAuthorPilotOwners": {
+    "tests": 123,
+    "pass": 123,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "finalSaveAssetOwners": {
+    "tests": 92,
+    "pass": 92,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "newMainMovement": {
+    "tests": 15,
+    "pass": 15,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "uiBefore": {
+    "pass": 2,
+    "fail": 0,
+    "widths": [
+      390,
+      1440
+    ],
+    "mode": "original main dev, unsupported image-free row seeded only for screenshot comparison; canonical speech form preserved"
+  },
+  "uiAfter": {
+    "pass": 2,
+    "fail": 0,
+    "widths": [
+      390,
+      1440
+    ],
+    "mode": "local production build; authenticated POST, editor save, reload, own list"
+  },
+  "diffCheck": "PASS",
+  "lint": "PASS (repository app TypeScript validation)",
+  "typecheckApp": "PASS",
+  "build": "PASS (rebased source, NODE_OPTIONS=--max-old-space-size=4096; isolated DATA_DIR; paid keys blank)",
+  "regularSuite": {
+    "status": "STOPPED_AFTER_OUT_OF_SCOPE_FAILURES",
+    "complete": false,
+    "baselineFailureSubset": {
+      "tests": 179,
+      "pass": 153,
+      "fail": 26,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "note": "The broad 1,309-file suite is not green. Required related owner regressions completed. 26 failures across 179 selected tests were reproduced on unchanged original main. Other observed out-of-scope failures were not individually triaged. See regular-suite-observed-failures.json; no full-suite pass claim.",
+    "partialRunnerSummary": {
+      "tests": 7067,
+      "pass": 6165,
+      "fail": 137,
+      "cancelled": 765,
+      "skipped": 0
+    }
+  },
+  "paidModelCalls": 0,
+  "productionDbWrites": 0,
+  "merge": false,
+  "deploy": false,
+  "originalFilesByteMatched": 10
+}
