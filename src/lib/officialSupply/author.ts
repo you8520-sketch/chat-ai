@@ -11,6 +11,7 @@ import { isAssetPersonTag } from "@/lib/assetPersonTags";
 import { isCharacterGenre } from "@/lib/characterGenres";
 import { evaluateAppearanceLock } from "@/lib/officialSupply/appearance";
 import { evaluateAssetPlan } from "@/lib/officialSupply/assetPlan";
+import { resolveOfficialAuthoringPlan, type OfficialAuthoringPlan } from "@/lib/officialSupply/genreProfile";
 import {
   buildAdultProfileSystem,
   buildAdultProfileUser,
@@ -640,7 +641,7 @@ export async function generateOfficialPortfolioReplacement(input: {
 }): Promise<{ briefs: PortfolioBriefInput[]; completion: OfficialAuthorRawCompletion }> {
   const completion = await input.transport.completeJson({
     task: "world_bible",
-    system: buildWorldBibleSystem(),
+    system: buildWorldBibleSystem(input.replacement.authoring),
     user: buildPortfolioReplacementUser(input.replacement),
     schemaName: "official_world_bible",
     schema: WORLD_BIBLE_SCHEMA,
@@ -778,7 +779,7 @@ export async function generateOfficialWorldBible(input: {
   // background route (503). Three sequential structured calls (core → atlas
   // → portfolio) stay inside the proven output budget; the merged bible gets
   // the same deterministic QA as a single call would.
-  const system = buildWorldBibleSystem();
+  const system = buildWorldBibleSystem(input.world.authoring);
   const complete = (user: string): Promise<OfficialAuthorRawCompletion> =>
     input.transport.completeJson({
       task: "world_bible",
@@ -818,6 +819,7 @@ export async function generateOfficialWorldBible(input: {
     slotGenders: input.world.slotGenders,
     market: input.world.market,
     castIntent: input.world.castIntent,
+    authoring: input.world.authoring,
   };
   const portfolioCompletion = await complete(buildWorldPortfolioUser(portfolioInput));
   const portfolioData = parseAuthorJson(portfolioCompletion.text, "world_bible");
@@ -1064,18 +1066,21 @@ export async function generateOfficialCharacterBible(input: {
   modelId?: string;
   /** Opt-in: one targeted call may repair relation-only NPC defects. Default off. */
   npcRelationRepair?: boolean;
+  /** One genre/tone plan for all three stages. Absent = rofan parity. */
+  authoring?: OfficialAuthoringPlan;
 }): Promise<{
   bible: OfficialCharacterBible;
   completions: [OfficialAuthorRawCompletion, OfficialAuthorRawCompletion, OfficialAuthorRawCompletion];
   npcRelationRepairs: OfficialAuthorRawCompletion[];
 }> {
   const userRelation = canonicalUserRelationPlan(input);
+  const authoring = input.authoring ?? input.part1.authoring;
   const premise = evaluateUserRelationPremise(userRelation.type, officialUserRelationPremiseTexts(input.part1.brief));
   if (!premise.ok) throw new OfficialSupplyGateError("author_user_relation_mismatch", premise.errors.map(e => e.message).join("; "), premise);
   const first = await input.transport.completeJson({
     task: "character_bible_1",
-    system: buildCharacterBible1System(),
-    user: buildCharacterBible1User({ ...input.part1, brief: { ...input.part1.brief, userRelation } }),
+    system: buildCharacterBible1System(authoring),
+    user: buildCharacterBible1User({ ...input.part1, authoring, brief: { ...input.part1.brief, userRelation } }),
     schemaName: "official_character_bible_1",
     schema: CHARACTER_BIBLE_1_SCHEMA,
     modelId: input.modelId,
@@ -1086,8 +1091,8 @@ export async function generateOfficialCharacterBible(input: {
   const recap = buildPart1Recap(half1);
   const second = await input.transport.completeJson({
     task: "character_bible_voice",
-    system: buildCharacterVoiceSystem(),
-    user: buildCharacterVoiceUser({ ...input.voice, userRelation, part1Recap: recap, publicContext: buildPublicWritingContext(half1, input.part1.worldContext) }),
+    system: buildCharacterVoiceSystem(true, authoring),
+    user: buildCharacterVoiceUser({ ...input.voice, authoring, userRelation, part1Recap: recap, publicContext: buildPublicWritingContext(half1, input.part1.worldContext) }),
     schemaName: "official_character_bible_voice",
     schema: CHARACTER_VOICE_SCHEMA,
     modelId: input.modelId,
@@ -1117,7 +1122,7 @@ export async function generateOfficialCharacterBible(input: {
   const third = await input.transport.completeJson({
     task: "character_bible_bonds",
     system: buildCharacterBondsSystem(),
-    user: buildCharacterBondsUser({ ...input.bonds, userRelation, part1Recap: recap }),
+    user: buildCharacterBondsUser({ ...input.bonds, authoring, userRelation, part1Recap: recap }),
     schemaName: "official_character_bible_bonds",
     schema: CHARACTER_BONDS_SCHEMA,
     modelId: input.modelId,
@@ -1210,8 +1215,10 @@ export async function reviseOfficialCharacterVoice(input: {
   fields: readonly OfficialVoiceRevisionField[];
   reasons: string[];
   modelId?: string;
+  authoring?: OfficialAuthoringPlan;
 }): Promise<{ bible: OfficialCharacterBible; completion: OfficialAuthorRawCompletion }> {
   const current = input.bible;
+  const authoring = input.authoring ?? input.voice.authoring;
   const keep = [
     input.fields.includes("greeting") ? "" : `greeting는 기존 그대로 두어도 된다.`,
     input.fields.includes("publicDescription")
@@ -1226,9 +1233,10 @@ export async function reviseOfficialCharacterVoice(input: {
   ].filter(Boolean);
   const completion = await input.transport.completeJson({
     task: "character_bible_voice",
-    system: buildCharacterVoiceSystem(false),
+    system: buildCharacterVoiceSystem(false, authoring),
     user: buildCharacterVoiceUser({
       ...input.voice,
+      authoring,
       userRelation: input.voice.userRelation ?? {
         type: current.userRelationship?.type ?? "free",
         fixed: current.userRelationship?.fixedFacts ?? "",
@@ -1682,7 +1690,7 @@ export async function generateOfficialStyleBoard(input: {
 }): Promise<{ candidates: VisualStyleCandidate[]; completion: OfficialAuthorRawCompletion }> {
   const completion = await input.transport.completeJson({
     task: "style_board",
-    system: buildStyleBoardSystem(),
+    system: buildStyleBoardSystem(resolveOfficialAuthoringPlan({ genre: input.board.genre })),
     user: buildStyleBoardUser(input.board),
     schemaName: "official_style_board",
     schema: STYLE_BOARD_SCHEMA,

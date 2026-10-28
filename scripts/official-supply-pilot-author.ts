@@ -71,17 +71,13 @@ import {
 } from "@/lib/officialSupply/authorPrompts";
 import {
   buildDomesticMarketFitReview,
+  evaluateBriefCastFit,
   evaluateCastRoleDiversity,
   evaluateDiscoveryTags,
   evaluateMarketFitPortfolio,
-  evaluateMarketTropePortfolio,
-  evaluateNamePortfolio,
   formatMarketSignalLines,
-  hasUserRelationshipCue,
-  observedMarketNames,
   resolveNamingProfile,
   selectMarketSignals,
-  validateMarketFitBrief,
   type CastRoleEntry,
   type OfficialBatchMarketPolicy,
 } from "@/lib/officialSupply/marketFit";
@@ -1280,53 +1276,26 @@ function castRoleEntries(briefs: readonly PortfolioBriefInput[]): CastRoleEntry[
   }));
 }
 
-/** Gate for re-planned briefs against the kept cast (market fit, names, tropes, roles, gender intent). */
+/** Gate for re-planned briefs against the kept cast (shared market/cast fit + region, age and gender intent). */
 function evaluateReplacementBriefs(
   briefs: readonly PortfolioBriefInput[],
   kept: readonly PortfolioBriefInput[],
   snapshot: ResearchSnapshot
 ): { errors: string[] } {
-  const errors: string[] = [];
-  const policy = MANIFEST.marketPolicy;
-  const expected = resolveNamingProfile(MANIFEST.genre);
+  const { errors } = evaluateBriefCastFit({
+    fresh: briefs,
+    kept,
+    snapshot,
+    policy: MANIFEST.marketPolicy,
+    namingProfile: resolveNamingProfile(MANIFEST.genre),
+  });
+  const regions = internalWorldRegions(readWorld().regions);
   for (const b of briefs) {
     if (b.age < 19) errors.push(`${b.slot}: age ${b.age} < 19`);
-    if (!b.marketFit) {
-      errors.push(`${b.slot}: marketFit missing`);
-      continue;
-    }
-    const qa = validateMarketFitBrief(b.marketFit, { snapshot, policy, adultCandidate: b.adultCandidate, expectedNamingProfile: expected });
-    errors.push(...qa.errors.map((e) => `${b.slot}: ${e.code}: ${e.message}`));
-    if (!hasUserRelationshipCue(b.rpHook)) errors.push(`${b.slot}: rpHook does not state the user relationship`);
-    const region = evaluateInternalRegionConsistency(JSON.stringify(b), internalWorldRegions(readWorld().regions));
+    const region = evaluateInternalRegionConsistency(JSON.stringify(b), regions);
     errors.push(...region.errors.map((e) => `${b.slot}: ${e.code}: ${e.message}`));
   }
   const cast = [...kept, ...briefs].sort((a, z) => a.slot - z.slot);
-  const newNames = new Set(briefs.map((b) => b.name));
-  const names = evaluateNamePortfolio(
-    cast.map((b) => ({
-      draftKey: draftKeyFor(b.slot),
-      name: b.name,
-      namingProfile: b.marketFit?.namingProfile ?? (b.gender === "other" ? "nonhuman_designation" : expected),
-      kinNames: [],
-    })),
-    { observed: observedMarketNames(snapshot), hooks: Object.fromEntries(cast.map((b) => [draftKeyFor(b.slot), b.rpHook])) }
-  );
-  for (const issue of [...names.errors, ...names.warnings]) {
-    // Kept names are not re-litigated; new names must come out clean.
-    if ([...newNames].some((n) => issue.message.includes(n))) errors.push(`name ${issue.code}: ${issue.message}`);
-  }
-  const tropes = evaluateMarketTropePortfolio(
-    cast.map((b) => ({
-      draftKey: draftKeyFor(b.slot),
-      primaryTrope: b.marketFit?.relationshipTrope.primary ?? b.relationshipTrope,
-      secondaryTropes: b.marketFit?.relationshipTrope.secondary ?? [],
-    })),
-    policy
-  );
-  errors.push(...tropes.errors.map((e) => `${e.code}: ${e.message}`));
-  const roles = evaluateCastRoleDiversity(castRoleEntries(cast));
-  errors.push(...roles.errors.map((e) => `${e.code}: ${e.message}`));
   const intent = evaluateCastIntent(cast.map((b) => b.gender), MANIFEST.castIntent);
   errors.push(...intent.errors.map((e) => `${e.code}: ${e.message}`));
   return { errors };

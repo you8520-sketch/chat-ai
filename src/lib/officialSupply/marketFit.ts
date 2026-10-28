@@ -92,12 +92,14 @@ function rankSignals(signals: ResearchSignal[], genre: string): ResearchSignal[]
 export function selectMarketSignals(
   snapshot: ResearchSnapshot,
   policy: OfficialBatchMarketPolicy,
-  genre: string
+  genre: string,
+  opts: { excludeGenres?: readonly string[] } = {}
 ): MarketSignalSelection {
   const excluded = snapshot.signals
     .filter((s) => !s.originalityEligible)
     .map((s) => ({ signalId: s.signalId, reason: s.ipExclusionReason ?? "ip_excluded" }));
-  const eligible = snapshot.signals.filter((s) => s.originalityEligible);
+  const skipGenres = new Set((opts.excludeGenres ?? []).filter((g) => g !== genre));
+  const eligible = snapshot.signals.filter((s) => s.originalityEligible && !skipGenres.has(s.genre));
   const local = eligible.filter((s) => s.region === policy.signalRegion);
   const other = eligible.filter((s) => s.region !== policy.signalRegion);
   const [primarySet, supportingSet] = policy.marketPriority === "domestic_first" ? [local, other] : [other, local];
@@ -851,6 +853,69 @@ export function evaluateCastRoleDiversity(entries: readonly CastRoleEntry[]): Qa
     errors.push({ code: "cast_royal_density", message: `${royalOrDuke.length} royal/ducal leads: ${royalOrDuke.join(", ")}` });
   }
   return { ...qaResult(errors), royalOrDuke };
+}
+
+/** The brief fields every planning gate reads (`PortfolioBriefInput` satisfies this). */
+export type CastFitBrief = Omit<CastRoleEntry, "draftKey"> & {
+  gender: string;
+  adultCandidate: boolean;
+  relationshipTrope: string;
+  marketFit?: OfficialMarketFitBrief | null;
+};
+
+/**
+ * Planning-stage gate for freshly planned briefs against the cast that already
+ * exists: market fit, user-relationship cue, names, primary tropes and the
+ * role/experience overlap checks (occupation, hook, silhouette, speech). Issues
+ * between two kept characters are not re-litigated — only those that name a
+ * fresh brief are returned. Single owner for the pilot replacement script and
+ * the genre-generic runner.
+ */
+export function evaluateBriefCastFit(input: {
+  fresh: readonly CastFitBrief[];
+  kept: readonly CastFitBrief[];
+  snapshot: ResearchSnapshot;
+  policy: OfficialBatchMarketPolicy;
+  namingProfile: NamingProfileKey;
+}): { errors: string[] } {
+  const { fresh, kept, snapshot, policy, namingProfile } = input;
+  const errors: string[] = [];
+  for (const b of fresh) {
+    if (!b.marketFit) {
+      errors.push(`${b.name}: marketFit missing`);
+      continue;
+    }
+    const qa = validateMarketFitBrief(b.marketFit, { snapshot, policy, adultCandidate: b.adultCandidate, expectedNamingProfile: namingProfile });
+    errors.push(...qa.errors.map((e) => `${b.name}: ${e.code}: ${e.message}`));
+    if (!hasUserRelationshipCue(b.rpHook)) errors.push(`${b.name}: rpHook does not state the user relationship`);
+  }
+  const cast = [...kept, ...fresh];
+  const freshNames = fresh.map((b) => b.name);
+  const involvesFresh = (message: string) => freshNames.some((n) => message.includes(n));
+  const names = evaluateNamePortfolio(
+    cast.map((b) => ({
+      draftKey: b.name,
+      name: b.name,
+      namingProfile: b.marketFit?.namingProfile ?? (b.gender === "other" ? "nonhuman_designation" : namingProfile),
+      kinNames: [],
+    })),
+    { observed: observedMarketNames(snapshot), hooks: Object.fromEntries(cast.map((b) => [b.name, b.rpHook])) }
+  );
+  for (const issue of [...names.errors, ...names.warnings]) {
+    if (involvesFresh(issue.message)) errors.push(`name ${issue.code}: ${issue.message}`);
+  }
+  const tropes = evaluateMarketTropePortfolio(
+    cast.map((b) => ({
+      draftKey: b.name,
+      primaryTrope: b.marketFit?.relationshipTrope.primary ?? b.relationshipTrope,
+      secondaryTropes: b.marketFit?.relationshipTrope.secondary ?? [],
+    })),
+    policy
+  );
+  errors.push(...tropes.errors.filter((e) => involvesFresh(e.message)).map((e) => `${e.code}: ${e.message}`));
+  const roles = evaluateCastRoleDiversity(cast.map((b) => ({ ...b, draftKey: b.name })));
+  errors.push(...roles.errors.filter((e) => involvesFresh(e.message)).map((e) => `${e.code}: ${e.message}`));
+  return { errors };
 }
 
 /** Prompt lines carrying one character's market fit into the bible calls. */
