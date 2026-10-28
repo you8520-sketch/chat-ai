@@ -1,12 +1,11 @@
 {
-  "ranAt": "2026-10-21T09:33:33.003Z",
-  "mainSha": "f39d2b9481f2587a2c8d100b98df2ff944feb878",
-  "status": "BENCHMARKED",
-  "discoveredModels": 23,
+  "ranAt": "2026-10-28T10:47:02.207Z",
+  "mainSha": "7e88efe1069a2ae8cdf21ed7b6e49df0350bb02f",
+  "status": "PARTIAL",
+  "discoveredModels": 24,
   "changedCandidates": [
-    "perplexity/pplx-decider-flash-v1.2",
-    "perplexity/pplx-decider-v1.2",
-    "respan/span-02",
+    "liquid/d1.1",
+    "nace-ai/drex-max",
     "liquid/d1-ultra",
     "nace-ai/drex-v1.5",
     "cloudflare/clef-omni",
@@ -17,7 +16,6 @@
     "cloudflare/clef",
     "togethercomputer/tev1-4b-experimental",
     "inception/mercury-decide",
-    "inception/mercury-decide:free",
     "upstage/solar-decide",
     "respan/span-01",
     "respan/span-01-lite",
@@ -25,12 +23,11 @@
     "jaredpalmer/kev-4b"
   ],
   "benchmarkedCandidates": [
-    "perplexity/pplx-decider-flash-v1.2",
-    "perplexity/pplx-decider-v1.2",
-    "respan/span-02"
+    "liquid/d1.1",
+    "nace-ai/drex-max",
+    "liquid/d1-ultra"
   ],
   "deferredCandidates": [
-    "liquid/d1-ultra",
     "nace-ai/drex-v1.5",
     "cloudflare/clef-omni",
     "upstage/solar-decide-flash",
@@ -40,7 +37,6 @@
     "cloudflare/clef",
     "togethercomputer/tev1-4b-experimental",
     "inception/mercury-decide",
-    "inception/mercury-decide:free",
     "upstage/solar-decide",
     "respan/span-01",
     "respan/span-01-lite",
@@ -51,26 +47,26 @@
   "baseline": {
     "model": "typesafe/jev-1.14",
     "total": 43,
-    "correct": 33,
-    "accuracy": 0.7674418604651163,
-    "criticalMisses": 3,
+    "correct": 32,
+    "accuracy": 0.7441860465116279,
+    "criticalMisses": 4,
     "malformed": 0,
     "failures": 0,
     "inputTokens": 26999,
-    "outputTokens": 2404,
+    "outputTokens": 2393,
     "reportedCostUsd": 0.0011339579999999998,
     "latencyMs": {
-      "p50": 92.8,
-      "p95": 818.1,
-      "max": 1240.1
+      "p50": 116.5,
+      "p95": 154.4,
+      "max": 191.5
     },
     "bySuite": [
       {
         "suite": "authorial_habit",
         "total": 24,
-        "correct": 19,
-        "accuracy": 0.7916666666666666,
-        "criticalMisses": 3,
+        "correct": 18,
+        "accuracy": 0.75,
+        "criticalMisses": 4,
         "malformed": 0,
         "failures": 0
       },
@@ -96,123 +92,25 @@
   },
   "evaluations": [
     {
-      "model": "perplexity/pplx-decider-flash-v1.2",
-      "fingerprint": "de121d78f61ea1061f4c43852000776b385ca5d3f2f8ab3282076671de9ec0ec",
+      "model": "liquid/d1.1",
+      "fingerprint": "2fe63a197b9507d7d432b2449b05573b2d96731ead3dbc0975604ba2355d58aa",
       "globalReplacementCandidate": false,
       "suiteCandidates": [],
       "summary": {
-        "model": "perplexity/pplx-decider-flash-v1.2",
-        "total": 43,
-        "correct": 21,
-        "accuracy": 0.4883720930232558,
-        "criticalMisses": 8,
-        "malformed": 0,
-        "failures": 0,
-        "inputTokens": 14624,
-        "outputTokens": 43,
-        "reportedCostUsd": 0.00014624000000000006,
-        "latencyMs": {
-          "p50": 94.6,
-          "p95": 134.1,
-          "max": 176.3
-        },
-        "bySuite": [
-          {
-            "suite": "authorial_habit",
-            "total": 24,
-            "correct": 8,
-            "accuracy": 0.3333333333333333,
-            "criticalMisses": 8,
-            "malformed": 0,
-            "failures": 0
-          },
-          {
-            "suite": "completion_integrity",
-            "total": 9,
-            "correct": 6,
-            "accuracy": 0.6666666666666666,
-            "criticalMisses": 0,
-            "malformed": 0,
-            "failures": 0
-          },
-          {
-            "suite": "scene_boundary",
-            "total": 10,
-            "correct": 7,
-            "accuracy": 0.7,
-            "criticalMisses": 0,
-            "malformed": 0,
-            "failures": 0
-          }
-        ]
-      },
-      "baseline": {
-        "model": "typesafe/jev-1.14",
-        "total": 43,
-        "correct": 33,
-        "accuracy": 0.7674418604651163,
-        "criticalMisses": 3,
-        "malformed": 0,
-        "failures": 0,
-        "inputTokens": 26999,
-        "outputTokens": 2404,
-        "reportedCostUsd": 0.0011339579999999998,
-        "latencyMs": {
-          "p50": 92.8,
-          "p95": 818.1,
-          "max": 1240.1
-        },
-        "bySuite": [
-          {
-            "suite": "authorial_habit",
-            "total": 24,
-            "correct": 19,
-            "accuracy": 0.7916666666666666,
-            "criticalMisses": 3,
-            "malformed": 0,
-            "failures": 0
-          },
-          {
-            "suite": "completion_integrity",
-            "total": 9,
-            "correct": 6,
-            "accuracy": 0.6666666666666666,
-            "criticalMisses": 0,
-            "malformed": 0,
-            "failures": 0
-          },
-          {
-            "suite": "scene_boundary",
-            "total": 10,
-            "correct": 8,
-            "accuracy": 0.8,
-            "criticalMisses": 0,
-            "malformed": 0,
-            "failures": 0
-          }
-        ]
-      }
-    },
-    {
-      "model": "perplexity/pplx-decider-v1.2",
-      "fingerprint": "ba664245737b9e1e299b71fa31bd93278477309bb5251d18e3e0e6231ff77308",
-      "globalReplacementCandidate": false,
-      "suiteCandidates": [],
-      "summary": {
-        "model": "perplexity/pplx-decider-v1.2",
+        "model": "liquid/d1.1",
         "total": 43,
         "correct": 32,
         "accuracy": 0.7441860465116279,
-        "criticalMisses": 3,
+        "criticalMisses": 0,
         "malformed": 0,
         "failures": 0,
-        "inputTokens": 14624,
-        "outputTokens": 43,
-        "reportedCostUsd": 0.0002924800000000001,
+        "inputTokens": 14328,
+        "outputTokens": 0,
+        "reportedCostUsd": 0.00028655999999999994,
         "latencyMs": {
-          "p50": 193.7,
-          "p95": 375.1,
-          "max": 890.1
+          "p50": 161.1,
+          "p95": 249.6,
+          "max": 314.7
         },
         "bySuite": [
           {
@@ -220,7 +118,7 @@
             "total": 24,
             "correct": 18,
             "accuracy": 0.75,
-            "criticalMisses": 3,
+            "criticalMisses": 0,
             "malformed": 0,
             "failures": 0
           },
@@ -247,26 +145,26 @@
       "baseline": {
         "model": "typesafe/jev-1.14",
         "total": 43,
-        "correct": 33,
-        "accuracy": 0.7674418604651163,
-        "criticalMisses": 3,
+        "correct": 32,
+        "accuracy": 0.7441860465116279,
+        "criticalMisses": 4,
         "malformed": 0,
         "failures": 0,
         "inputTokens": 26999,
-        "outputTokens": 2404,
+        "outputTokens": 2393,
         "reportedCostUsd": 0.0011339579999999998,
         "latencyMs": {
-          "p50": 92.8,
-          "p95": 818.1,
-          "max": 1240.1
+          "p50": 116.5,
+          "p95": 154.4,
+          "max": 191.5
         },
         "bySuite": [
           {
             "suite": "authorial_habit",
             "total": 24,
-            "correct": 19,
-            "accuracy": 0.7916666666666666,
-            "criticalMisses": 3,
+            "correct": 18,
+            "accuracy": 0.75,
+            "criticalMisses": 4,
             "malformed": 0,
             "failures": 0
           },
@@ -292,33 +190,35 @@
       }
     },
     {
-      "model": "respan/span-02",
-      "fingerprint": "17b34b3c2f21c79d769c47c8556485a092e2e5863d5f573b12c1e47ff2a61fd8",
-      "globalReplacementCandidate": false,
-      "suiteCandidates": [],
+      "model": "nace-ai/drex-max",
+      "fingerprint": "1b14dcf9615efe288b1aec607539f46e564b9462c31cd102ce0b1a14bcbaf42e",
+      "globalReplacementCandidate": true,
+      "suiteCandidates": [
+        "authorial_habit"
+      ],
       "summary": {
-        "model": "respan/span-02",
+        "model": "nace-ai/drex-max",
         "total": 43,
-        "correct": 23,
-        "accuracy": 0.5348837209302325,
-        "criticalMisses": 9,
+        "correct": 34,
+        "accuracy": 0.7906976744186046,
+        "criticalMisses": 2,
         "malformed": 0,
         "failures": 0,
-        "inputTokens": 41104,
-        "outputTokens": 0,
-        "reportedCostUsd": 0.00041103999999999994,
+        "inputTokens": 14753,
+        "outputTokens": 5547,
+        "reportedCostUsd": 0.0008851800000000002,
         "latencyMs": {
-          "p50": 2102.3,
-          "p95": 2197.2,
-          "max": 2819.5
+          "p50": 270.4,
+          "p95": 538.3,
+          "max": 887.1
         },
         "bySuite": [
           {
             "suite": "authorial_habit",
             "total": 24,
-            "correct": 10,
-            "accuracy": 0.4166666666666667,
-            "criticalMisses": 8,
+            "correct": 20,
+            "accuracy": 0.8333333333333334,
+            "criticalMisses": 2,
             "malformed": 0,
             "failures": 0
           },
@@ -334,9 +234,9 @@
           {
             "suite": "scene_boundary",
             "total": 10,
-            "correct": 7,
-            "accuracy": 0.7,
-            "criticalMisses": 1,
+            "correct": 8,
+            "accuracy": 0.8,
+            "criticalMisses": 0,
             "malformed": 0,
             "failures": 0
           }
@@ -345,26 +245,124 @@
       "baseline": {
         "model": "typesafe/jev-1.14",
         "total": 43,
-        "correct": 33,
-        "accuracy": 0.7674418604651163,
-        "criticalMisses": 3,
+        "correct": 32,
+        "accuracy": 0.7441860465116279,
+        "criticalMisses": 4,
         "malformed": 0,
         "failures": 0,
         "inputTokens": 26999,
-        "outputTokens": 2404,
+        "outputTokens": 2393,
         "reportedCostUsd": 0.0011339579999999998,
         "latencyMs": {
-          "p50": 92.8,
-          "p95": 818.1,
-          "max": 1240.1
+          "p50": 116.5,
+          "p95": 154.4,
+          "max": 191.5
         },
         "bySuite": [
           {
             "suite": "authorial_habit",
             "total": 24,
-            "correct": 19,
-            "accuracy": 0.7916666666666666,
-            "criticalMisses": 3,
+            "correct": 18,
+            "accuracy": 0.75,
+            "criticalMisses": 4,
+            "malformed": 0,
+            "failures": 0
+          },
+          {
+            "suite": "completion_integrity",
+            "total": 9,
+            "correct": 6,
+            "accuracy": 0.6666666666666666,
+            "criticalMisses": 0,
+            "malformed": 0,
+            "failures": 0
+          },
+          {
+            "suite": "scene_boundary",
+            "total": 10,
+            "correct": 8,
+            "accuracy": 0.8,
+            "criticalMisses": 0,
+            "malformed": 0,
+            "failures": 0
+          }
+        ]
+      }
+    },
+    {
+      "model": "liquid/d1-ultra",
+      "fingerprint": "940ff3bcfc4e82de3fc265df3d7b839fffb14fa9fc208de2f3474f68a2f6749f",
+      "globalReplacementCandidate": false,
+      "suiteCandidates": [],
+      "summary": {
+        "model": "liquid/d1-ultra",
+        "total": 43,
+        "correct": 26,
+        "accuracy": 0.6046511627906976,
+        "criticalMisses": 3,
+        "malformed": 13,
+        "failures": 13,
+        "inputTokens": 10188,
+        "outputTokens": 0,
+        "reportedCostUsd": null,
+        "latencyMs": {
+          "p50": 165.2,
+          "p95": 219.5,
+          "max": 257.1
+        },
+        "bySuite": [
+          {
+            "suite": "authorial_habit",
+            "total": 24,
+            "correct": 15,
+            "accuracy": 0.625,
+            "criticalMisses": 2,
+            "malformed": 7,
+            "failures": 7
+          },
+          {
+            "suite": "completion_integrity",
+            "total": 9,
+            "correct": 6,
+            "accuracy": 0.6666666666666666,
+            "criticalMisses": 0,
+            "malformed": 3,
+            "failures": 3
+          },
+          {
+            "suite": "scene_boundary",
+            "total": 10,
+            "correct": 5,
+            "accuracy": 0.5,
+            "criticalMisses": 1,
+            "malformed": 3,
+            "failures": 3
+          }
+        ]
+      },
+      "baseline": {
+        "model": "typesafe/jev-1.14",
+        "total": 43,
+        "correct": 32,
+        "accuracy": 0.7441860465116279,
+        "criticalMisses": 4,
+        "malformed": 0,
+        "failures": 0,
+        "inputTokens": 26999,
+        "outputTokens": 2393,
+        "reportedCostUsd": 0.0011339579999999998,
+        "latencyMs": {
+          "p50": 116.5,
+          "p95": 154.4,
+          "max": 191.5
+        },
+        "bySuite": [
+          {
+            "suite": "authorial_habit",
+            "total": 24,
+            "correct": 18,
+            "accuracy": 0.75,
+            "criticalMisses": 4,
             "malformed": 0,
             "failures": 0
           },
@@ -391,5 +389,5 @@
     }
   ],
   "notes": [],
-  "githubRunUrl": "https://github.com/you8520-sketch/chat-ai/actions/runs/39577595055"
+  "githubRunUrl": "https://github.com/you8520-sketch/chat-ai/actions/runs/40674697895"
 }
