@@ -347,6 +347,22 @@ export type PortfolioBriefInput = {
   userRelation?: OfficialUserRelationPlan;
 };
 
+/** One cast member as the planning prompt sees it: the axes along which two characters play alike. */
+export function describeCastForPlanning(b: PortfolioBriefInput): string {
+  return [
+    `${b.name} — ${b.gender}, ${b.occupation}`,
+    `아키타입 ${b.archetype}`,
+    `트로프 ${b.relationshipTrope}`,
+    `성격핵 ${b.personalityCore}`,
+    `첫 사건·훅 ${b.rpHook}`,
+    b.marketFit?.userRelationship ? `유저 역학 ${b.marketFit.userRelationship}` : "",
+    `말투 ${b.speechDirection}`,
+    `외형 ${b.visualSilhouette}`,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
 /**
  * Design checklist (author-facing, not an output contract): a way to notice
  * what the sheet is missing. Each item already has an owner field; do not add

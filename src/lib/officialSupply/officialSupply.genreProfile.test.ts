@@ -16,6 +16,7 @@ import {
   buildWorldBibleSystem,
   buildWorldCoreUser,
   buildWorldPortfolioUser,
+  describeCastForPlanning,
   type PortfolioBriefInput,
   type WorldBibleInput,
   type WorldMarketInput,
@@ -32,6 +33,7 @@ import {
 import {
   evaluateBriefCastFit,
   formatMarketSignalLines,
+  isRomanceLedSignal,
   selectMarketSignals,
   type OfficialBatchMarketPolicy,
   type OfficialMarketFitBrief,
@@ -56,7 +58,7 @@ const POLICY: OfficialBatchMarketPolicy = {
 
 function marketFor(plan: OfficialAuthoringPlan): WorldMarketInput {
   const selection = selectMarketSignals(snapshot, POLICY, plan.genre ?? "", {
-    excludeGenres: plan.profile.signalExcludeGenres,
+    excludeRomanceLed: plan.profile.excludeRomanceLedSignals,
   });
   return {
     targetLocale: POLICY.targetLocale,
@@ -318,6 +320,11 @@ describe("genre profile owner — genre-generic composition", () => {
     assert.equal(resolveOfficialAuthoringPlan({ genre: OFFICIAL_ROFAN_GENRE, humor: "central", tone: "satirical" }).namingProfile, "western_rofan");
   });
 
+  it("cast sketches carry goal, first event, user dynamic and voice so overlap is judged by experience", () => {
+    const sketch = describeCastForPlanning({ ...BRIEF, marketFit: null });
+    for (const needle of ["방송부 신입", "허세와 눈치", "당신의 마이크를 먼저 켜 버린다", "빠르고 짧은 반말"]) assert.ok(sketch.includes(needle), needle);
+  });
+
   it("the replacement overlap rule is added only when an authoring plan is supplied", () => {
     const withPlan = compose(resolveOfficialAuthoringPlan(SCHOOL_COMEDY)).replacement;
     assert.match(withPlan, /목표·첫 사건·말투·유저와의 역학·유머 방식·플레이 경험/);
@@ -326,19 +333,36 @@ describe("genre profile owner — genre-generic composition", () => {
 });
 
 describe("market signal input by genre", () => {
-  it("drops romance-led signals for non-romance genres but keeps the target genre's own signals", () => {
-    const genres = (selection: ReturnType<typeof selectMarketSignals>) =>
-      new Set([...selection.primary, ...selection.supporting].map((s) => s.genre));
+  const ids = (selection: ReturnType<typeof selectMarketSignals>) =>
+    [...selection.primary, ...selection.supporting].map((s) => s.signalId);
+  const byId = new Map(snapshot.signals.map((s) => [s.signalId, s] as const));
+
+  it("drops romance-led signals for non-romance genres and keeps non-romantic ones", () => {
     const horror = resolveOfficialAuthoringPlan(HORROR_DRY);
-    const filtered = genres(selectMarketSignals(snapshot, POLICY, "공포/추리", { excludeGenres: horror.profile.signalExcludeGenres }));
-    for (const romance of ["로맨스", "로맨스 판타지", "BL", "GL", "HL", "성인 스토리"]) assert.ok(!filtered.has(romance), romance);
-    assert.ok(filtered.size > 0);
+    assert.equal(horror.profile.excludeRomanceLedSignals, true);
+    const filtered = ids(selectMarketSignals(snapshot, POLICY, "공포/추리", { excludeRomanceLed: true }));
+    assert.ok(filtered.length > 0);
+    for (const id of filtered) assert.equal(isRomanceLedSignal(byId.get(id)!), false, id);
+    for (const id of ["kr-01", "kr-05", "kr-06", "kr-09", "kr-11", "kr-12", "kr-23", "kr-26", "global-10"]) {
+      assert.ok(!filtered.includes(id), `${id} is romance-led and must be dropped`);
+    }
+    assert.ok(filtered.includes("global-07"), "same-genre 공포/추리 signal stays");
+  });
 
-    const unfiltered = genres(selectMarketSignals(snapshot, POLICY, "공포/추리"));
-    assert.ok(unfiltered.has("로맨스 판타지"), "default selection is unchanged");
+  it("leaves romance-frame genres and the default selection untouched", () => {
+    const unfiltered = ids(selectMarketSignals(snapshot, POLICY, "공포/추리"));
+    assert.ok(unfiltered.includes("kr-05"));
+    for (const genre of ["로맨스", "로맨스 판타지", "BL", "GL", "HL"]) {
+      assert.equal(resolveOfficialAuthoringPlan({ genre }).profile.excludeRomanceLedSignals, false, genre);
+    }
+  });
 
-    const romance = resolveOfficialAuthoringPlan({ genre: "로맨스" });
-    assert.deepEqual(romance.profile.signalExcludeGenres, []);
+  it("classifies romance-led signals by genre label or romantic relationship structure", () => {
+    assert.equal(isRomanceLedSignal({ genre: "현대/일상", relationshipTrope: "사내 연애", scenarioHook: "x" }), true);
+    assert.equal(isRomanceLedSignal({ genre: "판타지", relationshipTrope: "구원", scenarioHook: "x" }), true);
+    assert.equal(isRomanceLedSignal({ genre: "오메가버스", relationshipTrope: null, scenarioHook: "x" }), true);
+    assert.equal(isRomanceLedSignal({ genre: "공포/추리", relationshipTrope: null, scenarioHook: "an investigation partner" }), false);
+    assert.equal(isRomanceLedSignal({ genre: "아포칼립스", relationshipTrope: "유사 가족·느린 신뢰", scenarioHook: "생존자 무리" }), false);
   });
 });
 

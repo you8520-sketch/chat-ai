@@ -20,9 +20,6 @@ export const OFFICIAL_ROFAN_GENRE = "로맨스 판타지";
 /** Genres whose default user relationship may be romantic. Everything else gets the open-relation frame. */
 const ROMANCE_FRAME_GENRES: ReadonlySet<string> = new Set(["로맨스", "로맨스 판타지", "BL", "GL", "HL"]);
 
-/** Snapshot signal genres that are romance-led; excluded from market input of non-romance genres. */
-const ROMANCE_SIGNAL_GENRES = ["로맨스", "로맨스 판타지", "BL", "GL", "HL", "성인 스토리"] as const;
-
 export const OFFICIAL_NARRATIVE_TONES = ["serious", "lyrical", "light", "dry", "satirical", "tragic"] as const;
 export type OfficialNarrativeTone = (typeof OFFICIAL_NARRATIVE_TONES)[number];
 
@@ -56,8 +53,8 @@ export type OfficialGenreProfile = {
   /** Default user relation is open (not romance / salvation / nobility). */
   openRelationLine: string | null;
   visualDirectionLines: readonly string[];
-  /** Snapshot signal genres dropped from market input (target genre itself is never dropped). */
-  signalExcludeGenres: readonly string[];
+  /** Drop romance-led market signals (`isRomanceLedSignal`) from this genre's market input. */
+  excludeRomanceLedSignals: boolean;
 };
 
 export type OfficialAuthoringDirection = {
@@ -95,7 +92,7 @@ export const ROFAN_GENRE_PROFILE: OfficialGenreProfile = {
   worldPowerNote: null,
   openRelationLine: null,
   visualDirectionLines: ["[DOMESTIC ROFAN PRODUCT DIRECTION]", DOMESTIC_ROFAN_STYLE_DIRECTION],
-  signalExcludeGenres: [],
+  excludeRomanceLedSignals: false,
 };
 
 const OPEN_RELATION_LINE =
@@ -120,7 +117,7 @@ function neutralProfile(label: string | null, romanceFrame: boolean): OfficialGe
     worldPowerNote: NEUTRAL_POWER_NOTE,
     openRelationLine: romanceFrame ? null : OPEN_RELATION_LINE,
     visualDirectionLines: [],
-    signalExcludeGenres: romanceFrame ? [] : ROMANCE_SIGNAL_GENRES,
+    excludeRomanceLedSignals: !romanceFrame,
   };
 }
 
@@ -177,7 +174,7 @@ const WORDPLAY_LINES: Record<OfficialNameWordplay, string> = {
   none: "",
   nickname:
     "이름 방식: 본명은 namingProfile에 맞추고, 주변이 부르는 별명을 name 필드의 괄호 별칭('본명 (별명)')으로 쓸 수 있다. 별명에는 인물의 행동·사건에서 생긴 이유가 있어야 한다.",
-  pun: "이름 방식: 이름 자체를 말장난으로 지을 수 있다(소리·뜻 중첩, 직업·성격과의 반어). 이 세계에서 그 이름이 왜 불리는지 근거가 있어야 하고, 세계의 시대·문화권에 맞는 말장난만 쓴다(현대 인터넷 유행어를 이세계·시대 배경에 섞지 않는다). 현실 인물·경쟁작 이름은 쓰지 않는다.",
+  pun: "이름 방식: 이름 자체를 말장난으로 지을 수 있다(소리·뜻 중첩, 직업·성격과의 반어). 이 지정이 namingProfile의 조어 금지 문구보다 우선하되 실제로 읽히는 이름이어야 한다. 이 세계에서 그 이름이 왜 불리는지 근거가 있어야 하고, 세계의 시대·문화권에 맞는 말장난만 쓴다(현대 인터넷 유행어를 이세계·시대 배경에 섞지 않는다). 현실 인물·경쟁작 이름은 쓰지 않는다.",
 };
 
 export type AuthoringDirectionKey = "tone" | "humor" | "pacing" | "wordplay" | "relation";

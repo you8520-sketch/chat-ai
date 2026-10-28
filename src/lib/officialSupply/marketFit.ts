@@ -89,17 +89,42 @@ function rankSignals(signals: ResearchSignal[], genre: string): ResearchSignal[]
     .map((x) => x.signal);
 }
 
+/** Signal genres that are romance-led by definition (snapshot labels, not only the 19 site genres). */
+const ROMANCE_LED_SIGNAL_GENRES: ReadonlySet<string> = new Set([
+  "로맨스",
+  "로맨스 판타지",
+  "BL",
+  "GL",
+  "HL",
+  "센티넬버스",
+  "오메가버스",
+  "시즌 로맨스",
+  "컴패니언",
+  "성인 스토리",
+]);
+
+/** Relationship structure that only works as a romance / salvation / obsession hook. */
+const ROMANTIC_STRUCTURE_RE =
+  /(연애|연인|사랑|로맨스|결혼|동거|짝|각인|전담|순애|집착|후회|구원|혐관|배덕|애정|정략|romance|romantasy|lovers?|\blove\b|dominant|enemies to)/i;
+
+/** True when a market signal's hook is romance-led, so it must not steer a non-romance character. */
+export function isRomanceLedSignal(signal: Pick<ResearchSignal, "genre" | "relationshipTrope" | "scenarioHook">): boolean {
+  return (
+    ROMANCE_LED_SIGNAL_GENRES.has(signal.genre) ||
+    ROMANTIC_STRUCTURE_RE.test(`${signal.relationshipTrope ?? ""} ${signal.scenarioHook}`)
+  );
+}
+
 export function selectMarketSignals(
   snapshot: ResearchSnapshot,
   policy: OfficialBatchMarketPolicy,
   genre: string,
-  opts: { excludeGenres?: readonly string[] } = {}
+  opts: { excludeRomanceLed?: boolean } = {}
 ): MarketSignalSelection {
   const excluded = snapshot.signals
     .filter((s) => !s.originalityEligible)
     .map((s) => ({ signalId: s.signalId, reason: s.ipExclusionReason ?? "ip_excluded" }));
-  const skipGenres = new Set((opts.excludeGenres ?? []).filter((g) => g !== genre));
-  const eligible = snapshot.signals.filter((s) => s.originalityEligible && !skipGenres.has(s.genre));
+  const eligible = snapshot.signals.filter((s) => s.originalityEligible && !(opts.excludeRomanceLed && isRomanceLedSignal(s)));
   const local = eligible.filter((s) => s.region === policy.signalRegion);
   const other = eligible.filter((s) => s.region !== policy.signalRegion);
   const [primarySet, supportingSet] = policy.marketPriority === "domestic_first" ? [local, other] : [other, local];
