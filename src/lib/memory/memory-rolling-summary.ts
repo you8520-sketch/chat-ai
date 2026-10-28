@@ -316,7 +316,6 @@ async function resolveTimelineAnchorsForBatch(dialogue: string): Promise<Timelin
   const regions = selectTimelineAnchorRegions(dialogue);
   if (!regions.length) return [];
   const { system, user } = buildTimelineAnchorExtractionMessages(regions);
-  const assistantText = regions.map((region) => region.assistantText).join("\n\n");
   let timer: ReturnType<typeof setTimeout> | null = null;
   try {
     const timeout = new Promise<null>((resolve) => {
@@ -335,7 +334,7 @@ async function resolveTimelineAnchorsForBatch(dialogue: string): Promise<Timelin
       timeout,
     ]);
     if (raw == null) return [];
-    return verifyTimelineAnchors(parseTimelineAnchorJson(raw), assistantText);
+    return verifyTimelineAnchors(parseTimelineAnchorJson(raw), regions);
   } catch {
     return [];
   } finally {

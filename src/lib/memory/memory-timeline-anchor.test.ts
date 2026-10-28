@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, before, after, beforeEach } from "node:test";
+import { getDb } from "@/lib/db";
+import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
 import {
   extractBatchOpeningRegion,
   isTimelineAnchorCandidate,
@@ -17,6 +22,12 @@ import {
   __setTimelineAnchorCallerForTests,
   summarizeTurnBatch,
 } from "./memory-rolling-summary";
+import { persistValidatedSummaryBatch } from "./memory-summary-persist";
+import {
+  buildRecentNarrativeContextBlock,
+  buildStoredHistoryStaticBlock,
+} from "./memory-narrative-context";
+import { rebuildLorebookFromRecords } from "./memory-turn-summary";
 
 const OPENING_ASSISTANT =
   "화약 냄새와 턱시도, 우스꽝스럽고도 광기 어렸던 프러포즈 소동은 요새의 건조한 공기 필터 속으로 흩어진 지 오래였다. 수류탄 핀 반지만 잔재로 남았다.\n\n대서양 데드존의 해상 시추선. 오즈의 위치와 밀그램의 EMP 테러 계획이라는 핵심 정보는 작전망을 완전히 뒤흔들었다.";
@@ -297,6 +308,150 @@ describe("timeline anchor meaning is rejected, not repaired", () => {
     assert.equal(anchors.length, 0);
   });
 
+  it("keeps a past label whose trace is the next sentence, not the quote", () => {
+    const anchors = verifyTimelineAnchors(
+      [
+        {
+          mode: "past_event_reference",
+          label: "프러포즈 소동과 수류탄 핀 반지",
+          asOf: "past",
+          sourceQuote: "프러포즈 소동은 요새의 건조한 공기 필터 속으로 흩어진 지 오래였다.",
+          resumePoint: "",
+        },
+      ],
+      assistant
+    );
+    assert.equal(anchors.length, 1);
+    assert.equal(anchors[0]!.label, "프러포즈 소동과 수류탄 핀 반지");
+  });
+
+  it("rejects a past label that borrows a noun from a later paragraph", () => {
+    const anchors = verifyTimelineAnchors(
+      [
+        {
+          mode: "past_event_reference",
+          label: "프러포즈 소동과 시추선",
+          asOf: "past",
+          sourceQuote: "프러포즈 소동은 요새의 건조한 공기 필터 속으로 흩어진 지 오래였다.",
+          resumePoint: "",
+        },
+      ],
+      assistant
+    );
+    assert.equal(anchors.length, 0);
+  });
+
+  it("keeps a return whose point uses the user instruction and whose scene is performed", () => {
+    const region = extractBatchOpeningRegion(DIALOGUE)!;
+    const anchors = verifyTimelineAnchors(
+      [
+        {
+          mode: "resume_from_earlier_point",
+          label: "밀그램의 핵심 정보",
+          asOf: "past",
+          sourceQuote: "밀그램의 EMP 테러 계획이라는 핵심 정보는 작전망을 완전히 뒤흔들었다",
+          resumePoint: "데미안이 밀그램의 정보를 말한 이후",
+        },
+      ],
+      [region]
+    );
+    assert.equal(anchors.length, 1);
+    assert.equal(anchors[0]!.resumePoint, "데미안이 밀그램의 정보를 말한 이후");
+  });
+
+  it("keeps the performed return even when the label adds a word the scene did not use", () => {
+    const region = extractBatchOpeningRegion(DIALOGUE)!;
+    const anchors = verifyTimelineAnchors(
+      [
+        {
+          mode: "past_event_reference",
+          label: "프러포즈 소동과 수류탄 핀 반지",
+          asOf: "past",
+          sourceQuote: "프러포즈 소동은 요새의 건조한 공기 필터 속으로 흩어진 지 오래였다.",
+          resumePoint: "",
+        },
+        {
+          mode: "resume_from_earlier_point",
+          label: "밀그램 정보 전달 이후",
+          asOf: "past",
+          sourceQuote: "밀그램의 EMP 테러 계획이라는 핵심 정보는 작전망을 완전히 뒤흔들었다",
+          resumePoint: "데미안이 밀그램의 정보를 말한 이후",
+        },
+      ],
+      [region]
+    );
+    assert.deepEqual(
+      anchors.map((anchor) => anchor.mode),
+      ["past_event_reference", "resume_from_earlier_point"]
+    );
+    const line = formatTimelineAnchorLine(anchors);
+    assert.ok(line.includes("프러포즈 소동과 수류탄 핀 반지"));
+    assert.ok(line.includes("데미안이 밀그램의 정보를 말한 이후"));
+    assert.equal(line.includes("전달"), false);
+  });
+
+  it("rejects a return label that names a different event", () => {
+    const region = extractBatchOpeningRegion(DIALOGUE)!;
+    const anchors = verifyTimelineAnchors(
+      [
+        {
+          mode: "resume_from_earlier_point",
+          label: "왕궁 결혼식",
+          asOf: "past",
+          sourceQuote: "밀그램의 EMP 테러 계획이라는 핵심 정보는 작전망을 완전히 뒤흔들었다",
+          resumePoint: "데미안이 밀그램의 정보를 말한 이후",
+        },
+      ],
+      [region]
+    );
+    assert.equal(anchors.length, 0);
+  });
+
+  it("rejects a return the user requested when the assistant stays in the earlier scene", () => {
+    const anchors = verifyTimelineAnchors(
+      [
+        {
+          mode: "resume_from_earlier_point",
+          label: "프러포즈 소동",
+          asOf: "past",
+          sourceQuote: "프러포즈 소동은 요새의 건조한 공기 필터 속으로 흩어진 지 오래였다.",
+          resumePoint: "밀그램의 정보를 말한 이후",
+        },
+      ],
+      [
+        {
+          userText: "*OOC: 밀그램의 정보를 말한 이후로 돌아가*",
+          assistantText:
+            "프러포즈 소동은 요새의 건조한 공기 필터 속으로 흩어진 지 오래였다. 수류탄 핀 반지만 잔재로 남았다.",
+          paragraphs: 1,
+        },
+      ]
+    );
+    assert.equal(anchors.length, 0);
+  });
+
+  it("rejects a quote that belongs to a different turn", () => {
+    const opening = extractBatchOpeningRegion(DIALOGUE)!;
+    const other = {
+      userText: "다음",
+      assistantText: "그는 창문을 닫고 기록을 넘겼다.",
+      paragraphs: 1,
+    };
+    const anchors = verifyTimelineAnchors(
+      [
+        {
+          mode: "past_event_reference",
+          label: "수류탄 핀 반지",
+          asOf: "past",
+          sourceQuote: "창문을 닫고 기록을 넘겼다",
+          resumePoint: "",
+        },
+      ],
+      [opening, other]
+    );
+    assert.equal(anchors.length, 0);
+  });
+
   it("rejects a cancellation classified as a past-event reference", () => {
     const cancelled = "그 청혼은 없던 일이 되었다. 두 사람은 작전에 남았다.";
     const anchors = verifyTimelineAnchors(
@@ -328,17 +483,17 @@ describe("summarizeTurnBatch timeline anchor integration", () => {
         timelineAnchors: [
           {
             mode: "past_event_reference",
-            label: "프러포즈 소동",
+            label: "프러포즈 소동과 수류탄 핀 반지",
             asOf: "past",
-            sourceQuote: "프러포즈 소동은 요새의 건조한 공기 필터 속으로 흩어진",
+            sourceQuote: "프러포즈 소동은 요새의 건조한 공기 필터 속으로 흩어진 지 오래였다.",
             resumePoint: "",
           },
           {
             mode: "resume_from_earlier_point",
-            label: "핵심 정보",
+            label: "밀그램 정보 전달 이후",
             asOf: "past",
-            sourceQuote: "핵심 정보는 작전망을 완전히 뒤흔들었다",
-            resumePoint: "밀그램의 핵심 정보",
+            sourceQuote: "밀그램의 EMP 테러 계획이라는 핵심 정보는 작전망을 완전히 뒤흔들었다",
+            resumePoint: "데미안이 밀그램의 정보를 말한 이후",
           },
         ],
       });
@@ -349,8 +504,8 @@ describe("summarizeTurnBatch timeline anchor integration", () => {
       startTurn: 81,
       endTurn: 85,
     });
-    assert.ok(out.startsWith("[시간선] 과거: 프러포즈 소동"), out);
-    assert.ok(out.includes("재개 지점: 밀그램의 핵심 정보"), out);
+    assert.ok(out.startsWith("[시간선] 과거: 프러포즈 소동과 수류탄 핀 반지"), out);
+    assert.ok(out.includes("재개 지점: 데미안이 밀그램의 정보를 말한 이후"), out);
     assert.ok(out.includes(SUMMARY_TEXT), out);
     assert.ok(out.includes("팬 커뮤니티에서 주접 배틀을 벌였다."), out);
     assert.ok(out.length <= 600);
@@ -488,6 +643,87 @@ describe("timeline anchor candidate turns inside a batch", () => {
       const { calls } = await countCalls(dialogue);
       assert.equal(calls, 0, dialogue.slice(0, 80));
       assert.equal(isTimelineAnchorCandidate(extractBatchOpeningRegion(dialogue)), false);
+    }
+  });
+});
+
+describe("timeline summary injection", () => {
+  const CHAT_ID = 990181;
+  const USER_ID = 990181;
+  const CHAR_ID = 990181;
+
+  before(() => {
+    installIsolatedTestDatabase();
+    const db = getDb();
+    db.prepare(`INSERT INTO users (id, email, nickname, pw_hash) VALUES (?,?,?,?)`).run(
+      USER_ID,
+      "timeline-anchor@test.local",
+      "timeline",
+      "x"
+    );
+    db.prepare(`INSERT INTO characters (id, name) VALUES (?,?)`).run(CHAR_ID, "TestChar");
+    db.prepare(`INSERT INTO chats (id, user_id, character_id, mode) VALUES (?,?,?,'safe')`).run(
+      CHAT_ID,
+      USER_ID,
+      CHAR_ID
+    );
+  });
+
+  after(() => {
+    uninstallIsolatedTestDatabase();
+  });
+
+  it("stores the verified line in Stored History, Recent Narrative, and the lorebook", async () => {
+    const body =
+      "데미안이 밀그램의 정보를 넘기자 제이가 그를 개인실로 불렀고, 두 형제는 애쉬폴 작전에 합류한다. 이후 오스카는 팬 커뮤니티에서 주접 배틀을 벌였다.";
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: body }));
+    __setTimelineAnchorCallerForTests(async () =>
+      JSON.stringify({
+        timelineAnchors: [
+          {
+            mode: "past_event_reference",
+            label: "프러포즈 소동과 수류탄 핀 반지",
+            asOf: "past",
+            sourceQuote: "프러포즈 소동은 요새의 건조한 공기 필터 속으로 흩어진 지 오래였다.",
+            resumePoint: "",
+          },
+          {
+            mode: "resume_from_earlier_point",
+            label: "밀그램 정보 전달 이후",
+            asOf: "past",
+            sourceQuote: "밀그램의 EMP 테러 계획이라는 핵심 정보는 작전망을 완전히 뒤흔들었다",
+            resumePoint: "데미안이 밀그램의 정보를 말한 이후",
+          },
+        ],
+      })
+    );
+    const summary = await summarizeTurnBatch({
+      dialogue: DIALOGUE,
+      charName: "ASSISTANT",
+      startTurn: 1,
+      endTurn: 5,
+    });
+    assert.ok(summary.startsWith("[시간선] "));
+    assert.ok(summary.endsWith(body));
+    const saved = persistValidatedSummaryBatch({
+      chatId: CHAT_ID,
+      userId: USER_ID,
+      characterId: CHAR_ID,
+      tier: "free",
+      turnStart: 1,
+      assistantMessageId: null,
+      summary,
+      playableTurnCount: 5,
+    });
+    assert.equal(saved.ok, true);
+    const stored = buildStoredHistoryStaticBlock(CHAT_ID, 6);
+    const recent = buildRecentNarrativeContextBlock(CHAT_ID, 6);
+    const lorebook = rebuildLorebookFromRecords(CHAT_ID);
+    for (const surface of [stored, recent, lorebook]) {
+      assert.ok(surface.includes("프러포즈 소동과 수류탄 핀 반지"), surface);
+      assert.ok(surface.includes("데미안이 밀그램의 정보를 말한 이후"), surface);
+      assert.ok(surface.includes("팬 커뮤니티에서 주접 배틀을 벌였다"), surface);
+      assert.equal(surface.includes("전달"), false, surface);
     }
   });
 });

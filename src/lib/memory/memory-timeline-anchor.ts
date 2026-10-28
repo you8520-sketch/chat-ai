@@ -16,8 +16,13 @@
  * Guards:
  * - No new table, no new memory system, no work-specific patterns.
  * - One provider call per batch. At most two candidate turns share that call.
- * - label must be supported by its ASSISTANT quote. resumePoint must be
- *   supported by performed ASSISTANT narration outside that quote.
+ * - A past label may use the quote sentence and the next sentence in that
+ *   same paragraph. Words from a later paragraph or another turn do not count.
+ * - A return is kept when its resume point is grounded in that turn's USER
+ *   instruction or ASSISTANT narration, and the cited scene shares a content
+ *   word with both the USER instruction and the label. The resume point does
+ *   not have to repeat the ASSISTANT wording. A label about a different event
+ *   is dropped. The rendered line uses the resume point, not leftover label words.
  * - Unrealized USER OOC, recollection mistaken for a return, and cancellation
  *   mistaken for past-ification are rejected, never repaired.
  * - The existing summary body is never shortened to make room for the line.
@@ -255,16 +260,84 @@ function quoteOutside(assistantText: string, quote: string): string {
   return assistantText.replace(/\s+/g, " ").split(normalizedQuote).join(" ");
 }
 
+function regionsFromSource(
+  source: string | readonly BatchOpeningRegion[]
+): BatchOpeningRegion[] {
+  if (typeof source === "string") {
+    return [{ userText: "", assistantText: source, paragraphs: 0 }];
+  }
+  return source.map((region) => ({
+    userText: region.userText,
+    assistantText: region.assistantText,
+    paragraphs: region.paragraphs,
+  }));
+}
+
+/** The one candidate turn that contains this quote. Two hits, or none, are unusable. */
+function regionForQuote(
+  regions: readonly BatchOpeningRegion[],
+  quote: string
+): BatchOpeningRegion | null {
+  const hits = regions.filter((region) =>
+    region.assistantText.replace(/\s+/g, " ").includes(quote)
+  );
+  return hits.length === 1 ? hits[0]! : null;
+}
+
 /**
- * Keep only anchors whose quote, label, and resume point are supported by the
- * performed ASSISTANT narration. Invalid items are dropped, never rewritten.
+ * The quote sentence plus the next sentence in the same paragraph.
+ * A later paragraph is a different scene and is not evidence for this label.
+ */
+function consecutiveSentenceEvidence(assistantText: string, quote: string): string | null {
+  const paragraphs = assistantText
+    .split(/\n\n/)
+    .map((paragraph) => paragraph.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  for (const paragraph of paragraphs) {
+    if (!paragraph.includes(quote)) continue;
+    const sentences = paragraph
+      .split(/(?<=[.!?])\s+/u)
+      .map((sentence) => sentence.trim())
+      .filter(Boolean);
+    const index = sentences.findIndex((sentence) => sentence.includes(quote));
+    if (index < 0) return null;
+    return [sentences[index], sentences[index + 1]].filter(Boolean).join(" ");
+  }
+  return null;
+}
+
+function resumePointSupported(
+  resumePoint: string,
+  quote: string,
+  region: BatchOpeningRegion
+): boolean {
+  const stems = contentStems(resumePoint);
+  if (!stems.length) return false;
+  const grounded = stems.every(
+    (stem) =>
+      stemsOccurIn([stem], region.assistantText) ||
+      (region.userText.trim() !== "" && stemsOccurIn([stem], region.userText))
+  );
+  if (!grounded) return false;
+  const inScene = stems.filter((stem) => stemsOccurIn([stem], quote));
+  if (!inScene.length) return false;
+  if (region.userText.trim() !== "") {
+    return inScene.some((stem) => stemsOccurIn([stem], region.userText));
+  }
+  return true;
+}
+
+/**
+ * Keep an anchor only when its own turn supports it.
+ * A string source is one assistant region with no USER text.
+ * Invalid items are dropped, never rewritten.
  */
 export function verifyTimelineAnchors(
   items: unknown[] | null,
-  assistantText: string
+  source: string | readonly BatchOpeningRegion[]
 ): TimelineAnchor[] {
   if (!items?.length) return [];
-  const source = assistantText.replace(/\s+/g, " ").trim();
+  const regions = regionsFromSource(source);
   const out: TimelineAnchor[] = [];
   const seen = new Set<string>();
   for (const item of items) {
@@ -278,19 +351,23 @@ export function verifyTimelineAnchors(
     if (rec.asOf !== "past") continue;
     const quote = typeof rec.sourceQuote === "string" ? rec.sourceQuote.trim() : "";
     const normalizedQuote = quote.replace(/\s+/g, " ").trim();
-    if (normalizedQuote.length < 6 || !source.includes(normalizedQuote)) continue;
+    if (normalizedQuote.length < 6) continue;
+    const region = regionForQuote(regions, normalizedQuote);
+    if (!region) continue;
     if (EVENT_CANCEL_RE.test(normalizedQuote) || EVENT_CANCEL_RE.test(label)) continue;
-    if (!stemsOccurIn(contentStems(label), normalizedQuote)) continue;
     const resumePointRaw =
       typeof rec.resumePoint === "string" ? rec.resumePoint.replace(/\s+/g, " ").trim() : "";
-    if (mode === "resume_from_earlier_point") {
+    if (mode === "past_event_reference") {
+      const evidence = consecutiveSentenceEvidence(region.assistantText, normalizedQuote);
+      if (!evidence || !stemsOccurIn(contentStems(label), evidence)) continue;
+    } else {
       if (!resumePointRaw || resumePointRaw.length > 40) continue;
       if (EVENT_CANCEL_RE.test(resumePointRaw)) continue;
-      const resumeStems = contentStems(resumePointRaw);
-      if (!stemsOccurIn(resumeStems, source)) continue;
-      const supportedOutside = stemsOccurIn(resumeStems, quoteOutside(source, normalizedQuote));
+      if (!contentStems(label).some((stem) => stemsOccurIn([stem], normalizedQuote))) continue;
+      if (!resumePointSupported(resumePointRaw, normalizedQuote, region)) continue;
       const recollection = /떠올|회상|추억|기억했|생각났/.test(normalizedQuote);
-      if (recollection && !supportedOutside) continue;
+      const outside = quoteOutside(region.assistantText, normalizedQuote);
+      if (recollection && !stemsOccurIn(contentStems(resumePointRaw), outside)) continue;
     }
     seen.add(label);
     out.push({
