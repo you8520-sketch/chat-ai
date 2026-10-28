@@ -161,20 +161,50 @@ function issue(code: string, message: string): QaIssue {
  */
 const FREE_ABILITY_PREMISE =
   /(?:당신|유저|사용자)(?:의|만이|만|은|는|이|가)?[^.!?。！？\n]{0,60}(?:(?:능력|공명|혈통|신분|소속|역할)[^.!?。！？\n]{0,35}(?:없이는|없인|뿐|필수|유일)|(?:없이는|없인)[^.!?。！？\n]{0,20}(?:불가능|할 수 없))|(?:가능한|멈출 수 있는|살릴 수 있는)[^.!?。！？\n]{0,15}(?:건|것은|자는)[^.!?。！？\n]{0,10}(?:당신|유저|사용자)[^.!?。！？\n]{0,20}(?:뿐|유일)/u;
-const FREE_ASSIGNED_ROLE =
-  /(?:당신|유저|사용자)(?:은|는)\s+[^.\n!?]{0,80}?(?:이자|이며|입니다|로서|(?:이다)(?![가-힣]|니))/u;
+const USER_TOPIC = /(?:당신|유저|사용자)(?:은|는)/u;
+const COPULA_SPLIT = /(이자|이며|입니다|로서|이다(?![가-힣]|니))/u;
+const COPULA_TOKEN = /^(?:이자|이며|입니다|로서|이다)$/u;
 const FREE_SHARED_PAST =
   /(?:당신|유저|사용자)(?:와|과)\s*(?:나눈|함께\s*(?:한|했던)|맺은)\s*(?:약속|맹약|인연)/u;
-/** The sentence itself says the user's role is still open. Not a fixed premise. */
-const ROLE_LEFT_OPEN =
-  /아직|어떤\s+\S{0,16}도|정해지지\s*않|정해져\s*있지\s*않|고정하지\s*않|정하지\s*않/u;
+/**
+ * The copula's own predicate says the role or relationship is unset.
+ * `아직` alone does not: `아직 목격자입니다` fixes the role, while
+ * `아직 처분은 정해지지 않았습니다` leaves a different fact open.
+ */
+const UNFIXED_PREDICATE =
+  /미정|확정되지\s*않|확정되어\s*있지\s*않|정해지지\s*않|정해져\s*있지\s*않|고정하지\s*않|정하지\s*않|어떤\s+\S{0,16}도/u;
+const SHARED_PAST_DENIAL = /^\s*(?:은|는|이|가)\s*없/u;
 
 function sentencesOf(text: string): string[] {
   return text.split(/[.!?。！？\n]+/u).map((sentence) => sentence.trim()).filter(Boolean);
 }
 
 function assignsFixedRole(text: string): boolean {
-  return sentencesOf(text).some((sentence) => FREE_ASSIGNED_ROLE.test(sentence) && !ROLE_LEFT_OPEN.test(sentence));
+  return sentencesOf(text).some((sentence) => {
+    if (!USER_TOPIC.test(sentence)) return false;
+    const parts = sentence.split(COPULA_SPLIT);
+    let pending = "";
+    let topicOpen = false;
+    for (const part of parts) {
+      if (COPULA_TOKEN.test(part)) {
+        if (topicOpen && !UNFIXED_PREDICATE.test(pending)) return true;
+        pending = "";
+        continue;
+      }
+      pending += part;
+      if (USER_TOPIC.test(part)) topicOpen = true;
+    }
+    return false;
+  });
+}
+
+function assertsSharedPast(text: string): boolean {
+  return sentencesOf(text).some((sentence) => {
+    const match = new RegExp(FREE_SHARED_PAST.source, "u").exec(sentence);
+    if (!match) return false;
+    const after = sentence.slice(match.index + match[0].length);
+    return !SHARED_PAST_DENIAL.test(after);
+  });
 }
 
 /** Brief fields both portfolio replacement and character-bible generation must scan. */
@@ -196,7 +226,7 @@ export function officialUserRelationPremiseTexts(brief: {
 
 export function evaluateUserRelationPremise(type: OfficialUserRelationType, texts: readonly string[]): QaResult {
   if (type !== "free") return qaResult([]);
-  const hit = texts.find((text) => FREE_ABILITY_PREMISE.test(text) || assignsFixedRole(text) || FREE_SHARED_PAST.test(text));
+  const hit = texts.find((text) => FREE_ABILITY_PREMISE.test(text) || assignsFixedRole(text) || assertsSharedPast(text));
   return qaResult(hit ? [issue(
     "bible_user_rel_free_premise",
     "FREE premise requires a specific user role or a shared past; declare only that fact as ROLE_BOUND or RELATIONSHIP_BOUND, or remove the prerequisite",

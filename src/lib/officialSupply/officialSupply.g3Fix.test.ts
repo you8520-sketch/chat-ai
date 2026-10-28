@@ -148,15 +148,18 @@ describe("G3 fix: SFW false positive and FREE premise", () => {
     );
   });
 
-  it("allows an explicitly unfixed FREE role and still rejects a required present role", () => {
-    assert.equal(
-      evaluateUserRelationPremise("free", ["당신은 아직 어떤 역할도 정해지지 않은 상태입니다."]).ok,
-      true,
-    );
-    assert.equal(
-      evaluateUserRelationPremise("free", ["당신은 핵심 목격자이자 판독 대상입니다."]).ok,
-      false,
-    );
+  it("scopes role negation to the clause it modifies and still rejects a fixed role or shared past", () => {
+    for (const text of [
+      "당신은 아직 어떤 역할도 정해지지 않은 상태입니다.",
+      "유저는 정체가 미정이며 과거의 관계도 확정되지 않았다.",
+      "유저와 나눈 약속은 없었다.",
+    ]) assert.equal(evaluateUserRelationPremise("free", [text]).ok, true, text);
+    for (const text of [
+      "당신은 핵심 목격자이자 판독 대상입니다.",
+      "당신은 아직 수사의 핵심 목격자입니다.",
+      "당신은 수사의 핵심 목격자이며 아직 처분은 정해지지 않았습니다.",
+      "유저와 나눈 약속을 잊었다.",
+    ]) assert.equal(evaluateUserRelationPremise("free", [text]).ok, false, text);
   });
 
   it("keeps the three relation-start candidates and the published Wolfgang sheet", () => {
