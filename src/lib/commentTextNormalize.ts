@@ -25,7 +25,7 @@ function collapseRepeatedChars(text: string): string {
   return text.replace(/(.)\1{2,}/gu, "$1$1");
 }
 
-const SPECIAL_CHAR_RE = /[^\p{L}\p{N}]/gu;
+const SPECIAL_EXCEPT_SPACE_RE = /[^\p{L}\p{N}\s]/gu;
 const HANGUL_OR_JAMO = /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7A3]/;
 const ALWAYS_SUBSTITUTE = new Set(["1", "0", "|", "@", "$"]);
 
@@ -55,7 +55,31 @@ function mergeJamoBypass(text: string): string {
   return out;
 }
 
-/** 댓글 금지어 검사용 정규화 파이프라인 */
+const INVISIBLE_RE = /[\u200B-\u200D\uFEFF\u2060]/g;
+
+/**
+ * Bypass fold that keeps real word spaces.
+ * Zero-width characters, punctuation, and similar-char/jamo tricks are removed
+ * so "보.지" / "보\u200b지" collapse into one eojeol, while "탁자 위" stays two.
+ * Comment bans still drop the remaining spaces in `normalizeCommentTextForModeration`.
+ */
+export function normalizeCommentTextKeepingWordSpaces(raw: string): string {
+  let text = raw.normalize("NFKC").toLowerCase().replace(INVISIBLE_RE, "");
+  text = text.replace(/\s+/g, " ").trim();
+  text = applySimilarCharMap(text);
+  text = text.replace(SPECIAL_EXCEPT_SPACE_RE, "");
+  text = collapseRepeatedChars(text);
+  text = mergeJamoBypass(text);
+  return text.replace(/ +/g, " ").trim();
+}
+
+const SPECIAL_CHAR_RE = /[^\p{L}\p{N}]/gu;
+
+/**
+ * Comment-ban fold. Spaces are removed before similar-character substitution so
+ * `ㅅ l 발` becomes `ㅅl발` and `l` can map to `ㅣ`. Public adult-term matching
+ * uses `normalizeCommentTextKeepingWordSpaces` and must not share this order.
+ */
 export function normalizeCommentTextForModeration(raw: string): string {
   let text = raw.normalize("NFKC").toLowerCase();
   text = text.replace(/\s+/g, " ").trim();

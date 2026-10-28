@@ -20,3 +20,27 @@ describe("G2 Korean see verb versus adult noun", () => {
     }
   });
 });
+
+describe("G3 adult-term boundaries", () => {
+  it("allows ordinary place phrases and the see-verb, and still blocks real terms and bypasses", () => {
+    for (const text of [
+      "긴 탁자 위에는 통행 협약서가 펼쳐져 있었다.",
+      "의자 위에 앉았다.",
+      "상자 위를 열었다.",
+      "책상 위에는 빈 확인란이 남아 있었다.",
+      "사람을 소모품으로 보지 않으려 한다.",
+      "그는 그 이름을 알아보지 못했다.",
+    ]) assert.deepEqual(findAdultTermsInText(text), [], text);
+    for (const text of ["자위", "자 위", "자.위", "자\u200b위", "자－위", "보지", "보 지", "섹 스"]) {
+      assert.ok(findAdultTermsInText(text).length > 0, text);
+    }
+  });
+  it("still catches an unambiguous adult stem inside a compound", () => {
+    for (const [text, expected] of [
+      ["폰섹스", "섹스"],
+      ["구강성교", "성교"],
+      ["아동포르노", "포르노"],
+      ["질삽입", "삽입"],
+    ] as const) assert.ok(findAdultTermsInText(text).includes(expected), text);
+  });
+});
