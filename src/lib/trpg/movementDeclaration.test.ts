@@ -19,6 +19,40 @@ describe("movement declaration — bot stay fallback", () => {
     assert.equal(parseMovementDeclaration("출구를 향해 화살을 쏜다.").live, false);
   });
 
+  it("reads a body dash and exit rush as live movement without reviving an object throw", () => {
+    assert.deepEqual(declaredMovementGoals("경보실 문턱으로 몸을 던졌다."), ["경보실 문턱"]);
+    assert.deepEqual(declaredMovementGoals("출구 방향으로 쇄도했다."), ["출구 방향"]);
+    assert.deepEqual(
+      declaredMovementGoals("강이현은 경보실 문턱으로 몸을 던지며 출구 쪽으로 쇄도했다."),
+      ["강이현은 경보실 문턱", "던지며 출구 쪽"]
+    );
+    assert.deepEqual(declaredMovementGoals("주 통로로 돌을 던지고 돌아온다."), []);
+    assert.deepEqual(declaredMovementGoals("주 통로로 돌을 던진 후 이동한다."), []);
+    for (const line of [
+      "돌을 출구로 던졌다.",
+      "시선을 경보실로 던졌다.",
+      "탄환을 출구로 날렸다.",
+      "출구로 돌을 던졌다.",
+      "몸을 낮추고 돌을 출구로 던졌다.",
+      "몸을 낮추고 탄환을 경보실로 날렸다.",
+      "고개를 출구 쪽으로 던졌다.",
+    ]) {
+      assert.deepEqual(declaredMovementGoals(line), [], line);
+      assert.equal(parseMovementDeclaration(line).live, false, line);
+    }
+    assert.deepEqual(declaredMovementGoals("돌을 내려놓고 몸을 출구로 던졌다."), ["출구"]);
+    assert.equal(parseMovementDeclaration("돌을 내려놓고 몸을 출구로 던졌다.").live, true);
+  });
+
+  it("reads campaign #44 R11 body motion without pricing propelled objects", () => {
+    const r11 =
+      "이현은 쥐고 있던 접이식 석궁을 몸 안쪽으로 바짝 당겨 붙이며, 남쪽복도의 배관 엄폐물을 박차고 경보실 문턱으로 몸을 던졌다. 붉은 레이저가 빗겨나간 바닥의 기름막과 파편을 날렵하게 타고 넘어, 렌이 확보해 둔 출구 방향의 기둥 그늘을 향해 지체 없이 쇄도했다.";
+    const goals = declaredMovementGoals(r11);
+    assert.ok(goals.some((goal) => goal.includes("경보실")));
+    assert.ok(goals.some((goal) => goal.includes("출구")));
+    assert.equal(parseMovementDeclaration(r11).live, true);
+  });
+
   it("reads a follow into a named place and does not read a noun mention of moving", () => {
     const follow =
       "서하는 주 통로로 진입하는 데모유저의 뒤를 따라 이동하며, 손전등으로 바닥의 파편과 연구원들의 이동 흔적을 비추어 데모유저의 조사와 전진을 보조하려 했다.";
