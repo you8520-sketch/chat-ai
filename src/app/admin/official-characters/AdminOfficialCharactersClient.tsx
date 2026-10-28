@@ -17,7 +17,7 @@ type LorebookPlanDisplayRow = {
   action: OfficialInPlaceLorebookPlan["action"];
 };
 
-export type LorebookPlanDisplayState =
+type LorebookPlanDisplayState =
   | { status: "unavailable" }
   | { status: "available"; rows: LorebookPlanDisplayRow[] };
 
@@ -46,17 +46,8 @@ export function resolveLorebookPlanDisplay(
   return { status: "available", rows };
 }
 
-export function formatLorebookIdForDisplay(lorebookId: number | null): string {
+function formatLorebookIdForDisplay(lorebookId: number | null): string {
   return lorebookId == null ? "—" : String(lorebookId);
-}
-
-export function serializeLorebookPlanDisplayRows(rows: LorebookPlanDisplayRow[]): string {
-  return rows
-    .map(
-      (row) =>
-        `${row.entryKey}\t${formatLorebookIdForDisplay(row.lorebookId)}\t${row.action}`
-    )
-    .join("\n");
 }
 
 type OfficialRow = {
