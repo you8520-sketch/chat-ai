@@ -1,0 +1,69 @@
+{
+  "spentKrw": 118.5808741781742,
+  "budgetKrw": 800,
+  "credential": "OPENROUTER_JEV_BENCHMARK_API_KEY (comparison only; production OPENROUTER_API_KEY 401 User not found)",
+  "calls": [
+    {
+      "sceneId": "r1",
+      "elapsedMs": 47280,
+      "status": 200,
+      "finishReason": "stop",
+      "semanticDone": true,
+      "structuredOk": true,
+      "tokens": {
+        "inputTokens": 7403,
+        "outputTokens": 2202,
+        "reasoningTokens": 0,
+        "cacheReadTokens": 0,
+        "costUsd": 0.036826
+      },
+      "providerKrw": 50.14191379590588,
+      "chargePoints": 51,
+      "postIntroKrw": 100.28382759181176,
+      "spentKrw": 50.14191379590588,
+      "usageTokens": {
+        "inputTokens": 7403,
+        "outputTokens": 2202,
+        "reasoningTokens": 0,
+        "cacheReadTokens": 0,
+        "costUsd": 0.036826
+      },
+      "cost_details": {
+        "upstream_inference_cost": 0.036826,
+        "upstream_inference_prompt_cost": 0.014806,
+        "upstream_inference_completions_cost": 0.02202
+      }
+    },
+    {
+      "sceneId": "r3",
+      "elapsedMs": 46104,
+      "status": 200,
+      "finishReason": "stop",
+      "semanticDone": true,
+      "structuredOk": true,
+      "tokens": {
+        "inputTokens": 12247,
+        "outputTokens": 2577,
+        "reasoningTokens": 0,
+        "cacheReadTokens": 0,
+        "costUsd": 0.050264
+      },
+      "providerKrw": 68.43896038226832,
+      "chargePoints": 72,
+      "postIntroKrw": 136.87792076453664,
+      "spentKrw": 118.5808741781742,
+      "usageTokens": {
+        "inputTokens": 12247,
+        "outputTokens": 2577,
+        "reasoningTokens": 0,
+        "cacheReadTokens": 0,
+        "costUsd": 0.050264
+      },
+      "cost_details": {
+        "upstream_inference_cost": 0.050264,
+        "upstream_inference_prompt_cost": 0.024494,
+        "upstream_inference_completions_cost": 0.02577
+      }
+    }
+  ]
+}
