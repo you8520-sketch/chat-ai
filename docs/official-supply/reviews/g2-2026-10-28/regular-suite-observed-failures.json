@@ -1,0 +1,570 @@
+{
+  "status": "STOPPED_AFTER_OUT_OF_SCOPE_FAILURES_NOT_A_COMPLETE_SUITE_RESULT",
+  "command": "TMPDIR=/workspace/.hav-g2-tmp npm run test:regular -- --test-concurrency=6",
+  "baselineSubset": {
+    "tests": 179,
+    "pass": 153,
+    "fail": 26,
+    "cancelled": 0,
+    "skipped": 0
+  },
+  "partialRunnerSummary": {
+    "tests": 7067,
+    "pass": 6165,
+    "fail": 137,
+    "cancelled": 765,
+    "skipped": 0
+  },
+  "reportedNonCancellationFailures": [
+    {
+      "file": "src/app/api/chat/route.museAcceptanceSerialization.test.ts",
+      "name": "builds dbUsageRecord with museAcceptance and clientUsageRecord without it"
+    },
+    {
+      "file": "src/app/api/chat/route.museAcceptanceSerialization.test.ts",
+      "name": "never sends museAcceptance even for full billing receipt"
+    },
+    {
+      "file": "src/app/trpg/useRevealedText.test.ts",
+      "name": "pre-ready mount marks declaration-visible AI seen while consuming early human"
+    },
+    {
+      "file": "src/components/BillingReceiptTooltip.test.ts",
+      "name": "src/components/BillingReceiptTooltip.test.ts"
+    },
+    {
+      "file": "src/components/chatRoomReading.regression.test.ts",
+      "name": "keeps the send / continue behavior wiring unchanged"
+    },
+    {
+      "file": "src/lib/adminFinanceActualCost.test.ts",
+      "name": "B. active registry models with zero usage are listed as zero-use, not hidden or carded"
+    },
+    {
+      "file": "src/lib/adminPointGrant.test.ts",
+      "name": "credits FREE points and notifies recipient"
+    },
+    {
+      "file": "src/lib/adultCncSceneLifecycle.test.ts",
+      "name": "T3 — standalone 레드 safeword resets consent and blocks handoff"
+    },
+    {
+      "file": "src/lib/appearanceCompiler.test.ts",
+      "name": "uses compiled appearance only, falling back to raw"
+    },
+    {
+      "file": "src/lib/billingLiveOwnerReadinessAudit.test.ts",
+      "name": "Phase 1 scope is separate from full reachable inventory"
+    },
+    {
+      "file": "src/lib/billingLiveOwnerReadinessAudit.test.ts",
+      "name": "Opus 5 is canonical-selectable and USER_SELECTABLE"
+    },
+    {
+      "file": "src/lib/characterKnowledgeBoundary.projectAudit.test.ts",
+      "name": "boundary includes knowledge precedence"
+    },
+    {
+      "file": "src/lib/characterReveal.test.ts",
+      "name": "marks only accessible public cards and the real hero frame"
+    },
+    {
+      "file": "src/lib/chatGreetingContext.test.ts",
+      "name": "src/lib/chatGreetingContext.test.ts"
+    },
+    {
+      "file": "src/lib/chatLiveFollowMicroCrawl.test.ts",
+      "name": "uses shared target-chase motion and preserves both production reveal speeds"
+    },
+    {
+      "file": "src/lib/chatLiveFollowMicroCrawl.test.ts",
+      "name": "stays still while the rendered target does not grow"
+    },
+    {
+      "file": "src/lib/chatLiveFollowMicroCrawl.test.ts",
+      "name": "chases one rendered line in a bounded episode and then settles"
+    },
+    {
+      "file": "src/lib/chatLiveFollowMicroCrawl.test.ts",
+      "name": "coalesces rapid layout growth in the same canonical chase owner"
+    },
+    {
+      "file": "src/lib/chatLiveFollowMicroCrawl.test.ts",
+      "name": "never issues an upward programmatic correction"
+    },
+    {
+      "file": "src/lib/chatMemory.regenerate.test.ts",
+      "name": "maps turns to 6-turn batch starts"
+    },
+    {
+      "file": "src/lib/chatMessagePagination.bookmark.test.ts",
+      "name": "src/lib/chatMessagePagination.bookmark.test.ts"
+    },
+    {
+      "file": "src/lib/chatModels.deepseekFlashPickerHide.test.ts",
+      "name": "V4.1 Flash is selectable while retired V4 Flash 0731 remains hidden"
+    },
+    {
+      "file": "src/lib/chatModels.deepseekFlashPickerHide.test.ts",
+      "name": "stored Flash selections resolve to the default Main RP model"
+    },
+    {
+      "file": "src/lib/chatModels.kimi.test.ts",
+      "name": "maps legacy kimi slugs to the current default"
+    },
+    {
+      "file": "src/lib/chatModels.muse.test.ts",
+      "name": "is removed from selection and the default model"
+    },
+    {
+      "file": "src/lib/chatModels.muse.test.ts",
+      "name": "maps stored Muse selections to DeepSeek and keeps OpenRouter fallback valid"
+    },
+    {
+      "file": "src/lib/currentTurnOocDelegation.promptParity.test.ts",
+      "name": "MANUAL owner / wrapper / assembled prompt SHA unchanged"
+    },
+    {
+      "file": "src/lib/currentTurnOocDelegation.promptParity.test.ts",
+      "name": "AUTO owner / wrapper / assembled prompt SHA unchanged"
+    },
+    {
+      "file": "src/lib/currentTurnOocDelegation.promptParity.test.ts",
+      "name": "existing structured opt-in owner / assembled prompt SHA unchanged"
+    },
+    {
+      "file": "src/lib/currentTurnOocDelegation.promptParity.test.ts",
+      "name": "delegated wrapper keeps original OOC and is not the auto/ooc wrapper"
+    },
+    {
+      "file": "src/lib/currentTurnOocDelegation.routeParity.test.ts",
+      "name": "live CHAT OOC wrapper keeps RAW-resolved delegation in buildContext"
+    },
+    {
+      "file": "src/lib/currentTurnOocDelegation.routeParity.test.ts",
+      "name": "regenerating the same delegated user turn keeps current-turn delegation"
+    },
+    {
+      "file": "src/lib/customServerBootImportBoundary.test.ts",
+      "name": "P3/P4 production-equivalent namespace shape: direct named absent, default-wrapped present"
+    },
+    {
+      "file": "src/lib/customServerBootImportBoundary.test.ts",
+      "name": "FAIL_BEFORE: direct destructuring from CJS custom-server import is not a function"
+    },
+    {
+      "file": "src/lib/customServerBootImportBoundary.test.ts",
+      "name": "P12 SERVER_ONLY_THROWS_AFTER_RESTORE: plain server-only throws again after boundary"
+    },
+    {
+      "file": "src/lib/deepseekV4FlashCanonical.test.ts",
+      "name": "5. explicit Flash background still outbounds 0731; default PRIMARY is Luna"
+    },
+    {
+      "file": "src/lib/deepseekV4FlashCanonical.test.ts",
+      "name": "6. background status Flash labels stay Flash; default PRIMARY is Luna"
+    },
+    {
+      "file": "src/lib/deepseekV4FlashCanonical.test.ts",
+      "name": "7. HTML/background Flash call outbounds Luna; billing matches routing model"
+    },
+    {
+      "file": "src/lib/deepseekV4FlashCanonical.test.ts",
+      "name": "8. character-save KO→EN translation uses Luna PRIMARY and Gemini Flash-Lite fallback"
+    },
+    {
+      "file": "src/lib/deepseekV4ProCanonical.test.ts",
+      "name": "uses 0813 as the default selected DeepSeek model"
+    },
+    {
+      "file": "src/lib/deepseekV4ProCanonical.test.ts",
+      "name": "normalizes stored and env aliases to 0813 before provider requests"
+    },
+    {
+      "file": "src/lib/deepseekV4ProP0Audit.test.ts",
+      "name": "reconstructs the CheaperInference DeepSeek wire body without a provider call"
+    },
+    {
+      "file": "src/lib/derivedCache/testDbIsolation.guard.test.ts",
+      "name": "each guarded test file runs green on its own temp DB; the protected DB stays byte-identical"
+    },
+    {
+      "file": "src/lib/episodicMemoryFacts.test.ts",
+      "name": "verifies explicit-user provenance against the actual RAW user message"
+    },
+    {
+      "file": "src/lib/episodicMemoryFacts.test.ts",
+      "name": "latest fact wins for the same category subject attribute"
+    },
+    {
+      "file": "src/lib/episodicMemoryFacts.test.ts",
+      "name": "ranking prefers critical over important over normal"
+    },
+    {
+      "file": "src/lib/episodicMemoryFacts.test.ts",
+      "name": "older facts are injected when old enough"
+    },
+    {
+      "file": "src/lib/episodicMemoryFacts.test.ts",
+      "name": "preserves psychological resolution, negation, and recovery events at save and recall"
+    },
+    {
+      "file": "src/lib/geminiPublishedBillingRegenRegression.test.ts",
+      "name": "SUCCESSFUL_REGEN_A49_B197: bootstrap A settle 49 → regen B settle 197"
+    },
+    {
+      "file": "src/lib/geminiPublishedBillingRegenRegression.test.ts",
+      "name": "PREDEPLOY_REGEN: legacy slices without settlement do not block regen B published charge"
+    },
+    {
+      "file": "src/lib/generationScopedAsyncProvenance.test.ts",
+      "name": "Q3 — shared attempt is terminal before process loss and blocks stale requeue"
+    },
+    {
+      "file": "src/lib/generationScopedAsyncProvenance.test.ts",
+      "name": "Q4b — original-turn ineligibility is terminal and later GET-equivalent cannot call"
+    },
+    {
+      "file": "src/lib/htmlVisualCardRecovery.test.ts",
+      "name": "flash user block includes memory, setting, history sections"
+    },
+    {
+      "file": "src/lib/htmlVisualCardRecovery.test.ts",
+      "name": "caps OOC RECENT CHAT HISTORY at 8k tokens and routes older context to memory"
+    },
+    {
+      "file": "src/lib/htmlVisualCardRecovery.test.ts",
+      "name": "OOC category card keeps assembled input near 20k token target, not full dump"
+    },
+    {
+      "file": "src/lib/htmlVisualCardRecovery.test.ts",
+      "name": "ensureHtmlVisualCardBlock adds section spacing for crammed 추구미 OOC HTML"
+    },
+    {
+      "file": "src/lib/liveBillingCutoverReadiness.test.ts",
+      "name": "owner audit is source-backed with explicit entrypoint and formula owners"
+    },
+    {
+      "file": "src/lib/liveBillingCutoverReadiness.test.ts",
+      "name": "Gemini31 >200k reachability is UNKNOWN without hard provider cap"
+    },
+    {
+      "file": "src/lib/liveBillingCutoverReadiness.test.ts",
+      "name": "golden planned and legacy Published fixtures"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnEstimate.test.ts",
+      "name": "B same room snapshot yields different input tokens for two adapters"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnEstimate.test.ts",
+      "name": "J room isolation: selected-ai is not the room estimate owner"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnEstimate.test.ts",
+      "name": "display map only keeps positive integers"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnEstimate.test.ts",
+      "name": "A previous 14312/2780/4213 does not jump the next Sol estimate to ~277P"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnEstimate.test.ts",
+      "name": "B Published 14312/2780 stays pinned at 160 display / 161 ceil"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnEstimate.test.ts",
+      "name": "D no calibration falls back to the current uncalibrated assembled forecast"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnEstimate.test.ts",
+      "name": "F a different model's anchor is not reused after a model switch"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnEstimate.test.ts",
+      "name": "I insufficient calibrated admission still blocks with provider call count 0"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnEstimate.test.ts",
+      "name": "excludes contaminated and other-model output samples"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnEstimate.test.ts",
+      "name": "history median is a price forecast only and keeps the sequential Sol fixture"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnProductionShape.test.ts",
+      "name": "RED: pre-fix non-admin persist drops assembledInputTokens and forecasts ~277P"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnProductionShape.test.ts",
+      "name": "GREEN: non-admin persist restores assembledInputTokens and forecasts ~160P"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnProductionShape.test.ts",
+      "name": "GREEN: admin html-flash-only apiCallCount=2 with one main stage is a valid sample"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnProductionWiring.test.ts",
+      "name": "A sequential retained assistant through prepareNextTurnHistory lands near 174P"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnSequentialDelta.red.test.ts",
+      "name": "A RED: former whole-prompt ratio underpredicts 17104 / 174P"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnSequentialDelta.red.test.ts",
+      "name": "A GREEN: retained previous output + 12-token user delta lands near 17104 / 174P"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnSequentialDelta.red.test.ts",
+      "name": "I model switch does not reuse the Sol anchor"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnSequentialDelta.red.test.ts",
+      "name": "J no prior sample uses the explicit assembled fallback"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnSequentialDelta.red.test.ts",
+      "name": "L settlement stays independent of the forecast owner"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnSharedInitialShape.test.ts",
+      "name": "1 ADMIN shared-initial uses Main RP 14312 and forecasts ~160P"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnSharedInitialShape.test.ts",
+      "name": "2 NON-ADMIN sanitized persist restores assembledInputTokens and hides them from the client"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnSharedInitialShape.test.ts",
+      "name": "3 HTML flash auxiliary on a single Main RP stage stays usable"
+    },
+    {
+      "file": "src/lib/mainRpNextTurnSharedInitialShape.test.ts",
+      "name": "10 settlement stays independent of the forecast owner"
+    },
+    {
+      "file": "src/lib/mainRpProviderAdmission.test.ts",
+      "name": "I actual-anchored Sol forecast still blocks 200P before any provider call"
+    },
+    {
+      "file": "src/lib/mainRpProviderAdmission.test.ts",
+      "name": "J cheap model 3x stays at the 80P floor; Sol and Opus rise"
+    },
+    {
+      "file": "src/lib/memory/chats-current-summary-c1-runtime-retirement.test.ts",
+      "name": "C1-R1 already-current V8 remote DB reaches convergence without migrate callback"
+    },
+    {
+      "file": "src/lib/memory/chats-current-summary-c1-runtime-retirement.test.ts",
+      "name": "C1-7 fork insert omits current_summary parameter"
+    },
+    {
+      "file": "src/lib/memory/chats-current-summary-c1-runtime-retirement.test.ts",
+      "name": "FORK_CREATE: insertForkChatRow on column-absent production DB"
+    },
+    {
+      "file": "src/lib/memory/chats-current-summary-c1-runtime-retirement.test.ts",
+      "name": "FORK_INIT: initializeForkChatMemory on column-absent production DB"
+    },
+    {
+      "file": "src/lib/memory/chats-current-summary-c2-physical-retirement.test.ts",
+      "name": "CS-V8-1 requires chats exists and current_summary absent"
+    },
+    {
+      "file": "src/lib/memory/chats-current-summary-c2-physical-retirement.test.ts",
+      "name": "CS-F2 normal create and fork insert on fresh C2 DB"
+    },
+    {
+      "file": "src/lib/memory/chats-current-summary-c2-physical-retirement.test.ts",
+      "name": "CS-V8-4 V7 present carrier → V8 migrate"
+    },
+    {
+      "file": "src/lib/memory/chats-current-summary-c2-physical-retirement.test.ts",
+      "name": "CS-V8-5 V7 absent carrier → V8 adopt"
+    },
+    {
+      "file": "src/lib/memory/chats-current-summary-c2-physical-retirement.test.ts",
+      "name": "CS-V8-6 V8 marker + recreated current_summary column repaired"
+    },
+    {
+      "file": "src/lib/memory/chats-current-summary-owner-audit.test.ts",
+      "name": "CS-A6 fork insert uses physical DEFAULT empty current_summary"
+    },
+    {
+      "file": "src/lib/memory/chats-legacy-memory-fallback-audit.test.ts",
+      "name": "A8 new fork chat row starts with empty memory and current_summary"
+    },
+    {
+      "file": "src/lib/memory/chats-memory-m1-drop-compat.test.ts",
+      "name": "production fork INSERT omits memory and current_summary columns"
+    },
+    {
+      "file": "src/lib/memory/chats-memory-m1-drop-compat.test.ts",
+      "name": "MEMORY_COLUMN_ABSENT_CREATION: insertForkChatRow PASS"
+    },
+    {
+      "file": "src/lib/memory/chats-memory-m1-drop-compat.test.ts",
+      "name": "MEMORY_COLUMN_PRESENT_CREATION: omit memory → DEFAULT empty"
+    },
+    {
+      "file": "src/lib/memory/chats-memory-m1-drop-compat.test.ts",
+      "name": "fork INSERT placeholder count matches argument ordering"
+    },
+    {
+      "file": "src/lib/memory/chats-memory-m1-drop-compat.test.ts",
+      "name": "C5 FORK_MEMORY_INIT: memory_archived_turns only"
+    },
+    {
+      "file": "src/lib/memory/chats-memory-m1-drop-compat.test.ts",
+      "name": "C6 FORK_CHAT_INSERT: memory absent → new row PASS"
+    },
+    {
+      "file": "src/lib/memory/chats-memory-m2-physical-retirement.test.ts",
+      "name": "CM-V7-1 requires chats exists and memory absent"
+    },
+    {
+      "file": "src/lib/memory/chats-memory-m2-physical-retirement.test.ts",
+      "name": "CM-F2 normal create and fork insert on fresh M2 DB"
+    },
+    {
+      "file": "src/lib/memory/chats-memory-m2-physical-retirement.test.ts",
+      "name": "CM-V7-4 V6 present carrier → V7 migrate"
+    },
+    {
+      "file": "src/lib/memory/chats-memory-m2-physical-retirement.test.ts",
+      "name": "CM-V7-5 V6 absent carrier → V8 adopt"
+    },
+    {
+      "file": "src/lib/memory/chats-memory-m2-physical-retirement.test.ts",
+      "name": "CM-V7-6 V7 marker + recreated memory column repaired"
+    },
+    {
+      "file": "src/lib/memory/last-compressed-at-phase-v6-physical-retirement.test.ts",
+      "name": "LC-V6-1 V6 requires chat_memories exists and last_compressed_at absent"
+    },
+    {
+      "file": "src/lib/memory/last-compressed-at-phase-v6-physical-retirement.test.ts",
+      "name": "LC-V6-6 V5 present carrier → V6 migrate drops column"
+    },
+    {
+      "file": "src/lib/memory/last-compressed-at-phase-v6-physical-retirement.test.ts",
+      "name": "LC-V6-7 V5 absent carrier → V6 adopt without migrate"
+    },
+    {
+      "file": "src/lib/memory/last-compressed-at-phase-v6-physical-retirement.test.ts",
+      "name": "LC-V6-8 V6 recreated NULL carrier → repair drop"
+    },
+    {
+      "file": "src/lib/memory/last-compressed-at-phase-v6-physical-retirement.test.ts",
+      "name": "LC-V6-9 V6 recreated NON_NULL carrier → repair drop"
+    },
+    {
+      "file": "src/lib/memory/last-compressed-at-phase-v6-physical-retirement.test.ts",
+      "name": "LC-V6-10 V4 direct → V6 drops last_compressed_at"
+    },
+    {
+      "file": "src/lib/memory/last-compressed-at-phase-v6-physical-retirement.test.ts",
+      "name": "LC-V6-11 V3 direct → V6 convergence"
+    },
+    {
+      "file": "src/lib/memory/last-compressed-at-phase-v6-physical-retirement.test.ts",
+      "name": "LC-V6-12 V2 legacy stack direct → V6 convergence"
+    },
+    {
+      "file": "src/lib/memory/last-compressed-at-phase-v6-physical-retirement.test.ts",
+      "name": "LC-V6-13 fresh V6 remote DB: no-op migrations + invariant + marker"
+    },
+    {
+      "file": "src/lib/memory/memory-branch-noncanon-phase2.test.ts",
+      "name": "B2_1 noncanon continue promotes latest contiguous group to branch_canon"
+    },
+    {
+      "file": "src/lib/memory/memory-branch-noncanon-phase2.test.ts",
+      "name": "B2_7 only latest contiguous noncanon segment selected for promotion"
+    },
+    {
+      "file": "src/lib/memory/memory-branch-reopen.test.ts",
+      "name": "1b: sole-closed reopen rolls back when fail after branch ops"
+    },
+    {
+      "file": "src/lib/memory/memory-branch-reopen.test.ts",
+      "name": "mixed-A: turn6~10 main + turn11 explicit IF resume keeps both scopes"
+    },
+    {
+      "file": "src/lib/memory/memory-branch-reopen.test.ts",
+      "name": "mixed-C: middle resume splits 6~8 main and 9~10 branch"
+    },
+    {
+      "file": "src/lib/memory/memory-branch-reopen.test.ts",
+      "name": "blocker-A: auto-reopen provenance rolls back on source turn delete"
+    },
+    {
+      "file": "src/lib/memory/memory-branch-reopen.test.ts",
+      "name": "blocker-D: resume → close keeps final closed; delete close then resume restores"
+    },
+    {
+      "file": "src/lib/memory/memory-branch-reopen.test.ts",
+      "name": "blocker-E: resume → main adopt closes A; adopt delete restores active via resume"
+    },
+    {
+      "file": "src/lib/memory/memory-noncanon-promotion.test.ts",
+      "name": "LEGACY-FAIL-A reproduced as FIXED: A/main/B/main/C → C only"
+    },
+    {
+      "file": "src/lib/memory/memory-noncanon-promotion.test.ts",
+      "name": "A1-A3/main/B1-B2 → B1+B2 only"
+    },
+    {
+      "file": "src/lib/memory/memory-noncanon-promotion.test.ts",
+      "name": "B1/preference/B2 → B1+B2 promoted; preference untouched"
+    },
+    {
+      "file": "src/lib/memory/memory-noncanon-promotion.test.ts",
+      "name": "B1/empty_ooc/B2 → B1+B2 promoted; empty_ooc untouched"
+    },
+    {
+      "file": "src/lib/memory/memory-noncanon-promotion.test.ts",
+      "name": "E: active C + unrelated B → B promotion 0; C only in LTM"
+    },
+    {
+      "file": "src/lib/memory/memory-noncanon-promotion.test.ts",
+      "name": "F: closed A + B1/B2 + bare 계속 → B only; A stays closed"
+    },
+    {
+      "file": "src/lib/memory/memory-noncanon-promotion.test.ts",
+      "name": "G: B1/B2/B3 all promoted with same branch_id"
+    },
+    {
+      "file": "src/lib/memory/memory-noncanon-promotion.test.ts",
+      "name": "H: continue delete rolls back only selected promote group"
+    },
+    {
+      "file": "src/lib/memory/memory-policy-single-owner.test.ts",
+      "name": "MEMORY_5PLUS4_ENABLED production references are 0"
+    },
+    {
+      "file": "src/lib/memory/memory-source-edit-invalidation.test.ts",
+      "name": "invalidates sealed summary and reseals with new source prose"
+    },
+    {
+      "file": "src/lib/memory/memory-source-edit-invalidation.test.ts",
+      "name": "material user source edit invalidates sealed summary and allows reseal"
+    },
+    {
+      "file": "src/lib/memory/memory-source-edit-invalidation.test.ts",
+      "name": "edits assistant-only turn without misattributing to prior user turn"
+    },
+    {
+      "file": "src/lib/memory/memory-summary-barrier.test.ts",
+      "name": "B4 seal succeeds => summarizedThrough advances to 5 at turn 6 boundary"
+    },
+    {
+      "file": "src/lib/memory/memory-summary-barrier.test.ts",
+      "name": "B2/B6 two simultaneous boundary requests coalesce to one seal"
+    }
+  ],
+  "cancelledFileCount": 765,
+  "note": "Cancellation entries produced when stopping the broad suite are excluded from reported failures. This is not a completed full-suite result."
+}

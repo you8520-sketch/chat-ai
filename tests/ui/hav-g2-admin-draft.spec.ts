@@ -7,7 +7,6 @@ const baseline = process.env.HAV_G2_UI_BASELINE === "1";
 const evidenceDir = process.env.HAV_G2_UI_EVIDENCE_DIR;
 const adminId = 97391, userId = 97392;
 let id: number;
-const first = JSON.parse(fs.readFileSync("docs/official-supply/reviews/g2-2026-10-28/g1-original/first-generation.json", "utf8"));
 const payload = JSON.parse(fs.readFileSync("docs/official-supply/reviews/g2-2026-10-28/preview-first-form.json", "utf8"));
 
 test.beforeAll(async ({ request }) => {
@@ -27,7 +26,7 @@ test.beforeAll(async ({ request }) => {
     if (baseline) {
       // Identical unsupported fixture for the BEFORE editor screenshot only.
       id = Number(db.prepare(`INSERT INTO characters (creator_id,creator_name,name,tagline,description,greeting,system_prompt,world,example_dialog,creator_comment,gender,genres,genre,tags,participant_min_age,visibility,official,assets,images)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,28,'private',0,'[]','[]')`).run(adminId, "G2 검수 관리자", payload.name, payload.tagline, payload.description, payload.greeting, payload.system_prompt, payload.world, first.draft.speech.examples, payload.creator_comment, payload.gender, JSON.stringify(payload.genres), "로맨스 판타지", JSON.stringify(payload.tags)).lastInsertRowid);
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,28,'private',0,'[]','[]')`).run(adminId, "G2 검수 관리자", payload.name, payload.tagline, payload.description, payload.greeting, payload.system_prompt, payload.world, fs.readFileSync("docs/official-supply/reviews/g2-2026-10-28/preview-first-example-dialog.txt", "utf8"), payload.creator_comment, payload.gender, JSON.stringify(payload.genres), "로맨스 판타지", JSON.stringify(payload.tags)).lastInsertRowid);
     } else {
       id = (await res.json()).id;
       const row = db.prepare("SELECT creator_id,visibility,official,assets,images FROM characters WHERE id=?").get(id);
