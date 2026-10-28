@@ -82,6 +82,8 @@ const OTHER_PREDICATE_ENDING = /(?:고|며|면서|어서|아서|여서|려고)$/
 const PRIOR_EVENT_CLOSER = /^(?:후|후에)$/;
 /** Theme of a posture converb (`몸을 낮추고`). It modifies the travel instead of owning the place. */
 const POSTURE_OBJECTS = new Set(["몸", "허리", "무릎", "고개", "자세", "어깨"]);
+/** Only a whole-body hurl (`몸을 … 던졌다`) relocates the actor; other body parts gesture in place. */
+const ACTOR_BODY_HURL_OBJECTS = new Set(["몸"]);
 const GOAL_WINDOW_WORDS = 3;
 
 const INSIDE_WORDS = new Set(["내부", "안", "안쪽", "실내", "속", "상층", "하층", "지하"]);
@@ -163,11 +165,11 @@ function themeBetween(words: readonly string[], from: number, to: number): strin
   return undefined;
 }
 
-/** Theme of a throw/hurl: object after the goal (`출구로 돌을 던졌다`) or before it (`돌을 출구로 던졌다`). */
+/** Theme of a throw/hurl: nearest object to the verb—after the goal, else immediately before the goal phrase. */
 function propelledThrowTheme(words: readonly string[], goalIndex: number, predicateIndex: number): string | undefined {
   const afterGoal = themeBetween(words, goalIndex, predicateIndex);
   if (afterGoal !== undefined) return afterGoal;
-  for (let i = 0; i < goalIndex; i += 1) {
+  for (let i = goalIndex - 1; i >= 0; i -= 1) {
     const head = words[i]!.match(OBJECT_PARTICLE)?.[1];
     if (head) return head;
   }
@@ -188,7 +190,7 @@ function isBodyHurlMotion(words: readonly string[], index: number, goalIndex: nu
   if (!BODY_HURL_PREDICATE.test(word)) return false;
   if (isPropelledObjectThrow(words, index, goalIndex)) return false;
   const theme = propelledThrowTheme(words, goalIndex, index);
-  return theme !== undefined && POSTURE_OBJECTS.has(theme);
+  return theme !== undefined && ACTOR_BODY_HURL_OBJECTS.has(theme);
 }
 
 /**

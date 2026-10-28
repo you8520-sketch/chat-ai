@@ -33,10 +33,15 @@ describe("movement declaration — bot stay fallback", () => {
       "시선을 경보실로 던졌다.",
       "탄환을 출구로 날렸다.",
       "출구로 돌을 던졌다.",
+      "몸을 낮추고 돌을 출구로 던졌다.",
+      "몸을 낮추고 탄환을 경보실로 날렸다.",
+      "고개를 출구 쪽으로 던졌다.",
     ]) {
       assert.deepEqual(declaredMovementGoals(line), [], line);
       assert.equal(parseMovementDeclaration(line).live, false, line);
     }
+    assert.deepEqual(declaredMovementGoals("돌을 내려놓고 몸을 출구로 던졌다."), ["출구"]);
+    assert.equal(parseMovementDeclaration("돌을 내려놓고 몸을 출구로 던졌다.").live, true);
   });
 
   it("reads campaign #44 R11 body motion without pricing propelled objects", () => {
