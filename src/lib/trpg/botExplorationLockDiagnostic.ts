@@ -5,6 +5,8 @@ import { parseTrpgBotAction, TRPG_BOT_INTENT_OPEN } from "./botActionParse";
 /** Fixed log token when a parsed destination is not on the exploration map (never echo free text). */
 export const BOT_EXPLORATION_LOG_UNKNOWN_ROOM = "unknown-room";
 
+export const TRPG_BOT_EXPLORATION_LOCK_LOG_PREFIX = "[trpg-bot-exploration-lock] ";
+
 export type BotExplorationLockOutcome = "move-locked" | "stay-fallback" | "original-locked";
 
 export type BotExplorationLockDiagnostic = {
@@ -22,6 +24,17 @@ export type BotExplorationLockDiagnostic = {
   retryRejectCode: string | null;
   diagnosticFailureCode: string | null;
 };
+
+export function formatBotExplorationLockLogLine(entry: BotExplorationLockDiagnostic): string {
+  return `${TRPG_BOT_EXPLORATION_LOCK_LOG_PREFIX}${JSON.stringify(entry)}`;
+}
+
+export function parseBotExplorationLockLogLine(line: string): BotExplorationLockDiagnostic {
+  if (!line.startsWith(TRPG_BOT_EXPLORATION_LOCK_LOG_PREFIX)) {
+    throw new Error("invalid bot exploration lock log line");
+  }
+  return JSON.parse(line.slice(TRPG_BOT_EXPLORATION_LOCK_LOG_PREFIX.length)) as BotExplorationLockDiagnostic;
+}
 
 export type BotExplorationLockDiagnosticCore = {
   campaignId: number;
@@ -122,7 +135,7 @@ function sanitizeDiagnosticEntry(
 }
 
 function writeBotExplorationLockDiagnostic(entry: BotExplorationLockDiagnostic): void {
-  console.info("[trpg-bot-exploration-lock]", entry);
+  console.info(formatBotExplorationLockLogLine(entry));
 }
 
 function tryWriteBotExplorationLockDiagnostic(entry: BotExplorationLockDiagnostic): void {

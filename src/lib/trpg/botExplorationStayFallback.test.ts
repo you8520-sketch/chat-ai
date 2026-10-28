@@ -20,6 +20,8 @@ import { TRPG_ACTION_MAX_CHARS } from "./types";
 import {
   BOT_EXPLORATION_LOG_UNKNOWN_ROOM,
   botExplorationProseIntentAudit,
+  parseBotExplorationLockLogLine,
+  TRPG_BOT_EXPLORATION_LOCK_LOG_PREFIX,
   type BotExplorationLockDiagnostic,
 } from "./botExplorationLockDiagnostic";
 
@@ -70,19 +72,23 @@ function latestRound(db: Database.Database, campaignId: number): {
 
 function captureLockDiagnostics(): {
   logs: BotExplorationLockDiagnostic[];
+  rawLines: string[];
   restore: () => void;
 } {
   const logs: BotExplorationLockDiagnostic[] = [];
+  const rawLines: string[] = [];
   const original = console.info;
-  console.info = (label: unknown, payload?: unknown) => {
-    if (label === "[trpg-bot-exploration-lock]") {
-      logs.push(payload as BotExplorationLockDiagnostic);
+  console.info = (line: unknown, ...rest: unknown[]) => {
+    if (typeof line === "string" && line.startsWith(TRPG_BOT_EXPLORATION_LOCK_LOG_PREFIX)) {
+      rawLines.push(line);
+      logs.push(parseBotExplorationLockLogLine(line));
     } else {
-      original.call(console, label, payload);
+      original.call(console, line, ...rest);
     }
   };
   return {
     logs,
+    rawLines,
     restore: () => {
       console.info = original;
     },
@@ -409,7 +415,9 @@ describe("bot exploration stay fallback", () => {
     const lockLog = diag.logs.at(-1);
     assert.ok(lockLog);
     assert.deepEqual(lockLog.declaredRoomIds, [BOT_EXPLORATION_LOG_UNKNOWN_ROOM]);
-    assert.equal(JSON.stringify(lockLog).includes(secretPlace), false);
+    const rawLine = diag.rawLines.at(-1) ?? "";
+    assert.equal(rawLine.includes("\n"), false);
+    assert.equal(rawLine.includes(secretPlace), false);
     assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
     assert.equal(lockedBody(db, botId), "서하은 제자리에 서서 상황을 살핀다.");
     db.close();
@@ -441,11 +449,11 @@ describe("bot exploration stay fallback", () => {
     let botLine = "출구로 이동한다.";
     const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
     const originalInfo = console.info;
-    console.info = (label: unknown, payload?: unknown) => {
-      if (label === "[trpg-bot-exploration-lock]") {
+    console.info = (line: unknown, ...rest: unknown[]) => {
+      if (typeof line === "string" && line.startsWith(TRPG_BOT_EXPLORATION_LOCK_LOG_PREFIX)) {
         throw new Error("log sink failed");
       }
-      originalInfo.call(console, label, payload);
+      originalInfo.call(console, line, ...rest);
     };
     submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });

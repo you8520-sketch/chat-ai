@@ -8,6 +8,8 @@ import {
   logSafeFromRoomId,
   logSafeRoomId,
   logSafeRoomIds,
+  parseBotExplorationLockLogLine,
+  TRPG_BOT_EXPLORATION_LOCK_LOG_PREFIX,
 } from "./botExplorationLockDiagnostic";
 import { emptyExplorationState, EXPLORATION_ENTRANCE } from "./explorationMap";
 
@@ -31,11 +33,43 @@ describe("botExplorationLockDiagnostic", () => {
     assert.equal(logSafeFromRoomId(map, "없는현재위치"), BOT_EXPLORATION_LOG_UNKNOWN_ROOM);
   });
 
+  it("writes a single-line tag-prefixed JSON log that round-trips all fields", () => {
+    const map = emptyExplorationState("default").map;
+    const lines: string[] = [];
+    const info = mock.method(console, "info", (line: unknown) => {
+      if (typeof line === "string") lines.push(line);
+    });
+    emitBotExplorationLockDiagnosticSafe(map, "현관홀로 이동한다.", {
+      campaignId: 44,
+      roundId: 14,
+      participantId: 9,
+      fromLocationLabel: EXPLORATION_ENTRANCE,
+      declaredRoomIdsRaw: ["출구"],
+      legalRoomIdsRaw: [],
+      firstRejectCode: "disconnected",
+      fallbackBranch: "priced-empty",
+      outcome: "stay-fallback",
+      retryRejectCode: null,
+    });
+    assert.equal(lines.length, 1);
+    assert.equal(lines[0].includes("\n"), false);
+    assert.equal(lines[0].startsWith(TRPG_BOT_EXPLORATION_LOCK_LOG_PREFIX), true);
+    const parsed = parseBotExplorationLockLogLine(lines[0]);
+    assert.equal(parsed.campaignId, 44);
+    assert.equal(parsed.roundId, 14);
+    assert.equal(parsed.participantId, 9);
+    assert.equal(parsed.firstRejectCode, "disconnected");
+    assert.equal(parsed.diagnosticFailureCode, null);
+    info.mock.restore();
+  });
+
   it("does not throw when prose/intent audit fails", () => {
     const map = emptyExplorationState("default").map;
-    const logs: unknown[] = [];
-    const info = mock.method(console, "info", (label: unknown, payload?: unknown) => {
-      if (label === "[trpg-bot-exploration-lock]") logs.push(payload);
+    const lines: string[] = [];
+    const info = mock.method(console, "info", (line: unknown) => {
+      if (typeof line === "string" && line.startsWith(TRPG_BOT_EXPLORATION_LOCK_LOG_PREFIX)) {
+        lines.push(line);
+      }
     });
     const audit = mock.method(botExplorationProseIntentAudit, "readMoveRoomIds", () => {
       throw new Error("parser boom");
@@ -54,19 +88,22 @@ describe("botExplorationLockDiagnostic", () => {
         retryRejectCode: null,
       })
     );
-    assert.equal(logs.length, 1);
-    const entry = logs[0] as { diagnosticFailureCode: string; declaredRoomIds: string[] };
+    assert.equal(lines.length, 1);
+    const entry = parseBotExplorationLockLogLine(lines[0]);
     assert.equal(entry.diagnosticFailureCode, "audit_parse_failed");
     assert.deepEqual(entry.declaredRoomIds, ["출구"]);
+    assert.equal(lines[0].includes("\n"), false);
     audit.mock.restore();
     info.mock.restore();
   });
 
   it("includes retryRejectCode without logging raw errors", () => {
     const map = emptyExplorationState("default").map;
-    const logs: unknown[] = [];
-    const info = mock.method(console, "info", (label: unknown, payload?: unknown) => {
-      if (label === "[trpg-bot-exploration-lock]") logs.push(payload);
+    const lines: string[] = [];
+    const info = mock.method(console, "info", (line: unknown) => {
+      if (typeof line === "string" && line.startsWith(TRPG_BOT_EXPLORATION_LOCK_LOG_PREFIX)) {
+        lines.push(line);
+      }
     });
     emitBotExplorationLockDiagnosticSafe(map, "현관홀로 이동한다.", {
       campaignId: 44,
@@ -80,14 +117,11 @@ describe("botExplorationLockDiagnostic", () => {
       outcome: "stay-fallback",
       retryRejectCode: "body_too_long",
     });
-    const entry = logs[0] as {
-      retryRejectCode: string;
-      firstRejectCode: string;
-      declaredRoomIds: string[];
-    };
+    const entry = parseBotExplorationLockLogLine(lines[0]);
     assert.equal(entry.retryRejectCode, "body_too_long");
     assert.equal(entry.firstRejectCode, "disconnected");
     assert.deepEqual(entry.declaredRoomIds, ["출구", BOT_EXPLORATION_LOG_UNKNOWN_ROOM]);
+    assert.equal(lines[0].includes("없는곳"), false);
     info.mock.restore();
   });
 
