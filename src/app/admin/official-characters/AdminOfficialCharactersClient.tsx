@@ -3,6 +3,61 @@
 import { useCallback, useEffect, useState } from "react";
 import { LUCIAN_CANONICAL_NAME, LUCIAN_DEFAULT_DISPLAY_CREATOR_NAME } from "@/lib/officialDisplayCreatorName";
 import type { OfficialCompileRefreshResult } from "@/lib/officialSupply/inPlaceCompileRefreshTypes";
+import type { OfficialInPlaceLorebookPlan } from "@/lib/officialSupply/inPlaceSync";
+
+const LOREBOOK_PLAN_ACTIONS = new Set<OfficialInPlaceLorebookPlan["action"]>([
+  "insert",
+  "update",
+  "skip_identical",
+]);
+
+type LorebookPlanDisplayRow = {
+  entryKey: string;
+  lorebookId: number | null;
+  action: OfficialInPlaceLorebookPlan["action"];
+};
+
+export type LorebookPlanDisplayState =
+  | { status: "unavailable" }
+  | { status: "available"; rows: LorebookPlanDisplayRow[] };
+
+export function resolveLorebookPlanDisplay(
+  lorebookPlan: OfficialInPlaceLorebookPlan[] | undefined | null
+): LorebookPlanDisplayState {
+  if (lorebookPlan == null || !Array.isArray(lorebookPlan)) {
+    return { status: "unavailable" };
+  }
+
+  const rows: LorebookPlanDisplayRow[] = [];
+  for (const entry of lorebookPlan) {
+    if (!entry || typeof entry.entryKey !== "string" || !entry.entryKey.trim()) {
+      continue;
+    }
+    if (!LOREBOOK_PLAN_ACTIONS.has(entry.action)) {
+      continue;
+    }
+    rows.push({
+      entryKey: entry.entryKey,
+      lorebookId: typeof entry.lorebookId === "number" ? entry.lorebookId : null,
+      action: entry.action,
+    });
+  }
+
+  return { status: "available", rows };
+}
+
+export function formatLorebookIdForDisplay(lorebookId: number | null): string {
+  return lorebookId == null ? "—" : String(lorebookId);
+}
+
+export function serializeLorebookPlanDisplayRows(rows: LorebookPlanDisplayRow[]): string {
+  return rows
+    .map(
+      (row) =>
+        `${row.entryKey}\t${formatLorebookIdForDisplay(row.lorebookId)}\t${row.action}`
+    )
+    .join("\n");
+}
 
 type OfficialRow = {
   id: number;
@@ -34,9 +89,54 @@ type SyncResult = {
   displayCreatorName: string;
   changedFields: string[];
   preflightSnapshot?: { token: string };
+  lorebookPlan?: OfficialInPlaceLorebookPlan[];
   before: { tagline: string; creatorName: string; lorebookKeys: string[] };
   after: { tagline: string; creatorName: string; lorebookKeys: string[]; lorebookCount: number };
 };
+
+function LorebookPlanCompareDetails({
+  lorebookPlan,
+}: {
+  lorebookPlan: OfficialInPlaceLorebookPlan[] | undefined;
+}) {
+  const display = resolveLorebookPlanDisplay(lorebookPlan);
+
+  return (
+    <details className="mt-4 rounded-lg border border-white/10 bg-black/20 p-3">
+      <summary className="cursor-pointer select-none text-xs font-semibold text-violet-200">
+        로어북 비교 결과
+      </summary>
+      {display.status === "unavailable" ? (
+        <p className="mt-2 text-xs text-zinc-400">확인 불가</p>
+      ) : display.rows.length === 0 ? (
+        <p className="mt-2 text-xs text-zinc-400">표시할 항목 없음</p>
+      ) : (
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[20rem] border-collapse text-left text-xs">
+            <thead>
+              <tr className="border-b border-white/10 text-zinc-500">
+                <th className="py-1 pr-3 font-medium">entryKey</th>
+                <th className="py-1 pr-3 font-medium">lorebookId</th>
+                <th className="py-1 font-medium">action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {display.rows.map((row) => (
+                <tr key={`${row.entryKey}-${row.lorebookId ?? "null"}-${row.action}`} className="border-b border-white/5">
+                  <td className="py-1.5 pr-3 font-mono text-zinc-200">{row.entryKey}</td>
+                  <td className="py-1.5 pr-3 font-mono text-zinc-200">
+                    {formatLorebookIdForDisplay(row.lorebookId)}
+                  </td>
+                  <td className="py-1.5 font-mono text-zinc-200">{row.action}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </details>
+  );
+}
 
 export default function AdminOfficialCharactersClient() {
   const [rows, setRows] = useState<OfficialRow[]>([]);
@@ -288,6 +388,7 @@ export default function AdminOfficialCharactersClient() {
           <p className="mt-1 text-xs">
             로어북 {syncPreview.after.lorebookCount}개: {syncPreview.after.lorebookKeys.join(", ")}
           </p>
+          <LorebookPlanCompareDetails lorebookPlan={syncPreview.lorebookPlan} />
         </section>
       ) : null}
     </div>
