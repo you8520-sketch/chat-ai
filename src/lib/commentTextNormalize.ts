@@ -25,7 +25,7 @@ function collapseRepeatedChars(text: string): string {
   return text.replace(/(.)\1{2,}/gu, "$1$1");
 }
 
-const SPECIAL_CHAR_RE = /[^\p{L}\p{N}]/gu;
+const SPECIAL_EXCEPT_SPACE_RE = /[^\p{L}\p{N}\s]/gu;
 const HANGUL_OR_JAMO = /[\u1100-\u11FF\u3130-\u318F\uAC00-\uD7A3]/;
 const ALWAYS_SUBSTITUTE = new Set(["1", "0", "|", "@", "$"]);
 
@@ -55,14 +55,25 @@ function mergeJamoBypass(text: string): string {
   return out;
 }
 
-/** 댓글 금지어 검사용 정규화 파이프라인 */
-export function normalizeCommentTextForModeration(raw: string): string {
-  let text = raw.normalize("NFKC").toLowerCase();
+const INVISIBLE_RE = /[\u200B-\u200D\uFEFF\u2060]/g;
+
+/**
+ * Bypass fold that keeps real word spaces.
+ * Zero-width characters, punctuation, and similar-char/jamo tricks are removed
+ * so "보.지" / "보\u200b지" collapse into one eojeol, while "탁자 위" stays two.
+ * Comment bans still drop the remaining spaces in `normalizeCommentTextForModeration`.
+ */
+export function normalizeCommentTextKeepingWordSpaces(raw: string): string {
+  let text = raw.normalize("NFKC").toLowerCase().replace(INVISIBLE_RE, "");
   text = text.replace(/\s+/g, " ").trim();
-  text = text.replace(/\s/g, "");
   text = applySimilarCharMap(text);
-  text = text.replace(SPECIAL_CHAR_RE, "");
+  text = text.replace(SPECIAL_EXCEPT_SPACE_RE, "");
   text = collapseRepeatedChars(text);
   text = mergeJamoBypass(text);
-  return text;
+  return text.replace(/ +/g, " ").trim();
+}
+
+/** 댓글 금지어 검사용 정규화. 우회 문자를 접은 뒤 남은 공백까지 제거한다. */
+export function normalizeCommentTextForModeration(raw: string): string {
+  return normalizeCommentTextKeepingWordSpaces(raw).replace(/\s/g, "");
 }

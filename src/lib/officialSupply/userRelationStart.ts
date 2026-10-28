@@ -156,13 +156,23 @@ function issue(code: string, message: string): QaIssue {
 }
 
 /** Explicit mandatory user ability/role in authored premise text, before compilation.
- * This is deliberately a bounded language check, not a semantic classifier.
+ * Bounded surface cues only: a required ability, a copular present-role assignment,
+ * or a shared past the scene already treats as fact. Not a semantic classifier.
  */
+const FREE_ABILITY_PREMISE =
+  /(?:당신|유저|사용자)(?:의|만이|만|은|는|이|가)?[^.!?。！？\n]{0,60}(?:(?:능력|공명|혈통|신분|소속|역할)[^.!?。！？\n]{0,35}(?:없이는|없인|뿐|필수|유일)|(?:없이는|없인)[^.!?。！？\n]{0,20}(?:불가능|할 수 없))|(?:가능한|멈출 수 있는|살릴 수 있는)[^.!?。！？\n]{0,15}(?:건|것은|자는)[^.!?。！？\n]{0,10}(?:당신|유저|사용자)[^.!?。！？\n]{0,20}(?:뿐|유일)/u;
+const FREE_ASSIGNED_ROLE =
+  /(?:당신|유저|사용자)(?:은|는)\s+[^.\n!?]{0,80}?(?:이자|이며|입니다|로서|(?:이다)(?![가-힣]|니))/u;
+const FREE_SHARED_PAST =
+  /(?:당신|유저|사용자)(?:와|과)\s*(?:나눈|함께\s*(?:한|했던)|맺은)\s*(?:약속|맹약|인연)/u;
+
 export function evaluateUserRelationPremise(type: OfficialUserRelationType, texts: readonly string[]): QaResult {
   if (type !== "free") return qaResult([]);
-  const mandatory = /(?:당신|유저|사용자)(?:의|만이|만|은|는|이|가)?[^.!?。！？\n]{0,60}(?:(?:능력|공명|혈통|신분|소속|역할)[^.!?。！？\n]{0,35}(?:없이는|없인|뿐|필수|유일)|(?:없이는|없인)[^.!?。！？\n]{0,20}(?:불가능|할 수 없))|(?:가능한|멈출 수 있는|살릴 수 있는)[^.!?。！？\n]{0,15}(?:건|것은|자는)[^.!?。！？\n]{0,10}(?:당신|유저|사용자)[^.!?。！？\n]{0,20}(?:뿐|유일)/u;
-  const hit = texts.find(text => mandatory.test(text));
-  return qaResult(hit ? [issue("bible_user_rel_free_premise", "FREE premise requires a specific user ability/role; declare only the required fact as ROLE_BOUND or remove that prerequisite")] : []);
+  const hit = texts.find((text) => FREE_ABILITY_PREMISE.test(text) || FREE_ASSIGNED_ROLE.test(text) || FREE_SHARED_PAST.test(text));
+  return qaResult(hit ? [issue(
+    "bible_user_rel_free_premise",
+    "FREE premise requires a specific user role or a shared past; declare only that fact as ROLE_BOUND or RELATIONSHIP_BOUND, or remove the prerequisite",
+  )] : []);
 }
 
 /**

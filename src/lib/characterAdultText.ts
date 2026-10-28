@@ -1,4 +1,4 @@
-import { normalizeCommentTextForModeration } from "@/lib/commentTextNormalize";
+import { normalizeCommentTextKeepingWordSpaces } from "@/lib/commentTextNormalize";
 
 /** Explicit adult-fiction terms. Mild romance (키스, 설렘) is not included. */
 const ADULT_SUBSTRINGS = [
@@ -34,22 +34,52 @@ const ADULT_SUBSTRINGS = [
 const ADULT_ENGLISH_RE =
   /\b(?:fuck|fucking|pussy|cock|dick|cumshot|creampie|blowjob|handjob|hentai|porn|porno|nsfw|anal sex|dildo|fellatio|cunnilingus)\b/i;
 
+const NEGATIVE_SEE_NEXT = /^(?:않|못|말)/u;
+const NEGATIVE_SEE_EOJEOL = /^(?:보지|보지는|보지도)$/u;
+
+/** A banned term split only by evasion separators, not by a real eojeol boundary inside a longer word. */
+function termSplitAcrossEojeols(eojeols: readonly string[], term: string): boolean {
+  for (let i = 0; i < eojeols.length; i += 1) {
+    let acc = "";
+    for (let j = i; j < eojeols.length; j += 1) {
+      const piece = eojeols[j] ?? "";
+      const remain = term.slice(acc.length);
+      if (j === i) {
+        if (piece.length >= term.length || !term.startsWith(piece)) break;
+        acc = piece;
+        continue;
+      }
+      if (piece.startsWith(remain)) return true;
+      if (remain.startsWith(piece) && piece.length > 0) {
+        acc += piece;
+        if (acc.length === term.length) return true;
+        continue;
+      }
+      break;
+    }
+  }
+  return false;
+}
+
 export function findAdultTermsInText(raw: string): string[] {
   const text = String(raw ?? "");
   if (!text.trim()) return [];
   const hits = new Set<string>();
-  const normalized = normalizeCommentTextForModeration(text);
-  // Keep Korean verb morphology before moderation removes spaces/punctuation.
-  // Only the unambiguous negative construction is exempt; noun + particles
-  // and obfuscated spellings still use the existing adult-term matcher.
-  const withoutNegativeSee = text.replace(/보지(?:는|도)?\s*(?=않|못|말(?:아|고|라|자|았))/gu, "보다 ");
+  const spaced = normalizeCommentTextKeepingWordSpaces(text);
+  const eojeols = spaced.split(" ").filter(Boolean);
   for (const word of ADULT_SUBSTRINGS) {
-    const needle = normalizeCommentTextForModeration(word);
-    if (!needle) continue;
-    const haystack = word === "보지"
-      ? normalizeCommentTextForModeration(withoutNegativeSee)
-      : normalized;
-    if (haystack.includes(needle)) hits.add(word);
+    const term = normalizeCommentTextKeepingWordSpaces(word).replace(/\s/g, "");
+    if (!term) continue;
+    let matched = false;
+    for (let i = 0; i < eojeols.length; i += 1) {
+      const eojeol = eojeols[i] ?? "";
+      if (!eojeol.startsWith(term)) continue;
+      if (term === "보지" && NEGATIVE_SEE_EOJEOL.test(eojeol) && NEGATIVE_SEE_NEXT.test(eojeols[i + 1] ?? "")) continue;
+      matched = true;
+      break;
+    }
+    if (!matched && termSplitAcrossEojeols(eojeols, term)) matched = true;
+    if (matched) hits.add(word);
   }
   const english = text.match(ADULT_ENGLISH_RE);
   if (english) hits.add(english[0].toLowerCase());

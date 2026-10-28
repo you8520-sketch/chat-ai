@@ -661,6 +661,22 @@ export async function generateOfficialPortfolioReplacement(input: {
   if (missing.length || briefs.length !== plan.size) {
     throw new OfficialSupplyGateError("author_shape_invalid", `portfolio replacement: slots ${missing.join(",") || "duplicated"} missing`);
   }
+  for (const brief of briefs) {
+    const planType = coerceUserRelationPlan(brief.userRelation ?? null);
+    const premise = evaluateUserRelationPremise(planType.type, [
+      brief.rpHook,
+      brief.marketFit?.userRelationship ?? "",
+      brief.marketFit?.oneLineConflict ?? "",
+      brief.marketFit?.differentiationTwist ?? "",
+    ]);
+    if (!premise.ok) {
+      throw new OfficialSupplyGateError(
+        "author_user_relation_mismatch",
+        `slot ${brief.slot}: ${premise.errors.map((e) => e.message).join("; ")}`,
+        premise,
+      );
+    }
+  }
   return { briefs, completion };
 }
 
