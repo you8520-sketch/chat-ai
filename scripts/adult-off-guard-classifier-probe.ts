@@ -23,8 +23,8 @@ const OUT_DIR =
 const MAX_KRW = Number(process.env.PROBE_MAX_KRW ?? "40");
 
 async function main(): Promise<void> {
-  if (!process.env.CHEAPER_INFERENCE_API_KEY?.trim()) {
-    throw new Error("CHEAPER_INFERENCE_API_KEY is required for the live classifier probe");
+  if (!process.env.OPENAI_API_KEY?.trim()) {
+    throw new Error("OPENAI_API_KEY is required for the live classifier probe");
   }
   const { createAdultOffClassifier, ADULT_OFF_CLASSIFIER_MODEL } = await import(
     "../src/lib/adultOffOutputClassifier"

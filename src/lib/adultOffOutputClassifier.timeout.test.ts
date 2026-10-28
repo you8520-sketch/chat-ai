@@ -13,6 +13,7 @@ import {
   uninstallIsolatedTestDatabase,
 } from "@/lib/test/isolatedTestDatabase";
 import { AdultOffClassifierCallError } from "@/lib/adultOffOutputGuard";
+import { getDb } from "@/lib/db";
 
 /**
  * 합성 공급자 응답으로 분류기의 클라이언트 타임아웃만 검증한다. `AbortSignal.timeout`이 받은 값을 기록하고,
@@ -33,10 +34,12 @@ const ALLOW_BODY = JSON.stringify({
       finish_reason: "stop",
     },
   ],
-  usage: { prompt_tokens: 1500, completion_tokens: 20, cost: 0.0002 },
-  cheaper_inference: {
-    request_id: "classifier-1",
-    billing: { status: "settled", billed_cost_usd: "0.000130", currency: "USD" },
+  usage: {
+    prompt_tokens: 1500,
+    completion_tokens: 20,
+    total_tokens: 1520,
+    prompt_tokens_details: { cached_tokens: 1400 },
+    completion_tokens_details: { reasoning_tokens: 0 },
   },
 });
 
@@ -51,24 +54,36 @@ describe("adult-off classifier client timeout", () => {
   let fetchCalls = 0;
   let responseLatencyMs = 0;
   let responseStatus = 200;
+  let lastUrl = "";
+  let lastBody: Record<string, unknown> | null = null;
+  let previousOpenAiKey: string | undefined;
 
   before(async () => {
     delete process.env.NODE_TEST_CONTEXT;
     installIsolatedTestDatabase();
-    process.env.CHEAPER_INFERENCE_API_KEY = "test-cheaper-fixture";
-    process.env.OPENROUTER_API_KEY = "test-openrouter-fixture";
+    previousOpenAiKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "test-openai-fixture";
     classifier = await import("@/lib/adultOffOutputClassifier");
     AbortSignal.timeout = ((ms: number) => {
       timeouts.push(ms);
       return new AbortController().signal;
     }) as typeof AbortSignal.timeout;
-    globalThis.fetch = (async () => {
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      if (!url.includes("/chat/completions")) {
+        return new Response(JSON.stringify({ rates: { KRW: 1400 } }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
       fetchCalls += 1;
+      lastUrl = url;
+      lastBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : null;
       const deadline = timeouts[0] ?? Number.POSITIVE_INFINITY;
       if (responseLatencyMs > deadline) throw new DOMException("The operation timed out.", "TimeoutError");
       return new Response(responseStatus === 200 ? ALLOW_BODY : JSON.stringify({ error: { message: "upstream" } }), {
         status: responseStatus,
-        headers: { "Content-Type": "application/json", "x-ci-request-id": "classifier-1" },
+        headers: { "Content-Type": "application/json", "x-request-id": "req_classifier_1" },
       });
     }) as typeof fetch;
   });
@@ -84,8 +99,8 @@ describe("adult-off classifier client timeout", () => {
     AbortSignal.timeout = realTimeout;
     globalThis.fetch = realFetch;
     uninstallIsolatedTestDatabase();
-    delete process.env.CHEAPER_INFERENCE_API_KEY;
-    delete process.env.OPENROUTER_API_KEY;
+    if (previousOpenAiKey == null) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = previousOpenAiKey;
     if (previousNodeTestContext == null) delete process.env.NODE_TEST_CONTEXT;
     else process.env.NODE_TEST_CONTEXT = previousNodeTestContext;
     Module._load = originalLoad;
@@ -93,8 +108,48 @@ describe("adult-off classifier client timeout", () => {
 
   it("keeps the synchronous guard at 60 seconds when no override is given", async () => {
     assert.equal(classifier.ADULT_OFF_CLASSIFIER_TIMEOUT_MS, 60_000);
-    await classifier.createAdultOffClassifier(SCOPE)("창가의 고요");
+    const result = await classifier.createAdultOffClassifier(SCOPE)("창가의 고요");
     assert.equal(timeouts[0], 60_000);
+    assert.equal(lastUrl, "https://api.openai.com/v1/chat/completions");
+    assert.equal(lastBody?.max_completion_tokens, 200);
+    assert.equal(lastBody?.reasoning_effort, "none");
+    assert.equal(lastBody?.max_tokens, undefined);
+    assert.equal((lastBody?.response_format as { type?: string } | undefined)?.type, "json_schema");
+    assert.equal(result.usage.providerRequestId, "req_classifier_1");
+    assert.equal(result.usage.costUsd, null);
+    const row = getDb()
+      .prepare(
+        `SELECT requested_provider, actual_provider, provider_request_id, input_tokens, output_tokens,
+                cache_read_tokens, reasoning_tokens, actual_cost_usd, actual_cost_source, event_status,
+                cheaper_inference_billed_cost_usd
+           FROM api_cost_ledger
+          WHERE request_kind='adult-off-output-moderation'
+          ORDER BY id DESC LIMIT 1`
+      )
+      .get() as {
+      requested_provider: string;
+      actual_provider: string;
+      provider_request_id: string | null;
+      input_tokens: number;
+      output_tokens: number;
+      cache_read_tokens: number;
+      reasoning_tokens: number | null;
+      actual_cost_usd: number | null;
+      actual_cost_source: string | null;
+      event_status: string | null;
+      cheaper_inference_billed_cost_usd: number | null;
+    };
+    assert.equal(row.requested_provider, "openai");
+    assert.equal(row.actual_provider, "openai");
+    assert.equal(row.provider_request_id, "req_classifier_1");
+    assert.equal(row.input_tokens, 1500);
+    assert.equal(row.output_tokens, 20);
+    assert.equal(row.cache_read_tokens, 1400);
+    assert.equal(row.reasoning_tokens, 0);
+    assert.equal(row.actual_cost_usd, null);
+    assert.equal(row.actual_cost_source, "unavailable");
+    assert.equal(row.event_status, "completed_without_exact_cost");
+    assert.equal(row.cheaper_inference_billed_cost_usd, null);
   });
 
   it("applies an explicit shorter override to the same classifier path", async () => {

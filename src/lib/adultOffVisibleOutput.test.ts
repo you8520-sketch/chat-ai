@@ -65,6 +65,7 @@ describe("adult-off visible auxiliary writes", { concurrency: 1 }, () => {
     installIsolatedTestDatabase();
     process.env.OPENROUTER_API_KEY = "test-openrouter-fixture";
     process.env.CHEAPER_INFERENCE_API_KEY = "test-cheaper-fixture";
+    process.env.OPENAI_API_KEY = "test-openai-fixture";
     process.env.ADULT_OFF_OUTPUT_GUARD_ENABLED = "1";
     const auth = await import("@/lib/auth");
     const dbMod = await import("@/lib/db");
@@ -126,17 +127,13 @@ describe("adult-off visible auxiliary writes", { concurrency: 1 }, () => {
           id: requestId,
           model: models.CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
           choices: [{ index: 0, message: { role: "assistant", content }, finish_reason: "stop" }],
-          usage: { prompt_tokens: 20, completion_tokens: 8, cost: 0.0002 },
-          cheaper_inference: {
-            request_id: requestId,
-            billing: { status: "settled", billed_cost_usd: "0.000130", currency: "USD" },
-          },
+          usage: { prompt_tokens: 20, completion_tokens: 8 },
         }),
         {
           status: 200,
           headers: {
             "Content-Type": "application/json",
-            "x-ci-request-id": requestId,
+            "x-request-id": requestId,
           },
         }
       );
@@ -149,6 +146,7 @@ describe("adult-off visible auxiliary writes", { concurrency: 1 }, () => {
     delete process.env.ADULT_OFF_OUTPUT_GUARD_ENABLED;
     delete process.env.OPENROUTER_API_KEY;
     delete process.env.CHEAPER_INFERENCE_API_KEY;
+    delete process.env.OPENAI_API_KEY;
     if (previousNodeTestContext == null) delete process.env.NODE_TEST_CONTEXT;
     else process.env.NODE_TEST_CONTEXT = previousNodeTestContext;
   });
@@ -320,8 +318,8 @@ describe("adult-off visible auxiliary writes", { concurrency: 1 }, () => {
       request_kind: string;
     }>;
     assert.equal(moderation.length, 1);
-    assert.equal(moderation[0].event_status, "settled");
-    assert.ok((moderation[0].actual_cost_usd ?? 0) > 0);
+    assert.equal(moderation[0].event_status, "completed_without_exact_cost");
+    assert.equal(moderation[0].actual_cost_usd, null);
     assert.equal(moderation[0].provider_request_id?.startsWith("classifier-visible-"), true);
   });
 
