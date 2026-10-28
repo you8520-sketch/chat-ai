@@ -1,7 +1,7 @@
 # G5-1C — genre-matched market PRIMARY + comedy compare
 
-Draft PR: https://github.com/you8520-sketch/chat-ai/pull/1748  
-GPT review that scoped this: issue comment `6480492915` (HEAD then `ab1ec374`)  
+Draft PR: https://github.com/you8520-sketch/chat-ai/pull/1748
+GPT review that scoped this: issue comment `6480492915` (HEAD then `ab1ec374`)
 Code+evidence HEAD: see latest commit on `cursor/g5-1-genre-profile-d9a9`
 
 Cursor does **not** score manuscripts. GPT re-review requested. **STOP.**
@@ -52,7 +52,7 @@ After:
 | Selective voice repairs | 1 | 1 |
 | QA | all green | bible/tags/relation/lorebook green; **draftQa** `sfw_public_text_has_adult_terms` (not rewritten) |
 
-Manuscript: `candidates/g5-modern-comedy-c/first-manuscript.md`  
+Manuscript: `candidates/g5-modern-comedy-c/first-manuscript.md`
 Raw: `provider-responses/22-…` through `29-…`
 
 ### Cost (this compare)
