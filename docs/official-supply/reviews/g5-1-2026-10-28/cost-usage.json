@@ -1,16 +1,31 @@
 {
-  "gitSha": "dd73681e062959b5cd28a3af36e9f833b949ae44",
+  "gitSha": "84141567920715e5dc34d2332d088bfd2e13efd7",
   "model": "gpt-6-luna",
   "provider": "cheaper-inference-background",
-  "physicalCalls": 13,
-  "callCap": 16,
-  "billedCostUsd": 0.012237,
-  "billedCostKrwApprox": 18,
+  "physicalCalls": 21,
+  "callCap": 28,
+  "billedCostUsdKnownOnly": 0.020616,
+  "billedCostKrwApproxKnownOnly": 31,
+  "unknownCostCallCount": 2,
+  "unknownCostCalls": [
+    {
+      "call": 8,
+      "specKey": "g5-modern-comedy",
+      "task": "character_bible_1",
+      "outcome": "provider_failed"
+    },
+    {
+      "call": 9,
+      "specKey": "g5-modern-comedy",
+      "task": "character_bible_1",
+      "outcome": "provider_failed"
+    }
+  ],
   "krwPerUsd": 1500,
-  "inputTokens": 37570,
-  "outputTokens": 28234,
+  "inputTokens": 63949,
+  "outputTokens": 45424,
   "outcomes": {
-    "ok": 11,
+    "ok": 19,
     "provider_failed": 2
   },
   "byTask": [
@@ -130,13 +145,85 @@
       "inputTokens": 4058,
       "outputTokens": 2212,
       "costUsd": 0.001073
+    },
+    {
+      "call": 14,
+      "specKey": "g5-horror-dry",
+      "task": "world_bible",
+      "outcome": "ok",
+      "inputTokens": 1389,
+      "outputTokens": 3888,
+      "costUsd": 0.001494
+    },
+    {
+      "call": 15,
+      "specKey": "g5-horror-dry",
+      "task": "world_bible",
+      "outcome": "ok",
+      "inputTokens": 535,
+      "outputTokens": 2688,
+      "costUsd": 0.000986
+    },
+    {
+      "call": 16,
+      "specKey": "g5-horror-dry",
+      "task": "world_bible",
+      "outcome": "ok",
+      "inputTokens": 2419,
+      "outputTokens": 928,
+      "costUsd": 0.00054
+    },
+    {
+      "call": 17,
+      "specKey": "g5-horror-dry",
+      "task": "world_bible",
+      "outcome": "ok",
+      "inputTokens": 6721,
+      "outputTokens": 1012,
+      "costUsd": 0.000949
+    },
+    {
+      "call": 18,
+      "specKey": "g5-horror-dry",
+      "task": "character_bible_1",
+      "outcome": "ok",
+      "inputTokens": 3478,
+      "outputTokens": 3171,
+      "costUsd": 0.001425
+    },
+    {
+      "call": 19,
+      "specKey": "g5-horror-dry",
+      "task": "character_bible_voice",
+      "outcome": "ok",
+      "inputTokens": 5063,
+      "outputTokens": 3100,
+      "costUsd": 0.00154
+    },
+    {
+      "call": 20,
+      "specKey": "g5-horror-dry",
+      "task": "character_bible_bonds",
+      "outcome": "ok",
+      "inputTokens": 3143,
+      "outputTokens": 439,
+      "costUsd": 0.000432
+    },
+    {
+      "call": 21,
+      "specKey": "g5-horror-dry",
+      "task": "character_bible_voice",
+      "outcome": "ok",
+      "inputTokens": 3631,
+      "outputTokens": 1964,
+      "costUsd": 0.001013
     }
   ],
   "thisProcessAccounting": {
-    "physicalAttempts": 0,
-    "billedCostUsd": 0,
+    "physicalAttempts": 8,
+    "billedCostUsd": 0.008379000000000001,
     "failedAttempts": 0
   },
   "runFailure": null,
-  "generatedAt": "2026-10-28T14:14:10.398Z"
+  "generatedAt": "2026-10-28T14:57:22.180Z"
 }

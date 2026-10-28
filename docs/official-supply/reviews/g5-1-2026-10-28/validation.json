@@ -1,5 +1,5 @@
 {
-  "gitSha": "dd73681e062959b5cd28a3af36e9f833b949ae44",
+  "gitSha": "84141567920715e5dc34d2332d088bfd2e13efd7",
   "candidates": [
     {
       "key": "g5-modern-comedy",
@@ -32,6 +32,42 @@
       "userRelationType": "free",
       "textLock": "ad56b3f184cf5ced70d2c1c84b8e0a5a2d430502052528e367dd08412e9af555",
       "voiceRepairsNote": "corrected G5-1B: selective revise after bonds only (call 13); calls 5/7/11 were initial voice retries"
+    },
+    {
+      "key": "g5-horror-dry",
+      "name": "문재호",
+      "genre": "공포/추리",
+      "direction": {
+        "genre": "공포/추리",
+        "tone": "dry",
+        "humor": "light",
+        "pacing": "narration"
+      },
+      "briefGate": [
+        {
+          "source": "world_portfolio",
+          "errors": [
+            "박도윤: market_fit_not_relationship_first: oneLineConflict must state who the character is to the user and the conflict"
+          ]
+        },
+        {
+          "source": "replacement",
+          "errors": []
+        }
+      ],
+      "bibleQaOk": true,
+      "tagQaOk": true,
+      "draftQaOk": true,
+      "relationQaOk": true,
+      "lorebookQaOk": true,
+      "bibleQa": [],
+      "tagQa": [],
+      "draftQa": [],
+      "relationQa": [],
+      "lorebookQa": [],
+      "voiceRepairs": 1,
+      "userRelationType": "free",
+      "textLock": "f357fd98b77c2397fedaf88b3abc40fc333ce011620c44f76ef5a27d53d4c373"
     }
   ],
   "runFailure": null

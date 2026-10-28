@@ -1,0 +1,12 @@
+[
+  {
+    "source": "world_portfolio",
+    "errors": [
+      "박도윤: market_fit_not_relationship_first: oneLineConflict must state who the character is to the user and the conflict"
+    ]
+  },
+  {
+    "source": "replacement",
+    "errors": []
+  }
+]
