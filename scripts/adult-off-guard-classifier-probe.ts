@@ -23,6 +23,7 @@ import {
   probeBudgetCostUsdFromUsage,
   probeBudgetKrwFromUsd,
   probeRemainingBudgetKrw,
+  resolveProbeBudgetChargeUsd,
   shouldSkipProbeSampleForBudget,
 } from "./lib/adultOffGuardProbeBudget";
 import { AdultOffClassifierCallError } from "../src/lib/adultOffOutputGuard";
@@ -59,11 +60,16 @@ async function main(): Promise<void> {
       rows.push({ id: sample.id, skipped: "probe_budget" });
       continue;
     }
-    const nextUpperBoundUsd = conservativeProbeCallEstimateUsd({
-      systemPromptChars: ADULT_OFF_CLASSIFIER_SYSTEM_PROMPT.length,
-      sampleTextChars: sample.text.length,
-    });
-    const nextUpperBoundKrw = probeBudgetKrwFromUsd(nextUpperBoundUsd, effective);
+    let reservationUsd: number;
+    try {
+      reservationUsd = conservativeProbeCallEstimateUsd({
+        systemPromptChars: ADULT_OFF_CLASSIFIER_SYSTEM_PROMPT.length,
+        sampleTextChars: sample.text.length,
+      });
+    } catch {
+      throw new Error(`probe budget pre-call estimate unavailable for sample ${sample.id}`);
+    }
+    const nextUpperBoundKrw = probeBudgetKrwFromUsd(reservationUsd, effective);
     if (
       shouldSkipProbeSampleForBudget({
         spentBudgetKrw,
@@ -89,10 +95,13 @@ async function main(): Promise<void> {
       });
       const result = await classify(sample.text);
       const actualCostUsd = result.usage.costUsd ?? null;
-      const budgetCostUsd = probeBudgetCostUsdFromUsage(result.usage);
-      const budgetCostKrw =
-        budgetCostUsd != null ? probeBudgetKrwFromUsd(budgetCostUsd, effective) : null;
-      if (budgetCostKrw != null) spentBudgetKrw += budgetCostKrw;
+      const usageEstimateUsd = probeBudgetCostUsdFromUsage(result.usage);
+      const budgetCostUsd = resolveProbeBudgetChargeUsd({
+        reservationUsd,
+        usage: result.usage,
+      });
+      const budgetCostKrw = probeBudgetKrwFromUsd(budgetCostUsd, effective);
+      spentBudgetKrw += budgetCostKrw;
       rows.push({
         id: sample.id,
         group: sample.group,
@@ -104,6 +113,8 @@ async function main(): Promise<void> {
         match: result.verdict.decision === sample.expected,
         usage: result.usage,
         actualCostUsd,
+        budgetReservationUsd: reservationUsd,
+        budgetUsageEstimateUsd: usageEstimateUsd,
         budgetCostUsd,
         budgetCostKrw,
         costKrw: budgetCostKrw,
@@ -112,10 +123,15 @@ async function main(): Promise<void> {
     } catch (error) {
       const usage =
         error instanceof AdultOffClassifierCallError ? error.usage : undefined;
-      const budgetCostUsd = usage ? probeBudgetCostUsdFromUsage(usage) : null;
-      const budgetCostKrw =
-        budgetCostUsd != null ? probeBudgetKrwFromUsd(budgetCostUsd, effective) : null;
-      if (budgetCostKrw != null) spentBudgetKrw += budgetCostKrw;
+      const usageForBudget = usage
+        ? { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens }
+        : null;
+      const budgetCostUsd = resolveProbeBudgetChargeUsd({
+        reservationUsd,
+        usage: usageForBudget,
+      });
+      const budgetCostKrw = probeBudgetKrwFromUsd(budgetCostUsd, effective);
+      spentBudgetKrw += budgetCostKrw;
       rows.push({
         id: sample.id,
         group: sample.group,
@@ -126,6 +142,10 @@ async function main(): Promise<void> {
         error: error instanceof Error ? error.message.slice(0, 200) : String(error),
         usage,
         actualCostUsd: usage?.costUsd ?? null,
+        budgetReservationUsd: reservationUsd,
+        budgetUsageEstimateUsd: usageForBudget
+          ? probeBudgetCostUsdFromUsage(usageForBudget)
+          : null,
         budgetCostUsd,
         budgetCostKrw,
         wallMs: Date.now() - startedAt,
