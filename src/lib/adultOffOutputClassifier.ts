@@ -245,7 +245,31 @@ export function createAdultOffClassifier(
     }
 
     const requestId = headerRequestId(response.headers);
-    const raw = await response.text();
+    let raw: string;
+    try {
+      raw = await response.text();
+    } catch (error) {
+      const outcome: Exclude<AdultOffClassifierCallOutcome, "ok"> = isTimeoutLike(error)
+        ? "timeout"
+        : "transport_error";
+      settleLedger(attempt, {
+        actualProvider: ADULT_OFF_CLASSIFIER_PROVIDER,
+        actualModel: ADULT_OFF_CLASSIFIER_MODEL,
+        httpStatus: response.status,
+        providerRequestId: requestId,
+        outcome: "failed_without_usage",
+      });
+      throw new AdultOffClassifierCallError(
+        (error as Error | undefined)?.message ?? String(error),
+        outcome,
+        failureUsage({
+          startedAt,
+          outcome,
+          httpStatus: response.status,
+          providerRequestId: requestId,
+        })
+      );
+    }
     let parsed: OfficialChatBody | null = null;
     if (raw.trim()) {
       try {

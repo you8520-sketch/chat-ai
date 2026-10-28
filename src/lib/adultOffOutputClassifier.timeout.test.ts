@@ -54,6 +54,7 @@ describe("adult-off classifier client timeout", () => {
   let fetchCalls = 0;
   let responseLatencyMs = 0;
   let responseStatus = 200;
+  let bodyReadAbort = false;
   let lastUrl = "";
   let lastBody: Record<string, unknown> | null = null;
   let previousOpenAiKey: string | undefined;
@@ -81,6 +82,19 @@ describe("adult-off classifier client timeout", () => {
       lastBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : null;
       const deadline = timeouts[0] ?? Number.POSITIVE_INFINITY;
       if (responseLatencyMs > deadline) throw new DOMException("The operation timed out.", "TimeoutError");
+      if (bodyReadAbort) {
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers({
+            "Content-Type": "application/json",
+            "x-request-id": "req_body_abort",
+          }),
+          text: async () => {
+            throw new DOMException("The operation was aborted.", "AbortError");
+          },
+        } as Response;
+      }
       return new Response(responseStatus === 200 ? ALLOW_BODY : JSON.stringify({ error: { message: "upstream" } }), {
         status: responseStatus,
         headers: { "Content-Type": "application/json", "x-request-id": "req_classifier_1" },
@@ -93,6 +107,7 @@ describe("adult-off classifier client timeout", () => {
     fetchCalls = 0;
     responseLatencyMs = 0;
     responseStatus = 200;
+    bodyReadAbort = false;
   });
 
   after(() => {
@@ -180,6 +195,29 @@ describe("adult-off classifier client timeout", () => {
       (error: unknown) => error instanceof AdultOffClassifierCallError && error.outcome === "timeout"
     );
     assert.equal(fetchCalls, 1);
+  });
+
+  it("finalizes the ledger when response.text() aborts after HTTP 200 headers", async () => {
+    bodyReadAbort = true;
+    await assert.rejects(
+      () => classifier.createAdultOffClassifier(SCOPE)("창가의 고요"),
+      (error: unknown) =>
+        error instanceof AdultOffClassifierCallError &&
+        error.outcome === "timeout" &&
+        error.usage.providerRequestId === "req_body_abort" &&
+        error.usage.httpStatus === 200
+    );
+    assert.equal(fetchCalls, 1);
+    const row = getDb()
+      .prepare(
+        `SELECT provider_request_id, event_status
+           FROM api_cost_ledger
+          WHERE request_kind='adult-off-output-moderation'
+          ORDER BY id DESC LIMIT 1`
+      )
+      .get() as { provider_request_id: string | null; event_status: string | null };
+    assert.equal(row.provider_request_id, "req_body_abort");
+    assert.equal(row.event_status, "failed_without_usage");
   });
 
   it("does not retry an HTTP failure under the default limit", async () => {

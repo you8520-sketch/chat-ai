@@ -69,7 +69,8 @@ type ClassifierMode =
   | "extra_field"
   | "low_confidence"
   | "timeout"
-  | "unreadable_body";
+  | "unreadable_body"
+  | "body_read_abort";
 type AuxHandler = (input: { model: string; system: string; user: string }) => string | null;
 
 let mainScript: MainScript = { text: "" };
@@ -144,6 +145,16 @@ async function classifierResponse(userContent: string): Promise<Response> {
   }
   if (classifierMode === "unreadable_body") {
     return new Response("<<< not json at all", { status: 200, headers: idHeaders });
+  }
+  if (classifierMode === "body_read_abort") {
+    return {
+      ok: true,
+      status: 200,
+      headers: new Headers(idHeaders),
+      text: async () => {
+        throw new DOMException("The operation was aborted.", "AbortError");
+      },
+    } as Response;
   }
   let content: string;
   if (classifierMode === "invalid_json") {
@@ -773,6 +784,25 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
       "only notices precede the approved body"
     );
     assert.ok(harness.balance().total < before.total, "approved turn is billed as before");
+  });
+
+  it("fails closed with 0P when the OpenAI body read aborts after headers", async () => {
+    const { row } = await runBlockedLikeTurn({
+      mode: "body_read_abort",
+      expectedMessage: CHECK_FAILED_MESSAGE,
+      expectedFailure: "adult_output_check_failed",
+      expectedGuardStatus: "check_failed",
+    });
+    const started = harness.db()
+      .prepare(
+        `SELECT COUNT(*) AS n FROM api_cost_ledger WHERE event_status='started' AND request_kind='adult-off-output-moderation'`
+      )
+      .get() as { n: number };
+    assert.equal(started.n, 0);
+    const rows = moderationRows(row.id);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].provider_request_id, lastClassifierRequestIds[0]);
+    assert.notEqual(rows[0].event_status, "started");
   });
 
   it("keeps ids, usage and ledger rows when the classifier call fails in each way", async () => {
