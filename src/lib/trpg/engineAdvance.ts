@@ -61,6 +61,7 @@ import {
   settleLedgerForCommit,
 } from "./campaignLedger";
 import {
+  composeExplorationSentences,
   displayExplorationAp,
   explorationCommandsFromMovementBody,
   explorationOwnsWorldFlags,
@@ -1360,6 +1361,12 @@ async function generateBotActions(
         });
         const usableRemainder =
           remainder && Array.from(remainder).length <= TRPG_ACTION_MAX_CHARS ? remainder : "";
+        const moveLine =
+          priced.length > 0 && latestMap ? composeExplorationSentences(latestMap.map, fromRoomId, priced) : "";
+        const combined =
+          moveLine && usableRemainder ? `${moveLine} ${usableRemainder}` : moveLine || usableRemainder;
+        const retryFreeText =
+          usableRemainder && Array.from(combined).length <= TRPG_ACTION_MAX_CHARS ? usableRemainder : "";
         if (priced.length > 0) {
           try {
             spoken = db.transaction(() => {
@@ -1368,7 +1375,7 @@ async function generateBotActions(
                 roundId: opts.roundId,
                 participantId: bot.id,
                 commands: priced,
-                freeText: usableRemainder,
+                freeText: retryFreeText,
               });
               if (Array.from(prepared.body).length > TRPG_ACTION_MAX_CHARS) {
                 throw new Error("행동이 너무 깁니다.");
