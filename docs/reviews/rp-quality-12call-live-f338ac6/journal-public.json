@@ -1,0 +1,99 @@
+{
+  "runtimeSha": "f338ac6d2affa2a95e05538de04d2ee157d6cd33",
+  "manifestFingerprint": "468c9f10efb4a79d03e4bf03ef6dbec347fe563d8bdc8870aae7e1d9a5629c58",
+  "identityHash": "5f400d361ffd7eba0747cada89726d43ee38a36677768beac048c8732af02ded",
+  "classification": "PARTIAL_STOP",
+  "denialReason": "COST_EVIDENCE_MISSING",
+  "providerPosts": 2,
+  "productionDbWrites": 0,
+  "executedManifestFingerprints": [],
+  "entries": [
+    {
+      "requestOrder": 1,
+      "fixtureId": "A_relationship_emotion",
+      "canonicalId": "deepseek-v4.1-flash",
+      "status": "SETTLED",
+      "settlementSource": "provider_exact",
+      "httpResult": 200,
+      "finishReason": "stop",
+      "elapsedMs": 17626,
+      "billedUsd": 0.001239,
+      "promptTokens": 8180,
+      "completionTokens": 2087,
+      "visibleChars": 2729,
+      "artifactFingerprint": "0218e0bbc01dad26775cf76c5e6c55f1def15f1e3c59f1e078f95bccb8ce9ca0"
+    },
+    {
+      "requestOrder": 2,
+      "fixtureId": "A_relationship_emotion",
+      "canonicalId": "gemini-3.8-flash",
+      "status": "UNKNOWN_UNRESOLVED",
+      "settlementSource": "missing",
+      "httpResult": 200,
+      "finishReason": "stop",
+      "elapsedMs": 23625,
+      "billedUsd": null,
+      "generationId": "gen-1791704575-g9euUXxrA3vGySZiIS7J"
+    },
+    {
+      "requestOrder": 3,
+      "fixtureId": "A_relationship_emotion",
+      "canonicalId": "gpt-6.1-sol",
+      "status": "PREPARED"
+    },
+    {
+      "requestOrder": 4,
+      "fixtureId": "A_relationship_emotion",
+      "canonicalId": "claude-opus-5.5",
+      "status": "PREPARED"
+    },
+    {
+      "requestOrder": 5,
+      "fixtureId": "B_conflict_action_spatial",
+      "canonicalId": "deepseek-v4.1-flash",
+      "status": "PREPARED"
+    },
+    {
+      "requestOrder": 6,
+      "fixtureId": "B_conflict_action_spatial",
+      "canonicalId": "gemini-3.8-flash",
+      "status": "PREPARED"
+    },
+    {
+      "requestOrder": 7,
+      "fixtureId": "B_conflict_action_spatial",
+      "canonicalId": "gpt-6.1-sol",
+      "status": "PREPARED"
+    },
+    {
+      "requestOrder": 8,
+      "fixtureId": "B_conflict_action_spatial",
+      "canonicalId": "claude-opus-5.5",
+      "status": "PREPARED"
+    },
+    {
+      "requestOrder": 9,
+      "fixtureId": "C_continuity_progression",
+      "canonicalId": "deepseek-v4.1-flash",
+      "status": "PREPARED"
+    },
+    {
+      "requestOrder": 10,
+      "fixtureId": "C_continuity_progression",
+      "canonicalId": "gemini-3.8-flash",
+      "status": "PREPARED"
+    },
+    {
+      "requestOrder": 11,
+      "fixtureId": "C_continuity_progression",
+      "canonicalId": "gpt-6.1-sol",
+      "status": "PREPARED"
+    },
+    {
+      "requestOrder": 12,
+      "fixtureId": "C_continuity_progression",
+      "canonicalId": "claude-opus-5.5",
+      "status": "PREPARED"
+    }
+  ]
+}
