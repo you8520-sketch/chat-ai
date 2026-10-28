@@ -4,8 +4,9 @@ import Database from "better-sqlite3";
 import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet, writeSheet } from "./engineCreate";
 import { advanceTrpgCampaign, startTrpgCampaign, submitTrpgAction, type TrpgEngineDeps } from "./engineAdvance";
 import { loadCampaignLedger } from "./campaignLedger";
-import { loadExplorationState } from "./explorationStore";
+import { loadExplorationState, saveExplorationState } from "./explorationStore";
 import {
+  emptyExplorationState,
   EXPLORATION_ENTRANCE,
   EXPLORATION_EXIT_ROOM,
   type ExplorationState,
@@ -284,6 +285,56 @@ describe("bot exploration stay fallback", () => {
     assert.equal(locationOf(db, botId), fork);
     assert.equal(loadExplorationState(db, campaignId)?.apRemaining[String(botId)], 0);
     assert.equal(lockedBody(db, botId).split("이동한다").length - 1, 3);
+    db.close();
+  });
+
+  it("keeps a legal hop when the in-place remainder would overflow the locked body", async () => {
+    const db = memoryDb();
+    let botLine = "자리를 지킨다.";
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    const fork = neighbors(loadExplorationState(db, campaignId)!, EXPLORATION_ENTRANCE).find(
+      (roomId) => roomId !== EXPLORATION_EXIT_ROOM
+    );
+    assert.ok(fork);
+    const padding = "가".repeat(TRPG_ACTION_MAX_CHARS - 12);
+    botLine = `${fork}로 이동한다. ${fork}에서 ${padding}`;
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(locationOf(db, botId), fork);
+    assert.match(lockedBody(db, botId), new RegExp(`${fork}.+이동한다`));
+    assert.equal(lockedBody(db, botId).includes("제자리에 서서"), false);
+    assert.equal(lockedBody(db, botId).includes(padding), false);
+    db.close();
+  });
+
+  it("from 남쪽복도 keeps the legal 경보실 hop when 출구 is not yet open", async () => {
+    const db = memoryDb();
+    let botLine = "자리를 지킨다.";
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    saveExplorationState(db, campaignId, emptyExplorationState("layout"));
+    writeSheet(db, campaignId, botId, "서하", EVEN_STATS, "남쪽복도");
+    botLine = "경보실로 이동한다. 출구로 이동한다. 경보실로 이동한다.";
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(locationOf(db, botId), "경보실");
+    assert.match(lockedBody(db, botId), /경보실로 이동한다/);
+    assert.equal(lockedBody(db, botId).includes("출구로 이동한다"), false);
+    assert.equal(lockedBody(db, botId).includes("제자리에 서서"), false);
+    assert.equal(loadExplorationState(db, campaignId)?.apRemaining[String(botId)], 2);
+    db.close();
+  });
+
+  it("stays in 남쪽복도 when the only declared move is a disconnected 출구", async () => {
+    const db = memoryDb();
+    let botLine = "출구로 이동한다.";
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    saveExplorationState(db, campaignId, emptyExplorationState("layout"));
+    writeSheet(db, campaignId, botId, "서하", EVEN_STATS, "남쪽복도");
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(locationOf(db, botId), "남쪽복도");
+    assert.equal(lockedBody(db, botId), "서하은 제자리에 서서 상황을 살핀다.");
+    assert.equal(loadExplorationState(db, campaignId)?.apRemaining[String(botId)], undefined);
     db.close();
   });
 
