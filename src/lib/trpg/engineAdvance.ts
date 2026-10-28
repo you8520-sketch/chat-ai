@@ -74,6 +74,7 @@ import {
   filterExplorationFlagsAdd,
   filterExplorationFlagsRemove,
   legalExplorationCommands,
+  legacyPartyEscapeFact,
   roomNameAfterCommands,
   splitV2ExplorationMethod,
 } from "./explorationMap";
@@ -2169,11 +2170,20 @@ function commitPendingGmResult(
     endedEncounterIds: loadEndedEncounterIds(db, campaign.id, roundNumber),
     acceptedEncounterIds: encounterEnding.accepted,
   };
+  const explorationStateForFinish = explorationCommit?.state ?? loadExplorationState(db, campaign.id);
+  const partyEscapeAllowsFinish =
+    !explorationStateForFinish ||
+    explorationStateForFinish.version !== 1 ||
+    legacyPartyEscapeFact(
+      explorationStateForFinish,
+      sheets.map((sheet) => sheet.participantId)
+    );
+  const campaignFinished = parsed.campaignFinished === true && partyEscapeAllowsFinish;
   const ledgerDelta = {
     ...boundLocation.delta,
     location: boundLocation.location || scenario.startLocation,
     nextRoundContext: boundLocation.nextRoundContext,
-    campaignFinished: parsed.campaignFinished,
+    campaignFinished,
   };
   const goalContext = {
     round: roundNumber,
@@ -2246,7 +2256,7 @@ function commitPendingGmResult(
       committedDelta,
       narration: parsed.narration,
       committedNarration: storedStructured?.narration ?? undefined,
-      campaignFinished: parsed.campaignFinished === true,
+      campaignFinished,
       endedEncounterIds: loadEndedEncounterIds(db, campaign.id, roundNumber),
       storyPhase: campaignContext?.storyPhase,
     });
@@ -2316,7 +2326,7 @@ function commitPendingGmResult(
             threadsAdd: parsed.delta.threadsAdd,
             threadsResolve: parsed.delta.threadsResolve,
             endingConditionId: parsed.delta.endingConditionId,
-            campaignFinished: parsed.campaignFinished,
+            campaignFinished,
             occurredMajorEventIndices: parsed.delta.occurredMajorEventIndices,
             revealedClueIndices: parsed.delta.revealedClueIndices,
           });
@@ -2366,7 +2376,7 @@ function commitPendingGmResult(
         return threatShadowHasSignal(report) ? formatThreatShadowLog(report) : null;
       });
     }
-    return { campaignFinished: parsed.campaignFinished === true };
+    return { campaignFinished };
   } catch (error) {
     throw attachTrpgCallFailureMeta(error, { stage });
   }
