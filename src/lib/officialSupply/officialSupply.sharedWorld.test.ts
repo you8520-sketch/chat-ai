@@ -23,6 +23,7 @@ import {
 import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
 import { resolveOfficialCharacterLorebooks } from "@/lib/officialSupply/lorebookAttach";
 import {
+  assertOfficialSharedWorldProjection,
   composeOfficialCurrentSituation,
   ensureOfficialSharedWorldLibraryRow,
   OFFICIAL_SHARED_WORLD_LIBRARY_NAME,
@@ -174,6 +175,20 @@ describe("official shared world owner — BEFORE vs AFTER", () => {
     assert.match(draft.sections.worldAndSituation, /황권 강화 및 에테르 통제권 수복/);
     assert.doesNotMatch(draft.sections.worldAndSituation, /남은 에테르와 패권을 두고 경쟁한다/);
     assert.doesNotMatch(draft.sections.worldAndSituation, /허가 없는 고대 마법 연구는 금지된다/);
+  });
+
+  it("non-Ethernos worlds project under their own identity with setting-neutral power labels", () => {
+    const ethernos = projectOfficialSharedWorld(worldBible());
+    assert.match(ethernos, /에테르를 다루는 법: /);
+
+    const other = structuredClone(worldBible());
+    other.name = "퇴근길 생활권";
+    const projected = projectOfficialSharedWorld(other);
+    assert.match(projected, /^퇴근길 생활권은 /);
+    assert.doesNotMatch(projected, /에테르노스 제국|에테르를 다루는 법|에테르 사용:/);
+    assert.match(projected, /영향력을 얻는 법: /);
+    assert.throws(() => assertOfficialSharedWorldProjection(projected), /world identity/);
+    assert.doesNotThrow(() => assertOfficialSharedWorldProjection(projected, "퇴근길 생활권"));
   });
 
   it("source mutation A: faction purpose/publicView changes the shared World projection", () => {
