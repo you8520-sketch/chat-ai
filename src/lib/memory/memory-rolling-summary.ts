@@ -13,6 +13,16 @@ import {
   resolveSummaryLogLabel,
 } from "./memory-constants";
 import { clampMemoryRecordSummary } from "./memory-summary-clamp";
+import {
+  buildTimelineAnchorExtractionMessages,
+  extractBatchOpeningRegion,
+  isTimelineAnchorCandidate,
+  parseTimelineAnchorJson,
+  prependTimelineAnchorLine,
+  TIMELINE_ANCHOR_REQUEST_KIND,
+  verifyTimelineAnchors,
+  type TimelineAnchor,
+} from "./memory-timeline-anchor";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
 import { isMemoryFeatureEnabled, isSummaryBarrierActive } from "./memory-feature";
 import { invalidateSummarySealBatchEpisodicFactsForSourceMutation } from "@/lib/episodicMemoryFacts";
@@ -284,6 +294,54 @@ export function __getLastSummarizeTurnBatchErrorForTests(): string | null {
   return lastSummarizeTurnBatchError;
 }
 
+/** @internal test seam — stub the optional timeline-anchor extraction. */
+let timelineAnchorCallerOverride:
+  | ((system: string, user: string) => Promise<string>)
+  | null = null;
+
+export function __setTimelineAnchorCallerForTests(
+  fn: ((system: string, user: string) => Promise<string>) | null
+): void {
+  timelineAnchorCallerOverride = fn;
+}
+
+/**
+ * Optional timeline anchors for a batch. Runs at most one small structured
+ * extraction over the opening region; failures and timeouts degrade to no
+ * anchors so the summary behaves exactly as before.
+ */
+const TIMELINE_ANCHOR_EXTRACTION_TIMEOUT_MS = 20_000;
+
+async function resolveTimelineAnchorsForBatch(dialogue: string): Promise<TimelineAnchor[]> {
+  const region = extractBatchOpeningRegion(dialogue);
+  if (!isTimelineAnchorCandidate(region)) return [];
+  const { system, user } = buildTimelineAnchorExtractionMessages(region!);
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    // The anchor is optional; the seal must never wait on it indefinitely.
+    const timeout = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), TIMELINE_ANCHOR_EXTRACTION_TIMEOUT_MS);
+    });
+    const raw = await Promise.race([
+      timelineAnchorCallerOverride
+        ? timelineAnchorCallerOverride(system, user)
+        : callBackgroundMemory(
+            system,
+            [{ role: "user", content: user }],
+            undefined,
+            TIMELINE_ANCHOR_REQUEST_KIND
+          ).then((r) => r.text),
+      timeout,
+    ]);
+    if (raw == null) return [];
+    return verifyTimelineAnchors(parseTimelineAnchorJson(raw), region!.assistantText);
+  } catch {
+    return [];
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 /** @internal test seam — force persistValidatedSummaryBatch txn rollback after upsert */
 let persistForceFailAfterUpsertForTests = false;
 
@@ -339,6 +397,7 @@ export async function summarizeTurnBatch(opts: {
     if (!cleaned) return "";
     return clampMemoryRecordSummary(cleaned, ROLLING_SUMMARY_MAX_CHARS, ROLLING_SUMMARY_MIN_CHARS);
   };
+  let timelineAnchorsPromise: Promise<TimelineAnchor[]> | null = null;
   const callLlm: RollingSummaryLlmCaller =
     summarizeTurnBatchCallerOverride ??
     ((system, history, turnTrace, requestKind) =>
@@ -363,7 +422,9 @@ export async function summarizeTurnBatch(opts: {
           )
         : false;
       if (narrative.ok && grounded) {
-        return narrative.text;
+        timelineAnchorsPromise ??= resolveTimelineAnchorsForBatch(opts.dialogue);
+        const anchors = await timelineAnchorsPromise;
+        return prependTimelineAnchorLine(narrative.text, anchors, ROLLING_SUMMARY_MAX_CHARS);
       }
       lastSummarizeTurnBatchError = narrative.ok
         ? "SUMMARY_NOT_GROUNDED"
