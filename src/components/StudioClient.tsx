@@ -88,6 +88,7 @@ type Props = {
   lorebooks: KeywordLorebookListItem[];
   blurNsfw: boolean;
   creatorId: number;
+  ownerIsAdmin: boolean;
 };
 
 export default function StudioClient({
@@ -97,6 +98,7 @@ export default function StudioClient({
   lorebooks,
   blurNsfw,
   creatorId,
+  ownerIsAdmin,
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -202,6 +204,7 @@ export default function StudioClient({
             characters={characters}
             simulations={simulations}
             blurNsfw={blurNsfw}
+            ownerIsAdmin={ownerIsAdmin}
           />
         )}
         {activeTab === "worlds" && <WorldsPanel worlds={worlds} />}
@@ -215,10 +218,12 @@ function CreationsPanel({
   characters,
   simulations,
   blurNsfw,
+  ownerIsAdmin,
 }: {
   characters: MyCharacterRow[];
   simulations: MyCharacterRow[];
   blurNsfw: boolean;
+  ownerIsAdmin: boolean;
 }) {
   const creations = useMemo(
     () =>
@@ -294,6 +299,7 @@ function CreationsPanel({
                     key={creation.id}
                     c={creation}
                     blurNsfw={blurNsfw}
+                    ownerIsAdmin={ownerIsAdmin}
                     editHref={`/create?edit=${creation.id}`}
                     contentLabel={isSimulation ? "시뮬레이션" : "캐릭터"}
                   />

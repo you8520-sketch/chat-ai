@@ -63,7 +63,14 @@ for (const width of [390, 1440]) {
       await page.waitForURL(`**/character/${id}`);
     }
     await page.goto("/my-characters");
-    await expect(page.locator('[data-testid="studio-work-card"]').filter({ hasText: "테오" }).first()).toBeVisible();
+    const card = page.locator('[data-testid="studio-work-card"]').filter({ hasText: "테오" }).first();
+    await expect(card).toBeVisible();
+    if (!baseline) {
+      await expect(card.locator('[data-status="draft-imageless"]')).toHaveText("비공개 초안 · 이미지 미등록");
+      await expect(card.getByText("검수 통과")).toHaveCount(0);
+    } else {
+      await expect(card.getByText("검수 통과")).toBeVisible();
+    }
     if (evidenceDir) await page.screenshot({ path: path.join(evidenceDir, `${baseline ? "before" : "after"}-list-${width}.png`), fullPage: true });
     await expect(page.getByRole("link", { name: /수정|편집/ }).first()).toBeVisible();
     const editor = await page.request.get(`/api/characters/${id}`, { headers: { Cookie: `session=g2-ui-${adminId}` } });

@@ -6,6 +6,7 @@ import type { ReactElement, ReactNode } from "react";
 
 import { moderationLabel, visibilityLabel } from "@/lib/characterVisibility";
 import type { CharacterVisibility, ModerationStatus } from "@/lib/characterVisibility";
+import { ADMIN_IMAGELESS_PRIVATE_DRAFT_CHIP } from "@/lib/studioWorkStatusLabel";
 import { StudioWorkNotice, StudioWorkStatus } from "@/components/studio/StudioWorkMeta";
 
 (globalThis as { React?: typeof React }).React = React;
@@ -37,7 +38,7 @@ describe("studio work status chips", () => {
     for (const visibility of VISIBILITIES) {
       for (const moderation of MODERATIONS) {
         for (const isSimulation of [false, true]) {
-          const rendered = text(StudioWorkStatus({ isSimulation, visibility, moderation }));
+          const rendered = text(StudioWorkStatus({ isSimulation, visibility, moderation, ownerIsAdmin: false }));
           assert.ok(rendered.includes(isSimulation ? "시뮬레이션" : "캐릭터"));
           assert.ok(rendered.includes(visibilityLabel(visibility)));
           assert.ok(rendered.includes(moderationLabel(moderation)));
@@ -47,8 +48,26 @@ describe("studio work status chips", () => {
   });
 
   it("always names the moderation state, including the approved one that used to be implicit", () => {
-    const rendered = text(StudioWorkStatus({ isSimulation: false, visibility: "public", moderation: "approved" }));
+    const rendered = text(
+      StudioWorkStatus({ isSimulation: false, visibility: "public", moderation: "approved", ownerIsAdmin: false }),
+    );
     assert.match(rendered, /검수 통과/);
+  });
+
+  it("does not call an image-less admin private draft approved for display", () => {
+    const rendered = text(
+      StudioWorkStatus({
+        isSimulation: false,
+        visibility: "private",
+        moderation: "approved",
+        ownerIsAdmin: true,
+        official: 0,
+        assets: "[]",
+        images: "[]",
+      }),
+    );
+    assert.match(rendered, new RegExp(ADMIN_IMAGELESS_PRIVATE_DRAFT_CHIP));
+    assert.doesNotMatch(rendered, /검수 통과/);
   });
 });
 

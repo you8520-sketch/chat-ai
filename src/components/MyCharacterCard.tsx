@@ -14,9 +14,11 @@ type Props = {
   blurNsfw: boolean;
   editHref?: string;
   contentLabel?: string;
+  /** Viewer is the card owner; when admin, image-less private drafts get a non-misleading chip. */
+  ownerIsAdmin?: boolean;
 };
 
-export default function MyCharacterCard({ c, blurNsfw, editHref, contentLabel }: Props) {
+export default function MyCharacterCard({ c, blurNsfw, editHref, contentLabel, ownerIsAdmin = false }: Props) {
   return (
     <div
       className="row-span-3 grid grid-rows-subgrid gap-y-2.5"
@@ -33,6 +35,10 @@ export default function MyCharacterCard({ c, blurNsfw, editHref, contentLabel }:
           isSimulation={c.content_kind === "simulation"}
           visibility={c.visibility}
           moderation={c.moderation_status}
+          ownerIsAdmin={ownerIsAdmin}
+          official={c.official}
+          assets={c.assets}
+          images={c.images}
         />
         <StudioWorkNotice moderation={c.moderation_status} note={c.moderation_note ?? ""} />
       </div>

@@ -59,6 +59,7 @@ export default async function StudioPage() {
         lorebooks={lorebooks}
         blurNsfw={blurNsfw}
         creatorId={user.id}
+        ownerIsAdmin={Boolean(user.is_admin)}
       />
     </Suspense>
   );

@@ -43,7 +43,7 @@ export default async function MyCharactersPage() {
       ) : (
         <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-0 sm:grid-cols-3 lg:grid-cols-5">
           {chars.map((c) => (
-            <MyCharacterCard key={c.id} c={c} blurNsfw={blurNsfw} />
+            <MyCharacterCard key={c.id} c={c} blurNsfw={blurNsfw} ownerIsAdmin={Boolean(user.is_admin)} />
           ))}
         </div>
       )}
