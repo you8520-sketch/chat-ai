@@ -733,7 +733,7 @@ function promptComposition(): unknown[] {
     });
 }
 
-async function run(maxKrw: number): Promise<void> {
+async function run(maxKrw: number, only: string | null): Promise<void> {
   if (process.env.OFFICIAL_PILOT_LIVE !== "1") throw new Error("OFFICIAL_PILOT_LIVE=1 required");
   const sourceDirty = git("status --porcelain -- src scripts").length > 0;
   if (sourceDirty) throw new Error("src/ or scripts/ has uncommitted changes; commit code before the live run so the SHA is exact");
@@ -755,7 +755,7 @@ async function run(maxKrw: number): Promise<void> {
   const cast = existingCast();
   const results: SpecResult[] = [];
   let failure: string | null = null;
-  for (const spec of SPECS) {
+  for (const spec of SPECS.filter((s) => !only || s.key === only)) {
     try {
       const earlier = results.map((r) => r.brief);
       const result = await runSpec(spec, ctx, [...cast, ...earlier], earlier);
@@ -825,7 +825,8 @@ async function main(): Promise<void> {
   }
   if (args.includes("--run")) {
     const maxArg = args.find((a) => a.startsWith("--max-krw="));
-    await run(maxArg ? Number(maxArg.split("=")[1]) : DEFAULT_MAX_KRW);
+    const onlyArg = args.find((a) => a.startsWith("--only="));
+    await run(maxArg ? Number(maxArg.split("=")[1]) : DEFAULT_MAX_KRW, onlyArg ? onlyArg.split("=")[1]! : null);
     return;
   }
   estimate();

@@ -1,0 +1,37 @@
+{
+  "gitSha": "dd73681e062959b5cd28a3af36e9f833b949ae44",
+  "candidates": [
+    {
+      "key": "g5-modern-comedy",
+      "name": "박수진 (양쪽말)",
+      "genre": "현대/일상",
+      "direction": {
+        "genre": "현대/일상",
+        "tone": "light",
+        "humor": "central",
+        "pacing": "dialogue",
+        "nameWordplay": "nickname"
+      },
+      "briefGate": [
+        {
+          "source": "world_portfolio",
+          "errors": []
+        }
+      ],
+      "bibleQaOk": true,
+      "tagQaOk": true,
+      "draftQaOk": true,
+      "relationQaOk": true,
+      "lorebookQaOk": true,
+      "bibleQa": [],
+      "tagQa": [],
+      "draftQa": [],
+      "relationQa": [],
+      "lorebookQa": [],
+      "voiceRepairs": 3,
+      "userRelationType": "free",
+      "textLock": "ad56b3f184cf5ced70d2c1c84b8e0a5a2d430502052528e367dd08412e9af555"
+    }
+  ],
+  "runFailure": null
+}

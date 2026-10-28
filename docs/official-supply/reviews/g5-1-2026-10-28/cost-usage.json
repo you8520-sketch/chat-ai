@@ -1,0 +1,142 @@
+{
+  "gitSha": "dd73681e062959b5cd28a3af36e9f833b949ae44",
+  "model": "gpt-6-luna",
+  "provider": "cheaper-inference-background",
+  "physicalCalls": 13,
+  "callCap": 16,
+  "billedCostUsd": 0.012237,
+  "billedCostKrwApprox": 18,
+  "krwPerUsd": 1500,
+  "inputTokens": 37570,
+  "outputTokens": 28234,
+  "outcomes": {
+    "ok": 11,
+    "provider_failed": 2
+  },
+  "byTask": [
+    {
+      "call": 1,
+      "specKey": "g5-modern-comedy",
+      "task": "world_bible",
+      "outcome": "ok",
+      "inputTokens": 1395,
+      "outputTokens": 3609,
+      "costUsd": 0.001317
+    },
+    {
+      "call": 2,
+      "specKey": "g5-modern-comedy",
+      "task": "world_bible",
+      "outcome": "ok",
+      "inputTokens": 541,
+      "outputTokens": 2406,
+      "costUsd": 0.000836
+    },
+    {
+      "call": 3,
+      "specKey": "g5-modern-comedy",
+      "task": "world_bible",
+      "outcome": "ok",
+      "inputTokens": 2471,
+      "outputTokens": 1029,
+      "costUsd": 0.000548
+    },
+    {
+      "call": 4,
+      "specKey": "g5-modern-comedy",
+      "task": "character_bible_1",
+      "outcome": "ok",
+      "inputTokens": 3539,
+      "outputTokens": 3091,
+      "costUsd": 0.001323
+    },
+    {
+      "call": 5,
+      "specKey": "g5-modern-comedy",
+      "task": "character_bible_voice",
+      "outcome": "ok",
+      "inputTokens": 5043,
+      "outputTokens": 3047,
+      "costUsd": 0.001433
+    },
+    {
+      "call": 6,
+      "specKey": "g5-modern-comedy",
+      "task": "character_bible_1",
+      "outcome": "ok",
+      "inputTokens": 3539,
+      "outputTokens": 3048,
+      "costUsd": 0.001308
+    },
+    {
+      "call": 7,
+      "specKey": "g5-modern-comedy",
+      "task": "character_bible_voice",
+      "outcome": "ok",
+      "inputTokens": 5031,
+      "outputTokens": 3202,
+      "costUsd": 0.001484
+    },
+    {
+      "call": 8,
+      "specKey": "g5-modern-comedy",
+      "task": "character_bible_1",
+      "outcome": "provider_failed",
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null
+    },
+    {
+      "call": 9,
+      "specKey": "g5-modern-comedy",
+      "task": "character_bible_1",
+      "outcome": "provider_failed",
+      "inputTokens": null,
+      "outputTokens": null,
+      "costUsd": null
+    },
+    {
+      "call": 10,
+      "specKey": "g5-modern-comedy",
+      "task": "character_bible_1",
+      "outcome": "ok",
+      "inputTokens": 3539,
+      "outputTokens": 3239,
+      "costUsd": 0.001101
+    },
+    {
+      "call": 11,
+      "specKey": "g5-modern-comedy",
+      "task": "character_bible_voice",
+      "outcome": "ok",
+      "inputTokens": 5152,
+      "outputTokens": 2891,
+      "costUsd": 0.00139
+    },
+    {
+      "call": 12,
+      "specKey": "g5-modern-comedy",
+      "task": "character_bible_bonds",
+      "outcome": "ok",
+      "inputTokens": 3262,
+      "outputTokens": 460,
+      "costUsd": 0.000424
+    },
+    {
+      "call": 13,
+      "specKey": "g5-modern-comedy",
+      "task": "character_bible_voice",
+      "outcome": "ok",
+      "inputTokens": 4058,
+      "outputTokens": 2212,
+      "costUsd": 0.001073
+    }
+  ],
+  "thisProcessAccounting": {
+    "physicalAttempts": 0,
+    "billedCostUsd": 0,
+    "failedAttempts": 0
+  },
+  "runFailure": null,
+  "generatedAt": "2026-10-28T14:14:10.398Z"
+}

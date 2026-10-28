@@ -1,0 +1,13 @@
+{
+  "call": 9,
+  "specKey": "g5-modern-comedy",
+  "task": "character_bible_1",
+  "outcome": "provider_failed",
+  "model": null,
+  "inputTokens": null,
+  "outputTokens": null,
+  "costUsd": null,
+  "providerRequestId": null,
+  "error": "The operation was aborted due to timeout",
+  "text": null
+}
