@@ -105,8 +105,8 @@ const RESPONSES_DIR = path.join(OUT_DIR, "provider-responses");
 const KRW_PER_USD = 1500;
 const UPPER_USD_PER_M_INPUT = 0.5;
 const UPPER_USD_PER_M_OUTPUT = 1.0;
-/** Issue budget: ideally ≤12 provider calls, hard cap 16 including voice repair. */
-const CALL_CAP = 16;
+/** G5-1B: comedy used 13 calls; horror-dry may use up to 15 more → hard cap 28. */
+const CALL_CAP = 28;
 const MAX_VOICE_REPAIRS = 2;
 const DEFAULT_MAX_KRW = 1000;
 
@@ -484,6 +484,90 @@ type SpecResult = {
   voiceRepairs: number;
 };
 
+type CandidateValidationRow = {
+  key: string;
+  name: string;
+  genre: string;
+  direction: OfficialAuthoringDirection;
+  briefGate: { source: string; errors: string[] }[];
+  bibleQaOk: boolean;
+  tagQaOk: boolean;
+  draftQaOk: boolean;
+  relationQaOk: boolean;
+  lorebookQaOk: boolean;
+  bibleQa: string[];
+  tagQa: string[];
+  draftQa: string[];
+  relationQa: string[];
+  lorebookQa: string[];
+  voiceRepairs: number;
+  userRelationType: string;
+  textLock: string;
+};
+
+/** Selective Voice repair = character_bible_voice after bonds for that spec. Initial voice retries before bonds do not count. */
+export function countSelectiveVoiceRepairs(calls: readonly SavedCall[], specKey: string): number {
+  const forSpec = calls.filter((c) => c.specKey === specKey);
+  let lastBonds = -1;
+  for (let i = 0; i < forSpec.length; i += 1) {
+    if (forSpec[i]!.task === "character_bible_bonds") lastBonds = i;
+  }
+  if (lastBonds < 0) return 0;
+  return forSpec.slice(lastBonds + 1).filter((c) => c.task === "character_bible_voice").length;
+}
+
+/** Keep prior candidate rows; replace only keys present in `next`. Specs order preserved. */
+export function mergeValidationCandidates(
+  previous: readonly CandidateValidationRow[],
+  next: readonly CandidateValidationRow[]
+): CandidateValidationRow[] {
+  const byKey = new Map<string, CandidateValidationRow>();
+  for (const row of previous) byKey.set(row.key, row);
+  for (const row of next) byKey.set(row.key, row);
+  const ordered: CandidateValidationRow[] = [];
+  for (const spec of SPECS) {
+    const row = byKey.get(spec.key);
+    if (row) ordered.push(row);
+    byKey.delete(spec.key);
+  }
+  for (const row of byKey.values()) ordered.push(row);
+  return ordered;
+}
+
+function loadPreviousValidationCandidates(): CandidateValidationRow[] {
+  const file = path.join(OUT_DIR, "validation.json");
+  if (!fs.existsSync(file)) return [];
+  try {
+    const parsed = readJson<{ candidates?: CandidateValidationRow[] }>(file);
+    return Array.isArray(parsed.candidates) ? parsed.candidates : [];
+  } catch {
+    return [];
+  }
+}
+
+function candidateValidationRow(r: SpecResult): CandidateValidationRow {
+  return {
+    key: r.spec.key,
+    name: r.brief.name,
+    genre: r.spec.genre,
+    direction: r.spec.direction,
+    briefGate: r.briefAttempts,
+    bibleQaOk: r.bibleQa.length === 0,
+    tagQaOk: r.tagQa.length === 0,
+    draftQaOk: r.draftQa.length === 0,
+    relationQaOk: r.relationQa.length === 0,
+    lorebookQaOk: r.lorebookQa.length === 0,
+    bibleQa: r.bibleQa,
+    tagQa: r.tagQa,
+    draftQa: r.draftQa,
+    relationQa: r.relationQa,
+    lorebookQa: r.lorebookQa,
+    voiceRepairs: r.voiceRepairs,
+    userRelationType: r.brief.userRelation?.type ?? "free",
+    textLock: computeTextLockHash(r.draft),
+  };
+}
+
 type RunContext = {
   snapshot: ResearchSnapshot;
   policy: OfficialBatchMarketPolicy;
@@ -590,7 +674,7 @@ async function runSpec(
   let voiceRepairs = 0;
   if (fs.existsSync(biblePath)) {
     bible = readJson<OfficialCharacterBible>(biblePath);
-    voiceRepairs = fs.readdirSync(RESPONSES_DIR).filter((f) => f.includes(`-${spec.key}-`) && f.endsWith("character_bible_voice.json")).length - 1;
+    voiceRepairs = countSelectiveVoiceRepairs(savedCalls(), spec.key);
   } else {
     const generated = await generateOfficialCharacterBible({
       transport,
@@ -649,6 +733,10 @@ async function runSpec(
     }
     writeJson(biblePath, bible);
   }
+  writeJson(path.join(dir, "voice-repairs.json"), {
+    selectiveVoiceRepairs: voiceRepairs,
+    note: "selective reviseOfficialCharacterVoice count only; initial voice retries before bonds are excluded",
+  });
 
   const draft = compileOfficialDraftFromBible(bible, {
     draftKey: spec.key,
@@ -769,15 +857,20 @@ async function run(maxKrw: number, only: string | null): Promise<void> {
 
   const calls = savedCalls();
   const sum = (pick: (c: SavedCall) => number | null) => calls.reduce((acc, c) => acc + (pick(c) ?? 0), 0);
-  const billedCostUsd = sum((c) => c.costUsd);
+  const knownCostCalls = calls.filter((c) => typeof c.costUsd === "number");
+  const unknownCostCalls = calls.filter((c) => c.costUsd == null);
+  const billedCostUsdKnown = knownCostCalls.reduce((acc, c) => acc + (c.costUsd ?? 0), 0);
   const cost = {
     gitSha: git("rev-parse HEAD"),
     model: ctx.modelId,
     provider: "cheaper-inference-background",
     physicalCalls: calls.length,
     callCap: CALL_CAP,
-    billedCostUsd: Number(billedCostUsd.toFixed(6)),
-    billedCostKrwApprox: Math.round(billedCostUsd * KRW_PER_USD),
+    billedCostUsdKnownOnly: Number(billedCostUsdKnown.toFixed(6)),
+    billedCostKrwApproxKnownOnly: Math.round(billedCostUsdKnown * KRW_PER_USD),
+    /** Do not treat costUsd=null (timeouts/failures) as confirmed $0. */
+    unknownCostCallCount: unknownCostCalls.length,
+    unknownCostCalls: unknownCostCalls.map((c) => ({ call: c.call, specKey: c.specKey, task: c.task, outcome: c.outcome })),
     krwPerUsd: KRW_PER_USD,
     inputTokens: sum((c) => c.inputTokens),
     outputTokens: sum((c) => c.outputTokens),
@@ -789,36 +882,70 @@ async function run(maxKrw: number, only: string | null): Promise<void> {
   };
   writeJson(path.join(OUT_DIR, "cost-usage.json"), cost);
   writeJson(path.join(OUT_DIR, "prompt-composition.json"), promptComposition());
+  const mergedCandidates = mergeValidationCandidates(
+    loadPreviousValidationCandidates(),
+    results.map(candidateValidationRow)
+  );
   writeJson(path.join(OUT_DIR, "validation.json"), {
     gitSha: cost.gitSha,
-    candidates: results.map((r) => ({
-      key: r.spec.key,
-      name: r.brief.name,
-      genre: r.spec.genre,
-      direction: r.spec.direction,
-      briefGate: r.briefAttempts,
-      bibleQaOk: r.bibleQa.length === 0,
-      tagQaOk: r.tagQa.length === 0,
-      draftQaOk: r.draftQa.length === 0,
-      relationQaOk: r.relationQa.length === 0,
-      lorebookQaOk: r.lorebookQa.length === 0,
-      bibleQa: r.bibleQa,
-      tagQa: r.tagQa,
-      draftQa: r.draftQa,
-      relationQa: r.relationQa,
-      lorebookQa: r.lorebookQa,
-      voiceRepairs: r.voiceRepairs,
-      userRelationType: r.brief.userRelation?.type ?? "free",
-      textLock: computeTextLockHash(r.draft),
-    })),
+    candidates: mergedCandidates,
     runFailure: failure,
   });
   console.log(JSON.stringify({ out: path.relative(ROOT, OUT_DIR), cost: { ...cost, byTask: undefined } }, null, 2));
   if (failure) process.exit(2);
 }
 
+function selfCheck(): void {
+  const comedyCalls = savedCalls().filter((c) => c.specKey === "g5-modern-comedy");
+  const repairs = countSelectiveVoiceRepairs(comedyCalls, "g5-modern-comedy");
+  if (repairs !== 1) throw new Error(`self-check: expected comedy selective voice repairs=1, got ${repairs}`);
+  const previous: CandidateValidationRow[] = [
+    {
+      key: "g5-modern-comedy",
+      name: "박수진 (양쪽말)",
+      genre: "현대/일상",
+      direction: SPECS[0]!.direction,
+      briefGate: [],
+      bibleQaOk: true,
+      tagQaOk: true,
+      draftQaOk: true,
+      relationQaOk: true,
+      lorebookQaOk: true,
+      bibleQa: [],
+      tagQa: [],
+      draftQa: [],
+      relationQa: [],
+      lorebookQa: [],
+      voiceRepairs: 1,
+      userRelationType: "free",
+      textLock: "ad56b3f184cf5ced70d2c1c84b8e0a5a2d430502052528e367dd08412e9af555",
+    },
+  ];
+  const next: CandidateValidationRow[] = [
+    {
+      ...previous[0]!,
+      key: "g5-horror-dry",
+      name: "(horror)",
+      genre: "공포/추리",
+      direction: SPECS[1]!.direction,
+      voiceRepairs: 0,
+      textLock: "new",
+    },
+  ];
+  const merged = mergeValidationCandidates(previous, next);
+  if (merged.length !== 2 || merged[0]!.key !== "g5-modern-comedy" || merged[1]!.key !== "g5-horror-dry") {
+    throw new Error(`self-check: merge lost a candidate: ${merged.map((r) => r.key).join(",")}`);
+  }
+  if (merged[0]!.textLock !== previous[0]!.textLock) throw new Error("self-check: comedy textLock mutated by merge");
+  console.log(JSON.stringify({ ok: true, comedySelectiveVoiceRepairs: repairs, mergedKeys: merged.map((r) => r.key) }, null, 2));
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
+  if (args.includes("--self-check")) {
+    selfCheck();
+    return;
+  }
   if (args.includes("--dump-prompts")) {
     dumpPrompts();
     return;

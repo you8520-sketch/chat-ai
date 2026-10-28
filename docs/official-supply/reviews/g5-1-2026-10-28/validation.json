@@ -28,9 +28,10 @@
       "draftQa": [],
       "relationQa": [],
       "lorebookQa": [],
-      "voiceRepairs": 3,
+      "voiceRepairs": 1,
       "userRelationType": "free",
-      "textLock": "ad56b3f184cf5ced70d2c1c84b8e0a5a2d430502052528e367dd08412e9af555"
+      "textLock": "ad56b3f184cf5ced70d2c1c84b8e0a5a2d430502052528e367dd08412e9af555",
+      "voiceRepairsNote": "corrected G5-1B: selective revise after bonds only (call 13); calls 5/7/11 were initial voice retries"
     }
   ],
   "runFailure": null
