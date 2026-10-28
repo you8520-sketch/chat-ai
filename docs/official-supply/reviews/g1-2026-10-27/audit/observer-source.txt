@@ -1,0 +1,35 @@
+// G1 evidence observer only. The existing pilot script owns all generation and QA.
+import fs from 'node:fs';
+import {OfficialAuthorCallBudget} from './src/lib/officialSupply/author';
+const pre=JSON.parse(fs.readFileSync('evidence/preflight.json','utf8'));
+const budget=new OfficialAuthorCallBudget(pre.maxPhysicalPosts);
+const originalFetch=fetch;
+let physicalPosts=0,reservedUsd=0;
+const price=pre.pricing;
+const inputRate=Math.max(price.inputUsdPerMillion,price.cacheReadUsdPerMillion,price.cacheWriteUsdPerMillion);
+globalThis.fetch=async (input,init)=>{
+  const url=typeof input==='string'?input:input instanceof URL?input.href:input.url;
+  const method=(init?.method||(input instanceof Request?input.method:'GET')).toUpperCase();
+  if(method!=='POST')return originalFetch(input,init);
+  if(url!=='https://api.cheaperinference.com/v1/chat/completions')throw Error('G1 unexpected POST blocked');
+  const body=JSON.parse(String(init?.body));
+  if(body.model!==pre.model||body.stream!==false||!Number.isInteger(body.max_tokens))throw Error('G1 outbound owner mismatch');
+  const promptBytes=body.messages.reduce((n:number,m:{content:string})=>n+Buffer.byteLength(m.content,'utf8'),0);
+  if(promptBytes>pre.maxPromptUtf8BytesPerPost)throw Error('G1 input budget blocked before POST');
+  const upperUsd=(promptBytes*inputRate+body.max_tokens*price.outputUsdPerMillion)/1e6;
+  if((reservedUsd+upperUsd)*pre.fx.effectiveKrwPerUsd>=1000)throw Error('G1 cost blocked before POST');
+  budget.consume('character_bible_1');
+  const n=++physicalPosts;reservedUsd+=upperUsd;
+  const stem='evidence/call-'+String(n).padStart(2,'0');
+  fs.writeFileSync(stem+'-request.json',JSON.stringify({physicalPost:n,startedAt:new Date().toISOString(),promptBytes,upperUsd,body},null,2),{flag:'wx'});
+  try{
+    const res=await originalFetch(input,init);
+    const rawText=await res.clone().text();
+    fs.writeFileSync(stem+'-response.txt',rawText,{flag:'wx'});
+    fs.writeFileSync(stem+'-http.json',JSON.stringify({httpStatus:res.status,endedAt:new Date().toISOString()},null,2),{flag:'wx'});
+    return res;
+  }catch(e){
+    fs.writeFileSync(stem+'-failure.json',JSON.stringify({error:e instanceof Error?e.message:String(e),endedAt:new Date().toISOString()}));throw e;
+  }
+};
+process.on('exit',code=>fs.writeFileSync('evidence/observer-summary.json',JSON.stringify({code,physicalPosts,reservedUsd,maxPhysicalPosts:pre.maxPhysicalPosts,requestMutation:false,retriesAdded:0},null,2)));

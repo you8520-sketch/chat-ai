@@ -1,0 +1,93 @@
+[pilot] step=character model=gpt-6-luna concurrency=2 attempts=1
+[aux_provider_call] {
+  event: 'aux_provider_call',
+  auxOwner: 'UNKNOWN',
+  model: 'gpt-6-luna',
+  requestKind: 'official-character-author',
+  trigger: null,
+  chatId: null,
+  messageId: null,
+  requestId: null,
+  attempt: 1,
+  isRetry: false,
+  jobId: null,
+  promptFingerprint: 'e402fa628af2ffa8'
+}
+[database] runtime diagnostics {
+  nodeEnv: 'development',
+  nextPhase: '',
+  cwd: '/tmp/hav-g1.yTxPu2',
+  dataDir: '/tmp/hav-g1.yTxPu2/data',
+  databasePath: '/tmp/hav-g1.yTxPu2/data/app.db',
+  dataDirExists: true,
+  dataDirIsMounted: false,
+  productionRuntime: false
+}
+[aux_provider_call] {
+  event: 'aux_provider_call',
+  auxOwner: 'UNKNOWN',
+  model: 'gpt-6-luna',
+  requestKind: 'official-character-author',
+  trigger: null,
+  chatId: null,
+  messageId: null,
+  requestId: null,
+  attempt: 1,
+  isRetry: false,
+  jobId: null,
+  promptFingerprint: '0fcd66e6c32ebf17'
+}
+[exchangeRate] refreshed {
+  mode: 'daily_kst',
+  dateKey: '2026-10-27',
+  usdToKrw: 1323.904108,
+  effectiveKrwPerUsd: 1350.38219016
+}
+[aux_provider_call] {
+  event: 'aux_provider_call',
+  auxOwner: 'UNKNOWN',
+  model: 'gpt-6-luna',
+  requestKind: 'official-character-author',
+  trigger: null,
+  chatId: null,
+  messageId: null,
+  requestId: null,
+  attempt: 1,
+  isRetry: false,
+  jobId: null,
+  promptFingerprint: '48dcdf627488aa1b'
+}
+[pilot] slot 7 voice repair 1: publicDescription
+[aux_provider_call] {
+  event: 'aux_provider_call',
+  auxOwner: 'UNKNOWN',
+  model: 'gpt-6-luna',
+  requestKind: 'official-character-author',
+  trigger: null,
+  chatId: null,
+  messageId: null,
+  requestId: null,
+  attempt: 1,
+  isRetry: false,
+  jobId: null,
+  promptFingerprint: 'c34ff17bcba77723'
+}
+[pilot] slot 7 voice repair 2: publicDescription
+[aux_provider_call] {
+  event: 'aux_provider_call',
+  auxOwner: 'UNKNOWN',
+  model: 'gpt-6-luna',
+  requestKind: 'official-character-author',
+  trigger: null,
+  chatId: null,
+  messageId: null,
+  requestId: null,
+  attempt: 1,
+  isRetry: false,
+  jobId: null,
+  promptFingerprint: '9f36afefde1a92b4'
+}
+[pilot] slot 7 attempt 1 failed: slot 7 draft QA: sfw_public_text_has_adult_terms(all-ages public text contains adult terms)
+[pilot] fatal: Error: quarantined slots: 7
+    at stepCharacters (/tmp/hav-g1.yTxPu2/scripts/official-supply-pilot-author.ts:852:37)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)

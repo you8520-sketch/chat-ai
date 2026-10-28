@@ -1,0 +1,67 @@
+{
+  "scope": "remote preflight original-file hashes compared with same-SHA local checkout and its baseline copy; a separate remote post-run ten-file snapshot was not retrieved",
+  "generationIsolation": "/tmp/hav-g1.yTxPu2, DATA_DIR=/tmp/hav-g1.yTxPu2/data/app.db; remote DB configuration unset for child process; no production DB copied",
+  "trackedGeneratorSourceChanged": false,
+  "rows": [
+    {
+      "name": "pilot-rf-01.json",
+      "before": "b7ea596ed68e67e53e9004fb0b1720f0a9acde41ba33b382638bd63567453cb3",
+      "after": "b7ea596ed68e67e53e9004fb0b1720f0a9acde41ba33b382638bd63567453cb3",
+      "baseline": "b7ea596ed68e67e53e9004fb0b1720f0a9acde41ba33b382638bd63567453cb3"
+    },
+    {
+      "name": "pilot-rf-02.json",
+      "before": "83583e6aa2f43ef530030d6152018ba1cb0be7a37cb657727246f8fbac5b7267",
+      "after": "83583e6aa2f43ef530030d6152018ba1cb0be7a37cb657727246f8fbac5b7267",
+      "baseline": "83583e6aa2f43ef530030d6152018ba1cb0be7a37cb657727246f8fbac5b7267"
+    },
+    {
+      "name": "pilot-rf-03.json",
+      "before": "b128f60947889c14fbc33ffdbf92d13795cf9c7d21aed9790dc068dc0706f330",
+      "after": "b128f60947889c14fbc33ffdbf92d13795cf9c7d21aed9790dc068dc0706f330",
+      "baseline": "b128f60947889c14fbc33ffdbf92d13795cf9c7d21aed9790dc068dc0706f330"
+    },
+    {
+      "name": "pilot-rf-04.json",
+      "before": "3e4364483a2c5680a39689e48ffdf40238742d87aa0bebb8e7aadd1654d80650",
+      "after": "3e4364483a2c5680a39689e48ffdf40238742d87aa0bebb8e7aadd1654d80650",
+      "baseline": "3e4364483a2c5680a39689e48ffdf40238742d87aa0bebb8e7aadd1654d80650"
+    },
+    {
+      "name": "pilot-rf-05.json",
+      "before": "1e661bded68f55eea7966189d204278ee71d87a7677f2d2bb1ed763edbb2803b",
+      "after": "1e661bded68f55eea7966189d204278ee71d87a7677f2d2bb1ed763edbb2803b",
+      "baseline": "1e661bded68f55eea7966189d204278ee71d87a7677f2d2bb1ed763edbb2803b"
+    },
+    {
+      "name": "pilot-rf-06.json",
+      "before": "86d2dddaeea70ccfd8c974124b2e6d052f1a831fa5552aae11c5900b3eaaaa58",
+      "after": "86d2dddaeea70ccfd8c974124b2e6d052f1a831fa5552aae11c5900b3eaaaa58",
+      "baseline": "86d2dddaeea70ccfd8c974124b2e6d052f1a831fa5552aae11c5900b3eaaaa58"
+    },
+    {
+      "name": "pilot-rf-07.json",
+      "before": "053c631b10c74063aadbe0baa5787119c3af11b0f8885db6f03cd07001dff2d5",
+      "after": "053c631b10c74063aadbe0baa5787119c3af11b0f8885db6f03cd07001dff2d5",
+      "baseline": "053c631b10c74063aadbe0baa5787119c3af11b0f8885db6f03cd07001dff2d5"
+    },
+    {
+      "name": "pilot-rf-08.json",
+      "before": "4a60e9ea46378b78d4ae0eae276b54ff97c89258de5432f7fb4c202a7741cd56",
+      "after": "4a60e9ea46378b78d4ae0eae276b54ff97c89258de5432f7fb4c202a7741cd56",
+      "baseline": "4a60e9ea46378b78d4ae0eae276b54ff97c89258de5432f7fb4c202a7741cd56"
+    },
+    {
+      "name": "pilot-rf-09.json",
+      "before": "8306595847a0af58d733d98a813b978fda2e2fa3baede9e54d77821da666c05d",
+      "after": "8306595847a0af58d733d98a813b978fda2e2fa3baede9e54d77821da666c05d",
+      "baseline": "8306595847a0af58d733d98a813b978fda2e2fa3baede9e54d77821da666c05d"
+    },
+    {
+      "name": "pilot-rf-10.json",
+      "before": "6e32aec59c08dcef865d7d3b37b05c5b092330e002d74452e79df60b6f6d7856",
+      "after": "6e32aec59c08dcef865d7d3b37b05c5b092330e002d74452e79df60b6f6d7856",
+      "baseline": "6e32aec59c08dcef865d7d3b37b05c5b092330e002d74452e79df60b6f6d7856"
+    }
+  ]
+}

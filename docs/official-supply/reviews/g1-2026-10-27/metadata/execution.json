@@ -1,0 +1,26 @@
+{
+  "generationSourceSha": "9405606e504dce4f9de88e69b0aed68b1a33e92d",
+  "originalUserBaselineSha": "1414abf105ab2ef8e7a387530125cbf28628a82a",
+  "reasonForNewSourceSha": "latest main at execution was merge #1732, a direct child of the supplied baseline; officialSupply author/pilot owners unchanged",
+  "productionDeploymentObserved": {
+    "id": "867c054e-c5bb-4984-bed6-e424c44c8fa5",
+    "status": "SUCCESS",
+    "commit": "9405606e504dce4f9de88e69b0aed68b1a33e92d",
+    "successAtUtc": "2026-10-26T15:33:36.123Z"
+  },
+  "generationStartedAtUtc": "2026-10-26T15:43:47.729Z",
+  "lastProviderResponseAtUtc": "2026-10-26T15:52:34.787Z",
+  "workflowAttempts": 1,
+  "workflowRetries": 0,
+  "baseCalls": 3,
+  "automaticVoiceRepairCalls": 2,
+  "npcRelationRepairCalls": 0,
+  "providerFailures": 0,
+  "workflowExitCode": 1,
+  "result": "RAW_MANUSCRIPT_CAPTURED_QA_QUARANTINED",
+  "registered": false,
+  "published": false,
+  "textLockCreated": false,
+  "literaryApproval": null,
+  "remoteConsoleLimitation": "The terminal became active in another tab; additional terminal input stopped. The Work browser transport later disconnected. Provider responses and HTTP receipts were downloaded through the existing file UI; canonical remote cost.json and a post-run production DB/source snapshot were not retrieved. Offline QA and repair/accounting replay used the identical pinned source and captured response bytes, with network forbidden for replay."
+}

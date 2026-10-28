@@ -1,0 +1,32 @@
+// Offline audit of captured responses, not a live generation or a new billing owner.
+import fs from 'node:fs';
+import {reviseOfficialCharacterVoice,validatePilotBible,validatePilotDraftForTextLock,createAuthorCostReport,withAuthorAccounting} from './src/lib/officialSupply/author';
+import {compileOfficialDraftFromBible,evaluateRelationBibleContract} from './src/lib/officialSupply/bible';
+import {evaluateDiscoveryTags} from './src/lib/officialSupply/marketFit';
+import {findAdultTermsInText} from './src/lib/characterAdultText';
+import {parseCompatibleUsage} from './src/lib/openRouterUsage';
+import {computeTextLockHash} from './src/lib/officialSupply/characterText';
+globalThis.fetch=async()=>{throw Error('OFFLINE_NETWORK_FORBIDDEN')};
+const read=(p:string)=>JSON.parse(fs.readFileSync(p,'utf8'));
+const out=(n:string,v:unknown)=>fs.writeFileSync('evidence/'+n,JSON.stringify(v,null,2)+'\n');
+async function main(){
+const first=read('evidence/first-generation.json'),pre=read('evidence/preflight.json'),brief=first.brief;
+const world=read('src/lib/officialSupply/pilot/world-bible.json').bible,manifest=read('src/lib/officialSupply/pilot/manifest.json');
+const response=(n:number)=>read('evidence/call-'+String(n).padStart(2,'0')+'-response.txt');
+const completion=(n:number)=>{const r=response(n),u=parseCompatibleUsage({usage:r.usage,transportProvider:'cheaperinference'});const costUsd=u.cheaperInferenceBilledCostUsd??u.upstreamCostUsd??null;if(costUsd!==Number(r.billing.billed_cost_usd))throw Error('Provider settled cost mismatch');return {text:r.choices[0].message.content,model:r.model,inputTokens:u.promptTokens,outputTokens:u.completionTokens,costUsd,providerRequestId:r.request_id??r.id};};
+let bible=first.bible;const repairs=[];
+for(const n of [4,5]){
+ const issues=[...validatePilotBible(bible,{adultExpected:false}).errors,...evaluateDiscoveryTags({tags:bible.publicProfile.tags,bible,hook:brief},manifest.marketPolicy).errors];
+ const requested=read('evidence/call-'+String(n).padStart(2,'0')+'-request.json').body;
+ let inputMatched=false;
+ const revised=await reviseOfficialCharacterVoice({transport:{label:'captured-provider-response-replay',async completeJson(input){inputMatched=input.system.trim()===requested.messages[0].content&&input.user.trim()===requested.messages[1].content;if(!inputMatched)throw Error('Replay input does not match captured provider wire');return completion(n);}},bible,voice:{name:brief.name,age:brief.age,adultCandidate:false,speechDirection:brief.speechDirection,npcDemand:'기존 NPC를 유지한다(새로 만들지 않는다).',marketFit:brief.marketFit,userRelation:brief.userRelation},fields:['publicDescription'],reasons:issues.map((e:any)=>`${e.code}: ${e.message}`),modelId:pre.model});
+ repairs.push({physicalCall:n,inputMatchedCapturedWire:inputMatched,changedField:'publicProfile.description',beforeChars:bible.publicProfile.description.length,afterChars:revised.bible.publicProfile.description.length,reasons:issues});bible=revised.bible;
+}
+const draft=compileOfficialDraftFromBible(bible,{draftKey:'pilot-rf-07',worldKey:manifest.worldKey,styleKey:manifest.styleKey,genres:['로맨스 판타지'],audience:brief.audience,worldName:world.name,worldBible:world,hook:{archetype:brief.archetype,relationshipTrope:brief.relationshipTrope,occupation:brief.occupation,rpHook:brief.rpHook}});
+const hits=Object.fromEntries(['name','tagline','description','greeting','tags'].map(k=>{const value=(draft as any)[k],text=Array.isArray(value)?value.join(' '):String(value??'');return [k,findAdultTermsInText(text).map(term=>({term,context:text.slice(Math.max(0,text.indexOf(term)-70),text.indexOf(term)+term.length+70)}))]}));
+out('automatic-final-reconstructed.json',{status:'RECONSTRUCTED_FROM_CAPTURED_REPAIRS_NO_API_CALL',bible,draft,repairs,bibleQa:validatePilotBible(bible,{adultExpected:false}),draftQa:validatePilotDraftForTextLock(draft,[]),relationSelfDriveQa:evaluateRelationBibleContract(bible),adultTermHits:hits,textLockCandidateHash:computeTextLockHash(draft),textLockCreated:false,approved:false});
+const report=createAuthorCostReport();const lines=[];const tasks=['character_bible_1','character_bible_voice','character_bible_bonds','character_bible_voice','character_bible_voice'] as const;
+for(let i=1;i<=5;i++){const c=completion(i),transport=withAuthorAccounting({label:'captured-provider-response-replay',async completeJson(){return c}},report,{draftKey:'pilot-rf-07',workflowAttempt:1});await transport.completeJson({task:tasks[i-1],system:'offline accounting only',user:'offline accounting only',schemaName:'offline',schema:{},modelId:pre.model});const r=response(i),http=read('evidence/call-'+String(i).padStart(2,'0')+'-http.json'),req=read('evidence/call-'+String(i).padStart(2,'0')+'-request.json');lines.push({physicalCall:i,task:tasks[i-1],httpStatus:http.httpStatus,inputTokens:c.inputTokens,outputTokens:c.outputTokens,providerSettledUsd:Number(r.billing.billed_cost_usd),billingStatus:r.billing.status,providerRequestId:c.providerRequestId,startedAt:req.startedAt,endedAt:http.endedAt,costKrw:Number(r.billing.billed_cost_usd)*pre.fx.effectiveKrwPerUsd});}
+out('cost-usage.json',{source:'captured provider-settled responses; canonical parseCompatibleUsage and withAuthorAccounting replay; no new provider call',remoteCostJsonRetrieved:false,report,fx:pre.fx,costKrw:report.billedCostUsd*pre.fx.effectiveKrwPerUsd,lines});
+console.log(JSON.stringify({repairs,finalBibleOk:validatePilotBible(bible,{adultExpected:false}).ok,finalDraftQa:validatePilotDraftForTextLock(draft,[]),adultTermHits:hits,costUsd:report.billedCostUsd,inputTokens:report.inputTokens,outputTokens:report.outputTokens,costKrw:report.billedCostUsd*pre.fx.effectiveKrwPerUsd},null,2));
+}main().catch(e=>{console.error(e);process.exit(1)});

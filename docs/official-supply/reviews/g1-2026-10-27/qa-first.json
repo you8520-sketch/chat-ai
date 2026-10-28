@@ -1,0 +1,221 @@
+{
+  "bible": {
+    "ok": false,
+    "errors": [
+      {
+        "code": "bible_pitch_band",
+        "message": "publicProfile.description 194 chars (production band 200-500)"
+      }
+    ],
+    "warnings": [
+      {
+        "code": "bible_appearance_band",
+        "message": "appearance 798 chars (target 250-500)"
+      },
+      {
+        "code": "bible_behavioral_coverage",
+        "message": "behavioral may not cover '낯선'"
+      },
+      {
+        "code": "bible_behavioral_coverage",
+        "message": "behavioral may not cover '화났'"
+      }
+    ]
+  },
+  "relationSelfDrive": {
+    "ok": true,
+    "errors": [],
+    "warnings": []
+  },
+  "draftTextLock": {
+    "ok": false,
+    "errors": [
+      {
+        "code": "sfw_public_text_has_adult_terms",
+        "message": "all-ages public text contains adult terms"
+      }
+    ],
+    "warnings": [
+      {
+        "code": "length_total",
+        "message": "length_total: 8241 chars (soft band 6000-8000)"
+      },
+      {
+        "code": "length_speech",
+        "message": "length_speech: 1770 chars (soft band 500-900)"
+      }
+    ]
+  },
+  "stagedSaveLength": {
+    "ok": true,
+    "errors": [],
+    "warnings": []
+  },
+  "publicDescription": {
+    "ok": true,
+    "errors": [],
+    "warnings": []
+  },
+  "creatorComment": {
+    "ok": true,
+    "errors": [],
+    "warnings": []
+  },
+  "playerGenderNeutral": {
+    "ok": true,
+    "errors": [],
+    "warnings": []
+  },
+  "world": {
+    "ok": true,
+    "errors": [],
+    "warnings": [
+      {
+        "code": "world_situation_band",
+        "message": "situation 343 chars (target 500-1000)"
+      }
+    ]
+  },
+  "worldRegion": {
+    "ok": true,
+    "errors": [],
+    "warnings": []
+  },
+  "marketBrief": {
+    "ok": true,
+    "errors": [],
+    "warnings": []
+  },
+  "discoveryTags": {
+    "ok": true,
+    "errors": [],
+    "warnings": []
+  },
+  "marketPortfolio": {
+    "ok": false,
+    "errors": [
+      {
+        "code": "market_fit_missing",
+        "message": "pilot-rf-01: no market fit brief"
+      },
+      {
+        "code": "market_fit_missing",
+        "message": "pilot-rf-02: no market fit brief"
+      },
+      {
+        "code": "market_fit_missing",
+        "message": "pilot-rf-03: no market fit brief"
+      },
+      {
+        "code": "market_fit_missing",
+        "message": "pilot-rf-04: no market fit brief"
+      },
+      {
+        "code": "market_fit_missing",
+        "message": "pilot-rf-05: no market fit brief"
+      },
+      {
+        "code": "market_fit_missing",
+        "message": "pilot-rf-09: no market fit brief"
+      },
+      {
+        "code": "market_fit_missing",
+        "message": "pilot-rf-10: no market fit brief"
+      }
+    ],
+    "warnings": [
+      {
+        "code": "market_role_mix",
+        "message": "proven: 2 outside 6-7"
+      },
+      {
+        "code": "market_role_mix",
+        "message": "proven_twist: 1 outside 2-3"
+      },
+      {
+        "code": "market_role_mix",
+        "message": "experimental: 0 outside 1-1"
+      }
+    ]
+  },
+  "originality": {
+    "ok": true,
+    "errors": [],
+    "warnings": []
+  },
+  "rpSettingOverflowChars": 0,
+  "duplication": [
+    {
+      "draftKey": "pilot-rf-01",
+      "name": "카엘룸 폰 에테르노스",
+      "nameSame": false,
+      "occupationSame": false,
+      "greetingSimilarity": 0.088261253309797,
+      "coreSimilarity": 0.18684992570579495
+    },
+    {
+      "draftKey": "pilot-rf-02",
+      "name": "볼프강 폰 발켄하임",
+      "nameSame": false,
+      "occupationSame": false,
+      "greetingSimilarity": 0.08278388278388278,
+      "coreSimilarity": 0.17528328611898017
+    },
+    {
+      "draftKey": "pilot-rf-03",
+      "name": "루시안 바스케스",
+      "nameSame": false,
+      "occupationSame": false,
+      "greetingSimilarity": 0.06724890829694323,
+      "coreSimilarity": 0.15422885572139303
+    },
+    {
+      "draftKey": "pilot-rf-04",
+      "name": "율리우스 클라인",
+      "nameSame": false,
+      "occupationSame": false,
+      "greetingSimilarity": 0.07592891760904685,
+      "coreSimilarity": 0.16647398843930636
+    },
+    {
+      "draftKey": "pilot-rf-05",
+      "name": "바스티안 에반스",
+      "nameSame": false,
+      "occupationSame": false,
+      "greetingSimilarity": 0.10076045627376426,
+      "coreSimilarity": 0.15436696005416384
+    },
+    {
+      "draftKey": "pilot-rf-06",
+      "name": "에드릭",
+      "nameSame": false,
+      "occupationSame": false,
+      "greetingSimilarity": 0.08201304753028892,
+      "coreSimilarity": 0.18828602227811714
+    },
+    {
+      "draftKey": "pilot-rf-08",
+      "name": "노엘 벨로체",
+      "nameSame": false,
+      "occupationSame": false,
+      "greetingSimilarity": 0.08724202626641651,
+      "coreSimilarity": 0.16855203619909503
+    },
+    {
+      "draftKey": "pilot-rf-09",
+      "name": "세라피나 오로라",
+      "nameSame": false,
+      "occupationSame": false,
+      "greetingSimilarity": 0.04805077062556664,
+      "coreSimilarity": 0.1705150976909414
+    },
+    {
+      "draftKey": "pilot-rf-10",
+      "name": "이노센트 0호",
+      "nameSame": false,
+      "occupationSame": false,
+      "greetingSimilarity": 0.06887298747763863,
+      "coreSimilarity": 0.1871301775147929
+    }
+  ]
+}
