@@ -1,0 +1,11 @@
+{
+  "gitSha": "f55b104bc44c8bcaa28a559e1aa781f1c1867f72",
+  "model": "gpt-6-luna",
+  "provider": "cheaper-inference-background",
+  "physicalAttempts": 8,
+  "billedCostUsd": 0.008044,
+  "billedCostKrwApprox": 12,
+  "inputTokens": 32613,
+  "outputTokens": 17297,
+  "generatedAt": "2026-10-28T11:52:22.976Z"
+}
