@@ -291,6 +291,15 @@ describe("official detailed intro + creator comment", () => {
     assert.doesNotMatch(composed, new RegExp(`\\[${OFFICIAL_PUBLIC_INTRO_SECTIONS.relation}\\]`));
   });
 
+  it("accepts the bare name when the name field carries a `본명 (별명)` alias, and still requires the name", () => {
+    const file = sampleChars()[0]!;
+    const draft = compileOfficialDraftFromBible(file.bible, compileKeys(file));
+    const bare = draft.name;
+    assert.deepEqual(evaluateOfficialPublicDescription(draft.description, `${bare} (별명)`).errors, []);
+    const missing = evaluateOfficialPublicDescription(draft.description, "없는이름 (별명)");
+    assert.ok(missing.errors.some((issue) => issue.code === "public_intro_name_missing"), JSON.stringify(missing.errors));
+  });
+
   it("public intro evaluator rejects a one-paragraph pitch", () => {
     const pitch = composeOfficialPublicDescription;
     assert.ok(evaluateOfficialPublicDescription("황자가 온실에서 당신을 기다린다. 거래가 시작된다.").errors.length > 0);

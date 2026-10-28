@@ -254,6 +254,11 @@ export function composeOfficialPublicDescription(input: OfficialPublicIntroInput
     .trim();
 }
 
+/** `본명 (별명)` is the canonical name-field alias format; the intro may state either the full string or the bare name. */
+function withoutNameAlias(name: string): string {
+  return name.replace(/\s*[(（][^)）]*[)）]\s*$/u, "").trim() || name;
+}
+
 export function evaluateOfficialPublicDescription(description: string, name?: string): QaResult {
   const errors: QaIssue[] = [];
   const text = description.trim();
@@ -288,7 +293,7 @@ export function evaluateOfficialPublicDescription(description: string, name?: st
   if (!text.includes(`[${OFFICIAL_PUBLIC_INTRO_SECTIONS.intro}]`)) {
     errors.push({ code: "public_intro_entry_missing", message: "introduction situation section is required" });
   }
-  if (name && !text.includes(name)) {
+  if (name && !text.includes(name) && !text.includes(withoutNameAlias(name))) {
     errors.push({ code: "public_intro_name_missing", message: "detailed intro must state the character name" });
   }
   if (!/\d+\s*세/.test(text) || !/\d+\s*cm/i.test(text)) {
