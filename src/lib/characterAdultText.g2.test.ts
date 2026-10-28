@@ -35,4 +35,12 @@ describe("G3 adult-term boundaries", () => {
       assert.ok(findAdultTermsInText(text).length > 0, text);
     }
   });
+  it("still catches an unambiguous adult stem inside a compound", () => {
+    for (const [text, expected] of [
+      ["폰섹스", "섹스"],
+      ["구강성교", "성교"],
+      ["아동포르노", "포르노"],
+      ["질삽입", "삽입"],
+    ] as const) assert.ok(findAdultTermsInText(text).includes(expected), text);
+  });
 });

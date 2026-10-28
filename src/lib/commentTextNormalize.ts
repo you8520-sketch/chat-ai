@@ -73,7 +73,20 @@ export function normalizeCommentTextKeepingWordSpaces(raw: string): string {
   return text.replace(/ +/g, " ").trim();
 }
 
-/** 댓글 금지어 검사용 정규화. 우회 문자를 접은 뒤 남은 공백까지 제거한다. */
+const SPECIAL_CHAR_RE = /[^\p{L}\p{N}]/gu;
+
+/**
+ * Comment-ban fold. Spaces are removed before similar-character substitution so
+ * `ㅅ l 발` becomes `ㅅl발` and `l` can map to `ㅣ`. Public adult-term matching
+ * uses `normalizeCommentTextKeepingWordSpaces` and must not share this order.
+ */
 export function normalizeCommentTextForModeration(raw: string): string {
-  return normalizeCommentTextKeepingWordSpaces(raw).replace(/\s/g, "");
+  let text = raw.normalize("NFKC").toLowerCase();
+  text = text.replace(/\s+/g, " ").trim();
+  text = text.replace(/\s/g, "");
+  text = applySimilarCharMap(text);
+  text = text.replace(SPECIAL_CHAR_RE, "");
+  text = collapseRepeatedChars(text);
+  text = mergeJamoBypass(text);
+  return text;
 }

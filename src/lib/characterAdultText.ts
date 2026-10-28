@@ -34,6 +34,13 @@ const ADULT_SUBSTRINGS = [
 const ADULT_ENGLISH_RE =
   /\b(?:fuck|fucking|pussy|cock|dick|cumshot|creampie|blowjob|handjob|hentai|porn|porno|nsfw|anal sex|dildo|fellatio|cunnilingus)\b/i;
 
+/**
+ * These stems are also ordinary Korean pieces (`탁자 위`, `알아보지`, `그 사정`).
+ * They match only at an eojeol start, or when separators split the stem itself.
+ * Every other adult stem is unambiguous and may sit inside a compound (`폰섹스`).
+ */
+const AMBIGUOUS_ADULT_TERMS = new Set(["자위", "자지", "보지", "사정"]);
+
 const NEGATIVE_SEE_NEXT = /^(?:않|못|말)/u;
 const NEGATIVE_SEE_EOJEOL = /^(?:보지|보지는|보지도)$/u;
 
@@ -70,11 +77,12 @@ export function findAdultTermsInText(raw: string): string[] {
   for (const word of ADULT_SUBSTRINGS) {
     const term = normalizeCommentTextKeepingWordSpaces(word).replace(/\s/g, "");
     if (!term) continue;
+    const ambiguous = AMBIGUOUS_ADULT_TERMS.has(term);
     let matched = false;
     for (let i = 0; i < eojeols.length; i += 1) {
       const eojeol = eojeols[i] ?? "";
-      if (!eojeol.startsWith(term)) continue;
-      if (term === "보지" && NEGATIVE_SEE_EOJEOL.test(eojeol) && NEGATIVE_SEE_NEXT.test(eojeols[i + 1] ?? "")) continue;
+      if (!(ambiguous ? eojeol.startsWith(term) : eojeol.includes(term))) continue;
+      if (ambiguous && term === "보지" && NEGATIVE_SEE_EOJEOL.test(eojeol) && NEGATIVE_SEE_NEXT.test(eojeols[i + 1] ?? "")) continue;
       matched = true;
       break;
     }

@@ -165,10 +165,38 @@ const FREE_ASSIGNED_ROLE =
   /(?:당신|유저|사용자)(?:은|는)\s+[^.\n!?]{0,80}?(?:이자|이며|입니다|로서|(?:이다)(?![가-힣]|니))/u;
 const FREE_SHARED_PAST =
   /(?:당신|유저|사용자)(?:와|과)\s*(?:나눈|함께\s*(?:한|했던)|맺은)\s*(?:약속|맹약|인연)/u;
+/** The sentence itself says the user's role is still open. Not a fixed premise. */
+const ROLE_LEFT_OPEN =
+  /아직|어떤\s+\S{0,16}도|정해지지\s*않|정해져\s*있지\s*않|고정하지\s*않|정하지\s*않/u;
+
+function sentencesOf(text: string): string[] {
+  return text.split(/[.!?。！？\n]+/u).map((sentence) => sentence.trim()).filter(Boolean);
+}
+
+function assignsFixedRole(text: string): boolean {
+  return sentencesOf(text).some((sentence) => FREE_ASSIGNED_ROLE.test(sentence) && !ROLE_LEFT_OPEN.test(sentence));
+}
+
+/** Brief fields both portfolio replacement and character-bible generation must scan. */
+export function officialUserRelationPremiseTexts(brief: {
+  rpHook?: string;
+  marketFit?: {
+    userRelationship?: string;
+    oneLineConflict?: string;
+    differentiationTwist?: string;
+  } | null;
+}): string[] {
+  return [
+    brief.rpHook ?? "",
+    brief.marketFit?.userRelationship ?? "",
+    brief.marketFit?.oneLineConflict ?? "",
+    brief.marketFit?.differentiationTwist ?? "",
+  ];
+}
 
 export function evaluateUserRelationPremise(type: OfficialUserRelationType, texts: readonly string[]): QaResult {
   if (type !== "free") return qaResult([]);
-  const hit = texts.find((text) => FREE_ABILITY_PREMISE.test(text) || FREE_ASSIGNED_ROLE.test(text) || FREE_SHARED_PAST.test(text));
+  const hit = texts.find((text) => FREE_ABILITY_PREMISE.test(text) || assignsFixedRole(text) || FREE_SHARED_PAST.test(text));
   return qaResult(hit ? [issue(
     "bible_user_rel_free_premise",
     "FREE premise requires a specific user role or a shared past; declare only that fact as ROLE_BOUND or RELATIONSHIP_BOUND, or remove the prerequisite",

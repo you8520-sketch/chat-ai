@@ -80,7 +80,7 @@ import {
   evaluateOfficialPublicDescription,
 } from "@/lib/officialSupply/publicProfileText";
 import { isOfficialImageSubjects } from "@/lib/officialSupply/imageSubjects";
-import { evaluateUserRelationPremise } from "@/lib/officialSupply/userRelationStart";
+import { evaluateUserRelationPremise, officialUserRelationPremiseTexts } from "@/lib/officialSupply/userRelationStart";
 import { coerceMarketFitBrief } from "@/lib/officialSupply/marketFit";
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import {
@@ -663,12 +663,7 @@ export async function generateOfficialPortfolioReplacement(input: {
   }
   for (const brief of briefs) {
     const planType = coerceUserRelationPlan(brief.userRelation ?? null);
-    const premise = evaluateUserRelationPremise(planType.type, [
-      brief.rpHook,
-      brief.marketFit?.userRelationship ?? "",
-      brief.marketFit?.oneLineConflict ?? "",
-      brief.marketFit?.differentiationTwist ?? "",
-    ]);
+    const premise = evaluateUserRelationPremise(planType.type, officialUserRelationPremiseTexts(brief));
     if (!premise.ok) {
       throw new OfficialSupplyGateError(
         "author_user_relation_mismatch",
@@ -1075,10 +1070,7 @@ export async function generateOfficialCharacterBible(input: {
   npcRelationRepairs: OfficialAuthorRawCompletion[];
 }> {
   const userRelation = canonicalUserRelationPlan(input);
-  const premise = evaluateUserRelationPremise(userRelation.type, [
-    input.part1.brief.rpHook, input.part1.brief.marketFit?.userRelationship ?? "",
-    input.part1.brief.marketFit?.differentiationTwist ?? "",
-  ]);
+  const premise = evaluateUserRelationPremise(userRelation.type, officialUserRelationPremiseTexts(input.part1.brief));
   if (!premise.ok) throw new OfficialSupplyGateError("author_user_relation_mismatch", premise.errors.map(e => e.message).join("; "), premise);
   const first = await input.transport.completeJson({
     task: "character_bible_1",

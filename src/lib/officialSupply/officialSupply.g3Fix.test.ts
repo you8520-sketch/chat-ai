@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { findAdultTermsInText, characterAdultTextBlob } from "@/lib/characterAdultText";
 import { generateOfficialCharacterBible, generateOfficialPortfolioReplacement, type OfficialAuthorTransport } from "@/lib/officialSupply/author";
 import { evaluateRelationBibleContract, type OfficialCharacterBible } from "@/lib/officialSupply/bible";
-import { evaluateUserRelationPremise } from "@/lib/officialSupply/userRelationStart";
+import { evaluateUserRelationPremise, officialUserRelationPremiseTexts } from "@/lib/officialSupply/userRelationStart";
 import { loadRelationStartCandidates } from "@/lib/officialSupply/relationStartCandidates";
 
 const G3 = path.join(process.cwd(), "docs/official-supply/reviews/g3-2026-10-28/candidates");
@@ -116,6 +116,47 @@ describe("G3 fix: SFW false positive and FREE premise", () => {
       /FREE premise requires/,
     );
     assert.equal(calls, 1);
+  });
+
+  it("scans oneLineConflict on the character path with the same premise owner", async () => {
+    const brief = {
+      name: "검사",
+      age: 30,
+      rpHook: "수도의 배급이 멈췄다.",
+      userRelation: { type: "free" as const, fixed: "" },
+      marketFit: {
+        userRelationship: "유저와의 사전 관계는 정하지 않는다.",
+        oneLineConflict: "그는 유저와 나눈 약속을 이미 잊은 채 협조를 요구한다.",
+        differentiationTwist: "계약을 집행할수록 얼굴을 잊는다.",
+      },
+    };
+    assert.ok(officialUserRelationPremiseTexts(brief).some((text) => text.includes("유저와 나눈 약속")));
+    const transport: OfficialAuthorTransport = {
+      label: "never-call",
+      async completeJson() {
+        throw new Error("unexpected provider call");
+      },
+    };
+    await assert.rejects(
+      generateOfficialCharacterBible({
+        transport,
+        part1: { brief, worldName: "에테르노스", worldContext: "", siblingSketches: [] },
+        voice: { name: brief.name, age: 30, adultCandidate: false, speechDirection: "", npcDemand: "없음" },
+        bonds: { name: brief.name, age: 30, adultCandidate: false, speechDirection: "", npcDemand: "없음", rpHook: brief.rpHook, castList: [] },
+      }),
+      /FREE premise requires/,
+    );
+  });
+
+  it("allows an explicitly unfixed FREE role and still rejects a required present role", () => {
+    assert.equal(
+      evaluateUserRelationPremise("free", ["당신은 아직 어떤 역할도 정해지지 않은 상태입니다."]).ok,
+      true,
+    );
+    assert.equal(
+      evaluateUserRelationPremise("free", ["당신은 핵심 목격자이자 판독 대상입니다."]).ok,
+      false,
+    );
   });
 
   it("keeps the three relation-start candidates and the published Wolfgang sheet", () => {
