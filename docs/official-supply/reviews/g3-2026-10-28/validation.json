@@ -1,0 +1,30 @@
+{
+  "candidates": [
+    {
+      "key": "g3-rofan-a",
+      "name": "로언",
+      "bibleQaOk": true,
+      "draftQaOk": false,
+      "relationQaOk": true,
+      "bibleQa": [],
+      "draftQa": [
+        "sfw_public_text_has_adult_terms: all-ages public text contains adult terms"
+      ],
+      "relationQa": [],
+      "voiceRepairs": 0,
+      "textLock": "ac6868c44f0bcfc82d31c2ed0e15336251d730340a54fd8b35776367fb674343"
+    },
+    {
+      "key": "g3-rofan-b",
+      "name": "이든",
+      "bibleQaOk": true,
+      "draftQaOk": true,
+      "relationQaOk": true,
+      "bibleQa": [],
+      "draftQa": [],
+      "relationQa": [],
+      "voiceRepairs": 1,
+      "textLock": "dbb073e9e0c5a973fe75b14667fe3b2ae56c714bc57070f0c22dac565e16e5f4"
+    }
+  ]
+}
