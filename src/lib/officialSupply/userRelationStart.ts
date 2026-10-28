@@ -189,6 +189,7 @@ function assignsFixedRole(text: string): boolean {
       if (COPULA_TOKEN.test(part)) {
         if (topicOpen && !UNFIXED_PREDICATE.test(pending)) return true;
         pending = "";
+        topicOpen = false;
         continue;
       }
       pending += part;

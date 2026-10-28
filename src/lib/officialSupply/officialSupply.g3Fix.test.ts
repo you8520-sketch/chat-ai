@@ -159,7 +159,12 @@ describe("G3 fix: SFW false positive and FREE premise", () => {
       "당신은 아직 수사의 핵심 목격자입니다.",
       "당신은 수사의 핵심 목격자이며 아직 처분은 정해지지 않았습니다.",
       "유저와 나눈 약속을 잊었다.",
+      "유저는 역할이 미정이며, 유저는 황실의 핵심 목격자입니다.",
     ]) assert.equal(evaluateUserRelationPremise("free", [text]).ok, false, text);
+    assert.equal(
+      evaluateUserRelationPremise("free", ["유저는 역할이 미정이며, 캐릭터는 황실 기록관입니다."]).ok,
+      true,
+    );
   });
 
   it("keeps the three relation-start candidates and the published Wolfgang sheet", () => {
