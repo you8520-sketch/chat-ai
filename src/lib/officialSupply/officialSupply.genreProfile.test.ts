@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
@@ -174,6 +175,9 @@ const ROFAN_ONLY_STRINGS = ["로맨스 판타지", "황태자", "기사단장", 
 const DIRECTION_HEADER = "창작 방향(";
 const count = (text: string, needle: string) => text.split(needle).length - 1;
 
+/** Same market as `compose(undefined)`; bytes match `git show 2ae39783` authorPrompts (see scripts/compare-rofan-baseline.mts). */
+const G5_1D_ROFAN_WORLD_CORE_SHA256 = "73919ae96b84c97a7ac042f3f033beb2810d7854f65213be7b4f1bc70dc84319";
+
 const ROFAN_SERIOUS: OfficialAuthoringDirection = { genre: OFFICIAL_ROFAN_GENRE, tone: "serious", humor: "none" };
 const SCHOOL_COMEDY: OfficialAuthoringDirection = {
   genre: "학원",
@@ -199,6 +203,16 @@ describe("genre profile owner — rofan parity", () => {
     assert.equal(overlapRule.length, 2, "an explicit plan adds only the cast-experience overlap rule");
     const withoutOverlap = explicit.replacement.split("\n").filter((line) => !overlapRule.includes(line)).join("\n");
     assert.deepEqual({ ...explicit, replacement: withoutOverlap }, legacy);
+  });
+
+  it("rofan worldCore byte-matches G5-1D authorPrompts baseline (2ae39783)", () => {
+    const core = compose(undefined).worldCore;
+    assert.ok(!core.includes("키=영역명"), "full-scale society hint must not appear on rofan/absent plan");
+    assert.equal(
+      core.split("\n").find((line) => line.startsWith("- society:")),
+      "- society: RP에 영향을 주는 영역 3개 이상(계급·법·결혼/가족·교육·직업·군사·차별/예절 중)"
+    );
+    assert.equal(createHash("sha256").update(core).digest("hex"), G5_1D_ROFAN_WORLD_CORE_SHA256);
   });
 
   it("the rofan parity profile carries the pre-G5 wording and no direction block", () => {

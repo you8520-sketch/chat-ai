@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { findAdultTermsInText } from "@/lib/characterAdultText";
+import { characterAdultTextBlob, findAdultTermsInText } from "@/lib/characterAdultText";
 
 describe("G2 Korean see verb versus adult noun", () => {
   it("accepts G1 and ordinary negative verb inflections", () => {
@@ -40,8 +40,15 @@ describe("G3 adult-term boundaries", () => {
   it("allows ordinary 사정 particles and still blocks the adult stem", () => {
     assert.deepEqual(findAdultTermsInText("단, 누구의 사정도 허락 없이 종이에 올리진 않을"), []);
     assert.deepEqual(findAdultTermsInText("사정이 생겨서 자리를 비웠다"), []);
-    for (const text of ["사정", "사정을", "사정했다", "사 정"]) {
+    for (const text of ["사정", "사정했다", "사 정"]) {
       assert.ok(findAdultTermsInText(text).includes("사정"), text);
+    }
+    for (const text of [
+      "사정을 공개하지 않는다",
+      "남의 사정을 함부로 말하지 않는다",
+      "사정을 캐묻거나",
+    ]) {
+      assert.deepEqual(findAdultTermsInText(text), [], text);
     }
     assert.ok(findAdultTermsInText("폰섹스").includes("섹스"));
     const greeting = JSON.parse(
@@ -52,6 +59,22 @@ describe("G3 adult-term boundaries", () => {
     ).greeting as string;
     assert.match(greeting, /사정도/);
     assert.deepEqual(findAdultTermsInText(greeting), []);
+  });
+  it("saved g5-modern-comedy-e public blob stays clean after ordinary 사정을 allowlist", () => {
+    const draft = JSON.parse(
+      fs.readFileSync(
+        path.join(process.cwd(), "docs/official-supply/reviews/g5-1-2026-10-28/candidates/g5-modern-comedy-e/draft.compiled.json"),
+        "utf8"
+      )
+    );
+    const blob = characterAdultTextBlob({
+      name: draft.name,
+      tagline: draft.tagline,
+      description: draft.description,
+      greeting: draft.greeting,
+      tags: draft.tags,
+    });
+    assert.deepEqual(findAdultTermsInText(blob), []);
   });
   it("still catches an unambiguous adult stem inside a compound", () => {
     for (const [text, expected] of [

@@ -164,11 +164,15 @@ export function buildWorldCoreUser(input: WorldBibleInput): string {
   const factionLead =
     scale === "scene"
       ? `- factions ${lim.factions.min}~${lim.factions.max}개(이 사건의 사람·소속): 이름·목적·지도층·수단·타 세력과의 관계·일반인의 시선`
-      : `- factions ${lim.factions.min}~${lim.factions.max}개: 이름·목적·지도층·수단·타 세력과의 관계·일반인의 시선`;
+      : "- factions 3~6개: 이름·목적·지도층·수단·타 세력과의 관계·일반인의 시선";
   const societyLine =
     scale === "scene"
       ? `- society: 이 사건에 실제로 쓰이는 RP 영역 ${lim.societyAreas.min}개 이상. 키=영역명·값=설명 문자열(중첩 객체·domains 배열 금지)`
-      : `- society: RP에 영향을 주는 영역 ${lim.societyAreas.min}개 이상(계급·법·결혼/가족·교육·직업·군사·차별/예절 중). 키=영역명·값=설명 문자열`;
+      : "- society: RP에 영향을 주는 영역 3개 이상(계급·법·결혼/가족·교육·직업·군사·차별/예절 중)";
+  const cultureLine =
+    scale === "scene"
+      ? `- culture ${lim.culture.min}~${lim.culture.max}개: 이름·상세`
+      : "- culture 3~6개: 이름·상세";
   return [
     `장르: ${input.genre}`,
     `대상 시장: ${input.market.targetLocale} (${input.market.marketPriority})`,
@@ -188,7 +192,7 @@ export function buildWorldCoreUser(input: WorldBibleInput): string {
     "- powerSystem: capabilities·users·acquisition·ranks·limits·costs·socialImpact·taboos (\"마법이 있다\" 수준 금지)",
     ...(plan.profile.worldPowerNote ? [plan.profile.worldPowerNote] : []),
     societyLine,
-    `- culture ${lim.culture.min}~${lim.culture.max}개: 이름·상세`,
+    cultureLine,
     "최상위 키는 정확히 name·genre·subgenre·tone·era·techLevel·regions·societyForm·premise·centralPremise·",
     "situation·factions·powerSystem·society·culture 이며 하나도 빠뜨리지 않는다.",
     "아래 빈 틀의 모든 값을 채워 JSON 한 개만 출력한다.",
