@@ -53,7 +53,10 @@ import {
 } from "./memory-global-checkpoint";
 import { refreshGlobalMemoryMirrorFromRecords } from "./memory-global-projection";
 import { executeGlobalLorebookCompaction } from "./memory-global-compaction-execution";
-import { resolveGlobalCurrentMemory } from "./memory-lorebook-resolve";
+import {
+  resolveGlobalCurrentMemory,
+  summaryTextForPromptInjection,
+} from "./memory-lorebook-resolve";
 import { isGeminiIsolationMode } from "@/lib/geminiIsolationMode";
 import { emptyMemoryInjection, isMemoryFeatureEnabled } from "./memory-feature";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
@@ -277,7 +280,12 @@ export async function buildMemoryContextForPreview(opts: {
     excludeTurnStartGte: opts.excludeSummaryTurnStartGte,
     storedRecentSummary: memory?.recent_summary,
   });
-  const recentForPrompt = resolved.text;
+  const recentForPrompt = summaryTextForPromptInjection(
+    opts.chatId,
+    resolved.text,
+    resolved.projectionKind,
+    budget.lorebook
+  );
   const archiveSummary = memory?.archive_summary?.trim() ?? "";
   const archiveForPrompt =
     archiveSummary.length > budget.archive
@@ -334,7 +342,12 @@ export async function buildMemoryContextForChat(opts: {
     storedRecentSummary: memory.recent_summary,
   });
   const archiveSummary = memory.archive_summary?.trim() ?? "";
-  const recentForPrompt = resolved.text;
+  const recentForPrompt = summaryTextForPromptInjection(
+    opts.chatId,
+    resolved.text,
+    resolved.projectionKind,
+    budget.lorebook
+  );
   const archiveForPrompt =
     archiveSummary.length > budget.archive
       ? trimLorebookToBudgetSync(archiveSummary, budget.archive)

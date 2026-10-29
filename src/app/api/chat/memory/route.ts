@@ -19,7 +19,10 @@ import {
   scheduleMemoryPanelBackfill,
   syncAndCompressMemoryFromChat,
 } from "@/lib/memory/memory-backfill";
-import { resolveGlobalCurrentMemory } from "@/lib/memory/memory-lorebook-resolve";
+import {
+  resolveGlobalCurrentMemory,
+  summaryTextForPromptInjection,
+} from "@/lib/memory/memory-lorebook-resolve";
 import { isManualGlobalActive } from "@/lib/memory/memory-global-checkpoint";
 import {
   MEDIUM_TERM_BLOCK_COUNT,
@@ -174,7 +177,12 @@ export async function GET(req: Request) {
   const resolvedGlobal = resolveGlobalCurrentMemory(chatId, lorebookBudget, {
     storedRecentSummary: memRow.recent_summary,
   });
-  const displayLorebook = resolvedGlobal.text || snapshot.lorebook.trim();
+  const displayLorebook = summaryTextForPromptInjection(
+    chatId,
+    resolvedGlobal.text || snapshot.lorebook.trim(),
+    resolvedGlobal.projectionKind,
+    lorebookBudget
+  );
   const displayText = displayLorebook.trim();
 
   // The records tab must show exactly what the next prompt receives: for a user-saved Global that is

@@ -11,7 +11,11 @@ import {
   snapshotBranchControlPrevious,
   type BranchControlSource,
 } from "./memory-branch-control";
-import { loadMemoryEligibleChatTurnsWithMessageIds } from "./memory-turn-loader";
+import {
+  loadMemoryEligibleChatTurnsWithMessageIds,
+  loadMemoryEligibleTurnContentsForRanges,
+} from "./memory-turn-loader";
+import { reconcileSummaryItemRoles } from "./memory-summary-integrity";
 import {
   adoptPostManualEditToMain,
   encodeScopePayload,
@@ -181,6 +185,114 @@ export function resolvePromptInjectibleMemoryRecordBody(record: MemoryRecordView
     return record.summary.trim();
   }
   return "";
+}
+
+export const SUMMARY_ITEM_ROLE_HINT = /계속\s*소유|끼워|끼웠/u;
+
+export type SummaryRoleTurn = {
+  turnNumber: number;
+  user: string;
+  assistant: string;
+};
+
+function formatTurnsForItemRoleReconciliation(turns: readonly SummaryRoleTurn[]): string {
+  return turns
+    .map((turn) => `[${turn.turnNumber}턴]\n유저: ${turn.user}\n캐릭터: ${turn.assistant}`)
+    .join("\n\n");
+}
+
+/**
+ * Read-time correction for a sealed summary body. Stored rows stay unchanged.
+ * User-edited text is returned as saved.
+ */
+export function reconcilePromptMemoryRecordBody(
+  record: Pick<MemoryRecordView, "userEdited" | "inactive" | "turnStart" | "turnEnd">,
+  body: string,
+  turns: readonly SummaryRoleTurn[]
+): string {
+  if (record.userEdited || record.inactive || !body.trim()) return body;
+  if (!SUMMARY_ITEM_ROLE_HINT.test(body)) return body;
+  const dialogue = formatTurnsForItemRoleReconciliation(
+    turns.filter(
+      (turn) => turn.turnNumber >= record.turnStart && turn.turnNumber <= record.turnEnd
+    )
+  );
+  if (!dialogue) return body;
+  return reconcileSummaryItemRoles(body, dialogue).text;
+}
+
+export type PromptSummaryItemRolePlan =
+  | { action: "keep"; reason: "no_hint" | "headerless_global" }
+  | { action: "per_block" };
+
+/** Headerless compact prose is not rewritten. A full-dialogue pass would hide one bad sentence by rewriting every other sentence. */
+export function planPromptSummaryItemRoleRewrite(text: string): PromptSummaryItemRolePlan {
+  if (!text.trim() || !SUMMARY_ITEM_ROLE_HINT.test(text)) {
+    return { action: "keep", reason: "no_hint" };
+  }
+  if (!/\[\d+~\d+턴\]/u.test(text)) return { action: "keep", reason: "headerless_global" };
+  return { action: "per_block" };
+}
+
+/** Loads source turns only for summary batches whose own text can contain an item-role contradiction. */
+export function loadTurnsForSummaryRoleReconciliation(
+  chatId: number,
+  bodies: readonly string[],
+  ranges: readonly { turnStart: number; turnEnd: number }[] = []
+): SummaryRoleTurn[] {
+  if (ranges.length === 0 || !bodies.some((body) => SUMMARY_ITEM_ROLE_HINT.test(body))) return [];
+  try {
+    return loadMemoryEligibleTurnContentsForRanges(chatId, ranges).map((turn) => ({
+      turnNumber: turn.turnNumber,
+      user: turn.user,
+      assistant: turn.assistant,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Prompt-visible lorebook text. Each `[start~end턴]` block is checked against that
+ * record's own turns. Prose without those headers is returned unchanged.
+ */
+export function reconcilePromptVisibleSummaryText(chatId: number, text: string): string {
+  if (planPromptSummaryItemRoleRewrite(text).action === "keep") return text;
+  let records: MemoryRecordView[] = [];
+  try {
+    records = listMemoryRecordsForChat(chatId);
+  } catch {
+    return text;
+  }
+  const ranges: { turnStart: number; turnEnd: number }[] = [];
+  for (const match of text.matchAll(/\[(\d+)~(\d+)턴\] ([^\n]+)/gu)) {
+    const turnStart = Number(match[1]);
+    const turnEnd = Number(match[2]);
+    const body = match[3] ?? "";
+    if (!SUMMARY_ITEM_ROLE_HINT.test(body)) continue;
+    const record = records.find((row) => row.turnStart === turnStart && row.turnEnd === turnEnd);
+    if (record?.userEdited || record?.inactive) continue;
+    ranges.push({ turnStart, turnEnd });
+  }
+  if (ranges.length === 0) return text;
+  const turns = loadTurnsForSummaryRoleReconciliation(chatId, [text], ranges);
+  if (turns.length === 0) return text;
+
+  return text.replace(
+    /\[(\d+)~(\d+)턴\] ([^\n]+)/g,
+    (full, startText: string, endText: string, body: string) => {
+      const turnStart = Number(startText);
+      const turnEnd = Number(endText);
+      const record = records.find((row) => row.turnStart === turnStart && row.turnEnd === turnEnd);
+      if (record?.userEdited || record?.inactive) return full;
+      const reconciled = reconcilePromptMemoryRecordBody(
+        { userEdited: false, inactive: false, turnStart, turnEnd },
+        body,
+        turns
+      );
+      return reconciled === body ? full : `[${startText}~${endText}턴] ${reconciled}`;
+    }
+  );
 }
 
 export type ManualGlobalMediumDelivery = {

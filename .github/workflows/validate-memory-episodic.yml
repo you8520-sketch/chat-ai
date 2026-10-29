@@ -16,6 +16,8 @@ on:
       - "src/lib/memory/mainRpMemoryReliability.repro.test.ts"
       - "src/lib/memory/memory-summary-integrity.ts"
       - "src/lib/memory/memory-summary-integrity.test.ts"
+      - "src/lib/memory/memory-b48-item-role.test.ts"
+      - "src/lib/memory/memory-turn-loader.ts"
       - "src/lib/memory/memory-batch-source-guard.ts"
       - "src/lib/memory/memory-episodic-extract.ts"
       - "src/lib/memory/memory-episodic-hardening.test.ts"
@@ -185,7 +187,7 @@ jobs:
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-episodic-hardening.test.ts
 
       - name: Shared-history provenance regressions
-        run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/historicalTruthPolicy.test.ts src/lib/memory/memory-summary-integrity.test.ts src/lib/memory/mainRpMemoryReliability.repro.test.ts
+        run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/historicalTruthPolicy.test.ts src/lib/memory/memory-summary-integrity.test.ts src/lib/memory/mainRpMemoryReliability.repro.test.ts src/lib/memory/memory-b48-item-role.test.ts
 
       - name: Episodic ownership decoupling
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-episodic-ownership.test.ts

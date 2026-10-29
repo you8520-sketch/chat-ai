@@ -8,9 +8,9 @@ import {
   emergencyFallbackTrimLorebookSync,
   isGlobalCompactProjectionFresh,
   isManualGlobalProjectionFresh,
+  type GlobalProjectionKind,
 } from "./memory-global-projection";
-import { rebuildLorebookFromRecords } from "./memory-turn-summary";
-import type { GlobalProjectionKind } from "./memory-global-projection";
+import { rebuildLorebookFromRecords, reconcilePromptVisibleSummaryText } from "./memory-turn-summary";
 import type { ChatMemoryRow } from "./memory-types";
 
 export type GlobalCurrentMemorySource = "chat_turn_summaries" | "chat_memories_recent_summary";
@@ -181,6 +181,24 @@ function resolveGlobalCurrentMemoryCore(
     storedRecentSummaryChars,
     needsBackgroundCompact: true,
   };
+}
+
+/**
+ * Prompt/panel view of an already resolved Global string.
+ * Does not change chat_turn_summaries or the exact recent_summary mirror.
+ * A user-saved Global is left as written. Growth past the lorebook budget is trimmed
+ * with the existing emergency trim so role repair cannot schedule a new compact.
+ */
+export function summaryTextForPromptInjection(
+  chatId: number,
+  text: string,
+  projectionKind: GlobalProjectionKind,
+  maxChars: number
+): string {
+  if (projectionKind === "manual_global") return text;
+  const reconciled = reconcilePromptVisibleSummaryText(chatId, text);
+  if (reconciled.length <= maxChars) return reconciled;
+  return emergencyFallbackTrimLorebookSync(reconciled, maxChars);
 }
 
 /** 패널·프롬프트 조립 — 기록 재조립 + Global projection / emergency fallback */
