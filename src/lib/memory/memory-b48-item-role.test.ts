@@ -1,12 +1,23 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
+import { getDb } from "@/lib/db";
 import {
   buildEpisodicCandidateScope,
   inspectLexicalRelevanceForDebug,
 } from "@/lib/episodicMemoryFacts";
+import { buildHistoricalTruthCurrentUserRecencyRef } from "@/lib/historicalTruthPolicy";
+import {
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
 import { reconcileSummaryItemRoles } from "./memory-summary-integrity";
-import { reconcilePromptMemoryRecordBody } from "./memory-turn-summary";
+import {
+  planPromptSummaryItemRoleRewrite,
+  reconcilePromptMemoryRecordBody,
+  reconcilePromptVisibleSummaryText,
+} from "./memory-turn-summary";
 import {
   __setSummarizeTurnBatchCallerForTests,
   summarizeTurnBatch,
@@ -21,8 +32,15 @@ const SOURCE = [
 const STORED_76_80 =
   "이후 공개 프러포즈 미신을 믿은 오스카가 격납고에서 폭약 연막으로 청혼하고, 수류탄 핀 반지를 건넴. 제이는 반지를 끼워 약혼을 받아들이는 듯 응답했으나 폭약 낭비와 공개 소동은 처벌하겠다고 선언함. 오스카는 이를 기쁘게 받아들였고, 반지는 오스카가 계속 소유한 채 공식 약혼자라는 기쁨을 드러냄.";
 
+const T80_QUESTION =
+  "기억만 말해. 사람들 앞에서 우리 관계를 확정하려고 한 일이 있으면, 누가 누구에게 어떤 물건을 건넸는지, 그 일이 지금 장면인지 예전 장면인지 말해. 그 물건이 예전에 설치한 폭약과 같은 물건인지도 구분해. 없으면 없다고 해.";
+
 const T100_QUESTION =
   "기억만 말해. 본편과 방금 시작된 외전이 있으면 둘을 구분해. 사람들 앞에서 관계를 확정하려고 물건을 주고받은 일은 어느 쪽의 과거인지, 누가 누구에게 무엇을 건넸는지 말해. 그 뒤에 호칭이나 명령이나 소유에 대한 말이 바뀐 것이 있으면 아직 유효한 것과 철회된 것을 구분해. 없으면 없다고 해.";
+
+function dialogue(turn: number, assistant: string): string {
+  return [`[${turn}턴]`, "유저: 소지품을 확인해.", `제이: ${assistant}`].join("\n");
+}
 
 describe("B48 summary item roles", () => {
   it("replaces continued ownership when the source shows self-wear and leaves the later ring uncertain", () => {
@@ -91,6 +109,320 @@ describe("B48 summary item roles", () => {
     }
   });
 });
+
+describe("B48 multi-event item role safety", () => {
+  it("keeps two different rings on their own wearers", () => {
+    const result = reconcileSummaryItemRoles(
+      "수류탄 핀 반지는 오스카가 계속 소유한 채 보관함.",
+      dialogue(
+        10,
+        "제이는 자신의 손가락에 수류탄 핀 반지를 끼웠다. 렌이 자신의 손가락에 가문 반지를 끼웠다."
+      )
+    );
+    assert.equal(result.reason, "continued_owner_contradicts_self_wear");
+    assert.match(result.text, /수류탄 핀 반지는 제이가 자신의 몸에 착용함/);
+    assert.doesNotMatch(result.text, /렌/);
+    assert.doesNotMatch(result.text, /계속 소유/);
+
+    const topic = reconcileSummaryItemRoles(
+      "수류탄 핀 반지는 오스카가 계속 소유한 채 보관함.",
+      dialogue(
+        10,
+        "제이는 자신의 손가락에 수류탄 핀 반지를 끼웠다. 렌은 자신의 손가락에 가문 반지를 끼웠다."
+      )
+    );
+    assert.match(topic.text, /수류탄 핀 반지는 제이가 자신의 몸에 착용함/);
+    assert.doesNotMatch(topic.text, /렌/);
+  });
+
+  it("does not let one person's later item rewrite a different item", () => {
+    const result = reconcileSummaryItemRoles(
+      "수류탄 핀 반지는 오스카가 계속 소유한 채. 은시계는 렌이 계속 소유한 채.",
+      dialogue(
+        12,
+        "제이는 자신의 손가락에 수류탄 핀 반지를 끼웠다. 제이는 자신의 손목에 은시계를 착용했다."
+      )
+    );
+    assert.match(result.text, /수류탄 핀 반지는 제이가 자신의 몸에 착용함/);
+    assert.match(result.text, /은시계는 제이가 자신의 몸에 착용함/);
+    assert.doesNotMatch(result.text, /계속 소유/);
+  });
+
+  it("does not give a ring clause to the later wearer of a different item", () => {
+    const result = reconcileSummaryItemRoles(
+      "수류탄 핀 반지는 오스카가 계속 소유한 채.",
+      dialogue(
+        12,
+        "제이는 자신의 손가락에 수류탄 핀 반지를 끼웠다. 렌이 자신의 손목에 은시계를 착용했다."
+      )
+    );
+    assert.match(result.text, /수류탄 핀 반지는 제이가 자신의 몸에 착용함/);
+    assert.doesNotMatch(result.text, /렌/);
+  });
+
+  it("does not pick a later wearer when the same item is worn again", () => {
+    const summary = "수류탄 핀 반지는 제이가 계속 소유한 채 보관함.";
+    const result = reconcileSummaryItemRoles(
+      summary,
+      dialogue(
+        14,
+        "제이는 자신의 손가락에 수류탄 핀 반지를 끼웠다. 오스카는 자신의 손가락에 그 수류탄 핀 반지를 끼웠다."
+      )
+    );
+    assert.equal(result.changed, false);
+    assert.equal(result.text, summary);
+    assert.equal(result.reason, "ambiguous_multiple_wears");
+  });
+
+  it("keeps a source recipient when the wearer and the current owner differ", () => {
+    const summary = "반지는 오스카가 계속 소유한 채 보관함.";
+    const result = reconcileSummaryItemRoles(
+      summary,
+      dialogue(16, "제이는 자신의 손가락에 반지를 끼웠다가 오스카에게 건넸다.")
+    );
+    assert.equal(result.changed, false);
+    assert.equal(result.text, summary);
+    assert.equal(result.reason, "source_assigns_other_owner");
+  });
+
+  it("ignores quoted, speculative, and hallucinated wears", () => {
+    const summary = "반지는 오스카가 계속 소유한 채.";
+    const hallucination = reconcileSummaryItemRoles(
+      summary,
+      dialogue(18, "환각 속에서 제이는 자신의 손가락에 반지를 끼웠다.")
+    );
+    assert.equal(hallucination.changed, false);
+    assert.equal(hallucination.text, summary);
+    assert.equal(hallucination.reason, "non_factual_wear");
+
+    const quoted = reconcileSummaryItemRoles(
+      summary,
+      dialogue(18, "렌이 말했다. 「제이는 자신의 손가락에 반지를 끼웠어.」")
+    );
+    assert.equal(quoted.changed, false);
+    assert.equal(quoted.text, summary);
+
+    const guessed = reconcileSummaryItemRoles(
+      summary,
+      dialogue(18, "제이는 자신의 손가락에 반지를 끼웠을 것 같다.")
+    );
+    assert.equal(guessed.changed, false);
+    assert.equal(guessed.text, summary);
+
+    const real = reconcileSummaryItemRoles(
+      "수류탄 핀 반지는 오스카가 계속 소유한 채.",
+      dialogue(
+        18,
+        "제이는 자신의 손가락에 수류탄 핀 반지를 끼웠다. 환각 속에서 렌은 자신의 손가락에 수류탄 핀 반지를 끼웠다."
+      )
+    );
+    assert.match(real.text, /수류탄 핀 반지는 제이가 자신의 몸에 착용함/);
+    assert.doesNotMatch(real.text, /렌가 자신의|렌이 자신의 몸에/);
+  });
+
+  it("does not let an automatic item correction overwrite a mixed user edit", () => {
+    const mixed = reconcileSummaryItemRoles(
+      "가문 반지는 렌이 계속 소유한 채. 수류탄 핀 반지는 오스카가 계속 소유한 채.",
+      dialogue(20, "제이는 자신의 손가락에 수류탄 핀 반지를 끼웠다.")
+    );
+    assert.match(mixed.text, /가문 반지는 렌이 계속 소유/);
+    assert.match(mixed.text, /수류탄 핀 반지는 제이가 자신의 몸에 착용함/);
+    assert.doesNotMatch(mixed.text, /오스카가 계속 소유/);
+
+    const edited = "가문 반지는 렌이 계속 소유한 채.";
+    assert.equal(
+      reconcilePromptMemoryRecordBody(
+        { userEdited: true, inactive: false, turnStart: 1, turnEnd: 5 },
+        edited,
+        [{ turnNumber: 3, user: "수정", assistant: "제이는 자신의 손가락에 수류탄 핀 반지를 끼웠다." }]
+      ),
+      edited
+    );
+
+    const outside = reconcilePromptMemoryRecordBody(
+      { userEdited: false, inactive: false, turnStart: 6, turnEnd: 10 },
+      "수류탄 핀 반지는 오스카가 계속 소유한 채.",
+      [
+        { turnNumber: 3, user: "이전", assistant: "제이는 자신의 손가락에 수류탄 핀 반지를 끼웠다." },
+        { turnNumber: 8, user: "이후", assistant: "제이가 고개를 끄덕였다." },
+      ]
+    );
+    assert.equal(outside, "수류탄 핀 반지는 오스카가 계속 소유한 채.");
+  });
+
+  it("does not promote a completed wear into the current scene", () => {
+    const pointer = buildHistoricalTruthCurrentUserRecencyRef(T80_QUESTION);
+    assert.match(pointer, /\[HISTORICAL TRUTH CHECK\]/);
+    assert.match(pointer, /장면 기록/);
+    assert.doesNotMatch(pointer, /현재 장면이다|지금 일어나고|착용 중/);
+    const sealed = reconcileSummaryItemRoles(STORED_76_80, SOURCE);
+    assert.match(sealed.text, /착용함/);
+    assert.doesNotMatch(sealed.text, /착용 중|지금 장면/);
+  });
+});
+
+describe("B48 read-time item role load", { concurrency: 1 }, () => {
+  it("keeps headerless global text and still corrects one headed block", () => {
+    installIsolatedTestDatabase();
+    try {
+      const db = getDb();
+      db.prepare(
+        `INSERT INTO users (id, email, nickname, pw_hash) VALUES (?,?,?,?)`
+      ).run(948001, "b48-headerless@test.local", "b48", "x");
+      db.prepare(`INSERT INTO characters (id, name) VALUES (?,?)`).run(948002, "제이");
+      db.prepare(
+        `INSERT INTO chats (id, user_id, character_id, mode) VALUES (?,?,?,'safe')`
+      ).run(948003, 948001, 948002);
+      const userInsert = db
+        .prepare(
+          `INSERT INTO messages (chat_id, role, content, model) VALUES (?, 'user', ?, '')`
+        )
+        .run(948003, "소지품을 확인해.");
+      db.prepare(
+        `INSERT INTO messages (chat_id, role, content, model, user_message_id) VALUES (?, 'assistant', ?, 'm', ?)`
+      ).run(948003, "제이는 자신의 손가락에 수류탄 핀 반지를 끼웠다.", Number(userInsert.lastInsertRowid));
+      const headerless =
+        "격납고 소동 이후의 긴 압축. 반지는 오스카가 계속 소유한 채 공식 약혼을 이어감. 다른 약속과 시간선은 원문 그대로 둔다.";
+      assert.deepEqual(planPromptSummaryItemRoleRewrite(headerless), {
+        action: "keep",
+        reason: "headerless_global",
+      });
+      assert.equal(reconcilePromptVisibleSummaryText(948003, headerless), headerless);
+
+      const headed = "[1~1턴] 반지는 오스카가 계속 소유한 채.";
+      const corrected = reconcilePromptVisibleSummaryText(948003, headed);
+      assert.match(corrected, /\[1~1턴\] 반지는 제이가 자신의 몸에 착용함/);
+      assert.doesNotMatch(corrected, /계속 소유/);
+
+      db.prepare(
+        `INSERT INTO chat_turn_summaries (chat_id, turn_number, turn_end, summary, summary_kind, user_edited)
+         VALUES (?,?,?,?,?,1)`
+      ).run(948003, 1, 1, "반지는 오스카가 계속 소유한 채.", "main_canon");
+      assert.equal(reconcilePromptVisibleSummaryText(948003, headed), headed);
+    } finally {
+      uninstallIsolatedTestDatabase();
+    }
+  });
+
+  it("loads assistant text only for the hinted summary range at 500 and 1000 turns", async () => {
+    installIsolatedTestDatabase();
+    try {
+      const db = getDb();
+      db.prepare(
+        `INSERT INTO users (id, email, nickname, pw_hash) VALUES (?,?,?,?)`
+      ).run(948011, "b48-read@test.local", "b48", "x");
+      db.prepare(`INSERT INTO characters (id, name) VALUES (?,?)`).run(948012, "제이");
+      const pad = "가".repeat(2000);
+      const wearTail = "제이는 자신의 손가락에 수류탄 핀 반지를 끼웠다.";
+      const wearBody = `${"가".repeat(2000 - wearTail.length)}${wearTail}`;
+      assert.equal(wearBody.length, 2000);
+      const insertChat = db.prepare(
+        `INSERT INTO chats (id, user_id, character_id, mode) VALUES (?,?,?,'safe')`
+      );
+      const insertUser = db.prepare(
+        `INSERT INTO messages (chat_id, role, content, model) VALUES (?, 'user', '안녕', '')`
+      );
+      const insertAssistant = db.prepare(
+        `INSERT INTO messages (chat_id, role, content, model, user_message_id) VALUES (?, 'assistant', ?, 'm', ?)`
+      );
+      const seed = db.transaction((chatId: number, turns: number) => {
+        insertChat.run(chatId, 948011, 948012);
+        for (let turn = 0; turn < turns; turn += 1) {
+          const user = insertUser.run(chatId);
+          const body = turn === 79 ? wearBody : pad;
+          insertAssistant.run(chatId, body, Number(user.lastInsertRowid));
+        }
+      });
+      seed(948501, 500);
+      seed(948100, 1000);
+
+      const stats: { sql: string; chars: number }[] = [];
+      const originalPrepare = db.prepare.bind(db);
+      db.prepare = ((sql: string) => {
+        const stmt = originalPrepare(sql);
+        const all = stmt.all.bind(stmt);
+        const get = stmt.get.bind(stmt);
+        stmt.all = (...args: unknown[]) => {
+          const rows = all(...args);
+          stats.push({ sql, chars: contentChars(rows) });
+          return rows;
+        };
+        stmt.get = (...args: unknown[]) => {
+          const row = get(...args);
+          stats.push({ sql, chars: contentChars(row == null ? [] : [row]) });
+          return row;
+        };
+        return stmt;
+      }) as typeof db.prepare;
+
+      const block = "[76~80턴] 수류탄 핀 반지는 오스카가 계속 소유한 채.";
+      const measured: Record<string, unknown>[] = [];
+      for (const [label, chatId, turns] of [
+        ["500", 948501, 500],
+        ["1000", 948100, 1000],
+      ] as const) {
+        stats.length = 0;
+        const headerless = "긴 압축문. 반지는 오스카가 계속 소유한 채 이어감.";
+        assert.equal(reconcilePromptVisibleSummaryText(chatId, headerless), headerless);
+        assert.equal(stats.filter((row) => /from messages/i.test(row.sql)).length, 0);
+
+        stats.length = 0;
+        const started = performance.now();
+        const visible = reconcilePromptVisibleSummaryText(chatId, block);
+        const onceMs = performance.now() - started;
+        assert.match(visible, /제이가 자신의 몸에 착용함/);
+        assert.doesNotMatch(visible, /계속 소유/);
+        const firstStats = stats.splice(0, stats.length);
+        reconcilePromptVisibleSummaryText(chatId, block);
+        const secondStats = stats.splice(0, stats.length);
+        const firstMessages = firstStats.filter((row) => /from messages/i.test(row.sql));
+        const secondMessages = secondStats.filter((row) => /from messages/i.test(row.sql));
+        const firstIndex = firstMessages.filter((row) => /case when role/i.test(row.sql));
+        const firstContent = firstMessages.filter((row) => /id in \(/i.test(row.sql));
+        const secondIndex = secondMessages.filter((row) => /case when role/i.test(row.sql));
+        const secondContent = secondMessages.filter((row) => /id in \(/i.test(row.sql));
+        assert.equal(firstIndex.length, 1);
+        assert.equal(firstContent.length, 1);
+        assert.equal(secondIndex.length, 0);
+        assert.equal(secondContent.length, 1);
+        assert.equal(firstContent[0]?.chars, 5 * pad.length);
+        assert.ok((firstContent[0]?.chars ?? 0) < turns * pad.length);
+        measured.push({
+          label,
+          turns,
+          headerlessMessageQueries: 0,
+          singleCallMs: Math.round(onceMs * 100) / 100,
+          singleCallIndexQueries: firstIndex.length,
+          singleCallIndexChars: firstIndex.reduce((sum, row) => sum + row.chars, 0),
+          singleCallContentQueries: firstContent.length,
+          singleCallContentChars: firstContent[0]?.chars ?? 0,
+          sameTurnRepeatIndexQueries: secondIndex.length,
+          sameTurnRepeatContentQueries: secondContent.length,
+          storedAssistantChars: turns * pad.length,
+          singleCallSummaryRecordQueries: firstStats.filter((row) => /chat_turn_summaries/i.test(row.sql)).length,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+      fs.mkdirSync("/opt/cursor/artifacts", { recursive: true });
+      fs.writeFileSync(
+        "/opt/cursor/artifacts/b48-read-path.json",
+        `${JSON.stringify({ measuredAt: new Date().toISOString(), runs: measured }, null, 2)}\n`
+      );
+    } finally {
+      uninstallIsolatedTestDatabase();
+    }
+  });
+});
+
+function contentChars(rows: readonly unknown[]): number {
+  let total = 0;
+  for (const row of rows) {
+    if (row && typeof row === "object" && "content" in row && typeof (row as { content?: unknown }).content === "string") {
+      total += (row as { content: string }).content.length;
+    }
+  }
+  return total;
+}
 
 describe("B48 episodic id 45 boundary", () => {
   const fact = {

@@ -2,6 +2,7 @@ import type { GlobalProjectionKind } from "./memory-global-projection";
 import { RAW_HISTORY_COMPLETE_EXCHANGES, ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
 import {
   listPromptInjectibleMemoryRecords,
+  SUMMARY_ITEM_ROLE_HINT,
   loadTurnsForSummaryRoleReconciliation,
   reconcilePromptMemoryRecordBody,
   resolveManualGlobalMediumDelivery,
@@ -97,9 +98,19 @@ function reconcileMediumTermSources(
   chatId: number,
   sources: readonly MediumTermBlockSource[]
 ): MediumTermBlockSource[] {
+  const hinted = sources.filter(
+    (source) =>
+      !source.record.userEdited &&
+      !source.record.inactive &&
+      SUMMARY_ITEM_ROLE_HINT.test(source.body)
+  );
   const turns = loadTurnsForSummaryRoleReconciliation(
     chatId,
-    sources.map((source) => source.body)
+    hinted.map((source) => source.body),
+    hinted.map((source) => ({
+      turnStart: source.record.turnStart,
+      turnEnd: source.record.turnEnd,
+    }))
   );
   if (turns.length === 0) return [...sources];
   return sources.map((source) => {
