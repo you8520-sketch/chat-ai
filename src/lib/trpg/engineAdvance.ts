@@ -2223,10 +2223,6 @@ function commitPendingGmResult(
           seatLocations: [...sheets, ...nextSheets].map((sheet) => sheet.location),
         })
       : { accepted: [] as string[], rejected: [] };
-  const { encountersEnded: _proposedEnding, ...deltaWithoutEnding } = parsed.delta;
-  const committedDelta = encounterEnding.accepted.length
-    ? { ...deltaWithoutEnding, encountersEnded: encounterEnding.accepted }
-    : deltaWithoutEnding;
   const postGmOngoingSeeds = governedCampaign
     ? withoutHpHarmSeeds(opts.postGmOngoingSeeds ?? [])
     : (opts.postGmOngoingSeeds ?? []);
@@ -2270,6 +2266,10 @@ function commitPendingGmResult(
     delete parsed.delta.questsAdd;
     delete boundLocation.delta.questsAdd;
   }
+  const { encountersEnded: _proposedEnding, ...deltaWithoutEnding } = parsed.delta;
+  const committedDelta = encounterEnding.accepted.length
+    ? { ...deltaWithoutEnding, encountersEnded: encounterEnding.accepted }
+    : deltaWithoutEnding;
   const effectiveToStore =
     opts.regenerate && storedFinish?.effectiveCampaignFinished === true ? true : campaignFinished;
   const ledgerDelta = {

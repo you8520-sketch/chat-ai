@@ -23,11 +23,15 @@ function normalizeStoredActionType(raw: string | null | undefined): TrpgActionTy
   return raw && isTrpgActionType(raw) ? raw : "free";
 }
 
-/** Quoted lines the bot actually spoke. Narration around them stays presentation. */
+/**
+ * Lines this bot actually spoke. The prose layout puts that line alone in double quotes.
+ * A quote that shares its line with narration — a sign, or someone else's reported line — stays presentation.
+ */
 export function lockedSpokenLines(prose: string): string[] {
   const found: string[] = [];
-  for (const match of prose.matchAll(/[“"]([^”"]+)[”"]/g)) {
-    const line = match[1]?.trim();
+  for (const rawLine of prose.split(/\n+/)) {
+    const match = rawLine.trim().match(/^[“"]([^”"]+)[”"]$/);
+    const line = match?.[1]?.trim();
     if (line) found.push(line);
   }
   return found;

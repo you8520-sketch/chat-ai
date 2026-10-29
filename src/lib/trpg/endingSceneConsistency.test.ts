@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { applyGoalTransition } from "./campaignGoals";
 import { loadCampaignLedger } from "./campaignLedger";
+import { gmAiActionText, lockedSpokenLines } from "./canonicalAttempt";
 import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet, writeSheet } from "./engineCreate";
 import {
   advanceTrpgCampaign,
@@ -64,6 +65,20 @@ function memoryDb(): Database.Database {
 
 function alarmExit(state: ExplorationState): ExplorationState {
   return { ...state, risk: 28, alarmFlagged: true };
+}
+
+function latestAppliedJson(db: Database.Database, campaignId: number): string {
+  const row = db
+    .prepare(
+      `SELECT l.applied_json AS json
+       FROM trpg_state_change_log l
+       JOIN trpg_rounds r ON r.id = l.round_id
+       WHERE l.campaign_id=?
+       ORDER BY r.round_number DESC LIMIT 1`
+    )
+    .get(campaignId) as { json: string } | undefined;
+  if (!row) throw new Error("missing trpg_state_change_log row");
+  return row.json;
 }
 
 function spokenLines(narration: string, name: string): string[] {
@@ -206,6 +221,28 @@ describe("ending scene originals", () => {
     assert.equal(finished.goals.some((goal) => goal.status === "active"), false);
     assert.equal(finished.goals.find((goal) => goal.id === confirmed[0]?.id)?.evidence?.kind, "host_confirmed");
   });
+
+  it("treats a quote-only line as the bot's speech and leaves a sign or someone else's quoted line in the narration", () => {
+    assert.deepEqual(lockedSpokenLines(R17_BOT_KWON_LOCK), [
+      "무사는 무슨. 이 정도로 뻗으면 얼굴 들고 장사 못 하지.",
+      "따뜻한 밥이든 독한 술이든, 사는 놈 뒤꽁무니나 얌전히 따라붙어 줄 테니까 얼른 앞장서 봐.",
+    ]);
+    assert.deepEqual(lockedSpokenLines(R17_BOT_KANG_LOCK), [
+      "와, 진짜 폐 털릴 뻔했네. 넥서스 놈들 보안 시설 수준 한번 살벌하더라? 내 소중한 특제 볼트 하나 날린 값은 나중에 렌한테 청구서 보낼 테니까 딱 기다려.",
+      "따뜻한 거 좋지. 기왕이면 아주 비싸고 기름진 걸로 가자고. 오늘 살아남은 값은 든든하게 뽑아 먹어야 직성이 풀리겠거든.",
+    ]);
+    const mixed = [
+      '정원 철문에는 "출구 폐쇄"라고 적힌 표지판이 남아 있었다. 녹슨 판에는 "출구"가 보였다.',
+      '렌이 "오늘은 여기까지"라고 했던 말이 아직 귀에 남았다.',
+      "",
+      "“무사는 무슨. 이 정도로 뻗으면 얼굴 들고 장사 못 하지.”",
+    ].join("\n");
+    assert.deepEqual(lockedSpokenLines(mixed), ["무사는 무슨. 이 정도로 뻗으면 얼굴 들고 장사 못 하지."]);
+    const wire = gmAiActionText("권태현은 마체테를 집어넣으려 했다.", mixed);
+    assert.match(wire, /무사는 무슨/);
+    assert.doesNotMatch(wire, /출구 폐쇄/);
+    assert.doesNotMatch(wire, /오늘은 여기까지/);
+  });
 });
 
 describe("ending round commit", () => {
@@ -256,6 +293,17 @@ describe("ending round commit", () => {
       ).get(campaignId) as { narration: string }
     ).narration;
     assert.match(narration, /어느 쪽으로 갈 것인가/);
+    const continuingStored = JSON.parse(
+      (
+        db.prepare(
+          `SELECT m.structured_json AS json FROM trpg_gm_messages m JOIN trpg_rounds r ON r.id=m.round_id
+           WHERE r.campaign_id=? ORDER BY r.round_number DESC LIMIT 1`
+        ).get(campaignId) as { json: string }
+      ).json
+    ) as { delta?: { questsAdd?: string[] } };
+    const continuingApplied = JSON.parse(latestAppliedJson(db, campaignId)) as { questsAdd?: string[] };
+    assert.deepEqual(continuingStored.delta?.questsAdd, [CONTINUING_QUEST]);
+    assert.deepEqual(continuingApplied.questsAdd, continuingStored.delta?.questsAdd);
     db.close();
   });
 
@@ -408,6 +456,9 @@ describe("ending round commit", () => {
     assert.equal(stored.campaignFinished, true);
     assert.equal(stored.effectiveCampaignFinished, true);
     assert.equal(stored.delta?.questsAdd, undefined);
+    const applied = JSON.parse(latestAppliedJson(db, campaignId)) as { questsAdd?: string[] };
+    assert.equal(applied.questsAdd, undefined);
+    assert.equal(Object.hasOwn(applied, "questsAdd"), Object.hasOwn(stored.delta ?? {}, "questsAdd"));
     assert.equal(narrationDemandsNextAction(storedRow.narration), false);
     assert.match(storedRow.narration, /드론 두어 대/);
     assert.match(storedRow.narration, /렌: "둘 다 무사해서 다행이야\."/);
@@ -470,6 +521,8 @@ describe("ending round commit", () => {
     assert.match(regenerated.narration, /드론 두어 대/);
     assert.equal(regeneratedStored.delta?.questsAdd, undefined);
     assert.equal(regeneratedStored.effectiveCampaignFinished, true);
+    const appliedAfterRegen = JSON.parse(latestAppliedJson(db, campaignId)) as { questsAdd?: string[] };
+    assert.equal(appliedAfterRegen.questsAdd, undefined);
     assert.equal(loadCampaignLedger(db, campaignId).goals.some((goal) => goal.status === "active"), false);
     assert.equal(
       loadCampaignLedger(db, campaignId).goals.find((goal) => goal.id === "goal-0-1")?.evidence?.kind,
