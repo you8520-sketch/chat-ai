@@ -656,6 +656,12 @@ export async function composeBatchScopePayload(opts: {
   existingRecord?: MemoryRecordView | null;
   previousWasNoncanonOrBranch: boolean;
   priorRecords: MemoryRecordView[];
+  /** Full surviving chat. Needed to tell a deleted UI-close message from one outside this batch. */
+  chatTurns?: ReadonlyArray<{
+    turnNumber: number;
+    user: string;
+    userMessageId?: number | null;
+  }>;
 }): Promise<ComposedBatchScope> {
   // Deterministic sole-closed reopen candidate (pending only — no DB mutation here).
   const hasActivePriorBranch = opts.priorRecords.some(
@@ -717,11 +723,12 @@ export async function composeBatchScopePayload(opts: {
       inactive: record.inactive,
       branchControlMutations: record.branchControlMutations,
     })),
-    opts.allEntries.map((entry) => ({
-      turnNumber: entry.turnIndex,
-      user: entry.turn.user,
-      userMessageId: entry.userMessageId,
-    }))
+    opts.chatTurns ??
+      opts.allEntries.map((entry) => ({
+        turnNumber: entry.turnIndex,
+        user: entry.turn.user,
+        userMessageId: entry.userMessageId,
+      }))
   );
   const explicitClosedResume = opts.allEntries.some((entry) =>
     isExplicitClosedBranchContinueIntent(entry.turn.user)
@@ -1285,13 +1292,11 @@ function branchStateBeforeBatch(
   batchStart: number
 ): boolean {
   return resolveSharedPreviousBranchState({
-    priorTurns: turns
-      .filter((turn) => turn.turnNumber < batchStart)
-      .map((turn) => ({
-        turnNumber: turn.turnNumber,
-        user: turn.user,
-        userMessageId: turn.userMessageId,
-      })),
+    priorTurns: turns.map((turn) => ({
+      turnNumber: turn.turnNumber,
+      user: turn.user,
+      userMessageId: turn.userMessageId,
+    })),
     sealedRecords: records.map((record) => ({
       turnStart: record.turnStart,
       turnEnd: record.turnEnd,
@@ -1353,6 +1358,11 @@ async function rebuildExistingBatchScopePayload(opts: {
     existingRecord: opts.existingRecord,
     previousWasNoncanonOrBranch,
     priorRecords,
+    chatTurns: allTurns.map((turn) => ({
+      turnNumber: turn.turnNumber,
+      user: turn.user,
+      userMessageId: turn.userMessageId,
+    })),
   });
   if (!composed.ok) return false;
 
@@ -1613,6 +1623,11 @@ export async function processRollingSummaryBatch(opts: {
         existingRecord: null,
         previousWasNoncanonOrBranch,
         priorRecords,
+        chatTurns: playableMeta.map((turn) => ({
+          turnNumber: turn.turnNumber,
+          user: turn.user,
+          userMessageId: turn.userMessageId,
+        })),
       });
       if (!composed.ok) {
         console.warn("[memory] SUMMARY_COMPOSE_FAILED", {

@@ -458,12 +458,33 @@ function latestEffectiveUiClose(
 
 function uiCloseTurnNumber(
   mutation: BranchControlMutation,
-  priorTurns: readonly BranchStateUserTurn[] | undefined
+  priorTurns: readonly BranchStateUserTurn[] | undefined,
+  beforeTurnNumber?: number
 ): number | null {
   const frontierId = mutation.sourceUserMessageId;
-  if (frontierId != null && frontierId > 0 && priorTurns) {
+  if (frontierId != null && frontierId > 0) {
+    if (!priorTurns) return null;
     const matched = priorTurns.find((turn) => turn.userMessageId === frontierId);
     if (matched) return matched.turnNumber;
+    const sawMessageIds = priorTurns.some(
+      (turn) => turn.userMessageId != null && turn.userMessageId > 0
+    );
+    if (!sawMessageIds) {
+      if (mutation.sourceTurn != null && mutation.sourceTurn > 0) return mutation.sourceTurn;
+      return null;
+    }
+    // The stored frontier message is gone. sourceTurn was numbered before that
+    // delete, so a new message can now occupy it. Cover the latest surviving
+    // message that still precedes the deleted id. A survivor at or after
+    // beforeTurnNumber means this classification is still inside the close.
+    let covered: number | null = null;
+    for (const turn of priorTurns) {
+      const messageId = turn.userMessageId;
+      if (messageId == null || messageId <= 0 || messageId >= frontierId) continue;
+      if (beforeTurnNumber != null && turn.turnNumber >= beforeTurnNumber) return null;
+      covered = covered == null ? turn.turnNumber : Math.max(covered, turn.turnNumber);
+    }
+    return covered ?? 0;
   }
   if (mutation.sourceTurn != null && mutation.sourceTurn > 0) return mutation.sourceTurn;
   return null;
@@ -489,7 +510,7 @@ export function confirmedUiCloseThroughTurn(
     if (record.summaryKind !== "branch_canon" || record.branchStatus !== "closed") continue;
     const mutation = latestEffectiveUiClose(record.branchControlMutations);
     if (!mutation) continue;
-    const turn = uiCloseTurnNumber(mutation, priorTurns);
+    const turn = uiCloseTurnNumber(mutation, priorTurns, beforeTurnNumber);
     if (turn == null) continue;
     if (beforeTurnNumber != null && turn >= beforeTurnNumber) continue;
     best = best == null ? turn : Math.max(best, turn);

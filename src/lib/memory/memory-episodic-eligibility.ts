@@ -29,8 +29,8 @@ export function resolveEpisodicEligibilityForSourceUserMessage(
       ? turns.findIndex((t) => t.userMessageId === opts.sourceUserMessageId)
       : -1;
   const priorTurns =
-    currentIdx > 0
-      ? turns.slice(0, currentIdx).map((t) => ({
+    currentIdx >= 0
+      ? turns.map((t) => ({
           turnNumber: t.turnNumber,
           user: t.user,
           userMessageId: t.userMessageId,
