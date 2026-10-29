@@ -57,6 +57,7 @@ import {
 } from "@/lib/memory/memory-manager";
 import { countMemoryEligibleCompletedTurns } from "@/lib/memory/memory-turn-loader";
 import { resolveExampleDialogForPrompt } from "@/lib/narrationFewShotTemplates";
+import { gemini38ProviderHistoryFromCanonical } from "@/lib/providerHistoryUserEcho";
 import { resolveNarrativePov, type ResolvedNarrativePov } from "@/lib/narrativePov";
 import { formatUserNoteForPrompt } from "@/lib/persona";
 import {
@@ -870,8 +871,18 @@ export async function assemblePersistedNextTurnInputs(opts: {
       })
     : { text: "", mediumTermText: "", archiveText: "" };
 
+  const providerHistory = gemini38ProviderHistoryFromCanonical({
+    modelId: opts.modelId,
+    canonicalRecentHistoryFull: history.canonicalRecentHistoryFull,
+    trimmedHistory: history.promptHistory,
+    historyTokenBudget: history.historyTokenBudget,
+    trim: {
+      minRealPlayableExchanges: history.providerHistoryMinRealPlayableExchanges,
+      protectOpening: history.providerHistoryProtectOpening,
+    },
+  });
   const sceneMomentumInput = buildSceneMomentumInputFromRoute({
-    shortTermHistory: history.promptHistory,
+    shortTermHistory: providerHistory,
     currentUserMessage,
     normalizedMemoryMeta: opts.source.memoryFeatureOn
       ? normalizeMemoryMeta(
@@ -901,6 +912,7 @@ export async function assemblePersistedNextTurnInputs(opts: {
     mediumTermMemoryBlock: memoryInjection.mediumTermText,
     archiveMemory: memoryInjection.archiveText,
     history,
+    shortTermHistory: providerHistory,
     currentUserMessage,
     currentTurnAuthoringDelegation: opts.source.effectiveUserAuthoring.delegation,
     nsfw: opts.source.nsfw,
