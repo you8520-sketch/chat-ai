@@ -56,8 +56,9 @@ import {
   selectMarketSignals,
   type OfficialBatchMarketPolicy,
 } from "@/lib/officialSupply/marketFit";
+import { projectOfficialSharedWorld } from "@/lib/officialSupply/officialSharedWorld";
 import { validateResearchSnapshot, type ResearchSnapshot } from "@/lib/officialSupply/research";
-import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
+import { OfficialSupplyGateError, type OfficialWorldProjectionDiagnostic } from "@/lib/officialSupply/store";
 import type { OfficialCharacterDraft, QaIssue } from "@/lib/officialSupply/types";
 import { evaluateInternalRegionConsistency, internalWorldRegions } from "@/lib/officialSupply/worldQa";
 
@@ -138,7 +139,13 @@ export type AdminAuthorRejectedManuscript = {
 
 export type AdminAuthorPreviewResult =
   | AdminAuthorPreviewOk
-  | { ok: false; error: string; issues?: AdminAuthorIssue[]; rejectedManuscript?: AdminAuthorRejectedManuscript };
+  | {
+      ok: false;
+      error: string;
+      issues?: AdminAuthorIssue[];
+      rejectedManuscript?: AdminAuthorRejectedManuscript;
+      worldProjection?: OfficialWorldProjectionDiagnostic;
+    };
 
 type Hold = {
   id: string;
@@ -460,11 +467,19 @@ function fail(error: unknown): AdminAuthorPreviewResult {
     const rejectedManuscript = source
       ? { greeting: source.greeting, description: source.description, comment: source.comment }
       : undefined;
+    const worldProjection = error.worldProjection
+      ? {
+          stage: error.worldProjection.stage,
+          code: error.worldProjection.code,
+          hits: error.worldProjection.hits.map((hit) => ({ field: hit.field, excerpt: hit.excerpt })),
+        }
+      : undefined;
     return {
       ok: false,
       error: error.message,
       ...(error.qa ? { issues: error.qa.errors.map((issue) => ({ code: issue.code, message: issue.message })) } : {}),
       ...(rejectedManuscript ? { rejectedManuscript } : {}),
+      ...(worldProjection ? { worldProjection } : {}),
     };
   }
   return { ok: false, error: error instanceof Error ? error.message : "생성에 실패했습니다." };
@@ -507,6 +522,9 @@ export async function previewAdminOfficialCharacter(input: {
       },
     });
     let world = generatedWorld.bible;
+    // World QA already ran inside generateOfficialWorldBible. Project before any
+    // portfolio replacement or character call. This does not change the marker.
+    projectOfficialSharedWorld(world);
     let brief = world.portfolio[0];
     if (!brief) return { ok: false, error: "포트폴리오 브리프가 없습니다." };
     let gateErrors = briefGate(brief, world, kept, plan, snapshot, gender);
