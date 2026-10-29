@@ -399,9 +399,10 @@ function playerCueGenderIdentityExcerpt(text: string): string | null {
     const clause = (afterGender.split(/[.!?。！？]/)[0] ?? afterGender).trim();
     if (/\S+의/.test(clause)) continue;
     const negation = afterGender.match(/^\s*(?:이|가)\s*아니(?:다|얍|요|죠|아요|습니다)(?=[.!?。！？\s]|$)/);
-    const predicate = afterGender.match(/^\s*(?:[가-힣]*(?:입니다|이다|예요|에요|다)|(?:입니다|이다|예요|에요))/);
-    const roleParticle = afterGender.match(/^\s*(?:로|으로)(?=[\s,.!?。！？]|$)/);
-    const tail = negation?.[0] ?? predicate?.[0] ?? roleParticle?.[0];
+    const predicate = afterGender.match(/^\s*(?:[가-힣]*(?:입니다|이다|예요|에요|다|습니다|합니다)|(?:입니다|이다|예요|에요|습니다|합니다))/);
+    /** Gender-only or gender+role noun before 로/으로 (`여자로`, `남성 경찰관으로`). */
+    const roleTail = afterGender.match(/^\s*(?:[가-힣]{1,20}(?:로|으로)|(?:로|으로))(?=[\s,.!?。！？]|$)/);
+    const tail = negation?.[0] ?? predicate?.[0] ?? roleTail?.[0];
     if (!tail) continue;
     const span = cueMatch[0].length + genderMatch[0].length + tail.length;
     return clipExcerpt(text, cueIndex, span);
