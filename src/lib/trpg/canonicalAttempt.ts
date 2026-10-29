@@ -14,13 +14,36 @@ export type TrpgResolvedCanonicalAttempt = {
   participantKind: TrpgParticipantKind;
   /** Adjudication / mechanics / GM input — exact human text or AI <<<INTENT>>> only. */
   canonicalAttempt: string;
-  /** User-visible bot novelistic prose; never GM canon for AI PCs. */
+  /** User-visible bot novelistic prose. Mechanics stay on the intent. Locked spoken lines from this prose are GM canon. */
   presentationProse: string;
   actionType: TrpgActionType;
 };
 
 function normalizeStoredActionType(raw: string | null | undefined): TrpgActionType {
   return raw && isTrpgActionType(raw) ? raw : "free";
+}
+
+/** Quoted lines the bot actually spoke. Narration around them stays presentation. */
+export function lockedSpokenLines(prose: string): string[] {
+  const found: string[] = [];
+  for (const match of prose.matchAll(/[“"]([^”"]+)[”"]/g)) {
+    const line = match[1]?.trim();
+    if (line) found.push(line);
+  }
+  return found;
+}
+
+/**
+ * GM action text for an AI seat. The intent remains the choice. Locked quotes travel with it.
+ * Sensory prose does not. Mechanics keep using `canonicalAttempt` alone.
+ */
+export function gmAiActionText(intent: string, prose: string): string {
+  const choice = intent.trim();
+  const speech = lockedSpokenLines(prose)
+    .map((line) => `"${line}"`)
+    .join("\n");
+  if (!speech) return choice;
+  return choice ? `${choice}\n${speech}` : speech;
 }
 
 /**

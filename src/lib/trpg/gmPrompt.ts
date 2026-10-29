@@ -289,7 +289,7 @@ Rules:
 - CHARACTER SHEETS: this scenario only has the listed stats. Use them silently to calibrate competence. Do not narrate raw stat values, modifiers, d20, DC, or tier in prose — the UI already shows mechanics. Never invent a stat that is not on the sheet. Never change d20, DC, modifier, or tier.
 - Honor [PARTY RELATIONSHIPS] when present: how PCs address and treat each other is table canon.
 - Extra NPCs: invent world extras (passersby, clerks, guards, voices, animals) even if WORLD lists none. They are GM-narrated, never player seats. If a named extra should persist, add them in npcsAdd.
-- Closing GM beat: one compact \`GM:\` aside, 1–2 sentences (~100–180 Korean chars). End on the most immediate unresolved pressure at the exact moment player control returns. Keep it a GM aside, not a character \`이름: "대사"\` line.
+- Closing GM beat: one compact \`GM:\` aside, 1–2 sentences (~100–180 Korean chars). End on the most immediate unresolved pressure at the exact moment player control returns. When the round head says a finish request would end the campaign and campaign_finished is true, close on the settled moment and do not ask for a next action. Keep it a GM aside, not a character \`이름: "대사"\` line.
 
 [NARRATOR REGISTER]
 Narration uses Korean literary plain style — prefer 했다, 였다, 있었다, 보였다, 느껴졌다; short present beats when the scene needs them.
@@ -309,7 +309,7 @@ Match density: BRIEF/MID get vivid motion.
 
 [ROUND CRAFT]
 1. Start narration at the first new consequence or changed state — not at restaging submitted action.
-2. Submitted canonical actions fix intent only. ${TRPG_GM_LABEL_HUMAN_ACTION} is the sole authority for that human PC's voluntary action, movement, route choice, dialogue, allegiance, decision, and inner state. ${TRPG_GM_LABEL_AI_ATTEMPT} owns only that AI PC's submitted turn action.
+2. Submitted canonical actions fix intent only. ${TRPG_GM_LABEL_HUMAN_ACTION} is the sole authority for that human PC's voluntary action, movement, route choice, dialogue, allegiance, decision, and inner state. ${TRPG_GM_LABEL_AI_ATTEMPT} is the sole authority for that AI PC's locked dialogue, choice, promise, payment, and movement, in that character's voice.
 3. Resolve related outcomes in one compact resolution bridge — typically one combined paragraph; two only if tiers or locations truly conflict. Merge adjudicated results into one coherent changed scene state, then pivot immediately to NEW material.
 4. Spend the substantial majority of narration on NEW world/story material: NPC/world initiative, changed circumstances, discoveries, actionable consequences, objective progress, opened routes, and causally active plot threads. Advance what is already causally available; a quiet beat is enough when the fiction genuinely calls for it.
 5. When encounter purpose is spent — or local scene state is transition_ready — open fiction outward via reachable space, destination, route, objective, or consequence; transition_ready means the local dramatic purpose is sufficiently resolved for the world to open outward, not permission to choose PC movement. When fiction enters a genuinely new local dramatic situation, use sceneTransitionTo rather than objectiveSet alone; one location may still yield new play until then; movement stays player choice.
@@ -322,7 +322,7 @@ When several ordinary FAILURES land in the same round, respect each tier but fol
 For talk/ask (CHECK no_check reason=talk), spoken words are in-scene; resolve through listener and world.
 For routine_traversal no-check actions, the submitted traversal succeeds.
 For routine_competence / no_meaningful_uncertainty no-check actions, realize the submitted ordinary action normally without a failure roll.
-Allowed speaker lines: NPC, world voice where appropriate, GM closing aside.
+Allowed speaker lines: locked PC lines, NPC, world voice, GM closing aside.
 
 [LENGTH — SCENE RESPONSIVE]
 Use the terminal ROUND NARRATION BUDGET as the sole numeric length contract.
@@ -334,9 +334,9 @@ and roll consequences.
 Let tonal shifts arise from the fiction and character voice.
 
 [OUTPUT]
-Respond as JSON with exactly two top-level keys: narration (Korean prose per ROUND NARRATION BUDGET; last beat is 1–2 GM: sentences on immediate unresolved pressure) and delta (state changes object). The API enforces this schema.
+Respond as JSON with exactly two top-level keys: narration (Korean prose per ROUND NARRATION BUDGET; last beat is the Closing GM beat) and delta (state changes object). The API enforces this schema.
 Example delta shape: {"players":[{"participantId":1,"hp":20,"conditions":[],"inventoryAdd":[],"inventoryRemove":[],"itemOffers":[],"location":""}],"location":"","next_round_context":"","questsAdd":[],"questsRemove":[],"npcsAdd":[],"npcsRemove":[],"flagsAdd":[],"flagsRemove":[],"campaign_finished":false,"localScene":{}}
-questsAdd items are player-visible goals (no secrets): a string of at most 80 characters, e.g. "등대 조사: 사라진 어선의 단서를 찾는다", or {"title":"...","criterion":{"type":"reach_location","place":"곶 끝의 등대"}} / {"criterion":{"type":"end_encounter","encounterId":"<[id] of an approved threat>"}} when the goal ends by arriving at a place or by ending an approved threat; without a criterion the server never confirms it as done. The empty questsAdd in the shape is the field: fill it when the round head asks for a goal. An already active player goal does not forbid another questsAdd when this scene creates a distinct new player-visible purpose; do not add one merely to fill the example. questsRemove copies an exact existing quest string and only removes it. questsClaimDone copies an exact active quest string you narrate as resolved; it is a claim, not a confirmation.
+questsAdd items are player-visible goals (no secrets): a string of at most 80 characters, e.g. "등대 조사: 사라진 어선의 단서를 찾는다", or a title with a reach_location or end_encounter criterion; without a criterion the server never confirms it as done. Fill questsAdd when the round head asks for a goal. An already active player goal does not forbid another questsAdd when this scene creates a distinct new player-visible purpose. questsRemove copies an exact existing quest string and only removes it. questsClaimDone copies an exact active quest string you narrate as resolved; it is a claim, not a confirmation.
 `;
 
 export function formatTrpgSheetCanon(opts: {
@@ -483,15 +483,56 @@ export function shouldRequestTrpgPlayerGoalRegistration(opts: {
   regenerate?: boolean;
   campaignComplete: boolean;
   activeGoalCount: number;
+  /** Legacy facility: every seat has departed and no criterion-less goal is waiting on the host. */
+  endingFinishWouldStand?: boolean;
 }): boolean {
-  if (opts.opening || opts.regenerate || opts.campaignComplete) return false;
+  if (opts.opening || opts.regenerate || opts.campaignComplete || opts.endingFinishWouldStand) return false;
   return opts.activeGoalCount === 0;
 }
 
-export function formatTrpgGmRoundHead(opts: { opening: boolean; requestPlayerGoalRegistration: boolean }): string {
+/** One round head. An ending-ready finish replaces the empty-goal registration demand; it does not stack on it. */
+export const TRPG_GM_ENDING_FINISH_HEAD =
+  "[RESOLVE THIS ROUND — A finish request on this round would end the campaign. If you set campaign_finished, close on the settled moment: no questsAdd goal, and the Closing GM beat does not ask what the players do next. If you do not finish, end on the decision point; you may record one new player-visible goal when this scene creates a distinct purpose.]";
+
+const NARRATION_SENTENCE_BOUNDARY = /(?<=[.!?。？！])\s+/;
+const SPEAKER_QUOTE_LINE = /^.{1,24}:\s*[“"]/;
+const NEXT_ACTION_DEMAND = /어느\s*쪽|어디로|무엇을|어떻게|다음\s*행동|발걸음|옮길|움직일|선택할/;
+
+export function lastNarrationSentence(narration: string): string {
+  const parts = narration.trim().split(NARRATION_SENTENCE_BOUNDARY).filter((part) => part.trim());
+  return parts[parts.length - 1] ?? "";
+}
+
+/** The closing sentence asks the table for another submitted action. */
+export function narrationDemandsNextAction(narration: string): boolean {
+  const sentence = lastNarrationSentence(narration).trim();
+  if (!sentence || SPEAKER_QUOTE_LINE.test(sentence)) return false;
+  if (!/[?？]\s*$/.test(sentence)) return false;
+  return NEXT_ACTION_DEMAND.test(sentence);
+}
+
+/**
+ * Ending commit only. Drops a trailing next-action question and keeps the settled sentence before it.
+ * Locked character lines and world description stay.
+ */
+export function settleFinishedSceneNarration(narration: string): string {
+  if (!narrationDemandsNextAction(narration)) return narration;
+  const trimmed = narration.trimEnd();
+  const sentence = lastNarrationSentence(trimmed);
+  const index = trimmed.lastIndexOf(sentence);
+  if (index <= 0) return narration;
+  return trimmed.slice(0, index).trimEnd();
+}
+
+export function formatTrpgGmRoundHead(opts: {
+  opening: boolean;
+  requestPlayerGoalRegistration: boolean;
+  endingFinishWouldStand?: boolean;
+}): string {
   if (opts.opening) {
     return `[OPENING SCENE — describe the start${TRPG_GM_OPENING_GOAL_OFFER} and ask what they do. You may portray AI companions with brief in-character action and dialogue per character canon. Do not invent the human PC's voluntary movement, route choice, dialogue, decision, or inner commitment.]`;
   }
+  if (opts.endingFinishWouldStand) return TRPG_GM_ENDING_FINISH_HEAD;
   if (opts.requestPlayerGoalRegistration) {
     return `[RESOLVE THIS ROUND — There is no active player-visible goal yet. Ground the scene in this round's situation and show one concrete event or opportunity, then ${TRPG_GM_RECORD_PLAYER_GOAL_TAIL}. Do not quote GM secrets or copy scenario-plan goals or ending conditions verbatim.]`;
   }
@@ -520,6 +561,10 @@ export function buildTrpgGmUserBlock(opts: {
   opening: boolean;
   regenerate?: boolean;
   requestPlayerGoalRegistration?: boolean;
+  /** Server fact: a GM finish request on this round would complete the campaign. */
+  endingFinishWouldStand?: boolean;
+  /** Regen of a scene whose committed effective finish already stood. */
+  committedFinishStands?: boolean;
   committedNarration?: string;
   committedFacts?: string;
   playerPersonas?: string;
@@ -587,7 +632,9 @@ export function buildTrpgGmUserBlock(opts: {
             const accepted = a.acceptedItems?.length
               ? `[ITEMS ACCEPTED BY THIS PC — server-confirmed, now held]\n${a.acceptedItems.join(", ")}`
               : "";
-            const uncommitted = uncommittedActionWire(a.body);
+            const uncommitted = uncommittedActionWire(
+              actorKind === "ai_character" ? a.body.replace(/[“"][^”"]*[”"]/g, "") : a.body
+            );
             const sibling = unadjudicatedSiblingWire(a.body);
             const held = [uncommitted, sibling].filter(Boolean).map((note) => `[UNCOMMITTED ${note}]`).join("\n");
             const lines = opts.regenerate
@@ -598,7 +645,7 @@ export function buildTrpgGmUserBlock(opts: {
                   method,
                   accepted,
                   held,
-                  "This locked action already happened. Do not replace it or give the human PC a new choice.",
+                  "This locked action already happened. Do not replace it or give this PC a new choice, line, promise, payment, or movement.",
                 ]
               : [
                   `[ACTION participantId=${a.participantId} name=${a.name} actorKind=${actorKind} density=${density}]`,
@@ -627,7 +674,10 @@ export function buildTrpgGmUserBlock(opts: {
     "[REWRITE — binding]",
     "This call rewrites the committed scene. It does not resolve a new round.",
     "Keep the locked actions, dice, and committed result: HP, item holders, conditions, locations, quests, NPCs, and flags.",
-    "Do not invent a new event or a new voluntary action, route, or spoken line for the human PC.",
+    "Do not invent a new event or a new voluntary action, route, spoken line, promise, payment, or movement beyond a locked PC action." +
+      (opts.committedFinishStands
+        ? " The committed result finished the campaign: keep that ending, with no next-action question and no new goal."
+        : ""),
     "Return JSON narration and delta. delta must not change the committed result. Leave change lists empty or restate only facts that are already true. Do not finish the campaign, end an encounter, move the local scene, or resolve a quest.",
     narrationBudget,
   ].join("\n");
@@ -647,6 +697,7 @@ export function buildTrpgGmUserBlock(opts: {
       : formatTrpgGmRoundHead({
           opening: opts.opening,
           requestPlayerGoalRegistration: opts.requestPlayerGoalRegistration === true,
+          endingFinishWouldStand: opts.endingFinishWouldStand === true,
         }),
     opts.worldBrief.trim() ? `[WORLD]\n${opts.worldBrief.trim()}` : "",
     opts.regenerate ? "" : (opts.scenarioPlanBlock?.trim() ?? ""),
