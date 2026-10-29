@@ -66,6 +66,11 @@ const MAX_EXPLICIT_VOICE_REPAIRS = 2;
 const MAX_CAST_INTENT_CHARS = 500;
 /** Max in-memory unsaved previews per process; saved holds are kept for save idempotency. */
 const UNSAVED_HOLD_LIMIT = 20;
+/** Max saved holds kept for save idempotency (`alreadySaved`); oldest entries drop first. */
+const SAVED_HOLD_LIMIT = 100;
+
+let saveDelayMsForTests = 0;
+let nextSaveThrowsForTests: Error | null = null;
 
 const MARKET_POLICY: OfficialBatchMarketPolicy = {
   targetLocale: "ko-KR",
@@ -294,6 +299,33 @@ function evictUnsavedHolds(excludeId: string): void {
   }
 }
 
+function savedHoldCount(): number {
+  let count = 0;
+  for (const hold of holds.values()) {
+    if (hold.savedCharacterId != null) count += 1;
+  }
+  return count;
+}
+
+function evictSavedHolds(): void {
+  while (savedHoldCount() > SAVED_HOLD_LIMIT) {
+    let removed = false;
+    for (const [id, hold] of holds) {
+      if (hold.savedCharacterId == null) continue;
+      holds.delete(id);
+      removed = true;
+      break;
+    }
+    if (!removed) break;
+  }
+}
+
+function holdForAdmin(previewId: string, adminUserId: number): Hold | null {
+  const hold = holds.get(previewId);
+  if (!hold || hold.adminUserId !== adminUserId) return null;
+  return hold;
+}
+
 function resolvedView(plan: OfficialAuthoringPlan, castIntent: string): AdminAuthorResolvedView {
   return {
     genre: plan.genre ?? "",
@@ -506,11 +538,11 @@ export async function repairHeldAdminAuthorPreview(input: {
   previewId: string;
   transport?: OfficialAuthorTransport;
 }): Promise<AdminAuthorPreviewResult> {
+  const hold = holdForAdmin(input.previewId, input.adminUserId);
+  if (!hold) return { ok: false, error: "미리보기를 찾을 수 없습니다." };
+
   const inFlight = repairInFlight.get(input.previewId);
   if (inFlight) return inFlight;
-
-  const hold = holds.get(input.previewId);
-  if (!hold || hold.adminUserId !== input.adminUserId) return { ok: false, error: "미리보기를 찾을 수 없습니다." };
   if (hold.savedCharacterId != null) return { ok: false, error: "이미 저장된 초안은 에디터에서 수정합니다." };
   if (hold.issues.length === 0) return { ok: false, error: "고칠 검수 오류가 없습니다." };
   if (hold.voiceRepairs >= MAX_EXPLICIT_VOICE_REPAIRS) return { ok: false, error: "선택 보정 횟수를 모두 사용했습니다." };
@@ -527,8 +559,8 @@ export async function repairHeldAdminAuthorPreview(input: {
 
   void (async () => {
     try {
-      const current = holds.get(input.previewId);
-      if (!current || current.adminUserId !== input.adminUserId) {
+      const current = holdForAdmin(input.previewId, input.adminUserId);
+      if (!current) {
         resolveFlight({ ok: false, error: "미리보기를 찾을 수 없습니다." });
         return;
       }
@@ -574,6 +606,8 @@ export async function repairHeldAdminAuthorPreview(input: {
       } catch (error) {
         resolveFlight(fail(error));
       }
+    } catch (error) {
+      resolveFlight(fail(error));
     } finally {
       if (repairInFlight.get(input.previewId) === flight) repairInFlight.delete(input.previewId);
     }
@@ -606,6 +640,20 @@ export function clearAdminAuthorPreviewsForTests(): void {
   holds.clear();
   saveInFlight.clear();
   repairInFlight.clear();
+  saveDelayMsForTests = 0;
+  nextSaveThrowsForTests = null;
+}
+
+export function setAdminAuthorSaveDelayForTests(ms: number): void {
+  saveDelayMsForTests = ms;
+}
+
+export function setAdminAuthorNextSaveThrowsForTests(error: Error | null): void {
+  nextSaveThrowsForTests = error;
+}
+
+export function countAdminAuthorSavedHoldsForTests(): number {
+  return savedHoldCount();
 }
 
 export function markAdminAuthorPreviewSavedForTests(previewId: string, characterId: number): void {
@@ -617,15 +665,15 @@ export async function saveHeldAdminAuthorPreview(admin: SessionUser, previewId: 
   if (!isAdminUser({ ...admin, email: admin.email ?? "" })) {
     return { ok: false, status: 403, error: "관리자 권한이 필요합니다." };
   }
-  const existingFlight = saveInFlight.get(previewId);
-  if (existingFlight) return existingFlight;
-
-  const hold = holds.get(previewId);
-  if (!hold || hold.adminUserId !== admin.id) return { ok: false, status: 404, error: "미리보기를 찾을 수 없습니다." };
+  const hold = holdForAdmin(previewId, admin.id);
+  if (!hold) return { ok: false, status: 404, error: "미리보기를 찾을 수 없습니다." };
   if (hold.savedCharacterId != null) return { ok: true, characterId: hold.savedCharacterId, alreadySaved: true };
   if (hold.issues.length > 0) {
     return { ok: false, status: 409, error: "검수를 통과하지 않은 원고는 저장하지 않습니다." };
   }
+
+  const existingFlight = saveInFlight.get(previewId);
+  if (existingFlight) return existingFlight;
 
   let resolveFlight!: (result: SaveHeldResult) => void;
   const flight = new Promise<SaveHeldResult>((resolve) => {
@@ -635,8 +683,8 @@ export async function saveHeldAdminAuthorPreview(admin: SessionUser, previewId: 
 
   void (async () => {
     try {
-      const current = holds.get(previewId);
-      if (!current || current.adminUserId !== admin.id) {
+      const current = holdForAdmin(previewId, admin.id);
+      if (!current) {
         resolveFlight({ ok: false, status: 404, error: "미리보기를 찾을 수 없습니다." });
         return;
       }
@@ -647,6 +695,14 @@ export async function saveHeldAdminAuthorPreview(admin: SessionUser, previewId: 
       if (current.issues.length > 0) {
         resolveFlight({ ok: false, status: 409, error: "검수를 통과하지 않은 원고는 저장하지 않습니다." });
         return;
+      }
+      if (saveDelayMsForTests > 0) {
+        await new Promise((resolve) => setTimeout(resolve, saveDelayMsForTests));
+      }
+      if (nextSaveThrowsForTests) {
+        const error = nextSaveThrowsForTests;
+        nextSaveThrowsForTests = null;
+        throw error;
       }
       const created = await createCharacterFromForm(
         admin,
@@ -661,7 +717,14 @@ export async function saveHeldAdminAuthorPreview(admin: SessionUser, previewId: 
         return;
       }
       current.savedCharacterId = created.id;
+      evictSavedHolds();
       resolveFlight({ ok: true, characterId: created.id, alreadySaved: false });
+    } catch (error) {
+      resolveFlight({
+        ok: false,
+        status: 500,
+        error: error instanceof Error ? error.message : "저장에 실패했습니다.",
+      });
     } finally {
       if (saveInFlight.get(previewId) === flight) saveInFlight.delete(previewId);
     }

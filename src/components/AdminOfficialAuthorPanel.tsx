@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CHARACTER_GENRES } from "@/lib/characterGenres";
 import { GENDER_LABELS, type CharacterGender } from "@/lib/characterGender";
@@ -105,6 +105,7 @@ export default function AdminOfficialAuthorPanel({
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [saved, setSaved] = useState<{ characterId: number; editPath: string; alreadySaved: boolean } | null>(null);
+  const previewRequestSeq = useRef(0);
 
   const recommendation = useMemo(
     () => recommendations.find((item) => item.genre === genre) ?? recommendations[0],
@@ -112,6 +113,7 @@ export default function AdminOfficialAuthorPanel({
   );
 
   useEffect(() => {
+    previewRequestSeq.current += 1;
     setPreview(null);
     setSaved(null);
     setError("");
@@ -128,6 +130,7 @@ export default function AdminOfficialAuthorPanel({
   }
 
   async function generate() {
+    const requestSeq = ++previewRequestSeq.current;
     setBusy("preview");
     setError("");
     setSaved(null);
@@ -142,6 +145,7 @@ export default function AdminOfficialAuthorPanel({
       castIntent,
     });
     setBusy(null);
+    if (requestSeq !== previewRequestSeq.current) return;
     if (payload.ok !== true) {
       const issues = Array.isArray(payload.issues) ? payload.issues : [];
       setError(typeof payload.error === "string" ? payload.error : "생성에 실패했습니다.");
@@ -164,10 +168,12 @@ export default function AdminOfficialAuthorPanel({
 
   async function repair() {
     if (!preview?.previewId) return;
+    const requestSeq = previewRequestSeq.current;
     setBusy("repair");
     setError("");
     const { payload } = await post("/api/admin/official-author/repair", { previewId: preview.previewId });
     setBusy(null);
+    if (requestSeq !== previewRequestSeq.current) return;
     if (payload.ok !== true) {
       setError(typeof payload.error === "string" ? payload.error : "보정에 실패했습니다.");
       return;
@@ -177,10 +183,12 @@ export default function AdminOfficialAuthorPanel({
 
   async function save() {
     if (!preview?.previewId || !preview.qaOk) return;
+    const requestSeq = previewRequestSeq.current;
     setBusy("save");
     setError("");
     const { payload } = await post("/api/admin/official-author/save", { previewId: preview.previewId });
     setBusy(null);
+    if (requestSeq !== previewRequestSeq.current) return;
     if (payload.ok !== true) {
       setError(typeof payload.error === "string" ? payload.error : "저장에 실패했습니다.");
       return;

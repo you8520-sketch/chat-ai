@@ -8,6 +8,7 @@ import { getDb } from "@/lib/db";
 import {
   assessAdminAuthorManuscript,
   clearAdminAuthorPreviewsForTests,
+  countAdminAuthorSavedHoldsForTests,
   holdAdminAuthorManuscriptForTests,
   markAdminAuthorPreviewSavedForTests,
   officialVoiceFieldsForQaCodes,
@@ -15,6 +16,8 @@ import {
   previewAdminOfficialCharacter,
   repairHeldAdminAuthorPreview,
   saveHeldAdminAuthorPreview,
+  setAdminAuthorNextSaveThrowsForTests,
+  setAdminAuthorSaveDelayForTests,
   type AdminAuthorSelection,
 } from "@/lib/officialSupply/adminAuthorDraft";
 import type { OfficialAuthorTransport } from "@/lib/officialSupply/author";
@@ -355,6 +358,150 @@ describe("G5-2 admin private draft save", () => {
     assert.equal(row.assets, "[]");
     assert.equal(row.greeting, pack.draft.greeting);
     assert.equal(row.description, pack.draft.description);
+  });
+
+  it("does not let another admin join an in-flight save or repair", async () => {
+    clearAdminAuthorPreviewsForTests();
+    const pack = candidate("g5-modern-comedy");
+    const plan = resolveOfficialAuthoringPlan(recommendOfficialAuthoringDirection("현대/일상"));
+    const preview = holdAdminAuthorManuscriptForTests({
+      adminUserId: ADMIN.id,
+      plan,
+      world: pack.world,
+      brief: pack.brief,
+      bible: pack.bible,
+    });
+    setAdminAuthorSaveDelayForTests(80);
+    const ownerSave = saveHeldAdminAuthorPreview(ADMIN, preview.previewId);
+    const otherSave = await saveHeldAdminAuthorPreview(OTHER, preview.previewId);
+    assert.equal(otherSave.ok, false);
+    if (!otherSave.ok) assert.equal(otherSave.status, 404);
+    const ownerResult = await ownerSave;
+    assert.equal(ownerResult.ok, true);
+    const otherOwned = getDb().prepare("SELECT COUNT(*) AS n FROM characters WHERE creator_id=?").get(OTHER.id) as { n: number };
+    assert.equal(otherOwned.n, 0);
+
+    const brokenGreeting = `"당신, 여기 왜 서 있어?"`;
+    const broken = holdAdminAuthorManuscriptForTests({
+      adminUserId: ADMIN.id,
+      plan,
+      world: pack.world,
+      brief: pack.brief,
+      bible: { ...pack.bible, greeting: brokenGreeting },
+    });
+    const slowTransport: OfficialAuthorTransport = {
+      label: "slow-repair",
+      async completeJson() {
+        await new Promise((resolve) => setTimeout(resolve, 80));
+        return {
+          text: readJson<{ text: string }>(path.join(PROVIDER, "11-g5-modern-comedy-character_bible_voice.json")).text,
+          model: "fixture",
+          inputTokens: 0,
+          outputTokens: 0,
+          costUsd: 0,
+          providerRequestId: null,
+        };
+      },
+    };
+    const ownerRepair = repairHeldAdminAuthorPreview({
+      adminUserId: ADMIN.id,
+      previewId: broken.previewId,
+      transport: slowTransport,
+    });
+    const otherRepair = await repairHeldAdminAuthorPreview({
+      adminUserId: OTHER.id,
+      previewId: broken.previewId,
+      transport: slowTransport,
+    });
+    assert.equal(otherRepair.ok, false);
+    if (!otherRepair.ok) assert.equal(otherRepair.error, "미리보기를 찾을 수 없습니다.");
+    await ownerRepair;
+  });
+
+  it("resolves save promises when the async save throws before insert", async () => {
+    clearAdminAuthorPreviewsForTests();
+    const pack = candidate("g5-modern-comedy");
+    const plan = resolveOfficialAuthoringPlan(recommendOfficialAuthoringDirection("현대/일상"));
+    const preview = holdAdminAuthorManuscriptForTests({
+      adminUserId: ADMIN.id,
+      plan,
+      world: pack.world,
+      brief: pack.brief,
+      bible: pack.bible,
+    });
+    setAdminAuthorNextSaveThrowsForTests(new Error("db boom"));
+    const failed = await saveHeldAdminAuthorPreview(ADMIN, preview.previewId);
+    assert.equal(failed.ok, false);
+    if (!failed.ok) {
+      assert.equal(failed.status, 500);
+      assert.match(failed.error, /db boom/);
+    }
+    const db = getDb();
+    const beforeRetry = (db.prepare("SELECT COUNT(*) AS n FROM characters WHERE creator_id=?").get(ADMIN.id) as { n: number }).n;
+    const saved = await saveHeldAdminAuthorPreview(ADMIN, preview.previewId);
+    assert.equal(saved.ok, true);
+    const afterRetry = (db.prepare("SELECT COUNT(*) AS n FROM characters WHERE creator_id=?").get(ADMIN.id) as { n: number }).n;
+    assert.equal(afterRetry - beforeRetry, 1);
+  });
+
+  it("caps saved holds for idempotency and excludes save/repair on the same QA state", async () => {
+    clearAdminAuthorPreviewsForTests();
+    const pack = candidate("g5-modern-comedy");
+    const plan = resolveOfficialAuthoringPlan(recommendOfficialAuthoringDirection("현대/일상"));
+    for (let i = 0; i < 101; i += 1) {
+      const saved = holdAdminAuthorManuscriptForTests({
+        adminUserId: ADMIN.id,
+        plan,
+        world: pack.world,
+        brief: pack.brief,
+        bible: pack.bible,
+      });
+      markAdminAuthorPreviewSavedForTests(saved.previewId, 870_000 + i);
+    }
+    assert.ok(countAdminAuthorSavedHoldsForTests() > 100);
+    const live = holdAdminAuthorManuscriptForTests({
+      adminUserId: ADMIN.id,
+      plan,
+      world: pack.world,
+      brief: pack.brief,
+      bible: pack.bible,
+    });
+    const stored = await saveHeldAdminAuthorPreview(ADMIN, live.previewId);
+    assert.equal(stored.ok, true);
+    assert.ok(countAdminAuthorSavedHoldsForTests() <= 100);
+
+    const qaFail = holdAdminAuthorManuscriptForTests({
+      adminUserId: ADMIN.id,
+      plan,
+      world: pack.world,
+      brief: pack.brief,
+      bible: { ...pack.bible, greeting: `"당신?"` },
+    });
+    assert.equal(qaFail.qaOk, false);
+    const blockedSave = await saveHeldAdminAuthorPreview(ADMIN, qaFail.previewId);
+    assert.equal(blockedSave.ok, false);
+    if (!blockedSave.ok) assert.equal(blockedSave.status, 409);
+
+    const qaPass = holdAdminAuthorManuscriptForTests({
+      adminUserId: ADMIN.id,
+      plan,
+      world: pack.world,
+      brief: pack.brief,
+      bible: pack.bible,
+    });
+    assert.equal(qaPass.qaOk, true);
+    const blockedRepair = await repairHeldAdminAuthorPreview({
+      adminUserId: ADMIN.id,
+      previewId: qaPass.previewId,
+      transport: {
+        label: "must-not-call",
+        async completeJson() {
+          throw new Error("repair transport called");
+        },
+      },
+    });
+    assert.equal(blockedRepair.ok, false);
+    if (!blockedRepair.ok) assert.equal(blockedRepair.error, "고칠 검수 오류가 없습니다.");
   });
 
   it("does not insert a character when generation fails before a manuscript exists", async () => {
