@@ -8,6 +8,7 @@ import {
   HISTORICAL_TRUTH_POLICY_SECTION_ID,
   HISTORICAL_TRUTH_POLICY_TITLE,
   buildHistoricalTruthCurrentUserRecencyRef,
+  currentUserDemandsAbsentMemory,
   currentUserNeedsHistoricalTruthRecencyRef,
 } from "@/lib/historicalTruthPolicy";
 import { buildNoGodmoddingBlock } from "@/lib/noGodmodding";
@@ -166,6 +167,27 @@ describe("historical truth — production miss-path owner matrix", () => {
       );
       assert.match(lastUser!.content, /비어 있는 이전 세부는 열린 상태/);
     }
+  });
+
+  it("keeps a recent-raw scene event when the question asks to deny anything missing", () => {
+    const t80Question =
+      "기억만 말해. 사람들 앞에서 우리 관계를 확정하려고 한 일이 있으면, 누가 누구에게 어떤 물건을 건넸는지, 그 일이 지금 장면인지 예전 장면인지 말해. 그 물건이 예전에 설치한 폭약과 같은 물건인지도 구분해. 없으면 없다고 해.";
+    assert.equal(currentUserNeedsHistoricalTruthRecencyRef(t80Question), false);
+    assert.equal(currentUserDemandsAbsentMemory(t80Question), true);
+    assert.match(HISTORICAL_TRUTH_POLICY_BLOCK, /recent raw에 적힌 그 턴의 행동·전달·착용은 그 장면의 기록이다/);
+    assert.match(HISTORICAL_TRUTH_POLICY_BLOCK, /없었다고 하거나/);
+    assert.match(HISTORICAL_TRUTH_POLICY_BLOCK, /예전부터 알고 지냈다/);
+    assert.doesNotMatch(HISTORICAL_TRUTH_POLICY_BLOCK, /장면 연속성 자료/);
+    const built = buildBase({ currentUserMessage: t80Question });
+    assert.equal(historicalTruthSection(built), HISTORICAL_TRUTH_POLICY_BLOCK);
+    assert.equal(countHistoricalTruthFullOwner(built.systemPrompt), 1);
+    const lastUser = built.history[built.history.length - 1];
+    assert.equal(lastUser?.role, "user");
+    assert.equal(
+      (lastUser!.content.match(/\[HISTORICAL TRUTH CHECK\]/g) ?? []).length,
+      1
+    );
+    assert.match(lastUser!.content, /recent raw에 적힌 장면 기록을 지우거나 환각·허구로 바꾸지 않는다/);
   });
 
   it("does not anchor independent user backstory without a shared-history premise", () => {
