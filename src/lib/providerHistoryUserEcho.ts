@@ -32,16 +32,85 @@ function blankLineParagraphs(text: string): string[] {
     .filter((part) => part.length > 0);
 }
 
+const DIALOGUE_WRAPPERS: ReadonlyArray<readonly [string, string]> = [
+  ['"', '"'],
+  ["“", "”"],
+  ["「", "」"],
+  ["『", "』"],
+];
+
 function whollyContainedInUser(paragraph: string, userCollapsed: string): boolean {
   const collapsed = collapseWhitespace(paragraph);
   return collapsed.length >= 2 && userCollapsed.includes(collapsed);
 }
 
+/** One utterance wrapped as speech. Inner quote marks keep a mixed paragraph out. */
+function quoteWrappedDialogue(paragraph: string): boolean {
+  const collapsed = collapseWhitespace(paragraph);
+  for (const [open, close] of DIALOGUE_WRAPPERS) {
+    if (!collapsed.startsWith(open) || !collapsed.endsWith(close)) continue;
+    if (collapsed.length <= open.length + close.length) continue;
+    const inner = collapsed.slice(open.length, collapsed.length - close.length);
+    if (open === close) {
+      if (!inner.includes(open)) return true;
+      continue;
+    }
+    if (!inner.includes(open) && !inner.includes(close)) return true;
+  }
+  return false;
+}
+
+/**
+ * True when each paragraph occurs later in the previous user than the one
+ * before it. A reversed quotation does not match.
+ */
+function forwardCopyInUserOrder(
+  parts: readonly string[],
+  start: number,
+  end: number,
+  userCollapsed: string
+): boolean {
+  let from = 0;
+  for (let index = start; index < end; index += 1) {
+    const needle = collapseWhitespace(parts[index] ?? "");
+    const at = userCollapsed.indexOf(needle, from);
+    if (at < 0) return false;
+    from = at + needle.length;
+  }
+  return true;
+}
+
+/** The same contained line repeated. Order cannot advance, but it is still a dump. */
+function identicalContainedRepetition(
+  parts: readonly string[],
+  start: number,
+  end: number,
+  userCollapsed: string
+): boolean {
+  const first = collapseWhitespace(parts[start] ?? "");
+  if (first.length < 2 || !userCollapsed.includes(first)) return false;
+  for (let index = start + 1; index < end; index += 1) {
+    if (collapseWhitespace(parts[index] ?? "") !== first) return false;
+  }
+  return true;
+}
+
+/**
+ * Two quote-wrapped lines are a callback or NPC quotation.
+ * A longer run, or a line that is not wholly wrapped, stays a copy candidate.
+ */
+function protectedDialogueCallback(parts: readonly string[], start: number, end: number): boolean {
+  if (end - start !== 2) return false;
+  return quoteWrappedDialogue(parts[start] ?? "") && quoteWrappedDialogue(parts[end - 1] ?? "");
+}
+
 /**
  * Drop a blank-line paragraph only when it belongs to a contiguous run of at
  * least two paragraphs that are each wholly contained in the immediately
- * previous user message. An isolated match, a mixed paragraph, and a reply
- * that would become empty stay as stored.
+ * previous user message, in that message's order or as the same line repeated.
+ * An out-of-order quotation, a pair of quote-wrapped dialogue lines, an
+ * isolated match, a mixed paragraph, and a reply that would become empty stay
+ * as stored.
  */
 export function omitContiguousReinjectedUserParagraphs<T extends { role: string; content: string }>(
   history: readonly T[]
@@ -76,10 +145,15 @@ function omitContiguousRun(assistant: string, user: string): string | null {
     }
     let end = index + 1;
     while (end < parts.length && duplicated[end]) end += 1;
-    if (end - index >= 2) {
+    const copyRun =
+      end - index >= 2 &&
+      (forwardCopyInUserOrder(parts, index, end, userCollapsed) ||
+        identicalContainedRepetition(parts, index, end, userCollapsed)) &&
+      !protectedDialogueCallback(parts, index, end);
+    if (copyRun) {
       removed = true;
     } else {
-      kept.push(parts[index]!);
+      for (let keep = index; keep < end; keep += 1) kept.push(parts[keep]!);
     }
     index = end;
   }

@@ -133,6 +133,46 @@ describe("Gemini 3.8 history echo projection", () => {
     assert.equal(assistant.includes("베타 문장이다. UNIQUE_FACT"), true);
   });
 
+  it("keeps an out-of-order quotation and the unique reaction after it", () => {
+    const history = [
+      {
+        role: "user" as const,
+        content: ["알파 문단은 동쪽에서 시작했다.", "베타 문단은 문을 닫는 장면이다."].join("\n\n"),
+      },
+      {
+        role: "assistant" as const,
+        content: [
+          "베타 문단은 문을 닫는 장면이다.",
+          "알파 문단은 동쪽에서 시작했다.",
+          "그는 난간을 짚고 고유한 반응을 덧붙였다.",
+        ].join("\n\n"),
+      },
+    ];
+    const assistant = omitContiguousReinjectedUserParagraphs(history)[1]?.content ?? "";
+    assert.equal(assistant.includes("베타 문단은 문을 닫는 장면이다."), true);
+    assert.equal(assistant.includes("알파 문단은 동쪽에서 시작했다."), true);
+    assert.equal(assistant.includes("그는 난간을 짚고 고유한 반응을 덧붙였다."), true);
+    assert.equal(assistant, history[1]?.content);
+  });
+
+  it("keeps two short dialogue lines spoken back as a callback", () => {
+    const history = [
+      {
+        role: "user" as const,
+        content: ['"기다려."', '"따라와."'].join("\n\n"),
+      },
+      {
+        role: "assistant" as const,
+        content: ['"기다려."', '"따라와."', "그는 그 두 마디를 되받고 난간을 짚었다."].join("\n\n"),
+      },
+    ];
+    const assistant = omitContiguousReinjectedUserParagraphs(history)[1]?.content ?? "";
+    assert.equal(assistant.includes('"기다려."'), true);
+    assert.equal(assistant.includes('"따라와."'), true);
+    assert.equal(assistant.includes("그는 그 두 마디를 되받고 난간을 짚었다."), true);
+    assert.equal(assistant, history[1]?.content);
+  });
+
   it("treats Korean spacing and newline differences as the same paragraph", () => {
     const history = [
       {
