@@ -179,6 +179,32 @@ describe("A1 generation handoff", () => {
       assert.deepEqual(tasks, ["character_bible_1", "character_bible_voice"]);
     }
   });
+
+  it("returns the rejected public manuscript and does not call Bonds when voice gender QA fails", async () => {
+    const { part1, voice, bonds } = inputs();
+    const profile = voice.publicProfile as Record<string, string>;
+    const description = `${profile.detailedDescription}\n당신은 그 남자 플레이어로 시작한다.`;
+    profile.detailedDescription = description;
+    const greeting = String(voice.greeting ?? "");
+    const comment = profile.creatorComment;
+    const { transport, tasks } = recordingTransport({
+      character_bible_1: part1, character_bible_voice: voice, character_bible_bonds: bonds,
+    });
+    await assert.rejects(
+      () => generateOfficialCharacterBible(generationArgs(transport)),
+      (error: unknown) => {
+        assert.ok(error instanceof OfficialSupplyGateError);
+        assert.equal(error.code, "author_public_manuscript_invalid");
+        assert.equal(error.rejectedPublicManuscript?.description, description);
+        assert.equal(error.rejectedPublicManuscript?.greeting, greeting);
+        assert.equal(error.rejectedPublicManuscript?.comment, comment);
+        assert.match(error.message, /남자 플레이어/);
+        assert.equal(error.message.includes("너는 롤플레잉"), false);
+        return true;
+      }
+    );
+    assert.deepEqual(tasks, ["character_bible_1", "character_bible_voice"]);
+  });
 });
 
 const VOCAB = ["궁정", "기사단", "은빛 강", "마력석", "원로원", "북부 전선", "제국력", "상단", "기사", "맹세"];

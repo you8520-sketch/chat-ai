@@ -321,6 +321,61 @@ describe("G5-2 admin private draft save", () => {
     assert.ok(first.qaOk);
   });
 
+  it("shows a voice gender-QA rejection without Bonds, a hold, or a saved row", async () => {
+    clearAdminAuthorPreviewsForTests();
+    const db = getDb();
+    const before = db.prepare("SELECT COUNT(*) AS n FROM characters").get() as { n: number };
+    const files = [
+      "14-g5-horror-dry-world_bible.json",
+      "15-g5-horror-dry-world_bible.json",
+      "16-g5-horror-dry-world_bible.json",
+      "17-g5-horror-dry-world_bible.json",
+      "18-g5-horror-dry-character_bible_1.json",
+      "19-g5-horror-dry-character_bible_voice.json",
+    ];
+    const queue = files.map((file) => readJson<{ text: string }>(path.join(PROVIDER, file)).text);
+    const voice = JSON.parse(queue[5] ?? "{}") as { greeting?: string; publicProfile?: { detailedDescription?: string; creatorComment?: string } };
+    const lock = "당신은 그 남자 플레이어로 시작한다.";
+    voice.publicProfile = { ...voice.publicProfile, detailedDescription: `${voice.publicProfile?.detailedDescription ?? ""}\n${lock}` };
+    queue[5] = JSON.stringify(voice);
+    let bondsCalls = 0;
+    let calls = 0;
+    const transport: OfficialAuthorTransport = {
+      label: "gender-lock-fixture",
+      async completeJson(input) {
+        calls += 1;
+        if (input.task === "character_bible_bonds") bondsCalls += 1;
+        const text = queue.shift();
+        if (!text) throw new Error("fixture transport exhausted");
+        return { text, model: "fixture", inputTokens: 0, outputTokens: 0, costUsd: 0, providerRequestId: null };
+      },
+    };
+    const preview = await previewAdminOfficialCharacter({
+      adminUserId: ADMIN.id,
+      selection: autoHorrorDry,
+      transport,
+    });
+    assert.equal(bondsCalls, 0);
+    assert.equal(calls, 6);
+    assert.equal(preview.ok, false);
+    if (preview.ok) return;
+    assert.equal("previewId" in preview, false);
+    assert.match(preview.error, /official_player_gender_locked/);
+    assert.ok(preview.issues?.some((issue) => issue.code === "official_player_gender_locked" && issue.message.includes("남자 플레이어")));
+    assert.match(preview.rejectedManuscript?.description ?? "", /남자 플레이어/);
+    assert.equal(preview.rejectedManuscript?.greeting, voice.greeting ?? "");
+    assert.equal(preview.rejectedManuscript?.comment, voice.publicProfile?.creatorComment ?? "");
+    const wire = JSON.stringify(preview);
+    assert.equal(wire.includes("OPENROUTER"), false);
+    assert.equal(wire.includes("너는 롤플레잉"), false);
+    assert.equal(wire.includes("system"), false);
+    const saved = await saveHeldAdminAuthorPreview(ADMIN, "rejected-has-no-hold");
+    assert.equal(saved.ok, false);
+    if (!saved.ok) assert.equal(saved.status, 404);
+    const after = db.prepare("SELECT COUNT(*) AS n FROM characters").get() as { n: number };
+    assert.equal(after.n, before.n);
+  });
+
   it("runs the production preview path with G5-1 provider fixtures and saves privately", async () => {
     clearAdminAuthorPreviewsForTests();
     const pack = candidate("g5-horror-dry");

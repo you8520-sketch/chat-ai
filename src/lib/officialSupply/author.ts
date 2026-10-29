@@ -1201,19 +1201,29 @@ function buildPublicWritingContext(source: Record<string, unknown>, worldContext
   return [`키: ${identity.heightCm ?? ""}cm`, ...facts, `세계: ${worldContext}`].join("\n");
 }
 
+const REJECTED_PUBLIC_FIELD_MAX = 8000;
+
 function assertGeneratedPublicManuscripts(voice: Record<string, unknown>, name: string): void {
   const profile = isRecord(voice.publicProfile) ? voice.publicProfile : {};
   const description = String(profile.detailedDescription ?? "").trim();
   const comment = String(profile.creatorComment ?? "").trim();
+  const greeting = String(voice.greeting ?? "").trim();
   const qa = mergeQa(
     evaluateOfficialPublicDescription(description, name),
     evaluateOfficialCreatorComment(comment, description)
   );
-  if (!qa.ok) throw new OfficialSupplyGateError(
-    "author_public_manuscript_invalid",
-    `author_public_manuscript_invalid: ${qa.errors.map(e => `${e.code}(${e.message})`).join("; ")}`,
-    qa
-  );
+  if (!qa.ok) {
+    throw new OfficialSupplyGateError(
+      "author_public_manuscript_invalid",
+      `author_public_manuscript_invalid: ${qa.errors.map(e => `${e.code}(${e.message})`).join("; ")}`,
+      qa,
+      {
+        greeting: greeting.slice(0, REJECTED_PUBLIC_FIELD_MAX),
+        description: description.slice(0, REJECTED_PUBLIC_FIELD_MAX),
+        comment: comment.slice(0, REJECTED_PUBLIC_FIELD_MAX),
+      }
+    );
+  }
 }
 
 function strArray(value: unknown): string[] {

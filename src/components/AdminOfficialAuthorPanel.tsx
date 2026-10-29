@@ -25,6 +25,8 @@ type Preview = {
   repairable: boolean;
   voiceRepairs: number;
   textLock: string;
+  viewOnly?: boolean;
+  creatorComment?: string;
   manuscript: {
     name: string;
     tagline: string;
@@ -35,6 +37,16 @@ type Preview = {
   };
   resolved: AdminAuthorGenreRecommendation;
 };
+
+function readRejectedManuscript(value: unknown): { greeting: string; description: string; comment: string } | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Record<string, unknown>;
+  const greeting = typeof row.greeting === "string" ? row.greeting : "";
+  const description = typeof row.description === "string" ? row.description : "";
+  const comment = typeof row.comment === "string" ? row.comment : "";
+  if (!greeting && !description && !comment) return null;
+  return { greeting, description, comment };
+}
 
 const TONE_OPTIONS = [
   ["auto", "자동 추천"],
@@ -154,15 +166,34 @@ export default function AdminOfficialAuthorPanel({
     if (payload.ok !== true) {
       const issues = Array.isArray(payload.issues) ? payload.issues : [];
       setError(typeof payload.error === "string" ? payload.error : "생성에 실패했습니다.");
-      if (issues.length) {
+      const rejected = readRejectedManuscript(payload.rejectedManuscript);
+      if (issues.length || rejected) {
         setPreview({
           previewId: "",
           qaOk: false,
           repairable: false,
           voiceRepairs: 0,
           textLock: "",
-          manuscript: { name: "", tagline: "", description: "", greeting: "", genres: [], tags: [] },
-          resolved: recommendation!,
+          viewOnly: Boolean(rejected),
+          creatorComment: rejected?.comment ?? "",
+          manuscript: {
+            name: "",
+            tagline: "",
+            description: rejected?.description ?? "",
+            greeting: rejected?.greeting ?? "",
+            genres: [],
+            tags: [],
+          },
+          resolved: recommendation ?? {
+            genre,
+            tone: "",
+            humor: "",
+            pacing: "",
+            nameWordplay: "",
+            worldScale: "",
+            namingProfile: "",
+            castIntent,
+          },
           issues: issues as Preview["issues"],
         });
       }
@@ -290,33 +321,49 @@ export default function AdminOfficialAuthorPanel({
           type="button"
           className={primaryButton}
           data-testid="admin-author-save"
-          disabled={busy != null || !preview?.qaOk || !preview.previewId}
+          disabled={busy != null || !preview?.qaOk || !preview.previewId || preview.viewOnly === true}
           onClick={() => void save()}
         >
           {busy === "save" ? "저장 중…" : "비공개 초안으로 저장"}
         </button>
       </div>
       {error ? <p className="mt-3 text-sm text-rose-300">{error}</p> : null}
-      {preview && (preview.manuscript.name || preview.issues.length > 0) ? (
+      {preview && (preview.manuscript.name || preview.manuscript.description || preview.manuscript.greeting || preview.issues.length > 0) ? (
         <div className="mt-4 space-y-2 text-sm text-zinc-200" data-testid="admin-author-preview">
           <p data-testid="admin-author-qa">
             검수 {preview.qaOk ? "통과" : "실패"}
             {preview.textLock ? ` · Text Lock ${preview.textLock.slice(0, 12)}` : ""}
             {preview.voiceRepairs ? ` · 선택 보정 ${preview.voiceRepairs}회` : ""}
           </p>
+          {preview.viewOnly ? (
+            <p data-testid="admin-author-rejected" className="text-amber-200">
+              검수에서 탈락한 원고입니다. 열람만 가능하며 저장·승인·공개되지 않습니다.
+            </p>
+          ) : null}
           {preview.issues.map((issue) => (
             <p key={`${issue.code}:${issue.message}`} className="text-rose-200">
               {issue.code}: {issue.message}
             </p>
           ))}
           {preview.manuscript.name ? (
-            <>
-              <p className="font-semibold text-white">
-                {preview.manuscript.name} — {preview.manuscript.tagline}
-              </p>
-              <p className="whitespace-pre-wrap text-zinc-300">{preview.manuscript.description}</p>
-              <p className="whitespace-pre-wrap text-zinc-300">{preview.manuscript.greeting}</p>
-            </>
+            <p className="font-semibold text-white">
+              {preview.manuscript.name} — {preview.manuscript.tagline}
+            </p>
+          ) : null}
+          {preview.manuscript.description ? (
+            <p className="whitespace-pre-wrap text-zinc-300" data-testid="admin-author-rejected-description">
+              {preview.manuscript.description}
+            </p>
+          ) : null}
+          {preview.manuscript.greeting ? (
+            <p className="whitespace-pre-wrap text-zinc-300" data-testid="admin-author-rejected-greeting">
+              {preview.manuscript.greeting}
+            </p>
+          ) : null}
+          {preview.creatorComment ? (
+            <p className="whitespace-pre-wrap text-zinc-300" data-testid="admin-author-rejected-comment">
+              {preview.creatorComment}
+            </p>
           ) : null}
         </div>
       ) : null}
