@@ -91,7 +91,7 @@ describe("Main RP final-wire audit", () => {
     const adult = caseById("ds-adult-normal");
     const regen = caseById("ds-regen-normal");
     // #1623 replaced one speech-metadata sentence in the contamination guard (+44).
-    // That sentence is the only system-byte change since the 2026-10-02 pin.
+    // CNC fiction framing in [ADULT CONTENT POLICY] updates ds-adult-normal flat SHA only.
     // Character blocks are unchanged. The Gemini 3.8 axis is not in system.
     const preFixFlatSha256 = {
       "ds-interactive-normal-rich":
@@ -99,7 +99,7 @@ describe("Main RP final-wire audit", () => {
       "ds-regen-normal":
         "29e6c4ee9883550690991f80418255f880829305f7bd6b4532f322393ec3bef8",
       "ds-adult-normal":
-        "c8bd55bd955df15ad16f9b716c8c632879eaa91394942e0ba17b9b704d37856a",
+        "538e4dafbda02e53d0beb382027f47d3986034546fe4654c720a57b64ba9feca",
       "g31-interactive-normal-rich":
         "ef050f76500db339a3797990748ffe0068bcb2df26fcc88747e886afd3831932",
       "opus-interactive-long-history":
