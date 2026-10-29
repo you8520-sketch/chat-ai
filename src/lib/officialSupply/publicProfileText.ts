@@ -21,10 +21,9 @@ export const OFFICIAL_PUBLIC_INTRO_MAX_CHARS = PROFILE_BIOGRAPHY_LIMIT;
 
 const HTML_TAG_RE = /<\/?[a-z][\s\S]*>/i;
 const USER_CUE_RE = /당신/;
-/** Player-side gender/role locks. Character identity words are not in this set. */
-const PLAYER_ADDRESS_LOCK_RE = /아가씨|도련님|왕자비|신부/;
-const PLAYER_GENDER_COLLOCATE_RE =
-  /(?:당신|플레이어|유저).{0,16}(?:여자|남자|여성|남성)|(?:여자|남자|여성|남성).{0,16}(?:당신|플레이어|유저)/;
+const PLAYER_CUE_SOURCE = "당신|플레이어|유저";
+const GENDER_WORD_SOURCE = "여자|남자|여성|남성";
+const PLAYER_TITLE_SOURCE = "아가씨|도련님|왕자비|신부";
 
 function nonEmpty(value: string | null | undefined): value is string {
   return Boolean(value && value.trim());
@@ -365,6 +364,106 @@ export function evaluateOfficialCharacterPronoun(
   return qaResult(errors);
 }
 
+function clipExcerpt(text: string, index: number, length: number): string {
+  const start = Math.max(0, index - 12);
+  const end = Math.min(text.length, index + length + 12);
+  return text.slice(start, end).replace(/\s+/g, " ").replace(/"/g, "").trim();
+}
+
+/** A spaced or suffixed word after a gender token belongs to someone other than the player cue. */
+function genderWordModifiesFollowingNoun(after: string): boolean {
+  if (/^(?:이|가)(?=\s*(?:아니|맞))/.test(after)) return false;
+  const spaced = after.match(/^\s+([가-힣]+)/);
+  if (spaced) {
+    const word = spaced[1] ?? "";
+    if (/^(?:다|이다|입니다|로|으로|라고|라며|라서|이며|이고|야|예요|에요)/.test(word)) return false;
+    return true;
+  }
+  const tight = after.match(/^[가-힣]+/)?.[0] ?? "";
+  if (!tight) return false;
+  if (/^(?:다|이다|입니다|로|으로|라고|라며|라서|이며|이고|인|고|야|예요|에요|스럽다|적이다|적|성)/.test(tight)) return false;
+  if (/^친구(?:다|이다|로|으로|인|라고|라며)/.test(tight)) return false;
+  if (/^(?:을|를|와|과|도|만|이|가)/.test(tight)) return true;
+  return true;
+}
+
+function lastPlayerCue(before: string): { index: number; between: string } | null {
+  const re = new RegExp(PLAYER_CUE_SOURCE, "g");
+  let index = -1;
+  let length = 0;
+  for (const match of before.matchAll(re)) {
+    index = match.index ?? -1;
+    length = match[0].length;
+  }
+  if (index < 0) return null;
+  const between = before.slice(index + length).replace(/^(?:께서|에게|께|은|는|이|가|을|를|의|도|만)/, "");
+  return { index, between };
+}
+
+/**
+ * A title predicated of 그녀/그는, or heading its own clause, names the character
+ * or an NPC. A title aimed at 당신/플레이어/유저 stays locked.
+ */
+function titleNamesCharacterOrNpc(text: string, index: number, length: number): boolean {
+  const before = text.slice(Math.max(0, index - 40), index);
+  const after = text.slice(index + length, index + length + 24);
+  const cueAt = Math.max(before.lastIndexOf("당신"), before.lastIndexOf("플레이어"), before.lastIndexOf("유저"));
+  const charAt = Math.max(before.lastIndexOf("그녀"), before.lastIndexOf("그는"), before.lastIndexOf("그가"));
+  if (cueAt >= 0 && cueAt > charAt && !/[.!?。！？]/.test(before.slice(cueAt))) return false;
+  if (charAt >= 0 && charAt > cueAt) {
+    const gap = before.slice(charAt);
+    if (!/당신|플레이어|유저/.test(gap) && !/^(?:을|를)/.test(after)) {
+      if (
+        /^(?:다|이다|입니다|예요|에요|야|로|으로|이라고|이며|이고|인|라|고)/.test(after) ||
+        /(?:은|는|이|가|의)\s*$/.test(before)
+      ) {
+        return true;
+      }
+    }
+  }
+  if (/^님?(?:은|는|이|가)/.test(after)) {
+    const rest = after.replace(/^님?(?:은|는|이|가)\s*/, "");
+    if (new RegExp(`^(?:${PLAYER_CUE_SOURCE})(?:이다|다|로|으로|이야|야|인)`).test(rest)) return false;
+    return true;
+  }
+  return false;
+}
+
+function titledPlayerRoleExcerpt(text: string): string | null {
+  const bound = text.match(new RegExp(`(?:${PLAYER_TITLE_SOURCE})(?:인|의)?\\s*(?:${PLAYER_CUE_SOURCE})`));
+  if (bound?.index != null) return clipExcerpt(text, bound.index, bound[0].length);
+  for (const match of text.matchAll(new RegExp(PLAYER_TITLE_SOURCE, "g"))) {
+    const index = match.index ?? 0;
+    if (titleNamesCharacterOrNpc(text, index, match[0].length)) continue;
+    return clipExcerpt(text, index, match[0].length);
+  }
+  return null;
+}
+
+/** First phrase that fixes the player's gender or a titled player role, if any. */
+function playerGenderLockExcerpt(text: string): string | null {
+  const direct = text.match(
+    new RegExp(
+      `(?:${GENDER_WORD_SOURCE})(?:인|의)?(?:\\s*채로|\\s*상태로)?\\s*(?:${PLAYER_CUE_SOURCE})|(?:남자친구|여자친구)(?:인)?\\s*(?:${PLAYER_CUE_SOURCE})`
+    )
+  );
+  if (direct?.index != null) return clipExcerpt(text, direct.index, direct[0].length);
+
+  for (const match of text.matchAll(new RegExp(GENDER_WORD_SOURCE, "g"))) {
+    const index = match.index ?? 0;
+    const word = match[0];
+    const windowStart = Math.max(0, index - 40);
+    const cue = lastPlayerCue(text.slice(windowStart, index));
+    if (!cue) continue;
+    if (/[.!?。！？]/.test(cue.between) || cue.between.length > 32) continue;
+    if (/(?:그녀|그는|그가)(?:는|은|가|이)?(?:\s+[^\s.!?。！？]{1,12}){0,3}\s*$/.test(cue.between)) continue;
+    if (genderWordModifiesFollowingNoun(text.slice(index + word.length))) continue;
+    const cueIndex = windowStart + cue.index;
+    return clipExcerpt(text, cueIndex, index + word.length - cueIndex);
+  }
+  return titledPlayerRoleExcerpt(text);
+}
+
 /** Player/user side of greeting, public intro, and creator comment must stay gender-neutral. */
 export function evaluateOfficialPlayerGenderNeutral(surfaces: {
   greeting?: string;
@@ -379,10 +478,11 @@ export function evaluateOfficialPlayerGenderNeutral(surfaces: {
   ] as const) {
     const text = (raw ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
     if (!text) continue;
-    if (PLAYER_ADDRESS_LOCK_RE.test(text) || PLAYER_GENDER_COLLOCATE_RE.test(text)) {
+    const excerpt = playerGenderLockExcerpt(text);
+    if (excerpt) {
       errors.push({
         code: "official_player_gender_locked",
-        message: `${surface} must not hard-code player gender or titled player roles`,
+        message: `${surface} must not hard-code player gender or titled player roles: "${excerpt}"`,
       });
     }
   }
