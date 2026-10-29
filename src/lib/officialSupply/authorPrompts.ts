@@ -22,8 +22,16 @@ import {
   type OfficialMarketFitBrief,
 } from "@/lib/officialSupply/marketFit";
 import type { OfficialCharacterSceneContext } from "@/lib/officialSupply/scenePortfolio";
-import { DOMESTIC_ROFAN_STYLE_DIRECTION } from "@/lib/officialSupply/style";
+import {
+  formatAuthoringDirection,
+  OFFICIAL_WORLD_SCALE_LIMITS,
+  officialWorldScaleForPlan,
+  ROFAN_PARITY_PLAN,
+  type OfficialAuthoringPlan,
+  type OfficialWorldScale,
+} from "@/lib/officialSupply/genreProfile";
 import { buildRofanMatureMaleVisualAgeDirection } from "@/lib/officialSupply/appearance";
+import { officialCharacterPronounDirective } from "@/lib/officialSupply/publicProfileText";
 import {
   buildUserRelationAuthorRules,
   formatUserRelationBondsRule,
@@ -103,6 +111,8 @@ export type WorldBibleInput = {
   slotGenders: ("male" | "female" | "other")[];
   /** Batch cast intent in plain words (audience + romance-target profile). */
   castIntent?: string;
+  /** Genre/tone/naming policy. Absent = rofan parity (`genreProfile.ts`). */
+  authoring?: OfficialAuthoringPlan;
 };
 
 /** Market input for world/portfolio calls — trope-level signal lines only (`selectMarketSignals`). */
@@ -123,33 +133,66 @@ const WORLD_ATLAS_SKELETON = `{"locations": [{"name": "", "purpose": "", "mood":
 
 const WORLD_PORTFOLIO_SKELETON = `{"portfolio": [{"slot": 1, "marketFit": ${MARKET_FIT_SKELETON}, "name": "", "gender": "", "age": 0, "archetype": "", "relationshipTrope": "", "occupation": "", "faction": "", "socialPosition": "", "personalityCore": "", "visualSilhouette": "", "rpHook": "", "adultCandidate": false, "speechDirection": "", "audience": "", "userRelation": {"type": "free", "fixed": ""}}]}`;
 
-export function buildWorldBibleSystem(): string {
+const NEUTRAL_CAST_WORLD_STAGE =
+  "현재 사건·세력·장소는 이 의도의 관계와 첫 행동이 벌어지는 무대다. 시장 신호와 의도가 다르면 신호의 인물 관계를 세계의 줄거리로 쓰지 않는다.";
+const NEUTRAL_CAST_ATLAS_STAGE = "장소에서 벌어지는 사건은 이 의도의 관계와 첫 행동이다.";
+const NEUTRAL_CAST_PORTFOLIO_STAGE =
+  "목표·유저와의 관계·첫 사건·첫 행동·유머 방식은 이 의도에서 나온다. 시장 신호와 의도가 다르면 신호의 인물 관계를 이 슬롯의 정체로 쓰지 않는다.";
+
+/** Genre-neutral planning only. Rofan and absent plans stay byte-identical. */
+function neutralCastIntentLines(plan: OfficialAuthoringPlan, castIntent: string | undefined, stage: string): string[] {
+  if (plan.profile.key !== "genre_neutral") return [];
+  const intent = castIntent?.trim();
+  if (!intent) return [];
+  return ["", `캐스트 의도: ${intent}`, stage];
+}
+
+export function buildWorldBibleSystem(plan: OfficialAuthoringPlan = ROFAN_PARITY_PLAN): string {
+  const p = plan.profile;
   return [
-    "너는 로맨스 판타지 세계관 아키텍트다.",
-    "10명의 플레이어블 캐릭터가 서로 다른 관점에서 살아갈 수 있는, 구조적 갈등을 가진 하나의 세계 바이블을 쓴다.",
+    p.worldArchitectLine,
+    `${p.systemCastPhrase} 서로 다른 관점에서 살아갈 수 있는, 구조적 갈등을 가진 하나의 세계 바이블을 쓴다.`,
     "출력은 반드시 순수 JSON 한 개(코드펜스·설명 금지)다.",
     "세계 바이블은 3회 호출로 나눠 작성한다(core → atlas → portfolio). 각 호출은 지정된 필드만 출력한다.",
   ].join("\n");
 }
 
 export function buildWorldCoreUser(input: WorldBibleInput): string {
+  const plan = input.authoring ?? ROFAN_PARITY_PLAN;
+  const scale = officialWorldScaleForPlan(plan);
+  const lim = OFFICIAL_WORLD_SCALE_LIMITS[scale];
+  const factionLead =
+    scale === "scene"
+      ? `- factions ${lim.factions.min}~${lim.factions.max}개(이 사건의 사람·소속): 이름·목적·지도층·수단·타 세력과의 관계·일반인의 시선`
+      : "- factions 3~6개: 이름·목적·지도층·수단·타 세력과의 관계·일반인의 시선";
+  const societyLine =
+    scale === "scene"
+      ? `- society: 이 사건에 실제로 쓰이는 RP 영역 ${lim.societyAreas.min}개 이상. 키=영역명·값=설명 문자열(중첩 객체·domains 배열 금지)`
+      : "- society: RP에 영향을 주는 영역 3개 이상(계급·법·결혼/가족·교육·직업·군사·차별/예절 중)";
+  const cultureLine =
+    scale === "scene"
+      ? `- culture ${lim.culture.min}~${lim.culture.max}개: 이름·상세`
+      : "- culture 3~6개: 이름·상세";
   return [
     `장르: ${input.genre}`,
     `대상 시장: ${input.market.targetLocale} (${input.market.marketPriority})`,
     "",
     "시장 신호(트로프·훅 구조·장치 수준만 참고. 경쟁작 문장·이름·고유 설정 복제 금지):",
     ...input.market.signalLines,
-    "세계관은 깊게 쓰되, 캐릭터 카드 첫 노출에서는 대상 시장 독자가 바로 아는 역할 어휘(황태자·기사단장·마탑주·북부 대공 등)로",
+    ...neutralCastIntentLines(plan, input.castIntent, NEUTRAL_CAST_WORLD_STAGE),
+    `세계관은 깊게 쓰되, 캐릭터 카드 첫 노출에서는 대상 시장 독자가 바로 아는 역할 어휘${plan.profile.worldRoleVocabulary}로`,
     "설명될 수 있어야 한다. 고유 신조어는 내부 깊이를 위해 쓴다.",
+    ...formatAuthoringDirection(plan, ["tone", "humor"]),
     "",
     "이번 호출(core) 출력 필드:",
     "- name(세계관 이름), genre, subgenre, tone, era, techLevel, regions, societyForm",
     "- premise 300~600자 + centralPremise 한 문장",
     "- situation: biggestEvent·beneficiaries·threatened·upcomingChange (합 500~1000자)",
-    "- factions 3~6개: 이름·목적·지도층·수단·타 세력과의 관계·일반인의 시선",
+    factionLead,
     "- powerSystem: capabilities·users·acquisition·ranks·limits·costs·socialImpact·taboos (\"마법이 있다\" 수준 금지)",
-    "- society: RP에 영향을 주는 영역 3개 이상(계급·법·결혼/가족·교육·직업·군사·차별/예절 중)",
-    "- culture 3~6개: 이름·상세",
+    ...(plan.profile.worldPowerNote ? [plan.profile.worldPowerNote] : []),
+    societyLine,
+    cultureLine,
     "최상위 키는 정확히 name·genre·subgenre·tone·era·techLevel·regions·societyForm·premise·centralPremise·",
     "situation·factions·powerSystem·society·culture 이며 하나도 빠뜨리지 않는다.",
     "아래 빈 틀의 모든 값을 채워 JSON 한 개만 출력한다.",
@@ -161,19 +204,27 @@ export type WorldAtlasInput = {
   worldName: string;
   centralPremise: string;
   factionNames: string[];
+  /** Set only for genre-neutral worlds. Absent keeps the atlas prompt unchanged. */
+  castIntent?: string;
+  /** Absent = full (rofan parity and legacy callers). */
+  worldScale?: OfficialWorldScale;
 };
 
 export function buildWorldAtlasUser(input: WorldAtlasInput): string {
+  const intent = input.castIntent?.trim() ?? "";
+  const scale = input.worldScale ?? "full";
+  const lim = OFFICIAL_WORLD_SCALE_LIMITS[scale];
   return [
     `세계관: ${input.worldName} — ${input.centralPremise}`,
     `세력: ${input.factionNames.join(" / ")}`,
+    ...(intent ? ["", `캐스트 의도: ${intent}`, NEUTRAL_CAST_ATLAS_STAGE] : []),
     "",
     "이번 호출(atlas) 출력 필드:",
-    "- locations 5~10개: 이름·용도·분위기·이용자·RP에서 벌어질 사건(이후 스페셜 신 에셋의 재료)",
-    "- history 3~6개: 현재에 영향을 주는 사건만(event·impact). 연대표 나열 금지",
+    `- locations ${lim.locations.min}~${lim.locations.max}개: 이름·용도·분위기·이용자·RP에서 벌어질 사건(이후 스페셜 신 에셋의 재료)`,
+    `- history ${lim.history.min}~${lim.history.max}개: 현재에 영향을 주는 사건만(event·impact). 연대표 나열 금지`,
     "- knowledge: common(대중 상식만, 비밀·정체·흑막·미래 표현 금지) / faction / characterLocal / authorOnly",
     "- userEntry: allowedRoles 2개 이상(귀족·고용인·방문자·계약 상대·신입 등, 단일 강제 금지) + note",
-    "- lorebook: 실제 RP에서 반복적으로 필요한 세계 정보만 3~8개. 개수 채우기 금지. entryKey·name(40자 이내)·keywords(2~10개)·content(800자 이내)",
+    `- lorebook: 실제 RP에서 반복적으로 필요한 세계 정보만 ${lim.lorebook.min}~${lim.lorebook.max}개. 개수 채우기 금지. entryKey·name(40자 이내)·keywords(2~10개)·content(800자 이내)`,
     "최상위 키는 정확히 locations·history·knowledge·userEntry·lorebook이며 하나도 빠뜨리지 않는다.",
     "아래 빈 틀의 모든 값을 채워 JSON 한 개만 출력한다.",
     WORLD_ATLAS_SKELETON,
@@ -193,6 +244,7 @@ export type WorldPortfolioInput = {
   market: WorldMarketInput;
   /** Batch cast intent in plain words (audience + romance-target profile). */
   castIntent?: string;
+  authoring?: OfficialAuthoringPlan;
 };
 
 /** Market-fit authoring rules shared by the full portfolio call and slot replacement. */
@@ -226,6 +278,7 @@ function marketFitRuleLines(m: WorldMarketInput): string[] {
 
 export function buildWorldPortfolioUser(input: WorldPortfolioInput): string {
   const m = input.market;
+  const plan = input.authoring ?? ROFAN_PARITY_PLAN;
   return [
     `세계관: ${input.worldName} — ${input.centralPremise}`,
     `세력: ${input.factionNames.join(" / ")}`,
@@ -234,17 +287,19 @@ export function buildWorldPortfolioUser(input: WorldPortfolioInput): string {
     `성인 후보 수: ${input.adultCandidates}명 (이 수만큼 adultCandidate=true)`,
     `성별 구성: ${input.genderMix} (이 배치의 의도된 구성 — 반드시 준수)`,
     input.castIntent ? `캐스트 의도: ${input.castIntent}` : "",
+    ...(plan.profile.key === "genre_neutral" && input.castIntent?.trim() ? [NEUTRAL_CAST_PORTFOLIO_STAGE] : []),
     `슬롯별 성별 고정표(절대 변경 금지, 이름도 성별에 맞게): ${input.slotGenders.map((g, i) => `${i + 1}번 ${g}`).join(", ")}`,
     "",
     ...marketFitRuleLines(m),
+    ...formatAuthoringDirection(plan, ["tone", "humor", "wordplay", "relation"]),
     "",
     "이번 호출(portfolio) 출력 필드: portfolio 배열. 각 브리프는",
     "slot·marketFit·name(20자 이내, 서로 겹치지 않게)·gender·age(19세 이상)·archetype·relationshipTrope(=marketFit primary)·occupation·",
     "faction(위 목록에서)·socialPosition·personalityCore·visualSilhouette·rpHook·adultCandidate·speechDirection·audience·userRelation.",
     `이름은 namingProfile을 따른다: ${NAMING_PROFILES[m.namingProfile].guidance}`,
     "같은 첫 음절·끝 음절이 3명 이상 반복되거나 한 음절만 다른 이름 쌍, 가족이 아닌데 같은 성/가문명을 쓰는 것 금지.",
-    "10명 모두 역할·세력·신분·성격핵·관계 트로프·외형 실루엣·RP 훅이 달라야 한다.",
-    "냉미남·집착남·황태자·계약관계·검은머리·190cm 클론 금지.",
+    `${plan.profile.portfolioAllPhrase} 역할·세력·신분·성격핵·관계 트로프·외형 실루엣·RP 훅이 달라야 한다.`,
+    ...(plan.profile.portfolioClicheLine ? [plan.profile.portfolioClicheLine] : []),
     "연령·신분 분산. 경쟁작의 고유 명칭·문장·설정·캐릭터 이름을 복제하지 않는다.",
     "최상위 키는 정확히 portfolio 하나이며, 브리프 키도 빠뜨리지 않는다.",
     "아래 빈 틀을 복제·확장해 JSON 한 개만 출력한다.",
@@ -265,18 +320,29 @@ export type PortfolioReplacementInput = {
   /** Manifest direction per replaced slot (role space + relationship experience + exclusions). */
   slots: { slot: number; gender: "male" | "female" | "other"; adultCandidate: boolean; direction: string }[];
   feedback?: string;
+  /** Genre/tone/naming policy. Absent = rofan parity; present also adds the cast-experience overlap rule. */
+  authoring?: OfficialAuthoringPlan;
 };
+
+/** Axes along which a new character must differ from the cast in practice, not just in name or job. */
+const CAST_EXPERIENCE_OVERLAP_LINES = [
+  "겹침 판단: 이름·직업·소품만 바꾸고 목표·첫 사건·말투·유저와의 역학·유머 방식·플레이 경험이 같은 구조면 다른 캐릭터가 아니다.",
+  "각 축이 유지 캐릭터와 실제로 다른지 확인한다. 낯설게 만들려고 기괴하게 쓰지 않으며 트로프 자체를 피하지 않는다.",
+] as const;
 
 export function buildPortfolioReplacementUser(input: PortfolioReplacementInput): string {
   const m = input.market;
+  const plan = input.authoring ?? ROFAN_PARITY_PLAN;
   return [
     `세계관: ${input.worldName} — ${input.centralPremise}`,
     `세력: ${input.factionNames.join(" / ")}`,
     `장소: ${input.locationNames.join(" / ")}`,
     `캐스트 의도: ${input.castIntent}`,
+    ...(plan.profile.key === "genre_neutral" && input.castIntent.trim() ? [NEUTRAL_CAST_PORTFOLIO_STAGE] : []),
     "",
     "유지되는 캐릭터(절대 겹치지 않게 — 직업·신분·관계 훅·말투·외형 실루엣·트로프·이름 음절):",
     ...input.keptSiblings.map((s) => `- ${s}`),
+    ...(input.authoring ? CAST_EXPERIENCE_OVERLAP_LINES : []),
     "",
     "이번에 새로 기획할 슬롯(이 슬롯만 출력):",
     ...input.slots.map(
@@ -284,6 +350,7 @@ export function buildPortfolioReplacementUser(input: PortfolioReplacementInput):
     ),
     "",
     ...marketFitRuleLines(m),
+    ...formatAuthoringDirection(plan, ["tone", "humor", "wordplay", "relation"]),
     "",
     "출력 필드: portfolio 배열(위 슬롯 수만큼, slot 번호 그대로). 각 브리프는",
     "slot·marketFit·name(20자 이내)·gender·age(19세 이상)·archetype·relationshipTrope(=marketFit primary)·occupation·",
@@ -323,6 +390,22 @@ export type PortfolioBriefInput = {
   userRelation?: OfficialUserRelationPlan;
 };
 
+/** One cast member as the planning prompt sees it: the axes along which two characters play alike. */
+export function describeCastForPlanning(b: PortfolioBriefInput): string {
+  return [
+    `${b.name} — ${b.gender}, ${b.occupation}`,
+    `아키타입 ${b.archetype}`,
+    `트로프 ${b.relationshipTrope}`,
+    `성격핵 ${b.personalityCore}`,
+    `첫 사건·훅 ${b.rpHook}`,
+    b.marketFit?.userRelationship ? `유저 역학 ${b.marketFit.userRelationship}` : "",
+    `말투 ${b.speechDirection}`,
+    `외형 ${b.visualSilhouette}`,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
 /**
  * Design checklist (author-facing, not an output contract): a way to notice
  * what the sheet is missing. Each item already has an owner field; do not add
@@ -347,11 +430,12 @@ export type CharacterBible1Input = {
   siblingSketches: string[];
   /** Previous attempt rejection reasons (QA codes) — must be fixed this time. */
   feedback?: string;
+  authoring?: OfficialAuthoringPlan;
 };
 
-export function buildCharacterBible1System(): string {
+export function buildCharacterBible1System(plan: OfficialAuthoringPlan = ROFAN_PARITY_PLAN): string {
   return [
-    "너는 로맨스 판타지 캐릭터 작가다. 플레이어블 캐릭터 바이블의 전반부(정체·외형·성격·과거·능력·일상·상황)를 쓴다.",
+    `${plan.profile.characterWriterLine} 플레이어블 캐릭터 바이블의 전반부(정체·외형·성격·과거·능력·일상·상황)를 쓴다.`,
     "출력은 반드시 순수 JSON 한 개(코드펜스·설명 금지)다.",
     "고정 골격 + 가변 밀도: 종족·소속이 무의미하면 짧게. 모든 필드를 억지로 채우지 않는다.",
     "",
@@ -359,7 +443,7 @@ export function buildCharacterBible1System(): string {
     "- identity: gender는 male·female·other 중 브리프 지정값 그대로, age는 브리프 나이 정수 그대로, heightCm은 140~220 정수.",
     "- appearance: 이미지/Appearance owner용 원본이다. 얼굴형·눈매·눈동자·머리색·헤어·길이·피부·키·체형·특징·표정·복장·소품을 250~500자로 기록하되, 이 장문을 RP 캐릭터 본문에 복제하지 않는다.",
     "- personality.keywords: 5~8개. personality.behavioral 450~700자:",
-    "  평상시·위기·가까운 상대 앞에서 실제로 하는 행동을 쓴다. 기존 결핍과 모순이 개인적 관심·애정 앞에서 어떤 고유한 망설임이나 선택으로 드러나는지 보여주되 관계 단계나 결말을 정하지 않는다.",
+    `  평상시·위기·가까운 상대 앞에서 실제로 하는 행동을 쓴다. 기존 결핍과 모순이 ${plan.profile.contradictionExposure} 어떤 고유한 망설임이나 선택으로 드러나는지 보여주되 관계 단계나 결말을 정하지 않는다.`,
     "- contradiction: 내적 모순 1개 이상. 장점+단점 나열이 아니라 RP 갈등·변화의 원인이 되는 모순.",
     "- values: desires 1~2·fears 1~2·coreValues 2~3·nonNegotiable 1~2. 행동을 예측할 수 있을 만큼 구체적으로.",
     "  desires는 결핍·내적 욕구, fears 각 항목은 두려움과 그때 나오는 방어 행동(또는 무너지는 조건)을 함께 쓴다.",
@@ -384,9 +468,11 @@ export function buildCharacterBible1System(): string {
 
 export function buildCharacterBible1User(input: CharacterBible1Input): string {
   const b = input.brief;
+  const plan = input.authoring ?? ROFAN_PARITY_PLAN;
   return [
     `세계관: ${input.worldName}`,
     `브리프: ${b.name} / ${b.gender} / ${b.age}세 / ${b.occupation} / ${b.faction} / ${b.socialPosition}`,
+    ...(plan.profile.key === "genre_neutral" ? [officialCharacterPronounDirective(b.gender)] : []),
     `아키타입: ${b.archetype} / 트로프: ${b.relationshipTrope}`,
     `성격핵: ${b.personalityCore} / 외형: ${b.visualSilhouette}`,
     `RP 훅: ${b.rpHook}`,
@@ -396,6 +482,7 @@ export function buildCharacterBible1User(input: CharacterBible1Input): string {
     "",
     "세계 맥락(모순 금지):",
     input.worldContext,
+    ...formatAuthoringDirection(plan, ["tone", "humor", "relation"]),
     "",
     input.siblingSketches.length
       ? `형제 캐릭터(이들과 이름·트로프·직업·말투·외형이 겹치지 않게):\n${input.siblingSketches.map((s) => `- ${s}`).join("\n")}\n`
@@ -422,8 +509,11 @@ export type CharacterVoiceInput = {
   userRelation?: OfficialUserRelationPlan;
   /** Market fit brief — the public card is built on its relationship + conflict. */
   marketFit?: OfficialMarketFitBrief | null;
+  /** Character identity gender. Genre-neutral voice prompts use it for the public pronoun line. */
+  gender?: "male" | "female" | "other";
   /** Previous attempt rejection reasons (QA codes) — must be fixed this time. */
   feedback?: string;
+  authoring?: OfficialAuthoringPlan;
 };
 
 export type NpcRelationRepairInput = {
@@ -461,7 +551,10 @@ export function buildNpcRelationRepairUser(input: NpcRelationRepairInput): strin
   ].join("\n");
 }
 
-export function buildCharacterVoiceSystem(includePublicManuscripts = true): string {
+export function buildCharacterVoiceSystem(
+  includePublicManuscripts = true,
+  plan: OfficialAuthoringPlan = ROFAN_PARITY_PLAN
+): string {
   return [
     "너는 롤플레잉 말투·오프닝의 장인이다. 캐릭터 바이블의 목소리 부분(말투·규칙·그리팅·공개 프로필·NPC)만 쓴다.",
     "출력은 반드시 순수 JSON 한 개(코드펜스·설명 금지)다.",
@@ -494,7 +587,7 @@ export function buildCharacterVoiceSystem(includePublicManuscripts = true): stri
     ] : ["description은 시장 훅 검수용 짧은 pitch다. 이번 보정에서는 detailedDescription·creatorComment를 출력하지 않는다. 기존 공개 원고는 유지한다."]),
     "pitch(캐릭터·관계·경험·갈등 중 2개 이상, 비밀 노출 금지). 유저를 '당신'으로 부르며 어떤 관계/경험인지 드러낸다.",
     "- tagline은 분위기 문구가 아니라 '이 캐릭터가 당신에게 누구이고 지금 무슨 문제가 있는지'가 한눈에 보이는 관계 훅.",
-    "  세계관 고유명사는 최대 2개, 장르 독자가 바로 아는 역할 어휘(황자·기사단장·청부업자 등)를 쓴다.",
+    `  세계관 고유명사는 최대 2개, 장르 독자가 바로 아는 역할 어휘${plan.profile.taglineRoleVocabulary}를 쓴다.`,
     `- tags ${Q.discoveryTags.min}~${Q.discoveryTags.max}개: 장르·관계·성격·소재·방향성을 섞고, 바이블에 실제로 있는 경험만 쓴다(인기 키워드 억지 삽입 금지).`,
     "SFW 시트의 공개 텍스트(tagline·description·greeting·tags)에는 다음 음절을 어떤 단어의 일부로도 쓰지 않는다:",
     "섹스, 성교, 성행위, 자위, 사정, 삽입, 오르가즘, 포르노, 야설, 야동.",
@@ -507,8 +600,10 @@ export function buildCharacterVoiceSystem(includePublicManuscripts = true): stri
 }
 
 export function buildCharacterVoiceUser(input: CharacterVoiceInput): string {
+  const plan = input.authoring ?? ROFAN_PARITY_PLAN;
   return [
     `캐릭터: ${input.name} (${input.age}세)`,
+    ...(plan.profile.key === "genre_neutral" && input.gender ? [officialCharacterPronounDirective(input.gender)] : []),
     `말투 방향: ${input.speechDirection}`,
     `성인 후보: ${input.adultCandidate ? "예" : "아니오"}`,
     `NPC 요구: ${input.npcDemand}`,
@@ -518,6 +613,7 @@ export function buildCharacterVoiceUser(input: CharacterVoiceInput): string {
     "전반부 요약:",
     input.part1Recap,
     ...(input.publicContext ? ["공개 원고용 외형·세계:", input.publicContext] : []),
+    ...formatAuthoringDirection(plan, ["tone", "humor", "pacing", "relation"]),
     "",
     "출력 틀:",
     characterVoiceSkeleton(input.adultCandidate, input.includePublicManuscripts ?? true),
@@ -537,6 +633,7 @@ export type CharacterBondsInput = {
   userRelation?: OfficialUserRelationPlan;
   /** Previous attempt rejection reasons (QA codes) — must be fixed this time. */
   feedback?: string;
+  authoring?: OfficialAuthoringPlan;
 };
 
 export function buildCharacterBondsSystem(): string {
@@ -569,6 +666,7 @@ export function buildCharacterBondsSystem(): string {
 }
 
 export function buildCharacterBondsUser(input: CharacterBondsInput): string {
+  const plan = input.authoring ?? ROFAN_PARITY_PLAN;
   return [
     `캐릭터: ${input.name} (${input.age}세)`,
     `RP 훅: ${input.rpHook}`,
@@ -581,6 +679,7 @@ export function buildCharacterBondsUser(input: CharacterBondsInput): string {
     "",
     "전반부 요약:",
     input.part1Recap,
+    ...formatAuthoringDirection(plan, ["tone", "relation"]),
     "",
     "출력 틀:",
     characterBondsSkeleton(input.adultCandidate),
@@ -805,16 +904,15 @@ export type StyleBoardInput = {
   candidateCount: number;
 };
 
-export function buildStyleBoardSystem(): string {
+export function buildStyleBoardSystem(plan: OfficialAuthoringPlan = ROFAN_PARITY_PLAN): string {
   return [
-    "너는 로맨스 판타지 비주얼 디렉터다. 장르 그림체 후보 보드를 만든다(이미지 생성 아님).",
+    `${plan.profile.styleDirectorLine} 장르 그림체 후보 보드를 만든다(이미지 생성 아님).`,
     "출력은 반드시 순수 JSON 한 개(코드펜스·설명 금지)다.",
     "",
     "- 후보마다 추상 Visual Style DNA(얼굴 비례·눈매·선 밀도·렌더링·팔레트·광원·분위기 등)만 기술.",
     "- 특정 작가 이름·작품명을 스타일 타깃으로 쓰지 않는다.",
     "",
-    "[DOMESTIC ROFAN PRODUCT DIRECTION]",
-    DOMESTIC_ROFAN_STYLE_DIRECTION,
+    ...plan.profile.visualDirectionLines,
     "- references는 허용된 공개 URL만, provenance는 external_public_observation 고정(이미지 생성용 전달 금지).",
     "- suitability 10개 항목은 1~5 정수. strengths 2~4개.",
     "- 남성·여성·로맨스·긴장·실내·의상 변주·감정폭을 서로 다르게 평가한다(전 항목 5점 금지).",

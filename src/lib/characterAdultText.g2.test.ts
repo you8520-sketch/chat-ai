@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { describe, it } from "node:test";
-import { findAdultTermsInText } from "@/lib/characterAdultText";
+import { characterAdultTextBlob, findAdultTermsInText } from "@/lib/characterAdultText";
 
 describe("G2 Korean see verb versus adult noun", () => {
   it("accepts G1 and ordinary negative verb inflections", () => {
@@ -34,6 +36,39 @@ describe("G3 adult-term boundaries", () => {
     for (const text of ["자위", "자 위", "자.위", "자\u200b위", "자－위", "보지", "보 지", "섹 스"]) {
       assert.ok(findAdultTermsInText(text).length > 0, text);
     }
+  });
+  it("allows ordinary 사정 particles and still blocks the adult stem", () => {
+    assert.deepEqual(findAdultTermsInText("단, 누구의 사정도 허락 없이 종이에 올리진 않을"), []);
+    assert.deepEqual(findAdultTermsInText("사정이 생겨서 자리를 비웠다"), []);
+    for (const text of ["사정", "사정을", "사정했다", "사 정"]) {
+      assert.ok(findAdultTermsInText(text).includes("사정"), text);
+    }
+    assert.ok(findAdultTermsInText("폰섹스").includes("섹스"));
+    const greeting = JSON.parse(
+      fs.readFileSync(
+        path.join(process.cwd(), "docs/official-supply/reviews/g5-1-2026-10-28/candidates/g5-modern-comedy-c/bible.assembled.json"),
+        "utf8"
+      )
+    ).greeting as string;
+    assert.match(greeting, /사정도/);
+    assert.deepEqual(findAdultTermsInText(greeting), []);
+  });
+  it("g5-modern-comedy-e stored public blob still flags 사정을 (candidate draft QA, not engine regression)", () => {
+    const draft = JSON.parse(
+      fs.readFileSync(
+        path.join(process.cwd(), "docs/official-supply/reviews/g5-1-2026-10-28/candidates/g5-modern-comedy-e/draft.compiled.json"),
+        "utf8"
+      )
+    );
+    const blob = characterAdultTextBlob({
+      name: draft.name,
+      tagline: draft.tagline,
+      description: draft.description,
+      greeting: draft.greeting,
+      tags: draft.tags,
+    });
+    assert.ok(findAdultTermsInText(blob).includes("사정"));
+    assert.deepEqual(findAdultTermsInText("사정은 묻지 말고"), []);
   });
   it("still catches an unambiguous adult stem inside a compound", () => {
     for (const [text, expected] of [

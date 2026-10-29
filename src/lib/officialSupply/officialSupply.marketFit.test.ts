@@ -31,6 +31,7 @@ import {
   type OfficialBatchMarketPolicy,
   type OfficialMarketFitBrief,
 } from "@/lib/officialSupply/marketFit";
+import { CHARACTER_GENRES } from "@/lib/characterGenres";
 import { validateResearchSnapshot, type ResearchSignal, type ResearchSnapshot } from "@/lib/officialSupply/research";
 
 const PILOT_DIR = path.join(process.cwd(), "src/lib/officialSupply/pilot");
@@ -126,6 +127,94 @@ describe("market signal → portfolio dataflow", () => {
     for (const ex of selection.excluded) assert.ok(!lines.includes(`[${ex.signalId}]`), `${ex.signalId} leaked into prompt`);
     const global = selectMarketSignals(snapshot, { ...POLICY, marketPriority: "global_first" }, "로맨스 판타지");
     assert.ok(global.primary.every((s) => s.region === "GLOBAL"));
+  });
+
+  it("rofan domestic_first PRIMARY id order stays byte-stable (G5-1C parity lock)", () => {
+    const selection = selectMarketSignals(snapshot, POLICY, "로맨스 판타지");
+    assert.deepEqual(
+      selection.primary.map((s) => s.signalId),
+      [
+        "kr-04",
+        "kr-12",
+        "kr-37",
+        "kr-39",
+        "kr-19",
+        "kr-28",
+        "kr-34",
+        "kr-35",
+        "kr-41",
+        "kr-01",
+        "kr-02",
+        "kr-03",
+        "kr-06",
+        "kr-07",
+        "kr-08",
+        "kr-18",
+        "kr-25",
+        "kr-33",
+        "kr-38",
+        "kr-40",
+        "kr-05",
+        "kr-11",
+        "kr-13",
+        "kr-15",
+        "kr-17",
+        "kr-21",
+        "kr-22",
+        "kr-23",
+        "kr-26",
+        "kr-29",
+        "kr-31",
+        "kr-36",
+        "kr-09",
+        "kr-10",
+        "kr-14",
+        "kr-16",
+        "kr-24",
+        "kr-27",
+        "kr-30",
+      ]
+    );
+    assert.deepEqual(selection.supporting.map((s) => s.signalId), [
+      "global-10",
+      "global-03",
+      "global-01",
+      "global-08",
+    ]);
+  });
+
+  it("non-rofan PRIMARY is same-genre only; off-genre fantasy tops are not PRIMARY", () => {
+    const comedy = selectMarketSignals(snapshot, POLICY, "현대/일상", { excludeRomanceLed: true });
+    assert.ok(comedy.primary.length > 0);
+    assert.ok(comedy.primary.every((s) => s.genre === "현대/일상"));
+    assert.equal(comedy.primary[0]!.signalId, "global-08");
+    assert.ok(!comedy.primary.some((s) => s.signalId === "kr-07" || s.signalId === "kr-08"));
+    assert.ok(comedy.supporting.some((s) => s.signalId === "kr-07" || s.signalId === "kr-08"));
+
+    const horror = selectMarketSignals(snapshot, POLICY, "공포/추리", { excludeRomanceLed: true });
+    assert.deepEqual(
+      horror.primary.map((s) => s.signalId),
+      ["global-07"]
+    );
+    assert.ok(horror.primary.every((s) => s.genre === "공포/추리"));
+    assert.ok(!horror.primary.some((s) => s.genre === "판타지"));
+
+    const empty = selectMarketSignals(snapshot, POLICY, "학원", { excludeRomanceLed: true });
+    assert.deepEqual(empty.primary, []);
+    assert.match(formatMarketSignalLines(empty).join("\n"), /사용 가능한 originality-eligible 시장 신호가 없음/);
+  });
+
+  it("every site genre selects without throw; non-rofan PRIMARY never mixes off-genre rows", () => {
+    const romanceFrame = new Set(["로맨스", "로맨스 판타지", "BL", "GL", "HL"]);
+    for (const genre of CHARACTER_GENRES) {
+      const selection = selectMarketSignals(snapshot, POLICY, genre, {
+        excludeRomanceLed: !romanceFrame.has(genre),
+      });
+      assert.ok(Array.isArray(selection.primary));
+      if (genre !== "로맨스 판타지") {
+        assert.ok(selection.primary.every((s) => s.genre === genre), genre);
+      }
+    }
   });
 
   it("world + portfolio prompts are fed by the selection (no hand-written trope list)", () => {

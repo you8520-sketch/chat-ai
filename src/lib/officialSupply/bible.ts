@@ -7,6 +7,7 @@ import {
 } from "@/lib/officialSupply/officialSharedWorld";
 import {
   composeOfficialPublicDescription,
+  evaluateOfficialCharacterPronoun,
   evaluateOfficialPlayerGenderNeutral,
 } from "@/lib/officialSupply/publicProfileText";
 import {
@@ -15,6 +16,7 @@ import {
   evaluateUserRelationStart,
   type OfficialUserRelationStart,
 } from "@/lib/officialSupply/userRelationStart";
+import { OFFICIAL_WORLD_SCALE_LIMITS, type OfficialWorldScale } from "@/lib/officialSupply/genreProfile";
 import {
   qaResult,
   type OfficialCharacterDraft,
@@ -527,12 +529,15 @@ export const CHARACTER_VOICE_SCHEMA: Record<string, unknown> = {
   },
 };
 
-/** Revisions cannot apply public manuscripts, so they must not pay to regenerate them. */
-export function characterVoiceRevisionSchema(): Record<string, unknown> {
+/**
+ * Revisions cannot apply the creator comment. The detailed public manuscript
+ * stays out unless a pronoun repair has to rewrite it.
+ */
+export function characterVoiceRevisionSchema(includeDetailedDescription = false): Record<string, unknown> {
   const schema = structuredClone(CHARACTER_VOICE_SCHEMA);
   const properties = schema.properties as Record<string, Record<string, unknown>>;
   const profile = properties.publicProfile.properties as Record<string, unknown>;
-  delete profile.detailedDescription;
+  if (!includeDetailedDescription) delete profile.detailedDescription;
   delete profile.creatorComment;
   return schema;
 }
@@ -614,6 +619,30 @@ function nonEmpty(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Flatten provider `society` shapes (string map or `{ domains: [{ name, detail }] }`) for QA. */
+export function normalizeWorldSocietyField(society: unknown): Record<string, string> {
+  if (!isPlainRecord(society)) return {};
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(society)) {
+    if (key === "domains") continue;
+    if (typeof value === "string" && value.trim()) out[key] = value.trim();
+  }
+  const domains = society.domains;
+  if (Array.isArray(domains)) {
+    for (const item of domains) {
+      if (!isPlainRecord(item)) continue;
+      const name = String(item.name ?? "").trim();
+      const detail = String(item.detail ?? item.content ?? "").trim();
+      if (name && detail) out[name] = detail;
+    }
+  }
+  return out;
+}
+
 /** Supernatural / high-power abilities must carry a limit or a cost. */
 const HIGH_POWER_RE = /(마법|마력|주문|축복|저주|신력|성력|정령|소환|예지|회귀|빙의|재생|불사|순간이동|염동력|정신지배|시간|차원|검기|오러|소드마스터|그랜드|아크메이지|드래곤|용언)/;
 
@@ -621,8 +650,10 @@ const HIDDEN_KNOWLEDGE_RE = /(숨겨진|비밀|정체를\s*숨|진짜\s*정체|�
 
 export function validateWorldBible(
   bible: OfficialWorldBible,
-  opts: { slots: number; adultCandidates: number }
+  opts: { slots: number; adultCandidates: number; worldScale?: OfficialWorldScale }
 ): QaResult {
+  const scale = opts.worldScale ?? "full";
+  const lim = OFFICIAL_WORLD_SCALE_LIMITS[scale];
   const errors: QaIssue[] = [];
   const warnings: QaIssue[] = [];
   for (const key of ["name", "genre", "tone", "era", "regions", "premise", "centralPremise"] as const) {
@@ -640,8 +671,17 @@ export function validateWorldBible(
   if (situationChars > 0 && (situationChars < 500 || situationChars > 1000)) {
     warnings.push(warn("world_situation_band", `situation ${situationChars} chars (target 500-1000)`));
   }
-  if (!Array.isArray(bible.factions) || bible.factions.length < 3 || bible.factions.length > 6) {
-    errors.push(err("world_faction_count", `factions 3-6 required, got ${bible.factions?.length ?? 0}`));
+  if (
+    !Array.isArray(bible.factions) ||
+    bible.factions.length < lim.factions.min ||
+    bible.factions.length > lim.factions.max
+  ) {
+    errors.push(
+      err(
+        "world_faction_count",
+        `factions ${lim.factions.min}-${lim.factions.max} required, got ${bible.factions?.length ?? 0}`
+      )
+    );
   } else {
     bible.factions.forEach((f, i) => {
       for (const key of ["name", "purpose", "leadership", "means", "relations", "publicView"] as const) {
@@ -654,12 +694,25 @@ export function validateWorldBible(
     if (!nonEmpty(power[key])) errors.push(err("world_power_missing", `powerSystem.${key} is required`));
   }
   const societyKeys = Object.keys(bible.society ?? {}).filter((k) => nonEmpty(bible.society[k]));
-  if (societyKeys.length < 3) errors.push(err("world_society_thin", "society needs at least 3 defined areas"));
-  if (!Array.isArray(bible.culture) || bible.culture.length < 3 || bible.culture.length > 6) {
-    errors.push(err("world_culture_count", `culture 3-6 required, got ${bible.culture?.length ?? 0}`));
+  if (societyKeys.length < lim.societyAreas.min) {
+    errors.push(err("world_society_thin", `society needs at least ${lim.societyAreas.min} defined areas`));
   }
-  if (!Array.isArray(bible.locations) || bible.locations.length < 5 || bible.locations.length > 10) {
-    errors.push(err("world_location_count", `locations 5-10 required, got ${bible.locations?.length ?? 0}`));
+  if (!Array.isArray(bible.culture) || bible.culture.length < lim.culture.min || bible.culture.length > lim.culture.max) {
+    errors.push(
+      err("world_culture_count", `culture ${lim.culture.min}-${lim.culture.max} required, got ${bible.culture?.length ?? 0}`)
+    );
+  }
+  if (
+    !Array.isArray(bible.locations) ||
+    bible.locations.length < lim.locations.min ||
+    bible.locations.length > lim.locations.max
+  ) {
+    errors.push(
+      err(
+        "world_location_count",
+        `locations ${lim.locations.min}-${lim.locations.max} required, got ${bible.locations?.length ?? 0}`
+      )
+    );
   } else {
     bible.locations.forEach((location, i) => {
       for (const key of ["name", "purpose", "mood", "users", "rpEvents"] as const) {
@@ -667,8 +720,17 @@ export function validateWorldBible(
       }
     });
   }
-  if (!Array.isArray(bible.history) || bible.history.length < 3 || bible.history.length > 6) {
-    errors.push(err("world_history_count", `history 3-6 required, got ${bible.history?.length ?? 0}`));
+  if (
+    !Array.isArray(bible.history) ||
+    bible.history.length < lim.history.min ||
+    bible.history.length > lim.history.max
+  ) {
+    errors.push(
+      err(
+        "world_history_count",
+        `history ${lim.history.min}-${lim.history.max} required, got ${bible.history?.length ?? 0}`
+      )
+    );
   }
   const knowledge = bible.knowledge ?? { common: [], faction: [], characterLocal: [], authorOnly: [] };
   if (!Array.isArray(knowledge.common) || knowledge.common.length === 0) {
@@ -682,8 +744,17 @@ export function validateWorldBible(
   if (!Array.isArray(bible.userEntry?.allowedRoles) || bible.userEntry.allowedRoles.length < 2) {
     errors.push(err("world_user_entry_narrow", "userEntry needs at least 2 allowed roles"));
   }
-  if (!Array.isArray(bible.lorebook) || bible.lorebook.length < 3 || bible.lorebook.length > 8) {
-    errors.push(err("world_lorebook_count", `lorebook 3-8 useful entries required, got ${bible.lorebook?.length ?? 0}`));
+  if (
+    !Array.isArray(bible.lorebook) ||
+    bible.lorebook.length < lim.lorebook.min ||
+    bible.lorebook.length > lim.lorebook.max
+  ) {
+    errors.push(
+      err(
+        "world_lorebook_count",
+        `lorebook ${lim.lorebook.min}-${lim.lorebook.max} useful entries required, got ${bible.lorebook?.length ?? 0}`
+      )
+    );
   } else {
     bible.lorebook.forEach((entry, i) => {
       if (!nonEmpty(entry.name) || !nonEmpty(entry.content)) {
@@ -1107,6 +1178,11 @@ export function validateCharacterBible(
   warnings.push(...contract.warnings);
 
   const profile = bible.publicProfile ?? { tagline: "", description: "", tags: [] };
+  errors.push(
+    ...evaluateOfficialCharacterPronoun(id.gender, {
+      description: [profile.description, profile.detailedDescription ?? ""].filter(Boolean).join("\n"),
+    }).errors
+  );
   const tags = profile.tags ?? [];
   const tagBand = OFFICIAL_AUTHOR_QUALITY_CONTRACT.discoveryTags;
   if (tags.length === 0 || tags.length > tagBand.max) {

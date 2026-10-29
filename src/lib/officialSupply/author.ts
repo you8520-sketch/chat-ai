@@ -12,6 +12,12 @@ import { isCharacterGenre } from "@/lib/characterGenres";
 import { evaluateAppearanceLock } from "@/lib/officialSupply/appearance";
 import { evaluateAssetPlan } from "@/lib/officialSupply/assetPlan";
 import {
+  officialWorldScaleForPlan,
+  resolveOfficialAuthoringPlan,
+  ROFAN_PARITY_PLAN,
+  type OfficialAuthoringPlan,
+} from "@/lib/officialSupply/genreProfile";
+import {
   buildAdultProfileSystem,
   buildAdultProfileUser,
   buildAppearanceSystem,
@@ -60,6 +66,7 @@ import {
   evaluateVoiceStructureContract,
   NPC_RELATION_REPAIR_SCHEMA,
   validateCharacterBible,
+  normalizeWorldSocietyField,
   validateWorldBible,
   WORLD_BIBLE_SCHEMA,
   type OfficialCharacterBible,
@@ -640,7 +647,7 @@ export async function generateOfficialPortfolioReplacement(input: {
 }): Promise<{ briefs: PortfolioBriefInput[]; completion: OfficialAuthorRawCompletion }> {
   const completion = await input.transport.completeJson({
     task: "world_bible",
-    system: buildWorldBibleSystem(),
+    system: buildWorldBibleSystem(input.replacement.authoring),
     user: buildPortfolioReplacementUser(input.replacement),
     schemaName: "official_world_bible",
     schema: WORLD_BIBLE_SCHEMA,
@@ -686,11 +693,7 @@ function coerceWorldBible(
   const powerSystem = isRecord(data.powerSystem) ? data.powerSystem : {};
   const knowledge = isRecord(data.knowledge) ? data.knowledge : {};
   const userEntry = isRecord(data.userEntry) ? data.userEntry : {};
-  const society = isRecord(data.society) ? data.society : {};
-  const societyOut: Record<string, string> = {};
-  for (const [key, value] of Object.entries(society)) {
-    if (typeof value === "string" && value.trim()) societyOut[key] = value;
-  }
+  const societyOut = normalizeWorldSocietyField(data.society);
   const portfolio = coercePortfolioBriefs(data.portfolio, task, opts.slotGenders);
   return {
     name: str("name"),
@@ -778,7 +781,7 @@ export async function generateOfficialWorldBible(input: {
   // background route (503). Three sequential structured calls (core → atlas
   // → portfolio) stay inside the proven output budget; the merged bible gets
   // the same deterministic QA as a single call would.
-  const system = buildWorldBibleSystem();
+  const system = buildWorldBibleSystem(input.world.authoring);
   const complete = (user: string): Promise<OfficialAuthorRawCompletion> =>
     input.transport.completeJson({
       task: "world_bible",
@@ -798,7 +801,16 @@ export async function generateOfficialWorldBible(input: {
     .map((f) => String(f.name ?? "").trim())
     .filter(Boolean);
 
-  const atlasInput: WorldAtlasInput = { worldName, centralPremise, factionNames };
+  const plan = input.world.authoring ?? ROFAN_PARITY_PLAN;
+  const worldScale = officialWorldScaleForPlan(plan);
+  const castIntent = input.world.castIntent?.trim() ?? "";
+  const atlasInput: WorldAtlasInput = {
+    worldName,
+    centralPremise,
+    factionNames,
+    worldScale,
+    ...(plan.profile.key === "genre_neutral" && castIntent ? { castIntent } : {}),
+  };
   const atlas = await complete(buildWorldAtlasUser(atlasInput));
   const atlasData = parseAuthorJson(atlas.text, "world_bible");
   if (!isRecord(atlasData)) throw new OfficialSupplyGateError("author_shape_invalid", "world_bible atlas: object required");
@@ -818,6 +830,7 @@ export async function generateOfficialWorldBible(input: {
     slotGenders: input.world.slotGenders,
     market: input.world.market,
     castIntent: input.world.castIntent,
+    authoring: input.world.authoring,
   };
   const portfolioCompletion = await complete(buildWorldPortfolioUser(portfolioInput));
   const portfolioData = parseAuthorJson(portfolioCompletion.text, "world_bible");
@@ -851,6 +864,7 @@ export async function generateOfficialWorldBible(input: {
   const qa = validateWorldBible(bible, {
     slots: input.world.slots,
     adultCandidates: input.world.adultCandidates,
+    worldScale,
   });
   if (!qa.ok) throw new OfficialSupplyGateError("author_world_rejected", "world bible failed QA", qa);
   const attempt = input.attempt ?? 1;
@@ -1064,18 +1078,21 @@ export async function generateOfficialCharacterBible(input: {
   modelId?: string;
   /** Opt-in: one targeted call may repair relation-only NPC defects. Default off. */
   npcRelationRepair?: boolean;
+  /** One genre/tone plan for all three stages. Absent = rofan parity. */
+  authoring?: OfficialAuthoringPlan;
 }): Promise<{
   bible: OfficialCharacterBible;
   completions: [OfficialAuthorRawCompletion, OfficialAuthorRawCompletion, OfficialAuthorRawCompletion];
   npcRelationRepairs: OfficialAuthorRawCompletion[];
 }> {
   const userRelation = canonicalUserRelationPlan(input);
+  const authoring = input.authoring ?? input.part1.authoring;
   const premise = evaluateUserRelationPremise(userRelation.type, officialUserRelationPremiseTexts(input.part1.brief));
   if (!premise.ok) throw new OfficialSupplyGateError("author_user_relation_mismatch", premise.errors.map(e => e.message).join("; "), premise);
   const first = await input.transport.completeJson({
     task: "character_bible_1",
-    system: buildCharacterBible1System(),
-    user: buildCharacterBible1User({ ...input.part1, brief: { ...input.part1.brief, userRelation } }),
+    system: buildCharacterBible1System(authoring),
+    user: buildCharacterBible1User({ ...input.part1, authoring, brief: { ...input.part1.brief, userRelation } }),
     schemaName: "official_character_bible_1",
     schema: CHARACTER_BIBLE_1_SCHEMA,
     modelId: input.modelId,
@@ -1086,8 +1103,15 @@ export async function generateOfficialCharacterBible(input: {
   const recap = buildPart1Recap(half1);
   const second = await input.transport.completeJson({
     task: "character_bible_voice",
-    system: buildCharacterVoiceSystem(),
-    user: buildCharacterVoiceUser({ ...input.voice, userRelation, part1Recap: recap, publicContext: buildPublicWritingContext(half1, input.part1.worldContext) }),
+    system: buildCharacterVoiceSystem(true, authoring),
+    user: buildCharacterVoiceUser({
+      ...input.voice,
+      authoring,
+      userRelation,
+      gender: input.voice.gender ?? input.part1.brief.gender,
+      part1Recap: recap,
+      publicContext: buildPublicWritingContext(half1, input.part1.worldContext),
+    }),
     schemaName: "official_character_bible_voice",
     schema: CHARACTER_VOICE_SCHEMA,
     modelId: input.modelId,
@@ -1117,7 +1141,7 @@ export async function generateOfficialCharacterBible(input: {
   const third = await input.transport.completeJson({
     task: "character_bible_bonds",
     system: buildCharacterBondsSystem(),
-    user: buildCharacterBondsUser({ ...input.bonds, userRelation, part1Recap: recap }),
+    user: buildCharacterBondsUser({ ...input.bonds, authoring, userRelation, part1Recap: recap }),
     schemaName: "official_character_bible_bonds",
     schema: CHARACTER_BONDS_SCHEMA,
     modelId: input.modelId,
@@ -1149,6 +1173,7 @@ function buildPart1Recap(half1: Record<string, unknown>, includeEntry = true): s
     return texts.length ? `${label}: ${texts.join(" / ")}` : "";
   };
   return [
+    fact("성별", identity.gender),
     [fact("직업", identity.occupation), fact("신분", identity.socialPosition), fact("소속", identity.affiliation), fact("역할", identity.worldRole)].filter(Boolean).join(" / "),
     fact("성격·행동", personality.behavioral),
     fact("모순", half1.contradiction),
@@ -1210,8 +1235,15 @@ export async function reviseOfficialCharacterVoice(input: {
   fields: readonly OfficialVoiceRevisionField[];
   reasons: string[];
   modelId?: string;
+  authoring?: OfficialAuthoringPlan;
 }): Promise<{ bible: OfficialCharacterBible; completion: OfficialAuthorRawCompletion }> {
   const current = input.bible;
+  const authoring = input.authoring ?? input.voice.authoring;
+  const pronounRepair = input.reasons.some(
+    (reason) => reason.includes("official_character_pronoun") || reason.includes("bible_character_pronoun")
+  );
+  const identityGender = current.identity.gender;
+  const gender = input.voice.gender ?? (identityGender === "male" || identityGender === "female" || identityGender === "other" ? identityGender : undefined);
   const keep = [
     input.fields.includes("greeting") ? "" : `greeting는 기존 그대로 두어도 된다.`,
     input.fields.includes("publicDescription")
@@ -1226,19 +1258,21 @@ export async function reviseOfficialCharacterVoice(input: {
   ].filter(Boolean);
   const completion = await input.transport.completeJson({
     task: "character_bible_voice",
-    system: buildCharacterVoiceSystem(false),
+    system: buildCharacterVoiceSystem(pronounRepair, authoring),
     user: buildCharacterVoiceUser({
       ...input.voice,
+      authoring,
+      gender,
       userRelation: input.voice.userRelation ?? {
         type: current.userRelationship?.type ?? "free",
         fixed: current.userRelationship?.fixedFacts ?? "",
       },
-      includePublicManuscripts: false,
+      includePublicManuscripts: pronounRepair,
       part1Recap: buildPart1Recap(current as unknown as Record<string, unknown>, input.fields.includes("greeting") || input.fields.includes("publicDescription")),
       feedback: [...input.reasons, ...keep].join("\n"),
     }),
     schemaName: "official_character_bible_voice",
-    schema: characterVoiceRevisionSchema(),
+    schema: characterVoiceRevisionSchema(pronounRepair),
     modelId: input.modelId,
   });
   const voiceHalf = parseAuthorJson(completion.text, "character_bible_voice");
@@ -1272,6 +1306,9 @@ export async function reviseOfficialCharacterVoice(input: {
     publicProfile: {
       ...current.publicProfile,
       description: input.fields.includes("publicDescription") ? String(profile.description) : current.publicProfile.description,
+      ...(pronounRepair && input.fields.includes("publicDescription") && isNonEmptyString(profile.detailedDescription)
+        ? { detailedDescription: String(profile.detailedDescription) }
+        : {}),
       tags: input.fields.includes("tags") ? strArray(profile.tags) : current.publicProfile.tags,
     },
     speech: input.fields.includes("speech") ? {
@@ -1682,7 +1719,7 @@ export async function generateOfficialStyleBoard(input: {
 }): Promise<{ candidates: VisualStyleCandidate[]; completion: OfficialAuthorRawCompletion }> {
   const completion = await input.transport.completeJson({
     task: "style_board",
-    system: buildStyleBoardSystem(),
+    system: buildStyleBoardSystem(resolveOfficialAuthoringPlan({ genre: input.board.genre })),
     user: buildStyleBoardUser(input.board),
     schemaName: "official_style_board",
     schema: STYLE_BOARD_SCHEMA,

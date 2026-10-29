@@ -66,9 +66,31 @@ const FACTION_FIELD_LABELS = {
 } as const;
 type FactionProjectionField = keyof typeof FACTION_FIELD_LABELS;
 
+const POWER_FIELD_KEYS = ["acquisition", "ranks", "limits", "costs", "socialImpact", "taboos"] as const;
+type PowerProjectionField = (typeof POWER_FIELD_KEYS)[number];
+
+/** Ethernos keeps its pre-G5 labels byte-for-byte; every other world gets setting-neutral labels. */
+const ETHERNOS_POWER_LABELS: Record<PowerProjectionField, string> = {
+  acquisition: "에테르를 다루는 법",
+  ranks: "등급",
+  limits: "에테르 사용",
+  costs: "대가",
+  socialImpact: "사회적 영향",
+  taboos: "금기",
+};
+const NEUTRAL_POWER_LABELS: Record<PowerProjectionField, string> = {
+  acquisition: "영향력을 얻는 법",
+  ranks: "서열",
+  limits: "한계",
+  costs: "대가",
+  socialImpact: "사회적 영향",
+  taboos: "금기",
+};
+
 type SharedWorldRenderOptions = {
   factionFields: readonly FactionProjectionField[];
   commonCount: number;
+  powerFields?: readonly PowerProjectionField[];
 };
 
 function asClause(value: string): string {
@@ -130,14 +152,9 @@ function renderOfficialSharedWorld(bible: OfficialWorldBible, options: SharedWor
     .filter(Boolean)
     .join(" ");
 
-  const magic = [
-    labeledClause("에테르를 다루는 법", bible.powerSystem.acquisition),
-    labeledClause("등급", bible.powerSystem.ranks),
-    labeledClause("에테르 사용", bible.powerSystem.limits),
-    labeledClause("대가", bible.powerSystem.costs),
-    labeledClause("사회적 영향", bible.powerSystem.socialImpact),
-    labeledClause("금기", bible.powerSystem.taboos),
-  ]
+  const powerLabels = name === OFFICIAL_SHARED_WORLD_LIBRARY_NAME ? ETHERNOS_POWER_LABELS : NEUTRAL_POWER_LABELS;
+  const magic = (options.powerFields ?? POWER_FIELD_KEYS)
+    .map((key) => labeledClause(powerLabels[key], bible.powerSystem[key]))
     .filter(Boolean)
     .join(" ");
 
@@ -177,6 +194,7 @@ export function projectOfficialSharedWorld(bible: OfficialWorldBible): string {
     { factionFields: ["purpose", "leadership", "publicView"], commonCount: 3 },
     { factionFields: ["purpose", "publicView"], commonCount: 3 },
     { factionFields: ["purpose"], commonCount: 2 },
+    { factionFields: ["purpose"], commonCount: 2, powerFields: ["acquisition", "limits", "costs"] },
   ];
   let projected = renderOfficialSharedWorld(bible, attempts[0]!);
   for (const options of attempts) {
@@ -193,7 +211,7 @@ export function projectOfficialSharedWorld(bible: OfficialWorldBible): string {
       `official shared world projection ${projected.length} chars is outside ${WORLD_PROJECTION_MIN_CHARS}-${WORLD_PROJECTION_MAX_CHARS}`
     );
   }
-  assertOfficialSharedWorldProjection(projected);
+  assertOfficialSharedWorldProjection(projected, officialSharedWorldLibraryName(bible));
   if (worldContentBundleCharCount(projected, "") > WORLD_CONTENT_LIMIT) {
     throw new OfficialSupplyGateError(
       "official_world_projection_too_large",
@@ -203,15 +221,18 @@ export function projectOfficialSharedWorld(bible: OfficialWorldBible): string {
   return projected;
 }
 
-export function assertOfficialSharedWorldProjection(text: string): void {
+export function assertOfficialSharedWorldProjection(
+  text: string,
+  expectedWorldName: string = OFFICIAL_SHARED_WORLD_LIBRARY_NAME
+): void {
   const body = text.trim();
   if (!body) {
     throw new OfficialSupplyGateError("official_world_projection_empty", "official shared world projection is empty");
   }
-  if (!body.includes(OFFICIAL_SHARED_WORLD_LIBRARY_NAME)) {
+  if (!body.includes(expectedWorldName)) {
     throw new OfficialSupplyGateError(
       "official_world_projection_missing_identity",
-      "official shared world projection lost Ethernos identity"
+      `official shared world projection lost world identity: ${expectedWorldName}`
     );
   }
   if (USER_BINDING_MARKER.test(body)) {

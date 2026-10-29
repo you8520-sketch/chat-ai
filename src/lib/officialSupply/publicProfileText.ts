@@ -254,6 +254,11 @@ export function composeOfficialPublicDescription(input: OfficialPublicIntroInput
     .trim();
 }
 
+/** `본명 (별명)` is the canonical name-field alias format; the intro may state either the full string or the bare name. */
+function withoutNameAlias(name: string): string {
+  return name.replace(/\s*[(（][^)）]*[)）]\s*$/u, "").trim() || name;
+}
+
 export function evaluateOfficialPublicDescription(description: string, name?: string): QaResult {
   const errors: QaIssue[] = [];
   const text = description.trim();
@@ -288,7 +293,7 @@ export function evaluateOfficialPublicDescription(description: string, name?: st
   if (!text.includes(`[${OFFICIAL_PUBLIC_INTRO_SECTIONS.intro}]`)) {
     errors.push({ code: "public_intro_entry_missing", message: "introduction situation section is required" });
   }
-  if (name && !text.includes(name)) {
+  if (name && !text.includes(name) && !text.includes(withoutNameAlias(name))) {
     errors.push({ code: "public_intro_name_missing", message: "detailed intro must state the character name" });
   }
   if (!/\d+\s*세/.test(text) || !/\d+\s*cm/i.test(text)) {
@@ -314,6 +319,49 @@ export function evaluateOfficialPublicDescription(description: string, name?: st
     errors.push({ code: "public_intro_facts_missing", message: "detailed intro must cover looks and personality" });
   }
   errors.push(...evaluateOfficialPlayerGenderNeutral({ description: text }).errors);
+  return qaResult(errors);
+}
+
+/** Public self-reference for the character. Player address stays on the player-gender owner. */
+export function officialCharacterPronounDirective(gender: "male" | "female" | "other"): string {
+  switch (gender) {
+    case "female":
+      return "공개 문장에서 이 인물 본인은 그녀·그녀는·그녀가·그녀를·그녀의로 가리킨다. 본인에게 그는·그가·그를 쓰지 않는다.";
+    case "male":
+      return "공개 문장에서 이 인물 본인은 그·그는·그가·그를·그의로 가리킨다. 본인에게 그녀를 쓰지 않는다.";
+    case "other":
+      return "공개 문장에서 이 인물 본인은 이름으로만 가리킨다. 본인에게 그는·그녀를 쓰지 않는다.";
+    default: {
+      const unreachable: never = gender;
+      return unreachable;
+    }
+  }
+}
+
+/**
+ * Pitch and detailed public description only. `그는`/`그가` on a female character,
+ * or `그녀` on a male character. `그를`/`그의` and greeting/hidden text stay out:
+ * they often name someone else.
+ */
+export function evaluateOfficialCharacterPronoun(
+  gender: string | undefined,
+  surfaces: { description?: string }
+): QaResult {
+  const text = (surfaces.description ?? "").replace(/\s+/g, " ").trim();
+  const errors: QaIssue[] = [];
+  if (!text || (gender !== "female" && gender !== "male")) return qaResult(errors);
+  if (gender === "female" && /그(?:는|가)(?!녀)/u.test(text)) {
+    errors.push({
+      code: "official_character_pronoun",
+      message: "public description refers to a female character as 그는 or 그가",
+    });
+  }
+  if (gender === "male" && /그녀/u.test(text)) {
+    errors.push({
+      code: "official_character_pronoun",
+      message: "public description refers to a male character as 그녀",
+    });
+  }
   return qaResult(errors);
 }
 

@@ -1,0 +1,12 @@
+{
+  "call": 20,
+  "specKey": "g5-horror-dry",
+  "task": "character_bible_bonds",
+  "outcome": "ok",
+  "model": "gpt-6-luna",
+  "inputTokens": 3143,
+  "outputTokens": 439,
+  "costUsd": 0.000432,
+  "providerRequestId": "ed24e07e-59a2-4a23-9e98-412558ba979a",
+  "text": "{\"userRelationship\":{\"type\":\"free\",\"fixedFacts\":\"\",\"userDecides\":\"\",\"initialView\":\"\",\"userRole\":\"\",\"startingPoint\":\"\",\"progression\":[]},\"otherRelationships\":[],\"secrets\":[],\"rpEngine\":{\"immediateHook\":\"자정까지 표본의 출처와 측량 기준을 독립 검증해야 한다. 재호는 원본 기록을 펼쳐 두고 관찰 사실과 추정을 분리해 대조하자고 제안한다. 판정 보류는 주민의 거처를 보장하지 않으며, 근거 없는 변경은 그의 면허와 다음 현장 허가를 위태롭게 한다.\",\"repeatable\":[\"표본의 발견 위치·채집 시각·취급 이력을 확인하고 봉인 상태를 기록한다. 출처가 끊겼다면 봉인이 진위를 보장하지 않는다는 한계를 남긴다.\",\"현장 치수와 기존 도면을 대조한다. 기준점이나 구조가 움직였을 가능성이 있으면 측정 시점과 통행 허가의 한계를 함께 적는다.\",\"결재 요청이 오면 어떤 확인 절차를 생략하라는 뜻인지 되묻고, 판정이 행정상 낳을 결과를 짧게 설명한다.\",\"미처리 기록과 현장 업무 사이에서 시간을 배분한다. 반복 측량을 택하면 수면과 다른 조사 기회를 소모하고, 기록을 서두르면 오류 지점을 놓칠 수 있다.\"],\"mediumConflict\":\"\",\"longTermChange\":\"\",\"selfDrive\":{\"goal\":\"자정 전까지 표본의 출처와 도면 작성 시점을 교차 검증해 판정 근거를 확보한다.\",\"ownMove\":\"원본 기록과 표본 이력을 대조하고, 접근 가능한 독립 자료를 찾아 재측량을 요청한다.\",\"setback\":\"검증이 실패하면 보류의 근거가 약해져 행정 이관이 진행되고, 재호는 면허와 다음 현장 허가를 잃을 위험을 감수해야 한다.\"}},\"nsfw\":false,\"adultSection\":null}"
+}
