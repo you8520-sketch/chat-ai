@@ -41,12 +41,14 @@ import {
   classifyMemoryBatchScopes,
   classifyMemoryTurnScope,
   isExplicitClosedBranchContinueIntent,
+  parseScopePayload,
   resolveEpisodicTurnEligibility,
   resolveSealedNoncanonOrBranchFromMemoryRecords,
   resolveSharedPreviousBranchState,
 } from "./memory-summary-scope";
 import { loadMemoryEligibleChatTurnsWithMessageIds } from "./memory-turn-loader";
 import {
+  closeActiveBranchCanon,
   listMemoryRecordsForChat,
   rebuildLorebookFromRecords,
   reopenClosedBranchCanon,
@@ -707,6 +709,178 @@ describe("shared branch state", () => {
     assert.equal(afterScope.previousWasNoncanonOrBranch, false);
     assert.equal(afterScope.scopeClass, "main_rp");
     assert.equal(afterScope.eligible, true);
+  });
+
+  it("UI close resumes main episodic and the next summary without a user close sentence", async () => {
+    const tail = "[OOC: 외전을 이어 간다. 청룡 골목의 등을 켠다.]";
+    const preference = "(OOC: 앞으로 말투는 짧게 유지해)";
+    __setCompactCurrentMemoryTestOverride(async (existing) => existing);
+    __setSummarizeTurnBatchCallerForTests(async (_system, history) => {
+      const content = history[0]?.content ?? "";
+      if (content.includes("청룡") || content.includes("은화")) {
+        throw new Error("side-story batch must not call the main summarizer");
+      }
+      const lines = [...content.matchAll(/ParityChar: ([^\n]+)/g)].map((match) => match[1]!.trim());
+      let text = lines.join(" ");
+      while (text.length < 80) {
+        text = `${text} ${lines[0] ?? MAIN_ASSISTANT}`.trim();
+      }
+      return { text };
+    });
+
+    let earlyMain: { userId: number; assistantId: number } | null = null;
+    for (let turn = 1; turn <= 9; turn += 1) {
+      const inserted = insertTurn(CHAT, MAIN_USER, MAIN_ASSISTANT);
+      if (turn === 2) earlyMain = inserted;
+    }
+    assert.ok(earlyMain);
+    insertTurn(CHAT, OPENER, "청룡 가면 상인이 야시장에 서 있다.");
+    for (let turn = 11; turn <= 15; turn += 1) insertTurn(CHAT, SIDE_BEAT, SIDE_ASSISTANT);
+    const unsealed = insertTurn(CHAT, tail, "청룡 골목에 등이 켜진다.");
+    insertTurn(CHAT, SIDE_BEAT, SIDE_ASSISTANT);
+    const frontierAtClose = insertTurn(CHAT, SIDE_BEAT, SIDE_ASSISTANT);
+
+    assert.equal(await seal(CHAT, USER, CHAR, "ParityChar"), true);
+    assert.equal(await seal(CHAT, USER, CHAR, "ParityChar"), true);
+    assert.equal(rowAt(CHAT, 6).summaryKind, "main_canon");
+    assert.equal(await seal(CHAT, USER, CHAR, "ParityChar"), true);
+    assert.equal(rowAt(CHAT, 11).summaryKind, "branch_canon");
+    assert.equal(rowAt(CHAT, 11).branchStatus, "active");
+
+    const openTail = resolveEpisodicEligibilityForSourceUserMessage(getDb(), {
+      chatId: CHAT,
+      sourceUserMessageId: frontierAtClose.userId,
+      sourceUserText: SIDE_BEAT,
+    });
+    assert.equal(openTail.scopeClass, "branch_continue");
+    assert.equal(openTail.eligible, false);
+
+    assert.equal(closeActiveBranchCanon(CHAT, { source: "ui" }), 1);
+    assert.equal(rowAt(CHAT, 11).branchStatus, "closed");
+    const closedPayload = parseScopePayload(
+      (
+        getDb()
+          .prepare("SELECT scope_payload FROM chat_turn_summaries WHERE id=?")
+          .get(rowAt(CHAT, 11).id) as { scope_payload: string }
+      ).scope_payload
+    );
+    const uiClose = closedPayload?.branchControlMutations?.at(-1);
+    assert.equal(uiClose?.action, "close_branch");
+    assert.equal(uiClose?.source, "ui");
+    assert.equal(uiClose?.sourceTurn, 18);
+    assert.equal(uiClose?.sourceUserMessageId, frontierAtClose.userId);
+    assert.doesNotMatch(lorebook(CHAT), /청룡/);
+
+    const preferenceTurn = insertTurn(CHAT, preference, "말투를 짧게 유지한다.");
+    const preferenceScope = resolveEpisodicEligibilityForSourceUserMessage(getDb(), {
+      chatId: CHAT,
+      sourceUserMessageId: preferenceTurn.userId,
+      sourceUserText: preference,
+    });
+    assert.equal(preferenceScope.previousWasNoncanonOrBranch, false);
+    assert.equal(preferenceScope.scopeClass, "preference");
+    assert.equal(preferenceScope.eligible, true);
+
+    const returned = insertTurn(CHAT, NEW_MAIN_USER, NEW_MAIN_ASSISTANT);
+    const returnedScope = resolveEpisodicEligibilityForSourceUserMessage(getDb(), {
+      chatId: CHAT,
+      sourceUserMessageId: returned.userId,
+      sourceUserText: NEW_MAIN_USER,
+    });
+    assert.equal(returnedScope.previousWasNoncanonOrBranch, false);
+    assert.equal(returnedScope.scopeClass, "main_rp");
+    assert.equal(returnedScope.eligible, true);
+    assert.equal(
+      reconcile(CHAT, USER, CHAR, {
+        turn: returned.turn,
+        userId: returned.userId,
+        assistantId: returned.assistantId,
+        user: NEW_MAIN_USER,
+        assistant: NEW_MAIN_ASSISTANT,
+      }, [BELL_FACT]).inserted,
+      1
+    );
+
+    insertTurn(CHAT, "자리를 지킨다.", "그 자리에 남는다.");
+    assert.equal(await seal(CHAT, USER, CHAR, "ParityChar"), true);
+    const straddling = rowAt(CHAT, 16);
+    assert.equal(straddling.summaryKind, "main_canon");
+    assert.doesNotMatch(lorebook(CHAT), /청룡/);
+    assert.match(lorebook(CHAT), /은방울/);
+
+    assert.equal(
+      await regenerateMemoryRecordBatch({
+        chatId: CHAT,
+        userId: USER,
+        characterId: CHAR,
+        charName: "ParityChar",
+        tier: "free",
+        memoryCapacity: 8000,
+        turnStart: 11,
+      }),
+      true
+    );
+    assert.equal(rowAt(CHAT, 11).summaryKind, "branch_canon");
+    assert.equal(rowAt(CHAT, 11).branchStatus, "closed");
+    assert.equal(rowAt(CHAT, 11).branchControlMutations?.at(-1)?.source, "ui");
+    assert.equal(
+      rowAt(CHAT, 11).branchControlMutations?.at(-1)?.sourceUserMessageId,
+      frontierAtClose.userId
+    );
+    assert.doesNotMatch(lorebook(CHAT), /청룡/);
+
+    getDb()
+      .prepare("DELETE FROM messages WHERE id IN (?, ?)")
+      .run(earlyMain.userId, earlyMain.assistantId);
+    const afterDelete = insertTurn(CHAT, NEW_MAIN_USER, NEW_MAIN_ASSISTANT);
+    const afterDeleteScope = resolveEpisodicEligibilityForSourceUserMessage(getDb(), {
+      chatId: CHAT,
+      sourceUserMessageId: afterDelete.userId,
+      sourceUserText: NEW_MAIN_USER,
+    });
+    assert.equal(afterDeleteScope.scopeClass, "main_rp");
+    assert.equal(afterDeleteScope.eligible, true);
+    assert.equal(rowAt(CHAT, 11).branchStatus, "closed");
+
+    const reopened = reopenClosedBranchCanon({
+      chatId: CHAT,
+      recordId: rowAt(CHAT, 11).id,
+      source: "ui_reopen",
+    });
+    assert.equal(reopened.ok, true);
+    const resumed = insertTurn(CHAT, RESUME_BEAT, RESUME_ASSISTANT);
+    const resumedScope = resolveEpisodicEligibilityForSourceUserMessage(getDb(), {
+      chatId: CHAT,
+      sourceUserMessageId: resumed.userId,
+      sourceUserText: RESUME_BEAT,
+    });
+    assert.equal(resumedScope.previousWasNoncanonOrBranch, true);
+    assert.equal(resumedScope.scopeClass, "branch_continue");
+    assert.equal(resumedScope.eligible, false);
+    assert.match(lorebook(CHAT), /청룡/);
+
+    assert.ok(closeActiveBranchCanon(CHAT, { source: "ui" }) >= 1);
+    const afterReclose = insertTurn(CHAT, NEW_MAIN_USER, NEW_MAIN_ASSISTANT);
+    const afterRecloseScope = resolveEpisodicEligibilityForSourceUserMessage(getDb(), {
+      chatId: CHAT,
+      sourceUserMessageId: afterReclose.userId,
+      sourceUserText: NEW_MAIN_USER,
+    });
+    assert.equal(afterRecloseScope.scopeClass, "main_rp");
+    assert.equal(afterRecloseScope.eligible, true);
+    assert.doesNotMatch(lorebook(CHAT), /청룡/);
+
+    insertTurn(CHAT, OPENER, "새 외전의 청룡 가판이 다시 선다.");
+    const nextSide = insertTurn(CHAT, SIDE_BEAT, SIDE_ASSISTANT);
+    const nextSideScope = resolveEpisodicEligibilityForSourceUserMessage(getDb(), {
+      chatId: CHAT,
+      sourceUserMessageId: nextSide.userId,
+      sourceUserText: SIDE_BEAT,
+    });
+    assert.equal(nextSideScope.previousWasNoncanonOrBranch, true);
+    assert.equal(nextSideScope.scopeClass, "branch_continue");
+    assert.equal(nextSideScope.eligible, false);
+    assert.notEqual(uiClose?.sourceUserMessageId, unsealed.userId);
   });
 });
 

@@ -383,11 +383,15 @@ export type EpisodicMemoryRecordSnapshot = {
   summaryKind: MemorySummaryScope;
   branchStatus: BranchStatus | null;
   inactive: boolean;
+  /** Existing close/reopen stack. UI close is the watermark; no new table. */
+  branchControlMutations?: readonly BranchControlMutation[];
 };
 
 export type BranchStateUserTurn = {
   turnNumber: number;
   user: string;
+  /** Stable across renumbering. UI close stores the frontier user message here. */
+  userMessageId?: number | null;
 };
 
 function turnScopeOpensBranchState(scopeClass: TurnScopeClass): boolean {
@@ -429,6 +433,70 @@ export function resolveSealedNoncanonOrBranchFromMemoryRecords(
   );
 }
 
+function latestEffectiveUiClose(
+  mutations: readonly BranchControlMutation[] | undefined
+): BranchControlMutation | null {
+  if (!mutations || mutations.length === 0) return null;
+  for (let index = mutations.length - 1; index >= 0; index -= 1) {
+    const mutation = mutations[index]!;
+    switch (mutation.action) {
+      case "reopen_branch":
+        return null;
+      case "close_branch":
+        if (mutation.source === "ui") return mutation;
+        break;
+      case "promote_branch":
+        break;
+      default: {
+        const unreachable: never = mutation.action;
+        return unreachable;
+      }
+    }
+  }
+  return null;
+}
+
+function uiCloseTurnNumber(
+  mutation: BranchControlMutation,
+  priorTurns: readonly BranchStateUserTurn[] | undefined
+): number | null {
+  const frontierId = mutation.sourceUserMessageId;
+  if (frontierId != null && frontierId > 0 && priorTurns) {
+    const matched = priorTurns.find((turn) => turn.userMessageId === frontierId);
+    if (matched) return matched.turnNumber;
+  }
+  if (mutation.sourceTurn != null && mutation.sourceTurn > 0) return mutation.sourceTurn;
+  return null;
+}
+
+/**
+ * Turn covered by the latest UI close that is still in effect.
+ * An active branch wins, including a UI reopen. Older user text must not
+ * replay over this turn. `beforeTurnNumber` drops a close that has not
+ * happened yet for the turn being classified.
+ */
+export function confirmedUiCloseThroughTurn(
+  records: readonly EpisodicMemoryRecordSnapshot[],
+  priorTurns: readonly BranchStateUserTurn[] | undefined,
+  beforeTurnNumber?: number
+): number | null {
+  if (confirmedActiveBranchTurnEnd(records, beforeTurnNumber) != null) return null;
+
+  let best: number | null = null;
+  for (const record of records) {
+    if (record.inactive) continue;
+    if (beforeTurnNumber != null && record.turnStart >= beforeTurnNumber) continue;
+    if (record.summaryKind !== "branch_canon" || record.branchStatus !== "closed") continue;
+    const mutation = latestEffectiveUiClose(record.branchControlMutations);
+    if (!mutation) continue;
+    const turn = uiCloseTurnNumber(mutation, priorTurns);
+    if (turn == null) continue;
+    if (beforeTurnNumber != null && turn >= beforeTurnNumber) continue;
+    best = best == null ? turn : Math.max(best, turn);
+  }
+  return best;
+}
+
 function confirmedActiveBranchTurnEnd(
   records: readonly EpisodicMemoryRecordSnapshot[],
   beforeTurnNumber?: number
@@ -467,7 +535,10 @@ function orderedUsers(
  * An active branch_canon row is the confirmed state through its turnEnd, including
  * a UI reopen that came after the user close already inside that span. Older user
  * text is not replayed over it. User text after that span still opens and closes.
- * classifyMemoryBatchScopes still applies one frozen flag inside a batch.
+ * A UI close is the same kind of confirmed fact through its frontier turn, including
+ * unsealed turns that existed when the panel closed the branch. Older user text
+ * does not reopen it. classifyMemoryBatchScopes still applies one frozen flag
+ * inside a batch unless that batch is split on the UI close.
  */
 export function resolveSharedPreviousBranchState(opts: {
   priorUserMessages?: readonly string[];
@@ -483,6 +554,18 @@ export function resolveSharedPreviousBranchState(opts: {
     return resolvePreviousWasNoncanonOrBranchState(
       orderedUsers(opts.priorTurns, opts.beforeTurnNumber, coveredThrough),
       true
+    );
+  }
+
+  const uiCloseThrough = confirmedUiCloseThroughTurn(
+    opts.sealedRecords,
+    opts.priorTurns,
+    opts.beforeTurnNumber
+  );
+  if (uiCloseThrough != null && opts.priorTurns) {
+    return resolvePreviousWasNoncanonOrBranchState(
+      orderedUsers(opts.priorTurns, opts.beforeTurnNumber, uiCloseThrough),
+      false
     );
   }
 
