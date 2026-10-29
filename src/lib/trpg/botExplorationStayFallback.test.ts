@@ -189,6 +189,59 @@ describe("bot exploration stay fallback", () => {
     db.close();
   });
 
+  it("keeps movement-free local speech when only the intent names a disconnected room", async () => {
+    const db = memoryDb();
+    let botLine = [
+      "잔을 테이블에 내려놓는다.",
+      '"오늘은 여기까지"',
+      "",
+      "<<<INTENT>>>",
+      "출구로 이동한다.",
+    ].join("\n");
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    const diag = captureLockDiagnostics();
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    diag.restore();
+    const lockLog = diag.logs.at(-1);
+    assert.ok(lockLog);
+    assert.equal(lockLog.outcome, "original-locked");
+    assert.equal(lockLog.fallbackBranch, "priced-empty-remainder");
+    assert.equal(lockLog.firstRejectCode, "disconnected");
+    assert.deepEqual(lockLog.proseMoveRoomIds, []);
+    assert.deepEqual(lockLog.intentMoveRoomIds, [EXPLORATION_EXIT_ROOM]);
+    assert.deepEqual(lockLog.legalRoomIds, []);
+    assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
+    const body = lockedBody(db, botId);
+    assert.match(body, /잔을 테이블에 내려놓는다/);
+    assert.match(body, /오늘은 여기까지/);
+    assert.equal(body.includes(EXPLORATION_EXIT_ROOM), false);
+    assert.equal(body.includes("제자리에 서서"), false);
+    assert.equal(body.includes("<<<"), false);
+    db.close();
+  });
+
+  it("keeps a movement-free intent clause when that intent also names a disconnected room", async () => {
+    const db = memoryDb();
+    let botLine = ["<<<INTENT>>>", "잔을 테이블에 내려놓는다. 출구로 이동한다."].join("\n");
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    const diag = captureLockDiagnostics();
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    diag.restore();
+    const lockLog = diag.logs.at(-1);
+    assert.ok(lockLog);
+    assert.equal(lockLog.fallbackBranch, "priced-empty-remainder");
+    assert.equal(lockLog.firstRejectCode, "disconnected");
+    assert.deepEqual(lockLog.intentMoveRoomIds, [EXPLORATION_EXIT_ROOM]);
+    assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
+    const body = lockedBody(db, botId);
+    assert.match(body, /잔을 테이블에 내려놓는다/);
+    assert.equal(body.includes(EXPLORATION_EXIT_ROOM), false);
+    assert.equal(body.includes("제자리에 서서"), false);
+    db.close();
+  });
+
   it("keeps independent cover prose when an illegal move is rejected", async () => {
     const db = memoryDb();
     let botLine = "출구로 이동한다. 현이 옆에서 방어선을 유지한다.";

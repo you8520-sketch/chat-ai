@@ -1176,24 +1176,76 @@ function stayWatchingInPlace(name: string): string {
   return `${name}은 제자리에 서서 상황을 살핀다.`;
 }
 
+function normalizedRemainder(text: string): string {
+  return text.replace(/[\s“”"'`.!?。…,;]/g, "");
+}
+
+/**
+ * Movement-free local prose and a standalone quote, after a rejected move is removed.
+ * A quote stays whole only when every clause in it is still local. Markers are not action text.
+ */
+function localRemainderText(opts: {
+  body: string;
+  here: string;
+  colocatedNames: readonly string[];
+  foreignPlaces: readonly string[];
+}): string {
+  const quotes: string[] = [];
+  const rest: string[] = [];
+  for (const raw of opts.body.split(/\n+/)) {
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    if (/^[“"][^”"]+[”"]$/.test(trimmed)) quotes.push(trimmed);
+    else rest.push(trimmed);
+  }
+  const place = {
+    here: opts.here,
+    colocatedNames: opts.colocatedNames,
+    foreignPlaces: opts.foreignPlaces,
+  };
+  const keptRest = omitClausesAwayFromHere({
+    body: omitLiveMovementClauses(rest.join("\n")),
+    ...place,
+  });
+  const keptQuotes = quotes.filter((line) => {
+    const inner = line.replace(/^[“"]|[”"]$/g, "").trim();
+    if (!inner || declaredMovementGoals(inner).length > 0) return false;
+    const filtered = omitClausesAwayFromHere({
+      body: omitLiveMovementClauses(inner),
+      ...place,
+    });
+    return filtered.length > 0 && normalizedRemainder(filtered) === normalizedRemainder(inner);
+  });
+  return [keptRest, ...keptQuotes].filter(Boolean).join("\n").trim();
+}
+
 function independentBotRemainder(opts: {
   body: string;
   here: string;
   rooms: readonly string[];
   party: ReadonlyArray<{ name: string; location: string }>;
 }): string {
-  return omitClausesAwayFromHere({
-    body: omitLiveMovementClauses(opts.body),
-    here: opts.here,
-    colocatedNames: opts.party.filter((seat) => seat.location === opts.here).map((seat) => seat.name),
-    foreignPlaces: [
-      ...opts.rooms.filter((room) => room !== opts.here),
-      ...opts.party.filter((seat) => seat.location !== opts.here).map((seat) => seat.name),
-      ...declaredMovementGoals(opts.body)
-        .map((goal) => describeMovementGoal(goal).place)
-        .filter((place): place is string => Boolean(place && place !== opts.here)),
-    ],
-  });
+  const parsed = parseTrpgBotAction(opts.body);
+  const colocatedNames = opts.party.filter((seat) => seat.location === opts.here).map((seat) => seat.name);
+  const foreignPlaces = [
+    ...opts.rooms.filter((room) => room !== opts.here),
+    ...opts.party.filter((seat) => seat.location !== opts.here).map((seat) => seat.name),
+    ...declaredMovementGoals(opts.body)
+      .map((goal) => describeMovementGoal(goal).place)
+      .filter((place): place is string => Boolean(place && place !== opts.here)),
+  ];
+  return [parsed.prose, parsed.intent]
+    .map((piece) =>
+      localRemainderText({
+        body: piece,
+        here: opts.here,
+        colocatedNames,
+        foreignPlaces,
+      })
+    )
+    .filter(Boolean)
+    .join("\n")
+    .trim();
 }
 
 async function generateBotActions(

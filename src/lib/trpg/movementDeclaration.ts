@@ -365,10 +365,24 @@ export function omitLiveMovementClauses(body: string): string {
     .trim();
 }
 
+/** A place word that points at a destination this actor has not reached. */
+const UNSEEN_PLACE_DEIXIS = /그곳|거기|저곳|저기/;
+
+function clausePointsAtUnseenPlace(clause: string): boolean {
+  return UNSEEN_PLACE_DEIXIS.test(clause);
+}
+
+/** `X 옆에서` puts the actor beside someone. Without `here` or a colocated name, that someone is absent. */
+function clauseAnchorsBesideAbsentSeat(clause: string, allowed: readonly string[]): boolean {
+  if (!clause.includes("옆에서")) return false;
+  return !allowed.some((token) => clause.includes(token));
+}
+
 /**
- * Drops remainder clauses that name a place the actor is not in.
- * A clause is kept only when it names `here` or a colocated seat — absence of a
- * foreign room name is not independence. `에서` uses the existing source particle.
+ * Drops remainder clauses that still depend on a place the actor is not in.
+ * A foreign room, an unresolved `에서` source, a deictic place (`그곳`), or a
+ * side-anchor beside someone who is not here is not an independent local act.
+ * A movement-free clause that names none of those stays. It does not have to repeat `here`.
  */
 export function omitClausesAwayFromHere(opts: {
   body: string;
@@ -384,7 +398,9 @@ export function omitClausesAwayFromHere(opts: {
     .filter((clause) => {
       if (foreign.some((place) => clause.includes(place))) return false;
       if (clauseHasUnresolvedSourcePlace(clause, allowed)) return false;
-      return allowed.some((token) => clause.includes(token));
+      if (clausePointsAtUnseenPlace(clause)) return false;
+      if (clauseAnchorsBesideAbsentSeat(clause, allowed)) return false;
+      return true;
     })
     .join(" ")
     .trim();

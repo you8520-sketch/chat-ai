@@ -84,7 +84,7 @@ describe("movement declaration — bot stay fallback", () => {
     assert.equal(omitLiveMovementClauses("자리를 지키며 동료를 엄호한다."), "자리를 지키며 동료를 엄호한다");
   });
 
-  it("keeps remainder only when it names the current seat or a colocated companion", () => {
+  it("keeps a movement-free local clause and drops a foreign, deictic, or absent-seat clause", () => {
     const here = {
       here: "현관홀",
       colocatedNames: ["현이", "서하"],
@@ -93,7 +93,14 @@ describe("movement declaration — bot stay fallback", () => {
     assert.equal(omitClausesAwayFromHere({ body: "출구의 제어 패널을 조사한다", ...here }), "");
     assert.equal(omitClausesAwayFromHere({ body: "그곳의 제어 패널을 조사한다", ...here }), "");
     assert.equal(omitClausesAwayFromHere({ body: "권태현의 옆에서 방어선을 유지한다", ...here }), "");
-    assert.equal(omitClausesAwayFromHere({ body: "자리를 지키며 동료를 엄호한다", ...here }), "");
+    assert.equal(
+      omitClausesAwayFromHere({ body: "자리를 지키며 동료를 엄호한다", ...here }),
+      "자리를 지키며 동료를 엄호한다"
+    );
+    assert.equal(
+      omitClausesAwayFromHere({ body: "잔을 테이블에 내려놓는다", ...here }),
+      "잔을 테이블에 내려놓는다"
+    );
     assert.equal(
       omitClausesAwayFromHere({ body: "현이 옆에서 방어선을 유지한다", ...here }),
       "현이 옆에서 방어선을 유지한다"
