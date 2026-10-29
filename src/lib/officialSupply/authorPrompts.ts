@@ -24,8 +24,11 @@ import {
 import type { OfficialCharacterSceneContext } from "@/lib/officialSupply/scenePortfolio";
 import {
   formatAuthoringDirection,
+  OFFICIAL_WORLD_SCALE_LIMITS,
+  officialWorldScaleForPlan,
   ROFAN_PARITY_PLAN,
   type OfficialAuthoringPlan,
+  type OfficialWorldScale,
 } from "@/lib/officialSupply/genreProfile";
 import { buildRofanMatureMaleVisualAgeDirection } from "@/lib/officialSupply/appearance";
 import { officialCharacterPronounDirective } from "@/lib/officialSupply/publicProfileText";
@@ -156,6 +159,16 @@ export function buildWorldBibleSystem(plan: OfficialAuthoringPlan = ROFAN_PARITY
 
 export function buildWorldCoreUser(input: WorldBibleInput): string {
   const plan = input.authoring ?? ROFAN_PARITY_PLAN;
+  const scale = officialWorldScaleForPlan(plan);
+  const lim = OFFICIAL_WORLD_SCALE_LIMITS[scale];
+  const factionLead =
+    scale === "scene"
+      ? `- factions ${lim.factions.min}~${lim.factions.max}개(이 사건의 사람·소속): 이름·목적·지도층·수단·타 세력과의 관계·일반인의 시선`
+      : `- factions ${lim.factions.min}~${lim.factions.max}개: 이름·목적·지도층·수단·타 세력과의 관계·일반인의 시선`;
+  const societyLine =
+    scale === "scene"
+      ? `- society: 이 사건에 실제로 쓰이는 RP 영역 ${lim.societyAreas.min}개 이상`
+      : `- society: RP에 영향을 주는 영역 ${lim.societyAreas.min}개 이상(계급·법·결혼/가족·교육·직업·군사·차별/예절 중)`;
   return [
     `장르: ${input.genre}`,
     `대상 시장: ${input.market.targetLocale} (${input.market.marketPriority})`,
@@ -171,11 +184,11 @@ export function buildWorldCoreUser(input: WorldBibleInput): string {
     "- name(세계관 이름), genre, subgenre, tone, era, techLevel, regions, societyForm",
     "- premise 300~600자 + centralPremise 한 문장",
     "- situation: biggestEvent·beneficiaries·threatened·upcomingChange (합 500~1000자)",
-    "- factions 3~6개: 이름·목적·지도층·수단·타 세력과의 관계·일반인의 시선",
+    factionLead,
     "- powerSystem: capabilities·users·acquisition·ranks·limits·costs·socialImpact·taboos (\"마법이 있다\" 수준 금지)",
     ...(plan.profile.worldPowerNote ? [plan.profile.worldPowerNote] : []),
-    "- society: RP에 영향을 주는 영역 3개 이상(계급·법·결혼/가족·교육·직업·군사·차별/예절 중)",
-    "- culture 3~6개: 이름·상세",
+    societyLine,
+    `- culture ${lim.culture.min}~${lim.culture.max}개: 이름·상세`,
     "최상위 키는 정확히 name·genre·subgenre·tone·era·techLevel·regions·societyForm·premise·centralPremise·",
     "situation·factions·powerSystem·society·culture 이며 하나도 빠뜨리지 않는다.",
     "아래 빈 틀의 모든 값을 채워 JSON 한 개만 출력한다.",
@@ -189,21 +202,25 @@ export type WorldAtlasInput = {
   factionNames: string[];
   /** Set only for genre-neutral worlds. Absent keeps the atlas prompt unchanged. */
   castIntent?: string;
+  /** Absent = full (rofan parity and legacy callers). */
+  worldScale?: OfficialWorldScale;
 };
 
 export function buildWorldAtlasUser(input: WorldAtlasInput): string {
   const intent = input.castIntent?.trim() ?? "";
+  const scale = input.worldScale ?? "full";
+  const lim = OFFICIAL_WORLD_SCALE_LIMITS[scale];
   return [
     `세계관: ${input.worldName} — ${input.centralPremise}`,
     `세력: ${input.factionNames.join(" / ")}`,
     ...(intent ? ["", `캐스트 의도: ${intent}`, NEUTRAL_CAST_ATLAS_STAGE] : []),
     "",
     "이번 호출(atlas) 출력 필드:",
-    "- locations 5~10개: 이름·용도·분위기·이용자·RP에서 벌어질 사건(이후 스페셜 신 에셋의 재료)",
-    "- history 3~6개: 현재에 영향을 주는 사건만(event·impact). 연대표 나열 금지",
+    `- locations ${lim.locations.min}~${lim.locations.max}개: 이름·용도·분위기·이용자·RP에서 벌어질 사건(이후 스페셜 신 에셋의 재료)`,
+    `- history ${lim.history.min}~${lim.history.max}개: 현재에 영향을 주는 사건만(event·impact). 연대표 나열 금지`,
     "- knowledge: common(대중 상식만, 비밀·정체·흑막·미래 표현 금지) / faction / characterLocal / authorOnly",
     "- userEntry: allowedRoles 2개 이상(귀족·고용인·방문자·계약 상대·신입 등, 단일 강제 금지) + note",
-    "- lorebook: 실제 RP에서 반복적으로 필요한 세계 정보만 3~8개. 개수 채우기 금지. entryKey·name(40자 이내)·keywords(2~10개)·content(800자 이내)",
+    `- lorebook: 실제 RP에서 반복적으로 필요한 세계 정보만 ${lim.lorebook.min}~${lim.lorebook.max}개. 개수 채우기 금지. entryKey·name(40자 이내)·keywords(2~10개)·content(800자 이내)`,
     "최상위 키는 정확히 locations·history·knowledge·userEntry·lorebook이며 하나도 빠뜨리지 않는다.",
     "아래 빈 틀의 모든 값을 채워 JSON 한 개만 출력한다.",
     WORLD_ATLAS_SKELETON,

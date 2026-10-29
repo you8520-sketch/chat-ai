@@ -16,6 +16,7 @@ import {
   evaluateUserRelationStart,
   type OfficialUserRelationStart,
 } from "@/lib/officialSupply/userRelationStart";
+import { OFFICIAL_WORLD_SCALE_LIMITS, type OfficialWorldScale } from "@/lib/officialSupply/genreProfile";
 import {
   qaResult,
   type OfficialCharacterDraft,
@@ -625,8 +626,10 @@ const HIDDEN_KNOWLEDGE_RE = /(숨겨진|비밀|정체를\s*숨|진짜\s*정체|�
 
 export function validateWorldBible(
   bible: OfficialWorldBible,
-  opts: { slots: number; adultCandidates: number }
+  opts: { slots: number; adultCandidates: number; worldScale?: OfficialWorldScale }
 ): QaResult {
+  const scale = opts.worldScale ?? "full";
+  const lim = OFFICIAL_WORLD_SCALE_LIMITS[scale];
   const errors: QaIssue[] = [];
   const warnings: QaIssue[] = [];
   for (const key of ["name", "genre", "tone", "era", "regions", "premise", "centralPremise"] as const) {
@@ -644,8 +647,17 @@ export function validateWorldBible(
   if (situationChars > 0 && (situationChars < 500 || situationChars > 1000)) {
     warnings.push(warn("world_situation_band", `situation ${situationChars} chars (target 500-1000)`));
   }
-  if (!Array.isArray(bible.factions) || bible.factions.length < 3 || bible.factions.length > 6) {
-    errors.push(err("world_faction_count", `factions 3-6 required, got ${bible.factions?.length ?? 0}`));
+  if (
+    !Array.isArray(bible.factions) ||
+    bible.factions.length < lim.factions.min ||
+    bible.factions.length > lim.factions.max
+  ) {
+    errors.push(
+      err(
+        "world_faction_count",
+        `factions ${lim.factions.min}-${lim.factions.max} required, got ${bible.factions?.length ?? 0}`
+      )
+    );
   } else {
     bible.factions.forEach((f, i) => {
       for (const key of ["name", "purpose", "leadership", "means", "relations", "publicView"] as const) {
@@ -658,12 +670,25 @@ export function validateWorldBible(
     if (!nonEmpty(power[key])) errors.push(err("world_power_missing", `powerSystem.${key} is required`));
   }
   const societyKeys = Object.keys(bible.society ?? {}).filter((k) => nonEmpty(bible.society[k]));
-  if (societyKeys.length < 3) errors.push(err("world_society_thin", "society needs at least 3 defined areas"));
-  if (!Array.isArray(bible.culture) || bible.culture.length < 3 || bible.culture.length > 6) {
-    errors.push(err("world_culture_count", `culture 3-6 required, got ${bible.culture?.length ?? 0}`));
+  if (societyKeys.length < lim.societyAreas.min) {
+    errors.push(err("world_society_thin", `society needs at least ${lim.societyAreas.min} defined areas`));
   }
-  if (!Array.isArray(bible.locations) || bible.locations.length < 5 || bible.locations.length > 10) {
-    errors.push(err("world_location_count", `locations 5-10 required, got ${bible.locations?.length ?? 0}`));
+  if (!Array.isArray(bible.culture) || bible.culture.length < lim.culture.min || bible.culture.length > lim.culture.max) {
+    errors.push(
+      err("world_culture_count", `culture ${lim.culture.min}-${lim.culture.max} required, got ${bible.culture?.length ?? 0}`)
+    );
+  }
+  if (
+    !Array.isArray(bible.locations) ||
+    bible.locations.length < lim.locations.min ||
+    bible.locations.length > lim.locations.max
+  ) {
+    errors.push(
+      err(
+        "world_location_count",
+        `locations ${lim.locations.min}-${lim.locations.max} required, got ${bible.locations?.length ?? 0}`
+      )
+    );
   } else {
     bible.locations.forEach((location, i) => {
       for (const key of ["name", "purpose", "mood", "users", "rpEvents"] as const) {
@@ -671,8 +696,17 @@ export function validateWorldBible(
       }
     });
   }
-  if (!Array.isArray(bible.history) || bible.history.length < 3 || bible.history.length > 6) {
-    errors.push(err("world_history_count", `history 3-6 required, got ${bible.history?.length ?? 0}`));
+  if (
+    !Array.isArray(bible.history) ||
+    bible.history.length < lim.history.min ||
+    bible.history.length > lim.history.max
+  ) {
+    errors.push(
+      err(
+        "world_history_count",
+        `history ${lim.history.min}-${lim.history.max} required, got ${bible.history?.length ?? 0}`
+      )
+    );
   }
   const knowledge = bible.knowledge ?? { common: [], faction: [], characterLocal: [], authorOnly: [] };
   if (!Array.isArray(knowledge.common) || knowledge.common.length === 0) {
@@ -686,8 +720,17 @@ export function validateWorldBible(
   if (!Array.isArray(bible.userEntry?.allowedRoles) || bible.userEntry.allowedRoles.length < 2) {
     errors.push(err("world_user_entry_narrow", "userEntry needs at least 2 allowed roles"));
   }
-  if (!Array.isArray(bible.lorebook) || bible.lorebook.length < 3 || bible.lorebook.length > 8) {
-    errors.push(err("world_lorebook_count", `lorebook 3-8 useful entries required, got ${bible.lorebook?.length ?? 0}`));
+  if (
+    !Array.isArray(bible.lorebook) ||
+    bible.lorebook.length < lim.lorebook.min ||
+    bible.lorebook.length > lim.lorebook.max
+  ) {
+    errors.push(
+      err(
+        "world_lorebook_count",
+        `lorebook ${lim.lorebook.min}-${lim.lorebook.max} useful entries required, got ${bible.lorebook?.length ?? 0}`
+      )
+    );
   } else {
     bible.lorebook.forEach((entry, i) => {
       if (!nonEmpty(entry.name) || !nonEmpty(entry.content)) {

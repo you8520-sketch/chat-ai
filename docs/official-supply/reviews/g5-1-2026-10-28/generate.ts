@@ -105,8 +105,8 @@ const RESPONSES_DIR = path.join(OUT_DIR, "provider-responses");
 const KRW_PER_USD = 1500;
 const UPPER_USD_PER_M_INPUT = 0.5;
 const UPPER_USD_PER_M_OUTPUT = 1.0;
-/** G5-1D: 29 physical calls already saved + 8 authorized for one new character. Do not raise further. */
-const CALL_CAP = 37;
+/** G5-1F: 36 physical calls saved + up to 10 for one scene-scale comedy. Hard stop at 46. */
+const CALL_CAP = 46;
 const MAX_VOICE_REPAIRS = 2;
 const DEFAULT_MAX_KRW = 1000;
 
@@ -168,6 +168,19 @@ const SPECS: readonly Spec[] = [
     key: "g5-modern-comedy-d",
     genre: "현대/일상",
     worldKey: "g5-modern-daily-d-v1",
+    styleKey: "modern_daily_v1",
+    direction: { genre: "현대/일상", tone: "light", humor: "central", pacing: "dialogue", nameWordplay: "nickname" },
+    gender: "female",
+    audience: "all",
+    castIntent:
+      "전체 이용자 대상 현대 한국 일상 코미디 캐릭터 1명. 연애 구도 없이 이웃·동료·룸메이트처럼 일상에서 엮이는 관계. 별명이 붙은 인물.",
+    replanDirection:
+      "여성. 연애 구도 없는 가벼운 일상 코미디. 별명(괄호 별칭)에 행동으로 생긴 이유가 있다. 웃기는 상황과 행동이 다음 사건을 만든다. 유지 캐릭터와 목표·첫 사건·말투·유저 역학·유머 방식이 겹치지 않게.",
+  },
+  {
+    key: "g5-modern-comedy-e",
+    genre: "현대/일상",
+    worldKey: "g5-modern-daily-e-v1",
     styleKey: "modern_daily_v1",
     direction: { genre: "현대/일상", tone: "light", humor: "central", pacing: "dialogue", nameWordplay: "nickname" },
     gender: "female",
@@ -379,6 +392,7 @@ function estimate(only: string | null = null): { expectedKrw: number; worstKrw: 
           worldName: "W",
           centralPremise: "P".repeat(60),
           factionNames: placeholderFactions,
+          worldScale: plan.profile.worldScale,
           ...(plan.profile.key === "genre_neutral" ? { castIntent: spec.castIntent } : {}),
         })
     );

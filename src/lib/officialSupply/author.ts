@@ -11,7 +11,12 @@ import { isAssetPersonTag } from "@/lib/assetPersonTags";
 import { isCharacterGenre } from "@/lib/characterGenres";
 import { evaluateAppearanceLock } from "@/lib/officialSupply/appearance";
 import { evaluateAssetPlan } from "@/lib/officialSupply/assetPlan";
-import { resolveOfficialAuthoringPlan, type OfficialAuthoringPlan } from "@/lib/officialSupply/genreProfile";
+import {
+  officialWorldScaleForPlan,
+  resolveOfficialAuthoringPlan,
+  ROFAN_PARITY_PLAN,
+  type OfficialAuthoringPlan,
+} from "@/lib/officialSupply/genreProfile";
 import {
   buildAdultProfileSystem,
   buildAdultProfileUser,
@@ -799,12 +804,15 @@ export async function generateOfficialWorldBible(input: {
     .map((f) => String(f.name ?? "").trim())
     .filter(Boolean);
 
+  const plan = input.world.authoring ?? ROFAN_PARITY_PLAN;
+  const worldScale = officialWorldScaleForPlan(plan);
   const castIntent = input.world.castIntent?.trim() ?? "";
   const atlasInput: WorldAtlasInput = {
     worldName,
     centralPremise,
     factionNames,
-    ...(input.world.authoring?.profile.key === "genre_neutral" && castIntent ? { castIntent } : {}),
+    worldScale,
+    ...(plan.profile.key === "genre_neutral" && castIntent ? { castIntent } : {}),
   };
   const atlas = await complete(buildWorldAtlasUser(atlasInput));
   const atlasData = parseAuthorJson(atlas.text, "world_bible");
@@ -859,6 +867,7 @@ export async function generateOfficialWorldBible(input: {
   const qa = validateWorldBible(bible, {
     slots: input.world.slots,
     adultCandidates: input.world.adultCandidates,
+    worldScale,
   });
   if (!qa.ok) throw new OfficialSupplyGateError("author_world_rejected", "world bible failed QA", qa);
   const attempt = input.attempt ?? 1;

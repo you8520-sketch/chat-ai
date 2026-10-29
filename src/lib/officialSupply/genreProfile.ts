@@ -17,6 +17,41 @@ import { DOMESTIC_ROFAN_STYLE_DIRECTION } from "@/lib/officialSupply/style";
 
 export const OFFICIAL_ROFAN_GENRE = "로맨스 판타지";
 
+export const OFFICIAL_MODERN_DAILY_GENRE = "현대/일상";
+
+export const OFFICIAL_WORLD_SCALES = ["full", "scene"] as const;
+export type OfficialWorldScale = (typeof OFFICIAL_WORLD_SCALES)[number];
+
+/** Count floors for world core/atlas prompts and `validateWorldBible`. */
+export const OFFICIAL_WORLD_SCALE_LIMITS = {
+  full: {
+    factions: { min: 3, max: 6 },
+    societyAreas: { min: 3 },
+    culture: { min: 3, max: 6 },
+    locations: { min: 5, max: 10 },
+    history: { min: 3, max: 6 },
+    lorebook: { min: 3, max: 8 },
+  },
+  scene: {
+    factions: { min: 1, max: 2 },
+    societyAreas: { min: 1 },
+    culture: { min: 1, max: 3 },
+    locations: { min: 2, max: 6 },
+    history: { min: 1, max: 3 },
+    lorebook: { min: 1, max: 4 },
+  },
+} as const satisfies Record<
+  OfficialWorldScale,
+  {
+    factions: { min: number; max: number };
+    societyAreas: { min: number };
+    culture: { min: number; max: number };
+    locations: { min: number; max: number };
+    history: { min: number; max: number };
+    lorebook: { min: number; max: number };
+  }
+>;
+
 /** Genres whose default user relationship may be romantic. Everything else gets the open-relation frame. */
 const ROMANCE_FRAME_GENRES: ReadonlySet<string> = new Set(["로맨스", "로맨스 판타지", "BL", "GL", "HL"]);
 
@@ -55,6 +90,8 @@ export type OfficialGenreProfile = {
   visualDirectionLines: readonly string[];
   /** Drop romance-led market signals (`isRomanceLedSignal`) from this genre's market input. */
   excludeRomanceLedSignals: boolean;
+  /** World bible depth: scene-scale only for `현대/일상`; rofan and other genres stay full. */
+  worldScale: OfficialWorldScale;
 };
 
 export type OfficialAuthoringDirection = {
@@ -93,6 +130,7 @@ export const ROFAN_GENRE_PROFILE: OfficialGenreProfile = {
   openRelationLine: null,
   visualDirectionLines: ["[DOMESTIC ROFAN PRODUCT DIRECTION]", DOMESTIC_ROFAN_STYLE_DIRECTION],
   excludeRomanceLedSignals: false,
+  worldScale: "full",
 };
 
 const OPEN_RELATION_LINE =
@@ -101,8 +139,12 @@ const OPEN_RELATION_LINE =
 const NEUTRAL_POWER_NOTE =
   "  초자연 능력이 없는 세계라면 powerSystem은 이 세계에서 사람들이 영향력·자격·자원을 얻고 잃는 방식(규칙·평판·기술·권한)으로 채운다. 마법을 만들어 넣지 않는다.";
 
+const NEUTRAL_SCENE_POWER_NOTE =
+  "  초자연 능력이 없는 세계라면 powerSystem은 이 장면에서 인물이 실제로 할 수 있는 행동·선택·한계·대가로 채운다. 제도·권한·행정 체계 전체를 설명하는 문장을 쓰지 않는다. 마법을 만들어 넣지 않는다.";
+
 function neutralProfile(label: string | null, romanceFrame: boolean): OfficialGenreProfile {
   const lead = label ? `${label} ` : "";
+  const worldScale: OfficialWorldScale = label === OFFICIAL_MODERN_DAILY_GENRE ? "scene" : "full";
   return {
     key: "genre_neutral",
     worldArchitectLine: `너는 ${lead}세계관 아키텍트다.`,
@@ -114,11 +156,16 @@ function neutralProfile(label: string | null, romanceFrame: boolean): OfficialGe
     taglineRoleVocabulary: "(이 장르 독자가 바로 아는 직업·역할 어휘)",
     portfolioClicheLine: null,
     contradictionExposure: romanceFrame ? "개인적 관심·애정 앞에서" : "누군가 다가오거나 도움·호의를 건넬 때",
-    worldPowerNote: NEUTRAL_POWER_NOTE,
+    worldPowerNote: worldScale === "scene" ? NEUTRAL_SCENE_POWER_NOTE : NEUTRAL_POWER_NOTE,
     openRelationLine: romanceFrame ? null : OPEN_RELATION_LINE,
     visualDirectionLines: [],
     excludeRomanceLedSignals: !romanceFrame,
+    worldScale,
   };
+}
+
+export function officialWorldScaleForPlan(plan: OfficialAuthoringPlan = ROFAN_PARITY_PLAN): OfficialWorldScale {
+  return plan.profile.worldScale;
 }
 
 /** Rofan keeps its explicit parity profile; every other input (including unknown) gets the neutral fallback. */
