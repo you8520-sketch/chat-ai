@@ -423,6 +423,28 @@ export function resolveSealedNoncanonOrBranchFromMemoryRecords(
 }
 
 /**
+ * Branch state before a later turn or summary batch.
+ * Episodic eligibility and rolling-summary seals share this owner. A side story
+ * that starts on the last turn of a mixed batch is stored as main_canon, so
+ * sealed summary_kind alone drops the branch before the next batch.
+ * classifyMemoryBatchScopes still applies one frozen flag inside a batch.
+ */
+export function resolveSharedPreviousBranchState(opts: {
+  priorUserMessages: readonly string[];
+  sealedRecords: readonly EpisodicMemoryRecordSnapshot[];
+  beforeTurnNumber?: number;
+}): boolean {
+  const sealed = resolveSealedNoncanonOrBranchFromMemoryRecords(
+    [...opts.sealedRecords],
+    opts.beforeTurnNumber
+  );
+  return resolvePreviousWasNoncanonOrBranchState(
+    [...opts.priorUserMessages],
+    sealed
+  );
+}
+
+/**
  * Single-turn episodic eligibility — same contract as selectEpisodicEligibleTurnEntries.
  * Main canonical + durable preference only.
  */

@@ -5,8 +5,7 @@
 import type Database from "better-sqlite3";
 import {
   resolveEpisodicTurnEligibility,
-  resolvePreviousWasNoncanonOrBranchState,
-  resolveSealedNoncanonOrBranchFromMemoryRecords,
+  resolveSharedPreviousBranchState,
   type EpisodicTurnEligibility,
 } from "./memory-summary-scope";
 import { loadMemoryEligibleChatTurnsWithMessageIdsCore } from "./memory-turn-loader";
@@ -38,14 +37,11 @@ export function resolveEpisodicEligibilityForSourceUserMessage(
     branchStatus: r.branchStatus,
     inactive: r.inactive,
   }));
-  const sealedBranch = resolveSealedNoncanonOrBranchFromMemoryRecords(
-    memorySnapshots,
-    currentTurnNumber
-  );
-  const previousWasNoncanonOrBranch = resolvePreviousWasNoncanonOrBranchState(
-    priorMessages,
-    sealedBranch
-  );
+  const previousWasNoncanonOrBranch = resolveSharedPreviousBranchState({
+    priorUserMessages: priorMessages,
+    sealedRecords: memorySnapshots,
+    beforeTurnNumber: currentTurnNumber,
+  });
   const eligibility = resolveEpisodicTurnEligibility(opts.sourceUserText, {
     previousWasNoncanonOrBranch,
   });

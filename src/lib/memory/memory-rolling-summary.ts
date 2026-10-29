@@ -68,6 +68,8 @@ import {
   buildPreferenceSummaryFromTurns,
   classifyMemoryBatchScopes,
   displaySummaryFromScopes,
+  normalizeSummaryScope,
+  resolveSharedPreviousBranchState,
   shouldPromoteBranchContinue,
   type BranchStatus,
   type MemorySummaryScope,
@@ -1212,6 +1214,25 @@ async function persistComposedBatchScopes(opts: {
   return true;
 }
 
+function branchStateBeforeBatch(
+  turns: ReadonlyArray<{ turnNumber: number; user: string }>,
+  records: readonly MemoryRecordView[],
+  batchStart: number
+): boolean {
+  return resolveSharedPreviousBranchState({
+    priorUserMessages: turns
+      .filter((turn) => turn.turnNumber < batchStart)
+      .map((turn) => turn.user),
+    sealedRecords: records.map((record) => ({
+      turnStart: record.turnStart,
+      summaryKind: normalizeSummaryScope(record.summaryKind),
+      branchStatus: record.branchStatus,
+      inactive: record.inactive,
+    })),
+    beforeTurnNumber: batchStart,
+  });
+}
+
 /** Rebuild + replace full scopePayload for an existing stored batch (regen paths). */
 async function rebuildExistingBatchScopePayload(opts: {
   chatId: number;
@@ -1241,12 +1262,10 @@ async function rebuildExistingBatchScopePayload(opts: {
   }));
 
   const priorRecords = listMemoryRecordsForChat(opts.chatId);
-  const previousWasNoncanonOrBranch = priorRecords.some(
-    (r) =>
-      r.turnStart !== opts.batchStart &&
-      !r.inactive &&
-      (r.summaryKind === "noncanon" ||
-        (r.summaryKind === "branch_canon" && r.branchStatus === "active"))
+  const previousWasNoncanonOrBranch = branchStateBeforeBatch(
+    allTurns,
+    priorRecords,
+    opts.batchStart
   );
 
   const composed = await composeBatchScopePayload({
@@ -1502,11 +1521,10 @@ export async function processRollingSummaryBatch(opts: {
       }));
 
       const priorRecords = listMemoryRecordsForChat(opts.chatId);
-      const previousWasNoncanonOrBranch = priorRecords.some(
-        (r) =>
-          !r.inactive &&
-          (r.summaryKind === "noncanon" ||
-            (r.summaryKind === "branch_canon" && r.branchStatus === "active"))
+      const previousWasNoncanonOrBranch = branchStateBeforeBatch(
+        playableMeta,
+        priorRecords,
+        batchStart
       );
 
       const composed = await composeBatchScopePayload({
