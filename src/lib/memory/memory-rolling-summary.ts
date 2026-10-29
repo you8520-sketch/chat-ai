@@ -1220,11 +1220,12 @@ function branchStateBeforeBatch(
   batchStart: number
 ): boolean {
   return resolveSharedPreviousBranchState({
-    priorUserMessages: turns
+    priorTurns: turns
       .filter((turn) => turn.turnNumber < batchStart)
-      .map((turn) => turn.user),
+      .map((turn) => ({ turnNumber: turn.turnNumber, user: turn.user })),
     sealedRecords: records.map((record) => ({
       turnStart: record.turnStart,
+      turnEnd: record.turnEnd,
       summaryKind: normalizeSummaryScope(record.summaryKind),
       branchStatus: record.branchStatus,
       inactive: record.inactive,

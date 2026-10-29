@@ -669,11 +669,12 @@ export async function migrateChatSummariesToFiveTurn(opts: {
       userMessageId: meta.userMessageId,
     }));
     const previousWasNoncanonOrBranch = resolveSharedPreviousBranchState({
-      priorUserMessages: eligible
+      priorTurns: eligible
         .filter((turn) => turn.turnNumber < batch.turnStart)
-        .map((turn) => turn.user),
+        .map((turn) => ({ turnNumber: turn.turnNumber, user: turn.user })),
       sealedRecords: shadowState.priorRecords.map((record) => ({
         turnStart: record.turnStart,
+        turnEnd: record.turnEnd,
         summaryKind: normalizeSummaryScope(record.summaryKind),
         branchStatus: record.branchStatus,
         inactive: record.inactive,

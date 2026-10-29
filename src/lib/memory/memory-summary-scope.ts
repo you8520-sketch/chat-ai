@@ -378,9 +378,16 @@ export type EpisodicTurnEligibility = {
 /** Minimal memory-record snapshot for branch-state resolution (avoids circular imports). */
 export type EpisodicMemoryRecordSnapshot = {
   turnStart: number;
+  /** Last source turn this sealed row already represents. */
+  turnEnd?: number;
   summaryKind: MemorySummaryScope;
   branchStatus: BranchStatus | null;
   inactive: boolean;
+};
+
+export type BranchStateUserTurn = {
+  turnNumber: number;
+  user: string;
 };
 
 function turnScopeOpensBranchState(scopeClass: TurnScopeClass): boolean {
@@ -422,26 +429,72 @@ export function resolveSealedNoncanonOrBranchFromMemoryRecords(
   );
 }
 
+function confirmedActiveBranchTurnEnd(
+  records: readonly EpisodicMemoryRecordSnapshot[],
+  beforeTurnNumber?: number
+): number | null {
+  let covered: number | null = null;
+  for (const record of records) {
+    if (record.inactive) continue;
+    if (beforeTurnNumber != null && record.turnStart >= beforeTurnNumber) continue;
+    if (record.summaryKind !== "branch_canon" || record.branchStatus !== "active") continue;
+    const end = record.turnEnd ?? record.turnStart;
+    covered = covered == null ? end : Math.max(covered, end);
+  }
+  return covered;
+}
+
+function orderedUsers(
+  turns: readonly BranchStateUserTurn[],
+  beforeTurnNumber?: number,
+  afterTurnNumber = 0
+): string[] {
+  return turns
+    .filter(
+      (turn) =>
+        turn.turnNumber > afterTurnNumber &&
+        (beforeTurnNumber == null || turn.turnNumber < beforeTurnNumber)
+    )
+    .sort((a, b) => a.turnNumber - b.turnNumber)
+    .map((turn) => turn.user);
+}
+
 /**
  * Branch state before a later turn or summary batch.
  * Episodic eligibility and rolling-summary seals share this owner. A side story
  * that starts on the last turn of a mixed batch is stored as main_canon, so
  * sealed summary_kind alone drops the branch before the next batch.
+ * An active branch_canon row is the confirmed state through its turnEnd, including
+ * a UI reopen that came after the user close already inside that span. Older user
+ * text is not replayed over it. User text after that span still opens and closes.
  * classifyMemoryBatchScopes still applies one frozen flag inside a batch.
  */
 export function resolveSharedPreviousBranchState(opts: {
-  priorUserMessages: readonly string[];
+  priorUserMessages?: readonly string[];
+  priorTurns?: readonly BranchStateUserTurn[];
   sealedRecords: readonly EpisodicMemoryRecordSnapshot[];
   beforeTurnNumber?: number;
 }): boolean {
+  const coveredThrough = confirmedActiveBranchTurnEnd(
+    opts.sealedRecords,
+    opts.beforeTurnNumber
+  );
+  if (coveredThrough != null && opts.priorTurns) {
+    return resolvePreviousWasNoncanonOrBranchState(
+      orderedUsers(opts.priorTurns, opts.beforeTurnNumber, coveredThrough),
+      true
+    );
+  }
+
   const sealed = resolveSealedNoncanonOrBranchFromMemoryRecords(
     [...opts.sealedRecords],
     opts.beforeTurnNumber
   );
-  return resolvePreviousWasNoncanonOrBranchState(
-    [...opts.priorUserMessages],
-    sealed
-  );
+  const messages =
+    opts.priorTurns != null
+      ? orderedUsers(opts.priorTurns, opts.beforeTurnNumber)
+      : [...(opts.priorUserMessages ?? [])];
+  return resolvePreviousWasNoncanonOrBranchState(messages, sealed);
 }
 
 /**

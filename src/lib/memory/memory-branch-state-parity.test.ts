@@ -49,6 +49,7 @@ import { loadMemoryEligibleChatTurnsWithMessageIds } from "./memory-turn-loader"
 import {
   listMemoryRecordsForChat,
   rebuildLorebookFromRecords,
+  reopenClosedBranchCanon,
 } from "./memory-turn-summary";
 
 const CHAT = 961410;
@@ -68,6 +69,8 @@ const NEW_MAIN_USER = '"시계탑 아래에서 은방울 서약을 지키겠다.
 const NEW_MAIN_ASSISTANT = "시계탑 아래에서 은방울 서약을 확인했다.";
 const ADOPT_USER_TEXT = "이걸 본편으로 실제 있었던 일로 확정해줘";
 const ADOPT_BEAT = '"백금 부채를 집어 든다." *부채를 펼친다*';
+const RESUME_BEAT = '"다시 야시장 골목으로 걸어간다." *손을 내민다*';
+const RESUME_ASSISTANT = "골목 끝에서 손을 마주 잡았다.";
 
 const KEY_FACT: EpisodicExtractedFact = {
   category: "location",
@@ -567,6 +570,143 @@ describe("shared branch state", () => {
     assert.equal(nextScope.scopeClass, "main_rp");
     assert.equal(nextScope.eligible, true);
     assert.equal(adoptBatch.length, 4);
+  });
+
+  it("keeps a UI-reopened branch open across the older user close", async () => {
+    __setSummarizeTurnBatchCallerForTests(async () => {
+      throw new Error("ui reopen path must not call the main summarizer");
+    });
+    __setCompactCurrentMemoryTestOverride(async (existing) => existing);
+
+    for (let turn = 1; turn <= 5; turn += 1) {
+      insertTurn(CHAT, `(OOC: 외전 장면 ${turn})`, `외전 응답 ${turn}`);
+    }
+    for (let turn = 6; turn <= 14; turn += 1) {
+      insertTurn(CHAT, SIDE_BEAT, SIDE_ASSISTANT);
+    }
+    insertTurn(CHAT, CLOSE_USER, "광장의 본편으로 돌아온다.");
+    const frontier = insertTurn(CHAT, "자리를 지킨다.", "그 자리에 남는다.");
+
+    assert.equal(await seal(CHAT, USER, CHAR, "ParityChar"), true);
+    assert.equal(await seal(CHAT, USER, CHAR, "ParityChar"), true);
+    assert.equal(await seal(CHAT, USER, CHAR, "ParityChar"), true);
+    assert.equal(rowAt(CHAT, 6).summaryKind, "branch_canon");
+    assert.equal(rowAt(CHAT, 6).branchStatus, "closed");
+    assert.equal(rowAt(CHAT, 11).branchStatus, "closed");
+
+    getDb()
+      .prepare("DELETE FROM messages WHERE id IN (?, ?)")
+      .run(frontier.userId, frontier.assistantId);
+    const reopened = reopenClosedBranchCanon({
+      chatId: CHAT,
+      recordId: rowAt(CHAT, 6).id,
+      source: "ui_reopen",
+    });
+    assert.equal(reopened.ok, true);
+    assert.equal(rowAt(CHAT, 6).branchStatus, "active");
+    assert.equal(rowAt(CHAT, 11).branchStatus, "active");
+
+    const scene = insertTurn(CHAT, RESUME_BEAT, RESUME_ASSISTANT);
+    for (let extra = 0; extra < 4; extra += 1) {
+      insertTurn(CHAT, RESUME_BEAT, RESUME_ASSISTANT);
+    }
+    insertTurn(CHAT, "자리를 지킨다.", "그 자리에 남는다.");
+
+    const loaded = loadMemoryEligibleChatTurnsWithMessageIds(CHAT);
+    const sceneTurn = loaded.find((turn) => turn.userMessageId === scene.userId);
+    assert.ok(sceneTurn);
+    const snapshots = listMemoryRecordsForChat(CHAT).map((record) => ({
+      turnStart: record.turnStart,
+      turnEnd: record.turnEnd,
+      summaryKind: record.summaryKind,
+      branchStatus: record.branchStatus,
+      inactive: record.inactive,
+    }));
+    assert.equal(
+      resolveSharedPreviousBranchState({
+        priorUserMessages: loaded
+          .filter((turn) => turn.turnNumber < sceneTurn.turnNumber)
+          .map((turn) => turn.user),
+        priorTurns: loaded
+          .filter((turn) => turn.turnNumber < sceneTurn.turnNumber)
+          .map((turn) => ({ turnNumber: turn.turnNumber, user: turn.user })),
+        sealedRecords: snapshots,
+        beforeTurnNumber: sceneTurn.turnNumber,
+      }),
+      true
+    );
+
+    const sceneScope = resolveEpisodicEligibilityForSourceUserMessage(getDb(), {
+      chatId: CHAT,
+      sourceUserMessageId: scene.userId,
+      sourceUserText: RESUME_BEAT,
+    });
+    assert.equal(sceneScope.previousWasNoncanonOrBranch, true);
+    assert.equal(sceneScope.scopeClass, "branch_continue");
+    assert.equal(sceneScope.eligible, false);
+    assert.equal(reconcile(CHAT, USER, CHAR, {
+      turn: sceneTurn.turnNumber,
+      userId: scene.userId,
+      assistantId: scene.assistantId,
+      user: RESUME_BEAT,
+      assistant: RESUME_ASSISTANT,
+    }, [SIDE_FACT]).inserted, 0);
+
+    assert.equal(await seal(CHAT, USER, CHAR, "ParityChar"), true);
+    const resumed = rowAt(CHAT, sceneTurn.turnNumber);
+    assert.equal(resumed.summaryKind, "branch_canon");
+    assert.equal(resumed.branchStatus, "active");
+    assert.equal(
+      await regenerateMemoryRecordBatch({
+        chatId: CHAT,
+        userId: USER,
+        characterId: CHAR,
+        charName: "ParityChar",
+        tier: "free",
+        memoryCapacity: 8000,
+        turnStart: sceneTurn.turnNumber,
+      }),
+      true
+    );
+    assert.equal(rowAt(CHAT, sceneTurn.turnNumber).summaryKind, "branch_canon");
+
+    const newerClose = insertTurn(CHAT, CLOSE_USER, "다시 본편으로 돌아온다.");
+    const afterClose = insertTurn(CHAT, NEW_MAIN_USER, NEW_MAIN_ASSISTANT);
+    const afterLoaded = loadMemoryEligibleChatTurnsWithMessageIds(CHAT);
+    const afterTurn = afterLoaded.find((turn) => turn.userMessageId === afterClose.userId);
+    assert.ok(afterTurn);
+    const afterSnapshots = listMemoryRecordsForChat(CHAT).map((record) => ({
+      turnStart: record.turnStart,
+      turnEnd: record.turnEnd,
+      summaryKind: record.summaryKind,
+      branchStatus: record.branchStatus,
+      inactive: record.inactive,
+    }));
+    assert.equal(
+      resolveSharedPreviousBranchState({
+        priorTurns: afterLoaded
+          .filter((turn) => turn.turnNumber < afterTurn.turnNumber)
+          .map((turn) => ({ turnNumber: turn.turnNumber, user: turn.user })),
+        sealedRecords: afterSnapshots,
+        beforeTurnNumber: afterTurn.turnNumber,
+      }),
+      false
+    );
+    const closeScope = resolveEpisodicEligibilityForSourceUserMessage(getDb(), {
+      chatId: CHAT,
+      sourceUserMessageId: newerClose.userId,
+      sourceUserText: CLOSE_USER,
+    });
+    assert.equal(closeScope.scopeClass, "branch_close");
+    assert.equal(closeScope.eligible, false);
+    const afterScope = resolveEpisodicEligibilityForSourceUserMessage(getDb(), {
+      chatId: CHAT,
+      sourceUserMessageId: afterClose.userId,
+      sourceUserText: NEW_MAIN_USER,
+    });
+    assert.equal(afterScope.previousWasNoncanonOrBranch, false);
+    assert.equal(afterScope.scopeClass, "main_rp");
+    assert.equal(afterScope.eligible, true);
   });
 });
 
