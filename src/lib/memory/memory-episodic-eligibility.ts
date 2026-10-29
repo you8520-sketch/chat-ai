@@ -29,8 +29,12 @@ export function resolveEpisodicEligibilityForSourceUserMessage(
       ? turns.findIndex((t) => t.userMessageId === opts.sourceUserMessageId)
       : -1;
   const priorTurns =
-    currentIdx > 0
-      ? turns.slice(0, currentIdx).map((t) => ({ turnNumber: t.turnNumber, user: t.user }))
+    currentIdx >= 0
+      ? turns.map((t) => ({
+          turnNumber: t.turnNumber,
+          user: t.user,
+          userMessageId: t.userMessageId,
+        }))
       : [];
   const currentTurnNumber = currentIdx >= 0 ? turns[currentIdx]!.turnNumber : undefined;
   const memorySnapshots = listMemoryRecordsForChat(opts.chatId).map((r) => ({
@@ -39,6 +43,7 @@ export function resolveEpisodicEligibilityForSourceUserMessage(
     summaryKind: r.summaryKind,
     branchStatus: r.branchStatus,
     inactive: r.inactive,
+    branchControlMutations: r.branchControlMutations,
   }));
   const previousWasNoncanonOrBranch = resolveSharedPreviousBranchState({
     priorTurns,

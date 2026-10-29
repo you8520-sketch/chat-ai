@@ -11,6 +11,7 @@ import {
   snapshotBranchControlPrevious,
   type BranchControlSource,
 } from "./memory-branch-control";
+import { loadMemoryEligibleChatTurnsWithMessageIds } from "./memory-turn-loader";
 import {
   adoptPostManualEditToMain,
   encodeScopePayload,
@@ -24,6 +25,7 @@ import {
   resolveSummaryRowScopes,
   scopesInjectedIntoPrompt,
   scopesVisibleInHistory,
+  type BranchControlMutation,
   type BranchStatus,
   type MemorySummaryScope,
   type PostManualEditView,
@@ -74,6 +76,8 @@ export type MemoryRecordView = {
   assistantMessageId: number | null;
   /** Slice after a user-saved Global's boundary, for a record that straddled it when sealed. */
   postManualEdit?: PostManualEditView | null;
+  /** Promote/close/reopen stack already stored on the row. */
+  branchControlMutations?: BranchControlMutation[];
 };
 
 function clampRecord(text: string, max = MEMORY_RECORD_MAX_CHARS): string {
@@ -120,6 +124,7 @@ function rowToViewOrNull(r: MemoryRecordRow): MemoryRecordView | null {
     charCount: r.summary.length,
     assistantMessageId: r.assistant_message_id ?? null,
     postManualEdit: readPostManualEdit(payload),
+    branchControlMutations: payload?.branchControlMutations,
   };
 }
 
@@ -747,11 +752,34 @@ export function reopenClosedBranchCanon(opts: {
   return result;
 }
 
+function resolveUiCloseControl(
+  chatId: number,
+  control?: BranchControlSource | null
+): BranchControlSource | null | undefined {
+  if (control?.source !== "ui") return control;
+  const needsTurn = control.sourceTurn == null || control.sourceTurn <= 0;
+  const needsMessage =
+    control.sourceUserMessageId == null || control.sourceUserMessageId <= 0;
+  if (!needsTurn && !needsMessage) return control;
+  const turns = loadMemoryEligibleChatTurnsWithMessageIds(chatId);
+  const frontier = turns.length > 0 ? turns[turns.length - 1] : undefined;
+  if (!frontier) return control;
+  return {
+    source: "ui",
+    sourceBatchStart: control.sourceBatchStart,
+    sourceTurn: needsTurn ? frontier.turnNumber : control.sourceTurn,
+    sourceUserMessageId: needsMessage
+      ? frontier.userMessageId
+      : control.sourceUserMessageId,
+  };
+}
+
 export function closeActiveBranchCanonCore(
   chatId: number,
   control?: BranchControlSource | null
 ): number {
   const db = getDb();
+  const effectiveControl = resolveUiCloseControl(chatId, control);
   const rows = db
     .prepare(
       `${selectSql()} WHERE chat_id=? AND summary_kind='branch_canon'
@@ -793,7 +821,7 @@ export function closeActiveBranchCanonCore(
     ) {
       payload = appendBranchControlMutation(
         payload,
-        buildBranchControlMutation("close_branch", previous, control)
+        buildBranchControlMutation("close_branch", previous, effectiveControl)
       );
     }
     db.prepare(
