@@ -85,8 +85,10 @@ import type { ExplorationCommand } from "./explorationPublic";
 import {
   declaredMovementGoals,
   describeMovementGoal,
+  finishedResultClauses,
   omitClausesAwayFromHere,
   omitLiveMovementClauses,
+  omitUnconfirmedAuthorityClauses,
 } from "./movementDeclaration";
 import {
   explorationBriefForBot,
@@ -1187,7 +1189,8 @@ function localRemainderText(opts: {
   here: string;
   colocatedNames: readonly string[];
   foreignPlaces: readonly string[];
-}): string {
+  otherNames: readonly string[];
+}): { act: string; finishedResults: string } {
   const quotes: string[] = [];
   const rest: string[] = [];
   for (const raw of opts.body.split(/\n+/)) {
@@ -1201,8 +1204,13 @@ function localRemainderText(opts: {
     colocatedNames: opts.colocatedNames,
     foreignPlaces: opts.foreignPlaces,
   };
+  const source = rest.join("\n");
+  const finishedResults = omitClausesAwayFromHere({
+    body: omitLiveMovementClauses(finishedResultClauses(source, opts.otherNames).join(" ")),
+    ...place,
+  });
   const keptRest = omitClausesAwayFromHere({
-    body: omitLiveMovementClauses(rest.join("\n")),
+    body: omitLiveMovementClauses(omitUnconfirmedAuthorityClauses(source, opts.otherNames)),
     ...place,
   });
   const keptQuotes = quotes.filter((line) => {
@@ -1214,7 +1222,10 @@ function localRemainderText(opts: {
     });
     return filtered.length > 0 && normalizedRemainder(filtered) === normalizedRemainder(inner);
   });
-  return [keptRest, ...keptQuotes].filter(Boolean).join("\n").trim();
+  return {
+    act: [keptRest, ...keptQuotes].filter(Boolean).join("\n").trim(),
+    finishedResults,
+  };
 }
 
 function independentBotRemainder(opts: {
@@ -1222,9 +1233,11 @@ function independentBotRemainder(opts: {
   here: string;
   rooms: readonly string[];
   party: ReadonlyArray<{ name: string; location: string }>;
-}): string {
+  actorName: string;
+}): { text: string; finishedResults: string } {
   const parsed = parseTrpgBotAction(opts.body);
   const colocatedNames = opts.party.filter((seat) => seat.location === opts.here).map((seat) => seat.name);
+  const otherNames = opts.party.map((seat) => seat.name).filter((name) => name && name !== opts.actorName);
   const foreignPlaces = [
     ...opts.rooms.filter((room) => room !== opts.here),
     ...opts.party.filter((seat) => seat.location !== opts.here).map((seat) => seat.name),
@@ -1232,27 +1245,32 @@ function independentBotRemainder(opts: {
       .map((goal) => describeMovementGoal(goal).place)
       .filter((place): place is string => Boolean(place && place !== opts.here)),
   ];
-  return [parsed.prose, parsed.intent]
-    .map((piece) =>
-      localRemainderText({
-        body: piece,
-        here: opts.here,
-        colocatedNames,
-        foreignPlaces,
-      })
-    )
-    .filter(Boolean)
-    .join("\n")
-    .trim();
+  const pieces = [parsed.prose, parsed.intent].map((piece) =>
+    localRemainderText({
+      body: piece,
+      here: opts.here,
+      colocatedNames,
+      foreignPlaces,
+      otherNames,
+    })
+  );
+  return {
+    text: pieces
+      .map((piece) => piece.act)
+      .filter(Boolean)
+      .join("\n")
+      .trim(),
+    finishedResults: [...new Set(pieces.map((piece) => piece.finishedResults).filter(Boolean))].join(" "),
+  };
 }
 
 /**
  * The surviving local act, in the existing prose + <<<INTENT>>> shape.
  * Quote-only lines stay in the prose so the action card and locked speech keep them.
  * The intent is that act, or the speech itself when no other act survived.
- * A rejected move is already gone from `remainder`.
+ * A finished result stays in the prose and is not the intent. A rejected move is already gone.
  */
-function canonicalRemainderLock(remainder: string): string {
+function canonicalRemainderLock(remainder: string, finishedResults: string): string {
   const quotes: string[] = [];
   const acts: string[] = [];
   for (const raw of remainder.split(/\n+/)) {
@@ -1265,7 +1283,7 @@ function canonicalRemainderLock(remainder: string): string {
   const spoken = quotes.join("\n");
   const choice = act || spoken;
   if (!choice) return "";
-  const visible = [act, spoken].filter(Boolean).join("\n");
+  const visible = [act, finishedResults.trim(), spoken].filter(Boolean).join("\n");
   const locked = sanitizeBotActionText(`${visible}\n\n${TRPG_BOT_INTENT_OPEN}\n${choice}`);
   if (Array.from(locked).length <= TRPG_ACTION_MAX_CHARS) return locked;
   const compact = sanitizeBotActionText(`${TRPG_BOT_INTENT_OPEN}\n${choice}`);
@@ -1455,9 +1473,10 @@ async function generateBotActions(
           here: latestMap ? roomNameAfterCommands(latestMap.map, fromRoomId, priced) : fromRoomId,
           rooms: latestMap ? explorationRoomNames(latestMap.map) : [],
           party: sheets.map((sheet) => ({ name: sheet.name, location: sheet.location })),
+          actorName: bot.display_name,
         });
         const usableRemainder =
-          remainder && Array.from(remainder).length <= TRPG_ACTION_MAX_CHARS ? remainder : "";
+          remainder.text && Array.from(remainder.text).length <= TRPG_ACTION_MAX_CHARS ? remainder.text : "";
         const moveLine =
           priced.length > 0 && latestMap ? composeExplorationSentences(latestMap.map, fromRoomId, priced) : "";
         const combined =
@@ -1495,7 +1514,7 @@ async function generateBotActions(
           usableRemainder &&
           (!latestMap || explorationCommandsFromMovementBody(latestMap.map, usableRemainder).length === 0)
         ) {
-          const locked = canonicalRemainderLock(usableRemainder);
+          const locked = canonicalRemainderLock(usableRemainder, remainder.finishedResults);
           if (locked) {
             fallbackBranch = "priced-empty-remainder";
             lockOutcome = "original-locked";
@@ -1639,6 +1658,7 @@ async function runGmForRound(
   );
   const resolutionOrder = parseResolutionOrder(storedSnapshot);
   const explorationForMethod = opts.regenerate ? null : loadExplorationState(db, opts.campaignId);
+  const partyNames = loadRoundPartyNames(db, opts.roundId);
   const actions = sortByResolutionOrder(
     loadActionsForGm(db, opts.roundId, scenario.statDefs),
     resolutionOrder
@@ -1650,7 +1670,14 @@ async function runGmForRound(
       action.body
     );
     if (!split) return action;
-    return { ...action, explorationCommandText: split.commandText, explorationMethod: split.method };
+    const method =
+      action.participantKind === "ai_character"
+        ? omitUnconfirmedAuthorityClauses(
+            split.method,
+            partyNames.filter((seat) => seat.id !== action.participantId).map((seat) => seat.name)
+          )
+        : split.method;
+    return { ...action, explorationCommandText: split.commandText, explorationMethod: method };
   });
   const latestScene = previousNarration(db, opts.campaignId);
   const mechanics = opts.opening
@@ -2864,11 +2891,23 @@ function chargeTrpgCalls(
   }
 }
 
+function loadRoundPartyNames(db: Database.Database, roundId: number): Array<{ id: number; name: string }> {
+  return db
+    .prepare(
+      `SELECT p.id, p.display_name AS name
+       FROM trpg_rounds r
+       JOIN trpg_participants p ON p.campaign_id = r.campaign_id
+       WHERE r.id=?`
+    )
+    .all(roundId) as Array<{ id: number; name: string }>;
+}
+
 function loadActionsForGm(
   db: Database.Database,
   roundId: number,
   defs: { key: string; label: string }[]
 ) {
+  const partyNames = loadRoundPartyNames(db, roundId);
   return (
     db
       .prepare(
@@ -2918,7 +2957,9 @@ function loadActionsForGm(
       participantKind,
       body:
         participantKind === "ai_character"
-          ? gmAiActionText(resolved.canonicalAttempt, resolved.presentationProse)
+          ? gmAiActionText(resolved.canonicalAttempt, resolved.presentationProse, {
+              otherNames: partyNames.filter((seat) => seat.id !== a.participant_id).map((seat) => seat.name),
+            })
           : resolved.canonicalAttempt,
       needsCheck: frozen.needsCheck,
       checkReason: frozen.reason,

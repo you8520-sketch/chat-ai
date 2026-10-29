@@ -365,6 +365,80 @@ export function omitLiveMovementClauses(body: string): string {
     .trim();
 }
 
+const FINISHED_RESULT_PREDICATE = /(?:었|았|였|했|됐|렸|났|겼|웠|쳤|켰)다$/;
+/** An attempt still in progress (`하려 했다`, `나가려 한다`). A finished result does not use this ending. */
+const INTENTIVE_ATTEMPT = /려\s*(?:했|한|함|한다)/;
+
+/**
+ * A clause that states a finished outcome (`문은 이미 열렸다`).
+ * An intentive attempt and a clause that still contains another finite act stay whole:
+ * the existing split cannot separate those without dropping the act.
+ */
+export function clauseDeclaresFinishedResult(clause: string): boolean {
+  const text = clause.trim();
+  if (!text.includes("이미")) return false;
+  if (INTENTIVE_ATTEMPT.test(text)) return false;
+  if (!FINISHED_RESULT_PREDICATE.test(text)) return false;
+  const head = text.replace(FINISHED_RESULT_PREDICATE, "");
+  if (/다(?:\s|$)/.test(head)) return false;
+  return true;
+}
+
+/** Another participant is the subject. An object (`을/를`) or a side-anchor (`옆에서`) is not. */
+export function clauseNamesOtherParticipant(clause: string, otherNames: readonly string[]): boolean {
+  const names = [...otherNames]
+    .map((name) => name.trim())
+    .filter((name) => name.length > 0)
+    .sort((left, right) => right.length - left.length);
+  return names.some((name) => {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`^${escaped}(?:은|는|이|가)(?:\\s|$)`).test(clause.trim());
+  });
+}
+
+const QUOTED_SPAN = /[“"][^”"\n]{0,400}[”"]/g;
+
+function maskQuotedSpans(body: string): { masked: string; quotes: string[] } {
+  const quotes: string[] = [];
+  const masked = body.replace(QUOTED_SPAN, (quote) => {
+    const token = `\uE000${quotes.length}\uE000`;
+    quotes.push(quote);
+    return token;
+  });
+  return { masked, quotes };
+}
+
+function restoreQuotedSpans(text: string, quotes: string[]): string {
+  return text.replace(/\uE000(\d+)\uE000/g, (_match, index: string) => quotes[Number(index)] ?? "");
+}
+
+/** Result claims and another participant's subject, with the kept clauses' punctuation left in place. */
+export function omitUnconfirmedAuthorityClauses(body: string, otherNames: readonly string[] = []): string {
+  const { masked, quotes } = maskQuotedSpans(body);
+  const parts = masked.split(/([.!?。…;\n]+|,\s*)/);
+  let out = "";
+  for (let index = 0; index < parts.length; index += 2) {
+    const clause = parts[index] ?? "";
+    const separator = parts[index + 1] ?? "";
+    const trimmed = clause.trim();
+    if (!trimmed) continue;
+    if (clauseNamesOtherParticipant(trimmed, otherNames)) continue;
+    if (clauseDeclaresFinishedResult(trimmed)) continue;
+    out += `${clause}${separator}`;
+  }
+  return restoreQuotedSpans(out, quotes)
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .trim();
+}
+
+/** Finished-result clauses that are not another participant's subject. */
+export function finishedResultClauses(body: string, otherNames: readonly string[] = []): string[] {
+  return splitClauses(body).filter(
+    (clause) => clauseDeclaresFinishedResult(clause) && !clauseNamesOtherParticipant(clause, otherNames)
+  );
+}
+
 /** A place word that points at a destination this actor has not reached. */
 const UNSEEN_PLACE_DEIXIS = /그곳|거기|저곳|저기/;
 

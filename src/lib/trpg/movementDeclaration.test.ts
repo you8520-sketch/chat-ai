@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  clauseDeclaresFinishedResult,
   declaredMovementGoals,
   describeMovementGoal,
   omitClausesAwayFromHere,
   omitLiveMovementClauses,
+  omitUnconfirmedAuthorityClauses,
   parseMovementDeclaration,
 } from "./movementDeclaration";
 
@@ -118,5 +120,39 @@ describe("movement declaration — bot stay fallback", () => {
       }),
       ""
     );
+  });
+
+  it("separates a finished result from the attempt and leaves an intentive exit in place", () => {
+    assert.equal(clauseDeclaresFinishedResult("문은 이미 열렸다"), true);
+    assert.equal(clauseDeclaresFinishedResult("잠긴 문을 연다"), false);
+    assert.equal(clauseDeclaresFinishedResult("문을 열고 나갈 준비를 하려 했다"), false);
+    assert.equal(
+      clauseDeclaresFinishedResult("이미 열린 방폭 게이트를 통과해 지상 슬로프를 따라 센터 밖으로 나가려 한다"),
+      false
+    );
+    assert.equal(clauseDeclaresFinishedResult("잠긴 문을 연다 문은 이미 열렸다"), false);
+    assert.equal(
+      omitUnconfirmedAuthorityClauses("잠긴 문을 연다. 문은 이미 열렸다. 현이는 먼저 문을 연다.", ["현이"]),
+      "잠긴 문을 연다."
+    );
+    assert.equal(
+      omitUnconfirmedAuthorityClauses("잠긴 문을 연다 문은 이미 열렸다", ["현이"]),
+      "잠긴 문을 연다 문은 이미 열렸다"
+    );
+    assert.equal(
+      omitUnconfirmedAuthorityClauses("현이 옆에서 방어선을 유지한다. 권태현과 강이현을 본다.", ["현이", "권태현", "강이현"]),
+      "현이 옆에서 방어선을 유지한다. 권태현과 강이현을 본다."
+    );
+    assert.equal(
+      omitUnconfirmedAuthorityClauses('북쪽복도로 이동한다. "비켜."', ["현이"]),
+      '북쪽복도로 이동한다. "비켜."'
+    );
+    const priced = omitUnconfirmedAuthorityClauses(
+      "북쪽복도로 이동한다. 북쪽복도로 이동한다. 현이는 먼저 문을 연다. 문은 이미 열렸다.",
+      ["현이"]
+    );
+    assert.equal(priced.startsWith("북쪽복도로 이동한다."), true);
+    assert.doesNotMatch(priced, /현이는 먼저/);
+    assert.doesNotMatch(priced, /이미 열렸/);
   });
 });

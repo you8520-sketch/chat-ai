@@ -1,6 +1,6 @@
 import { isTrpgActionType, type TrpgActionType } from "./actionTypes";
 import { parseTrpgBotAction } from "./botActionParse";
-import { declaredMovementGoals } from "./movementDeclaration";
+import { declaredMovementGoals, omitUnconfirmedAuthorityClauses } from "./movementDeclaration";
 
 export type TrpgParticipantKind = "human" | "ai_character";
 
@@ -54,22 +54,50 @@ function isStayWatchingLock(text: string): boolean {
   return Boolean(name && stayWatchingInPlace(name) === text);
 }
 
+export type GmAiActionAudience = {
+  /** Other seats at this table. A clause whose subject is one of these is not this bot's act. */
+  otherNames?: readonly string[];
+};
+
+/**
+ * Marker-free move locks keep the server sentence, this bot's own attempt, and quote-only lines.
+ * A finished result and another participant's subject are not the authoritative act.
+ */
+function authoritativeMovementProse(prose: string, otherNames: readonly string[]): string {
+  return prose
+    .split(/\n+/)
+    .map((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return "";
+      if (isLockedSpokenLine(trimmed)) return trimmed;
+      return omitUnconfirmedAuthorityClauses(trimmed, otherNames);
+    })
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+}
+
 /**
  * GM action text for an AI seat.
  * A non-empty intent is the choice. Locked quote-only lines travel with it, and sensory prose does not.
- * An empty intent is not the novel. The stay sentence and a priced move lock still are that act.
- * Quote-only lines are this bot's speech. Another PC's choice and an unconfirmed result stay out.
+ * An empty intent is not the novel. The stay sentence is that whole act.
+ * A priced move lock keeps the approved move and this bot's own attempt. Another PC's choice and a
+ * finished result stay out of that authoritative text.
  * Mechanics keep using `canonicalAttempt` alone.
  */
-export function gmAiActionText(intent: string, prose: string): string {
+export function gmAiActionText(intent: string, prose: string, audience?: GmAiActionAudience): string {
   const choice = intent.trim();
+  const otherNames = audience?.otherNames ?? [];
   const speech = lockedSpokenLines(prose)
     .filter((line) => !choice.includes(line))
     .map((line) => `"${line}"`)
     .join("\n");
   if (!choice) {
     const whole = prose.trim();
-    if (isStayWatchingLock(whole) || declaredMovementGoals(whole).length > 0) return whole;
+    if (isStayWatchingLock(whole)) return whole;
+    if (declaredMovementGoals(whole).length > 0) {
+      return authoritativeMovementProse(whole, otherNames) || speech;
+    }
     return speech;
   }
   return speech ? `${choice}\n${speech}` : choice;
