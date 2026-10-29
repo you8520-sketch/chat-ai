@@ -293,6 +293,14 @@ function recordClaim(goal: TrpgGoal, round: number, source: TrpgGoalClaimSource 
   return { ...rest, claimedRound: round, ...(source ? { claimSource: source } : {}) };
 }
 
+/**
+ * A criterion-less active goal closes only when the host confirms a GM claim.
+ * Ending the campaign while one is still active rejects that confirmation.
+ */
+export function goalsAwaitingHostConfirmation(goals: readonly TrpgGoal[]): boolean {
+  return goals.some((goal) => goal.status === "active" && goal.criterion == null);
+}
+
 /** A GM resolution proposal the host has not answered. */
 export function hasPendingClaim(goal: TrpgGoal): boolean {
   return (

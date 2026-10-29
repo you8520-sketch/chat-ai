@@ -7,7 +7,7 @@
  * exit-latch rules apply only when `state.version === 1`.
  */
 import type { AdventureEventKind, AdventureEventTrigger, AdventurePlaceRole, TrpgAdventure } from "./adventure";
-import { declaredMovementGoals, describeMovementGoal, parseMovementDeclaration } from "./movementDeclaration";
+import { declaredMovementGoals, declaresLiveFacilityExit, describeMovementGoal } from "./movementDeclaration";
 import {
   EXPLORATION_AP_PER_ROUND,
   EXPLORATION_COMMAND_LIMIT,
@@ -468,14 +468,14 @@ export function legacyFacilityMap(map: ExplorationMap): boolean {
   return ids.has(EXPLORATION_ENTRANCE) && ids.has(EXPLORATION_ALARM_ROOM) && ids.has(EXPLORATION_EXIT_ROOM);
 }
 
-const LEGACY_EXIT_PASSAGE = /방폭\s*게이트를\s*통과|외부\s*탈출로로\s*나/;
-
 /**
  * Movement goals in free text, priced later by the same command owner as a map click.
  * A goal resolves by its head word, then by the whole phrase, then by the longest room name
  * the phrase contains, so multi-word adventure names still match. An outside boundary
  * (`센터 밖`) is not a move into the interior head. On the legacy facility map that
- * outside intent is a departure, priced only from the open exit.
+ * outside intent, and the outside of the exit room itself (`출구 밖`), is a departure
+ * priced only from the open exit. A blast-gate passage is a departure only when the
+ * movement declaration owner accepts it as a live clause.
  */
 export function explorationCommandsFromMovementBody(map: ExplorationMap, body: string): ExplorationCommand[] {
   if (!explorationHasMap(map)) return [];
@@ -496,7 +496,7 @@ export function explorationCommandsFromMovementBody(map: ExplorationMap, body: s
         continue;
       }
       const interior = described.place ? canonicalRoomId(map, described.place) : null;
-      if (interior) continue;
+      if (interior && interior !== EXPLORATION_EXIT_ROOM) continue;
       pushDepart();
       continue;
     }
@@ -510,9 +510,7 @@ export function explorationCommandsFromMovementBody(map: ExplorationMap, body: s
     if (roomId) commands.push({ op: "move", roomId });
     else if (place) commands.push({ op: "move", roomId: place });
   }
-  if (!departing && legacyFacilityMap(map) && parseMovementDeclaration(body).live && LEGACY_EXIT_PASSAGE.test(body)) {
-    pushDepart();
-  }
+  if (!departing && declaresLiveFacilityExit(body)) pushDepart();
   if (commands.length > EXPLORATION_COMMAND_LIMIT) throw new Error("한 번에 너무 많은 탐험 명령입니다.");
   return commands;
 }

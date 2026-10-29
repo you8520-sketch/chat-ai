@@ -336,6 +336,27 @@ export function declaredMovementGoals(body: string): string[] {
   return parseMovementDeclaration(body).goals;
 }
 
+const FACILITY_EXIT_PASSAGE = /방폭\s*게이트를\s*통과|외부\s*탈출로로\s*나/;
+
+function clauseDeclaresFacilityExit(clause: string): boolean {
+  if (!FACILITY_EXIT_PASSAGE.test(clause)) return false;
+  const words = clause.split(/\s+/).map(trimPunctuation).filter(Boolean);
+  return words.some((word, index) => /^(?:통과|나)/.test(word) && isMotionAt(words, index));
+}
+
+/**
+ * A live facility-exit passage (`방폭 게이트를 통과`, `외부 탈출로로 나간다`).
+ * The same clause split, quote strip, and negation veto as every other movement declaration.
+ * An attributive mention (`통과하는`) is not this actor's passage.
+ */
+export function declaresLiveFacilityExit(body: string): boolean {
+  for (const clause of splitClauses(stripQuotedDialogue(body))) {
+    if (MOVEMENT_VETOES.some((pattern) => pattern.test(clause))) continue;
+    if (clauseDeclaresFacilityExit(clause)) return true;
+  }
+  return false;
+}
+
 /** Drops clauses that priced a live destination. Remaining prose is not a granted move. */
 export function omitLiveMovementClauses(body: string): string {
   return splitClauses(body)
