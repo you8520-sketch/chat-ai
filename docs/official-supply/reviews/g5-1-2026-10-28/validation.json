@@ -168,14 +168,13 @@
       ],
       "bibleQaOk": true,
       "tagQaOk": true,
-      "draftQaOk": false,
+      "draftQaOk": true,
       "relationQaOk": true,
       "lorebookQaOk": true,
       "bibleQa": [],
       "tagQa": [],
-      "draftQa": [
-        "sfw_public_text_has_adult_terms: all-ages public text contains adult terms"
-      ],
+      "draftQa": [],
+      "draftQaReevalNote": "G5-1G: same draft.compiled.json/text lock; re-run validatePilotDraftForTextLock after characterAdultText 사정을/를 allowlist. G5-1F had draftQaOk false.",
       "relationQa": [],
       "lorebookQa": [],
       "voiceRepairs": 0,
