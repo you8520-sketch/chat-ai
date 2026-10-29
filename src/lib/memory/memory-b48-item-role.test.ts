@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { getDb } from "@/lib/db";
@@ -8,10 +7,12 @@ import {
   inspectLexicalRelevanceForDebug,
 } from "@/lib/episodicMemoryFacts";
 import { buildHistoricalTruthCurrentUserRecencyRef } from "@/lib/historicalTruthPolicy";
+import { OOC_SCENE_RENDER_SEMANTICS } from "@/lib/oocSceneRender";
 import {
   installIsolatedTestDatabase,
   uninstallIsolatedTestDatabase,
 } from "@/lib/test/isolatedTestDatabase";
+import { loadMemoryEligibleTurnContentsForRanges } from "./memory-turn-loader";
 import { reconcileSummaryItemRoles } from "./memory-summary-integrity";
 import {
   planPromptSummaryItemRoleRewrite,
@@ -356,8 +357,7 @@ describe("B48 read-time item role load", { concurrency: 1 }, () => {
       }) as typeof db.prepare;
 
       const block = "[76~80턴] 수류탄 핀 반지는 오스카가 계속 소유한 채.";
-      const measured: Record<string, unknown>[] = [];
-      for (const [label, chatId, turns] of [
+      for (const [, chatId, turns] of [
         ["500", 948501, 500],
         ["1000", 948100, 1000],
       ] as const) {
@@ -367,9 +367,7 @@ describe("B48 read-time item role load", { concurrency: 1 }, () => {
         assert.equal(stats.filter((row) => /from messages/i.test(row.sql)).length, 0);
 
         stats.length = 0;
-        const started = performance.now();
         const visible = reconcilePromptVisibleSummaryText(chatId, block);
-        const onceMs = performance.now() - started;
         assert.match(visible, /제이가 자신의 몸에 착용함/);
         assert.doesNotMatch(visible, /계속 소유/);
         const firstStats = stats.splice(0, stats.length);
@@ -385,28 +383,117 @@ describe("B48 read-time item role load", { concurrency: 1 }, () => {
         assert.equal(firstContent.length, 1);
         assert.equal(secondIndex.length, 0);
         assert.equal(secondContent.length, 1);
+        assert.equal(
+          firstIndex.reduce((sum, row) => sum + row.chars, 0),
+          turns * "안녕".length
+        );
         assert.equal(firstContent[0]?.chars, 5 * pad.length);
         assert.ok((firstContent[0]?.chars ?? 0) < turns * pad.length);
-        measured.push({
-          label,
-          turns,
-          headerlessMessageQueries: 0,
-          singleCallMs: Math.round(onceMs * 100) / 100,
-          singleCallIndexQueries: firstIndex.length,
-          singleCallIndexChars: firstIndex.reduce((sum, row) => sum + row.chars, 0),
-          singleCallContentQueries: firstContent.length,
-          singleCallContentChars: firstContent[0]?.chars ?? 0,
-          sameTurnRepeatIndexQueries: secondIndex.length,
-          sameTurnRepeatContentQueries: secondContent.length,
-          storedAssistantChars: turns * pad.length,
-          singleCallSummaryRecordQueries: firstStats.filter((row) => /chat_turn_summaries/i.test(row.sql)).length,
-        });
         await new Promise((resolve) => setTimeout(resolve, 0));
       }
-      fs.mkdirSync("/opt/cursor/artifacts", { recursive: true });
-      fs.writeFileSync(
-        "/opt/cursor/artifacts/b48-read-path.json",
-        `${JSON.stringify({ measuredAt: new Date().toISOString(), runs: measured }, null, 2)}\n`
+    } finally {
+      uninstallIsolatedTestDatabase();
+    }
+  });
+
+  it("returns the live turn index after add, regenerate, delete, and a memory-boundary move in the same turn", () => {
+    installIsolatedTestDatabase();
+    try {
+      const db = getDb();
+      const chatId = 948701;
+      db.prepare(
+        `INSERT INTO users (id, email, nickname, pw_hash) VALUES (?,?,?,?)`
+      ).run(948021, "b48-cache@test.local", "b48", "x");
+      db.prepare(`INSERT INTO characters (id, name) VALUES (?,?)`).run(948022, "제이");
+      db.prepare(
+        `INSERT INTO chats (id, user_id, character_id, mode) VALUES (?,?,?,'safe')`
+      ).run(chatId, 948021, 948022);
+      const insertUser = db.prepare(
+        `INSERT INTO messages (chat_id, role, content, model) VALUES (?, 'user', ?, '')`
+      );
+      const insertAssistant = db.prepare(
+        `INSERT INTO messages (chat_id, role, content, model, user_message_id) VALUES (?, 'assistant', ?, 'm', ?)`
+      );
+      const insertPair = (userText: string, assistantText: string) => {
+        const user = insertUser.run(chatId, userText);
+        const userId = Number(user.lastInsertRowid);
+        const assistant = insertAssistant.run(chatId, assistantText, userId);
+        return { userId, assistantId: Number(assistant.lastInsertRowid) };
+      };
+      const snapshot = (turnStart: number, turnEnd: number) =>
+        loadMemoryEligibleTurnContentsForRanges(chatId, [{ turnStart, turnEnd }]).map((turn) => ({
+          turnNumber: turn.turnNumber,
+          user: turn.user,
+          assistant: turn.assistant,
+        }));
+
+      const first = insertPair("하나", "대답1");
+      const second = insertPair("둘", "대답2");
+      const third = insertPair("셋", "대답3");
+      assert.deepEqual(snapshot(1, 3), [
+        { turnNumber: 1, user: "하나", assistant: "대답1" },
+        { turnNumber: 2, user: "둘", assistant: "대답2" },
+        { turnNumber: 3, user: "셋", assistant: "대답3" },
+      ]);
+
+      const fourth = insertPair("넷", "대답4");
+      const afterAdd = snapshot(1, 4);
+
+      db.prepare(`UPDATE messages SET content=? WHERE id=?`).run("다시쓴2", second.assistantId);
+      const afterAssistantRegen = snapshot(2, 2);
+
+      db.prepare(`UPDATE messages SET content=? WHERE id=?`).run("원", first.userId);
+      const afterUserRewrite = snapshot(1, 1);
+
+      db.prepare(`DELETE FROM messages WHERE id=?`).run(third.userId);
+      db.prepare(`DELETE FROM messages WHERE id=?`).run(third.assistantId);
+      const afterDelete = snapshot(1, 4);
+
+      db.prepare(
+        `INSERT INTO chat_memories (
+           chat_id, user_id, character_id, recent_summary, archive_summary,
+           membership_tier, used_chars, message_count, summarized_turn_count,
+           memory_reset_after_message_id, memory_epoch
+         ) VALUES (?,?,?,?,?,?,?,?,?,?,?)`
+      ).run(chatId, 948021, 948022, "", "", "free", 0, 0, 0, first.userId, 1);
+      const afterBoundary = snapshot(1, 4);
+
+      db.prepare(`UPDATE messages SET content=?, usage=? WHERE id=?`).run(
+        "비정사",
+        JSON.stringify(OOC_SCENE_RENDER_SEMANTICS),
+        fourth.assistantId
+      );
+      const afterCanonicalRegen = snapshot(1, 4);
+
+      assert.deepEqual(
+        {
+          afterAdd,
+          afterAssistantRegen,
+          afterUserRewrite,
+          afterDelete,
+          afterBoundary,
+          afterCanonicalRegen,
+        },
+        {
+          afterAdd: [
+            { turnNumber: 1, user: "하나", assistant: "대답1" },
+            { turnNumber: 2, user: "둘", assistant: "대답2" },
+            { turnNumber: 3, user: "셋", assistant: "대답3" },
+            { turnNumber: 4, user: "넷", assistant: "대답4" },
+          ],
+          afterAssistantRegen: [{ turnNumber: 2, user: "둘", assistant: "다시쓴2" }],
+          afterUserRewrite: [{ turnNumber: 1, user: "원", assistant: "대답1" }],
+          afterDelete: [
+            { turnNumber: 1, user: "원", assistant: "대답1" },
+            { turnNumber: 2, user: "둘", assistant: "다시쓴2" },
+            { turnNumber: 3, user: "넷", assistant: "대답4" },
+          ],
+          afterBoundary: [
+            { turnNumber: 1, user: "둘", assistant: "다시쓴2" },
+            { turnNumber: 2, user: "넷", assistant: "대답4" },
+          ],
+          afterCanonicalRegen: [{ turnNumber: 1, user: "둘", assistant: "다시쓴2" }],
+        }
       );
     } finally {
       uninstallIsolatedTestDatabase();
