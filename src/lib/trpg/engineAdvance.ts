@@ -47,7 +47,7 @@ import {
   TRPG_BOT_SYSTEM,
 } from "./botActions";
 import { actionReferencesOpenRoute } from "./actionCheckContext";
-import { resolveTrpgCanonicalAttempt } from "./canonicalAttempt";
+import { gmAiActionText, resolveTrpgCanonicalAttempt } from "./canonicalAttempt";
 import {
   acceptedSceneLocationFromBoundState,
   applyCampaignLedger,
@@ -145,6 +145,7 @@ import {
   formatTrpgRegenerateCommittedFacts,
   formatTrpgSheetCanon,
   parseTrpgGmOutput,
+  settleFinishedSceneNarration,
   shouldRequestTrpgPlayerGoalRegistration,
   TRPG_GM_SYSTEM,
   type ParsedTrpgGmOutput,
@@ -1673,12 +1674,28 @@ async function runGmForRound(
         .filter(Boolean)
         .join("\n\n")
     : "";
+  const endingFinishWouldStand = legacyEndingFinishWouldStand({
+    exploration: loadExplorationState(db, opts.campaignId),
+    participantIds: sheets.map((sheet) => sheet.participantId),
+    goals: goalLedger.goals,
+  });
   const requestPlayerGoalRegistration = shouldRequestTrpgPlayerGoalRegistration({
     opening: opts.opening,
     regenerate: opts.regenerate,
     campaignComplete: campaign.status === "CAMPAIGN_COMPLETE",
     activeGoalCount: activeGoalTitles(goalLedger.goals).length,
+    endingFinishWouldStand,
   });
+  const committedFinishStands =
+    opts.regenerate === true &&
+    (campaign.status === "CAMPAIGN_COMPLETE" ||
+      readStoredGmFinish(
+        (
+          db.prepare(`SELECT structured_json FROM trpg_gm_messages WHERE round_id=?`).get(opts.roundId) as
+            | { structured_json: string | null }
+            | undefined
+        )?.structured_json
+      ).effectiveCampaignFinished === true);
   const user = buildTrpgGmUserBlock({
     worldBrief: campaign.world_brief,
     gmSecret: campaign.gm_secret ?? "",
@@ -1686,6 +1703,8 @@ async function runGmForRound(
     opening: opts.opening,
     regenerate: opts.regenerate === true,
     requestPlayerGoalRegistration,
+    endingFinishWouldStand,
+    committedFinishStands,
     committedNarration,
     committedFacts,
     playerPersonas,
@@ -2018,6 +2037,16 @@ function resolveEffectiveCampaignFinished(opts: {
   return !goalsAwaitingHostConfirmation(opts.goals);
 }
 
+/** Prompt fact for a legacy facility round. A finish request would stand only after every seat has departed and the host has no criterion-less goal left to confirm. v2 still finishes from the GM flag alone, at commit. */
+function legacyEndingFinishWouldStand(opts: {
+  exploration: ExplorationState | null;
+  participantIds: readonly number[];
+  goals: readonly TrpgGoal[];
+}): boolean {
+  if (!opts.exploration || opts.exploration.version !== 1) return false;
+  return resolveEffectiveCampaignFinished({ ...opts, gmRequested: true });
+}
+
 function readStoredGmFinish(raw: string | null | undefined): {
   gmRequested: boolean;
   effectiveCampaignFinished: boolean | null;
@@ -2194,10 +2223,6 @@ function commitPendingGmResult(
           seatLocations: [...sheets, ...nextSheets].map((sheet) => sheet.location),
         })
       : { accepted: [] as string[], rejected: [] };
-  const { encountersEnded: _proposedEnding, ...deltaWithoutEnding } = parsed.delta;
-  const committedDelta = encounterEnding.accepted.length
-    ? { ...deltaWithoutEnding, encountersEnded: encounterEnding.accepted }
-    : deltaWithoutEnding;
   const postGmOngoingSeeds = governedCampaign
     ? withoutHpHarmSeeds(opts.postGmOngoingSeeds ?? [])
     : (opts.postGmOngoingSeeds ?? []);
@@ -2225,6 +2250,28 @@ function commitPendingGmResult(
     participantIds: sheets.map((sheet) => sheet.participantId),
     goals: currentLedger.goals,
   });
+  const storedFinish = opts.regenerate
+    ? readStoredGmFinish(
+        (
+          db.prepare(`SELECT structured_json FROM trpg_gm_messages WHERE round_id=?`).get(opts.roundId) as
+            | { structured_json: string | null }
+            | undefined
+        )?.structured_json
+      )
+    : null;
+  const finishStands =
+    campaignFinished || campaign.status === "CAMPAIGN_COMPLETE" || storedFinish?.effectiveCampaignFinished === true;
+  if (finishStands) {
+    parsed.narration = settleFinishedSceneNarration(parsed.narration);
+    delete parsed.delta.questsAdd;
+    delete boundLocation.delta.questsAdd;
+  }
+  const { encountersEnded: _proposedEnding, ...deltaWithoutEnding } = parsed.delta;
+  const committedDelta = encounterEnding.accepted.length
+    ? { ...deltaWithoutEnding, encountersEnded: encounterEnding.accepted }
+    : deltaWithoutEnding;
+  const effectiveToStore =
+    opts.regenerate && storedFinish?.effectiveCampaignFinished === true ? true : campaignFinished;
   const ledgerDelta = {
     ...boundLocation.delta,
     location: boundLocation.location || scenario.startLocation,
@@ -2327,7 +2374,7 @@ function commitPendingGmResult(
       ).run(
         opts.roundId,
         parsed.narration,
-        JSON.stringify({ ...parsed, effectiveCampaignFinished: campaignFinished })
+        JSON.stringify({ ...parsed, effectiveCampaignFinished: effectiveToStore })
       );
       if (opts.regenerate) return;
       if (persistMechanics) {
@@ -2785,7 +2832,10 @@ function loadActionsForGm(
       participantId: a.participant_id,
       name: a.name,
       participantKind,
-      body: resolved.canonicalAttempt,
+      body:
+        participantKind === "ai_character"
+          ? gmAiActionText(resolved.canonicalAttempt, resolved.presentationProse)
+          : resolved.canonicalAttempt,
       needsCheck: frozen.needsCheck,
       checkReason: frozen.reason,
       statKey,
