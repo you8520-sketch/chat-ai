@@ -13,6 +13,7 @@ import {
   parseModelRouteState,
   resolveEffectiveConsentMode,
 } from "@/lib/adultSceneRouting";
+import { resolvePromptActiveConsentMode } from "@/lib/cncFictionPromptFraming";
 import { canAccessAdultContent } from "@/lib/adultVerification";
 import { resolveCanonInjectionPolicy } from "@/lib/canonInjectionPolicy";
 import { parseCanonPlanV1 } from "@/lib/canonPlan/serialize";
@@ -916,7 +917,14 @@ export async function assemblePersistedNextTurnInputs(opts: {
     currentUserMessage,
     currentTurnAuthoringDelegation: opts.source.effectiveUserAuthoring.delegation,
     nsfw: opts.source.nsfw,
-    activeConsentMode: opts.source.activeConsentMode,
+    activeConsentMode: resolvePromptActiveConsentMode({
+      persistedConsentMode: opts.source.activeConsentMode,
+      currentInput: currentUserMessage,
+      allowedConsentModes: parseAllowedConsentModes(
+        opts.source.character.adult_consent_modes_json
+      ),
+      adultRpEnabled: opts.source.nsfw,
+    }),
     revealedPersonaFactsBlock: opts.source.revealedPersonaFactsBlock,
     assetTags: opts.source.assetTags,
     modelId: opts.modelId,

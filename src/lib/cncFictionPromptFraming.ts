@@ -15,6 +15,29 @@ function alreadyOocFramed(text: string): boolean {
   return /^\s*OOC\s*[:：]/i.test(text.trim());
 }
 
+export function detectCoerciveCncDirectorMeta(message: string): boolean {
+  const trimmed = message.trim();
+  if (!trimmed || alreadyOocFramed(trimmed)) return false;
+  return CNC_DIRECTOR_META.test(trimmed);
+}
+
+/**
+ * Wire-only consent for this turn: promote to cnc_opt_in when coercive director
+ * meta is detected and the character allowlists CNC. Does not change persisted route state.
+ */
+export function resolvePromptActiveConsentMode(input: {
+  persistedConsentMode: AdultConsentMode;
+  currentInput: string;
+  allowedConsentModes: readonly string[];
+  adultRpEnabled: boolean;
+}): AdultConsentMode {
+  if (!input.adultRpEnabled) return input.persistedConsentMode;
+  if (input.persistedConsentMode === "cnc_opt_in") return "cnc_opt_in";
+  if (!input.allowedConsentModes.includes("cnc_opt_in")) return input.persistedConsentMode;
+  if (detectCoerciveCncDirectorMeta(input.currentInput)) return "cnc_opt_in";
+  return input.persistedConsentMode;
+}
+
 /**
  * Wrap coercive director-style user lines so the provider sees CNC fiction context
  * on the same user turn (not jailbreak — role/OOC separation).

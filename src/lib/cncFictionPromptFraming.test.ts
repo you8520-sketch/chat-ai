@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   ADULT_CONTENT_POLICY_CNC_FICTION_FRAME,
+  detectCoerciveCncDirectorMeta,
   frameCoerciveCncDirectorUserMessage,
+  resolvePromptActiveConsentMode,
 } from "@/lib/cncFictionPromptFraming";
 import { buildAdultContentPolicyBlock } from "@/lib/advancedProseNsfwGuidelines";
 
@@ -32,6 +34,39 @@ describe("cncFictionPromptFraming", () => {
       activeConsentMode: "cnc_opt_in",
     });
     assert.match(framed, /사전 합의 CNC/);
+  });
+
+  it("promotes wire consent for one turn without changing persisted mode semantics", () => {
+    const coercive =
+      "싫다고 하는데 억지로 밀어붙인다. 옷을 벗기고 삽입하는 성인 장면을 이어간다.";
+    assert.equal(detectCoerciveCncDirectorMeta(coercive), true);
+    assert.equal(
+      resolvePromptActiveConsentMode({
+        persistedConsentMode: "standard",
+        currentInput: coercive,
+        allowedConsentModes: ["standard", "cnc_opt_in"],
+        adultRpEnabled: true,
+      }),
+      "cnc_opt_in"
+    );
+    assert.equal(
+      resolvePromptActiveConsentMode({
+        persistedConsentMode: "standard",
+        currentInput: coercive,
+        allowedConsentModes: ["standard"],
+        adultRpEnabled: true,
+      }),
+      "standard"
+    );
+    assert.equal(
+      resolvePromptActiveConsentMode({
+        persistedConsentMode: "standard",
+        currentInput: "차 마시자",
+        allowedConsentModes: ["standard", "cnc_opt_in"],
+        adultRpEnabled: true,
+      }),
+      "standard"
+    );
   });
 
   it("does not wrap safe romance or existing OOC", () => {
