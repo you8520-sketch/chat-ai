@@ -125,6 +125,9 @@ describe("movement declaration — bot stay fallback", () => {
   it("separates a finished result from the attempt and leaves an intentive exit in place", () => {
     assert.equal(clauseDeclaresFinishedResult("문은 열렸다"), true);
     assert.equal(clauseDeclaresFinishedResult("문은 이미 열렸다"), true);
+    assert.equal(clauseDeclaresFinishedResult("잔을 테이블에 내려놓았다"), false);
+    assert.equal(clauseDeclaresFinishedResult("따뜻한 차를 들이켰다"), false);
+    assert.equal(clauseDeclaresFinishedResult("고개를 끄덕였다"), false);
     assert.equal(clauseDeclaresFinishedResult("잠긴 문을 연다"), false);
     assert.equal(clauseDeclaresFinishedResult("문을 열었다"), false);
     assert.equal(clauseDeclaresFinishedResult("문을 열고 나갈 준비를 한다"), false);

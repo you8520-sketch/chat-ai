@@ -1,4 +1,4 @@
-import { hasChallengeSignal, stripQuotedDialogue } from "./actionSemantics";
+import { stripQuotedDialogue } from "./actionSemantics";
 
 /**
  * Owner of "what movement did this submission declare".
@@ -369,10 +369,13 @@ const FINISHED_RESULT_PREDICATE = /(?:었|았|였|했|됐|렸|났|겼|웠|쳤|�
 /** An attempt still in progress (`하려 했다`, `나가려 한다`). A finished result does not use this ending. */
 const INTENTIVE_ATTEMPT = /려\s*(?:했|한|함|한다)/;
 
+const ACTOR_OBJECT_PARTICLE = /(?:을|를)$/;
+const WORLD_SUBJECT_PARTICLE = /(?:이|가|은|는)$/;
+
 /**
- * A clause that states a finished outcome (`문은 열렸다`), not this bot's hazard or challenge attempt.
- * Uses the same challenge/movement act signals as adjudication. An intentive attempt and a clause that
- * still contains another finite act stay whole: the existing split cannot separate those without dropping the act.
+ * A past clause whose subject is the world (`문은 열렸다`), not this actor's own patient (`잔을 … 내려놓았다`).
+ * Dice-necessity (`hasChallengeSignal`) does not decide whether the act exists.
+ * An intentive attempt and a clause that still contains another finite act stay whole.
  */
 export function clauseDeclaresFinishedResult(clause: string): boolean {
   const text = clause.trim();
@@ -380,9 +383,9 @@ export function clauseDeclaresFinishedResult(clause: string): boolean {
   if (!FINISHED_RESULT_PREDICATE.test(text)) return false;
   const head = text.replace(FINISHED_RESULT_PREDICATE, "");
   if (/다(?:\s|$)/.test(head)) return false;
-  if (hasChallengeSignal(text)) return false;
-  if (parseMovementDeclaration(text).live) return false;
-  return true;
+  const words = text.split(/\s+/).map(trimPunctuation).filter((word) => word.length > 1);
+  if (words.some((word) => ACTOR_OBJECT_PARTICLE.test(word))) return false;
+  return words.some((word) => WORLD_SUBJECT_PARTICLE.test(word));
 }
 
 /** Another participant is the subject. An object (`을/를`) or a side-anchor (`옆에서`) is not. */

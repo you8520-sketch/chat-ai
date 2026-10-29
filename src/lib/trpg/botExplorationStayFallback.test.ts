@@ -575,6 +575,37 @@ describe("bot exploration stay fallback", () => {
     db.close();
   });
 
+  it("keeps the actor's own past local act when the move is rejected", async () => {
+    for (const localAct of ["잔을 테이블에 내려놓았다.", "따뜻한 차를 들이켰다.", "고개를 끄덕였다."]) {
+      const db = memoryDb();
+      const botLine = `출구로 이동한다. ${localAct}`;
+      const started = await startWithBot(db, () => botLine);
+      let gmUser = "";
+      const deps: TrpgEngineDeps = {
+        ...started.deps,
+        gmCall: async (opts) => {
+          gmUser = opts.user;
+          return started.deps.gmCall!(opts);
+        },
+      };
+      submitTrpgAction(db, { campaignId: started.campaignId, userId: 1, body: "숨을 고른다." });
+      await advanceTrpgCampaign(db, { campaignId: started.campaignId, userId: 1, deps });
+      const lock = latestBotLock(db, started.botId);
+      const resolved = resolveTrpgCanonicalAttempt({
+        participantKind: "ai_character",
+        submissionBody: lock.body,
+      });
+      const stem = localAct.replace(/\.$/, "");
+      assert.equal(locationOf(db, started.botId), EXPLORATION_ENTRANCE, localAct);
+      assert.match(lock.body, new RegExp(stem), localAct);
+      assert.match(resolved.canonicalAttempt, new RegExp(stem), localAct);
+      assert.match(gmUser, new RegExp(stem), localAct);
+      assert.equal(resolved.canonicalAttempt.includes(EXPLORATION_EXIT_ROOM), false, localAct);
+      assert.equal(lock.body.includes("제자리에 서서"), false, localAct);
+      db.close();
+    }
+  });
+
   it("keeps a result clause out of authoritative INTENT when it lacks 이미", async () => {
     const db = memoryDb();
     const botLine = ["출구로 이동한다.", "잠긴 문을 연다.", "문은 열렸다."].join(" ");
