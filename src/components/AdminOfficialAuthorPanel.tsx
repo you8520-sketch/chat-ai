@@ -104,7 +104,12 @@ export default function AdminOfficialAuthorPanel({
   const [busy, setBusy] = useState<"preview" | "repair" | "save" | null>(null);
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
-  const [saved, setSaved] = useState<{ characterId: number; editPath: string; alreadySaved: boolean } | null>(null);
+  const [saved, setSaved] = useState<{
+    characterId: number;
+    editPath: string;
+    alreadySaved: boolean;
+    partialSave: boolean;
+  } | null>(null);
   const previewRequestSeq = useRef(0);
 
   const recommendation = useMemo(
@@ -196,7 +201,8 @@ export default function AdminOfficialAuthorPanel({
           characterId: payload.characterId,
           editPath:
             typeof payload.editPath === "string" ? payload.editPath : `/create?edit=${payload.characterId}`,
-          alreadySaved: true,
+          alreadySaved: false,
+          partialSave: payload.partialSave === true,
         });
       }
       return;
@@ -205,6 +211,7 @@ export default function AdminOfficialAuthorPanel({
       characterId: Number(payload.characterId),
       editPath: String(payload.editPath),
       alreadySaved: payload.alreadySaved === true,
+      partialSave: false,
     });
   }
 
@@ -316,7 +323,12 @@ export default function AdminOfficialAuthorPanel({
       {saved ? (
         <p className="mt-4 text-sm text-emerald-300" data-testid="admin-author-saved">
           비공개 초안 #{saved.characterId}
-          {saved.alreadySaved ? " (이미 저장됨)" : ""}.{" "}
+          {saved.partialSave
+            ? " (부분 저장 — 후속 단계 실패, 에디터에서 확인)"
+            : saved.alreadySaved
+              ? " (이미 저장됨)"
+              : ""}
+          .{" "}
           <Link className="underline" href={saved.editPath}>
             에디터에서 열기
           </Link>

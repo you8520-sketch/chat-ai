@@ -35,6 +35,7 @@ export async function POST(req: Request) {
         ...(saved.characterId != null
           ? { characterId: saved.characterId, editPath: `/create?edit=${saved.characterId}` }
           : {}),
+        ...(saved.partialSave ? { partialSave: true } : {}),
       },
       { status: saved.status }
     );

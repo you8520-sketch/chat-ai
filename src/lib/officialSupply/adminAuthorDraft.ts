@@ -72,6 +72,8 @@ const SAVED_HOLD_LIMIT = 100;
 
 let saveDelayMsForTests = 0;
 let nextSaveThrowsForTests: Error | null = null;
+let privateManuscriptLookupFailOnCallForTests: number | null = null;
+let privateManuscriptLookupCallCountForTests = 0;
 
 const MARKET_POLICY: OfficialBatchMarketPolicy = {
   targetLocale: "ko-KR",
@@ -143,6 +145,8 @@ type Hold = {
   issues: QaIssue[];
   voiceRepairs: number;
   savedCharacterId: number | null;
+  /** True only when `createCharacterFromForm` finished without throw. */
+  saveComplete: boolean;
   /** Post-insert outcome could not be tied to one row; do not INSERT again. */
   saveBlocked: boolean;
 };
@@ -151,7 +155,12 @@ const holds = new Map<string, Hold>();
 
 type SaveHeldResult =
   | { ok: true; characterId: number; alreadySaved: boolean }
-  | { ok: false; status: number; error: string; characterId?: number };
+  | { ok: false; status: number; error: string; characterId?: number; partialSave?: boolean };
+
+const SAVE_OUTCOME_UNKNOWN_ERROR =
+  "저장 결과를 확정할 수 없습니다. 같은 미리보기로 다시 만들지 않습니다.";
+const PARTIAL_SAVE_ERROR =
+  "초안 행은 만들어졌으나 후속 저장에 실패했습니다. 같은 미리보기로 다시 만들지 않습니다.";
 
 const saveInFlight = new Map<string, Promise<SaveHeldResult>>();
 const repairInFlight = new Map<string, Promise<AdminAuthorPreviewResult>>();
@@ -330,6 +339,12 @@ function holdForAdmin(previewId: string, adminUserId: number): Hold | null {
 }
 
 function privateManuscriptIds(adminUserId: number, draft: OfficialCharacterDraft): number[] {
+  if (privateManuscriptLookupFailOnCallForTests != null) {
+    privateManuscriptLookupCallCountForTests += 1;
+    if (privateManuscriptLookupCallCountForTests === privateManuscriptLookupFailOnCallForTests) {
+      throw new Error("privateManuscriptIds lookup failed");
+    }
+  }
   const rows = getDb()
     .prepare(
       `SELECT id FROM characters
@@ -423,6 +438,7 @@ function holdManuscript(input: {
     issues,
     voiceRepairs: input.voiceRepairs,
     savedCharacterId: null,
+    saveComplete: false,
     saveBlocked: false,
   };
   holds.set(hold.id, hold);
@@ -658,6 +674,8 @@ export function clearAdminAuthorPreviewsForTests(): void {
   repairInFlight.clear();
   saveDelayMsForTests = 0;
   nextSaveThrowsForTests = null;
+  privateManuscriptLookupFailOnCallForTests = null;
+  privateManuscriptLookupCallCountForTests = 0;
 }
 
 export function setAdminAuthorSaveDelayForTests(ms: number): void {
@@ -668,13 +686,39 @@ export function setAdminAuthorNextSaveThrowsForTests(error: Error | null): void 
   nextSaveThrowsForTests = error;
 }
 
+/** Fail the Nth `privateManuscriptIds` call in-process (1 = first call). */
+export function setAdminAuthorPrivateManuscriptLookupFailOnCallForTests(callIndex: number | null): void {
+  privateManuscriptLookupFailOnCallForTests = callIndex;
+  privateManuscriptLookupCallCountForTests = 0;
+}
+
 export function countAdminAuthorSavedHoldsForTests(): number {
   return savedHoldCount();
 }
 
 export function markAdminAuthorPreviewSavedForTests(previewId: string, characterId: number): void {
   const hold = holds.get(previewId);
-  if (hold) hold.savedCharacterId = characterId;
+  if (hold) {
+    hold.savedCharacterId = characterId;
+    hold.saveComplete = true;
+  }
+}
+
+function saveResultForExistingHold(hold: Hold): SaveHeldResult | null {
+  if (hold.saveBlocked) {
+    return { ok: false, status: 409, error: SAVE_OUTCOME_UNKNOWN_ERROR };
+  }
+  if (hold.savedCharacterId == null) return null;
+  if (hold.saveComplete) {
+    return { ok: true, characterId: hold.savedCharacterId, alreadySaved: true };
+  }
+  return {
+    ok: false,
+    status: 409,
+    error: PARTIAL_SAVE_ERROR,
+    characterId: hold.savedCharacterId,
+    partialSave: true,
+  };
 }
 
 export async function saveHeldAdminAuthorPreview(admin: SessionUser, previewId: string): Promise<SaveHeldResult> {
@@ -683,7 +727,8 @@ export async function saveHeldAdminAuthorPreview(admin: SessionUser, previewId: 
   }
   const hold = holdForAdmin(previewId, admin.id);
   if (!hold) return { ok: false, status: 404, error: "미리보기를 찾을 수 없습니다." };
-  if (hold.savedCharacterId != null) return { ok: true, characterId: hold.savedCharacterId, alreadySaved: true };
+  const existing = saveResultForExistingHold(hold);
+  if (existing) return existing;
   if (hold.issues.length > 0) {
     return { ok: false, status: 409, error: "검수를 통과하지 않은 원고는 저장하지 않습니다." };
   }
@@ -705,20 +750,13 @@ export async function saveHeldAdminAuthorPreview(admin: SessionUser, previewId: 
         resolveFlight({ ok: false, status: 404, error: "미리보기를 찾을 수 없습니다." });
         return;
       }
-      if (current.savedCharacterId != null) {
-        resolveFlight({ ok: true, characterId: current.savedCharacterId, alreadySaved: true });
+      const pinned = saveResultForExistingHold(current);
+      if (pinned) {
+        resolveFlight(pinned);
         return;
       }
       if (current.issues.length > 0) {
         resolveFlight({ ok: false, status: 409, error: "검수를 통과하지 않은 원고는 저장하지 않습니다." });
-        return;
-      }
-      if (current.saveBlocked) {
-        resolveFlight({
-          ok: false,
-          status: 409,
-          error: "저장 결과를 확정할 수 없습니다. 같은 미리보기로 다시 만들지 않습니다.",
-        });
         return;
       }
       if (saveDelayMsForTests > 0) {
@@ -743,6 +781,7 @@ export async function saveHeldAdminAuthorPreview(admin: SessionUser, previewId: 
         return;
       }
       current.savedCharacterId = created.id;
+      current.saveComplete = true;
       evictSavedHolds();
       resolveFlight({ ok: true, characterId: created.id, alreadySaved: false });
     } catch (error) {
@@ -750,26 +789,31 @@ export async function saveHeldAdminAuthorPreview(admin: SessionUser, previewId: 
       const current = holdForAdmin(previewId, admin.id);
       if (knownIds && current && current.savedCharacterId == null) {
         const seen = knownIds;
-        const fresh = privateManuscriptIds(admin.id, current.draft).filter((id) => !seen.has(id));
+        let fresh: number[];
+        try {
+          fresh = privateManuscriptIds(admin.id, current.draft).filter((id) => !seen.has(id));
+        } catch {
+          current.saveBlocked = true;
+          resolveFlight({ ok: false, status: 409, error: SAVE_OUTCOME_UNKNOWN_ERROR });
+          return;
+        }
         if (fresh.length === 1) {
           const characterId = fresh[0]!;
           current.savedCharacterId = characterId;
+          current.saveComplete = false;
           evictSavedHolds();
           resolveFlight({
             ok: false,
-            status: 500,
-            error: "초안 행은 만들어졌으나 후속 저장에 실패했습니다. 같은 미리보기로 다시 만들지 않습니다.",
+            status: 409,
+            error: PARTIAL_SAVE_ERROR,
             characterId,
+            partialSave: true,
           });
           return;
         }
         if (fresh.length > 1) {
           current.saveBlocked = true;
-          resolveFlight({
-            ok: false,
-            status: 409,
-            error: "저장 결과를 확정할 수 없습니다. 같은 미리보기로 다시 만들지 않습니다.",
-          });
+          resolveFlight({ ok: false, status: 409, error: SAVE_OUTCOME_UNKNOWN_ERROR });
           return;
         }
       }

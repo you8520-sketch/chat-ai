@@ -18,6 +18,7 @@ import {
   repairHeldAdminAuthorPreview,
   saveHeldAdminAuthorPreview,
   setAdminAuthorNextSaveThrowsForTests,
+  setAdminAuthorPrivateManuscriptLookupFailOnCallForTests,
   setAdminAuthorSaveDelayForTests,
   type AdminAuthorSelection,
 } from "@/lib/officialSupply/adminAuthorDraft";
@@ -536,15 +537,62 @@ describe("G5-2 admin private draft save", () => {
       db.prepare = original as typeof db.prepare;
     }
     assert.equal(first.ok, false);
-    if (!first.ok) assert.equal(first.status, 500);
+    if (!first.ok) {
+      assert.equal(first.status, 409);
+      assert.equal(first.partialSave, true);
+      assert.equal(typeof first.characterId, "number");
+    }
     assert.equal(countNamed() - before, 1);
     const retry = await saveHeldAdminAuthorPreview(ADMIN, preview.previewId);
     assert.equal(countNamed() - before, 1);
-    assert.equal(retry.ok, true);
-    if (retry.ok && first.ok === false) {
-      assert.equal(retry.alreadySaved, true);
+    assert.equal(retry.ok, false);
+    if (!retry.ok && !first.ok) {
+      assert.equal(retry.partialSave, true);
       assert.equal(retry.characterId, first.characterId);
     }
+  });
+
+  it("blocks re-INSERT and settles when post-INSERT throw overlaps recovery lookup failure", async () => {
+    clearAdminAuthorPreviewsForTests();
+    setAdminAuthorPrivateManuscriptLookupFailOnCallForTests(2);
+    const pack = candidate("g5-modern-comedy");
+    const plan = resolveOfficialAuthoringPlan(recommendOfficialAuthoringDirection("현대/일상"));
+    const preview = holdAdminAuthorManuscriptForTests({
+      adminUserId: ADMIN.id,
+      plan,
+      world: pack.world,
+      brief: pack.brief,
+      bible: pack.bible,
+    });
+    const db = getDb();
+    const original = db.prepare.bind(db);
+    let armed = true;
+    db.prepare = ((sql: string) => {
+      if (armed && sql.includes("adult_dialogue_profile")) {
+        armed = false;
+        throw new Error("post-insert adult profile update failed");
+      }
+      return original(sql);
+    }) as typeof db.prepare;
+    const countNamed = () =>
+      (db.prepare("SELECT COUNT(*) AS n FROM characters WHERE creator_id=? AND name=?").get(ADMIN.id, pack.draft.name) as { n: number }).n;
+    const before = countNamed();
+    let first: Awaited<ReturnType<typeof saveHeldAdminAuthorPreview>>;
+    try {
+      first = await saveHeldAdminAuthorPreview(ADMIN, preview.previewId);
+    } finally {
+      db.prepare = original as typeof db.prepare;
+    }
+    assert.equal(first.ok, false);
+    if (!first.ok) {
+      assert.equal(first.status, 409);
+      assert.equal(first.characterId, undefined);
+    }
+    assert.equal(countNamed() - before, 1);
+    const retry = await saveHeldAdminAuthorPreview(ADMIN, preview.previewId);
+    assert.equal(retry.ok, false);
+    if (!retry.ok) assert.equal(retry.status, 409);
+    assert.equal(countNamed() - before, 1);
   });
 
   it("leaves a G2 create retry able to insert again after a post-INSERT throw", async () => {
