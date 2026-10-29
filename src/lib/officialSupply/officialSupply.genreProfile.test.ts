@@ -13,6 +13,7 @@ import {
   buildCharacterVoiceUser,
   buildPortfolioReplacementUser,
   buildStyleBoardSystem,
+  buildWorldAtlasUser,
   buildWorldBibleSystem,
   buildWorldCoreUser,
   buildWorldPortfolioUser,
@@ -259,6 +260,8 @@ describe("genre profile owner — genre-generic composition", () => {
     assert.match(rofan.part1User, /유머 비중: 없음/);
     assert.match(school.part1User, /문체: 경쾌하게/);
     assert.match(school.part1User, /유머 비중: 핵심/);
+    assert.match(school.part1User, /웃기는 상황과 인물의 행동이 다음 사건을 만든다/);
+    assert.ok(!school.part1User.includes("대신하지"));
     assert.match(horror.part1User, /문체: 건조하게/);
     assert.match(horror.part1User, /유머 비중: 가벼움/);
 
@@ -329,6 +332,54 @@ describe("genre profile owner — genre-generic composition", () => {
     const withPlan = compose(resolveOfficialAuthoringPlan(SCHOOL_COMEDY)).replacement;
     assert.match(withPlan, /목표·첫 사건·말투·유저와의 역학·유머 방식·플레이 경험/);
     assert.match(withPlan, /트로프 자체를 피하지 않는다/);
+  });
+
+  it("puts cast intent on the world stage only for a genre-neutral plan", () => {
+    const legacy = compose(undefined);
+    const rofan = compose(resolveOfficialAuthoringPlan({ genre: OFFICIAL_ROFAN_GENRE }));
+    const school = compose(resolveOfficialAuthoringPlan(SCHOOL_COMEDY));
+    for (const core of [legacy.worldCore, rofan.worldCore]) {
+      assert.ok(!core.includes("캐스트 의도"));
+      assert.ok(!core.includes("첫 행동이 벌어지는 무대"));
+    }
+    assert.match(school.worldCore, /캐스트 의도: 전체 이용자/);
+    assert.match(school.worldCore, /신호의 인물 관계를 세계의 줄거리로 쓰지 않는다/);
+    assert.ok(!buildWorldAtlasUser({ worldName: "W", centralPremise: "C", factionNames: ["방송부"] }).includes("캐스트 의도"));
+    assert.match(
+      buildWorldAtlasUser({ worldName: "W", centralPremise: "C", factionNames: ["방송부"], castIntent: "이웃으로 엮인다" }),
+      /장소에서 벌어지는 사건은 이 의도의 관계와 첫 행동이다/
+    );
+    const portfolio = buildWorldPortfolioUser({
+      worldName: "W",
+      centralPremise: "C",
+      factionNames: ["방송부"],
+      locationNames: ["옥상"],
+      slots: 1,
+      adultCandidates: 0,
+      genderMix: "여성 1명",
+      slotGenders: ["female"],
+      market: marketFor(resolveOfficialAuthoringPlan(SCHOOL_COMEDY)),
+      castIntent: "이웃·동료·룸메이트",
+      authoring: resolveOfficialAuthoringPlan(SCHOOL_COMEDY),
+    });
+    assert.match(portfolio, /이 슬롯의 정체로 쓰지 않는다/);
+    assert.ok(!school.worldPortfolio.includes("이 슬롯의 정체로"));
+    assert.match(school.replacement, /이 슬롯의 정체로 쓰지 않는다/);
+    assert.ok(!rofan.replacement.includes("이 슬롯의 정체로"));
+    assert.match(school.part1User, /본인에게 그는·그가·그를 쓰지 않는다/);
+    assert.ok(!rofan.part1User.includes("본인에게 그는"));
+    assert.ok(!school.voiceUser.includes("본인에게 그는"));
+    const voiced = buildCharacterVoiceUser({
+      name: BRIEF.name,
+      age: BRIEF.age,
+      gender: "female",
+      adultCandidate: false,
+      speechDirection: BRIEF.speechDirection,
+      part1Recap: "recap",
+      npcDemand: "0",
+      authoring: resolveOfficialAuthoringPlan(SCHOOL_COMEDY),
+    });
+    assert.match(voiced, /그녀·그녀는·그녀가·그녀를·그녀의/);
   });
 });
 
@@ -449,5 +500,19 @@ describe("cast fit gate (shared by pilot replacement and the genre runner)", () 
       namingProfile: "korean_modern",
     });
     assert.deepEqual(qa.errors, ["오박수: marketFit missing"]);
+  });
+
+  it("passes 최하늘 against 박수진 when only the play pattern matches", () => {
+    const review = path.join(process.cwd(), "docs/official-supply/reviews/g5-1-2026-10-28/candidates");
+    const park = JSON.parse(fs.readFileSync(path.join(review, "g5-modern-comedy/brief.json"), "utf8")) as PortfolioBriefInput;
+    const choi = JSON.parse(fs.readFileSync(path.join(review, "g5-modern-comedy-c/brief.json"), "utf8")) as PortfolioBriefInput;
+    const qa = evaluateBriefCastFit({
+      fresh: [choi],
+      kept: [...kept, park],
+      snapshot,
+      policy: POLICY,
+      namingProfile: "korean_modern",
+    });
+    assert.deepEqual(qa.errors, []);
   });
 });

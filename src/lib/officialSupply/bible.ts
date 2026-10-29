@@ -7,6 +7,7 @@ import {
 } from "@/lib/officialSupply/officialSharedWorld";
 import {
   composeOfficialPublicDescription,
+  evaluateOfficialCharacterPronoun,
   evaluateOfficialPlayerGenderNeutral,
 } from "@/lib/officialSupply/publicProfileText";
 import {
@@ -527,12 +528,15 @@ export const CHARACTER_VOICE_SCHEMA: Record<string, unknown> = {
   },
 };
 
-/** Revisions cannot apply public manuscripts, so they must not pay to regenerate them. */
-export function characterVoiceRevisionSchema(): Record<string, unknown> {
+/**
+ * Revisions cannot apply the creator comment. The detailed public manuscript
+ * stays out unless a pronoun repair has to rewrite it.
+ */
+export function characterVoiceRevisionSchema(includeDetailedDescription = false): Record<string, unknown> {
   const schema = structuredClone(CHARACTER_VOICE_SCHEMA);
   const properties = schema.properties as Record<string, Record<string, unknown>>;
   const profile = properties.publicProfile.properties as Record<string, unknown>;
-  delete profile.detailedDescription;
+  if (!includeDetailedDescription) delete profile.detailedDescription;
   delete profile.creatorComment;
   return schema;
 }
@@ -1107,6 +1111,11 @@ export function validateCharacterBible(
   warnings.push(...contract.warnings);
 
   const profile = bible.publicProfile ?? { tagline: "", description: "", tags: [] };
+  errors.push(
+    ...evaluateOfficialCharacterPronoun(id.gender, {
+      description: [profile.description, profile.detailedDescription ?? ""].filter(Boolean).join("\n"),
+    }).errors
+  );
   const tags = profile.tags ?? [];
   const tagBand = OFFICIAL_AUTHOR_QUALITY_CONTRACT.discoveryTags;
   if (tags.length === 0 || tags.length > tagBand.max) {

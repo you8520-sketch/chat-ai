@@ -160,7 +160,7 @@ const HUMOR_LINES: Record<OfficialHumorLevel, string> = {
   none: "유머 비중: 없음. 농담·말장난을 넣지 않는다.",
   light: "유머 비중: 가벼움. 인물의 말투와 상황에서 자연스럽게 나오는 정도로만 쓴다.",
   central:
-    "유머 비중: 핵심. 웃음이 이 캐릭터와 나누는 대화 경험의 중심이다. 단 농담이 인물의 목표·약점·대가를 대신하지 않는다.",
+    "유머 비중: 핵심. 웃기는 상황과 인물의 행동이 다음 사건을 만든다. 농담으로 목표·약점·대가를 가리지 않고, 그 행동이 이야기를 앞으로 민다.",
 };
 
 const PACING_LINES: Record<OfficialNarrativePacing, string> = {

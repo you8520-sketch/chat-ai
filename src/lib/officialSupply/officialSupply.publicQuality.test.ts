@@ -21,6 +21,7 @@ import {
 import {
   composeOfficialCreatorComment,
   composeOfficialPublicDescription,
+  evaluateOfficialCharacterPronoun,
   evaluateOfficialCreatorComment,
   evaluateOfficialPlayerGenderNeutral,
   evaluateOfficialPublicDescription,
@@ -249,6 +250,25 @@ describe("official detailed intro + creator comment", () => {
     assert.match(prompt, /오프닝은 하나다/);
     assert.match(prompt, /아가씨\/도련님\/왕자비\/신부/);
     assert.doesNotMatch(prompt, /에피소드를 만들|N개의 에피소드|episode picker/);
+  });
+
+  it("flags a female public 그는 and a male public 그녀, and leaves other pronouns", () => {
+    assert.ok(evaluateOfficialCharacterPronoun("female", { description: "그는 주민들의 영수증을 읽는다." }).errors.some((e) => e.code === "official_character_pronoun"));
+    assert.deepEqual(evaluateOfficialCharacterPronoun("female", { description: "그녀는 주민들의 영수증을 읽는다." }).errors, []);
+    assert.ok(evaluateOfficialCharacterPronoun("male", { description: "그녀는 장부를 덮지 않았다." }).errors.some((e) => e.code === "official_character_pronoun"));
+    assert.deepEqual(evaluateOfficialCharacterPronoun("male", { description: "그는 장부를 덮지 않았다." }).errors, []);
+    assert.deepEqual(evaluateOfficialCharacterPronoun("other", { description: "그는 이름을 밝히지 않는다." }).errors, []);
+    assert.deepEqual(evaluateOfficialCharacterPronoun("female", { description: "그를 먼저 확인한 그녀는 펜을 내려놓았다." }).errors, []);
+    const choi = JSON.parse(
+      fs.readFileSync(
+        path.join(process.cwd(), "docs/official-supply/reviews/g5-1-2026-10-28/candidates/g5-modern-comedy-c/bible.assembled.json"),
+        "utf8"
+      )
+    ) as OfficialCharacterBible;
+    const flagged = evaluateOfficialCharacterPronoun(choi.identity.gender, {
+      description: [choi.publicProfile.description, choi.publicProfile.detailedDescription ?? ""].join("\n"),
+    });
+    assert.deepEqual(flagged.errors.map((e) => e.code), ["official_character_pronoun"]);
   });
 
   it("form body keeps the compiled intro and adds creator_comment without changing publish owner", () => {

@@ -28,6 +28,7 @@ import {
   type OfficialAuthoringPlan,
 } from "@/lib/officialSupply/genreProfile";
 import { buildRofanMatureMaleVisualAgeDirection } from "@/lib/officialSupply/appearance";
+import { officialCharacterPronounDirective } from "@/lib/officialSupply/publicProfileText";
 import {
   buildUserRelationAuthorRules,
   formatUserRelationBondsRule,
@@ -129,6 +130,20 @@ const WORLD_ATLAS_SKELETON = `{"locations": [{"name": "", "purpose": "", "mood":
 
 const WORLD_PORTFOLIO_SKELETON = `{"portfolio": [{"slot": 1, "marketFit": ${MARKET_FIT_SKELETON}, "name": "", "gender": "", "age": 0, "archetype": "", "relationshipTrope": "", "occupation": "", "faction": "", "socialPosition": "", "personalityCore": "", "visualSilhouette": "", "rpHook": "", "adultCandidate": false, "speechDirection": "", "audience": "", "userRelation": {"type": "free", "fixed": ""}}]}`;
 
+const NEUTRAL_CAST_WORLD_STAGE =
+  "현재 사건·세력·장소는 이 의도의 관계와 첫 행동이 벌어지는 무대다. 시장 신호와 의도가 다르면 신호의 인물 관계를 세계의 줄거리로 쓰지 않는다.";
+const NEUTRAL_CAST_ATLAS_STAGE = "장소에서 벌어지는 사건은 이 의도의 관계와 첫 행동이다.";
+const NEUTRAL_CAST_PORTFOLIO_STAGE =
+  "목표·유저와의 관계·첫 사건·첫 행동·유머 방식은 이 의도에서 나온다. 시장 신호와 의도가 다르면 신호의 인물 관계를 이 슬롯의 정체로 쓰지 않는다.";
+
+/** Genre-neutral planning only. Rofan and absent plans stay byte-identical. */
+function neutralCastIntentLines(plan: OfficialAuthoringPlan, castIntent: string | undefined, stage: string): string[] {
+  if (plan.profile.key !== "genre_neutral") return [];
+  const intent = castIntent?.trim();
+  if (!intent) return [];
+  return ["", `캐스트 의도: ${intent}`, stage];
+}
+
 export function buildWorldBibleSystem(plan: OfficialAuthoringPlan = ROFAN_PARITY_PLAN): string {
   const p = plan.profile;
   return [
@@ -147,6 +162,7 @@ export function buildWorldCoreUser(input: WorldBibleInput): string {
     "",
     "시장 신호(트로프·훅 구조·장치 수준만 참고. 경쟁작 문장·이름·고유 설정 복제 금지):",
     ...input.market.signalLines,
+    ...neutralCastIntentLines(plan, input.castIntent, NEUTRAL_CAST_WORLD_STAGE),
     `세계관은 깊게 쓰되, 캐릭터 카드 첫 노출에서는 대상 시장 독자가 바로 아는 역할 어휘${plan.profile.worldRoleVocabulary}로`,
     "설명될 수 있어야 한다. 고유 신조어는 내부 깊이를 위해 쓴다.",
     ...formatAuthoringDirection(plan, ["tone", "humor"]),
@@ -171,12 +187,16 @@ export type WorldAtlasInput = {
   worldName: string;
   centralPremise: string;
   factionNames: string[];
+  /** Set only for genre-neutral worlds. Absent keeps the atlas prompt unchanged. */
+  castIntent?: string;
 };
 
 export function buildWorldAtlasUser(input: WorldAtlasInput): string {
+  const intent = input.castIntent?.trim() ?? "";
   return [
     `세계관: ${input.worldName} — ${input.centralPremise}`,
     `세력: ${input.factionNames.join(" / ")}`,
+    ...(intent ? ["", `캐스트 의도: ${intent}`, NEUTRAL_CAST_ATLAS_STAGE] : []),
     "",
     "이번 호출(atlas) 출력 필드:",
     "- locations 5~10개: 이름·용도·분위기·이용자·RP에서 벌어질 사건(이후 스페셜 신 에셋의 재료)",
@@ -246,6 +266,7 @@ export function buildWorldPortfolioUser(input: WorldPortfolioInput): string {
     `성인 후보 수: ${input.adultCandidates}명 (이 수만큼 adultCandidate=true)`,
     `성별 구성: ${input.genderMix} (이 배치의 의도된 구성 — 반드시 준수)`,
     input.castIntent ? `캐스트 의도: ${input.castIntent}` : "",
+    ...(plan.profile.key === "genre_neutral" && input.castIntent?.trim() ? [NEUTRAL_CAST_PORTFOLIO_STAGE] : []),
     `슬롯별 성별 고정표(절대 변경 금지, 이름도 성별에 맞게): ${input.slotGenders.map((g, i) => `${i + 1}번 ${g}`).join(", ")}`,
     "",
     ...marketFitRuleLines(m),
@@ -296,6 +317,7 @@ export function buildPortfolioReplacementUser(input: PortfolioReplacementInput):
     `세력: ${input.factionNames.join(" / ")}`,
     `장소: ${input.locationNames.join(" / ")}`,
     `캐스트 의도: ${input.castIntent}`,
+    ...(plan.profile.key === "genre_neutral" && input.castIntent.trim() ? [NEUTRAL_CAST_PORTFOLIO_STAGE] : []),
     "",
     "유지되는 캐릭터(절대 겹치지 않게 — 직업·신분·관계 훅·말투·외형 실루엣·트로프·이름 음절):",
     ...input.keptSiblings.map((s) => `- ${s}`),
@@ -429,6 +451,7 @@ export function buildCharacterBible1User(input: CharacterBible1Input): string {
   return [
     `세계관: ${input.worldName}`,
     `브리프: ${b.name} / ${b.gender} / ${b.age}세 / ${b.occupation} / ${b.faction} / ${b.socialPosition}`,
+    ...(plan.profile.key === "genre_neutral" ? [officialCharacterPronounDirective(b.gender)] : []),
     `아키타입: ${b.archetype} / 트로프: ${b.relationshipTrope}`,
     `성격핵: ${b.personalityCore} / 외형: ${b.visualSilhouette}`,
     `RP 훅: ${b.rpHook}`,
@@ -465,6 +488,8 @@ export type CharacterVoiceInput = {
   userRelation?: OfficialUserRelationPlan;
   /** Market fit brief — the public card is built on its relationship + conflict. */
   marketFit?: OfficialMarketFitBrief | null;
+  /** Character identity gender. Genre-neutral voice prompts use it for the public pronoun line. */
+  gender?: "male" | "female" | "other";
   /** Previous attempt rejection reasons (QA codes) — must be fixed this time. */
   feedback?: string;
   authoring?: OfficialAuthoringPlan;
@@ -557,6 +582,7 @@ export function buildCharacterVoiceUser(input: CharacterVoiceInput): string {
   const plan = input.authoring ?? ROFAN_PARITY_PLAN;
   return [
     `캐릭터: ${input.name} (${input.age}세)`,
+    ...(plan.profile.key === "genre_neutral" && input.gender ? [officialCharacterPronounDirective(input.gender)] : []),
     `말투 방향: ${input.speechDirection}`,
     `성인 후보: ${input.adultCandidate ? "예" : "아니오"}`,
     `NPC 요구: ${input.npcDemand}`,

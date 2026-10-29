@@ -105,8 +105,8 @@ const RESPONSES_DIR = path.join(OUT_DIR, "provider-responses");
 const KRW_PER_USD = 1500;
 const UPPER_USD_PER_M_INPUT = 0.5;
 const UPPER_USD_PER_M_OUTPUT = 1.0;
-/** G5-1C: 21 calls used; +10 for one new modern-comedy compare → hard cap 31. */
-const CALL_CAP = 31;
+/** G5-1D: 29 physical calls already saved + 8 authorized for one new character. Do not raise further. */
+const CALL_CAP = 37;
 const MAX_VOICE_REPAIRS = 2;
 const DEFAULT_MAX_KRW = 1000;
 
@@ -163,6 +163,19 @@ const SPECS: readonly Spec[] = [
       "전체 이용자 대상 현대 한국 일상 코미디 캐릭터 1명. 연애 구도 없이 이웃·동료·룸메이트처럼 일상에서 엮이는 관계. 별명이 붙은 인물.",
     replanDirection:
       "여성. 연애 구도 없는 가벼운 일상 코미디. 별명(괄호 별칭)에 행동으로 생긴 이유가 있다. 유지 캐릭터와 목표·첫 사건·말투·유저 역학·유머 방식이 겹치지 않게.",
+  },
+  {
+    key: "g5-modern-comedy-d",
+    genre: "현대/일상",
+    worldKey: "g5-modern-daily-d-v1",
+    styleKey: "modern_daily_v1",
+    direction: { genre: "현대/일상", tone: "light", humor: "central", pacing: "dialogue", nameWordplay: "nickname" },
+    gender: "female",
+    audience: "all",
+    castIntent:
+      "전체 이용자 대상 현대 한국 일상 코미디 캐릭터 1명. 연애 구도 없이 이웃·동료·룸메이트처럼 일상에서 엮이는 관계. 별명이 붙은 인물.",
+    replanDirection:
+      "여성. 연애 구도 없는 가벼운 일상 코미디. 별명(괄호 별칭)에 행동으로 생긴 이유가 있다. 웃기는 상황과 행동이 다음 사건을 만든다. 유지 캐릭터와 목표·첫 사건·말투·유저 역학·유머 방식이 겹치지 않게.",
   },
 ];
 
@@ -265,6 +278,7 @@ function voiceFieldsFor(codes: string[]): OfficialVoiceRevisionField[] {
     if (code.startsWith("bible_pitch")) fields.add("publicDescription");
     if (code.startsWith("bible_speech")) fields.add("speech");
     if (code === "tag_bible_mismatch" || code === "bible_tags" || code === "tags_keyword_stuffing") fields.add("tags");
+    if (code === "official_character_pronoun" || code === "bible_character_pronoun") fields.add("publicDescription");
   }
   return [...fields];
 }
@@ -335,15 +349,23 @@ function savedCalls(): SavedCall[] {
 
 // ── Estimate ─────────────────────────────────────────────────────────────────
 
-function estimate(): { expectedKrw: number; worstKrw: number } {
+function pendingSpecs(only: string | null): readonly Spec[] {
+  return SPECS.filter((spec) => {
+    if (only && spec.key !== only) return false;
+    return !fs.existsSync(path.join(OUT_DIR, "candidates", spec.key, "bible.assembled.json"));
+  });
+}
+
+function estimate(only: string | null = null): { expectedKrw: number; worstKrw: number } {
   const manifest = readJson<Manifest>(MANIFEST_PATH);
   const snapshot = loadSnapshot();
   const policy = policyFor(manifest);
   const cast = existingCast();
+  const specs = pendingSpecs(only);
   let inputTokens = 0;
   let expectedOut = 0;
   let worstOut = 0;
-  for (const spec of SPECS) {
+  for (const spec of specs) {
     const plan = resolveOfficialAuthoringPlan(spec.direction);
     const market = marketInput(snapshot, policy, plan);
     const world = worldInput(spec, market, plan);
@@ -351,7 +373,15 @@ function estimate(): { expectedKrw: number; worstKrw: number } {
     const placeholderFactions = ["세력A", "세력B", "세력C", "세력D"];
     const placeholderLocations = ["장소A", "장소B", "장소C", "장소D", "장소E", "장소F"];
     inputTokens += estimateTokens(system + buildWorldCoreUser(world));
-    inputTokens += estimateTokens(system + buildWorldAtlasUser({ worldName: "W", centralPremise: "P".repeat(60), factionNames: placeholderFactions }));
+    inputTokens += estimateTokens(
+      system +
+        buildWorldAtlasUser({
+          worldName: "W",
+          centralPremise: "P".repeat(60),
+          factionNames: placeholderFactions,
+          ...(plan.profile.key === "genre_neutral" ? { castIntent: spec.castIntent } : {}),
+        })
+    );
     inputTokens += estimateTokens(
       system +
         buildWorldPortfolioUser({
@@ -393,7 +423,7 @@ function estimate(): { expectedKrw: number; worstKrw: number } {
     inputTokens += estimateTokens(buildCharacterBible1System(plan) + part1User);
     inputTokens += estimateTokens(
       buildCharacterVoiceSystem(true, plan) +
-        buildCharacterVoiceUser({ name: "n", age: 30, adultCandidate: false, speechDirection: "s", part1Recap: recap, npcDemand: "0", publicContext: "c".repeat(1500), authoring: plan })
+        buildCharacterVoiceUser({ name: "n", age: 30, gender: spec.gender, adultCandidate: false, speechDirection: "s", part1Recap: recap, npcDemand: "0", publicContext: "c".repeat(1500), authoring: plan })
     );
     inputTokens += estimateTokens(
       buildCharacterBondsSystem() + buildCharacterBondsUser({ name: "n", age: 30, rpHook: "h", adultCandidate: false, castList: [], part1Recap: recap, authoring: plan })
@@ -413,7 +443,8 @@ function estimate(): { expectedKrw: number; worstKrw: number } {
     model: resolveOfficialAuthorModelId(),
     gitSha: git("rev-parse HEAD"),
     priceAssumption: { usdPerMInput: UPPER_USD_PER_M_INPUT, usdPerMOutput: UPPER_USD_PER_M_OUTPUT, krwPerUsd: KRW_PER_USD, note: "conservative upper bound, not the billed rate" },
-    callsExpected: SPECS.length * 6,
+    callsExpected: specs.length * 6,
+    pendingSpecs: specs.map((spec) => spec.key),
     callCap: CALL_CAP,
     inputTokensEstimated: inputTokens,
     expectedOutputTokens: expectedOut,
@@ -702,6 +733,7 @@ async function runSpec(
       voice: {
         name: brief.name,
         age: brief.age,
+        gender: brief.gender,
         adultCandidate: false,
         speechDirection: brief.speechDirection,
         npcDemand: "이야기에 반복 역할이 실제로 필요할 때만 1~2명. 필요 없으면 0명([]).",
@@ -732,6 +764,7 @@ async function runSpec(
         voice: {
           name: brief.name,
           age: brief.age,
+          gender: brief.gender,
           adultCandidate: false,
           speechDirection: brief.speechDirection,
           npcDemand: "없음",
@@ -838,7 +871,7 @@ async function run(maxKrw: number, only: string | null): Promise<void> {
   if (process.env.OFFICIAL_PILOT_LIVE !== "1") throw new Error("OFFICIAL_PILOT_LIVE=1 required");
   const sourceDirty = git("status --porcelain -- src scripts").length > 0;
   if (sourceDirty) throw new Error("src/ or scripts/ has uncommitted changes; commit code before the live run so the SHA is exact");
-  const { expectedKrw, worstKrw } = estimate();
+  const { expectedKrw, worstKrw } = estimate(only);
   if (expectedKrw >= maxKrw) throw new Error(`expected ₩${expectedKrw} ≥ ₩${maxKrw}: STOP`);
   if (worstKrw >= maxKrw) throw new Error(`worst-case ₩${worstKrw} ≥ ₩${maxKrw}: STOP`);
 

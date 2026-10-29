@@ -799,7 +799,13 @@ export async function generateOfficialWorldBible(input: {
     .map((f) => String(f.name ?? "").trim())
     .filter(Boolean);
 
-  const atlasInput: WorldAtlasInput = { worldName, centralPremise, factionNames };
+  const castIntent = input.world.castIntent?.trim() ?? "";
+  const atlasInput: WorldAtlasInput = {
+    worldName,
+    centralPremise,
+    factionNames,
+    ...(input.world.authoring?.profile.key === "genre_neutral" && castIntent ? { castIntent } : {}),
+  };
   const atlas = await complete(buildWorldAtlasUser(atlasInput));
   const atlasData = parseAuthorJson(atlas.text, "world_bible");
   if (!isRecord(atlasData)) throw new OfficialSupplyGateError("author_shape_invalid", "world_bible atlas: object required");
@@ -1092,7 +1098,14 @@ export async function generateOfficialCharacterBible(input: {
   const second = await input.transport.completeJson({
     task: "character_bible_voice",
     system: buildCharacterVoiceSystem(true, authoring),
-    user: buildCharacterVoiceUser({ ...input.voice, authoring, userRelation, part1Recap: recap, publicContext: buildPublicWritingContext(half1, input.part1.worldContext) }),
+    user: buildCharacterVoiceUser({
+      ...input.voice,
+      authoring,
+      userRelation,
+      gender: input.voice.gender ?? input.part1.brief.gender,
+      part1Recap: recap,
+      publicContext: buildPublicWritingContext(half1, input.part1.worldContext),
+    }),
     schemaName: "official_character_bible_voice",
     schema: CHARACTER_VOICE_SCHEMA,
     modelId: input.modelId,
@@ -1154,6 +1167,7 @@ function buildPart1Recap(half1: Record<string, unknown>, includeEntry = true): s
     return texts.length ? `${label}: ${texts.join(" / ")}` : "";
   };
   return [
+    fact("성별", identity.gender),
     [fact("직업", identity.occupation), fact("신분", identity.socialPosition), fact("소속", identity.affiliation), fact("역할", identity.worldRole)].filter(Boolean).join(" / "),
     fact("성격·행동", personality.behavioral),
     fact("모순", half1.contradiction),
@@ -1219,6 +1233,11 @@ export async function reviseOfficialCharacterVoice(input: {
 }): Promise<{ bible: OfficialCharacterBible; completion: OfficialAuthorRawCompletion }> {
   const current = input.bible;
   const authoring = input.authoring ?? input.voice.authoring;
+  const pronounRepair = input.reasons.some(
+    (reason) => reason.includes("official_character_pronoun") || reason.includes("bible_character_pronoun")
+  );
+  const identityGender = current.identity.gender;
+  const gender = input.voice.gender ?? (identityGender === "male" || identityGender === "female" || identityGender === "other" ? identityGender : undefined);
   const keep = [
     input.fields.includes("greeting") ? "" : `greeting는 기존 그대로 두어도 된다.`,
     input.fields.includes("publicDescription")
@@ -1233,20 +1252,21 @@ export async function reviseOfficialCharacterVoice(input: {
   ].filter(Boolean);
   const completion = await input.transport.completeJson({
     task: "character_bible_voice",
-    system: buildCharacterVoiceSystem(false, authoring),
+    system: buildCharacterVoiceSystem(pronounRepair, authoring),
     user: buildCharacterVoiceUser({
       ...input.voice,
       authoring,
+      gender,
       userRelation: input.voice.userRelation ?? {
         type: current.userRelationship?.type ?? "free",
         fixed: current.userRelationship?.fixedFacts ?? "",
       },
-      includePublicManuscripts: false,
+      includePublicManuscripts: pronounRepair,
       part1Recap: buildPart1Recap(current as unknown as Record<string, unknown>, input.fields.includes("greeting") || input.fields.includes("publicDescription")),
       feedback: [...input.reasons, ...keep].join("\n"),
     }),
     schemaName: "official_character_bible_voice",
-    schema: characterVoiceRevisionSchema(),
+    schema: characterVoiceRevisionSchema(pronounRepair),
     modelId: input.modelId,
   });
   const voiceHalf = parseAuthorJson(completion.text, "character_bible_voice");
@@ -1280,6 +1300,9 @@ export async function reviseOfficialCharacterVoice(input: {
     publicProfile: {
       ...current.publicProfile,
       description: input.fields.includes("publicDescription") ? String(profile.description) : current.publicProfile.description,
+      ...(pronounRepair && input.fields.includes("publicDescription") && isNonEmptyString(profile.detailedDescription)
+        ? { detailedDescription: String(profile.detailedDescription) }
+        : {}),
       tags: input.fields.includes("tags") ? strArray(profile.tags) : current.publicProfile.tags,
     },
     speech: input.fields.includes("speech") ? {

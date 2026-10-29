@@ -43,6 +43,12 @@ const AMBIGUOUS_ADULT_TERMS = new Set(["자위", "자지", "보지", "사정"]);
 
 const NEGATIVE_SEE_NEXT = /^(?:않|못|말)/u;
 const NEGATIVE_SEE_EOJEOL = /^(?:보지|보지는|보지도)$/u;
+/** Ordinary circumstance particles on 사정 (`누구의 사정도`). Bare, object, and verbal forms stay adult. */
+const ORDINARY_SAJEONG_EOJEOL = /^사정(?:이|은|는|도|에|과|와|만|으로|로|까지|뿐|처럼|보다|상|없이)$/u;
+
+function isOrdinaryCircumstanceSajeong(eojeol: string): boolean {
+  return ORDINARY_SAJEONG_EOJEOL.test(eojeol);
+}
 
 /** A banned term split only by evasion separators, not by a real eojeol boundary inside a longer word. */
 function termSplitAcrossEojeols(eojeols: readonly string[], term: string): boolean {
@@ -83,6 +89,7 @@ export function findAdultTermsInText(raw: string): string[] {
       const eojeol = eojeols[i] ?? "";
       if (!(ambiguous ? eojeol.startsWith(term) : eojeol.includes(term))) continue;
       if (ambiguous && term === "보지" && NEGATIVE_SEE_EOJEOL.test(eojeol) && NEGATIVE_SEE_NEXT.test(eojeols[i + 1] ?? "")) continue;
+      if (ambiguous && term === "사정" && isOrdinaryCircumstanceSajeong(eojeol)) continue;
       matched = true;
       break;
     }
