@@ -528,5 +528,46 @@
     ],
     "openRelationLine": true,
     "mentionsRofanOnlyVocabulary": false
+  },
+  {
+    "file": "37-g5-modern-comedy-e-world_bible.json",
+    "task": "world_bible",
+    "systemFirstLine": "너는 현대/일상 세계관 아키텍트다.",
+    "systemSha256": "14025c00ef2d023a",
+    "systemChars": 182,
+    "userChars": 2690,
+    "directionLines": [
+      "문체: 경쾌하게 쓴다. 가벼워도 인물의 목표와 대가는 실제로 있어야 한다.",
+      "유머 비중: 핵심. 웃기는 상황과 인물의 행동이 다음 사건을 만든다. 농담으로 목표·약점·대가를 가리지 않고, 그 행동이 이야기를 앞으로 민다."
+    ],
+    "openRelationLine": false,
+    "mentionsRofanOnlyVocabulary": false
+  },
+  {
+    "file": "38-g5-modern-comedy-e-world_bible.json",
+    "task": "world_bible",
+    "systemFirstLine": "너는 현대/일상 세계관 아키텍트다.",
+    "systemSha256": "14025c00ef2d023a",
+    "systemChars": 182,
+    "userChars": 1112,
+    "directionLines": [],
+    "openRelationLine": false,
+    "mentionsRofanOnlyVocabulary": false
+  },
+  {
+    "file": "39-g5-modern-comedy-e-world_bible.json",
+    "task": "world_bible",
+    "systemFirstLine": "너는 현대/일상 세계관 아키텍트다.",
+    "systemSha256": "14025c00ef2d023a",
+    "systemChars": 182,
+    "userChars": 4540,
+    "directionLines": [
+      "문체: 경쾌하게 쓴다. 가벼워도 인물의 목표와 대가는 실제로 있어야 한다.",
+      "유머 비중: 핵심. 웃기는 상황과 인물의 행동이 다음 사건을 만든다. 농담으로 목표·약점·대가를 가리지 않고, 그 행동이 이야기를 앞으로 민다.",
+      "이름 방식: 본명은 namingProfile에 맞추고, 주변이 부르는 별명을 name 필드의 괄호 별칭('본명 (별명)')으로 쓸 수 있다. 별명에는 인물의 행동·사건에서 생긴 이유가 있어야 한다.",
+      "유저와의 관계는 연애로 한정하지 않는다. 로맨스·구원·귀족 구도를 전제로 깔지 않고, 이 장르에서 자연스러운 관계(동료·라이벌·의뢰인·이웃·동행 등)와 사건으로 시작한다. 인물은 유저가 없어도 자기 일과 목표로 움직인다."
+    ],
+    "openRelationLine": true,
+    "mentionsRofanOnlyVocabulary": false
   }
 ]

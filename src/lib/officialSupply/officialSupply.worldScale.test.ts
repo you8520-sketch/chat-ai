@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { buildWorldCoreUser, type WorldBibleInput, type WorldMarketInput } from "@/lib/officialSupply/authorPrompts";
-import { validateWorldBible, type OfficialWorldBible } from "@/lib/officialSupply/bible";
+import { normalizeWorldSocietyField, validateWorldBible, type OfficialWorldBible } from "@/lib/officialSupply/bible";
 import {
   OFFICIAL_MODERN_DAILY_GENRE,
   OFFICIAL_ROFAN_GENRE,
@@ -80,6 +80,17 @@ function minimalWorld(overrides: Partial<OfficialWorldBible> = {}): OfficialWorl
 }
 
 describe("worldScale QA — scene vs full", () => {
+  it("normalizeWorldSocietyField flattens domains[] from provider output", () => {
+    const flat = normalizeWorldSocietyField({
+      domains: [
+        { name: "공용부", detail: "택배와 복도" },
+        { name: "회의", detail: "채팅방" },
+      ],
+    });
+    assert.equal(Object.keys(flat).length, 2);
+    assert.equal(flat["공용부"], "택배와 복도");
+  });
+
   it("scene: one faction passes; zero factions rejected", () => {
     const bible = minimalWorld();
     assert.equal(validateWorldBible(bible, { slots: 0, adultCandidates: 0, worldScale: "scene" }).ok, true);

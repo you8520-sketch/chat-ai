@@ -619,6 +619,30 @@ function nonEmpty(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Flatten provider `society` shapes (string map or `{ domains: [{ name, detail }] }`) for QA. */
+export function normalizeWorldSocietyField(society: unknown): Record<string, string> {
+  if (!isPlainRecord(society)) return {};
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(society)) {
+    if (key === "domains") continue;
+    if (typeof value === "string" && value.trim()) out[key] = value.trim();
+  }
+  const domains = society.domains;
+  if (Array.isArray(domains)) {
+    for (const item of domains) {
+      if (!isPlainRecord(item)) continue;
+      const name = String(item.name ?? "").trim();
+      const detail = String(item.detail ?? item.content ?? "").trim();
+      if (name && detail) out[name] = detail;
+    }
+  }
+  return out;
+}
+
 /** Supernatural / high-power abilities must carry a limit or a cost. */
 const HIGH_POWER_RE = /(마법|마력|주문|축복|저주|신력|성력|정령|소환|예지|회귀|빙의|재생|불사|순간이동|염동력|정신지배|시간|차원|검기|오러|소드마스터|그랜드|아크메이지|드래곤|용언)/;
 

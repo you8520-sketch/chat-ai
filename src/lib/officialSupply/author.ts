@@ -66,6 +66,7 @@ import {
   evaluateVoiceStructureContract,
   NPC_RELATION_REPAIR_SCHEMA,
   validateCharacterBible,
+  normalizeWorldSocietyField,
   validateWorldBible,
   WORLD_BIBLE_SCHEMA,
   type OfficialCharacterBible,
@@ -692,11 +693,7 @@ function coerceWorldBible(
   const powerSystem = isRecord(data.powerSystem) ? data.powerSystem : {};
   const knowledge = isRecord(data.knowledge) ? data.knowledge : {};
   const userEntry = isRecord(data.userEntry) ? data.userEntry : {};
-  const society = isRecord(data.society) ? data.society : {};
-  const societyOut: Record<string, string> = {};
-  for (const [key, value] of Object.entries(society)) {
-    if (typeof value === "string" && value.trim()) societyOut[key] = value;
-  }
+  const societyOut = normalizeWorldSocietyField(data.society);
   const portfolio = coercePortfolioBriefs(data.portfolio, task, opts.slotGenders);
   return {
     name: str("name"),

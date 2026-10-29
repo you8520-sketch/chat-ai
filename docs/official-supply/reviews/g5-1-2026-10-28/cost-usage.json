@@ -1,11 +1,11 @@
 {
-  "gitSha": "2ae3978345a92c95e495dd9063f3f146ea0c612c",
+  "gitSha": "f8551c419a6c120c1ebb08bcb49185c15afe7f32",
   "model": "gpt-6-luna",
   "provider": "cheaper-inference-background",
-  "physicalCalls": 36,
-  "callCap": 37,
-  "billedCostUsdKnownOnly": 0.036811,
-  "billedCostKrwApproxKnownOnly": 55,
+  "physicalCalls": 39,
+  "callCap": 46,
+  "billedCostUsdKnownOnly": 0.038895,
+  "billedCostKrwApproxKnownOnly": 58,
   "unknownCostCallCount": 2,
   "unknownCostCalls": [
     {
@@ -22,10 +22,10 @@
     }
   ],
   "krwPerUsd": 1500,
-  "inputTokens": 114847,
-  "outputTokens": 77961,
+  "inputTokens": 118949,
+  "outputTokens": 83382,
   "outcomes": {
-    "ok": 34,
+    "ok": 37,
     "provider_failed": 2
   },
   "byTask": [
@@ -352,13 +352,40 @@
       "inputTokens": 3132,
       "outputTokens": 557,
       "costUsd": 0.000435
+    },
+    {
+      "call": 37,
+      "specKey": "g5-modern-comedy-e",
+      "task": "world_bible",
+      "outcome": "ok",
+      "inputTokens": 1262,
+      "outputTokens": 3096,
+      "costUsd": 0.001108
+    },
+    {
+      "call": 38,
+      "specKey": "g5-modern-comedy-e",
+      "task": "world_bible",
+      "outcome": "ok",
+      "inputTokens": 596,
+      "outputTokens": 1358,
+      "costUsd": 0.00048
+    },
+    {
+      "call": 39,
+      "specKey": "g5-modern-comedy-e",
+      "task": "world_bible",
+      "outcome": "ok",
+      "inputTokens": 2244,
+      "outputTokens": 967,
+      "costUsd": 0.000496
     }
   ],
   "thisProcessAccounting": {
-    "physicalAttempts": 7,
-    "billedCostUsd": 0.006878999999999999,
+    "physicalAttempts": 3,
+    "billedCostUsd": 0.002084,
     "failedAttempts": 0
   },
-  "runFailure": null,
-  "generatedAt": "2026-10-29T04:09:14.646Z"
+  "runFailure": "g5-modern-comedy-e: world bible failed QA",
+  "generatedAt": "2026-10-29T04:43:37.877Z"
 }

@@ -1,0 +1,13 @@
+{
+  "direction": {
+    "genre": "현대/일상",
+    "tone": "light",
+    "humor": "central",
+    "pacing": "dialogue",
+    "nameWordplay": "nickname"
+  },
+  "profileKey": "genre_neutral",
+  "namingProfile": "korean_modern",
+  "castIntent": "전체 이용자 대상 현대 한국 일상 코미디 캐릭터 1명. 연애 구도 없이 이웃·동료·룸메이트처럼 일상에서 엮이는 관계. 별명이 붙은 인물.",
+  "excludeRomanceLedSignals": true
+}

@@ -167,8 +167,8 @@ export function buildWorldCoreUser(input: WorldBibleInput): string {
       : `- factions ${lim.factions.min}~${lim.factions.max}개: 이름·목적·지도층·수단·타 세력과의 관계·일반인의 시선`;
   const societyLine =
     scale === "scene"
-      ? `- society: 이 사건에 실제로 쓰이는 RP 영역 ${lim.societyAreas.min}개 이상`
-      : `- society: RP에 영향을 주는 영역 ${lim.societyAreas.min}개 이상(계급·법·결혼/가족·교육·직업·군사·차별/예절 중)`;
+      ? `- society: 이 사건에 실제로 쓰이는 RP 영역 ${lim.societyAreas.min}개 이상. 키=영역명·값=설명 문자열(중첩 객체·domains 배열 금지)`
+      : `- society: RP에 영향을 주는 영역 ${lim.societyAreas.min}개 이상(계급·법·결혼/가족·교육·직업·군사·차별/예절 중). 키=영역명·값=설명 문자열`;
   return [
     `장르: ${input.genre}`,
     `대상 시장: ${input.market.targetLocale} (${input.market.marketPriority})`,
