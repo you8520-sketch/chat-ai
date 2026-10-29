@@ -168,13 +168,15 @@
       ],
       "bibleQaOk": true,
       "tagQaOk": true,
-      "draftQaOk": true,
+      "draftQaOk": false,
       "relationQaOk": true,
       "lorebookQaOk": true,
       "bibleQa": [],
       "tagQa": [],
-      "draftQa": [],
-      "draftQaReevalNote": "G5-1G: same draft.compiled.json/text lock; re-run validatePilotDraftForTextLock after characterAdultText 사정을/를 allowlist. G5-1F had draftQaOk false.",
+      "draftQa": [
+        "sfw_public_text_has_adult_terms: all-ages public text contains adult terms"
+      ],
+      "draftQaReevalNote": "G5-1H: reverted G5-1G 사정을/를 allowlist; same draft.compiled.json/text lock re-scanned → draftQaOk false (ordinary 사정은 still clean). G5-1G commit 1428f0c briefly recorded draftQaOk true.",
       "relationQa": [],
       "lorebookQa": [],
       "voiceRepairs": 0,

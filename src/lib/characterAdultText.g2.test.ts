@@ -40,15 +40,8 @@ describe("G3 adult-term boundaries", () => {
   it("allows ordinary 사정 particles and still blocks the adult stem", () => {
     assert.deepEqual(findAdultTermsInText("단, 누구의 사정도 허락 없이 종이에 올리진 않을"), []);
     assert.deepEqual(findAdultTermsInText("사정이 생겨서 자리를 비웠다"), []);
-    for (const text of ["사정", "사정했다", "사 정"]) {
+    for (const text of ["사정", "사정을", "사정했다", "사 정"]) {
       assert.ok(findAdultTermsInText(text).includes("사정"), text);
-    }
-    for (const text of [
-      "사정을 공개하지 않는다",
-      "남의 사정을 함부로 말하지 않는다",
-      "사정을 캐묻거나",
-    ]) {
-      assert.deepEqual(findAdultTermsInText(text), [], text);
     }
     assert.ok(findAdultTermsInText("폰섹스").includes("섹스"));
     const greeting = JSON.parse(
@@ -60,7 +53,7 @@ describe("G3 adult-term boundaries", () => {
     assert.match(greeting, /사정도/);
     assert.deepEqual(findAdultTermsInText(greeting), []);
   });
-  it("saved g5-modern-comedy-e public blob stays clean after ordinary 사정을 allowlist", () => {
+  it("g5-modern-comedy-e stored public blob still flags 사정을 (candidate draft QA, not engine regression)", () => {
     const draft = JSON.parse(
       fs.readFileSync(
         path.join(process.cwd(), "docs/official-supply/reviews/g5-1-2026-10-28/candidates/g5-modern-comedy-e/draft.compiled.json"),
@@ -74,7 +67,8 @@ describe("G3 adult-term boundaries", () => {
       greeting: draft.greeting,
       tags: draft.tags,
     });
-    assert.deepEqual(findAdultTermsInText(blob), []);
+    assert.ok(findAdultTermsInText(blob).includes("사정"));
+    assert.deepEqual(findAdultTermsInText("사정은 묻지 말고"), []);
   });
   it("still catches an unambiguous adult stem inside a compound", () => {
     for (const [text, expected] of [
