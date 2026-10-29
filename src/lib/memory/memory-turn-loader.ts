@@ -151,20 +151,34 @@ export function loadMemoryEligibleChatTurnsWithMessageIdsCore(
   return toMemoryEligibleTurns(loadChatMessageRowsCore(db, chatId), boundary);
 }
 
-type TurnIndexCache = { chatId: number; rows: ChatTurnWithMessageIds[] };
+type TurnIndexCache = {
+  chatId: number;
+  revision: number;
+  rows: ChatTurnWithMessageIds[];
+};
 const turnIndexCaches = new WeakMap<Database.Database, TurnIndexCache>();
+
+/** A write on this connection, including a write to another table, advances this counter. */
+function readConnectionRevision(db: Database.Database): number {
+  const row = db.prepare("SELECT total_changes() AS revision").get() as
+    | { revision?: number | bigint | null }
+    | undefined;
+  const revision = Number(row?.revision ?? 0);
+  return Number.isFinite(revision) ? revision : 0;
+}
 
 function loadMemoryEligibleTurnIndexCore(
   db: Database.Database,
   chatId: number
 ): ChatTurnWithMessageIds[] {
+  const revision = readConnectionRevision(db);
   const cached = turnIndexCaches.get(db);
-  if (cached?.chatId === chatId) return cached.rows;
+  if (cached?.chatId === chatId && cached.revision === revision) return cached.rows;
   const rows = toMemoryEligibleTurns(
     loadChatMessageIndexRowsCore(db, chatId),
     getMemorySourceBoundaryCore(db, chatId)
   );
-  turnIndexCaches.set(db, { chatId, rows });
+  turnIndexCaches.set(db, { chatId, revision, rows });
   queueMicrotask(() => {
     const current = turnIndexCaches.get(db);
     if (current?.chatId === chatId && current.rows === rows) turnIndexCaches.delete(db);
