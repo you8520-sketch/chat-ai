@@ -1,5 +1,5 @@
 {
-  "gitSha": "23317c30a96c3ea821b58c73fddb2fe2eebae564",
+  "gitSha": "2ae3978345a92c95e495dd9063f3f146ea0c612c",
   "candidates": [
     {
       "key": "g5-modern-comedy",
@@ -107,6 +107,47 @@
       "voiceRepairs": 1,
       "userRelationType": "free",
       "textLock": "e8f5fd658d8a198be684bd06af3295f6acaa33d109d61cdfbf3768656440b8db"
+    },
+    {
+      "key": "g5-modern-comedy-d",
+      "name": "오지은 (복사왕)",
+      "genre": "현대/일상",
+      "direction": {
+        "genre": "현대/일상",
+        "tone": "light",
+        "humor": "central",
+        "pacing": "dialogue",
+        "nameWordplay": "nickname"
+      },
+      "briefGate": [
+        {
+          "source": "world_portfolio",
+          "errors": [
+            "cast_royal_density: 4 royal/ducal leads: 카엘룸 폰 에테르노스, 볼프강 폰 발켄하임, 로언, 강나리 (공주님)"
+          ]
+        },
+        {
+          "source": "replacement",
+          "errors": []
+        }
+      ],
+      "bibleQaOk": false,
+      "tagQaOk": true,
+      "draftQaOk": true,
+      "relationQaOk": false,
+      "lorebookQaOk": true,
+      "bibleQa": [
+        "bible_user_rel_free_premise: FREE premise requires a specific user role or a shared past; declare only that fact as ROLE_BOUND or RELATIONSHIP_BOUND, or remove the prerequisite"
+      ],
+      "tagQa": [],
+      "draftQa": [],
+      "relationQa": [
+        "bible_user_rel_free_premise: FREE premise requires a specific user role or a shared past; declare only that fact as ROLE_BOUND or RELATIONSHIP_BOUND, or remove the prerequisite"
+      ],
+      "lorebookQa": [],
+      "voiceRepairs": 0,
+      "userRelationType": "free",
+      "textLock": "63e1f3639a9066bd995593bf6edf6902e9f08cfd938088407f9975b09e856f94"
     }
   ],
   "runFailure": null
