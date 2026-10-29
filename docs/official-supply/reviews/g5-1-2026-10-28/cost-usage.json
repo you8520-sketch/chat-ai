@@ -1,11 +1,11 @@
 {
-  "gitSha": "f8551c419a6c120c1ebb08bcb49185c15afe7f32",
+  "gitSha": "d6fd7ae492bae71991acaa3d0fec126610a03cae",
   "model": "gpt-6-luna",
   "provider": "cheaper-inference-background",
-  "physicalCalls": 39,
+  "physicalCalls": 45,
   "callCap": 46,
-  "billedCostUsdKnownOnly": 0.038895,
-  "billedCostKrwApproxKnownOnly": 58,
+  "billedCostUsdKnownOnly": 0.044032,
+  "billedCostKrwApproxKnownOnly": 66,
   "unknownCostCallCount": 2,
   "unknownCostCalls": [
     {
@@ -22,10 +22,10 @@
     }
   ],
   "krwPerUsd": 1500,
-  "inputTokens": 118949,
-  "outputTokens": 83382,
+  "inputTokens": 134721,
+  "outputTokens": 95288,
   "outcomes": {
-    "ok": 37,
+    "ok": 43,
     "provider_failed": 2
   },
   "byTask": [
@@ -379,13 +379,67 @@
       "inputTokens": 2244,
       "outputTokens": 967,
       "costUsd": 0.000496
+    },
+    {
+      "call": 40,
+      "specKey": "g5-modern-comedy-e",
+      "task": "world_bible",
+      "outcome": "ok",
+      "inputTokens": 1284,
+      "outputTokens": 2801,
+      "costUsd": 0.001014
+    },
+    {
+      "call": 41,
+      "specKey": "g5-modern-comedy-e",
+      "task": "world_bible",
+      "outcome": "ok",
+      "inputTokens": 598,
+      "outputTokens": 1532,
+      "costUsd": 0.000536
+    },
+    {
+      "call": 42,
+      "specKey": "g5-modern-comedy-e",
+      "task": "world_bible",
+      "outcome": "ok",
+      "inputTokens": 2260,
+      "outputTokens": 1044,
+      "costUsd": 0.000522
+    },
+    {
+      "call": 43,
+      "specKey": "g5-modern-comedy-e",
+      "task": "character_bible_1",
+      "outcome": "ok",
+      "inputTokens": 3567,
+      "outputTokens": 2965,
+      "costUsd": 0.001253
+    },
+    {
+      "call": 44,
+      "specKey": "g5-modern-comedy-e",
+      "task": "character_bible_voice",
+      "outcome": "ok",
+      "inputTokens": 4982,
+      "outputTokens": 3117,
+      "costUsd": 0.001417
+    },
+    {
+      "call": 45,
+      "specKey": "g5-modern-comedy-e",
+      "task": "character_bible_bonds",
+      "outcome": "ok",
+      "inputTokens": 3081,
+      "outputTokens": 447,
+      "costUsd": 0.000395
     }
   ],
   "thisProcessAccounting": {
-    "physicalAttempts": 3,
-    "billedCostUsd": 0.002084,
+    "physicalAttempts": 6,
+    "billedCostUsd": 0.005137,
     "failedAttempts": 0
   },
-  "runFailure": "g5-modern-comedy-e: world bible failed QA",
-  "generatedAt": "2026-10-29T04:43:37.877Z"
+  "runFailure": null,
+  "generatedAt": "2026-10-29T04:46:44.299Z"
 }

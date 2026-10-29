@@ -569,5 +569,91 @@
     ],
     "openRelationLine": true,
     "mentionsRofanOnlyVocabulary": false
+  },
+  {
+    "file": "40-g5-modern-comedy-e-world_bible.json",
+    "task": "world_bible",
+    "systemFirstLine": "너는 현대/일상 세계관 아키텍트다.",
+    "systemSha256": "14025c00ef2d023a",
+    "systemChars": 182,
+    "userChars": 2727,
+    "directionLines": [
+      "문체: 경쾌하게 쓴다. 가벼워도 인물의 목표와 대가는 실제로 있어야 한다.",
+      "유머 비중: 핵심. 웃기는 상황과 인물의 행동이 다음 사건을 만든다. 농담으로 목표·약점·대가를 가리지 않고, 그 행동이 이야기를 앞으로 민다."
+    ],
+    "openRelationLine": false,
+    "mentionsRofanOnlyVocabulary": false
+  },
+  {
+    "file": "41-g5-modern-comedy-e-world_bible.json",
+    "task": "world_bible",
+    "systemFirstLine": "너는 현대/일상 세계관 아키텍트다.",
+    "systemSha256": "14025c00ef2d023a",
+    "systemChars": 182,
+    "userChars": 1109,
+    "directionLines": [],
+    "openRelationLine": false,
+    "mentionsRofanOnlyVocabulary": false
+  },
+  {
+    "file": "42-g5-modern-comedy-e-world_bible.json",
+    "task": "world_bible",
+    "systemFirstLine": "너는 현대/일상 세계관 아키텍트다.",
+    "systemSha256": "14025c00ef2d023a",
+    "systemChars": 182,
+    "userChars": 4557,
+    "directionLines": [
+      "문체: 경쾌하게 쓴다. 가벼워도 인물의 목표와 대가는 실제로 있어야 한다.",
+      "유머 비중: 핵심. 웃기는 상황과 인물의 행동이 다음 사건을 만든다. 농담으로 목표·약점·대가를 가리지 않고, 그 행동이 이야기를 앞으로 민다.",
+      "이름 방식: 본명은 namingProfile에 맞추고, 주변이 부르는 별명을 name 필드의 괄호 별칭('본명 (별명)')으로 쓸 수 있다. 별명에는 인물의 행동·사건에서 생긴 이유가 있어야 한다.",
+      "유저와의 관계는 연애로 한정하지 않는다. 로맨스·구원·귀족 구도를 전제로 깔지 않고, 이 장르에서 자연스러운 관계(동료·라이벌·의뢰인·이웃·동행 등)와 사건으로 시작한다. 인물은 유저가 없어도 자기 일과 목표로 움직인다."
+    ],
+    "openRelationLine": true,
+    "mentionsRofanOnlyVocabulary": false
+  },
+  {
+    "file": "43-g5-modern-comedy-e-character_bible_1.json",
+    "task": "character_bible_1",
+    "systemFirstLine": "너는 현대/일상 캐릭터 작가다. 플레이어블 캐릭터 바이블의 전반부(정체·외형·성격·과거·능력·일상·상황)를 쓴다.",
+    "systemSha256": "42133c2c2e2326ac",
+    "systemChars": 2390,
+    "userChars": 4201,
+    "directionLines": [
+      "문체: 경쾌하게 쓴다. 가벼워도 인물의 목표와 대가는 실제로 있어야 한다.",
+      "유머 비중: 핵심. 웃기는 상황과 인물의 행동이 다음 사건을 만든다. 농담으로 목표·약점·대가를 가리지 않고, 그 행동이 이야기를 앞으로 민다.",
+      "유저와의 관계는 연애로 한정하지 않는다. 로맨스·구원·귀족 구도를 전제로 깔지 않고, 이 장르에서 자연스러운 관계(동료·라이벌·의뢰인·이웃·동행 등)와 사건으로 시작한다. 인물은 유저가 없어도 자기 일과 목표로 움직인다."
+    ],
+    "openRelationLine": true,
+    "mentionsRofanOnlyVocabulary": false
+  },
+  {
+    "file": "44-g5-modern-comedy-e-character_bible_voice.json",
+    "task": "character_bible_voice",
+    "systemFirstLine": "너는 롤플레잉 말투·오프닝의 장인이다. 캐릭터 바이블의 목소리 부분(말투·규칙·그리팅·공개 프로필·NPC)만 쓴다.",
+    "systemSha256": "a0bac6d6d927a376",
+    "systemChars": 2369,
+    "userChars": 6114,
+    "directionLines": [
+      "문체: 경쾌하게 쓴다. 가벼워도 인물의 목표와 대가는 실제로 있어야 한다.",
+      "유머 비중: 핵심. 웃기는 상황과 인물의 행동이 다음 사건을 만든다. 농담으로 목표·약점·대가를 가리지 않고, 그 행동이 이야기를 앞으로 민다.",
+      "전개 비중: 대사 중심. 오프닝과 말투 예시에서 대사 비중을 높이고 서술은 짧게 유지한다(길이 band·따옴표 규칙은 그대로).",
+      "유저와의 관계는 연애로 한정하지 않는다. 로맨스·구원·귀족 구도를 전제로 깔지 않고, 이 장르에서 자연스러운 관계(동료·라이벌·의뢰인·이웃·동행 등)와 사건으로 시작한다. 인물은 유저가 없어도 자기 일과 목표로 움직인다."
+    ],
+    "openRelationLine": true,
+    "mentionsRofanOnlyVocabulary": false
+  },
+  {
+    "file": "45-g5-modern-comedy-e-character_bible_bonds.json",
+    "task": "character_bible_bonds",
+    "systemFirstLine": "너는 롤플레잉 관계·갈등 설계자다. 캐릭터 바이블의 유대 부분(관계·비밀·RP 엔진·성인)만 쓴다.",
+    "systemSha256": "a4e51c4953fe5ede",
+    "systemChars": 1958,
+    "userChars": 3698,
+    "directionLines": [
+      "문체: 경쾌하게 쓴다. 가벼워도 인물의 목표와 대가는 실제로 있어야 한다.",
+      "유저와의 관계는 연애로 한정하지 않는다. 로맨스·구원·귀족 구도를 전제로 깔지 않고, 이 장르에서 자연스러운 관계(동료·라이벌·의뢰인·이웃·동행 등)와 사건으로 시작한다. 인물은 유저가 없어도 자기 일과 목표로 움직인다."
+    ],
+    "openRelationLine": true,
+    "mentionsRofanOnlyVocabulary": false
   }
 ]

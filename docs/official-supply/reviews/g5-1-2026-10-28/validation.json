@@ -1,5 +1,5 @@
 {
-  "gitSha": "f8551c419a6c120c1ebb08bcb49185c15afe7f32",
+  "gitSha": "d6fd7ae492bae71991acaa3d0fec126610a03cae",
   "candidates": [
     {
       "key": "g5-modern-comedy",
@@ -148,7 +148,40 @@
       "voiceRepairs": 0,
       "userRelationType": "free",
       "textLock": "63e1f3639a9066bd995593bf6edf6902e9f08cfd938088407f9975b09e856f94"
+    },
+    {
+      "key": "g5-modern-comedy-e",
+      "name": "박은지 (수도반장)",
+      "genre": "현대/일상",
+      "direction": {
+        "genre": "현대/일상",
+        "tone": "light",
+        "humor": "central",
+        "pacing": "dialogue",
+        "nameWordplay": "nickname"
+      },
+      "briefGate": [
+        {
+          "source": "world_portfolio",
+          "errors": []
+        }
+      ],
+      "bibleQaOk": true,
+      "tagQaOk": true,
+      "draftQaOk": false,
+      "relationQaOk": true,
+      "lorebookQaOk": true,
+      "bibleQa": [],
+      "tagQa": [],
+      "draftQa": [
+        "sfw_public_text_has_adult_terms: all-ages public text contains adult terms"
+      ],
+      "relationQa": [],
+      "lorebookQa": [],
+      "voiceRepairs": 0,
+      "userRelationType": "free",
+      "textLock": "aa9ca09bf4a2490fcc54655a26550179145d322067d2c6563df0bb160d1f6926"
     }
   ],
-  "runFailure": "g5-modern-comedy-e: world bible failed QA"
+  "runFailure": null
 }
