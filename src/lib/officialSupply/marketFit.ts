@@ -325,6 +325,13 @@ export function evaluatePublicHook(
 // ── Discovery tags ──────────────────────────────────────────────────────────
 
 const GENRE_TAG_WORDS = new Set(["로맨스", "로판", "판타지", "궁정극", "궁정", "군사", "미스터리", "스릴러", "성인"]);
+/**
+ * A tag that names the selected canonical genre. Absent genres keep the
+ * bible/trope/GENRE_TAG_WORDS checks; this is not a global genre allowlist.
+ */
+const SELECTED_GENRE_TAG_EXPRESSIONS: Readonly<Record<string, readonly string[]>> = {
+  "현대/일상": ["현대 일상극", "현대일상극", "현대/일상"],
+};
 /** Too generic to ground a tag on their own ("잔잔한 관계" must be grounded by 잔잔). */
 const TAG_FILLER_WORDS = new Set(["관계", "이야기", "감정", "사람", "분위기", "느낌"]);
 const ADJECTIVE_SUFFIX_RE = /(스러운|스럽게|하게|하는|하다|적인|한|히|적)$/;
@@ -347,8 +354,26 @@ function tokenMatches(token: string, pool: Set<string>): boolean {
   return false;
 }
 
-/** Tag grounded in the bible text, a matching domestic trope, or genre vocabulary. */
-export function isTagGrounded(tag: string, bibleStems: Set<string>, bibleText: string): boolean {
+function compactGenreTag(value: string): string {
+  return value.replace(/[\s·]+/g, "").trim();
+}
+
+function isSelectedGenreExpression(tag: string, genre: string | undefined): boolean {
+  if (!genre) return false;
+  const expressions = SELECTED_GENRE_TAG_EXPRESSIONS[genre];
+  if (!expressions) return false;
+  const compact = compactGenreTag(tag);
+  return expressions.some((expression) => compactGenreTag(expression) === compact);
+}
+
+/** Tag grounded in the bible text, a matching domestic trope, genre vocabulary, or the selected genre's own name. */
+export function isTagGrounded(
+  tag: string,
+  bibleStems: Set<string>,
+  bibleText: string,
+  genre?: string
+): boolean {
+  if (isSelectedGenreExpression(tag, genre)) return true;
   const tokens = [...tagStems(tag)].filter((t) => !TAG_FILLER_WORDS.has(t));
   if (tokens.length === 0) return false;
   const tropes = detectDomesticTropes(tag);
@@ -367,7 +392,7 @@ export type DiscoveryTagHook = { archetype: string; relationshipTrope: string; r
 
 /** Tags must be supported by the character sheet: the bible plus its compiled canonical hook. */
 export function evaluateDiscoveryTags(
-  input: { tags: readonly string[]; bible: OfficialCharacterBible; hook?: DiscoveryTagHook },
+  input: { tags: readonly string[]; bible: OfficialCharacterBible; hook?: DiscoveryTagHook; genre?: string },
   policy: Pick<OfficialBatchMarketPolicy, "coreTags">
 ): QaResult {
   const errors: QaIssue[] = [];
@@ -382,7 +407,7 @@ export function evaluateDiscoveryTags(
     warnings.push({ code: "tags_core_count", message: `${n} tags outside ${policy.coreTags.min}-${policy.coreTags.max}` });
   }
   for (const tag of input.tags) {
-    if (!isTagGrounded(tag, tokens, text)) {
+    if (!isTagGrounded(tag, tokens, text, input.genre)) {
       errors.push({ code: "tag_bible_mismatch", message: `tag "${tag}" is not supported by the Character Bible` });
     }
   }
@@ -1071,7 +1096,7 @@ export function buildDomesticMarketFitReview(input: {
     const bible = c.bible;
     const tags = bible.publicProfile.tags;
     for (const tag of tags) tagHolders.set(tag, [...(tagHolders.get(tag) ?? []), c.draftKey]);
-    const tagQa = evaluateDiscoveryTags({ tags, bible, hook: c.brief }, policy);
+    const tagQa = evaluateDiscoveryTags({ tags, bible, hook: c.brief, genre: input.genre }, policy);
     const hookQa = evaluatePublicHook(
       { tagline: bible.publicProfile.tagline, description: bible.publicProfile.description, worldTerms: terms },
       policy

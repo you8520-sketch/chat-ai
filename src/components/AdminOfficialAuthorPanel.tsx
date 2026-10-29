@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import CreatorCommentHtml from "@/components/CreatorCommentHtml";
 import { CHARACTER_GENRES } from "@/lib/characterGenres";
 import { GENDER_LABELS, type CharacterGender } from "@/lib/characterGender";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
@@ -361,9 +362,12 @@ export default function AdminOfficialAuthorPanel({
             </p>
           ) : null}
           {preview.creatorComment ? (
-            <p className="whitespace-pre-wrap text-zinc-300" data-testid="admin-author-rejected-comment">
-              {preview.creatorComment}
-            </p>
+            <div data-testid="admin-author-creator-comment">
+              <p className="font-semibold text-zinc-200">제작자 코멘트</p>
+              <div data-testid="admin-author-rejected-comment">
+                <CreatorCommentHtml html={preview.creatorComment} className="text-zinc-300" />
+              </div>
+            </div>
           ) : null}
         </div>
       ) : null}

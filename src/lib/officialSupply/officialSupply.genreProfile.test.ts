@@ -27,6 +27,7 @@ import type { OfficialWorldBible } from "@/lib/officialSupply/bible";
 import {
   OFFICIAL_ROFAN_GENRE,
   ROFAN_PARITY_PLAN,
+  recommendOfficialAuthoringDirection,
   resolveOfficialAuthoringPlan,
   resolveOfficialGenreProfile,
   type OfficialAuthoringDirection,
@@ -282,6 +283,13 @@ describe("genre profile owner — genre-generic composition", () => {
     assert.match(school.voiceUser, /대사 중심/);
     assert.match(horror.voiceUser, /서술 중심/);
     assert.ok(!/전개 비중/.test(rofan.voiceUser));
+
+    const modern = compose(resolveOfficialAuthoringPlan(recommendOfficialAuthoringDirection("현대/일상")));
+    assert.match(modern.voiceUser, /문체: 경쾌하게/);
+    assert.match(modern.voiceUser, /유머 비중: 핵심/);
+    assert.match(modern.voiceUser, /전개 비중: 대사 중심/);
+    assert.ok(!modern.voiceUser.includes("이름 방식"));
+    assert.match(modern.worldPortfolio, /별명을 name 필드의 괄호 별칭/);
 
     assert.match(school.worldPortfolio, /별명을 name 필드의 괄호 별칭/);
     assert.match(horror.worldPortfolio, /이름 자체를 말장난으로/);

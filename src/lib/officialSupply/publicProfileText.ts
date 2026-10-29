@@ -337,28 +337,163 @@ export function officialCharacterPronounDirective(gender: "male" | "female" | "o
   }
 }
 
+const MALE_PERSON_TITLES = ["시아버지", "아버지", "아빠", "할아버지", "아저씨", "남동생", "오빠", "삼촌", "장인", "아들", "형", "남성", "남자"] as const;
+const FEMALE_PERSON_TITLES = ["시어머니", "아주머니", "할머니", "어머니", "여동생", "엄마", "고모", "이모", "언니", "누나", "딸", "여성", "여자"] as const;
+const TWO_SYLLABLE_SURNAMES = ["남궁", "황보", "제갈", "선우", "독고", "사공", "서문"] as const;
+const PRONOUN_SUBJECT_STOP = new Set([
+  "이것", "그것", "저것", "여기", "거기", "우리", "저희", "무엇", "아무", "누구",
+  "누군가", "무엇인가", "이것이", "그것이", "저것이", "무엇이",
+  "사람", "상대", "오늘", "어제", "지금", "그때", "이번", "다음", "자신", "자기",
+  "그녀", "당신", "유저", "플레이어",
+]);
+/** Adnominal or case endings that only look like a topic particle (`어울리는`, `손에는`, `자리에서는`). */
+const PRONOUN_SUBJECT_VERBISH = /(?:하|되|리|기|려|에|에서|에게|한테|으로)$/u;
+
+type ReferentGender = "male" | "female";
+
+function protagonistNameSet(name: string | undefined): Set<string> {
+  const names = new Set<string>();
+  const base = (name ?? "").replace(/[("'“‘][^)"'”’]*[)"'”’]/g, "").trim().split(/\s+/)[0] ?? "";
+  if (!base) return names;
+  names.add(base);
+  if (!/^[가-힣]{3,4}$/.test(base)) return names;
+  const surname = TWO_SYLLABLE_SURNAMES.find((item) => base.startsWith(item) && base.length > item.length);
+  const given = surname ? base.slice(surname.length) : base.length === 3 ? base.slice(1) : "";
+  if (given.length >= 2) names.add(given);
+  return names;
+}
+
+function bindTitledPeople(text: string): Map<string, ReferentGender> {
+  const bound = new Map<string, ReferentGender>();
+  const titles = [
+    ...MALE_PERSON_TITLES.map((title) => [title, "male"] as const),
+    ...FEMALE_PERSON_TITLES.map((title) => [title, "female"] as const),
+  ].sort((a, b) => b[0].length - a[0].length);
+  for (const [title, personGender] of titles) {
+    const re = new RegExp(
+      `(?<![가-힣])${title}(?:인\\s+|\\s+)([가-힣]{2,4}?)(?=(?:은|는|이|가|의|을|를|와|과|도|만|께|에게|께서|님)?(?:\\s|$|[^가-힣]))`,
+      "gu"
+    );
+    for (const match of text.matchAll(re)) {
+      const person = match[1] ?? "";
+      if (!person || PRONOUN_SUBJECT_STOP.has(person)) continue;
+      bound.set(person, personGender);
+    }
+  }
+  return bound;
+}
+
+type PronounAntecedent =
+  | { kind: "protagonist" }
+  | { kind: "other"; gender: ReferentGender | "unknown" };
+
+function nearestPersonAntecedent(
+  textBefore: string,
+  protagonists: Set<string>,
+  titled: Map<string, ReferentGender>
+): PronounAntecedent | null {
+  const re = /(?:^|[^가-힣])([가-힣]{2,4})(은|는|이|가)(?![가-힣])/gu;
+  let last: PronounAntecedent | null = null;
+  for (const match of textBefore.matchAll(re)) {
+    const token = match[1] ?? "";
+    const particle = match[2] ?? "";
+    if (!token || PRONOUN_SUBJECT_STOP.has(token) || PRONOUN_SUBJECT_STOP.has(`${token}${particle}`)) continue;
+    const protagonist = protagonists.has(token);
+    const known = titled.get(token);
+    if (!protagonist && !known) {
+      if (particle === "이" || particle === "가") continue;
+      if (PRONOUN_SUBJECT_VERBISH.test(token)) continue;
+    }
+    if (protagonist) {
+      last = { kind: "protagonist" };
+      continue;
+    }
+    if (known) {
+      last = { kind: "other", gender: known };
+      continue;
+    }
+    last = { kind: "other", gender: "unknown" };
+  }
+  return last;
+}
+
+function pronounExcerpt(text: string, index: number): string {
+  const breaks: number[] = [];
+  for (let i = index - 1; i >= 0; i -= 1) {
+    const char = text[i] ?? "";
+    if (/[.!?。\n]/u.test(char)) {
+      breaks.push(i);
+      if (breaks.length >= 2) break;
+    }
+  }
+  const previousBreak = breaks[1];
+  const start = previousBreak == null ? 0 : previousBreak + 1;
+  let end = text.length;
+  for (let i = index; i < text.length; i += 1) {
+    const char = text[i] ?? "";
+    if (/[.!?。\n]/u.test(char)) {
+      end = i;
+      break;
+    }
+  }
+  return text.slice(start, end).replace(/\s+/g, " ").trim().slice(0, 80);
+}
+
 /**
- * Pitch and detailed public description only. `그는`/`그가` on a female character,
- * or `그녀` on a male character. `그를`/`그의` and greeting/hidden text stay out:
- * they often name someone else.
+ * Pitch and detailed public description only. A mismatched `그는`/`그가` or `그녀`
+ * blocks when it continues the protagonist, or when no other person is in scope.
+ * A titled other person (아버지 태식) may keep the pronoun. An unnamed competing
+ * subject is reported separately and does not use the clear-violation code.
+ * `그를`/`그의` and greeting/hidden text stay out: they often name someone else.
  */
 export function evaluateOfficialCharacterPronoun(
   gender: string | undefined,
-  surfaces: { description?: string }
+  surfaces: { description?: string; name?: string }
 ): QaResult {
-  const text = (surfaces.description ?? "").replace(/\s+/g, " ").trim();
+  const text = (surfaces.description ?? "").replace(/[ \t]+/g, " ").trim();
   const errors: QaIssue[] = [];
   if (!text || (gender !== "female" && gender !== "male")) return qaResult(errors);
-  if (gender === "female" && /그(?:는|가)(?!녀)/u.test(text)) {
+  const protagonists = protagonistNameSet(surfaces.name);
+  const re = gender === "female" ? /그(?:는|가)(?!녀)/gu : /그녀/gu;
+  if (protagonists.size === 0) {
+    if (re.test(text)) {
+      errors.push({
+        code: "official_character_pronoun",
+        message:
+          gender === "female"
+            ? "public description refers to a female character as 그는 or 그가"
+            : "public description refers to a male character as 그녀",
+      });
+    }
+    return qaResult(errors);
+  }
+  const titled = bindTitledPeople(text);
+  const pronounGender: ReferentGender = gender === "female" ? "male" : "female";
+  let clear = false;
+  let uncertainExcerpt = "";
+  for (const match of text.matchAll(re)) {
+    const index = match.index ?? 0;
+    const antecedent = nearestPersonAntecedent(text.slice(0, index), protagonists, titled);
+    if (!antecedent || antecedent.kind === "protagonist") {
+      clear = true;
+      continue;
+    }
+    if (antecedent.gender === pronounGender) continue;
+    if (!uncertainExcerpt) uncertainExcerpt = pronounExcerpt(text, index);
+  }
+  if (clear) {
     errors.push({
       code: "official_character_pronoun",
-      message: "public description refers to a female character as 그는 or 그가",
+      message:
+        gender === "female"
+          ? "public description refers to a female character as 그는 or 그가"
+          : "public description refers to a male character as 그녀",
     });
   }
-  if (gender === "male" && /그녀/u.test(text)) {
+  if (uncertainExcerpt) {
     errors.push({
-      code: "official_character_pronoun",
-      message: "public description refers to a male character as 그녀",
+      code: "official_character_pronoun_uncertain",
+      message: `public pronoun referent is uncertain: ${uncertainExcerpt}`,
     });
   }
   return qaResult(errors);

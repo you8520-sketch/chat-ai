@@ -311,10 +311,44 @@ describe("official detailed intro + creator comment", () => {
         "utf8"
       )
     ) as OfficialCharacterBible;
-    const flagged = evaluateOfficialCharacterPronoun(choi.identity.gender, {
-      description: [choi.publicProfile.description, choi.publicProfile.detailedDescription ?? ""].join("\n"),
-    });
+    const choiDescription = [choi.publicProfile.description, choi.publicProfile.detailedDescription ?? ""].join("\n");
+    const flagged = evaluateOfficialCharacterPronoun(choi.identity.gender, { description: choiDescription });
     assert.deepEqual(flagged.errors.map((e) => e.code), ["official_character_pronoun"]);
+    const flaggedWithName = evaluateOfficialCharacterPronoun(choi.identity.gender, {
+      name: choi.identity.name,
+      description: choiDescription,
+    });
+    assert.deepEqual(flaggedWithName.errors.map((e) => e.code), ["official_character_pronoun"]);
+  });
+
+  it("lets 박서윤's 그는 refer to 태식 and still blocks a clear protagonist mismatch", () => {
+    const description = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/officialSupply/fixtures/g5-3f-park-seoyoon-public-description.txt"),
+      "utf8"
+    );
+    const passed = evaluateOfficialCharacterPronoun("female", { name: "박서윤", description });
+    assert.deepEqual(passed.errors, []);
+    const clearFemale = evaluateOfficialCharacterPronoun("female", {
+      name: "박서윤",
+      description: "박서윤은 장부를 펼쳤다. 그는 주민들의 영수증을 읽는다.",
+    });
+    assert.deepEqual(clearFemale.errors.map((issue) => issue.code), ["official_character_pronoun"]);
+    const clearMale = evaluateOfficialCharacterPronoun("male", {
+      name: "김도윤",
+      description: "김도윤은 장부를 덮었다. 그녀는 한숨을 쉬었다.",
+    });
+    assert.deepEqual(clearMale.errors.map((issue) => issue.code), ["official_character_pronoun"]);
+    const otherWoman = evaluateOfficialCharacterPronoun("male", {
+      name: "김도윤",
+      description: "어머니 한영은 주방을 닦았다. 그녀는 행주를 접었다.",
+    });
+    assert.deepEqual(otherWoman.errors, []);
+    const uncertain = evaluateOfficialCharacterPronoun("female", {
+      name: "박서윤",
+      description: "민수는 영수증을 들고 왔다. 그는 숫자를 읽었다.",
+    });
+    assert.deepEqual(uncertain.errors.map((issue) => issue.code), ["official_character_pronoun_uncertain"]);
+    assert.match(uncertain.errors[0]?.message ?? "", /민수는 영수증을 들고 왔다/);
   });
 
   it("form body keeps the compiled intro and adds creator_comment without changing publish owner", () => {

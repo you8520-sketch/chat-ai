@@ -411,6 +411,20 @@ describe("public hook + discovery tags", () => {
     assert.deepEqual(evaluateDiscoveryTags({ tags: ["금단", "순애"], bible: base, hook }, POLICY).errors, []);
   });
 
+  it("selected 현대/일상 accepts 현대 일상극 and still rejects an unrelated tag", () => {
+    const sheet = { publicProfile: { tagline: "", description: "", tags: [] } } as OfficialCharacterBible;
+    const allowed = evaluateDiscoveryTags({ tags: ["현대 일상극"], bible: sheet, genre: "현대/일상" }, POLICY);
+    assert.deepEqual(allowed.errors, []);
+    const missingGenre = evaluateDiscoveryTags({ tags: ["현대 일상극"], bible: sheet }, POLICY);
+    assert.ok(missingGenre.errors.some((issue) => issue.code === "tag_bible_mismatch" && issue.message.includes("현대 일상극")));
+    const otherGenre = evaluateDiscoveryTags({ tags: ["현대 일상극"], bible: sheet, genre: "로맨스 판타지" }, POLICY);
+    assert.ok(otherGenre.errors.some((issue) => issue.message.includes("현대 일상극")));
+    const unrelated = evaluateDiscoveryTags({ tags: ["현대 일상극", "우주 해적"], bible: sheet, genre: "현대/일상" }, POLICY);
+    assert.deepEqual(unrelated.errors.map((issue) => issue.message), ['tag "우주 해적" is not supported by the Character Bible']);
+    assert.deepEqual(evaluateDiscoveryTags({ tags: ["로판"], bible: sheet }, POLICY).errors, []);
+    assert.deepEqual(evaluateDiscoveryTags({ tags: ["일상극"], bible: sheet, genre: "현대/일상" }, POLICY).errors.map((issue) => issue.code), ["tag_bible_mismatch"]);
+  });
+
   it("8. tags must be supported by the bible; keyword stuffing fails", () => {
     assert.deepEqual(evaluateDiscoveryTags({ tags: base.publicProfile.tags, bible: base, hook: baseChar.brief }, POLICY).errors, []);
     const off = evaluateDiscoveryTags({ tags: [...base.publicProfile.tags.slice(0, 2), "아이돌", "오메가버스"], bible: base }, POLICY);

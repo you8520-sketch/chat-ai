@@ -398,6 +398,7 @@ describe("G5-2 admin private draft save", () => {
     if (!preview.ok) return;
     assert.equal(preview.manuscript.name, pack.draft.name);
     assert.equal(preview.manuscript.greeting, pack.draft.greeting);
+    assert.equal(preview.creatorComment, pack.draft.creatorComment);
     if (!preview.qaOk) {
       const blocked = await saveHeldAdminAuthorPreview(ADMIN, preview.previewId);
       assert.equal(blocked.ok, false);
