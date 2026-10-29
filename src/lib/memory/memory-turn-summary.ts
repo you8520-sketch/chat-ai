@@ -12,6 +12,7 @@ import {
   type BranchControlSource,
 } from "./memory-branch-control";
 import { loadMemoryEligibleChatTurnsWithMessageIds } from "./memory-turn-loader";
+import { reconcileSummaryItemRoles } from "./memory-summary-integrity";
 import {
   adoptPostManualEditToMain,
   encodeScopePayload,
@@ -181,6 +182,100 @@ export function resolvePromptInjectibleMemoryRecordBody(record: MemoryRecordView
     return record.summary.trim();
   }
   return "";
+}
+
+const SUMMARY_ITEM_ROLE_HINT = /계속\s*소유|끼워|끼웠/u;
+
+export type SummaryRoleTurn = {
+  turnNumber: number;
+  user: string;
+  assistant: string;
+};
+
+function formatTurnsForItemRoleReconciliation(turns: readonly SummaryRoleTurn[]): string {
+  return turns
+    .map((turn) => `[${turn.turnNumber}턴]\n유저: ${turn.user}\n캐릭터: ${turn.assistant}`)
+    .join("\n\n");
+}
+
+/**
+ * Read-time correction for a sealed summary body. Stored rows stay unchanged.
+ * User-edited text is returned as saved.
+ */
+export function reconcilePromptMemoryRecordBody(
+  record: Pick<MemoryRecordView, "userEdited" | "inactive" | "turnStart" | "turnEnd">,
+  body: string,
+  turns: readonly SummaryRoleTurn[]
+): string {
+  if (record.userEdited || record.inactive || !body.trim()) return body;
+  if (!SUMMARY_ITEM_ROLE_HINT.test(body)) return body;
+  const dialogue = formatTurnsForItemRoleReconciliation(
+    turns.filter(
+      (turn) => turn.turnNumber >= record.turnStart && turn.turnNumber <= record.turnEnd
+    )
+  );
+  if (!dialogue) return body;
+  return reconcileSummaryItemRoles(body, dialogue).text;
+}
+
+/** Loads source turns only when a body can contain an item-role contradiction. */
+export function loadTurnsForSummaryRoleReconciliation(
+  chatId: number,
+  bodies: readonly string[]
+): SummaryRoleTurn[] {
+  if (!bodies.some((body) => SUMMARY_ITEM_ROLE_HINT.test(body))) return [];
+  try {
+    return loadMemoryEligibleChatTurnsWithMessageIds(chatId);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Prompt-visible lorebook / compact text. Block headers keep each batch on its own source turns.
+ * Prose without headers is reconciled once against the whole dialogue, and skipped when that
+ * prose still contains a user-edited record verbatim.
+ */
+export function reconcilePromptVisibleSummaryText(chatId: number, text: string): string {
+  if (!text.trim() || !SUMMARY_ITEM_ROLE_HINT.test(text)) return text;
+  let records: MemoryRecordView[] = [];
+  try {
+    records = listMemoryRecordsForChat(chatId);
+  } catch {
+    return text;
+  }
+  const turns = loadTurnsForSummaryRoleReconciliation(chatId, [text]);
+  if (turns.length === 0) return text;
+
+  let matchedBlock = false;
+  const withBlocks = text.replace(
+    /\[(\d+)~(\d+)턴\] ([^\n]+)/g,
+    (full, startText: string, endText: string, body: string) => {
+      matchedBlock = true;
+      const turnStart = Number(startText);
+      const turnEnd = Number(endText);
+      const record = records.find(
+        (row) => row.turnStart === turnStart && row.turnEnd === turnEnd
+      );
+      if (record?.userEdited || record?.inactive) return full;
+      const reconciled = reconcilePromptMemoryRecordBody(
+        { userEdited: false, inactive: false, turnStart, turnEnd },
+        body,
+        turns
+      );
+      return reconciled === body ? full : `[${startText}~${endText}턴] ${reconciled}`;
+    }
+  );
+  if (matchedBlock) return withBlocks;
+
+  if (
+    records.some(
+      (record) => record.userEdited && record.summary.trim() && text.includes(record.summary.trim())
+    )
+  ) {
+    return text;
+  }
+  return reconcileSummaryItemRoles(text, formatTurnsForItemRoleReconciliation(turns)).text;
 }
 
 export type ManualGlobalMediumDelivery = {

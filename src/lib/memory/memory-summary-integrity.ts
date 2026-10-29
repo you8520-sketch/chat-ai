@@ -373,6 +373,162 @@ export function isRollingSummaryGroundedInDialogue(
   return true;
 }
 
+const SUMMARY_ITEM_PERSON = "([가-힣A-Za-z][가-힣A-Za-z0-9]{0,11})";
+const SUMMARY_SELF_WEAR_RE = new RegExp(
+  `${SUMMARY_ITEM_PERSON}(?:는|이|가)\\s[^\\n.]{0,80}?자신의\\s[^\\n.]{0,48}?(?:손가락|약지|손목|목)[^\\n.]{0,24}?(?:끼워|끼웠|착용)`,
+  "gu"
+);
+const SUMMARY_LATER_MADE_WEAR_RE = new RegExp(
+  `${SUMMARY_ITEM_PERSON}의\\s(?:손가락|약지|손목|목)에는[^\\n.]{0,80}?직접\\s*만든[^\\n.]{0,32}`,
+  "gu"
+);
+const SUMMARY_CONTINUED_OWNER_RE = new RegExp(
+  `${SUMMARY_ITEM_PERSON}(?:는|이|가)\\s계속\\s소유(?:한\\s채)?`,
+  "u"
+);
+const SUMMARY_ITEM_TOKEN_STOP = new Set([
+  "자신",
+  "자신의",
+  "왼쪽",
+  "오른쪽",
+  "번째",
+  "손가락",
+  "약지",
+  "손목",
+  "계속",
+  "소유",
+  "직접",
+  "만든",
+  "착용",
+  "착용분",
+  "원문",
+  "확정",
+  "같은",
+  "이후",
+  "몸에",
+  "물건",
+]);
+
+export type SummaryItemRoleReconciliation = {
+  text: string;
+  changed: boolean;
+  reason: "unchanged" | "ambiguous_wear_clarified" | "continued_owner_contradicts_self_wear";
+};
+
+function lastPatternMatch(pattern: RegExp, text: string): RegExpExecArray | null {
+  pattern.lastIndex = 0;
+  let last: RegExpExecArray | null = null;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(text))) last = match;
+  pattern.lastIndex = 0;
+  return last;
+}
+
+function summaryItemTokens(text: string): Set<string> {
+  const tokens = new Set<string>();
+  for (const raw of text.match(/[가-힣]{2,}/g) ?? []) {
+    const token = raw.replace(
+      /(?:으로|에서|에게|부터|까지|처럼|은|는|이|가|을|를|에|와|과|도|만)$/u,
+      ""
+    );
+    if (token.length < 2 || SUMMARY_ITEM_TOKEN_STOP.has(token)) continue;
+    tokens.add(token);
+  }
+  return tokens;
+}
+
+function summarySharesItem(left: string, right: string, people: readonly string[]): boolean {
+  const excluded = new Set(people);
+  const rightTokens = summaryItemTokens(right);
+  for (const token of summaryItemTokens(left)) {
+    if (excluded.has(token)) continue;
+    if (rightTokens.has(token)) return true;
+  }
+  return false;
+}
+
+function escapeSummaryName(name: string): string {
+  return name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Rolling-summary owner for giver / wearer / current-owner contradictions.
+ * A source self-wear ("자신의 손가락에 끼워") beats a summary that keeps the
+ * item with someone else. A later "직접 만든" wear stays a different, unconfirmed object.
+ */
+export function reconcileSummaryItemRoles(
+  summary: string,
+  sourceDialogue: string
+): SummaryItemRoleReconciliation {
+  const wear = lastPatternMatch(SUMMARY_SELF_WEAR_RE, sourceDialogue);
+  if (!wear) return { text: summary, changed: false, reason: "unchanged" };
+  const wearer = wear[1] ?? "";
+  const wearSentence = wear[0] ?? "";
+  if (!wearer || !wearSentence) return { text: summary, changed: false, reason: "unchanged" };
+
+  const later = lastPatternMatch(SUMMARY_LATER_MADE_WEAR_RE, sourceDialogue);
+  const laterPerson = later?.[1] ?? "";
+  const laterSentence = later?.[0] ?? "";
+  const laterIsOther =
+    laterPerson.length > 0 &&
+    laterPerson !== wearer &&
+    summarySharesItem(wearSentence, laterSentence, [wearer, laterPerson]);
+
+  let text = summary;
+  let clarified = false;
+  const clarify = new RegExp(
+    `(${escapeSummaryName(wearer)}(?:는|이|가)\\s[^\\n.]{0,32}?)끼(워|웠)`,
+    "gu"
+  );
+  text = text.replace(clarify, (full, prefix: string, ending: string) => {
+    if (prefix.includes("자신") || prefix.includes("손가락") || prefix.includes("약지")) return full;
+    if (!summarySharesItem(wearSentence, `${prefix}끼${ending}`, [wearer])) return full;
+    clarified = true;
+    return `${prefix}자신의 몸에 끼${ending}`;
+  });
+
+  const replacement = laterIsOther
+    ? `${wearer}가 자신의 몸에 착용함. 이후 ${laterPerson}의 직접 만든 착용분이 같은 물건인지는 원문이 확정하지 않음`
+    : `${wearer}가 자신의 몸에 착용함`;
+  let searchFrom = 0;
+  let replacedOwner = false;
+  while (searchFrom < text.length) {
+    SUMMARY_CONTINUED_OWNER_RE.lastIndex = 0;
+    const owner = SUMMARY_CONTINUED_OWNER_RE.exec(text.slice(searchFrom));
+    if (!owner || owner.index == null) break;
+    const ownerStart = searchFrom + owner.index;
+    const ownerName = owner[1] ?? "";
+    const nextFrom = ownerStart + owner[0].length;
+    if (!ownerName || ownerName === wearer) {
+      searchFrom = nextFrom;
+      continue;
+    }
+    const ownerWindow = text.slice(
+      Math.max(0, ownerStart - 40),
+      ownerStart + owner[0].length + 24
+    );
+    if (!summarySharesItem(wearSentence, ownerWindow, [wearer, ownerName])) {
+      searchFrom = nextFrom;
+      continue;
+    }
+    const after = text.slice(ownerStart + owner[0].length);
+    const sentenceEnd = after.search(/[.]/u);
+    text =
+      sentenceEnd < 0
+        ? `${text.slice(0, ownerStart)}${replacement}${after}`
+        : `${text.slice(0, ownerStart)}${replacement}${after.slice(sentenceEnd)}`;
+    replacedOwner = true;
+    break;
+  }
+
+  if (replacedOwner) {
+    return { text, changed: true, reason: "continued_owner_contradicts_self_wear" };
+  }
+  return clarified
+    ? { text, changed: true, reason: "ambiguous_wear_clarified" }
+    : { text: summary, changed: false, reason: "unchanged" };
+}
+
 /** Validate LLM / fixture summary before persist. */
 export function validateSummaryNarrative(
   text: string,

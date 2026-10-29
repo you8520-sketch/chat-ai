@@ -56,6 +56,7 @@ import {
   earliestMissingBatchStart,
   highestContiguousCompletedTurn,
   isRollingSummaryGroundedInDialogue,
+  reconcileSummaryItemRoles,
   resolveBatchStartForTurnNumber,
   validateSummaryNarrative,
 } from "./memory-summary-integrity";
@@ -367,6 +368,21 @@ export async function summarizeTurnBatch(opts: {
           )
         : false;
       if (narrative.ok && grounded) {
+        const reconciled = reconcileSummaryItemRoles(narrative.text, opts.dialogue);
+        if (!reconciled.changed) return narrative.text;
+        const clamped = finishSummary(reconciled.text);
+        const again = validateSummaryNarrative(clamped, "main_canon");
+        if (
+          again.ok &&
+          isRollingSummaryGroundedInDialogue(
+            again.text,
+            opts.dialogue,
+            opts.userPersona,
+            opts.charName
+          )
+        ) {
+          return again.text;
+        }
         return narrative.text;
       }
       lastSummarizeTurnBatchError = narrative.ok

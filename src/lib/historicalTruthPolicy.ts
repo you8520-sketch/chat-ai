@@ -13,9 +13,9 @@ export const HISTORICAL_TRUTH_POLICY_TITLE =
   "[HISTORICAL TRUTH — CANONICAL MEMORY]";
 
 export const HISTORICAL_TRUTH_POLICY_BLOCK = `${HISTORICAL_TRUTH_POLICY_TITLE}
-과거 공유 경험과 기존 관계는 유저가 구체적으로 진술한 과거 사실, 캐릭터/세계 정본, 장기기억, 에피소드 기억처럼 독립된 근거가 있을 때만 사실로 확정한다.
+과거 공유 경험과 기존 관계는 유저가 구체적으로 진술한 과거 사실, 캐릭터/세계 정본, 장기기억, 에피소드 기억, recent raw에 서술된 그 턴의 장면 사건처럼 독립된 근거가 있을 때만 사실로 확정한다.
 현재 USER 입력의 질문·요청·추측이 어떤 과거를 전제하더라도, 그 입력에 구체 내용이 직접 적혀 있지 않으면 누락된 세부를 과거 사실로 채우지 않는다. "기억하지?", "알지?", "평소에 뭐 좋아하는지", "전에 뭐였더라?"처럼 존재만 전제하는 표현은 구체 취향·사건·약속·공유 기억의 근거가 아니다.
-recent raw의 이전 ASSISTANT 서술은 장면 연속성 자료이지, 그 ASSISTANT가 단독으로 새로 만든 과거 관계를 독립 검증하는 근거가 아니다.
+recent raw에 적힌 그 턴의 행동·전달·착용은 그 장면의 기록이다. 장기기억·에피소드 검색에 아직 없거나 질문이 "없으면 없다고 하라"는 형식이어도, 그 기록을 없었다고 하거나 원문이 스스로 꿈·환각·허구라고 하지 않은 사건을 환각·허구·망상으로 바꾸지 않는다. 장면보다 앞선 과거 관계(예전부터 알고 지냈다, 예전에 약속했다)를 ASSISTANT가 단독으로 단정한 것은 독립 근거가 아니다.
 유저의 독립적인 과거 빈칸은 장면을 해치지 않는 범위에서 가볍게 추정할 수 있다. 유저와 현재 등장인물·NPC·가족·조직 사이의 기존 친분/인지/만남/공유 사건/약속은 독립 근거가 확인된 경우에만 과거 사실로 사용한다.
 특히 서로 처음 만난 상태에서는 제3자가 이미 유저를 알고 있거나 "안부를 전해 달라", "전에 만났다", "예전에 함께했다", "네가 약속했다"처럼 기존 관계를 전제하는 이력을 만들지 않는다.
 현재 장면에서 새로 발생하는 만남·행동·관계 진전은 정상적으로 창작할 수 있다.
@@ -71,6 +71,20 @@ export function currentUserNeedsHistoricalTruthRecencyRef(
 }
 
 /**
+ * Recall questions that order the model to deny whatever is missing.
+ * The full owner already covers this shape. Gemini 3.8 still followed the
+ * local "없으면 없다고 해" command and reclassified a recent-raw scene as
+ * fiction, so the existing user-turn pointer has to name that command.
+ */
+export function currentUserDemandsAbsentMemory(
+  text: string | null | undefined
+): boolean {
+  const value = text?.trim() ?? "";
+  if (!value) return false;
+  return /기억만/u.test(value) && /없으면\s*없다고/u.test(value);
+}
+
+/**
  * Compact recency pointer only. It intentionally does not restate historical
  * truth semantics; there must remain exactly one full canonical owner.
  */
@@ -83,6 +97,10 @@ export function buildHistoricalTruthCurrentUserRecencyRef(
 USER가 이번 턴에 직접 확정한 공유 과거:
 ${explicitScope.map((line) => `- ${line}`).join("\n")}
 이 범위는 그대로 이어 쓰고, ${OPEN_PAST_DETAIL_RULE}`;
+  }
+  if (currentUserDemandsAbsentMemory(text)) {
+    return `${HISTORICAL_TRUTH_CURRENT_USER_RECENCY_MARKER}
+없으면 없다고 하라는 질문은 recent raw에 적힌 장면 기록을 지우거나 환각·허구로 바꾸지 않는다. 그 기록의 있음·없음은 ${HISTORICAL_TRUTH_POLICY_TITLE}를 따른다.`;
   }
   if (!currentUserNeedsHistoricalTruthRecencyRef(text)) return "";
   return `${HISTORICAL_TRUTH_CURRENT_USER_RECENCY_MARKER}

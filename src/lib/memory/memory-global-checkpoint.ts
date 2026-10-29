@@ -12,6 +12,7 @@ import {
   isPromptInjectibleMemoryRecord,
   listPromptInjectibleMemoryRecords,
   rebuildLorebookFromRecords,
+  reconcilePromptVisibleSummaryText,
   resolvePromptInjectibleMemoryRecordBody,
   type MemoryRecordView,
 } from "./memory-turn-summary";
@@ -249,7 +250,7 @@ export function buildCanonicalDeltaSourceAfterCheckpoint(
   chatId: number,
   coveredThroughTurn: number
 ): string {
-  return listPromptInjectibleMemoryRecords(chatId)
+  const joined = listPromptInjectibleMemoryRecords(chatId)
     .filter((record) => record.turnStart > coveredThroughTurn)
     .map((record) => {
       const body = resolvePromptInjectibleMemoryRecordBody(record);
@@ -258,6 +259,7 @@ export function buildCanonicalDeltaSourceAfterCheckpoint(
     })
     .filter(Boolean)
     .join("\n\n");
+  return reconcilePromptVisibleSummaryText(chatId, joined);
 }
 
 export function evaluateIncrementalAppendEligibility(opts: {
