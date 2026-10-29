@@ -216,11 +216,19 @@ type RereviewRow = {
   created_at: string;
 };
 
+/** Public voice fields that failed QA. View-only; never a saved character. */
+export type RejectedPublicManuscript = {
+  greeting: string;
+  description: string;
+  comment: string;
+};
+
 export class OfficialSupplyGateError extends Error {
   constructor(
     public readonly code: string,
     message: string,
-    public readonly qa?: QaResult
+    public readonly qa?: QaResult,
+    public readonly rejectedPublicManuscript?: RejectedPublicManuscript
   ) {
     super(message);
     this.name = "OfficialSupplyGateError";

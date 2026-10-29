@@ -130,7 +130,15 @@ export type AdminAuthorPreviewOk = {
   resolved: AdminAuthorResolvedView;
 };
 
-export type AdminAuthorPreviewResult = AdminAuthorPreviewOk | { ok: false; error: string; issues?: AdminAuthorIssue[] };
+export type AdminAuthorRejectedManuscript = {
+  greeting: string;
+  description: string;
+  comment: string;
+};
+
+export type AdminAuthorPreviewResult =
+  | AdminAuthorPreviewOk
+  | { ok: false; error: string; issues?: AdminAuthorIssue[]; rejectedManuscript?: AdminAuthorRejectedManuscript };
 
 type Hold = {
   id: string;
@@ -448,10 +456,15 @@ function holdManuscript(input: {
 
 function fail(error: unknown): AdminAuthorPreviewResult {
   if (error instanceof OfficialSupplyGateError) {
+    const source = error.rejectedPublicManuscript;
+    const rejectedManuscript = source
+      ? { greeting: source.greeting, description: source.description, comment: source.comment }
+      : undefined;
     return {
       ok: false,
       error: error.message,
       ...(error.qa ? { issues: error.qa.errors.map((issue) => ({ code: issue.code, message: issue.message })) } : {}),
+      ...(rejectedManuscript ? { rejectedManuscript } : {}),
     };
   }
   return { ok: false, error: error instanceof Error ? error.message : "생성에 실패했습니다." };
