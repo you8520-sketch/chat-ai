@@ -74,8 +74,10 @@ import {
   filterExplorationFlagsAdd,
   filterExplorationFlagsRemove,
   legalExplorationCommands,
+  legacyPartyEscapeFact,
   roomNameAfterCommands,
   splitV2ExplorationMethod,
+  type ExplorationState,
 } from "./explorationMap";
 import type { ExplorationCommand } from "./explorationPublic";
 import {
@@ -113,7 +115,13 @@ import {
   npcsWithImages,
 } from "./scenarioNpcAssets";
 import { loadCampaignScenarioAssets, loadScenarioTemplate } from "./scenarioTemplates";
-import { activeGoalTitles, summarizeGoalTransition, type TrpgGoalRoundFacts } from "./campaignGoals";
+import {
+  activeGoalTitles,
+  goalsAwaitingHostConfirmation,
+  summarizeGoalTransition,
+  type TrpgGoal,
+  type TrpgGoalRoundFacts,
+} from "./campaignGoals";
 import {
   applyCampaignStoryProgress,
   applyLocalSceneProgressToContext,
@@ -804,12 +812,7 @@ async function reconcileStaleGmGenerationIfNeeded(
           const row = db
             .prepare(`SELECT structured_json FROM trpg_gm_messages WHERE round_id=?`)
             .get(round.id) as { structured_json: string | null } | undefined;
-          const parsed = parseJson(row?.structured_json, {} as {
-            campaign_finished?: boolean;
-            campaignFinished?: boolean;
-          });
-          const campaignFinished =
-            parsed.campaign_finished === true || parsed.campaignFinished === true;
+          const campaignFinished = campaignFinishedForRecovery(db, campaign.id, row?.structured_json);
           await finalizeCommittedGmRound(
             db,
             campaign,
@@ -1998,6 +2001,52 @@ function acceptedItemsBySeat(
   return bySeat;
 }
 
+/**
+ * GM `campaignFinished` is the request. This is the decision both the normal commit and
+ * APPLYING_STATE recovery finalize with. Legacy facility endings also require every seat
+ * to have departed and no criterion-less goal still waiting on the host.
+ */
+function resolveEffectiveCampaignFinished(opts: {
+  gmRequested: boolean;
+  exploration: ExplorationState | null;
+  participantIds: readonly number[];
+  goals: readonly TrpgGoal[];
+}): boolean {
+  if (!opts.gmRequested) return false;
+  if (!opts.exploration || opts.exploration.version !== 1) return true;
+  if (!legacyPartyEscapeFact(opts.exploration, opts.participantIds)) return false;
+  return !goalsAwaitingHostConfirmation(opts.goals);
+}
+
+function readStoredGmFinish(raw: string | null | undefined): {
+  gmRequested: boolean;
+  effectiveCampaignFinished: boolean | null;
+} {
+  const parsed = parseJson(raw, {} as {
+    campaign_finished?: boolean;
+    campaignFinished?: boolean;
+    effectiveCampaignFinished?: unknown;
+  });
+  return {
+    gmRequested: parsed.campaign_finished === true || parsed.campaignFinished === true,
+    effectiveCampaignFinished:
+      typeof parsed.effectiveCampaignFinished === "boolean" ? parsed.effectiveCampaignFinished : null,
+  };
+}
+
+/** Stored effective flag from this commit. Older rows omit it and are recomputed from the committed rows. */
+function campaignFinishedForRecovery(db: Database.Database, campaignId: number, raw: string | null | undefined): boolean {
+  const stored = readStoredGmFinish(raw);
+  if (stored.effectiveCampaignFinished != null) return stored.effectiveCampaignFinished;
+  if (!stored.gmRequested) return false;
+  return resolveEffectiveCampaignFinished({
+    gmRequested: stored.gmRequested,
+    exploration: loadExplorationState(db, campaignId),
+    participantIds: loadSheetSnapshots(db, campaignId).map((sheet) => sheet.participantId),
+    goals: loadCampaignLedger(db, campaignId).goals,
+  });
+}
+
 function commitPendingGmResult(
   db: Database.Database,
   opts: {
@@ -2169,11 +2218,18 @@ function commitPendingGmResult(
     endedEncounterIds: loadEndedEncounterIds(db, campaign.id, roundNumber),
     acceptedEncounterIds: encounterEnding.accepted,
   };
+  const explorationStateForFinish = explorationCommit?.state ?? loadExplorationState(db, campaign.id);
+  const campaignFinished = resolveEffectiveCampaignFinished({
+    gmRequested: parsed.campaignFinished === true,
+    exploration: explorationStateForFinish,
+    participantIds: sheets.map((sheet) => sheet.participantId),
+    goals: currentLedger.goals,
+  });
   const ledgerDelta = {
     ...boundLocation.delta,
     location: boundLocation.location || scenario.startLocation,
     nextRoundContext: boundLocation.nextRoundContext,
-    campaignFinished: parsed.campaignFinished,
+    campaignFinished,
   };
   const goalContext = {
     round: roundNumber,
@@ -2246,7 +2302,7 @@ function commitPendingGmResult(
       committedDelta,
       narration: parsed.narration,
       committedNarration: storedStructured?.narration ?? undefined,
-      campaignFinished: parsed.campaignFinished === true,
+      campaignFinished,
       endedEncounterIds: loadEndedEncounterIds(db, campaign.id, roundNumber),
       storyPhase: campaignContext?.storyPhase,
     });
@@ -2268,7 +2324,11 @@ function commitPendingGmResult(
       db.prepare(
         `INSERT INTO trpg_gm_messages (round_id, narration, structured_json) VALUES (?,?,?)
          ON CONFLICT(round_id) DO UPDATE SET narration=excluded.narration, structured_json=excluded.structured_json`
-      ).run(opts.roundId, parsed.narration, JSON.stringify(parsed));
+      ).run(
+        opts.roundId,
+        parsed.narration,
+        JSON.stringify({ ...parsed, effectiveCampaignFinished: campaignFinished })
+      );
       if (opts.regenerate) return;
       if (persistMechanics) {
         persistSheets(db, nextSheets);
@@ -2316,7 +2376,7 @@ function commitPendingGmResult(
             threadsAdd: parsed.delta.threadsAdd,
             threadsResolve: parsed.delta.threadsResolve,
             endingConditionId: parsed.delta.endingConditionId,
-            campaignFinished: parsed.campaignFinished,
+            campaignFinished,
             occurredMajorEventIndices: parsed.delta.occurredMajorEventIndices,
             revealedClueIndices: parsed.delta.revealedClueIndices,
           });
@@ -2366,7 +2426,7 @@ function commitPendingGmResult(
         return threatShadowHasSignal(report) ? formatThreatShadowLog(report) : null;
       });
     }
-    return { campaignFinished: parsed.campaignFinished === true };
+    return { campaignFinished };
   } catch (error) {
     throw attachTrpgCallFailureMeta(error, { stage });
   }
