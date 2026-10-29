@@ -643,6 +643,7 @@ import {
   resolveEffectiveAdultRp,
   resolveRoomAdultModeEnabled,
 } from "@/lib/chatAdultHandoff";
+import { resolvePromptActiveConsentMode } from "@/lib/cncFictionPromptFraming";
 import {
   adultOffStoredUsageApprovesText,
   buildAdultOffGuardUsageEvidence,
@@ -1427,6 +1428,12 @@ export async function POST(req: Request) {
     sceneReset: preSceneReset,
     clearSceneTransition: detectClearSceneTransition(preRoutingText),
   });
+  const promptActiveConsentMode = resolvePromptActiveConsentMode({
+    persistedConsentMode: requestedConsentMode,
+    currentInput: storedUserMessage,
+    allowedConsentModes,
+    adultRpEnabled: effectiveAdultRp,
+  });
 
   const recentRawForSceneClassification = turnsForRecentHistory
     .slice(-3)
@@ -1441,7 +1448,7 @@ export async function POST(req: Request) {
     adultDialogueProfile: normalizeAdultDialogueProfile(
       ch.adult_dialogue_profile
     ),
-    activeConsentMode: requestedConsentMode,
+    activeConsentMode: promptActiveConsentMode,
     previousConsentMode: priorModelRouteState.activeConsentMode,
   });
   // Participant age eligibility uses identity fields only. World lore, cast, and
@@ -2425,7 +2432,7 @@ export async function POST(req: Request) {
     currentUserMessage: promptUserMessage,
     currentTurnAuthoringDelegation: currentTurnDelegationForTurn,
     nsfw: effectiveAdultRp,
-    activeConsentMode: requestedConsentMode,
+    activeConsentMode: promptActiveConsentMode,
     assetTags,
     modelId: openRouterApiModelId,
     novelModeEnabled,

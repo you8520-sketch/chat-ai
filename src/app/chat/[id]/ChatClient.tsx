@@ -1325,8 +1325,10 @@ export default function ChatClient({
     [flushStreamBillingPresentation, removeVisualRevealPending]
   );
   const [memoryRefreshKey, setMemoryRefreshKey] = useState(0);
-  const [adultHandoffOn, setAdultHandoffOn] = useState(!!initialAdultHandoffEnabled);
-  const adultHandoffOnRef = useRef(!!initialAdultHandoffEnabled);
+  const [adultHandoffOn, setAdultHandoffOn] = useState(
+    isAdult && !!initialAdultHandoffEnabled
+  );
+  const adultHandoffOnRef = useRef(isAdult && !!initialAdultHandoffEnabled);
   const [adultHandoffBusy, setAdultHandoffBusy] = useState(false);
   const [selectedAI, setSelectedAI] = useState<SelectedAI | "">(initialSelectedAI ?? "");
   const [modelSaveBusy, setModelSaveBusy] = useState(false);
@@ -1919,8 +1921,8 @@ export default function ChatClient({
     setModelPickerEstimates(initialModelPickerEstimates);
     setModelPickerEstimateConfidence(initialModelPickerEstimateConfidence);
     setMode(initialMode);
-    setAdultHandoffOn(!!initialAdultHandoffEnabled);
-    adultHandoffOnRef.current = !!initialAdultHandoffEnabled;
+    setAdultHandoffOn(isAdult && !!initialAdultHandoffEnabled);
+    adultHandoffOnRef.current = isAdult && !!initialAdultHandoffEnabled;
     setTargetResponseChars(initialTargetResponseChars);
     setChatTitle(initialChatTitle);
     setNarrativePov(initialNarrativePov);
@@ -1943,6 +1945,7 @@ export default function ChatClient({
     initialUserAuthoringLevel,
     initialDisplayPrefs,
     initialSelectedPersonaId,
+    isAdult,
   ]);
 
   const [floatDeductionAmount, setFloatDeductionAmount] = useState(0);
@@ -4458,7 +4461,7 @@ export default function ChatClient({
           isContinue: true,
           clientRequestId,
           selectedAI,
-          adultHandoffEnabled: adultHandoffOnRef.current,
+          ...(isAdult ? { adultHandoffEnabled: adultHandoffOnRef.current } : {}),
           userNote,
           selectedPersonaId,
           targetResponseChars,
@@ -4618,7 +4621,7 @@ export default function ChatClient({
           message: text,
           clientRequestId,
           selectedAI,
-          adultHandoffEnabled: adultHandoffOnRef.current,
+          ...(isAdult ? { adultHandoffEnabled: adultHandoffOnRef.current } : {}),
           userNote,
           selectedPersonaId,
           targetResponseChars,
@@ -4897,7 +4900,7 @@ export default function ChatClient({
           targetAssistantMessageId: prevAssistant.id,
           clientRequestId,
           selectedAI,
-          adultHandoffEnabled: adultHandoffOnRef.current,
+          ...(isAdult ? { adultHandoffEnabled: adultHandoffOnRef.current } : {}),
           userNote,
           selectedPersonaId,
           targetResponseChars,
@@ -6395,12 +6398,14 @@ export default function ChatClient({
               ))}
             </select>
           </label>
-          <ChatRoomAdultModeToggle
-            isAdult={isAdult}
-            enabled={adultHandoffOn}
-            busy={adultHandoffBusy}
-            onToggle={() => void toggleAdultHandoff()}
-          />
+          {isAdult ? (
+            <ChatRoomAdultModeToggle
+              isAdult={isAdult}
+              enabled={adultHandoffOn}
+              busy={adultHandoffBusy}
+              onToggle={() => void toggleAdultHandoff()}
+            />
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-0.5">
