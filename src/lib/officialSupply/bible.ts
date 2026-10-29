@@ -1180,6 +1180,7 @@ export function validateCharacterBible(
   const profile = bible.publicProfile ?? { tagline: "", description: "", tags: [] };
   errors.push(
     ...evaluateOfficialCharacterPronoun(id.gender, {
+      name: id.name,
       description: [profile.description, profile.detailedDescription ?? ""].filter(Boolean).join("\n"),
     }).errors
   );

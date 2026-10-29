@@ -127,6 +127,8 @@ export type AdminAuthorPreviewOk = {
   repairable: boolean;
   voiceRepairs: number;
   textLock: string;
+  /** Read-only play guide already stored on the held draft. Absent when the manuscript has none. */
+  creatorComment?: string;
   manuscript: AdminAuthorManuscriptView;
   resolved: AdminAuthorResolvedView;
 };
@@ -278,7 +280,13 @@ export function officialVoiceFieldsForQaCodes(codes: readonly string[]): Officia
     if (code.startsWith("bible_pitch")) fields.add("publicDescription");
     if (code.startsWith("bible_speech")) fields.add("speech");
     if (code === "tag_bible_mismatch" || code === "bible_tags" || code === "tags_keyword_stuffing") fields.add("tags");
-    if (code === "official_character_pronoun" || code === "bible_character_pronoun") fields.add("publicDescription");
+    if (
+      code === "official_character_pronoun" ||
+      code === "official_character_pronoun_uncertain" ||
+      code === "bible_character_pronoun"
+    ) {
+      fields.add("publicDescription");
+    }
   }
   return [...fields];
 }
@@ -294,9 +302,13 @@ export function assessAdminAuthorManuscript(input: {
     relationshipTrope: input.brief.relationshipTrope,
     rpHook: input.brief.rpHook,
   };
+  const genre = input.draft.genres.find((item) => isCharacterGenre(item));
   return [
     ...validatePilotBible(input.bible, { adultExpected: false }).errors,
-    ...evaluateDiscoveryTags({ tags: input.bible.publicProfile.tags, bible: input.bible, hook }, MARKET_POLICY).errors,
+    ...evaluateDiscoveryTags(
+      { tags: input.bible.publicProfile.tags, bible: input.bible, hook, ...(genre ? { genre } : {}) },
+      MARKET_POLICY
+    ).errors,
     ...validatePilotDraftForTextLock(input.draft, []).errors,
     ...evaluateRelationBibleContract(input.bible).errors,
     ...validatePilotLorebook(input.world.lorebook, [input.draft]).errors,
@@ -391,6 +403,7 @@ function publicPreview(hold: Hold): AdminAuthorPreviewOk {
     hold.voiceRepairs < MAX_EXPLICIT_VOICE_REPAIRS &&
     hold.issues.every((issue) => officialVoiceFieldsForQaCodes([issue.code]).length > 0) &&
     repairFields.length > 0;
+  const creatorComment = hold.draft.creatorComment?.trim() ?? "";
   return {
     ok: true,
     previewId: hold.id,
@@ -399,6 +412,7 @@ function publicPreview(hold: Hold): AdminAuthorPreviewOk {
     repairable,
     voiceRepairs: hold.voiceRepairs,
     textLock: computeTextLockHash(hold.draft),
+    ...(creatorComment ? { creatorComment } : {}),
     manuscript: {
       name: hold.draft.name,
       tagline: hold.draft.tagline,
