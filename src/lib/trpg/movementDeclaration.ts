@@ -1,4 +1,4 @@
-import { stripQuotedDialogue } from "./actionSemantics";
+import { hasChallengeSignal, stripQuotedDialogue } from "./actionSemantics";
 
 /**
  * Owner of "what movement did this submission declare".
@@ -370,17 +370,18 @@ const FINISHED_RESULT_PREDICATE = /(?:었|았|였|했|됐|렸|났|겼|웠|쳤|�
 const INTENTIVE_ATTEMPT = /려\s*(?:했|한|함|한다)/;
 
 /**
- * A clause that states a finished outcome (`문은 이미 열렸다`).
- * An intentive attempt and a clause that still contains another finite act stay whole:
- * the existing split cannot separate those without dropping the act.
+ * A clause that states a finished outcome (`문은 열렸다`), not this bot's hazard or challenge attempt.
+ * Uses the same challenge/movement act signals as adjudication. An intentive attempt and a clause that
+ * still contains another finite act stay whole: the existing split cannot separate those without dropping the act.
  */
 export function clauseDeclaresFinishedResult(clause: string): boolean {
   const text = clause.trim();
-  if (!text.includes("이미")) return false;
   if (INTENTIVE_ATTEMPT.test(text)) return false;
   if (!FINISHED_RESULT_PREDICATE.test(text)) return false;
   const head = text.replace(FINISHED_RESULT_PREDICATE, "");
   if (/다(?:\s|$)/.test(head)) return false;
+  if (hasChallengeSignal(text)) return false;
+  if (parseMovementDeclaration(text).live) return false;
   return true;
 }
 

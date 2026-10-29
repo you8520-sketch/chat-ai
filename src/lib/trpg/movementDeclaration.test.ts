@@ -123,14 +123,21 @@ describe("movement declaration — bot stay fallback", () => {
   });
 
   it("separates a finished result from the attempt and leaves an intentive exit in place", () => {
+    assert.equal(clauseDeclaresFinishedResult("문은 열렸다"), true);
     assert.equal(clauseDeclaresFinishedResult("문은 이미 열렸다"), true);
     assert.equal(clauseDeclaresFinishedResult("잠긴 문을 연다"), false);
+    assert.equal(clauseDeclaresFinishedResult("문을 열었다"), false);
+    assert.equal(clauseDeclaresFinishedResult("문을 열고 나갈 준비를 한다"), false);
     assert.equal(clauseDeclaresFinishedResult("문을 열고 나갈 준비를 하려 했다"), false);
     assert.equal(
       clauseDeclaresFinishedResult("이미 열린 방폭 게이트를 통과해 지상 슬로프를 따라 센터 밖으로 나가려 한다"),
       false
     );
     assert.equal(clauseDeclaresFinishedResult("잠긴 문을 연다 문은 이미 열렸다"), false);
+    assert.equal(
+      omitUnconfirmedAuthorityClauses("잠긴 문을 연다. 문은 열렸다.", ["현이"]),
+      "잠긴 문을 연다."
+    );
     assert.equal(
       omitUnconfirmedAuthorityClauses("잠긴 문을 연다. 문은 이미 열렸다. 현이는 먼저 문을 연다.", ["현이"]),
       "잠긴 문을 연다."

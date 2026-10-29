@@ -575,6 +575,43 @@ describe("bot exploration stay fallback", () => {
     db.close();
   });
 
+  it("keeps a result clause out of authoritative INTENT when it lacks 이미", async () => {
+    const db = memoryDb();
+    const botLine = ["출구로 이동한다.", "잠긴 문을 연다.", "문은 열렸다."].join(" ");
+    const started = await startWithBot(db, () => botLine);
+    let gmUser = "";
+    const deps: TrpgEngineDeps = {
+      ...started.deps,
+      rollD20: () => 1,
+      gmCall: async (opts) => {
+        gmUser = opts.user;
+        return started.deps.gmCall!(opts);
+      },
+    };
+    submitTrpgAction(db, { campaignId: started.campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId: started.campaignId, userId: 1, deps });
+    const lock = latestBotLock(db, started.botId);
+    const resolved = resolveTrpgCanonicalAttempt({
+      participantKind: "ai_character",
+      submissionBody: lock.body,
+    });
+    const wire = gmAiActionText(resolved.canonicalAttempt, resolved.presentationProse);
+    const frozen = loadFrozenAdjudicationDecision(db, lock.roundId, lock.id);
+    assert.equal(locationOf(db, started.botId), EXPLORATION_ENTRANCE);
+    assert.match(lock.body, /잠긴 문을 연다/);
+    assert.match(lock.body, /문은 열렸다/);
+    assert.match(resolved.canonicalAttempt, /잠긴 문을 연다/);
+    assert.doesNotMatch(resolved.canonicalAttempt, /문은 열렸/);
+    assert.doesNotMatch(wire, /문은 열렸/);
+    assert.match(gmUser, /잠긴 문을 연다/);
+    assert.doesNotMatch(gmUser, /문은 열렸/);
+    assert.match(gmUser, /tier=CRITICAL_FAILURE/);
+    assert.equal(frozen?.needsCheck, true);
+    assert.equal(lock.d20, 1);
+    assert.equal(lock.tier, "CRITICAL_FAILURE");
+    db.close();
+  });
+
   it("shares one canonical local act between the server check and the GM after a rejected move", async () => {
     const db = memoryDb();
     const botLine = ["출구로 이동한다.", "잠긴 문을 연다. 문은 이미 열렸다.", '"비켜."'].join("\n");
