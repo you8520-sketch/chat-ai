@@ -12,7 +12,7 @@ export type TrpgCanonicalAttemptInput = {
 
 export type TrpgResolvedCanonicalAttempt = {
   participantKind: TrpgParticipantKind;
-  /** Adjudication / mechanics / GM input — exact human text or AI <<<INTENT>>> only. */
+  /** Adjudication / mechanics — exact human text or AI <<<INTENT>>> only. GM text is `gmAiActionText`. */
   canonicalAttempt: string;
   /** User-visible bot novelistic prose. Mechanics stay on the intent. Locked spoken lines from this prose are GM canon. */
   presentationProse: string;
@@ -38,16 +38,18 @@ export function lockedSpokenLines(prose: string): string[] {
 }
 
 /**
- * GM action text for an AI seat. The intent remains the choice. Locked quotes travel with it.
- * Sensory prose does not. Mechanics keep using `canonicalAttempt` alone.
+ * GM action text for an AI seat.
+ * A non-empty intent is the choice. Locked quote-only lines travel with it, and sensory prose does not.
+ * An empty intent means the stored prose is the whole voluntary act, including a stay fallback.
+ * Mechanics keep using `canonicalAttempt` alone.
  */
 export function gmAiActionText(intent: string, prose: string): string {
   const choice = intent.trim();
+  if (!choice) return prose.trim();
   const speech = lockedSpokenLines(prose)
     .map((line) => `"${line}"`)
     .join("\n");
-  if (!speech) return choice;
-  return choice ? `${choice}\n${speech}` : speech;
+  return speech ? `${choice}\n${speech}` : choice;
 }
 
 /**
