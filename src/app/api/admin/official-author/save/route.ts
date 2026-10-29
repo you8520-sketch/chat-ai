@@ -28,7 +28,17 @@ export async function POST(req: Request) {
     account_kind: admin.account_kind,
   };
   const saved = await saveHeldAdminAuthorPreview(actor, previewId);
-  if (!saved.ok) return NextResponse.json({ error: saved.error }, { status: saved.status });
+  if (!saved.ok) {
+    return NextResponse.json(
+      {
+        error: saved.error,
+        ...(saved.characterId != null
+          ? { characterId: saved.characterId, editPath: `/create?edit=${saved.characterId}` }
+          : {}),
+      },
+      { status: saved.status }
+    );
+  }
   return NextResponse.json({
     ok: true,
     characterId: saved.characterId,

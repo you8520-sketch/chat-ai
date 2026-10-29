@@ -9,6 +9,7 @@ import { isCharacterGenre } from "@/lib/characterGenres";
 import type { CharacterGender } from "@/lib/characterGender";
 import { parseCharacterGender } from "@/lib/characterGender";
 import { createCharacterFromForm, type SessionUser } from "@/lib/characterFormSave";
+import { getDb } from "@/lib/db";
 import { isAdminUser } from "@/lib/isAdminUser";
 import {
   generateOfficialCharacterBible,
@@ -142,13 +143,15 @@ type Hold = {
   issues: QaIssue[];
   voiceRepairs: number;
   savedCharacterId: number | null;
+  /** Post-insert outcome could not be tied to one row; do not INSERT again. */
+  saveBlocked: boolean;
 };
 
 const holds = new Map<string, Hold>();
 
 type SaveHeldResult =
   | { ok: true; characterId: number; alreadySaved: boolean }
-  | { ok: false; status: number; error: string };
+  | { ok: false; status: number; error: string; characterId?: number };
 
 const saveInFlight = new Map<string, Promise<SaveHeldResult>>();
 const repairInFlight = new Map<string, Promise<AdminAuthorPreviewResult>>();
@@ -326,6 +329,18 @@ function holdForAdmin(previewId: string, adminUserId: number): Hold | null {
   return hold;
 }
 
+function privateManuscriptIds(adminUserId: number, draft: OfficialCharacterDraft): number[] {
+  const rows = getDb()
+    .prepare(
+      `SELECT id FROM characters
+       WHERE creator_id=? AND name=? AND IFNULL(greeting,'')=? AND IFNULL(description,'')=?
+         AND visibility='private' AND IFNULL(official,0)=0
+       ORDER BY id`
+    )
+    .all(adminUserId, draft.name, draft.greeting, draft.description) as { id: number }[];
+  return rows.map((row) => row.id);
+}
+
 function resolvedView(plan: OfficialAuthoringPlan, castIntent: string): AdminAuthorResolvedView {
   return {
     genre: plan.genre ?? "",
@@ -408,6 +423,7 @@ function holdManuscript(input: {
     issues,
     voiceRepairs: input.voiceRepairs,
     savedCharacterId: null,
+    saveBlocked: false,
   };
   holds.set(hold.id, hold);
   evictUnsavedHolds(hold.id);
@@ -682,6 +698,7 @@ export async function saveHeldAdminAuthorPreview(admin: SessionUser, previewId: 
   saveInFlight.set(previewId, flight);
 
   void (async () => {
+    let knownIds: Set<number> | null = null;
     try {
       const current = holdForAdmin(previewId, admin.id);
       if (!current) {
@@ -696,6 +713,14 @@ export async function saveHeldAdminAuthorPreview(admin: SessionUser, previewId: 
         resolveFlight({ ok: false, status: 409, error: "검수를 통과하지 않은 원고는 저장하지 않습니다." });
         return;
       }
+      if (current.saveBlocked) {
+        resolveFlight({
+          ok: false,
+          status: 409,
+          error: "저장 결과를 확정할 수 없습니다. 같은 미리보기로 다시 만들지 않습니다.",
+        });
+        return;
+      }
       if (saveDelayMsForTests > 0) {
         await new Promise((resolve) => setTimeout(resolve, saveDelayMsForTests));
       }
@@ -704,6 +729,7 @@ export async function saveHeldAdminAuthorPreview(admin: SessionUser, previewId: 
         nextSaveThrowsForTests = null;
         throw error;
       }
+      knownIds = new Set(privateManuscriptIds(admin.id, current.draft));
       const created = await createCharacterFromForm(
         admin,
         buildOfficialCharacterFormBody({
@@ -720,11 +746,34 @@ export async function saveHeldAdminAuthorPreview(admin: SessionUser, previewId: 
       evictSavedHolds();
       resolveFlight({ ok: true, characterId: created.id, alreadySaved: false });
     } catch (error) {
-      resolveFlight({
-        ok: false,
-        status: 500,
-        error: error instanceof Error ? error.message : "저장에 실패했습니다.",
-      });
+      const message = error instanceof Error ? error.message : "저장에 실패했습니다.";
+      const current = holdForAdmin(previewId, admin.id);
+      if (knownIds && current && current.savedCharacterId == null) {
+        const seen = knownIds;
+        const fresh = privateManuscriptIds(admin.id, current.draft).filter((id) => !seen.has(id));
+        if (fresh.length === 1) {
+          const characterId = fresh[0]!;
+          current.savedCharacterId = characterId;
+          evictSavedHolds();
+          resolveFlight({
+            ok: false,
+            status: 500,
+            error: "초안 행은 만들어졌으나 후속 저장에 실패했습니다. 같은 미리보기로 다시 만들지 않습니다.",
+            characterId,
+          });
+          return;
+        }
+        if (fresh.length > 1) {
+          current.saveBlocked = true;
+          resolveFlight({
+            ok: false,
+            status: 409,
+            error: "저장 결과를 확정할 수 없습니다. 같은 미리보기로 다시 만들지 않습니다.",
+          });
+          return;
+        }
+      }
+      resolveFlight({ ok: false, status: 500, error: message });
     } finally {
       if (saveInFlight.get(previewId) === flight) saveInFlight.delete(previewId);
     }

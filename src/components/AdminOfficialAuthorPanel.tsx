@@ -191,6 +191,14 @@ export default function AdminOfficialAuthorPanel({
     if (requestSeq !== previewRequestSeq.current) return;
     if (payload.ok !== true) {
       setError(typeof payload.error === "string" ? payload.error : "저장에 실패했습니다.");
+      if (typeof payload.characterId === "number" && Number.isFinite(payload.characterId)) {
+        setSaved({
+          characterId: payload.characterId,
+          editPath:
+            typeof payload.editPath === "string" ? payload.editPath : `/create?edit=${payload.characterId}`,
+          alreadySaved: true,
+        });
+      }
       return;
     }
     setSaved({

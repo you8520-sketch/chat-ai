@@ -4,6 +4,7 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { CHARACTER_GENRES } from "@/lib/characterGenres";
+import { createCharacterFromForm } from "@/lib/characterFormSave";
 import { getDb } from "@/lib/db";
 import {
   assessAdminAuthorManuscript,
@@ -23,7 +24,7 @@ import {
 import type { OfficialAuthorTransport } from "@/lib/officialSupply/author";
 import type { PortfolioBriefInput } from "@/lib/officialSupply/authorPrompts";
 import type { OfficialCharacterBible, OfficialWorldBible } from "@/lib/officialSupply/bible";
-import { computeTextLockHash } from "@/lib/officialSupply/characterText";
+import { buildOfficialCharacterFormBody, computeTextLockHash } from "@/lib/officialSupply/characterText";
 import {
   OFFICIAL_MODERN_DAILY_GENRE,
   OFFICIAL_ROFAN_GENRE,
@@ -502,6 +503,79 @@ describe("G5-2 admin private draft save", () => {
     });
     assert.equal(blockedRepair.ok, false);
     if (!blockedRepair.ok) assert.equal(blockedRepair.error, "고칠 검수 오류가 없습니다.");
+  });
+
+  it("does not insert a second row when a post-INSERT save step throws and the same preview is retried", async () => {
+    clearAdminAuthorPreviewsForTests();
+    const pack = candidate("g5-modern-comedy");
+    const plan = resolveOfficialAuthoringPlan(recommendOfficialAuthoringDirection("현대/일상"));
+    const preview = holdAdminAuthorManuscriptForTests({
+      adminUserId: ADMIN.id,
+      plan,
+      world: pack.world,
+      brief: pack.brief,
+      bible: pack.bible,
+    });
+    const db = getDb();
+    const original = db.prepare.bind(db);
+    let armed = true;
+    db.prepare = ((sql: string) => {
+      if (armed && sql.includes("adult_dialogue_profile")) {
+        armed = false;
+        throw new Error("post-insert adult profile update failed");
+      }
+      return original(sql);
+    }) as typeof db.prepare;
+    const countNamed = () =>
+      (db.prepare("SELECT COUNT(*) AS n FROM characters WHERE creator_id=? AND name=?").get(ADMIN.id, pack.draft.name) as { n: number }).n;
+    const before = countNamed();
+    let first: Awaited<ReturnType<typeof saveHeldAdminAuthorPreview>>;
+    try {
+      first = await saveHeldAdminAuthorPreview(ADMIN, preview.previewId);
+    } finally {
+      db.prepare = original as typeof db.prepare;
+    }
+    assert.equal(first.ok, false);
+    if (!first.ok) assert.equal(first.status, 500);
+    assert.equal(countNamed() - before, 1);
+    const retry = await saveHeldAdminAuthorPreview(ADMIN, preview.previewId);
+    assert.equal(countNamed() - before, 1);
+    assert.equal(retry.ok, true);
+    if (retry.ok && first.ok === false) {
+      assert.equal(retry.alreadySaved, true);
+      assert.equal(retry.characterId, first.characterId);
+    }
+  });
+
+  it("leaves a G2 create retry able to insert again after a post-INSERT throw", async () => {
+    const pack = candidate("g5-modern-comedy");
+    const draft = { ...pack.draft, name: `${pack.draft.name} G2` };
+    const body = buildOfficialCharacterFormBody({ draft, appearanceBlock: "", assets: [] });
+    const db = getDb();
+    const original = db.prepare.bind(db);
+    let armed = true;
+    db.prepare = ((sql: string) => {
+      if (armed && sql.includes("adult_dialogue_profile")) {
+        armed = false;
+        throw new Error("post-insert adult profile update failed");
+      }
+      return original(sql);
+    }) as typeof db.prepare;
+    const countNamed = () =>
+      (db.prepare("SELECT COUNT(*) AS n FROM characters WHERE creator_id=? AND name=?").get(ADMIN.id, draft.name) as { n: number }).n;
+    let threw = false;
+    try {
+      await createCharacterFromForm(ADMIN, body);
+    } catch (error) {
+      threw = error instanceof Error && /post-insert adult profile update failed/.test(error.message);
+    } finally {
+      db.prepare = original as typeof db.prepare;
+    }
+    assert.equal(threw, true);
+    assert.equal(countNamed(), 1);
+    const again = await createCharacterFromForm(ADMIN, body);
+    assert.equal(again.ok, true);
+    assert.equal(countNamed(), 2);
   });
 
   it("does not insert a character when generation fails before a manuscript exists", async () => {
