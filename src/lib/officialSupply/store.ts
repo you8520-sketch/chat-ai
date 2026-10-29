@@ -223,12 +223,26 @@ export type RejectedPublicManuscript = {
   comment: string;
 };
 
+/** A public projected field that matched the shared-world user-binding marker. */
+export type OfficialWorldProjectionHit = {
+  field: string;
+  excerpt: string;
+};
+
+/** Admin-visible evidence that shared-world projection failed. No hidden lore. */
+export type OfficialWorldProjectionDiagnostic = {
+  stage: "world_projection";
+  code: string;
+  hits: readonly OfficialWorldProjectionHit[];
+};
+
 export class OfficialSupplyGateError extends Error {
   constructor(
     public readonly code: string,
     message: string,
     public readonly qa?: QaResult,
-    public readonly rejectedPublicManuscript?: RejectedPublicManuscript
+    public readonly rejectedPublicManuscript?: RejectedPublicManuscript,
+    public readonly worldProjection?: OfficialWorldProjectionDiagnostic
   ) {
     super(message);
     this.name = "OfficialSupplyGateError";

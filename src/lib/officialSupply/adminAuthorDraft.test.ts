@@ -695,3 +695,83 @@ describe("G5-2 admin private draft save", () => {
     assert.equal(afterCount, beforeCount);
   });
 });
+
+describe("G5-3E shared world projection runs before character calls", () => {
+  it("fails on a projected-field user binding before character calls and does not save", async () => {
+    clearAdminAuthorPreviewsForTests();
+    const db = getDb();
+    const before = db.prepare("SELECT COUNT(*) AS n FROM characters").get() as { n: number };
+    const hidden = "운영실패복구금지토큰-비공개설정";
+    const files = [
+      "14-g5-horror-dry-world_bible.json",
+      "15-g5-horror-dry-world_bible.json",
+      "16-g5-horror-dry-world_bible.json",
+      "17-g5-horror-dry-world_bible.json",
+      "18-g5-horror-dry-character_bible_1.json",
+      "19-g5-horror-dry-character_bible_voice.json",
+      "20-g5-horror-dry-character_bible_bonds.json",
+    ];
+    const queue = files.map((file) => readJson<{ text: string }>(path.join(PROVIDER, file)).text);
+    const core = JSON.parse(queue[0] ?? "{}") as { situation: { upcomingChange: string } };
+    core.situation.upcomingChange = core.situation.upcomingChange.replace("세력은", "당신은");
+    queue[0] = JSON.stringify(core);
+    const atlas = JSON.parse(queue[1] ?? "{}") as {
+      userEntry: { note: string };
+      knowledge: { authorOnly: string[] };
+    };
+    atlas.userEntry.note = `${atlas.userEntry.note} 당신은 역할을 직접 고른다.`;
+    atlas.knowledge.authorOnly = [...(atlas.knowledge.authorOnly ?? []), hidden];
+    queue[1] = JSON.stringify(atlas);
+    const tasks: string[] = [];
+    const transport: OfficialAuthorTransport = {
+      label: "g5-3e-projected-user-binding",
+      async completeJson(input) {
+        tasks.push(input.task);
+        const text = queue.shift();
+        if (!text) throw new Error("fixture transport exhausted");
+        return { text, model: "fixture", inputTokens: 0, outputTokens: 0, costUsd: 0, providerRequestId: null };
+      },
+    };
+    const preview = await previewAdminOfficialCharacter({
+      adminUserId: ADMIN.id,
+      selection: autoHorrorDry,
+      transport,
+    });
+    assert.deepEqual(tasks, ["world_bible", "world_bible", "world_bible"]);
+    assert.equal(preview.ok, false);
+    if (preview.ok) return;
+    assert.equal("previewId" in preview, false);
+    assert.equal(
+      preview.error,
+      "official shared world projection addresses or binds the user; entry guidance belongs to the character situation"
+    );
+    assert.equal(preview.worldProjection?.stage, "world_projection");
+    assert.equal(preview.worldProjection?.code, "official_world_projection_user_binding");
+    const hit = preview.worldProjection?.hits.find((item) => item.field === "situation.upcomingChange");
+    assert.ok(hit);
+    assert.match(hit?.excerpt ?? "", /당신은/);
+    assert.ok((hit?.excerpt.length ?? 0) <= 80);
+    assert.equal(
+      preview.worldProjection?.hits.some((item) => /userEntry|authorOnly|portfolio|socialImpact|means/.test(item.field)),
+      false
+    );
+    assert.ok(
+      preview.issues?.some(
+        (issue) =>
+          issue.code === "official_world_projection_user_binding" &&
+          issue.message.includes("world_projection situation.upcomingChange:") &&
+          issue.message.includes("당신은")
+      )
+    );
+    assert.equal(preview.rejectedManuscript, undefined);
+    const wire = JSON.stringify(preview);
+    assert.equal(wire.includes(hidden), false);
+    assert.equal(wire.includes("OPENROUTER"), false);
+    assert.equal(wire.includes("너는 "), false);
+    const saved = await saveHeldAdminAuthorPreview(ADMIN, "world-projection-has-no-hold");
+    assert.equal(saved.ok, false);
+    if (!saved.ok) assert.equal(saved.status, 404);
+    const after = db.prepare("SELECT COUNT(*) AS n FROM characters").get() as { n: number };
+    assert.equal(after.n, before.n);
+  });
+});

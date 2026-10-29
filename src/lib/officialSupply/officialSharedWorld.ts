@@ -2,8 +2,11 @@ import type Database from "better-sqlite3";
 
 import { parseGenresJson } from "@/lib/characterGenres";
 import type { OfficialWorldBible, WorldFaction } from "@/lib/officialSupply/bible";
-import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
-import type { OfficialCharacterDraft } from "@/lib/officialSupply/types";
+import {
+  OfficialSupplyGateError,
+  type OfficialWorldProjectionHit,
+} from "@/lib/officialSupply/store";
+import { qaResult, type OfficialCharacterDraft } from "@/lib/officialSupply/types";
 import {
   WORLD_CONTENT_LIMIT,
   WORLD_NAME_LIMIT,
@@ -180,6 +183,100 @@ function renderOfficialSharedWorld(bible: OfficialWorldBible, options: SharedWor
   return joinParagraphs([identity, crisis, factions, magic, [society, culture].filter(Boolean).join(" "), macro]);
 }
 
+const USER_BINDING_CODE = "official_world_projection_user_binding";
+const USER_BINDING_MESSAGE =
+  "official shared world projection addresses or binds the user; entry guidance belongs to the character situation";
+const USER_BINDING_EXCERPT_CHARS = 80;
+const USER_BINDING_HIT_LIMIT = 4;
+
+function bindingExcerpt(value: string): string | null {
+  const text = compactText(value);
+  if (!text) return null;
+  USER_BINDING_MARKER.lastIndex = 0;
+  const match = USER_BINDING_MARKER.exec(text);
+  if (!match) return null;
+  const end = Math.min(text.length, Math.max(match.index + match[0].length, match.index + USER_BINDING_EXCERPT_CHARS));
+  const start = Math.max(0, end - USER_BINDING_EXCERPT_CHARS);
+  return text.slice(start, Math.min(text.length, start + USER_BINDING_EXCERPT_CHARS));
+}
+
+function rememberBinding(hits: OfficialWorldProjectionHit[], field: string, value: string): void {
+  if (hits.length >= USER_BINDING_HIT_LIMIT) return;
+  const excerpt = bindingExcerpt(value);
+  if (!excerpt) return;
+  hits.push({ field, excerpt });
+}
+
+/** Fields that `renderOfficialSharedWorld` included for this shrink. Same marker, no second regex. */
+function userBindingHits(bible: OfficialWorldBible, options: SharedWorldRenderOptions, projected: string): OfficialWorldProjectionHit[] {
+  const hits: OfficialWorldProjectionHit[] = [];
+  rememberBinding(hits, "name", officialSharedWorldLibraryName(bible));
+  rememberBinding(hits, "genre", bible.genre);
+  rememberBinding(hits, "era", stripTrailingParenthetical(bible.era));
+  rememberBinding(hits, "techLevel", bible.techLevel);
+  rememberBinding(hits, "societyForm", bible.societyForm);
+  rememberBinding(hits, "regions", bible.regions);
+
+  (bible.knowledge.common ?? [])
+    .map((fact, index) => ({ fact, index }))
+    .filter(({ fact }) => compactText(fact))
+    .slice(0, options.commonCount)
+    .forEach(({ fact, index }) => rememberBinding(hits, `knowledge.common[${index}]`, fact));
+
+  (bible.history ?? []).forEach((entry, index) => {
+    const clause = asClause(`${compactText(entry.event)}: ${compactText(entry.impact)}`);
+    if (clause.length <= 1) return;
+    rememberBinding(hits, `history[${index}].event`, entry.event);
+    rememberBinding(hits, `history[${index}].impact`, entry.impact);
+  });
+
+  (bible.factions ?? []).forEach((faction, index) => {
+    if (!compactText(faction.name)) return;
+    rememberBinding(hits, `factions[${index}].name`, faction.name);
+    for (const field of options.factionFields) {
+      rememberBinding(hits, `factions[${index}].${field}`, faction[field] ?? "");
+    }
+  });
+
+  for (const key of options.powerFields ?? POWER_FIELD_KEYS) {
+    rememberBinding(hits, `powerSystem.${key}`, bible.powerSystem[key]);
+  }
+
+  for (const key of selectedSocietyKeys(bible.society)) {
+    rememberBinding(hits, `society.${key}`, bible.society[key] ?? "");
+  }
+
+  (bible.culture ?? []).forEach((item, index) => {
+    const name = stripTrailingParenthetical(item.name);
+    if (!name) return;
+    rememberBinding(hits, `culture[${index}].name`, name);
+  });
+
+  rememberBinding(hits, "situation.upcomingChange", bible.situation.upcomingChange);
+  rememberBinding(hits, "situation.beneficiaries", bible.situation.beneficiaries);
+  rememberBinding(hits, "situation.threatened", bible.situation.threatened);
+
+  if (hits.length > 0) return hits;
+  const excerpt = bindingExcerpt(projected) ?? compactText(projected).slice(0, USER_BINDING_EXCERPT_CHARS);
+  return [{ field: "projection", excerpt }];
+}
+
+function userBindingGate(bible: OfficialWorldBible, options: SharedWorldRenderOptions, projected: string): OfficialSupplyGateError {
+  const hits = userBindingHits(bible, options, projected);
+  return new OfficialSupplyGateError(
+    USER_BINDING_CODE,
+    USER_BINDING_MESSAGE,
+    qaResult(
+      hits.map((hit) => ({
+        code: USER_BINDING_CODE,
+        message: `world_projection ${hit.field}: ${hit.excerpt}`,
+      }))
+    ),
+    undefined,
+    { stage: "world_projection", code: USER_BINDING_CODE, hits }
+  );
+}
+
 /**
  * Deterministic compact shared-world projection.
  * Domain facts come from OfficialWorldBible fields. Literals are labels,
@@ -196,14 +293,12 @@ export function projectOfficialSharedWorld(bible: OfficialWorldBible): string {
     { factionFields: ["purpose"], commonCount: 2 },
     { factionFields: ["purpose"], commonCount: 2, powerFields: ["acquisition", "limits", "costs"] },
   ];
-  let projected = renderOfficialSharedWorld(bible, attempts[0]!);
+  let chosen = attempts[0]!;
+  let projected = "";
   for (const options of attempts) {
-    const candidate = renderOfficialSharedWorld(bible, options);
-    if (candidate.length <= WORLD_PROJECTION_MAX_CHARS) {
-      projected = candidate;
-      break;
-    }
-    projected = candidate;
+    projected = renderOfficialSharedWorld(bible, options);
+    chosen = options;
+    if (projected.length <= WORLD_PROJECTION_MAX_CHARS) break;
   }
   if (projected.length < WORLD_PROJECTION_MIN_CHARS || projected.length > WORLD_PROJECTION_MAX_CHARS) {
     throw new OfficialSupplyGateError(
@@ -211,7 +306,7 @@ export function projectOfficialSharedWorld(bible: OfficialWorldBible): string {
       `official shared world projection ${projected.length} chars is outside ${WORLD_PROJECTION_MIN_CHARS}-${WORLD_PROJECTION_MAX_CHARS}`
     );
   }
-  assertOfficialSharedWorldProjection(projected, officialSharedWorldLibraryName(bible));
+  assertOfficialSharedWorldProjection(projected, officialSharedWorldLibraryName(bible), { bible, options: chosen });
   if (worldContentBundleCharCount(projected, "") > WORLD_CONTENT_LIMIT) {
     throw new OfficialSupplyGateError(
       "official_world_projection_too_large",
@@ -223,7 +318,8 @@ export function projectOfficialSharedWorld(bible: OfficialWorldBible): string {
 
 export function assertOfficialSharedWorldProjection(
   text: string,
-  expectedWorldName: string = OFFICIAL_SHARED_WORLD_LIBRARY_NAME
+  expectedWorldName: string = OFFICIAL_SHARED_WORLD_LIBRARY_NAME,
+  diagnostic?: { bible: OfficialWorldBible; options: SharedWorldRenderOptions }
 ): void {
   const body = text.trim();
   if (!body) {
@@ -235,11 +331,10 @@ export function assertOfficialSharedWorldProjection(
       `official shared world projection lost world identity: ${expectedWorldName}`
     );
   }
+  USER_BINDING_MARKER.lastIndex = 0;
   if (USER_BINDING_MARKER.test(body)) {
-    throw new OfficialSupplyGateError(
-      "official_world_projection_user_binding",
-      "official shared world projection addresses or binds the user; entry guidance belongs to the character situation"
-    );
+    if (diagnostic) throw userBindingGate(diagnostic.bible, diagnostic.options, body);
+    throw new OfficialSupplyGateError(USER_BINDING_CODE, USER_BINDING_MESSAGE);
   }
   for (const marker of HIDDEN_KNOWLEDGE_MARKERS) {
     if (marker.test(body)) {
