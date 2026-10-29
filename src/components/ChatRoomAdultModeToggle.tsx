@@ -4,7 +4,6 @@ import {
   CHAT_ADULT_MODE_LABEL,
   CHAT_ADULT_MODE_OFF_HINT,
   CHAT_ADULT_MODE_ON_HINT,
-  CHAT_ADULT_MODE_VERIFY_HINT,
 } from "@/lib/chatAdultHandoff";
 
 export default function ChatRoomAdultModeToggle({
@@ -18,11 +17,8 @@ export default function ChatRoomAdultModeToggle({
   busy?: boolean;
   onToggle: () => void;
 }) {
-  const title = isAdult
-    ? enabled
-      ? CHAT_ADULT_MODE_OFF_HINT
-      : CHAT_ADULT_MODE_ON_HINT
-    : CHAT_ADULT_MODE_VERIFY_HINT;
+  if (!isAdult) return null;
+  const title = enabled ? CHAT_ADULT_MODE_OFF_HINT : CHAT_ADULT_MODE_ON_HINT;
 
   return (
     <div
