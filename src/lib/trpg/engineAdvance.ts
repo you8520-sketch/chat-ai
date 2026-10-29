@@ -44,10 +44,12 @@ import {
   orderTrpgBotsForRound,
   parseTrpgBotAction,
   prepareTrpgBotActionBody,
+  sanitizeBotActionText,
+  TRPG_BOT_INTENT_OPEN,
   TRPG_BOT_SYSTEM,
 } from "./botActions";
 import { actionReferencesOpenRoute } from "./actionCheckContext";
-import { gmAiActionText, resolveTrpgCanonicalAttempt } from "./canonicalAttempt";
+import { gmAiActionText, isLockedSpokenLine, resolveTrpgCanonicalAttempt, stayWatchingInPlace } from "./canonicalAttempt";
 import {
   acceptedSceneLocationFromBoundState,
   applyCampaignLedger,
@@ -1172,10 +1174,6 @@ function assertTrpgActionMaxChars(text: string): void {
   if (Array.from(text).length > TRPG_ACTION_MAX_CHARS) throw new Error("행동이 너무 깁니다.");
 }
 
-function stayWatchingInPlace(name: string): string {
-  return `${name}은 제자리에 서서 상황을 살핀다.`;
-}
-
 function normalizedRemainder(text: string): string {
   return text.replace(/[\s“”"'`.!?。…,;]/g, "");
 }
@@ -1195,7 +1193,7 @@ function localRemainderText(opts: {
   for (const raw of opts.body.split(/\n+/)) {
     const trimmed = raw.trim();
     if (!trimmed) continue;
-    if (/^[“"][^”"]+[”"]$/.test(trimmed)) quotes.push(trimmed);
+    if (isLockedSpokenLine(trimmed)) quotes.push(trimmed);
     else rest.push(trimmed);
   }
   const place = {
@@ -1246,6 +1244,32 @@ function independentBotRemainder(opts: {
     .filter(Boolean)
     .join("\n")
     .trim();
+}
+
+/**
+ * The surviving local act, in the existing prose + <<<INTENT>>> shape.
+ * Quote-only lines stay in the prose so the action card and locked speech keep them.
+ * The intent is that act, or the speech itself when no other act survived.
+ * A rejected move is already gone from `remainder`.
+ */
+function canonicalRemainderLock(remainder: string): string {
+  const quotes: string[] = [];
+  const acts: string[] = [];
+  for (const raw of remainder.split(/\n+/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    if (isLockedSpokenLine(line)) quotes.push(line);
+    else acts.push(line);
+  }
+  const act = acts.join("\n").trim();
+  const spoken = quotes.join("\n");
+  const choice = act || spoken;
+  if (!choice) return "";
+  const visible = [act, spoken].filter(Boolean).join("\n");
+  const locked = sanitizeBotActionText(`${visible}\n\n${TRPG_BOT_INTENT_OPEN}\n${choice}`);
+  if (Array.from(locked).length <= TRPG_ACTION_MAX_CHARS) return locked;
+  const compact = sanitizeBotActionText(`${TRPG_BOT_INTENT_OPEN}\n${choice}`);
+  return Array.from(compact).length <= TRPG_ACTION_MAX_CHARS ? compact : "";
 }
 
 async function generateBotActions(
@@ -1471,10 +1495,18 @@ async function generateBotActions(
           usableRemainder &&
           (!latestMap || explorationCommandsFromMovementBody(latestMap.map, usableRemainder).length === 0)
         ) {
-          fallbackBranch = "priced-empty-remainder";
-          lockOutcome = "original-locked";
-          spoken = usableRemainder;
-          upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model");
+          const locked = canonicalRemainderLock(usableRemainder);
+          if (locked) {
+            fallbackBranch = "priced-empty-remainder";
+            lockOutcome = "original-locked";
+            spoken = locked;
+            upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model");
+          } else {
+            fallbackBranch = "priced-empty";
+            lockOutcome = "stay-fallback";
+            spoken = stayWatchingInPlace(bot.display_name);
+            upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
+          }
         } else {
           fallbackBranch = "priced-empty";
           lockOutcome = "stay-fallback";
