@@ -214,6 +214,11 @@ import {
   logMemoryHealthTelemetry,
 } from "@/lib/memory/memory-health-telemetry";
 import {
+  gemini38ProviderHistoryFromCanonical,
+  isGemini38FlashHistoryEchoModel,
+  omitContiguousReinjectedUserParagraphs,
+} from "@/lib/providerHistoryUserEcho";
+import {
   analyzeProviderHistoryHealth,
   countRealPlayableHistoryTurns,
   trimProviderHistoryToBudget,
@@ -1771,11 +1776,13 @@ export async function POST(req: Request) {
       };
     });
   let providerRecentHistoryFull: ChatMsg[] = coverageProtectedCanonicalHistory;
+  let providerHistoryUsesAdultBridge = false;
   if (
     adultRoutingConfig.enabled &&
     adultRouteDecision.activeRoute === "general" &&
     priorModelRouteState.generalRouteBridge
   ) {
+    providerHistoryUsesAdultBridge = true;
     providerRecentHistoryFull = trimProviderHistoryToBudget(
       buildGeneralProviderContext(
         boundCanonicalRouteHistoryForProvider(canonicalRouteHistory, providerRawPoolExchangeCount, {
@@ -1786,6 +1793,27 @@ export async function POST(req: Request) {
       historyTokenBudget,
       providerTrimOpts
     );
+  }
+  // Provider wire only. Stored rows, canonical fallback history, and other models stay raw.
+  if (isGemini38FlashHistoryEchoModel(contextModelId)) {
+    if (providerHistoryUsesAdultBridge) {
+      const projectedBridge = omitContiguousReinjectedUserParagraphs(providerRecentHistoryFull);
+      if (projectedBridge !== providerRecentHistoryFull) {
+        providerRecentHistoryFull = trimProviderHistoryToBudget(
+          projectedBridge,
+          historyTokenBudget,
+          providerTrimOpts
+        );
+      }
+    } else {
+      providerRecentHistoryFull = gemini38ProviderHistoryFromCanonical({
+        modelId: contextModelId,
+        canonicalRecentHistoryFull,
+        trimmedHistory: providerRecentHistoryFull,
+        historyTokenBudget,
+        trim: providerTrimOpts,
+      });
+    }
   }
   let handoffRawTurnsIncluded = 0;
   let handoffRawTokensIncluded = 0;
@@ -2912,8 +2940,22 @@ export async function POST(req: Request) {
           ? assembledPromptTokens
           : 0,
       currentUserEstimatedTokens: built.meta.promptAudit?.currentUserTurnTokens ?? null,
-      nextPromptHistory: preparedHistory.promptHistory,
-      previousPromptHistory: previousPreparedHistory.promptHistory,
+      nextPromptHistory: isGemini38FlashHistoryEchoModel(contextModelId)
+        ? promptHistory
+        : preparedHistory.promptHistory,
+      previousPromptHistory: isGemini38FlashHistoryEchoModel(contextModelId)
+        ? gemini38ProviderHistoryFromCanonical({
+            modelId: contextModelId,
+            canonicalRecentHistoryFull: previousPreparedHistory.canonicalRecentHistoryFull,
+            trimmedHistory: previousPreparedHistory.promptHistory,
+            historyTokenBudget: previousPreparedHistory.historyTokenBudget,
+            trim: {
+              minRealPlayableExchanges:
+                previousPreparedHistory.providerHistoryMinRealPlayableExchanges,
+              protectOpening: previousPreparedHistory.providerHistoryProtectOpening,
+            },
+          })
+        : previousPreparedHistory.promptHistory,
       nextPromptAuditSections: promptAuditSectionsFromPromptAudit({
         breakdown: built.meta.promptAudit?.breakdown ?? null,
       }),

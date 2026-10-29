@@ -37,6 +37,7 @@ import {
 import { SERVER_UNDER_LENGTH_RECOVERY_STAGE } from "@/lib/serverUnderLengthRecovery";
 import { isStatusWidgetExtractStageLabel } from "@/lib/statusWidget/receiptUsage";
 import { isSuccessfulDurableGenerationStatus } from "@/lib/streamingPersistenceShared";
+import { findProviderHistoryEchoRetainedAssistant } from "@/lib/providerHistoryUserEcho";
 import { estimateTokens, estimateTokensFromCharCount } from "@/lib/tokenEstimate";
 
 export const NEXT_TURN_ESTIMATE_VERSION = "main-rp-next-turn-v1";
@@ -495,6 +496,17 @@ export function resolveNextTurnRawHistoryState(input: {
   return { previous: "unknown", next: "unknown" };
 }
 
+function scaledRetainedOutputTokens(
+  storedAssistant: string,
+  sentAssistant: string,
+  actualOutputTokens: number
+): number {
+  const storedTokens = estimateTokens(storedAssistant);
+  const sentTokens = estimateTokens(sentAssistant);
+  if (storedTokens <= 0) return Math.max(0, sentTokens);
+  return Math.max(0, Math.round((actualOutputTokens * sentTokens) / storedTokens));
+}
+
 export function resolveNextTurnHistoryDelta(input: {
   previous: NextTurnActualAnchor;
   previousAssistantRetained?: boolean;
@@ -509,16 +521,24 @@ export function resolveNextTurnHistoryDelta(input: {
   nextPromptHistory?: NextTurnHistoryMessage[] | null;
   previousPromptHistory?: NextTurnHistoryMessage[] | null;
 }): NextTurnHistoryDelta {
-  const previousAssistantRetained =
+  const storedAssistant = input.previousAssistantContent ?? "";
+  const storedAssistantTrim = storedAssistant.trim();
+  const retainedSent =
     input.nextPromptHistory != null
-      ? isPreviousAssistantRetainedInHistory({
-          nextPromptHistory: input.nextPromptHistory,
-          previousAssistantContent: input.previousAssistantContent,
-        })
-      : input.previousAssistantRetained === true;
-  const retainedNewHistoryTokens = previousAssistantRetained
-    ? Math.max(0, Math.round(input.previous.actualBillableOutputTokens))
-    : 0;
+      ? findProviderHistoryEchoRetainedAssistant(storedAssistant, input.nextPromptHistory)
+      : input.previousAssistantRetained === true
+        ? storedAssistantTrim || null
+        : null;
+  const previousAssistantRetained = retainedSent != null;
+  const retainedNewHistoryTokens = !previousAssistantRetained
+    ? 0
+    : retainedSent === storedAssistantTrim || input.nextPromptHistory == null
+      ? Math.max(0, Math.round(input.previous.actualBillableOutputTokens))
+      : scaledRetainedOutputTokens(
+          storedAssistantTrim,
+          retainedSent,
+          input.previous.actualBillableOutputTokens
+        );
   const evictedFromHistories =
     input.previousPromptHistory != null && input.nextPromptHistory != null
       ? resolveRemovedHistoryTexts({
