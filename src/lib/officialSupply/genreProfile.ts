@@ -11,7 +11,7 @@
  *
  * Absent plan === rofan parity: legacy callers keep byte-identical prompts.
  */
-import { CHARACTER_GENRES, isCharacterGenre } from "@/lib/characterGenres";
+import { CHARACTER_GENRES, isCharacterGenre, type CharacterGenre } from "@/lib/characterGenres";
 import { resolveNamingProfile, type NamingProfileKey } from "@/lib/officialSupply/marketFit";
 import { DOMESTIC_ROFAN_STYLE_DIRECTION } from "@/lib/officialSupply/style";
 
@@ -190,6 +190,111 @@ export function resolveOfficialAuthoringPlan(direction: OfficialAuthoringDirecti
 
 /** Plan used when a caller supplies none: the pre-G5 rofan prompts, byte for byte. */
 export const ROFAN_PARITY_PLAN: OfficialAuthoringPlan = resolveOfficialAuthoringPlan({ genre: OFFICIAL_ROFAN_GENRE });
+
+type RecommendedAuthoringAxes = Required<Pick<OfficialAuthoringDirection, "tone" | "humor" | "pacing" | "nameWordplay">>;
+
+const RECOMMENDED_LIGHT_COMEDY: RecommendedAuthoringAxes = {
+  tone: "light",
+  humor: "central",
+  pacing: "dialogue",
+  nameWordplay: "nickname",
+};
+const RECOMMENDED_DRY: RecommendedAuthoringAxes = {
+  tone: "dry",
+  humor: "light",
+  pacing: "narration",
+  nameWordplay: "none",
+};
+const RECOMMENDED_LYRICAL: RecommendedAuthoringAxes = {
+  tone: "lyrical",
+  humor: "light",
+  pacing: "balanced",
+  nameWordplay: "none",
+};
+const RECOMMENDED_SERIOUS: RecommendedAuthoringAxes = {
+  tone: "serious",
+  humor: "light",
+  pacing: "balanced",
+  nameWordplay: "none",
+};
+const RECOMMENDED_SIMULATION: RecommendedAuthoringAxes = {
+  tone: "light",
+  humor: "light",
+  pacing: "dialogue",
+  nameWordplay: "none",
+};
+
+function recommendedAxes(genre: CharacterGenre): RecommendedAuthoringAxes {
+  switch (genre) {
+    case "현대/일상":
+    case "학원":
+    case "스포츠":
+      return RECOMMENDED_LIGHT_COMEDY;
+    case "공포/추리":
+    case "SF":
+    case "아포칼립스":
+      return RECOMMENDED_DRY;
+    case "로맨스":
+    case "로맨스 판타지":
+    case "BL":
+    case "GL":
+    case "HL":
+      return RECOMMENDED_LYRICAL;
+    case "시뮬레이션":
+      return RECOMMENDED_SIMULATION;
+    case "무협":
+    case "동양풍":
+    case "현대 판타지":
+    case "판타지":
+    case "인외":
+    case "센티넬버스":
+    case "기타":
+      return RECOMMENDED_SERIOUS;
+    default: {
+      const unreachable: never = genre;
+      throw new Error(`unknown genre for authoring recommendation: ${String(unreachable)}`);
+    }
+  }
+}
+
+/**
+ * Admin UI default. Callers that omit tone/humor/pacing stay on `ROFAN_PARITY_PLAN`
+ * byte parity; this recommendation is applied only when the admin leaves an axis on auto.
+ */
+export function recommendOfficialAuthoringDirection(
+  genre: CharacterGenre
+): OfficialAuthoringDirection & RecommendedAuthoringAxes {
+  return { genre, ...recommendedAxes(genre) };
+}
+
+export function recommendOfficialCastIntent(genre: CharacterGenre): string {
+  const profile = resolveOfficialGenreProfile(genre);
+  if (profile.openRelationLine) {
+    return `전체 이용자 대상 ${genre} 캐릭터 1명. 연애로 시작하지 않고, 이 장르에서 자연스러운 일과 관계로 첫 장면을 만든다.`;
+  }
+  return `전체 이용자 대상 ${genre} 캐릭터 1명. 유저의 성별·직업·과거는 고정하지 않고, 이 장르의 관계와 사건으로 첫 장면을 만든다.`;
+}
+
+export type OfficialAuthoringAxisChoice<T extends string> = T | "auto";
+
+export function resolveAdminAuthoringDirection(input: {
+  genre: CharacterGenre;
+  tone?: OfficialAuthoringAxisChoice<OfficialNarrativeTone>;
+  humor?: OfficialAuthoringAxisChoice<OfficialHumorLevel>;
+  pacing?: OfficialAuthoringAxisChoice<OfficialNarrativePacing>;
+  nameWordplay?: OfficialAuthoringAxisChoice<OfficialNameWordplay>;
+}): OfficialAuthoringDirection & RecommendedAuthoringAxes {
+  const recommended = recommendOfficialAuthoringDirection(input.genre);
+  const pick = <T extends string>(choice: T | "auto" | undefined, fallback: T): T =>
+    choice && choice !== "auto" ? choice : fallback;
+  return {
+    genre: input.genre,
+    tone: pick(input.tone, recommended.tone),
+    humor: pick(input.humor, recommended.humor),
+    pacing: pick(input.pacing, recommended.pacing),
+    nameWordplay: pick(input.nameWordplay, recommended.nameWordplay),
+  };
+}
 
 export const OFFICIAL_SUPPORTED_GENRES: readonly string[] = CHARACTER_GENRES;
 

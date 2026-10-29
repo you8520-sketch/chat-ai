@@ -144,6 +144,18 @@ export default function StudioClient({
             >
               내 공개 프로필
             </StudioButton>
+            {ownerIsAdmin ? (
+              <StudioButton
+                href="/create"
+                variant="secondary"
+                size="sm"
+                className="whitespace-nowrap"
+                aria-label="범용 초안 생성"
+                title="장르를 골라 검수 후 비공개 초안으로 저장"
+              >
+                범용 초안 생성
+              </StudioButton>
+            ) : null}
           </nav>
         </div>
         <StudioButton href={activeMeta.createHref} size="lg" className="w-full justify-center sm:w-auto">
