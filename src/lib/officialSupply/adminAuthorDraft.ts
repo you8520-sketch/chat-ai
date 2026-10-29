@@ -64,7 +64,8 @@ import { evaluateInternalRegionConsistency, internalWorldRegions } from "@/lib/o
 export const ADMIN_AUTHOR_CALL_CAP = 12;
 const MAX_EXPLICIT_VOICE_REPAIRS = 2;
 const MAX_CAST_INTENT_CHARS = 500;
-const HOLD_LIMIT = 20;
+/** Max in-memory unsaved previews per process; saved holds are kept for save idempotency. */
+const UNSAVED_HOLD_LIMIT = 20;
 
 const MARKET_POLICY: OfficialBatchMarketPolicy = {
   targetLocale: "ko-KR",
@@ -139,6 +140,13 @@ type Hold = {
 };
 
 const holds = new Map<string, Hold>();
+
+type SaveHeldResult =
+  | { ok: true; characterId: number; alreadySaved: boolean }
+  | { ok: false; status: number; error: string };
+
+const saveInFlight = new Map<string, Promise<SaveHeldResult>>();
+const repairInFlight = new Map<string, Promise<AdminAuthorPreviewResult>>();
 
 function axisChoice<T extends string>(value: unknown, allowed: readonly T[]): T | "auto" | null {
   if (value == null || value === "" || value === "auto") return "auto";
@@ -263,12 +271,26 @@ export function assessAdminAuthorManuscript(input: {
   ];
 }
 
-function evictHolds(): void {
-  if (holds.size <= HOLD_LIMIT) return;
+function unsavedHoldCount(excludeId?: string): number {
+  let count = 0;
   for (const [id, hold] of holds) {
-    if (hold.savedCharacterId != null) continue;
-    holds.delete(id);
-    if (holds.size <= HOLD_LIMIT) return;
+    if (id === excludeId) continue;
+    if (hold.savedCharacterId == null) count += 1;
+  }
+  return count;
+}
+
+function evictUnsavedHolds(excludeId: string): void {
+  while (unsavedHoldCount(excludeId) >= UNSAVED_HOLD_LIMIT) {
+    let removed = false;
+    for (const [id, hold] of holds) {
+      if (id === excludeId) continue;
+      if (hold.savedCharacterId != null) continue;
+      holds.delete(id);
+      removed = true;
+      break;
+    }
+    if (!removed) break;
   }
 }
 
@@ -356,7 +378,7 @@ function holdManuscript(input: {
     savedCharacterId: null,
   };
   holds.set(hold.id, hold);
-  evictHolds();
+  evictUnsavedHolds(hold.id);
   return publicPreview(hold);
 }
 
@@ -484,6 +506,9 @@ export async function repairHeldAdminAuthorPreview(input: {
   previewId: string;
   transport?: OfficialAuthorTransport;
 }): Promise<AdminAuthorPreviewResult> {
+  const inFlight = repairInFlight.get(input.previewId);
+  if (inFlight) return inFlight;
+
   const hold = holds.get(input.previewId);
   if (!hold || hold.adminUserId !== input.adminUserId) return { ok: false, error: "미리보기를 찾을 수 없습니다." };
   if (hold.savedCharacterId != null) return { ok: false, error: "이미 저장된 초안은 에디터에서 수정합니다." };
@@ -492,41 +517,69 @@ export async function repairHeldAdminAuthorPreview(input: {
   const fields = officialVoiceFieldsForQaCodes(hold.issues.map((issue) => issue.code));
   const repairable = hold.issues.every((issue) => officialVoiceFieldsForQaCodes([issue.code]).length > 0) && fields.length > 0;
   if (!repairable) return { ok: false, error: "이 오류는 선택 보정으로 고칠 수 없습니다. 원고는 저장하지 않습니다." };
+
   const budget = new OfficialAuthorCallBudget(1);
-  try {
-    const revised = await reviseOfficialCharacterVoice({
-      transport: transportFor(input.transport, budget),
-      modelId: resolveOfficialAuthorModelId(),
-      authoring: hold.plan,
-      bible: hold.bible,
-      voice: {
-        name: hold.brief.name,
-        age: hold.brief.age,
-        gender: hold.brief.gender,
-        adultCandidate: false,
-        speechDirection: hold.brief.speechDirection,
-        npcDemand: "기존 NPC를 유지한다(새로 만들지 않는다).",
-        marketFit: hold.brief.marketFit,
-        userRelation: hold.brief.userRelation,
-      },
-      fields,
-      reasons: hold.issues.map((issue) => `${issue.code}: ${issue.message}`),
-    });
-    const next = holdManuscript({
-      adminUserId: hold.adminUserId,
-      draftKey: hold.draftKey,
-      plan: hold.plan,
-      world: hold.world,
-      brief: hold.brief,
-      bible: revised.bible,
-      castIntent: hold.castIntent,
-      voiceRepairs: hold.voiceRepairs + 1,
-    });
-    holds.delete(hold.id);
-    return next;
-  } catch (error) {
-    return fail(error);
-  }
+  let resolveFlight!: (result: AdminAuthorPreviewResult) => void;
+  const flight = new Promise<AdminAuthorPreviewResult>((resolve) => {
+    resolveFlight = resolve;
+  });
+  repairInFlight.set(input.previewId, flight);
+
+  void (async () => {
+    try {
+      const current = holds.get(input.previewId);
+      if (!current || current.adminUserId !== input.adminUserId) {
+        resolveFlight({ ok: false, error: "미리보기를 찾을 수 없습니다." });
+        return;
+      }
+      if (current.savedCharacterId != null) {
+        resolveFlight({ ok: false, error: "이미 저장된 초안은 에디터에서 수정합니다." });
+        return;
+      }
+      if (current.voiceRepairs >= MAX_EXPLICIT_VOICE_REPAIRS) {
+        resolveFlight({ ok: false, error: "선택 보정 횟수를 모두 사용했습니다." });
+        return;
+      }
+      try {
+        const revised = await reviseOfficialCharacterVoice({
+          transport: transportFor(input.transport, budget),
+          modelId: resolveOfficialAuthorModelId(),
+          authoring: current.plan,
+          bible: current.bible,
+          voice: {
+            name: current.brief.name,
+            age: current.brief.age,
+            gender: current.brief.gender,
+            adultCandidate: false,
+            speechDirection: current.brief.speechDirection,
+            npcDemand: "기존 NPC를 유지한다(새로 만들지 않는다).",
+            marketFit: current.brief.marketFit,
+            userRelation: current.brief.userRelation,
+          },
+          fields,
+          reasons: current.issues.map((issue) => `${issue.code}: ${issue.message}`),
+        });
+        const next = holdManuscript({
+          adminUserId: current.adminUserId,
+          draftKey: current.draftKey,
+          plan: current.plan,
+          world: current.world,
+          brief: current.brief,
+          bible: revised.bible,
+          castIntent: current.castIntent,
+          voiceRepairs: current.voiceRepairs + 1,
+        });
+        holds.delete(current.id);
+        resolveFlight(next);
+      } catch (error) {
+        resolveFlight(fail(error));
+      }
+    } finally {
+      if (repairInFlight.get(input.previewId) === flight) repairInFlight.delete(input.previewId);
+    }
+  })();
+
+  return flight;
 }
 
 export function holdAdminAuthorManuscriptForTests(input: {
@@ -551,30 +604,68 @@ export function holdAdminAuthorManuscriptForTests(input: {
 
 export function clearAdminAuthorPreviewsForTests(): void {
   holds.clear();
+  saveInFlight.clear();
+  repairInFlight.clear();
 }
 
-export async function saveHeldAdminAuthorPreview(
-  admin: SessionUser,
-  previewId: string
-): Promise<{ ok: true; characterId: number; alreadySaved: boolean } | { ok: false; status: number; error: string }> {
+export function markAdminAuthorPreviewSavedForTests(previewId: string, characterId: number): void {
+  const hold = holds.get(previewId);
+  if (hold) hold.savedCharacterId = characterId;
+}
+
+export async function saveHeldAdminAuthorPreview(admin: SessionUser, previewId: string): Promise<SaveHeldResult> {
   if (!isAdminUser({ ...admin, email: admin.email ?? "" })) {
     return { ok: false, status: 403, error: "관리자 권한이 필요합니다." };
   }
+  const existingFlight = saveInFlight.get(previewId);
+  if (existingFlight) return existingFlight;
+
   const hold = holds.get(previewId);
   if (!hold || hold.adminUserId !== admin.id) return { ok: false, status: 404, error: "미리보기를 찾을 수 없습니다." };
   if (hold.savedCharacterId != null) return { ok: true, characterId: hold.savedCharacterId, alreadySaved: true };
   if (hold.issues.length > 0) {
     return { ok: false, status: 409, error: "검수를 통과하지 않은 원고는 저장하지 않습니다." };
   }
-  const created = await createCharacterFromForm(
-    admin,
-    buildOfficialCharacterFormBody({
-      draft: hold.draft,
-      appearanceBlock: "",
-      assets: [],
-    })
-  );
-  if (!created.ok) return { ok: false, status: created.status ?? 400, error: created.error };
-  hold.savedCharacterId = created.id;
-  return { ok: true, characterId: created.id, alreadySaved: false };
+
+  let resolveFlight!: (result: SaveHeldResult) => void;
+  const flight = new Promise<SaveHeldResult>((resolve) => {
+    resolveFlight = resolve;
+  });
+  saveInFlight.set(previewId, flight);
+
+  void (async () => {
+    try {
+      const current = holds.get(previewId);
+      if (!current || current.adminUserId !== admin.id) {
+        resolveFlight({ ok: false, status: 404, error: "미리보기를 찾을 수 없습니다." });
+        return;
+      }
+      if (current.savedCharacterId != null) {
+        resolveFlight({ ok: true, characterId: current.savedCharacterId, alreadySaved: true });
+        return;
+      }
+      if (current.issues.length > 0) {
+        resolveFlight({ ok: false, status: 409, error: "검수를 통과하지 않은 원고는 저장하지 않습니다." });
+        return;
+      }
+      const created = await createCharacterFromForm(
+        admin,
+        buildOfficialCharacterFormBody({
+          draft: current.draft,
+          appearanceBlock: "",
+          assets: [],
+        })
+      );
+      if (!created.ok) {
+        resolveFlight({ ok: false, status: created.status ?? 400, error: created.error });
+        return;
+      }
+      current.savedCharacterId = created.id;
+      resolveFlight({ ok: true, characterId: created.id, alreadySaved: false });
+    } finally {
+      if (saveInFlight.get(previewId) === flight) saveInFlight.delete(previewId);
+    }
+  })();
+
+  return flight;
 }

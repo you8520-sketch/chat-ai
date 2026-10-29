@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { CHARACTER_GENRES } from "@/lib/characterGenres";
 import { GENDER_LABELS, type CharacterGender } from "@/lib/characterGender";
@@ -111,6 +111,12 @@ export default function AdminOfficialAuthorPanel({
     [genre, recommendations]
   );
 
+  useEffect(() => {
+    setPreview(null);
+    setSaved(null);
+    setError("");
+  }, [genre, tone, humor, pacing, nameWordplay, gender, castIntent]);
+
   async function post(path: string, body: unknown): Promise<{ status: number; payload: Record<string, unknown> }> {
     const response = await fetch(path, {
       method: "POST",
@@ -195,7 +201,8 @@ export default function AdminOfficialAuthorPanel({
       <h2 className={cn(studioType.heading, "text-lg")}>공식 범용 초안</h2>
       <p className={cn(studioType.helper, "mt-1")}>
         장르·문체·유머·전개·작명은 자동 추천이 기본입니다. 필요한 항목만 바꾸세요. 검수를 통과한 원고만 관리자
-        소유의 비공개 초안(이미지 없음)으로 저장합니다. 공개와 승인은 하지 않습니다.
+        소유의 비공개 초안(이미지 없음)으로 저장합니다. 공개와 승인은 하지 않습니다. 저장하지 않은 미리보기는 서버
+        재시작·배포 후 복구되지 않습니다.
       </p>
       {recommendation ? (
         <p className="mt-3 break-words text-sm text-zinc-300" data-testid="admin-author-recommendation">

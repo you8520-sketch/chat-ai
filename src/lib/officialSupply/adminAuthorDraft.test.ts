@@ -9,6 +9,7 @@ import {
   assessAdminAuthorManuscript,
   clearAdminAuthorPreviewsForTests,
   holdAdminAuthorManuscriptForTests,
+  markAdminAuthorPreviewSavedForTests,
   officialVoiceFieldsForQaCodes,
   parseAdminAuthorSelection,
   previewAdminOfficialCharacter,
@@ -35,6 +36,31 @@ const ADMIN = { id: 97401, nickname: "G5-2 관리자", email: "g52-admin@test.lo
 const OTHER = { id: 97402, nickname: "G5-2 다른 관리자", email: "g52-other@test.local", is_adult: 1, is_admin: 1 };
 const USER = { id: 97403, nickname: "G5-2 일반", email: "g52-user@test.local", is_adult: 1, is_admin: 0 };
 const ROOT = path.join(process.cwd(), "docs/official-supply/reviews/g5-1-2026-10-28/candidates");
+const PROVIDER = path.join(process.cwd(), "docs/official-supply/reviews/g5-1-2026-10-28/provider-responses");
+
+function providerFixtureTransport(providerFiles: readonly string[]): { transport: OfficialAuthorTransport; getCalls: () => number } {
+  const queue = providerFiles.map((file) => readJson<{ text: string }>(path.join(PROVIDER, file)).text);
+  let calls = 0;
+  return {
+    getCalls: () => calls,
+    transport: {
+      label: "g5-1-provider-fixture",
+      async completeJson() {
+        calls += 1;
+        const text = queue.shift();
+        if (!text) throw new Error("fixture transport exhausted");
+        return {
+          text,
+          model: "fixture",
+          inputTokens: 0,
+          outputTokens: 0,
+          costUsd: 0,
+          providerRequestId: null,
+        };
+      },
+    },
+  };
+}
 
 function readJson<T>(file: string): T {
   return JSON.parse(fs.readFileSync(file, "utf8")) as T;
@@ -57,6 +83,16 @@ const autoModern: AdminAuthorSelection = {
   pacing: "auto",
   nameWordplay: "auto",
   gender: "female",
+  castIntent: "",
+};
+
+const autoHorrorDry: AdminAuthorSelection = {
+  genre: "공포/추리",
+  tone: "auto",
+  humor: "auto",
+  pacing: "auto",
+  nameWordplay: "auto",
+  gender: "male",
   castIntent: "",
 };
 
@@ -182,6 +218,143 @@ describe("G5-2 admin private draft save", () => {
     const bible = { ...pack.bible, greeting: `${pack.bible.greeting}\n사정을` };
     const issues = assessAdminAuthorManuscript({ draft: { ...pack.draft, greeting: bible.greeting }, bible, world: pack.world, brief: pack.brief });
     assert.ok(issues.some((issue) => issue.code === "sfw_public_text_has_adult_terms"));
+  });
+
+  it("keeps a 21st preview when 20 saved holds already occupy memory", () => {
+    clearAdminAuthorPreviewsForTests();
+    const pack = candidate("g5-modern-comedy");
+    const plan = resolveOfficialAuthoringPlan(recommendOfficialAuthoringDirection("현대/일상"));
+    for (let i = 0; i < 20; i += 1) {
+      const saved = holdAdminAuthorManuscriptForTests({
+        adminUserId: ADMIN.id,
+        plan,
+        world: pack.world,
+        brief: pack.brief,
+        bible: pack.bible,
+      });
+      markAdminAuthorPreviewSavedForTests(saved.previewId, 880_000 + i);
+    }
+    const twentyFirst = holdAdminAuthorManuscriptForTests({
+      adminUserId: ADMIN.id,
+      plan,
+      world: pack.world,
+      brief: pack.brief,
+      bible: pack.bible,
+    });
+    assert.ok(twentyFirst.previewId);
+    assert.equal(twentyFirst.qaOk, true);
+  });
+
+  it("creates exactly one DB row when duplicate saves race on the same previewId", async () => {
+    clearAdminAuthorPreviewsForTests();
+    const pack = candidate("g5-modern-comedy");
+    const plan = resolveOfficialAuthoringPlan(recommendOfficialAuthoringDirection("현대/일상"));
+    const preview = holdAdminAuthorManuscriptForTests({
+      adminUserId: ADMIN.id,
+      plan,
+      world: pack.world,
+      brief: pack.brief,
+      bible: pack.bible,
+    });
+    const db = getDb();
+    const beforeOwned = (db.prepare("SELECT COUNT(*) AS n FROM characters WHERE creator_id=?").get(ADMIN.id) as { n: number }).n;
+    const [first, second] = await Promise.all([
+      saveHeldAdminAuthorPreview(ADMIN, preview.previewId),
+      saveHeldAdminAuthorPreview(ADMIN, preview.previewId),
+    ]);
+    assert.equal(first.ok, true);
+    assert.equal(second.ok, true);
+    if (!first.ok || !second.ok) return;
+    assert.equal(first.characterId, second.characterId);
+    const afterOwned = (db.prepare("SELECT COUNT(*) AS n FROM characters WHERE creator_id=?").get(ADMIN.id) as { n: number }).n;
+    assert.equal(afterOwned - beforeOwned, 1);
+  });
+
+  it("calls paid transport at most once when duplicate repairs race", async () => {
+    clearAdminAuthorPreviewsForTests();
+    const pack = candidate("g5-modern-comedy");
+    const plan = resolveOfficialAuthoringPlan(recommendOfficialAuthoringDirection("현대/일상"));
+    const brokenGreeting = `"당신, 여기 왜 서 있어?"`;
+    const bible = { ...pack.bible, greeting: brokenGreeting };
+    const preview = holdAdminAuthorManuscriptForTests({
+      adminUserId: ADMIN.id,
+      plan,
+      world: pack.world,
+      brief: pack.brief,
+      bible,
+    });
+    assert.equal(preview.qaOk, false);
+    assert.ok(preview.repairable);
+    const voiceFixture = readJson<{ text: string }>(
+      path.join(PROVIDER, "11-g5-modern-comedy-character_bible_voice.json")
+    ).text;
+    let transportCalls = 0;
+    const transport: OfficialAuthorTransport = {
+      label: "repair-once",
+      async completeJson(input) {
+        transportCalls += 1;
+        assert.equal(input.task, "character_bible_voice");
+        return {
+          text: voiceFixture,
+          model: "fixture",
+          inputTokens: 0,
+          outputTokens: 0,
+          costUsd: 0,
+          providerRequestId: null,
+        };
+      },
+    };
+    const [first, second] = await Promise.all([
+      repairHeldAdminAuthorPreview({ adminUserId: ADMIN.id, previewId: preview.previewId, transport }),
+      repairHeldAdminAuthorPreview({ adminUserId: ADMIN.id, previewId: preview.previewId, transport }),
+    ]);
+    assert.equal(transportCalls, 1);
+    assert.equal(first.ok, true);
+    assert.equal(second.ok, true);
+    if (!first.ok || !second.ok) return;
+    assert.equal(first.previewId, second.previewId);
+    assert.ok(first.qaOk);
+  });
+
+  it("runs the production preview path with G5-1 provider fixtures and saves privately", async () => {
+    clearAdminAuthorPreviewsForTests();
+    const pack = candidate("g5-horror-dry");
+    const fixture = providerFixtureTransport([
+      "14-g5-horror-dry-world_bible.json",
+      "15-g5-horror-dry-world_bible.json",
+      "16-g5-horror-dry-world_bible.json",
+      "17-g5-horror-dry-world_bible.json",
+      "18-g5-horror-dry-character_bible_1.json",
+      "19-g5-horror-dry-character_bible_voice.json",
+      "20-g5-horror-dry-character_bible_bonds.json",
+    ]);
+    const preview = await previewAdminOfficialCharacter({
+      adminUserId: ADMIN.id,
+      selection: autoHorrorDry,
+      transport: fixture.transport,
+    });
+    assert.equal(preview.ok, true, preview.ok === false ? preview.error : JSON.stringify(preview));
+    assert.equal(fixture.getCalls(), 7, `transport calls=${fixture.getCalls()}`);
+    if (!preview.ok) return;
+    assert.equal(preview.manuscript.name, pack.draft.name);
+    assert.equal(preview.manuscript.greeting, pack.draft.greeting);
+    if (!preview.qaOk) {
+      const blocked = await saveHeldAdminAuthorPreview(ADMIN, preview.previewId);
+      assert.equal(blocked.ok, false);
+      if (!blocked.ok) assert.equal(blocked.status, 409);
+      return;
+    }
+    assert.equal(preview.textLock, computeTextLockHash(pack.draft));
+    const saved = await saveHeldAdminAuthorPreview(ADMIN, preview.previewId);
+    assert.equal(saved.ok, true);
+    if (!saved.ok) return;
+    const row = getDb().prepare("SELECT * FROM characters WHERE id=?").get(saved.characterId) as Record<string, unknown>;
+    assert.equal(row.creator_id, ADMIN.id);
+    assert.equal(row.visibility, "private");
+    assert.equal(row.official, 0);
+    assert.equal(row.assets, "[]");
+    assert.equal(row.greeting, pack.draft.greeting);
+    assert.equal(row.description, pack.draft.description);
   });
 
   it("does not insert a character when generation fails before a manuscript exists", async () => {
