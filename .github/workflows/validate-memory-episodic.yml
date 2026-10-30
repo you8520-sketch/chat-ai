@@ -105,7 +105,12 @@ on:
       - "src/lib/memory/memory-rolling-summary.ts"
       - "src/lib/memory/memory-source-boundary.test.ts"
       - "src/lib/memory/memory-source-boundary.ts"
+      - "src/lib/chatMemory.ts"
+      - "src/lib/chatMemory.test.ts"
+      - "src/lib/relationshipMetaItems.ts"
+      - "src/lib/relationshipMetaItems.test.ts"
       - "src/lib/memory/memory-relationship-meta.ts"
+      - "src/lib/memory/memory-relationship-delete-residue.test.ts"
       - "src/lib/memory/memoryRelationshipTask.production.test.ts"
       - "src/lib/memory/memory-relationship-provenance.test.ts"
       - "src/lib/memory/memory-relationship-variant-switch.test.ts"
@@ -206,6 +211,9 @@ jobs:
 
       - name: Last-turn relationship + numeric delete atomicity
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/rpNumericStateTurnDelete.test.ts
+
+      - name: Relationship same-name possession regressions
+        run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/chatMemory.test.ts src/lib/relationshipMetaItems.test.ts src/lib/memory/memory-relationship-delete-residue.test.ts src/lib/memory/memory-b48-item-role.test.ts
 
       - name: Relationship provenance lifecycle
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memoryRelationshipTask.production.test.ts src/lib/memory/memory-relationship-provenance.test.ts

@@ -56,8 +56,24 @@ describe("relationshipMetaItems", () => {
   it("does not drop B's remaining same-named ring when one of two is handed on", () => {
     const prev = ["오스카→제이: 수류탄 핀 반지", "식스→제이: 수류탄 핀 반지"];
     const patch = expandPossessionTransferRemovals(prev, ["제이→민수: 수류탄 핀 반지"]);
-    assert.deepEqual(patch.itemsRemove, []);
-    assert.deepEqual(patch.itemsRevise, []);
+    assert.deepEqual(
+      [...patch.itemsRemove].sort(),
+      ["오스카→제이: 수류탄 핀 반지", "식스→제이: 수류탄 핀 반지"].sort()
+    );
+    assert.deepEqual(patch.itemsRevise, ["제이: 수류탄 핀 반지"]);
+  });
+
+  it("keeps an unrelated item on its source line when one of two same-named rings moves", () => {
+    const prev = ["오스카→제이: 수류탄 핀 반지, 목걸이", "식스→제이: 수류탄 핀 반지"];
+    const patch = expandPossessionTransferRemovals(prev, ["제이→민수: 수류탄 핀 반지"]);
+    assert.deepEqual(
+      [...patch.itemsRemove].sort(),
+      ["오스카→제이: 수류탄 핀 반지, 목걸이", "식스→제이: 수류탄 핀 반지"].sort()
+    );
+    assert.deepEqual(
+      [...patch.itemsRevise].sort(),
+      ["오스카→제이: 목걸이", "제이: 수류탄 핀 반지"].sort()
+    );
   });
 
   it("removes the previous handoff line when the receiver passes the item on", () => {

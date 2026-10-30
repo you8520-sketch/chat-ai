@@ -163,13 +163,49 @@ export function expandPossessionTransferRemovals(
       matches.push({ raw, remaining, person: prev.person });
     }
 
-    // Same name on two of B's lines is two objects. Do not guess which one moved.
-    if (matches.length !== 1) continue;
-    const match = matches[0]!;
-    itemsRemove.push(match.raw);
-    if (match.remaining.length > 0) {
-      itemsRevise.push(`${match.person}: ${match.remaining.join(", ")}`);
+    if (matches.length === 0) continue;
+
+    if (matches.length === 1) {
+      const match = matches[0]!;
+      itemsRemove.push(match.raw);
+      if (match.remaining.length > 0) {
+        itemsRevise.push(`${match.person}: ${match.remaining.join(", ")}`);
+      }
+      continue;
     }
+
+    // Two same-named objects on B: one moved, one remains. Do not pick a source
+    // arrow. Drop both source lines for that name, keep other items on those
+    // lines, and record the leftover hold as a plain owner line.
+    // Three or more same-named lines cannot count leftovers in this schema.
+    if (matches.length !== 2) continue;
+
+    for (const match of matches) {
+      itemsRemove.push(match.raw);
+      if (match.remaining.length > 0) {
+        itemsRevise.push(`${match.person}: ${match.remaining.join(", ")}`);
+      }
+    }
+
+    const leftoverNames = [...transferred];
+    const existingPlain = prevEntries.find((raw) => {
+      const prev = parsePossessionEntry(raw.trim());
+      if (!prev || prev.person.includes("→")) return false;
+      return possessionPersonMatches(prev.person, fromPerson, names);
+    });
+    if (existingPlain) {
+      const prev = parsePossessionEntry(existingPlain.trim());
+      if (prev) {
+        itemsRemove.push(existingPlain);
+        const combined = [...prev.items];
+        for (const name of leftoverNames) {
+          if (!combined.includes(name)) combined.push(name);
+        }
+        itemsRevise.push(`${prev.person}: ${combined.join(", ")}`);
+        continue;
+      }
+    }
+    itemsRevise.push(`${fromPerson}: ${leftoverNames.join(", ")}`);
   }
 
   return {

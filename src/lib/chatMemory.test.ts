@@ -202,15 +202,27 @@ describe("mergeMemoryMeta possession", () => {
     );
     assert.deepEqual(
       [...merged.items].sort(),
-      [
-        "오스카→제이: 수류탄 핀 반지",
-        "식스→제이: 수류탄 핀 반지",
-        "제이→민수: 수류탄 핀 반지",
-      ].sort()
+      ["제이: 수류탄 핀 반지", "제이→민수: 수류탄 핀 반지"].sort()
     );
-    assert.equal(
-      formatMemoryMetaForPrompt(merged),
-      "[Memory — 참고, 우선순위 2순위 하위]\n관계:\n소지품:\n제이: 수류탄 핀 반지\n민수: 수류탄 핀 반지"
+    const prompt = formatMemoryMetaForPrompt(merged) ?? "";
+    assert.match(prompt, /제이: 수류탄 핀 반지/);
+    assert.match(prompt, /민수: 수류탄 핀 반지/);
+    assert.doesNotMatch(prompt, /오스카→제이|식스→제이/);
+  });
+
+  it("keeps a leftover necklace on its source line when one of two rings moves", () => {
+    const prev = {
+      ...EMPTY_MEMORY_META,
+      items: ["오스카→제이: 수류탄 핀 반지, 목걸이", "식스→제이: 수류탄 핀 반지"],
+    };
+    const merged = mergeMemoryMeta(
+      prev,
+      { items: ["제이→민수: 수류탄 핀 반지"] },
+      { charName: "8", userName: "제이" }
+    );
+    assert.deepEqual(
+      [...merged.items].sort(),
+      ["오스카→제이: 목걸이", "제이: 수류탄 핀 반지", "제이→민수: 수류탄 핀 반지"].sort()
     );
   });
 
