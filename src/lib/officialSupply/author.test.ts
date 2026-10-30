@@ -9,6 +9,7 @@ import {
   assembleOfficialCharacterBible,
   createAuthorCostReport,
   generateOfficialAssetPlan,
+  assertPortfolioNameKept,
   generateOfficialCharacterBible,
   generateOfficialStyleBoard,
   parseAuthorJson,
@@ -204,6 +205,44 @@ describe("A1 generation handoff", () => {
       }
     );
     assert.deepEqual(tasks, ["character_bible_1", "character_bible_voice"]);
+  });
+});
+
+describe("G5-3H-1 portfolio name ownership", () => {
+  const eunjiDir = path.join(process.cwd(), "docs/official-supply/reviews/g5-1-2026-10-28/candidates/g5-modern-comedy-e");
+
+  it("detects the G5-1 박은지 alias drop and the invented-alias case, and keeps a matching name", () => {
+    const brief = JSON.parse(fs.readFileSync(path.join(eunjiDir, "brief.json"), "utf8")) as { name: string };
+    const bible = JSON.parse(fs.readFileSync(path.join(eunjiDir, "bible.assembled.json"), "utf8")) as {
+      identity: { name: string };
+    };
+    assert.equal(brief.name, "박은지 (수도반장)");
+    assert.equal(bible.identity.name, "박은지");
+    assert.throws(
+      () => assertPortfolioNameKept(brief.name, bible),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "author_identity_name_mismatch"
+    );
+    assert.doesNotThrow(() => assertPortfolioNameKept("강나리 (공주님)", { identity: { name: "강나리 (공주님)" } }));
+    assert.doesNotThrow(() => assertPortfolioNameKept("강나리", { identity: { name: "강나리" } }));
+    assert.doesNotThrow(() => assertPortfolioNameKept("카엘", { identity: { name: "카엘" } }));
+    assert.throws(
+      () => assertPortfolioNameKept("강나리", { identity: { name: "강나리 (공주님)" } }),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "author_identity_name_mismatch"
+    );
+  });
+
+  it("does not pay for Voice when Part1 invents a nickname", async () => {
+    const [voice, bonds] = splitHalf2(fakeHalf2({ npcCount: 0 }));
+    const { transport, tasks } = recordingTransport({
+      character_bible_1: fakeHalf1({ name: "강나리 (공주님)" }),
+      character_bible_voice: voice,
+      character_bible_bonds: bonds,
+    });
+    await assert.rejects(
+      () => generateOfficialCharacterBible(generationArgs(transport)),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "author_identity_name_mismatch"
+    );
+    assert.deepEqual(tasks, ["character_bible_1"]);
   });
 });
 

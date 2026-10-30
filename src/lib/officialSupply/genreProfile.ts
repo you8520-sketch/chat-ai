@@ -322,12 +322,35 @@ const PACING_LINES: Record<OfficialNarrativePacing, string> = {
     "전개 비중: 대사 중심. 오프닝과 말투 예시에서 대사 비중을 높이고 서술은 짧게 유지한다(길이 band·따옴표 규칙은 그대로).",
 };
 
-const WORDPLAY_LINES: Record<OfficialNameWordplay, string> = {
+export type AuthoringWordplayRole = "choose" | "keep" | "use";
+
+const WORDPLAY_CHOOSE_LINES: Record<OfficialNameWordplay, string> = {
   none: "",
   nickname:
-    "이름 방식: 본명은 namingProfile에 맞추고, 주변이 부르는 별명을 name 필드의 괄호 별칭('본명 (별명)')으로 쓸 수 있다. 별명에는 인물의 행동·사건에서 생긴 이유가 있어야 한다.",
+    "이름 방식: 본명은 namingProfile에 맞추고, 주변이 부르는 별명은 name의 괄호 별칭('본명 (별명)')으로 정한다. 별명에는 그 인물의 행동·사건에서 생긴 이유가 있어야 한다.",
   pun: "이름 방식: 이름 자체를 말장난으로 지을 수 있다(소리·뜻 중첩, 직업·성격과의 반어). 이 지정이 namingProfile의 조어 금지 문구보다 우선하되 실제로 읽히는 이름이어야 한다. 이 세계에서 그 이름이 왜 불리는지 근거가 있어야 하고, 세계의 시대·문화권에 맞는 말장난만 쓴다(현대 인터넷 유행어를 이세계·시대 배경에 섞지 않는다). 현실 인물·경쟁작 이름은 쓰지 않는다.",
 };
+
+const WORDPLAY_KEEP_LINE =
+  "이름 방식: identity.name은 브리프 name을 그대로 유지한다. 괄호 별칭이 있으면 이미 정해진 사실로만 쓰고, 새 본명이나 새 별명을 만들지 않는다.";
+
+const WORDPLAY_USE_LINE =
+  "이름 방식: 주어진 이름(괄호 별칭이 있으면 포함)을 공개 소개와 첫 장면에 자연스럽게 한 번 드러낸다. 이름을 새로 정하거나 바꾸지 않으며, 대사마다 별명을 반복하지 않는다.";
+
+function wordplayLine(kind: OfficialNameWordplay, role: AuthoringWordplayRole): string {
+  switch (role) {
+    case "choose":
+      return WORDPLAY_CHOOSE_LINES[kind];
+    case "keep":
+      return WORDPLAY_KEEP_LINE;
+    case "use":
+      return WORDPLAY_USE_LINE;
+    default: {
+      const unreachable: never = role;
+      throw new Error(`unknown wordplay role: ${String(unreachable)}`);
+    }
+  }
+}
 
 export type AuthoringDirectionKey = "tone" | "humor" | "pacing" | "wordplay" | "relation";
 
@@ -335,10 +358,12 @@ export type AuthoringDirectionKey = "tone" | "humor" | "pacing" | "wordplay" | "
  * The one `[창작 방향]` block. Empty for the default rofan plan so legacy
  * prompts are unchanged; each call passes only the keys it can act on, so a
  * genre/tone instruction appears at most once per provider call.
+ * Wordplay is choose (portfolio), keep (part1), or use (voice).
  */
 export function formatAuthoringDirection(
   plan: OfficialAuthoringPlan,
-  keys: readonly AuthoringDirectionKey[]
+  keys: readonly AuthoringDirectionKey[],
+  wordplayRole: AuthoringWordplayRole = "choose"
 ): string[] {
   const lines: string[] = [];
   for (const key of keys) {
@@ -353,7 +378,10 @@ export function formatAuthoringDirection(
         if (plan.pacing) lines.push(PACING_LINES[plan.pacing]);
         break;
       case "wordplay":
-        if (plan.nameWordplay && plan.nameWordplay !== "none") lines.push(WORDPLAY_LINES[plan.nameWordplay]);
+        if (plan.nameWordplay && plan.nameWordplay !== "none") {
+          const line = wordplayLine(plan.nameWordplay, wordplayRole);
+          if (line) lines.push(line);
+        }
         break;
       case "relation":
         if (plan.profile.openRelationLine) lines.push(plan.profile.openRelationLine);

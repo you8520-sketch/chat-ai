@@ -1070,6 +1070,19 @@ function canonicalUserRelationPlan(input: {
   return canonical;
 }
 
+/** Portfolio brief.name is the canonical name; Part1 must not invent another. */
+export function assertPortfolioNameKept(briefName: string, part1: Record<string, unknown>): void {
+  const identity = isRecord(part1.identity) ? part1.identity : {};
+  const expected = briefName.trim();
+  const actual = typeof identity.name === "string" ? identity.name.trim() : "";
+  if (!expected || actual !== expected) {
+    throw new OfficialSupplyGateError(
+      "author_identity_name_mismatch",
+      `character_bible_1 identity.name must keep portfolio name "${expected}"`
+    );
+  }
+}
+
 export async function generateOfficialCharacterBible(input: {
   transport: OfficialAuthorTransport;
   part1: CharacterBible1Input;
@@ -1099,6 +1112,7 @@ export async function generateOfficialCharacterBible(input: {
   });
   const half1 = parseAuthorJson(first.text, "character_bible_1");
   if (!isRecord(half1)) throw new OfficialSupplyGateError("author_shape_invalid", "character_bible_1: object required");
+  assertPortfolioNameKept(input.part1.brief.name, half1);
 
   const recap = buildPart1Recap(half1);
   const second = await input.transport.completeJson({
