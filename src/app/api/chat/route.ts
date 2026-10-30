@@ -151,6 +151,7 @@ import {
 import { maybeRewriteNarrationLexicon } from "@/lib/speechLock";
 import { isMockApiMode, logMockModeOnce } from "@/lib/mockApiMode";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
+import { augmentRelationshipDeltaWithScene } from "@/lib/memory/postTurnRelationshipScene";
 import { shouldRequestEpisodicInSharedInitial } from "@/lib/memory/memory-episodic-shared";
 import { startIndependentEpisodicExtraction } from "@/lib/memory/memory-episodic-independent";
 import { parseAssets, chatAssets } from "@/lib/characterAssets";
@@ -7089,6 +7090,26 @@ export async function POST(req: Request) {
             }
 
             if (shouldCommitCanonicalTurnState(generationSemantics)) {
+            // B61: one conditional relationship scene re-check. It runs only
+            // after the shared owner parsed, produced no promise, and an
+            // explicit commitment cue exists. It never writes the DB; the
+            // canonical scheduleMemoryUpdate below consumes the merged delta
+            // with the same generation/source identity.
+            if (isMemoryFeatureEnabled()) {
+              widgetSharedRelationshipDelta = await augmentRelationshipDeltaWithScene({
+                memoryEnabled: true,
+                baseUsable: widgetSharedRelationshipUsable,
+                baseDelta: widgetSharedRelationshipDelta,
+                assistantProse: savedText,
+                userMessage: messageText,
+                charName: ch.name,
+                personaName: personaDisplayName,
+                activePromises: activePromiseTexts,
+                chatId: chatRef.id,
+                assistantMessageId: aiMessageId,
+                generationScope: postTurnGenerationScope,
+              });
+            }
             await scheduleMemoryUpdate({
               chatId: chatRef.id,
               userId: user.id,

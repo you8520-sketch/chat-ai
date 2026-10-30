@@ -6,6 +6,12 @@
  * Relationship Memory delta are produced by ONE shared inference and consumed by
  * their own persistence owners.
  *
+ * B61 exception: when that shared relationship section is valid and returns an
+ * empty `promisesAdd`, and the canonical prose contains an explicit commitment
+ * cue, ONE conditional relationship-scene call may follow. It is skipped when
+ * the first pass already produced a promise, when there is no cue, or when
+ * memory is off, and it never retries. See `memory/postTurnRelationshipScene`.
+ *
  * These tests use the extractor's mock caller seam (no network) plus the real
  * relationship persistence owner for the shared-delta consumption path.
  */
