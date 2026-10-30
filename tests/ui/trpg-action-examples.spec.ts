@@ -50,6 +50,20 @@ async function openActionExamples(
     await actionTab.click({ force: true });
   }
   await page.locator("[data-trpg-next-action]").waitFor({ state: "visible" });
+  await page.locator("[data-trpg-command-dock-panel]").waitFor({ state: "visible" });
+  // Expanding the collapsed dock changes occlusion; live-follow may move once.
+  // Callers measure example-reveal scroll against a settled window.
+  await page.waitForFunction(() => {
+    const w = window as Window & { __trpgDockScrollY?: number; __trpgDockScrollStable?: number };
+    const y = window.scrollY;
+    if (w.__trpgDockScrollY === y) {
+      w.__trpgDockScrollStable = (w.__trpgDockScrollStable ?? 0) + 1;
+    } else {
+      w.__trpgDockScrollY = y;
+      w.__trpgDockScrollStable = 0;
+    }
+    return (w.__trpgDockScrollStable ?? 0) >= 3;
+  });
 }
 
 async function exampleToggle(page: Page) {
