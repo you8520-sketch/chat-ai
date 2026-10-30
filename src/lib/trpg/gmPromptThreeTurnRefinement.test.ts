@@ -148,8 +148,8 @@ describe("TRPG GM post-#602 three-turn refinement A–I", () => {
   });
 
   it("G: closing — one owner, immediate pressure, no user-block duplicate", () => {
-    assert.match(TRPG_GM_SYSTEM, /End on the most immediate unresolved pressure/);
-    assert.match(TRPG_GM_SYSTEM, /player control returns/);
+    assert.match(TRPG_GM_SYSTEM, /Show what changed. Do not ask what the player will do/);
+    assert.match(TRPG_GM_SYSTEM, /Do not ask what the player will do/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /players supply the approach/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /open agency point/);
     const block = buildTrpgGmUserBlock({
@@ -158,7 +158,8 @@ describe("TRPG GM post-#602 three-turn refinement A–I", () => {
       opening: false,
       actions: [action({ participantId: 1, name: "렌", body: "문을 연다." })],
     });
-    assert.match(block, /Finish at or above Minimum/);
+    assert.match(block, /TARGET is the range for new consequences/);
+    assert.doesNotMatch(block, /Finish at or above Minimum/);
     assert.doesNotMatch(block, /players supply the approach/);
     assert.doesNotMatch(block, /End with 1–2 GM:/);
   });
@@ -182,7 +183,7 @@ describe("TRPG GM post-#602 three-turn refinement A–I", () => {
       TRPG_GM_SYSTEM.indexOf("[GM SCENE CRAFT — ADAPTIVE NARRATION]"),
       TRPG_GM_SYSTEM.indexOf("[LENGTH — SCENE RESPONSIVE]")
     );
-    assert.match(craft, /When encounter purpose is spent — or local scene state is transition_ready — open fiction outward/);
+    assert.match(craft, /A farewell or rest closes on the change and adds no new place/);
     assert.match(craft, /reachable space, destination, route, objective, or consequence/);
     assert.match(craft, /sceneTransitionTo rather than objectiveSet alone/);
     assert.match(craft, /one location may still yield new play until then/);

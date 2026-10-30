@@ -326,11 +326,12 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(block, /Input density: RICH/);
   });
 
-  it("F: closing GM beat is compact guidance, not a recap floor", () => {
-    assert.match(TRPG_GM_SYSTEM, /one compact `GM:` aside/);
-    assert.match(TRPG_GM_SYSTEM, /most immediate unresolved pressure/);
-    assert.match(TRPG_GM_SYSTEM, /player control returns/);
-    assert.match(TRPG_GM_SYSTEM, /100–180 Korean chars/);
+  it("F: closing GM beat matches the scene instead of a fixed question", () => {
+    assert.match(TRPG_GM_SYSTEM, /A quiet handoff is one sentence/);
+    assert.match(TRPG_GM_SYSTEM, /Show what changed. Do not ask what the player will do/);
+    assert.match(TRPG_GM_SYSTEM, /Do not ask what the player will do/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /about what the player will do/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /100–180 Korean chars/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /100–250/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /open agency point/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /players supply the approach/);
@@ -392,8 +393,9 @@ describe("TRPG GM prompt/parse", () => {
   });
 
   it("F2: closing ends on immediate pressure when control returns", () => {
-    assert.match(TRPG_GM_SYSTEM, /most immediate unresolved pressure/);
-    assert.match(TRPG_GM_SYSTEM, /player control returns/);
+    assert.match(TRPG_GM_SYSTEM, /Show what changed. Do not ask what the player will do/);
+    assert.match(TRPG_GM_SYSTEM, /Do not ask what the player will do/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /about what the player will do/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /visible options/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /closed menu/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /every plausible player approach available/);
@@ -417,7 +419,7 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /This round's lock is that PC's whole voluntary act/);
     assert.match(TRPG_GM_SYSTEM, /first new consequence/i);
     assert.match(TRPG_GM_SYSTEM, /route opening|sceneTransitionTo rather than objectiveSet/);
-    assert.match(TRPG_GM_SYSTEM, /1–2 sentences/);
+    assert.match(TRPG_GM_SYSTEM, /A quiet handoff is one sentence/);
     assert.match(TRPG_GM_SYSTEM, /Failure: intended result does not fully land/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /Failure keeps technique credible/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /preserving competence and personality/);
@@ -449,10 +451,10 @@ describe("TRPG GM prompt/parse", () => {
 
     assert.match(craft, /Latest established scene state is the starting point/);
 
-    assert.match(closing, /1–2 sentences/);
-    assert.match(closing, /100–180 Korean chars/);
-    assert.match(closing, /most immediate unresolved pressure/);
-    assert.match(closing, /player control returns/);
+    assert.match(closing, /A quiet handoff is one sentence/);
+    assert.doesNotMatch(closing, /100–180 Korean chars/);
+    assert.match(closing, /Show what changed. Do not ask what the player will do/);
+    assert.match(closing, /do not ask for a next action/);
     assert.doesNotMatch(closing, /players supply the approach/);
     assert.doesNotMatch(craft, /\boptions\b/i);
 
