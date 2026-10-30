@@ -152,6 +152,7 @@ import { maybeRewriteNarrationLexicon } from "@/lib/speechLock";
 import { isMockApiMode, logMockModeOnce } from "@/lib/mockApiMode";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
 import { isGeminiIsolationMode } from "@/lib/geminiIsolationMode";
+import { waitForOwnedChatMemory } from "@/lib/memory/ownedChatMemoryBarrier";
 import { applyRelationshipDeltaToChat } from "@/lib/memory/memory-relationship-meta";
 import { augmentRelationshipDeltaWithScene } from "@/lib/memory/postTurnRelationshipScene";
 import { shouldRequestEpisodicInSharedInitial } from "@/lib/memory/memory-episodic-shared";
@@ -666,11 +667,7 @@ import {
   type AdultOffGuardDecision,
 } from "@/lib/adultOffOutputGuard";
 import { createAdultOffClassifier } from "@/lib/adultOffOutputClassifier";
-import {
-  TURN_TAIL_MEMORY_WAIT_MS,
-  trackTurnTailWork,
-  waitForTurnTailWork,
-} from "@/lib/turnTailWork";
+import { trackTurnTailWork } from "@/lib/turnTailWork";
 import { rebalanceTableMarkdownWithFormatSpec } from "@/lib/statusMeta/formatSpec";
 
 const SSE_HEADERS = {
@@ -794,22 +791,6 @@ export async function POST(req: Request) {
     return Response.json({ error: "성인용 캐릭터는 성인인증 후 이용할 수 있습니다.", needVerify: true }, { status: 403 });
   }
 
-  // B61: a just-finished turn may still be writing its relationship memory in
-  // the post-SSE tail. Read the chat row only after that bounded, per-chat
-  // memory tail settles so an immediate next turn cannot load stale memory.
-  if (chatId && isMemoryFeatureEnabled()) {
-    const priorMemoryTail = await waitForTurnTailWork(Number(chatId), {
-      timeoutMs: TURN_TAIL_MEMORY_WAIT_MS,
-      memoryCriticalOnly: true,
-    });
-    if (priorMemoryTail.waited) {
-      console.info("[turn-tail] waited for prior memory before next turn", {
-        chatId: Number(chatId),
-        timedOut: priorMemoryTail.timedOut,
-      });
-    }
-  }
-
   let chat = chatId
     ? (db.prepare("SELECT * FROM chats WHERE id=? AND user_id=?").get(chatId, user.id) as
         | {
@@ -832,6 +813,30 @@ export async function POST(req: Request) {
           }
         | undefined)
     : undefined;
+
+  // B61: ownership was already checked by the SELECT above. Only an owned chat
+  // may wait on its pending memory tail; a foreign or missing chatId must not
+  // consume the wait. Re-read the row after the wait so memory_meta is the
+  // post-write value rather than the pre-wait snapshot.
+  if (chat && isMemoryFeatureEnabled()) {
+    const barrier = await waitForOwnedChatMemory(chat, {
+      memoryEnabled: true,
+      reload: () =>
+        db
+          .prepare("SELECT * FROM chats WHERE id=? AND user_id=?")
+          .get(chat!.id, user.id) as typeof chat,
+    });
+    if (barrier.waited) {
+      console.info("[turn-tail] waited for prior memory before next turn", {
+        chatId: chat.id,
+        timedOut: barrier.timedOut,
+      });
+    }
+    if (!barrier.chat) {
+      return Response.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
+    }
+    chat = barrier.chat;
+  }
 
   /** 전역 선택이 소스 오브 트루스 — body/chat.gemini_model은 라우팅에 사용하지 않음 */
   const isAdminForChat = isAdminUser({
