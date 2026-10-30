@@ -40,7 +40,14 @@ describe("G3 adult-term boundaries", () => {
   it("allows ordinary 사정 particles and still blocks the adult stem", () => {
     assert.deepEqual(findAdultTermsInText("단, 누구의 사정도 허락 없이 종이에 올리진 않을"), []);
     assert.deepEqual(findAdultTermsInText("사정이 생겨서 자리를 비웠다"), []);
-    for (const text of ["사정", "사정을", "사정했다", "사 정"]) {
+    for (const text of [
+      "개인 사정을 함부로 공개하지 않는다",
+      "남의 사정을 묻지 않는다",
+      "가족의 사정을 고려한다",
+      "사정을 안 묻는다",
+      "사정을 못 말한다",
+    ]) assert.deepEqual(findAdultTermsInText(text), [], text);
+    for (const text of ["사정", "사정을", "사정했다", "사 정", "안에 사정을 했다", "사정을 쏟았다", "사정을 참지 못했다", "사정을 함부로 했다"]) {
       assert.ok(findAdultTermsInText(text).includes("사정"), text);
     }
     assert.ok(findAdultTermsInText("폰섹스").includes("섹스"));
@@ -53,7 +60,14 @@ describe("G3 adult-term boundaries", () => {
     assert.match(greeting, /사정도/);
     assert.deepEqual(findAdultTermsInText(greeting), []);
   });
-  it("g5-modern-comedy-e stored public blob still flags 사정을 (candidate draft QA, not engine regression)", () => {
+  it("G5-3I captured text passes the ordinary object, and the stored 박은지 public blob no longer flags that same shape", () => {
+    const captured = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/officialSupply/fixtures/g5-3i-kang-seoyoon-captured.txt"),
+      "utf8"
+    );
+    assert.match(captured, /개인 사정을 함부로 공개하지 않는다/);
+    assert.equal(captured.includes("한 줄 소개"), false);
+    assert.deepEqual(findAdultTermsInText(captured), []);
     const draft = JSON.parse(
       fs.readFileSync(
         path.join(process.cwd(), "docs/official-supply/reviews/g5-1-2026-10-28/candidates/g5-modern-comedy-e/draft.compiled.json"),
@@ -67,7 +81,8 @@ describe("G3 adult-term boundaries", () => {
       greeting: draft.greeting,
       tags: draft.tags,
     });
-    assert.ok(findAdultTermsInText(blob).includes("사정"));
+    assert.match(blob, /남의 사정을 함부로 말하지 않는다/);
+    assert.deepEqual(findAdultTermsInText(blob), []);
     assert.deepEqual(findAdultTermsInText("사정은 묻지 말고"), []);
   });
   it("still catches an unambiguous adult stem inside a compound", () => {

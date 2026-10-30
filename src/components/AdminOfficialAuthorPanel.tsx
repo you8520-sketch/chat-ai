@@ -6,6 +6,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import CreatorCommentHtml from "@/components/CreatorCommentHtml";
 import { CHARACTER_GENRES } from "@/lib/characterGenres";
 import { GENDER_LABELS, type CharacterGender } from "@/lib/characterGender";
+import {
+  adminAuthorPreviewDownloadName,
+  adminAuthorPreviewExportJson,
+  copyOrDownloadAdminAuthorPreviewJson,
+} from "@/lib/officialSupply/adminAuthorPreviewExport";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 
 export type AdminAuthorGenreRecommendation = {
@@ -117,6 +122,7 @@ export default function AdminOfficialAuthorPanel({
   const [busy, setBusy] = useState<"preview" | "repair" | "save" | null>(null);
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
+  const [copyNote, setCopyNote] = useState("");
   const [saved, setSaved] = useState<{
     characterId: number;
     editPath: string;
@@ -135,6 +141,7 @@ export default function AdminOfficialAuthorPanel({
     setPreview(null);
     setSaved(null);
     setError("");
+    setCopyNote("");
   }, [genre, tone, humor, pacing, nameWordplay, gender, castIntent]);
 
   async function post(path: string, body: unknown): Promise<{ status: number; payload: Record<string, unknown> }> {
@@ -152,6 +159,7 @@ export default function AdminOfficialAuthorPanel({
     setBusy("preview");
     setError("");
     setSaved(null);
+    setCopyNote("");
     setPreview(null);
     const { payload } = await post("/api/admin/official-author/preview", {
       genre,
@@ -208,6 +216,7 @@ export default function AdminOfficialAuthorPanel({
     const requestSeq = previewRequestSeq.current;
     setBusy("repair");
     setError("");
+    setCopyNote("");
     const { payload } = await post("/api/admin/official-author/repair", { previewId: preview.previewId });
     setBusy(null);
     if (requestSeq !== previewRequestSeq.current) return;
@@ -245,6 +254,20 @@ export default function AdminOfficialAuthorPanel({
       alreadySaved: payload.alreadySaved === true,
       partialSave: false,
     });
+  }
+
+  async function copyPreviewJson() {
+    if (!preview) return;
+    const json = adminAuthorPreviewExportJson(preview);
+    const outcome = await copyOrDownloadAdminAuthorPreviewJson(
+      json,
+      adminAuthorPreviewDownloadName(preview.previewId)
+    );
+    setCopyNote(
+      outcome === "copied"
+        ? "미리보기 JSON을 복사했습니다."
+        : "클립보드를 쓸 수 없어 JSON 파일로 저장했습니다."
+    );
   }
 
   return (
@@ -331,11 +354,22 @@ export default function AdminOfficialAuthorPanel({
       {error ? <p className="mt-3 text-sm text-rose-300">{error}</p> : null}
       {preview && (preview.manuscript.name || preview.manuscript.description || preview.manuscript.greeting || preview.issues.length > 0) ? (
         <div className="mt-4 space-y-2 text-sm text-zinc-200" data-testid="admin-author-preview">
-          <p data-testid="admin-author-qa">
-            검수 {preview.qaOk ? "통과" : "실패"}
-            {preview.textLock ? ` · Text Lock ${preview.textLock.slice(0, 12)}` : ""}
-            {preview.voiceRepairs ? ` · 선택 보정 ${preview.voiceRepairs}회` : ""}
-          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p data-testid="admin-author-qa">
+              검수 {preview.qaOk ? "통과" : "실패"}
+              {preview.textLock ? ` · Text Lock ${preview.textLock.slice(0, 12)}` : ""}
+              {preview.voiceRepairs ? ` · 선택 보정 ${preview.voiceRepairs}회` : ""}
+            </p>
+            <button
+              type="button"
+              className={secondaryButton}
+              data-testid="admin-author-copy-json"
+              onClick={() => void copyPreviewJson()}
+            >
+              미리보기 JSON 복사
+            </button>
+          </div>
+          {copyNote ? <p className="text-xs text-zinc-400">{copyNote}</p> : null}
           {preview.viewOnly ? (
             <p data-testid="admin-author-rejected" className="text-amber-200">
               검수에서 탈락한 원고입니다. 열람만 가능하며 저장·승인·공개되지 않습니다.
