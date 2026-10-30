@@ -151,6 +151,10 @@ import {
 import { maybeRewriteNarrationLexicon } from "@/lib/speechLock";
 import { isMockApiMode, logMockModeOnce } from "@/lib/mockApiMode";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
+import { isGeminiIsolationMode } from "@/lib/geminiIsolationMode";
+import { waitForOwnedChatMemory } from "@/lib/memory/ownedChatMemoryBarrier";
+import { applyRelationshipDeltaToChat } from "@/lib/memory/memory-relationship-meta";
+import { augmentRelationshipDeltaWithScene } from "@/lib/memory/postTurnRelationshipScene";
 import { shouldRequestEpisodicInSharedInitial } from "@/lib/memory/memory-episodic-shared";
 import { startIndependentEpisodicExtraction } from "@/lib/memory/memory-episodic-independent";
 import { parseAssets, chatAssets } from "@/lib/characterAssets";
@@ -809,6 +813,30 @@ export async function POST(req: Request) {
           }
         | undefined)
     : undefined;
+
+  // B61: ownership was already checked by the SELECT above. Only an owned chat
+  // may wait on its pending memory tail; a foreign or missing chatId must not
+  // consume the wait. Re-read the row after the wait so memory_meta is the
+  // post-write value rather than the pre-wait snapshot.
+  if (chat && isMemoryFeatureEnabled()) {
+    const barrier = await waitForOwnedChatMemory(chat, {
+      memoryEnabled: true,
+      reload: () =>
+        db
+          .prepare("SELECT * FROM chats WHERE id=? AND user_id=?")
+          .get(chat!.id, user.id) as typeof chat,
+    });
+    if (barrier.waited) {
+      console.info("[turn-tail] waited for prior memory before next turn", {
+        chatId: chat.id,
+        timedOut: barrier.timedOut,
+      });
+    }
+    if (!barrier.chat) {
+      return Response.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
+    }
+    chat = barrier.chat;
+  }
 
   /** 전역 선택이 소스 오브 트루스 — body/chat.gemini_model은 라우팅에 사용하지 않음 */
   const isAdminForChat = isAdminUser({
@@ -7089,6 +7117,31 @@ export async function POST(req: Request) {
             }
 
             if (shouldCommitCanonicalTurnState(generationSemantics)) {
+            const baseRelationshipDelta = widgetSharedRelationshipDelta;
+            const basePromiseCount = baseRelationshipDelta?.promisesAdd?.length ?? 0;
+            // B61: start the conditional scene call, but never let it delay the
+            // canonical first-pass memory write. The scene result is additive
+            // and is merged by the same canonical writer after the base write.
+            const scenePromise =
+              isMemoryFeatureEnabled() && !oocSceneRenderTurn && !isGeminiIsolationMode()
+                ? augmentRelationshipDeltaWithScene({
+                  memoryEnabled: true,
+                  baseUsable: widgetSharedRelationshipUsable,
+                  mainModelTailParsed: relationshipTailParsed === true,
+                  baseDelta: baseRelationshipDelta,
+                  assistantProse: savedText,
+                  userMessage: messageText,
+                  charName: ch.name,
+                  personaName: personaDisplayName,
+                  activePromises: activePromiseTexts,
+                  chatId: chatRef.id,
+                  assistantMessageId: aiMessageId,
+                  generationScope: postTurnGenerationScope,
+                }).catch((e) => {
+                  console.warn("[relationship-scene] fallback skipped", (e as Error).message);
+                  return baseRelationshipDelta ?? {};
+                })
+                : null;
             await scheduleMemoryUpdate({
               chatId: chatRef.id,
               userId: user.id,
@@ -7108,17 +7161,51 @@ export async function POST(req: Request) {
               relationshipTailParsed,
               relationshipDeltaFromMain,
               relationshipSharedParsed: widgetSharedRelationshipUsable,
-              relationshipSharedDelta: widgetSharedRelationshipDelta,
+              relationshipSharedDelta: baseRelationshipDelta,
               relationshipSharedAttempted: widgetPostTurnPhysicalAttempted,
               episodicExtraction,
               generationScope: postTurnGenerationScope,
             });
+            if (scenePromise) {
+              const sceneDelta = await scenePromise;
+              const addedPromises = (sceneDelta.promisesAdd ?? []).slice(basePromiseCount);
+              if (addedPromises.length > 0) {
+                try {
+                  const applied = applyRelationshipDeltaToChat({
+                    chatId: chatRef.id,
+                    names: relationshipNames,
+                    delta: {
+                      items: [],
+                      itemsRemove: [],
+                      promisesAdd: addedPromises,
+                      promisesRemove: [],
+                    },
+                    sourceUserMessageId: userMessageId,
+                    assistantMessageId: aiMessageId,
+                    generationScope: postTurnGenerationScope,
+                  });
+                  if (!applied.accepted) {
+                    console.info("[relationship-scene] additive write rejected", {
+                      chatId: chatRef.id,
+                      reason: applied.rejectReason,
+                    });
+                  }
+                } catch (e) {
+                  // The base relationship delta is already committed above.
+                  console.warn("[relationship-scene] additive write failed", (e as Error).message);
+                }
+              }
+            }
             }
           } catch (e) {
             console.error("[/api/chat] 후처리 실패:", (e as Error).message);
           }
         })();
-        trackTurnTailWork(turnTail);
+        trackTurnTailWork(turnTail, {
+          chatId: chatRef.id,
+          memoryCritical:
+            shouldCommitCanonicalTurnState(generationSemantics) && isMemoryFeatureEnabled(),
+        });
       } catch (e) {
         clearPartialTimer();
         stopPostprocessHeartbeat();

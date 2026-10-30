@@ -63,6 +63,12 @@ export type PostTurnSharedInitialInput = {
   /** Regen: rejected assistant draft for relationship comparison (relationship section only). */
   relationshipRegenContext?: { previousAssistantMessage: string } | null;
   /**
+   * Conditional relationship scene re-check. The assistant prose is a located
+   * scene window (not the whole turn), and the relationship section must use
+   * only that window. Only `relationship_only` callers set this.
+   */
+  relationshipSceneWindow?: boolean;
+  /**
    * Stored `MemoryPromise.text` values of the canonical ledger as of this turn
    * (relationship section only). `promisesRemove` must copy one of these
    * verbatim — `mergePromises` removes by exact stored text.

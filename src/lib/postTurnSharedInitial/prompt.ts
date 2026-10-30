@@ -34,6 +34,21 @@ Compare the rejected assistant draft and the new canonical assistant in the user
 items, promisesAdd, and promisesRemove record only what the NEW canonical reply introduces. itemsRemove also drops transfers that existed only in the rejected draft.
 ${SHARED_RELATIONSHIP_FACT_RULES}`;
 
+/**
+ * Conditional scene re-check only. The assistant prose is a keyword-located
+ * window, so the rules must (a) forbid treating the locator as a fact and
+ * (b) make speaker/receiver/deadline attribution explicit. Never used by the
+ * normal whole-turn shared initial.
+ */
+const SHARED_RELATIONSHIP_SCENE_RULES = `RELATIONSHIP section — use ONLY the assistant scene window in the user block. The window was located by keyword; it is an attention locator, NOT a confirmed fact.
+Return these arrays; empty arrays are correct when the window shows no promise actually made and accepted:
+- items: only possession changes visible in the window ("name: item1, item2"); gifts/transfers as "from→to: item".
+- itemsRemove: current possession lines no longer true (copy the line EXACTLY).
+- promisesAdd: an explicit promise made in the window, as [{ "text": "...", "deadline": "..." }]. In text, name both the promisor and the promisee. The promisor is the person who makes the promise: the speaker of a promise line, or the subject the narration says promised. The promisee is the person the promise is made to: the addressee of that line, or the recipient named in the narration — never a bystander from earlier in the window. The deadline may only come from the same speaker's same statement or the scope both sides agreed; a nearby order to a third party is never this promise's deadline.
+- promisesRemove: copy EXACTLY the [ACTIVE PROMISES] string(s) the window explicitly cancels, withdraws, fulfils, or expires. Unclear or several possible targets → [].
+Do not add a quote, a negation, a retraction, an OOC/meta mention, an attempt that was not completed, an unaccepted conditional offer, or an already finished/cancelled promise.
+Never extract honorifics, nicknames, inner thoughts, emotion, relationship stage, speech style, gender, or current location.`;
+
 export type SharedWidgetRequiredKeys = {
   characterKeys: readonly string[];
   userKeys: readonly string[];
@@ -58,9 +73,11 @@ function buildSharedOutputEnvelope(input: PostTurnSharedInitialInput): string {
   const rules: string[] = [];
   if (input.includeRelationship) {
     rules.push(
-      input.relationshipRegenContext
-        ? SHARED_RELATIONSHIP_REGEN_RULES
-        : SHARED_RELATIONSHIP_OUTPUT_RULES
+      input.relationshipSceneWindow
+        ? SHARED_RELATIONSHIP_SCENE_RULES
+        : input.relationshipRegenContext
+          ? SHARED_RELATIONSHIP_REGEN_RULES
+          : SHARED_RELATIONSHIP_OUTPUT_RULES
     );
   }
   if (input.includeSuggestions) rules.push(SHARED_SUGGESTIONS_OUTPUT_RULES);
@@ -231,7 +248,13 @@ export function buildPostTurnSharedInitialUserBlock(input: PostTurnSharedInitial
   }
   // No widget consumer (status OFF). Always include the current turn so
   // suggestions-only work does not depend on the relationship section.
-  return [currentTurnBlock, activePromisesBlock, correctionCandidatesBlock, voiceContext]
+  // The conditional scene window is only produced in relationship_only mode;
+  // its identity labels give the model trustworthy speaker names without
+  // adding rules to the normal whole-turn prompt.
+  const sceneIdentityBlock = input.relationshipSceneWindow
+    ? `[CHARACTER] ${input.charName}\n[USER] ${input.personaName}`
+    : "";
+  return [sceneIdentityBlock, currentTurnBlock, activePromisesBlock, correctionCandidatesBlock, voiceContext]
     .filter(Boolean)
     .join("\n\n");
 }
