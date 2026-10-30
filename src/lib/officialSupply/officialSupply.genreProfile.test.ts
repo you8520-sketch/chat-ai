@@ -668,6 +668,33 @@ describe("genre-neutral planning order (G5-3K)", () => {
     assert.match(modern.worldPortfolio, /캐릭터 슬롯 수: 1/);
   });
 
+  it("modern Atlas lorebook line is public-world; rofan atlas lorebook bytes stay the old line", () => {
+    const modernPlan = resolveOfficialAuthoringPlan(recommendOfficialAuthoringDirection("현대/일상"));
+    const modernAtlas = buildWorldAtlasUser({
+      worldName: "W",
+      centralPremise: "C",
+      factionNames: ["이웃"],
+      worldScale: "scene",
+      authoring: modernPlan,
+    });
+    assert.match(modernAtlas, /플레이 중 확인할 수 있는 장소·규칙·사건·생활 정보만 1~4개/);
+    assert.match(modernAtlas, /숨긴 설정은 knowledge\.authorOnly/);
+    assert.ok(!modernAtlas.includes("실제 RP에서 반복적으로 필요한 세계 정보만"));
+    assert.equal(count(modernAtlas, "- lorebook:"), 1);
+
+    const rofanAtlas = buildWorldAtlasUser({ worldName: "W", centralPremise: "C", factionNames: ["방송부"] });
+    const rofanWithPlan = buildWorldAtlasUser({
+      worldName: "W",
+      centralPremise: "C",
+      factionNames: ["방송부"],
+      authoring: resolveOfficialAuthoringPlan({ genre: OFFICIAL_ROFAN_GENRE }),
+    });
+    assert.equal(rofanAtlas, rofanWithPlan);
+    assert.match(rofanAtlas, /실제 RP에서 반복적으로 필요한 세계 정보만 3~8개/);
+    assert.ok(!rofanAtlas.includes("knowledge.authorOnly"));
+    assert.ok(!rofanAtlas.includes("플레이 중 확인할 수 있는"));
+  });
+
   it("one-character generate still plans a single brief; Jaccard does not invent a sibling", () => {
     const park = JSON.parse(
       fs.readFileSync(

@@ -237,6 +237,8 @@ export type OfficialWorldProjectionDiagnostic = {
 };
 
 export class OfficialSupplyGateError extends Error {
+  /** Server-known failure stage. Absent when the gate has no stage. */
+  stage?: string;
   constructor(
     public readonly code: string,
     message: string,

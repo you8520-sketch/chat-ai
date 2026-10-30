@@ -26,6 +26,25 @@ export type AdminAuthorPreviewExport = {
     namingProfile: string;
     castIntent: string;
   };
+  httpStatus?: number;
+  error?: string;
+  stage?: string;
+  worldProjection?: {
+    stage: string;
+    code: string;
+    hits: { field: string; excerpt: string }[];
+  };
+  selection?: {
+    genre: string;
+    tone: string;
+    humor: string;
+    pacing: string;
+    nameWordplay: string;
+    gender: string;
+    castIntent: string;
+  };
+  resolvedSource?: "server" | "client_recommendation";
+  manuscriptPresent?: boolean;
 };
 
 export function adminAuthorPreviewDownloadName(previewId: string): string {
@@ -58,6 +77,53 @@ export async function copyOrDownloadAdminAuthorPreviewJson(
   }
 }
 
+function readString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function readWorldProjection(value: unknown): AdminAuthorPreviewExport["worldProjection"] | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const row = value as Record<string, unknown>;
+  const stage = readString(row.stage);
+  const code = readString(row.code);
+  if (!stage || !code) return undefined;
+  const hits = Array.isArray(row.hits)
+    ? row.hits.flatMap((hit) => {
+        if (!hit || typeof hit !== "object") return [];
+        const item = hit as Record<string, unknown>;
+        const field = readString(item.field);
+        const excerpt = typeof item.excerpt === "string" ? item.excerpt : undefined;
+        return field != null && excerpt != null ? [{ field, excerpt }] : [];
+      })
+    : [];
+  return { stage, code, hits };
+}
+
+export function adminAuthorManuscriptPresent(manuscript: AdminAuthorPreviewExport["manuscript"]): boolean {
+  return Boolean(
+    manuscript.name.trim() ||
+      manuscript.tagline.trim() ||
+      manuscript.description.trim() ||
+      manuscript.greeting.trim()
+  );
+}
+
+/** Allowed server-failure fields only. Invents nothing the payload did not send. */
+export function readAdminAuthorServerFailure(input: {
+  httpStatus: number;
+  payload: Record<string, unknown>;
+}): Pick<AdminAuthorPreviewExport, "httpStatus" | "error" | "stage" | "worldProjection"> {
+  const error = readString(input.payload.error);
+  const stage = readString(input.payload.stage);
+  const worldProjection = readWorldProjection(input.payload.worldProjection);
+  return {
+    httpStatus: input.httpStatus,
+    ...(error ? { error } : {}),
+    ...(stage ? { stage } : {}),
+    ...(worldProjection ? { worldProjection } : {}),
+  };
+}
+
 export function adminAuthorPreviewExportJson(preview: AdminAuthorPreviewExport): string {
   const creatorComment = preview.creatorComment?.trim() ?? "";
   return JSON.stringify(
@@ -87,6 +153,13 @@ export function adminAuthorPreviewExportJson(preview: AdminAuthorPreviewExport):
         namingProfile: preview.resolved.namingProfile,
         castIntent: preview.resolved.castIntent,
       },
+      ...(preview.httpStatus != null ? { httpStatus: preview.httpStatus } : {}),
+      ...(preview.error ? { error: preview.error } : {}),
+      ...(preview.stage ? { stage: preview.stage } : {}),
+      ...(preview.worldProjection ? { worldProjection: preview.worldProjection } : {}),
+      ...(preview.selection ? { selection: preview.selection } : {}),
+      ...(preview.resolvedSource ? { resolvedSource: preview.resolvedSource } : {}),
+      ...(typeof preview.manuscriptPresent === "boolean" ? { manuscriptPresent: preview.manuscriptPresent } : {}),
     },
     null,
     2

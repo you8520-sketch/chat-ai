@@ -6,8 +6,11 @@ import {
   adminAuthorPreviewExportJson,
   copyOrDownloadAdminAuthorPreviewJson,
   downloadAdminAuthorPreviewJson,
+  readAdminAuthorServerFailure,
   type AdminAuthorPreviewExport,
 } from "@/lib/officialSupply/adminAuthorPreviewExport";
+import { adminAuthorPreviewFailureFromGateErrorForTests } from "@/lib/officialSupply/adminAuthorDraft";
+import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 
 const preview: AdminAuthorPreviewExport = {
   previewId: "abc",
@@ -66,6 +69,92 @@ describe("admin author preview export", () => {
   it("omits an empty creator comment", () => {
     const parsed = JSON.parse(adminAuthorPreviewExportJson({ ...preview, creatorComment: "  " })) as Record<string, unknown>;
     assert.equal("creatorComment" in parsed, false);
+  });
+
+  it("keeps allowed 422 diagnostics and still drops hidden canon", () => {
+    const parsed = JSON.parse(
+      adminAuthorPreviewExportJson({
+        ...preview,
+        previewId: "",
+        qaOk: false,
+        textLock: "",
+        manuscript: { name: "", tagline: "", description: "", greeting: "", genres: [], tags: [] },
+        issues: [{ code: "world_lorebook_hidden", message: "lorebook[0] contains hidden-knowledge wording" }],
+        httpStatus: 422,
+        error: "world bible failed QA",
+        stage: "world_atlas_qa",
+        selection: {
+          genre: "현대/일상",
+          tone: "auto",
+          humor: "auto",
+          pacing: "auto",
+          nameWordplay: "auto",
+          gender: "female",
+          castIntent: "",
+        },
+        resolvedSource: "client_recommendation",
+        manuscriptPresent: false,
+        worldProjection: { stage: "world_projection", code: "user_binding", hits: [{ field: "premise", excerpt: "당신" }] },
+        systemPrompt: "hidden",
+        lorebook: "진짜 정체는 적국의 공주다.",
+      } as AdminAuthorPreviewExport)
+    ) as Record<string, unknown>;
+    assert.equal(parsed.httpStatus, 422);
+    assert.equal(parsed.error, "world bible failed QA");
+    assert.equal(parsed.stage, "world_atlas_qa");
+    assert.equal(parsed.resolvedSource, "client_recommendation");
+    assert.equal(parsed.manuscriptPresent, false);
+    assert.equal((parsed.selection as { gender: string }).gender, "female");
+    assert.equal((parsed.worldProjection as { stage: string }).stage, "world_projection");
+    assert.equal(JSON.stringify(parsed).includes("systemPrompt"), false);
+    assert.equal(JSON.stringify(parsed).includes("진짜 정체는 적국의 공주다"), false);
+    assert.equal("lorebook" in parsed, false);
+    assert.equal((parsed.issues as { message: string }[])[0]?.message.includes("lorebook[0]"), true);
+  });
+
+  it("exports Voice QA gate failures without a false world_bible_qa stage", () => {
+    const gate = adminAuthorPreviewFailureFromGateErrorForTests(
+      new OfficialSupplyGateError("author_voice_rejected", "character_bible_voice: tagline", {
+        ok: false,
+        errors: [{ code: "voice_structure_tagline", message: "tagline required" }],
+      })
+    );
+    assert.equal(gate.ok, false);
+    if (gate.ok) return;
+    const parsed = JSON.parse(
+      adminAuthorPreviewExportJson({
+        ...preview,
+        previewId: "",
+        qaOk: false,
+        textLock: "",
+        manuscript: { name: "", tagline: "", description: "", greeting: "", genres: [], tags: [] },
+        httpStatus: 422,
+        error: gate.error,
+        issues: gate.issues,
+        systemPrompt: "hidden",
+      } as AdminAuthorPreviewExport)
+    ) as Record<string, unknown>;
+    assert.equal("stage" in parsed, false);
+    assert.equal(parsed.error, gate.error);
+    assert.equal(JSON.stringify(parsed).includes("hidden"), false);
+  });
+
+  it("reads only server-provided 422 fields", () => {
+    const diagnostics = readAdminAuthorServerFailure({
+      httpStatus: 422,
+      payload: {
+        ok: false,
+        error: "world bible failed QA",
+        stage: "world_atlas_qa",
+        issues: [{ code: "world_lorebook_hidden", message: "lorebook[0] contains hidden-knowledge wording" }],
+        lorebook: "do-not-copy",
+      },
+    });
+    assert.deepEqual(diagnostics, {
+      httpStatus: 422,
+      error: "world bible failed QA",
+      stage: "world_atlas_qa",
+    });
   });
 });
 

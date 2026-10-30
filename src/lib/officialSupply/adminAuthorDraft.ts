@@ -145,6 +145,7 @@ export type AdminAuthorPreviewResult =
   | {
       ok: false;
       error: string;
+      stage?: string;
       issues?: AdminAuthorIssue[];
       rejectedManuscript?: AdminAuthorRejectedManuscript;
       worldProjection?: OfficialWorldProjectionDiagnostic;
@@ -498,15 +499,23 @@ function fail(error: unknown): AdminAuthorPreviewResult {
           hits: error.worldProjection.hits.map((hit) => ({ field: hit.field, excerpt: hit.excerpt })),
         }
       : undefined;
+    const stage =
+      error.stage ?? (error.code === "author_world_rejected" ? "world_bible_qa" : undefined);
     return {
       ok: false,
       error: error.message,
+      ...(stage ? { stage } : {}),
       ...(error.qa ? { issues: error.qa.errors.map((issue) => ({ code: issue.code, message: issue.message })) } : {}),
       ...(rejectedManuscript ? { rejectedManuscript } : {}),
       ...(worldProjection ? { worldProjection } : {}),
     };
   }
   return { ok: false, error: error instanceof Error ? error.message : "생성에 실패했습니다." };
+}
+
+/** Mirrors preview gate failures for regression tests — not part of the admin API surface. */
+export function adminAuthorPreviewFailureFromGateErrorForTests(error: OfficialSupplyGateError): AdminAuthorPreviewResult {
+  return fail(error);
 }
 
 function transportFor(inner: OfficialAuthorTransport | undefined, budget: OfficialAuthorCallBudget): OfficialAuthorTransport {
