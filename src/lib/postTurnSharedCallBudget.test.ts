@@ -27,6 +27,7 @@ import {
   type StatusWidgetExtractCaller,
 } from "./statusWidget/extract";
 import type { TokenUsage } from "./ai";
+import { formatMemoryMetaForPrompt } from "./chatMemory";
 import { loadChatRelationshipMeta, mergeRelationshipMetaFromTurn, mergeRelationshipMetaAfterRegenerate } from "./memory/memory-relationship-meta";
 import { getOrCreateChatMemory } from "./memory/memory-db";
 import { ensureProviderCostLedgerSchema, recordBackgroundProviderCost } from "./providerCostLedger";
@@ -321,6 +322,55 @@ describe("shared relationship delta consumption (no second provider call)", () =
       db.prepare("SELECT COUNT(*) AS c FROM api_cost_ledger").get() as { c: number }
     ).c;
     assert.equal(ledgerRows, 0);
+  });
+
+  it("S4b. valid-empty Luna still stores the T71 spoken promise from turn prose", async () => {
+    const db = getDb();
+    const userId = Number(
+      db
+        .prepare("INSERT INTO users (email, nickname, pw_hash, points) VALUES (?,?,?,0)")
+        .run(`t71rel_${Date.now()}@test.local`, `t71rel_${Date.now()}`, "x").lastInsertRowid
+    );
+    const characterId = Number(
+      db.prepare("INSERT INTO characters (name) VALUES ('six')").run().lastInsertRowid
+    );
+    const chatId = Number(
+      db.prepare("INSERT INTO chats (user_id, character_id) VALUES (?,?)").run(userId, characterId)
+        .lastInsertRowid
+    );
+    getOrCreateChatMemory(chatId, userId, characterId, "free");
+
+    let providerCalls = 0;
+    const meta = await mergeRelationshipMetaFromTurn({
+      chatId,
+      names: { charName: "식스", userName: "제이" },
+      userMessage:
+        "*[ooc:다시 동인지를 읽지않으면 못나가는 방에서 빠져나언후 나이트호크안으로 돌아온상황부터 이야기를 전개한다]*",
+      assistantMessage: `${"메디컬 베이의 조명과 기기 소음이 이어진다. ".repeat(180)}식스가 장갑을 고쳐 끼며 말했다. 「허가 없는 절단은 안 할게요, 약속하죠.」 No unauthorized amputations, promise.`,
+      route: "safe",
+      sharedInitialParsed: true,
+      sharedInitialDelta: {
+        items: [],
+        itemsRemove: [],
+        promisesAdd: [],
+        promisesRemove: [],
+      },
+      sourceUserMessageId: 142,
+      __testExtract: async () => {
+        providerCalls += 1;
+        throw new Error("T71 recovery must not open a second relationship call");
+      },
+    });
+
+    assert.equal(providerCalls, 0);
+    assert.deepEqual(meta.items, []);
+    assert.equal(meta.promises.length, 1);
+    assert.match(meta.promises[0]!.text, /허가 없는 절단은 안 할게요, 약속하죠/);
+    const persisted = loadChatRelationshipMeta(chatId);
+    assert.deepEqual(persisted.items, []);
+    const prompt = formatMemoryMetaForPrompt(persisted);
+    assert.match(String(prompt), /약속:.*허가 없는 절단은 안 할게요/);
+    assert.doesNotMatch(String(prompt), /소지품/);
   });
 
   it("S5. end-to-end normal turn: shared extract + shared merge = ONE provider call", async () => {
