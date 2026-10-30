@@ -148,7 +148,9 @@ export function buildCharacterExperienceSystem(): string {
     "키는 desire·contradiction·behavior·incident·tension·daily·cost·play·voice·firstAction 뿐이다.",
     "각 값은 12~180자의 구체적 문장이다. 세계 이름·세력 목록·장소 목록은 쓰지 않는다.",
     "직업표나 금지 소재를 따르지 않는다. 특정 장소·직업·소품을 기본값으로 두지 않는다.",
-    "플레이어의 역할·선택·결말을 지정하지 않는다.",
+    "제작자가 castIntent에 적은 사용자 역할·관계·설정은 정본이므로 그대로 유지한다.",
+    "AI가 임의로 플레이어의 역할·소지품·안건·방문 목적·관계 상태를 추가하지 않는다. castIntent에 없는 사용자 발화·감정·선택·결말도 만들지 않는다.",
+    "firstAction은 castIntent에 고정된 사실만 전제하고, 플레이어의 발화나 감정 없이도 성립하는 이 인물 자신의 행동이다. tension은 이 인물이 장면으로 들고 나오는 긴장이다.",
   ].join("\n");
 }
 
@@ -161,7 +163,7 @@ export function buildCharacterExperienceUser(input: CharacterExperienceInput): s
     "자동으로 채운 의도는 대상과 연애 여부만 담고 있다. 그 문장에 없는 직업·사건을 정본으로 만들지 않는다. 사용자가 직접 적은 의도만 욕망과 첫 장면의 제약으로 따른다.",
     ...formatAuthoringDirection(plan, ["tone", "humor", "pacing", "wordplay"]),
     "",
-    "이 인물이 원하는 것, 모순, 남과 다른 행동, 스스로 일으키거나 피하려는 일, 사용자와 처음 부딪히는 긴장, 일상과 취향, 대가, 플레이 경험, 말투, 첫 장면에서 스스로 하는 행동을 고른다.",
+    "이 인물이 원하는 것, 모순, 남과 다른 행동, 스스로 일으키거나 피하려는 일, 이 인물이 장면으로 들고 나오는 긴장, 일상과 취향, 대가, 플레이 경험, 말투, 플레이어의 말·감정 없이도 스스로 하는 첫 행동을 고른다.",
     "아래 틀의 값을 모두 채워 JSON 한 개만 출력한다.",
     `{"desire":"","contradiction":"","behavior":"","incident":"","tension":"","daily":"","cost":"","play":"","voice":"","firstAction":""}`,
   ].join("\n");
@@ -581,6 +583,11 @@ export function buildCharacterBible1System(plan: OfficialAuthoringPlan = ROFAN_P
     "- situation: 세계 관련 맥락 350~650자 + 개인 현재 상황 300~600자 + 유저 진입 장면 40~180자. 세계 설정집을 캐릭터 본문으로 복사하지 않는다.",
     "  개인 현재 상황에는 이 인물이 사용자 없이도 지금 추구하는 일과 그 때문에 이미 생긴 대가를 포함한다. 사건에 필요한 유저 역할·관계·배경은 bonds 단계 fixedFacts가 소유한다.",
     "  유저 진입 장면은 기본 도입 장소·행동·태도만 쓴다. 다른 시점·장소 지정, 유저 선택권·페르소나 설명, OOC 규칙, 침묵·감정 해석 지침은 쓰지 않는다. fixedFacts 문장을 되풀이하지 않는다.",
+    ...(plan.profile.key === "genre_neutral"
+      ? [
+          "  유저 역할·관계·공동 과거는 bonds의 fixedFacts(role_bound·relationship_bound)에 명시된 사실만 쓴다. free이거나 고정 사실이 없으면 유저에게 특정 사건의 피해자·제보자·의뢰인·참석자 역할이나 안건·소지품을 새로 배정하지 않는다. 고정 사실에 없는 유저의 발화·감정·방문 목적은 만들지 않는다.",
+        ]
+      : []),
     "- 캐릭터 runtime 핵심은 정체/성격/유저 인식/말투/관계 변화/과거 원인/습관·취미/가치관·금기/능력이다. 장문 외모·타 캐릭터 관계망·세계 설명은 각각 Appearance/Lorebook owner가 맡는다.",
     "- characterCore에 그대로 들어갈 문장으로 \"27세\"처럼 구조화된 나이와 같은 숫자를 반드시 명시한다(실제 나이로).",
     "",
@@ -708,6 +715,12 @@ export function buildCharacterVoiceSystem(
     "- 유저 쪽 지칭은 성별 중립적으로 유지한다. 당신·상대·목격자·계약자·방문객·동행자·협상 상대처럼 역할과 상황으로 표현한다. 아가씨/도련님/왕자비/신부 같은 성별 고정 호칭은 쓰지 않는다. 캐릭터 본인 성별 표현은 유지한다.",
     "- 유저 관계 시작 유형이 role_bound·relationship_bound면 오프닝·tagline·pitch는 고정 사실만 드러내고 유저의 성별·감정·행동·결말은 확정하지 않는다.",
     "- 오프닝은 하나다. 에피소드/선택 시작을 만들지 않는다.",
+    ...(plan.profile.key === "genre_neutral"
+      ? [
+          "- 첫 대사·첫 행동에서 정본의 말투와 반응 방식(회피·직설·비꼼·과장 등)이 실제로 드러난다. 정본의 예시 문장을 그대로 복사하지는 않는다.",
+          "- 고정 사실에 없는 유저의 발화·감정·방문 목적을 대사나 서술로 확정하지 않는다. 유저는 그 자리에 있다는 최소 단서만 가진다.",
+        ]
+      : []),
     "- 소개문·자기소개·세계관 설명 덤프 금지. 이후 RP 문체의 스타일 앵커가 되는 웹소설형 출력.",
     "- 같은 문장·묘사를 반복해 분량을 채우지 않는다.",
     "",
@@ -722,6 +735,11 @@ export function buildCharacterVoiceSystem(
     "- tagline은 분위기 문구가 아니라 '이 캐릭터가 당신에게 누구이고 지금 무슨 문제가 있는지'가 한눈에 보이는 관계 훅.",
     `  세계관 고유명사는 최대 2개, 장르 독자가 바로 아는 역할 어휘${plan.profile.taglineRoleVocabulary}를 쓴다.`,
     `- tags ${Q.discoveryTags.min}~${Q.discoveryTags.max}개: 장르·관계·성격·소재·방향성을 섞고, 바이블에 실제로 있는 경험만 쓴다(인기 키워드 억지 삽입 금지).`,
+    ...(plan.profile.key === "genre_neutral"
+      ? [
+          "- 관계 시작이 free면 아직 일어나지 않은 관계의 결과(회복·결말·성공·구원)를 태그로 확정하지 않는다. 태그는 정본에 이미 있는 성격·경험·갈등의 방향만 쓴다.",
+        ]
+      : []),
     "SFW 시트의 공개 텍스트(tagline·description·greeting·tags)에는 다음 음절을 어떤 단어의 일부로도 쓰지 않는다:",
     "섹스, 성교, 성행위, 자위, 사정, 삽입, 오르가즘, 포르노, 야설, 야동.",
     "'사정' 대신 사연/형편/경위를 쓴다.",
