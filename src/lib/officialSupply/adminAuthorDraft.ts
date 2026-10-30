@@ -47,7 +47,7 @@ import {
   OFFICIAL_NARRATIVE_PACINGS,
   OFFICIAL_NARRATIVE_TONES,
   recommendOfficialCastIntent,
-  isFullyAutoAuthoringSelection,
+  resolveAuthoringAxisMask,
   resolveAdminAuthoringDirection,
   resolveAuthoringPlanAfterExperience,
   resolveOfficialAuthoringPlan,
@@ -549,7 +549,7 @@ export async function previewAdminOfficialCharacter(input: {
   const modelId = resolveOfficialAuthorModelId();
   try {
     const { snapshot, kept } = snapshotAndCast(input.selection.genre);
-    const autoAxes = isFullyAutoAuthoringSelection(input.selection);
+    const autoAxisMask = resolveAuthoringAxisMask(input.selection);
     const experienceResult =
       basePlan.profile.key === "genre_neutral"
         ? await generateOfficialCharacterExperience({
@@ -560,17 +560,17 @@ export async function previewAdminOfficialCharacter(input: {
               gender,
               castIntent,
               authoring: basePlan,
-              chooseAxes: autoAxes,
+              autoAxes: autoAxisMask,
             },
           })
         : undefined;
     const experience = experienceResult?.experience;
-    // Auto axes are chosen by the character's own experience; explicit admin
-    // choices are never overridden.
+    // Each auto axis is chosen by the character's own experience; explicit
+    // admin choices are never overridden.
     const plan = experienceResult
       ? resolveAuthoringPlanAfterExperience({
           direction,
-          autoAxes,
+          mask: autoAxisMask,
           axes: experienceResult.axes,
         })
       : basePlan;

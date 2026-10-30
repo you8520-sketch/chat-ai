@@ -313,50 +313,75 @@ const AUTHORING_AXIS_VALUES = {
 } as const;
 
 /** Model-chosen auto axes. Invalid or missing values are ignored, never guessed. */
-export function parseOfficialAuthoringAxes(raw: unknown): OfficialAuthoringAxes | null {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-  const rec = raw as Record<string, unknown>;
-  const { tone, humor, pacing, nameWordplay } = rec;
-  if (typeof tone !== "string" || !AUTHORING_AXIS_VALUES.tone.has(tone)) return null;
-  if (typeof humor !== "string" || !AUTHORING_AXIS_VALUES.humor.has(humor)) return null;
-  if (typeof pacing !== "string" || !AUTHORING_AXIS_VALUES.pacing.has(pacing)) return null;
-  if (typeof nameWordplay !== "string" || !AUTHORING_AXIS_VALUES.nameWordplay.has(nameWordplay)) {
-    return null;
-  }
-  return {
-    tone: tone as OfficialNarrativeTone,
-    humor: humor as OfficialHumorLevel,
-    pacing: pacing as OfficialNarrativePacing,
-    nameWordplay: nameWordplay as OfficialNameWordplay,
-  };
-}
+export type OfficialAuthoringAxisMask = {
+  tone: boolean;
+  humor: boolean;
+  pacing: boolean;
+  nameWordplay: boolean;
+};
 
-/** True when the admin left every axis on auto for this run. */
-export function isFullyAutoAuthoringSelection(selection: {
+/** True per axis when the admin left that axis on auto (undefined or "auto"). */
+export function resolveAuthoringAxisMask(selection: {
   tone?: string;
   humor?: string;
   pacing?: string;
   nameWordplay?: string;
-}): boolean {
-  return [selection.tone, selection.humor, selection.pacing, selection.nameWordplay].every(
-    (value) => value === undefined || value === "auto"
-  );
+}): OfficialAuthoringAxisMask {
+  const auto = (value: string | undefined) => value === undefined || value === "auto";
+  return {
+    tone: auto(selection.tone),
+    humor: auto(selection.humor),
+    pacing: auto(selection.pacing),
+    nameWordplay: auto(selection.nameWordplay),
+  };
+}
+
+export function hasAutoAuthoringAxis(mask: OfficialAuthoringAxisMask): boolean {
+  return mask.tone || mask.humor || mask.pacing || mask.nameWordplay;
+}
+
+/**
+ * Keep only the axes the model was allowed to choose, and only when the value is
+ * a valid enum member. A missing or invalid value leaves that axis to the genre
+ * recommendation — it is never guessed or repaired.
+ */
+export function parseAuthoringAxesForMask(
+  raw: unknown,
+  mask: OfficialAuthoringAxisMask
+): Partial<OfficialAuthoringAxes> {
+  const out: Partial<OfficialAuthoringAxes> = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  const rec = raw as Record<string, unknown>;
+  for (const key of ["tone", "humor", "pacing", "nameWordplay"] as const) {
+    if (!mask[key]) continue;
+    const value = rec[key];
+    if (typeof value === "string" && AUTHORING_AXIS_VALUES[key].has(value)) {
+      (out as Record<string, string>)[key] = value;
+    }
+  }
+  return out;
 }
 
 /**
  * Auto axes come from the character's own experience, not from a fixed genre
- * preset. Explicit admin choices always win; a malformed/missing model answer
- * falls back to the genre recommendation instead of inventing values.
+ * preset. Explicit admin choices always win per axis; a malformed or missing
+ * model answer falls back to the genre recommendation for that axis only.
  */
 export function resolveAuthoringPlanAfterExperience(input: {
   direction: OfficialAuthoringDirection & RecommendedAuthoringAxes;
-  autoAxes: boolean;
-  axes: OfficialAuthoringAxes | null | undefined;
+  mask: OfficialAuthoringAxisMask;
+  axes: Partial<OfficialAuthoringAxes> | null | undefined;
 }): OfficialAuthoringPlan {
-  if (input.autoAxes && input.axes) {
-    return resolveOfficialAuthoringPlan({ genre: input.direction.genre, ...input.axes });
-  }
-  return resolveOfficialAuthoringPlan(input.direction);
+  const axes = input.axes ?? {};
+  return resolveOfficialAuthoringPlan({
+    genre: input.direction.genre,
+    tone: input.mask.tone ? (axes.tone ?? input.direction.tone) : input.direction.tone,
+    humor: input.mask.humor ? (axes.humor ?? input.direction.humor) : input.direction.humor,
+    pacing: input.mask.pacing ? (axes.pacing ?? input.direction.pacing) : input.direction.pacing,
+    nameWordplay: input.mask.nameWordplay
+      ? (axes.nameWordplay ?? input.direction.nameWordplay)
+      : input.direction.nameWordplay,
+  });
 }
 
 const TONE_LINES: Record<OfficialNarrativeTone, string> = {

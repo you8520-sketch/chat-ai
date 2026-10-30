@@ -43,9 +43,16 @@ const AMBIGUOUS_ADULT_TERMS = new Set(["자위", "자지", "보지", "사정"]);
 
 const NEGATIVE_SEE_NEXT = /^(?:않|못|말)/u;
 const NEGATIVE_SEE_EOJEOL = /^(?:보지|보지는|보지도)$/u;
-/** Ordinary circumstance particles on 사정 (`누구의 사정도`, `사정이나 생각`). Bare and verbal forms stay adult. */
+/** Unambiguous case particles on 사정 (`사정이`, `사정은`, `사정도`). */
 const SAJEONG_CASE_PARTICLE =
-  /^(?:이|가|은|는|도|에|과|와|만|으로|로|까지|뿐|처럼|보다|상|없이|이나|나|이라도|라도|이야|야|이란|란)$/u;
+  /^(?:이|가|은|는|도|에|과|와|만|으로|로|까지|뿐|처럼|보다|상|없이)$/u;
+/**
+ * Alternative particles (`사정이나 사연은`) need a following noun to stay
+ * ordinary. `사정이나 해` is a verbal use and must remain banned.
+ */
+const SAJEONG_ALTERNATIVE_PARTICLE = /^(?:이나|나|이라도|라도|이야|야|이란|란)$/u;
+const NOUN_WITH_CASE_PARTICLE =
+  /^[가-힣]{2,}(?:을|를|은|는|이|가|의|에|도|과|와|만|부터|까지|처럼|보다)$/u;
 /** Object form is not ordinary by itself. `사정을` stays adult unless a circumstance predicate follows. */
 const SAJEONG_OBJECT_EOJEOL = "사정을";
 /** At most two modifiers between the object and the predicate (`함부로 공개하지`). */
@@ -72,9 +79,15 @@ function isOrdinaryObjectSajeong(eojeols: readonly string[], index: number): boo
 function isOrdinaryCircumstanceSajeong(eojeols: readonly string[], index: number): boolean {
   const eojeol = eojeols[index] ?? "";
   if (!eojeol.startsWith("사정")) return false;
-  // Case particle attached to the noun, e.g. 사정이 / 사정도 / 사정이나.
+  const rest = eojeol.slice(2);
+  // 사정이 / 사정은 / 사정도 — unambiguous ordinary particles.
+  if (SAJEONG_CASE_PARTICLE.test(rest)) return true;
+  // 사정이나 / 사정이라도 — ordinary only when a noun phrase follows
+  // (`사정이나 생각을`), not a verb (`사정이나 해`).
+  if (SAJEONG_ALTERNATIVE_PARTICLE.test(rest)) {
+    return NOUN_WITH_CASE_PARTICLE.test(eojeols[index + 1] ?? "");
+  }
   // 사정을 stays on the object path so a sexual predicate is still detected.
-  if (SAJEONG_CASE_PARTICLE.test(eojeol.slice(2))) return true;
   return isOrdinaryObjectSajeong(eojeols, index);
 }
 

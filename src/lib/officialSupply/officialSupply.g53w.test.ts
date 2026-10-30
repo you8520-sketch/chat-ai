@@ -11,15 +11,16 @@ import type { OfficialAuthorTransport } from "@/lib/officialSupply/author";
 import { officialVoiceFieldsForQaCodes } from "@/lib/officialSupply/adminAuthorDraft";
 import {
   OFFICIAL_ROFAN_GENRE,
-  isFullyAutoAuthoringSelection,
-  parseOfficialAuthoringAxes,
-  recommendOfficialAuthoringDirection,
+  hasAutoAuthoringAxis,
+  parseAuthoringAxesForMask,
   resolveAdminAuthoringDirection,
+  resolveAuthoringAxisMask,
   resolveAuthoringPlanAfterExperience,
   resolveOfficialAuthoringPlan,
 } from "@/lib/officialSupply/genreProfile";
 
 const MODERN = "현대/일상";
+const ALL_AUTO = resolveAuthoringAxisMask({});
 
 function fakeExperienceTransport(payload: Record<string, unknown>): OfficialAuthorTransport {
   return {
@@ -50,114 +51,218 @@ const CANON = {
   firstAction: "말없이 공구 상자를 열어 나사 하나를 골라 손바닥에 올려놓는다.",
 };
 
-const AXES = { tone: "dry", humor: "light", pacing: "narration", nameWordplay: "none" };
+const MODEL_AXES = { tone: "dry", humor: "light", pacing: "narration", nameWordplay: "none" };
 
-describe("G5-3W A — auto axes come from the character, explicit choices win", () => {
-  it("detects a fully auto selection and keeps any explicit choice", () => {
-    assert.equal(isFullyAutoAuthoringSelection({}), true);
+function planFor(selection: Parameters<typeof resolveAdminAuthoringDirection>[0]) {
+  return resolveOfficialAuthoringPlan(resolveAdminAuthoringDirection(selection));
+}
+
+describe("G5-3W-A per-axis auto", () => {
+  it("masks exactly the axes the admin left on auto", () => {
+    assert.deepEqual(resolveAuthoringAxisMask({}), {
+      tone: true,
+      humor: true,
+      pacing: true,
+      nameWordplay: true,
+    });
+    assert.deepEqual(resolveAuthoringAxisMask({ tone: "serious" }), {
+      tone: false,
+      humor: true,
+      pacing: true,
+      nameWordplay: true,
+    });
+    assert.deepEqual(resolveAuthoringAxisMask({ humor: "none" }), {
+      tone: true,
+      humor: false,
+      pacing: true,
+      nameWordplay: true,
+    });
+    assert.deepEqual(resolveAuthoringAxisMask({ nameWordplay: "nickname" }), {
+      tone: true,
+      humor: true,
+      pacing: true,
+      nameWordplay: false,
+    });
     assert.equal(
-      isFullyAutoAuthoringSelection({ tone: "auto", humor: "auto", pacing: "auto", nameWordplay: "auto" }),
+      hasAutoAuthoringAxis(resolveAuthoringAxisMask({ tone: "serious", humor: "none" })),
       true
     );
-    assert.equal(isFullyAutoAuthoringSelection({ tone: "dry" }), false);
-    assert.equal(isFullyAutoAuthoringSelection({ nameWordplay: "pun" }), false);
+    assert.equal(
+      hasAutoAuthoringAxis(
+        resolveAuthoringAxisMask({
+          tone: "serious",
+          humor: "none",
+          pacing: "dialogue",
+          nameWordplay: "pun",
+        })
+      ),
+      false
+    );
   });
 
-  it("accepts only complete, valid model-chosen axes", () => {
-    assert.deepEqual(parseOfficialAuthoringAxes(AXES), AXES);
-    assert.equal(parseOfficialAuthoringAxes({ ...AXES, tone: "funny" }), null);
-    assert.equal(parseOfficialAuthoringAxes({ ...AXES, humor: "sometimes" }), null);
-    assert.equal(parseOfficialAuthoringAxes({ ...AXES, pacing: "fast" }), null);
-    assert.equal(parseOfficialAuthoringAxes({ ...AXES, nameWordplay: "initials" }), null);
-    assert.equal(parseOfficialAuthoringAxes({ tone: "dry" }), null);
-    assert.equal(parseOfficialAuthoringAxes(null), null);
-  });
+  it("applies model values only to auto axes and keeps explicit ones", () => {
+    // tone fixed, the rest auto
+    const toneFixed = resolveAuthoringPlanAfterExperience({
+      direction: resolveAdminAuthoringDirection({ genre: MODERN, tone: "serious" }),
+      mask: resolveAuthoringAxisMask({ tone: "serious" }),
+      axes: MODEL_AXES,
+    });
+    assert.equal(toneFixed.tone, "serious");
+    assert.equal(toneFixed.humor, "light");
+    assert.equal(toneFixed.pacing, "narration");
+    assert.equal(toneFixed.nameWordplay, "none");
 
-  it("uses the model axes only on auto, and never overrides an explicit admin choice", () => {
-    const direction = resolveAdminAuthoringDirection({ genre: MODERN });
-    const auto = resolveAuthoringPlanAfterExperience({ direction, autoAxes: true, axes: AXES });
-    assert.equal(auto.tone, "dry");
-    assert.equal(auto.humor, "light");
-    assert.equal(auto.pacing, "narration");
-    assert.equal(auto.nameWordplay, "none");
+    // humor fixed only
+    const humorFixed = resolveAuthoringPlanAfterExperience({
+      direction: resolveAdminAuthoringDirection({ genre: MODERN, humor: "none" }),
+      mask: resolveAuthoringAxisMask({ humor: "none" }),
+      axes: MODEL_AXES,
+    });
+    assert.equal(humorFixed.humor, "none");
+    assert.equal(humorFixed.tone, "dry");
 
+    // nameWordplay fixed only
+    const nameFixed = resolveAuthoringPlanAfterExperience({
+      direction: resolveAdminAuthoringDirection({ genre: MODERN, nameWordplay: "nickname" }),
+      mask: resolveAuthoringAxisMask({ nameWordplay: "nickname" }),
+      axes: MODEL_AXES,
+    });
+    assert.equal(nameFixed.nameWordplay, "nickname");
+    assert.equal(nameFixed.tone, "dry");
+    assert.equal(nameFixed.humor, "light");
+
+    // all explicit: model answer is ignored
     const explicit = resolveAuthoringPlanAfterExperience({
-      direction: resolveAdminAuthoringDirection({ genre: MODERN, tone: "tragic" }),
-      autoAxes: false,
-      axes: AXES,
+      direction: resolveAdminAuthoringDirection({
+        genre: MODERN,
+        tone: "tragic",
+        humor: "central",
+        pacing: "balanced",
+        nameWordplay: "pun",
+      }),
+      mask: resolveAuthoringAxisMask({
+        tone: "tragic",
+        humor: "central",
+        pacing: "balanced",
+        nameWordplay: "pun",
+      }),
+      axes: MODEL_AXES,
     });
     assert.equal(explicit.tone, "tragic");
-    assert.equal(explicit.nameWordplay, "nickname");
-
-    const fallback = resolveAuthoringPlanAfterExperience({
-      direction,
-      autoAxes: true,
-      axes: null,
-    });
-    assert.equal(fallback.tone, direction.tone);
-    assert.equal(fallback.humor, direction.humor);
+    assert.equal(explicit.humor, "central");
+    assert.equal(explicit.pacing, "balanced");
+    assert.equal(explicit.nameWordplay, "pun");
   });
 
-  it("keeps the 19-genre recommendation untouched for the resolver", () => {
+  it("falls back to the genre recommendation per axis when the model answer is missing or invalid", () => {
+    const direction = resolveAdminAuthoringDirection({ genre: MODERN });
+    const partial = resolveAuthoringPlanAfterExperience({
+      direction,
+      mask: ALL_AUTO,
+      axes: parseAuthoringAxesForMask({ tone: "dry", humor: "sometimes" }, ALL_AUTO),
+    });
+    assert.equal(partial.tone, "dry");
+    assert.equal(partial.humor, direction.humor);
+    assert.equal(partial.pacing, direction.pacing);
+
+    const empty = resolveAuthoringPlanAfterExperience({
+      direction,
+      mask: ALL_AUTO,
+      axes: {},
+    });
+    assert.equal(empty.tone, direction.tone);
+    assert.equal(empty.nameWordplay, direction.nameWordplay);
+  });
+
+  it("validates only the masked axes", () => {
+    const mask = resolveAuthoringAxisMask({ tone: "serious" });
+    assert.deepEqual(parseAuthoringAxesForMask({ ...MODEL_AXES, tone: "light" }, mask), {
+      humor: "light",
+      pacing: "narration",
+      nameWordplay: "none",
+    });
+    assert.deepEqual(parseAuthoringAxesForMask({ tone: "dry" }, mask), {});
+    assert.deepEqual(parseAuthoringAxesForMask({ ...MODEL_AXES, humor: "often" }, mask), {
+      pacing: "narration",
+      nameWordplay: "none",
+    });
+    assert.deepEqual(parseAuthoringAxesForMask(null, ALL_AUTO), {});
+  });
+
+  it("keeps the 19-genre recommendation untouched and explicit choices first-class", () => {
     assert.equal(resolveAdminAuthoringDirection({ genre: MODERN }).tone, "light");
     assert.equal(resolveAdminAuthoringDirection({ genre: OFFICIAL_ROFAN_GENRE }).tone, "lyrical");
     assert.equal(resolveAdminAuthoringDirection({ genre: MODERN, humor: "none" }).humor, "none");
   });
 
-  it("asks for axes in the same call only when they are auto", () => {
-    const withAxes = buildCharacterExperienceSystem(true);
-    assert.match(withAxes, /함께 axes를 고른다/);
-    assert.match(withAxes, /axes는 이 인물에게 맞는 문체/);
-    const without = buildCharacterExperienceSystem(false);
-    assert.doesNotMatch(without, /axes/);
-    assert.match(without, /10개|뿐이다/);
+  it("asks the model for auto axes only, and never treats axes as 12~180-char prose", () => {
+    const system = buildCharacterExperienceSystem(ALL_AUTO);
+    assert.match(system, /함께 axes를 고른다/);
+    assert.match(system, /axes 값은 문장이 아니라 아래 enum 중 하나다/);
+    assert.match(system, /desire부터 firstAction까지 각 값은 12~180자/);
 
+    const mixed = buildCharacterExperienceSystem(resolveAuthoringAxisMask({ tone: "serious" }));
+    assert.match(mixed, /axes에는 자동인 축만 고른다\(유머·전개·작명\)/);
+    assert.match(mixed, /지정된 축\(문체\)은 바꾸지 않는다/);
+
+    const none = buildCharacterExperienceSystem();
+    assert.doesNotMatch(none, /axes/);
+    assert.match(none, /10개|뿐이다/);
+  });
+
+  it("passes fixed axes as constraints and lists only auto axes in the skeleton", () => {
     const user = buildCharacterExperienceUser({
       genre: MODERN,
       gender: "female",
       castIntent: "",
-      authoring: resolveOfficialAuthoringPlan(
-        resolveAdminAuthoringDirection({ genre: MODERN })
-      ),
-      chooseAxes: true,
+      authoring: planFor({ genre: MODERN, tone: "serious" }),
+      autoAxes: resolveAuthoringAxisMask({ tone: "serious" }),
     });
-    assert.match(user, /"axes":\{"tone":"","humor":"","pacing":"","nameWordplay":""\}/);
-    assert.doesNotMatch(user, /문체: 경쾌/);
+    assert.match(user, /문체: 진지하게 쓴다/);
+    assert.match(user, /자동 선택 축: 유머·전개·작명/);
+    assert.match(user, /\{"axes":\{"humor":"","pacing":"","nameWordplay":""\}/);
+    assert.doesNotMatch(user, /"tone":""/);
+
+    const all = buildCharacterExperienceUser({
+      genre: MODERN,
+      gender: "female",
+      castIntent: "",
+      authoring: planFor({ genre: MODERN }),
+      autoAxes: ALL_AUTO,
+    });
+    assert.match(all, /\{"axes":\{"tone":"","humor":"","pacing":"","nameWordplay":""\}/);
   });
 
-  it("returns the chosen axes with the same experience call", async () => {
+  it("returns only the masked axes with the same experience call", async () => {
+    const mask = resolveAuthoringAxisMask({ tone: "serious" });
     const result = await generateOfficialCharacterExperience({
-      transport: fakeExperienceTransport({ ...CANON, axes: AXES }),
+      transport: fakeExperienceTransport({ ...CANON, axes: MODEL_AXES }),
       experience: {
         genre: MODERN,
         gender: "female",
         castIntent: "",
-        authoring: resolveOfficialAuthoringPlan(
-          resolveAdminAuthoringDirection({ genre: MODERN })
-        ),
-        chooseAxes: true,
+        authoring: planFor({ genre: MODERN, tone: "serious" }),
+        autoAxes: mask,
       },
     });
-    assert.deepEqual(result.axes, AXES);
+    assert.deepEqual(result.axes, { humor: "light", pacing: "narration", nameWordplay: "none" });
     assert.equal(result.experience.desire, CANON.desire);
 
     const explicit = await generateOfficialCharacterExperience({
-      transport: fakeExperienceTransport({ ...CANON, axes: AXES }),
+      transport: fakeExperienceTransport({ ...CANON, axes: MODEL_AXES }),
       experience: {
         genre: MODERN,
         gender: "female",
         castIntent: "",
-        authoring: resolveOfficialAuthoringPlan(
-          resolveAdminAuthoringDirection({ genre: MODERN })
-        ),
+        authoring: planFor({ genre: MODERN }),
       },
     });
-    assert.equal(explicit.axes, null);
+    assert.deepEqual(explicit.axes, {});
   });
 });
 
-describe("G5-3W B — ordinary 사정 is not an adult term", () => {
-  it("accepts the observed ordinary phrasing", () => {
+describe("G5-3W-B ordinary 사정 stays safe", () => {
+  it("accepts the normal phrasings", () => {
     assert.deepEqual(findAdultTermsInText("당신이 이 자리에 있는 사정이나 생각을 먼저 정해 버리지는 않은 채"), []);
     assert.deepEqual(findAdultTermsInText("그 사정이나 사연은 나중에 듣겠습니다"), []);
     assert.deepEqual(findAdultTermsInText("사정이 있어 늦었다"), []);
@@ -166,16 +271,22 @@ describe("G5-3W B — ordinary 사정 is not an adult term", () => {
     assert.deepEqual(findAdultTermsInText("사정을 공개하지 않았다"), []);
   });
 
-  it("still catches sexual usage and evasion", () => {
-    assert.ok(findAdultTermsInText("그는 사정을 했다").includes("사정"));
-    assert.ok(findAdultTermsInText("사정을 참지 못했다").includes("사정"));
-    assert.ok(findAdultTermsInText("사정했다").includes("사정"));
-    assert.ok(findAdultTermsInText("사 정").includes("사정"));
+  it("still catches the verbal and sexual uses", () => {
+    for (const text of [
+      "사정이나 해",
+      "사정이나 했어",
+      "사정이라도 해",
+      "사정을 참지 못했다",
+      "사정했다",
+      "사 정",
+    ]) {
+      assert.ok(findAdultTermsInText(text).includes("사정"), text);
+    }
     assert.ok(findAdultTermsInText("섹스").length > 0);
   });
 });
 
-describe("G5-3W C — the two band issues are the only repairable ones", () => {
+describe("G5-3W-C repairable mapping", () => {
   it("maps the band codes to speech/pitch and the adult-term code to no field", () => {
     assert.deepEqual(officialVoiceFieldsForQaCodes(["bible_speech_band"]), ["speech"]);
     assert.deepEqual(officialVoiceFieldsForQaCodes(["bible_pitch_band"]), ["publicDescription"]);
