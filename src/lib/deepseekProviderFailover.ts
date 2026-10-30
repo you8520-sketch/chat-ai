@@ -1,10 +1,12 @@
 import {
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_DEEPSEEK_V4_FLASH_0731_BACKUP_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_0813_BACKUP_MODEL,
   OPENROUTER_GEMINI_31_FLASH_MODEL,
+  isCheaperInferenceDeepSeekV41Flash1017Model,
   isCheaperInferenceDeepSeekV41FlashModel,
   isCheaperInferenceDeepSeekV4FlashModel,
   isCheaperInferenceDeepSeekV4ProModel,
@@ -78,7 +80,7 @@ export const OPENROUTER_DEEPSEEK_TRUE_OFF_REASONING = {
   exclude: true,
 } as const;
 
-export type DeepSeekLogicalModel = "pro" | "flash_0731" | "flash_v41";
+export type DeepSeekLogicalModel = "pro" | "flash_0731" | "flash_v41" | "flash_v41_1017";
 export type DeepSeekRouteKind =
   | "adult_handoff"
   | "native_pro"
@@ -263,6 +265,7 @@ export function isDeepSeekPrimaryCheaperInferenceModel(modelId: string): boolean
   return (
     isCheaperInferenceDeepSeekV4ProModel(modelId) ||
     isCheaperInferenceDeepSeekV41FlashModel(modelId) ||
+    isCheaperInferenceDeepSeekV41Flash1017Model(modelId) ||
     isCheaperInferenceDeepSeekV4FlashModel(modelId)
   );
 }
@@ -279,6 +282,9 @@ export function resolveDeepSeekLogicalModel(
   }
   if (isCheaperInferenceDeepSeekV41FlashModel(id)) {
     return "flash_v41";
+  }
+  if (isCheaperInferenceDeepSeekV41Flash1017Model(id)) {
+    return "flash_v41_1017";
   }
   if (
     isCheaperInferenceDeepSeekV4FlashModel(id) ||
@@ -297,6 +303,8 @@ export function resolveDeepSeekPrimaryModelId(
       return CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
     case "flash_v41":
       return CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
+    case "flash_v41_1017":
+      return CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL;
     case "flash_0731":
       return CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
     default: {
@@ -316,6 +324,8 @@ export function resolveDeepSeekBackupModelId(
       return OPENROUTER_GEMINI_31_FLASH_MODEL;
     case "flash_v41":
       throw new Error("V4.1 Flash has no OpenRouter backup model");
+    case "flash_v41_1017":
+      throw new Error("V4.1 Flash-1017 has no OpenRouter backup model");
     default: {
       const _exhaustive: never = logical;
       return _exhaustive;
@@ -327,7 +337,7 @@ export function resolveDeepSeekBackupModelId(
 export function hasDeepSeekOpenRouterBackupModel(
   logical: DeepSeekLogicalModel
 ): boolean {
-  return logical !== "flash_v41";
+  return logical !== "flash_v41" && logical !== "flash_v41_1017";
 }
 
 /**
@@ -340,7 +350,9 @@ export function buildDeepSeekFailoverBackupBody(
 ): Record<string, unknown> {
   const backupModelId = hasDeepSeekOpenRouterBackupModel(logical)
     ? resolveDeepSeekBackupModelId(logical)
-    : CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
+    : logical === "flash_v41_1017"
+      ? CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL
+      : CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
   return adaptOpenRouterDeepSeekBackupBody(assembledBody, backupModelId);
 }
 
@@ -354,11 +366,14 @@ export function resolveDeepSeekFailoverRouteKind(input: {
   if (input.background) {
     return logical === "flash_0731" ? "background_flash" : null;
   }
-  if (input.adultHandoff && logical === "pro") return "adult_handoff";
+  if (input.adultHandoff && (logical === "pro" || logical === "flash_v41_1017")) {
+    return "adult_handoff";
+  }
   switch (logical) {
     case "pro":
       return "native_pro";
     case "flash_v41":
+    case "flash_v41_1017":
       return "native_flash_v41";
     case "flash_0731":
       return "native_flash";

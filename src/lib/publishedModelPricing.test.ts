@@ -247,6 +247,7 @@ describe("publishedModelPricing", () => {
       { id: "anthropic/claude-opus-4.5", target: 0.25, floor: 0.15, in: 5, out: 25, ver: 1 },
       { id: "deepseek-v4-pro-0813", target: 0.1, floor: 0, in: 1.32, out: 3.96, ver: 4 },
       { id: "deepseek-v4.1-flash", target: 0.6, floor: 0.5, in: 0.3, out: 1.2, ver: 1 },
+      { id: "deepseek-v4.1-flash-1017", target: 0.6, floor: 0.5, in: 0.15, out: 0.6, ver: 1 },
       { id: "meta/muse-spark-1.1", target: 0.55, floor: 0.4, in: 0.435, out: 0.87, ver: 1 },
       { id: "google/gemini-3.6-flash", target: 0.45, floor: 0.3, in: 0.5, out: 2.5, ver: 1 },
       { id: "gemini-3.1-pro-preview", target: 0.09, floor: 0.05, in: 2, out: 12, ver: 2 },

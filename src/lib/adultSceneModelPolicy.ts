@@ -1,15 +1,15 @@
 import {
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
   CHEAPER_INFERENCE_GLM_52_MODEL,
   OPENROUTER_QWEN_37_MAX_MODEL,
 } from "@/lib/chatModels";
 
 /**
- * Production adult primary is DeepSeek V4 Pro 0813.
+ * Production adult primary is DeepSeek V4.1 Flash-1017.
  * GLM remains hard-failure fallback only (max 1).
  */
 export const ADULT_SCENE_MODEL_POLICY = {
-  primaryModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  primaryModelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
   hardFailureFallbackModelId: CHEAPER_INFERENCE_GLM_52_MODEL,
   heldModelId: OPENROUTER_QWEN_37_MAX_MODEL,
   maximumFallbackAttempts: 1,
@@ -52,7 +52,7 @@ export function resolveAdultSceneModelPolicyConfig(
   };
 }
 
-/** GLM hard-failure fallback — DeepSeek 0813 primary only. */
+/** GLM hard-failure fallback — adult primary only. */
 export function shouldFallbackToGlm(input: {
   config: AdultSceneModelPolicyConfig;
   isAdmin: boolean;

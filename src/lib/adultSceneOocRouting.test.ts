@@ -58,7 +58,7 @@ function decide(input: {
 }
 
 describe("OOC scene routing cases", () => {
-  it("case 1 — OOC scene reset + explicit anatomy reaction is same-turn adult 0813", () => {
+  it("case 1 — OOC scene reset + explicit anatomy reaction is same-turn adult 1017", () => {
     const { classification, decision } = decide({ currentInput: CASE1 });
     assert.equal(classification.oocIntent, "rp_scene_reset");
     assert.equal(classification.sceneReset, true);
@@ -71,7 +71,7 @@ describe("OOC scene routing cases", () => {
     assert.equal(decision.activeRoute, "general");
     assert.equal(decision.refusalBufferRecommended, true);
     assert.equal(decision.transientAdultCapableRoute, true);
-    assert.equal(config.adultModelId, "deepseek-v4-pro-0813");
+    assert.equal(config.adultModelId, "deepseek-v4.1-flash-1017");
     assert.equal(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, "deepseek-v4-pro-0813");
 
     const packet = buildSceneContinuityPacket({
@@ -121,7 +121,7 @@ describe("OOC scene routing cases", () => {
     assert.equal(decision.activeRoute, "general");
   });
 
-  it("case 4 — current-scene adult transition is same-turn adult 0813", () => {
+  it("case 4 — current-scene adult transition is same-turn adult 1017", () => {
     const { classification, decision } = decide({
       currentInput: "OOC: 현재 장면 계속. 이제 둘의 관계를 성인 장면까지 진행해.",
     });
@@ -129,16 +129,16 @@ describe("OOC scene routing cases", () => {
     assert.equal(classification.currentInputExplicitIntent, true);
     assert.equal(decision.activeRoute, "general");
     assert.equal(decision.refusalBufferRecommended, true);
-    assert.equal(config.adultModelId, "deepseek-v4-pro-0813");
+    assert.equal(config.adultModelId, "deepseek-v4.1-flash-1017");
   });
 
-  it("case 5 — explicit dialogue OOC routes adult 0813", () => {
+  it("case 5 — explicit dialogue OOC routes adult 1017", () => {
     const { decision } = decide({
       currentInput: "OOC: 현재 장면에서 NPC가 노골적인 성적 대사를 하게 해.",
     });
     assert.equal(decision.activeRoute, "general");
     assert.equal(decision.refusalBufferRecommended, true);
-    assert.equal(config.adultModelId, "deepseek-v4-pro-0813");
+    assert.equal(config.adultModelId, "deepseek-v4.1-flash-1017");
   });
 
   it("case 6 — OOC marker alone does not stop or reset the route", () => {
@@ -259,13 +259,13 @@ function finalize(input: {
 }
 
 describe("transient adult-capable OOC anatomy route", () => {
-  it("1 — OOC explicit-anatomy reaction delivers 0813 then finalizes to general", () => {
+  it("1 — OOC explicit-anatomy reaction delivers 1017 then finalizes to general", () => {
     const { classification, decision, next } = finalize({ currentInput: CASE1 });
     assert.equal(classification.transientAdultCapableRoute, true);
     assert.equal(classification.sexualContextActive, false);
     assert.equal(decision.activeRoute, "general");
     assert.equal(decision.refusalBufferRecommended, true);
-    assert.equal(config.adultModelId, "deepseek-v4-pro-0813");
+    assert.equal(config.adultModelId, "deepseek-v4.1-flash-1017");
     assert.equal(next.activeRoute, "general");
     assert.equal(next.adultRouteMinimumTurnsRemaining, 0);
     assert.equal(next.sexualContextActive, false);
@@ -290,7 +290,7 @@ describe("transient adult-capable OOC anatomy route", () => {
     assert.equal(classification.sexualContextActive, true);
     assert.equal(decision.activeRoute, "general");
     assert.equal(decision.refusalBufferRecommended, true);
-    assert.equal(config.adultModelId, "deepseek-v4-pro-0813");
+    assert.equal(config.adultModelId, "deepseek-v4.1-flash-1017");
     assert.equal(next.activeRoute, "general");
     assert.equal(next.adultRouteMinimumTurnsRemaining, 0);
   });

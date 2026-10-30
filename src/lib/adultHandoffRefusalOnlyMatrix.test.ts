@@ -27,14 +27,14 @@ import {
 } from "./adultHandoffSourceRouting";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_QWEN_38_MAX_MODEL,
 } from "./chatModels";
 import { selectBillableStages, type StageUsage } from "./points";
 
-const DEEPSEEK = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+const DEEPSEEK = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL;
 const GEMINI37 = CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL;
 const GEMINI31 = CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL;
 const OPUS = CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL;
@@ -92,7 +92,7 @@ describe("adult handoff refusal-only matrix", () => {
     );
   });
 
-  it("B — Gemini 3.7 refusal invokes DeepSeek 0813 exactly once", async () => {
+  it("B — Gemini 3.7 refusal invokes DeepSeek 1017 exactly once", async () => {
     const { plan } = deliveryPlan(GEMINI37, EXPLICIT_INPUT);
     let deepseekCalls = 0;
     const result = await invokePreparedAdultRefusalFallback({

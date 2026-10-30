@@ -1,10 +1,12 @@
 import {
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
   isCheaperInferenceClaudeOpus5Model,
   isCheaperInferenceClaudeOpus55Model,
+  isCheaperInferenceDeepSeekV41Flash1017Model,
   isCheaperInferenceDeepSeekV41FlashModel,
   isCheaperInferenceDeepSeekV4FlashModel,
   isCheaperInferenceDeepSeekV4ProModel,
@@ -12,7 +14,6 @@ import {
   isCheaperInferenceGemini37FlashModel,
   isCheaperInferenceGemini38FlashModel,
   isCheaperInferenceQwen38MaxModel,
-  isDeepSeekV4ProModel,
   isGptLunaFamilyModel,
   isGpt56TerraModel,
   isGpt61SolModel,
@@ -78,17 +79,17 @@ export type CheaperInferenceAdaptOpts = {
   deepSeekAdultHandoffTrueOff?: boolean;
 };
 
-/** Adult-handoff TRUE-OFF applies only after a non-DeepSeek source hands off. */
+/** Adult-handoff TRUE-OFF applies only after a non-1017 source hands off. */
 export function resolveDeepSeekAdultHandoffTrueOff(input: {
   selectedModelId: string;
   adultHandoffActuallyApplied: boolean;
   resolvedTargetModelId: string;
 }): boolean {
-  const target = normalizeDeepSeekV4ProModelId(input.resolvedTargetModelId);
+  const target = input.resolvedTargetModelId.trim().toLowerCase();
   return (
-    !isDeepSeekV4ProModel(input.selectedModelId) &&
+    !isCheaperInferenceDeepSeekV41Flash1017Model(input.selectedModelId) &&
     input.adultHandoffActuallyApplied === true &&
-    target === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+    target === CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL
   );
 }
 
@@ -129,6 +130,10 @@ export function applyCheaperInferenceModelReasoningPolicy(
   adapted.model = model;
   if (isCheaperInferenceDeepSeekV41FlashModel(model)) {
     adapted.model = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
+    return applyCheaperInferenceDeepSeekTrueOffPolicy(adapted);
+  }
+  if (isCheaperInferenceDeepSeekV41Flash1017Model(model)) {
+    adapted.model = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL;
     return applyCheaperInferenceDeepSeekTrueOffPolicy(adapted);
   }
   if (
@@ -199,7 +204,8 @@ export function adaptCheaperInferenceChatBody(
     const withPolicy = applyCheaperInferenceModelReasoningPolicy(adapted);
     if (
       opts?.deepSeekAdultHandoffTrueOff === true &&
-      isCheaperInferenceDeepSeekV4ProModel(String(withPolicy.model))
+      (isCheaperInferenceDeepSeekV4ProModel(String(withPolicy.model)) ||
+        isCheaperInferenceDeepSeekV41Flash1017Model(String(withPolicy.model)))
     ) {
       return applyDeepSeekAdultHandoffTrueOff(withPolicy);
     }

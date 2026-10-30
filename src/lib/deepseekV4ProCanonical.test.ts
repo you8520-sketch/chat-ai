@@ -41,10 +41,10 @@ describe("DeepSeek V4 Pro 0813 canonicalization", () => {
     );
   });
 
-  it("canonicalizes ADULT_MODEL_ID aliases to 0813", () => {
+  it("defaults adult routing to 1017 and still canonicalizes ADULT_MODEL_ID aliases to 0813", () => {
     assert.equal(
       resolveAdultRoutingConfig({}).adultModelId,
-      "deepseek-v4-pro-0813"
+      "deepseek-v4.1-flash-1017"
     );
     assert.equal(
       resolveAdultRoutingConfig({ ADULT_MODEL_ID: "deepseek-v4-pro" }).adultModelId,
@@ -87,10 +87,10 @@ describe("DeepSeek V4 Pro 0813 canonicalization", () => {
 });
 
 describe("Aion adult runtime absence", () => {
-  it("keeps only DeepSeek 0813 primary and GLM max-1 fallback", () => {
+  it("keeps only DeepSeek 1017 primary and GLM max-1 fallback", () => {
     assert.equal(
       ADULT_SCENE_MODEL_POLICY.primaryModelId,
-      "deepseek-v4-pro-0813"
+      "deepseek-v4.1-flash-1017"
     );
     assert.equal(
       ADULT_SCENE_MODEL_POLICY.hardFailureFallbackModelId,
