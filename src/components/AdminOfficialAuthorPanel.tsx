@@ -6,7 +6,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import CreatorCommentHtml from "@/components/CreatorCommentHtml";
 import { CHARACTER_GENRES } from "@/lib/characterGenres";
 import { GENDER_LABELS, type CharacterGender } from "@/lib/characterGender";
-import { adminAuthorPreviewExportJson } from "@/lib/officialSupply/adminAuthorPreviewExport";
+import {
+  adminAuthorPreviewDownloadName,
+  adminAuthorPreviewExportJson,
+  copyOrDownloadAdminAuthorPreviewJson,
+} from "@/lib/officialSupply/adminAuthorPreviewExport";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 
 export type AdminAuthorGenreRecommendation = {
@@ -255,19 +259,15 @@ export default function AdminOfficialAuthorPanel({
   async function copyPreviewJson() {
     if (!preview) return;
     const json = adminAuthorPreviewExportJson(preview);
-    try {
-      await navigator.clipboard.writeText(json);
-      setCopyNote("미리보기 JSON을 복사했습니다.");
-    } catch {
-      const blob = new Blob([json], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = `official-author-preview-${preview.previewId || "held"}.json`;
-      anchor.click();
-      URL.revokeObjectURL(url);
-      setCopyNote("클립보드를 쓸 수 없어 JSON 파일로 저장했습니다.");
-    }
+    const outcome = await copyOrDownloadAdminAuthorPreviewJson(
+      json,
+      adminAuthorPreviewDownloadName(preview.previewId)
+    );
+    setCopyNote(
+      outcome === "copied"
+        ? "미리보기 JSON을 복사했습니다."
+        : "클립보드를 쓸 수 없어 JSON 파일로 저장했습니다."
+    );
   }
 
   return (

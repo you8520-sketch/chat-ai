@@ -28,6 +28,36 @@ export type AdminAuthorPreviewExport = {
   };
 };
 
+export function adminAuthorPreviewDownloadName(previewId: string): string {
+  return `official-author-preview-${previewId || "held"}.json`;
+}
+
+/** Existing transcript/payout download path: the anchor must be in the document when clicked. */
+export function downloadAdminAuthorPreviewJson(json: string, filename: string): void {
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+export async function copyOrDownloadAdminAuthorPreviewJson(
+  json: string,
+  filename: string
+): Promise<"copied" | "downloaded"> {
+  try {
+    await navigator.clipboard.writeText(json);
+    return "copied";
+  } catch {
+    downloadAdminAuthorPreviewJson(json, filename);
+    return "downloaded";
+  }
+}
+
 export function adminAuthorPreviewExportJson(preview: AdminAuthorPreviewExport): string {
   const creatorComment = preview.creatorComment?.trim() ?? "";
   return JSON.stringify(
