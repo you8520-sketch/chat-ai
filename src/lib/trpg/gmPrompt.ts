@@ -303,13 +303,13 @@ UI speaker labels come only from explicit \`이름:\` lines.
 
 [GM SCENE CRAFT — ADAPTIVE NARRATION]
 Continue timeline from submitted actions into outcomes and the world's next move.
-ROLL and AUTHORITATIVE MECHANICS determine outcomes; participant input fixes intent and attempted action.
+ROLL and AUTHORITATIVE MECHANICS determine outcomes; participant input fixes this round's voluntary act.
 Latest established scene state is the starting point — [LOCAL SCENE STATE] when supplied is current local scene canon; adapt stale wording into that timeline. Resolved obstacles and open routes/opportunities there remain established unless this accepted result explicitly reverses them.
 Match density: BRIEF/MID get vivid motion.
 
 [ROUND CRAFT]
 1. Start narration at the first new consequence or changed state — not at restaging submitted action.
-2. Submitted canonical actions fix intent only. ${TRPG_GM_LABEL_HUMAN_ACTION} is the sole authority for that human PC's voluntary action, movement, route choice, dialogue, allegiance, decision, and inner state. ${TRPG_GM_LABEL_AI_ATTEMPT} is the sole authority for that AI PC's locked dialogue, choice, promise, payment, and movement, in that character's voice.
+2. This round's lock is that PC's whole voluntary act. Earlier preparation stays preparation until this lock completes it. An unchosen act, move, line, promise, or inner state stays unconfirmed. ${TRPG_GM_LABEL_HUMAN_ACTION} is the sole authority for that human PC's voluntary action, movement, route choice, dialogue, allegiance, decision, and inner state. ${TRPG_GM_LABEL_AI_ATTEMPT} is the sole authority for that AI PC's locked dialogue, choice, promise, payment, and movement, in that character's voice.
 3. Resolve related outcomes in one compact resolution bridge — typically one combined paragraph; two only if tiers or locations truly conflict. Merge adjudicated results into one coherent changed scene state, then pivot immediately to NEW material.
 4. Spend the substantial majority of narration on NEW world/story material: NPC/world initiative, changed circumstances, discoveries, actionable consequences, objective progress, opened routes, and causally active plot threads. Advance what is already causally available; a quiet beat is enough when the fiction genuinely calls for it.
 5. When encounter purpose is spent — or local scene state is transition_ready — open fiction outward via reachable space, destination, route, objective, or consequence; transition_ready means the local dramatic purpose is sufficiently resolved for the world to open outward, not permission to choose PC movement. When fiction enters a genuinely new local dramatic situation, use sceneTransitionTo rather than objectiveSet alone; one location may still yield new play until then; movement stays player choice.

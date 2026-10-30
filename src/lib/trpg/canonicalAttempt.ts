@@ -1,5 +1,6 @@
 import { isTrpgActionType, type TrpgActionType } from "./actionTypes";
 import { parseTrpgBotAction } from "./botActionParse";
+import { declaredMovementGoals, omitUnconfirmedAuthorityClauses } from "./movementDeclaration";
 
 export type TrpgParticipantKind = "human" | "ai_character";
 
@@ -12,7 +13,7 @@ export type TrpgCanonicalAttemptInput = {
 
 export type TrpgResolvedCanonicalAttempt = {
   participantKind: TrpgParticipantKind;
-  /** Adjudication / mechanics / GM input — exact human text or AI <<<INTENT>>> only. */
+  /** Adjudication / mechanics — exact human text or AI <<<INTENT>>> only. GM text is `gmAiActionText`. */
   canonicalAttempt: string;
   /** User-visible bot novelistic prose. Mechanics stay on the intent. Locked spoken lines from this prose are GM canon. */
   presentationProse: string;
@@ -27,27 +28,79 @@ function normalizeStoredActionType(raw: string | null | undefined): TrpgActionTy
  * Lines this bot actually spoke. The prose layout puts that line alone in double quotes.
  * A quote that shares its line with narration — a sign, or someone else's reported line — stays presentation.
  */
+/** A line that is only this bot's speech. A quote sharing its line with narration is not one. */
+export function isLockedSpokenLine(line: string): boolean {
+  return /^[“"][^”"]+[”"]$/.test(line.trim());
+}
+
 export function lockedSpokenLines(prose: string): string[] {
   const found: string[] = [];
   for (const rawLine of prose.split(/\n+/)) {
-    const match = rawLine.trim().match(/^[“"]([^”"]+)[”"]$/);
-    const line = match?.[1]?.trim();
+    const trimmed = rawLine.trim();
+    if (!isLockedSpokenLine(trimmed)) continue;
+    const line = trimmed.replace(/^[“"]|[”"]$/g, "").trim();
     if (line) found.push(line);
   }
   return found;
 }
 
+/** The server stay lock. Marker-free, and the whole voluntary act when a move cannot be priced. */
+export function stayWatchingInPlace(name: string): string {
+  return `${name}은 제자리에 서서 상황을 살핀다.`;
+}
+
+function isStayWatchingLock(text: string): boolean {
+  const name = text.match(/^(.+)은 제자리에 서서 상황을 살핀다\.$/)?.[1];
+  return Boolean(name && stayWatchingInPlace(name) === text);
+}
+
+export type GmAiActionAudience = {
+  /** Other seats at this table. A clause whose subject is one of these is not this bot's act. */
+  otherNames?: readonly string[];
+};
+
 /**
- * GM action text for an AI seat. The intent remains the choice. Locked quotes travel with it.
- * Sensory prose does not. Mechanics keep using `canonicalAttempt` alone.
+ * Marker-free move locks keep the server sentence, this bot's own attempt, and quote-only lines.
+ * A finished result and another participant's subject are not the authoritative act.
  */
-export function gmAiActionText(intent: string, prose: string): string {
+function authoritativeMovementProse(prose: string, otherNames: readonly string[]): string {
+  return prose
+    .split(/\n+/)
+    .map((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return "";
+      if (isLockedSpokenLine(trimmed)) return trimmed;
+      return omitUnconfirmedAuthorityClauses(trimmed, otherNames);
+    })
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+}
+
+/**
+ * GM action text for an AI seat.
+ * A non-empty intent is the choice. Locked quote-only lines travel with it, and sensory prose does not.
+ * An empty intent is not the novel. The stay sentence is that whole act.
+ * A priced move lock keeps the approved move and this bot's own attempt. Another PC's choice and a
+ * finished result stay out of that authoritative text.
+ * Mechanics keep using `canonicalAttempt` alone.
+ */
+export function gmAiActionText(intent: string, prose: string, audience?: GmAiActionAudience): string {
   const choice = intent.trim();
+  const otherNames = audience?.otherNames ?? [];
   const speech = lockedSpokenLines(prose)
+    .filter((line) => !choice.includes(line))
     .map((line) => `"${line}"`)
     .join("\n");
-  if (!speech) return choice;
-  return choice ? `${choice}\n${speech}` : speech;
+  if (!choice) {
+    const whole = prose.trim();
+    if (isStayWatchingLock(whole)) return whole;
+    if (declaredMovementGoals(whole).length > 0) {
+      return authoritativeMovementProse(whole, otherNames) || speech;
+    }
+    return speech;
+  }
+  return speech ? `${choice}\n${speech}` : choice;
 }
 
 /**

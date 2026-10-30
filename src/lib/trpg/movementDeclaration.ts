@@ -365,10 +365,102 @@ export function omitLiveMovementClauses(body: string): string {
     .trim();
 }
 
+const FINISHED_RESULT_PREDICATE = /(?:었|았|였|했|됐|렸|났|겼|웠|쳤|켰)다$/;
+/** An attempt still in progress (`하려 했다`, `나가려 한다`). A finished result does not use this ending. */
+const INTENTIVE_ATTEMPT = /려\s*(?:했|한|함|한다)/;
+
+const ACTOR_OBJECT_PARTICLE = /(?:을|를)$/;
+const WORLD_SUBJECT_PARTICLE = /(?:이|가|은|는)$/;
+
 /**
- * Drops remainder clauses that name a place the actor is not in.
- * A clause is kept only when it names `here` or a colocated seat — absence of a
- * foreign room name is not independence. `에서` uses the existing source particle.
+ * A past clause whose subject is the world (`문은 열렸다`), not this actor's own patient (`잔을 … 내려놓았다`).
+ * Dice-necessity (`hasChallengeSignal`) does not decide whether the act exists.
+ * An intentive attempt and a clause that still contains another finite act stay whole.
+ */
+export function clauseDeclaresFinishedResult(clause: string): boolean {
+  const text = clause.trim();
+  if (INTENTIVE_ATTEMPT.test(text)) return false;
+  if (!FINISHED_RESULT_PREDICATE.test(text)) return false;
+  const head = text.replace(FINISHED_RESULT_PREDICATE, "");
+  if (/다(?:\s|$)/.test(head)) return false;
+  const words = text.split(/\s+/).map(trimPunctuation).filter((word) => word.length > 1);
+  if (words.some((word) => ACTOR_OBJECT_PARTICLE.test(word))) return false;
+  return words.some((word) => WORLD_SUBJECT_PARTICLE.test(word));
+}
+
+/** Another participant is the subject. An object (`을/를`) or a side-anchor (`옆에서`) is not. */
+export function clauseNamesOtherParticipant(clause: string, otherNames: readonly string[]): boolean {
+  const names = [...otherNames]
+    .map((name) => name.trim())
+    .filter((name) => name.length > 0)
+    .sort((left, right) => right.length - left.length);
+  return names.some((name) => {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`^${escaped}(?:은|는|이|가)(?:\\s|$)`).test(clause.trim());
+  });
+}
+
+const QUOTED_SPAN = /[“"][^”"\n]{0,400}[”"]/g;
+
+function maskQuotedSpans(body: string): { masked: string; quotes: string[] } {
+  const quotes: string[] = [];
+  const masked = body.replace(QUOTED_SPAN, (quote) => {
+    const token = `\uE000${quotes.length}\uE000`;
+    quotes.push(quote);
+    return token;
+  });
+  return { masked, quotes };
+}
+
+function restoreQuotedSpans(text: string, quotes: string[]): string {
+  return text.replace(/\uE000(\d+)\uE000/g, (_match, index: string) => quotes[Number(index)] ?? "");
+}
+
+/** Result claims and another participant's subject, with the kept clauses' punctuation left in place. */
+export function omitUnconfirmedAuthorityClauses(body: string, otherNames: readonly string[] = []): string {
+  const { masked, quotes } = maskQuotedSpans(body);
+  const parts = masked.split(/([.!?。…;\n]+|,\s*)/);
+  let out = "";
+  for (let index = 0; index < parts.length; index += 2) {
+    const clause = parts[index] ?? "";
+    const separator = parts[index + 1] ?? "";
+    const trimmed = clause.trim();
+    if (!trimmed) continue;
+    if (clauseNamesOtherParticipant(trimmed, otherNames)) continue;
+    if (clauseDeclaresFinishedResult(trimmed)) continue;
+    out += `${clause}${separator}`;
+  }
+  return restoreQuotedSpans(out, quotes)
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .trim();
+}
+
+/** Finished-result clauses that are not another participant's subject. */
+export function finishedResultClauses(body: string, otherNames: readonly string[] = []): string[] {
+  return splitClauses(body).filter(
+    (clause) => clauseDeclaresFinishedResult(clause) && !clauseNamesOtherParticipant(clause, otherNames)
+  );
+}
+
+/** A place word that points at a destination this actor has not reached. */
+const UNSEEN_PLACE_DEIXIS = /그곳|거기|저곳|저기/;
+
+function clausePointsAtUnseenPlace(clause: string): boolean {
+  return UNSEEN_PLACE_DEIXIS.test(clause);
+}
+
+/** `X 옆에서` puts the actor beside someone. Without `here` or a colocated name, that someone is absent. */
+function clauseAnchorsBesideAbsentSeat(clause: string, allowed: readonly string[]): boolean {
+  if (!clause.includes("옆에서")) return false;
+  return !allowed.some((token) => clause.includes(token));
+}
+
+/**
+ * Drops remainder clauses that still depend on a place the actor is not in.
+ * A foreign room, an unresolved `에서` source, a deictic place (`그곳`), or a
+ * side-anchor beside someone who is not here is not an independent local act.
+ * A movement-free clause that names none of those stays. It does not have to repeat `here`.
  */
 export function omitClausesAwayFromHere(opts: {
   body: string;
@@ -384,7 +476,9 @@ export function omitClausesAwayFromHere(opts: {
     .filter((clause) => {
       if (foreign.some((place) => clause.includes(place))) return false;
       if (clauseHasUnresolvedSourcePlace(clause, allowed)) return false;
-      return allowed.some((token) => clause.includes(token));
+      if (clausePointsAtUnseenPlace(clause)) return false;
+      if (clauseAnchorsBesideAbsentSeat(clause, allowed)) return false;
+      return true;
     })
     .join(" ")
     .trim();

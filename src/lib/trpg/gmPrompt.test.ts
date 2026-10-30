@@ -59,7 +59,7 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /Closing GM beat/);
     assert.match(TRPG_GM_SYSTEM, /GM:/);
     assert.match(TRPG_GM_SYSTEM, /never the addressee/);
-    assert.match(TRPG_GM_SYSTEM, /Submitted canonical actions fix intent only/);
+    assert.match(TRPG_GM_SYSTEM, /This round's lock is that PC's whole voluntary act/);
     assert.match(TRPG_GM_SYSTEM, /first new consequence/i);
     assert.match(TRPG_GM_SYSTEM, /next meaningful decision/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /isolated per-character recaps/);
@@ -213,7 +213,7 @@ describe("TRPG GM prompt/parse", () => {
   it("owns adaptive narration in one GM SCENE CRAFT block", () => {
     assert.equal((TRPG_GM_SYSTEM.match(/\[GM SCENE CRAFT — ADAPTIVE NARRATION\]/g) ?? []).length, 1);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[ACTION RESOLUTION\]/);
-    assert.match(TRPG_GM_SYSTEM, /Submitted canonical actions fix intent only/);
+    assert.match(TRPG_GM_SYSTEM, /This round's lock is that PC's whole voluntary act/);
     assert.match(TRPG_GM_SYSTEM, /first new consequence/i);
     assert.match(TRPG_GM_SYSTEM, /Latest established scene state/);
     assert.match(TRPG_GM_SYSTEM, /next meaningful decision/);
@@ -378,7 +378,7 @@ describe("TRPG GM prompt/parse", () => {
   });
 
   it("D: rich participant prose starts GM writing at the first new beat", () => {
-    assert.match(TRPG_GM_SYSTEM, /Submitted canonical actions fix intent only/);
+    assert.match(TRPG_GM_SYSTEM, /This round's lock is that PC's whole voluntary act/);
     assert.match(TRPG_GM_SYSTEM, /first new consequence/i);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /previously written action as the minimum continuity/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /isolated per-character recaps/);
@@ -414,7 +414,7 @@ describe("TRPG GM prompt/parse", () => {
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[CLOSING\]/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[QUALITY\]/);
     assert.match(TRPG_GM_SYSTEM, /terminal ROUND NARRATION BUDGET as the sole numeric length contract/);
-    assert.match(TRPG_GM_SYSTEM, /Submitted canonical actions fix intent only/);
+    assert.match(TRPG_GM_SYSTEM, /This round's lock is that PC's whole voluntary act/);
     assert.match(TRPG_GM_SYSTEM, /first new consequence/i);
     assert.match(TRPG_GM_SYSTEM, /route opening|sceneTransitionTo rather than objectiveSet/);
     assert.match(TRPG_GM_SYSTEM, /1–2 sentences/);
@@ -435,9 +435,9 @@ describe("TRPG GM prompt/parse", () => {
     );
     const closing = TRPG_GM_SYSTEM.split("\n").find((line) => line.includes("Closing GM beat")) ?? "";
 
-    assert.match(craft, /Submitted canonical actions fix intent only/);
+    assert.match(craft, /This round's lock is that PC's whole voluntary act/);
     assert.match(craft, /first new consequence/i);
-    assert.equal((craft.match(/Submitted canonical actions fix intent only/g) ?? []).length, 1);
+    assert.equal((craft.match(/This round's lock is that PC's whole voluntary act/g) ?? []).length, 1);
     assert.doesNotMatch(craft, /previously written action as the minimum continuity/);
     assert.doesNotMatch(craft, /Most of the response must depict/);
     assert.doesNotMatch(craft, /isolated per-character recaps/);
