@@ -485,9 +485,6 @@ function ActionMode({
 
   return (
     <div data-trpg-next-action>
-      <p className="mb-3 text-sm text-zinc-400">
-        세계 안에서 무엇을 할지 적으세요. 능력치와 주사위는 서버가 정합니다. 유저끼리 대화는 「유저 채팅」입니다.
-      </p>
       {showHint ? <p className="mb-2 text-[10px] leading-4 text-zinc-500">{RECOVERY_DISCOVERY_HINT}</p> : null}
       {showHint && rest?.blockedReason === "cooldown" ? (
         <p className="mb-2 text-[10px] leading-4 text-zinc-500">{SAFE_REST_COOLDOWN_HINT}</p>
@@ -584,8 +581,12 @@ function ActionMode({
         value={actionBody}
         onChange={(event) => onActionBodyChange(event.target.value)}
         maxLength={TRPG_ACTION_MAX_CHARS}
-        rows={4}
-        placeholder={explorationSendReady ? "탐험 방식을 적는다" : "무엇을 하는가"}
+        rows={Math.min(8, Math.max(4, actionBody.split("\n").length))}
+        placeholder={
+          explorationSendReady
+            ? "탐험 방식을 적는다. 능력치와 주사위는 서버가 정한다."
+            : "세계 안에서 할 일을 적는다. 능력치와 주사위는 서버가 정한다."
+        }
         className="w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-base text-zinc-100 outline-none focus:border-violet-400/40"
       />
       {actionInputVisible && explorationSendReady ? (
@@ -602,11 +603,6 @@ function ActionMode({
             대기열 비우기
           </button>
         </div>
-      ) : null}
-      {actionInputVisible && snap.exploration && !explorationSendReady ? (
-        <p className="mt-2 break-keep text-xs leading-5 text-zinc-400" data-exploration-general-note>
-          탐험 대기열이 비어 있습니다. 이 글은 거래와 구매를 포함한 일반 행동입니다.
-        </p>
       ) : null}
       {!actionInputVisible ? (
         <p className="mt-2 text-xs text-zinc-500">장면이 끝나면 행동을 제출할 수 있습니다.</p>
@@ -733,6 +729,9 @@ export default function TrpgCommandDock({
   onToggleAcceptItem,
   onSetInventoryEquipped,
   onOcclusionChange,
+  liveStatus = null,
+  liveStatusStage = null,
+  liveStatusElapsedSec = null,
   sheetJsxCompiled = null,
   loadPartySheetComponent = null,
 }: {
@@ -765,6 +764,9 @@ export default function TrpgCommandDock({
   onToggleAcceptItem?: (name: string) => void;
   onSetInventoryEquipped?: (entryId: string, equipped: boolean, slot?: TrpgEquipmentSlot | null) => void;
   onOcclusionChange: (occlusion: TrpgCommandDockOcclusion) => void;
+  liveStatus?: string | null;
+  liveStatusStage?: string | null;
+  liveStatusElapsedSec?: number | null;
   /** Site-owned sheet compiled by the server through the shared JSX compiler; null → native. */
   sheetJsxCompiled?: string | null;
   /** Creator `trpg_sheet` lookup for AI party members; null → site sheet only. */
@@ -866,7 +868,15 @@ export default function TrpgCommandDock({
     publish();
     const observer = new ResizeObserver(publish);
     observer.observe(el);
-    return () => observer.disconnect();
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(publish);
+    });
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+      observer.disconnect();
+    };
   }, [keyboardInset, onOcclusionChange, view.expanded, view.mode]);
 
   useEffect(() => {
@@ -1002,6 +1012,17 @@ export default function TrpgCommandDock({
         paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))",
       }}
     >
+      {liveStatus ? (
+        <p
+          className="mb-2 text-center text-xs font-medium text-zinc-100"
+          data-trpg-live-turn-status={liveStatusStage ?? undefined}
+          data-trpg-live-turn-elapsed={liveStatusElapsedSec ?? undefined}
+          role="status"
+          aria-live="polite"
+        >
+          {liveStatus}
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <p className="max-w-[40vw] truncate text-sm font-semibold text-violet-200 sm:max-w-[12rem]">
           {selfSheet?.name || "내 캐릭터"}

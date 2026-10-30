@@ -13,6 +13,8 @@ type Props = {
   viewerIsCreator: boolean;
   unlockedUrls: ReadonlySet<string>;
   onClose: () => void;
+  /** fullscreen keeps the chat gallery. stage is a phone-sized full screen and a desktop dialog. */
+  presentation?: "fullscreen" | "stage";
 };
 
 const SWIPE_THRESHOLD = 48;
@@ -25,6 +27,7 @@ export default function CharacterAssetGalleryLightbox({
   viewerIsCreator,
   unlockedUrls,
   onClose,
+  presentation = "fullscreen",
 }: Props) {
   const [index, setIndex] = useState(initialIndex);
   const [mounted, setMounted] = useState(false);
@@ -86,14 +89,26 @@ export default function CharacterAssetGalleryLightbox({
 
   const overlay = (
     <div
-      className="fixed inset-0 z-[9999] flex h-[100dvh] w-screen flex-col bg-black"
+      className={
+        presentation === "stage"
+          ? "fixed inset-0 z-[9999] flex h-[100dvh] w-screen flex-col bg-black min-[576px]:items-center min-[576px]:justify-center min-[576px]:bg-black/80 min-[576px]:p-8"
+          : "fixed inset-0 z-[9999] flex h-[100dvh] w-screen flex-col bg-black"
+      }
       onClick={close}
       role="dialog"
       aria-modal="true"
-      aria-label={`${characterName} 이미지 전체 화면`}
+      aria-label={presentation === "stage" ? `${characterName} 이미지 확대` : `${characterName} 이미지 전체 화면`}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
+      <div
+        className={
+          presentation === "stage"
+            ? "relative flex h-full min-h-0 w-full flex-1 flex-col min-[576px]:h-[min(85vh,52rem)] min-[576px]:max-w-5xl min-[576px]:flex-none min-[576px]:overflow-hidden min-[576px]:rounded-2xl min-[576px]:bg-black"
+            : "contents"
+        }
+        onClick={presentation === "stage" ? (event) => event.stopPropagation() : undefined}
+      >
       <div
         className="absolute inset-x-0 top-0 z-20 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent px-4 pb-8 pt-[max(0.75rem,env(safe-area-inset-top))]"
         onClick={(e) => e.stopPropagation()}
@@ -141,7 +156,11 @@ export default function CharacterAssetGalleryLightbox({
             alt={`${characterName} — ${asset.tag}`}
             blurForViewer={blur}
             className="h-full w-full"
-            imgClassName="mx-auto h-full w-full max-h-[100dvh] max-w-[100vw] object-contain"
+            imgClassName={
+              presentation === "stage"
+                ? "mx-auto h-full w-full max-h-full max-w-full object-contain"
+                : "mx-auto h-full w-full max-h-[100dvh] max-w-[100vw] object-contain"
+            }
           />
         </div>
 
@@ -172,6 +191,7 @@ export default function CharacterAssetGalleryLightbox({
           좌우 스와이프 또는 화살표 키
         </p>
       )}
+      </div>
     </div>
   );
 

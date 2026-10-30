@@ -11,9 +11,9 @@ import { orientationFromSize, type CharacterAsset } from "@/lib/characterAssets"
 export const TRPG_INLINE_DESKTOP_MIN_WIDTH_PX = 576;
 
 export const TRPG_INLINE_PORTRAIT_HEIGHT_CAP = {
-  mobilePx: 200,
-  desktopPx: 240,
-  viewportRatio: 0.3,
+  mobilePx: 360,
+  desktopPx: 440,
+  viewportRatio: 0.42,
 } as const;
 
 export const TRPG_INLINE_SQUARE_HEIGHT_CAP = {
@@ -23,7 +23,7 @@ export const TRPG_INLINE_SQUARE_HEIGHT_CAP = {
 } as const;
 
 export const TRPG_INLINE_PORTRAIT_FIGURE_CLASS =
-  "mx-auto my-3 block max-w-full w-[min(calc(min(200px,30svh)*var(--trpg-inline-ratio)),100%)] min-[576px]:w-[min(calc(min(240px,30svh)*var(--trpg-inline-ratio)),100%)]";
+  "mx-auto my-3 block max-w-full w-[min(calc(min(360px,42svh)*var(--trpg-inline-ratio)),100%)] min-[576px]:w-[min(calc(min(440px,42svh)*var(--trpg-inline-ratio)),100%)]";
 
 export const TRPG_INLINE_SQUARE_FIGURE_CLASS =
   "mx-auto my-3 block max-w-full w-[min(calc(min(220px,32svh)*var(--trpg-inline-ratio)),100%)] min-[576px]:w-[min(calc(min(280px,32svh)*var(--trpg-inline-ratio)),100%)]";
@@ -39,7 +39,7 @@ export const TRPG_INLINE_UNKNOWN_BOX_CLASS = "h-auto w-auto max-w-full overflow-
 export const TRPG_INLINE_IMG_CLASS = "block h-full w-full max-w-full object-contain object-center";
 
 export const TRPG_INLINE_UNKNOWN_IMG_CLASS =
-  "block h-auto w-auto max-h-[min(200px,30svh)] max-w-full object-contain object-center min-[576px]:max-h-[min(240px,30svh)]";
+  "block h-auto w-auto max-h-[min(360px,42svh)] max-w-full object-contain object-center min-[576px]:max-h-[min(440px,42svh)]";
 
 export type TrpgInlineFrameKind = "landscape" | "portrait" | "square" | "unknown";
 

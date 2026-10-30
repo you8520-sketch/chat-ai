@@ -72,7 +72,7 @@ export default function TrpgCampaignRail({
           aria-label={tabHint(active)}
           className={`z-50 flex max-h-[calc(100dvh-9rem)] flex-col border border-white/10 bg-[#161616] shadow-[-12px_0_32px_rgba(0,0,0,0.55)] ${
             compact
-              ? "absolute inset-x-0 top-full mt-2 w-full rounded-2xl"
+              ? "absolute right-0 top-full mt-2 w-[min(20rem,calc(100vw-1.5rem))] rounded-2xl"
               : "absolute right-full top-0 mr-1 w-[min(20rem,calc(100vw-3.5rem))]"
           }`}
         >
@@ -97,23 +97,28 @@ export default function TrpgCampaignRail({
         </div>
       ) : null}
 
-      <nav className={compact ? "grid grid-cols-1 gap-2" : "flex flex-col gap-px py-0.5"}>
+      <nav className={compact ? "flex" : "flex flex-col gap-px py-0.5"}>
         {tabs.map((id) => (
           <button
             key={id}
             type="button"
             title={`${tabLabel(id)} · ${tabHint(id)}`}
+            aria-label={compact ? tabLabel(id) : undefined}
             aria-pressed={active === id}
             onClick={() => setActive((prev) => (prev === id ? null : id))}
-            className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border px-1 transition hover:bg-white/[0.06] ${
+            className={`flex items-center justify-center transition hover:bg-white/[0.06] ${
               active === id ? "bg-white/[0.06] font-semibold text-white" : "text-zinc-100 hover:text-white"
-            } ${compact ? "min-h-14 border-white/10 bg-white/[0.03] py-2" : "w-full border-transparent py-1.5"}`}
+            } ${
+              compact
+                ? "h-11 w-11 rounded-full border border-white/15 bg-[#161616]/95 shadow-lg"
+                : "w-full flex-col gap-1.5 rounded-xl border border-transparent px-1 py-1.5"
+            }`}
           >
             <ChatSettingsRailIcon
               id="display"
               className={compact ? "h-5 w-5" : "h-4 w-4"}
             />
-            <span className={`max-w-full px-0.5 text-center font-medium leading-tight tracking-tight ${compact ? "text-xs" : "text-[9px]"}`}>
+            <span className={compact ? "sr-only" : "max-w-full px-0.5 text-center text-[9px] font-medium leading-tight tracking-tight"}>
               {tabLabel(id)}
             </span>
           </button>
