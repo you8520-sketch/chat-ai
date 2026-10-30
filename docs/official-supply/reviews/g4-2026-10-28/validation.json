@@ -1,0 +1,28 @@
+{
+  "candidates": [
+    {
+      "key": "g4-rofan-a",
+      "name": "레온",
+      "bibleQaOk": true,
+      "draftQaOk": true,
+      "relationQaOk": true,
+      "bibleQa": [],
+      "draftQa": [],
+      "relationQa": [],
+      "voiceRepairs": 1,
+      "textLock": "513f9a7c5d2141f380a2631c903ad771823cc9627fbf11a07d1a264d7abe21be"
+    },
+    {
+      "key": "g4-rofan-b",
+      "name": "가브리엘",
+      "bibleQaOk": true,
+      "draftQaOk": true,
+      "relationQaOk": true,
+      "bibleQa": [],
+      "draftQa": [],
+      "relationQa": [],
+      "voiceRepairs": 1,
+      "textLock": "c847af1a534290026c19ca39383544fa9aa0022108ad5427070c9c8dce34ca58"
+    }
+  ]
+}

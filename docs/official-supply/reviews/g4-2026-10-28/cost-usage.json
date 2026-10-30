@@ -1,0 +1,12 @@
+{
+  "gitSha": "8cc9645808413e0fcff623a8b071c73eee05d09c",
+  "model": "gpt-6-luna",
+  "provider": "cheaper-inference-background",
+  "physicalAttempts": 9,
+  "billedCostUsd": 0.008567,
+  "billedCostKrwApprox": 12,
+  "inputTokens": 36499,
+  "outputTokens": 18528,
+  "note": "Summed from all saved provider JSON under this review dir (includes portfolio + both characters + voice repairs). Failed attempts without saved raw are listed only in agent logs.",
+  "generatedAt": "2026-10-28T12:59:25.768Z"
+}
