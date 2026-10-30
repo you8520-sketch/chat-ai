@@ -291,6 +291,52 @@ describe("CheaperInference usage window coverage", () => {
     assert.equal(tiny.calls(), CI_USAGE_PAGE_CAP);
   });
 
+  it("does not issue another GET after the coverage deadline is crossed", async () => {
+    process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
+    let calls = 0;
+    let ticks = 0;
+    const result = await fetchAllUsageRequests({
+      startAt: START,
+      endAt: END,
+      apiKey: "test-key",
+      now: () => {
+        ticks += 1;
+        return ticks <= 3 ? 0 : CI_USAGE_COVER_BUDGET_MS;
+      },
+      fetchImpl: (async () => {
+        calls += 1;
+        return jsonResponse({
+          data: [{ request_id: `late-${calls}`, status: "pending", billed_cost_usd: "0" }],
+          next_cursor: `cursor-${calls}`,
+        });
+      }) as typeof fetch,
+    });
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.equal(result.reason, "incomplete");
+    assert.equal(calls, 1);
+  });
+
+  it("keeps an explicit five-page lookup off the monthly time budget", async () => {
+    process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
+    let calls = 0;
+    const result = await fetchAllUsageRequests({
+      startAt: START,
+      endAt: END,
+      maxPages: 5,
+      apiKey: "test-key",
+      now: () => CI_USAGE_COVER_BUDGET_MS + 1,
+      fetchImpl: (async () => {
+        calls += 1;
+        return jsonResponse({
+          data: [{ request_id: `targeted-${calls}`, status: "pending", billed_cost_usd: "0" }],
+          next_cursor: calls < 5 ? `cursor-${calls}` : null,
+        });
+      }) as typeof fetch,
+    });
+    assert.equal(result.ok, true);
+    assert.equal(calls, 5);
+  });
+
   it("fails closed when the coverage time budget is already spent", async () => {
     process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
     let calls = 0;

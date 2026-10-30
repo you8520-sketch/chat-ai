@@ -106,6 +106,8 @@ async function executeFinanceSnapshot(slotKey: string) {
         code: row.code,
         severity: row.severity,
         sourceRef: row.sourceRef,
+        evidence: row.evidenceKey ?? "",
+        title: row.title,
       })),
     });
     console.log("[finance-scheduler] anomaly radar", {

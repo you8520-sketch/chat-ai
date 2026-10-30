@@ -168,6 +168,73 @@ describe("finance anomaly incident notifications", () => {
     }
   });
 
+  it("does not resend A when only B is resolved, and sends A again after it clears", () => {
+    const db = makeDb();
+    try {
+      assert.deepEqual(notify(db, "2026-10-28", [FETCH_FAILURE]), [1]);
+      assert.deepEqual(notify(db, "2026-10-29", [FETCH_FAILURE, UNMATCHED]), [1]);
+      assert.deepEqual(notify(db, "2026-10-30", [UNMATCHED, FETCH_FAILURE]), []);
+      assert.deepEqual(notify(db, "2026-10-31", [FETCH_FAILURE]), []);
+      assert.deepEqual(
+        notifyAdminsFinanceAnomaly(db, {
+          slotKey: "2026-11-01",
+          criticalCount: 0,
+          warningCount: 0,
+          anomalyTitles: [],
+          incidents: [],
+        }),
+        []
+      );
+      assert.deepEqual(notify(db, "2026-11-02", [FETCH_FAILURE]), [1]);
+      assert.equal(notificationCount(db), 3);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("sends again when the same unmatched count has a new spend witness", () => {
+    const db = makeDb();
+    try {
+      const low = { ...UNMATCHED, evidence: "a".repeat(64) };
+      const high = { ...UNMATCHED, evidence: "b".repeat(64) };
+      assert.deepEqual(notify(db, "2026-10-28", [low]), [1]);
+      assert.deepEqual(notify(db, "2026-10-29", [low]), []);
+      assert.deepEqual(notify(db, "2026-10-30", [high]), [1]);
+      assert.equal(notificationCount(db), 2);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("binds the first witness of a legacy open episode without sending it again", () => {
+    const db = makeDb();
+    try {
+      db.exec(`CREATE TABLE app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+      db.prepare("INSERT INTO app_meta (key, value) VALUES (?, ?)").run(
+        "admin_finance_anomaly_episode",
+        JSON.stringify({
+          open: true,
+          fingerprint: `${UNMATCHED.code}|${UNMATCHED.severity}|${UNMATCHED.sourceRef}`,
+          refId: 7,
+        })
+      );
+      db.prepare(
+        "INSERT INTO user_notifications (user_id, type, ref_id, title, body, read_at) VALUES (1, 'admin_finance_anomaly', 7, 'old', 'old', '2026-10-28 12:05:00')"
+      ).run();
+      const witnessed = { ...UNMATCHED, evidence: "c".repeat(64) };
+      assert.deepEqual(notify(db, "2026-10-29", [witnessed]), []);
+      assert.equal(notificationCount(db), 1);
+      assert.deepEqual(notify(db, "2026-10-30", [{ ...UNMATCHED, evidence: "d".repeat(64) }]), [1]);
+      const kept = db.prepare("SELECT read_at FROM user_notifications WHERE ref_id = 7").get() as {
+        read_at: string;
+      };
+      assert.equal(kept.read_at, "2026-10-28 12:05:00");
+      assert.equal(notificationCount(db), 2);
+    } finally {
+      db.close();
+    }
+  });
+
   it("does not duplicate an open incident for an admin who already has it", () => {
     const db = makeDb();
     try {

@@ -522,19 +522,24 @@ export type FinanceAnomalyIncident = {
   code: string;
   severity: "critical" | "warning";
   sourceRef: string;
+  /** Canonical spend witness. Empty when the anomaly has no request evidence. */
+  evidence?: string;
+  title?: string;
 };
 
-type FinanceAnomalyEpisode = {
-  open: boolean;
-  fingerprint: string;
+type OpenFinanceIncident = {
   refId: number;
+  /** null means a legacy episode that has not bound its first witness yet. */
+  evidence: string | null;
 };
 
-function financeAnomalyFingerprint(incidents: readonly FinanceAnomalyIncident[]): string {
-  return incidents
-    .map((incident) => `${incident.code}|${incident.severity}|${incident.sourceRef}`)
-    .sort()
-    .join("\n");
+type FinanceAnomalyLedger = {
+  nextRefId: number;
+  open: Record<string, OpenFinanceIncident>;
+};
+
+function financeIncidentKey(incident: FinanceAnomalyIncident): string {
+  return `${incident.code}|${incident.severity}|${incident.sourceRef}`;
 }
 
 function ensureFinanceAnomalyEpisodeStore(db: Database.Database): void {
@@ -546,38 +551,65 @@ function ensureFinanceAnomalyEpisodeStore(db: Database.Database): void {
   `);
 }
 
-function readFinanceAnomalyEpisode(db: Database.Database): FinanceAnomalyEpisode {
+function emptyFinanceAnomalyLedger(): FinanceAnomalyLedger {
+  return { nextRefId: 0, open: {} };
+}
+
+function readFinanceAnomalyLedger(db: Database.Database): FinanceAnomalyLedger {
   const row = db
     .prepare("SELECT value FROM app_meta WHERE key=?")
     .get(FINANCE_ANOMALY_EPISODE_KEY) as { value: string } | undefined;
-  if (!row) return { open: false, fingerprint: "", refId: 0 };
+  if (!row) return emptyFinanceAnomalyLedger();
   try {
-    const parsed = JSON.parse(row.value) as Partial<FinanceAnomalyEpisode>;
-    const refId = Number(parsed.refId);
-    if (!Number.isSafeInteger(refId) || refId < 0) return { open: false, fingerprint: "", refId: 0 };
-    return {
-      open: parsed.open === true,
-      fingerprint: typeof parsed.fingerprint === "string" ? parsed.fingerprint : "",
-      refId,
+    const parsed = JSON.parse(row.value) as {
+      open?: boolean | Record<string, Partial<OpenFinanceIncident>>;
+      fingerprint?: string;
+      refId?: number;
+      nextRefId?: number;
     };
+    if (parsed.open && typeof parsed.open === "object") {
+      const open: Record<string, OpenFinanceIncident> = {};
+      for (const [key, value] of Object.entries(parsed.open)) {
+        const refId = Number(value?.refId);
+        if (!key || !Number.isSafeInteger(refId) || refId <= 0) continue;
+        open[key] = {
+          refId,
+          evidence: value?.evidence === null || typeof value?.evidence === "string" ? value.evidence : "",
+        };
+      }
+      const nextRefId = Number(parsed.nextRefId);
+      return {
+        nextRefId: Number.isSafeInteger(nextRefId) && nextRefId >= 0 ? nextRefId : 0,
+        open,
+      };
+    }
+    const refId = Number(parsed.refId);
+    if (parsed.open === true && typeof parsed.fingerprint === "string" && Number.isSafeInteger(refId) && refId > 0) {
+      const open: Record<string, OpenFinanceIncident> = {};
+      for (const line of parsed.fingerprint.split("\n")) {
+        if (!line) continue;
+        open[line] = { refId, evidence: null };
+      }
+      return { nextRefId: refId, open };
+    }
   } catch {
-    return { open: false, fingerprint: "", refId: 0 };
+    return emptyFinanceAnomalyLedger();
   }
+  return emptyFinanceAnomalyLedger();
 }
 
-function writeFinanceAnomalyEpisode(db: Database.Database, episode: FinanceAnomalyEpisode): void {
+function writeFinanceAnomalyLedger(db: Database.Database, ledger: FinanceAnomalyLedger): void {
   db.prepare("INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)").run(
     FINANCE_ANOMALY_EPISODE_KEY,
-    JSON.stringify(episode)
+    JSON.stringify(ledger)
   );
 }
 
 /**
- * Notify administrators when the open finance-anomaly incident changes.
- * Identity is code + severity + sourceRef. The calendar day and report time
- * are not an incident. The same unresolved incident is not sent again; a new
- * code, a severity increase, new evidence in sourceRef, or a relapse after
- * the incident closed is sent. Prior notification rows are left in place.
+ * Notify administrators once per open finance incident.
+ * Each incident is code + severity + sourceRef. A spend witness change on that
+ * same incident is a new alert. Closing one incident does not reopen the others.
+ * The calendar day is not an incident. Prior rows are left in place.
  * Ops and finance screens keep reading the anomaly report, not this outbox.
  */
 export function notifyAdminsFinanceAnomaly(
@@ -592,57 +624,65 @@ export function notifyAdminsFinanceAnomaly(
 ): number[] {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(opts.slotKey)) return [];
 
-  const fingerprint = financeAnomalyFingerprint(opts.incidents);
-  const quiescent = opts.criticalCount <= 0 && opts.warningCount <= 0;
-
   return db.transaction(() => {
     ensureFinanceAnomalyEpisodeStore(db);
-    const episode = readFinanceAnomalyEpisode(db);
-    if (quiescent) {
-      if (episode.open) {
-        writeFinanceAnomalyEpisode(db, { open: false, fingerprint: "", refId: episode.refId });
-      }
-      return [];
-    }
-
-    const sameEpisode =
-      episode.open && episode.fingerprint === fingerprint && episode.refId > 0;
-    const refId = sameEpisode ? episode.refId : episode.refId + 1;
-    if (!Number.isSafeInteger(refId) || refId <= 0) return [];
-
+    const ledger = readFinanceAnomalyLedger(db);
     const admins = listAdminNotificationRecipients(db);
     const notified: number[] = [];
-    const title =
-      opts.criticalCount > 0 ? "재무/과금 Critical anomaly" : "재무/과금 anomaly 검토";
-    const top = opts.anomalyTitles.slice(0, 3).join(" · ");
-    const body =
-      `${opts.slotKey} finance_daily · critical ${opts.criticalCount} · warning ${opts.warningCount}` +
-      (top ? ` · ${top}` : "");
+    const current = new Set<string>();
 
-    for (const admin of admins) {
-      const exists = db
-        .prepare(
-          "SELECT 1 AS ok FROM user_notifications WHERE user_id=? AND type='admin_finance_anomaly' AND ref_id=? LIMIT 1"
-        )
-        .get(admin.id, refId) as { ok: number } | undefined;
-      if (exists) continue;
-      insertNotification(db, {
-        userId: admin.id,
-        type: "admin_finance_anomaly",
-        refId,
-        actorId: null,
-        title,
-        body,
-        push: {
-          url: "/admin/ops",
-          tag: `admin-finance-anomaly:${refId}`,
-          kind: "notice",
-        },
-      });
-      notified.push(admin.id);
+    const deliver = (refId: number, incident: FinanceAnomalyIncident, index: number) => {
+      const label = incident.title?.trim() || opts.anomalyTitles[index] || incident.code;
+      const title =
+        incident.severity === "critical" ? "재무/과금 Critical anomaly" : "재무/과금 anomaly 검토";
+      const body =
+        `${opts.slotKey} finance_daily · critical ${opts.criticalCount} · warning ${opts.warningCount}` +
+        (label ? ` · ${label}` : "");
+      for (const admin of admins) {
+        const exists = db
+          .prepare(
+            "SELECT 1 AS ok FROM user_notifications WHERE user_id=? AND type='admin_finance_anomaly' AND ref_id=? LIMIT 1"
+          )
+          .get(admin.id, refId) as { ok: number } | undefined;
+        if (exists) continue;
+        insertNotification(db, {
+          userId: admin.id,
+          type: "admin_finance_anomaly",
+          refId,
+          actorId: null,
+          title,
+          body,
+          push: {
+            url: "/admin/ops",
+            tag: `admin-finance-anomaly:${refId}`,
+            kind: "notice",
+          },
+        });
+        notified.push(admin.id);
+      }
+    };
+
+    opts.incidents.forEach((incident, index) => {
+      const key = financeIncidentKey(incident);
+      current.add(key);
+      const evidence = incident.evidence ?? "";
+      const existing = ledger.open[key];
+      if (existing && (existing.evidence === null || existing.evidence === evidence)) {
+        if (existing.evidence === null) existing.evidence = evidence;
+        deliver(existing.refId, incident, index);
+        return;
+      }
+      const refId = ledger.nextRefId + 1;
+      if (!Number.isSafeInteger(refId) || refId <= 0) return;
+      ledger.nextRefId = refId;
+      ledger.open[key] = { refId, evidence };
+      deliver(refId, incident, index);
+    });
+
+    for (const key of Object.keys(ledger.open)) {
+      if (!current.has(key)) delete ledger.open[key];
     }
-
-    writeFinanceAnomalyEpisode(db, { open: true, fingerprint, refId });
+    writeFinanceAnomalyLedger(db, ledger);
     return notified;
   }).immediate();
 }

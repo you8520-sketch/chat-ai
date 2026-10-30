@@ -172,7 +172,8 @@ type FetchOutcome =
 async function requestJson(
   url: string,
   fetchImpl: UsageFetcher,
-  apiKey?: string
+  apiKey?: string,
+  timeoutMs = 15_000
 ): Promise<FetchOutcome> {
   let key: string;
   try {
@@ -194,7 +195,7 @@ async function requestJson(
     res = await fetchImpl(url, {
       method: "GET",
       headers: { Authorization: `Bearer ${key}`, Accept: "application/json" },
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(Math.max(1, timeoutMs)),
     });
   } catch (error) {
     return {
@@ -237,6 +238,7 @@ export async function fetchUsageRequestsPage(opts: {
   fetchImpl?: UsageFetcher;
   /** Explicit usage:read credential. Production default still uses resolveCheaperInferenceApiKey(). */
   apiKey?: string;
+  timeoutMs?: number;
 }): Promise<UsageClientResult<{ requests: CheaperInferenceUsageRequest[]; nextCursor: string | null }>> {
   const fetchImpl = opts.fetchImpl ?? fetch;
   const params = new URLSearchParams({
@@ -248,7 +250,8 @@ export async function fetchUsageRequestsPage(opts: {
   const outcome = await requestJson(
     `${CI_USAGE_REQUESTS_URL}?${params.toString()}`,
     fetchImpl,
-    opts.apiKey
+    opts.apiKey,
+    opts.timeoutMs
   );
   if (outcome.kind === "error") return outcome.result;
   const parsed = parseRequestsPage(outcome.payload);
@@ -269,6 +272,7 @@ type UsageWindowOpts = {
   fetchImpl?: UsageFetcher;
   apiKey?: string;
   now?: () => number;
+  deadlineMs?: number;
 };
 
 /** All pages in one half-open window. Cursor is never interpreted, only forwarded.
@@ -281,7 +285,16 @@ async function walkUsageRequestPages(
   const seenCursors = new Set<string>();
   let cursor: string | null = null;
   let pages = 0;
+  const now = opts.now ?? Date.now;
   do {
+    const at = now();
+    if (opts.deadlineMs != null && at >= opts.deadlineMs) {
+      return {
+        ok: false,
+        reason: "incomplete",
+        message: "usage requests window coverage exceeded the request or time budget",
+      };
+    }
     if (cursor) {
       if (seenCursors.has(cursor)) {
         return {
@@ -292,6 +305,8 @@ async function walkUsageRequestPages(
       }
       seenCursors.add(cursor);
     }
+    const timeoutMs =
+      opts.deadlineMs == null ? 15_000 : Math.min(15_000, Math.max(1, opts.deadlineMs - at));
     const page = await fetchUsageRequestsPage({
       startAt: opts.startAt,
       endAt: opts.endAt,
@@ -299,6 +314,7 @@ async function walkUsageRequestPages(
       cursor,
       fetchImpl: opts.fetchImpl,
       apiKey: opts.apiKey,
+      timeoutMs,
     });
     if (!page.ok) return page;
     requests.push(...page.value.requests);
@@ -329,10 +345,16 @@ function addUniqueUsageRequests(
 
 type UsageCoverState = {
   pages: number;
-  startedMs: number;
+  deadlineMs: number;
   requests: CheaperInferenceUsageRequest[];
   seenIds: Set<string>;
 };
+
+function isPageCapIncomplete(
+  result: UsageClientResult<{ requests: CheaperInferenceUsageRequest[]; pages: number }>
+): boolean {
+  return !result.ok && result.reason === "incomplete" && result.message.includes("safety cap");
+}
 
 function usageWindowMidpoint(startAt: string, endAt: string): string | null {
   const startMs = Date.parse(startAt);
@@ -351,10 +373,7 @@ async function coverUsageRequestWindow(
   endAt: string
 ): Promise<UsageClientResult<{ requests: CheaperInferenceUsageRequest[]; pages: number }>> {
   const now = opts.now ?? Date.now;
-  if (
-    state.pages >= CI_USAGE_COVER_PAGE_BUDGET ||
-    now() - state.startedMs > CI_USAGE_COVER_BUDGET_MS
-  ) {
+  if (state.pages >= CI_USAGE_COVER_PAGE_BUDGET || now() >= state.deadlineMs) {
     return {
       ok: false,
       reason: "incomplete",
@@ -367,8 +386,9 @@ async function coverUsageRequestWindow(
     startAt,
     endAt,
     maxPages: sliceCap,
+    deadlineMs: state.deadlineMs,
   });
-  if (!walked.ok && walked.reason !== "incomplete") return walked;
+  if (!walked.ok && !isPageCapIncomplete(walked)) return walked;
   if (walked.ok) {
     state.pages += walked.value.pages;
     addUniqueUsageRequests(state.seenIds, state.requests, walked.value.requests);
@@ -400,9 +420,10 @@ export async function fetchAllUsageRequests(opts: UsageWindowOpts & {
     return walkUsageRequestPages({ ...opts, maxPages: opts.maxPages });
   }
   const now = opts.now ?? Date.now;
+  const startedMs = now();
   const state: UsageCoverState = {
     pages: 0,
-    startedMs: now(),
+    deadlineMs: startedMs + CI_USAGE_COVER_BUDGET_MS,
     requests: [],
     seenIds: new Set(),
   };

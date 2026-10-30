@@ -271,10 +271,10 @@ describe("admin supply Draft notification watcher", () => {
       ],
       incidents,
     });
-    assert.deepEqual(first, [1, 2]);
+    assert.deepEqual(first, [1, 2, 1, 2]);
 
     const rows = db
-      .prepare("SELECT user_id,type,ref_id,title,body FROM user_notifications ORDER BY user_id")
+      .prepare("SELECT user_id,type,ref_id,title,body FROM user_notifications ORDER BY id")
       .all() as Array<{
         user_id: number;
         type: string;
@@ -287,6 +287,8 @@ describe("admin supply Draft notification watcher", () => {
       [
         [1, "admin_finance_anomaly", 1],
         [2, "admin_finance_anomaly", 1],
+        [1, "admin_finance_anomaly", 2],
+        [2, "admin_finance_anomaly", 2],
       ]
     );
     assert.match(rows[0]!.title, /Critical anomaly/);
@@ -295,7 +297,7 @@ describe("admin supply Draft notification watcher", () => {
     const outbox = db
       .prepare("SELECT user_id,payload_json FROM web_push_outbox")
       .all() as Array<{ user_id: number; payload_json: string }>;
-    assert.equal(outbox.length, 1);
+    assert.equal(outbox.length, 2);
     const payload = JSON.parse(outbox[0]!.payload_json) as {
       url: string;
       tag: string;
@@ -324,11 +326,11 @@ describe("admin supply Draft notification watcher", () => {
     assert.deepEqual(second, []);
     assert.equal(
       (db.prepare("SELECT COUNT(*) AS c FROM user_notifications").get() as { c: number }).c,
-      2
+      4
     );
     assert.equal(
       (db.prepare("SELECT COUNT(*) AS c FROM web_push_outbox").get() as { c: number }).c,
-      1
+      2
     );
 
     assert.deepEqual(
