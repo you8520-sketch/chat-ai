@@ -12,7 +12,7 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
@@ -43,6 +43,7 @@ import {
   LUNA_SUMMARY_LIVE_BATCH_FINGERPRINTS,
   LUNA_SUMMARY_LIVE_COUPLED_APPROVAL_MANIFEST,
   LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST,
+  LUNA_SUMMARY_EXECUTE_STOP_FILENAME,
   LUNA_SUMMARY_LIVE_WIRE_CONTRACT,
   __setLunaEvalPersistForTests,
   loadLunaSummaryEvalEvidence,
@@ -56,6 +57,7 @@ import {
   lunaSummaryLiveExecuteManifestFingerprint,
   recoverLunaLeftoverSent,
   resolveLunaSummaryJournalDirectory,
+  writeLunaExecuteStopReport,
   runAuthorizedLunaSummaryExperiment,
   verifyLunaRequestIdentity,
   type LunaDurableJournal,
@@ -232,6 +234,28 @@ describe("50-turn Luna summary execute gate (provider-free)", () => {
     assert.notEqual(LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST, coupledNotApproved);
     assert.notEqual(LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST, coupledApproved);
     assert.equal(LUNA_SUMMARY_LIVE_APPROVAL_STATUS, "NOT_APPROVED");
+  });
+
+  it("writes the execute stop report into the journal directory when the preferred parent is not writable", () => {
+    const preferred = mkdtempSync(path.join(tmpdir(), "luna-report-preferred-"));
+    const journal = journalDir();
+    chmodSync(preferred, 0o555);
+    const written = writeLunaExecuteStopReport({
+      report: { paidPosts: 0, executed: false },
+      preferredDirectory: preferred,
+      journalDirectory: journal,
+      mkdirPreferred: false,
+    });
+    assert.equal(written.written, true);
+    assert.equal(written.usedJournalFallback, true);
+    assert.equal(written.path, path.join(journal, LUNA_SUMMARY_EXECUTE_STOP_FILENAME));
+    assert.equal(existsSync(path.join(preferred, LUNA_SUMMARY_EXECUTE_STOP_FILENAME)), false);
+    assert.equal(existsSync(written.path ?? ""), true);
+    assert.equal((statSync(journal).mode & 0o777) !== 0o777, true);
+    const attemptSrc = readFileSync("scripts/luna-summary-attempt-execute.ts", "utf8");
+    assert.match(attemptSrc, /writeLunaExecuteStopReport/);
+    assert.equal(attemptSrc.includes("chmod"), false);
+    chmodSync(preferred, 0o700);
   });
 
   it("fail-closes journal identity and refuses mkdtemp attempt paths", () => {

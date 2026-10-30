@@ -10,7 +10,6 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
   return originalLoad(request, parent, isMain);
 } as typeof Module._load;
 
-import { mkdirSync, writeFileSync } from "node:fs";
 import {
   installIsolatedTestDatabase,
   uninstallIsolatedTestDatabase,
@@ -26,7 +25,30 @@ import {
   resolveLunaSummaryJournalDirectory,
   runAuthorizedLunaSummaryExperiment,
   verifyLunaRequestIdentity,
+  writeLunaExecuteStopReport,
 } from "../src/lib/memory/memory50TurnLunaSummaryExecute.ts";
+
+function emitReport(
+  report: Record<string, unknown>,
+  journalDirectory: string | null
+): void {
+  const written = writeLunaExecuteStopReport({
+    report,
+    journalDirectory,
+  });
+  console.log(
+    JSON.stringify(
+      {
+        ...report,
+        reportPath: written.path,
+        reportWritten: written.written,
+        reportUsedJournalFallback: written.usedJournalFallback,
+      },
+      null,
+      2
+    )
+  );
+}
 
 async function main(): Promise<void> {
   const identity = await verifyLunaRequestIdentity();
@@ -36,25 +58,21 @@ async function main(): Promise<void> {
     env: process.env,
   });
   if (!journalDir.ok) {
-    const report = {
-      paidPosts: 0,
-      networkPosts: 0,
-      executed: false,
-      abortReason: journalDir.reason,
-      keyPresent: key.present,
-      keyEqualsProduction: key.equalsProduction,
-      identityOk: identity.ok,
-      liveApprovalStatus: identity.liveApprovalStatus,
-      liveExecuteManifestFingerprint: identity.liveExecuteManifestFingerprint,
-      liveSealFingerprints: identity.liveSealFingerprints,
-    };
-    mkdirSync("/opt/cursor/artifacts", { recursive: true });
-    writeFileSync(
-      "/opt/cursor/artifacts/memory_50turn_luna_summary_execute_stop.json",
-      `${JSON.stringify(report, null, 2)}\n`,
-      "utf8"
+    emitReport(
+      {
+        paidPosts: 0,
+        networkPosts: 0,
+        executed: false,
+        abortReason: journalDir.reason,
+        keyPresent: key.present,
+        keyEqualsProduction: key.equalsProduction,
+        identityOk: identity.ok,
+        liveApprovalStatus: identity.liveApprovalStatus,
+        liveExecuteManifestFingerprint: identity.liveExecuteManifestFingerprint,
+        liveSealFingerprints: identity.liveSealFingerprints,
+      },
+      null
     );
-    console.log(JSON.stringify(report, null, 2));
     return;
   }
   installIsolatedTestDatabase();
@@ -108,13 +126,7 @@ async function main(): Promise<void> {
         (batch) => batch.promptTokens != null && batch.completionTokens != null
       ) ?? false,
   };
-  mkdirSync("/opt/cursor/artifacts", { recursive: true });
-  writeFileSync(
-    "/opt/cursor/artifacts/memory_50turn_luna_summary_execute_stop.json",
-    `${JSON.stringify(report, null, 2)}\n`,
-    "utf8"
-  );
-  console.log(JSON.stringify(report, null, 2));
+  emitReport(report, journalDir.directory);
 }
 
 void main();
