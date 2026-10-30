@@ -2386,9 +2386,15 @@ export function getDb(): Database.Database {
       candidate.close();
       throw error;
     }
-  } else if (process.env.NODE_ENV === "development") {
-    // HMR 시 연결은 유지되지만 migrate 코드는 갱신될 수 있음
-    migrate(global.__db);
+  } else if (process.env.NODE_ENV === "development" && !global.__db.inTransaction) {
+    // HMR 시 연결은 유지되지만 migrate 코드는 갱신될 수 있음.
+    // query_only(컴파일 미리보기 등) 중에는 migrate의 INSERT/ALTER가 SQLITE_READONLY를 유발한다.
+    // migrate는 자체 트랜잭션을 연다. 호출자가 이미 트랜잭션 안이면 libsql이 중첩 BEGIN을 거절하므로
+    // 이번 호출은 건너뛰고, 트랜잭션 밖의 다음 getDb()에서 스키마를 갱신한다.
+    const queryOnlyRow = global.__db.prepare("PRAGMA query_only").get() as { query_only?: number } | undefined;
+    if (queryOnlyRow?.query_only !== 1) {
+      migrate(global.__db);
+    }
   }
   return global.__db;
 }

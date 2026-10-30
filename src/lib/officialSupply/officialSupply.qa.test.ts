@@ -3,10 +3,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 
-import {
-  CHAT_IMAGE_GENERATION_DEFAULT_MODEL,
-  resolveChatImageGenerationModel,
-} from "@/lib/chatImageGeneration";
 import { CHAT_LD_ILLUSTRATION_OUTPUT_SIZE } from "@/lib/chatLdIllustrationGeneration";
 import { CHAT_COMIC_IMAGE_OUTPUT_SIZE } from "@/lib/chatComicGenerationConstants";
 import {
@@ -118,18 +114,17 @@ describe("official image format profiles", () => {
   });
 });
 
-describe("official image model resolver reuse", () => {
-  it("delegates to the canonical chat image resolver (env override wins)", () => {
-    const env = { OPENAI_IMAGE_MODEL: "gpt-image-2.5-sunburst" } as NodeJS.ProcessEnv;
+describe("official image model owner", () => {
+  it("resolves through the official owner only (see officialSupply.imageModelOwner.test.ts)", () => {
+    const env = { OFFICIAL_ASSET_IMAGE_MODEL: "gpt-image-2.5-sunburst" } as unknown as NodeJS.ProcessEnv;
     assert.equal(resolveOfficialAssetImageModel(env), "gpt-image-2.5-sunburst");
-    assert.equal(resolveOfficialAssetImageModel({} as NodeJS.ProcessEnv), resolveChatImageGenerationModel({} as NodeJS.ProcessEnv));
-    assert.equal(resolveOfficialAssetImageModel({} as NodeJS.ProcessEnv), CHAT_IMAGE_GENERATION_DEFAULT_MODEL);
+    assert.equal(resolveOfficialAssetImageModel({} as NodeJS.ProcessEnv), "gpt-image-2");
   });
 
-  it("no official supply source hardcodes a model id or its own env var", () => {
+  it("no official supply source other than imageProfile.ts hardcodes a model id or reads an image-model env var", () => {
     const dir = path.join(process.cwd(), "src/lib/officialSupply");
     for (const file of fs.readdirSync(dir)) {
-      if (file.endsWith(".test.ts")) continue;
+      if (file.endsWith(".test.ts") || file === "imageProfile.ts") continue;
       if (!fs.statSync(path.join(dir, file)).isFile()) continue;
       const source = fs.readFileSync(path.join(dir, file), "utf8");
       assert.doesNotMatch(source, /gpt-image|dall-e|CHAT_IMAGE_GENERATION_DEFAULT_MODEL|process\.env\.[A-Z_]*IMAGE_MODEL/, file);

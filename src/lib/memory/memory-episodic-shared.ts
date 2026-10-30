@@ -16,6 +16,12 @@ import {
   type EpisodicCorrectionCandidate,
 } from "./memory-episodic-correction";
 import type { EpisodicExtractedFact } from "./memory-episodic-types";
+import {
+  EPISODIC_FACT_IDENTIFIER_MAX_CHARS,
+  EPISODIC_FACT_SNAKE_CASE_JSON_PATTERN,
+  EPISODIC_FACT_VALUE_JSON_PATTERN,
+  EPISODIC_FACT_VALUE_MAX_CHARS,
+} from "./memory-episodic-types";
 import { isMemoryFeatureEnabled } from "./memory-feature";
 import { resolveEpisodicTurnEligibility, type TurnScopeClass } from "./memory-summary-scope";
 import {
@@ -28,6 +34,10 @@ import {
   type MemorySourceBoundary,
 } from "./memory-source-boundary";
 import { resolveMemorySourceTurnIdentityCore } from "./memory-turn-loader";
+import {
+  isCurrentAssistantGeneration,
+  type AssistantGenerationScope,
+} from "@/lib/assistantGenerationScope";
 
 export {
   resolveEpisodicEligibilityForSourceUserMessage,
@@ -41,6 +51,8 @@ export type EpisodicSectionParse = {
   present: boolean;
   valid: boolean;
   facts: EpisodicExtractedFact[];
+  /** Model-returned `extracted_facts` length before validation; set only when the array was present. */
+  rawFactCount?: number;
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -119,9 +131,22 @@ export function buildSharedEpisodicSectionJsonSchema(): Record<string, unknown> 
           "organization",
         ],
       },
-      subject: { type: "string" },
-      attribute: { type: "string" },
-      value: { type: "string" },
+      subject: {
+        type: "string",
+        pattern: EPISODIC_FACT_SNAKE_CASE_JSON_PATTERN,
+        maxLength: EPISODIC_FACT_IDENTIFIER_MAX_CHARS,
+      },
+      attribute: {
+        type: "string",
+        pattern: EPISODIC_FACT_SNAKE_CASE_JSON_PATTERN,
+        maxLength: EPISODIC_FACT_IDENTIFIER_MAX_CHARS,
+      },
+      value: {
+        type: "string",
+        minLength: 1,
+        maxLength: EPISODIC_FACT_VALUE_MAX_CHARS,
+        pattern: EPISODIC_FACT_VALUE_JSON_PATTERN,
+      },
       importance: { type: "string", enum: ["critical", "important", "normal"] },
       fact_text: { type: "string" },
       evidence_type: {
@@ -175,8 +200,9 @@ export function parseSharedEpisodicSection(
   if (!Array.isArray(rawFacts)) {
     return { present: true, valid: false, facts: [] };
   }
-  if (rawFacts.length === 0) {
-    return { present: true, valid: true, facts: [] };
+  const rawFactCount = rawFacts.length;
+  if (rawFactCount === 0) {
+    return { present: true, valid: true, facts: [], rawFactCount };
   }
   const facts = sanitizeEpisodicExtractedFacts(rawFacts, {
     requireEvidence: true,
@@ -184,9 +210,42 @@ export function parseSharedEpisodicSection(
     correctionHandles: buildEpisodicCorrectionHandleMap(correctionCandidates),
   });
   if (facts.length === 0) {
-    return { present: true, valid: false, facts: [] };
+    return { present: true, valid: false, facts: [], rawFactCount };
   }
-  return { present: true, valid: true, facts };
+  return { present: true, valid: true, facts, rawFactCount };
+}
+
+export type SharedEpisodicTurnOutcome = {
+  /** A Shared Initial physical call carried the episodic section (or regeneration reconcile ran). */
+  reconcileCalled: boolean;
+  /** Parsed section handed to the memory layer; null when no usable parse reached it. */
+  sectionAvailable: boolean;
+  sectionPresent: boolean;
+  sectionValid: boolean;
+  rawFactCount: number | null;
+  validFactCount: number;
+  reconcile: { replaced: boolean; inserted: number; skipped: boolean } | null;
+};
+
+/**
+ * Counts and booleans only — never fact text, source quotes, or message bodies.
+ * Admin/ops log line owner for "why did this turn produce no episodic fact".
+ */
+export function describeSharedEpisodicTurnOutcome(input: {
+  reconcileCalled: boolean;
+  episodic: EpisodicSectionParse | null | undefined;
+  reconcile: { replaced: boolean; inserted: number; skipped: boolean } | null;
+}): SharedEpisodicTurnOutcome {
+  const episodic = input.episodic ?? null;
+  return {
+    reconcileCalled: input.reconcileCalled,
+    sectionAvailable: episodic !== null,
+    sectionPresent: episodic?.present === true,
+    sectionValid: episodic?.valid === true,
+    rawFactCount: episodic?.rawFactCount ?? null,
+    validFactCount: episodic?.facts.length ?? 0,
+    reconcile: input.reconcile,
+  };
 }
 
 export type ReconcileSharedEpisodicFactsInput = {
@@ -202,6 +261,12 @@ export type ReconcileSharedEpisodicFactsInput = {
   isRegeneration: boolean;
   requestId?: string | null;
   generationSequence?: number;
+  /**
+   * Generation that produced `episodic`. When present, a write (including a
+   * regeneration replace) for any generation other than the message's current
+   * one is rejected before the DB is touched.
+   */
+  generationScope?: AssistantGenerationScope;
   /** Canonical per-turn content route of the source turn; stamped into fact metadata. */
   contentRoute?: Route;
 };
@@ -215,6 +280,16 @@ export function reconcileSharedEpisodicFactsForTurn(
   db: Database.Database,
   input: ReconcileSharedEpisodicFactsInput
 ): { replaced: boolean; inserted: number; skipped: boolean } {
+  if (input.generationScope && !isCurrentAssistantGeneration(input.generationScope, db)) {
+    console.info("STALE_GENERATION_RESULT_REJECTED", {
+      family: "episodic",
+      messageId: input.generationScope.assistantMessageId,
+      generationSequence: input.generationScope.generationSequence,
+      phase: "episodic_write",
+    });
+    return { replaced: false, inserted: 0, skipped: true };
+  }
+
   const boundary = input.boundarySnapshot ?? getMemorySourceBoundaryCore(db, input.chatId);
   if (
     !isMemoryWriteGuardCurrentCore(db, {

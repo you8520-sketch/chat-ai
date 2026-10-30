@@ -1,0 +1,5 @@
+{
+  "selectiveVoiceRepairs": 1,
+  "note": "selective reviseOfficialCharacterVoice count only; initial voice retries before bonds are excluded",
+  "rawEvidence": "provider-responses 05/07/11 = initial voice; 12 = bonds; 13 = selective repair"
+}

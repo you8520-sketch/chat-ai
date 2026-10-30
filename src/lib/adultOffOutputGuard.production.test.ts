@@ -69,7 +69,8 @@ type ClassifierMode =
   | "extra_field"
   | "low_confidence"
   | "timeout"
-  | "unreadable_body";
+  | "unreadable_body"
+  | "body_read_abort";
 type AuxHandler = (input: { model: string; system: string; user: string }) => string | null;
 
 let mainScript: MainScript = { text: "" };
@@ -134,7 +135,7 @@ async function classifierResponse(userContent: string): Promise<Response> {
   lastClassifierRequestIds.push(currentClassifierRequestId);
   const idHeaders = {
     "Content-Type": "application/json",
-    "x-ci-request-id": currentClassifierRequestId,
+    "x-request-id": currentClassifierRequestId,
   };
   if (classifierMode === "http_error") {
     return new Response(JSON.stringify({ error: { message: "upstream unavailable" } }), {
@@ -144,6 +145,16 @@ async function classifierResponse(userContent: string): Promise<Response> {
   }
   if (classifierMode === "unreadable_body") {
     return new Response("<<< not json at all", { status: 200, headers: idHeaders });
+  }
+  if (classifierMode === "body_read_abort") {
+    return {
+      ok: true,
+      status: 200,
+      headers: new Headers(idHeaders),
+      text: async () => {
+        throw new DOMException("The operation was aborted.", "AbortError");
+      },
+    } as Response;
   }
   let content: string;
   if (classifierMode === "invalid_json") {
@@ -190,10 +201,10 @@ async function classifierResponse(userContent: string): Promise<Response> {
       id: `classifier-${callNumber}`,
       model: "gpt-6-luna",
       choices: [{ index: 0, message: { role: "assistant", content }, finish_reason: "stop" }],
-      usage: { prompt_tokens: 1500, completion_tokens: 20, cost: 0.0002 },
-      cheaper_inference: {
-        request_id: `classifier-${callNumber}`,
-        billing: { status: "settled", billed_cost_usd: "0.000130", currency: "USD" },
+      usage: {
+        prompt_tokens: 1500,
+        completion_tokens: 20,
+        prompt_tokens_details: { cached_tokens: 100 },
       },
     }),
     { status: 200, headers: idHeaders }
@@ -264,6 +275,7 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
     installIsolatedTestDatabase();
     process.env.OPENROUTER_API_KEY = "test-openrouter-fixture";
     process.env.CHEAPER_INFERENCE_API_KEY = "test-cheaper-fixture";
+    process.env.OPENAI_API_KEY = "test-openai-fixture";
     process.env.ADULT_OFF_OUTPUT_GUARD_ENABLED = "1";
     delete process.env.MOCK_MODE;
     delete process.env.SPEECH_LOCK_NARRATION_LEXICON;
@@ -398,6 +410,7 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
     Module._load = originalLoad;
     delete process.env.OPENROUTER_API_KEY;
     delete process.env.CHEAPER_INFERENCE_API_KEY;
+    delete process.env.OPENAI_API_KEY;
     delete process.env.ADULT_OFF_OUTPUT_GUARD_ENABLED;
     if (previousNodeTestContext == null) delete process.env.NODE_TEST_CONTEXT;
     else process.env.NODE_TEST_CONTEXT = previousNodeTestContext;
@@ -463,6 +476,10 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
     provider_request_id: string | null;
     event_status: string | null;
     actual_cost_usd: number | null;
+    requested_provider: string | null;
+    actual_provider: string | null;
+    input_tokens: number | null;
+    cache_read_tokens: number | null;
   };
 
   function moderationRows(messageId: number): ModerationRow[] {
@@ -470,7 +487,7 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
       .prepare(
         `SELECT chat_id, assistant_message_id, generation_sequence, generation_request_id, family,
                 funding_class, execution_phase, cost_center, provider_request_id, event_status,
-                actual_cost_usd
+                actual_cost_usd, requested_provider, actual_provider, input_tokens, cache_read_tokens
            FROM api_cost_ledger
           WHERE assistant_message_id=? AND request_kind='adult-off-output-moderation'
           ORDER BY id ASC`
@@ -722,14 +739,18 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
     assert.equal(rows[0].generation_request_id, main.generation_request_id);
     assert.equal(rows[0].cost_center, "moderation");
     assert.equal(rows[0].funding_class, "platform_funded");
-    assert.equal(rows[0].event_status, "settled");
+    assert.equal(rows[0].requested_provider, "openai");
+    assert.equal(rows[0].actual_provider, "openai");
+    assert.equal(rows[0].event_status, "completed_without_exact_cost");
     assert.equal(rows[0].provider_request_id, lastClassifierRequestIds[0]);
-    assert.ok((rows[0].actual_cost_usd ?? 0) > 0);
+    assert.equal(rows[0].actual_cost_usd, null);
+    assert.equal(rows[0].input_tokens, 1500);
+    assert.equal(rows[0].cache_read_tokens, 100);
 
     const evidence = guardEvidence(row);
     assert.equal(evidence?.finalStatus, "approved");
     assert.equal(evidence?.classifierCalls, 1);
-    assert.ok((evidence?.moderationCostUsd ?? 0) > 0);
+    assert.equal(evidence?.moderationCostUsd ?? 0, 0);
     assert.deepEqual(
       evidence?.checks?.map((check) => [check.stage, check.status]),
       [
@@ -765,6 +786,25 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
     assert.ok(harness.balance().total < before.total, "approved turn is billed as before");
   });
 
+  it("fails closed with 0P when the OpenAI body read aborts after headers", async () => {
+    const { row } = await runBlockedLikeTurn({
+      mode: "body_read_abort",
+      expectedMessage: CHECK_FAILED_MESSAGE,
+      expectedFailure: "adult_output_check_failed",
+      expectedGuardStatus: "check_failed",
+    });
+    const started = harness.db()
+      .prepare(
+        `SELECT COUNT(*) AS n FROM api_cost_ledger WHERE event_status='started' AND request_kind='adult-off-output-moderation'`
+      )
+      .get() as { n: number };
+    assert.equal(started.n, 0);
+    const rows = moderationRows(row.id);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].provider_request_id, lastClassifierRequestIds[0]);
+    assert.notEqual(rows[0].event_status, "started");
+  });
+
   it("keeps ids, usage and ledger rows when the classifier call fails in each way", async () => {
     const cases: Array<{
       mode: ClassifierMode;
@@ -777,7 +817,7 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
       { mode: "http_error", outcome: "http_error", ledgerStatus: "failed_without_usage", hasProviderId: true, hasCost: false, httpStatus: 503 },
       { mode: "timeout", outcome: "timeout", ledgerStatus: "failed_without_usage", hasProviderId: false, hasCost: false, httpStatus: null },
       { mode: "unreadable_body", outcome: "invalid_response_json", ledgerStatus: "failed_without_usage", hasProviderId: true, hasCost: false, httpStatus: 200 },
-      { mode: "invalid_json", outcome: "invalid_output", ledgerStatus: "settled", hasProviderId: true, hasCost: true, httpStatus: null },
+      { mode: "invalid_json", outcome: "invalid_output", ledgerStatus: "completed_without_exact_cost", hasProviderId: true, hasCost: false, httpStatus: null },
     ];
     for (const item of cases) {
       const { row } = await runBlockedLikeTurn({
@@ -1091,7 +1131,11 @@ describe("adult-OFF output guard — production chat handler (synthetic provider
         "blocked"
       );
       assert.equal(moderationRows(auxRow.id).length, classifierCalls);
-      assert.ok(moderationRows(auxRow.id).every((row) => (row.actual_cost_usd ?? 0) > 0));
+      assert.ok(
+        moderationRows(auxRow.id).every(
+          (row) => row.event_status === "completed_without_exact_cost" && row.actual_cost_usd == null
+        )
+      );
       const callsAtEnd = classifierCalls;
       await new Promise((resolve) => setTimeout(resolve, 250));
       assert.equal(classifierCalls, callsAtEnd, "no automatic re-check after the widget is withheld");

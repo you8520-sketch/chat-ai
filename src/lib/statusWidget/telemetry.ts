@@ -41,7 +41,6 @@ import {
   type StatusWidgetPreviousEchoStats,
 } from "./extractNormalize";
 import type { PostTurnSharedInitialWidgetShapeDiagnostics } from "@/lib/postTurnSharedInitial/widgetShapeDiagnostics";
-import type { EpisodicCorrectionCandidate } from "@/lib/memory/memory-episodic-correction";
 
 export type StatusWidgetModelFamily =
   | "deepseek"
@@ -157,14 +156,10 @@ export type ResolveStatusWidgetTurnValuesInput = {
   coalesceSuggestedReplies?: boolean;
   /** When true, the shared initial call also carries the durable relationship delta. */
   shareRelationshipDelta?: boolean;
-  /** When true, the shared initial call also carries top-level episodic facts. */
-  shareEpisodic?: boolean;
   /** Regen: rejected assistant draft for the shared relationship section. */
   relationshipRegenContext?: { previousAssistantMessage: string } | null;
   /** Stored text of the canonical active promises for the shared relationship section. */
   activePromises: readonly string[];
-  /** Past episodic records the shared episodic section may name as corrected. */
-  episodicCorrectionCandidates?: readonly EpisodicCorrectionCandidate[];
   /** Phase B1-B shadow eligibility (optional; fail-closed when absent). */
   userId?: number | null;
   characterId?: number | null;
@@ -191,7 +186,6 @@ export type ResolveStatusWidgetTurnValuesResult = {
   /** Durable relationship delta carried by the shared initial call (usable only when boolean true). */
   sharedInitialRelationshipUsable: boolean;
   sharedInitialRelationshipDelta: import("@/lib/chatMemory").RelationshipMetaDelta | null;
-  sharedInitialEpisodic: import("@/lib/memory/memory-episodic-shared").EpisodicSectionParse | null;
   telemetry: StatusWidgetTurnTelemetry;
 };
 
@@ -285,8 +279,6 @@ export async function resolveStatusWidgetTurnValues(
   let postTurnPhysicalAttempted = false;
   let sharedInitialRelationshipUsable = false;
   let sharedInitialRelationshipDelta: import("@/lib/chatMemory").RelationshipMetaDelta | null =
-    null;
-  let sharedInitialEpisodic: import("@/lib/memory/memory-episodic-shared").EpisodicSectionParse | null =
     null;
   let sharedInitialTransportStatus: StatusWidgetTurnTelemetry["transportStatus"] =
     "not_attempted";
@@ -450,10 +442,8 @@ export async function resolveStatusWidgetTurnValues(
           ? { enabled: true }
           : undefined,
         shareRelationshipDelta: input.shareRelationshipDelta === true,
-        shareEpisodic: input.shareEpisodic === true,
         relationshipRegenContext: input.relationshipRegenContext ?? null,
         activePromises: input.activePromises,
-        episodicCorrectionCandidates: input.episodicCorrectionCandidates,
       });
       widgetExtractDiagnostics = {
         exhausted: v3Result.meta.exhausted,
@@ -469,7 +459,6 @@ export async function resolveStatusWidgetTurnValues(
         v3Result.meta.sharedInitialRelationshipUsable === true;
       sharedInitialRelationshipDelta =
         v3Result.meta.sharedInitialRelationshipDelta ?? null;
-      sharedInitialEpisodic = v3Result.meta.sharedInitialEpisodic ?? null;
       sharedInitialTransportStatus =
         v3Result.meta.sharedInitialTransportStatus ?? "not_attempted";
       sharedInitialSerializationStatus =
@@ -701,7 +690,6 @@ export async function resolveStatusWidgetTurnValues(
     postTurnPhysicalAttempted,
     sharedInitialRelationshipUsable,
     sharedInitialRelationshipDelta,
-    sharedInitialEpisodic,
     telemetry,
   };
 }

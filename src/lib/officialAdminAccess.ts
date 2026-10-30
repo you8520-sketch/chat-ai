@@ -112,9 +112,10 @@ export function isOfficialManagedCharacterRow(
 
 export function canAdminManageOfficialCharacter(
   admin: OfficialAdminActor | null | undefined,
-  row: Pick<OfficialManageableCharacter, "id" | "official" | "creator_id"> | null | undefined
+  row: Pick<OfficialManageableCharacter, "id" | "official" | "creator_id"> | null | undefined,
+  db: Database.Database = getDb()
 ): boolean {
-  return isOfficialAdminActor(admin) && isOfficialManagedCharacterRow(row);
+  return isOfficialAdminActor(admin) && isOfficialManagedCharacterRow(row, db);
 }
 
 /**

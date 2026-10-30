@@ -1,0 +1,524 @@
+{
+  "scene": "synthetic B26/B29 status-ON; not production chat 804",
+  "model": "gpt-6-luna",
+  "temperature": 0.4,
+  "transportOk": true,
+  "httpStatus": 200,
+  "finishReason": "stop",
+  "errorCode": null,
+  "jsonParseOk": true,
+  "schemaStatus": "ok",
+  "statusWidgetOk": true,
+  "suggestedRepliesOk": true,
+  "relationshipPresent": true,
+  "relationshipValid": true,
+  "episodicPresent": true,
+  "episodicValid": true,
+  "rawFactCount": 0,
+  "validFactCount": 0,
+  "refusalCapturedInValidFacts": false,
+  "facts": [],
+  "usage": {
+    "inputTokens": 5377,
+    "outputTokens": 305,
+    "billedUsd": 0.000535
+  },
+  "responseFormat": {
+    "type": "json_schema",
+    "json_schema": {
+      "name": "post_turn_shared_initial",
+      "strict": true,
+      "schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "statusWidget",
+          "suggestedReplies",
+          "relationship",
+          "episodic"
+        ],
+        "properties": {
+          "statusWidget": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "character_values"
+            ],
+            "properties": {
+              "character_values": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "시간",
+                  "장소",
+                  "현재상황",
+                  "현재목표",
+                  "속마음"
+                ],
+                "properties": {
+                  "시간": {
+                    "type": "string"
+                  },
+                  "장소": {
+                    "type": "string"
+                  },
+                  "현재상황": {
+                    "type": "string"
+                  },
+                  "현재목표": {
+                    "type": "string"
+                  },
+                  "속마음": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "suggestedReplies": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 3,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "text"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "natural",
+                        "twist",
+                        "banter"
+                      ]
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "relationship": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "items",
+              "itemsRemove",
+              "promisesAdd",
+              "promisesRemove"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "itemsRemove": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "promisesAdd": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "text",
+                    "deadline"
+                  ],
+                  "properties": {
+                    "text": {
+                      "type": "string"
+                    },
+                    "deadline": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "promisesRemove": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "episodic": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "extracted_facts"
+            ],
+            "properties": {
+              "extracted_facts": {
+                "type": "array",
+                "minItems": 0,
+                "maxItems": 3,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "category",
+                    "subject",
+                    "attribute",
+                    "value",
+                    "importance",
+                    "fact_text",
+                    "evidence_type",
+                    "evidence",
+                    "corrects"
+                  ],
+                  "properties": {
+                    "category": {
+                      "type": "string",
+                      "enum": [
+                        "relationship",
+                        "character",
+                        "setting",
+                        "item",
+                        "preference",
+                        "rule",
+                        "quest",
+                        "location",
+                        "organization"
+                      ]
+                    },
+                    "subject": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
+                      "maxLength": 64
+                    },
+                    "attribute": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
+                      "maxLength": 64
+                    },
+                    "value": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80,
+                      "pattern": "^\\S+$"
+                    },
+                    "importance": {
+                      "type": "string",
+                      "enum": [
+                        "critical",
+                        "important",
+                        "normal"
+                      ]
+                    },
+                    "fact_text": {
+                      "type": "string"
+                    },
+                    "evidence_type": {
+                      "type": "string",
+                      "enum": [
+                        "explicit_user_statement",
+                        "explicit_scene_event",
+                        "explicit_character_claim"
+                      ]
+                    },
+                    "evidence": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "source_role",
+                        "source_quote"
+                      ],
+                      "properties": {
+                        "source_role": {
+                          "type": "string",
+                          "enum": [
+                            "user",
+                            "assistant"
+                          ]
+                        },
+                        "source_quote": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "corrects": {
+                      "type": "string",
+                      "enum": [
+                        "",
+                        "C1",
+                        "C2",
+                        "C3",
+                        "C4",
+                        "C5",
+                        "C6"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "wireSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "statusWidget",
+      "suggestedReplies",
+      "relationship",
+      "episodic"
+    ],
+    "properties": {
+      "statusWidget": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "character_values"
+        ],
+        "properties": {
+          "character_values": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "시간",
+              "장소",
+              "현재상황",
+              "현재목표",
+              "속마음"
+            ],
+            "properties": {
+              "시간": {
+                "type": "string"
+              },
+              "장소": {
+                "type": "string"
+              },
+              "현재상황": {
+                "type": "string"
+              },
+              "현재목표": {
+                "type": "string"
+              },
+              "속마음": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "suggestedReplies": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "text"
+              ],
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "natural",
+                    "twist",
+                    "banter"
+                  ]
+                },
+                "text": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "relationship": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "itemsRemove",
+          "promisesAdd",
+          "promisesRemove"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "itemsRemove": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "promisesAdd": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "deadline"
+              ],
+              "properties": {
+                "text": {
+                  "type": "string"
+                },
+                "deadline": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "promisesRemove": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "episodic": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "extracted_facts"
+        ],
+        "properties": {
+          "extracted_facts": {
+            "type": "array",
+            "minItems": 0,
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "category",
+                "subject",
+                "attribute",
+                "value",
+                "importance",
+                "fact_text",
+                "evidence_type",
+                "evidence",
+                "corrects"
+              ],
+              "properties": {
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "relationship",
+                    "character",
+                    "setting",
+                    "item",
+                    "preference",
+                    "rule",
+                    "quest",
+                    "location",
+                    "organization"
+                  ]
+                },
+                "subject": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
+                  "maxLength": 64
+                },
+                "attribute": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
+                  "maxLength": 64
+                },
+                "value": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80,
+                  "pattern": "^\\S+$"
+                },
+                "importance": {
+                  "type": "string",
+                  "enum": [
+                    "critical",
+                    "important",
+                    "normal"
+                  ]
+                },
+                "fact_text": {
+                  "type": "string"
+                },
+                "evidence_type": {
+                  "type": "string",
+                  "enum": [
+                    "explicit_user_statement",
+                    "explicit_scene_event",
+                    "explicit_character_claim"
+                  ]
+                },
+                "evidence": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "source_role",
+                    "source_quote"
+                  ],
+                  "properties": {
+                    "source_role": {
+                      "type": "string",
+                      "enum": [
+                        "user",
+                        "assistant"
+                      ]
+                    },
+                    "source_quote": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "corrects": {
+                  "type": "string",
+                  "enum": [
+                    "",
+                    "C1",
+                    "C2",
+                    "C3",
+                    "C4",
+                    "C5",
+                    "C6"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "providerText": "{\"statusWidget\":{\"character_values\":{\"시간\":\"밤, 늦은 시각\",\"장소\":\"국경 야영지의 지휘 천막\",\"현재상황\":\"렌이 기록철을 열람하는 동안 볼프강은 곁을 지키며 감찰관의 도착을 기다리고 있다.\",\"현재목표\":\"렌의 열람을 보장하고, 기록철을 새벽 보초 교대 전까지 안전하게 금고에 돌려놓는다.\",\"속마음\":\"기록을 직접 확인하겠다는 선택은 존중해야 한다 → 하지만 감찰관의 요구를 끝까지 막을 수는 없다 → 남은 시간 동안 이 기록과 렌을 어떻게 지킬지 판단해야 한다\"}},\"suggestedReplies\":{\"items\": [{\"kind\":\"natural\",\"text\":\"렌은 숫자가 맞지 않는 줄에 표시를 남기고 볼프강에게 확인을 요청한다.\"},{\"kind\":\"twist\",\"text\":\"천막 밖에서 감찰관의 목소리가 들리고, 볼프강은 렌에게 기록철을 덮으라고 눈짓한다.\"},{\"kind\":\"banter\",\"text\":\"렌은 식은 찻잔을 들어 보이며, 긴 밤이라면 따뜻한 차부터 다시 부탁한다고 말한다.\"}]},\"relationship\":{\"items\":[],\"itemsRemove\":[],\"promisesAdd\":[],\"promisesRemove\":[]},\"episodic\":{\"extracted_facts\":[]}}"
+}

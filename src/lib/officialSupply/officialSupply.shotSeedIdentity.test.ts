@@ -139,13 +139,19 @@ describe("official shot seed canonical identity", () => {
     assert.notDeepEqual(shotFields(lucianSig4), shotFields(otherSig4));
   });
 
-  it("E. keeps the representative card bust for both Lucian keys", () => {
-    for (const draftKey of [LUCIAN_DRAFT_KEY, LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY, "pilot-rf-01", ""]) {
+  it("E. keeps the representative an eye-level bust card; only the head direction follows the identity", () => {
+    const faces = new Set<string>();
+    for (const draftKey of [LUCIAN_DRAFT_KEY, LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY, "pilot-rf-01", "pilot-rf-05", "pilot-rf-07"]) {
       const shot = resolveOfficialSlotShot({ slotKey: "rep", kind: "representative" }, draftKey);
-      assert.equal(shot.faceDirection, "front");
+      assert.ok(["front", "left_three_quarter", "right_three_quarter"].includes(shot.faceDirection), draftKey);
       assert.equal(shot.cameraAngle, "eye_level");
       assert.equal(shot.distance, "bust");
+      assert.deepEqual(shot, resolveOfficialSlotShot({ slotKey: "rep", kind: "representative" }, draftKey));
+      faces.add(shot.faceDirection);
     }
+    assert.ok(faces.size >= 2, "representative head direction must not be one fixed value");
+    const noKey = resolveOfficialSlotShot({ slotKey: "rep", kind: "representative" }, "");
+    assert.deepEqual([noKey.faceDirection, noKey.cameraAngle, noKey.distance], ["front", "eye_level", "bust"]);
   });
 
   it("F. writes the same canonical shot responsibility into predecessor primary and fallback prompts", () => {
@@ -204,7 +210,7 @@ describe("official shot seed canonical identity", () => {
       },
       slotKey: "sig4",
       representativeUrl: "/uploads/official-pilot-rf-v4-03__rep-a1.webp",
-      env: { OPENAI_IMAGE_MODEL: "gpt-image-2.5-sunburst" },
+      env: { OFFICIAL_ASSET_IMAGE_MODEL: "gpt-image-2.5-sunburst" },
     });
     assert.equal(composed.ok, true);
     if (!composed.ok) return;

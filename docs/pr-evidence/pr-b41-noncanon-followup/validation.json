@@ -1,0 +1,106 @@
+{
+  "base_sha": "b859226915d827efc06f5069452ec223db298bd5",
+  "implementation_sha": "dcb66cd44e2167850d7b128e271ef68df4014886",
+  "root_cause_owner": "src/lib/memory/memory-manager.ts query gate, before stored scope reader",
+  "direct_before": {
+    "tests": 52,
+    "pass": 31,
+    "fail": 21
+  },
+  "direct_after": {
+    "tests": 52,
+    "pass": 52,
+    "fail": 0,
+    "evidence": "both suites included in final related run"
+  },
+  "B39_direct_before_and_after": {
+    "tests": 20,
+    "pass": 20,
+    "fail": 0
+  },
+  "new_regression_cases": [
+    "reads a historical assertion without requiring a recall verb: 그럼 IF에서 있었던 청혼이 본편에서도 확정된 거지?",
+    "reads a historical assertion without requiring a recall verb: IF에서 있었던 청혼이 사실이야?",
+    "reads a historical assertion without requiring a recall verb: 그럼 외전에서 했던 청혼도 본편에 편입된 거야?",
+    "reads a historical assertion without requiring a recall verb: 지난 IF의 청혼은 정사에 반영됐나요?",
+    "reads a historical assertion without requiring a recall verb: 비정사에서 있었던 청혼이 실제로 확인된 건가요?",
+    "reads a historical assertion without requiring a recall verb: 예전 IF 청혼이 본편에서 유효한지 확인해줘.",
+    "reads a historical assertion without requiring a recall verb: IF에서 있었던 청혼이 본편에 확정된 건지 알려줘.",
+    "reads a historical assertion without requiring a recall verb: 그럼 IF 청혼은 본편에서도 인정된 건가?",
+    "reads a historical assertion without requiring a recall verb: IF에서 있었던 청혼은 사실인 거야",
+    "reads a historical assertion without requiring a recall verb: 그럼 IF에서 있었던 청혼도 본편인 거야?",
+    "reads a historical assertion without requiring a recall verb: 지난 외전 청혼은 정사였던 거지?",
+    "keeps creation, hypotheticals, and non-recall turns isolated: 새 IF에서 청혼이 본편에 확정된 장면을 써줘.",
+    "keeps creation, hypotheticals, and non-recall turns isolated: 그럼 IF에서 있었던 청혼이 본편에서도 확정된 새 장면을 써줄래?",
+    "keeps creation, hypotheticals, and non-recall turns isolated: 예전 IF 청혼을 기억해 두고 새 에피소드를 만들어줘.",
+    "keeps creation, hypotheticals, and non-recall turns isolated: 지난 IF 청혼을 본편에 반영한 장면을 묘사해줘.",
+    "keeps creation, hypotheticals, and non-recall turns isolated: 지난 IF 이야기는 접고 오늘의 광장을 걷자.",
+    "keeps creation, hypotheticals, and non-recall turns isolated: 만약 IF 청혼이 본편에서도 확정된다면 어떻게 될까?",
+    "keeps creation, hypotheticals, and non-recall turns isolated: 예전에 IF에서 있었던 청혼이 본편에서도 확정됐다고 가정하면 어떻게 될까?",
+    "keeps creation, hypotheticals, and non-recall turns isolated: 지난 IF의 청혼이 본편에 편입됐다면 어떻게 돼?",
+    "keeps creation, hypotheticals, and non-recall turns isolated: 그럼 있었던 청혼이 본편에서도 확정된 거지?",
+    "keeps creation, hypotheticals, and non-recall turns isolated: IF에서 언젠가 청혼이 일어나면 어떻게 될까?",
+    "keeps creation, hypotheticals, and non-recall turns isolated: IF가 본편과 다른 설정이라는 뜻이야?",
+    "keeps creation, hypotheticals, and non-recall turns isolated: 지난 IF의 청혼 확정 장면은 아름다웠다.",
+    "keeps creation, hypotheticals, and non-recall turns isolated: IF에서 청혼을 본편에 반영해줘.",
+    "keeps creation, hypotheticals, and non-recall turns isolated: 지난 IF의 청혼을 소재로 새 이야기를 만들어줄래?",
+    "keeps creation, hypotheticals, and non-recall turns isolated: 예전 IF 청혼을 기억하고 새 장면을 써볼까?",
+    "keeps creation, hypotheticals, and non-recall turns isolated: 지난 IF 청혼을 기억해서 새 이야기를 만들어줄 수 있어?",
+    "keeps creation, hypotheticals, and non-recall turns isolated: 지난 IF에서 있었던 청혼이 본편에 반영된다고 치면 어떻게 될까?",
+    "does not fill an unsupported factual assertion with a different IF event",
+    "uses the existing closed-branch reader and label for a canon-check question",
+    "delivers the selected record once: B2 standalone with empty RAW",
+    "delivers the selected record once: B1 then B2 with synthetic RAW"
+  ],
+  "related": {
+    "tests": 190,
+    "pass": 190,
+    "fail": 0
+  },
+  "related_files": [
+    "src/lib/memory/memory-noncanon-recall.test.ts",
+    "src/lib/memory/memory-scene-reset-canonicality.test.ts",
+    "src/lib/memory/memory-prompt-injectible-parity.test.ts",
+    "src/lib/memory/memory-manual-global-coexist.test.ts",
+    "src/lib/memory/memory-medium-term.test.ts",
+    "src/lib/memory/memory-regen-scope.test.ts",
+    "src/lib/memory/memory-episodic-scope-regression.test.ts",
+    "src/lib/historicalTruthPolicy.test.ts",
+    "src/services/contextBuilder.memoryCoverage.test.ts",
+    "src/services/contextBuilder.cacheBoundary.test.ts",
+    "src/lib/continueNarrative.regenerate.test.ts",
+    "src/lib/continueNarrative.autoContinue.test.ts",
+    "src/lib/openRouterAdult.liveStream.test.ts"
+  ],
+  "regular_contract": "node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test",
+  "checks": {
+    "git_diff_check": "PASS",
+    "npm_run_lint": "PASS (app tsc)",
+    "npm_run_typecheck_app": "PASS",
+    "npm_run_build": "PASS",
+    "sequence": "build completed before lint, followed by app typecheck",
+    "build_isolation": "local DATA_DIR and blank provider / remote DB variables"
+  },
+  "scope_reader_changed": false,
+  "storage_writer_changed": false,
+  "prompt_rule_changed": false,
+  "new_API_calls": 0,
+  "new_API_cost_krw": 0,
+  "auth_path_reinvestigated": false,
+  "new_runner_or_experiment_infrastructure": false,
+  "production_writes": 0,
+  "wire_verification": "actual assembled requestBody; not transmitted; selected record, scope label, and recall block exactly once for standalone and synthetic-RAW sequential B2",
+  "sequential_B1_answer": "synthetic RAW, no actual B1 model answer",
+  "status": [
+    "ROOT_CAUSE_FIXED",
+    "SOURCE_ROUTING_VERIFIED_ONLY"
+  ],
+  "model_recall_verified": false,
+  "not_run": [
+    "paid model calls (prohibited)",
+    "100-turn replay",
+    "authentication diagnostics",
+    "unrelated full-suite/full test typecheck",
+    "T150/300/500/1000 actual model recall"
+  ]
+}

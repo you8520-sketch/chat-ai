@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  clauseDeclaresFinishedResult,
   declaredMovementGoals,
   describeMovementGoal,
   omitClausesAwayFromHere,
   omitLiveMovementClauses,
+  omitUnconfirmedAuthorityClauses,
   parseMovementDeclaration,
 } from "./movementDeclaration";
 
@@ -17,6 +19,40 @@ describe("movement declaration — bot stay fallback", () => {
     );
     assert.deepEqual(declaredMovementGoals("출구를 향해 화살을 쏜다."), []);
     assert.equal(parseMovementDeclaration("출구를 향해 화살을 쏜다.").live, false);
+  });
+
+  it("reads a body dash and exit rush as live movement without reviving an object throw", () => {
+    assert.deepEqual(declaredMovementGoals("경보실 문턱으로 몸을 던졌다."), ["경보실 문턱"]);
+    assert.deepEqual(declaredMovementGoals("출구 방향으로 쇄도했다."), ["출구 방향"]);
+    assert.deepEqual(
+      declaredMovementGoals("강이현은 경보실 문턱으로 몸을 던지며 출구 쪽으로 쇄도했다."),
+      ["강이현은 경보실 문턱", "던지며 출구 쪽"]
+    );
+    assert.deepEqual(declaredMovementGoals("주 통로로 돌을 던지고 돌아온다."), []);
+    assert.deepEqual(declaredMovementGoals("주 통로로 돌을 던진 후 이동한다."), []);
+    for (const line of [
+      "돌을 출구로 던졌다.",
+      "시선을 경보실로 던졌다.",
+      "탄환을 출구로 날렸다.",
+      "출구로 돌을 던졌다.",
+      "몸을 낮추고 돌을 출구로 던졌다.",
+      "몸을 낮추고 탄환을 경보실로 날렸다.",
+      "고개를 출구 쪽으로 던졌다.",
+    ]) {
+      assert.deepEqual(declaredMovementGoals(line), [], line);
+      assert.equal(parseMovementDeclaration(line).live, false, line);
+    }
+    assert.deepEqual(declaredMovementGoals("돌을 내려놓고 몸을 출구로 던졌다."), ["출구"]);
+    assert.equal(parseMovementDeclaration("돌을 내려놓고 몸을 출구로 던졌다.").live, true);
+  });
+
+  it("reads campaign #44 R11 body motion without pricing propelled objects", () => {
+    const r11 =
+      "이현은 쥐고 있던 접이식 석궁을 몸 안쪽으로 바짝 당겨 붙이며, 남쪽복도의 배관 엄폐물을 박차고 경보실 문턱으로 몸을 던졌다. 붉은 레이저가 빗겨나간 바닥의 기름막과 파편을 날렵하게 타고 넘어, 렌이 확보해 둔 출구 방향의 기둥 그늘을 향해 지체 없이 쇄도했다.";
+    const goals = declaredMovementGoals(r11);
+    assert.ok(goals.some((goal) => goal.includes("경보실")));
+    assert.ok(goals.some((goal) => goal.includes("출구")));
+    assert.equal(parseMovementDeclaration(r11).live, true);
   });
 
   it("reads a follow into a named place and does not read a noun mention of moving", () => {
@@ -50,7 +86,7 @@ describe("movement declaration — bot stay fallback", () => {
     assert.equal(omitLiveMovementClauses("자리를 지키며 동료를 엄호한다."), "자리를 지키며 동료를 엄호한다");
   });
 
-  it("keeps remainder only when it names the current seat or a colocated companion", () => {
+  it("keeps a movement-free local clause and drops a foreign, deictic, or absent-seat clause", () => {
     const here = {
       here: "현관홀",
       colocatedNames: ["현이", "서하"],
@@ -59,7 +95,14 @@ describe("movement declaration — bot stay fallback", () => {
     assert.equal(omitClausesAwayFromHere({ body: "출구의 제어 패널을 조사한다", ...here }), "");
     assert.equal(omitClausesAwayFromHere({ body: "그곳의 제어 패널을 조사한다", ...here }), "");
     assert.equal(omitClausesAwayFromHere({ body: "권태현의 옆에서 방어선을 유지한다", ...here }), "");
-    assert.equal(omitClausesAwayFromHere({ body: "자리를 지키며 동료를 엄호한다", ...here }), "");
+    assert.equal(
+      omitClausesAwayFromHere({ body: "자리를 지키며 동료를 엄호한다", ...here }),
+      "자리를 지키며 동료를 엄호한다"
+    );
+    assert.equal(
+      omitClausesAwayFromHere({ body: "잔을 테이블에 내려놓는다", ...here }),
+      "잔을 테이블에 내려놓는다"
+    );
     assert.equal(
       omitClausesAwayFromHere({ body: "현이 옆에서 방어선을 유지한다", ...here }),
       "현이 옆에서 방어선을 유지한다"
@@ -77,5 +120,49 @@ describe("movement declaration — bot stay fallback", () => {
       }),
       ""
     );
+  });
+
+  it("separates a finished result from the attempt and leaves an intentive exit in place", () => {
+    assert.equal(clauseDeclaresFinishedResult("문은 열렸다"), true);
+    assert.equal(clauseDeclaresFinishedResult("문은 이미 열렸다"), true);
+    assert.equal(clauseDeclaresFinishedResult("잔을 테이블에 내려놓았다"), false);
+    assert.equal(clauseDeclaresFinishedResult("따뜻한 차를 들이켰다"), false);
+    assert.equal(clauseDeclaresFinishedResult("고개를 끄덕였다"), false);
+    assert.equal(clauseDeclaresFinishedResult("잠긴 문을 연다"), false);
+    assert.equal(clauseDeclaresFinishedResult("문을 열었다"), false);
+    assert.equal(clauseDeclaresFinishedResult("문을 열고 나갈 준비를 한다"), false);
+    assert.equal(clauseDeclaresFinishedResult("문을 열고 나갈 준비를 하려 했다"), false);
+    assert.equal(
+      clauseDeclaresFinishedResult("이미 열린 방폭 게이트를 통과해 지상 슬로프를 따라 센터 밖으로 나가려 한다"),
+      false
+    );
+    assert.equal(clauseDeclaresFinishedResult("잠긴 문을 연다 문은 이미 열렸다"), false);
+    assert.equal(
+      omitUnconfirmedAuthorityClauses("잠긴 문을 연다. 문은 열렸다.", ["현이"]),
+      "잠긴 문을 연다."
+    );
+    assert.equal(
+      omitUnconfirmedAuthorityClauses("잠긴 문을 연다. 문은 이미 열렸다. 현이는 먼저 문을 연다.", ["현이"]),
+      "잠긴 문을 연다."
+    );
+    assert.equal(
+      omitUnconfirmedAuthorityClauses("잠긴 문을 연다 문은 이미 열렸다", ["현이"]),
+      "잠긴 문을 연다 문은 이미 열렸다"
+    );
+    assert.equal(
+      omitUnconfirmedAuthorityClauses("현이 옆에서 방어선을 유지한다. 권태현과 강이현을 본다.", ["현이", "권태현", "강이현"]),
+      "현이 옆에서 방어선을 유지한다. 권태현과 강이현을 본다."
+    );
+    assert.equal(
+      omitUnconfirmedAuthorityClauses('북쪽복도로 이동한다. "비켜."', ["현이"]),
+      '북쪽복도로 이동한다. "비켜."'
+    );
+    const priced = omitUnconfirmedAuthorityClauses(
+      "북쪽복도로 이동한다. 북쪽복도로 이동한다. 현이는 먼저 문을 연다. 문은 이미 열렸다.",
+      ["현이"]
+    );
+    assert.equal(priced.startsWith("북쪽복도로 이동한다."), true);
+    assert.doesNotMatch(priced, /현이는 먼저/);
+    assert.doesNotMatch(priced, /이미 열렸/);
   });
 });

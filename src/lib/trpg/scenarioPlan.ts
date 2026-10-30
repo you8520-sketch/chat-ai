@@ -1,5 +1,11 @@
 import { parseAdventure, type TrpgAdventure } from "./adventure";
 import { TRPG_START_INVENTORY_MAX_UNITS } from "./inventory";
+import {
+  consumedIndexSet,
+  emptyStoryProgress,
+  indexedBullets,
+  type TrpgStoryProgress,
+} from "./storyProgress";
 import { TRPG_DEFAULT_ENDING_GUIDANCE } from "./trpgPublication";
 import type { TrpgScenarioNpc } from "./scenarioTypes";
 
@@ -17,6 +23,36 @@ export const TRPG_STORY_PHASES = [
 ] as const;
 
 export type TrpgStoryPhase = (typeof TRPG_STORY_PHASES)[number];
+
+export const TRPG_STORY_PHASE_ADVANCE: Record<
+  Exclude<TrpgStoryPhase, "FINISHED">,
+  { next: TrpgStoryPhase; when: string }
+> = {
+  INTRO: {
+    next: "DEVELOPMENT",
+    when: "the opening situation has produced a concrete consequence beyond a mere round-trip or wait with no new fact: the resolved action or a server fact in this input changed the party's position, knowledge, relationships, or immediate risk",
+  },
+  DEVELOPMENT: {
+    next: "ESCALATION",
+    when: "a pressure, hazard, rival, or cost shown in this input has raised the stakes or narrowed the party's options",
+  },
+  ESCALATION: {
+    next: "CLIMAX_AVAILABLE",
+    when: "the decisive confrontation or way out is within reach in the fiction",
+  },
+  CLIMAX_AVAILABLE: {
+    next: "CLIMAX",
+    when: "the party has committed to the decisive confrontation or way out",
+  },
+  CLIMAX: {
+    next: "EPILOGUE",
+    when: "the core conflict is resolved by play",
+  },
+  EPILOGUE: {
+    next: "FINISHED",
+    when: "the aftermath has been played out",
+  },
+};
 
 export const TRPG_SCENARIO_DIFFICULTIES = ["easy", "normal", "hard", "deadly"] as const;
 export type TrpgScenarioDifficulty = (typeof TRPG_SCENARIO_DIFFICULTIES)[number];
@@ -471,10 +507,13 @@ export function effectiveEndingConditionsForGm(plan: TrpgScenarioPlan | null | u
 /** Compact GM-only serializer. Empty fields are omitted. Not raw JSON. */
 export function serializeTrpgScenarioPlanForGm(
   plan: TrpgScenarioPlan | null | undefined,
-  opts?: { npcs?: readonly TrpgScenarioNpc[] }
+  opts?: { npcs?: readonly TrpgScenarioNpc[]; storyProgress?: TrpgStoryProgress | null }
 ): string {
   if (!plan || isTrpgScenarioPlanEmpty(plan)) return "";
   const skipBoss = opts?.npcs?.some((npc) => npc.role === "boss" && npc.name.trim());
+  const progress = opts?.storyProgress ?? emptyStoryProgress();
+  const occurred = consumedIndexSet(progress.occurredMajorEventIndices);
+  const revealed = consumedIndexSet(progress.revealedClueIndices);
   // Adventure events own discoveries; the GM learns a clue only when the server fires its event.
   const freeClues = plan.adventure?.events.length ? [] : plan.clues;
   const body = [
@@ -482,8 +521,8 @@ export function serializeTrpgScenarioPlanForGm(
     line("중심 갈등:", plan.centralConflict),
     line("목표:", plan.goal),
     bullets("종료 조건:", effectiveEndingConditionsForGm(plan)),
-    bullets("현재 사용 가능한 주요 사건 (강제 순서가 아님):", plan.majorEvents),
-    bullets("단서:", freeClues),
+    indexedBullets("현재 사용 가능한 주요 사건 (강제 순서가 아님):", plan.majorEvents, occurred),
+    indexedBullets("단서:", freeClues, revealed),
     bullets("금지 사건:", plan.forbiddenEvents),
     skipBoss ? "" : line("보스:", plan.boss),
     bullets(
@@ -689,6 +728,9 @@ export function isAllowedStoryPhaseTransition(
   opts?: { campaignFinished?: boolean; forcedEnd?: boolean }
 ): boolean {
   if (from === to) return true;
+  if (to === "FINISHED" && !opts?.campaignFinished && !opts?.forcedEnd) {
+    return false;
+  }
   if (opts?.campaignFinished || opts?.forcedEnd) {
     return to === "EPILOGUE" || to === "FINISHED" || storyPhaseIndex(to) >= storyPhaseIndex(from);
   }

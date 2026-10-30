@@ -22,7 +22,7 @@ import {
   toModelUsageCalls,
   type TrpgRoundUsageEntry,
 } from "./roundUsage";
-import { isTrpgActionType, pickStatForAction } from "./actionTypes";
+import { isTrpgActionType, pickStatForAction, resolveServerHumanActionType } from "./actionTypes";
 import { TrpgAdventureCanonError } from "./adventure";
 import { logTrpgMechanicsCheckTelemetry } from "./mechanicsObservability";
 import {
@@ -44,10 +44,12 @@ import {
   orderTrpgBotsForRound,
   parseTrpgBotAction,
   prepareTrpgBotActionBody,
+  sanitizeBotActionText,
+  TRPG_BOT_INTENT_OPEN,
   TRPG_BOT_SYSTEM,
 } from "./botActions";
 import { actionReferencesOpenRoute } from "./actionCheckContext";
-import { resolveTrpgCanonicalAttempt } from "./canonicalAttempt";
+import { gmAiActionText, isLockedSpokenLine, resolveTrpgCanonicalAttempt, stayWatchingInPlace } from "./canonicalAttempt";
 import {
   acceptedSceneLocationFromBoundState,
   applyCampaignLedger,
@@ -61,6 +63,13 @@ import {
   settleLedgerForCommit,
 } from "./campaignLedger";
 import {
+  emitBotExplorationLockDiagnosticSafe,
+  explorationRejectCode,
+  type BotExplorationLockOutcome,
+} from "./botExplorationLockDiagnostic";
+import {
+  canonicalRoomId,
+  composeExplorationSentences,
   displayExplorationAp,
   explorationCommandsFromMovementBody,
   explorationOwnsWorldFlags,
@@ -68,14 +77,19 @@ import {
   filterExplorationFlagsAdd,
   filterExplorationFlagsRemove,
   legalExplorationCommands,
+  legacyPartyEscapeFact,
   roomNameAfterCommands,
   splitV2ExplorationMethod,
+  type ExplorationState,
 } from "./explorationMap";
+import type { ExplorationCommand } from "./explorationPublic";
 import {
   declaredMovementGoals,
   describeMovementGoal,
+  finishedResultClauses,
   omitClausesAwayFromHere,
   omitLiveMovementClauses,
+  omitUnconfirmedAuthorityClauses,
 } from "./movementDeclaration";
 import {
   explorationBriefForBot,
@@ -106,7 +120,13 @@ import {
   npcsWithImages,
 } from "./scenarioNpcAssets";
 import { loadCampaignScenarioAssets, loadScenarioTemplate } from "./scenarioTemplates";
-import { activeGoalTitles, summarizeGoalTransition, type TrpgGoalRoundFacts } from "./campaignGoals";
+import {
+  activeGoalTitles,
+  goalsAwaitingHostConfirmation,
+  summarizeGoalTransition,
+  type TrpgGoal,
+  type TrpgGoalRoundFacts,
+} from "./campaignGoals";
 import {
   applyCampaignStoryProgress,
   applyLocalSceneProgressToContext,
@@ -126,13 +146,30 @@ import {
 import { assertGmCompletionCanCommit, assessGmCompletionIntegrity, completionIntegrityStatusLabel } from "./gmCompletionIntegrity";
 import {
   buildTrpgGmUserBlock,
+  formatTrpgItemOfferBlock,
   formatTrpgRegenerateCommittedFacts,
   formatTrpgSheetCanon,
   parseTrpgGmOutput,
+  settleFinishedSceneNarration,
   shouldRequestTrpgPlayerGoalRegistration,
   TRPG_GM_SYSTEM,
   type ParsedTrpgGmOutput,
 } from "./gmPrompt";
+import {
+  ensureDeltaPlayer,
+  formatAcceptedItemsAction,
+  foldAcceptedInventoryGrants,
+  grantAcceptedItems,
+  loadCommittedItemOffersByParticipant,
+  loadTrpgSeatItemOffers,
+  parseStoredAcceptedItems,
+  parseTrpgAcceptItemsRequest,
+  resolveTrpgItemAcceptance,
+  restoreCommittedHumanItemFacts,
+  serializeAcceptedItems,
+  stripUnacceptedItemProposals,
+  type TrpgAcceptedItems,
+} from "./itemAcceptance";
 import { serializeTrpgScenarioPlanForGm } from "./scenarioPlan";
 import { parseScenarioNpcs, type TrpgScenarioNpc } from "./scenarioTypes";
 import { ensureCampaignDirectorContext } from "./sandboxDirector";
@@ -511,6 +548,7 @@ export function submitTrpgAction(
     idempotencyKey?: string | null;
     inputOrigin?: TrpgInputOrigin | null;
     explorationCommands?: unknown;
+    acceptItems?: unknown;
   }
 ): void {
   const parts = loadParticipants(db, opts.campaignId);
@@ -522,10 +560,15 @@ export function submitTrpgAction(
     throw new Error("지금은 행동을 제출할 수 없습니다.");
   }
   const commands = readExplorationCommands(opts.explorationCommands);
-  const text = opts.body.replace(/\s+/g, " ").trim();
-  if (!text && commands.length === 0) throw new Error("행동을 입력하세요.");
+  const accepted = resolveTrpgItemAcceptance(
+    loadTrpgSeatItemOffers(db, opts.campaignId, round.round_number, me.id),
+    parseTrpgAcceptItemsRequest(opts.acceptItems)
+  );
+  const typed = opts.body.replace(/\s+/g, " ").trim();
+  if (!typed && commands.length === 0 && !accepted) throw new Error("행동을 입력하세요.");
+  const text = typed || (accepted && commands.length === 0 ? formatAcceptedItemsAction(accepted.items) : "");
   assertTrpgActionMaxChars(text);
-  const actionType = opts.actionType && isTrpgActionType(opts.actionType) ? opts.actionType : "free";
+  const actionType = resolveServerHumanActionType(text);
   const origin = parseTrpgInputOrigin(opts.inputOrigin);
   const mapped = loadExplorationState(db, opts.campaignId);
   // Absent explorationCommands is a general submit. v2 does not turn that into an
@@ -555,10 +598,11 @@ export function submitTrpgAction(
         me.id,
         prepared.body,
         prepared.actionType,
-        opts.selectedStat ?? null,
+        null,
         "human",
         opts.idempotencyKey,
-        origin
+        origin,
+        accepted
       );
       saveExplorationState(db, opts.campaignId, prepared.state);
     })();
@@ -569,10 +613,11 @@ export function submitTrpgAction(
       me.id,
       text,
       actionType,
-      opts.selectedStat ?? null,
+      null,
       "human",
       opts.idempotencyKey,
-      origin
+      origin,
+      accepted
     );
   }
   const humanActors = actorsForRound(db, parts, round.id).filter((a) => a.kind === "human");
@@ -590,7 +635,8 @@ function upsertLockedAction(
   selectedStat: string | null,
   source: TrpgActionSource,
   idempotencyKey?: string | null,
-  inputOrigin: TrpgInputOrigin = "manual"
+  inputOrigin: TrpgInputOrigin = "manual",
+  accepted: TrpgAcceptedItems | null = null
 ): void {
   const existing = db
     .prepare(`SELECT id, locked FROM trpg_action_submissions WHERE round_id=? AND participant_id=?`)
@@ -600,19 +646,20 @@ function upsertLockedAction(
     return;
   }
   const origin = source === "human" ? inputOrigin : "manual";
+  const acceptedJson = source === "human" ? serializeAcceptedItems(accepted) : null;
   if (existing) {
     db.prepare(
       `UPDATE trpg_action_submissions
-       SET body=?, action_type=?, selected_stat=?, locked=1, source=?, idempotency_key=?, input_origin=?, updated_at=datetime('now')
+       SET body=?, action_type=?, selected_stat=?, locked=1, source=?, idempotency_key=?, input_origin=?, accepted_items_json=?, updated_at=datetime('now')
        WHERE id=?`
-    ).run(body, actionType, selectedStat, source, idempotencyKey ?? null, origin, existing.id);
+    ).run(body, actionType, selectedStat, source, idempotencyKey ?? null, origin, acceptedJson, existing.id);
     return;
   }
   db.prepare(
     `INSERT INTO trpg_action_submissions
-      (round_id, participant_id, body, action_type, selected_stat, locked, source, idempotency_key, input_origin)
-     VALUES (?,?,?,?,?,1,?,?,?)`
-  ).run(roundId, participantId, body, actionType, selectedStat, source, idempotencyKey ?? null, origin);
+      (round_id, participant_id, body, action_type, selected_stat, locked, source, idempotency_key, input_origin, accepted_items_json)
+     VALUES (?,?,?,?,?,1,?,?,?,?)`
+  ).run(roundId, participantId, body, actionType, selectedStat, source, idempotencyKey ?? null, origin, acceptedJson);
 }
 
 export type AdvanceTrpgCampaignOpts = {
@@ -771,12 +818,7 @@ async function reconcileStaleGmGenerationIfNeeded(
           const row = db
             .prepare(`SELECT structured_json FROM trpg_gm_messages WHERE round_id=?`)
             .get(round.id) as { structured_json: string | null } | undefined;
-          const parsed = parseJson(row?.structured_json, {} as {
-            campaign_finished?: boolean;
-            campaignFinished?: boolean;
-          });
-          const campaignFinished =
-            parsed.campaign_finished === true || parsed.campaignFinished === true;
+          const campaignFinished = campaignFinishedForRecovery(db, campaign.id, row?.structured_json);
           await finalizeCommittedGmRound(
             db,
             campaign,
@@ -1135,8 +1177,56 @@ function assertTrpgActionMaxChars(text: string): void {
   if (Array.from(text).length > TRPG_ACTION_MAX_CHARS) throw new Error("행동이 너무 깁니다.");
 }
 
-function stayWatchingInPlace(name: string): string {
-  return `${name}은 제자리에 서서 상황을 살핀다.`;
+function normalizedRemainder(text: string): string {
+  return text.replace(/[\s“”"'`.!?。…,;]/g, "");
+}
+
+/**
+ * Movement-free local prose and a standalone quote, after a rejected move is removed.
+ * A quote stays whole only when every clause in it is still local. Markers are not action text.
+ */
+function localRemainderText(opts: {
+  body: string;
+  here: string;
+  colocatedNames: readonly string[];
+  foreignPlaces: readonly string[];
+  otherNames: readonly string[];
+}): { act: string; finishedResults: string } {
+  const quotes: string[] = [];
+  const rest: string[] = [];
+  for (const raw of opts.body.split(/\n+/)) {
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    if (isLockedSpokenLine(trimmed)) quotes.push(trimmed);
+    else rest.push(trimmed);
+  }
+  const place = {
+    here: opts.here,
+    colocatedNames: opts.colocatedNames,
+    foreignPlaces: opts.foreignPlaces,
+  };
+  const source = rest.join("\n");
+  const finishedResults = omitClausesAwayFromHere({
+    body: omitLiveMovementClauses(finishedResultClauses(source, opts.otherNames).join(" ")),
+    ...place,
+  });
+  const keptRest = omitClausesAwayFromHere({
+    body: omitLiveMovementClauses(omitUnconfirmedAuthorityClauses(source, opts.otherNames)),
+    ...place,
+  });
+  const keptQuotes = quotes.filter((line) => {
+    const inner = line.replace(/^[“"]|[”"]$/g, "").trim();
+    if (!inner || declaredMovementGoals(inner).length > 0) return false;
+    const filtered = omitClausesAwayFromHere({
+      body: omitLiveMovementClauses(inner),
+      ...place,
+    });
+    return filtered.length > 0 && normalizedRemainder(filtered) === normalizedRemainder(inner);
+  });
+  return {
+    act: [keptRest, ...keptQuotes].filter(Boolean).join("\n").trim(),
+    finishedResults,
+  };
 }
 
 function independentBotRemainder(opts: {
@@ -1144,19 +1234,61 @@ function independentBotRemainder(opts: {
   here: string;
   rooms: readonly string[];
   party: ReadonlyArray<{ name: string; location: string }>;
-}): string {
-  return omitClausesAwayFromHere({
-    body: omitLiveMovementClauses(opts.body),
-    here: opts.here,
-    colocatedNames: opts.party.filter((seat) => seat.location === opts.here).map((seat) => seat.name),
-    foreignPlaces: [
-      ...opts.rooms.filter((room) => room !== opts.here),
-      ...opts.party.filter((seat) => seat.location !== opts.here).map((seat) => seat.name),
-      ...declaredMovementGoals(opts.body)
-        .map((goal) => describeMovementGoal(goal).place)
-        .filter((place): place is string => Boolean(place && place !== opts.here)),
-    ],
-  });
+  actorName: string;
+}): { text: string; finishedResults: string } {
+  const parsed = parseTrpgBotAction(opts.body);
+  const colocatedNames = opts.party.filter((seat) => seat.location === opts.here).map((seat) => seat.name);
+  const otherNames = opts.party.map((seat) => seat.name).filter((name) => name && name !== opts.actorName);
+  const foreignPlaces = [
+    ...opts.rooms.filter((room) => room !== opts.here),
+    ...opts.party.filter((seat) => seat.location !== opts.here).map((seat) => seat.name),
+    ...declaredMovementGoals(opts.body)
+      .map((goal) => describeMovementGoal(goal).place)
+      .filter((place): place is string => Boolean(place && place !== opts.here)),
+  ];
+  const pieces = [parsed.prose, parsed.intent].map((piece) =>
+    localRemainderText({
+      body: piece,
+      here: opts.here,
+      colocatedNames,
+      foreignPlaces,
+      otherNames,
+    })
+  );
+  return {
+    text: pieces
+      .map((piece) => piece.act)
+      .filter(Boolean)
+      .join("\n")
+      .trim(),
+    finishedResults: [...new Set(pieces.map((piece) => piece.finishedResults).filter(Boolean))].join(" "),
+  };
+}
+
+/**
+ * The surviving local act, in the existing prose + <<<INTENT>>> shape.
+ * Quote-only lines stay in the prose so the action card and locked speech keep them.
+ * The intent is that act, or the speech itself when no other act survived.
+ * A finished result stays in the prose and is not the intent. A rejected move is already gone.
+ */
+function canonicalRemainderLock(remainder: string, finishedResults: string): string {
+  const quotes: string[] = [];
+  const acts: string[] = [];
+  for (const raw of remainder.split(/\n+/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    if (isLockedSpokenLine(line)) quotes.push(line);
+    else acts.push(line);
+  }
+  const act = acts.join("\n").trim();
+  const spoken = quotes.join("\n");
+  const choice = act || spoken;
+  if (!choice) return "";
+  const visible = [act, finishedResults.trim(), spoken].filter(Boolean).join("\n");
+  const locked = sanitizeBotActionText(`${visible}\n\n${TRPG_BOT_INTENT_OPEN}\n${choice}`);
+  if (Array.from(locked).length <= TRPG_ACTION_MAX_CHARS) return locked;
+  const compact = sanitizeBotActionText(`${TRPG_BOT_INTENT_OPEN}\n${choice}`);
+  return Array.from(compact).length <= TRPG_ACTION_MAX_CHARS ? compact : "";
 }
 
 async function generateBotActions(
@@ -1299,7 +1431,13 @@ async function generateBotActions(
     );
     const latestMap = loadExplorationState(db, opts.campaign.id);
     const declared = latestMap ? explorationCommandsFromMovementBody(latestMap.map, body) : [];
+    const declaredRoomIds = moveCommandRoomIds(declared);
     let spoken = body;
+    let lockOutcome: BotExplorationLockOutcome = "original-locked";
+    let fallbackBranch = "no-declared-moves";
+    let firstRejectCode: string | null = null;
+    let retryRejectCode: string | null = null;
+    let legalRoomIds: string[] = [];
     if (declared.length > 0) {
       try {
         spoken = db.transaction(() => {
@@ -1315,8 +1453,12 @@ async function generateBotActions(
           saveExplorationState(db, opts.campaign.id, prepared.state);
           return prepared.body;
         })();
+        lockOutcome = "move-locked";
+        fallbackBranch = "full-lock";
+        legalRoomIds = declaredRoomIds;
       } catch (error) {
         if (!explorationMoveWasRejected(error)) throw error;
+        firstRejectCode = explorationRejectCode(error);
         const fromRoomId = self?.location ?? "";
         const priced = latestMap
           ? legalExplorationCommands({
@@ -1326,15 +1468,24 @@ async function generateBotActions(
               apRemaining: displayExplorationAp(latestMap, bot.id, roundNumber),
             })
           : [];
+        legalRoomIds = moveCommandRoomIds(priced);
         const remainder = independentBotRemainder({
           body,
           here: latestMap ? roomNameAfterCommands(latestMap.map, fromRoomId, priced) : fromRoomId,
           rooms: latestMap ? explorationRoomNames(latestMap.map) : [],
           party: sheets.map((sheet) => ({ name: sheet.name, location: sheet.location })),
+          actorName: bot.display_name,
         });
         const usableRemainder =
-          remainder && Array.from(remainder).length <= TRPG_ACTION_MAX_CHARS ? remainder : "";
+          remainder.text && Array.from(remainder.text).length <= TRPG_ACTION_MAX_CHARS ? remainder.text : "";
+        const moveLine =
+          priced.length > 0 && latestMap ? composeExplorationSentences(latestMap.map, fromRoomId, priced) : "";
+        const combined =
+          moveLine && usableRemainder ? `${moveLine} ${usableRemainder}` : moveLine || usableRemainder;
+        const retryFreeText =
+          usableRemainder && Array.from(combined).length <= TRPG_ACTION_MAX_CHARS ? usableRemainder : "";
         if (priced.length > 0) {
+          fallbackBranch = "partial-retry";
           try {
             spoken = db.transaction(() => {
               const prepared = prepareLockedExploration(db, {
@@ -1342,7 +1493,7 @@ async function generateBotActions(
                 roundId: opts.roundId,
                 participantId: bot.id,
                 commands: priced,
-                freeText: usableRemainder,
+                freeText: retryFreeText,
               });
               if (Array.from(prepared.body).length > TRPG_ACTION_MAX_CHARS) {
                 throw new Error("행동이 너무 깁니다.");
@@ -1351,8 +1502,12 @@ async function generateBotActions(
               saveExplorationState(db, opts.campaign.id, prepared.state);
               return prepared.body;
             })();
+            lockOutcome = "move-locked";
           } catch (retryError) {
             if (!explorationMoveWasRejected(retryError)) throw retryError;
+            fallbackBranch = "retry-throw";
+            retryRejectCode = explorationRejectCode(retryError);
+            lockOutcome = "stay-fallback";
             spoken = stayWatchingInPlace(bot.display_name);
             upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
           }
@@ -1360,15 +1515,41 @@ async function generateBotActions(
           usableRemainder &&
           (!latestMap || explorationCommandsFromMovementBody(latestMap.map, usableRemainder).length === 0)
         ) {
-          spoken = usableRemainder;
-          upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model");
+          const locked = canonicalRemainderLock(usableRemainder, remainder.finishedResults);
+          if (locked) {
+            fallbackBranch = "priced-empty-remainder";
+            lockOutcome = "original-locked";
+            spoken = locked;
+            upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model");
+          } else {
+            fallbackBranch = "priced-empty";
+            lockOutcome = "stay-fallback";
+            spoken = stayWatchingInPlace(bot.display_name);
+            upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
+          }
         } else {
+          fallbackBranch = "priced-empty";
+          lockOutcome = "stay-fallback";
           spoken = stayWatchingInPlace(bot.display_name);
           upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
         }
       }
     } else {
       upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model");
+    }
+    if (latestMap) {
+      emitBotExplorationLockDiagnosticSafe(latestMap.map, text, {
+        campaignId: opts.campaign.id,
+        roundId: opts.roundId,
+        participantId: bot.id,
+        fromLocationLabel: self?.location ?? "",
+        declaredRoomIdsRaw: declaredRoomIds,
+        legalRoomIdsRaw: legalRoomIds,
+        firstRejectCode,
+        fallbackBranch,
+        outcome: lockOutcome,
+        retryRejectCode,
+      });
     }
     adjudicateSubmissionForParticipant(db, {
       campaignId: opts.campaign.id,
@@ -1478,6 +1659,7 @@ async function runGmForRound(
   );
   const resolutionOrder = parseResolutionOrder(storedSnapshot);
   const explorationForMethod = opts.regenerate ? null : loadExplorationState(db, opts.campaignId);
+  const partyNames = loadRoundPartyNames(db, opts.roundId);
   const actions = sortByResolutionOrder(
     loadActionsForGm(db, opts.roundId, scenario.statDefs),
     resolutionOrder
@@ -1489,7 +1671,14 @@ async function runGmForRound(
       action.body
     );
     if (!split) return action;
-    return { ...action, explorationCommandText: split.commandText, explorationMethod: split.method };
+    const method =
+      action.participantKind === "ai_character"
+        ? omitUnconfirmedAuthorityClauses(
+            split.method,
+            partyNames.filter((seat) => seat.id !== action.participantId).map((seat) => seat.name)
+          )
+        : split.method;
+    return { ...action, explorationCommandText: split.commandText, explorationMethod: method };
   });
   const latestScene = previousNarration(db, opts.campaignId);
   const mechanics = opts.opening
@@ -1534,7 +1723,10 @@ async function runGmForRound(
     }))
   );
   const resolvedPlan = resolvedCampaignPlan(campaignContext);
-  const scenarioPlanBlock = serializeTrpgScenarioPlanForGm(resolvedPlan, { npcs: scenarioNpcs });
+  const scenarioPlanBlock = serializeTrpgScenarioPlanForGm(resolvedPlan, {
+    npcs: scenarioNpcs,
+    storyProgress: campaignContext?.storyProgress,
+  });
   const localSceneProgress = campaignContext?.localSceneProgress;
   const localSceneBlock = localSceneProgress ? serializeLocalSceneStateForGm(localSceneProgress) : "";
   const localSceneDeltaContract = serializeLocalSceneDeltaContract();
@@ -1545,6 +1737,28 @@ async function runGmForRound(
           | undefined
       )?.narration ?? "")
     : "";
+  const roundNumberForOffers = (
+    db.prepare(`SELECT round_number FROM trpg_rounds WHERE id=?`).get(opts.roundId) as
+      | { round_number: number }
+      | undefined
+  )?.round_number;
+  const itemOfferBlock =
+    opts.opening || opts.regenerate || roundNumberForOffers == null
+      ? ""
+      : formatTrpgItemOfferBlock(
+          participants
+            .filter((p) => p.kind === "human")
+            .map((p) => {
+              const offered = loadTrpgSeatItemOffers(db, opts.campaignId, roundNumberForOffers, p.id)?.items ?? [];
+              const taken = new Set(actions.find((action) => action.participantId === p.id)?.acceptedItems ?? []);
+              return {
+                participantId: p.id,
+                name: p.display_name,
+                items: offered.filter((name) => !taken.has(name)),
+              };
+            })
+        );
+  const committedItemOffers = opts.regenerate ? loadCommittedItemOffersByParticipant(db, opts.roundId) : null;
   const committedFacts = opts.regenerate
     ? formatTrpgRegenerateCommittedFacts({
         sheets: sheets.map((sheet) => ({
@@ -1555,6 +1769,9 @@ async function runGmForRound(
           inventory: inventoryUnits(sheet.inventory),
         })),
         ledger: loadCampaignLedger(db, opts.campaignId),
+        itemOffers: participants
+          .filter((p) => committedItemOffers?.has(p.id))
+          .map((p) => ({ name: p.display_name, items: committedItemOffers?.get(p.id) ?? [] })),
       })
     : "";
   const goalLedger = loadCampaignLedger(db, opts.campaignId);
@@ -1569,12 +1786,44 @@ async function runGmForRound(
         .filter(Boolean)
         .join("\n\n")
     : "";
+  const explorationActors = actions.map((action) => ({
+    participantId: action.participantId,
+    name: action.name,
+    tier: action.tier,
+  }));
+  const explorationPreview =
+    !opts.opening && !opts.regenerate
+      ? planExplorationCommit(db, {
+          campaignId: opts.campaignId,
+          roundId: opts.roundId,
+          opening: false,
+          actors: explorationActors,
+          sheetIds: [],
+        })
+      : null;
+  const endingFinishWouldStand = campaignFinishWouldStand({
+    exploration: loadExplorationState(db, opts.campaignId),
+    participantIds: sheets.map((sheet) => sheet.participantId),
+    locations: seatLocationsForFinish(sheets, explorationPreview?.results),
+    goals: goalLedger.goals,
+  });
   const requestPlayerGoalRegistration = shouldRequestTrpgPlayerGoalRegistration({
     opening: opts.opening,
     regenerate: opts.regenerate,
     campaignComplete: campaign.status === "CAMPAIGN_COMPLETE",
     activeGoalCount: activeGoalTitles(goalLedger.goals).length,
+    endingFinishWouldStand,
   });
+  const committedFinishStands =
+    opts.regenerate === true &&
+    (campaign.status === "CAMPAIGN_COMPLETE" ||
+      readStoredGmFinish(
+        (
+          db.prepare(`SELECT structured_json FROM trpg_gm_messages WHERE round_id=?`).get(opts.roundId) as
+            | { structured_json: string | null }
+            | undefined
+        )?.structured_json
+      ).effectiveCampaignFinished === true);
   const user = buildTrpgGmUserBlock({
     worldBrief: campaign.world_brief,
     gmSecret: campaign.gm_secret ?? "",
@@ -1582,6 +1831,8 @@ async function runGmForRound(
     opening: opts.opening,
     regenerate: opts.regenerate === true,
     requestPlayerGoalRegistration,
+    endingFinishWouldStand,
+    committedFinishStands,
     committedNarration,
     committedFacts,
     playerPersonas,
@@ -1606,13 +1857,10 @@ async function runGmForRound(
           campaignId: opts.campaignId,
           roundId: opts.roundId,
           opening: opts.opening,
-          actors: actions.map((action) => ({
-            participantId: action.participantId,
-            name: action.name,
-            tier: action.tier,
-          })),
+          actors: explorationActors,
         }),
     actions,
+    itemOfferBlock,
   });
   const gmCall = opts.deps?.gmCall ?? callTrpgGm;
   let stage: TrpgFailureStage = "provider_call";
@@ -1790,15 +2038,8 @@ function observeThreatShadow(build: () => string | null): void {
   }
 }
 
-function ensureDeltaPlayer(
-  delta: ParsedTrpgGmOutput["delta"],
-  participantId: number
-): ParsedTrpgGmOutput["delta"]["players"][number] {
-  const existing = delta.players.find((row) => row.participantId === participantId);
-  if (existing) return existing;
-  const created: ParsedTrpgGmOutput["delta"]["players"][number] = { participantId };
-  delta.players.push(created);
-  return created;
+function moveCommandRoomIds(commands: readonly ExplorationCommand[]): string[] {
+  return commands.filter((command) => command.op === "move").map((command) => command.roomId);
 }
 
 function explorationMoveWasRejected(error: unknown): boolean {
@@ -1883,6 +2124,141 @@ function applyExplorationToParsed(
   }
 }
 
+function acceptedItemsBySeat(
+  db: Database.Database,
+  campaignId: number,
+  roundNumber: number,
+  submissions: ReadonlyArray<{ participantId: number; acceptedItemsJson: string | null }>,
+  humanSeatIds: ReadonlySet<number>
+): Map<number, string[]> {
+  const bySeat = new Map<number, string[]>();
+  for (const sub of submissions) {
+    if (!humanSeatIds.has(sub.participantId)) continue;
+    const stored = parseStoredAcceptedItems(sub.acceptedItemsJson);
+    if (!stored) continue;
+    const offers = loadTrpgSeatItemOffers(db, campaignId, roundNumber, sub.participantId);
+    if (!offers || offers.fromRound !== stored.fromRound) continue;
+    const valid = stored.items.filter((name) => offers.items.includes(name));
+    if (valid.length > 0) bySeat.set(sub.participantId, valid);
+  }
+  return bySeat;
+}
+
+/**
+ * GM `campaignFinished` is the request. This is the decision both the normal commit and
+ * APPLYING_STATE recovery finalize with. The prompt uses the same predicate and the same
+ * seat locations as this commit (sheet start plus this round's settled exploration ends).
+ * A GM flag alone does not complete an open goal. No-map campaigns keep the previous
+ * flag-only commit and do not receive an ending-ready head.
+ *
+ * v2 `role=goal` is a destination annotation, not a one-seat ending. A host-confirmed
+ * goal still needs every seat in a goal-role room. A reach_location or end_encounter
+ * completion is that criterion's own contract, so companions are not forced there.
+ */
+function resolveEffectiveCampaignFinished(opts: {
+  gmRequested: boolean;
+  exploration: ExplorationState | null;
+  participantIds: readonly number[];
+  locations?: readonly string[];
+  goals: readonly TrpgGoal[];
+}): boolean {
+  if (!opts.gmRequested) return false;
+  if (opts.exploration?.version === 1) {
+    if (!legacyPartyEscapeFact(opts.exploration, opts.participantIds)) return false;
+    return !goalsAwaitingHostConfirmation(opts.goals);
+  }
+  if (opts.exploration?.version === 2) {
+    if (opts.goals.some((goal) => goal.status === "active")) return false;
+    if (!opts.goals.some((goal) => goal.status === "completed")) return false;
+    if (completedGoalsProveTypedEnding(opts.goals)) return true;
+    return partyOccupiesAdventureGoals(opts.exploration, opts.participantIds, opts.locations ?? []);
+  }
+  return true;
+}
+
+function completedGoalsProveTypedEnding(goals: readonly TrpgGoal[]): boolean {
+  return goals.some(
+    (goal) =>
+      goal.status === "completed" &&
+      (goal.evidence?.kind === "reach_location" || goal.evidence?.kind === "end_encounter")
+  );
+}
+
+function adventureGoalRooms(state: ExplorationState) {
+  return state.map.rooms.filter((room) => room.role === "goal");
+}
+
+function seatOccupiesAdventureGoal(state: ExplorationState, location: string): boolean {
+  const goals = adventureGoalRooms(state);
+  if (goals.length === 0) return false;
+  const roomId = canonicalRoomId(state.map, location);
+  return goals.some((room) => room.id === roomId);
+}
+
+function partyOccupiesAdventureGoals(
+  state: ExplorationState,
+  participantIds: readonly number[],
+  locations: readonly string[]
+): boolean {
+  if (adventureGoalRooms(state).length === 0) return false;
+  if (participantIds.length === 0 || locations.length !== participantIds.length) return false;
+  return locations.every((location) => seatOccupiesAdventureGoal(state, location));
+}
+
+function seatLocationsForFinish(
+  sheets: ReadonlyArray<{ participantId: number; location: string }>,
+  moved?: ReadonlyArray<{ participantId: number; location?: string | null }> | null
+): string[] {
+  const bySeat = new Map<number, string>();
+  for (const row of moved ?? []) {
+    const location = row.location?.trim();
+    if (location) bySeat.set(row.participantId, location);
+  }
+  return sheets.map((sheet) => bySeat.get(sheet.participantId) ?? sheet.location);
+}
+
+/** Prompt fact: a finish request on this round would complete the campaign. Same owner as v1/v2 commit. */
+function campaignFinishWouldStand(opts: {
+  exploration: ExplorationState | null;
+  participantIds: readonly number[];
+  locations?: readonly string[];
+  goals: readonly TrpgGoal[];
+}): boolean {
+  if (!opts.exploration) return false;
+  return resolveEffectiveCampaignFinished({ ...opts, gmRequested: true });
+}
+
+function readStoredGmFinish(raw: string | null | undefined): {
+  gmRequested: boolean;
+  effectiveCampaignFinished: boolean | null;
+} {
+  const parsed = parseJson(raw, {} as {
+    campaign_finished?: boolean;
+    campaignFinished?: boolean;
+    effectiveCampaignFinished?: unknown;
+  });
+  return {
+    gmRequested: parsed.campaign_finished === true || parsed.campaignFinished === true,
+    effectiveCampaignFinished:
+      typeof parsed.effectiveCampaignFinished === "boolean" ? parsed.effectiveCampaignFinished : null,
+  };
+}
+
+/** Stored effective flag from this commit. Older rows omit it and are recomputed from the committed rows. */
+function campaignFinishedForRecovery(db: Database.Database, campaignId: number, raw: string | null | undefined): boolean {
+  const stored = readStoredGmFinish(raw);
+  if (stored.effectiveCampaignFinished != null) return stored.effectiveCampaignFinished;
+  if (!stored.gmRequested) return false;
+  const recoverySheets = loadSheetSnapshots(db, campaignId);
+  return resolveEffectiveCampaignFinished({
+    gmRequested: stored.gmRequested,
+    exploration: loadExplorationState(db, campaignId),
+    participantIds: recoverySheets.map((sheet) => sheet.participantId),
+    locations: recoverySheets.map((sheet) => sheet.location),
+    goals: loadCampaignLedger(db, campaignId).goals,
+  });
+}
+
 function commitPendingGmResult(
   db: Database.Database,
   opts: {
@@ -1914,7 +2290,8 @@ function commitPendingGmResult(
   const openRoutes = campaignContext?.localSceneProgress.openRoutes ?? [];
   const lockedSubs = db
     .prepare(
-      `SELECT s.id, s.participant_id AS participantId, s.body, s.action_type AS actionType, s.source, r.tier
+      `SELECT s.id, s.participant_id AS participantId, s.body, s.action_type AS actionType, s.source,
+              s.accepted_items_json AS acceptedItemsJson, r.tier
        FROM trpg_action_submissions s
        LEFT JOIN trpg_dice_rolls r ON r.submission_id = s.id
        WHERE s.round_id=? AND s.locked=1 ORDER BY s.id ASC`
@@ -1925,8 +2302,18 @@ function commitPendingGmResult(
     body: string;
     actionType: string | null;
     source: string | null;
+    acceptedItemsJson: string | null;
     tier: string | null;
   }>;
+  const humanSeatIds = new Set(
+    loadParticipants(db, campaign.id)
+      .filter((participant) => participant.kind === "human")
+      .map((participant) => participant.id)
+  );
+  const roundNumber = (
+    db.prepare(`SELECT round_number FROM trpg_rounds WHERE id=?`).get(opts.roundId) as { round_number: number }
+  ).round_number;
+  stripUnacceptedItemProposals(parsed.delta, humanSeatIds);
   const explorationCommit = opts.regenerate
     ? null
     : planExplorationCommit(db, {
@@ -1946,6 +2333,9 @@ function commitPendingGmResult(
       explorationCommit,
       sheets.map((sheet) => sheet.participantId)
     );
+  }
+  if (!opts.regenerate) {
+    grantAcceptedItems(parsed.delta, acceptedItemsBySeat(db, campaign.id, roundNumber, lockedSubs, humanSeatIds));
   }
   const explorationState = opts.regenerate ? null : loadExplorationState(db, campaign.id);
   if (explorationState) {
@@ -2002,11 +2392,9 @@ function commitPendingGmResult(
   const applied = mergeMechanicsOwnedDelta(sheets, boundLocation.delta, mechanics, {
     encounterAuthority: governedCampaign,
   });
+  foldAcceptedInventoryGrants(parsed.delta);
   const nextSheets = applied.ok ? applied.next : sheets;
   const persistMechanics = applied.ok || mechanics?.complete === true;
-  const roundNumber = (
-    db.prepare(`SELECT round_number FROM trpg_rounds WHERE id=?`).get(opts.roundId) as { round_number: number }
-  ).round_number;
   const resolvedPlan = resolvedCampaignPlan(campaignContext);
   const endedProposals = parsed.delta.encountersEnded;
   const encounterEnding =
@@ -2018,20 +2406,11 @@ function commitPendingGmResult(
           seatLocations: [...sheets, ...nextSheets].map((sheet) => sheet.location),
         })
       : { accepted: [] as string[], rejected: [] };
-  const { encountersEnded: _proposedEnding, ...deltaWithoutEnding } = parsed.delta;
-  const committedDelta = encounterEnding.accepted.length
-    ? { ...deltaWithoutEnding, encountersEnded: encounterEnding.accepted }
-    : deltaWithoutEnding;
   const postGmOngoingSeeds = governedCampaign
     ? withoutHpHarmSeeds(opts.postGmOngoingSeeds ?? [])
     : (opts.postGmOngoingSeeds ?? []);
   let postGmOngoingResult = { candidates: 0, promoted: 0, deduped: 0 };
   let stage: TrpgFailureStage = "ledger_apply";
-  const humanSeatIds = new Set(
-    loadParticipants(db, campaign.id)
-      .filter((participant) => participant.kind === "human")
-      .map((participant) => participant.id)
-  );
   const endLocationBySeat = new Map(
     (persistMechanics ? nextSheets : sheets).map((sheet) => [sheet.participantId, sheet.location])
   );
@@ -2047,11 +2426,41 @@ function commitPendingGmResult(
     endedEncounterIds: loadEndedEncounterIds(db, campaign.id, roundNumber),
     acceptedEncounterIds: encounterEnding.accepted,
   };
+  const explorationStateForFinish = explorationCommit?.state ?? loadExplorationState(db, campaign.id);
+  const campaignFinished = resolveEffectiveCampaignFinished({
+    gmRequested: parsed.campaignFinished === true,
+    exploration: explorationStateForFinish,
+    participantIds: sheets.map((sheet) => sheet.participantId),
+    locations: seatLocationsForFinish(sheets, explorationCommit?.results),
+    goals: currentLedger.goals,
+  });
+  const storedFinish = opts.regenerate
+    ? readStoredGmFinish(
+        (
+          db.prepare(`SELECT structured_json FROM trpg_gm_messages WHERE round_id=?`).get(opts.roundId) as
+            | { structured_json: string | null }
+            | undefined
+        )?.structured_json
+      )
+    : null;
+  const finishStands =
+    campaignFinished || campaign.status === "CAMPAIGN_COMPLETE" || storedFinish?.effectiveCampaignFinished === true;
+  if (finishStands) {
+    parsed.narration = settleFinishedSceneNarration(parsed.narration);
+    delete parsed.delta.questsAdd;
+    delete boundLocation.delta.questsAdd;
+  }
+  const { encountersEnded: _proposedEnding, ...deltaWithoutEnding } = parsed.delta;
+  const committedDelta = encounterEnding.accepted.length
+    ? { ...deltaWithoutEnding, encountersEnded: encounterEnding.accepted }
+    : deltaWithoutEnding;
+  const effectiveToStore =
+    opts.regenerate && storedFinish?.effectiveCampaignFinished === true ? true : campaignFinished;
   const ledgerDelta = {
     ...boundLocation.delta,
     location: boundLocation.location || scenario.startLocation,
     nextRoundContext: boundLocation.nextRoundContext,
-    campaignFinished: parsed.campaignFinished,
+    campaignFinished,
   };
   const goalContext = {
     round: roundNumber,
@@ -2115,6 +2524,7 @@ function commitPendingGmResult(
         committedDelta = undefined;
       }
     }
+    restoreCommittedHumanItemFacts(parsed.delta, committedDelta, humanSeatIds);
     const canon = regenerateOutputInvertsCommittedCanon({
       delta: parsed.delta,
       location: parsed.location ?? undefined,
@@ -2123,7 +2533,7 @@ function commitPendingGmResult(
       committedDelta,
       narration: parsed.narration,
       committedNarration: storedStructured?.narration ?? undefined,
-      campaignFinished: parsed.campaignFinished === true,
+      campaignFinished,
       endedEncounterIds: loadEndedEncounterIds(db, campaign.id, roundNumber),
       storyPhase: campaignContext?.storyPhase,
     });
@@ -2145,7 +2555,11 @@ function commitPendingGmResult(
       db.prepare(
         `INSERT INTO trpg_gm_messages (round_id, narration, structured_json) VALUES (?,?,?)
          ON CONFLICT(round_id) DO UPDATE SET narration=excluded.narration, structured_json=excluded.structured_json`
-      ).run(opts.roundId, parsed.narration, JSON.stringify(parsed));
+      ).run(
+        opts.roundId,
+        parsed.narration,
+        JSON.stringify({ ...parsed, effectiveCampaignFinished: effectiveToStore })
+      );
       if (opts.regenerate) return;
       if (persistMechanics) {
         persistSheets(db, nextSheets);
@@ -2193,7 +2607,9 @@ function commitPendingGmResult(
             threadsAdd: parsed.delta.threadsAdd,
             threadsResolve: parsed.delta.threadsResolve,
             endingConditionId: parsed.delta.endingConditionId,
-            campaignFinished: parsed.campaignFinished,
+            campaignFinished,
+            occurredMajorEventIndices: parsed.delta.occurredMajorEventIndices,
+            revealedClueIndices: parsed.delta.revealedClueIndices,
           });
         }
         persistCampaignContext(db, ctx);
@@ -2241,7 +2657,7 @@ function commitPendingGmResult(
         return threatShadowHasSignal(report) ? formatThreatShadowLog(report) : null;
       });
     }
-    return { campaignFinished: parsed.campaignFinished === true };
+    return { campaignFinished };
   } catch (error) {
     throw attachTrpgCallFailureMeta(error, { stage });
   }
@@ -2548,15 +2964,27 @@ function chargeTrpgCalls(
   }
 }
 
+function loadRoundPartyNames(db: Database.Database, roundId: number): Array<{ id: number; name: string }> {
+  return db
+    .prepare(
+      `SELECT p.id, p.display_name AS name
+       FROM trpg_rounds r
+       JOIN trpg_participants p ON p.campaign_id = r.campaign_id
+       WHERE r.id=?`
+    )
+    .all(roundId) as Array<{ id: number; name: string }>;
+}
+
 function loadActionsForGm(
   db: Database.Database,
   roundId: number,
   defs: { key: string; label: string }[]
 ) {
+  const partyNames = loadRoundPartyNames(db, roundId);
   return (
     db
       .prepare(
-        `SELECT s.id AS submission_id, s.participant_id, p.display_name AS name, p.kind, s.body, s.action_type, r.stat_key, r.d20, r.final_score, r.dc, r.tier,
+        `SELECT s.id AS submission_id, s.participant_id, p.display_name AS name, p.kind, s.body, s.action_type, s.accepted_items_json, r.stat_key, r.d20, r.final_score, r.dc, r.tier,
                 (
                   SELECT st.value FROM trpg_character_stats st
                   JOIN trpg_character_sheets sh ON sh.id = st.sheet_id
@@ -2575,6 +3003,7 @@ function loadActionsForGm(
       kind: string;
       body: string;
       action_type: string | null;
+      accepted_items_json: string | null;
       stat_key: string | null;
       stat_value: number | null;
       d20: number | null;
@@ -2599,7 +3028,12 @@ function loadActionsForGm(
       participantId: a.participant_id,
       name: a.name,
       participantKind,
-      body: resolved.canonicalAttempt,
+      body:
+        participantKind === "ai_character"
+          ? gmAiActionText(resolved.canonicalAttempt, resolved.presentationProse, {
+              otherNames: partyNames.filter((seat) => seat.id !== a.participant_id).map((seat) => seat.name),
+            })
+          : resolved.canonicalAttempt,
       needsCheck: frozen.needsCheck,
       checkReason: frozen.reason,
       statKey,
@@ -2609,6 +3043,8 @@ function loadActionsForGm(
       finalScore: a.final_score,
       dc: a.dc,
       tier: a.tier,
+      acceptedItems:
+        participantKind === "human" ? parseStoredAcceptedItems(a.accepted_items_json)?.items : undefined,
     };
   });
 }

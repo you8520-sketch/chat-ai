@@ -412,6 +412,45 @@ describe("admin ops GitHub scheduled automation projection", () => {
     assert.equal(incidents.some((row) => row.title.startsWith("Healthy")), false);
   });
 
+  it("hides failures of workflows that are no longer scheduled when the registry is known", () => {
+    const failing = (name: string, path: string, id: number) => ({
+      key: `${name}::${path}`,
+      name,
+      path,
+      latest: {
+        id,
+        name,
+        path,
+        status: "completed",
+        conclusion: "failure",
+        runNumber: id,
+        createdAt: "2026-09-23T08:00:00Z",
+        updatedAt: "2026-09-23T08:10:00Z",
+        htmlUrl: `https://github.com/example/run/${id}`,
+      },
+      history: [],
+    });
+    const projection = {
+      status: "OK" as const,
+      error: null,
+      groups: [
+        failing("Weekly Code Health audit", ".github/workflows/code-health-weekly-audit.yml", 1),
+        failing("Retired", ".github/workflows/retired.yml", 2),
+      ],
+    };
+    const registered = new Set([".github/workflows/code-health-weekly-audit.yml"]);
+
+    const filtered = projectGithubAutomationIncidents(projection, NOW, registered);
+    assert.equal(filtered.length, 1);
+    assert.equal(filtered[0]!.id.startsWith("github_automation:Weekly Code Health audit"), true);
+    assert.match(filtered[0]!.title, /주간 코드 상태 점검 · 실행 실패/);
+    assert.equal(filtered[0]!.severity, "critical");
+    assert.equal(filtered[0]!.state, "FAILURE");
+
+    assert.equal(projectGithubAutomationIncidents(projection, NOW).length, 2);
+    assert.equal(projectGithubAutomationIncidents(projection, NOW, new Set()).length, 2);
+  });
+
   it("does not invent incidents when the GitHub projection is unavailable", () => {
     assert.deepEqual(
       projectGithubAutomationIncidents({

@@ -13,12 +13,8 @@ import {
 import JsxComponentSandbox, { type JsxSandboxStatus } from "@/components/JsxComponentSandbox";
 import type { JsxTrpgActionDraftRequest, JsxTrpgSelectedStatRequest } from "@/lib/jsxComponent/hostBridge";
 import { JSX_SANDBOX_AUTO_HEIGHT_MIN_PX } from "@/lib/jsxComponent/limits";
-import {
-  TRPG_VISIBLE_ACTION_TYPES,
-  actionTypeLabelKo,
-  isTrpgVisibleActionType,
-  type TrpgActionType,
-} from "@/lib/trpg/actionTypes";
+import { actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
+import { trpgRollOutcomeLabel } from "@/lib/trpg/actionCardUi";
 import {
   RECOVERY_DISCOVERY_HINT,
   SAFE_REST_COOLDOWN_HINT,
@@ -46,7 +42,6 @@ import {
   type TrpgCommandDockOcclusion,
 } from "@/lib/trpg/commandDock";
 import { partyDetailedSheetCards, viewerSelfSheetCard } from "@/lib/trpg/partySheetPresentation";
-import { statModifier } from "@/lib/trpg/stats";
 import { replyStanceLabelKo, type TrpgInputOrigin, type TrpgReplySuggestion } from "@/lib/trpg/replySuggestionShared";
 import {
   compactConditions,
@@ -432,6 +427,8 @@ function ActionMode({
   onSendAction,
   onClearExplorationQueue,
   explorationSendReady = false,
+  acceptItemNames = [],
+  onToggleAcceptItem,
   suggestionsRegionId,
   suggestionsRegionRef,
 }: {
@@ -458,8 +455,13 @@ function ActionMode({
   onSendAction: () => void;
   onClearExplorationQueue?: () => void;
   explorationSendReady?: boolean;
+  acceptItemNames?: readonly string[];
+  onToggleAcceptItem?: (name: string) => void;
 }) {
   const viewerId = snap.viewerParticipantId;
+  const itemOffers = snap.myItemOffers;
+  const draftLocked = snap.myDraft?.locked === true;
+  const acceptedNames = draftLocked ? (snap.myDraft?.acceptedItems ?? []) : acceptItemNames;
   const effectLabels = (snap.ongoingEffects ?? [])
     .filter((effect) => effect.participantId === viewerId)
     .map((effect) => effect.label);
@@ -477,74 +479,15 @@ function ActionMode({
   const rest = snap.safeRest;
   const showRest = Boolean(rest?.available && hp < maxHp);
   const showHint = snap.showRecoveryHint === true;
-  const explicitStat = snap.statDefs.some((def) => def.key === selectedStat) ? selectedStat : null;
+  const myRoll = snap.currentRolls.find((roll) => roll.participantId === viewerId) ?? null;
+  const adjudication = viewerId != null ? snap.participantAdjudicationOutcomes?.[viewerId] : undefined;
+  const rollStat = myRoll ? snap.statDefs.find((def) => def.key === myRoll.statKey) : undefined;
 
   return (
     <div data-trpg-next-action>
       <p className="mb-3 text-sm text-zinc-400">
-        세계 안에서 무엇을 할지 적으세요. 유저끼리 대화는 「유저 채팅」입니다.
+        세계 안에서 무엇을 할지 적으세요. 능력치와 주사위는 서버가 정합니다. 유저끼리 대화는 「유저 채팅」입니다.
       </p>
-      {!isTrpgVisibleActionType(actionType) ? (
-        <p className="mb-2 text-xs text-zinc-400">선택한 유형: {actionTypeLabelKo(actionType)}</p>
-      ) : null}
-      <div className="mb-3" data-trpg-stat-selector>
-        <p className="mb-1.5 text-xs text-zinc-500">판정 능력치</p>
-        <div className="flex flex-wrap gap-1.5">
-          <button
-            type="button"
-            data-trpg-stat-choice="auto"
-            aria-pressed={explicitStat == null}
-            onClick={() => onSelectedStatChange(null)}
-            className={`inline-flex min-h-11 items-center rounded-full px-3 text-xs font-semibold ${
-              explicitStat == null
-                ? "bg-violet-600 text-white"
-                : "border border-white/10 bg-white/5 text-zinc-300"
-            }`}
-          >
-            자동
-          </button>
-          {snap.statDefs.map((def) => {
-            const value = selfSheet?.stats[def.key];
-            const mod = typeof value === "number" ? statModifier(value) : null;
-            const selected = explicitStat === def.key;
-            const caption =
-              typeof value === "number" && mod != null
-                ? `${def.label} ${value} (${mod >= 0 ? `+${mod}` : String(mod)})`
-                : def.label;
-            return (
-              <button
-                key={def.key}
-                type="button"
-                data-trpg-stat-choice={def.key}
-                aria-pressed={selected}
-                onClick={() => onSelectedStatChange(def.key)}
-                className={`inline-flex min-h-11 items-center rounded-full px-3 text-xs font-semibold ${
-                  selected ? "bg-violet-600 text-white" : "border border-white/10 bg-white/5 text-zinc-300"
-                }`}
-              >
-                {caption}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      <div className="mb-3 flex flex-wrap gap-1.5">
-        {TRPG_VISIBLE_ACTION_TYPES.map((kind) => (
-          <button
-            key={kind}
-            type="button"
-            data-trpg-action-chip={kind}
-            onClick={() => onActionTypeChange(kind)}
-            className={`inline-flex min-h-11 items-center rounded-full px-3 text-xs font-semibold ${
-              actionType === kind
-                ? "bg-violet-600 text-white"
-                : "border border-white/10 bg-white/5 text-zinc-300"
-            }`}
-          >
-            {actionTypeLabelKo(kind)}
-          </button>
-        ))}
-      </div>
       {showHint ? <p className="mb-2 text-[10px] leading-4 text-zinc-500">{RECOVERY_DISCOVERY_HINT}</p> : null}
       {showHint && rest?.blockedReason === "cooldown" ? (
         <p className="mb-2 text-[10px] leading-4 text-zinc-500">{SAFE_REST_COOLDOWN_HINT}</p>
@@ -597,6 +540,46 @@ function ActionMode({
       {showRest && treatable ? (
         <p className="mb-2 text-[10px] leading-4 text-zinc-500">{SAFE_REST_ONGOING_NOTICE}</p>
       ) : null}
+      {itemOffers && itemOffers.items.length > 0 ? (
+        <div className="mb-3" data-trpg-item-offers>
+          <p className="mb-1.5 text-xs text-zinc-500">
+            {draftLocked ? "받기로 한 물건" : "제안받은 물건 · 받을 것만 고르세요"}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {itemOffers.items.map((item) => {
+              const selected = acceptedNames.includes(item.name);
+              return (
+                <button
+                  key={item.name}
+                  type="button"
+                  data-trpg-item-offer={item.name}
+                  aria-pressed={selected}
+                  disabled={busy || draftLocked || !actionInputVisible}
+                  onClick={() => onToggleAcceptItem?.(item.name)}
+                  className={`inline-flex min-h-11 items-center rounded-full px-3 text-xs font-semibold disabled:opacity-60 ${
+                    selected
+                      ? "bg-emerald-600 text-white"
+                      : "border border-white/10 bg-white/5 text-zinc-300"
+                  }`}
+                >
+                  {selected ? "✓ " : ""}
+                  {item.name}
+                  {item.held > 0 ? ` · 보유 ${item.held}` : ""}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+      {myRoll ? (
+        <p className="mb-2 text-xs text-zinc-300" data-trpg-server-check>
+          {`서버 판정 · ${rollStat?.label ?? myRoll.statKey} · ${trpgRollOutcomeLabel(myRoll.tier)}`}
+        </p>
+      ) : adjudication === "no_roll" ? (
+        <p className="mb-2 text-xs text-zinc-400" data-trpg-server-check>
+          서버 판정 · 주사위 없음
+        </p>
+      ) : null}
       <textarea
         value={actionBody}
         onChange={(event) => onActionBodyChange(event.target.value)}
@@ -647,7 +630,11 @@ function ActionMode({
         </button>
         <button
           type="button"
-          disabled={busy || !actionInputVisible || (!actionBody.trim() && !explorationSendReady)}
+          disabled={
+            busy ||
+            !actionInputVisible ||
+            (!actionBody.trim() && !explorationSendReady && acceptItemNames.length === 0)
+          }
           onClick={onSendAction}
           className="inline-flex min-h-11 items-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
         >
@@ -742,6 +729,8 @@ export default function TrpgCommandDock({
   onSendParty,
   onClearExplorationQueue,
   explorationSendReady = false,
+  acceptItemNames = [],
+  onToggleAcceptItem,
   onSetInventoryEquipped,
   onOcclusionChange,
   sheetJsxCompiled = null,
@@ -772,6 +761,8 @@ export default function TrpgCommandDock({
   onSendParty: () => void;
   onClearExplorationQueue?: () => void;
   explorationSendReady?: boolean;
+  acceptItemNames?: readonly string[];
+  onToggleAcceptItem?: (name: string) => void;
   onSetInventoryEquipped?: (entryId: string, equipped: boolean, slot?: TrpgEquipmentSlot | null) => void;
   onOcclusionChange: (occlusion: TrpgCommandDockOcclusion) => void;
   /** Site-owned sheet compiled by the server through the shared JSX compiler; null → native. */
@@ -971,11 +962,6 @@ export default function TrpgCommandDock({
     setView((current) => openTrpgCommandDockMode(current, "action", presentationBusy));
   }
 
-  function selectStat(key: string) {
-    onSelectedStatChange(key);
-    setView((current) => openTrpgCommandDockMode(current, "action", presentationBusy));
-  }
-
   const selfSurface = selfCard
     ? buildTrpgSheetSurface(selfCard, {
         statDefs: snap.statDefs,
@@ -1106,6 +1092,8 @@ export default function TrpgCommandDock({
                     onSendAction={onSendAction}
                     onClearExplorationQueue={onClearExplorationQueue}
                     explorationSendReady={explorationSendReady}
+                    acceptItemNames={acceptItemNames}
+                    onToggleAcceptItem={onToggleAcceptItem}
                     suggestionsRegionId={suggestionsRegionId}
                     suggestionsRegionRef={suggestionsRegionRef}
                   />
@@ -1125,7 +1113,7 @@ export default function TrpgCommandDock({
                       renderer={selfRenderer}
                       onJsxFailed={onSheetJsxFailed}
                       onFillAction={fillAction}
-                      onSelectStat={selectStat}
+                      onSelectStat={null}
                     />
                   </div>
                 ) : (

@@ -44,6 +44,8 @@ import {
 import type { MemoryTier } from "./memory-types";
 import {
   encodeScopePayload,
+  normalizeSummaryScope,
+  resolveSharedPreviousBranchState,
 } from "./memory-summary-scope";
 import { ensureMemorySummaryMigrationsTable } from "./memory-summary-migration-schema";
 import type { DialogueTurn } from "@/lib/hybridMemory";
@@ -666,12 +668,19 @@ export async function migrateChatSummariesToFiveTurn(opts: {
       turn: { user: meta.user, assistant: meta.assistant } satisfies DialogueTurn,
       userMessageId: meta.userMessageId,
     }));
-    const previousWasNoncanonOrBranch = shadowState.priorRecords.some(
-      (record) =>
-        !record.inactive &&
-        (record.summaryKind === "noncanon" ||
-          (record.summaryKind === "branch_canon" && record.branchStatus === "active"))
-    );
+    const previousWasNoncanonOrBranch = resolveSharedPreviousBranchState({
+      priorTurns: eligible
+        .filter((turn) => turn.turnNumber < batch.turnStart)
+        .map((turn) => ({ turnNumber: turn.turnNumber, user: turn.user })),
+      sealedRecords: shadowState.priorRecords.map((record) => ({
+        turnStart: record.turnStart,
+        turnEnd: record.turnEnd,
+        summaryKind: normalizeSummaryScope(record.summaryKind),
+        branchStatus: record.branchStatus,
+        inactive: record.inactive,
+      })),
+      beforeTurnNumber: batch.turnStart,
+    });
     let composed;
     try {
       composed = await composeBatchScopePayload({

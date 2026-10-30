@@ -2,6 +2,9 @@ import type { GlobalProjectionKind } from "./memory-global-projection";
 import { RAW_HISTORY_COMPLETE_EXCHANGES, ROLLING_SUMMARY_INTERVAL } from "./memory-constants";
 import {
   listPromptInjectibleMemoryRecords,
+  SUMMARY_ITEM_ROLE_HINT,
+  loadTurnsForSummaryRoleReconciliation,
+  reconcilePromptMemoryRecordBody,
   resolveManualGlobalMediumDelivery,
   resolvePromptInjectibleMemoryRecordBody,
   type MemoryRecordView,
@@ -91,6 +94,31 @@ function resolveMediumTermBlockSources(
   });
 }
 
+function reconcileMediumTermSources(
+  chatId: number,
+  sources: readonly MediumTermBlockSource[]
+): MediumTermBlockSource[] {
+  const hinted = sources.filter(
+    (source) =>
+      !source.record.userEdited &&
+      !source.record.inactive &&
+      SUMMARY_ITEM_ROLE_HINT.test(source.body)
+  );
+  const turns = loadTurnsForSummaryRoleReconciliation(
+    chatId,
+    hinted.map((source) => source.body),
+    hinted.map((source) => ({
+      turnStart: source.record.turnStart,
+      turnEnd: source.record.turnEnd,
+    }))
+  );
+  if (turns.length === 0) return [...sources];
+  return sources.map((source) => {
+    const body = reconcilePromptMemoryRecordBody(source.record, source.body, turns);
+    return body === source.body ? source : { ...source, body };
+  });
+}
+
 /**
  * Medium-term read-only projection from chat_turn_summaries.
  * Owns newest sealed blocks outside RAW — does not write or compact.
@@ -103,12 +131,15 @@ export function buildMediumTermMemoryBlock(opts: {
   /** Last completed turn a manual Global covers — Medium delivers only what comes after it. */
   manualBoundaryTurn?: number | null;
 }): MediumTermMemoryAssembly {
-  const eligible = resolveMediumTermBlockSources(
-    listPromptInjectibleMemoryRecords(opts.chatId, {
-      excludeTurnStartGte: opts.excludeTurnStartGte,
-      excludeAssistantMessageId: opts.excludeAssistantMessageId,
-    }),
-    opts.manualBoundaryTurn ?? null
+  const eligible = reconcileMediumTermSources(
+    opts.chatId,
+    resolveMediumTermBlockSources(
+      listPromptInjectibleMemoryRecords(opts.chatId, {
+        excludeTurnStartGte: opts.excludeTurnStartGte,
+        excludeAssistantMessageId: opts.excludeAssistantMessageId,
+      }),
+      opts.manualBoundaryTurn ?? null
+    )
   );
   if (eligible.length === 0 || opts.blockCount <= 0) {
     return EMPTY_MEDIUM_TERM;

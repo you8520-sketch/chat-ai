@@ -21,6 +21,7 @@ import {
 import {
   composeOfficialCreatorComment,
   composeOfficialPublicDescription,
+  evaluateOfficialCharacterPronoun,
   evaluateOfficialCreatorComment,
   evaluateOfficialPlayerGenderNeutral,
   evaluateOfficialPublicDescription,
@@ -235,20 +236,119 @@ describe("official detailed intro + creator comment", () => {
       assert.deepEqual(qa.errors, [], `${file.draftKey}: ${JSON.stringify(qa.errors)}`);
       assert.match(draft.greeting, /당신/);
     }
-    assert.ok(
-      evaluateOfficialPlayerGenderNeutral({
-        greeting: "문가에 선 왕자비를 향해 손을 내밀었다.",
-      }).errors.some((issue) => issue.code === "official_player_gender_locked")
-    );
-    assert.ok(
-      evaluateOfficialPlayerGenderNeutral({
-        description: "당신은 그 남자 플레이어로 시작한다.",
-      }).errors.some((issue) => issue.code === "official_player_gender_locked")
-    );
+    const titledPlayer = evaluateOfficialPlayerGenderNeutral({
+      greeting: "문가에 선 왕자비를 향해 손을 내밀었다.",
+    });
+    assert.ok(titledPlayer.errors.some((issue) => issue.code === "official_player_gender_locked"));
+    assert.match(titledPlayer.errors.map((issue) => issue.message).join("\n"), /왕자비/);
+    const genderedPlayer = evaluateOfficialPlayerGenderNeutral({
+      description: "당신은 그 남자 플레이어로 시작한다.",
+    });
+    assert.ok(genderedPlayer.errors.some((issue) => issue.code === "official_player_gender_locked"));
+    assert.match(genderedPlayer.errors.map((issue) => issue.message).join("\n"), /남자 플레이어/);
     const prompt = fs.readFileSync(path.join(process.cwd(), "src/lib/officialSupply/authorPrompts.ts"), "utf8");
     assert.match(prompt, /오프닝은 하나다/);
     assert.match(prompt, /아가씨\/도련님\/왕자비\/신부/);
     assert.doesNotMatch(prompt, /에피소드를 만들|N개의 에피소드|episode picker/);
+  });
+
+  it("keeps character and NPC gender while blocking a player gender or titled role", () => {
+    const passes = [
+      "여성인 그녀는 당신을 조용히 바라본다.",
+      "그는 남성이다. 당신은 이름을 묻지 않는다.",
+      "당신은 남성 단골 손님의 빈 자리를 본다.",
+      "여자 동료가 당신을 불렀다.",
+      "당신은 남자친구의 메시지를 읽지 않는다.",
+      "단골 아가씨가 당신을 웃으며 맞이한다.",
+      "아가씨가 당신을 맞이한다.",
+      "그녀는 골목의 신부로 불린다. 당신은 이름을 묻는다.",
+      "그는 도련님으로 자랐다. 당신은 문 앞에 서 있다.",
+      "성당의 신부님은 당신을 문 앞에서 맞이한다.",
+    ];
+    for (const description of passes) {
+      assert.deepEqual(
+        evaluateOfficialPlayerGenderNeutral({ description }).errors,
+        [],
+        description
+      );
+    }
+    const blocks = [
+      ["당신은 남성 경찰관입니다.", /남성 경찰관/],
+      ["당신은 남성 경찰관으로 현장에 들어온다.", /남성 경찰관으로/],
+      ["당신은 여성 의사로 병원에 들어온다.", /여성 의사로/],
+      ["당신은 여자 직원으로 근무합니다.", /여자 직원으로/],
+      ["당신은 여성 의사다.", /여성 의사/],
+      ["아가씨가 당신입니다.", /아가씨가 당신/],
+      ["당신은 여자로 이 가게에 들어온다.", /여자/],
+      ["여자인 당신은 카운터 앞에 선다.", /여자인 당신/],
+      ["당신은 그 남자다.", /남자/],
+      ["당신은 여성이 아니다.", /여성/],
+      ["당신은 신부로 입장한다.", /신부/],
+      ["그녀는 당신을 아가씨로 불렀다.", /아가씨/],
+      ["문가에 선 왕자비를 향해 손을 내밀었다.", /왕자비/],
+      ["아가씨와 이졸데의 약혼이 공시됐다.", /아가씨/],
+      ["당신은 아가씨가 아니다.", /아가씨/],
+      ["당신은 남자친구다.", /남자친구/],
+      ["남자친구인 당신은 카운터 앞에 선다.", /남자친구인 당신/],
+    ] as const;
+    for (const [description, excerpt] of blocks) {
+      const qa = evaluateOfficialPlayerGenderNeutral({ description });
+      assert.ok(qa.errors.some((issue) => issue.code === "official_player_gender_locked"), description);
+      assert.match(qa.errors.map((issue) => issue.message).join("\n"), excerpt, description);
+    }
+  });
+
+  it("flags a female public 그는 and a male public 그녀, and leaves other pronouns", () => {
+    assert.ok(evaluateOfficialCharacterPronoun("female", { description: "그는 주민들의 영수증을 읽는다." }).errors.some((e) => e.code === "official_character_pronoun"));
+    assert.deepEqual(evaluateOfficialCharacterPronoun("female", { description: "그녀는 주민들의 영수증을 읽는다." }).errors, []);
+    assert.ok(evaluateOfficialCharacterPronoun("male", { description: "그녀는 장부를 덮지 않았다." }).errors.some((e) => e.code === "official_character_pronoun"));
+    assert.deepEqual(evaluateOfficialCharacterPronoun("male", { description: "그는 장부를 덮지 않았다." }).errors, []);
+    assert.deepEqual(evaluateOfficialCharacterPronoun("other", { description: "그는 이름을 밝히지 않는다." }).errors, []);
+    assert.deepEqual(evaluateOfficialCharacterPronoun("female", { description: "그를 먼저 확인한 그녀는 펜을 내려놓았다." }).errors, []);
+    const choi = JSON.parse(
+      fs.readFileSync(
+        path.join(process.cwd(), "docs/official-supply/reviews/g5-1-2026-10-28/candidates/g5-modern-comedy-c/bible.assembled.json"),
+        "utf8"
+      )
+    ) as OfficialCharacterBible;
+    const choiDescription = [choi.publicProfile.description, choi.publicProfile.detailedDescription ?? ""].join("\n");
+    const flagged = evaluateOfficialCharacterPronoun(choi.identity.gender, { description: choiDescription });
+    assert.deepEqual(flagged.errors.map((e) => e.code), ["official_character_pronoun"]);
+    const flaggedWithName = evaluateOfficialCharacterPronoun(choi.identity.gender, {
+      name: choi.identity.name,
+      description: choiDescription,
+    });
+    assert.deepEqual(flaggedWithName.errors.map((e) => e.code), ["official_character_pronoun"]);
+  });
+
+  it("lets 박서윤's 그는 refer to 태식 and still blocks a clear protagonist mismatch", () => {
+    const description = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/officialSupply/fixtures/g5-3f-park-seoyoon-public-description.txt"),
+      "utf8"
+    );
+    const passed = evaluateOfficialCharacterPronoun("female", { name: "박서윤", description });
+    assert.deepEqual(passed.errors, []);
+    const clearFemale = evaluateOfficialCharacterPronoun("female", {
+      name: "박서윤",
+      description: "박서윤은 장부를 펼쳤다. 그는 주민들의 영수증을 읽는다.",
+    });
+    assert.deepEqual(clearFemale.errors.map((issue) => issue.code), ["official_character_pronoun"]);
+    const clearMale = evaluateOfficialCharacterPronoun("male", {
+      name: "김도윤",
+      description: "김도윤은 장부를 덮었다. 그녀는 한숨을 쉬었다.",
+    });
+    assert.deepEqual(clearMale.errors.map((issue) => issue.code), ["official_character_pronoun"]);
+    const otherWoman = evaluateOfficialCharacterPronoun("male", {
+      name: "김도윤",
+      description: "어머니 한영은 주방을 닦았다. 그녀는 행주를 접었다.",
+    });
+    assert.deepEqual(otherWoman.errors, []);
+    const uncertain = evaluateOfficialCharacterPronoun("female", {
+      name: "박서윤",
+      description: "민수는 영수증을 들고 왔다. 그는 숫자를 읽었다.",
+    });
+    assert.deepEqual(uncertain.errors.map((issue) => issue.code), ["official_character_pronoun_uncertain"]);
+    assert.match(uncertain.errors[0]?.message ?? "", /민수는 영수증을 들고 왔다/);
   });
 
   it("form body keeps the compiled intro and adds creator_comment without changing publish owner", () => {
@@ -289,6 +389,15 @@ describe("official detailed intro + creator comment", () => {
     });
     assert.match(composed, new RegExp(`\\[${OFFICIAL_PUBLIC_INTRO_SECTIONS.play}\\]`));
     assert.doesNotMatch(composed, new RegExp(`\\[${OFFICIAL_PUBLIC_INTRO_SECTIONS.relation}\\]`));
+  });
+
+  it("accepts the bare name when the name field carries a `본명 (별명)` alias, and still requires the name", () => {
+    const file = sampleChars()[0]!;
+    const draft = compileOfficialDraftFromBible(file.bible, compileKeys(file));
+    const bare = draft.name;
+    assert.deepEqual(evaluateOfficialPublicDescription(draft.description, `${bare} (별명)`).errors, []);
+    const missing = evaluateOfficialPublicDescription(draft.description, "없는이름 (별명)");
+    assert.ok(missing.errors.some((issue) => issue.code === "public_intro_name_missing"), JSON.stringify(missing.errors));
   });
 
   it("public intro evaluator rejects a one-paragraph pitch", () => {

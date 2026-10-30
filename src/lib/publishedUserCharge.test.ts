@@ -54,6 +54,17 @@ function completeCharge(modelId: string, prompt: number, output: number, cache?:
 }
 
 describe("publishedUserCharge — golden fixtures @1530/2%", () => {
+  it("Sol 40% target margin → 254P for Teapot comparable usage @1530/2%", () => {
+    const r = completeCharge("gpt-6.1-sol", 31_509, 3_463);
+    assert.equal(r.status, "complete");
+    if (r.status === "complete") {
+      assert.equal(r.snapshot.targetMargin, 0.4);
+      assert.equal(r.snapshot.minimumMarginFloor, 0.3);
+      assert.equal(r.snapshot.pricingVersion, 2);
+      assert.equal(r.snapshot.finalPoints, 254);
+    }
+  });
+
   it("G37 A → 48P", () => {
     const r = completeCharge("gemini-3.7-flash", 24_952, 2_367);
     assert.equal(r.status, "complete");

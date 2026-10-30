@@ -388,6 +388,37 @@ export function adultOffStoredUsageApprovesText(usage: unknown, text: string): b
   return adultOffStoredTextDisposition(usage, text) === "approved";
 }
 
+/**
+ * 채팅 생성 시 넣은 캐릭터 인사말 원본. 사용자 PATCH는 alternates JSON을 남긴다.
+ * (assistant 수동 편집과 같은 writer — Luna 승인 해시는 만들지 않는다.)
+ */
+export function greetingRowIsCharacterSuppliedCopy(
+  messageModel: string | null | undefined,
+  storedAlternates: string | null | undefined
+): boolean {
+  if (messageModel !== "greeting") return false;
+  const raw = storedAlternates?.trim() ?? "";
+  return raw === "" || raw === "[]";
+}
+
+/**
+ * Assistant 본문 표시 여부. Luna 출력 가드는 AI 생성 턴(SSE·저장 usage 증명)용이다.
+ * 검수된 캐릭터 인사말 원본(alternates 없음)만 read 면제. 제한 해시는 항상 숨긴다.
+ */
+export function adultOffStoredAssistantBodyVisible(
+  usage: unknown,
+  text: string,
+  messageModel: string | null | undefined,
+  storedAlternates?: string | null
+): boolean {
+  const disposition = adultOffStoredTextDisposition(usage, text);
+  if (disposition === "restricted") return false;
+  if (greetingRowIsCharacterSuppliedCopy(messageModel, storedAlternates)) {
+    return Boolean(text.trim());
+  }
+  return disposition === "approved";
+}
+
 export type AdultOffDeliveryVariant = {
   content?: string;
   usage?: unknown;
@@ -654,6 +685,10 @@ export function presentAdultOffStoredRead<
   suggestedReplies?: readonly { text?: string }[] | null;
   /** 보조 답장 레코드의 승인 증명. 본문 판정에는 쓰지 않는다. */
   suggestedRepliesProof?: unknown;
+  /** messages.model — greeting 원본(alternates 없음)만 read 면제. */
+  messageModel?: string | null;
+  /** messages.alternates 원문 — normalize 전에 greeting 편집 여부 판별. */
+  storedAlternates?: string | null;
 }): AdultOffStoredReadPresentation<T, W> & { suggestedRepliesWithheld: boolean } {
   const suggestedReplies = input.suggestedReplies ? [...input.suggestedReplies] : [];
   if (!input.applyGuard) {
@@ -680,14 +715,19 @@ export function presentAdultOffStoredRead<
 
   const variants = input.variants.map((variant) => {
     const stored = typeof variant.content === "string" ? variant.content : "";
-    const disposition = adultOffStoredTextDisposition(variant.usage, stored);
+    const bodyVisible = adultOffStoredAssistantBodyVisible(
+      variant.usage,
+      stored,
+      input.messageModel,
+      input.storedAlternates
+    );
     const widgetTexts = collectStatusWidgetVisibleTexts(variant.statusWidgetValues);
     const widgetApproved =
       widgetTexts.length === 0 || adultOffTextsAreApproved(variant.usage, widgetTexts);
-    if (disposition === "approved" && widgetApproved) return variant;
+    if (bodyVisible && widgetApproved) return variant;
     return {
       ...variant,
-      content: disposition === "approved" ? stored : "",
+      content: bodyVisible ? stored : "",
       statusWidgetValues: widgetApproved ? variant.statusWidgetValues : null,
     };
   });
@@ -696,7 +736,13 @@ export function presentAdultOffStoredRead<
   const activeUsage = active?.usage;
   const candidate = activeStored.trim() ? activeStored : input.rowContent;
   const activeDisposition = adultOffStoredTextDisposition(activeUsage, candidate);
-  const content = activeDisposition === "approved" ? candidate : "";
+  const bodyVisible = adultOffStoredAssistantBodyVisible(
+    activeUsage,
+    candidate,
+    input.messageModel,
+    input.storedAlternates
+  );
+  const content = bodyVisible ? candidate : "";
   const messageWidgetTexts = collectStatusWidgetVisibleTexts(input.statusWidgetValues);
   const widgetApproved =
     messageWidgetTexts.length === 0 || adultOffTextsAreApproved(activeUsage, messageWidgetTexts);
@@ -713,7 +759,7 @@ export function presentAdultOffStoredRead<
     statusWidgetValues: widgetApproved ? (input.statusWidgetValues ?? null) : null,
     suggestedReplies: repliesApproved ? suggestedReplies : [],
     suggestedRepliesWithheld,
-    withheld: activeDisposition !== "approved" || !widgetApproved || !repliesApproved,
+    withheld: !bodyVisible || !widgetApproved || !repliesApproved,
   };
 }
 
@@ -760,94 +806,6 @@ export function adultOffActiveVariantUsage(row: {
     active_variant: row.active_variant,
   });
   return variants[activeVariant]?.usage ?? null;
-}
-
-export type AdultOffInspectionOutcome = "approved" | "restricted" | "unresolved";
-
-/**
- * 기존 usage JSON에 판정 해시만 더한다. 본문·정산 필드는 건드리지 않는다.
- * unresolved 는 기록을 만들지 않는다. 같은 정책의 기존 해시는 다시 쓰지 않는다.
- * 정책 버전이 다르면 이전 승인·제한 해시를 현재 기준으로 옮기지 않는다.
- */
-export function applyAdultOffStoredInspection(
-  usage: Record<string, unknown> | null,
-  text: string,
-  outcome: AdultOffInspectionOutcome
-): { usage: Record<string, unknown>; wrote: boolean } {
-  if (!text.trim() || outcome === "unresolved") {
-    return { usage: usage ?? {}, wrote: false };
-  }
-  const prior = usage ?? {};
-  const priorGuard =
-    prior.adultOffGuard && typeof prior.adultOffGuard === "object"
-      ? { ...(prior.adultOffGuard as Record<string, unknown>) }
-      : {};
-  const samePolicy = priorGuard.policyVersion === ADULT_OFF_GUARD_POLICY_VERSION;
-  const approved = samePolicy ? adultOffHashList(priorGuard.approvedTextHashes) : [];
-  const restricted = samePolicy ? adultOffHashList(priorGuard.restrictedTextHashes) : [];
-  const hash = adultOffApprovedTextHash(text);
-  const target = outcome === "approved" ? approved : restricted;
-  const other = outcome === "approved" ? restricted : approved;
-  if (samePolicy && target.includes(hash) && !other.includes(hash)) {
-    return { usage: prior, wrote: false };
-  }
-  const nextTarget = target.includes(hash) ? target : [...target, hash];
-  const nextOther = other.filter((item) => item !== hash);
-  return {
-    wrote: true,
-    usage: {
-      ...prior,
-      adultOffGuard: {
-        ...priorGuard,
-        policyVersion: ADULT_OFF_GUARD_POLICY_VERSION,
-        approvedTextHashes: outcome === "approved" ? nextTarget : nextOther,
-        restrictedTextHashes: outcome === "restricted" ? nextTarget : nextOther,
-        finalStatus: outcome === "approved" ? "approved" : "blocked",
-      },
-    },
-  };
-}
-
-export type AdultOffInspectionTarget = {
-  messageId: number;
-  variantIndex: number;
-  active: boolean;
-  text: string;
-};
-
-/** 비어 있지 않은 assistant variant. 사용자 GET에서는 호출하지 않는다. */
-export function listAdultOffInspectionTargets(
-  rows: readonly {
-    id: number;
-    role: string;
-    content: string;
-    model?: string | null;
-    usage?: string | null;
-    alternates?: string | null;
-    active_variant?: number | null;
-  }[]
-): AdultOffInspectionTarget[] {
-  const targets: AdultOffInspectionTarget[] = [];
-  for (const row of rows) {
-    if (row.role !== "assistant") continue;
-    const { variants, activeVariant } = normalizeMessageVariants({
-      content: row.content,
-      model: row.model ?? "",
-      usage: row.usage ?? null,
-      alternates: row.alternates ?? null,
-      active_variant: row.active_variant ?? null,
-    });
-    variants.forEach((variant, index) => {
-      if (!variant.content.trim()) return;
-      targets.push({
-        messageId: row.id,
-        variantIndex: index,
-        active: index === activeVariant,
-        text: variant.content,
-      });
-    });
-  }
-  return targets;
 }
 
 /** 본문을 실을 수 없는 진행·식별·오류 이벤트만 true. 그 외는 모두 본문 후보로 본다. */

@@ -61,6 +61,7 @@ import {
 } from "@/lib/interactiveUserOwnershipLock";
 import { stripRpMetaPreamble } from "@/lib/narrativeRules";
 import { buildAdvancedProseNsfwGuidelines } from "@/lib/advancedProseNsfwGuidelines";
+import { frameCoerciveCncDirectorUserMessage } from "@/lib/cncFictionPromptFraming";
 import { buildCreatorNarrationStyleBlock } from "@/lib/creatorNarrationStyle";
 import { buildProseStyleXmlBundle } from "@/lib/proseStyleXmlBundle";
 import { resolveProseStyleSection } from "@/lib/proseStyleResolver";
@@ -1296,9 +1297,13 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
 
   const historyBudget = resolveHistoryTokenBudget(input.modelId, compatibleProvider);
   const maxPayload = resolveMaxPayloadInputTokens(input.modelId);
+  const currentUserForWire = frameCoerciveCncDirectorUserMessage(input.currentUserMessage, {
+    nsfwEnabled: !!input.nsfw,
+    activeConsentMode: input.activeConsentMode,
+  });
   const formattedUser = input.isContinue
-    ? input.currentUserMessage.trim()
-    : formatUserMessageForPrompt(input.currentUserMessage, hasMindReading);
+    ? currentUserForWire.trim()
+    : formatUserMessageForPrompt(currentUserForWire, hasMindReading);
   // Provider-agnostic: parse labels + CURRENT USER INPUT wrapper on all models (interactive too).
   // Pass the resolved persona display name (authoritative runtime user-actor name) so the
   // interactive ownership recency lock can name [B] dynamically — no hard-coded persona names.

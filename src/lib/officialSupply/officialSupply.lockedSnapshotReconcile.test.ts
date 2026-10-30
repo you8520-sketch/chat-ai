@@ -29,7 +29,7 @@ const CURRENT_PLAN_PATH = path.join(process.cwd(), "src/lib/officialSupply/pilot
 const DRAFT_KEY = "pilot-rf-v4-02";
 const SIBLING_KEY = "pilot-rf-v4-99";
 const WORLD_KEY = "pilot-rf-erendel";
-const ENV = { NEXTAUTH_URL: "https://hav.chat", OPENAI_IMAGE_MODEL: "gpt-image-2.5-sunburst" } as NodeJS.ProcessEnv;
+const ENV = { NEXTAUTH_URL: "https://hav.chat", OFFICIAL_ASSET_IMAGE_MODEL: "gpt-image-2.5-sunburst" } as unknown as NodeJS.ProcessEnv;
 const APPROVED_TEXT_HASH = "6ff02833cfd45a542866aa1afa749486d94362eff5358e10f995b8f77fabd5fd";
 
 type StaleFixture = {

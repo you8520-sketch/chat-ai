@@ -1,4 +1,5 @@
 import type { TrpgActionType } from "./actionTypes";
+import { committedItemConsumptionSpans, consumptionObjectSpan } from "./actionSemantics";
 
 const BASIC_FIRST_AID_RE =
   /응급처치|응급\s*처치|상처를\s*묶|상처를\s*압박|지혈|상처를\s*치료|first\s*aid/i;
@@ -8,7 +9,6 @@ const SAFE_REST_RE =
   /휴식한다|휴식하며|휴식을\s*취|안전한\s*곳에서[\s\S]{0,16}휴식|안전한\s*곳에서\s*쉰|야영하며\s*몸을\s*추스르|잠깐\s*숨을\s*돌린|숨을\s*돌린다|\brest\b/i;
 const TREATMENT_ITEM_NAME_RE =
   /구급키트|붕대|회복약|해독제|치료제|medkit|bandage|antidote|potion|포션/i;
-const ITEM_USE_RE = /사용|쓴다|꺼낸|바른|먹|투여|바르/i;
 const CANON_HEAL_RE = /치유 주문|회복 마법|힐링 스펠|대치유|healing (?:spell|magic)|회복 능력/i;
 
 export const CONTEXTUAL_FIRST_AID_DRAFT = "상처를 응급처치한다.";
@@ -51,19 +51,19 @@ export function mentionsHealingItem(body: string, extraKnown: readonly string[] 
   return extraKnown.some((item) => item.trim() && body.includes(item.trim()));
 }
 
-export function findExplicitTreatmentItem(
-  body: string,
+function itemNamedIn(
+  text: string,
   sourceInventory: readonly string[],
-  extraKnown: readonly string[] = []
+  extraKnown: readonly string[]
 ): string | null {
   for (const item of sourceInventory) {
     const name = item.trim();
     if (!name) continue;
-    if (body.includes(name) && (isTreatmentItemName(name) || extraKnown.includes(name))) {
+    if (text.includes(name) && (isTreatmentItemName(name) || extraKnown.includes(name))) {
       return name;
     }
   }
-  const mentioned = body.match(TREATMENT_ITEM_NAME_RE)?.[0];
+  const mentioned = text.match(TREATMENT_ITEM_NAME_RE)?.[0];
   if (!mentioned) return null;
   const found = sourceInventory.find(
     (row) => row.includes(mentioned) || mentioned.includes(row.trim())
@@ -71,14 +71,60 @@ export function findExplicitTreatmentItem(
   return found?.trim() || null;
 }
 
+export function findExplicitTreatmentItem(
+  body: string,
+  sourceInventory: readonly string[],
+  extraKnown: readonly string[] = []
+): string | null {
+  return itemNamedIn(body, sourceInventory, extraKnown);
+}
+
+function rightmostOwnedTreatmentItem(
+  text: string,
+  sourceInventory: readonly string[],
+  extraKnown: readonly string[]
+): string | null {
+  let bestName = "";
+  let bestIndex = -1;
+  for (const item of sourceInventory) {
+    const trimmed = item.trim();
+    if (!trimmed) continue;
+    if (!isTreatmentItemName(trimmed) && !extraKnown.includes(trimmed)) continue;
+    const index = text.lastIndexOf(trimmed);
+    if (index < 0) continue;
+    if (index > bestIndex || (index === bestIndex && trimmed.length > bestName.length)) {
+      bestName = trimmed;
+      bestIndex = index;
+    }
+  }
+  if (bestName) return bestName;
+  const mentioned = [...text.matchAll(new RegExp(TREATMENT_ITEM_NAME_RE.source, "gi"))].at(-1)?.[0];
+  if (!mentioned) return null;
+  const found = sourceInventory.find(
+    (row) => row.includes(mentioned) || mentioned.includes(row.trim())
+  );
+  return found?.trim() || null;
+}
+
+/** Item that is the object of a committed consumption predicate. Earlier mentions in the same clause are not spent. */
+export function findCommittedTreatmentItem(
+  body: string,
+  sourceInventory: readonly string[],
+  extraKnown: readonly string[] = []
+): string | null {
+  for (const span of committedItemConsumptionSpans(body)) {
+    const named = rightmostOwnedTreatmentItem(consumptionObjectSpan(span), sourceInventory, extraKnown);
+    if (named) return named;
+  }
+  return null;
+}
+
 export function isTreatmentItemIntent(
   body: string,
   sourceInventory: readonly string[] = [],
   extraKnown: readonly string[] = []
 ): boolean {
-  const item = findExplicitTreatmentItem(body, sourceInventory, extraKnown);
-  if (!item) return false;
-  return ITEM_USE_RE.test(body) || /사용한다|쓴다/.test(body);
+  return findCommittedTreatmentItem(body, sourceInventory, extraKnown) != null;
 }
 
 export function isStatusTreatmentOnly(body: string): boolean {
@@ -105,8 +151,8 @@ export function isHealingIntentAction(
     return isBasicFirstAidIntent(body);
   }
   if (isBasicFirstAidIntent(body)) return true;
-  const item = findExplicitTreatmentItem(body, sourceInventory, extraKnown);
-  if (item && isTreatmentItemIntent(body, sourceInventory, extraKnown) && isHpHealingItem(item)) return true;
+  const item = findCommittedTreatmentItem(body, sourceInventory, extraKnown);
+  if (item && isHpHealingItem(item)) return true;
   if (GENERIC_HEAL_RE.test(body) && (actionType === "support" || actionType === "use_item" || actionType === "free")) {
     return true;
   }

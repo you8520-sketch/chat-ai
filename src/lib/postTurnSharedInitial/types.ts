@@ -10,6 +10,13 @@ import type { RelationshipMetaDelta } from "@/lib/chatMemory";
 export const POST_TURN_SHARED_INITIAL_REQUEST_KIND = "background-post-turn-shared-initial";
 
 /**
+ * Independent episodic physical call. Prefix-matches the shared-initial kind so
+ * output budget and aux provenance owners stay unchanged, while the ledger
+ * `request_kind` stays distinguishable from the Shared Initial row.
+ */
+export const POST_TURN_EPISODIC_REQUEST_KIND = `${POST_TURN_SHARED_INITIAL_REQUEST_KIND}-episodic`;
+
+/**
  * Canonical post-turn inference owner modes. `relationship_only` = no status
  * widget consumer (status OFF), relationship consumer active.
  */
@@ -43,6 +50,8 @@ export type PostTurnSharedInitialInput = {
   previousCharacterValues?: StatusWidgetValues | null;
   previousUserValues?: StatusWidgetValues | null;
   primaryModelId: string;
+  /** Provider request kind override; defaults to the shared-initial kind. */
+  requestKind?: string;
   /**
    * Active consumers for this inference. Inactive sections are NOT requested in
    * the prompt envelope (no wasted output tokens) and are not parsed as results.

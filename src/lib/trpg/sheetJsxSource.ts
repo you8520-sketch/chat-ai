@@ -29,10 +29,6 @@ function TrpgSheet(props) {
     if (!interactive || !draft) return;
     setTrpgActionDraft(draft.actionType, draft.body);
   };
-  const selectStat = (key) => {
-    if (!interactive || typeof setTrpgSelectedStat !== "function") return;
-    setTrpgSelectedStat(key);
-  };
   const signed = (n) => (n >= 0 ? "+" + n : String(n));
   const itemLabel = (item) => {
     const quantity = num(item.quantity);
@@ -110,35 +106,12 @@ function TrpgSheet(props) {
       <div>
         <p style={label}>능력치</p>
         <ul style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(7.5rem, 1fr))", gap: "4px 12px", listStyle: "none", margin: 0, padding: 0 }}>
-          {stats.map((stat) =>
-            interactive ? (
-              <li key={text(stat.key)}>
-                <button
-                  type="button"
-                  data-trpg-stat={text(stat.key)}
-                  onClick={() => selectStat(text(stat.key))}
-                  style={{
-                    ...action,
-                    width: "100%",
-                    justifyContent: "flex-start",
-                    padding: "0 4px",
-                    border: "none",
-                    background: "transparent",
-                    color: "#d4d4d8",
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  {text(stat.label)} {num(stat.value)}
-                  <span style={{ color: "#71717a" }}> ({signed(num(stat.modifier))})</span>
-                </button>
-              </li>
-            ) : (
+          {stats.map((stat) => (
               <li key={text(stat.key)} data-trpg-stat={text(stat.key)} style={{ color: "#d4d4d8", fontVariantNumeric: "tabular-nums" }}>
                 {text(stat.label)} {num(stat.value)}
                 <span style={{ color: "#71717a" }}> ({signed(num(stat.modifier))})</span>
               </li>
-            )
-          )}
+          ))}
         </ul>
       </div>
       {note ? (

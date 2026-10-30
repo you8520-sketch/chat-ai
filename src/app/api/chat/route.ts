@@ -152,6 +152,7 @@ import { maybeRewriteNarrationLexicon } from "@/lib/speechLock";
 import { isMockApiMode, logMockModeOnce } from "@/lib/mockApiMode";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
 import { shouldRequestEpisodicInSharedInitial } from "@/lib/memory/memory-episodic-shared";
+import { startIndependentEpisodicExtraction } from "@/lib/memory/memory-episodic-independent";
 import { parseAssets, chatAssets } from "@/lib/characterAssets";
 import { sanitizeEmotionTagInText, stripEmotionTagsForDisplay } from "@/lib/emotionTag";
 import { sanitizeCharacterGenres } from "@/lib/characterGenres";
@@ -212,6 +213,11 @@ import {
   buildMemoryHealthTelemetry,
   logMemoryHealthTelemetry,
 } from "@/lib/memory/memory-health-telemetry";
+import {
+  gemini38ProviderHistoryFromCanonical,
+  isGemini38FlashHistoryEchoModel,
+  omitContiguousReinjectedUserParagraphs,
+} from "@/lib/providerHistoryUserEcho";
 import {
   analyzeProviderHistoryHealth,
   countRealPlayableHistoryTurns,
@@ -637,6 +643,7 @@ import {
   resolveEffectiveAdultRp,
   resolveRoomAdultModeEnabled,
 } from "@/lib/chatAdultHandoff";
+import { resolvePromptActiveConsentMode } from "@/lib/cncFictionPromptFraming";
 import {
   adultOffStoredUsageApprovesText,
   buildAdultOffGuardUsageEvidence,
@@ -1421,6 +1428,12 @@ export async function POST(req: Request) {
     sceneReset: preSceneReset,
     clearSceneTransition: detectClearSceneTransition(preRoutingText),
   });
+  const promptActiveConsentMode = resolvePromptActiveConsentMode({
+    persistedConsentMode: requestedConsentMode,
+    currentInput: storedUserMessage,
+    allowedConsentModes,
+    adultRpEnabled: effectiveAdultRp,
+  });
 
   const recentRawForSceneClassification = turnsForRecentHistory
     .slice(-3)
@@ -1435,7 +1448,7 @@ export async function POST(req: Request) {
     adultDialogueProfile: normalizeAdultDialogueProfile(
       ch.adult_dialogue_profile
     ),
-    activeConsentMode: requestedConsentMode,
+    activeConsentMode: promptActiveConsentMode,
     previousConsentMode: priorModelRouteState.activeConsentMode,
   });
   // Participant age eligibility uses identity fields only. World lore, cast, and
@@ -1770,11 +1783,13 @@ export async function POST(req: Request) {
       };
     });
   let providerRecentHistoryFull: ChatMsg[] = coverageProtectedCanonicalHistory;
+  let providerHistoryUsesAdultBridge = false;
   if (
     adultRoutingConfig.enabled &&
     adultRouteDecision.activeRoute === "general" &&
     priorModelRouteState.generalRouteBridge
   ) {
+    providerHistoryUsesAdultBridge = true;
     providerRecentHistoryFull = trimProviderHistoryToBudget(
       buildGeneralProviderContext(
         boundCanonicalRouteHistoryForProvider(canonicalRouteHistory, providerRawPoolExchangeCount, {
@@ -1785,6 +1800,27 @@ export async function POST(req: Request) {
       historyTokenBudget,
       providerTrimOpts
     );
+  }
+  // Provider wire only. Stored rows, canonical fallback history, and other models stay raw.
+  if (isGemini38FlashHistoryEchoModel(contextModelId)) {
+    if (providerHistoryUsesAdultBridge) {
+      const projectedBridge = omitContiguousReinjectedUserParagraphs(providerRecentHistoryFull);
+      if (projectedBridge !== providerRecentHistoryFull) {
+        providerRecentHistoryFull = trimProviderHistoryToBudget(
+          projectedBridge,
+          historyTokenBudget,
+          providerTrimOpts
+        );
+      }
+    } else {
+      providerRecentHistoryFull = gemini38ProviderHistoryFromCanonical({
+        modelId: contextModelId,
+        canonicalRecentHistoryFull,
+        trimmedHistory: providerRecentHistoryFull,
+        historyTokenBudget,
+        trim: providerTrimOpts,
+      });
+    }
   }
   let handoffRawTurnsIncluded = 0;
   let handoffRawTokensIncluded = 0;
@@ -2396,7 +2432,7 @@ export async function POST(req: Request) {
     currentUserMessage: promptUserMessage,
     currentTurnAuthoringDelegation: currentTurnDelegationForTurn,
     nsfw: effectiveAdultRp,
-    activeConsentMode: requestedConsentMode,
+    activeConsentMode: promptActiveConsentMode,
     assetTags,
     modelId: openRouterApiModelId,
     novelModeEnabled,
@@ -2911,8 +2947,22 @@ export async function POST(req: Request) {
           ? assembledPromptTokens
           : 0,
       currentUserEstimatedTokens: built.meta.promptAudit?.currentUserTurnTokens ?? null,
-      nextPromptHistory: preparedHistory.promptHistory,
-      previousPromptHistory: previousPreparedHistory.promptHistory,
+      nextPromptHistory: isGemini38FlashHistoryEchoModel(contextModelId)
+        ? promptHistory
+        : preparedHistory.promptHistory,
+      previousPromptHistory: isGemini38FlashHistoryEchoModel(contextModelId)
+        ? gemini38ProviderHistoryFromCanonical({
+            modelId: contextModelId,
+            canonicalRecentHistoryFull: previousPreparedHistory.canonicalRecentHistoryFull,
+            trimmedHistory: previousPreparedHistory.promptHistory,
+            historyTokenBudget: previousPreparedHistory.historyTokenBudget,
+            trim: {
+              minRealPlayableExchanges:
+                previousPreparedHistory.providerHistoryMinRealPlayableExchanges,
+              protectOpening: previousPreparedHistory.providerHistoryProtectOpening,
+            },
+          })
+        : previousPreparedHistory.promptHistory,
       nextPromptAuditSections: promptAuditSectionsFromPromptAudit({
         breakdown: built.meta.promptAudit?.breakdown ?? null,
       }),
@@ -5615,18 +5665,15 @@ export async function POST(req: Request) {
         let widgetSharedRelationshipDelta:
           | import("@/lib/chatMemory").RelationshipMetaDelta
           | null = null;
-        let widgetSharedEpisodic:
-          | import("@/lib/memory/memory-episodic-shared").EpisodicSectionParse
-          | null = null;
         /** status OFF: run the shared post-turn inference AFTER SSE done (background). */
         let deferPostTurnShared = false;
-        const shareEpisodicInSharedInitial = shouldRequestEpisodicInSharedInitial({
+        const episodicExtractionEligible = shouldRequestEpisodicInSharedInitial({
           userMessage: messageText,
           db,
           chatId: chatRef.id,
           sourceUserMessageId: userMessageId,
         });
-        const episodicCorrectionCandidates = shareEpisodicInSharedInitial
+        const episodicCorrectionCandidates = episodicExtractionEligible
           ? listEpisodicCorrectionCandidates(db, {
               ...episodicRetrievalScope,
               currentUserMessage: messageText,
@@ -5685,13 +5732,11 @@ export async function POST(req: Request) {
             // Whole-turn owner: also carry the durable relationship delta in the
             // same Luna inference when memory is enabled.
             shareRelationshipDelta: isMemoryFeatureEnabled(),
-            shareEpisodic: shareEpisodicInSharedInitial,
             relationshipRegenContext:
               regenerateMessageId && rejectedAssistantDraft
                 ? { previousAssistantMessage: rejectedAssistantDraft }
                 : null,
             activePromises: activePromiseTexts,
-            episodicCorrectionCandidates,
           });
           savedText = widgetResolved.prose;
           statusWidgetValuesPayload = widgetResolved.values;
@@ -5706,7 +5751,6 @@ export async function POST(req: Request) {
           widgetPostTurnPhysicalAttempted = widgetResolved.postTurnPhysicalAttempted;
           widgetSharedRelationshipUsable = widgetResolved.sharedInitialRelationshipUsable;
           widgetSharedRelationshipDelta = widgetResolved.sharedInitialRelationshipDelta;
-          widgetSharedEpisodic = widgetResolved.sharedInitialEpisodic;
           if (showFullBillingReceipt && widgetResolved.widgetExtractDiagnostics) {
             usageRecord = {
               ...usageRecord,
@@ -6915,6 +6959,24 @@ export async function POST(req: Request) {
 
         const turnTail = (async () => {
           try {
+            // Independent episodic inference: starts after SSE done and runs
+            // concurrently with the Shared Initial call and relationship merge.
+            // It never rejects; the memory layer persists it behind the
+            // generation/epoch guards.
+            const episodicExtraction = shouldCommitCanonicalTurnState(generationSemantics)
+              ? startIndependentEpisodicExtraction({
+                  eligible: episodicExtractionEligible,
+                  chatId: chatRef.id,
+                  assistantMessageId: aiMessageId,
+                  sourceUserMessageId: userMessageId ?? null,
+                  generationScope: postTurnGenerationScope,
+                  charName: ch.name,
+                  personaName: personaDisplayName,
+                  userMessage: messageText,
+                  assistantProse: savedText,
+                  correctionCandidates: episodicCorrectionCandidates,
+                })
+              : undefined;
             if (!regenerateMessageId && userMessageId) {
               db.prepare("UPDATE messages SET user_message_id=? WHERE id=?").run(
                 userMessageId,
@@ -6998,7 +7060,6 @@ export async function POST(req: Request) {
                   primaryModelId: BACKGROUND_OPENROUTER_MODEL,
                   includeSuggestions: suggestedRepliesGenerationEligible,
                   includeRelationship: isMemoryFeatureEnabled(),
-                  includeEpisodic: shareEpisodicInSharedInitial,
                   userPersona: backgroundPersonaIdentity,
                   personaDescription,
                   personaSpeechExamples: selectedPersona?.speech_examples ?? null,
@@ -7007,7 +7068,6 @@ export async function POST(req: Request) {
                       ? rejectedAssistantDraft
                       : null,
                   activePromises: activePromiseTexts,
-                  episodicCorrectionCandidates,
                 },
                 undefined,
                 ledgerContext
@@ -7023,9 +7083,6 @@ export async function POST(req: Request) {
                   widgetPrefetchedSuggestedReplies = sharedConsumers.parsed.suggestedReplies;
                   widgetPrefetchedSuggestedRepliesAssistantProseHash =
                     hashAssistantProseForSuggestionPrefetch(savedText);
-                }
-                if (shareEpisodicInSharedInitial && sharedConsumers.parsed?.episodic) {
-                  widgetSharedEpisodic = sharedConsumers.parsed.episodic;
                 }
               }
               scheduleRepliesIfEligible();
@@ -7053,8 +7110,7 @@ export async function POST(req: Request) {
               relationshipSharedParsed: widgetSharedRelationshipUsable,
               relationshipSharedDelta: widgetSharedRelationshipDelta,
               relationshipSharedAttempted: widgetPostTurnPhysicalAttempted,
-              sharedInitialEpisodic: widgetSharedEpisodic,
-              episodicSharedAttempted: widgetPostTurnPhysicalAttempted && shareEpisodicInSharedInitial,
+              episodicExtraction,
               generationScope: postTurnGenerationScope,
             });
             }

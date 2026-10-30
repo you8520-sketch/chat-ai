@@ -1,0 +1,80 @@
+{
+  "baseSHA": "ba14f3d76441a13b1fa92c501abe2c66ca039209",
+  "reviewedInitialPRHead": "2e76acbbc7f10a4f26e217514e63dbf3323d8646",
+  "implementationSHA": "950f0064c597f37d9ee12508219205078d0d4efb",
+  "actualProviderCalls": 0,
+  "actualSpend": 0,
+  "actualProviderTokens": null,
+  "newCharacterGeneration": false,
+  "beforeReviewFix": {
+    "snapshot": "reviewed initial HEAD plus final direct review tests",
+    "tests": 10,
+    "pass": 7,
+    "fail": 3,
+    "failed": [
+      "complete inputs smaller without causal loss",
+      "no public-only context on revision",
+      "read-only pre-image review without stale cached evidence"
+    ]
+  },
+  "after": {
+    "relatedFiles": 11,
+    "tests": 226,
+    "pass": 226,
+    "fail": 0,
+    "exitCode": 0,
+    "files": [
+      "author.test.ts",
+      "officialSupply.authorQualityHandoff.test.ts",
+      "officialSupply.voiceBudget.test.ts",
+      "officialSupply.correction.test.ts",
+      "officialSupply.authorBudget.test.ts",
+      "officialSupply.publicQuality.test.ts",
+      "officialSupply.relationStart.test.ts",
+      "officialSupply.promptStandard.test.ts",
+      "officialSupply.marketFit.test.ts",
+      "officialSupply.worldIntroCanon.test.ts",
+      "officialSupply.relationshipLorebook.test.ts"
+    ],
+    "finalDirectRegression": {
+      "tests": 36,
+      "pass": 36,
+      "fail": 0,
+      "note": "After final identity-label clarity and preservation of the independent character-gender rule during prompt consolidation."
+    }
+  },
+  "commands": {
+    "lint": 0,
+    "typecheck:app": 0,
+    "build": 0,
+    "typecheck": {
+      "baseSHA": "ba14f3d76441a13b1fa92c501abe2c66ca039209",
+      "baseDiagnostics": 2339,
+      "currentDiagnostics": 2339,
+      "addedFileCodeSourceAnchors": 0,
+      "removedFileCodeSourceAnchors": 0,
+      "comparison": "file + diagnostic code + actual offending source line + column; line offsets excluded; type displays may reorder/truncate. Full typecheck is not green."
+    }
+  },
+  "interruptedRun": "A reconnect left no test termination receipt; that run was excluded and the final 226-test run was completed anew with exitCode=0.",
+  "isolation": "Existing regularTestEgressPolicy and isolatedTestDatabase; TMPDIR=/var/tmp; build DATA_DIR is a new temporary directory, provider/remote-DB variables blank, synthetic >=32-char SESSION_SECRET.",
+  "removed": {
+    "canonicalJsonFields": 1,
+    "duplicatedSubtrees": 2,
+    "writerReviewComputationSites": 1,
+    "writerCallSitesNoLongerRecomputingEvidence": 8,
+    "unconditionalRevisionPublicContextConstructionSites": 1,
+    "consolidatedPromptPositions": 7
+  },
+  "retainedRetryRisk": {
+    "defaultWorkflowAttempts": 3,
+    "publicFailureCallsPerAttempt": 2,
+    "oneFailureThenSuccessCalls": 5,
+    "threePublicFailuresCalls": 6,
+    "npcRepairOptInCap": 6,
+    "capDefaultEnabled": false,
+    "newRetryController": false,
+    "reasonNotRewired": "User STOP condition for call-structure changes; pre-Bonds failure has no assembled bible for the existing targeted revision.",
+    "mockCostNote": "$0.01 per fake completion is only arithmetic fixture data; transport error without usage stays null. Actual spend=0."
+  }
+}

@@ -1,0 +1,12 @@
+[
+  {
+    "source": "world_portfolio",
+    "errors": [
+      "name name_sibling_duplicate: 박수진 (양쪽말) / 박수진 (회의록 개그) share a given name"
+    ]
+  },
+  {
+    "source": "replacement",
+    "errors": []
+  }
+]

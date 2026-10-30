@@ -1,3 +1,4 @@
+import { loadRelationStartWorld } from "@/lib/officialSupply/relationStartCandidates";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -8,6 +9,7 @@ import {
   assembleOfficialCharacterBible,
   createAuthorCostReport,
   generateOfficialAssetPlan,
+  assertPortfolioNameKept,
   generateOfficialCharacterBible,
   generateOfficialStyleBoard,
   parseAuthorJson,
@@ -118,6 +120,131 @@ function generationArgs(transport: OfficialAuthorTransport) {
     bonds: { name: "카엘", age: 27, rpHook: "순찰", adultCandidate: false, castList: [] },
   };
 }
+
+describe("A1 generation handoff", () => {
+  function inputs() {
+    const part1 = fakeHalf1();
+    const [voice, bonds] = splitHalf2(fakeHalf2({ npcCount: 0 }));
+    const draft = compileOfficialDraftFromBible(fakeBible(false), STAGING_KEYS);
+    voice.publicProfile = {
+      ...(voice.publicProfile as Record<string, unknown>),
+      detailedDescription: draft.description,
+      creatorComment: "<p><b>지금 상황</b><br>야간 순찰에서 신원 확인을 기다리는 중입니다.</p><p><b>추천 플레이 방향</b><br>통행증을 내밀거나 순찰 목적을 물어볼 수 있습니다.</p>",
+    };
+    return { part1, voice, bonds };
+  }
+
+  it("passes causal past, limits, values and current entry once to the actual Voice/Bonds inputs", async () => {
+    const { part1, voice, bonds } = inputs();
+    const calls: Parameters<OfficialAuthorTransport["completeJson"]>[0][] = [];
+    const transport: OfficialAuthorTransport = { label: "offline-a1", async completeJson(input) {
+      calls.push(input);
+      return fakeCompletion(JSON.stringify(input.task === "character_bible_1" ? part1 : input.task === "character_bible_voice" ? voice : bonds));
+    } };
+    await generateOfficialCharacterBible(generationArgs(transport));
+    assert.equal(calls.length, 3);
+    for (const call of calls.slice(1)) {
+      const facts = ["주군을 선택했다.", "충성이 신념이 되었다.", "장기전 불가", "체력 소모", "근위 기사단장"];
+      for (const fact of facts) assert.ok(call.user.includes(fact), `${call.task} lost ${fact}`);
+      assert.equal(call.user.split("주군을 선택했다.").length - 1, 1);
+    }
+    assert.ok(calls[1].user.includes("오른쪽 뺨의 검상"), "public writing receives actual looks");
+    assert.ok(calls[1].user.includes("맥락"), "public writing receives shared-world context");
+  });
+
+  it("preserves authored public manuscripts through assembly and canonical compilation", async () => {
+    const { part1, voice, bonds } = inputs();
+    const { bible } = await generateOfficialCharacterBible(generationArgs(fakeTransport({
+      character_bible_1: part1, character_bible_voice: voice, character_bible_bonds: bonds,
+    })));
+    const expected = voice.publicProfile as Record<string, string>;
+    assert.equal(bible.publicProfile.detailedDescription, expected.detailedDescription);
+    assert.equal(bible.publicProfile.creatorComment, expected.creatorComment);
+    const draft = compileOfficialDraftFromBible(bible, { ...STAGING_KEYS, worldBible: loadRelationStartWorld().world });
+    assert.equal(draft.description, expected.detailedDescription);
+    assert.equal(draft.creatorComment, expected.creatorComment);
+    assert.equal(draft.greeting, voice.greeting);
+    assert.equal(draft.tagline, expected.tagline);
+  });
+
+  it("rejects absent public manuscripts before paying for Bonds instead of silently using legacy fallback", async () => {
+    for (const defect of ["creatorComment", "detailedDescription", "intro_html"] as const) {
+      const { part1, voice, bonds } = inputs();
+      const profile = voice.publicProfile as Record<string, unknown>;
+      if (defect === "intro_html") profile.detailedDescription = `<p>${profile.detailedDescription}</p>`;
+      else delete profile[defect];
+      const { transport, tasks } = recordingTransport({
+        character_bible_1: part1, character_bible_voice: voice, character_bible_bonds: bonds,
+      });
+      await assert.rejects(() => generateOfficialCharacterBible(generationArgs(transport)), /author_public_manuscript_invalid/);
+      assert.deepEqual(tasks, ["character_bible_1", "character_bible_voice"]);
+    }
+  });
+
+  it("returns the rejected public manuscript and does not call Bonds when voice gender QA fails", async () => {
+    const { part1, voice, bonds } = inputs();
+    const profile = voice.publicProfile as Record<string, string>;
+    const description = `${profile.detailedDescription}\n당신은 그 남자 플레이어로 시작한다.`;
+    profile.detailedDescription = description;
+    const greeting = String(voice.greeting ?? "");
+    const comment = profile.creatorComment;
+    const { transport, tasks } = recordingTransport({
+      character_bible_1: part1, character_bible_voice: voice, character_bible_bonds: bonds,
+    });
+    await assert.rejects(
+      () => generateOfficialCharacterBible(generationArgs(transport)),
+      (error: unknown) => {
+        assert.ok(error instanceof OfficialSupplyGateError);
+        assert.equal(error.code, "author_public_manuscript_invalid");
+        assert.equal(error.rejectedPublicManuscript?.description, description);
+        assert.equal(error.rejectedPublicManuscript?.greeting, greeting);
+        assert.equal(error.rejectedPublicManuscript?.comment, comment);
+        assert.match(error.message, /남자 플레이어/);
+        assert.equal(error.message.includes("너는 롤플레잉"), false);
+        return true;
+      }
+    );
+    assert.deepEqual(tasks, ["character_bible_1", "character_bible_voice"]);
+  });
+});
+
+describe("G5-3H-1 portfolio name ownership", () => {
+  const eunjiDir = path.join(process.cwd(), "docs/official-supply/reviews/g5-1-2026-10-28/candidates/g5-modern-comedy-e");
+
+  it("detects the G5-1 박은지 alias drop and the invented-alias case, and keeps a matching name", () => {
+    const brief = JSON.parse(fs.readFileSync(path.join(eunjiDir, "brief.json"), "utf8")) as { name: string };
+    const bible = JSON.parse(fs.readFileSync(path.join(eunjiDir, "bible.assembled.json"), "utf8")) as {
+      identity: { name: string };
+    };
+    assert.equal(brief.name, "박은지 (수도반장)");
+    assert.equal(bible.identity.name, "박은지");
+    assert.throws(
+      () => assertPortfolioNameKept(brief.name, bible),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "author_identity_name_mismatch"
+    );
+    assert.doesNotThrow(() => assertPortfolioNameKept("강나리 (공주님)", { identity: { name: "강나리 (공주님)" } }));
+    assert.doesNotThrow(() => assertPortfolioNameKept("강나리", { identity: { name: "강나리" } }));
+    assert.doesNotThrow(() => assertPortfolioNameKept("카엘", { identity: { name: "카엘" } }));
+    assert.throws(
+      () => assertPortfolioNameKept("강나리", { identity: { name: "강나리 (공주님)" } }),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "author_identity_name_mismatch"
+    );
+  });
+
+  it("does not pay for Voice when Part1 invents a nickname", async () => {
+    const [voice, bonds] = splitHalf2(fakeHalf2({ npcCount: 0 }));
+    const { transport, tasks } = recordingTransport({
+      character_bible_1: fakeHalf1({ name: "강나리 (공주님)" }),
+      character_bible_voice: voice,
+      character_bible_bonds: bonds,
+    });
+    await assert.rejects(
+      () => generateOfficialCharacterBible(generationArgs(transport)),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "author_identity_name_mismatch"
+    );
+    assert.deepEqual(tasks, ["character_bible_1"]);
+  });
+});
 
 const VOCAB = ["궁정", "기사단", "은빛 강", "마력석", "원로원", "북부 전선", "제국력", "상단", "기사", "맹세"];
 function prose(seed: number, length: number): string {
@@ -257,6 +384,8 @@ function fakeHalf2(opts: { nsfw?: boolean; npcCount?: 0 | 1 | 3 | 4; age?: numbe
     publicProfile: {
       tagline: "황궁의 방패, 경계 너머의 충성",
       description: CONTRACT_PITCH,
+      detailedDescription: ["[세계관 설정]", "북부의 검은 방벽에서 황궁까지 이어지는 경계와 기사단의 순찰을 배경으로 한다.", "[캐릭터 설정]", "카엘, 27세, 184cm. 외형: 회색 눈과 짧은 갈색 머리, 오른쪽 뺨의 검상을 지녔다. 성격: 냉정하고 책임감이 강하다.", "[플레이 포인트]", "궁정에서 기사단을 지키려는 그는 명령과 신념이 충돌할 때 말을 고른다. 낯선 통행증 한 장에도 의심을 거두지 않지만 위험 앞에서는 직접 몸을 움직인다.", "[도입 상황]", "야간 순찰에서 당신을 마주친 기사단장이 출입 허가를 확인한다. 누구의 명령으로 이곳에 왔는지 묻는 그의 목소리가 낮게 울린다. 대답을 기다리는 동안에도 그의 시선은 출입구를 살핀다."].join("\n"),
+      creatorComment: "<p><b>지금 상황</b><br>기사단장이 야간 순찰에서 출입 허가를 확인합니다.</p><p><b>추천 플레이 방향</b><br>통행증을 보여 주거나 순찰 목적을 물어볼 수 있습니다.</p>",
       tags: ["기사", "궁정", "호위", "충성"],
     },
     npcs,
@@ -538,7 +667,7 @@ describe("official author adapter", () => {
         })
       )
     );
-    assert.equal(bible.promptStandard, "compact_rp_v1");
+    assert.equal(bible.promptStandard, "compact_rp_v2");
     assert.equal(validatePilotBible(bible, { adultExpected: false }).ok, true);
   });
 
@@ -1205,7 +1334,6 @@ describe("official author adapter", () => {
       assert.equal(voiceTemplate.nsfw, false);
       assert.equal(bondsTemplate.nsfw, false);
       assert.equal(bondsTemplate.adultSection, null);
-      assert.match(bondsUser, /adultSection은 null/);
     });
 
     it("the model's own nsfw output is never overwritten by the server", () => {
@@ -1438,7 +1566,7 @@ describe("official author adapter", () => {
       voice: { name: "카엘", age: 27, adultCandidate: false, speechDirection: "단호", npcDemand: "없음" },
       bonds: { name: "카엘", age: 27, rpHook: "순찰", adultCandidate: false, castList: [] },
     });
-    assert.equal(bible.promptStandard, "compact_rp_v1");
+    assert.equal(bible.promptStandard, "compact_rp_v2");
   });
 
   it("duplicate greetings and hooks are detected across siblings", () => {

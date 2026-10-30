@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
+import { serializeDirectorDeltaContract } from "./campaignContext";
 import { loadTrpgCatalog } from "./catalog";
 import { insertScenarioTemplate } from "./scenarioTemplates";
 import {
@@ -11,6 +12,8 @@ import {
   lintTrpgScenarioPlan,
   parseTrpgScenarioPlan,
   serializeTrpgScenarioPlanForGm,
+  TRPG_STORY_PHASES,
+  TRPG_STORY_PHASE_ADVANCE,
 } from "./scenarioPlan";
 import { countScenarioBundleChars, normalizeScenarioTemplateInput } from "./scenarioTypes";
 import { ensureTrpgTables } from "./schema";
@@ -67,7 +70,7 @@ describe("TRPG scenario plan", () => {
     assert.doesNotMatch(text, /SECRETPLAN/);
     assert.doesNotMatch(text, /"version"/);
     assert.doesNotMatch(text, /보스:/);
-    assert.match(text, /단서:\n- 끊긴 통신 기록/, "a plan without adventure events keeps its free clues");
+    assert.match(text, /단서:\n- \[0\] 끊긴 통신 기록/, "a plan without adventure events keeps its free clues");
   });
 
   it("counts plan text inside the existing scenario bundle budget", () => {
@@ -123,6 +126,30 @@ describe("TRPG scenario plan", () => {
     assert.equal(applyStoryPhaseTransition("INTRO", "FINISHED"), "INTRO");
     assert.equal(applyStoryPhaseTransition("INTRO", "FINISHED", { campaignFinished: true }), "FINISHED");
     assert.equal(applyStoryPhaseTransition("INTRO", "ESCALATION"), "INTRO");
+    assert.equal(applyStoryPhaseTransition("EPILOGUE", "FINISHED"), "EPILOGUE");
+    assert.equal(applyStoryPhaseTransition("EPILOGUE", "FINISHED", { campaignFinished: true }), "FINISHED");
+  });
+
+  it("names the exact next phase the server will accept, with a fiction criterion, in the director contract", () => {
+    for (const [index, phase] of TRPG_STORY_PHASES.entries()) {
+      const contract = serializeDirectorDeltaContract({ storyPhase: phase });
+      assert.match(contract, new RegExp(`The current phase is ${phase}\\.`));
+      if (phase === "FINISHED") {
+        assert.match(contract, /Keep it\. Include threadsAdd/);
+        continue;
+      }
+      const advance = TRPG_STORY_PHASE_ADVANCE[phase];
+      assert.equal(advance.next, TRPG_STORY_PHASES[index + 1]);
+      if (phase === "EPILOGUE") {
+        assert.equal(applyStoryPhaseTransition(phase, advance.next), phase);
+        assert.equal(applyStoryPhaseTransition(phase, advance.next, { campaignFinished: true }), advance.next);
+      } else {
+        assert.equal(applyStoryPhaseTransition(phase, advance.next), advance.next);
+      }
+      assert.ok(contract.includes(`move to ${advance.next} only when ${advance.when}`));
+      assert.match(contract, /the round count never is/);
+      assert.doesNotMatch(contract, /one adjacent step/);
+    }
   });
 
   it("redacts scenario plans from public catalog payloads", () => {

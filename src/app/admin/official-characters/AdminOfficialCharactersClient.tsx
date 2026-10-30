@@ -2,6 +2,53 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { LUCIAN_CANONICAL_NAME, LUCIAN_DEFAULT_DISPLAY_CREATOR_NAME } from "@/lib/officialDisplayCreatorName";
+import type { OfficialCompileRefreshResult } from "@/lib/officialSupply/inPlaceCompileRefreshTypes";
+import type { OfficialInPlaceLorebookPlan } from "@/lib/officialSupply/inPlaceSync";
+
+const LOREBOOK_PLAN_ACTIONS = new Set<OfficialInPlaceLorebookPlan["action"]>([
+  "insert",
+  "update",
+  "skip_identical",
+]);
+
+type LorebookPlanDisplayRow = {
+  entryKey: string;
+  lorebookId: number | null;
+  action: OfficialInPlaceLorebookPlan["action"];
+};
+
+type LorebookPlanDisplayState =
+  | { status: "unavailable" }
+  | { status: "available"; rows: LorebookPlanDisplayRow[] };
+
+export function resolveLorebookPlanDisplay(
+  lorebookPlan: OfficialInPlaceLorebookPlan[] | undefined | null
+): LorebookPlanDisplayState {
+  if (lorebookPlan == null || !Array.isArray(lorebookPlan)) {
+    return { status: "unavailable" };
+  }
+
+  const rows: LorebookPlanDisplayRow[] = [];
+  for (const entry of lorebookPlan) {
+    if (!entry || typeof entry.entryKey !== "string" || !entry.entryKey.trim()) {
+      continue;
+    }
+    if (!LOREBOOK_PLAN_ACTIONS.has(entry.action)) {
+      continue;
+    }
+    rows.push({
+      entryKey: entry.entryKey,
+      lorebookId: typeof entry.lorebookId === "number" ? entry.lorebookId : null,
+      action: entry.action,
+    });
+  }
+
+  return { status: "available", rows };
+}
+
+function formatLorebookIdForDisplay(lorebookId: number | null): string {
+  return lorebookId == null ? "—" : String(lorebookId);
+}
 
 type OfficialRow = {
   id: number;
@@ -33,9 +80,54 @@ type SyncResult = {
   displayCreatorName: string;
   changedFields: string[];
   preflightSnapshot?: { token: string };
+  lorebookPlan?: OfficialInPlaceLorebookPlan[];
   before: { tagline: string; creatorName: string; lorebookKeys: string[] };
   after: { tagline: string; creatorName: string; lorebookKeys: string[]; lorebookCount: number };
 };
+
+function LorebookPlanCompareDetails({
+  lorebookPlan,
+}: {
+  lorebookPlan: OfficialInPlaceLorebookPlan[] | undefined;
+}) {
+  const display = resolveLorebookPlanDisplay(lorebookPlan);
+
+  return (
+    <details className="mt-4 rounded-lg border border-white/10 bg-black/20 p-3">
+      <summary className="cursor-pointer select-none text-xs font-semibold text-violet-200">
+        로어북 비교 결과
+      </summary>
+      {display.status === "unavailable" ? (
+        <p className="mt-2 text-xs text-zinc-400">확인 불가</p>
+      ) : display.rows.length === 0 ? (
+        <p className="mt-2 text-xs text-zinc-400">표시할 항목 없음</p>
+      ) : (
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[20rem] border-collapse text-left text-xs">
+            <thead>
+              <tr className="border-b border-white/10 text-zinc-500">
+                <th className="py-1 pr-3 font-medium">entryKey</th>
+                <th className="py-1 pr-3 font-medium">lorebookId</th>
+                <th className="py-1 font-medium">action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {display.rows.map((row) => (
+                <tr key={`${row.entryKey}-${row.lorebookId ?? "null"}-${row.action}`} className="border-b border-white/5">
+                  <td className="py-1.5 pr-3 font-mono text-zinc-200">{row.entryKey}</td>
+                  <td className="py-1.5 pr-3 font-mono text-zinc-200">
+                    {formatLorebookIdForDisplay(row.lorebookId)}
+                  </td>
+                  <td className="py-1.5 font-mono text-zinc-200">{row.action}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </details>
+  );
+}
 
 export default function AdminOfficialCharactersClient() {
   const [rows, setRows] = useState<OfficialRow[]>([]);
@@ -45,6 +137,8 @@ export default function AdminOfficialCharactersClient() {
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<number | null>(null);
   const [syncPreview, setSyncPreview] = useState<SyncResult | null>(null);
+  const [compilePreview, setCompilePreview] = useState<OfficialCompileRefreshResult | null>(null);
+  const [compilePreflightById, setCompilePreflightById] = useState<Record<number, OfficialCompileRefreshResult["preflightSnapshot"]>>({});
   const [preflightById, setPreflightById] = useState<Record<number, SyncResult["preflightSnapshot"]>>({});
 
   const load = useCallback(async () => {
@@ -89,7 +183,7 @@ export default function AdminOfficialCharactersClient() {
     await load();
   }
 
-  async function syncRow(row: OfficialRow, mode: "dry_run" | "apply") {
+  async function syncRow(row: OfficialRow, mode: "dry_run" | "apply", operation: "full_sync" | "recompile" = "full_sync") {
     setBusyId(row.id);
     setError("");
     const res = await fetch("/api/admin/official-characters/sync", {
@@ -99,21 +193,32 @@ export default function AdminOfficialCharactersClient() {
         characterId: row.id,
         draftKey: row.draft_key || undefined,
         mode,
+        operation,
         displayCreatorName:
           aliases[row.id] ||
           (row.name === LUCIAN_CANONICAL_NAME ? LUCIAN_DEFAULT_DISPLAY_CREATOR_NAME : row.creator_name),
-        preflightSnapshot: mode === "apply" ? preflightById[row.id] : undefined,
+        preflightSnapshot: mode === "apply"
+          ? operation === "recompile" ? compilePreflightById[row.id] : preflightById[row.id]
+          : undefined,
       }),
     });
-    const data = (await res.json()) as SyncResult & { error?: string };
+    const data = (await res.json()) as (SyncResult | OfficialCompileRefreshResult) & { error?: string };
     setBusyId(null);
     if (!res.ok) {
       setError(data.error || "동기화에 실패했습니다.");
       return;
     }
-    setSyncPreview(data);
-    if (data.preflightSnapshot) {
-      setPreflightById((current) => ({ ...current, [row.id]: data.preflightSnapshot }));
+    if ("operation" in data && data.operation === "recompile") {
+      setCompilePreview(data);
+      setSyncPreview(null);
+      setCompilePreflightById((current) => ({ ...current, [row.id]: data.preflightSnapshot }));
+    } else {
+      const result = data as SyncResult;
+      setSyncPreview(result);
+      setCompilePreview(null);
+      if (result.preflightSnapshot) {
+        setPreflightById((current) => ({ ...current, [row.id]: result.preflightSnapshot }));
+      }
     }
     if (mode === "apply") await load();
   }
@@ -169,7 +274,9 @@ export default function AdminOfficialCharactersClient() {
                     }
                   />
                 </label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-2">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">전체 원고 동기화 (승인 공급 원고)</p>
+                  <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     className="rounded-lg bg-violet-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
@@ -202,18 +309,60 @@ export default function AdminOfficialCharactersClient() {
                   >
                     같은 ID로 적용
                   </button>
+                  </div>
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">저장 원고 유지 · 컴파일만 갱신</p>
+                  <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="rounded-lg border border-white/15 px-3 py-1 text-xs text-zinc-200 disabled:opacity-50"
+                    disabled={busyId === row.id}
+                    onClick={() => void syncRow(row, "dry_run", "recompile")}
+                  >
+                    컴파일 미리보기
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-amber-400/40 px-3 py-1 text-xs text-amber-200 disabled:opacity-50"
+                    disabled={busyId === row.id || !compilePreflightById[row.id]}
+                    onClick={() => {
+                      if (confirm(`#${row.id}의 현재 원고를 보존하고 컴파일 결과만 갱신할까요?`)) {
+                        void syncRow(row, "apply", "recompile");
+                      }
+                    }}
+                  >
+                    컴파일만 적용
+                  </button>
                   <a
                     href={`/create?edit=${row.id}`}
                     className="rounded-lg border border-white/15 px-3 py-1 text-xs text-zinc-200"
                   >
                     전체 설정 수정
                   </a>
+                  </div>
                 </div>
               </div>
             </div>
           </article>
         ))}
       </div>
+
+      {compilePreview ? (
+        <section className="mt-8 rounded-2xl border border-violet-500/30 bg-violet-950/20 p-4 text-sm text-zinc-200">
+          <h2 className="font-semibold">컴파일 {compilePreview.mode === "apply" ? "적용 결과" : "미리보기"} · #{compilePreview.characterId}</h2>
+          <p className="mt-2">변경 필드: {compilePreview.changedFields.join(", ") || "없음 (동일 결과)"}</p>
+          <p className="mt-2 break-all text-xs">이전 JSON: {compilePreview.beforeJsonHash}</p>
+          <p className="break-all text-xs">이후 JSON: {compilePreview.afterJsonHash}</p>
+          <p className="mt-2 text-xs">청크 갱신: {compilePreview.derived.chunksChanged ? "필요" : "없음"} · 번역 상태: {compilePreview.derived.englishBefore} → {compilePreview.derived.englishAfter}</p>
+          <p className="mt-1 text-xs">이전 번역이 오래됐으면 최신 한국어 설정을 사용합니다.</p>
+          {(["publicCanon", "speechControl"] as const).map((key) => (
+            <details className="mt-3" key={key}>
+              <summary>{key === "publicCanon" ? "공개 설정" : "말투 제어"} 분류 이동</summary>
+              {compilePreview[key].removed.map((line, i) => <p className="mt-1 whitespace-pre-wrap text-xs text-amber-200" key={`r${i}`}>− {line}</p>)}
+              {compilePreview[key].added.map((line, i) => <p className="mt-1 whitespace-pre-wrap text-xs text-emerald-200" key={`a${i}`}>+ {line}</p>)}
+            </details>
+          ))}
+        </section>
+      ) : null}
 
       {syncPreview ? (
         <section className="mt-8 rounded-2xl border border-violet-500/30 bg-violet-950/20 p-4 text-sm text-zinc-200">
@@ -230,6 +379,7 @@ export default function AdminOfficialCharactersClient() {
           <p className="mt-1 text-xs">
             로어북 {syncPreview.after.lorebookCount}개: {syncPreview.after.lorebookKeys.join(", ")}
           </p>
+          <LorebookPlanCompareDetails lorebookPlan={syncPreview.lorebookPlan} />
         </section>
       ) : null}
     </div>

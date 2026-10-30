@@ -1,0 +1,170 @@
+{
+  "purpose": "Public-safe A/B metrics for PR #1704 (no scenario lore, personas, or GM narrations).",
+  "evidenceSourceSha": "94639d6e7cddc45025eca307b37692cdab014475",
+  "recordedAtCommit": "c4fe54eb81d9798060f753eb0156b67091b58717",
+  "model": "google/gemini-3.8-flash via OpenRouter flex",
+  "fixtureNote": "Private template-4 exploration harness; room graph anonymized in this export.",
+  "replayCalls": 12,
+  "replayTotalUpstreamUsd": 0.091665,
+  "replayInputTokenDeltaTreatmentMinusBaseline": 32,
+  "replayMetrics": [
+    {
+      "tag": "R3-baseline-1",
+      "inputTokens": 10509,
+      "outputTokens": 1862,
+      "upstreamUsd": 0.007432125,
+      "storyPhase": "INTRO",
+      "threadsAddCount": 0,
+      "threadsResolveCount": 0,
+      "narrationChars": 2474
+    },
+    {
+      "tag": "R3-baseline-2",
+      "inputTokens": 10509,
+      "outputTokens": 2188,
+      "upstreamUsd": 0.008043375,
+      "storyPhase": "INTRO",
+      "threadsAddCount": 0,
+      "threadsResolveCount": 0,
+      "narrationChars": 3013
+    },
+    {
+      "tag": "R3-treatment-1",
+      "inputTokens": 10541,
+      "outputTokens": 2001,
+      "upstreamUsd": 0.00770475,
+      "storyPhase": "DEVELOPMENT",
+      "threadsAddCount": 0,
+      "threadsResolveCount": 0,
+      "narrationChars": 2716
+    },
+    {
+      "tag": "R3-treatment-2",
+      "inputTokens": 10541,
+      "outputTokens": 1911,
+      "upstreamUsd": 0.0046331625,
+      "storyPhase": "DEVELOPMENT",
+      "threadsAddCount": 0,
+      "threadsResolveCount": 0,
+      "narrationChars": 2553
+    },
+    {
+      "tag": "R4-baseline-1",
+      "inputTokens": 11108,
+      "outputTokens": 2081,
+      "upstreamUsd": 0.008067375,
+      "storyPhase": "INTRO",
+      "threadsAddCount": 0,
+      "threadsResolveCount": 0,
+      "narrationChars": 2766
+    },
+    {
+      "tag": "R4-baseline-2",
+      "inputTokens": 11108,
+      "outputTokens": 2253,
+      "upstreamUsd": 0.0052973625,
+      "storyPhase": "INTRO",
+      "threadsAddCount": 0,
+      "threadsResolveCount": 0,
+      "narrationChars": 3034
+    },
+    {
+      "tag": "R4-treatment-1",
+      "inputTokens": 11140,
+      "outputTokens": 2517,
+      "upstreamUsd": 0.008896875,
+      "storyPhase": "DEVELOPMENT",
+      "threadsAddCount": 0,
+      "threadsResolveCount": 0,
+      "narrationChars": 3483
+    },
+    {
+      "tag": "R4-treatment-2",
+      "inputTokens": 11140,
+      "outputTokens": 2299,
+      "upstreamUsd": 0.00538515,
+      "storyPhase": "DEVELOPMENT",
+      "threadsAddCount": 2,
+      "threadsResolveCount": 1,
+      "narrationChars": 3154
+    },
+    {
+      "tag": "R6-baseline-1",
+      "inputTokens": 11692,
+      "outputTokens": 2984,
+      "upstreamUsd": 0.0099795,
+      "storyPhase": "INTRO",
+      "threadsAddCount": 0,
+      "threadsResolveCount": 0,
+      "narrationChars": 4210
+    },
+    {
+      "tag": "R6-baseline-2",
+      "inputTokens": 11692,
+      "outputTokens": 2215,
+      "upstreamUsd": 0.008537625,
+      "storyPhase": "INTRO",
+      "threadsAddCount": 0,
+      "threadsResolveCount": 0,
+      "narrationChars": 3009
+    },
+    {
+      "tag": "R6-treatment-1",
+      "inputTokens": 11724,
+      "outputTokens": 2376,
+      "upstreamUsd": 0.0088515,
+      "storyPhase": "DEVELOPMENT",
+      "threadsAddCount": 0,
+      "threadsResolveCount": 0,
+      "narrationChars": 3310
+    },
+    {
+      "tag": "R6-treatment-2",
+      "inputTokens": 11724,
+      "outputTokens": 2368,
+      "upstreamUsd": 0.0088365,
+      "storyPhase": "DEVELOPMENT",
+      "threadsAddCount": 0,
+      "threadsResolveCount": 0,
+      "narrationChars": 3237
+    }
+  ],
+  "forwardChainMetricsR2R6": [
+    {
+      "round": 2,
+      "storyPhase": "DEVELOPMENT",
+      "threadsAddCount": 0,
+      "threadsResolveCount": 0,
+      "narrationChars": 2720
+    },
+    {
+      "round": 3,
+      "storyPhase": "DEVELOPMENT",
+      "threadsAddCount": 0,
+      "threadsResolveCount": 0,
+      "narrationChars": 2753
+    },
+    {
+      "round": 4,
+      "storyPhase": "ESCALATION",
+      "threadsAddCount": 1,
+      "threadsResolveCount": 0,
+      "narrationChars": 2717
+    },
+    {
+      "round": 5,
+      "storyPhase": "CLIMAX_AVAILABLE",
+      "threadsAddCount": 0,
+      "threadsResolveCount": 0,
+      "narrationChars": 2532
+    },
+    {
+      "round": 6,
+      "storyPhase": "CLIMAX",
+      "threadsAddCount": 0,
+      "threadsResolveCount": 1,
+      "narrationChars": 2930
+    }
+  ],
+  "limits": "Same saved user/system inputs for replay; chain uses scripted exploration commands not human text; no new paid calls in PR #1704 follow-up."
+}

@@ -1,0 +1,12 @@
+[
+  {
+    "source": "world_portfolio",
+    "errors": [
+      "cast_royal_density: 4 royal/ducal leads: 카엘룸 폰 에테르노스, 볼프강 폰 발켄하임, 로언, 강나리 (공주님)"
+    ]
+  },
+  {
+    "source": "replacement",
+    "errors": []
+  }
+]

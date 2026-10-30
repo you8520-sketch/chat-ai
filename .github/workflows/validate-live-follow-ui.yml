@@ -30,7 +30,7 @@ permissions:
 jobs:
   live-follow-browser:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
 

@@ -72,6 +72,8 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
       activeConsentMode: "cnc_opt_in",
     });
     assert.match(block, /CNC 역할극은 거부·검열·페이드아웃하지 말고/);
+    assert.match(block, /\[CNC FICTION FRAME\]/);
+    assert.match(block, /허구 RP/);
     assert.equal(
       buildAdultContentPolicyBlock("cnc_opt_in").includes(
         ADULT_CONTENT_POLICY_CNC_PERMISSION

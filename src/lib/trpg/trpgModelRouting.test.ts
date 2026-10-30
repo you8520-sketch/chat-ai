@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   GEMINI_38_FLASH_MODEL,
+  GEMINI_4_ARGON_MODEL,
 } from "@/lib/chatModels";
 import { adaptCheaperInferenceChatBody } from "../cheaperInferenceConfig";
 import {
@@ -22,9 +23,9 @@ function thinkingType(body: Record<string, unknown>): string {
 }
 
 describe("TRPG production model routing (PR-A)", () => {
-  it("pins Bot=Gemini 3.8 Flash and GM=Gemini 3.8 Flash", () => {
+  it("pins Bot=Gemini 3.8 Flash and GM=Gemini 4 Argon", () => {
     assert.equal(TRPG_BOT_MODEL, GEMINI_38_FLASH_MODEL);
-    assert.equal(TRPG_GM_MODEL, GEMINI_38_FLASH_MODEL);
+    assert.equal(TRPG_GM_MODEL, GEMINI_4_ARGON_MODEL);
   });
 
   it("adaptTrpgBotChatBody sends Gemini low reasoning via canonical policy", () => {
@@ -49,7 +50,7 @@ describe("TRPG production model routing (PR-A)", () => {
 
   it("adaptTrpgGmChatBody sends Gemini low reasoning without forced none", () => {
     const gm = adaptTrpgGmChatBody({
-      model: TRPG_GM_MODEL,
+      model: GEMINI_38_FLASH_MODEL,
       messages: [{ role: "user", content: "장면" }],
       stream: true,
       temperature: 0.7,
@@ -69,7 +70,10 @@ describe("TRPG production model routing (PR-A)", () => {
 
   it("resolveTrpgCheaperInferenceModel preserves configured models without DeepSeek fallback", () => {
     assert.equal(resolveTrpgCheaperInferenceModel(TRPG_BOT_MODEL), GEMINI_38_FLASH_MODEL);
-    assert.equal(resolveTrpgCheaperInferenceModel(TRPG_GM_MODEL), GEMINI_38_FLASH_MODEL);
+    assert.throws(
+      () => resolveTrpgCheaperInferenceModel(TRPG_GM_MODEL),
+      /unsupported Cheaper Inference model/
+    );
     assert.throws(
       () => resolveTrpgCheaperInferenceModel("unknown-model"),
       /unsupported Cheaper Inference model/
@@ -81,8 +85,9 @@ describe("TRPG production model routing (PR-A)", () => {
   });
 
   it("GM and Bot transport ceilings match Gemini 3.8 Flash catalog max output", () => {
-    assert.equal(TRPG_GM_MODEL, TRPG_BOT_MODEL);
-    assert.equal(TRPG_GM_MODEL, GEMINI_38_FLASH_MODEL);
+    assert.notEqual(TRPG_GM_MODEL, TRPG_BOT_MODEL);
+    assert.equal(TRPG_GM_MODEL, GEMINI_4_ARGON_MODEL);
+    assert.equal(TRPG_BOT_MODEL, GEMINI_38_FLASH_MODEL);
     assert.equal(TRPG_GM_MAX_TOKENS, TRPG_BOT_MAX_TOKENS);
     assert.equal(TRPG_GM_MAX_TOKENS, 65_535);
   });

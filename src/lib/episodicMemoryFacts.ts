@@ -259,16 +259,21 @@ const RELATIONSHIP_LEDGER_PROMISE_ATTRIBUTE =
 const RELATIONSHIP_LEDGER_PROMISE_TEXT =
   /(?:약속(?:했|하였다|하기로|을\s*(?:맺|지켰|어겼|이행|취소|철회|파기)|이\s*(?:유효|완료|해결))|돌아오겠다고\s*약속)/;
 const RELATIONSHIP_LEDGER_ITEM_ATTRIBUTE =
-  /(?:^|_)(?:owner|ownership|possession|possessed|inventory|acquired|received|gift|gifted|transfer|transferred|lost|held_item|hidden_weapon)(?:_|$)/i;
+  /(?:^|_)(?:owner|ownership|possession|possessed|inventory|acquired|gift|gifted|lost|held_item|hidden_weapon)(?:_|$)/i;
+/** `transfer`/`received` also name information flow, so the attribute alone cannot prove an item event. */
+const RELATIONSHIP_LEDGER_AMBIGUOUS_ITEM_ATTRIBUTE =
+  /(?:^|_)(?:received|transfer|transferred)(?:_|$)/i;
 const RELATIONSHIP_LEDGER_ITEM_TEXT =
   /(?:소지|소유|획득|얻었|받았|건넸|넘겼|양도|선물|잃었|분실|빼앗|가지고\s*다|지니고\s*다|숨기고\s*다닌)/;
+const INFORMATION_OBJECT_TEXT = /(?:진술|증언|고발|기록|문서|서류|정보|비밀|사본|소식|내용)/;
+const INFORMATION_DISCLOSURE_TEXT = /(?:전달|공개|열람|제출|통보|공유|보고|알리|누설|발설)/;
 
 const UNVERIFIED_CANONICAL_STATE_ATTRIBUTE =
   /(?:^|_)(?:awakening|awakening_status|awakened_rank|rank|grade|class|level|hidden_state|true_nature)(?:_|$)/i;
 const UNVERIFIED_CANONICAL_STATE_TEXT =
   /(?:각성.{0,16}(?:진행|완료|상태|등급)|(?:높은|낮은|최상|상위).{0,8}등급|정체(?:는|가)\s|실은.{0,20}(?:종족|정체))/;
 const ATTRIBUTED_CLAIM_TEXT =
-  /(?:말했|말하였다|밝혔|밝혔다|주장했|주장하였다|고백했|고백하였다|알렸|알렸다|설명했|설명하였다|언급했|언급하였다|공개했|공개하였다|전했|전하였다)/;
+  /(?:말했|말하였다|밝혔|밝혔다|주장했|주장하였다|고백했|고백하였다|알렸|알렸다|설명했|설명하였다|언급했|언급하였다|공개했|공개하였다|전했|전하였다|(?:명령|지시|허락|허가|허용|금지|제한|요구|요청|경고|당부|선언|거절|거부|승낙)(?:했|하였)|(?:라고|다고|자고)\s*(?:했|하였))/;
 const EXPLICIT_DISCLOSURE_EVENT_TEXT =
   /(?:비밀|정체|정보|사실).{0,20}(?:밝혀진|밝혀졌|밝혀졌다|공개된|공개되었|공개됐다|드러난|드러났|드러났다)/;
 
@@ -288,11 +293,19 @@ export function detectRelationshipLedgerOwnedFact(
   ) {
     return "relationship_ledger_promise";
   }
-  if (
-    RELATIONSHIP_LEDGER_ITEM_ATTRIBUTE.test(attribute) ||
-    ((fact.category === "item" || fact.category === "relationship") &&
-      RELATIONSHIP_LEDGER_ITEM_TEXT.test(text))
-  ) {
+  const textOwnsItem =
+    (fact.category === "item" || fact.category === "relationship") &&
+    RELATIONSHIP_LEDGER_ITEM_TEXT.test(text);
+  if (RELATIONSHIP_LEDGER_ITEM_ATTRIBUTE.test(attribute) || textOwnsItem) {
+    return "relationship_ledger_item";
+  }
+  // Consent/refusal/ban about forwarding a statement or record is an episodic event, not an
+  // inventory change; any possession lexicon keeps the Relationship Ledger as owner.
+  const informationDisclosure =
+    INFORMATION_OBJECT_TEXT.test(text) &&
+    INFORMATION_DISCLOSURE_TEXT.test(text) &&
+    !RELATIONSHIP_LEDGER_ITEM_TEXT.test(text);
+  if (RELATIONSHIP_LEDGER_AMBIGUOUS_ITEM_ATTRIBUTE.test(attribute) && !informationDisclosure) {
     return "relationship_ledger_item";
   }
   return null;

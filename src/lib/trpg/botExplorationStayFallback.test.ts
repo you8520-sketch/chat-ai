@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it, mock } from "node:test";
 import Database from "better-sqlite3";
 import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet, writeSheet } from "./engineCreate";
+import { gmAiActionText, resolveTrpgCanonicalAttempt } from "./canonicalAttempt";
 import { advanceTrpgCampaign, startTrpgCampaign, submitTrpgAction, type TrpgEngineDeps } from "./engineAdvance";
+import { loadFrozenAdjudicationDecision } from "./roundAdjudication";
 import { loadCampaignLedger } from "./campaignLedger";
-import { loadExplorationState } from "./explorationStore";
+import { loadExplorationState, saveExplorationState } from "./explorationStore";
 import {
+  emptyExplorationState,
   EXPLORATION_ENTRANCE,
   EXPLORATION_EXIT_ROOM,
   type ExplorationState,
@@ -16,6 +19,13 @@ import { ensureTrpgTables } from "./schema";
 import { insertScenarioTemplate } from "./scenarioTemplates";
 import { insertParticipant } from "./store";
 import { TRPG_ACTION_MAX_CHARS } from "./types";
+import {
+  BOT_EXPLORATION_LOG_UNKNOWN_ROOM,
+  botExplorationProseIntentAudit,
+  parseBotExplorationLockLogLine,
+  TRPG_BOT_EXPLORATION_LOCK_LOG_PREFIX,
+  type BotExplorationLockDiagnostic,
+} from "./botExplorationLockDiagnostic";
 
 const PLAN = {
   startingSituation: "닫힌 시설의 현관에 도착한다",
@@ -49,6 +59,30 @@ function lockedBody(db: Database.Database, participantId: number): string {
   ).body;
 }
 
+function latestBotLock(db: Database.Database, participantId: number): {
+  id: number;
+  roundId: number;
+  body: string;
+  tier: string | null;
+  d20: number | null;
+} {
+  return db
+    .prepare(
+      `SELECT s.id, s.round_id AS roundId, s.body, r.tier, r.d20
+       FROM trpg_action_submissions s
+       LEFT JOIN trpg_dice_rolls r ON r.submission_id = s.id
+       WHERE s.participant_id=?
+       ORDER BY s.id DESC LIMIT 1`
+    )
+    .get(participantId) as {
+    id: number;
+    roundId: number;
+    body: string;
+    tier: string | null;
+    d20: number | null;
+  };
+}
+
 function neighbors(state: ExplorationState, roomId: string): string[] {
   return visibleExplorationNeighbors(state, roomId);
 }
@@ -60,6 +94,31 @@ function latestRound(db: Database.Database, campaignId: number): {
   return db
     .prepare(`SELECT phase, error_json FROM trpg_rounds WHERE campaign_id=? ORDER BY id DESC LIMIT 1`)
     .get(campaignId) as { phase: string; error_json: string | null };
+}
+
+function captureLockDiagnostics(): {
+  logs: BotExplorationLockDiagnostic[];
+  rawLines: string[];
+  restore: () => void;
+} {
+  const logs: BotExplorationLockDiagnostic[] = [];
+  const rawLines: string[] = [];
+  const original = console.info;
+  console.info = (line: unknown, ...rest: unknown[]) => {
+    if (typeof line === "string" && line.startsWith(TRPG_BOT_EXPLORATION_LOCK_LOG_PREFIX)) {
+      rawLines.push(line);
+      logs.push(parseBotExplorationLockLogLine(line));
+    } else {
+      original.call(console, line, ...rest);
+    }
+  };
+  return {
+    logs,
+    rawLines,
+    restore: () => {
+      console.info = original;
+    },
+  };
 }
 
 async function startWithBot(
@@ -107,18 +166,44 @@ describe("bot exploration stay fallback", () => {
   it("locks an adjacent move and spends AP", async () => {
     const db = memoryDb();
     let botLine = "자리를 지킨다.";
-    const { campaignId, hostId, botId, deps } = await startWithBot(db, () => botLine);
+    const started = await startWithBot(db, () => botLine);
+    const { campaignId, hostId, botId } = started;
     const fork = neighbors(loadExplorationState(db, campaignId)!, EXPLORATION_ENTRANCE).find(
       (roomId) => roomId !== EXPLORATION_EXIT_ROOM
     );
     assert.ok(fork);
     botLine = `${fork}로 이동한다.`;
+    let gmUser = "";
+    const deps: TrpgEngineDeps = {
+      ...started.deps,
+      gmCall: async (opts) => {
+        gmUser = opts.user;
+        return started.deps.gmCall!(opts);
+      },
+    };
+    const diag = captureLockDiagnostics();
     submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    diag.restore();
+    const lockLog = diag.logs.at(-1);
+    assert.ok(lockLog);
+    assert.equal(lockLog.outcome, "move-locked");
+    assert.equal(lockLog.fallbackBranch, "full-lock");
+    assert.deepEqual(lockLog.declaredRoomIds, [fork]);
+    assert.equal(lockLog.firstRejectCode, null);
+    assert.equal(lockLog.retryRejectCode, null);
+    assert.equal(lockLog.diagnosticFailureCode, null);
     assert.equal(locationOf(db, botId), fork);
     assert.equal(locationOf(db, hostId), EXPLORATION_ENTRANCE);
     assert.match(lockedBody(db, botId), new RegExp(`${fork}.+이동한다`));
     assert.equal(loadExplorationState(db, campaignId)?.apRemaining[String(botId)], 2);
+    const moved = resolveTrpgCanonicalAttempt({
+      participantKind: "ai_character",
+      submissionBody: lockedBody(db, botId),
+    });
+    assert.equal(moved.canonicalAttempt, "");
+    assert.match(gmUser, new RegExp(`${fork}.+이동한다`));
+    assert.equal(latestBotLock(db, botId).tier, null);
     db.close();
   });
 
@@ -126,8 +211,18 @@ describe("bot exploration stay fallback", () => {
     const db = memoryDb();
     let botLine = "출구로 이동한다.";
     const { campaignId, hostId, botId, deps } = await startWithBot(db, () => botLine);
+    const diag = captureLockDiagnostics();
     submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    diag.restore();
+    const lockLog = diag.logs.at(-1);
+    assert.ok(lockLog);
+    assert.equal(lockLog.outcome, "stay-fallback");
+    assert.equal(lockLog.fallbackBranch, "priced-empty");
+    assert.deepEqual(lockLog.legalRoomIds, []);
+    assert.equal(lockLog.firstRejectCode, "disconnected");
+    assert.equal(lockLog.retryRejectCode, null);
+    assert.equal(lockLog.diagnosticFailureCode, null);
     assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
     assert.equal(locationOf(db, hostId), EXPLORATION_ENTRANCE);
     assert.equal(lockedBody(db, botId), "서하은 제자리에 서서 상황을 살핀다.");
@@ -136,14 +231,89 @@ describe("bot exploration stay fallback", () => {
     db.close();
   });
 
+  it("keeps movement-free local speech when only the intent names a disconnected room", async () => {
+    const db = memoryDb();
+    let botLine = [
+      "잔을 테이블에 내려놓는다.",
+      '"오늘은 여기까지"',
+      "",
+      "<<<INTENT>>>",
+      "출구로 이동한다.",
+    ].join("\n");
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    const diag = captureLockDiagnostics();
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    diag.restore();
+    const lockLog = diag.logs.at(-1);
+    assert.ok(lockLog);
+    assert.equal(lockLog.outcome, "original-locked");
+    assert.equal(lockLog.fallbackBranch, "priced-empty-remainder");
+    assert.equal(lockLog.firstRejectCode, "disconnected");
+    assert.deepEqual(lockLog.proseMoveRoomIds, []);
+    assert.deepEqual(lockLog.intentMoveRoomIds, [EXPLORATION_EXIT_ROOM]);
+    assert.deepEqual(lockLog.legalRoomIds, []);
+    assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
+    const body = lockedBody(db, botId);
+    const resolved = resolveTrpgCanonicalAttempt({
+      participantKind: "ai_character",
+      submissionBody: body,
+    });
+    const wire = gmAiActionText(resolved.canonicalAttempt, resolved.presentationProse);
+    assert.match(resolved.presentationProse, /잔을 테이블에 내려놓는다/);
+    assert.match(resolved.presentationProse, /오늘은 여기까지/);
+    assert.equal(resolved.presentationProse.includes("<<<"), false);
+    assert.match(resolved.canonicalAttempt, /잔을 테이블에 내려놓는다/);
+    assert.equal(wire.includes(resolved.canonicalAttempt), true);
+    assert.match(wire, /오늘은 여기까지/);
+    assert.equal(resolved.canonicalAttempt.includes(EXPLORATION_EXIT_ROOM), false);
+    assert.equal(wire.includes(EXPLORATION_EXIT_ROOM), false);
+    assert.equal(body.includes("제자리에 서서"), false);
+    db.close();
+  });
+
+  it("keeps a movement-free intent clause when that intent also names a disconnected room", async () => {
+    const db = memoryDb();
+    let botLine = ["<<<INTENT>>>", "잔을 테이블에 내려놓는다. 출구로 이동한다."].join("\n");
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    const diag = captureLockDiagnostics();
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    diag.restore();
+    const lockLog = diag.logs.at(-1);
+    assert.ok(lockLog);
+    assert.equal(lockLog.fallbackBranch, "priced-empty-remainder");
+    assert.equal(lockLog.firstRejectCode, "disconnected");
+    assert.deepEqual(lockLog.intentMoveRoomIds, [EXPLORATION_EXIT_ROOM]);
+    assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
+    const body = lockedBody(db, botId);
+    assert.match(body, /잔을 테이블에 내려놓는다/);
+    assert.equal(body.includes(EXPLORATION_EXIT_ROOM), false);
+    assert.equal(body.includes("제자리에 서서"), false);
+    db.close();
+  });
+
   it("keeps independent cover prose when an illegal move is rejected", async () => {
     const db = memoryDb();
     let botLine = "출구로 이동한다. 현이 옆에서 방어선을 유지한다.";
     const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    const diag = captureLockDiagnostics();
     submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    diag.restore();
+    const lockLog = diag.logs.at(-1);
+    assert.ok(lockLog);
+    assert.equal(lockLog.outcome, "original-locked");
+    assert.equal(lockLog.fallbackBranch, "priced-empty-remainder");
     assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
-    assert.equal(lockedBody(db, botId), "현이 옆에서 방어선을 유지한다");
+    const resolved = resolveTrpgCanonicalAttempt({
+      participantKind: "ai_character",
+      submissionBody: lockedBody(db, botId),
+    });
+    const wire = gmAiActionText(resolved.canonicalAttempt, resolved.presentationProse);
+    assert.equal(resolved.canonicalAttempt, "현이 옆에서 방어선을 유지한다");
+    assert.equal(wire, resolved.canonicalAttempt);
+    assert.equal(resolved.presentationProse.includes("<<<"), false);
     assert.equal(lockedBody(db, botId).includes(EXPLORATION_EXIT_ROOM), false);
     assert.equal(latestRound(db, campaignId).phase, "ACTION_INPUT");
     db.close();
@@ -261,8 +431,15 @@ describe("bot exploration stay fallback", () => {
     );
     assert.ok(fork);
     botLine = `출구로 이동한다. ${fork}로 이동한다. ${fork}에서 동료를 엄호한다.`;
+    const diag = captureLockDiagnostics();
     submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    diag.restore();
+    const lockLog = diag.logs.at(-1);
+    assert.ok(lockLog);
+    assert.equal(lockLog.outcome, "move-locked");
+    assert.equal(lockLog.fallbackBranch, "partial-retry");
+    assert.deepEqual(lockLog.legalRoomIds, [fork]);
     assert.equal(locationOf(db, botId), fork);
     assert.match(lockedBody(db, botId), new RegExp(`${fork}.+이동한다`));
     assert.match(lockedBody(db, botId), /동료를 엄호한다/);
@@ -287,14 +464,456 @@ describe("bot exploration stay fallback", () => {
     db.close();
   });
 
+  it("keeps a legal hop when the in-place remainder would overflow the locked body", async () => {
+    const db = memoryDb();
+    let botLine = "자리를 지킨다.";
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    const fork = neighbors(loadExplorationState(db, campaignId)!, EXPLORATION_ENTRANCE).find(
+      (roomId) => roomId !== EXPLORATION_EXIT_ROOM
+    );
+    assert.ok(fork);
+    const padding = "가".repeat(TRPG_ACTION_MAX_CHARS - 12);
+    botLine = `${fork}로 이동한다. ${fork}에서 ${padding}`;
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(locationOf(db, botId), fork);
+    assert.match(lockedBody(db, botId), new RegExp(`${fork}.+이동한다`));
+    assert.equal(lockedBody(db, botId).includes("제자리에 서서"), false);
+    assert.equal(lockedBody(db, botId).includes(padding), false);
+    db.close();
+  });
+
+  it("from 남쪽복도 keeps the legal 경보실 hop when 출구 is not yet open", async () => {
+    const db = memoryDb();
+    let botLine = "자리를 지킨다.";
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    saveExplorationState(db, campaignId, emptyExplorationState("layout"));
+    writeSheet(db, campaignId, botId, "서하", EVEN_STATS, "남쪽복도");
+    botLine = "경보실로 이동한다. 출구로 이동한다. 경보실로 이동한다.";
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(locationOf(db, botId), "경보실");
+    assert.match(lockedBody(db, botId), /경보실로 이동한다/);
+    assert.equal(lockedBody(db, botId).includes("출구로 이동한다"), false);
+    assert.equal(lockedBody(db, botId).includes("제자리에 서서"), false);
+    assert.equal(loadExplorationState(db, campaignId)?.apRemaining[String(botId)], 2);
+    db.close();
+  });
+
+  it("stays in 남쪽복도 when the only declared move is a disconnected 출구", async () => {
+    const db = memoryDb();
+    let botLine = "출구로 이동한다.";
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    saveExplorationState(db, campaignId, emptyExplorationState("layout"));
+    writeSheet(db, campaignId, botId, "서하", EVEN_STATS, "남쪽복도");
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(locationOf(db, botId), "남쪽복도");
+    assert.equal(lockedBody(db, botId), "서하은 제자리에 서서 상황을 살핀다.");
+    assert.equal(loadExplorationState(db, campaignId)?.apRemaining[String(botId)], undefined);
+    db.close();
+  });
+
+  it("redacts unknown destination strings from lock diagnostics", async () => {
+    const db = memoryDb();
+    const secretPlace = "비공식비밀기지";
+    let botLine = `${secretPlace}로 이동한다.`;
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    const diag = captureLockDiagnostics();
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    diag.restore();
+    const lockLog = diag.logs.at(-1);
+    assert.ok(lockLog);
+    assert.deepEqual(lockLog.declaredRoomIds, [BOT_EXPLORATION_LOG_UNKNOWN_ROOM]);
+    const rawLine = diag.rawLines.at(-1) ?? "";
+    assert.equal(rawLine.includes("\n"), false);
+    assert.equal(rawLine.includes(secretPlace), false);
+    assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
+    assert.equal(lockedBody(db, botId), "서하은 제자리에 서서 상황을 살핀다.");
+    db.close();
+  });
+
+  it("keeps round outcomes when prose/intent audit throws", async () => {
+    const db = memoryDb();
+    let botLine = "출구로 이동한다.";
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    const audit = mock.method(botExplorationProseIntentAudit, "readMoveRoomIds", () => {
+      throw new Error("audit failed");
+    });
+    const diag = captureLockDiagnostics();
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    diag.restore();
+    audit.mock.restore();
+    const lockLog = diag.logs.at(-1);
+    assert.ok(lockLog);
+    assert.equal(lockLog.diagnosticFailureCode, "audit_parse_failed");
+    assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
+    assert.equal(lockedBody(db, botId), "서하은 제자리에 서서 상황을 살핀다.");
+    assert.equal(latestRound(db, campaignId).phase, "ACTION_INPUT");
+    db.close();
+  });
+
+  it("keeps round outcomes when lock diagnostic logging throws", async () => {
+    const db = memoryDb();
+    let botLine = "출구로 이동한다.";
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    const originalInfo = console.info;
+    console.info = (line: unknown, ...rest: unknown[]) => {
+      if (typeof line === "string" && line.startsWith(TRPG_BOT_EXPLORATION_LOCK_LOG_PREFIX)) {
+        throw new Error("log sink failed");
+      }
+      originalInfo.call(console, line, ...rest);
+    };
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    console.info = originalInfo;
+    assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
+    assert.equal(lockedBody(db, botId), "서하은 제자리에 서서 상황을 살핀다.");
+    assert.equal(latestRound(db, campaignId).phase, "ACTION_INPUT");
+    db.close();
+  });
+
+  it("keeps the actor's own past local act when the move is rejected", async () => {
+    for (const localAct of ["잔을 테이블에 내려놓았다.", "따뜻한 차를 들이켰다.", "고개를 끄덕였다."]) {
+      const db = memoryDb();
+      const botLine = `출구로 이동한다. ${localAct}`;
+      const started = await startWithBot(db, () => botLine);
+      let gmUser = "";
+      const deps: TrpgEngineDeps = {
+        ...started.deps,
+        gmCall: async (opts) => {
+          gmUser = opts.user;
+          return started.deps.gmCall!(opts);
+        },
+      };
+      submitTrpgAction(db, { campaignId: started.campaignId, userId: 1, body: "숨을 고른다." });
+      await advanceTrpgCampaign(db, { campaignId: started.campaignId, userId: 1, deps });
+      const lock = latestBotLock(db, started.botId);
+      const resolved = resolveTrpgCanonicalAttempt({
+        participantKind: "ai_character",
+        submissionBody: lock.body,
+      });
+      const stem = localAct.replace(/\.$/, "");
+      assert.equal(locationOf(db, started.botId), EXPLORATION_ENTRANCE, localAct);
+      assert.match(lock.body, new RegExp(stem), localAct);
+      assert.match(resolved.canonicalAttempt, new RegExp(stem), localAct);
+      assert.match(gmUser, new RegExp(stem), localAct);
+      assert.equal(resolved.canonicalAttempt.includes(EXPLORATION_EXIT_ROOM), false, localAct);
+      assert.equal(lock.body.includes("제자리에 서서"), false, localAct);
+      db.close();
+    }
+  });
+
+  it("keeps a result clause out of authoritative INTENT when it lacks 이미", async () => {
+    const db = memoryDb();
+    const botLine = ["출구로 이동한다.", "잠긴 문을 연다.", "문은 열렸다."].join(" ");
+    const started = await startWithBot(db, () => botLine);
+    let gmUser = "";
+    const deps: TrpgEngineDeps = {
+      ...started.deps,
+      rollD20: () => 1,
+      gmCall: async (opts) => {
+        gmUser = opts.user;
+        return started.deps.gmCall!(opts);
+      },
+    };
+    submitTrpgAction(db, { campaignId: started.campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId: started.campaignId, userId: 1, deps });
+    const lock = latestBotLock(db, started.botId);
+    const resolved = resolveTrpgCanonicalAttempt({
+      participantKind: "ai_character",
+      submissionBody: lock.body,
+    });
+    const wire = gmAiActionText(resolved.canonicalAttempt, resolved.presentationProse);
+    const frozen = loadFrozenAdjudicationDecision(db, lock.roundId, lock.id);
+    assert.equal(locationOf(db, started.botId), EXPLORATION_ENTRANCE);
+    assert.match(lock.body, /잠긴 문을 연다/);
+    assert.match(lock.body, /문은 열렸다/);
+    assert.match(resolved.canonicalAttempt, /잠긴 문을 연다/);
+    assert.doesNotMatch(resolved.canonicalAttempt, /문은 열렸/);
+    assert.doesNotMatch(wire, /문은 열렸/);
+    assert.match(gmUser, /잠긴 문을 연다/);
+    assert.doesNotMatch(gmUser, /문은 열렸/);
+    assert.match(gmUser, /tier=CRITICAL_FAILURE/);
+    assert.equal(frozen?.needsCheck, true);
+    assert.equal(lock.d20, 1);
+    assert.equal(lock.tier, "CRITICAL_FAILURE");
+    db.close();
+  });
+
+  it("shares one canonical local act between the server check and the GM after a rejected move", async () => {
+    const db = memoryDb();
+    const botLine = ["출구로 이동한다.", "잠긴 문을 연다. 문은 이미 열렸다.", '"비켜."'].join("\n");
+    const started = await startWithBot(db, () => botLine);
+    let gmUser = "";
+    const deps: TrpgEngineDeps = {
+      ...started.deps,
+      rollD20: () => 1,
+      gmCall: async (opts) => {
+        gmUser = opts.user;
+        return started.deps.gmCall!(opts);
+      },
+    };
+    submitTrpgAction(db, { campaignId: started.campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId: started.campaignId, userId: 1, deps });
+    const lock = latestBotLock(db, started.botId);
+    const resolved = resolveTrpgCanonicalAttempt({
+      participantKind: "ai_character",
+      submissionBody: lock.body,
+    });
+    const wire = gmAiActionText(resolved.canonicalAttempt, resolved.presentationProse);
+    const frozen = loadFrozenAdjudicationDecision(db, lock.roundId, lock.id);
+    assert.equal(locationOf(db, started.botId), EXPLORATION_ENTRANCE);
+    assert.equal(wire.includes(resolved.canonicalAttempt), true);
+    assert.match(lock.body, /잠긴 문을 연다/);
+    assert.match(lock.body, /이미 열렸/);
+    assert.match(lock.body, /비켜/);
+    assert.match(resolved.presentationProse, /이미 열렸/);
+    assert.match(resolved.canonicalAttempt, /잠긴 문을 연다/);
+    assert.doesNotMatch(resolved.canonicalAttempt, /이미 열렸/);
+    assert.doesNotMatch(wire, /이미 열렸/);
+    assert.match(wire, /비켜/);
+    assert.equal(resolved.presentationProse.includes("<<<"), false);
+    assert.equal(resolved.canonicalAttempt.includes(EXPLORATION_EXIT_ROOM), false);
+    assert.equal(wire.includes(EXPLORATION_EXIT_ROOM), false);
+    assert.equal(gmUser.includes(EXPLORATION_EXIT_ROOM + "로"), false);
+    assert.match(gmUser, /잠긴 문을 연다/);
+    assert.match(gmUser, /비켜/);
+    assert.doesNotMatch(gmUser, /이미 열렸/);
+    assert.match(gmUser, /tier=CRITICAL_FAILURE/);
+    assert.doesNotMatch(gmUser, /tier=SUCCESS/);
+    assert.equal(frozen?.needsCheck, true);
+    assert.equal(lock.d20, 1);
+    assert.equal(lock.tier, "CRITICAL_FAILURE");
+    db.close();
+  });
+
+  it("keeps independent speech and does not adopt a rejected move", async () => {
+    const db = memoryDb();
+    const botLine = ["출구로 이동한다.", '"오늘은 여기까지"'].join("\n");
+    const started = await startWithBot(db, () => botLine);
+    let gmUser = "";
+    const deps: TrpgEngineDeps = {
+      ...started.deps,
+      gmCall: async (opts) => {
+        gmUser = opts.user;
+        return started.deps.gmCall!(opts);
+      },
+    };
+    submitTrpgAction(db, { campaignId: started.campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId: started.campaignId, userId: 1, deps });
+    const lock = latestBotLock(db, started.botId);
+    const resolved = resolveTrpgCanonicalAttempt({
+      participantKind: "ai_character",
+      submissionBody: lock.body,
+    });
+    const wire = gmAiActionText(resolved.canonicalAttempt, resolved.presentationProse);
+    assert.equal(locationOf(db, started.botId), EXPLORATION_ENTRANCE);
+    assert.equal(wire, resolved.canonicalAttempt);
+    assert.match(lock.body, /오늘은 여기까지/);
+    assert.match(wire, /오늘은 여기까지/);
+    assert.match(gmUser, /오늘은 여기까지/);
+    assert.equal(wire.includes(EXPLORATION_EXIT_ROOM), false);
+    assert.equal(gmUser.includes(`${EXPLORATION_EXIT_ROOM}로`), false);
+    assert.equal(lock.tier, null);
+    assert.doesNotMatch(gmUser, /tier=SUCCESS/);
+    assert.equal(lockedBody(db, started.botId).includes("제자리에 서서"), false);
+    db.close();
+  });
+
+  it("does not lock a bare result claim as a successful act after a rejected move", async () => {
+    const db = memoryDb();
+    const botLine = ["출구로 이동한다.", "문은 이미 열렸다."].join("\n");
+    const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const lock = latestBotLock(db, botId);
+    assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
+    assert.equal(lock.body, "서하은 제자리에 서서 상황을 살핀다.");
+    assert.equal(lock.tier, null);
+    assert.equal(lock.body.includes("이미 열렸"), false);
+    db.close();
+  });
+
+  it("keeps a legal move and leaves another PC's act and an unconfirmed result out of the GM block", async () => {
+    const db = memoryDb();
+    let botLine = "자리를 지킨다.";
+    const started = await startWithBot(db, () => botLine);
+    const fork = neighbors(loadExplorationState(db, started.campaignId)!, EXPLORATION_ENTRANCE).find(
+      (roomId) => roomId !== EXPLORATION_EXIT_ROOM
+    );
+    assert.ok(fork);
+    botLine = `${fork}로 이동한다. 현이는 먼저 문을 연다. 문은 이미 열렸다.`;
+    let gmUser = "";
+    const deps: TrpgEngineDeps = {
+      ...started.deps,
+      gmCall: async (opts) => {
+        gmUser = opts.user;
+        return started.deps.gmCall!(opts);
+      },
+    };
+    submitTrpgAction(db, { campaignId: started.campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId: started.campaignId, userId: 1, deps });
+    const lock = latestBotLock(db, started.botId);
+    const resolved = resolveTrpgCanonicalAttempt({
+      participantKind: "ai_character",
+      submissionBody: lock.body,
+    });
+    const frozen = loadFrozenAdjudicationDecision(db, lock.roundId, lock.id);
+    assert.equal(locationOf(db, started.botId), fork);
+    assert.equal(loadExplorationState(db, started.campaignId)?.apRemaining[String(started.botId)], 2);
+    assert.match(lock.body, new RegExp(`${fork}.+이동한다`));
+    assert.match(lock.body, /현이는 먼저/);
+    assert.match(lock.body, /이미 열렸/);
+    assert.equal(resolved.canonicalAttempt, "");
+    assert.equal(frozen?.needsCheck, false);
+    assert.equal(lock.tier, null);
+    assert.match(gmUser, new RegExp(`${fork}.+이동한다`));
+    assert.doesNotMatch(gmUser, /현이는 먼저/);
+    assert.doesNotMatch(gmUser, /이미 열렸/);
+    assert.doesNotMatch(gmUser, /tier=SUCCESS/);
+    db.close();
+  });
+
+  it("does not give the GM another PC's choice or an unconfirmed result from a marker-free bot line", async () => {
+    const db = memoryDb();
+    let gmUser = "";
+    const botLine = ['렌은 먼저 문을 연다. 문은 이미 열렸다. 출구를 향해 화살을 쏜다.', '"나만 남는다."'].join("\n");
+    const started = await startWithBot(db, () => botLine);
+    const deps: TrpgEngineDeps = {
+      ...started.deps,
+      gmCall: async (opts) => {
+        gmUser = opts.user;
+        return started.deps.gmCall!(opts);
+      },
+    };
+    submitTrpgAction(db, { campaignId: started.campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId: started.campaignId, userId: 1, deps });
+    const lock = latestBotLock(db, started.botId);
+    const resolved = resolveTrpgCanonicalAttempt({
+      participantKind: "ai_character",
+      submissionBody: lock.body,
+    });
+    const wire = gmAiActionText(resolved.canonicalAttempt, resolved.presentationProse);
+    assert.equal(resolved.canonicalAttempt, "");
+    assert.match(lock.body, /렌은 먼저 문을 연다/);
+    assert.match(lock.body, /문은 이미 열렸다/);
+    assert.match(wire, /나만 남는다/);
+    assert.doesNotMatch(wire, /렌은 먼저/);
+    assert.doesNotMatch(wire, /이미 열렸/);
+    assert.doesNotMatch(wire, /화살을 쏜다/);
+    assert.doesNotMatch(gmUser, /렌은 먼저 문을 연다/);
+    assert.doesNotMatch(gmUser, /문은 이미 열렸다/);
+    assert.doesNotMatch(gmUser, /화살을 쏜다/);
+    assert.match(gmUser, /나만 남는다/);
+    assert.equal(lock.tier, null);
+    db.close();
+  });
+
   it("saves an aimed shot that the parser does not price as a move", async () => {
     const db = memoryDb();
     let botLine = "출구를 향해 화살을 쏜다.";
     const { campaignId, botId, deps } = await startWithBot(db, () => botLine);
+    const diag = captureLockDiagnostics();
     submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    diag.restore();
+    const lockLog = diag.logs.at(-1);
+    assert.ok(lockLog);
+    assert.equal(lockLog.outcome, "original-locked");
+    assert.equal(lockLog.fallbackBranch, "no-declared-moves");
+    assert.deepEqual(lockLog.declaredRoomIds, []);
     assert.equal(locationOf(db, botId), EXPLORATION_ENTRANCE);
     assert.equal(lockedBody(db, botId), "출구를 향해 화살을 쏜다.");
+    db.close();
+  });
+
+  it("on a v2 tea map keeps farewell speech after an unknown-room leave and does not teleport", async () => {
+    const db = memoryDb();
+    const templateId = insertScenarioTemplate(db, 7, {
+      title: "찻집",
+      summary: "비 오는 밤",
+      content: "차를 마신다.",
+      visibility: "public",
+      startLocation: "",
+      scenarioPlan: {
+        startingSituation: "비를 피해 찻집에 들어온다",
+        centralConflict: "평온한 밤을 어떻게 마무리할지 정한다",
+        goal: "차를 마시고 헤어진다",
+        endingConditions: ["문을 나서 헤어진다"],
+        adventure: {
+          start: "teahouse",
+          places: [
+            { key: "teahouse", name: "모밀찻집", summary: "비를 피해 들어온 작고 아늑한 찻집.", role: "start" },
+            { key: "table", name: "중앙 테이블", summary: "세 사람이 둘러앉은 나무 테이블.", role: "site" },
+            { key: "door", name: "출입문", summary: "빗소리가 들리는 유리문.", role: "goal" },
+          ],
+          links: [
+            { from: "teahouse", to: "table" },
+            { from: "table", to: "door", opensBy: "event_finish_tea" },
+          ],
+          events: [
+            {
+              key: "event_finish_tea",
+              place: "table",
+              trigger: "careful_search",
+              kind: "clue",
+              text: "빈 찻잔이 식어 있다.",
+            },
+          ],
+        },
+      },
+    });
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "현이", viewerUserId: 1, templateId });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "현이", stats: EVEN_STATS });
+    const botId = insertParticipant(db, {
+      campaignId,
+      slotIndex: 2,
+      kind: "ai_character",
+      userId: null,
+      characterId: null,
+      displayName: "권태현",
+    });
+    writeSheet(db, campaignId, botId, "권태현", EVEN_STATS, "모밀찻집");
+    const botLine = [
+      "골목으로 나선다.",
+      "",
+      '"잘 가. 오늘은 여기까지다."',
+      "",
+      "<<<INTENT>>>",
+      "골목으로 나선다.",
+    ].join("\n");
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 16,
+      botCall: async () => ({ text: botLine }),
+      gmCall: async () => ({
+        text: buildTrpgGmStructuredWireText("서버가 정한 자리만 잇는다. GM: 무엇을 하겠는가.", {
+          players: [],
+          location: loadCampaignLedger(db, campaignId).location || "모밀찻집",
+          next_round_context: "다음",
+          campaign_finished: false,
+        }),
+      }),
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    writeSheet(db, campaignId, botId, "권태현", EVEN_STATS, "모밀찻집");
+    const diag = captureLockDiagnostics();
+    submitTrpgAction(db, { campaignId, userId: 1, body: "중앙 테이블로 이동한다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    diag.restore();
+    const lockLog = diag.logs.at(-1);
+    assert.ok(lockLog);
+    assert.ok(lockLog.declaredRoomIds.length >= 1);
+    assert.ok(lockLog.declaredRoomIds.every((id) => id === BOT_EXPLORATION_LOG_UNKNOWN_ROOM));
+    assert.equal(lockLog.firstRejectCode, "disconnected");
+    assert.equal(lockLog.fallbackBranch, "priced-empty-remainder");
+    assert.equal(lockLog.outcome, "original-locked");
+    assert.equal(locationOf(db, botId), "모밀찻집");
+    assert.match(lockedBody(db, botId), /잘 가\. 오늘은 여기까지다/);
+    assert.doesNotMatch(lockedBody(db, botId), /골목으로 나선다/);
     db.close();
   });
 });

@@ -110,8 +110,11 @@ describe("official image-generation owners (#1376)", () => {
     assert.equal(rows.length, 14);
     const rep = rows.find((row) => row.slotKey === "rep")!;
     assert.equal(rep.referenceRole, "style_only");
-    assert.equal(rep.faceDirection, "front");
-    assert.equal(rep.distance, "bust");
+    assert.deepEqual(
+      [rep.faceDirection, rep.distance],
+      [resolveOfficialSlotShot(assetPlan.slots.find((slot) => slot.slotKey === "rep")!, "pilot-rf-03").faceDirection, "bust"]
+    );
+    assert.notEqual(rep.faceDirection, "profile");
 
     for (const row of rows) {
       assert.equal(row.primaryHasShotDirection, true, row.slotKey);

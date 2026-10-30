@@ -1,0 +1,60 @@
+{
+  "first": {
+    "status": "original, never persisted in production",
+    "pitchChars": 194,
+    "adultTermHits": [],
+    "relationQa": {
+      "ok": false,
+      "errors": [
+        {
+          "code": "bible_user_rel_free_premise",
+          "message": "FREE premise requires a specific user ability/role; declare only the required fact as ROLE_BOUND or remove that prerequisite"
+        }
+      ],
+      "warnings": []
+    }
+  },
+  "automatic": {
+    "status": "RECONSTRUCTED_FROM_CAPTURED_REPAIRS_NO_API_CALL",
+    "pitchChars": 235,
+    "repairs": [
+      {
+        "physicalCall": 4,
+        "inputMatchedCapturedWire": true,
+        "changedField": "publicProfile.description",
+        "beforeChars": 194,
+        "afterChars": 0,
+        "reasons": [
+          {
+            "code": "bible_pitch_band",
+            "message": "publicProfile.description 194 chars (production band 200-500)"
+          }
+        ]
+      },
+      {
+        "physicalCall": 5,
+        "inputMatchedCapturedWire": true,
+        "changedField": "publicProfile.description",
+        "beforeChars": 0,
+        "afterChars": 235,
+        "reasons": [
+          {
+            "code": "bible_pitch_band",
+            "message": "publicProfile.description 0 chars (production band 200-500)"
+          }
+        ]
+      }
+    ]
+  },
+  "v2CompileOnly": {
+    "status": "compiler comparison only; no literary approval or role metadata rewrite",
+    "v1Hash": "8e325a8b7a2be06a65b2d976857171a9eaa6011c6b6ac42965818cd1483576e6",
+    "v2Hash": "4e3045192084c3176ca26230604e6e8b29517bc8b9e60da4d1a80e6659d82fac",
+    "beforeEstimatedTokens": 3360,
+    "afterEstimatedTokens": 3481,
+    "overflowChars": 0,
+    "greetingPreserved": true,
+    "worldPreserved": true,
+    "appearanceSource": "14 fields remain in unchanged bible; full image geometry belongs to Appearance Lock, which G1 never generated"
+  }
+}

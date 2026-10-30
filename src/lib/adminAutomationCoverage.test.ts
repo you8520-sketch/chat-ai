@@ -6,7 +6,10 @@ import type {
   GithubScheduledAutomationGroup,
   GithubScheduledAutomationRun,
 } from "@/lib/adminAutomationReports";
-import { buildAutomationCoverage } from "@/lib/adminAutomationCoverage";
+import {
+  buildAutomationCoverage,
+  listRegisteredScheduleWorkflowPaths,
+} from "@/lib/adminAutomationCoverage";
 import type { ScheduledWorkflowDefinition } from "@/lib/codeHealth/automationHealth";
 
 const WEEKLY: ScheduledWorkflowDefinition = {
@@ -113,6 +116,8 @@ describe("admin automation coverage (registered vs displayed)", () => {
     assert.equal(weekly.needsAction, true);
     assert.equal(weekly.group, null);
     assert.equal(view.attentionCount, 1);
+    assert.equal(view.failedCount, 0);
+    assert.equal(view.unverifiedCount, 1);
     assert.equal(view.rows[0]!.path, WEEKLY.path);
   });
 
@@ -180,8 +185,9 @@ describe("admin automation coverage (registered vs displayed)", () => {
     assert.equal(view.rows.length, 1);
     assert.equal(view.unregistered.length, 1);
     assert.equal(view.unregistered[0]!.group.path, retired.path);
-    assert.equal(view.unregistered[0]!.needsAction, true);
-    assert.equal(view.attentionCount, 2);
+    assert.equal(view.unregistered[0]!.latestRunFailed, true);
+    assert.equal(view.failedCount, 1);
+    assert.equal(view.attentionCount, 1);
 
     const healthyRetired = buildAutomationCoverage({
       definitions: [RADAR],
@@ -191,8 +197,14 @@ describe("admin automation coverage (registered vs displayed)", () => {
       ]),
       now: NOW,
     });
-    assert.equal(healthyRetired.unregistered[0]!.needsAction, false);
+    assert.equal(healthyRetired.unregistered[0]!.latestRunFailed, false);
     assert.equal(healthyRetired.attentionCount, 0);
+  });
+
+  it("lists only the registered schedule workflow paths", () => {
+    const paths = listRegisteredScheduleWorkflowPaths(process.cwd());
+    assert.ok(paths.has(".github/workflows/code-health-weekly-audit.yml"));
+    assert.ok(!paths.has(".github/workflows/not-a-workflow.yml"));
   });
 
   it("orders rows that need action before healthy ones", () => {

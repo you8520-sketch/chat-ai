@@ -1,0 +1,143 @@
+{
+  "source": "captured provider-settled responses; canonical parseCompatibleUsage and withAuthorAccounting replay; no new provider call",
+  "remoteCostJsonRetrieved": false,
+  "report": {
+    "version": 2,
+    "successfulCompletions": 5,
+    "failedProviderAttempts": 0,
+    "physicalAttempts": 5,
+    "workflowRetries": 0,
+    "billedCostUsd": 0.004887000000000001,
+    "failedAttemptCostUsd": 0,
+    "inputTokens": 17651,
+    "outputTokens": 11024,
+    "imageCalls": 0,
+    "lines": [
+      {
+        "task": "character_bible_1",
+        "draftKey": "pilot-rf-07",
+        "workflowAttempt": 1,
+        "outcome": "success",
+        "model": "gpt-6-luna",
+        "inputTokens": 3404,
+        "outputTokens": 3145,
+        "costUsd": 0.001298
+      },
+      {
+        "task": "character_bible_voice",
+        "draftKey": "pilot-rf-07",
+        "workflowAttempt": 1,
+        "outcome": "success",
+        "model": "gpt-6-luna",
+        "inputTokens": 4451,
+        "outputTokens": 3141,
+        "costUsd": 0.00131
+      },
+      {
+        "task": "character_bible_bonds",
+        "draftKey": "pilot-rf-07",
+        "workflowAttempt": 1,
+        "outcome": "success",
+        "model": "gpt-6-luna",
+        "inputTokens": 2908,
+        "outputTokens": 527,
+        "costUsd": 0.000407
+      },
+      {
+        "task": "character_bible_voice",
+        "draftKey": "pilot-rf-07",
+        "workflowAttempt": 1,
+        "outcome": "success",
+        "model": "gpt-6-luna",
+        "inputTokens": 3505,
+        "outputTokens": 2104,
+        "costUsd": 0.000968
+      },
+      {
+        "task": "character_bible_voice",
+        "draftKey": "pilot-rf-07",
+        "workflowAttempt": 1,
+        "outcome": "success",
+        "model": "gpt-6-luna",
+        "inputTokens": 3383,
+        "outputTokens": 2107,
+        "costUsd": 0.000904
+      }
+    ]
+  },
+  "fx": {
+    "mode": "daily_kst",
+    "dateKey": "2026-10-27",
+    "usdToKrw": 1323.904108,
+    "effectiveKrwPerUsd": 1350.38219016,
+    "source": "api"
+  },
+  "costKrw": 6.59931776331192,
+  "lines": [
+    {
+      "physicalCall": 1,
+      "task": "character_bible_1",
+      "httpStatus": 200,
+      "inputTokens": 3404,
+      "outputTokens": 3145,
+      "providerSettledUsd": 0.001298,
+      "billingStatus": "settled",
+      "providerRequestId": "6448c8cc-faed-4b91-9a99-2fcbc3f8953b",
+      "startedAt": "2026-10-26T15:43:50.029Z",
+      "endedAt": "2026-10-26T15:45:45.501Z",
+      "costKrw": 1.7527960828276798
+    },
+    {
+      "physicalCall": 2,
+      "task": "character_bible_voice",
+      "httpStatus": 200,
+      "inputTokens": 4451,
+      "outputTokens": 3141,
+      "providerSettledUsd": 0.00131,
+      "billingStatus": "settled",
+      "providerRequestId": "dba813dd-549c-4592-bb35-6bbaecbb4fd5",
+      "startedAt": "2026-10-26T15:45:46.029Z",
+      "endedAt": "2026-10-26T15:47:42.901Z",
+      "costKrw": 1.7690006691095999
+    },
+    {
+      "physicalCall": 3,
+      "task": "character_bible_bonds",
+      "httpStatus": 200,
+      "inputTokens": 2908,
+      "outputTokens": 527,
+      "providerSettledUsd": 0.000407,
+      "billingStatus": "settled",
+      "providerRequestId": "cb42f00a-5871-433e-b946-8eae7dd3763f",
+      "startedAt": "2026-10-26T15:47:42.966Z",
+      "endedAt": "2026-10-26T15:49:01.837Z",
+      "costKrw": 0.54960555139512
+    },
+    {
+      "physicalCall": 4,
+      "task": "character_bible_voice",
+      "httpStatus": 200,
+      "inputTokens": 3505,
+      "outputTokens": 2104,
+      "providerSettledUsd": 0.000968,
+      "billingStatus": "settled",
+      "providerRequestId": "3cb7a2e9-0c80-4fb6-b5ee-e9999cca85ff",
+      "startedAt": "2026-10-26T15:49:01.894Z",
+      "endedAt": "2026-10-26T15:50:53.120Z",
+      "costKrw": 1.3071699600748798
+    },
+    {
+      "physicalCall": 5,
+      "task": "character_bible_voice",
+      "httpStatus": 200,
+      "inputTokens": 3383,
+      "outputTokens": 2107,
+      "providerSettledUsd": 0.000904,
+      "billingStatus": "settled",
+      "providerRequestId": "901e53b0-30a6-423c-9d02-6a7652738a2f",
+      "startedAt": "2026-10-26T15:50:53.192Z",
+      "endedAt": "2026-10-26T15:52:34.787Z",
+      "costKrw": 1.2207454999046399
+    }
+  ]
+}

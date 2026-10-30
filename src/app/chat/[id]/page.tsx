@@ -346,6 +346,8 @@ export default async function ChatPage({
       rowContent: m.content,
       variants,
       activeVariant,
+      messageModel: m.model,
+      storedAlternates: m.alternates,
       statusWidgetValues: storedStatusWidgetValues,
       suggestedReplies: storedSuggested.suggestedReplies,
       suggestedRepliesProof: adultOffProofCarrier(suggestedRepliesRecord?.adultOffGuard),
@@ -564,7 +566,9 @@ export default async function ChatPage({
       nickname={user.nickname}
       isAdult={canAccessAdultContent(user)}
       userNsfwOn={!!user.nsfw_on}
-      initialAdultHandoffEnabled={!!chat.adult_handoff_enabled}
+      initialAdultHandoffEnabled={
+        canAccessAdultContent(user) && !!chat.adult_handoff_enabled
+      }
       initialSelectedAI={globalModelEntry.selectedAI}
       initialGlobalModelNotice={globalModelEntry.notice}
       initialActiveSitePromotions={initialActiveSitePromotions}

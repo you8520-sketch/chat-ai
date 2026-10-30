@@ -7,6 +7,7 @@ import {
   type CharacterVisibility,
   type ModerationStatus,
 } from "@/lib/characterVisibility";
+import { studioWorkModerationChipLabel } from "@/lib/studioWorkStatusLabel";
 import { cn } from "@/lib/studioDesign";
 
 const CHIP = "inline-flex min-h-6 items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold leading-tight";
@@ -29,10 +30,33 @@ type StatusProps = {
   isSimulation: boolean;
   visibility: CharacterVisibility;
   moderation: ModerationStatus;
+  /** Session owner is admin — used only for image-less private draft chip copy. */
+  ownerIsAdmin?: boolean;
+  official?: number;
+  assets?: string | null;
+  images?: string | null;
 };
 
-/** 작품 종류 · 공개 범위 · 검수 상태를 서로 다른 칩으로 분리해 보여 준다. 라벨은 characterVisibility가 소유한다. */
-export function StudioWorkStatus({ isSimulation, visibility, moderation }: StatusProps) {
+/** 작품 종류 · 공개 범위 · 검수 상태를 서로 다른 칩으로 분리해 보여 준다. moderation 칩 라벨은 characterVisibility·studioWorkStatusLabel이 소유한다. */
+export function StudioWorkStatus({
+  isSimulation,
+  visibility,
+  moderation,
+  ownerIsAdmin = false,
+  official = 0,
+  assets,
+  images,
+}: StatusProps) {
+  const moderationChip = studioWorkModerationChipLabel({
+    ownerIsAdmin,
+    isSimulation,
+    official,
+    visibility,
+    moderation,
+    assets,
+    images,
+  });
+  const draftImageless = moderationChip !== moderationLabel(moderation);
   return (
     <ul className="flex flex-wrap gap-1.5" aria-label="작품 상태" data-testid="studio-work-status">
       <li
@@ -49,8 +73,16 @@ export function StudioWorkStatus({ isSimulation, visibility, moderation }: Statu
       <li className={cn(CHIP, VISIBILITY_TONE[visibility])} data-status="visibility">
         {visibilityLabel(visibility)}
       </li>
-      <li className={cn(CHIP, MODERATION_TONE[moderation])} data-status="moderation">
-        {moderationLabel(moderation)}
+      <li
+        className={cn(
+          CHIP,
+          draftImageless
+            ? "bg-zinc-500/15 text-zinc-300 ring-1 ring-inset ring-white/10"
+            : MODERATION_TONE[moderation],
+        )}
+        data-status={draftImageless ? "draft-imageless" : "moderation"}
+      >
+        {moderationChip}
       </li>
     </ul>
   );

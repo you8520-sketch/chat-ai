@@ -125,9 +125,10 @@ function deliveryPlanFor(input: {
 
 describe("consent policy routing — frozen provider-wire sections", () => {
   it("Adult ON full contract includes base policy and CNC for all scene consent modes", () => {
-    assert.equal(FROZEN_WIRE_POLICY.standard, FROZEN_WIRE_POLICY.cnc_opt_in);
-    assert.equal(FROZEN_WIRE_POLICY.power_play, FROZEN_WIRE_POLICY.cnc_opt_in);
+    assert.notEqual(FROZEN_WIRE_POLICY.standard, FROZEN_WIRE_POLICY.cnc_opt_in);
+    assert.equal(FROZEN_WIRE_POLICY.standard, FROZEN_WIRE_POLICY.power_play);
     assert.match(FROZEN_WIRE_POLICY.standard, /CNC 역할극/);
+    assert.match(FROZEN_WIRE_POLICY.cnc_opt_in, /\[CNC FICTION FRAME\]/);
     assert.ok(FROZEN_WIRE_POLICY.standard.includes(ADULT_CONTENT_POLICY_CNC_PERMISSION));
     assert.ok(FROZEN_WIRE_POLICY.standard.includes(ADULT_CONTENT_POLICY_BASE));
   });

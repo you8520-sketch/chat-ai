@@ -1,0 +1,12 @@
+{
+  "direction": {
+    "genre": "공포/추리",
+    "tone": "dry",
+    "humor": "light",
+    "pacing": "narration"
+  },
+  "profileKey": "genre_neutral",
+  "namingProfile": "korean_modern",
+  "castIntent": "전체 이용자 대상 건조한 블랙코미디 공포·추리 캐릭터 1명. 연애 구도 없이 의뢰인·목격자·동료로 엮이는 관계. 사건은 실제로 있고 유머는 건조하게.",
+  "excludeRomanceLedSignals": true
+}

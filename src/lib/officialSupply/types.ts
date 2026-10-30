@@ -182,11 +182,11 @@ export type OfficialCharacterSpeech = {
   forbidden: string;
 };
 
-export type OfficialCharacterPromptStandard = "compact_rp_v1";
+export type OfficialCharacterPromptStandard = "compact_rp_v1" | "compact_rp_v2";
 
 export type OfficialCharacterDraft = {
   draftKey: string;
-  /** New official characters use compact_rp_v1; absent means pre-standard pilot content. */
+  /** New official characters use compact_rp_v2 (ability proficiency retained); absent means pre-standard pilot content. */
   promptStandard?: OfficialCharacterPromptStandard;
   worldKey: string;
   styleKey: string;
@@ -344,6 +344,18 @@ export type OfficialReplacementStatus =
 
 export type QaCheck = { ok: boolean; note?: string };
 
+/**
+ * What a reviewer compared for `compositionIndependence`: the candidate file and every reference image
+ * it was compared against. Required on new representative reviews; stored inside the review's `qa_json`.
+ */
+export type CompositionReviewEvidence = {
+  candidateUrl: string;
+  candidateSha256: string;
+  references: Array<{ id: string; sha256: string }>;
+};
+
+export type CompositionQaCheck = QaCheck & { evidence?: CompositionReviewEvidence };
+
 export type OfficialAnchorQaReport = {
   gender: QaCheck;
   ageAppearance: QaCheck;
@@ -352,16 +364,25 @@ export type OfficialAnchorQaReport = {
   eyes: QaCheck;
   body: QaCheck;
   identifyingFeatures: QaCheck;
+  /** Smooth skin, large shading planes, clean lines, detail no denser than the style references. */
   artStyle: QaCheck;
   outfit: QaCheck;
   cardCrop: QaCheck;
+  /**
+   * The pose, gaze, head angle, camera, crop, and silhouette are not a clone of any style reference.
+   * Optional only so reviews recorded before this check existed stay valid; new reviews supply it.
+   */
+  compositionIndependence?: CompositionQaCheck;
 };
 
 export type OfficialVariationQaReport = {
   identityMatchesAnchor: QaCheck;
   expressionMatchesPlan: QaCheck;
   characterPresent: QaCheck;
+  /** Smooth skin, large shading planes, clean lines, detail no denser than the style references. */
   artStyle: QaCheck;
+  /** Composition follows the slot's shot plan, not a clone of a style reference or the representative card. */
+  compositionIndependence?: CompositionQaCheck;
 };
 
 /**

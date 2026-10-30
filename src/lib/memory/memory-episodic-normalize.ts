@@ -5,6 +5,11 @@ import type {
   EpisodicFactEvidenceType,
   EpisodicFactImportance,
 } from "./memory-episodic-types";
+import {
+  EPISODIC_FACT_IDENTIFIER_MAX_CHARS,
+  EPISODIC_FACT_SNAKE_CASE_JSON_PATTERN,
+  EPISODIC_FACT_VALUE_MAX_CHARS,
+} from "./memory-episodic-types";
 
 const FACT_CATEGORIES = new Set<EpisodicFactCategory>([
   "relationship",
@@ -30,7 +35,7 @@ const FACT_EVIDENCE_TYPES = new Set<EpisodicFactEvidenceType>([
   "explicit_character_claim",
 ]);
 
-const SNAKE_CASE_RE = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/;
+const SNAKE_CASE_RE = new RegExp(EPISODIC_FACT_SNAKE_CASE_JSON_PATTERN);
 const FORBIDDEN_FACT_FIELDS = new Set(["source_turn", "id", "uuid", "timestamp"]);
 
 function cleanString(value: unknown): string {
@@ -79,7 +84,7 @@ function isCompleteKoreanSentence(value: string): boolean {
 
 function isConciseFactValue(value: string): boolean {
   const t = value.trim();
-  if (!t || t.length > 80) return false;
+  if (!t || t.length > EPISODIC_FACT_VALUE_MAX_CHARS) return false;
   if (/\s/.test(t)) return false;
   if (/[.!?。！？]$/.test(t)) return false;
   if (/[가-힣].*(?:다|요|니다|한다|했다|된다|있다|없다|이다|였다)$/.test(t)) return false;
@@ -117,7 +122,12 @@ export function sanitizeEpisodicExtractedFacts(
 
     if (!FACT_CATEGORIES.has(category)) continue;
     if (!FACT_IMPORTANCE.has(importance)) continue;
-    if (subject.length > 64 || attribute.length > 64) continue;
+    if (
+      subject.length > EPISODIC_FACT_IDENTIFIER_MAX_CHARS ||
+      attribute.length > EPISODIC_FACT_IDENTIFIER_MAX_CHARS
+    ) {
+      continue;
+    }
     if (!SNAKE_CASE_RE.test(subject) || !SNAKE_CASE_RE.test(attribute)) continue;
     if (!isConciseFactValue(value)) continue;
     if (!isCompleteKoreanSentence(factText)) continue;

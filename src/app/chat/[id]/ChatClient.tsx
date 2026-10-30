@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ChatRichBlocks from "@/components/ChatRichBlocks";
@@ -25,10 +25,18 @@ import {
 import ChatEmotionPortraitPanel from "@/components/ChatEmotionPortraitPanel";
 import ChatSettingsPanel from "@/components/ChatSettingsPanel";
 import { SuggestedRepliesBar } from "@/components/SuggestedRepliesBar";
-import { COMPOSER_ROW_BUTTON_CLASS, ChatShortcutsDock } from "@/components/ChatShortcutsDock";
+import {
+  COMPOSER_ROW_BUTTON_CLASS,
+  ChatShortcutsDock,
+  type ChatShortcutListItem,
+  type ChatShortcutListPhase,
+} from "@/components/ChatShortcutsDock";
+import { ChatShortcutChipLayer } from "@/components/ChatShortcutChipLayer";
+import { ChatShortcutSlashMenu, slashOptionId } from "@/components/ChatShortcutSlashMenu";
 import ChatRoomDisplayQuickRail from "@/components/ChatRoomDisplayQuickRail";
 import ChatImageGeneratorPanel from "@/components/ChatImageGeneratorPanel";
 import ChatRoomMobileMenu from "@/components/ChatRoomMobileMenu";
+import ChatTranscriptDownloadButton from "@/components/ChatTranscriptDownloadButton";
 import ChatAssetAlbumModal, { IconAlbum } from "@/components/ChatAssetAlbumModal";
 import {
   CHAT_BACK_FALLBACK_DELAY_MS,
@@ -234,16 +242,35 @@ import {
 } from "@/lib/reportRefundPolicy";
 import {
   clearChatMessageDraft,
+  loadChatMessageComposer,
   loadChatMessageDraft,
   migrateChatMessageDraft,
   resolveSendCustodyBackup,
+  saveChatMessageChips,
   saveChatMessageDraft,
 } from "@/lib/userInputDraft";
 import {
-  planChatShortcutInsert,
+  CHAT_SHORTCUT_INSERT_DEFERRED_MESSAGE,
   shortcutComposerChangeAfterComposition,
-  type ChatShortcutInsertResult,
 } from "@/lib/chatShortcutComposer";
+import {
+  SHORTCUT_EDIT_TOO_LONG_MESSAGE,
+  detectShortcutSlash,
+  expandShortcutChips,
+  filterShortcutsForSlash,
+  hasShortcutSentinel,
+  planShortcutChipInsert,
+  planShortcutChipKey,
+  reconcileShortcutEdit,
+  removeShortcutChipToken,
+  shortcutEditExceedsLimit,
+  shortcutExpandedLength,
+  snapShortcutSelection,
+  type ShortcutChip,
+  type ShortcutChipInsertResult,
+  type ShortcutChipSource,
+  type ShortcutSlashMatch,
+} from "@/lib/chatShortcutChips";
 import {
   clearChatStreamDraft,
   createClientRequestId,
@@ -359,6 +386,9 @@ function isChatFetchTimeout(e: unknown): boolean {
 }
 
 export type { Usage };
+/** Restorable composer state: display value (with chip tokens) plus its chip table. */
+type ComposerSnapshot = { value: string; chips: ShortcutChip[] };
+
 type Msg = {
   id?: number;
   role: "user" | "assistant" | "system";
@@ -1035,7 +1065,7 @@ export default function ChatClient({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const shortcutCaretRef = useRef({ start: 0, end: 0 });
   const shortcutComposingRef = useRef(false);
-  const pendingShortcutRef = useRef<string | null>(null);
+  const pendingShortcutRef = useRef<ShortcutChipSource | null>(null);
   const shortcutCompositionEchoRef = useRef(false);
   const [hasMoreOlder, setHasMoreOlder] = useState(initialHasMoreOlder);
   const [hiddenTurnCount, setHiddenTurnCount] = useState(initialHiddenTurnCount);
@@ -1058,7 +1088,22 @@ export default function ChatClient({
   const [editWidgetDraft, setEditWidgetDraft] = useState<ParsedStatusWidgetTurnValues>({});
   const [editSaving, setEditSaving] = useState(false);
   const [mode, setMode] = useState(initialMode);
-  const [input, setInput] = useState(() => loadChatMessageDraft(character.id, initialChatId));
+  const [input, setInput] = useState(() => loadChatMessageComposer(character.id, initialChatId).value);
+  const [shortcutChips, setShortcutChips] = useState<ShortcutChip[]>(
+    () => loadChatMessageComposer(character.id, initialChatId).chips
+  );
+  const [shortcutList, setShortcutList] = useState<{
+    items: readonly ChatShortcutListItem[];
+    phase: ChatShortcutListPhase;
+  }>({ items: [], phase: "idle" });
+  const [slash, setSlash] = useState<ShortcutSlashMatch | null>(null);
+  const [slashIndex, setSlashIndex] = useState(0);
+  const [slashDismissedStart, setSlashDismissedStart] = useState<number | null>(null);
+  const slashMenuId = useId();
+  const composerFontStyle = useMemo(
+    () => ({ fontSize: "calc(var(--font-size-chat) + 0.0625rem)", lineHeight: "var(--line-height-chat)" }),
+    []
+  );
   const [shortcutNotice, setShortcutNotice] = useState("");
   const [jsxSendRequest, setJsxSendRequest] = useState<string | null>(null);
   const jsxCatalog = initialJsxComponents;
@@ -1066,11 +1111,13 @@ export default function ChatClient({
     () => ({
       setChatDraft: (text) => {
         setInput(text.slice(0, CHAT_MESSAGE_MAX));
+        setShortcutChips([]);
         setJsxSendRequest(null);
       },
       requestChatSend: (text) => {
         const next = text.slice(0, CHAT_MESSAGE_MAX);
         setInput(next);
+        setShortcutChips([]);
         setJsxSendRequest(next);
       },
     }),
@@ -1278,8 +1325,10 @@ export default function ChatClient({
     [flushStreamBillingPresentation, removeVisualRevealPending]
   );
   const [memoryRefreshKey, setMemoryRefreshKey] = useState(0);
-  const [adultHandoffOn, setAdultHandoffOn] = useState(!!initialAdultHandoffEnabled);
-  const adultHandoffOnRef = useRef(!!initialAdultHandoffEnabled);
+  const [adultHandoffOn, setAdultHandoffOn] = useState(
+    isAdult && !!initialAdultHandoffEnabled
+  );
+  const adultHandoffOnRef = useRef(isAdult && !!initialAdultHandoffEnabled);
   const [adultHandoffBusy, setAdultHandoffBusy] = useState(false);
   const [selectedAI, setSelectedAI] = useState<SelectedAI | "">(initialSelectedAI ?? "");
   const [modelSaveBusy, setModelSaveBusy] = useState(false);
@@ -1872,8 +1921,8 @@ export default function ChatClient({
     setModelPickerEstimates(initialModelPickerEstimates);
     setModelPickerEstimateConfidence(initialModelPickerEstimateConfidence);
     setMode(initialMode);
-    setAdultHandoffOn(!!initialAdultHandoffEnabled);
-    adultHandoffOnRef.current = !!initialAdultHandoffEnabled;
+    setAdultHandoffOn(isAdult && !!initialAdultHandoffEnabled);
+    adultHandoffOnRef.current = isAdult && !!initialAdultHandoffEnabled;
     setTargetResponseChars(initialTargetResponseChars);
     setChatTitle(initialChatTitle);
     setNarrativePov(initialNarrativePov);
@@ -1896,6 +1945,7 @@ export default function ChatClient({
     initialUserAuthoringLevel,
     initialDisplayPrefs,
     initialSelectedPersonaId,
+    isAdult,
   ]);
 
   const [floatDeductionAmount, setFloatDeductionAmount] = useState(0);
@@ -2128,6 +2178,7 @@ export default function ChatClient({
 
   const handleSuggestedReplyPick = useCallback((text: string) => {
     setInput(text.slice(0, CHAT_MESSAGE_MAX));
+    setShortcutChips([]);
     requestAnimationFrame(() => {
       inputRef.current?.focus();
     });
@@ -2142,55 +2193,147 @@ export default function ChatClient({
     };
   }, []);
 
-  const applyShortcutInsert = useCallback((insert: string, draftOverride?: string): ChatShortcutInsertResult => {
-    const el = inputRef.current;
-    const draft = draftOverride ?? el?.value ?? "";
-    const live = el != null && document.activeElement === el;
-    const selectionStart = live
-      ? (el.selectionStart ?? shortcutCaretRef.current.start)
-      : shortcutCaretRef.current.start;
-    const selectionEnd = live
-      ? (el.selectionEnd ?? shortcutCaretRef.current.end)
-      : shortcutCaretRef.current.end;
-    const plan = planChatShortcutInsert({
-      composing: false,
-      locked: inputLocked,
-      draft,
-      selectionStart,
-      selectionEnd,
-      insert,
-      maxChars: CHAT_MESSAGE_MAX,
+  const placeComposerCaret = useCallback((caret: number) => {
+    shortcutCaretRef.current = { start: caret, end: caret };
+    requestAnimationFrame(() => {
+      const node = inputRef.current;
+      if (!node) return;
+      node.focus();
+      node.setSelectionRange(caret, caret);
     });
-    if (plan.action === "apply") {
-      setShortcutNotice("");
-      setInput(plan.next);
-      shortcutCaretRef.current = { start: plan.caret, end: plan.caret };
-      requestAnimationFrame(() => {
-        const node = inputRef.current;
-        if (!node) return;
-        node.focus();
-        node.setSelectionRange(plan.caret, plan.caret);
-      });
-      return plan;
-    }
-    setShortcutNotice(plan.action === "reject" ? plan.message : plan.message);
-    return plan;
-  }, [inputLocked]);
+  }, []);
 
-  const requestShortcutInsert = useCallback((insert: string): ChatShortcutInsertResult => {
-    if (shortcutComposingRef.current) {
-      pendingShortcutRef.current = insert;
-      setShortcutNotice("한글 입력이 끝나면 단축어를 넣습니다.");
-      return planChatShortcutInsert({
-        composing: true,
-        draft: inputRef.current?.value ?? "",
-        selectionStart: shortcutCaretRef.current.start,
-        selectionEnd: shortcutCaretRef.current.end,
-        insert,
+  const updateSlashFromComposer = useCallback((value: string, caret: number, collapsed: boolean) => {
+    const next = collapsed ? detectShortcutSlash(value, caret) : null;
+    setSlash((prev) =>
+      prev?.start === next?.start && prev?.end === next?.end && prev?.query === next?.query ? prev : next
+    );
+    if (!next) setSlashDismissedStart(null);
+  }, []);
+
+  const handleShortcutListChange = useCallback(
+    (items: readonly ChatShortcutListItem[], phase: ChatShortcutListPhase) => {
+      setShortcutList((prev) => (prev.items === items && prev.phase === phase ? prev : { items, phase }));
+    },
+    []
+  );
+
+  const applyShortcutInsert = useCallback(
+    (
+      source: ShortcutChipSource,
+      opts?: { draftOverride?: string; replaceRange?: { start: number; end: number } }
+    ): ShortcutChipInsertResult => {
+      const el = inputRef.current;
+      const draft = opts?.draftOverride ?? el?.value ?? "";
+      const live = el != null && document.activeElement === el;
+      const selectionStart = live
+        ? (el.selectionStart ?? shortcutCaretRef.current.start)
+        : shortcutCaretRef.current.start;
+      const selectionEnd = live
+        ? (el.selectionEnd ?? shortcutCaretRef.current.end)
+        : shortcutCaretRef.current.end;
+      const plan = planShortcutChipInsert({
+        composing: false,
+        locked: inputLocked,
+        value: draft,
+        chips: shortcutChips,
+        selectionStart,
+        selectionEnd,
+        replaceRange: opts?.replaceRange,
+        source,
+        maxChars: CHAT_MESSAGE_MAX,
       });
-    }
-    return applyShortcutInsert(insert);
-  }, [applyShortcutInsert]);
+      if (plan.action === "apply") {
+        setShortcutNotice("");
+        setInput(plan.value);
+        setShortcutChips(plan.chips);
+        setSlash(null);
+        setSlashDismissedStart(null);
+        placeComposerCaret(plan.caret);
+        return plan;
+      }
+      setShortcutNotice(plan.message);
+      return plan;
+    },
+    [inputLocked, shortcutChips, placeComposerCaret]
+  );
+
+  const requestShortcutInsert = useCallback(
+    (source: ShortcutChipSource): ShortcutChipInsertResult => {
+      if (shortcutComposingRef.current) {
+        pendingShortcutRef.current = source;
+        setShortcutNotice(CHAT_SHORTCUT_INSERT_DEFERRED_MESSAGE);
+        return planShortcutChipInsert({
+          composing: true,
+          value: inputRef.current?.value ?? "",
+          chips: shortcutChips,
+          selectionStart: shortcutCaretRef.current.start,
+          selectionEnd: shortcutCaretRef.current.end,
+          source,
+        });
+      }
+      return applyShortcutInsert(source);
+    },
+    [applyShortcutInsert, shortcutChips]
+  );
+
+  const slashOpen = slash != null && slashDismissedStart !== slash.start && !inputLocked;
+  const slashItems = useMemo(
+    () => (slash ? filterShortcutsForSlash(shortcutList.items, slash.query) : []),
+    [slash, shortcutList.items]
+  );
+  const slashActiveIndex = slashItems.length === 0 ? 0 : Math.min(slashIndex, slashItems.length - 1);
+
+  useEffect(() => {
+    setSlashIndex(0);
+  }, [slash?.start, slash?.query]);
+
+  const pickSlashShortcut = useCallback(
+    (item: ChatShortcutListItem) => {
+      if (!slash) return;
+      const result = applyShortcutInsert(
+        { id: item.id, name: item.name, favorite: item.favorite, content: item.content },
+        { replaceRange: { start: slash.start, end: slash.end } }
+      );
+      if (result.action !== "apply") setSlashDismissedStart(slash.start);
+    },
+    [applyShortcutInsert, slash]
+  );
+
+  const removeShortcutChipAt = useCallback(
+    (tokenStart: number) => {
+      const removed = removeShortcutChipToken({ value: input, chips: shortcutChips, tokenStart });
+      if (!removed) return;
+      setInput(removed.value);
+      setShortcutChips(removed.chips);
+      setShortcutNotice("");
+      placeComposerCaret(removed.caret);
+    },
+    [input, shortcutChips, placeComposerCaret]
+  );
+
+  const composerExpandedLength = useMemo(
+    () => shortcutExpandedLength(input, shortcutChips),
+    [input, shortcutChips]
+  );
+
+  const handleComposerSelection = useCallback(
+    (el: HTMLTextAreaElement) => {
+      if (!shortcutComposingRef.current && shortcutChips.length > 0) {
+        const snapped = snapShortcutSelection({
+          value: el.value,
+          chips: shortcutChips,
+          selectionStart: el.selectionStart ?? 0,
+          selectionEnd: el.selectionEnd ?? 0,
+          previousStart: shortcutCaretRef.current.start,
+        });
+        if (snapped) el.setSelectionRange(snapped.start, snapped.end);
+      }
+      rememberShortcutCaret(el);
+      updateSlashFromComposer(el.value, el.selectionStart ?? 0, el.selectionStart === el.selectionEnd);
+    },
+    [rememberShortcutCaret, shortcutChips, updateSlashFromComposer]
+  );
 
   /** Multi-tab: refresh global selected_ai on focus (server remains SoT for generation).
    * Read latest via ref so a focus/visibility sync never overwrites an optimistic
@@ -2257,7 +2400,10 @@ export default function ChatClient({
     const scope = `${character.id}:${chatId ?? "pending"}`;
     if (scope === draftScopeRef.current) return;
     draftScopeRef.current = scope;
-    setInput(loadChatMessageDraft(character.id, chatId));
+    const restored = loadChatMessageComposer(character.id, chatId);
+    setInput(restored.value);
+    setShortcutChips(restored.chips);
+    setSlash(null);
   }, [character.id, chatId]);
 
   useEffect(() => {
@@ -2282,7 +2428,8 @@ export default function ChatClient({
       }
     }
     saveChatMessageDraft(character.id, chatId, input);
-  }, [character.id, chatId, input]);
+    saveChatMessageChips(character.id, chatId, input, shortcutChips);
+  }, [character.id, chatId, input, shortcutChips]);
 
   useEffect(() => {
     if (chatId != null) migrateChatMessageDraft(character.id, chatId);
@@ -4169,6 +4316,11 @@ export default function ChatClient({
     setError(notice);
   }
 
+  function restoreComposerSnapshot(snapshot: ComposerSnapshot) {
+    setInput(snapshot.value);
+    setShortcutChips(snapshot.chips);
+  }
+
   function handlePostStreamResult(
     streamResult: {
       streamError?: string;
@@ -4178,11 +4330,11 @@ export default function ChatClient({
       eofUnresolved?: boolean;
     },
     aiIndex: number,
-    opts?: { rollback?: () => void; restoreInput?: string }
+    opts?: { rollback?: () => void; restoreComposer?: ComposerSnapshot }
   ) {
     if (streamResult.trafficOverload) {
       applyTrafficOverloadNotice(streamResult.trafficOverload, aiIndex - 1);
-      if (opts?.restoreInput != null) setInput(opts.restoreInput);
+      if (opts?.restoreComposer) restoreComposerSnapshot(opts.restoreComposer);
       return;
     }
     if (streamResult.streamError) {
@@ -4192,7 +4344,7 @@ export default function ChatClient({
       } else {
         setMessages((m) => softRollbackTurn(m, aiIndex));
       }
-      if (opts?.restoreInput != null) setInput(opts.restoreInput);
+      if (opts?.restoreComposer) restoreComposerSnapshot(opts.restoreComposer);
       return;
     }
     // EOF reconcile already set completed / interrupted on the assistant row.
@@ -4210,7 +4362,7 @@ export default function ChatClient({
     res: Response,
     aiIndex: number,
     rollback: () => void,
-    restoreInput?: string
+    restoreComposer?: ComposerSnapshot
   ) {
     // 성공 응답은 Content-Type이 비거나 달라도 스트림 소비로 넘긴다.
     // (일부 환경에서 text/event-stream 헤더가 누락되면 JSON 파싱→롤백으로
@@ -4223,7 +4375,7 @@ export default function ChatClient({
     } catch {
       setError(`서버 오류 (${res.status}). 잠시 후 다시 시도해 주세요.`);
       rollback();
-      if (restoreInput != null) setInput(restoreInput);
+      if (restoreComposer) restoreComposerSnapshot(restoreComposer);
       return true;
     }
     setError(data.error || "오류가 발생했습니다.");
@@ -4232,7 +4384,7 @@ export default function ChatClient({
       router.push(isPaymentsEnabledClient() ? "/points" : "/events/beta-free-points");
     }
     rollback();
-    if (restoreInput != null) setInput(restoreInput);
+    if (restoreComposer) restoreComposerSnapshot(restoreComposer);
     return true;
   }
 
@@ -4309,7 +4461,7 @@ export default function ChatClient({
           isContinue: true,
           clientRequestId,
           selectedAI,
-          adultHandoffEnabled: adultHandoffOnRef.current,
+          ...(isAdult ? { adultHandoffEnabled: adultHandoffOnRef.current } : {}),
           userNote,
           selectedPersonaId,
           targetResponseChars,
@@ -4356,8 +4508,11 @@ export default function ChatClient({
       setError(MODEL_SELECTION_REQUIRED_MESSAGE);
       return;
     }
-    const text = input.trim();
-    if (!text || inFlightRef.current) return;
+    // Display value (chip tokens) stays the restorable draft; the single expansion
+    // below is the only text that reaches the optimistic row, drafts, and the API.
+    const composerSnapshot: ComposerSnapshot = { value: input.trim(), chips: shortcutChips };
+    const text = expandShortcutChips(composerSnapshot.value, composerSnapshot.chips);
+    if (!text.trim() || inFlightRef.current) return;
     if (text.length > CHAT_MESSAGE_MAX) {
       setError(`메시지는 ${CHAT_MESSAGE_MAX}자까지 입력할 수 있습니다.`);
       return;
@@ -4369,6 +4524,8 @@ export default function ChatClient({
     // the server confirms durable bootstrap via turn_persisted.
     inFlightInputRef.current = { requestId: "", text, characterId: character.id, chatId };
     setInput("");
+    setShortcutChips([]);
+    setSlash(null);
     setJsxSendRequest(null);
     setError("");
     setStreamPhase(null);
@@ -4421,9 +4578,10 @@ export default function ChatClient({
           ? softRollbackTurn(m, optimisticAssistantIndex)
           : m.filter((message) => message.requestId !== clientRequestId);
       });
-      setInput(text);
+      restoreComposerSnapshot(composerSnapshot);
       inFlightInputRef.current = null;
-      saveChatMessageDraft(character.id, chatId, text);
+      saveChatMessageDraft(character.id, chatId, composerSnapshot.value);
+      saveChatMessageChips(character.id, chatId, composerSnapshot.value, composerSnapshot.chips);
       inFlightRef.current = false;
       loadingRef.current = false;
       setLoading(false);
@@ -4463,7 +4621,7 @@ export default function ChatClient({
           message: text,
           clientRequestId,
           selectedAI,
-          adultHandoffEnabled: adultHandoffOnRef.current,
+          ...(isAdult ? { adultHandoffEnabled: adultHandoffOnRef.current } : {}),
           userNote,
           selectedPersonaId,
           targetResponseChars,
@@ -4474,12 +4632,13 @@ export default function ChatClient({
 
       const earlyExit = await handleStreamError(res, aiIndex, () => {
         setMessages((m) => softRollbackTurn(m, aiIndex));
-      }, text);
+      }, composerSnapshot);
       if (earlyExit) {
         // Pre-bootstrap failure: durable custody never confirmed. Preserve both
         // browser owners (message draft + stream userText) instead of clearing.
         inFlightInputRef.current = null;
-        saveChatMessageDraft(character.id, chatId, text);
+        saveChatMessageDraft(character.id, chatId, composerSnapshot.value);
+        saveChatMessageChips(character.id, chatId, composerSnapshot.value, composerSnapshot.chips);
         writeChatStreamDraft(character.id, chatId, {
           requestId: clientRequestId,
           chatId: chatId ?? 0,
@@ -4493,7 +4652,7 @@ export default function ChatClient({
       streamResult = await consumeChatStream(res, aiIndex, clientRequestId);
       handlePostStreamResult(streamResult, aiIndex, {
         rollback: () => setMessages((m) => softRollbackTurn(m, aiIndex)),
-        restoreInput: text,
+        restoreComposer: composerSnapshot,
       });
     } catch (e) {
       activeStreamRevealRef.current?.reset();
@@ -4508,11 +4667,12 @@ export default function ChatClient({
         const assistant = m[aiIndex];
         const persisted = assistant?.id != null || m[aiIndex - 1]?.id != null;
         if (!persisted) {
-          setInput(text);
+          restoreComposerSnapshot(composerSnapshot);
           // Ambiguous transport failure before durable ACK: preservation wins.
           // Keep the stream userText backup and re-anchor the message draft.
           inFlightInputRef.current = null;
-          saveChatMessageDraft(character.id, chatId, text);
+          saveChatMessageDraft(character.id, chatId, composerSnapshot.value);
+          saveChatMessageChips(character.id, chatId, composerSnapshot.value, composerSnapshot.chips);
         }
         return softRollbackTurn(m, aiIndex);
       });
@@ -4740,7 +4900,7 @@ export default function ChatClient({
           targetAssistantMessageId: prevAssistant.id,
           clientRequestId,
           selectedAI,
-          adultHandoffEnabled: adultHandoffOnRef.current,
+          ...(isAdult ? { adultHandoffEnabled: adultHandoffOnRef.current } : {}),
           userNote,
           selectedPersonaId,
           targetResponseChars,
@@ -5660,6 +5820,9 @@ export default function ChatClient({
             onDisplayPrefsChange={handleDisplayPrefsChange}
             settingsPanel={renderSettingsPanel("rail")}
             bookmarksPanel={<BookmarksPanel variant="rail" />}
+            downloadPanel={
+              <ChatTranscriptDownloadButton chatId={chatId} onError={setToastMsg} />
+            }
           />
         </div>
       </div>
@@ -6235,12 +6398,14 @@ export default function ChatClient({
               ))}
             </select>
           </label>
-          <ChatRoomAdultModeToggle
-            isAdult={isAdult}
-            enabled={adultHandoffOn}
-            busy={adultHandoffBusy}
-            onToggle={() => void toggleAdultHandoff()}
-          />
+          {isAdult ? (
+            <ChatRoomAdultModeToggle
+              isAdult={isAdult}
+              enabled={adultHandoffOn}
+              busy={adultHandoffBusy}
+              onToggle={() => void toggleAdultHandoff()}
+            />
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-0.5">
@@ -6264,61 +6429,171 @@ export default function ChatClient({
             </p>
           ) : null}
           <div className="flex gap-1.5">
-            <textarea
-              ref={inputRef}
-              value={input}
-              maxLength={CHAT_MESSAGE_MAX}
-              onChange={(e) => {
-                const native = e.nativeEvent;
-                const inputType = native instanceof InputEvent ? native.inputType : null;
-                const echo = shortcutComposerChangeAfterComposition({
-                  echoArmed: shortcutCompositionEchoRef.current,
-                  inputType,
-                });
-                shortcutCompositionEchoRef.current = echo.echoArmed;
-                if (echo.ignoreChange) {
+            <div className="relative flex min-w-0 flex-1">
+              {slashOpen ? (
+                <ChatShortcutSlashMenu
+                  id={slashMenuId}
+                  items={slashItems}
+                  phase={shortcutList.phase}
+                  activeIndex={slashActiveIndex}
+                  onPick={pickSlashShortcut}
+                  onActiveChange={setSlashIndex}
+                />
+              ) : null}
+              <textarea
+                ref={inputRef}
+                value={input}
+                maxLength={shortcutChips.length === 0 ? CHAT_MESSAGE_MAX : undefined}
+                aria-autocomplete="list"
+                aria-controls={slashOpen && slashItems.length > 0 ? slashMenuId : undefined}
+                aria-activedescendant={
+                  slashOpen && slashItems.length > 0 ? slashOptionId(slashMenuId, slashActiveIndex) : undefined
+                }
+                onChange={(e) => {
+                  const native = e.nativeEvent;
+                  const inputType = native instanceof InputEvent ? native.inputType : null;
+                  const echo = shortcutComposerChangeAfterComposition({
+                    echoArmed: shortcutCompositionEchoRef.current,
+                    inputType,
+                  });
+                  shortcutCompositionEchoRef.current = echo.echoArmed;
+                  if (echo.ignoreChange) {
+                    rememberShortcutCaret(e.currentTarget);
+                    return;
+                  }
+                  const el = e.currentTarget;
+                  const raw = el.value;
+                  if (shortcutChips.length === 0 && !hasShortcutSentinel(raw)) {
+                    const next = raw.slice(0, CHAT_MESSAGE_MAX);
+                    setInput(next);
+                    rememberShortcutCaret(el);
+                    updateSlashFromComposer(next, el.selectionStart ?? 0, el.selectionStart === el.selectionEnd);
+                    return;
+                  }
+                  const edit = reconcileShortcutEdit({ prev: input, next: raw, chips: shortcutChips });
+                  if (shortcutEditExceedsLimit(edit.value, edit.chips, CHAT_MESSAGE_MAX)) {
+                    setShortcutNotice(SHORTCUT_EDIT_TOO_LONG_MESSAGE);
+                    return;
+                  }
+                  setShortcutNotice((current) => (current === SHORTCUT_EDIT_TOO_LONG_MESSAGE ? "" : current));
+                  setInput(edit.value);
+                  setShortcutChips(edit.chips);
+                  const caret = edit.caret ?? el.selectionStart ?? edit.value.length;
+                  if (edit.caret != null) placeComposerCaret(edit.caret);
+                  else rememberShortcutCaret(el);
+                  updateSlashFromComposer(edit.value, caret, edit.caret != null || el.selectionStart === el.selectionEnd);
+                }}
+                onSelect={(e) => handleComposerSelection(e.currentTarget)}
+                onKeyUp={(e) => handleComposerSelection(e.currentTarget)}
+                onClick={(e) => handleComposerSelection(e.currentTarget)}
+                onBlur={(e) => rememberShortcutCaret(e.currentTarget)}
+                onCompositionStart={() => {
+                  shortcutComposingRef.current = true;
+                }}
+                onCompositionEnd={(e) => {
+                  shortcutComposingRef.current = false;
                   rememberShortcutCaret(e.currentTarget);
-                  return;
-                }
-                setInput(e.target.value.slice(0, CHAT_MESSAGE_MAX));
-                rememberShortcutCaret(e.currentTarget);
-              }}
-              onSelect={(e) => rememberShortcutCaret(e.currentTarget)}
-              onKeyUp={(e) => rememberShortcutCaret(e.currentTarget)}
-              onClick={(e) => rememberShortcutCaret(e.currentTarget)}
-              onBlur={(e) => rememberShortcutCaret(e.currentTarget)}
-              onCompositionStart={() => {
-                shortcutComposingRef.current = true;
-              }}
-              onCompositionEnd={(e) => {
-                shortcutComposingRef.current = false;
-                rememberShortcutCaret(e.currentTarget);
-                const pending = pendingShortcutRef.current;
-                pendingShortcutRef.current = null;
-                if (!pending) return;
-                shortcutCompositionEchoRef.current = true;
-                applyShortcutInsert(pending, e.currentTarget.value);
-                // echo가 같은 턴에 없으면 억제를 다음 편집까지 남기지 않는다.
-                queueMicrotask(() => {
-                  shortcutCompositionEchoRef.current = false;
-                });
-              }}
-              onKeyDown={(e) => {
-                if (
-                  e.key === "Enter" &&
-                  (e.ctrlKey || e.metaKey) &&
-                  !e.nativeEvent.isComposing
-                ) {
-                  e.preventDefault();
-                  if (!inputLocked && !generationNeedsModel) send();
-                }
-              }}
-              disabled={inputLocked}
-              rows={2}
-              placeholder="메시지 입력 · 지문은 * * 또는 ( ) · Ctrl+Enter 전송"
-              className="min-h-[3.5rem] flex-1 resize-none rounded-lg border border-white/25 bg-[#1a1a1a] px-3 py-2.5 text-zinc-100 outline-none placeholder:text-zinc-400/80 focus:border-violet-400/60 focus:ring-1 focus:ring-violet-500/35 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[2.75rem] sm:py-2"
-              style={{ fontSize: "calc(var(--font-size-chat) + 0.0625rem)", lineHeight: "var(--line-height-chat)" }}
-            />
+                  updateSlashFromComposer(
+                    e.currentTarget.value,
+                    e.currentTarget.selectionStart ?? 0,
+                    e.currentTarget.selectionStart === e.currentTarget.selectionEnd
+                  );
+                  const pending = pendingShortcutRef.current;
+                  pendingShortcutRef.current = null;
+                  if (!pending) return;
+                  shortcutCompositionEchoRef.current = true;
+                  applyShortcutInsert(pending, { draftOverride: e.currentTarget.value });
+                  // echo가 같은 턴에 없으면 억제를 다음 편집까지 남기지 않는다.
+                  queueMicrotask(() => {
+                    shortcutCompositionEchoRef.current = false;
+                  });
+                }}
+                onKeyDown={(e) => {
+                  const composing =
+                    e.nativeEvent.isComposing || e.keyCode === 229 || shortcutComposingRef.current;
+                  if (slashOpen && !composing) {
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setSlashDismissedStart(slash.start);
+                      return;
+                    }
+                    if (slashItems.length > 0) {
+                      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                        e.preventDefault();
+                        const step = e.key === "ArrowDown" ? 1 : -1;
+                        setSlashIndex((slashActiveIndex + step + slashItems.length) % slashItems.length);
+                        return;
+                      }
+                      if (
+                        (e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) ||
+                        (e.key === "Tab" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey)
+                      ) {
+                        e.preventDefault();
+                        const picked = slashItems[slashActiveIndex];
+                        if (picked) pickSlashShortcut(picked);
+                        return;
+                      }
+                    }
+                  }
+                  if (
+                    !composing &&
+                    shortcutChips.length > 0 &&
+                    !e.ctrlKey &&
+                    !e.metaKey &&
+                    !e.altKey &&
+                    !e.shiftKey
+                  ) {
+                    const el = e.currentTarget;
+                    const action = planShortcutChipKey({
+                      value: el.value,
+                      chips: shortcutChips,
+                      selectionStart: el.selectionStart ?? 0,
+                      selectionEnd: el.selectionEnd ?? 0,
+                      key: e.key,
+                    });
+                    if (action) {
+                      e.preventDefault();
+                      if (action.kind === "remove") {
+                        setInput(action.value);
+                        setShortcutChips(action.chips);
+                        setShortcutNotice("");
+                      }
+                      if (action.kind === "caret") el.setSelectionRange(action.caret, action.caret);
+                      placeComposerCaret(action.caret);
+                      return;
+                    }
+                  }
+                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                    // Same composition judgment as slash selection and chip keys.
+                    // A Hangul keydown can report isComposing false while keyCode is 229
+                    // or compositionend has not run yet.
+                    if (composing) {
+                      e.preventDefault();
+                      return;
+                    }
+                    e.preventDefault();
+                    if (!inputLocked && !generationNeedsModel) send();
+                  }
+                }}
+                disabled={inputLocked}
+                rows={2}
+                placeholder="메시지 입력 · 지문은 * * 또는 ( ) · Ctrl+Enter 전송"
+                className={`min-h-[3.5rem] w-full min-w-0 flex-1 resize-none rounded-lg border border-white/25 bg-[#1a1a1a] px-3 py-2.5 text-zinc-100 outline-none placeholder:text-zinc-400/80 focus:border-violet-400/60 focus:ring-1 focus:ring-violet-500/35 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[2.75rem] sm:py-2 ${
+                  shortcutChips.length > 0 ? "[scrollbar-gutter:stable]" : ""
+                }`}
+                style={composerFontStyle}
+              />
+              {shortcutChips.length > 0 ? (
+                <ChatShortcutChipLayer
+                  value={input}
+                  chips={shortcutChips}
+                  textareaRef={inputRef}
+                  fontStyle={composerFontStyle}
+                  onRemove={removeShortcutChipAt}
+                />
+              ) : null}
+            </div>
             <div className="flex shrink-0 flex-col gap-1">
               <button
                 type="button"
@@ -6362,6 +6637,8 @@ export default function ChatClient({
               onInsert={requestShortcutInsert}
               onCloseFocus={() => inputRef.current?.focus()}
               composerRef={inputRef}
+              loadRequested={slash != null}
+              onListChange={handleShortcutListChange}
             />
             <button
               type="button"
@@ -6382,11 +6659,12 @@ export default function ChatClient({
             </p>
             <p className="shrink-0 text-right">
               <span
+                data-testid="chat-composer-length"
                 className={`font-semibold ${
-                  input.length >= CHAT_MESSAGE_MAX ? "text-rose-400" : "text-zinc-300"
+                  composerExpandedLength >= CHAT_MESSAGE_MAX ? "text-rose-400" : "text-zinc-300"
                 }`}
               >
-                {input.length.toLocaleString()} / {CHAT_MESSAGE_MAX.toLocaleString()}자
+                {composerExpandedLength.toLocaleString()} / {CHAT_MESSAGE_MAX.toLocaleString()}자
               </span>
               <span className="hidden text-[10px] text-zinc-400 min-[576px]:inline"> · Ctrl+Enter 전송</span>
             </p>
@@ -6439,6 +6717,7 @@ export default function ChatClient({
         />
         {renderSettingsPanel("rail")}
         <BookmarksPanel variant="rail" />
+        <ChatTranscriptDownloadButton chatId={chatId} onError={setToastMsg} />
       </aside>
 
       {/* Message-toolbar image button opens this host panel (no duplicate rail trigger). */}

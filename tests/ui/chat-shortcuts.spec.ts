@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ensureLivePickerModel } from "./helpers/ensureLivePickerModel";
+import { composerVisibleText } from "./helpers/chatShortcutsUi";
 import { openExplicitFreshChat } from "./helpers/openExplicitChat";
 
 const composer = (page: Page) => page.locator("textarea[placeholder*='메시지 입력']");
@@ -49,32 +50,37 @@ test.describe("personal chat shortcuts", () => {
     await page.getByTestId("chat-shortcuts-description").fill("첫 마디");
     await page.getByTestId("chat-shortcuts-content").fill("잘 지냈어?");
     await page.getByTestId("chat-shortcuts-save").click();
-    await expect(page.getByTestId("chat-shortcuts-preview")).toContainText("잘 지냈어?");
+    await expect(page.getByTestId("chat-shortcuts-preview")).toContainText("첫 마디");
+    await expect(page.getByTestId("chat-shortcuts-preview")).not.toContainText("잘 지냈어?");
 
     await page.getByTestId("chat-shortcuts-panel").getByRole("button", { name: "수정" }).click();
+    await expect(page.getByTestId("chat-shortcuts-content")).toHaveValue("잘 지냈어?");
     await page.getByTestId("chat-shortcuts-content").fill("오늘 잘 지냈어?");
     await page.getByTestId("chat-shortcuts-save").click();
-    await expect(page.getByTestId("chat-shortcuts-preview")).toContainText("오늘 잘 지냈어?");
+    await expect(page.getByTestId("chat-shortcuts-preview")).not.toContainText("오늘 잘 지냈어?");
 
     await page.getByRole("button", { name: "인사 즐겨찾기" }).click();
     await expect(page.getByRole("button", { name: "인사 즐겨찾기 해제" })).toBeVisible();
 
     await setComposer(page, "안녕", 1);
     await page.getByTestId("chat-shortcuts-insert").click();
-    await expect(composer(page)).toHaveValue("안오늘 잘 지냈어?녕");
+    await expect(page.getByTestId("chat-shortcut-chip")).toHaveCount(1);
+    await expect(page.getByTestId("chat-shortcut-chip")).toHaveAttribute("data-chip-name", "인사");
+    expect(await composerVisibleText(page)).not.toContain("오늘 잘 지냈어?");
+    expect(await composerVisibleText(page)).toMatch(/^안.*인사.*녕$/);
     await expect(page.getByTestId("chat-shortcuts-panel")).toHaveCount(0);
 
     await page.reload();
     await expect(composer(page)).toBeVisible({ timeout: 45_000 });
     await page.getByTestId("chat-shortcuts-open").click();
     await page.getByRole("button", { name: "★ 인사" }).click();
-    await expect(page.getByTestId("chat-shortcuts-preview")).toContainText("오늘 잘 지냈어?");
+    await expect(page.getByTestId("chat-shortcuts-preview")).toContainText("첫 마디");
 
     await openExplicitFreshChat(page, 3);
     await expect(composer(page)).toBeVisible({ timeout: 45_000 });
     await page.getByTestId("chat-shortcuts-open").click();
     await page.getByRole("button", { name: "★ 인사" }).click();
-    await expect(page.getByTestId("chat-shortcuts-preview")).toContainText("오늘 잘 지냈어?");
+    await expect(page.getByTestId("chat-shortcuts-preview")).toContainText("첫 마디");
     await page.getByRole("button", { name: "삭제" }).click();
     await page.getByTestId("chat-shortcuts-delete-confirm").click();
     await expect(page.getByRole("button", { name: "★ 인사" })).toHaveCount(0);
@@ -141,7 +147,7 @@ test.describe("personal chat shortcuts", () => {
     await page.getByTestId("chat-shortcuts-name").fill("증거");
     await page.getByTestId("chat-shortcuts-content").fill("확인 후 삽입");
     await page.getByTestId("chat-shortcuts-save").click();
-    await expect(page.getByTestId("chat-shortcuts-preview")).toContainText("확인 후 삽입");
+    await expect(page.getByTestId("chat-shortcuts-preview")).toContainText("증거");
     for (const viewport of [
       { width: 390, height: 844, tag: "390" },
       { width: 1280, height: 800, tag: "1280" },
@@ -158,7 +164,8 @@ test.describe("personal chat shortcuts", () => {
     }
     await page.getByTestId("chat-shortcuts-insert").click();
     await expect(composer(page)).toBeFocused();
-    await expect(composer(page)).toHaveValue("기존확인 후 삽입 초안");
+    await expect(page.getByTestId("chat-shortcut-chip")).toHaveAttribute("data-chip-name", "증거");
+    expect(await composerVisibleText(page)).not.toContain("확인 후 삽입");
     for (const viewport of [
       { width: 390, height: 844, tag: "390" },
       { width: 1280, height: 800, tag: "1280" },
@@ -214,7 +221,7 @@ test.describe("personal chat shortcuts", () => {
     await expect(page.getByTestId("chat-shortcuts-content")).toHaveValue("다시 저장");
     await expect(page.getByTestId("chat-shortcuts-save")).toBeEnabled();
     await page.getByTestId("chat-shortcuts-save").click();
-    await expect(page.getByTestId("chat-shortcuts-preview")).toContainText("다시 저장");
+    await expect(page.getByTestId("chat-shortcuts-preview")).toContainText("재시도");
 
     await page.getByRole("button", { name: "재시도 즐겨찾기" }).click();
     await expect(page.getByTestId("chat-shortcuts-notice")).toContainText("다시 시도");
@@ -323,7 +330,7 @@ test.describe("personal chat shortcuts", () => {
     await page.getByTestId("chat-shortcuts-name").fill("조합");
     await page.getByTestId("chat-shortcuts-content").fill("!");
     await page.getByTestId("chat-shortcuts-save").click();
-    await expect(page.getByTestId("chat-shortcuts-preview")).toContainText("!");
+    await expect(page.getByTestId("chat-shortcuts-preview")).toBeVisible();
 
     const box = composer(page);
     await box.evaluate((el) => {
@@ -346,7 +353,9 @@ test.describe("personal chat shortcuts", () => {
         new InputEvent("input", { bubbles: true, data: "안녕", inputType: "insertCompositionText" })
       );
     });
-    await expect(box).toHaveValue("안녕!");
+    await expect(page.getByTestId("chat-shortcut-chip")).toHaveCount(1);
+    expect(await composerVisibleText(page)).toMatch(/^안녕.*조합.*$/);
+    expect((await composerVisibleText(page)).startsWith("안녕안")).toBe(false);
     await expect(page.getByTestId("chat-shortcuts-composer-notice")).toHaveCount(0);
   });
 
@@ -381,7 +390,7 @@ test.describe("personal chat shortcuts", () => {
     await expect(page.getByRole("button", { name: "첫번째 설명하나" })).toBeVisible();
     await expect(page.getByTestId("chat-shortcuts-save")).toBeEnabled();
     await page.getByTestId("chat-shortcuts-save").click();
-    await expect(page.getByTestId("chat-shortcuts-preview")).toContainText("내용둘");
+    await expect(page.getByTestId("chat-shortcuts-preview")).toContainText("설명둘");
     await expect(page.getByRole("button", { name: "첫번째-수정 설명둘" })).toBeVisible();
   });
 
@@ -392,7 +401,7 @@ test.describe("personal chat shortcuts", () => {
     await page.getByTestId("chat-shortcuts-name").fill("지우기");
     await page.getByTestId("chat-shortcuts-content").fill("!");
     await page.getByTestId("chat-shortcuts-save").click();
-    await expect(page.getByTestId("chat-shortcuts-preview")).toContainText("!");
+    await expect(page.getByTestId("chat-shortcuts-preview")).toBeVisible();
 
     const box = composer(page);
     await box.evaluate((el) => {
@@ -412,7 +421,8 @@ test.describe("personal chat shortcuts", () => {
       );
       textarea.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "안녕" }));
     });
-    await expect(box).toHaveValue("안녕!");
+    await expect(page.getByTestId("chat-shortcut-chip")).toHaveCount(1);
+    expect(await composerVisibleText(page)).toMatch(/^안녕.*지우기.*$/);
     await expect(page.getByTestId("chat-shortcuts-composer-notice")).toHaveCount(0);
     await box.evaluate((el) => {
       const textarea = el as HTMLTextAreaElement;
@@ -424,5 +434,6 @@ test.describe("personal chat shortcuts", () => {
       );
     });
     await expect(box).toHaveValue("안녕");
+    await expect(page.getByTestId("chat-shortcut-chip")).toHaveCount(0);
   });
 });

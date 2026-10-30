@@ -12,6 +12,12 @@ import { isCharacterGenre } from "@/lib/characterGenres";
 import { evaluateAppearanceLock } from "@/lib/officialSupply/appearance";
 import { evaluateAssetPlan } from "@/lib/officialSupply/assetPlan";
 import {
+  officialWorldScaleForPlan,
+  resolveOfficialAuthoringPlan,
+  ROFAN_PARITY_PLAN,
+  type OfficialAuthoringPlan,
+} from "@/lib/officialSupply/genreProfile";
+import {
   buildAdultProfileSystem,
   buildAdultProfileUser,
   buildAppearanceSystem,
@@ -55,12 +61,15 @@ import {
   CHARACTER_BIBLE_1_SCHEMA,
   CHARACTER_BONDS_SCHEMA,
   CHARACTER_VOICE_SCHEMA,
+  characterVoiceRevisionSchema,
   compileOfficialDraftFromBible,
   evaluateVoiceStructureContract,
   NPC_RELATION_REPAIR_SCHEMA,
   validateCharacterBible,
+  normalizeWorldSocietyField,
   validateWorldBible,
   WORLD_BIBLE_SCHEMA,
+  worldPublicKnowledgeBoundaryIssues,
   type OfficialCharacterBible,
   type OfficialWorldBible,
 } from "@/lib/officialSupply/bible";
@@ -73,11 +82,13 @@ import {
 } from "@/lib/officialSupply/characterText";
 import {
   composeOfficialCreatorComment,
+  publicAppearanceFacts,
   evaluateOfficialCreatorComment,
   evaluateOfficialPlayerGenderNeutral,
   evaluateOfficialPublicDescription,
 } from "@/lib/officialSupply/publicProfileText";
 import { isOfficialImageSubjects } from "@/lib/officialSupply/imageSubjects";
+import { evaluateUserRelationPremise, officialUserRelationPremiseTexts } from "@/lib/officialSupply/userRelationStart";
 import { coerceMarketFitBrief } from "@/lib/officialSupply/marketFit";
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import {
@@ -637,7 +648,7 @@ export async function generateOfficialPortfolioReplacement(input: {
 }): Promise<{ briefs: PortfolioBriefInput[]; completion: OfficialAuthorRawCompletion }> {
   const completion = await input.transport.completeJson({
     task: "world_bible",
-    system: buildWorldBibleSystem(),
+    system: buildWorldBibleSystem(input.replacement.authoring),
     user: buildPortfolioReplacementUser(input.replacement),
     schemaName: "official_world_bible",
     schema: WORLD_BIBLE_SCHEMA,
@@ -658,6 +669,17 @@ export async function generateOfficialPortfolioReplacement(input: {
   if (missing.length || briefs.length !== plan.size) {
     throw new OfficialSupplyGateError("author_shape_invalid", `portfolio replacement: slots ${missing.join(",") || "duplicated"} missing`);
   }
+  for (const brief of briefs) {
+    const planType = coerceUserRelationPlan(brief.userRelation ?? null);
+    const premise = evaluateUserRelationPremise(planType.type, officialUserRelationPremiseTexts(brief));
+    if (!premise.ok) {
+      throw new OfficialSupplyGateError(
+        "author_user_relation_mismatch",
+        `slot ${brief.slot}: ${premise.errors.map((e) => e.message).join("; ")}`,
+        premise,
+      );
+    }
+  }
   return { briefs, completion };
 }
 
@@ -672,11 +694,7 @@ function coerceWorldBible(
   const powerSystem = isRecord(data.powerSystem) ? data.powerSystem : {};
   const knowledge = isRecord(data.knowledge) ? data.knowledge : {};
   const userEntry = isRecord(data.userEntry) ? data.userEntry : {};
-  const society = isRecord(data.society) ? data.society : {};
-  const societyOut: Record<string, string> = {};
-  for (const [key, value] of Object.entries(society)) {
-    if (typeof value === "string" && value.trim()) societyOut[key] = value;
-  }
+  const societyOut = normalizeWorldSocietyField(data.society);
   const portfolio = coercePortfolioBriefs(data.portfolio, task, opts.slotGenders);
   return {
     name: str("name"),
@@ -764,7 +782,7 @@ export async function generateOfficialWorldBible(input: {
   // background route (503). Three sequential structured calls (core → atlas
   // → portfolio) stay inside the proven output budget; the merged bible gets
   // the same deterministic QA as a single call would.
-  const system = buildWorldBibleSystem();
+  const system = buildWorldBibleSystem(input.world.authoring);
   const complete = (user: string): Promise<OfficialAuthorRawCompletion> =>
     input.transport.completeJson({
       task: "world_bible",
@@ -784,10 +802,34 @@ export async function generateOfficialWorldBible(input: {
     .map((f) => String(f.name ?? "").trim())
     .filter(Boolean);
 
-  const atlasInput: WorldAtlasInput = { worldName, centralPremise, factionNames };
+  const plan = input.world.authoring ?? ROFAN_PARITY_PLAN;
+  const worldScale = officialWorldScaleForPlan(plan);
+  const castIntent = input.world.castIntent?.trim() ?? "";
+  const atlasInput: WorldAtlasInput = {
+    worldName,
+    centralPremise,
+    factionNames,
+    worldScale,
+    ...(plan.profile.key === "genre_neutral" && castIntent ? { castIntent } : {}),
+    ...(plan.profile.key === "genre_neutral" ? { authoring: plan } : {}),
+  };
   const atlas = await complete(buildWorldAtlasUser(atlasInput));
   const atlasData = parseAuthorJson(atlas.text, "world_bible");
   if (!isRecord(atlasData)) throw new OfficialSupplyGateError("author_shape_invalid", "world_bible atlas: object required");
+  const atlasKnowledge = isRecord(atlasData.knowledge) ? atlasData.knowledge : undefined;
+  const atlasBoundary = worldPublicKnowledgeBoundaryIssues({
+    knowledge: atlasKnowledge ? { common: Array.isArray(atlasKnowledge.common) ? atlasKnowledge.common : undefined } : undefined,
+    lorebook: Array.isArray(atlasData.lorebook) ? atlasData.lorebook : undefined,
+  });
+  if (atlasBoundary.length > 0) {
+    const error = new OfficialSupplyGateError(
+      "author_world_rejected",
+      "world bible failed QA",
+      qaResult(atlasBoundary)
+    );
+    error.stage = "world_atlas_qa";
+    throw error;
+  }
   const locationNames = (Array.isArray(atlasData.locations) ? atlasData.locations : [])
     .filter(isRecord)
     .map((location) => String(location.name ?? "").trim())
@@ -804,6 +846,7 @@ export async function generateOfficialWorldBible(input: {
     slotGenders: input.world.slotGenders,
     market: input.world.market,
     castIntent: input.world.castIntent,
+    authoring: input.world.authoring,
   };
   const portfolioCompletion = await complete(buildWorldPortfolioUser(portfolioInput));
   const portfolioData = parseAuthorJson(portfolioCompletion.text, "world_bible");
@@ -837,6 +880,7 @@ export async function generateOfficialWorldBible(input: {
   const qa = validateWorldBible(bible, {
     slots: input.world.slots,
     adultCandidates: input.world.adultCandidates,
+    worldScale,
   });
   if (!qa.ok) throw new OfficialSupplyGateError("author_world_rejected", "world bible failed QA", qa);
   const attempt = input.attempt ?? 1;
@@ -1042,36 +1086,62 @@ function canonicalUserRelationPlan(input: {
   return canonical;
 }
 
+/** Portfolio brief.name is the canonical name; Part1 must not invent another. */
+export function assertPortfolioNameKept(briefName: string, part1: Record<string, unknown>): void {
+  const identity = isRecord(part1.identity) ? part1.identity : {};
+  const expected = briefName.trim();
+  const actual = typeof identity.name === "string" ? identity.name.trim() : "";
+  if (!expected || actual !== expected) {
+    throw new OfficialSupplyGateError(
+      "author_identity_name_mismatch",
+      `character_bible_1 identity.name must keep portfolio name "${expected}"`
+    );
+  }
+}
+
 export async function generateOfficialCharacterBible(input: {
   transport: OfficialAuthorTransport;
   part1: CharacterBible1Input;
-  voice: Omit<CharacterVoiceInput, "part1Recap"> & { part1Recap?: string };
-  bonds: Omit<CharacterBondsInput, "part1Recap"> & { part1Recap?: string };
+  voice: Omit<CharacterVoiceInput, "part1Recap" | "publicContext" | "includePublicManuscripts">;
+  bonds: Omit<CharacterBondsInput, "part1Recap">;
   modelId?: string;
   /** Opt-in: one targeted call may repair relation-only NPC defects. Default off. */
   npcRelationRepair?: boolean;
+  /** One genre/tone plan for all three stages. Absent = rofan parity. */
+  authoring?: OfficialAuthoringPlan;
 }): Promise<{
   bible: OfficialCharacterBible;
   completions: [OfficialAuthorRawCompletion, OfficialAuthorRawCompletion, OfficialAuthorRawCompletion];
   npcRelationRepairs: OfficialAuthorRawCompletion[];
 }> {
   const userRelation = canonicalUserRelationPlan(input);
+  const authoring = input.authoring ?? input.part1.authoring;
+  const premise = evaluateUserRelationPremise(userRelation.type, officialUserRelationPremiseTexts(input.part1.brief));
+  if (!premise.ok) throw new OfficialSupplyGateError("author_user_relation_mismatch", premise.errors.map(e => e.message).join("; "), premise);
   const first = await input.transport.completeJson({
     task: "character_bible_1",
-    system: buildCharacterBible1System(),
-    user: buildCharacterBible1User({ ...input.part1, brief: { ...input.part1.brief, userRelation } }),
+    system: buildCharacterBible1System(authoring),
+    user: buildCharacterBible1User({ ...input.part1, authoring, brief: { ...input.part1.brief, userRelation } }),
     schemaName: "official_character_bible_1",
     schema: CHARACTER_BIBLE_1_SCHEMA,
     modelId: input.modelId,
   });
   const half1 = parseAuthorJson(first.text, "character_bible_1");
   if (!isRecord(half1)) throw new OfficialSupplyGateError("author_shape_invalid", "character_bible_1: object required");
+  assertPortfolioNameKept(input.part1.brief.name, half1);
 
   const recap = buildPart1Recap(half1);
   const second = await input.transport.completeJson({
     task: "character_bible_voice",
-    system: buildCharacterVoiceSystem(),
-    user: buildCharacterVoiceUser({ ...input.voice, userRelation, part1Recap: input.voice.part1Recap ?? recap }),
+    system: buildCharacterVoiceSystem(true, authoring),
+    user: buildCharacterVoiceUser({
+      ...input.voice,
+      authoring,
+      userRelation,
+      gender: input.voice.gender ?? input.part1.brief.gender,
+      part1Recap: recap,
+      publicContext: buildPublicWritingContext(half1, input.part1.worldContext),
+    }),
     schemaName: "official_character_bible_voice",
     schema: CHARACTER_VOICE_SCHEMA,
     modelId: input.modelId,
@@ -1081,6 +1151,7 @@ export async function generateOfficialCharacterBible(input: {
     throw new OfficialSupplyGateError("author_shape_invalid", "character_bible_voice: object required");
   }
   assertVoiceStructure(voiceRaw, input.voice.adultCandidate);
+  assertGeneratedPublicManuscripts(voiceRaw, input.voice.name);
   let voiceHalf = voiceRaw;
   const npcRelationRepairs: OfficialAuthorRawCompletion[] = [];
   const npcIssues = voiceNpcShapeIssues(voiceRaw);
@@ -1100,7 +1171,7 @@ export async function generateOfficialCharacterBible(input: {
   const third = await input.transport.completeJson({
     task: "character_bible_bonds",
     system: buildCharacterBondsSystem(),
-    user: buildCharacterBondsUser({ ...input.bonds, userRelation, part1Recap: input.bonds.part1Recap ?? recap }),
+    user: buildCharacterBondsUser({ ...input.bonds, authoring, userRelation, part1Recap: recap }),
     schemaName: "official_character_bible_bonds",
     schema: CHARACTER_BONDS_SCHEMA,
     modelId: input.modelId,
@@ -1114,30 +1185,75 @@ export async function generateOfficialCharacterBible(input: {
     userRelationType: userRelation.type,
   });
   return {
-    bible: { ...bible, promptStandard: "compact_rp_v1" },
+    bible: { ...bible, promptStandard: "compact_rp_v2" },
     completions: [first, second, third],
     npcRelationRepairs,
   };
 }
 
-function buildPart1Recap(half1: Record<string, unknown>): string {
+/** Lossless selected facts, with compact labels instead of repeated JSON keys/escaping. */
+function buildPart1Recap(half1: Record<string, unknown>, includeEntry = true): string {
   const identity = isRecord(half1.identity) ? half1.identity : {};
   const personality = isRecord(half1.personality) ? half1.personality : {};
   const values = isRecord(half1.values) ? half1.values : {};
   const situation = isRecord(half1.situation) ? half1.situation : {};
-  const desires = strArray(values.desires).join(" / ");
+  const backstory = isRecord(half1.backstory) ? half1.backstory : {};
+  const fact = (label: string, ...raw: unknown[]): string => {
+    const texts = [...new Set(raw.filter(isNonEmptyString))];
+    return texts.length ? `${label}: ${texts.join(" / ")}` : "";
+  };
   return [
-    typeof identity === "object" ? String(identity.name ?? "") : "",
-    isRecord(personality) ? String(personality.behavioral ?? "").slice(0, 400) : "",
-    desires ? `욕망: ${desires}` : "",
-    typeof half1.contradiction === "string" && half1.contradiction ? `모순: ${half1.contradiction.slice(0, 160)}` : "",
-    typeof situation.personalSituation === "string" && situation.personalSituation
-      ? `현재 상황: ${situation.personalSituation.slice(0, 220)}`
-      : "",
-  ]
-    .filter(Boolean)
-    .join("\n")
-    .slice(0, 1200);
+    fact("성별", identity.gender),
+    [fact("직업", identity.occupation), fact("신분", identity.socialPosition), fact("소속", identity.affiliation), fact("역할", identity.worldRole)].filter(Boolean).join(" / "),
+    fact("성격·행동", personality.behavioral),
+    fact("모순", half1.contradiction),
+    fact("욕망", ...strArray(values.desires)),
+    fact("가치", ...strArray(values.coreValues)),
+    fact("금기", ...strArray(values.nonNegotiable)),
+    ...(Array.isArray(backstory.events) ? backstory.events : []).filter(isRecord).map((event, i) =>
+      [fact(`과거${i + 1}`, event.event), fact("당시 선택", event.choice), fact("현재 흔적", event.residue)].filter(Boolean).join(" → ")
+    ),
+    ...(Array.isArray(half1.abilities) ? half1.abilities : []).filter(isRecord).map((ability, i) =>
+      [fact(`능력${i + 1}`, ability.name), fact("범위", ability.scope), fact("한계", ability.limit), fact("대가", ability.cost)].filter(Boolean).join(" / ")
+    ),
+    fact("현재 상황", situation.personalSituation),
+    includeEntry ? fact("진입", situation.userEntry) : "",
+  ].filter(Boolean).join("\n");
+}
+
+/** Reuse the public appearance owner; image-only anatomy/grooming fields are not prose input. */
+function buildPublicWritingContext(source: Record<string, unknown>, worldContext: string): string {
+  const identity = isRecord(source.identity) ? source.identity : {};
+  const appearance = isRecord(source.appearance) ? source.appearance : {};
+  const looks = Object.fromEntries(Object.entries(appearance).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
+  const facts = publicAppearanceFacts({ ...looks, impression: looks.impression ?? "" }, true);
+  if (looks.defaultOutfit && !facts.some(text => text.includes(looks.defaultOutfit))) facts.push(`복식: ${looks.defaultOutfit}`);
+  return [`키: ${identity.heightCm ?? ""}cm`, ...facts, `세계: ${worldContext}`].join("\n");
+}
+
+const REJECTED_PUBLIC_FIELD_MAX = 8000;
+
+function assertGeneratedPublicManuscripts(voice: Record<string, unknown>, name: string): void {
+  const profile = isRecord(voice.publicProfile) ? voice.publicProfile : {};
+  const description = String(profile.detailedDescription ?? "").trim();
+  const comment = String(profile.creatorComment ?? "").trim();
+  const greeting = String(voice.greeting ?? "").trim();
+  const qa = mergeQa(
+    evaluateOfficialPublicDescription(description, name),
+    evaluateOfficialCreatorComment(comment, description)
+  );
+  if (!qa.ok) {
+    throw new OfficialSupplyGateError(
+      "author_public_manuscript_invalid",
+      `author_public_manuscript_invalid: ${qa.errors.map(e => `${e.code}(${e.message})`).join("; ")}`,
+      qa,
+      {
+        greeting: greeting.slice(0, REJECTED_PUBLIC_FIELD_MAX),
+        description: description.slice(0, REJECTED_PUBLIC_FIELD_MAX),
+        comment: comment.slice(0, REJECTED_PUBLIC_FIELD_MAX),
+      }
+    );
+  }
 }
 
 function strArray(value: unknown): string[] {
@@ -1155,12 +1271,19 @@ export type OfficialVoiceRevisionField = "greeting" | "publicDescription" | "spe
 export async function reviseOfficialCharacterVoice(input: {
   transport: OfficialAuthorTransport;
   bible: OfficialCharacterBible;
-  voice: Omit<CharacterVoiceInput, "part1Recap" | "feedback">;
+  voice: Omit<CharacterVoiceInput, "part1Recap" | "publicContext" | "includePublicManuscripts" | "feedback">;
   fields: readonly OfficialVoiceRevisionField[];
   reasons: string[];
   modelId?: string;
+  authoring?: OfficialAuthoringPlan;
 }): Promise<{ bible: OfficialCharacterBible; completion: OfficialAuthorRawCompletion }> {
   const current = input.bible;
+  const authoring = input.authoring ?? input.voice.authoring;
+  const pronounRepair = input.reasons.some(
+    (reason) => reason.includes("official_character_pronoun") || reason.includes("bible_character_pronoun")
+  );
+  const identityGender = current.identity.gender;
+  const gender = input.voice.gender ?? (identityGender === "male" || identityGender === "female" || identityGender === "other" ? identityGender : undefined);
   const keep = [
     input.fields.includes("greeting") ? "" : `greeting는 기존 그대로 두어도 된다.`,
     input.fields.includes("publicDescription")
@@ -1175,29 +1298,63 @@ export async function reviseOfficialCharacterVoice(input: {
   ].filter(Boolean);
   const completion = await input.transport.completeJson({
     task: "character_bible_voice",
-    system: buildCharacterVoiceSystem(),
+    system: buildCharacterVoiceSystem(pronounRepair, authoring),
     user: buildCharacterVoiceUser({
       ...input.voice,
-      part1Recap: buildPart1Recap(current as unknown as Record<string, unknown>),
+      authoring,
+      gender,
+      userRelation: input.voice.userRelation ?? {
+        type: current.userRelationship?.type ?? "free",
+        fixed: current.userRelationship?.fixedFacts ?? "",
+      },
+      includePublicManuscripts: pronounRepair,
+      part1Recap: buildPart1Recap(current as unknown as Record<string, unknown>, input.fields.includes("greeting") || input.fields.includes("publicDescription")),
       feedback: [...input.reasons, ...keep].join("\n"),
     }),
     schemaName: "official_character_bible_voice",
-    schema: CHARACTER_VOICE_SCHEMA,
+    schema: characterVoiceRevisionSchema(pronounRepair),
     modelId: input.modelId,
   });
   const voiceHalf = parseAuthorJson(completion.text, "character_bible_voice");
   if (!isRecord(voiceHalf)) throw new OfficialSupplyGateError("author_shape_invalid", "character_bible_voice: object required");
-  const self = current as unknown as Record<string, unknown>;
-  const fresh = assembleOfficialCharacterBible(self, { ...voiceHalf, npcs: current.npcs }, self);
+  const profile = isRecord(voiceHalf.publicProfile) ? voiceHalf.publicProfile : {};
+  const speech = isRecord(voiceHalf.speech) ? voiceHalf.speech : {};
+  const missing: string[] = [];
+  if (input.fields.includes("greeting") && !isNonEmptyString(voiceHalf.greeting)) missing.push("greeting");
+  if (input.fields.includes("publicDescription") && !isNonEmptyString(profile.description)) missing.push("publicProfile.description");
+  if (input.fields.includes("tags") && (!Array.isArray(profile.tags) || profile.tags.length === 0 || !profile.tags.every(isNonEmptyString))) missing.push("publicProfile.tags");
+  if (input.fields.includes("speech")) {
+    if (!isNonEmptyString(speech.description)) missing.push("speech.description");
+    // A selected speech revision must preserve every populated speech field.
+    for (const [key, value] of Object.entries(current.speech)) {
+      const replacement = speech[key];
+      const invalidString = typeof value === "string" &&
+        (replacement === undefined ? Boolean(value.trim()) : typeof replacement !== "string" || (Boolean(value.trim()) && !replacement.trim()));
+      const invalidArray = Array.isArray(value) &&
+        (replacement === undefined ? value.length > 0 : !Array.isArray(replacement) || !replacement.every(isNonEmptyString) || (value.length > 0 && replacement.length === 0));
+      if (invalidString || invalidArray) {
+        missing.push(`speech.${key}`);
+      }
+    }
+  }
+  if (missing.length) {
+    throw new OfficialSupplyGateError("author_voice_revision_incomplete", `character_bible_voice: requested fields missing or empty: ${missing.join(", ")}`);
+  }
   const next: OfficialCharacterBible = {
     ...current,
-    greeting: input.fields.includes("greeting") ? fresh.greeting : current.greeting,
+    greeting: input.fields.includes("greeting") ? String(voiceHalf.greeting) : current.greeting,
     publicProfile: {
       ...current.publicProfile,
-      description: input.fields.includes("publicDescription") ? fresh.publicProfile.description : current.publicProfile.description,
-      tags: input.fields.includes("tags") ? fresh.publicProfile.tags : current.publicProfile.tags,
+      description: input.fields.includes("publicDescription") ? String(profile.description) : current.publicProfile.description,
+      ...(pronounRepair && input.fields.includes("publicDescription") && isNonEmptyString(profile.detailedDescription)
+        ? { detailedDescription: String(profile.detailedDescription) }
+        : {}),
+      tags: input.fields.includes("tags") ? strArray(profile.tags) : current.publicProfile.tags,
     },
-    speech: input.fields.includes("speech") ? { ...fresh.speech } : current.speech,
+    speech: input.fields.includes("speech") ? {
+      ...current.speech,
+      ...Object.fromEntries(Object.keys(current.speech).filter(key => speech[key] !== undefined).map(key => [key, speech[key]])),
+    } : current.speech,
   };
   return { bible: next, completion };
 }
@@ -1379,8 +1536,8 @@ export function assembleOfficialCharacterBible(
       ...(opts.userRelationType
         ? {
             type: opts.userRelationType,
-            fixedFacts: opts.userRelationType === "free" ? "" : String(userRelationship.fixedFacts ?? "").trim(),
-            userDecides: opts.userRelationType === "free" ? "" : String(userRelationship.userDecides ?? "").trim(),
+            fixedFacts: String(userRelationship.fixedFacts ?? "").trim(),
+            userDecides: String(userRelationship.userDecides ?? "").trim(),
           }
         : {}),
       initialView: String(userRelationship.initialView ?? ""),
@@ -1416,6 +1573,8 @@ export function assembleOfficialCharacterBible(
     publicProfile: {
       tagline: String(publicProfile.tagline ?? ""),
       description: String(publicProfile.description ?? ""),
+      ...(typeof publicProfile.detailedDescription === "string" ? { detailedDescription: publicProfile.detailedDescription } : {}),
+      ...(typeof publicProfile.creatorComment === "string" ? { creatorComment: publicProfile.creatorComment } : {}),
       tags: strArray(publicProfile.tags),
     },
     npcs: (Array.isArray(voiceHalf.npcs) ? voiceHalf.npcs : []).map((npc, index) => coerceNpc(npc, index)),
@@ -1600,7 +1759,7 @@ export async function generateOfficialStyleBoard(input: {
 }): Promise<{ candidates: VisualStyleCandidate[]; completion: OfficialAuthorRawCompletion }> {
   const completion = await input.transport.completeJson({
     task: "style_board",
-    system: buildStyleBoardSystem(),
+    system: buildStyleBoardSystem(resolveOfficialAuthoringPlan({ genre: input.board.genre })),
     user: buildStyleBoardUser(input.board),
     schemaName: "official_style_board",
     schema: STYLE_BOARD_SCHEMA,

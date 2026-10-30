@@ -13,7 +13,9 @@ export const EXPLORATION_COMMAND_LIMIT = 6;
 
 export type ExplorationCommand =
   | { op: "move"; roomId: string }
-  | { op: "search"; depth: "normal" | "careful" };
+  | { op: "search"; depth: "normal" | "careful" }
+  /** Legacy facility only: leave through the open exit. Not a map room. */
+  | { op: "depart" };
 
 export type PublicExplorationMarker = "clue" | "reward" | "hazard" | "exit" | "passage";
 
@@ -59,8 +61,10 @@ export type PublicExploration = {
 };
 
 export function explorationCommandCost(command: ExplorationCommand): number {
-  switch (command.op) {
+    switch (command.op) {
     case "move":
+      return EXPLORATION_MOVE_COST;
+    case "depart":
       return EXPLORATION_MOVE_COST;
     case "search":
       return command.depth === "careful" ? EXPLORATION_CAREFUL_SEARCH_COST : EXPLORATION_SEARCH_COST;
@@ -105,6 +109,7 @@ export function parseExplorationCommands(raw: unknown): ExplorationCommand[] {
       if (row.depth !== "normal" && row.depth !== "careful") throw new Error("알 수 없는 탐험 명령입니다.");
       return { op: "search", depth: row.depth };
     }
+    if (row.op === "depart") return { op: "depart" };
     throw new Error("알 수 없는 탐험 명령입니다.");
   });
 }

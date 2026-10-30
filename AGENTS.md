@@ -10,7 +10,7 @@ Single Next.js 15 (App Router) app — an AI character chat platform (Korean UI,
 
 ### Runtime / env
 - Requires Node 22.12+ (`.node-version` = 22.12.0; the VM has 22.x). `better-sqlite3` compiles natively (Python3 + gcc/make are present).
-- Local config lives in `.env.local` (gitignored, not committed). The update script creates it from `.env.example` if missing. It sets `PORTONE_CHARGE_ENABLED=0` / `NEXT_PUBLIC_PAYMENTS_ENABLED=0`, which disables payments and auto-skips adult verification for dev. Without `.env.local` those defaults are unset and some flows behave differently.
+- Local config lives in `.env.local` (gitignored, not committed). Cloud Agent `install` copies `.env.example` to `.env.local` when the file is missing. That copy keeps `PORTONE_CHARGE_ENABLED=0` / `NEXT_PUBLIC_PAYMENTS_ENABLED=0`, which disables payments and auto-skips adult verification for dev. Without `.env.local` those defaults are unset and some flows behave differently.
 - `data/app.db` is auto-created, migrated, and seeded on first boot (gitignored; persists in the VM snapshot).
 
 ### Memory / RP production-mode verification (local)

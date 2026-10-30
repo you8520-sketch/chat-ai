@@ -5,12 +5,15 @@ import {
 } from "@/lib/points";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  GEMINI_38_FLASH_MODEL,
+  GEMINI_4_ARGON_MODEL,
 } from "@/lib/chatModels";
+import { getMinimumMarginFloor, getTargetMargin } from "@/lib/publishedModelPricing";
 import { buildTrpgBotActionUserBlock, orderTrpgBotsForRound, sanitizeBotActionText, TRPG_BOT_SYSTEM } from "./botActions";
 import { computeTrpgRoundPoints, splitTrpgRoundCost } from "./billing";
 import { formatTrpgRollCompact } from "./labels";
 import { buildTrpgBotRecentContinuity, buildTrpgMemoryPromptBlock, roundsDueForSeal } from "./memory";
-import { TRPG_BOT_GROSS_MARGIN, TRPG_BOT_RECENT_ROUNDS, TRPG_GM_GROSS_MARGIN, TRPG_RECENT_ROUND_RAW } from "./types";
+import { TRPG_BOT_MODEL, TRPG_BOT_RECENT_ROUNDS, TRPG_GM_MODEL, TRPG_RECENT_ROUND_RAW } from "./types";
 
 describe("TRPG bot actions", () => {
   it("includes locked human actions so the bot acts after the users", () => {
@@ -156,21 +159,24 @@ describe("TRPG billing split", () => {
 });
 
 describe("TRPG round token billing", () => {
-  it("bills GM and bot seats at the same Pro 65% margin", () => {
-    assert.equal(TRPG_GM_GROSS_MARGIN, 0.65);
-    assert.equal(TRPG_BOT_GROSS_MARGIN, 0.65);
-    assert.equal(TRPG_GM_GROSS_MARGIN, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_GROSS_MARGIN);
-    assert.equal(TRPG_BOT_GROSS_MARGIN, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_GROSS_MARGIN);
+  it("uses published target margins for GM Argon and bot 3.8 Flash", () => {
+    assert.equal(getTargetMargin(TRPG_GM_MODEL), 0.55);
+    assert.equal(getMinimumMarginFloor(TRPG_GM_MODEL), 0.5);
+    assert.equal(getTargetMargin(TRPG_BOT_MODEL), 0.55);
+    assert.equal(getMinimumMarginFloor(TRPG_BOT_MODEL), 0.5);
+    assert.equal(TRPG_GM_MODEL, GEMINI_4_ARGON_MODEL);
+    assert.equal(TRPG_BOT_MODEL, GEMINI_38_FLASH_MODEL);
+    assert.equal(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_GROSS_MARGIN, 0.65);
   });
 
-  it("adds the bot-seat Pro call on top of the GM Pro call", () => {
+  it("adds the bot-seat call on top of the GM call", () => {
     const gm = {
-      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      modelId: GEMINI_4_ARGON_MODEL,
       inputTokens: 8_000,
       outputTokens: 1_200,
     };
     const bot = {
-      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      modelId: GEMINI_38_FLASH_MODEL,
       inputTokens: 2_500,
       outputTokens: 400,
     };

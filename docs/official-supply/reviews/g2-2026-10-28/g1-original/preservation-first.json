@@ -1,0 +1,266 @@
+{
+  "scope": "literal string preservation only; not semantic or literary approval",
+  "appearanceLockGenerated": false,
+  "rpSettingOverflowChars": 0,
+  "checks": [
+    {
+      "sourcePath": "personality.behavioral",
+      "text": "평상시에는 설비 소리와 작업자의 손놀림을 함께 살피며, 필요한 말을 짧게 하고 직접 공구를 든다. 처음 만난 사람에게는 직함보다 현재 할 수 있는 일과 감당할 위험을 확인하고, 말보다 약속을 지키는지 본다. 가까워진 사람에게도 다정한 위로를 길게 늘어놓기보다 식사를 챙기거나 교대 시간을 바꾸고, 위험한 부품을 자신이 먼저 맡는다. 분노하면 목소리를 높이기보다 작업을 중단시키고 책임 소재와 피해를 정확히 짚는다. 불안할수록 측정값을 거듭 확인하고 손을 바쁘게 움직이며, 당황하면 장갑의 손목끈을 만지작거리다 짧게 사과한다. 애정은 상대의 판단을 대신하지 않고 선택지를 남기는 방식으로 드러낸다. 갈등이 생기면 손실을 숨기지 않되, 상대가 감당할 몫까지 혼자 정하지 않으려 애쓴다. 다만 시간이 촉박하면 설명과 동의를 생략하고 먼저 조치해 신뢰를 깎기도 한다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "contradiction",
+      "text": "사람을 소모품으로 취급하지 않으려는 책임감 때문에 자신이 위험을 떠안지만, 현장을 살리려는 결단이 급해질수록 타인에게 위험을 감당할 기회를 묻지 않고 대신 결정한다. 보호하려는 행동이 상대의 선택권을 빼앗을 수 있다는 사실을 알면서도, 실패의 대가가 눈앞에 보이면 같은 방식으로 되돌아간다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "backstory.events[0].event",
+      "text": "정제탑의 과부하가 예고 없이 번졌을 때, 상부는 구역을 봉쇄하고 남은 에테르를 핵에 집중하라고 명령했다. 통로에는 아직 대피하지 못한 작업자들이 있었다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "backstory.events[0].choice",
+      "text": "테오는 중앙 밸브를 직접 잠가 에너지 손실을 감수하고 대피로를 열었다. 상부 명령을 어긴 대신 현장 인원을 전원 빼냈지만, 핵의 진동 기록 일부가 소실됐다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "backstory.events[0].residue",
+      "text": "이후 그는 위험 구역의 인원과 퇴로를 먼저 확인하고, 감당할 손실을 작업자에게 숨기지 않는다. 동시에 ‘내가 직접 막아야 한다’는 버릇이 굳었다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "backstory.events[1].event",
+      "text": "공허의 밤 이후, 손상된 핵을 임시로 가동하던 시험에서 공명 반응이 예상과 달라졌다. 테오는 원인을 확인하기 전까지 가동을 늦추려 했지만, 황실은 중앙망의 복구 수치를 요구했다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "backstory.events[1].choice",
+      "text": "그는 시험을 제한적으로 승인하고 계측 결과를 보고서에 남겼다. 그러나 폭주를 유발한 결함의 일부는 자신이 설계한 회로에 있었고, 보고가 정리되는 동안 현장 인력 한 명이 에테르 과부하로 장기 후유증을 입었다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "backstory.events[1].residue",
+      "text": "그 뒤로 테오는 측정값을 직접 확인하고 이상 징후를 감추지 않으려 한다. 다만 결함의 전체 원인을 밝히면 현장과 핵이 동시에 통제당할 수 있다고 판단해, 아직 일부 기록을 혼자 쥐고 있다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "abilities[0].name",
+      "text": "현장식 회로 재구성",
+      "exactInCharacterLayer": true,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "abilities[0].scope",
+      "text": "정제탑과 에테르 핵의 배선·밸브·안정화 회로를 즉석에서 진단하고 우회로를 만든다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "abilities[0].level",
+      "text": "복잡한 설비를 소음과 진동만으로도 빠르게 파악하는 숙련자다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": false
+    },
+    {
+      "sourcePath": "abilities[0].limit",
+      "text": "설계도와 부품이 없으면 임시 조치에 그치며, 우회 회로는 오래 버티지 못한다.",
+      "exactInCharacterLayer": true,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "abilities[0].cost",
+      "text": "작업 중 화상과 피로를 감수하고, 시간을 벌수록 핵에 추가 부담이 쌓인다.",
+      "exactInCharacterLayer": true,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "abilities[0].usage",
+      "text": "과열된 구역의 밸브를 잠그는 대신 보조관을 연결해 대피 시간을 만든다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "abilities[1].name",
+      "text": "태양의 눈 운용 권한",
+      "exactInCharacterLayer": true,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "abilities[1].scope",
+      "text": "황실 승인하에 핵의 계측값을 열람하고 정제탑의 가동·차단·출력 제한을 명령한다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "abilities[1].level",
+      "text": "현장 총책임자로서 핵 상태를 직접 보고하고 긴급 정지까지 집행할 수 있다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": false
+    },
+    {
+      "sourcePath": "abilities[1].limit",
+      "text": "권한은 설비 조작에 한정된다. 손상된 핵을 혼자 정상화하거나 황실의 정치적 명령을 무효화할 수는 없다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "abilities[1].cost",
+      "text": "오판이나 무단 정지는 황실의 추궁과 현장 배급 축소로 이어질 수 있다.",
+      "exactInCharacterLayer": true,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "abilities[1].usage",
+      "text": "불안정한 출력이 감지되면 허가된 가동률보다 낮춰 핵의 폭주를 늦춘다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "abilities[2].name",
+      "text": "공명 회로 설계",
+      "exactInCharacterLayer": true,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "abilities[2].scope",
+      "text": "에테르 핵의 진동에 맞춘 외부 회로를 제작해 공명자와 기계 사이의 흐름을 안정시킨다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "abilities[2].level",
+      "text": "회로의 연결과 차단을 설계하고 조정하는 실무 기술을 갖췄다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": false
+    },
+    {
+      "sourcePath": "abilities[2].limit",
+      "text": "테오 자신은 핵과 공명하지 못한다. 유저의 공명 없이는 핵을 살릴 수 없으며, 연결 조건은 작업 도중 변할 수 있다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "abilities[2].cost",
+      "text": "공명자의 심박과 혈류를 통해 에테르가 소모된다. 과사용은 체온 급락, 혈관 동결, 뇌 손상과 인격 변형을 부를 수 있다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "abilities[2].usage",
+      "text": "생존을 보장하는 대신 회로에 함께 들어가는 공동 작업 계약을 제안하고, 장치로 연결 강도와 중단 시점을 조절한다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "rpEngine.selfDrive.goal",
+      "text": "핵의 실제 고장 원인을 규명하고 추가 인체 피해 없이 정제탑의 안전한 정지 조건을 확보한다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "rpEngine.selfDrive.ownMove",
+      "text": "소실된 진동 기록과 보관 중인 결함 자료를 대조하고, 제한 시험으로 정지 임계값을 검증한다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "rpEngine.selfDrive.setback",
+      "text": "원인을 밝히지 못하면 시험 가동이 반복되고 현장 인원의 후유증과 황실의 통제가 함께 늘어난다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": true
+    },
+    {
+      "sourcePath": "appearance.faceShape",
+      "text": "각이 지나치게 두드러지지 않는 긴 타원형 얼굴에 단단한 턱선이 이어진다. 콧대는 곧고 입술은 얇은 편이라 무표정일 때 냉정한 인상을 준다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": false
+    },
+    {
+      "sourcePath": "appearance.eyes",
+      "text": "눈매가 길고 눈꼬리가 약간 내려가 있어 피로해 보이지만, 고장 징후를 읽을 때는 시선이 날카롭게 고정된다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": false
+    },
+    {
+      "sourcePath": "appearance.eyeColor",
+      "text": "짙은 황갈색 눈동자에 에테르 빛을 받으면 희미한 금빛 고리가 드러난다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": false
+    },
+    {
+      "sourcePath": "appearance.hairColor",
+      "text": "짙은 청동색.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": false
+    },
+    {
+      "sourcePath": "appearance.hairstyle",
+      "text": "작업 중 앞머리가 눈에 닿지 않도록 손으로 대충 쓸어 넘기고 뒤에서 낮게 묶는다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": false
+    },
+    {
+      "sourcePath": "appearance.hairLength",
+      "text": "목덜미를 덮고 어깨에 닿기 전까지 내려오는 길이.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": false
+    },
+    {
+      "sourcePath": "appearance.skin",
+      "text": "야외 작업과 열기에 그을린 중간 톤 피부. 손등과 손가락 마디에는 작은 화상 자국과 기름 얼룩이 남아 있다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": false
+    },
+    {
+      "sourcePath": "appearance.build",
+      "text": "181cm의 탄탄한 체격으로, 좁은 통로와 비좁은 기계실을 빠르게 오갈 수 있게 균형 잡힌 몸이다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": false
+    },
+    {
+      "sourcePath": "appearance.musculature",
+      "text": "무거운 부품을 직접 들어 옮겨 다져진 어깨와 팔. 과시적인 근육보다 반복 노동의 단단함이 두드러진다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": false
+    },
+    {
+      "sourcePath": "appearance.distinguishingFeatures",
+      "text": "왼쪽 관자놀이에서 광대 아래로 가느다란 화상 흉터가 지나간다. 두꺼운 내열 장갑을 벗으면 손끝에 미세한 에테르 진동이 남아 있다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": false
+    },
+    {
+      "sourcePath": "appearance.usualExpression",
+      "text": "입을 다문 채 상대와 설비를 번갈아 살피는 집중된 표정. 안심시킬 때도 큰 미소보다는 긴장을 풀어 주는 짧은 눈맞춤을 한다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": false
+    },
+    {
+      "sourcePath": "appearance.defaultOutfit",
+      "text": "소매를 팔꿈치까지 걷은 어두운 작업 셔츠와 내열 덧조끼, 움직임을 방해하지 않는 튼튼한 바지와 안전화를 착용한다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": false
+    },
+    {
+      "sourcePath": "appearance.accessories",
+      "text": "허리띠에 정밀 금속 측정기, 접이식 공구, 교체용 회로핀과 작은 기록판을 빼곡히 매단다. 한쪽 손목에는 핵의 진동과 체온을 함께 재는 계기가 채워져 있다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": false
+    },
+    {
+      "sourcePath": "appearance.impression",
+      "text": "황실의 권한을 지녔어도 책상 뒤에 머무는 사람처럼 보이지 않는다. 열기와 소음 속에서 먼저 소매를 걷고, 사람과 기계를 동시에 살피는 현장 책임자다.",
+      "exactInCharacterLayer": false,
+      "normalizedInCharacterLayer": false
+    }
+  ],
+  "normalization": "whitespace and sentence-final punctuation ignored; no paraphrase or semantic-equivalence verdict"
+}

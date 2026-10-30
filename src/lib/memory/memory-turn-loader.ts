@@ -38,6 +38,20 @@ function loadChatMessageRowsCore(
     .all(chatId) as ChatMessageRow[];
 }
 
+/** User text is required to number canon turns. Assistant bodies stay out of this scan. */
+function loadChatMessageIndexRowsCore(
+  db: Database.Database,
+  chatId: number
+): ChatMessageRow[] {
+  return db
+    .prepare(
+      `SELECT id, role, model, user_message_id, usage,
+              CASE WHEN role = 'user' THEN content ELSE '' END AS content
+       FROM messages WHERE chat_id=? ORDER BY id ASC`
+    )
+    .all(chatId) as ChatMessageRow[];
+}
+
 function pairChatTurnsWithMessageIds(rows: ChatMessageRow[]): ChatTurnWithMessageIds[] {
 
   const userById = new Map(
@@ -112,15 +126,12 @@ export function loadChatTurnsWithMessageIds(chatId: number): ChatTurnWithMessage
   return loadChatTurnsWithMessageIdsCore(getDb(), chatId);
 }
 
-export function loadMemoryEligibleChatTurnsWithMessageIdsCore(
-  db: Database.Database,
-  chatId: number,
-  boundary: MemorySourceBoundary = getMemorySourceBoundaryCore(db, chatId)
+function toMemoryEligibleTurns(
+  rows: ChatMessageRow[],
+  boundary: MemorySourceBoundary
 ): ChatTurnWithMessageIds[] {
   let memoryTurnNumber = 0;
-  return pairChatTurnsWithMessageIds(
-    filterCanonicalMessageRows(loadChatMessageRowsCore(db, chatId))
-  )
+  return pairChatTurnsWithMessageIds(filterCanonicalMessageRows(rows))
     .filter(
       (turn) =>
         turn.turnNumber > 0 &&
@@ -130,6 +141,97 @@ export function loadMemoryEligibleChatTurnsWithMessageIdsCore(
         })
     )
     .map((turn) => ({ ...turn, turnNumber: ++memoryTurnNumber }));
+}
+
+export function loadMemoryEligibleChatTurnsWithMessageIdsCore(
+  db: Database.Database,
+  chatId: number,
+  boundary: MemorySourceBoundary = getMemorySourceBoundaryCore(db, chatId)
+): ChatTurnWithMessageIds[] {
+  return toMemoryEligibleTurns(loadChatMessageRowsCore(db, chatId), boundary);
+}
+
+type TurnIndexCache = {
+  chatId: number;
+  revision: number;
+  rows: ChatTurnWithMessageIds[];
+};
+const turnIndexCaches = new WeakMap<Database.Database, TurnIndexCache>();
+
+/** A write on this connection, including a write to another table, advances this counter. */
+function readConnectionRevision(db: Database.Database): number {
+  const row = db.prepare("SELECT total_changes() AS revision").get() as
+    | { revision?: number | bigint | null }
+    | undefined;
+  const revision = Number(row?.revision ?? 0);
+  return Number.isFinite(revision) ? revision : 0;
+}
+
+function loadMemoryEligibleTurnIndexCore(
+  db: Database.Database,
+  chatId: number
+): ChatTurnWithMessageIds[] {
+  const revision = readConnectionRevision(db);
+  const cached = turnIndexCaches.get(db);
+  if (cached?.chatId === chatId && cached.revision === revision) return cached.rows;
+  const rows = toMemoryEligibleTurns(
+    loadChatMessageIndexRowsCore(db, chatId),
+    getMemorySourceBoundaryCore(db, chatId)
+  );
+  turnIndexCaches.set(db, { chatId, revision, rows });
+  queueMicrotask(() => {
+    const current = turnIndexCaches.get(db);
+    if (current?.chatId === chatId && current.rows === rows) turnIndexCaches.delete(db);
+  });
+  return rows;
+}
+
+function loadMessageContentsById(
+  db: Database.Database,
+  ids: readonly number[]
+): Map<number, string> {
+  const contents = new Map<number, string>();
+  for (let offset = 0; offset < ids.length; offset += 300) {
+    const chunk = ids.slice(offset, offset + 300);
+    const placeholders = chunk.map(() => "?").join(",");
+    const rows = db
+      .prepare(`SELECT id, content FROM messages WHERE id IN (${placeholders})`)
+      .all(...chunk) as { id: number; content: string }[];
+    for (const row of rows) contents.set(row.id, row.content);
+  }
+  return contents;
+}
+
+/**
+ * Assistant text for the summary batches that need an item-role check.
+ * Turn numbers still come from one index scan. Assistant bodies outside
+ * those turn ranges are not copied into the result.
+ */
+export function loadMemoryEligibleTurnContentsForRangesCore(
+  db: Database.Database,
+  chatId: number,
+  ranges: readonly { turnStart: number; turnEnd: number }[]
+): ChatTurnWithMessageIds[] {
+  if (ranges.length === 0) return [];
+  const selected = loadMemoryEligibleTurnIndexCore(db, chatId).filter((turn) =>
+    ranges.some((range) => turn.turnNumber >= range.turnStart && turn.turnNumber <= range.turnEnd)
+  );
+  if (selected.length === 0) return [];
+  const contents = loadMessageContentsById(
+    db,
+    [...new Set(selected.map((turn) => turn.assistantMessageId))]
+  );
+  return selected.map((turn) => ({
+    ...turn,
+    assistant: contents.get(turn.assistantMessageId) ?? "",
+  }));
+}
+
+export function loadMemoryEligibleTurnContentsForRanges(
+  chatId: number,
+  ranges: readonly { turnStart: number; turnEnd: number }[]
+): ChatTurnWithMessageIds[] {
+  return loadMemoryEligibleTurnContentsForRangesCore(getDb(), chatId, ranges);
 }
 
 export function loadMemoryEligibleChatTurnsWithMessageIds(

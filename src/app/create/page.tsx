@@ -1,9 +1,19 @@
 import { redirect } from "next/navigation";
 import { canUseCreatorTools } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
+import { isCharacterGenre } from "@/lib/characterGenres";
+import { resolveOfficialCharacterEditorAccess } from "@/lib/officialAdminAccess";
+import { isAdminUser } from "@/lib/isAdminUser";
 import { getDb } from "@/lib/db";
+import {
+  OFFICIAL_SUPPORTED_GENRES,
+  recommendOfficialAuthoringDirection,
+  recommendOfficialCastIntent,
+  resolveOfficialAuthoringPlan,
+} from "@/lib/officialSupply/genreProfile";
 import { resolveViewerDisplayNameForUser } from "@/lib/viewerDisplayName";
 import { isActivePartnerCreator } from "@/lib/partnerTier";
+import AdminOfficialAuthorPanel from "@/components/AdminOfficialAuthorPanel";
 import AdultVerifyGate from "@/components/AdultVerifyGate";
 import CreateCharacter from "@/components/CreateCharacter";
 
@@ -34,15 +44,46 @@ export default async function CreatePage({
       />
     );
   }
-  const creatorIsPartner = isActivePartnerCreator(getDb(), user.id);
+  const db = getDb();
+  const creatorIsPartner = isActivePartnerCreator(db, user.id);
+  const editRow = editCharacterId == null ? null : db.prepare(
+    "SELECT id, creator_id, official FROM characters WHERE id=?"
+  ).get(editCharacterId) as { id: number; creator_id: number | null; official: number } | undefined;
+  const adminCanSavePrivateDraft = isAdminUser(user) &&
+    (editCharacterId == null || resolveOfficialCharacterEditorAccess(user, editRow) === "owner");
+
+  const showAdminAuthor = adminCanSavePrivateDraft && editCharacterId == null;
+  const recommendations = showAdminAuthor
+    ? OFFICIAL_SUPPORTED_GENRES.filter(isCharacterGenre).map((genre) => {
+        const direction = recommendOfficialAuthoringDirection(genre);
+        const plan = resolveOfficialAuthoringPlan(direction);
+        return {
+          genre,
+          tone: direction.tone,
+          humor: direction.humor,
+          pacing: direction.pacing,
+          nameWordplay: direction.nameWordplay,
+          worldScale: plan.profile.worldScale,
+          namingProfile: plan.namingProfile,
+          castIntent: recommendOfficialCastIntent(genre),
+        };
+      })
+    : [];
 
   return (
+    <>
+    {showAdminAuthor ? (
+      <div className="mx-auto mt-4 max-w-6xl">
+        <AdminOfficialAuthorPanel recommendations={recommendations} />
+      </div>
+    ) : null}
     <CreateCharacter
       editCharacterId={editCharacterId}
       viewerDisplayName={resolveViewerDisplayNameForUser(user)}
       creatorDisplayName={user.nickname}
       creatorIsPartner={creatorIsPartner}
       userId={user.id}
+      adminCanSavePrivateDraft={adminCanSavePrivateDraft}
       initialContentKind={kind === "simulation" ? "simulation" : "character"}
       initialWorldId={
         initialWorldId != null && Number.isFinite(initialWorldId) && initialWorldId > 0
@@ -57,5 +98,6 @@ export default async function CreatePage({
           : null
       }
     />
+    </>
   );
 }

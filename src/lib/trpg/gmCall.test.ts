@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { afterEach, describe, it } from "node:test";
 import { TextEncoder } from "node:util";
-import { GEMINI_38_FLASH_MODEL } from "@/lib/chatModels";
+import { GEMINI_38_FLASH_MODEL, GEMINI_4_ARGON_MODEL, OPENROUTER_GEMINI_4_ARGON_MODEL } from "@/lib/chatModels";
 import {
   BOT_MAX_PROVIDER_ATTEMPTS,
   buildTrpgBotProviderRequest,
@@ -88,13 +88,15 @@ function completion(text: string): Response {
 
 function assertGmStreamGemini(body: Record<string, unknown>): void {
   const contract = trpgProviderRequestContract(body);
-  assert.equal(contract.model, "google/gemini-3.8-flash");
+  assert.equal(contract.model, OPENROUTER_GEMINI_4_ARGON_MODEL);
   assert.equal(contract.thinkingType, "");
   assert.equal(contract.reasoningEffort, "low");
   assert.equal(contract.stream, true);
   assert.equal(isTrpgGeminiLowReasoningRequest(contract), true);
   assert.equal(body.stream, true);
   assert.equal(body.max_tokens, TRPG_GM_MAX_TOKENS);
+  assert.equal(body.service_tier, "flex");
+  assert.deepEqual(body.reasoning, { effort: "low", exclude: true });
 }
 
 describe("TRPG GM provider HTTP 5xx retry", () => {
@@ -120,7 +122,7 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
     assert.equal(BOT_MAX_PROVIDER_ATTEMPTS, 1);
     assert.equal(GM_PROVIDER_5XX_RETRY_DELAY_MS, 1000);
     assert.deepEqual([...GM_RETRYABLE_HTTP_STATUSES], [500, 502, 503, 504]);
-    assert.equal(TRPG_GM_MODEL, GEMINI_38_FLASH_MODEL);
+    assert.equal(TRPG_GM_MODEL, GEMINI_4_ARGON_MODEL);
     assert.equal(TRPG_BOT_MODEL, GEMINI_38_FLASH_MODEL);
     for (const status of [500, 502, 503, 504]) assert.equal(isGmRetryableHttpStatus(status), true);
     for (const status of [400, 401, 403, 404, 422, 429]) assert.equal(isGmRetryableHttpStatus(status), false);
@@ -134,8 +136,8 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
     assert.equal(gmCalls[0]!.url, gmBuilt.endpoint);
     assert.deepEqual(gmCalls[0]!.body, gmBuilt.body);
     assert.equal(gmBuilt.provider, "openrouter");
-    assert.equal(gmBuilt.model, "google/gemini-3.8-flash");
-    assert.equal(gmBuilt.body.model, "google/gemini-3.8-flash");
+    assert.equal(gmBuilt.model, OPENROUTER_GEMINI_4_ARGON_MODEL);
+    assert.equal(gmBuilt.body.model, OPENROUTER_GEMINI_4_ARGON_MODEL);
     assert.equal(gmBuilt.body.stream, true);
     assert.equal(gmBuilt.body.temperature, 0.7);
     assert.equal(gmBuilt.body.max_tokens, TRPG_GM_MAX_TOKENS);
@@ -143,6 +145,7 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
     assert.deepEqual(gmBuilt.body.reasoning, { effort: "low", exclude: true });
     assert.equal(gmBuilt.body.reasoning_effort, undefined);
     assert.equal(gmBuilt.body.service_tier, "flex");
+    assert.notEqual(gmBuilt.body.service_tier, "default");
     assert.deepEqual(gmBuilt.body.provider, { only: ["google-ai-studio"], allow_fallbacks: false, require_parameters: true });
     assert.equal(GM_MAX_PROVIDER_ATTEMPTS, 2);
 
@@ -256,8 +259,8 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
     const { calls } = installProvider(() => sseCompletion(GM_OK));
     const result = await callTrpgGm({ system: "sys", user: "장면", timeoutMs: 5_000 });
     assert.equal(calls.length, 1);
-    assert.equal(calls[0]!.body.model, "google/gemini-3.8-flash");
-    assert.equal(result.usage?.modelId, "google/gemini-3.8-flash");
+    assert.equal(calls[0]!.body.model, OPENROUTER_GEMINI_4_ARGON_MODEL);
+    assert.equal(result.usage?.modelId, OPENROUTER_GEMINI_4_ARGON_MODEL);
   });
 
   it("Bot usage.modelId matches Gemini 3.8 Flash and sends model-max max_tokens", async () => {

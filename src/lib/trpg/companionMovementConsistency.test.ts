@@ -32,6 +32,37 @@ stealth
 
 const STAY = "서하은 제자리에 서서 상황을 살핀다.";
 
+/** Campaign #44 layout 0 spine: 남쪽복도 → 경보실 → 출구 (P3-5G R11). */
+const FACILITY_SPINE: TrpgAdventure = {
+  start: "south_corridor",
+  places: [
+    { key: "south_corridor", name: "남쪽복도", summary: "남쪽 복도.", role: "start" },
+    { key: "alarm_room", name: "경보실", summary: "경보 장치.", role: "site" },
+    { key: "exit", name: "출구", summary: "탈출구.", role: "goal" },
+  ],
+  links: [
+    { from: "south_corridor", to: "alarm_room" },
+    { from: "alarm_room", to: "exit" },
+  ],
+  events: [
+    {
+      key: "alarm_note",
+      place: "alarm_room",
+      trigger: "search",
+      kind: "clue",
+      text: "경보 패널에 출구 연동 메모가 있다.",
+    },
+    {
+      key: "exit_memo",
+      place: "exit",
+      trigger: "search",
+      kind: "clue",
+      text: "출구 턱에 남은 메모를 확인한다.",
+      requires: ["alarm_note"],
+    },
+  ],
+};
+
 const STATION: TrpgAdventure = {
   start: "docking_bay",
   places: [
@@ -103,7 +134,9 @@ function explorationLines(prompt: string): string[] {
   const rest = prompt.slice(start);
   const end = rest.indexOf("\n[");
   const block = end < 0 ? rest : rest.slice(0, end);
-  return block.split("\n").filter((line) => line.startsWith("데모유저") || line.startsWith("서하"));
+  return block.split("\n").filter(
+    (line) => line.startsWith("데모유저") || line.startsWith("서하") || line.startsWith("강이현")
+  );
 }
 
 async function play(provider: string, humanBody = "숨을 고르며 주변을 살핀다.", humanCommands?: unknown): Promise<Played> {
@@ -159,6 +192,78 @@ async function play(provider: string, humanBody = "숨을 고르며 주변을 �
 }
 
 describe("companion movement uses the same fact as the server", () => {
+  it("prices 쇄도 and a body dash from 남쪽복도 through 경보실 toward 출구 (P3-5G R11)", async () => {
+    const R11_BODY =
+      "이현은 쥐고 있던 접이식 석궁을 몸 안쪽으로 바짝 당겨 붙이며, 남쪽복도의 배관 엄폐물을 박차고 경보실 문턱으로 몸을 던졌다. 붉은 레이저가 빗겨나간 바닥의 기름막과 파편을 날렵하게 타고 넘어, 렌이 확보해 둔 출구 방향의 기둥 그늘을 향해 지체 없이 쇄도했다.";
+    const R11_INTENT =
+      "강이현은 렌의 신호에 맞춰 남쪽복도에서 경보실로 이동한 뒤 사선 공백을 틈타 렌이 확보한 출구 방면 엄폐물로 합류하려 했다.";
+    const provider = `${R11_BODY}\n\n<<<INTENT>>>\n${R11_INTENT}`;
+    assert.deepEqual(evaluateAdventure(FACILITY_SPINE).issues, []);
+    const db = memoryDb();
+    const templateId = insertScenarioTemplate(db, 1, {
+      title: "시설",
+      summary: "R11 spine",
+      content: "남쪽복도에서 시작한다.",
+      visibility: "private",
+      startLocation: "남쪽복도",
+      scenarioPlan: {
+        startingSituation: "남쪽복도에 있다",
+        centralConflict: "출구로 합류",
+        goal: "출구에 닿는다",
+        endingConditions: ["출구에 닿는다"],
+        adventure: FACILITY_SPINE,
+      },
+    });
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "현", viewerUserId: 1, templateId });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "현", stats: EVEN_STATS });
+    const hostId = (db.prepare(`SELECT id FROM trpg_participants WHERE campaign_id=? AND user_id=1`).get(campaignId) as { id: number }).id;
+    const botId = insertParticipant(db, {
+      campaignId,
+      slotIndex: 2,
+      kind: "ai_character",
+      userId: null,
+      characterId: null,
+      displayName: "강이현",
+    });
+    writeSheet(db, campaignId, botId, "강이현", EVEN_STATS, "남쪽복도");
+    const gmPrompts: string[] = [];
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 16,
+      botCall: async () => ({ text: provider }),
+      gmCall: async ({ user }) => {
+        gmPrompts.push(user);
+        return {
+          text: buildTrpgGmStructuredWireText("서버가 정한 자리만 잇는다.", {
+            players: [],
+            location: loadCampaignLedger(db, campaignId).location || "남쪽복도",
+            next_round_context: "다음",
+            campaign_finished: false,
+          }),
+        };
+      },
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    writeSheet(db, campaignId, botId, "강이현", EVEN_STATS, "남쪽복도");
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고르며 남쪽복도를 살핀다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const beforeFixExpectation = explorationCommandsFromMovementBody(
+      loadExplorationState(db, campaignId)!.map,
+      provider
+    );
+    assert.deepEqual(beforeFixExpectation, [
+      { op: "move", roomId: "alarm_room" },
+      { op: "move", roomId: "exit" },
+    ]);
+    assert.notEqual(locationOf(db, botId), "남쪽복도");
+    assert.match(lockedRow(db, botId).body, /(경보실|출구)로 이동한다/);
+    assert.equal(locationOf(db, hostId), "남쪽복도");
+    const gangLines = explorationLines(gmPrompts.at(-1) ?? "").filter((line) => line.startsWith("강이현"));
+    assert.ok(gangLines.some((line) => line.includes("moved 남쪽복도 →")));
+    assert.ok(gangLines.some((line) => line.includes("경보실") || line.includes("출구")));
+    db.close();
+  });
+
   it("prices the measured follow sentence through the existing adjacent move", async () => {
     const provider = `도킹 베이 문턱에서 손전등을 들어 바닥을 살핀다.\n\n<<<INTENT>>>\n${FOLLOW}`;
     const played = await play(provider);

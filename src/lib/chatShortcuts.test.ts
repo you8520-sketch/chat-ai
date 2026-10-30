@@ -5,90 +5,19 @@ import { describe, test } from "node:test";
 import Database from "better-sqlite3";
 import { CHAT_MESSAGE_MAX } from "./chatModels";
 import {
-  CHAT_SHORTCUT_INSERT_DEFERRED_MESSAGE,
-  CHAT_SHORTCUT_INSERT_LOCKED_MESSAGE,
-  CHAT_SHORTCUT_INSERT_TOO_LONG_MESSAGE,
-  planChatShortcutInsert,
+  CHAT_SHORTCUT_CONTENT_MAX,
+  CHAT_SHORTCUT_NAME_MAX,
   shortcutComposerChangeAfterComposition,
   validateChatShortcutDraft,
 } from "./chatShortcutComposer";
 import {
   createChatShortcut,
   deleteChatShortcut,
+  ensureChatShortcutsSchema,
   listChatShortcuts,
   updateChatShortcut,
 } from "./chatShortcuts";
 import { mergeShortcutList } from "./chatShortcutListSync";
-
-describe("planChatShortcutInsert", () => {
-  test("inserts at the caret and keeps the surrounding draft", () => {
-    const plan = planChatShortcutInsert({
-      composing: false,
-      draft: "가나다",
-      selectionStart: 1,
-      selectionEnd: 2,
-      insert: "!",
-    });
-    assert.equal(plan.action, "apply");
-    if (plan.action !== "apply") return;
-    assert.equal(plan.next, "가!나다");
-    assert.equal(plan.caret, 2);
-  });
-
-  test("uses the committed DOM draft after Hangul composition", () => {
-    const deferred = planChatShortcutInsert({
-      composing: true,
-      draft: "안",
-      selectionStart: 1,
-      selectionEnd: 1,
-      insert: "!",
-    });
-    assert.deepEqual(deferred, { action: "defer", message: CHAT_SHORTCUT_INSERT_DEFERRED_MESSAGE });
-
-    const plan = planChatShortcutInsert({
-      composing: false,
-      draft: "안",
-      domDraft: "안녕",
-      selectionStart: 2,
-      selectionEnd: 2,
-      insert: "!",
-    });
-    assert.equal(plan.action, "apply");
-    if (plan.action !== "apply") return;
-    assert.equal(plan.next, "안녕!");
-  });
-
-  test("refuses overflow without slicing the draft", () => {
-    const draft = "가".repeat(CHAT_MESSAGE_MAX - 2);
-    const plan = planChatShortcutInsert({
-      composing: false,
-      draft,
-      selectionStart: draft.length,
-      selectionEnd: draft.length,
-      insert: "다다다",
-    });
-    assert.deepEqual(plan, {
-      action: "reject",
-      message: CHAT_SHORTCUT_INSERT_TOO_LONG_MESSAGE,
-      draft,
-    });
-  });
-
-  test("rejects insert while send is locked", () => {
-    const plan = planChatShortcutInsert({
-      composing: false,
-      locked: true,
-      draft: "초안",
-      selectionStart: 2,
-      selectionEnd: 2,
-      insert: "!",
-    });
-    assert.equal(plan.action, "reject");
-    if (plan.action !== "reject") return;
-    assert.equal(plan.message, CHAT_SHORTCUT_INSERT_LOCKED_MESSAGE);
-    assert.equal(plan.draft, "초안");
-  });
-});
 
 describe("chat shortcut ownership", () => {
   test("stores personal shortcuts per user and hides other accounts", () => {
@@ -119,12 +48,78 @@ describe("chat shortcut ownership", () => {
     db.close();
   });
 
-  test("rejects a shortcut longer than the composer limit", () => {
-    const parsed = validateChatShortcutDraft({
-      name: "김",
-      content: "가".repeat(CHAT_MESSAGE_MAX + 1),
+  test("content limit is 500 and independent of the chat message limit", () => {
+    assert.equal(CHAT_SHORTCUT_CONTENT_MAX, 500);
+    assert.notEqual(CHAT_SHORTCUT_CONTENT_MAX, CHAT_MESSAGE_MAX);
+    for (const [length, ok] of [
+      [499, true],
+      [500, true],
+      [501, false],
+    ] as const) {
+      const parsed = validateChatShortcutDraft({ name: "김", content: "가".repeat(length) });
+      assert.equal(parsed.ok, ok, `content ${length}`);
+      if (!parsed.ok) assert.equal(parsed.error, "단축어 내용은 500자까지입니다.");
+    }
+  });
+
+  test("name limit is 30 and description stays at 80", () => {
+    assert.equal(CHAT_SHORTCUT_NAME_MAX, 30);
+    assert.equal(validateChatShortcutDraft({ name: "가".repeat(30), content: "x" }).ok, true);
+    const longName = validateChatShortcutDraft({ name: "가".repeat(31), content: "x" });
+    assert.equal(longName.ok, false);
+    if (!longName.ok) assert.equal(longName.error, "단축어 이름은 30자까지입니다.");
+    assert.equal(
+      validateChatShortcutDraft({ name: "가", description: "나".repeat(80), content: "x" }).ok,
+      true
+    );
+    assert.equal(
+      validateChatShortcutDraft({ name: "가", description: "나".repeat(81), content: "x" }).ok,
+      false
+    );
+  });
+
+  test("server create and patch enforce the 500 boundary", () => {
+    const db = new Database(":memory:");
+    const at500 = createChatShortcut(db, 1, { name: "경계", content: "가".repeat(500) });
+    assert.equal(at500.ok, true);
+    const at501 = createChatShortcut(db, 1, { name: "초과", content: "가".repeat(501) });
+    assert.equal(at501.ok, false);
+    if (at501.ok) return;
+    assert.equal(at501.status, 400);
+    assert.equal(at501.error, "단축어 내용은 500자까지입니다.");
+    if (!at500.ok) return;
+    const patched = updateChatShortcut(db, 1, at500.shortcut.id, { content: "가".repeat(501) });
+    assert.equal(patched.ok, false);
+    assert.equal(listChatShortcuts(db, 1)[0]?.content.length, 500);
+    db.close();
+  });
+
+  test("legacy over-limit rows are neither truncated nor blocked from unrelated edits", () => {
+    const db = new Database(":memory:");
+    ensureChatShortcutsSchema(db);
+    const legacyContent = "나".repeat(900);
+    const legacyName = "긴".repeat(38);
+    db.prepare(
+      "INSERT INTO user_chat_shortcuts (user_id, name, description, content, favorite) VALUES (1, ?, '', ?, 0)"
+    ).run(legacyName, legacyContent);
+    const id = listChatShortcuts(db, 1)[0]!.id;
+
+    const starred = updateChatShortcut(db, 1, id, { favorite: true });
+    assert.equal(starred.ok, true);
+    const sameFields = updateChatShortcut(db, 1, id, {
+      name: legacyName,
+      description: "설명만 추가",
+      content: legacyContent,
     });
-    assert.equal(parsed.ok, false);
+    assert.equal(sameFields.ok, true);
+    assert.equal(listChatShortcuts(db, 1)[0]?.content, legacyContent);
+    assert.equal(listChatShortcuts(db, 1)[0]?.name, legacyName);
+
+    const longer = updateChatShortcut(db, 1, id, { content: `${legacyContent}!` });
+    assert.equal(longer.ok, false);
+    const shorter = updateChatShortcut(db, 1, id, { content: "가".repeat(500) });
+    assert.equal(shorter.ok, true);
+    db.close();
   });
 });
 
@@ -185,6 +180,7 @@ describe("chat shortcut routes stay off the provider path", () => {
       "src/app/api/chat/shortcuts/[id]/route.ts",
       "src/lib/chatShortcuts.ts",
       "src/lib/chatShortcutComposer.ts",
+      "src/lib/chatShortcutChips.ts",
       "src/components/ChatShortcutsDock.tsx",
     ];
     const banned = ["openrouter", "deductPoints", "chargePoints", "system_prompt", "/api/chat\""];

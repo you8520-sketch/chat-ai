@@ -373,6 +373,391 @@ export function isRollingSummaryGroundedInDialogue(
   return true;
 }
 
+const SUMMARY_ITEM_PERSON = "([가-힣A-Za-z][가-힣A-Za-z0-9]{0,11})";
+const SUMMARY_NAME_PARTICLE = "(?:은|는|이|가)";
+const SUMMARY_SELF_WEAR_RE = new RegExp(
+  `${SUMMARY_ITEM_PERSON}${SUMMARY_NAME_PARTICLE}\\s[^\\n.]{0,80}?자신의\\s[^\\n.]{0,48}?(?:손가락|약지|손목|목)[^\\n.]{0,24}?(?:끼워|끼웠|착용)`,
+  "gu"
+);
+const SUMMARY_LATER_MADE_WEAR_RE = new RegExp(
+  `${SUMMARY_ITEM_PERSON}의\\s(?:손가락|약지|손목|목)에는[^\\n.]{0,80}?직접\\s*만든[^\\n.]{0,32}`,
+  "gu"
+);
+const SUMMARY_CONTINUED_OWNER_RE = new RegExp(
+  `${SUMMARY_ITEM_PERSON}${SUMMARY_NAME_PARTICLE}\\s계속\\s소유(?:한\\s채)?`,
+  "gu"
+);
+const SUMMARY_TRANSFER_RE =
+  /([가-힣A-Za-z][가-힣A-Za-z0-9]{0,11})(?:에게|한테)\s*(?:건네|건넸|넘겨|넘겼|돌려|주었|줬|양도|맡겼)/u;
+const SUMMARY_ITEM_HEADS = ["목걸이", "팔찌", "귀걸이", "브로치", "반지", "시계"] as const;
+const SUMMARY_ITEM_TOKEN_STOP = new Set([
+  "자신",
+  "자신의",
+  "왼쪽",
+  "오른쪽",
+  "번째",
+  "손가락",
+  "약지",
+  "손목",
+  "계속",
+  "소유",
+  "직접",
+  "만든",
+  "착용",
+  "착용분",
+  "원문",
+  "확정",
+  "같은",
+  "이후",
+  "몸에",
+  "물건",
+]);
+
+export type SummaryItemRoleReason =
+  | "unchanged"
+  | "ambiguous_wear_clarified"
+  | "continued_owner_contradicts_self_wear"
+  | "ambiguous_multiple_wears"
+  | "source_assigns_other_owner"
+  | "non_factual_wear";
+
+export type SummaryItemRoleReconciliation = {
+  text: string;
+  changed: boolean;
+  reason: SummaryItemRoleReason;
+  /** Set when a contradiction was visible but the source was not clear enough to rewrite. */
+  report?: string;
+};
+
+type ItemPhrase = { head: string; modifiers: string[] };
+
+type SourceWear = {
+  wearer: string;
+  phrases: ItemPhrase[];
+  yieldedTo: string | null;
+  nonFactual: boolean;
+};
+
+type SkipReason = "ambiguous_multiple_wears" | "source_assigns_other_owner" | "non_factual_wear";
+
+function allPatternMatches(pattern: RegExp, text: string): RegExpExecArray[] {
+  pattern.lastIndex = 0;
+  const found: RegExpExecArray[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(text))) {
+    found.push(match);
+    if (match[0].length === 0) pattern.lastIndex += 1;
+  }
+  pattern.lastIndex = 0;
+  return found;
+}
+
+function stripSummaryParticle(token: string): string {
+  return token.replace(
+    /(?:으로|에서|에게|부터|까지|처럼|은|는|이|가|을|를|에|와|과|도|만)$/u,
+    ""
+  );
+}
+
+function summaryTokens(text: string): string[] {
+  const tokens: string[] = [];
+  for (const raw of text.match(/[가-힣]{2,}/g) ?? []) {
+    const token = stripSummaryParticle(raw);
+    if (token.length < 2 || SUMMARY_ITEM_TOKEN_STOP.has(token)) continue;
+    tokens.push(token);
+  }
+  return tokens;
+}
+
+function itemHead(token: string): string | null {
+  for (const head of SUMMARY_ITEM_HEADS) {
+    if (token === head || token.endsWith(head)) return head;
+  }
+  return null;
+}
+
+function itemPhrases(text: string): ItemPhrase[] {
+  const tokens = summaryTokens(text);
+  const phrases: ItemPhrase[] = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index] ?? "";
+    const head = itemHead(token);
+    if (!head) continue;
+    const modifiers: string[] = [];
+    for (let cursor = Math.max(0, index - 3); cursor < index; cursor += 1) {
+      const previous = tokens[cursor] ?? "";
+      if (!previous || itemHead(previous)) continue;
+      modifiers.push(previous);
+    }
+    phrases.push({ head, modifiers });
+  }
+  return phrases;
+}
+
+function clauseMatchesWear(clause: readonly ItemPhrase[], wear: readonly ItemPhrase[]): boolean {
+  return clause.some((phrase) =>
+    wear.some((other) => {
+      if (phrase.head !== other.head) return false;
+      if (phrase.modifiers.length === 0) return true;
+      return phrase.modifiers.every((modifier) => other.modifiers.includes(modifier));
+    })
+  );
+}
+
+function sentenceBounds(text: string, index: number): { start: number; end: number } {
+  const marks = [".", "\n", "。", "!", "?"];
+  let start = 0;
+  const lookFrom = Math.max(0, index - 1);
+  for (const mark of marks) {
+    const found = text.lastIndexOf(mark, lookFrom);
+    if (found + 1 > start) start = found + 1;
+  }
+  let end = text.length;
+  for (const mark of marks) {
+    const found = text.indexOf(mark, index);
+    if (found >= 0 && found + 1 < end) end = found + 1;
+  }
+  return { start, end };
+}
+
+function isInsideQuote(text: string, index: number): boolean {
+  const before = text.slice(0, index);
+  if ((before.match(/「/g) ?? []).length > (before.match(/」/g) ?? []).length) return true;
+  if ((before.match(/“/g) ?? []).length > (before.match(/”/g) ?? []).length) return true;
+  return (before.match(/"/g) ?? []).length % 2 === 1;
+}
+
+function isNonFactualWear(text: string, index: number): boolean {
+  if (isInsideQuote(text, index)) return true;
+  const bounds = sentenceBounds(text, index);
+  const sentence = text.slice(bounds.start, bounds.end);
+  return /환각|망상|허구|꿈속|꿈에서|상상\s*속|것\s*같|었을\s*듯|을\s*듯|듯하|듯싶/u.test(sentence);
+}
+
+function transferName(fragment: string, wearer: string): string | null {
+  const match = fragment.match(SUMMARY_TRANSFER_RE);
+  const name = match?.[1] ?? "";
+  if (!name || name === wearer) return null;
+  return name;
+}
+
+function recipientAfterWear(
+  source: string,
+  wearEnd: number,
+  wearer: string,
+  phrases: readonly ItemPhrase[]
+): string | null {
+  const rest = source.slice(wearEnd, wearEnd + 160);
+  const period = rest.search(/[.。\n]/u);
+  const sameSentence = period < 0 ? rest : rest.slice(0, period);
+  const sameRecipient = transferName(sameSentence, wearer);
+  if (sameRecipient) return sameRecipient;
+  if (period < 0) return null;
+  const nextSentence = rest.slice(period + 1).split(/[.。\n]/u)[0] ?? "";
+  const nextRecipient = transferName(nextSentence, wearer);
+  if (!nextRecipient) return null;
+  const nextPhrases = itemPhrases(nextSentence);
+  if (!clauseMatchesWear(phrases, nextPhrases) && !clauseMatchesWear(nextPhrases, phrases)) return null;
+  return nextRecipient;
+}
+
+function phrasesForWear(source: string, index: number): ItemPhrase[] {
+  const bounds = sentenceBounds(source, index);
+  const own = itemPhrases(source.slice(bounds.start, bounds.end));
+  if (own.some((phrase) => phrase.modifiers.length > 0) || bounds.start <= 0) return own;
+  const previousBounds = sentenceBounds(source, bounds.start - 1);
+  const previousText = source.slice(previousBounds.start, previousBounds.end);
+  if (allPatternMatches(SUMMARY_SELF_WEAR_RE, previousText).length > 0) return own;
+  const inherited = itemPhrases(previousText);
+  if (own.length === 0) return inherited;
+  return own.map((phrase) => ({
+    head: phrase.head,
+    modifiers: [
+      ...phrase.modifiers,
+      ...inherited.filter((item) => item.head === phrase.head).flatMap((item) => item.modifiers),
+    ],
+  }));
+}
+
+function collectSourceWears(source: string): SourceWear[] {
+  return allPatternMatches(SUMMARY_SELF_WEAR_RE, source).flatMap((match) => {
+    const wearer = match[1] ?? "";
+    const index = match.index ?? 0;
+    if (!wearer) return [];
+    const phrases = phrasesForWear(source, index);
+    const nonFactual = isNonFactualWear(source, index);
+    return [
+      {
+        wearer,
+        phrases,
+        nonFactual,
+        yieldedTo: nonFactual ? null : recipientAfterWear(source, index + match[0].length, wearer, phrases),
+      },
+    ];
+  });
+}
+
+function clauseItemText(summary: string, ownerStart: number): string {
+  const before = summary.slice(0, ownerStart);
+  let boundary = -1;
+  for (const mark of [".", "\n", "。", ",", "，"]) {
+    boundary = Math.max(boundary, before.lastIndexOf(mark));
+  }
+  return before.slice(boundary + 1);
+}
+
+function subjectParticle(name: string): "이" | "가" {
+  const code = name.charCodeAt(name.length - 1);
+  if (!Number.isFinite(code) || code < 0xac00 || code > 0xd7a3) return "가";
+  return (code - 0xac00) % 28 === 0 ? "가" : "이";
+}
+
+function escapeSummaryName(name: string): string {
+  return name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function clarifyAmbiguousWear(summary: string, wear: SourceWear): { text: string; clarified: boolean } {
+  let clarified = false;
+  const pattern = new RegExp(
+    `(${escapeSummaryName(wear.wearer)}${SUMMARY_NAME_PARTICLE}\\s[^\\n.]{0,32}?)끼(워|웠)`,
+    "gu"
+  );
+  const text = summary.replace(pattern, (full, prefix: string, ending: string) => {
+    if (prefix.includes("자신") || prefix.includes("손가락") || prefix.includes("약지")) return full;
+    if (!clauseMatchesWear(itemPhrases(`${prefix}끼${ending}`), wear.phrases)) return full;
+    clarified = true;
+    return `${prefix}자신의 몸에 끼${ending}`;
+  });
+  return { text, clarified };
+}
+
+function laterHandmadePerson(
+  source: string,
+  wearer: string,
+  clause: readonly ItemPhrase[]
+): string | null {
+  for (const match of allPatternMatches(SUMMARY_LATER_MADE_WEAR_RE, source)) {
+    const person = match[1] ?? "";
+    if (!person || person === wearer) continue;
+    if (!clauseMatchesWear(clause, itemPhrases(match[0] ?? ""))) continue;
+    return person;
+  }
+  return null;
+}
+
+function wearReplacement(wearer: string, laterPerson: string | null): string {
+  const worn = `${wearer}${subjectParticle(wearer)} 자신의 몸에 착용함`;
+  if (!laterPerson) return worn;
+  return `${worn}. 이후 ${laterPerson}의 직접 만든 착용분이 같은 물건인지는 원문이 확정하지 않음`;
+}
+
+function skipReport(reason: SkipReason): string {
+  switch (reason) {
+    case "ambiguous_multiple_wears":
+      return "같은 물건의 착용이 둘 이상이라 요약 원문을 유지함";
+    case "source_assigns_other_owner":
+      return "원문이 착용자와 다른 현재 소유자를 적어서 요약 원문을 유지함";
+    case "non_factual_wear":
+      return "인용·추측·환각 속 착용은 교정 근거가 아니라서 요약 원문을 유지함";
+    default: {
+      const _exhaustive: never = reason;
+      return _exhaustive;
+    }
+  }
+}
+
+function leadingSkip(reasons: readonly SkipReason[]): SkipReason | null {
+  if (reasons.includes("ambiguous_multiple_wears")) return "ambiguous_multiple_wears";
+  if (reasons.includes("source_assigns_other_owner")) return "source_assigns_other_owner";
+  if (reasons.includes("non_factual_wear")) return "non_factual_wear";
+  return null;
+}
+
+/**
+ * Prompt/seal correction for one summary body against its own source turns.
+ * Rewrites a continued-owner clause only when one factual self-wear uniquely
+ * names that item. A later handmade wear stays an unconfirmed object.
+ * Ambiguous, transferred, quoted, speculative, or hallucinated wears keep the original.
+ */
+export function reconcileSummaryItemRoles(
+  summary: string,
+  sourceDialogue: string
+): SummaryItemRoleReconciliation {
+  const wears = collectSourceWears(sourceDialogue);
+  if (wears.length === 0) return { text: summary, changed: false, reason: "unchanged" };
+  const factual = wears.filter((wear) => !wear.nonFactual && !wear.yieldedTo);
+  let text = summary;
+  let clarified = false;
+  if (factual.length === 1) {
+    const clarification = clarifyAmbiguousWear(text, factual[0]!);
+    text = clarification.text;
+    clarified = clarification.clarified;
+  }
+
+  const skips: SkipReason[] = [];
+  const owners = allPatternMatches(SUMMARY_CONTINUED_OWNER_RE, text)
+    .map((match) => {
+      const start = match.index ?? 0;
+      return {
+        start,
+        end: start + match[0].length,
+        name: match[1] ?? "",
+        itemText: clauseItemText(text, start),
+      };
+    })
+    .filter((owner) => owner.name.length > 0)
+    .sort((left, right) => right.start - left.start);
+
+  let replaced = false;
+  for (const owner of owners) {
+    const clause = itemPhrases(owner.itemText);
+    if (clause.length === 0) continue;
+    const matching = factual.filter((wear) => clauseMatchesWear(clause, wear.phrases));
+    const yielded = wears.filter(
+      (wear) => !wear.nonFactual && wear.yieldedTo && clauseMatchesWear(clause, wear.phrases)
+    );
+    const discarded = wears.filter(
+      (wear) => wear.nonFactual && clauseMatchesWear(clause, wear.phrases)
+    );
+    if (matching.length > 1) {
+      skips.push("ambiguous_multiple_wears");
+      continue;
+    }
+    if (matching.length === 1) {
+      const wear = matching[0]!;
+      if (wear.wearer === owner.name) continue;
+      const laterPerson = laterHandmadePerson(sourceDialogue, wear.wearer, clause);
+      const replacement = wearReplacement(wear.wearer, laterPerson);
+      const after = text.slice(owner.end);
+      const sentenceEnd = after.search(/[.]/u);
+      text =
+        sentenceEnd < 0
+          ? `${text.slice(0, owner.start)}${replacement}${after}`
+          : `${text.slice(0, owner.start)}${replacement}${after.slice(sentenceEnd)}`;
+      replaced = true;
+      continue;
+    }
+    if (yielded.length > 0) {
+      skips.push("source_assigns_other_owner");
+      continue;
+    }
+    if (discarded.length > 0) skips.push("non_factual_wear");
+  }
+
+  const skip = leadingSkip(skips);
+  if (replaced) {
+    return {
+      text,
+      changed: true,
+      reason: "continued_owner_contradicts_self_wear",
+      ...(skip ? { report: skipReport(skip) } : {}),
+    };
+  }
+  if (clarified) return { text, changed: true, reason: "ambiguous_wear_clarified" };
+  if (skip) return { text: summary, changed: false, reason: skip, report: skipReport(skip) };
+  return { text: summary, changed: false, reason: "unchanged" };
+}
+
 /** Validate LLM / fixture summary before persist. */
 export function validateSummaryNarrative(
   text: string,

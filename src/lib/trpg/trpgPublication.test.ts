@@ -3,6 +3,8 @@ import fs from "node:fs";
 import { describe, it } from "node:test";
 import { applyCampaignStoryProgress } from "./campaignContext";
 import { buildTrpgGmUserBlock } from "./gmPrompt";
+import { emptyLocalSceneProgress } from "./localSceneProgress";
+import { emptyStoryProgress } from "./storyProgress";
 import {
   effectiveEndingConditionsForGm,
   hasLegacyAdvancedPlanFields,
@@ -216,6 +218,8 @@ describe("TRPG publication and authoring consolidation", () => {
         resolvedThreads: [],
         endingStatus: { finished: false },
         directorError: "",
+        localSceneProgress: emptyLocalSceneProgress(),
+        storyProgress: emptyStoryProgress(),
       },
       { campaignFinished: true }
     );
@@ -239,6 +243,8 @@ describe("TRPG publication and authoring consolidation", () => {
         resolvedThreads: [],
         endingStatus: { finished: false },
         directorError: "",
+        localSceneProgress: emptyLocalSceneProgress(),
+        storyProgress: emptyStoryProgress(),
       },
       { campaignFinished: true }
     );

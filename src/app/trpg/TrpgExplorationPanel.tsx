@@ -41,6 +41,7 @@ function goalParticle(name: string): "로" | "으로" {
 
 function commandLabel(exploration: PublicExploration, command: ExplorationCommand): string {
   if (command.op === "search") return command.depth === "careful" ? "정밀 조사" : "조사";
+  if (command.op === "depart") return "시설 밖으로 나감";
   const name = exploration.rooms.find((item) => item.id === command.roomId)?.label ?? "?";
   return `${name}${goalParticle(name)} 이동`;
 }

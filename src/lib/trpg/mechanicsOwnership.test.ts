@@ -1190,7 +1190,7 @@ describe("TRPG inventory stacks over the canonical unit list — mechanics / GM 
     });
   }
 
-  function gmInventory(participantId: number, patch: { inventoryAdd?: string[]; inventoryRemove?: string[] }): string {
+  function gmInventory(participantId: number, patch: { inventoryAdd?: string[]; inventoryRemove?: string[]; itemOffers?: string[] }): string {
     return buildTrpgGmStructuredWireText("폐허가 고요하다. 바람만 분다.", {
       players: [{ participantId, ...patch }],
       location: "폐허",
@@ -1267,7 +1267,7 @@ describe("TRPG inventory stacks over the canonical unit list — mechanics / GM 
     }
   });
 
-  it("O/P. GM inventoryAdd / inventoryRemove occurrences are ±1 unit through the engine", async () => {
+  it("O/P. accepted offers and GM inventoryRemove occurrences are ±1 unit through the engine", async () => {
     await withReferee(false, async () => {
       const db = memoryDb();
       let next = gmText();
@@ -1281,8 +1281,16 @@ describe("TRPG inventory stacks over the canonical unit list — mechanics / GM 
       pinHostVitals(db, hostId, 20, 25, ["열쇠"]);
       assert.deepEqual(selfStacks(db, campaignId), [["열쇠", 1]]);
 
-      next = gmInventory(hostId, { inventoryAdd: ["열쇠"] });
+      next = gmInventory(hostId, { inventoryAdd: ["열쇠"], itemOffers: ["열쇠"] });
       submitTrpgAction(db, { campaignId, userId: 1, body: "서랍을 뒤진다.", actionType: "investigate" });
+      await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+      assert.deepEqual(inventoryUnits(hostSheet(db, campaignId).inventory), ["열쇠"], "an unaccepted GM add is only an offer");
+
+      next = gmInventory(hostId, {});
+      const offeredAt = (
+        db.prepare(`SELECT MAX(round_number) - 1 AS n FROM trpg_rounds WHERE campaign_id=?`).get(campaignId) as { n: number }
+      ).n;
+      submitTrpgAction(db, { campaignId, userId: 1, body: "", acceptItems: [{ name: "열쇠", fromRound: offeredAt }] });
       await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
       assert.deepEqual(inventoryUnits(hostSheet(db, campaignId).inventory), ["열쇠", "열쇠"]);
       assert.deepEqual(selfStacks(db, campaignId), [["열쇠", 2]]);

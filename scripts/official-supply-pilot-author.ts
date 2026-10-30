@@ -71,17 +71,13 @@ import {
 } from "@/lib/officialSupply/authorPrompts";
 import {
   buildDomesticMarketFitReview,
+  evaluateBriefCastFit,
   evaluateCastRoleDiversity,
   evaluateDiscoveryTags,
   evaluateMarketFitPortfolio,
-  evaluateMarketTropePortfolio,
-  evaluateNamePortfolio,
   formatMarketSignalLines,
-  hasUserRelationshipCue,
-  observedMarketNames,
   resolveNamingProfile,
   selectMarketSignals,
-  validateMarketFitBrief,
   type CastRoleEntry,
   type OfficialBatchMarketPolicy,
 } from "@/lib/officialSupply/marketFit";
@@ -633,6 +629,13 @@ type CharFile = {
   quarantined?: boolean;
 };
 
+function writeCharacterFile(file: CharFile): void {
+  // Old A1 candidates may carry this derived cache. Discard it on the next normal save;
+  // read-only characterReview.ts remains the sole evidence owner. No eager rewrite.
+  const { canonReview: _discarded, ...source } = file as CharFile & { canonReview?: unknown };
+  writeJson(charPath(file.slot), source);
+}
+
 function compileForBrief(bible: OfficialCharacterBible, brief: PortfolioBriefInput): OfficialCharacterDraft {
   return compileOfficialDraftFromBible(bible, {
     draftKey: draftKeyFor(brief.slot),
@@ -794,7 +797,7 @@ async function generateOneCharacter(
         provenances,
         charCount: officialSubstantiveCharCount(draft),
       };
-      writeJson(charPath(brief.slot), file);
+      writeCharacterFile(file);
       console.log(`[pilot] slot ${brief.slot} ${brief.name} ok (${file.charCount} chars, attempt ${attempt})`);
       return file;
     },
@@ -967,7 +970,7 @@ async function stepAppearance(modelId: string, maxAttempts: number, onlySlot?: n
         looks.push(
           `${file.bible.identity.name}: ${lock.identity.hairColor} ${lock.identity.hairLength}, ${lock.identity.eyeColor}, ${lock.identity.heightCm}cm`
         );
-        writeJson(charPath(brief.slot), { ...file, appearance: lock });
+        writeCharacterFile({ ...file, appearance: lock });
         console.log(`[pilot] appearance slot ${brief.slot} ok (attempt ${attempt})`);
       },
     });
@@ -1036,7 +1039,7 @@ async function planOneCharacterScenes(input: {
           { step: "assetplan", fields: ["assetPlan"], reasons: ["scene planner collapse (portfolio)"], at: provenance.createdAt, provenance },
         ],
       };
-      writeJson(charPath(file.slot), next);
+      writeCharacterFile(next);
       console.log(`[pilot] assetplan slot ${file.slot} ok (attempt ${attempt})`);
       return next;
     },
@@ -1123,7 +1126,7 @@ async function stepVoiceFix(modelId: string, maxAttempts: number): Promise<void>
         const draft = assertBibleAndDraft(bible, brief);
         const provenance = provenanceFor(completion, attempt);
         recordRun(file.draftKey, "character_bible_voice", provenance);
-        writeJson(charPath(brief.slot), {
+        writeCharacterFile({
           ...file,
           bible,
           draft,
@@ -1173,7 +1176,7 @@ async function stepAdultFix(modelId: string, maxAttempts: number, onlySlot?: num
         }
         const provenance = provenanceFor(completion, attempt);
         recordRun(draftKey, "adult_profile", provenance);
-        writeJson(charPath(brief.slot), {
+        writeCharacterFile({
           ...file,
           bible,
           draft,
@@ -1273,53 +1276,26 @@ function castRoleEntries(briefs: readonly PortfolioBriefInput[]): CastRoleEntry[
   }));
 }
 
-/** Gate for re-planned briefs against the kept cast (market fit, names, tropes, roles, gender intent). */
+/** Gate for re-planned briefs against the kept cast (shared market/cast fit + region, age and gender intent). */
 function evaluateReplacementBriefs(
   briefs: readonly PortfolioBriefInput[],
   kept: readonly PortfolioBriefInput[],
   snapshot: ResearchSnapshot
 ): { errors: string[] } {
-  const errors: string[] = [];
-  const policy = MANIFEST.marketPolicy;
-  const expected = resolveNamingProfile(MANIFEST.genre);
+  const { errors } = evaluateBriefCastFit({
+    fresh: briefs,
+    kept,
+    snapshot,
+    policy: MANIFEST.marketPolicy,
+    namingProfile: resolveNamingProfile(MANIFEST.genre),
+  });
+  const regions = internalWorldRegions(readWorld().regions);
   for (const b of briefs) {
     if (b.age < 19) errors.push(`${b.slot}: age ${b.age} < 19`);
-    if (!b.marketFit) {
-      errors.push(`${b.slot}: marketFit missing`);
-      continue;
-    }
-    const qa = validateMarketFitBrief(b.marketFit, { snapshot, policy, adultCandidate: b.adultCandidate, expectedNamingProfile: expected });
-    errors.push(...qa.errors.map((e) => `${b.slot}: ${e.code}: ${e.message}`));
-    if (!hasUserRelationshipCue(b.rpHook)) errors.push(`${b.slot}: rpHook does not state the user relationship`);
-    const region = evaluateInternalRegionConsistency(JSON.stringify(b), internalWorldRegions(readWorld().regions));
+    const region = evaluateInternalRegionConsistency(JSON.stringify(b), regions);
     errors.push(...region.errors.map((e) => `${b.slot}: ${e.code}: ${e.message}`));
   }
   const cast = [...kept, ...briefs].sort((a, z) => a.slot - z.slot);
-  const newNames = new Set(briefs.map((b) => b.name));
-  const names = evaluateNamePortfolio(
-    cast.map((b) => ({
-      draftKey: draftKeyFor(b.slot),
-      name: b.name,
-      namingProfile: b.marketFit?.namingProfile ?? (b.gender === "other" ? "nonhuman_designation" : expected),
-      kinNames: [],
-    })),
-    { observed: observedMarketNames(snapshot), hooks: Object.fromEntries(cast.map((b) => [draftKeyFor(b.slot), b.rpHook])) }
-  );
-  for (const issue of [...names.errors, ...names.warnings]) {
-    // Kept names are not re-litigated; new names must come out clean.
-    if ([...newNames].some((n) => issue.message.includes(n))) errors.push(`name ${issue.code}: ${issue.message}`);
-  }
-  const tropes = evaluateMarketTropePortfolio(
-    cast.map((b) => ({
-      draftKey: draftKeyFor(b.slot),
-      primaryTrope: b.marketFit?.relationshipTrope.primary ?? b.relationshipTrope,
-      secondaryTropes: b.marketFit?.relationshipTrope.secondary ?? [],
-    })),
-    policy
-  );
-  errors.push(...tropes.errors.map((e) => `${e.code}: ${e.message}`));
-  const roles = evaluateCastRoleDiversity(castRoleEntries(cast));
-  errors.push(...roles.errors.map((e) => `${e.code}: ${e.message}`));
   const intent = evaluateCastIntent(cast.map((b) => b.gender), MANIFEST.castIntent);
   errors.push(...intent.errors.map((e) => `${e.code}: ${e.message}`));
   return { errors };
@@ -1410,7 +1386,7 @@ function stepPublicFix(): void {
     const bible: OfficialCharacterBible = { ...file.bible, publicProfile: { ...profile, tagline, tags } };
     const draft = assertBibleAndDraft(bible, file.brief);
     const fields = [tagline !== profile.tagline ? "tagline" : "", JSON.stringify(tags) !== JSON.stringify(profile.tags) ? "tags" : ""].filter(Boolean);
-    writeJson(charPath(brief.slot), {
+    writeCharacterFile({
       ...file,
       bible,
       draft,
@@ -1453,7 +1429,7 @@ function stepRelationshipRepair(): void {
       n.renamed.length ? `canonical targets: ${n.renamed.map((r) => `${r.from}→${r.to}`).join(", ")}` : "",
       n.dropped.length ? `dropped: ${n.dropped.map((d) => `${d.target} (${d.code})`).join(", ")}` : "",
     ].filter(Boolean);
-    writeJson(charPath(file.slot), {
+    writeCharacterFile({
       ...file,
       bible,
       draft,
@@ -1518,7 +1494,7 @@ function stepConsistencyFix(): void {
     }
     worldFile.bible.portfolio = worldFile.bible.portfolio.map((b) => (b.slot === slot ? fixed.brief : b));
     writeJson(WORLD_PATH, worldFile);
-    writeJson(charPath(slot), {
+    writeCharacterFile({
       ...file,
       brief: fixed.brief,
       bible: fixed.bible,

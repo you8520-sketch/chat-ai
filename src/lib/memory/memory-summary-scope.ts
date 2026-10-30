@@ -4,6 +4,7 @@
  */
 import type { DialogueTurn } from "@/lib/hybridMemory";
 import { classifyChatOocIntent } from "@/lib/chatOocPriority";
+import { resolveOocSceneRenderIntent } from "@/lib/oocSceneRender";
 import { extractOocSnippets } from "@/lib/userImpersonationPolicy";
 import { MEMORY_RECORD_MAX_CHARS } from "./memory-constants";
 
@@ -254,6 +255,12 @@ export function classifyMemoryTurnScope(
   const t = userMessage.trim();
   if (!t) return "plain_ooc";
 
+  // Canonical isolation belongs to the scene-render owner, including resets.
+  // Keep meaningful IF/history scopes; ephemeral samples are excluded OOC.
+  if (resolveOocSceneRenderIntent(t)) {
+    return MEANINGFUL_NONCANON_RE.test(t) ? "meaningful_noncanon" : "plain_ooc";
+  }
+
   if (MAIN_ADOPT_RE.test(t)) return "main_adopt";
   if (BRANCH_CLOSE_RE.test(t)) return "branch_close";
 
@@ -268,6 +275,10 @@ export function classifyMemoryTurnScope(
 
   const intent = classifyChatOocIntent(t);
   if (intent === "none") return "main_rp";
+  // The scene router has already identified a new RP episode. Instructions to
+  // use character settings/style are scene input, not a plain OOC adjustment.
+  // Explicit noncanon and branch controls above keep their existing precedence.
+  if (intent === "rp_scene_reset") return "main_rp";
 
   if (intent === "rp_unrelated") {
     if (MEANINGFUL_NONCANON_RE.test(t)) return "meaningful_noncanon";
@@ -367,9 +378,20 @@ export type EpisodicTurnEligibility = {
 /** Minimal memory-record snapshot for branch-state resolution (avoids circular imports). */
 export type EpisodicMemoryRecordSnapshot = {
   turnStart: number;
+  /** Last source turn this sealed row already represents. */
+  turnEnd?: number;
   summaryKind: MemorySummaryScope;
   branchStatus: BranchStatus | null;
   inactive: boolean;
+  /** Existing close/reopen stack. UI close is the watermark; no new table. */
+  branchControlMutations?: readonly BranchControlMutation[];
+};
+
+export type BranchStateUserTurn = {
+  turnNumber: number;
+  user: string;
+  /** Stable across renumbering. UI close stores the frontier user message here. */
+  userMessageId?: number | null;
 };
 
 function turnScopeOpensBranchState(scopeClass: TurnScopeClass): boolean {
@@ -409,6 +431,174 @@ export function resolveSealedNoncanonOrBranchFromMemoryRecords(
       (r.summaryKind === "noncanon" ||
         (r.summaryKind === "branch_canon" && r.branchStatus === "active"))
   );
+}
+
+function latestEffectiveUiClose(
+  mutations: readonly BranchControlMutation[] | undefined
+): BranchControlMutation | null {
+  if (!mutations || mutations.length === 0) return null;
+  for (let index = mutations.length - 1; index >= 0; index -= 1) {
+    const mutation = mutations[index]!;
+    switch (mutation.action) {
+      case "reopen_branch":
+        return null;
+      case "close_branch":
+        if (mutation.source === "ui") return mutation;
+        break;
+      case "promote_branch":
+        break;
+      default: {
+        const unreachable: never = mutation.action;
+        return unreachable;
+      }
+    }
+  }
+  return null;
+}
+
+function uiCloseTurnNumber(
+  mutation: BranchControlMutation,
+  priorTurns: readonly BranchStateUserTurn[] | undefined,
+  beforeTurnNumber?: number
+): number | null {
+  const frontierId = mutation.sourceUserMessageId;
+  if (frontierId != null && frontierId > 0) {
+    if (!priorTurns) return null;
+    const matched = priorTurns.find((turn) => turn.userMessageId === frontierId);
+    if (matched) return matched.turnNumber;
+    const sawMessageIds = priorTurns.some(
+      (turn) => turn.userMessageId != null && turn.userMessageId > 0
+    );
+    if (!sawMessageIds) {
+      if (mutation.sourceTurn != null && mutation.sourceTurn > 0) return mutation.sourceTurn;
+      return null;
+    }
+    // The stored frontier message is gone. sourceTurn was numbered before that
+    // delete, so a new message can now occupy it. Cover the latest surviving
+    // message that still precedes the deleted id. A survivor at or after
+    // beforeTurnNumber means this classification is still inside the close.
+    let covered: number | null = null;
+    for (const turn of priorTurns) {
+      const messageId = turn.userMessageId;
+      if (messageId == null || messageId <= 0 || messageId >= frontierId) continue;
+      if (beforeTurnNumber != null && turn.turnNumber >= beforeTurnNumber) return null;
+      covered = covered == null ? turn.turnNumber : Math.max(covered, turn.turnNumber);
+    }
+    return covered ?? 0;
+  }
+  if (mutation.sourceTurn != null && mutation.sourceTurn > 0) return mutation.sourceTurn;
+  return null;
+}
+
+/**
+ * Turn covered by the latest UI close that is still in effect.
+ * An active branch wins, including a UI reopen. Older user text must not
+ * replay over this turn. `beforeTurnNumber` drops a close that has not
+ * happened yet for the turn being classified.
+ */
+export function confirmedUiCloseThroughTurn(
+  records: readonly EpisodicMemoryRecordSnapshot[],
+  priorTurns: readonly BranchStateUserTurn[] | undefined,
+  beforeTurnNumber?: number
+): number | null {
+  if (confirmedActiveBranchTurnEnd(records, beforeTurnNumber) != null) return null;
+
+  let best: number | null = null;
+  for (const record of records) {
+    if (record.inactive) continue;
+    if (beforeTurnNumber != null && record.turnStart >= beforeTurnNumber) continue;
+    if (record.summaryKind !== "branch_canon" || record.branchStatus !== "closed") continue;
+    const mutation = latestEffectiveUiClose(record.branchControlMutations);
+    if (!mutation) continue;
+    const turn = uiCloseTurnNumber(mutation, priorTurns, beforeTurnNumber);
+    if (turn == null) continue;
+    if (beforeTurnNumber != null && turn >= beforeTurnNumber) continue;
+    best = best == null ? turn : Math.max(best, turn);
+  }
+  return best;
+}
+
+function confirmedActiveBranchTurnEnd(
+  records: readonly EpisodicMemoryRecordSnapshot[],
+  beforeTurnNumber?: number
+): number | null {
+  let covered: number | null = null;
+  for (const record of records) {
+    if (record.inactive) continue;
+    if (beforeTurnNumber != null && record.turnStart >= beforeTurnNumber) continue;
+    if (record.summaryKind !== "branch_canon" || record.branchStatus !== "active") continue;
+    const end = record.turnEnd ?? record.turnStart;
+    covered = covered == null ? end : Math.max(covered, end);
+  }
+  return covered;
+}
+
+function orderedUsers(
+  turns: readonly BranchStateUserTurn[],
+  beforeTurnNumber?: number,
+  afterTurnNumber = 0
+): string[] {
+  return turns
+    .filter(
+      (turn) =>
+        turn.turnNumber > afterTurnNumber &&
+        (beforeTurnNumber == null || turn.turnNumber < beforeTurnNumber)
+    )
+    .sort((a, b) => a.turnNumber - b.turnNumber)
+    .map((turn) => turn.user);
+}
+
+/**
+ * Branch state before a later turn or summary batch.
+ * Episodic eligibility and rolling-summary seals share this owner. A side story
+ * that starts on the last turn of a mixed batch is stored as main_canon, so
+ * sealed summary_kind alone drops the branch before the next batch.
+ * An active branch_canon row is the confirmed state through its turnEnd, including
+ * a UI reopen that came after the user close already inside that span. Older user
+ * text is not replayed over it. User text after that span still opens and closes.
+ * A UI close is the same kind of confirmed fact through its frontier turn, including
+ * unsealed turns that existed when the panel closed the branch. Older user text
+ * does not reopen it. classifyMemoryBatchScopes still applies one frozen flag
+ * inside a batch unless that batch is split on the UI close.
+ */
+export function resolveSharedPreviousBranchState(opts: {
+  priorUserMessages?: readonly string[];
+  priorTurns?: readonly BranchStateUserTurn[];
+  sealedRecords: readonly EpisodicMemoryRecordSnapshot[];
+  beforeTurnNumber?: number;
+}): boolean {
+  const coveredThrough = confirmedActiveBranchTurnEnd(
+    opts.sealedRecords,
+    opts.beforeTurnNumber
+  );
+  if (coveredThrough != null && opts.priorTurns) {
+    return resolvePreviousWasNoncanonOrBranchState(
+      orderedUsers(opts.priorTurns, opts.beforeTurnNumber, coveredThrough),
+      true
+    );
+  }
+
+  const uiCloseThrough = confirmedUiCloseThroughTurn(
+    opts.sealedRecords,
+    opts.priorTurns,
+    opts.beforeTurnNumber
+  );
+  if (uiCloseThrough != null && opts.priorTurns) {
+    return resolvePreviousWasNoncanonOrBranchState(
+      orderedUsers(opts.priorTurns, opts.beforeTurnNumber, uiCloseThrough),
+      false
+    );
+  }
+
+  const sealed = resolveSealedNoncanonOrBranchFromMemoryRecords(
+    [...opts.sealedRecords],
+    opts.beforeTurnNumber
+  );
+  const messages =
+    opts.priorTurns != null
+      ? orderedUsers(opts.priorTurns, opts.beforeTurnNumber)
+      : [...(opts.priorUserMessages ?? [])];
+  return resolvePreviousWasNoncanonOrBranchState(messages, sealed);
 }
 
 /**

@@ -1,11 +1,11 @@
 /** Isolated TRPG runtime — not used by 1:1 character chat. */
 
-import { GEMINI_38_FLASH_MODEL } from "@/lib/chatModels";
+import { GEMINI_4_ARGON_MODEL, GEMINI_38_FLASH_MODEL } from "@/lib/chatModels";
 import type { TrpgInventoryEntry } from "./inventory";
 import type { TrpgLocalSceneProgressDelta } from "./localSceneProgress";
 import type { TrpgStoryPhase } from "./scenarioPlan";
 
-export const TRPG_GM_MODEL = GEMINI_38_FLASH_MODEL;
+export const TRPG_GM_MODEL = GEMINI_4_ARGON_MODEL;
 export const TRPG_MAX_SLOTS = 4;
 /** Each AI companion is its own model call, so bots stay at two. */
 export const TRPG_MAX_BOTS = 2;
@@ -36,10 +36,6 @@ export const TRPG_LEDGER_ITEM_MAX_CHARS = 80;
 export type TrpgGoalCriterion =
   | { type: "reach_location"; place: string }
   | { type: "end_encounter"; encounterId: string };
-/** Same target as Cheaper Inference DeepSeek V4 Pro RP (`CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_GROSS_MARGIN`). */
-export const TRPG_GM_GROSS_MARGIN = 0.65;
-/** Bot-seat Pro call — same 65% as RP Pro. Not Flash. */
-export const TRPG_BOT_GROSS_MARGIN = 0.65;
 export const TRPG_BOT_MODEL = GEMINI_38_FLASH_MODEL;
 export const TRPG_ACTION_MAX_CHARS = 1500;
 /** Host-written party bonds, applied before campaign start. */
@@ -191,8 +187,13 @@ export type TrpgStateDelta = {
     participantId: number;
     hp?: number;
     conditions?: string[];
+    /** Applied to AI companion seats only. A human PC gains items through `itemOffers` plus player acceptance. */
     inventoryAdd?: string[];
+    /** Commit-boundary only: server-validated player acceptances. Applied after mechanics consume filtering. */
+    acceptedInventoryAdd?: string[];
     inventoryRemove?: string[];
+    /** Items offered to a human PC. Proposal only; ownership needs that player's acceptance next round. */
+    itemOffers?: string[];
     location?: string;
   }>;
   location?: string;
@@ -221,6 +222,10 @@ export type TrpgStateDelta = {
   encountersEnded?: string[];
   /** Optional local multi-round scene progress mutations. Omission is not deletion. */
   localScene?: TrpgLocalSceneProgressDelta;
+  /** 0-based indexes into frozen directorPlan.majorEvents that actually occurred in play. */
+  occurredMajorEventIndices?: number[];
+  /** 0-based indexes into frozen directorPlan.clues (non-Adventure) the GM revealed to players. */
+  revealedClueIndices?: number[];
 };
 
 export function assertNeverTrpg(x: never, label: string): never {

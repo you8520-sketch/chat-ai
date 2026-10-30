@@ -1,0 +1,2688 @@
+{
+  "method": "same four public fixtures / same mock completions and correction reasons; estimateTokens UTF-16 character heuristic, not measured provider usage. Subcomponent estimates overlap and round separately; they do not add to total. Live transport uses json_object, not the schema payload. Main Part1 world context is unchanged.",
+  "providerCalls": 0,
+  "actualCost": 0,
+  "rows": [
+    {
+      "fixture": "relation-start-free",
+      "versions": {
+        "main": {
+          "generationCalls": 3,
+          "stages": [
+            {
+              "task": "character_bible_1",
+              "total": {
+                "chars": 4198,
+                "estimatedTokens": 3779
+              },
+              "system": {
+                "chars": 2297,
+                "estimatedTokens": 2068
+              },
+              "user": {
+                "chars": 1900,
+                "estimatedTokens": 1710
+              },
+              "recap": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            {
+              "task": "character_bible_voice",
+              "total": {
+                "chars": 3680,
+                "estimatedTokens": 3312
+              },
+              "system": {
+                "chars": 2063,
+                "estimatedTokens": 1857
+              },
+              "user": {
+                "chars": 1616,
+                "estimatedTokens": 1455
+              },
+              "recap": {
+                "chars": 879,
+                "estimatedTokens": 792
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            {
+              "task": "character_bible_bonds",
+              "total": {
+                "chars": 3692,
+                "estimatedTokens": 3323
+              },
+              "system": {
+                "chars": 1945,
+                "estimatedTokens": 1751
+              },
+              "user": {
+                "chars": 1746,
+                "estimatedTokens": 1572
+              },
+              "recap": {
+                "chars": 879,
+                "estimatedTokens": 792
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            }
+          ],
+          "totalEstimatedInputTokens": 10414,
+          "revisions": {
+            "greeting": {
+              "total": {
+                "chars": 4606,
+                "estimatedTokens": 4146
+              },
+              "system": {
+                "chars": 2063,
+                "estimatedTokens": 1857
+              },
+              "user": {
+                "chars": 2542,
+                "estimatedTokens": 2288
+              },
+              "recap": {
+                "chars": 879,
+                "estimatedTokens": 792
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "speech": {
+              "total": {
+                "chars": 3749,
+                "estimatedTokens": 3375
+              },
+              "system": {
+                "chars": 2063,
+                "estimatedTokens": 1857
+              },
+              "user": {
+                "chars": 1685,
+                "estimatedTokens": 1517
+              },
+              "recap": {
+                "chars": 879,
+                "estimatedTokens": 792
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "tags": {
+              "total": {
+                "chars": 3834,
+                "estimatedTokens": 3451
+              },
+              "system": {
+                "chars": 2063,
+                "estimatedTokens": 1857
+              },
+              "user": {
+                "chars": 1770,
+                "estimatedTokens": 1593
+              },
+              "recap": {
+                "chars": 879,
+                "estimatedTokens": 792
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "publicDescription": {
+              "total": {
+                "chars": 4012,
+                "estimatedTokens": 3611
+              },
+              "system": {
+                "chars": 2063,
+                "estimatedTokens": 1857
+              },
+              "user": {
+                "chars": 1948,
+                "estimatedTokens": 1754
+              },
+              "recap": {
+                "chars": 879,
+                "estimatedTokens": 792
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            }
+          }
+        },
+        "initial": {
+          "generationCalls": 3,
+          "stages": [
+            {
+              "task": "character_bible_1",
+              "total": {
+                "chars": 4198,
+                "estimatedTokens": 3779
+              },
+              "system": {
+                "chars": 2297,
+                "estimatedTokens": 2068
+              },
+              "user": {
+                "chars": 1900,
+                "estimatedTokens": 1710
+              },
+              "recap": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            {
+              "task": "character_bible_voice",
+              "total": {
+                "chars": 7631,
+                "estimatedTokens": 6868
+              },
+              "system": {
+                "chars": 2418,
+                "estimatedTokens": 2177
+              },
+              "user": {
+                "chars": 5212,
+                "estimatedTokens": 4691
+              },
+              "recap": {
+                "chars": 3039,
+                "estimatedTokens": 2736
+              },
+              "publicContext": {
+                "chars": 1356,
+                "estimatedTokens": 1221
+              },
+              "publicWorldContent": {
+                "chars": 361,
+                "estimatedTokens": 325
+              },
+              "publicLooksContent": {
+                "chars": 947,
+                "estimatedTokens": 853
+              }
+            },
+            {
+              "task": "character_bible_bonds",
+              "total": {
+                "chars": 5965,
+                "estimatedTokens": 5369
+              },
+              "system": {
+                "chars": 2058,
+                "estimatedTokens": 1853
+              },
+              "user": {
+                "chars": 3906,
+                "estimatedTokens": 3516
+              },
+              "recap": {
+                "chars": 3039,
+                "estimatedTokens": 2736
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            }
+          ],
+          "totalEstimatedInputTokens": 16016,
+          "revisions": {
+            "greeting": {
+              "total": {
+                "chars": 8061,
+                "estimatedTokens": 7255
+              },
+              "system": {
+                "chars": 1971,
+                "estimatedTokens": 1774
+              },
+              "user": {
+                "chars": 6089,
+                "estimatedTokens": 5481
+              },
+              "recap": {
+                "chars": 3039,
+                "estimatedTokens": 2736
+              },
+              "publicContext": {
+                "chars": 1356,
+                "estimatedTokens": 1221
+              },
+              "publicWorldContent": {
+                "chars": 361,
+                "estimatedTokens": 325
+              },
+              "publicLooksContent": {
+                "chars": 947,
+                "estimatedTokens": 853
+              }
+            },
+            "speech": {
+              "total": {
+                "chars": 7204,
+                "estimatedTokens": 6484
+              },
+              "system": {
+                "chars": 1971,
+                "estimatedTokens": 1774
+              },
+              "user": {
+                "chars": 5232,
+                "estimatedTokens": 4709
+              },
+              "recap": {
+                "chars": 3039,
+                "estimatedTokens": 2736
+              },
+              "publicContext": {
+                "chars": 1356,
+                "estimatedTokens": 1221
+              },
+              "publicWorldContent": {
+                "chars": 361,
+                "estimatedTokens": 325
+              },
+              "publicLooksContent": {
+                "chars": 947,
+                "estimatedTokens": 853
+              }
+            },
+            "tags": {
+              "total": {
+                "chars": 7289,
+                "estimatedTokens": 6561
+              },
+              "system": {
+                "chars": 1971,
+                "estimatedTokens": 1774
+              },
+              "user": {
+                "chars": 5317,
+                "estimatedTokens": 4786
+              },
+              "recap": {
+                "chars": 3039,
+                "estimatedTokens": 2736
+              },
+              "publicContext": {
+                "chars": 1356,
+                "estimatedTokens": 1221
+              },
+              "publicWorldContent": {
+                "chars": 361,
+                "estimatedTokens": 325
+              },
+              "publicLooksContent": {
+                "chars": 947,
+                "estimatedTokens": 853
+              }
+            },
+            "publicDescription": {
+              "total": {
+                "chars": 7467,
+                "estimatedTokens": 6721
+              },
+              "system": {
+                "chars": 1971,
+                "estimatedTokens": 1774
+              },
+              "user": {
+                "chars": 5495,
+                "estimatedTokens": 4946
+              },
+              "recap": {
+                "chars": 3039,
+                "estimatedTokens": 2736
+              },
+              "publicContext": {
+                "chars": 1356,
+                "estimatedTokens": 1221
+              },
+              "publicWorldContent": {
+                "chars": 361,
+                "estimatedTokens": 325
+              },
+              "publicLooksContent": {
+                "chars": 947,
+                "estimatedTokens": 853
+              }
+            }
+          }
+        },
+        "optimized": {
+          "generationCalls": 3,
+          "stages": [
+            {
+              "task": "character_bible_1",
+              "total": {
+                "chars": 4198,
+                "estimatedTokens": 3779
+              },
+              "system": {
+                "chars": 2297,
+                "estimatedTokens": 2068
+              },
+              "user": {
+                "chars": 1900,
+                "estimatedTokens": 1710
+              },
+              "recap": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            {
+              "task": "character_bible_voice",
+              "total": {
+                "chars": 6673,
+                "estimatedTokens": 6006
+              },
+              "system": {
+                "chars": 2360,
+                "estimatedTokens": 2124
+              },
+              "user": {
+                "chars": 4312,
+                "estimatedTokens": 3881
+              },
+              "recap": {
+                "chars": 2792,
+                "estimatedTokens": 2513
+              },
+              "publicContext": {
+                "chars": 826,
+                "estimatedTokens": 744
+              },
+              "publicWorldContent": {
+                "chars": 361,
+                "estimatedTokens": 325
+              },
+              "publicLooksContent": {
+                "chars": 460,
+                "estimatedTokens": 414
+              }
+            },
+            {
+              "task": "character_bible_bonds",
+              "total": {
+                "chars": 5413,
+                "estimatedTokens": 4872
+              },
+              "system": {
+                "chars": 1958,
+                "estimatedTokens": 1763
+              },
+              "user": {
+                "chars": 3454,
+                "estimatedTokens": 3109
+              },
+              "recap": {
+                "chars": 2792,
+                "estimatedTokens": 2513
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            }
+          ],
+          "totalEstimatedInputTokens": 14657,
+          "revisions": {
+            "greeting": {
+              "total": {
+                "chars": 6262,
+                "estimatedTokens": 5636
+              },
+              "system": {
+                "chars": 1913,
+                "estimatedTokens": 1722
+              },
+              "user": {
+                "chars": 4348,
+                "estimatedTokens": 3914
+              },
+              "recap": {
+                "chars": 2792,
+                "estimatedTokens": 2513
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "speech": {
+              "total": {
+                "chars": 5184,
+                "estimatedTokens": 4666
+              },
+              "system": {
+                "chars": 1913,
+                "estimatedTokens": 1722
+              },
+              "user": {
+                "chars": 3270,
+                "estimatedTokens": 2943
+              },
+              "recap": {
+                "chars": 2571,
+                "estimatedTokens": 2314
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "tags": {
+              "total": {
+                "chars": 5269,
+                "estimatedTokens": 4743
+              },
+              "system": {
+                "chars": 1913,
+                "estimatedTokens": 1722
+              },
+              "user": {
+                "chars": 3355,
+                "estimatedTokens": 3020
+              },
+              "recap": {
+                "chars": 2571,
+                "estimatedTokens": 2314
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "publicDescription": {
+              "total": {
+                "chars": 5668,
+                "estimatedTokens": 5102
+              },
+              "system": {
+                "chars": 1913,
+                "estimatedTokens": 1722
+              },
+              "user": {
+                "chars": 3754,
+                "estimatedTokens": 3379
+              },
+              "recap": {
+                "chars": 2792,
+                "estimatedTokens": 2513
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            }
+          }
+        }
+      },
+      "savedVsInitialEstimatedInputTokens": 1359,
+      "savedVsInitialPercent": 8.49
+    },
+    {
+      "fixture": "relation-start-relationship-bound",
+      "versions": {
+        "main": {
+          "generationCalls": 3,
+          "stages": [
+            {
+              "task": "character_bible_1",
+              "total": {
+                "chars": 4300,
+                "estimatedTokens": 3870
+              },
+              "system": {
+                "chars": 2297,
+                "estimatedTokens": 2068
+              },
+              "user": {
+                "chars": 2002,
+                "estimatedTokens": 1802
+              },
+              "recap": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            {
+              "task": "character_bible_voice",
+              "total": {
+                "chars": 3818,
+                "estimatedTokens": 3437
+              },
+              "system": {
+                "chars": 2063,
+                "estimatedTokens": 1857
+              },
+              "user": {
+                "chars": 1754,
+                "estimatedTokens": 1579
+              },
+              "recap": {
+                "chars": 905,
+                "estimatedTokens": 815
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            {
+              "task": "character_bible_bonds",
+              "total": {
+                "chars": 3846,
+                "estimatedTokens": 3462
+              },
+              "system": {
+                "chars": 1945,
+                "estimatedTokens": 1751
+              },
+              "user": {
+                "chars": 1900,
+                "estimatedTokens": 1710
+              },
+              "recap": {
+                "chars": 905,
+                "estimatedTokens": 815
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            }
+          ],
+          "totalEstimatedInputTokens": 10769,
+          "revisions": {
+            "greeting": {
+              "total": {
+                "chars": 4909,
+                "estimatedTokens": 4419
+              },
+              "system": {
+                "chars": 2063,
+                "estimatedTokens": 1857
+              },
+              "user": {
+                "chars": 2845,
+                "estimatedTokens": 2561
+              },
+              "recap": {
+                "chars": 905,
+                "estimatedTokens": 815
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "speech": {
+              "total": {
+                "chars": 3887,
+                "estimatedTokens": 3499
+              },
+              "system": {
+                "chars": 2063,
+                "estimatedTokens": 1857
+              },
+              "user": {
+                "chars": 1823,
+                "estimatedTokens": 1641
+              },
+              "recap": {
+                "chars": 905,
+                "estimatedTokens": 815
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "tags": {
+              "total": {
+                "chars": 3967,
+                "estimatedTokens": 3571
+              },
+              "system": {
+                "chars": 2063,
+                "estimatedTokens": 1857
+              },
+              "user": {
+                "chars": 1903,
+                "estimatedTokens": 1713
+              },
+              "recap": {
+                "chars": 905,
+                "estimatedTokens": 815
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "publicDescription": {
+              "total": {
+                "chars": 4179,
+                "estimatedTokens": 3762
+              },
+              "system": {
+                "chars": 2063,
+                "estimatedTokens": 1857
+              },
+              "user": {
+                "chars": 2115,
+                "estimatedTokens": 1904
+              },
+              "recap": {
+                "chars": 905,
+                "estimatedTokens": 815
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            }
+          }
+        },
+        "initial": {
+          "generationCalls": 3,
+          "stages": [
+            {
+              "task": "character_bible_1",
+              "total": {
+                "chars": 4300,
+                "estimatedTokens": 3870
+              },
+              "system": {
+                "chars": 2297,
+                "estimatedTokens": 2068
+              },
+              "user": {
+                "chars": 2002,
+                "estimatedTokens": 1802
+              },
+              "recap": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            {
+              "task": "character_bible_voice",
+              "total": {
+                "chars": 7787,
+                "estimatedTokens": 7009
+              },
+              "system": {
+                "chars": 2418,
+                "estimatedTokens": 2177
+              },
+              "user": {
+                "chars": 5368,
+                "estimatedTokens": 4832
+              },
+              "recap": {
+                "chars": 3004,
+                "estimatedTokens": 2704
+              },
+              "publicContext": {
+                "chars": 1435,
+                "estimatedTokens": 1292
+              },
+              "publicWorldContent": {
+                "chars": 319,
+                "estimatedTokens": 288
+              },
+              "publicLooksContent": {
+                "chars": 1068,
+                "estimatedTokens": 962
+              }
+            },
+            {
+              "task": "character_bible_bonds",
+              "total": {
+                "chars": 6058,
+                "estimatedTokens": 5453
+              },
+              "system": {
+                "chars": 2058,
+                "estimatedTokens": 1853
+              },
+              "user": {
+                "chars": 3999,
+                "estimatedTokens": 3600
+              },
+              "recap": {
+                "chars": 3004,
+                "estimatedTokens": 2704
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            }
+          ],
+          "totalEstimatedInputTokens": 16332,
+          "revisions": {
+            "greeting": {
+              "total": {
+                "chars": 8382,
+                "estimatedTokens": 7544
+              },
+              "system": {
+                "chars": 1971,
+                "estimatedTokens": 1774
+              },
+              "user": {
+                "chars": 6410,
+                "estimatedTokens": 5769
+              },
+              "recap": {
+                "chars": 3004,
+                "estimatedTokens": 2704
+              },
+              "publicContext": {
+                "chars": 1435,
+                "estimatedTokens": 1292
+              },
+              "publicWorldContent": {
+                "chars": 319,
+                "estimatedTokens": 288
+              },
+              "publicLooksContent": {
+                "chars": 1068,
+                "estimatedTokens": 962
+              }
+            },
+            "speech": {
+              "total": {
+                "chars": 7360,
+                "estimatedTokens": 6624
+              },
+              "system": {
+                "chars": 1971,
+                "estimatedTokens": 1774
+              },
+              "user": {
+                "chars": 5388,
+                "estimatedTokens": 4850
+              },
+              "recap": {
+                "chars": 3004,
+                "estimatedTokens": 2704
+              },
+              "publicContext": {
+                "chars": 1435,
+                "estimatedTokens": 1292
+              },
+              "publicWorldContent": {
+                "chars": 319,
+                "estimatedTokens": 288
+              },
+              "publicLooksContent": {
+                "chars": 1068,
+                "estimatedTokens": 962
+              }
+            },
+            "tags": {
+              "total": {
+                "chars": 7440,
+                "estimatedTokens": 6696
+              },
+              "system": {
+                "chars": 1971,
+                "estimatedTokens": 1774
+              },
+              "user": {
+                "chars": 5468,
+                "estimatedTokens": 4922
+              },
+              "recap": {
+                "chars": 3004,
+                "estimatedTokens": 2704
+              },
+              "publicContext": {
+                "chars": 1435,
+                "estimatedTokens": 1292
+              },
+              "publicWorldContent": {
+                "chars": 319,
+                "estimatedTokens": 288
+              },
+              "publicLooksContent": {
+                "chars": 1068,
+                "estimatedTokens": 962
+              }
+            },
+            "publicDescription": {
+              "total": {
+                "chars": 7652,
+                "estimatedTokens": 6887
+              },
+              "system": {
+                "chars": 1971,
+                "estimatedTokens": 1774
+              },
+              "user": {
+                "chars": 5680,
+                "estimatedTokens": 5112
+              },
+              "recap": {
+                "chars": 3004,
+                "estimatedTokens": 2704
+              },
+              "publicContext": {
+                "chars": 1435,
+                "estimatedTokens": 1292
+              },
+              "publicWorldContent": {
+                "chars": 319,
+                "estimatedTokens": 288
+              },
+              "publicLooksContent": {
+                "chars": 1068,
+                "estimatedTokens": 962
+              }
+            }
+          }
+        },
+        "optimized": {
+          "generationCalls": 3,
+          "stages": [
+            {
+              "task": "character_bible_1",
+              "total": {
+                "chars": 4300,
+                "estimatedTokens": 3870
+              },
+              "system": {
+                "chars": 2297,
+                "estimatedTokens": 2068
+              },
+              "user": {
+                "chars": 2002,
+                "estimatedTokens": 1802
+              },
+              "recap": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            {
+              "task": "character_bible_voice",
+              "total": {
+                "chars": 6722,
+                "estimatedTokens": 6050
+              },
+              "system": {
+                "chars": 2360,
+                "estimatedTokens": 2124
+              },
+              "user": {
+                "chars": 4361,
+                "estimatedTokens": 3925
+              },
+              "recap": {
+                "chars": 2740,
+                "estimatedTokens": 2466
+              },
+              "publicContext": {
+                "chars": 847,
+                "estimatedTokens": 763
+              },
+              "publicWorldContent": {
+                "chars": 319,
+                "estimatedTokens": 288
+              },
+              "publicLooksContent": {
+                "chars": 523,
+                "estimatedTokens": 471
+              }
+            },
+            {
+              "task": "character_bible_bonds",
+              "total": {
+                "chars": 5489,
+                "estimatedTokens": 4941
+              },
+              "system": {
+                "chars": 1958,
+                "estimatedTokens": 1763
+              },
+              "user": {
+                "chars": 3530,
+                "estimatedTokens": 3177
+              },
+              "recap": {
+                "chars": 2740,
+                "estimatedTokens": 2466
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            }
+          ],
+          "totalEstimatedInputTokens": 14861,
+          "revisions": {
+            "greeting": {
+              "total": {
+                "chars": 6455,
+                "estimatedTokens": 5810
+              },
+              "system": {
+                "chars": 1913,
+                "estimatedTokens": 1722
+              },
+              "user": {
+                "chars": 4541,
+                "estimatedTokens": 4087
+              },
+              "recap": {
+                "chars": 2740,
+                "estimatedTokens": 2466
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "speech": {
+              "total": {
+                "chars": 5207,
+                "estimatedTokens": 4687
+              },
+              "system": {
+                "chars": 1913,
+                "estimatedTokens": 1722
+              },
+              "user": {
+                "chars": 3293,
+                "estimatedTokens": 2964
+              },
+              "recap": {
+                "chars": 2514,
+                "estimatedTokens": 2263
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "tags": {
+              "total": {
+                "chars": 5287,
+                "estimatedTokens": 4759
+              },
+              "system": {
+                "chars": 1913,
+                "estimatedTokens": 1722
+              },
+              "user": {
+                "chars": 3373,
+                "estimatedTokens": 3036
+              },
+              "recap": {
+                "chars": 2514,
+                "estimatedTokens": 2263
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "publicDescription": {
+              "total": {
+                "chars": 5725,
+                "estimatedTokens": 5153
+              },
+              "system": {
+                "chars": 1913,
+                "estimatedTokens": 1722
+              },
+              "user": {
+                "chars": 3811,
+                "estimatedTokens": 3430
+              },
+              "recap": {
+                "chars": 2740,
+                "estimatedTokens": 2466
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            }
+          }
+        }
+      },
+      "savedVsInitialEstimatedInputTokens": 1471,
+      "savedVsInitialPercent": 9.01
+    },
+    {
+      "fixture": "relation-start-role-bound",
+      "versions": {
+        "main": {
+          "generationCalls": 3,
+          "stages": [
+            {
+              "task": "character_bible_1",
+              "total": {
+                "chars": 4240,
+                "estimatedTokens": 3816
+              },
+              "system": {
+                "chars": 2297,
+                "estimatedTokens": 2068
+              },
+              "user": {
+                "chars": 1942,
+                "estimatedTokens": 1748
+              },
+              "recap": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            {
+              "task": "character_bible_voice",
+              "total": {
+                "chars": 3773,
+                "estimatedTokens": 3396
+              },
+              "system": {
+                "chars": 2063,
+                "estimatedTokens": 1857
+              },
+              "user": {
+                "chars": 1709,
+                "estimatedTokens": 1539
+              },
+              "recap": {
+                "chars": 878,
+                "estimatedTokens": 791
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            {
+              "task": "character_bible_bonds",
+              "total": {
+                "chars": 3766,
+                "estimatedTokens": 3390
+              },
+              "system": {
+                "chars": 1945,
+                "estimatedTokens": 1751
+              },
+              "user": {
+                "chars": 1820,
+                "estimatedTokens": 1638
+              },
+              "recap": {
+                "chars": 878,
+                "estimatedTokens": 791
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            }
+          ],
+          "totalEstimatedInputTokens": 10602,
+          "revisions": {
+            "greeting": {
+              "total": {
+                "chars": 4972,
+                "estimatedTokens": 4475
+              },
+              "system": {
+                "chars": 2063,
+                "estimatedTokens": 1857
+              },
+              "user": {
+                "chars": 2908,
+                "estimatedTokens": 2618
+              },
+              "recap": {
+                "chars": 878,
+                "estimatedTokens": 791
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "speech": {
+              "total": {
+                "chars": 3842,
+                "estimatedTokens": 3458
+              },
+              "system": {
+                "chars": 2063,
+                "estimatedTokens": 1857
+              },
+              "user": {
+                "chars": 1778,
+                "estimatedTokens": 1601
+              },
+              "recap": {
+                "chars": 878,
+                "estimatedTokens": 791
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "tags": {
+              "total": {
+                "chars": 3924,
+                "estimatedTokens": 3532
+              },
+              "system": {
+                "chars": 2063,
+                "estimatedTokens": 1857
+              },
+              "user": {
+                "chars": 1860,
+                "estimatedTokens": 1674
+              },
+              "recap": {
+                "chars": 878,
+                "estimatedTokens": 791
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "publicDescription": {
+              "total": {
+                "chars": 4114,
+                "estimatedTokens": 3703
+              },
+              "system": {
+                "chars": 2063,
+                "estimatedTokens": 1857
+              },
+              "user": {
+                "chars": 2050,
+                "estimatedTokens": 1845
+              },
+              "recap": {
+                "chars": 878,
+                "estimatedTokens": 791
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            }
+          }
+        },
+        "initial": {
+          "generationCalls": 3,
+          "stages": [
+            {
+              "task": "character_bible_1",
+              "total": {
+                "chars": 4240,
+                "estimatedTokens": 3816
+              },
+              "system": {
+                "chars": 2297,
+                "estimatedTokens": 2068
+              },
+              "user": {
+                "chars": 1942,
+                "estimatedTokens": 1748
+              },
+              "recap": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            {
+              "task": "character_bible_voice",
+              "total": {
+                "chars": 7242,
+                "estimatedTokens": 6518
+              },
+              "system": {
+                "chars": 2418,
+                "estimatedTokens": 2177
+              },
+              "user": {
+                "chars": 4823,
+                "estimatedTokens": 4341
+              },
+              "recap": {
+                "chars": 2733,
+                "estimatedTokens": 2460
+              },
+              "publicContext": {
+                "chars": 1179,
+                "estimatedTokens": 1062
+              },
+              "publicWorldContent": {
+                "chars": 305,
+                "estimatedTokens": 275
+              },
+              "publicLooksContent": {
+                "chars": 826,
+                "estimatedTokens": 744
+              }
+            },
+            {
+              "task": "character_bible_bonds",
+              "total": {
+                "chars": 5734,
+                "estimatedTokens": 5161
+              },
+              "system": {
+                "chars": 2058,
+                "estimatedTokens": 1853
+              },
+              "user": {
+                "chars": 3675,
+                "estimatedTokens": 3308
+              },
+              "recap": {
+                "chars": 2733,
+                "estimatedTokens": 2460
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            }
+          ],
+          "totalEstimatedInputTokens": 15495,
+          "revisions": {
+            "greeting": {
+              "total": {
+                "chars": 7945,
+                "estimatedTokens": 7151
+              },
+              "system": {
+                "chars": 1971,
+                "estimatedTokens": 1774
+              },
+              "user": {
+                "chars": 5973,
+                "estimatedTokens": 5376
+              },
+              "recap": {
+                "chars": 2733,
+                "estimatedTokens": 2460
+              },
+              "publicContext": {
+                "chars": 1179,
+                "estimatedTokens": 1062
+              },
+              "publicWorldContent": {
+                "chars": 305,
+                "estimatedTokens": 275
+              },
+              "publicLooksContent": {
+                "chars": 826,
+                "estimatedTokens": 744
+              }
+            },
+            "speech": {
+              "total": {
+                "chars": 6815,
+                "estimatedTokens": 6134
+              },
+              "system": {
+                "chars": 1971,
+                "estimatedTokens": 1774
+              },
+              "user": {
+                "chars": 4843,
+                "estimatedTokens": 4359
+              },
+              "recap": {
+                "chars": 2733,
+                "estimatedTokens": 2460
+              },
+              "publicContext": {
+                "chars": 1179,
+                "estimatedTokens": 1062
+              },
+              "publicWorldContent": {
+                "chars": 305,
+                "estimatedTokens": 275
+              },
+              "publicLooksContent": {
+                "chars": 826,
+                "estimatedTokens": 744
+              }
+            },
+            "tags": {
+              "total": {
+                "chars": 6897,
+                "estimatedTokens": 6208
+              },
+              "system": {
+                "chars": 1971,
+                "estimatedTokens": 1774
+              },
+              "user": {
+                "chars": 4925,
+                "estimatedTokens": 4433
+              },
+              "recap": {
+                "chars": 2733,
+                "estimatedTokens": 2460
+              },
+              "publicContext": {
+                "chars": 1179,
+                "estimatedTokens": 1062
+              },
+              "publicWorldContent": {
+                "chars": 305,
+                "estimatedTokens": 275
+              },
+              "publicLooksContent": {
+                "chars": 826,
+                "estimatedTokens": 744
+              }
+            },
+            "publicDescription": {
+              "total": {
+                "chars": 7087,
+                "estimatedTokens": 6379
+              },
+              "system": {
+                "chars": 1971,
+                "estimatedTokens": 1774
+              },
+              "user": {
+                "chars": 5115,
+                "estimatedTokens": 4604
+              },
+              "recap": {
+                "chars": 2733,
+                "estimatedTokens": 2460
+              },
+              "publicContext": {
+                "chars": 1179,
+                "estimatedTokens": 1062
+              },
+              "publicWorldContent": {
+                "chars": 305,
+                "estimatedTokens": 275
+              },
+              "publicLooksContent": {
+                "chars": 826,
+                "estimatedTokens": 744
+              }
+            }
+          }
+        },
+        "optimized": {
+          "generationCalls": 3,
+          "stages": [
+            {
+              "task": "character_bible_1",
+              "total": {
+                "chars": 4240,
+                "estimatedTokens": 3816
+              },
+              "system": {
+                "chars": 2297,
+                "estimatedTokens": 2068
+              },
+              "user": {
+                "chars": 1942,
+                "estimatedTokens": 1748
+              },
+              "recap": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            {
+              "task": "character_bible_voice",
+              "total": {
+                "chars": 6266,
+                "estimatedTokens": 5640
+              },
+              "system": {
+                "chars": 2360,
+                "estimatedTokens": 2124
+              },
+              "user": {
+                "chars": 3905,
+                "estimatedTokens": 3515
+              },
+              "recap": {
+                "chars": 2469,
+                "estimatedTokens": 2223
+              },
+              "publicContext": {
+                "chars": 680,
+                "estimatedTokens": 612
+              },
+              "publicWorldContent": {
+                "chars": 305,
+                "estimatedTokens": 275
+              },
+              "publicLooksContent": {
+                "chars": 370,
+                "estimatedTokens": 333
+              }
+            },
+            {
+              "task": "character_bible_bonds",
+              "total": {
+                "chars": 5165,
+                "estimatedTokens": 4649
+              },
+              "system": {
+                "chars": 1958,
+                "estimatedTokens": 1763
+              },
+              "user": {
+                "chars": 3206,
+                "estimatedTokens": 2886
+              },
+              "recap": {
+                "chars": 2469,
+                "estimatedTokens": 2223
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            }
+          ],
+          "totalEstimatedInputTokens": 14105,
+          "revisions": {
+            "greeting": {
+              "total": {
+                "chars": 6274,
+                "estimatedTokens": 5647
+              },
+              "system": {
+                "chars": 1913,
+                "estimatedTokens": 1722
+              },
+              "user": {
+                "chars": 4360,
+                "estimatedTokens": 3924
+              },
+              "recap": {
+                "chars": 2469,
+                "estimatedTokens": 2223
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "speech": {
+              "total": {
+                "chars": 4975,
+                "estimatedTokens": 4478
+              },
+              "system": {
+                "chars": 1913,
+                "estimatedTokens": 1722
+              },
+              "user": {
+                "chars": 3061,
+                "estimatedTokens": 2755
+              },
+              "recap": {
+                "chars": 2300,
+                "estimatedTokens": 2070
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "tags": {
+              "total": {
+                "chars": 5057,
+                "estimatedTokens": 4552
+              },
+              "system": {
+                "chars": 1913,
+                "estimatedTokens": 1722
+              },
+              "user": {
+                "chars": 3143,
+                "estimatedTokens": 2829
+              },
+              "recap": {
+                "chars": 2300,
+                "estimatedTokens": 2070
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "publicDescription": {
+              "total": {
+                "chars": 5416,
+                "estimatedTokens": 4875
+              },
+              "system": {
+                "chars": 1913,
+                "estimatedTokens": 1722
+              },
+              "user": {
+                "chars": 3502,
+                "estimatedTokens": 3152
+              },
+              "recap": {
+                "chars": 2469,
+                "estimatedTokens": 2223
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            }
+          }
+        }
+      },
+      "savedVsInitialEstimatedInputTokens": 1390,
+      "savedVsInitialPercent": 8.97
+    },
+    {
+      "fixture": "relation-start-role-bound-field",
+      "versions": {
+        "main": {
+          "generationCalls": 3,
+          "stages": [
+            {
+              "task": "character_bible_1",
+              "total": {
+                "chars": 4372,
+                "estimatedTokens": 3935
+              },
+              "system": {
+                "chars": 2297,
+                "estimatedTokens": 2068
+              },
+              "user": {
+                "chars": 2074,
+                "estimatedTokens": 1867
+              },
+              "recap": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            {
+              "task": "character_bible_voice",
+              "total": {
+                "chars": 3796,
+                "estimatedTokens": 3417
+              },
+              "system": {
+                "chars": 2063,
+                "estimatedTokens": 1857
+              },
+              "user": {
+                "chars": 1732,
+                "estimatedTokens": 1559
+              },
+              "recap": {
+                "chars": 886,
+                "estimatedTokens": 798
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            {
+              "task": "character_bible_bonds",
+              "total": {
+                "chars": 3853,
+                "estimatedTokens": 3468
+              },
+              "system": {
+                "chars": 1945,
+                "estimatedTokens": 1751
+              },
+              "user": {
+                "chars": 1907,
+                "estimatedTokens": 1717
+              },
+              "recap": {
+                "chars": 886,
+                "estimatedTokens": 798
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            }
+          ],
+          "totalEstimatedInputTokens": 10820,
+          "revisions": {
+            "greeting": {
+              "total": {
+                "chars": 4747,
+                "estimatedTokens": 4273
+              },
+              "system": {
+                "chars": 2063,
+                "estimatedTokens": 1857
+              },
+              "user": {
+                "chars": 2683,
+                "estimatedTokens": 2415
+              },
+              "recap": {
+                "chars": 886,
+                "estimatedTokens": 798
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "speech": {
+              "total": {
+                "chars": 3865,
+                "estimatedTokens": 3479
+              },
+              "system": {
+                "chars": 2063,
+                "estimatedTokens": 1857
+              },
+              "user": {
+                "chars": 1801,
+                "estimatedTokens": 1621
+              },
+              "recap": {
+                "chars": 886,
+                "estimatedTokens": 798
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "tags": {
+              "total": {
+                "chars": 3949,
+                "estimatedTokens": 3555
+              },
+              "system": {
+                "chars": 2063,
+                "estimatedTokens": 1857
+              },
+              "user": {
+                "chars": 1885,
+                "estimatedTokens": 1697
+              },
+              "recap": {
+                "chars": 886,
+                "estimatedTokens": 798
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "publicDescription": {
+              "total": {
+                "chars": 4138,
+                "estimatedTokens": 3725
+              },
+              "system": {
+                "chars": 2063,
+                "estimatedTokens": 1857
+              },
+              "user": {
+                "chars": 2074,
+                "estimatedTokens": 1867
+              },
+              "recap": {
+                "chars": 886,
+                "estimatedTokens": 798
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            }
+          }
+        },
+        "initial": {
+          "generationCalls": 3,
+          "stages": [
+            {
+              "task": "character_bible_1",
+              "total": {
+                "chars": 4372,
+                "estimatedTokens": 3935
+              },
+              "system": {
+                "chars": 2297,
+                "estimatedTokens": 2068
+              },
+              "user": {
+                "chars": 2074,
+                "estimatedTokens": 1867
+              },
+              "recap": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            {
+              "task": "character_bible_voice",
+              "total": {
+                "chars": 7769,
+                "estimatedTokens": 6993
+              },
+              "system": {
+                "chars": 2418,
+                "estimatedTokens": 2177
+              },
+              "user": {
+                "chars": 5350,
+                "estimatedTokens": 4815
+              },
+              "recap": {
+                "chars": 3067,
+                "estimatedTokens": 2761
+              },
+              "publicContext": {
+                "chars": 1357,
+                "estimatedTokens": 1222
+              },
+              "publicWorldContent": {
+                "chars": 321,
+                "estimatedTokens": 289
+              },
+              "publicLooksContent": {
+                "chars": 988,
+                "estimatedTokens": 890
+              }
+            },
+            {
+              "task": "character_bible_bonds",
+              "total": {
+                "chars": 6147,
+                "estimatedTokens": 5533
+              },
+              "system": {
+                "chars": 2058,
+                "estimatedTokens": 1853
+              },
+              "user": {
+                "chars": 4088,
+                "estimatedTokens": 3680
+              },
+              "recap": {
+                "chars": 3067,
+                "estimatedTokens": 2761
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            }
+          ],
+          "totalEstimatedInputTokens": 16461,
+          "revisions": {
+            "greeting": {
+              "total": {
+                "chars": 8224,
+                "estimatedTokens": 7402
+              },
+              "system": {
+                "chars": 1971,
+                "estimatedTokens": 1774
+              },
+              "user": {
+                "chars": 6252,
+                "estimatedTokens": 5627
+              },
+              "recap": {
+                "chars": 3067,
+                "estimatedTokens": 2761
+              },
+              "publicContext": {
+                "chars": 1357,
+                "estimatedTokens": 1222
+              },
+              "publicWorldContent": {
+                "chars": 321,
+                "estimatedTokens": 289
+              },
+              "publicLooksContent": {
+                "chars": 988,
+                "estimatedTokens": 890
+              }
+            },
+            "speech": {
+              "total": {
+                "chars": 7342,
+                "estimatedTokens": 6608
+              },
+              "system": {
+                "chars": 1971,
+                "estimatedTokens": 1774
+              },
+              "user": {
+                "chars": 5370,
+                "estimatedTokens": 4833
+              },
+              "recap": {
+                "chars": 3067,
+                "estimatedTokens": 2761
+              },
+              "publicContext": {
+                "chars": 1357,
+                "estimatedTokens": 1222
+              },
+              "publicWorldContent": {
+                "chars": 321,
+                "estimatedTokens": 289
+              },
+              "publicLooksContent": {
+                "chars": 988,
+                "estimatedTokens": 890
+              }
+            },
+            "tags": {
+              "total": {
+                "chars": 7426,
+                "estimatedTokens": 6684
+              },
+              "system": {
+                "chars": 1971,
+                "estimatedTokens": 1774
+              },
+              "user": {
+                "chars": 5454,
+                "estimatedTokens": 4909
+              },
+              "recap": {
+                "chars": 3067,
+                "estimatedTokens": 2761
+              },
+              "publicContext": {
+                "chars": 1357,
+                "estimatedTokens": 1222
+              },
+              "publicWorldContent": {
+                "chars": 321,
+                "estimatedTokens": 289
+              },
+              "publicLooksContent": {
+                "chars": 988,
+                "estimatedTokens": 890
+              }
+            },
+            "publicDescription": {
+              "total": {
+                "chars": 7615,
+                "estimatedTokens": 6854
+              },
+              "system": {
+                "chars": 1971,
+                "estimatedTokens": 1774
+              },
+              "user": {
+                "chars": 5643,
+                "estimatedTokens": 5079
+              },
+              "recap": {
+                "chars": 3067,
+                "estimatedTokens": 2761
+              },
+              "publicContext": {
+                "chars": 1357,
+                "estimatedTokens": 1222
+              },
+              "publicWorldContent": {
+                "chars": 321,
+                "estimatedTokens": 289
+              },
+              "publicLooksContent": {
+                "chars": 988,
+                "estimatedTokens": 890
+              }
+            }
+          }
+        },
+        "optimized": {
+          "generationCalls": 3,
+          "stages": [
+            {
+              "task": "character_bible_1",
+              "total": {
+                "chars": 4372,
+                "estimatedTokens": 3935
+              },
+              "system": {
+                "chars": 2297,
+                "estimatedTokens": 2068
+              },
+              "user": {
+                "chars": 2074,
+                "estimatedTokens": 1867
+              },
+              "recap": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            {
+              "task": "character_bible_voice",
+              "total": {
+                "chars": 6736,
+                "estimatedTokens": 6063
+              },
+              "system": {
+                "chars": 2360,
+                "estimatedTokens": 2124
+              },
+              "user": {
+                "chars": 4375,
+                "estimatedTokens": 3938
+              },
+              "recap": {
+                "chars": 2803,
+                "estimatedTokens": 2523
+              },
+              "publicContext": {
+                "chars": 801,
+                "estimatedTokens": 721
+              },
+              "publicWorldContent": {
+                "chars": 321,
+                "estimatedTokens": 289
+              },
+              "publicLooksContent": {
+                "chars": 475,
+                "estimatedTokens": 428
+              }
+            },
+            {
+              "task": "character_bible_bonds",
+              "total": {
+                "chars": 5578,
+                "estimatedTokens": 5021
+              },
+              "system": {
+                "chars": 1958,
+                "estimatedTokens": 1763
+              },
+              "user": {
+                "chars": 3619,
+                "estimatedTokens": 3258
+              },
+              "recap": {
+                "chars": 2803,
+                "estimatedTokens": 2523
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            }
+          ],
+          "totalEstimatedInputTokens": 15019,
+          "revisions": {
+            "greeting": {
+              "total": {
+                "chars": 6375,
+                "estimatedTokens": 5738
+              },
+              "system": {
+                "chars": 1913,
+                "estimatedTokens": 1722
+              },
+              "user": {
+                "chars": 4461,
+                "estimatedTokens": 4015
+              },
+              "recap": {
+                "chars": 2803,
+                "estimatedTokens": 2523
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "speech": {
+              "total": {
+                "chars": 5270,
+                "estimatedTokens": 4743
+              },
+              "system": {
+                "chars": 1913,
+                "estimatedTokens": 1722
+              },
+              "user": {
+                "chars": 3356,
+                "estimatedTokens": 3021
+              },
+              "recap": {
+                "chars": 2580,
+                "estimatedTokens": 2322
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "tags": {
+              "total": {
+                "chars": 5354,
+                "estimatedTokens": 4819
+              },
+              "system": {
+                "chars": 1913,
+                "estimatedTokens": 1722
+              },
+              "user": {
+                "chars": 3440,
+                "estimatedTokens": 3096
+              },
+              "recap": {
+                "chars": 2580,
+                "estimatedTokens": 2322
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            },
+            "publicDescription": {
+              "total": {
+                "chars": 5766,
+                "estimatedTokens": 5190
+              },
+              "system": {
+                "chars": 1913,
+                "estimatedTokens": 1722
+              },
+              "user": {
+                "chars": 3852,
+                "estimatedTokens": 3467
+              },
+              "recap": {
+                "chars": 2803,
+                "estimatedTokens": 2523
+              },
+              "publicContext": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicWorldContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              },
+              "publicLooksContent": {
+                "chars": 0,
+                "estimatedTokens": 0
+              }
+            }
+          }
+        }
+      },
+      "savedVsInitialEstimatedInputTokens": 1442,
+      "savedVsInitialPercent": 8.76
+    }
+  ],
+  "implementationSHA": "950f0064c597f37d9ee12508219205078d0d4efb"
+}

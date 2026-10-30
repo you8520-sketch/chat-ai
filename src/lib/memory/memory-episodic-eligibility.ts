@@ -5,8 +5,7 @@
 import type Database from "better-sqlite3";
 import {
   resolveEpisodicTurnEligibility,
-  resolvePreviousWasNoncanonOrBranchState,
-  resolveSealedNoncanonOrBranchFromMemoryRecords,
+  resolveSharedPreviousBranchState,
   type EpisodicTurnEligibility,
 } from "./memory-summary-scope";
 import { loadMemoryEligibleChatTurnsWithMessageIdsCore } from "./memory-turn-loader";
@@ -29,23 +28,28 @@ export function resolveEpisodicEligibilityForSourceUserMessage(
     opts.sourceUserMessageId != null
       ? turns.findIndex((t) => t.userMessageId === opts.sourceUserMessageId)
       : -1;
-  const priorMessages =
-    currentIdx > 0 ? turns.slice(0, currentIdx).map((t) => t.user) : [];
+  const priorTurns =
+    currentIdx >= 0
+      ? turns.map((t) => ({
+          turnNumber: t.turnNumber,
+          user: t.user,
+          userMessageId: t.userMessageId,
+        }))
+      : [];
   const currentTurnNumber = currentIdx >= 0 ? turns[currentIdx]!.turnNumber : undefined;
   const memorySnapshots = listMemoryRecordsForChat(opts.chatId).map((r) => ({
     turnStart: r.turnStart,
+    turnEnd: r.turnEnd,
     summaryKind: r.summaryKind,
     branchStatus: r.branchStatus,
     inactive: r.inactive,
+    branchControlMutations: r.branchControlMutations,
   }));
-  const sealedBranch = resolveSealedNoncanonOrBranchFromMemoryRecords(
-    memorySnapshots,
-    currentTurnNumber
-  );
-  const previousWasNoncanonOrBranch = resolvePreviousWasNoncanonOrBranchState(
-    priorMessages,
-    sealedBranch
-  );
+  const previousWasNoncanonOrBranch = resolveSharedPreviousBranchState({
+    priorTurns,
+    sealedRecords: memorySnapshots,
+    beforeTurnNumber: currentTurnNumber,
+  });
   const eligibility = resolveEpisodicTurnEligibility(opts.sourceUserText, {
     previousWasNoncanonOrBranch,
   });

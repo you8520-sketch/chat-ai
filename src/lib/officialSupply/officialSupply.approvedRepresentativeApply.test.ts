@@ -26,6 +26,7 @@ import {
 import {
   ADMIN,
   anchorQa,
+  compositionCheck,
   APPROVED_PLAN,
   CANDIDATES,
   candidateBytes,
@@ -44,6 +45,7 @@ import {
 } from "@/lib/officialSupply/officialSupply.approvedApplyFixtures";
 import { testBatchConfig, testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures";
 import { PILOT_STYLE_PROOF_CANDIDATE_ID } from "@/lib/officialSupply/pilotStyleProof";
+import { OFFICIAL_DETAIL_RESTRAINT_CLAUSE, OFFICIAL_IDENTITY_COPY_FORBIDDEN_CLAUSE } from "@/lib/officialSupply/imagePrompt";
 import { prepareOfficialImageReferences } from "@/lib/officialSupply/referencePreparation";
 import {
   applyApprovedOfficialAssetReplacements,
@@ -52,6 +54,7 @@ import {
   type OfficialRepresentativeApplySet,
 } from "@/lib/officialSupply/replacement";
 import { composeOfficialSlotGeneration, moderateOfficialAssetReplacement } from "@/lib/officialSupply/runner";
+import { renderOfficialShotResponsibility, resolveOfficialSlotShot } from "@/lib/officialSupply/shotPlan";
 import { ROFAN_CLUSTER_B_VISUAL_STYLE_DNA } from "@/lib/officialSupply/style";
 import { OfficialSupplyGateError, OfficialSupplyStore } from "@/lib/officialSupply/store";
 import type { OfficialAssetModeration, OfficialAssetPlan, OfficialGenreStyle } from "@/lib/officialSupply/types";
@@ -64,7 +67,7 @@ import { installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/li
  * are not an image-quality approval of these files, and no row written here
  * leaves the temporary database.
  */
-const IMAGE_ENV = { OPENAI_IMAGE_MODEL: "gpt-image-2.5-sunburst" } as unknown as NodeJS.ProcessEnv;
+const IMAGE_ENV = { OFFICIAL_ASSET_IMAGE_MODEL: "gpt-image-2.5-sunburst" } as unknown as NodeJS.ProcessEnv;
 const REPRESENTATIVE_SET: OfficialRepresentativeApplySet = {
   nextAssetPlan: APPROVED_PLAN,
   generationReference: "representative_identity_and_style",
@@ -167,7 +170,12 @@ async function moderate(draftKey: string, slotKey: string, moderation: OfficialA
   await moderateOfficialAssetReplacement({ store, moderator: ports.moderator }, draftKey, slotKey);
 }
 
-function review(draftKey: string, candidate: ManifestCandidate, url: string, qa = anchorQa()) {
+function review(
+  draftKey: string,
+  candidate: ManifestCandidate,
+  url: string,
+  qa = anchorQa({ compositionIndependence: compositionCheck(url, candidate.rawSha256) })
+) {
   if (candidate.slot === "rep") {
     return store.reviewRepresentativeReplacement(
       ADMIN,
@@ -328,7 +336,10 @@ describe("approved fourteen-slot private apply (isolated DB, test-only review fi
       assert.equal(active.status, "approved");
       assert.equal(store.getReplacement(MAIN, candidate.slot).status, "applied");
     }
-    assert.deepEqual(store.getAsset(MAIN, "rep").qa, anchorQa());
+    assert.deepEqual(
+      store.getAsset(MAIN, "rep").qa,
+      anchorQa({ compositionIndependence: compositionCheck(candidateUrls.get("rep")!, REP.rawSha256) })
+    );
     const character = store.getCharacter(MAIN);
     assert.deepEqual(character.assetPlan, APPROVED_PLAN);
     assert.deepEqual(
@@ -389,10 +400,15 @@ describe("approved fourteen-slot private apply (isolated DB, test-only review fi
       if (!composed.ok) continue;
       assert.equal(composed.referenceRoleLayout, "identity_and_style");
       assert.deepEqual([...composed.references], [expectedReference]);
-      assert.equal(
-        sha256(composed.primaryPrompt),
-        candidate.laterOwnerAssemblyPromptSha256 ?? candidate.sentPromptSha256,
-        `${candidate.slot} prompt differs from the recorded approved prompt`
+      const plannedSlot = character.assetPlan!.slots.find((slot) => slot.slotKey === candidate.slot)!;
+      assert.ok(composed.primaryPrompt.includes(`Expression: ${plannedSlot.expression}.`), candidate.slot);
+      assert.ok(composed.primaryPrompt.includes(OFFICIAL_DETAIL_RESTRAINT_CLAUSE), candidate.slot);
+      assert.ok(composed.primaryPrompt.includes(OFFICIAL_IDENTITY_COPY_FORBIDDEN_CLAUSE), candidate.slot);
+      assert.ok(
+        composed.primaryPrompt.includes(
+          renderOfficialShotResponsibility(resolveOfficialSlotShot(plannedSlot, character.draftKey))
+        ),
+        candidate.slot
       );
       assert.doesNotMatch(composed.primaryPrompt, /식사|식당|수프/);
     }
@@ -636,7 +652,7 @@ describe("approved representative gates (isolated DB)", () => {
     const changedFile = { candidateUrl: changed.candidateResultUrl!, candidateSha256: sha256(otherPortrait) };
     assert.equal(changed.candidateSha256, changedFile.candidateSha256);
     assert.equal(
-      store.reviewRepresentativeReplacement(ADMIN, GATES, anchorQa({ face: { ok: false } }), changedFile, TEST_ONLY_REVIEWER)
+      store.reviewRepresentativeReplacement(ADMIN, GATES, anchorQa({ face: { ok: false, note: "face drifts from the approved identity" }, compositionIndependence: compositionCheck(changedFile.candidateUrl, changedFile.candidateSha256) }), changedFile, TEST_ONLY_REVIEWER)
         .approved,
       false
     );

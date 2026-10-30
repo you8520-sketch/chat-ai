@@ -97,11 +97,31 @@ describe("chat-room adult mode (handoff) preference", () => {
     assert.match(chatClient, /ChatRoomAdultModeToggle/);
     assert.doesNotMatch(chatClient, /isAdultMode:\s*nsfwMode/);
     assert.doesNotMatch(chatClient, /nsfwMode\s*=\s*isAdult\s*&&\s*userNsfwOn/);
+    assert.match(chatClient, /isAdult && !!initialAdultHandoffEnabled/);
     assert.match(
       chatClient,
-      /<\/select>\s*(?:<\/label>\s*)?<ChatRoomAdultModeToggle/s
+      /<\/select>\s*<\/label>\s*\{isAdult \? \(\s*<ChatRoomAdultModeToggle/s
     );
     assert.equal((chatClient.match(/<ChatRoomAdultModeToggle/g) ?? []).length, 1);
+    assert.equal(
+      (chatClient.match(
+        /\.\.\.\(isAdult \? \{ adultHandoffEnabled: adultHandoffOnRef\.current \} : \{\}\)/g
+      ) ?? []).length,
+      3
+    );
+
+    const toggle = readFileSync(
+      new URL("../components/ChatRoomAdultModeToggle.tsx", import.meta.url),
+      "utf8"
+    );
+    assert.match(toggle, /if \(!isAdult\) return null/);
+    assert.doesNotMatch(toggle, /CHAT_ADULT_MODE_VERIFY_HINT/);
+
+    const page = readFileSync(new URL("../app/chat/[id]/page.tsx", import.meta.url), "utf8");
+    assert.match(
+      page,
+      /initialAdultHandoffEnabled=\{\s*canAccessAdultContent\(user\) && !!chat\.adult_handoff_enabled\s*\}/
+    );
 
     const headerControls = readFileSync(
       new URL("../components/UserPreferenceControls.tsx", import.meta.url),

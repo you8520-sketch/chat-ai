@@ -268,7 +268,7 @@ describe("official generation reference plan owner", () => {
     assert.equal(OFFICIAL_ASSET_DEFAULT_QUALITY, "medium");
     assert.equal(officialImageProfileForSlot("signature").size, "1536x1024");
     assert.equal(officialImageProfileForSlot("scene").size, "1536x1024");
-    assert.equal(resolveOfficialAssetImageModel({ OPENAI_IMAGE_MODEL: "gpt-image-2.5-sunburst" }), "gpt-image-2.5-sunburst");
+    assert.equal(resolveOfficialAssetImageModel({ OFFICIAL_ASSET_IMAGE_MODEL: "gpt-image-2.5-sunburst" }), "gpt-image-2.5-sunburst");
     const billing = fs.readFileSync(path.join(process.cwd(), "src/lib/openAiImageEdit.ts"), "utf8");
     assert.match(billing, /imageInputTokens \* 0\.000008/);
     assert.match(billing, /form\.append\("image\[\]"/);

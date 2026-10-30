@@ -479,7 +479,7 @@ export function evaluateDraftSchema(draft: OfficialCharacterDraft): QaResult {
   })) {
     if (!String(value ?? "").trim()) errors.push({ code: "field_missing", message: `${key} is required` });
   }
-  if (draft.promptStandard === "compact_rp_v1" && !String(draft.sections.currentSituation ?? "").trim()) {
+  if ((draft.promptStandard === "compact_rp_v1" || draft.promptStandard === "compact_rp_v2") && !String(draft.sections.currentSituation ?? "").trim()) {
     errors.push({ code: "field_missing", message: "currentSituation is required" });
   }
   if (sanitizeCharacterGenres(draft.genres).length !== draft.genres.length || draft.genres.length === 0) {

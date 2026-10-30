@@ -1,0 +1,120 @@
+{
+  "kind": "offline estimate, identical fixtures; not billed provider tokens",
+  "physicalProviderCalls": 0,
+  "normalStages": 3,
+  "optionalVoiceRevisionsMax": 2,
+  "rows": [
+    {
+      "fixture": "relation-start-free",
+      "baseCalls": [
+        {
+          "task": "character_bible_1",
+          "chars": 4315,
+          "estimatedTokens": 3884
+        },
+        {
+          "task": "character_bible_voice",
+          "chars": 6673,
+          "estimatedTokens": 6006
+        },
+        {
+          "task": "character_bible_bonds",
+          "chars": 5413,
+          "estimatedTokens": 4872
+        }
+      ],
+      "optionalRevision": [
+        {
+          "task": "character_bible_voice",
+          "chars": 5663,
+          "estimatedTokens": 5097
+        }
+      ],
+      "baseEstimatedInputTokens": 14762
+    },
+    {
+      "fixture": "relation-start-relationship-bound",
+      "baseCalls": [
+        {
+          "task": "character_bible_1",
+          "chars": 4386,
+          "estimatedTokens": 3948
+        },
+        {
+          "task": "character_bible_voice",
+          "chars": 6722,
+          "estimatedTokens": 6050
+        },
+        {
+          "task": "character_bible_bonds",
+          "chars": 5489,
+          "estimatedTokens": 4941
+        }
+      ],
+      "optionalRevision": [
+        {
+          "task": "character_bible_voice",
+          "chars": 5719,
+          "estimatedTokens": 5148
+        }
+      ],
+      "baseEstimatedInputTokens": 14939
+    },
+    {
+      "fixture": "relation-start-role-bound",
+      "baseCalls": [
+        {
+          "task": "character_bible_1",
+          "chars": 4326,
+          "estimatedTokens": 3894
+        },
+        {
+          "task": "character_bible_voice",
+          "chars": 6266,
+          "estimatedTokens": 5640
+        },
+        {
+          "task": "character_bible_bonds",
+          "chars": 5165,
+          "estimatedTokens": 4649
+        }
+      ],
+      "optionalRevision": [
+        {
+          "task": "character_bible_voice",
+          "chars": 5419,
+          "estimatedTokens": 4878
+        }
+      ],
+      "baseEstimatedInputTokens": 14183
+    },
+    {
+      "fixture": "relation-start-role-bound-field",
+      "baseCalls": [
+        {
+          "task": "character_bible_1",
+          "chars": 4458,
+          "estimatedTokens": 4013
+        },
+        {
+          "task": "character_bible_voice",
+          "chars": 6736,
+          "estimatedTokens": 6063
+        },
+        {
+          "task": "character_bible_bonds",
+          "chars": 5578,
+          "estimatedTokens": 5021
+        }
+      ],
+      "optionalRevision": [
+        {
+          "task": "character_bible_voice",
+          "chars": 5761,
+          "estimatedTokens": 5185
+        }
+      ],
+      "baseEstimatedInputTokens": 15097
+    }
+  ]
+}

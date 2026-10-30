@@ -88,6 +88,7 @@ type Props = {
   lorebooks: KeywordLorebookListItem[];
   blurNsfw: boolean;
   creatorId: number;
+  ownerIsAdmin: boolean;
 };
 
 export default function StudioClient({
@@ -97,6 +98,7 @@ export default function StudioClient({
   lorebooks,
   blurNsfw,
   creatorId,
+  ownerIsAdmin,
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -142,6 +144,18 @@ export default function StudioClient({
             >
               내 공개 프로필
             </StudioButton>
+            {ownerIsAdmin ? (
+              <StudioButton
+                href="/create"
+                variant="secondary"
+                size="sm"
+                className="whitespace-nowrap"
+                aria-label="범용 초안 생성"
+                title="장르를 골라 검수 후 비공개 초안으로 저장"
+              >
+                범용 초안 생성
+              </StudioButton>
+            ) : null}
           </nav>
         </div>
         <StudioButton href={activeMeta.createHref} size="lg" className="w-full justify-center sm:w-auto">
@@ -202,6 +216,7 @@ export default function StudioClient({
             characters={characters}
             simulations={simulations}
             blurNsfw={blurNsfw}
+            ownerIsAdmin={ownerIsAdmin}
           />
         )}
         {activeTab === "worlds" && <WorldsPanel worlds={worlds} />}
@@ -215,10 +230,12 @@ function CreationsPanel({
   characters,
   simulations,
   blurNsfw,
+  ownerIsAdmin,
 }: {
   characters: MyCharacterRow[];
   simulations: MyCharacterRow[];
   blurNsfw: boolean;
+  ownerIsAdmin: boolean;
 }) {
   const creations = useMemo(
     () =>
@@ -294,6 +311,7 @@ function CreationsPanel({
                     key={creation.id}
                     c={creation}
                     blurNsfw={blurNsfw}
+                    ownerIsAdmin={ownerIsAdmin}
                     editHref={`/create?edit=${creation.id}`}
                     contentLabel={isSimulation ? "시뮬레이션" : "캐릭터"}
                   />

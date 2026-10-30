@@ -1,0 +1,12 @@
+{
+  "call": 12,
+  "specKey": "g5-modern-comedy",
+  "task": "character_bible_bonds",
+  "outcome": "ok",
+  "model": "gpt-6-luna",
+  "inputTokens": 3262,
+  "outputTokens": 460,
+  "costUsd": 0.000424,
+  "providerRequestId": "cda48b3d-aeb8-4321-8fa2-3fca24335d74",
+  "text": "{\"userRelationship\":{\"type\":\"free\",\"fixedFacts\":\"\",\"userDecides\":\"\",\"initialView\":\"\",\"userRole\":\"\",\"startingPoint\":\"\",\"progression\":[]},\"otherRelationships\":[],\"secrets\":[{\"fact\":\"3번문 안내 표지를 옮긴 사람은 수진이다. 현장 흐름을 확인하려 한 조치였지만 변경 기록과 설명을 늦게 남겼다.\",\"impact\":\"표지 위치 논의가 시작되면 자신의 판단과 지연된 공개를 함께 밝혀야 하며, 그 사실은 합의의 신뢰와 다음 동선에 영향을 준다.\"}],\"rpEngine\":{\"immediateHook\":\"수진은 접이식 지도를 펴고 3번문 통행 기록을 확인한다. 표지 위치를 바꾼 사실은 아직 안건에 적지 않았다. 그녀는 현장부터 보자고 제안하며, 변경 시각과 이유를 기록에 올릴지 망설인다.\",\"repeatable\":[\"현장에서 상인·노동자·주민의 표현을 각각 듣고, 같은 단어가 서로 다른 뜻으로 쓰였는지 대조한다.\",\"통행 폭과 시간대, 작업 일정을 확인해 시험 가능한 임시안을 만들고 승인 여부와 미확정 사항을 구분한다.\",\"시행 뒤 실제 동선과 부담이 누구에게 남았는지 확인해 기록하고, 문제가 드러나면 수정안을 다시 올린다.\",\"회의가 굳으면 생활 비유로 숨 돌릴 틈을 만든다. 농담이 누군가의 손해를 가리면 즉시 거두고 쟁점으로 돌아간다.\"],\"mediumConflict\":\"\",\"longTermChange\":\"\",\"selfDrive\":{\"goal\":\"3번문 임시안의 부담과 실제 동선 변화를 당사자별로 확인해 기록한다.\",\"ownMove\":\"현장 통행을 시간대별로 살핀 뒤 변경 시각과 자신의 조치를 공개해 수정안을 올린다.\",\"setback\":\"확인을 미루거나 기록을 흐리면 혼란이 이어지고, 자신의 조정 기록에 대한 신뢰도 약해진다.\"}},\"nsfw\":false,\"adultSection\":null}"
+}

@@ -32,16 +32,17 @@ export const ACTION_METHOD_STAT_HINTS: Record<string, readonly string[]> = {
     "창",
     "근접",
     "힘껏",
+    "힘",
     "연결부",
     "파쇄",
     "베어",
     "베인",
     "베어서",
   ],
-  dex: ["회피", "피하", "날렵", "재빨리", "손놀림", "잔기술", "구르", "뛰어", "몸을 날"],
+  dex: ["회피", "피하", "날렵", "재빨리", "손놀림", "잔기술", "구르", "뛰어", "몸을 날", "눈을 피", "몰래"],
   acc: ["조준", "사격", "활", "총", "명중", "원거리", "정밀", "엄호", "엄호 사격"],
   mag: ["주문", "마법", "마력", "화염", "빙결", "번개", "소환", "초능력", "염력"],
-  int: ["분석", "패턴", "구조", "연결", "흐름", "확인", "연구", "추론", "해석", "계산", "단서", "정리", "경로", "감염"],
+  int: ["분석", "패턴", "구조", "연결", "흐름", "확인", "연구", "추론", "해석", "계산", "단서", "정리", "경로", "감염", "암호", "고문서"],
   per: ["관찰", "흔적", "살핀", "살피", "둘러", "주시", "들여다", "탐색", "수색", "기척"],
   ins: ["직감", "육감", "예감", "느낌"],
   wis: ["판단", "통찰", "감지", "치료", "붕대", "지혈", "응급", "해독", "간호"],
@@ -64,11 +65,38 @@ export const ACTION_METHOD_STAT_HINTS: Record<string, readonly string[]> = {
   emp: ["공감", "위로", "다독"],
 };
 
+export function actionMethodStatKeys(): string[] {
+  return Object.keys(ACTION_METHOD_STAT_HINTS);
+}
+
 export function scoreActionMethodHints(text: string, key: string): number {
   const hay = text.toLowerCase();
   const hints = ACTION_METHOD_STAT_HINTS[key];
   if (!hints?.length) return 0;
   return hints.reduce((n, hint) => n + (hay.includes(hint.toLowerCase()) ? 1 : 0), 0);
+}
+
+/** When the winning method key is not on this scenario's sheet. */
+const OFF_SHEET_METHOD_FALLBACK: Record<string, readonly string[]> = {
+  tec: ["int", "dex"],
+  per: ["wis", "int"],
+  mag: ["int", "wis"],
+  spd: ["dex"],
+  acc: ["dex"],
+  foc: ["wis", "int"],
+  ins: ["wis"],
+  wil: ["wis"],
+  rec: ["wis"],
+  grd: ["con", "dex"],
+  res: ["con"],
+};
+
+export function projectMethodStat(key: string, defs: readonly { key: string }[]): string | null {
+  if (defs.some((def) => def.key === key)) return key;
+  for (const next of OFF_SHEET_METHOD_FALLBACK[key] ?? []) {
+    if (defs.some((def) => def.key === next)) return next;
+  }
+  return null;
 }
 
 export function compatibleStatsForAction(actionType: string | null): readonly string[] {

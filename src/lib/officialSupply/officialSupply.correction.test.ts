@@ -28,6 +28,7 @@ import {
   type OfficialCharacterBible,
   type WorldLocation,
 } from "@/lib/officialSupply/bible";
+import { resolveOfficialAuthoringPlan } from "@/lib/officialSupply/genreProfile";
 import { clearQuarantine, listActiveQuarantines, writeQuarantine } from "@/lib/officialSupply/pilotArtifacts";
 import {
   evaluateSceneCandidateAgainstPortfolio,
@@ -506,7 +507,7 @@ describe("voice revision copies back only the named fields", () => {
       personality: { behavioral: "b", keywords: [] },
       greeting: "old greeting",
       speech: { description: "old speech", keywords: ["x"] },
-      publicProfile: { tagline: "old tagline", description: "old pitch", tags: ["a"] },
+      publicProfile: { tagline: "old tagline", description: "old pitch", tags: ["a"], detailedDescription: "old detailed manuscript", creatorComment: "old creator comment" },
       npcs: [{ name: "보좌관", role: "부관", relationToChar: "r" }],
       backstory: { events: [{ event: "e", choice: "c", residue: "r" }] },
     } as unknown as OfficialCharacterBible;
@@ -518,8 +519,13 @@ describe("voice revision copies back only the named fields", () => {
         npcs: [{ name: "새 NPC", role: "새 역할", relationToChar: "x" }],
       },
     });
+    const revisionInputs: Parameters<OfficialAuthorTransport["completeJson"]>[0][] = [];
+    const captureTransport: OfficialAuthorTransport = { ...transport, async completeJson(input) {
+      revisionInputs.push(input);
+      return transport.completeJson(input);
+    } };
     const { bible } = await reviseOfficialCharacterVoice({
-      transport,
+      transport: captureTransport,
       bible: current,
       voice: { name: "카엘", age: 27, adultCandidate: false, speechDirection: "", npcDemand: "" },
       fields: ["greeting"],
@@ -528,9 +534,67 @@ describe("voice revision copies back only the named fields", () => {
     assert.equal(bible.greeting, "NEW greeting");
     assert.equal(bible.publicProfile.tagline, "old tagline");
     assert.equal(bible.publicProfile.description, "old pitch");
+    assert.equal(bible.publicProfile.detailedDescription, "old detailed manuscript");
+    assert.equal(bible.publicProfile.creatorComment, "old creator comment");
+    const properties = revisionInputs[0].schema.properties as Record<string, { properties: Record<string, unknown> }>;
+    assert.equal(properties.publicProfile.properties.detailedDescription, undefined);
+    assert.equal(properties.publicProfile.properties.creatorComment, undefined);
     assert.equal(bible.speech.description, "old speech");
     assert.deepEqual(bible.npcs, current.npcs);
     assert.deepEqual(bible.backstory, current.backstory);
+  });
+
+  it("a pronoun repair may replace the detailed public manuscript and still leaves the creator comment", async () => {
+    const current = {
+      identity: { name: "최하늘", gender: "female", age: 20, occupation: "보조", socialPosition: "딸", worldRole: "이웃" },
+      personality: { behavioral: "b", keywords: [] },
+      greeting: "old greeting",
+      speech: { description: "old speech", keywords: ["x"] },
+      publicProfile: {
+        tagline: "old tagline",
+        description: "그는 영수증을 읽는다. 당신은 그 금액을 함께 본다.",
+        tags: ["a"],
+        detailedDescription: "그는 집안의 돈이 동네에 미치는 영향을 말한다.",
+        creatorComment: "old creator comment",
+      },
+      npcs: [],
+      backstory: { events: [] },
+    } as unknown as OfficialCharacterBible;
+    const transport = fake({
+      character_bible_voice: {
+        speech: { description: "NEW speech" },
+        greeting: "NEW greeting",
+        publicProfile: {
+          tagline: "NEW tagline",
+          description: "그녀는 영수증을 읽는다. 당신은 그 금액을 함께 본다.",
+          tags: ["z"],
+          detailedDescription: "그녀는 집안의 돈이 동네에 미치는 영향을 말한다.",
+          creatorComment: "NEW creator comment",
+        },
+      },
+    });
+    const revisionInputs: Parameters<OfficialAuthorTransport["completeJson"]>[0][] = [];
+    const captureTransport: OfficialAuthorTransport = { ...transport, async completeJson(input) {
+      revisionInputs.push(input);
+      return transport.completeJson(input);
+    } };
+    const { bible } = await reviseOfficialCharacterVoice({
+      transport: captureTransport,
+      bible: current,
+      voice: { name: "최하늘", age: 20, gender: "female", adultCandidate: false, speechDirection: "", npcDemand: "" },
+      fields: ["publicDescription"],
+      reasons: ["official_character_pronoun: public description refers to a female character as 그는 or 그가"],
+      authoring: resolveOfficialAuthoringPlan({ genre: "현대/일상" }),
+    });
+    assert.equal(bible.publicProfile.description, "그녀는 영수증을 읽는다. 당신은 그 금액을 함께 본다.");
+    assert.equal(bible.publicProfile.detailedDescription, "그녀는 집안의 돈이 동네에 미치는 영향을 말한다.");
+    assert.equal(bible.publicProfile.creatorComment, "old creator comment");
+    assert.equal(bible.greeting, "old greeting");
+    const properties = revisionInputs[0].schema.properties as Record<string, { properties: Record<string, unknown> }>;
+    assert.equal(typeof properties.publicProfile.properties.detailedDescription, "object");
+    assert.equal(properties.publicProfile.properties.creatorComment, undefined);
+    assert.match(revisionInputs[0].user, /그녀·그녀는·그녀가·그녀를·그녀의/);
+    assert.match(revisionInputs[0].system, /detailedDescription/);
   });
 });
 
@@ -542,7 +606,11 @@ describe("physical-attempt cost accounting", () => {
     const inner = fake(
       {
         character_bible_1: { identity: { name: "카엘", occupation: "o", socialPosition: "s", worldRole: "w" } },
-        character_bible_voice: { speech: {}, greeting: "g", behaviorRules: ["a", "b", "c"], publicProfile: { tagline: "t" } },
+        character_bible_voice: { speech: {}, greeting: "g", behaviorRules: ["a", "b", "c"], publicProfile: {
+          tagline: "t",
+          detailedDescription: "[세계관 설정]\n" + "경계를 지키는 기사단의 야간 순찰. ".repeat(18) + "\n[캐릭터 설정]\n카엘, 27세, 184cm. 외형: 회색 눈. 성격: 신중함.\n[플레이 포인트]\n황궁 경호.\n[도입 상황]\n통행증 확인.",
+          creatorComment: "<p><b>지금 상황</b><br>야간 순찰에서 기사단장이 출입 허가를 확인합니다.</p>",
+        } },
         character_bible_bonds: { secrets: [] },
       },
       ["character_bible_1"]

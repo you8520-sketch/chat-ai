@@ -2,13 +2,17 @@
  * Official-supply market fit owner.
  *
  * One path from the committed research snapshot to portfolio planning:
- *   snapshot signals → `selectMarketSignals` (locale-first, IP-eligible only)
+ *   snapshot signals → `selectMarketSignals` (genre-fit PRIMARY; rofan keeps locale-first)
  *   → world/portfolio prompts → per-character `OfficialMarketFitBrief`
  *   → Portfolio Brief → Character Bible.
  *
  * Locale/priority come from the batch manifest (`OfficialBatchMarketPolicy`),
  * never from a global runtime constant. Everything here is deterministic —
  * no LLM judge, no scores: review rows carry observable facts for a human.
+ *
+ * Non-rofan PRIMARY is same-genre only (domestic preferred, then other regions).
+ * Off-genre popular KR rows (e.g. fantasy tops) must not pose as that genre's
+ * market-1 signals. Rofan (`로맨스 판타지`) keeps the pre-G5-1C locale-first set.
  */
 import type { OfficialCharacterBible, OfficialWorldBible } from "@/lib/officialSupply/bible";
 import type { ResearchSignal, ResearchSnapshot } from "@/lib/officialSupply/research";
@@ -89,29 +93,116 @@ function rankSignals(signals: ResearchSignal[], genre: string): ResearchSignal[]
     .map((x) => x.signal);
 }
 
-export function selectMarketSignals(
-  snapshot: ResearchSnapshot,
+/** Signal genres that are romance-led by definition (snapshot labels, not only the 19 site genres). */
+const ROMANCE_LED_SIGNAL_GENRES: ReadonlySet<string> = new Set([
+  "로맨스",
+  "로맨스 판타지",
+  "BL",
+  "GL",
+  "HL",
+  "센티넬버스",
+  "오메가버스",
+  "시즌 로맨스",
+  "컴패니언",
+  "성인 스토리",
+]);
+
+/** Relationship structure that only works as a romance / salvation / obsession hook. */
+const ROMANTIC_STRUCTURE_RE =
+  /(연애|연인|사랑|로맨스|결혼|동거|짝|각인|전담|순애|집착|후회|구원|혐관|배덕|애정|정략|romance|romantasy|lovers?|\blove\b|dominant|enemies to)/i;
+
+/** True when a market signal's hook is romance-led, so it must not steer a non-romance character. */
+export function isRomanceLedSignal(signal: Pick<ResearchSignal, "genre" | "relationshipTrope" | "scenarioHook">): boolean {
+  return (
+    ROMANCE_LED_SIGNAL_GENRES.has(signal.genre) ||
+    ROMANTIC_STRUCTURE_RE.test(`${signal.relationshipTrope ?? ""} ${signal.scenarioHook}`)
+  );
+}
+
+/**
+ * Rofan keeps the historical locale-first PRIMARY bag (all domestic eligible rows,
+ * genre-sorted inside). Every other genre uses genre-matched PRIMARY only.
+ * Kept as a string here so `marketFit` does not import `genreProfile` (cycle).
+ */
+const LOCALE_FIRST_PRIMARY_GENRE = "로맨스 판타지";
+
+function selectLocaleFirstPrimary(
+  local: ResearchSignal[],
+  other: ResearchSignal[],
   policy: OfficialBatchMarketPolicy,
   genre: string
 ): MarketSignalSelection {
-  const excluded = snapshot.signals
-    .filter((s) => !s.originalityEligible)
-    .map((s) => ({ signalId: s.signalId, reason: s.ipExclusionReason ?? "ip_excluded" }));
-  const eligible = snapshot.signals.filter((s) => s.originalityEligible);
-  const local = eligible.filter((s) => s.region === policy.signalRegion);
-  const other = eligible.filter((s) => s.region !== policy.signalRegion);
   const [primarySet, supportingSet] = policy.marketPriority === "domestic_first" ? [local, other] : [other, local];
   return {
     primary: rankSignals(primarySet, genre).map((s) => digest(s, "primary")),
     supporting: rankSignals(supportingSet, genre)
       .slice(0, policy.maxSupportingSignals)
       .map((s) => digest(s, "supporting")),
+    excluded: [],
+  };
+}
+
+/** Same-genre rows only; preferred region first, then the other region; popularity inside each. */
+function selectGenreMatchedPrimary(
+  local: ResearchSignal[],
+  other: ResearchSignal[],
+  policy: OfficialBatchMarketPolicy,
+  genre: string
+): ResearchSignal[] {
+  const localMatch = local.filter((s) => s.genre === genre);
+  const otherMatch = other.filter((s) => s.genre === genre);
+  const [preferred, fallback] =
+    policy.marketPriority === "domestic_first" ? [localMatch, otherMatch] : [otherMatch, localMatch];
+  return [...rankSignals(preferred, genre), ...rankSignals(fallback, genre)];
+}
+
+export function selectMarketSignals(
+  snapshot: ResearchSnapshot,
+  policy: OfficialBatchMarketPolicy,
+  genre: string,
+  opts: { excludeRomanceLed?: boolean } = {}
+): MarketSignalSelection {
+  const excluded = snapshot.signals
+    .filter((s) => !s.originalityEligible)
+    .map((s) => ({ signalId: s.signalId, reason: s.ipExclusionReason ?? "ip_excluded" }));
+  const eligible = snapshot.signals.filter((s) => s.originalityEligible && !(opts.excludeRomanceLed && isRomanceLedSignal(s)));
+  const local = eligible.filter((s) => s.region === policy.signalRegion);
+  const other = eligible.filter((s) => s.region !== policy.signalRegion);
+
+  if (genre === LOCALE_FIRST_PRIMARY_GENRE) {
+    const legacy = selectLocaleFirstPrimary(local, other, policy, genre);
+    return { ...legacy, excluded };
+  }
+
+  const matched = selectGenreMatchedPrimary(local, other, policy, genre);
+  const primaryIds = new Set(matched.map((s) => s.signalId));
+  const leftover = eligible.filter((s) => !primaryIds.has(s.signalId));
+  return {
+    primary: matched.map((s) => digest(s, "primary")),
+    supporting: rankSignals(leftover, genre)
+      .slice(0, policy.maxSupportingSignals)
+      .map((s) => digest(s, "supporting")),
     excluded,
   };
 }
 
+const NO_GENRE_SIGNAL_LINE =
+  "- (이 장르에 사용 가능한 originality-eligible 시장 신호가 없음. 장르·문체·캐스트 의도로 기획하고, SUPPORTING은 충돌하면 버린다.)";
+
+const PRIMARY_PRIORITY_HEADER = "PRIMARY(대상 시장 신호, 우선 사용):";
+const PRIMARY_REFERENCE_HEADER = "PRIMARY(대상 시장 신호, 참고):";
+
+/**
+ * Structural plan key only. This file must not import `genreProfile`
+ * (`resolveNamingProfile` cycle). `OfficialAuthoringPlan` is assignable.
+ */
+export type MarketSignalLinePlan = { profile: { key: string } };
+
 /** Trope-level prompt lines (signalId-tagged so briefs can cite them). */
-export function formatMarketSignalLines(selection: MarketSignalSelection): string[] {
+export function formatMarketSignalLines(
+  selection: MarketSignalSelection,
+  plan?: MarketSignalLinePlan
+): string[] {
   const line = (s: MarketSignalDigest) =>
     [
       `[${s.signalId}]`,
@@ -124,9 +215,11 @@ export function formatMarketSignalLines(selection: MarketSignalSelection): strin
     ]
       .filter(Boolean)
       .join(" · ");
+  const primaryHeader =
+    plan?.profile.key === "genre_neutral" ? PRIMARY_REFERENCE_HEADER : PRIMARY_PRIORITY_HEADER;
   return [
-    "PRIMARY(대상 시장 신호, 우선 사용):",
-    ...selection.primary.map((s) => `- ${line(s)}`),
+    primaryHeader,
+    ...(selection.primary.length > 0 ? selection.primary.map((s) => `- ${line(s)}`) : [NO_GENRE_SIGNAL_LINE]),
     selection.supporting.length ? "SUPPORTING(보조 참고, 대상 시장 신호와 충돌하면 버린다):" : "",
     ...selection.supporting.map((s) => `- ${line(s)}`),
   ].filter(Boolean);
@@ -246,6 +339,13 @@ export function evaluatePublicHook(
 // ── Discovery tags ──────────────────────────────────────────────────────────
 
 const GENRE_TAG_WORDS = new Set(["로맨스", "로판", "판타지", "궁정극", "궁정", "군사", "미스터리", "스릴러", "성인"]);
+/**
+ * A tag that names the selected canonical genre. Absent genres keep the
+ * bible/trope/GENRE_TAG_WORDS checks; this is not a global genre allowlist.
+ */
+const SELECTED_GENRE_TAG_EXPRESSIONS: Readonly<Record<string, readonly string[]>> = {
+  "현대/일상": ["현대 일상극", "현대일상극", "현대/일상"],
+};
 /** Too generic to ground a tag on their own ("잔잔한 관계" must be grounded by 잔잔). */
 const TAG_FILLER_WORDS = new Set(["관계", "이야기", "감정", "사람", "분위기", "느낌"]);
 const ADJECTIVE_SUFFIX_RE = /(스러운|스럽게|하게|하는|하다|적인|한|히|적)$/;
@@ -268,8 +368,26 @@ function tokenMatches(token: string, pool: Set<string>): boolean {
   return false;
 }
 
-/** Tag grounded in the bible text, a matching domestic trope, or genre vocabulary. */
-export function isTagGrounded(tag: string, bibleStems: Set<string>, bibleText: string): boolean {
+function compactGenreTag(value: string): string {
+  return value.replace(/[\s·]+/g, "").trim();
+}
+
+function isSelectedGenreExpression(tag: string, genre: string | undefined): boolean {
+  if (!genre) return false;
+  const expressions = SELECTED_GENRE_TAG_EXPRESSIONS[genre];
+  if (!expressions) return false;
+  const compact = compactGenreTag(tag);
+  return expressions.some((expression) => compactGenreTag(expression) === compact);
+}
+
+/** Tag grounded in the bible text, a matching domestic trope, genre vocabulary, or the selected genre's own name. */
+export function isTagGrounded(
+  tag: string,
+  bibleStems: Set<string>,
+  bibleText: string,
+  genre?: string
+): boolean {
+  if (isSelectedGenreExpression(tag, genre)) return true;
   const tokens = [...tagStems(tag)].filter((t) => !TAG_FILLER_WORDS.has(t));
   if (tokens.length === 0) return false;
   const tropes = detectDomesticTropes(tag);
@@ -288,7 +406,7 @@ export type DiscoveryTagHook = { archetype: string; relationshipTrope: string; r
 
 /** Tags must be supported by the character sheet: the bible plus its compiled canonical hook. */
 export function evaluateDiscoveryTags(
-  input: { tags: readonly string[]; bible: OfficialCharacterBible; hook?: DiscoveryTagHook },
+  input: { tags: readonly string[]; bible: OfficialCharacterBible; hook?: DiscoveryTagHook; genre?: string },
   policy: Pick<OfficialBatchMarketPolicy, "coreTags">
 ): QaResult {
   const errors: QaIssue[] = [];
@@ -303,7 +421,7 @@ export function evaluateDiscoveryTags(
     warnings.push({ code: "tags_core_count", message: `${n} tags outside ${policy.coreTags.min}-${policy.coreTags.max}` });
   }
   for (const tag of input.tags) {
-    if (!isTagGrounded(tag, tokens, text)) {
+    if (!isTagGrounded(tag, tokens, text, input.genre)) {
       errors.push({ code: "tag_bible_mismatch", message: `tag "${tag}" is not supported by the Character Bible` });
     }
   }
@@ -853,6 +971,69 @@ export function evaluateCastRoleDiversity(entries: readonly CastRoleEntry[]): Qa
   return { ...qaResult(errors), royalOrDuke };
 }
 
+/** The brief fields every planning gate reads (`PortfolioBriefInput` satisfies this). */
+export type CastFitBrief = Omit<CastRoleEntry, "draftKey"> & {
+  gender: string;
+  adultCandidate: boolean;
+  relationshipTrope: string;
+  marketFit?: OfficialMarketFitBrief | null;
+};
+
+/**
+ * Planning-stage gate for freshly planned briefs against the cast that already
+ * exists: market fit, user-relationship cue, names, primary tropes and the
+ * role/experience overlap checks (occupation, hook, silhouette, speech). Issues
+ * between two kept characters are not re-litigated — only those that name a
+ * fresh brief are returned. Single owner for the pilot replacement script and
+ * the genre-generic runner.
+ */
+export function evaluateBriefCastFit(input: {
+  fresh: readonly CastFitBrief[];
+  kept: readonly CastFitBrief[];
+  snapshot: ResearchSnapshot;
+  policy: OfficialBatchMarketPolicy;
+  namingProfile: NamingProfileKey;
+}): { errors: string[] } {
+  const { fresh, kept, snapshot, policy, namingProfile } = input;
+  const errors: string[] = [];
+  for (const b of fresh) {
+    if (!b.marketFit) {
+      errors.push(`${b.name}: marketFit missing`);
+      continue;
+    }
+    const qa = validateMarketFitBrief(b.marketFit, { snapshot, policy, adultCandidate: b.adultCandidate, expectedNamingProfile: namingProfile });
+    errors.push(...qa.errors.map((e) => `${b.name}: ${e.code}: ${e.message}`));
+    if (!hasUserRelationshipCue(b.rpHook)) errors.push(`${b.name}: rpHook does not state the user relationship`);
+  }
+  const cast = [...kept, ...fresh];
+  const freshNames = fresh.map((b) => b.name);
+  const involvesFresh = (message: string) => freshNames.some((n) => message.includes(n));
+  const names = evaluateNamePortfolio(
+    cast.map((b) => ({
+      draftKey: b.name,
+      name: b.name,
+      namingProfile: b.marketFit?.namingProfile ?? (b.gender === "other" ? "nonhuman_designation" : namingProfile),
+      kinNames: [],
+    })),
+    { observed: observedMarketNames(snapshot), hooks: Object.fromEntries(cast.map((b) => [b.name, b.rpHook])) }
+  );
+  for (const issue of [...names.errors, ...names.warnings]) {
+    if (involvesFresh(issue.message)) errors.push(`name ${issue.code}: ${issue.message}`);
+  }
+  const tropes = evaluateMarketTropePortfolio(
+    cast.map((b) => ({
+      draftKey: b.name,
+      primaryTrope: b.marketFit?.relationshipTrope.primary ?? b.relationshipTrope,
+      secondaryTropes: b.marketFit?.relationshipTrope.secondary ?? [],
+    })),
+    policy
+  );
+  errors.push(...tropes.errors.filter((e) => involvesFresh(e.message)).map((e) => `${e.code}: ${e.message}`));
+  const roles = evaluateCastRoleDiversity(cast.map((b) => ({ ...b, draftKey: b.name })));
+  errors.push(...roles.errors.filter((e) => involvesFresh(e.message)).map((e) => `${e.code}: ${e.message}`));
+  return { errors };
+}
+
 /** Prompt lines carrying one character's market fit into the bible calls. */
 export function formatMarketFitForPrompt(brief: OfficialMarketFitBrief): string[] {
   return [
@@ -929,7 +1110,7 @@ export function buildDomesticMarketFitReview(input: {
     const bible = c.bible;
     const tags = bible.publicProfile.tags;
     for (const tag of tags) tagHolders.set(tag, [...(tagHolders.get(tag) ?? []), c.draftKey]);
-    const tagQa = evaluateDiscoveryTags({ tags, bible, hook: c.brief }, policy);
+    const tagQa = evaluateDiscoveryTags({ tags, bible, hook: c.brief, genre: input.genre }, policy);
     const hookQa = evaluatePublicHook(
       { tagline: bible.publicProfile.tagline, description: bible.publicProfile.description, worldTerms: terms },
       policy

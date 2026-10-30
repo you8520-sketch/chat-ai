@@ -21,10 +21,9 @@ export const OFFICIAL_PUBLIC_INTRO_MAX_CHARS = PROFILE_BIOGRAPHY_LIMIT;
 
 const HTML_TAG_RE = /<\/?[a-z][\s\S]*>/i;
 const USER_CUE_RE = /당신/;
-/** Player-side gender/role locks. Character identity words are not in this set. */
-const PLAYER_ADDRESS_LOCK_RE = /아가씨|도련님|왕자비|신부/;
-const PLAYER_GENDER_COLLOCATE_RE =
-  /(?:당신|플레이어|유저).{0,16}(?:여자|남자|여성|남성)|(?:여자|남자|여성|남성).{0,16}(?:당신|플레이어|유저)/;
+const PLAYER_CUE_SOURCE = "당신|플레이어|유저";
+const GENDER_WORD_SOURCE = "여자|남자|여성|남성";
+const PLAYER_TITLE_SOURCE = "아가씨|도련님|왕자비|신부";
 
 function nonEmpty(value: string | null | undefined): value is string {
   return Boolean(value && value.trim());
@@ -170,17 +169,23 @@ function labeledFact(label: string, ...parts: Array<string | undefined>): string
 }
 
 /** Public identifying looks: 3–5 labeled complete phrases from canonical fields. */
-export function publicAppearanceFacts(appearance: OfficialPublicIntroInput["appearance"]): string[] {
+export function publicAppearanceFacts(appearance: OfficialPublicIntroInput["appearance"], preserveSource = false): string[] {
+  const fact = preserveSource
+    ? (label: string, ...parts: Array<string | undefined>) => {
+        const body = parts.filter(nonEmpty).join(", ");
+        return body ? `${label}: ${body}` : "";
+      }
+    : labeledFact;
   const facts = [
-    labeledFact("머리", appearance.hairColor, appearance.hairstyle),
-    labeledFact("눈", appearance.eyeColor, appearance.eyes),
-    labeledFact("피부", appearance.skin),
-    labeledFact("체형", appearance.build),
-    labeledFact("특징", appearance.distinguishingFeatures),
-    labeledFact("복식", appearance.defaultOutfit),
+    fact("머리", appearance.hairColor, appearance.hairstyle),
+    fact("눈", appearance.eyeColor, appearance.eyes),
+    fact("피부", appearance.skin),
+    fact("체형", appearance.build),
+    fact("특징", appearance.distinguishingFeatures),
+    fact("복식", appearance.defaultOutfit),
   ].filter(nonEmpty);
-  if (facts.length < 3 && appearance.accessories) facts.push(labeledFact("소품", appearance.accessories));
-  if (facts.length < 3 && appearance.impression) facts.push(labeledFact("인상", appearance.impression));
+  if (facts.length < 3 && appearance.accessories) facts.push(fact("소품", appearance.accessories));
+  if (facts.length < 3 && appearance.impression) facts.push(fact("인상", appearance.impression));
   return facts.slice(0, 5);
 }
 
@@ -248,6 +253,11 @@ export function composeOfficialPublicDescription(input: OfficialPublicIntroInput
     .trim();
 }
 
+/** `본명 (별명)` is the canonical name-field alias format; the intro may state either the full string or the bare name. */
+function withoutNameAlias(name: string): string {
+  return name.replace(/\s*[(（][^)）]*[)）]\s*$/u, "").trim() || name;
+}
+
 export function evaluateOfficialPublicDescription(description: string, name?: string): QaResult {
   const errors: QaIssue[] = [];
   const text = description.trim();
@@ -282,7 +292,7 @@ export function evaluateOfficialPublicDescription(description: string, name?: st
   if (!text.includes(`[${OFFICIAL_PUBLIC_INTRO_SECTIONS.intro}]`)) {
     errors.push({ code: "public_intro_entry_missing", message: "introduction situation section is required" });
   }
-  if (name && !text.includes(name)) {
+  if (name && !text.includes(name) && !text.includes(withoutNameAlias(name))) {
     errors.push({ code: "public_intro_name_missing", message: "detailed intro must state the character name" });
   }
   if (!/\d+\s*세/.test(text) || !/\d+\s*cm/i.test(text)) {
@@ -311,6 +321,287 @@ export function evaluateOfficialPublicDescription(description: string, name?: st
   return qaResult(errors);
 }
 
+/** Public self-reference for the character. Player address stays on the player-gender owner. */
+export function officialCharacterPronounDirective(gender: "male" | "female" | "other"): string {
+  switch (gender) {
+    case "female":
+      return "공개 문장에서 이 인물 본인은 그녀·그녀는·그녀가·그녀를·그녀의로 가리킨다. 본인에게 그는·그가·그를 쓰지 않는다.";
+    case "male":
+      return "공개 문장에서 이 인물 본인은 그·그는·그가·그를·그의로 가리킨다. 본인에게 그녀를 쓰지 않는다.";
+    case "other":
+      return "공개 문장에서 이 인물 본인은 이름으로만 가리킨다. 본인에게 그는·그녀를 쓰지 않는다.";
+    default: {
+      const unreachable: never = gender;
+      return unreachable;
+    }
+  }
+}
+
+const MALE_PERSON_TITLES = ["시아버지", "아버지", "아빠", "할아버지", "아저씨", "남동생", "오빠", "삼촌", "장인", "아들", "형", "남성", "남자"] as const;
+const FEMALE_PERSON_TITLES = ["시어머니", "아주머니", "할머니", "어머니", "여동생", "엄마", "고모", "이모", "언니", "누나", "딸", "여성", "여자"] as const;
+const TWO_SYLLABLE_SURNAMES = ["남궁", "황보", "제갈", "선우", "독고", "사공", "서문"] as const;
+const PRONOUN_SUBJECT_STOP = new Set([
+  "이것", "그것", "저것", "여기", "거기", "우리", "저희", "무엇", "아무", "누구",
+  "누군가", "무엇인가", "이것이", "그것이", "저것이", "무엇이",
+  "사람", "상대", "오늘", "어제", "지금", "그때", "이번", "다음", "자신", "자기",
+  "그녀", "당신", "유저", "플레이어",
+]);
+/** Adnominal or case endings that only look like a topic particle (`어울리는`, `손에는`, `자리에서는`). */
+const PRONOUN_SUBJECT_VERBISH = /(?:하|되|리|기|려|에|에서|에게|한테|으로)$/u;
+
+type ReferentGender = "male" | "female";
+
+function protagonistNameSet(name: string | undefined): Set<string> {
+  const names = new Set<string>();
+  const base = (name ?? "").replace(/[("'“‘][^)"'”’]*[)"'”’]/g, "").trim().split(/\s+/)[0] ?? "";
+  if (!base) return names;
+  names.add(base);
+  if (!/^[가-힣]{3,4}$/.test(base)) return names;
+  const surname = TWO_SYLLABLE_SURNAMES.find((item) => base.startsWith(item) && base.length > item.length);
+  const given = surname ? base.slice(surname.length) : base.length === 3 ? base.slice(1) : "";
+  if (given.length >= 2) names.add(given);
+  return names;
+}
+
+function bindTitledPeople(text: string): Map<string, ReferentGender> {
+  const bound = new Map<string, ReferentGender>();
+  const titles = [
+    ...MALE_PERSON_TITLES.map((title) => [title, "male"] as const),
+    ...FEMALE_PERSON_TITLES.map((title) => [title, "female"] as const),
+  ].sort((a, b) => b[0].length - a[0].length);
+  for (const [title, personGender] of titles) {
+    const re = new RegExp(
+      `(?<![가-힣])${title}(?:인\\s+|\\s+)([가-힣]{2,4}?)(?=(?:은|는|이|가|의|을|를|와|과|도|만|께|에게|께서|님)?(?:\\s|$|[^가-힣]))`,
+      "gu"
+    );
+    for (const match of text.matchAll(re)) {
+      const person = match[1] ?? "";
+      if (!person || PRONOUN_SUBJECT_STOP.has(person)) continue;
+      bound.set(person, personGender);
+    }
+  }
+  return bound;
+}
+
+type PronounAntecedent =
+  | { kind: "protagonist" }
+  | { kind: "other"; gender: ReferentGender | "unknown" };
+
+function nearestPersonAntecedent(
+  textBefore: string,
+  protagonists: Set<string>,
+  titled: Map<string, ReferentGender>
+): PronounAntecedent | null {
+  const re = /(?:^|[^가-힣])([가-힣]{2,4})(은|는|이|가)(?![가-힣])/gu;
+  let last: PronounAntecedent | null = null;
+  for (const match of textBefore.matchAll(re)) {
+    const token = match[1] ?? "";
+    const particle = match[2] ?? "";
+    if (!token || PRONOUN_SUBJECT_STOP.has(token) || PRONOUN_SUBJECT_STOP.has(`${token}${particle}`)) continue;
+    const protagonist = protagonists.has(token);
+    const known = titled.get(token);
+    if (!protagonist && !known) {
+      if (particle === "이" || particle === "가") continue;
+      if (PRONOUN_SUBJECT_VERBISH.test(token)) continue;
+    }
+    if (protagonist) {
+      last = { kind: "protagonist" };
+      continue;
+    }
+    if (known) {
+      last = { kind: "other", gender: known };
+      continue;
+    }
+    last = { kind: "other", gender: "unknown" };
+  }
+  return last;
+}
+
+function pronounExcerpt(text: string, index: number): string {
+  const breaks: number[] = [];
+  for (let i = index - 1; i >= 0; i -= 1) {
+    const char = text[i] ?? "";
+    if (/[.!?。\n]/u.test(char)) {
+      breaks.push(i);
+      if (breaks.length >= 2) break;
+    }
+  }
+  const previousBreak = breaks[1];
+  const start = previousBreak == null ? 0 : previousBreak + 1;
+  let end = text.length;
+  for (let i = index; i < text.length; i += 1) {
+    const char = text[i] ?? "";
+    if (/[.!?。\n]/u.test(char)) {
+      end = i;
+      break;
+    }
+  }
+  return text.slice(start, end).replace(/\s+/g, " ").trim().slice(0, 80);
+}
+
+/**
+ * Pitch and detailed public description only. A mismatched `그는`/`그가` or `그녀`
+ * blocks when it continues the protagonist, or when no other person is in scope.
+ * A titled other person (아버지 태식) may keep the pronoun. An unnamed competing
+ * subject is reported separately and does not use the clear-violation code.
+ * `그를`/`그의` and greeting/hidden text stay out: they often name someone else.
+ */
+export function evaluateOfficialCharacterPronoun(
+  gender: string | undefined,
+  surfaces: { description?: string; name?: string }
+): QaResult {
+  const text = (surfaces.description ?? "").replace(/[ \t]+/g, " ").trim();
+  const errors: QaIssue[] = [];
+  if (!text || (gender !== "female" && gender !== "male")) return qaResult(errors);
+  const protagonists = protagonistNameSet(surfaces.name);
+  const re = gender === "female" ? /그(?:는|가)(?!녀)/gu : /그녀/gu;
+  if (protagonists.size === 0) {
+    if (re.test(text)) {
+      errors.push({
+        code: "official_character_pronoun",
+        message:
+          gender === "female"
+            ? "public description refers to a female character as 그는 or 그가"
+            : "public description refers to a male character as 그녀",
+      });
+    }
+    return qaResult(errors);
+  }
+  const titled = bindTitledPeople(text);
+  const pronounGender: ReferentGender = gender === "female" ? "male" : "female";
+  let clear = false;
+  let uncertainExcerpt = "";
+  for (const match of text.matchAll(re)) {
+    const index = match.index ?? 0;
+    const antecedent = nearestPersonAntecedent(text.slice(0, index), protagonists, titled);
+    if (!antecedent || antecedent.kind === "protagonist") {
+      clear = true;
+      continue;
+    }
+    if (antecedent.gender === pronounGender) continue;
+    if (!uncertainExcerpt) uncertainExcerpt = pronounExcerpt(text, index);
+  }
+  if (clear) {
+    errors.push({
+      code: "official_character_pronoun",
+      message:
+        gender === "female"
+          ? "public description refers to a female character as 그는 or 그가"
+          : "public description refers to a male character as 그녀",
+    });
+  }
+  if (uncertainExcerpt) {
+    errors.push({
+      code: "official_character_pronoun_uncertain",
+      message: `public pronoun referent is uncertain: ${uncertainExcerpt}`,
+    });
+  }
+  return qaResult(errors);
+}
+
+function clipExcerpt(text: string, index: number, length: number): string {
+  const start = Math.max(0, index - 12);
+  const end = Math.min(text.length, index + length + 12);
+  return text.slice(start, end).replace(/\s+/g, " ").replace(/"/g, "").trim();
+}
+
+/** Gender word before the player cue (`여자인 당신`, `남자친구인 당신`). */
+function genderBeforePlayerCueExcerpt(text: string): string | null {
+  const match = text.match(
+    new RegExp(
+      `(?:${GENDER_WORD_SOURCE}|남자친구|여자친구)(?:인|의)?(?:\\s*채로|\\s*상태로)?\\s*(?:${PLAYER_CUE_SOURCE})`
+    )
+  );
+  if (match?.index == null) return null;
+  return clipExcerpt(text, match.index, match[0].length);
+}
+
+/**
+ * Player cue followed by a gendered identity (`당신은 남성 경찰관입니다`).
+ * A possessive `의` before the predicate means the gender word scopes someone else
+ * (`당신은 남성 단골 손님의 빈 자리`).
+ */
+function playerCueGenderIdentityExcerpt(text: string): string | null {
+  const cueRe = new RegExp(`(?:${PLAYER_CUE_SOURCE})(?:은|는|이|가|을|를|의|께|에게|도|만)?\\s*`, "g");
+  for (const cueMatch of text.matchAll(cueRe)) {
+    const cueIndex = cueMatch.index ?? 0;
+    const rest = text.slice(cueIndex + cueMatch[0].length);
+    const genderMatch = rest.match(
+      new RegExp(`^\\s*(?:(?:그|이|저|그런|해당|바로)\\s+)?(?:${GENDER_WORD_SOURCE})`)
+    );
+    if (!genderMatch) continue;
+    const afterGender = rest.slice(genderMatch[0].length);
+    const clause = (afterGender.split(/[.!?。！？]/)[0] ?? afterGender).trim();
+    if (/\S+의/.test(clause)) continue;
+    const negation = afterGender.match(/^\s*(?:이|가)\s*아니(?:다|얍|요|죠|아요|습니다)(?=[.!?。！？\s]|$)/);
+    const predicate = afterGender.match(/^\s*(?:[가-힣]*(?:입니다|이다|예요|에요|다|습니다|합니다)|(?:입니다|이다|예요|에요|습니다|합니다))/);
+    /** Gender-only or gender+role noun before 로/으로 (`여자로`, `남성 경찰관으로`). */
+    const roleTail = afterGender.match(/^\s*(?:[가-힣]{1,20}(?:로|으로)|(?:로|으로))(?=[\s,.!?。！？]|$)/);
+    const tail = negation?.[0] ?? predicate?.[0] ?? roleTail?.[0];
+    if (!tail) continue;
+    const span = cueMatch[0].length + genderMatch[0].length + tail.length;
+    return clipExcerpt(text, cueIndex, span);
+  }
+  return null;
+}
+
+/** Title subject equated with the player (`아가씨가 당신입니다`). */
+function titleEquatesPlayerExcerpt(text: string): string | null {
+  const match = text.match(
+    new RegExp(
+      `(?:${PLAYER_TITLE_SOURCE})(?:이|가)\\s*(?:${PLAYER_CUE_SOURCE})(?:입니다|이다|예요|에요|다)(?=[.!?。！？\\s]|$)`
+    )
+  );
+  if (match?.index == null) return null;
+  return clipExcerpt(text, match.index, match[0].length);
+}
+
+/** Title aimed at the player, not an NPC acting on the player. */
+function titledPlayerRoleExcerpt(text: string): string | null {
+  const vocative = text.match(
+    new RegExp(`(?:${PLAYER_CUE_SOURCE})(?:을|를)[^.!?。！？]{0,32}(?:${PLAYER_TITLE_SOURCE})(?:로|으로)`)
+  );
+  if (vocative?.index != null) return clipExcerpt(text, vocative.index, vocative[0].length);
+  const titleOnPlayer = text.match(
+    new RegExp(
+      `(?:${PLAYER_CUE_SOURCE})(?:은|는|이|가)?[^.!?。！？]{0,20}(?:${PLAYER_TITLE_SOURCE})(?:이|가)\\s*아니`
+    )
+  );
+  if (titleOnPlayer?.index != null) return clipExcerpt(text, titleOnPlayer.index, titleOnPlayer[0].length);
+  const bound = text.match(new RegExp(`(?:${PLAYER_TITLE_SOURCE})(?:인|의)?\\s*(?:${PLAYER_CUE_SOURCE})`));
+  if (bound?.index != null) return clipExcerpt(text, bound.index, bound[0].length);
+  const npcActs = new RegExp(
+    `(?:${PLAYER_TITLE_SOURCE})(?:이|가)\\s*(?:${PLAYER_CUE_SOURCE})(?:을|를|께|에게)`
+  );
+  for (const match of text.matchAll(new RegExp(PLAYER_TITLE_SOURCE, "g"))) {
+    const index = match.index ?? 0;
+    if (text[index + match[0].length] === "님") continue;
+    const local = text.slice(index, index + match[0].length + 32);
+    if (npcActs.test(local)) continue;
+    if (new RegExp(`(?:${PLAYER_TITLE_SOURCE})(?:이|가)\\s*(?!${PLAYER_CUE_SOURCE})`).test(local)) continue;
+    let clauseStart = -1;
+    for (let i = 0; i < index; i += 1) {
+      if (/[.!?。！？]/u.test(text[i] ?? "")) clauseStart = i;
+    }
+    const clausePrefix = text.slice(clauseStart + 1, index);
+    if (/(?:그녀|그는|그가)(?:는|은|이|가)?\s*[^.!?。！？]{0,96}$/u.test(clausePrefix)) continue;
+    const after = text.slice(index + match[0].length, index + match[0].length + 8);
+    if (/^(?:로|으로)/.test(after) && !new RegExp(PLAYER_CUE_SOURCE).test(clausePrefix)) continue;
+    return clipExcerpt(text, index, match[0].length);
+  }
+  return null;
+}
+
+/** First phrase that fixes the player's gender or a titled player role, if any. */
+function playerGenderLockExcerpt(text: string): string | null {
+  return (
+    genderBeforePlayerCueExcerpt(text) ??
+    playerCueGenderIdentityExcerpt(text) ??
+    titleEquatesPlayerExcerpt(text) ??
+    titledPlayerRoleExcerpt(text)
+  );
+}
+
 /** Player/user side of greeting, public intro, and creator comment must stay gender-neutral. */
 export function evaluateOfficialPlayerGenderNeutral(surfaces: {
   greeting?: string;
@@ -325,10 +616,11 @@ export function evaluateOfficialPlayerGenderNeutral(surfaces: {
   ] as const) {
     const text = (raw ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
     if (!text) continue;
-    if (PLAYER_ADDRESS_LOCK_RE.test(text) || PLAYER_GENDER_COLLOCATE_RE.test(text)) {
+    const excerpt = playerGenderLockExcerpt(text);
+    if (excerpt) {
       errors.push({
         code: "official_player_gender_locked",
-        message: `${surface} must not hard-code player gender or titled player roles`,
+        message: `${surface} must not hard-code player gender or titled player roles: "${excerpt}"`,
       });
     }
   }

@@ -56,6 +56,7 @@ import {
   earliestMissingBatchStart,
   highestContiguousCompletedTurn,
   isRollingSummaryGroundedInDialogue,
+  reconcileSummaryItemRoles,
   resolveBatchStartForTurnNumber,
   validateSummaryNarrative,
 } from "./memory-summary-integrity";
@@ -67,8 +68,12 @@ import {
   buildNoncanonSummaryFromTurns,
   buildPreferenceSummaryFromTurns,
   classifyMemoryBatchScopes,
+  confirmedUiCloseThroughTurn,
   displaySummaryFromScopes,
+  normalizeSummaryScope,
+  resolveSharedPreviousBranchState,
   shouldPromoteBranchContinue,
+  type BranchControlMutation,
   type BranchStatus,
   type MemorySummaryScope,
   type PostManualEditView,
@@ -363,6 +368,21 @@ export async function summarizeTurnBatch(opts: {
           )
         : false;
       if (narrative.ok && grounded) {
+        const reconciled = reconcileSummaryItemRoles(narrative.text, opts.dialogue);
+        if (!reconciled.changed) return narrative.text;
+        const clamped = finishSummary(reconciled.text);
+        const again = validateSummaryNarrative(clamped, "main_canon");
+        if (
+          again.ok &&
+          isRollingSummaryGroundedInDialogue(
+            again.text,
+            opts.dialogue,
+            opts.userPersona,
+            opts.charName
+          )
+        ) {
+          return again.text;
+        }
         return narrative.text;
       }
       lastSummarizeTurnBatchError = narrative.ok
@@ -652,6 +672,12 @@ export async function composeBatchScopePayload(opts: {
   existingRecord?: MemoryRecordView | null;
   previousWasNoncanonOrBranch: boolean;
   priorRecords: MemoryRecordView[];
+  /** Full surviving chat. Needed to tell a deleted UI-close message from one outside this batch. */
+  chatTurns?: ReadonlyArray<{
+    turnNumber: number;
+    user: string;
+    userMessageId?: number | null;
+  }>;
 }): Promise<ComposedBatchScope> {
   // Deterministic sole-closed reopen candidate (pending only — no DB mutation here).
   const hasActivePriorBranch = opts.priorRecords.some(
@@ -704,11 +730,61 @@ export async function composeBatchScopePayload(opts: {
         })
       : null;
 
+  const uiCloseThrough = confirmedUiCloseThroughTurn(
+    opts.priorRecords.map((record) => ({
+      turnStart: record.turnStart,
+      turnEnd: record.turnEnd,
+      summaryKind: normalizeSummaryScope(record.summaryKind),
+      branchStatus: record.branchStatus,
+      inactive: record.inactive,
+      branchControlMutations: record.branchControlMutations,
+    })),
+    opts.chatTurns ??
+      opts.allEntries.map((entry) => ({
+        turnNumber: entry.turnIndex,
+        user: entry.turn.user,
+        userMessageId: entry.userMessageId,
+      }))
+  );
+  const explicitClosedResume = opts.allEntries.some((entry) =>
+    isExplicitClosedBranchContinueIntent(entry.turn.user)
+  );
+  const uiCloseCoversBatch =
+    uiCloseThrough != null && uiCloseThrough >= opts.endTurn && !hasActivePriorBranch;
+  const uiCloseKeepsClosed = uiCloseCoversBatch && !explicitClosedResume;
+  const uiCloseSplitsBatch =
+    uiCloseThrough != null &&
+    uiCloseThrough >= opts.batchStart &&
+    uiCloseThrough < opts.endTurn &&
+    !hasActivePriorBranch;
+
   // Sole-closed mixed batch: classify pre-resume (main) and post-resume (branch) separately
   // so early main RP is not absorbed into branch_canon.
   let plan = classifyMemoryBatchScopes(opts.allEntries, {
     previousWasNoncanonOrBranch: opts.previousWasNoncanonOrBranch,
   });
+  if (uiCloseSplitsBatch && uiCloseThrough != null) {
+    const preEntries = opts.allEntries.filter((entry) => entry.turnIndex <= uiCloseThrough);
+    const postEntries = opts.allEntries.filter((entry) => entry.turnIndex > uiCloseThrough);
+    const prePlan = classifyMemoryBatchScopes(preEntries, {
+      previousWasNoncanonOrBranch: opts.previousWasNoncanonOrBranch,
+    });
+    const postPlan = classifyMemoryBatchScopes(postEntries, {
+      previousWasNoncanonOrBranch: false,
+    });
+    const hasMain = prePlan.mainTurns.length > 0 || postPlan.mainTurns.length > 0;
+    plan = {
+      primaryKind: hasMain ? "main_canon" : prePlan.primaryKind,
+      classes: [...prePlan.classes, ...postPlan.classes],
+      mainTurns: [...prePlan.mainTurns, ...postPlan.mainTurns],
+      noncanonTurns: [...prePlan.noncanonTurns, ...postPlan.noncanonTurns],
+      preferenceTurns: [...prePlan.preferenceTurns, ...postPlan.preferenceTurns],
+      plainOocTurns: [...prePlan.plainOocTurns, ...postPlan.plainOocTurns],
+      wantsBranchContinue: false,
+      wantsBranchClose: false,
+      wantsMainAdopt: prePlan.wantsMainAdopt || postPlan.wantsMainAdopt,
+    };
+  }
   let branchBuilderTurns = plan.noncanonTurns;
   if (pendingSoleClosedReopenId && resumeSourceTurnIndex != null) {
     const preEntries = opts.allEntries.filter(
@@ -889,7 +965,10 @@ export async function composeBatchScopePayload(opts: {
         branchId = existing.branchId;
         if (plan.wantsBranchClose) {
           branchStatus = "closed";
-        } else if (existing.branchStatus === "closed" && !plan.wantsBranchContinue) {
+        } else if (
+          existing.branchStatus === "closed" &&
+          (!plan.wantsBranchContinue || uiCloseKeepsClosed)
+        ) {
           branchStatus = "closed";
         } else {
           branchStatus = "active";
@@ -917,10 +996,10 @@ export async function composeBatchScopePayload(opts: {
         promotedAt = activePriorBranch.promotedAt ?? new Date().toISOString();
       } else {
         branchId = `branch-${opts.chatId}-${opts.batchStart}`;
-        branchStatus = "active";
+        branchStatus = uiCloseKeepsClosed ? "closed" : "active";
         promotedBy = "user_continue";
         promotedAt = new Date().toISOString();
-        if (opts.mode === "seal") {
+        if (opts.mode === "seal" && !uiCloseKeepsClosed) {
           const toPromote = selectLatestContiguousNoncanonRecordIds(opts.priorRecords);
           if (toPromote.length > 0) {
             pendingBranchControlOps.push({
@@ -1055,11 +1134,12 @@ export async function composeBatchScopePayload(opts: {
   }
 
   // Regen must not reopen a closed branch without an explicit user continue.
+  // A UI close stays closed even when in-scene text still looks like a continue.
   if (
     opts.mode === "regen" &&
     existing?.branchStatus === "closed" &&
-    !plan.wantsBranchContinue &&
-    !plan.wantsMainAdopt
+    !plan.wantsMainAdopt &&
+    (!plan.wantsBranchContinue || uiCloseKeepsClosed)
   ) {
     branchStatus = "closed";
     branchId = existing.branchId ?? branchId;
@@ -1122,7 +1202,10 @@ async function persistComposedBatchScopes(opts: {
   previousWasNoncanonOrBranch?: boolean;
   charName?: string;
   dialogue?: string;
+  /** Regen rewrites summary text. The close/reopen stack stays; it is not recomputed from older user lines. */
+  preservedBranchControlMutations?: readonly BranchControlMutation[];
 }): Promise<boolean> {
+  const preservedMutations = opts.preservedBranchControlMutations ?? [];
   const scopePayload: ScopePayloadV1 = {
     v: 1,
     scopes: opts.composed.scopes,
@@ -1131,6 +1214,9 @@ async function persistComposedBatchScopes(opts: {
     promotedBy: opts.composed.promotedBy,
     promotedAt: opts.composed.promotedAt,
     ...(opts.composed.postManualEdit ? { postManualEdit: opts.composed.postManualEdit } : {}),
+    ...(preservedMutations.length > 0
+      ? { branchControlMutations: [...preservedMutations] }
+      : {}),
   };
 
   const memoryBeforePersist = getChatMemoryRow(opts.chatId);
@@ -1212,6 +1298,33 @@ async function persistComposedBatchScopes(opts: {
   return true;
 }
 
+function branchStateBeforeBatch(
+  turns: ReadonlyArray<{
+    turnNumber: number;
+    user: string;
+    userMessageId?: number | null;
+  }>,
+  records: readonly MemoryRecordView[],
+  batchStart: number
+): boolean {
+  return resolveSharedPreviousBranchState({
+    priorTurns: turns.map((turn) => ({
+      turnNumber: turn.turnNumber,
+      user: turn.user,
+      userMessageId: turn.userMessageId,
+    })),
+    sealedRecords: records.map((record) => ({
+      turnStart: record.turnStart,
+      turnEnd: record.turnEnd,
+      summaryKind: normalizeSummaryScope(record.summaryKind),
+      branchStatus: record.branchStatus,
+      inactive: record.inactive,
+      branchControlMutations: record.branchControlMutations,
+    })),
+    beforeTurnNumber: batchStart,
+  });
+}
+
 /** Rebuild + replace full scopePayload for an existing stored batch (regen paths). */
 async function rebuildExistingBatchScopePayload(opts: {
   chatId: number;
@@ -1241,12 +1354,10 @@ async function rebuildExistingBatchScopePayload(opts: {
   }));
 
   const priorRecords = listMemoryRecordsForChat(opts.chatId);
-  const previousWasNoncanonOrBranch = priorRecords.some(
-    (r) =>
-      r.turnStart !== opts.batchStart &&
-      !r.inactive &&
-      (r.summaryKind === "noncanon" ||
-        (r.summaryKind === "branch_canon" && r.branchStatus === "active"))
+  const previousWasNoncanonOrBranch = branchStateBeforeBatch(
+    allTurns,
+    priorRecords,
+    opts.batchStart
   );
 
   const composed = await composeBatchScopePayload({
@@ -1263,6 +1374,11 @@ async function rebuildExistingBatchScopePayload(opts: {
     existingRecord: opts.existingRecord,
     previousWasNoncanonOrBranch,
     priorRecords,
+    chatTurns: allTurns.map((turn) => ({
+      turnNumber: turn.turnNumber,
+      user: turn.user,
+      userMessageId: turn.userMessageId,
+    })),
   });
   if (!composed.ok) return false;
 
@@ -1288,6 +1404,7 @@ async function rebuildExistingBatchScopePayload(opts: {
     allEntries,
     previousWasNoncanonOrBranch,
     charName: opts.charName,
+    preservedBranchControlMutations: opts.existingRecord.branchControlMutations,
   });
 }
 
@@ -1502,11 +1619,10 @@ export async function processRollingSummaryBatch(opts: {
       }));
 
       const priorRecords = listMemoryRecordsForChat(opts.chatId);
-      const previousWasNoncanonOrBranch = priorRecords.some(
-        (r) =>
-          !r.inactive &&
-          (r.summaryKind === "noncanon" ||
-            (r.summaryKind === "branch_canon" && r.branchStatus === "active"))
+      const previousWasNoncanonOrBranch = branchStateBeforeBatch(
+        playableMeta,
+        priorRecords,
+        batchStart
       );
 
       const composed = await composeBatchScopePayload({
@@ -1523,6 +1639,11 @@ export async function processRollingSummaryBatch(opts: {
         existingRecord: null,
         previousWasNoncanonOrBranch,
         priorRecords,
+        chatTurns: playableMeta.map((turn) => ({
+          turnNumber: turn.turnNumber,
+          user: turn.user,
+          userMessageId: turn.userMessageId,
+        })),
       });
       if (!composed.ok) {
         console.warn("[memory] SUMMARY_COMPOSE_FAILED", {

@@ -33,7 +33,7 @@ import {
   normalizeMessageVariants,
   type RelationshipLedgerChange,
 } from "@/lib/messageAlternates";
-import { parsePossessionEntry } from "@/lib/relationshipMetaItems";
+import { parsePossessionEntry, possessionCurrentHolder } from "@/lib/relationshipMetaItems";
 
 export type { RelationshipMetaCategory };
 
@@ -194,30 +194,54 @@ function diffRelationshipLedger(before: MemoryMeta, after: MemoryMeta): Relation
   return change;
 }
 
-/** item name -> persons currently holding it (gift lines `A→B` hold for B). */
+/** Receivers left on the deleted turn's after-lines, by item name. */
+function itemReceiversFromChange(
+  change: RelationshipLedgerChange
+): Map<string, Set<string>> {
+  const receivers = new Map<string, Set<string>>();
+  for (const entry of change.items) {
+    if (!entry.after) continue;
+    const parsed = parsePossessionEntry(entry.after);
+    if (!parsed) continue;
+    const holder = possessionCurrentHolder(parsed.person);
+    for (const item of parsed.items) {
+      const name = item.trim();
+      receivers.set(name, new Set([...(receivers.get(name) ?? []), holder]));
+    }
+  }
+  return receivers;
+}
+
+/**
+ * item name -> persons who later received it by an explicit From→To line
+ * whose sender was a receiver of the deleted turn. A plain same-name line
+ * is a different object and does not block restore.
+ */
 function possessionHoldersOutside(
   items: string[],
-  excludedLines: Set<string>
+  excludedLines: Set<string>,
+  receiversByItem: Map<string, Set<string>>
 ): Map<string, Set<string>> {
   const holders = new Map<string, Set<string>>();
   for (const line of items) {
     if (excludedLines.has(line)) continue;
     const parsed = parsePossessionEntry(line);
-    if (!parsed) continue;
-    const holder = parsed.person.includes("→")
-      ? parsed.person.split("→").pop()!.trim()
-      : parsed.person;
+    if (!parsed?.person.includes("→")) continue;
+    const fromPerson = parsed.person.split("→")[0]?.trim();
+    const toPerson = possessionCurrentHolder(parsed.person);
+    if (!fromPerson || !toPerson) continue;
     for (const item of parsed.items) {
       const name = item.trim();
-      holders.set(name, new Set([...(holders.get(name) ?? []), holder]));
+      if (!receiversByItem.get(name)?.has(fromPerson)) continue;
+      holders.set(name, new Set([...(holders.get(name) ?? []), toPerson]));
     }
   }
   return holders;
 }
 
 /**
- * A previous owner line is restored only for items nobody else legitimately
- * holds now; a later transfer to another person wins over the old ownership.
+ * Restore the previous line except for items a later explicit handoff moved on.
+ * Another person's same-named object is not that proof.
  */
 function restorablePossessionLine(
   before: string,
@@ -269,7 +293,11 @@ function revertRelationshipLedgerChange(
     const state = stateFor(entry);
     if (state && state !== "ambiguous" && state === entry.after) revertedLines.add(state);
   }
-  const laterHolders = possessionHoldersOutside(current.items, revertedLines);
+  const laterHolders = possessionHoldersOutside(
+    current.items,
+    revertedLines,
+    itemReceiversFromChange(change)
+  );
   for (const entry of change.items) {
     const state = stateFor(entry);
     if (state === "ambiguous" || state !== entry.after) continue;

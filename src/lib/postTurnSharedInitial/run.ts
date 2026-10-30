@@ -62,7 +62,7 @@ export async function runPostTurnSharedInitial(
       system,
       [{ role: "user", content: userBlock }],
       {
-        requestKind: POST_TURN_SHARED_INITIAL_REQUEST_KIND,
+        requestKind: input.requestKind ?? POST_TURN_SHARED_INITIAL_REQUEST_KIND,
         modelId: input.primaryModelId,
         maxTokens: undefined,
         temperature: 0.4,
@@ -121,6 +121,7 @@ export async function runPostTurnRelationshipOnlyInitial(
     userMessage: string;
     assistantProse: string;
     primaryModelId: string;
+    requestKind?: string;
     previousAssistantMessage?: string | null;
     /** Stored text of the canonical active promises (see PostTurnSharedInitialInput). */
     activePromises: readonly string[];
@@ -146,6 +147,7 @@ export async function runPostTurnRelationshipOnlyInitial(
       userMessage: input.userMessage,
       assistantProse: input.assistantProse,
       primaryModelId: input.primaryModelId,
+      requestKind: input.requestKind,
       userPersona: input.userPersona ?? null,
       personaDescription: input.personaDescription ?? null,
       personaSpeechExamples: input.personaSpeechExamples ?? null,

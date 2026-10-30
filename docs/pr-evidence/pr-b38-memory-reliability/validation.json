@@ -1,0 +1,109 @@
+{
+  "base_sha": "70194d359f3b03a435702af267dfb1540077cc8f",
+  "implementation_sha": "994a8f71ac9103e81d276ef856e218961176a36c",
+  "checks": {
+    "git_diff_check": "PASS",
+    "npm_run_lint": "PASS",
+    "npm_run_typecheck_app": "PASS",
+    "npm_run_build": "PASS"
+  },
+  "focused": {
+    "test_files": 12,
+    "tests": 156,
+    "pass": 155,
+    "fail": 1,
+    "failure": "Existing C5 cache fixture ENOENT; same on base. New self-review case passes.",
+    "missing_fixture": "data/luna-user-tail-length-c5-cache.json",
+    "new_cases": 15,
+    "new_cases_pass": 15
+  },
+  "base_with_new_tests": {
+    "tests": 53,
+    "pass": 44,
+    "fail": 9,
+    "new_behavior_regression_failures": 8,
+    "existing_missing_cache_failures": 1
+  },
+  "regular_suite": {
+    "command": "npm run test:regular -- --test-concurrency=4",
+    "status": "INCOMPLETE_STOPPED_AFTER_FAILURES",
+    "completed": false,
+    "final_counts_available": false,
+    "note": "Canonical react-server/tsx/regularTestEgressPolicy contract was invoked. Broad run stopped after unrelated billing/UI/config/fixture failures; no full-suite pass or complete failure inventory claimed. Focused B38 checks completed separately.",
+    "observed_failure_title_sample": [
+      "builds dbUsageRecord with museAcceptance and clientUsageRecord without it",
+      "never sends museAcceptance even for full billing receipt",
+      "/api/chat Muse acceptance client/DB usage split",
+      "pre-ready mount marks declaration-visible AI seen while consuming early human",
+      "resolveTrpgMountSeenKeys",
+      "src/components/BillingReceiptTooltip.test.ts",
+      "keeps the send / continue behavior wiring unchanged",
+      "E4-3E chat room — composer",
+      "B. active registry models with zero usage are listed as zero-use, not hidden or carded",
+      "admin finance actual cost — dynamic discovery and attribution",
+      "credits FREE points and notifies recipient",
+      "grantFreePointsByAdmin",
+      "T3 — standalone 레드 safeword resets consent and blocks handoff",
+      "CNC scene-scoped lifecycle (T1 → T2 → T3)",
+      "detects the live production database by identity, not by spelling"
+    ],
+    "sample_is_exhaustive": false,
+    "failure_categories": [
+      "Existing billing/usage contract assertions",
+      "UI source-contract assertions",
+      "Missing optional test dependencies or local fixture artifacts",
+      "Environment/config identity assertions"
+    ]
+  },
+  "api": {
+    "successful_live_generations": 0,
+    "estimated_new_inference_cost_krw": 0,
+    "blocker": "HTTP 401 User not found via environment proxy; no usage returned",
+    "account_billing_queried": false
+  },
+  "privacy": {
+    "private_source_publication_scan": "PASS",
+    "complete_source_messages_or_120_char_source_spans_found": 0,
+    "private_name_matches_in_changed_files": 0
+  },
+  "production_mutations": false,
+  "gpt_re_review": {
+    "review_base_sha": "b02bc58f8b8ddbccab49a32fcd09b55d0f4630e7",
+    "implementation_sha": "7324188b04916fdd91e496686175cef3fd656b7b",
+    "same_new_fixtures": {
+      "before": {
+        "tests": 13,
+        "pass": 3,
+        "fail": 10
+      },
+      "after": {
+        "tests": 13,
+        "pass": 13,
+        "fail": 0
+      }
+    },
+    "direct_regression": {
+      "files": 16,
+      "tests": 227,
+      "pass": 226,
+      "fail": 1,
+      "failure": "Existing C5 test ENOENT: data/luna-user-tail-length-c5-cache.json"
+    },
+    "checks": {
+      "diff_check": "PASS",
+      "lint": "PASS",
+      "typecheck_app": "PASS",
+      "build": "PASS"
+    },
+    "scope": {
+      "provider_calls": 0,
+      "new_inference_cost_krw": 0,
+      "full_suite_rerun": false,
+      "production_writes": false,
+      "merge": false,
+      "deploy": false,
+      "t14_overclaim_status": "ROOT_CAUSE_UNCONFIRMED"
+    },
+    "proof_file": "review-canonicality.json"
+  }
+}

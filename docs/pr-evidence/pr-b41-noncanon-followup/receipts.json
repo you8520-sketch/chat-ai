@@ -1,0 +1,72 @@
+{
+  "baseline_sha": "b859226915d827efc06f5069452ec223db298bd5",
+  "implementation_sha": "dcb66cd44e2167850d7b128e271ef68df4014886",
+  "original_gate": {
+    "baseSha": "b859226915d827efc06f5069452ec223db298bd5",
+    "query": "그럼 IF에서 있었던 청혼이 본편에서도 확정된 거지?",
+    "checks": {
+      "NONCANON_RECALL_SCOPE": true,
+      "PAST_RECALL": false,
+      "RECALL_QUESTION": false
+    },
+    "originalAndGate": false
+  },
+  "before": [
+    {
+      "receipt": "B41_FINAL_REQUEST",
+      "historyKind": "empty",
+      "actualModelAnswer": false,
+      "recallBlockCount": 0,
+      "selectedRecordOccurrences": 0,
+      "sourceLabelOccurrences": 0,
+      "mainCurrentMemoryHasNoncanon": false,
+      "sqlWrites": 0,
+      "inputTokenEstimate": 7256,
+      "providerCalls": 0
+    },
+    {
+      "receipt": "B41_FINAL_REQUEST",
+      "historyKind": "synthetic_B1_answer",
+      "actualModelAnswer": false,
+      "recallBlockCount": 0,
+      "selectedRecordOccurrences": 0,
+      "sourceLabelOccurrences": 0,
+      "mainCurrentMemoryHasNoncanon": false,
+      "sqlWrites": 0,
+      "inputTokenEstimate": 7321,
+      "providerCalls": 0
+    }
+  ],
+  "after": [
+    {
+      "receipt": "B41_FINAL_REQUEST",
+      "historyKind": "empty",
+      "actualModelAnswer": false,
+      "recallBlockCount": 1,
+      "selectedRecordOccurrences": 1,
+      "sourceLabelOccurrences": 1,
+      "mainCurrentMemoryHasNoncanon": false,
+      "sqlWrites": 0,
+      "inputTokenEstimate": 7428,
+      "providerCalls": 0
+    },
+    {
+      "receipt": "B41_FINAL_REQUEST",
+      "historyKind": "synthetic_B1_answer",
+      "actualModelAnswer": false,
+      "recallBlockCount": 1,
+      "selectedRecordOccurrences": 1,
+      "sourceLabelOccurrences": 1,
+      "mainCurrentMemoryHasNoncanon": false,
+      "sqlWrites": 0,
+      "inputTokenEstimate": 7493,
+      "providerCalls": 0
+    }
+  ],
+  "provenance": "Public synthetic B39 stored-scope fixture; the sequential RAW answer is synthetic, not an actual B1 model response. No private RP or full wire included.",
+  "result": "ROOT_CAUSE_FIXED / SOURCE_ROUTING_VERIFIED_ONLY",
+  "live_model_recall_verified": false,
+  "provider_calls": 0,
+  "auth_reinvestigation": false,
+  "new_API_cost_krw": 0
+}

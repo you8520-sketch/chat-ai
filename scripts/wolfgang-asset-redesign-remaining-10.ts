@@ -336,7 +336,7 @@ function composeSlot(slotId: SlotId) {
     style: ctx.style,
     slotKey: slot.slotKey,
     representativeUrl: "https://hav.chat/uploads/official-pilot-rf-v4-02__rep-a1.webp",
-    env: { OPENAI_IMAGE_MODEL: MODEL },
+    env: { OFFICIAL_ASSET_IMAGE_MODEL: MODEL },
     samePersonIdentityStyleUrl: F_REFERENCE,
   });
   if (!composed.ok) throw new Error(composed.error);

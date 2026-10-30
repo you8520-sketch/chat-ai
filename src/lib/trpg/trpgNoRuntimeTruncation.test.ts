@@ -177,7 +177,7 @@ describe("TRPG no redundant runtime truncation", () => {
     assert.equal(TRPG_GEMINI_FLASH_MAX_OUTPUT_TOKENS, 65_535);
     assert.equal(TRPG_GM_MAX_TOKENS, TRPG_GEMINI_FLASH_MAX_OUTPUT_TOKENS);
     assert.equal(TRPG_BOT_MAX_TOKENS, TRPG_GEMINI_FLASH_MAX_OUTPUT_TOKENS);
-    assert.equal(TRPG_GM_MODEL, TRPG_BOT_MODEL);
+    assert.notEqual(TRPG_GM_MODEL, TRPG_BOT_MODEL);
 
     const gmBody = adaptTrpgGmChatBody({
       model: TRPG_GM_MODEL,

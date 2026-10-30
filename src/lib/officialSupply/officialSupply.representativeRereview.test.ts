@@ -12,6 +12,7 @@ import {
 import {
   ADMIN,
   anchorQa,
+  compositionCheck,
   APPROVED_PLAN,
   APPROVED_PLAN_PATH,
   CANDIDATES,
@@ -32,7 +33,7 @@ import {
   type OfficialRepresentativeApplySet,
 } from "@/lib/officialSupply/replacement";
 import { moderateOfficialAssetReplacement } from "@/lib/officialSupply/runner";
-import { OfficialSupplyGateError, OfficialSupplyStore } from "@/lib/officialSupply/store";
+import { ANCHOR_QA_KEYS, OfficialSupplyGateError, OfficialSupplyStore } from "@/lib/officialSupply/store";
 import type { OfficialAnchorQaReport, OfficialAssetModeration } from "@/lib/officialSupply/types";
 import { installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/lib/test/isolatedTestDatabase";
 
@@ -64,6 +65,13 @@ const failingQa = (): OfficialAnchorQaReport =>
   anchorQa({ identifyingFeatures: { ok: false, note: "isolated gate: earlier failing judgement" } });
 const passingQa = (): OfficialAnchorQaReport =>
   anchorQa({ identifyingFeatures: { ok: true, note: "isolated gate: no clearly observable mismatch" } });
+
+/** Adds the comparison basis a representative review must carry to a QA that records a composition answer. */
+function withEvidence(qa: OfficialAnchorQaReport, url: string, sha: string): OfficialAnchorQaReport {
+  const check = qa.compositionIndependence;
+  if (typeof check?.ok !== "boolean") return qa;
+  return { ...qa, compositionIndependence: { ...compositionCheck(url, sha), ...check } };
+}
 
 function expectGate(code: string) {
   return (error: unknown) => {
@@ -133,7 +141,7 @@ function reviewRep(draftKey: string, url: string, qa: OfficialAnchorQaReport) {
   return store.reviewRepresentativeReplacement(
     ADMIN,
     draftKey,
-    qa,
+    withEvidence(qa, url, REP.rawSha256),
     { candidateUrl: url, candidateSha256: REP.rawSha256 },
     REVIEWER
   );
@@ -148,7 +156,7 @@ function rereview(
   return store.rereviewRepresentativeReplacement(
     options.actor ?? ADMIN,
     draftKey,
-    qa,
+    withEvidence(qa, url, options.sha ?? REP.rawSha256),
     { candidateUrl: url, candidateSha256: options.sha ?? REP.rawSha256 },
     REVIEWER,
     options.correction ?? CORRECTION
@@ -202,6 +210,43 @@ after(() => {
 });
 
 describe("explicit re-review of a rejected representative (isolated DB)", () => {
+  it("0. an externally registered representative needs a composition-independence answer; a failed one rejects it", async () => {
+    const staged = await stage();
+    const { url } = await register(staged.draftKey, "rep");
+    await moderate(staged.draftKey, "rep");
+    const { compositionIndependence: _omitted, ...legacyQa } = passingQa();
+    assert.throws(
+      () => reviewRep(staged.draftKey, url, legacyQa as OfficialAnchorQaReport),
+      expectGate("composition_review_required")
+    );
+    assert.equal(repRow(staged.draftKey).status, "generated");
+    const rawReview = (qa: OfficialAnchorQaReport) =>
+      store.reviewRepresentativeReplacement(ADMIN, staged.draftKey, qa, { candidateUrl: url, candidateSha256: REP.rawSha256 }, REVIEWER);
+    assert.throws(() => rawReview(anchorQa()), expectGate("composition_evidence_required"));
+    assert.throws(
+      () => rawReview(anchorQa({ compositionIndependence: compositionCheck(url, "9".repeat(64)) })),
+      expectGate("composition_evidence_mismatch")
+    );
+    assert.throws(
+      () => rawReview(anchorQa({ compositionIndependence: compositionCheck("/uploads/other.webp", REP.rawSha256) })),
+      expectGate("composition_evidence_mismatch")
+    );
+    assert.throws(
+      () => rawReview(anchorQa({ compositionIndependence: { ...compositionCheck(url, REP.rawSha256), evidence: { candidateUrl: url, candidateSha256: REP.rawSha256, references: [] } } })),
+      expectGate("composition_evidence_required")
+    );
+    const noted = (key: (typeof ANCHOR_QA_KEYS)[number], note: string | undefined) =>
+      withEvidence({ ...passingQa(), [key]: { ok: true, note } }, url, REP.rawSha256);
+    for (const key of ANCHOR_QA_KEYS) {
+      assert.throws(() => rawReview(noted(key, undefined)), expectGate("qa_note_required"));
+      assert.throws(() => rawReview(noted(key, "  ")), expectGate("qa_note_required"));
+    }
+    assert.equal(repRow(staged.draftKey).status, "generated");
+    const cloned = anchorQa({ compositionIndependence: { ok: false, note: "isolated gate: head angle and gaze copy a reference" } });
+    assert.equal(reviewRep(staged.draftKey, url, cloned).approved, false);
+    assert.equal(repRow(staged.draftKey).status, "rejected");
+  });
+
   it("1. the default review keeps blocking a rejected candidate", async () => {
     const { draftKey, url } = await rejectedRepresentative();
     assert.throws(() => reviewRep(draftKey, url, passingQa()), expectGate("replacement_not_generated"));
@@ -233,17 +278,17 @@ describe("explicit re-review of a rejected representative (isolated DB)", () => 
     }
     assert.equal(after.reviewed_by, REVIEWER);
     assert.equal(after.reviewed_text_lock_hash, store.getCharacter(draftKey).textLockHash);
-    assert.deepEqual(JSON.parse(after.qa_json as string), passingQa());
+    assert.deepEqual(JSON.parse(after.qa_json as string), withEvidence(passingQa(), url, REP.rawSha256));
 
     const history = store.listReplacementRereviews(draftKey);
     assert.equal(history.length, 1);
     const [entry] = history;
     assert.equal(entry!.id, result.rereviewId);
     assert.equal(entry!.previousStatus, "rejected");
-    assert.deepEqual(entry!.previousQa, failingQa());
+    assert.deepEqual(entry!.previousQa, withEvidence(failingQa(), url, REP.rawSha256));
     assert.equal(entry!.previousReviewedBy, null);
     assert.equal(entry!.newStatus, "approved");
-    assert.deepEqual(entry!.newQa, passingQa());
+    assert.deepEqual(entry!.newQa, withEvidence(passingQa(), url, REP.rawSha256));
     assert.equal(entry!.reviewer, REVIEWER);
     assert.equal(entry!.correctionReason, CORRECTION.reason);
     assert.equal(entry!.correctionEvidence, CORRECTION.evidence);
@@ -277,16 +322,29 @@ describe("explicit re-review of a rejected representative (isolated DB)", () => 
       ["rejected", "rejected"],
       ["rejected", "approved"],
     ]);
-    assert.deepEqual(history[0]!.previousQa, failingQa());
-    assert.deepEqual(history[1]!.previousQa, stillFailing);
-    assert.deepEqual(history[2]!.previousQa, otherItem);
+    assert.deepEqual(history[0]!.previousQa, withEvidence(failingQa(), url, REP.rawSha256));
+    assert.deepEqual(history[1]!.previousQa, withEvidence(stillFailing, url, REP.rawSha256));
+    assert.deepEqual(history[2]!.previousQa, withEvidence(otherItem, url, REP.rawSha256));
   });
 
   it("4. an incomplete QA (a missing key) cannot approve", async () => {
     const { draftKey, url } = await rejectedRepresentative();
     const { cardCrop: _cardCrop, ...incomplete } = passingQa();
-    assert.equal(rereview(draftKey, url, incomplete as OfficialAnchorQaReport).approved, false);
+    assert.throws(() => rereview(draftKey, url, incomplete as OfficialAnchorQaReport), expectGate("qa_incomplete"));
     assert.equal(repRow(draftKey).status, "rejected");
+  });
+
+  it("4b. a missing note on any general check cannot approve a re-review", async () => {
+    const { draftKey, url } = await rejectedRepresentative();
+    for (const key of ANCHOR_QA_KEYS) {
+      assert.throws(
+        () => rereview(draftKey, url, { ...passingQa(), [key]: { ok: true } }),
+        expectGate("qa_note_required")
+      );
+    }
+    assert.equal(repRow(draftKey).status, "rejected");
+    assert.equal(store.listReplacementRereviews(draftKey).length, 0);
+    assert.equal(rereview(draftKey, url, passingQa()).approved, true);
   });
 
   it("5. a missing correction reason or evidence, reviewer, or non-admin actor is refused", async () => {
@@ -505,6 +563,7 @@ describe("operator --rereview over the same owner (isolated DB)", () => {
               {
                 ok: (qa as unknown as Record<string, { ok: boolean }>)[key]!.ok,
                 note: `rep ${key} isolated check`,
+                ...(key === "compositionIndependence" ? { evidence: compositionCheck(url, REP.rawSha256).evidence } : {}),
               },
             ])
           ),

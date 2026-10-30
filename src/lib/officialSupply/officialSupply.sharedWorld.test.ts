@@ -23,6 +23,7 @@ import {
 import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
 import { resolveOfficialCharacterLorebooks } from "@/lib/officialSupply/lorebookAttach";
 import {
+  assertOfficialSharedWorldProjection,
   composeOfficialCurrentSituation,
   ensureOfficialSharedWorldLibraryRow,
   OFFICIAL_SHARED_WORLD_LIBRARY_NAME,
@@ -31,6 +32,7 @@ import {
 import type { OfficialCharacterDraft, OfficialWorldLorebookEntry } from "@/lib/officialSupply/types";
 import { createSiteManagedStudioAccount } from "@/lib/siteManagedAccounts";
 import { installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/lib/test/isolatedTestDatabase";
+import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import { estimateTokens } from "@/lib/tokenEstimate";
 import { buildCombinedCharacterSettingSource } from "@/utils/characterParser";
 import { resolveWorldSelectionForUser } from "@/lib/worldLibrary";
@@ -176,6 +178,20 @@ describe("official shared world owner — BEFORE vs AFTER", () => {
     assert.doesNotMatch(draft.sections.worldAndSituation, /허가 없는 고대 마법 연구는 금지된다/);
   });
 
+  it("non-Ethernos worlds project under their own identity with setting-neutral power labels", () => {
+    const ethernos = projectOfficialSharedWorld(worldBible());
+    assert.match(ethernos, /에테르를 다루는 법: /);
+
+    const other = structuredClone(worldBible());
+    other.name = "퇴근길 생활권";
+    const projected = projectOfficialSharedWorld(other);
+    assert.match(projected, /^퇴근길 생활권은 /);
+    assert.doesNotMatch(projected, /에테르노스 제국|에테르를 다루는 법|에테르 사용:/);
+    assert.match(projected, /영향력을 얻는 법: /);
+    assert.throws(() => assertOfficialSharedWorldProjection(projected), /world identity/);
+    assert.doesNotThrow(() => assertOfficialSharedWorldProjection(projected, "퇴근길 생활권"));
+  });
+
   it("source mutation A: faction purpose/publicView changes the shared World projection", () => {
     const original = worldBible();
     const mutated = structuredClone(original);
@@ -200,6 +216,58 @@ describe("official shared world owner — BEFORE vs AFTER", () => {
     assert.notEqual(after, before);
     assert.match(after, /뮤테이션-커먼-지식-마커/);
     assert.doesNotMatch(before, /뮤테이션-커먼-지식-마커/);
+  });
+
+  it("user-binding in a projected field names that field and keeps non-projected user text out", () => {
+    const poisoned = structuredClone(worldBible());
+    poisoned.situation.upcomingChange = poisoned.situation.upcomingChange.replace("황실이", "당신은");
+    poisoned.userEntry.note = `${poisoned.userEntry.note} 당신은 역할을 직접 고른다.`;
+    poisoned.factions[0]!.means = `${poisoned.factions[0]!.means} 당신은 이 수단을 쓰지 않는다.`;
+    poisoned.knowledge.authorOnly[0] = "운영실패복구금지토큰-비공개설정";
+    assert.throws(
+      () => projectOfficialSharedWorld(poisoned),
+      (error: unknown) => {
+        assert.ok(error instanceof OfficialSupplyGateError);
+        assert.equal(error.code, "official_world_projection_user_binding");
+        assert.equal(error.worldProjection?.stage, "world_projection");
+        assert.equal(error.worldProjection?.code, "official_world_projection_user_binding");
+        assert.ok(error.worldProjection?.hits.some((hit) => hit.field === "situation.upcomingChange" && hit.excerpt.includes("당신은")));
+        assert.equal(
+          error.worldProjection?.hits.some((hit) => /userEntry|authorOnly|portfolio|means/.test(hit.field)),
+          false
+        );
+        const wire = JSON.stringify(error.worldProjection);
+        assert.equal(wire.includes("운영실패복구금지토큰"), false);
+        assert.equal(wire.includes(poisoned.knowledge.authorOnly[0]!), false);
+        return true;
+      }
+    );
+
+    const localOnly = structuredClone(worldBible());
+    localOnly.userEntry.note = "당신은 역할을 직접 고른다.";
+    localOnly.portfolio[0]!.rpHook = `${localOnly.portfolio[0]!.rpHook} 당신은 먼저 말한다.`;
+    localOnly.factions[0]!.means = "당신은 이 수단의 당사자가 아니다.";
+    const projected = projectOfficialSharedWorld(localOnly);
+    assert.doesNotMatch(projected, /당신|유저|플레이어/);
+  });
+
+  it("does not attach a lore excerpt when projection hits a hidden-knowledge marker", () => {
+    const poisoned = structuredClone(worldBible());
+    const marker = "황제는 이미 거동이";
+    const hidden = "운영실패복구금지토큰-비공개설정";
+    poisoned.situation.upcomingChange = marker + poisoned.situation.upcomingChange.slice(marker.length);
+    poisoned.knowledge.authorOnly = [hidden];
+    assert.throws(
+      () => projectOfficialSharedWorld(poisoned),
+      (error: unknown) => {
+        assert.ok(error instanceof OfficialSupplyGateError);
+        assert.equal(error.code, "official_world_projection_knowledge_boundary");
+        assert.equal(error.worldProjection, undefined);
+        assert.equal(error.qa, undefined);
+        assert.equal(error.message.includes(hidden), false);
+        return true;
+      }
+    );
   });
 
   it("hidden knowledge mutations do not leak into the shared World projection", () => {
@@ -248,6 +316,8 @@ describe("official shared world owner — BEFORE vs AFTER", () => {
     assert.equal(sibling.sections.worldAndSituation, lucian.draft.sections.worldAndSituation);
     assert.notEqual(sibling.sections.currentSituation, lucian.draft.sections.currentSituation);
     assert.match(sibling.sections.currentSituation ?? "", /태양궁 유리온실/);
+    assert.match(sibling.sections.currentSituation ?? "", /당신/);
+    assert.doesNotMatch(sibling.sections.worldAndSituation, /당신|유저|플레이어/);
     assert.match(lucian.draft.sections.currentSituation ?? "", /증권거래소 지하 금고/);
   });
 

@@ -1,0 +1,52 @@
+{
+  "A": {
+    "kind": "bounded_private_T80_source_fixture",
+    "source_sha256": "98d4a7d29f40442416535bd5b926d7326c06dde8a3969d932a94a2ea3a20c01b",
+    "source_messages_available": 24,
+    "original_saved_B37_DB_available": false,
+    "controlled_extraction_candidates": true,
+    "source_turn": 80,
+    "retrieval_age_fixture_current_turn": 100,
+    "inserted_facts": 2,
+    "retrieved_facts": 2,
+    "source_quotes_preserved_in_final_request": true,
+    "stored_evidence_types": [
+      "explicit_scene_event"
+    ],
+    "stored_source_roles": [
+      "assistant"
+    ],
+    "input_token_estimate": 8063,
+    "actual_output_tokens": null,
+    "model_answer": null,
+    "live_status": "BLOCKED_AUTH",
+    "provider_calls": 0,
+    "api_cost_krw": 0,
+    "legal_marriage_fact_created": false,
+    "reaction_and_outcome_independently_verified": false,
+    "T81_return": "original user return directive observed; not newly model-tested",
+    "live_summary_and_extractor": "not run; no actual extraction failure inferred"
+  },
+  "B": {
+    "receipt": "B39_FINAL_REQUEST",
+    "storedScope": "noncanon",
+    "sourceRange": [
+      6,
+      10
+    ],
+    "sourceLabelPreserved": true,
+    "recallBlockCount": 1,
+    "manualGlobalChars": 10000,
+    "recallBlockChars": 299,
+    "inputTokenEstimate": 16578,
+    "providerCalls": 0,
+    "modelAnswer": null
+  },
+  "C": {
+    "status": "ROOT_CAUSE_UNCONFIRMED",
+    "model_consumption": "BLOCKED_AUTH",
+    "new_truth_policy_prompt": false,
+    "model_answer_before": null,
+    "model_answer_after": null
+  }
+}

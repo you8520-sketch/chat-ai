@@ -17,15 +17,25 @@ Module._load = function (request, parent, isMain) {
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ADULT_OFF_PROBE_SAMPLES } from "./lib/adultOffGuardProbeFixtures";
+import {
+  conservativeProbeCallEstimateUsd,
+  parseProbeMaxKrw,
+  probeBudgetCostUsdFromUsage,
+  probeBudgetKrwFromUsd,
+  probeRemainingBudgetKrw,
+  resolveProbeBudgetChargeUsd,
+  shouldSkipProbeSampleForBudget,
+} from "./lib/adultOffGuardProbeBudget";
+import { AdultOffClassifierCallError } from "../src/lib/adultOffOutputGuard";
 
 const OUT_DIR =
   process.env.PROBE_OUT_DIR?.trim() || "docs/audits/adult-off-output-guard/live";
-const MAX_KRW = Number(process.env.PROBE_MAX_KRW ?? "40");
 
 async function main(): Promise<void> {
-  if (!process.env.CHEAPER_INFERENCE_API_KEY?.trim()) {
-    throw new Error("CHEAPER_INFERENCE_API_KEY is required for the live classifier probe");
+  if (!process.env.OPENAI_API_KEY?.trim()) {
+    throw new Error("OPENAI_API_KEY is required for the live classifier probe");
   }
+  const maxKrw = parseProbeMaxKrw(process.env.PROBE_MAX_KRW);
   const { createAdultOffClassifier, ADULT_OFF_CLASSIFIER_MODEL } = await import(
     "../src/lib/adultOffOutputClassifier"
   );
@@ -43,10 +53,36 @@ async function main(): Promise<void> {
   const effective = usdKrw * 1.02;
 
   const rows: Array<Record<string, unknown>> = [];
-  let spentKrw = 0;
+  let spentBudgetKrw = 0;
   for (const sample of ADULT_OFF_PROBE_SAMPLES) {
-    if (spentKrw >= MAX_KRW) {
+    const remainingBudgetKrw = probeRemainingBudgetKrw(spentBudgetKrw, maxKrw);
+    if (remainingBudgetKrw <= 0) {
       rows.push({ id: sample.id, skipped: "probe_budget" });
+      continue;
+    }
+    let reservationUsd: number;
+    try {
+      reservationUsd = conservativeProbeCallEstimateUsd({
+        systemPromptChars: ADULT_OFF_CLASSIFIER_SYSTEM_PROMPT.length,
+        sampleTextChars: sample.text.length,
+      });
+    } catch {
+      throw new Error(`probe budget pre-call estimate unavailable for sample ${sample.id}`);
+    }
+    const nextUpperBoundKrw = probeBudgetKrwFromUsd(reservationUsd, effective);
+    if (
+      shouldSkipProbeSampleForBudget({
+        spentBudgetKrw,
+        maxKrw,
+        nextUpperBoundKrw,
+      })
+    ) {
+      rows.push({
+        id: sample.id,
+        skipped: "probe_budget_precheck",
+        remainingBudgetKrw,
+        nextUpperBoundKrw,
+      });
       continue;
     }
     const startedAt = Date.now();
@@ -58,8 +94,14 @@ async function main(): Promise<void> {
         generationRequestId: `adult-off-probe-${sample.id}`,
       });
       const result = await classify(sample.text);
-      const costKrw = (result.usage.costUsd ?? 0) * effective;
-      spentKrw += costKrw;
+      const actualCostUsd = result.usage.costUsd ?? null;
+      const usageEstimateUsd = probeBudgetCostUsdFromUsage(result.usage);
+      const budgetCostUsd = resolveProbeBudgetChargeUsd({
+        reservationUsd,
+        usage: result.usage,
+      });
+      const budgetCostKrw = probeBudgetKrwFromUsd(budgetCostUsd, effective);
+      spentBudgetKrw += budgetCostKrw;
       rows.push({
         id: sample.id,
         group: sample.group,
@@ -70,10 +112,26 @@ async function main(): Promise<void> {
         verdict: result.verdict,
         match: result.verdict.decision === sample.expected,
         usage: result.usage,
-        costKrw,
+        actualCostUsd,
+        budgetReservationUsd: reservationUsd,
+        budgetUsageEstimateUsd: usageEstimateUsd,
+        budgetCostUsd,
+        budgetCostKrw,
+        costKrw: budgetCostKrw,
         wallMs: Date.now() - startedAt,
       });
     } catch (error) {
+      const usage =
+        error instanceof AdultOffClassifierCallError ? error.usage : undefined;
+      const usageForBudget = usage
+        ? { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens }
+        : null;
+      const budgetCostUsd = resolveProbeBudgetChargeUsd({
+        reservationUsd,
+        usage: usageForBudget,
+      });
+      const budgetCostKrw = probeBudgetKrwFromUsd(budgetCostUsd, effective);
+      spentBudgetKrw += budgetCostKrw;
       rows.push({
         id: sample.id,
         group: sample.group,
@@ -82,6 +140,14 @@ async function main(): Promise<void> {
         text: sample.text,
         textChars: sample.text.length,
         error: error instanceof Error ? error.message.slice(0, 200) : String(error),
+        usage,
+        actualCostUsd: usage?.costUsd ?? null,
+        budgetReservationUsd: reservationUsd,
+        budgetUsageEstimateUsd: usageForBudget
+          ? probeBudgetCostUsdFromUsage(usageForBudget)
+          : null,
+        budgetCostUsd,
+        budgetCostKrw,
         wallMs: Date.now() - startedAt,
       });
     }
@@ -95,6 +161,7 @@ async function main(): Promise<void> {
     policyVersion: ADULT_OFF_GUARD_POLICY_VERSION,
     promptChars: ADULT_OFF_CLASSIFIER_SYSTEM_PROMPT.length,
     usdKrwEffective: effective,
+    probeMaxKrw: maxKrw,
     qualityScore: null,
     samples: ADULT_OFF_PROBE_SAMPLES.length,
     scored: scored.length,
@@ -103,8 +170,9 @@ async function main(): Promise<void> {
     allowTotal: count((r) => r.expected === "allow"),
     restrictCorrect: count((r) => r.expected === "restrict" && r.match === true),
     restrictTotal: count((r) => r.expected === "restrict"),
-    totalCostKrw: spentKrw,
-    meanCostKrw: scored.length ? spentKrw / scored.length : null,
+    totalBudgetCostKrw: spentBudgetKrw,
+    totalCostKrw: spentBudgetKrw,
+    meanCostKrw: scored.length ? spentBudgetKrw / scored.length : null,
     latencyMs: {
       p50: latencies[Math.floor(latencies.length * 0.5)] ?? null,
       max: latencies.at(-1) ?? null,
@@ -113,12 +181,10 @@ async function main(): Promise<void> {
   };
   mkdirSync(OUT_DIR, { recursive: true });
   writeFileSync(join(OUT_DIR, "classifier-probe.json"), JSON.stringify(report, null, 2));
-  console.info(
-    JSON.stringify({ ...report, rows: undefined }, null, 2)
-  );
+  console.info(JSON.stringify({ ...report, rows: undefined }, null, 2));
   for (const row of rows) {
     console.info(
-      `${String(row.id).padEnd(36)} expected=${row.expected} got=${(row.verdict as { decision?: string; category?: string } | undefined)?.decision ?? "ERR"}/${(row.verdict as { category?: string } | undefined)?.category ?? ""} conf=${(row.verdict as { confidence?: string } | undefined)?.confidence ?? ""} match=${row.match} ${row.wallMs}ms ${Number(row.costKrw ?? 0).toFixed(2)}KRW ${row.error ?? ""}`
+      `${String(row.id).padEnd(36)} expected=${row.expected} got=${(row.verdict as { decision?: string; category?: string } | undefined)?.decision ?? "ERR"}/${(row.verdict as { category?: string } | undefined)?.category ?? ""} conf=${(row.verdict as { confidence?: string } | undefined)?.confidence ?? ""} match=${row.match} ${row.wallMs}ms budget=${Number(row.budgetCostKrw ?? 0).toFixed(2)}KRW actual=${row.actualCostUsd ?? "null"} ${row.error ?? row.skipped ?? ""}`
     );
   }
   Module._load = originalLoad;
