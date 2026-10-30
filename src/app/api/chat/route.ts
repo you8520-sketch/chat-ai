@@ -151,6 +151,7 @@ import {
 import { maybeRewriteNarrationLexicon } from "@/lib/speechLock";
 import { isMockApiMode, logMockModeOnce } from "@/lib/mockApiMode";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
+import { isGeminiIsolationMode } from "@/lib/geminiIsolationMode";
 import { applyRelationshipDeltaToChat } from "@/lib/memory/memory-relationship-meta";
 import { augmentRelationshipDeltaWithScene } from "@/lib/memory/postTurnRelationshipScene";
 import { shouldRequestEpisodicInSharedInitial } from "@/lib/memory/memory-episodic-shared";
@@ -7116,8 +7117,9 @@ export async function POST(req: Request) {
             // B61: start the conditional scene call, but never let it delay the
             // canonical first-pass memory write. The scene result is additive
             // and is merged by the same canonical writer after the base write.
-            const scenePromise = isMemoryFeatureEnabled()
-              ? augmentRelationshipDeltaWithScene({
+            const scenePromise =
+              isMemoryFeatureEnabled() && !oocSceneRenderTurn && !isGeminiIsolationMode()
+                ? augmentRelationshipDeltaWithScene({
                   memoryEnabled: true,
                   baseUsable: widgetSharedRelationshipUsable,
                   mainModelTailParsed: relationshipTailParsed === true,
@@ -7134,7 +7136,7 @@ export async function POST(req: Request) {
                   console.warn("[relationship-scene] fallback skipped", (e as Error).message);
                   return baseRelationshipDelta ?? {};
                 })
-              : null;
+                : null;
             await scheduleMemoryUpdate({
               chatId: chatRef.id,
               userId: user.id,
