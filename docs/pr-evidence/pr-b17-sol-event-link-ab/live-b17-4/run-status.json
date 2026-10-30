@@ -1,0 +1,31 @@
+{
+  "revision": "B17-4-resume",
+  "status": "COMPLETE",
+  "armAExecuted": true,
+  "armBExecuted": true,
+  "providerCalls": 2,
+  "resultLabel": "READY_FOR_GPT_REVIEW",
+  "cost": {
+    "armA": {
+      "usd": 0.044231,
+      "krw": 67.7,
+      "fx": 1530,
+      "promptTokens": 5873,
+      "completionTokens": 2955,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 5870,
+      "reasoningTokens": 27
+    },
+    "armB": {
+      "usd": 0.041606000000000004,
+      "krw": 63.7,
+      "fx": 1530,
+      "promptTokens": 5867,
+      "completionTokens": 2694,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 5864,
+      "reasoningTokens": 37
+    },
+    "totalKrw": 131.4
+  }
+}

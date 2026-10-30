@@ -1,0 +1,21 @@
+{
+  "verifiedAt": "2026-10-20T13:15:39.164Z",
+  "revision": "B17-4-resume",
+  "approvedCredential": "CHEAPER_INFERENCE_BENCHMARK_API_KEY",
+  "wireSha256Verified": {
+    "armA_requestBody": "47aa63445a79506b17f32a3f4c7bbadc0f8aa758fe59544479993253d17761ff",
+    "armB_requestBody": "fca4a547fb1adbff4ae64df66372f09aa47744d84d1956b871325cea3c7820ac"
+  },
+  "comparisonToProduction": {
+    "equals_CHEAPER_INFERENCE_API_KEY": false
+  },
+  "authPath": {
+    "buildCheaperInferenceHeaders": true,
+    "authorizationScheme": "Bearer",
+    "paidRunnerDirectPath": "not_used"
+  },
+  "guards": {
+    "PRODUCTION_KEY_FALLBACK_FORBIDDEN": "maintained",
+    "userMandate_stopIfBenchmarkEqualsProduction": "not_triggered"
+  }
+}

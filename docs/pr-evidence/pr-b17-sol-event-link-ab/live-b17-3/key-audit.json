@@ -1,0 +1,31 @@
+{
+  "verifiedAt": "2026-10-20T12:58:00.000Z",
+  "revision": "B17-3",
+  "wireSha256Verified": {
+    "armA_requestBody": "47aa63445a79506b17f32a3f4c7bbadc0f8aa758fe59544479993253d17761ff",
+    "armB_requestBody": "fca4a547fb1adbff4ae64df66372f09aa47744d84d1956b871325cea3c7820ac",
+    "method": "json.dumps(sort_keys=True, separators=(',', ':'), ensure_ascii=False) over requestBody"
+  },
+  "injection": {
+    "envVar": "RP_QUALITY_PAID_CHEAPERINFERENCE_KEY",
+    "presentInProcessEnv": true,
+    "length": 56,
+    "prefix": "ci_",
+    "containsWhitespaceOrQuotes": false
+  },
+  "comparisonToProduction": {
+    "CHEAPER_INFERENCE_API_KEY_present": true,
+    "equals_CHEAPER_INFERENCE_API_KEY": true,
+    "equals_CHEAPER_INFERENCE_BENCHMARK_API_KEY": false
+  },
+  "authPath": {
+    "usesBuildCheaperInferenceHeaders": true,
+    "authorizationScheme": "Bearer"
+  },
+  "guards": {
+    "assertPaidRunnerExperimentInferenceKeys": "PRODUCTION_KEY_FALLBACK_FORBIDDEN",
+    "experimentSecretUsesProductionKey": true
+  },
+  "paidProviderCallsAttempted": 0,
+  "note": "No secret material is stored. Dispatch was not started because the injected experiment key matches the production Cheaper Inference key and the paid-runner transport rejects that pairing."
+}
