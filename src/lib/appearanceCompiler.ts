@@ -49,21 +49,6 @@ export function clampAppearanceCompiledText(text: string, raw: string): string {
 }
 
 const FEATURE_LINE = /^\s*특징\s*[:：]\s*(.+)\s*$/;
-const FEATURE_STOP = new Set([
-  "왼쪽",
-  "오른쪽",
-  "아래",
-  "아래에",
-  "위에",
-  "가늘게",
-  "남은",
-  "있는",
-  "없는",
-  "한다",
-  "하며",
-  "먼저",
-  "잘",
-]);
 
 export function extractRawAppearanceFeatureItems(raw: string): string[] {
   const items: string[] = [];
@@ -78,19 +63,15 @@ export function extractRawAppearanceFeatureItems(raw: string): string[] {
   return items;
 }
 
-function featureTokens(item: string): string[] {
-  return (item.match(/[가-힣]{2,}/g) ?? []).filter((token) => !FEATURE_STOP.has(token));
-}
-
-/** True when compiled_text still carries each RAW `특징:` item, or RAW has no such items. */
+/**
+ * Compiled text is usable only when every RAW `특징:` item is present as-is.
+ * Partial word overlap is not treated as preservation; if that cannot be proven, callers use RAW.
+ */
 export function compiledTextPreservesRawFeatures(raw: string, compiledText: string): boolean {
   const items = extractRawAppearanceFeatureItems(raw);
   if (items.length === 0) return true;
-  return items.every((item) => {
-    const tokens = featureTokens(item);
-    if (tokens.length === 0) return compiledText.includes(item);
-    return tokens.some((token) => compiledText.includes(token));
-  });
+  const hay = normalizeAppearanceRaw(compiledText);
+  return items.every((item) => hay.includes(normalizeAppearanceRaw(item)));
 }
 
 export function validateAppearanceCompiledJson(value: unknown, rawForLength = ""): AppearanceCompiledJson | null {
