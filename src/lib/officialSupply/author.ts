@@ -69,6 +69,7 @@ import {
   normalizeWorldSocietyField,
   validateWorldBible,
   WORLD_BIBLE_SCHEMA,
+  worldPublicKnowledgeBoundaryIssues,
   type OfficialCharacterBible,
   type OfficialWorldBible,
 } from "@/lib/officialSupply/bible";
@@ -810,10 +811,25 @@ export async function generateOfficialWorldBible(input: {
     factionNames,
     worldScale,
     ...(plan.profile.key === "genre_neutral" && castIntent ? { castIntent } : {}),
+    ...(plan.profile.key === "genre_neutral" ? { authoring: plan } : {}),
   };
   const atlas = await complete(buildWorldAtlasUser(atlasInput));
   const atlasData = parseAuthorJson(atlas.text, "world_bible");
   if (!isRecord(atlasData)) throw new OfficialSupplyGateError("author_shape_invalid", "world_bible atlas: object required");
+  const atlasKnowledge = isRecord(atlasData.knowledge) ? atlasData.knowledge : undefined;
+  const atlasBoundary = worldPublicKnowledgeBoundaryIssues({
+    knowledge: atlasKnowledge ? { common: Array.isArray(atlasKnowledge.common) ? atlasKnowledge.common : undefined } : undefined,
+    lorebook: Array.isArray(atlasData.lorebook) ? atlasData.lorebook : undefined,
+  });
+  if (atlasBoundary.length > 0) {
+    const error = new OfficialSupplyGateError(
+      "author_world_rejected",
+      "world bible failed QA",
+      qaResult(atlasBoundary)
+    );
+    error.stage = "world_atlas_qa";
+    throw error;
+  }
   const locationNames = (Array.isArray(atlasData.locations) ? atlasData.locations : [])
     .filter(isRecord)
     .map((location) => String(location.name ?? "").trim())

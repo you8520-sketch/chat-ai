@@ -145,6 +145,7 @@ export type AdminAuthorPreviewResult =
   | {
       ok: false;
       error: string;
+      stage?: string;
       issues?: AdminAuthorIssue[];
       rejectedManuscript?: AdminAuthorRejectedManuscript;
       worldProjection?: OfficialWorldProjectionDiagnostic;
@@ -498,9 +499,11 @@ function fail(error: unknown): AdminAuthorPreviewResult {
           hits: error.worldProjection.hits.map((hit) => ({ field: hit.field, excerpt: hit.excerpt })),
         }
       : undefined;
+    const stage = error.stage ?? error.worldProjection?.stage ?? (error.qa ? "world_bible_qa" : undefined);
     return {
       ok: false,
       error: error.message,
+      ...(stage ? { stage } : {}),
       ...(error.qa ? { issues: error.qa.errors.map((issue) => ({ code: issue.code, message: issue.message })) } : {}),
       ...(rejectedManuscript ? { rejectedManuscript } : {}),
       ...(worldProjection ? { worldProjection } : {}),

@@ -648,6 +648,31 @@ const HIGH_POWER_RE = /(마법|마력|주문|축복|저주|신력|성력|정령|
 
 const HIDDEN_KNOWLEDGE_RE = /(숨겨진|비밀|정체를\s*숨|진짜\s*정체|사실은|혈통|출생의\s*비밀|속마음|흑막|훗날|미래에|장차|결국\s*\S+하게\s*된다)/;
 
+/**
+ * Public-world wording gate used by World bible QA and the Atlas early check.
+ * Applies to knowledge.common and lorebook content only. authorOnly is not
+ * a public field and is not scanned here.
+ */
+export function worldPublicKnowledgeBoundaryIssues(source: {
+  knowledge?: { common?: readonly unknown[] | null } | null;
+  lorebook?: readonly unknown[] | null;
+}): QaIssue[] {
+  const errors: QaIssue[] = [];
+  for (const fact of source.knowledge?.common ?? []) {
+    if (typeof fact === "string" && HIDDEN_KNOWLEDGE_RE.test(fact)) {
+      errors.push(err("world_knowledge_hidden_in_common", `COMMON leaks hidden knowledge: ${fact.slice(0, 40)}…`));
+    }
+  }
+  const lorebook = Array.isArray(source.lorebook) ? source.lorebook : [];
+  lorebook.forEach((entry, i) => {
+    const content = isPlainRecord(entry) && typeof entry.content === "string" ? entry.content : "";
+    if (content && HIDDEN_KNOWLEDGE_RE.test(content)) {
+      errors.push(err("world_lorebook_hidden", `lorebook[${i}] contains hidden-knowledge wording`));
+    }
+  });
+  return errors;
+}
+
 export function validateWorldBible(
   bible: OfficialWorldBible,
   opts: { slots: number; adultCandidates: number; worldScale?: OfficialWorldScale }
@@ -736,11 +761,7 @@ export function validateWorldBible(
   if (!Array.isArray(knowledge.common) || knowledge.common.length === 0) {
     errors.push(err("world_knowledge_empty", "knowledge.common is required"));
   }
-  for (const fact of knowledge.common ?? []) {
-    if (HIDDEN_KNOWLEDGE_RE.test(fact)) {
-      errors.push(err("world_knowledge_hidden_in_common", `COMMON leaks hidden knowledge: ${fact.slice(0, 40)}…`));
-    }
-  }
+  errors.push(...worldPublicKnowledgeBoundaryIssues({ knowledge }));
   if (!Array.isArray(bible.userEntry?.allowedRoles) || bible.userEntry.allowedRoles.length < 2) {
     errors.push(err("world_user_entry_narrow", "userEntry needs at least 2 allowed roles"));
   }
@@ -762,10 +783,8 @@ export function validateWorldBible(
       }
       if (entry.content?.length > 800) errors.push(err("world_lorebook_too_long", `lorebook[${i}] > 800 chars`));
       if ((entry.keywords?.length ?? 0) > 10) errors.push(err("world_lorebook_keywords", `lorebook[${i}] > 10 keywords`));
-      if (entry.content && HIDDEN_KNOWLEDGE_RE.test(entry.content)) {
-        errors.push(err("world_lorebook_hidden", `lorebook[${i}] contains hidden-knowledge wording`));
-      }
     });
+    errors.push(...worldPublicKnowledgeBoundaryIssues({ lorebook: bible.lorebook }));
   }
   if (!Array.isArray(bible.portfolio) || bible.portfolio.length !== opts.slots) {
     errors.push(err("world_portfolio_count", `portfolio must hold exactly ${opts.slots} briefs`));

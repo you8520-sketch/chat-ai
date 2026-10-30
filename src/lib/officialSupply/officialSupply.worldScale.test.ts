@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { buildWorldCoreUser, type WorldBibleInput, type WorldMarketInput } from "@/lib/officialSupply/authorPrompts";
-import { normalizeWorldSocietyField, validateWorldBible, type OfficialWorldBible } from "@/lib/officialSupply/bible";
+import {
+  normalizeWorldSocietyField,
+  validateWorldBible,
+  worldPublicKnowledgeBoundaryIssues,
+  type OfficialWorldBible,
+} from "@/lib/officialSupply/bible";
 import {
   OFFICIAL_MODERN_DAILY_GENRE,
   OFFICIAL_ROFAN_GENRE,
@@ -159,5 +164,51 @@ describe("worldScale QA — scene vs full", () => {
     assert.match(rofanCore, /factions 3~6개:/);
     assert.doesNotMatch(rofanCore, /factions 1~2/);
     assert.equal(ROFAN_PARITY_PLAN.profile.worldScale, "full");
+  });
+});
+
+describe("world public knowledge boundary", () => {
+  it("public scene lorebook and common facts pass; authorOnly may hold hidden wording", () => {
+    const bible = minimalWorld({
+      knowledge: {
+        common: ["세탁실은 3층에 있고 누구나 쓸 수 있다."],
+        faction: [],
+        characterLocal: [],
+        authorOnly: ["훗날 진짜 정체가 드러난다. 속마음은 아직 비밀이다."],
+      },
+      lorebook: [
+        {
+          entryKey: "k1",
+          name: "공동 세탁실",
+          keywords: ["세탁실", "3층"],
+          content: "3층 공동 세탁실은 예약 없이 쓰고, 끝나면 물을 잠근다.",
+        },
+      ],
+    });
+    assert.equal(validateWorldBible(bible, { slots: 0, adultCandidates: 0, worldScale: "scene" }).ok, true);
+    assert.deepEqual(
+      worldPublicKnowledgeBoundaryIssues({
+        knowledge: bible.knowledge,
+        lorebook: bible.lorebook,
+      }),
+      []
+    );
+  });
+
+  it("secret identity and future spoilers in lorebook keep world_lorebook_hidden", () => {
+    const identity = worldPublicKnowledgeBoundaryIssues({
+      lorebook: [{ content: "세라핀의 진짜 정체는 적국의 공주다." }],
+    });
+    assert.ok(identity.some((issue) => issue.code === "world_lorebook_hidden"));
+    const future = worldPublicKnowledgeBoundaryIssues({
+      lorebook: [{ content: "이 건물은 훗날 무너지고 장차 주인이 바뀐다." }],
+    });
+    assert.ok(future.some((issue) => issue.code === "world_lorebook_hidden"));
+    const bible = minimalWorld({
+      lorebook: [{ entryKey: "k1", name: "항목", keywords: ["a", "b"], content: "사실은 흑막이 따로 있다." }],
+    });
+    const qa = validateWorldBible(bible, { slots: 0, adultCandidates: 0, worldScale: "scene" });
+    assert.equal(qa.ok, false);
+    assert.ok(qa.errors.some((issue) => issue.code === "world_lorebook_hidden"));
   });
 });

@@ -718,6 +718,57 @@ describe("G5-2 admin private draft save", () => {
     assert.equal(afterCount, beforeCount);
   });
 
+  it("returns world_lorebook_hidden from Atlas without a Portfolio call or a character row", async () => {
+    const beforeCount = (getDb().prepare("SELECT COUNT(*) AS n FROM characters").get() as { n: number }).n;
+    let calls = 0;
+    const transport: OfficialAuthorTransport = {
+      label: "hidden-atlas",
+      async completeJson() {
+        calls += 1;
+        if (calls === 1) {
+          return {
+            text: JSON.stringify({
+              name: "테스트",
+              centralPremise: "한 문장",
+              factions: [{ name: "이웃" }],
+            }),
+            model: "fixture",
+            inputTokens: 1,
+            outputTokens: 1,
+            costUsd: 0,
+            providerRequestId: null,
+          };
+        }
+        return {
+          text: JSON.stringify({
+            lorebook: [
+              {
+                entryKey: "k1",
+                name: "항목",
+                keywords: ["a"],
+                content: "세라핀의 진짜 정체는 적국의 공주다.",
+              },
+            ],
+          }),
+          model: "fixture",
+          inputTokens: 1,
+          outputTokens: 1,
+          costUsd: 0,
+          providerRequestId: null,
+        };
+      },
+    };
+    const preview = await previewAdminOfficialCharacter({ adminUserId: ADMIN.id, selection: autoModern, transport });
+    assert.equal(preview.ok, false);
+    if (preview.ok) return;
+    assert.equal(preview.error, "world bible failed QA");
+    assert.equal(preview.stage, "world_atlas_qa");
+    assert.equal(preview.issues?.[0]?.code, "world_lorebook_hidden");
+    assert.equal(calls, 2);
+    const afterCount = (getDb().prepare("SELECT COUNT(*) AS n FROM characters").get() as { n: number }).n;
+    assert.equal(afterCount, beforeCount);
+  });
+
   it("reopens a QA-pass imageless private draft from the studio query and keeps it off public lists", async () => {
     clearAdminAuthorPreviewsForTests();
     const pack = candidate("g5-modern-comedy");

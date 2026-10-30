@@ -7,9 +7,12 @@ import CreatorCommentHtml from "@/components/CreatorCommentHtml";
 import { CHARACTER_GENRES } from "@/lib/characterGenres";
 import { GENDER_LABELS, type CharacterGender } from "@/lib/characterGender";
 import {
+  adminAuthorManuscriptPresent,
   adminAuthorPreviewDownloadName,
   adminAuthorPreviewExportJson,
   copyOrDownloadAdminAuthorPreviewJson,
+  readAdminAuthorServerFailure,
+  type AdminAuthorPreviewExport,
 } from "@/lib/officialSupply/adminAuthorPreviewExport";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 
@@ -24,24 +27,8 @@ export type AdminAuthorGenreRecommendation = {
   castIntent: string;
 };
 
-type Preview = {
-  previewId: string;
-  qaOk: boolean;
-  issues: { code: string; message: string }[];
-  repairable: boolean;
-  voiceRepairs: number;
-  textLock: string;
+type Preview = AdminAuthorPreviewExport & {
   viewOnly?: boolean;
-  creatorComment?: string;
-  manuscript: {
-    name: string;
-    tagline: string;
-    description: string;
-    greeting: string;
-    genres: string[];
-    tags: string[];
-  };
-  resolved: AdminAuthorGenreRecommendation;
 };
 
 function readRejectedManuscript(value: unknown): { greeting: string; description: string; comment: string } | null {
@@ -161,7 +148,7 @@ export default function AdminOfficialAuthorPanel({
     setSaved(null);
     setCopyNote("");
     setPreview(null);
-    const { payload } = await post("/api/admin/official-author/preview", {
+    const { status, payload } = await post("/api/admin/official-author/preview", {
       genre,
       tone,
       humor,
@@ -176,36 +163,39 @@ export default function AdminOfficialAuthorPanel({
       const issues = Array.isArray(payload.issues) ? payload.issues : [];
       setError(typeof payload.error === "string" ? payload.error : "생성에 실패했습니다.");
       const rejected = readRejectedManuscript(payload.rejectedManuscript);
-      if (issues.length || rejected) {
-        setPreview({
-          previewId: "",
-          qaOk: false,
-          repairable: false,
-          voiceRepairs: 0,
-          textLock: "",
-          viewOnly: Boolean(rejected),
-          creatorComment: rejected?.comment ?? "",
-          manuscript: {
-            name: "",
-            tagline: "",
-            description: rejected?.description ?? "",
-            greeting: rejected?.greeting ?? "",
-            genres: [],
-            tags: [],
-          },
-          resolved: recommendation ?? {
-            genre,
-            tone: "",
-            humor: "",
-            pacing: "",
-            nameWordplay: "",
-            worldScale: "",
-            namingProfile: "",
-            castIntent,
-          },
-          issues: issues as Preview["issues"],
-        });
-      }
+      const manuscript = {
+        name: "",
+        tagline: "",
+        description: rejected?.description ?? "",
+        greeting: rejected?.greeting ?? "",
+        genres: [] as string[],
+        tags: [] as string[],
+      };
+      setPreview({
+        previewId: "",
+        qaOk: false,
+        repairable: false,
+        voiceRepairs: 0,
+        textLock: "",
+        viewOnly: Boolean(rejected),
+        creatorComment: rejected?.comment ?? "",
+        manuscript,
+        resolved: recommendation ?? {
+          genre,
+          tone: "",
+          humor: "",
+          pacing: "",
+          nameWordplay: "",
+          worldScale: "",
+          namingProfile: "",
+          castIntent,
+        },
+        issues: issues as Preview["issues"],
+        ...readAdminAuthorServerFailure({ httpStatus: status, payload }),
+        selection: { genre, tone, humor, pacing, nameWordplay, gender, castIntent },
+        resolvedSource: "client_recommendation",
+        manuscriptPresent: adminAuthorManuscriptPresent(manuscript),
+      });
       return;
     }
     setPreview(payload as unknown as Preview);
@@ -352,7 +342,7 @@ export default function AdminOfficialAuthorPanel({
         </button>
       </div>
       {error ? <p className="mt-3 text-sm text-rose-300">{error}</p> : null}
-      {preview && (preview.manuscript.name || preview.manuscript.description || preview.manuscript.greeting || preview.issues.length > 0) ? (
+      {preview && (preview.manuscript.name || preview.manuscript.description || preview.manuscript.greeting || preview.issues.length > 0 || preview.error || preview.httpStatus) ? (
         <div className="mt-4 space-y-2 text-sm text-zinc-200" data-testid="admin-author-preview">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p data-testid="admin-author-qa">
