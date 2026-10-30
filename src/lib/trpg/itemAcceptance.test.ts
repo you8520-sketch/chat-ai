@@ -62,6 +62,9 @@ describe("item acceptance helpers", () => {
       { lock: '"봉투는 네가 챙겨." 문을 닫는다.', keep: false },
       { lock: "봉투를 받는다.", keep: true },
       { lock: "봉투를 챙겨 가방에 넣는다.", keep: true },
+      { lock: "봉투를 받았다.", keep: true },
+      { lock: "봉투를 살펴본 뒤 칼을 받는다.", keep: false },
+      { lock: "봉투를 살펴본 다음 칼을 받는다.", keep: false },
     ];
     for (const row of cases) {
       const delta: TrpgStateDelta = { players: [{ participantId: 89, inventoryAdd: [item] }] };
@@ -72,6 +75,15 @@ describe("item acceptance helpers", () => {
         row.lock
       );
     }
+    const received = "칼";
+    for (const lock of ["봉투를 살펴본 뒤 칼을 받는다.", "봉투를 살펴본 다음 칼을 받는다."]) {
+      const both: TrpgStateDelta = { players: [{ participantId: 89, inventoryAdd: ["봉투", received] }] };
+      stripUnacceptedItemProposals(both, new Set(), new Map([[89, lock]]));
+      assert.deepEqual(both.players[0]?.inventoryAdd, [received], lock);
+    }
+    const roasted: TrpgStateDelta = { players: [{ participantId: 89, inventoryAdd: ["볶은 메밀 봉투"] }] };
+    stripUnacceptedItemProposals(roasted, new Set(), new Map([[89, "볶은 메밀 봉투를 받는다."]]));
+    assert.deepEqual(roasted.players[0]?.inventoryAdd, ["볶은 메밀 봉투"]);
   });
 
   it("R7 speech-only companion locks drop GM inventoryAdd for the offered packets", () => {

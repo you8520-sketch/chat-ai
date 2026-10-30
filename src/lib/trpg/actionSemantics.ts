@@ -81,7 +81,7 @@ const ITEM_CONSUMPTION_PREDICATE =
 
 /** Take/receive is the clause's final predicate. Look, wish, and refusal stay out. */
 const ITEM_TAKE_PREDICATE =
-  /(?:(?:건네받|받아(?:들|쥐)|받|챙기|집어들)(?:는다|ㄴ다|고|며|어|아서|어서|었다|음)?|(?:챙겨|받아(?:서)?|집어(?:서)?)\s+[^.]{0,24}(?:주머니|가방|파우치|배낭|품)(?:에|으로)\s*넣(?:는다|고|으며|었다|어)?)\s*$/;
+  /(?:(?:건네받|받아(?:들|쥐)|받|챙기|집어들)(?:는다|ㄴ다|고|며|어|아서|어서|었다|았다|음)?|(?:챙겨|받아(?:서)?|집어(?:서)?)\s+[^.]{0,24}(?:주머니|가방|파우치|배낭|품)(?:에|으로)\s*넣(?:는다|고|으며|었다|어)?)\s*$/;
 
 export type ActionClauseKind = "conditional" | "declined" | "act" | "empty";
 
@@ -166,10 +166,10 @@ function clauseTakesItem(span: string): boolean {
 }
 
 /**
- * Text governed by the clause's consumption predicate: the final conjunct only.
- * `회복약을 바라보면서 붕대를 사용한다` → `붕대를`, not the earlier mention.
+ * Text governed by the clause's final predicate: the last sequential conjunct only.
+ * `회복약을 바라보면서 붕대를 사용한다` → `붕대를`. `살펴본 뒤 칼을 받는다` → `칼을`.
  */
-const PRIOR_CONJUNCT = /(?:면서|며|다가|(?<=[가-힣])고)\s+/u;
+const PRIOR_CONJUNCT = /(?:면서|며|다가|(?<=[가-힣])고|(?:^|\s)(?:뒤(?:에)?|다음(?:에|으로)?|후(?:에)?|그리고))\s+/u;
 
 function governedObjectSpan(span: string, predicate: RegExp): string {
   const surface = clauseSurface(span);
