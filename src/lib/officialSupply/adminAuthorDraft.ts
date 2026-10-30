@@ -47,7 +47,9 @@ import {
   OFFICIAL_NARRATIVE_PACINGS,
   OFFICIAL_NARRATIVE_TONES,
   recommendOfficialCastIntent,
+  resolveAuthoringAxisMask,
   resolveAdminAuthoringDirection,
+  resolveAuthoringPlanAfterExperience,
   resolveOfficialAuthoringPlan,
   type OfficialAuthoringAxisChoice,
   type OfficialAuthoringPlan,
@@ -539,7 +541,7 @@ export async function previewAdminOfficialCharacter(input: {
   transport?: OfficialAuthorTransport;
 }): Promise<AdminAuthorPreviewResult> {
   const direction = resolveAdminAuthoringDirection(input.selection);
-  const plan = resolveOfficialAuthoringPlan(direction);
+  const basePlan = resolveOfficialAuthoringPlan(direction);
   const castIntent = input.selection.castIntent || recommendOfficialCastIntent(input.selection.genre);
   const gender = input.selection.gender;
   const budget = new OfficialAuthorCallBudget(ADMIN_AUTHOR_CALL_CAP);
@@ -547,10 +549,9 @@ export async function previewAdminOfficialCharacter(input: {
   const modelId = resolveOfficialAuthorModelId();
   try {
     const { snapshot, kept } = snapshotAndCast(input.selection.genre);
-    const market = marketFor(snapshot, plan);
-    const genderMix = gender === "female" ? "여성 1명" : gender === "male" ? "남성 1명" : "기타 1명";
-    const experience =
-      plan.profile.key === "genre_neutral"
+    const autoAxisMask = resolveAuthoringAxisMask(input.selection);
+    const experienceResult =
+      basePlan.profile.key === "genre_neutral"
         ? await generateOfficialCharacterExperience({
             transport,
             modelId,
@@ -558,10 +559,23 @@ export async function previewAdminOfficialCharacter(input: {
               genre: input.selection.genre,
               gender,
               castIntent,
-              authoring: plan,
+              authoring: basePlan,
+              autoAxes: autoAxisMask,
             },
           })
         : undefined;
+    const experience = experienceResult?.experience;
+    // Each auto axis is chosen by the character's own experience; explicit
+    // admin choices are never overridden.
+    const plan = experienceResult
+      ? resolveAuthoringPlanAfterExperience({
+          direction,
+          mask: autoAxisMask,
+          axes: experienceResult.axes,
+        })
+      : basePlan;
+    const market = marketFor(snapshot, plan);
+    const genderMix = gender === "female" ? "여성 1명" : gender === "male" ? "남성 1명" : "기타 1명";
     const generatedWorld = await generateOfficialWorldBible({
       transport,
       modelId,

@@ -298,6 +298,92 @@ export function resolveAdminAuthoringDirection(input: {
 
 export const OFFICIAL_SUPPORTED_GENRES: readonly string[] = CHARACTER_GENRES;
 
+export type OfficialAuthoringAxes = {
+  tone: OfficialNarrativeTone;
+  humor: OfficialHumorLevel;
+  pacing: OfficialNarrativePacing;
+  nameWordplay: OfficialNameWordplay;
+};
+
+const AUTHORING_AXIS_VALUES = {
+  tone: new Set<string>(["serious", "lyrical", "light", "dry", "satirical", "tragic"]),
+  humor: new Set<string>(["none", "light", "central"]),
+  pacing: new Set<string>(["narration", "balanced", "dialogue"]),
+  nameWordplay: new Set<string>(["none", "nickname", "pun"]),
+} as const;
+
+/** Model-chosen auto axes. Invalid or missing values are ignored, never guessed. */
+export type OfficialAuthoringAxisMask = {
+  tone: boolean;
+  humor: boolean;
+  pacing: boolean;
+  nameWordplay: boolean;
+};
+
+/** True per axis when the admin left that axis on auto (undefined or "auto"). */
+export function resolveAuthoringAxisMask(selection: {
+  tone?: string;
+  humor?: string;
+  pacing?: string;
+  nameWordplay?: string;
+}): OfficialAuthoringAxisMask {
+  const auto = (value: string | undefined) => value === undefined || value === "auto";
+  return {
+    tone: auto(selection.tone),
+    humor: auto(selection.humor),
+    pacing: auto(selection.pacing),
+    nameWordplay: auto(selection.nameWordplay),
+  };
+}
+
+export function hasAutoAuthoringAxis(mask: OfficialAuthoringAxisMask): boolean {
+  return mask.tone || mask.humor || mask.pacing || mask.nameWordplay;
+}
+
+/**
+ * Keep only the axes the model was allowed to choose, and only when the value is
+ * a valid enum member. A missing or invalid value leaves that axis to the genre
+ * recommendation — it is never guessed or repaired.
+ */
+export function parseAuthoringAxesForMask(
+  raw: unknown,
+  mask: OfficialAuthoringAxisMask
+): Partial<OfficialAuthoringAxes> {
+  const out: Partial<OfficialAuthoringAxes> = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  const rec = raw as Record<string, unknown>;
+  for (const key of ["tone", "humor", "pacing", "nameWordplay"] as const) {
+    if (!mask[key]) continue;
+    const value = rec[key];
+    if (typeof value === "string" && AUTHORING_AXIS_VALUES[key].has(value)) {
+      (out as Record<string, string>)[key] = value;
+    }
+  }
+  return out;
+}
+
+/**
+ * Auto axes come from the character's own experience, not from a fixed genre
+ * preset. Explicit admin choices always win per axis; a malformed or missing
+ * model answer falls back to the genre recommendation for that axis only.
+ */
+export function resolveAuthoringPlanAfterExperience(input: {
+  direction: OfficialAuthoringDirection & RecommendedAuthoringAxes;
+  mask: OfficialAuthoringAxisMask;
+  axes: Partial<OfficialAuthoringAxes> | null | undefined;
+}): OfficialAuthoringPlan {
+  const axes = input.axes ?? {};
+  return resolveOfficialAuthoringPlan({
+    genre: input.direction.genre,
+    tone: input.mask.tone ? (axes.tone ?? input.direction.tone) : input.direction.tone,
+    humor: input.mask.humor ? (axes.humor ?? input.direction.humor) : input.direction.humor,
+    pacing: input.mask.pacing ? (axes.pacing ?? input.direction.pacing) : input.direction.pacing,
+    nameWordplay: input.mask.nameWordplay
+      ? (axes.nameWordplay ?? input.direction.nameWordplay)
+      : input.direction.nameWordplay,
+  });
+}
+
 const TONE_LINES: Record<OfficialNarrativeTone, string> = {
   serious: "문체: 진지하게 쓴다. 갈등의 무게를 농담으로 덜지 않는다.",
   lyrical: "문체: 서정적이고 감각적으로 쓴다. 분위기를 설명으로 덮지 않고 구체적 장면으로 만든다.",

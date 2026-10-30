@@ -13,8 +13,10 @@ import { evaluateAppearanceLock } from "@/lib/officialSupply/appearance";
 import { evaluateAssetPlan } from "@/lib/officialSupply/assetPlan";
 import {
   officialWorldScaleForPlan,
+  parseAuthoringAxesForMask,
   resolveOfficialAuthoringPlan,
   ROFAN_PARITY_PLAN,
+  type OfficialAuthoringAxes,
   type OfficialAuthoringPlan,
 } from "@/lib/officialSupply/genreProfile";
 import {
@@ -836,16 +838,29 @@ export async function generateOfficialCharacterExperience(input: {
   transport: OfficialAuthorTransport;
   modelId?: string;
   experience: CharacterExperienceInput;
-}): Promise<OfficialCharacterExperience> {
+}): Promise<{
+  experience: OfficialCharacterExperience;
+  axes: Partial<OfficialAuthoringAxes>;
+}> {
+  const mask = input.experience.autoAxes;
+  const autoCount = mask
+    ? Number(mask.tone) + Number(mask.humor) + Number(mask.pacing) + Number(mask.nameWordplay)
+    : 0;
   const completion = await input.transport.completeJson({
     task: "character_experience",
-    system: buildCharacterExperienceSystem(),
+    system: buildCharacterExperienceSystem(mask),
     user: buildCharacterExperienceUser(input.experience),
     schemaName: "official_character_experience",
     schema: { type: "object" },
     modelId: input.modelId,
   });
-  return parseOfficialCharacterExperience(parseAuthorJson(completion.text, "character_experience"));
+  const raw = parseAuthorJson(completion.text, "character_experience");
+  const experience = parseOfficialCharacterExperience(raw);
+  const axes =
+    mask && autoCount > 0 && isRecord(raw)
+      ? parseAuthoringAxesForMask(raw.axes, mask)
+      : {};
+  return { experience, axes };
 }
 
 export async function generateOfficialWorldBible(input: {
