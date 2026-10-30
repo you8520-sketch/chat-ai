@@ -14,6 +14,7 @@ import {
   GM_RETRYABLE_HTTP_STATUSES,
   isGmRetryableHttpStatus,
 } from "./gmCall";
+import { buildTrpgBotResponseFormat } from "./botStructuredOutput";
 import { isTrpgGeminiLowReasoningRequest, trpgProviderRequestContract } from "./gmClient";
 import { extractTrpgHttpStatus } from "./startFailure";
 import { mockReadableStreamFromText, buildMockOpenRouterStreamChunks } from "@/lib/mockApiMode";
@@ -167,6 +168,15 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
     assert.equal(botBuilt.body.service_tier, "flex");
     assert.deepEqual(botBuilt.body.provider, { only: ["google-ai-studio"], allow_fallbacks: false, require_parameters: true });
     assert.equal(BOT_MAX_PROVIDER_ATTEMPTS, 1);
+    assert.equal(botBuilt.body.response_format, undefined);
+  });
+
+  it("attaches the same json_schema response_format when a Bot move enum is supplied", () => {
+    const format = buildTrpgBotResponseFormat(["NO_MOVE", "table"]);
+    const botBuilt = buildTrpgBotProviderRequest({ system: "sys", user: "행동", responseFormat: format });
+    assert.deepEqual(botBuilt.body.response_format, format);
+    assert.equal(botBuilt.body.model, "google/gemini-3.8-flash");
+    assert.equal(botBuilt.provider, "openrouter");
   });
 
   it("A: retries GM 502 then succeeds on 200", async () => {

@@ -9,7 +9,13 @@ import {
   GEMINI_4_ARGON_MODEL,
 } from "@/lib/chatModels";
 import { getMinimumMarginFloor, getTargetMargin } from "@/lib/publishedModelPricing";
-import { buildTrpgBotActionUserBlock, orderTrpgBotsForRound, sanitizeBotActionText, TRPG_BOT_SYSTEM } from "./botActions";
+import {
+  buildTrpgBotActionUserBlock,
+  buildTrpgBotSystem,
+  orderTrpgBotsForRound,
+  sanitizeBotActionText,
+  TRPG_BOT_SYSTEM,
+} from "./botActions";
 import { computeTrpgRoundPoints, splitTrpgRoundCost } from "./billing";
 import { formatTrpgRollCompact } from "./labels";
 import { buildTrpgBotRecentContinuity, buildTrpgMemoryPromptBlock, roundsDueForSeal } from "./memory";
@@ -52,6 +58,16 @@ describe("TRPG bot actions", () => {
     assert.match(TRPG_BOT_SYSTEM, /one coherent finished PC action beat/i);
     assert.doesNotMatch(TRPG_BOT_SYSTEM, /300–800/);
     assert.doesNotMatch(TRPG_BOT_SYSTEM, /aim about 550/);
+    assert.match(TRPG_BOT_SYSTEM, /No JSON/);
+    const structured = buildTrpgBotSystem({ structured: true });
+    assert.doesNotMatch(structured, /No JSON/);
+    assert.match(structured, /Output only the JSON object required by the response schema/);
+    assert.match(structured, /movePlan is exactly one token/);
+    assert.doesNotMatch(structured, /<<<ACTION_TYPE>>>/);
+    assert.doesNotMatch(structured, /<<<INTENT>>>/);
+    assert.doesNotMatch(structured, /After the finished prose, emit/);
+    assert.match(TRPG_BOT_SYSTEM, /<<<ACTION_TYPE>>>/);
+    assert.match(TRPG_BOT_SYSTEM, /After the finished prose, emit/);
     assert.doesNotMatch(block, /\[LENGTH\]/);
     assert.doesNotMatch(block, /Follow the system length contract/);
     assert.doesNotMatch(block, /aim ~550/);

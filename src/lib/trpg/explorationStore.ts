@@ -15,11 +15,13 @@ import {
   displayExplorationAp,
   emptyExplorationState,
   explorationDiscoveries,
+  explorationHasMap,
   explorationOwnsWorldFlags,
   explorationRoomFacts,
   explorationStartName,
   formatExplorationBotBrief,
   formatExplorationGmBlock,
+  legalExplorationMovePlans,
   parseExplorationState,
   projectPublicExploration,
   settleExplorationActor,
@@ -273,6 +275,7 @@ export function explorationBriefForBot(
   const startName = explorationStartName(state);
   const facts = explorationRoomFacts(state, self.location.trim() || startName);
   const legacy = explorationOwnsWorldFlags(state);
+  const ap = displayExplorationAp(state, opts.participantId, opts.roundNumber);
   return formatExplorationBotBrief({
     roomId: self.location,
     startName,
@@ -280,9 +283,16 @@ export function explorationBriefForBot(
     lockedExits: legacy ? undefined : facts.lockedExits,
     summary: facts.summary,
     discoveries: legacy ? undefined : explorationDiscoveries(state),
-    ap: displayExplorationAp(state, opts.participantId, opts.roundNumber),
+    ap,
     party: seats.map((seat) => ({ name: seat.name, location: seat.location })),
     legacy: legacy ? { alarm: state.alarmFlagged } : undefined,
+    movePlans: explorationHasMap(state.map)
+      ? legalExplorationMovePlans({
+          state,
+          fromRoomId: self.location.trim() || startName,
+          apRemaining: ap,
+        })
+      : undefined,
   });
 }
 

@@ -6,6 +6,7 @@ import {
   EXPLORATION_ARCHIVE_ROOM,
   EXPLORATION_CLUE_FLAG,
   EXPLORATION_CLUE_TEXT,
+  EXPLORATION_DEPARTED_LOCATION,
   EXPLORATION_ENTRANCE,
   EXPLORATION_EXIT_ROOM,
   EXPLORATION_HIDDEN_EDGE,
@@ -27,13 +28,20 @@ import {
   formatExplorationGmBlock,
   generateExplorationMap,
   legalExplorationCommands,
+  legalExplorationMovePlans,
+  BOT_EXPLORATION_DEPART,
+  BOT_EXPLORATION_NO_MOVE,
+  commandsFromBotMovePlan,
   priceExplorationCommands,
   projectPublicExploration,
+  publicKnownExplorationRoomIds,
+  visibleExplorationEdges,
   roomDegree,
   settleExplorationActor,
   spendExplorationAp,
   visibleExplorationNeighbors,
 } from "./explorationMap";
+import { buildTrpgBotResponseFormat } from "./botStructuredOutput";
 import { explorationQueueCost, parseExplorationCommands } from "./explorationPublic";
 
 describe("exploration map generation", () => {
@@ -561,5 +569,184 @@ describe("exploration map generation", () => {
         }),
       /연결되지 않은 곳으로는 이동할 수 없습니다/
     );
+    const plans = legalExplorationMovePlans({ state, fromRoomId: "teahouse", apRemaining: 3 });
+    const tokens = plans.map((plan) => plan.token);
+    assert.ok(tokens.includes(BOT_EXPLORATION_NO_MOVE));
+    assert.ok(tokens.includes("table"));
+    assert.equal(tokens.includes("table>counter"), false);
+    assert.equal(tokens.includes("table>counter>door"), false);
+    assert.equal(tokens.includes("counter"), false);
+    assert.equal(tokens.includes("door"), false);
+    assert.equal(tokens.includes("table>door"), false);
+    assert.equal(tokens.some((token) => token.startsWith("door")), false);
+    const briefWithPlans = formatExplorationBotBrief({
+      roomId: "모밀찻집",
+      startName: "모밀찻집",
+      neighbors: fromTeahouse.exits,
+      lockedExits: fromTeahouse.lockedExits,
+      summary: fromTeahouse.summary,
+      ap: 3,
+      party: [
+        { name: "렌", location: "출입문" },
+        { name: "권태현", location: "모밀찻집" },
+      ],
+      movePlans: plans,
+    });
+    assert.match(briefWithPlans, /Legal move plans \(choose exactly one token\):/);
+    assert.match(briefWithPlans, /NO_MOVE/);
+    assert.match(briefWithPlans, /table \(중앙 테이블\)/);
+    assert.doesNotMatch(briefWithPlans, /table>counter/);
+    assert.deepEqual(
+      legalExplorationMovePlans({ state, fromRoomId: "teahouse", apRemaining: 1 }).map((plan) => plan.token),
+      [BOT_EXPLORATION_NO_MOVE, "table"]
+    );
+    const knownPath = legalExplorationMovePlans({
+      state: { ...state, visitedRoomIds: ["teahouse", "table"] },
+      fromRoomId: "teahouse",
+      apRemaining: 3,
+    });
+    const knownTokens = knownPath.map((plan) => plan.token);
+    assert.ok(knownTokens.includes("table"));
+    assert.ok(knownTokens.includes("table>counter"));
+    assert.ok(knownTokens.includes("table>counter>door"));
+    assert.equal(knownTokens.includes("door"), false);
+    assert.equal(knownTokens.includes("table>door"), false);
+    assert.equal(tokens.includes(BOT_EXPLORATION_DEPART), false);
+    assert.equal(knownTokens.includes(BOT_EXPLORATION_DEPART), false);
+  });
+
+  it("offers v1 DEPART only from the open exit and never on v2", () => {
+    const base = emptyExplorationState("depart-plans");
+    const open = { ...base, alarmFlagged: true, visitedRoomIds: [EXPLORATION_ENTRANCE, EXPLORATION_EXIT_ROOM] };
+    const atExit = legalExplorationMovePlans({ state: open, fromRoomId: EXPLORATION_EXIT_ROOM, apRemaining: 3 });
+    assert.ok(atExit.some((plan) => plan.token === BOT_EXPLORATION_NO_MOVE));
+    assert.ok(atExit.some((plan) => plan.token === BOT_EXPLORATION_DEPART));
+    assert.deepEqual(commandsFromBotMovePlan(atExit, BOT_EXPLORATION_DEPART), [{ op: "depart" }]);
+    assert.equal(
+      priceExplorationCommands({
+        state: open,
+        fromRoomId: EXPLORATION_EXIT_ROOM,
+        commands: commandsFromBotMovePlan(atExit, BOT_EXPLORATION_DEPART)!,
+        apRemaining: 3,
+      }).spent,
+      1
+    );
+    const settled = settleExplorationActor({
+      state: open,
+      pending: {
+        roundId: 1,
+        participantId: 9,
+        fromRoomId: EXPLORATION_EXIT_ROOM,
+        commands: [{ op: "depart" }],
+        spent: 1,
+      },
+      name: "권태현",
+      tier: null,
+    });
+    assert.equal(settled.result.location, EXPLORATION_DEPARTED_LOCATION);
+    assert.deepEqual(settled.state.departedParticipantIds, [9]);
+
+    const shut = legalExplorationMovePlans({
+      state: { ...base, visitedRoomIds: [EXPLORATION_ENTRANCE, EXPLORATION_EXIT_ROOM] },
+      fromRoomId: EXPLORATION_EXIT_ROOM,
+      apRemaining: 3,
+    });
+    assert.equal(shut.some((plan) => plan.token === BOT_EXPLORATION_DEPART), false);
+    const wrongRoom = legalExplorationMovePlans({
+      state: open,
+      fromRoomId: EXPLORATION_ENTRANCE,
+      apRemaining: 3,
+    });
+    assert.equal(wrongRoom.some((plan) => plan.token === BOT_EXPLORATION_DEPART), false);
+    assert.ok(wrongRoom.some((plan) => plan.token !== BOT_EXPLORATION_NO_MOVE));
+    const noAp = legalExplorationMovePlans({
+      state: open,
+      fromRoomId: EXPLORATION_EXIT_ROOM,
+      apRemaining: 0,
+    });
+    assert.deepEqual(noAp.map((plan) => plan.token), [BOT_EXPLORATION_NO_MOVE]);
+
+    const tea = adventureExplorationState(
+      {
+        start: "teahouse",
+        places: [
+          { key: "teahouse", name: "모밀찻집", summary: "비를 피해 들어온 작고 아늑한 찻집.", role: "start" },
+          { key: "table", name: "중앙 테이블", summary: "세 사람이 둘러앉은 나무 테이블.", role: "site" },
+          { key: "door", name: "출입문", summary: "빗소리가 들리는 유리문.", role: "goal" },
+        ],
+        links: [
+          { from: "teahouse", to: "table" },
+          { from: "table", to: "door" },
+        ],
+        events: [],
+      },
+      "v2-no-depart"
+    );
+    const v2 = legalExplorationMovePlans({
+      state: { ...tea, visitedRoomIds: ["teahouse", "table", "door"] },
+      fromRoomId: "door",
+      apRemaining: 3,
+    });
+    assert.equal(v2.some((plan) => plan.token === BOT_EXPLORATION_DEPART), false);
+
+    const projected = projectPublicExploration({
+      state: open,
+      viewerParticipantId: 1,
+      viewerLocation: EXPLORATION_EXIT_ROOM,
+      roundNumber: 1,
+    });
+    assert.deepEqual(
+      [...publicKnownExplorationRoomIds(open)].sort(),
+      projected.rooms.map((room) => open.map.rooms.find((row) => row.publicId === room.id)?.id).sort()
+    );
+    assert.equal(visibleExplorationEdges(open).length > 0, true);
+  });
+
+  it("keeps dense-map movePlan enums inside a provider-safe schema size", () => {
+    const facility = emptyExplorationState("dense-schema");
+    const facilityKnown = {
+      ...facility,
+      visitedRoomIds: facility.map.rooms.map((room) => room.id),
+    };
+    const facilityPlans = legalExplorationMovePlans({
+      state: facilityKnown,
+      fromRoomId: EXPLORATION_ENTRANCE,
+      apRemaining: 6,
+    });
+    const spokes = ["a", "b", "c", "d", "e", "f"] as const;
+    const hub = adventureExplorationState(
+      {
+        start: "hub",
+        places: [
+          { key: "hub", name: "광장", summary: "여러 골목이 모인 광장.", role: "hub" },
+          ...spokes.map((key) => ({
+            key,
+            name: `${key}골목`,
+            summary: `${key}쪽 골목.`,
+            role: "site" as const,
+          })),
+        ],
+        links: spokes.map((key) => ({ from: "hub", to: key })),
+        events: [],
+      },
+      "hub-dense"
+    );
+    const hubKnown = {
+      ...hub,
+      visitedRoomIds: hub.map.rooms.map((room) => room.id),
+    };
+    const hubPlans = legalExplorationMovePlans({
+      state: hubKnown,
+      fromRoomId: "hub",
+      apRemaining: 6,
+    });
+    assert.ok(facilityPlans.length > 1);
+    assert.ok(hubPlans.length > 1);
+    assert.ok(facilityPlans.length < 2000);
+    assert.ok(hubPlans.length < 2000);
+    const facilityBytes = Buffer.byteLength(JSON.stringify(buildTrpgBotResponseFormat(facilityPlans.map((plan) => plan.token))), "utf8");
+    const hubBytes = Buffer.byteLength(JSON.stringify(buildTrpgBotResponseFormat(hubPlans.map((plan) => plan.token))), "utf8");
+    assert.ok(facilityBytes < 32_000, `facility schema ${facilityBytes}`);
+    assert.ok(hubBytes < 32_000, `hub schema ${hubBytes}`);
   });
 });
