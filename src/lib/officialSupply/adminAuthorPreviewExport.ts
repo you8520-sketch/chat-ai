@@ -1,5 +1,18 @@
 /** Public admin preview fields only. No world bible, system prompt, or credentials. */
 
+export type AdminAuthorExperienceExport = {
+  desire: string;
+  contradiction: string;
+  behavior: string;
+  incident: string;
+  tension: string;
+  daily: string;
+  cost: string;
+  play: string;
+  voice: string;
+  firstAction: string;
+};
+
 export type AdminAuthorPreviewExport = {
   previewId: string;
   qaOk: boolean;
@@ -45,6 +58,7 @@ export type AdminAuthorPreviewExport = {
   };
   resolvedSource?: "server" | "client_recommendation";
   manuscriptPresent?: boolean;
+  experience?: AdminAuthorExperienceExport;
 };
 
 export function adminAuthorPreviewDownloadName(previewId: string): string {
@@ -160,6 +174,7 @@ export function adminAuthorPreviewExportJson(preview: AdminAuthorPreviewExport):
       ...(preview.selection ? { selection: preview.selection } : {}),
       ...(preview.resolvedSource ? { resolvedSource: preview.resolvedSource } : {}),
       ...(typeof preview.manuscriptPresent === "boolean" ? { manuscriptPresent: preview.manuscriptPresent } : {}),
+      ...(preview.experience ? { experience: preview.experience } : {}),
     },
     null,
     2

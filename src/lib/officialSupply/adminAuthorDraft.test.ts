@@ -64,8 +64,9 @@ function providerFixtureTransport(providerFiles: readonly string[]): { transport
     getCalls: () => calls,
     transport: {
       label: "g5-1-provider-fixture",
-      async completeJson() {
+      async completeJson(input) {
         calls += 1;
+        if (input.task === "character_experience") return fixtureExperienceCompletion();
         const text = queue.shift();
         if (!text) throw new Error("fixture transport exhausted");
         return {
@@ -104,6 +105,30 @@ const autoModern: AdminAuthorSelection = {
   gender: "female",
   castIntent: "",
 };
+
+const FIXTURE_EXPERIENCE_TEXT = JSON.stringify({
+  desire: "무대에 서기 두려워하면서도 남을 웃기는 일을 그만두지 못한다",
+  contradiction: "박수를 원하면서 칭찬을 받으면 농담으로 자리를 피한다",
+  behavior: "긴장이 오면 먼저 짧은 농담을 던지고 그다음 자기 차례를 미룬다",
+  incident: "오늘 밤 즉흥 무대의 순서가 비어 스스로 한 곡을 넣었다",
+  tension: "처음 만난 상대가 그 빈 순서를 보았고 그녀는 먼저 말을 건다",
+  daily: "낮에는 악보를 정리하고 밤에는 빈 연습실에서 혼자 리허설을 한다",
+  cost: "순서를 미룰수록 자기가 설 자리가 다음 주로 밀린다",
+  play: "같이 순서를 정하고 그녀의 농담 뒤에서 망설임을 보는 경험",
+  voice: "짧은 반말과 과장된 리허설 용어로 겁을 숨긴다",
+  firstAction: "마이크를 상대 쪽이 아니라 자기 악보 위에 내려놓는다",
+});
+
+function fixtureExperienceCompletion() {
+  return {
+    text: FIXTURE_EXPERIENCE_TEXT,
+    model: "fixture",
+    inputTokens: 0,
+    outputTokens: 0,
+    costUsd: 0,
+    providerRequestId: null,
+  };
+}
 
 const autoHorrorDry: AdminAuthorSelection = {
   genre: "공포/추리",
@@ -368,6 +393,7 @@ describe("G5-2 admin private draft save", () => {
       label: "gender-lock-fixture",
       async completeJson(input) {
         calls += 1;
+        if (input.task === "character_experience") return fixtureExperienceCompletion();
         if (input.task === "character_bible_bonds") bondsCalls += 1;
         const text = queue.shift();
         if (!text) throw new Error("fixture transport exhausted");
@@ -380,7 +406,7 @@ describe("G5-2 admin private draft save", () => {
       transport,
     });
     assert.equal(bondsCalls, 0);
-    assert.equal(calls, 6);
+    assert.equal(calls, 7);
     assert.equal(preview.ok, false);
     if (preview.ok) return;
     assert.equal("previewId" in preview, false);
@@ -418,8 +444,9 @@ describe("G5-2 admin private draft save", () => {
       transport: fixture.transport,
     });
     assert.equal(preview.ok, true, preview.ok === false ? preview.error : JSON.stringify(preview));
-    assert.equal(fixture.getCalls(), 7, `transport calls=${fixture.getCalls()}`);
+    assert.equal(fixture.getCalls(), 8, `transport calls=${fixture.getCalls()}`);
     if (!preview.ok) return;
+    assert.equal(preview.experience?.desire, "무대에 서기 두려워하면서도 남을 웃기는 일을 그만두지 못한다");
     assert.equal(preview.manuscript.name, pack.draft.name);
     assert.equal(preview.manuscript.greeting, pack.draft.greeting);
     assert.equal(preview.creatorComment, pack.draft.creatorComment);
@@ -720,14 +747,47 @@ describe("G5-2 admin private draft save", () => {
     assert.equal(afterCount, beforeCount);
   });
 
+  it("does not start a world when the experience canon is incomplete", async () => {
+    const tasks: string[] = [];
+    const transport: OfficialAuthorTransport = {
+      label: "blank-experience",
+      async completeJson(input) {
+        tasks.push(input.task);
+        return { text: "{}", model: "fixture", inputTokens: 1, outputTokens: 1, costUsd: 0, providerRequestId: null };
+      },
+    };
+    const preview = await previewAdminOfficialCharacter({ adminUserId: ADMIN.id, selection: autoModern, transport });
+    assert.deepEqual(tasks, ["character_experience"]);
+    assert.equal(preview.ok, false);
+  });
+
+  it("does not call character experience for romance fantasy", async () => {
+    const tasks: string[] = [];
+    const transport: OfficialAuthorTransport = {
+      label: "rofan-stops-at-world",
+      async completeJson(input) {
+        tasks.push(input.task);
+        return { text: "not-json", model: "fixture", inputTokens: 1, outputTokens: 1, costUsd: 0, providerRequestId: null };
+      },
+    };
+    const preview = await previewAdminOfficialCharacter({
+      adminUserId: ADMIN.id,
+      selection: { ...autoModern, genre: "로맨스 판타지" },
+      transport,
+    });
+    assert.deepEqual(tasks, ["world_bible"]);
+    assert.equal(preview.ok, false);
+  });
+
   it("returns world_lorebook_hidden from Atlas without a Portfolio call or a character row", async () => {
     const beforeCount = (getDb().prepare("SELECT COUNT(*) AS n FROM characters").get() as { n: number }).n;
     let calls = 0;
     const transport: OfficialAuthorTransport = {
       label: "hidden-atlas",
-      async completeJson() {
+      async completeJson(input) {
         calls += 1;
-        if (calls === 1) {
+        if (input.task === "character_experience") return fixtureExperienceCompletion();
+        if (calls === 2) {
           return {
             text: JSON.stringify({
               name: "테스트",
@@ -766,7 +826,7 @@ describe("G5-2 admin private draft save", () => {
     assert.equal(preview.error, "world bible failed QA");
     assert.equal(preview.stage, "world_atlas_qa");
     assert.equal(preview.issues?.[0]?.code, "world_lorebook_hidden");
-    assert.equal(calls, 2);
+    assert.equal(calls, 3);
     const afterCount = (getDb().prepare("SELECT COUNT(*) AS n FROM characters").get() as { n: number }).n;
     assert.equal(afterCount, beforeCount);
   });
@@ -918,6 +978,7 @@ describe("G5-3E shared world projection runs before character calls", () => {
       label: "g5-3e-projected-user-binding",
       async completeJson(input) {
         tasks.push(input.task);
+        if (input.task === "character_experience") return fixtureExperienceCompletion();
         const text = queue.shift();
         if (!text) throw new Error("fixture transport exhausted");
         return { text, model: "fixture", inputTokens: 0, outputTokens: 0, costUsd: 0, providerRequestId: null };
@@ -928,7 +989,7 @@ describe("G5-3E shared world projection runs before character calls", () => {
       selection: autoHorrorDry,
       transport,
     });
-    assert.deepEqual(tasks, ["world_bible"]);
+    assert.deepEqual(tasks, ["character_experience", "world_bible"]);
     assert.equal(preview.ok, false);
     if (preview.ok) return;
     assert.equal("previewId" in preview, false);

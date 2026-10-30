@@ -55,7 +55,7 @@ const SAJEONG_CIRCUMSTANCE_ADVERB =
  * Sexual object uses (`사정을 했다`, `사정을 쏟았다`, `사정을 참지`) do not match.
  */
 const SAJEONG_CIRCUMSTANCE_PREDICATE =
-  /^(?:공개|묻|물어|여쭙|여쭤|고려|알리|말하|말해|말한|캐묻|떠들|밝히|숨기|존중|배려|이해|헤아리|감안|생각|살피|들추|추궁|언급|거론|폭로|누설|발설|떠벌|감추|간섭|참견|따지|알지|알아|알고)/u;
+  /^(?:공개|묻|물어|여쭙|여쭤|고려|알리|말하|말해|말한|캐묻|떠들|밝히|숨기|존중|배려|이해|헤아리|감안|생각|살피|들추|추궁|언급|거론|폭로|누설|발설|떠벌|감추|간섭|참견|따지|알지|알아|알고|듣|들어|듣고|듣는|들었다|들은|적(?:을|지|어|고|는|히|기)|기록)/u;
 
 function isOrdinaryObjectSajeong(eojeols: readonly string[], index: number): boolean {
   if ((eojeols[index] ?? "") !== SAJEONG_OBJECT_EOJEOL) return false;

@@ -2,8 +2,9 @@
  * Official character author prompts — part of the canonical author owner
  * (`author.ts`). Text-only builders: no network, no billing, no points.
  *
- * Generation order: WORLD BIBLE → PORTFOLIO MAP → CHARACTER BIBLE ×10
- * (part1 + voice + bonds) → deterministic compile to `OfficialCharacterDraft`.
+ * Generation order: genre-neutral CHARACTER EXPERIENCE (once) → WORLD BIBLE →
+ * PORTFOLIO MAP → CHARACTER BIBLE (part1 + voice + bonds) → compile.
+ * Rofan skips the experience call and keeps its prompt bytes.
  * World + character are never generated together in one call.
  *
  * Canonical hard limits respected here (not redefined):
@@ -61,6 +62,7 @@ export const OFFICIAL_AUTHOR_TEMPLATE_VERSION = "pilot-rf-01/v4";
 export const OFFICIAL_AUTHOR_SNAPSHOT_VERSION = "market-research-snapshot-2026-09.json";
 
 export type OfficialAuthorTask =
+  | "character_experience"
   | "world_bible"
   | "character_bible_1"
   | "character_bible_voice"
@@ -72,6 +74,7 @@ export type OfficialAuthorTask =
   | "style_board";
 
 export const OFFICIAL_AUTHOR_MAX_TOKENS: Record<OfficialAuthorTask, number> = {
+  character_experience: 1500,
   world_bible: 14000,
   character_bible_1: 10000,
   character_bible_voice: 8000,
@@ -84,6 +87,7 @@ export const OFFICIAL_AUTHOR_MAX_TOKENS: Record<OfficialAuthorTask, number> = {
 };
 
 export const OFFICIAL_AUTHOR_TEMPERATURE: Record<OfficialAuthorTask, number> = {
+  character_experience: 0.75,
   world_bible: 0.75,
   character_bible_1: 0.75,
   character_bible_voice: 0.8,
@@ -94,6 +98,74 @@ export const OFFICIAL_AUTHOR_TEMPERATURE: Record<OfficialAuthorTask, number> = {
   adult_profile: 0.7,
   style_board: 0.7,
 };
+
+/** One chosen person-experience. Later stages read it; they do not author another. */
+export const OFFICIAL_CHARACTER_EXPERIENCE_KEYS = [
+  "desire",
+  "contradiction",
+  "behavior",
+  "incident",
+  "tension",
+  "daily",
+  "cost",
+  "play",
+  "voice",
+  "firstAction",
+] as const;
+
+export type OfficialCharacterExperienceKey = (typeof OFFICIAL_CHARACTER_EXPERIENCE_KEYS)[number];
+
+export type OfficialCharacterExperience = Record<OfficialCharacterExperienceKey, string>;
+
+const EXPERIENCE_LABEL: Record<OfficialCharacterExperienceKey, string> = {
+  desire: "욕망",
+  contradiction: "모순",
+  behavior: "행동",
+  incident: "사건 씨앗",
+  tension: "첫 긴장",
+  daily: "일상",
+  cost: "대가",
+  play: "플레이 경험",
+  voice: "말투",
+  firstAction: "첫 행동",
+};
+
+export function formatOfficialCharacterExperience(experience: OfficialCharacterExperience): string[] {
+  return OFFICIAL_CHARACTER_EXPERIENCE_KEYS.map((key) => `${EXPERIENCE_LABEL[key]}: ${experience[key]}`);
+}
+
+export type CharacterExperienceInput = {
+  genre: string;
+  gender: "male" | "female" | "other";
+  castIntent: string;
+  authoring: OfficialAuthoringPlan;
+};
+
+export function buildCharacterExperienceSystem(): string {
+  return [
+    "너는 한 명의 플레이어블 캐릭터 경험을 먼저 고르는 기획자다.",
+    "출력은 반드시 순수 JSON 한 개(코드펜스·설명 금지)다.",
+    "키는 desire·contradiction·behavior·incident·tension·daily·cost·play·voice·firstAction 뿐이다.",
+    "각 값은 12~180자의 구체적 문장이다. 세계 이름·세력 목록·장소 목록은 쓰지 않는다.",
+    "직업표나 금지 소재를 따르지 않는다. 특정 장소·직업·소품을 기본값으로 두지 않는다.",
+    "플레이어의 역할·선택·결말을 지정하지 않는다.",
+  ].join("\n");
+}
+
+export function buildCharacterExperienceUser(input: CharacterExperienceInput): string {
+  const plan = input.authoring;
+  return [
+    `장르: ${input.genre}`,
+    `성별: ${input.gender}`,
+    `캐스트 의도: ${input.castIntent}`,
+    "자동으로 채운 의도는 대상과 연애 여부만 담고 있다. 그 문장에 없는 직업·사건을 정본으로 만들지 않는다. 사용자가 직접 적은 의도만 욕망과 첫 장면의 제약으로 따른다.",
+    ...formatAuthoringDirection(plan, ["tone", "humor", "pacing", "wordplay"]),
+    "",
+    "이 인물이 원하는 것, 모순, 남과 다른 행동, 스스로 일으키거나 피하려는 일, 사용자와 처음 부딪히는 긴장, 일상과 취향, 대가, 플레이 경험, 말투, 첫 장면에서 스스로 하는 행동을 고른다.",
+    "아래 틀의 값을 모두 채워 JSON 한 개만 출력한다.",
+    `{"desire":"","contradiction":"","behavior":"","incident":"","tension":"","daily":"","cost":"","play":"","voice":"","firstAction":""}`,
+  ].join("\n");
+}
 
 export type WorldBibleInput = {
   genre: string;
@@ -111,6 +183,8 @@ export type WorldBibleInput = {
   slotGenders: ("male" | "female" | "other")[];
   /** Batch cast intent in plain words (audience + romance-target profile). */
   castIntent?: string;
+  /** Genre-neutral person canon. Absent keeps rofan and direct callers unchanged. */
+  experience?: OfficialCharacterExperience;
   /** Genre/tone/naming policy. Absent = rofan parity (`genreProfile.ts`). */
   authoring?: OfficialAuthoringPlan;
 };
@@ -139,17 +213,9 @@ const NEUTRAL_CAST_ATLAS_STAGE = "장소에서 벌어지는 사건은 이 의도
 const NEUTRAL_CAST_PORTFOLIO_STAGE =
   "목표·유저와의 관계·첫 사건·첫 행동·유머 방식은 이 의도에서 나온다. 시장 신호와 의도가 다르면 신호의 인물 관계를 이 슬롯의 정체로 쓰지 않는다.";
 
-/**
- * Genre-neutral World Core only. Rofan/absent plans stay byte-identical.
- * One-character generate has no sibling to compare, so the model must pick a
- * person-experience before locking situation.biggestEvent to a market signal.
- */
-const NEUTRAL_EXPERIENCE_FIRST_WORLD_LINES = [
-  "",
-  "기획 순서(인물 경험 우선, 출력 필드가 아니다): 목표·욕망 / 성격·모순 / 사회적 위치·직업 / 사건의 원인과 갈등 / 관계 역학 / 능동적 행동 / 유머·말투 / 공간·첫 장면을 한 명의 서로 다른 경험으로 먼저 고른다.",
-  "시장 신호와 PRIMARY 한 줄은 선호 참고다. 원형·훅·인물 관계를 세계의 줄거리로 복제하지 않는다. 캐스트 의도가 대상·연애 여부만 정한 경우 그 문장을 직업·사건의 정본으로 쓰지 않는다.",
-  "situation·factions·premise는 그 경험이 실제로 벌어지는 무대만 쓴다. 같은 장르라도 직업만 바꿔 끼운 동일 사건이면 안 된다. 낯설게 만들려고 기괴하게 쓰지 않는다.",
-] as const;
+function experienceCanonBlock(experience: OfficialCharacterExperience, instruction: string): string[] {
+  return ["", instruction, ...formatOfficialCharacterExperience(experience)];
+}
 
 /** Genre-neutral planning only. Rofan and absent plans stay byte-identical. */
 function neutralCastIntentLines(plan: OfficialAuthoringPlan, castIntent: string | undefined, stage: string): string[] {
@@ -192,7 +258,12 @@ export function buildWorldCoreUser(input: WorldBibleInput): string {
     "시장 신호(트로프·훅 구조·장치 수준만 참고. 경쟁작 문장·이름·고유 설정 복제 금지):",
     ...input.market.signalLines,
     ...neutralCastIntentLines(plan, input.castIntent, NEUTRAL_CAST_WORLD_STAGE),
-    ...(plan.profile.key === "genre_neutral" ? NEUTRAL_EXPERIENCE_FIRST_WORLD_LINES : []),
+    ...(plan.profile.key === "genre_neutral" && input.experience
+      ? experienceCanonBlock(
+          input.experience,
+          "인물 경험 정본(바꾸지 않는다). situation·factions·premise는 이 욕망이 벌어지는 무대만 쓴다. 시장 신호의 원형·관계를 줄거리로 복제하지 않는다. 플레이어의 행동·결정·역할은 세계 필드에 쓰지 않는다."
+        )
+      : []),
     `세계관은 깊게 쓰되, 캐릭터 카드 첫 노출에서는 대상 시장 독자가 바로 아는 역할 어휘${plan.profile.worldRoleVocabulary}로`,
     "설명될 수 있어야 한다. 고유 신조어는 내부 깊이를 위해 쓴다.",
     ...formatAuthoringDirection(plan, ["tone", "humor"]),
@@ -219,6 +290,7 @@ export type WorldAtlasInput = {
   factionNames: string[];
   /** Set only for genre-neutral worlds. Absent keeps the atlas prompt unchanged. */
   castIntent?: string;
+  experience?: OfficialCharacterExperience;
   /** Absent = full (rofan parity and legacy callers). */
   worldScale?: OfficialWorldScale;
   /** Genre-neutral only. Absent keeps the lorebook line byte-identical to rofan. */
@@ -237,6 +309,12 @@ export function buildWorldAtlasUser(input: WorldAtlasInput): string {
     `세계관: ${input.worldName} — ${input.centralPremise}`,
     `세력: ${input.factionNames.join(" / ")}`,
     ...(intent ? ["", `캐스트 의도: ${intent}`, NEUTRAL_CAST_ATLAS_STAGE] : []),
+    ...(input.experience
+      ? experienceCanonBlock(
+          input.experience,
+          "장소와 사건은 정본의 사건 씨앗과 첫 행동이 벌어지는 무대다. 다른 사건을 새로 고르지 않는다."
+        )
+      : []),
     "",
     "이번 호출(atlas) 출력 필드:",
     `- locations ${lim.locations.min}~${lim.locations.max}개: 이름·용도·분위기·이용자·RP에서 벌어질 사건(이후 스페셜 신 에셋의 재료)`,
@@ -263,11 +341,16 @@ export type WorldPortfolioInput = {
   market: WorldMarketInput;
   /** Batch cast intent in plain words (audience + romance-target profile). */
   castIntent?: string;
+  experience?: OfficialCharacterExperience;
   authoring?: OfficialAuthoringPlan;
 };
 
 /** Market-fit authoring rules shared by the full portfolio call and slot replacement. */
-function marketFitRuleLines(m: WorldMarketInput, plan: OfficialAuthoringPlan = ROFAN_PARITY_PLAN): string[] {
+function marketFitRuleLines(
+  m: WorldMarketInput,
+  plan: OfficialAuthoringPlan = ROFAN_PARITY_PLAN,
+  experience?: OfficialCharacterExperience
+): string[] {
   const mix = (Object.entries(m.marketRoleMix) as [MarketRole, { min: number; max: number }][])
     .map(([role, band]) => `${role} ${band.min}~${band.max}`)
     .join(", ");
@@ -277,10 +360,13 @@ function marketFitRuleLines(m: WorldMarketInput, plan: OfficialAuthoringPlan = R
       : "시장 신호(PRIMARY 우선, 트로프·훅 구조만 참고):";
   const planningOrder =
     plan.profile.key === "genre_neutral"
-      ? [
-          "상품 기획 순서(인물 경험 우선): ① 이 인물의 목표와 욕망 ② 성격·모순 ③ 사회적 위치와 직업 ④ 사건의 원인과 갈등 ⑤ 관계 역학 ⑥ 능동적 행동 ⑦ 유머·말투 ⑧ 공간·첫 장면.",
-          "시장 신호는 선호 참고다. 각 브리프는 위 경험을 먼저 정한 뒤 marketFit에 그 경험을 기록한다. 나머지 필드는 그 경험에 맞춘다. 한 신호의 원형·훅을 복제하지 않는다. marketFit 규칙:",
-        ]
+      ? experience
+        ? [
+            "marketFit과 브리프는 호출에 실린 인물 경험 정본을 기록하고 구체화한다. 다른 욕망·모순·첫 행동·플레이 경험으로 바꾸지 않는다. 한 신호의 원형·훅을 복제하지 않는다. marketFit 규칙:",
+          ]
+        : [
+            "시장 신호는 참고다. 한 신호의 원형·훅을 복제하지 않는다. marketFit 규칙:",
+          ]
       : [
           "상품 기획 순서(관계 우선): ① 캐릭터가 유저에게 누구인가 ② 둘 사이에 지금 무슨 문제가 있는가",
           "③ 유저가 왜 대화해야 하는가 ④ 기대할 감정 경험 ⑤ 그 뒤에 세계관 장치.",
@@ -320,9 +406,12 @@ export function buildWorldPortfolioUser(input: WorldPortfolioInput): string {
     `성별 구성: ${input.genderMix} (이 배치의 의도된 구성 — 반드시 준수)`,
     input.castIntent ? `캐스트 의도: ${input.castIntent}` : "",
     ...(plan.profile.key === "genre_neutral" && input.castIntent?.trim() ? [NEUTRAL_CAST_PORTFOLIO_STAGE] : []),
+    ...(input.experience
+      ? experienceCanonBlock(input.experience, "이 슬롯의 인물 경험 정본이다. 브리프가 다른 경험을 고르지 않는다.")
+      : []),
     `슬롯별 성별 고정표(절대 변경 금지, 이름도 성별에 맞게): ${input.slotGenders.map((g, i) => `${i + 1}번 ${g}`).join(", ")}`,
     "",
-    ...marketFitRuleLines(m, plan),
+    ...marketFitRuleLines(m, plan, input.experience),
     ...formatAuthoringDirection(plan, ["tone", "humor", "wordplay", "relation"]),
     "",
     "이번 호출(portfolio) 출력 필드: portfolio 배열. 각 브리프는",
@@ -352,6 +441,7 @@ export type PortfolioReplacementInput = {
   /** Manifest direction per replaced slot (role space + relationship experience + exclusions). */
   slots: { slot: number; gender: "male" | "female" | "other"; adultCandidate: boolean; direction: string }[];
   feedback?: string;
+  experience?: OfficialCharacterExperience;
   /** Genre/tone/naming policy. Absent = rofan parity; present also adds the cast-experience overlap rule. */
   authoring?: OfficialAuthoringPlan;
 };
@@ -371,6 +461,9 @@ export function buildPortfolioReplacementUser(input: PortfolioReplacementInput):
     `장소: ${input.locationNames.join(" / ")}`,
     `캐스트 의도: ${input.castIntent}`,
     ...(plan.profile.key === "genre_neutral" && input.castIntent.trim() ? [NEUTRAL_CAST_PORTFOLIO_STAGE] : []),
+    ...(input.experience
+      ? experienceCanonBlock(input.experience, "다시 기획하는 슬롯도 이 정본을 유지한다. 다른 욕망이나 사건으로 바꾸지 않는다.")
+      : []),
     "",
     "유지되는 캐릭터(절대 겹치지 않게 — 직업·신분·관계 훅·말투·외형 실루엣·트로프·이름 음절):",
     ...input.keptSiblings.map((s) => `- ${s}`),
@@ -381,7 +474,7 @@ export function buildPortfolioReplacementUser(input: PortfolioReplacementInput):
       (s) => `- ${s.slot}번: gender=${s.gender}, adultCandidate=${s.adultCandidate} — ${s.direction}`
     ),
     "",
-    ...marketFitRuleLines(m, plan),
+    ...marketFitRuleLines(m, plan, input.experience),
     ...formatAuthoringDirection(plan, ["tone", "humor", "wordplay", "relation"]),
     "",
     "출력 필드: portfolio 배열(위 슬롯 수만큼, slot 번호 그대로). 각 브리프는",
@@ -462,6 +555,7 @@ export type CharacterBible1Input = {
   siblingSketches: string[];
   /** Previous attempt rejection reasons (QA codes) — must be fixed this time. */
   feedback?: string;
+  experience?: OfficialCharacterExperience;
   authoring?: OfficialAuthoringPlan;
 };
 
@@ -508,6 +602,12 @@ export function buildCharacterBible1User(input: CharacterBible1Input): string {
     `아키타입: ${b.archetype} / 트로프: ${b.relationshipTrope}`,
     `성격핵: ${b.personalityCore} / 외형: ${b.visualSilhouette}`,
     `RP 훅: ${b.rpHook}`,
+    ...(input.experience
+      ? experienceCanonBlock(
+          input.experience,
+          "인물 경험 정본이다. desires·contradiction·personalSituation·dailyLife는 이 문장을 구체화한다. 다른 욕망으로 바꾸지 않는다."
+        )
+      : []),
     ...formatUserRelationPlanForPrompt(b.userRelation),
     `성인 후보: ${b.adultCandidate ? "예" : "아니오"}`,
     ...(b.marketFit ? ["", ...formatMarketFitForPrompt(b.marketFit), "내부 설정은 깊게 유지하되 위 관계·갈등이 바이블 전체의 축이 되게 쓴다."] : []),
@@ -545,6 +645,7 @@ export type CharacterVoiceInput = {
   gender?: "male" | "female" | "other";
   /** Previous attempt rejection reasons (QA codes) — must be fixed this time. */
   feedback?: string;
+  experience?: OfficialCharacterExperience;
   authoring?: OfficialAuthoringPlan;
 };
 
@@ -610,7 +711,7 @@ export function buildCharacterVoiceSystem(
     "- 소개문·자기소개·세계관 설명 덤프 금지. 이후 RP 문체의 스타일 앵커가 되는 웹소설형 출력.",
     "- 같은 문장·묘사를 반복해 분량을 채우지 않는다.",
     "",
-    `공개 프로필: tagline은 반드시 50자 이내 훅 한 줄. description은 반드시 ${Q.publicDescription.min}자 이상 ${Q.publicDescription.max}자 이하`,
+    `공개 프로필: tagline은 반드시 50자 이내 훅 한 줄. description은 공백 포함 ${Q.publicDescription.min}자 이상 ${Q.publicDescription.max}자 이하이고, ${Q.publicDescription.min}자 미만이면 실패다`,
     ...(includePublicManuscripts ? [
       "description은 시장 훅 검수용 짧은 pitch다. 실제 공개 화면 원고는 detailedDescription과 creatorComment이며 pitch를 복사하지 않는다.",
       "detailedDescription: 600~1000자 목표, 저장 상한 3000자. [세계관 설정]·[캐릭터 설정]·[플레이 포인트]·[도입 상황] 아래 자연스러운 한국어 문단으로 쓴다. 외형:·성격: 표지와 이름·나이(세)·키(cm)는 유지한다.",
@@ -637,6 +738,12 @@ export function buildCharacterVoiceUser(input: CharacterVoiceInput): string {
     `캐릭터: ${input.name} (${input.age}세)`,
     ...(plan.profile.key === "genre_neutral" && input.gender ? [officialCharacterPronounDirective(input.gender)] : []),
     `말투 방향: ${input.speechDirection}`,
+    ...(input.experience
+      ? experienceCanonBlock(
+          input.experience,
+          "말투·유머·greeting의 첫 행동은 정본의 말투와 첫 행동을 따른다. 다른 말투로 바꾸지 않는다."
+        )
+      : []),
     `성인 후보: ${input.adultCandidate ? "예" : "아니오"}`,
     `NPC 요구: ${input.npcDemand}`,
     ...formatUserRelationPlanForPrompt(input.userRelation).slice(0, 1),
@@ -665,6 +772,7 @@ export type CharacterBondsInput = {
   userRelation?: OfficialUserRelationPlan;
   /** Previous attempt rejection reasons (QA codes) — must be fixed this time. */
   feedback?: string;
+  experience?: OfficialCharacterExperience;
   authoring?: OfficialAuthoringPlan;
 };
 
@@ -702,6 +810,12 @@ export function buildCharacterBondsUser(input: CharacterBondsInput): string {
   return [
     `캐릭터: ${input.name} (${input.age}세)`,
     `RP 훅: ${input.rpHook}`,
+    ...(input.experience
+      ? experienceCanonBlock(
+          input.experience,
+          "selfDrive.goal과 ownMove는 정본의 욕망과 첫 행동에서 나온다. 다른 목표로 바꾸지 않는다."
+        )
+      : []),
     ...formatUserRelationPlanForPrompt(input.userRelation).slice(0, 1),
     ...formatUserRelationBondsRule(input.userRelation),
     `성인 후보: ${input.adultCandidate ? "예" : "아니오"}`,

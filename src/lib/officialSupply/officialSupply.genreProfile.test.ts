@@ -6,6 +6,7 @@ import { describe, it } from "node:test";
 
 import { CHARACTER_GENRES } from "@/lib/characterGenres";
 import {
+  buildCharacterExperienceUser,
   buildCharacterBible1System,
   buildCharacterBible1User,
   buildCharacterBondsSystem,
@@ -19,6 +20,7 @@ import {
   buildWorldCoreUser,
   buildWorldPortfolioUser,
   describeCastForPlanning,
+  type OfficialCharacterExperience,
   type PortfolioBriefInput,
   type WorldBibleInput,
   type WorldMarketInput,
@@ -555,6 +557,19 @@ describe("cast fit gate (shared by pilot replacement and the genre runner)", () 
   });
 });
 
+const MODERN_EXPERIENCE: OfficialCharacterExperience = {
+  desire: "무대에 서기 두려워하면서도 남을 웃기는 일을 그만두지 못한다",
+  contradiction: "박수를 원하면서 칭찬을 받으면 농담으로 자리를 피한다",
+  behavior: "긴장이 오면 먼저 짧은 농담을 던지고 그다음 자기 차례를 미룬다",
+  incident: "오늘 밤 즉흥 무대의 순서가 비어 스스로 한 곡을 넣었다",
+  tension: "처음 만난 상대가 그 빈 순서를 보았고 그녀는 먼저 말을 건다",
+  daily: "낮에는 악보를 정리하고 밤에는 빈 연습실에서 혼자 리허설을 한다",
+  cost: "순서를 미룰수록 자기가 설 자리가 다음 주로 밀린다",
+  play: "같이 순서를 정하고 그녀의 농담 뒤에서 망설임을 보는 경험",
+  voice: "짧은 반말과 과장된 리허설 용어로 겁을 숨긴다",
+  firstAction: "마이크를 상대 쪽이 아니라 자기 악보 위에 내려놓는다",
+};
+
 describe("genre-neutral planning order (G5-3K)", () => {
   function assembleAdminModern() {
     const direction = resolveAdminAuthoringDirection({
@@ -576,6 +591,7 @@ describe("genre-neutral planning order (G5-3K)", () => {
       slotGenders: ["female"],
       castIntent: recommendOfficialCastIntent("현대/일상"),
       authoring: plan,
+      experience: MODERN_EXPERIENCE,
     };
     const market = world.market;
     return {
@@ -594,6 +610,7 @@ describe("genre-neutral planning order (G5-3K)", () => {
         market,
         castIntent: world.castIntent,
         authoring: plan,
+        experience: MODERN_EXPERIENCE,
       }),
       replacement: buildPortfolioReplacementUser({
         worldName: "W",
@@ -605,6 +622,7 @@ describe("genre-neutral planning order (G5-3K)", () => {
         keptSiblings: [],
         slots: [{ slot: 1, gender: "female", adultCandidate: false, direction: "한 명만 다시 계획한다." }],
         authoring: plan,
+        experience: MODERN_EXPERIENCE,
       }),
     };
   }
@@ -612,7 +630,7 @@ describe("genre-neutral planning order (G5-3K)", () => {
   it("empty modern cast intent injects the audience sentence, not a plot", () => {
     assert.equal(
       recommendOfficialCastIntent("현대/일상"),
-      "전체 이용자 대상 현대/일상 캐릭터 1명. 연애로 시작하지 않고, 이 장르에서 자연스러운 일과 관계로 첫 장면을 만든다."
+      "전체 이용자 대상 현대/일상 캐릭터 1명. 연애로 시작하지 않는다."
     );
   });
 
@@ -624,17 +642,19 @@ describe("genre-neutral planning order (G5-3K)", () => {
     assert.match(a.worldCore, /캐스트 의도: 전체 이용자 대상 현대\/일상 캐릭터 1명/);
   });
 
-  it("modern World Core picks a person-experience before locking situation; rofan bytes stay the fill-first path", () => {
+  it("modern World Core consumes one experience canon; rofan bytes stay the fill-first path", () => {
     const modern = assembleAdminModern();
-    assert.match(modern.worldCore, /기획 순서\(인물 경험 우선/);
-    assert.match(modern.worldCore, /PRIMARY 한 줄은 선호 참고다/);
+    assert.match(modern.worldCore, /인물 경험 정본\(바꾸지 않는다\)/);
+    assert.match(modern.worldCore, new RegExp(MODERN_EXPERIENCE.desire));
+    assert.ok(!modern.worldCore.includes("기획 순서(인물 경험 우선"));
+    assert.ok(!modern.worldCore.includes("출력 필드가 아니다"));
+    assert.match(modern.worldCore, /PRIMARY\(대상 시장 신호, 참고\)/);
     const societyLine = modern.worldCore.split("\n").find((line) => line.startsWith("- society:"));
     assert.equal(
       societyLine,
       "- society: 이 사건에 실제로 작용하는 사회·생활의 규칙·관행·환경·제약 1개 이상. 키=영역명·값=세계 안의 객관적 설명. 플레이어의 행동·결정·역할은 쓰지 않는다(중첩 객체·domains 배열 금지)"
     );
     assert.equal(modern.worldCore.split("\n").filter((line) => line.startsWith("- society:")).length, 1);
-    assert.match(modern.worldCore, /직업·사건의 정본으로 쓰지 않는다/);
     assert.ok(!modern.worldCore.includes("누수 금지"));
     assert.ok(!modern.worldCore.includes("테이프 금지"));
     assert.ok(!modern.worldCore.includes("서윤 금지"));
@@ -664,7 +684,8 @@ describe("genre-neutral planning order (G5-3K)", () => {
 
   it("modern Portfolio records the chosen experience in marketFit instead of cloning PRIMARY", () => {
     const modern = assembleAdminModern();
-    assert.match(modern.worldPortfolio, /상품 기획 순서\(인물 경험 우선\)/);
+    assert.match(modern.worldPortfolio, /인물 경험 정본을 기록하고 구체화한다/);
+    assert.match(modern.worldPortfolio, new RegExp(MODERN_EXPERIENCE.desire));
     assert.match(modern.worldPortfolio, /한 신호의 원형·훅을 복제하지 않는다/);
     assert.match(modern.worldPortfolio, /한 신호의 직업·사건·관계·원형을 이 슬롯 전체에 맞추지 않는다/);
     assert.ok(!modern.worldPortfolio.includes("PRIMARY 우선"));
@@ -699,6 +720,94 @@ describe("genre-neutral planning order (G5-3K)", () => {
     assert.match(rofanAtlas, /실제 RP에서 반복적으로 필요한 세계 정보만 3~8개/);
     assert.ok(!rofanAtlas.includes("knowledge.authorOnly"));
     assert.ok(!rofanAtlas.includes("플레이 중 확인할 수 있는"));
+  });
+
+  it("one experience canon is consumed by atlas, part1, voice, and bonds, and is chosen before market text", () => {
+    const plan = resolveOfficialAuthoringPlan(recommendOfficialAuthoringDirection("현대/일상"));
+    const experienceUser = buildCharacterExperienceUser({
+      genre: "현대/일상",
+      gender: "female",
+      castIntent: recommendOfficialCastIntent("현대/일상"),
+      authoring: plan,
+    });
+    assert.ok(!experienceUser.includes("global-08"));
+    assert.ok(!experienceUser.includes("angst family drama"));
+    assert.match(experienceUser, /그 문장에 없는 직업·사건을 정본으로 만들지 않는다/);
+    assert.match(experienceUser, /사용자가 직접 적은 의도만/);
+
+    const atlas = buildWorldAtlasUser({
+      worldName: "W",
+      centralPremise: "C",
+      factionNames: ["이웃"],
+      worldScale: "scene",
+      authoring: plan,
+      experience: MODERN_EXPERIENCE,
+    });
+    const part1 = buildCharacterBible1User({
+      brief: {
+        slot: 1,
+        name: "한가람",
+        gender: "female",
+        age: 27,
+        occupation: "연기",
+        faction: "연습실",
+        socialPosition: "단원",
+        archetype: "공연자",
+        relationshipTrope: "첫 무대",
+        personalityCore: "겁이 많다",
+        visualSilhouette: "짧은 머리",
+        rpHook: "빈 순서를 메운다",
+        adultCandidate: false,
+        speechDirection: "짧은 말",
+        audience: "all",
+        userRelation: { type: "free", fixed: "" },
+      },
+      worldName: "W",
+      worldContext: "연습실",
+      siblingSketches: [],
+      authoring: plan,
+      experience: MODERN_EXPERIENCE,
+    });
+    const voice = buildCharacterVoiceUser({
+      name: "한가람",
+      age: 27,
+      adultCandidate: false,
+      speechDirection: "짧은 말",
+      part1Recap: "요약",
+      npcDemand: "0명",
+      authoring: plan,
+      experience: MODERN_EXPERIENCE,
+    });
+    const bonds = buildCharacterBondsUser({
+      name: "한가람",
+      age: 27,
+      rpHook: "빈 순서",
+      adultCandidate: false,
+      castList: [],
+      part1Recap: "요약",
+      authoring: plan,
+      experience: MODERN_EXPERIENCE,
+    });
+    for (const text of [atlas, part1, voice, bonds]) {
+      assert.match(text, new RegExp(MODERN_EXPERIENCE.desire));
+      assert.match(text, new RegExp(MODERN_EXPERIENCE.firstAction));
+    }
+    assert.match(voice, /다른 말투로 바꾸지 않는다/);
+    assert.match(bonds, /다른 목표로 바꾸지 않는다/);
+    const bare = buildWorldCoreUser({
+      genre: "현대/일상",
+      worldKey: "admin_private_v1",
+      styleKey: "admin_draft_v1",
+      market: marketFor(plan),
+      slots: 1,
+      adultCandidates: 0,
+      genderMix: "여성 1명",
+      slotGenders: ["female"],
+      castIntent: recommendOfficialCastIntent("현대/일상"),
+      authoring: plan,
+    });
+    assert.ok(!bare.includes(MODERN_EXPERIENCE.desire));
+    assert.ok(!bare.includes("기획 순서(인물 경험 우선"));
   });
 
   it("one-character generate still plans a single brief; Jaccard does not invent a sibling", () => {

@@ -13,6 +13,7 @@ import { getDb } from "@/lib/db";
 import { isAdminUser } from "@/lib/isAdminUser";
 import {
   generateOfficialCharacterBible,
+  generateOfficialCharacterExperience,
   generateOfficialPortfolioReplacement,
   generateOfficialWorldBible,
   liveOfficialAuthorTransport,
@@ -26,7 +27,12 @@ import {
   type OfficialAuthorTransport,
   type OfficialVoiceRevisionField,
 } from "@/lib/officialSupply/author";
-import { describeCastForPlanning, type PortfolioBriefInput, type WorldMarketInput } from "@/lib/officialSupply/authorPrompts";
+import {
+  describeCastForPlanning,
+  type OfficialCharacterExperience,
+  type PortfolioBriefInput,
+  type WorldMarketInput,
+} from "@/lib/officialSupply/authorPrompts";
 import {
   compileOfficialDraftFromBible,
   evaluateRelationBibleContract,
@@ -132,6 +138,7 @@ export type AdminAuthorPreviewOk = {
   creatorComment?: string;
   manuscript: AdminAuthorManuscriptView;
   resolved: AdminAuthorResolvedView;
+  experience?: OfficialCharacterExperience;
 };
 
 export type AdminAuthorRejectedManuscript = {
@@ -161,6 +168,7 @@ type Hold = {
   bible: OfficialCharacterBible;
   draft: OfficialCharacterDraft;
   castIntent: string;
+  experience?: OfficialCharacterExperience;
   issues: QaIssue[];
   voiceRepairs: number;
   savedCharacterId: number | null;
@@ -433,6 +441,7 @@ function publicPreview(hold: Hold): AdminAuthorPreviewOk {
       tags: [...hold.draft.tags],
     },
     resolved: resolvedView(hold.plan, hold.castIntent),
+    ...(hold.experience ? { experience: hold.experience } : {}),
   };
 }
 
@@ -444,6 +453,7 @@ function holdManuscript(input: {
   brief: PortfolioBriefInput;
   bible: OfficialCharacterBible;
   castIntent: string;
+  experience?: OfficialCharacterExperience;
   voiceRepairs: number;
 }): AdminAuthorPreviewOk {
   if (!input.plan.genre || !isCharacterGenre(input.plan.genre)) {
@@ -475,6 +485,7 @@ function holdManuscript(input: {
     bible: input.bible,
     draft,
     castIntent: input.castIntent,
+    ...(input.experience ? { experience: input.experience } : {}),
     issues,
     voiceRepairs: input.voiceRepairs,
     savedCharacterId: null,
@@ -538,6 +549,19 @@ export async function previewAdminOfficialCharacter(input: {
     const { snapshot, kept } = snapshotAndCast(input.selection.genre);
     const market = marketFor(snapshot, plan);
     const genderMix = gender === "female" ? "여성 1명" : gender === "male" ? "남성 1명" : "기타 1명";
+    const experience =
+      plan.profile.key === "genre_neutral"
+        ? await generateOfficialCharacterExperience({
+            transport,
+            modelId,
+            experience: {
+              genre: input.selection.genre,
+              gender,
+              castIntent,
+              authoring: plan,
+            },
+          })
+        : undefined;
     const generatedWorld = await generateOfficialWorldBible({
       transport,
       modelId,
@@ -552,6 +576,7 @@ export async function previewAdminOfficialCharacter(input: {
         slotGenders: [gender],
         castIntent,
         authoring: plan,
+        ...(experience ? { experience } : {}),
       },
     });
     let world = generatedWorld.bible;
@@ -576,6 +601,7 @@ export async function previewAdminOfficialCharacter(input: {
           slots: [{ slot: 1, gender, adultCandidate: false, direction: "브리프 게이트를 통과하는 한 명만 다시 계획한다." }],
           feedback: gateErrors.join("; "),
           authoring: plan,
+          ...(experience ? { experience } : {}),
         },
       });
       brief = replanned.briefs[0]!;
@@ -594,6 +620,7 @@ export async function previewAdminOfficialCharacter(input: {
         worldName: world.name,
         worldContext: worldContext(world, brief),
         siblingSketches: kept.map(describeCastForPlanning),
+        ...(experience ? { experience } : {}),
       },
       voice: {
         name: brief.name,
@@ -604,6 +631,7 @@ export async function previewAdminOfficialCharacter(input: {
         npcDemand: "이야기에 반복 역할이 실제로 필요할 때만 1~2명. 필요 없으면 0명([]).",
         marketFit: brief.marketFit,
         userRelation: brief.userRelation,
+        ...(experience ? { experience } : {}),
       },
       bonds: {
         name: brief.name,
@@ -612,6 +640,7 @@ export async function previewAdminOfficialCharacter(input: {
         adultCandidate: false,
         castList: [],
         userRelation: brief.userRelation,
+        ...(experience ? { experience } : {}),
       },
     });
     return holdManuscript({
@@ -622,6 +651,7 @@ export async function previewAdminOfficialCharacter(input: {
       brief,
       bible: generated.bible,
       castIntent,
+      ...(experience ? { experience } : {}),
       voiceRepairs: 0,
     });
   } catch (error) {
@@ -683,6 +713,7 @@ export async function repairHeldAdminAuthorPreview(input: {
             npcDemand: "기존 NPC를 유지한다(새로 만들지 않는다).",
             marketFit: current.brief.marketFit,
             userRelation: current.brief.userRelation,
+            ...(current.experience ? { experience: current.experience } : {}),
           },
           fields,
           reasons: current.issues.map((issue) => `${issue.code}: ${issue.message}`),
@@ -695,6 +726,7 @@ export async function repairHeldAdminAuthorPreview(input: {
           brief: current.brief,
           bible: revised.bible,
           castIntent: current.castIntent,
+          ...(current.experience ? { experience: current.experience } : {}),
           voiceRepairs: current.voiceRepairs + 1,
         });
         holds.delete(current.id);

@@ -66,6 +66,29 @@ describe("admin author preview export", () => {
     assert.equal(resolved.nameWordplay, "nickname");
   });
 
+  it("includes the experience canon and still drops a system prompt", () => {
+    const parsed = JSON.parse(
+      adminAuthorPreviewExportJson({
+        ...preview,
+        systemPrompt: "hidden",
+        experience: {
+          desire: "무대에 서기 두려워하면서도 남을 웃기는 일을 그만두지 못한다",
+          contradiction: "박수를 원하면서 칭찬을 받으면 농담으로 자리를 피한다",
+          behavior: "긴장이 오면 먼저 짧은 농담을 던지고 그다음 자기 차례를 미룬다",
+          incident: "오늘 밤 즉흥 무대의 순서가 비어 스스로 한 곡을 넣었다",
+          tension: "처음 만난 상대가 그 빈 순서를 보았고 그녀는 먼저 말을 건다",
+          daily: "낮에는 악보를 정리하고 밤에는 빈 연습실에서 혼자 리허설을 한다",
+          cost: "순서를 미룰수록 자기가 설 자리가 다음 주로 밀린다",
+          play: "같이 순서를 정하고 그녀의 농담 뒤에서 망설임을 보는 경험",
+          voice: "짧은 반말과 과장된 리허설 용어로 겁을 숨긴다",
+          firstAction: "마이크를 상대 쪽이 아니라 자기 악보 위에 내려놓는다",
+        },
+      } as AdminAuthorPreviewExport)
+    ) as { experience?: { desire?: string } };
+    assert.equal(parsed.experience?.desire, "무대에 서기 두려워하면서도 남을 웃기는 일을 그만두지 못한다");
+    assert.equal(JSON.stringify(parsed).includes("hidden"), false);
+  });
+
   it("omits an empty creator comment", () => {
     const parsed = JSON.parse(adminAuthorPreviewExportJson({ ...preview, creatorComment: "  " })) as Record<string, unknown>;
     assert.equal("creatorComment" in parsed, false);
