@@ -45,11 +45,11 @@ async function openActionExamples(
   const autoOn = opts?.autoOn === false ? "" : "&autoon=1";
   await page.goto(`${LAB}&examples=${examples}${autoOn}`, { waitUntil: "domcontentloaded" });
   await page.locator("[data-trpg-command-dock]").waitFor({ state: "visible" });
-  await page.locator("[data-trpg-next-action]").waitFor({ state: "visible" });
   const actionTab = page.locator('[data-trpg-command-dock-tab="action"]');
   if ((await actionTab.getAttribute("aria-selected")) !== "true") {
     await actionTab.click({ force: true });
   }
+  await page.locator("[data-trpg-next-action]").waitFor({ state: "visible" });
 }
 
 async function exampleToggle(page: Page) {
