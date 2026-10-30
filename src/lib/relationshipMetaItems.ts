@@ -81,9 +81,23 @@ export function groupPossessionsByPerson(entries: string[]): GroupedPossessions[
 }
 
 export function formatGroupedPossessionsForPrompt(entries: string[]): string {
-  return groupPossessionsByPerson(entries)
-    .map(({ person, items }) => `${person}: ${items.map((i) => i.name).join(", ")}`)
-    .join("\n");
+  const map = new Map<string, string[]>();
+  for (const rawEntry of entries) {
+    const parsed = parsePossessionEntry(rawEntry);
+    if (!parsed) {
+      const fallback = map.get(rawEntry) ?? [];
+      if (!fallback.includes(rawEntry)) fallback.push(rawEntry);
+      map.set(rawEntry, fallback);
+      continue;
+    }
+    const holder = possessionCurrentHolder(parsed.person);
+    const list = map.get(holder) ?? [];
+    for (const name of parsed.items) {
+      if (!list.includes(name)) list.push(name);
+    }
+    map.set(holder, list);
+  }
+  return [...map.entries()].map(([person, items]) => `${person}: ${items.join(", ")}`).join("\n");
 }
 
 export type PossessionTransferNames = { charName: string; userName: string };
@@ -107,6 +121,13 @@ function possessionPersonMatches(
     resolvePossessionPersonLabel(entryPerson, names) ===
     resolvePossessionPersonLabel(target, names)
   );
+}
+
+/** `A→B` currently holds for B. A plain person line holds for that person. */
+export function possessionCurrentHolder(person: string): string {
+  const parts = person.split("→").map((part) => part.trim()).filter(Boolean);
+  if (parts.length >= 2) return parts[parts.length - 1]!;
+  return person.trim();
 }
 
 /** delta의 A→B 전달 항목 — 보낸 사람 prev 줄에서 해당 물건 제거 */
@@ -133,7 +154,7 @@ export function expandPossessionTransferRemovals(
     for (const raw of prevEntries) {
       const prev = parsePossessionEntry(raw.trim());
       if (!prev) continue;
-      if (!possessionPersonMatches(prev.person, fromPerson, names)) continue;
+      if (!possessionPersonMatches(possessionCurrentHolder(prev.person), fromPerson, names)) continue;
 
       const remaining = prev.items.filter((i) => !transferred.has(i.trim()));
       const removedAny = prev.items.some((i) => transferred.has(i.trim()));

@@ -151,18 +151,43 @@ describe("mergeMemoryMeta possession", () => {
     assert.deepEqual(merged.items, ["레온: 지갑"]);
   });
 
-  it("moves the same item from previous owner to new owner when receiver line is added", () => {
+  it("keeps two same-named objects when the second line is not a handoff", () => {
     const prev = {
       ...EMPTY_MEMORY_META,
-      items: ["렌: 스타라이트 사파이어 브로치"],
+      items: ["오스카: 수류탄 핀 반지"],
     };
     const merged = mergeMemoryMeta(
       prev,
-      { items: ["레온: 스타라이트 사파이어 브로치"] },
-      { charName: "레온", userName: "렌" }
+      { items: ["제이: 수류탄 핀 반지"] },
+      { charName: "8", userName: "제이" }
     );
+    assert.deepEqual(
+      [...merged.items].sort(),
+      ["오스카: 수류탄 핀 반지", "제이: 수류탄 핀 반지"].sort()
+    );
+  });
 
-    assert.deepEqual(merged.items, ["레온: 스타라이트 사파이어 브로치"]);
+  it("removes the sender line on an explicit handoff and keeps a later same-named line", () => {
+    const prev = {
+      ...EMPTY_MEMORY_META,
+      items: ["오스카: 수류탄 핀 반지"],
+    };
+    const handed = mergeMemoryMeta(
+      prev,
+      { items: ["오스카→제이: 수류탄 핀 반지"] },
+      { charName: "8", userName: "제이" }
+    );
+    assert.deepEqual(handed.items, ["오스카→제이: 수류탄 핀 반지"]);
+
+    const both = mergeMemoryMeta(
+      EMPTY_MEMORY_META,
+      { items: ["오스카→제이: 수류탄 핀 반지", "오스카: 수류탄 핀 반지"] },
+      { charName: "8", userName: "제이" }
+    );
+    assert.deepEqual(
+      [...both.items].sort(),
+      ["오스카→제이: 수류탄 핀 반지", "오스카: 수류탄 핀 반지"].sort()
+    );
   });
 
   it("removes items and drops auto thoughts during merge", () => {

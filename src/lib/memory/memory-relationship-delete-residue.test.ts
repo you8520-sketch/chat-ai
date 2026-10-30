@@ -617,8 +617,9 @@ describe("relationship ledger last-turn delete residue", () => {
       userText: "열쇠를 줘",
       assistantText: "청동열쇠를 건네주었다.",
     });
-    applyDelta(4, 3, { items: [newOwner] });
-    assert.deepEqual(items(), [newOwner]);
+    const handoff = "TestChar→Tester: 청동열쇠";
+    applyDelta(4, 3, { items: [handoff] });
+    assert.deepEqual(items(), [handoff]);
     const unrelated = applyUnscopedDelta(
       { items: ["서연: 은색 지갑"], promisesAdd: [LATER_PROMISE] },
       1
@@ -627,13 +628,13 @@ describe("relationship ledger last-turn delete residue", () => {
 
     deleteLastTurn(3, 4);
     assert.equal(items().includes(previousOwner), true);
+    assert.equal(items().includes(handoff), false);
     assert.equal(items().includes(newOwner), false);
     assert.equal(items().includes("서연: 은색 지갑"), true);
     assert.deepEqual(promises(), [LATER_PROMISE.text]);
   });
 
   for (const [label, toB, bToC] of [
-    ["owner lines", "Tester: 청동열쇠", "서연: 청동열쇠"],
     ["gift lines", "TestChar→Tester: 청동열쇠", "Tester→서연: 청동열쇠"],
   ] as const) {
     it(`keeps a single current owner when a later writer moved the item on (${label})`, () => {
