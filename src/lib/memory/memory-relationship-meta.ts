@@ -3,7 +3,6 @@ import type Database from "better-sqlite3";
 import { BACKGROUND_OPENROUTER_MODEL, type Route } from "@/lib/ai";
 import { type RelationshipMetaExtractResult } from "@/lib/ai";
 import { buildPlatformAsyncTurnLedgerContext } from "@/lib/providerCostLedger";
-import { attachRecoveredPromisesToDelta } from "@/lib/postTurnSharedInitial/explicitPromiseRecovery";
 import { runPostTurnRelationshipOnlyInitial } from "@/lib/postTurnSharedInitial/run";
 import { POST_TURN_SHARED_INITIAL_REQUEST_KIND } from "@/lib/postTurnSharedInitial/types";
 import {
@@ -991,10 +990,7 @@ export async function mergeRelationshipMetaFromTurn(opts: {
       const applied = applyRelationshipDeltaToChat({
         chatId: opts.chatId,
         names,
-        delta: attachRecoveredPromisesToDelta(opts.sharedInitialDelta ?? {}, {
-          userMessage: opts.userMessage,
-          assistantMessage: opts.assistantMessage,
-        }),
+        delta: opts.sharedInitialDelta ?? {},
         sourceUserMessageId: opts.sourceUserMessageId,
         boundarySnapshot: opts.boundarySnapshot,
         assistantMessageId: opts.assistantMessageId,
@@ -1091,10 +1087,7 @@ export async function mergeRelationshipMetaAfterRegenerate(opts: {
       const applied = applyRelationshipDeltaToChat({
         chatId: opts.chatId,
         names,
-        delta: attachRecoveredPromisesToDelta(opts.sharedInitialDelta ?? {}, {
-          userMessage: opts.userMessage,
-          assistantMessage: opts.newAssistantMessage,
-        }),
+        delta: opts.sharedInitialDelta ?? {},
         sourceUserMessageId: opts.sourceUserMessageId,
         boundarySnapshot: opts.boundarySnapshot,
         assistantMessageId: opts.assistantMessageId,
