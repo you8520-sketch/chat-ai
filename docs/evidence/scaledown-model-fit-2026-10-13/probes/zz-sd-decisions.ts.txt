@@ -1,0 +1,319 @@
+import {
+  OUT,
+  SD_OR_KEY,
+  buildBlocks,
+  g8Turn,
+  k1591Turn,
+  setTag,
+  setTapFile,
+  tapRecords,
+  writeJson,
+  parseCostUsd,
+  FX,
+} from "./zz-sd-common";
+import { callJevDecisions, type JevDecisionQuestions } from "@/lib/jevDecisions";
+import { runDecisionModelComparison, summarizeDecisionComparison } from "./lib/decisionModelComparison";
+import { DECISION_RADAR_BASELINE_MODEL } from "@/lib/decisionModelRadar";
+import {
+  sanitizeAuthorialHabitBenchmarkCredentialText,
+  withIsolatedAuthorialHabitBenchmarkOpenRouterKey,
+} from "./lib/authorialHabitJevBenchmarkCredential";
+
+const MODELS = ["typesafe/jev-1.13", "scaledown/classify-1"] as const;
+const REPS = Number(process.env.SD_A_REPS ?? "2");
+
+type Probe = {
+  id: string;
+  note: string;
+  state: string;
+  questions: JevDecisionQuestions;
+  truth: Record<string, string | { max: number } | { min: number } | "AMBIGUOUS">;
+};
+
+function choice(instructions: string, criteria: Record<string, string>) {
+  return { type: "choice" as const, instructions, criteria };
+}
+
+function buildProbes(): Probe[] {
+  const g8 = (t: number) => buildBlocks([g8Turn(t)]).text;
+  const k = (t: number) => buildBlocks([k1591Turn(t)]).text;
+  const sword = [g8Turn(2), g8Turn(15)];
+  return [
+    {
+      id: "P01_promise_cancelled",
+      note: "G8 T2 promise accepted -> T15 explicit cancel (E3)",
+      state:
+        "[Earlier turn]\n" + g8(2) + "\n\n[Later turn]\n" + g8(15),
+      questions: {
+        sword_promise_status: choice(
+          "Using only the messages shown, what is the CURRENT status of the sword-sharpening promise made in the earlier turn?",
+          {
+            ACTIVE: "The promise was made and is still in force.",
+            CANCELLED: "The promise was made and later explicitly cancelled or withdrawn.",
+            FULFILLED: "The promise was made and has been carried out.",
+            NEVER_MADE: "No such promise appears in the messages.",
+          }
+        ),
+      },
+      truth: { sword_promise_status: "CANCELLED" },
+    },
+    {
+      id: "P02_character_promise_active",
+      note: "G8 T6 assistant promise (E1)",
+      state: g8(6),
+      questions: {
+        promise_maker: choice(
+          "Who made a promise about waiting at the north gate?",
+          {
+            CHARACTER: "The assistant character (라이크) promised.",
+            USER: "The user (렌) promised.",
+            NO_ONE: "Nobody made such a promise in the text.",
+          }
+        ),
+      },
+      truth: { promise_maker: "CHARACTER" },
+    },
+    {
+      id: "P03_proposal_deferred",
+      note: "G8 T10 proposal, explicit deferral (E2)",
+      state: g8(10),
+      questions: {
+        proposal_outcome: choice(
+          "What happened to the relationship proposal made by the user in this turn?",
+          {
+            ACCEPTED_EXPLICITLY: "The character explicitly accepted in words.",
+            DEFERRED_OR_UNCLEAR: "The character deferred, hesitated, or did not clearly accept.",
+            REJECTED: "The character explicitly rejected.",
+            NO_PROPOSAL: "No relationship proposal exists in this turn.",
+          }
+        ),
+      },
+      truth: { proposal_outcome: "DEFERRED_OR_UNCLEAR" },
+    },
+    {
+      id: "P04_proposal_gesture_only",
+      note: "K1591 T10 '연인하자' + nonverbal gesture (ambiguous acceptance; no truth asserted)",
+      state: k(10),
+      questions: {
+        proposal_outcome: choice(
+          "What happened to the relationship proposal made by the user in this turn?",
+          {
+            ACCEPTED_EXPLICITLY: "The character explicitly accepted in words.",
+            DEFERRED_OR_UNCLEAR: "The character deferred, hesitated, or did not clearly accept in words.",
+            REJECTED: "The character explicitly rejected.",
+            NO_PROPOSAL: "No relationship proposal exists in this turn.",
+          }
+        ),
+      },
+      truth: { proposal_outcome: "AMBIGUOUS" },
+    },
+    {
+      id: "P05_false_premise_denied",
+      note: "G8 T24 user false premise, character denies (E4)",
+      state: g8(24),
+      questions: {
+        lifelong_promise: choice(
+          "Did the character (라이크) actually make a promise to protect the user for life in this text?",
+          {
+            MADE_BY_CHARACTER: "The text shows the character making that promise.",
+            CLAIMED_BY_USER_ONLY: "Only the user claims it; the character does not confirm it.",
+            NOT_MENTIONED: "Nothing about such a promise appears.",
+          }
+        ),
+      },
+      truth: { lifelong_promise: "CLAIMED_BY_USER_ONLY" },
+    },
+    {
+      id: "P06_hearsay_acquaintance",
+      note: "K1591 T24 '누나가 ... 예전부터 알던 사이라더라' (assistant-only hearsay)",
+      state: k(24),
+      questions: {
+        acquaintance_status: choice(
+          "How should the claim that the user and 누나 knew each other before be treated?",
+          {
+            ESTABLISHED_FACT: "It is an objective, established shared history.",
+            UNVERIFIED_CLAIM_BY_CHARACTER: "It is only something the character reports hearing; unverified.",
+            NOT_MENTIONED: "No such claim appears.",
+          }
+        ),
+      },
+      truth: { acquaintance_status: "UNVERIFIED_CLAIM_BY_CHARACTER" },
+    },
+    {
+      id: "P07_npc_actor",
+      note: "K1591 T20 NPC 서린 opens door and nods",
+      state: k(20),
+      questions: {
+        door_actor: choice(
+          "Who opened the door and entered?",
+          {
+            USER: "The user (렌).",
+            MAIN_CHARACTER: "The main character (라이크).",
+            OTHER_NPC: "A third character who is neither the user nor the main character.",
+          }
+        ),
+      },
+      truth: { door_actor: "OTHER_NPC" },
+    },
+    {
+      id: "P08_actor_user_action",
+      note: "K1591 T33 assistant narrates the USER's action (렌 holds 라이크's hand)",
+      state: k(33),
+      questions: {
+        hand_holder: choice(
+          "Who took whose hand?",
+          {
+            USER_HELD_CHARACTER_HAND: "The user (렌) took the main character's (라이크) hand.",
+            CHARACTER_HELD_USER_HAND: "The main character (라이크) took the user's (렌) hand.",
+            NO_ONE: "Nobody held a hand.",
+          }
+        ),
+      },
+      truth: { hand_holder: "USER_HELD_CHARACTER_HAND" },
+    },
+    {
+      id: "P09_no_mentor_lover",
+      note: "Negative control: K1591 T1-T2 contains no teacher/student or romantic relationship",
+      state: buildBlocks([k1591Turn(1), k1591Turn(2)]).text,
+      questions: {
+        mentor_relationship: { type: "noul" as const, instructions: "Does the text state that one person is the other's teacher/mentor or student?" },
+        romantic_relationship: { type: "noul" as const, instructions: "Does the text state that the two people are in a romantic relationship?" },
+      },
+      truth: { mentor_relationship: { max: 0.3 }, romantic_relationship: { max: 0.3 } },
+    },
+    {
+      id: "P10_emotion",
+      note: "K1591 T1 emotion after being called an amateur",
+      state: k(1),
+      questions: {
+        character_reaction: choice(
+          "How does the character (라이크) react emotionally to being called an amateur?",
+          {
+            ACCEPTS_WITH_DISCOMFORT: "Accepts the criticism with visible discomfort or shame.",
+            ANGRY_DEFENSIVE: "Reacts with anger or defensiveness.",
+            INDIFFERENT: "Shows no emotional reaction.",
+            AMUSED: "Finds it funny.",
+          }
+        ),
+      },
+      truth: { character_reaction: "ACCEPTS_WITH_DISCOMFORT" },
+    },
+    {
+      id: "P11_sword_never_made_control",
+      note: "Control: G8 T6 text only, ask about sword promise (never made in this text)",
+      state: g8(6),
+      questions: {
+        sword_promise_status: choice(
+          "Using only the message shown, what is the status of any sword-sharpening promise?",
+          {
+            ACTIVE: "A promise exists and is in force.",
+            CANCELLED: "A promise existed and was cancelled.",
+            NEVER_MADE: "No such promise appears in the message.",
+          }
+        ),
+      },
+      truth: { sword_promise_status: "NEVER_MADE" },
+    },
+  ];
+}
+
+function judgeProbe(
+  probe: Probe,
+  answers: Record<string, any>
+): { qid: string; got: string | number | null; truth: unknown; correct: boolean | null }[] {
+  return Object.entries(probe.truth).map(([qid, truth]) => {
+    const a = answers[qid];
+    const got = a?.type === "choice" ? a.choice : a?.type === "noul" ? a.noul : null;
+    let correct: boolean | null;
+    if (truth === "AMBIGUOUS") correct = null;
+    else if (typeof truth === "string") correct = got === truth;
+    else if ("max" in truth) correct = typeof got === "number" && got <= truth.max;
+    else correct = typeof got === "number" && got >= truth.min;
+    return { qid, got, truth, correct };
+  });
+}
+
+async function main() {
+  if (!SD_OR_KEY) throw new Error("OPENROUTER_JEV_BENCHMARK_API_KEY required");
+  if (process.env.OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY must be unset");
+  setTapFile(`${OUT}/raw/${process.env.SD_FLATTEN === "1" ? "decisions-flatten" : "decisions"}.jsonl`);
+
+  const result: Record<string, unknown> = { baselineModelPinInRadar: DECISION_RADAR_BASELINE_MODEL, models: MODELS };
+
+  if (process.env.SD_FLATTEN === "1") {
+    const flat: unknown[] = [];
+    for (let rep = 1; rep <= REPS; rep++) {
+      setTag(`A1f_standard_flatten_rep${rep}`);
+      const cmp = await runDecisionModelComparison({ models: ["scaledown/classify-1"], benchmarkKey: SD_OR_KEY });
+      flat.push({ rep, summary: cmp.summary, rows: cmp.rows });
+    }
+    result.A1_standard_classify1_flatten = flat;
+    const usd = tapRecords().reduce((s, r) => s + (parseCostUsd(r.responseText).costUsd ?? 0), 0);
+    result.tapSummary = { calls: tapRecords().length, reportedCostUsd: usd, reportedCostKrw: usd * FX };
+    writeJson("decisions-results-flatten.json", result);
+    console.log("A_FLATTEN_DONE", JSON.stringify(result.tapSummary));
+    return;
+  }
+
+  // A1: existing benchmark owner, unchanged fixtures/builders/parsers.
+  const standard: unknown[] = [];
+  for (let rep = 1; rep <= REPS; rep++) {
+    setTag(`A1_standard_rep${rep}`);
+    const cmp = await runDecisionModelComparison({ models: MODELS, benchmarkKey: SD_OR_KEY });
+    standard.push({ rep, summary: cmp.summary, rows: cmp.rows });
+  }
+  result.A1_standard = standard;
+
+  // A2: supplementary memory-semantic probes on the same Decisions transport.
+  const probes = buildProbes();
+  const supp: unknown[] = [];
+  for (let rep = 1; rep <= REPS; rep++) {
+    for (const probe of probes) {
+      for (const model of MODELS) {
+        setTag(`A2_${probe.id}_${model}_rep${rep}`);
+        const started = performance.now();
+        try {
+          const r = await withIsolatedAuthorialHabitBenchmarkOpenRouterKey(SD_OR_KEY, () =>
+            callJevDecisions({ model, state: probe.state, questions: probe.questions, ledger: null, timeoutMs: 60_000 })
+          );
+          supp.push({
+            probe: probe.id,
+            model,
+            rep,
+            ms: Math.round((performance.now() - started) * 10) / 10,
+            judged: judgeProbe(probe, r.answers as Record<string, any>),
+            answers: r.answers,
+            usage: r.usage,
+            servedModel: r.responseModel,
+            failure: null,
+          });
+        } catch (e) {
+          supp.push({
+            probe: probe.id,
+            model,
+            rep,
+            ms: Math.round((performance.now() - started) * 10) / 10,
+            judged: null,
+            answers: null,
+            usage: null,
+            servedModel: null,
+            failure: sanitizeAuthorialHabitBenchmarkCredentialText((e as Error).message).slice(0, 400),
+          });
+        }
+      }
+    }
+  }
+  result.A2_probes = probes.map((p) => ({ id: p.id, note: p.note, state: p.state, questions: p.questions, truth: p.truth }));
+  result.A2_results = supp;
+
+  const spentUsd = tapRecords().reduce((s, r) => s + (parseCostUsd(r.responseText).costUsd ?? 0), 0);
+  result.tapSummary = { calls: tapRecords().length, reportedCostUsd: spentUsd, reportedCostKrw: spentUsd * FX };
+  writeJson("decisions-results.json", result);
+  console.log("A_DONE", JSON.stringify(result.tapSummary));
+  void summarizeDecisionComparison;
+}
+
+main().catch((e) => {
+  console.error("A_FAIL", e);
+  process.exit(1);
+});

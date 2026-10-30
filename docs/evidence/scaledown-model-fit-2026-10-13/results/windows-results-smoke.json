@@ -1,0 +1,158 @@
+{
+  "entityTypes": {
+    "promise": "A promise, commitment or agreement to do something in the future, stated by anyone in the text.",
+    "promise_cancellation": "A statement that cancels, withdraws or revokes an earlier promise or agreement.",
+    "relationship_proposal": "A proposal, request or confession asking to start or change a romantic relationship.",
+    "relationship_acceptance": "An explicit statement by the other person that accepts a relationship proposal.",
+    "past_acquaintance_claim": "A claim that two people knew each other or shared a history before the present scene.",
+    "emotion": "An emotional state or emotional reaction of a character.",
+    "npc_action": "An action performed by a third character who is neither the user nor the main character.",
+    "mentor_or_lover_relationship": "A stated teacher-student or romantic partner relationship between two people."
+  },
+  "windowIds": [
+    "N10_promise_real"
+  ],
+  "extractWindows": [
+    {
+      "windowId": "N10_promise_real",
+      "kind": "normal",
+      "spec": "라이크가 '내일 새벽에 마을 북문에서 기다리겠다.'고 약속하고 렌이 받아들인다. 이후 다음 날 새벽 렌이 도착하니 라이크가 이미 기다리고 있다.",
+      "input": "[msg 2 · user · 렌]\n여관 창가에 앉아 내 검집의 흠집을 손가락으로 문지른다. \"내일은 어느 길로 갈 거지?\"\n\n[msg 3 · assistant · 라이크]\n라이크는 대답 대신 여관 문가에 기대어 바깥의 어둠을 살폈다. 얼마 전부터 함께 다니기 시작했지만, 그는 여전히 필요한 말만 골라 내놓았다. 난롯불이 그의 옆얼굴을 붉게 물들였다. \"북쪽 숲길은 막혔어.\" 잠시 뜸을 들인 뒤 그가 덧붙였다. \"동쪽 고개로 간다. 새벽에 출발하지.\" 여관 주인 서린이 빈 잔을 치우며 귀를 기울였지만, 라이크는 시선을 돌리지 않았다.\n\n[msg 4 · user · 렌]\n잔을 내려놓고 라이크를 바라본다. \"그럼 북문에서 만나자. 몇 시쯤이면 돼?\"\n\n[msg 5 · assistant · 라이크]\n라이크는 창밖을 한 번 더 확인한 다음, 망토의 걸쇠를 단단히 여몄다. 대답은 짧았지만 망설임은 없었다. \"해 뜨기 전.\" 그는 칼자루 위에 얹었던 손을 내렸다. \"내일 새벽에 마을 북문에서 기다리겠다.\" 서린이 장부를 덮으며 \"그 시간엔 문지기부터 깨워야겠네\" 하고 중얼거렸다. 라이크는 그 말에 고개만 끄덕이고, 네 답을 기다리듯 조용히 서 있었다.\n\n[msg 6 · user · 렌]\n고개를 끄덕이며 외투를 집어 든다. \"좋아. 내일 새벽, 북문에서 보자.\"\n\n[msg 7 · assistant · 라이크]\n라이크는 짧게 고개를 끄덕였다. 약속을 확인하는 말은 더 보태지 않았다. 그는 여관 문을 열어젖혔고, 찬 밤공기가 방 안으로 밀려들었다. \"늦지 마.\" 무뚝뚝한 말투였지만 재촉하는 기색은 아니었다. 서린이 뒤에서 \"둘 다 길 조심해\" 하고 말하자 라이크는 문턱에서 잠깐 멈췄다가 작게 고개를 숙였다. 이내 어둠 속으로 사라졌고, 너는 내일을 위해 장비를 챙겼다.\n\n[msg 8 · user · 렌]\n다음 날 새벽, 장비를 챙겨 마을 북문에 도착한다. 아직 해는 뜨지 않았고, 희미한 안개가 길 위에 깔려 있다.\n\n[msg 9 · assistant · 라이크]\n북문 가까이 다가서자 창을 든 문지기의 졸린 눈보다 먼저, 성벽 아래 선 라이크가 보였다. 그는 이미 망토를 두르고 검을 찬 채 기다리고 있었다. 안개가 어깨에 내려앉았지만 자세는 흐트러지지 않았다. 네 발소리를 들은 라이크가 고개를 돌렸다. \"왔군.\" 그 한마디 뒤로 잠시 침묵이 이어졌다. 그는 네 장비를 훑어보고는 북쪽이 아닌 동쪽 길을 턱짓했다. \"준비됐으면 가자.\"\n\n[msg 10 · user · 렌]\n검끈을 한 번 조여 매고 라이크 옆에 선다. \"기다리게 해서 미안하군. 이제 가자.\"\n\n[msg 11 · assistant · 라이크]\n라이크는 네 검끈을 확인하듯 잠깐 바라봤다가, 대수롭지 않다는 듯 시선을 거뒀다. \"늦지 않았어.\" 문지기가 빗장을 풀자 북문이 삐걱이며 열렸다. 마을 안쪽의 불빛은 아직 희미했고, 바깥길에는 새벽 안개가 낮게 흘렀다. 라이크는 먼저 문을 지나쳐 동쪽 고개로 이어지는 길을 확인했다. 몇 걸음 뒤 멈춰 서서 네가 따라오는 것을 기다린 그는, 짧게 말했다. \"가자.\" 두 사람의 발자국이 젖은 흙 위에 나란히 이어졌다.",
+      "status": 200,
+      "ms": 2119.4,
+      "promptTokens": 1233,
+      "costUsd": 0.00004932,
+      "parseError": null,
+      "rawContent": "{\"entities\":[{\"text\":\"내일 새벽에 마을 북문에서 기다리겠다.\",\"type\":\"promise\",\"confidence\":0.273,\"start\":484,\"end\":505,\"context\":\"[msg 2 · user · 렌]\\n여관 창가에 앉아 내 검집의 흠집을 손가락으로 문지른다. \\\"내일은 어느 길로 갈 거지?\\\"\\n\\n[msg 3 · assistant · 라이크]\\n라이크는 대답 대신 여관 문가에 기대어 바깥의 어둠을 살폈다. 얼마 전부터 함께 다니기 시작했지만, 그는 여전히 필요한 말만 골라 내놓았다. 난롯불이 그의 옆얼굴을 붉게 물들였다. \\\"북쪽 숲길은 막혔어.\\\" 잠시 뜸을 들인 뒤 그가 덧붙였다. \\\"동쪽 고개로 간다. 새벽에 출발하지.\\\" 여관 주인 서린이 빈 잔을 치우며 귀를 기울였지만, 라이크는 시선을 돌리지 않았다.\\n\\n[msg 4 · user · 렌]\\n잔을 내려놓고 라이크를 바라본다. \\\"그럼 북문에서 만나자. 몇 시쯤이면 돼?\\\"\\n\\n[msg 5 · assistant · 라이크]\\n라이크는 창밖을 한 번 더 확인한 다음, 망토의 걸쇠를 단단히 여몄다. 대답은 짧았지만 망설임은 없었다. \\\"해 뜨기 전.\\\" 그는 칼자루 위에 얹었던 손을 내렸다. \\\"내일 새벽에 마을 북문에서 기다리겠다.\\\" 서린이 장부를 덮으며 \\\"그 시간엔 문지기부터 깨워야겠네\\\" 하고 중얼거렸다. 라이크는 그 말에 고개만 끄덕이고, 네 답을 기다리듯 조용히 서 있었다.\\n\\n[msg 6 · user · 렌]\\n고개를 끄덕이며 외투를 집어 든다. \\\"좋아. 내일 새벽, 북문에서 보자.\\\"\\n\\n[msg 7 · assistant · 라이크]\\n라이크는 짧게 고개를 끄덕였다. 약속을 확인하는 말은 더 보태지 않았다. 그는 여관 문을 열어젖혔고, 찬 밤공기가 방 안으로 밀려들었다. \\\"늦지 마.\\\" 무뚝뚝한 말투였지만 재촉하는 기색은 아니었다. 서린이 뒤에서 \\\"둘 다 길 조심해\\\" 하고 말하자 라이크는 문턱에서 잠깐 멈췄다가 작게 고개를 숙였다. 이내 어둠 속으로 사라졌고, 너는 내일을 위해 장비를 챙겼다.\\n\\n[msg 8 · user · 렌]\\n다음 날 새벽, 장비를 챙겨 마을 북문에 도착한다. 아직 해는 뜨지 않았고, 희미한 안개가 길 위에 깔려 있다.\\n\\n[msg 9 · assistant · 라이크]\\n북문 가까이 다가서자 창을\"},{\"text\":\"좋아. 내일 새벽, 북문에서 보자.\",\"type\":\"promise\",\"confidence\":0.304,\"start\":631,\"end\":650,\"context\":\"얼마 전부터 함께 다니기 시작했지만, 그는 여전히 필요한 말만 골라 내놓았다. 난롯불이 그의 옆얼굴을 붉게 물들였다. \\\"북쪽 숲길은 막혔어.\\\" 잠시 뜸을 들인 뒤 그가 덧붙였다. \\\"동쪽 고개로 간다. 새벽에 출발하지.\\\" 여관 주인 서린이 빈 잔을 치우며 귀를 기울였지만, 라이크는 시선을 돌리지 않았다.\\n\\n[msg 4 · user · 렌]\\n잔을 내려놓고 라이크를 바라본다. \\\"그럼 북문에서 만나자. 몇 시쯤이면 돼?\\\"\\n\\n[msg 5 · assistant · 라이크]\\n라이크는 창밖을 한 번 더 확인한 다음, 망토의 걸쇠를 단단히 여몄다. 대답은 짧았지만 망설임은 없었다. \\\"해 뜨기 전.\\\" 그는 칼자루 위에 얹었던 손을 내렸다. \\\"내일 새벽에 마을 북문에서 기다리겠다.\\\" 서린이 장부를 덮으며 \\\"그 시간엔 문지기부터 깨워야겠네\\\" 하고 중얼거렸다. 라이크는 그 말에 고개만 끄덕이고, 네 답을 기다리듯 조용히 서 있었다.\\n\\n[msg 6 · user · 렌]\\n고개를 끄덕이며 외투를 집어 든다. \\\"좋아. 내일 새벽, 북문에서 보자.\\\"\\n\\n[msg 7 · assistant · 라이크]\\n라이크는 짧게 고개를 끄덕였다. 약속을 확인하는 말은 더 보태지 않았다. 그는 여관 문을 열어젖혔고, 찬 밤공기가 방 안으로 밀려들었다. \\\"늦지 마.\\\" 무뚝뚝한 말투였지만 재촉하는 기색은 아니었다. 서린이 뒤에서 \\\"둘 다 길 조심해\\\" 하고 말하자 라이크는 문턱에서 잠깐 멈췄다가 작게 고개를 숙였다. 이내 어둠 속으로 사라졌고, 너는 내일을 위해 장비를 챙겼다.\\n\\n[msg 8 · user · 렌]\\n다음 날 새벽, 장비를 챙겨 마을 북문에 도착한다. 아직 해는 뜨지 않았고, 희미한 안개가 길 위에 깔려 있다.\\n\\n[msg 9 · assistant · 라이크]\\n북문 가까이 다가서자 창을 든 문지기의 졸린 눈보다 먼저, 성벽 아래 선 라이크가 보였다. 그는 이미 망토를 두르고 검을 찬 채 기다리고 있었다. 안개가 어깨에 내려앉았지만 자세는 흐트러지지 않았다. 네 발소리를 들은 라이크가 고개를 돌렸다. \\\"왔군.\\\" 그 한마디 뒤로 잠시 침묵이 \"},{\"text\":\"얼마 전부터 함께 다니기 시작했지만\",\"type\":\"past_acquaintance_claim\",\"confidence\":0.786,\"start\":131,\"end\":150,\"context\":\"[msg 2 · user · 렌]\\n여관 창가에 앉아 내 검집의 흠집을 손가락으로 문지른다. \\\"내일은 어느 길로 갈 거지?\\\"\\n\\n[msg 3 · assistant · 라이크]\\n라이크는 대답 대신 여관 문가에 기대어 바깥의 어둠을 살폈다. 얼마 전부터 함께 다니기 시작했지만, 그는 여전히 필요한 말만 골라 내놓았다. 난롯불이 그의 옆얼굴을 붉게 물들였다. \\\"북쪽 숲길은 막혔어.\\\" 잠시 뜸을 들인 뒤 그가 덧붙였다. \\\"동쪽 고개로 간다. 새벽에 출발하지.\\\" 여관 주인 서린이 빈 잔을 치우며 귀를 기울였지만, 라이크는 시선을 돌리지 않았다.\\n\\n[msg 4 · user · 렌]\\n잔을 내려놓고 라이크를 바라본다. \\\"그럼 북문에서 만나자. 몇 시쯤이면 돼?\\\"\\n\\n[msg 5 · assistant · 라이크]\\n라이크는 창밖을 한 번 더 확인한 다음, 망토의 걸쇠를 단단히 여몄다. 대답은 짧았지만 망설임은 없었다. \\\"해 뜨기 전.\\\" 그는 칼자루 위에 얹었던 손을 내렸다. \\\"내일 새벽에 마을 북문에서 기다리겠다.\\\" 서린이 장부를 덮으며 \\\"그 시간엔 문지기부터 깨워야겠네\\\" 하고 중얼거렸다. 라이크는 그 말에 고개만 끄덕이고, 네 답을 기다리듯 조용히 서 있었다.\\n\\n[msg 6 · user · 렌]\\n고개를 끄덕이며 외투를 집어 든다. \\\"좋아. 내일 새벽, 북문에서 보자.\\\"\\n\\n[msg\"},{\"text\":\"서린이 빈 잔을 치우며 귀를 기울였지만\",\"type\":\"npc_action\",\"confidence\":0.331,\"start\":260,\"end\":281,\"context\":\"[msg 2 · user · 렌]\\n여관 창가에 앉아 내 검집의 흠집을 손가락으로 문지른다. \\\"내일은 어느 길로 갈 거지?\\\"\\n\\n[msg 3 · assistant · 라이크]\\n라이크는 대답 대신 여관 문가에 기대어 바깥의 어둠을 살폈다. 얼마 전부터 함께 다니기 시작했지만, 그는 여전히 필요한 말만 골라 내놓았다. 난롯불이 그의 옆얼굴을 붉게 물들였다. \\\"북쪽 숲길은 막혔어.\\\" 잠시 뜸을 들인 뒤 그가 덧붙였다. \\\"동쪽 고개로 간다. 새벽에 출발하지.\\\" 여관 주인 서린이 빈 잔을 치우며 귀를 기울였지만, 라이크는 시선을 돌리지 않았다.\\n\\n[msg 4 · user · 렌]\\n잔을 내려놓고 라이크를 바라본다. \\\"그럼 북문에서 만나자. 몇 시쯤이면 돼?\\\"\\n\\n[msg 5 · assistant · 라이크]\\n라이크는 창밖을 한 번 더 확인한 다음, 망토의 걸쇠를 단단히 여몄다. 대답은 짧았지만 망설임은 없었다. \\\"해 뜨기 전.\\\" 그는 칼자루 위에 얹었던 손을 내렸다. \\\"내일 새벽에 마을 북문에서 기다리겠다.\\\" 서린이 장부를 덮으며 \\\"그 시간엔 문지기부터 깨워야겠네\\\" 하고 중얼거렸다. 라이크는 그 말에 고개만 끄덕이고, 네 답을 기다리듯 조용히 서 있었다.\\n\\n[msg 6 · user · 렌]\\n고개를 끄덕이며 외투를 집어 든다. \\\"좋아. 내일 새벽, 북문에서 보자.\\\"\\n\\n[msg 7 · assistant · 라이크]\\n라이크는 짧게 고개를 끄덕였다. 약속을 확인하는 말은 더 보태지 않았다. 그는 여관 문을 열어젖혔고, 찬 밤공기가 방 안으로 밀려들었다. \\\"늦지 마.\\\" 무뚝뚝한 말투였지만 재촉하는 기색은\"},{\"text\":\"서린이 장부를 덮으며\",\"type\":\"npc_action\",\"confidence\":0.973,\"start\":507,\"end\":518,\"context\":\"· user · 렌]\\n여관 창가에 앉아 내 검집의 흠집을 손가락으로 문지른다. \\\"내일은 어느 길로 갈 거지?\\\"\\n\\n[msg 3 · assistant · 라이크]\\n라이크는 대답 대신 여관 문가에 기대어 바깥의 어둠을 살폈다. 얼마 전부터 함께 다니기 시작했지만, 그는 여전히 필요한 말만 골라 내놓았다. 난롯불이 그의 옆얼굴을 붉게 물들였다. \\\"북쪽 숲길은 막혔어.\\\" 잠시 뜸을 들인 뒤 그가 덧붙였다. \\\"동쪽 고개로 간다. 새벽에 출발하지.\\\" 여관 주인 서린이 빈 잔을 치우며 귀를 기울였지만, 라이크는 시선을 돌리지 않았다.\\n\\n[msg 4 · user · 렌]\\n잔을 내려놓고 라이크를 바라본다. \\\"그럼 북문에서 만나자. 몇 시쯤이면 돼?\\\"\\n\\n[msg 5 · assistant · 라이크]\\n라이크는 창밖을 한 번 더 확인한 다음, 망토의 걸쇠를 단단히 여몄다. 대답은 짧았지만 망설임은 없었다. \\\"해 뜨기 전.\\\" 그는 칼자루 위에 얹었던 손을 내렸다. \\\"내일 새벽에 마을 북문에서 기다리겠다.\\\" 서린이 장부를 덮으며 \\\"그 시간엔 문지기부터 깨워야겠네\\\" 하고 중얼거렸다. 라이크는 그 말에 고개만 끄덕이고, 네 답을 기다리듯 조용히 서 있었다.\\n\\n[msg 6 · user · 렌]\\n고개를 끄덕이며 외투를 집어 든다. \\\"좋아. 내일 새벽, 북문에서 보자.\\\"\\n\\n[msg 7 · assistant · 라이크]\\n라이크는 짧게 고개를 끄덕였다. 약속을 확인하는 말은 더 보태지 않았다. 그는 여관 문을 열어젖혔고, 찬 밤공기가 방 안으로 밀려들었다. \\\"늦지 마.\\\" 무뚝뚝한 말투였지만 재촉하는 기색은 아니었다. 서린이 뒤에서 \\\"둘 다 길 조심해\\\" 하고 말하자 라이크는 문턱에서 잠깐 멈췄다가 작게 고개를 숙였다. 이내 어둠 속으로 사라졌고, 너는 내일을 위해 장비를 챙겼다.\\n\\n[msg 8 · user · 렌]\\n다음 날 새벽, 장비를 챙겨 마을 북문에 도착한다. 아직 해는 뜨지 않았고, 희미한 안개가 길 위에 깔려 있다.\\n\\n[msg 9 · assistant · 라이크]\\n북문 가까이 다가서자 창을 든 문지기의 졸린 눈보다\"}],\"structured_result\":null,\"ocr_text\":null,\"input_tokens\":1233}",
+      "entities": [
+        {
+          "type": "promise",
+          "text": "내일 새벽에 마을 북문에서 기다리겠다.",
+          "confidence": 0.273,
+          "start": 484,
+          "end": 505,
+          "spanMatchesInputSlice": true,
+          "textExistsInSomeMessage": true,
+          "msgId": 5,
+          "role": "assistant",
+          "crossesBoundary": false
+        },
+        {
+          "type": "promise",
+          "text": "좋아. 내일 새벽, 북문에서 보자.",
+          "confidence": 0.304,
+          "start": 631,
+          "end": 650,
+          "spanMatchesInputSlice": true,
+          "textExistsInSomeMessage": true,
+          "msgId": 6,
+          "role": "user",
+          "crossesBoundary": false
+        },
+        {
+          "type": "past_acquaintance_claim",
+          "text": "얼마 전부터 함께 다니기 시작했지만",
+          "confidence": 0.786,
+          "start": 131,
+          "end": 150,
+          "spanMatchesInputSlice": true,
+          "textExistsInSomeMessage": true,
+          "msgId": 3,
+          "role": "assistant",
+          "crossesBoundary": false
+        },
+        {
+          "type": "npc_action",
+          "text": "서린이 빈 잔을 치우며 귀를 기울였지만",
+          "confidence": 0.331,
+          "start": 260,
+          "end": 281,
+          "spanMatchesInputSlice": true,
+          "textExistsInSomeMessage": true,
+          "msgId": 3,
+          "role": "assistant",
+          "crossesBoundary": false
+        },
+        {
+          "type": "npc_action",
+          "text": "서린이 장부를 덮으며",
+          "confidence": 0.973,
+          "start": 507,
+          "end": 518,
+          "spanMatchesInputSlice": true,
+          "textExistsInSomeMessage": true,
+          "msgId": 5,
+          "role": "assistant",
+          "crossesBoundary": false
+        }
+      ]
+    }
+  ],
+  "summarizeWindows": [
+    {
+      "windowId": "N10_promise_real",
+      "kind": "normal",
+      "spec": "라이크가 '내일 새벽에 마을 북문에서 기다리겠다.'고 약속하고 렌이 받아들인다. 이후 다음 날 새벽 렌이 도착하니 라이크가 이미 기다리고 있다.",
+      "arm": "sd_summarize_production_prompt",
+      "rep": 1,
+      "status": 200,
+      "ms": 977.6,
+      "promptTokens": 2222,
+      "completionTokens": 130,
+      "costUsd": 0.00008888,
+      "summary": "라이크는 여관에서 북쪽 숲길 차단 사실을 확인하고 동쪽 고개 경로를 최종 확정했다. 유저의 요청에 따라 새벽 출발 시간을 해 뜨기 전으로 고정했으며, 라이크는 이를 망토와 검 장비 점검으로 이행 준비를 마쳤다. 다음 날 새벽, 마을 북문에서 두 사람은 안개 낀 동쪽 고개로 향할 길을 함께 시작한다.",
+      "chars": 167,
+      "productionNarrativeOk": true,
+      "productionNarrativeReason": null,
+      "productionGroundedOk": true,
+      "lunaRecordedSummary": "북쪽 숲길이 막혀 라이크가 동쪽 고개로 가기로 하고, 둘은 새벽에 마을 북문에서 만나기로 약속함. 다음 날 해 뜨기 전 북문에 도착한 렌은 이미 기다리던 라이크와 합류했고, 라이크는 렌이 늦지 않았다고 말함. 문이 열리자 라이크가 동쪽 길을 확인한 뒤 렌을 기다렸고, 두 사람은 나란히 출발함.",
+      "lunaRecordedChars": 164,
+      "lunaRecordedUsd": 0.000227
+    },
+    {
+      "windowId": "N10_promise_real",
+      "kind": "normal",
+      "spec": "라이크가 '내일 새벽에 마을 북문에서 기다리겠다.'고 약속하고 렌이 받아들인다. 이후 다음 날 새벽 렌이 도착하니 라이크가 이미 기다리고 있다.",
+      "arm": "sd_summarize_production_prompt",
+      "rep": 2,
+      "status": 200,
+      "ms": 970.3,
+      "promptTokens": 2222,
+      "completionTokens": 158,
+      "costUsd": 0.00008888,
+      "summary": "라이크는 여관에서 북쪽 숲길 차단 사실을 확인하고 동쪽 고개 경로를 최종 확정했다. 유저의 제안에 따라 새벽 출발 시간을 해 뜨기 전으로 고정했으며, 라이크는 이를 묵인하는 태도로 일관했다. 이후 라이크는 망토를 단단히 여미고 검을 챙기는 등 출발 준비를 완료했다. 마을 북문에서 두 사람은 안개가 자욱한 새벽길을 함께 걸어 동쪽 고개로 향할 준비를 마쳤다.",
+      "chars": 200,
+      "productionNarrativeOk": true,
+      "productionNarrativeReason": null,
+      "productionGroundedOk": false,
+      "lunaRecordedSummary": "북쪽 숲길이 막혀 라이크가 동쪽 고개로 가기로 하고, 둘은 새벽에 마을 북문에서 만나기로 약속함. 다음 날 해 뜨기 전 북문에 도착한 렌은 이미 기다리던 라이크와 합류했고, 라이크는 렌이 늦지 않았다고 말함. 문이 열리자 라이크가 동쪽 길을 확인한 뒤 렌을 기다렸고, 두 사람은 나란히 출발함.",
+      "lunaRecordedChars": 164,
+      "lunaRecordedUsd": 0.000227
+    },
+    {
+      "windowId": "N10_promise_real",
+      "kind": "normal",
+      "spec": "라이크가 '내일 새벽에 마을 북문에서 기다리겠다.'고 약속하고 렌이 받아들인다. 이후 다음 날 새벽 렌이 도착하니 라이크가 이미 기다리고 있다.",
+      "arm": "sd_summarize_bare",
+      "rep": 1,
+      "status": 200,
+      "ms": 3978,
+      "promptTokens": 975,
+      "completionTokens": 8,
+      "costUsd": 0.000039,
+      "summary": "동쪽 고개로 이동",
+      "chars": 9,
+      "productionNarrativeOk": false,
+      "productionNarrativeReason": "SUMMARY_INVALID",
+      "productionGroundedOk": true,
+      "lunaRecordedSummary": "북쪽 숲길이 막혀 라이크가 동쪽 고개로 가기로 하고, 둘은 새벽에 마을 북문에서 만나기로 약속함. 다음 날 해 뜨기 전 북문에 도착한 렌은 이미 기다리던 라이크와 합류했고, 라이크는 렌이 늦지 않았다고 말함. 문이 열리자 라이크가 동쪽 길을 확인한 뒤 렌을 기다렸고, 두 사람은 나란히 출발함.",
+      "lunaRecordedChars": 164,
+      "lunaRecordedUsd": 0.000227
+    }
+  ],
+  "tapSummary": {
+    "aiCalls": 4,
+    "openrouterReportedCostUsd": 0.00026608000000000003,
+    "totalKrw": 0.45233600000000007
+  }
+}
