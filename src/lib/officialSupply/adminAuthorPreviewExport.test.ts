@@ -9,6 +9,8 @@ import {
   readAdminAuthorServerFailure,
   type AdminAuthorPreviewExport,
 } from "@/lib/officialSupply/adminAuthorPreviewExport";
+import { adminAuthorPreviewFailureFromGateErrorForTests } from "@/lib/officialSupply/adminAuthorDraft";
+import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 
 const preview: AdminAuthorPreviewExport = {
   previewId: "abc",
@@ -108,6 +110,33 @@ describe("admin author preview export", () => {
     assert.equal(JSON.stringify(parsed).includes("진짜 정체는 적국의 공주다"), false);
     assert.equal("lorebook" in parsed, false);
     assert.equal((parsed.issues as { message: string }[])[0]?.message.includes("lorebook[0]"), true);
+  });
+
+  it("exports Voice QA gate failures without a false world_bible_qa stage", () => {
+    const gate = adminAuthorPreviewFailureFromGateErrorForTests(
+      new OfficialSupplyGateError("author_voice_rejected", "character_bible_voice: tagline", {
+        ok: false,
+        errors: [{ code: "voice_structure_tagline", message: "tagline required" }],
+      })
+    );
+    assert.equal(gate.ok, false);
+    if (gate.ok) return;
+    const parsed = JSON.parse(
+      adminAuthorPreviewExportJson({
+        ...preview,
+        previewId: "",
+        qaOk: false,
+        textLock: "",
+        manuscript: { name: "", tagline: "", description: "", greeting: "", genres: [], tags: [] },
+        httpStatus: 422,
+        error: gate.error,
+        issues: gate.issues,
+        systemPrompt: "hidden",
+      } as AdminAuthorPreviewExport)
+    ) as Record<string, unknown>;
+    assert.equal("stage" in parsed, false);
+    assert.equal(parsed.error, gate.error);
+    assert.equal(JSON.stringify(parsed).includes("hidden"), false);
   });
 
   it("reads only server-provided 422 fields", () => {

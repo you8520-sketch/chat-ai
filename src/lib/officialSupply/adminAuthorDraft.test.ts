@@ -11,6 +11,7 @@ import { getDb } from "@/lib/db";
 import { resolveOfficialCharacterEditorAccess } from "@/lib/officialAdminAccess";
 import { composeExampleDialog, parseSpeechCreatorFromBody } from "@/lib/speechCreatorFields";
 import {
+  adminAuthorPreviewFailureFromGateErrorForTests,
   assessAdminAuthorManuscript,
   clearAdminAuthorPreviewsForTests,
   comparisonCastForAdminGenre,
@@ -46,6 +47,7 @@ import {
   type OfficialBatchMarketPolicy,
 } from "@/lib/officialSupply/marketFit";
 import type { ResearchSnapshot } from "@/lib/officialSupply/research";
+import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import type { OfficialCharacterDraft } from "@/lib/officialSupply/types";
 import { assertIsolatedTestDatabaseActive, installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/lib/test/isolatedTestDatabase";
 
@@ -1097,5 +1099,96 @@ describe("G5-3H cast contrast", () => {
       filtered.errors.some((error) => error.includes("cast_royal_density")),
       false
     );
+  });
+});
+
+describe("G5-3M-1 admin preview failure stage mapping", () => {
+  const atlasQa = {
+    ok: false as const,
+    errors: [{ code: "world_lorebook_hidden", message: "lorebook[0] contains hidden-knowledge wording" }],
+  };
+
+  it("keeps Atlas early QA at world_atlas_qa", () => {
+    const error = new OfficialSupplyGateError("author_world_rejected", "world bible failed QA", atlasQa);
+    error.stage = "world_atlas_qa";
+    const preview = adminAuthorPreviewFailureFromGateErrorForTests(error);
+    assert.equal(preview.ok, false);
+    if (preview.ok) return;
+    assert.equal(preview.stage, "world_atlas_qa");
+    assert.equal(preview.issues?.[0]?.code, "world_lorebook_hidden");
+  });
+
+  it("labels final World QA merge failures as world_bible_qa", () => {
+    const error = new OfficialSupplyGateError("author_world_rejected", "world bible failed QA", atlasQa);
+    const preview = adminAuthorPreviewFailureFromGateErrorForTests(error);
+    assert.equal(preview.ok, false);
+    if (preview.ok) return;
+    assert.equal(preview.stage, "world_bible_qa");
+  });
+
+  it("does not label Voice QA failures as world_bible_qa", () => {
+    const voiceQa = {
+      ok: false as const,
+      errors: [{ code: "voice_structure_tagline", message: "tagline required" }],
+    };
+    const error = new OfficialSupplyGateError("author_voice_rejected", "character_bible_voice: tagline", voiceQa);
+    const preview = adminAuthorPreviewFailureFromGateErrorForTests(error);
+    assert.equal(preview.ok, false);
+    if (preview.ok) return;
+    assert.equal("stage" in preview, false);
+    assert.equal(preview.issues?.[0]?.code, "voice_structure_tagline");
+  });
+
+  it("does not label public manuscript or relation QA as world_bible_qa", () => {
+    const pubQa = {
+      ok: false as const,
+      errors: [{ code: "public_description_user_binding", message: "binding" }],
+    };
+    const pub = new OfficialSupplyGateError(
+      "author_public_manuscript_invalid",
+      "author_public_manuscript_invalid: binding",
+      pubQa,
+      { greeting: "hi", description: "bind", comment: "c" }
+    );
+    const pubPreview = adminAuthorPreviewFailureFromGateErrorForTests(pub);
+    assert.equal(pubPreview.ok, false);
+    if (pubPreview.ok) return;
+    assert.equal("stage" in pubPreview, false);
+    assert.ok(pubPreview.rejectedManuscript);
+
+    const relQa = {
+      ok: false as const,
+      errors: [{ code: "user_relation_premise", message: "bad relation" }],
+    };
+    const rel = new OfficialSupplyGateError("author_user_relation_mismatch", "premise mismatch", relQa);
+    const relPreview = adminAuthorPreviewFailureFromGateErrorForTests(rel);
+    assert.equal(relPreview.ok, false);
+    if (relPreview.ok) return;
+    assert.equal("stage" in relPreview, false);
+  });
+
+  it("omits a false top-level stage when only worldProjection is known", () => {
+    const error = new OfficialSupplyGateError(
+      "official_world_projection_user_binding",
+      "official shared world projection addresses or binds the user; entry guidance belongs to the character situation",
+      {
+        ok: false,
+        errors: [{ code: "official_world_projection_user_binding", message: "world_projection situation.upcomingChange: 당신은" }],
+      },
+      undefined,
+      {
+        stage: "world_projection",
+        code: "official_world_projection_user_binding",
+        hits: [{ field: "situation.upcomingChange", excerpt: "당신은" }],
+      }
+    );
+    const preview = adminAuthorPreviewFailureFromGateErrorForTests(error);
+    assert.equal(preview.ok, false);
+    if (preview.ok) return;
+    assert.equal("stage" in preview, false);
+    assert.equal(preview.worldProjection?.stage, "world_projection");
+    const wire = JSON.stringify(preview);
+    assert.equal(wire.includes("authorOnly"), false);
+    assert.equal(wire.includes("lorebook"), false);
   });
 });
