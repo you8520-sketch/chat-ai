@@ -7096,19 +7096,25 @@ export async function POST(req: Request) {
             // canonical scheduleMemoryUpdate below consumes the merged delta
             // with the same generation/source identity.
             if (isMemoryFeatureEnabled()) {
-              widgetSharedRelationshipDelta = await augmentRelationshipDeltaWithScene({
-                memoryEnabled: true,
-                baseUsable: widgetSharedRelationshipUsable,
-                baseDelta: widgetSharedRelationshipDelta,
-                assistantProse: savedText,
-                userMessage: messageText,
-                charName: ch.name,
-                personaName: personaDisplayName,
-                activePromises: activePromiseTexts,
-                chatId: chatRef.id,
-                assistantMessageId: aiMessageId,
-                generationScope: postTurnGenerationScope,
-              });
+              try {
+                widgetSharedRelationshipDelta = await augmentRelationshipDeltaWithScene({
+                  memoryEnabled: true,
+                  baseUsable: widgetSharedRelationshipUsable,
+                  baseDelta: widgetSharedRelationshipDelta,
+                  assistantProse: savedText,
+                  userMessage: messageText,
+                  charName: ch.name,
+                  personaName: personaDisplayName,
+                  activePromises: activePromiseTexts,
+                  chatId: chatRef.id,
+                  assistantMessageId: aiMessageId,
+                  generationScope: postTurnGenerationScope,
+                });
+              } catch (e) {
+                // The scene re-check is additive. A locator/prompt failure must
+                // never block the canonical first-pass memory write below.
+                console.warn("[relationship-scene] fallback skipped", (e as Error).message);
+              }
             }
             await scheduleMemoryUpdate({
               chatId: chatRef.id,
