@@ -50,9 +50,10 @@ async function openActionExamples(
     await actionTab.click({ force: true });
   }
   await page.locator("[data-trpg-next-action]").waitFor({ state: "visible" });
-  await page.locator("[data-trpg-command-dock-panel]").waitFor({ state: "visible" });
-  // Expanding the collapsed dock changes occlusion; live-follow may move once.
-  // Callers measure example-reveal scroll against a settled window.
+}
+
+/** Let dock-expand follow finish so later window-scroll asserts measure example reveal only. */
+async function settleWindowScrollAfterDockExpand(page: Page) {
   await page.waitForFunction(() => {
     const w = window as Window & { __trpgDockScrollY?: number; __trpgDockScrollStable?: number };
     const y = window.scrollY;
@@ -115,6 +116,7 @@ test.describe("TRPG action example panel visibility", () => {
   test("cached examples become visible inside the command-dock panel", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await openActionExamples(page, "cached");
+    await settleWindowScrollAfterDockExpand(page);
     const windowBefore = await page.evaluate(() => window.scrollY);
     await page.locator("[data-trpg-reply-stance]").first().waitFor({ state: "attached" });
     await expect.poll(async () => (await measureExamples(page)).firstVisibleInPanel).toBe(true);
