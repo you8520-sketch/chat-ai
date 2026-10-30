@@ -6,6 +6,7 @@ import type { StatusWidget, StatusWidgetValues } from "@/lib/statusWidget/types"
 import type { SuggestedReplyItem } from "@/lib/suggestedReplies/types";
 import type { SuggestedRepliesDecisionQualityObservation } from "@/lib/suggestedReplies/decisionQualityObservatory";
 import type { RelationshipMetaDelta } from "@/lib/chatMemory";
+import type { ArtifactRolesParse } from "./artifactRoles";
 
 export const POST_TURN_SHARED_INITIAL_REQUEST_KIND = "background-post-turn-shared-initial";
 
@@ -60,6 +61,8 @@ export type PostTurnSharedInitialInput = {
   includeRelationship: boolean;
   /** Top-level episodic section — durable memory facts (memory layer persists). */
   includeEpisodic: boolean;
+  /** Optional historical artifact role chain (created/presented/took/wore). */
+  includeArtifactRoles?: boolean;
   /** Regen: rejected assistant draft for relationship comparison (relationship section only). */
   relationshipRegenContext?: { previousAssistantMessage: string } | null;
   /**
@@ -110,6 +113,8 @@ export type PostTurnSharedInitialParseResult = {
   relationship: RelationshipSectionParse;
   /** Parsed independently — section failure must not discard other consumers. */
   episodic: EpisodicSectionParse;
+  /** Optional artifact role chain; invalid entries are skipped per entry. */
+  artifactRoles: ArtifactRolesParse;
 };
 
 export type PostTurnSharedInitialRunResult = {

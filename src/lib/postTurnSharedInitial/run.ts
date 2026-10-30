@@ -131,6 +131,8 @@ export async function runPostTurnRelationshipOnlyInitial(
     includeRelationship?: boolean;
     /** Top-level episodic section (memory layer persists). */
     includeEpisodic?: boolean;
+    /** Optional historical artifact role chain. */
+    includeArtifactRoles?: boolean;
     /** Conditional relationship scene re-check (window is the assistant prose). */
     relationshipSceneWindow?: boolean;
     personaDescription?: string | null;
@@ -156,6 +158,7 @@ export async function runPostTurnRelationshipOnlyInitial(
       includeSuggestions: input.includeSuggestions === true,
       includeRelationship: input.includeRelationship !== false,
       includeEpisodic: input.includeEpisodic === true,
+      includeArtifactRoles: input.includeArtifactRoles === true,
       relationshipSceneWindow: input.relationshipSceneWindow === true,
       relationshipRegenContext: input.previousAssistantMessage?.trim()
         ? { previousAssistantMessage: input.previousAssistantMessage }

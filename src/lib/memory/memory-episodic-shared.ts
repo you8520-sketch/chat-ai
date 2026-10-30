@@ -53,6 +53,8 @@ export type EpisodicSectionParse = {
   facts: EpisodicExtractedFact[];
   /** Model-returned `extracted_facts` length before validation; set only when the array was present. */
   rawFactCount?: number;
+  /** Artifact-role merge hint: allow this many facts for the turn (default 3). */
+  factLimit?: number;
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -269,6 +271,8 @@ export type ReconcileSharedEpisodicFactsInput = {
   generationScope?: AssistantGenerationScope;
   /** Canonical per-turn content route of the source turn; stamped into fact metadata. */
   contentRoute?: Route;
+  /** Override the per-turn fact cap (artifact-role chain uses 5; default 3). */
+  maxFacts?: number;
 };
 
 /**
@@ -385,6 +389,7 @@ export function reconcileSharedEpisodicFactsForTurn(
     boundarySnapshot: boundary,
     facts,
     isRegeneration,
+    maxFacts: input.maxFacts ?? input.episodic.factLimit,
     userPersona: input.userPersona,
     evidenceBinding: {
       userMessageId: identity.sourceUserMessageId,
