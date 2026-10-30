@@ -15,7 +15,7 @@ import { AppSectionCard } from "@/components/AppPageShell";
 import type { TrpgGoalClaimDecision } from "@/lib/trpg/goalConfirm";
 import { goalClaimItems } from "./goalClaimView";
 import { TrpgGoalClaimCard } from "./TrpgGoalClaimCard";
-import { TrpgGoalHud, pinnedBarStyle, useFixedBottomEdgePx } from "./TrpgGoalHud";
+import { TrpgGoalHud } from "./TrpgGoalHud";
 import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
 import { actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
 import {
@@ -325,7 +325,7 @@ function openSceneImage(opts: {
 }
 
 const GOAL_HUD_STICKY_CLASS =
-  "sticky mt-3 top-[calc(var(--site-header-height,4rem)+5.5rem)] min-[576px]:top-[calc(var(--site-header-height,44px)+0.5rem)]";
+  "sticky mt-3 top-[calc(var(--site-header-height,4rem)+3.75rem)] min-[576px]:top-[calc(var(--site-header-height,44px)+0.5rem)]";
 
 export default function TrpgCampaignRoom({
   snap,
@@ -423,8 +423,6 @@ export default function TrpgCampaignRoom({
   );
   const [toast, setToast] = useState("");
   const quoteSelectContainerRef = useRef<HTMLDivElement>(null);
-  const mobileRailRef = useRef<HTMLElement>(null);
-  const mobileRailBottomPx = useFixedBottomEdgePx(mobileRailRef);
   const bottomRef = useRef<HTMLDivElement>(null);
   const narrationStartRef = useRef<HTMLDivElement | null>(null);
   const narrationEndRef = useRef<HTMLSpanElement | null>(null);
@@ -2016,7 +2014,7 @@ export default function TrpgCampaignRoom({
 
   return (
     <div
-      className="flex min-h-[calc(100dvh-6rem)] min-w-0 flex-1 items-stretch gap-0 pt-[5.25rem] min-[576px]:pt-0"
+      className="flex min-h-[calc(100dvh-6rem)] min-w-0 flex-1 items-stretch gap-0"
       data-trpg-reveal-gate-held={holdCurrentRound ? "true" : "false"}
       data-trpg-reveal-gate-release-reason={revealGateReleaseReason ?? undefined}
       data-trpg-dice-presentation={presentation.state}
@@ -2057,8 +2055,7 @@ export default function TrpgCampaignRoom({
       data-trpg-declaration-growth-observer-attached={declarationGrowthObserverAttached ? "true" : "false"}
     >
       <aside
-        ref={mobileRailRef}
-        className="fixed left-3 right-3 top-[calc(var(--site-header-height,4rem)+0.5rem)] z-[60] rounded-2xl border border-white/10 bg-[#101010]/95 p-2 shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur min-[576px]:hidden"
+        className="fixed right-3 top-[calc(var(--site-header-height,4rem)+0.5rem)] z-[60] min-[576px]:hidden"
         aria-label="캠페인 도구"
       >
         <TrpgCampaignRail {...railProps} compact />
@@ -2067,7 +2064,7 @@ export default function TrpgCampaignRoom({
         className="flex min-w-0 flex-1 flex-col"
         style={chatReadabilityRootStyle(displayPrefs)}
       >
-        <header className="flex items-start justify-between gap-3 border-b border-white/5 pb-3">
+        <header className="flex items-start justify-between gap-3 border-b border-white/5 pb-3 pr-14 min-[576px]:pr-0">
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-medium uppercase tracking-wide text-violet-300/80">TRPG 캠페인</p>
             {snap.viewerIsHost ? (
@@ -2106,7 +2103,6 @@ export default function TrpgCampaignRoom({
             goals={snap.goals}
             hold={holdCurrentRound || liveFollowTailSpacerActive}
             stickyClassName={GOAL_HUD_STICKY_CLASS}
-            stickyStyle={pinnedBarStyle(mobileRailBottomPx)}
           />
         ) : null}
 
@@ -2423,6 +2419,9 @@ export default function TrpgCampaignRoom({
           onSendParty={onSendParty}
           onSetInventoryEquipped={onSetInventoryEquipped}
           onOcclusionChange={onDockOcclusion}
+          liveStatus={processStatus}
+          liveStatusStage={processStage}
+          liveStatusElapsedSec={processElapsedSec}
         />
       </div>
 
@@ -2455,32 +2454,19 @@ export default function TrpgCampaignRoom({
         onPlaybackStateChange={handleOverlayPlaybackChange}
       />
 
-      {processStatus || (!followLatest && unseenLatest) ? (
+      {!followLatest && unseenLatest ? (
         <div
-          className="pointer-events-none fixed inset-x-0 z-[64] flex flex-col items-center gap-2 px-3"
+          className="pointer-events-none fixed inset-x-0 z-[64] flex justify-center px-3"
           style={{ bottom: trpgCommandDockOverlayBottom(dockOcclusion) }}
         >
-          {processStatus ? (
-            <p
-              className="pointer-events-none max-w-[min(24rem,calc(100vw-1.5rem))] rounded-full border border-white/15 bg-[#161616]/95 px-3 py-1.5 text-xs font-medium text-zinc-100 shadow-lg"
-              data-trpg-live-turn-status={processStage}
-              data-trpg-live-turn-elapsed={processElapsedSec}
-              role="status"
-              aria-live="polite"
-            >
-              {processStatus}
-            </p>
-          ) : null}
-          {!followLatest && unseenLatest ? (
-            <button
-              type="button"
-              onClick={() => scrollToLatest("smooth")}
-              className="pointer-events-auto rounded-full border border-white/15 bg-[#161616]/95 px-4 py-2 text-xs font-semibold text-zinc-100 shadow-lg"
-              data-trpg-jump-latest
-            >
-              최신으로 ↓
-            </button>
-          ) : null}
+          <button
+            type="button"
+            onClick={() => scrollToLatest("smooth")}
+            className="pointer-events-auto rounded-full border border-white/15 bg-[#161616]/95 px-4 py-2 text-xs font-semibold text-zinc-100 shadow-lg"
+            data-trpg-jump-latest
+          >
+            최신으로 ↓
+          </button>
         </div>
       ) : null}
 

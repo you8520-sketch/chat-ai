@@ -212,9 +212,11 @@ describe("TRPG live turn process status", () => {
       true
     );
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    const dock = readFileSync("src/app/trpg/TrpgCommandDock.tsx", "utf8");
     const client = readFileSync("src/app/trpg/[id]/TrpgRoomClient.tsx", "utf8");
     assert.match(room, /formatLiveTurnProcessStatus/);
-    assert.match(room, /data-trpg-live-turn-status/);
+    assert.match(room, /liveStatus=\{processStatus\}/);
+    assert.match(dock, /data-trpg-live-turn-status/);
     assert.match(room, /cinematicAiActionActive/);
     assert.doesNotMatch(room, /DeepSeek/);
     assert.match(client, /const POLL_MS = TRPG_SNAPSHOT_POLL_MS/);
