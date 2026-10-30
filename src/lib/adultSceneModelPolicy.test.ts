@@ -7,22 +7,23 @@ import {
   shouldFallbackToGlm,
   type AdultSceneModelPolicyConfig,
 } from "./adultSceneModelPolicy.ts";
-import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "./chatModels.ts";
+import { CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL } from "./chatModels.ts";
 
 const glmEnabled: AdultSceneModelPolicyConfig = {
   glmHardFailureFallbackEnabled: true,
   adminOnly: false,
 };
 
-test("defaults keep DeepSeek 0813 adult primary and no Aion policy", () => {
+test("defaults keep DeepSeek 1017 adult primary and no Aion policy", () => {
   const config = resolveAdultSceneModelPolicyConfig({});
   assert.equal(config.glmHardFailureFallbackEnabled, true);
   assert.equal(config.adminOnly, false);
   assert.equal(
     ADULT_SCENE_MODEL_POLICY.primaryModelId,
-    CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+    CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL
   );
-  assert.equal(ADULT_SCENE_MODEL_POLICY.primaryModelId, "deepseek-v4-pro-0813");
+  assert.equal(ADULT_SCENE_MODEL_POLICY.primaryModelId, "deepseek-v4.1-flash-1017");
+  assert.notEqual(ADULT_SCENE_MODEL_POLICY.primaryModelId, "deepseek-v4.1-flash");
   assert.equal(ADULT_SCENE_MODEL_POLICY.hardFailureFallbackModelId, "glm-5.2");
   assert.equal(ADULT_SCENE_MODEL_POLICY.maximumFallbackAttempts, 1);
   assert.equal(
