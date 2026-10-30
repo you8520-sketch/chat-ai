@@ -139,6 +139,18 @@ const NEUTRAL_CAST_ATLAS_STAGE = "장소에서 벌어지는 사건은 이 의도
 const NEUTRAL_CAST_PORTFOLIO_STAGE =
   "목표·유저와의 관계·첫 사건·첫 행동·유머 방식은 이 의도에서 나온다. 시장 신호와 의도가 다르면 신호의 인물 관계를 이 슬롯의 정체로 쓰지 않는다.";
 
+/**
+ * Genre-neutral World Core only. Rofan/absent plans stay byte-identical.
+ * One-character generate has no sibling to compare, so the model must pick a
+ * person-experience before locking situation.biggestEvent to a market signal.
+ */
+const NEUTRAL_EXPERIENCE_FIRST_WORLD_LINES = [
+  "",
+  "기획 순서(인물 경험 우선, 출력 필드가 아니다): 목표·욕망 / 성격·모순 / 사회적 위치·직업 / 사건의 원인과 갈등 / 관계 역학 / 능동적 행동 / 유머·말투 / 공간·첫 장면을 한 명의 서로 다른 경험으로 먼저 고른다.",
+  "시장 신호와 PRIMARY 한 줄은 선호 참고다. 원형·훅·인물 관계를 세계의 줄거리로 복제하지 않는다. 캐스트 의도가 대상·연애 여부만 정한 경우 그 문장을 직업·사건의 정본으로 쓰지 않는다.",
+  "situation·factions·premise는 그 경험이 실제로 벌어지는 무대만 쓴다. 같은 장르라도 직업만 바꿔 끼운 동일 사건이면 안 된다. 낯설게 만들려고 기괴하게 쓰지 않는다.",
+] as const;
+
 /** Genre-neutral planning only. Rofan and absent plans stay byte-identical. */
 function neutralCastIntentLines(plan: OfficialAuthoringPlan, castIntent: string | undefined, stage: string): string[] {
   if (plan.profile.key !== "genre_neutral") return [];
@@ -180,6 +192,7 @@ export function buildWorldCoreUser(input: WorldBibleInput): string {
     "시장 신호(트로프·훅 구조·장치 수준만 참고. 경쟁작 문장·이름·고유 설정 복제 금지):",
     ...input.market.signalLines,
     ...neutralCastIntentLines(plan, input.castIntent, NEUTRAL_CAST_WORLD_STAGE),
+    ...(plan.profile.key === "genre_neutral" ? NEUTRAL_EXPERIENCE_FIRST_WORLD_LINES : []),
     `세계관은 깊게 쓰되, 캐릭터 카드 첫 노출에서는 대상 시장 독자가 바로 아는 역할 어휘${plan.profile.worldRoleVocabulary}로`,
     "설명될 수 있어야 한다. 고유 신조어는 내부 깊이를 위해 쓴다.",
     ...formatAuthoringDirection(plan, ["tone", "humor"]),
@@ -248,18 +261,31 @@ export type WorldPortfolioInput = {
 };
 
 /** Market-fit authoring rules shared by the full portfolio call and slot replacement. */
-function marketFitRuleLines(m: WorldMarketInput): string[] {
+function marketFitRuleLines(m: WorldMarketInput, plan: OfficialAuthoringPlan = ROFAN_PARITY_PLAN): string[] {
   const mix = (Object.entries(m.marketRoleMix) as [MarketRole, { min: number; max: number }][])
     .map(([role, band]) => `${role} ${band.min}~${band.max}`)
     .join(", ");
+  const signalLead =
+    plan.profile.key === "genre_neutral"
+      ? "시장 신호(참고. 트로프·훅 구조만 본다. 한 신호의 직업·사건·관계·원형을 이 슬롯 전체에 맞추지 않는다):"
+      : "시장 신호(PRIMARY 우선, 트로프·훅 구조만 참고):";
+  const planningOrder =
+    plan.profile.key === "genre_neutral"
+      ? [
+          "상품 기획 순서(인물 경험 우선): ① 이 인물의 목표와 욕망 ② 성격·모순 ③ 사회적 위치와 직업 ④ 사건의 원인과 갈등 ⑤ 관계 역학 ⑥ 능동적 행동 ⑦ 유머·말투 ⑧ 공간·첫 장면.",
+          "시장 신호는 선호 참고다. 각 브리프는 위 경험을 먼저 정한 뒤 marketFit에 그 경험을 기록한다. 나머지 필드는 그 경험에 맞춘다. 한 신호의 원형·훅을 복제하지 않는다. marketFit 규칙:",
+        ]
+      : [
+          "상품 기획 순서(관계 우선): ① 캐릭터가 유저에게 누구인가 ② 둘 사이에 지금 무슨 문제가 있는가",
+          "③ 유저가 왜 대화해야 하는가 ④ 기대할 감정 경험 ⑤ 그 뒤에 세계관 장치.",
+          "각 브리프는 먼저 marketFit을 채운 뒤 나머지 필드를 marketFit에 맞춰 쓴다. marketFit 규칙:",
+        ];
   return [
     `대상 시장: ${m.targetLocale} (${m.marketPriority})`,
-    "시장 신호(PRIMARY 우선, 트로프·훅 구조만 참고):",
+    signalLead,
     ...m.signalLines,
     "",
-    "상품 기획 순서(관계 우선): ① 캐릭터가 유저에게 누구인가 ② 둘 사이에 지금 무슨 문제가 있는가",
-    "③ 유저가 왜 대화해야 하는가 ④ 기대할 감정 경험 ⑤ 그 뒤에 세계관 장치.",
-    "각 브리프는 먼저 marketFit을 채운 뒤 나머지 필드를 marketFit에 맞춰 쓴다. marketFit 규칙:",
+    ...planningOrder,
     `- targetLocale은 "${m.targetLocale}". provenMarketSignal은 위 목록의 [signalId]만 1~3개 인용.`,
     "- relationshipTrope.primary 1개 + secondary 0~2개(핵심 트로프는 1~3개로 선명하게, 나머지는 부가 맛).",
     `- 같은 primary 트로프는 최대 ${m.maxPrimaryTropeRepeat}명. 비슷한 트로프를 공유해도 유저와의 실제 역학은 달라야 한다.`,
@@ -290,7 +316,7 @@ export function buildWorldPortfolioUser(input: WorldPortfolioInput): string {
     ...(plan.profile.key === "genre_neutral" && input.castIntent?.trim() ? [NEUTRAL_CAST_PORTFOLIO_STAGE] : []),
     `슬롯별 성별 고정표(절대 변경 금지, 이름도 성별에 맞게): ${input.slotGenders.map((g, i) => `${i + 1}번 ${g}`).join(", ")}`,
     "",
-    ...marketFitRuleLines(m),
+    ...marketFitRuleLines(m, plan),
     ...formatAuthoringDirection(plan, ["tone", "humor", "wordplay", "relation"]),
     "",
     "이번 호출(portfolio) 출력 필드: portfolio 배열. 각 브리프는",
@@ -349,7 +375,7 @@ export function buildPortfolioReplacementUser(input: PortfolioReplacementInput):
       (s) => `- ${s.slot}번: gender=${s.gender}, adultCandidate=${s.adultCandidate} — ${s.direction}`
     ),
     "",
-    ...marketFitRuleLines(m),
+    ...marketFitRuleLines(m, plan),
     ...formatAuthoringDirection(plan, ["tone", "humor", "wordplay", "relation"]),
     "",
     "출력 필드: portfolio 배열(위 슬롯 수만큼, slot 번호 그대로). 각 브리프는",

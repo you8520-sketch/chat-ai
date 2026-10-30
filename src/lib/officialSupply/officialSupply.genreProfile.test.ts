@@ -28,6 +28,8 @@ import {
   OFFICIAL_ROFAN_GENRE,
   ROFAN_PARITY_PLAN,
   recommendOfficialAuthoringDirection,
+  recommendOfficialCastIntent,
+  resolveAdminAuthoringDirection,
   resolveOfficialAuthoringPlan,
   resolveOfficialGenreProfile,
   type OfficialAuthoringDirection,
@@ -545,6 +547,109 @@ describe("cast fit gate (shared by pilot replacement and the genre runner)", () 
     const qa = evaluateBriefCastFit({
       fresh: [choi],
       kept: [...kept, park],
+      snapshot,
+      policy: POLICY,
+      namingProfile: "korean_modern",
+    });
+    assert.deepEqual(qa.errors, []);
+  });
+});
+
+describe("genre-neutral planning order (G5-3K)", () => {
+  function assembleAdminModern() {
+    const direction = resolveAdminAuthoringDirection({
+      genre: "현대/일상",
+      tone: "auto",
+      humor: "auto",
+      pacing: "auto",
+      nameWordplay: "auto",
+    });
+    const plan = resolveOfficialAuthoringPlan(direction);
+    const world: WorldBibleInput = {
+      genre: "현대/일상",
+      worldKey: "admin_private_v1",
+      styleKey: "admin_draft_v1",
+      market: marketFor(plan),
+      slots: 1,
+      adultCandidates: 0,
+      genderMix: "여성 1명",
+      slotGenders: ["female"],
+      castIntent: recommendOfficialCastIntent("현대/일상"),
+      authoring: plan,
+    };
+    return {
+      plan,
+      worldSystem: buildWorldBibleSystem(plan),
+      worldCore: buildWorldCoreUser(world),
+      worldPortfolio: buildWorldPortfolioUser({
+        worldName: "W",
+        centralPremise: "C",
+        factionNames: ["이웃"],
+        locationNames: ["골목"],
+        slots: 1,
+        adultCandidates: 0,
+        genderMix: "여성 1명",
+        slotGenders: ["female"],
+        market: world.market,
+        castIntent: world.castIntent,
+        authoring: plan,
+      }),
+    };
+  }
+
+  it("empty modern cast intent injects the audience sentence, not a plot", () => {
+    assert.equal(
+      recommendOfficialCastIntent("현대/일상"),
+      "전체 이용자 대상 현대/일상 캐릭터 1명. 연애로 시작하지 않고, 이 장르에서 자연스러운 일과 관계로 첫 장면을 만든다."
+    );
+  });
+
+  it("admin auto modern World Core is a pure function of genre+signals+intent+plan", () => {
+    const a = assembleAdminModern();
+    const b = assembleAdminModern();
+    assert.equal(createHash("sha256").update(a.worldCore).digest("hex"), createHash("sha256").update(b.worldCore).digest("hex"));
+    assert.match(a.worldCore, /\[global-08\].*angst family drama/);
+    assert.match(a.worldCore, /캐스트 의도: 전체 이용자 대상 현대\/일상 캐릭터 1명/);
+  });
+
+  it("modern World Core picks a person-experience before locking situation; rofan bytes stay the fill-first path", () => {
+    const modern = assembleAdminModern();
+    assert.match(modern.worldCore, /기획 순서\(인물 경험 우선/);
+    assert.match(modern.worldCore, /PRIMARY 한 줄은 선호 참고다/);
+    assert.match(modern.worldCore, /직업·사건의 정본으로 쓰지 않는다/);
+    assert.ok(!modern.worldCore.includes("누수 금지"));
+    assert.ok(!modern.worldCore.includes("테이프 금지"));
+    assert.ok(!modern.worldCore.includes("서윤 금지"));
+
+    const rofan = compose(undefined);
+    assert.ok(!rofan.worldCore.includes("기획 순서(인물 경험 우선"));
+    assert.match(rofan.worldPortfolio, /상품 기획 순서\(관계 우선\)/);
+    assert.match(rofan.worldPortfolio, /먼저 marketFit을 채운 뒤 나머지 필드를 marketFit에 맞춰 쓴다/);
+    assert.equal(createHash("sha256").update(rofan.worldCore).digest("hex"), G5_1D_ROFAN_WORLD_CORE_SHA256);
+  });
+
+  it("modern Portfolio records the chosen experience in marketFit instead of cloning PRIMARY", () => {
+    const modern = assembleAdminModern();
+    assert.match(modern.worldPortfolio, /상품 기획 순서\(인물 경험 우선\)/);
+    assert.match(modern.worldPortfolio, /한 신호의 원형·훅을 복제하지 않는다/);
+    assert.match(modern.worldPortfolio, /한 신호의 직업·사건·관계·원형을 이 슬롯 전체에 맞추지 않는다/);
+    assert.ok(!modern.worldPortfolio.includes("PRIMARY 우선"));
+    assert.ok(!modern.worldPortfolio.includes("먼저 marketFit을 채운 뒤 나머지 필드를 marketFit에 맞춰 쓴다"));
+    assert.match(modern.worldPortfolio, /\[global-08\]/);
+    assert.match(modern.worldPortfolio, /provenMarketSignal은 위 목록의 \[signalId\]만 1~3개 인용/);
+    assert.match(modern.worldPortfolio, /캐릭터 슬롯 수: 1/);
+  });
+
+  it("one-character generate still plans a single brief; Jaccard does not invent a sibling", () => {
+    const park = JSON.parse(
+      fs.readFileSync(
+        path.join(process.cwd(), "docs/official-supply/reviews/g5-1-2026-10-28/candidates/g5-modern-comedy-e/brief.json"),
+        "utf8"
+      )
+    ) as PortfolioBriefInput;
+    const qa = evaluateBriefCastFit({
+      fresh: [park],
+      kept: [],
       snapshot,
       policy: POLICY,
       namingProfile: "korean_modern",
