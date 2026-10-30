@@ -95,6 +95,7 @@ import {
   type ExplorationState,
 } from "./explorationMap";
 import type { ExplorationCommand } from "./explorationPublic";
+import { hasIndependentItemAction } from "./actionSemantics";
 import {
   declaredMovementGoals,
   describeMovementGoal,
@@ -598,14 +599,20 @@ export function submitTrpgAction(
     !explicitExploration && mapped ? explorationCommandsFromMovementBody(mapped.map, text, myLocation) : [];
   // A terminal exit is still an explicit exploration command. Let its farewell/flavor prose
   // travel as the method note, but keep the move-plus-other-action refusal for every
-  // non-terminal movement.
+  // non-terminal movement. An independent item receipt/payment/use is never method prose.
   const inferredDepartureOnly = inferredMoves.length > 0 && inferredMoves.every((command) => command.op === "depart");
+  const pricedCommands = explicitExploration ? commands : inferredMoves;
+  const commandsIncludeDepart = pricedCommands.some((command) => command.op === "depart");
+  if (mapped?.version === 2 && commandsIncludeDepart && hasIndependentItemAction(text)) {
+    throw new Error(
+      "퇴장과 별도의 아이템 수령·결제·사용은 한 번에 보내지 않습니다. 퇴장은 탐험 대기열에서, 아이템 행동은 대기열을 비운 뒤 따로 보내세요. 입력은 그대로 두었습니다."
+    );
+  }
   if (mapped?.version === 2 && inferredMoves.length > 0 && !inferredDepartureOnly && omitLiveMovementClauses(text)) {
     throw new Error(
       "탐험 대기열이 비어 있어 이 제출은 일반 행동입니다. 이동과 다른 행동을 한 번에 보내지 않습니다. 이동은 탐험 대기열에 넣고, 구매는 대기열을 비운 뒤 따로 보내세요. 입력은 그대로 두었습니다."
     );
   }
-  const pricedCommands = explicitExploration ? commands : inferredMoves;
   const inferredDepartureMethod =
     inferredDepartureOnly && omitLiveMovementClauses(text) === "" ? "" : text;
   if (pricedCommands.length > 0) {

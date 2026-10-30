@@ -486,6 +486,49 @@ export function legacyFacilityMap(map: ExplorationMap): boolean {
 }
 
 /**
+ * v2 authored places: `role=goal` marks a destination, not necessarily an exterior boundary.
+ * Reuse the place's own canonical key/name/summary to require an authored exit-like boundary.
+ * Bare "문" is intentionally not enough; explicit exit nouns or an exit/entrance/outside/gate
+ * key are. This keeps an interior sanctum/vault/engine-room goal from becoming an exit.
+ */
+const EXIT_BOUNDARY_KEY = /(?:^|[_-])(?:exit|entrance|outside|gate)(?:$|[_-])/i;
+const EXIT_BOUNDARY_TOKENS = new Set([
+  "출구",
+  "출입구",
+  "출입문",
+  "비상구",
+  "탈출구",
+  "대문",
+  "정문",
+  "뒷문",
+  "측문",
+  "현관문",
+  "성문",
+  "국경",
+  "경계",
+  "외부",
+  "바깥",
+  "야외",
+  "마당",
+  "정원",
+  "광장",
+  "부두",
+  "거리",
+  "골목",
+  "산책로",
+  "문간",
+  "문턱",
+  "문가",
+]);
+
+export function isAdventureExitBoundaryRoom(room: ExplorationRoom): boolean {
+  if (room.role !== "goal") return false;
+  if (EXIT_BOUNDARY_KEY.test(room.id)) return true;
+  const tokens = `${room.name ?? room.id} ${room.summary ?? ""}`.split(/[^\p{L}\p{N}]+/u);
+  return tokens.some((token) => EXIT_BOUNDARY_TOKENS.has(token));
+}
+
+/**
  * Movement goals in free text, priced later by the same command owner as a map click.
  * A goal resolves by its head word, then by the whole phrase, then by the longest room name
  * the phrase contains, so multi-word adventure names still match. An outside boundary
@@ -494,11 +537,11 @@ export function legacyFacilityMap(map: ExplorationMap): boolean {
  * priced only from the open exit. A blast-gate passage is a departure only when the
  * movement declaration owner accepts it as a live clause.
  *
- * A v2 adventure has no outside room. An explicit outside boundary of a `role=goal` room
- * (`출입문 밖`) is the same terminal departure, priced only while that seat is in that
- * goal room. `fromRoomId` lets the caller prove that seat position; without it, only the
- * named goal room can be recognized. Merely standing in a goal room never creates a
- * departure command.
+ * A v2 adventure has no outside room. An explicit outside boundary of an authored
+ * exit-like `role=goal` room (`출입문 밖`) is the same terminal departure, priced only
+ * while that seat is in that goal room. `fromRoomId` lets the caller prove that seat
+ * position; without it, only the named goal room can be recognized. Merely standing in
+ * a goal room never creates a departure command, and an interior goal room is not an exit.
  */
 export function explorationCommandsFromMovementBody(
   map: ExplorationMap,
@@ -509,14 +552,17 @@ export function explorationCommandsFromMovementBody(
   const commands: ExplorationCommand[] = [];
   let departing = false;
   const fromRoom = fromRoomId?.trim() ? canonicalRoomId(map, fromRoomId) ?? fromRoomId.trim() : null;
-  const roleOf = (roomId: string) => map.rooms.find((room) => room.id === roomId)?.role;
+  const roomOf = (roomId: string) => map.rooms.find((room) => room.id === roomId);
+  const roleOf = (roomId: string) => roomOf(roomId)?.role;
   const canDepartFrom = (interiorRoomId: string | null): boolean => {
     if (legacyFacilityMap(map)) return true;
-    if (fromRoom) {
-      if (roleOf(fromRoom) !== "goal") return false;
+    const current = fromRoom ? roomOf(fromRoom) : null;
+    if (current) {
+      if (!isAdventureExitBoundaryRoom(current)) return false;
       return !interiorRoomId || interiorRoomId === fromRoom;
     }
-    return Boolean(interiorRoomId && roleOf(interiorRoomId) === "goal");
+    const interiorRoom = interiorRoomId ? roomOf(interiorRoomId) : null;
+    return Boolean(interiorRoom && isAdventureExitBoundaryRoom(interiorRoom));
   };
   const pushDepart = (interiorRoomId: string | null) => {
     if (departing || !canDepartFrom(interiorRoomId)) return;
@@ -822,17 +868,18 @@ function legacyLatchShut(state: ExplorationState, dest: string): boolean {
   return isLegacy(state) && dest === EXPLORATION_EXIT_ROOM && !state.alarmFlagged;
 }
 
-/** v2: only a `role=goal` room is a terminal threshold. Reaching it is not itself a departure. */
-function adventureGoalRoom(state: ExplorationState, roomId: string): ExplorationRoom | undefined {
+/** v2: only an authored exit-like `role=goal` room is a terminal threshold. */
+function adventureDepartureRoom(state: ExplorationState, roomId: string): ExplorationRoom | undefined {
   if (isLegacy(state)) return undefined;
-  return state.map.rooms.find((room) => room.id === roomId && room.role === "goal");
+  const room = state.map.rooms.find((item) => item.id === roomId);
+  return room && isAdventureExitBoundaryRoom(room) ? room : undefined;
 }
 
 function departureAllowed(state: ExplorationState, roomId: string): boolean {
   if (isLegacy(state)) {
     return legacyFacilityMap(state.map) && roomId === EXPLORATION_EXIT_ROOM && state.alarmFlagged;
   }
-  return adventureGoalRoom(state, roomId) != null;
+  return adventureDepartureRoom(state, roomId) != null;
 }
 
 export function priceExplorationCommands(opts: {
@@ -856,7 +903,7 @@ export function priceExplorationCommands(opts: {
           throw new Error("연결되지 않은 곳으로는 이동할 수 없습니다.");
         }
         if (!opts.state.alarmFlagged) throw new Error("출구 빗장은 경보가 울린 뒤에만 풀립니다.");
-      } else if (!adventureGoalRoom(opts.state, roomId)) {
+      } else if (!adventureDepartureRoom(opts.state, roomId)) {
         throw new Error("연결되지 않은 곳으로는 이동할 수 없습니다.");
       }
       leftFacility = true;

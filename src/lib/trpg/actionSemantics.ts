@@ -237,6 +237,37 @@ export function isCommittedItemTake(body: string, item: string): boolean {
   return committedItemTakeSpans(body).some((span) => objectNamesExactItem(takeObjectSpan(span), item));
 }
 
+/** Farewell objects that may accompany a terminal exit without becoming an item/trade action. */
+const FAREWELL_OBJECT = /(?:인사|작별|포옹|악수|눈인사)/;
+/** Purchase, receipt, payment, take, use, or consumption predicates. */
+const INDEPENDENT_ITEM_PREDICATE =
+  /(?:산다|사고|사서|샀다|구매|결제|지불|치른다|치러|주문|챙긴다|챙겨|집어\s?든다|집어\s?들|건네받|받아\s?든|받는다|받고|받아|사용한다|사용해|먹는다|마신다|마셔|바른다|발라|투여)/u;
+const CURRENCY_OBJECT = /(?:동전|금화|은화|돈|값|요금|대금|잔돈|코인|포인트)/;
+const PAYMENT_PREDICATE = /(?:건넨다|건네|낸다|내밀|지불|치른다|치러)/;
+
+/**
+ * An item receipt, purchase, payment, take, use, or consumption is a separate act, not a
+ * description of how a PC leaves. Reuses the action-clause owner; farewell objects are exempt.
+ */
+export function hasIndependentItemAction(body: string): boolean {
+  const spans = new Set([
+    ...committedItemConsumptionSpans(body),
+    ...committedItemTakeSpans(body),
+    ...otherCommittedActSpans(body),
+  ]);
+  return [...spans].some((span) => {
+    const surface = clauseSurface(span);
+    if (CURRENCY_OBJECT.test(surface) && PAYMENT_PREDICATE.test(surface)) return true;
+    const itemAt = surface.search(INDEPENDENT_ITEM_PREDICATE);
+    if (itemAt < 0) return false;
+    const farewellAt = surface.search(FAREWELL_OBJECT);
+    if (farewellAt < 0) return true;
+    // "작별 인사를 받는다" is the farewell predicate. "메밀 봉투를 챙겨 작별 인사를
+    // 건넨다" has a separate item take before it, so the item act stays independent.
+    return itemAt < farewellAt;
+  });
+}
+
 /** GM note for clauses that must not be narrated as done or charged. Locked quoted speech stays spoken. */
 export function uncommittedActionWire(body: string): string | null {
   const held = actionClauses(body).filter((clause) => {

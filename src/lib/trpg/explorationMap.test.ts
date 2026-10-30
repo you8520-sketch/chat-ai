@@ -630,6 +630,92 @@ describe("exploration map generation", () => {
     assert.equal(knownTokens.includes(BOT_EXPLORATION_DEPART), false);
   });
 
+  it("rejects an outside exit from a v2 goal room that is not an authored exit boundary", () => {
+    const sealed = adventureExplorationState(
+      {
+        start: "hall",
+        places: [
+          { key: "hall", name: "회랑", summary: "안쪽으로 이어지는 회랑.", role: "start" },
+          { key: "sanctum", name: "봉인실", summary: "외부와 통하지 않는 밀실.", role: "goal" },
+        ],
+        links: [{ from: "hall", to: "sanctum" }],
+        events: [],
+      },
+      "sealed-goal"
+    );
+    const atSanctum = {
+      ...sealed,
+      visitedRoomIds: [...new Set([...sealed.visitedRoomIds, "sanctum"])],
+    };
+    assert.deepEqual(explorationCommandsFromMovementBody(atSanctum.map, "봉인실 밖으로 나간다.", "sanctum"), []);
+    assert.deepEqual(explorationCommandsFromMovementBody(atSanctum.map, "밖으로 나간다.", "sanctum"), []);
+    assert.throws(
+      () =>
+        priceExplorationCommands({
+          state: atSanctum,
+          fromRoomId: "sanctum",
+          commands: [{ op: "depart" }],
+          apRemaining: 3,
+        }),
+      /연결되지 않은 곳으로는 이동할 수 없습니다/
+    );
+    const settled = settleExplorationActor({
+      state: atSanctum,
+      pending: {
+        roundId: 1,
+        participantId: 9,
+        fromRoomId: "sanctum",
+        commands: [{ op: "depart" }],
+        spent: 1,
+      },
+      name: "렌",
+      tier: null,
+    });
+    assert.equal(settled.result.location, null);
+    assert.deepEqual(settled.state.departedParticipantIds, []);
+
+    const bareDoor = adventureExplorationState(
+      {
+        start: "hall",
+        places: [
+          { key: "hall", name: "회랑", summary: "안쪽으로 이어지는 회랑.", role: "start" },
+          { key: "sealed_door", name: "봉인된 문", summary: "더 안쪽으로 이어지는 문.", role: "goal" },
+        ],
+        links: [{ from: "hall", to: "sealed_door" }],
+        events: [],
+      },
+      "sealed-door"
+    );
+    assert.throws(
+      () =>
+        priceExplorationCommands({
+          state: bareDoor,
+          fromRoomId: "sealed_door",
+          commands: [{ op: "depart" }],
+          apRemaining: 3,
+        }),
+      /연결되지 않은 곳으로는 이동할 수 없습니다/
+    );
+
+    const teaExit = adventureExplorationState(
+      {
+        start: "teahouse",
+        places: [
+          { key: "teahouse", name: "모밀찻집", summary: "비를 피해 들어온 찻집.", role: "start" },
+          { key: "door", name: "출입문", summary: "빗소리가 들리는 유리문.", role: "goal" },
+        ],
+        links: [{ from: "teahouse", to: "door" }],
+        events: [],
+      },
+      "tea-exit"
+    );
+    assert.equal(
+      priceExplorationCommands({ state: teaExit, fromRoomId: "door", commands: [{ op: "depart" }], apRemaining: 3 })
+        .spent,
+      1
+    );
+  });
+
   it("offers v1 DEPART only from the open exit and never on v2", () => {
     const base = emptyExplorationState("depart-plans");
     const open = { ...base, alarmFlagged: true, visitedRoomIds: [EXPLORATION_ENTRANCE, EXPLORATION_EXIT_ROOM] };

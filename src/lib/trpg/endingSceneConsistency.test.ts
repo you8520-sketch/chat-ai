@@ -1066,6 +1066,96 @@ describe("v2 adventure ending commit", () => {
     assert.equal(settled.state.visitedRoomIds.includes(EXPLORATION_DEPARTED_LOCATION), false);
   });
 
+  it("keeps a natural farewell beside a v2 exit but refuses an independent item action", async () => {
+    const db = memoryDb();
+    const { campaignId, hostId } = seedTeaParty(db, TEA_PLAN);
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 16,
+      botCall: async () => ({ text: "자리를 지킨다.\n<<<ACTION_TYPE>>>\nfree\n<<<INTENT>>>\n자리를 지킨다." }),
+      gmCall: async () => ({
+        text: buildTrpgGmStructuredWireText("찻집 안이 조용하다.", {
+          players: [],
+          location: "모밀찻집",
+          next_round_context: "다음",
+          campaign_finished: false,
+          questsAdd: [TEA_GOAL],
+        }),
+      }),
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const opened = loadExplorationState(db, campaignId)!;
+    saveExplorationState(db, campaignId, {
+      ...opened,
+      visitedRoomIds: [...new Set([...opened.visitedRoomIds, "door"])],
+    });
+    writeSheet(db, campaignId, hostId, "렌", EVEN_STATS, "출입문");
+    const pendingCount = () => loadExplorationState(db, campaignId)!.pending.length;
+    const lockedCount = () =>
+      (
+        db
+          .prepare(
+            `SELECT COUNT(*) AS n FROM trpg_action_submissions s
+             JOIN trpg_rounds r ON r.id=s.round_id
+             WHERE r.campaign_id=? AND s.locked=1`
+          )
+          .get(campaignId) as { n: number }
+      ).n;
+    const hostLocation = () =>
+      (db.prepare(`SELECT location FROM trpg_character_sheets WHERE participant_id=?`).get(hostId) as { location: string })
+        .location;
+
+    assert.throws(
+      () => submitTrpgAction(db, { campaignId, userId: 1, body: "출입문 밖으로 나선다. 메밀 봉투를 챙긴다." }),
+      /퇴장과 별도/
+    );
+    assert.throws(
+      () => submitTrpgAction(db, { campaignId, userId: 1, body: "출입문 밖으로 나선다. 상인에게 회복약을 산다." }),
+      /퇴장과 별도/
+    );
+    assert.throws(
+      () =>
+        submitTrpgAction(db, {
+          campaignId,
+          userId: 1,
+          body: "출입문 밖으로 나선다. 메밀 봉투를 챙겨 작별 인사를 건넨다.",
+        }),
+      /퇴장과 별도/
+    );
+    assert.throws(
+      () => submitTrpgAction(db, { campaignId, userId: 1, body: "중앙 테이블로 이동한다. 메밀 봉투를 챙긴다." }),
+      /일반 행동입니다/
+    );
+    assert.throws(
+      () =>
+        submitTrpgAction(db, {
+          campaignId,
+          userId: 1,
+          body: "메밀 봉투를 챙긴다.",
+          explorationCommands: [{ op: "depart" }],
+        }),
+      /퇴장과 별도/
+    );
+    assert.equal(pendingCount(), 0);
+    assert.equal(lockedCount(), 0);
+    assert.equal(hostLocation(), "출입문");
+
+    submitTrpgAction(db, {
+      campaignId,
+      userId: 1,
+      body: '출입문 밖으로 나선다. "잘 가. 오늘은 여기까지다."',
+    });
+    const stored = db
+      .prepare(
+        `SELECT body FROM trpg_action_submissions WHERE participant_id=?
+         ORDER BY id DESC LIMIT 1`
+      )
+      .get(hostId) as { body: string };
+    assert.match(stored.body, /시설 밖으로 나간다/);
+    assert.deepEqual(loadExplorationState(db, campaignId)!.pending[0]?.commands, [{ op: "depart" }]);
+    db.close();
+  });
+
   it("#45: outside exit at the v2 goal room is a server fact, and the confirmed goal finishes next round", async () => {
     const db = memoryDb();
     const { campaignId, hostId, kwonId, kangId } = seedTeaParty(db, TEA_PLAN);
