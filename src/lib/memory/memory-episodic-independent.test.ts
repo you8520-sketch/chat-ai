@@ -1,4 +1,4 @@
-﻿import Module from "module";
+import Module from "module";
 
 const originalLoad = (Module as unknown as { _load: typeof Module._load })._load;
 (Module as unknown as { _load: typeof Module._load })._load = function (
