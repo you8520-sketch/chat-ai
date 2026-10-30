@@ -323,6 +323,24 @@ describe("human PC item ownership needs the player's acceptance", () => {
     assert.equal(held(w, w.seats.ai, "칼"), 1);
   });
 
+  it("an AI companion taking a sheath owns the sheath and not a shorter blade name", async () => {
+    const w = await startWorld({ humans: 1, ai: true, openingPlayers: () => [] });
+    w.state.botLock = "칼집을 받는다.";
+    w.state.players = [{ participantId: w.seats.ai, inventoryAdd: ["칼", "칼집"] }];
+    await play(w, [{ userId: 1, body: "주변을 살핀다." }]);
+    assert.equal(held(w, w.seats.ai, "칼"), 0);
+    assert.equal(held(w, w.seats.ai, "칼집"), 1);
+  });
+
+  it("an AI companion taking a named packet does not own a shorter packet name", async () => {
+    const w = await startWorld({ humans: 1, ai: true, openingPlayers: () => [] });
+    w.state.botLock = "볶은 메밀 봉투를 받는다.";
+    w.state.players = [{ participantId: w.seats.ai, inventoryAdd: ["봉투", "볶은 메밀 봉투"] }];
+    await play(w, [{ userId: 1, body: "주변을 살핀다." }]);
+    assert.equal(held(w, w.seats.ai, "봉투"), 0);
+    assert.equal(held(w, w.seats.ai, "볶은 메밀 봉투"), 1);
+  });
+
   it("an AI companion past-tense take owns the named item", async () => {
     const packet = "봉투";
     const w = await startWorld({ humans: 1, ai: true, openingPlayers: () => [] });

@@ -84,6 +84,14 @@ describe("item acceptance helpers", () => {
     const roasted: TrpgStateDelta = { players: [{ participantId: 89, inventoryAdd: ["볶은 메밀 봉투"] }] };
     stripUnacceptedItemProposals(roasted, new Set(), new Map([[89, "볶은 메밀 봉투를 받는다."]]));
     assert.deepEqual(roasted.players[0]?.inventoryAdd, ["볶은 메밀 봉투"]);
+
+    const sheath: TrpgStateDelta = { players: [{ participantId: 89, inventoryAdd: ["칼", "칼집"] }] };
+    stripUnacceptedItemProposals(sheath, new Set(), new Map([[89, "칼집을 받는다."]]));
+    assert.deepEqual(sheath.players[0]?.inventoryAdd, ["칼집"]);
+
+    const packetOnly: TrpgStateDelta = { players: [{ participantId: 89, inventoryAdd: ["봉투", "볶은 메밀 봉투"] }] };
+    stripUnacceptedItemProposals(packetOnly, new Set(), new Map([[89, "볶은 메밀 봉투를 받는다."]]));
+    assert.deepEqual(packetOnly.players[0]?.inventoryAdd, ["볶은 메밀 봉투"]);
   });
 
   it("R7 speech-only companion locks drop GM inventoryAdd for the offered packets", () => {

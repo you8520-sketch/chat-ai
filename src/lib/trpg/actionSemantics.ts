@@ -187,6 +187,21 @@ export function takeObjectSpan(span: string): string {
   return governedObjectSpan(span, ITEM_TAKE_PREDICATE);
 }
 
+/**
+ * The governed object is this item name, plus at most one trailing particle.
+ * `칼집을` names `칼집` and not `칼`. `볶은 메밀 봉투를` names that packet and not `봉투`.
+ */
+const ITEM_NAME_PARTICLE = /^(?:으로|을|를|이|가|은|는|도|만|로|에)\s*$/u;
+
+function objectNamesExactItem(span: string, item: string): boolean {
+  const surface = span.trim();
+  const name = item.trim();
+  if (!name || !surface) return false;
+  if (surface === name) return true;
+  if (!surface.startsWith(name)) return false;
+  return ITEM_NAME_PARTICLE.test(surface.slice(name.length));
+}
+
 /** Act spans whose predicate is item consumption. Mention and refusal clauses are omitted. */
 export function committedItemConsumptionSpans(body: string): string[] {
   return actionClauses(body)
@@ -216,10 +231,10 @@ export function committedItemTakeSpans(body: string): string[] {
     .map((clause) => clause.span);
 }
 
-/** True when a committed take clause governs this item name. Mention, look, wish, and refusal do not. */
+/** True when a committed take clause governs this exact item name. Mention, look, wish, and refusal do not. */
 export function isCommittedItemTake(body: string, item: string): boolean {
   if (!item) return false;
-  return committedItemTakeSpans(body).some((span) => takeObjectSpan(span).includes(item));
+  return committedItemTakeSpans(body).some((span) => objectNamesExactItem(takeObjectSpan(span), item));
 }
 
 /** GM note for clauses that must not be narrated as done or charged. Locked quoted speech stays spoken. */
