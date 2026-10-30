@@ -42,12 +42,16 @@ describe("G3 adult-term boundaries", () => {
     assert.deepEqual(findAdultTermsInText("사정이 생겨서 자리를 비웠다"), []);
     for (const text of [
       "개인 사정을 함부로 공개하지 않는다",
+      "급한 사정을 들어",
+      "개인 사정은 당사자 동의 없이 기록하지 않는다",
+      "개인 사정을 적을 필요는 없어",
+      "사정이 있어서 참석하지 못했다",
       "남의 사정을 묻지 않는다",
       "가족의 사정을 고려한다",
       "사정을 안 묻는다",
       "사정을 못 말한다",
     ]) assert.deepEqual(findAdultTermsInText(text), [], text);
-    for (const text of ["사정", "사정을", "사정했다", "사 정", "안에 사정을 했다", "사정을 쏟았다", "사정을 참지 못했다", "사정을 함부로 했다"]) {
+    for (const text of ["사정", "사정을", "사정했다", "사 정", "안에 사정을 했다", "사정을 쏟았다", "사정을 참지 못했다", "사정을 함부로 했다", "사정을 들이부었다", "사정을 적셨다"]) {
       assert.ok(findAdultTermsInText(text).includes("사정"), text);
     }
     assert.ok(findAdultTermsInText("폰섹스").includes("섹스"));

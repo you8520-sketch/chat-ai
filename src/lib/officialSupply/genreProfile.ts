@@ -270,7 +270,7 @@ export function recommendOfficialAuthoringDirection(
 export function recommendOfficialCastIntent(genre: CharacterGenre): string {
   const profile = resolveOfficialGenreProfile(genre);
   if (profile.openRelationLine) {
-    return `전체 이용자 대상 ${genre} 캐릭터 1명. 연애로 시작하지 않고, 이 장르에서 자연스러운 일과 관계로 첫 장면을 만든다.`;
+    return `전체 이용자 대상 ${genre} 캐릭터 1명. 연애로 시작하지 않는다.`;
   }
   return `전체 이용자 대상 ${genre} 캐릭터 1명. 유저의 성별·직업·과거는 고정하지 않고, 이 장르의 관계와 사건으로 첫 장면을 만든다.`;
 }

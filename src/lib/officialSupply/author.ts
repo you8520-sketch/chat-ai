@@ -28,6 +28,8 @@ import {
   buildCharacterBible1User,
   buildCharacterBondsSystem,
   buildCharacterBondsUser,
+  buildCharacterExperienceSystem,
+  buildCharacterExperienceUser,
   buildCharacterVoiceSystem,
   buildCharacterVoiceUser,
   buildNpcRelationRepairSystem,
@@ -46,9 +48,12 @@ import {
   type AdultProfilePlan,
   type AppearanceInput,
   type AssetPlanInput,
+  OFFICIAL_CHARACTER_EXPERIENCE_KEYS,
   type CharacterBible1Input,
   type CharacterBondsInput,
+  type CharacterExperienceInput,
   type CharacterVoiceInput,
+  type OfficialCharacterExperience,
   type OfficialAuthorTask,
   type PortfolioBriefInput,
   type PortfolioReplacementInput,
@@ -802,6 +807,47 @@ function coreBindingInput(core: Record<string, unknown>): OfficialSharedWorldCor
   };
 }
 
+const EXPERIENCE_TEXT_MIN = 12;
+const EXPERIENCE_TEXT_MAX = 180;
+
+export function parseOfficialCharacterExperience(raw: unknown): OfficialCharacterExperience {
+  if (!isRecord(raw)) {
+    throw new OfficialSupplyGateError("author_experience_invalid", "character_experience: object required");
+  }
+  const experience = {} as OfficialCharacterExperience;
+  for (const key of OFFICIAL_CHARACTER_EXPERIENCE_KEYS) {
+    const value = raw[key];
+    if (typeof value !== "string") {
+      throw new OfficialSupplyGateError("author_experience_invalid", `character_experience: ${key} required`);
+    }
+    const text = value.trim();
+    if (text.length < EXPERIENCE_TEXT_MIN || text.length > EXPERIENCE_TEXT_MAX) {
+      throw new OfficialSupplyGateError(
+        "author_experience_invalid",
+        `character_experience: ${key} ${text.length} chars outside ${EXPERIENCE_TEXT_MIN}-${EXPERIENCE_TEXT_MAX}`
+      );
+    }
+    experience[key] = text;
+  }
+  return experience;
+}
+
+export async function generateOfficialCharacterExperience(input: {
+  transport: OfficialAuthorTransport;
+  modelId?: string;
+  experience: CharacterExperienceInput;
+}): Promise<OfficialCharacterExperience> {
+  const completion = await input.transport.completeJson({
+    task: "character_experience",
+    system: buildCharacterExperienceSystem(),
+    user: buildCharacterExperienceUser(input.experience),
+    schemaName: "official_character_experience",
+    schema: { type: "object" },
+    modelId: input.modelId,
+  });
+  return parseOfficialCharacterExperience(parseAuthorJson(completion.text, "character_experience"));
+}
+
 export async function generateOfficialWorldBible(input: {
   transport: OfficialAuthorTransport;
   world: WorldBibleInput;
@@ -848,6 +894,7 @@ export async function generateOfficialWorldBible(input: {
     worldScale,
     ...(plan.profile.key === "genre_neutral" && castIntent ? { castIntent } : {}),
     ...(plan.profile.key === "genre_neutral" ? { authoring: plan } : {}),
+    ...(input.world.experience ? { experience: input.world.experience } : {}),
   };
   const atlas = await complete(buildWorldAtlasUser(atlasInput));
   const atlasData = parseAuthorJson(atlas.text, "world_bible");
@@ -883,6 +930,7 @@ export async function generateOfficialWorldBible(input: {
     market: input.world.market,
     castIntent: input.world.castIntent,
     authoring: input.world.authoring,
+    ...(input.world.experience ? { experience: input.world.experience } : {}),
   };
   const portfolioCompletion = await complete(buildWorldPortfolioUser(portfolioInput));
   const portfolioData = parseAuthorJson(portfolioCompletion.text, "world_bible");
