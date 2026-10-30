@@ -99,6 +99,6 @@ export function formatTrpgRoundNarrationBudget(budget: TrpgGmNarrationBudget): s
     `Input density: ${budget.density}`,
     `Minimum new GM narration: ${budget.minChars} Korean characters`,
     `Target new GM narration: ${budget.targetMinChars}–${budget.targetMaxChars} Korean characters`,
-    "Finish at or above Minimum; TARGET is the normal complete-scene range.",
+    "TARGET is the range for new consequences. Do not repeat settled objects, lights, or locations just to reach Minimum.",
   ].join("\n");
 }

@@ -1,5 +1,6 @@
 import {
   APPEARANCE_COMPILED_VERSION,
+  compiledTextPreservesRawFeatures,
   hashAppearanceRaw,
   parseAppearanceCompiledJson,
 } from "@/lib/appearanceCompiler";
@@ -36,5 +37,9 @@ export function resolveAppearancePromptText(input: {
       .map((k) => compiled?.[k as keyof typeof compiled])
       .filter(Boolean)
       .join(", ");
-  return (compiledText || input.raw).trim();
+  const resolved = (compiledText || input.raw).trim();
+  if (!compiledTextPreservesRawFeatures(input.raw, resolved)) {
+    return input.raw.trim();
+  }
+  return resolved;
 }

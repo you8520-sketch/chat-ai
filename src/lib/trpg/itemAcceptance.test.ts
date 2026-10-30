@@ -43,13 +43,76 @@ describe("item acceptance helpers", () => {
       ],
     };
     const humans = new Set([1]);
+    const aiLocks = new Map([[2, "칼을 받는다."]]);
     for (let pass = 0; pass < 2; pass += 1) {
-      stripUnacceptedItemProposals(delta, humans);
+      stripUnacceptedItemProposals(delta, humans, aiLocks);
       grantAcceptedItems(delta, new Map([[1, ["지도"]]]));
     }
     foldAcceptedInventoryGrants(delta);
     assert.deepEqual(delta.players[0], { participantId: 1, itemOffers: ["지도"], inventoryAdd: ["지도"] });
     assert.deepEqual(delta.players[1], { participantId: 2, inventoryAdd: ["칼"] });
+  });
+
+  it("AI inventoryAdd stays unowned unless the lock is a committed take of that item", () => {
+    const item = "봉투";
+    const cases: Array<{ lock: string; keep: boolean }> = [
+      { lock: "봉투를 살펴본다.", keep: false },
+      { lock: "봉투를 받지 않는다. 문을 닫는다.", keep: false },
+      { lock: "봉투를 받으면 좋겠다. 문을 닫는다.", keep: false },
+      { lock: '"봉투는 네가 챙겨." 문을 닫는다.', keep: false },
+      { lock: "봉투를 받는다.", keep: true },
+      { lock: "봉투를 챙겨 가방에 넣는다.", keep: true },
+      { lock: "봉투를 받았다.", keep: true },
+      { lock: "봉투를 살펴본 뒤 칼을 받는다.", keep: false },
+      { lock: "봉투를 살펴본 다음 칼을 받는다.", keep: false },
+    ];
+    for (const row of cases) {
+      const delta: TrpgStateDelta = { players: [{ participantId: 89, inventoryAdd: [item] }] };
+      stripUnacceptedItemProposals(delta, new Set(), new Map([[89, row.lock]]));
+      assert.deepEqual(
+        delta.players[0]?.inventoryAdd,
+        row.keep ? [item] : undefined,
+        row.lock
+      );
+    }
+    const received = "칼";
+    for (const lock of ["봉투를 살펴본 뒤 칼을 받는다.", "봉투를 살펴본 다음 칼을 받는다."]) {
+      const both: TrpgStateDelta = { players: [{ participantId: 89, inventoryAdd: ["봉투", received] }] };
+      stripUnacceptedItemProposals(both, new Set(), new Map([[89, lock]]));
+      assert.deepEqual(both.players[0]?.inventoryAdd, [received], lock);
+    }
+    const roasted: TrpgStateDelta = { players: [{ participantId: 89, inventoryAdd: ["볶은 메밀 봉투"] }] };
+    stripUnacceptedItemProposals(roasted, new Set(), new Map([[89, "볶은 메밀 봉투를 받는다."]]));
+    assert.deepEqual(roasted.players[0]?.inventoryAdd, ["볶은 메밀 봉투"]);
+
+    const sheath: TrpgStateDelta = { players: [{ participantId: 89, inventoryAdd: ["칼", "칼집"] }] };
+    stripUnacceptedItemProposals(sheath, new Set(), new Map([[89, "칼집을 받는다."]]));
+    assert.deepEqual(sheath.players[0]?.inventoryAdd, ["칼집"]);
+
+    const packetOnly: TrpgStateDelta = { players: [{ participantId: 89, inventoryAdd: ["봉투", "볶은 메밀 봉투"] }] };
+    stripUnacceptedItemProposals(packetOnly, new Set(), new Map([[89, "볶은 메밀 봉투를 받는다."]]));
+    assert.deepEqual(packetOnly.players[0]?.inventoryAdd, ["볶은 메밀 봉투"]);
+  });
+
+  it("R7 speech-only companion locks drop GM inventoryAdd for the offered packets", () => {
+    const delta: TrpgStateDelta = {
+      players: [
+        { participantId: 87, itemOffers: ["볶은 메밀 봉투"] },
+        { participantId: 89, inventoryAdd: ["볶은 메밀 봉투"] },
+        { participantId: 88, inventoryAdd: ["볶은 메밀 봉투"] },
+      ],
+    };
+    stripUnacceptedItemProposals(
+      delta,
+      new Set([87]),
+      new Map([
+        [89, '"그래, 조심해서 가라. 길 미끄러우니까 발 헛디뎌서 우스운 꼴 보이지 말고."'],
+        [88, '"여기까지라니까 더 발목 잡진 않겠는데, 꼴을 보니 밤길 걱정은 저쪽이 아니라 네가 해야겠네."'],
+      ])
+    );
+    assert.deepEqual(delta.players[0], { participantId: 87, itemOffers: ["볶은 메밀 봉투"] });
+    assert.deepEqual(delta.players[1], { participantId: 89 });
+    assert.deepEqual(delta.players[2], { participantId: 88 });
   });
 
   it("restores committed human item facts over a rewrite", () => {
@@ -122,7 +185,7 @@ describe("item acceptance helpers", () => {
 
   it("states the human item rule once in the system prompt", () => {
     assert.equal(TRPG_GM_SYSTEM.split("itemOffers").length - 1, 2, "the rule and the example shape only");
-    assert.match(TRPG_GM_SYSTEM, /never inventoryAdd \(AI companion seats only\)/);
+    assert.match(TRPG_GM_SYSTEM, /AI inventoryAdd only that locked take or \[EXPLORATION\] rewards/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /Inventory, location, quests, NPCs, flags, and story progress remain yours/);
   });
 });

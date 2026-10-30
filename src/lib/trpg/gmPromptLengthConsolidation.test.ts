@@ -85,7 +85,8 @@ describe("TRPG GM length prompt consolidation gates", () => {
     assert.equal(countRegex(TRPG_GM_SYSTEM, /\[LENGTH — SCENE RESPONSIVE\]/g), 1);
     const user = mixedThreePartyUser();
     assert.equal(countRegex(user, /\[ROUND NARRATION BUDGET\]/g), 1);
-    assert.match(user, /Finish at or above Minimum; TARGET is the normal complete-scene range/);
+    assert.match(user, /TARGET is the range for new consequences/);
+    assert.match(user, /Do not repeat settled objects, lights, or locations just to reach Minimum/);
   });
 
   it("terminal ROUND EXECUTION block follows actions and mechanics context", () => {
@@ -145,7 +146,7 @@ describe("TRPG GM length prompt consolidation gates", () => {
       TRPG_GM_SYSTEM.indexOf("[LENGTH — SCENE RESPONSIVE]")
     );
     assert.match(roundCraft, /^1\. Start narration at the first new consequence/m);
-    assert.match(roundCraft, /6\. Return player control at an immediate meaningful decision point/);
+    assert.match(roundCraft, /6\. Return player control once the new consequence is visible/);
     const neg = countNegatives(roundCraft);
     assert.ok(neg.do_not + neg.never <= 2, `ROUND CRAFT negatives should stay minimal: ${JSON.stringify(neg)}`);
   });

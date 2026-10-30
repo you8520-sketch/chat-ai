@@ -78,6 +78,8 @@ async function startWorld(opts: { humans: 1 | 2; ai?: boolean; openingPlayers: (
     narration: "장면이 이어진다. GM: 무엇을 하겠는가?",
     inputs: [] as string[],
     calls: 0,
+    botTake: "",
+    botLock: "",
     billingFault: undefined as TrpgEngineDeps["billingFault"],
   };
   const usage = { modelId: "deepseek-v4-pro", inputTokens: 2000, outputTokens: 600 };
@@ -86,7 +88,9 @@ async function startWorld(opts: { humans: 1 | 2; ai?: boolean; openingPlayers: (
     billingFault: state.billingFault,
     rollD20: () => 15,
     rollDie: () => 4,
-    botCall: async () => ({ text: "조용히 주변을 살핀다." }),
+    botCall: async () => ({
+      text: state.botLock || (state.botTake ? `${state.botTake}를 받는다.` : "조용히 주변을 살핀다."),
+    }),
     gmCall: async ({ user }) => {
       state.calls += 1;
       state.inputs.push(user);
@@ -281,8 +285,9 @@ describe("human PC item ownership needs the player's acceptance", () => {
     assert.equal(held(w, w.seats.b, LEDGER), 2);
   });
 
-  it("an AI companion keeps its inventoryAdd path and never carries itemOffers", async () => {
+  it("an AI companion keeps a locked take and never carries itemOffers", async () => {
     const w = await startWorld({ humans: 1, ai: true, openingPlayers: () => [] });
+    w.state.botTake = HANDLE;
     w.state.players = [
       { participantId: w.seats.ai, inventoryAdd: [HANDLE], itemOffers: [LEDGER] },
       { participantId: w.seats.a, inventoryAdd: [POTION] },
@@ -290,6 +295,78 @@ describe("human PC item ownership needs the player's acceptance", () => {
     await play(w, [{ userId: 1, body: "주변을 살핀다." }]);
     assert.equal(held(w, w.seats.ai, HANDLE), 1);
     assert.equal(held(w, w.seats.a, POTION), 0);
+    assert.equal(committedHumanPatch(w, 1, w.seats.ai)?.itemOffers, undefined);
+  });
+
+  it("an AI companion mention, refusal, or wish never owns a GM inventoryAdd", async () => {
+    const packet = "봉투";
+    for (const lock of [
+      "봉투를 살펴본다.",
+      "봉투를 받지 않는다. 문을 닫는다.",
+      "봉투를 받으면 좋겠다. 문을 닫는다.",
+      '"봉투는 네가 챙겨." 문을 닫는다.',
+    ]) {
+      const w = await startWorld({ humans: 1, ai: true, openingPlayers: () => [] });
+      w.state.botLock = lock;
+      w.state.players = [{ participantId: w.seats.ai, inventoryAdd: [packet] }];
+      await play(w, [{ userId: 1, body: "주변을 살핀다." }]);
+      assert.equal(held(w, w.seats.ai, packet), 0, lock);
+    }
+  });
+
+  it("an AI companion looking then taking another item owns only the taken item", async () => {
+    const w = await startWorld({ humans: 1, ai: true, openingPlayers: () => [] });
+    w.state.botLock = "봉투를 살펴본 뒤 칼을 받는다.";
+    w.state.players = [{ participantId: w.seats.ai, inventoryAdd: ["봉투", "칼"] }];
+    await play(w, [{ userId: 1, body: "주변을 살핀다." }]);
+    assert.equal(held(w, w.seats.ai, "봉투"), 0);
+    assert.equal(held(w, w.seats.ai, "칼"), 1);
+  });
+
+  it("an AI companion taking a sheath owns the sheath and not a shorter blade name", async () => {
+    const w = await startWorld({ humans: 1, ai: true, openingPlayers: () => [] });
+    w.state.botLock = "칼집을 받는다.";
+    w.state.players = [{ participantId: w.seats.ai, inventoryAdd: ["칼", "칼집"] }];
+    await play(w, [{ userId: 1, body: "주변을 살핀다." }]);
+    assert.equal(held(w, w.seats.ai, "칼"), 0);
+    assert.equal(held(w, w.seats.ai, "칼집"), 1);
+  });
+
+  it("an AI companion taking a named packet does not own a shorter packet name", async () => {
+    const w = await startWorld({ humans: 1, ai: true, openingPlayers: () => [] });
+    w.state.botLock = "볶은 메밀 봉투를 받는다.";
+    w.state.players = [{ participantId: w.seats.ai, inventoryAdd: ["봉투", "볶은 메밀 봉투"] }];
+    await play(w, [{ userId: 1, body: "주변을 살핀다." }]);
+    assert.equal(held(w, w.seats.ai, "봉투"), 0);
+    assert.equal(held(w, w.seats.ai, "볶은 메밀 봉투"), 1);
+  });
+
+  it("an AI companion past-tense take owns the named item", async () => {
+    const packet = "봉투";
+    const w = await startWorld({ humans: 1, ai: true, openingPlayers: () => [] });
+    w.state.botLock = "봉투를 받았다.";
+    w.state.players = [{ participantId: w.seats.ai, inventoryAdd: [packet] }];
+    await play(w, [{ userId: 1, body: "주변을 살핀다." }]);
+    assert.equal(held(w, w.seats.ai, packet), 1);
+  });
+
+  it("an AI companion keeps a packed take of the named item", async () => {
+    const packet = "봉투";
+    const w = await startWorld({ humans: 1, ai: true, openingPlayers: () => [] });
+    w.state.botLock = "봉투를 챙겨 가방에 넣는다.";
+    w.state.players = [{ participantId: w.seats.ai, inventoryAdd: [packet] }];
+    await play(w, [{ userId: 1, body: "주변을 살핀다." }]);
+    assert.equal(held(w, w.seats.ai, packet), 1);
+  });
+
+  it("an AI companion speech-only lock never owns a GM inventoryAdd", async () => {
+    const w = await startWorld({ humans: 1, ai: true, openingPlayers: () => [] });
+    w.state.players = [
+      { participantId: w.seats.ai, inventoryAdd: [HANDLE], itemOffers: [LEDGER] },
+    ];
+    await play(w, [{ userId: 1, body: "주변을 살핀다." }]);
+    assert.equal(held(w, w.seats.ai, HANDLE), 0);
+    assert.equal(committedHumanPatch(w, 1, w.seats.ai)?.inventoryAdd, undefined);
     assert.equal(committedHumanPatch(w, 1, w.seats.ai)?.itemOffers, undefined);
   });
 
