@@ -1786,10 +1786,25 @@ async function runGmForRound(
         .filter(Boolean)
         .join("\n\n")
     : "";
+  const explorationActors = actions.map((action) => ({
+    participantId: action.participantId,
+    name: action.name,
+    tier: action.tier,
+  }));
+  const explorationPreview =
+    !opts.opening && !opts.regenerate
+      ? planExplorationCommit(db, {
+          campaignId: opts.campaignId,
+          roundId: opts.roundId,
+          opening: false,
+          actors: explorationActors,
+          sheetIds: [],
+        })
+      : null;
   const endingFinishWouldStand = campaignFinishWouldStand({
     exploration: loadExplorationState(db, opts.campaignId),
     participantIds: sheets.map((sheet) => sheet.participantId),
-    locations: sheets.map((sheet) => sheet.location),
+    locations: seatLocationsForFinish(sheets, explorationPreview?.results),
     goals: goalLedger.goals,
   });
   const requestPlayerGoalRegistration = shouldRequestTrpgPlayerGoalRegistration({
@@ -1842,11 +1857,7 @@ async function runGmForRound(
           campaignId: opts.campaignId,
           roundId: opts.roundId,
           opening: opts.opening,
-          actors: actions.map((action) => ({
-            participantId: action.participantId,
-            name: action.name,
-            tier: action.tier,
-          })),
+          actors: explorationActors,
         }),
     actions,
     itemOfferBlock,
@@ -2135,10 +2146,14 @@ function acceptedItemsBySeat(
 
 /**
  * GM `campaignFinished` is the request. This is the decision both the normal commit and
- * APPLYING_STATE recovery finalize with. The prompt uses the same predicate when a map
- * ending fact exists (v1 escape, or a v2 seat in a goal-role room after the last goal closed).
+ * APPLYING_STATE recovery finalize with. The prompt uses the same predicate and the same
+ * seat locations as this commit (sheet start plus this round's settled exploration ends).
  * A GM flag alone does not complete an open goal. No-map campaigns keep the previous
  * flag-only commit and do not receive an ending-ready head.
+ *
+ * v2 `role=goal` is a destination annotation, not a one-seat ending. A host-confirmed
+ * goal still needs every seat in a goal-role room. A reach_location or end_encounter
+ * completion is that criterion's own contract, so companions are not forced there.
  */
 function resolveEffectiveCampaignFinished(opts: {
   gmRequested: boolean;
@@ -2155,18 +2170,51 @@ function resolveEffectiveCampaignFinished(opts: {
   if (opts.exploration?.version === 2) {
     if (opts.goals.some((goal) => goal.status === "active")) return false;
     if (!opts.goals.some((goal) => goal.status === "completed")) return false;
-    return seatOccupiesAdventureGoal(opts.exploration, opts.locations ?? []);
+    if (completedGoalsProveTypedEnding(opts.goals)) return true;
+    return partyOccupiesAdventureGoals(opts.exploration, opts.participantIds, opts.locations ?? []);
   }
   return true;
 }
 
-function seatOccupiesAdventureGoal(state: ExplorationState, locations: readonly string[]): boolean {
-  const goals = state.map.rooms.filter((room) => room.role === "goal");
+function completedGoalsProveTypedEnding(goals: readonly TrpgGoal[]): boolean {
+  return goals.some(
+    (goal) =>
+      goal.status === "completed" &&
+      (goal.evidence?.kind === "reach_location" || goal.evidence?.kind === "end_encounter")
+  );
+}
+
+function adventureGoalRooms(state: ExplorationState) {
+  return state.map.rooms.filter((room) => room.role === "goal");
+}
+
+function seatOccupiesAdventureGoal(state: ExplorationState, location: string): boolean {
+  const goals = adventureGoalRooms(state);
   if (goals.length === 0) return false;
-  return locations.some((location) => {
-    const roomId = canonicalRoomId(state.map, location);
-    return goals.some((room) => room.id === roomId);
-  });
+  const roomId = canonicalRoomId(state.map, location);
+  return goals.some((room) => room.id === roomId);
+}
+
+function partyOccupiesAdventureGoals(
+  state: ExplorationState,
+  participantIds: readonly number[],
+  locations: readonly string[]
+): boolean {
+  if (adventureGoalRooms(state).length === 0) return false;
+  if (participantIds.length === 0 || locations.length !== participantIds.length) return false;
+  return locations.every((location) => seatOccupiesAdventureGoal(state, location));
+}
+
+function seatLocationsForFinish(
+  sheets: ReadonlyArray<{ participantId: number; location: string }>,
+  moved?: ReadonlyArray<{ participantId: number; location?: string | null }> | null
+): string[] {
+  const bySeat = new Map<number, string>();
+  for (const row of moved ?? []) {
+    const location = row.location?.trim();
+    if (location) bySeat.set(row.participantId, location);
+  }
+  return sheets.map((sheet) => bySeat.get(sheet.participantId) ?? sheet.location);
 }
 
 /** Prompt fact: a finish request on this round would complete the campaign. Same owner as v1/v2 commit. */
@@ -2383,7 +2431,7 @@ function commitPendingGmResult(
     gmRequested: parsed.campaignFinished === true,
     exploration: explorationStateForFinish,
     participantIds: sheets.map((sheet) => sheet.participantId),
-    locations: (persistMechanics ? nextSheets : sheets).map((sheet) => sheet.location),
+    locations: seatLocationsForFinish(sheets, explorationCommit?.results),
     goals: currentLedger.goals,
   });
   const storedFinish = opts.regenerate

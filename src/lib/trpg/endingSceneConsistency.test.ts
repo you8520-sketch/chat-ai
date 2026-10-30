@@ -536,6 +536,12 @@ const TEA_GOAL = "비 오는 밤의 티타임: 따뜻한 차를 마시며 일행
 const TEA_FAREWELL =
   '유리문을 연다. 출입문 밖으로 한 걸음 나선다. 두 사람을 바라보며 고개를 끄덕인다. "잘 가. 오늘은 여기까지다."';
 const TEA_NEXT_QUESTION = "렌은 이 밤의 작별을 어떻게 마무리하겠는가?";
+const TEA_REACH = "출입문에 선다";
+const TEA_PLACES = [
+  { key: "teahouse", name: "모밀찻집", summary: "비를 피해 들어온 작고 아늑한 찻집.", role: "start" as const },
+  { key: "table", name: "중앙 테이블", summary: "세 사람이 둘러앉은 나무 테이블.", role: "site" as const },
+  { key: "door", name: "출입문", summary: "빗소리가 들리는 유리문.", role: "goal" as const },
+];
 const TEA_PLAN = {
   startingSituation: "비를 피해 찻집에 들어온다",
   centralConflict: "평온한 밤을 어떻게 마무리할지 정한다",
@@ -543,11 +549,7 @@ const TEA_PLAN = {
   endingConditions: ["문을 나서 헤어진다"],
   adventure: {
     start: "teahouse",
-    places: [
-      { key: "teahouse", name: "모밀찻집", summary: "비를 피해 들어온 작고 아늑한 찻집.", role: "start" as const },
-      { key: "table", name: "중앙 테이블", summary: "세 사람이 둘러앉은 나무 테이블.", role: "site" as const },
-      { key: "door", name: "출입문", summary: "빗소리가 들리는 유리문.", role: "goal" as const },
-    ],
+    places: TEA_PLACES,
     links: [
       { from: "teahouse", to: "table" },
       { from: "table", to: "door", opensBy: "event_finish_tea" },
@@ -563,33 +565,210 @@ const TEA_PLAN = {
     ],
   },
 };
+const OPEN_TEA_PLAN = {
+  startingSituation: "비를 피해 찻집에 들어온다",
+  centralConflict: "평온한 밤을 어떻게 마무리할지 정한다",
+  goal: "출입문에 선다",
+  endingConditions: ["출입문에 선다"],
+  adventure: {
+    start: "teahouse",
+    places: [
+      { key: "teahouse", name: "모밀찻집", summary: "비를 피해 들어온 작고 아늑한 찻집.", role: "start" as const },
+      { key: "door", name: "출입문", summary: "빗소리가 들리는 유리문.", role: "goal" as const },
+      { key: "eaves", name: "처마", summary: "빗물이 떨어지는 처마.", role: "site" as const },
+    ],
+    links: [
+      { from: "teahouse", to: "door" },
+      { from: "teahouse", to: "eaves", hidden: true, opensBy: "event_notice" },
+    ],
+    events: [
+      {
+        key: "event_notice",
+        place: "teahouse",
+        trigger: "search" as const,
+        kind: "clue" as const,
+        text: "처마에서 물방울이 떨어진다.",
+      },
+    ],
+  },
+};
+
+function seedTeaParty(
+  db: Database.Database,
+  plan: typeof TEA_PLAN | typeof OPEN_TEA_PLAN
+): { campaignId: number; hostId: number; kwonId: number; kangId: number } {
+  const templateId = insertScenarioTemplate(db, 7, {
+    title: "찻집",
+    summary: "비 오는 밤",
+    content: "차를 마신다.",
+    visibility: "public",
+    startLocation: "",
+    scenarioPlan: plan,
+  });
+  const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1, templateId });
+  saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+  const hostId = (
+    db.prepare(`SELECT id FROM trpg_participants WHERE campaign_id=? AND user_id=1`).get(campaignId) as { id: number }
+  ).id;
+  const kwonId = insertParticipant(db, {
+    campaignId,
+    slotIndex: 2,
+    kind: "ai_character",
+    userId: null,
+    characterId: null,
+    displayName: "권태현",
+  });
+  const kangId = insertParticipant(db, {
+    campaignId,
+    slotIndex: 3,
+    kind: "ai_character",
+    userId: null,
+    characterId: null,
+    displayName: "강이현",
+  });
+  writeSheet(db, campaignId, kwonId, "권태현", EVEN_STATS, "모밀찻집");
+  writeSheet(db, campaignId, kangId, "강이현", EVEN_STATS, "모밀찻집");
+  return { campaignId, hostId, kwonId, kangId };
+}
+
+function teaBotLock(kind: "stay" | "door" | "walk", user: string): string {
+  if (kind === "walk") return "출입문으로 이동한다.\n<<<ACTION_TYPE>>>\nfree\n<<<INTENT>>>\n출입문으로 이동한다.";
+  if (kind === "stay") return "자리를 지킨다.\n<<<ACTION_TYPE>>>\nfree\n<<<INTENT>>>\n자리를 지킨다.";
+  const kwon = user.includes("[NAME]\n권태현");
+  const line = kwon
+    ? '출입문 앞에 선다. "오늘은 여기까지다. 잘 가."'
+    : '고개를 끄덕인다. "응. 오늘은 여기까지. 잘 가."';
+  return `${line}\n<<<ACTION_TYPE>>>\nfree\n<<<INTENT>>>\n${line}`;
+}
+
+function latestGmJson(db: Database.Database, campaignId: number): {
+  campaignFinished?: boolean;
+  effectiveCampaignFinished?: boolean;
+  delta?: { questsAdd?: string[] };
+} {
+  return JSON.parse(
+    (
+      db
+        .prepare(
+          `SELECT m.structured_json AS json FROM trpg_gm_messages m JOIN trpg_rounds r ON r.id=m.round_id
+           WHERE r.campaign_id=? ORDER BY r.round_number DESC LIMIT 1`
+        )
+        .get(campaignId) as { json: string }
+    ).json
+  ) as { campaignFinished?: boolean; effectiveCampaignFinished?: boolean; delta?: { questsAdd?: string[] } };
+}
+
+function campaignStatusOf(db: Database.Database, campaignId: number): string {
+  return (db.prepare(`SELECT status FROM trpg_campaigns WHERE id=?`).get(campaignId) as { status: string }).status;
+}
 
 describe("v2 adventure ending commit", () => {
-  it("does not finish from campaignFinished while the goal is open, then finishes after host confirm", async () => {
+  it("#45: host-confirmed tea with only Ren at the door does not finish", async () => {
     const db = memoryDb();
-    const templateId = insertScenarioTemplate(db, 7, {
-      title: "찻집",
-      summary: "비 오는 밤",
-      content: "차를 마신다.",
-      visibility: "public",
-      startLocation: "",
-      scenarioPlan: TEA_PLAN,
-    });
-    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1, templateId });
-    saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
-    const hostId = (
-      db.prepare(`SELECT id FROM trpg_participants WHERE campaign_id=? AND user_id=1`).get(campaignId) as { id: number }
-    ).id;
-    let mode: "opening" | "blocked" | "claim" | "ending" | "regen" = "opening";
+    const { campaignId, hostId } = seedTeaParty(db, TEA_PLAN);
+    let mode: "opening" | "blocked" | "claim" | "split" = "opening";
     let blockedUser = "";
+    let splitUser = "";
+    let botKind: "stay" | "door" | "walk" = "stay";
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 16,
+      botCall: async (_system, user) => ({ text: teaBotLock(botKind, user) }),
+      gmCall: async ({ user }) => {
+        if (mode === "blocked") blockedUser = user;
+        if (mode === "split") splitUser = user;
+        const opening = mode === "opening";
+        const claim = mode === "claim";
+        return {
+          text: buildTrpgGmStructuredWireText(
+            claim ? "오늘 밤은 여기까지라는 합의가 장면 사실이 되었다." : "찻집 안이 조용하다.",
+            {
+              players: [],
+              location: opening ? "모밀찻집" : "출입문",
+              next_round_context: "다음",
+              campaign_finished: !opening,
+              ...(opening ? { questsAdd: [TEA_GOAL] } : {}),
+              ...(claim ? { questsClaimDone: [TEA_GOAL] } : {}),
+            }
+          ),
+        };
+      },
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(loadExplorationState(db, campaignId)?.version, 2);
+    writeSheet(db, campaignId, hostId, "렌", EVEN_STATS, "출입문");
+
+    mode = "blocked";
+    submitTrpgAction(db, { campaignId, userId: 1, body: TEA_FAREWELL });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.match(blockedUser, /잘 가\. 오늘은 여기까지다/);
+    assert.doesNotMatch(blockedUser, /uncommitted=quoted speech/);
+    assert.doesNotMatch(blockedUser, /A finish request on this round would end the campaign/);
+    assert.notEqual(campaignStatusOf(db, campaignId), "CAMPAIGN_COMPLETE");
+    const blockedStored = latestGmJson(db, campaignId);
+    assert.equal(blockedStored.campaignFinished, true);
+    assert.equal(blockedStored.effectiveCampaignFinished, false);
+    assert.equal(loadCampaignLedger(db, campaignId).goals.find((goal) => goal.id === "goal-0-1")?.status, "active");
+
+    mode = "claim";
+    submitTrpgAction(db, { campaignId, userId: 1, body: "두 사람을 바라본다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const claimed = loadCampaignLedger(db, campaignId).goals.find((goal) => goal.id === "goal-0-1");
+    assert.ok(claimed?.claimedRound);
+    assert.equal(
+      answerTrpgGoalClaim(db, {
+        campaignId,
+        userId: 1,
+        goalId: "goal-0-1",
+        claimedRound: claimed.claimedRound,
+        decision: "confirm",
+      }).outcome,
+      "confirmed"
+    );
+    assert.notEqual(campaignStatusOf(db, campaignId), "CAMPAIGN_COMPLETE");
+    assert.equal(loadCampaignLedger(db, campaignId).goals.find((goal) => goal.id === "goal-0-1")?.status, "completed");
+    writeSheet(db, campaignId, hostId, "렌", EVEN_STATS, "출입문");
+
+    mode = "split";
+    submitTrpgAction(db, { campaignId, userId: 1, body: TEA_FAREWELL });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.doesNotMatch(splitUser, /A finish request on this round would end the campaign/);
+    assert.match(splitUser, /잘 가\. 오늘은 여기까지다/);
+    const splitStored = latestGmJson(db, campaignId);
+    assert.equal(splitStored.campaignFinished, true);
+    assert.equal(splitStored.effectiveCampaignFinished, false);
+    assert.notEqual(campaignStatusOf(db, campaignId), "CAMPAIGN_COMPLETE");
+    const sheets = db
+      .prepare(
+        `SELECT s.name, s.location FROM trpg_character_sheets s
+         JOIN trpg_participants p ON p.id = s.participant_id
+         WHERE s.campaign_id=? ORDER BY p.slot_index`
+      )
+      .all(campaignId) as Array<{ name: string; location: string }>;
+    assert.deepEqual(
+      sheets.map((sheet) => [sheet.name, sheet.location]),
+      [
+        ["렌", "출입문"],
+        ["권태현", "모밀찻집"],
+        ["강이현", "모밀찻집"],
+      ]
+    );
+    db.close();
+  });
+
+  it("finishes only after every seat is at the door with a locked farewell", async () => {
+    const db = memoryDb();
+    const { campaignId, hostId, kwonId, kangId } = seedTeaParty(db, TEA_PLAN);
+    let mode: "opening" | "claim" | "ending" | "regen" = "opening";
     let finishUser = "";
     let regenUser = "";
+    let botKind: "stay" | "door" | "walk" = "stay";
     const narrationWithQuestion = `세 사람은 출입문 앞에서 고개를 끄덕였다.\n\n렌: "잘 가. 오늘은 여기까지다."\n\n처마에서 물방울이 떨어졌다.\n\nGM: ${TEA_NEXT_QUESTION}`;
     const deps: TrpgEngineDeps = {
       skipBilling: true,
       rollD20: () => 16,
+      botCall: async (_system, user) => ({ text: teaBotLock(botKind, user) }),
       gmCall: async ({ user }) => {
-        if (mode === "blocked") blockedUser = user;
         if (mode === "ending") finishUser = user;
         if (mode === "regen") {
           regenUser = user;
@@ -623,33 +802,6 @@ describe("v2 adventure ending commit", () => {
       },
     };
     await startTrpgCampaign(db, { campaignId, userId: 1, deps });
-    assert.equal(loadExplorationState(db, campaignId)?.version, 2);
-    writeSheet(db, campaignId, hostId, "렌", EVEN_STATS, "출입문");
-
-    mode = "blocked";
-    submitTrpgAction(db, { campaignId, userId: 1, body: TEA_FAREWELL });
-    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
-    assert.match(blockedUser, /잘 가\. 오늘은 여기까지다/);
-    assert.doesNotMatch(blockedUser, /uncommitted=quoted speech/);
-    assert.doesNotMatch(blockedUser, /A finish request on this round would end the campaign/);
-    assert.notEqual(
-      (db.prepare(`SELECT status FROM trpg_campaigns WHERE id=?`).get(campaignId) as { status: string }).status,
-      "CAMPAIGN_COMPLETE"
-    );
-    const blockedStored = JSON.parse(
-      (
-        db
-          .prepare(
-            `SELECT m.structured_json AS json FROM trpg_gm_messages m JOIN trpg_rounds r ON r.id=m.round_id
-             WHERE r.campaign_id=? ORDER BY r.round_number DESC LIMIT 1`
-          )
-          .get(campaignId) as { json: string }
-      ).json
-    ) as { campaignFinished?: boolean; effectiveCampaignFinished?: boolean };
-    assert.equal(blockedStored.campaignFinished, true);
-    assert.equal(blockedStored.effectiveCampaignFinished, false);
-    assert.equal(loadCampaignLedger(db, campaignId).goals.find((goal) => goal.id === "goal-0-1")?.status, "active");
-
     mode = "claim";
     submitTrpgAction(db, { campaignId, userId: 1, body: "두 사람을 바라본다." });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
@@ -665,18 +817,17 @@ describe("v2 adventure ending commit", () => {
       }).outcome,
       "confirmed"
     );
-    assert.notEqual(
-      (db.prepare(`SELECT status FROM trpg_campaigns WHERE id=?`).get(campaignId) as { status: string }).status,
-      "CAMPAIGN_COMPLETE"
-    );
-    assert.equal(loadCampaignLedger(db, campaignId).goals.find((goal) => goal.id === "goal-0-1")?.status, "completed");
     writeSheet(db, campaignId, hostId, "렌", EVEN_STATS, "출입문");
+    writeSheet(db, campaignId, kwonId, "권태현", EVEN_STATS, "출입문");
+    writeSheet(db, campaignId, kangId, "강이현", EVEN_STATS, "출입문");
+    botKind = "door";
 
     mode = "ending";
     submitTrpgAction(db, { campaignId, userId: 1, body: TEA_FAREWELL });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     assert.match(finishUser, /A finish request on this round would end the campaign/);
     assert.match(finishUser, /잘 가\. 오늘은 여기까지다/);
+    assert.match(finishUser, /오늘은 여기까지다\. 잘 가/);
     assert.doesNotMatch(finishUser, /There is no active player-visible goal yet/);
     const goals = loadCampaignLedger(db, campaignId).goals;
     assert.equal(goals.some((goal) => goal.status === "active"), false);
@@ -740,6 +891,132 @@ describe("v2 adventure ending commit", () => {
     assert.equal(regeneratedStored.delta?.questsAdd, undefined);
     assert.equal(regeneratedStored.effectiveCampaignFinished, true);
     assert.equal(loadCampaignLedger(db, campaignId).goals.some((goal) => goal.status === "active"), false);
+    db.close();
+  });
+
+  it("a reach_location completion lets v2 finish without companions in the goal room", async () => {
+    const db = memoryDb();
+    const { campaignId, hostId } = seedTeaParty(db, OPEN_TEA_PLAN);
+    let mode: "opening" | "arrive" | "ending" = "opening";
+    let finishUser = "";
+    let botKind: "stay" | "door" | "walk" = "stay";
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 16,
+      botCall: async (_system, user) => ({ text: teaBotLock(botKind, user) }),
+      gmCall: async ({ user }) => {
+        if (mode === "ending") finishUser = user;
+        const opening = mode === "opening";
+        return {
+          text: buildTrpgGmStructuredWireText(opening ? "찻집 안이 조용하다." : "출입문 앞에 선다.", {
+            players: [],
+            location: opening ? "모밀찻집" : "출입문",
+            next_round_context: "다음",
+            campaign_finished: mode === "ending",
+            ...(opening ? { questsAdd: [{ title: TEA_REACH, criterion: { type: "reach_location", place: "출입문" } }] } : {}),
+          }),
+        };
+      },
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(loadExplorationState(db, campaignId)?.version, 2);
+    mode = "arrive";
+    submitTrpgAction(db, { campaignId, userId: 1, body: "출입문으로 이동한다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const arrived = loadCampaignLedger(db, campaignId).goals.find((goal) => goal.title === TEA_REACH);
+    assert.equal(arrived?.status, "completed");
+    assert.equal(arrived?.evidence?.kind, "reach_location");
+    assert.equal(arrived?.evidence?.kind === "reach_location" ? arrived.evidence.participantId : null, hostId);
+    assert.notEqual(campaignStatusOf(db, campaignId), "CAMPAIGN_COMPLETE");
+
+    mode = "ending";
+    submitTrpgAction(db, { campaignId, userId: 1, body: "출입문 앞에 선다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.match(finishUser, /A finish request on this round would end the campaign/);
+    const stored = latestGmJson(db, campaignId);
+    assert.equal(stored.campaignFinished, true);
+    assert.equal(stored.effectiveCampaignFinished, true);
+    assert.equal(loadTrpgSnapshot(db, campaignId, 1)?.campaignStatus, "CAMPAIGN_COMPLETE");
+    const sheets = db
+      .prepare(
+        `SELECT s.name, s.location FROM trpg_character_sheets s
+         JOIN trpg_participants p ON p.id = s.participant_id
+         WHERE s.campaign_id=? ORDER BY p.slot_index`
+      )
+      .all(campaignId) as Array<{ name: string; location: string }>;
+    assert.equal(sheets.find((sheet) => sheet.name === "렌")?.location, "출입문");
+    assert.equal(sheets.find((sheet) => sheet.name === "권태현")?.location, "모밀찻집");
+    assert.equal(sheets.find((sheet) => sheet.name === "강이현")?.location, "모밀찻집");
+    db.close();
+  });
+
+  it("uses this round's settled exploration seats for the finish head and the commit", async () => {
+    const db = memoryDb();
+    const { campaignId, hostId } = seedTeaParty(db, OPEN_TEA_PLAN);
+    let mode: "opening" | "claim" | "walk" = "opening";
+    let walkUser = "";
+    let botKind: "stay" | "door" | "walk" = "stay";
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 16,
+      botCall: async (_system, user) => ({ text: teaBotLock(botKind, user) }),
+      gmCall: async ({ user }) => {
+        if (mode === "walk") walkUser = user;
+        const opening = mode === "opening";
+        const claim = mode === "claim";
+        return {
+          text: buildTrpgGmStructuredWireText(claim ? "차를 마신 밤이 사실로 남았다." : "찻집 안이 조용하다.", {
+            players: [],
+            location: opening ? "모밀찻집" : "출입문",
+            next_round_context: "다음",
+            campaign_finished: mode === "walk",
+            ...(opening ? { questsAdd: [TEA_GOAL] } : {}),
+            ...(claim ? { questsClaimDone: [TEA_GOAL] } : {}),
+          }),
+        };
+      },
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    mode = "claim";
+    submitTrpgAction(db, { campaignId, userId: 1, body: "차를 내려놓는다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const claimed = loadCampaignLedger(db, campaignId).goals.find((goal) => goal.id === "goal-0-1");
+    assert.ok(claimed?.claimedRound);
+    assert.equal(
+      answerTrpgGoalClaim(db, {
+        campaignId,
+        userId: 1,
+        goalId: "goal-0-1",
+        claimedRound: claimed.claimedRound,
+        decision: "confirm",
+      }).outcome,
+      "confirmed"
+    );
+    writeSheet(db, campaignId, hostId, "렌", EVEN_STATS, "출입문");
+    botKind = "walk";
+    mode = "walk";
+    submitTrpgAction(db, { campaignId, userId: 1, body: TEA_FAREWELL });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.match(walkUser, /A finish request on this round would end the campaign/);
+    const stored = latestGmJson(db, campaignId);
+    assert.equal(stored.campaignFinished, true);
+    assert.equal(stored.effectiveCampaignFinished, true);
+    assert.equal(loadTrpgSnapshot(db, campaignId, 1)?.campaignStatus, "CAMPAIGN_COMPLETE");
+    const sheets = db
+      .prepare(
+        `SELECT s.name, s.location FROM trpg_character_sheets s
+         JOIN trpg_participants p ON p.id = s.participant_id
+         WHERE s.campaign_id=? ORDER BY p.slot_index`
+      )
+      .all(campaignId) as Array<{ name: string; location: string }>;
+    assert.deepEqual(
+      sheets.map((sheet) => [sheet.name, sheet.location]),
+      [
+        ["렌", "출입문"],
+        ["권태현", "출입문"],
+        ["강이현", "출입문"],
+      ]
+    );
     db.close();
   });
 });
