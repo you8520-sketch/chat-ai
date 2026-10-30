@@ -27,6 +27,7 @@ import {
   composeOfficialCurrentSituation,
   ensureOfficialSharedWorldLibraryRow,
   OFFICIAL_SHARED_WORLD_LIBRARY_NAME,
+  officialSharedWorldCoreBindingHits,
   projectOfficialSharedWorld,
 } from "@/lib/officialSupply/officialSharedWorld";
 import type { OfficialCharacterDraft, OfficialWorldLorebookEntry } from "@/lib/officialSupply/types";
@@ -249,6 +250,73 @@ describe("official shared world owner — BEFORE vs AFTER", () => {
     localOnly.factions[0]!.means = "당신은 이 수단의 당사자가 아니다.";
     const projected = projectOfficialSharedWorld(localOnly);
     assert.doesNotMatch(projected, /당신|유저|플레이어/);
+  });
+
+  const G5_3N_PLAYER_CHOICE =
+    "확인이 이야기의 중심 RP 영역이다. 플레이어는 당사자 동의와 안전을 챙기면서도 제한된 시간과 예산 안에서 누구에게 먼저 손을 내밀지 선택한다.";
+  const OBJECTIVE_SHELTER =
+    "임시거처는 구청이 고시한 공공시설에서 운영하고, 침구와 식사는 신청 순서와 게시된 기준에 따라 배분한다.";
+
+  function shelterWorld(value: string): OfficialWorldBible {
+    const world = structuredClone(worldBible());
+    const classText = world.society["계급"] ?? "";
+    delete world.society["계급"];
+    world.society["법"] = `${world.society["법"] ?? ""} ${classText}`.trim();
+    world.society["임시거처 연결"] = value;
+    return world;
+  }
+
+  it("rejects the G5-3N player-choice sentence when society.임시거처 연결 is a shared fact", () => {
+    const world = shelterWorld(G5_3N_PLAYER_CHOICE);
+    assert.throws(
+      () => projectOfficialSharedWorld(world),
+      (error: unknown) => {
+        assert.ok(error instanceof OfficialSupplyGateError);
+        assert.equal(error.code, "official_world_projection_user_binding");
+        const hit = error.worldProjection?.hits.find((item) => item.field === "society.임시거처 연결");
+        assert.ok(hit);
+        assert.match(hit?.excerpt ?? "", /플레이어는 당사자 동의와 안전을 챙기면서도/);
+        assert.equal(JSON.stringify(error.worldProjection).includes("authorOnly"), false);
+        return true;
+      }
+    );
+  });
+
+  it("keeps an objective shelter rule in the shared world and leaves player entry on the character", () => {
+    const world = shelterWorld(OBJECTIVE_SHELTER);
+    world.userEntry.note = `${world.userEntry.note} ${G5_3N_PLAYER_CHOICE}`;
+    world.portfolio[0]!.rpHook = `${world.portfolio[0]!.rpHook} ${G5_3N_PLAYER_CHOICE}`;
+    const projected = projectOfficialSharedWorld(world);
+    assert.match(projected, /임시거처는 구청이 고시한 공공시설에서 운영하고/);
+    assert.doesNotMatch(projected, /플레이어는 당사자 동의와 안전을 챙기면서도/);
+    assert.match(world.userEntry.note, /플레이어는 당사자 동의와 안전을 챙기면서도/);
+    assert.match(world.portfolio[0]!.rpHook, /플레이어는 당사자 동의와 안전을 챙기면서도/);
+  });
+
+  it("does not treat the same sentence as a shared fact when that society key is not projected", () => {
+    const world = structuredClone(worldBible());
+    world.society["임시거처 연결"] = G5_3N_PLAYER_CHOICE;
+    const projected = projectOfficialSharedWorld(world);
+    assert.doesNotMatch(projected, /플레이어는 당사자 동의와 안전을 챙기면서도/);
+    const hits = officialSharedWorldCoreBindingHits({
+      name: world.name,
+      genre: world.genre,
+      era: world.era,
+      techLevel: world.techLevel,
+      societyForm: world.societyForm,
+      regions: world.regions,
+      society: world.society,
+      cultureNames: world.culture.map((item) => item.name),
+      upcomingChange: world.situation.upcomingChange,
+      beneficiaries: world.situation.beneficiaries,
+      threatened: world.situation.threatened,
+      factions: world.factions.map((faction) => ({ name: faction.name, purpose: faction.purpose })),
+      powerAcquisition: world.powerSystem.acquisition,
+      powerLimits: world.powerSystem.limits,
+      powerCosts: world.powerSystem.costs,
+    });
+    assert.equal(hits.some((hit) => hit.field === "society.임시거처 연결"), false);
+    assert.equal(hits.some((hit) => hit.excerpt.includes("플레이어")), false);
   });
 
   it("does not attach a lore excerpt when projection hits a hidden-knowledge marker", () => {

@@ -928,7 +928,7 @@ describe("G5-3E shared world projection runs before character calls", () => {
       selection: autoHorrorDry,
       transport,
     });
-    assert.deepEqual(tasks, ["world_bible", "world_bible", "world_bible"]);
+    assert.deepEqual(tasks, ["world_bible"]);
     assert.equal(preview.ok, false);
     if (preview.ok) return;
     assert.equal("previewId" in preview, false);
