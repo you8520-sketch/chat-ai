@@ -22,6 +22,7 @@ import {
   filterExplorationFlagsAdd,
   filterExplorationFlagsRemove,
   adventureExplorationState,
+  explorationRoomFacts,
   formatExplorationBotBrief,
   formatExplorationGmBlock,
   generateExplorationMap,
@@ -470,6 +471,95 @@ describe("exploration map generation", () => {
         "서고 단서: 낙서",
       ]),
       ["문_열림", "서고 단서: 낙서"]
+    );
+  });
+
+  it("prices tea-map follow text without inventing an outside room or opening a locked door", () => {
+    const state = adventureExplorationState(
+      {
+        start: "teahouse",
+        places: [
+          { key: "teahouse", name: "모밀찻집", summary: "비를 피해 들어온 작고 아늑한 찻집.", role: "start" },
+          { key: "table", name: "중앙 테이블", summary: "세 사람이 둘러앉은 나무 테이블.", role: "site" },
+          { key: "counter", name: "계산대", summary: "주인이 서 있는 나무 계산대.", role: "site" },
+          { key: "door", name: "출입문", summary: "빗소리가 들리는 유리문.", role: "goal" },
+        ],
+        links: [
+          { from: "teahouse", to: "table" },
+          { from: "table", to: "counter" },
+          { from: "counter", to: "door" },
+          { from: "table", to: "door", opensBy: "event_finish_tea" },
+        ],
+        events: [
+          {
+            key: "event_finish_tea",
+            place: "table",
+            trigger: "careful_search",
+            kind: "clue",
+            text: "빈 찻잔이 식어 있다.",
+          },
+        ],
+      },
+      "tea"
+    );
+    const fromTeahouse = explorationRoomFacts(state, "모밀찻집");
+    assert.deepEqual(fromTeahouse.exits, ["중앙 테이블"]);
+    assert.deepEqual(fromTeahouse.lockedExits, []);
+    const brief = formatExplorationBotBrief({
+      roomId: "모밀찻집",
+      startName: "모밀찻집",
+      neighbors: fromTeahouse.exits,
+      lockedExits: fromTeahouse.lockedExits,
+      summary: fromTeahouse.summary,
+      ap: 3,
+      party: [
+        { name: "렌", location: "출입문" },
+        { name: "권태현", location: "모밀찻집" },
+      ],
+    });
+    assert.match(brief, /You are in 모밀찻집/);
+    assert.match(brief, /Open passages: 중앙 테이블/);
+    assert.match(brief, /렌 출입문/);
+    assert.deepEqual(explorationCommandsFromMovementBody(state.map, "중앙 테이블로 이동한다."), [
+      { op: "move", roomId: "table" },
+    ]);
+    assert.deepEqual(explorationCommandsFromMovementBody(state.map, "출입문으로 이동한다."), [
+      { op: "move", roomId: "door" },
+    ]);
+    assert.throws(
+      () =>
+        priceExplorationCommands({
+          state,
+          fromRoomId: "teahouse",
+          commands: [{ op: "move", roomId: "door" }],
+          apRemaining: 3,
+        }),
+      /연결되지 않은 곳으로는 이동할 수 없습니다/
+    );
+    assert.throws(
+      () =>
+        priceExplorationCommands({
+          state,
+          fromRoomId: "table",
+          commands: [{ op: "move", roomId: "door" }],
+          apRemaining: 3,
+        }),
+      /아직 열리지 않은|연결되지 않은/
+    );
+    assert.deepEqual(explorationCommandsFromMovementBody(state.map, "출입문 밖으로 나간다."), []);
+    assert.deepEqual(explorationCommandsFromMovementBody(state.map, "문 밖으로 나선다."), []);
+    assert.deepEqual(explorationCommandsFromMovementBody(state.map, "밖으로 나간다."), []);
+    const alley = explorationCommandsFromMovementBody(state.map, "골목으로 나선다.");
+    assert.deepEqual(alley, [{ op: "move", roomId: "골목" }]);
+    assert.throws(
+      () =>
+        priceExplorationCommands({
+          state,
+          fromRoomId: "teahouse",
+          commands: alley,
+          apRemaining: 3,
+        }),
+      /연결되지 않은 곳으로는 이동할 수 없습니다/
     );
   });
 });

@@ -190,16 +190,14 @@ export function isCommittedItemConsumption(body: string): boolean {
   return committedItemConsumptionSpans(body).length > 0;
 }
 
-/** GM note for clauses that must not be narrated as done or charged. */
+/** GM note for clauses that must not be narrated as done or charged. Locked quoted speech stays spoken. */
 export function uncommittedActionWire(body: string): string | null {
   const held = actionClauses(body).filter((clause) => {
     const kind = classifyActionClause(clause).kind;
     return kind === "conditional" || kind === "declined";
   });
-  const quoted = /[「『"“]/.test(body) && stripQuotedDialogue(body) !== normalizeBody(body);
-  if (held.length === 0 && !quoted) return null;
+  if (held.length === 0) return null;
   const bits = held.map((clause) => clause.replace(/[.!?。！？]+$/g, "").trim());
-  if (quoted) bits.push("quoted speech");
   return `uncommitted=${bits.join(" || ")} — do not narrate these as completed acts, and do not spend items or HP for them`;
 }
 

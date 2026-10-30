@@ -68,6 +68,7 @@ import {
   type BotExplorationLockOutcome,
 } from "./botExplorationLockDiagnostic";
 import {
+  canonicalRoomId,
   composeExplorationSentences,
   displayExplorationAp,
   explorationCommandsFromMovementBody,
@@ -1785,9 +1786,10 @@ async function runGmForRound(
         .filter(Boolean)
         .join("\n\n")
     : "";
-  const endingFinishWouldStand = legacyEndingFinishWouldStand({
+  const endingFinishWouldStand = campaignFinishWouldStand({
     exploration: loadExplorationState(db, opts.campaignId),
     participantIds: sheets.map((sheet) => sheet.participantId),
+    locations: sheets.map((sheet) => sheet.location),
     goals: goalLedger.goals,
   });
   const requestPlayerGoalRegistration = shouldRequestTrpgPlayerGoalRegistration({
@@ -2133,28 +2135,48 @@ function acceptedItemsBySeat(
 
 /**
  * GM `campaignFinished` is the request. This is the decision both the normal commit and
- * APPLYING_STATE recovery finalize with. Legacy facility endings also require every seat
- * to have departed and no criterion-less goal still waiting on the host.
+ * APPLYING_STATE recovery finalize with. The prompt uses the same predicate when a map
+ * ending fact exists (v1 escape, or a v2 seat in a goal-role room after the last goal closed).
+ * A GM flag alone does not complete an open goal. No-map campaigns keep the previous
+ * flag-only commit and do not receive an ending-ready head.
  */
 function resolveEffectiveCampaignFinished(opts: {
   gmRequested: boolean;
   exploration: ExplorationState | null;
   participantIds: readonly number[];
+  locations?: readonly string[];
   goals: readonly TrpgGoal[];
 }): boolean {
   if (!opts.gmRequested) return false;
-  if (!opts.exploration || opts.exploration.version !== 1) return true;
-  if (!legacyPartyEscapeFact(opts.exploration, opts.participantIds)) return false;
-  return !goalsAwaitingHostConfirmation(opts.goals);
+  if (opts.exploration?.version === 1) {
+    if (!legacyPartyEscapeFact(opts.exploration, opts.participantIds)) return false;
+    return !goalsAwaitingHostConfirmation(opts.goals);
+  }
+  if (opts.exploration?.version === 2) {
+    if (opts.goals.some((goal) => goal.status === "active")) return false;
+    if (!opts.goals.some((goal) => goal.status === "completed")) return false;
+    return seatOccupiesAdventureGoal(opts.exploration, opts.locations ?? []);
+  }
+  return true;
 }
 
-/** Prompt fact for a legacy facility round. A finish request would stand only after every seat has departed and the host has no criterion-less goal left to confirm. v2 still finishes from the GM flag alone, at commit. */
-function legacyEndingFinishWouldStand(opts: {
+function seatOccupiesAdventureGoal(state: ExplorationState, locations: readonly string[]): boolean {
+  const goals = state.map.rooms.filter((room) => room.role === "goal");
+  if (goals.length === 0) return false;
+  return locations.some((location) => {
+    const roomId = canonicalRoomId(state.map, location);
+    return goals.some((room) => room.id === roomId);
+  });
+}
+
+/** Prompt fact: a finish request on this round would complete the campaign. Same owner as v1/v2 commit. */
+function campaignFinishWouldStand(opts: {
   exploration: ExplorationState | null;
   participantIds: readonly number[];
+  locations?: readonly string[];
   goals: readonly TrpgGoal[];
 }): boolean {
-  if (!opts.exploration || opts.exploration.version !== 1) return false;
+  if (!opts.exploration) return false;
   return resolveEffectiveCampaignFinished({ ...opts, gmRequested: true });
 }
 
@@ -2179,10 +2201,12 @@ function campaignFinishedForRecovery(db: Database.Database, campaignId: number, 
   const stored = readStoredGmFinish(raw);
   if (stored.effectiveCampaignFinished != null) return stored.effectiveCampaignFinished;
   if (!stored.gmRequested) return false;
+  const recoverySheets = loadSheetSnapshots(db, campaignId);
   return resolveEffectiveCampaignFinished({
     gmRequested: stored.gmRequested,
     exploration: loadExplorationState(db, campaignId),
-    participantIds: loadSheetSnapshots(db, campaignId).map((sheet) => sheet.participantId),
+    participantIds: recoverySheets.map((sheet) => sheet.participantId),
+    locations: recoverySheets.map((sheet) => sheet.location),
     goals: loadCampaignLedger(db, campaignId).goals,
   });
 }
@@ -2359,6 +2383,7 @@ function commitPendingGmResult(
     gmRequested: parsed.campaignFinished === true,
     exploration: explorationStateForFinish,
     participantIds: sheets.map((sheet) => sheet.participantId),
+    locations: (persistMechanics ? nextSheets : sheets).map((sheet) => sheet.location),
     goals: currentLedger.goals,
   });
   const storedFinish = opts.regenerate
