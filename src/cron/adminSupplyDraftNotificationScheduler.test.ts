@@ -249,6 +249,18 @@ describe("admin supply Draft notification watcher", () => {
       "INSERT INTO web_push_subscriptions (user_id,endpoint,p256dh,auth) VALUES (1,'https://push.example/finance','p256dh','auth')"
     ).run();
 
+    const incidents = [
+      {
+        code: "PROVIDER_RECONCILIATION_MISMATCH",
+        severity: "critical" as const,
+        sourceRef: "provider_reconciliation:2026-10-01 00:00:00..2026-11-01 00:00:00",
+      },
+      {
+        code: "ACTUAL_MARGIN_BELOW_FLOOR",
+        severity: "warning" as const,
+        sourceRef: "actual_margin:gemini:2026-10",
+      },
+    ];
     const first = notifyAdminsFinanceAnomaly(db, {
       slotKey: "2026-10-01",
       criticalCount: 1,
@@ -257,11 +269,12 @@ describe("admin supply Draft notification watcher", () => {
         "Provider cost reconciliation mismatch",
         "gemini margin below floor",
       ],
+      incidents,
     });
-    assert.deepEqual(first, [1, 2]);
+    assert.deepEqual(first, [1, 2, 1, 2]);
 
     const rows = db
-      .prepare("SELECT user_id,type,ref_id,title,body FROM user_notifications ORDER BY user_id")
+      .prepare("SELECT user_id,type,ref_id,title,body FROM user_notifications ORDER BY id")
       .all() as Array<{
         user_id: number;
         type: string;
@@ -272,8 +285,10 @@ describe("admin supply Draft notification watcher", () => {
     assert.deepEqual(
       rows.map((row) => [row.user_id, row.type, row.ref_id]),
       [
-        [1, "admin_finance_anomaly", 20261001],
-        [2, "admin_finance_anomaly", 20261001],
+        [1, "admin_finance_anomaly", 1],
+        [2, "admin_finance_anomaly", 1],
+        [1, "admin_finance_anomaly", 2],
+        [2, "admin_finance_anomaly", 2],
       ]
     );
     assert.match(rows[0]!.title, /Critical anomaly/);
@@ -282,18 +297,18 @@ describe("admin supply Draft notification watcher", () => {
     const outbox = db
       .prepare("SELECT user_id,payload_json FROM web_push_outbox")
       .all() as Array<{ user_id: number; payload_json: string }>;
-    assert.equal(outbox.length, 1);
+    assert.equal(outbox.length, 2);
     const payload = JSON.parse(outbox[0]!.payload_json) as {
       url: string;
       tag: string;
     };
     assert.equal(payload.url, "/admin/ops");
-    assert.equal(payload.tag, "admin-finance-anomaly:2026-10-01");
+    assert.equal(payload.tag, "admin-finance-anomaly:1");
 
     assert.equal(
       notificationHref({
         type: "admin_finance_anomaly",
-        ref_id: 20261001,
+        ref_id: 1,
         actor_id: null,
         comment_target_type: null,
         comment_target_id: null,
@@ -306,15 +321,16 @@ describe("admin supply Draft notification watcher", () => {
       criticalCount: 1,
       warningCount: 2,
       anomalyTitles: ["same slot"],
+      incidents,
     });
     assert.deepEqual(second, []);
     assert.equal(
       (db.prepare("SELECT COUNT(*) AS c FROM user_notifications").get() as { c: number }).c,
-      2
+      4
     );
     assert.equal(
       (db.prepare("SELECT COUNT(*) AS c FROM web_push_outbox").get() as { c: number }).c,
-      1
+      2
     );
 
     assert.deepEqual(
@@ -323,6 +339,7 @@ describe("admin supply Draft notification watcher", () => {
         criticalCount: 1,
         warningCount: 0,
         anomalyTitles: [],
+        incidents,
       }),
       []
     );

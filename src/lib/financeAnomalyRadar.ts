@@ -1,7 +1,7 @@
 import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
 import type { AdminFinanceSummary } from "@/lib/adminFinance";
-import { isLunaUsageModel, type ForwardReconAudit } from "@/lib/forwardReconAudit";
-import type { ForwardReviewProjection } from "@/lib/forwardReconReview";
+import { isLunaUsageModel, type ForwardReconAudit, type ForwardUnmatchedRequest } from "@/lib/forwardReconAudit";
+import { forwardEvidenceFingerprint, type ForwardReviewProjection } from "@/lib/forwardReconReview";
 import type { MainRpPricingObservabilityProjection } from "@/lib/mainRpPricingObservability";
 
 export type FinanceAnomalySeverity = "critical" | "warning";
@@ -33,6 +33,11 @@ export type FinanceAnomaly = {
   modelId: string | null;
   /** Provider call time when this anomaly has one. Report generation time is not a call time. */
   occurredAt?: string | null;
+  /**
+   * Spend witness from forwardRequestReviewKey. Notification identity only.
+   * Not a request id, and not part of the ops sourceRef.
+   */
+  evidenceKey?: string;
 };
 
 export type FinanceAnomalyReport = {
@@ -74,6 +79,16 @@ function formatForwardModelBreakdown(byModel: ForwardReconAudit["byModel"]): str
         `${model} × ${row.unmatchedCount} unmatched (${usdFromMicro(row.unmatchedMicroUsd)} USD)`
     );
   return parts.length > 0 ? parts.join("; ") : "no unmatched model rows";
+}
+
+function spendEvidence(
+  audit: ForwardReconAudit,
+  scope: "production" | "undetermined" | "workspace"
+): string | undefined {
+  const rows = (audit.unmatchedRequests ?? []).filter((row: ForwardUnmatchedRequest) =>
+    scope === "workspace" ? true : row.scope === scope
+  );
+  return forwardEvidenceFingerprint(audit.observedSince, rows) ?? undefined;
 }
 
 function pushForwardReconAnomalies(anomalies: FinanceAnomaly[], audit: ForwardReconAudit, review?: ForwardReviewProjection | null): void {
@@ -143,6 +158,7 @@ function pushForwardReconAnomalies(anomalies: FinanceAnomaly[], audit: ForwardRe
         sourceRef: `forward_unclassified:${audit.observedSince}:${audit.unmatchedLedgerCount}`,
         href: "/admin/finance",
         modelId: null,
+        evidenceKey: spendEvidence(audit, "workspace"),
       });
     }
     return;
@@ -165,6 +181,7 @@ function pushForwardReconAnomalies(anomalies: FinanceAnomaly[], audit: ForwardRe
         href: "/admin/finance",
         modelId: Object.keys(group.byModel).some(isLunaUsageModel) ? "gpt-6-luna" : null,
         occurredAt: group.firstAt,
+        evidenceKey: group.evidenceFingerprint ?? undefined,
       });
     }
     return;
@@ -192,6 +209,7 @@ function pushForwardReconAnomalies(anomalies: FinanceAnomaly[], audit: ForwardRe
       href: "/admin/finance",
       modelId: productionLuna ? "gpt-6-luna" : null,
       occurredAt: scope.unmatchedFirstAt,
+      evidenceKey: spendEvidence(audit, "production"),
     });
   }
 
@@ -218,6 +236,7 @@ function pushForwardReconAnomalies(anomalies: FinanceAnomaly[], audit: ForwardRe
       href: "/admin/finance",
       modelId: null,
       occurredAt: undetermined?.firstAt ?? null,
+      evidenceKey: spendEvidence(audit, "undetermined"),
     });
   }
 }

@@ -15,6 +15,8 @@ export type ForwardReviewGroup = {
   firstAt: string | null;
   lastAt: string | null;
   byModel: Record<string, ForwardModelAudit>;
+  /** Hash of the rows in this group. Absent on older projections. */
+  evidenceFingerprint?: string | null;
 };
 
 export type ForwardReviewProjection = {
@@ -51,12 +53,41 @@ export function completeForwardRequestWitnesses(audit: ForwardReconAudit): boole
     production === audit.productionScope.unmatchedLedgerCount && productionMicro === audit.productionScope.unmatchedSettledMicroUsd;
 }
 
+function hashSortedReviewKeys(observedSince: string | null, keys: readonly string[]): string {
+  return createHash("sha256")
+    .update(JSON.stringify([observedSince, [...keys].sort()]))
+    .digest("hex");
+}
+
+/** Alert witness for pending rows. An empty set is not a new spend incident. */
+export function forwardEvidenceFingerprint(
+  observedSince: string | null | undefined,
+  rows: readonly ForwardUnmatchedRequest[]
+): string | null {
+  if (!observedSince || rows.length === 0) return null;
+  for (const row of rows) {
+    if (
+      !row ||
+      typeof row.requestHash !== "string" ||
+      !/^[a-f0-9]{64}$/.test(row.requestHash) ||
+      typeof row.model !== "string" ||
+      !Number.isSafeInteger(row.billedMicroUsd) ||
+      row.billedMicroUsd <= 0 ||
+      typeof row.createdAt !== "string" ||
+      !Number.isFinite(Date.parse(row.createdAt)) ||
+      (row.scope !== "production" && row.scope !== "undetermined")
+    ) {
+      return null;
+    }
+  }
+  return hashSortedReviewKeys(observedSince, rows.map(forwardRequestReviewKey));
+}
+
+/** Verified snapshot, including a healthy empty unmatched set: sha256([observedSince, keys]). */
 export function forwardSnapshotFingerprint(audit: ForwardReconAudit): string | null {
   if (!completeForwardRequestWitnesses(audit)) return null;
-  return createHash("sha256").update(JSON.stringify([
-    audit.observedSince,
-    audit.unmatchedRequests!.map(forwardRequestReviewKey).sort(),
-  ])).digest("hex");
+  const rows = audit.unmatchedRequests ?? [];
+  return hashSortedReviewKeys(audit.observedSince, rows.map(forwardRequestReviewKey));
 }
 
 export function parseForwardReviewRecord(value: unknown): ForwardReviewRecord | null {
@@ -71,7 +102,7 @@ export function parseForwardReviewRecord(value: unknown): ForwardReviewRecord | 
 }
 
 function group(): ForwardReviewGroup {
-  return { count: 0, microUsd: 0, firstAt: null, lastAt: null, byModel: {} };
+  return { count: 0, microUsd: 0, firstAt: null, lastAt: null, byModel: {}, evidenceFingerprint: null };
 }
 
 function add(target: ForwardReviewGroup, row: ForwardUnmatchedRequest) {
@@ -97,12 +128,22 @@ export function projectForwardReview(audit: ForwardReconAudit, review: ForwardRe
   if (!result.available) return result;
   const reviewed = new Set(review?.observedSince === audit.observedSince ? review.requestKeys : []);
   const sources = new Set<string>();
+  const pendingProduction: ForwardUnmatchedRequest[] = [];
+  const pendingUndetermined: ForwardUnmatchedRequest[] = [];
   for (const row of audit.unmatchedRequests!) {
     const source = identifiedForwardMeasurement(row);
     if (source) { add(result.identifiedMeasurements, row); sources.add(source); }
     else if (reviewed.has(forwardRequestReviewKey(row))) add(result.reviewedUnresolved, row);
-    else add(row.scope === "production" ? result.pendingProduction : result.pendingUndetermined, row);
+    else if (row.scope === "production") {
+      add(result.pendingProduction, row);
+      pendingProduction.push(row);
+    } else {
+      add(result.pendingUndetermined, row);
+      pendingUndetermined.push(row);
+    }
   }
+  result.pendingProduction.evidenceFingerprint = forwardEvidenceFingerprint(audit.observedSince, pendingProduction);
+  result.pendingUndetermined.evidenceFingerprint = forwardEvidenceFingerprint(audit.observedSince, pendingUndetermined);
   result.evidenceSources = [...sources];
   return result;
 }

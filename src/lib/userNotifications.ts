@@ -516,15 +516,101 @@ export function notifyAdminsSupplyDraftReady(
   return notified;
 }
 
+const FINANCE_ANOMALY_EPISODE_KEY = "admin_finance_anomaly_episode";
+
+export type FinanceAnomalyIncident = {
+  code: string;
+  severity: "critical" | "warning";
+  sourceRef: string;
+  /** Canonical spend witness. Empty when the anomaly has no request evidence. */
+  evidence?: string;
+  title?: string;
+};
+
+type OpenFinanceIncident = {
+  refId: number;
+  /** null means a legacy episode that has not bound its first witness yet. */
+  evidence: string | null;
+};
+
+type FinanceAnomalyLedger = {
+  nextRefId: number;
+  open: Record<string, OpenFinanceIncident>;
+};
+
+function financeIncidentKey(incident: FinanceAnomalyIncident): string {
+  return `${incident.code}|${incident.severity}|${incident.sourceRef}`;
+}
+
+function ensureFinanceAnomalyEpisodeStore(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS app_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+  `);
+}
+
+function emptyFinanceAnomalyLedger(): FinanceAnomalyLedger {
+  return { nextRefId: 0, open: {} };
+}
+
+function readFinanceAnomalyLedger(db: Database.Database): FinanceAnomalyLedger {
+  const row = db
+    .prepare("SELECT value FROM app_meta WHERE key=?")
+    .get(FINANCE_ANOMALY_EPISODE_KEY) as { value: string } | undefined;
+  if (!row) return emptyFinanceAnomalyLedger();
+  try {
+    const parsed = JSON.parse(row.value) as {
+      open?: boolean | Record<string, Partial<OpenFinanceIncident>>;
+      fingerprint?: string;
+      refId?: number;
+      nextRefId?: number;
+    };
+    if (parsed.open && typeof parsed.open === "object") {
+      const open: Record<string, OpenFinanceIncident> = {};
+      for (const [key, value] of Object.entries(parsed.open)) {
+        const refId = Number(value?.refId);
+        if (!key || !Number.isSafeInteger(refId) || refId <= 0) continue;
+        open[key] = {
+          refId,
+          evidence: value?.evidence === null || typeof value?.evidence === "string" ? value.evidence : "",
+        };
+      }
+      const nextRefId = Number(parsed.nextRefId);
+      return {
+        nextRefId: Number.isSafeInteger(nextRefId) && nextRefId >= 0 ? nextRefId : 0,
+        open,
+      };
+    }
+    const refId = Number(parsed.refId);
+    if (parsed.open === true && typeof parsed.fingerprint === "string" && Number.isSafeInteger(refId) && refId > 0) {
+      const open: Record<string, OpenFinanceIncident> = {};
+      for (const line of parsed.fingerprint.split("\n")) {
+        if (!line) continue;
+        open[line] = { refId, evidence: null };
+      }
+      return { nextRefId: refId, open };
+    }
+  } catch {
+    return emptyFinanceAnomalyLedger();
+  }
+  return emptyFinanceAnomalyLedger();
+}
+
+function writeFinanceAnomalyLedger(db: Database.Database, ledger: FinanceAnomalyLedger): void {
+  db.prepare("INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)").run(
+    FINANCE_ANOMALY_EPISODE_KEY,
+    JSON.stringify(ledger)
+  );
+}
+
 /**
- * 공개 심사를 통과한 독립 공급처 후보를 관리자에게 한 번 알립니다.
- * 공급처 id의 안정적인 ref id가 dedupe key입니다. Draft PR 알림 owner와 같은
- * in-app + web push 경로를 쓰고, 별도 push 시스템을 만들지 않습니다.
- */
-/**
- * Notify administrators once per canonical finance_daily slot when deterministic
- * billing/cost anomalies are present. The daily slot key is the dedupe owner;
- * repeated boot/runtime/manual recovery for the same slot cannot fan out pushes.
+ * Notify administrators once per open finance incident.
+ * Each incident is code + severity + sourceRef. A spend witness change on that
+ * same incident is a new alert. Closing one incident does not reopen the others.
+ * The calendar day is not an incident. Prior rows are left in place.
+ * Ops and finance screens keep reading the anomaly report, not this outbox.
  */
 export function notifyAdminsFinanceAnomaly(
   db: Database.Database,
@@ -533,55 +619,79 @@ export function notifyAdminsFinanceAnomaly(
     criticalCount: number;
     warningCount: number;
     anomalyTitles: readonly string[];
+    incidents: readonly FinanceAnomalyIncident[];
   }
 ): number[] {
-  if (opts.criticalCount <= 0 && opts.warningCount <= 0) return [];
   if (!/^\d{4}-\d{2}-\d{2}$/.test(opts.slotKey)) return [];
 
-  const refId = Number(opts.slotKey.replace(/-/g, ""));
-  if (!Number.isSafeInteger(refId) || refId <= 0) return [];
+  return db.transaction(() => {
+    ensureFinanceAnomalyEpisodeStore(db);
+    const ledger = readFinanceAnomalyLedger(db);
+    const admins = listAdminNotificationRecipients(db);
+    const notified: number[] = [];
+    const current = new Set<string>();
 
-  const admins = listAdminNotificationRecipients(db);
-  const notified: number[] = [];
-  const title =
-    opts.criticalCount > 0
-      ? "재무/과금 Critical anomaly"
-      : "재무/과금 anomaly 검토";
-  const top = opts.anomalyTitles.slice(0, 3).join(" · ");
-  const body =
-    `${opts.slotKey} finance_daily · critical ${opts.criticalCount} · warning ${opts.warningCount}` +
-    (top ? ` · ${top}` : "");
+    const deliver = (refId: number, incident: FinanceAnomalyIncident, index: number) => {
+      const label = incident.title?.trim() || opts.anomalyTitles[index] || incident.code;
+      const title =
+        incident.severity === "critical" ? "재무/과금 Critical anomaly" : "재무/과금 anomaly 검토";
+      const body =
+        `${opts.slotKey} finance_daily · critical ${opts.criticalCount} · warning ${opts.warningCount}` +
+        (label ? ` · ${label}` : "");
+      for (const admin of admins) {
+        const exists = db
+          .prepare(
+            "SELECT 1 AS ok FROM user_notifications WHERE user_id=? AND type='admin_finance_anomaly' AND ref_id=? LIMIT 1"
+          )
+          .get(admin.id, refId) as { ok: number } | undefined;
+        if (exists) continue;
+        insertNotification(db, {
+          userId: admin.id,
+          type: "admin_finance_anomaly",
+          refId,
+          actorId: null,
+          title,
+          body,
+          push: {
+            url: "/admin/ops",
+            tag: `admin-finance-anomaly:${refId}`,
+            kind: "notice",
+          },
+        });
+        notified.push(admin.id);
+      }
+    };
 
-  for (const admin of admins) {
-    const inserted = db.transaction(() => {
-      const exists = db
-        .prepare(
-          "SELECT 1 AS ok FROM user_notifications WHERE user_id=? AND type='admin_finance_anomaly' AND ref_id=? LIMIT 1"
-        )
-        .get(admin.id, refId) as { ok: number } | undefined;
-      if (exists) return false;
+    opts.incidents.forEach((incident, index) => {
+      const key = financeIncidentKey(incident);
+      current.add(key);
+      const evidence = incident.evidence ?? "";
+      const existing = ledger.open[key];
+      if (existing && (existing.evidence === null || existing.evidence === evidence)) {
+        if (existing.evidence === null) existing.evidence = evidence;
+        deliver(existing.refId, incident, index);
+        return;
+      }
+      const refId = ledger.nextRefId + 1;
+      if (!Number.isSafeInteger(refId) || refId <= 0) return;
+      ledger.nextRefId = refId;
+      ledger.open[key] = { refId, evidence };
+      deliver(refId, incident, index);
+    });
 
-      insertNotification(db, {
-        userId: admin.id,
-        type: "admin_finance_anomaly",
-        refId,
-        actorId: null,
-        title,
-        body,
-        push: {
-          url: "/admin/ops",
-          tag: `admin-finance-anomaly:${opts.slotKey}`,
-          kind: "notice",
-        },
-      });
-      return true;
-    }).immediate();
-
-    if (inserted) notified.push(admin.id);
-  }
-
-  return notified;
+    for (const key of Object.keys(ledger.open)) {
+      if (!current.has(key)) delete ledger.open[key];
+    }
+    writeFinanceAnomalyLedger(db, ledger);
+    return notified;
+  }).immediate();
 }
+
+/**
+ * 공개 심사를 통과한 독립 공급처 후보를 관리자에게 한 번 알립니다.
+ * 공급처 id의 안정적인 ref id가 dedupe key입니다. Draft PR 알림 owner와 같은
+ * in-app + web push 경로를 쓰고, 별도 push 시스템을 만들지 않습니다.
+ */
 
 export function notifyAdminsSupplyCandidateAttention(
   db: Database.Database,

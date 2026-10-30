@@ -797,4 +797,89 @@ describe("finance anomaly radar", () => {
       false
     );
   });
+
+  it("changes unmatched spend evidence when the bill or request witness changes, not when the report time changes", () => {
+    const hashA = "a".repeat(64);
+    const hashB = "b".repeat(64);
+    const witness = (requestHash: string, billedMicroUsd: number) => ({
+      requestHash,
+      model: "gpt-6-luna",
+      billedMicroUsd,
+      createdAt: "2026-10-10T08:00:00.000Z",
+      scope: "production" as const,
+    });
+    const reportFor = (row: ReturnType<typeof witness>, now: string) =>
+      buildFinanceAnomalyReport({
+        summary: summary({
+          providerReconciliation: {
+            status: "mismatch",
+            forwardAudit: {
+              observedSince: "2026-10-05T03:00:00.175Z",
+              observationSource: "stored_watermark",
+              observationNote: "stored",
+              fetchStatus: "ok",
+              verificationStatus: "verified",
+              requestCount: 1,
+              settledCount: 1,
+              pendingCount: 0,
+              matchedLedgerCount: 0,
+              unmatchedLedgerCount: 1,
+              settledMicroUsd: row.billedMicroUsd,
+              matchedSettledMicroUsd: 0,
+              unmatchedSettledMicroUsd: row.billedMicroUsd,
+              unverifiableTimestampCount: 0,
+              unverifiableSettledCount: 0,
+              byModel: {},
+              distinctApiKeyIds: 1,
+              otherApiKeyCandidate: false,
+              havExclusiveCostConfirmed: false,
+              productionKeyMapping: "ledger_intersection",
+              productionScope: {
+                known: true,
+                provenKeyCount: 1,
+                settledCount: 1,
+                settledMicroUsd: row.billedMicroUsd,
+                matchedLedgerCount: 0,
+                unmatchedLedgerCount: 1,
+                unmatchedSettledMicroUsd: row.billedMicroUsd,
+                unmatchedFirstAt: "2026-10-10T08:00:00.000Z",
+                unmatchedLastAt: "2026-10-10T08:00:00.000Z",
+                byModel: {},
+              },
+              undeterminedUsage: {
+                settledCount: 0,
+                settledMicroUsd: 0,
+                keyCount: 0,
+                missingKeyIdSettledCount: 0,
+                missingKeyIdSettledMicroUsd: 0,
+                firstAt: null,
+                lastAt: null,
+                purpose: "unproven",
+              },
+              unmatchedRequests: [row],
+              cases: ["unmatched_luna"],
+            },
+          },
+        }),
+        pricing: null,
+        now: new Date(now),
+      });
+
+    const original = reportFor(witness(hashA, 1_000), "2026-10-28T03:00:00.000Z");
+    const later = reportFor(witness(hashA, 1_000), "2026-10-30T03:00:00.000Z");
+    const repriced = reportFor(witness(hashA, 2_000), "2026-10-30T03:00:00.000Z");
+    const replaced = reportFor(witness(hashB, 1_000), "2026-10-30T03:00:00.000Z");
+    const sourceRef = "forward_unmatched:2026-10-05T03:00:00.175Z:1";
+
+    assert.equal(original.anomalies[0]?.code, "FORWARD_UNMATCHED_REMOTE_SPEND");
+    assert.equal(original.anomalies[0]?.sourceRef, sourceRef);
+    assert.equal(later.anomalies[0]?.sourceRef, sourceRef);
+    assert.equal(repriced.anomalies[0]?.sourceRef, sourceRef);
+    assert.equal(replaced.anomalies[0]?.sourceRef, sourceRef);
+    assert.equal(original.anomalies[0]?.evidenceKey, later.anomalies[0]?.evidenceKey);
+    assert.notEqual(original.anomalies[0]?.evidenceKey, repriced.anomalies[0]?.evidenceKey);
+    assert.notEqual(original.anomalies[0]?.evidenceKey, replaced.anomalies[0]?.evidenceKey);
+    assert.match(original.anomalies[0]?.evidenceKey ?? "", /^[a-f0-9]{64}$/);
+    assert.equal(original.anomalies[0]?.summary.includes(hashA), false);
+  });
 });

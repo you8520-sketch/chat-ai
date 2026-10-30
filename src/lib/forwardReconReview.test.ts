@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { buildForwardReconAudit, type ForwardReconAudit } from "./forwardReconAudit";
-import { completeForwardRequestWitnesses, forwardRequestReviewKey, forwardSnapshotFingerprint, projectForwardReview } from "./forwardReconReview";
+import { completeForwardRequestWitnesses, forwardEvidenceFingerprint, forwardRequestReviewKey, forwardSnapshotFingerprint, projectForwardReview } from "./forwardReconReview";
 import { ensureProviderReconciliationStateTable, readProviderReconciliationState, reviewForwardUsageSnapshot } from "./providerCostReconciliation";
 import { buildFinanceAnomalyReport } from "./financeAnomalyRadar";
 import type { AdminFinanceSummary } from "./adminFinance";
@@ -85,6 +86,43 @@ describe("forward usage review keeps unresolved history and detects new IDs", ()
       const db = new Database(":memory:");
       try { save(db, value); assert.throws(() => reviewForwardUsageSnapshot(db, "0".repeat(64), 1), /자료/); }
       finally { db.close(); }
+    }
+  });
+
+  it("keeps a verified empty snapshot reviewable and leaves an empty alert witness unset", () => {
+    const observedSince = "2026-10-05T03:00:00.175Z";
+    const empty = buildForwardReconAudit({
+      requests: [],
+      ledgerIds: new Set(),
+      observedSince,
+      observationSource: "stored_watermark",
+      fetchStatus: "ok",
+    });
+    assert.equal(empty.fetchStatus, "ok");
+    assert.equal(empty.verificationStatus, "verified");
+    assert.equal(empty.productionScope.known, true);
+    assert.deepEqual(empty.unmatchedRequests, []);
+    assert.equal(empty.unmatchedLedgerCount, 0);
+    assert.equal(empty.unmatchedSettledMicroUsd, 0);
+    const expected = createHash("sha256").update(JSON.stringify([observedSince, []])).digest("hex");
+    const fingerprint = forwardSnapshotFingerprint(empty);
+    assert.equal(fingerprint, expected);
+    assert.equal(forwardSnapshotFingerprint(empty), fingerprint);
+    const view = projectForwardReview(empty, null);
+    assert.equal(view.available, true);
+    assert.equal(view.snapshotFingerprint, expected);
+    assert.equal(view.pendingProduction.count, 0);
+    assert.equal(view.pendingUndetermined.count, 0);
+    assert.equal(forwardEvidenceFingerprint(observedSince, []), null);
+
+    for (const change of [
+      { fetchStatus: "incomplete" as const },
+      { verificationStatus: "unverified" as const },
+      { unmatchedRequests: undefined },
+    ]) {
+      const broken = { ...empty, ...change };
+      assert.equal(forwardSnapshotFingerprint(broken), null);
+      assert.equal(projectForwardReview(broken, null).available, false);
     }
   });
 
