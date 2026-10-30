@@ -331,14 +331,14 @@ describe("DeepSeek V4 Flash 0731 canonicalization", () => {
     );
   });
 
-  it("13. adult refusal fallback remains DeepSeek V4 Pro 0813", () => {
+  it("13. adult refusal fallback is DeepSeek 1017 and does not inherit 0731", () => {
     assert.equal(
       ADULT_SCENE_MODEL_POLICY.primaryModelId,
-      "deepseek-v4-pro-0813"
+      "deepseek-v4.1-flash-1017"
     );
     assert.equal(
       resolveAdultRoutingConfig({}).adultModelId,
-      "deepseek-v4-pro-0813"
+      "deepseek-v4.1-flash-1017"
     );
     assert.equal(
       resolveAdultRoutingConfig({ ADULT_MODEL_ID: "deepseek-v4-pro" }).adultModelId,

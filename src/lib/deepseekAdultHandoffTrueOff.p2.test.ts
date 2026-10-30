@@ -8,6 +8,7 @@ import {
 } from "./cheaperInferenceConfig";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
@@ -54,19 +55,19 @@ const FROZEN_HISTORY = [
   { role: "user" as const, content: "지금 이 거리에서 입 맞춰도 되지?" },
 ];
 
-describe("DeepSeek0813 adult-handoff TRUE-OFF P2", () => {
-  it("A — non-DeepSeek source + adult handoff + DeepSeek0813 sends TRUE-OFF", () => {
+describe("DeepSeek 1017 adult-handoff TRUE-OFF P2", () => {
+  it("A — non-1017 source + adult handoff + 1017 sends TRUE-OFF", () => {
     assert.equal(
       resolveDeepSeekAdultHandoffTrueOff({
         selectedModelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
         adultHandoffActuallyApplied: true,
-        resolvedTargetModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+        resolvedTargetModelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
       }),
       true
     );
     const body = adaptCheaperInferenceChatBody(
       {
-        model: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+        model: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
         messages: [{ role: "user", content: "hello" }],
         reasoning_effort: "high",
         reasoning: { effort: "high" },
@@ -75,7 +76,8 @@ describe("DeepSeek0813 adult-handoff TRUE-OFF P2", () => {
       },
       { deepSeekAdultHandoffTrueOff: true }
     );
-    assert.equal(body.model, "deepseek-v4-pro-0813");
+    assert.equal(body.model, "deepseek-v4.1-flash-1017");
+    assert.notEqual(body.model, "deepseek-v4.1-flash");
     assert.deepEqual(body.thinking, { type: "disabled" });
     assert.equal(body.reasoning_effort, "none");
     assert.equal(body.reasoning, undefined);
@@ -83,30 +85,30 @@ describe("DeepSeek0813 adult-handoff TRUE-OFF P2", () => {
     assert.equal(body.enable_thinking, undefined);
   });
 
-  it("B — native DeepSeek is not an adult-handoff TRUE-OFF mutation", () => {
+  it("B — native 1017 is not an adult-handoff TRUE-OFF mutation", () => {
     assert.equal(
       resolveDeepSeekAdultHandoffTrueOff({
-        selectedModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+        selectedModelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
         adultHandoffActuallyApplied: false,
-        resolvedTargetModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+        resolvedTargetModelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
       }),
       false
     );
     assert.equal(
       resolveDeepSeekAdultHandoffTrueOff({
-        selectedModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+        selectedModelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
         adultHandoffActuallyApplied: true,
-        resolvedTargetModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+        resolvedTargetModelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
       }),
       false
     );
     const native = adaptCheaperInferenceChatBody({
-      model: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      model: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
       messages: [{ role: "user", content: "hello" }],
       reasoning_effort: "high",
     });
     const nativeWithUnusedFlagOff = adaptCheaperInferenceChatBody({
-      model: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      model: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
       messages: [{ role: "user", content: "hello" }],
       reasoning_effort: "high",
     });
@@ -146,7 +148,7 @@ describe("DeepSeek0813 adult-handoff TRUE-OFF P2", () => {
       resolveDeepSeekAdultHandoffTrueOff({
         selectedModelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
         adultHandoffActuallyApplied: false,
-        resolvedTargetModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+        resolvedTargetModelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
       }),
       false
     );
@@ -164,7 +166,7 @@ describe("DeepSeek0813 adult-handoff TRUE-OFF P2", () => {
     const before = assemblePrimaryRpRequest({
       system: FROZEN_SYSTEM,
       history: FROZEN_HISTORY,
-      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
       stream: true,
       messageOpts: {
         transportProvider: "cheaperinference",
@@ -174,7 +176,7 @@ describe("DeepSeek0813 adult-handoff TRUE-OFF P2", () => {
     const after = assemblePrimaryRpRequest({
       system: FROZEN_SYSTEM,
       history: FROZEN_HISTORY,
-      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
       stream: true,
       messageOpts: {
         transportProvider: "cheaperinference",

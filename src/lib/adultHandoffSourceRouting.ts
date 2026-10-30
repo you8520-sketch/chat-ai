@@ -1,10 +1,7 @@
-import {
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-  normalizeDeepSeekV4ProModelId,
-} from "@/lib/chatModels";
+import { ADULT_SCENE_MODEL_POLICY } from "@/lib/adultSceneModelPolicy";
 
 /** Single refusal-replacement target for all eligible general RP models. */
-export const ADULT_REFUSAL_FALLBACK_MODEL_ID = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+export const ADULT_REFUSAL_FALLBACK_MODEL_ID = ADULT_SCENE_MODEL_POLICY.primaryModelId;
 
 export function resolveAdultRefusalFallbackModelId(
   _selectedModelId?: string
@@ -25,13 +22,11 @@ export function isAdultRefusalHandoffCase(
   selectedModelId: string,
   fallbackModelId: string = ADULT_REFUSAL_FALLBACK_MODEL_ID
 ): boolean {
-  const selected = normalizeDeepSeekV4ProModelId(selectedModelId).trim().toLowerCase();
-  const target = normalizeDeepSeekV4ProModelId(fallbackModelId).trim().toLowerCase();
+  const selected = selectedModelId.trim().toLowerCase();
+  const target = fallbackModelId.trim().toLowerCase();
   return selected.length > 0 && selected !== target;
 }
 
 export function isAllowedAdultHandoffTargetModel(modelId: string): boolean {
-  return (
-    normalizeDeepSeekV4ProModelId(modelId) === ADULT_REFUSAL_FALLBACK_MODEL_ID
-  );
+  return modelId.trim().toLowerCase() === ADULT_REFUSAL_FALLBACK_MODEL_ID;
 }

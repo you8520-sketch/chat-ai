@@ -17,12 +17,12 @@ import {
 } from "./advancedProseNsfwGuidelines";
 import {
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
 } from "./chatModels";
 import { resolveAdultRefusalFallbackModelId } from "./adultHandoffSourceRouting";
 
 const GEMINI = CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL;
-const DEEPSEEK = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+const DEEPSEEK = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL;
 const ALLOWED = ["standard", "cnc_opt_in"] as const;
 
 const CNC_T1_INPUT =
@@ -169,7 +169,7 @@ describe("CNC scene-scoped lifecycle (T1 → T2 → T3)", () => {
       classification,
     });
     assert.equal(plan.fallbackPrepared, false);
-    assert.equal(cncPolicyPresent(consent), false);
+    assert.equal(cncPolicyPresent(consent), true);
   });
 
   it("false positive — ordinary sentence with 레드 is not a safeword stop", () => {

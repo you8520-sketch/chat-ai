@@ -21,12 +21,12 @@ import {
 } from "./adultSceneRouting";
 import { classifyAdultSceneHardFailure } from "./adultSceneModelPolicy";
 import {
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
 } from "./chatModels";
 
 const GEMINI = CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL;
-const DEEPSEEK = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+const DEEPSEEK = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL;
 
 const PROVIDER_CAPABILITIES: Record<string, SceneMode> = {
   anthropic: "tension",

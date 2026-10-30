@@ -89,6 +89,16 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
     pricingVersion: 1,
     publishedAt: "2026-09-21T00:00:00.000Z",
   },
+  "deepseek-v4.1-flash-1017": {
+    modelId: "deepseek-v4.1-flash-1017",
+    commercialPricingOwner: "target_margin",
+    billingReferenceInputUsdPerMillion: 0.15,
+    billingReferenceOutputUsdPerMillion: 0.6,
+    targetMargin: 0.6,
+    minimumMarginFloor: 0.5,
+    pricingVersion: 1,
+    publishedAt: "2026-10-17T00:00:00.000Z",
+  },
   "meta/muse-spark-1.1": {
     modelId: "meta/muse-spark-1.1",
     billingReferenceInputUsdPerMillion: 0.435,
