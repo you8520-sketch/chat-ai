@@ -74,6 +74,7 @@ import {
   type BotExplorationLockOutcome,
 } from "./botExplorationLockDiagnostic";
 import {
+  BOT_EXPLORATION_DEPART,
   BOT_EXPLORATION_NO_MOVE,
   canonicalRoomId,
   commandsFromBotMovePlan,
@@ -1476,7 +1477,11 @@ async function generateBotActions(
       declared = explorationCommandsFromMovementBody(latestMap.map, body);
     }
     const declaredRoomIds =
-      structured && !structuredPlanValid && structured.movePlan && structured.movePlan !== BOT_EXPLORATION_NO_MOVE
+      structured &&
+      !structuredPlanValid &&
+      structured.movePlan &&
+      structured.movePlan !== BOT_EXPLORATION_NO_MOVE &&
+      structured.movePlan !== BOT_EXPLORATION_DEPART
         ? structured.movePlan.split(">").filter(Boolean)
         : moveCommandRoomIds(declared);
     let spoken = body;

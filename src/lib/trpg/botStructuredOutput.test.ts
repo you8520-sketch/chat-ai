@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { TRPG_ACTION_TYPES } from "./actionTypes";
 import { buildTrpgBotSystem, TRPG_BOT_SYSTEM } from "./botActions";
-import { BOT_EXPLORATION_NO_MOVE } from "./explorationMap";
+import { BOT_EXPLORATION_DEPART, BOT_EXPLORATION_NO_MOVE } from "./explorationMap";
 import {
   buildTrpgBotResponseFormat,
   formatTrpgBotStructuredAsBody,
@@ -11,7 +11,7 @@ import {
 
 describe("botStructuredOutput", () => {
   it("reuses the GM json_schema contract with a per-turn movePlan enum", () => {
-    const format = buildTrpgBotResponseFormat([BOT_EXPLORATION_NO_MOVE, "table", "table>counter"]);
+    const format = buildTrpgBotResponseFormat([BOT_EXPLORATION_NO_MOVE, "table", "table>counter", BOT_EXPLORATION_DEPART]);
     assert.equal(format.type, "json_schema");
     assert.equal(format.json_schema.name, "trpg_bot_action");
     assert.equal(format.json_schema.strict, true);
@@ -21,6 +21,7 @@ describe("botStructuredOutput", () => {
       BOT_EXPLORATION_NO_MOVE,
       "table",
       "table>counter",
+      BOT_EXPLORATION_DEPART,
     ]);
   });
 

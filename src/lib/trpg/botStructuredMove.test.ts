@@ -11,7 +11,13 @@ import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet, writeSheet } from "./eng
 import { advanceTrpgCampaign, startTrpgCampaign, submitTrpgAction, type TrpgEngineDeps } from "./engineAdvance";
 import { loadCampaignLedger } from "./campaignLedger";
 import { loadExplorationState, saveExplorationState } from "./explorationStore";
-import { BOT_EXPLORATION_NO_MOVE } from "./explorationMap";
+import {
+  BOT_EXPLORATION_DEPART,
+  BOT_EXPLORATION_NO_MOVE,
+  EXPLORATION_DEPARTED_LOCATION,
+  EXPLORATION_ENTRANCE,
+  EXPLORATION_EXIT_ROOM,
+} from "./explorationMap";
 import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { ensureTrpgTables } from "./schema";
 import { insertScenarioTemplate } from "./scenarioTemplates";
@@ -186,6 +192,73 @@ async function playTea(opts: {
   };
 }
 
+async function playFacility(opts: {
+  provider: string;
+  alarm?: boolean;
+  botRoom?: string;
+}): Promise<{
+  db: Database.Database;
+  campaignId: number;
+  botId: number;
+  lock: BotExplorationLockDiagnostic | undefined;
+}> {
+  const db = memoryDb();
+  const templateId = insertScenarioTemplate(db, 1, {
+    title: "시설",
+    summary: "출구",
+    content: "출구에서 나간다.",
+    visibility: "private",
+    startLocation: EXPLORATION_ENTRANCE,
+    scenarioPlan: {
+      startingSituation: "닫힌 시설의 현관에 도착한다",
+      centralConflict: "경보가 살아 있는 구역을 지나 나가야 한다",
+      goal: "출구에 도착한다",
+      endingConditions: ["출구에 도착한다"],
+      exploration: true,
+    },
+  });
+  const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1, templateId });
+  saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+  const botId = insertParticipant(db, {
+    campaignId,
+    slotIndex: 2,
+    kind: "ai_character",
+    userId: null,
+    characterId: null,
+    displayName: "권태현",
+  });
+  writeSheet(db, campaignId, botId, "권태현", EVEN_STATS, EXPLORATION_ENTRANCE);
+  const deps: TrpgEngineDeps = {
+    skipBilling: true,
+    structuredBotOutput: true,
+    rollD20: () => 16,
+    botCall: async () => ({ text: opts.provider }),
+    gmCall: async () => ({
+      text: buildTrpgGmStructuredWireText("서버가 정한 자리만 잇는다.", {
+        players: [],
+        location: loadCampaignLedger(db, campaignId).location || EXPLORATION_ENTRANCE,
+        next_round_context: "다음",
+        campaign_finished: false,
+      }),
+    }),
+  };
+  await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+  const latest = loadExplorationState(db, campaignId);
+  assert.ok(latest);
+  const botRoom = opts.botRoom ?? EXPLORATION_EXIT_ROOM;
+  saveExplorationState(db, campaignId, {
+    ...latest,
+    alarmFlagged: opts.alarm !== false,
+    visitedRoomIds: [...new Set([...latest.visitedRoomIds, botRoom])],
+  });
+  writeSheet(db, campaignId, botId, "권태현", EVEN_STATS, botRoom);
+  const diag = captureLockDiagnostics();
+  submitTrpgAction(db, { campaignId, userId: 1, body: "출구 앞에서 기다린다." });
+  await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+  diag.restore();
+  return { db, campaignId, botId, lock: diag.logs.at(-1) };
+}
+
 describe("structured bot move plans", () => {
   it("locks 모밀찻집 → 중앙 테이블 from a structured table plan", async () => {
     const played = await playTea({
@@ -349,5 +422,33 @@ describe("structured bot move plans", () => {
     assert.equal(locationOf(human.db, human.hostId), "중앙 테이블");
     assert.equal(locationOf(human.db, human.botId), "모밀찻집");
     human.db.close();
+  });
+
+  it("lets a v1 bot choose DEPART at the open exit and does not invent it when the latch is shut", async () => {
+    const left = await playFacility({
+      provider: structured({
+        prose: "열린 방폭 게이트를 지나 밖으로 나선다.",
+        intent: "시설 밖으로 나간다.",
+        movePlan: BOT_EXPLORATION_DEPART,
+      }),
+    });
+    assert.equal(locationOf(left.db, left.botId), EXPLORATION_DEPARTED_LOCATION);
+    assert.deepEqual(loadExplorationState(left.db, left.campaignId)?.departedParticipantIds, [left.botId]);
+    assert.match(lockedBody(left.db, left.botId), /시설 밖으로 나간다/);
+    assert.equal(left.lock?.fallbackBranch, "structured-full-lock");
+    left.db.close();
+
+    const shut = await playFacility({
+      alarm: false,
+      provider: structured({
+        prose: "문을 밀고 나간다.",
+        intent: "시설 밖으로 나간다.",
+        movePlan: BOT_EXPLORATION_DEPART,
+      }),
+    });
+    assert.equal(locationOf(shut.db, shut.botId), EXPLORATION_EXIT_ROOM);
+    assert.deepEqual(loadExplorationState(shut.db, shut.campaignId)?.departedParticipantIds, []);
+    assert.equal(shut.lock?.fallbackBranch, "invalid-structured-plan");
+    shut.db.close();
   });
 });
