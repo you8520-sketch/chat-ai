@@ -13,6 +13,7 @@ import {
   generateOfficialCharacterBible,
   generateOfficialStyleBoard,
   parseAuthorJson,
+  resolvePortfolioAliasRestore,
   resolveOfficialAuthorModelId,
   validatePilotAppearance,
   validatePilotAssetPlan,
@@ -43,6 +44,10 @@ import {
   testStyleCandidate,
 } from "@/lib/officialSupply/officialSupply.fixtures";
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
+import {
+  recommendOfficialAuthoringDirection,
+  resolveOfficialAuthoringPlan,
+} from "@/lib/officialSupply/genreProfile";
 import { officialSubstantiveCharCount } from "@/lib/officialSupply/characterText";
 import type { OfficialCharacterDraft } from "@/lib/officialSupply/types";
 
@@ -243,6 +248,151 @@ describe("G5-3H-1 portfolio name ownership", () => {
       (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "author_identity_name_mismatch"
     );
     assert.deepEqual(tasks, ["character_bible_1"]);
+  });
+});
+
+describe("G5-3U portfolio alias restoration", () => {
+  const modernPlan = () => resolveOfficialAuthoringPlan(recommendOfficialAuthoringDirection("현대/일상"));
+
+  function modernGenerationArgs(transport: OfficialAuthorTransport, briefName: string) {
+    const base = generationArgs(transport);
+    return {
+      ...base,
+      authoring: modernPlan(),
+      part1: { ...base.part1, brief: { ...GENERATION_BRIEF, name: briefName } },
+      voice: { ...base.voice, name: briefName },
+      bonds: { ...base.bonds, name: briefName },
+    };
+  }
+
+  function promptRecordingTransport(responses: Record<string, unknown>) {
+    const tasks: string[] = [];
+    const users: string[] = [];
+    return {
+      tasks,
+      users,
+      transport: {
+        label: "fake-prompt-recording",
+        async completeJson(input: { task: string; user: string }) {
+          tasks.push(input.task);
+          users.push(input.user);
+          const data = responses[input.task];
+          if (data === undefined) throw new Error(`no fake response for ${input.task}`);
+          return fakeCompletion(typeof data === "string" ? data : JSON.stringify(data));
+        },
+      } as OfficialAuthorTransport,
+    };
+  }
+
+  it("restores only a dropped parenthetical alias on the nickname path", () => {
+    assert.deepEqual(
+      resolvePortfolioAliasRestore({
+        briefName: "박은지 (수도반장)",
+        part1Name: "박은지",
+        nicknameMode: true,
+      }),
+      { restored: true, name: "박은지 (수도반장)" }
+    );
+    assert.deepEqual(
+      resolvePortfolioAliasRestore({
+        briefName: "박수진 (게시판 진행자)",
+        part1Name: "박수진",
+        nicknameMode: true,
+      }),
+      { restored: true, name: "박수진 (게시판 진행자)" }
+    );
+    for (const input of [
+      { briefName: "카엘", part1Name: "카엘", nicknameMode: true },
+      { briefName: "강나리", part1Name: "강나리 (공주님)", nicknameMode: true },
+      { briefName: "강나리 (공주님)", part1Name: "강나리 (다른별명)", nicknameMode: true },
+      { briefName: "강나리 (공주님)", part1Name: "나리", nicknameMode: true },
+      { briefName: "강나리 (공주님)", part1Name: "", nicknameMode: true },
+      { briefName: "강나리 (공주님)", part1Name: "강나리", nicknameMode: false },
+      { briefName: "강나리 (공주님) (중복)", part1Name: "강나리", nicknameMode: true },
+      { briefName: "강나리 (공주님", part1Name: "강나리", nicknameMode: true },
+    ]) {
+      assert.deepEqual(resolvePortfolioAliasRestore(input), { restored: false }, JSON.stringify(input));
+    }
+  });
+
+  it("reproduces the G5-1 alias drop as restorable while the raw gate still rejects it", () => {
+    const brief = JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), "docs/official-supply/reviews/g5-1-2026-10-28/candidates/g5-modern-comedy-e/brief.json"), "utf8")
+    ) as { name: string };
+    const bible = JSON.parse(
+      fs.readFileSync(path.join(process.cwd(), "docs/official-supply/reviews/g5-1-2026-10-28/candidates/g5-modern-comedy-e/bible.assembled.json"), "utf8")
+    ) as { identity: { name: string } };
+    assert.throws(() => assertPortfolioNameKept(brief.name, bible), /must keep portfolio name/);
+    assert.deepEqual(
+      resolvePortfolioAliasRestore({
+        briefName: brief.name,
+        part1Name: bible.identity.name,
+        nicknameMode: true,
+      }),
+      { restored: true, name: brief.name }
+    );
+  });
+
+  it("carries the restored name through recap, voice and the final bible", async () => {
+    const [voiceBase, bonds] = splitHalf2(fakeHalf2({ npcCount: 0 }));
+    // The fake voice was written for the rofan brief; put the restored name in its text
+    // so the public-manuscript gate sees a consistent character.
+    const voice = JSON.parse(JSON.stringify(voiceBase).split("카엘").join("박은지")) as Record<string, unknown>;
+    const { transport, tasks, users } = promptRecordingTransport({
+      character_bible_1: fakeHalf1({ name: "박은지" }),
+      character_bible_voice: voice,
+      character_bible_bonds: bonds,
+    });
+    const result = await generateOfficialCharacterBible(
+      modernGenerationArgs(transport, "박은지 (수도반장)")
+    );
+    assert.equal(result.bible.identity.name, "박은지 (수도반장)");
+    assert.deepEqual(tasks, ["character_bible_1", "character_bible_voice", "character_bible_bonds"]);
+    assert.match(users[1] ?? "", /박은지 \(수도반장\)/);
+    assert.match(users[2] ?? "", /박은지 \(수도반장\)/);
+  });
+
+  it("keeps rejecting a different alias, a different base name and non-nickname plans", async () => {
+    const [voice, bonds] = splitHalf2(fakeHalf2({ npcCount: 0 }));
+    for (const part1Name of ["박은지 (다른별명)", "김은지"]) {
+      const { transport, tasks } = recordingTransport({
+        character_bible_1: fakeHalf1({ name: part1Name }),
+        character_bible_voice: voice,
+        character_bible_bonds: bonds,
+      });
+      await assert.rejects(
+        () => generateOfficialCharacterBible(modernGenerationArgs(transport, "박은지 (수도반장)")),
+        (error: unknown) =>
+          error instanceof OfficialSupplyGateError && error.code === "author_identity_name_mismatch"
+      );
+      assert.deepEqual(tasks, ["character_bible_1"], part1Name);
+    }
+
+    const punArgs = modernGenerationArgs(
+      recordingTransport({ character_bible_1: fakeHalf1({ name: "박은지" }) }).transport,
+      "박은지 (수도반장)"
+    );
+    await assert.rejects(
+      () =>
+        generateOfficialCharacterBible({
+          ...punArgs,
+          authoring: resolveOfficialAuthoringPlan({
+            genre: "현대/일상",
+            nameWordplay: "pun",
+          }),
+        }),
+      (error: unknown) =>
+        error instanceof OfficialSupplyGateError && error.code === "author_identity_name_mismatch"
+    );
+
+    const { transport: rofanTransport } = recordingTransport({
+      character_bible_1: fakeHalf1({ name: "박은지" }),
+    });
+    await assert.rejects(
+      () => generateOfficialCharacterBible(generationArgs(rofanTransport)),
+      (error: unknown) =>
+        error instanceof OfficialSupplyGateError && error.code === "author_identity_name_mismatch"
+    );
   });
 });
 
