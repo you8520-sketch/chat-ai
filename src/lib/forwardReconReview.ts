@@ -53,7 +53,13 @@ export function completeForwardRequestWitnesses(audit: ForwardReconAudit): boole
     production === audit.productionScope.unmatchedLedgerCount && productionMicro === audit.productionScope.unmatchedSettledMicroUsd;
 }
 
-/** Stable witness for one set of review keys. Raw request ids are not inputs. */
+function hashSortedReviewKeys(observedSince: string | null, keys: readonly string[]): string {
+  return createHash("sha256")
+    .update(JSON.stringify([observedSince, [...keys].sort()]))
+    .digest("hex");
+}
+
+/** Alert witness for pending rows. An empty set is not a new spend incident. */
 export function forwardEvidenceFingerprint(
   observedSince: string | null | undefined,
   rows: readonly ForwardUnmatchedRequest[]
@@ -74,14 +80,14 @@ export function forwardEvidenceFingerprint(
       return null;
     }
   }
-  return createHash("sha256")
-    .update(JSON.stringify([observedSince, rows.map(forwardRequestReviewKey).sort()]))
-    .digest("hex");
+  return hashSortedReviewKeys(observedSince, rows.map(forwardRequestReviewKey));
 }
 
+/** Verified snapshot, including a healthy empty unmatched set: sha256([observedSince, keys]). */
 export function forwardSnapshotFingerprint(audit: ForwardReconAudit): string | null {
   if (!completeForwardRequestWitnesses(audit)) return null;
-  return forwardEvidenceFingerprint(audit.observedSince, audit.unmatchedRequests!);
+  const rows = audit.unmatchedRequests ?? [];
+  return hashSortedReviewKeys(audit.observedSince, rows.map(forwardRequestReviewKey));
 }
 
 export function parseForwardReviewRecord(value: unknown): ForwardReviewRecord | null {
