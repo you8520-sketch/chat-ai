@@ -56,7 +56,6 @@ export function collectSharedWidgetRequiredKeys(
 
 function buildSharedOutputEnvelope(input: PostTurnSharedInitialInput): string {
   const rules: string[] = [];
-  if (input.includeSuggestions) rules.push(SHARED_SUGGESTIONS_OUTPUT_RULES);
   if (input.includeRelationship) {
     rules.push(
       input.relationshipRegenContext
@@ -64,6 +63,7 @@ function buildSharedOutputEnvelope(input: PostTurnSharedInitialInput): string {
         : SHARED_RELATIONSHIP_OUTPUT_RULES
     );
   }
+  if (input.includeSuggestions) rules.push(SHARED_SUGGESTIONS_OUTPUT_RULES);
   if (input.includeEpisodic) {
     rules.push(
       buildSharedInitialEpisodicSectionInstructions(Boolean(input.relationshipRegenContext)),

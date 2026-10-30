@@ -108,13 +108,13 @@ export function buildPostTurnSharedInitialJsonSchema(
     required.push("statusWidget");
     properties.statusWidget = buildStatusWidgetSchema(input);
   }
-  if (input.includeSuggestions) {
-    required.push("suggestedReplies");
-    properties.suggestedReplies = buildSuggestedRepliesSchema();
-  }
   if (input.includeRelationship) {
     required.push("relationship");
     properties.relationship = buildRelationshipSchema();
+  }
+  if (input.includeSuggestions) {
+    required.push("suggestedReplies");
+    properties.suggestedReplies = buildSuggestedRepliesSchema();
   }
   if (input.includeEpisodic) {
     required.push("episodic");
