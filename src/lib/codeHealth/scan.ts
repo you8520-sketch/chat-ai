@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 
 import {
   isFrameworkEntry,
@@ -745,17 +746,218 @@ export function scanDbFields(files: ScannedFile[]): CodeHealthCandidate[] {
   return out;
 }
 
+/**
+ * Published credential shapes. A value is a finding only when it matches one of
+ * these grammars. Log-masking patterns and short fixtures do not, so they need
+ * no path, regex-literal, or substring skip.
+ *
+ * OpenRouter inference keys are `sk-or-v1-` plus 64 hex digits (later `vN`
+ * kept). Management keys use `sk-or-mgmt-`; the body length is unpublished, so
+ * 20 or more URL-safe characters count as credential-shaped. Anthropic API and
+ * admin keys are `sk-ant-apiNN-` / `sk-ant-adminNN-` plus 93 characters and an
+ * `AA` suffix. AWS access key IDs stay `AKIA` plus 16 uppercase alphanumerics.
+ * PEM stays the existing private-key banner.
+ */
+const CRITICAL_SECRET_PATTERNS: readonly RegExp[] = [
+  /sk-or-v[0-9]+-[0-9a-fA-F]{64}/,
+  /sk-or-mgmt-[A-Za-z0-9_-]{20,}/,
+  /sk-ant-(?:api|admin)\d{2}-[A-Za-z0-9_-]{93}AA/,
+  /AKIA[0-9A-Z]{16}/,
+  /-----BEGIN (?:RSA )?PRIVATE KEY-----/,
+];
+
+const CREDENTIAL_SYNTAX_HINT =
+  /sk-or-|sk-ant-|AKIA|-----BEGIN |\\x[0-9a-fA-F]{2}|\\u\{[0-9a-fA-F]+\}|\\u[0-9a-fA-F]{4}/;
+
+const REGEX_SET_ESCAPES = new Set(["d", "D", "w", "W", "s", "S", "b", "B"]);
+const REGEX_SIMPLE_ESCAPES: Record<string, string> = {
+  n: "\n",
+  r: "\r",
+  t: "\t",
+  f: "\f",
+  v: "\v",
+  "0": "\0",
+};
+
+function textHasCriticalSecret(text: string): boolean {
+  return CRITICAL_SECRET_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+function scriptKindForPath(relPath: string): ts.ScriptKind {
+  const ext = path.extname(relPath);
+  if (ext === ".tsx") return ts.ScriptKind.TSX;
+  if (ext === ".jsx") return ts.ScriptKind.JSX;
+  if (ext === ".js" || ext === ".mjs" || ext === ".cjs") return ts.ScriptKind.JS;
+  return ts.ScriptKind.TS;
+}
+
+function regexPatternBody(tokenText: string): string {
+  if (!tokenText.startsWith("/")) return tokenText;
+  const end = tokenText.lastIndexOf("/");
+  if (end <= 0) return tokenText;
+  return tokenText.slice(1, end);
+}
+
+function skipRegexCharacterClass(body: string, openIndex: number): number {
+  let index = openIndex + 1;
+  if (body[index] === "^") index += 1;
+  while (index < body.length) {
+    if (body[index] === "\\") {
+      index += 2;
+      continue;
+    }
+    if (body[index] === "]") return index;
+    index += 1;
+  }
+  return Math.max(openIndex, body.length - 1);
+}
+
+/** Literal text a regex would match exactly, with `\x` / `\u` escapes decoded. */
+function literalRunsFromRegexBody(body: string): string[] {
+  const runs: string[] = [];
+  let run = "";
+  const flush = () => {
+    if (run.length === 0) return;
+    runs.push(run);
+    run = "";
+  };
+  for (let index = 0; index < body.length; index += 1) {
+    const ch = body[index]!;
+    if (ch === "\\") {
+      const next = body[index + 1];
+      if (next == null) {
+        flush();
+        break;
+      }
+      if (next === "x" && /^[0-9a-fA-F]{2}$/.test(body.slice(index + 2, index + 4))) {
+        run += String.fromCharCode(Number.parseInt(body.slice(index + 2, index + 4), 16));
+        index += 3;
+        continue;
+      }
+      if (next === "u" && body[index + 2] === "{") {
+        const end = body.indexOf("}", index + 3);
+        const hex = end === -1 ? "" : body.slice(index + 3, end);
+        if (end !== -1 && /^[0-9a-fA-F]+$/.test(hex) && hex.length <= 6) {
+          const codePoint = Number.parseInt(hex, 16);
+          if (codePoint <= 0x10ffff) run += String.fromCodePoint(codePoint);
+          else flush();
+          index = end;
+          continue;
+        }
+      }
+      if (next === "u" && /^[0-9a-fA-F]{4}$/.test(body.slice(index + 2, index + 6))) {
+        run += String.fromCharCode(Number.parseInt(body.slice(index + 2, index + 6), 16));
+        index += 5;
+        continue;
+      }
+      if (REGEX_SET_ESCAPES.has(next) || (next === "k" && body[index + 2] === "<")) {
+        flush();
+        index += 1;
+        continue;
+      }
+      const simple = REGEX_SIMPLE_ESCAPES[next];
+      run += simple ?? next;
+      index += 1;
+      continue;
+    }
+    if (ch === "[") {
+      flush();
+      index = skipRegexCharacterClass(body, index);
+      continue;
+    }
+    if ("()|*+?.^${}".includes(ch)) {
+      flush();
+      continue;
+    }
+    run += ch;
+  }
+  flush();
+  return runs;
+}
+
+function regexBodyContainsCriticalSecret(body: string): boolean {
+  return literalRunsFromRegexBody(body).some((run) => textHasCriticalSecret(run));
+}
+
+function literalTextOfNode(node: ts.Node): string | null {
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text;
+  if (ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node)) return node.text;
+  return null;
+}
+
+function concatenatedLiteralText(node: ts.Node): string | null {
+  const direct = literalTextOfNode(node);
+  if (direct != null) return direct;
+  if (ts.isParenthesizedExpression(node)) return concatenatedLiteralText(node.expression);
+  if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+    const left = concatenatedLiteralText(node.left);
+    const right = concatenatedLiteralText(node.right);
+    if (left == null || right == null) return null;
+    return left + right;
+  }
+  if (ts.isTemplateExpression(node)) {
+    let combined = node.head.text;
+    for (const span of node.templateSpans) {
+      const inner = concatenatedLiteralText(span.expression);
+      if (inner == null) return null;
+      combined += inner;
+      combined += span.literal.text;
+    }
+    return combined;
+  }
+  return null;
+}
+
+function astContainsCriticalSecret(relPath: string, text: string): boolean {
+  const sourceFile = ts.createSourceFile(
+    relPath,
+    text,
+    ts.ScriptTarget.Latest,
+    false,
+    scriptKindForPath(relPath)
+  );
+  let found = false;
+  const visit = (node: ts.Node) => {
+    if (found) return;
+    const direct = literalTextOfNode(node);
+    if (direct != null && textHasCriticalSecret(direct)) {
+      found = true;
+      return;
+    }
+    if (
+      (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) ||
+      ts.isTemplateExpression(node)
+    ) {
+      const joined = concatenatedLiteralText(node);
+      if (joined != null && textHasCriticalSecret(joined)) {
+        found = true;
+        return;
+      }
+    }
+    if (node.kind === ts.SyntaxKind.RegularExpressionLiteral) {
+      if (regexBodyContainsCriticalSecret(regexPatternBody(node.getText(sourceFile)))) {
+        found = true;
+        return;
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return found;
+}
+
+function fileContainsCriticalSecret(relPath: string, text: string): boolean {
+  if (textHasCriticalSecret(text)) return true;
+  if (!CREDENTIAL_SYNTAX_HINT.test(text)) return false;
+  return astContainsCriticalSecret(relPath, text);
+}
+
 export function scanCriticalSecrets(files: ScannedFile[]): CodeHealthCandidate[] {
   const out: CodeHealthCandidate[] = [];
-  const openRouterPrefix = "sk-or";
-  const anthropicPrefix = "sk-ant";
-  const secretRe = new RegExp(
-    `(?:${openRouterPrefix}-|${anthropicPrefix}-|AKIA[0-9A-Z]{16}|-----BEGIN (?:RSA )?PRIVATE KEY-----)`
-  );
   for (const file of files) {
     if (file.relPath.startsWith("src/lib/codeHealth/")) continue;
     if (file.relPath.includes(".env") || !SOURCE_EXT.has(path.extname(file.relPath))) continue;
-    if (!secretRe.test(file.text)) continue;
+    if (!fileContainsCriticalSecret(file.relPath, file.text)) continue;
     out.push(
       makeCandidate({
         kind: "critical_bugfix",
