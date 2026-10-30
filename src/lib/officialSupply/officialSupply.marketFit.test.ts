@@ -204,6 +204,17 @@ describe("market signal → portfolio dataflow", () => {
     assert.match(formatMarketSignalLines(empty).join("\n"), /사용 가능한 originality-eligible 시장 신호가 없음/);
   });
 
+  it("absent plan keeps PRIMARY 우선 사용; genre_neutral labels PRIMARY as 참고 and still cites ids", () => {
+    const comedy = selectMarketSignals(snapshot, POLICY, "현대/일상", { excludeRomanceLed: true });
+    const legacy = formatMarketSignalLines(comedy).join("\n");
+    const reference = formatMarketSignalLines(comedy, { profile: { key: "genre_neutral" } }).join("\n");
+    assert.match(legacy, /PRIMARY\(대상 시장 신호, 우선 사용\)/);
+    assert.ok(!reference.includes("PRIMARY(대상 시장 신호, 우선 사용)"));
+    assert.match(reference, /PRIMARY\(대상 시장 신호, 참고\)/);
+    assert.match(reference, /\[global-08\]/);
+    assert.equal(formatMarketSignalLines(comedy, { profile: { key: "rofan_parity" } }).join("\n"), legacy);
+  });
+
   it("every site genre selects without throw; non-rofan PRIMARY never mixes off-genre rows", () => {
     const romanceFrame = new Set(["로맨스", "로맨스 판타지", "BL", "GL", "HL"]);
     for (const genre of CHARACTER_GENRES) {
