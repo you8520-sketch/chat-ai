@@ -48,6 +48,51 @@ export function clampAppearanceCompiledText(text: string, raw: string): string {
   return trimmed.length > maxLength ? trimmed.slice(0, maxLength).trimEnd() : trimmed;
 }
 
+const FEATURE_LINE = /^\s*특징\s*[:：]\s*(.+)\s*$/;
+const FEATURE_STOP = new Set([
+  "왼쪽",
+  "오른쪽",
+  "아래",
+  "아래에",
+  "위에",
+  "가늘게",
+  "남은",
+  "있는",
+  "없는",
+  "한다",
+  "하며",
+  "먼저",
+  "잘",
+]);
+
+export function extractRawAppearanceFeatureItems(raw: string): string[] {
+  const items: string[] = [];
+  for (const line of raw.replace(/\r\n?/g, "\n").split("\n")) {
+    const match = line.match(FEATURE_LINE);
+    if (!match?.[1]) continue;
+    for (const part of match[1].split(/[,，]/)) {
+      const item = part.trim();
+      if (item.length >= 2) items.push(item);
+    }
+  }
+  return items;
+}
+
+function featureTokens(item: string): string[] {
+  return (item.match(/[가-힣]{2,}/g) ?? []).filter((token) => !FEATURE_STOP.has(token));
+}
+
+/** True when compiled_text still carries each RAW `특징:` item, or RAW has no such items. */
+export function compiledTextPreservesRawFeatures(raw: string, compiledText: string): boolean {
+  const items = extractRawAppearanceFeatureItems(raw);
+  if (items.length === 0) return true;
+  return items.every((item) => {
+    const tokens = featureTokens(item);
+    if (tokens.length === 0) return compiledText.includes(item);
+    return tokens.some((token) => compiledText.includes(token));
+  });
+}
+
 export function validateAppearanceCompiledJson(value: unknown, rawForLength = ""): AppearanceCompiledJson | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const out = emptyAppearanceCompiled();
@@ -56,7 +101,11 @@ export function validateAppearanceCompiledJson(value: unknown, rawForLength = ""
     if (typeof v !== "string") return null;
     out[key] = v.trim().slice(0, 500);
   }
-  out.compiled_text = clampAppearanceCompiledText(out.compiled_text, rawForLength);
+  // Clamp only at compile time, when the RAW length budget is known.
+  // parseAppearanceCompiledJson must not re-clamp against empty RAW (that forces 120 chars).
+  if (normalizeAppearanceRaw(rawForLength)) {
+    out.compiled_text = clampAppearanceCompiledText(out.compiled_text, rawForLength);
+  }
   return out;
 }
 
