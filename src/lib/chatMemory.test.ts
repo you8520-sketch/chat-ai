@@ -210,6 +210,38 @@ describe("mergeMemoryMeta possession", () => {
     assert.doesNotMatch(prompt, /오스카→제이|식스→제이/);
   });
 
+  it("transfers a unique ring and necklace together without a leftover hold", () => {
+    const prev = {
+      ...EMPTY_MEMORY_META,
+      items: ["오스카→제이: 수류탄 핀 반지", "식스→제이: 목걸이"],
+    };
+    const merged = mergeMemoryMeta(
+      prev,
+      { items: ["제이→민수: 수류탄 핀 반지, 목걸이"] },
+      { charName: "8", userName: "제이" }
+    );
+    assert.deepEqual(merged.items, ["제이→민수: 수류탄 핀 반지, 목걸이"]);
+    const prompt = formatMemoryMetaForPrompt(merged) ?? "";
+    assert.match(prompt, /민수: 수류탄 핀 반지, 목걸이/);
+    assert.doesNotMatch(prompt, /제이: /);
+  });
+
+  it("keeps one leftover ring when two rings and one necklace move together", () => {
+    const prev = {
+      ...EMPTY_MEMORY_META,
+      items: ["오스카→제이: 수류탄 핀 반지, 목걸이", "식스→제이: 수류탄 핀 반지"],
+    };
+    const merged = mergeMemoryMeta(
+      prev,
+      { items: ["제이→민수: 수류탄 핀 반지, 목걸이"] },
+      { charName: "8", userName: "제이" }
+    );
+    assert.deepEqual(
+      [...merged.items].sort(),
+      ["제이: 수류탄 핀 반지", "제이→민수: 수류탄 핀 반지, 목걸이"].sort()
+    );
+  });
+
   it("keeps a leftover necklace on its source line when one of two rings moves", () => {
     const prev = {
       ...EMPTY_MEMORY_META,

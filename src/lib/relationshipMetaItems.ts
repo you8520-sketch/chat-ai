@@ -148,62 +148,82 @@ export function expandPossessionTransferRemovals(
     const [fromPerson, toPerson] = arrowParts;
     if (!fromPerson || !toPerson || fromPerson === toPerson) continue;
 
-    const transferred = new Set(parsed.items.map((i) => i.trim()).filter(Boolean));
-    if (transferred.size === 0) continue;
+    const transferred = [...new Set(parsed.items.map((i) => i.trim()).filter(Boolean))];
+    if (transferred.length === 0) continue;
 
-    const matches: Array<{ raw: string; remaining: string[]; person: string }> = [];
+    const holderLines: Array<{ raw: string; person: string; items: string[] }> = [];
     for (const raw of prevEntries) {
       const prev = parsePossessionEntry(raw.trim());
       if (!prev) continue;
-      if (!possessionPersonMatches(possessionCurrentHolder(prev.person), fromPerson, names)) continue;
-
-      const remaining = prev.items.filter((i) => !transferred.has(i.trim()));
-      const removedAny = prev.items.some((i) => transferred.has(i.trim()));
-      if (!removedAny) continue;
-      matches.push({ raw, remaining, person: prev.person });
-    }
-
-    if (matches.length === 0) continue;
-
-    if (matches.length === 1) {
-      const match = matches[0]!;
-      itemsRemove.push(match.raw);
-      if (match.remaining.length > 0) {
-        itemsRevise.push(`${match.person}: ${match.remaining.join(", ")}`);
-      }
-      continue;
-    }
-
-    // Two same-named objects on B: one moved, one remains. Do not pick a source
-    // arrow. Drop both source lines for that name, keep other items on those
-    // lines, and record the leftover hold as a plain owner line.
-    // Three or more same-named lines cannot count leftovers in this schema.
-    if (matches.length !== 2) continue;
-
-    for (const match of matches) {
-      itemsRemove.push(match.raw);
-      if (match.remaining.length > 0) {
-        itemsRevise.push(`${match.person}: ${match.remaining.join(", ")}`);
-      }
-    }
-
-    const leftoverNames = [...transferred];
-    const existingPlain = prevEntries.find((raw) => {
-      const prev = parsePossessionEntry(raw.trim());
-      if (!prev || prev.person.includes("→")) return false;
-      return possessionPersonMatches(prev.person, fromPerson, names);
-    });
-    if (existingPlain) {
-      const prev = parsePossessionEntry(existingPlain.trim());
-      if (prev) {
-        itemsRemove.push(existingPlain);
-        const combined = [...prev.items];
-        for (const name of leftoverNames) {
-          if (!combined.includes(name)) combined.push(name);
-        }
-        itemsRevise.push(`${prev.person}: ${combined.join(", ")}`);
+      if (!possessionPersonMatches(possessionCurrentHolder(prev.person), fromPerson, names)) {
         continue;
       }
+      holderLines.push({ raw, person: prev.person, items: prev.items });
+    }
+    if (holderLines.length === 0) continue;
+
+    const countByName = new Map<string, number>();
+    for (const name of transferred) {
+      countByName.set(
+        name,
+        holderLines.filter((line) => line.items.some((item) => item.trim() === name)).length
+      );
+    }
+
+    // 1 = that object is unique, remove it. 2 = one of two moved, keep one
+    // leftover as a plain hold. 3+ cannot count leftovers in this schema.
+    const consumable = new Set<string>();
+    const leftoverNames: string[] = [];
+    for (const name of transferred) {
+      const count = countByName.get(name) ?? 0;
+      if (count === 1) {
+        consumable.add(name);
+      } else if (count === 2) {
+        consumable.add(name);
+        leftoverNames.push(name);
+      }
+    }
+    if (consumable.size === 0) continue;
+
+    for (const line of holderLines) {
+      const remaining = line.items.filter((item) => !consumable.has(item.trim()));
+      const removedAny = line.items.some((item) => consumable.has(item.trim()));
+      if (!removedAny) continue;
+      itemsRemove.push(line.raw);
+      if (remaining.length > 0) {
+        itemsRevise.push(`${line.person}: ${remaining.join(", ")}`);
+      }
+    }
+
+    if (leftoverNames.length === 0) continue;
+
+    const plain = holderLines.find((line) => !line.person.includes("→"));
+    const leftoverPerson = plain?.person ?? fromPerson;
+    const reviseIdx = itemsRevise.findIndex((row) => {
+      const parsedRow = parsePossessionEntry(row);
+      return Boolean(
+        parsedRow &&
+          !parsedRow.person.includes("→") &&
+          possessionPersonMatches(parsedRow.person, leftoverPerson, names)
+      );
+    });
+    if (reviseIdx >= 0) {
+      const parsedRow = parsePossessionEntry(itemsRevise[reviseIdx]!)!;
+      const combined = [...parsedRow.items];
+      for (const name of leftoverNames) {
+        if (!combined.includes(name)) combined.push(name);
+      }
+      itemsRevise[reviseIdx] = `${parsedRow.person}: ${combined.join(", ")}`;
+      continue;
+    }
+    if (plain && !itemsRemove.includes(plain.raw)) {
+      itemsRemove.push(plain.raw);
+      const combined = [...plain.items];
+      for (const name of leftoverNames) {
+        if (!combined.includes(name)) combined.push(name);
+      }
+      itemsRevise.push(`${plain.person}: ${combined.join(", ")}`);
+      continue;
     }
     itemsRevise.push(`${fromPerson}: ${leftoverNames.join(", ")}`);
   }

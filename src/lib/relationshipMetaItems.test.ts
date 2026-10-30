@@ -53,12 +53,43 @@ describe("relationshipMetaItems", () => {
     assert.deepEqual(patch.itemsRevise, ["레온: 지갑"]);
   });
 
+  it("clears a single line when that ring and necklace both move", () => {
+    const prev = ["레온: 반지, 목걸이, 지갑"];
+    const patch = expandPossessionTransferRemovals(prev, ["레온→민수: 반지, 목걸이"]);
+    assert.deepEqual(patch.itemsRemove, ["레온: 반지, 목걸이, 지갑"]);
+    assert.deepEqual(patch.itemsRevise, ["레온: 지갑"]);
+  });
+
   it("does not drop B's remaining same-named ring when one of two is handed on", () => {
     const prev = ["오스카→제이: 수류탄 핀 반지", "식스→제이: 수류탄 핀 반지"];
     const patch = expandPossessionTransferRemovals(prev, ["제이→민수: 수류탄 핀 반지"]);
     assert.deepEqual(
       [...patch.itemsRemove].sort(),
       ["오스카→제이: 수류탄 핀 반지", "식스→제이: 수류탄 핀 반지"].sort()
+    );
+    assert.deepEqual(patch.itemsRevise, ["제이: 수류탄 핀 반지"]);
+  });
+
+  it("transfers a unique ring and necklace together without inventing leftovers", () => {
+    const prev = ["오스카→제이: 수류탄 핀 반지", "식스→제이: 목걸이"];
+    const patch = expandPossessionTransferRemovals(prev, [
+      "제이→민수: 수류탄 핀 반지, 목걸이",
+    ]);
+    assert.deepEqual(
+      [...patch.itemsRemove].sort(),
+      ["오스카→제이: 수류탄 핀 반지", "식스→제이: 목걸이"].sort()
+    );
+    assert.deepEqual(patch.itemsRevise, []);
+  });
+
+  it("leaves one ring when two rings and one necklace move together", () => {
+    const prev = ["오스카→제이: 수류탄 핀 반지, 목걸이", "식스→제이: 수류탄 핀 반지"];
+    const patch = expandPossessionTransferRemovals(prev, [
+      "제이→민수: 수류탄 핀 반지, 목걸이",
+    ]);
+    assert.deepEqual(
+      [...patch.itemsRemove].sort(),
+      ["오스카→제이: 수류탄 핀 반지, 목걸이", "식스→제이: 수류탄 핀 반지"].sort()
     );
     assert.deepEqual(patch.itemsRevise, ["제이: 수류탄 핀 반지"]);
   });
