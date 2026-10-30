@@ -261,8 +261,9 @@ function userBindingHits(bible: OfficialWorldBible, options: SharedWorldRenderOp
   return [{ field: "projection", excerpt }];
 }
 
-function userBindingGate(bible: OfficialWorldBible, options: SharedWorldRenderOptions, projected: string): OfficialSupplyGateError {
-  const hits = userBindingHits(bible, options, projected);
+export function officialSharedWorldUserBindingError(
+  hits: readonly OfficialWorldProjectionHit[]
+): OfficialSupplyGateError {
   return new OfficialSupplyGateError(
     USER_BINDING_CODE,
     USER_BINDING_MESSAGE,
@@ -275,6 +276,64 @@ function userBindingGate(bible: OfficialWorldBible, options: SharedWorldRenderOp
     undefined,
     { stage: "world_projection", code: USER_BINDING_CODE, hits }
   );
+}
+
+function userBindingGate(bible: OfficialWorldBible, options: SharedWorldRenderOptions, projected: string): OfficialSupplyGateError {
+  return officialSharedWorldUserBindingError(userBindingHits(bible, options, projected));
+}
+
+/**
+ * Core fields that remain in every shrink of the shared projection.
+ * Atlas-only text and fields a shrink can drop are not scanned here.
+ */
+export type OfficialSharedWorldCoreBindingInput = {
+  name: string;
+  genre: string;
+  era: string;
+  techLevel: string;
+  societyForm: string;
+  regions: string;
+  society: Record<string, string>;
+  cultureNames: readonly string[];
+  upcomingChange: string;
+  beneficiaries: string;
+  threatened: string;
+  factions: readonly { name: string; purpose: string }[];
+  powerAcquisition: string;
+  powerLimits: string;
+  powerCosts: string;
+};
+
+export function officialSharedWorldCoreBindingHits(
+  input: OfficialSharedWorldCoreBindingInput
+): OfficialWorldProjectionHit[] {
+  const hits: OfficialWorldProjectionHit[] = [];
+  rememberBinding(hits, "name", officialSharedWorldLibraryName({ name: input.name }));
+  rememberBinding(hits, "genre", input.genre);
+  rememberBinding(hits, "era", stripTrailingParenthetical(input.era));
+  rememberBinding(hits, "techLevel", input.techLevel);
+  rememberBinding(hits, "societyForm", input.societyForm);
+  rememberBinding(hits, "regions", input.regions);
+  for (const key of selectedSocietyKeys(input.society)) {
+    rememberBinding(hits, `society.${key}`, input.society[key] ?? "");
+  }
+  input.cultureNames.forEach((name, index) => {
+    const stripped = stripTrailingParenthetical(name);
+    if (!stripped) return;
+    rememberBinding(hits, `culture[${index}].name`, stripped);
+  });
+  rememberBinding(hits, "situation.upcomingChange", input.upcomingChange);
+  rememberBinding(hits, "situation.beneficiaries", input.beneficiaries);
+  rememberBinding(hits, "situation.threatened", input.threatened);
+  input.factions.forEach((faction, index) => {
+    if (!compactText(faction.name)) return;
+    rememberBinding(hits, `factions[${index}].name`, faction.name);
+    rememberBinding(hits, `factions[${index}].purpose`, faction.purpose);
+  });
+  rememberBinding(hits, "powerSystem.acquisition", input.powerAcquisition);
+  rememberBinding(hits, "powerSystem.limits", input.powerLimits);
+  rememberBinding(hits, "powerSystem.costs", input.powerCosts);
+  return hits;
 }
 
 /**

@@ -179,7 +179,7 @@ export function buildWorldCoreUser(input: WorldBibleInput): string {
       : "- factions 3~6개: 이름·목적·지도층·수단·타 세력과의 관계·일반인의 시선";
   const societyLine =
     scale === "scene"
-      ? `- society: 이 사건에 실제로 쓰이는 RP 영역 ${lim.societyAreas.min}개 이상. 키=영역명·값=설명 문자열(중첩 객체·domains 배열 금지)`
+      ? `- society: 이 사건에 실제로 작용하는 사회·생활의 규칙·관행·환경·제약 ${lim.societyAreas.min}개 이상. 키=영역명·값=세계 안의 객관적 설명. 플레이어의 행동·결정·역할은 쓰지 않는다(중첩 객체·domains 배열 금지)`
       : "- society: RP에 영향을 주는 영역 3개 이상(계급·법·결혼/가족·교육·직업·군사·차별/예절 중)";
   const cultureLine =
     scale === "scene"

@@ -74,6 +74,11 @@ import {
   type OfficialWorldBible,
 } from "@/lib/officialSupply/bible";
 import {
+  officialSharedWorldCoreBindingHits,
+  officialSharedWorldUserBindingError,
+  type OfficialSharedWorldCoreBindingInput,
+} from "@/lib/officialSupply/officialSharedWorld";
+import {
   evaluateAgeAndAdultConsistency,
   evaluateDraftSchema,
   evaluateOfficialTextLength,
@@ -768,6 +773,35 @@ function coerceWorldBible(
   };
 }
 
+function coreBindingInput(core: Record<string, unknown>): OfficialSharedWorldCoreBindingInput {
+  const text = (value: unknown): string => (typeof value === "string" ? value : "");
+  const situation = isRecord(core.situation) ? core.situation : {};
+  const power = isRecord(core.powerSystem) ? core.powerSystem : {};
+  return {
+    name: text(core.name),
+    genre: text(core.genre),
+    era: text(core.era),
+    techLevel: text(core.techLevel),
+    societyForm: text(core.societyForm),
+    regions: text(core.regions),
+    society: normalizeWorldSocietyField(core.society),
+    cultureNames: Array.isArray(core.culture)
+      ? core.culture.map((item) => (isRecord(item) ? text(item.name) : ""))
+      : [],
+    upcomingChange: text(situation.upcomingChange),
+    beneficiaries: text(situation.beneficiaries),
+    threatened: text(situation.threatened),
+    factions: Array.isArray(core.factions)
+      ? core.factions.map((item) =>
+          isRecord(item) ? { name: text(item.name), purpose: text(item.purpose) } : { name: "", purpose: "" }
+        )
+      : [],
+    powerAcquisition: text(power.acquisition),
+    powerLimits: text(power.limits),
+    powerCosts: text(power.costs),
+  };
+}
+
 export async function generateOfficialWorldBible(input: {
   transport: OfficialAuthorTransport;
   world: WorldBibleInput;
@@ -795,6 +829,8 @@ export async function generateOfficialWorldBible(input: {
   const coreCompletion = await complete(buildWorldCoreUser(input.world));
   const coreData = parseAuthorJson(coreCompletion.text, "world_bible");
   if (!isRecord(coreData)) throw new OfficialSupplyGateError("author_shape_invalid", "world_bible core: object required");
+  const coreBindingHits = officialSharedWorldCoreBindingHits(coreBindingInput(coreData));
+  if (coreBindingHits.length > 0) throw officialSharedWorldUserBindingError(coreBindingHits);
   const worldName = requiredString(coreData, "name", "world_bible");
   const centralPremise = requiredString(coreData, "centralPremise", "world_bible");
   const factionNames = (Array.isArray(coreData.factions) ? coreData.factions : [])
